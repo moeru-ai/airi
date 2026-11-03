@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { SparkNotifyEntryState } from '../context-flow-types'
 
+import { Alert } from '@proj-airi/ui'
+
 import { useContextFlowFormatters } from '../composables/use-context-flow-formatters'
 
 defineProps<{ entryId: number, state?: SparkNotifyEntryState }>()
@@ -42,12 +44,9 @@ const { buildSparkCommandPreview } = useContextFlowFormatters()
       <div :class="['text-[11px]', 'text-neutral-500', 'dark:text-neutral-400']">
         eventId: {{ state.eventId }} · sparkId: {{ state.sparkId ?? '-' }}
       </div>
-      <div
-        v-if="state.error"
-        :class="['rounded-md', 'border', 'border-rose-500/40', 'bg-rose-500/10', 'px-2', 'py-1.5', 'text-rose-600', 'dark:text-rose-300']"
-      >
+      <Alert v-if="state.error" tone="danger">
         {{ state.error }}
-      </div>
+      </Alert>
       <div :class="['grid', 'gap-2']">
         <div :class="['text-[11px]', 'uppercase', 'tracking-[0.06em]', 'text-neutral-400', 'dark:text-neutral-500']">
           Output text

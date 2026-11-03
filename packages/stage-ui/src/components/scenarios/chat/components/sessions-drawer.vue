@@ -37,7 +37,7 @@ const { sessionMetas, sessionMessages, activeSessionId } = storeToRefs(chatSessi
 const { activeCardId } = storeToRefs(useAiriCardStore())
 const { userId } = storeToRefs(useAuthStore())
 const { activeModel } = storeToRefs(useConsciousnessStore())
-const { trackChatSessionSelected, trackChatSessionStarted } = useAnalytics()
+const { trackChatSessionSelected, trackChatSessionStarted, trackConversationRenamed } = useAnalytics()
 
 // Creating includes persistence and cloud reconciliation, so prevent a
 // second click from creating an orphan session while the first is pending.
@@ -136,6 +136,16 @@ async function startNewSession() {
   }
 }
 
+async function renameSession(payload: { sessionId: string, title: string }) {
+  if (!await chatSession.renameSession(payload.sessionId, payload.title))
+    return
+
+  trackConversationRenamed({
+    conversation_id: payload.sessionId,
+    source: 'sessions_drawer',
+  })
+}
+
 // Per-open generation counter. The batch loadSession loop checks this before
 // each batch so closing the drawer mid-load aborts cleanly instead of
 // continuing to hydrate sessions the user has navigated away from. Without
@@ -171,6 +181,7 @@ watch(showDialog, async (open) => {
     @new-session="startNewSession"
     @select-session="selectSession"
     @delete-session="chat.deleteSession"
+    @rename-session="renameSession"
   >
     <template #trigger>
       <slot name="trigger" />

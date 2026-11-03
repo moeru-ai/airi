@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { createBackgroundRemovalAdapter } from '@proj-airi/stage-ui/libs/inference/adapters/background-removal'
-import { Button, Checkbox, GhostButton, InputFile } from '@proj-airi/ui'
+import { Alert, Button, Checkbox, GhostButton, InputFile } from '@proj-airi/ui'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
 const adapter = createBackgroundRemovalAdapter()
@@ -201,9 +201,9 @@ function hidePreview() {
     </div>
 
     <!-- Error state -->
-    <div v-else-if="error" rounded-lg bg-red-100 p-4 text-red-700 dark:bg-red-900 dark:text-red-200>
+    <Alert v-else-if="error" tone="danger">
       {{ error }}
-    </div>
+    </Alert>
 
     <!-- Main content -->
     <template v-else>

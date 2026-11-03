@@ -2,8 +2,9 @@
 import type { MicrophonePermission } from '../../../composables/audio/audio-device'
 
 import { errorMessageFrom } from '@moeru/std'
-import { Button, Callout, FieldCombobox } from '@proj-airi/ui'
-import { computed, shallowRef } from 'vue'
+import { isStageCapacitor } from '@proj-airi/stage-shared'
+import { Alert, Button, FieldCombobox } from '@proj-airi/ui'
+import { computed, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import OptionList from './option-list.vue'
@@ -76,6 +77,19 @@ async function allow() {
     requesting.value = false
   }
 }
+
+let requestedOnOpen = false
+// NOTICE:
+// The mobile app requests access once on `prompt`, so the user does not tap Allow on each visit.
+// Android WebView reports `prompt` after the system granted RECORD_AUDIO.
+// Source: Capacitor `BridgeWebChromeClient.onPermissionRequest`.
+// Removal condition: Android WebView reports the system permission state.
+watch(() => props.permission, (permission) => {
+  if (requestedOnOpen || !isStageCapacitor() || permission !== 'prompt' || state.value !== 'ask')
+    return
+  requestedOnOpen = true
+  void allow()
+}, { immediate: true })
 </script>
 
 <template>
@@ -114,19 +128,19 @@ async function allow() {
         </Button>
       </div>
 
-      <Callout
+      <Alert
         v-else-if="state === 'blocked'"
         data-testid="microphone-picker-blocked"
-        theme="orange"
-        :label="t('settings.pages.modules.hearing.sections.section.input-device.blocked')"
+        tone="warning"
+        :title="t('settings.pages.modules.hearing.sections.section.input-device.blocked')"
       >
-        <div :class="['flex flex-col items-start gap-2']">
-          <span>{{ t('settings.pages.modules.hearing.sections.section.input-device.blocked-description') }}</span>
+        {{ t('settings.pages.modules.hearing.sections.section.input-device.blocked-description') }}
+        <template #actions>
           <Button size="sm" :loading="requesting" @click="allow">
             {{ t('settings.pages.modules.hearing.sections.section.input-device.retry') }}
           </Button>
-        </div>
-      </Callout>
+        </template>
+      </Alert>
 
       <div
         v-else

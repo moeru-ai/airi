@@ -16,6 +16,11 @@ type StoredDisplayModel = Omit<DisplayModelFile, 'id' | 'type' | 'name'> & { nam
 const modelPrefix = 'display-model-'
 const uploadPrefix = 'transfer-task-'
 
+/** Earlier releases did not store the id, type, or name. The key and the file name give them. */
+function fromStored(id: string, value: StoredDisplayModel): DisplayModelFile {
+  return { ...value, id, type: 'file', name: value.name ?? value.file.name }
+}
+
 /**
  * Device storage for imported display models and their pending uploads.
  * Models keep the localforage keys that earlier releases wrote, so existing imports stay in place.
@@ -26,13 +31,14 @@ export function createDisplayModelsRepo(store: DisplayModelStore) {
       const models: DisplayModelFile[] = []
       await store.iterate<StoredDisplayModel, void>((value, key) => {
         if (key.startsWith(modelPrefix))
-          models.push({ ...value, id: key, type: 'file', name: value.name ?? value.file.name })
+          models.push(fromStored(key, value))
       })
       return models
     },
 
     async get(id: string) {
-      return await store.getItem<DisplayModelFile>(id) ?? undefined
+      const value = await store.getItem<StoredDisplayModel>(id)
+      return value ? fromStored(id, value) : undefined
     },
 
     async save(model: DisplayModelFile) {

@@ -3,6 +3,8 @@ import type { Component } from 'vue'
 
 import type { ComputerUseView } from './view'
 
+import { Alert } from '@proj-airi/ui'
+
 import AppView from './app-view.vue'
 import CaptureView from './capture-view.vue'
 import HelpView from './help-view.vue'
@@ -71,15 +73,16 @@ const FAMILY_VIEWS: Record<ComputerUseView['kind'], Component> = {
       </span>
     </div>
 
-    <div
-      v-if="props.failure"
-      :class="['flex flex-col gap-1 rounded-[10px] px-2.5 py-2 text-xs', 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300']"
-    >
-      <span :class="['break-words']">{{ props.failure.message }}</span>
+    <Alert v-if="props.failure" tone="danger">
+      <p>{{ props.failure.message }}</p>
       <!-- The detail often repeats the failure. It shows only when it says more. -->
-      <span v-if="props.failure.detail && props.failure.detail !== props.failure.message" :class="['break-words opacity-80']">{{ props.failure.detail }}</span>
-      <code v-if="props.failure.code" :class="['text-[10px] opacity-70']">{{ props.failure.code }}</code>
-    </div>
+      <p v-if="props.failure.detail && props.failure.detail !== props.failure.message" :class="['opacity-80']">
+        {{ props.failure.detail }}
+      </p>
+      <p v-if="props.failure.code">
+        <code>{{ props.failure.code }}</code>
+      </p>
+    </Alert>
 
     <component :is="FAMILY_VIEWS[props.view.kind]" v-if="props.view" :view="props.view" />
   </div>

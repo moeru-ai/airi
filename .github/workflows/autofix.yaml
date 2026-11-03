@@ -6,28 +6,64 @@ permissions:
 on:
   pull_request:
     branches: [main]
+    # This workflow has no required checks, so a filter cannot block a pull request.
+    paths-ignore:
+      - 'docs/**'
+      - '.agents/**'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/*.md'
+      - '**/docs/**/*.md'
+      - '**/README*.md'
+      - '**/AGENTS.md'
+      - '**/CLAUDE.md'
+      - 'DESIGN.md'
+      - 'LICENSE'
   push:
     branches: [crowdin]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   autofix:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      # NOTICE:
-      # Pin Node.js because 26.8.0 reports 26.8.0-alpha.0.0.0.
-      # sharp 0.29.3 rejects this prerelease version during pnpm install.
-      # Source: https://github.com/nodejs/node/blob/v26.8.0/src/node_version.h
-      # Remove this pin when Node.js 26 reports a stable version.
-      - uses: pnpm/setup@v2
         with:
-          runtime: node@26.7.0
-          cache: true
-          install: false
+          # Depth 2 includes the parents of the pull request merge commit.
+          fetch-depth: 2
 
-      - run: pnpm install
-      - run: pnpm prune && pnpm dedupe
-      - run: pnpm run lint:fix
+      - uses: ./.github/actions/setup-workspace
+
+      # An unchanged lockfile gives dedupe no work, and a run can only add unrelated changes.
+      - id: manifests
+        if: github.event_name == 'pull_request'
+        run: |
+          if git diff --quiet HEAD^1 HEAD -- pnpm-lock.yaml pnpm-workspace.yaml '**/package.json'; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.manifests.outputs.changed != 'false'
+        run: pnpm prune && pnpm dedupe
+
+      # The Lint job in ci.yml saves this cache.
+      - name: Restore ESLint cache
+        uses: actions/cache/restore@v5
+        with:
+          path: .eslintcache
+          key: ${{ runner.os }}-eslint-${{ hashFiles('pnpm-lock.yaml', 'eslint.config.ts', 'uno.config.ts', 'eslint-suppressions.json') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-eslint-${{ hashFiles('pnpm-lock.yaml', 'eslint.config.ts', 'uno.config.ts', 'eslint-suppressions.json') }}-
+
+      # NOTICE:
+      # These commands replace `pnpm run lint:fix` to pass --cache-strategy content.
+      # moeru-lint uses the default mtime strategy, and a new checkout changes each mtime.
+      # Source: node_modules/@moeru/eslint-config/src/moeru-lint.js
+      # Remove these commands when moeru-lint accepts a cache strategy.
+      - run: pnpm exec oxlint --no-error-on-unmatched-pattern --fix .
+      - run: pnpm exec eslint --fix --cache --cache-strategy content --concurrency auto .
+
       - run: docker run -v `pwd`:`pwd` -w `pwd` ghcr.io/realm/swiftlint:latest --fix
         working-directory: ./apps/stage-pocket
 

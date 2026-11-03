@@ -16,9 +16,10 @@ import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/el
 import { ModelSettingsPanel } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
-import { Callout, GhostButton } from '@proj-airi/ui'
+import { Alert, GhostButton } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import {
   electronGodotStageApplySceneInput,
@@ -273,6 +274,7 @@ async function syncGodotSceneInput(model: DisplayModel) {
   }
 }
 
+const { t } = useI18n()
 const { trackFeatureUsed } = useAnalytics()
 
 async function handleGodotStageToggle() {
@@ -361,14 +363,14 @@ onUnmounted(() => {
 
 <template>
   <div :class="['relative', 'h-full', 'flex flex-col items-center gap-3']">
-    <Callout
+    <Alert
       v-if="godotStatusMessage"
       :class="['w-full max-w-6xl']"
-      label="Godot Stage"
-      theme="orange"
+      tone="danger"
+      :title="t('tamagotchi.settings.pages.models.godot-stage-error.title')"
     >
-      <p>{{ godotStatusMessage }}</p>
-    </Callout>
+      {{ godotStatusMessage }}
+    </Alert>
 
     <div :class="['relative', 'h-full', 'flex justify-center', 'w-full']">
       <ModelSettingsPanel

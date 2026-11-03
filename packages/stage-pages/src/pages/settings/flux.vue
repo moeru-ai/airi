@@ -9,7 +9,7 @@ import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { AIRI_PRIVACY_URL, AIRI_TERMS_URL } from '@proj-airi/stage-ui/constants/public-links'
 import { isSigningIn } from '@proj-airi/stage-ui/libs/auth'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
-import { Button, SelectTab, Skeleton } from '@proj-airi/ui'
+import { Alert, Button, SelectTab, Skeleton } from '@proj-airi/ui'
 import { until, useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
@@ -401,15 +401,13 @@ async function handleBuy(stripePriceId: string) {
 <template>
   <div flex="~ col gap-6" min-h-full p-4>
     <!-- Message banner -->
-    <div
+    <Alert
       v-if="message"
-      rounded-lg p-3 text-sm
-      :class="message.type === 'success'
-        ? 'bg-green-500/10 text-green-600 dark:text-green-400'
-        : 'bg-red-500/10 text-red-600 dark:text-red-400'"
+      :tone="message.type === 'success' ? 'success' : 'danger'"
+      live="polite"
     >
       {{ message.text }}
-    </div>
+    </Alert>
 
     <!-- Battery Card -->
     <div v-if="isAuthenticated" relative overflow-hidden rounded-2xl bg="neutral-100 dark:neutral-800" p-6 sm:p-8>
@@ -447,8 +445,10 @@ async function handleBuy(stripePriceId: string) {
         <template v-if="packagesLoading">
           <div
             v-for="i in 3" :key="i"
-            flex="~ row sm:col items-center justify-between sm:justify-center gap-4 sm:gap-3"
-            border="2 neutral-200 dark:neutral-800" rounded-2xl bg-white p-6 dark:bg-neutral-900
+            :class="[
+              'flex flex-row sm:flex-col items-center justify-between sm:justify-center gap-4 sm:gap-3',
+              'rounded-2xl p-6 bg-neutral-50 dark:bg-neutral-900',
+            ]"
           >
             <div flex="~ col sm:items-center gap-2" w-full>
               <Skeleton h-4 w-20 rounded-md />
@@ -462,10 +462,10 @@ async function handleBuy(stripePriceId: string) {
           :disabled="loadingPriceId !== null"
           :class="[
             'group relative flex flex-row sm:flex-col items-center justify-between sm:justify-center overflow-hidden text-left sm:text-center gap-4 sm:gap-2',
-            'rounded-2xl border-2 bg-white p-6 transition-all duration-300 ease-out',
-            pkg.recommended ? 'border-primary-400 dark:border-primary-500 shadow-sm' : 'border-neutral-200 dark:border-neutral-800',
-            'dark:bg-neutral-900',
-            'hover:-translate-y-1 hover:border-primary-400 hover:shadow-md dark:hover:border-primary-500 active:translate-y-0 active:scale-[0.99]',
+            'rounded-2xl p-6 transition-all duration-300 ease-out',
+            // The badge marks the recommended package. A tinted fill sets it apart without a border.
+            pkg.recommended ? 'bg-primary-50 dark:bg-primary-900/30 shadow-sm' : 'bg-neutral-50 dark:bg-neutral-900',
+            'hover:-translate-y-1 hover:shadow-md active:translate-y-0 active:scale-[0.99]',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
             loadingPriceId !== null && loadingPriceId !== pkg.stripePriceId ? 'opacity-50 grayscale-50 cursor-not-allowed' : 'cursor-pointer',
           ]"

@@ -6,6 +6,7 @@ import { createPinia, disposePinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { electronAuthCallback, electronAuthComplete, electronAuthGetStatus, electronAuthStatus } from '../../shared/eventa'
+import { i18n } from '../modules/i18n'
 import { useAuthStatusStore } from '../stores/auth-status'
 import { initializeElectronAuthCallbackBridge } from './electron-auth-callback'
 
@@ -60,7 +61,7 @@ describe('electron auth callback bridge', () => {
     boundary.session.mockResolvedValue(null)
     initializeElectronAuthCallbackBridge()
     boundary.context!.emit(electronAuthCallback, tokens)
-    await expect.poll(() => reports[0]?.error).toContain('Could not confirm')
+    await expect.poll(() => reports[0]?.error).toBe(i18n.global.t('stage.status.sign-in-unconfirmed'))
     expect(useAuthStore().isAuthenticated).toBe(false)
   })
 

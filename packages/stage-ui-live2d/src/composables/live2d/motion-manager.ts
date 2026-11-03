@@ -4,10 +4,13 @@ import type { Ref } from 'vue'
 import type { Live2DExpressionsContext } from '../../contexts/expressions'
 import type { Live2DBreathControlState, Live2DMotionControlState } from '../../stores/motion-control'
 import type { BeatSyncController } from './beat-sync'
+import type { Live2DFocusBiasController, Live2DFocusTarget } from './focus-bias'
 import type { Live2DMotionSpringController } from './motion-control-spring'
+import type { Live2DTouchReactionOffsets } from './touch'
 
 import { sampleLive2DBreath } from '../../stores/motion-control'
 import { useLive2DIdleEyeFocus } from './animation'
+import { live2DPoseAngleDegrees } from './focus-bias'
 
 type CubismModel = Cubism4InternalModel['coreModel']
 type CubismEyeBlink = Cubism4InternalModel['eyeBlink']
@@ -702,6 +705,13 @@ export function useMotionUpdatePluginExpression(
   }
 }
 
+/** A focus bias that turns the manual pose toward a target before the spring. */
+export interface Live2DManualControlFocusBias {
+  controller: Live2DFocusBiasController
+  /** The current target, or undefined when nothing holds the focus. */
+  target: () => Live2DFocusTarget | undefined
+}
+
 /**
  * Applies the active manual pose after normal Live2D motion updates.
  *
@@ -711,9 +721,17 @@ export function useMotionUpdatePluginExpression(
 export function useMotionUpdatePluginManualControl(
   control: Ref<Live2DMotionControlState>,
   spring: Live2DMotionSpringController,
+  focusBias?: Live2DManualControlFocusBias,
 ): MotionManagerPlugin {
   return (ctx) => {
-    const output = spring.step(control.value, ctx.timeDelta)
+    let state = control.value
+    if (focusBias) {
+      focusBias.controller.step(state.active ? focusBias.target() : undefined, ctx.timeDelta)
+      if (state.active)
+        state = { ...state, pose: focusBias.controller.apply(state.pose) }
+    }
+
+    const output = spring.step(state, ctx.timeDelta)
     if (!output.active)
       return
 
@@ -723,12 +741,12 @@ export function useMotionUpdatePluginManualControl(
     const remainingEyeOpen = 1 - eyeSquint
     ctx.model.setParameterValueById('ParamEyeLOpen', ctx.model.getParameterValueById('ParamEyeLOpen') * remainingEyeOpen)
     ctx.model.setParameterValueById('ParamEyeROpen', ctx.model.getParameterValueById('ParamEyeROpen') * remainingEyeOpen)
-    ctx.model.setParameterValueById('ParamAngleX', headX * 30)
-    ctx.model.setParameterValueById('ParamAngleY', headY * 30)
-    ctx.model.setParameterValueById('ParamAngleZ', headZ * 30)
-    ctx.model.setParameterValueById('ParamBodyAngleX', bodyX * 10)
-    ctx.model.setParameterValueById('ParamBodyAngleY', bodyY * 10)
-    ctx.model.setParameterValueById('ParamBodyAngleZ', bodyZ * 10)
+    ctx.model.setParameterValueById('ParamAngleX', headX * live2DPoseAngleDegrees.head)
+    ctx.model.setParameterValueById('ParamAngleY', headY * live2DPoseAngleDegrees.head)
+    ctx.model.setParameterValueById('ParamAngleZ', headZ * live2DPoseAngleDegrees.head)
+    ctx.model.setParameterValueById('ParamBodyAngleX', bodyX * live2DPoseAngleDegrees.body)
+    ctx.model.setParameterValueById('ParamBodyAngleY', bodyY * live2DPoseAngleDegrees.body)
+    ctx.model.setParameterValueById('ParamBodyAngleZ', bodyZ * live2DPoseAngleDegrees.body)
     ctx.model.setParameterValueById('ParamMouthForm', mouthForm)
     ctx.model.setParameterValueById('ParamMouthOpenY', mouthOpen)
   }
@@ -796,5 +814,34 @@ export function useMotionUpdatePluginLipSync(
     const blended = lastForcedValue * (1 - blend) + motionValue * blend
 
     ctx.model.setParameterValueById('ParamMouthOpenY', blended)
+  }
+}
+
+/**
+ * Final-phase plugin that adds the touch reaction on top of all other motion.
+ *
+ * It adds to the parameters instead of writing them, so a pat tilts the head
+ * of an idle motion, a MAGIC pose, and a manual pose the same way.
+ */
+export function useMotionUpdatePluginTouchReaction(
+  sample: (nowSeconds: number) => Live2DTouchReactionOffsets,
+): MotionManagerPlugin {
+  return (ctx) => {
+    const offsets = sample(ctx.now)
+    if (offsets.angleX)
+      ctx.model.addParameterValueById('ParamAngleX', offsets.angleX)
+    if (offsets.angleY)
+      ctx.model.addParameterValueById('ParamAngleY', offsets.angleY)
+    if (offsets.angleZ)
+      ctx.model.addParameterValueById('ParamAngleZ', offsets.angleZ)
+    if (offsets.bodyAngleX)
+      ctx.model.addParameterValueById('ParamBodyAngleX', offsets.bodyAngleX)
+    if (offsets.bodyAngleY)
+      ctx.model.addParameterValueById('ParamBodyAngleY', offsets.bodyAngleY)
+    if (offsets.eyeSquint) {
+      const remaining = 1 - offsets.eyeSquint
+      ctx.model.setParameterValueById('ParamEyeLOpen', ctx.model.getParameterValueById('ParamEyeLOpen') * remaining)
+      ctx.model.setParameterValueById('ParamEyeROpen', ctx.model.getParameterValueById('ParamEyeROpen') * remaining)
+    }
   }
 }

@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -74,19 +74,20 @@ describe('static asset paths', () => {
     await mkdir(join(root, 'dist', 'ui'), { recursive: true })
     await writeFile(join(root, 'dist', 'ui', 'index.html'), '<html></html>')
 
-    await expect(resolveStaticAssetFilePath(root, 'dist/ui/index.html')).resolves.toContain('dist/ui/index.html')
+    // The resolver returns the real path. A temporary directory can be under a link, for example `/var` on macOS.
+    await expect(resolveStaticAssetFilePath(root, 'dist/ui/index.html')).resolves.toBe(join(await realpath(root), 'dist', 'ui', 'index.html'))
     await expect(resolveStaticAssetFilePath(root, '../outside.txt')).resolves.toBeUndefined()
   })
 
-  it('rejects symlinked plugin asset files that resolve outside plugin root', async () => {
+  it('rejects plugin assets reached through a directory link outside the plugin root', async () => {
     const root = await mkdtemp(join(tmpdir(), 'airi-plugin-assets-'))
     const outsideRoot = await mkdtemp(join(tmpdir(), 'airi-plugin-assets-outside-'))
     tempRoots.push(root, outsideRoot)
 
     const outsideFile = join(outsideRoot, 'secret.txt')
     await writeFile(outsideFile, 'secret')
-    await symlink(outsideFile, join(root, 'link-name'))
+    await symlink(outsideRoot, join(root, 'link-name'), 'junction')
 
-    await expect(resolveStaticAssetFilePath(root, 'link-name')).resolves.toBeUndefined()
+    await expect(resolveStaticAssetFilePath(root, 'link-name/secret.txt')).resolves.toBeUndefined()
   })
 })

@@ -6,6 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp } from 'vue'
 
 import { useAiriCardStore } from '../stores/modules/airi-card'
+import { useHearingStore } from '../stores/modules/hearing'
+import { useSpeechStore } from '../stores/modules/speech'
 import { useProviderConfigStore } from '../stores/providers/config'
 import { useProviderStore } from '../stores/providers/provider'
 import { useSettingsNeedsAttention } from './use-settings-needs-attention'
@@ -75,6 +77,29 @@ describe('useSettingsNeedsAttention', () => {
   })
 
   afterEach(() => vi.unstubAllGlobals())
+
+  // https://github.com/moeru-ai/airi/issues/3153
+  // ROOT CAUSE:
+  // Saved providers counted as active. Disabled modules now leave the provider usage list without deleting shared settings.
+  it('issue #3153: removes disabled module warnings while retaining another module that uses the same provider', async () => {
+    const cards = useAiriCardStore()
+    await cards.initialize()
+    const provider = 'removed-provider'
+    const characterId = await cards.addCard(cardWithSpeech(provider), 'import')
+    const hearing = useHearingStore()
+    hearing.activeTranscriptionProvider = provider
+    await waitForProviderRegistry()
+    const { moduleSelections } = useSettingsNeedsAttention()
+    expect(moduleSelections.value.some(selection => selection.key === 'hearing')).toBe(true)
+
+    hearing.enabled = false
+    expect(moduleSelections.value.some(selection => selection.key === 'hearing')).toBe(false)
+    expect(moduleSelections.value.some(selection => selection.key === `${characterId}:speech`)).toBe(true)
+    expect(hearing.activeTranscriptionProvider).toBe(provider)
+
+    useSpeechStore().enabled = false
+    expect(moduleSelections.value.some(selection => selection.key === `${characterId}:speech`)).toBe(false)
+  })
 
   // ROOT CAUSE:
   //

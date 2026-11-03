@@ -100,8 +100,8 @@ about:
       stable: 穩定版
       alpha: Alpha 測試版
       beta: Beta 測試版
-      nightly: 每夜建置
       canary: 搶先體驗版
+      nightly: 每夜建置
     status:
       downloading: 正在下載更新...
       error-prefix: 錯誤

@@ -2,7 +2,7 @@ import type { ModelAsset, ModelAssetProgress, ModelAssetStorage } from './index'
 
 import { describe, expect, it, vi } from 'vitest'
 
-import { ModelAssetRepository } from './index'
+import { ModelAssetDownloadError, ModelAssetRepository } from './index'
 
 const remote: ModelAsset = {
   id: 'speech',
@@ -58,6 +58,28 @@ describe('model asset repository', () => {
     await expect(repository.ensureAvailable('speech')).rejects.toThrow('not committed')
     expect(repository.list()[0]?.state).toBe('error')
     expect(await repository.inspect('speech')).toMatchObject({ state: 'error' })
+  })
+
+  it('reports the reason of a failed download in the status', async () => {
+    const { storage } = createStorage()
+    storage.install = async () => {
+      throw new ModelAssetDownloadError('network', 'https://example.test/speech/v1/data', { cause: new TypeError('fetch failed') })
+    }
+    const repository = new ModelAssetRepository([remote], storage)
+
+    await expect(repository.ensureAvailable('speech')).rejects.toThrow('Could not connect to example.test: fetch failed')
+    expect(repository.list()[0]?.error).toMatchObject({ reason: 'network', host: 'example.test' })
+  })
+
+  it('reports a failure without a download reason as unknown', async () => {
+    const { storage } = createStorage()
+    storage.install = async () => {
+      throw new Error('ENOSPC: no space left on device')
+    }
+    const repository = new ModelAssetRepository([remote], storage)
+
+    await expect(repository.ensureAvailable('speech')).rejects.toThrow('ENOSPC')
+    expect(repository.list()[0]?.error).toEqual({ reason: 'unknown', message: 'ENOSPC: no space left on device' })
   })
 
   it('removes only a remote model version', async () => {

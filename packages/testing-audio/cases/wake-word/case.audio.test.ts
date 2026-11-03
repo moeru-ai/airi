@@ -1,5 +1,5 @@
 import { describe, expect, it } from '../../src'
-import { configureOnboarding, configureWakeWord } from '../shared/configurations'
+import { audioCaseLive2D, configureLive2D, configureOnboarding, configureWakeWord } from '../shared/configurations'
 import { readSessionCharacterId } from '../shared/interactions'
 
 const targetCardId = 'testing-audio-wake-word'
@@ -12,6 +12,7 @@ describe('wake word detection', () => {
     pipelines: ['kws'],
     preflight: [
       configureOnboarding(() => ({ completed: true })),
+      configureLive2D(() => audioCaseLive2D),
       configureWakeWord(() => [{ targetCardId, text: 'Light up', pronunciations: [['L', 'AY1', 'T', 'AH1', 'P']] }]),
     ],
   }, async ({ audio }) => {

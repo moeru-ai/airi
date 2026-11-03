@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useWakeWordsStore } from '@proj-airi/stage-ui/stores/wake-words'
-import { Callout } from '@proj-airi/ui'
+import { Alert } from '@proj-airi/ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
@@ -12,20 +12,17 @@ const unresolved = computed(() => wakeWords.catalog.conflicts.filter(conflict =>
 </script>
 
 <template>
-  <Callout
+  <Alert
     v-if="unresolved"
     data-testid="wake-word-conflict-alert"
-    theme="orange"
-    :label="t('settings.pages.card.wake-word-conflicts.title', { count: unresolved }, unresolved)"
+    tone="warning"
+    :title="t('settings.pages.card.wake-word-conflicts.title', { count: unresolved }, unresolved)"
   >
-    <div :class="['flex flex-col items-start gap-2']">
-      <span>{{ t('settings.pages.card.wake-word-conflicts.description') }}</span>
-      <RouterLink
-        to="/settings/modules/hearing/wake-words"
-        :class="['font-medium text-primary-600 underline underline-offset-2 dark:text-primary-300']"
-      >
+    <p>{{ t('settings.pages.card.wake-word-conflicts.description') }}</p>
+    <p>
+      <RouterLink to="/settings/modules/hearing/wake-words">
         {{ t('settings.pages.card.wake-word-conflicts.action') }}
       </RouterLink>
-    </div>
-  </Callout>
+    </p>
+  </Alert>
 </template>

@@ -6,7 +6,7 @@ import { errorMessageFrom } from '@moeru/std'
 import { ProcessingMeter } from '@proj-airi/stage-ui/components'
 import { VISION_WORKLOADS } from '@proj-airi/stage-ui/composables'
 import { useVisionActivityStore, useVisionOrchestratorStore, useVisionProcessingStore, useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
-import { Button, FieldCheckbox, FieldCombobox, FieldRange, SelectTab } from '@proj-airi/ui'
+import { Alert, Button, FieldCheckbox, FieldCombobox, FieldRange, SelectTab } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, ref } from 'vue'
 
@@ -594,16 +594,9 @@ onBeforeUnmount(() => {
               </div>
             </div>
 
-            <div
-              v-if="errorMessage"
-              :class="[
-                'rounded-lg', 'bg-amber-100', 'p-3',
-                'text-sm', 'text-amber-700',
-                'dark:bg-amber-900/30', 'dark:text-amber-300',
-              ]"
-            >
+            <Alert v-if="errorMessage" tone="danger">
               {{ errorMessage }}
-            </div>
+            </Alert>
           </div>
         </div>
 

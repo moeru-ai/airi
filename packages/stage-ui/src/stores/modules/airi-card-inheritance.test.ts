@@ -181,6 +181,26 @@ describe('card inheritance with real module stores', () => {
     expect(consciousness.activeModel).toBe('')
   })
 
+  // https://github.com/moeru-ai/airi/issues/3154
+  // ROOT CAUSE: Deleting a provider cleared only the defaults and the active card.
+  // An inactive card restored the deleted provider when it became active.
+  it('clears a deleted provider from inactive cards (Issue #3154)', async () => {
+    const cards = useAiriCardStore()
+    await cards.initialize()
+    const uploaded = card('removed-provider', 'card-model')
+    uploaded.extensions.airi.modules.speech = { provider: 'removed-provider', model: 'tts-1', voice_id: 'alloy' }
+    const id = await cards.addCard(uploaded, 'import')
+    expect(cards.activeCardId).not.toBe(id)
+
+    await cards.clearProviderSelections('removed-provider')
+
+    expect(cards.getCard(id)?.extensions.airi.modules.consciousness).toEqual({ provider: '', model: '' })
+    expect(cards.getCard(id)?.extensions.airi.modules.speech).toEqual({ provider: 'speech-noop', model: '', voice_id: '' })
+    await cards.activateCard(id)
+    expect(useConsciousnessStore().activeProvider).not.toBe('removed-provider')
+    expect(useSpeechStore().activeSpeechProvider).toBe('speech-noop')
+  })
+
   it('does not inherit a voice from a different speech model', async () => {
     const speech = useSpeechStore()
     speech.activeSpeechProvider = 'speech-provider'

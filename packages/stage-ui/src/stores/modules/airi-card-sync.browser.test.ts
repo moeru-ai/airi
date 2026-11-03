@@ -222,6 +222,29 @@ describe('card synchronization across windows', () => {
     return { leader, follower, onError }
   }
 
+  // `completeSignIn` replaces the token first. `userId` still names the previous account until the session request answers.
+  it('sends nothing while a new sign-in has no verified user', async () => {
+    const { leader, onError } = await createWindows()
+    signIn(leader.auth, accountId())
+    await expect.poll(() => server.requests.list).toBeGreaterThan(0)
+    await leader.cards.synchronizeCards()
+    stubServerFetch((input, init) => {
+      const url = input instanceof Request ? input.url : String(input)
+      return url.includes('/get-session') ? new Promise<Response>(() => {}) : server.fetchCards(input, init)
+    })
+    const pushesBefore = server.requests.push
+
+    // The session answer never arrives, so the runtime rejects this call during teardown.
+    void leader.auth.completeSignIn({ accessToken: 'token-b', refreshToken: 'refresh-b', idToken: 'id-b', clientId: 'client', expiresIn: 3600 }).catch(() => {})
+    await expect.poll(() => leader.auth.isSessionVerified).toBe(false)
+    const cardId = await leader.cards.addCard({ name: 'Luna', version: '1.0.0', description: 'Calm' }, 'scratch')
+    await leader.cards.synchronizeCards()
+
+    expect(server.requests.push).toBe(pushesBefore)
+    expect(server.documents.has(cardId)).toBe(false)
+    expect(onError).not.toHaveBeenCalled()
+  })
+
   it('sends a card that a follower added to the server', async () => {
     const { leader, follower, onError } = await createWindows()
     signIn(leader.auth, accountId())
@@ -231,6 +254,29 @@ describe('card synchronization across windows', () => {
 
     await expect.poll(() => server.documents.get(cardId)?.fields.get('/name')?.value, { timeout: 8000 }).toBe('Luna')
     expect(onError).not.toHaveBeenCalled()
+  })
+
+  // Found in the review of https://github.com/moeru-ai/airi/pull/3287
+  // ROOT CAUSE:
+  //
+  // Only `initialize` migrated the stored ReLU card. A sync run that started
+  // before `initialize` compared it with the Iru built-in card and sent `ReLU`
+  // as a name edit.
+  //
+  // We fixed this by migrating the card before each sync run.
+  it('sends no name for a stored ReLU card when sync runs before initialize', async () => {
+    const leaderRuntime = createSyncedPiniaPlugin({ namespace: `card-sync-${crypto.randomUUID()}`, leadership: 'leader-only', onError: vi.fn() })
+    const leader = createContext(leaderRuntime)
+    leaders.push(leader.cards)
+    await expect.poll(() => leaderRuntime.isLeader()).toBe(true)
+    leader.cards.cards.set('default', { name: 'ReLU', version: '1.0.0', description: 'My own story', extensions: leader.cards.builtInCard.extensions })
+
+    signIn(leader.auth, accountId())
+    await leader.cards.synchronizeCards()
+
+    expect(leader.cards.cards.get('default')).toMatchObject({ name: 'Iru', description: 'My own story' })
+    expect(server.documents.get('default')?.fields.has('/name')).not.toBe(true)
+    expect(server.documents.get('default')?.fields.get('/description')?.value).toBe('My own story')
   })
 
   // https://github.com/moeru-ai/airi/issues/3124

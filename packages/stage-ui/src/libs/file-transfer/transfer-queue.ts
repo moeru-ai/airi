@@ -11,6 +11,8 @@ export interface TransferTask<TPayload = unknown> {
   payload: TPayload
   status: TransferTaskStatus
   error?: string
+  /** False when another attempt cannot succeed. `retryFailed` skips the task, and an explicit `retry` still runs it. */
+  retryable?: boolean
 }
 
 export interface TransferTaskStorage {
@@ -32,7 +34,7 @@ export type TransferTaskHandler = (task: TransferTask, signal: AbortSignal) => P
  * - `activate` is called with the current account. `deactivate` is called on logout or account switch.
  *
  * Returns:
- * - Task state through `onChange`. A handler that rejects marks the task failed until `retry`.
+ * - Task state through `onChange`. A handler that rejects marks the task failed until `retry` or `retryFailed`.
  *   Results of tasks that finish after `deactivate` are discarded.
  */
 export class TransferQueue {
@@ -46,6 +48,7 @@ export class TransferQueue {
     private readonly handlers: Record<string, TransferTaskHandler>,
     private readonly storage: TransferTaskStorage,
     private readonly onChange: (task: TransferTask, removed: boolean) => void = () => {},
+    private readonly isRetryable: (error: unknown) => boolean = () => true,
   ) {}
 
   /** Loads persisted tasks of the account and starts them. */
@@ -78,7 +81,11 @@ export class TransferQueue {
     if (!this.ownerId)
       throw new Error('The transfer queue has no active account')
     const task: TransferTask = { ...input, ownerId: this.ownerId, status: 'queued' }
+    const generation = this.generation
     await this.storage.save(task)
+    // The account changed during the write. The task stays stored for its own account.
+    if (generation !== this.generation)
+      return
     this.track(task)
     void this.drain()
   }
@@ -96,9 +103,17 @@ export class TransferQueue {
     const task = this.tasks.get(id)
     if (!task || task.status !== 'failed')
       return
-    this.track({ ...task, status: 'queued', error: undefined })
+    this.track({ ...task, status: 'queued', error: undefined, retryable: undefined })
     await this.storage.save(this.tasks.get(id)!)
     void this.drain()
+  }
+
+  /** Runs the failed tasks again, except those that another attempt cannot complete. */
+  async retryFailed() {
+    for (const task of Array.from(this.tasks.values())) {
+      if (task.status === 'failed' && task.retryable !== false)
+        await this.retry(task.id)
+    }
   }
 
   private track(task: TransferTask) {
@@ -140,7 +155,7 @@ export class TransferQueue {
     catch (error) {
       if (generation !== this.generation || controller.signal.aborted)
         return
-      const failed: TransferTask = { ...task, status: 'failed', error: errorMessageFrom(error) ?? 'Transfer failed' }
+      const failed: TransferTask = { ...task, status: 'failed', error: errorMessageFrom(error) ?? 'Transfer failed', retryable: this.isRetryable(error) }
       this.track(failed)
       await this.storage.save(failed)
     }

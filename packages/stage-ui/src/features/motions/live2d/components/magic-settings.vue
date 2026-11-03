@@ -10,7 +10,13 @@ import { live2dMotionMagicProfiles } from '../profiles'
 import { useLive2DMotionMagicSettings } from '../settings'
 
 const { t } = useI18n()
-const { forceViewTarget, profileId, skipMouthOpen } = storeToRefs(useLive2DMotionMagicSettings())
+const {
+  followSpeech,
+  forceViewTarget,
+  idleProfileId,
+  skipMouthOpen,
+  speakingProfileId,
+} = storeToRefs(useLive2DMotionMagicSettings())
 
 const profileCopyKeys = {
   'idle-calm': {
@@ -36,9 +42,23 @@ const profileOptions = computed(() => Object.values(live2dMotionMagicProfiles).m
 <template>
   <div :class="['grid gap-3']">
     <FieldSelect
-      v-model="profileId"
-      :label="t('settings.live2d.animation.motion-driver.magic.profile.title')"
-      :description="t('settings.live2d.animation.motion-driver.magic.profile.description')"
+      v-model="idleProfileId"
+      :label="t('settings.live2d.animation.motion-driver.magic.idle-profile.title')"
+      :description="t('settings.live2d.animation.motion-driver.magic.idle-profile.description')"
+      :options="profileOptions"
+      layout="horizontal"
+    />
+    <FieldCheckbox
+      v-model="followSpeech"
+      :label="t('settings.live2d.animation.motion-driver.magic.follow-speech.title')"
+      :description="t('settings.live2d.animation.motion-driver.magic.follow-speech.description')"
+      placement="right"
+    />
+    <FieldSelect
+      v-if="followSpeech"
+      v-model="speakingProfileId"
+      :label="t('settings.live2d.animation.motion-driver.magic.speaking-profile.title')"
+      :description="t('settings.live2d.animation.motion-driver.magic.speaking-profile.description')"
       :options="profileOptions"
       layout="horizontal"
     />

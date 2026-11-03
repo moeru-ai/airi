@@ -121,6 +121,9 @@ onMounted(() => {
 
   const created = new Sprite(Texture.from(advancer.canvasElement()))
   created.visible = false
+  // Above the model, which keeps the default 0 and joins the stage when it loads,
+  // after the bubble. The VRM bubble is in front of the character by its render order.
+  created.zIndex = 1
   sprite.value = created
   props.app.stage.addChild(created)
 

@@ -4,6 +4,7 @@ export type {
   FitOptions as ArHmmFitOptions,
   ArHmmModel,
 } from './ar-hmm'
+export * from './crossfade'
 export * from './fit'
 export * from './types'
 export { createVarModel } from './var'

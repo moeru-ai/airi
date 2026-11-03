@@ -5,6 +5,7 @@ import { computed, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { drawWaveformBars, MESSAGE_WAVEFORM_BARS, waveformPeaks, waveformSlots } from '../../../../libs/voice/waveform'
+import { formatClockDuration } from '../../../../utils/clock-duration'
 
 const props = withDefaults(defineProps<{
   /** The recording. A Blob gets an object URL for its lifetime. A string is used as the URL, for example a data URL. */
@@ -140,11 +141,6 @@ function seekByKey(event: KeyboardEvent) {
   event.preventDefault()
   seek(targets[event.key])
 }
-
-function formatTime(seconds: number) {
-  const whole = Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds)) : 0
-  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`
-}
 </script>
 
 <template>
@@ -185,7 +181,7 @@ function formatTime(seconds: number) {
       aria-valuemin="0"
       :aria-valuemax="Math.round(duration)"
       :aria-valuenow="Math.round(progress * duration)"
-      :aria-valuetext="`${formatTime(progress * duration)} / ${formatTime(duration)}`"
+      :aria-valuetext="`${formatClockDuration(progress * duration)} / ${formatClockDuration(duration)}`"
       :style="{ width: waveformWidth }"
       :class="[
         'h-5 min-w-0 shrink cursor-pointer touch-none select-none rounded outline-none',

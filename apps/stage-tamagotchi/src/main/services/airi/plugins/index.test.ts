@@ -258,7 +258,7 @@ async function linkWorkspacePackageForPlugin(pluginDir: string, packageName: '@p
   const packageDirName = packageName.replace('@proj-airi/', '')
   const packageDir = join(pluginDir, 'node_modules', '@proj-airi', packageDirName)
   await mkdir(packageDir, { recursive: true })
-  await symlink(resolve(repoRoot, 'packages', packageDirName, 'src'), join(packageDir, 'src'), 'dir')
+  await symlink(resolve(repoRoot, 'packages', packageDirName, 'src'), join(packageDir, 'src'), 'junction')
 
   const exports = packageName === '@proj-airi/plugin-sdk'
     ? {

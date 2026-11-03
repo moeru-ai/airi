@@ -9,7 +9,7 @@ import type { ChatSessionMeta, ChatSessionRecord, ChatSessionsExport, ChatSessio
 import { errorMessageFrom } from '@moeru/std'
 import { cloneDeep } from 'es-toolkit'
 import { nanoid } from 'nanoid'
-import { defineStore, storeToRefs } from 'pinia'
+import { defineStore, getActivePinia, storeToRefs } from 'pinia'
 import { computed, ref, toRaw, watch } from 'vue'
 
 import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
@@ -65,6 +65,9 @@ const useChatSessionSelectionStore = defineStore('chat-session-selection', () =>
 })
 
 export const useChatSessionStore = defineStore('chat-session', () => {
+  // A watcher or an await runs outside the setup of this store. The active
+  // Pinia can then be another one, so keep the Pinia that owns this store.
+  const pinia = getActivePinia()
   const { userId, token: authToken } = storeToRefs(useAuthStore())
   const cards = useAiriCardStore()
   const { activeCardId } = storeToRefs(cards)
@@ -257,6 +260,35 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         const snapshot = cloneDeep(index.value)
         await chatSessionsRepo.saveIndex(snapshot)
       }
+    })
+  }
+
+  /** Persists metadata without loading message state into memory. */
+  async function persistSessionMeta(sessionId: string) {
+    await enqueuePersist(async () => {
+      const meta = sessionMetas.value[sessionId]
+      if (!meta)
+        return
+
+      const updatedMeta = {
+        ...cloneDeep(meta),
+        updatedAt: Date.now(),
+      }
+      sessionMetas.value[sessionId] = updatedMeta
+      const characterIndex = index.value?.characters[meta.characterId]
+      if (characterIndex)
+        characterIndex.sessions[sessionId] = updatedMeta
+
+      const stored = await chatSessionsRepo.getSession(sessionId)
+      if (stored) {
+        await chatSessionsRepo.saveSession(sessionId, {
+          meta: updatedMeta,
+          messages: stored.messages,
+        })
+      }
+
+      if (index.value)
+        await chatSessionsRepo.saveIndex(cloneDeep(index.value))
     })
   }
 
@@ -580,6 +612,51 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     return sessionId
   }
 
+  /** Updates a session title locally and mirrors it to the cloud when mapped. */
+  async function renameSession(sessionId: string, title: string): Promise<boolean> {
+    const meta = sessionMetas.value[sessionId]
+    if (!meta)
+      return false
+
+    const normalizedTitle = title.trim()
+    sessionMetas.value[sessionId] = {
+      ...meta,
+      title: normalizedTitle || undefined,
+      cloudTitlePending: normalizedTitle,
+    }
+    await persistSessionMeta(sessionId)
+
+    void syncPendingSessionTitle(sessionId)
+
+    return true
+  }
+
+  async function syncPendingSessionTitle(sessionId: string): Promise<boolean> {
+    const meta = sessionMetas.value[sessionId]
+    const title = meta?.cloudTitlePending
+    if (!meta?.cloudChatId || title === undefined)
+      return false
+
+    try {
+      const remote = await getCloudMapper().updateChat(meta.cloudChatId, { title })
+      const latest = sessionMetas.value[sessionId]
+      if (!latest || latest.cloudTitlePending !== title)
+        return true
+
+      sessionMetas.value[sessionId] = {
+        ...latest,
+        title: remote.title ?? undefined,
+        cloudTitlePending: undefined,
+      }
+      await persistSessionMeta(sessionId)
+      return true
+    }
+    catch (error) {
+      console.warn('[chat-sync] Failed to update conversation title:', errorMessageFrom(error))
+      return false
+    }
+  }
+
   /**
    * Permanently removes a session locally and tombstones its cloud identity.
    *
@@ -736,7 +813,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       activeSessionId.value = characterIndex.activeSessionId
       // Use the public action so follower hydration is routed to the elected
       // leader instead of becoming a stale full-state proposal.
-      await useChatSessionStore().loadSession(characterIndex.activeSessionId)
+      await useChatSessionStore(pinia).loadSession(characterIndex.activeSessionId)
       return characterIndex.activeSessionId
     })()
     try {
@@ -895,7 +972,31 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         if (!meta)
           continue
         sessionMetas.value[action.sessionId] = { ...meta, cloudChatId: action.cloudChatId }
-        void persistSession(action.sessionId)
+        void persistSessionMeta(action.sessionId)
+      }
+
+      // A title change is not delivered by the chat message WebSocket. Apply
+      // the remote title during reconciliation unless this session has a
+      // locally persisted title waiting for delivery.
+      const remoteById = new Map(remoteChats.map(chat => [chat.id, chat]))
+      const titleSyncSessions: string[] = []
+      for (const meta of Object.values(sessionMetas.value)) {
+        if (meta.userId !== currentUserId || staysLocal(meta))
+          continue
+        const remote = remoteById.get(meta.cloudChatId ?? meta.sessionId)
+        if (!remote)
+          continue
+        if (meta.cloudTitlePending !== undefined) {
+          if (meta.cloudChatId)
+            titleSyncSessions.push(meta.sessionId)
+          continue
+        }
+
+        const remoteTitle = remote.title ?? undefined
+        if (meta.title === remoteTitle)
+          continue
+        sessionMetas.value[meta.sessionId] = { ...meta, title: remoteTitle }
+        await persistSessionMeta(meta.sessionId)
       }
 
       // reassign: move a session to the character of its remote chat.
@@ -948,8 +1049,20 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         const meta = sessionMetas.value[result.sessionId]
         if (!meta)
           continue
-        sessionMetas.value[result.sessionId] = { ...meta, cloudChatId: result.cloudChatId }
-        void persistSession(result.sessionId)
+        const hasPendingTitle = meta.cloudTitlePending !== undefined
+        const titleWasCreated = hasPendingTitle && (
+          result.remoteTitle === meta.cloudTitlePending
+          || (meta.cloudTitlePending === '' && result.remoteTitle === null)
+        )
+        const createdMeta: ChatSessionMeta = {
+          ...meta,
+          cloudChatId: result.cloudChatId,
+          ...(titleWasCreated ? { cloudTitlePending: undefined } : {}),
+        }
+        sessionMetas.value[result.sessionId] = createdMeta
+        await persistSessionMeta(result.sessionId)
+        if (hasPendingTitle && !titleWasCreated)
+          titleSyncSessions.push(result.sessionId)
 
         // Enqueue every pre-existing local syncable message into the
         // outbox so anonymous-era messages and turns typed during the
@@ -1019,6 +1132,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       if (isStaleEpoch())
         return
       await persistIndex()
+
+      // PATCH failures stay represented by `cloudTitlePending`, so a later
+      // reconcile retries them after a reconnect or another sync trigger.
+      await Promise.all([...new Set(titleSyncSessions)].map(sessionId => syncPendingSessionTitle(sessionId)))
 
       // After reconcile, fan out a catch-up pull for every session that has
       // a cloudChatId now (claimed + created + previously-mapped). This
@@ -1428,7 +1545,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     }
     initializing.value = true
     initializePromise = (async () => {
-      const sessionId = await useChatSessionStore().ensureCurrentSession()
+      const sessionId = await useChatSessionStore(pinia).ensureCurrentSession()
       if (sessionId)
         activeSessionId.value = sessionId
       else
@@ -1496,7 +1613,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     activeSessionId.value = sessionId
 
     if (ready.value)
-      await useChatSessionStore().loadSession(sessionId)
+      await useChatSessionStore(pinia).loadSession(sessionId)
     else if (!hasKnownSession(sessionId))
       ensureSession(sessionId)
   }
@@ -1793,7 +1910,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       return
 
     try {
-      const sessionId = await useChatSessionStore().ensureCurrentSession()
+      const sessionId = await useChatSessionStore(pinia).ensureCurrentSession()
       if (sessionId)
         activeSessionId.value = sessionId
     }
@@ -1806,7 +1923,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   // the leader so followers never write synchronized chat state directly.
   watch(userId, async () => {
     try {
-      await useChatSessionStore().activateCurrentUser()
+      await useChatSessionStore(pinia).activateCurrentUser()
     }
     catch (error) {
       console.error('[chat-session] Failed to activate the current user:', error)
@@ -1858,6 +1975,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     deleteHiddenSession,
     loadSession,
     refreshSession,
+    renameSession,
     deleteSession,
     activateCurrentUser,
     ensureCurrentSession,
@@ -1889,6 +2007,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       'loadSession',
       'pushMessageToCloud',
       'refreshSession',
+      'renameSession',
       'resetAllSessions',
       'setSessionTask',
       'deleteHiddenSession',

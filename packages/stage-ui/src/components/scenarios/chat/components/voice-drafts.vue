@@ -2,7 +2,8 @@
 import type { VoiceDraft } from '../../../../services/speech/bus'
 
 import { joinTranscriptSegments } from '@proj-airi/provider-inference'
-import { BasicButton, BasicTextarea, Button, GhostButton } from '@proj-airi/ui'
+import { AnimatedContent, BasicButton, BasicTextarea, GhostButton } from '@proj-airi/ui'
+import { HoverCardContent, HoverCardPortal, HoverCardRoot, HoverCardTrigger } from 'reka-ui'
 import { computed, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -14,21 +15,17 @@ import { useAiriCardStore } from '../../../../stores/modules/airi-card'
 import { useVoiceControlsStore } from '../../../../stores/voice-controls'
 import { createBlurFadeAnimator } from '../../../widgets/poppin-text/animators'
 
+/**
+ * Fills its host, such as the desktop inlay card, and leaves the surface to the host.
+ */
 const props = withDefaults(defineProps<{
-  /**
-   * Layout and surface treatment.
-   * `card` draws its own panel with labeled actions.
-   * `composer` fills its host, such as the desktop inlay card, and leaves the surface to the host.
-   * @default 'card'
-   */
-  variant?: 'card' | 'composer'
   /**
    * Shows the listening state while the host captures speech that has no transcript text yet.
    * A host that opens at the start of a capture, such as the desktop inlay for Push to Talk, uses it.
    * @default false
    */
   showSilentSpeech?: boolean
-}>(), { variant: 'card', showSilentSpeech: false })
+}>(), { showSilentSpeech: false })
 
 const emit = defineEmits<{
   /** Whether a draft or live speech is shown. A host window can hide itself when nothing is shown. */
@@ -158,6 +155,19 @@ watch(
   { flush: 'post' },
 )
 
+/**
+ * Problems that the host reports. None of them blocks the draft, so the card keeps them behind a small count.
+ * The host keeps each problem until the next voice action clears it.
+ */
+const issues = computed(() => {
+  const { microphone, wakeWords } = controls.snapshot
+  return [
+    { key: 'voice', label: t('stage.chat.voice-draft.issues.voice'), message: controls.error },
+    { key: 'microphone', label: t('stage.chat.voice-draft.issues.microphone'), message: microphone?.error },
+    { key: 'wake-words', label: t('stage.chat.voice-draft.issues.wake-words'), message: wakeWords?.error },
+  ].filter((issue): issue is { key: string, label: string, message: string } => !!issue.message)
+})
+
 const canSend = computed(() => !sending.value && !liveInput.value && !!text.value.trim() && controls.snapshot.connected)
 
 async function send() {
@@ -196,7 +206,7 @@ function handleKeydown(event: KeyboardEvent) {
 <template>
   <!-- The whole surface drags its host window. Text editing and buttons opt out. -->
   <section
-    v-if="visible && props.variant === 'composer'"
+    v-if="visible"
     :aria-label="t('stage.chat.voice-draft.title')"
     :class="['drag-region h-full min-h-0 w-full flex flex-col']"
   >
@@ -273,12 +283,57 @@ function handleKeydown(event: KeyboardEvent) {
         @keydown="handleKeydown"
       />
     </div>
-    <p v-if="controls.error" role="alert" :class="['px-4 text-sm text-red-600 dark:text-red-400']">
-      {{ controls.error }}
-    </p>
     <footer :class="['h-11 flex shrink-0 items-center gap-2 px-3']">
       <div :class="['min-w-0 flex flex-1 items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400']">
-        <!-- Composer variant only. The host puts content at the start of the action row, such as a shortcut hint. -->
+        <!-- The list opens only on hover or focus, so a screen reader reads each new problem from this region. -->
+        <span role="status" :class="['sr-only']">
+          <span v-for="issue in issues" :key="issue.key">{{ issue.label }}: {{ issue.message }}. </span>
+        </span>
+        <!-- Hover or focus shows the problems. The count stays small, so the draft and the hint keep their room. -->
+        <HoverCardRoot v-if="issues.length" :open-delay="120" :close-delay="160">
+          <HoverCardTrigger
+            as="button"
+            type="button"
+            :aria-label="t('stage.chat.voice-draft.issues.show', issues.length)"
+            :class="[
+              'h-6 flex shrink-0 items-center gap-1 rounded-full px-2 text-xs font-medium tabular-nums outline-none',
+              'bg-amber-500/12 text-amber-700 dark:bg-amber-400/12 dark:text-amber-200',
+              'transition-colors duration-200 ease-in-out motion-reduce:transition-none',
+              'hover:bg-amber-500/20 dark:hover:bg-amber-400/20',
+              'focus-visible:outline-2 focus-visible:outline-amber-400 focus-visible:outline-offset-1',
+              '[-webkit-app-region:no-drag]',
+            ]"
+          >
+            <span aria-hidden="true" :class="['i-mingcute:warning-fill size-3.5 text-amber-500 dark:text-amber-400']" />
+            {{ issues.length }}
+          </HoverCardTrigger>
+          <HoverCardPortal>
+            <HoverCardContent
+              as-child
+              side="top"
+              align="start"
+              :side-offset="8"
+              :collision-padding="8"
+              :class="[
+                'z-[10000] w-72 max-w-[calc(100vw-1rem)] rounded-xl p-1 shadow-lg outline-none backdrop-blur-md',
+                'bg-neutral-100/90 text-neutral-700 dark:bg-neutral-800/90 dark:text-neutral-100',
+              ]"
+            >
+              <AnimatedContent>
+                <ul role="list" :class="['m-0 flex flex-col p-0']">
+                  <li v-for="issue in issues" :key="issue.key" :class="['flex items-start gap-2 rounded-lg px-2.5 py-2']">
+                    <span aria-hidden="true" :class="['i-mingcute:warning-fill mt-0.5 size-3.5 shrink-0 text-amber-500 dark:text-amber-400']" />
+                    <div :class="['min-w-0 flex flex-col gap-0.5 text-xs leading-4']">
+                      <span :class="['font-medium text-neutral-800 dark:text-neutral-100']">{{ issue.label }}</span>
+                      <span :class="['break-words text-neutral-600 dark:text-neutral-300']">{{ issue.message }}</span>
+                    </div>
+                  </li>
+                </ul>
+              </AnimatedContent>
+            </HoverCardContent>
+          </HoverCardPortal>
+        </HoverCardRoot>
+        <!-- The host puts content at the start of the action row, such as a shortcut hint. -->
         <slot name="hint" />
       </div>
       <div :class="['flex shrink-0 items-center gap-1', '[-webkit-app-region:no-drag]']">
@@ -308,44 +363,5 @@ function handleKeydown(event: KeyboardEvent) {
         </BasicButton>
       </div>
     </footer>
-  </section>
-  <section
-    v-else-if="draft"
-    :aria-label="t('stage.chat.voice-draft.title')"
-    :class="['min-w-0 w-full flex flex-col gap-2 rounded-xl p-3', 'bg-neutral-100/90 text-neutral-900 dark:bg-neutral-900/90 dark:text-neutral-100']"
-  >
-    <div :class="['min-w-0 w-full flex items-center gap-2 overflow-x-auto text-sm scrollbar-none']">
-      <span :class="['shrink-0']">{{ t('stage.chat.voice-draft.title') }}</span>
-      <span v-if="characterName && !otherDrafts.length" :class="['max-w-32 shrink-0 truncate']">{{ characterName }}</span>
-      <Button
-        v-for="item in otherDrafts"
-        :key="item.id"
-        size="sm"
-        :class="['max-w-32 shrink-0 truncate']"
-        :disabled="sending || item.id === draft.id"
-        @click="select(item.id)"
-      >
-        {{ nameOf(item.sessionId) ?? t('stage.chat.voice-draft.title') }}
-      </Button>
-    </div>
-    <BasicTextarea
-      v-model="text"
-      :submit-on-enter="false"
-      :class="['w-full max-w-full']"
-      :disabled="sending || !controls.snapshot.connected"
-      :aria-label="t('stage.chat.voice-draft.title')"
-      @keydown="handleKeydown"
-    />
-    <p v-if="controls.error" role="alert" :class="['text-sm text-red-600 dark:text-red-400']">
-      {{ controls.error }}
-    </p>
-    <div :class="['flex justify-end gap-2']">
-      <Button :disabled="sending" size="sm" @click="discard">
-        {{ t('stage.chat.voice-draft.discard') }}
-      </Button>
-      <Button :disabled="!canSend" size="sm" variant="primary" @click="send">
-        {{ t('stage.chat.actions.send') }}
-      </Button>
-    </div>
   </section>
 </template>

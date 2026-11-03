@@ -4,7 +4,7 @@ import type { ServerChannelQrPayload } from '@proj-airi/stage-shared/server-chan
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
-import { Callout, Collapsible, GhostButton } from '@proj-airi/ui'
+import { Alert, Collapsible, GhostButton } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { renderSVG } from 'uqr'
 import { computed, shallowRef, watch } from 'vue'
@@ -134,15 +134,13 @@ watch(appliedConfig, () => {
         </p>
       </div>
 
-      <Callout
+      <Alert
         v-if="errorMessage"
-        theme="orange"
-        :label="t('settings.pages.connection.qr.errors.title')"
+        tone="danger"
+        :title="t('settings.pages.connection.qr.errors.title')"
       >
-        <p :class="['m-0 text-xs leading-5']">
-          {{ errorMessage }}
-        </p>
-      </Callout>
+        {{ errorMessage }}
+      </Alert>
 
       <div
         v-else-if="payload"

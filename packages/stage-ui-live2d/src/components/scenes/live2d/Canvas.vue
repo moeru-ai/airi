@@ -87,6 +87,9 @@ async function initLive2DPixiStage(parent: HTMLDivElement) {
 
   installRenderGuard(pixiApp.value)
   pixiApp.value.stage.scale.set(props.resolution)
+  // Children take their layer from zIndex. Equal values keep the order they were
+  // added in, so the background and the model keep their places.
+  pixiApp.value.stage.sortableChildren = true
 
   pixiAppCanvas.value = pixiApp.value.view
 

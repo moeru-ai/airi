@@ -187,8 +187,6 @@ live2d:
           description: Создаёт движения из встроенного набора данных MAGIC.
       magic:
         profile:
-          title: Профиль MAGIC
-          description: Выберите встроенный набор движений для драйвера MAGIC.
           options:
             idle-calm:
               title: Покой / спокойствие
@@ -829,8 +827,6 @@ pages:
             description: Выберите подходящего провайдера синтеза речи
           microphone:
             title: Микрофон
-            label: Микрофон
-            description: Включите микрофон для модуля слуха. Режим ввода определяет, когда AIRI слушает.
             error: Микрофон недоступен
           input-device:
             label: Устройство ввода
