@@ -36,7 +36,9 @@ export interface AuvExecutorOptions {
 export interface AuvWindowProperties {
   title?: string | null
   applicationName?: string | null
+  application_name?: string | null
   applicationId?: string | null
+  application_id?: string | null
   appName?: string | null
   app_name?: string | null
   processId?: number | null
@@ -44,7 +46,7 @@ export interface AuvWindowProperties {
   frame?: { x: number, y: number, width: number, height: number } | null
   isVisible?: boolean | null
   is_visible?: boolean | null
-  ref?: { windowId?: string | null } | null
+  ref?: { windowId?: string | null, window_id?: string | null } | null
   reference?: { id?: string | null } | null
 }
 
@@ -57,42 +59,55 @@ export interface AuvWindowClient {
 const COORDINATE_SPACE = 'logical-screen'
 
 function extractAppName(win: AuvWindowProperties | null | undefined): string | undefined {
-  return win?.applicationName
+  const candidate = win?.applicationName
+    || (win as { application_name?: string | null } | undefined)?.application_name
     || win?.applicationId
+    || (win as { application_id?: string | null } | undefined)?.application_id
     || win?.app_name
     || win?.appName
-    || undefined
+  return typeof candidate === 'string' && candidate.trim() ? candidate.trim() : undefined
 }
 
-export function mapAuvWindow(client: AuvWindowClient): WindowInfo {
-  const win = client.window
-  const id = client.id
-    || client.reference?.id
-    || win?.ref?.windowId
+export function mapAuvWindow(client: AuvWindowClient | null | undefined): WindowInfo {
+  const win = client?.window
+  const winRef = win?.ref as { windowId?: string | null, window_id?: string | null } | undefined
+  const id = client?.id
+    || client?.reference?.id
+    || (client as { reference_id?: string | null } | undefined)?.reference_id
+    || winRef?.windowId
+    || winRef?.window_id
     || win?.reference?.id
+    || (win as { reference_id?: string | null } | undefined)?.reference_id
     || 'unknown'
-  const appName = win?.applicationName
-    || win?.applicationId
-    || win?.app_name
-    || win?.appName
-    || 'unknown'
-  const title = win?.title ?? undefined
-  const processId = win?.processId ?? win?.process_id ?? undefined
+  const appName = extractAppName(win) || 'unknown'
+  const rawTitle = win?.title
+  const title = typeof rawTitle === 'string' && rawTitle.trim() ? rawTitle.trim() : undefined
+  const rawProcessId: unknown = win?.processId ?? win?.process_id
+  const ownerPid = typeof rawProcessId === 'number' && Number.isInteger(rawProcessId)
+    ? rawProcessId
+    : typeof rawProcessId === 'string' && /^\d+$/.test(rawProcessId.trim())
+      ? Number.parseInt(rawProcessId.trim(), 10)
+      : undefined
   const isVisible = win?.isVisible ?? win?.is_visible ?? undefined
   const frame = win?.frame
+  const bounds = frame && [frame.x, frame.y, frame.width, frame.height].every(n => typeof n === 'number' && Number.isFinite(n))
+    ? { x: frame.x, y: frame.y, width: frame.width, height: frame.height }
+    : undefined
 
   return {
     id: String(id),
     appName,
     title,
-    bounds: frame ? { x: frame.x, y: frame.y, width: frame.width, height: frame.height } : undefined,
-    ownerPid: typeof processId === 'number' ? processId : undefined,
+    bounds,
+    ownerPid,
     isOnScreen: typeof isVisible === 'boolean' ? isVisible : undefined,
   }
 }
 
 function toBounds(rect: { x: number, y: number, width: number, height: number } | undefined | null): Bounds | undefined {
-  return rect ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height } : undefined
+  if (!rect || ![rect.x, rect.y, rect.width, rect.height].every(n => typeof n === 'number' && Number.isFinite(n)))
+    return undefined
+  return { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
 }
 
 function buildExecutionTarget(config: ComputerUseConfig, session: AuvSession | undefined): ExecutionTarget {
@@ -238,8 +253,10 @@ export function createAuvExecutor(config: ComputerUseConfig, options: AuvExecuto
 
         let windows = clients.map(client => mapAuvWindow(client))
         if (request.app) {
-          const needle = request.app.toLowerCase()
-          windows = windows.filter(window => window.appName.toLowerCase().includes(needle))
+          const needle = request.app.trim().toLowerCase()
+          if (needle) {
+            windows = windows.filter(window => window.appName.toLowerCase().includes(needle))
+          }
         }
         if (request.limit !== undefined) {
           windows = windows.slice(0, Math.max(request.limit, 0))
@@ -247,11 +264,12 @@ export function createAuvExecutor(config: ComputerUseConfig, options: AuvExecuto
 
         const frontWin = frontmost?.window as AuvWindowProperties | undefined
         const frontAppName = extractAppName(frontWin)
-        const frontTitle = frontWin?.title ?? undefined
+        const rawFrontTitle = frontWin?.title
+        const frontTitle = typeof rawFrontTitle === 'string' && rawFrontTitle.trim() ? rawFrontTitle.trim() : undefined
 
         return {
-          frontmostAppName: frontAppName || undefined,
-          frontmostWindowTitle: frontTitle || undefined,
+          frontmostAppName: frontAppName,
+          frontmostWindowTitle: frontTitle,
           windows,
           observedAt: new Date().toISOString(),
           provenance: {

@@ -1,5 +1,6 @@
 import type { RunnerClient } from '@auv-js/sdk/node'
 
+import type { ComputerUseServerRuntime } from '../server/runtime'
 import type { AuvExecutorRuntime, AuvSession } from './auv-runtime'
 
 import { rm } from 'node:fs/promises'
@@ -11,9 +12,12 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { evaluateActionPolicy } from '../policy'
 import { getRuntimePreflight } from '../preflight'
-import { createTestConfig } from '../test-fixtures'
+import { createExecuteAction } from '../server/action-executor'
+import { RunStateManager } from '../state'
+import { createTerminalState, createTestConfig } from '../test-fixtures'
 import { createAuvExecutor, mapAuvWindow } from './auv'
 import { AuvExecutorError, classifyAuvError, wrapAuvError } from './auv-errors'
+import { createAuvExecutorRuntime } from './auv-runtime'
 
 describe('auv-errors', () => {
   it('classifies grpc codes correctly', () => {
@@ -88,7 +92,7 @@ describe('mapAuvWindow', () => {
     })
   })
 
-  it('resolves ref.windowId or window.reference.id when top-level id is absent', () => {
+  it('resolves ref.windowId, ref.window_id, or window.reference.id when top-level id is absent', () => {
     const mappedWithRef = mapAuvWindow({
       window: {
         ref: { windowId: 'win-ref-303' },
@@ -96,6 +100,15 @@ describe('mapAuvWindow', () => {
       },
     })
     expect(mappedWithRef.id).toBe('win-ref-303')
+
+    const mappedWithSnakeRef = mapAuvWindow({
+      window: {
+        ref: { window_id: 'win-snake-304' } as any,
+        application_name: 'powershell.exe',
+      },
+    })
+    expect(mappedWithSnakeRef.id).toBe('win-snake-304')
+    expect(mappedWithSnakeRef.appName).toBe('powershell.exe')
 
     const mappedWithReference = mapAuvWindow({
       window: {
@@ -106,9 +119,26 @@ describe('mapAuvWindow', () => {
     expect(mappedWithReference.id).toBe('win-proto-404')
   })
 
-  it('handles sparse window data safely', () => {
-    const mapped = mapAuvWindow({})
-    expect(mapped).toEqual({
+  it('handles sparse, null, or undefined window data safely', () => {
+    expect(mapAuvWindow({})).toEqual({
+      id: 'unknown',
+      appName: 'unknown',
+      title: undefined,
+      bounds: undefined,
+      ownerPid: undefined,
+      isOnScreen: undefined,
+    })
+
+    expect(mapAuvWindow(null)).toEqual({
+      id: 'unknown',
+      appName: 'unknown',
+      title: undefined,
+      bounds: undefined,
+      ownerPid: undefined,
+      isOnScreen: undefined,
+    })
+
+    expect(mapAuvWindow(undefined)).toEqual({
       id: 'unknown',
       appName: 'unknown',
       title: undefined,
@@ -117,38 +147,59 @@ describe('mapAuvWindow', () => {
       isOnScreen: undefined,
     })
   })
+
+  it('trims whitespace and ignores non-finite bounds', () => {
+    const mapped = mapAuvWindow({
+      id: 'win-dirty',
+      window: {
+        title: '   ',
+        applicationName: '   ',
+        process_id: '8888' as any,
+        frame: { x: Number.NaN, y: 0, width: 800, height: 600 },
+      },
+    })
+
+    expect(mapped.appName).toBe('unknown')
+    expect(mapped.title).toBeUndefined()
+    expect(mapped.ownerPid).toBe(8888)
+    expect(mapped.bounds).toBeUndefined()
+  })
 })
 
+function asCast<T>(value: unknown): T {
+  return value as T
+}
+
+function createMockAuvSession(runnerOverrides: Partial<RunnerClient> = {}): AuvSession {
+  const runner = asCast<RunnerClient>({
+    windows: {
+      list: vi.fn().mockResolvedValue([]),
+      resolve: vi.fn().mockResolvedValue(undefined),
+    },
+    displays: {
+      list: vi.fn().mockResolvedValue([]),
+    },
+    ...runnerOverrides,
+  })
+
+  return {
+    runner,
+    runId: 'mock-run-123',
+    deviceId: 'mock-device-456',
+    daemonId: 'mock-daemon-789',
+  }
+}
+
+function createMockRuntime(session?: AuvSession, options?: { failEnsure?: boolean }): AuvExecutorRuntime {
+  return {
+    ensureSession: options?.failEnsure
+      ? vi.fn().mockRejectedValue(new AuvExecutorError('unavailable', 'binary missing'))
+      : vi.fn().mockResolvedValue(session ?? createMockAuvSession()),
+    close: vi.fn().mockResolvedValue(undefined),
+  }
+}
+
 describe('createAuvExecutor with mock runtime', () => {
-  function createMockAuvSession(runnerOverrides: Partial<RunnerClient> = {}): AuvSession {
-    const runner = {
-      windows: {
-        list: vi.fn().mockResolvedValue([]),
-        resolve: vi.fn().mockResolvedValue(undefined),
-      },
-      displays: {
-        list: vi.fn().mockResolvedValue([]),
-      },
-      ...runnerOverrides,
-    } as unknown as RunnerClient
-
-    return {
-      runner,
-      runId: 'mock-run-123',
-      deviceId: 'mock-device-456',
-      daemonId: 'mock-daemon-789',
-    }
-  }
-
-  function createMockRuntime(session?: AuvSession, options?: { failEnsure?: boolean }): AuvExecutorRuntime {
-    return {
-      ensureSession: options?.failEnsure
-        ? vi.fn().mockRejectedValue(new AuvExecutorError('unavailable', 'binary missing'))
-        : vi.fn().mockResolvedValue(session ?? createMockAuvSession()),
-      close: vi.fn().mockResolvedValue(undefined),
-    }
-  }
-
   it('describes kind and capabilities accurately', () => {
     const config = createTestConfig({ executor: 'auv' })
     const executor = createAuvExecutor(config, { runtime: createMockRuntime() })
@@ -191,10 +242,10 @@ describe('createAuvExecutor with mock runtime', () => {
     ]
 
     const session = createMockAuvSession({
-      windows: {
+      windows: asCast<RunnerClient['windows']>({
         list: vi.fn().mockResolvedValue(mockWindows),
         resolve: vi.fn().mockResolvedValue(mockWindows[0]),
-      } as unknown as RunnerClient['windows'],
+      }),
     })
 
     const config = createTestConfig({ executor: 'auv' })
@@ -211,10 +262,10 @@ describe('createAuvExecutor with mock runtime', () => {
 
   it('distinguishes an empty window list from an RPC failure', async () => {
     const emptySession = createMockAuvSession({
-      windows: {
+      windows: asCast<RunnerClient['windows']>({
         list: vi.fn().mockResolvedValue([]),
         resolve: vi.fn().mockResolvedValue(undefined),
-      } as unknown as RunnerClient['windows'],
+      }),
     })
 
     const config = createTestConfig({ executor: 'auv' })
@@ -224,10 +275,10 @@ describe('createAuvExecutor with mock runtime', () => {
     expect(emptyResult.frontmostAppName).toBeUndefined()
 
     const rpcFailingSession = createMockAuvSession({
-      windows: {
+      windows: asCast<RunnerClient['windows']>({
         list: vi.fn().mockRejectedValue({ rpcCode: 14, message: 'connection broken' }),
         resolve: vi.fn().mockResolvedValue(undefined),
-      } as unknown as RunnerClient['windows'],
+      }),
     })
 
     const failingExecutor = createAuvExecutor(config, { runtime: createMockRuntime(rpcFailingSession) })
@@ -249,10 +300,10 @@ describe('createAuvExecutor with mock runtime', () => {
     ]
 
     const session = createMockAuvSession({
-      windows: {
+      windows: asCast<RunnerClient['windows']>({
         list: vi.fn().mockResolvedValue(mockWindows),
         resolve: vi.fn().mockRejectedValue(new Error('no frontmost window')),
-      } as unknown as RunnerClient['windows'],
+      }),
     })
 
     const config = createTestConfig({ executor: 'auv' })
@@ -272,10 +323,10 @@ describe('createAuvExecutor with mock runtime', () => {
     ]
 
     const session = createMockAuvSession({
-      windows: {
+      windows: asCast<RunnerClient['windows']>({
         list: vi.fn().mockResolvedValue(mockWindows),
         resolve: vi.fn().mockResolvedValue(undefined),
-      } as unknown as RunnerClient['windows'],
+      }),
     })
 
     const config = createTestConfig({ executor: 'auv' })
@@ -377,6 +428,104 @@ describe('auv policy and preflight integration', () => {
       'auv executor is in read-only observation mode; mutating actions are not supported',
     )
   })
+
+  it('executes desktop_observe_windows via action-executor pipeline and updates stateManager', async () => {
+    const config = createTestConfig({ executor: 'auv' })
+    const session = createMockAuvSession({
+      windows: asCast<RunnerClient['windows']>({
+        list: vi.fn().mockResolvedValue([
+          { id: 'win-1', window: { applicationName: 'Code', title: 'test.ts' } },
+        ]),
+        resolve: vi.fn().mockResolvedValue({
+          window: { applicationName: 'Code', title: 'test.ts' },
+        }),
+      }),
+    })
+    const executor = createAuvExecutor(config, { runtime: createMockRuntime(session) })
+    const stateManager = new RunStateManager()
+    const mockSession = {
+      listPendingActions: vi.fn().mockReturnValue([]),
+      getBudgetState: vi.fn().mockReturnValue({ operationsExecuted: 0, operationUnitsConsumed: 0 }),
+      record: vi.fn().mockResolvedValue(undefined),
+      createPendingAction: vi.fn(),
+      consumeOperation: vi.fn(),
+      getLastScreenshot: vi.fn().mockReturnValue(undefined),
+      setLastScreenshot: vi.fn(),
+      getTerminalState: vi.fn().mockReturnValue(createTerminalState()),
+      setTerminalState: vi.fn(),
+      getPointerPosition: vi.fn().mockReturnValue(undefined),
+      setPointerPosition: vi.fn(),
+    }
+    const runtime = asCast<ComputerUseServerRuntime>({
+      config,
+      stateManager,
+      session: mockSession,
+      executor,
+      terminalRunner: {
+        describe: () => ({ kind: 'local-shell-runner', notes: [] }),
+        getState: () => createTerminalState(),
+      },
+      browserDomBridge: { getStatus: () => ({ connected: false }) },
+      cdpBridgeManager: { probeAvailability: vi.fn().mockResolvedValue({ connected: false, connectable: false }) },
+      desktopSessionController: { getSession: () => null },
+    })
+
+    const executeAction = createExecuteAction(runtime)
+    const result = await executeAction({ kind: 'observe_windows', input: {} }, 'desktop_observe_windows')
+
+    expect(result.isError).toBeFalsy()
+    expect(stateManager.getState().lastWindowObservation?.windows).toHaveLength(1)
+    expect(stateManager.getState().lastWindowObservation?.windows[0]?.appName).toBe('Code')
+    expect(stateManager.getState().lastWindowObservation?.frontmostAppName).toBe('Code')
+
+    // And verify mutating action fails closed at the policy gate before executor
+    const clickResult = await executeAction({ kind: 'click', input: { x: 100, y: 100 } }, 'desktop_click')
+    expect(clickResult.isError).toBeTruthy()
+    const text = (clickResult.content?.[0] as { text?: string })?.text ?? ''
+    expect(text).toContain('auv executor is in read-only observation mode')
+  })
+})
+
+describe('createAuvExecutorRuntime lifecycle and error recovery', () => {
+  it('stops spawned daemon if connection or run initialization fails', async () => {
+    const stopMock = vi.fn().mockResolvedValue(undefined)
+    const mockDaemon = {
+      id: 'mock-d-1',
+      stop: stopMock,
+      exited: new Promise<void>(() => {}),
+      connect: vi.fn(),
+    }
+
+    const config = createTestConfig({ executor: 'auv' })
+    const runtime = createAuvExecutorRuntime(config, {
+      startDaemon: vi.fn().mockResolvedValue(mockDaemon as any),
+      connect: vi.fn().mockRejectedValue(new Error('connection failed')),
+      resolveBinaryPath: () => '/bin/auv.exe',
+    })
+
+    await expect(runtime.ensureSession()).rejects.toThrow('connection failed')
+    expect(stopMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejects ensureSession when runtime is closed and stops running daemon', async () => {
+    const stopMock = vi.fn().mockResolvedValue(undefined)
+    const mockDaemon = {
+      id: 'mock-d-2',
+      stop: stopMock,
+      exited: new Promise<void>(() => {}),
+      connect: vi.fn().mockResolvedValue({} as any),
+    }
+
+    const config = createTestConfig({ executor: 'auv' })
+    const runtime = createAuvExecutorRuntime(config, {
+      startDaemon: vi.fn().mockResolvedValue(mockDaemon as any),
+      connect: vi.fn().mockResolvedValue({} as any),
+      resolveBinaryPath: () => '/bin/auv.exe',
+    })
+
+    await runtime.close()
+    await expect(runtime.ensureSession()).rejects.toThrow('runtime is closed')
+  })
 })
 
 describe.runIf(platform === 'win32')('real Windows AUV live execution', () => {
@@ -390,10 +539,14 @@ describe.runIf(platform === 'win32')('real Windows AUV live execution', () => {
     const executor = createAuvExecutor(config)
 
     try {
-      // 1. Get frontmost window before observation
+      // 1. Initial observation to ensure session is initialized
+      const warmup = await executor.observeWindows({ limit: 1 })
+      expect(warmup.windows.length).toBeGreaterThan(0)
+
+      // 2. Capture frontmost window state before second observation
       const beforeContext = await executor.getForegroundContext()
 
-      // 2. Perform live window observation
+      // 3. Perform live window observation
       const observation = await executor.observeWindows({ limit: 10 })
 
       expect(observation.windows.length).toBeGreaterThan(0)
@@ -411,16 +564,62 @@ describe.runIf(platform === 'win32')('real Windows AUV live execution', () => {
         expect(first.bounds.height).toBeGreaterThan(0)
       }
 
-      // 3. Verify foreground window context was not altered by the observation
+      // 4. Verify foreground window context was truly unaltered by the observation
       const afterContext = await executor.getForegroundContext()
-      if (beforeContext.available && afterContext.available) {
-        expect(afterContext.appName).toBe(beforeContext.appName)
-        expect(afterContext.windowTitle).toBe(beforeContext.windowTitle)
-      }
+      expect(beforeContext.available).toBe(true)
+      expect(afterContext.available).toBe(true)
+      expect(afterContext.appName).toBe(beforeContext.appName)
+      expect(afterContext.windowTitle).toBe(beforeContext.windowTitle)
     }
     finally {
       await executor.close?.()
       await rm(sessionRoot, { recursive: true, force: true }).catch(() => {})
     }
   }, 30_000)
+
+  it('demonstrates coexistence between separate storeRoots and lock contention on colliding storeRoot', async () => {
+    const sessionRootA = join(tmpdir(), `airi-auv-coexist-a-${Date.now()}`)
+    const sessionRootB = join(tmpdir(), `airi-auv-coexist-b-${Date.now()}`)
+
+    const executorA = createAuvExecutor(createTestConfig({ executor: 'auv', sessionRoot: sessionRootA }))
+    const executorB = createAuvExecutor(createTestConfig({ executor: 'auv', sessionRoot: sessionRootB }))
+
+    try {
+      // Both independent executors can observe concurrently without port or pipe conflicts
+      const [obsA, obsB] = await Promise.all([
+        executorA.observeWindows({ limit: 3 }),
+        executorB.observeWindows({ limit: 3 }),
+      ])
+      expect(obsA.windows.length).toBeGreaterThan(0)
+      expect(obsB.windows.length).toBeGreaterThan(0)
+
+      // When an executor tries to share the exact same storeRoot as an active daemon, it must fail closed due to store lock
+      const collidingConfig = createTestConfig({
+        executor: 'auv',
+        sessionRoot: join(tmpdir(), `airi-auv-coexist-c-${Date.now()}`),
+        auv: {
+          storeRoot: join(sessionRootA, 'auv'),
+          startupTimeoutMs: 3_000,
+        },
+      })
+      const collidingExecutor = createAuvExecutor(collidingConfig)
+      await expect(collidingExecutor.observeWindows({ limit: 3 })).rejects.toThrow()
+
+      // After closing executorA, the lock on sessionRootA is released and collidingExecutor can now succeed
+      await executorA.close?.()
+      const afterRelease = await collidingExecutor.observeWindows({ limit: 3 })
+      expect(afterRelease.windows.length).toBeGreaterThan(0)
+      await collidingExecutor.close?.()
+    }
+    finally {
+      await Promise.all([
+        executorA.close?.(),
+        executorB.close?.(),
+      ])
+      await Promise.all([
+        rm(sessionRootA, { recursive: true, force: true }).catch(() => {}),
+        rm(sessionRootB, { recursive: true, force: true }).catch(() => {}),
+      ])
+    }
+  }, 45_000)
 })

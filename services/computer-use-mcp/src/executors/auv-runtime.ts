@@ -85,6 +85,12 @@ export function createAuvExecutorRuntime(config: ComputerUseConfig, hooks: AuvRu
       startupTimeoutMs: config.auv.startupTimeoutMs,
       shutdownTimeoutMs: config.auv.shutdownTimeoutMs,
     })
+
+    if (closed) {
+      await started.stop().catch(() => {})
+      throw new AuvExecutorError('unavailable', 'runtime is closed')
+    }
+
     daemon = started
     void started.exited.then(() => {
       if (daemon === started)
@@ -94,8 +100,15 @@ export function createAuvExecutorRuntime(config: ComputerUseConfig, hooks: AuvRu
         markSessionDead()
     })
 
-    const connection = await connectToDaemon(started)
-    return await buildSession(createAuv(connection), started.id)
+    try {
+      const connection = await connectToDaemon(started)
+      return await buildSession(createAuv(connection), started.id)
+    }
+    catch (error) {
+      markSessionDead()
+      await started.stop().catch(() => {})
+      throw error
+    }
   }
 
   return {

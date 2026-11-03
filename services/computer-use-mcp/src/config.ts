@@ -27,6 +27,10 @@ function normalizeHomePathToken(value: string) {
 }
 
 function resolveDefaultOpenableApps(executor: ExecutorKind, hostPlatform: NodeJS.Platform) {
+  if (executor === 'auv') {
+    return []
+  }
+
   if (executor === 'linux-x11') {
     return ['Terminal', 'Visual Studio Code', 'Google Chrome']
   }

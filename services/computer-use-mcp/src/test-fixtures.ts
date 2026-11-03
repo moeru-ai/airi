@@ -7,13 +7,15 @@ import type {
   TerminalState,
 } from './types'
 
+import { join } from 'node:path'
 import { platform } from 'node:process'
 
 export function createTestConfig(overrides: Partial<ComputerUseConfig> = {}): ComputerUseConfig {
+  const sessionRoot = overrides.sessionRoot || '/tmp/computer-use-mcp'
   const baseConfig: ComputerUseConfig = {
-    sessionRoot: '/tmp/computer-use-mcp',
-    screenshotsDir: '/tmp/computer-use-mcp/screenshots',
-    auditLogPath: '/tmp/computer-use-mcp/audit.jsonl',
+    sessionRoot,
+    screenshotsDir: join(sessionRoot, 'screenshots'),
+    auditLogPath: join(sessionRoot, 'audit.jsonl'),
     executor: 'linux-x11',
     approvalMode: 'actions',
     defaultCaptureAfter: true,
@@ -51,7 +53,7 @@ export function createTestConfig(overrides: Partial<ComputerUseConfig> = {}): Co
       requestTimeoutMs: 10_000,
     },
     auv: {
-      storeRoot: '/tmp/computer-use-mcp/auv',
+      storeRoot: join(sessionRoot, 'auv'),
       startupTimeoutMs: 10_000,
       shutdownTimeoutMs: 5_000,
     },
@@ -73,6 +75,11 @@ export function createTestConfig(overrides: Partial<ComputerUseConfig> = {}): Co
     remoteDisplaySize: {
       width: overrides.remoteDisplaySize?.width ?? baseConfig.remoteDisplaySize.width,
       height: overrides.remoteDisplaySize?.height ?? baseConfig.remoteDisplaySize.height,
+    },
+    auv: {
+      storeRoot: overrides.auv?.storeRoot ?? join(sessionRoot, 'auv'),
+      startupTimeoutMs: overrides.auv?.startupTimeoutMs ?? baseConfig.auv.startupTimeoutMs,
+      shutdownTimeoutMs: overrides.auv?.shutdownTimeoutMs ?? baseConfig.auv.shutdownTimeoutMs,
     },
     binaries: {
       swift: overrides.binaries?.swift ?? baseConfig.binaries.swift,

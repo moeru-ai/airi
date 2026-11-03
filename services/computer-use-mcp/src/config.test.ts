@@ -90,6 +90,7 @@ describe('resolveComputerUseConfig', () => {
     const config = resolveComputerUseConfig()
 
     expect(config.executor).toBe('auv')
+    expect(config.openableApps).toEqual([])
     expect(config.permissionChainHint).toContain('auv daemon -> auv.runner')
     expect(config.auv.binaryPath).toBe('/custom/bin/auv.exe')
     expect(config.auv.storeRoot).toBe('/custom/store')
