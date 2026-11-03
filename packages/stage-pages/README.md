@@ -5,7 +5,8 @@
 ## Account usage
 
 The account page shows Flux summaries and the activity chart. Its details link opens `/settings/usage` for transaction history.
-The charging page at `/settings/flux` contains the balance and purchase controls. It does not request usage summaries or transaction history.
+The charging page at `/settings/flux` contains the balance, purchase controls, and a details link to `/settings/usage`.
+It does not request usage summaries or transaction history.
 
 ## Use
 

@@ -145,13 +145,19 @@ describe('account usage navigation', () => {
     expect(screen.getByRole('button', { name: 'Load More' }).elements()).toHaveLength(0)
   })
 
-  it('keeps usage requests and records off the charging page', async () => {
-    const { screen } = await openPage('/settings/flux')
+  it('opens history directly from charging without loading usage on the charging page', async () => {
+    const { screen, router } = await openPage('/settings/flux')
     await expect.element(screen.getByRole('button', { name: '500 Flux $3.00' })).toBeVisible()
     expect(requests.some(url => url.pathname.endsWith('/flux/usage/daily'))).toBe(false)
     expect(requests.some(url => url.pathname.endsWith('/flux/history'))).toBe(false)
     expect(screen.getByRole('img').elements()).toHaveLength(0)
     expect(screen.getByRole('table').elements()).toHaveLength(0)
+
+    await screen.getByRole('link', { name: 'View detailed usage', exact: true }).click()
+    await expect.poll(() => router.currentRoute.value.path).toBe('/settings/usage')
+    await expect.element(screen.getByRole('table')).toBeVisible()
+    expect(screen.getByRole('img').elements()).toHaveLength(0)
+    expect(requests.some(url => url.pathname.endsWith('/flux/usage/daily'))).toBe(false)
   })
 
   it('discards a pending overview when the account changes', async () => {
