@@ -130,6 +130,12 @@ export async function* chunkTtsInput(
             next = undefined
             continue
           }
+          if (buffer.length === 0) {
+            previousValue = value
+            current = next
+            next = undefined
+            continue
+          }
           if (value === '.' && following === '.') {
             afterNext = await iterator.next()
             if (!afterNext.done && afterNext.value && afterNext.value === '.') {

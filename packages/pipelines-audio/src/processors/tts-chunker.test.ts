@@ -4,7 +4,7 @@ import type { TtsInputChunk } from './tts-chunker'
 
 import { describe, expect, it } from 'vitest'
 
-import { chunkTtsInput, isProbablyAngleTag, processNarrative } from './tts-chunker'
+import { chunkTtsInput, isProbablyAngleTag, processNarrative, TTS_SPECIAL_TOKEN } from './tts-chunker'
 
 async function collectChunkText(input: string) {
   const chunks: string[] = []
@@ -240,5 +240,29 @@ describe('tTS Chunker Logic Cleanup', () => {
 
       expect(chunks.join('')).toBe(input)
     })
+  })
+})
+
+// https://github.com/moeru-ai/airi/issues/3345
+// ROOT CAUSE:
+//
+// A period at an empty buffer reads ahead for token or ellipsis checks.
+// The empty-buffer branch then advances again and drops the read-ahead grapheme.
+//
+// Keep token continuations first, then reuse lookahead when a boundary has no buffered text.
+describe('chunkTtsInput punctuation lookahead (Issue #3345)', () => {
+  it.each([
+    { label: 'a leading period', input: '.NET is great.', expected: '.NET is great.' },
+    { label: 'a period after hard punctuation', input: 'Really?.NET works.', expected: 'Really?.NET works.' },
+    { label: 'two periods after hard punctuation', input: 'Hmm!..No way.', expected: 'Hmm!.No way.' },
+  ])('preserves lookahead after an empty-buffer period: $label', async ({ input, expected }) => {
+    expect((await collectChunkText(input)).join('')).toBe(expected)
+  })
+
+  it('preserves a special token after an empty-buffer period', async () => {
+    const chunks = await collectChunks(`Ok!.${TTS_SPECIAL_TOKEN}No.`)
+
+    expect(chunks.map(chunk => chunk.reason)).toEqual(['hard', 'special', 'hard'])
+    expect(chunks.map(chunk => chunk.text).join('')).toBe('Ok!No.')
   })
 })
