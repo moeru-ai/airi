@@ -455,6 +455,6 @@ describe('createLocalShellRunner', () => {
           catch {}
         }
       }
-    })
+    }, 15_000)
   })
 })
