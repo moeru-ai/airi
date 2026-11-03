@@ -98,6 +98,7 @@ A fee that no bucket can pay stays outstanding. A new Capacitor grant or a credi
 `GET /api/v1/flux/usage/daily?timeZone=<IANA>` returns 365 local daily fee totals and the longest session duration.
 The activity chart derives daily, weekly, and cumulative views from this response.
 Wallet history returns integer balance changes. The unused per-request fee listing at `GET /api/v1/flux/usage` is removed.
+The transaction service reads activity, history, and capacity. `BillingService` owns ledger writes.
 See [the activity ADR](../../docs/ai/adr/2026-10-25-flux-usage-charts.md) for the response contract.
 
 Old Redis TTS character counters are not migrated. The old meter already forgave a residual of less than one Flux.

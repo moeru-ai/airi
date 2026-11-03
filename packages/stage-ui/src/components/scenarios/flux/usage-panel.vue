@@ -1,17 +1,18 @@
 <script setup lang="ts">
 import type { DailyUsageSummary } from '@proj-airi/api-server/types/flux-usage'
 
-import { Alert, Button, Skeleton } from '@proj-airi/ui'
+import { Alert, Button, SettingsCard, Skeleton } from '@proj-airi/ui'
 import { computed, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
-import UsageOverview from './usage-overview.vue'
+import UsageActivityChart from './usage-activity-chart.vue'
 
 import { client } from '../../../composables/api'
 import { useAuthStore } from '../../../stores/auth'
+import { computeStreaks, formatDuration, formatFlux } from './usage-stats'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const authStore = useAuthStore()
 const owner = computed(() => authStore.isAuthenticated && authStore.isSessionVerified
   ? `${authStore.userId}:${authStore.sessionVersion}`
@@ -20,6 +21,26 @@ const summary = shallowRef<DailyUsageSummary | null>(null)
 const loading = ref(false)
 const failed = ref(false)
 const reload = ref(0)
+
+const overview = computed(() => {
+  const data = summary.value
+  if (!data)
+    return
+  const totalFlux = data.days.reduce((sum, day) => sum + day.microFlux, 0)
+  const streaks = computeStreaks(data.days)
+  const dayCount = new Intl.NumberFormat(locale.value, { style: 'unit', unit: 'day', unitDisplay: 'narrow' })
+  return {
+    empty: totalFlux === 0 && data.longestSessionMs === 0,
+    days: data.days,
+    cards: [
+      { key: 'flux', value: formatFlux(totalFlux, locale.value) },
+      { key: 'peakFlux', value: formatFlux(Math.max(0, ...data.days.map(day => day.microFlux)), locale.value) },
+      { key: 'longestSession', value: formatDuration(data.longestSessionMs, locale.value) },
+      { key: 'longestStreak', value: dayCount.format(streaks.longest) },
+      { key: 'currentStreak', value: dayCount.format(streaks.current) },
+    ],
+  }
+})
 
 // A session owns its summary. Navigation, sign-out, and account changes cancel pending requests and discard old data.
 watch([owner, reload], async ([session], _previous, onCleanup) => {
@@ -61,7 +82,27 @@ watch([owner, reload], async ([session], _previous, onCleanup) => {
         <Button :label="t('settings.pages.flux.usage.retry')" @click="reload++" />
       </template>
     </Alert>
-    <UsageOverview v-else-if="summary" :summary="summary" />
+    <section v-else-if="overview" :class="['flex w-full flex-col gap-6']">
+      <p v-if="overview.empty" :class="['py-4 text-sm text-neutral-500 dark:text-neutral-400']">
+        {{ t('settings.pages.flux.usage.empty') }}
+      </p>
+      <template v-else>
+        <dl :class="['grid grid-cols-[repeat(auto-fit,minmax(min(100%,9rem),1fr))] gap-3']">
+          <SettingsCard
+            v-for="card in overview.cards" :key="card.key"
+            :class="['box-border min-w-0']"
+          >
+            <dt :class="['text-sm text-neutral-500 dark:text-neutral-400']">
+              {{ t(`settings.pages.flux.usage.summary.${card.key}`) }}
+            </dt>
+            <dd :class="['text-2xl text-neutral-900 font-bold tracking-tight tabular-nums dark:text-neutral-50']">
+              {{ card.value }}
+            </dd>
+          </SettingsCard>
+        </dl>
+        <UsageActivityChart :days="overview.days" />
+      </template>
+    </section>
     <RouterLink
       to="/settings/usage"
       :class="[

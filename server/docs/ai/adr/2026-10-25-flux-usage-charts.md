@@ -14,8 +14,10 @@ Valibot defines the response contract in `src/types/flux-usage.ts`. The client i
 Remove `GET /api/v1/flux/usage` and `getUsageHistory`. No repository client calls this paginated fee listing.
 The activity chart reads `/usage/daily`. The balance card reads `/stats`, and transaction history reads `/history`.
 The account page owns the usage overview. Its details link opens the separate `/settings/usage` history page.
-The charging page at `/settings/flux` reads neither usage endpoint.
-Valibot also owns the existing history response. Its metadata remains opaque JSON, so clients narrow only fields needed for display.
+The charging page at `/settings/flux` reads neither usage endpoint. Its details link also opens `/settings/usage`.
+Valibot also owns the existing history response. Its metadata remains opaque JSON.
+The history client renders returned ledger entries. Request grouping stays in the server query.
+`BillingService` owns ledger writes. The Flux transaction service exposes reads only.
 Account changes and navigation cancel client requests and discard results from the previous session.
 
 ## Scope
@@ -28,8 +30,7 @@ This change adds no persistence, cache, background task, or lifetime metric.
 ```mermaid
 flowchart LR
   Page[Account settings] --> Panel[Usage panel]
-  Panel --> Overview[Usage overview]
-  Overview --> Chart[Activity chart]
+  Panel --> Chart[Activity chart]
   Panel --> Route[Flux route]
   Panel -->|View detailed usage| HistoryPage[Usage records page]
   HistoryPage --> History[Usage history]
@@ -38,7 +39,7 @@ flowchart LR
   Service --> Usage[(flux_usage)]
   Service --> Requests[(llm_request_log)]
   Route --> Contract[Valibot usage contract]
-  Overview -. types .-> Contract
+  Panel -. types .-> Contract
 ```
 
 ```text
@@ -49,7 +50,6 @@ packages/stage-pages/src/pages/settings/
 packages/stage-ui/src/components/scenarios/flux/
   usage-panel.vue
   usage-history.vue
-  usage-overview.vue
   usage-activity-chart.vue
   usage-stats.ts
 server/apps/api/src/

@@ -1,4 +1,4 @@
-import type { DailyUsage, DailyUsageSummary } from '@proj-airi/api-server/types/flux-usage'
+import type { DailyUsage } from '@proj-airi/api-server/types/flux-usage'
 
 import en from '@proj-airi/i18n/locales/en'
 
@@ -7,7 +7,7 @@ import { cleanup, render } from 'vitest-browser-vue'
 import { userEvent } from 'vitest/browser'
 import { createI18n } from 'vue-i18n'
 
-import UsageOverview from './usage-overview.vue'
+import UsageActivityChart from './usage-activity-chart.vue'
 
 import 'virtual:uno.css'
 
@@ -18,25 +18,21 @@ function createDays(): DailyUsage[] {
   }))
 }
 
-function renderOverview(summary: DailyUsageSummary = { days: createDays(), longestSessionMs: 90 * 60_000 }) {
-  return render(UsageOverview, {
-    props: { summary },
+function renderChart() {
+  return render(UsageActivityChart, {
+    props: { days: createDays() },
     global: { plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })] },
   })
 }
 
 afterEach(cleanup)
 
-describe('flux usage overview', () => {
-  it('shows five summaries and switches the same tiles through three views', async () => {
-    const screen = await renderOverview()
-    await expect.element(screen.getByText('Peak daily Flux')).toBeVisible()
-    await expect.element(screen.getByText('Longest session')).toBeVisible()
-    await expect.element(screen.getByText('Longest streak')).toBeVisible()
-    await expect.element(screen.getByText('Current streak')).toBeVisible()
-    await expect.element(screen.getByText('Flux used')).toBeVisible()
+describe('flux activity chart', () => {
+  it('switches the same tiles through three views', async () => {
+    const screen = await renderChart()
     await expect.element(screen.getByRole('img', { name: 'Daily Flux usage' })).toBeVisible()
     const firstTile = screen.container.querySelector('.activity-tile')
+    expect(firstTile).toBeInstanceOf(SVGRectElement)
 
     await screen.getByRole('button', { name: 'Weekly', exact: true }).click()
     await expect.element(screen.getByRole('img', { name: 'Weekly Flux usage' })).toBeVisible()
@@ -49,7 +45,7 @@ describe('flux usage overview', () => {
   })
 
   it('shows exact daily, weekly, and cumulative values with keyboard navigation', async () => {
-    const screen = await renderOverview()
+    const screen = await renderChart()
     const chart = screen.getByRole('group', { name: 'Flux activity for the last 365 days' }).element() as HTMLElement
     chart.focus()
     await expect.element(screen.getByRole('status')).toHaveTextContent('Oct 25, 2026')
@@ -72,7 +68,7 @@ describe('flux usage overview', () => {
   })
 
   it('shows hovered values and clears stale details on mode changes', async () => {
-    const screen = await renderOverview()
+    const screen = await renderChart()
     const svg = screen.getByRole('img', { name: 'Daily Flux usage' }).element()
     const target = svg.querySelectorAll('rect.fill-transparent')
     target[target.length - 1]!.dispatchEvent(new PointerEvent('pointerenter', { bubbles: true }))
@@ -82,7 +78,7 @@ describe('flux usage overview', () => {
   })
 
   it('keeps the chart readable in a narrow scroll container', async () => {
-    const screen = await renderOverview()
+    const screen = await renderChart()
     const root = screen.container.firstElementChild as HTMLElement
     root.style.width = '390px'
     const chart = screen.getByRole('group', { name: 'Flux activity for the last 365 days' }).element() as HTMLElement
@@ -94,17 +90,5 @@ describe('flux usage overview', () => {
     await expect.element(screen.getByRole('status')).toHaveTextContent('Oct 26, 2025')
     await userEvent.keyboard('{End}')
     await expect.element(screen.getByRole('status')).toHaveTextContent('Oct 25, 2026')
-  })
-
-  it('shows the empty hint only when both usage and session duration are zero', async () => {
-    const screen = await renderOverview({ days: createDays().map(day => ({ ...day, microFlux: 0 })), longestSessionMs: 0 })
-    await expect.element(screen.getByText('No usage yet.')).toBeVisible()
-    expect(screen.getByRole('img').elements()).toHaveLength(0)
-  })
-
-  it('preserves session information when requests incurred no fee', async () => {
-    const screen = await renderOverview({ days: createDays().map(day => ({ ...day, microFlux: 0 })), longestSessionMs: 60_000 })
-    await expect.element(screen.getByText('1m', { exact: true })).toBeVisible()
-    await expect.element(screen.getByRole('img', { name: 'Daily Flux usage' })).toBeVisible()
   })
 })

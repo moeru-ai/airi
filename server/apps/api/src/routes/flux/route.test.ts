@@ -18,8 +18,6 @@ function createMockFluxService(): FluxService {
 
 function createMockFluxTransactionService(): FluxTransactionService {
   return {
-    log: vi.fn(async () => undefined),
-    logBatch: vi.fn(async () => undefined),
     getStats: vi.fn(async () => ({ capacity: 100 })),
     getHistory: vi.fn(async (_userId: string, limit: number, offset: number) => ({
       records: [{ id: 'tx-1', type: 'credit', amount: 5, description: 'Top up', metadata: { source: 'test' }, createdAt: new Date('2026-03-27T10:00:00.000Z') }],

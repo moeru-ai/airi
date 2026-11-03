@@ -1616,8 +1616,6 @@ pages:
       empty: 暂无消耗记录
       loadMore: 更多信息
       delayHint: Flux 电量历史记录是缓慢更新的，可能有延迟
-      ttsRequests: 请求
-      tokenUsage: '输入 {prompt}、输出 {completion} 个 Token'
     usage:
       title: Flux 用量
       details: 查看详细数据

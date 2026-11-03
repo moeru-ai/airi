@@ -5,7 +5,7 @@ import { array, boolean, integer, minValue, nullable, number, object, pipe, rege
 const MicroFluxSchema = pipe(number(), integer(), minValue(0))
 
 /** Confirmed LLM and speech fees for one local calendar day. */
-export const DailyUsageSchema = object({
+const DailyUsageSchema = object({
   date: pipe(string(), regex(/^\d{4}-\d{2}-\d{2}$/)),
   microFlux: MicroFluxSchema,
 })

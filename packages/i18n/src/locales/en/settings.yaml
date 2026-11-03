@@ -1688,8 +1688,6 @@ pages:
       empty: No transaction records yet.
       loadMore: Load More
       delayHint: Usage records may be delayed by up to 1 minute
-      ttsRequests: requests
-      tokenUsage: 'Input {prompt}, output {completion} tokens'
     usage:
       title: Flux activity
       details: View detailed usage
