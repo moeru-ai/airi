@@ -40,7 +40,8 @@ function renderPage(permission: DevicePermission, granted: boolean) {
 
 /** Key events in this window. `held` is the state of the modifiers after the event. */
 function key(type: 'keydown' | 'keyup', code: string, held: { ctrl?: boolean, shift?: boolean }) {
-  window.dispatchEvent(new KeyboardEvent(type, { code, key: code === 'Space' ? ' ' : code, ctrlKey: !!held.ctrl, shiftKey: !!held.shift }))
+  const keyOf: Record<string, string> = { ControlLeft: 'Control', ShiftLeft: 'Shift', Space: ' ' }
+  window.dispatchEvent(new KeyboardEvent(type, { code, key: keyOf[code] ?? code, ctrlKey: !!held.ctrl, shiftKey: !!held.shift }))
 }
 
 function pressInWindow() {

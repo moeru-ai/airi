@@ -1,9 +1,7 @@
 import type { MaybeRefOrGetter } from 'vue'
 
-import { useEventListener } from '@vueuse/core'
-import { computed, shallowRef, toValue, watch } from 'vue'
-
-type ModifierFlag = 'ctrlKey' | 'shiftKey' | 'altKey' | 'metaKey'
+import { useEventListener, useMagicKeys } from '@vueuse/core'
+import { computed, toValue } from 'vue'
 
 /** One key of a shortcut, as a keycap shows it. */
 export interface ShortcutKeycap {
@@ -15,26 +13,27 @@ export interface ShortcutKeycap {
   name: string
   /** True for a key that is wider than a letter key, for example Space. */
   wide: boolean
-  /** The flag of a key event that shows a held modifier. */
-  modifier?: ModifierFlag
-  /** The `KeyboardEvent.code` of a main key. */
-  code?: string
+  /**
+   * The name of the key in `useMagicKeys`. A modifier uses its key name, for example `control`. A main key uses its
+   * lower case `KeyboardEvent.code`, for example `keyk`, so the keyboard layout does not change it.
+   */
+  magicKey: string
 }
 
-const appleModifiers: Record<string, { symbol: string, name: string, modifier: ModifierFlag }> = {
-  Ctrl: { symbol: '⌃', name: 'control', modifier: 'ctrlKey' },
-  Shift: { symbol: '⇧', name: 'shift', modifier: 'shiftKey' },
-  Alt: { symbol: '⌥', name: 'option', modifier: 'altKey' },
-  Cmd: { symbol: '⌘', name: 'command', modifier: 'metaKey' },
-  Mod: { symbol: '⌘', name: 'command', modifier: 'metaKey' },
+const appleModifiers: Record<string, { symbol: string, name: string, magicKey: string }> = {
+  Ctrl: { symbol: '⌃', name: 'control', magicKey: 'control' },
+  Shift: { symbol: '⇧', name: 'shift', magicKey: 'shift' },
+  Alt: { symbol: '⌥', name: 'option', magicKey: 'alt' },
+  Cmd: { symbol: '⌘', name: 'command', magicKey: 'meta' },
+  Mod: { symbol: '⌘', name: 'command', magicKey: 'meta' },
 }
 
-const otherModifiers: Record<string, { name: string, modifier: ModifierFlag }> = {
-  Ctrl: { name: 'Ctrl', modifier: 'ctrlKey' },
-  Shift: { name: 'Shift', modifier: 'shiftKey' },
-  Alt: { name: 'Alt', modifier: 'altKey' },
-  Super: { name: 'Win', modifier: 'metaKey' },
-  Mod: { name: 'Ctrl', modifier: 'ctrlKey' },
+const otherModifiers: Record<string, { name: string, magicKey: string }> = {
+  Ctrl: { name: 'Ctrl', magicKey: 'control' },
+  Shift: { name: 'Shift', magicKey: 'shift' },
+  Alt: { name: 'Alt', magicKey: 'alt' },
+  Super: { name: 'Win', magicKey: 'meta' },
+  Mod: { name: 'Ctrl', magicKey: 'control' },
 }
 
 const appleKeySymbols: Record<string, string> = {
@@ -53,14 +52,14 @@ const appleKeySymbols: Record<string, string> = {
  *
  * @example
  * describeShortcutKey('Ctrl', true)
- * // => { token: 'Ctrl', symbol: '⌃', name: 'control', wide: false, modifier: 'ctrlKey' }
+ * // => { token: 'Ctrl', symbol: '⌃', name: 'control', wide: false, magicKey: 'control' }
  * describeShortcutKey('K', false)
- * // => { token: 'K', name: 'K', wide: false, code: 'KeyK' }
+ * // => { token: 'K', name: 'K', wide: false, magicKey: 'keyk' }
  */
 export function describeShortcutKey(token: string, isApple: boolean): ShortcutKeycap {
   const modifier = isApple ? appleModifiers[token] : otherModifiers[token]
   if (modifier)
-    return { token, symbol: isApple ? appleModifiers[token]?.symbol : undefined, name: modifier.name, wide: false, modifier: modifier.modifier }
+    return { token, symbol: isApple ? appleModifiers[token]?.symbol : undefined, name: modifier.name, wide: false, magicKey: modifier.magicKey }
 
   const code = /^[A-Z]$/.test(token) ? `Key${token}` : /^\d$/.test(token) ? `Digit${token}` : token
   return {
@@ -68,44 +67,32 @@ export function describeShortcutKey(token: string, isApple: boolean): ShortcutKe
     symbol: isApple ? appleKeySymbols[token] : undefined,
     name: token === 'Space' && isApple ? 'space' : token,
     wide: token === 'Space',
-    code,
+    magicKey: code.toLowerCase(),
   }
 }
 
 /**
  * Follows which keys of a shortcut the user holds in this window, so each keycap can move with its key.
  *
- * It reads the key events of this window only. A global hook reports presses in other apps, see `tryShortcut`.
+ * It reads the key events of this window only, through `useMagicKeys`. A global hook reports presses in other apps,
+ * see `tryShortcut`.
  */
 export function useShortcutKeys(tokens: MaybeRefOrGetter<readonly string[]>) {
   const isApple = /Mac|iPhone|iPad/.test(navigator.userAgent)
   const keycaps = computed(() => toValue(tokens).map(token => describeShortcutKey(token, isApple)))
+
+  const keys = useMagicKeys()
+
   /** The tokens that are held now. */
-  const held = shallowRef<ReadonlySet<string>>(new Set())
+  const held = computed<ReadonlySet<string>>(() => new Set(keycaps.value.filter(keycap => keys[keycap.magicKey]?.value).map(keycap => keycap.token)))
+  const allHeld = computed(() => keycaps.value.length > 0 && held.value.size === keycaps.value.length)
 
-  function onKey(event: KeyboardEvent) {
-    const next = new Set<string>()
-    for (const keycap of keycaps.value) {
-      // A modifier reads its flag on each event. A main key stays held from its keydown until its keyup.
-      const isHeld = keycap.modifier
-        ? event[keycap.modifier]
-        : event.code === keycap.code ? event.type === 'keydown' : held.value.has(keycap.token)
-      if (isHeld)
-        next.add(keycap.token)
-    }
-    // A full press is a try, so the page does not also type a space or scroll.
-    if (keycaps.value.length > 0 && next.size === keycaps.value.length)
+  // A full press is a try, so the page does not also type a space or scroll. This listener comes after the one of
+  // `useMagicKeys`, so the held keys already include this event.
+  useEventListener(window, 'keydown', (event) => {
+    if (allHeld.value)
       event.preventDefault()
-    held.value = next
-  }
-
-  useEventListener(window, 'keydown', onKey)
-  useEventListener(window, 'keyup', onKey)
-  // A window that loses focus never sees the keyup.
-  useEventListener(window, 'blur', () => held.value = new Set())
-  watch(keycaps, () => held.value = new Set())
-
-  const allHeld = computed(() => keycaps.value.length > 0 && keycaps.value.every(keycap => held.value.has(keycap.token)))
+  }, { passive: false })
 
   return { keycaps, held, allHeld }
 }
