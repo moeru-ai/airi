@@ -44,6 +44,31 @@ describe('chunkTtsInput sentence ends', () => {
   })
 })
 
+describe('chunkTtsInput length limit', () => {
+  // ROOT CAUSE:
+  //
+  // The length limit ended a chunk at any soft punctuation, also at the Chinese `、` between list items. So
+  // 网络、地址解析 became two TTS requests, and the voice paused in the middle of the list.
+  // The reply opens with two clauses, so the boost chunks end before the list and the length limit decides.
+  it('does not end a chunk at a Chinese list separator', async () => {
+    const chunks = await collectChunkText('我这里只能看到工具返回的错误：连接 Home Assistant 地址时，网络请求失败。它没有提供更具体的原因或 HTTP 状态码，所以我没法判断究竟是网络、地址解析还是服务端暂时不可用。')
+
+    expect(chunks.at(-1)).toBe('所以我没法判断究竟是网络、地址解析还是服务端暂时不可用。')
+    expect(chunks.filter(chunk => chunk.endsWith('、'))).toEqual([])
+  })
+
+  it('still ends a chunk at a Japanese comma, and at a list separator after twice the word limit', async () => {
+    const japanese = await collectChunkText('今日は晴れです。散歩しました。公園へ行って、少し散歩してから、カフェでコーヒーを飲んで、本を読みました。')
+    expect(japanese.some(chunk => chunk.endsWith('、'))).toBe(true)
+
+    const list = Array.from({ length: 30 }, (_, index) => `项目${index}`).join('、')
+    const chunks = await collectChunks(`这是第一句。这是第二句。${list}。`)
+    expect(chunks.length).toBeGreaterThan(3)
+    for (const chunk of chunks)
+      expect(chunk.words, chunk.text).toBeLessThanOrEqual(2 * 12 + 2)
+  })
+})
+
 describe('chunkTtsInput boost', () => {
   // ROOT CAUSE:
   //
