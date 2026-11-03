@@ -21,7 +21,7 @@ The two experiments are ready to release. The user had no way to see or stop the
 
 - `stores/sync-preferences.ts` owns one switch for each kind of data. Each switch is on by default.
 - The switches belong to the device. They do not follow the account. Each device decides which of its local data leaves the device.
-- The account settings have a Sync section with the four switches. The welcome step of onboarding has one switch below the sign-in button. It sets all four switches.
+- The account settings have a Sync section with the four switches.
 - The experiment flags `character-card-sync` and `display-model-sync` are removed. On the first start, the store copies a saved choice of these flags. A device that turned a sync off keeps it off.
 - A switch that is off pauses the sync. It deletes no data on the device or in the account. Changes from the device wait and sync when the switch is on again:
   - Chats: the outbox keeps the messages, the tombstones keep the deletions, and `cloudTitlePending` keeps the titles. No WebSocket opens.
@@ -31,11 +31,12 @@ The two experiments are ready to release. The user had no way to see or stop the
 ## Scope and non-goals
 
 - Out of scope: a switch that follows the account, a deletion of the account copy of one kind of data, and a sync status for each kind of data.
+- Out of scope: a sync choice in onboarding. Onboarding gets a new design in separate work.
 - Out of scope: the sync of images in chats. Images stay on the device.
 
 ## Test plan
 
-- `stores/sync-preferences.test.ts`: the defaults, the copy of the experiment choices, and the switch for all kinds of data.
+- `stores/sync-preferences.test.ts`: the defaults, and the copy of the experiment choices.
 - `stores/providers/config.test.ts`: no request while the provider switch is off, and a sync when it is on again.
 - The existing card and model sync tests set the new switches.
 - The account settings browser test shows the Sync section and saves a switch.

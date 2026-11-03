@@ -55,16 +55,4 @@ describe('sync preferences', () => {
 
     expect(useSyncPreferencesStore().isEnabled('character-cards')).toBe(true)
   })
-
-  it('turns every sync off and on with one switch', () => {
-    const store = useSyncPreferencesStore()
-
-    store.setAllEnabled(false)
-    for (const category of syncCategories)
-      expect(store.isEnabled(category)).toBe(false)
-
-    store.setAllEnabled(true)
-    for (const category of syncCategories)
-      expect(store.isEnabled(category)).toBe(true)
-  })
 })

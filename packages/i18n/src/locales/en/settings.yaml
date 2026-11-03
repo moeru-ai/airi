@@ -50,8 +50,6 @@ dialogs:
     loginPrompt: Sign in to use the official AIRI provider for the best experience.
     loginAction: Sign in
     setupWithoutSigningIn: Setup with your provider
-    syncToggle: Sync my data to my account
-    syncToggleDescription: Chats, providers, character cards, and models. You can change each one later in the account settings.
     pricingLink: Pricing
     termsLink: Terms of Service
     flux: Flux

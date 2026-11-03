@@ -74,14 +74,8 @@ export const useSyncPreferencesStore = defineStore('sync-preferences', () => {
     preferences.value = { ...preferences.value, [category]: enabled }
   }
 
-  /** Turns every sync on or off, for example from the sync switch of onboarding. */
-  function setAllEnabled(enabled: boolean) {
-    preferences.value = Object.fromEntries(syncCategories.map(category => [category, enabled]))
-  }
-
   return {
     isEnabled,
     setEnabled,
-    setAllEnabled,
   }
 })

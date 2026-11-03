@@ -2,7 +2,7 @@
 import type { OnboardingStepNextHandler } from './types'
 
 import { all } from '@proj-airi/i18n'
-import { Button, DropdownMenu, FieldCheckbox } from '@proj-airi/ui'
+import { Button, DropdownMenu } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuItem } from 'reka-ui'
 import { computed, watch } from 'vue'
@@ -14,7 +14,6 @@ import { AIRI_FLUX_URL, AIRI_TERMS_URL } from '../../../../constants/public-link
 import { useAuthStore } from '../../../../stores/auth'
 import { useAiriCardStore } from '../../../../stores/modules/airi-card'
 import { useSettingsGeneral } from '../../../../stores/settings'
-import { syncCategories, useSyncPreferencesStore } from '../../../../stores/sync-preferences'
 
 interface Props {
   customProviderSetupEnabled: boolean
@@ -27,13 +26,6 @@ const authStore = useAuthStore()
 const settingsStore = useSettingsGeneral()
 const { language } = storeToRefs(settingsStore)
 const cardStore = useAiriCardStore()
-const syncPreferences = useSyncPreferencesStore()
-
-// One switch for every sync, set before the sign-in starts. The account settings then show and change each sync.
-const syncEnabled = computed({
-  get: () => syncCategories.every(category => syncPreferences.isEnabled(category)),
-  set: enabled => syncPreferences.setAllEnabled(enabled),
-})
 
 const languages = computed(() => {
   return Object.entries(all).map(([value, label]) => ({ value, label }))
@@ -145,21 +137,6 @@ function handleLocalSetup() {
         :label="t('settings.dialogs.onboarding.loginAction')"
         @click="handleLogin"
       />
-      <div
-        v-motion="{
-          initial: { opacity: 0 },
-          enter: { opacity: 1 },
-          duration: 500,
-          delay: 225,
-        }"
-        :class="['px-1 py-1', 'text-left']"
-      >
-        <FieldCheckbox
-          v-model="syncEnabled"
-          :label="t('settings.dialogs.onboarding.syncToggle')"
-          :description="t('settings.dialogs.onboarding.syncToggleDescription')"
-        />
-      </div>
       <Button
         v-if="props.customProviderSetupEnabled"
         v-motion="{
