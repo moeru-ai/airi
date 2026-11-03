@@ -12,7 +12,7 @@ import { until, useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -265,6 +265,20 @@ async function handleBuy(stripePriceId: string) {
         </div>
       </div>
     </div>
+
+    <RouterLink
+      v-if="isAuthenticated"
+      to="/settings/usage"
+      :class="[
+        'inline-flex min-h-9 items-center gap-2 self-end rounded-lg px-3 py-1.5 text-sm',
+        'text-primary-600 hover:bg-primary-500/10 dark:text-primary-400',
+        'focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2',
+      ]"
+    >
+      <span aria-hidden="true" :class="['i-solar:chart-square-bold-duotone size-5']" />
+      {{ t('settings.pages.flux.usage.details') }}
+      <span aria-hidden="true" :class="['i-solar:alt-arrow-right-linear size-4']" />
+    </RouterLink>
 
     <div v-if="!fluxPurchaseDisabled" :class="['flex flex-col gap-4']">
       <!-- Currency selector -->
