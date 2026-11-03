@@ -18,6 +18,13 @@ const props = defineProps<{
 
 const { t } = useI18n()
 
+/**
+ * True for a key that works only while the app is in front, for example on the web. It needs no permission, so the
+ * page does not compare a global hook with a hook of this window, and a press in this window is the whole result.
+ */
+const inApp = computed(() => props.permission.kind === 'push-to-talk')
+const copyKey = computed(() => `settings.dialogs.onboarding.permissions.flow.${inApp.value ? 'push-to-talk' : 'accessibility'}`)
+
 /** Each keycap moves with its key in this window, so the user sees each key as it goes down. */
 const { keycaps, held, allHeld } = useShortcutKeys(() => props.permission.shortcutKeys?.() ?? [])
 
@@ -59,10 +66,10 @@ onScopeDispose(() => stopListening?.())
 
 <template>
   <PermissionPageLayout
-    :title="t('settings.dialogs.onboarding.permissions.flow.accessibility.title')"
-    :description="t('settings.dialogs.onboarding.permissions.flow.accessibility.body')"
+    :title="t(`${copyKey}.title`)"
+    :description="t(`${copyKey}.body`)"
   >
-    <ul :class="['m-0 mt-1.5 flex flex-col list-none gap-2 p-0']">
+    <ul v-if="!inApp" :class="['m-0 mt-1.5 flex flex-col list-none gap-2 p-0']">
       <li
         :class="[
           'flex items-center gap-3 rounded-xl px-3.5 py-3 transition-colors duration-300',
@@ -101,7 +108,7 @@ onScopeDispose(() => stopListening?.())
         <span
           v-for="keycap in keycaps"
           :key="keycap.token"
-          :class="['h-16 flex pb-1.5 md:h-19.5', keycap.wide ? 'w-28 md:w-42' : 'w-16 md:w-21.5']"
+          :class="['h-16 flex pb-1.5 @3xl:h-19.5', keycap.wide ? 'w-28 @3xl:w-42' : 'w-16 @3xl:w-21.5']"
         >
           <span
             :class="[
@@ -136,6 +143,9 @@ onScopeDispose(() => stopListening?.())
           </span>
           {{ t('settings.dialogs.onboarding.permissions.flow.accessibility.listening') }}
         </span>
+        <PermissionStatusLine v-else-if="inApp && lastResult" tone="ok">
+          {{ t('settings.dialogs.onboarding.permissions.flow.push-to-talk.works') }}
+        </PermissionStatusLine>
         <PermissionStatusLine v-else-if="lastResult === 'every-app'" tone="ok">
           {{ t('settings.dialogs.onboarding.permissions.flow.accessibility.worksEverywhere') }}
         </PermissionStatusLine>
@@ -143,7 +153,7 @@ onScopeDispose(() => stopListening?.())
           {{ t('settings.dialogs.onboarding.permissions.flow.accessibility.worksHere') }}
         </PermissionStatusLine>
         <span v-else :class="['text-[13px] text-neutral-500 dark:text-neutral-400']">
-          {{ t('settings.dialogs.onboarding.permissions.flow.accessibility.try') }}
+          {{ t(`${copyKey}.try`) }}
         </span>
       </div>
     </template>

@@ -29,51 +29,53 @@ function detailOf(permission: DevicePermission) {
 </script>
 
 <template>
-  <!-- The text on the left and the permissions on the right, as on the other pages. A narrow window stacks and centers them. -->
-  <div :class="['min-h-0 flex flex-1 flex-col items-center justify-center gap-6 text-center md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,420px)] md:items-center md:gap-12 md:text-left']">
-    <div :class="['flex flex-col gap-3.5']">
-      <h2 :class="['m-0 text-2xl text-neutral-900 font-bold leading-tight md:text-3xl dark:text-neutral-50']">
-        {{ permissions.every(permission => statuses[permission.id] === 'granted') ? t('settings.dialogs.onboarding.permissions.flow.summary.title') : t('settings.dialogs.onboarding.permissions.flow.summary.almost') }}
-      </h2>
-      <p :class="['m-0 text-[15px] text-neutral-500 leading-relaxed dark:text-neutral-400']">
-        {{ t('settings.dialogs.onboarding.permissions.flow.summary.body') }}
-      </p>
-    </div>
-    <ul :class="['m-0 max-w-105 w-full flex flex-col list-none gap-2 p-0 text-left']">
-      <li
-        v-for="(permission, index) in permissions"
-        :key="permission.id"
-        :class="['flex items-center gap-3.5 rounded-2xl px-4 py-3.5', 'bg-neutral-100 dark:bg-neutral-800/50', 'animate-slideUpAndFade']"
-        :style="{ animationDelay: `${index * 70}ms`, animationFillMode: 'both' }"
-      >
-        <span
-          :class="[
-            'size-9 shrink-0 flex items-center justify-center rounded-full',
-            statuses[permission.id] === 'granted'
-              ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/70 dark:text-primary-200'
-              : 'bg-neutral-200 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400',
-          ]"
+  <!-- The width of this page decides the layout, as on the other pages. A narrow page stacks and centers the parts. -->
+  <div :class="['@container min-h-0 flex flex-1 flex-col']">
+    <div :class="['min-h-0 flex flex-1 flex-col items-center justify-center gap-6 text-center @3xl:grid @3xl:grid-cols-[minmax(0,1fr)_minmax(0,420px)] @3xl:items-center @3xl:gap-12 @3xl:text-left']">
+      <div :class="['flex flex-col gap-3.5']">
+        <h2 :class="['m-0 text-2xl text-neutral-900 font-bold leading-tight @3xl:text-3xl dark:text-neutral-50']">
+          {{ permissions.every(permission => statuses[permission.id] === 'granted') ? t('settings.dialogs.onboarding.permissions.flow.summary.title') : t('settings.dialogs.onboarding.permissions.flow.summary.almost') }}
+        </h2>
+        <p :class="['m-0 text-[15px] text-neutral-500 leading-relaxed dark:text-neutral-400']">
+          {{ t('settings.dialogs.onboarding.permissions.flow.summary.body') }}
+        </p>
+      </div>
+      <ul :class="['m-0 max-w-105 w-full flex flex-col list-none gap-2 p-0 text-left']">
+        <li
+          v-for="(permission, index) in permissions"
+          :key="permission.id"
+          :class="['flex items-center gap-3.5 rounded-2xl px-4 py-3.5', 'bg-neutral-100 dark:bg-neutral-800/50', 'animate-slideUpAndFade']"
+          :style="{ animationDelay: `${index * 70}ms`, animationFillMode: 'both' }"
         >
-          <span :class="[permissionIcons[permission.kind], 'size-4.5']" aria-hidden="true" />
-        </span>
-        <span :class="['min-w-0 flex flex-1 flex-col gap-0.5']">
-          <span :class="['text-[15px] font-semibold']">{{ t(permission.titleKey) }}</span>
-          <span :class="['text-[13px] text-neutral-500 dark:text-neutral-400']">{{ detailOf(permission) }}</span>
-        </span>
-        <span
-          v-if="statuses[permission.id] === 'granted'"
-          role="img"
-          :aria-label="t('settings.dialogs.onboarding.permissions.stateGranted')"
-          :class="['i-mingcute:check-circle-fill', 'size-5.5 shrink-0 text-green-600 dark:text-green-400']"
-        />
-        <Button
-          v-else
-          size="sm"
-          :label="t('settings.dialogs.onboarding.permissions.flow.summary.setUp')"
-          :aria-label="t('settings.dialogs.onboarding.permissions.flow.summary.setUpOne', { permission: t(permission.titleKey) })"
-          @click="emit('open', index)"
-        />
-      </li>
-    </ul>
+          <span
+            :class="[
+              'size-9 shrink-0 flex items-center justify-center rounded-full',
+              statuses[permission.id] === 'granted'
+                ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/70 dark:text-primary-200'
+                : 'bg-neutral-200 text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400',
+            ]"
+          >
+            <span :class="[permissionIcons[permission.kind], 'size-4.5']" aria-hidden="true" />
+          </span>
+          <span :class="['min-w-0 flex flex-1 flex-col gap-0.5']">
+            <span :class="['text-[15px] font-semibold']">{{ t(permission.titleKey) }}</span>
+            <span :class="['text-[13px] text-neutral-500 dark:text-neutral-400']">{{ detailOf(permission) }}</span>
+          </span>
+          <span
+            v-if="statuses[permission.id] === 'granted'"
+            role="img"
+            :aria-label="t('settings.dialogs.onboarding.permissions.stateGranted')"
+            :class="['i-mingcute:check-circle-fill', 'size-5.5 shrink-0 text-green-600 dark:text-green-400']"
+          />
+          <Button
+            v-else
+            size="sm"
+            :label="t('settings.dialogs.onboarding.permissions.flow.summary.setUp')"
+            :aria-label="t('settings.dialogs.onboarding.permissions.flow.summary.setUpOne', { permission: t(permission.titleKey) })"
+            @click="emit('open', index)"
+          />
+        </li>
+      </ul>
+    </div>
   </div>
 </template>

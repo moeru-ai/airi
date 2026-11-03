@@ -65,6 +65,10 @@ dialogs:
       accessibilityDescription: 让「按住说话」快捷键在其他应用处于前台时也能使用。
       screenRecordingTitle: 屏幕录制
       screenRecordingDescription: 在你让 AIRI 看屏幕时，允许它看到你的屏幕。
+      pushToTalkTitle: 按住说话
+      pushToTalkDescription: AIRI 在前台时，按住一个键说话。
+      screenShareTitle: 屏幕共享
+      screenShareDescription: 让 AIRI 看到你共享的屏幕或窗口。
       requestAction: 请求获取
       openSettingsAction: 打开系统设置
       optionalHint: 即使没有授予这些权限，您也可以继续。
@@ -107,8 +111,16 @@ dialogs:
           location: 在「隐私与安全性 › 辅助功能」中打开 AIRI。
           on: 快捷键在所有应用里都能用。
           off: 快捷键只在 AIRI 处于前台时可用。
+        push-to-talk:
+          title: 按住一个键说话
+          body: AIRI 在前台时按住这个键，说话，然后松开。
+          try: 按住这个键试试。
+          works: 可以用了。AIRI 在前台时随时按住它说话。
+          on: AIRI 在前台时按住这个键说话。
+          off: 你仍然可以用麦克风按钮说话。
         screen-recording:
           title: 让角色看到你的屏幕
+          share: 共享屏幕
           body: 只在你要求时，比如问「我的屏幕上有什么？」
           visible: 这就是角色能看到的画面。
           hidden: 角色看不到

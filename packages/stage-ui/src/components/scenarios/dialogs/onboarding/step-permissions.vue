@@ -6,7 +6,7 @@ import type { OnboardingStepLaterHandler, OnboardingStepNextHandler, OnboardingS
 import { Button, GhostButton } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { TooltipContent, TooltipPortal, TooltipProvider, TooltipRoot, TooltipTrigger } from 'reka-ui'
-import { computed, ref, shallowRef } from 'vue'
+import { computed, onScopeDispose, ref, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import PermissionBasicPage from '../../permissions/permission-basic-page.vue'
@@ -39,6 +39,9 @@ const skipped = ref<Set<string>>(new Set())
 /** Permissions whose request the user started. A request that opens the system settings waits until the user returns. */
 const requested = ref<Set<string>>(new Set())
 const microphoneHeard = shallowRef(false)
+// A permission that lasts only while something runs, for example a screen share on the web, stops when the step closes.
+// It does not stop on its page, so the summary still shows it as set up.
+onScopeDispose(() => permissions.value.forEach(permission => permission.release?.()))
 
 const current = computed<DevicePermission | undefined>(() => permissions.value[page.value])
 const onSummary = computed(() => page.value >= permissions.value.length)
@@ -88,6 +91,8 @@ const primaryLabel = computed(() => {
     return t(`${flowKey}.done`)
   if (isGranted(permission))
     return t(`${flowKey}.continue`)
+  if (permission.requestLabelKey)
+    return t(permission.requestLabelKey)
   if (statuses.value[permission.id] === 'denied' || permission.settingsLocationKey)
     return t('settings.dialogs.onboarding.permissions.openSettingsAction')
   if (permission.kind === 'microphone')
@@ -122,15 +127,15 @@ async function primary() {
 </script>
 
 <template>
-  <div :class="['h-full flex flex-col gap-5']">
+  <div :class="['@container h-full flex flex-col gap-5']">
     <div :class="['h-9 flex items-center justify-between gap-4']">
       <div :class="['flex items-center gap-3.5']">
-        <!-- On a narrow window, for example a phone, Back sits at the start of the top bar, as in a navigation bar. -->
+        <!-- On a narrow flow, for example on a phone or in a dialog, Back sits at the start of the top bar, as in a navigation bar. -->
         <button
           v-if="canGoBack"
           type="button"
           :aria-label="t('settings.dialogs.onboarding.back')"
-          :class="['-ml-1.5 size-8 flex items-center justify-center rounded-full outline-none md:hidden', 'text-neutral-600 hover:bg-neutral-900/5 dark:text-neutral-300 dark:hover:bg-white/10', 'focus-visible:ring-2 focus-visible:ring-primary-400/60']"
+          :class="['-ml-1.5 size-8 flex items-center justify-center rounded-full outline-none @3xl:hidden', 'text-neutral-600 hover:bg-neutral-900/5 dark:text-neutral-300 dark:hover:bg-white/10', 'focus-visible:ring-2 focus-visible:ring-primary-400/60']"
           @click="back"
         >
           <span :class="['i-mingcute:left-line', 'size-5']" aria-hidden="true" />
@@ -157,7 +162,7 @@ async function primary() {
         :granted="isGranted(current)"
       />
       <PermissionShortcutPage
-        v-else-if="current?.kind === 'accessibility'"
+        v-else-if="current?.kind === 'accessibility' || current?.kind === 'push-to-talk'"
         :key="current.id"
         :permission="current"
         :granted="isGranted(current)"
@@ -179,12 +184,12 @@ async function primary() {
     </Transition>
 
     <div :class="['flex items-center justify-end gap-2.5']">
-      <!-- On a wide window, Back sits at the bottom left, across from the actions that move forward. -->
+      <!-- On a wide flow, Back sits at the bottom left, across from the actions that move forward. -->
       <GhostButton
         v-if="canGoBack"
         icon="i-mingcute:left-line"
         :label="t('settings.dialogs.onboarding.back')"
-        :class="['mr-auto hidden md:flex']"
+        :class="['mr-auto hidden @3xl:flex']"
         @click="back"
       />
       <TooltipProvider v-if="current" :delay-duration="200">

@@ -72,6 +72,10 @@ dialogs:
       accessibilityDescription: Lets the Push to Talk shortcut work while another app is in front.
       screenRecordingTitle: Screen Recording
       screenRecordingDescription: Lets AIRI see your screen when you ask it to look.
+      pushToTalkTitle: Push to Talk
+      pushToTalkDescription: Hold a key to talk while AIRI is in front.
+      screenShareTitle: Screen sharing
+      screenShareDescription: Lets AIRI see a screen or window that you share.
       requestAction: Request access
       openSettingsAction: Open System Settings
       optionalHint: You can continue even if these permissions are not granted.
@@ -114,8 +118,16 @@ dialogs:
           location: Turn on AIRI in Privacy & Security › Accessibility.
           on: The shortcut works in every app.
           off: The shortcut works only while AIRI is in front.
+        push-to-talk:
+          title: Hold a key to talk
+          body: Hold the key while AIRI is in front, speak, and let go.
+          try: Hold the key to try.
+          works: It works. Hold it whenever AIRI is in front.
+          on: Hold the key while AIRI is in front to talk.
+          off: You can still talk with the microphone button.
         screen-recording:
           title: Let your character see your screen
+          share: Share a screen
           body: Only when you ask, for example "What is on my screen?"
           visible: This is what your character sees.
           hidden: Hidden from your character

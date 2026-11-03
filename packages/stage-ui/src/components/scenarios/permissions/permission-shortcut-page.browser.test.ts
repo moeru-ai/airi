@@ -104,6 +104,28 @@ describe('permission shortcut page', () => {
     await expect.element(screen.getByRole('status')).toHaveTextContent('It works. Try it in another app too.')
   })
 
+  it('needs no permission for a key of the page, and counts a press in the window as working', async () => {
+    const permission: DevicePermission = {
+      id: 'push-to-talk',
+      kind: 'push-to-talk',
+      titleKey: 'settings.dialogs.onboarding.permissions.pushToTalkTitle',
+      descriptionKey: 'settings.dialogs.onboarding.permissions.pushToTalkDescription',
+      shortcutKeys: () => ['Space'],
+      check: async () => 'granted',
+      request: async () => {},
+    }
+    const screen = renderPage(permission, true)
+
+    await expect.element(screen.getByRole('heading', { name: 'Hold a key to talk' })).toBeInTheDocument()
+    expect(screen.getByText('With Accessibility').elements()).toHaveLength(0)
+
+    key('keydown', 'Space', {})
+    await expect.element(screen.getByRole('status')).toHaveTextContent('Listening')
+    key('keyup', 'Space', {})
+
+    await expect.element(screen.getByRole('status')).toHaveTextContent('It works. Hold it whenever AIRI is in front.')
+  })
+
   it('listens again after the permission changes, and stops when it closes', async () => {
     const accessibility = fakeAccessibility()
     const screen = renderPage(accessibility.permission, false)

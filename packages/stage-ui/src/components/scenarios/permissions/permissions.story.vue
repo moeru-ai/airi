@@ -31,6 +31,7 @@ function fakePermission(kind: DevicePermissionKind, status: () => DevicePermissi
   const titles: Record<DevicePermissionKind, string> = {
     'microphone': 'microphone',
     'accessibility': 'accessibility',
+    'push-to-talk': 'pushToTalk',
     'screen-recording': 'screenRecording',
     'notifications': 'notifications',
   }
@@ -64,6 +65,10 @@ function pressInAnotherApp() {
   sendGlobalPress?.({ phase: 'down' })
   setTimeout(() => sendGlobalPress?.({ phase: 'up' }), 600)
 }
+
+// --- Push to Talk on the web: a key of the page, without a system permission.
+
+const webPushToTalkPermission = fakePermission('push-to-talk', () => 'granted', () => {}, { shortcutKeys: () => ['Space'] })
 
 // --- Screen Recording: two drawings stand in for the displays.
 
@@ -161,6 +166,12 @@ const notificationsPermission = fakePermission('notifications', () => notificati
       </template>
       <div :class="['h-screen max-h-[560px] w-full max-w-[1000px] flex flex-col bg-white p-4 md:p-8 dark:bg-[#121212]']">
         <PermissionShortcutPage :permission="shortcutPermission" :granted="shortcut.status === 'granted'" :waiting="shortcut.waiting" />
+      </div>
+    </Variant>
+
+    <Variant id="push-to-talk-web" title="Push to Talk (web, in the page)">
+      <div :class="['h-screen max-h-[560px] w-full max-w-[1000px] flex flex-col bg-white p-4 md:p-8 dark:bg-[#121212]']">
+        <PermissionShortcutPage :permission="webPushToTalkPermission" :granted="true" :waiting="false" />
       </div>
     </Variant>
 
