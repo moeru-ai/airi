@@ -2,6 +2,11 @@
 
 Shared core for stage
 
+## Account usage
+
+`FluxUsagePanel` loads the signed-in account's activity and links to the separate usage page.
+`FluxUsageHistory` owns transaction pagination and speech groups. Both components cancel pending requests and discard data when the session changes.
+
 ## Optional modules
 
 Provider lists expose `None` for optional features. Switches control module activation.

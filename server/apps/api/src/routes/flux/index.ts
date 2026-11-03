@@ -8,7 +8,7 @@ import { Hono } from 'hono'
 import { boolean, check, object, parse, pipe, safeParse, string } from 'valibot'
 
 import { authGuard } from '../../middlewares/auth'
-import { DailyUsageSummarySchema } from '../../types/flux-usage'
+import { DailyUsageSummarySchema, FluxHistoryResponseSchema } from '../../types/flux-usage'
 import { LimitOffsetPaginationQuerySchema } from '../../utils/http-query'
 
 const FallbackBodySchema = object({ fallbackToFlux: boolean() })
@@ -71,7 +71,7 @@ export function createFluxRoutes(
 
       const { records, hasMore } = await fluxTransactionService.getHistory(user.id, limit, offset)
 
-      return c.json({
+      return c.json(parse(FluxHistoryResponseSchema, {
         records: records.map(r => ({
           id: r.id,
           type: r.type,
@@ -81,6 +81,6 @@ export function createFluxRoutes(
           createdAt: r.createdAt.toISOString(),
         })),
         hasMore,
-      })
+      }))
     })
 }

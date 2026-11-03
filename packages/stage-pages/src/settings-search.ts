@@ -20,6 +20,7 @@ export const settingsSearchModules: Readonly<Record<string, SettingsSearchModule
   'settings:connection': { routes: ['/settings/connection'] },
   'settings:data': () => import('./pages/settings/data/index.search'),
   'settings:flux': { routes: ['/settings/flux'] },
+  'settings:usage': { routes: ['/settings/usage'] },
   'settings:memory': { routes: ['/settings/memory'] },
   'settings:models': () => import('./pages/settings/models/index.search'),
   'settings:modules': { routes: ['/settings/modules'] },

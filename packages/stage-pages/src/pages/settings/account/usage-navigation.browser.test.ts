@@ -1,0 +1,194 @@
+import en from '@proj-airi/i18n/locales/en'
+
+import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
+import { createPinia, disposePinia, setActivePinia } from 'pinia'
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, render } from 'vitest-browser-vue'
+import { page, userEvent } from 'vitest/browser'
+import { createI18n } from 'vue-i18n'
+import { createMemoryHistory, createRouter, RouterView } from 'vue-router'
+
+import FluxPage from '../flux.vue'
+import UsagePage from '../usage.vue'
+import AccountSettingsPage from './account-settings-page.vue'
+
+import 'virtual:uno.css'
+
+// Better Auth captures fetch during module initialization. Keep its requests on the same mocked network boundary.
+const network = vi.hoisted(() => {
+  const original = globalThis.fetch
+  const fetch = vi.fn<typeof original>((...args) => original(...args))
+  globalThis.fetch = fetch
+  return { original, fetch }
+})
+
+const now = '2026-11-03T04:00:00.000Z'
+const days = Array.from({ length: 365 }, (_, index) => ({
+  date: new Date(Date.UTC(2026, 10, 3) - (364 - index) * 86_400_000).toISOString().slice(0, 10),
+  microFlux: index === 364 ? 2_000_000 : 0,
+}))
+const history = Array.from({ length: 20 }, (_, index) => ({
+  id: `record-${index}`,
+  type: 'debit',
+  amount: index < 2 ? index + 2 : 1,
+  description: index < 2 ? 'tts:voice' : `Chat ${index}`,
+  metadata: null,
+  createdAt: now,
+}))
+
+let pinia: ReturnType<typeof createPinia>
+let requests: URL[]
+let failNextPage: boolean
+let dailyResponse: (token: string) => Promise<Response>
+let historyResponse: (offset: number) => Promise<Response>
+
+beforeEach(async () => {
+  await page.viewport(1100, 900)
+  localStorage.clear()
+  pinia = createPinia()
+  setActivePinia(pinia)
+  requests = []
+  failNextPage = false
+  dailyResponse = async () => Response.json({ days, longestSessionMs: 90 * 60_000 })
+  historyResponse = async (offset) => {
+    if (offset === 0)
+      return Response.json({ records: history, hasMore: true })
+    if (failNextPage) {
+      failNextPage = false
+      return Response.json({ error: 'Unavailable' }, { status: 503 })
+    }
+    return Response.json({ records: [{ ...history[2], id: 'last-record', description: 'Final chat' }], hasMore: false })
+  }
+  network.fetch.mockImplementation(async (input, init) => {
+    const url = new URL(input instanceof Request ? input.url : input)
+    const token = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined)).get('authorization') ?? ''
+    requests.push(url)
+    if (url.pathname.endsWith('/get-session')) {
+      const id = token.includes('other-token') ? 'other' : 'owner'
+      return Response.json({
+        user: { id, name: id, email: `${id}@example.com`, emailVerified: true, createdAt: now, updatedAt: now },
+        session: { id: `session-${id}`, userId: id, token: `${id}-token`, createdAt: now, updatedAt: now, expiresAt: '2027-01-01T00:00:00.000Z' },
+      })
+    }
+    if (url.pathname.endsWith('/list-accounts'))
+      return Response.json([])
+    if (url.pathname.endsWith('/flux/usage/daily'))
+      return dailyResponse(token)
+    if (url.pathname.endsWith('/flux/history'))
+      return historyResponse(Number(url.searchParams.get('offset')))
+    if (url.pathname.endsWith('/flux/stats'))
+      return Response.json({ capacity: 500 })
+    if (url.pathname.endsWith('/stripe/packages'))
+      return Response.json([{ stripePriceId: 'price_500', label: '500 Flux', defaultCurrency: 'usd', currencies: { usd: '$3.00' } }])
+    if (url.pathname.endsWith('/flux'))
+      return Response.json({ flux: 150, capacitorPercent: null, capacitorRechargesAt: null, fallbackToFlux: false })
+    throw new Error(`Unexpected request: ${url.pathname}`)
+  })
+})
+
+afterEach(() => {
+  cleanup()
+  disposePinia(pinia)
+  localStorage.clear()
+  network.fetch.mockImplementation((...args) => network.original(...args))
+  vi.restoreAllMocks()
+})
+
+afterAll(() => {
+  globalThis.fetch = network.original
+})
+
+async function openPage(path = '/settings/account') {
+  const auth = useAuthStore(pinia)
+  await auth.completeSignIn({ accessToken: 'owner-token', expiresIn: 3600, clientId: 'browser-test' })
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/settings/account', component: AccountSettingsPage },
+      { path: '/settings/usage', component: UsagePage },
+      { path: '/settings/flux', component: FluxPage },
+    ],
+  })
+  await router.push(path)
+  const screen = await render(RouterView, {
+    global: { plugins: [pinia, router, createI18n({ legacy: false, locale: 'en', messages: { en } })] },
+  })
+  return { screen, auth, router }
+}
+
+describe('account usage navigation', () => {
+  it('opens separate history from the account overview and preserves grouping, pagination, and retry', async () => {
+    const { screen, router } = await openPage()
+    await expect.element(screen.getByRole('img', { name: 'Daily Flux usage' })).toBeVisible()
+    expect(requests.some(url => url.pathname.endsWith('/flux/history'))).toBe(false)
+    expect(requests.some(url => url.pathname.endsWith('/stripe/packages'))).toBe(false)
+
+    await screen.getByRole('link', { name: 'View detailed usage' }).click()
+    await expect.poll(() => router.currentRoute.value.path).toBe('/settings/usage')
+    await expect.element(screen.getByRole('table')).toBeVisible()
+    expect(screen.getByRole('img').elements()).toHaveLength(0)
+    expect(screen.getByRole('button', { name: '500 Flux $3.00' }).elements()).toHaveLength(0)
+    const group = screen.getByRole('button', { name: /tts:voice.*2 requests/ })
+    const groupButton = group.element() as HTMLElement
+    groupButton.focus()
+    await userEvent.keyboard('{Enter}')
+    await expect.element(group).toHaveAttribute('aria-expanded', 'true')
+    await expect.element(screen.getByRole('cell', { name: '-2', exact: true })).toBeVisible()
+
+    failNextPage = true
+    await screen.getByRole('button', { name: 'Load More' }).click()
+    await expect.element(screen.getByText('Failed to load usage data. Try again.')).toBeVisible()
+    await expect.element(group).toHaveAttribute('aria-expanded', 'true')
+    await screen.getByRole('button', { name: 'Retry', exact: true }).click()
+    await expect.element(screen.getByRole('cell', { name: 'Final chat', exact: true })).toBeVisible()
+    expect(requests.filter(url => url.pathname.endsWith('/flux/history')).map(url => url.searchParams.get('offset'))).toEqual(['0', '20', '20'])
+    expect(screen.getByRole('button', { name: 'Load More' }).elements()).toHaveLength(0)
+  })
+
+  it('keeps usage requests and records off the charging page', async () => {
+    const { screen } = await openPage('/settings/flux')
+    await expect.element(screen.getByRole('button', { name: '500 Flux $3.00' })).toBeVisible()
+    expect(requests.some(url => url.pathname.endsWith('/flux/usage/daily'))).toBe(false)
+    expect(requests.some(url => url.pathname.endsWith('/flux/history'))).toBe(false)
+    expect(screen.getByRole('img').elements()).toHaveLength(0)
+    expect(screen.getByRole('table').elements()).toHaveLength(0)
+  })
+
+  it('discards a pending overview when the account changes', async () => {
+    let finishOld: (value: Response) => void = () => {}
+    dailyResponse = async token => token.includes('owner-token')
+      ? new Promise((resolve) => {
+          finishOld = resolve
+        })
+      : Response.json({ days, longestSessionMs: 60_000 })
+    const { screen, auth } = await openPage()
+    await expect.poll(() => requests.some(url => url.pathname.endsWith('/flux/usage/daily'))).toBe(true)
+    await auth.completeSignIn({ accessToken: 'other-token', expiresIn: 3600, clientId: 'browser-test' })
+    await expect.element(screen.getByRole('img', { name: 'Daily Flux usage' })).toBeVisible()
+    finishOld(Response.json({ days: days.map(day => ({ ...day, microFlux: 999_000_000 })), longestSessionMs: 999 * 60_000 }))
+    await expect.element(screen.getByText('1m', { exact: true })).toBeVisible()
+  })
+
+  it('discards pending history after sign-out', async () => {
+    let finish: (value: Response) => void = () => {}
+    historyResponse = async () => new Promise((resolve) => {
+      finish = resolve
+    })
+    const { screen, auth } = await openPage('/settings/usage')
+    await expect.poll(() => requests.some(url => url.pathname.endsWith('/flux/history'))).toBe(true)
+    await auth.clearAllAuthState()
+    finish(Response.json({ records: history, hasMore: true }))
+    await expect.element(screen.getByRole('link', { name: 'Sign in to view your usage records' })).toBeVisible()
+    expect(screen.getByRole('table').elements()).toHaveLength(0)
+  })
+
+  it('keeps history readable as cards on mobile', async () => {
+    await page.viewport(390, 844)
+    const { screen } = await openPage('/settings/usage')
+    const group = screen.getByRole('button', { name: /tts:voice.*2 requests/ })
+    await expect.element(group).toBeVisible()
+    await group.click()
+    await expect.element(group).toHaveAttribute('aria-expanded', 'true')
+    await expect.element(screen.getByRole('list').getByText('Chat 2', { exact: true })).toBeVisible()
+  })
+})

@@ -13,6 +13,10 @@ The five summaries show Flux used, peak daily Flux, longest session, longest str
 Valibot defines the response contract in `src/types/flux-usage.ts`. The client imports its inferred types through the API package export.
 Remove `GET /api/v1/flux/usage` and `getUsageHistory`. No repository client calls this paginated fee listing.
 The activity chart reads `/usage/daily`. The balance card reads `/stats`, and transaction history reads `/history`.
+The account page owns the usage overview. Its details link opens the separate `/settings/usage` history page.
+The charging page at `/settings/flux` reads neither usage endpoint.
+Valibot also owns the existing history response. Its metadata remains opaque JSON, so clients narrow only fields needed for display.
+Account changes and navigation cancel client requests and discard results from the previous session.
 
 ## Scope
 
@@ -23,9 +27,13 @@ This change adds no persistence, cache, background task, or lifetime metric.
 
 ```mermaid
 flowchart LR
-  Page[Flux settings] --> Overview[Usage overview]
+  Page[Account settings] --> Panel[Usage panel]
+  Panel --> Overview[Usage overview]
   Overview --> Chart[Activity chart]
-  Page --> Route[Flux route]
+  Panel --> Route[Flux route]
+  Panel -->|View detailed usage| HistoryPage[Usage records page]
+  HistoryPage --> History[Usage history]
+  History --> Route
   Route --> Service[Flux transaction service]
   Service --> Usage[(flux_usage)]
   Service --> Requests[(llm_request_log)]
@@ -34,8 +42,13 @@ flowchart LR
 ```
 
 ```text
-packages/stage-pages/src/pages/settings/flux.vue
+packages/stage-pages/src/pages/settings/
+  account/account-settings-page.vue
+  usage.vue
+  flux.vue
 packages/stage-ui/src/components/scenarios/flux/
+  usage-panel.vue
+  usage-history.vue
   usage-overview.vue
   usage-activity-chart.vue
   usage-stats.ts
@@ -49,7 +62,7 @@ server/apps/api/README.md
 
 ```mermaid
 sequenceDiagram
-  participant Page as Flux page
+  participant Page as Account page
   participant API as Flux route
   participant Service as Transaction service
   participant DB
@@ -61,6 +74,11 @@ sequenceDiagram
   Service-->>API: 365 days and longestSessionMs
   API-->>Page: Validated response
   Page->>Page: Derive and animate daily, weekly, cumulative layouts
+  Page->>Page: Open /settings/usage after details click
+  Page->>API: GET /history?limit=20&offset=0
+  API->>Service: getHistory(userId, limit, offset)
+  Service->>DB: Read purchased Flux transactions
+  API-->>Page: Validated records and hasMore
 ```
 
 ## Test plan

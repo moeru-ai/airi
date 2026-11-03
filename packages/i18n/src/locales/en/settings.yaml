@@ -303,6 +303,8 @@ pages:
     logout: Sign out
     fluxBalance: Flux Balance
     viewFluxDetails: View details
+    usage:
+      tab: Usage
     capacitorEntry: Capacitor
     viewCapacitor: View
     signedInAs: Signed in as
@@ -1687,8 +1689,13 @@ pages:
       loadMore: Load More
       delayHint: Usage records may be delayed by up to 1 minute
       ttsRequests: requests
+      tokenUsage: 'Input {prompt}, output {completion} tokens'
     usage:
       title: Flux activity
+      details: View detailed usage
+      loadError: Failed to load usage data. Try again.
+      retry: Retry
+      signIn: Sign in to view your usage records
       empty: No usage yet.
       fluxAmount: '{amount} Flux'
       viewLabel: Activity view

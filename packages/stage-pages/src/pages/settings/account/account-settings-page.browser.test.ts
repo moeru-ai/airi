@@ -53,6 +53,8 @@ beforeEach(() => {
     }
     if (url.pathname.endsWith('/list-accounts'))
       return Response.json([])
+    if (url.pathname.endsWith('/flux/usage/daily'))
+      return Response.json({ days: [], longestSessionMs: 0 })
     return Response.json({ flux: 150, capacitorPercent: null, capacitorRechargesAt: null, fallbackToFlux: false })
   })
 })

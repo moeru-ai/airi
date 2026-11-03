@@ -2,6 +2,11 @@
 
 `@proj-airi/stage-pages` contains route-level Vue pages that multiple AIRI stage applications share.
 
+## Account usage
+
+The account page shows Flux summaries and the activity chart. Its details link opens `/settings/usage` for transaction history.
+The charging page at `/settings/flux` contains the balance and purchase controls. It does not request usage summaries or transaction history.
+
 ## Use
 
 Add a page under `src/pages`. Each stage application scans this directory through its Vite router configuration.

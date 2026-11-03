@@ -57,6 +57,18 @@ function createTestApp(
 }
 
 describe('fluxRoutes', () => {
+  it.each([null, 'note', 12, true, ['note']].map(metadata => ({ metadata })))('preserves JSON history metadata: $metadata', async ({ metadata }) => {
+    const transactions = createMockFluxTransactionService()
+    vi.mocked(transactions.getHistory).mockResolvedValue({
+      records: [{ id: 'tx-opaque', type: 'credit', amount: 5, description: 'Top up', metadata, createdAt: new Date('2026-03-27T10:00:00.000Z') }],
+      hasMore: false,
+    })
+    const app = createTestApp(createMockFluxService(), transactions)
+    const response = await app.request('/api/v1/flux/history')
+    expect(response.status).toBe(200)
+    expect((await response.json()).records[0].metadata).toEqual(metadata)
+  })
+
   it('returns both buckets with the capacitor percent and the fallback choice', async () => {
     const flux = createMockFluxService()
     const app = createTestApp(flux, createMockFluxTransactionService())
