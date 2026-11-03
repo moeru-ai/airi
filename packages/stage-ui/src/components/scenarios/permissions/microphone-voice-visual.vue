@@ -15,15 +15,17 @@ const props = defineProps<{
 /** A listening wave keeps this much height, so the user sees that it listens. */
 const IDLE_HEIGHT = 0.05
 /**
- * Each layer height is a damped spring that follows its band. A spring keeps its speed when the band changes, so a loud
- * syllable carries the wave a little past the level and it swings back. A tween starts from rest at each of the 30 band
- * updates a second, and it only creeps after the level.
- * About 3.6 Hz with a damping ratio of 0.42 gives one small overshoot that settles in about half a second.
+ * A spring of one layer height. A spring keeps its speed when the band changes, so a loud syllable carries the wave a
+ * little past the level and it swings back. A tween starts from rest at each of the 30 band updates a second, and it
+ * only creeps after the level.
  */
-const SPRING_STIFFNESS = 520
-const SPRING_DAMPING_RATIO = 0.42
-const SPRING_MASS = 1
-const SPRING_DAMPING = 2 * SPRING_DAMPING_RATIO * Math.sqrt(SPRING_STIFFNESS * SPRING_MASS)
+interface LayerSpring {
+  stiffness: number
+  /** The inertia. A heavier layer starts and stops more slowly. */
+  mass: number
+  /** 1 settles without a swing. A lower value swings past the level more. */
+  dampingRatio: number
+}
 /** A frame after a stall counts at most this long, and one integration step at most the next value, so the waves do not jump. */
 const MAX_FRAME_SECONDS = 0.05
 const MAX_STEP_SECONDS = 1 / 120
@@ -32,8 +34,9 @@ const MAX_STEP_SECONDS = 1 / 120
 // A copy of the spring step of the Live2D motion control. The Live2D package keeps it private with its pose types.
 // Source: `stepAxis` in packages/stage-ui-live2d/src/composables/live2d/motion-control-spring.ts.
 // Removal condition: a shared spring step that both the Live2D motion control and this visual import.
-function stepSpring(current: number, velocity: number, target: number, elapsedSeconds: number) {
-  const acceleration = (SPRING_STIFFNESS * (target - current) - SPRING_DAMPING * velocity) / SPRING_MASS
+function stepSpring(spring: LayerSpring, current: number, velocity: number, target: number, elapsedSeconds: number) {
+  const damping = 2 * spring.dampingRatio * Math.sqrt(spring.stiffness * spring.mass)
+  const acceleration = (spring.stiffness * (target - current) - damping * velocity) / spring.mass
   const nextVelocity = velocity + acceleration * elapsedSeconds
   return { position: current + nextVelocity * elapsedSeconds, velocity: nextVelocity }
 }
@@ -43,14 +46,16 @@ const VIEW_HEIGHT = 240
 const POINTS = 80
 
 /**
- * One layer for each band, from back to front. A low band is a wide and slow swell, and a high band is a narrow and fast
- * ripple, so the layers move differently when the voice changes.
+ * One layer for each band, from back to front. A low band is the body of the voice: a wide, tall, and heavy swell that
+ * barely swings. A high band is a narrow, low, and light ripple that reacts fast and swings more. So no single band
+ * fills the panel, and the layers move differently when the voice changes.
+ * `maxHeight` is the height of the layer at a full band level, from 0 to 1 of the half panel.
  */
-const layers = [
-  { cycles: 1.2, radiansPerSecond: 0.9, color: 'text-primary-300 dark:text-primary-500', opacity: 0.45 },
-  { cycles: 2, radiansPerSecond: -1.4, color: 'text-primary-400 dark:text-primary-400', opacity: 0.4 },
-  { cycles: 3.1, radiansPerSecond: 2.1, color: 'text-primary-500 dark:text-primary-300', opacity: 0.35 },
-  { cycles: 4.6, radiansPerSecond: -3, color: 'text-primary-600 dark:text-primary-200', opacity: 0.3 },
+const layers: { cycles: number, radiansPerSecond: number, color: string, opacity: number, maxHeight: number, spring: LayerSpring }[] = [
+  { cycles: 1.2, radiansPerSecond: 0.9, color: 'text-primary-300 dark:text-primary-500', opacity: 0.45, maxHeight: 1, spring: { stiffness: 260, mass: 1.6, dampingRatio: 0.55 } },
+  { cycles: 2, radiansPerSecond: -1.4, color: 'text-primary-400 dark:text-primary-400', opacity: 0.4, maxHeight: 0.8, spring: { stiffness: 420, mass: 1.2, dampingRatio: 0.48 } },
+  { cycles: 3.1, radiansPerSecond: 2.1, color: 'text-primary-500 dark:text-primary-300', opacity: 0.35, maxHeight: 0.6, spring: { stiffness: 650, mass: 0.9, dampingRatio: 0.42 } },
+  { cycles: 4.6, radiansPerSecond: -3, color: 'text-primary-600 dark:text-primary-200', opacity: 0.3, maxHeight: 0.4, spring: { stiffness: 900, mass: 0.7, dampingRatio: 0.36 } },
 ]
 
 /** The phase of each layer in radians, and the spring state of its height. The drawn height is 0 or more. */
@@ -63,9 +68,10 @@ useRafFn(({ delta }) => {
   const stepCount = Math.max(1, Math.ceil(frameSeconds / MAX_STEP_SECONDS))
   const stepSeconds = frameSeconds / stepCount
   springs.forEach((spring, index) => {
-    const target = props.active ? IDLE_HEIGHT + (props.bands[index] ?? 0) * (1 - IDLE_HEIGHT) : 0
+    const layer = layers[index]
+    const target = props.active ? IDLE_HEIGHT + (props.bands[index] ?? 0) * (layer.maxHeight - IDLE_HEIGHT) : 0
     for (let step = 0; step < stepCount; step++)
-      Object.assign(spring, stepSpring(spring.position, spring.velocity, target, stepSeconds))
+      Object.assign(spring, stepSpring(layer.spring, spring.position, spring.velocity, target, stepSeconds))
   })
   frameHeights.value = springs.map(spring => Math.max(0, spring.position))
   if (props.active)
