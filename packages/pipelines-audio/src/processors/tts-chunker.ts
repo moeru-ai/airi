@@ -20,6 +20,18 @@ const regexpCjk = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Scrip
 const regexpSound = /[\p{L}\p{N}\p{Extended_Pictographic}]/u
 const hardPunctuations = new Set('.。?？!！…⋯～~\n\t\r')
 const softPunctuations = new Set(',，、–—:：;；《》「」')
+const regexpKana = /[\p{Script=Hiragana}\p{Script=Katakana}]/u
+
+/**
+ * Whether a length limit can end a chunk at `punctuation`.
+ *
+ * Chinese `、` separates the items of a list, as in 网络、地址解析, and a voice does not pause at it. Japanese `、` is a
+ * comma, so text with kana can end there. A chunk of twice the word limit can end at `、` too, so a long list does not
+ * make one long TTS request.
+ */
+function canEndAtLimit(punctuation: string | undefined, text: string, words: number, maximumWords: number): boolean {
+  return punctuation !== '、' || regexpKana.test(text) || words > 2 * maximumWords
+}
 
 export interface TtsInputChunk {
   text: string
@@ -147,7 +159,8 @@ export async function* chunkTtsInput(
 
       const words = [...segmenter.segment(buffer)].filter(w => w.isWordLike)
 
-      if (chunkWordsCount > minimumWords && chunkWordsCount + words.length > maximumWords) {
+      if (chunkWordsCount > minimumWords && chunkWordsCount + words.length > maximumWords
+        && canEndAtLimit(chunk.at(-1), chunk, chunkWordsCount + words.length, maximumWords)) {
         // The punctuation ends the buffer, not the chunk before it, so it stays with the buffer. Adding a `？` here too
         // read it twice, as 方向、？ and then 移动？.
         const text = chunk.trim()
@@ -180,7 +193,7 @@ export async function* chunkTtsInput(
       }
       // A boost chunk ends early at soft punctuation only once it is long enough to be worth its
       // own TTS request. A shorter opening clause stays in the chunk and joins the next one.
-      else if (flush || hard || chunkWordsCount > maximumWords || (yieldCount < boost && chunkWordsCount >= minimumWords)) {
+      else if (flush || hard || (chunkWordsCount > maximumWords && canEndAtLimit(value, chunk, chunkWordsCount, maximumWords)) || (yieldCount < boost && chunkWordsCount >= minimumWords)) {
         const text = chunk.trim()
         if (regexpSound.test(text)) {
           yield {
