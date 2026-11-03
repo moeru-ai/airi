@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ActivityGroup, ActivityView, DailyUsage } from './usage-stats'
 
-import { BasicButton } from '@proj-airi/ui'
+import { GhostButton } from '@proj-airi/ui'
 import { computed, nextTick, onMounted, shallowRef, useId, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -124,24 +124,21 @@ onMounted(() => {
 <template>
   <section ref="container" :class="['relative flex min-w-0 flex-col gap-4']">
     <header :class="['flex flex-wrap items-center justify-between gap-2']">
-      <h3 :class="['text-sm font-medium']">
+      <h3 :class="['text-lg font-semibold']">
         {{ t('settings.pages.flux.usage.title') }}
       </h3>
       <div role="group" :aria-label="t('settings.pages.flux.usage.viewLabel')" :class="['flex items-center gap-1']">
-        <BasicButton
+        <GhostButton
           v-for="option in views" :key="option"
-          size="unset"
+          size="md"
+          :active="view === option"
           :aria-pressed="view === option"
           :aria-controls="chartId"
-          :class="[
-            'min-h-9 rounded-md px-2 text-xs',
-            'focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2',
-            view === option ? 'text-neutral-950 dark:text-neutral-50' : 'text-neutral-400 hover:text-neutral-700 dark:text-neutral-500 dark:hover:text-neutral-300',
-          ]"
+          :class="['min-h-9']"
           @click="view = option"
         >
           {{ t(`settings.pages.flux.usage.views.${option}`) }}
-        </BasicButton>
+        </GhostButton>
       </div>
     </header>
 
