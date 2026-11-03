@@ -30,6 +30,7 @@ import ChatViewportLayout from './chat-viewport-layout.vue'
 
 import { electronOpenSettings } from '../../shared/eventa'
 import { useHearingInputChannel } from '../composables/use-hearing-input-channel'
+import { useHostAuth } from '../host-context/auth'
 import { useToolSelectionStore, widgetToolReferences } from '../stores/tools'
 import { WEATHER_TOOL_NAME } from '../stores/tools/builtin/weather'
 import { weatherToolCallWidget } from './chat-tool-renderers/weather-tool-call-widget'
@@ -98,6 +99,7 @@ const { activeTurns, backgroundTasks } = storeToRefs(chatStore)
 const { activeCard, activeCardId } = storeToRefs(airiCardStore)
 const { chatReady } = storeToRefs(useConsciousnessStore())
 const openSettings = useHostEventaInvoke(electronOpenSettings)
+const { startLogin } = useHostAuth()
 
 const composer = useChatComposer<ChatImageAttachment>({
   activeSessionId,
@@ -434,6 +436,7 @@ defineExpose({
         v-if="!chatReady"
         :class="['mx-2 mb-1']"
         @configure="openSettings({ route: '/settings/providers' })"
+        @sign-in="startLogin()"
       />
       <div
         ref="message-composer"
