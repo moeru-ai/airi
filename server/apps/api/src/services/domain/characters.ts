@@ -194,10 +194,7 @@ export function createCharacterService(db: Database, metrics?: EngagementMetrics
       version?: string
       coverUrl?: string
       characterId?: string
-      capabilities?: {
-        type: 'llm' | 'tts' | 'vlm' | 'asr'
-        config: any
-      }[]
+      capabilities?: Omit<schema.NewCharacterCapability, 'characterId'>[]
     }) {
       const { capabilities, ...characterData } = data
 
