@@ -1,2 +1,2 @@
-export { default as FluxUsageOverview } from './usage-overview.vue'
-export type { DailyUsageSummary } from './usage-stats'
+export { default as FluxUsageHistory } from './usage-history.vue'
+export { default as FluxUsagePanel } from './usage-panel.vue'

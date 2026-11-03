@@ -1,6 +1,6 @@
 import type { InferOutput } from 'valibot'
 
-import { array, integer, minValue, number, object, pipe, regex, string } from 'valibot'
+import { array, boolean, integer, minValue, nullable, number, object, pipe, regex, string, unknown } from 'valibot'
 
 const MicroFluxSchema = pipe(number(), integer(), minValue(0))
 
@@ -18,3 +18,18 @@ export const DailyUsageSummarySchema = object({
 
 export type DailyUsage = InferOutput<typeof DailyUsageSchema>
 export type DailyUsageSummary = InferOutput<typeof DailyUsageSummarySchema>
+
+/** Purchased Flux ledger entries. Metadata is opaque JSON and consumers narrow the fields they display. */
+export const FluxHistoryResponseSchema = object({
+  records: array(object({
+    id: string(),
+    type: string(),
+    amount: number(),
+    description: nullable(string()),
+    metadata: unknown(),
+    createdAt: string(),
+  })),
+  hasMore: boolean(),
+})
+
+export type FluxHistoryResponse = InferOutput<typeof FluxHistoryResponseSchema>

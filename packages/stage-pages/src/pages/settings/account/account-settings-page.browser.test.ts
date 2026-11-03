@@ -72,6 +72,8 @@ beforeEach(() => {
       return tokenRefresh()
     if (url.pathname.endsWith('/get-session'))
       return Response.json({ user: { id: 'owner', name: 'Owner', email: 'person@example.com', emailVerified: true, createdAt: new Date(), updatedAt: new Date() }, session: { id: 'session-owner', userId: 'owner', token: 'renewed-token', createdAt: new Date(), updatedAt: new Date(), expiresAt: new Date(Date.now() + 60_000) } })
+    if (url.pathname.endsWith('/flux/usage/daily'))
+      return Response.json({ days: [], longestSessionMs: 0 })
     return Response.json({ flux: 150, capacitorPercent: null, capacitorRechargesAt: null, fallbackToFlux: false })
   })
 })

@@ -23,6 +23,11 @@ The projection marks historical catalogs as snapshots and points to live schema 
 It updates both portable output and correlated native continuation output. Stored history, generation records and unrelated provider fields remain intact.
 Failed results and other tools never enter this projection. Compact receives the projected copy and retains its existing scheduling modes.
 
+## Account usage
+
+`FluxUsagePanel` loads the signed-in account's activity and links to the separate usage page.
+`FluxUsageHistory` owns transaction pagination and speech groups. Both components cancel pending requests and discard data when the session changes.
+
 ## Optional modules
 
 Provider lists expose `None` for optional features. Switches control module activation.
