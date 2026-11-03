@@ -112,7 +112,6 @@ dialogs:
           body: 只在你要求时，比如问「我的屏幕上有什么？」
           visible: 这就是角色能看到的画面。
           hidden: 角色看不到
-          live: 实时预览
           display: 显示器
           previewOf: '{screen} 的预览'
           location: 在「隐私与安全性 › 录屏与系统录音」中打开 AIRI。

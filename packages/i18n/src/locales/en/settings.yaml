@@ -119,7 +119,6 @@ dialogs:
           body: Only when you ask, for example "What is on my screen?"
           visible: This is what your character sees.
           hidden: Hidden from your character
-          live: Live preview
           display: Display
           previewOf: 'Preview of {screen}'
           location: Turn on AIRI in Privacy & Security › Screen Recording.

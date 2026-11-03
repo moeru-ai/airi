@@ -2,8 +2,8 @@
 import type { DevicePermission, ScreenPreview } from '../../../stores/device-permissions'
 
 import { errorMessageFrom } from '@moeru/std'
-import { useIntervalFn } from '@vueuse/core'
-import { computed, shallowRef, watch } from 'vue'
+import { useIntervalFn, usePreferredReducedMotion, useResizeObserver } from '@vueuse/core'
+import { computed, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import PermissionPageLayout from './permission-page-layout.vue'
@@ -35,6 +35,44 @@ async function capture() {
     console.error('[permissions] Failed to capture the screens:', errorMessageFrom(error))
   }
 }
+
+/** The width of the bar under the selected screen at rest, in pixels. */
+const INDICATOR_WIDTH = 20
+const list = useTemplateRef<HTMLElement>('list')
+const indicator = useTemplateRef<HTMLElement>('indicator')
+const reducedMotion = usePreferredReducedMotion()
+/** The left edge of the bar at rest, in pixels from the start of the list. */
+const indicatorLeft = shallowRef<number>()
+
+// NOTICE:
+// A copy of the elastic indicator of the mobile model strip, so both pickers mark a choice the same way.
+// Source: `placeIndicator` in packages/stage-ui/src/components/scenarios/settings/model-settings/mobile/model-strip.vue.
+// Removal condition: a shared strip indicator that both pickers use.
+function placeIndicator(options: { stretch: boolean }) {
+  const element = list.value?.querySelector<HTMLElement>('[aria-checked="true"]')
+  const from = indicatorLeft.value
+  const to = element ? element.offsetLeft + (element.offsetWidth - INDICATOR_WIDTH) / 2 : undefined
+  indicatorLeft.value = to
+  if (!options.stretch || from === undefined || to === undefined || from === to || reducedMotion.value === 'reduce')
+    return
+  // The bar first stretches over the old and the new screen, then shrinks onto the new one.
+  const start = Math.min(from, to)
+  const span = Math.abs(to - from) + INDICATOR_WIDTH
+  indicator.value?.animate([
+    { left: `${from}px`, width: `${INDICATOR_WIDTH}px`, easing: 'cubic-bezier(0.3, 0, 0.8, 0.15)' },
+    { left: `${start}px`, width: `${span}px`, offset: 0.4, easing: 'cubic-bezier(0.05, 0.7, 0.1, 1)' },
+    { left: `${to}px`, width: `${INDICATOR_WIDTH}px` },
+  ], { duration: 480 })
+}
+
+function pick(id: string) {
+  selectedId.value = id
+  list.value?.querySelector(`[data-screen-id="${CSS.escape(id)}"]`)?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' })
+}
+
+watch(() => selected.value?.id, () => placeIndicator({ stretch: true }), { flush: 'post' })
+watch(() => screens.value.length, () => placeIndicator({ stretch: false }), { flush: 'post' })
+useResizeObserver(list, () => placeIndicator({ stretch: false }))
 
 const refresh = useIntervalFn(capture, REFRESH_MS, { immediate: false })
 watch(() => props.granted, (granted) => {
@@ -88,36 +126,46 @@ watch(() => props.granted, (granted) => {
             <span :class="['i-mingcute:lock-line', 'size-4']" aria-hidden="true" />
             {{ t('settings.dialogs.onboarding.permissions.flow.screen-recording.hidden') }}
           </span>
-          <span
-            v-else-if="selected"
-            :class="['absolute bottom-3 left-3 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold', 'bg-white/90 text-neutral-800 dark:bg-neutral-950/85 dark:text-neutral-100', 'animate-slideUpAndFade']"
-          >
-            <span :class="['size-1.75 rounded-full bg-primary-500 animate-pulse']" aria-hidden="true" />
-            {{ t('settings.dialogs.onboarding.permissions.flow.screen-recording.live') }}
-          </span>
         </div>
 
+        <!-- The screens scroll sideways when they do not fit. A short bar under the selected one marks it. -->
         <div
           v-if="granted && screens.length > 1"
+          ref="list"
           role="radiogroup"
           :aria-label="t('settings.dialogs.onboarding.permissions.flow.screen-recording.display')"
-          :class="['flex gap-2.5', 'animate-slideUpAndFade']"
+          :class="['relative flex shrink-0 gap-2.5 overflow-x-auto pb-3 pt-1', 'snap-x scrollbar-none', 'animate-slideUpAndFade']"
         >
           <button
             v-for="screen in screens"
             :key="screen.id"
             type="button"
             role="radio"
+            :data-screen-id="screen.id"
             :aria-checked="screen.id === selected?.id"
-            :class="[
-              'min-w-0 flex flex-1 items-center gap-2.5 rounded-xl p-2 text-left text-[13px] outline-none transition-colors duration-150',
-              screen.id === selected?.id ? 'bg-white dark:bg-neutral-800' : 'hover:bg-white/60 dark:hover:bg-neutral-800/50',
-            ]"
-            @click="selectedId = screen.id"
+            :aria-label="screen.name"
+            :title="screen.name"
+            :class="['shrink-0 snap-start rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-primary-400/60']"
+            @click="pick(screen.id)"
           >
-            <img :src="screen.imageUrl" alt="" :class="['h-7 w-11 shrink-0 rounded object-cover', screen.id === selected?.id ? 'ring-2 ring-primary-500' : '']">
-            <span :class="['truncate']">{{ screen.name }}</span>
+            <img
+              :src="screen.imageUrl"
+              alt=""
+              draggable="false"
+              :class="[
+                'h-14 w-22 rounded-xl object-cover transition-opacity duration-150',
+                'bg-neutral-200/50 dark:bg-neutral-800/60',
+                screen.id === selected?.id ? 'opacity-100' : 'opacity-60 hover:opacity-90',
+              ]"
+            >
           </button>
+          <span
+            v-if="indicatorLeft !== undefined"
+            ref="indicator"
+            aria-hidden="true"
+            :style="{ left: `${indicatorLeft}px`, width: `${INDICATOR_WIDTH}px` }"
+            :class="['absolute bottom-0.5 h-1 rounded-full', 'bg-primary-500 dark:bg-primary-400']"
+          />
         </div>
       </div>
     </template>
