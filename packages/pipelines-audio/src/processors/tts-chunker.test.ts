@@ -22,6 +22,28 @@ async function collectChunks(text: string): Promise<TtsInputChunk[]> {
   return chunks
 }
 
+describe('chunkTtsInput sentence ends', () => {
+  // ROOT CAUSE:
+  //
+  // Each `.` that did not follow a digit ended a chunk, so `home.example.com` became three TTS requests, and the voice
+  // read each part with a sentence-end tone and a pause. A `.` before a letter is inside a token.
+  it('keeps a token with a dot in one chunk', async () => {
+    expect(await collectChunkText('连接 https://home.example.com 时失败了。'))
+      .toEqual(['连接 https://home.example.com 时失败了。'])
+    expect(await collectChunkText('Open index.ts and README.md now.')).toEqual(['Open index.ts and README.md now.'])
+  })
+
+  it('still ends a sentence at a dot before a space, CJK text, punctuation, or the end', async () => {
+    expect(await collectChunkText('It works. The U.S. team agrees.')).toEqual(['It works.', 'The U.S.', 'team agrees.'])
+    expect(await collectChunkText('完成了.接下来开始吧.')).toEqual(['完成了.', '接下来开始吧.'])
+    expect(await collectChunkText('Read the guide (see it.) now.')).toEqual(['Read the guide (see it.', ') now.'])
+  })
+
+  it('keeps numbers and reads three dots as an ellipsis', async () => {
+    expect(await collectChunkText('Pi is 3.14 and 1,000 is big. Wait... ok.')).toEqual(['Pi is 3.14 and 1,000 is big.', 'Wait…', 'ok.'])
+  })
+})
+
 describe('chunkTtsInput boost', () => {
   // ROOT CAUSE:
   //

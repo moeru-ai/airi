@@ -43,6 +43,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@flowershow/remark-wiki-link": "catalog:",
     "@moeru/eventa": "catalog:",
     "@moeru/std": "catalog:",
     "@proj-airi/mathjson": "workspace:^",

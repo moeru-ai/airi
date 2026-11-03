@@ -28,8 +28,8 @@ export { SpeechStream, VoiceResponse } from './output/response'
 export type { SpeechAudio, SpeechClip, SpeechClipEnd, SpeechOutput, SpeechOutputEvent } from './output/response'
 export { defaultSpeechPreprocessors, toSpeechText } from './output/speech-transformation'
 export type { SpeechTextOptions } from './output/speech-transformation'
-export { mathSpeech, mathSpeechPreprocessor, moneySpeechPreprocessor, speakMath, toMathJson } from './output/speech-transformation/preprocessor'
-export type { SpeechFormulaContext, SpeechPreprocessor, SpeechProseContext } from './output/speech-transformation/preprocessor'
+export { defaultTokenReaders, mathSpeech, mathSpeechPreprocessor, moneySpeechPreprocessor, speakMath, tokenSpeechPreprocessor, toMathJson } from './output/speech-transformation/preprocessor'
+export type { SpeechFormulaContext, SpeechPreprocessor, SpeechProseContext, SpeechTokenContext, SpeechTokenReader } from './output/speech-transformation/preprocessor'
 export type {
   AudioPluginTask,
   FinalizeContext,

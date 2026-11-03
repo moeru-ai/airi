@@ -129,6 +129,9 @@ catalogs:
     '@ffmpeg-installer/ffmpeg':
       specifier: ^1.1.0
       version: 1.1.0
+    '@flowershow/remark-wiki-link':
+      specifier: 3.4.0
+      version: 3.4.0
     '@fontsource-variable/comfortaa':
       specifier: ^5.3.0
       version: 5.3.0
@@ -4100,6 +4103,9 @@ importers:
 
   packages/core-agent:
     dependencies:
+      '@flowershow/remark-wiki-link':
+        specifier: 'catalog:'
+        version: 3.4.0
       '@moeru/eventa':
         specifier: 'catalog:'
         version: 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.2(crossws@0.4.12(srvx@1.0.5)))(hono@4.13.3)(web-worker@1.5.0)
@@ -8828,6 +8834,9 @@ packages:
 
   '@floating-ui/vue@1.1.11':
     resolution: {integrity: sha512-HzHKCNVxnGS35r9fCHBc3+uCnjw9IWIlCPL683cGgM9Kgj2BiAl8x1mS7vtvP6F9S/e/q4O6MApwSHj8hNLGfw==}
+
+  '@flowershow/remark-wiki-link@3.4.0':
+    resolution: {integrity: sha512-YeeIwZ630CgBRiVWwM5C8ikAyuT0nLjdjhAZxhOOBgUCA34LCQxFwCkEnA0BySDJr6NQiJjJfRvO/TxBs+deAA==}
 
   '@fontsource-variable/comfortaa@5.3.0':
     resolution: {integrity: sha512-al/XR/3rUwZRLPAgAN7VsHKudQ27++W2sEQPhRpkg7x9a8VISekS3eQr4c3lICNWDfflz+gVes8dfekL/yY+Ng==}
@@ -23727,6 +23736,13 @@ snapshots:
     transitivePeerDependencies:
       - '@vue/composition-api'
       - vue
+
+  '@flowershow/remark-wiki-link@3.4.0':
+    dependencies:
+      github-slugger: 2.0.0
+      mdast-util-to-markdown: 2.1.2
+      micromark-util-character: 2.1.1
+      micromark-util-symbol: 2.0.1
 
   '@fontsource-variable/comfortaa@5.3.0': {}
 

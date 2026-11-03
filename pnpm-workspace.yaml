@@ -105,6 +105,7 @@ catalog:
   '@esotericsoftware/spine-webgl-4-0': npm:@esotericsoftware/spine-webgl@~4.0.31
   '@esotericsoftware/spine-webgl-4-1': npm:@esotericsoftware/spine-webgl@~4.1.56
   '@ffmpeg-installer/ffmpeg': ^1.1.0
+  '@flowershow/remark-wiki-link': 3.4.0
   '@fontsource-variable/comfortaa': ^5.3.0
   '@fontsource-variable/dm-sans': ^5.3.0
   '@fontsource-variable/jura': ^5.3.0
