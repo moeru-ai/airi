@@ -146,7 +146,7 @@ const notificationsPermission = fakePermission('notifications', () => notificati
         <HstSelect v-model="flow.accessibility" title="Accessibility" :options="statusOptions" />
         <HstSelect v-model="flow.screen" title="Screen Recording" :options="statusOptions" />
       </template>
-      <div :class="['h-[650px] w-[1000px] flex flex-col bg-white p-8 dark:bg-[#121212]']">
+      <div :class="['h-screen max-h-[650px] w-full max-w-[1000px] flex flex-col bg-white p-4 md:p-8 dark:bg-[#121212]']">
         <FlowHost />
       </div>
     </Variant>
@@ -159,7 +159,7 @@ const notificationsPermission = fakePermission('notifications', () => notificati
           Press in another app (needs Accessibility)
         </button>
       </template>
-      <div :class="['h-[560px] w-[1000px] flex flex-col bg-white p-8 dark:bg-[#121212]']">
+      <div :class="['h-screen max-h-[560px] w-full max-w-[1000px] flex flex-col bg-white p-4 md:p-8 dark:bg-[#121212]']">
         <PermissionShortcutPage :permission="shortcutPermission" :granted="shortcut.status === 'granted'" :waiting="shortcut.waiting" />
       </div>
     </Variant>
@@ -169,7 +169,7 @@ const notificationsPermission = fakePermission('notifications', () => notificati
         <HstSelect v-model="screen.status" title="Screen Recording" :options="statusOptions" />
         <HstCheckbox v-model="screen.waiting" title="Waiting for the system settings" />
       </template>
-      <div :class="['h-[560px] w-[1000px] flex flex-col bg-white p-8 dark:bg-[#121212]']">
+      <div :class="['h-screen max-h-[560px] w-full max-w-[1000px] flex flex-col bg-white p-4 md:p-8 dark:bg-[#121212]']">
         <PermissionScreenPage :permission="screenPermission" :granted="screen.status === 'granted'" :waiting="screen.waiting" />
       </div>
     </Variant>
@@ -182,13 +182,13 @@ const notificationsPermission = fakePermission('notifications', () => notificati
           :options="[{ label: 'No access', value: 'off' }, { label: 'Quiet room', value: 'quiet' }, { label: 'Speaking', value: 'speaking' }]"
         />
       </template>
-      <div :class="['relative h-[420px] w-[420px] overflow-hidden rounded-3xl bg-neutral-100 dark:bg-neutral-800/50']">
+      <div :class="['relative aspect-square w-full max-w-[420px] overflow-hidden rounded-3xl bg-neutral-100 dark:bg-neutral-800/50']">
         <MicrophoneVoiceVisual label="Microphone input level" :bands="bands" :active="voice.mode !== 'off'" />
       </div>
     </Variant>
 
     <Variant id="microphone-ask" title="Microphone (before access)">
-      <div :class="['h-[560px] w-[1000px] flex flex-col bg-white p-8 dark:bg-[#121212]']">
+      <div :class="['h-screen max-h-[560px] w-full max-w-[1000px] flex flex-col bg-white p-4 md:p-8 dark:bg-[#121212]']">
         <PermissionMicrophonePage :granted="false" />
       </div>
     </Variant>
@@ -197,7 +197,7 @@ const notificationsPermission = fakePermission('notifications', () => notificati
       <template #controls>
         <HstCheckbox v-model="notifications.granted" title="Granted" />
       </template>
-      <div :class="['h-[560px] w-[1000px] flex flex-col bg-white p-8 dark:bg-[#121212]']">
+      <div :class="['h-screen max-h-[560px] w-full max-w-[1000px] flex flex-col bg-white p-4 md:p-8 dark:bg-[#121212]']">
         <PermissionBasicPage :permission="notificationsPermission" :granted="notifications.granted" />
       </div>
     </Variant>
@@ -209,7 +209,7 @@ const notificationsPermission = fakePermission('notifications', () => notificati
         <HstSelect v-model="summary.screen" title="Screen Recording" :options="statusOptions" />
         <HstCheckbox v-model="summary.skipAccessibility" title="Accessibility was skipped" />
       </template>
-      <div :class="['h-[560px] w-[1000px] flex flex-col bg-white p-8 dark:bg-[#121212]']">
+      <div :class="['h-screen max-h-[560px] w-full max-w-[1000px] flex flex-col bg-white p-4 md:p-8 dark:bg-[#121212]']">
         <PermissionSummary :permissions="summaryPermissions" :statuses="summaryStatuses" :skipped="summarySkipped" />
       </div>
     </Variant>
