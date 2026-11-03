@@ -1,10 +1,16 @@
-import type { ComputerUseConfig } from '../types'
+import type { ComputerUseConfig, ExecutorKind } from '../types'
 import type { ComputerUseServerRuntime } from './runtime'
 
 import { describe, expect, it, vi } from 'vitest'
 
 import { RunStateManager } from '../state'
-import { createDisplayInfo, createLocalExecutionTarget, createTerminalState, createTestConfig } from '../test-fixtures'
+import {
+  createDisplayInfo,
+  createLocalExecutionTarget,
+  createRemoteExecutionTarget,
+  createTerminalState,
+  createTestConfig,
+} from '../test-fixtures'
 import { createExecuteAction } from './action-executor'
 
 function createRuntimeForActionTest(configOverrides: Partial<ComputerUseConfig> = {}) {
@@ -26,8 +32,8 @@ function createRuntimeForActionTest(configOverrides: Partial<ComputerUseConfig> 
     setPointerPosition: vi.fn(),
   }
   const executor = {
-    kind: 'dry-run' as const,
-    describe: () => ({ kind: 'dry-run' as const, notes: [] }),
+    kind: 'dry-run' as ExecutorKind,
+    describe: () => ({ kind: 'dry-run' as ExecutorKind, notes: [] }),
     getExecutionTarget: vi.fn().mockResolvedValue(createLocalExecutionTarget()),
     getForegroundContext: vi.fn().mockResolvedValue({
       available: true,
@@ -688,8 +694,8 @@ describe('createExecuteAction', () => {
       setPointerPosition: vi.fn(),
     }
     const executor = {
-      kind: 'dry-run' as const,
-      describe: () => ({ kind: 'dry-run' as const, notes: [] }),
+      kind: 'dry-run' as ExecutorKind,
+      describe: () => ({ kind: 'dry-run' as ExecutorKind, notes: [] }),
       getExecutionTarget: vi.fn().mockResolvedValue(createLocalExecutionTarget()),
       getForegroundContext: vi.fn().mockResolvedValue({
         available: true,
@@ -830,8 +836,8 @@ describe('createExecuteAction', () => {
       setPointerPosition: vi.fn(),
     }
     const executor = {
-      kind: 'dry-run' as const,
-      describe: () => ({ kind: 'dry-run' as const, notes: [] }),
+      kind: 'dry-run' as ExecutorKind,
+      describe: () => ({ kind: 'dry-run' as ExecutorKind, notes: [] }),
       getExecutionTarget: vi.fn().mockResolvedValue(createLocalExecutionTarget()),
       getForegroundContext: vi.fn().mockResolvedValue({
         available: true,
@@ -1003,5 +1009,80 @@ describe('createExecuteAction', () => {
       local: { x: 122, y: 580 },
       backingPixel: { x: 122, y: 580 },
     })
+  })
+
+  it('denies terminal_exec under linux-x11 when remote execution target is tainted', async () => {
+    const { runtime, executor } = createRuntimeForActionTest({
+      executor: 'linux-x11',
+    })
+    executor.getExecutionTarget.mockResolvedValue(createRemoteExecutionTarget({
+      tainted: true,
+      note: 'remote connection lost',
+    }))
+
+    const executeAction = createExecuteAction(runtime)
+    const result = await executeAction(
+      { kind: 'terminal_exec', input: { command: 'ls -la' } },
+      'terminal_exec',
+    )
+
+    expect(result.isError).toBe(true)
+    const structured = result.structuredContent as Record<string, any>
+    expect(structured.status).toBe('denied')
+    expect(structured.policy.reasons).toContain('remote runner session is tainted; capture a fresh screenshot before resuming mutations')
+    expect(runtime.terminalRunner.execute).not.toHaveBeenCalled()
+  })
+
+  it('denies terminal_exec under linux-x11 when screenshot binding issue exists', async () => {
+    const { runtime, executor, session } = createRuntimeForActionTest({
+      executor: 'linux-x11',
+    })
+    executor.getExecutionTarget.mockResolvedValue(createRemoteExecutionTarget({
+      sessionTag: 'tag-1',
+    }))
+    session.getLastScreenshot.mockReturnValue({
+      path: '/tmp/old.png',
+      width: 1280,
+      height: 720,
+      capturedAt: new Date(Date.now() - 60_000).toISOString(),
+      sourceSessionTag: 'tag-different',
+    })
+
+    const executeAction = createExecuteAction(runtime)
+    const result = await executeAction(
+      { kind: 'terminal_exec', input: { command: 'ls -la' } },
+      'terminal_exec',
+    )
+
+    expect(result.isError).toBe(true)
+    const structured = result.structuredContent as Record<string, any>
+    expect(structured.status).toBe('denied')
+    expect(runtime.terminalRunner.execute).not.toHaveBeenCalled()
+  })
+
+  it('allows terminal_exec under auv even when auv executor is in read-only observation mode', async () => {
+    const { runtime, executor } = createRuntimeForActionTest({
+      executor: 'auv',
+      approvalMode: 'never',
+    })
+    executor.kind = 'auv'
+    runtime.terminalRunner.execute = vi.fn().mockResolvedValue({
+      command: 'Write-Output "windows-terminal-ok"',
+      exitCode: 0,
+      stdout: 'windows-terminal-ok',
+      stderr: '',
+      durationMs: 15,
+    })
+
+    const executeAction = createExecuteAction(runtime)
+    const result = await executeAction(
+      { kind: 'terminal_exec', input: { command: 'Write-Output "windows-terminal-ok"' } },
+      'terminal_exec',
+    )
+
+    expect(result.isError).not.toBe(true)
+    const structured = result.structuredContent as Record<string, any>
+    expect(structured.status).toBe('executed')
+    expect(runtime.terminalRunner.execute).toHaveBeenCalledTimes(1)
   })
 })
