@@ -96,11 +96,12 @@ useIntervalFn(() => {
 // --- Summary.
 
 const summary = reactive({ microphone: 'granted', accessibility: 'not-determined', screen: 'granted', skipAccessibility: true })
-const summaryPermissions = computed(() => [
+// A plain list, because Histoire writes the state of a story back, and a computed value is read-only.
+const summaryPermissions = [
   fakePermission('microphone', () => 'granted', () => {}),
   fakePermission('accessibility', () => 'not-determined', () => {}),
   fakePermission('screen-recording', () => 'granted', () => {}),
-])
+]
 const summaryStatuses = computed<Record<string, DevicePermissionStatus>>(() => ({
   'microphone': summary.microphone as DevicePermissionStatus,
   'accessibility': summary.accessibility as DevicePermissionStatus,
