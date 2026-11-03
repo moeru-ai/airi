@@ -24,10 +24,10 @@ const SPECTRUM_WINDOW_MS = 40
 export const SPECTRUM_HOP_MS = 33
 /**
  * The published power of a band is the mean of this many windows (the Welch method). The power of one window of noise
- * varies about as much as its mean, so a visual of single windows flickers. A mean of 4 halves that variation, and
- * 4 hops are about 130 ms, which is shorter than a syllable.
+ * varies about as much as its mean, so a visual of single windows flickers. A mean of 2 cuts that variation by about
+ * a third, and adds only about 33 ms of delay, so the visual stays lively.
  */
-const AVERAGED_WINDOWS = 4
+const AVERAGED_WINDOWS = 2
 /** Band levels map this range of decibels to 0 and 1. A band of a quiet room reads near 0, and loud speech near 1. */
 const BAND_FLOOR_DB = -80
 const BAND_CEILING_DB = -20
@@ -108,7 +108,7 @@ export function bandLevelsOf(channels: readonly Float32Array[], sampleRate: numb
 /**
  * Publishes the level of each band of an input until `signal` aborts, one value for each 33 ms hop.
  *
- * Each level comes from the mean power of the last 4 windows, so noise does not flicker. A gap in the audio starts the
+ * Each level comes from the mean power of the last 2 windows, so noise flickers less. A gap in the audio starts the
  * mean again. Like `observeLevel`, the observation subscribes to `input` and keeps the source open. Run it only while a
  * visual needs it.
  */

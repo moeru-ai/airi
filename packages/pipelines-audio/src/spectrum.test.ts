@@ -97,6 +97,6 @@ describe('observeSpectrum', () => {
       single.push(bandLevelsOf([samples.subarray(start, start + 1920)], SAMPLE_RATE)[1])
     const averaged = published.slice(4).map(levels => levels[1])
 
-    expect(standardDeviation(averaged)).toBeLessThan(standardDeviation(single) * 0.7)
+    expect(standardDeviation(averaged)).toBeLessThan(standardDeviation(single) * 0.85)
   })
 })

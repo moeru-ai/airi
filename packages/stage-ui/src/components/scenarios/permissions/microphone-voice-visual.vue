@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { ProgressiveBlur } from '@proj-airi/ui'
 import { useRafFn } from '@vueuse/core'
-import { createAnimatable } from 'animejs'
-import { computed, onScopeDispose, shallowRef, watch } from 'vue'
+import { computed, shallowRef } from 'vue'
 
 const props = defineProps<{
   /** What the visual shows, for assistive technology. */
@@ -15,8 +14,29 @@ const props = defineProps<{
 
 /** A listening wave keeps this much height, so the user sees that it listens. */
 const IDLE_HEIGHT = 0.05
-/** A frame after a stall counts at most this long, so the waves do not jump. */
-const MAX_FRAME_SECONDS = 0.1
+/**
+ * Each layer height is a damped spring that follows its band. A spring keeps its speed when the band changes, so a loud
+ * syllable carries the wave a little past the level and it swings back. A tween starts from rest at each of the 30 band
+ * updates a second, and it only creeps after the level.
+ * About 3.6 Hz with a damping ratio of 0.42 gives one small overshoot that settles in about half a second.
+ */
+const SPRING_STIFFNESS = 520
+const SPRING_DAMPING_RATIO = 0.42
+const SPRING_MASS = 1
+const SPRING_DAMPING = 2 * SPRING_DAMPING_RATIO * Math.sqrt(SPRING_STIFFNESS * SPRING_MASS)
+/** A frame after a stall counts at most this long, and one integration step at most the next value, so the waves do not jump. */
+const MAX_FRAME_SECONDS = 0.05
+const MAX_STEP_SECONDS = 1 / 120
+
+// NOTICE:
+// A copy of the spring step of the Live2D motion control. The Live2D package keeps it private with its pose types.
+// Source: `stepAxis` in packages/stage-ui-live2d/src/composables/live2d/motion-control-spring.ts.
+// Removal condition: a shared spring step that both the Live2D motion control and this visual import.
+function stepSpring(current: number, velocity: number, target: number, elapsedSeconds: number) {
+  const acceleration = (SPRING_STIFFNESS * (target - current) - SPRING_DAMPING * velocity) / SPRING_MASS
+  const nextVelocity = velocity + acceleration * elapsedSeconds
+  return { position: current + nextVelocity * elapsedSeconds, velocity: nextVelocity }
+}
 
 const VIEW_WIDTH = 400
 const VIEW_HEIGHT = 240
@@ -33,32 +53,21 @@ const layers = [
   { cycles: 4.6, radiansPerSecond: -3, color: 'text-primary-600 dark:text-primary-200', opacity: 0.3 },
 ]
 
-/** A rising wave follows the voice at once, and a falling wave settles slowly, so the layers swell and breathe. */
-const RISE_MS = 200
-const FALL_MS = 480
-
-/**
- * The drawn height of each layer from 0 to 1. Each band update retargets a running tween, so a height glides from where it
- * is to the new level instead of jumping at 30 Hz.
- */
-const heights = layers.map(() => ({ value: 0 }))
-const tweens = heights.map(height => createAnimatable(height, { value: 0, ease: 'out(3)' }))
-
-watch(() => [props.bands, props.active] as const, ([bands, active]) => {
-  tweens.forEach((tween, index) => {
-    const target = active ? IDLE_HEIGHT + (bands[index] ?? 0) * (1 - IDLE_HEIGHT) : 0
-    tween.value(target, target > heights[index].value ? RISE_MS : FALL_MS)
-  })
-}, { immediate: true })
-onScopeDispose(() => tweens.forEach(tween => tween.revert()))
-
-/** The phase of each layer in radians. It moves on each frame, and the shapes read the heights of the same frame. */
+/** The phase of each layer in radians, and the spring state of its height. The drawn height is 0 or more. */
 const phasesRadians = shallowRef(layers.map((_, index) => index * 1.7))
-const frameHeights = shallowRef(heights.map(height => height.value))
+const springs = layers.map(() => ({ position: 0, velocity: 0 }))
+const frameHeights = shallowRef(springs.map(() => 0))
 
 useRafFn(({ delta }) => {
   const frameSeconds = Math.min(Math.max(delta, 0) / 1000, MAX_FRAME_SECONDS)
-  frameHeights.value = heights.map(height => height.value)
+  const stepCount = Math.max(1, Math.ceil(frameSeconds / MAX_STEP_SECONDS))
+  const stepSeconds = frameSeconds / stepCount
+  springs.forEach((spring, index) => {
+    const target = props.active ? IDLE_HEIGHT + (props.bands[index] ?? 0) * (1 - IDLE_HEIGHT) : 0
+    for (let step = 0; step < stepCount; step++)
+      Object.assign(spring, stepSpring(spring.position, spring.velocity, target, stepSeconds))
+  })
+  frameHeights.value = springs.map(spring => Math.max(0, spring.position))
   if (props.active)
     phasesRadians.value = phasesRadians.value.map((phase, index) => phase + layers[index].radiansPerSecond * frameSeconds)
 })
