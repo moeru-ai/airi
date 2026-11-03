@@ -13,7 +13,6 @@ import { toast } from 'vue-sonner'
 
 import { electronShortcutList, electronShortcutRegister, electronShortcutTriggered, electronShortcutUnregister } from '../../shared/eventa'
 import { isSafeSpotlightAccelerator } from '../../shared/spotlight-shortcut'
-import { acceleratorFromKeyboardEvent } from '../utils/shortcut-recording'
 
 /** Stable binding ID. A changed accelerator keeps this ID, so the main process replaces the earlier binding. */
 export const PUSH_TO_TALK_SHORTCUT_ID = 'voice-push-to-talk'
@@ -114,12 +113,11 @@ export function usePushToTalkShortcut() {
 export const PUSH_TO_TALK_TRY_SHORTCUT_ID = 'voice-push-to-talk-try'
 
 /**
- * Returns a function that lets the user try the Push to Talk keys, for the onboarding permissions step.
+ * Returns a function that reports presses of the Push to Talk keys in any app, for the onboarding permissions step.
  *
- * - With Accessibility, it registers a global binding of the same keys, so a press in any app reports `every-app`.
- *   When the stage window already holds the keys for Push to Talk, it reports the triggers of that binding instead.
- * - Without Accessibility, or when another shortcut holds the keys, only key events of this window report, as `this-app`.
- *   A registration without Accessibility would show the macOS prompt, so the try does not register then.
+ * With Accessibility, it registers a global binding of the same keys. When the stage window already holds the keys for
+ * Push to Talk, it reports the triggers of that binding instead. Without Accessibility, it registers nothing, because a
+ * registration would show the macOS prompt. The page reads the key events of its own window itself.
  *
  * The returned function stops the try and removes its binding.
  */
@@ -139,46 +137,15 @@ export function usePushToTalkTry(isTrusted: () => Promise<boolean>) {
 
   return (listener: (event: ShortcutTryEvent) => void) => {
     const binding = { modifiers: [...accelerator.value.modifiers], key: accelerator.value.key }
-    /** The binding whose triggers come from the global hook. While it is set, key events of this window do not report. */
+    /** The binding whose triggers come from the global hook. */
     let globalId: string | undefined
     let ownsBinding = false
     let stopped = false
-    let localDown = false
 
-    function onKeyDown(event: KeyboardEvent) {
-      if (globalId)
-        return
-      const pressed = acceleratorFromKeyboardEvent(event)
-      if (!pressed || !isSameKeyCombination(pressed, binding, { isMacOS }))
-        return
-      event.preventDefault()
-      localDown = true
-      listener({ phase: 'down', reach: 'this-app' })
-    }
-
-    function onKeyUp(event: KeyboardEvent) {
-      // Letting go of the main key or of any modifier ends the hold, as the global hook does.
-      if (!localDown || (event.code !== binding.key && !['Alt', 'Control', 'Meta', 'Shift'].includes(event.key)))
-        return
-      localDown = false
-      listener({ phase: 'up', reach: 'this-app' })
-    }
-
-    function onBlur() {
-      if (!localDown)
-        return
-      localDown = false
-      listener({ phase: 'up', reach: 'this-app' })
-    }
-
-    window.addEventListener('keydown', onKeyDown)
-    window.addEventListener('keyup', onKeyUp)
-    window.addEventListener('blur', onBlur)
     const stopTrigger = getElectronEventaContext().on(electronShortcutTriggered, ({ body }) => {
       if (!body || !globalId || body.id !== globalId)
         return
-      localDown = false
-      listener({ phase: body.phase, reach: 'every-app' })
+      listener({ phase: body.phase })
     })
 
     async function registerGlobal() {
@@ -203,9 +170,6 @@ export function usePushToTalkTry(isTrusted: () => Promise<boolean>) {
 
     return () => {
       stopped = true
-      window.removeEventListener('keydown', onKeyDown)
-      window.removeEventListener('keyup', onKeyUp)
-      window.removeEventListener('blur', onBlur)
       stopTrigger()
       enqueue(async () => {
         if (ownsBinding)

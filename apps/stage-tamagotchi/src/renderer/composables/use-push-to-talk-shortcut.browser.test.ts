@@ -163,7 +163,7 @@ describe('usePushToTalkTry', () => {
     const screen = await render(defineComponent({
       setup() {
         const tryShortcut = usePushToTalkTry(async () => trusted)
-        stop = tryShortcut(event => events.push(`${event.phase}:${event.reach}`))
+        stop = tryShortcut(event => events.push(event.phase))
         return () => null
       },
     }))
@@ -171,30 +171,25 @@ describe('usePushToTalkTry', () => {
     return { events, stop: () => stop?.() }
   }
 
-  function pressKeys() {
-    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space', key: ' ', ctrlKey: true, shiftKey: true }))
-    window.dispatchEvent(new KeyboardEvent('keyup', { code: 'Space', key: ' ', ctrlKey: true, shiftKey: true }))
-  }
-
-  it('reports key presses of this window without Accessibility, and registers nothing', async () => {
+  it('registers nothing without Accessibility, because a registration would show the macOS prompt', async () => {
     const { events } = await startTry(false)
 
-    pressKeys()
-
-    expect(events).toEqual(['down:this-app', 'up:this-app'])
+    trigger('down', PUSH_TO_TALK_TRY_SHORTCUT_ID)
     await Promise.resolve()
+
     expect(mocks.register).not.toHaveBeenCalled()
+    expect(events).toEqual([])
   })
 
   it('registers a try binding with Accessibility, reports its triggers, and removes it when stopped', async () => {
     const { events, stop } = await startTry(true)
     await vi.waitFor(() => expect(mocks.register).toHaveBeenCalledWith(expect.objectContaining({ id: PUSH_TO_TALK_TRY_SHORTCUT_ID, scope: 'global', receiveKeyUps: true })))
 
-    // The global hook also sees presses in this window, so the window does not report them twice.
-    pressKeys()
     trigger('down', PUSH_TO_TALK_TRY_SHORTCUT_ID)
     trigger('up', PUSH_TO_TALK_TRY_SHORTCUT_ID)
-    expect(events).toEqual(['down:every-app', 'up:every-app'])
+    // Triggers of other features do not count.
+    trigger('down', 'spotlight')
+    expect(events).toEqual(['down', 'up'])
 
     stop()
     expect(mocks.unregister).toHaveBeenLastCalledWith({ id: PUSH_TO_TALK_TRY_SHORTCUT_ID })
@@ -234,7 +229,7 @@ describe('usePushToTalkTry', () => {
     await vi.waitFor(() => expect(mocks.list).toHaveBeenCalled())
     await vi.waitFor(() => {
       trigger('down')
-      expect(events).toContain('down:every-app')
+      expect(events).toContain('down')
     })
 
     stop()

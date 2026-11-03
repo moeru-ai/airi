@@ -14,16 +14,9 @@ export type DevicePermissionStatus = 'granted' | 'denied' | 'not-determined'
  */
 export type DevicePermissionKind = 'microphone' | 'accessibility' | 'screen-recording' | 'notifications'
 
-/**
- * Where a shortcut press came from.
- * - `every-app`: the global hook saw it, so the shortcut works while another app is in front.
- * - `this-app`: only this window saw it, because the system does not allow the global hook.
- */
-export type ShortcutReach = 'every-app' | 'this-app'
-
+/** A press of the shortcut that the global hook saw. It works while another app is in front. */
 export interface ShortcutTryEvent {
   phase: 'down' | 'up'
-  reach: ShortcutReach
 }
 
 /** A still picture of one screen. */
@@ -50,8 +43,8 @@ export interface DevicePermission {
   /** The keys of the shortcut that the permission enables, for example `['Ctrl', 'Shift', 'Space']`. Only `accessibility` uses it. */
   shortcutKeys?: () => readonly string[]
   /**
-   * Listens for the shortcut, so the user can try it. Returns a function that stops listening.
-   * Call it again after the status changes, because the reach of the shortcut changes with it. Only `accessibility` uses it.
+   * Listens for presses of the shortcut in any app, through the global hook. Returns a function that stops listening.
+   * Without the permission, the hook sees nothing. Call it again after the status changes. Only `accessibility` uses it.
    */
   tryShortcut?: (listener: (event: ShortcutTryEvent) => void) => () => void
   /** Captures a still picture of each screen. Call it only while the permission is granted. Only `screen-recording` uses it. */

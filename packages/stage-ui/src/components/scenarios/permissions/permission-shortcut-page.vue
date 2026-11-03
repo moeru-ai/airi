@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import type { DevicePermission, ShortcutReach } from '../../../stores/device-permissions'
+import type { DevicePermission } from '../../../stores/device-permissions'
 
 import { computed, onScopeDispose, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import PermissionPageLayout from './permission-page-layout.vue'
 import PermissionStatusLine from './permission-status-line.vue'
+
+import { useShortcutKeys } from '../../../composables/permissions/use-shortcut-keys'
 
 const props = defineProps<{
   permission: DevicePermission
@@ -16,29 +18,40 @@ const props = defineProps<{
 
 const { t } = useI18n()
 
-/** Apple keyboards print symbols on the modifier keys, so their keycaps show the symbol too. */
-const isApple = /Mac|iPhone|iPad/.test(navigator.userAgent)
-const appleSymbols: Record<string, string> = { Ctrl: '⌃', Control: '⌃', Shift: '⇧', Alt: '⌥', Option: '⌥', Cmd: '⌘', Command: '⌘' }
+/** Each keycap moves with its key in this window, so the user sees each key as it goes down. */
+const { keycaps, held, allHeld } = useShortcutKeys(() => props.permission.shortcutKeys?.() ?? [])
 
-const keys = computed(() => (props.permission.shortcutKeys?.() ?? []).map(key => ({
-  key,
-  symbol: isApple ? appleSymbols[key] : undefined,
-  wide: key === 'Space',
-})))
+/** True while the global hook reports the shortcut as held. It also reports presses in other apps. */
+const globalHeld = shallowRef(false)
+/** True when the global hook saw the current or the last press. */
+const globalSaw = shallowRef(false)
+/** The result of the last full press, after the release. */
+const lastResult = shallowRef<'every-app' | 'this-app'>()
 
-const pressing = shallowRef(false)
-/** Where the last press came from. It stays after the release, so the page can say whether the shortcut works in other apps. */
-const lastReach = shallowRef<ShortcutReach>()
+const pressing = computed(() => allHeld.value || globalHeld.value)
+
+watch(pressing, (isPressing, wasPressing) => {
+  if (isPressing && !wasPressing) {
+    globalSaw.value = globalHeld.value
+    lastResult.value = undefined
+    return
+  }
+  // The global hook can report a press a moment after the keys of the window. The result waits for the release.
+  if (!isPressing && wasPressing)
+    lastResult.value = globalSaw.value ? 'every-app' : 'this-app'
+// A short tap holds the keys for less than one render, so the watcher runs at once and does not miss it.
+}, { flush: 'sync' })
+
 let stopListening: (() => void) | undefined
-
-// The reach changes with the permission, so the page listens again after each change.
+// The global hook works only with the permission, so the page listens again after each change.
 watch(() => props.granted, () => {
   stopListening?.()
-  pressing.value = false
-  lastReach.value = undefined
-  stopListening = props.permission.tryShortcut?.(({ phase, reach }) => {
-    pressing.value = phase === 'down'
-    lastReach.value = reach
+  globalHeld.value = false
+  lastResult.value = undefined
+  stopListening = props.permission.tryShortcut?.(({ phase }) => {
+    globalHeld.value = phase === 'down'
+    if (phase === 'down')
+      globalSaw.value = true
   })
 }, { immediate: true })
 onScopeDispose(() => stopListening?.())
@@ -53,10 +66,10 @@ onScopeDispose(() => stopListening?.())
       <li
         :class="[
           'flex items-center gap-3 rounded-xl px-3.5 py-3 transition-colors duration-300',
-          granted ? 'bg-green-100/70 dark:bg-green-900/25' : 'bg-transparent',
+          granted ? 'bg-neutral-100 dark:bg-neutral-800/60' : 'bg-transparent',
         ]"
       >
-        <span :class="['i-mingcute:check-circle-line', 'size-5 shrink-0', granted ? 'text-green-600 dark:text-green-400' : 'text-neutral-400 dark:text-neutral-500']" aria-hidden="true" />
+        <span :class="[granted ? 'i-mingcute:check-circle-fill text-green-600 dark:text-green-400' : 'i-mingcute:check-circle-line text-neutral-400 dark:text-neutral-500', 'size-5 shrink-0']" aria-hidden="true" />
         <span :class="['flex flex-col gap-0.5']">
           <span :class="['text-sm font-semibold']">{{ t('settings.dialogs.onboarding.permissions.flow.accessibility.with') }}</span>
           <span :class="['text-[13px] text-neutral-500 dark:text-neutral-400']">{{ t('settings.dialogs.onboarding.permissions.flow.accessibility.withBody') }}</span>
@@ -80,28 +93,29 @@ onScopeDispose(() => stopListening?.())
     </PermissionStatusLine>
 
     <template #stage>
-      <div :class="['flex items-end gap-2.5']" role="img" :aria-label="keys.map(item => item.key).join(' + ')">
-        <!-- A keycap is a base with a face on top. A press moves the face down into the base. -->
+      <div :class="['flex items-end gap-2.5']" role="img" :aria-label="keycaps.map(keycap => keycap.name).join(' + ')">
+        <!-- A keycap is a base with a face on top. A press moves the face down into the base. Each key moves on its own. -->
         <span
-          v-for="item in keys"
-          :key="item.key"
+          v-for="keycap in keycaps"
+          :key="keycap.token"
           :class="[
             'h-19.5 flex rounded-[14px] pb-1.5 transition-colors duration-100',
-            item.wide ? 'w-42' : 'w-21.5',
-            pressing ? 'bg-primary-500 dark:bg-primary-600' : 'bg-neutral-300 dark:bg-neutral-950',
+            keycap.wide ? 'w-42' : 'w-21.5',
+            pressing || held.has(keycap.token) ? 'bg-primary-500 dark:bg-primary-600' : 'bg-neutral-300 dark:bg-neutral-950',
           ]"
         >
           <span
             :class="[
-              'flex flex-1 flex-col items-start justify-between rounded-xl px-3 py-2.5 transition-[transform,background-color,color] duration-75 ease-out',
+              'flex flex-1 flex-col justify-between rounded-xl px-3 py-2.5 transition-[transform,background-color,color] duration-75 ease-out',
               'shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]',
-              pressing
+              pressing || held.has(keycap.token)
                 ? 'translate-y-1 bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-100'
                 : 'bg-neutral-50 text-neutral-800 dark:bg-neutral-800 dark:text-neutral-100',
             ]"
           >
-            <span :class="['text-xl leading-none font-medium']">{{ item.symbol ?? '' }}</span>
-            <span :class="['text-xs leading-none opacity-75']">{{ item.key }}</span>
+            <!-- Apple keyboards print the symbol at the top right and the name at the bottom left. -->
+            <span :class="['self-end text-lg leading-none font-[system-ui,-apple-system,sans-serif]']">{{ keycap.symbol ?? '' }}</span>
+            <span :class="['self-start text-xs leading-none opacity-75']">{{ keycap.name }}</span>
           </span>
         </span>
       </div>
@@ -117,10 +131,10 @@ onScopeDispose(() => stopListening?.())
           </span>
           {{ t('settings.dialogs.onboarding.permissions.flow.accessibility.listening') }}
         </span>
-        <PermissionStatusLine v-else-if="lastReach === 'every-app'" tone="ok">
+        <PermissionStatusLine v-else-if="lastResult === 'every-app'" tone="ok">
           {{ t('settings.dialogs.onboarding.permissions.flow.accessibility.worksEverywhere') }}
         </PermissionStatusLine>
-        <PermissionStatusLine v-else-if="lastReach === 'this-app'" tone="info">
+        <PermissionStatusLine v-else-if="lastResult === 'this-app'" tone="info">
           {{ t('settings.dialogs.onboarding.permissions.flow.accessibility.worksHere') }}
         </PermissionStatusLine>
         <span v-else :class="['text-[13px] text-neutral-500 dark:text-neutral-400']">

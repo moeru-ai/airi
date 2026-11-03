@@ -29,11 +29,17 @@ function detailOf(permission: DevicePermission) {
 </script>
 
 <template>
-  <div :class="['min-h-0 max-w-150 flex flex-1 flex-col justify-center gap-5.5']">
-    <h2 :class="['m-0 text-2xl text-neutral-900 font-bold leading-tight md:text-3xl dark:text-neutral-50']">
-      {{ permissions.every(permission => statuses[permission.id] === 'granted') ? t('settings.dialogs.onboarding.permissions.flow.summary.title') : t('settings.dialogs.onboarding.permissions.flow.summary.almost') }}
-    </h2>
-    <ul :class="['m-0 flex flex-col list-none gap-2 p-0']">
+  <!-- The text on the left and the permissions on the right, as on the other pages. A narrow window stacks and centers them. -->
+  <div :class="['min-h-0 flex flex-1 flex-col items-center justify-center gap-6 text-center md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,420px)] md:items-center md:gap-12 md:text-left']">
+    <div :class="['flex flex-col gap-3.5']">
+      <h2 :class="['m-0 text-2xl text-neutral-900 font-bold leading-tight md:text-3xl dark:text-neutral-50']">
+        {{ permissions.every(permission => statuses[permission.id] === 'granted') ? t('settings.dialogs.onboarding.permissions.flow.summary.title') : t('settings.dialogs.onboarding.permissions.flow.summary.almost') }}
+      </h2>
+      <p :class="['m-0 text-[15px] text-neutral-500 leading-relaxed dark:text-neutral-400']">
+        {{ t('settings.dialogs.onboarding.permissions.flow.summary.body') }}
+      </p>
+    </div>
+    <ul :class="['m-0 max-w-105 w-full flex flex-col list-none gap-2 p-0 text-left']">
       <li
         v-for="(permission, index) in permissions"
         :key="permission.id"
@@ -58,7 +64,7 @@ function detailOf(permission: DevicePermission) {
           v-if="statuses[permission.id] === 'granted'"
           role="img"
           :aria-label="t('settings.dialogs.onboarding.permissions.stateGranted')"
-          :class="['i-mingcute:check-line', 'size-5.5 shrink-0 text-green-600 dark:text-green-400']"
+          :class="['i-mingcute:check-circle-fill', 'size-5.5 shrink-0 text-green-600 dark:text-green-400']"
         />
         <Button
           v-else
@@ -69,8 +75,5 @@ function detailOf(permission: DevicePermission) {
         />
       </li>
     </ul>
-    <p :class="['m-0 text-sm text-neutral-500 dark:text-neutral-400']">
-      {{ t('settings.dialogs.onboarding.permissions.flow.summary.body') }}
-    </p>
   </div>
 </template>

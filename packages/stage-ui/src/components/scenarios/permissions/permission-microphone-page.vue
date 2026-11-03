@@ -30,8 +30,8 @@ const spectrum = useMicrophoneSpectrum(() => props.granted)
     :title="t('settings.dialogs.onboarding.permissions.flow.microphone.title')"
     :description="t('settings.dialogs.onboarding.permissions.flow.microphone.body')"
   >
-    <div v-if="granted" :class="['mt-2 flex flex-col items-start gap-3', 'animate-slideUpAndFade']">
-      <MicrophoneDeviceButton :level="check.level.value" />
+    <!-- The result comes first, under the text. The device picker sits below it, for a user who needs another input. -->
+    <div v-if="granted" :class="['mt-1 flex flex-col items-start gap-5', 'animate-slideUpAndFade']">
       <PermissionStatusLine v-if="check.heard.value" tone="ok">
         {{ t('settings.dialogs.onboarding.permissions.flow.microphone.heard') }}
       </PermissionStatusLine>
@@ -41,6 +41,7 @@ const spectrum = useMicrophoneSpectrum(() => props.granted)
       <PermissionStatusLine v-else tone="live">
         {{ t('settings.dialogs.onboarding.permissions.flow.microphone.testing') }}
       </PermissionStatusLine>
+      <MicrophoneDeviceButton :level="check.level.value" />
     </div>
 
     <template #stage>
