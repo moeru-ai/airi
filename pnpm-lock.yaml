@@ -36618,7 +36618,7 @@ snapshots:
   url@0.11.4:
     dependencies:
       punycode: 1.4.1
-      qs: 6.15.3
+      qs: 6.17.1
 
   utf-8-validate@5.0.10:
     dependencies:
