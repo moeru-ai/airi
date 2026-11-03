@@ -217,6 +217,22 @@ describe('onboarding permissions step', () => {
 
     expect(store.pendingSharedSteps.map(step => step.id)).toEqual(['permissions'])
   })
+
+  // ROOT CAUSE:
+  //
+  // Sign-in closed the whole flow, so a signed-in user never saw the permissions step.
+  // Sign-in finishes only provider setup, and the flow stays open for the permissions.
+  it('keeps the flow open after sign-in while the permissions step is pending', async () => {
+    useDevicePermissionsStore().register([microphone])
+    const store = useOnboardingStore()
+    store.forceShowSetup()
+
+    await store.closeAfterAuthentication()
+
+    expect(store.closeRequestId).toBe(1)
+    expect(store.pendingSharedSteps.map(step => step.id)).toEqual(['permissions'])
+    expect(store.showingSetup).toBe(true)
+  })
 })
 
 describe('isStepPending', () => {

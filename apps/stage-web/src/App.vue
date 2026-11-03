@@ -192,7 +192,10 @@ function continueWithoutModel() {
   startup.skip('model')
 }
 
+const startupFinished = ref(false)
+
 function openOnboardingAfterStartup() {
+  startupFinished.value = true
   if (router.currentRoute.value.meta.onboarding === false)
     return
 
@@ -201,6 +204,13 @@ function openOnboardingAfterStartup() {
     onboardingStore.showingSetup = true
   }
 }
+
+// Sign-in leaves the page and returns on the callback route, which shows no onboarding. The steps that sign-in
+// does not finish, for example permissions, open when the callback goes on to the stage.
+watch(() => router.currentRoute.value.meta.onboarding, (onboarding, previous) => {
+  if (startupFinished.value && previous === false && onboarding !== false)
+    openOnboardingAfterStartup()
+})
 </script>
 
 <template>

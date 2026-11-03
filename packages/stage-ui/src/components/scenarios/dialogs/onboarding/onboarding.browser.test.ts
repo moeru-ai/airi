@@ -296,6 +296,34 @@ it('keeps the dialog open after the Sign in click', async () => {
   expect(store.showingSetup).toBe(true)
 })
 
+// ROOT CAUSE:
+//
+// Sign-in closed the whole flow, so a signed-in user never saw the permissions step.
+// Sign-in finishes only provider setup. The open flow goes on with the permissions.
+it('goes on to the permissions step after sign-in', async () => {
+  const context = createSyncedContext(`onboarding-sign-in-permissions:${crypto.randomUUID()}`, 'leader-only')
+  await expect.poll(() => context.runtime.isLeader()).toBe(true)
+  useDevicePermissionsStore(context.pinia).register([{
+    id: 'notifications',
+    kind: 'notifications',
+    titleKey: 'settings.dialogs.onboarding.permissions.notificationsTitle',
+    descriptionKey: 'settings.dialogs.onboarding.permissions.notificationsDescription',
+    check: async () => 'not-determined',
+    request: async () => {},
+  }])
+  const store = useOnboardingStore(context.pinia)
+  store.forceShowSetup()
+  const screen = await render(OnboardingDialog, {
+    global: { plugins: [context.pinia, PiniaColada, createTestI18n()] },
+  })
+  await expect.element(screen.getByRole('button', { name: 'Sign in' })).toBeInTheDocument()
+
+  await store.closeAfterAuthentication()
+
+  await expect.element(screen.getByRole('heading', { name: 'Get reminders from your character' })).toBeInTheDocument()
+  expect(store.showingSetup).toBe(true)
+})
+
 /**
  * Renders the flow for a user who finished provider setup, on a host with one notifications permission.
  * `request` grants it, as a user who allows the system prompt.

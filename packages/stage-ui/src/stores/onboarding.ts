@@ -122,7 +122,10 @@ const useOnboardingStateStore = defineStore('onboarding-state', () => {
     localStorage.setItem(stepRecordsKey, JSON.stringify(stepRecords.value))
   }
 
-  /** Sign-in replaces provider setup, so its steps count as done. A later sign-out does not open them again. */
+  /**
+   * Sign-in replaces provider setup, so its steps count as done. A later sign-out does not open them again.
+   * The close request ends provider setup in every window. A window with pending device steps goes on with them.
+   */
   async function closeAfterAuthentication() {
     await recordSteps(sharedOnboardingSteps.filter(step => step.scope === 'provider-setup'), 'done')
     closeRequestId.value += 1
@@ -213,12 +216,9 @@ export const useOnboardingStore = defineStore('onboarding', () => {
     return applicableSteps.filter(step => isStepPending(stepRecords.value, step) || (providerSetupPending && step.scope === 'provider-setup'))
   })
 
-  // Check if first-time setup should be shown
-  const skipOnboardingPath = ['/auth/callback']
-  const needsOnboarding = computed(() =>
-    pendingSharedSteps.value.length > 0
-    && !skipOnboardingPath.includes(document.location.pathname),
-  )
+  // A route that must not show onboarding, for example the sign-in callback of the web, sets `meta.onboarding: false`.
+  // The host checks it, because the route changes without a reactive source in this store.
+  const needsOnboarding = computed(() => pendingSharedSteps.value.length > 0)
 
   // Keep in-memory display flag aligned with persisted onboarding status
   // when setup is completed from another window (desktop multi-window case).
@@ -232,9 +232,11 @@ export const useOnboardingStore = defineStore('onboarding', () => {
     return onboardingStateStore.recordSteps(steps, outcome)
   }
 
-  function closeAfterAuthentication() {
-    showingSetup.value = false
-    return onboardingStateStore.closeAfterAuthentication()
+  /** Ends provider setup after sign-in. The flow stays open when a device step is still pending, for example permissions. */
+  async function closeAfterAuthentication() {
+    await onboardingStateStore.closeAfterAuthentication()
+    if (pendingSharedSteps.value.length === 0)
+      showingSetup.value = false
   }
 
   function resetSetupState() {
