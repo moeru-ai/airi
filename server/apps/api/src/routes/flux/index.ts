@@ -54,21 +54,6 @@ export function createFluxRoutes(
       const user = c.get('user')!
       return c.json(await fluxService.getCapacitorUsage(user.id))
     })
-    .get('/usage', async (c) => {
-      const user = c.get('user')!
-      const { limit, offset } = parse(LimitOffsetPaginationQuerySchema, {
-        limit: c.req.query('limit'),
-        offset: c.req.query('offset'),
-      })
-      const result = await fluxTransactionService.getUsageHistory(user.id, limit, offset)
-      return c.json({
-        records: result.records.map(record => ({
-          ...record,
-          createdAt: record.createdAt.toISOString(),
-        })),
-        hasMore: result.hasMore,
-      })
-    })
     .get('/usage/daily', async (c) => {
       const user = c.get('user')!
       const query = safeParse(TimeZoneQuerySchema, { timeZone: c.req.query('timeZone') })

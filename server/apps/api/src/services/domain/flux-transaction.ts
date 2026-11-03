@@ -43,18 +43,6 @@ export interface TransactionEntry {
 
 export function createFluxTransactionService(db: Database) {
   return {
-    /** Lists confirmed fees, including zero fees, independently of pooled integer wallet debits. */
-    async getUsageHistory(userId: string, limit: number, offset: number) {
-      const rows = await db.select({
-        id: fluxUsage.id,
-        sourceType: fluxUsage.sourceType,
-        sourceId: fluxUsage.sourceId,
-        amountMicroFlux: fluxUsage.amountMicroFlux,
-        createdAt: fluxUsage.createdAt,
-      }).from(fluxUsage).where(eq(fluxUsage.userId, userId)).orderBy(desc(fluxUsage.createdAt), desc(fluxUsage.id)).limit(limit + 1).offset(offset)
-      return { records: rows.slice(0, limit), hasMore: rows.length > limit }
-    },
-
     /**
      * Sums confirmed LLM and speech fees by local day.
      * Returns every day of the last 365 local days, with zero for a day without usage.

@@ -11,6 +11,8 @@ The client derives daily, weekly, and cumulative views from these days. Switchin
 The five summaries show Flux used, peak daily Flux, longest session, longest streak, and current streak within this window.
 `longestSessionMs` uses sessions whose first request falls within this window. SQL returns the maximum duration without transferring individual sessions.
 Valibot defines the response contract in `src/types/flux-usage.ts`. The client imports its inferred types through the API package export.
+Remove `GET /api/v1/flux/usage` and `getUsageHistory`. No repository client calls this paginated fee listing.
+The activity chart reads `/usage/daily`. The balance card reads `/stats`, and transaction history reads `/history`.
 
 ## Scope
 
@@ -40,7 +42,9 @@ packages/stage-ui/src/components/scenarios/flux/
 server/apps/api/src/
   types/flux-usage.ts
   routes/flux/index.ts
+  routes/flux/route.test.ts
   services/domain/flux-transaction.ts
+server/apps/api/README.md
 ```
 
 ```mermaid
@@ -64,6 +68,7 @@ sequenceDiagram
 Verify local-day boundaries, user isolation, empty days, and session cutoffs against PostgreSQL through PGlite.
 Verify weekly sums, cumulative totals, partial weeks, and daily intensity levels with unit tests.
 Verify switching, tooltip content, keyboard input, narrow layouts, and reduced motion in browser tests.
+Verify that the removed fee listing returns 404 without calling the daily usage service.
 
 ## Known limits
 
