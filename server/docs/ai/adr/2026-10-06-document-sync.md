@@ -70,11 +70,11 @@ The service accepts a field when its key is a JSON Pointer. For the keys that th
 A device that cannot read a card keeps the cards that it can read and does not delete the server copy of the unreadable card.
 An account can store 200 cards and 16 MiB of field values. A deleted card does not count. The limits come from the size of a card, which is a few kilobytes. A card with a large lorebook can reach a few hundred kilobytes.
 The card list shows the cloud state of each card: synced, waiting to upload, or refused by the server. A signed-in user also sees one line that tells that the cards sync to the account. A user without an account sees neither.
-Cloud sync is a client-owned experiment, off by default. The `character-card-sync` entry in `packages/stage-ui/src/libs/feature-flags.ts` is a `local`-availability flag, so the server has no policy for it and the choice never leaves the device. A signed-in user turns it on in Settings > System > Experimental Features. The card list and card detail pages show their cloud state and history UI only while the flag is on.
+Cloud sync is a device choice, on by default. The `character-cards` switch of `packages/stage-ui/src/stores/sync-preferences.ts` holds it, so the server has no policy for it and the choice never leaves the device. The user changes it in the sync section of the account settings, or with the sync switch of onboarding. The card list and card detail pages show their cloud state and history UI only while the switch is on.
 
 ## History
 
-Cloud sync has no per-card switch, only the one account-wide experiment flag above, so history is still the user's way back from an unwanted overwrite or a conflict once sync is on. `createCharacterCardService` passes a `history` option to the store:
+Cloud sync has no per-card switch, only the one device switch above, so history is still the user's way back from an unwanted overwrite or a conflict once sync is on. `createCharacterCardService` passes a `history` option to the store:
 
 | Setting | Value | Reason |
 | --- | --- | --- |
@@ -118,7 +118,7 @@ A deleted field never takes part in a conflict check. Its stored revision in a h
 - Display model files. A card synchronizes its `displayModelId` only. A later feature stores the files in object storage and uses this store for their descriptions.
 - Contacts, group chats, and the binding of a chat to a contact.
 - A read-only built-in card. When it exists, the built-in card leaves synchronization and its forks synchronize as ordinary cards.
-- A per-card switch for cloud sync, a server policy for the sync flag, and a first-time prompt before the first upload. The account-wide switch is a client-owned experiment flag. See [Character cards](#character-cards).
+- A per-card switch for cloud sync, a server policy for the sync switch, and a first-time prompt before the first upload. The device switch is client-owned. See [Character cards](#character-cards).
 - Branching or merging history. A card's history is one line: older revisions, not alternate ones.
 - Line-level diff highlighting for a long text field in the history UI. It needs a diff library, and library choices go through the user first.
 - Upload rate limiting and list pagination for these routes. Both stay open follow-up work.

@@ -13,6 +13,7 @@ import StepWelcome from './step-welcome.vue'
 import { AIRI_FLUX_URL, AIRI_TERMS_URL } from '../../../../constants/public-links'
 import { useAuthStore } from '../../../../stores/auth'
 import { useAiriCardStore } from '../../../../stores/modules/airi-card'
+import { syncCategories, useSyncPreferencesStore } from '../../../../stores/sync-preferences'
 
 afterEach(() => {
   vi.unstubAllEnvs()
@@ -98,6 +99,33 @@ describe('desktop onboarding sign-in', () => {
     await screen.getByRole('button', { name: 'Sign in' }).click()
 
     await expect.poll(() => useAuthStore(pinia).needsLogin).toBe(true)
+  })
+})
+
+describe('onboarding sync choice', () => {
+  it('turns every sync off and on with the switch below the sign-in button', async () => {
+    const pinia = createPinia()
+    const screen = await render(StepWelcome, {
+      props: { customProviderSetupEnabled: true, onNext: vi.fn() },
+      global: {
+        directives: { motion: {} },
+        plugins: [pinia, createTestI18n()],
+      },
+    })
+    const syncSwitch = screen.getByRole('switch', { name: 'Sync my data to my account' })
+    const syncPreferences = useSyncPreferencesStore(pinia)
+
+    await expect.element(syncSwitch).toHaveAttribute('aria-checked', 'true')
+
+    await syncSwitch.click()
+
+    await expect.element(syncSwitch).toHaveAttribute('aria-checked', 'false')
+    expect(syncCategories.map(category => syncPreferences.isEnabled(category))).toEqual([false, false, false, false])
+
+    await syncSwitch.click()
+
+    await expect.element(syncSwitch).toHaveAttribute('aria-checked', 'true')
+    expect(syncCategories.map(category => syncPreferences.isEnabled(category))).toEqual([true, true, true, true])
   })
 })
 
