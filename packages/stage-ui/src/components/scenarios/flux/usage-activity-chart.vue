@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import type { ActivityGroup, ActivityView, DailyUsage } from './usage-stats'
+import type { DailyUsage } from '@proj-airi/api-server/types/flux-usage'
+
+import type { ActivityGroup, ActivityView } from './usage-stats'
 
 import { GhostButton } from '@proj-airi/ui'
 import { computed, nextTick, onMounted, shallowRef, useId, useTemplateRef, watch } from 'vue'

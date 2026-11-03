@@ -161,29 +161,25 @@ describe('account usage navigation', () => {
   })
 
   it('discards a pending overview when the account changes', async () => {
-    let finishOld: (value: Response) => void = () => {}
+    const pending = Promise.withResolvers<Response>()
     dailyResponse = async token => token.includes('owner-token')
-      ? new Promise((resolve) => {
-          finishOld = resolve
-        })
+      ? pending.promise
       : Response.json({ days, longestSessionMs: 60_000 })
     const { screen, auth } = await openPage()
     await expect.poll(() => requests.some(url => url.pathname.endsWith('/flux/usage/daily'))).toBe(true)
     await auth.completeSignIn({ accessToken: 'other-token', expiresIn: 3600, clientId: 'browser-test' })
     await expect.element(screen.getByRole('img', { name: 'Daily Flux usage' })).toBeVisible()
-    finishOld(Response.json({ days: days.map(day => ({ ...day, microFlux: 999_000_000 })), longestSessionMs: 999 * 60_000 }))
+    pending.resolve(Response.json({ days: days.map(day => ({ ...day, microFlux: 999_000_000 })), longestSessionMs: 999 * 60_000 }))
     await expect.element(screen.getByText('1m', { exact: true })).toBeVisible()
   })
 
   it('discards pending history after sign-out', async () => {
-    let finish: (value: Response) => void = () => {}
-    historyResponse = async () => new Promise((resolve) => {
-      finish = resolve
-    })
+    const pending = Promise.withResolvers<Response>()
+    historyResponse = () => pending.promise
     const { screen, auth } = await openPage('/settings/usage')
     await expect.poll(() => requests.some(url => url.pathname.endsWith('/flux/history'))).toBe(true)
     await auth.clearAllAuthState()
-    finish(Response.json({ records: history, hasMore: true }))
+    pending.resolve(Response.json({ records: history, hasMore: true }))
     await expect.element(screen.getByRole('link', { name: 'Sign in to view your usage records' })).toBeVisible()
     expect(screen.getByRole('table').elements()).toHaveLength(0)
   })

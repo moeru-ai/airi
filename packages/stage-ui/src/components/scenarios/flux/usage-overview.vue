@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DailyUsageSummary } from './usage-stats'
+import type { DailyUsageSummary } from '@proj-airi/api-server/types/flux-usage'
 
 import { SettingsCard } from '@proj-airi/ui'
 import { computed } from 'vue'
