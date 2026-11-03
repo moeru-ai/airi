@@ -1233,7 +1233,54 @@ O caminho mais eficiente é preservar a plataforma AIRI, incorporar a lógica de
 
 **Limite desta auditoria:** examinei documentação, configuração e arquivos específicos de implementação dos repositórios, mas não executei os aplicativos nem fiz benchmarks na sua máquina. As classificações refletem capacidades verificadas no código e esforço estimado de integração, não medições empíricas de qualidade visual.
 
-<!-- HISTORICO_PENDENTE -->
+
+## Registro 4 — Qual projeto já tem orquestração contínua e composição de movimentos? (quarta saída)
+
+**O xiaoke.ai é o que já possui a orquestração contínua de movimentos mais completa entre os projetos analisados.** Entretanto, nenhum deles implementa integralmente uma composição corporal por camadas equivalente a um Motion Mixer avançado.
+
+| Projeto | Orquestração contínua | Composição simultânea de movimentos |
+|---|---|---|
+| **xiaoke.ai** | Sim, avançada | Parcial |
+| **AIRI MMD** | Parcial | Parcial |
+| **AIRI Live2D + MAGIC** | Sim, procedural | Sim, limitada aos parâmetros 2D |
+| **Utsuwa** | Sim, baseada em estados | Limitada |
+| **Open-LLM-VTuber** | Parcial | Dependente do rig Live2D |
+| **Riko Project** | Não, na versão pública | Não |
+
+### O que já funciona no xiaoke.ai
+
+O \`PerformanceDirector\` implementa continuamente:
+
+- Movimentos de cabeça, olhar, tronco e microexpressões.
+- Gestos relacionados à intensidade da fala.
+- Comportamentos distintos para esperar, escutar, pensar e falar.
+- Reações ao toque e seleção de animações a partir do contexto.
+- Interpolação de poses e transições suaves entre animações.
+
+**Limitação importante:** quando uma animação VMD assume o controle corporal, o diretor procedural deixa de controlar os ossos correspondentes, evitando conflitos. Isso não é composição simultânea independente de várias animações.
+
+O código está em [director.ts](https://github.com/liupig/xiaokeai/blob/master/companion/frontend/src/engine/director.ts) e [motion.ts](https://github.com/liupig/xiaokeai/blob/master/companion/frontend/src/engine/motion.ts).
+
+### Diferença principal
+
+O **xiaoke.ai** já combina estados comportamentais, microgestos e animações VMD. Mas, para alcançar composição simultânea avançada, ainda precisaria implementar máscaras articulares e mistura aditiva, permitindo, por exemplo, que uma mão gesticule enquanto as pernas caminham e a cabeça acompanha a conversa.
+
+O **AIRI MMD** já possui \`AnimationMixer\`, transições, física e IK, mas sua direção automática de movimentos ainda é menos elaborada. O **AIRI Live2D + MAGIC** gera variações procedurais contínuas para personagens 2D.
+
+**Minha escolha para uso imediato:** xiaoke.ai com avatar PMX.
+
+**Minha escolha para evolução do seu sistema:** manter o AIRI e integrar o \`PerformanceDirector\` do xiaoke, acrescentando um Motion Mixer por camadas.
+
+---
+
+## Nota sobre a integridade do arquivo
+
+Este arquivo reúne em um único Markdown o planejamento novo e **as quatro saídas informativas anteriores** sobre o tema nesta conversa: pesquisa Ani-2; plataformas comerciais e locais; auditoria detalhada dos repositórios; comparação final. Tabelas, textos, comandos, URLs e conclusões estão documentados. Elementos multimodais dinâmicos do chat (imagens geradas por pesquisa, cartões de entidade e widgets) são descritos textualmente; não é possível incorporar diretamente o estado visual desses componentes a um arquivo Markdown estático.
+
+As recomendações evoluíram durante a pesquisa. Em especial, a recomendação preliminar de Utsuwa/AIRI como base mudou após a verificação do código MMD nativo do AIRI, que fundamenta o planejamento da Parte I. Informações históricas não devem ser confundidas com estado de implementação já concluída.
+
+**Próximo passo técnico:** implementar P0 (baseline/telemetria) e P1 (MotionDirector) em commits separados, sem modificar os contratos de renderização antes dos testes de regressão.
+
 
 
 
