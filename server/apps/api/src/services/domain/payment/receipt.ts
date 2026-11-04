@@ -1,23 +1,24 @@
-import type Stripe from 'stripe'
-
 import type { Database } from '../../../libs/db'
+import type { PaymentOrder } from '../../../schemas/payment'
 
-import { ApiError, createNotFoundError, createServiceUnavailableError } from '@proj-airi/http-error-shared'
+import { ApiError, createNotFoundError } from '@proj-airi/http-error-shared'
 import { and, eq, isNull } from 'drizzle-orm'
-import { nullable, object, parse, pipe, startsWith, string, url } from 'valibot'
 
 import { paymentOrder } from '../../../schemas/payment'
 
-const receiptUrlSchema = pipe(string(), url(), startsWith('https://'))
-const checkoutReceiptSchema = object({
-  invoice: nullable(object({ hosted_invoice_url: nullable(receiptUrlSchema) })),
-  payment_intent: nullable(object({
-    latest_charge: nullable(object({ receipt_url: nullable(receiptUrlSchema) })),
-  })),
-})
+/** The processor reference of an order whose ownership and paid status the service has checked. */
+export type ReceiptOrder = Pick<PaymentOrder, 'processor' | 'processorOrderId'>
+
+/** Resolves fresh provider links. Null means unavailable or invalid receipt data. Provider request failures propagate. */
+export interface ReceiptResolver {
+  readonly processor: string
+  resolveReceipt: (order: ReceiptOrder) => Promise<{ url: string } | null>
+}
 
 /** Resolves fresh receipt links from each paid order's original processor, regardless of current sales channels. */
-export function createPaymentReceiptService(db: Database, stripe: Stripe | null) {
+export function createPaymentReceiptService(db: Database, resolvers: readonly ReceiptResolver[]) {
+  const resolversByProcessor = new Map(resolvers.map(resolver => [resolver.processor, resolver]))
+
   return {
     async getReceipt(userId: string, orderId: string) {
       const [order] = await db.select({
@@ -33,30 +34,12 @@ export function createPaymentReceiptService(db: Database, stripe: Stripe | null)
       if (!order)
         throw createNotFoundError('Payment order not found')
 
-      switch (order.processor) {
-        case 'stripe': {
-          if (!stripe)
-            throw createServiceUnavailableError('Stripe is not configured', 'STRIPE_NOT_CONFIGURED')
-          if (!order.processorOrderId)
-            throw new ApiError(404, 'PAYMENT_RECEIPT_UNAVAILABLE', 'Payment receipt is unavailable')
+      const resolver = resolversByProcessor.get(order.processor)
+      const receipt = await resolver?.resolveReceipt(order)
+      if (!receipt)
+        throw new ApiError(404, 'PAYMENT_RECEIPT_UNAVAILABLE', 'Payment receipt is unavailable')
 
-          const session = parse(checkoutReceiptSchema, await stripe.checkout.sessions.retrieve(order.processorOrderId, {
-            expand: ['invoice', 'payment_intent.latest_charge'],
-          }))
-
-          // One-time Checkout payments can have a charge receipt without an invoice.
-          const receiptUrl = session.invoice?.hosted_invoice_url ?? session.payment_intent?.latest_charge?.receipt_url
-          if (!receiptUrl)
-            throw new ApiError(404, 'PAYMENT_RECEIPT_UNAVAILABLE', 'Payment receipt is unavailable')
-
-          return { url: receiptUrl }
-        }
-        case 'apple_iap':
-          // Apple exposes account purchase history without a documented URL for an individual transaction.
-          return { url: 'https://reportaproblem.apple.com/' }
-        default:
-          throw new ApiError(404, 'PAYMENT_RECEIPT_UNAVAILABLE', 'Payment receipt is unavailable')
-      }
+      return receipt
     },
   }
 }
