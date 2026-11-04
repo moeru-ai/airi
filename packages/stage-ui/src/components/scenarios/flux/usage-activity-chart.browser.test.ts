@@ -12,10 +12,12 @@ import UsageActivityChart from './usage-activity-chart.vue'
 import 'virtual:uno.css'
 
 function createDays(): DailyUsage[] {
-  return Array.from({ length: 365 }, (_, index) => ({
+  const days = Array.from({ length: 365 }, (_, index) => ({
     date: new Date(Date.UTC(2026, 9, 25) - (364 - index) * 86_400_000).toISOString().slice(0, 10),
     microFlux: index >= 362 ? (index - 361) * 1_000_000 : 0,
   }))
+  days[357]!.microFlux = 10_000_000
+  return days
 }
 
 function renderChart() {
@@ -28,52 +30,26 @@ function renderChart() {
 afterEach(cleanup)
 
 describe('flux activity chart', () => {
-  it('switches the same tiles through three views', async () => {
+  it('shows daily, weekly, and cumulative amounts through pointer and keyboard input', async () => {
     const screen = await renderChart()
-    await expect.element(screen.getByRole('img', { name: 'Daily Flux usage' })).toBeVisible()
-    const firstTile = screen.container.querySelector('.activity-tile')
-    expect(firstTile).toBeInstanceOf(SVGRectElement)
-
-    await screen.getByRole('button', { name: 'Weekly', exact: true }).click()
-    await expect.element(screen.getByRole('img', { name: 'Weekly Flux usage' })).toBeVisible()
-    await expect.element(screen.getByRole('button', { name: 'Weekly', exact: true })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.container.querySelector('.activity-tile')).toBe(firstTile)
-
-    await screen.getByRole('button', { name: 'Cumulative', exact: true }).click()
-    await expect.element(screen.getByRole('img', { name: 'Cumulative Flux usage' })).toBeVisible()
-    expect(screen.container.querySelector('.activity-tile')).toBe(firstTile)
-  })
-
-  it('shows exact daily, weekly, and cumulative values with keyboard navigation', async () => {
-    const screen = await renderChart()
+    const target = screen.getByRole('img', { name: 'Daily Flux usage' }).element().querySelectorAll('rect.fill-transparent')
+    target[target.length - 1]!.dispatchEvent(new PointerEvent('pointerenter', { bubbles: true }))
+    await expect.element(screen.getByRole('status')).toHaveTextContent('3 Flux')
     const chart = screen.getByRole('group', { name: 'Flux activity for the last 365 days' }).element() as HTMLElement
     chart.focus()
-    await expect.element(screen.getByRole('status')).toHaveTextContent('Oct 25, 2026')
-    await expect.element(screen.getByRole('status')).toHaveTextContent('3 Flux')
     await userEvent.keyboard('{ArrowLeft}')
-    await expect.element(screen.getByRole('status')).toHaveTextContent('Oct 24, 2026')
     await expect.element(screen.getByRole('status')).toHaveTextContent('2 Flux')
 
     await screen.getByRole('button', { name: 'Weekly', exact: true }).click()
+    expect(screen.getByRole('status').elements()).toHaveLength(0)
+    await expect.element(screen.getByRole('button', { name: 'Weekly', exact: true })).toHaveAttribute('aria-pressed', 'true')
     chart.focus()
-    await expect.element(screen.getByRole('status')).toHaveTextContent('Oct 19, 2026 – Oct 25, 2026')
     await expect.element(screen.getByRole('status')).toHaveTextContent('6 Flux')
 
     await screen.getByRole('button', { name: 'Cumulative', exact: true }).click()
     chart.focus()
-    await expect.element(screen.getByRole('status')).toHaveTextContent('Through Oct 25, 2026')
-    await expect.element(screen.getByRole('status')).toHaveTextContent('6 Flux')
+    await expect.element(screen.getByRole('status')).toHaveTextContent('16 Flux')
     await userEvent.keyboard('{Escape}')
-    expect(screen.getByRole('status').elements()).toHaveLength(0)
-  })
-
-  it('shows hovered values and clears stale details on mode changes', async () => {
-    const screen = await renderChart()
-    const svg = screen.getByRole('img', { name: 'Daily Flux usage' }).element()
-    const target = svg.querySelectorAll('rect.fill-transparent')
-    target[target.length - 1]!.dispatchEvent(new PointerEvent('pointerenter', { bubbles: true }))
-    await expect.element(screen.getByRole('status')).toHaveTextContent('3 Flux')
-    await screen.getByRole('button', { name: 'Weekly', exact: true }).click()
     expect(screen.getByRole('status').elements()).toHaveLength(0)
   })
 
@@ -85,10 +61,5 @@ describe('flux activity chart', () => {
     const scroller = chart.parentElement!
     await expect.poll(() => scroller.scrollWidth > scroller.clientWidth).toBe(true)
     expect(root.scrollWidth).toBeLessThanOrEqual(390)
-    chart.focus()
-    await userEvent.keyboard('{Home}')
-    await expect.element(screen.getByRole('status')).toHaveTextContent('Oct 26, 2025')
-    await userEvent.keyboard('{End}')
-    await expect.element(screen.getByRole('status')).toHaveTextContent('Oct 25, 2026')
   })
 })

@@ -84,8 +84,8 @@ sequenceDiagram
 ## Test plan
 
 Verify local-day boundaries, user isolation, empty days, and session cutoffs against PostgreSQL through PGlite.
-Verify weekly sums, cumulative totals, partial weeks, and daily intensity levels with unit tests.
-Verify switching, tooltip content, keyboard input, narrow layouts, and reduced motion in browser tests.
+Verify streaks, weekly sums, cumulative totals, partial weeks, and year boundaries with unit tests.
+Verify view changes, tooltip amounts, pointer and keyboard input, and narrow layouts in browser tests.
 Verify that the removed fee listing returns 404 without calling the daily usage service.
 
 ## Known limits
