@@ -57,8 +57,8 @@ const status = computed(() => {
         :bands="spectrum.bands.value"
         :active="granted"
       />
-      <!-- Under the band of the waves, see `microphone-voice-visual.vue`: the band is 60% of the stage, at most 15.75rem. -->
-      <div v-if="granted" :class="['absolute left-1/2 top-[calc(50%+min(30%,7.875rem))] whitespace-nowrap -translate-x-1/2 @3xl:hidden']">
+      <!-- Under the band of the waves, see `microphone-voice-visual.vue`: on a narrow page the band is 60% of the stage, at most 8.5rem. -->
+      <div v-if="granted" :class="['absolute left-1/2 top-[calc(50%+min(30%,4.25rem)+0.75rem)] whitespace-nowrap -translate-x-1/2 @3xl:hidden']">
         <PermissionStatusLine :tone="status.tone">
           {{ status.text }}
         </PermissionStatusLine>

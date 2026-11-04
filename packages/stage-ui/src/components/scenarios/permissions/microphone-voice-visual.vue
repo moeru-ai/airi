@@ -111,9 +111,10 @@ const shapes = computed(() => layers.map((layer, index) => ({
   <div role="img" :aria-label="label" :class="['absolute inset-0 overflow-hidden']">
     <!--
       The waves and the blur at their ends share one band. A tall narrow stage does not stretch the waves, and the blur
-      covers only the waves, so it does not show as pale bars over a see-through drawer.
+      covers only the waves, so it does not show as pale bars over a see-through drawer. The microphone page puts
+      its result under this band on a narrow page, so the two heights must change together.
     -->
-    <div :class="['absolute inset-x-0 top-1/2 h-3/5 max-h-63 -translate-y-1/2', '[clip-path:inset(0)]']">
+    <div :class="['absolute inset-x-0 top-1/2 h-3/5 max-h-34 -translate-y-1/2 @3xl:max-h-63', '[clip-path:inset(0)]']">
       <svg
         aria-hidden="true"
         :viewBox="`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`"
