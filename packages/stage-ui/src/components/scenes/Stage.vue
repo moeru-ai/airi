@@ -301,24 +301,8 @@ function isTurnSpeechPlayable(turnId?: string): boolean {
   if (speechMuted.value || !speechStore.enabled)
     return false
   if (!turnId)
-    return voice.activeTurns.length > 0
-  if (playableTurns.has(turnId))
-    return true
-  const turn = voice.activeTurns.find(t => t.turnId === turnId)
-  if (!turn)
-    return false
-  try {
-    const characterId = chatSession.sessionMetas[turn.sessionId]?.characterId
-    if (!characterId)
-      return false
-    const speechConfig = cards.getModules(characterId)?.speech
-    if (!speechConfig?.provider || speechConfig.provider === 'speech-noop')
-      return false
-    return true
-  }
-  catch {
-    return false
-  }
+    return playableTurns.size > 0
+  return playableTurns.has(turnId)
 }
 
 function toStageEmotionPayload(payload: { name: string, intensity: number }): EmotionPayload | undefined {
@@ -439,6 +423,17 @@ watch(speechVolume, (volume) => {
 }, { immediate: true })
 const playback = new Playback(new BrowserPlayback(audioContext, { destination: speechDestination }))
 
+function flushPendingEmotions() {
+  for (const emotion of pendingTurnEmotions.values()) {
+    emotionsQueue.enqueue(emotion)
+  }
+  pendingTurnEmotions.clear()
+  if (pendingSpeechEmotion.value) {
+    emotionsQueue.enqueue(pendingSpeechEmotion.value)
+    pendingSpeechEmotion.value = null
+  }
+}
+
 function resetSpeakingState() {
   nowSpeaking.value = false
   mouthOpenSize.value = 0
@@ -456,14 +451,7 @@ watch(() => voice.activeTurns, (turns) => {
     speechVoicing.value = false
     speakingTurns.clear()
     playableTurns.clear()
-    for (const emotion of pendingTurnEmotions.values()) {
-      emotionsQueue.enqueue(emotion)
-    }
-    pendingTurnEmotions.clear()
-    if (pendingSpeechEmotion.value) {
-      emotionsQueue.enqueue(pendingSpeechEmotion.value)
-      pendingSpeechEmotion.value = null
-    }
+    flushPendingEmotions()
   }
   else {
     const activeTurnIds = new Set(turns.map(t => t.turnId))
@@ -618,14 +606,14 @@ watch(speechMuted, (muted) => {
   if (muted) {
     for (const turn of voice.activeTurns)
       voice.getSpeech(turn)?.cancel('Speech muted')
-    for (const emotion of pendingTurnEmotions.values()) {
-      emotionsQueue.enqueue(emotion)
-    }
-    pendingTurnEmotions.clear()
-    if (pendingSpeechEmotion.value) {
-      emotionsQueue.enqueue(pendingSpeechEmotion.value)
-      pendingSpeechEmotion.value = null
-    }
+    flushPendingEmotions()
+  }
+})
+
+watch(() => speechStore.enabled, (enabled) => {
+  if (!enabled) {
+    playableTurns.clear()
+    flushPendingEmotions()
   }
 })
 
