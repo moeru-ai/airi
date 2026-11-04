@@ -289,9 +289,32 @@ const emotionsQueue = createQueue<EmotionPayload>({
   ],
 })
 const pendingSpeechEmotion = ref<EmotionPayload | null>(null)
+const pendingTurnEmotions = new Map<string, EmotionPayload>()
+const speakingTurns = new Set<string>()
+const playableTurns = new Set<string>()
 
 const voice = useVoiceStore()
+const cards = useAiriCardStore()
 const streamingControl = useLlmStreamingControlStore()
+
+function isTurnSpeechPlayable(turnId?: string): boolean {
+  if (speechMuted.value || !speechStore.enabled)
+    return false
+  if (!turnId)
+    return voice.activeTurns.length > 0
+  if (playableTurns.has(turnId))
+    return true
+  const turn = voice.activeTurns.find(t => t.turnId === turnId)
+  if (!turn)
+    return false
+  const characterId = chatSession.sessionMetas[turn.sessionId]?.characterId
+  if (!characterId)
+    return false
+  const speechConfig = cards.getModules(characterId).speech
+  if (!speechConfig?.provider || speechConfig.provider === 'speech-noop')
+    return false
+  return true
+}
 
 function toStageEmotionPayload(payload: { name: string, intensity: number }): EmotionPayload | undefined {
   switch (payload.name) {
@@ -318,7 +341,7 @@ function toStageEmotionPayload(payload: { name: string, intensity: number }): Em
   }
 }
 
-chatHookCleanups.push(streamingControl.onSignal(async (signal) => {
+chatHookCleanups.push(streamingControl.onSignal(async (signal, context) => {
   if (signal.type === 'act') {
     const act = normalizeActPayload(signal.payload)
     let explicitLive2DMotion = false
@@ -345,10 +368,19 @@ chatHookCleanups.push(streamingControl.onSignal(async (signal) => {
       // eslint-disable-next-line no-console
       console.debug('emotion detected', emotion)
 
-      // When a speech turn is active but audio playback has not started yet (waiting for TTS),
+      const turnId = context?.turnId
+      // When this speech turn can play audio but audio playback has not started yet (waiting for TTS),
       // defer the opening emotion until audio playback begins so the avatar remains relaxed.
-      if (!speechMuted.value && voice.activeTurns.length > 0 && !nowSpeaking.value) {
-        pendingSpeechEmotion.value = emotion
+      const isPlayable = isTurnSpeechPlayable(turnId)
+      const isSpeaking = turnId ? speakingTurns.has(turnId) : nowSpeaking.value
+
+      if (isPlayable && !isSpeaking) {
+        if (turnId) {
+          pendingTurnEmotions.set(turnId, emotion)
+        }
+        else {
+          pendingSpeechEmotion.value = emotion
+        }
       }
       else {
         emotionsQueue.enqueue(emotion)
@@ -396,8 +428,6 @@ const avatarTouchAggregator = createAvatarTouchAggregator({
 // The playback connects them before this volume, so a low volume does not change the mouth or the analyser.
 const speechDestination = audioContext.createGain()
 speechDestination.connect(audioContext.destination)
-/** Connects a renderer node, for example the VRM or MMD lip sync worklet, to the played speech. */
-const connectSpeech = (node: AudioNode) => voice.connectSpeechNode(node)
 // setTargetAtTime smooths slider drags into the gain, so volume changes do not click.
 watch(speechVolume, (volume) => {
   speechDestination.gain.setTargetAtTime(volume, audioContext.currentTime, 0.05)
@@ -407,6 +437,11 @@ const playback = new Playback(new BrowserPlayback(audioContext, { destination: s
 function resetSpeakingState() {
   nowSpeaking.value = false
   mouthOpenSize.value = 0
+  speakingTurns.clear()
+  for (const emotion of pendingTurnEmotions.values()) {
+    emotionsQueue.enqueue(emotion)
+  }
+  pendingTurnEmotions.clear()
   if (pendingSpeechEmotion.value) {
     emotionsQueue.enqueue(pendingSpeechEmotion.value)
     pendingSpeechEmotion.value = null
@@ -418,23 +453,52 @@ function resetSpeakingState() {
 watch(() => voice.activeTurns, (turns) => {
   if (turns.length === 0) {
     speechVoicing.value = false
+    speakingTurns.clear()
+    playableTurns.clear()
+    for (const emotion of pendingTurnEmotions.values()) {
+      emotionsQueue.enqueue(emotion)
+    }
+    pendingTurnEmotions.clear()
     if (pendingSpeechEmotion.value) {
       emotionsQueue.enqueue(pendingSpeechEmotion.value)
       pendingSpeechEmotion.value = null
     }
   }
+  else {
+    const activeTurnIds = new Set(turns.map(t => t.turnId))
+    for (const [turnId, emotion] of pendingTurnEmotions.entries()) {
+      if (!activeTurnIds.has(turnId)) {
+        emotionsQueue.enqueue(emotion)
+        pendingTurnEmotions.delete(turnId)
+      }
+    }
+    for (const turnId of Array.from(playableTurns)) {
+      if (!activeTurnIds.has(turnId))
+        playableTurns.delete(turnId)
+    }
+    for (const turnId of Array.from(speakingTurns)) {
+      if (!activeTurnIds.has(turnId))
+        speakingTurns.delete(turnId)
+    }
+  }
 })
 
-const cards = useAiriCardStore()
 const disconnectVoiceOutput = voice.connectOutput((turn) => {
+  const turnId = turn.turnId
   const output = {
     playback,
-    onSpecial: (special: string) => void playSpecialToken(special, { turnId: turn.turnId }),
+    onSpecial: (special: string) => void playSpecialToken(special, { turnId }),
     onPlaybackStart: ({ text }: { text: string }) => {
       playingCount += 1
+      speakingTurns.add(turnId)
       nowSpeaking.value = true
       speechVoicing.value = true
-      if (pendingSpeechEmotion.value) {
+      const pendingTurnEmotion = pendingTurnEmotions.get(turnId)
+      if (pendingTurnEmotion) {
+        pendingTurnEmotions.delete(turnId)
+        emotionsQueue.enqueue(pendingTurnEmotion)
+      }
+      else if (pendingSpeechEmotion.value) {
         emotionsQueue.enqueue(pendingSpeechEmotion.value)
         pendingSpeechEmotion.value = null
       }
@@ -449,17 +513,24 @@ const disconnectVoiceOutput = voice.connectOutput((turn) => {
     },
     onPlaybackEnd: () => {
       playingCount -= 1
+      speakingTurns.delete(turnId)
+      playableTurns.delete(turnId)
       if (playingCount === 0)
         resetSpeakingState()
     },
   }
-  if (speechMuted.value)
+  if (speechMuted.value || !speechStore.enabled)
     return { ...output, synthesize: async () => null }
   try {
     const characterId = chatSession.sessionMetas[turn.sessionId]?.characterId
     if (!characterId)
       throw new Error('The response session has no character')
-    return speechStore.createOutput(turn, cards.getModules(characterId).speech, output, audioContext)
+    const speechConfig = cards.getModules(characterId).speech
+    if (!speechConfig?.provider || speechConfig.provider === 'speech-noop')
+      return { ...output, synthesize: async () => null }
+    const created = speechStore.createOutput(turn, speechConfig, output, audioContext)
+    playableTurns.add(turnId)
+    return created
   }
   catch (error) {
     // Text replies remain available when optional speech output is not configured.
@@ -524,7 +595,7 @@ async function setupLipSync() {
   try {
     const lipSync = await createLive2DLipSync(audioContext, wlipsyncProfile as Profile, live2dLipSyncOptions)
     live2dLipSync.value = lipSync
-    disconnectLipSync = connectSpeech(lipSync.node)
+    disconnectLipSync = voice.connectSpeechNode(lipSync.node)
     await audioContext.resume()
     lipSyncStarted.value = true
     syncLipSyncLoop()
@@ -538,7 +609,7 @@ async function setupLipSync() {
 function setupAnalyser() {
   if (!audioAnalyser.value) {
     audioAnalyser.value = audioContext.createAnalyser()
-    disconnectAnalyser = connectSpeech(audioAnalyser.value)
+    disconnectAnalyser = voice.connectSpeechNode(audioAnalyser.value)
   }
 }
 
@@ -737,7 +808,7 @@ defineExpose({
         :show-axes="stageViewControlsEnabled"
         :enable-orbit-controls="props.enableOrbitControls"
         :audio-context="audioContext"
-        :connect-speech="connectSpeech"
+        :connect-speech="voice.connectSpeechNode"
         :speech-active="nowSpeaking"
         @error="reportStageRenderError"
         @vrm-interact="onVRMInteract"
@@ -786,7 +857,7 @@ defineExpose({
         :cursor-position="cursorPosition"
         :enable-orbit-controls="props.enableOrbitControls"
         :audio-context="audioContext"
-        :connect-speech="connectSpeech"
+        :connect-speech="voice.connectSpeechNode"
         @error="reportStageRenderError"
       />
       <div
