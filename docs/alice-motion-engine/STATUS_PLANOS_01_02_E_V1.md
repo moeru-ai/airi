@@ -79,7 +79,14 @@ A primeira rodada deixou 6 itens abertos. A segunda rodada fechou 5. Detalhes em
 - `pnpm -F @proj-airi/stage-ui-three exec vitest run`: 12 arquivos, 64 testes, todos passam.
 - `vue-tsc` do `stage-ui-three`: sem erros.
 - `eslint` nos arquivos alterados: 0 erros.
-- `turbo run test:run` e `turbo run typecheck` do monorepo inteiro: em execução. O resultado entra no próximo commit.
+- `turbo run typecheck` do monorepo inteiro (Node 26): 67 de 67 tarefas passam.
+- `turbo run test:run` do monorepo inteiro (Node 26): 74 de 78 tarefas passam. As 4 falhas são do ambiente, não da V1:
+
+| Tarefa | Causa | Prova |
+| --- | --- | --- |
+| `stage-web`, `stage-tamagotchi` | A rede da nuvem bloqueia `cubism.live2d.com`. A configuração do Vitest não carrega. | `getaddrinfo ENOTFOUND cubism.live2d.com` |
+| `stage-ui` (30 de 1998) | No Node 26, `localStorage` fica indefinido sem `--localstorage-file`. Um teste de navegador passou do tempo sob carga. | Com o Node 22, os 4 arquivos passam (31 testes). Sozinho, `session-store.browser.test.ts` passa (15 testes). |
+| `auth-server` (1 de 171) | O container não tem IPv6 (`listen EAFNOSUPPORT ::1`). | Teste de IPv6 fora da V1. |
 
 ## 5. Próximos passos, na ordem do plano
 
