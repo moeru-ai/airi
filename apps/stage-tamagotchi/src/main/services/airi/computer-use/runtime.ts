@@ -19,7 +19,7 @@ import * as v from 'valibot'
 
 import { isComputerUseHelpCall } from '../../../../shared/eventa/computer-use'
 import { validateAttribution } from './attribution'
-import { classifyAuvCommand } from './classifier'
+import { classifyAuvCommand, MANAGED_FLAGS } from './classifier'
 
 const execFileAsync = promisify(execFile)
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024
@@ -110,19 +110,7 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
     const validatedArgv = Object.freeze([...parsed.argv])
 
     // 2. The host owns routing and artifact storage. CLI global flags must not replace them.
-    const managedFlags = [
-      '--credential-stdin',
-      '--store-root',
-      '--endpoint',
-      '--device',
-      '--device-id',
-      '--run',
-      '--config',
-      '--profile',
-      '--discovery-file',
-      '--pairing-store',
-    ]
-    if (validatedArgv.some(arg => managedFlags.some(flag => arg === flag || arg.startsWith(`${flag}=`))))
+    if (validatedArgv.some(arg => MANAGED_FLAGS.some(flag => arg === flag || arg.startsWith(`${flag}=`))))
       throw new Error('Computer use routing and storage are managed by AIRI.')
 
     // 3. Host Enforcement Gate: evaluate command classification on the frozen argv.

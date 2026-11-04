@@ -5,11 +5,13 @@ import { createContext } from '@moeru/eventa/adapters/electron/renderer'
 import { rawTool } from '@xsai/tool'
 
 import type { InvocationAttributionPayload } from '../../../../shared/eventa/computer-use'
-import { computerUseReadImage, computerUseRun } from '../../../../shared/eventa/computer-use'
+import { computerUseCancel, computerUseReadImage, computerUseRun } from '../../../../shared/eventa/computer-use'
 
 export interface ComputerUseToolExecuteOptions {
   toolCallId?: string
   attribution?: InvocationAttributionPayload
+  actionId?: string
+  abortSignal?: AbortSignal
 }
 
 export interface ComputerUseToolsOptions {
@@ -32,6 +34,7 @@ export async function computerUseTools(options?: ComputerUseToolsOptions): Promi
     return {
       run: defineInvoke(context, computerUseRun),
       readImage: defineInvoke(context, computerUseReadImage),
+      cancel: defineInvoke(context, computerUseCancel),
     }
   }
   function client() {
@@ -46,7 +49,6 @@ export async function computerUseTools(options?: ComputerUseToolsOptions): Promi
         type: 'object',
         properties: {
           argv: { type: 'array', items: { type: 'string' }, description: 'AUV arguments beginning with invoke, excluding the executable name.' },
-          actionId: { type: 'string', description: 'Approved action ID for executing mutating operations.' },
         },
         required: ['argv'],
         additionalProperties: false,
@@ -55,14 +57,38 @@ export async function computerUseTools(options?: ComputerUseToolsOptions): Promi
         const candidate = executeOptions as ComputerUseToolExecuteOptions | undefined
         const attribution = candidate?.attribution ?? options?.getAttribution?.()
         const rawInput = input as { argv: string[], actionId?: string }
-        const result = await client().run({
-          argv: rawInput.argv,
-          actionId: rawInput.actionId,
-          attribution,
-        })
-        if (result.exitCode !== 0)
-          throw new Error(JSON.stringify(result))
-        return JSON.stringify(result)
+        const actionId = rawInput.actionId ?? candidate?.actionId
+
+        if (candidate?.abortSignal?.aborted) {
+          if (attribution?.sessionId) {
+            void client().cancel({ sessionId: attribution.sessionId, reason: 'Turn was aborted' }).catch(() => {})
+          }
+          throw candidate.abortSignal.reason ?? new Error('This operation was aborted')
+        }
+
+        let onAbort: (() => void) | undefined
+        if (candidate?.abortSignal && attribution?.sessionId) {
+          onAbort = () => {
+            void client().cancel({ sessionId: attribution.sessionId, reason: 'Turn was aborted' }).catch(() => {})
+          }
+          candidate.abortSignal.addEventListener('abort', onAbort, { once: true })
+        }
+
+        try {
+          const result = await client().run({
+            argv: rawInput.argv,
+            actionId,
+            attribution,
+          })
+          if (result.exitCode !== 0)
+            throw new Error(JSON.stringify(result))
+          return JSON.stringify(result)
+        }
+        finally {
+          if (onAbort && candidate?.abortSignal) {
+            candidate.abortSignal.removeEventListener('abort', onAbort)
+          }
+        }
       },
     }),
     rawTool({
@@ -78,6 +104,11 @@ export async function computerUseTools(options?: ComputerUseToolsOptions): Promi
         const candidate = executeOptions as ComputerUseToolExecuteOptions | undefined
         const attribution = candidate?.attribution ?? options?.getAttribution?.()
         const rawInput = input as { path: string }
+
+        if (candidate?.abortSignal?.aborted) {
+          throw candidate.abortSignal.reason ?? new Error('This operation was aborted')
+        }
+
         return [{
           type: 'image_url',
           image_url: {

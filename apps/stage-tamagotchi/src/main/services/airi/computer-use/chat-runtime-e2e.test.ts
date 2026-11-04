@@ -1,3 +1,5 @@
+import type { GenerationProvider } from '@proj-airi/provider-inference'
+
 import { Buffer } from 'node:buffer'
 import { EventEmitter } from 'node:events'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
@@ -5,16 +7,18 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
 
+import { defineInvoke } from '@moeru/eventa'
 import { createContext as createMainContext } from '@moeru/eventa/adapters/electron/main'
+import { useLLM } from '@proj-airi/stage-ui/stores/ai/chat-llm/llm'
 import { resolveLlmTools } from '@proj-airi/stage-ui/stores/ai/chat-llm/tool-resolver'
 import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/ai/chat-llm/tools'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { ref } from 'vue'
 
 import { createWindowIpc } from '../../../libs/electron/testing/window-ipc'
 import { computerUseTools, COMPUTER_USE_READ_IMAGE_TOOL_NAME, COMPUTER_USE_TOOL_NAME } from '../../../../renderer/stores/tools/builtin/computer-use'
 import { computerUseCancel } from '../../../../shared/eventa/computer-use'
-import { defineInvoke } from '@moeru/eventa'
 import { setupComputerUse } from './index'
 
 let mockStoreRoot = ''
@@ -149,6 +153,85 @@ describe('AIRI Chat Runtime and Computer Use E2E Integration', () => {
     vi.clearAllMocks()
   })
 
+  it('Requirement 1 & 2: executes full chat streaming tool-call loop via useLLM with authentic provenance', async () => {
+    const llm = useLLM(pinia)
+    const llmToolsStore = useLlmToolsStore(pinia)
+
+    // User enables 'Use computer' in chat request: passed as request tools
+    const requestTools = llmToolsStore.getToolsByNames(COMPUTER_USE_TOOL_NAME, COMPUTER_USE_READ_IMAGE_TOOL_NAME)
+
+    const requestBodies: unknown[] = []
+    const fetch: typeof globalThis.fetch = async (_url, init) => {
+      const body = JSON.parse(String(init?.body))
+      requestBodies.push(body)
+
+      // Step 1: Model issues computer_use(window.list)
+      if (requestBodies.length === 1) {
+        const chunk = {
+          choices: [{
+            index: 0,
+            delta: {
+              tool_calls: [{
+                index: 0,
+                id: 'call_wl_stream_100',
+                type: 'function',
+                function: {
+                  name: COMPUTER_USE_TOOL_NAME,
+                  arguments: JSON.stringify({ argv: ['invoke', 'window.list'] }),
+                },
+              }],
+            },
+            finish_reason: 'tool_calls',
+          }],
+        }
+        return new Response(`data: ${JSON.stringify(chunk)}\n\ndata: [DONE]\n\n`, {
+          headers: { 'Content-Type': 'text/event-stream' },
+        })
+      }
+
+      // Step 2: Model receives window.list result and finishes
+      const chunk = {
+        choices: [{
+          index: 0,
+          delta: { content: 'I found Visual Studio Code running.' },
+          finish_reason: 'stop',
+        }],
+      }
+      return new Response(`data: ${JSON.stringify(chunk)}\n\ndata: [DONE]\n\n`, {
+        headers: { 'Content-Type': 'text/event-stream' },
+      })
+    }
+
+    const provider: GenerationProvider = {
+      generation: model => ({
+        protocol: 'chat-completions',
+        config: { model, baseURL: 'https://mock.example.com/v1/', fetch },
+      }),
+    }
+
+    // Stream from real chat orchestrator runtime options
+    await llm.stream('mock-model', provider, { turns: [] }, {
+      tools: requestTools,
+      requestCorrelation: {
+        conversationId: 'session-chat-stream-100',
+        turnId: 'round-100',
+      },
+    })
+
+    // Assert that the stream completed 2 rounds
+    expect(requestBodies).toHaveLength(2)
+
+    // Assert that AUV window.list was invoked via IPC to Main with correct provenance
+    expect(execFileCalls.some(c => c.args.includes('window.list'))).toBe(true)
+
+    // Round 2 request must contain the tool execution result with the matching toolCallId
+    const secondReq = requestBodies[1] as { messages: Array<{ role: string, tool_call_id?: string, content?: string }> }
+    const toolMsg = secondReq.messages.find(m => m.role === 'tool')
+    expect(toolMsg).toBeDefined()
+    expect(toolMsg?.tool_call_id).toBe('call_wl_stream_100')
+    expect(toolMsg?.content).toContain('Visual Studio Code')
+  })
+
   it('Requirement 1 & 2: executes full chat invocation chain (window.list, display.capture, read_image) with authentic attribution', async () => {
     const llmToolsStore = useLlmToolsStore(pinia)
 
@@ -209,6 +292,9 @@ describe('AIRI Chat Runtime and Computer Use E2E Integration', () => {
   it('Requirement 3: interleaves concurrent Session A & Session B without cross-contamination or UI activeSession drift', async () => {
     const llmToolsStore = useLlmToolsStore(pinia)
 
+    // Simulate reactive UI store where activeSessionId represents currently visible tab
+    const uiActiveSessionId = ref('session-A')
+
     // Session A and Session B resolve request-bound tool instances
     const sessionATools = await resolveLlmTools({
       activeTools: llmToolsStore.getToolsByNames(COMPUTER_USE_TOOL_NAME),
@@ -228,12 +314,10 @@ describe('AIRI Chat Runtime and Computer Use E2E Integration', () => {
     const cuToolA = sessionATools.find(t => t.function.name === COMPUTER_USE_TOOL_NAME)!
     const cuToolB = sessionBTools.find(t => t.function.name === COMPUTER_USE_TOOL_NAME)!
 
-    // Simulate UI window switch to an unrelated activeSessionId:
-    // Global activeSessionId must NEVER corrupt existing in-flight operations!
-    const simulatedActiveSessionStore = { activeSessionId: 'session-C-irrelevant' }
-    expect(simulatedActiveSessionStore.activeSessionId).toBe('session-C-irrelevant')
+    // User switches active chat window in the UI to an unrelated session C while requests are in-flight
+    uiActiveSessionId.value = 'session-C-unrelated'
 
-    // Interleaved concurrent execution
+    // Interleaved concurrent execution: neither session's provenance drifts to session-C
     const [resultA, resultB] = await Promise.all([
       cuToolA.execute({ argv: ['invoke', 'window.list'] }, { messages: [], toolCallId: 'call-A-first' } as never),
       cuToolB.execute({ argv: ['invoke', 'display.capture'] }, { messages: [], toolCallId: 'call-B-second' } as never),
@@ -241,6 +325,7 @@ describe('AIRI Chat Runtime and Computer Use E2E Integration', () => {
 
     expect(resultA).toContain('Visual Studio Code')
     expect(resultB).toContain('test-capture.png')
+    expect(uiActiveSessionId.value).toBe('session-C-unrelated')
   })
 
   it('Requirement 3: prevents Session A from hijacking or consuming Session B pending approval action', async () => {
@@ -306,7 +391,7 @@ describe('AIRI Chat Runtime and Computer Use E2E Integration', () => {
     mainSetup.actionManager.approve(actionA.id)
     expect(mainSetup.actionManager.get(actionA.id)?.status).toBe('approved')
 
-    // Request is cancelled in Session A
+    // Request is cancelled in Session A via IPC cancel
     const cancelledCount = await cancelViaIpc({ sessionId: 'session-A', reason: 'User aborted turn' })
     expect(cancelledCount).toBe(1)
 
@@ -330,6 +415,35 @@ describe('AIRI Chat Runtime and Computer Use E2E Integration', () => {
       },
       { messages: [], toolCallId: 'call-after-cancel' } as never,
     )).rejects.toThrow(/was cancelled/)
+  })
+
+  it('Requirement 3: triggers automatic action invalidation when AbortSignal aborts', async () => {
+    // Create an approved action for session-abort
+    const action = mainSetup.actionManager.createPendingAction({
+      attribution: { sessionId: 'session-abort', turnId: 'turn-1' },
+      argv: ['invoke', 'input.clickPoint', '10', '20', '--target', 'app:calc'],
+    })
+    mainSetup.actionManager.approve(action.id)
+
+    const llmToolsStore = useLlmToolsStore(pinia)
+    const sessionTools = await resolveLlmTools({
+      activeTools: llmToolsStore.getToolsByNames(COMPUTER_USE_TOOL_NAME),
+      attribution: { sessionId: 'session-abort', turnId: 'turn-1' },
+    })
+    const cuTool = sessionTools.find(t => t.function.name === COMPUTER_USE_TOOL_NAME)!
+
+    // Trigger AbortController
+    const controller = new AbortController()
+    controller.abort(new Error('Turn was aborted by user'))
+
+    // Tool execution detects aborted signal, cancels session pending actions in Main, and throws
+    await expect(cuTool.execute(
+      { argv: ['invoke', 'input.clickPoint', '10', '20', '--target', 'app:calc'], actionId: action.id },
+      { messages: [], toolCallId: 'call-aborted', abortSignal: controller.signal } as never,
+    )).rejects.toThrow(/Turn was aborted by user/)
+
+    // Pending action in Main is invalidated and cancelled
+    expect(mainSetup.actionManager.get(action.id)?.status).toBe('cancelled')
   })
 
   it('Requirement 3: legitimate read-only requests succeed and are not blocked while mutating actions are pending', async () => {

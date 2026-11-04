@@ -157,7 +157,7 @@ async function resolveWebSearchTools(webSearchTools?: ToolSource): Promise<Tool[
  * merging the actual model toolCallId from execution options at runtime.
  */
 export function withToolAttribution(tool: Tool, attribution?: ToolAttributionContext): Tool {
-  if (!attribution)
+  if (!attribution || !tool.execute)
     return tool
 
   return {
