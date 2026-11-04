@@ -69,7 +69,7 @@ onScopeDispose(() => stopListening?.())
     :title="t(`${copyKey}.title`)"
     :description="t(`${copyKey}.body`)"
   >
-    <ul v-if="!inApp" :class="['m-0 mt-1.5 flex flex-col list-none gap-2 p-0']">
+    <ul v-if="!inApp" :class="['m-0 flex flex-col list-none gap-2 p-0']">
       <li
         :class="[
           'flex items-center gap-3 rounded-xl px-3.5 py-3 transition-colors duration-300',
@@ -102,13 +102,14 @@ onScopeDispose(() => stopListening?.())
     <template #stage>
       <div :class="['flex items-end gap-2.5']" role="img" :aria-label="keycaps.map(keycap => keycap.name).join(' + ')">
         <!--
+          A space bar is as tall as a letter key and about three times as wide, as on a real keyboard.
           A keycap is a face with its depth drawn below it as a solid shadow. A press moves the face down by that depth
           and removes the shadow, so the key sinks flush without an edge above or below. The pressed face is lighter.
         -->
         <span
           v-for="keycap in keycaps"
           :key="keycap.token"
-          :class="['h-16 flex pb-1.5 @3xl:h-19.5', keycap.wide ? 'w-28 @3xl:w-42' : 'w-16 @3xl:w-21.5']"
+          :class="['h-16 flex pb-1.5 @3xl:h-19.5', keycap.wide ? 'w-44 @3xl:w-52' : 'w-16 @3xl:w-21.5']"
         >
           <span
             :class="[

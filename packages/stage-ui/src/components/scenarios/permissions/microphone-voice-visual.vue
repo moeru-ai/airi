@@ -109,27 +109,33 @@ const shapes = computed(() => layers.map((layer, index) => ({
 
 <template>
   <div role="img" :aria-label="label" :class="['absolute inset-0 overflow-hidden']">
-    <svg
-      aria-hidden="true"
-      :viewBox="`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`"
-      preserveAspectRatio="none"
-      :class="['absolute inset-x-0 top-1/2 h-3/5 w-full -translate-y-1/2']"
-    >
-      <path
-        v-for="(shape, index) in shapes"
-        :key="index"
-        :d="shape.d"
-        :class="[shape.color, 'transition-colors duration-500']"
-        fill="currentColor"
-        :fill-opacity="shape.opacity"
-      />
-    </svg>
-    <!-- The ends dissolve into the panel: the blur grows toward each side. -->
-    <div :class="['absolute inset-y-0 left-0 w-1/4']">
-      <ProgressiveBlur edge="left" :strength="20" />
-    </div>
-    <div :class="['absolute inset-y-0 right-0 w-1/4']">
-      <ProgressiveBlur edge="right" :strength="20" />
+    <!--
+      The waves and the blur at their ends share one band. A tall narrow stage does not stretch the waves, and the blur
+      covers only the waves, so it does not show as pale bars over a see-through drawer.
+    -->
+    <div :class="['absolute inset-x-0 top-1/2 h-3/5 max-h-63 -translate-y-1/2', '[clip-path:inset(0)]']">
+      <svg
+        aria-hidden="true"
+        :viewBox="`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`"
+        preserveAspectRatio="none"
+        :class="['absolute inset-0 h-full w-full', '[mask-image:linear-gradient(to_right,transparent,black_25%,black_75%,transparent)]']"
+      >
+        <path
+          v-for="(shape, index) in shapes"
+          :key="index"
+          :d="shape.d"
+          :class="[shape.color, 'transition-colors duration-500']"
+          fill="currentColor"
+          :fill-opacity="shape.opacity"
+        />
+      </svg>
+      <!-- The ends dissolve into the panel: the blur grows toward each side. -->
+      <div :class="['absolute inset-y-0 left-0 w-1/4']">
+        <ProgressiveBlur edge="left" :strength="20" />
+      </div>
+      <div :class="['absolute inset-y-0 right-0 w-1/4']">
+        <ProgressiveBlur edge="right" :strength="20" />
+      </div>
     </div>
   </div>
 </template>
