@@ -60,10 +60,10 @@ export interface DeleteChatMessagePayload {
 const OUTBOX_MAX_ATTEMPTS = 5
 
 /**
- * Formats an unknown error or server error payload into a readable diagnostic string.
+ * Format an unknown error or server error payload into a readable diagnostic string.
  *
- * Server RPC errors serialized via Eventa or JSON may produce `{ error: { statusCode, errorCode, name } }`
- * where standard Error.message is not enumerable.
+ * Server RPC errors serialized via Eventa or JSON produce `{ error: { statusCode, errorCode, name } }`
+ * when standard Error.message is not enumerable.
  */
 function formatSyncError(err: unknown): string {
   const direct = errorMessageFrom(err)
@@ -1431,12 +1431,23 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     outboxPendingCount.value = entries.length
   }
 
-  function updateSessionCloudMaxSeq(sessionId: string, seq: number) {
+  async function updateSessionCloudMaxSeq(sessionId: string, seq: number, sentCount = 1) {
     const meta = sessionMetas.value[sessionId]
-    if (meta && seq > (meta.cloudMaxSeq ?? 0)) {
+    if (!meta)
+      return
+    const currentMax = meta.cloudMaxSeq ?? 0
+    if (seq <= currentMax)
+      return
+
+    if (seq === currentMax + sentCount) {
       sessionMetas.value[sessionId] = { ...meta, cloudMaxSeq: seq }
       void persistSessionMeta(sessionId)
+      return
     }
+
+    // A sequence gap exists between currentMax and seq. Other messages arrived
+    // on the server before this send completed. Pull missing rows to fill the gap.
+    await pullCloudMessages(sessionId)
   }
 
   /**
@@ -1496,7 +1507,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         messages: [{ id: entry.messageId, role: entry.role, content: entry.content, replyToMessageId: entry.replyToMessageId }],
       })
       if (typeof response?.seq === 'number')
-        updateSessionCloudMaxSeq(sessionId, response.seq)
+        await updateSessionCloudMaxSeq(sessionId, response.seq, 1)
       await enqueuePersist(() => chatSessionsRepo.dequeueOutbox(userId, [entry.messageId]))
       await refreshOutboxPendingCount()
     }
@@ -1569,7 +1580,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
             messages: sessionEntries.map(e => ({ id: e.messageId, role: e.role, content: e.content, replyToMessageId: e.replyToMessageId })),
           })
           if (typeof response?.seq === 'number')
-            updateSessionCloudMaxSeq(sessionId, response.seq)
+            await updateSessionCloudMaxSeq(sessionId, response.seq, sessionEntries.length)
           succeededIds.push(...sessionEntries.map(e => e.messageId))
         }
         catch (err) {
