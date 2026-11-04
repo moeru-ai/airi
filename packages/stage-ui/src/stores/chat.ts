@@ -1315,16 +1315,20 @@ export const useChatStore = defineStore('chat', () => {
     const stickers = await stickersStore.selectCatalogForReply()
     signal.throwIfAborted()
 
-    const chatProvider = await consciousnessStore.getChatProviderInstance(providerId)
+    const [chatProvider, providerModels] = await Promise.all([
+      consciousnessStore.getChatProviderInstance(providerId),
+      consciousnessStore.getModelsForProvider(providerId),
+    ])
     signal.throwIfAborted()
 
     if (!chatProvider)
       throw new Error(`Failed to resolve chat provider "${providerId}"`)
 
-    const selectedModel = (await consciousnessStore.getModelsForProvider(providerId)).find(model => model.id === modelId)
-    const contextWindowTokens = selectedModel?.contextLength && selectedModel.contextLength > 0
-      ? selectedModel.contextLength
-      : undefined
+    const selectedModel = providerModels.find(model => model.id === modelId)
+    const cardLimit = cardStore.getCard(characterId)?.extensions?.airi?.contextWindowTokens
+    const contextWindowTokens = (cardLimit && cardLimit > 0)
+      ? cardLimit
+      : (selectedModel?.contextLength && selectedModel.contextLength > 0 ? selectedModel.contextLength : undefined)
     const reservedOutputTokens = selectedModel?.metadata?.maxOutput && selectedModel.metadata.maxOutput > 0
       ? selectedModel.metadata.maxOutput
       : undefined

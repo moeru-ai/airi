@@ -91,6 +91,74 @@ describe('token-estimator', () => {
     expect(shortResult.text).toBe(shortText)
   })
 
+  // https://github.com/moeru-ai/airi/issues/3335
+  //
+  // ROOT CAUSE:
+  //
+  // CJK tool results with characters between maxTokens and 3*maxTokens were not truncated
+  // because keepChars was calculated as maxTokens * 3, assuming 3 characters per token.
+  //
+  // const keepChars = Math.max(100, Math.floor(maxTokens * 3))
+  // if (keepChars >= content.length) return { text: content, truncated: false, truncatedChars: 0 }
+  //
+  // We fixed this by using binary search with estimateTextTokens to find the prefix that fits the token budget.
+  it('bounds CJK tool result truncation by estimated tokens for Issue #3335', () => {
+    const cjkText = '测'.repeat(1000)
+    const result = truncateToolResultContent(cjkText, 500)
+    expect(result.truncated).toBe(true)
+    expect(result.truncatedChars).toBeGreaterThan(0)
+    expect(estimateTextTokens(result.text)).toBeLessThanOrEqual(500)
+  })
+
+  // https://github.com/moeru-ai/airi/issues/3335
+  //
+  // ROOT CAUSE:
+  //
+  // Multimodal history attachments were charged a flat 65 tokens for every non-text part,
+  // undercounting images (256/1000 tokens) and audio (128 tokens) before trimming.
+  //
+  // for (const part of item.content) {
+  //   if (part.type === 'text') tokens += estimateTextTokens(part.text)
+  //   else tokens += 65
+  // }
+  //
+  // We fixed this by applying media-specific token estimates to history content parts.
+  it('applies media token estimates to history attachments for Issue #3335', () => {
+    const imageHigh: ChatHistoryItem = {
+      role: 'user',
+      content: [{ type: 'image_url', image_url: { url: 'https://example.com/img.png', detail: 'high' } }],
+    }
+    expect(estimateHistoryItemTokens(imageHigh)).toBeGreaterThanOrEqual(1000)
+
+    const audioItem: ChatHistoryItem = {
+      role: 'user',
+      content: [{ type: 'audio', audio: {} } as any],
+    }
+    expect(estimateHistoryItemTokens(audioItem)).toBeGreaterThanOrEqual(128)
+  })
+
+  // https://github.com/moeru-ai/airi/issues/3335
+  //
+  // ROOT CAUSE:
+  //
+  // Assistant history items with generationTranscript or providerTranscript but without
+  // duplicate tool_results were estimated based only on visible text, ignoring tool outputs.
+  //
+  // We fixed this by estimating tokens from generationTranscript or providerTranscript when present.
+  it('counts transcript-backed history in token budget for Issue #3335', () => {
+    const assistantWithTranscript: ChatHistoryItem = {
+      role: 'assistant',
+      content: 'Brief summary',
+      slices: [],
+      tool_results: [],
+      providerTranscript: [
+        { role: 'assistant', content: 'Calling tool' },
+        { role: 'tool', tool_call_id: 'call-1', content: 'Detailed tool output '.repeat(50) },
+      ],
+    }
+    expect(estimateHistoryItemTokens(assistantWithTranscript)).toBeGreaterThan(200)
+  })
+
   it('identifies provider context length exceeded errors', () => {
     expect(isContextLengthExceededError(new Error('context_length_exceeded: maximum context length is 8192'))).toBe(true)
     expect(isContextLengthExceededError(new Error('This model maximum context length is 4096 tokens'))).toBe(true)

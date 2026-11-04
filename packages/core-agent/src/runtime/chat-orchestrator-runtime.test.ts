@@ -1,5 +1,5 @@
 import type { GenerationProvider } from '@proj-airi/provider-inference'
-import type { Message } from '@xsai/shared-chat'
+import type { Message, Tool } from '@xsai/shared-chat'
 
 import type { Conversation } from '../messages/types'
 import type { ChatHistoryItem, ContextMessage, StreamingAssistantMessage } from '../types/chat'
@@ -408,6 +408,14 @@ describe('createChatOrchestratorRuntime', () => {
   // messages or tool exchanges are large.
   // Enforce a token budget, dropping the oldest whole turns until the request fits,
   // truncating oversized tool results, and retrying once if the provider reports overflow.
+  // https://github.com/moeru-ai/airi/issues/3335
+  //
+  // ROOT CAUSE:
+  //
+  // Without token-budget context window truncation, long messages or tool exchanges
+  // cause provider requests to overflow context limits even when turn limits are applied.
+  //
+  // We fixed this by enforcing token budgets and dropping oldest complete turns before sending.
   it('drops oldest whole turns when history exceeds token budget (Issue #3335)', async () => {
     const harness = createHarness()
     // 300 token budget, reserving 100 => 200 input tokens available
@@ -433,6 +441,14 @@ describe('createChatOrchestratorRuntime', () => {
     expect(JSON.stringify(lastCallTurns)).not.toContain('turn-0')
   })
 
+  // https://github.com/moeru-ai/airi/issues/3335
+  //
+  // ROOT CAUSE:
+  //
+  // When system prompt, tool definitions, and current user input alone exceed the token budget,
+  // the request cannot succeed even after dropping all past turns.
+  //
+  // We fixed this by throwing an explanatory error describing the token breakdown and limits.
   it('throws a descriptive error when required context alone exceeds token budget (Issue #3335)', async () => {
     const harness = createHarness()
     // Small budget: 50 tokens with 20 reserved => 30 input tokens
@@ -446,6 +462,14 @@ describe('createChatOrchestratorRuntime', () => {
     })).rejects.toThrow(/Request exceeds model context window: requires ~.* tokens \(system prompt, tools, and current input\), but the available budget is 30 tokens/)
   })
 
+  // https://github.com/moeru-ai/airi/issues/3335
+  //
+  // ROOT CAUSE:
+  //
+  // Oversized tool results in history can consume the majority of the token budget,
+  // causing older turns to be dropped unnecessarily or starving the prompt context.
+  //
+  // We fixed this by safely truncating oversized tool result strings with a visible notice.
   it('truncates oversized tool results in history while preserving tool exchange (Issue #3335)', async () => {
     const harness = createHarness()
     harness.contextWindowTokens.set(2000)
@@ -480,6 +504,101 @@ describe('createChatOrchestratorRuntime', () => {
     expect(storedAssistant?.role === 'assistant' && storedAssistant.providerTranscript?.[1]?.content).toBe(giantToolOutput)
   })
 
+  // https://github.com/moeru-ai/airi/issues/3335
+  //
+  // ROOT CAUSE:
+  //
+  // buildContext uses generationTranscript before providerTranscript for completed assistant turns.
+  // The token budget sanitizer only truncated providerTranscript, leaving oversized tool outputs intact
+  // in generationTranscript and dropping the turn instead of preserving the truncated exchange.
+  //
+  // We fixed this by inspecting and truncating tool output segments inside generationTranscript rounds.
+  it('truncates oversized tool results in generationTranscript for Issue #3335', async () => {
+    const harness = createHarness()
+    harness.contextWindowTokens.set(2000)
+    await harness.runtime.ingest('Initial query', { model: 'gpt-test', chatProvider: provider })
+
+    const giantOutput = 'giant result '.repeat(2000)
+    harness.sessionMessages['session-1'].push({
+      role: 'assistant',
+      content: 'done',
+      id: 'assistant-with-generation',
+      slices: [],
+      tool_results: [],
+      generationTranscript: {
+        id: 'turn-gen-1',
+        type: 'assistant',
+        status: 'completed',
+        rounds: [
+          {
+            id: 'round-1',
+            projectionIssues: [],
+            content: [],
+            toolInvocations: [
+              {
+                id: 'call-gen-1',
+                callId: 'call-gen-1',
+                name: 'fetch_big_data',
+                arguments: '{}',
+                execution: {
+                  status: 'succeeded',
+                  output: [{ type: 'text', text: giantOutput }],
+                },
+              },
+            ],
+          },
+        ],
+      },
+    })
+
+    await harness.runtime.ingest('Next query', { model: 'gpt-test', chatProvider: provider, reservedOutputTokens: 200 })
+
+    const lastCall = harness.stream.mock.calls.at(-1)![2]
+    const rendered = JSON.stringify(lastCall)
+    expect(rendered).toContain('truncated')
+    expect(rendered).toContain('characters to fit context window')
+    expect(rendered).toContain('Next query')
+  })
+
+  // https://github.com/moeru-ai/airi/issues/3335
+  //
+  // ROOT CAUSE:
+  //
+  // Tools supplied as an async function in prepareSend were skipped by the Array.isArray check
+  // in performSend, causing zero tokens to be budgeted for production tools.
+  //
+  // if (Array.isArray(options.tools)) { ... }
+  //
+  // We fixed this by resolving tools from resolveOwnerStep or async options.tools before budgeting.
+  it('budgets tools provided via async resolver function for Issue #3335', async () => {
+    const harness = createHarness()
+    harness.contextWindowTokens.set(100)
+    const bigTool: Tool = {
+      type: 'function',
+      function: {
+        name: 'giant_tool',
+        description: 'A tool description that consumes many tokens '.repeat(20),
+        parameters: { type: 'object', properties: { test: { type: 'string' } } },
+      },
+      execute: () => 'ok',
+    }
+
+    await expect(harness.runtime.ingest('hi', {
+      model: 'gpt-test',
+      chatProvider: provider,
+      reservedOutputTokens: 20,
+      tools: async () => [bigTool],
+    })).rejects.toThrow(/Request exceeds model context window/)
+  })
+
+  // https://github.com/moeru-ai/airi/issues/3335
+  //
+  // ROOT CAUSE:
+  //
+  // When providers return a context length exceeded error during execution,
+  // requests fail without recovery if token estimation slightly undercounted tokens.
+  //
+  // We fixed this by catching context length errors, dropping one turn, and retrying once.
   it('retries once with one fewer turn when provider returns context length exceeded (Issue #3335)', async () => {
     const harness = createHarness()
     let streamCount = 0

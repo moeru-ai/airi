@@ -1,5 +1,5 @@
 import type { GenerationProvider } from '@proj-airi/provider-inference'
-import type { CommonContentPart, Message, ToolMessage } from '@xsai/shared-chat'
+import type { CommonContentPart, Message, Tool, ToolMessage } from '@xsai/shared-chat'
 
 import type { AgentContextPort } from '../contracts/context-port'
 import type { AgentLLMPort } from '../contracts/llm-port'
@@ -757,27 +757,83 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     // Safely truncate oversized tool results in the active messages so a single giant output doesn't starve the prompt
     const maxToolResultTokens = Math.max(500, Math.floor(inputBudget * 0.4))
     const sanitizedHistory = history.map((message) => {
-      if (message.role === 'tool' && typeof message.content === 'string') {
-        const truncated = truncateToolResultContent(message.content, maxToolResultTokens)
+      let updatedMessage = message
+      if (updatedMessage.role === 'tool' && typeof updatedMessage.content === 'string') {
+        const truncated = truncateToolResultContent(updatedMessage.content, maxToolResultTokens)
         if (truncated.truncated)
-          return { ...message, content: truncated.text }
+          updatedMessage = { ...updatedMessage, content: truncated.text }
       }
-      if (message.role === 'assistant' && message.providerTranscript?.length) {
-        let clonedTranscript: typeof message.providerTranscript | undefined
-        for (let idx = 0; idx < message.providerTranscript.length; idx++) {
-          const item = message.providerTranscript[idx]!
+      if (updatedMessage.role === 'assistant' && updatedMessage.tool_results?.length) {
+        let changed = false
+        const newResults = updatedMessage.tool_results.map((tr) => {
+          if (typeof tr.result === 'string') {
+            const truncated = truncateToolResultContent(tr.result, maxToolResultTokens)
+            if (truncated.truncated) {
+              changed = true
+              return { ...tr, result: truncated.text }
+            }
+          }
+          return tr
+        })
+        if (changed)
+          updatedMessage = { ...updatedMessage, tool_results: newResults }
+      }
+      if (updatedMessage.role === 'assistant' && updatedMessage.generationTranscript?.rounds?.length) {
+        let changed = false
+        const newRounds = updatedMessage.generationTranscript.rounds.map((round) => {
+          let roundChanged = false
+          const newInvocations = round.toolInvocations?.map((inv) => {
+            if (inv.execution && (inv.execution.status === 'succeeded' || inv.execution.status === 'failed')) {
+              let outputChanged = false
+              const newOutput = inv.execution.output.map((seg) => {
+                if (seg.type === 'text') {
+                  const truncated = truncateToolResultContent(seg.text, maxToolResultTokens)
+                  if (truncated.truncated) {
+                    outputChanged = true
+                    return { ...seg, text: truncated.text }
+                  }
+                }
+                return seg
+              })
+              if (outputChanged) {
+                roundChanged = true
+                return { ...inv, execution: { ...inv.execution, output: newOutput } }
+              }
+            }
+            return inv
+          })
+          if (roundChanged) {
+            changed = true
+            return { ...round, toolInvocations: newInvocations }
+          }
+          return round
+        })
+        if (changed) {
+          updatedMessage = {
+            ...updatedMessage,
+            generationTranscript: {
+              ...updatedMessage.generationTranscript,
+              rounds: newRounds,
+            },
+          }
+        }
+      }
+      if (updatedMessage.role === 'assistant' && updatedMessage.providerTranscript?.length) {
+        let clonedTranscript: typeof updatedMessage.providerTranscript | undefined
+        for (let idx = 0; idx < updatedMessage.providerTranscript.length; idx++) {
+          const item = updatedMessage.providerTranscript[idx]!
           if (item.role === 'tool' && typeof item.content === 'string') {
             const truncated = truncateToolResultContent(item.content, maxToolResultTokens)
             if (truncated.truncated) {
-              clonedTranscript ??= [...message.providerTranscript]
+              clonedTranscript ??= [...updatedMessage.providerTranscript]
               clonedTranscript[idx] = { ...item, content: truncated.text }
             }
           }
         }
         if (clonedTranscript)
-          return { ...message, providerTranscript: clonedTranscript }
+          updatedMessage = { ...updatedMessage, providerTranscript: clonedTranscript }
       }
-      return message
+      return updatedMessage
     })
 
     // Calculate tokens in the current turn (from turnStarts[0] to the end of history)
@@ -1183,25 +1239,40 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       const contextsSnapshot = deps.context.snapshot()
       const entries = Object.entries(contextsSnapshot).flatMap(([source, messages]) => messages.map(message => ({ source, text: message.text })))
 
-      let fixedOverheadTokens = 0
-      if (systemPrompt?.trim())
-        fixedOverheadTokens += estimateTextTokens(systemPrompt) + 4
-      if (systemPromptSupplement)
-        fixedOverheadTokens += estimateTextTokens(systemPromptSupplement) + 4
-      for (const entry of entries)
-        fixedOverheadTokens += estimateTextTokens(entry.text) + 4
-      if (Array.isArray(options.tools)) {
-        for (const tool of options.tools)
-          fixedOverheadTokens += estimateToolTokens(tool)
-      }
-
       const contextWindowTokens = options.contextWindowTokens ?? deps.getContextWindowTokens?.(sessionId)
-      const tokenBudgetHistory = trimConversationHistoryToTokenBudget(
-        history,
-        contextWindowTokens,
-        options.reservedOutputTokens,
-        fixedOverheadTokens,
-      )
+      let tokenBudgetHistory = history
+
+      if (contextWindowTokens !== undefined && Number.isFinite(contextWindowTokens) && contextWindowTokens > 0) {
+        let fixedOverheadTokens = 0
+        if (systemPrompt?.trim())
+          fixedOverheadTokens += estimateTextTokens(systemPrompt) + 4
+        if (systemPromptSupplement)
+          fixedOverheadTokens += estimateTextTokens(systemPromptSupplement) + 4
+        for (const entry of entries)
+          fixedOverheadTokens += estimateTextTokens(entry.text) + 4
+
+        let resolvedTools: Tool[] = []
+        if (typeof options.tools === 'function') {
+          try {
+            resolvedTools = (await options.tools()) ?? []
+          }
+          catch {
+            resolvedTools = []
+          }
+        }
+        else if (Array.isArray(options.tools)) {
+          resolvedTools = options.tools
+        }
+        for (const tool of resolvedTools)
+          fixedOverheadTokens += estimateToolTokens(tool)
+
+        tokenBudgetHistory = trimConversationHistoryToTokenBudget(
+          history,
+          contextWindowTokens,
+          options.reservedOutputTokens,
+          fixedOverheadTokens,
+        )
+      }
 
       const context = buildContext(tokenBudgetHistory)
       // The stored notice ends the history. Only this request tells the model that it can stay quiet about it.

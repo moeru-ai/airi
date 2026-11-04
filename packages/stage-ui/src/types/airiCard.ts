@@ -101,6 +101,15 @@ export function normalizeContextWindow(value: unknown): number {
     : -1
 }
 
+/**
+ * Normalizes a character card context window token budget.
+ */
+export function normalizeContextWindowTokens(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value) && value > 0
+    ? value
+    : undefined
+}
+
 /** Character card normalized with the AIRI extension required by the runtime. */
 export interface AiriCard extends Card {
   extensions: {

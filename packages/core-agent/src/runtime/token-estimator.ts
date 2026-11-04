@@ -93,19 +93,70 @@ export function estimateToolTokens(tool: Tool): number {
 }
 
 /**
+ * Estimates tokens for a content part (text, image, audio, file) in multimodal messages.
+ */
+export function estimateContentPartTokens(part: unknown): number {
+  if (!part || typeof part !== 'object')
+    return 8
+
+  const p = part as Record<string, unknown>
+  if (p.type === 'text' && typeof p.text === 'string')
+    return estimateTextTokens(p.text)
+
+  if (p.type === 'image_url' || p.type === 'image' || p.type === 'input_image') {
+    const imgObj = (p.image_url && typeof p.image_url === 'object') ? (p.image_url as Record<string, unknown>) : undefined
+    const detail = imgObj?.detail ?? p.detail
+    return detail === 'high' ? 1000 : 256
+  }
+
+  if (p.type === 'audio' || p.type === 'input_audio')
+    return 128
+
+  if (p.type === 'file') {
+    const fileObj = (p.file && typeof p.file === 'object') ? (p.file as Record<string, unknown>) : undefined
+    const name = typeof fileObj?.filename === 'string' ? fileObj.filename : (typeof p.name === 'string' ? p.name : '')
+    return estimateTextTokens(name) + 64
+  }
+
+  return 64
+}
+
+/**
  * Estimates tokens for a stored ChatHistoryItem.
  */
 export function estimateHistoryItemTokens(item: ChatHistoryItem): number {
+  if (item.role === 'assistant') {
+    if (item.generationTranscript)
+      return estimateTurnTokens(item.generationTranscript)
+
+    if (item.providerTranscript?.length) {
+      let tokens = 0
+      for (const msg of item.providerTranscript) {
+        tokens += 4 // role overhead
+        if (typeof msg.content === 'string') {
+          tokens += estimateTextTokens(msg.content)
+        }
+        else if (Array.isArray(msg.content)) {
+          for (const part of msg.content)
+            tokens += estimateContentPartTokens(part)
+        }
+        if ('tool_calls' in msg && Array.isArray((msg as { tool_calls?: unknown[] }).tool_calls)) {
+          for (const tc of (msg as { tool_calls: Array<{ function?: { name?: string, arguments?: string } }> }).tool_calls) {
+            tokens += estimateTextTokens(tc.function?.name) + estimateTextTokens(tc.function?.arguments) + 8
+          }
+        }
+      }
+      return Math.max(4, tokens)
+    }
+  }
+
   let tokens = 4 // role overhead
   if (typeof item.content === 'string') {
     tokens += estimateTextTokens(item.content)
   }
   else if (Array.isArray(item.content)) {
     for (const part of item.content) {
-      if (part.type === 'text')
-        tokens += estimateTextTokens(part.text)
-      else
-        tokens += 65
+      tokens += estimateContentPartTokens(part)
     }
   }
   if (item.role === 'assistant' && item.tool_results) {
@@ -132,10 +183,24 @@ export function truncateToolResultContent(
   if (currentTokens <= maxTokens)
     return { text: content, truncated: false, truncatedChars: 0 }
 
-  const keepChars = Math.max(100, Math.floor(maxTokens * 3))
-  if (keepChars >= content.length)
-    return { text: content, truncated: false, truncatedChars: 0 }
+  const targetTokens = Math.max(20, maxTokens - 20)
+  let low = 0
+  let high = content.length
+  let keepChars = 0
 
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2)
+    const tokens = estimateTextTokens(content.slice(0, mid))
+    if (tokens <= targetTokens) {
+      keepChars = mid
+      low = mid + 1
+    }
+    else {
+      high = mid - 1
+    }
+  }
+
+  keepChars = Math.max(keepChars, 1)
   const truncatedChars = content.length - keepChars
   const marker = `\n\n[... truncated ${truncatedChars} characters to fit context window ...]`
   return {
