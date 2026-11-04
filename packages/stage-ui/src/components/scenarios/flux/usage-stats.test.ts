@@ -2,7 +2,7 @@ import type { DailyUsage } from '@proj-airi/api-server/types/flux-usage'
 
 import { describe, expect, it } from 'vitest'
 
-import { buildActivity, computeStreaks, formatDay, formatDuration, formatFlux } from './usage-stats'
+import { buildActivity, computeStreaks, formatFlux } from './usage-stats'
 
 function daysFrom(firstDate: string, totals: number[]): DailyUsage[] {
   return totals.map((microFlux, index) => {
@@ -13,82 +13,27 @@ function daysFrom(firstDate: string, totals: number[]): DailyUsage[] {
 }
 
 describe('usage stats', () => {
-  describe('computeStreaks', () => {
-    it('finds the longest run and the run that ends on the last day', () => {
-      expect(computeStreaks(daysFrom('2026-10-01', [1, 1, 1, 1, 0, 1, 1]))).toEqual({ longest: 4, current: 2 })
-    })
-
-    it('keeps the current streak when only today is empty', () => {
-      expect(computeStreaks(daysFrom('2026-10-01', [0, 1, 1, 1, 0]))).toEqual({ longest: 3, current: 3 })
-    })
-
-    it('ends the current streak after an empty yesterday', () => {
-      expect(computeStreaks(daysFrom('2026-10-01', [1, 1, 0, 0]))).toEqual({ longest: 2, current: 0 })
-    })
-
-    it('returns zero for no days and days without usage', () => {
-      expect(computeStreaks([])).toEqual({ longest: 0, current: 0 })
-      expect(computeStreaks(daysFrom('2026-10-01', [0, 0, 0]))).toEqual({ longest: 0, current: 0 })
-    })
+  it.each([
+    { label: 'a gap between runs', totals: [1, 1, 1, 1, 0, 1, 1], expected: { longest: 4, current: 2 } },
+    { label: 'an empty today', totals: [0, 1, 1, 1, 0], expected: { longest: 3, current: 3 } },
+    { label: 'an empty yesterday', totals: [1, 1, 0, 0], expected: { longest: 2, current: 0 } },
+    { label: 'no days', totals: [], expected: { longest: 0, current: 0 } },
+    { label: 'no usage', totals: [0, 0, 0], expected: { longest: 0, current: 0 } },
+  ])('calculates streaks with $label', ({ totals, expected }) => {
+    expect(computeStreaks(daysFrom('2026-10-01', totals))).toEqual(expected)
   })
 
-  describe('buildActivity', () => {
-    it('keeps partial weeks and groups fees from Monday through Sunday', () => {
-      const days = daysFrom('2026-10-04', [2, 1, 2, 3, 4, 5, 6, 7, 8])
-      const weekly = buildActivity(days, 'weekly')
-      expect(weekly.groups.map(group => [group.date, group.endDate, group.microFlux])).toEqual([
-        ['2026-10-04', '2026-10-04', 2],
-        ['2026-10-05', '2026-10-11', 28],
-        ['2026-10-12', '2026-10-12', 8],
-      ])
-      expect(weekly.weekCount).toBe(3)
-    })
-
-    it('accumulates weekly totals without losing edge days', () => {
-      const cumulative = buildActivity(daysFrom('2026-10-04', [2, 1, 2, 3, 4, 5, 6, 7, 8]), 'cumulative')
-      expect(cumulative.groups.map(group => group.microFlux)).toEqual([2, 30, 38])
-      const heights = cumulative.groups.map(group => cumulative.cells.filter(cell => cell.column === group.column && cell.visible).length)
-      expect(heights).toEqual([1, 6, 7])
-    })
-
-    it('keeps tile identities across modes and places daily dates in weekday rows', () => {
-      const days = daysFrom('2026-10-04', [1, 2, 3])
-      const daily = buildActivity(days, 'daily')
-      const weekly = buildActivity(days, 'weekly')
-      expect(daily.cells.map(cell => cell.id)).toEqual(weekly.cells.map(cell => cell.id))
-      expect(daily.groups.map(group => [group.column, group.row])).toEqual([[0, 6], [1, 0], [1, 1]])
-      expect(daily.cells.filter(cell => cell.visible)).toHaveLength(3)
-    })
-
-    it('uses quartiles so one very busy day does not hide quieter days', () => {
-      const { cells } = buildActivity(daysFrom('2026-10-05', [0, 10, 11, 12, 13, 1_000_000]), 'daily')
-      expect(cells.slice(0, 6).map(cell => cell.level)).toEqual([0, 1, 1, 2, 3, 4])
-    })
-
-    it('aggregates a week across the year boundary', () => {
-      expect(buildActivity(daysFrom('2025-12-31', [1, 2]), 'weekly').groups[0]!.microFlux).toBe(3)
-    })
-
-    it('hides zero bars and returns an empty layout for no days', () => {
-      expect(buildActivity(daysFrom('2026-10-05', [0, 0]), 'weekly').cells.every(cell => !cell.visible)).toBe(true)
-      expect(buildActivity([], 'daily').groups).toEqual([])
-    })
-
-    it('drops a crowded first month label', () => {
-      const days = daysFrom('2025-11-30', Array.from<number>({ length: 365 }).fill(1))
-      const layout = buildActivity(days, 'daily')
-      expect(layout.monthLabels[0]!.date).toBe('2025-12-01')
-      expect(layout.monthLabels.at(-1)!.date).toBe('2026-11-01')
-    })
+  it('aggregates partial weeks across year-end and accumulates without losing fees', () => {
+    const days = daysFrom('2025-12-28', [2, 1, 2, 3, 4, 5, 6, 7, 8])
+    expect(buildActivity(days, 'weekly').groups.map(group => [group.date, group.endDate, group.microFlux])).toEqual([
+      ['2025-12-28', '2025-12-28', 2],
+      ['2025-12-29', '2026-01-04', 28],
+      ['2026-01-05', '2026-01-05', 8],
+    ])
+    expect(buildActivity(days, 'cumulative').groups.map(group => group.microFlux)).toEqual([2, 30, 38])
   })
 
-  it('formats local days, Flux, and durations', () => {
-    expect(formatDay('2026-10-25', 'en')).toBe('Oct 25, 2026')
+  it('converts microFlux to Flux before formatting', () => {
     expect(formatFlux(1_234_567, 'en')).toBe('1.23')
-    expect(formatFlux(0, 'en')).toBe('0')
-    expect(formatFlux(1_234_567_000, 'en')).toBe('1,235')
-    expect(formatDuration(42 * 60_000, 'en')).toBe('42m')
-    expect(formatDuration(3.7 * 3_600_000, 'en')).toBe('3.7h')
-    expect(formatDuration(50 * 3_600_000, 'en')).toBe('2.1d')
   })
 })

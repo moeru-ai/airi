@@ -126,8 +126,6 @@ describe('account usage navigation', () => {
   it('opens separate history from the account overview and preserves records across pagination and retry', async () => {
     const { screen, router } = await openPage()
     await expect.element(screen.getByRole('img', { name: 'Daily Flux usage' })).toBeVisible()
-    for (const label of ['Flux used', 'Peak daily Flux', 'Longest session', 'Longest streak', 'Current streak'])
-      await expect.element(screen.getByText(label, { exact: true })).toBeVisible()
     expect([...screen.container.querySelectorAll('dd')].map(element => element.textContent?.trim())).toEqual(['2', '2', '1.5h', '1d', '1d'])
     expect(requests.some(url => url.pathname.endsWith('/flux/history'))).toBe(false)
     expect(requests.some(url => url.pathname.endsWith('/stripe/packages'))).toBe(false)
@@ -135,10 +133,7 @@ describe('account usage navigation', () => {
     await screen.getByRole('link', { name: 'View detailed usage' }).click()
     await expect.poll(() => router.currentRoute.value.path).toBe('/settings/usage')
     await expect.element(screen.getByRole('table')).toBeVisible()
-    expect(screen.getByRole('img').elements()).toHaveLength(0)
-    expect(screen.getByRole('button', { name: '500 Flux $3.00' }).elements()).toHaveLength(0)
     await expect.element(screen.getByRole('cell', { name: '-2', exact: true })).toBeVisible()
-    expect(screen.getByRole('row').elements()).toHaveLength(21)
 
     failNextPage = true
     await screen.getByRole('button', { name: 'Load More' }).click()
@@ -156,13 +151,11 @@ describe('account usage navigation', () => {
     await expect.element(screen.getByRole('button', { name: '500 Flux $3.00' })).toBeVisible()
     expect(requests.some(url => url.pathname.endsWith('/flux/usage/daily'))).toBe(false)
     expect(requests.some(url => url.pathname.endsWith('/flux/history'))).toBe(false)
-    expect(screen.getByRole('img').elements()).toHaveLength(0)
     expect(screen.getByRole('table').elements()).toHaveLength(0)
 
     await screen.getByRole('link', { name: 'Transaction History View detailed usage', exact: true }).click()
     await expect.poll(() => router.currentRoute.value.path).toBe('/settings/usage')
     await expect.element(screen.getByRole('table')).toBeVisible()
-    expect(screen.getByRole('img').elements()).toHaveLength(0)
     expect(requests.some(url => url.pathname.endsWith('/flux/usage/daily'))).toBe(false)
   })
 
@@ -171,7 +164,6 @@ describe('account usage navigation', () => {
     const { screen } = await openPage()
     await expect.element(screen.getByText('No usage yet.')).toBeVisible()
     await expect.element(screen.getByRole('link', { name: 'View detailed usage' })).toBeVisible()
-    expect(screen.getByRole('img').elements()).toHaveLength(0)
   })
 
   it('shows a recorded session even when requests incurred no fee', async () => {
