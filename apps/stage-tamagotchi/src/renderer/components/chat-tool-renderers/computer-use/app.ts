@@ -11,7 +11,7 @@ const ActivateSchema = looseObject({
 
 /** App activation and the permission check. */
 export const appReaders: Record<string, ComputerUseCommandReader> = {
-  'app.activate': (result) => {
+  'application.activate': (result) => {
     const parsed = safeParse(ActivateSchema, result)
     if (!parsed.success)
       return undefined
@@ -21,7 +21,7 @@ export const appReaders: Record<string, ComputerUseCommandReader> = {
       shown: { result: { requested_bundle_id: true, verification: { observed_bundle_id: true, reason: true, status: true } } },
     }
   },
-  'app.probePermissions': (result) => {
+  'permission.probe': (result) => {
     const parsed = safeParse(record(string(), string()), result)
     if (!parsed.success)
       return undefined
