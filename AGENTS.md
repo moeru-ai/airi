@@ -10,6 +10,7 @@ All apps use Vue 3, Vite, TypeScript, Pinia, VueUse, UnoCSS, Vitest, and ESLint.
 | --- | --- |
 | `apps/stage-web` | The web app. It uses Vue Router. |
 | `apps/stage-tamagotchi` | The Electron desktop app. |
+| `apps/stage-tamagotchi-kirie` | The Godot desktop app. It hosts the Stage Tamagotchi renderer with Kirie, Godot, and C#. |
 | `apps/stage-pocket` | The mobile app. It uses Vue Router, Capacitor, Kotlin, and Swift. |
 | `packages/stage-ui` | Business components, composables, and stores that stage-web and stage-tamagotchi share. |
 | `packages/stage-ui-three` | Three.js bindings and Vue components. |
@@ -188,5 +189,6 @@ Skills are in `.agents/skills/<name>/SKILL.md`. Read the listed file before you 
 
 These directories also have their own `AGENTS.md`. Read it before you work in the directory:
 
+- `apps/stage-tamagotchi-kirie/`
 - `packages/model-driver-mediapipe/`
 - `services/computer-use-mcp/`
