@@ -653,4 +653,36 @@ describe('chat session synchronization', () => {
     await vi.waitFor(() => expect(chatSyncMocks.clients).toHaveLength(2))
     expect(chatSyncMocks.clients[1]?.connect).toHaveBeenCalledOnce()
   })
+
+  // https://github.com/moeru-ai/airi/issues/2671
+  //
+  // ROOT CAUSE:
+  //
+  // In multi-window setups, follower message deletion routes to the leader.
+  // The leader must update synchronized state and dequeue the outbox without producing duplicate proposals.
+  //
+  // Before the fix, outbox rows remained queued or resurrected across windows.
+  //
+  // We fixed this by leader-routing deleteMessage, stabilizing session ownership, and canceling in-flight outbox sends.
+  it('routes deleteMessage from follower to leader and synchronizes deletion without proposals for Issue #2671', async () => {
+    const namespace = `chat-delete-synced:${crypto.randomUUID()}`
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+    const leader = useChatSessionStore(leaderContext.pinia)
+    await leader.initialize()
+
+    const followerContext = createSyncedContext(namespace, 'follower-only')
+    const follower = useChatSessionStore(followerContext.pinia)
+    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+    await follower.initialize()
+
+    const sessionId = await follower.createSession('default')
+    await follower.commitUserMessage(sessionId, { id: 'msg-to-delete', role: 'user', content: 'test message', createdAt: 1 })
+    await vi.waitFor(() => expect(follower.sessionMessages[sessionId]).toHaveLength(1))
+
+    await follower.deleteMessage({ sessionId, messageId: 'msg-to-delete' })
+
+    await vi.waitFor(() => expect(leader.sessionMessages[sessionId]).toHaveLength(0))
+    await vi.waitFor(() => expect(follower.sessionMessages[sessionId]).toHaveLength(0))
+  })
 })

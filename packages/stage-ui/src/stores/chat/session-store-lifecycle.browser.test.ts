@@ -1266,6 +1266,7 @@ describe('chat-session-store · synchronized data actions', () => {
     })
 
     sendMessagesMock.mockResolvedValueOnce({ seq: 42 })
+    pullMessagesMock.mockResolvedValueOnce({ messages: [], seq: 42 })
     await store.pushMessageToCloud('session-a', {
       id: 'm1',
       role: 'user',

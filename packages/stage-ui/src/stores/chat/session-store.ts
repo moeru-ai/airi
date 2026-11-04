@@ -166,6 +166,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   // Single-flight guard for outbox drain so concurrent `reconcile end` +
   // `pushMessageToCloud post-enqueue` triggers don't double-send.
   let outboxDrainTask: Promise<void> | undefined
+  // Tracks message ids deleted locally before in-flight dispatch completes,
+  // preventing concurrent pushMessageToCloud or drainOutbox from uploading them.
+  const cancelledOutboxMessageIds = new Set<string>()
 
   function getCurrentUserId() {
     return userId.value || 'local'
@@ -432,8 +435,13 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
   /** Removes one message by stable id or by its current history index. */
   async function deleteMessage(payload: DeleteChatMessagePayload): Promise<void> {
+    const sessionOwner = sessionMetas.value[payload.sessionId]?.userId || getCurrentUserId()
+    const epoch = ensureActiveEpoch
+
     if (!await loadSession(payload.sessionId))
       throw new Error('Failed to load the target chat session')
+    if (epoch !== ensureActiveEpoch)
+      throw new Error('Account changed during message deletion')
 
     const currentMessages = getSessionMessages(payload.sessionId)
     let removedMessageId = payload.messageId
@@ -450,14 +458,20 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       return true
     })
 
+    if (removedMessageId)
+      cancelledOutboxMessageIds.add(removedMessageId)
+
     setSessionMessages(payload.sessionId, nextMessages)
     await releaseRemovedAssets(payload.sessionId, currentMessages, nextMessages)
 
+    if (epoch !== ensureActiveEpoch)
+      throw new Error('Account changed during message deletion')
+
     if (removedMessageId) {
-      const userId = getCurrentUserId()
-      if (userId !== 'local') {
-        await enqueuePersist(() => chatSessionsRepo.dequeueOutbox(userId, [removedMessageId!]))
-        await refreshOutboxPendingCount()
+      if (sessionOwner !== 'local') {
+        await enqueuePersist(() => chatSessionsRepo.dequeueOutbox(sessionOwner, [removedMessageId!]))
+        if (sessionOwner === getCurrentUserId())
+          await refreshOutboxPendingCount()
       }
     }
   }
@@ -1431,7 +1445,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     outboxPendingCount.value = entries.length
   }
 
-  async function updateSessionCloudMaxSeq(sessionId: string, seq: number, sentCount = 1) {
+  async function updateSessionCloudMaxSeq(sessionId: string, seq: number) {
     const meta = sessionMetas.value[sessionId]
     if (!meta)
       return
@@ -1439,15 +1453,14 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     if (seq <= currentMax)
       return
 
-    if (seq === currentMax + sentCount) {
-      sessionMetas.value[sessionId] = { ...meta, cloudMaxSeq: seq }
-      void persistSessionMeta(sessionId)
-      return
-    }
-
-    // A sequence gap exists between currentMax and seq. Other messages arrived
-    // on the server before this send completed. Pull missing rows to fill the gap.
+    // Pull unpulled rows from the server to verify actual sequence increments.
     await pullCloudMessages(sessionId)
+
+    const updatedMeta = sessionMetas.value[sessionId]
+    if (updatedMeta && seq > (updatedMeta.cloudMaxSeq ?? 0)) {
+      sessionMetas.value[sessionId] = { ...updatedMeta, cloudMaxSeq: seq }
+      void persistSessionMeta(sessionId)
+    }
   }
 
   /**
@@ -1500,6 +1513,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       return
     if (!entry.cloudChatId)
       return
+    if (cancelledOutboxMessageIds.has(entry.messageId))
+      return
 
     try {
       const response = await wsClient.sendMessages({
@@ -1507,11 +1522,13 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         messages: [{ id: entry.messageId, role: entry.role, content: entry.content, replyToMessageId: entry.replyToMessageId }],
       })
       if (typeof response?.seq === 'number')
-        await updateSessionCloudMaxSeq(sessionId, response.seq, 1)
+        await updateSessionCloudMaxSeq(sessionId, response.seq)
       await enqueuePersist(() => chatSessionsRepo.dequeueOutbox(userId, [entry.messageId]))
+      cancelledOutboxMessageIds.delete(entry.messageId)
       await refreshOutboxPendingCount()
     }
     catch (err) {
+      cancelledOutboxMessageIds.delete(entry.messageId)
       const errMsg = formatSyncError(err)
       console.warn('[chat-sync] sendMessages failed for', sessionId, errMsg)
       await enqueuePersist(() => chatSessionsRepo.updateOutboxEntries(userId, [{
@@ -1573,20 +1590,27 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         if (!wsClient || wsClient.status() !== 'open')
           break
 
-        sessionEntries.sort((a, b) => a.queuedAt - b.queuedAt)
+        const activeEntries = sessionEntries.filter(e => !cancelledOutboxMessageIds.has(e.messageId))
+        if (activeEntries.length === 0)
+          continue
+
+        activeEntries.sort((a, b) => a.queuedAt - b.queuedAt)
         try {
           const response = await wsClient.sendMessages({
             chatId: cloudChatId,
-            messages: sessionEntries.map(e => ({ id: e.messageId, role: e.role, content: e.content, replyToMessageId: e.replyToMessageId })),
+            messages: activeEntries.map(e => ({ id: e.messageId, role: e.role, content: e.content, replyToMessageId: e.replyToMessageId })),
           })
           if (typeof response?.seq === 'number')
-            await updateSessionCloudMaxSeq(sessionId, response.seq, sessionEntries.length)
-          succeededIds.push(...sessionEntries.map(e => e.messageId))
+            await updateSessionCloudMaxSeq(sessionId, response.seq)
+          succeededIds.push(...activeEntries.map(e => e.messageId))
+          for (const entry of activeEntries)
+            cancelledOutboxMessageIds.delete(entry.messageId)
         }
         catch (err) {
           const errMsg = formatSyncError(err)
           console.warn('[chat-sync] outbox drain failed for', sessionId, errMsg)
-          for (const entry of sessionEntries) {
+          for (const entry of activeEntries) {
+            cancelledOutboxMessageIds.delete(entry.messageId)
             failedUpdates.push({
               messageId: entry.messageId,
               attempts: entry.attempts + 1,
