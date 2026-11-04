@@ -7,6 +7,12 @@ minimumReleaseAgeExclude:
   # Source: https://releases.electronjs.org/release/v43.8.4
   # Remove this exception after 2026-10-30T18:05:12Z.
   - electron@43.8.4
+  # NOTICE:
+  # Install the download retry before the release-age delay ends. A dropped download failed release and CI builds.
+  # 0.2.6 retries network errors, stalls, truncated bodies, and 5xx statuses. Our team publishes this package.
+  # Source: https://github.com/proj-airi/unplugin-fetch/pull/4
+  # Remove this exception after 2026-11-07T08:45:06Z.
+  - '@proj-airi/unplugin-fetch@0.2.6'
   # Packages from the AIRI team must always be trusted
   - '@auv-js/*'
   - '@gd-kirie/*'
@@ -200,7 +206,7 @@ catalog:
   '@proj-airi/iconify-meteocons': ^0.1.5
   '@proj-airi/lobe-icons': ^1.0.19
   '@proj-airi/unocss-preset-chromatic': ^2.0.1
-  '@proj-airi/unplugin-fetch': ^0.2.3
+  '@proj-airi/unplugin-fetch': ^0.2.6
   '@proj-airi/unplugin-live2d-sdk': ^0.1.7
   '@revenuecat/purchases-js': ^1.15.0
   '@rive-app/canvas-lite': ^2.40.1

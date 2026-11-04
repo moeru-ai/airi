@@ -305,6 +305,24 @@ pages:
         accountAlreadyLinkedToDifferentUser: 这个 OAuth 帐户已经关联到另一个 AIRI 帐户了。请选择另一个第三方帐户，或者先在另一个 AIRI 帐户中解除关联。
         oauthCallbackFailed: 暂时无法关联这个 OAuth 帐户。请重试，或选择另一个第三方帐户。
         lastAccount: 这是你当前唯一的登录方式，请务必先设置密码再解除关联哦
+    sync:
+      tab: 同步
+      title: 同步
+      description: 选择这台设备要同步到账号的数据。这些选择只对这台设备生效。
+      off_note: 关闭某项同步后，这台设备和账号里的数据都会保留。重新打开后，这台设备上的改动会继续同步。
+      items:
+        chats:
+          title: 聊天记录
+          description: 聊天的文字内容和标题。图片和贴纸只保存在这台设备上。
+        providers:
+          title: 服务来源
+          description: 服务来源的配置，包括 API Key。服务器会加密保存。
+        character_cards:
+          title: 角色卡
+          description: 你的角色卡。删除的角色卡可以在 30 天内恢复。
+        display_models:
+          title: 模型
+          description: 你导入的 Live2D 和 VRM 模型。文件较大，会占用账号存储空间和网络流量。
     security:
       tab: 安全
       title: 安全
@@ -363,8 +381,6 @@ pages:
       action: 选择回应的角色
     sync:
       notice: 角色卡会同步到账号。删除的角色卡可在 30 天内恢复。
-      off_notice: 你已登录，但角色卡同步还没有打开。
-      off_notice_link: 去实验性特性里打开。
       state:
         synced: 已同步到账号
         pending: 等待上传
@@ -2229,12 +2245,6 @@ pages:
         global: 已向登录账户开放
         account: 已向你的账户开放
       features:
-        character_card_sync:
-          title: 角色卡云同步
-          description: 登录后把角色卡同步到账号，方便在其他设备上使用。默认关闭。删除的角色卡会在账号里保留 30 天。
-        display_model_sync:
-          title: 模型云同步
-          description: 登录后把导入的 Live2D 和 VRM 模型上传到账号，方便在其他设备上使用。默认关闭。
         fullscreen_workspace:
           title: 全屏工作区
           description: 在铺满屏幕的工作区里打开设置和聊天，角色在左边。默认关闭。
