@@ -47,35 +47,43 @@
 
 ## 4. A sprint V1 foi feita por completo?
 
-**Não. O núcleo está feito e funcionando. Faltam 6 itens.**
+**Quase. O código da V1 está completo e testado. Falta 1 item: rodar dentro do app, que este ambiente de nuvem não deixa (rede).**
+
+A primeira rodada deixou 6 itens abertos. A segunda rodada fechou 5. Detalhes em `PLANEJAMENTO_04_REVISAO_UTSUWA_AIRI_AVATAR3D.md`, seção "Fechamento da V1".
 
 ### Feito e testado
 
 | Item da V1 | Evidência |
 | --- | --- |
-| Pool de idles com os tempos do Utsuwa (troca após 1–2 voltas, transição de 1,2 s, sem repetir) | Teste do animador. Troca observada aos 19,9 s no vídeo. |
-| Clipe de fala (0,3 s de transição) | Teste do animador. Fase "falando" no vídeo. |
-| Emote único com saída limpa (1,5×, volta ao idle) | Teste do animador. Cumprimento no vídeo, termina aos 44,9 s. |
-| Rosto de humor permanente no lugar do reset de 3 s | 5 testes de humor. Feliz e triste assentados em 0,42 no vídeo. |
-| Toque como reação que volta ao humor | Teste de humor. |
-| Cabeça e tronco do diretor do xiaoke (aceno, olhar, pensando) | 5 testes do diretor. Fases "pensando" e "falando" no vídeo. |
+| Pool de idles com os tempos do Utsuwa (troca após 1–2 voltas, transição de 1,2 s, sem repetir) | Testes do animador. Troca observada no harness. |
+| Clipe de fala (0,3 s de transição) | Teste do animador. Fase "falando" no harness. |
+| Clipe de "pensando": mão no queixo, gerado a partir do idle | 2 testes da pose. Fase "pensando" no harness. |
+| Emote único com saída limpa (1,5×, volta ao idle) | Teste do animador. Cumprimento no harness. |
+| Rosto de humor do Utsuwa: permanente, o antigo sai antes do novo, peso por humor | 9 testes do `MoodFace`. `sad` assenta em 0,58 no harness. |
+| Rosto feliz a 0,7 e sem piscar durante o emote | Teste do `MoodFace`. Captura do emote no harness. |
+| Piscar a cada 2–6 s, fechar rápido e abrir devagar | Teste do `MoodFace`. |
+| Toque como reação que volta ao humor | Teste do `MoodFace`. |
+| Diretor do xiaoke: cabeça e tronco, batidas de fala (3,4–6,2 s), micro-expressões paradas (5–12 s), troca de idle antecipada depois da fala e do pensar | 8 testes do diretor. Batidas e troca antecipada medidas no harness. |
+| Ligação no `VRMModel`: `speechActive` liga a fala, `thinking` liga o pensar | Corrigido nesta rodada. Na primeira rodada, o app nunca ligava esses clipes. |
 | Neptuna como modelo de teste | `packages/alice-motion/fixtures/vrm/neptuna/` |
+| Testes do monorepo inteiro | Ver "Resultado dos testes" abaixo. |
 
 ### Falta na V1
 
 | Item | Por quê |
 | --- | --- |
-| Testar dentro do app (`stage-web` e desktop) | A rede do ambiente de nuvem bloqueia `cubism.live2d.com` e `dist.ayaka.moe`. A validação usou um harness com o mesmo código. |
-| Rosto feliz a 0,7 durante o emote, e piscar desligado no emote | O Utsuwa faz isso. Não foi portado. |
-| Transição de humor igual à do Utsuwa | A V1 usa a transição do AIRI (mistura direta entre humores, peso de repouso fixo em 60%). O Utsuwa apaga o humor antigo antes do novo e usa um peso por humor (0,3 a 0,8). |
-| Clipe de "pensando" | O Utsuwa não traz um. O suporte existe (`motionLibrary.thinking`), mas nenhum arquivo foi incluído. |
-| Partes do diretor do xiaoke | As batidas de gesto na fala (3,4–6,2 s), as micro-expressões em repouso (5–12 s) e o "empurrão" depois da fala não foram portados. |
-| Testes do monorepo inteiro depois da V1 | Rodei os testes do `stage-ui-three` e o typecheck do `stage-ui-three` e do `stage-ui`, mas não o `test:run` completo. |
+| Testar dentro do app (`stage-web` e desktop) | A rede do ambiente de nuvem bloqueia `cubism.live2d.com` e `dist.ayaka.moe`. A validação usou um harness com o mesmo código. Na sua máquina, o app roda 100% local depois da primeira execução (README, "Rodar 100% local"). |
+
+### Resultado dos testes
+
+- `pnpm -F @proj-airi/stage-ui-three exec vitest run`: 12 arquivos, 64 testes, todos passam.
+- `vue-tsc` do `stage-ui-three`: sem erros.
+- `eslint` nos arquivos alterados: 0 erros.
+- `turbo run test:run` e `turbo run typecheck` do monorepo inteiro: em execução. O resultado entra no próximo commit.
 
 ## 5. Próximos passos, na ordem do plano
 
-1. Fechar os itens que faltam na V1 (rosto e piscar no emote, transição de humor do Utsuwa, partes do diretor do xiaoke).
-2. Rodar a V1 no app, numa máquina com internet ou depois de liberar os dois hosts no ambiente.
-3. Aprovar os contratos v1 (ADR) e começar a S03 (director) e a S04 (scheduler).
-4. V2: o LLM escolhe o emote, e a tela importa VRMA.
-5. S08: ponte MQTT, para o AIRI receber os comandos e o humor da NeoAlice sem alterá-la.
+1. Rodar a V1 no app, na sua máquina, ou depois de liberar os dois hosts no ambiente de nuvem.
+2. Aprovar os contratos v1 (ADR) e começar a S03 (director) e a S04 (scheduler).
+3. V2: o LLM escolhe o emote, e a tela importa VRMA.
+4. S08: ponte MQTT, para o AIRI receber os comandos e o humor da NeoAlice sem alterá-la.

@@ -38,16 +38,19 @@ The VRM renderer plays a motion library on top of the model. The design follows 
 
 | Part | File | Behavior |
 | --- | --- | --- |
-| Motion library | `src/assets/vrm/animations/index.ts` | `defaultVrmMotionLibrary`: 5 idles, 1 talking clip, 7 emotes from Utsuwa (`utsuwa/NOTICE.md`), plus the stage idle. |
-| Animator | `src/composables/vrm/avatar-animator.ts` | Cycles the idle pool after 1 to 2 loops with a 1.2 s crossfade. Fades the talking or thinking clip in over 0.3 s. Plays emotes once at 1.5x and returns to the idle. |
-| Director | `src/composables/vrm/performance-director.ts` | Nods on speech accents, glances aside while speaking, turns the head away while thinking, and scans slowly while idle. |
-| Mood face | `src/composables/vrm/expression.ts` | `setMood`: a reaction for 2.5 s (up to 8 s while speaking), then a resting face that stays until the next mood. `react`: a short reaction that returns to the resting mood. |
+| Motion library | `src/assets/vrm/animations/index.ts` | `defaultVrmMotionLibrary`: 5 idles, 1 talking clip, 7 emotes from Utsuwa (`utsuwa/NOTICE.md`), plus the stage idle. The thinking entry is `proceduralThinkingMotion`. |
+| Animator | `src/composables/vrm/avatar-animator.ts` | Cycles the idle pool after 1 to 2 loops with a 1.2 s crossfade. Fades the talking or thinking clip in over 0.3 s. Plays emotes once at 1.5x and returns to the idle. `requestIdleSwitch` brings the next idle forward. |
+| Thinking pose | `src/composables/vrm/thinking-pose.ts` | Builds the thinking clip from the stage idle. The right hand goes to the chin and the left arm crosses the body. The other bones keep the idle motion. |
+| Director | `src/composables/vrm/performance-director.ts` | Nods on speech accents, glances aside while speaking, turns the head away while thinking, and scans slowly while idle. It also reports beats: a speech beat every 3.4 to 6.2 s, an idle beat every 5 to 12 s, and an earlier idle switch after speech or thinking. |
+| Mood face | `src/composables/vrm/mood-face.ts` | `MoodFace` writes all face expressions. The resting mood stays until the next mood. The old mood fades out before the new mood starts. A reaction shows for 2.5 s (up to 8 s while speaking). During an emote, the face is happy at 0.7 and the eyes do not blink. Blinks come every 2 to 6 s. |
 
-`VRMModel` and `ThreeScene` take `thinking` and `motionLibrary` props. They expose `setExpression` (mood), `reactExpression` (touch reaction), `motions`, and `playMotion(id)`.
+`VRMModel` and `ThreeScene` take `thinking` and `motionLibrary` props. They expose `setExpression` (mood), `reactExpression` (touch reaction), `motions`, and `playMotion(id)`. `VRMModel` starts the talking clip from `speechActive` and the thinking clip from `thinking`.
+
+The director beats drive the face: a speech beat shows a short reaction of the current mood, and an idle beat shows a smaller one.
 
 All motion time comes from the frame delta of the render loop. The animator and the director never use timers.
 
-The animator and the mood timing are ported from Utsuwa (AGPL-3.0-or-later). The director is ported from xiaoke.ai (Apache-2.0). Each ported file names its source at the top.
+The animator and the mood face are ported from Utsuwa (AGPL-3.0-or-later). The director is ported from xiaoke.ai (Apache-2.0). Each ported file names its source at the top.
 
 ## Lip-Sync Boundary
 

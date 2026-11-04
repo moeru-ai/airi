@@ -85,4 +85,54 @@ describe('performanceDirector', () => {
     // One bounded step of the 4.5/s smoothing cannot reach the full 0.2 rad target.
     expect(bones.head.rotation.y).toBeLessThan(0.2 * (1 - Math.exp(-4.5 * 0.1)) + 1e-6)
   })
+
+  it('reports a speech beat every 3.4 to 6.2 s while speaking', () => {
+    const { vrm } = createVrm()
+    const director = new PerformanceDirector(() => 0.5)
+    let beats = 0
+    for (let i = 0; i < 600; i++) {
+      director.restore(vrm)
+      if (director.apply(vrm, 1 / 60, { speaking: true, thinking: false, mouth: 0.2 }).speakBeat)
+        beats++
+    }
+
+    // 10 s: first beat at 2.4 s, then every 3.4 + 0.5 * 2.8 = 4.8 s.
+    expect(beats).toBe(2)
+  })
+
+  it('reports idle micro-expression beats only while idle', () => {
+    const { vrm } = createVrm()
+    const director = new PerformanceDirector(() => 0.5)
+    let idleBeats = 0
+    for (let i = 0; i < 600; i++) {
+      director.restore(vrm)
+      if (director.apply(vrm, 1 / 60, { speaking: false, thinking: false, mouth: 0 }).idleBeat)
+        idleBeats++
+    }
+    let thinkingBeats = 0
+    for (let i = 0; i < 600; i++) {
+      director.restore(vrm)
+      if (director.apply(vrm, 1 / 60, { speaking: false, thinking: true, mouth: 0 }).idleBeat)
+        thinkingBeats++
+    }
+
+    // 10 s idle: first beat at 4 s, then every 5 + 0.5 * 7 = 8.5 s.
+    expect(idleBeats).toBe(1)
+    expect(thinkingBeats).toBe(0)
+  })
+
+  it('asks for an earlier idle switch right after speech and after thinking', () => {
+    const { vrm } = createVrm()
+    const director = new PerformanceDirector(() => 0.5)
+    director.apply(vrm, 1 / 60, { speaking: true, thinking: false, mouth: 0 })
+    const afterSpeech = director.apply(vrm, 1 / 60, { speaking: false, thinking: false, mouth: 0 })
+
+    director.apply(vrm, 1 / 60, { speaking: false, thinking: true, mouth: 0 })
+    const afterThinking = director.apply(vrm, 1 / 60, { speaking: false, thinking: false, mouth: 0 })
+    const steady = director.apply(vrm, 1 / 60, { speaking: false, thinking: false, mouth: 0 })
+
+    expect(afterSpeech.nudgeIdleAfterSeconds).toBeCloseTo(2.2)
+    expect(afterThinking.nudgeIdleAfterSeconds).toBeCloseTo(1.9)
+    expect(steady.nudgeIdleAfterSeconds).toBeNull()
+  })
 })

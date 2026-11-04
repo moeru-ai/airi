@@ -129,7 +129,8 @@ O responsável autorizou copiar o código e as animações do Utsuwa e resolve a
 | Biblioteca de movimentos (`defaultVrmMotionLibrary`) | `packages/stage-ui-three/src/assets/vrm/animations/index.ts` |
 | Animador portado do Utsuwa. A troca de idle conta o tempo do quadro em vez de `setTimeout` (regra de render loop do AIRI). | `packages/stage-ui-three/src/composables/vrm/avatar-animator.ts` |
 | Diretor portado do xiaoke: cabeça e tronco | `packages/stage-ui-three/src/composables/vrm/performance-director.ts` |
-| Rosto de humor permanente (`setMood`) e reação ao toque (`react`), no lugar do reset de 3 s | `packages/stage-ui-three/src/composables/vrm/expression.ts` |
+| Rosto de humor do Utsuwa (`MoodFace`): humor permanente, humor antigo sai antes do novo, peso por humor, reação, piscar, rosto feliz no emote | `packages/stage-ui-three/src/composables/vrm/mood-face.ts` |
+| Pose de "pensando" (mão no queixo), gerada a partir do idle do palco | `packages/stage-ui-three/src/composables/vrm/thinking-pose.ts` |
 | Ligação no renderer: props `thinking` e `motionLibrary`, funções `playMotion`, `motions` e `reactExpression` | `VRMModel.vue`, `ThreeScene.vue`, `vrm-instance-cache.ts` |
 | "Pensando" ligado ao envio da mensagem e toque como reação | `packages/stage-ui/src/components/scenes/Stage.vue` |
 
@@ -138,7 +139,7 @@ Testes:
 - 53 testes do `stage-ui-three` passam: 8 do animador, 5 do diretor e 5 do humor são novos.
 - Typecheck do `stage-ui-three` e do `stage-ui`: sem erros.
 
-Validação com a Neptuna: Chromium sem interface, o código real da V1, o three e o three-vrm do AIRI, num roteiro de 50 s. Folha de capturas em `evidencias/V1/v1-resumo.png` e métricas em `evidencias/V1/resultado.json`.
+Validação com a Neptuna: Chromium sem interface, o código real da V1, o three e o three-vrm do AIRI, num roteiro de 50 s. Folha de capturas em `evidencias/V1/v1-resumo.png` e métricas em `evidencias/V1/metricas.json`.
 
 | Fase | Resultado |
 | --- | --- |
@@ -150,6 +151,33 @@ Validação com a Neptuna: Chromium sem interface, o código real da V1, o three
 | Humor triste (46 s) | O triste substitui o feliz (`sad` = 0,42, `happy` = 0). |
 
 Defeito encontrado e corrigido na validação: com `reAnchorRootPositionTrack`, o cumprimento levantava o corpo inteiro para fora do quadro. As animações da biblioteca agora tocam com a trilha de quadril do `createVRMAnimationClip`, como no Utsuwa. Só o idle do palco continua reancorado (`// NOTICE:` em `VRMModel.vue`).
+
+### Fechamento da V1 (segunda rodada, 04/11/2026)
+
+A primeira rodada deixou 6 itens abertos (ver `STATUS_PLANOS_01_02_E_V1.md`). Esta rodada fechou 5 deles:
+
+| Item | O que mudou |
+| --- | --- |
+| Rosto e piscar no emote | `MoodFace` põe o rosto feliz a 0,7 e desliga o piscar enquanto o emote toca. |
+| Transição de humor do Utsuwa | `MoodFace` usa a suavização `delta × 1,5`, apaga o humor antigo antes do novo e usa o peso por humor (0,3 a 0,8). O `expression.ts` voltou ao original do AIRI. |
+| Clipe de "pensando" | O Utsuwa não tem um. A V1 gera o clipe a partir do idle do palco, com a mão direita no queixo e o braço esquerdo cruzado. |
+| Partes do diretor do xiaoke | Batida de fala a cada 3,4–6,2 s, micro-expressão parada a cada 5–12 s, e troca de idle antecipada depois da fala (1,6–2,8 s) e do pensar (1,4–2,4 s). |
+| Testes do monorepo inteiro | `turbo run test:run` e `turbo run typecheck` completos. Resultado em `STATUS_PLANOS_01_02_E_V1.md`. |
+
+Defeito encontrado nesta rodada: o `VRMModel.vue` da primeira rodada nunca chamava `setTalking` nem `startThinking`. No app, os clipes de fala e de pensar não entravam. O harness da primeira rodada chamava o animador direto e não viu o defeito. Agora dois `watch` ligam `speechActive` e `thinking` ao animador.
+
+Validação com a Neptuna, no mesmo harness, com o `VRMModel` corrigido. Capturas em `evidencias/V1/rodada-2/v1-resumo.png` e métricas em `evidencias/V1/rodada-2/metricas.json`:
+
+| Fase | Resultado |
+| --- | --- |
+| Parada | Micro-expressões aos 4,1 s, 9,3 s, 14,5 s e 21,4 s. |
+| Pensando (25 s) | O clipe de pensar entra: mão no queixo e cabeça para o lado. |
+| Falando | Batida de fala aos 32,4 s. |
+| Fim da fala (38 s) | O diretor pede a troca de idle em 1,75 s. A troca acontece aos 39,8 s. |
+| Emote | Rosto feliz a 0,7, sem piscar. |
+| Humor triste | `sad` assenta em 0,58 e `happy` vai a 0. |
+
+Continua aberto: testar dentro do app (`stage-web` e desktop). A rede deste ambiente de nuvem bloqueia `cubism.live2d.com` e `dist.ayaka.moe`. Na máquina do responsável, o app roda local depois da primeira execução (README, "Rodar 100% local").
 
 Fora da V1, nas próximas sprints:
 

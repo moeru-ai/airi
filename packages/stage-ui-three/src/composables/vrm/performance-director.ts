@@ -1,6 +1,7 @@
 // Ported from xiaoke.ai, companion/frontend/src/engine/director.ts
 // https://github.com/liupig/xiaokeai (Apache-2.0). Copyright the xiaoke.ai authors.
-// Changes for AIRI: only the head and chest layer is kept. The state comes from AIRI
+// Changes for AIRI: the head and chest layer and the beat timers are kept; touch poses,
+// camera push, and the listening state are not. The state comes from AIRI
 // (speech and chat sending), the mouth level comes from the VRM visemes, the random
 // source is injectable, and offsets are undone before the mixer runs, so bones without
 // an animation track do not accumulate rotation.
@@ -10,6 +11,16 @@ import type { VRM, VRMHumanBoneName } from '@pixiv/three-vrm'
 import { Vector3 } from 'three'
 
 export type DirectorState = 'idle' | 'thinking' | 'speaking'
+
+/** Things that happened in one frame, for the renderer to act on. */
+export interface DirectorEvents {
+  /** A speech beat while speaking (every 3.4 to 6.2 s): overlay an expression. */
+  speakBeat: boolean
+  /** An idle beat (every 5 to 12 s): a small micro expression. */
+  idleBeat: boolean
+  /** Speech or thinking just ended: switch the idle after this many seconds. */
+  nudgeIdleAfterSeconds: number | null
+}
 
 export interface DirectorInput {
   speaking: boolean
@@ -44,6 +55,10 @@ export class PerformanceDirector {
   private energyAverage = 0
   private accentCooldownSeconds = 0
   private nodImpulse = 0
+  private speakBeatElapsedSeconds = 0
+  private speakBeatNextSeconds = 2.4
+  private idleBeatElapsedSeconds = 0
+  private idleBeatNextSeconds = 4
   /** Offsets written last frame, undone by {@link restore}. */
   private readonly applied = new Map<VRMHumanBoneName, Vector3>()
 
@@ -62,10 +77,22 @@ export class PerformanceDirector {
     this.applied.clear()
   }
 
-  /** Advances the director by one frame and writes the head and chest offsets. */
-  apply(vrm: VRM, deltaSeconds: number, input: DirectorInput) {
+  /** Advances the director by one frame, writes the head and chest offsets, and reports beats. */
+  apply(vrm: VRM, deltaSeconds: number, input: DirectorInput): DirectorEvents {
     const delta = Math.min(Math.max(deltaSeconds, 0), maxDeltaSeconds)
+    const previous = this.state
     this.state = input.speaking ? 'speaking' : input.thinking ? 'thinking' : 'idle'
+    const events: DirectorEvents = { speakBeat: false, idleBeat: false, nudgeIdleAfterSeconds: null }
+
+    if (previous === 'speaking' && this.state === 'idle') {
+      // Just finished speaking: a closing move soon, so she does not stand still.
+      events.nudgeIdleAfterSeconds = 1.6 + this.random() * 1.2
+      this.idleBeatElapsedSeconds = 0
+      this.idleBeatNextSeconds = 1.2
+    }
+    else if (previous === 'thinking' && this.state === 'idle') {
+      events.nudgeIdleAfterSeconds = 1.4 + this.random() * 1.0
+    }
 
     // Accent detection: a peak of the mouth well above its running average starts a nod.
     const mouth = input.mouth
@@ -83,6 +110,32 @@ export class PerformanceDirector {
     this.addOffset(vrm, 'head', this.headCurrent.x + this.nodImpulse, this.headCurrent.y, this.headCurrent.z)
     if (this.state === 'speaking')
       this.addOffset(vrm, 'chest', mouth * 0.018 + this.nodImpulse * 0.3, 0, 0)
+
+    if (this.state === 'speaking') {
+      this.speakBeatElapsedSeconds += delta
+      if (this.speakBeatElapsedSeconds >= this.speakBeatNextSeconds) {
+        this.speakBeatElapsedSeconds = 0
+        this.speakBeatNextSeconds = 3.4 + this.random() * 2.8
+        events.speakBeat = true
+      }
+    }
+    else {
+      this.speakBeatElapsedSeconds = 0
+    }
+
+    if (this.state === 'idle') {
+      this.idleBeatElapsedSeconds += delta
+      if (this.idleBeatElapsedSeconds >= this.idleBeatNextSeconds) {
+        this.idleBeatElapsedSeconds = 0
+        this.idleBeatNextSeconds = 5 + this.random() * 7
+        events.idleBeat = true
+      }
+    }
+    else {
+      this.idleBeatElapsedSeconds = 0
+    }
+
+    return events
   }
 
   /** Reads the mouth opening from the viseme expressions of the model. */

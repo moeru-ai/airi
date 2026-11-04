@@ -151,4 +151,25 @@ describe('avatarAnimator', () => {
 
     expect(animator.idle).toBe(idle)
   })
+
+  it('brings the idle switch forward when asked, but never later', () => {
+    const { animator, hooks } = createAnimator()
+    animator.start(clip('idle-a', 10))
+
+    animator.requestIdleSwitch(2)
+    animator.update(1.9)
+    expect(hooks.loadClip).not.toHaveBeenCalled()
+    animator.update(0.2)
+    expect(hooks.loadClip).toHaveBeenCalledTimes(1)
+  })
+
+  it('ignores a request that is later than the planned switch', () => {
+    const { animator, hooks } = createAnimator()
+    animator.start(clip('idle-a', 1))
+
+    animator.requestIdleSwitch(30)
+    animator.update(1.1)
+
+    expect(hooks.loadClip).toHaveBeenCalledTimes(1)
+  })
 })

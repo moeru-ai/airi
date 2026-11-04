@@ -62,7 +62,7 @@ import {
 
 } from 'vue'
 
-import { defaultVrmMotionLibrary } from '../../assets/vrm/animations'
+import { defaultVrmMotionLibrary, proceduralThinkingMotion } from '../../assets/vrm/animations'
 import { useVRMEyeFocusFor } from '../../composables/eye-tracking'
 import {
   createIblProbeController,
@@ -75,7 +75,6 @@ import {
   clipFromVRMAnimation,
   loadVRMAnimation,
   reAnchorRootPositionTrack,
-  useBlink,
   useIdleEyeSaccades,
 } from '../../composables/vrm/animation'
 import { AvatarAnimator } from '../../composables/vrm/avatar-animator'
@@ -84,7 +83,9 @@ import { useVRMEmote } from '../../composables/vrm/expression'
 import { createVrmInteractionColliders } from '../../composables/vrm/interaction'
 import { resolveInternalVrmHooks } from '../../composables/vrm/internal-hooks'
 import { useVRMLipSync } from '../../composables/vrm/lip-sync'
+import { MoodFace } from '../../composables/vrm/mood-face'
 import { PerformanceDirector } from '../../composables/vrm/performance-director'
+import { createThinkingClip } from '../../composables/vrm/thinking-pose'
 import {
   createThreeRendererMemorySnapshot,
   createVrmSceneSummarySnapshot,
@@ -213,6 +214,7 @@ const raycaster = new Raycaster()
 const vrmAnimationMixer = ref<AnimationMixer>()
 const vrmAnimator = shallowRef<AvatarAnimator>()
 const vrmDirector = shallowRef<PerformanceDirector>()
+const vrmMoodFace = shallowRef<MoodFace>()
 /** Mouth opening written by lip sync in the last frame, read by the director in the next one. */
 let lastMouth = 0
 let lastIdleUrl: string | null = null
@@ -229,7 +231,6 @@ type UpdatableMaterial = Material & {
 }
 
 // Expressions
-const blink = useBlink()
 const idleEyeSaccades = useIdleEyeSaccades()
 // shallowRef: the composable object must stay non-reactive, otherwise Vue
 // deep-unwraps nested refs/computed (e.g. isEmoteActive) and breaks reads
@@ -327,12 +328,13 @@ function getManagedVrmScopeKey() {
 }
 
 function getActiveManagedVrmInstance() {
-  if (!modelSrc.value || !vrm.value || !vrmGroup.value || !vrmAnimationMixer.value || !vrmEmote.value || !vrmAnimator.value || !vrmDirector.value)
+  if (!modelSrc.value || !vrm.value || !vrmGroup.value || !vrmAnimationMixer.value || !vrmEmote.value || !vrmAnimator.value || !vrmDirector.value || !vrmMoodFace.value)
     return undefined
 
   return createManagedVrmInstance({
     animator: vrmAnimator.value,
     director: vrmDirector.value,
+    moodFace: vrmMoodFace.value,
     emote: vrmEmote.value,
     group: vrmGroup.value,
     interactionColliders: interactionColliders.value!,
@@ -345,6 +347,7 @@ function clearActiveManagedVrmRefs() {
   vrmAnimationMixer.value = undefined
   vrmAnimator.value = undefined
   vrmDirector.value = undefined
+  vrmMoodFace.value = undefined
   vrmEmote.value = undefined
   vrm.value = undefined
   vrmGroup.value = undefined
@@ -372,6 +375,7 @@ function applyManagedVrmInstance(instance: ManagedVrmInstance) {
   instance.animator.hooks = createAnimatorHooks(instance.vrm)
   vrmAnimator.value = instance.animator
   vrmDirector.value = instance.director
+  vrmMoodFace.value = instance.moodFace
   vrmEmote.value = instance.emote
   interactionColliders.value = instance.interactionColliders
 }
@@ -512,6 +516,9 @@ function loadMotionClip(targetVrm: VRM, url: string): Promise<AnimationClip> {
     return cached
 
   const loading = (async () => {
+    // The thinking stance is built from the stage idle, so she keeps breathing while she thinks.
+    if (url === proceduralThinkingMotion)
+      return createThinkingClip(targetVrm, await loadMotionClip(targetVrm, idleAnimation.value))
     const animation = await loadVRMAnimation(url)
     const clip = await clipFromVRMAnimation(targetVrm, animation)
     if (!clip)
@@ -568,12 +575,21 @@ function bindManagedVrmInstanceRenderLoop() {
       else
         vrmAnimationMixer.value?.update(delta)
     })
+    const moodFace = vrmMoodFace.value
     if (activeVrm && director) {
-      director.apply(activeVrm, delta, {
+      const events = director.apply(activeVrm, delta, {
         speaking: props.speechActive === true,
         thinking: props.thinking === true,
         mouth: lastMouth,
       })
+      // Beats of the xiaoke director: an expression on a speech beat, a micro expression
+      // while idle, and an earlier idle switch right after speech or thinking.
+      if (events.speakBeat)
+        moodFace?.react(moodFace.moodName ?? 'relaxed', 0.4)
+      if (events.idleBeat)
+        moodFace?.react(moodFace.moodName ?? 'relaxed', 0.25)
+      if (events.nudgeIdleAfterSeconds !== null)
+        vrmAnimator.value?.requestIdleSwitch(events.nudgeIdleAfterSeconds)
     }
     updateManagedVrmMaterials(activeVrm, delta)
     const vrmFrameHookMs = measureFrameStep(tracingEnabled, () => {
@@ -596,13 +612,18 @@ function bindManagedVrmInstanceRenderLoop() {
     const lookAtMs = measureFrameStep(tracingEnabled, () => {
       activeVrm?.lookAt?.update?.(delta)
     })
-    const isEmoteActive = vrmEmote.value?.isEmoteActive?.value ?? false
-
     const blinkAndSaccadeMs = measureFrameStep(tracingEnabled, () => {
-      // The blink controller always advances so an emote starting mid-blink
-      // cannot leave the eyelid stuck; during an emote it only holds the
-      // blink morph at 0 instead of driving the sine curve.
-      blink.update(activeVrm, delta, { suppress: isEmoteActive })
+      // Mood, reactions, blink, and the emote face, as in Utsuwa. The blink stops and the
+      // face turns happy while a body emote plays.
+      if (!activeVrm?.expressionManager || !moodFace)
+        return
+      const face = moodFace.update({
+        deltaSeconds: delta,
+        speaking: props.speechActive === true,
+        emotePlaying: vrmAnimator.value?.emotePlaying ?? false,
+      })
+      for (const [name, weight] of face)
+        activeVrm.expressionManager.setValue(name, weight)
     })
     const lipSyncMs = measureFrameStep(tracingEnabled, () => {
       vrmLipSync.update(activeVrm, delta)
@@ -619,7 +640,7 @@ function bindManagedVrmInstanceRenderLoop() {
       // re-asserts its mouth targets over lip sync's zeroed weights. The
       // state machine keeps advancing either way, so emotion transitions and
       // the reset timeout stay in sync during long utterances.
-      vrmEmote.value?.update(delta, { skipVisemes: isLipSyncActive, speaking: props.speechActive === true })
+      vrmEmote.value?.update(delta, { skipVisemes: isLipSyncActive })
     })
     const expressionMs = measureFrameStep(tracingEnabled, () => {
       activeVrm?.expressionManager?.update()
@@ -1031,6 +1052,7 @@ async function loadModel() {
     commitManagedVrmInstance(createManagedVrmInstance({
       animator: nextVrmAnimator,
       director: new PerformanceDirector(),
+      moodFace: new MoodFace(Object.keys(_vrm.expressionManager?.expressionMap ?? {})),
       emote: nextVrmEmote,
       group: _vrmGroup,
       interactionColliders: nextInteractionColliders,
@@ -1102,6 +1124,20 @@ onMounted(async () => {
   // wait until scene is not undefined
   await until(() => scene.value).toBeTruthy()
   await loadModel()
+
+  // Speech and waiting drive the talking and thinking clips of the animator.
+  watch(() => props.speechActive === true, (speaking) => {
+    vrmAnimator.value?.setTalking(speaking)
+  })
+  watch(() => props.thinking === true && props.speechActive !== true, (thinking) => {
+    const animator = vrmAnimator.value
+    if (!animator)
+      return
+    if (thinking && props.motionLibrary.thinking)
+      animator.startThinking(props.motionLibrary.thinking)
+    else
+      animator.stopThinking(props.speechActive !== true)
+  })
 
   /*
     * Downward info flow
@@ -1230,11 +1266,14 @@ defineExpose({
   getInteractionColliders: () => interactionColliders.value?.colliders ?? [],
   /** Sets the mood: a reaction first, then a resting face that stays until the next mood. */
   setExpression(expression: string, intensity = 1) {
-    vrmEmote.value?.setMood(expression, intensity)
+    vrmMoodFace.value?.setMood(expression, intensity)
+    if (intensity > 0)
+      vrmMoodFace.value?.react(expression)
   },
-  /** Shows a short reaction, for example to a touch, then returns to the resting mood. */
+  /** Shows a short reaction, for example to a touch. The resting mood does not change. */
   reactExpression(expression: string, intensity = 1) {
-    vrmEmote.value?.react(expression, intensity)
+    if (intensity > 0)
+      vrmMoodFace.value?.react(expression)
   },
   /** Emotes of the motion library, for the LLM prompt and the settings page. */
   motions: () => props.motionLibrary.emotes,

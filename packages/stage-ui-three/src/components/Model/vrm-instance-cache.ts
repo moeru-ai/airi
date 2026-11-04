@@ -4,6 +4,7 @@ import type { AnimationMixer, Group } from 'three'
 import type { AvatarAnimator } from '../../composables/vrm/avatar-animator'
 import type { useVRMEmote } from '../../composables/vrm/expression'
 import type { VrmInteractionColliderSet } from '../../composables/vrm/interaction'
+import type { MoodFace } from '../../composables/vrm/mood-face'
 import type { PerformanceDirector } from '../../composables/vrm/performance-director'
 
 import { getStageThreeRuntimeTraceContext, isStageThreeRuntimeTraceEnabled } from '../../trace/context'
@@ -15,6 +16,8 @@ export interface ManagedVrmInstance {
   /** Procedural head and chest layer on top of the animator. */
   director: PerformanceDirector
   emote: ReturnType<typeof useVRMEmote>
+  /** Mood face, reactions, blink, and emote face, ported from Utsuwa. */
+  moodFace: MoodFace
   group: Group
   interactionColliders: VrmInteractionColliderSet
   mixer: AnimationMixer

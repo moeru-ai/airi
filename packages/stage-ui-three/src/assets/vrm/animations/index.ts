@@ -25,6 +25,12 @@ export interface VrmMotionLibrary {
   emotes: VrmEmoteAnimation[]
 }
 
+/**
+ * Marker for the procedural thinking clip. The renderer builds it from the stage idle
+ * with the hand-to-chin stance of `composables/vrm/thinking-pose.ts`. It is not a file.
+ */
+export const proceduralThinkingMotion = 'airi:procedural/thinking'
+
 // NOTICE:
 // Each URL is written as a literal `new URL('./file', import.meta.url)`.
 // Vite copies an asset into the build only when it finds this literal pattern.
@@ -39,6 +45,7 @@ export const defaultVrmMotionLibrary: VrmMotionLibrary = {
     new URL('./utsuwa/idle-5.vrma', import.meta.url).toString(),
   ],
   talking: new URL('./utsuwa/talking.vrma', import.meta.url).toString(),
+  thinking: proceduralThinkingMotion,
   emotes: [
     { id: 'show_full_body', name: 'Show Full Body', description: 'Step back and present the full avatar body', url: new URL('./utsuwa/emote-show-full-body.vrma', import.meta.url).toString() },
     { id: 'greeting', name: 'Greeting', description: 'Greet with a polite bowing motion', url: new URL('./utsuwa/emote-greeting.vrma', import.meta.url).toString() },

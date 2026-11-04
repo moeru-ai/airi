@@ -523,7 +523,7 @@ Esta seção vale para o fork [overcyber/airi](https://github.com/overcyber/airi
 - Git.
 - Node.js 26.12.1 e pnpm 11.24.0, as versões de [`.tool-versions`](./.tool-versions). O jeito mais simples é o [mise](https://mise.jdx.dev).
 - 16 GB de RAM recomendados. O typecheck do `stage-ui` precisa de mais memória que o padrão do Node.
-- Internet na primeira execução. O `stage-web` baixa o SDK do Live2D (`cubism.live2d.com`) e os modelos padrão (`dist.ayaka.moe`) ao iniciar.
+- Internet só na primeira execução, ou os arquivos copiados à mão. Veja "Rodar 100% local" abaixo.
 
 ### 1. Clonar e instalar
 
@@ -562,11 +562,39 @@ No Linux com Wayland, use `pnpm dev:tamagotchi:xwayland` se a janela não abrir.
 O que conferir:
 
 - Parada, ela alterna entre 6 animações de espera, com transições de 1,2 s.
-- Enquanto espera a resposta, a cabeça vira para o lado.
+- Enquanto espera a resposta, ela põe a mão no queixo e a cabeça vira para o lado.
 - Enquanto fala, entra o clipe de fala, com acenos nos acentos.
 - Quando o humor muda, o rosto reage e depois fica no humor, sem voltar ao neutro depois de 3 s.
+- Quando o humor muda, o humor antigo sai por completo antes de o novo entrar.
+- Durante um emote, o rosto fica feliz e ela não pisca.
 
 O crédito da Neptuna é obrigatório. Ele está em `packages/alice-motion/fixtures/vrm/neptuna/README.md`.
+
+### Rodar 100% local (sem internet)
+
+O app não precisa de nuvem. Na primeira vez que o `pnpm dev` inicia, ele baixa 5 arquivos para um cache local. Depois disso, ele inicia sem internet. Os plugins só baixam um arquivo quando ele não está no cache.
+
+| Arquivo | Origem | Local no cache |
+| --- | --- | --- |
+| SDK do Live2D (descompactado) | `https://cubism.live2d.com/sdk-web/bin/CubismSdkForWeb-5-r.3.zip` | `apps/stage-web/.cache/assets/js/CubismSdkForWeb-5-r.3/`. No desktop: `apps/stage-tamagotchi/src/renderer/.cache/assets/js/CubismSdkForWeb-5-r.3/`. |
+| Modelo Live2D Hiyori (free) | `https://dist.ayaka.moe/live2d-models/hiyori_free_zh.zip` | `.cache/live2d/models/hiyori_free_zh.zip` |
+| Modelo Live2D Hiyori (pro) | `https://dist.ayaka.moe/live2d-models/hiyori_pro_zh.zip` | `.cache/live2d/models/hiyori_pro_zh.zip` |
+| VRM AvatarSample A | `https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-A/AvatarSample_A.vrm` | `.cache/vrm/models/AvatarSample-A/AvatarSample_A.vrm` |
+| VRM AvatarSample B | `https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-B/AvatarSample_B.vrm` | `.cache/vrm/models/AvatarSample-B/AvatarSample_B.vrm` |
+
+Se a máquina nunca tem internet:
+
+1. Numa máquina com internet, rode `pnpm install` e `pnpm dev` uma vez.
+2. Copie a pasta inteira do repositório para a máquina sem internet. As pastas `.cache` e `node_modules` vão juntas.
+3. Na máquina sem internet, rode `pnpm dev`.
+
+Também é possível baixar os 5 arquivos à mão e colocar cada um no local da tabela. O SDK do Live2D vai descompactado.
+
+A Neptuna, as 13 animações do Utsuwa e o código da V1 já estão no repositório. Eles não usam a internet.
+
+Para a conversa também ficar local, configure provedores locais nas configurações. Por exemplo: um LLM no Ollama ou em outro servidor compatível com OpenAI na rede local, e o Kokoro para a voz.
+
+Num ambiente de nuvem do Claude Code, a política de rede bloqueia `cubism.live2d.com` e `dist.ayaka.moe`. Para liberar, edite o ambiente: **Network access > Allowed domains**. Documentação: <https://code.claude.com/docs/en/cloud-environments#network-access>.
 
 ### 4. Serviço de estado do companion (opcional)
 

@@ -200,6 +200,16 @@ export class AvatarAnimator {
     this.mixer.addEventListener('finished', onDone)
   }
 
+  /**
+   * Brings the next idle switch forward, for example right after speech ends, so she
+   * does not stand still. A switch that is already sooner stays as it is.
+   */
+  requestIdleSwitch(afterSeconds: number) {
+    if (this.idleCycleRemainingSeconds === null)
+      return
+    this.idleCycleRemainingSeconds = Math.min(this.idleCycleRemainingSeconds, afterSeconds)
+  }
+
   /** Advances the mixer and the idle cycle by one frame of the render clock. */
   update(deltaSeconds: number) {
     this.mixer.update(deltaSeconds)

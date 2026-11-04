@@ -1,0 +1,179 @@
+{
+  "state": {
+    "elapsed": 50.56790000000048,
+    "phase": "humor sad",
+    "maxSpeed": {
+      "hips": 1.8450639663165131,
+      "spine": 1.2211495183685368,
+      "chest": 2.0806810039783765,
+      "neck": 1.79275283503322,
+      "head": 3.541518444228318,
+      "leftUpperArm": 9.30761576547016,
+      "rightUpperArm": 7.002362850154926,
+      "leftLowerArm": 16.179699420589312
+    },
+    "maxSpeedByPhase": {
+      "parada (pool de idles)": {
+        "hips": 0.30187628854256227,
+        "spine": 0.28074920094576805,
+        "chest": 0.42812021269967804,
+        "neck": 0.20110130850829674,
+        "head": 0.4194148823829331,
+        "leftUpperArm": 0.5780855440995453,
+        "rightUpperArm": 0.576930172135594,
+        "leftLowerArm": 0.24343357528896215
+      },
+      "pensando (mao no queixo)": {
+        "hips": 1.1333960095516782,
+        "spine": 0.5796783383484222,
+        "chest": 0.4009095364676013,
+        "neck": 0.5372641328352342,
+        "head": 1.4656751595254702,
+        "leftUpperArm": 1.799187327237019,
+        "rightUpperArm": 1.7086198657567155,
+        "leftLowerArm": 4.074415632315596
+      },
+      "falando + humor happy": {
+        "hips": 1.2861258260712467,
+        "spine": 0.8214036493226552,
+        "chest": 2.0806810039783765,
+        "neck": 1.011847715683279,
+        "head": 3.541518444228318,
+        "leftUpperArm": 7.169549722469713,
+        "rightUpperArm": 7.002362850154926,
+        "leftLowerArm": 6.656350216506408
+      },
+      "fim da fala (humor assenta)": {
+        "hips": 1.6789238282718277,
+        "spine": 0.9687615694158982,
+        "chest": 0.8335371377163562,
+        "neck": 0.48467153474610236,
+        "head": 1.1544489799271067,
+        "leftUpperArm": 3.2192981277382495,
+        "rightUpperArm": 3.372723382557199,
+        "leftLowerArm": 6.635838942030718
+      },
+      "emote: greeting": {
+        "hips": 1.8450639663165131,
+        "spine": 1.2211495183685368,
+        "chest": 1.9461249954355804,
+        "neck": 1.79275283503322,
+        "head": 2.3186160883448705,
+        "leftUpperArm": 9.30761576547016,
+        "rightUpperArm": 5.2321906139462175,
+        "leftLowerArm": 16.179699420589312
+      },
+      "humor sad": {
+        "hips": 0.39912686000534026,
+        "spine": 0.1399762919533682,
+        "chest": 0.13858306549931707,
+        "neck": 0.32254586427099846,
+        "head": 1.6428857559693528,
+        "leftUpperArm": 0.45689959125857327,
+        "rightUpperArm": 1.9153271653537012,
+        "leftLowerArm": 0.38202362833154985
+      }
+    },
+    "mood": "sad",
+    "blink": 0,
+    "emoteHappy": null,
+    "happy": 0,
+    "sad": 0.581113275072902,
+    "headY": -0.1731324431439104
+  },
+  "log": [
+    {
+      "t": 0,
+      "event": "idle-or-clip",
+      "url": "talking.vrma"
+    },
+    {
+      "t": 0,
+      "event": "phase",
+      "phase": "parada (pool de idles)"
+    },
+    {
+      "t": 4.06,
+      "event": "idleBeat"
+    },
+    {
+      "t": 9.26,
+      "event": "idleBeat"
+    },
+    {
+      "t": 14.46,
+      "event": "idleBeat"
+    },
+    {
+      "t": 17.26,
+      "event": "idle-or-clip",
+      "url": "idle-1.vrma"
+    },
+    {
+      "t": 21.36,
+      "event": "idleBeat"
+    },
+    {
+      "t": 25.06,
+      "event": "phase",
+      "phase": "pensando (mao no queixo)"
+    },
+    {
+      "t": 25.06,
+      "event": "idle-or-clip",
+      "url": "thinking"
+    },
+    {
+      "t": 30.09,
+      "event": "phase",
+      "phase": "falando + humor happy"
+    },
+    {
+      "t": 32.39,
+      "event": "speakBeat"
+    },
+    {
+      "t": 38.01,
+      "event": "phase",
+      "phase": "fim da fala (humor assenta)"
+    },
+    {
+      "t": 38.01,
+      "event": "nudgeIdle",
+      "url": "1.75s"
+    },
+    {
+      "t": 39.11,
+      "event": "idleBeat"
+    },
+    {
+      "t": 39.81,
+      "event": "idle-or-clip",
+      "url": "idle-4.vrma"
+    },
+    {
+      "t": 40.01,
+      "event": "phase",
+      "phase": "emote: greeting"
+    },
+    {
+      "t": 44.84,
+      "event": "emote-finished"
+    },
+    {
+      "t": 46.04,
+      "event": "phase",
+      "phase": "humor sad"
+    },
+    {
+      "t": 49.34,
+      "event": "idleBeat"
+    },
+    {
+      "t": 49.77,
+      "event": "idle-or-clip",
+      "url": "idle-5.vrma"
+    }
+  ],
+  "errors": []
+}
