@@ -87,7 +87,7 @@ export async function computerUseTools(options?: ComputerUseToolsOptions): Promi
         const execution = executeOptions as ComputerUseToolExecuteOptions
         const attribution = await bindCancellation(execution)
         const rawInput = input as { argv: string[] }
-        const result = await client().run({ argv: rawInput.argv, actionId: execution.actionId, attribution })
+        const result = await client().run({ argv: rawInput.argv, actionId: execution.actionId, attribution }, { signal: execution.abortSignal })
         if (result.exitCode !== 0)
           throw new Error(JSON.stringify(result))
         return JSON.stringify(result)
@@ -103,7 +103,8 @@ export async function computerUseTools(options?: ComputerUseToolsOptions): Promi
         additionalProperties: false,
       },
       execute: async (input, executeOptions) => {
-        const attribution = await bindCancellation(executeOptions as ComputerUseToolExecuteOptions)
+        const execution = executeOptions as ComputerUseToolExecuteOptions
+        const attribution = await bindCancellation(execution)
         const rawInput = input as { path: string }
 
         return [{
@@ -112,7 +113,7 @@ export async function computerUseTools(options?: ComputerUseToolsOptions): Promi
             url: await client().readImage({
               path: rawInput.path,
               attribution,
-            }),
+            }, { signal: execution.abortSignal }),
           },
         }]
       },

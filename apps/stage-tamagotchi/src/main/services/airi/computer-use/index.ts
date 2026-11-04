@@ -52,10 +52,10 @@ export function setupComputerUse(
     return runtime
   }
   defineInvokeHandler(context, computerUseRun, (input, ctx) => {
-    return getRuntime().run(input, caller(ctx))
+    return getRuntime().run(input, caller(ctx), ctx?.abortController?.signal)
   })
   defineInvokeHandler(context, computerUseReadImage, (input, ctx) => {
-    return getRuntime().readImage(input, caller(ctx))
+    return getRuntime().readImage(input, caller(ctx), ctx?.abortController?.signal)
   })
   defineInvokeHandler(context, computerUsePreviewImage, (input, ctx) => {
     return getRuntime().previewImage(input, caller(ctx))

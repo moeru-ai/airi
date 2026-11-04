@@ -83,10 +83,12 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
     return started
   }
 
-  function enqueue<T>(operation: () => Promise<T>): Promise<T> {
+  function enqueue<T>(operation: () => Promise<T>, signal?: AbortSignal): Promise<T> {
     const next = queue.then(() => {
       if (disposed)
         throw new Error('Computer use has stopped.')
+      // Eventa owns request cancellation. Work that has not started must not outlive its Chat turn.
+      signal?.throwIfAborted()
       return operation()
     })
     // A failed command must not prevent later commands from running.
@@ -94,7 +96,7 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
     return next
   }
 
-  async function run(input: unknown, callerWebContentsId?: number): Promise<ComputerUseResult> {
+  async function run(input: unknown, callerWebContentsId?: number, signal?: AbortSignal): Promise<ComputerUseResult> {
     const parsed = v.parse(inputSchema, input)
 
     // Snapshot caller arguments before the queue wait.
@@ -154,6 +156,7 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
           consumedActionId = parsed.actionId
         }
         const active = await connect()
+        signal?.throwIfAborted()
         const command = [...validatedArgv]
         if (!command.includes('--json') && !isComputerUseHelpCall(command))
           command.push('--json')
@@ -219,10 +222,10 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
         }
         throw error
       }
-    })
+    }, signal)
   }
 
-  async function readImage(input: unknown, callerWebContentsId?: number): Promise<string> {
+  async function readImage(input: unknown, callerWebContentsId?: number, signal?: AbortSignal): Promise<string> {
     const { path, attribution: rawAttribution } = v.parse(readImageSchema, input)
 
     if (rawAttribution) {
@@ -234,7 +237,7 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
       throw new Error('Invocation attribution is required (missing sessionId).')
     }
 
-    return readScreenshot(path)
+    return readScreenshot(path, signal)
   }
 
   /** Reads history previews for an Electron caller under the shared local artifact policy, without fabricating a session. */
@@ -245,7 +248,7 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
     return readScreenshot(path)
   }
 
-  function readScreenshot(path: string): Promise<string> {
+  function readScreenshot(path: string, signal?: AbortSignal): Promise<string> {
     return enqueue(async () => {
       const root = await realpath(options.storeRoot)
       const target = await realpath(path)
@@ -269,7 +272,7 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
       if (converted.length > MAX_IMAGE_BYTES)
         throw new Error('Screenshot must be smaller than 8 MiB after converting from WebP to PNG.')
       return `data:image/png;base64,${converted.toString('base64')}`
-    })
+    }, signal)
   }
 
   /** Rejects queued calls, aborts active work, and waits for the owned daemon to exit. */

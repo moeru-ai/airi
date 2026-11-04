@@ -185,6 +185,7 @@ describe('chat to computer use integration with simulated network and OS boundar
     expect(run.mock.calls[0]).toEqual([
       { argv: ['invoke', 'window.list'], actionId: undefined, attribution: { sessionId: 'session-a', turnId: accepted.messageId, toolCallId: 'call-0' } },
       renderer.window.webContents.id,
+      expect.any(AbortSignal),
     ])
     expect(read.mock.calls[0]?.[0]).toMatchObject({ attribution: { sessionId: 'session-a', turnId: accepted.messageId, toolCallId: 'call-2' } })
     expect(model.requests).toHaveLength(4)
@@ -356,6 +357,28 @@ describe('chat to computer use integration with simulated network and OS boundar
     await observation
     expect(host.actionManager.get(action.id)?.settlement?.outcome).toBe('success')
     expect(external.execute).toHaveBeenCalledTimes(2)
+  })
+
+  // A stopped Chat request reached AUV after another operation released the host queue.
+  // The Renderer must forward its signal through Eventa so Main can reject work before execution.
+  it('cancels a queued read-only Chat tool before it reaches AUV', async () => {
+    const blocker = Promise.withResolvers<CliResult>()
+    external.execute.mockImplementationOnce(() => execution(blocker.promise))
+    const running = invoke({ argv: ['invoke', 'window.list'], attribution: origin('blocking-turn') })
+    await vi.waitFor(() => expect(external.execute).toHaveBeenCalledTimes(1))
+    const harness = chatHarness()
+    const model = providerFor([{ name: COMPUTER_USE_TOOL_NAME, input: { argv: ['invoke', 'window.list'] } }])
+    const run = vi.spyOn(host.getRuntime(), 'run')
+    const send = harness.chat.submit('Observe the desktop.', { model: 'test', chatProvider: model.provider, tools: harness.tools })
+    const accepted = await send.accepted
+    await vi.waitFor(() => expect(run).toHaveBeenCalledTimes(1))
+    harness.chat.cancelTurn({ sessionId: 'session-a', turnId: accepted.messageId })
+    blocker.resolve({ stdout: '{}', stderr: '' })
+    await running
+    await send.done
+    await invoke({ argv: ['invoke', 'window.list'], attribution: origin('following-turn') })
+    expect(external.execute).toHaveBeenCalledTimes(2)
+    expect(model.requests).toHaveLength(1)
   })
 
   it('keeps request abort connected between tool calls and isolates its turn', async () => {
