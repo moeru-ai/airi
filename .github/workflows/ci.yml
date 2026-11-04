@@ -49,6 +49,7 @@ jobs:
       markdown: ${{ steps.detect.outputs.markdown }}
       skip_heavy: ${{ steps.detect.outputs.skip_heavy }}
       godot: ${{ steps.detect.outputs.godot }}
+      kirie: ${{ steps.detect.outputs.kirie }}
       swift: ${{ steps.detect.outputs.swift }}
       lockfile: ${{ steps.detect.outputs.lockfile }}
     steps:
@@ -62,7 +63,7 @@ jobs:
           CHANGED_FILES: ${{ github.event.pull_request.changed_files }}
           HEAD_LABEL: ${{ github.event.pull_request.head.label }}
         run: |
-          docs_only=false godot=true swift=true lockfile=true markdown='[]'
+          docs_only=false godot=true kirie=true swift=true lockfile=true markdown='[]'
 
           if [ "$EVENT_NAME" = pull_request ]; then
             files_json=$(gh api --paginate --slurp "repos/$REPOSITORY/pulls/$PR_NUMBER/files" | jq 'add')
@@ -81,6 +82,7 @@ jobs:
               # This file controls the jobs below, so a change here runs all of them.
               if ! grep -qE '^\.github/(workflows/ci\.yml|actions/)' <<<"$paths"; then
                 grep -q '^engines/stage-tamagotchi-godot/' <<<"$paths" || godot=false
+                grep -q '^apps/stage-tamagotchi-kirie/' <<<"$paths" || kirie=false
                 grep -q '^apps/stage-pocket/' <<<"$paths" || swift=false
                 grep -q '^pnpm-lock\.yaml$' <<<"$paths" || lockfile=false
               fi
@@ -99,6 +101,7 @@ jobs:
             echo "markdown=$markdown"
             echo "skip_heavy=$skip_heavy"
             echo "godot=$godot"
+            echo "kirie=$kirie"
             echo "swift=$swift"
             echo "lockfile=$lockfile"
           } | tee -a "$GITHUB_OUTPUT"
@@ -247,6 +250,40 @@ jobs:
         run: |
           mkdir -p out/linux
           godot --headless --export-release "Linux x64" out/linux/godot-stage
+
+  # Kirie C# compiles only its own code and the Kirie addon source. The job skips the pnpm
+  # install and `pnpm bootstrap`, because bootstrap also downloads the CEF addon (2.6 GB).
+  check-stage-tamagotchi-kirie-csharp:
+    name: C# Check (stage-tamagotchi-kirie)
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.skip_heavy != 'true' && needs.changes.outputs.kirie != 'false' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./apps/stage-tamagotchi-kirie
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - uses: pnpm/setup@v3
+        with:
+          runtime: node@^26.12.1
+          install: false
+
+      # The Kirie core plugin downloads the same archive. The kirie package version selects it.
+      - name: Install the Kirie addon
+        run: |
+          version=$(jq -r '.devDependencies.kirie' package.json)
+          curl -fsSL -o "$RUNNER_TEMP/kirie-addon.zip" \
+            "https://github.com/gd-kirie/gd-kirie/releases/download/v$version/kirie-addon.zip"
+          unzip -q "$RUNNER_TEMP/kirie-addon.zip" 'addons/kirie/*' -d .
+
+      - run: pnpm run lint:csharp
+      - run: pnpm run test:csharp
 
   unit-test-shard:
     name: Unit Test (${{ matrix.shard }})
