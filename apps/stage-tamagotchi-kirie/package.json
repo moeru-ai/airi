@@ -11,9 +11,12 @@
   },
   "homepage": "https://airi.moeru.ai/docs/",
   "scripts": {
-    "build": "kirie build",
-    "dev": "kirie dev",
-    "postinstall": "node -e \"require('node:fs').writeFileSync('node_modules/.gdignore', '')\"",
+    "bootstrap": "pnpm godot:ignore-deps && kirie doctor --fix plugin:core && kirie doctor --fix plugin:notifications && kirie doctor --fix plugin:tray",
+    "build": "pnpm godot:ignore-deps && kirie build",
+    "dev": "pnpm godot:ignore-deps && kirie dev",
+    "godot:ignore-deps": "node -e \"require('node:fs').writeFileSync('node_modules/.gdignore', '')\"",
+    "lint:csharp": "dotnet format --exclude addons --verify-no-changes && dotnet format tests/StageTamagotchiKirie.Tests --verify-no-changes",
+    "test:csharp": "dotnet run --project tests/StageTamagotchiKirie.Tests",
     "test:run": "vitest run",
     "typecheck": "vue-tsc -p src-web/tsconfig.json --noEmit"
   },

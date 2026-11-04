@@ -1,5 +1,4 @@
 using Eventa;
-using GdKirie.EventaAdapter;
 using Godot;
 
 internal static class CurrentDisplaySnapshotService

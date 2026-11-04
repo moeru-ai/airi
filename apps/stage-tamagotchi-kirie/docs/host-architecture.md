@@ -19,7 +19,7 @@ The renderer has one Eventa transport owner. Capability clients borrow its conte
 Kirie-local adapters always use Kirie.
 Shared UI retains `RUNTIME_ENVIRONMENT='electron'` and Electron-named Eventa IDs as existing selectors and contracts.
 Those names do not select an Electron transport.
-The Electron application and `engines/stage-tamagotchi-godot/` remain separate supported paths.
+The Electron application remains a separate supported path.
 
 ## Source map
 
