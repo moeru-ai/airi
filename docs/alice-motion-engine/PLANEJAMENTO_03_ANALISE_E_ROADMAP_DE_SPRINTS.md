@@ -88,6 +88,7 @@ Limitação do TalkingHead que confirma a motivação do Plano 01: `playAnimatio
 | L9 | Os planos não definem backup, rollback nem teste de fumaça do sistema em produção. | Os critérios de aceite falam só do AIRI. | Uma mudança pode quebrar o espelho sem detecção. | Protocolo por sprint (Parte B) e teste de fumaça MQTT (B3). |
 | L10 | Regras do monorepo AIRI não citadas. | `AGENTS.md`: Valibot para schema, `injeca` para DI, `eventa` para IPC, `README.md` por pacote, kebab-case, `// NOTICE:` para workaround, perguntar antes de nova dependência. | Revisão de PR e lint podem falhar. | Aplicar em todas as sprints de código. |
 | L11 | O fork recebe merges do upstream. | Último commit de `main`: merge de `moeru-ai:main`. | Mudanças no `animation-manager` ou em `MMD.vue` podem gerar conflitos. | Manter alterações em pacotes novos. Fazer cada mudança em arquivo existente pequena e com teste de contrato. |
+| L12 | Lip-sync em português ausente no avatar atual. | Encontrado no teste da S01 em 04/11/2026: `modules/lipsync-pt-br.mjs` e `modules/lipsync-pt.mjs` do `talkinghead-neoalice` são cópias idênticas de `lipsync-en.mjs` (mesmo MD5) e exportam `LipsyncEn`. O TalkingHead não carrega esses módulos (`module[className] is not a constructor`). | A boca do avatar não segue regras do português. A cópia em produção pode ser diferente. | Sprint S01b: conferir o arquivo em produção. Se for igual, corrigir só no `talkinghead-neoalice`, sem tocar a NeoAlice. |
 
 ### A5. Dependências entre os planos
 
@@ -251,8 +252,9 @@ Legenda de risco para produção: **Nenhum** (não toca o espelho), **Baixo** (a
 | Ordem | Sprint | Origem | Toca produção | Risco |
 | --- | --- | --- | --- | --- |
 | 1 | S00 Backup geral e baseline de produção | Novo (L9) | Só leitura | Nenhum |
-| 2 | S01 Inventário do humor e correção do `mapMood` | B0 + L4 | Sim | Baixo |
-| 3 | S02 Baseline AIRI, contratos v1 e decisões D1/D2 | P0 parte 1 + B0 + L3 | Não | Nenhum |
+| 2 | S01 Inventário do humor e correção do `mapMood` (código no `main` e validado no navegador. Falta instalar no espelho) | B0 + L4 | Sim | Baixo |
+| 2b | S01b Lip-sync em português do avatar atual | L12 | Sim | Baixo |
+| 3 | S02 Baseline AIRI, contratos v1 e decisões D1/D2 (em andamento, ver S02) | P0 parte 1 + B0 + L3 | Não | Nenhum |
 | 4 | S03 MotionDirector isolado | P1 | Não | Nenhum |
 | 5 | S04 MotionScheduler isolado | P2 | Não | Nenhum |
 | 6 | S05 MoodAdapter e reducer do companion (implementada, ver S05) | B1 + B2 | Não | Nenhum |
@@ -300,6 +302,28 @@ S03 e S04 podem rodar em paralelo com S05. As três são pacotes novos sem rende
 | Validação | `love` mostra suspiros e cabeça inclinada. `fear` mostra varredura ampla de cabeça. `disgust` mostra nariz franzido. Os humores antigos continuam iguais ao vídeo da S00. Valor desconhecido continua virando `neutral`. |
 | Saída | Documento de inventário do humor. Tag `sprint/S01-ok`. |
 
+**Estado em 04/11/2026:**
+
+| Passo | Resultado |
+| --- | --- |
+| Inventário do humor | Feito pelo agente local em 03/11/2026 (Parte E). |
+| Alteração | `mapMood` corrigido nos 3 arquivos do `MMM-avatar-3d` (commit `85c7807`, no `main`). |
+| Teste automático | `node --test tests/mood-map.test.mjs`: 9 falhas antes, 12 de 12 depois. |
+| Teste no navegador | TalkingHead real, avatar `eva-ruiva-arkit.glb`, Three.js 0.161.0, MQTT local. 20 humores enviados em `evt/mood`. Antes: 9 de 20 errados. Depois: 20 de 20 corretos. Gesto e animação funcionam antes e depois. Evidências em `evidencias/S01/` do `MMM-avatar-3d` (commit `7eb3fd0`). |
+| Falta | Instalar no espelho com `scripts/backup-producao.sh` e `scripts/smoke-test-mqtt.sh` (roteiro em `SPRINTS_S00_S01.md`). Esta sessão não tem acesso à máquina do espelho. |
+
+### S01b — Lip-sync em português do avatar atual
+
+**Repositório:** `talkinghead-neoalice`. Não toca a NeoAlice.
+
+| Passo | Conteúdo |
+| --- | --- |
+| Backup | `scripts/backup-producao.sh` com a imagem Docker do TalkingHead. Cópia dos três `lipsync-*.mjs` em produção. |
+| Alteração | Conferir se a cópia em produção é igual à do repositório. Se for, criar `lipsync-pt-br.mjs` com regras do português e o nome de classe que o TalkingHead procura. |
+| Teste | Teste no navegador da S01 com fala (`cmd/tts/audio`) e leitura dos visemas. Antes e depois. |
+| Validação | O módulo carrega sem `module[className] is not a constructor`. A boca segue palavras em português. |
+| Saída | Tag `sprint/S01b-ok`. |
+
 ### S02 — Baseline AIRI, contratos v1 e decisões
 
 **Objetivo:** P0 parte 1 do Plano 01. Congelar os contratos que os dois planos compartilham.
@@ -312,6 +336,18 @@ S03 e S04 podem rodar em paralelo com S05. As três são pacotes novos sem rende
 | Teste | Typecheck e testes do monorepo inteiro antes e depois. A saída deve ser igual, porque só há documentação e tipos. |
 | Validação | Os dois planos citam os mesmos nomes de campo. Cada humor dos 3 vocabulários tem destino definido. |
 | Saída | Contratos v1 aprovados por você. Tag `sprint/S02-ok`. |
+
+**Estado em 04/11/2026:**
+
+| Item | Resultado |
+| --- | --- |
+| Instalação | `pnpm install` feito. |
+| Versões | Commit `319ecae`, Node 22.23.4, pnpm 11.24.0, three 0.185.1, `@moeru/three-mmd` 0.2.0-beta.2, `@pixiv/three-vrm` 3.5.5. |
+| Typecheck | Monorepo inteiro (mesmos filtros do `pnpm typecheck`): 67 de 67 tarefas passaram. Duas condições do ambiente: o `vue-tsc` do `stage-ui` precisa de `NODE_OPTIONS=--max-old-space-size=8192`, e o `dist` do `electron-screen-capture` precisou de um novo build depois da instalação completa. |
+| Testes | `turbo run test:run`: 73 de 78 tarefas passam no container. As 5 restantes falham por ambiente, sem relação com código: rede bloqueada (`stage-web`, `stage-tamagotchi`), IPv6 ausente (`auth-server`) e Node 22 no lugar do Node 26 do CI (`better-ws` e 1 teste do `stage-ui`, que passam com Node 26.13.0). Detalhes no ADR. |
+| Contratos v1 | `packages/alice-motion` com `MotionIntent` e `MotionCue` em Valibot. 15 testes. ADR `docs/ai/adr/2026-11-04-alice-motion-contracts-v1.md`, com status **proposed**: aguarda a sua aprovação. |
+| Vocabulário único | Já existe em `services/alice-companion/src/mood-vocabulary.ts` (14 humores da NeoAlice, TalkingHead e AIRI). |
+| Subir o AIRI com o modelo original | **Bloqueado pela rede do ambiente de nuvem.** O `stage-web` baixa o SDK do Live2D (`cubism.live2d.com`) e os modelos originais (`dist.ayaka.moe`) ao iniciar, e o proxy do ambiente recusa os dois hosts (HTTP 403). |
 
 **Decisão D1 — formato do avatar no AIRI.** Opções:
 

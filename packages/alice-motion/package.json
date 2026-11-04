@@ -1,0 +1,29 @@
+{
+  "name": "@proj-airi/alice-motion",
+  "type": "module",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Motion contracts, director, scheduler, and layered mixer for the Alice persona",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/alice-motion"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:run": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "valibot": "catalog:"
+  }
+}
