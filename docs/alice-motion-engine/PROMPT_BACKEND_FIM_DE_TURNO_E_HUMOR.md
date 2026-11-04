@@ -1,5 +1,10 @@
 # Prompt para o agente local — evento de fim de turno e humor completo no MQTT
 
+> **BLOQUEADO. NÃO ENVIAR.**
+> Este prompt altera a NeoAlice (orchestrator, satellite_gateway e MoodSystem).
+> A NeoAlice só pode ser alterada depois que o novo avatar estiver validado, conforme a regra de bloqueio em `JUSTIFICATIVA_ALTERACOES_NEOALICE.md`, seção 5.
+> O arquivo fica no repositório só como registro do que foi proposto em 04/11/2026.
+
 **Uso:** copie o bloco abaixo e envie ao agente local da Eva/Alice.
 **Objetivo:** fazer o backend NeoAlice publicar o fim de cada turno e os campos de humor que ele já calcula. O serviço `services/alice-companion` já aceita esses dados. Com eles, a contagem de turnos deixa de ser deduzida e o humor ganha intensidade, causa e energia.
 **Origem:** inventário de 03/11/2026 (Planejamento 03, Parte E, itens 2 e 4).

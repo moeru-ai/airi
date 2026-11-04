@@ -77,7 +77,7 @@ sequenceDiagram
 ## Scope
 
 - Sprint S05 of Plan 03: the mood adapter (B1) and the reducer for metrics, energy, and time (B2).
-- Derived turns from `evt/stt/final` and `cmd/tts/say`, until the backend publishes `evt/dialog/turn_end`.
+- Derived turns from `evt/stt/final` and `cmd/tts/say`, until the backend publishes `evt/dialog/turn_end`. The backend does not change before the new avatar is validated (`docs/alice-motion-engine/JUSTIFICATIVA_ALTERACOES_NEOALICE.md`).
 - `evt/dialog/turn_end` in the NeoAlice `v: 1` envelope. The NeoAlice inventory of 2026-11-03 found no end-of-turn event and proposed this shape. `evt/companion/interaction` stays for clients outside NeoAlice.
 - The 14 states of the NeoAlice `MoodProfile`. Five of them (`reflective`, `cozy`, `melancholic`, `mischief`, `grouchy`) have no direct renderer name, so the table uses the nearest name.
 

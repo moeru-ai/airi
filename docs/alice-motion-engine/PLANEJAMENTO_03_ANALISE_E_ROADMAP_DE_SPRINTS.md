@@ -235,6 +235,7 @@ Depois do rollback, execute o teste de fumaça (B3) e confirme que o espelho vol
 ### B5. Regras gerais
 
 - O espelho em produção continua com o TalkingHead até a sprint S16. Até lá, o AIRI roda em paralelo com `<SITE_AIRI>`.
+- **Regra de bloqueio da NeoAlice (04/11/2026):** a NeoAlice (backend, MoodSystem, orchestrator, satélites, visão, broker e seus containers) não é alterada antes de o novo avatar estar validado. Até lá, toda integração com ela é somente leitura. As condições de liberação estão em `JUSTIFICATIVA_ALTERACOES_NEOALICE.md`, seção 5.
 - Toda função nova no AIRI fica atrás de uma opção desligada por padrão.
 - Nenhuma sprint mistura alteração em produção com alteração no AIRI.
 - Nenhuma sprint de código começa sem os contratos da S02. Exceção decidida em 03/11/2026: a S05 foi antecipada a pedido do responsável. Os contratos dela (mensagens MQTT e estado) estão em `services/alice-companion/README.md` e `src/contracts.ts`. A S02 passa a referenciar esses contratos e não os redefine.
@@ -534,7 +535,7 @@ Em toda sprint: revisar licenças de assets e código, procurar dados privados n
 | D3 | Qual biblioteca MQTT usar no AIRI? | S08 | **Decidida:** `mqtt` (MQTT.js 5) |
 | D4 | Qual modelo PMX e quais VMD têm licença para a fixture? | S06 | Escolher antes da S06 |
 | D5 | Rota final do espelho: AIRI no espelho ou TalkingHead comandado pelo director? | S16 | Decidir com medições da S06 e da S09 |
-| D6 | Quem é a autoridade do afeto: o `affinity_score` do MoodSystem ou a métrica `affection` do serviço de companion? | S11 | `affinity_score`, publicado no payload de humor, como já foi feito com a energia |
+| D6 | Quem é a autoridade do afeto: o `affinity_score` do MoodSystem ou a métrica `affection` do serviço de companion? | Depois da liberação da NeoAlice | **Adiada**, porque exige que a NeoAlice publique um campo novo. Até lá, a métrica `affection` do serviço fica parada, porque nada envia propostas. |
 | D7 | Onde estão as GPUs RTX citadas no Plano 01? O host principal é RK3588 sem GPU NVIDIA. | S17 | Confirmar antes de planejar a S17 |
 | D8 | Política de retenção dos snapshots da câmera e do modo VLM em nuvem | S-H | Retenção curta e opt-in para envio externo (Plano 02, consentimentos) |
 
@@ -566,16 +567,16 @@ Fonte: inventário somente leitura feito pelo agente local em 03/11/2026, com o 
 | # | Achado | Sprint | Ação |
 | --- | --- | --- | --- |
 | 1 | 14 estados de humor. Cinco não estavam na tabela (`reflective`, `cozy`, `melancholic`, `mischief`, `grouchy`). | S01, S05 | Feito no serviço de companion. A S01 copia a mesma tabela para o espelho. |
-| 2 | Intensidade, causa e fadiga existem, mas não são publicadas. | S05, S09, S13 | Pedir ao backend os campos `intensity`, `energy` e `cause` no payload de humor (prompt `PROMPT_BACKEND_FIM_DE_TURNO_E_HUMOR.md`). O serviço já aceita esses campos. |
+| 2 | Intensidade, causa e fadiga existem, mas não são publicadas. | Depois da liberação da NeoAlice | **Adiado.** Até a liberação, o serviço trabalha só com o nome do humor. O pedido ao backend está em `PROMPT_BACKEND_FIM_DE_TURNO_E_HUMOR.md`, bloqueado. O serviço já aceita esses campos se um dia vierem. |
 | 3 | `affinity_score` já existe no MoodSystem. | S11 | Conflito de autoridade com a métrica `affection`. Decisão D6. |
-| 4 | Sem evento de fim de turno. | S05 | O serviço deriva o turno de `evt/stt/final` seguido de `cmd/tts/audio` no mesmo site. O serviço também aceita `evt/dialog/turn_end` no formato sugerido pelo agente. Pedido ao backend no mesmo prompt. |
+| 4 | Sem evento de fim de turno. | S05 | O serviço deriva o turno de `evt/stt/final` seguido de `cmd/tts/audio` no mesmo site, sem mudar a NeoAlice. A leitura de `evt/dialog/turn_end` fica parada até a NeoAlice publicar esse tópico, o que só pode acontecer depois da liberação. |
 | 5 | O STT sai no site do satélite e o áudio vai para o satélite e para o espelho. | S05 | O pareamento por site funciona no site do satélite. Conferir no `audit.jsonl` durante a validação de 1 dia. |
 | 6 | O TTS não devolve marcações de tempo. O Kokoro tem uma rota com marcações por palavra. | S09 | Usar `/dev/captioned_speech` para alinhar ênfase e gestos ao áudio. O lip-sync continua no navegador. Medir o custo na CPU antes. |
 | 7 | O backend já envia gestos, poses e emoji (humor e porta). | S08, S13 | O director trata esses comandos como intenções e não compete com eles. Até a S16 eles continuam indo direto ao espelho. |
 | 8 | Sem GPU NVIDIA no host principal. | S06, S17 | O Plano 01 seção 9 cita RTX 3090 e 4060 Ti. Decisão D7. Sem essas GPUs, a S17 usa as NPUs ou é adiada. |
 | 9 | O espelho roda em outro host. O AIRI precisa de WebGL com física. | S06 | Medir FPS no hardware real do espelho. A meta de 60 FPS do Plano 01 pode ser inviável. |
 | 10 | O LLM principal é de nuvem. | S11, S13 | Os Planos 01 e 02 pedem modo offline. O fallback local é um modelo pequeno na CPU. Propostas de métrica precisam de um caminho heurístico que funcione sem o LLM. |
-| 11 | Broker anônimo e sem ACL. | S00, S08 | Qualquer cliente da rede local pode enviar `cmd/companion/reset`. Na S00, adicionar ACL ao menos para `neoalice/v1/+/cmd/companion/#`, com credenciais coordenadas para satélites e espelho. |
+| 11 | Broker anônimo e sem ACL. | Depois da liberação da NeoAlice | Qualquer cliente da rede local pode enviar `cmd/companion/reset`. O broker é um container da NeoAlice, então a ACL fica **adiada**. Até lá, o risco fica registrado e o serviço pode rodar contra um broker de teste. |
 | 12 | Snapshots da câmera ficam em disco. O modo VLM em nuvem pode enviar quadros para fora. | S-H | Decisão D8. O Plano 02 exige consentimento (`screenObservation`, `photoRetention`). |
 
 **Status:** análise e roteiro documentados. D1, D2 e D3 decididas. S05 implementada em `services/alice-companion`. O espelho em produção não foi alterado. Os Planos 01 e 02 permanecem sem alteração.

@@ -108,7 +108,7 @@ To restore the previous state:
 
 If `state.json` is damaged, the service does not start. It does not replace the file with an empty state.
 
-Protect the command topics with a Mosquitto ACL. Any client that can publish on `cmd/companion/reset` can reset the state.
+Any client that can publish on `cmd/companion/reset` can reset the state. The broker belongs to the NeoAlice system. Do not change its configuration before the new avatar is validated. To test without the production broker, run the service against a test broker and replay recorded traffic.
 
 ## Test it
 
