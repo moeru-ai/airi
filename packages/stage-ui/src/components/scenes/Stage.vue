@@ -288,7 +288,9 @@ const emotionsQueue = createQueue<EmotionPayload>({
     },
   ],
 })
+const pendingSpeechEmotion = ref<EmotionPayload | null>(null)
 
+const voice = useVoiceStore()
 const streamingControl = useLlmStreamingControlStore()
 
 function toStageEmotionPayload(payload: { name: string, intensity: number }): EmotionPayload | undefined {
@@ -342,7 +344,15 @@ chatHookCleanups.push(streamingControl.onSignal(async (signal) => {
 
       // eslint-disable-next-line no-console
       console.debug('emotion detected', emotion)
-      emotionsQueue.enqueue(emotion)
+
+      // When a speech turn is active but audio playback has not started yet (waiting for TTS),
+      // defer the opening emotion until audio playback begins so the avatar remains relaxed.
+      if (!speechMuted.value && voice.activeTurns.length > 0 && !nowSpeaking.value) {
+        pendingSpeechEmotion.value = emotion
+      }
+      else {
+        emotionsQueue.enqueue(emotion)
+      }
     }
     return
   }
@@ -371,8 +381,6 @@ async function playSpecialToken(
 }
 let disconnectLipSync: (() => void) | undefined
 let disconnectAnalyser: (() => void) | undefined
-
-const voice = useVoiceStore()
 const avatarTouch = useAvatarTouchStore()
 // A burst of touches on the avatar becomes one notification for the character.
 // The avatar already plays its own reaction, so a skipped notification still shows the touch.
@@ -399,13 +407,22 @@ const playback = new Playback(new BrowserPlayback(audioContext, { destination: s
 function resetSpeakingState() {
   nowSpeaking.value = false
   mouthOpenSize.value = 0
+  if (pendingSpeechEmotion.value) {
+    emotionsQueue.enqueue(pendingSpeechEmotion.value)
+    pendingSpeechEmotion.value = null
+  }
 }
 
 // A response leaves the active turns after its playback drains, or at once
 // when it is canceled or interrupted.
 watch(() => voice.activeTurns, (turns) => {
-  if (turns.length === 0)
+  if (turns.length === 0) {
     speechVoicing.value = false
+    if (pendingSpeechEmotion.value) {
+      emotionsQueue.enqueue(pendingSpeechEmotion.value)
+      pendingSpeechEmotion.value = null
+    }
+  }
 })
 
 const cards = useAiriCardStore()
@@ -417,6 +434,10 @@ const disconnectVoiceOutput = voice.connectOutput((turn) => {
       playingCount += 1
       nowSpeaking.value = true
       speechVoicing.value = true
+      if (pendingSpeechEmotion.value) {
+        emotionsQueue.enqueue(pendingSpeechEmotion.value)
+        pendingSpeechEmotion.value = null
+      }
       assistantCaption.value += ` ${text}`
       try {
         postCaption({ type: 'caption-assistant', text })
