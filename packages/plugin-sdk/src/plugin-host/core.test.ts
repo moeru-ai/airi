@@ -1,7 +1,6 @@
 import type { ExtensionManifestV2, ModulePermissionDeclaration } from './shared/types'
 
-import { spawnSync } from 'node:child_process'
-import { join } from 'node:path'
+import { join, win32 as pathWin32 } from 'node:path'
 
 import { safeParse } from 'valibot'
 import { describe, expect, it, vi } from 'vitest'
@@ -9,6 +8,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { ExtensionHost, extensionManifestV2Schema, FileSystemLoader } from '.'
 import { defineExtension } from '../extension'
 import { defineKit, defineKitContract, defineKitMethod } from '../kit'
+import { toImportUrl } from './runtimes/node/loaders/to-import-url'
 
 describe('extension manifest schema', () => {
   it('accepts extension.airi.json v2 manifests', () => {
@@ -2161,42 +2161,14 @@ describe('for FileSystemLoader', () => {
   })
 
   // https://github.com/moeru-ai/airi/issues/3359
-  it('loads filesystem entrypoints that contain URL-special characters (Issue #3359)', () => {
-    // ROOT CAUSE:
-    //
-    // `import()` treats a Windows drive letter as a URL scheme and `#` as a URL fragment.
-    // The loader passed a filesystem path directly:
-    //
-    // const extensionModule = await import(entrypoint)
-    //
-    // Convert the resolved path with `pathToFileURL` before import:
-    //
-    // const extensionModule = await import(pathToFileURL(entrypoint).href)
-    const entrypoint = join(import.meta.dirname, 'testdata', 'test#url-special-entrypoint.mjs')
-    const result = spawnSync(process.execPath, [
-      '--import',
-      'tsx',
-      '--input-type=module',
-      '--eval',
-      `import { FileSystemLoader } from './src/plugin-host/runtimes/node/loaders/fs.ts'
-const extension = await new FileSystemLoader().loadExtensionFor({
-  manifestVersion: 2,
-  kind: 'manifest.extension.airi.moeru.ai',
-  id: 'test-extension',
-  version: '1.0.0',
-  engines: { airi: '*', runtimes: ['node'] },
-  permissions: {},
-  entrypoints: { node: process.argv[1] },
-}, { cwd: '', runtime: 'node' })
-console.log(extension.id)`,
-      entrypoint,
-    ], {
-      cwd: join(import.meta.dirname, '../..'),
-      encoding: 'utf8',
-    })
+  // ROOT CAUSE:
+  //
+  // `import()` reads Windows paths as URL schemes, and `#` starts a URL fragment.
+  // `pathToFileURL` with Windows path parsing creates the correct file URL.
+  it('converts Windows entrypoint paths to file URLs (Issue #3359)', () => {
+    const entrypoint = ['C:', 'extensions', 'test#entrypoint.mjs'].join(pathWin32.sep)
 
-    expect(result.status, result.stderr).toBe(0)
-    expect(result.stdout.trim()).toBe('test-url-special-entrypoint')
+    expect(toImportUrl(entrypoint, true)).toBe('file:///C:/extensions/test%23entrypoint.mjs')
   })
 
   it('should reject entrypoints that do not export defineExtension', async () => {
