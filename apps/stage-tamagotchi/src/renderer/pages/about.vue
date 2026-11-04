@@ -163,9 +163,10 @@ const channelBadgeClass: Record<ReturnType<typeof channelOfVersion>, string[]> =
 }
 
 // The header button already says when the app is up to date, so the status area shows only what needs attention.
+const hasUpdateLine = computed(() => ['available', 'downloading', 'downloaded', 'manual-install-required'].includes(updateState.value.status))
 const hasUpdateStatus = computed(() => requiresWindowsAdminUpdatePrompt.value
   || isError.value
-  || ['available', 'downloading', 'downloaded', 'manual-install-required'].includes(updateState.value.status))
+  || hasUpdateLine.value)
 
 const now = useNow({ interval: 60_000 })
 const builtOnDate = computed(() => {
@@ -488,92 +489,78 @@ onMounted(() => {
                 </p>
               </Alert>
 
-              <div :class="['flex items-start justify-between gap-2']">
-                <div :class="['min-w-0 flex-1']">
-                  <!-- State: Available -->
-                  <div v-if="updateState.status === 'available'" :class="['flex flex-col gap-4']">
-                    <div :class="['text-sm flex flex-wrap items-center gap-2']">
-                      <span :class="['font-mono text-neutral-600 dark:text-neutral-300']">v{{ appVersion }}</span>
-                      <div :class="['i-solar:arrow-right-line-duotone text-lg text-neutral-400']" />
-                      <span :class="['font-mono text-pink-500 dark:text-pink-400 font-bold']">v{{ updateState.info?.version }}</span>
-                    </div>
-                    <Alert
-                      v-if="isDowngradeUpdate"
-                      tone="warning"
-                      :title="t('tamagotchi.stage.about.update.notices.downgrade-available.title')"
+              <!-- The status line of an update. The changes of the update are on its right. -->
+              <div v-if="hasUpdateLine" :class="['flex flex-col gap-2']">
+                <div :class="['flex items-center justify-between gap-2 text-sm']">
+                  <div v-if="updateState.status === 'available'" :class="['flex flex-wrap items-center gap-2']">
+                    <span :class="['font-mono text-neutral-600 dark:text-neutral-300']">v{{ appVersion }}</span>
+                    <div :class="['i-solar:arrow-right-line-duotone text-lg text-neutral-400']" />
+                    <span :class="['font-mono text-pink-500 dark:text-pink-400 font-bold']">v{{ updateState.info?.version }}</span>
+                  </div>
+                  <div v-else-if="updateState.status === 'manual-install-required'" :class="['text-amber-700 dark:text-amber-200']">
+                    {{ t('tamagotchi.stage.about.update.status.manual-install-required', { version: updateState.info?.version }) }}
+                  </div>
+                  <span v-else-if="updateState.status === 'downloading'">{{ t('tamagotchi.stage.about.update.status.downloading') }}</span>
+                  <div v-else :class="['text-emerald-600 dark:text-emerald-400']">
+                    {{ downloadedStatusText }}
+                  </div>
+
+                  <div :class="['flex shrink-0 items-center gap-2']">
+                    <!-- A release has notes. A dev or nightly build has only a page that compares its commits. -->
+                    <GhostButton
+                      v-if="releaseNotesContent"
+                      size="sm"
+                      icon="i-solar:document-text-outline"
+                      :label="t('tamagotchi.stage.about.update.actions.whats-new')"
+                      :class="['-my-1']"
+                      @click="showChangelog = true"
+                    />
+                    <a
+                      v-else-if="updateState.changesUrl"
+                      :href="updateState.changesUrl"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      :class="['-my-1']"
                     >
-                      {{ t('tamagotchi.stage.about.update.notices.downgrade-available.description') }}
-                    </Alert>
-                  </div>
-
-                  <!-- State: Manual install required -->
-                  <div v-else-if="updateState.status === 'manual-install-required'" :class="['flex flex-col gap-4']">
-                    <div :class="['text-sm text-amber-700 dark:text-amber-200']">
-                      {{ t('tamagotchi.stage.about.update.status.manual-install-required', { version: updateState.info?.version }) }}
-                    </div>
-                  </div>
-
-                  <!-- State: Downloading -->
-                  <div v-else-if="updateState.status === 'downloading'" :class="['flex flex-col gap-2']">
-                    <div :class="['flex justify-between text-sm']">
-                      <span>{{ t('tamagotchi.stage.about.update.status.downloading') }}</span>
-                      <span :class="['font-mono']">{{ updateState.progress?.percent.toFixed(1) }}%</span>
-                    </div>
-                    <Progress :progress="updateState.progress?.percent ?? 0" />
-                    <div :class="['text-xs text-neutral-400 text-right font-mono']">
-                      {{ ((updateState.progress?.bytesPerSecond ?? 0) / 1024 / 1024).toFixed(2) }} MB/s
-                    </div>
-                  </div>
-
-                  <!-- State: Downloaded -->
-                  <div v-else-if="updateState.status === 'downloaded'" :class="['flex flex-col gap-4']">
-                    <div :class="['text-sm text-emerald-600 dark:text-emerald-400']">
-                      {{ downloadedStatusText }}
-                    </div>
-                    <Alert
-                      v-if="isDowngradeUpdate"
-                      tone="warning"
-                      :title="t('tamagotchi.stage.about.update.notices.downgrade-downloaded.title')"
-                    >
-                      {{ t('tamagotchi.stage.about.update.notices.downgrade-downloaded.description') }}
-                    </Alert>
-                  </div>
-
-                  <!-- State: Idle, Checking, Error, Disabled, Not Available -->
-                  <div v-else :class="['flex flex-col gap-4']">
-                    <div v-if="isError" :class="['flex flex-col gap-2']">
-                      <ContainerError
-                        :message="updaterErrorMessage"
-                        height-preset="sm"
-                        @feedback="openBugReportDialog"
+                      <GhostButton
+                        size="sm"
+                        icon="i-solar:code-square-outline"
+                        :label="t('tamagotchi.stage.about.update.actions.view-changes')"
                       />
-                    </div>
+                    </a>
+                    <span v-if="updateState.status === 'downloading'" :class="['font-mono']">{{ updateState.progress?.percent.toFixed(1) }}%</span>
                   </div>
                 </div>
 
-                <!-- A release has notes. A dev or nightly build has only a page that compares its commits. -->
-                <GhostButton
-                  v-if="releaseNotesContent"
-                  size="sm"
-                  icon="i-solar:document-text-outline"
-                  :label="t('tamagotchi.stage.about.update.actions.whats-new')"
-                  :class="['shrink-0 -my-1']"
-                  @click="showChangelog = true"
-                />
-                <a
-                  v-else-if="updateState.changesUrl"
-                  :href="updateState.changesUrl"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  :class="['shrink-0 -my-1']"
-                >
-                  <GhostButton
-                    size="sm"
-                    icon="i-solar:code-square-outline"
-                    :label="t('tamagotchi.stage.about.update.actions.view-changes')"
-                  />
-                </a>
+                <template v-if="updateState.status === 'downloading'">
+                  <Progress :progress="updateState.progress?.percent ?? 0" />
+                  <div :class="['text-xs text-neutral-400 text-right font-mono']">
+                    {{ ((updateState.progress?.bytesPerSecond ?? 0) / 1024 / 1024).toFixed(2) }} MB/s
+                  </div>
+                </template>
               </div>
+
+              <Alert
+                v-if="isDowngradeUpdate && updateState.status === 'available'"
+                tone="warning"
+                :title="t('tamagotchi.stage.about.update.notices.downgrade-available.title')"
+              >
+                {{ t('tamagotchi.stage.about.update.notices.downgrade-available.description') }}
+              </Alert>
+              <Alert
+                v-else-if="isDowngradeUpdate && updateState.status === 'downloaded'"
+                tone="warning"
+                :title="t('tamagotchi.stage.about.update.notices.downgrade-downloaded.title')"
+              >
+                {{ t('tamagotchi.stage.about.update.notices.downgrade-downloaded.description') }}
+              </Alert>
+
+              <ContainerError
+                v-if="isError"
+                :message="updaterErrorMessage"
+                height-preset="sm"
+                @feedback="openBugReportDialog"
+              />
             </div>
           </div>
         </template>
