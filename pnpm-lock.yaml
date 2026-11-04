@@ -2471,9 +2471,6 @@ importers:
 
   apps/stage-tamagotchi-kirie:
     dependencies:
-      '@date-fns/utc':
-        specifier: 'catalog:'
-        version: 2.1.1
       '@fontsource-variable/comfortaa':
         specifier: 'catalog:'
         version: 5.3.0
@@ -2515,22 +2512,13 @@ importers:
         version: 0.16.0
       '@gd-kirie/ipc-eventa':
         specifier: 0.16.0
-        version: 0.16.0(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
+        version: 0.16.0(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       '@gd-kirie/notifications':
         specifier: 0.15.0
-        version: 0.15.0(@types/node@26.2.0)(electron@43.8.4(supports-color@10.2.2))(esbuild@0.28.2)(hono@4.13.3)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(web-worker@1.5.0)(yaml@2.9.1)
+        version: 0.15.0(@types/node@26.2.0)(electron@43.8.4(supports-color@10.2.2))(esbuild@0.28.2)(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(web-worker@1.5.0)(yaml@2.9.1)
       '@gd-kirie/platform':
         specifier: 0.16.0
-        version: 0.16.0(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
-      '@guiiai/logg':
-        specifier: 'catalog:'
-        version: 1.2.12
-      '@huggingface/transformers':
-        specifier: 'catalog:'
-        version: 3.8.1
-      '@intlify/core':
-        specifier: 'catalog:'
-        version: 11.4.9
+        version: 0.16.0(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/eventa':
         specifier: 'catalog:'
         version: 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
@@ -2540,18 +2528,6 @@ importers:
       '@pinia/colada':
         specifier: 'catalog:'
         version: 1.4.2(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3))
-      '@proj-airi/audio':
-        specifier: workspace:^
-        version: link:../../packages/audio
-      '@proj-airi/ccc':
-        specifier: workspace:^
-        version: link:../../packages/ccc
-      '@proj-airi/drizzle-duckdb-wasm':
-        specifier: 'catalog:'
-        version: 0.6.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9))(web-worker@1.5.0)
-      '@proj-airi/font-chillroundm':
-        specifier: workspace:^
-        version: link:../../packages/font-chillroundm
       '@proj-airi/font-cjkfonts-allseto':
         specifier: workspace:^
         version: link:../../packages/font-cjkfonts-allseto
@@ -2564,18 +2540,9 @@ importers:
       '@proj-airi/input-gamepad-vueuse':
         specifier: workspace:^
         version: link:../../packages/input-gamepad-vueuse
-      '@proj-airi/model-driver-lipsync':
-        specifier: workspace:^
-        version: link:../../packages/model-driver-lipsync
-      '@proj-airi/pipelines-audio':
-        specifier: workspace:^
-        version: link:../../packages/pipelines-audio
       '@proj-airi/plugin-sdk-tamagotchi':
         specifier: workspace:^
         version: link:../../packages/plugin-sdk-tamagotchi
-      '@proj-airi/server-sdk':
-        specifier: workspace:*
-        version: link:../../packages/server-sdk
       '@proj-airi/stage-layouts':
         specifier: workspace:^
         version: link:../../packages/stage-layouts
@@ -2585,27 +2552,12 @@ importers:
       '@proj-airi/stage-ui':
         specifier: workspace:^
         version: link:../../packages/stage-ui
-      '@proj-airi/stage-ui-live2d':
-        specifier: workspace:^
-        version: link:../../packages/stage-ui-live2d
-      '@proj-airi/stage-ui-mmd':
-        specifier: workspace:^
-        version: link:../../packages/stage-ui-mmd
-      '@proj-airi/stage-ui-spine':
-        specifier: workspace:^
-        version: link:../../packages/stage-ui-spine
       '@proj-airi/stage-ui-three':
         specifier: workspace:^
         version: link:../../packages/stage-ui-three
       '@proj-airi/ui':
         specifier: workspace:^
         version: link:../../packages/ui
-      '@shikijs/markdown-it':
-        specifier: 'catalog:'
-        version: 4.4.3
-      '@tresjs/cientos':
-        specifier: 'catalog:'
-        version: 5.8.1(@tresjs/core@5.8.3(@types/three@0.185.4)(three@0.185.1)(vue@3.5.41(typescript@6.0.3)))(three@0.185.1)(vue@3.5.41(typescript@6.0.3))
       '@tresjs/core':
         specifier: 'catalog:'
         version: 5.8.3(@types/three@0.185.4)(three@0.185.1)(vue@3.5.41(typescript@6.0.3))
@@ -2618,165 +2570,42 @@ importers:
       '@vueuse/motion':
         specifier: 'catalog:'
         version: 3.0.3(magicast@0.5.4)(vue@3.5.41(typescript@6.0.3))
-      '@vueuse/shared':
-        specifier: 'catalog:'
-        version: 14.4.0(vue@3.5.41(typescript@6.0.3))
-      '@xsai-apple-speech/transcription':
-        specifier: 'catalog:'
-        version: 0.1.3(@xsai/generate-transcription@0.5.1)
-      '@xsai-apple-speech/transcription-electron-plugin':
-        specifier: 'catalog:'
-        version: 0.1.3(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
-      '@xsai-apple-speech/transcription-native':
-        specifier: 'catalog:'
-        version: 0.1.3(@xsai/generate-transcription@0.5.1)
-      '@xsai-ext/providers':
-        specifier: 'catalog:'
-        version: 0.5.1
-      '@xsai-transformers/embed':
-        specifier: 'catalog:'
-        version: 0.1.0(electron@43.8.4(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@1.0.8)))(web-worker@1.5.0)
-      '@xsai-transformers/transcription':
-        specifier: 'catalog:'
-        version: 0.1.0(electron@43.8.4(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@1.0.8)))(web-worker@1.5.0)
-      '@xsai/generate-speech':
-        specifier: 'catalog:'
-        version: 0.5.1
-      '@xsai/generate-text':
-        specifier: 'catalog:'
-        version: 0.5.1
-      '@xsai/model':
-        specifier: 'catalog:'
-        version: 0.5.1
-      '@xsai/shared':
-        specifier: 'catalog:'
-        version: 0.5.1
       '@xsai/shared-chat':
-        specifier: 'catalog:'
-        version: 0.5.1
-      '@xsai/stream-text':
-        specifier: 'catalog:'
-        version: 0.5.1
-      '@xsai/stream-transcription':
         specifier: 'catalog:'
         version: 0.5.1
       '@xsai/tool':
         specifier: 'catalog:'
         version: 0.5.1(@valibot/to-json-schema@1.8.0(valibot@1.5.0(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
-      '@xsai/utils-chat':
-        specifier: 'catalog:'
-        version: 0.5.1
-      alien-signals:
-        specifier: 'catalog:'
-        version: 3.2.1
       animejs:
         specifier: 'catalog:'
         version: 4.5.0(@types/three@0.185.4)(three@0.185.1)
-      async-mutex:
-        specifier: 'catalog:'
-        version: 0.5.0
-      chess.js:
-        specifier: 'catalog:'
-        version: 1.4.0
-      colorjs.io:
-        specifier: 'catalog:'
-        version: 0.7.1
       culori:
         specifier: 'catalog:'
         version: 4.0.2
-      date-fns:
-        specifier: 'catalog:'
-        version: 4.4.0
-      defu:
-        specifier: 'catalog:'
-        version: 6.1.7
-      destr:
-        specifier: 'catalog:'
-        version: 2.0.5
-      dompurify:
-        specifier: 'catalog:'
-        version: 3.4.14
-      electron-click-drag-plugin:
-        specifier: 'catalog:'
-        version: 2.0.2
-      embla-carousel-vue:
-        specifier: 'catalog:'
-        version: 9.0.0-rc02(vue@3.5.41(typescript@6.0.3))
       es-toolkit:
         specifier: 'catalog:'
         version: 1.51.0
-      injeca:
-        specifier: 'catalog:'
-        version: 0.2.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
-      jszip:
-        specifier: 'catalog:'
-        version: 3.10.1
-      localforage:
-        specifier: 'catalog:'
-        version: 1.10.0
-      mediabunny:
-        specifier: 'catalog:'
-        version: 1.55.2
       nanoid:
         specifier: 'catalog:'
         version: 6.0.1
-      node-vibrant:
-        specifier: 'catalog:'
-        version: 4.0.4
-      nprogress:
-        specifier: 'catalog:'
-        version: 0.2.0
-      onnxruntime-web:
-        specifier: 'catalog:'
-        version: 1.27.0
       pinia:
         specifier: 'catalog:'
         version: 4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3))
-      popmotion:
-        specifier: 'catalog:'
-        version: 11.0.5
-      rehype-stringify:
-        specifier: 'catalog:'
-        version: 10.0.1
       reka-ui:
         specifier: 'catalog:'
         version: 2.10.3(vue@3.5.41(typescript@6.0.3))
-      remark-parse:
-        specifier: 'catalog:'
-        version: 11.0.0(supports-color@10.2.2)
-      remark-rehype:
-        specifier: 'catalog:'
-        version: 11.1.2
-      replicate:
-        specifier: 'catalog:'
-        version: 1.4.0
       semver:
         specifier: 'catalog:'
         version: 7.8.5
-      shiki:
-        specifier: 'catalog:'
-        version: 4.4.3
       splitpanes:
         specifier: 'catalog:'
         version: 4.1.2(vue@3.5.41(typescript@6.0.3))
       three:
         specifier: 'catalog:'
         version: 0.185.1
-      uiohook-napi:
-        specifier: 'catalog:'
-        version: 1.5.5(patch_hash=012c5e5ad881d5ae40fc0af58832e31a0772ab0a74c038c8f4dfe51efaf398dd)
-      unified:
-        specifier: 'catalog:'
-        version: 11.0.5
-      unspeech:
-        specifier: catalog:xsai
-        version: 0.1.16
       uqr:
         specifier: 'catalog:'
         version: 0.1.3
-      uuid:
-        specifier: 'catalog:'
-        version: 14.0.2
       valibot:
         specifier: 'catalog:'
         version: 1.5.0(typescript@6.0.3)
@@ -2786,9 +2615,6 @@ importers:
       vue:
         specifier: 'catalog:'
         version: 3.5.41(typescript@6.0.3)
-      vue-demi:
-        specifier: 'catalog:'
-        version: 0.14.10(vue@3.5.41(typescript@6.0.3))
       vue-i18n:
         specifier: 'catalog:'
         version: 11.4.9(vue@3.5.41(typescript@6.0.3))
@@ -2798,12 +2624,6 @@ importers:
       vue-sonner:
         specifier: 'catalog:'
         version: 2.0.9(@nuxt/kit@3.21.11(magicast@0.5.4))(vue@3.5.41(typescript@6.0.3))
-      web-haptics:
-        specifier: 'catalog:'
-        version: 0.0.6(svelte@5.57.3(@typescript-eslint/types@8.67.0))(vue@3.5.41(typescript@6.0.3))
-      whatwg-mimetype:
-        specifier: 'catalog:'
-        version: 5.0.0
       xsschema:
         specifier: 'catalog:'
         version: 0.5.1(@valibot/to-json-schema@1.8.0(valibot@1.5.0(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
@@ -2813,7 +2633,7 @@ importers:
     devDependencies:
       '@gd-kirie/tray':
         specifier: 0.15.0
-        version: 0.15.0(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(kirie@0.16.0(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1)))(web-worker@1.5.0)
+        version: 0.15.0(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(kirie@0.16.0(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1)))(web-worker@1.5.0)
       '@iconify-json/carbon':
         specifier: 'catalog:'
         version: 1.2.25
@@ -2850,39 +2670,21 @@ importers:
       '@intlify/unplugin-vue-i18n':
         specifier: 'catalog:'
         version: 11.2.5(@vue/compiler-dom@3.5.44)(eslint@10.9.0(jiti@2.7.0)(supports-color@10.2.2))(rollup@4.62.5)(supports-color@10.2.2)(typescript@6.0.3)(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))(vue-i18n@11.4.9(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3))
-      '@modelcontextprotocol/sdk':
-        specifier: 'catalog:'
-        version: 1.30.0(supports-color@10.2.2)(zod@4.4.3)
-      '@pnpm/find-workspace-dir':
-        specifier: 'catalog:'
-        version: 1000.1.5
       '@proj-airi/electron-eventa':
         specifier: workspace:^
         version: link:../../packages/electron-eventa
-      '@proj-airi/electron-screen-capture':
-        specifier: workspace:^
-        version: link:../../packages/electron-screen-capture
-      '@proj-airi/electron-vueuse':
-        specifier: workspace:^
-        version: link:../../packages/electron-vueuse
       '@proj-airi/iconify-meteocons':
         specifier: 'catalog:'
         version: 0.1.5
       '@proj-airi/lobe-icons':
         specifier: 'catalog:'
         version: 1.0.19
-      '@proj-airi/plugin-sdk':
-        specifier: workspace:^
-        version: link:../../packages/plugin-sdk
       '@proj-airi/server-runtime':
         specifier: workspace:^
         version: link:../../packages/server-runtime
       '@proj-airi/stage-shared':
         specifier: workspace:^
         version: link:../../packages/stage-shared
-      '@proj-airi/ui-transitions':
-        specifier: workspace:^
-        version: link:../../packages/ui-transitions
       '@proj-airi/unplugin-fetch':
         specifier: 'catalog:'
         version: 0.2.6(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))
@@ -2898,9 +2700,6 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 26.2.0
-      '@types/nprogress':
-        specifier: 'catalog:'
-        version: 0.2.3
       '@types/semver':
         specifier: 'catalog:'
         version: 7.8.0
@@ -2910,30 +2709,15 @@ importers:
       '@types/three':
         specifier: 'catalog:'
         version: 0.185.4
-      '@types/whatwg-mimetype':
-        specifier: 'catalog:'
-        version: 5.0.0
       '@vitejs/plugin-vue':
         specifier: 'catalog:'
         version: 6.0.8(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))(vue@3.5.41(typescript@6.0.3))
       '@vue-macros/volar':
         specifier: 'catalog:'
         version: 3.1.4(typescript@6.0.3)(vue-tsc@3.3.11(typescript@6.0.3))(vue@3.5.41(typescript@6.0.3))
-      csstype:
-        specifier: 'catalog:'
-        version: 3.2.3
-      drizzle-orm:
-        specifier: 'catalog:'
-        version: 0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9)
-      electron:
-        specifier: 'catalog:'
-        version: 43.8.4(supports-color@10.2.2)
       kirie:
         specifier: 0.16.0
         version: 0.16.0(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))
-      less:
-        specifier: 'catalog:'
-        version: 4.9.0(supports-color@10.2.2)
       std-env:
         specifier: 'catalog:'
         version: 4.2.0
@@ -2964,9 +2748,6 @@ importers:
       vue-tsc:
         specifier: 'catalog:'
         version: 3.3.11(typescript@6.0.3)
-      yaml:
-        specifier: 'catalog:'
-        version: 2.9.1
 
   apps/stage-web:
     dependencies:
@@ -24113,7 +23894,7 @@ snapshots:
       ini: 7.0.0
       vite: 8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1)
 
-  '@gd-kirie/ipc-eventa@0.15.0(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)':
+  '@gd-kirie/ipc-eventa@0.15.0(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)':
     dependencies:
       '@gd-kirie/ipc': 0.15.0
       '@moeru/eventa': 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
@@ -24124,7 +23905,7 @@ snapshots:
       - hono
       - web-worker
 
-  '@gd-kirie/ipc-eventa@0.16.0(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)':
+  '@gd-kirie/ipc-eventa@0.16.0(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)':
     dependencies:
       '@gd-kirie/ipc': 0.16.0
       '@moeru/eventa': 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
@@ -24143,9 +23924,9 @@ snapshots:
     dependencies:
       cborg: 4.5.8
 
-  '@gd-kirie/notifications@0.15.0(@types/node@26.2.0)(electron@43.8.4(supports-color@10.2.2))(esbuild@0.28.2)(hono@4.13.3)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(web-worker@1.5.0)(yaml@2.9.1)':
+  '@gd-kirie/notifications@0.15.0(@types/node@26.2.0)(electron@43.8.4(supports-color@10.2.2))(esbuild@0.28.2)(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(web-worker@1.5.0)(yaml@2.9.1)':
     dependencies:
-      '@gd-kirie/ipc-eventa': 0.15.0(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
+      '@gd-kirie/ipc-eventa': 0.15.0(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/eventa': 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       kirie: 0.15.0(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1)
     transitivePeerDependencies:
@@ -24167,9 +23948,9 @@ snapshots:
       - web-worker
       - yaml
 
-  '@gd-kirie/platform@0.16.0(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)':
+  '@gd-kirie/platform@0.16.0(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)':
     dependencies:
-      '@gd-kirie/ipc-eventa': 0.16.0(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
+      '@gd-kirie/ipc-eventa': 0.16.0(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/eventa': 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
     transitivePeerDependencies:
       - '@tauri-apps/api'
@@ -24178,9 +23959,9 @@ snapshots:
       - hono
       - web-worker
 
-  '@gd-kirie/tray@0.15.0(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(kirie@0.16.0(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1)))(web-worker@1.5.0)':
+  '@gd-kirie/tray@0.15.0(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(kirie@0.16.0(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1)))(web-worker@1.5.0)':
     dependencies:
-      '@gd-kirie/ipc-eventa': 0.15.0(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
+      '@gd-kirie/ipc-eventa': 0.15.0(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/eventa': 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       kirie: 0.16.0(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))
     transitivePeerDependencies:

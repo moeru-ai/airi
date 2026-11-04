@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
-import type { Display, Rectangle } from 'electron'
+import type { AiriDesktopDisplayBounds } from '../../../../shared/eventa'
+import type { DisplayArea } from '../../../../shared/utils/electron/display'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, defineComponent, h, nextTick, shallowRef } from 'vue'
@@ -12,7 +13,7 @@ import { resolveControlsIslandDock, useControlsIslandPlacement } from './use-con
 const primaryDisplay = {
   bounds: { x: 0, y: 0, width: 1920, height: 1080 },
   workArea: { x: 0, y: 25, width: 1920, height: 1055 },
-} as Display
+} satisfies DisplayArea
 
 const displays = shallowRef([primaryDisplay])
 const windowBounds = {
@@ -28,7 +29,7 @@ vi.mock('@proj-airi/stage-host-context', () => ({
 
 const mountedApps: Array<{ host: HTMLElement, unmount: () => void }> = []
 
-function resolve(windowBounds: Rectangle) {
+function resolve(windowBounds: AiriDesktopDisplayBounds) {
   return resolveControlsIslandDock({
     displays: [primaryDisplay],
     previousDock: 'bottom-right',
@@ -125,7 +126,7 @@ describe('resolveControlsIslandDock', () => {
     const secondaryDisplay = {
       bounds: { x: -1600, y: -900, width: 1600, height: 900 },
       workArea: { x: -1600, y: -900, width: 1600, height: 860 },
-    } as Display
+    } satisfies DisplayArea
 
     const dock = resolveControlsIslandDock({
       displays: [primaryDisplay, secondaryDisplay],

@@ -7,13 +7,11 @@ export { useHostDisplays } from './displays'
 export { installExternalNavigation } from './external-navigation'
 export { useHostGlobalShortcuts } from './global-shortcuts'
 export { useHostLocale } from './locale'
-export { useHostMediaAccessStatus } from './media-access'
 export { useHostMicrophonePermission } from './microphone-permission'
 export { installMicrophonePermissionStatus } from './microphone-permission-status'
 export { useHostOnboarding } from './onboarding'
 export * from './owner'
 export * from './pointer'
-export { useHostScreenCapture } from './screen-capture'
 export {
   startHostOwnedSpotlightShortcut,
   useHostSpotlightShortcut,

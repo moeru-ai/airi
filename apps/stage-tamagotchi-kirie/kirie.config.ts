@@ -51,15 +51,6 @@ export default defineKirieConfig({
   plugins: [core, notifications, trayPlugin],
   web: {
     vite: {
-      build: {
-        rolldownOptions: {
-          input: {
-            'main': resolve(join(import.meta.dirname, 'src-web', 'index.html')),
-            'beat-sync': resolve(join(import.meta.dirname, 'src-web', 'beat-sync.html')),
-          },
-        },
-      },
-
       optimizeDeps: {
         exclude: [
           // Internal Packages
@@ -67,9 +58,6 @@ export default defineKirieConfig({
           '@proj-airi/drizzle-duckdb-wasm',
           '@proj-airi/drizzle-duckdb-wasm/*',
           '@proj-airi/electron-screen-capture',
-
-          // Static Assets: Models, Images, etc.
-          'src/renderer/public/assets/*',
 
           // Live2D SDK
           '@framework/live2dcubismframework',

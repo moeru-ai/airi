@@ -1,17 +1,17 @@
-import type { Rectangle } from 'electron'
+import type { AiriDesktopDisplayBounds } from '../../eventa'
 
 /** Display geometry that is safe to use in main and renderer processes. */
 export interface DisplayArea {
   /** Full bounds used to decide which display owns a cross-screen window. */
-  bounds: Rectangle
+  bounds: AiriDesktopDisplayBounds
   /** Usable bounds that exclude the system menu bar, dock, or taskbar. */
-  workArea: Rectangle
+  workArea: AiriDesktopDisplayBounds
 }
 
 /**
  * Finds the display that owns the largest visible share of a window.
  */
-export function findDominantDisplayArea(bounds: Rectangle, displays: readonly DisplayArea[]): DisplayArea | undefined {
+export function findDominantDisplayArea(bounds: AiriDesktopDisplayBounds, displays: readonly DisplayArea[]): DisplayArea | undefined {
   let dominantDisplay: DisplayArea | undefined
   let dominantArea = -1
 
@@ -28,7 +28,7 @@ export function findDominantDisplayArea(bounds: Rectangle, displays: readonly Di
   return dominantDisplay
 }
 
-function intersectionArea(a: Rectangle, b: Rectangle): number {
+function intersectionArea(a: AiriDesktopDisplayBounds, b: AiriDesktopDisplayBounds): number {
   const left = Math.max(a.x, b.x)
   const top = Math.max(a.y, b.y)
   const right = Math.min(a.x + a.width, b.x + b.width)
