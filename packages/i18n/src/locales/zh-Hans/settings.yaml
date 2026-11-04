@@ -1615,6 +1615,8 @@ pages:
       loadMore: 更多信息
       delayHint: Flux 电量历史记录是缓慢更新的，可能有延迟
       ttsRequests: 请求
+      viewOrder: 查看订单
+      orderError: 无法打开订单，请重试。
     packages:
       title: Flux 电池包
       buy: 充值

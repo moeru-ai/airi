@@ -69,6 +69,7 @@ import { createFluxRoutes } from './routes/flux'
 import { createInternalAuthRoutes } from './routes/internal-auth'
 import { createLlmRequestRoutes } from './routes/llm-requests'
 import { createV1Routes } from './routes/openai/v1'
+import { createPaymentRoutes } from './routes/payments'
 import { createProviderRoutes } from './routes/providers'
 import { createRevenuecatRoutes } from './routes/revenuecat'
 import { createStripeRoutes } from './routes/stripe'
@@ -91,6 +92,7 @@ import { createFluxService } from './services/domain/flux'
 import { createFluxTransactionService } from './services/domain/flux-transaction'
 import { createConcurrencyLedger, createConfigSyncSubscriber, createLlmRouterService } from './services/domain/llm-router'
 import { createPaymentService } from './services/domain/payment'
+import { createPaymentReceiptService } from './services/domain/payment/receipt'
 import { createProductEventService } from './services/domain/product-events'
 import { createProviderCatalogService } from './services/domain/provider-catalog'
 import { createProviderService } from './services/domain/providers'
@@ -433,6 +435,7 @@ export async function buildApp(deps: AppDeps) {
      * Flux routes.
      */
     .route('/api/v1/flux', createFluxRoutes(deps.fluxService, deps.fluxTransactionService, deps.billingService))
+    .route('/api/v1/payments', createPaymentRoutes(createPaymentReceiptService(deps.db, deps.stripe)))
     .route('/api/v1/llm-requests', createLlmRequestRoutes(deps.requestLogService))
 
     /**

@@ -1,9 +1,10 @@
 import type { Database } from '../../libs/db'
 
 import { useLogger } from '@guiiai/logg'
-import { and, desc, eq, getTableColumns, inArray, sql } from 'drizzle-orm'
+import { and, desc, eq, getTableColumns, inArray, isNull, sql } from 'drizzle-orm'
 
 import { fluxUsage } from '../../schemas/flux-usage'
+import { paymentOrder } from '../../schemas/payment'
 
 import * as schema from '../../schemas/flux-transaction'
 
@@ -65,8 +66,9 @@ export function createFluxTransactionService(db: Database) {
         .as('history_transactions')
       const history = db.select({
         id: transactions.id,
+        requestId: transactions.requestId,
         type: transactions.type,
-        amount: sql`sum(${transactions.amount}) OVER (PARTITION BY ${transactions.groupKey})`.mapWith(Number).as('amount'),
+        amount: sql`sum(${transactions.amount}) OVER (PARTITION BY ${transactions.groupKey})`.mapWith(Number).as('total_amount'),
         description: transactions.description,
         metadata: transactions.metadata,
         createdAt: transactions.createdAt,
@@ -81,8 +83,16 @@ export function createFluxTransactionService(db: Database) {
         description: history.description,
         metadata: history.metadata,
         createdAt: history.createdAt,
+        paymentOrderId: paymentOrder.id,
       })
         .from(history)
+        .leftJoin(paymentOrder, and(
+          eq(history.type, 'credit'),
+          eq(paymentOrder.id, history.requestId),
+          eq(paymentOrder.userId, userId),
+          eq(paymentOrder.status, 'paid'),
+          isNull(paymentOrder.deletedAt),
+        ))
         .where(eq(history.position, 1))
         .orderBy(desc(history.createdAt), desc(history.id))
         .limit(limit + 1)
