@@ -7,6 +7,7 @@ import { computed, onScopeDispose, shallowRef } from 'vue'
 
 import {
   electronGetWindowControlsState,
+  electronWindowCenterSystemControls,
   electronWindowClose,
   electronWindowControlsStateChanged,
   electronWindowMinimize,
@@ -45,5 +46,7 @@ export const useWindowControls = createSharedComposable(() => {
     minimize: useElectronEventaInvoke(electronWindowMinimize),
     toggleMaximize: useElectronEventaInvoke(electronWindowToggleMaximize),
     close: useElectronEventaInvoke(electronWindowClose),
+    /** Centers the macOS traffic lights on a title bar that is not 44px high. Without `centerY`, it restores them. */
+    centerSystemControls: useElectronEventaInvoke(electronWindowCenterSystemControls),
   }
 })
