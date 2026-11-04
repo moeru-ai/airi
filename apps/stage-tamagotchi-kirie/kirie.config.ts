@@ -22,7 +22,7 @@ import { defineKirieConfig } from 'kirie'
 
 const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
 const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
-const rendererRoot = resolve(join(import.meta.dirname, 'src-web', 'src', 'renderer'))
+const rendererRoot = resolve(join(import.meta.dirname, 'src-web', 'src'))
 const settingsSearch = createSettingsSearch()
 
 // NOTICE:

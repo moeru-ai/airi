@@ -312,7 +312,7 @@ export interface NoticePendingPayload {
 }
 
 // Notice window contract. The Godot host mirrors these ids and payload shapes
-// in AiriDesktopEvents (src-godot/scripts/AiriDesktopContracts.cs).
+// in AiriDesktopEvents (src-godot/contracts/AiriDesktopContracts.cs).
 export const noticeWindowEventa = {
   openWindow: defineInvokeEventa<boolean, NoticeOpenPayload>('eventa:invoke:open:electron:windows:notice'),
   windowAction: defineInvokeEventa<void, { id: string, action: 'confirm' | 'cancel' | 'close' }>('eventa:invoke:action:electron:windows:notice'),

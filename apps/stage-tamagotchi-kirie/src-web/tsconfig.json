@@ -24,7 +24,7 @@
         "../../../packages/stage-layouts/src/*"
       ],
       "@proj-airi/stage-host-context": [
-        "./src/renderer/host-context/index.ts"
+        "./src/host-context/index.ts"
       ]
     },
     "resolveJsonModule": true,
@@ -47,14 +47,9 @@
     ]
   },
   "include": [
-    "src/renderer/**/*.ts",
-    "src/renderer/**/*.d.ts",
-    "src/renderer/**/*.tsx",
-    "src/renderer/**/*.vue",
-
-    "src/shared/**/*.ts",
-    "src/shared/**/*.d.ts",
-    "src/shared/**/*.tsx",
-    "src/shared/**/*.vue"
+    "src/**/*.ts",
+    "src/**/*.d.ts",
+    "src/**/*.tsx",
+    "src/**/*.vue"
   ]
 }

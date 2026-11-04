@@ -25,10 +25,13 @@ The Electron application and `engines/stage-tamagotchi-godot/` remain separate s
 
 | Path | Responsibility |
 | --- | --- |
-| [src-web/src/renderer](../src-web/src/renderer) | Renderer entry points, routes, and host adapters |
-| [src-web/src/shared](../src-web/src/shared) | AIRI Eventa contracts |
-| [src-godot/scripts](../src-godot/scripts) | C# services, window managers, permissions, and authentication |
-| [src-godot](../src-godot) | Native scenes |
+| [src-web/src](../src-web/src) | Renderer entry points, routes, and host adapters |
+| [src-web/src/host-context](../src-web/src/host-context) | Renderer adapters for host capabilities |
+| [src-web/src/shared](../src-web/src/shared) | AIRI Eventa contracts and host-independent geometry |
+| [src-godot/app](../src-godot/app) | Main scene, service composition, and renderer URLs |
+| [src-godot/contracts](../src-godot/contracts) | C# Eventa contracts that match `src-web/src/shared/eventa` |
+| [src-godot/windows](../src-godot/windows) | One folder for each native window, with its scene, scene script, and manager |
+| [src-godot/auth](../src-godot/auth), [src-godot/permissions](../src-godot/permissions), [src-godot/tray](../src-godot/tray) | Authentication, permission policy, and the system tray |
 | [kirie.config.ts](../kirie.config.ts) | Web build, aliases, routes, and enabled capability plugins |
 | [tests/StageTamagotchiKirie.Tests](../tests/StageTamagotchiKirie.Tests) | C# contract checks |
 
