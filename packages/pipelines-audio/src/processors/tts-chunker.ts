@@ -131,6 +131,17 @@ export async function* chunkTtsInput(
             continue
           }
           if (buffer.length === 0) {
+            if (value === '.' && following === '.' && next !== undefined) {
+              let afterDots = next
+              while (!afterDots.done && afterDots.value === '.')
+                afterDots = await iterator.next()
+
+              previousValue = value
+              current = afterDots
+              next = undefined
+              continue
+            }
+
             previousValue = value
             current = next
             next = undefined

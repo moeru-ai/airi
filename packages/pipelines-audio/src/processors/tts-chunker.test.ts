@@ -246,21 +246,23 @@ describe('tTS Chunker Logic Cleanup', () => {
 // https://github.com/moeru-ai/airi/issues/3345
 // ROOT CAUSE:
 //
-// A period at an empty buffer reads ahead for token or ellipsis checks.
-// The empty-buffer branch then advances again and drops the read-ahead grapheme.
+// A period reads ahead when no text is buffered.
+// If another period follows, it can look like a token prefix and leak into speech.
 //
-// Keep token continuations first, then reuse lookahead when a boundary has no buffered text.
+// Preserve single token periods, but skip empty-buffer dot runs.
 describe('chunkTtsInput punctuation lookahead (Issue #3345)', () => {
   it.each([
     { label: 'a leading period', input: '.NET is great.', expected: '.NET is great.' },
+    { label: 'a leading decimal point', input: '.5 is enough.', expected: '.5 is enough.' },
     { label: 'a period after hard punctuation', input: 'Really?.NET works.', expected: 'Really?.NET works.' },
-    { label: 'two periods after hard punctuation', input: 'Hmm!..No way.', expected: 'Hmm!.No way.' },
-  ])('preserves lookahead after an empty-buffer period: $label', async ({ input, expected }) => {
+    { label: 'two periods after hard punctuation', input: 'Hmm!..No way.', expected: 'Hmm!No way.' },
+    { label: 'three periods after hard punctuation', input: 'Hmm!...No way.', expected: 'Hmm!No way.' },
+  ])('handles lookahead after an empty-buffer period: $label', async ({ input, expected }) => {
     expect((await collectChunkText(input)).join('')).toBe(expected)
   })
 
-  it('preserves a special token after an empty-buffer period', async () => {
-    const chunks = await collectChunks(`Ok!.${TTS_SPECIAL_TOKEN}No.`)
+  it.each(['.', '..'])('preserves a special token after an empty-buffer period run: %s', async (periods) => {
+    const chunks = await collectChunks(`Ok!${periods}${TTS_SPECIAL_TOKEN}No.`)
 
     expect(chunks.map(chunk => chunk.reason)).toEqual(['hard', 'special', 'hard'])
     expect(chunks.map(chunk => chunk.text).join('')).toBe('Ok!No.')
