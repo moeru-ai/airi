@@ -92,6 +92,14 @@ Na sua máquina, o mesmo kit roda com o comando do `teste-app/README.md`.
 
 **Feita.** O LLM escolhe o emote pelo ACT `motion`, o prompt lista os emotes com descrição, e a configuração VRM importa VRMA. Testada com 16 testes novos e dentro do app: o VRMA importado `happy_spin` tocou quando o LLM o pediu. Detalhes no Planejamento 04, seção "Estado da V2".
 
+Verificações da V2:
+
+- `pnpm -F @proj-airi/stage-ui-three exec vitest run`: 13 arquivos, 69 testes, todos passam.
+- `pnpm -F @proj-airi/stage-ui exec vitest run` (Node 22): 2008 de 2009 passam. A falha é `chat.contract.test.ts`, porque o Node 22 não tem `navigator.locks`. Com o Node 26, esse arquivo passa (60 testes).
+- `pnpm -F @proj-airi/i18n exec vitest run`: 20 testes passam.
+- Typecheck do `stage-ui-three`, do `stage-ui` e do `stage-web`: sem erros.
+- Kit `teste-app/` no `stage-web` real: 9 de 9 verificações passam.
+
 Falta testar o app desktop. Lá, o chat e o palco podem rodar em janelas diferentes.
 
 ## 6. Próximos passos, na ordem do plano
