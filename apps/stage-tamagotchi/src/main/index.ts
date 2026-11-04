@@ -94,11 +94,6 @@ trustSystemCACertificates()
 
 const log = useLogg('main').useGlobalConfig()
 
-const appUserDataPath = env.APP_USER_DATA_PATH?.trim()
-if (appUserDataPath) {
-  app.setPath('userData', appUserDataPath)
-}
-
 // Thanks to [@blurymind](https://github.com/blurymind),
 //
 // When running Electron on Linux, navigator.gpu.requestAdapter() fails.

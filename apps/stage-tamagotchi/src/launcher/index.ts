@@ -3,6 +3,12 @@ import process from 'node:process'
 import config from 'virtual:ergosphere-it/config'
 
 import { startLauncher } from '@ergosphere-it/electron/launcher'
+import { app } from 'electron'
+
+// The launcher claims the instance lock before loading main. Select its profile before that claim.
+const appUserDataPath = process.env.APP_USER_DATA_PATH?.trim()
+if (appUserDataPath)
+  app.setPath('userData', appUserDataPath)
 
 /**
  * Flatpak and Nix installs use the build of the deb and rpm packages, so only the runtime can tell them. Their package
