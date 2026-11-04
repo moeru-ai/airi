@@ -4,20 +4,21 @@
  * and conservative target-binding preconditions.
  */
 
-import { randomUUID } from 'node:crypto'
-
 import type { InvocationAttribution } from './attribution'
 import type { AuvCommandClassification } from './classifier'
 
+import { randomUUID } from 'node:crypto'
+
+import { validateAttribution } from './attribution'
 import { classifyAuvCommand } from './classifier'
 
-export type PendingActionStatus =
-  | 'pending'
-  | 'approved'
-  | 'rejected'
-  | 'consumed'
-  | 'cancelled'
-  | 'expired'
+export type PendingActionStatus
+  = | 'pending'
+    | 'approved'
+    | 'rejected'
+    | 'consumed'
+    | 'cancelled'
+    | 'expired'
 
 export interface PendingActionSettlement {
   outcome: 'success' | 'failed'
@@ -109,9 +110,19 @@ export function verifyExecutionPreconditions(command: string, argv: readonly str
     )
   }
 
+  // A CLI flag alone does not prove that Windows input is delivered to that target.
+  // Keep input closed until the executor supplies a target-bound execution contract.
+  if (MUTATING_INPUT_COMMANDS.has(command))
+    throw new Error(`Target-bound input execution is not enabled for '${command}'.`)
+
   return { target }
 }
 
+/**
+ * Owns approval state. Queued actions remain approved and cancellable until execution consumes them.
+ * Consumed actions never regain approval and accept exactly one execution settlement.
+ * All public records are detached snapshots. Source, session, turn, call and arguments bind each approval.
+ */
 export class PendingActionManager {
   private actions = new Map<string, PendingAction>()
   private defaultTtlMs = 60_000 // 60 seconds
@@ -130,6 +141,11 @@ export class PendingActionManager {
     argv: readonly string[]
     ttlMs?: number
   }): PendingAction {
+    const attribution = validateAttribution(params.attribution, params.attribution.senderWebContentsId)
+    if (!attribution.turnId || !attribution.toolCallId || typeof attribution.senderWebContentsId !== 'number'
+      || !Number.isSafeInteger(attribution.senderWebContentsId) || attribution.senderWebContentsId <= 0) {
+      throw new Error('Pending actions require a session, turn, tool call and verified Electron sender.')
+    }
     const frozenArgv = Object.freeze([...params.argv])
     const classification = classifyAuvCommand(frozenArgv)
 
@@ -144,7 +160,7 @@ export class PendingActionManager {
 
     const action: PendingAction = {
       id,
-      attribution: { ...params.attribution },
+      attribution,
       argv: frozenArgv,
       classification,
       command,
@@ -155,17 +171,17 @@ export class PendingActionManager {
     }
 
     this.actions.set(id, action)
-    return action
+    return structuredClone(action)
   }
 
-  get(id: string): PendingAction | undefined {
+  private read(id: string): PendingAction | undefined {
     const action = this.actions.get(id)
     if (!action)
       return undefined
 
     // Automatic expiration check
     if (action.status === 'pending' || action.status === 'approved') {
-      if (Date.now() > action.expiresAt) {
+      if (Date.now() >= action.expiresAt) {
         action.status = 'expired'
       }
     }
@@ -173,11 +189,17 @@ export class PendingActionManager {
     return action
   }
 
+  /** Returns current approval state without exposing mutable host records. */
+  get(id: string): PendingAction | undefined {
+    const action = this.read(id)
+    return action ? structuredClone(action) : undefined
+  }
+
   /**
    * Approves a pending action.
    */
   approve(id: string): PendingAction {
-    const action = this.get(id)
+    const action = this.read(id)
     if (!action) {
       throw new Error(`Pending action '${id}' not found.`)
     }
@@ -191,14 +213,14 @@ export class PendingActionManager {
     }
 
     action.status = 'approved'
-    return action
+    return structuredClone(action)
   }
 
   /**
    * Rejects a pending action.
    */
   reject(id: string, reason?: string): PendingAction {
-    const action = this.get(id)
+    const action = this.read(id)
     if (!action) {
       throw new Error(`Pending action '${id}' not found.`)
     }
@@ -213,21 +235,20 @@ export class PendingActionManager {
       error: reason ?? 'Rejected by human reviewer',
       settledAt: Date.now(),
     }
-    return action
+    return structuredClone(action)
   }
 
   /**
    * Cancels a pending action (e.g. task aborted or session closed).
    */
   cancel(id: string, reason?: string): PendingAction {
-    const action = this.get(id)
+    const action = this.read(id)
     if (!action) {
       throw new Error(`Pending action '${id}' not found.`)
     }
 
-    if (action.status === 'consumed') {
-      throw new Error(`Pending action '${id}' cannot be cancelled: already consumed.`)
-    }
+    if (action.status !== 'pending' && action.status !== 'approved')
+      throw new Error(`Pending action '${id}' cannot be cancelled: current status is '${action.status}'.`)
 
     action.status = 'cancelled'
     action.settlement = {
@@ -235,26 +256,18 @@ export class PendingActionManager {
       error: reason ?? 'Cancelled',
       settledAt: Date.now(),
     }
-    return action
+    return structuredClone(action)
   }
 
-  /**
-   * Atomically consumes an approved PendingAction for execution.
-   * Enforces:
-   * 1. Status is 'approved' (single-use: transitions to 'consumed').
-   * 2. Not expired.
-   * 3. Parameter match: request argv must strictly match approved argv.
-   * 4. Attribution match: session ID must strictly match approved session ID.
-   * 5. Execution preconditions: unbound foreground operations rejected.
-   */
-  consume(
+  /** Checks approval state, expiry, exact request origin, arguments and executor admission without changing consumption state. */
+  private validateAction(
     id: string,
     request: {
       argv: readonly string[]
       attribution: InvocationAttribution
     },
   ): PendingAction {
-    const action = this.get(id)
+    const action = this.read(id)
     if (!action) {
       throw new Error(`Pending action '${id}' not found.`)
     }
@@ -297,12 +310,27 @@ export class PendingActionManager {
       )
     }
 
+    for (const field of ['turnId', 'toolCallId', 'senderWebContentsId'] as const) {
+      if (action.attribution[field] !== request.attribution[field])
+        throw new Error(`Pending action '${id}' attribution mismatch: ${field} differs from the approved request.`)
+    }
+
     // 3. Execution preconditions check (conservative target check)
     verifyExecutionPreconditions(action.command, action.argv)
 
-    // 4. Atomic single-use consumption transition
-    action.status = 'consumed'
     return action
+  }
+
+  /** Checks admission before queueing without consuming or reserving the approval. */
+  validate(id: string, request: { argv: readonly string[], attribution: InvocationAttribution }): void {
+    this.validateAction(id, request)
+  }
+
+  /** Rechecks expiry, provenance and arguments at execution start, then consumes once without awaiting. */
+  consume(id: string, request: { argv: readonly string[], attribution: InvocationAttribution }): PendingAction {
+    const action = this.validateAction(id, request)
+    action.status = 'consumed'
+    return structuredClone(action)
   }
 
   /**
@@ -310,23 +338,20 @@ export class PendingActionManager {
    */
   settle(id: string, outcome: { outcome: 'success' | 'failed', exitCode?: number, error?: string }): void {
     const action = this.actions.get(id)
-    if (action) {
-      action.settlement = {
-        ...outcome,
-        settledAt: Date.now(),
-      }
-    }
+    if (!action || action.status !== 'consumed' || action.settlement)
+      throw new Error(`Pending action '${id}' must be consumed and unsettled before settlement.`)
+    action.settlement = { ...outcome, settledAt: Date.now() }
   }
 
-  /**
-   * Cancels all pending/approved actions belonging to a given session ID (e.g. request aborted or session reset).
-   * Returns the count of cancelled actions.
-   */
-  cancelBySessionId(sessionId: string, reason?: string): number {
+  /** Cancels waiting actions of this source and turn. Other turns and committed executions retain their state. */
+  cancelInvocation(attribution: InvocationAttribution, reason?: string): number {
     const now = Date.now()
     let count = 0
     for (const action of this.actions.values()) {
-      if (action.attribution.sessionId === sessionId && (action.status === 'pending' || action.status === 'approved')) {
+      if (action.attribution.sessionId === attribution.sessionId
+        && action.attribution.turnId === attribution.turnId
+        && action.attribution.senderWebContentsId === attribution.senderWebContentsId
+        && (action.status === 'pending' || action.status === 'approved')) {
         action.status = 'cancelled'
         action.settlement = {
           outcome: 'failed',
@@ -337,6 +362,14 @@ export class PendingActionManager {
       }
     }
     return count
+  }
+
+  /** Invalidates waiting approvals when their renderer is destroyed. In-flight work retains its real settlement. */
+  cancelBySender(senderWebContentsId: number): void {
+    for (const action of this.actions.values()) {
+      if (action.attribution.senderWebContentsId === senderWebContentsId && (action.status === 'pending' || action.status === 'approved'))
+        this.cancel(action.id, 'Source renderer closed')
+    }
   }
 
   /**

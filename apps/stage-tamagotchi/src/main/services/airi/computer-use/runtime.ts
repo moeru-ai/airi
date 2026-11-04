@@ -3,7 +3,6 @@ import type { AuvDaemon } from '@auv-js/sdk/node'
 import type { ComputerUseResult } from '../../../../shared/eventa/computer-use'
 import type { PendingActionManager } from './action-manager'
 import type { InvocationAttribution } from './attribution'
-import type { AuvCommandClassification } from './classifier'
 
 import process from 'node:process'
 
@@ -13,6 +12,7 @@ import { isAbsolute, relative, sep } from 'node:path'
 import { promisify } from 'node:util'
 
 import { startAuv } from '@auv-js/sdk/node'
+import { errorMessageFrom } from '@moeru/std'
 import { fileTypeFromBuffer } from 'file-type'
 
 import * as v from 'valibot'
@@ -55,15 +55,6 @@ export interface ComputerUseRuntimeOptions {
    * Defaults to true (Fail-Closed).
    */
   requireAttribution?: boolean
-  /**
-   * Fallback authorization hook when actionManager is not supplied.
-   */
-  authorizeMutation?: (context: {
-    argv: readonly string[]
-    classification: AuvCommandClassification
-    attribution?: InvocationAttribution
-    actionId?: string
-  }) => boolean
 }
 
 /** Owns one private daemon and serializes desktop operations across renderer windows. */
@@ -106,7 +97,7 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
   async function run(input: unknown, callerWebContentsId?: number): Promise<ComputerUseResult> {
     const parsed = v.parse(inputSchema, input)
 
-    // 1. Immutable snapshot to eliminate TOCTOU across queueing and asynchronous execution.
+    // Snapshot caller arguments before the queue wait.
     const validatedArgv = Object.freeze([...parsed.argv])
 
     // 2. The host owns routing and artifact storage. CLI global flags must not replace them.
@@ -125,9 +116,11 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
     if (parsed.attribution) {
       attribution = validateAttribution(parsed.attribution, callerWebContentsId)
     }
-    else if (!classification.isHelp && options.requireAttribution === true) {
+    else if (!classification.isHelp && options.requireAttribution !== false) {
       throw new Error('Invocation attribution is required (missing sessionId).')
     }
+    if (!classification.isHelp && options.requireAttribution !== false && (!attribution?.turnId || !attribution.toolCallId))
+      throw new Error('Invocation attribution requires the original turn ID and tool-call ID.')
 
     // 5. Host Authorization & PendingAction enforcement for mutating commands
     if (classification.category === 'mutating') {
@@ -140,85 +133,92 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
         if (!attribution) {
           throw new Error('Invocation attribution is required (missing sessionId).')
         }
-        // Atomically consumes the approved action, validating parameter match, attribution match,
-        // and execution preconditions (rejecting unbound mutations).
-        options.actionManager.consume(parsed.actionId, {
+        // Reject invalid approvals before they can wait behind another operation.
+        options.actionManager.validate(parsed.actionId, {
           argv: validatedArgv,
           attribution,
         })
       }
       else {
-        const isAuthorized = options.authorizeMutation?.({
-          argv: validatedArgv,
-          classification,
-          attribution,
-          actionId: parsed.actionId,
-        }) ?? false
-
-        if (!isAuthorized) {
-          throw new Error(`Mutating desktop operation '${classification.command ?? 'unknown'}' is not authorized on this host.`)
-        }
+        throw new Error(`Mutating desktop operation '${classification.command ?? 'unknown'}' is not authorized on this host.`)
       }
     }
 
     // 6. Authorized or read-only execution: enters queue and runs via AUV daemon.
     return enqueue(async () => {
-      const active = await connect()
-      const command = [...validatedArgv]
-      if (!command.includes('--json') && !isComputerUseHelpCall(command))
-        command.push('--json')
-      command.push('--store-root', options.storeRoot)
-      let stdout: string
-      let stderr: string
-      let exitCode = 0
-      const credential = active.connectionOptions.credential
-      if (!credential)
-        throw new Error('AUV did not issue a launcher token.')
+      let consumedActionId: string | undefined
       try {
-        // Send the launcher token on stdin. Other processes of the same user can read argv and the environment.
-        const pending = execFileAsync(options.binaryPath, ['--credential-stdin', ...command], {
-          // connectionOptions.endpoint is a bare socket path. The CLI needs the URI form from endpoints.
-          env: { ...process.env, AUV_ENDPOINT: active.endpoints[0], AUV_CONTEXT: undefined },
-          encoding: 'utf8',
-          timeout: 120000,
-          maxBuffer: 4 * 1024 * 1024,
-          windowsHide: true,
-          signal: abort.signal,
-        })
-        // A CLI that exits before it reads stdin must not raise EPIPE as an unhandled error.
-        pending.child.stdin?.on('error', () => {})
-        pending.child.stdin?.end(`${credential}\n`)
-        ;({ stdout, stderr } = await pending)
+        // Queue wait is outside the execution commitment. Cancellation and expiry remain effective until this point.
+        if (classification.category === 'mutating' && options.actionManager && parsed.actionId && attribution) {
+          options.actionManager.consume(parsed.actionId, { argv: validatedArgv, attribution })
+          consumedActionId = parsed.actionId
+        }
+        const active = await connect()
+        const command = [...validatedArgv]
+        if (!command.includes('--json') && !isComputerUseHelpCall(command))
+          command.push('--json')
+        command.push('--store-root', options.storeRoot)
+        let stdout: string
+        let stderr: string
+        let exitCode = 0
+        const credential = active.connectionOptions.credential
+        if (!credential)
+          throw new Error('AUV did not issue a launcher token.')
+        try {
+          // Send the launcher token on stdin. Other processes of the same user can read argv and the environment.
+          const pending = execFileAsync(options.binaryPath, ['--credential-stdin', ...command], {
+            // connectionOptions.endpoint is a bare socket path. The CLI needs the URI form from endpoints.
+            env: { ...process.env, AUV_ENDPOINT: active.endpoints[0], AUV_CONTEXT: undefined },
+            encoding: 'utf8',
+            timeout: 120000,
+            maxBuffer: 4 * 1024 * 1024,
+            windowsHide: true,
+            signal: abort.signal,
+          })
+          // A CLI that exits before it reads stdin must not raise EPIPE as an unhandled error.
+          pending.child.stdin?.on('error', () => {})
+          pending.child.stdin?.end(`${credential}\n`)
+          ;({ stdout, stderr } = await pending)
+        }
+        catch (error) {
+          // Nonzero exits carry AUV's failure_details. Spawn failures and timeouts throw.
+          if (!(error instanceof Error) || !('code' in error) || typeof error.code !== 'number'
+            || ('killed' in error && error.killed) || !('stdout' in error) || typeof error.stdout !== 'string'
+            || !('stderr' in error) || typeof error.stderr !== 'string') {
+            throw error
+          }
+          exitCode = error.code
+          stdout = error.stdout
+          stderr = error.stderr
+        }
+
+        // Settle action in actionManager if an actionId was consumed
+        if (consumedActionId && options.actionManager) {
+          options.actionManager.settle(consumedActionId, {
+            outcome: exitCode === 0 ? 'success' : 'failed',
+            exitCode,
+            error: exitCode === 0 ? undefined : stderr,
+          })
+        }
+
+        let output: unknown = stdout.trim()
+        try {
+          output = JSON.parse(stdout)
+        }
+        catch {
+          // Help output is text. Keep it intact for command discovery.
+        }
+        return { argv: [...validatedArgv], exitCode, output, stderr }
       }
       catch (error) {
-        // Nonzero exits carry AUV's failure_details. Spawn failures and timeouts throw.
-        if (!(error instanceof Error) || !('code' in error) || typeof error.code !== 'number'
-          || ('killed' in error && error.killed) || !('stdout' in error) || typeof error.stdout !== 'string'
-          || !('stderr' in error) || typeof error.stderr !== 'string') {
-          throw error
+        if (consumedActionId && options.actionManager && !options.actionManager.get(consumedActionId)?.settlement) {
+          options.actionManager.settle(consumedActionId, {
+            outcome: 'failed',
+            error: errorMessageFrom(error) ?? 'Computer use execution failed.',
+          })
         }
-        exitCode = error.code
-        stdout = error.stdout
-        stderr = error.stderr
+        throw error
       }
-
-      // Settle action in actionManager if an actionId was consumed
-      if (parsed.actionId && options.actionManager) {
-        options.actionManager.settle(parsed.actionId, {
-          outcome: exitCode === 0 ? 'success' : 'failed',
-          exitCode,
-          error: exitCode === 0 ? undefined : stderr,
-        })
-      }
-
-      let output: unknown = stdout.trim()
-      try {
-        output = JSON.parse(stdout)
-      }
-      catch {
-        // Help output is text. Keep it intact for command discovery.
-      }
-      return { argv: [...validatedArgv], exitCode, output, stderr }
     })
   }
 
@@ -226,12 +226,26 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
     const { path, attribution: rawAttribution } = v.parse(readImageSchema, input)
 
     if (rawAttribution) {
-      validateAttribution(rawAttribution, callerWebContentsId)
+      const attribution = validateAttribution(rawAttribution, callerWebContentsId)
+      if (options.requireAttribution !== false && (!attribution.turnId || !attribution.toolCallId))
+        throw new Error('Invocation attribution requires the original turn ID and tool-call ID.')
     }
-    else if (options.requireAttribution === true) {
+    else if (options.requireAttribution !== false) {
       throw new Error('Invocation attribution is required (missing sessionId).')
     }
 
+    return readScreenshot(path)
+  }
+
+  /** Reads history previews for an Electron caller under the shared local artifact policy, without fabricating a session. */
+  async function previewImage(input: unknown, callerWebContentsId?: number): Promise<string> {
+    if (typeof callerWebContentsId !== 'number' || !Number.isSafeInteger(callerWebContentsId) || callerWebContentsId <= 0)
+      throw new Error('Screenshot previews require a verified Electron sender.')
+    const { path } = v.parse(v.object({ path: v.string() }), input)
+    return readScreenshot(path)
+  }
+
+  function readScreenshot(path: string): Promise<string> {
     return enqueue(async () => {
       const root = await realpath(options.storeRoot)
       const target = await realpath(path)
@@ -267,5 +281,5 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
     await daemon?.stop()
   }
 
-  return { run, readImage, dispose }
+  return { run, readImage, previewImage, dispose }
 }

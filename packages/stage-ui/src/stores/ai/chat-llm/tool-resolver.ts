@@ -156,22 +156,23 @@ async function resolveWebSearchTools(webSearchTools?: ToolSource): Promise<Tool[
  * Binds request-level provenance (sessionId, turnId) into the tool's execution closure,
  * merging the actual model toolCallId from execution options at runtime.
  */
-export function withToolAttribution(tool: Tool, attribution?: ToolAttributionContext): Tool {
+function withToolAttribution(tool: Tool, attribution?: ToolAttributionContext): Tool {
   if (!attribution || !tool.execute)
     return tool
 
+  const request = { ...attribution }
   return {
     ...tool,
     execute: (input, options) => {
       const mergedOptions = {
         ...options,
         attribution: {
-          sessionId: attribution.sessionId,
-          turnId: attribution.turnId,
+          sessionId: request.sessionId,
+          turnId: request.turnId,
           toolCallId: options?.toolCallId,
         },
       }
-      return tool.execute(input, mergedOptions as Parameters<NonNullable<Tool['execute']>>[1])
+      return tool.execute(input, mergedOptions)
     },
   }
 }
@@ -211,9 +212,7 @@ export async function resolveLlmTools(options: ResolveLlmToolsOptions = {}): Pro
       ...activeTools,
     ].toReversed(),
     tool => toolNameFrom(tool) ?? tool,
-  ).toReversed()
-    .map(tool => withToolAttribution(tool, options.attribution))
-    .map(withCallSummary)
+  ).toReversed().map(tool => withToolAttribution(tool, options.attribution)).map(withCallSummary)
 
   const describeImage = options.describeImage
   return describeImage ? tools.map(tool => withDescribedImages(tool, describeImage)) : tools

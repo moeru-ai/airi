@@ -3,8 +3,7 @@ import type { MaybeRefOrGetter } from 'vue'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { reactive, toValue, watch } from 'vue'
 
-import type { InvocationAttributionPayload } from '../../../shared/eventa/computer-use'
-import { computerUseReadImage } from '../../../shared/eventa/computer-use'
+import { computerUsePreviewImage } from '../../../shared/eventa/computer-use'
 
 /**
  * Reads screenshot files from AIRI computer use storage for a tool call widget.
@@ -12,14 +11,11 @@ import { computerUseReadImage } from '../../../shared/eventa/computer-use'
  * `paths` is `undefined` when the widget has no screenshot to read.
  * Returns a map from each path to its image as a data URL. A file that cannot be read has no entry, so its widget shows no image.
  */
-export function useComputerUseScreenshots(
-  paths: MaybeRefOrGetter<string[] | undefined>,
-  attribution?: MaybeRefOrGetter<InvocationAttributionPayload | undefined>,
-) {
-  const readImage = useElectronEventaInvoke(computerUseReadImage)
+export function useComputerUseScreenshots(paths: MaybeRefOrGetter<string[] | undefined>) {
+  const readImage = useElectronEventaInvoke(computerUsePreviewImage)
   const images = reactive(new Map<string, string>())
 
-  watch([() => toValue(paths), () => toValue(attribution)], async ([next, attr]) => {
+  watch(() => toValue(paths), async (next) => {
     const wanted = next ?? []
     // A rerun replaces the paths. The screenshots of earlier paths leave the map, so they do not stay in memory.
     for (const path of images.keys()) {
@@ -30,10 +26,7 @@ export function useComputerUseScreenshots(
       if (images.has(path))
         continue
       try {
-        const image = await readImage({
-          path,
-          attribution: attr ?? { sessionId: 'renderer-preview' },
-        })
+        const image = await readImage({ path })
         // A read that ends after the paths changed belongs to an earlier result.
         if (toValue(paths)?.includes(path))
           images.set(path, image)

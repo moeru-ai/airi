@@ -18,7 +18,7 @@ describe('computer use runtime', () => {
   beforeEach(async () => {
     directory = await mkdtemp(join(tmpdir(), 'airi-cu-test-'))
     await mkdir(join(directory, 'store'))
-    runtime = createComputerUseRuntime({ binaryPath: binaryPath(), storeRoot: join(directory, 'store') })
+    runtime = createComputerUseRuntime({ binaryPath: binaryPath(), storeRoot: join(directory, 'store'), requireAttribution: false })
   })
   afterEach(async () => {
     await runtime.dispose()
@@ -33,6 +33,12 @@ describe('computer use runtime', () => {
     await expect(runtime.run({ argv: ['invoke', 'window.list', '--credential-stdin'] })).rejects.toThrow('managed by AIRI')
     await expect(runtime.run({ argv: ['invoke', 'scan.frame'] })).rejects.toThrow('Use invoke')
     await expect(runtime.run({ argv: ['invoke', 5] })).rejects.toThrow()
+  })
+
+  it('requires attribution by default before starting a read-only command', async () => {
+    const strictRuntime = createComputerUseRuntime({ binaryPath: binaryPath(), storeRoot: join(directory, 'store') })
+    await expect(strictRuntime.run({ argv: ['invoke', 'window.list'] })).rejects.toThrow(/attribution is required/)
+    await strictRuntime.dispose()
   })
 
   it('reads screenshot bytes and rejects non-images and paths outside the artifact store', async () => {

@@ -24,11 +24,11 @@ export function createWindowIpc(ipcMain: EventEmitter) {
   const rendererIpc = new EventEmitter()
   const window = Object.assign(new EventEmitter(), {
     isDestroyed: () => false,
-    webContents: {
+    webContents: Object.assign(new EventEmitter(), {
       id: nextWebContentsId++,
       isDestroyed: () => false,
       send: (channel: string, payload: unknown) => rendererIpc.emit(channel, {}, payload),
-    },
+    }),
   })
   const ipcRenderer = {
     on: (channel: string, listener: (...args: unknown[]) => void) => {

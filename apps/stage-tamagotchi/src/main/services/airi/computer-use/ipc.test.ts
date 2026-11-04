@@ -36,7 +36,12 @@ vi.mock('@auv-js/sdk/node', async (importOriginal) => {
     ...actual,
     startAuv: (...args: Parameters<typeof actual.startAuv>) => {
       sdkMock.startAuv(...args)
-      return actual.startAuv(...args)
+      return {
+        connectionOptions: { credential: 'test-launcher-token' },
+        endpoints: ['ipc://test-unavailable-auv'],
+        exited: new Promise(() => {}),
+        stop: vi.fn(),
+      }
     },
   }
 })
@@ -48,6 +53,11 @@ describe('computer use Electron Main IPC host enforcement gate & attribution con
   let actionManager: PendingActionManager
   let runViaIpc: (input: ComputerUseRunInput) => Promise<ComputerUseResult>
   let readImageViaIpc: (input: ComputerUseReadImageInput) => Promise<string>
+  let senderWebContentsId: number
+
+  function origin(sessionId: string) {
+    return { sessionId, turnId: 'turn-a', toolCallId: 'call-a', senderWebContentsId }
+  }
 
   beforeEach(async () => {
     vi.clearAllMocks()
@@ -69,7 +79,8 @@ describe('computer use Electron Main IPC host enforcement gate & attribution con
     actionManager = registered.actionManager
 
     // Simulated renderer process context
-    const { context: rendererContext } = createWindowIpc(ipcMain)
+    const { context: rendererContext, window } = createWindowIpc(ipcMain)
+    senderWebContentsId = window.webContents.id
     runViaIpc = defineInvoke(rendererContext, computerUseRun)
     readImageViaIpc = defineInvoke(rendererContext, computerUseReadImage)
   })
@@ -82,9 +93,9 @@ describe('computer use Electron Main IPC host enforcement gate & attribution con
   it('rejects mutating commands when actionId is missing (Fail-Closed) and executes zero CLI processes', async () => {
     await expect(runViaIpc({
       argv: ['invoke', 'input.clickPoint', '100', '200', '--target', 'app:notepad'],
-      attribution: { sessionId: 'session-alpha' },
+      attribution: origin('session-alpha'),
     })).rejects.toThrow(
-      "Mutating desktop operation 'input.clickPoint' requires an approved action (actionId missing).",
+      'Mutating desktop operation \'input.clickPoint\' requires an approved action (actionId missing).',
     )
     expect(sdkMock.startAuv).not.toHaveBeenCalled()
   })
@@ -111,14 +122,14 @@ describe('computer use Electron Main IPC host enforcement gate & attribution con
 
   it('rejects unapproved pending actions and executes zero CLI processes', async () => {
     const action = actionManager.createPendingAction({
-      attribution: { sessionId: 'session-alpha' },
+      attribution: origin('session-alpha'),
       argv: ['invoke', 'input.clickPoint', '100', '200', '--target', 'app:notepad'],
     })
 
     await expect(runViaIpc({
       argv: [...action.argv],
       actionId: action.id,
-      attribution: { sessionId: 'session-alpha' },
+      attribution: origin('session-alpha'),
     })).rejects.toThrow(
       `Pending action '${action.id}' has not been approved.`,
     )
@@ -127,7 +138,7 @@ describe('computer use Electron Main IPC host enforcement gate & attribution con
 
   it('rejects cancelled actions and executes zero CLI processes', async () => {
     const action = actionManager.createPendingAction({
-      attribution: { sessionId: 'session-alpha' },
+      attribution: origin('session-alpha'),
       argv: ['invoke', 'input.clickPoint', '100', '200', '--target', 'app:notepad'],
     })
     actionManager.cancel(action.id, 'Task cancelled by user')
@@ -135,7 +146,7 @@ describe('computer use Electron Main IPC host enforcement gate & attribution con
     await expect(runViaIpc({
       argv: [...action.argv],
       actionId: action.id,
-      attribution: { sessionId: 'session-alpha' },
+      attribution: origin('session-alpha'),
     })).rejects.toThrow(
       `Pending action '${action.id}' was cancelled.`,
     )
@@ -144,7 +155,7 @@ describe('computer use Electron Main IPC host enforcement gate & attribution con
 
   it('rejects expired actions when TTL has elapsed', async () => {
     const action = actionManager.createPendingAction({
-      attribution: { sessionId: 'session-alpha' },
+      attribution: origin('session-alpha'),
       argv: ['invoke', 'input.clickPoint', '100', '200', '--target', 'app:notepad'],
       ttlMs: 5, // 5ms TTL
     })
@@ -156,7 +167,7 @@ describe('computer use Electron Main IPC host enforcement gate & attribution con
     await expect(runViaIpc({
       argv: [...action.argv],
       actionId: action.id,
-      attribution: { sessionId: 'session-alpha' },
+      attribution: origin('session-alpha'),
     })).rejects.toThrow(
       `Pending action '${action.id}' has expired.`,
     )
@@ -165,7 +176,7 @@ describe('computer use Electron Main IPC host enforcement gate & attribution con
 
   it('rejects parameter changes: approved action cannot be reused with altered parameters', async () => {
     const action = actionManager.createPendingAction({
-      attribution: { sessionId: 'session-alpha' },
+      attribution: origin('session-alpha'),
       argv: ['invoke', 'input.clickPoint', '100', '200', '--target', 'app:notepad'],
     })
     actionManager.approve(action.id)
@@ -174,7 +185,7 @@ describe('computer use Electron Main IPC host enforcement gate & attribution con
     await expect(runViaIpc({
       argv: ['invoke', 'input.clickPoint', '999', '999', '--target', 'app:notepad'],
       actionId: action.id,
-      attribution: { sessionId: 'session-alpha' },
+      attribution: origin('session-alpha'),
     })).rejects.toThrow(
       `Pending action '${action.id}' parameter mismatch: approved arguments do not match requested execution arguments.`,
     )
@@ -183,7 +194,7 @@ describe('computer use Electron Main IPC host enforcement gate & attribution con
 
   it('enforces single-use atomic consumption: duplicate execution attempt is rejected', async () => {
     const mutatingAction = actionManager.createPendingAction({
-      attribution: { sessionId: 'session-alpha' },
+      attribution: origin('session-alpha'),
       argv: ['invoke', 'app.activate', 'Calculator'],
     })
     actionManager.approve(mutatingAction.id)
@@ -192,7 +203,7 @@ describe('computer use Electron Main IPC host enforcement gate & attribution con
     const firstResult = await runViaIpc({
       argv: [...mutatingAction.argv],
       actionId: mutatingAction.id,
-      attribution: { sessionId: 'session-alpha' },
+      attribution: origin('session-alpha'),
     })
     expect(firstResult).toBeDefined()
     expect(sdkMock.startAuv).toHaveBeenCalledTimes(1)
@@ -201,7 +212,7 @@ describe('computer use Electron Main IPC host enforcement gate & attribution con
     await expect(runViaIpc({
       argv: [...mutatingAction.argv],
       actionId: mutatingAction.id,
-      attribution: { sessionId: 'session-alpha' },
+      attribution: origin('session-alpha'),
     })).rejects.toThrow(
       `Pending action '${mutatingAction.id}' has already been consumed (replay rejected).`,
     )
@@ -211,11 +222,11 @@ describe('computer use Electron Main IPC host enforcement gate & attribution con
 
   it('isolates concurrent sessions: Session A cannot consume an action authorized for Session B', async () => {
     const actionA = actionManager.createPendingAction({
-      attribution: { sessionId: 'session-alpha' },
+      attribution: origin('session-alpha'),
       argv: ['invoke', 'app.activate', 'TextEdit'],
     })
     const actionB = actionManager.createPendingAction({
-      attribution: { sessionId: 'session-beta' },
+      attribution: origin('session-beta'),
       argv: ['invoke', 'app.activate', 'Terminal'],
     })
 
@@ -226,7 +237,7 @@ describe('computer use Electron Main IPC host enforcement gate & attribution con
     await expect(runViaIpc({
       argv: [...actionB.argv],
       actionId: actionB.id,
-      attribution: { sessionId: 'session-alpha' },
+      attribution: origin('session-alpha'),
     })).rejects.toThrow(
       `Pending action '${actionB.id}' attribution mismatch: action was authorized for session 'session-beta', but requested by session 'session-alpha'.`,
     )
@@ -236,7 +247,7 @@ describe('computer use Electron Main IPC host enforcement gate & attribution con
     const resultB = await runViaIpc({
       argv: [...actionB.argv],
       actionId: actionB.id,
-      attribution: { sessionId: 'session-beta' },
+      attribution: origin('session-beta'),
     })
     expect(resultB).toBeDefined()
     expect(sdkMock.startAuv).toHaveBeenCalledTimes(1)
@@ -245,7 +256,7 @@ describe('computer use Electron Main IPC host enforcement gate & attribution con
   it('conservative precondition: rejects unbound foreground input mutations without explicit target', async () => {
     // Unbound input.typeText without --target
     const unboundAction = actionManager.createPendingAction({
-      attribution: { sessionId: 'session-alpha' },
+      attribution: origin('session-alpha'),
       argv: ['invoke', 'input.typeText', 'dangerous text'],
     })
     actionManager.approve(unboundAction.id)
@@ -253,9 +264,9 @@ describe('computer use Electron Main IPC host enforcement gate & attribution con
     await expect(runViaIpc({
       argv: [...unboundAction.argv],
       actionId: unboundAction.id,
-      attribution: { sessionId: 'session-alpha' },
+      attribution: origin('session-alpha'),
     })).rejects.toThrow(
-      "Precondition failed: Mutating operation 'input.typeText' is rejected: operation is unbound from an explicit target window or app (--target is required).",
+      'Precondition failed: Mutating operation \'input.typeText\' is rejected: operation is unbound from an explicit target window or app (--target is required).',
     )
     expect(sdkMock.startAuv).not.toHaveBeenCalled()
   })
@@ -263,7 +274,7 @@ describe('computer use Electron Main IPC host enforcement gate & attribution con
   it('does NOT block read-only operations while an approval action is pending', async () => {
     // Create an action that stays pending
     const pendingAction = actionManager.createPendingAction({
-      attribution: { sessionId: 'session-alpha' },
+      attribution: origin('session-alpha'),
       argv: ['invoke', 'app.activate', 'Notepad'],
     })
     expect(actionManager.get(pendingAction.id)?.status).toBe('pending')
@@ -271,7 +282,7 @@ describe('computer use Electron Main IPC host enforcement gate & attribution con
     // Concurrently, a read-only request is dispatched
     const helpResult = await runViaIpc({
       argv: ['invoke', 'window.list', '--help'],
-      attribution: { sessionId: 'session-alpha' },
+      attribution: origin('session-alpha'),
     })
 
     expect(helpResult.exitCode).toBe(0)
@@ -283,7 +294,7 @@ describe('computer use Electron Main IPC host enforcement gate & attribution con
 
   it('invalidates all pending and approved actions on host shutdown', async () => {
     const action = actionManager.createPendingAction({
-      attribution: { sessionId: 'session-alpha' },
+      attribution: origin('session-alpha'),
       argv: ['invoke', 'app.activate', 'Notepad'],
     })
     actionManager.approve(action.id)
@@ -298,7 +309,7 @@ describe('computer use Electron Main IPC host enforcement gate & attribution con
     await expect(runViaIpc({
       argv: [...action.argv],
       actionId: action.id,
-      attribution: { sessionId: 'session-alpha' },
+      attribution: origin('session-alpha'),
     })).rejects.toThrow('Computer use has stopped.')
   })
 
@@ -315,7 +326,7 @@ describe('computer use Electron Main IPC host enforcement gate & attribution con
     // 2. With valid attribution: succeeds
     const dataUrl = await readImageViaIpc({
       path: screenshotPath,
-      attribution: { sessionId: 'session-alpha' },
+      attribution: origin('session-alpha'),
     })
     expect(dataUrl).toBe(`data:image/png;base64,${imageBytes.toString('base64')}`)
   })

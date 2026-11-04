@@ -1,15 +1,7 @@
-/**
- * Trusted Invocation Attribution for AIRI computer-use.
- * Tracks session, turn, and tool-call provenance across IPC boundaries.
- */
+import type { InvocationAttributionPayload } from '../../../../shared/eventa/computer-use'
 
-export interface InvocationAttribution {
-  /** Chat session or conversation ID. Required for provenance. */
-  sessionId: string
-  /** Turn ID within the session. */
-  turnId?: string
-  /** Model-issued tool call ID. */
-  toolCallId?: string
+/** Renderer correlation plus the independently observed Electron source. Correlation is not authentication. */
+export interface InvocationAttribution extends InvocationAttributionPayload {
   /** Electron WebContents sender ID (verified by host IPC event sender). */
   senderWebContentsId?: number
 }
@@ -34,13 +26,13 @@ export function validateAttribution(
     throw new Error('Invalid invocation attribution: sessionId must be a non-empty string.')
   }
 
-  const turnId = typeof candidate.turnId === 'string' && candidate.turnId.trim().length > 0
-    ? candidate.turnId.trim()
-    : undefined
-
-  const toolCallId = typeof candidate.toolCallId === 'string' && candidate.toolCallId.trim().length > 0
-    ? candidate.toolCallId.trim()
-    : undefined
+  for (const field of ['turnId', 'toolCallId'] as const) {
+    const value = candidate[field]
+    if (value !== undefined && (typeof value !== 'string' || !value.trim() || value.includes('\0')))
+      throw new Error(`Invalid invocation attribution: ${field} must be a non-empty string.`)
+  }
+  const turnId = (candidate.turnId as string | undefined)?.trim()
+  const toolCallId = (candidate.toolCallId as string | undefined)?.trim()
 
   return {
     sessionId: sessionId.trim(),

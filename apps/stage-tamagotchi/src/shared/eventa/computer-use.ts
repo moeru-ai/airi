@@ -1,6 +1,6 @@
 import { defineInvokeEventa } from '@moeru/eventa'
 
-/** Provenance and attribution for an invocation */
+/** Request correlation supplied by application code, never by model arguments. It does not authenticate a renderer. */
 export interface InvocationAttributionPayload {
   sessionId: string
   turnId?: string
@@ -29,13 +29,16 @@ export interface ComputerUseResult {
 }
 
 export interface ComputerUseCancelInput {
-  sessionId?: string
-  actionId?: string
+  attribution: InvocationAttributionPayload
   reason?: string
 }
 
+/** Local history previews share the host artifact store and do not represent a model tool invocation. */
+export type ComputerUsePreviewImageInput = Pick<ComputerUseReadImageInput, 'path'>
+
 export const computerUseRun = defineInvokeEventa<ComputerUseResult, ComputerUseRunInput>('eventa:invoke:computer-use:run')
 export const computerUseReadImage = defineInvokeEventa<string, ComputerUseReadImageInput>('eventa:invoke:computer-use:read-image')
+export const computerUsePreviewImage = defineInvokeEventa<string, ComputerUsePreviewImageInput>('eventa:invoke:computer-use:preview-image')
 export const computerUseCancel = defineInvokeEventa<number, ComputerUseCancelInput>('eventa:invoke:computer-use:cancel')
 
 /**
