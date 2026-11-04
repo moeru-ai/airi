@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { all } from '@proj-airi/i18n'
+import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/libs/product-signals'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
@@ -10,11 +11,11 @@ import { useI18n } from 'vue-i18n'
 const props = withDefaults(defineProps<{
   needsControlsIslandIconSizeSetting?: boolean
 }>(), {
-  needsControlsIslandIconSizeSetting: import.meta.env.RUNTIME_ENVIRONMENT === 'electron',
+  needsControlsIslandIconSizeSetting: isStageTamagotchi(),
 })
 
 const settings = useSettings()
-const showStreamerMode = import.meta.env.RUNTIME_ENVIRONMENT === 'electron'
+const showStreamerMode = isStageTamagotchi()
 
 const showControlsIsland = computed(() => props.needsControlsIslandIconSizeSetting)
 const showAnalyticsSettings = computed(() => isAnalyticsAvailableInBuild())
