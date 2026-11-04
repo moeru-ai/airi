@@ -17,8 +17,9 @@ The renderer has one Eventa transport owner. Capability clients borrow its conte
 [Platform](https://github.com/gd-kirie/gd-kirie/blob/v0.14.2/packages/platform/README.md) and [Notifications](https://github.com/gd-kirie/kirie-plugins/blob/main/packages/notifications/README.md) document the upstream capability APIs.
 
 Kirie-local adapters always use Kirie.
-Shared UI retains `RUNTIME_ENVIRONMENT='electron'` and Electron-named Eventa IDs as existing selectors and contracts.
-Those names do not select an Electron transport.
+Kirie builds set `RUNTIME_ENVIRONMENT='kirie'`. `isStageTamagotchi()` is true for the Electron and Kirie builds, so both show the desktop UI.
+Shared code selects the Electron transport with `isElectronWindow(window)`, not with `isStageTamagotchi()`.
+Shared UI retains Electron-named Eventa IDs as existing contracts. Those names do not select an Electron transport.
 The Electron application remains a separate supported path.
 
 ## Source map

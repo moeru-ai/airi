@@ -18,8 +18,12 @@ export function isStageCapacitor(): boolean {
   return import.meta.env.RUNTIME_ENVIRONMENT === 'capacitor'
 }
 
+/**
+ * Reports a Stage Tamagotchi desktop build. The Electron and Kirie hosts share this UI.
+ * Use `isElectronWindow` to select the Electron transport.
+ */
 export function isStageTamagotchi(): boolean {
-  return import.meta.env.RUNTIME_ENVIRONMENT === 'electron'
+  return import.meta.env.RUNTIME_ENVIRONMENT === 'electron' || import.meta.env.RUNTIME_ENVIRONMENT === 'kirie'
 }
 
 export function getStage() {

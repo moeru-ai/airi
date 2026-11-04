@@ -125,7 +125,7 @@ export default defineKirieConfig({
           name: 'proj-airi:defines',
           config(ctx) {
             const define: Record<string, string> = {
-              'import.meta.env.RUNTIME_ENVIRONMENT': '\'electron\'',
+              'import.meta.env.RUNTIME_ENVIRONMENT': '\'kirie\'',
             }
             if (ctx.mode === 'development') {
               define['import.meta.env.URL_MODE'] = '\'server\''
