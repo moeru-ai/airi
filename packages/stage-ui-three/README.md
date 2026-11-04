@@ -44,7 +44,9 @@ The VRM renderer plays a motion library on top of the model. The design follows 
 | Director | `src/composables/vrm/performance-director.ts` | Nods on speech accents, glances aside while speaking, turns the head away while thinking, and scans slowly while idle. It also reports beats: a speech beat every 3.4 to 6.2 s, an idle beat every 5 to 12 s, and an earlier idle switch after speech or thinking. |
 | Mood face | `src/composables/vrm/mood-face.ts` | `MoodFace` writes all face expressions. The resting mood stays until the next mood. The old mood fades out before the new mood starts. A reaction shows for 2.5 s (up to 8 s while speaking). During an emote, the face is happy at 0.7 and the eyes do not blink. Blinks come every 2 to 6 s. |
 
-`VRMModel` and `ThreeScene` take `thinking` and `motionLibrary` props. They expose `setExpression` (mood), `reactExpression` (touch reaction), `motions`, and `playMotion(id)`. `VRMModel` starts the talking clip from `speechActive` and the thinking clip from `thinking`.
+| Emote cue | `src/composables/vrm/emote-cue.ts` | `findVrmEmote` finds an emote from an LLM cue. It ignores case, spaces, hyphens, and underscores, and matches the id or the name. `vrmEmoteCue` gives the cue that the prompt shows. |
+
+`VRMModel` and `ThreeScene` take `thinking` and `motionLibrary` props. They expose `setExpression` (mood), `reactExpression` (touch reaction), `motions`, and `playMotion(cue)`. In `stage-ui`, `Stage.vue` plays the ACT `motion` of the LLM with `playMotion`, and passes the motion library of the `vrm-motions` store, which adds the imported VRMA files. `VRMModel` starts the talking clip from `speechActive` and the thinking clip from `thinking`.
 
 The director beats drive the face: a speech beat shows a short reaction of the current mood, and an idle beat shows a smaller one.
 

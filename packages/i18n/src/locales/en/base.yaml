@@ -54,6 +54,9 @@ prompt:
     The available emotions:
   emoji: |
     Do not use emojis or text that a speaker cannot pronounce.
+  motions: |
+    The available motions for the ACT "motion" field. Use a motion only when it
+    fits the moment, and at most once per reply. Write the motion name exactly:
   suffix: |
     The available actions:
 

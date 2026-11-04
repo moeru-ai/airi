@@ -7,6 +7,8 @@ import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import VrmMotions from './vrm-motions.vue'
+
 import { Container, PropertyColor, PropertyNumber, PropertyPoint } from '../../../data-pane'
 import { ColorPalette } from '../../../widgets'
 
@@ -96,6 +98,7 @@ const envOptions = computed(() => [
     </p>
     <SelectTab v-model="maxFps" :options="fpsOptions" size="sm" :class="['shrink-0']" />
   </Container>
+  <VrmMotions />
   <Container
     :title="t('settings.pages.models.sections.section.scene')"
     icon="i-solar:people-nearby-bold-duotone"

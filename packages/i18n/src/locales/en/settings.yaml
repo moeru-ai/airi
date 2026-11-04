@@ -2748,6 +2748,16 @@ theme:
 title: Settings
 voices: Voice
 vrm:
+  motions:
+    title: Motions
+    description: The character plays these motions when the LLM asks for one. The LLM reads each description to choose. Imported files stay on this device.
+    import: Import motion (.vrma)
+    import-failed: The motion could not be imported.
+    name: Name
+    description-field: Description for the LLM
+    play: Play
+    remove: Remove motion
+    built-in: Built-in motions
   fps:
     title: Frame rate limit
     description: Limit VRM rendering in the stage and model preview. Lower limits reduce GPU use without changing animation speed.

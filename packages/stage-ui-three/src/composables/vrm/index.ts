@@ -1,5 +1,6 @@
 export * from './animation'
 export * from './core'
+export * from './emote-cue'
 export * from './expression'
 export * from './lip-sync'
 export * from './loader'

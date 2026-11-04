@@ -177,20 +177,62 @@ Validação com a Neptuna, no mesmo harness, com o `VRMModel` corrigido. Captura
 | Emote | Rosto feliz a 0,7, sem piscar. |
 | Humor triste | `sad` assenta em 0,58 e `happy` vai a 0. |
 
-Continua aberto: testar dentro do app (`stage-web` e desktop). A rede deste ambiente de nuvem bloqueia `cubism.live2d.com` e `dist.ayaka.moe`. Na máquina do responsável, o app roda local depois da primeira execução (README, "Rodar 100% local").
+### Teste dentro do app (terceira rodada, 04/11/2026)
 
-Fora da V1, nas próximas sprints:
+O `stage-web` real rodou neste ambiente de nuvem. Os dois hosts bloqueados foram substituídos por arquivos locais, só para o teste:
 
-- O LLM escolher o emote (V2: token ACT com `motion`). Por enquanto, `playMotion(id)` existe e a biblioteca expõe as descrições.
-- A tela de importação de VRMA (V2).
-- O `stage-web` não sobe neste ambiente de nuvem, porque a rede bloqueia `cubism.live2d.com` e `dist.ayaka.moe`. A validação usou um harness com o mesmo código.
+- O `live2dcubismcore.min.js` veio do pacote npm `live2dcubismcore`, porque o registro npm está liberado.
+- Os modelos de `dist.ayaka.moe` foram trocados por arquivos locais no cache. O teste usa a Neptuna, então eles não importam.
+
+Um servidor falso, compatível com OpenAI, fez o papel do LLM e do TTS. O kit está em `teste-app/` e roda na sua máquina do mesmo jeito.
+
+Resultado na Neptuna, dentro do app (folha em `evidencias/V2/app-resumo.png`):
+
+| Fase | Resultado |
+| --- | --- |
+| Parada | Idles do Utsuwa com troca. |
+| Esperando a resposta | Clipe de pensar (mão no queixo) com o balão "..." do app. |
+| Resposta com `{"emotion":"happy","motion":"greeting"}` | Acena com rosto feliz. Console: `VRM motion played greeting`. |
+| Fala | O app chamou o TTS e o clipe de fala entrou (mão na cintura). |
+| Resposta com `{"emotion":"sad"}` | Rosto triste durante e depois da fala. |
+
+Com isso, a V1 está completa.
+
+## Estado da V2 (concluída em 04/11/2026)
+
+A V2 faz o LLM escolher os emotes e deixa o responsável importar novos movimentos VRMA, como no Utsuwa.
+
+| Entrega | Arquivo |
+| --- | --- |
+| O ACT `motion` toca o emote no VRM. Antes, só o Live2D usava o campo. | `packages/stage-ui/src/components/scenes/Stage.vue` |
+| O prompt lista os emotes com a descrição, só quando o palco VRM está ativo | `packages/stage-ui/src/composables/use-airi-runtime-prompt.ts`, `packages/stage-ui/src/stores/stage-motion-catalog.ts`, chave `base.prompt.motions` |
+| O nome do emote aceita variações: `Peace Sign`, `peace-sign` e `peace_sign` | `packages/stage-ui-three/src/composables/vrm/emote-cue.ts` |
+| Biblioteca de movimentos: os do Utsuwa mais os VRMA importados, guardados no aparelho (IndexedDB) | `packages/stage-ui/src/stores/vrm-motions.ts`, `packages/stage-ui/src/database/repos/vrm-motions.repo.ts` |
+| Seção **Motions** na configuração VRM: importar `.vrma`, editar nome e descrição, tocar, remover, e ver os emotes do Utsuwa | `packages/stage-ui/src/components/scenarios/settings/model-settings/vrm-motions.vue` |
+
+Testes:
+
+- 16 testes novos: 5 do `findVrmEmote`, 2 do prompt, 2 do repositório e 7 do store.
+- Typecheck do `stage-ui-three` e do `stage-ui`: sem erros.
+
+Validação dentro do app (folhas em `evidencias/V2/`):
+
+| Fase | Resultado |
+| --- | --- |
+| Importar `Happy Spin.vrma` e escrever a descrição | O movimento aparece na seção **Motions** e toca com **Play**. |
+| Prompt enviado ao LLM | Lista os 7 emotes do Utsuwa e `- happy_spin (Spin around with joy)`. |
+| Resposta com `{"motion":"happy_spin"}` | Ela gira. Console: `VRM motion played happy_spin`. |
+
+O kit `teste-app/` confere tudo isso sozinho. Na última rodada, as 9 verificações passaram (`evidencias/V2/verificacoes.json`).
+
+Limite: no app desktop, o chat e o palco podem rodar em janelas diferentes. A lista de emotes do prompt vem do palco da mesma janela. Isso não foi testado no desktop.
 
 ## Nova ordem proposta (substitui S06, S07 e S15 do Planejamento 03)
 
 | Sprint | Entrega no `overcyber/airi` | Base |
 |---|---|---|
-| V1 (**concluída em 04/11/2026**, ver "Estado da V1") | Presença fluida no VRM, com a Neptuna como modelo de teste: pool de idles com os tempos do Utsuwa, clipes de pensar e de falar, emotes com saída limpa, rosto de humor permanente com suavização (no lugar do reset de 3 s em `VRMModel.vue:1111`) e presença procedural do diretor do xiaoke. Novo `packages/stage-ui-three/src/composables/vrm/motion-library.ts`, chamado em `VRMModel.vue:827-846`. | Seção "Análise do código" abaixo |
-| V2 | Emotes pelo LLM: estender o token ACT (`stage-ui/src/composables/queues.ts:23-60`, `Stage.vue:294-346`) com `motion`. Importação de VRMA com descrição na tela de modelo. | Padrão do Utsuwa, implementação própria |
+| V1 (**concluída em 04/11/2026**, ver "Estado da V1" e "Teste dentro do app") | Presença fluida no VRM, com a Neptuna como modelo de teste: pool de idles com os tempos do Utsuwa, clipes de pensar e de falar, emotes com saída limpa, rosto de humor permanente com suavização (no lugar do reset de 3 s em `VRMModel.vue:1111`) e presença procedural do diretor do xiaoke. Novo `packages/stage-ui-three/src/composables/vrm/motion-library.ts`, chamado em `VRMModel.vue:827-846`. | Seção "Análise do código" abaixo |
+| V2 (**concluída em 04/11/2026**, ver "Estado da V2") | Emotes pelo LLM: estender o token ACT (`stage-ui/src/composables/queues.ts:23-60`, `Stage.vue:294-346`) com `motion`. Importação de VRMA com descrição na tela de modelo. | Padrão do Utsuwa, implementação própria |
 | V3 | Realismo procedural no VRM: respiração, troca de pose e peso por humor, cabeça e contato visual. O humor deixa de ser só rosto (`expression.ts`, reset de 3 s). | Conceitos do TalkingHead (MIT) |
 | V4 | Eva GLB → VRM, mantendo ARKit 52 + visemas como expressões customizadas, e lip-sync mapeado | D1 / antiga S15 |
 | V5 | Conversão dos ~20 FBX Mixamo para VRMA (script de retarget e verificação visual) | `talkinghead-neoalice/animations_arkit` |

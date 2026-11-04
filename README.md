@@ -568,6 +568,14 @@ O que conferir:
 - Quando o humor muda, o humor antigo sai por completo antes de o novo entrar.
 - Durante um emote, o rosto fica feliz e ela não pisca.
 
+### 3b. Emotes pelo LLM e importação de VRMA (V2)
+
+- O LLM recebe a lista de emotes com descrição e pede um no token ACT, por exemplo `{"emotion":"happy","motion":"greeting"}`. Ela faz o emote.
+- Em **Configurações > Modelos**, com um modelo VRM, a seção **Motions** importa arquivos `.vrma`. Escreva uma descrição clara: o LLM lê a descrição para escolher. Use **Play** para testar.
+- Os arquivos importados ficam no navegador do aparelho (IndexedDB).
+
+Para testar tudo sem LLM nem TTS de verdade, use o kit em [`docs/alice-motion-engine/teste-app/`](./docs/alice-motion-engine/teste-app/README.md).
+
 O crédito da Neptuna é obrigatório. Ele está em `packages/alice-motion/fixtures/vrm/neptuna/README.md`.
 
 ### Rodar 100% local (sem internet)
@@ -590,7 +598,9 @@ Se a máquina nunca tem internet:
 
 Também é possível baixar os 5 arquivos à mão e colocar cada um no local da tabela. O SDK do Live2D vai descompactado.
 
-A Neptuna, as 13 animações do Utsuwa e o código da V1 já estão no repositório. Eles não usam a internet.
+A Neptuna, as 13 animações do Utsuwa e o código da V1 e da V2 já estão no repositório. Eles não usam a internet.
+
+Sem internet, o `pnpm dev` mostra `Web fonts preflight fetch failed`. O app continua e usa as fontes do sistema.
 
 Para a conversa também ficar local, configure provedores locais nas configurações. Por exemplo: um LLM no Ollama ou em outro servidor compatível com OpenAI na rede local, e o Kokoro para a voz.
 

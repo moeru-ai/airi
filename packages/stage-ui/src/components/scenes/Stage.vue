@@ -19,6 +19,7 @@ import { SpineScene } from '@proj-airi/stage-ui-spine'
 import { TachieScene } from '@proj-airi/stage-ui-tachie'
 import { ThreeScene } from '@proj-airi/stage-ui-three'
 import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
+import { vrmEmoteCue } from '@proj-airi/stage-ui-three/composables/vrm'
 import { createQueue } from '@proj-airi/stream-kit'
 import { Callout } from '@proj-airi/ui'
 import { useBroadcastChannel, useEventListener } from '@vueuse/core'
@@ -50,7 +51,9 @@ import { useSettingsPresenceBubble } from '../../stores/presence-bubble'
 import { useSettings } from '../../stores/settings'
 import { useSettingsStageModel } from '../../stores/settings/stage-model'
 import { useSpeechOutputControlStore } from '../../stores/speech-output-control'
+import { useStageMotionCatalogStore } from '../../stores/stage-motion-catalog'
 import { useVoiceStore } from '../../stores/voice'
+import { useVrmMotionsStore } from '../../stores/vrm-motions'
 
 const props = withDefaults(defineProps<{
   cursorPosition?: { x: number, y: number }
@@ -147,6 +150,26 @@ const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, o
 // This context registers the hooks that speak a reply, so chat actions must run here.
 const releaseSpeechPlayerRole = usePiniaSynced().addRole(syncedRoles.speechPlayer)
 const chatHookCleanups: Array<() => void> = []
+
+// VRM motion library: the bundled motions plus the VRMA files of the settings.
+// The LLM prompt lists its emotes while the VRM stage shows, and an ACT `motion` plays one.
+const vrmMotions = useVrmMotionsStore()
+const stageMotionCatalog = useStageMotionCatalogStore()
+void vrmMotions.load()
+watch(
+  [stageModelRenderer, () => vrmMotions.motionLibrary],
+  ([renderer, library]) => {
+    if (renderer === 'vrm')
+      stageMotionCatalog.setMotions(library.emotes.map(emote => ({ id: vrmEmoteCue(emote), description: emote.description })))
+    else
+      stageMotionCatalog.clear()
+  },
+  { immediate: true },
+)
+chatHookCleanups.push(vrmMotions.onPlayRequest((id) => {
+  if (stageModelRenderer.value === 'vrm')
+    void vrmViewerRef.value?.playMotion(id)
+}).off)
 // WORKAROUND: clear previous handlers on unmount to avoid duplicate calls when this component remounts.
 //             We keep per-hook disposers instead of wiping the global chat hooks to play nicely with
 //             cross-window broadcast wiring.
@@ -333,6 +356,17 @@ chatHookCleanups.push(streamingControl.onSignal(async (signal) => {
       }
       else if (act.expression) {
         await live2d.expressions.execute(act.expression)
+      }
+    }
+
+    if (stageModelRenderer.value === 'vrm' && act.motion) {
+      const played = await vrmViewerRef.value?.playMotion(act.motion)
+      if (played) {
+        // eslint-disable-next-line no-console
+        console.debug('VRM motion played', act.motion)
+      }
+      else {
+        console.warn(`[stage] VRM motion "${act.motion}" is not in the motion library`)
       }
     }
 
@@ -720,6 +754,7 @@ defineExpose({
         :connect-speech="connectSpeech"
         :speech-active="nowSpeaking"
         :thinking="chatSending && !nowSpeaking"
+        :motion-library="vrmMotions.motionLibrary"
         @error="reportStageRenderError"
         @vrm-interact="onVRMInteract"
       />

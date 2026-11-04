@@ -1,4 +1,4 @@
-# Status dos Planos 01 e 02 e da sprint V1
+# Status dos Planos 01 e 02 e das sprints V1 e V2
 
 **Data:** 04/11/2026
 **Base:** commit `bced9a6` do `main` do `overcyber/airi` e commit `7eb3fd0` do `main` do `overcyber/MMM-avatar-3d`.
@@ -47,7 +47,7 @@
 
 ## 4. A sprint V1 foi feita por completo?
 
-**Quase. O código da V1 está completo e testado. Falta 1 item: rodar dentro do app, que este ambiente de nuvem não deixa (rede).**
+**Sim. A V1 está completa: código, testes e teste dentro do app real (`stage-web`) com a Neptuna.**
 
 A primeira rodada deixou 6 itens abertos. A segunda rodada fechou 5. Detalhes em `PLANEJAMENTO_04_REVISAO_UTSUWA_AIRI_AVATAR3D.md`, seção "Fechamento da V1".
 
@@ -68,11 +68,11 @@ A primeira rodada deixou 6 itens abertos. A segunda rodada fechou 5. Detalhes em
 | Neptuna como modelo de teste | `packages/alice-motion/fixtures/vrm/neptuna/` |
 | Testes do monorepo inteiro | Ver "Resultado dos testes" abaixo. |
 
-### Falta na V1
+### Teste dentro do app
 
-| Item | Por quê |
-| --- | --- |
-| Testar dentro do app (`stage-web` e desktop) | A rede do ambiente de nuvem bloqueia `cubism.live2d.com` e `dist.ayaka.moe`. A validação usou um harness com o mesmo código. Na sua máquina, o app roda 100% local depois da primeira execução (README, "Rodar 100% local"). |
+O `stage-web` real rodou na nuvem com a Neptuna, com um LLM e um TTS falsos (kit em `teste-app/`). Ela pensa com a mão no queixo, acena com rosto feliz pelo ACT, fala com o clipe de fala e fica triste com o humor triste. Folha em `evidencias/V2/app-resumo.png`. Detalhes no Planejamento 04, seção "Teste dentro do app".
+
+Na sua máquina, o mesmo kit roda com o comando do `teste-app/README.md`.
 
 ### Resultado dos testes
 
@@ -88,9 +88,15 @@ A primeira rodada deixou 6 itens abertos. A segunda rodada fechou 5. Detalhes em
 | `stage-ui` (30 de 1998) | No Node 26, `localStorage` fica indefinido sem `--localstorage-file`. Um teste de navegador passou do tempo sob carga. | Com o Node 22, os 4 arquivos passam (31 testes). Sozinho, `session-store.browser.test.ts` passa (15 testes). |
 | `auth-server` (1 de 171) | O container não tem IPv6 (`listen EAFNOSUPPORT ::1`). | Teste de IPv6 fora da V1. |
 
-## 5. Próximos passos, na ordem do plano
+## 5. A sprint V2
 
-1. Rodar a V1 no app, na sua máquina, ou depois de liberar os dois hosts no ambiente de nuvem.
+**Feita.** O LLM escolhe o emote pelo ACT `motion`, o prompt lista os emotes com descrição, e a configuração VRM importa VRMA. Testada com 16 testes novos e dentro do app: o VRMA importado `happy_spin` tocou quando o LLM o pediu. Detalhes no Planejamento 04, seção "Estado da V2".
+
+Falta testar o app desktop. Lá, o chat e o palco podem rodar em janelas diferentes.
+
+## 6. Próximos passos, na ordem do plano
+
+1. Rodar o kit `teste-app/` na sua máquina, e depois com o seu LLM e o Kokoro de verdade.
 2. Aprovar os contratos v1 (ADR) e começar a S03 (director) e a S04 (scheduler).
-3. V2: o LLM escolhe o emote, e a tela importa VRMA.
-4. S08: ponte MQTT, para o AIRI receber os comandos e o humor da NeoAlice sem alterá-la.
+3. S08: ponte MQTT, para o AIRI receber os comandos e o humor da NeoAlice sem alterá-la.
+4. V3: respiração, pose e peso por humor, e contato visual (conceitos do TalkingHead).

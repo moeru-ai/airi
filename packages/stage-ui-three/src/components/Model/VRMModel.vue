@@ -79,6 +79,7 @@ import {
 } from '../../composables/vrm/animation'
 import { AvatarAnimator } from '../../composables/vrm/avatar-animator'
 import { loadVrm } from '../../composables/vrm/core'
+import { findVrmEmote } from '../../composables/vrm/emote-cue'
 import { useVRMEmote } from '../../composables/vrm/expression'
 import { createVrmInteractionColliders } from '../../composables/vrm/interaction'
 import { resolveInternalVrmHooks } from '../../composables/vrm/internal-hooks'
@@ -1279,10 +1280,11 @@ defineExpose({
   motions: () => props.motionLibrary.emotes,
   /**
    * Plays an emote of the motion library once, then returns to the idle.
-   * Resolves `false` when the id is unknown or the clip cannot load.
+   * `id` can also be the emote name or an LLM cue, see `findVrmEmote`.
+   * Resolves `false` when no emote matches or the clip cannot load.
    */
   async playMotion(id: string): Promise<boolean> {
-    const emote = props.motionLibrary.emotes.find(entry => entry.id === id)
+    const emote = findVrmEmote(props.motionLibrary.emotes, id)
     const targetVrm = vrm.value
     const animator = vrmAnimator.value
     if (!emote || !targetVrm || !animator)
