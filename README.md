@@ -513,3 +513,84 @@ Special thanks to all contributors for their contributions to Project AIRI ❤�
     <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=moeru-ai/airi&type=Date" />
   </picture>
 </a>
+
+## Fork Alice: instalar e rodar localmente
+
+Esta seção vale para o fork [overcyber/airi](https://github.com/overcyber/airi). Ele inclui a camada de movimento VRM da sprint V1, o serviço de estado `alice-companion` e os planejamentos em [`docs/alice-motion-engine/`](./docs/alice-motion-engine/). O estado de cada plano está em [`STATUS_PLANOS_01_02_E_V1.md`](./docs/alice-motion-engine/STATUS_PLANOS_01_02_E_V1.md).
+
+### Requisitos
+
+- Git.
+- Node.js 26.12.1 e pnpm 11.24.0, as versões de [`.tool-versions`](./.tool-versions). O jeito mais simples é o [mise](https://mise.jdx.dev).
+- 16 GB de RAM recomendados. O typecheck do `stage-ui` precisa de mais memória que o padrão do Node.
+- Internet na primeira execução. O `stage-web` baixa o SDK do Live2D (`cubism.live2d.com`) e os modelos padrão (`dist.ayaka.moe`) ao iniciar.
+
+### 1. Clonar e instalar
+
+```shell
+git clone https://github.com/overcyber/airi.git
+cd airi
+mise install
+mise exec -- pnpm install
+```
+
+A instalação também faz o build dos pacotes (`postinstall`) e leva alguns minutos.
+
+### 2. Rodar
+
+Versão web, em `http://localhost:5173`:
+
+```shell
+mise exec -- pnpm dev
+```
+
+Versão desktop (Electron):
+
+```shell
+mise exec -- pnpm dev:tamagotchi
+```
+
+No Linux com Wayland, use `pnpm dev:tamagotchi:xwayland` se a janela não abrir.
+
+### 3. Testar a Neptuna com o movimento da V1
+
+1. Com o app aberto, vá em **Configurações > Modelos** (`/settings/models`).
+2. Clique em **Select model**, escolha **VRM** e envie o arquivo `packages/alice-motion/fixtures/vrm/neptuna/neptuna.vrm`.
+3. Clique em **Pick** no cartão da Neptuna.
+4. Configure um provedor de LLM e, se quiser voz, um provedor de TTS.
+
+O que conferir:
+
+- Parada, ela alterna entre 6 animações de espera, com transições de 1,2 s.
+- Enquanto espera a resposta, a cabeça vira para o lado.
+- Enquanto fala, entra o clipe de fala, com acenos nos acentos.
+- Quando o humor muda, o rosto reage e depois fica no humor, sem voltar ao neutro depois de 3 s.
+
+O crédito da Neptuna é obrigatório. Ele está em `packages/alice-motion/fixtures/vrm/neptuna/README.md`.
+
+### 4. Serviço de estado do companion (opcional)
+
+O serviço lê o humor da NeoAlice pelo MQTT e publica o estado em `neoalice/v1/companion/...`. Ele não escreve nos tópicos da NeoAlice.
+
+```shell
+ALICE_COMPANION_MQTT_URL=mqtt://<broker>:1883 ALICE_COMPANION_DATA_DIR=./data mise exec -- pnpm -F @proj-airi/alice-companion start
+```
+
+As variáveis e os tópicos estão em [`services/alice-companion/README.md`](./services/alice-companion/README.md).
+
+### 5. Testes e typecheck
+
+```shell
+mise exec -- pnpm -F @proj-airi/stage-ui-three exec vitest run
+mise exec -- pnpm -F @proj-airi/alice-motion exec vitest run
+mise exec -- pnpm -F @proj-airi/alice-companion exec vitest run
+NODE_OPTIONS=--max-old-space-size=8192 mise exec -- pnpm typecheck
+```
+
+### Problemas comuns
+
+| Sintoma | Causa | Solução |
+| --- | --- | --- |
+| `pnpm dev` para com `fetch failed` e `cubism.live2d.com` | Sem acesso à internet, ou rede que bloqueia esse host | Libere `cubism.live2d.com` e `dist.ayaka.moe`. Atrás de proxy, rode com `NODE_USE_ENV_PROXY=1`. |
+| `vue-tsc` termina com `JavaScript heap out of memory` | Limite padrão de memória do Node | Use `NODE_OPTIONS=--max-old-space-size=8192`. |
+| Tipos `any` em `@proj-airi/electron-screen-capture` no typecheck | O build do pacote rodou antes de as dependências estarem completas | `mise exec -- pnpm -F @proj-airi/electron-screen-capture build` |
