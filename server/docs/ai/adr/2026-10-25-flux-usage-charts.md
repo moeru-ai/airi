@@ -16,7 +16,8 @@ The activity chart reads `/usage/daily`. The balance card reads `/stats`, and tr
 The account page owns the usage overview. Its details link opens the separate `/settings/usage` history page.
 The charging page at `/settings/flux` reads neither usage endpoint. Its details link also opens `/settings/usage`.
 Valibot also owns the existing history response. Its metadata remains opaque JSON.
-The history client renders returned ledger entries. Request grouping stays in the server query.
+The history client retains collapsible groups for consecutive TTS debits, request details, token counts, and model labels.
+The existing server query also groups TTS transactions by turn.
 `BillingService` owns ledger writes. The Flux transaction service exposes reads only.
 Account changes and navigation cancel client requests and discard results from the previous session.
 
