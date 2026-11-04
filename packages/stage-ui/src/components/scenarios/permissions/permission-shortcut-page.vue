@@ -102,14 +102,14 @@ onScopeDispose(() => stopListening?.())
     <template #stage>
       <div :class="['flex items-end gap-2.5']" role="img" :aria-label="keycaps.map(keycap => keycap.name).join(' + ')">
         <!--
-          A space bar is as tall as a letter key and about three times as wide, as on a real keyboard.
+          A space bar is as tall as a letter key and much wider, as on a real keyboard. Control, Shift, and Space still fit the stage.
           A keycap is a face with its depth drawn below it as a solid shadow. A press moves the face down by that depth
           and removes the shadow, so the key sinks flush without an edge above or below. The pressed face is lighter.
         -->
         <span
           v-for="keycap in keycaps"
           :key="keycap.token"
-          :class="['h-16 flex pb-1.5 @3xl:h-19.5', keycap.wide ? 'w-44 @3xl:w-52' : 'w-16 @3xl:w-21.5']"
+          :class="['h-16 flex pb-1.5 @3xl:h-19.5', keycap.wide ? 'w-44' : 'w-16 @3xl:w-21.5']"
         >
           <span
             :class="[
