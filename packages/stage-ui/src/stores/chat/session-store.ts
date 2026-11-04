@@ -59,6 +59,40 @@ export interface DeleteChatMessagePayload {
  */
 const OUTBOX_MAX_ATTEMPTS = 5
 
+/**
+ * Formats an unknown error or server error payload into a readable diagnostic string.
+ *
+ * Server RPC errors serialized via Eventa or JSON may produce `{ error: { statusCode, errorCode, name } }`
+ * where standard Error.message is not enumerable.
+ */
+function formatSyncError(err: unknown): string {
+  const direct = errorMessageFrom(err)
+  if (direct)
+    return direct
+  if (err && typeof err === 'object') {
+    const errorObj = ('error' in err && err.error && typeof err.error === 'object')
+      ? (err.error as Record<string, unknown>)
+      : (err as Record<string, unknown>)
+    const message = errorObj.message
+    if (typeof message === 'string' && message)
+      return message
+    const code = errorObj.errorCode ?? errorObj.code
+    const status = errorObj.statusCode ?? errorObj.status
+    const name = errorObj.name
+    if (code && status)
+      return `${name ? `${name}: ` : ''}${code} (${status})`
+    if (code)
+      return `${name ? `${name}: ` : ''}${code}`
+    try {
+      return JSON.stringify(err)
+    }
+    catch {
+      return String(err)
+    }
+  }
+  return String(err)
+}
+
 const useChatSessionSelectionStore = defineStore('chat-session-selection', () => {
   const activeSessionId = ref('')
 
@@ -402,16 +436,30 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       throw new Error('Failed to load the target chat session')
 
     const currentMessages = getSessionMessages(payload.sessionId)
+    let removedMessageId = payload.messageId
     const nextMessages = currentMessages.filter((message, messageIndex) => {
       if (payload.messageId)
         return message.id !== payload.messageId
-      if (payload.index !== undefined)
-        return messageIndex !== payload.index
+      if (payload.index !== undefined) {
+        if (messageIndex === payload.index) {
+          removedMessageId = message.id
+          return false
+        }
+        return true
+      }
       return true
     })
 
     setSessionMessages(payload.sessionId, nextMessages)
     await releaseRemovedAssets(payload.sessionId, currentMessages, nextMessages)
+
+    if (removedMessageId) {
+      const userId = getCurrentUserId()
+      if (userId !== 'local') {
+        await enqueuePersist(() => chatSessionsRepo.dequeueOutbox(userId, [removedMessageId!]))
+        await refreshOutboxPendingCount()
+      }
+    }
   }
 
   /**
@@ -895,7 +943,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       cloudHydratedSessions.add(sessionId)
     }
     catch (err) {
-      console.warn('[chat-sync] pullMessages failed for', sessionId, errorMessageFrom(err))
+      console.warn('[chat-sync] pullMessages failed for', sessionId, formatSyncError(err))
     }
   }
 
@@ -943,7 +991,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         remoteChats = await mapper.listChats()
       }
       catch (err) {
-        console.warn('[chat-sync] listChats failed; skipping reconcile this round:', errorMessageFrom(err))
+        console.warn('[chat-sync] listChats failed; skipping reconcile this round:', formatSyncError(err))
         return
       }
       if (isStaleEpoch())
@@ -1056,6 +1104,14 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       for (const result of createResults) {
         if (!result.cloudChatId)
           continue
+        remoteById.set(result.cloudChatId, {
+          id: result.cloudChatId,
+          type: 'bot',
+          title: result.remoteTitle ?? null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          members: [],
+        })
         const meta = sessionMetas.value[result.sessionId]
         if (!meta)
           continue
@@ -1151,8 +1207,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       // a cloudChatId now (claimed + created + previously-mapped). This
       // closes the window between offline writes on other devices and the
       // moment the WS push begins delivering live updates.
+      // Remote chats whose mapping is gone on the server are excluded from pull.
       const cloudMappedIds = Object.values(sessionMetas.value)
-        .filter(meta => meta.cloudChatId)
+        .filter(meta => meta.cloudChatId && remoteById.has(meta.cloudChatId))
         .map(meta => meta.sessionId)
       await Promise.all(cloudMappedIds.map(sessionId => pullCloudMessages(sessionId)))
       if (isStaleEpoch())
@@ -1374,6 +1431,14 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     outboxPendingCount.value = entries.length
   }
 
+  function updateSessionCloudMaxSeq(sessionId: string, seq: number) {
+    const meta = sessionMetas.value[sessionId]
+    if (meta && seq > (meta.cloudMaxSeq ?? 0)) {
+      sessionMetas.value[sessionId] = { ...meta, cloudMaxSeq: seq }
+      void persistSessionMeta(sessionId)
+    }
+  }
+
   /**
    * Ship a single message up to the cloud (eventually).
    *
@@ -1426,15 +1491,17 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       return
 
     try {
-      await wsClient.sendMessages({
+      const response = await wsClient.sendMessages({
         chatId: entry.cloudChatId,
         messages: [{ id: entry.messageId, role: entry.role, content: entry.content, replyToMessageId: entry.replyToMessageId }],
       })
+      if (typeof response?.seq === 'number')
+        updateSessionCloudMaxSeq(sessionId, response.seq)
       await enqueuePersist(() => chatSessionsRepo.dequeueOutbox(userId, [entry.messageId]))
       await refreshOutboxPendingCount()
     }
     catch (err) {
-      const errMsg = errorMessageFrom(err) ?? 'unknown'
+      const errMsg = formatSyncError(err)
       console.warn('[chat-sync] sendMessages failed for', sessionId, errMsg)
       await enqueuePersist(() => chatSessionsRepo.updateOutboxEntries(userId, [{
         messageId: entry.messageId,
@@ -1497,14 +1564,16 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
         sessionEntries.sort((a, b) => a.queuedAt - b.queuedAt)
         try {
-          await wsClient.sendMessages({
+          const response = await wsClient.sendMessages({
             chatId: cloudChatId,
             messages: sessionEntries.map(e => ({ id: e.messageId, role: e.role, content: e.content, replyToMessageId: e.replyToMessageId })),
           })
+          if (typeof response?.seq === 'number')
+            updateSessionCloudMaxSeq(sessionId, response.seq)
           succeededIds.push(...sessionEntries.map(e => e.messageId))
         }
         catch (err) {
-          const errMsg = errorMessageFrom(err) ?? 'unknown'
+          const errMsg = formatSyncError(err)
           console.warn('[chat-sync] outbox drain failed for', sessionId, errMsg)
           for (const entry of sessionEntries) {
             failedUpdates.push({

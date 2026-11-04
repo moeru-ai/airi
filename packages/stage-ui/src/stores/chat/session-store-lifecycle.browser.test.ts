@@ -46,6 +46,9 @@ const deleteCloudChatMock = vi.fn<(id: string) => Promise<void>>()
 const listChatsMock = vi.fn()
 const updateChatMock = vi.fn()
 const pullMessagesMock = vi.fn()
+const sendMessagesMock = vi.fn()
+const dequeueOutboxMock = vi.fn()
+const enqueueOutboxMock = vi.fn()
 const connectCloudWsMock = vi.fn()
 let cloudWsStatus: 'idle' | 'open' = 'idle'
 let cloudStatusListener: ((status: 'idle' | 'open') => void) | undefined
@@ -59,8 +62,8 @@ vi.mock('../../database/repos/chat-sessions.repo', () => ({
     deleteSession: (id: string) => deleteSessionRepoMock(id),
     releaseAssets: (id: string, ids: Iterable<string>) => releaseAssetsMock(id, ids),
     getOutbox: (uid: string) => getOutboxMock(uid),
-    enqueueOutbox: vi.fn().mockResolvedValue(undefined),
-    dequeueOutbox: vi.fn().mockResolvedValue(undefined),
+    enqueueOutbox: (...args: unknown[]) => enqueueOutboxMock(...args),
+    dequeueOutbox: (...args: unknown[]) => dequeueOutboxMock(...args),
     updateOutboxEntries: vi.fn().mockResolvedValue(undefined),
     dropOutboxForSession: (uid: string, id: string) => dropOutboxForSessionMock(uid, id),
     getTombstones: (uid: string) => getTombstonesMock(uid),
@@ -96,7 +99,7 @@ vi.mock('../../libs/chat-sync', async importOriginal => ({
     connect: connectCloudWsMock,
     disconnect: vi.fn(),
     destroy: vi.fn(),
-    sendMessages: vi.fn().mockResolvedValue({ ok: true }),
+    sendMessages: (...args: unknown[]) => sendMessagesMock(...args),
     pullMessages: (...args: unknown[]) => pullMessagesMock(...args),
     onNewMessages: () => () => {},
     onStatusChange: (listener: (status: 'idle' | 'open') => void) => {
@@ -150,6 +153,9 @@ beforeEach(() => {
   listChatsMock.mockReset().mockResolvedValue([])
   updateChatMock.mockReset().mockResolvedValue({ id: '', type: 'bot', title: null, createdAt: '', updatedAt: '' })
   pullMessagesMock.mockReset().mockResolvedValue({ messages: [], seq: 0 })
+  sendMessagesMock.mockReset().mockResolvedValue({ seq: 1 })
+  dequeueOutboxMock.mockReset().mockResolvedValue(undefined)
+  enqueueOutboxMock.mockReset().mockResolvedValue(undefined)
   connectCloudWsMock.mockReset()
   cloudWsStatus = 'idle'
   cloudStatusListener = undefined
@@ -1209,5 +1215,160 @@ describe('chat-session-store · synchronized data actions', () => {
     expect(store.activeSessionId).toBe('window-local-session')
     expect(store.$state).not.toHaveProperty('activeSessionId')
     expect(store.getSnapshot().index?.characters.default?.activeSessionId).toBe('persisted-session')
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2671
+  it('advances cloudMaxSeq upon sending messages so deleted messages do not resurrect after switching characters for Issue #2671', async () => {
+    userIdRef.value = 'cloud-user'
+    cloudWsStatus = 'open'
+
+    const sessionA: ChatSessionMeta = {
+      sessionId: 'session-a',
+      cloudChatId: 'chat-a',
+      userId: 'cloud-user',
+      characterId: 'default',
+      createdAt: 1,
+      updatedAt: 1,
+    }
+    const store = useChatSessionStore()
+    await store.initialize()
+    store.applyRemoteSnapshot({
+      activeSessionId: 'session-a',
+      sessionMessages: {
+        'session-a': [
+          { id: 'm1', role: 'user', content: 'hello' },
+        ],
+      },
+      sessionMetas: {
+        'session-a': sessionA,
+      },
+      index: {
+        userId: 'cloud-user',
+        characters: {
+          default: {
+            activeSessionId: 'session-a',
+            sessions: { 'session-a': sessionA },
+          },
+        },
+      },
+    })
+
+    sendMessagesMock.mockResolvedValueOnce({ seq: 42 })
+    await store.pushMessageToCloud('session-a', {
+      id: 'm1',
+      role: 'user',
+      content: 'hello',
+    })
+    await flushMicrotasks()
+
+    expect(store.sessionMetas['session-a']?.cloudMaxSeq).toBe(42)
+
+    // User deletes message m1 locally
+    await store.deleteMessage({ sessionId: 'session-a', messageId: 'm1' })
+    expect(store.getSessionMessages('session-a')).toHaveLength(0)
+
+    // A catch-up pull for session-a uses afterSeq = 42
+    listChatsMock.mockResolvedValueOnce([
+      { id: 'chat-a', type: 'bot', title: null, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z', members: [] },
+    ])
+    pullMessagesMock.mockResolvedValueOnce({ messages: [], seq: 42 })
+    cloudStatusListener?.('open')
+    await vi.waitFor(() => {
+      expect(pullMessagesMock).toHaveBeenCalledWith({ chatId: 'chat-a', afterSeq: 42 })
+    })
+
+    // Message m1 remains deleted
+    expect(store.getSessionMessages('session-a')).toHaveLength(0)
+  })
+
+  it('removes pending message from outbox when deleted locally before send for Issue #2671', async () => {
+    userIdRef.value = 'cloud-user'
+    cloudWsStatus = 'idle' // WS is closed, message stays in outbox
+
+    const sessionA: ChatSessionMeta = {
+      sessionId: 'session-a',
+      cloudChatId: 'chat-a',
+      userId: 'cloud-user',
+      characterId: 'default',
+      createdAt: 1,
+      updatedAt: 1,
+    }
+    const store = useChatSessionStore()
+    store.applyRemoteSnapshot({
+      activeSessionId: 'session-a',
+      sessionMessages: {
+        'session-a': [
+          { id: 'pending-1', role: 'user', content: 'draft' },
+        ],
+      },
+      sessionMetas: { 'session-a': sessionA },
+    })
+
+    await store.pushMessageToCloud('session-a', {
+      id: 'pending-1',
+      role: 'user',
+      content: 'draft',
+    })
+    await flushMicrotasks()
+
+    // Now delete the pending message
+    await store.deleteMessage({ sessionId: 'session-a', messageId: 'pending-1' })
+    await flushMicrotasks()
+
+    expect(dequeueOutboxMock).toHaveBeenCalledWith('cloud-user', ['pending-1'])
+  })
+
+  it('reconcileCloudSessions skips pulling messages for remote chats that no longer exist on server for Issue #2671', async () => {
+    userIdRef.value = 'cloud-user'
+    cloudWsStatus = 'open'
+
+    const sessionA: ChatSessionMeta = {
+      sessionId: 'session-a',
+      cloudChatId: 'chat-a', // this chat is NOT returned by listChats
+      userId: 'cloud-user',
+      characterId: 'default',
+      createdAt: 1,
+      updatedAt: 1,
+    }
+    const sessionB: ChatSessionMeta = {
+      sessionId: 'session-b',
+      cloudChatId: 'chat-b', // this chat IS returned by listChats
+      userId: 'cloud-user',
+      characterId: 'default',
+      createdAt: 1,
+      updatedAt: 1,
+    }
+
+    listChatsMock.mockResolvedValueOnce([
+      { id: 'chat-b', type: 'bot', title: 'Remote B', createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z', members: [] },
+    ])
+    pullMessagesMock.mockResolvedValue({ messages: [], seq: 0 })
+
+    const store = useChatSessionStore()
+    await store.initialize()
+    store.applyRemoteSnapshot({
+      activeSessionId: 'session-b',
+      sessionMessages: { 'session-a': [], 'session-b': [] },
+      sessionMetas: { 'session-a': sessionA, 'session-b': sessionB },
+      index: {
+        userId: 'cloud-user',
+        characters: {
+          default: {
+            activeSessionId: 'session-b',
+            sessions: { 'session-a': sessionA, 'session-b': sessionB },
+          },
+        },
+      },
+    })
+
+    cloudWsStatus = 'open'
+    cloudStatusListener?.('open')
+    await vi.waitFor(() => {
+      expect(store.cloudSyncReady).toBe(true)
+    })
+
+    // Only chat-b should be pulled; chat-a (which was deleted on server) should NOT be pulled (preventing 404)
+    expect(pullMessagesMock).toHaveBeenCalledWith({ chatId: 'chat-b', afterSeq: 0 })
+    expect(pullMessagesMock).not.toHaveBeenCalledWith({ chatId: 'chat-a', afterSeq: 0 })
   })
 })
