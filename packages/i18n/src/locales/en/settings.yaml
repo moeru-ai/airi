@@ -1688,6 +1688,7 @@ pages:
       empty: No transaction records yet.
       loadMore: Load More
       delayHint: Usage records may be delayed by up to 1 minute
+      ttsRequests: requests
     usage:
       title: Flux activity
       details: View detailed usage

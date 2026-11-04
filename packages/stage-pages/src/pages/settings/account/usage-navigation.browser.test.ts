@@ -223,4 +223,28 @@ describe('account usage navigation', () => {
     const root = screen.container.firstElementChild as HTMLElement
     expect(root.scrollWidth).toBeLessThanOrEqual(390)
   })
+
+  it.each([1100, 390])('preserves request details and collapsible TTS history at %ipx', async (width) => {
+    await page.viewport(width, 900)
+    historyResponse = async () => Response.json({
+      records: [
+        { ...history[0], description: 'chat completion', metadata: { promptTokens: 6200, completionTokens: 1800 } },
+        { ...history[1], description: 'tts:speech', metadata: { model: 'speech-model' } },
+        { ...history[2], description: 'tts:speech', metadata: { model: 'speech-model' } },
+        { ...history[3], description: 'tts:other', metadata: { model: 'other-model' } },
+      ],
+      hasMore: false,
+    })
+    const { screen } = await openPage('/settings/usage')
+    const view = screen.getByRole(width === 1100 ? 'table' : 'list')
+    await expect.element(view.getByText('(6200+1800 tokens)', { exact: true })).toBeVisible()
+    await expect.element(view.getByText('(other-model)', { exact: true })).toBeVisible()
+    const group = view.getByRole('button', { name: 'tts:speech (2 requests)', exact: true })
+    await expect.element(group).toHaveAttribute('aria-expanded', 'false')
+    await group.click()
+    await expect.element(group).toHaveAttribute('aria-expanded', 'true')
+    await expect.element(view.getByText('-3', { exact: true })).toBeVisible()
+    await group.click()
+    expect(view.getByText('-3', { exact: true }).elements()).toHaveLength(0)
+  })
 })
