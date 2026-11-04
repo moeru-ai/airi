@@ -44,7 +44,7 @@ export const providerDemonRoute = defineProvider<DemonRouteConfig, 'demonroute'>
     }),
   }),
   createProvider(config) {
-    const provider = createOpenAI(config.apiKey, config.baseUrl)
+    const provider = createOpenAI(config.apiKey, config.baseUrl || DEMONROUTE_DEFAULT_BASE_URL)
     return {
       ...provider,
       chat(model: string, options?: ChatRequestOptions) {
