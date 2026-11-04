@@ -67,6 +67,7 @@
     "nanoid": "catalog:",
     "rehype-parse": "catalog:",
     "rehype-stringify": "catalog:",
+    "remark-cjk-friendly": "catalog:",
     "remark-math": "catalog:",
     "remark-parse": "catalog:",
     "unified": "catalog:",
