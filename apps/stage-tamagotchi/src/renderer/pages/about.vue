@@ -9,7 +9,8 @@ import { useElectronAutoUpdater, useElectronEventaInvoke } from '@proj-airi/elec
 import { AboutContent, BugReportDialog, createBugReportPageContext, MarkdownRenderer } from '@proj-airi/stage-ui/components'
 import { useAnalytics, useBreakpoints, useBuildInfo } from '@proj-airi/stage-ui/composables'
 import { Alert, Button, ContainerError, DoubleCheckButton, FieldCheckbox, FieldSelect, Progress, ScrollableArea } from '@proj-airi/ui'
-import { useClipboard } from '@vueuse/core'
+import { useClipboard, useNow } from '@vueuse/core'
+import { intlFormat, intlFormatDistance } from 'date-fns'
 import { DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { DrawerContent, DrawerDescription, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot, DrawerTitle } from 'vaul-vue'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -24,7 +25,7 @@ const buildInfo = useBuildInfo()
 // The main process owns the app version. Packaging can change it after the renderer build, so `buildInfo.version`
 // can be out of date. The page shows an empty version until main replies.
 const appVersion = ref('')
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const { copy: copyToClipboard, isSupported: isClipboardSupported } = useClipboard()
 
 const {
@@ -166,10 +167,17 @@ const hasUpdateStatus = computed(() => requiresWindowsAdminUpdatePrompt.value
   || isError.value
   || ['available', 'downloading', 'downloaded', 'manual-install-required'].includes(updateState.value.status))
 
-const builtOnText = computed(() => {
+const now = useNow({ interval: 60_000 })
+const builtOnDate = computed(() => {
   const date = new Date(buildInfo.builtOn)
-  return Number.isNaN(date.getTime()) ? buildInfo.builtOn : date.toLocaleString()
+  return Number.isNaN(date.getTime()) ? undefined : date
 })
+const builtOnRelativeText = computed(() => builtOnDate.value
+  ? intlFormatDistance(builtOnDate.value, now.value, { locale: locale.value })
+  : buildInfo.builtOn)
+const builtOnFullText = computed(() => builtOnDate.value
+  ? intlFormat(builtOnDate.value, { dateStyle: 'medium', timeStyle: 'short' }, { locale: locale.value })
+  : buildInfo.builtOn)
 
 const getAppVersion = useElectronEventaInvoke(electronAppGetVersion)
 const getUpdaterPreferences = useElectronEventaInvoke(electronGetUpdaterPreferences)
@@ -351,8 +359,9 @@ onMounted(() => {
             ]"
           >
             <!-- Build Info -->
-            <div :class="['flex items-center justify-between gap-4']">
-              <div :class="['min-w-0 flex flex-col gap-1.5']">
+            <!-- Wraps the actions to the next line when the confirm state of the restart button is too wide. -->
+            <div :class="['flex flex-wrap items-center justify-between gap-4']">
+              <div :class="['min-w-0 flex-1 basis-72 flex flex-col gap-1.5']">
                 <div v-if="runningVersion" :class="['flex flex-wrap items-center gap-2']">
                   <span :class="['rounded-md px-2 py-0.5', 'font-mono text-sm font-medium', 'bg-neutral-300/60 text-neutral-700', 'dark:bg-neutral-700/60 dark:text-neutral-200']">
                     v{{ runningVersion.release }}
@@ -364,12 +373,26 @@ onMounted(() => {
                     {{ t(`tamagotchi.stage.about.update.channels.${runningVersion.channel}`) }}
                   </span>
                 </div>
-                <div
+                <i18n-t
                   v-if="runningVersion && runningVersion.channel !== 'stable'"
+                  keypath="tamagotchi.stage.about.build-origin"
+                  tag="div"
                   :class="['text-xs text-neutral-500 dark:text-neutral-400']"
                 >
-                  {{ t('tamagotchi.stage.about.build-origin', { time: builtOnText, branch: buildInfo.branch, commit: buildInfo.commit }) }}
-                </div>
+                  <template #time>
+                    <time
+                      :datetime="builtOnDate?.toISOString()"
+                      :title="builtOnFullText"
+                      :class="['whitespace-nowrap']"
+                    >{{ builtOnRelativeText }}</time>
+                  </template>
+                  <template #branch>
+                    <span :class="['whitespace-nowrap font-mono']">{{ buildInfo.branch }}</span>
+                  </template>
+                  <template #commit>
+                    <span :class="['whitespace-nowrap font-mono']">{{ buildInfo.commit }}</span>
+                  </template>
+                </i18n-t>
               </div>
 
               <div :class="['flex shrink-0 items-center gap-2']">
