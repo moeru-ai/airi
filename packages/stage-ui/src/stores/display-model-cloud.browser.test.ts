@@ -9,10 +9,9 @@ import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp } from 'vue'
 
-import { DISPLAY_MODEL_SYNC_FLAG } from '../libs/feature-flags'
 import { useAuthStore } from './auth'
 import { DisplayModelFormat, useDisplayModelsStore } from './display-models'
-import { useFeatureFlagsStore } from './feature-flags'
+import { useSyncPreferencesStore } from './sync-preferences'
 
 const modelId = 'display-model-window-test'
 const runtimes: SyncedPiniaRuntime[] = []
@@ -56,7 +55,7 @@ async function openWindow(runtime: SyncedPiniaRuntime) {
   const auth = useAuthStore(pinia)
   auth.user = user
   auth.session = session
-  useFeatureFlagsStore(pinia).setPreference(DISPLAY_MODEL_SYNC_FLAG.key, true)
+  useSyncPreferencesStore(pinia).setEnabled('display-models', true)
 
   const store = useDisplayModelsStore(pinia)
   await store.initialize().catch(() => {})

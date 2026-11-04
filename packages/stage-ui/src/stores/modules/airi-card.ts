@@ -32,7 +32,6 @@ import { documentSyncRepo } from '../../database/repos/document-sync.repo'
 import { authedFetch } from '../../libs/auth-fetch'
 import { joinCard, splitCard } from '../../libs/character-card-sync'
 import { createDocumentSyncClient, syncedValues, synchronize } from '../../libs/document-sync'
-import { CHARACTER_CARD_SYNC_FLAG } from '../../libs/feature-flags'
 import { captureAnalyticsEvent } from '../../libs/product-signals'
 import { SERVER_URL } from '../../libs/server'
 import { SyncRunner, watchSyncTriggers } from '../../libs/sync-runner'
@@ -42,10 +41,10 @@ import { createAvatarModelReference } from '../../services/avatar-model'
 import { normalizeContextWindow } from '../../types/airiCard'
 import { useAuthStore } from '../auth'
 import { useDisplayModelsStore } from '../display-models'
-import { useFeatureFlagsStore } from '../feature-flags'
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
 import { useSettingsStageModel } from '../settings/stage-model'
+import { useSyncPreferencesStore } from '../sync-preferences'
 import { useArtistryStore } from './artistry'
 import { useConsciousnessStore } from './consciousness'
 import { configureAsDefaultsIfEmpty, unconfigureAuthenticationProviders } from './default'
@@ -189,9 +188,9 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   const { t } = useI18n()
   const authStore = useAuthStore()
   const { userId } = storeToRefs(authStore)
-  const featureFlagsStore = useFeatureFlagsStore()
-  /** Cloud sync is a device choice, off by default. Settings > System > Experimental Features owns it. */
-  const cloudSyncEnabled = computed(() => featureFlagsStore.isEnabled(CHARACTER_CARD_SYNC_FLAG.key))
+  const syncPreferences = useSyncPreferencesStore()
+  /** Cloud sync is a device choice, on by default. The sync section of the account settings owns it. */
+  const cloudSyncEnabled = computed(() => syncPreferences.isEnabled('character-cards'))
   const displayModels = useDisplayModelsStore()
 
   const cards = useLocalStorageManualReset<Map<string, AiriCard>>('airi-cards', new Map(), { listenToStorageChanges: false })

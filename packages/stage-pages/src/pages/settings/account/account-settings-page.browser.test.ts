@@ -71,7 +71,7 @@ afterAll(() => {
 })
 
 /** Renders the real account page with an authenticated account and network-only test doubles. */
-async function openDeletion(email = 'person@example.com') {
+async function renderSignedIn(email = 'person@example.com') {
   const store = useAuthStore()
   const now = new Date()
   store.$patch({
@@ -86,9 +86,33 @@ async function openDeletion(email = 'person@example.com') {
     props: { onLogin },
     global: { plugins: [pinia, router, createI18n({ legacy: false, locale: 'en', messages: { en }, missingWarn: false, fallbackWarn: false })] },
   })
-  await screen.getByRole('button', { name: 'Delete account', exact: true }).click()
   return { screen, store, onLogin }
 }
+
+/** Renders the signed-in account page and opens the deletion dialog. */
+async function openDeletion(email = 'person@example.com') {
+  const rendered = await renderSignedIn(email)
+  await rendered.screen.getByRole('button', { name: 'Delete account', exact: true }).click()
+  return rendered
+}
+
+describe('sync section', () => {
+  it('shows each sync on by default and saves a change on this device', async () => {
+    const { screen } = await renderSignedIn()
+    const switches = screen.getByRole('switch')
+    const providers = screen.getByRole('switch', { name: 'Providers' })
+
+    await expect.element(providers).toHaveAttribute('aria-checked', 'true')
+    expect(switches.elements()).toHaveLength(4)
+    for (const item of switches.elements())
+      expect(item.getAttribute('aria-checked')).toBe('true')
+
+    await providers.click()
+
+    await expect.element(providers).toHaveAttribute('aria-checked', 'false')
+    await expect.poll(() => JSON.parse(localStorage.getItem('settings/sync') ?? '{}')).toEqual({ providers: false })
+  })
+})
 
 describe('unified account deletion', () => {
   // https://github.com/moeru-ai/airi/pull/2895#discussion_r4245563897

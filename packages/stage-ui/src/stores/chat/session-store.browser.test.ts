@@ -11,6 +11,7 @@ import { createI18n } from 'vue-i18n'
 import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
 import { useAuthStore } from '../auth'
 import { useAiriCardStore } from '../modules/airi-card'
+import { useSyncPreferencesStore } from '../sync-preferences'
 
 vi.mock('../../database/repos/chat-sessions.repo', () => ({
   chatSessionsRepo: {
@@ -624,5 +625,32 @@ describe('chat session synchronization', () => {
     expect(chatSyncMocks.clients[0]?.destroy).toHaveBeenCalledOnce()
     expect(chatSyncMocks.clients[1]?.connect).toHaveBeenCalledOnce()
     stopLeadershipListener()
+  })
+
+  it('closes and opens the cloud connection of the leader when a follower changes the chat sync switch', async () => {
+    const namespace = `chat-session:${crypto.randomUUID()}`
+    const leaderContext = createSyncedContext(namespace, 'follower-preferred')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+
+    setActivePinia(leaderContext.pinia)
+    const leaderAuthStore = useAuthStore()
+    leaderAuthStore.user = { id: 'cloud-user', name: 'User', email: 'user@example.test', emailVerified: true, createdAt: new Date(0), updatedAt: new Date(0) }
+    leaderAuthStore.token = 'cloud-token'
+    await useChatSessionStore().initialize()
+    expect(chatSyncMocks.clients).toHaveLength(1)
+
+    const followerContext = createSyncedContext(namespace, 'follower-preferred')
+    setActivePinia(followerContext.pinia)
+    useChatSessionStore()
+    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+    const followerSyncPreferences = useSyncPreferencesStore(followerContext.pinia)
+
+    followerSyncPreferences.setEnabled('chats', false)
+    await vi.waitFor(() => expect(chatSyncMocks.clients[0]?.destroy).toHaveBeenCalledOnce())
+    expect(chatSyncMocks.clients).toHaveLength(1)
+
+    followerSyncPreferences.setEnabled('chats', true)
+    await vi.waitFor(() => expect(chatSyncMocks.clients).toHaveLength(2))
+    expect(chatSyncMocks.clients[1]?.connect).toHaveBeenCalledOnce()
   })
 })
