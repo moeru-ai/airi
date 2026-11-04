@@ -16,6 +16,10 @@ const authState = {
   }),
   needsLogin: ref(false),
   credits: ref(9620),
+  consumeLoginRequest: vi.fn(async () => {
+    authState.needsLogin.value = false
+    return true
+  }),
 }
 
 vi.mock('@proj-airi/stage-ui/stores/auth', () => ({
@@ -47,6 +51,7 @@ describe('controlsIslandAuthButton', () => {
     mountedApps.length = 0
     authState.isAuthenticated.value = true
     authState.needsLogin.value = false
+    authState.consumeLoginRequest.mockClear()
     invokes.startLogin.mockReset()
     invokes.openSettings.mockReset()
     authState.user.value.image = 'https://example.com/broken-avatar.png'
@@ -75,6 +80,7 @@ describe('controlsIslandAuthButton', () => {
 
     active.value = true
     await nextTick()
+    expect(authState.consumeLoginRequest).toHaveBeenCalledOnce()
     expect(invokes.startLogin).toHaveBeenCalledOnce()
     expect(authState.needsLogin.value).toBe(false)
   })

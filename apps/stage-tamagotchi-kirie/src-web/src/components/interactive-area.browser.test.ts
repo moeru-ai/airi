@@ -29,6 +29,8 @@ import 'virtual:uno.css'
 const openSettings = vi.hoisted(() => vi.fn())
 
 vi.mock('@proj-airi/stage-host-context', () => ({
+  // The tool stores read the host context when the chat creates them.
+  getHostEventaContext: () => ({ on: vi.fn(() => vi.fn()), emit: vi.fn() }),
   useHostEventaInvoke: () => openSettings,
 }))
 
