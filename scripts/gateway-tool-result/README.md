@@ -29,8 +29,8 @@ From the AIRI root, with an existing independent `gateway-sandbox` directory:
 ```powershell
 $gatewayRoot = (Resolve-Path ./gateway-sandbox).Path
 $patch = (Resolve-Path ./scripts/gateway-tool-result/gateway-image-fix.patch).Path
-git -C $gatewayRoot apply --check $patch
-git -C $gatewayRoot apply $patch
+git -C $gatewayRoot apply --unidiff-zero --check $patch
+git -C $gatewayRoot apply --unidiff-zero $patch
 $env:GATEWAY_SOURCE = Join-Path $gatewayRoot 'zcgw-server.mjs'
 $env:TEST_TMPDIR = Join-Path $gatewayRoot 'contract-tests'
 node --test --test-timeout=30000 scripts/gateway-tool-result/gateway-image.test.mjs

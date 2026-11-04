@@ -2,10 +2,7 @@ diff --git a/zcgw-server.mjs b/zcgw-server.mjs
 index 073c31d..9a3dffc 100644
 --- a/zcgw-server.mjs
 +++ b/zcgw-server.mjs
-@@ -1038,6 +1038,40 @@ function usageFromJson(obj) {
- 
- // ── 主处理 ──
- /** OpenAI /v1/chat/completions → Anthropic /v1/messages 转换适配 */
+@@ -1040,0 +1041,34 @@ function usageFromJson(obj) {
 +/** Keeps tool-result images as native content blocks and rejects unsupported inputs. */
 +function toolResultContent(content) {
 +  if (typeof content === 'string') return content;
@@ -40,22 +37,10 @@ index 073c31d..9a3dffc 100644
 +  });
 +}
 +
- function openaiToAnthropic(body) {
-   const msgs = [];
-   let system = '';
-@@ -1126,7 +1160,7 @@ function openaiToAnthropic(body) {
-       const toolResultBlock = {
-         type: 'tool_result',
-         tool_use_id: m.tool_call_id,
+@@ -1129 +1163 @@ function openaiToAnthropic(body) {
 -        content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content ?? ''),
 +        content: toolResultContent(m.content),
-       };
-       const last = msgs[msgs.length - 1];
-       if (last && last.role === 'user') {
-@@ -1308,7 +1342,12 @@ async function handleOpenAIChat(req, res) {
-   try {
-     fs.writeFileSync(path.join(DATA_DIR, 'last-request.json'), JSON.stringify(body, null, 2));
-   } catch {}
+@@ -1311 +1345,6 @@ async function handleOpenAIChat(req, res) {
 -  const inbound = openaiToAnthropic(body);
 +  let inbound;
 +  try {
@@ -63,16 +48,7 @@ index 073c31d..9a3dffc 100644
 +  } catch (error) {
 +    return sendJson(res, 400, { error: { message: error.message, type: 'invalid_request_error' } });
 +  }
- 
-   // 鉴权 + IP 管控（与 /v1/messages 同一套）
-   const sec = secCheckIp(clientIp(req));
-@@ -1369,6 +1408,9 @@ async function handleOpenAIChat(req, res) {
-       } catch {}
-     }
- 
+@@ -1371,0 +1411,3 @@ async function handleOpenAIChat(req, res) {
 +    if (upstream.ok && !biz && (env?.error || !Array.isArray(env?.content))) {
 +      return sendJson(res, 502, { error: { message: 'Invalid upstream model response.', type: 'api_error' } });
 +    }
-     if (upstream.ok && env && !biz) {
-       markSuccess(acc);
-       stickySet(sessionKey, acc.label);
