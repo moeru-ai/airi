@@ -96,9 +96,10 @@ onMounted(() => updateThemeColor())
 </script>
 
 <template>
+  <!-- A full-bleed page reaches the bottom screen edge and pads its own controls for the home indicator. -->
   <div
     :style="{
-      paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+      paddingBottom: fullBleed ? '0px' : 'env(safe-area-inset-bottom, 0px)',
       paddingTop: 'env(safe-area-inset-top, 0px)',
       paddingRight: 'env(safe-area-inset-right, 0px)',
       paddingLeft: 'env(safe-area-inset-left, 0px)',
