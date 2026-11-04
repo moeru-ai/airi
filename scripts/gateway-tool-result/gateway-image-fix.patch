@@ -1,0 +1,78 @@
+diff --git a/zcgw-server.mjs b/zcgw-server.mjs
+index 073c31d..9a3dffc 100644
+--- a/zcgw-server.mjs
++++ b/zcgw-server.mjs
+@@ -1038,6 +1038,40 @@ function usageFromJson(obj) {
+ 
+ // ── 主处理 ──
+ /** OpenAI /v1/chat/completions → Anthropic /v1/messages 转换适配 */
++/** Keeps tool-result images as native content blocks and rejects unsupported inputs. */
++function toolResultContent(content) {
++  if (typeof content === 'string') return content;
++  if (!Array.isArray(content) || content.length === 0) {
++    throw new Error('Invalid tool result: content must be text or a nonempty content array.');
++  }
++  return content.map((part) => {
++    if (part?.type === 'text' && typeof part.text === 'string') {
++      return { type: 'text', text: part.text };
++    }
++    if (part?.type !== 'image_url' || typeof part.image_url?.url !== 'string') {
++      throw new Error('Invalid tool result: unsupported content part.');
++    }
++    const match = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/]+={0,2})$/.exec(part.image_url.url);
++    if (!match) throw new Error('Invalid tool result: expected an inline PNG, JPEG, or WebP image.');
++    const [, mediaType, data] = match;
++    const maxBytes = 8 * 1024 * 1024;
++    if (data.length > 4 * Math.ceil(maxBytes / 3)) {
++      throw new Error('Invalid tool result: image exceeds 8 MiB.');
++    }
++    const bytes = Buffer.from(data, 'base64');
++    if (bytes.length === 0 || bytes.length > maxBytes || bytes.toString('base64') !== data) {
++      throw new Error('Invalid tool result: invalid or oversized image data.');
++    }
++    const png = bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
++    const jpeg = bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255;
++    const webp = bytes.toString('ascii', 0, 4) === 'RIFF' && bytes.toString('ascii', 8, 12) === 'WEBP';
++    if (!((mediaType === 'image/png' && png) || (mediaType === 'image/jpeg' && jpeg) || (mediaType === 'image/webp' && webp))) {
++      throw new Error('Invalid tool result: image MIME type does not match its signature.');
++    }
++    return { type: 'image', source: { type: 'base64', media_type: mediaType, data } };
++  });
++}
++
+ function openaiToAnthropic(body) {
+   const msgs = [];
+   let system = '';
+@@ -1126,7 +1160,7 @@ function openaiToAnthropic(body) {
+       const toolResultBlock = {
+         type: 'tool_result',
+         tool_use_id: m.tool_call_id,
+-        content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content ?? ''),
++        content: toolResultContent(m.content),
+       };
+       const last = msgs[msgs.length - 1];
+       if (last && last.role === 'user') {
+@@ -1308,7 +1342,12 @@ async function handleOpenAIChat(req, res) {
+   try {
+     fs.writeFileSync(path.join(DATA_DIR, 'last-request.json'), JSON.stringify(body, null, 2));
+   } catch {}
+-  const inbound = openaiToAnthropic(body);
++  let inbound;
++  try {
++    inbound = openaiToAnthropic(body);
++  } catch (error) {
++    return sendJson(res, 400, { error: { message: error.message, type: 'invalid_request_error' } });
++  }
+ 
+   // 鉴权 + IP 管控（与 /v1/messages 同一套）
+   const sec = secCheckIp(clientIp(req));
+@@ -1369,6 +1408,9 @@ async function handleOpenAIChat(req, res) {
+       } catch {}
+     }
+ 
++    if (upstream.ok && !biz && (env?.error || !Array.isArray(env?.content))) {
++      return sendJson(res, 502, { error: { message: 'Invalid upstream model response.', type: 'api_error' } });
++    }
+     if (upstream.ok && env && !biz) {
+       markSuccess(acc);
+       stickySet(sessionKey, acc.label);
