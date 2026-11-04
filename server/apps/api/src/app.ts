@@ -79,8 +79,6 @@ import { createConfigKVService } from './services/adapters/config-kv'
 import { createConfigKVStore } from './services/adapters/config-kv/store'
 import { createS3ObjectStore } from './services/adapters/object-store'
 import { createOpenpanelSink } from './services/adapters/openpanel'
-import { appleReceiptResolver } from './services/adapters/payment-receipts/apple-receipt'
-import { createStripeReceiptResolver } from './services/adapters/payment-receipts/stripe-receipt'
 import { createRevenuecatSubscriberClient } from './services/adapters/revenuecat-subscriber'
 import { createRevenuecatSubscriptionSync } from './services/adapters/revenuecat-subscriptions'
 import { createBillingService } from './services/domain/billing/billing-service'
@@ -325,10 +323,6 @@ export async function buildApp(deps: AppDeps) {
     rateLimitMetrics: deps.otel?.rateLimit,
   })
   const defaultApiBodyLimit = apiBodyLimit(DEFAULT_API_MAX_REQUEST_BYTES)
-  const paymentReceipts = createPaymentReceiptService(deps.db, [
-    createStripeReceiptResolver(deps.stripe),
-    appleReceiptResolver,
-  ])
 
   const builtApp = app
     .use('*', sessionMiddleware(deps.db, deps.env))
@@ -441,7 +435,7 @@ export async function buildApp(deps: AppDeps) {
      * Flux routes.
      */
     .route('/api/v1/flux', createFluxRoutes(deps.fluxService, deps.fluxTransactionService, deps.billingService))
-    .route('/api/v1/payments', createPaymentRoutes(paymentReceipts))
+    .route('/api/v1/payments', createPaymentRoutes(createPaymentReceiptService(deps.db, deps.stripe)))
     .route('/api/v1/llm-requests', createLlmRequestRoutes(deps.requestLogService))
 
     /**
