@@ -175,6 +175,7 @@
     "rehype-parse": "catalog:",
     "rehype-stringify": "catalog:",
     "reka-ui": "catalog:",
+    "remark-cjk-friendly": "catalog:",
     "remark-math": "catalog:",
     "remark-parse": "catalog:",
     "remark-rehype": "catalog:",
