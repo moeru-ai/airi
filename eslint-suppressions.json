@@ -24,31 +24,6 @@
       "count": 1
     }
   },
-  "apps/stage-tamagotchi-kirie/src-web/src/renderer/stores/tools/builtin/image-journal.ts": {
-    "ts/no-explicit-any": {
-      "count": 1
-    }
-  },
-  "apps/stage-tamagotchi-kirie/src-web/src/renderer/stores/tools/testing/strict-tool-schema.ts": {
-    "ts/no-explicit-any": {
-      "count": 1
-    }
-  },
-  "apps/stage-tamagotchi-kirie/src-web/src/renderer/widgets/extension-ui/components/extension-ui-host.vue": {
-    "ts/no-explicit-any": {
-      "count": 4
-    }
-  },
-  "apps/stage-tamagotchi-kirie/src-web/src/renderer/widgets/extension-ui/components/iframe-request.ts": {
-    "ts/no-explicit-any": {
-      "count": 2
-    }
-  },
-  "apps/stage-tamagotchi-kirie/src-web/src/renderer/widgets/extension-ui/host.ts": {
-    "ts/no-explicit-any": {
-      "count": 3
-    }
-  },
   "apps/stage-tamagotchi-kirie/src-web/src/shared/eventa/index.ts": {
     "ts/no-explicit-any": {
       "count": 2
@@ -57,6 +32,31 @@
   "apps/stage-tamagotchi-kirie/src-web/src/shared/eventa/plugin/host.ts": {
     "ts/no-explicit-any": {
       "count": 2
+    }
+  },
+  "apps/stage-tamagotchi-kirie/src-web/src/stores/tools/builtin/image-journal.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "apps/stage-tamagotchi-kirie/src-web/src/stores/tools/testing/strict-tool-schema.ts": {
+    "ts/no-explicit-any": {
+      "count": 1
+    }
+  },
+  "apps/stage-tamagotchi-kirie/src-web/src/widgets/extension-ui/components/extension-ui-host.vue": {
+    "ts/no-explicit-any": {
+      "count": 4
+    }
+  },
+  "apps/stage-tamagotchi-kirie/src-web/src/widgets/extension-ui/components/iframe-request.ts": {
+    "ts/no-explicit-any": {
+      "count": 2
+    }
+  },
+  "apps/stage-tamagotchi-kirie/src-web/src/widgets/extension-ui/host.ts": {
+    "ts/no-explicit-any": {
+      "count": 3
     }
   },
   "apps/stage-tamagotchi/electron.vite.config.ts": {

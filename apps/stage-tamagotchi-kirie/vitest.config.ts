@@ -7,7 +7,7 @@ export default defineConfig({
   root: import.meta.dirname,
   resolve: {
     alias: {
-      '@proj-airi/stage-host-context': resolve(import.meta.dirname, 'src-web/src/renderer/host-context/index.ts'),
+      '@proj-airi/stage-host-context': resolve(import.meta.dirname, 'src-web/src/host-context/index.ts'),
     },
   },
   test: {
@@ -18,18 +18,18 @@ export default defineConfig({
           name: 'node',
           environment: 'jsdom',
           include: [
-            'src-web/src/renderer/host-context/**/*.test.ts',
-            'src-web/src/renderer/window-context.test.ts',
-            'src-web/src/renderer/stores/tools/builtin/widgets.test.ts',
+            'src-web/src/host-context/**/*.test.ts',
+            'src-web/src/window-context.test.ts',
+            'src-web/src/stores/tools/builtin/widgets.test.ts',
           ],
-          exclude: ['src-web/src/renderer/host-context/**/*.browser.test.ts'],
+          exclude: ['src-web/src/host-context/**/*.browser.test.ts'],
         },
       },
       {
         extends: true,
         test: {
           name: 'browser',
-          include: ['src-web/src/renderer/host-context/**/*.browser.test.ts'],
+          include: ['src-web/src/host-context/**/*.browser.test.ts'],
           browser: {
             enabled: true,
             headless: true,
