@@ -1,5 +1,6 @@
 import type { ExtensionManifestV2, ModulePermissionDeclaration } from './shared/types'
 
+import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 
 import { safeParse } from 'valibot'
@@ -2157,6 +2158,45 @@ describe('for FileSystemLoader', () => {
     expect(extension).toBeDefined()
     expect(extension.id).toBe('test-define-extension-entrypoint')
     expect(typeof extension.setup).toBe('function')
+  })
+
+  // https://github.com/moeru-ai/airi/issues/3359
+  it('loads filesystem entrypoints that contain URL-special characters (Issue #3359)', () => {
+    // ROOT CAUSE:
+    //
+    // `import()` treats a Windows drive letter as a URL scheme and `#` as a URL fragment.
+    // The loader passed a filesystem path directly:
+    //
+    // const extensionModule = await import(entrypoint)
+    //
+    // Convert the resolved path with `pathToFileURL` before import:
+    //
+    // const extensionModule = await import(pathToFileURL(entrypoint).href)
+    const entrypoint = join(import.meta.dirname, 'testdata', 'test#url-special-entrypoint.mjs')
+    const result = spawnSync(process.execPath, [
+      '--import',
+      'tsx',
+      '--input-type=module',
+      '--eval',
+      `import { FileSystemLoader } from './src/plugin-host/runtimes/node/loaders/fs.ts'
+const extension = await new FileSystemLoader().loadExtensionFor({
+  manifestVersion: 2,
+  kind: 'manifest.extension.airi.moeru.ai',
+  id: 'test-extension',
+  version: '1.0.0',
+  engines: { airi: '*', runtimes: ['node'] },
+  permissions: {},
+  entrypoints: { node: process.argv[1] },
+}, { cwd: '', runtime: 'node' })
+console.log(extension.id)`,
+      entrypoint,
+    ], {
+      cwd: join(import.meta.dirname, '../..'),
+      encoding: 'utf8',
+    })
+
+    expect(result.status, result.stderr).toBe(0)
+    expect(result.stdout.trim()).toBe('test-url-special-entrypoint')
   })
 
   it('should reject entrypoints that do not export defineExtension', async () => {
