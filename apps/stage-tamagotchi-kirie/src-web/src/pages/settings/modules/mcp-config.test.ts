@@ -3,7 +3,7 @@ import type { ServerForm } from './mcp-config'
 import { errorMessageFrom } from '@moeru/std'
 import { describe, expect, it } from 'vitest'
 
-import { parseElectronMcpConfigText } from '../../../shared/mcp-config'
+import { parseAiriMcpConfigText } from '../../../shared/mcp-config'
 import {
   buildConfigFile,
   buildServerConfig,
@@ -100,7 +100,7 @@ describe('mcp-config helpers', () => {
   })
 
   it('rejects JSON drafts that violate the shared MCP schema', () => {
-    expect(() => parseElectronMcpConfigText(JSON.stringify({
+    expect(() => parseAiriMcpConfigText(JSON.stringify({
       mcpServers: {
         filesystem: {
           command: 'npx',
@@ -111,7 +111,7 @@ describe('mcp-config helpers', () => {
   })
 
   it('rejects unknown keys that the main process would reject too', () => {
-    expect(() => parseElectronMcpConfigText(JSON.stringify({
+    expect(() => parseAiriMcpConfigText(JSON.stringify({
       mcpServers: {
         filesystem: {
           command: 'npx',
@@ -122,7 +122,7 @@ describe('mcp-config helpers', () => {
   })
 
   it('reports the closer of the two server shapes when neither one matches', () => {
-    expect(() => parseElectronMcpConfigText(JSON.stringify({
+    expect(() => parseAiriMcpConfigText(JSON.stringify({
       mcpServers: {
         remote: {
           url: 'https://mcp.example.com/mcp',
@@ -148,7 +148,7 @@ describe('mcp-config helpers', () => {
   })
 
   it('loads a remote server into a form row and saves it unchanged', () => {
-    const config = parseElectronMcpConfigText(JSON.stringify({
+    const config = parseAiriMcpConfigText(JSON.stringify({
       mcpServers: {
         remote: {
           url: 'https://mcp.example.com/mcp',
@@ -174,7 +174,7 @@ describe('mcp-config helpers', () => {
   })
 
   it('accepts a remote server entry in the shared schema', () => {
-    const parsed = parseElectronMcpConfigText(JSON.stringify({
+    const parsed = parseAiriMcpConfigText(JSON.stringify({
       mcpServers: {
         remote: {
           url: 'http://mcp.internal:8080/mcp',
@@ -190,7 +190,7 @@ describe('mcp-config helpers', () => {
   })
 
   it('rejects a remote server entry whose URL is not HTTP', () => {
-    expect(() => parseElectronMcpConfigText(JSON.stringify({
+    expect(() => parseAiriMcpConfigText(JSON.stringify({
       mcpServers: {
         local: { url: 'file:///etc/passwd' },
       },

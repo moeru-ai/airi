@@ -23,9 +23,9 @@ const invokeMocks = vi.hoisted(() => ({
 
 vi.mock('@proj-airi/stage-host-context', () => ({
   useHostEventaInvoke: (event: { receiveEvent?: { id?: string } }) => {
-    if (event?.receiveEvent?.id === 'eventa:invoke:electron:mcp:list-tools-receive')
+    if (event?.receiveEvent?.id === 'eventa:invoke:airi:mcp:list-tools-receive')
       return invokeMocks.listMcpTools
-    if (event?.receiveEvent?.id === 'eventa:invoke:electron:mcp:call-tool-receive')
+    if (event?.receiveEvent?.id === 'eventa:invoke:airi:mcp:call-tool-receive')
       return invokeMocks.callMcpTool
 
     throw new Error(`Unexpected eventa invoke: ${JSON.stringify(event)}`)

@@ -42,7 +42,7 @@ describe('host auth', () => {
       clientId: 'staging-client',
       serverUrl: 'https://staging.example.test',
     })
-    expect(invoke).toHaveBeenNthCalledWith(2, 'eventa:invoke:electron:auth:start-login-send', {})
-    expect(invoke).toHaveBeenNthCalledWith(3, 'eventa:invoke:electron:auth:logout-send', {})
+    expect(invoke).toHaveBeenNthCalledWith(2, 'eventa:invoke:airi:auth:start-login-send', {})
+    expect(invoke).toHaveBeenNthCalledWith(3, 'eventa:invoke:airi:auth:logout-send', {})
   })
 })

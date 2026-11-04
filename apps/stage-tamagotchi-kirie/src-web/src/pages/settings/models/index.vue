@@ -7,8 +7,8 @@ import type {
 import type { DisplayModel } from '@proj-airi/stage-ui/stores/display-models'
 
 import type {
-  ElectronGodotStageSceneInputPayload,
-  ElectronGodotStageStatus,
+  AiriGodotStageSceneInputPayload,
+  AiriGodotStageStatus,
 } from '../../../shared/eventa'
 
 import { errorMessageFrom } from '@moeru/std'
@@ -23,16 +23,16 @@ import { useI18n } from 'vue-i18n'
 
 import { useModelSettingsRuntimeSnapshot } from '../../../composables/model-settings-runtime-snapshot'
 import {
-  electronGodotStageApplySceneInput,
-  electronGodotStageApplyViewPatch,
-  electronGodotStageGetStatus,
-  electronGodotStageGetViewSnapshot,
-  electronGodotStageRequestViewSnapshot,
-  electronGodotStageStart,
-  electronGodotStageStatusChanged,
-  electronGodotStageStop,
-  electronGodotStageViewSnapshotChanged,
-  electronGodotStageViewStateError,
+  airiGodotStageApplySceneInput,
+  airiGodotStageApplyViewPatch,
+  airiGodotStageGetStatus,
+  airiGodotStageGetViewSnapshot,
+  airiGodotStageRequestViewSnapshot,
+  airiGodotStageStart,
+  airiGodotStageStatusChanged,
+  airiGodotStageStop,
+  airiGodotStageViewSnapshotChanged,
+  airiGodotStageViewStateError,
 } from '../../../shared/eventa'
 import { assertGodotSceneInputSupportedDisplayModel } from './godot-scene-input'
 import { createGodotViewPatchQueue } from './godot-view-patch-queue'
@@ -44,17 +44,17 @@ import {
 const settingsStore = useSettings()
 const { stageModelRenderer, stageModelSelectedDisplayModel } = storeToRefs(settingsStore)
 const context = useHostEventaContext()
-const applyGodotStageSceneInput = useHostEventaInvoke(electronGodotStageApplySceneInput)
-const applyGodotStageViewPatch = useHostEventaInvoke(electronGodotStageApplyViewPatch)
-const getGodotStageStatus = useHostEventaInvoke(electronGodotStageGetStatus)
-const getGodotStageViewSnapshot = useHostEventaInvoke(electronGodotStageGetViewSnapshot)
-const requestGodotStageViewSnapshot = useHostEventaInvoke(electronGodotStageRequestViewSnapshot)
-const startGodotStage = useHostEventaInvoke(electronGodotStageStart)
-const stopGodotStage = useHostEventaInvoke(electronGodotStageStop)
+const applyGodotStageSceneInput = useHostEventaInvoke(airiGodotStageApplySceneInput)
+const applyGodotStageViewPatch = useHostEventaInvoke(airiGodotStageApplyViewPatch)
+const getGodotStageStatus = useHostEventaInvoke(airiGodotStageGetStatus)
+const getGodotStageViewSnapshot = useHostEventaInvoke(airiGodotStageGetViewSnapshot)
+const requestGodotStageViewSnapshot = useHostEventaInvoke(airiGodotStageRequestViewSnapshot)
+const startGodotStage = useHostEventaInvoke(airiGodotStageStart)
+const stopGodotStage = useHostEventaInvoke(airiGodotStageStop)
 
 const palette = ref<string[]>([])
 const godotStageError = ref<string>()
-const godotStageStatus = ref<ElectronGodotStageStatus>({
+const godotStageStatus = ref<AiriGodotStageStatus>({
   state: 'stopped',
   pid: null,
   updatedAt: 0,
@@ -87,7 +87,7 @@ const godotViewControlsLocked = computed(() => {
   return godotStageStatus.value.state !== 'running' || !godotViewSnapshot.value
 })
 
-function createStoppedGodotStageStatus(): ElectronGodotStageStatus {
+function createStoppedGodotStageStatus(): AiriGodotStageStatus {
   return {
     state: 'stopped',
     pid: null,
@@ -121,7 +121,7 @@ async function readSceneInputData(model: DisplayModel) {
   return new Uint8Array(await response.arrayBuffer())
 }
 
-async function createSceneInputPayload(model: DisplayModel): Promise<ElectronGodotStageSceneInputPayload> {
+async function createSceneInputPayload(model: DisplayModel): Promise<AiriGodotStageSceneInputPayload> {
   assertGodotSceneInputSupportedDisplayModel(model)
 
   return {
@@ -216,7 +216,7 @@ function beginGodotViewSession() {
   void handleGodotViewSnapshotRequest(epoch)
 }
 
-function applyGodotStageStatus(next: ElectronGodotStageStatus) {
+function applyGodotStageStatus(next: AiriGodotStageStatus) {
   const previousState = godotStageStatus.value.state
   godotStageStatus.value = next
 
@@ -319,14 +319,14 @@ watch(
 )
 
 onMounted(async () => {
-  disposeGodotStageStatusListener = context.value.on(electronGodotStageStatusChanged, (event) => {
+  disposeGodotStageStatusListener = context.value.on(airiGodotStageStatusChanged, (event) => {
     if (!event.body)
       return
 
     applyGodotStageStatus(event.body)
   })
 
-  disposeGodotViewSnapshotListener = context.value.on(electronGodotStageViewSnapshotChanged, (event) => {
+  disposeGodotViewSnapshotListener = context.value.on(airiGodotStageViewSnapshotChanged, (event) => {
     if (!event.body)
       return
 
@@ -337,7 +337,7 @@ onMounted(async () => {
     godotViewError.value = undefined
   })
 
-  disposeGodotViewErrorListener = context.value.on(electronGodotStageViewStateError, (event) => {
+  disposeGodotViewErrorListener = context.value.on(airiGodotStageViewStateError, (event) => {
     if (!event.body)
       return
 

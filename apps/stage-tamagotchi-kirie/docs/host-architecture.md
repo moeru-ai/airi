@@ -19,7 +19,8 @@ The renderer has one Eventa transport owner. Capability clients borrow its conte
 Kirie-local adapters always use Kirie.
 Kirie builds set `RUNTIME_ENVIRONMENT='kirie'`. `isStageTamagotchi()` is true for the Electron and Kirie builds, so both show the desktop UI.
 Shared code selects the Electron transport with `isElectronWindow(window)`, not with `isStageTamagotchi()`.
-Shared UI retains Electron-named Eventa IDs as existing contracts. Those names do not select an Electron transport.
+Kirie Eventa IDs use the `airi` segment, for example `eventa:invoke:airi:windows:settings:open`.
+A test compares the C# IDs with the renderer IDs, because no compiler checks the strings.
 The Electron application remains a separate supported path.
 
 ## Source map

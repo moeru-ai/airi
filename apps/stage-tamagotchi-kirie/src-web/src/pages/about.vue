@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { BugReportDialogSubmitPayload } from '@proj-airi/stage-ui/components'
 
-import type { ElectronUpdaterChannel } from '../shared/eventa'
+import type { AiriUpdaterChannel } from '../shared/eventa'
 
 import semver from 'semver'
 
@@ -15,7 +15,7 @@ import { DrawerContent, DrawerDescription, DrawerHandle, DrawerOverlay, DrawerPo
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { electronGetUpdaterPreferences, electronSetUpdaterPreferences } from '../shared/eventa'
+import { airiGetUpdaterPreferences, airiSetUpdaterPreferences } from '../shared/eventa'
 
 const buildInfo = useBuildInfo()
 const { t } = useI18n()
@@ -121,8 +121,8 @@ const isDowngradeUpdate = computed(() => {
   return semver.lt(targetVersion, currentVersion)
 })
 
-const getUpdaterPreferences = useHostEventaInvoke(electronGetUpdaterPreferences)
-const setUpdaterPreferences = useHostEventaInvoke(electronSetUpdaterPreferences)
+const getUpdaterPreferences = useHostEventaInvoke(airiGetUpdaterPreferences)
+const setUpdaterPreferences = useHostEventaInvoke(airiSetUpdaterPreferences)
 
 function handleQuitAndInstall() {
   trackUpdateInstallClicked({ channel: selectedUpdateChannel.value, version: updateState.value.info?.version })
@@ -199,7 +199,7 @@ async function setUpdateChannelPreference(channel: UpdateChannelOption) {
   isUpdateChannelUpdating.value = true
   try {
     const previousChannel = selectedUpdateChannel.value
-    const nextChannel = channel === 'auto' ? undefined : channel as ElectronUpdaterChannel
+    const nextChannel = channel === 'auto' ? undefined : channel as AiriUpdaterChannel
     const preferences = await setUpdaterPreferences({ channel: nextChannel })
     selectedUpdateChannel.value = preferences?.channel ?? 'auto'
     trackSettingsChanged({

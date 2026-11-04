@@ -1,17 +1,17 @@
 import type { HostWindowState } from '@gd-kirie/platform'
 
-import type { ElectronWindowLifecycleReason, ElectronWindowLifecycleState } from '../shared/eventa'
+import type { AiriWindowLifecycleReason, AiriWindowLifecycleState } from '../shared/eventa'
 
 import { hostWindowStateChanged } from '@gd-kirie/platform'
 
 import { initializeHostContext } from './owner'
 
 export interface HostWindowLifecycle {
-  getState: () => Promise<ElectronWindowLifecycleState>
-  onChanged: (listener: (state: ElectronWindowLifecycleState) => void) => () => void
+  getState: () => Promise<AiriWindowLifecycleState>
+  onChanged: (listener: (state: AiriWindowLifecycleState) => void) => () => void
 }
 
-function changeReason(previous: HostWindowState | undefined, next: HostWindowState): ElectronWindowLifecycleReason {
+function changeReason(previous: HostWindowState | undefined, next: HostWindowState): AiriWindowLifecycleReason {
   if (previous?.minimized !== next.minimized)
     return next.minimized ? 'minimize' : 'restore'
 
@@ -30,7 +30,7 @@ function changeReason(previous: HostWindowState | undefined, next: HostWindowSta
   return 'snapshot'
 }
 
-function toAiriWindowState(state: HostWindowState, reason: ElectronWindowLifecycleReason): ElectronWindowLifecycleState {
+function toAiriWindowState(state: HostWindowState, reason: AiriWindowLifecycleReason): AiriWindowLifecycleState {
   return {
     ...state,
     reason,

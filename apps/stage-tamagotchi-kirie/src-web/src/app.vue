@@ -27,14 +27,14 @@ import { toast, Toaster } from 'vue-sonner'
 
 import MicrophonePermissionPrompt from './components/microphone-permission-prompt.vue'
 
-import { initializeElectronAuthCallbackBridge } from './bridges/electron-auth-callback'
+import { initializeAuthCallbackBridge } from './bridges/auth-callback'
 import { initializeStageThreeRuntimeTraceBridge } from './bridges/stage-three-runtime-trace'
 import { useLanguage } from './composables/use-language'
 import { initializeHostContext, startHostOwnedSpotlightShortcut, startHostTrayLabels, useHostMicrophonePermission } from './host-context'
 import {
-  electronChatReady,
-  electronSettingsNavigate,
-  electronSettingsReady,
+  airiChatReady,
+  airiSettingsNavigate,
+  airiSettingsReady,
 } from './shared/eventa'
 import { useStageWindowLifecycleStore } from './stores/stage-window-lifecycle'
 import { useTamagotchiBuiltinToolsStore } from './stores/tools/built-in'
@@ -149,7 +149,7 @@ function createFullStageRuntime() {
   initializeStageThreeRuntimeTraceBridge()
   // The native host returns login callbacks to the initiating renderer.
   // Login windows listen locally. Synchronized auth actions execute in the leader.
-  initializeElectronAuthCallbackBridge()
+  initializeAuthCallbackBridge()
   stageWindowLifecycleStore.initializeWindowLifecycleBridge().catch((error) => {
     console.error('[App] Failed to initialize native window lifecycle:', error)
   })
@@ -199,7 +199,7 @@ watch(route, () => updateThemeColor(), { immediate: true })
 onMounted(() => updateThemeColor())
 
 if (isSettingsWindow) {
-  context.value.on(electronSettingsNavigate, (event) => {
+  context.value.on(airiSettingsNavigate, (event) => {
     const targetRoute = event?.body?.route
     if (!targetRoute || route.fullPath === targetRoute) {
       return
@@ -209,11 +209,11 @@ if (isSettingsWindow) {
       console.warn('Failed to navigate settings window:', error)
     })
   })
-  context.value.emit(electronSettingsReady, {})
+  context.value.emit(airiSettingsReady, {})
 }
 
 if (isChatWindow || isFloatingChatWindow) {
-  context.value.emit(electronChatReady, {})
+  context.value.emit(airiChatReady, {})
 }
 
 onMounted(async () => {

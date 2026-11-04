@@ -1,42 +1,42 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  electronPluginGetAssetBaseUrl,
-  electronPluginInspect,
-  electronPluginInvokeTool,
-  electronPluginList,
-  electronPluginListAgentTools,
-  electronPluginListXsaiTools,
-  electronPluginLoad,
-  electronPluginLoadEnabled,
-  electronPluginSetAutoReload,
-  electronPluginSetEnabled,
-  electronPluginUnload,
-  electronPluginUpdateCapability,
+  airiPluginGetAssetBaseUrl,
+  airiPluginInspect,
+  airiPluginInvokeTool,
+  airiPluginList,
+  airiPluginListAgentTools,
+  airiPluginListXsaiTools,
+  airiPluginLoad,
+  airiPluginLoadEnabled,
+  airiPluginSetAutoReload,
+  airiPluginSetEnabled,
+  airiPluginUnload,
+  airiPluginUpdateCapability,
   pluginProtocolListProviders,
   pluginProtocolListProvidersEventName,
 } from '../index'
 import {
-  electronPluginGetAssetBaseUrl as electronPluginGetAssetBaseUrlFromAssets,
+  airiPluginGetAssetBaseUrl as airiPluginGetAssetBaseUrlFromAssets,
 } from './assets'
 import {
-  electronPluginUpdateCapability as electronPluginUpdateCapabilityFromCapabilities,
+  airiPluginUpdateCapability as airiPluginUpdateCapabilityFromCapabilities,
   pluginProtocolListProvidersEventName as pluginProtocolListProvidersEventNameFromCapabilities,
   pluginProtocolListProviders as pluginProtocolListProvidersFromCapabilities,
 } from './capabilities'
 import {
-  electronPluginInspect as electronPluginInspectFromHost,
-  electronPluginList as electronPluginListFromHost,
-  electronPluginLoadEnabled as electronPluginLoadEnabledFromHost,
-  electronPluginLoad as electronPluginLoadFromHost,
-  electronPluginSetAutoReload as electronPluginSetAutoReloadFromHost,
-  electronPluginSetEnabled as electronPluginSetEnabledFromHost,
-  electronPluginUnload as electronPluginUnloadFromHost,
+  airiPluginInspect as airiPluginInspectFromHost,
+  airiPluginList as airiPluginListFromHost,
+  airiPluginLoadEnabled as airiPluginLoadEnabledFromHost,
+  airiPluginLoad as airiPluginLoadFromHost,
+  airiPluginSetAutoReload as airiPluginSetAutoReloadFromHost,
+  airiPluginSetEnabled as airiPluginSetEnabledFromHost,
+  airiPluginUnload as airiPluginUnloadFromHost,
 } from './host'
 import {
-  electronPluginInvokeTool as electronPluginInvokeToolFromTools,
-  electronPluginListAgentTools as electronPluginListAgentToolsFromTools,
-  electronPluginListXsaiTools as electronPluginListXsaiToolsFromTools,
+  airiPluginInvokeTool as airiPluginInvokeToolFromTools,
+  airiPluginListAgentTools as airiPluginListAgentToolsFromTools,
+  airiPluginListXsaiTools as airiPluginListXsaiToolsFromTools,
 } from './tools'
 
 /**
@@ -55,7 +55,7 @@ import {
  *
  * @example
  * describe('plugin Eventa domain modules', () => {
- *   expect(electronPluginList).toBe(electronPluginListFromHost)
+ *   expect(airiPluginList).toBe(airiPluginListFromHost)
  * })
  */
 describe('plugin Eventa domain modules', () => {
@@ -73,17 +73,17 @@ describe('plugin Eventa domain modules', () => {
    *
    * @example
    * it('re-exports plugin host contracts through the compatibility barrel', () => {
-   *   expect(electronPluginInspect).toBe(electronPluginInspectFromHost)
+   *   expect(airiPluginInspect).toBe(airiPluginInspectFromHost)
    * })
    */
   it('re-exports plugin host contracts through the compatibility barrel', () => {
-    expect(electronPluginList).toBe(electronPluginListFromHost)
-    expect(electronPluginSetEnabled).toBe(electronPluginSetEnabledFromHost)
-    expect(electronPluginSetAutoReload).toBe(electronPluginSetAutoReloadFromHost)
-    expect(electronPluginLoadEnabled).toBe(electronPluginLoadEnabledFromHost)
-    expect(electronPluginLoad).toBe(electronPluginLoadFromHost)
-    expect(electronPluginUnload).toBe(electronPluginUnloadFromHost)
-    expect(electronPluginInspect).toBe(electronPluginInspectFromHost)
+    expect(airiPluginList).toBe(airiPluginListFromHost)
+    expect(airiPluginSetEnabled).toBe(airiPluginSetEnabledFromHost)
+    expect(airiPluginSetAutoReload).toBe(airiPluginSetAutoReloadFromHost)
+    expect(airiPluginLoadEnabled).toBe(airiPluginLoadEnabledFromHost)
+    expect(airiPluginLoad).toBe(airiPluginLoadFromHost)
+    expect(airiPluginUnload).toBe(airiPluginUnloadFromHost)
+    expect(airiPluginInspect).toBe(airiPluginInspectFromHost)
   })
 
   /**
@@ -106,10 +106,10 @@ describe('plugin Eventa domain modules', () => {
   it('re-exports plugin capability, tool, and asset contracts through the barrel', () => {
     expect(pluginProtocolListProvidersEventName).toBe(pluginProtocolListProvidersEventNameFromCapabilities)
     expect(pluginProtocolListProviders).toBe(pluginProtocolListProvidersFromCapabilities)
-    expect(electronPluginUpdateCapability).toBe(electronPluginUpdateCapabilityFromCapabilities)
-    expect(electronPluginListAgentTools).toBe(electronPluginListAgentToolsFromTools)
-    expect(electronPluginListXsaiTools).toBe(electronPluginListXsaiToolsFromTools)
-    expect(electronPluginInvokeTool).toBe(electronPluginInvokeToolFromTools)
-    expect(electronPluginGetAssetBaseUrl).toBe(electronPluginGetAssetBaseUrlFromAssets)
+    expect(airiPluginUpdateCapability).toBe(airiPluginUpdateCapabilityFromCapabilities)
+    expect(airiPluginListAgentTools).toBe(airiPluginListAgentToolsFromTools)
+    expect(airiPluginListXsaiTools).toBe(airiPluginListXsaiToolsFromTools)
+    expect(airiPluginInvokeTool).toBe(airiPluginInvokeToolFromTools)
+    expect(airiPluginGetAssetBaseUrl).toBe(airiPluginGetAssetBaseUrlFromAssets)
   })
 })

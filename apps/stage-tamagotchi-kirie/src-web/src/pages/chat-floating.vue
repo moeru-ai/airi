@@ -24,13 +24,13 @@ import { chatHeaderButtonClass } from '../components/chat-window/chat-header-but
 import { useChatDraftHandover } from '../composables/use-chat-draft-handover'
 import { dismissOverlays, useChatFloatingClickThrough } from '../composables/use-chat-floating-click-through'
 import {
-  electronChatFloatingContentHidden,
-  electronChatFloatingFold,
-  electronChatFloatingGetState,
-  electronChatFloatingMoveBy,
-  electronChatFloatingResizeBy,
-  electronChatFloatingStateChanged,
-  electronChatWindowSetPreferences,
+  airiChatFloatingContentHidden,
+  airiChatFloatingFold,
+  airiChatFloatingGetState,
+  airiChatFloatingMoveBy,
+  airiChatFloatingResizeBy,
+  airiChatFloatingStateChanged,
+  airiChatWindowSetPreferences,
 } from '../shared/eventa'
 import { useControlsIslandStore } from '../stores/controls-island'
 
@@ -44,18 +44,18 @@ useChatDraftHandover(interactiveArea)
 // Folded until the host answers, so the first unfold plays the same animation
 // as every later one.
 const state = shallowRef<ChatFloatingState>({ placement: 'attached', danmaku: false, side: 'left', resizeEdges: [], folded: true, relocating: false, pinned: false })
-const getState = useHostEventaInvoke(electronChatFloatingGetState)
-const reportContentHidden = useHostEventaInvoke(electronChatFloatingContentHidden)
-const resizeBy = useHostEventaInvoke(electronChatFloatingResizeBy)
-const moveBy = useHostEventaInvoke(electronChatFloatingMoveBy)
-const foldChat = useHostEventaInvoke(electronChatFloatingFold)
-const setPreferences = useHostEventaInvoke(electronChatWindowSetPreferences)
+const getState = useHostEventaInvoke(airiChatFloatingGetState)
+const reportContentHidden = useHostEventaInvoke(airiChatFloatingContentHidden)
+const resizeBy = useHostEventaInvoke(airiChatFloatingResizeBy)
+const moveBy = useHostEventaInvoke(airiChatFloatingMoveBy)
+const foldChat = useHostEventaInvoke(airiChatFloatingFold)
+const setPreferences = useHostEventaInvoke(airiChatWindowSetPreferences)
 const { beginMove } = useHostWindowMove()
 const beginResize = useHostWindowResize()
 
 // The host can emit before this page mounts, so the first state comes from
 // the invoke and later ones from the event.
-const stopStateChanged = getHostEventaContext().on(electronChatFloatingStateChanged, (event) => {
+const stopStateChanged = getHostEventaContext().on(airiChatFloatingStateChanged, (event) => {
   if (event?.body)
     state.value = event.body
 })

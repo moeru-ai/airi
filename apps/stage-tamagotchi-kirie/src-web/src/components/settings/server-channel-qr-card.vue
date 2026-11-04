@@ -10,12 +10,12 @@ import { renderSVG } from 'uqr'
 import { computed, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { electronGetServerChannelQrPayload } from '../../shared/eventa'
+import { airiGetServerChannelQrPayload } from '../../shared/eventa'
 import { useServerChannelSettingsStore } from '../../stores/settings/server-channel'
 
 const { t } = useI18n()
 const { trackDevicePairingQrShown } = useAnalytics()
-const getServerChannelQrPayload = useHostEventaInvoke(electronGetServerChannelQrPayload)
+const getServerChannelQrPayload = useHostEventaInvoke(airiGetServerChannelQrPayload)
 
 function handleToggleExpanded(visible: boolean, setVisible: (value: boolean) => void) {
   setVisible(visible)

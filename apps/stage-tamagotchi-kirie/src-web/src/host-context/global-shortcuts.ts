@@ -5,13 +5,13 @@ import type {
   ShortcutRegistrationResult,
 } from '@proj-airi/stage-shared/global-shortcut'
 
-import type { ElectronShortcutTriggerPayload } from '../shared/eventa'
+import type { AiriShortcutTriggerPayload } from '../shared/eventa'
 
 import { ShortcutFailureReasons } from '@proj-airi/stage-shared/global-shortcut'
 
 import { initializeHostContext } from './owner'
 
-type TriggerListener = (payload: ElectronShortcutTriggerPayload) => void
+type TriggerListener = (payload: AiriShortcutTriggerPayload) => void
 
 export interface HostGlobalShortcuts {
   list: () => Promise<ShortcutBinding[]>

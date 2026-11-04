@@ -76,7 +76,7 @@ describe('spotlight host context', () => {
     scope = effectScope()
     listeners.clear()
     invoke.mockReset().mockImplementation(async (id: string) => {
-      if (id === 'eventa:invoke:electron:windows:spotlight:shortcut:get-send')
+      if (id === 'eventa:invoke:airi:windows:spotlight:shortcut:get-send')
         return accelerator
       return {}
     })
@@ -97,7 +97,7 @@ describe('spotlight host context', () => {
     await scope.run(useHostSpotlightWindow)!.hide()
 
     expect(invoke).toHaveBeenCalledWith(
-      'eventa:invoke:electron:windows:spotlight:hide-send',
+      'eventa:invoke:airi:windows:spotlight:hide-send',
       {},
     )
   })
@@ -121,7 +121,7 @@ describe('spotlight host context', () => {
 
     await expect(shortcut.get()).resolves.toEqual(accelerator)
     expect(invoke).toHaveBeenCalledWith(
-      'eventa:invoke:electron:windows:spotlight:shortcut:get-send',
+      'eventa:invoke:airi:windows:spotlight:shortcut:get-send',
       {},
     )
 
@@ -136,7 +136,7 @@ describe('spotlight host context', () => {
       ok: true,
     })
     expect(invoke).toHaveBeenCalledWith(
-      'eventa:invoke:electron:windows:spotlight:shortcut:set-send',
+      'eventa:invoke:airi:windows:spotlight:shortcut:set-send',
       { accelerator },
     )
   })
@@ -162,7 +162,7 @@ describe('spotlight host context', () => {
 
     onKeyEvent?.({ state: 'pressed' })
     expect(invoke).toHaveBeenCalledWith(
-      'eventa:invoke:electron:windows:spotlight:open-send',
+      'eventa:invoke:airi:windows:spotlight:open-send',
       {},
     )
 

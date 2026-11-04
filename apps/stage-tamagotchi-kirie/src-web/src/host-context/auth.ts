@@ -1,17 +1,17 @@
 import { defineInvoke, defineInvokeEventa } from '@moeru/eventa'
 
 import { desktopAuthConfiguration } from '../shared/auth-config'
-import { airiAuthConfigure, electronAuthLogout, electronAuthStartLogin } from '../shared/eventa'
+import { airiAuthConfigure, airiAuthLogout, airiAuthStartLogin } from '../shared/eventa'
 import { initializeHostContext } from './owner'
 
 type EmptyPayload = Record<string, never>
 
 const sendSuffix = '-send'
 const kirieStartLogin = defineInvokeEventa<EmptyPayload, EmptyPayload>(
-  electronAuthStartLogin.sendEvent.id.slice(0, -sendSuffix.length),
+  airiAuthStartLogin.sendEvent.id.slice(0, -sendSuffix.length),
 )
 const kirieLogout = defineInvokeEventa<EmptyPayload, EmptyPayload>(
-  electronAuthLogout.sendEvent.id.slice(0, -sendSuffix.length),
+  airiAuthLogout.sendEvent.id.slice(0, -sendSuffix.length),
 )
 
 export interface HostAuth {

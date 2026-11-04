@@ -1,8 +1,8 @@
 import type {
-  ElectronMcpConfigFile,
-  ElectronMcpHttpServerConfig,
-  ElectronMcpServerConfig,
-  ElectronMcpStdioServerConfig,
+  AiriMcpConfigFile,
+  AiriMcpHttpServerConfig,
+  AiriMcpServerConfig,
+  AiriMcpStdioServerConfig,
 } from './eventa'
 
 import { z } from 'zod'
@@ -51,13 +51,13 @@ export function isHttpUrl(value: string) {
  * Returns:
  * - A strict Zod schema matching the persisted MCP server shape
  */
-export const electronMcpStdioServerConfigSchema = z.object({
+export const airiMcpStdioServerConfigSchema = z.object({
   command: z.string().min(1),
   args: z.array(z.string()).optional(),
   env: z.record(z.string(), z.string()).optional(),
   cwd: z.string().optional(),
   enabled: z.boolean().optional(),
-}).strict() satisfies z.ZodType<ElectronMcpStdioServerConfig>
+}).strict() satisfies z.ZodType<AiriMcpStdioServerConfig>
 
 /**
  * Shared runtime-safe schema for one MCP HTTP server definition.
@@ -73,14 +73,14 @@ export const electronMcpStdioServerConfigSchema = z.object({
  * Returns:
  * - A strict Zod schema matching the persisted remote server shape
  */
-export const electronMcpHttpServerConfigSchema = z.object({
+export const airiMcpHttpServerConfigSchema = z.object({
   // The main process fetches this URL on the user's behalf, so the scheme is
   // restricted here. A `file:` or `data:` URL would otherwise turn a pasted
   // config into a local read primitive.
   url: z.string().min(1).refine(isHttpUrl, { message: 'must be an absolute http or https URL' }),
   headers: z.record(z.string(), z.string()).optional(),
   enabled: z.boolean().optional(),
-}).strict() satisfies z.ZodType<ElectronMcpHttpServerConfig>
+}).strict() satisfies z.ZodType<AiriMcpHttpServerConfig>
 
 /**
  * Shared runtime-safe schema for one MCP server definition of either transport.
@@ -94,10 +94,10 @@ export const electronMcpHttpServerConfigSchema = z.object({
  * Returns:
  * - A strict Zod schema for a stdio or HTTP server
  */
-export const electronMcpServerConfigSchema = z.union([
-  electronMcpStdioServerConfigSchema,
-  electronMcpHttpServerConfigSchema,
-]) satisfies z.ZodType<ElectronMcpServerConfig>
+export const airiMcpServerConfigSchema = z.union([
+  airiMcpStdioServerConfigSchema,
+  airiMcpHttpServerConfigSchema,
+]) satisfies z.ZodType<AiriMcpServerConfig>
 
 /**
  * Narrows one server configuration to the remote transport shape.
@@ -106,12 +106,12 @@ export const electronMcpServerConfigSchema = z.union([
  * - Main and renderer must branch on the transport
  *
  * Expects:
- * - `config` already passed {@link electronMcpServerConfigSchema}
+ * - `config` already passed {@link airiMcpServerConfigSchema}
  *
  * Returns:
  * - `true` for a remote server, `false` for a spawned one
  */
-export function isHttpServerConfig(config: ElectronMcpServerConfig): config is ElectronMcpHttpServerConfig {
+export function isHttpServerConfig(config: AiriMcpServerConfig): config is AiriMcpHttpServerConfig {
   return 'url' in config
 }
 
@@ -124,14 +124,14 @@ export function isHttpServerConfig(config: ElectronMcpServerConfig): config is E
  *
  * Expects:
  * - The root object contains only `mcpServers`
- * - Each server entry matches {@link electronMcpServerConfigSchema}
+ * - Each server entry matches {@link airiMcpServerConfigSchema}
  *
  * Returns:
  * - A strict Zod schema for the full MCP config file
  */
-export const electronMcpConfigSchema = z.object({
-  mcpServers: z.record(z.string(), electronMcpServerConfigSchema),
-}).strict() satisfies z.ZodType<ElectronMcpConfigFile>
+export const airiMcpConfigSchema = z.object({
+  mcpServers: z.record(z.string(), airiMcpServerConfigSchema),
+}).strict() satisfies z.ZodType<AiriMcpConfigFile>
 
 /**
  * Expands one union failure into the branch failure that explains it.
@@ -186,7 +186,7 @@ function expandIssue(issue: z.ZodIssue): z.ZodIssue[] {
  * Returns:
  * - A semicolon-delimited message preserving issue paths
  */
-export function formatElectronMcpConfigIssues(issues: z.ZodIssue[]) {
+export function formatAiriMcpConfigIssues(issues: z.ZodIssue[]) {
   return issues
     .flatMap(expandIssue)
     .map(issue => `${issue.path.join('.') || '<root>'}: ${issue.message}`)
@@ -204,12 +204,12 @@ export function formatElectronMcpConfigIssues(issues: z.ZodIssue[]) {
  * - `value` is the result of `JSON.parse` or another plain object source
  *
  * Returns:
- * - A validated `ElectronMcpConfigFile`
+ * - A validated `AiriMcpConfigFile`
  */
-export function parseElectronMcpConfig(value: unknown): ElectronMcpConfigFile {
-  const validated = electronMcpConfigSchema.safeParse(value)
+export function parseAiriMcpConfig(value: unknown): AiriMcpConfigFile {
+  const validated = airiMcpConfigSchema.safeParse(value)
   if (!validated.success) {
-    throw new Error(formatElectronMcpConfigIssues(validated.error.issues))
+    throw new Error(formatAiriMcpConfigIssues(validated.error.issues))
   }
 
   return validated.data
@@ -226,9 +226,9 @@ export function parseElectronMcpConfig(value: unknown): ElectronMcpConfigFile {
  * - `text` contains JSON text for an MCP config file
  *
  * Returns:
- * - A validated `ElectronMcpConfigFile`
+ * - A validated `AiriMcpConfigFile`
  */
-export function parseElectronMcpConfigText(text: string): ElectronMcpConfigFile {
+export function parseAiriMcpConfigText(text: string): AiriMcpConfigFile {
   let parsed: unknown
 
   try {
@@ -238,5 +238,5 @@ export function parseElectronMcpConfigText(text: string): ElectronMcpConfigFile 
     throw new Error(`invalid JSON: ${stringifyError(error)}`)
   }
 
-  return parseElectronMcpConfig(parsed)
+  return parseAiriMcpConfig(parsed)
 }

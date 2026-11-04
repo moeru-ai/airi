@@ -5,7 +5,7 @@ import type {
   ShortcutRegistrationResult,
 } from '@proj-airi/stage-shared/global-shortcut'
 
-import type { ElectronShortcutTriggerPhase } from '../../shared/eventa'
+import type { AiriShortcutTriggerPhase } from '../../shared/eventa'
 
 import { errorMessageFrom } from '@moeru/std'
 import { useHostGlobalShortcuts } from '@proj-airi/stage-host-context'
@@ -23,7 +23,7 @@ interface FormState {
 interface TriggerLogEntry {
   time: number
   id: string
-  phase: ElectronShortcutTriggerPhase
+  phase: AiriShortcutTriggerPhase
 }
 
 const TRIGGER_LOG_LIMIT = 50

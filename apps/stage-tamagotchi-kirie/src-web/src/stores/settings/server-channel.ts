@@ -1,4 +1,4 @@
-import type { ElectronServerChannelConfig } from '../../shared/eventa'
+import type { AiriServerChannelConfig } from '../../shared/eventa'
 
 import { errorMessageFrom } from '@moeru/std'
 import { useHostEventaInvoke } from '@proj-airi/stage-host-context'
@@ -8,8 +8,8 @@ import { shallowRef, watch } from 'vue'
 import { toast } from 'vue-sonner'
 
 import {
-  electronApplyServerChannelConfig,
-  electronGetServerChannelConfig,
+  airiApplyServerChannelConfig,
+  airiGetServerChannelConfig,
 
 } from '../../shared/eventa'
 
@@ -18,12 +18,12 @@ export const useServerChannelSettingsStore = defineStore('tamagotchi-server-chan
   const hostname = useLocalStorage<string>('settings/server-channel/hostname', '127.0.0.1')
   const authToken = useLocalStorage<string>('settings/server-channel/auth-token', '')
   const lastApplyError = shallowRef<string | null>(null)
-  const appliedConfig = shallowRef<ElectronServerChannelConfig>()
+  const appliedConfig = shallowRef<AiriServerChannelConfig>()
 
-  const getServerChannelConfig = useHostEventaInvoke(electronGetServerChannelConfig)
-  const applyServerChannelConfig = useHostEventaInvoke(electronApplyServerChannelConfig)
+  const getServerChannelConfig = useHostEventaInvoke(airiGetServerChannelConfig)
+  const applyServerChannelConfig = useHostEventaInvoke(airiApplyServerChannelConfig)
 
-  function syncConfigFromServer(config: ElectronServerChannelConfig) {
+  function syncConfigFromServer(config: AiriServerChannelConfig) {
     tlsConfig.value = config.tlsConfig ?? null
     if (config.hostname !== undefined) {
       hostname.value = config.hostname

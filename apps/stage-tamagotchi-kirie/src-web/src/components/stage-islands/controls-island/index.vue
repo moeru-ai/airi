@@ -21,7 +21,7 @@ import ControlsIslandSpeechMute from './controls-island-speech-mute.vue'
 import IndicatorMicVolume from './indicator-mic-volume.vue'
 
 import {
-  electronOpenSettings,
+  airiOpenSettings,
 } from '../../../shared/eventa'
 import { useControlsIslandLayout } from './use-controls-island-layout'
 import { useControlsIslandPlacement } from './use-controls-island-placement'
@@ -69,7 +69,7 @@ const settingsAudioDeviceStore = useSettingsAudioDevice()
 const settingsStore = useSettings()
 const { enabled } = storeToRefs(settingsAudioDeviceStore)
 const { alwaysOnTop, controlsIslandIconSize } = storeToRefs(settingsStore)
-const openSettings = useHostEventaInvoke(electronOpenSettings)
+const openSettings = useHostEventaInvoke(airiOpenSettings)
 const quitApp = useHostAppQuit()
 const setAlwaysOnTop = useHostAlwaysOnTop()
 const centerMainWindow = useHostWindowCenter()

@@ -80,58 +80,58 @@ internal sealed record TrayLabelsPayload(
 internal static class AiriDesktopEvents
 {
     public static readonly InvokeEventDefinition<EmptyPayload, EmptyPayload> OpenOnboarding =
-        new("eventa:invoke:electron:windows:onboarding:open");
+        new("eventa:invoke:airi:windows:onboarding:open");
 
     public static readonly InvokeEventDefinition<EmptyPayload, EmptyPayload> CloseOnboarding =
-        new("eventa:invoke:electron:windows:onboarding:close");
+        new("eventa:invoke:airi:windows:onboarding:close");
 
     public static readonly InvokeEventDefinition<EmptyPayload, OpenSettingsPayload> OpenSettings =
-        new("eventa:invoke:electron:windows:settings:open");
+        new("eventa:invoke:airi:windows:settings:open");
 
     public static readonly EventDefinition<SettingsNavigatePayload> SettingsNavigate =
-        new("eventa:event:electron:windows:settings:navigate");
+        new("eventa:event:airi:windows:settings:navigate");
 
     public static readonly EventDefinition<EmptyPayload> SettingsReady =
-        new("eventa:event:electron:windows:settings:ready");
+        new("eventa:event:airi:windows:settings:ready");
 
     public static readonly InvokeEventDefinition<EmptyPayload, EmptyPayload> OpenChat =
-        new("eventa:invoke:electron:windows:chat:open");
+        new("eventa:invoke:airi:windows:chat:open");
 
     public static readonly InvokeEventDefinition<EmptyPayload, EmptyPayload> OpenMainDevtools =
-        new("eventa:invoke:electron:windows:main:devtools:open");
+        new("eventa:invoke:airi:windows:main:devtools:open");
 
     public static readonly InvokeEventDefinition<EmptyPayload, OpenDevtoolsWindowPayload> OpenDevtoolsWindow =
-        new("eventa:invoke:electron:windows:devtools:open");
+        new("eventa:invoke:airi:windows:devtools:open");
 
     public static readonly EventDefinition<EmptyPayload> ChatReady =
-        new("eventa:event:electron:windows:chat:ready");
+        new("eventa:event:airi:windows:chat:ready");
 
     public static readonly InvokeEventDefinition<EmptyPayload, EmptyPayload> QuitApp =
-        new("eventa:invoke:electron:app:quit");
+        new("eventa:invoke:airi:app:quit");
 
     public static readonly InvokeEventDefinition<bool, NoticeOpenPayload> OpenNotice =
-        new("eventa:invoke:open:electron:windows:notice");
+        new("eventa:invoke:open:airi:windows:notice");
 
     public static readonly InvokeEventDefinition<EmptyPayload, NoticeActionPayload> NoticeAction =
-        new("eventa:invoke:action:electron:windows:notice");
+        new("eventa:invoke:action:airi:windows:notice");
 
     public static readonly InvokeEventDefinition<NoticePendingPayload?, NoticePagePayload> NoticePageMounted =
-        new("eventa:invoke:page-mounted:electron:windows:notice");
+        new("eventa:invoke:page-mounted:airi:windows:notice");
 
     public static readonly InvokeEventDefinition<EmptyPayload, NoticePagePayload> NoticePageUnmounted =
-        new("eventa:invoke:page-unmounted:electron:windows:notice");
+        new("eventa:invoke:page-unmounted:airi:windows:notice");
 
     public static readonly InvokeEventDefinition<EmptyPayload, EmptyPayload> AuthStartLogin =
-        new("eventa:invoke:electron:auth:start-login");
+        new("eventa:invoke:airi:auth:start-login");
 
     public static readonly EventDefinition<AuthTokensPayload> AuthCallback =
-        new("eventa:event:electron:auth:callback");
+        new("eventa:event:airi:auth:callback");
 
     public static readonly EventDefinition<AuthErrorPayload> AuthCallbackError =
-        new("eventa:event:electron:auth:callback-error");
+        new("eventa:event:airi:auth:callback-error");
 
     public static readonly InvokeEventDefinition<EmptyPayload, EmptyPayload> AuthLogout =
-        new("eventa:invoke:electron:auth:logout");
+        new("eventa:invoke:airi:auth:logout");
 
     public static readonly InvokeEventDefinition<EmptyPayload, AuthConfigurationPayload> AuthConfigure =
         new("eventa:invoke:airi:auth:configure");
@@ -168,19 +168,19 @@ internal static class AiriDesktopEvents
             new("eventa:event:airi:permissions:microphone:prompt-dismissed");
 
     public static readonly InvokeEventDefinition<EmptyPayload, EmptyPayload> OpenSpotlight =
-        new("eventa:invoke:electron:windows:spotlight:open");
+        new("eventa:invoke:airi:windows:spotlight:open");
 
     public static readonly InvokeEventDefinition<EmptyPayload, EmptyPayload> HideSpotlight =
-        new("eventa:invoke:electron:windows:spotlight:hide");
+        new("eventa:invoke:airi:windows:spotlight:hide");
 
     public static readonly InvokeEventDefinition<SpotlightAcceleratorPayload, EmptyPayload>
         GetSpotlightShortcut =
-            new("eventa:invoke:electron:windows:spotlight:shortcut:get");
+            new("eventa:invoke:airi:windows:spotlight:shortcut:get");
 
     public static readonly InvokeEventDefinition<
         SpotlightShortcutRegistrationResultPayload,
         SpotlightShortcutSetPayload> SetSpotlightShortcut =
-            new("eventa:invoke:electron:windows:spotlight:shortcut:set");
+            new("eventa:invoke:airi:windows:spotlight:shortcut:set");
 
     public static readonly EventDefinition<SpotlightAcceleratorPayload> SpotlightShortcutChanged =
         new("eventa:event:airi:windows:spotlight:shortcut-changed");

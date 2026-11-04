@@ -6,12 +6,12 @@ import { TOOL_ICONS } from '@proj-airi/stage-ui/tools/icons'
 import { createMcpTools } from '@proj-airi/stage-ui/tools/mcp'
 import { defineStore } from 'pinia'
 
-import { electronMcpCallTool, electronMcpListTools } from '../../shared/eventa'
+import { airiMcpCallTool, airiMcpListTools } from '../../shared/eventa'
 
 export const useTamagotchiMcpToolsStore = defineStore('tamagotchi-mcp-tools', () => {
   const llmToolsStore = useLlmToolsStore()
-  const listMcpTools = useHostEventaInvoke(electronMcpListTools)
-  const callMcpTool = useHostEventaInvoke(electronMcpCallTool)
+  const listMcpTools = useHostEventaInvoke(airiMcpListTools)
+  const callMcpTool = useHostEventaInvoke(airiMcpCallTool)
   const toolIdPrefix = 'mcp:'
 
   function registeredToolIds() {

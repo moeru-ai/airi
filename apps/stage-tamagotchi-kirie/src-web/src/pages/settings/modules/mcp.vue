@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type {
-  ElectronMcpConfigFile,
-  ElectronMcpRuntimeStatus,
-  ElectronMcpTestResult,
+  AiriMcpConfigFile,
+  AiriMcpRuntimeStatus,
+  AiriMcpTestResult,
 } from '../../../shared/eventa'
 import type { ServerForm } from './mcp-config'
 
@@ -18,14 +18,14 @@ import McpJsonEditor from './components/mcp-json-editor.vue'
 import McpServerForm from './components/mcp-server-form.vue'
 
 import {
-  electronMcpApplyAndRestart,
-  electronMcpGetRuntimeStatus,
-  electronMcpOpenConfigFile,
-  electronMcpReadConfigText,
-  electronMcpTestServer,
-  electronMcpWriteConfigText,
+  airiMcpApplyAndRestart,
+  airiMcpGetRuntimeStatus,
+  airiMcpOpenConfigFile,
+  airiMcpReadConfigText,
+  airiMcpTestServer,
+  airiMcpWriteConfigText,
 } from '../../../shared/eventa'
-import { parseElectronMcpConfigText } from '../../../shared/mcp-config'
+import { parseAiriMcpConfigText } from '../../../shared/mcp-config'
 import {
   buildConfigFile,
   buildServerConfig,
@@ -42,15 +42,15 @@ const { t } = useI18n()
 const { trackMcpServerRemoved, trackMcpConnectionTestRun } = useAnalytics()
 const tn = (key: string, params?: Record<string, unknown>) => t(`settings.pages.modules.mcp-server.${key}`, params ?? {})
 
-const invokeOpenConfigFile = useHostEventaInvoke(electronMcpOpenConfigFile)
-const invokeApplyAndRestart = useHostEventaInvoke(electronMcpApplyAndRestart)
-const invokeGetRuntimeStatus = useHostEventaInvoke(electronMcpGetRuntimeStatus)
-const invokeReadConfigText = useHostEventaInvoke(electronMcpReadConfigText)
-const invokeWriteConfigText = useHostEventaInvoke(electronMcpWriteConfigText)
-const invokeTestServer = useHostEventaInvoke(electronMcpTestServer)
+const invokeOpenConfigFile = useHostEventaInvoke(airiMcpOpenConfigFile)
+const invokeApplyAndRestart = useHostEventaInvoke(airiMcpApplyAndRestart)
+const invokeGetRuntimeStatus = useHostEventaInvoke(airiMcpGetRuntimeStatus)
+const invokeReadConfigText = useHostEventaInvoke(airiMcpReadConfigText)
+const invokeWriteConfigText = useHostEventaInvoke(airiMcpWriteConfigText)
+const invokeTestServer = useHostEventaInvoke(airiMcpTestServer)
 
 const servers = ref<ServerForm[]>([])
-const runtime = ref<ElectronMcpRuntimeStatus>()
+const runtime = ref<AiriMcpRuntimeStatus>()
 const infoMessage = ref('')
 const errorMessage = ref('')
 const isBusy = ref(false)
@@ -66,13 +66,13 @@ const expandedIds = ref<Set<string>>(new Set())
 
 const testRowId = ref('')
 const testRunning = ref(false)
-const testResult = ref<ElectronMcpTestResult>()
+const testResult = ref<AiriMcpTestResult>()
 
 function buildConfig() {
   return buildConfigFile(servers.value, tn)
 }
 
-function applyLoadedConfig(config: ElectronMcpConfigFile) {
+function applyLoadedConfig(config: AiriMcpConfigFile) {
   const selectedIdentifier = findServerIdentifierByRowId(servers.value, testRowId.value)
   const loaded = loadServerForms(config, { selectedIdentifier })
   servers.value = loaded.servers
@@ -143,7 +143,7 @@ async function refreshRuntime() {
 async function loadFromDisk() {
   const { text } = await invokeReadConfigText()
   try {
-    const parsed = parseElectronMcpConfigText(text)
+    const parsed = parseAiriMcpConfigText(text)
     applyLoadedConfig(parsed)
     savedSig.value = JSON.stringify(parsed)
     jsonOpen.value = false
@@ -188,7 +188,7 @@ function toggleJsonPanel() {
 
 function applyJsonDraft() {
   try {
-    const parsed = parseElectronMcpConfigText(jsonDraft.value)
+    const parsed = parseAiriMcpConfigText(jsonDraft.value)
     applyLoadedConfig(parsed)
     jsonError.value = ''
     jsonOpen.value = false
@@ -235,7 +235,7 @@ async function saveAndRestart() {
   try {
     const text = `${JSON.stringify(buildConfig(), null, 2)}\n`
     const written = await invokeWriteConfigText({ text })
-    const parsed = parseElectronMcpConfigText(written.text)
+    const parsed = parseAiriMcpConfigText(written.text)
     applyLoadedConfig(parsed)
     savedSig.value = JSON.stringify(parsed)
     const result = await invokeApplyAndRestart()

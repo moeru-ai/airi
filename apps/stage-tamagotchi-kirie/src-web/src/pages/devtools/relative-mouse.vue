@@ -78,6 +78,6 @@ const cursorY = computed(() => windowBounds.y.value + windowRelativeMouse.y.valu
 <route lang="yaml">
 meta:
   layout: settings
-  title: useElectronRelativeMouse
+  title: Relative Mouse
   subtitleKey: tamagotchi.settings.devtools.title
 </route>

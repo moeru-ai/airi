@@ -8,7 +8,7 @@ import { useI18n } from 'vue-i18n'
 import ControlButtonTooltip from './control-button-tooltip.vue'
 import ControlButton from './control-button.vue'
 
-import { electronChatButtonStateChanged, electronGetChatButtonState } from '../../../shared/eventa'
+import { airiChatButtonStateChanged, airiGetChatButtonState } from '../../../shared/eventa'
 
 defineProps<{
   buttonStyle: string
@@ -18,10 +18,10 @@ defineProps<{
 const { t } = useI18n()
 const context = useHostEventaContext()
 const openChat = useHostChat()
-const getChatButtonState = useHostEventaInvoke(electronGetChatButtonState)
+const getChatButtonState = useHostEventaInvoke(airiGetChatButtonState)
 
 const state = shallowRef<ChatButtonState>({ mode: 'legacy', floatingShown: false })
-const stopStateChanged = context.value.on(electronChatButtonStateChanged, (event) => {
+const stopStateChanged = context.value.on(airiChatButtonStateChanged, (event) => {
   if (event?.body)
     state.value = event.body
 })

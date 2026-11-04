@@ -34,7 +34,7 @@ import WindowResizeBorder from '../components/window-resize-border.vue'
 
 import { useModelSettingsRuntimeOwner } from '../composables/model-settings-runtime-owner'
 import { usePushToTalkShortcut } from '../composables/use-push-to-talk-shortcut'
-import { electronOpenSettings } from '../shared/eventa'
+import { airiOpenSettings } from '../shared/eventa'
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
 import { useToolSelectionStore } from '../stores/tools'
@@ -59,7 +59,7 @@ const shouldFadeOnCursorWithin = ref(false)
 
 const onboardingStore = useOnboardingStore()
 const { open: openOnboarding } = useHostOnboarding()
-const openSettings = useHostEventaInvoke(electronOpenSettings)
+const openSettings = useHostEventaInvoke(airiOpenSettings)
 
 const { isOutside: isOutsideWindow } = useHostMouseInWindow()
 // The island already pairs its cursor signal with a DOM one and owns that decision, so

@@ -31,7 +31,7 @@ describe('host onboarding', () => {
     await onboarding.open()
     await onboarding.close()
 
-    expect(invoke).toHaveBeenNthCalledWith(1, 'eventa:invoke:electron:windows:onboarding:open-send', {})
-    expect(invoke).toHaveBeenNthCalledWith(2, 'eventa:invoke:electron:windows:onboarding:close-send', {})
+    expect(invoke).toHaveBeenNthCalledWith(1, 'eventa:invoke:airi:windows:onboarding:open-send', {})
+    expect(invoke).toHaveBeenNthCalledWith(2, 'eventa:invoke:airi:windows:onboarding:close-send', {})
   })
 })

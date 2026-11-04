@@ -7,7 +7,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
-import { electronOpenDevtoolsWindow, electronOpenMainDevtools } from '../../../shared/eventa'
+import { airiOpenDevtoolsWindow, airiOpenMainDevtools } from '../../../shared/eventa'
 
 const { t } = useI18n()
 const settings = useSettings()
@@ -101,8 +101,8 @@ const menu = computed(() => [
   },
 ])
 
-const openWebInspector = useHostEventaInvoke(electronOpenMainDevtools)
-const openDevtoolsWindow = useHostEventaInvoke(electronOpenDevtoolsWindow)
+const openWebInspector = useHostEventaInvoke(airiOpenMainDevtools)
+const openDevtoolsWindow = useHostEventaInvoke(airiOpenDevtoolsWindow)
 </script>
 
 <template>

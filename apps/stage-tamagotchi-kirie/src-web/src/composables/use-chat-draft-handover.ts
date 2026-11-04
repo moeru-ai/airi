@@ -6,7 +6,7 @@ import { defineInvokeHandler } from '@moeru/eventa'
 import { getHostEventaContext, useHostEventaInvoke } from '@proj-airi/stage-host-context'
 import { onMounted, onScopeDispose, toValue } from 'vue'
 
-import { electronChatWindowCollectDraft, electronChatWindowDraftOffered, electronChatWindowDraftSettled, electronChatWindowTakeDraft } from '../shared/eventa'
+import { airiChatWindowCollectDraft, airiChatWindowDraftOffered, airiChatWindowDraftSettled, airiChatWindowTakeDraft } from '../shared/eventa'
 
 /** The composer of a chat window, as `InteractiveArea` exposes it. */
 interface DraftComposer {
@@ -19,23 +19,23 @@ interface DraftComposer {
  * runs as one transaction.
  *
  * - A switch that closes this window first collects the composer's draft
- *   through {@link electronChatWindowCollectDraft}.
+ *   through {@link airiChatWindowCollectDraft}.
  * - A switch that opens this window waits until the page has mounted, taken
  *   the draft and reported the result. Only then does it close the previous
  *   window, so a draft that fails to restore stays where it was.
  * - A switch to a window that is already open offers the draft through
- *   {@link electronChatWindowDraftOffered}, and the page takes it the same way.
+ *   {@link airiChatWindowDraftOffered}, and the page takes it the same way.
  *
  * Outside a switch the host has no draft for this window and ignores the
  * report.
  */
 export function useChatDraftHandover(composer: MaybeRefOrGetter<DraftComposer | null | undefined>) {
-  const takeDraft = useHostEventaInvoke(electronChatWindowTakeDraft)
-  const settleDraft = useHostEventaInvoke(electronChatWindowDraftSettled)
+  const takeDraft = useHostEventaInvoke(airiChatWindowTakeDraft)
+  const settleDraft = useHostEventaInvoke(airiChatWindowDraftSettled)
 
   // Registered during setup, so a switch that starts as soon as the page
   // shows can already collect from it.
-  onScopeDispose(defineInvokeHandler(getHostEventaContext(), electronChatWindowCollectDraft, async () => ({
+  onScopeDispose(defineInvokeHandler(getHostEventaContext(), airiChatWindowCollectDraft, async () => ({
     draft: await toValue(composer)?.snapshotDraft(),
   })))
 
@@ -61,6 +61,6 @@ export function useChatDraftHandover(composer: MaybeRefOrGetter<DraftComposer | 
     void receiveDraft()
     // An offer counts only once the composer exists. An offer before that belongs to a switch that opened this page,
     // and the call above takes its draft.
-    stopOffers = getHostEventaContext().on(electronChatWindowDraftOffered, () => void receiveDraft())
+    stopOffers = getHostEventaContext().on(airiChatWindowDraftOffered, () => void receiveDraft())
   })
 }

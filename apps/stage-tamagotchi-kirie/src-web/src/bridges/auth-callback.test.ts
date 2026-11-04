@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
-  electronAuthCallback,
-  electronAuthCallbackError,
+  airiAuthCallback,
+  airiAuthCallbackError,
 } from '../shared/eventa'
-import { initializeElectronAuthCallbackBridge } from './electron-auth-callback'
+import { initializeAuthCallbackBridge } from './auth-callback'
 
 const authMocks = vi.hoisted(() => ({
   completeSignIn: vi.fn(),
@@ -32,7 +32,7 @@ vi.mock('vue-sonner', () => ({
   },
 }))
 
-describe('electron auth callback bridge', () => {
+describe('auth callback bridge', () => {
   beforeEach(() => {
     eventHandlers.clear()
     authMocks.completeSignIn.mockReset()
@@ -45,9 +45,9 @@ describe('electron auth callback bridge', () => {
     // The callback wrote VueUse storage refs and queried the session at once.
     // VueUse persisted the access token in the next microtask, so the session
     // request could read the previous token and clear the complete auth state.
-    initializeElectronAuthCallbackBridge()
+    initializeAuthCallbackBridge()
 
-    const handler = eventHandlers.get(electronAuthCallback)
+    const handler = eventHandlers.get(airiAuthCallback)
     expect(handler).toBeTypeOf('function')
 
     await handler?.({
@@ -66,6 +66,6 @@ describe('electron auth callback bridge', () => {
       expiresIn: 3600,
       clientId: 'airi-stage-electron',
     })
-    expect(eventHandlers.has(electronAuthCallbackError)).toBe(true)
+    expect(eventHandlers.has(airiAuthCallbackError)).toBe(true)
   })
 })
