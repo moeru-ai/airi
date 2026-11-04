@@ -51,7 +51,7 @@ Run only one service for each data directory. A second process stops with the me
 | `ALICE_COMPANION_INPUT_SITES` | empty | Comma-separated sites to read. Empty reads all sites. |
 | `ALICE_COMPANION_TIME_ZONE` | `America/Sao_Paulo` | Time zone of streaks and days together. |
 | `ALICE_COMPANION_ENERGY_MODE` | `simulation` | `disabled` freezes the energy value. |
-| `ALICE_COMPANION_DERIVE_INTERACTIONS` | `true` | Counts a turn from `evt/stt/final` followed by `cmd/tts/say` or `cmd/tts/audio`. |
+| `ALICE_COMPANION_DERIVE_INTERACTIONS` | `true` | Counts a turn from `evt/stt/final` followed by `cmd/tts/say` or `cmd/tts/audio` on the same site. Set `false` after the backend publishes `evt/dialog/turn_end`. |
 | `ALICE_COMPANION_DERIVE_WINDOW_MS` | `120000` | Longest time between the two messages of a derived turn. |
 | `ALICE_COMPANION_REFRESH_INTERVAL_MS` | `600000` | Interval to publish the state again without an event. |
 
@@ -64,6 +64,7 @@ All topics use `neoalice/v1/<site>/...`. The output site is `ALICE_COMPANION_PUB
 | Topic | Payload | Effect |
 | --- | --- | --- |
 | `<site>/evt/mood`, `<site>/cmd/evt/mood` | `{"mood":"happy"}` or `{"state":{"mood":"happy"}}`. Optional: `intensity` (0..100), `energy` (0..100), `cause`, `causes`, `eventId`. | Copies the mood. Never estimates a missing intensity or cause. A reported energy stops the local energy simulation. |
+| `<site>/evt/dialog/turn_end` | `{"v":1,"type":"evt.dialog.turn_end","turn_id":"...","session_id":"...","status":"completed"}` | NeoAlice form of the end of a turn. Only `completed` counts. `turn_id` is the idempotency key. |
 | `<site>/evt/companion/interaction` | `{"schemaVersion":1,"eventId":"...","interrupted":false}` | Counts one completed turn. After the first explicit turn of a site, derived turns stop for that site. |
 | `<site>/evt/stt/final` then `<site>/cmd/tts/say` | any | Derived turn, when derivation is on. A speech command without a speech result first does not count. |
 | `<site>/cmd/companion/proposal` | `{"schemaVersion":1,"eventId":"...","sourceEventId":"<counted turn>","suggestedDeltas":{"trust":1},"reason":"..."}` | Changes metrics inside the caps. One proposal per turn. |

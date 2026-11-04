@@ -159,6 +159,19 @@ export const InteractionMessageSchema = object({
   interrupted: optional(boolean()),
 })
 
+/**
+ * End of a conversation turn in the NeoAlice envelope, on `neoalice/v1/<site>/evt/dialog/turn_end`.
+ * The NeoAlice backend does not publish it yet. The shape follows its other `v: 1` messages.
+ * `turn_id` is the idempotency key. Only `status: "completed"` counts.
+ */
+export const TurnEndMessageSchema = looseObject({
+  v: literal(1),
+  type: optional(literal('evt.dialog.turn_end')),
+  turn_id: optional(EventId),
+  session_id: optional(pipe(string(), maxLength(128))),
+  status: picklist(['completed', 'interrupted', 'cancelled', 'failed']),
+})
+
 const DeltaValue = pipe(number(), finite())
 
 /**

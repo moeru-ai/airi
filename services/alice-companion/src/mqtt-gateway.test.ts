@@ -62,6 +62,38 @@ describe('mqttGateway', () => {
     expect(handlers.onEvent.mock.calls[1][0]).toMatchObject({ kind: 'mood', mood: 'sad', causes: ['bad news'] })
   })
 
+  it('reads the NeoAlice v1 mood envelope', async () => {
+    const { handlers, deliver } = createGateway()
+
+    deliver('neoalice/v1/magicmirror/evt/mood', { v: 1, type: 'evt.mood', site_id: 'magicmirror', mood: 'reflective' })
+
+    await vi.waitFor(() => expect(handlers.onEvent).toHaveBeenCalledTimes(1))
+    expect(handlers.onEvent.mock.calls[0][0]).toMatchObject({ kind: 'mood', mood: 'reflective', site: 'magicmirror' })
+  })
+
+  it('counts a NeoAlice turn end only when it completed, and uses turn_id as the event ID', async () => {
+    const { handlers, deliver } = createGateway()
+
+    deliver('neoalice/v1/satellite-1/evt/dialog/turn_end', { v: 1, type: 'evt.dialog.turn_end', turn_id: 'turn-77', session_id: 'default', status: 'completed' })
+    deliver('neoalice/v1/satellite-1/evt/dialog/turn_end', { v: 1, type: 'evt.dialog.turn_end', turn_id: 'turn-78', status: 'interrupted' })
+    deliver('neoalice/v1/satellite-1/evt/dialog/turn_end', { v: 1, type: 'evt.dialog.turn_end', turn_id: 'turn-79', status: 'unknown' })
+
+    await vi.waitFor(() => expect(handlers.onEvent).toHaveBeenCalledTimes(2))
+    expect(handlers.onEvent.mock.calls[0][0]).toMatchObject({ kind: 'interaction', eventId: 'turn-77', origin: 'explicit', interrupted: false })
+    expect(handlers.onEvent.mock.calls[1][0]).toMatchObject({ eventId: 'turn-78', interrupted: true })
+  })
+
+  it('stops deriving turns for a site after a NeoAlice turn end', async () => {
+    const { handlers, deliver } = createGateway()
+
+    deliver('neoalice/v1/satellite-1/evt/dialog/turn_end', { v: 1, turn_id: 'turn-80', status: 'completed' })
+    deliver('neoalice/v1/satellite-1/evt/stt/final', { text: 'hello' })
+    deliver('neoalice/v1/satellite-1/cmd/tts/audio', { audio: { b64: 'UklGR', format: 'wav' } })
+    await new Promise(resolve => setTimeout(resolve, 20))
+
+    expect(handlers.onEvent).toHaveBeenCalledTimes(1)
+  })
+
   it('drops an invalid optional field but keeps the mood', async () => {
     const { handlers, deliver } = createGateway()
 

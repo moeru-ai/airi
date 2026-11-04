@@ -19,6 +19,7 @@ import {
   ProposalMessageSchema,
   ResetMessageSchema,
   SettingsMessageSchema,
+  TurnEndMessageSchema,
 } from './contracts'
 
 /** Value of `origin` in messages that this service publishes. Mood messages with it are ignored. */
@@ -51,7 +52,7 @@ export interface MqttGatewayOptions {
   inputSites: string[]
   /**
    * Counts a turn when `cmd/tts/say` or `cmd/tts/audio` follows `evt/stt/final` on the same site.
-   * Used while the NeoAlice backend does not publish `evt/companion/interaction`.
+   * Used while the NeoAlice backend does not publish `evt/dialog/turn_end` or `evt/companion/interaction`.
    */
   deriveInteractions: boolean
   /** Longest time between the speech-to-text result and the speech command of one derived turn. */
@@ -78,7 +79,7 @@ export class MqttGateway implements CompanionPublisher {
   /** Last receive time per topic and payload, for {@link repeatWindowMs}. Runtime state only. */
   private readonly recentPayloads = new Map<string, number>()
   /**
-   * Sites that sent an explicit `evt/companion/interaction` since start. Derivation stops for
+   * Sites that sent an explicit turn (`evt/dialog/turn_end` or `evt/companion/interaction`) since start. Derivation stops for
    * them, so one turn is not counted twice. Runtime state only: after a restart, the first
    * explicit turn of a site can still follow one derived turn.
    */
@@ -95,6 +96,7 @@ export class MqttGateway implements CompanionPublisher {
       `${topicRoot}/+/evt/mood`,
       `${topicRoot}/+/cmd/evt/mood`,
       `${topicRoot}/+/evt/companion/interaction`,
+      `${topicRoot}/+/evt/dialog/turn_end`,
       `${topicRoot}/+/cmd/companion/+`,
     ]
     if (this.options.deriveInteractions)
@@ -177,9 +179,26 @@ export class MqttGateway implements CompanionPublisher {
         const message = this.validate(InteractionMessageSchema, json, topic)
         if (!message)
           return
-        this.sitesWithExplicitTurns.add(site)
-        this.pendingSpeech.delete(site)
+        this.markExplicitTurn(site)
         await handlers.onEvent({ kind: 'interaction', eventId: message.eventId, at, site, origin: 'explicit', interrupted: message.interrupted ?? false })
+        return
+      }
+      case 'evt/dialog/turn_end': {
+        const message = this.validate(TurnEndMessageSchema, json, topic)
+        if (!message)
+          return
+        this.markExplicitTurn(site)
+        await handlers.onEvent({
+          kind: 'interaction',
+          // NOTICE: `turn_id` is optional in the NeoAlice proposal. Without it, a random ID is used
+          // and only the repeat window protects against a broker duplicate.
+          // Remove the fallback when the NeoAlice backend always sends `turn_id`.
+          eventId: message.turn_id ?? `turn-end:${site}:${randomUUID()}`,
+          at,
+          site,
+          origin: 'explicit',
+          interrupted: message.status !== 'completed',
+        })
         return
       }
       case 'cmd/companion/proposal': {
@@ -252,6 +271,11 @@ export class MqttGateway implements CompanionPublisher {
     if (at.getTime() - openedAt > this.options.deriveWindowMs)
       return
     await handlers.onEvent({ kind: 'interaction', eventId: `derived:${site}:${randomUUID()}`, at, site, origin: 'derived', interrupted: false })
+  }
+
+  private markExplicitTurn(site: string): void {
+    this.sitesWithExplicitTurns.add(site)
+    this.pendingSpeech.delete(site)
   }
 
   private isRepeatedPayload(topic: string, payload: Buffer, at: Date): boolean {

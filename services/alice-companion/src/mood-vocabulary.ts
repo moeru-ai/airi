@@ -1,8 +1,9 @@
 /**
  * Projection of mood names between the three vocabularies that Alice uses.
  *
- * - NeoAlice mood system: the producer of the mood. Seen values: `happy`, `playful`,
- *   `excited`, `sad`, `annoyed`, `angry`, `tired`, `sleep`, `calm`, `neutral`.
+ * - NeoAlice mood system (`MoodProfile`, 14 states): `happy`, `playful`, `excited`, `calm`,
+ *   `neutral`, `reflective`, `cozy`, `tired`, `annoyed`, `angry`, `sad`, `melancholic`,
+ *   `mischief`, `grouchy`. It can also send `sleep`.
  * - TalkingHead renderer: `neutral`, `happy`, `angry`, `sad`, `fear`, `disgust`, `love`, `sleep`.
  * - AIRI emotions (`packages/stage-ui/src/constants/emotions.ts`): `happy`, `sad`, `angry`,
  *   `think`, `surprised`, `awkward`, `question`, `curious`, `neutral`.
@@ -21,6 +22,13 @@ const vocabulary = new Map<string, { talkinghead: string, airi: string }>(Object
   sleep: { talkinghead: 'sleep', airi: 'neutral' },
   calm: { talkinghead: 'neutral', airi: 'neutral' },
   neutral: { talkinghead: 'neutral', airi: 'neutral' },
+  // NOTICE: These five NeoAlice moods have no direct TalkingHead or AIRI name. The nearest
+  // names below are a proposal. Change them here only, because the mirror module copies this table.
+  reflective: { talkinghead: 'neutral', airi: 'think' },
+  cozy: { talkinghead: 'happy', airi: 'happy' },
+  melancholic: { talkinghead: 'sad', airi: 'sad' },
+  mischief: { talkinghead: 'happy', airi: 'happy' },
+  grouchy: { talkinghead: 'angry', airi: 'angry' },
   // NOTICE: AIRI has no `love`, `fear`, or `disgust` emotion. The nearest AIRI emotion keeps
   // the expression readable. TalkingHead keeps the full mood.
   love: { talkinghead: 'love', airi: 'happy' },

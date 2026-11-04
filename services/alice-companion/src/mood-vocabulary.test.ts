@@ -14,6 +14,25 @@ describe('resolveMood', () => {
     expect(resolveMood('tired')).toEqual({ primary: 'tired', known: true, talkingheadMood: 'sleep', airiEmotion: 'neutral' })
   })
 
+  it.each([
+    ['happy', 'happy'],
+    ['playful', 'happy'],
+    ['excited', 'happy'],
+    ['calm', 'neutral'],
+    ['neutral', 'neutral'],
+    ['reflective', 'neutral'],
+    ['cozy', 'happy'],
+    ['tired', 'sleep'],
+    ['annoyed', 'angry'],
+    ['angry', 'angry'],
+    ['sad', 'sad'],
+    ['melancholic', 'sad'],
+    ['mischief', 'happy'],
+    ['grouchy', 'angry'],
+  ])('knows the NeoAlice MoodProfile state %s', (mood, talkingheadMood) => {
+    expect(resolveMood(mood)).toMatchObject({ known: true, talkingheadMood })
+  })
+
   it('keeps AIRI emotions that TalkingHead does not have', () => {
     expect(resolveMood('curious')).toEqual({ primary: 'curious', known: true, talkingheadMood: 'neutral', airiEmotion: 'curious' })
   })
@@ -23,7 +42,7 @@ describe('resolveMood', () => {
   })
 
   it('marks an unknown mood and projects it to neutral', () => {
-    expect(resolveMood('melancholic')).toEqual({ primary: 'melancholic', known: false, talkingheadMood: 'neutral', airiEmotion: 'neutral' })
+    expect(resolveMood('stormy')).toEqual({ primary: 'stormy', known: false, talkingheadMood: 'neutral', airiEmotion: 'neutral' })
   })
 
   it('does not resolve object prototype keys as moods', () => {

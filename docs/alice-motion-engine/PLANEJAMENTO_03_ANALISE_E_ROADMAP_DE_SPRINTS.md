@@ -84,7 +84,7 @@ Limitação do TalkingHead que confirma a motivação do Plano 01: `playAnimatio
 | L5 | O humor existente não tem intensidade, causa nem energia no payload. | Payload `{mood}` ou `{state:{mood}}`. | O `MoodSnapshot` do Plano 02 exige `intensity` e `causes`. | O adapter usa valores padrão marcados como `unknown`. Ele não inventa causas (regra do próprio Plano 02). |
 | L6 | Estado do companion em vários dispositivos. | Memória do AIRI usa IndexedDB por cliente. O espelho é outro cliente. | Dois clientes geram dois estados divergentes. O Plano 02 trata várias janelas, não vários dispositivos. | Decisão D2 na sprint S05: a autoridade do estado fica num serviço único (por exemplo, junto ao NeoAlice) e publica por MQTT. |
 | L7 | Dois barramentos de evento propostos. | Plano 01 "Motion Event Bus". Plano 02 "Companion Event Adapter". | Duplicação e ordem de eventos inconsistente. | Um barramento: `@moeru/eventa` dentro do AIRI (regra do `AGENTS.md`) e MQTT fora dele, ligados pela ponte. |
-| L8 | TTS diferente do plano. | Plano 01 seção 9 cita Qwen3-TTS e GPT-SoVITS. Produção usa Google TTS. | P4 (sincronia de prosódia) depende de timestamps do TTS. | Na sprint S09, medir o que o TTS em uso fornece. Não presumir timestamps. |
+| L8 | TTS diferente do plano. | Plano 01 seção 9 cita Qwen3-TTS e GPT-SoVITS. O inventário de 03/11/2026 mostra Kokoro v1.0 como TTS ativo (o `decisoes_usuario.md` antigo citava Google TTS). | P4 (sincronia de prosódia) depende de timestamps do TTS. A rota usada não tem timestamps. | Ver E2, item 8. |
 | L9 | Os planos não definem backup, rollback nem teste de fumaça do sistema em produção. | Os critérios de aceite falam só do AIRI. | Uma mudança pode quebrar o espelho sem detecção. | Protocolo por sprint (Parte B) e teste de fumaça MQTT (B3). |
 | L10 | Regras do monorepo AIRI não citadas. | `AGENTS.md`: Valibot para schema, `injeca` para DI, `eventa` para IPC, `README.md` por pacote, kebab-case, `// NOTICE:` para workaround, perguntar antes de nova dependência. | Revisão de PR e lint podem falhar. | Aplicar em todas as sprints de código. |
 | L11 | O fork recebe merges do upstream. | Último commit de `main`: merge de `moeru-ai:main`. | Mudanças no `animation-manager` ou em `MMD.vue` podem gerar conflitos. | Manter alterações em pacotes novos. Fazer cada mudança em arquivo existente pequena e com teste de contrato. |
@@ -534,7 +534,48 @@ Em toda sprint: revisar licenças de assets e código, procurar dados privados n
 | D3 | Qual biblioteca MQTT usar no AIRI? | S08 | **Decidida:** `mqtt` (MQTT.js 5) |
 | D4 | Qual modelo PMX e quais VMD têm licença para a fixture? | S06 | Escolher antes da S06 |
 | D5 | Rota final do espelho: AIRI no espelho ou TalkingHead comandado pelo director? | S16 | Decidir com medições da S06 e da S09 |
+| D6 | Quem é a autoridade do afeto: o `affinity_score` do MoodSystem ou a métrica `affection` do serviço de companion? | S11 | `affinity_score`, publicado no payload de humor, como já foi feito com a energia |
+| D7 | Onde estão as GPUs RTX citadas no Plano 01? O host principal é RK3588 sem GPU NVIDIA. | S17 | Confirmar antes de planejar a S17 |
+| D8 | Política de retenção dos snapshots da câmera e do modo VLM em nuvem | S-H | Retenção curta e opt-in para envio externo (Plano 02, consentimentos) |
 
 ---
+
+## PARTE E — INVENTÁRIO DO AMBIENTE REAL E IMPACTO NOS PLANOS
+
+Fonte: inventário somente leitura feito pelo agente local em 03/11/2026, com o prompt `PROMPT_INVENTARIO_SERVICOS_LOCAIS.md`. Este resumo não contém hosts, IPs, caminhos nem IDs de usuário. O inventário completo fica fora do repositório.
+
+### E1. O que roda hoje
+
+| Área | Estado verificado |
+| --- | --- |
+| Host principal | Placa Rockchip RK3588 (aarch64, 8 núcleos, NPU). Sem GPU NVIDIA neste host. |
+| TTS ativo | Kokoro v1.0 na CPU, voz mista em português, velocidade 0.8. A rota usada (`/v1/audio/speech`) devolve WAV sem marcações de tempo. A rota experimental `/dev/captioned_speech` tem marcações por palavra e não é usada. |
+| TTS alternativos | Kokoro ONNX (CPU, o modo NPU falhou na inicialização) e Piper na NPU. Coqui, Silero e eSpeak existem como fallback no código. |
+| STT | Whisper medium (Transformers) na CPU, português. O fim de fala é detectado no satélite (openwakeword, 1200 ms de silêncio). |
+| Fluxo de voz | Satélite publica `evt/audio`. O gateway chama o Whisper e publica `evt/stt/final` no site do satélite e `hermes/asr/textCaptured`. O LLM responde. O Kokoro gera o áudio. O gateway publica `cmd/tts/audio` (WAV em base64) para o satélite e para o espelho. |
+| Lip-sync | No navegador do espelho, com `lipsync-pt-br.mjs`. O backend não envia visemas. |
+| Visão | YOLOv10n na NPU local, reconhecimento facial (Haar e encodings), controlador dual-NPU e nós remotos (Hailo-8L com SCRFD, ArcFace e YOLOv11n. Axera AX650 com Qwen3.5-2B VLM, Depth Anything V2 e MobileCLIP2). Disparo por eventos: porta, presença e movimento da câmera. Sem detecção de emoção facial. |
+| Visão para o avatar | A saudação na porta publica `cmd/avatar/gesture` (wave, handup) e `cmd/avatar/emoji`. |
+| Humor | `MoodSystem`, `Personality` e `RedQueen` dentro do `neoalice-api`. 14 estados. Intensidade (`affinity_score`, `interaction_quality`), causa e fadiga existem dentro do processo, mas o payload MQTT só leva `mood`. Publica `evt/mood`, `cmd/evt/mood`, `cmd/avatar/emoji` e `cmd/avatar/pose`. |
+| Fim de turno | Não existe evento. O ciclo termina no `cmd/tts/audio` e no `DIALOG_TURN_SAVED` interno. |
+| LLM | Principal na nuvem (OpenRouter), NVIDIA NIM dedicado e fallback local Ollama (phi4-mini na CPU). |
+| Broker | Mosquitto 2, TCP 1883 e WebSocket 1884, acesso anônimo, sem ACL. |
+
+### E2. Impacto nos planos
+
+| # | Achado | Sprint | Ação |
+| --- | --- | --- | --- |
+| 1 | 14 estados de humor. Cinco não estavam na tabela (`reflective`, `cozy`, `melancholic`, `mischief`, `grouchy`). | S01, S05 | Feito no serviço de companion. A S01 copia a mesma tabela para o espelho. |
+| 2 | Intensidade, causa e fadiga existem, mas não são publicadas. | S05, S09, S13 | Pedir ao backend os campos `intensity`, `energy` e `cause` no payload de humor (prompt `PROMPT_BACKEND_FIM_DE_TURNO_E_HUMOR.md`). O serviço já aceita esses campos. |
+| 3 | `affinity_score` já existe no MoodSystem. | S11 | Conflito de autoridade com a métrica `affection`. Decisão D6. |
+| 4 | Sem evento de fim de turno. | S05 | O serviço deriva o turno de `evt/stt/final` seguido de `cmd/tts/audio` no mesmo site. O serviço também aceita `evt/dialog/turn_end` no formato sugerido pelo agente. Pedido ao backend no mesmo prompt. |
+| 5 | O STT sai no site do satélite e o áudio vai para o satélite e para o espelho. | S05 | O pareamento por site funciona no site do satélite. Conferir no `audit.jsonl` durante a validação de 1 dia. |
+| 6 | O TTS não devolve marcações de tempo. O Kokoro tem uma rota com marcações por palavra. | S09 | Usar `/dev/captioned_speech` para alinhar ênfase e gestos ao áudio. O lip-sync continua no navegador. Medir o custo na CPU antes. |
+| 7 | O backend já envia gestos, poses e emoji (humor e porta). | S08, S13 | O director trata esses comandos como intenções e não compete com eles. Até a S16 eles continuam indo direto ao espelho. |
+| 8 | Sem GPU NVIDIA no host principal. | S06, S17 | O Plano 01 seção 9 cita RTX 3090 e 4060 Ti. Decisão D7. Sem essas GPUs, a S17 usa as NPUs ou é adiada. |
+| 9 | O espelho roda em outro host. O AIRI precisa de WebGL com física. | S06 | Medir FPS no hardware real do espelho. A meta de 60 FPS do Plano 01 pode ser inviável. |
+| 10 | O LLM principal é de nuvem. | S11, S13 | Os Planos 01 e 02 pedem modo offline. O fallback local é um modelo pequeno na CPU. Propostas de métrica precisam de um caminho heurístico que funcione sem o LLM. |
+| 11 | Broker anônimo e sem ACL. | S00, S08 | Qualquer cliente da rede local pode enviar `cmd/companion/reset`. Na S00, adicionar ACL ao menos para `neoalice/v1/+/cmd/companion/#`, com credenciais coordenadas para satélites e espelho. |
+| 12 | Snapshots da câmera ficam em disco. O modo VLM em nuvem pode enviar quadros para fora. | S-H | Decisão D8. O Plano 02 exige consentimento (`screenObservation`, `photoRetention`). |
 
 **Status:** análise e roteiro documentados. D1, D2 e D3 decididas. S05 implementada em `services/alice-companion`. O espelho em produção não foi alterado. Os Planos 01 e 02 permanecem sem alteração.
