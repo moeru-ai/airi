@@ -13,6 +13,7 @@ import { errorMessageFrom } from '@moeru/std'
 import { decodeBase64 } from '@moeru/std/base64'
 import { fileSource } from '@proj-airi/audio/encoding'
 import { createChatOrchestratorRuntime, isBackgroundRecipe, matchKeywordRecipes, renderConversationPreview } from '@proj-airi/core-agent'
+import { supportsResponsesAudioInputEndpoint } from '@proj-airi/provider-inference'
 import { ATTR_GEN_AI_AGENT_ID, ATTR_GEN_AI_CONVERSATION_ID, ATTR_GEN_AI_OPERATION_NAME, ATTR_GEN_AI_PROVIDER_NAME, ATTR_GEN_AI_REQUEST_MODEL, ATTR_GEN_AI_TOOL_CALL_ARGUMENTS, ATTR_GEN_AI_TOOL_CALL_ID, ATTR_GEN_AI_TOOL_CALL_RESULT, ATTR_GEN_AI_TOOL_NAME, beginSpan, TraceLinkRelations, trackPath } from '@proj-airi/trace-kit'
 import { AgentAttributes, AgentIdKeys, AgentNames, AgentTracks } from '@proj-airi/trace-kit/agent'
 import { VoiceIdKeys } from '@proj-airi/trace-kit/voice'
@@ -393,9 +394,12 @@ export const useChatStore = defineStore('chat', () => {
   /** Turns that a voice message without speech removed. Their cancellation is not reported as a send error. */
   const droppedTurns = new Set<string>()
 
-  /** Audio input reaches only Chat Completions models whose catalog entry lists audio input. Other requests get transcripts. */
+  /**
+   * Audio input reaches a model whose catalog entry lists audio input, over Chat Completions or a Responses endpoint
+   * that accepts audio. Other requests get transcripts.
+   */
   async function supportsAudioInput(providerId: string, modelId: string, request: GenerationRequest) {
-    if (request.protocol !== 'chat-completions')
+    if (request.protocol === 'responses' && !supportsResponsesAudioInputEndpoint(request.config.baseURL))
       return false
     const model = (await consciousnessStore.getModelsForProvider(providerId)).find(model => model.id === modelId)
     return model?.inputModalities?.includes('audio') === true
