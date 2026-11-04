@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 import type { GlobalShortcut, GlobalShortcutKeyEvent } from '@gd-kirie/platform'
 import type { ShortcutAccelerator, ShortcutBinding } from '@proj-airi/stage-shared/global-shortcut'
 import type { EffectScope } from 'vue'

@@ -14,7 +14,7 @@
     "build": "kirie build",
     "dev": "kirie dev",
     "postinstall": "node -e \"require('node:fs').writeFileSync('node_modules/.gdignore', '')\"",
-    "test:unit": "vitest run --config vitest.config.ts",
+    "test:run": "vitest run",
     "typecheck": "vue-tsc -p src-web/tsconfig.json --noEmit"
   },
   "dependencies": {

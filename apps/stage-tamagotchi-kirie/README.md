@@ -80,14 +80,14 @@ From the application directory, run:
 
 ```sh
 mise x -- pnpm typecheck
-mise x -- pnpm test:unit
+mise x -- pnpm test:run
 mise x -- dotnet run --project tests/StageTamagotchiKirie.Tests
 mise x -- dotnet format --verify-no-changes
 mise x -- pnpm build
 ```
 
 `pnpm build` builds Web assets and C#. It does not export or package the application.
-Root test commands do not run the application's frontend suite or C# harness.
+Root `pnpm test:run` runs the frontend suite. It does not run the C# harness.
 
 From the repository root, run:
 
