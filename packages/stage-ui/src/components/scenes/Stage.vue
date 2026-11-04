@@ -307,13 +307,18 @@ function isTurnSpeechPlayable(turnId?: string): boolean {
   const turn = voice.activeTurns.find(t => t.turnId === turnId)
   if (!turn)
     return false
-  const characterId = chatSession.sessionMetas[turn.sessionId]?.characterId
-  if (!characterId)
+  try {
+    const characterId = chatSession.sessionMetas[turn.sessionId]?.characterId
+    if (!characterId)
+      return false
+    const speechConfig = cards.getModules(characterId)?.speech
+    if (!speechConfig?.provider || speechConfig.provider === 'speech-noop')
+      return false
+    return true
+  }
+  catch {
     return false
-  const speechConfig = cards.getModules(characterId).speech
-  if (!speechConfig?.provider || speechConfig.provider === 'speech-noop')
-    return false
-  return true
+  }
 }
 
 function toStageEmotionPayload(payload: { name: string, intensity: number }): EmotionPayload | undefined {
@@ -438,10 +443,6 @@ function resetSpeakingState() {
   nowSpeaking.value = false
   mouthOpenSize.value = 0
   speakingTurns.clear()
-  for (const emotion of pendingTurnEmotions.values()) {
-    emotionsQueue.enqueue(emotion)
-  }
-  pendingTurnEmotions.clear()
   if (pendingSpeechEmotion.value) {
     emotionsQueue.enqueue(pendingSpeechEmotion.value)
     pendingSpeechEmotion.value = null
@@ -617,6 +618,14 @@ watch(speechMuted, (muted) => {
   if (muted) {
     for (const turn of voice.activeTurns)
       voice.getSpeech(turn)?.cancel('Speech muted')
+    for (const emotion of pendingTurnEmotions.values()) {
+      emotionsQueue.enqueue(emotion)
+    }
+    pendingTurnEmotions.clear()
+    if (pendingSpeechEmotion.value) {
+      emotionsQueue.enqueue(pendingSpeechEmotion.value)
+      pendingSpeechEmotion.value = null
+    }
   }
 })
 
