@@ -1,9 +1,12 @@
 // @vitest-environment jsdom
 
+import type { DevicePermission } from './device-permissions'
+
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 
+import { useDevicePermissionsStore } from './device-permissions'
 import { isStepPending, sharedOnboardingSteps, useOnboardingStore } from './onboarding'
 import { useProviderConfigStore } from './providers/config'
 
@@ -104,8 +107,10 @@ describe('onboarding store', () => {
     expect(store.$state).not.toHaveProperty('closeRequestId')
     expect(store.$state).not.toHaveProperty('stepRecords')
     const records = JSON.parse(localStorage.getItem('onboarding/steps') ?? '{}')
-    for (const step of sharedOnboardingSteps)
+    for (const step of sharedOnboardingSteps.filter(step => step.scope === 'provider-setup'))
       expect(records[step.id]).toMatchObject({ version: step.version, outcome: 'done' })
+    // Sign-in does not grant a permission, so the permissions step stays pending.
+    expect(records.permissions).toBeUndefined()
   })
 
   it('records the shared steps as done when an upgrade finds the completed flag', () => {
@@ -167,6 +172,49 @@ describe('onboarding store', () => {
 
     expect(store.needsOnboarding).toBe(true)
     expect(localStorage.getItem('onboarding/steps')).toBeNull()
+  })
+})
+
+describe('onboarding permissions step', () => {
+  /** A permission that the test host registers. Its functions do nothing, because the store only counts permissions. */
+  const microphone: DevicePermission = {
+    id: 'microphone',
+    titleKey: 'settings.dialogs.onboarding.permissions.microphoneTitle',
+    descriptionKey: 'settings.dialogs.onboarding.permissions.microphoneDescription',
+    check: async () => 'not-determined',
+    request: async () => {},
+  }
+
+  beforeEach(() => {
+    localStorage.clear()
+    setActivePinia(createPinia())
+  })
+
+  it('does not apply on a host without registered permissions', () => {
+    localStorage.setItem('onboarding/completed', 'true')
+
+    const store = useOnboardingStore()
+
+    expect(store.needsOnboarding).toBe(false)
+  })
+
+  it('opens onboarding with only the permissions step after an upgrade', () => {
+    localStorage.setItem('onboarding/completed', 'true')
+    useDevicePermissionsStore().register([microphone])
+
+    const store = useOnboardingStore()
+
+    expect(store.pendingSharedSteps.map(step => step.id)).toEqual(['permissions'])
+    expect(store.needsOnboarding).toBe(true)
+  })
+
+  it('applies when a provider was configured at startup', () => {
+    useProviderConfigStore().configuredProviders.openai = true
+    useDevicePermissionsStore().register([microphone])
+
+    const store = useOnboardingStore()
+
+    expect(store.pendingSharedSteps.map(step => step.id)).toEqual(['permissions'])
   })
 })
 
