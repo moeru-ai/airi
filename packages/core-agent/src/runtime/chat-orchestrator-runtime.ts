@@ -16,6 +16,13 @@ import { renderConversationPreview } from '../messages/preview'
 import { createChatHooks } from './agent-hooks'
 import { useLlmmarkerParser } from './llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from './response-categoriser'
+import {
+  estimateHistoryItemTokens,
+  estimateTextTokens,
+  estimateToolTokens,
+  isContextLengthExceededError,
+  truncateToolResultContent,
+} from './token-estimator'
 
 const REASONING_UI_FLUSH_CHUNK_SIZE = 24
 
@@ -134,6 +141,17 @@ export interface ChatOrchestratorSendOptions {
   systemPromptSupplement?: string
   /** Eligible catalog for this request. Omission disables stickers. The queue copies entries before waiting. */
   stickers?: readonly { id: string, description: string }[]
+  /**
+   * Maximum model context window in tokens.
+   * Older conversation turns are dropped to fit within this budget, accounting for
+   * the system prompt, tools, and reserved output tokens.
+   */
+  contextWindowTokens?: number
+  /**
+   * Number of tokens reserved for the model's generated response.
+   * If omitted, defaults to `options.maxTokens` or a conservative fraction of the context window.
+   */
+  reservedOutputTokens?: number
   /** Stable user-message identity. Retries acknowledge the existing message without generating another reply. */
   messageId?: string
   /** Cancellation belongs to this request, including queued work and provider generation. */
@@ -333,6 +351,11 @@ export interface ChatOrchestratorRuntimeDeps {
    * `-1` keeps all history. `0` sends only current input. System messages are exempt.
    */
   getContextWindow?: (sessionId: string) => number | undefined
+  /**
+   * Returns the model context window token limit for the session.
+   * When specified and positive, conversation history is trimmed to fit within the token budget.
+   */
+  getContextWindowTokens?: (sessionId: string) => number | undefined
   /** Runtime context providers ingested immediately before prompt composition. */
   runtimeContextProviders?: Array<() => ContextMessage | null | undefined>
   /**
@@ -693,6 +716,121 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     return [...systemMessages, ...history.slice(start).filter(message => message.role !== 'system')]
   }
 
+  function trimConversationHistoryToTokenBudget(
+    history: ChatHistoryItem[],
+    contextWindowTokens: number | undefined,
+    reservedOutputTokens: number | undefined,
+    fixedOverheadTokens: number,
+  ): ChatHistoryItem[] {
+    if (contextWindowTokens === undefined || !Number.isFinite(contextWindowTokens) || contextWindowTokens <= 0)
+      return history
+
+    const reservedOutput = reservedOutputTokens ?? Math.min(2048, Math.max(256, Math.floor(contextWindowTokens * 0.2)))
+    const inputBudget = Math.max(1, contextWindowTokens - reservedOutput)
+
+    // Find turn boundaries in history (reusing whole turn grouping)
+    const turnStarts: number[] = []
+    let userStart: number | undefined
+
+    for (let index = history.length - 1; index >= 0; index--) {
+      const message = history[index]!
+      if (message.role === 'user') {
+        userStart = index
+      }
+      else if ((message.role === 'assistant' || message.role === 'tool') && userStart !== undefined) {
+        turnStarts.push(userStart)
+        userStart = undefined
+      }
+    }
+    if (userStart !== undefined)
+      turnStarts.push(userStart)
+
+    if (turnStarts.length === 0) {
+      if (fixedOverheadTokens > inputBudget) {
+        throw new Error(
+          `Request exceeds model context window: requires ~${fixedOverheadTokens} tokens (system prompt, tools, and current input), but the available budget is ${inputBudget} tokens (model limit: ${contextWindowTokens}, reserved response: ${reservedOutput}).`,
+        )
+      }
+      return history
+    }
+
+    // Safely truncate oversized tool results in the active messages so a single giant output doesn't starve the prompt
+    const maxToolResultTokens = Math.max(500, Math.floor(inputBudget * 0.4))
+    const sanitizedHistory = history.map((message) => {
+      if (message.role === 'tool' && typeof message.content === 'string') {
+        const truncated = truncateToolResultContent(message.content, maxToolResultTokens)
+        if (truncated.truncated)
+          return { ...message, content: truncated.text }
+      }
+      if (message.role === 'assistant' && message.providerTranscript?.length) {
+        let clonedTranscript: typeof message.providerTranscript | undefined
+        for (let idx = 0; idx < message.providerTranscript.length; idx++) {
+          const item = message.providerTranscript[idx]!
+          if (item.role === 'tool' && typeof item.content === 'string') {
+            const truncated = truncateToolResultContent(item.content, maxToolResultTokens)
+            if (truncated.truncated) {
+              clonedTranscript ??= [...message.providerTranscript]
+              clonedTranscript[idx] = { ...item, content: truncated.text }
+            }
+          }
+        }
+        if (clonedTranscript)
+          return { ...message, providerTranscript: clonedTranscript }
+      }
+      return message
+    })
+
+    // Calculate tokens in the current turn (from turnStarts[0] to the end of history)
+    let currentTurnTokens = 0
+    for (let i = turnStarts[0]!; i < sanitizedHistory.length; i++) {
+      if (sanitizedHistory[i]?.role !== 'system')
+        currentTurnTokens += estimateHistoryItemTokens(sanitizedHistory[i]!)
+    }
+
+    const baselineTokens = fixedOverheadTokens + currentTurnTokens
+    if (baselineTokens > inputBudget) {
+      throw new Error(
+        `Request exceeds model context window: requires ~${baselineTokens} tokens (system prompt, tools, and current input), but the available budget is ${inputBudget} tokens (model limit: ${contextWindowTokens}, reserved response: ${reservedOutput}).`,
+      )
+    }
+
+    let totalTokens = baselineTokens
+    let keptTurnStartIndex = turnStarts[0]!
+
+    // Iterate through past turns from newest to oldest
+    for (let i = 1; i < turnStarts.length; i++) {
+      let turnTokens = 0
+      for (let idx = turnStarts[i]!; idx < turnStarts[i - 1]!; idx++) {
+        if (sanitizedHistory[idx]?.role !== 'system')
+          turnTokens += estimateHistoryItemTokens(sanitizedHistory[idx]!)
+      }
+      if (totalTokens + turnTokens <= inputBudget) {
+        totalTokens += turnTokens
+        keptTurnStartIndex = turnStarts[i]!
+      }
+      else {
+        break
+      }
+    }
+
+    const systemMessages = sanitizedHistory.filter(message => message.role === 'system')
+    return [...systemMessages, ...sanitizedHistory.slice(keptTurnStartIndex).filter(message => message.role !== 'system')]
+  }
+
+  function canDropOlderTurn(context: Conversation): boolean {
+    return context.turns.filter(turn => turn.type === 'user').length > 1
+  }
+
+  function dropOldestTurn(context: Conversation): void {
+    const firstUserIndex = context.turns.findIndex(turn => turn.type === 'user')
+    if (firstUserIndex === -1)
+      return
+    let deleteCount = 1
+    if (context.turns[firstUserIndex + 1]?.type === 'assistant')
+      deleteCount = 2
+    context.turns.splice(firstUserIndex, deleteCount)
+  }
+
   async function performSend(
     sendingMessage: string,
     options: ChatOrchestratorSendOptions,
@@ -1030,15 +1168,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         deps.getSystemPrompt ? sessionMessagesForSend.filter(message => message.role !== 'system') : sessionMessagesForSend,
         deps.getContextWindow?.(sessionId),
       )
-      const context = buildContext(history)
-      // The stored notice ends the history. Only this request tells the model that it can stay quiet about it.
-      if (options.notice) {
-        const lastTurn = context.turns.at(-1)
-        if (lastTurn?.type === 'user')
-          lastTurn.content.push({ type: 'text', text: '\n[Speak about this notice only if it fits now, or stay quiet.]' })
-      }
-      if (systemPrompt?.trim())
-        context.turns.unshift({ id: 'system-identity', type: 'system', authority: 'system', content: [{ type: 'text', text: systemPrompt }] })
+
       const stickerPrompt = stickers?.length
         ? [
             'You can send one optional sticker per reply with a marker from this catalog.',
@@ -1049,6 +1179,39 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           ].join('\n')
         : ''
       const systemPromptSupplement = [options.systemPromptSupplement?.trim(), stickerPrompt].filter(Boolean).join('\n\n')
+
+      const contextsSnapshot = deps.context.snapshot()
+      const entries = Object.entries(contextsSnapshot).flatMap(([source, messages]) => messages.map(message => ({ source, text: message.text })))
+
+      let fixedOverheadTokens = 0
+      if (systemPrompt?.trim())
+        fixedOverheadTokens += estimateTextTokens(systemPrompt) + 4
+      if (systemPromptSupplement)
+        fixedOverheadTokens += estimateTextTokens(systemPromptSupplement) + 4
+      for (const entry of entries)
+        fixedOverheadTokens += estimateTextTokens(entry.text) + 4
+      if (Array.isArray(options.tools)) {
+        for (const tool of options.tools)
+          fixedOverheadTokens += estimateToolTokens(tool)
+      }
+
+      const contextWindowTokens = options.contextWindowTokens ?? deps.getContextWindowTokens?.(sessionId)
+      const tokenBudgetHistory = trimConversationHistoryToTokenBudget(
+        history,
+        contextWindowTokens,
+        options.reservedOutputTokens,
+        fixedOverheadTokens,
+      )
+
+      const context = buildContext(tokenBudgetHistory)
+      // The stored notice ends the history. Only this request tells the model that it can stay quiet about it.
+      if (options.notice) {
+        const lastTurn = context.turns.at(-1)
+        if (lastTurn?.type === 'user')
+          lastTurn.content.push({ type: 'text', text: '\n[Speak about this notice only if it fits now, or stay quiet.]' })
+      }
+      if (systemPrompt?.trim())
+        context.turns.unshift({ id: 'system-identity', type: 'system', authority: 'system', content: [{ type: 'text', text: systemPrompt }] })
       if (systemPromptSupplement) {
         const systemMessage = context.turns.find(turn => turn.type === 'system' && turn.authority === 'system')
         if (systemMessage?.type === 'system')
@@ -1057,8 +1220,6 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           context.turns.unshift({ id: 'system-supplement', type: 'system', authority: 'system', content: [{ type: 'text', text: systemPromptSupplement }] })
       }
 
-      const contextsSnapshot = deps.context.snapshot()
-      const entries = Object.entries(contextsSnapshot).flatMap(([source, messages]) => messages.map(message => ({ source, text: message.text })))
       if (entries.length) {
         const lastMessage = context.turns.at(-1)
         if (lastMessage?.type === 'user')
@@ -1104,7 +1265,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       })
 
       const resolveOwnerStep = options.resolveStep
-      await waitForProvider(deps.llm.stream(options.model, options.chatProvider, context, {
+      const streamProvider = () => waitForProvider(deps.llm.stream(options.model, options.chatProvider, context, {
         headers,
         providerId: activeProvider,
         // A resolved prompt replaces the composed system message, so it must carry the same supplement.
@@ -1255,6 +1416,20 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           }
         },
       }), abortSignal)
+
+      try {
+        await streamProvider()
+      }
+      catch (error) {
+        if (!shouldAbort() && isContextLengthExceededError(error) && canDropOlderTurn(context)) {
+          dropOldestTurn(context)
+          console.warn('[chat-orchestrator] Context length exceeded; dropped oldest turn and retrying once')
+          await streamProvider()
+        }
+        else {
+          throw error
+        }
+      }
 
       // Session generation is the lifecycle correlation key. Re-check it
       // after every awaited completion boundary so deleting a session while a

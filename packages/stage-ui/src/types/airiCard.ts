@@ -17,6 +17,12 @@ export interface AiriExtension {
    */
   contextWindow?: number
 
+  /**
+   * Model context window limit in tokens.
+   * When omitted, uses the model catalog's context length or unlimited.
+   */
+  contextWindowTokens?: number
+
   wakeWords?: WakeWord[]
 
   /** Character-owned references to stored display-model resources. */

@@ -1070,6 +1070,7 @@ export const useChatStore = defineStore('chat', () => {
     // Identity follows the session's persona at request time, so a card switch never rewrites another session.
     getSystemPrompt: sessionSystemPrompt,
     getContextWindow: sessionId => cardStore.getCard(personaOf(sessionId))?.extensions.airi.contextWindow ?? -1,
+    getContextWindowTokens: sessionId => cardStore.getCard(personaOf(sessionId))?.extensions.airi.contextWindowTokens,
     runtimeContextProviders: [
       () => createRuntimePromptContext(runtimePrompt.value),
       createMinecraftContext,
@@ -1321,6 +1322,12 @@ export const useChatStore = defineStore('chat', () => {
       throw new Error(`Failed to resolve chat provider "${providerId}"`)
 
     const selectedModel = (await consciousnessStore.getModelsForProvider(providerId)).find(model => model.id === modelId)
+    const contextWindowTokens = selectedModel?.contextLength && selectedModel.contextLength > 0
+      ? selectedModel.contextLength
+      : undefined
+    const reservedOutputTokens = selectedModel?.metadata?.maxOutput && selectedModel.metadata.maxOutput > 0
+      ? selectedModel.metadata.maxOutput
+      : undefined
 
     /**
      * Reads the session character's current consciousness settings and prompt before each model request.
@@ -1349,6 +1356,8 @@ export const useChatStore = defineStore('chat', () => {
       providerId,
       supportsAudioInput: await supportsAudioInput(providerId, modelId, chatProvider.generation(modelId)),
       supportsVisionInput: selectedModel?.metadata?.abilities?.vision === true,
+      contextWindowTokens,
+      reservedOutputTokens,
       resolveStep,
       signal,
       model: modelId,

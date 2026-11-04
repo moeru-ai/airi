@@ -59,6 +59,7 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
   let nextId = 0
   let systemPromptSupplement: string | undefined
   let contextWindow = -1
+  let contextWindowTokens: number | undefined
   let nowValue = new Date(2026, 3, 25, 18, 47).getTime()
   let monotonicNowValues = [1000]
   let generation = 1
@@ -96,6 +97,7 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
     getActiveProvider,
     getSystemPromptSupplement: () => systemPromptSupplement,
     getContextWindow: () => contextWindow,
+    getContextWindowTokens: () => contextWindowTokens,
     now: () => nowValue,
     monotonicNow: () => monotonicNowValues.shift() ?? 1000,
     createId: () => ids.shift() ?? `generated-${nextId++}`,
@@ -137,6 +139,11 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
     contextWindow: {
       set: (next: number) => {
         contextWindow = next
+      },
+    },
+    contextWindowTokens: {
+      set: (next: number | undefined) => {
+        contextWindowTokens = next
       },
     },
     foregroundPatches,
@@ -393,6 +400,110 @@ describe('createChatOrchestratorRuntime', () => {
       harness.runtime.cancelPendingSends('session-1')
     await harness.runtime.ingest('after reset', { model: 'gpt-test', chatProvider: provider })
     expect(JSON.stringify(harness.stream.mock.calls[11]![2])).toContain('old-0')
+  })
+
+  // https://github.com/moeru-ai/airi/issues/3335
+  // ROOT CAUSE:
+  // Turn counts alone cannot prevent requests from overflowing model token limits when
+  // messages or tool exchanges are large.
+  // Enforce a token budget, dropping the oldest whole turns until the request fits,
+  // truncating oversized tool results, and retrying once if the provider reports overflow.
+  it('drops oldest whole turns when history exceeds token budget (Issue #3335)', async () => {
+    const harness = createHarness()
+    // 300 token budget, reserving 100 => 200 input tokens available
+    harness.contextWindowTokens.set(300)
+    for (let index = 0; index < 4; index++) {
+      // Each turn has ~50 tokens
+      const text = `turn-${index}: ${'hello '.repeat(35)}`
+      await harness.runtime.ingest(text, {
+        model: 'gpt-test',
+        chatProvider: provider,
+        reservedOutputTokens: 100,
+      })
+    }
+
+    const lastCallTurns = harness.stream.mock.calls.at(-1)![2].turns
+    const userTurns = lastCallTurns.filter(turn => turn.type === 'user')
+    // Should retain newest turns that fit within 200 input tokens (less than all 4)
+    expect(userTurns.length).toBeLessThan(4)
+    expect(userTurns.length).toBeGreaterThanOrEqual(1)
+    // Newest input must always be present
+    expect(JSON.stringify(lastCallTurns.at(-1))).toContain('turn-3')
+    // Oldest input must have been dropped
+    expect(JSON.stringify(lastCallTurns)).not.toContain('turn-0')
+  })
+
+  it('throws a descriptive error when required context alone exceeds token budget (Issue #3335)', async () => {
+    const harness = createHarness()
+    // Small budget: 50 tokens with 20 reserved => 30 input tokens
+    harness.contextWindowTokens.set(50)
+    const giantInput = 'This is a very long user input that by itself definitely exceeds the small token budget '.repeat(10)
+
+    await expect(harness.runtime.ingest(giantInput, {
+      model: 'gpt-test',
+      chatProvider: provider,
+      reservedOutputTokens: 20,
+    })).rejects.toThrow(/Request exceeds model context window: requires ~.* tokens \(system prompt, tools, and current input\), but the available budget is 30 tokens/)
+  })
+
+  it('truncates oversized tool results in history while preserving tool exchange (Issue #3335)', async () => {
+    const harness = createHarness()
+    harness.contextWindowTokens.set(2000)
+    // First send
+    await harness.runtime.ingest('Initial query', { model: 'gpt-test', chatProvider: provider })
+
+    // Inject an assistant message with providerTranscript containing an oversized tool result
+    const giantToolOutput = '{"data": "'.concat('x'.repeat(8000), '"}')
+    harness.sessionMessages['session-1'].push({
+      role: 'assistant',
+      content: 'done',
+      id: 'assistant-tool-exchange',
+      slices: [],
+      tool_results: [],
+      providerTranscript: [
+        { role: 'assistant', content: '', tool_calls: [{ id: 'call-1', type: 'function', function: { name: 'fetch_data', arguments: '{}' } }] },
+        { role: 'tool', content: giantToolOutput, tool_call_id: 'call-1' },
+        { role: 'assistant', content: 'done' },
+      ],
+    })
+
+    // Second send
+    await harness.runtime.ingest('Next query', { model: 'gpt-test', chatProvider: provider, reservedOutputTokens: 200 })
+
+    const lastCall = harness.stream.mock.calls.at(-1)![2]
+    const rendered = JSON.stringify(lastCall)
+    expect(rendered).toContain('truncated')
+    expect(rendered).toContain('characters to fit context window')
+    expect(rendered).toContain('Next query')
+    // Verify stored history message was not modified
+    const storedAssistant = harness.sessionMessages['session-1'].find(m => m.id === 'assistant-tool-exchange')
+    expect(storedAssistant?.role === 'assistant' && storedAssistant.providerTranscript?.[1]?.content).toBe(giantToolOutput)
+  })
+
+  it('retries once with one fewer turn when provider returns context length exceeded (Issue #3335)', async () => {
+    const harness = createHarness()
+    let streamCount = 0
+    let failFirst = false
+    harness.stream.mockImplementation(async (_model, _provider, conversation, options) => {
+      streamCount++
+      if (failFirst) {
+        failFirst = false
+        throw new Error('context_length_exceeded: maximum context length is 4096 tokens')
+      }
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'recovered reply' })
+      await options?.onStreamEvent?.({ type: 'finish' })
+    })
+
+    // Seed initial turn
+    await harness.runtime.ingest('turn 0', { model: 'gpt-test', chatProvider: provider })
+    expect(streamCount).toBe(1)
+
+    // Second turn triggers context overflow error on first attempt, then recovers
+    failFirst = true
+    await harness.runtime.ingest('turn 1', { model: 'gpt-test', chatProvider: provider })
+
+    // Stream was called twice on turn 1 (1 failed + 1 retry)
+    expect(streamCount).toBe(3)
   })
 
   // https://github.com/moeru-ai/airi/issues/2899
