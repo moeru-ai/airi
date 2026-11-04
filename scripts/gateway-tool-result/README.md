@@ -24,10 +24,10 @@ The normalized source hash is `c542916bec082a286b0ccc44be9615cdee7d44f9dace4a0ff
 The normalized patched source hash is `fc645b84625a61d9f77d3e92ce1bad39a9249c7e64dda0295047e5b10ebc7697`.
 Git's newline settings can change byte hashes. Verify the normalized source when line endings differ.
 
-From the AIRI root, with an existing independent `gateway-sandbox` directory:
+Set `GATEWAY_SANDBOX` to an existing external gateway copy. Then run these commands from the AIRI root:
 
 ```powershell
-$gatewayRoot = (Resolve-Path ./gateway-sandbox).Path
+$gatewayRoot = (Resolve-Path $env:GATEWAY_SANDBOX).Path
 $patch = (Resolve-Path ./scripts/gateway-tool-result/gateway-image-fix.patch).Path
 git -C $gatewayRoot apply --unidiff-zero --check $patch
 git -C $gatewayRoot apply --unidiff-zero $patch
