@@ -548,6 +548,38 @@ describe('chat store contract', () => {
     ]))
   })
 
+  it('sends audio over Responses only to an endpoint that accepts it', async () => {
+    cardSelections.set('alice', { provider: 'mock-provider', model: 'audio-model' })
+    consciousnessModels.value = [{ id: 'audio-model', inputModalities: ['text', 'audio'], metadata: {} }]
+    const requests: Conversation[] = []
+    llmStreamMock.mockImplementation(async (model: string, chatProvider: GenerationProvider, context: Conversation, options: LlmStreamOptions) => {
+      requests.push(await options.prepareConversation!(context, { model, providerId: options.providerId, request: chatProvider.generation(model) }))
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    const store = useChatStore()
+    for (const baseURL of ['https://openrouter.ai/api/v1', 'https://api.openai.com/v1']) {
+      getChatProviderInstanceMock.mockResolvedValueOnce({
+        generation: (model: string) => ({ protocol: 'responses', webSearch: false, config: { model, baseURL } }),
+      } satisfies GenerationProvider)
+      await store.send({
+        sessionId: 'session-1',
+        text: '',
+        attachments: [{ type: 'audio', mimeType: 'audio/wav', data: 'UklGRg==', transcript: 'spoken words' }],
+      })
+    }
+
+    expect(requests).toHaveLength(2)
+    expect(requests[0]?.turns.findLast(turn => turn.type === 'user')?.content).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'audio' }),
+    ]))
+    expect(requests[1]?.turns.findLast(turn => turn.type === 'user')?.content).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'text', text: expect.stringContaining('spoken words') }),
+    ]))
+    expect(requests[1]?.turns.findLast(turn => turn.type === 'user')?.content).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'audio' }),
+    ]))
+  })
+
   it('uses the target character settings for a voice submission', async () => {
     cardSelections.set('bob', { provider: 'bob-provider', model: 'bob-model' })
     llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _messages: Conversation, options: StreamOptions) => {
