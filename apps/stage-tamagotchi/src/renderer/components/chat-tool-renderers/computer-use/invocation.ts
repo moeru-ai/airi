@@ -63,10 +63,10 @@ export function listFlag(invocation: ComputerUseInvocation, flag: string) {
   return invocation.flags[flag]?.flatMap(value => value.split(',')) ?? []
 }
 
-/** One step that `input.keyboard` was asked to run. */
+/** One step that `input.performKeyboardInputs` was asked to run. */
 export type ComputerUseKeyboardSpec = { kind: 'press', keys: string[] } | { kind: 'type_text', text: string } | { kind: 'other', text: string }
 
-/** The steps that `input.keyboard` was asked to run, from its `--actions` JSON. */
+/** The steps that `input.performKeyboardInputs` was asked to run, from its `--actions` JSON. */
 export function keyboardSpecs(invocation: ComputerUseInvocation): ComputerUseKeyboardSpec[] {
   const specs = safeParse(pipe(string(), parseJson(), array(unknown())), lastFlag(invocation, '--actions'))
   if (!specs.success)
