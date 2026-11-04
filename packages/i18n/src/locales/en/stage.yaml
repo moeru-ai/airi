@@ -27,6 +27,10 @@ chat:
     title: Chat provider isn't configured
     description: Choose and validate a provider in Settings before sending a message.
     action: Open provider settings
+    sign-in-title: Sign in to start chatting
+    sign-in-description: Sign in to use the official AIRI provider, or set up your own provider in Settings.
+    sign-in-description-official-only: Sign in to use the official AIRI provider.
+    sign-in-action: Sign in
   voice-message:
     recording: Recording
     starting: Starting microphone

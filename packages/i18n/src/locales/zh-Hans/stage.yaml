@@ -27,6 +27,10 @@ chat:
     title: 尚未正确配置聊天 Provider
     description: 请先前往设置页面选择并验证一个 Provider，再发送消息。
     action: 打开 Provider 设置
+    sign-in-title: 登录后即可开始聊天
+    sign-in-description: 登录即可使用 AIRI 官方 Provider，也可以在设置中配置你自己的 Provider。
+    sign-in-description-official-only: 登录即可使用 AIRI 官方 Provider。
+    sign-in-action: 登录
   voice-message:
     recording: 正在录制
     starting: 正在启动麦克风
