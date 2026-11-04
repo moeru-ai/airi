@@ -126,6 +126,8 @@ jobs:
       ERGOSPHERE_IT_INSTALLER_RELEASE_ID: ${{ needs.updates.outputs.installer-release-id }}
       ERGOSPHERE_IT_VERSION: ${{ needs.updates.outputs.version }}
     strategy:
+      # One platform can fail on a network error. The other platforms finish, so a rerun of the failed job completes the release.
+      fail-fast: false
       matrix:
         include:
 
