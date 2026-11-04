@@ -19,8 +19,9 @@ Use these labels:
 
 The integration working tree was clean at the accepted SHA. The research base commit was `e7812942200848f86a45807a97e8af29b024657f`.
 Research runners and records are untracked additions. That base SHA alone does not identify the experimental source.
-The local snapshot retains 26 selected C1/C1.1/C2 runners, fixtures, records, and receipts with SHA-256 identities.
+The local snapshot retains 27 selected C1/C1.1/C2 runners, shared registration code, fixtures, records, and receipts with SHA-256 identities.
 It also hashes 163 modified or untracked research files without changing them.
+These are current disk identities. Historical records do not contain a verified loaded-bundle SHA.
 
 | Slice | Commit | Retention |
 | --- | --- | --- |

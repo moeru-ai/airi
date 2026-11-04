@@ -2,6 +2,24 @@
 
 Scope: terminal lane work in `services/computer-use-mcp/**`.
 
+## Convergence authorization correction: 2026-11-05
+
+The accepted integration baseline had three independent approval bypasses.
+Agent-callable approval, workflow auto-approval/resume, and direct CDP mutations crossed the configured human-consent boundary.
+Real MCP protocol tests reproduced them with mock executors before the correction.
+
+- In `actions` and `all`, public pending-action approval now returns `denied`.
+- Workflow automatic approval is derived from trusted `approvalMode=never`, rather than model arguments alone.
+- A caller cannot claim approved workflow continuation while the server requires approval.
+- Raw CDP evaluation, navigation, and optional delegated browser execution remain closed in those modes.
+- Explicit `never` retains its broad operator-configured scope. The desktop executor does not sandbox shell commands.
+
+No trusted native approval adapter is installed in this integration baseline.
+The historical run-grant and desktop approval claims below do not establish current product support.
+Pending expiry, Chat ownership, cancellation cleanup, and exact GUI target binding remain admission work.
+No approval UI, B0 Notice, or real GUI write was added.
+See `docs/ai/convergence/execution-authorization-boundary.md` from the repository root for evidence and remaining limits.
+
 This file is the handoff record for terminal lane work. It moved here from `AGENTS.md` without content changes.
 
 ## Current Status Snapshot
