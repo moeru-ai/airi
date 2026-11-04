@@ -35,13 +35,7 @@ The x18n configuration is `x18n.config.ts` in the root of the repository.
 
 `.x18n/check-baseline.json` holds the diagnostics that already exist. x18n does not report them, and CI fails only on a new error.
 
-If you fix a known diagnostic, update the baseline:
-
-```sh
-pnpm i18n:check --update-baseline
-```
-
-Do not update the baseline to hide a new error. Fix the key.
+The autofix.ci workflow updates the baseline on each pull request. It drops the diagnostics that no longer occur, and adds the new warnings. If the pull request has a new error, it does not update the baseline. Fix the key.
 
 ### Unused keys
 
