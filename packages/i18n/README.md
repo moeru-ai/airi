@@ -37,6 +37,8 @@ The x18n configuration is `x18n.config.ts` in the root of the repository.
 
 The autofix.ci workflow updates the baseline on each pull request. It drops the diagnostics that no longer occur, and adds the new warnings. If the pull request has a new error, it does not update the baseline. Fix the key.
 
+Do not run `x18n check --update-baseline` or edit the baseline yourself. The update also writes new errors into the baseline, and then CI does not report them.
+
 ### Unused keys
 
 x18n cannot follow a key that the code builds at runtime. It reports these keys as unused:
