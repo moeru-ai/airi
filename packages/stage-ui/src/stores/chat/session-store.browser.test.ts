@@ -51,6 +51,12 @@ const chatSyncMocks = vi.hoisted(() => ({
   clients: [] as Array<{
     connect: ReturnType<typeof vi.fn>
     destroy: ReturnType<typeof vi.fn>
+    disconnect: ReturnType<typeof vi.fn>
+    onNewMessages: () => () => void
+    onStatusChange: () => () => void
+    pullMessages: ReturnType<typeof vi.fn>
+    sendMessages: ReturnType<typeof vi.fn>
+    status: () => string
   }>,
 }))
 
@@ -684,5 +690,98 @@ describe('chat session synchronization', () => {
 
     await vi.waitFor(() => expect(leader.sessionMessages[sessionId]).toHaveLength(0))
     await vi.waitFor(() => expect(follower.sessionMessages[sessionId]).toHaveLength(0))
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2671
+  //
+  // ROOT CAUSE:
+  //
+  // In multi-window setups, follower pushMessageToCloud routes to the leader.
+  // The leader advances cloudMaxSeq and synchronizes the updated cursor without producing proposals.
+  //
+  // Before the fix, cloudMaxSeq was not synchronized to followers after sends.
+  //
+  // We fixed this by leader-routing pushMessageToCloud and updating the synchronized session meta.
+  it('routes pushMessageToCloud from follower to leader and synchronizes cloudMaxSeq for Issue #2671', async () => {
+    const namespace = `chat-push-synced:${crypto.randomUUID()}`
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+
+    setActivePinia(leaderContext.pinia)
+    const leaderAuth = useAuthStore()
+    leaderAuth.user = { id: 'cloud-user', name: 'User', email: 'user@example.test', emailVerified: true, createdAt: new Date(0), updatedAt: new Date(0) }
+    leaderAuth.token = 'token'
+
+    const leader = useChatSessionStore(leaderContext.pinia)
+    await leader.initialize()
+
+    const followerContext = createSyncedContext(namespace, 'follower-only')
+    const follower = useChatSessionStore(followerContext.pinia)
+    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+    await follower.initialize()
+
+    const sessionId = await follower.createSession('default')
+    await vi.waitFor(() => expect(leader.sessionMetas[sessionId]).toBeDefined())
+
+    const client = chatSyncMocks.clients[0]
+    client.status = () => 'open'
+    client.sendMessages.mockResolvedValueOnce({ seq: 77 })
+    client.pullMessages.mockResolvedValueOnce({ messages: [], seq: 77 })
+
+    await follower.pushMessageToCloud(sessionId, {
+      id: 'synced-msg-1',
+      role: 'user',
+      content: 'hello from follower',
+    })
+
+    await vi.waitFor(() => expect(leader.sessionMetas[sessionId]?.cloudMaxSeq).toBe(77))
+    await vi.waitFor(() => expect(follower.sessionMetas[sessionId]?.cloudMaxSeq).toBe(77))
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2671
+  //
+  // ROOT CAUSE:
+  //
+  // If a message is deleted locally while sendMessages or its pull is in flight, the server returns that row.
+  // mergeCloudMessagesIntoSession treated it as a new row and resurrected it locally.
+  //
+  // const merged = mergeCloudMessagesIntoLocal(current, meta.cloudMaxSeq, payload)
+  //
+  // We fixed this by filtering out cancelledOutboxMessageIds before merging pulled cloud messages.
+  it('excludes cancelled messages from post-send pull when deleted during in-flight send for Issue #2671', async () => {
+    const namespace = `chat-cancel-pull:${crypto.randomUUID()}`
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+
+    setActivePinia(leaderContext.pinia)
+    const leaderAuth = useAuthStore()
+    leaderAuth.user = { id: 'cloud-user', name: 'User', email: 'user@example.test', emailVerified: true, createdAt: new Date(0), updatedAt: new Date(0) }
+    leaderAuth.token = 'token'
+
+    const leader = useChatSessionStore(leaderContext.pinia)
+    await leader.initialize()
+
+    const sessionId = await leader.createSession('default')
+    await leader.commitUserMessage(sessionId, { id: 'msg-racing', role: 'user', content: 'racing message', createdAt: 1 })
+
+    const client = chatSyncMocks.clients[0]
+    client.status = () => 'open'
+    client.sendMessages.mockResolvedValueOnce({ seq: 99 })
+    client.pullMessages.mockResolvedValueOnce({
+      messages: [{ id: 'msg-racing', role: 'user', content: 'racing message', seq: 99, createdAt: '2026-01-01T00:00:00.000Z' }],
+      seq: 99,
+    })
+
+    await leader.deleteMessage({ sessionId, messageId: 'msg-racing' })
+    expect(leader.getSessionMessages(sessionId)).toHaveLength(0)
+
+    await leader.pushMessageToCloud(sessionId, {
+      id: 'msg-racing',
+      role: 'user',
+      content: 'racing message',
+    })
+
+    expect(leader.getSessionMessages(sessionId)).toHaveLength(0)
+    expect(leader.sessionMetas[sessionId]?.cloudMaxSeq).toBe(99)
   })
 })

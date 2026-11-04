@@ -924,8 +924,15 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     if (!meta)
       return
 
+    const sanitizedMessages = cancelledOutboxMessageIds.size > 0
+      ? payload.messages.filter(m => !cancelledOutboxMessageIds.has(m.id))
+      : payload.messages
+
     const current = sessionMessages.value[sessionId] ?? []
-    const merged = mergeCloudMessagesIntoLocal(current, meta.cloudMaxSeq ?? 0, payload)
+    const merged = mergeCloudMessagesIntoLocal(current, meta.cloudMaxSeq ?? 0, {
+      ...payload,
+      messages: sanitizedMessages,
+    })
     if (!merged.dirty)
       return
 
