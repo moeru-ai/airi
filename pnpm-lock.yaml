@@ -415,8 +415,8 @@ catalogs:
       specifier: ^2.0.1
       version: 2.0.1
     '@proj-airi/unplugin-fetch':
-      specifier: ^0.2.3
-      version: 0.2.3
+      specifier: ^0.2.6
+      version: 0.2.6
     '@proj-airi/unplugin-live2d-sdk':
       specifier: ^0.1.7
       version: 0.1.7
@@ -1805,7 +1805,7 @@ importers:
         version: link:../../packages/provider-inference
       '@proj-airi/unplugin-fetch':
         specifier: 'catalog:'
-        version: 0.2.3(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))
+        version: 0.2.6(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))
       '@proj-airi/unplugin-live2d-sdk':
         specifier: 'catalog:'
         version: 0.1.7(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1)
@@ -2127,7 +2127,7 @@ importers:
         version: link:../../packages/ui-transitions
       '@proj-airi/unplugin-fetch':
         specifier: 'catalog:'
-        version: 0.2.3(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))
+        version: 0.2.6(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))
       '@proj-airi/unplugin-live2d-sdk':
         specifier: 'catalog:'
         version: 0.1.7(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1)
@@ -2876,7 +2876,7 @@ importers:
         version: link:../../packages/ui-transitions
       '@proj-airi/unplugin-fetch':
         specifier: 'catalog:'
-        version: 0.2.3(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))
+        version: 0.2.6(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))
       '@proj-airi/unplugin-live2d-sdk':
         specifier: 'catalog:'
         version: 0.1.7(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1)
@@ -3264,7 +3264,7 @@ importers:
         version: 1.0.19
       '@proj-airi/unplugin-fetch':
         specifier: 'catalog:'
-        version: 0.2.3(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))
+        version: 0.2.6(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))
       '@proj-airi/unplugin-live2d-sdk':
         specifier: 'catalog:'
         version: 0.1.7(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1)
@@ -6220,7 +6220,7 @@ importers:
         version: link:../provider-inference
       '@proj-airi/unplugin-fetch':
         specifier: 'catalog:'
-        version: 0.2.3(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))
+        version: 0.2.6(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -11747,8 +11747,8 @@ packages:
   '@proj-airi/unocss-preset-chromatic@2.0.1':
     resolution: {integrity: sha512-mXzCMxkO5113nhlG4dILCnh3WZgWBn45TEG5tQJzcOSpgqVmJNM9nLbLzB+JDDZ2sMXAo77WrRqSbvWoOlCWbQ==}
 
-  '@proj-airi/unplugin-fetch@0.2.3':
-    resolution: {integrity: sha512-90I6CfbC7xMSm9/0gl+DJvHmg2Hw9E/7L5rtfXpqMmrRQqd/jhfD1Sb5LjywqTZ3rlFfnb39d051yFGeYigi9A==}
+  '@proj-airi/unplugin-fetch@0.2.6':
+    resolution: {integrity: sha512-pz2yUCy7oz+pDmFE9AreZsEgVWUn99acDdHDZlBZfMzrF3dUbosDGeE8l7L5smKycEIcDfFW1XKG5A0aFv9z+w==}
     peerDependencies:
       vite: '>= 7'
 
@@ -26486,7 +26486,7 @@ snapshots:
     dependencies:
       '@proj-airi/chromatic': 2.0.1
 
-  '@proj-airi/unplugin-fetch@0.2.3(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))':
+  '@proj-airi/unplugin-fetch@0.2.6(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))':
     dependencies:
       ofetch: 1.5.1
       vite: 8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1)
