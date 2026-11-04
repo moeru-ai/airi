@@ -1,4 +1,3 @@
-using Eventa;
 using GdKirie.EventaAdapter;
 using GdKirie.Platform;
 using Godot;

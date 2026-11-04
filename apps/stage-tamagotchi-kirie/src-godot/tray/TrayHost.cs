@@ -1,4 +1,3 @@
-using Eventa;
 using GdKirie.Tray;
 using Godot;
 using TrayMenu = GdKirie.Tray.Menu;
