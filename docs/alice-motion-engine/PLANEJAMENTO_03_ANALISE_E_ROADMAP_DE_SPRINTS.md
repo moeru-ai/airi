@@ -89,6 +89,7 @@ Limitação do TalkingHead que confirma a motivação do Plano 01: `playAnimatio
 | L10 | Regras do monorepo AIRI não citadas. | `AGENTS.md`: Valibot para schema, `injeca` para DI, `eventa` para IPC, `README.md` por pacote, kebab-case, `// NOTICE:` para workaround, perguntar antes de nova dependência. | Revisão de PR e lint podem falhar. | Aplicar em todas as sprints de código. |
 | L11 | O fork recebe merges do upstream. | Último commit de `main`: merge de `moeru-ai:main`. | Mudanças no `animation-manager` ou em `MMD.vue` podem gerar conflitos. | Manter alterações em pacotes novos. Fazer cada mudança em arquivo existente pequena e com teste de contrato. |
 | L12 | Lip-sync em português ausente no avatar atual. | Encontrado no teste da S01 em 04/11/2026: `modules/lipsync-pt-br.mjs` e `modules/lipsync-pt.mjs` do `talkinghead-neoalice` são cópias idênticas de `lipsync-en.mjs` (mesmo MD5) e exportam `LipsyncEn`. O TalkingHead não carrega esses módulos (`module[className] is not a constructor`). | A boca do avatar não segue regras do português. A cópia em produção pode ser diferente. | Sprint S01b: conferir o arquivo em produção. Se for igual, corrigir só no `talkinghead-neoalice`, sem tocar a NeoAlice. |
+| L13 | O movimento do AIRI foi superestimado. | Revisão de 04/11/2026 (`PLANEJAMENTO_04_REVISAO_UTSUWA_AIRI_AVATAR3D.md`): o renderer VRM tem 1 animação (`idle_loop.vrma`) e o MMD não traz nenhuma. O Utsuwa tem 13 VRMA e o avatar3d tem 13 gestos, 13 poses, ~20 FBX e 72 expressões faciais. | O plano começava pelo MMD/PMX e deixava a Eva e os movimentos atuais para o fim. | Base passa a ser o renderer VRM. S06, S07 e S15 substituídas pelas sprints V1 a V6 do Planejamento 04. |
 
 ### A5. Dependências entre os planos
 
@@ -258,8 +259,8 @@ Legenda de risco para produção: **Nenhum** (não toca o espelho), **Baixo** (a
 | 4 | S03 MotionDirector isolado | P1 | Não | Nenhum |
 | 5 | S04 MotionScheduler isolado | P2 | Não | Nenhum |
 | 6 | S05 MoodAdapter e reducer do companion (implementada, ver S05) | B1 + B2 | Não | Nenhum |
-| 7 | S06 Fixture, telemetria e vídeo de referência | P0 parte 2 | Não | Nenhum |
-| 8 | S07 Máscaras por osso e mistura aditiva | P3 | Não | Nenhum |
+| 7 | S06 Fixture, telemetria e vídeo de referência (**substituída por V1–V6**, ver Planejamento 04) | P0 parte 2 | Não | Nenhum |
+| 8 | S07 Máscaras por osso e mistura aditiva (**substituída pela V6, no VRM**, ver Planejamento 04) | P3 | Não | Nenhum |
 | 9 | S08 Ponte MQTT para o AIRI em modo sombra | Novo (L2) | Só leitura | Nenhum |
 | 10 | S09 Voz, face, prosódia e física | P4 | Não | Nenhum |
 | 11 | S10 Painel de estado | B3 | Não | Nenhum |
@@ -267,7 +268,7 @@ Legenda de risco para produção: **Nenhum** (não toca o espelho), **Baixo** (a
 | 13 | S12 Eventos e marcos | B6 | Não | Nenhum |
 | 14 | S13 Afeto para movimento e proatividade | B8 + B7 | Não | Nenhum |
 | 15 | S14 Catálogo semântico e editor de camadas | P5 | Não | Nenhum |
-| 16 | S15 Adaptador VRM e avatar Eva | P6 | Não | Nenhum |
+| 16 | S15 Adaptador VRM e avatar Eva (**substituída pela V4**, ver Planejamento 04) | P6 | Não | Nenhum |
 | 17 | S16 Transição do espelho | Novo | Sim | Médio |
 | 18 | S17 Laboratório neural e recursos experienciáveis | P7 + B9 | Não | Nenhum |
 | Contínua | S-H Hardening | B10 | Não | Nenhum |
@@ -362,7 +363,8 @@ S03 e S04 podem rodar em paralelo com S05. As três são pacotes novos sem rende
 - Os modelos originais do AIRI ficam como estão: Hiyori (Live2D) e AvatarSample A/B (VRM). Nenhuma sprint altera, remove ou substitui esses presets.
 - O responsável tem vários modelos VRM. Eles são os modelos de teste das sprints de renderer. Ficam fora do repositório (licença e privacidade) e são importados pela tela de modelos do AIRI.
 - O arquivo GLB da Eva é convertido para VRM na S15.
-- Consequência para a S06 e a S07: o AIRI não tem PMX de fábrica. Se nenhum PMX com licença for escolhido (D4), o mixer por camadas começa no renderer VRM. O núcleo (S03, S04) não muda, porque é agnóstico de renderer.
+- **Revisão de 04/11/2026:** o renderer VRM do AIRI é a base do avatar novo. A ordem passa a ser V1 a V6 do Planejamento 04.
+- Consequência para a S06 e a S07 (texto anterior à revisão): o AIRI não tem PMX de fábrica. Se nenhum PMX com licença for escolhido (D4), o mixer por camadas começa no renderer VRM. O núcleo (S03, S04) não muda, porque é agnóstico de renderer.
 
 **Decisão D2 — onde fica a autoridade do estado do companion.** Decidida em 03/11/2026: serviço único publicado por MQTT, porque o espelho e o AIRI são clientes diferentes (L6). Implementado em `services/alice-companion`. ADR: `docs/ai/adr/2026-11-03-alice-companion-state-service.md`.
 
@@ -423,6 +425,8 @@ Texto original da sprint:
 
 ### S06 — Fixture, telemetria e vídeo de referência (P0 parte 2)
 
+> Substituída na revisão de 04/11/2026. Ver `PLANEJAMENTO_04_REVISAO_UTSUWA_AIRI_AVATAR3D.md`. O texto abaixo fica como registro.
+
 **Repositório:** `airi`.
 
 | Passo | Conteúdo |
@@ -434,6 +438,8 @@ Texto original da sprint:
 | Saída | Tag `sprint/S06-ok`. |
 
 ### S07 — Máscaras por osso e mistura aditiva (P3)
+
+> Substituída na revisão de 04/11/2026. Ver `PLANEJAMENTO_04_REVISAO_UTSUWA_AIRI_AVATAR3D.md`. O texto abaixo fica como registro.
 
 **Repositório:** `airi`, `animation-manager.ts` e `packages/alice-motion/src/mixer`.
 
@@ -523,6 +529,8 @@ Texto original da sprint:
 
 ### S15 — Adaptador VRM e avatar Eva (P6)
 
+> Substituída na revisão de 04/11/2026. Ver `PLANEJAMENTO_04_REVISAO_UTSUWA_AIRI_AVATAR3D.md`. O texto abaixo fica como registro.
+
 | Passo | Conteúdo |
 | --- | --- |
 | Backup | Tag `backup/S15-pre`. Cópia dos GLB originais da Eva. |
@@ -566,7 +574,7 @@ Em toda sprint: revisar licenças de assets e código, procurar dados privados n
 
 | ID | Pergunta | Sprint que bloqueia | Recomendação |
 | --- | --- | --- | --- |
-| D1 | Formato do avatar no AIRI | S06 | **Decidida:** presets do AIRI intactos, VRMs do responsável como modelos de teste, Eva convertida na S15 |
+| D1 | Formato do avatar no AIRI | V1 | **Decidida:** renderer VRM como base, presets do AIRI intactos, VRMs do responsável como modelos de teste, Eva convertida na V4 (Planejamento 04) |
 | D2 | Onde fica a autoridade do estado do companion? | S05 | **Decidida e implementada:** `services/alice-companion` |
 | D3 | Qual biblioteca MQTT usar no AIRI? | S08 | **Decidida:** `mqtt` (MQTT.js 5) |
 | D4 | Qual modelo PMX e quais VMD têm licença para a fixture? | S06 | Escolher antes da S06 |
