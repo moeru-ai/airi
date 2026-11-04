@@ -7,15 +7,14 @@ import localforage from 'localforage'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { DISPLAY_MODEL_SYNC_FLAG } from '../libs/feature-flags'
 import { TransferRequestError } from '../libs/file-transfer/request-error'
 import { downloadVerified, putToTarget } from '../libs/file-transfer/transfer'
 import { completeDisplayModelUpload, deleteCloudDisplayModel, listCloudDisplayModels, renameCloudDisplayModel, requestDisplayModelDownload, reserveDisplayModelUpload } from '../services/display-model-sync'
 import { useAuthStore } from './auth'
 import { useDisplayModelCloudStore } from './display-model-cloud'
 import { DisplayModelFormat, useDisplayModelsStore } from './display-models'
-import { useFeatureFlagsStore } from './feature-flags'
 import { useSettingsStageModel } from './settings/stage-model'
+import { useSyncPreferencesStore } from './sync-preferences'
 
 const storage = vi.hoisted(() => new Map<string, unknown>())
 
@@ -76,7 +75,7 @@ function signIn(id: string) {
 /** Signs in, turns on model sync, and waits until the account directory is loaded. */
 async function startCloudSync() {
   signIn('owner-a')
-  useFeatureFlagsStore().setPreference(DISPLAY_MODEL_SYNC_FLAG.key, true)
+  useSyncPreferencesStore().setEnabled('display-models', true)
   const store = useDisplayModelsStore()
   // The preview renderers need `window` and fail to load in Node. Sync starts before they load.
   await expect(store.initialize()).rejects.toThrow('window is not defined')
@@ -220,7 +219,7 @@ describe('display models store', () => {
       storage.set(modelId, record(overrides))
       vi.mocked(listCloudDisplayModels).mockResolvedValue(directory)
       signIn('owner-a')
-      useFeatureFlagsStore().setPreference(DISPLAY_MODEL_SYNC_FLAG.key, true)
+      useSyncPreferencesStore().setEnabled('display-models', true)
       const store = useDisplayModelsStore()
       await store.initialize().catch(() => {})
       await vi.waitFor(() => expect(useDisplayModelCloudStore().directoryLoaded).toBe(true))
@@ -356,7 +355,7 @@ describe('display models store', () => {
       try {
         vi.mocked(listCloudDisplayModels).mockRejectedValueOnce(new Error('offline')).mockResolvedValue([directoryEntry()])
         signIn('owner-a')
-        useFeatureFlagsStore().setPreference(DISPLAY_MODEL_SYNC_FLAG.key, true)
+        useSyncPreferencesStore().setEnabled('display-models', true)
         const store = useDisplayModelsStore()
         store.initialize().catch(() => {})
 
@@ -387,7 +386,7 @@ describe('display models store', () => {
         answerList = resolve
       }))
       signIn('owner-a')
-      useFeatureFlagsStore().setPreference(DISPLAY_MODEL_SYNC_FLAG.key, true)
+      useSyncPreferencesStore().setEnabled('display-models', true)
       const store = useDisplayModelsStore()
       store.initialize().catch(() => {})
 

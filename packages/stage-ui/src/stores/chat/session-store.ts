@@ -29,6 +29,7 @@ import { captureAnalyticsEvent } from '../../libs/product-signals'
 import { SERVER_URL } from '../../libs/server'
 import { useAuthStore } from '../auth'
 import { useAiriCardStore } from '../modules/airi-card'
+import { useSyncPreferencesStore } from '../sync-preferences'
 import { staysLocal } from './session-locality'
 import { mergeLoadedSessionMessages } from './session-message-merge'
 
@@ -69,6 +70,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   // Pinia can then be another one, so keep the Pinia that owns this store.
   const pinia = getActivePinia()
   const { userId, token: authToken } = storeToRefs(useAuthStore())
+  const syncPreferences = useSyncPreferencesStore()
+  /** Chats sync only while this switch is on. While it is off, the outbox and the tombstones keep the changes for a later sync. */
+  const chatSyncEnabled = computed(() => syncPreferences.isEnabled('chats'))
   const cards = useAiriCardStore()
   const { activeCardId } = storeToRefs(cards)
 
@@ -599,7 +603,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       conversation_id: sessionId,
       source: options?.messages?.length ? 'fork' : 'new_session',
       character_id: characterId,
-      cloud_synced: currentUserId !== 'local',
+      cloud_synced: currentUserId !== 'local' && chatSyncEnabled.value,
     })
 
     // Fire-and-forget cloud reconcile so the freshly-minted session gets a
@@ -634,7 +638,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   async function syncPendingSessionTitle(sessionId: string): Promise<boolean> {
     const meta = sessionMetas.value[sessionId]
     const title = meta?.cloudTitlePending
-    if (!meta?.cloudChatId || title === undefined)
+    // While chat sync is off, the title stays pending. The reconcile after the next sync sends it.
+    if (!meta?.cloudChatId || title === undefined || !chatSyncEnabled.value)
       return false
 
     try {
@@ -737,7 +742,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       // where the server still has the row and re-creates the local mapping.
       // The reconcile-driven `drainTombstones` retries failed DELETEs.
       await enqueuePersist(() => chatSessionsRepo.addTombstone(currentUserId, remoteChatId))
-      if (cloudChatId) {
+      // While chat sync is off, the tombstone waits. `drainTombstones` sends the deletion after the next sync.
+      if (cloudChatId && chatSyncEnabled.value) {
         getCloudMapper().deleteChat(cloudChatId).then(
           async () => {
             // Server confirmed the delete; reconcile will not see this id again,
@@ -922,6 +928,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       const currentUserId = getCurrentUserId()
       if (currentUserId === 'local') {
         console.info('[chat-sync] reconcile skipped: anonymous user')
+        return
+      }
+      if (!chatSyncEnabled.value) {
+        console.info('[chat-sync] reconcile skipped: chat sync is off on this device')
         return
       }
 
@@ -1186,6 +1196,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       console.info('[chat-sync] WS skipped: anonymous user')
       return
     }
+    if (!chatSyncEnabled.value) {
+      console.info('[chat-sync] WS skipped: chat sync is off on this device')
+      return
+    }
     if (wsClient)
       return
 
@@ -1288,6 +1302,22 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     }
 
     await ensureCurrentSession()
+  }
+
+  /**
+   * Opens or closes the cloud connection after the chat sync switch changes.
+   * The synchronization plugin routes this action to the renderer that owns the connection.
+   *
+   * Each window calls it when it sees the change, and the owner can see the change later than the caller.
+   * The call is idempotent, so the call of the owner itself applies the final value.
+   */
+  async function applySyncPreference() {
+    if (!chatSyncEnabled.value) {
+      teardownCloudWsClient()
+      return
+    }
+
+    ensureCloudWsClient()
   }
 
   /**
@@ -1919,6 +1949,15 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     }
   })
 
+  watch(chatSyncEnabled, async () => {
+    try {
+      await useChatSessionStore(pinia).applySyncPreference()
+    }
+    catch (error) {
+      console.error('[chat-session] Failed to apply the chat sync switch:', error)
+    }
+  })
+
   // Each renderer observes the synchronized identity. Route the transition to
   // the leader so followers never write synchronized chat state directly.
   watch(userId, async () => {
@@ -1978,6 +2017,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     renameSession,
     deleteSession,
     activateCurrentUser,
+    applySyncPreference,
     ensureCurrentSession,
     ensureCharacterSession,
 
@@ -1989,6 +2029,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   synced: {
     actions: [
       'activateCurrentUser',
+      'applySyncPreference',
       'clearSessionMessages',
       'commitUserMessage',
       'replaceSessionHistory',
