@@ -13,6 +13,10 @@ The planning documents are in `docs/alice-motion-engine/`. This package implemen
 | `motionChannels`, `motionStates`, `motionSources` | Allowed values. |
 | `maxMessageBytes` | Size limit of one intent or cue. |
 
+## Test model
+
+`fixtures/vrm/neptuna/neptuna.vrm` is the default VRM model for motion tests. Read `fixtures/vrm/neptuna/README.md` for the author credit and the license. The credit is required.
+
 ## When to use it
 
 - Use `parseMotionIntent` on every intent that comes from outside the renderer, for example from MQTT or an LLM tool call.
