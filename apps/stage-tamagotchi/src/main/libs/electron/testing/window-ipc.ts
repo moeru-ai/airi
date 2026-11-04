@@ -30,15 +30,15 @@ export function createWindowIpc(ipcMain: EventEmitter) {
       send: (channel: string, payload: unknown) => rendererIpc.emit(channel, {}, payload),
     },
   })
-  // The fake IPC objects carry only the members that the Eventa adapters call.
-  const { context } = createRendererContext({
+  const ipcRenderer = {
     on: (channel: string, listener: (...args: unknown[]) => void) => {
       rendererIpc.on(channel, listener)
       return () => rendererIpc.off(channel, listener)
     },
     send: (channel: string, payload: unknown) => ipcMain.emit(channel, { sender: window.webContents }, payload),
-  } as never)
+  }
+  const { context } = createRendererContext(ipcRenderer as never)
 
   const browserWindow: BrowserWindow = window as never
-  return { window: browserWindow, context }
+  return { window: browserWindow, context, ipcRenderer }
 }

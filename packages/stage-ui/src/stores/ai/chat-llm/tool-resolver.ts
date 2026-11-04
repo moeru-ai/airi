@@ -16,6 +16,12 @@ import { useLlmToolsStore } from './tools'
 
 type ToolSource = Tool[] | (() => Promise<Tool[]>)
 
+/** Request-level invocation provenance bound to tool executions */
+export interface ToolAttributionContext {
+  sessionId: string
+  turnId?: string
+}
+
 /**
  * Overrides for resolving the complete LLM-visible tool list.
  *
@@ -70,6 +76,11 @@ export interface ResolveLlmToolsOptions {
    * @default images stay in tool results
    */
   describeImage?: DescribeToolImage
+  /**
+   * Request-level invocation attribution context.
+   * Bound to tools in the request's execution closure.
+   */
+  attribution?: ToolAttributionContext
 }
 
 /**
@@ -142,6 +153,30 @@ async function resolveWebSearchTools(webSearchTools?: ToolSource): Promise<Tool[
 }
 
 /**
+ * Binds request-level provenance (sessionId, turnId) into the tool's execution closure,
+ * merging the actual model toolCallId from execution options at runtime.
+ */
+export function withToolAttribution(tool: Tool, attribution?: ToolAttributionContext): Tool {
+  if (!attribution)
+    return tool
+
+  return {
+    ...tool,
+    execute: (input, options) => {
+      const mergedOptions = {
+        ...options,
+        attribution: {
+          sessionId: attribution.sessionId,
+          turnId: attribution.turnId,
+          toolCallId: options?.toolCallId,
+        },
+      }
+      return tool.execute(input, mergedOptions as Parameters<NonNullable<Tool['execute']>>[1])
+    },
+  }
+}
+
+/**
  * Resolves every tool visible to an LLM request.
  *
  * Runtime tools are placed last before de-duplication. The reverse/uniq/reverse
@@ -176,7 +211,9 @@ export async function resolveLlmTools(options: ResolveLlmToolsOptions = {}): Pro
       ...activeTools,
     ].toReversed(),
     tool => toolNameFrom(tool) ?? tool,
-  ).toReversed().map(withCallSummary)
+  ).toReversed()
+    .map(tool => withToolAttribution(tool, options.attribution))
+    .map(withCallSummary)
 
   const describeImage = options.describeImage
   return describeImage ? tools.map(tool => withDescribedImages(tool, describeImage)) : tools

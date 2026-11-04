@@ -319,6 +319,27 @@ export class PendingActionManager {
   }
 
   /**
+   * Cancels all pending/approved actions belonging to a given session ID (e.g. request aborted or session reset).
+   * Returns the count of cancelled actions.
+   */
+  cancelBySessionId(sessionId: string, reason?: string): number {
+    const now = Date.now()
+    let count = 0
+    for (const action of this.actions.values()) {
+      if (action.attribution.sessionId === sessionId && (action.status === 'pending' || action.status === 'approved')) {
+        action.status = 'cancelled'
+        action.settlement = {
+          outcome: 'failed',
+          error: reason ?? 'Request or session was cancelled',
+          settledAt: now,
+        }
+        count++
+      }
+    }
+    return count
+  }
+
+  /**
    * Invalidates and cancels all active actions (e.g. host shutdown).
    */
   invalidateAll(): void {

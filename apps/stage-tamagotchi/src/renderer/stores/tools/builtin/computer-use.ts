@@ -4,7 +4,19 @@ import { defineInvoke } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/renderer'
 import { rawTool } from '@xsai/tool'
 
+import type { InvocationAttributionPayload } from '../../../../shared/eventa/computer-use'
 import { computerUseReadImage, computerUseRun } from '../../../../shared/eventa/computer-use'
+
+export interface ComputerUseToolExecuteOptions {
+  toolCallId?: string
+  attribution?: InvocationAttributionPayload
+}
+
+export interface ComputerUseToolsOptions {
+  getAttribution?: () => InvocationAttributionPayload | undefined
+  context?: ReturnType<typeof createContext>['context']
+  ipcRenderer?: Parameters<typeof createContext>[0]
+}
 
 /** The name of the tool that runs AUV commands. The chat shows its result as a command card. */
 export const COMPUTER_USE_TOOL_NAME = 'computer_use'
@@ -13,10 +25,10 @@ export const COMPUTER_USE_TOOL_NAME = 'computer_use'
 export const COMPUTER_USE_READ_IMAGE_TOOL_NAME = 'computer_use_read_image'
 
 /** Creates desktop-only tools. IPC clients are local to the elected renderer executor. */
-export async function computerUseTools(): Promise<Tool[]> {
+export async function computerUseTools(options?: ComputerUseToolsOptions): Promise<Tool[]> {
   let invokers: ReturnType<typeof createInvokers> | undefined
   function createInvokers() {
-    const { context } = createContext(window.electron.ipcRenderer)
+    const context = options?.context ?? createContext(options?.ipcRenderer ?? window.electron.ipcRenderer).context
     return {
       run: defineInvoke(context, computerUseRun),
       readImage: defineInvoke(context, computerUseReadImage),
@@ -34,12 +46,20 @@ export async function computerUseTools(): Promise<Tool[]> {
         type: 'object',
         properties: {
           argv: { type: 'array', items: { type: 'string' }, description: 'AUV arguments beginning with invoke, excluding the executable name.' },
+          actionId: { type: 'string', description: 'Approved action ID for executing mutating operations.' },
         },
         required: ['argv'],
         additionalProperties: false,
       },
-      execute: async (input) => {
-        const result = await client().run(input as { argv: string[] })
+      execute: async (input, executeOptions) => {
+        const candidate = executeOptions as ComputerUseToolExecuteOptions | undefined
+        const attribution = candidate?.attribution ?? options?.getAttribution?.()
+        const rawInput = input as { argv: string[], actionId?: string }
+        const result = await client().run({
+          argv: rawInput.argv,
+          actionId: rawInput.actionId,
+          attribution,
+        })
         if (result.exitCode !== 0)
           throw new Error(JSON.stringify(result))
         return JSON.stringify(result)
@@ -54,7 +74,20 @@ export async function computerUseTools(): Promise<Tool[]> {
         required: ['path'],
         additionalProperties: false,
       },
-      execute: async input => [{ type: 'image_url', image_url: { url: await client().readImage(input as { path: string }) } }],
+      execute: async (input, executeOptions) => {
+        const candidate = executeOptions as ComputerUseToolExecuteOptions | undefined
+        const attribution = candidate?.attribution ?? options?.getAttribution?.()
+        const rawInput = input as { path: string }
+        return [{
+          type: 'image_url',
+          image_url: {
+            url: await client().readImage({
+              path: rawInput.path,
+              attribution,
+            }),
+          },
+        }]
+      },
     }),
   ]
 }

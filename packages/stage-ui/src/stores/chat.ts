@@ -144,6 +144,7 @@ export interface ChatToolCallRerunPayload extends Omit<ToolCallRerunPayload, 'se
   /** Current selections authorize request-only tools; stored calls do not grant access. */
   tools?: ChatToolReference[]
   sessionId: string
+  turnId?: string
 }
 
 type ProviderHistoryMessage = Exclude<ChatHistoryItem, { role: 'error' }>
@@ -1538,6 +1539,10 @@ export const useChatStore = defineStore('chat', () => {
       resolveTools: () => resolveLlmTools({
         customTools: llmToolsStore.getToolsByNames(payload.toolName),
         describeImage: chatVision.toolImageReader(activeModel.value),
+        attribution: {
+          sessionId: payload.sessionId,
+          turnId: payload.turnId ?? payload.messageId,
+        },
       }),
     })
     // Raw messages, because a reactive proxy cannot leave this context.

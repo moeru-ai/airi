@@ -35,7 +35,18 @@ export const useLLM = defineStore('llm', () => {
     let key = modelKey(model, chatProvider.generation(model))
     let toolExecutionStarted = false
     const { tools: customTools, describeToolImage, taskTools, ...streamOptions } = options ?? {}
-    const resolveTools = async () => taskTools ?? await resolveLlmTools({ customTools, describeImage: describeToolImage })
+    const correlation = streamOptions.requestCorrelation
+    const attribution = correlation?.conversationId
+      ? {
+          sessionId: correlation.conversationId,
+          turnId: correlation.turnId,
+        }
+      : undefined
+    const resolveTools = async () => taskTools ?? await resolveLlmTools({
+      customTools,
+      describeImage: describeToolImage,
+      attribution,
+    })
     const builtinToolsResolver = resolveTools
     const resolveStep = streamOptions.resolveStep
 

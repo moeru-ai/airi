@@ -8,7 +8,7 @@ import { binaryPath } from '@auv-js/cli/binary'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { app } from 'electron'
 
-import { computerUseReadImage, computerUseRun } from '../../../../shared/eventa/computer-use'
+import { computerUseCancel, computerUseReadImage, computerUseRun } from '../../../../shared/eventa/computer-use'
 import { onAppBeforeQuit } from '../../../libs/bootkit/lifecycle'
 import { PendingActionManager } from './action-manager'
 import { createComputerUseRuntime } from './runtime'
@@ -44,6 +44,16 @@ export function setupComputerUse(
   defineInvokeHandler(context, computerUseReadImage, (input, ctx) => {
     const senderId = (ctx as { raw?: { ipcMainEvent?: { sender?: { id?: number } } } })?.raw?.ipcMainEvent?.sender?.id
     return getRuntime().readImage(input, senderId)
+  })
+  defineInvokeHandler(context, computerUseCancel, (input) => {
+    if (input.actionId) {
+      actionManager.cancel(input.actionId, input.reason)
+      return 1
+    }
+    if (input.sessionId) {
+      return actionManager.cancelBySessionId(input.sessionId, input.reason)
+    }
+    return 0
   })
   onAppBeforeQuit(async () => {
     stopped = true

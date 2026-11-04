@@ -28,8 +28,15 @@ export interface ComputerUseResult {
   stderr: string
 }
 
+export interface ComputerUseCancelInput {
+  sessionId?: string
+  actionId?: string
+  reason?: string
+}
+
 export const computerUseRun = defineInvokeEventa<ComputerUseResult, ComputerUseRunInput>('eventa:invoke:computer-use:run')
 export const computerUseReadImage = defineInvokeEventa<string, ComputerUseReadImageInput>('eventa:invoke:computer-use:read-image')
+export const computerUseCancel = defineInvokeEventa<number, ComputerUseCancelInput>('eventa:invoke:computer-use:cancel')
 
 /**
  * Whether an AUV call asks for help. AUV prints help as text, so the host runs it without `--json`, and the chat shows it as help.
