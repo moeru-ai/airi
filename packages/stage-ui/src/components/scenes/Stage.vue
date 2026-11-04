@@ -139,7 +139,8 @@ function onVRMInteract(target: VrmInteractionTarget) {
   if (now - lastTriggeredAt < VRM_INTERACTION_COOLDOWN_MS)
     return
   lastVrmInteractionAt.set(target, now)
-  vrmViewerRef.value?.setExpression(getVrmInteractionExpression(target), 1)
+  // A touch is a short reaction. The mood of the conversation stays.
+  vrmViewerRef.value?.reactExpression(getVrmInteractionExpression(target), 1)
 }
 
 const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatStore()
@@ -718,6 +719,7 @@ defineExpose({
         :audio-context="audioContext"
         :connect-speech="connectSpeech"
         :speech-active="nowSpeaking"
+        :thinking="chatSending && !nowSpeaking"
         @error="reportStageRenderError"
         @vrm-interact="onVRMInteract"
       />

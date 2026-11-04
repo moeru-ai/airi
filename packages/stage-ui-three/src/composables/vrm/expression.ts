@@ -12,8 +12,32 @@ interface EmotionState {
   blendDuration?: number
 }
 
+/**
+ * Timing of a mood change, from Utsuwa `src/lib/engine/expression-compose.ts`
+ * (https://github.com/JuiceBoxxGames/utsuwa, AGPL-3.0-or-later).
+ * A new mood first shows as a stronger reaction, then settles into a lighter
+ * resting face that stays until the next mood.
+ */
+const moodTiming = {
+  /** Time the reaction holds before it settles. */
+  holdSeconds: 2.5,
+  /** While she speaks the reaction holds longer, up to this time. */
+  holdWhileSpeakingMaxSeconds: 8,
+  /** Weight of the resting face, relative to the reaction. */
+  restingWeightRatio: 0.6,
+}
+
 export function useVRMEmote(vrm: VRMCore) {
   const currentEmotion = ref<string | null>(null)
+  /**
+   * `true` after a mood settled into its resting face. The resting face can stay for
+   * the whole session, so it must not suppress the procedural blink.
+   */
+  const isRestingMood = ref(false)
+  /** Resting face that a reaction returns to. `null` means neutral. */
+  let restingMood: { emotionName: string, intensity: number } | null = null
+  /** Reaction waiting to settle into `settleTo`, counted on the frame clock in {@link update}. */
+  let pendingSettle: { settleTo: { emotionName: string, intensity: number } | null, elapsedSeconds: number } | null = null
   const isTransitioning = ref(false)
   const transitionProgress = ref(0)
   const isVisemeTransitioning = ref(false)
@@ -136,6 +160,8 @@ export function useVRMEmote(vrm: VRMCore) {
     }
 
     clearResetTimeout()
+    pendingSettle = null
+    isRestingMood.value = false
 
     const emotionState = emotionStates.get(emotionName)!
     currentEmotion.value = emotionName
@@ -204,6 +230,64 @@ export function useVRMEmote(vrm: VRMCore) {
     }, ms) as unknown as number
   }
 
+  /**
+   * Shows a mood the way Utsuwa does: a reaction at full intensity, then a resting
+   * face at {@link moodTiming.restingWeightRatio} of it. There is no reset to neutral.
+   * The next mood, or `neutral`, replaces it.
+   */
+  const setMood = (emotionName: string, intensity = 1) => {
+    const normalizedIntensity = clampIntensity(intensity)
+    if (normalizedIntensity <= 0)
+      return
+
+    if (emotionName === 'neutral') {
+      restingMood = null
+      setEmotion('neutral')
+      return
+    }
+    setEmotion(emotionName, normalizedIntensity)
+    if (currentEmotion.value !== emotionName)
+      return
+    restingMood = { emotionName, intensity: normalizedIntensity * moodTiming.restingWeightRatio }
+    pendingSettle = { settleTo: restingMood, elapsedSeconds: 0 }
+  }
+
+  /**
+   * Shows a short reaction, for example to a touch, then returns to the resting mood
+   * that was there before. The resting mood does not change.
+   */
+  const react = (emotionName: string, intensity = 1) => {
+    const normalizedIntensity = clampIntensity(intensity)
+    if (normalizedIntensity <= 0)
+      return
+
+    const settleTo = restingMood
+    setEmotion(emotionName, normalizedIntensity)
+    if (currentEmotion.value === emotionName)
+      pendingSettle = { settleTo, elapsedSeconds: 0 }
+  }
+
+  const settleMood = (deltaSeconds: number, speaking: boolean) => {
+    if (!pendingSettle)
+      return
+    pendingSettle.elapsedSeconds += deltaSeconds
+    const elapsed = pendingSettle.elapsedSeconds
+    // While she speaks, the reaction stays until the speech ends or the maximum hold.
+    const holdDone = speaking
+      ? elapsed >= moodTiming.holdWhileSpeakingMaxSeconds
+      : elapsed >= moodTiming.holdSeconds
+    if (!holdDone)
+      return
+
+    const { settleTo } = pendingSettle
+    if (!settleTo) {
+      setEmotion('neutral')
+      return
+    }
+    setEmotion(settleTo.emotionName, settleTo.intensity)
+    isRestingMood.value = true
+  }
+
   // isEmoteActive's only consumer (VRMModel.vue) uses it to suppress
   // procedural blinking, which only matters for morphs that actually
   // deform the eye region. Viseme mouth morphs (aa/ee/ih/oh/ou) never do,
@@ -214,6 +298,9 @@ export function useVRMEmote(vrm: VRMCore) {
     Array.from(values.entries()).some(([name, val]) => val > 0.001 && !VISEME_NAMES.has(name.toLowerCase()))
 
   const isEmoteActive = computed(() => {
+    if (isRestingMood.value)
+      return false
+
     const hasActiveTarget = currentEmotion.value !== null
       && currentEmotion.value !== 'neutral'
       && hasNonzeroEyeAffectingTarget(targetExpressionValues.value)
@@ -230,7 +317,9 @@ export function useVRMEmote(vrm: VRMCore) {
     return false
   })
 
-  const update = (deltaTime: number, options?: { skipVisemes?: boolean }) => {
+  const update = (deltaTime: number, options?: { skipVisemes?: boolean, speaking?: boolean }) => {
+    settleMood(deltaTime, Boolean(options?.speaking))
+
     if (!currentEmotion.value)
       return
 
@@ -372,8 +461,11 @@ export function useVRMEmote(vrm: VRMCore) {
     isTransitioning,
     isVisemeTransitioning,
     isEmoteActive,
+    isRestingMood,
     setEmotion,
     setEmotionWithResetAfter,
+    setMood,
+    react,
     update,
     addEmotionState,
     removeEmotionState,

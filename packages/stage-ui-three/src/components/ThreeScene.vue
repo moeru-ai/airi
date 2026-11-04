@@ -12,6 +12,7 @@ import type { PresenceBubblePalette, PresenceBubbleState } from '@proj-airi/stag
 import type { TresContext } from '@tresjs/core'
 import type { DirectionalLight, SphericalHarmonics3, Texture, WebGLRenderer, WebGLRenderTarget } from 'three'
 
+import type { VrmMotionLibrary } from '../assets/vrm/animations'
 import type { VrmInteractionTarget } from '../composables/vrm/interaction'
 import type { SceneBootstrap, ScenePhase, Vec3 } from '../stores/model-store'
 import type { VrmLifecycleReason } from '../trace'
@@ -40,6 +41,7 @@ import { computed, nextTick, onMounted, onUnmounted, provide, ref, shallowRef, u
 import PresenceBubble from './presence-bubble.vue'
 
 // From stage-ui-three package
+import { defaultVrmMotionLibrary } from '../assets/vrm/animations'
 import { useRenderTargetRegionAtClientPoint } from '../composables/render-target'
 import { getVrmInteractionTargetFromObjectName, isClickLikePointerGesture } from '../composables/vrm/interaction'
 // pinia store
@@ -68,6 +70,10 @@ const props = withDefaults(defineProps<{
   connectSpeech?: (node: AudioNode) => () => void
   /** Whether speech is currently audible. Required when `connectSpeech` is set. */
   speechActive?: boolean
+  /** Whether the character waits for a reply. Forwarded to the VRM motion layer. */
+  thinking?: boolean
+  /** Idle pool, talking clip, and emotes of the VRM. Defaults to the bundled motions. */
+  motionLibrary?: VrmMotionLibrary
   cursorPosition?: { x: number, y: number }
   /**
    * Scene painted behind the model, inside this canvas rather than under it, so one
@@ -987,6 +993,11 @@ defineExpose({
   setExpression: (expression: string, intensity = 1) => {
     modelRef.value?.setExpression(expression, intensity)
   },
+  reactExpression: (expression: string, intensity = 1) => {
+    modelRef.value?.reactExpression(expression, intensity)
+  },
+  motions: () => modelRef.value?.motions() ?? [],
+  playMotion: async (id: string) => await modelRef.value?.playMotion(id) ?? false,
   // NOTICE: External runtime hooks are intentionally separate from internal VRM model hooks.
   // This public frame hook is reserved for live pose/tracking input and is forwarded to VRMModel
   // without exposing the internal model/material lifecycle hook pipeline.
@@ -1082,6 +1093,8 @@ defineExpose({
         :audio-context="props.audioContext"
         :connect-speech="props.connectSpeech"
         :speech-active="props.speechActive"
+        :thinking="props.thinking"
+        :motion-library="props.motionLibrary ?? defaultVrmMotionLibrary"
         :cursor-position="props.cursorPosition"
         :last-committed-model-id="lastCommittedModelId"
         :model-id="requestedModelIdentity?.modelId ?? props.modelId"

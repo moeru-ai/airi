@@ -246,4 +246,80 @@ describe('useVRMEmote', () => {
     emote.update(0.016)
     expect(vrm.expressionManager?.setValue).not.toHaveBeenCalled()
   })
+
+  describe('mood (Utsuwa timing)', () => {
+    function settle(emote: ReturnType<typeof useVRMEmote>, seconds: number, options?: { speaking?: boolean }) {
+      // Frames of 0.1 s on the render clock, the clock VRMModel passes in.
+      for (let elapsed = 0; elapsed < seconds - 1e-9; elapsed += 0.1)
+        emote.update(0.1, options)
+    }
+
+    it('holds the reaction for 2.5 s, then keeps a lighter resting face with no reset', () => {
+      const vrm = createMockVRMCore()
+      const emote = useVRMEmote(vrm)
+
+      emote.setMood('happy', 1)
+      settle(emote, 2.4)
+      expect(vrm.expressionManager?.getValue('happy')).toBeCloseTo(0.7)
+
+      settle(emote, 1)
+      expect(vrm.expressionManager?.getValue('happy')).toBeCloseTo(0.42)
+
+      // The old behavior returned to neutral after 3 s. The mood now stays.
+      settle(emote, 30)
+      expect(emote.currentEmotion.value).toBe('happy')
+      expect(vrm.expressionManager?.getValue('happy')).toBeCloseTo(0.42)
+    })
+
+    it('holds the reaction while she speaks, up to 8 s', () => {
+      const vrm = createMockVRMCore()
+      const emote = useVRMEmote(vrm)
+
+      emote.setMood('sad', 1)
+      settle(emote, 5, { speaking: true })
+      expect(vrm.expressionManager?.getValue('sad')).toBeCloseTo(0.7)
+
+      settle(emote, 3.5, { speaking: true })
+      expect(vrm.expressionManager?.getValue('sad')).toBeCloseTo(0.42)
+    })
+
+    it('does not suppress the blink while the resting face holds', () => {
+      const vrm = createMockVRMCore()
+      const emote = useVRMEmote(vrm)
+
+      emote.setMood('happy', 1)
+      expect(emote.isEmoteActive.value).toBe(true)
+
+      settle(emote, 3.5)
+
+      expect(emote.isRestingMood.value).toBe(true)
+      expect(emote.isEmoteActive.value).toBe(false)
+    })
+
+    it('returns a touch reaction to the resting mood, not to neutral', () => {
+      const vrm = createMockVRMCore()
+      const emote = useVRMEmote(vrm)
+
+      emote.setMood('happy', 1)
+      settle(emote, 3.5)
+      emote.react('surprised', 1)
+      settle(emote, 1)
+      expect(emote.currentEmotion.value).toBe('surprised')
+
+      settle(emote, 3)
+
+      expect(emote.currentEmotion.value).toBe('happy')
+      expect(vrm.expressionManager?.getValue('happy')).toBeCloseTo(0.42)
+    })
+
+    it('returns a touch reaction to neutral when there is no mood', () => {
+      const vrm = createMockVRMCore()
+      const emote = useVRMEmote(vrm)
+
+      emote.react('surprised', 1)
+      settle(emote, 5)
+
+      expect(emote.currentEmotion.value).toBeNull()
+    })
+  })
 })

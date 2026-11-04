@@ -1,13 +1,19 @@
 import type { VRM } from '@pixiv/three-vrm'
 import type { AnimationMixer, Group } from 'three'
 
+import type { AvatarAnimator } from '../../composables/vrm/avatar-animator'
 import type { useVRMEmote } from '../../composables/vrm/expression'
 import type { VrmInteractionColliderSet } from '../../composables/vrm/interaction'
+import type { PerformanceDirector } from '../../composables/vrm/performance-director'
 
 import { getStageThreeRuntimeTraceContext, isStageThreeRuntimeTraceEnabled } from '../../trace/context'
 import { stageThreeTraceVrmCacheEvent } from '../../trace/eventa'
 
 export interface ManagedVrmInstance {
+  /** Owns `mixer`. Plays the idle pool, talking, thinking, and emotes. */
+  animator: AvatarAnimator
+  /** Procedural head and chest layer on top of the animator. */
+  director: PerformanceDirector
   emote: ReturnType<typeof useVRMEmote>
   group: Group
   interactionColliders: VrmInteractionColliderSet

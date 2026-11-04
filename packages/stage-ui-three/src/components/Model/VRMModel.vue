@@ -8,6 +8,8 @@
 
 import type { VRM } from '@pixiv/three-vrm'
 import type {
+  AnimationClip,
+  AnimationMixer,
   Group,
   Material,
   Object3D,
@@ -18,6 +20,8 @@ import type {
   WebGLRenderer,
 } from 'three'
 
+import type { VrmMotionLibrary } from '../../assets/vrm/animations'
+import type { AvatarAnimatorHooks } from '../../composables/vrm/avatar-animator'
 import type {
   VrmDisposeHookContext,
   VrmFrameHookContext,
@@ -34,7 +38,6 @@ import { VRMUtils } from '@pixiv/three-vrm'
 import { useLoop, useTresContext } from '@tresjs/core'
 import { until } from '@vueuse/core'
 import {
-  AnimationMixer,
   Box3,
   MathUtils,
   Mesh,
@@ -59,6 +62,7 @@ import {
 
 } from 'vue'
 
+import { defaultVrmMotionLibrary } from '../../assets/vrm/animations'
 import { useVRMEyeFocusFor } from '../../composables/eye-tracking'
 import {
   createIblProbeController,
@@ -74,11 +78,13 @@ import {
   useBlink,
   useIdleEyeSaccades,
 } from '../../composables/vrm/animation'
+import { AvatarAnimator } from '../../composables/vrm/avatar-animator'
 import { loadVrm } from '../../composables/vrm/core'
 import { useVRMEmote } from '../../composables/vrm/expression'
 import { createVrmInteractionColliders } from '../../composables/vrm/interaction'
 import { resolveInternalVrmHooks } from '../../composables/vrm/internal-hooks'
 import { useVRMLipSync } from '../../composables/vrm/lip-sync'
+import { PerformanceDirector } from '../../composables/vrm/performance-director'
 import {
   createThreeRendererMemorySnapshot,
   createVrmSceneSummarySnapshot,
@@ -116,6 +122,13 @@ const props = withDefaults(defineProps<{
   connectSpeech?: (node: AudioNode) => () => void
   /** Whether speech is currently audible. Required when `connectSpeech` is set. */
   speechActive?: boolean
+  /**
+   * Whether the character waits for a reply. The head turns away while she thinks,
+   * and the thinking clip of `motionLibrary` plays when one is set.
+   */
+  thinking?: boolean
+  /** Idle pool, talking clip, and emotes. Defaults to the bundled Utsuwa motions. */
+  motionLibrary?: VrmMotionLibrary
   cursorPosition?: { x: number, y: number }
   /** The stable identity of the last model that completed scene binding. */
   lastCommittedModelId?: string
@@ -140,6 +153,8 @@ const props = withDefaults(defineProps<{
   camera: PerspectiveCamera
 }>(), {
   paused: false,
+  thinking: false,
+  motionLibrary: () => defaultVrmMotionLibrary,
 })
 /*
   * Emits:
@@ -196,6 +211,11 @@ const raycaster = new Raycaster()
 
 // Animation related ref
 const vrmAnimationMixer = ref<AnimationMixer>()
+const vrmAnimator = shallowRef<AvatarAnimator>()
+const vrmDirector = shallowRef<PerformanceDirector>()
+/** Mouth opening written by lip sync in the last frame, read by the director in the next one. */
+let lastMouth = 0
+let lastIdleUrl: string | null = null
 const { onBeforeRender, stop, start } = useLoop()
 
 const vrmHooks: readonly VrmHook[] = resolveInternalVrmHooks()
@@ -307,10 +327,12 @@ function getManagedVrmScopeKey() {
 }
 
 function getActiveManagedVrmInstance() {
-  if (!modelSrc.value || !vrm.value || !vrmGroup.value || !vrmAnimationMixer.value || !vrmEmote.value)
+  if (!modelSrc.value || !vrm.value || !vrmGroup.value || !vrmAnimationMixer.value || !vrmEmote.value || !vrmAnimator.value || !vrmDirector.value)
     return undefined
 
   return createManagedVrmInstance({
+    animator: vrmAnimator.value,
+    director: vrmDirector.value,
     emote: vrmEmote.value,
     group: vrmGroup.value,
     interactionColliders: interactionColliders.value!,
@@ -321,6 +343,8 @@ function getActiveManagedVrmInstance() {
 
 function clearActiveManagedVrmRefs() {
   vrmAnimationMixer.value = undefined
+  vrmAnimator.value = undefined
+  vrmDirector.value = undefined
   vrmEmote.value = undefined
   vrm.value = undefined
   vrmGroup.value = undefined
@@ -343,6 +367,11 @@ function applyManagedVrmInstance(instance: ManagedVrmInstance) {
   vrm.value = instance.vrm
   vrmGroup.value = instance.group
   vrmAnimationMixer.value = instance.mixer
+  // A cached instance can come from an earlier mount. Its hooks must read the props
+  // of this component.
+  instance.animator.hooks = createAnimatorHooks(instance.vrm)
+  vrmAnimator.value = instance.animator
+  vrmDirector.value = instance.director
   vrmEmote.value = instance.emote
   interactionColliders.value = instance.interactionColliders
 }
@@ -352,7 +381,7 @@ function destroyManagedVrmInstance(instance?: ManagedVrmInstance) {
     return
 
   instance.emote.dispose()
-  instance.mixer.stopAllAction()
+  instance.animator.dispose()
   instance.interactionColliders.dispose()
   disposeDetachedVrm(instance.vrm, instance.group)
 }
@@ -452,6 +481,69 @@ function destroyManagedVrmInstanceWithHooks(instance: ManagedVrmInstance | undef
   destroyManagedVrmInstance(instance)
 }
 
+/** Clip cache per model, so the idle pool and emotes parse and retarget each file once. */
+const clipCache = new WeakMap<VRM, Map<string, Promise<AnimationClip>>>()
+
+function clipCacheOf(targetVrm: VRM) {
+  let byUrl = clipCache.get(targetVrm)
+  if (!byUrl) {
+    byUrl = new Map()
+    clipCache.set(targetVrm, byUrl)
+  }
+  return byUrl
+}
+
+/**
+ * Loads a motion of the library. Library clips play with the hips track that
+ * `createVRMAnimationClip` produces, as in Utsuwa.
+ *
+ * NOTICE:
+ * `reAnchorRootPositionTrack` moves the first frame of the hips to the rest pose.
+ * Clips that start in another stance, like the greeting bow, then lift the whole
+ * body when she stands up. Only the stage idle (`idleAnimation`) is re-anchored,
+ * once, at load time with the rig in rest pose, and seeded into this cache.
+ * Source: `composables/vrm/animation.ts`, comment of `reAnchorRootPositionTrack`.
+ * Removal condition: the stage idle needs no re-anchor, or all clips share its root space.
+ */
+function loadMotionClip(targetVrm: VRM, url: string): Promise<AnimationClip> {
+  const byUrl = clipCacheOf(targetVrm)
+  const cached = byUrl.get(url)
+  if (cached)
+    return cached
+
+  const loading = (async () => {
+    const animation = await loadVRMAnimation(url)
+    const clip = await clipFromVRMAnimation(targetVrm, animation)
+    if (!clip)
+      throw new Error(`No VRM animation in ${url}`)
+    return clip
+  })()
+  // A failed load is removed, so a later request can try again.
+  loading.catch(() => byUrl.delete(url))
+  byUrl.set(url, loading)
+  return loading
+}
+
+/** Idle candidates: the idle of the stage settings first, then the bundled pool. */
+function idleCandidates() {
+  return [...new Set([idleAnimation.value, ...props.motionLibrary.idles].filter(Boolean))]
+}
+
+function createAnimatorHooks(targetVrm: VRM): AvatarAnimatorHooks {
+  return {
+    loadClip: url => loadMotionClip(targetVrm, url),
+    pickIdleUrl: () => {
+      const urls = idleCandidates()
+      // Never the same idle twice in a row, when there is a choice.
+      const choices = urls.length > 1 ? urls.filter(url => url !== lastIdleUrl) : urls
+      lastIdleUrl = choices[Math.floor(Math.random() * choices.length)] ?? null
+      return lastIdleUrl
+    },
+    isTalking: () => props.speechActive === true,
+    isThinking: () => props.thinking === true,
+  }
+}
+
 function bindManagedVrmInstanceRenderLoop() {
   disposeBeforeRenderLoop?.()
 
@@ -463,11 +555,26 @@ function bindManagedVrmInstanceRenderLoop() {
     const traceStart = isStageThreeRuntimeTraceEnabled() ? performance.now() : 0
     const tracingEnabled = traceStart > 0
 
-    const animationMixerMs = measureFrameStep(tracingEnabled, () => {
-      vrmAnimationMixer.value?.update(delta)
-    })
     const activeVrm = vrm.value
     const activeVrmGroup = vrmGroup.value
+    const director = vrmDirector.value
+    // The director undoes its offsets of the last frame before the mixer writes the
+    // new pose. Bones without an animation track would otherwise keep adding up.
+    if (activeVrm && director)
+      director.restore(activeVrm)
+    const animationMixerMs = measureFrameStep(tracingEnabled, () => {
+      if (vrmAnimator.value)
+        vrmAnimator.value.update(delta)
+      else
+        vrmAnimationMixer.value?.update(delta)
+    })
+    if (activeVrm && director) {
+      director.apply(activeVrm, delta, {
+        speaking: props.speechActive === true,
+        thinking: props.thinking === true,
+        mouth: lastMouth,
+      })
+    }
     updateManagedVrmMaterials(activeVrm, delta)
     const vrmFrameHookMs = measureFrameStep(tracingEnabled, () => {
       if (activeVrm && activeVrmGroup) {
@@ -512,11 +619,12 @@ function bindManagedVrmInstanceRenderLoop() {
       // re-asserts its mouth targets over lip sync's zeroed weights. The
       // state machine keeps advancing either way, so emotion transitions and
       // the reset timeout stay in sync during long utterances.
-      vrmEmote.value?.update(delta, { skipVisemes: isLipSyncActive })
+      vrmEmote.value?.update(delta, { skipVisemes: isLipSyncActive, speaking: props.speechActive === true })
     })
     const expressionMs = measureFrameStep(tracingEnabled, () => {
       activeVrm?.expressionManager?.update()
     })
+    lastMouth = activeVrm ? PerformanceDirector.mouthOf(activeVrm) : 0
     const nodeConstraintMs = measureFrameStep(tracingEnabled, () => {
       activeVrm?.nodeConstraintManager?.update()
     })
@@ -718,6 +826,7 @@ async function loadModel() {
   let nextVrm: VRM | undefined
   let nextVrmGroup: Group | undefined
   let nextVrmAnimationMixer: AnimationMixer | undefined
+  let nextVrmAnimator: AvatarAnimator | undefined
   let nextVrmEmote: ReturnType<typeof useVRMEmote> | undefined
   let didCommitLoad = false
 
@@ -841,9 +950,15 @@ async function loadModel() {
     // Re-anchor the root position track to the model origin
     reAnchorRootPositionTrack(clip, _vrm)
 
-    // play animation
-    nextVrmAnimationMixer = new AnimationMixer(_vrm.scene)
-    nextVrmAnimationMixer.clipAction(clip).play()
+    // The re-anchored stage idle goes into the clip cache, so the idle pool reuses it
+    // instead of re-anchoring it later in an animated pose.
+    clipCacheOf(_vrm).set(idleAnimation.value, Promise.resolve(clip))
+
+    // Play the first idle now. The animator cycles the idle pool from here on.
+    nextVrmAnimator = new AvatarAnimator(_vrm.scene, createAnimatorHooks(_vrm))
+    nextVrmAnimator.start(clip, props.motionLibrary.talking)
+    nextVrmAnimationMixer = nextVrmAnimator.mixer
+    lastIdleUrl = idleAnimation.value
 
     nextVrmEmote = useVRMEmote(_vrm)
 
@@ -914,6 +1029,8 @@ async function loadModel() {
     const nextInteractionColliders = createVrmInteractionColliders(_vrm)
 
     commitManagedVrmInstance(createManagedVrmInstance({
+      animator: nextVrmAnimator,
+      director: new PerformanceDirector(),
       emote: nextVrmEmote,
       group: _vrmGroup,
       interactionColliders: nextInteractionColliders,
@@ -945,7 +1062,10 @@ async function loadModel() {
       }
 
       nextVrmEmote?.dispose()
-      nextVrmAnimationMixer?.stopAllAction()
+      if (nextVrmAnimator)
+        nextVrmAnimator.dispose()
+      else
+        nextVrmAnimationMixer?.stopAllAction()
       disposeDetachedVrm(nextVrm, nextVrmGroup)
     }
     if (!isLoadRequestCurrent(requestId))
@@ -1108,8 +1228,38 @@ function headAnchor() {
 defineExpose({
   headAnchor,
   getInteractionColliders: () => interactionColliders.value?.colliders ?? [],
+  /** Sets the mood: a reaction first, then a resting face that stays until the next mood. */
   setExpression(expression: string, intensity = 1) {
-    vrmEmote.value?.setEmotionWithResetAfter(expression, 3000, intensity)
+    vrmEmote.value?.setMood(expression, intensity)
+  },
+  /** Shows a short reaction, for example to a touch, then returns to the resting mood. */
+  reactExpression(expression: string, intensity = 1) {
+    vrmEmote.value?.react(expression, intensity)
+  },
+  /** Emotes of the motion library, for the LLM prompt and the settings page. */
+  motions: () => props.motionLibrary.emotes,
+  /**
+   * Plays an emote of the motion library once, then returns to the idle.
+   * Resolves `false` when the id is unknown or the clip cannot load.
+   */
+  async playMotion(id: string): Promise<boolean> {
+    const emote = props.motionLibrary.emotes.find(entry => entry.id === id)
+    const targetVrm = vrm.value
+    const animator = vrmAnimator.value
+    if (!emote || !targetVrm || !animator)
+      return false
+    try {
+      const clip = await loadMotionClip(targetVrm, emote.url)
+      // The model can change while the clip loads.
+      if (vrm.value !== targetVrm || vrmAnimator.value !== animator)
+        return false
+      animator.playEmote(clip)
+      return true
+    }
+    catch (error) {
+      console.error(`[vrm] motion "${id}" failed to load:`, error)
+      return false
+    }
   },
   // NOTICE: This runtime frame hook is intentionally separate from internal VRM model hooks.
   // External callers use it for live pose/tracking input; internal hooks remain reserved for

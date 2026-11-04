@@ -119,11 +119,49 @@ O histórico mandava investigar **Utsuwa primeiro, xiaoke segundo e AIRI terceir
 
 A tabela de humor do Utsuwa usa `joy`, `fun` e `sorrow` como alternativa para VRM 0.x. Por isso a Neptuna recebe humor sem mapeamento extra. Os presets do AIRI não mudam (D1).
 
+## Estado da V1 (concluída em 04/11/2026)
+
+O responsável autorizou copiar o código e as animações do Utsuwa e resolve a licença com o autor. Por isso a V1 porta o código, em vez de só reproduzir os conceitos.
+
+| Entrega | Arquivo |
+| --- | --- |
+| 13 animações do Utsuwa (5 idles, fala, 7 emotes) e aviso de origem | `packages/stage-ui-three/src/assets/vrm/animations/utsuwa/` |
+| Biblioteca de movimentos (`defaultVrmMotionLibrary`) | `packages/stage-ui-three/src/assets/vrm/animations/index.ts` |
+| Animador portado do Utsuwa. A troca de idle conta o tempo do quadro em vez de `setTimeout` (regra de render loop do AIRI). | `packages/stage-ui-three/src/composables/vrm/avatar-animator.ts` |
+| Diretor portado do xiaoke: cabeça e tronco | `packages/stage-ui-three/src/composables/vrm/performance-director.ts` |
+| Rosto de humor permanente (`setMood`) e reação ao toque (`react`), no lugar do reset de 3 s | `packages/stage-ui-three/src/composables/vrm/expression.ts` |
+| Ligação no renderer: props `thinking` e `motionLibrary`, funções `playMotion`, `motions` e `reactExpression` | `VRMModel.vue`, `ThreeScene.vue`, `vrm-instance-cache.ts` |
+| "Pensando" ligado ao envio da mensagem e toque como reação | `packages/stage-ui/src/components/scenes/Stage.vue` |
+
+Testes:
+
+- 53 testes do `stage-ui-three` passam: 8 do animador, 5 do diretor e 5 do humor são novos.
+- Typecheck do `stage-ui-three` e do `stage-ui`: sem erros.
+
+Validação com a Neptuna: Chromium sem interface, o código real da V1, o three e o three-vrm do AIRI, num roteiro de 50 s. Folha de capturas em `evidencias/V1/v1-resumo.png` e métricas em `evidencias/V1/resultado.json`.
+
+| Fase | Resultado |
+| --- | --- |
+| Parada (0–25 s) | Troca de idle aos 19,9 s. Velocidade máxima da cabeça: 0,6 rad/s. O corpo quase não se move fora da animação. |
+| Pensando (25–30 s) | A cabeça vira para um lado (até 1,5 rad/s). O corpo continua no idle. |
+| Falando com humor feliz (30–38 s) | O clipe de fala entra (mão na cintura) e a cabeça inclina e acena. O rosto fica feliz. |
+| Fim da fala (38 s) | Volta ao idle. O feliz assenta no tom de repouso e não volta ao neutro. |
+| Emote de cumprimento (40 s) | Acena com as duas mãos a 1,5x, termina aos 44,9 s e volta ao idle. |
+| Humor triste (46 s) | O triste substitui o feliz (`sad` = 0,42, `happy` = 0). |
+
+Defeito encontrado e corrigido na validação: com `reAnchorRootPositionTrack`, o cumprimento levantava o corpo inteiro para fora do quadro. As animações da biblioteca agora tocam com a trilha de quadril do `createVRMAnimationClip`, como no Utsuwa. Só o idle do palco continua reancorado (`// NOTICE:` em `VRMModel.vue`).
+
+Fora da V1, nas próximas sprints:
+
+- O LLM escolher o emote (V2: token ACT com `motion`). Por enquanto, `playMotion(id)` existe e a biblioteca expõe as descrições.
+- A tela de importação de VRMA (V2).
+- O `stage-web` não sobe neste ambiente de nuvem, porque a rede bloqueia `cubism.live2d.com` e `dist.ayaka.moe`. A validação usou um harness com o mesmo código.
+
 ## Nova ordem proposta (substitui S06, S07 e S15 do Planejamento 03)
 
 | Sprint | Entrega no `overcyber/airi` | Base |
 |---|---|---|
-| V1 | Presença fluida no VRM, com a Neptuna como modelo de teste: pool de idles com os tempos do Utsuwa, clipes de pensar e de falar, emotes com saída limpa, rosto de humor permanente com suavização (no lugar do reset de 3 s em `VRMModel.vue:1111`) e presença procedural do diretor do xiaoke. Novo `packages/stage-ui-three/src/composables/vrm/motion-library.ts`, chamado em `VRMModel.vue:827-846`. | Seção "Análise do código" abaixo |
+| V1 (**concluída em 04/11/2026**, ver "Estado da V1") | Presença fluida no VRM, com a Neptuna como modelo de teste: pool de idles com os tempos do Utsuwa, clipes de pensar e de falar, emotes com saída limpa, rosto de humor permanente com suavização (no lugar do reset de 3 s em `VRMModel.vue:1111`) e presença procedural do diretor do xiaoke. Novo `packages/stage-ui-three/src/composables/vrm/motion-library.ts`, chamado em `VRMModel.vue:827-846`. | Seção "Análise do código" abaixo |
 | V2 | Emotes pelo LLM: estender o token ACT (`stage-ui/src/composables/queues.ts:23-60`, `Stage.vue:294-346`) com `motion`. Importação de VRMA com descrição na tela de modelo. | Padrão do Utsuwa, implementação própria |
 | V3 | Realismo procedural no VRM: respiração, troca de pose e peso por humor, cabeça e contato visual. O humor deixa de ser só rosto (`expression.ts`, reset de 3 s). | Conceitos do TalkingHead (MIT) |
 | V4 | Eva GLB → VRM, mantendo ARKit 52 + visemas como expressões customizadas, e lip-sync mapeado | D1 / antiga S15 |

@@ -32,6 +32,23 @@ VRM runtime management is explicit in this package.
 
 This keeps ordinary remounts and HMR from immediately forcing deep VRM disposal, while still making model switches deterministic.
 
+## VRM Motion Layer
+
+The VRM renderer plays a motion library on top of the model. The design follows Utsuwa (body motion and mood face) and the xiaoke.ai performance director (head and chest).
+
+| Part | File | Behavior |
+| --- | --- | --- |
+| Motion library | `src/assets/vrm/animations/index.ts` | `defaultVrmMotionLibrary`: 5 idles, 1 talking clip, 7 emotes from Utsuwa (`utsuwa/NOTICE.md`), plus the stage idle. |
+| Animator | `src/composables/vrm/avatar-animator.ts` | Cycles the idle pool after 1 to 2 loops with a 1.2 s crossfade. Fades the talking or thinking clip in over 0.3 s. Plays emotes once at 1.5x and returns to the idle. |
+| Director | `src/composables/vrm/performance-director.ts` | Nods on speech accents, glances aside while speaking, turns the head away while thinking, and scans slowly while idle. |
+| Mood face | `src/composables/vrm/expression.ts` | `setMood`: a reaction for 2.5 s (up to 8 s while speaking), then a resting face that stays until the next mood. `react`: a short reaction that returns to the resting mood. |
+
+`VRMModel` and `ThreeScene` take `thinking` and `motionLibrary` props. They expose `setExpression` (mood), `reactExpression` (touch reaction), `motions`, and `playMotion(id)`.
+
+All motion time comes from the frame delta of the render loop. The animator and the director never use timers.
+
+The animator and the mood timing are ported from Utsuwa (AGPL-3.0-or-later). The director is ported from xiaoke.ai (Apache-2.0). Each ported file names its source at the top.
+
 ## Lip-Sync Boundary
 
 `ThreeScene` receives the `AudioContext` and current audio source from its caller. The package does not import the Stage audio store.
