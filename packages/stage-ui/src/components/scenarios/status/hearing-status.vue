@@ -7,30 +7,21 @@ import { useI18n } from 'vue-i18n'
 import StatusCapsule from './status-capsule.vue'
 
 import { useAudioAnalyzer } from '../../../composables/audio/audio-analyzer'
+import { useHearingIssue } from '../../../composables/use-hearing-issue'
 import { useHearingStore } from '../../../stores/modules/hearing'
 import { useVoiceControlsStore } from '../../../stores/voice-controls'
 
 defineProps<{ align?: 'start' | 'center' }>()
 
 const { t } = useI18n()
-const { error, snapshot } = storeToRefs(useVoiceControlsStore())
+const { snapshot } = storeToRefs(useVoiceControlsStore())
 const enabled = computed(() => snapshot.value.microphone?.enabled ?? false)
 const ready = computed(() => snapshot.value.microphone?.ready ?? false)
-const microphoneError = computed(() => snapshot.value.microphone?.error)
 const transcript = computed(() => snapshot.value.input?.text)
 const isTranscribing = computed(() => snapshot.value.input?.phase === 'finalizing')
 const { volumeLevel } = useAudioAnalyzer()
-const { configured, enabled: hearingEnabled } = storeToRefs(useHearingStore())
-const issue = computed(() => {
-  // Device failure prevents all input, so it takes precedence over provider feedback.
-  if (microphoneError.value)
-    return microphoneError.value
-  if (error.value)
-    return error.value
-  if (enabled.value && !configured.value)
-    return t('stage.status.configure-hearing')
-  return undefined
-})
+const { enabled: hearingEnabled } = storeToRefs(useHearingStore())
+const issue = useHearingIssue()
 const state = computed(() => {
   if (issue.value)
     return 'error'
