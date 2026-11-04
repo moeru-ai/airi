@@ -113,7 +113,8 @@ onScopeDispose(() => stopListening?.())
         >
           <span
             :class="[
-              'flex flex-1 flex-col justify-between rounded-xl px-3 py-2.5 transition-[transform,box-shadow,background-color,color] duration-75 ease-out',
+              'flex flex-1 flex-col rounded-xl px-3 py-2.5 transition-[transform,box-shadow,background-color,color] duration-75 ease-out',
+              keycap.symbol ? 'justify-between' : 'items-center justify-center',
               pressing || held.has(keycap.token)
                 ? [
                   'translate-y-1.5',
@@ -126,9 +127,12 @@ onScopeDispose(() => stopListening?.())
                 ],
             ]"
           >
-            <!-- Apple keyboards print the symbol at the top right and the name at the bottom left. -->
-            <span :class="['self-end text-lg leading-none font-[system-ui,-apple-system,sans-serif]']">{{ keycap.symbol ?? '' }}</span>
-            <span :class="['self-start text-xs leading-none opacity-75']">{{ keycap.name }}</span>
+            <!-- Apple keyboards print the symbol at the top right and the name at the bottom left. A key without a symbol centers its name. -->
+            <template v-if="keycap.symbol">
+              <span :class="['self-end text-lg leading-none font-[system-ui,-apple-system,sans-serif]']">{{ keycap.symbol }}</span>
+              <span :class="['self-start text-xs leading-none opacity-75']">{{ keycap.name }}</span>
+            </template>
+            <span v-else :class="['text-sm leading-none opacity-75']">{{ keycap.name }}</span>
           </span>
         </span>
       </div>

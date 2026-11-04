@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { watch } from 'vue'
+import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import MicrophoneDeviceButton from './microphone-device-button.vue'
@@ -23,6 +23,14 @@ const check = useMicrophoneCheck(() => props.granted)
 watch(check.heard, value => heard.value = value, { immediate: true })
 /** The visual keeps following the voice after the check heard it, so the page stays alive while the user talks. */
 const spectrum = useMicrophoneSpectrum(() => props.granted)
+
+const status = computed(() => {
+  if (check.heard.value)
+    return { tone: 'ok' as const, text: t('settings.dialogs.onboarding.permissions.flow.microphone.heard') }
+  if (check.quiet.value)
+    return { tone: 'info' as const, text: t('settings.dialogs.onboarding.permissions.flow.microphone.quiet') }
+  return { tone: 'live' as const, text: t('settings.dialogs.onboarding.permissions.flow.microphone.testing') }
+})
 </script>
 
 <template>
@@ -30,17 +38,16 @@ const spectrum = useMicrophoneSpectrum(() => props.granted)
     :title="t('settings.dialogs.onboarding.permissions.flow.microphone.title')"
     :description="t('settings.dialogs.onboarding.permissions.flow.microphone.body')"
   >
-    <!-- The result comes first, under the text. The device picker sits below it, for a user who needs another input. -->
+    <!--
+      The result shows next to the waves that it describes. On a wide page it sits in the text, above the device
+      picker. On a narrow page it sits under the waves. The hidden copy is not in the accessibility tree.
+    -->
     <div v-if="granted" :class="['flex flex-col items-start gap-3', 'animate-slideUpAndFade']">
-      <PermissionStatusLine v-if="check.heard.value" tone="ok">
-        {{ t('settings.dialogs.onboarding.permissions.flow.microphone.heard') }}
-      </PermissionStatusLine>
-      <PermissionStatusLine v-else-if="check.quiet.value" tone="info">
-        {{ t('settings.dialogs.onboarding.permissions.flow.microphone.quiet') }}
-      </PermissionStatusLine>
-      <PermissionStatusLine v-else tone="live">
-        {{ t('settings.dialogs.onboarding.permissions.flow.microphone.testing') }}
-      </PermissionStatusLine>
+      <div :class="['hidden @3xl:block']">
+        <PermissionStatusLine :tone="status.tone">
+          {{ status.text }}
+        </PermissionStatusLine>
+      </div>
       <MicrophoneDeviceButton :level="check.level.value" />
     </div>
 
@@ -50,6 +57,12 @@ const spectrum = useMicrophoneSpectrum(() => props.granted)
         :bands="spectrum.bands.value"
         :active="granted"
       />
+      <!-- Under the band of the waves, see `microphone-voice-visual.vue`: the band is 60% of the stage, at most 15.75rem. -->
+      <div v-if="granted" :class="['absolute left-1/2 top-[calc(50%+min(30%,7.875rem))] whitespace-nowrap -translate-x-1/2 @3xl:hidden']">
+        <PermissionStatusLine :tone="status.tone">
+          {{ status.text }}
+        </PermissionStatusLine>
+      </div>
     </template>
   </PermissionPageLayout>
 </template>
