@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { WorkbenchApi } from '@proj-airi/ui-panes'
+import type { WorkbenchApi, WorkbenchFrame } from '@proj-airi/ui-panes'
 
 import { Workbench } from '@proj-airi/ui-panes'
 import { formatDuration } from '@proj-airi/ui-timeline/headless'
@@ -10,6 +10,11 @@ import { useI18n } from 'vue-i18n'
 
 import { useIOTracerStore } from '../../../stores/devtools/io-tracer'
 import { sameVisibleTracks, visibleTracksOf } from './visible-tracks'
+
+defineProps<{
+  /** The page fills a window without a title bar. The workbench then acts as the title bar. */
+  frame?: WorkbenchFrame
+}>()
 
 const PANELS = ['timeline', 'pipeline', 'log', 'detail', 'metrics'] as const
 
@@ -95,9 +100,14 @@ function handleReady(api: WorkbenchApi) {
 </script>
 
 <template>
-  <main :class="['flex h-full min-h-0 w-full flex-col overflow-hidden', 'bg-neutral-50/80 dark:bg-neutral-950']">
-    <div :class="['min-h-0 flex-1 p-1.5']">
-      <Workbench :panels="PANELS" :padded="false" @ready="handleReady">
+  <main :class="['flex h-full min-h-0 w-full flex-col overflow-hidden']">
+    <div :class="['min-h-0 flex-1']">
+      <Workbench :panels="PANELS" :padded="false" :frame="frame" @ready="handleReady">
+        <template #frame-end>
+          <!-- The host puts its window buttons here. -->
+          <slot name="frame-end" />
+        </template>
+
         <template #timeline>
           <div :class="['flex h-full min-h-0 flex-col']">
             <TraceToolbar
