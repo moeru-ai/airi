@@ -15,8 +15,8 @@ import { isPlainObject } from 'es-toolkit'
 import { computed, shallowRef, watch } from 'vue'
 
 import { widgetsIframePublish } from '../../../shared/eventa'
-import { electronPluginGetAssetBaseUrl } from '../../../shared/eventa/plugin/assets'
-import { electronPluginInspect } from '../../../shared/eventa/plugin/host'
+import { airiPluginGetAssetBaseUrl } from '../../../shared/eventa/plugin/assets'
+import { airiPluginInspect } from '../../../shared/eventa/plugin/host'
 import { publishWidgetSparkNotifyReaction } from '../composables/use-bridge-spark'
 import { useExtensionUIForModule } from '../composables/use-extension-ui-for-module'
 import { useIframeMessagePort } from '../composables/use-iframe-message-port'
@@ -74,8 +74,8 @@ function omitControlFields(record: Record<string, any>) {
   return rest
 }
 
-const inspectPluginHost = useHostEventaInvoke(electronPluginInspect)
-const getPluginAssetBaseUrl = useHostEventaInvoke(electronPluginGetAssetBaseUrl)
+const inspectPluginHost = useHostEventaInvoke(airiPluginInspect)
+const getPluginAssetBaseUrl = useHostEventaInvoke(airiPluginGetAssetBaseUrl)
 const publishWidgetIframeEvent = useHostEventaInvoke(widgetsIframePublish)
 const contextBridgeStore = useContextBridgeStore()
 

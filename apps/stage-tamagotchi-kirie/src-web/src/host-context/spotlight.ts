@@ -6,11 +6,11 @@ import { defineInvoke, defineInvokeEventa } from '@moeru/eventa'
 import { onScopeDispose } from 'vue'
 
 import {
+  airiSpotlightHide,
+  airiSpotlightOpen,
   airiSpotlightShortcutChanged,
-  electronSpotlightHide,
-  electronSpotlightOpen,
-  electronSpotlightShortcutGet,
-  electronSpotlightShortcutSet,
+  airiSpotlightShortcutGet,
+  airiSpotlightShortcutSet,
 } from '../shared/eventa'
 import { useHostChat } from './chat'
 import { toKirieGlobalShortcut } from './global-shortcuts'
@@ -20,13 +20,13 @@ type EmptyPayload = Record<string, never>
 
 const sendSuffix = '-send'
 const kirieSpotlightHide = defineInvokeEventa<EmptyPayload, EmptyPayload>(
-  electronSpotlightHide.sendEvent.id.slice(0, -sendSuffix.length),
+  airiSpotlightHide.sendEvent.id.slice(0, -sendSuffix.length),
 )
 const kirieSpotlightOpen = defineInvokeEventa<EmptyPayload, EmptyPayload>(
-  electronSpotlightOpen.sendEvent.id.slice(0, -sendSuffix.length),
+  airiSpotlightOpen.sendEvent.id.slice(0, -sendSuffix.length),
 )
 const kirieSpotlightShortcutGet = defineInvokeEventa<ShortcutAccelerator, EmptyPayload>(
-  electronSpotlightShortcutGet.sendEvent.id.slice(0, -sendSuffix.length),
+  airiSpotlightShortcutGet.sendEvent.id.slice(0, -sendSuffix.length),
 )
 
 /** Retains notification activation across send failures until the caller's Vue scope ends. */
@@ -68,7 +68,7 @@ export function useHostSpotlightWindow() {
 export function useHostSpotlightShortcut() {
   const host = initializeHostContext()
   const getShortcut = defineInvoke(host.context, kirieSpotlightShortcutGet)
-  const setShortcut = defineInvoke(host.context, electronSpotlightShortcutSet)
+  const setShortcut = defineInvoke(host.context, airiSpotlightShortcutSet)
   return {
     get: () => getShortcut({}),
     set: (accelerator: ShortcutAccelerator | null): Promise<ShortcutRegistrationResult> =>

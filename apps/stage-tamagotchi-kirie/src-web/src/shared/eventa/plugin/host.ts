@@ -13,7 +13,7 @@ import { defineInvokeEventa } from '@moeru/eventa'
  * - A plugin module wants the host to size an extension UI widget window
  *
  * Expects:
- * - Dimensions are pixel values understood by the Electron window layer
+ * - Dimensions are pixel values understood by the host window layer
  *
  * Returns:
  * - N/A
@@ -49,13 +49,13 @@ export interface PluginModuleWidgetPayload {
   windowSize?: PluginModuleWidgetWindowSize
 }
 
-export const electronPluginList = defineInvokeEventa<PluginRegistrySnapshot>('eventa:invoke:electron:plugins:list')
-export const electronPluginSetEnabled = defineInvokeEventa<PluginRegistrySnapshot, { extensionId: string, enabled: boolean, path?: string }>('eventa:invoke:electron:plugins:set-enabled')
-export const electronPluginSetAutoReload = defineInvokeEventa<PluginRegistrySnapshot, { extensionId: string, enabled: boolean }>('eventa:invoke:electron:plugins:set-auto-reload')
-export const electronPluginLoadEnabled = defineInvokeEventa<PluginRegistrySnapshot>('eventa:invoke:electron:plugins:load-enabled')
-export const electronPluginLoad = defineInvokeEventa<PluginRegistrySnapshot, { extensionId: string }>('eventa:invoke:electron:plugins:load')
-export const electronPluginUnload = defineInvokeEventa<PluginRegistrySnapshot, { extensionId: string }>('eventa:invoke:electron:plugins:unload')
-export const electronPluginInspect = defineInvokeEventa<PluginHostDebugSnapshot>('eventa:invoke:electron:plugins:inspect')
-export const electronPluginPrepareDirectoryImport = defineInvokeEventa<ExtensionDirectoryImportPrepareResult>('eventa:invoke:electron:plugins:import-directory:prepare')
-export const electronPluginCommitDirectoryImport = defineInvokeEventa<PluginRegistrySnapshot, { planId: string }>('eventa:invoke:electron:plugins:import-directory:commit')
-export const electronPluginCancelDirectoryImport = defineInvokeEventa<void, { planId: string }>('eventa:invoke:electron:plugins:import-directory:cancel')
+export const airiPluginList = defineInvokeEventa<PluginRegistrySnapshot>('eventa:invoke:airi:plugins:list')
+export const airiPluginSetEnabled = defineInvokeEventa<PluginRegistrySnapshot, { extensionId: string, enabled: boolean, path?: string }>('eventa:invoke:airi:plugins:set-enabled')
+export const airiPluginSetAutoReload = defineInvokeEventa<PluginRegistrySnapshot, { extensionId: string, enabled: boolean }>('eventa:invoke:airi:plugins:set-auto-reload')
+export const airiPluginLoadEnabled = defineInvokeEventa<PluginRegistrySnapshot>('eventa:invoke:airi:plugins:load-enabled')
+export const airiPluginLoad = defineInvokeEventa<PluginRegistrySnapshot, { extensionId: string }>('eventa:invoke:airi:plugins:load')
+export const airiPluginUnload = defineInvokeEventa<PluginRegistrySnapshot, { extensionId: string }>('eventa:invoke:airi:plugins:unload')
+export const airiPluginInspect = defineInvokeEventa<PluginHostDebugSnapshot>('eventa:invoke:airi:plugins:inspect')
+export const airiPluginPrepareDirectoryImport = defineInvokeEventa<ExtensionDirectoryImportPrepareResult>('eventa:invoke:airi:plugins:import-directory:prepare')
+export const airiPluginCommitDirectoryImport = defineInvokeEventa<PluginRegistrySnapshot, { planId: string }>('eventa:invoke:airi:plugins:import-directory:commit')
+export const airiPluginCancelDirectoryImport = defineInvokeEventa<void, { planId: string }>('eventa:invoke:airi:plugins:import-directory:cancel')

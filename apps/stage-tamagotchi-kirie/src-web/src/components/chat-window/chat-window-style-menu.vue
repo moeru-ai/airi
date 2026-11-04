@@ -14,7 +14,7 @@ import {
 import { computed, onMounted, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { electronChatWindowGetPreferences, electronChatWindowSetPreferences } from '../../shared/eventa'
+import { airiChatWindowGetPreferences, airiChatWindowSetPreferences } from '../../shared/eventa'
 import { chatHeaderButtonClass } from './chat-header-button'
 
 // The root is the menu, which renders no element, so a class from the parent
@@ -27,8 +27,8 @@ withDefaults(defineProps<{
   variant: 'plain',
 })
 
-const getPreferences = useHostEventaInvoke(electronChatWindowGetPreferences)
-const setPreferences = useHostEventaInvoke(electronChatWindowSetPreferences)
+const getPreferences = useHostEventaInvoke(airiChatWindowGetPreferences)
+const setPreferences = useHostEventaInvoke(airiChatWindowSetPreferences)
 // The menu stays disabled until the saved preferences arrive, so it never
 // shows a style or a placement that is not saved.
 const preferences = shallowRef<ChatWindowPreferences>()

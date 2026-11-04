@@ -18,9 +18,9 @@ const invokeMocks = vi.hoisted(() => {
 
 vi.mock('@proj-airi/stage-host-context', () => ({
   useHostEventaInvoke: (event: { receiveEvent?: { id?: string } }) => {
-    if (event?.receiveEvent?.id === 'eventa:invoke:electron:server-channel:get-config-receive')
+    if (event?.receiveEvent?.id === 'eventa:invoke:airi:server-channel:get-config-receive')
       return invokeMocks.getConfig
-    if (event?.receiveEvent?.id === 'eventa:invoke:electron:server-channel:apply-config-receive')
+    if (event?.receiveEvent?.id === 'eventa:invoke:airi:server-channel:apply-config-receive')
       return invokeMocks.applyConfig
 
     throw new Error(`Unexpected eventa invoke: ${JSON.stringify(event)}`)

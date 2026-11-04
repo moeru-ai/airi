@@ -7,13 +7,13 @@ import { useLlmToolsetPromptsStore } from '@proj-airi/stage-ui/stores/ai/chat-ll
 import { rawTool } from '@xsai/tool'
 import { defineStore } from 'pinia'
 
-import { electronPluginInvokeTool, electronPluginListXsaiTools } from '../../shared/eventa/plugin/tools'
+import { airiPluginInvokeTool, airiPluginListXsaiTools } from '../../shared/eventa/plugin/tools'
 
 export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tools', () => {
   const llmToolsStore = useLlmToolsStore()
   const llmToolsetPromptsStore = useLlmToolsetPromptsStore()
-  const listPluginXsaiToolDefinitions = useHostEventaInvoke(electronPluginListXsaiTools)
-  const invokePluginTool = useHostEventaInvoke(electronPluginInvokeTool)
+  const listPluginXsaiToolDefinitions = useHostEventaInvoke(airiPluginListXsaiTools)
+  const invokePluginTool = useHostEventaInvoke(airiPluginInvokeTool)
   const toolIdPrefix = 'plugin:'
 
   function registeredToolIds() {

@@ -7,9 +7,9 @@ import { computed, onScopeDispose, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import {
-  electronAuthCallback,
-  electronAuthCallbackError,
-  electronOpenSettings,
+  airiAuthCallback,
+  airiAuthCallbackError,
+  airiOpenSettings,
 } from '../../../shared/eventa'
 
 const props = defineProps<{
@@ -24,7 +24,7 @@ const { isAuthenticated, user, needsLogin, credits } = storeToRefs(authStore)
 const context = useHostEventaContext()
 
 const { startLogin: startSigningIn } = useHostAuth()
-const openSettings = useHostEventaInvoke(electronOpenSettings)
+const openSettings = useHostEventaInvoke(airiOpenSettings)
 
 const signingIn = ref(false)
 
@@ -46,10 +46,10 @@ function doSigningIn() {
 }
 
 // Each listener belongs to this mounted menu, including its hidden measurement state.
-const stopCallback = context.value.on(electronAuthCallback, () => {
+const stopCallback = context.value.on(airiAuthCallback, () => {
   signingIn.value = false
 })
-const stopError = context.value.on(electronAuthCallbackError, () => {
+const stopError = context.value.on(airiAuthCallbackError, () => {
   signingIn.value = false
 })
 onScopeDispose(() => {

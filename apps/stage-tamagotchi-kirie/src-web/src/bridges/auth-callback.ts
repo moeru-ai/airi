@@ -5,8 +5,8 @@ import { toast } from 'vue-sonner'
 
 import { desktopAuthConfiguration } from '../shared/auth-config'
 import {
-  electronAuthCallback,
-  electronAuthCallbackError,
+  airiAuthCallback,
+  airiAuthCallbackError,
 } from '../shared/eventa'
 
 /**
@@ -14,10 +14,10 @@ import {
  * persist for the window's lifetime, independent of any Vue component's
  * mount/unmount lifecycle.
  */
-export function initializeElectronAuthCallbackBridge() {
+export function initializeAuthCallbackBridge() {
   const context = getHostEventaContext()
 
-  context.on(electronAuthCallback, async (event) => {
+  context.on(airiAuthCallback, async (event) => {
     const tokens = event.body
     if (!tokens)
       return
@@ -33,7 +33,7 @@ export function initializeElectronAuthCallbackBridge() {
     }
   })
 
-  context.on(electronAuthCallbackError, (event) => {
+  context.on(airiAuthCallbackError, (event) => {
     if (event.body)
       toast.error(event.body.error)
   })

@@ -9,7 +9,7 @@ import { useI18n } from 'vue-i18n'
 import ControlButtonTooltip from '../controls-island/control-button-tooltip.vue'
 import ControlButton from '../controls-island/control-button.vue'
 
-import { electronOpenSettings } from '../../../shared/eventa'
+import { airiOpenSettings } from '../../../shared/eventa'
 
 const props = defineProps<{
   buttonStyle: string
@@ -18,7 +18,7 @@ const props = defineProps<{
 
 const { t } = useI18n()
 const { connected } = storeToRefs(useModsServerChannelStore())
-const openSettings = useHostEventaInvoke(electronOpenSettings)
+const openSettings = useHostEventaInvoke(airiOpenSettings)
 
 const iconClasses = computed(() => {
   return [

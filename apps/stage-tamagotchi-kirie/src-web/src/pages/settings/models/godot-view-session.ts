@@ -1,4 +1,4 @@
-import type { ElectronGodotStageState } from '../../../shared/eventa'
+import type { AiriGodotStageState } from '../../../shared/eventa'
 
 /**
  * Resolves whether a Godot status change crosses the active view-session boundary.
@@ -16,8 +16,8 @@ import type { ElectronGodotStageState } from '../../../shared/eventa'
  * - `end` when leaving `running`
  */
 export function resolveGodotViewSessionTransition(
-  previousState: ElectronGodotStageState,
-  nextState: ElectronGodotStageState,
+  previousState: AiriGodotStageState,
+  nextState: AiriGodotStageState,
 ) {
   return {
     begin: previousState !== 'running' && nextState === 'running',
@@ -38,6 +38,6 @@ export function resolveGodotViewSessionTransition(
  * Returns:
  * - `true` only while Godot is running
  */
-export function shouldAcceptGodotViewSessionEvent(state: ElectronGodotStageState) {
+export function shouldAcceptGodotViewSessionEvent(state: AiriGodotStageState) {
   return state === 'running'
 }

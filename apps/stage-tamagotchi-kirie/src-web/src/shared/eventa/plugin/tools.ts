@@ -12,7 +12,7 @@ import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
  * Returns:
  * - N/A
  */
-export interface ElectronPluginToolDescriptor {
+export interface AiriPluginToolDescriptor {
   id: string
   title: string
   description: string
@@ -34,7 +34,7 @@ export interface ElectronPluginToolDescriptor {
  * Returns:
  * - N/A
  */
-export interface ElectronPluginXsaiToolDefinition {
+export interface AiriPluginXsaiToolDefinition {
   ownerExtensionId: string
   name: string
   description: string
@@ -53,7 +53,7 @@ export interface ElectronPluginXsaiToolDefinition {
  * Returns:
  * - N/A
  */
-export interface ElectronPluginToolsetPromptDefinition {
+export interface AiriPluginToolsetPromptDefinition {
   ownerExtensionId: string
   id: string
   prompt: {
@@ -67,7 +67,7 @@ export interface ElectronPluginToolsetPromptDefinition {
  * Serialized plugin xsai tools and shared prompt guidance.
  *
  * Use when:
- * - Refreshing renderer LLM tool registrations from the Electron plugin host
+ * - Refreshing renderer LLM tool registrations from the plugin host
  *
  * Expects:
  * - The host filtered out inactive plugin sessions
@@ -75,9 +75,9 @@ export interface ElectronPluginToolsetPromptDefinition {
  * Returns:
  * - N/A
  */
-export interface ElectronPluginXsaiToolsetDefinition {
-  tools: ElectronPluginXsaiToolDefinition[]
-  prompts: ElectronPluginToolsetPromptDefinition[]
+export interface AiriPluginXsaiToolsetDefinition {
+  tools: AiriPluginXsaiToolDefinition[]
+  prompts: AiriPluginToolsetPromptDefinition[]
 }
 
 /**
@@ -92,16 +92,16 @@ export interface ElectronPluginXsaiToolsetDefinition {
  * Returns:
  * - N/A
  */
-export interface ElectronPluginToolsChangedPayload {
+export interface AiriPluginToolsChangedPayload {
   reason: 'loaded' | 'load-enabled' | 'unloaded' | 'enabled-state-changed'
   extensionId?: string
 }
 
-export const electronPluginListAgentTools = defineInvokeEventa<ElectronPluginToolDescriptor[]>('eventa:invoke:electron:plugins:tools:list')
-export const electronPluginListXsaiTools = defineInvokeEventa<ElectronPluginXsaiToolsetDefinition>('eventa:invoke:electron:plugins:tools:list-xsai')
-export const electronPluginInvokeTool = defineInvokeEventa<unknown, {
+export const airiPluginListAgentTools = defineInvokeEventa<AiriPluginToolDescriptor[]>('eventa:invoke:airi:plugins:tools:list')
+export const airiPluginListXsaiTools = defineInvokeEventa<AiriPluginXsaiToolsetDefinition>('eventa:invoke:airi:plugins:tools:list-xsai')
+export const airiPluginInvokeTool = defineInvokeEventa<unknown, {
   ownerExtensionId: string
   name: string
   input: unknown
-}>('eventa:invoke:electron:plugins:tools:invoke')
-export const electronPluginToolsChanged = defineEventa<ElectronPluginToolsChangedPayload>('eventa:event:electron:plugins:tools:changed')
+}>('eventa:invoke:airi:plugins:tools:invoke')
+export const airiPluginToolsChanged = defineEventa<AiriPluginToolsChangedPayload>('eventa:event:airi:plugins:tools:changed')

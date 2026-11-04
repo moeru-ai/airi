@@ -1,8 +1,8 @@
 import type {
-  ElectronMcpConfigFile,
-  ElectronMcpHttpServerConfig,
-  ElectronMcpServerConfig,
-  ElectronMcpStdioServerConfig,
+  AiriMcpConfigFile,
+  AiriMcpHttpServerConfig,
+  AiriMcpServerConfig,
+  AiriMcpStdioServerConfig,
 } from '../../../shared/eventa'
 
 import { isHttpServerConfig, isHttpUrl } from '../../../shared/mcp-config'
@@ -87,9 +87,9 @@ export function findServerIdentifierByRowId(servers: ServerForm[], rowId: string
 }
 
 /** Converts one editable server row into persisted MCP server config. */
-export function buildServerConfig(server: ServerForm): ElectronMcpServerConfig {
+export function buildServerConfig(server: ServerForm): AiriMcpServerConfig {
   if (server.transport === 'http') {
-    const config: ElectronMcpHttpServerConfig = {
+    const config: AiriMcpHttpServerConfig = {
       url: server.url.trim(),
     }
 
@@ -103,7 +103,7 @@ export function buildServerConfig(server: ServerForm): ElectronMcpServerConfig {
     return config
   }
 
-  const config: ElectronMcpStdioServerConfig = {
+  const config: AiriMcpStdioServerConfig = {
     command: server.command.trim(),
   }
 
@@ -165,8 +165,8 @@ export function validateServerForm(server: ServerForm, translateMessage: Transla
 export function buildConfigFile(
   servers: ServerForm[],
   translateMessage: TranslateMcpMessage,
-): ElectronMcpConfigFile {
-  const config: ElectronMcpConfigFile = { mcpServers: {} }
+): AiriMcpConfigFile {
+  const config: AiriMcpConfigFile = { mcpServers: {} }
   const seenIdentifiers = new Set<string>()
 
   for (const [index, server] of servers.entries()) {
@@ -211,7 +211,7 @@ export function syncJsonDraftFromServers(
 
 /** Loads editable rows from persisted MCP config. */
 export function loadServerForms(
-  config: ElectronMcpConfigFile,
+  config: AiriMcpConfigFile,
   options: { selectedIdentifier?: string } = {},
 ): LoadedServerForms {
   const servers = Object.entries(config.mcpServers ?? {}).map(([identifier, server]): ServerForm => {

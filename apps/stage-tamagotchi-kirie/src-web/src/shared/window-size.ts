@@ -1,7 +1,7 @@
 import type { WidgetWindowSize } from './eventa'
 
 /**
- * Normalizes widget window size input before it is applied to an Electron window.
+ * Normalizes widget window size input before it is applied to a host window.
  *
  * Use when:
  * - Widget payloads provide optional window size overrides

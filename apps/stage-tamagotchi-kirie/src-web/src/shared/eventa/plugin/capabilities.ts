@@ -25,4 +25,4 @@ export const pluginProtocolListProviders = defineInvokeEventa<Array<{ name: stri
 // TODO: Replace these manually duplicated IPC types with re-exports from
 // @proj-airi/plugin-sdk (CapabilityDescriptor) once stage-ui and the shared
 // eventa layer can depend on the SDK without introducing unwanted coupling.
-export const electronPluginUpdateCapability = defineInvokeEventa<PluginCapabilityState, PluginCapabilityPayload>('eventa:invoke:electron:plugins:capability:update')
+export const airiPluginUpdateCapability = defineInvokeEventa<PluginCapabilityState, PluginCapabilityPayload>('eventa:invoke:airi:plugins:capability:update')

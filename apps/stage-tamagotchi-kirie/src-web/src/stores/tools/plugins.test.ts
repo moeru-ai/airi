@@ -35,9 +35,9 @@ const invokeMocks = vi.hoisted(() => ({
 
 vi.mock('@proj-airi/stage-host-context', () => ({
   useHostEventaInvoke: (event: { receiveEvent?: { id?: string } }) => {
-    if (event?.receiveEvent?.id === 'eventa:invoke:electron:plugins:tools:list-xsai-receive')
+    if (event?.receiveEvent?.id === 'eventa:invoke:airi:plugins:tools:list-xsai-receive')
       return invokeMocks.listPluginXsaiTools
-    if (event?.receiveEvent?.id === 'eventa:invoke:electron:plugins:tools:invoke-receive')
+    if (event?.receiveEvent?.id === 'eventa:invoke:airi:plugins:tools:invoke-receive')
       return invokeMocks.invokePluginTool
 
     throw new Error(`Unexpected eventa invoke: ${JSON.stringify(event)}`)

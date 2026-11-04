@@ -23,29 +23,29 @@ internal sealed record WidgetSnapshotPayload(
     WidgetWindowSizePayload? WindowSize,
     double TtlMs);
 
-/// <summary>Matches the renderer's widget contracts without an Electron runtime.</summary>
+/// <summary>Matches the renderer's widget contracts.</summary>
 internal static class WidgetContracts
 {
     public static readonly InvokeEventDefinition<string, WidgetMutationPayload> Add =
-        new("eventa:invoke:electron:windows:widgets:add");
+        new("eventa:invoke:airi:windows:widgets:add");
     public static readonly InvokeEventDefinition<EmptyPayload, WidgetMutationPayload> Update =
-        new("eventa:invoke:electron:windows:widgets:update");
+        new("eventa:invoke:airi:windows:widgets:update");
     public static readonly InvokeEventDefinition<WidgetSnapshotPayload?, WidgetIdPayload> Fetch =
-        new("eventa:invoke:electron:windows:widgets:fetch");
+        new("eventa:invoke:airi:windows:widgets:fetch");
     public static readonly InvokeEventDefinition<string, WidgetIdPayload> Prepare =
-        new("eventa:invoke:electron:windows:widgets:prepare");
+        new("eventa:invoke:airi:windows:widgets:prepare");
     public static readonly InvokeEventDefinition<EmptyPayload, WidgetIdPayload> Open =
-        new("eventa:invoke:electron:windows:widgets:open");
+        new("eventa:invoke:airi:windows:widgets:open");
     public static readonly InvokeEventDefinition<EmptyPayload, WidgetIdPayload> Hide =
-        new("eventa:invoke:electron:windows:widgets:hide");
+        new("eventa:invoke:airi:windows:widgets:hide");
     public static readonly InvokeEventDefinition<EmptyPayload, WidgetIdPayload> Remove =
-        new("eventa:invoke:electron:windows:widgets:remove");
+        new("eventa:invoke:airi:windows:widgets:remove");
     public static readonly InvokeEventDefinition<EmptyPayload, EmptyPayload> Clear =
-        new("eventa:invoke:electron:windows:widgets:clear");
+        new("eventa:invoke:airi:windows:widgets:clear");
     public static readonly EventDefinition<WidgetIdPayload> CloseRequested =
         new("eventa:event:airi:widgets:close-requested");
     public static readonly EventDefinition<WidgetSnapshotPayload> Render =
-        new("eventa:event:electron:windows:widgets:render");
+        new("eventa:event:airi:windows:widgets:render");
 
     public static KirieEventaJsonRegistry Register(KirieEventaJsonRegistry registry)
     {

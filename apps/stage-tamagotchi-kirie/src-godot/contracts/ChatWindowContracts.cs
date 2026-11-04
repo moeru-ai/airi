@@ -65,59 +65,58 @@ internal sealed record ChatDraftPayload(JsonElement? Draft);
 internal sealed record ChatDraftSettledPayload(bool Restored);
 
 /// <summary>
-/// Matches the chat window contracts of the renderer. The IDs keep the Electron names of the shared
-/// UI.
+/// Matches the chat window contracts of the renderer.
 /// </summary>
 internal static class ChatWindowContracts
 {
     public static readonly InvokeEventDefinition<ChatButtonStatePayload, EmptyPayload>
-        GetChatButtonState = new("eventa:invoke:electron:windows:chat:get-button-state");
+        GetChatButtonState = new("eventa:invoke:airi:windows:chat:get-button-state");
 
     public static readonly EventDefinition<ChatButtonStatePayload> ChatButtonStateChanged =
-        new("eventa:event:electron:windows:chat:button-state-changed");
+        new("eventa:event:airi:windows:chat:button-state-changed");
 
     public static readonly InvokeEventDefinition<ChatWindowPreferencesPayload, EmptyPayload>
-        GetPreferences = new("eventa:invoke:electron:windows:chat:get-preferences");
+        GetPreferences = new("eventa:invoke:airi:windows:chat:get-preferences");
 
     public static readonly InvokeEventDefinition<EmptyPayload, ChatWindowPreferencesChangePayload>
-        SetPreferences = new("eventa:invoke:electron:windows:chat:set-preferences");
+        SetPreferences = new("eventa:invoke:airi:windows:chat:set-preferences");
 
     public static readonly InvokeEventDefinition<ChatFloatingStatePayload, EmptyPayload>
-        GetFloatingState = new("eventa:invoke:electron:windows:chat-floating:get-state");
+        GetFloatingState = new("eventa:invoke:airi:windows:chat-floating:get-state");
 
     public static readonly EventDefinition<ChatFloatingStatePayload> FloatingStateChanged =
-        new("eventa:event:electron:windows:chat-floating:state-changed");
+        new("eventa:event:airi:windows:chat-floating:state-changed");
 
     public static readonly InvokeEventDefinition<EmptyPayload, EmptyPayload> FloatingContentHidden =
-        new("eventa:invoke:electron:windows:chat-floating:content-hidden");
+        new("eventa:invoke:airi:windows:chat-floating:content-hidden");
 
     public static readonly InvokeEventDefinition<EmptyPayload, EmptyPayload> FloatingFold =
-        new("eventa:invoke:electron:windows:chat-floating:fold");
+        new("eventa:invoke:airi:windows:chat-floating:fold");
 
     public static readonly InvokeEventDefinition<EmptyPayload, ChatFloatingMoveByPayload>
-        FloatingMoveBy = new("eventa:invoke:electron:windows:chat-floating:move-by");
+        FloatingMoveBy = new("eventa:invoke:airi:windows:chat-floating:move-by");
 
     public static readonly InvokeEventDefinition<EmptyPayload, ChatFloatingResizeByPayload>
-        FloatingResizeBy = new("eventa:invoke:electron:windows:chat-floating:resize-by");
+        FloatingResizeBy = new("eventa:invoke:airi:windows:chat-floating:resize-by");
 
     /// <summary>The host asks the chat window that a mode switch closes for its draft.</summary>
     public static readonly InvokeEventDefinition<ChatDraftPayload, EmptyPayload> CollectDraft =
-        new("eventa:invoke:electron:windows:chat:collect-draft");
+        new("eventa:invoke:airi:windows:chat:collect-draft");
 
     /// <summary>The chat window that a mode switch opens takes the draft when it mounts.</summary>
     public static readonly InvokeEventDefinition<ChatDraftPayload, EmptyPayload> TakeDraft =
-        new("eventa:invoke:electron:windows:chat:take-draft");
+        new("eventa:invoke:airi:windows:chat:take-draft");
 
     /// <summary>Tells a mounted chat window that a mode switch carries a draft to it.</summary>
     public static readonly EventDefinition<EmptyPayload> DraftOffered =
-        new("eventa:event:electron:windows:chat:draft-offered");
+        new("eventa:event:airi:windows:chat:draft-offered");
 
     /// <summary>
     /// The chat window reports what happened to the draft it took. A window with no draft to take
     /// reports `true`, which also tells the switch that the page mounted.
     /// </summary>
     public static readonly InvokeEventDefinition<EmptyPayload, ChatDraftSettledPayload>
-        DraftSettled = new("eventa:invoke:electron:windows:chat:draft-settled");
+        DraftSettled = new("eventa:invoke:airi:windows:chat:draft-settled");
 
     public static KirieEventaJsonRegistry Register(KirieEventaJsonRegistry registry)
     {

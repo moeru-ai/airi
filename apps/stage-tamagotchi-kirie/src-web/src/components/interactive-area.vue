@@ -30,7 +30,7 @@ import ChatViewportLayout from './chat-viewport-layout.vue'
 
 import { useHearingInputChannel } from '../composables/use-hearing-input-channel'
 import { useHostAuth } from '../host-context/auth'
-import { electronOpenSettings } from '../shared/eventa'
+import { airiOpenSettings } from '../shared/eventa'
 import { useToolSelectionStore, widgetToolReferences } from '../stores/tools'
 import { WEATHER_TOOL_NAME } from '../stores/tools/builtin/weather'
 import { weatherToolCallWidget } from './chat-tool-renderers/weather-tool-call-widget'
@@ -98,7 +98,7 @@ const { streamingMessage } = storeToRefs(chatStream)
 const { activeTurns, backgroundTasks } = storeToRefs(chatStore)
 const { activeCard, activeCardId } = storeToRefs(airiCardStore)
 const { chatReady } = storeToRefs(useConsciousnessStore())
-const openSettings = useHostEventaInvoke(electronOpenSettings)
+const openSettings = useHostEventaInvoke(airiOpenSettings)
 const { startLogin } = useHostAuth()
 
 const composer = useChatComposer<ChatImageAttachment>({

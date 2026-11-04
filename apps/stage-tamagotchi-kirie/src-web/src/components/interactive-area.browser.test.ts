@@ -146,7 +146,7 @@ function dispatchHorizontalPan(element: HTMLElement, deltaX = 60) {
   }))
 }
 
-async function expectElectronReplyBubble(screen: Awaited<ReturnType<typeof renderArea>>['screen']) {
+async function expectDesktopReplyBubble(screen: Awaited<ReturnType<typeof renderArea>>['screen']) {
   await vi.waitFor(() => {
     expect(screen.container.querySelector('[data-swipeable]')).not.toBeNull()
   })
@@ -436,7 +436,7 @@ describe('interactive area synchronized state', () => {
       state.sessionMessages['session-b'] = [{ id: 'reply-target', role: 'user', content: 'Reply target' }]
     })
 
-    await expectElectronReplyBubble(screen)
+    await expectDesktopReplyBubble(screen)
   })
 
   it('restores composer focus after a keyboard user cancels a reply', async () => {
