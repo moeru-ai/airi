@@ -264,6 +264,8 @@ pages:
     logout: 登出
     fluxBalance: 剩余通量
     viewFluxDetails: 查看详情
+    usage:
+      tab: 用量
     viewCapacitor: 查看
     signedInAs: 登录 为
     profile:
@@ -1615,6 +1617,32 @@ pages:
       loadMore: 更多信息
       delayHint: Flux 电量历史记录是缓慢更新的，可能有延迟
       ttsRequests: 请求
+    usage:
+      title: Flux 用量
+      details: 查看详细数据
+      loadError: 暂时无法加载用量数据，请重试。
+      retry: 重试
+      signIn: 登录账户以查看使用记录
+      empty: 还没有用量记录
+      fluxAmount: '{amount} Flux'
+      viewLabel: 用量视图
+      chartLabel: 最近 365 天的 Flux 用量
+      keyboardHint: 使用方向键查看用量。Home 和 End 选择首个和最后一个时段，Escape 隐藏详情。
+      throughDate: '截至 {date}'
+      views:
+        daily: 每日
+        weekly: 每周
+        cumulative: 累计
+      labels:
+        daily: 每日 Flux 用量
+        weekly: 每周 Flux 用量
+        cumulative: 累计 Flux 用量
+      summary:
+        longestSession: 最长会话
+        peakFlux: 单日最高 Flux
+        flux: 消耗 Flux
+        longestStreak: 最长连续
+        currentStreak: 当前连续
     packages:
       title: Flux 电池包
       buy: 充值
