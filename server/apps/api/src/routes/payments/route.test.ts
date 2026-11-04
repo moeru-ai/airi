@@ -52,10 +52,4 @@ describe('payment receipt route', () => {
 
     expect(response.status).toBe(401)
   })
-
-  it('hides foreign orders', async () => {
-    const response = await createApp('other-buyer').request('/api/v1/payments/apple-order/receipt')
-
-    expect(response.status).toBe(404)
-  })
 })

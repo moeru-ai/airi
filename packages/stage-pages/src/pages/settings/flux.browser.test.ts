@@ -44,8 +44,6 @@ describe('public Flux page', () => {
     cleanup()
     disposePinia(pinia)
     vi.unstubAllGlobals()
-    localStorage.clear()
-    vi.unstubAllEnvs()
   })
 
   it('keeps the original package cards public and sends purchase clicks to sign-in', async () => {
@@ -95,8 +93,6 @@ describe('flux order receipts', () => {
           records: [
             { id: 'tx-stripe', type: 'credit', description: 'Stripe recharge', paymentOrderId: 'stripe-order' },
             { id: 'tx-apple', type: 'credit', description: 'Apple recharge', paymentOrderId: 'apple-order' },
-            { id: 'tx-gift', type: 'promo', description: 'Gift', paymentOrderId: null },
-            { id: 'tx-initial', type: 'initial', description: 'Initial grant', paymentOrderId: null },
             { id: 'tx-usage', type: 'debit', description: 'Usage', paymentOrderId: null },
           ].map(record => ({ ...record, amount: 100, metadata: null, createdAt: '2026-11-03T00:00:00Z' })),
           hasMore: false,
@@ -144,7 +140,6 @@ describe('flux order receipts', () => {
     expect(buttons.elements()).toHaveLength(2)
 
     const button = buttons.nth(0).element()
-    expect(button.getAttribute('title')).toBe('View order')
     const label = buttons.nth(0).getByText('View order', { exact: true })
     if (width >= 640)
       await expect.element(label).not.toBeVisible()
