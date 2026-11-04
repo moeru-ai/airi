@@ -235,7 +235,7 @@ describe('classifyAuvCommand', () => {
     })
 
     it('handles array with non-string items or null bytes', () => {
-      expect(classifyAuvCommand(['invoke', 123 as unknown as string]).category).toBe('unknown')
+      expect(classifyAuvCommand(['invoke', 123]).category).toBe('unknown')
       expect(classifyAuvCommand(['invoke', '']).category).toBe('unknown')
       expect(classifyAuvCommand(['invoke', 'window.list\0hack']).category).toBe('unknown')
     })
