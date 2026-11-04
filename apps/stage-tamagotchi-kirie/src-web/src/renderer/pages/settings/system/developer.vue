@@ -31,7 +31,7 @@ const menu = computed(() => [
     title: 'Displays',
     description: 'Visualize connected displays and cursor position',
     icon: 'i-solar:sledgehammer-bold-duotone',
-    to: '/devtools/use-electron-all-displays',
+    to: '/devtools/displays',
   },
   {
     title: 'Widgets Calling',
@@ -49,7 +49,7 @@ const menu = computed(() => [
     title: 'Relative Mouse',
     description: 'Get mouse position relative to the window',
     icon: 'i-solar:sledgehammer-bold-duotone',
-    to: '/devtools/use-electron-relative-mouse',
+    to: '/devtools/relative-mouse',
   },
   {
     title: 'Aliyun Real-time Transcriber',
@@ -80,24 +80,6 @@ const menu = computed(() => [
     description: 'Inspect discovered/enabled/loaded plugins and control load/unload lifecycle',
     icon: 'i-solar:bug-bold-duotone',
     to: '/devtools/plugin-host',
-  },
-  {
-    title: 'Updater',
-    description: 'Inspect updater state, explicit feed overrides, and install actions',
-    icon: 'i-solar:restart-bold-duotone',
-    to: '/devtools/updater',
-  },
-  {
-    title: 'Screen Capture',
-    description: 'Capture screen or window as video and/or audio streams',
-    icon: 'i-solar:screen-share-bold-duotone',
-    to: '/devtools/screen-capture',
-  },
-  {
-    title: 'Vision Capture',
-    description: 'Capture a screen frame and inspect the output payload',
-    icon: 'i-solar:eye-closed-bold-duotone',
-    to: '/devtools/vision',
   },
   {
     title: 'Global Shortcut',

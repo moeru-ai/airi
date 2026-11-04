@@ -58,8 +58,12 @@ The following work remains deferred:
 | Plugin host | Discovery, workers, directory import, and extension lifecycle |
 | Artistry | Credentials, provider jobs, downloads, and Widget updates |
 | MCP | Configuration and stdio process lifecycle |
-| Packaging and updates | Exports, signatures, installation, update manifests, and relaunch |
-| Auxiliary windows | Inlay, Widgets list, Caption, and BeatSync. Their tray items stay disabled. |
+| Packaging and updates | Exports, signatures, installation, update manifests, relaunch, and the Updater devtools page |
+| Auxiliary windows | Inlay, Widgets list, Caption, BeatSync, Dashboard, Editor, Desktop overlay, and the Notice list. Their tray items stay disabled. |
+| Screen capture | Source selection, macOS permission, the Vision devtools page, and the Screen Capture devtools page |
+
+Kirie has no pages for the deferred windows and devtools.
+To add one, port it from [stage-tamagotchi](../stage-tamagotchi/src/renderer/pages) when the host capability exists.
 
 The Node services remain outside the Kirie bootstrap until AIRI supplies their runtime and lifecycle.
 The workspace Node.js command is not a production sidecar.

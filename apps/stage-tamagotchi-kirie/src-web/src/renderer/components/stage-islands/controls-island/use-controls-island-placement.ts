@@ -1,6 +1,6 @@
-import type { Rectangle } from 'electron'
 import type { InjectionKey, Ref } from 'vue'
 
+import type { AiriDesktopDisplayBounds } from '../../../../shared/eventa'
 import type { DisplayArea } from '../../../../shared/utils/electron/display'
 
 import { inject } from 'vue'
@@ -17,7 +17,7 @@ export interface ResolveControlsIslandDockOptions {
   /** Dock that remains active while display data is missing or the window is near the display center. */
   previousDock: ControlsIslandDock
   /** AIRI window bounds in host-independent logical coordinates. Zero width or height means that the bounds are not available. */
-  windowBounds: Rectangle
+  windowBounds: AiriDesktopDisplayBounds
 }
 
 /** The half-width of the center band that prevents repeated flips near an axis. */

@@ -1,4 +1,3 @@
-import type { Locale } from '@intlify/core'
 import type {
   GameletIframeRequestPayload as GameletIframeInvokePayload,
   GameletIframeResponsePayload,
@@ -6,7 +5,6 @@ import type {
 import type { ServerOptions } from '@proj-airi/server-runtime/server'
 import type {
   ShortcutAccelerator,
-  ShortcutBinding,
   ShortcutRegistrationResult,
 } from '@proj-airi/stage-shared/global-shortcut'
 import type {
@@ -27,7 +25,6 @@ import type {
   VrmUpdateFrameTracePayload,
 } from '@proj-airi/stage-ui-three/trace'
 import type { ChatHistoryReplyPayload } from '@proj-airi/stage-ui/components/scenarios/chat'
-import type { Rectangle } from 'electron'
 
 import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
 
@@ -107,11 +104,7 @@ export interface AiriTrayLabels {
 
 export const airiTraySetLabels = defineInvokeEventa<void, AiriTrayLabels>('eventa:invoke:airi:tray:labels:set')
 
-export const electronStartTrackMousePosition = defineInvokeEventa('eventa:invoke:electron:start-tracking-mouse-position')
-export const electronStartDraggingWindow = defineInvokeEventa('eventa:invoke:electron:start-dragging-window')
-
 export const electronOpenMainDevtools = defineInvokeEventa<void, Record<string, never>>('eventa:invoke:electron:windows:main:devtools:open')
-export const electronCenterMainWindow = defineInvokeEventa<Rectangle>('eventa:invoke:electron:windows:main:center')
 export const electronOpenSettings = defineInvokeEventa<void, { route?: string }>('eventa:invoke:electron:windows:settings:open')
 export const electronSettingsNavigate = defineEventa<{ route: string }>('eventa:event:electron:windows:settings:navigate')
 export const electronSettingsReady = defineEventa<Record<string, never>>('eventa:event:electron:windows:settings:ready')
@@ -270,7 +263,6 @@ export const electronChatWindowDraftOffered = defineEventa<Record<string, never>
 export const electronChatWindowDraftSettled = defineInvokeEventa<void, { restored: boolean }>('eventa:invoke:electron:windows:chat:draft-settled')
 export const electronSpotlightOpen = defineInvokeEventa<void>('eventa:invoke:electron:windows:spotlight:open')
 export const electronSpotlightHide = defineInvokeEventa<void>('eventa:invoke:electron:windows:spotlight:hide')
-export const electronSpotlightShowResultNotification = defineInvokeEventa<void, { body: string }>('eventa:invoke:electron:windows:spotlight:show-result-notification')
 export const electronSpotlightShortcutGet = defineInvokeEventa<ShortcutAccelerator>('eventa:invoke:electron:windows:spotlight:shortcut:get')
 export const electronSpotlightShortcutSet = defineInvokeEventa<ShortcutRegistrationResult, { accelerator: ShortcutAccelerator | null }>('eventa:invoke:electron:windows:spotlight:shortcut:set')
 export const airiSpotlightShortcutChanged = defineEventa<ShortcutAccelerator>('eventa:event:airi:windows:spotlight:shortcut-changed')
@@ -306,16 +298,6 @@ export * from './plugin/assets'
 export * from './plugin/capabilities'
 export * from './plugin/host'
 export * from './plugin/tools'
-
-export interface DesktopOverlayReadiness {
-  state: 'booting' | 'ready' | 'degraded'
-  error?: string
-}
-
-export const getDesktopOverlayReadinessContract = defineInvokeEventa<DesktopOverlayReadiness>('eventa:invoke:electron:windows:desktop-overlay:get-readiness')
-
-export const captionIsFollowingWindowChanged = defineEventa<boolean>('eventa:event:electron:windows:caption-overlay:is-following-window-changed')
-export const captionGetIsFollowingWindow = defineInvokeEventa<boolean>('eventa:invoke:electron:windows:caption-overlay:get-is-following-window')
 
 export interface NoticeOpenPayload {
   id?: string
@@ -583,10 +565,6 @@ export interface ElectronWindowLifecycleState {
   visible: boolean
 }
 
-export const electronWindowLifecycleChanged = defineEventa<ElectronWindowLifecycleState>('eventa:event:electron:window:lifecycle-changed')
-export const electronGetWindowLifecycleState = defineInvokeEventa<ElectronWindowLifecycleState>('eventa:invoke:electron:window:get-lifecycle-state')
-export const electronWindowSetAlwaysOnTop = defineInvokeEventa<void, boolean>('eventa:invoke:electron:window:set-always-on-top')
-export const electronAppOpenUserDataFolder = defineInvokeEventa<{ path: string }>('eventa:invoke:electron:app:open-user-data-folder')
 export const electronAppQuit = defineInvokeEventa<void>('eventa:invoke:electron:app:quit')
 
 export type ElectronGodotStageState = 'stopped' | 'starting' | 'running' | 'stopping' | 'error'
@@ -664,12 +642,6 @@ export interface ElectronShortcutTriggerPayload {
   phase: ElectronShortcutTriggerPhase
 }
 
-export const electronShortcutRegister = defineInvokeEventa<ShortcutRegistrationResult, ShortcutBinding>('eventa:invoke:electron:shortcut:register')
-export const electronShortcutUnregister = defineInvokeEventa<void, { id: string }>('eventa:invoke:electron:shortcut:unregister')
-export const electronShortcutUnregisterAll = defineInvokeEventa<void>('eventa:invoke:electron:shortcut:unregister-all')
-export const electronShortcutList = defineInvokeEventa<ShortcutBinding[]>('eventa:invoke:electron:shortcut:list')
-export const electronShortcutTriggered = defineEventa<ElectronShortcutTriggerPayload>('eventa:event:electron:shortcut:triggered')
-
 // <- Global shortcut
 
 export type StageThreeRuntimeTraceEnvelope
@@ -721,9 +693,3 @@ export const electronAuthCallback = defineEventa<ElectronAuthTokens>('eventa:eve
 export const electronAuthCallbackError = defineEventa<{ error: string }>('eventa:event:electron:auth:callback-error')
 export const electronAuthLogout = defineInvokeEventa<void>('eventa:invoke:electron:auth:logout')
 export const airiAuthConfigure = defineInvokeEventa<void, { clientId: string, serverUrl: string }>('eventa:invoke:airi:auth:configure')
-
-export const i18nSetLocale = defineInvokeEventa<void, Locale>('eventa:invoke:electron:i18n:set-locale')
-export const i18nGetLocale = defineInvokeEventa<string | undefined>('eventa:invoke:electron:i18n:get-locale')
-
-export { electron } from '@proj-airi/electron-eventa'
-export * from '@proj-airi/electron-eventa/electron-updater'
