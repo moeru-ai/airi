@@ -69,13 +69,6 @@ beforeEach(async () => {
     const url = new URL(input instanceof Request ? input.url : input)
     const token = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined)).get('authorization') ?? ''
     requests.push(url)
-    if (url.pathname.endsWith('/get-session')) {
-      const id = token.includes('other-token') ? 'other' : 'owner'
-      return Response.json({
-        user: { id, name: id, email: `${id}@example.com`, emailVerified: true, createdAt: now, updatedAt: now },
-        session: { id: `session-${id}`, userId: id, token: `${id}-token`, createdAt: now, updatedAt: now, expiresAt: '2027-01-01T00:00:00.000Z' },
-      })
-    }
     if (url.pathname.endsWith('/list-accounts'))
       return Response.json([])
     if (url.pathname.endsWith('/flux/usage/daily'))
@@ -104,9 +97,22 @@ afterAll(() => {
   globalThis.fetch = network.original
 })
 
-async function openPage(path = '/settings/account') {
+function setAccount(id = 'owner') {
   const auth = useAuthStore(pinia)
-  await auth.completeSignIn({ accessToken: 'owner-token', expiresIn: 3600, clientId: 'browser-test' })
+  const date = new Date(now)
+  const version = auth.sessionVersion + 1
+  auth.$patch({
+    user: { id, name: id, email: `${id}@example.com`, emailVerified: true, createdAt: date, updatedAt: date },
+    session: { id: `session-${id}`, userId: id, token: `${id}-token`, createdAt: date, updatedAt: date, expiresAt: new Date(Date.now() + 60_000) },
+    token: `${id}-token`,
+    sessionVersion: version,
+    verifiedSessionVersion: version,
+  })
+  return auth
+}
+
+async function openPage(path = '/settings/account') {
+  const auth = setAccount()
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
@@ -179,9 +185,9 @@ describe('account usage navigation', () => {
     dailyResponse = async token => token.includes('owner-token')
       ? pending.promise
       : Response.json({ days, longestSessionMs: 60_000 })
-    const { screen, auth } = await openPage()
+    const { screen } = await openPage()
     await expect.poll(() => requests.some(url => url.pathname.endsWith('/flux/usage/daily'))).toBe(true)
-    await auth.completeSignIn({ accessToken: 'other-token', expiresIn: 3600, clientId: 'browser-test' })
+    setAccount('other')
     await expect.element(screen.getByRole('img', { name: 'Daily Flux usage' })).toBeVisible()
     pending.resolve(Response.json({ days: days.map(day => ({ ...day, microFlux: 999_000_000 })), longestSessionMs: 999 * 60_000 }))
     await screen.getByRole('button', { name: 'Weekly', exact: true }).click()
@@ -196,7 +202,7 @@ describe('account usage navigation', () => {
       : Response.json({ records: otherHistory, hasMore: false })
     const { screen, auth } = await openPage('/settings/usage')
     await expect.poll(() => requests.some(url => url.pathname.endsWith('/flux/history'))).toBe(true)
-    await auth.completeSignIn({ accessToken: 'other-token', expiresIn: 3600, clientId: 'browser-test' })
+    setAccount('other')
     const otherRecord = screen.getByRole('cell', { name: 'Other account top up', exact: true })
     await expect.element(otherRecord).toBeVisible()
     pending.resolve(Response.json({ records: history, hasMore: true }))
