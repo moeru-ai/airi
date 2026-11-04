@@ -7,6 +7,12 @@ minimumReleaseAgeExclude:
   # Source: https://releases.electronjs.org/release/v43.8.4
   # Remove this exception after 2026-10-30T18:05:12Z.
   - electron@43.8.4
+  # NOTICE:
+  # Install the download retry before the release-age delay ends. A dropped download failed release and CI builds.
+  # 0.2.6 retries network errors, stalls, truncated bodies, and 5xx statuses. Our team publishes this package.
+  # Source: https://github.com/proj-airi/unplugin-fetch/pull/4
+  # Remove this exception after 2026-11-07T08:45:06Z.
+  - '@proj-airi/unplugin-fetch@0.2.6'
   # Packages from the AIRI team must always be trusted
   - '@auv-js/*'
   - '@gd-kirie/*'
@@ -40,17 +46,17 @@ packages:
   - '!**/dist/**'
 
 overrides:
-  '@types/hast': 'catalog:'
+  # @huggingface/transformers 3.8.1 pins an onnxruntime-web dev build. Use the catalog version, which @sherpaw needs.
+  # Remove when @huggingface/transformers declares the catalog version.
+  '@huggingface/transformers>onnxruntime-web': 'catalog:'
   array-flatten: npm:@nolyfill/array-flatten@^1.0.44
   axios: npm:feaxios@^0.0.23
   'eslint-plugin-sonarjs>typescript': 'catalog:'
-  hono: 4.13.3
   is-core-module: npm:@nolyfill/is-core-module@^1.0.39
   isarray: npm:@nolyfill/isarray@^1.0.44
   # rehype-katex 7.0.1 and micromark-extension-math 3.1.0 declare katex ^0.16. The speech transformers parse with the
   # catalog katex, so display and speech use one version. Remove when both declare the catalog version.
   micromark-extension-math>katex: 'catalog:'
-  onnxruntime-web: npm:onnxruntime-web@^1.27.0
   rehype-katex>katex: 'catalog:'
   safe-buffer: npm:@nolyfill/safe-buffer@^1.0.44
   safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
@@ -200,7 +206,7 @@ catalog:
   '@proj-airi/iconify-meteocons': ^0.1.5
   '@proj-airi/lobe-icons': ^1.0.19
   '@proj-airi/unocss-preset-chromatic': ^2.0.1
-  '@proj-airi/unplugin-fetch': ^0.2.3
+  '@proj-airi/unplugin-fetch': ^0.2.6
   '@proj-airi/unplugin-live2d-sdk': ^0.1.7
   '@revenuecat/purchases-js': ^1.15.0
   '@rive-app/canvas-lite': ^2.40.1

@@ -12,9 +12,33 @@ import type {
 
 import type { MocapBackend, MocapConfig, MocapJob, PerceptionPartial, VisionTaskModule, VisionTaskWasmFileset } from '../types'
 
+import simdWasmLoaderPath from '@mediapipe/tasks-vision/vision_wasm_internal.js?url'
+import simdWasmBinaryPath from '@mediapipe/tasks-vision/vision_wasm_internal.wasm?url'
+import nosimdWasmLoaderPath from '@mediapipe/tasks-vision/vision_wasm_nosimd_internal.js?url'
+import nosimdWasmBinaryPath from '@mediapipe/tasks-vision/vision_wasm_nosimd_internal.wasm?url'
+
 import { Semaphore } from 'es-toolkit'
 
-import { visionTaskAssets, visionTaskWasmRoot } from '../../tasks/tasks'
+/**
+ * Model files load at runtime from the MediaPipe model storage, so `pnpm install` does not download them.
+ * The devtools page needs network access to `storage.googleapis.com` the first time it starts each task.
+ */
+const modelAssetPaths = {
+  pose: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
+  hands: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+  face: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
+}
+
+/**
+ * Selects the Wasm build that the bundler serves from the installed `@mediapipe/tasks-vision` package.
+ * Same choice as `FilesetResolver.forVisionTasks()`: the SIMD build when the browser supports SIMD, else the no-SIMD build.
+ */
+async function resolveWasmFileset(tasksVision: VisionTaskModule): Promise<VisionTaskWasmFileset> {
+  if (await tasksVision.FilesetResolver.isSimdSupported())
+    return { wasmLoaderPath: simdWasmLoaderPath, wasmBinaryPath: simdWasmBinaryPath }
+
+  return { wasmLoaderPath: nosimdWasmLoaderPath, wasmBinaryPath: nosimdWasmBinaryPath }
+}
 
 export function createMediaPipeBackend(): MocapBackend {
   const semaphore = new Semaphore(1)
@@ -33,10 +57,8 @@ export function createMediaPipeBackend(): MocapBackend {
     if (!tasksVision)
       tasksVision = await import('@mediapipe/tasks-vision')
 
-    if (!vision) {
-      const { FilesetResolver } = tasksVision
-      vision = await FilesetResolver.forVisionTasks(visionTaskWasmRoot)
-    }
+    if (!vision)
+      vision = await resolveWasmFileset(tasksVision)
   }
 
   function isBusy() {
@@ -49,7 +71,7 @@ export function createMediaPipeBackend(): MocapBackend {
 
     const { PoseLandmarker } = tasksVision!
     poseLandmarker = await PoseLandmarker.createFromOptions(vision!, {
-      baseOptions: { modelAssetPath: visionTaskAssets.pose },
+      baseOptions: { modelAssetPath: modelAssetPaths.pose },
       runningMode: 'VIDEO',
       numPoses: 1,
     })
@@ -63,7 +85,7 @@ export function createMediaPipeBackend(): MocapBackend {
 
     const { HandLandmarker } = tasksVision!
     handLandmarker = await HandLandmarker.createFromOptions(vision!, {
-      baseOptions: { modelAssetPath: visionTaskAssets.hands },
+      baseOptions: { modelAssetPath: modelAssetPaths.hands },
       runningMode: 'VIDEO',
       numHands: 2,
     })
@@ -77,7 +99,7 @@ export function createMediaPipeBackend(): MocapBackend {
 
     const { FaceLandmarker } = tasksVision!
     faceLandmarker = await FaceLandmarker.createFromOptions(vision!, {
-      baseOptions: { modelAssetPath: visionTaskAssets.face },
+      baseOptions: { modelAssetPath: modelAssetPaths.face },
       runningMode: 'VIDEO',
       numFaces: 1,
     })
