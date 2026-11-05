@@ -10,7 +10,7 @@ import { initializeHostContext } from './owner'
 
 type Translate = (key: string) => string
 
-const labelKeyPrefix = 'tamagotchi.electron.tray.menu.labels.label'
+const labelKeyPrefix = 'tamagotchi.tray.menu.labels.label'
 
 /** Translates the tray labels with the Electron tray keys. */
 function createHostTrayLabels(t: Translate): AiriTrayLabels {
