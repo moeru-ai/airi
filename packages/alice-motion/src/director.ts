@@ -57,7 +57,7 @@ const endedSessionMemory = 64
 
 export class MotionDirector {
   private readonly random: () => number
-  private readonly catalog: MotionCatalog
+  private catalog: MotionCatalog
   private readonly idPrefix: string
   private readonly timers = new Map<TimerName, number>()
   private readonly outbox: MotionIntent[] = []
@@ -82,6 +82,11 @@ export class MotionDirector {
     this.random = options.random ?? createSeededRandom(options.seed ?? 1)
     this.catalog = options.catalog ?? new MotionCatalog()
     this.idPrefix = options.idPrefix ?? 'director'
+  }
+
+  /** Replaces the catalog, for example after the user imports a motion. Active cues keep playing. */
+  setCatalog(catalog: MotionCatalog) {
+    this.catalog = catalog
   }
 
   get state(): MotionState {

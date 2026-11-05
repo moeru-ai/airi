@@ -606,6 +606,42 @@ Para a conversa também ficar local, configure provedores locais nas configuraç
 
 Num ambiente de nuvem do Claude Code, a política de rede bloqueia `cubism.live2d.com` e `dist.ayaka.moe`. Para liberar, edite o ambiente: **Network access > Allowed domains**. Documentação: <https://code.claude.com/docs/en/cloud-environments#network-access>.
 
+### 3c. Ponte NeoAlice (S08): o AIRI segue a NeoAlice sem alterá-la
+
+A ponte assina os tópicos MQTT de um site da NeoAlice e toca a fala, o humor e os gestos no AIRI. Ela só lê. Não existe nenhuma chamada de publicação no código dela, então a NeoAlice e o espelho não mudam.
+
+1. O broker precisa de um listener WebSocket. No Mosquitto, acrescente ao `mosquitto.conf` e reinicie o broker:
+
+   ```text
+   listener 9001
+   protocol websockets
+   ```
+
+   O listener TCP 1883 continua como está.
+
+2. No AIRI, abra **Configurações > Módulos > NeoAlice Bridge** (`/settings/modules/neoalice-bridge`) e preencha:
+
+   | Campo | Valor |
+   | --- | --- |
+   | Broker WebSocket URL | `ws://<IP do broker>:9001` |
+   | Site | O site que a NeoAlice usa no espelho, a terceira parte do tópico `neoalice/v1/<site>/cmd/tts/say` |
+   | User name e Password | Os do broker, se ele pedir |
+   | Speech | **Silent** perto do espelho, para só um aparelho falar. **Play the audio that NeoAlice sends** para tocar o áudio de `cmd/tts/audio`. **Speak the text with the AIRI voice settings** para o AIRI falar o texto de `cmd/tts/say` com a voz configurada nele. |
+
+3. Marque **Enable the NeoAlice bridge**. O status passa para **Connected**, com o número de mensagens recebidas e ignoradas.
+
+O que a ponte faz:
+
+| Mensagem da NeoAlice | No AIRI |
+| --- | --- |
+| `evt/stt/final` | Pose de "pensando" até a fala começar (no máximo 20 s) |
+| `cmd/tts/say`, `cmd/tts/audio` | Fala com lip-sync e legenda, conforme o modo de fala |
+| `cmd/tts/stop` | Para a fala e cancela os gestos daquela fala |
+| `evt/mood` e o estado do `alice-companion` | Rosto e corpo do humor (V1 e V3) |
+| `cmd/avatar/gesture`, `pose`, `animation`, `emoji` | Pedido de movimento, decidido pelo diretor (S03) e pelo scheduler (S04) |
+
+Os gestos da NeoAlice sem clipe no VRM, como `namaste`, aparecem no console do navegador como `no renderer clip`. `index` toca o emote `shoot`, e `wave` toca o `greeting`.
+
 ### 4. Serviço de estado do companion (opcional)
 
 O serviço lê o humor da NeoAlice pelo MQTT e publica o estado em `neoalice/v1/companion/...`. Ele não escreve nos tópicos da NeoAlice.

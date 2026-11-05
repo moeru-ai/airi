@@ -227,17 +227,46 @@ O kit `teste-app/` confere tudo isso sozinho. Na última rodada, as 9 verificaç
 
 Limite: no app desktop, o chat e o palco podem rodar em janelas diferentes. A lista de emotes do prompt vem do palco da mesma janela. Isso não foi testado no desktop.
 
+## Estado da S03, da S04, da S08 e da V3 (05/11/2026)
+
+O responsável aprovou os contratos v1 em 05/11/2026, com o limite de 4096 bytes por mensagem de movimento. Isso liberou a S03, a S04 e a S08.
+
+| Sprint | Entrega | Testes |
+| --- | --- | --- |
+| S03 | `MotionDirector` em `packages/alice-motion`: estados do Plano 01, relógio do chamador, semente fixa, sem LLM, sessão encerrada nunca volta. Catálogo semântico com as ações do diretor, da biblioteca VRM e dos gestos e poses da NeoAlice. | 14 testes |
+| S04 | `MotionScheduler`: prioridade, canais, TTL, idempotência por ID, cancelamento por sessão, fala alinhada ao áudio tocado. Casos do plano: walk + wave, walk + sit, dois gestos no mesmo braço, um gesto em cada braço, reconexão com sessão antiga. | 15 testes |
+| S08 | Ponte NeoAlice somente leitura. `NeoAliceTranslator` (pacote `alice-motion`), store MQTT por WebSocket, runtime do palco com diretor e scheduler, tela **Configurações > Módulos > NeoAlice Bridge**. | 9 testes do tradutor, 6 do store, 6 do runtime, e 6 de 6 verificações no app com um Mosquitto real |
+| V3 | `MoodBody` no VRM: respiração, inclinação do tronco, cabeça, ombros e balanço por humor, e contato visual por humor. Conceitos do TalkingHead (MIT). | 8 testes e comparação visual |
+
+Decisões tomadas nesta etapa:
+
+- Um gesto de um braço reserva só o canal daquele braço, com a mão dele. O canal `hands` passou a significar as duas mãos juntas. Assim um gesto em cada braço toca junto, como o plano pede.
+- A tabela de humores saiu de `services/alice-companion` e foi para `packages/alice-motion`, para a ponte usar a mesma tabela. O ADR registra a mudança.
+- No VRM, os gestos da NeoAlice sem clipe próprio usam o emote mais próximo: `index` toca `shoot` e `wave` toca `greeting`. Os outros, como `namaste`, ficam registrados no console como `no renderer clip`. A V5 (FBX para VRMA) traz os clipes que faltam.
+- As ações procedurais do diretor reservam canais no scheduler, mas o VRM continua usando a camada procedural própria (xiaoke e V3). A P3 (máscaras e mistura aditiva) é que vai desenhar essas ações.
+
+Defeitos encontrados pelos testes e corrigidos:
+
+- No navegador, o build ESM do MQTT.js só tem export `default`. A ponte não conectava. Agora ela usa o `connect` do `default` quando o export nomeado não existe (comentário `NOTICE` no código).
+- Um cue vencido ainda segurava o canal até o próximo `update` do scheduler. Agora o `submit` encerra os cues vencidos antes de decidir.
+- Os campos de configuração reconectavam a ponte a cada tecla. Agora a ponte espera 500 ms de pausa.
+
+Evidências:
+
+- `evidencias/S08/`: sequência do vídeo no app, verificações e a contagem de publicações no log do broker. Zero publicações saíram da ponte, e 16 mensagens foram entregues a ela.
+- `evidencias/V3/humores-postura.png`: a Neptuna no mesmo quadro do idle em neutro, feliz, triste e bravo, de frente e de lado.
+
 ## Nova ordem proposta (substitui S06, S07 e S15 do Planejamento 03)
 
 | Sprint | Entrega no `overcyber/airi` | Base |
 |---|---|---|
 | V1 (**concluída em 04/11/2026**, ver "Estado da V1" e "Teste dentro do app") | Presença fluida no VRM, com a Neptuna como modelo de teste: pool de idles com os tempos do Utsuwa, clipes de pensar e de falar, emotes com saída limpa, rosto de humor permanente com suavização (no lugar do reset de 3 s em `VRMModel.vue:1111`) e presença procedural do diretor do xiaoke. Novo `packages/stage-ui-three/src/composables/vrm/motion-library.ts`, chamado em `VRMModel.vue:827-846`. | Seção "Análise do código" abaixo |
 | V2 (**concluída em 04/11/2026**, ver "Estado da V2") | Emotes pelo LLM: estender o token ACT (`stage-ui/src/composables/queues.ts:23-60`, `Stage.vue:294-346`) com `motion`. Importação de VRMA com descrição na tela de modelo. | Padrão do Utsuwa, implementação própria |
-| V3 | Realismo procedural no VRM: respiração, troca de pose e peso por humor, cabeça e contato visual. O humor deixa de ser só rosto (`expression.ts`, reset de 3 s). | Conceitos do TalkingHead (MIT) |
+| V3 (**concluída em 05/11/2026**) | Realismo procedural no VRM: respiração, troca de pose e peso por humor, cabeça e contato visual. O humor deixa de ser só rosto (`expression.ts`, reset de 3 s). | Conceitos do TalkingHead (MIT) |
 | V4 | Eva GLB → VRM, mantendo ARKit 52 + visemas como expressões customizadas, e lip-sync mapeado | D1 / antiga S15 |
 | V5 | Conversão dos ~20 FBX Mixamo para VRMA (script de retarget e verificação visual) | `talkinghead-neoalice/animations_arkit` |
 | V6 | Camadas no VRM: máscara por osso e mistura aditiva (gesto de braço sem parar o idle) | Plano 01 P3, agora no VRM |
-| — | S03 (director) e S04 (scheduler) seguem válidos e passam a comandar V1–V6. A S08 (ponte MQTT) liga a NeoAlice sem alterá-la. | Contratos v1 (`packages/alice-motion`) |
+| — | S03 (director) e S04 (scheduler) **concluídas em 05/11/2026**. A S08 (ponte MQTT) **concluída em 05/11/2026**: liga a NeoAlice sem alterá-la. | Contratos v1 (`packages/alice-motion`) |
 
 Pendências que não verifiquei:
 

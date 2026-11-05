@@ -32,6 +32,7 @@ import { computed, nextTick, onUnmounted, ref, shallowRef, watch } from 'vue'
 import StageAvatarModelMissing from './stage-avatar-model-missing.vue'
 import StageRenderError from './stage-render-error.vue'
 
+import { useNeoAliceStageBridge } from '../../composables/use-neoalice-stage-bridge'
 // import { useDuckDb } from '../../composables/use-duck-db'
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 import { useLive2DStageMotionMagic } from '../../features/motions/live2d/use-live2d-stage-motion-magic'
@@ -482,6 +483,76 @@ const disconnectVoiceOutput = voice.connectOutput((turn) => {
   }
 }, playback)
 
+// NeoAlice bridge (S08). It only listens to MQTT. Its speech plays on the same output as a reply, with lip sync.
+let neoAliceGroup: ReturnType<typeof playback.openGroup> | undefined
+let neoAliceClip = 0
+
+function showBridgeCaption(text: string) {
+  assistantCaption.value = text
+  try {
+    postCaption({ type: 'caption-assistant', text })
+    postPresent({ type: 'assistant-append', text })
+  }
+  catch (error) {
+    console.warn('[Stage] Failed to post the NeoAlice caption', { error })
+  }
+}
+
+const { thinking: neoAliceThinking } = useNeoAliceStageBridge({
+  playClip: async clipId => stageModelRenderer.value === 'vrm' ? (await vrmViewerRef.value?.playMotion(clipId)) ?? false : false,
+  emotes: () => vrmMotions.motionLibrary.emotes,
+  synthesize: async (text, signal) => {
+    const turn = { sessionId: 'neoalice-bridge', turnId: `neoalice-${++neoAliceClip}` }
+    const output = speechStore.createOutput(turn, cards.getModules(cards.activeCardId).speech, { playback }, audioContext)
+    if (!('synthesize' in output))
+      return null
+    return await output.synthesize({
+      turnId: turn.turnId,
+      streamId: turn.turnId,
+      intentId: turn.turnId,
+      segmentId: `${turn.turnId}-0`,
+      sequence: 0,
+      text,
+      special: null,
+      reason: 'flush',
+      priority: 0,
+      createdAt: Date.now(),
+    }, signal)
+  },
+  playSpeech: async (audio, text) => {
+    await audioContext.resume().catch(() => {})
+    neoAliceGroup?.stop({ fadeMs: 80 }).catch(() => {})
+    const group = playback.openGroup('neoalice-bridge')
+    neoAliceGroup = group
+    let started = false
+    await group.enqueue({
+      id: `neoalice-audio-${++neoAliceClip}`,
+      audio,
+      onStart: () => {
+        started = true
+        playingCount += 1
+        nowSpeaking.value = true
+        showBridgeCaption(text)
+      },
+    })
+    await group.finish().catch(() => {})
+    if (started) {
+      playingCount -= 1
+      if (playingCount === 0)
+        resetSpeakingState()
+    }
+  },
+  stopSpeech: () => {
+    neoAliceGroup?.stop({ fadeMs: 120 }).catch(() => {})
+  },
+  showCaption: showBridgeCaption,
+  applyEmotion: (emotion, intensity) => {
+    const payload = toStageEmotionPayload({ name: emotion, intensity })
+    if (payload)
+      emotionsQueue.enqueue(payload)
+  },
+})
+
 function startLipSyncLoop() {
   if (lipSyncLoopId.value)
     return
@@ -753,7 +824,7 @@ defineExpose({
         :audio-context="audioContext"
         :connect-speech="connectSpeech"
         :speech-active="nowSpeaking"
-        :thinking="chatSending && !nowSpeaking"
+        :thinking="(chatSending || neoAliceThinking) && !nowSpeaking"
         :motion-library="vrmMotions.motionLibrary"
         @error="reportStageRenderError"
         @vrm-interact="onVRMInteract"

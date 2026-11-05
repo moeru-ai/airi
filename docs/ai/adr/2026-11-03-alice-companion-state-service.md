@@ -44,7 +44,7 @@ pnpm-workspace.yaml              catalog entry for mqtt
 services/alice-companion/
   package.json, tsconfig.json, vitest.config.ts, README.md
   src/contracts.ts               Valibot schemas of every MQTT message and of the state file
-  src/mood-vocabulary.ts         NeoAlice -> TalkingHead and AIRI names
+  (moved on 2026-11-05) src/mood-vocabulary.ts is now packages/alice-motion/src/mood-vocabulary.ts
   src/companion-state.ts         pure reducer and published views
   src/state-store.ts             file storage, backup, audit, lock
   src/companion-service.ts       queue, save, publish

@@ -10,15 +10,15 @@
 | --- | --- | --- | --- | --- |
 | Seção 5 | Contratos `MotionIntent` e `MotionCue` | Feito | `packages/alice-motion` com Valibot e 15 testes. ADR `2026-11-04-alice-motion-contracts-v1.md`, aprovado pelo responsável em 05/11/2026, com o limite de 4096 bytes por mensagem registrado na seção "Message size limit". | — |
 | P0 | Baseline, fixture, telemetria, vídeo antes e depois | Parcial | Versões e resultados de typecheck e testes registrados (S02). Fixture VRM Neptuna. Vídeo da V1. | Telemetria própria por quadro (`motion_trace.jsonl`, FPS, `mixer_ms`). Medição em hardware real. |
-| P1 | MotionDirector com estados, fala, emoção e ações semânticas | Parcial | O diretor do xiaoke (V1) cobre os estados parada, pensando e falando para cabeça e tronco, com aleatoriedade injetável. | O director que recebe `MotionIntent` e escolhe ações semânticas (S03). Estados `listening`, `walking`, `acting`, `interrupted`. |
-| P2 | Scheduler: prioridades, reserva de canais, interrupção | Falta | — | S04 inteira. |
+| P1 | MotionDirector com estados, fala, emoção e ações semânticas | Feito | `MotionDirector` (S03, 05/11/2026) com os 7 estados, semente fixa e relógio do chamador. No VRM, o diretor do xiaoke (V1) e o `MoodBody` (V3) desenham cabeça, tronco e respiração. | — |
+| P2 | Scheduler: prioridades, reserva de canais, interrupção | Feito | `MotionScheduler` (S04, 05/11/2026). Liga ao palco pela ponte da S08. | As ações procedurais só reservam canais. Desenhá-las é a P3. |
 | P3 | Máscaras por osso e mistura aditiva | Falta | — | V6 (gesto de braço sem parar o idle). |
 | P4 | Voz, face, prosódia, gaze, física, foot lock | Parcial | Rosto de humor permanente, aceno nos acentos da fala, lip-sync e spring bones do AIRI. | Marcações de tempo do TTS (Kokoro `/dev/captioned_speech`), foot lock, teste de 100 interrupções. |
-| P5 | Catálogo semântico e editor de camadas | Parcial | `defaultVrmMotionLibrary` com nome e descrição de cada emote. `playMotion(id)`. | Tela de catálogo, importação de VRMA, LLM escolhendo o emote (V2). |
+| P5 | Catálogo semântico e editor de camadas | Parcial | `MotionCatalog` (S03). Importação de VRMA com descrição e LLM escolhendo o emote (V2). | Editor de máscara e prévia por camada. |
 | P6 | Adaptador VRM | Parcial | O VRM virou a base (Planejamento 04). A biblioteca de movimentos roda no VRM. | Eva GLB convertida para VRM (V4). Retarget dos FBX Mixamo (V5). |
 | P7 | Gestos neurais (StreamTalk, ARDY) | Falta | — | S17. Depende das GPUs (D7). |
-| Seção 9 | Integração com serviços locais | Parcial | Serviço `alice-companion` lê o MQTT da NeoAlice. | Ponte MQTT para o AIRI (S08). |
-| Seção 11 | Testes que bloqueiam merge | Parcial | Semente fixa nos testes do diretor. Reconexão e duplicatas no serviço de companion. | `walk + sit`, gestos nos dois braços, 100 trocas de personagem, FPS 30/60/120. |
+| Seção 9 | Integração com serviços locais | Feito | Serviço `alice-companion` e ponte MQTT somente leitura no AIRI (S08, 05/11/2026). | Rodar contra o broker real (prompt do agente local). |
+| Seção 11 | Testes que bloqueiam merge | Parcial | Semente fixa, `walk + wave`, `walk + sit`, mesmo braço, um gesto em cada braço, interrupção e reconexão (S03, S04). | 100 trocas de personagem, FPS 30/60/120, 100 interrupções com física. |
 
 ## 2. Plano 02 — Estado afetivo, relacionamento e companion
 
@@ -32,7 +32,7 @@
 | B5 | Fatos, sessões, busca semântica | Falta | — | S11. |
 | B6 | Eventos e marcos | Falta | — | S12. |
 | B7 | Proatividade | Falta | — | S13. |
-| B8 | Afeto para movimento | Parcial | O serviço publica `companion.affect.updated`. O AIRI já reage ao humor do LLM com o rosto permanente da V1. | O AIRI ler o afeto do serviço (depende da S08). |
+| B8 | Afeto para movimento | Feito | O serviço publica o estado e o afeto. A ponte da S08 lê os dois, e o AIRI mostra o humor no rosto (V1) e no corpo (V3). | — |
 | B9 | Grafo, álbum, toque, cenas | Parcial | O toque virou reação que volta ao humor (V1). | Grafo, álbum, cenas. |
 | B10 | Hardening | Parcial | Testes por pacote, lint, busca de dados privados a cada commit. | Testes de carga e de segurança. |
 | — | Campos de humor e fim de turno publicados pela NeoAlice | Adiado | O serviço já aceita os campos. O prompt está bloqueado. | Liberação da NeoAlice. |

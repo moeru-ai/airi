@@ -347,7 +347,7 @@ S03 e S04 podem rodar em paralelo com S05. As três são pacotes novos sem rende
 | Typecheck | Monorepo inteiro (mesmos filtros do `pnpm typecheck`): 67 de 67 tarefas passaram. Duas condições do ambiente: o `vue-tsc` do `stage-ui` precisa de `NODE_OPTIONS=--max-old-space-size=8192`, e o `dist` do `electron-screen-capture` precisou de um novo build depois da instalação completa. |
 | Testes | `turbo run test:run`: 73 de 78 tarefas passam no container. As 5 restantes falham por ambiente, sem relação com código: rede bloqueada (`stage-web`, `stage-tamagotchi`), IPv6 ausente (`auth-server`) e Node 22 no lugar do Node 26 do CI (`better-ws` e 1 teste do `stage-ui`, que passam com Node 26.13.0). Detalhes no ADR. |
 | Contratos v1 | `packages/alice-motion` com `MotionIntent` e `MotionCue` em Valibot. 15 testes. ADR `docs/ai/adr/2026-11-04-alice-motion-contracts-v1.md`, **aprovado pelo responsável em 05/11/2026**. A aprovação inclui o limite de 4096 bytes por mensagem de movimento (seção "Message size limit" do ADR). A S02 está concluída, e a S03, a S04 e a S08 estão liberadas. |
-| Vocabulário único | Já existe em `services/alice-companion/src/mood-vocabulary.ts` (14 humores da NeoAlice, TalkingHead e AIRI). |
+| Vocabulário único | `packages/alice-motion/src/mood-vocabulary.ts` (14 humores da NeoAlice, TalkingHead e AIRI). Estava em `services/alice-companion` e foi movido em 05/11/2026, para a ponte da S08 usar a mesma tabela. |
 | Subir o AIRI com o modelo original | **Bloqueado pela rede do ambiente de nuvem.** O `stage-web` baixa o SDK do Live2D (`cubism.live2d.com`) e os modelos originais (`dist.ayaka.moe`) ao iniciar, e o proxy do ambiente recusa os dois hosts (HTTP 403). |
 
 **Decisão D1 — formato do avatar no AIRI.** Opções:

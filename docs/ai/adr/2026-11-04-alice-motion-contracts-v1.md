@@ -15,7 +15,8 @@ The NeoAlice backend already sends avatar commands over MQTT. Plan 03 forbids ch
 - `MotionCue` needs exactly one of `clipId` and `generatorId`.
 - `parseMotionIntent` and `parseMotionCue` never throw. A message above 4096 bytes is refused before parsing. See "Message size limit".
 - The semantic action whitelist comes from the motion catalog at runtime (`allowedActions`). The schema checks only the name format.
-- Mood and relationship contracts stay in `services/alice-companion/src/contracts.ts`. The mood name table stays in `services/alice-companion/src/mood-vocabulary.ts`. This ADR does not copy them.
+- Mood and relationship contracts stay in `services/alice-companion/src/contracts.ts`. This ADR does not copy them.
+- The mood name table is `packages/alice-motion/src/mood-vocabulary.ts`. See "Change after approval".
 
 ## Message size limit
 
@@ -111,3 +112,12 @@ sequenceDiagram
 - The reference event of Plan 01 is accepted.
 - Wrong version, out-of-range values, unknown channels, repeated channels, bad action names, unknown sources, oversized messages, and non-object input are refused with a reason and without an exception.
 - A cue with both or neither of `clipId` and `generatorId`, no channel, a weight above 1, or an expiry before the start is refused.
+
+## Change after approval (2026-11-05)
+
+This change moves a file. It does not change a contract.
+
+- The mood name table moved from `services/alice-companion/src/mood-vocabulary.ts` to `packages/alice-motion/src/mood-vocabulary.ts`.
+- Reason: the S08 bridge in `packages/stage-ui` needs the same table. A package cannot import from a service, and a second copy of the table could drift.
+- `services/alice-companion` now imports `resolveMood` from `@proj-airi/alice-motion`. Its tests and its output did not change.
+

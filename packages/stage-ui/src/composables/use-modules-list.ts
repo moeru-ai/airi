@@ -14,6 +14,7 @@ import { useFactorioStore } from '../stores/modules/gaming-factorio'
 import { useMinecraftStore } from '../stores/modules/gaming-minecraft'
 import { useHearingStore } from '../stores/modules/hearing'
 import { useHomeAssistantStore } from '../stores/modules/home-assistant'
+import { useNeoAliceBridgeStore } from '../stores/modules/neoalice-bridge'
 import { useSpeechStore } from '../stores/modules/speech'
 import { useStickersStore } from '../stores/modules/stickers'
 import { useTwitterStore } from '../stores/modules/twitter'
@@ -43,6 +44,7 @@ export function useModulesList() {
   const hearingStore = useHearingStore()
   const visionStore = useVisionStore()
   const discordStore = useDiscordStore()
+  const neoAliceBridgeStore = useNeoAliceBridgeStore()
   const twitterStore = useTwitterStore()
   const webSearchStore = useWebSearchStore()
   const minecraftStore = useMinecraftStore()
@@ -154,6 +156,15 @@ export function useModulesList() {
       icon: 'i-simple-icons:discord',
       to: '/settings/modules/messaging-discord',
       configured: discordStore.configured,
+      category: 'messaging',
+    },
+    {
+      id: 'neoalice-bridge',
+      name: t('settings.pages.modules.neoalice-bridge.title'),
+      description: t('settings.pages.modules.neoalice-bridge.description'),
+      icon: 'i-solar:transmission-circle-bold-duotone',
+      to: '/settings/modules/neoalice-bridge',
+      configured: neoAliceBridgeStore.enabled && neoAliceBridgeStore.configured,
       category: 'messaging',
     },
     {

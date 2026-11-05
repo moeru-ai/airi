@@ -1,0 +1,3 @@
+Mosquitto log (log_type all) de todas as rodadas do teste da ponte desde o inicio do broker:
+Received PUBLISH from airi-neoalice-bridge-*: 0
+Sending PUBLISH to airi-neoalice-bridge-*: 16

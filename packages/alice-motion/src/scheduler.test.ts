@@ -124,6 +124,16 @@ describe('motionScheduler', () => {
     expect(sitting.submit(intent('speak_beat'), 0)).toMatchObject({ ok: false })
   })
 
+  it('frees the channels of an expired cue before the next update', () => {
+    const scheduler = new MotionScheduler()
+    scheduler.submit(intent('gesture_thumbup'), 0)
+
+    const later = scheduler.submit(intent('gesture_ok'), 5000)
+
+    expect(later.ok).toBe(true)
+    expect(scheduler.update(5000).map(event => event.type)).toEqual(['start', 'stop', 'start'])
+  })
+
   it('refuses a repeated intent ID', () => {
     const scheduler = new MotionScheduler()
     const once = intent('wave_left')

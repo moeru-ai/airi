@@ -2,7 +2,7 @@
 
 Motion contracts, motion catalog, motion director, and motion scheduler for the Alice persona (Plan 01, section 8). The package has no renderer code: no Three.js and no Vue.
 
-The planning documents are in `docs/alice-motion-engine/`. This package implements sprints S02 (contracts), S03 (director), and S04 (scheduler) of Plan 03. The ADR is `docs/ai/adr/2026-11-04-alice-motion-contracts-v1.md`, accepted on 2026-11-05.
+The planning documents are in `docs/alice-motion-engine/`. This package implements sprints S02 (contracts), S03 (director), S04 (scheduler), and the translation part of S08 (NeoAlice bridge) of Plan 03. The ADR is `docs/ai/adr/2026-11-04-alice-motion-contracts-v1.md`, accepted on 2026-11-05.
 
 ## What it contains
 
@@ -15,6 +15,8 @@ The planning documents are in `docs/alice-motion-engine/`. This package implemen
 | `MotionCatalog`, `defaultMotionCatalogEntries` | Semantic actions: clip or generator, channels, duration, priority, fades. |
 | `MotionDirector` | Behavior states and the intents of each state, on a clock that the caller passes. |
 | `MotionScheduler` | Turns intents into cues and decides which cue owns each body channel. |
+| `NeoAliceTranslator`, `neoAliceBridgeTopics` | Turns NeoAlice MQTT messages into bridge events: speech, mood, and motion intents. It never publishes. |
+| `resolveMood` | The shared mood table: NeoAlice, TalkingHead, and AIRI names. |
 | `createSeededRandom` | Seeded random source, so a test or a recording can replay the same motion. |
 
 ## Director
@@ -54,6 +56,26 @@ Events: `userStartedSpeaking`, `userFinishedSpeaking`, `speechStarted`, `speechE
 A one-arm gesture owns only its arm channel, which includes the hand of that arm. So `wave_left` and `wave_right` play together, and an arm gesture never blocks `walk`. The `hands` channel means both hands together.
 
 `update(nowMs)` returns `start` and `stop` events in order. A renderer adapter plays them.
+
+## NeoAlice bridge translation
+
+`NeoAliceTranslator` reads the topics that the MagicMirror module reads, with the same field rules as its `node_helper.js`. The MQTT client lives in `packages/stage-ui` (`stores/modules/neoalice-bridge.ts`).
+
+| Topic | Event |
+| --- | --- |
+| `neoalice/v1/<site>/cmd/tts/say` | `speech-text` from `tts.text` or `text` |
+| `neoalice/v1/<site>/cmd/tts/audio` | `speech-audio` from `audio.b64` or `audio_base64` |
+| `neoalice/v1/<site>/cmd/tts/stop` | `speech-stop` |
+| `neoalice/v1/<site>/evt/stt/final` | `user-speech` |
+| `neoalice/v1/<site>/evt/mood`, `neoalice/v1/<site>/cmd/evt/mood` | `mood`, through `resolveMood` |
+| `neoalice/v1/<site>/cmd/avatar/gesture` | `intent` `gesture_<name>`. `wave` becomes `wave_right`. |
+| `neoalice/v1/<site>/cmd/avatar/pose` | `intent` `pose_<name>` on the `posture` channel |
+| `neoalice/v1/<site>/cmd/avatar/animation` | `intent` from the file name of the URL. `walking.fbx` becomes `walk`. An unknown file is ignored. |
+| `neoalice/v1/<site>/cmd/avatar/emoji` | `intent` `emoji` on the `facial` channel |
+| `neoalice/v1/companion/evt/companion/state`, `.../affect` | `mood` from the companion service |
+
+- Other sites, repeated payloads within 2 s, broken JSON, and unknown commands are `ignored` events with a reason. Nothing throws.
+- An avatar command above 4096 bytes is ignored, as the accepted ADR requires for motion messages. Speech audio can be up to 10 MB.
 
 ## Test model
 

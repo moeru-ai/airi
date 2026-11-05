@@ -20,6 +20,7 @@
   "dependencies": {
     "@guiiai/logg": "catalog:",
     "@moeru/std": "catalog:",
+    "@proj-airi/alice-motion": "workspace:^",
     "injeca": "catalog:",
     "mqtt": "catalog:",
     "tsx": "catalog:",

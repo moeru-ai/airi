@@ -20,7 +20,7 @@ const VIDEO = Boolean(process.env.VIDEO)
 const startedAt = Date.now()
 const steps = []
 const consoleLines = []
-const state = { page: undefined, importedListed: false }
+const state = { page: undefined, browser: undefined, importedListed: false }
 
 function note(message) {
   const line = `[${((Date.now() - startedAt) / 1000).toFixed(1)}s] ${message}`
@@ -34,7 +34,7 @@ async function capture(page, name, always = false) {
     note(`mark ${name}`)
     return
   }
-  await page.screenshot({ path: path.join(OUT, `${name}.png`) })
+  await page.screenshot({ path: path.join(OUT, `${name}.png`), timeout: 120_000 })
   note(`screenshot ${name}`)
 }
 
@@ -48,7 +48,8 @@ async function waitForButtons(page, minimum) {
 
 /** Uses the fake server for the LLM and the voice, and skips the onboarding. */
 async function configureProviders(page) {
-  await page.goto(`${BASE}/`)
+  // The first load of the Vite dev server compiles the app and can take minutes.
+  await page.goto(`${BASE}/`, { timeout: 300_000 })
   await page.evaluate(() => {
     const config = { apiKey: 'sk-test', baseUrl: 'http://127.0.0.1:8091/v1/' }
     const llm = { id: 'openai-compatible', definitionId: 'openai-compatible', config, status: 'configured', configuredBy: 'user' }
@@ -192,6 +193,7 @@ async function main() {
     '--enable-unsafe-swiftshader',
     '--autoplay-policy=no-user-gesture-required',
   ] })
+  state.browser = browser
   const context = await browser.newContext({
     viewport: { width: 1280, height: 800 },
     recordVideo: VIDEO ? { dir: OUT, size: { width: 1280, height: 800 } } : undefined,
@@ -220,5 +222,7 @@ main().catch(async (error) => {
   await state.page?.screenshot({ path: path.join(OUT, 'failed.png') }).catch(() => {})
   fs.writeFileSync(path.join(OUT, 'console.txt'), consoleLines.join('\n'))
   fs.writeFileSync(path.join(OUT, 'steps.txt'), `${steps.join('\n')}\nFAILED ${error.stack}`)
+  // Close the browser, or the process keeps running after a failure.
+  await state.browser?.close().catch(() => {})
   process.exitCode = 1
 })

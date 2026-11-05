@@ -5093,6 +5093,9 @@ importers:
       '@proj-airi/agents':
         specifier: workspace:^
         version: link:../agents
+      '@proj-airi/alice-motion':
+        specifier: workspace:^
+        version: link:../alice-motion
       '@proj-airi/audio':
         specifier: workspace:^
         version: link:../audio
@@ -5327,6 +5330,9 @@ importers:
       mediabunny:
         specifier: 'catalog:'
         version: 1.55.2
+      mqtt:
+        specifier: 'catalog:'
+        version: 5.16.1(bufferutil@4.1.0)(supports-color@10.2.2)(utf-8-validate@5.0.10)
       nanoid:
         specifier: 'catalog:'
         version: 6.0.1
@@ -6781,6 +6787,9 @@ importers:
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
+      '@proj-airi/alice-motion':
+        specifier: workspace:^
+        version: link:../../packages/alice-motion
       injeca:
         specifier: 'catalog:'
         version: 0.2.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)

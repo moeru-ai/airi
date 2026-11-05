@@ -52,7 +52,7 @@ const maxSpeechStarts = 64
 const cancelFadeOutMs = 250
 
 export class MotionScheduler {
-  private readonly catalog: MotionCatalog
+  private catalog: MotionCatalog
   private readonly seenIdTtlMs: number
   private readonly seenIds = new Map<string, number>()
   private readonly cancelledSessions: string[] = []
@@ -66,6 +66,11 @@ export class MotionScheduler {
   }
 
   /** Cues that hold channels now, ordered by start. */
+  /** Replaces the catalog, for example after the user imports a motion. Active cues keep playing. */
+  setCatalog(catalog: MotionCatalog) {
+    this.catalog = catalog
+  }
+
   get activeCues(): MotionCue[] {
     return [...this.active.values()].map(entry => entry.cue)
   }
@@ -100,6 +105,8 @@ export class MotionScheduler {
     const intent = parsed.value
 
     this.forgetOldIds(nowMs)
+    // A cue whose time is over must not hold a channel, even before the next `update`.
+    this.expire(nowMs)
     if (this.seenIds.has(intent.id))
       return { ok: false, reason: `intent "${intent.id}" was already received` }
     this.seenIds.set(intent.id, nowMs)
@@ -142,11 +149,15 @@ export class MotionScheduler {
 
   /** Ends the cues whose time is over and returns every event since the last call, in order. */
   update(nowMs: number): SchedulerEvent[] {
+    this.expire(nowMs)
+    return this.outbox.splice(0)
+  }
+
+  private expire(nowMs: number) {
     for (const entry of [...this.active.values()]) {
       if (entry.cue.expiresAtMs !== undefined && entry.cue.expiresAtMs <= nowMs)
         this.stop(entry, entry.cue.expiresAtMs, 0, 'expired')
     }
-    return this.outbox.splice(0)
   }
 
   private buildCue(intent: MotionIntent, entry: MotionCatalogEntry, nowMs: number) {

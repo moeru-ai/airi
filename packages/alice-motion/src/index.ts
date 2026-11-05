@@ -1,5 +1,7 @@
 export * from './catalog'
 export * from './contracts'
 export * from './director'
+export * from './mood-vocabulary'
+export * from './neoalice-bridge'
 export * from './random'
 export * from './scheduler'

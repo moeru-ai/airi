@@ -1176,6 +1176,38 @@ pages:
     memory-short-term:
       description: Short-term memory specific settings and management
       title: Short-Term Memory
+    neoalice-bridge:
+      title: NeoAlice Bridge
+      description: Speech, mood, and gestures from NeoAlice over MQTT
+      intro: AIRI listens to the MQTT topics of one NeoAlice site and plays its speech, mood, and gestures. The bridge only reads. It never publishes, so NeoAlice and the mirror do not change.
+      enable: Enable the NeoAlice bridge
+      enable-description: Connect to the broker while the stage is open
+      broker-url: Broker WebSocket URL
+      broker-url-description: The broker needs a WebSocket listener, for example Mosquitto with "listener 9001" and "protocol websockets"
+      site: Site
+      site-description: The NeoAlice site to follow. It is the third part of the topic, for example mirror in neoalice/v1/mirror/cmd/tts/say
+      accept-any-site: Follow every site
+      accept-any-site-description: Read all sites, like the acceptAnySite option of the mirror module
+      companion-site: Companion site
+      companion-site-description: Site where the companion service publishes its state. The default is companion.
+      username: User name
+      password: Password
+      speech-mode:
+        title: Speech
+        description: Use Silent next to the mirror, so only one device speaks
+        silent: Silent. Show the text, move, and change mood.
+        neoalice-audio: Play the audio that NeoAlice sends
+        airi-voice: Speak the text with the AIRI voice settings
+      not-configured: Set the broker URL and the site, or follow every site.
+      status:
+        'off': The bridge is off
+        connecting: Connecting...
+        connected: Connected. AIRI follows NeoAlice.
+        reconnecting: Connection lost. Reconnecting...
+        error: Connection error
+      counters: '{received} messages received, {ignored} ignored'
+      last-event: 'Last event: {event}'
+      last-ignored: 'Last ignored message: {reason}'
     messaging-discord:
       description: Chat & voice chat over Discord
       title: Discord

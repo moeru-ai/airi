@@ -9,9 +9,9 @@ import type {
 } from './contracts'
 
 import { merge } from '@moeru/std'
+import { resolveMood } from '@proj-airi/alice-motion'
 
 import { metricNames } from './contracts'
-import { resolveMood } from './mood-vocabulary'
 
 /**
  * Rules that the reducer applies. The service builds one policy at startup.

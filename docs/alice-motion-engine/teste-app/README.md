@@ -1,4 +1,4 @@
-# Teste da V1 e da V2 dentro do app
+# Testes da V1, da V2 e da ponte NeoAlice (S08) dentro do app
 
 Este kit testa o `stage-web` real com a Neptuna. Ele não precisa de LLM nem de TTS de verdade: um servidor falso responde como um servidor compatível com OpenAI.
 
@@ -65,3 +65,39 @@ Variáveis opcionais:
 - O servidor falso só testa o caminho do app. Ele não testa a qualidade do LLM ao escolher um emote.
 - O áudio do TTS falso é um tom. Ele aciona a fala e o lip-sync, mas não é voz.
 - Num ambiente sem `cubism.live2d.com`, o teste em nuvem usou o `live2dcubismcore.min.js` do pacote npm `live2dcubismcore` só para o app iniciar. Na sua máquina, use o arquivo oficial (README, "Rodar 100% local").
+
+## Teste da ponte NeoAlice (S08)
+
+`teste-ponte-s08.cjs` testa a ponte com um broker MQTT de verdade. Ele publica como a NeoAlice, num site de teste (`airi-test`), então uma NeoAlice e um espelho reais no mesmo broker ignoram essas mensagens.
+
+| Passo | Mensagem publicada | O que o teste confere |
+| --- | --- | --- |
+| 1 | `evt/mood` `playful` | Humor feliz |
+| 2 | `evt/stt/final` | Pose de "pensando" |
+| 3 | `cmd/tts/say` | O AIRI falou o texto com a voz configurada (o servidor falso recebeu `/audio/speech` com o texto) |
+| 4 | `cmd/avatar/gesture` `index` | O console mostra `played gesture_index as clip shoot` |
+| 5 | `evt/mood` `melancholic` e `cmd/tts/audio` | Rosto e corpo tristes, áudio da NeoAlice tocando |
+| 6 | `cmd/tts/stop` | A fala para |
+| 7 | `cmd/tts/say` em outro site | Nunca é falado |
+| 8 | `cmd/avatar/gesture` `moonwalk` | Ignorado com o motivo `the catalog has no action for this command` |
+
+Requisitos a mais: um broker com listener WebSocket e TCP. Por exemplo, um Mosquitto só para o teste:
+
+```text
+listener 1883 127.0.0.1
+protocol mqtt
+listener 9001 127.0.0.1
+protocol websockets
+allow_anonymous true
+```
+
+Com o `stage-web` e o servidor falso rodando:
+
+```bash
+VIDEO=1 node docs/alice-motion-engine/teste-app/teste-ponte-s08.cjs ./saida-teste-ponte
+```
+
+Variáveis: `BRIDGE_WS_URL` (padrão `ws://127.0.0.1:9001`), `PUBLISH_URL` (padrão `mqtt://127.0.0.1:1883`) e `BRIDGE_SITE` (padrão `airi-test`).
+
+Para provar que a ponte nunca publica, ligue `log_type all` no Mosquitto. O log não pode ter nenhuma linha `Received PUBLISH from airi-neoalice-bridge-`.
+
