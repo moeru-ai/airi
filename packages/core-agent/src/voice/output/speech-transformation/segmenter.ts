@@ -28,6 +28,10 @@ interface ScanState {
   strong: boolean
   /** True on the lines of a table. */
   table: boolean
+  /** Buffer index where brackets last opened. */
+  bracketStart?: number
+  /** Sentence ends seen while brackets are open. */
+  bracketSentences?: number
 }
 
 function isOpen(state: ScanState): boolean {
@@ -113,9 +117,11 @@ export class MarkdownSegmenter {
       if (char === '\n') {
         lineStart = true
         // Inline code, links, and emphasis do not cross a blank line.
-        if (text[index + 1] === '\n') {
+        if (/^[\t \r]*\n/.test(text.slice(index + 1))) {
           state.code = undefined
           state.brackets = 0
+          state.bracketStart = undefined
+          state.bracketSentences = 0
           state.url = false
           state.emphasis = false
           state.strong = false
@@ -126,7 +132,7 @@ export class MarkdownSegmenter {
         // The next line decides: an indented line can continue a list item, and parsed alone it is a code block. A line
         // of `=` makes the line before a heading. The last line waits for the next one.
         // A table ends at a line that is not a row.
-        if (next !== undefined && next !== ' ' && next !== '\t' && next !== '=') {
+        if (next !== undefined && next !== ' ' && next !== '\t' && next !== '\r' && next !== '=') {
           if (state.table && next !== '|')
             state.table = false
           if (!isOpen(state))
@@ -188,10 +194,24 @@ export class MarkdownSegmenter {
 
       // The character that ends a sentence. Closing emphasis keeps the end before it, as in `**Done.** Next`.
       let terminal = char
-      if (char === '[')
-        state.brackets++
+      if (char === '[') {
+        // An emoticon, as `:[`, `>:[`, or `:-[`, does not open a link label.
+        const before = text.slice(Math.max(0, index - 2), index)
+        const isEmoticon = /[:;]$|>:$|:-$|;-$|>=$/.test(before)
+        if (!isEmoticon) {
+          if (state.brackets === 0) {
+            state.bracketStart = index
+            state.bracketSentences = 0
+          }
+          state.brackets++
+        }
+      }
       else if (char === ']' && state.brackets > 0) {
         state.brackets--
+        if (state.brackets === 0) {
+          state.bracketStart = undefined
+          state.bracketSentences = 0
+        }
         if (text[index + 1] === '(') {
           state.url = true
           index++
@@ -214,8 +234,12 @@ export class MarkdownSegmenter {
         index += run - 1
       }
 
-      if (isOpen(state))
-        continue
+      // An unclosed bracket expires after 200 characters without a closing bracket.
+      if (state.brackets > 0 && state.bracketStart !== undefined && index - state.bracketStart > 200) {
+        state.brackets = 0
+        state.bracketStart = undefined
+        state.bracketSentences = 0
+      }
 
       // A sentence ends after CJK punctuation, or after Latin punctuation and a space. `1.` that starts a list item and
       // `3.14` are not ends.
@@ -224,6 +248,20 @@ export class MarkdownSegmenter {
         end = index + 1
       else if (latinSentenceEnds.has(terminal) && (text[index + 1] === ' ' || text[index + 1] === '\t') && !/^\s*\d+$/.test(text.slice(text.lastIndexOf('\n', index) + 1, index)))
         end = index + 1
+
+      // An open bracket expires after two sentence ends.
+      if (end !== undefined && state.brackets > 0) {
+        state.bracketSentences = (state.bracketSentences ?? 0) + 1
+        if (state.bracketSentences >= 2) {
+          state.brackets = 0
+          state.bracketStart = undefined
+          state.bracketSentences = 0
+        }
+      }
+
+      if (isOpen(state))
+        continue
+
       if (end === undefined)
         continue
       while (closers.has(text[end] ?? ''))

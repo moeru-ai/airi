@@ -90,4 +90,62 @@ describe('markdownSegmenter bracket handling', () => {
     expect(pushResult).toEqual(['See [link\nlabel](https://example.com/path). '])
     expect(segmenter.end()).toEqual(['More text follows.'])
   })
+
+  it('treats bracket emoticons as plain text without holding back speech', () => {
+    // Single paragraph with emoticon :[
+    expect(segmentsOf('Ugh :[ fine. Let me check. Done now.')).toEqual([
+      'Ugh :[ fine. ',
+      'Let me check. ',
+      'Done now.',
+    ])
+
+    // Angry emoticon >:[
+    expect(segmentsOf('Ugh >:[ fine. Let me check. Done now. Anything else?')).toEqual([
+      'Ugh >:[ fine. ',
+      'Let me check. ',
+      'Done now. ',
+      'Anything else?',
+    ])
+
+    // Emoticon followed by single newline
+    expect(segmentsOf('Sad :[\nNext line is ready. Tail text')).toEqual([
+      'Sad :[\n',
+      'Next line is ready. ',
+      'Tail text',
+    ])
+  })
+
+  it('resets bracket state across blank lines with whitespace or CRLF', () => {
+    // Blank line with spaces
+    expect(segmentsOf('First unclosed [part\n   \nSecond sentence. Tail')).toEqual([
+      'First unclosed [part\n   \n',
+      'Second sentence. ',
+      'Tail',
+    ])
+
+    // Blank line with CRLF
+    expect(segmentsOf('First unclosed [part\r\n\r\nSecond sentence. Tail')).toEqual([
+      'First unclosed [part\r\n\r\n',
+      'Second sentence. ',
+      'Tail',
+    ])
+  })
+
+  it('gives up on unclosed bracket after two sentence ends or 200 characters', () => {
+    // Not an emoticon, unclosed bracket expires after 2 sentence ends
+    const text = 'Opening [bracket text without closing. Sentence two is done. Sentence three is here. Final'
+    const segments = segmentsOf(text)
+    expect(segments).toEqual([
+      'Opening [bracket text without closing. Sentence two is done. ',
+      'Sentence three is here. ',
+      'Final',
+    ])
+
+    // Real link stays whole even with a period inside label
+    expect(segmentsOf('See [the docs](https://x.y/a). They help. Really.')).toEqual([
+      'See [the docs](https://x.y/a). ',
+      'They help. ',
+      'Really.',
+    ])
+  })
 })
