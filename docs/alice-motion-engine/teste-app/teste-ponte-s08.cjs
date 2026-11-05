@@ -20,7 +20,23 @@ const PUBLISH_URL = process.env.PUBLISH_URL ?? 'mqtt://127.0.0.1:1883'
 /** A test site, so a real NeoAlice and a real mirror on the same broker ignore these messages. */
 const SITE = process.env.BRIDGE_SITE ?? 'airi-test'
 const FAKE_LOG = process.env.FAKE_LOG ?? path.join(os.tmpdir(), 'airi-fake-openai-requests.jsonl')
-const VIDEO = Boolean(process.env.VIDEO)
+const VIDEO = process.env.VIDEO === '1'
+const FAKE_OPENAI_BASE_URL = process.env.FAKE_OPENAI_BASE_URL ?? 'http://127.0.0.1:8091/v1/'
+
+async function requireFakeServer() {
+  let response
+  try {
+    response = await fetch(new URL('models', FAKE_OPENAI_BASE_URL), { signal: AbortSignal.timeout(5000) })
+  }
+  catch (error) {
+    throw new Error(`Fake OpenAI server unreachable at ${FAKE_OPENAI_BASE_URL}: ${error.message}. Run fake-openai-server.cjs or use run-local.cjs`)
+  }
+  if (!response.ok)
+    throw new Error(`Fake OpenAI server at ${FAKE_OPENAI_BASE_URL} returned HTTP ${response.status}`)
+  const body = await response.json()
+  if (!body.data?.some(model => model.id === 'fake-model'))
+    throw new Error(`Unexpected models from ${FAKE_OPENAI_BASE_URL}: this is not the AIRI test fake server`)
+}
 // The mqtt package of the alice-companion service, so the kit needs no extra install.
 const mqtt = require(require.resolve('mqtt', { paths: [path.join(AIRI_DIR, 'services/alice-companion')] }))
 
@@ -72,8 +88,8 @@ function toneWavBase64(seconds) {
 async function configure(page) {
   // The first load of the Vite dev server compiles the app and can take minutes.
   await page.goto(`${BASE}/`, { timeout: 300_000 })
-  await page.evaluate(({ wsUrl, site }) => {
-    const config = { apiKey: 'sk-test', baseUrl: 'http://127.0.0.1:8091/v1/' }
+  await page.evaluate(({ wsUrl, site, fakeBaseUrl }) => {
+    const config = { apiKey: 'sk-test', baseUrl: fakeBaseUrl }
     const llm = { id: 'openai-compatible', definitionId: 'openai-compatible', config, status: 'configured', configuredBy: 'user' }
     const tts = { id: 'openai-compatible-audio-speech', definitionId: 'openai-compatible-audio-speech', config, status: 'configured', configuredBy: 'user' }
     localStorage.setItem('onboarding/completed', 'true')
@@ -89,7 +105,7 @@ async function configure(page) {
     localStorage.setItem('settings/neoalice-bridge/broker-url', wsUrl)
     localStorage.setItem('settings/neoalice-bridge/site', site)
     localStorage.setItem('settings/neoalice-bridge/speech-mode', 'airi-voice')
-  }, { wsUrl: BRIDGE_WS_URL, site: SITE })
+  }, { wsUrl: BRIDGE_WS_URL, site: SITE, fakeBaseUrl: FAKE_OPENAI_BASE_URL })
 }
 
 async function importNeptuna(page) {
@@ -144,6 +160,7 @@ async function bridgeStatus(page) {
 
 async function main() {
   fs.mkdirSync(OUT, { recursive: true })
+  await requireFakeServer()
   const browser = await chromium.launch({ args: [
     '--disable-features=LocalNetworkAccessChecks,BlockInsecurePrivateNetworkRequests,PrivateNetworkAccessRespectPreflightResults',
     '--use-angle=swiftshader',
@@ -156,6 +173,11 @@ async function main() {
   state.page = page
   page.on('pageerror', error => consoleLines.push(`PAGEERROR ${error.message}`))
   page.on('console', message => consoleLines.push(`${message.type()} ${message.text().slice(0, 400)}`))
+  page.on('requestfailed', request => consoleLines.push(`NETWORK ${request.method()} ${request.url()} ${request.failure()?.errorText}`))
+  page.on('response', response => {
+    if (response.status() >= 400)
+      consoleLines.push(`HTTP ${response.status()} ${response.url()}`)
+  })
 
   await configure(page)
   await importNeptuna(page)
