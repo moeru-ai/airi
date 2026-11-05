@@ -70,7 +70,11 @@ function clip(semanticAction: string, clipId: string, channels: MotionChannel[],
   return entry({ semanticAction, clipId, channels, durationMs, priority, description })
 }
 
-const arm: MotionChannel[] = ['rightArm', 'hands']
+/**
+ * A one-arm gesture owns its arm channel, which includes the hand of that arm, so a gesture
+ * in each arm can play together. The `hands` channel means both hands together, for example palms together.
+ */
+const arm: MotionChannel[] = ['rightArm']
 const bothArms: MotionChannel[] = ['leftArm', 'rightArm', 'hands']
 const stance: MotionChannel[] = ['locomotion', 'posture', 'torso']
 
@@ -100,9 +104,9 @@ export const defaultMotionCatalogEntries: MotionCatalogEntry[] = [
   clip('spin', 'spin', fullBodyChannels, 2500, 60, 'Spin around once'),
   clip('model_pose', 'model_pose', fullBodyChannels, 3000, 60, 'Strike a confident model pose'),
   clip('squat', 'squat', fullBodyChannels, 2500, 60, 'Squat down briefly'),
-  clip('wave_left', 'wave_left', ['leftArm', 'hands'], 1600, 50, 'Wave with the left hand'),
+  clip('wave_left', 'wave_left', ['leftArm'], 1600, 50, 'Wave with the left hand'),
   clip('wave_right', 'wave_right', arm, 1600, 50, 'Wave with the right hand'),
-  clip('explain_left_hand', 'explain_left_hand', ['torso', 'leftArm', 'hands'], 1600, 40, 'Explain with an open left hand'),
+  clip('explain_left_hand', 'explain_left_hand', ['torso', 'leftArm'], 1600, 40, 'Explain with an open left hand'),
   entry({ semanticAction: 'sit', clipId: 'sit', channels: fullBodyChannels, durationMs: 5000, priority: 70, interruptible: false, description: 'Sit down' }),
 
   clip('gesture_handup', 'handup', arm, 3000, 50, 'Raise a hand'),

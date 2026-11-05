@@ -1,8 +1,8 @@
 # @proj-airi/alice-motion
 
-Motion contracts, motion catalog, and motion director for the Alice persona (Plan 01, section 8). The package has no renderer code: no Three.js and no Vue.
+Motion contracts, motion catalog, motion director, and motion scheduler for the Alice persona (Plan 01, section 8). The package has no renderer code: no Three.js and no Vue.
 
-The planning documents are in `docs/alice-motion-engine/`. This package implements sprints S02 (contracts) and S03 (director) of Plan 03. The ADR is `docs/ai/adr/2026-11-04-alice-motion-contracts-v1.md`, accepted on 2026-11-05.
+The planning documents are in `docs/alice-motion-engine/`. This package implements sprints S02 (contracts), S03 (director), and S04 (scheduler) of Plan 03. The ADR is `docs/ai/adr/2026-11-04-alice-motion-contracts-v1.md`, accepted on 2026-11-05.
 
 ## What it contains
 
@@ -14,6 +14,7 @@ The planning documents are in `docs/alice-motion-engine/`. This package implemen
 | `maxMessageBytes` | Size limit of one intent or cue: 4096 bytes, as the accepted ADR requires. |
 | `MotionCatalog`, `defaultMotionCatalogEntries` | Semantic actions: clip or generator, channels, duration, priority, fades. |
 | `MotionDirector` | Behavior states and the intents of each state, on a clock that the caller passes. |
+| `MotionScheduler` | Turns intents into cues and decides which cue owns each body channel. |
 | `createSeededRandom` | Seeded random source, so a test or a recording can replay the same motion. |
 
 ## Director
@@ -35,6 +36,24 @@ Events: `userStartedSpeaking`, `userFinishedSpeaking`, `speechStarted`, `speechE
 - The director never reads a clock and never calls an LLM.
 - The same seed and the same events give the same intents.
 - A speech session that ended or was cancelled is never replayed, so a reconnection cannot duplicate a gesture.
+
+## Scheduler
+
+`MotionScheduler` is the only producer of `MotionCue`s.
+
+| Rule | Behavior |
+| --- | --- |
+| Validation | Every intent passes `parseMotionIntent` with the catalog actions, and every cue passes `parseMotionCue`. Both have the 4096 byte limit. |
+| Idempotency | An intent ID seen in the last 10 minutes is refused. |
+| Sessions | `cancelSession` stops the cues of the session and refuses its later intents. A reconnection cannot replay an old turn. |
+| Speech timing | After `speechStarted(sessionId, atMs)`, `offsetFromSpeechMs` counts from the audio that plays. |
+| Channels | Normal cues conflict with normal cues on a shared channel. Additive cues conflict with additive cues, and with a normal cue that cannot be interrupted. |
+| Arbitration | A new cue takes its channels only with a higher priority than every conflicting cue, and only if each of them can be interrupted. On equal priority the playing cue keeps its channels. |
+| TTL | A cue ends at `expiresAtMs`. `update(nowMs)` reports it and frees its channels. |
+
+A one-arm gesture owns only its arm channel, which includes the hand of that arm. So `wave_left` and `wave_right` play together, and an arm gesture never blocks `walk`. The `hands` channel means both hands together.
+
+`update(nowMs)` returns `start` and `stop` events in order. A renderer adapter plays them.
 
 ## Test model
 
