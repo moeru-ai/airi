@@ -369,24 +369,9 @@
       "count": 2
     }
   },
-  "packages/core-agent/src/agents/spark-notify/tools.ts": {
-    "ts/no-explicit-any": {
-      "count": 2
-    }
-  },
-  "packages/core-agent/src/runtime/agent-hooks.ts": {
-    "ts/no-explicit-any": {
-      "count": 1
-    }
-  },
   "packages/model-driver-mediapipe/src/three/apply-pose-to-vrm.ts": {
     "ts/no-explicit-any": {
       "count": 4
-    }
-  },
-  "packages/plugin-protocol/src/types/events.ts": {
-    "ts/no-explicit-any": {
-      "count": 3
     }
   },
   "packages/plugin-sdk/src/channels/index.ts": {
@@ -746,7 +731,7 @@
   },
   "packages/stage-ui/src/stores/background.ts": {
     "ts/no-explicit-any": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/stage-ui/src/stores/mods/api/channel-server.ts": {
@@ -809,37 +794,12 @@
       "count": 9
     }
   },
-  "packages/ui-loading-screens/src/components/LoadingSciFiCircle/index.vue": {
-    "ts/no-explicit-any": {
-      "count": 1
-    }
-  },
-  "packages/ui-transitions/src/components/StageTransitionGroup.vue": {
-    "ts/no-explicit-any": {
-      "count": 2
-    }
-  },
   "packages/ui/src/components/animations/transition-horizontal.vue": {
     "ts/no-explicit-any": {
       "count": 5
     }
   },
   "packages/ui/src/utils/shim/local-storage.ts": {
-    "ts/no-explicit-any": {
-      "count": 1
-    }
-  },
-  "plugins/airi-plugin-claude-code/src/utils/general.ts": {
-    "ts/no-explicit-any": {
-      "count": 4
-    }
-  },
-  "server/apps/api/src/libs/mock-db.ts": {
-    "ts/no-explicit-any": {
-      "count": 2
-    }
-  },
-  "server/apps/api/src/services/domain/characters.ts": {
     "ts/no-explicit-any": {
       "count": 1
     }

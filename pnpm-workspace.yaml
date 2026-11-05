@@ -7,6 +7,12 @@ minimumReleaseAgeExclude:
   # Source: https://releases.electronjs.org/release/v43.8.4
   # Remove this exception after 2026-10-30T18:05:12Z.
   - electron@43.8.4
+  # NOTICE:
+  # Install the download retry before the release-age delay ends. A dropped download failed release and CI builds.
+  # 0.2.6 retries network errors, stalls, truncated bodies, and 5xx statuses. Our team publishes this package.
+  # Source: https://github.com/proj-airi/unplugin-fetch/pull/4
+  # Remove this exception after 2026-11-07T08:45:06Z.
+  - '@proj-airi/unplugin-fetch@0.2.6'
   # Packages from the AIRI team must always be trusted
   - '@auv-js/*'
   - '@gd-kirie/*'
@@ -40,17 +46,17 @@ packages:
   - '!**/dist/**'
 
 overrides:
-  '@types/hast': 'catalog:'
+  # @huggingface/transformers 3.8.1 pins an onnxruntime-web dev build. Use the catalog version, which @sherpaw needs.
+  # Remove when @huggingface/transformers declares the catalog version.
+  '@huggingface/transformers>onnxruntime-web': 'catalog:'
   array-flatten: npm:@nolyfill/array-flatten@^1.0.44
   axios: npm:feaxios@^0.0.23
   'eslint-plugin-sonarjs>typescript': 'catalog:'
-  hono: 4.13.3
   is-core-module: npm:@nolyfill/is-core-module@^1.0.39
   isarray: npm:@nolyfill/isarray@^1.0.44
   # rehype-katex 7.0.1 and micromark-extension-math 3.1.0 declare katex ^0.16. The speech transformers parse with the
   # catalog katex, so display and speech use one version. Remove when both declare the catalog version.
   micromark-extension-math>katex: 'catalog:'
-  onnxruntime-web: npm:onnxruntime-web@^1.27.0
   rehype-katex>katex: 'catalog:'
   safe-buffer: npm:@nolyfill/safe-buffer@^1.0.44
   safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
@@ -71,21 +77,20 @@ catalog:
   '@anthropic-ai/claude-code': ^2.1.241
   '@apple/app-store-server-library': ^3.1.0
   '@arethetypeswrong/core': ^0.18.5
-  '@auv-js/cli': 0.0.40
-  '@auv-js/sdk': 0.0.40
+  '@auv-js/cli': 0.0.43
+  '@auv-js/sdk': 0.0.43
   '@aws-sdk/client-s3': ^3.1135.0
   '@aws-sdk/s3-request-presigner': ^3.1135.0
   '@ax-llm/ax': ^24.0.5
   '@better-auth/cli': ^1.4.22
   '@better-auth/drizzle-adapter': 1.6.25
   '@better-auth/oauth-provider': 1.6.25
-  '@better-fetch/fetch': ^1.3.1
-  '@capacitor/android': ^8.5.0
+  '@capacitor/android': ^8.6.0
   '@capacitor/app': ^8.1.1
   '@capacitor/barcode-scanner': ^3.1.1
-  '@capacitor/cli': ^8.5.0
-  '@capacitor/core': ^8.5.0
-  '@capacitor/ios': ^8.5.0
+  '@capacitor/cli': ^8.6.0
+  '@capacitor/core': ^8.6.0
+  '@capacitor/ios': ^8.6.0
   '@capacitor/keyboard': ^8.0.5
   '@capacitor/local-notifications': ^8.3.1
   '@cortex-js/compute-engine': ^0.153.0
@@ -105,6 +110,7 @@ catalog:
   '@esotericsoftware/spine-webgl-4-0': npm:@esotericsoftware/spine-webgl@~4.0.31
   '@esotericsoftware/spine-webgl-4-1': npm:@esotericsoftware/spine-webgl@~4.1.56
   '@ffmpeg-installer/ffmpeg': ^1.1.0
+  '@flowershow/remark-wiki-link': 3.4.0
   '@fontsource-variable/comfortaa': ^5.3.0
   '@fontsource-variable/dm-sans': ^5.3.0
   '@fontsource-variable/jura': ^5.3.0
@@ -199,7 +205,7 @@ catalog:
   '@proj-airi/iconify-meteocons': ^0.1.5
   '@proj-airi/lobe-icons': ^1.0.19
   '@proj-airi/unocss-preset-chromatic': ^2.0.1
-  '@proj-airi/unplugin-fetch': ^0.2.3
+  '@proj-airi/unplugin-fetch': ^0.2.6
   '@proj-airi/unplugin-live2d-sdk': ^0.1.7
   '@revenuecat/purchases-js': ^1.15.0
   '@rive-app/canvas-lite': ^2.40.1
@@ -253,6 +259,7 @@ catalog:
   '@vueuse/motion': ^3.0.3
   '@vueuse/shared': ^14.4.0
   '@wxt-dev/module-vue': ^1.0.3
+  '@x18n/cli': 0.1.5
   '@xsai-apple-speech/transcription': 0.1.3
   '@xsai-apple-speech/transcription-electron-plugin': 0.1.3
   '@xsai-apple-speech/transcription-native': 0.1.3
@@ -281,7 +288,6 @@ catalog:
   alien-signals: ^3.2.1
   animejs: ^4.5.0
   async-mutex: 0.5.0
-  awilix: ^13.0.5
   best-effort-json-parser: ^1.5.1
   better-auth: 1.6.25
   builder-util-runtime: ^9.7.0
@@ -291,13 +297,11 @@ catalog:
   capacitor-native-settings: ^8.2.0
   chess.js: ^1.4.0
   clustr: ^1.0.2
-  colorjs.io: ^0.7.1
   crossws: ^0.4.12
   csstype: ^3.2.3
   culori: ^4.0.2
   d3: 7.9.0
   date-fns: ^4.4.0
-  debug: ^4.4.3
   defu: ^6.1.7
   destr: ^2.0.5
   discord.js: ^14.27.0
@@ -393,6 +397,7 @@ catalog:
   rehype-parse: ^9.0.1
   rehype-stringify: ^10.0.1
   reka-ui: ^2.10.3
+  remark-cjk-friendly: ^2.3.3
   remark-math: ^6.0.0
   remark-parse: ^11.0.0
   remark-rehype: ^11.1.2

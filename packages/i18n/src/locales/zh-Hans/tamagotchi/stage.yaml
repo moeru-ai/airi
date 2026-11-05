@@ -113,9 +113,10 @@ notice:
 about:
   subtitle: 桌面版本
   current-version: 当前版本
-  build-origin: "构建于 {time}，基于 {branch}{'@'}{commit}"
+  build-origin: "{time}构建，基于 {branch}{'@'}{commit}"
   common:
     cancel: 取消
+    close: 关闭
   links:
     title: 网址
     home: 首页
@@ -158,10 +159,13 @@ about:
       restart-silent: 重新启动以静默更新
       restart-install: 重启并安装更新
       confirm-restart: 确认重新启动
+      whats-new: 更新内容
+      view-changes: 查看代码变更
     dialog:
       title: 有可用的更新
       description: 有新的 v{version} 版本可用
       no-release-notes-markdown: _无发布日志_
+      view-on-github: 在 GitHub 上查看
     notices:
       admin-required:
         title: 需要管理员权限

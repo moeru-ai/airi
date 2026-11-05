@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/core-agent",
   "type": "module",
-  "version": "0.14.1",
+  "version": "0.15.1",
   "private": true,
   "description": "Core agent runtime orchestration for AIRI",
   "author": {
@@ -43,6 +43,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@flowershow/remark-wiki-link": "catalog:",
     "@moeru/eventa": "catalog:",
     "@moeru/std": "catalog:",
     "@proj-airi/mathjson": "workspace:^",
@@ -66,6 +67,7 @@
     "nanoid": "catalog:",
     "rehype-parse": "catalog:",
     "rehype-stringify": "catalog:",
+    "remark-cjk-friendly": "catalog:",
     "remark-math": "catalog:",
     "remark-parse": "catalog:",
     "unified": "catalog:",

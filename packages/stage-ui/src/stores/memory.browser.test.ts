@@ -1,11 +1,11 @@
-import localforage from 'localforage'
-
 import { createPinia, disposePinia } from 'pinia'
+import { prefixStorage } from 'unstorage'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { storage } from '../database/storage'
 import { useMemoryStore } from './memory'
 
-const records = localforage.createInstance({ name: 'airi-memory', storeName: 'entries' })
+const records = prefixStorage(storage, 'memory')
 const stores: ReturnType<typeof createPinia>[] = []
 
 /** Each store stands for one window. */
@@ -92,7 +92,7 @@ describe('memory store', () => {
     ])
 
     await vi.waitFor(() => expect(settings.entries).toHaveLength(3))
-    expect(await records.getItem(nickname.id)).toEqual({ id: nickname.id, updatedAt: expect.any(Number), deleted: true })
+    expect(await records.getItemRaw(nickname.id)).toEqual({ id: nickname.id, updatedAt: expect.any(Number), deleted: true })
     expect(settings.entries.find(entry => entry.id === tone.id)?.persona).toBeUndefined()
   })
 
@@ -109,7 +109,7 @@ describe('memory store', () => {
 
     await vi.waitFor(() => expect(chat.entries).toEqual([]))
     // The removal stays as a tombstone.
-    expect(await records.getItem(nickname.id)).toEqual({ id: nickname.id, updatedAt: expect.any(Number), deleted: true })
+    expect(await records.getItemRaw(nickname.id)).toEqual({ id: nickname.id, updatedAt: expect.any(Number), deleted: true })
   })
 
   it('moves the entries from localStorage once, with new ids, before it is ready', async () => {

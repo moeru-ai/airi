@@ -48,6 +48,12 @@ Runtime context keeps one bucket per writer. `replace-self` replaces the writer'
 
 ## Turn history
 
+`getContextWindow` limits conversation turns, including the current input's turn. Each turn contains a user group and its assistant replies and tool exchanges.
+Consecutive messages from the same role stay together, including groups joined by manual deletion. System messages do not count toward the limit.
+When the limit is exceeded, the newest `ceil(limit * 0.9)` turns remain. The retained start stays fixed until the limit is exceeded again.
+The runtime scans backward through the needed turns instead of rebuilding an index for all saved history on each send.
+An omitted limit or `-1` keeps all history. `0` sends only the current input and system messages. Saved chat records stay intact.
+
 After all SDK steps settle, `onGeneratedTurn` receives the new `AssistantTurn`. Each round records model usage, its finish reason, tool invocations, and native continuation data. SDK input snapshots define round boundaries; message roles do not define runtime rounds.
 
 The generated turn contains settled rounds and is stored under the existing `generationTranscript` history key. Live deltas still use the existing stream event contract. An interrupted execution does not store a generated turn. If it produced visible output, local Chat history preserves that output with `interrupted: true` so the user can read and retry it.
@@ -318,13 +324,15 @@ A producer streams its text to TTS by segments. `MarkdownSegmenter` ends a segme
 So an answer starts to speak after its first sentence, and a formula that later writes complete is still read as one formula.
 Symbols that markdown keeps as text, for example `2 * 3` and `x ~= 3`, stay in the speech text.
 TeX formulas, `\ce{}` chemistry, units, and dollar prices are read as words of the sentence language: Chinese, English, Japanese, or Korean.
+Tokens such as web addresses and file paths are read as words, in prose, inline code, and link text. For example `https://home.example.com` reads as `https home 点 example 点 com` in Chinese, and `./src/index.ts` as `dot slash src slash index dot ts` in English. Other languages use the English words. Each kind of token has a reader. A token that no reader recognizes stays as written. To add a reading, pass `tokenSpeechPreprocessor({ readers: [myReader, ...defaultTokenReaders()] })`.
+Obsidian links read as the text that Obsidian shows. `[[Note|Alias]]` reads `Alias`, `[[Note#Heading]]` reads `Note Heading`, and `![[shot.png]]` reads the word for an image, audio, video, or PDF file. An image without alternative text also reads as an image.
 The rules are in [`@proj-airi/speech-transformer-math`](../speech-transformer-math) and [`@proj-airi/speech-transformer-chem`](../speech-transformer-chem), see [the ADR](../../docs/ai/adr/2026-10-20-speech-text-preprocessor.md).
 `mathSpeech` is the instance that AIRI uses: the built-in locale packs, with chemistry.
 
 `toMathJson(tex)` returns the MathJSON of a formula without reading it, for tools that inspect formulas.
 `options.language` is the BCP 47 code of the voice. The words around a formula or a price select its language first.
 
-`toSpeechText` is a host of preprocessor plugins. The default plugins are `moneySpeechPreprocessor` and `mathSpeechPreprocessor`.
+`toSpeechText` is a host of preprocessor plugins. The default plugins are `tokenSpeechPreprocessor`, `moneySpeechPreprocessor`, and `mathSpeechPreprocessor`, in that order.
 A plugin can have three hooks: `prepare` rewrites the markdown, `formula` reads one formula, and `prose` rewrites a run of text.
 To add a reading, pass `preprocessors: [myPlugin, ...defaultSpeechPreprocessors()]`.
 

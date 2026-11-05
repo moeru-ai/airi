@@ -10,7 +10,7 @@ import { Button } from '@proj-airi/ui'
 import { useFileDialog } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger, EditableArea, EditableEditTrigger, EditableInput, EditablePreview, EditableRoot, EditableSubmitTrigger } from 'reka-ui'
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import Live2DReportModal from './reports/live2d/modal.vue'
@@ -34,6 +34,9 @@ const listedModels = computed(() => [
   ...displayModels.value.map(model => ({ id: model.id, name: model.name, format: model.format, previewImage: model.previewImage, cloudOnly: false })),
   ...cloudOnlyModels.value.map(model => ({ id: model.id, name: model.name, format: model.format as DisplayModelFormat, previewImage: undefined, cloudOnly: true })),
 ])
+
+// Another device can have added a model since the last synchronization.
+onMounted(() => displayModelStore.refreshCloudModels())
 
 // The card store removes the references to a deleted model. A model that the account
 // keeps stays referenced, because it can download again.

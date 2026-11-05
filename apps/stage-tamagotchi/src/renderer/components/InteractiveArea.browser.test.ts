@@ -190,9 +190,11 @@ async function expectElectronReplyBubble(screen: Awaited<ReturnType<typeof rende
   expect(cancelButton.parentElement?.getAttribute('aria-hidden')).toBe('true')
   expect(bubble.getBoundingClientRect().height).toBeGreaterThan(collapsedHeight)
   expect(bubble.getBoundingClientRect().height).toBeCloseTo(expandedHeight, 0)
-  await new Promise(resolve => setTimeout(resolve, 50))
-  expect(bubble.getBoundingClientRect().height).toBeGreaterThan(collapsedHeight)
-  expect(bubble.getBoundingClientRect().height).toBeLessThan(expandedHeight)
+  await vi.waitFor(() => {
+    const height = bubble.getBoundingClientRect().height
+    expect(height).toBeGreaterThan(collapsedHeight)
+    expect(height).toBeLessThan(expandedHeight)
+  })
   await vi.waitFor(() => {
     expect(bubble.getBoundingClientRect().height).toBeCloseTo(collapsedHeight, 0)
   })
@@ -584,6 +586,28 @@ describe('interactive area synchronized state', () => {
 
     await screen.getByText('stage.chat.provider-configuration.action').click()
     await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/settings/providers'))
+  })
+
+  it('keeps the draft when a fold or a resize replaces the layout', async () => {
+    // ROOT CAUSE:
+    //
+    // Each layout created a composer, and unfolding a device replaces one layout with the other.
+    //
+    // Before the fix, the new layout started with an empty draft.
+    //
+    // We fixed this by moving the composer to a store that outlives both layouts.
+    const layoutSwitch = defineComponent({
+      props: { mobile: { type: Boolean, default: true } },
+      setup: props => () => h(props.mobile ? MobileInteractiveArea : SharedInteractiveArea),
+    })
+    const { screen } = await renderArea(layoutSwitch)
+    await screen.getByRole('textbox').fill('typed on the outer display')
+
+    await screen.rerender({ mobile: false })
+    await expect.element(screen.getByRole('textbox')).toHaveValue('typed on the outer display')
+
+    await screen.rerender({ mobile: true })
+    await expect.element(screen.getByRole('textbox')).toHaveValue('typed on the outer display')
   })
 
   // https://github.com/moeru-ai/airi/pull/2399

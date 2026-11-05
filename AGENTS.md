@@ -80,6 +80,16 @@ Use pnpm workspace filters to limit a command to one workspace. Replace `<packag
 - Report only the checks that you ran. Give each command and its result.
 - At the end, summarize the changes, the commands that you ran, and the follow-up work.
 
+## Private Data
+
+- Do not put private data in the repository or on GitHub. This rule applies to code, tests, fixtures, docs, comments, commit messages, PR and issue text, and review replies.
+- Private data is data about a real person, device, or network. For example: names, email addresses, usernames, host names, domains, IP addresses, local paths, device names, tokens, and recorded content.
+- If a value looks private, treat it as private. For example, a domain or a path from the user's machine is private.
+- Do not copy values from the user's configuration, logs, traces, or command output into a commit.
+- In examples and tests, use reserved values: `example.com`, `user@example.com`, `192.0.2.0/24`, `198.51.100.0/24`, and `/home/user`.
+- Before you commit or push, search the diff and the commit message for private data.
+- If private data is already on GitHub, stop and tell the user. Do not rewrite pushed history without approval.
+
 ## Code Rules
 
 - Put shared logic in `packages/`. Keep module boundaries clear.
@@ -122,6 +132,9 @@ Use pnpm workspace filters to limit a command to one workspace. Replace `<packag
 - If the user asks you to use a specific tool or dependency, read its documentation in Context7 first. Then examine how this repository uses it.
 - If Context7 returns several names without a clear difference, ask the user to choose one.
 - If the documentation conflicts with the typecheck result, examine the dependency source in `node_modules` to find the cause.
+- Do not add an `install`, `postinstall`, or `prepare` script to a workspace package. Every `pnpm install` runs it, also for contributors who do not use the package.
+- Put a download, build, or code generation step in the script that needs it, for example `dev` or `build`. You can also load the file at runtime.
+- An install script is permitted only if every install of its package needs it, and it runs fast and offline. Before you add one, ask the user.
 
 ## Documentation
 
@@ -170,6 +183,7 @@ Skills are in `.agents/skills/<name>/SKILL.md`. Read the listed file before you 
 | Write documentation, code comments, commit messages, or PR and issue text | [`simple-english`](.agents/skills/simple-english/SKILL.md) |
 | Analyze why a chat, speech, or audio turn was slow or failed, using saved IO traces | [`analyze-io-traces`](.agents/skills/analyze-io-traces/SKILL.md) |
 | Create or prepare a pull request | [`create-pr`](.agents/skills/create-pr/SKILL.md) |
+| Cut a release with `bumpp`, a release tag, or a GitHub release. Also, write release notes. | [`release-note-writer`](.agents/skills/release-note-writer/SKILL.md). Draft the notes before you create the GitHub release. |
 | Upload a local file through a file input or a file chooser in a web or Electron app | [`use-agent-browser-with-input-file`](.agents/skills/use-agent-browser-with-input-file/SKILL.md) and [`agent-browser`](.agents/skills/agent-browser/SKILL.md). For Electron, also read [`agent-browser-electron`](.agents/skills/agent-browser-electron/SKILL.md). |
 | Write or review motion, reactions, animations, or springs that a Pixi, TresJS, or Three render loop samples | [`enforce-rules-for-render-loops`](.agents/skills/enforce-rules-for-render-loops/SKILL.md) |
 | Test Live2D, VRM, or MMD import and rendering in stage-web, stage-tamagotchi, or stage-pocket | [`use-agent-browser-for-airi`](.agents/skills/use-agent-browser-for-airi/SKILL.md) |

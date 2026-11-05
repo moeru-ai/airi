@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/stage-ui",
   "type": "module",
-  "version": "0.14.1",
+  "version": "0.15.1",
   "private": true,
   "description": "Shared core for stage",
   "author": {
@@ -27,6 +27,7 @@
     "./composables": "./src/composables/index.ts",
     "./constants/*": "./src/constants/*.ts",
     "./constants": "./src/constants/index.ts",
+    "./database/storage": "./src/database/storage.ts",
     "./directives/*": "./src/directives/*.ts",
     "./features/devtools/motion/live2d": "./src/features/devtools/motion/live2d/index.ts",
     "./features/trace/io-tracer": "./src/features/trace/io-tracer/index.ts",
@@ -61,7 +62,6 @@
     "./workers/*": "./src/workers/*.ts",
     "./workers": "./src/workers/index.ts",
     "./utils": "./src/utils/index.ts",
-    "./utils/tts": "./src/utils/tts.ts",
     "./types/*": "./src/types/*.ts",
     "./types": "./src/types/index.ts"
   },
@@ -76,7 +76,6 @@
     "test:run": "vitest run"
   },
   "dependencies": {
-    "@better-fetch/fetch": "catalog:",
     "@date-fns/utc": "catalog:",
     "@formkit/auto-animate": "catalog:",
     "@huggingface/transformers": "catalog:",
@@ -165,7 +164,6 @@
     "idb-keyval": "catalog:",
     "jszip": "catalog:",
     "kokoro-js": "catalog:",
-    "localforage": "catalog:",
     "mediabunny": "catalog:",
     "nanoid": "catalog:",
     "node-vibrant": "catalog:",
@@ -176,6 +174,7 @@
     "rehype-parse": "catalog:",
     "rehype-stringify": "catalog:",
     "reka-ui": "catalog:",
+    "remark-cjk-friendly": "catalog:",
     "remark-math": "catalog:",
     "remark-parse": "catalog:",
     "remark-rehype": "catalog:",
@@ -242,6 +241,7 @@
     "csstype": "catalog:",
     "histoire": "catalog:",
     "is-network-error": "catalog:",
+    "localforage": "catalog:",
     "unocss": "catalog:",
     "unplugin-basemove": "catalog:",
     "unplugin-info": "catalog:",
