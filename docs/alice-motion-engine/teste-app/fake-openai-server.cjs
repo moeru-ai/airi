@@ -10,6 +10,12 @@ const path = require('node:path')
 const process = require('node:process')
 
 const logFile = process.env.FAKE_LOG ?? path.join(os.tmpdir(), 'airi-fake-openai-requests.jsonl')
+const port = Number(process.env.FAKE_OPENAI_PORT ?? '8091')
+const host = process.env.FAKE_OPENAI_HOST ?? '127.0.0.1'
+if (!Number.isInteger(port) || port < 1024 || port > 65535) {
+  console.error('FAKE_OPENAI_PORT must be an integer from 1024 to 65535')
+  process.exit(1)
+}
 fs.writeFileSync(logFile, '')
 
 /** The reply for the last user message. The first reply waits 4 s, so the thinking pose shows. */
@@ -115,6 +121,10 @@ const server = http.createServer((req, res) => {
   })
 })
 
-server.listen(8091, '127.0.0.1', () => {
-  console.info(`fake OpenAI server on 127.0.0.1:8091, log: ${logFile}`)
+server.on('error', (error) => {
+  console.error('Fake OpenAI startup failed:', error)
+  process.exitCode = 1
+})
+server.listen(port, host, () => {
+  console.info(`fake OpenAI server on ${host}:${port}, log: ${logFile}`)
 })
