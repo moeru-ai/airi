@@ -7,7 +7,7 @@ import {
 
 describe('widgets iframe request events', () => {
   it('uses stable event ids for main renderer gamelet request relay', () => {
-    expect(widgetsIframeRequestEvent.id).toBe('eventa:event:electron:windows:widgets:iframe-request')
-    expect(widgetsIframeRequestResultEvent.id).toBe('eventa:event:electron:windows:widgets:iframe-request-result')
+    expect(widgetsIframeRequestEvent.id).toBe('eventa:event:airi:windows:widgets:iframe-request')
+    expect(widgetsIframeRequestResultEvent.id).toBe('eventa:event:airi:windows:widgets:iframe-request-result')
   })
 })

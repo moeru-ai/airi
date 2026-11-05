@@ -13,7 +13,7 @@ config_version=5
 boot_splash/show_image=false
 config/icon="res://icon.svg"
 config/name="AIRI"
-run/main_scene="res://src-godot/main.tscn"
+run/main_scene="res://src-godot/app/main.tscn"
 config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 
 [display]

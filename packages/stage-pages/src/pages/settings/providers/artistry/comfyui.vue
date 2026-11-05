@@ -4,7 +4,7 @@ import type { ComfyUIWorkflowTemplate } from '@proj-airi/stage-ui/stores/modules
 import { defineInvoke } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/renderer'
 import { errorMessageFrom } from '@moeru/std'
-import { artistryTestComfyUIConnection, isStageTamagotchi } from '@proj-airi/stage-shared'
+import { artistryTestComfyUIConnection, isElectronWindow } from '@proj-airi/stage-shared'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { Alert, Button, FieldInput, GhostButton, ScrollableArea } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
@@ -24,13 +24,6 @@ const {
 
 const expandedWorkflow = ref<string | null>(null)
 
-// TODO: perhaps electron-vueuse should be ported for this?
-function getElectronIpcRenderer() {
-  return (window as Window & {
-    electron?: { ipcRenderer?: unknown }
-  }).electron?.ipcRenderer
-}
-
 // --- Connection test ---
 const connectionStatus = ref<'idle' | 'testing' | 'connected' | 'failed'>('idle')
 const connectionInfo = ref('')
@@ -42,13 +35,9 @@ async function testConnection() {
   isCorsError.value = false
 
   try {
-    if (isStageTamagotchi()) {
-      const ipcRenderer = getElectronIpcRenderer()
-      if (!ipcRenderer)
-        throw new Error('Electron IPC is not available in this renderer context')
-
+    if (isElectronWindow(window)) {
       // Proxy through main process to bypass CORS.
-      const { context } = createContext(ipcRenderer as Parameters<typeof createContext>[0])
+      const { context } = createContext(window.electron.ipcRenderer)
       const invokeTestComfyUIConnection = defineInvoke(context, artistryTestComfyUIConnection)
       const result = await invokeTestComfyUIConnection({
         url: comfyuiServerUrl.value,

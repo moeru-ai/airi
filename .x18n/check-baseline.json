@@ -2629,174 +2629,6 @@
       "count": 1
     },
     {
-      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
-      "code": "unused-key",
-      "key": "tamagotchi.electron.tray.menu.labels.label.about",
-      "message": "\"tamagotchi.electron.tray.menu.labels.label.about\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
-      "code": "unused-key",
-      "key": "tamagotchi.electron.tray.menu.labels.label.adjust_sizes",
-      "message": "\"tamagotchi.electron.tray.menu.labels.label.adjust_sizes\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
-      "code": "unused-key",
-      "key": "tamagotchi.electron.tray.menu.labels.label.align_to",
-      "message": "\"tamagotchi.electron.tray.menu.labels.label.align_to\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
-      "code": "unused-key",
-      "key": "tamagotchi.electron.tray.menu.labels.label.bottom_left",
-      "message": "\"tamagotchi.electron.tray.menu.labels.label.bottom_left\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
-      "code": "unused-key",
-      "key": "tamagotchi.electron.tray.menu.labels.label.bottom_right",
-      "message": "\"tamagotchi.electron.tray.menu.labels.label.bottom_right\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
-      "code": "unused-key",
-      "key": "tamagotchi.electron.tray.menu.labels.label.caption_overlay",
-      "message": "\"tamagotchi.electron.tray.menu.labels.label.caption_overlay\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
-      "code": "unused-key",
-      "key": "tamagotchi.electron.tray.menu.labels.label.center",
-      "message": "\"tamagotchi.electron.tray.menu.labels.label.center\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
-      "code": "unused-key",
-      "key": "tamagotchi.electron.tray.menu.labels.label.close_caption",
-      "message": "\"tamagotchi.electron.tray.menu.labels.label.close_caption\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
-      "code": "unused-key",
-      "key": "tamagotchi.electron.tray.menu.labels.label.devtools",
-      "message": "\"tamagotchi.electron.tray.menu.labels.label.devtools\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
-      "code": "unused-key",
-      "key": "tamagotchi.electron.tray.menu.labels.label.follow_window",
-      "message": "\"tamagotchi.electron.tray.menu.labels.label.follow_window\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
-      "code": "unused-key",
-      "key": "tamagotchi.electron.tray.menu.labels.label.full_height",
-      "message": "\"tamagotchi.electron.tray.menu.labels.label.full_height\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
-      "code": "unused-key",
-      "key": "tamagotchi.electron.tray.menu.labels.label.full_screen",
-      "message": "\"tamagotchi.electron.tray.menu.labels.label.full_screen\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
-      "code": "unused-key",
-      "key": "tamagotchi.electron.tray.menu.labels.label.half_height",
-      "message": "\"tamagotchi.electron.tray.menu.labels.label.half_height\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
-      "code": "unused-key",
-      "key": "tamagotchi.electron.tray.menu.labels.label.open_caption",
-      "message": "\"tamagotchi.electron.tray.menu.labels.label.open_caption\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
-      "code": "unused-key",
-      "key": "tamagotchi.electron.tray.menu.labels.label.open_inlay",
-      "message": "\"tamagotchi.electron.tray.menu.labels.label.open_inlay\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
-      "code": "unused-key",
-      "key": "tamagotchi.electron.tray.menu.labels.label.open_widgets",
-      "message": "\"tamagotchi.electron.tray.menu.labels.label.open_widgets\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
-      "code": "unused-key",
-      "key": "tamagotchi.electron.tray.menu.labels.label.quit",
-      "message": "\"tamagotchi.electron.tray.menu.labels.label.quit\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
-      "code": "unused-key",
-      "key": "tamagotchi.electron.tray.menu.labels.label.recommended_size",
-      "message": "\"tamagotchi.electron.tray.menu.labels.label.recommended_size\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
-      "code": "unused-key",
-      "key": "tamagotchi.electron.tray.menu.labels.label.reset_position",
-      "message": "\"tamagotchi.electron.tray.menu.labels.label.reset_position\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
-      "code": "unused-key",
-      "key": "tamagotchi.electron.tray.menu.labels.label.settings",
-      "message": "\"tamagotchi.electron.tray.menu.labels.label.settings\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
-      "code": "unused-key",
-      "key": "tamagotchi.electron.tray.menu.labels.label.show",
-      "message": "\"tamagotchi.electron.tray.menu.labels.label.show\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
-      "code": "unused-key",
-      "key": "tamagotchi.electron.tray.menu.labels.label.top_left",
-      "message": "\"tamagotchi.electron.tray.menu.labels.label.top_left\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
-      "code": "unused-key",
-      "key": "tamagotchi.electron.tray.menu.labels.label.top_right",
-      "message": "\"tamagotchi.electron.tray.menu.labels.label.top_right\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
-      "code": "unused-key",
-      "key": "tamagotchi.electron.tray.menu.labels.label.troubleshoot_beatsync",
-      "message": "\"tamagotchi.electron.tray.menu.labels.label.troubleshoot_beatsync\" is not used.",
-      "count": 1
-    },
-    {
       "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
       "code": "unused-key",
       "key": "tamagotchi.settings.allow-visible-on-all-workspaces.description",
@@ -3354,6 +3186,13 @@
       "code": "unused-key",
       "key": "tamagotchi.stage.about.update.status.error-prefix",
       "message": "\"tamagotchi.stage.about.update.status.error-prefix\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.about.update.status.latest",
+      "message": "\"tamagotchi.stage.about.update.status.latest\" is not used.",
       "count": 1
     },
     {
@@ -4285,6 +4124,174 @@
       "code": "unused-key",
       "key": "tamagotchi.stage.weather-tool-call.wind",
       "message": "\"tamagotchi.stage.weather-tool-call.wind\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.tray.menu.labels.label.about",
+      "message": "\"tamagotchi.tray.menu.labels.label.about\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.tray.menu.labels.label.adjust_sizes",
+      "message": "\"tamagotchi.tray.menu.labels.label.adjust_sizes\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.tray.menu.labels.label.align_to",
+      "message": "\"tamagotchi.tray.menu.labels.label.align_to\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.tray.menu.labels.label.bottom_left",
+      "message": "\"tamagotchi.tray.menu.labels.label.bottom_left\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.tray.menu.labels.label.bottom_right",
+      "message": "\"tamagotchi.tray.menu.labels.label.bottom_right\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.tray.menu.labels.label.caption_overlay",
+      "message": "\"tamagotchi.tray.menu.labels.label.caption_overlay\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.tray.menu.labels.label.center",
+      "message": "\"tamagotchi.tray.menu.labels.label.center\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.tray.menu.labels.label.close_caption",
+      "message": "\"tamagotchi.tray.menu.labels.label.close_caption\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.tray.menu.labels.label.devtools",
+      "message": "\"tamagotchi.tray.menu.labels.label.devtools\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.tray.menu.labels.label.follow_window",
+      "message": "\"tamagotchi.tray.menu.labels.label.follow_window\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.tray.menu.labels.label.full_height",
+      "message": "\"tamagotchi.tray.menu.labels.label.full_height\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.tray.menu.labels.label.full_screen",
+      "message": "\"tamagotchi.tray.menu.labels.label.full_screen\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.tray.menu.labels.label.half_height",
+      "message": "\"tamagotchi.tray.menu.labels.label.half_height\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.tray.menu.labels.label.open_caption",
+      "message": "\"tamagotchi.tray.menu.labels.label.open_caption\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.tray.menu.labels.label.open_inlay",
+      "message": "\"tamagotchi.tray.menu.labels.label.open_inlay\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.tray.menu.labels.label.open_widgets",
+      "message": "\"tamagotchi.tray.menu.labels.label.open_widgets\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.tray.menu.labels.label.quit",
+      "message": "\"tamagotchi.tray.menu.labels.label.quit\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.tray.menu.labels.label.recommended_size",
+      "message": "\"tamagotchi.tray.menu.labels.label.recommended_size\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.tray.menu.labels.label.reset_position",
+      "message": "\"tamagotchi.tray.menu.labels.label.reset_position\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.tray.menu.labels.label.settings",
+      "message": "\"tamagotchi.tray.menu.labels.label.settings\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.tray.menu.labels.label.show",
+      "message": "\"tamagotchi.tray.menu.labels.label.show\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.tray.menu.labels.label.top_left",
+      "message": "\"tamagotchi.tray.menu.labels.label.top_left\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.tray.menu.labels.label.top_right",
+      "message": "\"tamagotchi.tray.menu.labels.label.top_right\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.tray.menu.labels.label.troubleshoot_beatsync",
+      "message": "\"tamagotchi.tray.menu.labels.label.troubleshoot_beatsync\" is not used.",
       "count": 1
     }
   ]

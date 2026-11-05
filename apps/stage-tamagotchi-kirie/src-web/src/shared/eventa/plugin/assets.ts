@@ -1,3 +1,3 @@
 import { defineInvokeEventa } from '@moeru/eventa'
 
-export const electronPluginGetAssetBaseUrl = defineInvokeEventa<string>('eventa:invoke:electron:plugins:asset-base-url')
+export const airiPluginGetAssetBaseUrl = defineInvokeEventa<string>('eventa:invoke:airi:plugins:asset-base-url')
