@@ -1,29 +1,18 @@
 import { resolveArtistryConfigFromStore } from '@proj-airi/stage-ui/stores/modules/artistry'
-import { describe, expect, it, vi } from 'vitest'
+import { rawTool } from '@xsai/tool'
+import { describe, expect, it } from 'vitest'
 
 import { installStrictToolSchemaMatchers } from '../testing/strict-tool-schema'
+import { imageJournalToolDefinition } from './image-journal-definition'
 
 installStrictToolSchemaMatchers()
 
 describe('image_journal config snapshot', () => {
-  it('uses required nullable fields for strict provider schemas', async () => {
-    const mockLocation = {
-      origin: 'http://localhost',
-      hash: '',
-      search: '',
-      pathname: '/',
-      href: 'http://localhost/',
-    }
-    vi.stubGlobal('window', {
-      location: mockLocation,
-    })
-    vi.stubGlobal('location', mockLocation)
+  it('uses required nullable fields for strict provider schemas', () => {
+    const tool = rawTool({ ...imageJournalToolDefinition, execute: () => '' })
 
-    const { imageJournalTools } = await import('./image-journal')
-    const tools = await imageJournalTools()
-
-    expect(tools).toSatisfyStrictToolSchemas()
-  }, 15_000)
+    expect(tool).toSatisfyStrictToolSchema()
+  })
 
   it('extracts plain values instead of leaking Ref objects', () => {
     const config = resolveArtistryConfigFromStore({
