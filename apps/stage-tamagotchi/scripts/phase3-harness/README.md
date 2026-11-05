@@ -12,6 +12,10 @@ It does not enable AIRI GUI input, request human approval, or run a live click.
 
 No dependency or production configuration change is required.
 
+Phase 3-B2a reuses the receiver with private-station controls for pause, focus, and child replacement.
+Those controls reject calls outside that station. This runner retains mandatory `--dry-run`.
+See the separate [executor experiment](../phase3-executor/README.md) for its evidence boundaries.
+
 ## Windows prerequisites
 
 - Workspace dependencies installed, including AUV CLI and SDK 0.0.40.
