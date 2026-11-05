@@ -64,3 +64,20 @@ It rejects success claims for blocked cases and checks zero input in every recei
 It does not establish native HWND reuse rejection, focus-race safety, or cancellation after dispatch.
 
 See the [delivery contract](../../../../docs/ai/convergence/phase3-b2a-target-delivery-contract.md) for the source audit and admission decision.
+
+## B2b read-only context diagnosis
+
+`diagnose-environment.mjs` compares the shared desktop with the private station through read-only process and window observations.
+`environment-probe.cs` reads Session, token, Window Station, and thread desktop context without input or desktop reassignment.
+The diagnostic runner reuses the existing station owner and receivers. It does not run the B2a input candidates.
+
+From the repository root, use an empty directory outside the checkout:
+
+```powershell
+$evidence = Join-Path $env:TEMP ('airi-phase3b2b-' + [guid]::NewGuid())
+pnpm -F @proj-airi/stage-tamagotchi exec node scripts/phase3-executor/diagnose-environment.mjs $evidence
+```
+
+Exit code zero means that context collection completed. It grants no native input permission.
+Some peer thread desktops are unavailable. The records preserve those gaps.
+See the [environment diagnosis](../../../../docs/ai/convergence/phase3-b2b-environment-diagnosis.md) for the decision and evidence limits.
