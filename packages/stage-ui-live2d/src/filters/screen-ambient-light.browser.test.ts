@@ -54,6 +54,28 @@ function bodyOptions(overrides: Partial<AmbientLightFilterOptions> = {}): Partia
 }
 
 describe('screen ambient light filter', () => {
+  it('uses received surface light for bloom even with no contact backlight', () => {
+    // The supplied texture represents the surface renderer's light-only draw.
+    // Contact-map light must not replace or modulate that independent signal.
+    const options = { bloom: 1, backlight: 0, wrapIntensity: 0, surfaceBloom: true }
+    const darkContact = renderWrap(uniformMap(black), options)
+    const brightContact = renderWrap(uniformMap(white), options)
+    const x = darkContact.spriteRight + 1
+    expect(channelAt(darkContact, x, darkContact.middleRow, 3)).toBeGreaterThan(0)
+    expect(channelAt(brightContact, x, brightContact.middleRow, 3)).toBe(channelAt(darkContact, x, darkContact.middleRow, 3))
+  })
+
+  it('keeps bloom sensitive to incoming energy at the same dark adaptation', () => {
+    // ROOT CAUSE:
+    // sRGB encoding lifted faint halo energy before the shared adaptation gain.
+    // A tenfold emitter change therefore produced nearly the same edge opacity.
+    const options = { backlight: 1, bloom: 1, wrapIntensity: 0, adaptedLevel: 0 }
+    const faint = renderWrap(uniformMap([0.01, 0.01, 0.01]), options)
+    const bright = renderWrap(uniformMap([0.1, 0.1, 0.1]), options)
+    const x = bright.spriteRight + 1
+    expect(channelAt(bright, x, bright.middleRow, 3)).toBeGreaterThan(channelAt(faint, x, faint.middleRow, 3) * 5)
+  })
+
   it('leaves the model unchanged at strength zero', () => {
     const pixels = renderLight({
       environment: environmentWith({ surround: uniformMap(red), contact: uniformMap(red), exposure: 1 }),
@@ -383,6 +405,65 @@ describe('screen ambient light filter', () => {
       .toBe(channelAt(without, without.centerColumn, without.middleRow, 0))
   })
 
+  it('suppresses sustained white-screen bloom and preserves dark-source transparency', () => {
+    const options = { backlight: 1, bloom: 1, wrapIntensity: 0 }
+    const brightAdapted = renderWrap(uniformMap(white), { ...options, adaptedLevel: 1 })
+    const darkAdapted = renderWrap(uniformMap(white), { ...options, adaptedLevel: 0.01 })
+    const blackSource = renderWrap(uniformMap(black), { ...options, adaptedLevel: 0.01 })
+    const x = brightAdapted.spriteLeft - 1
+    const y = brightAdapted.middleRow
+    expect(channelAt(darkAdapted, x, y, 3)).toBeGreaterThan(channelAt(brightAdapted, x, y, 3))
+    expect(channelAt(brightAdapted, x, y, 3)).toBeGreaterThan(0)
+    expect(channelAt(blackSource, x, y, 3)).toBe(0)
+    // Adaptation changes the halo, not the opaque artwork or its alpha.
+    expect(channelAt(darkAdapted, 50, 50, 0)).toBe(channelAt(brightAdapted, 50, 50, 0))
+    expect(channelAt(darkAdapted, 50, 50, 3)).toBe(255)
+  })
+
+  it('reduces bright-page inward glare at the current strong bloom settings', () => {
+    const options = { backlight: 0.99, bloom: 1.8, wrapIntensity: 0.85 }
+    const whitePage = renderWrap(uniformMap(white), { ...options, adaptedLevel: 1 })
+    const movie = renderWrap(uniformMap(white), { ...options, adaptedLevel: 0.05 })
+    const x = whitePage.spriteLeft
+    const y = whitePage.middleRow
+    expect(channelAt(whitePage, x, y, 0)).toBeLessThan(channelAt(movie, x, y, 0) - 20)
+    expect(channelAt(whitePage, x - 1, y, 3)).toBeLessThan(channelAt(movie, x - 1, y, 3) * 0.3)
+    expect(channelAt(whitePage, 50, 50, 0)).toBe(channelAt(movie, 50, 50, 0))
+  })
+
+  it('adds exterior backlight only beside illuminated edges when bloom is enabled', () => {
+    const options = { backlight: 1, wrapIntensity: 0 }
+    const without = renderWrap(splitMap(black, white), { ...options, bloom: 0 })
+    const withBloom = renderWrap(splitMap(black, white), { ...options, bloom: 1 })
+    const x = withBloom.spriteRight + 3
+    expect(channelAt(without, x, without.middleRow, 3)).toBe(0)
+    expect(channelAt(withBloom, x, withBloom.middleRow, 3)).toBeGreaterThan(0)
+    expect(channelAt(withBloom, withBloom.spriteLeft - 3, withBloom.middleRow, 3)).toBe(0)
+    expect(channelAt(withBloom, withBloom.centerColumn, withBloom.middleRow, 3)).toBe(255)
+  })
+
+  it('fades exterior bloom smoothly at desktop model size', () => {
+    // ROOT CAUSE:
+    // Sparse blur taps produce copies of the silhouette at desktop scale.
+    // Converting low-precision coverage through sRGB then amplifies each step.
+    // The old small fixture did not expose these wide, repeated contours.
+    const scene = renderWrap(uniformMap(white), {
+      canvasSize: 600,
+      backlight: 1,
+      bloom: 1,
+      wrapIntensity: 0,
+    })
+    const profile = Array.from({ length: 60 }, (_, depth) =>
+      channelAt(scene, scene.spriteRight + 1 + depth, scene.middleRow, 3))
+    expect(profile[0]).toBeGreaterThan(40)
+    expect(profile.at(-1)).toBeLessThanOrEqual(2)
+    for (let depth = 0; depth < profile.length - 1; depth++) {
+      const drop = profile[depth] - profile[depth + 1]
+      expect(drop, `outward alpha drop at ${depth}`).toBeGreaterThanOrEqual(0)
+      expect(drop, `outward alpha drop at ${depth}`).toBeLessThanOrEqual(6)
+    }
+  })
+
   it('wraps a translucent part less when the translucent-wrap option is on', () => {
     // A part drawn with partial alpha already shows the desktop through
     // itself, and the wrap adds that desktop color on top. The option squares
@@ -524,16 +605,20 @@ function renderWrap(
   contact: AmbientLightMap,
   behind: {
     mode?: ScreenAmbientLightMode
+    adaptedLevel?: number
+    canvasSize?: number
     backlight?: number
+    bloom?: number
     wrapIntensity?: number
     wrapSaturation?: number
     translucentWrap?: boolean
     /** Alpha of the gray sprite, from 0 to 1. The default is opaque. */
     spriteAlpha?: number
+    surfaceBloom?: boolean
   } = {},
 ): WrapScene {
-  const canvasSize = 100
-  const spriteSize = 60
+  const canvasSize = behind.canvasSize ?? 100
+  const spriteSize = canvasSize * 0.6
   const spriteOffset = (canvasSize - spriteSize) / 2
 
   const source = document.createElement('canvas')
@@ -555,6 +640,12 @@ function renderWrap(
   const sprite = new Sprite(Texture.from(source))
   sprite.position.set(spriteOffset, spriteOffset)
   const filter = new ScreenAmbientLightFilter()
+  if (behind.surfaceBloom)
+    filter.renderSurfaceBloom = input => input
+  if (behind.adaptedLevel !== undefined) {
+    const level = behind.adaptedLevel
+    filter.exposure.configure(environmentWith({ surround: uniformMap([level, level, level]), contact }), { ...ambientLightDefaults.exposure, darkBase: ambientLightDefaults.filter.darkBase, baseCurve: ambientLightDefaults.filter.baseCurve, enabled: true }, true)
+  }
   filter.update({
     environment: environmentWith({ contact }),
     mode: behind.mode ?? 'window-gradient',
@@ -571,6 +662,7 @@ function renderWrap(
       wrapSaturation: behind.wrapSaturation ?? 1,
       wrapDiffuse: 0.07,
       backlight: behind.backlight ?? 0,
+      bloom: behind.bloom ?? 0,
       translucentWrap: behind.translucentWrap ?? false,
     },
   })

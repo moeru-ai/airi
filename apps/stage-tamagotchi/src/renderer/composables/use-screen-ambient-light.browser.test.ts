@@ -23,6 +23,13 @@ const selectedDisplayIds = vi.hoisted(() => [] as string[])
 /** Sources the main process offers; each case sets what it needs. */
 const offeredSources = vi.hoisted(() => ({ list: [] as { id: string, display_id: string }[] }))
 
+// The native capture reports no session, as on every platform but macOS, so
+// these cases run the Electron capture path.
+vi.mock('@moeru/eventa', async (original) => {
+  const eventa = await original<typeof import('@moeru/eventa')>()
+  return { ...eventa, defineInvoke: () => vi.fn(async () => null) }
+})
+
 // The returned functions run at composable setup, after the consts above
 // exist; the factory itself runs before them and must not touch them.
 vi.mock('@proj-airi/electron-vueuse', () => ({
