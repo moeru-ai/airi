@@ -3191,6 +3191,13 @@
     {
       "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
       "code": "unused-key",
+      "key": "tamagotchi.stage.about.update.status.latest",
+      "message": "\"tamagotchi.stage.about.update.status.latest\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
       "key": "tamagotchi.stage.computer-use-read-image-tool-call.description",
       "message": "\"tamagotchi.stage.computer-use-read-image-tool-call.description\" is not used.",
       "count": 1
