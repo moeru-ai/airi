@@ -11,7 +11,8 @@ const { chromium } = require('playwright')
 
 const OUT = path.resolve(process.argv[2] ?? 'saida-teste-app')
 const AIRI_DIR = process.env.AIRI_DIR ?? path.resolve(__dirname, '..', '..', '..')
-const NEPTUNA = path.join(AIRI_DIR, 'packages/alice-motion/fixtures/vrm/neptuna/neptuna.vrm')
+// The model to test. The default is Neptuna. VRM_FILE can name another VRM, for example the converted Eva.
+const NEPTUNA = process.env.VRM_FILE ?? path.join(AIRI_DIR, 'packages/alice-motion/fixtures/vrm/neptuna/neptuna.vrm')
 const VRMA = process.env.VRMA_FILE ?? path.join(OUT, 'Happy Spin.vrma')
 const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:5173'
 const FAKE_LOG = process.env.FAKE_LOG ?? path.join(os.tmpdir(), 'airi-fake-openai-requests.jsonl')
@@ -81,7 +82,7 @@ async function importNeptuna(page) {
   await chooser.setFiles(NEPTUNA)
   note('neptuna uploaded')
 
-  const card = page.locator('[role=dialog]').getByText('neptuna.vrm', { exact: true }).first()
+  const card = page.locator('[role=dialog]').getByText(path.basename(NEPTUNA), { exact: true }).first()
   await card.waitFor({ state: 'attached', timeout: 60000 })
   await card.locator('xpath=ancestor::*[.//button[normalize-space()="Pick"]][1]').getByRole('button', { name: 'Pick' }).click({ force: true })
 
@@ -165,7 +166,7 @@ function check() {
   const requests = fs.existsSync(FAKE_LOG) ? fs.readFileSync(FAKE_LOG, 'utf8') : ''
   const consoleText = consoleLines.join('\n')
   const checks = {
-    'neptuna imported and shown': fs.existsSync(path.join(OUT, '03-stage-idle.png')),
+    'model imported and shown': fs.existsSync(path.join(OUT, '03-stage-idle.png')),
     'imported VRMA listed in the settings': state.importedListed,
     'prompt lists the bundled emotes': requests.includes('- greeting (Greet with a polite bowing motion)'),
     'prompt lists the imported VRMA with its description': requests.includes('- happy_spin (Spin around with joy)'),

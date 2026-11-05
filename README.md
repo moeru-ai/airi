@@ -568,6 +568,16 @@ O que conferir:
 - Quando o humor muda, o humor antigo sai por completo antes de o novo entrar.
 - Durante um emote, o rosto fica feliz e ela não pisca.
 
+### 3a. A Eva em VRM (V4)
+
+O avatar da Eva do espelho (GLB do Ready Player Me) vira um VRM 1.0 com um comando, sem internet:
+
+```shell
+mise exec -- pnpm -F @proj-airi/alice-avatar-tools convert <pasta do servidor TalkingHead>/avatars/eva2.glb ./eva2.vrm Eva Alice
+```
+
+Depois importe o `eva2.vrm` como na Neptuna (passo 3). Não envie o arquivo convertido para o GitHub: ele segue os termos do Ready Player Me. Detalhes em [`packages/alice-avatar-tools/README.md`](./packages/alice-avatar-tools/README.md).
+
 ### 3b. Emotes pelo LLM e importação de VRMA (V2)
 
 - O LLM recebe a lista de emotes com descrição e pede um no token ACT, por exemplo `{"emotion":"happy","motion":"greeting"}`. Ela faz o emote.

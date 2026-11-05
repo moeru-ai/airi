@@ -3,10 +3,12 @@ import type { AnimationClip } from 'three'
 
 import { Euler, Quaternion, QuaternionKeyframeTrack } from 'three'
 
+import { proceduralAxisSign } from './procedural-axes'
+
 /**
  * Hand-to-chin stance in normalized humanoid space (T-pose rest, Euler XYZ, radians).
- * Normalized bones have an identity rest rotation on every VRM, so the same values
- * fit any model. Tuned on the Neptuna test model, front and side view.
+ * Normalized bones have an identity rest rotation on every VRM. Tuned on the Neptuna test model
+ * (VRM 0.x), front and side view. A VRM 1.0 gets x and z flipped, see `proceduralAxisSign`.
  * The right hand rests at the chin, and the left forearm crosses the waist.
  */
 const thinkingPose: Partial<Record<VRMHumanBoneName, [number, number, number]>> = {
@@ -26,6 +28,7 @@ export function createThinkingClip(vrm: VRM, idle: AnimationClip): AnimationClip
   const clip = idle.clone()
   clip.name = `${idle.name}:thinking`
   const duration = Math.max(clip.duration, 1)
+  const sign = proceduralAxisSign(vrm)
 
   for (const [boneName, [x, y, z]] of Object.entries(thinkingPose) as Array<[VRMHumanBoneName, [number, number, number]]>) {
     const node = vrm.humanoid.getNormalizedBoneNode(boneName)
@@ -33,7 +36,7 @@ export function createThinkingClip(vrm: VRM, idle: AnimationClip): AnimationClip
       continue
     const trackName = `${node.name}.quaternion`
     clip.tracks = clip.tracks.filter(track => track.name !== trackName)
-    const q = new Quaternion().setFromEuler(new Euler(x, y, z, 'XYZ'))
+    const q = new Quaternion().setFromEuler(new Euler(sign * x, y, sign * z, 'XYZ'))
     clip.tracks.push(new QuaternionKeyframeTrack(trackName, [0, duration], [q.x, q.y, q.z, q.w, q.x, q.y, q.z, q.w]))
   }
   clip.resetDuration()

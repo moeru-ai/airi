@@ -15,7 +15,7 @@
 | P3 | Máscaras por osso e mistura aditiva | Falta | — | V6 (gesto de braço sem parar o idle). |
 | P4 | Voz, face, prosódia, gaze, física, foot lock | Parcial | Rosto de humor permanente, aceno nos acentos da fala, lip-sync e spring bones do AIRI. | Marcações de tempo do TTS (Kokoro `/dev/captioned_speech`), foot lock, teste de 100 interrupções. |
 | P5 | Catálogo semântico e editor de camadas | Parcial | `MotionCatalog` (S03). Importação de VRMA com descrição e LLM escolhendo o emote (V2). | Editor de máscara e prévia por camada. |
-| P6 | Adaptador VRM | Parcial | O VRM virou a base (Planejamento 04). A biblioteca de movimentos roda no VRM. | Eva GLB convertida para VRM (V4). Retarget dos FBX Mixamo (V5). |
+| P6 | Adaptador VRM | Parcial | O VRM virou a base (Planejamento 04). A Eva converte para VRM 1.0 (V4, `packages/alice-avatar-tools`) e roda no AIRI com a V1 a V3. | Retarget dos FBX Mixamo (V5). |
 | P7 | Gestos neurais (StreamTalk, ARDY) | Falta | — | S17. Depende das GPUs (D7). |
 | Seção 9 | Integração com serviços locais | Feito | Serviço `alice-companion` e ponte MQTT somente leitura no AIRI (S08, 05/11/2026). | Rodar contra o broker real (prompt do agente local). |
 | Seção 11 | Testes que bloqueiam merge | Parcial | Semente fixa, `walk + wave`, `walk + sit`, mesmo braço, um gesto em cada braço, interrupção e reconexão (S03, S04). | 100 trocas de personagem, FPS 30/60/120, 100 interrupções com física. |

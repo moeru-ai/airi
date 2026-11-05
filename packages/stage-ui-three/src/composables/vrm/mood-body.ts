@@ -1,5 +1,7 @@
 import type { VRM, VRMHumanBoneName } from '@pixiv/three-vrm'
 
+import { proceduralAxisSign } from './procedural-axes'
+
 /**
  * Mood body, sprint V3: breathing, posture, weight shift, head carriage, and eye contact by mood.
  *
@@ -178,10 +180,13 @@ export class MoodBody {
     this.gazeY += (this.gazeTargetY - this.gazeY) * follow
   }
 
-  private add(vrm: VRM, name: VRMHumanBoneName, x: number, y: number, z: number) {
+  private add(vrm: VRM, name: VRMHumanBoneName, rawX: number, y: number, rawZ: number) {
     const bone = vrm.humanoid?.getNormalizedBoneNode(name)
     if (!bone)
       return
+    const sign = proceduralAxisSign(vrm)
+    const x = sign * rawX
+    const z = sign * rawZ
     bone.rotation.x += x
     bone.rotation.y += y
     bone.rotation.z += z

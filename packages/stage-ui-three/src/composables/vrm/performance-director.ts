@@ -10,6 +10,8 @@ import type { VRM, VRMHumanBoneName } from '@pixiv/three-vrm'
 
 import { Vector3 } from 'three'
 
+import { proceduralAxisSign } from './procedural-axes'
+
 export type DirectorState = 'idle' | 'thinking' | 'speaking'
 
 /** Things that happened in one frame, for the renderer to act on. */
@@ -185,10 +187,14 @@ export class PerformanceDirector {
     }
   }
 
-  private addOffset(vrm: VRM, name: VRMHumanBoneName, x: number, y: number, z: number) {
+  private addOffset(vrm: VRM, name: VRMHumanBoneName, rawX: number, y: number, rawZ: number) {
     const bone = vrm.humanoid?.getNormalizedBoneNode(name)
     if (!bone)
       return
+    // The values are tuned on a VRM 0.x. A VRM 1.0 turns x and z the other way.
+    const sign = proceduralAxisSign(vrm)
+    const x = sign * rawX
+    const z = sign * rawZ
     bone.rotation.x += x
     bone.rotation.y += y
     bone.rotation.z += z

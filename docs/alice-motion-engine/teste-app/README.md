@@ -57,6 +57,7 @@ Variáveis opcionais:
 | --- | --- | --- |
 | `BASE_URL` | `http://127.0.0.1:5173` | Endereço do `stage-web` |
 | `AIRI_DIR` | A raiz deste repositório | Onde estão a Neptuna e as animações |
+| `VRM_FILE` | A Neptuna | Outro VRM para testar, por exemplo a Eva convertida (V4) |
 | `VRMA_FILE` | Uma cópia de `emote-spin.vrma` | Outro VRMA para importar |
 | `FAKE_LOG` | `airi-fake-openai-requests.jsonl` na pasta temporária | Registro das requisições do servidor falso |
 

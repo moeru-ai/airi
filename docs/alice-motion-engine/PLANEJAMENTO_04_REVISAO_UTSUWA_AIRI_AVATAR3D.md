@@ -256,6 +256,27 @@ Evidências:
 - `evidencias/S08/`: sequência do vídeo no app, verificações e a contagem de publicações no log do broker. Zero publicações saíram da ponte, e 16 mensagens foram entregues a ela.
 - `evidencias/V3/humores-postura.png`: a Neptuna no mesmo quadro do idle em neutro, feliz, triste e bravo, de frente e de lado.
 
+## Estado da V4 (05/11/2026): a Eva em VRM
+
+A Eva do espelho é um avatar do Ready Player Me (GLB com 52 blendshapes ARKit e visemas). O pacote novo `packages/alice-avatar-tools` converte esse GLB em VRM 1.0, sem internet:
+
+| Etapa | Resultado na Eva (`eva2.glb`) |
+| --- | --- |
+| Pose T | Os braços estavam em pose A, 54,7° abaixo da horizontal. Depois da conversão: 0°. A malha, os 72 blendshapes e as matrizes de bind foram recalculados para a pose nova. |
+| Esqueleto | 54 ossos humanoides, dedos incluídos. |
+| Expressões | 18 presets (visemas, piscar, 5 emoções, olhar) e os 72 blendshapes como expressões custom. Nenhum blendshape faltou. |
+| Olhar | Ossos dos olhos. |
+
+O arquivo convertido fica na máquina. Ele não entra no repositório, por causa dos termos do Ready Player Me, e o meta do VRM proíbe a redistribuição.
+
+Defeito encontrado nesta etapa: os valores procedurais (pose de pensar, corpo da V3 e cabeça do diretor) foram ajustados na Neptuna, que é VRM 0.x. Num VRM 1.0, as rotações em X e Z giram ao contrário, e a Eva punha as duas mãos atrás da cabeça ao pensar. O utilitário `proceduralAxisSign` inverte X e Z num VRM 1.0, como o three-vrm faz ao contrário quando toca uma VRMA num VRM 0.x. A Neptuna não muda.
+
+Validação:
+
+- No three-vrm do AIRI: pose T de descanso, idle do Utsuwa, cumprimento, pose de pensar de frente e de lado, e as 8 expressões do rosto (`evidencias/V4/`).
+- No app, com o kit `teste-app/` e `VRM_FILE` apontando para a Eva: as 9 verificações passaram. Sequência do vídeo em `evidencias/V4/eva-no-app.png`: idles, pensando com a mão no queixo, cumprimento e fala.
+- 5 testes do conversor (avatar sintético em pose A) e 3 testes do `proceduralAxisSign`.
+
 ## Nova ordem proposta (substitui S06, S07 e S15 do Planejamento 03)
 
 | Sprint | Entrega no `overcyber/airi` | Base |
@@ -263,7 +284,7 @@ Evidências:
 | V1 (**concluída em 04/11/2026**, ver "Estado da V1" e "Teste dentro do app") | Presença fluida no VRM, com a Neptuna como modelo de teste: pool de idles com os tempos do Utsuwa, clipes de pensar e de falar, emotes com saída limpa, rosto de humor permanente com suavização (no lugar do reset de 3 s em `VRMModel.vue:1111`) e presença procedural do diretor do xiaoke. Novo `packages/stage-ui-three/src/composables/vrm/motion-library.ts`, chamado em `VRMModel.vue:827-846`. | Seção "Análise do código" abaixo |
 | V2 (**concluída em 04/11/2026**, ver "Estado da V2") | Emotes pelo LLM: estender o token ACT (`stage-ui/src/composables/queues.ts:23-60`, `Stage.vue:294-346`) com `motion`. Importação de VRMA com descrição na tela de modelo. | Padrão do Utsuwa, implementação própria |
 | V3 (**concluída em 05/11/2026**) | Realismo procedural no VRM: respiração, troca de pose e peso por humor, cabeça e contato visual. O humor deixa de ser só rosto (`expression.ts`, reset de 3 s). | Conceitos do TalkingHead (MIT) |
-| V4 | Eva GLB → VRM, mantendo ARKit 52 + visemas como expressões customizadas, e lip-sync mapeado | D1 / antiga S15 |
+| V4 (**concluída em 05/11/2026**) | Eva GLB → VRM, mantendo ARKit 52 + visemas como expressões customizadas, e lip-sync mapeado | D1 / antiga S15 |
 | V5 | Conversão dos ~20 FBX Mixamo para VRMA (script de retarget e verificação visual) | `talkinghead-neoalice/animations_arkit` |
 | V6 | Camadas no VRM: máscara por osso e mistura aditiva (gesto de braço sem parar o idle) | Plano 01 P3, agora no VRM |
 | — | S03 (director) e S04 (scheduler) **concluídas em 05/11/2026**. A S08 (ponte MQTT) **concluída em 05/11/2026**: liga a NeoAlice sem alterá-la. | Contratos v1 (`packages/alice-motion`) |

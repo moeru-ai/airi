@@ -1,0 +1,34 @@
+{
+  "name": "@proj-airi/alice-avatar-tools",
+  "type": "module",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Converts the Ready Player Me avatar of the Alice persona to VRM 1.0, offline",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/alice-avatar-tools"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "convert": "tsx src/cli.ts",
+    "test": "vitest run",
+    "test:run": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@moeru/std": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "tsx": "catalog:"
+  }
+}
