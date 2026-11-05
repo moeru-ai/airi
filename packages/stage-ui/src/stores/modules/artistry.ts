@@ -1,6 +1,8 @@
 import type {} from 'pinia-plugin-synced'
 
+import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
+import { refManualReset } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, isRef, ref, watch } from 'vue'
 
@@ -55,7 +57,17 @@ export const useArtistryStore = defineStore('artistry', () => {
   )
 
   // --- Replicate provider settings ---
-  const replicateApiKey = useLocalStorageManualReset<string>('artistry-replicate-api-key', '', persistenceOptions)
+  // NOTICE: Tamagotchi has a secure alternative (the Electron main process's encrypted
+  // safeStorage, via apps/stage-tamagotchi/src/renderer/stores/settings/artistry-credentials.ts
+  // + src/main/configs/artistry.ts) so this ref stays memory-only there — persisting it to
+  // localStorage (Chromium's local storage in the Electron user-data dir) would be recoverable
+  // plaintext. Web/Capacitor have no such boundary yet, so they keep the original
+  // localStorage-backed persistence: no worse than before this file ever touched the key, and
+  // the same risk every other provider's credential in stores/providers.ts already carries.
+  // (review: https://github.com/moeru-ai/airi/pull/2512#discussion_r4176290527)
+  const replicateApiKey = isStageTamagotchi()
+    ? refManualReset<string>('')
+    : useLocalStorageManualReset<string>('artistry-replicate-api-key', '', persistenceOptions)
   const replicateDefaultModel = useLocalStorageManualReset<string>(
     'artistry-replicate-default-model',
     'black-forest-labs/flux-schnell',
@@ -73,7 +85,11 @@ export const useArtistryStore = defineStore('artistry', () => {
   )
 
   // --- Nano Banana (Google AI Studio) provider settings ---
-  const nanobananaApiKey = useLocalStorageManualReset<string>('artistry-nanobanana-api-key', '', persistenceOptions)
+  // NOTICE: see replicateApiKey above — memory-only + main-process-persisted on Tamagotchi,
+  // localStorage-backed on web/Capacitor.
+  const nanobananaApiKey = isStageTamagotchi()
+    ? refManualReset<string>('')
+    : useLocalStorageManualReset<string>('artistry-nanobanana-api-key', '', persistenceOptions)
   const nanobananaModel = useLocalStorageManualReset<string>(
     'artistry-nanobanana-model',
     'gemini-3.1-flash-image-preview',

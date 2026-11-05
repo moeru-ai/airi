@@ -59,6 +59,14 @@ export interface Config<TSchema extends PersistedSchema> {
   get: () => InferOutput<TSchema> | undefined
   update: (newData: InferOutput<TSchema>) => void
   getDiagnostics: () => ConfigDiagnostics<InferOutput<TSchema>> | undefined
+  /**
+   * Writes the current in-memory state to disk immediately, bypassing the throttle. Resolves
+   * only once the write and rename completed, and rejects with the real error instead of only
+   * logging it. Callers that must confirm a write succeeded before an irreversible follow-up
+   * (e.g. deleting the only other copy of a value elsewhere) should await this instead of
+   * `update()` alone.
+   */
+  writeDurable: () => Promise<void>
 }
 
 /**
@@ -96,22 +104,38 @@ export function createConfig<TSchema extends PersistedSchema>(
     return diagnostics
   }
 
+  const writeToDisk = async () => {
+    const path = configPath()
+    await ensureConfigDirectory(path)
+    // The value is read here, after the wait. A save that overlaps this one
+    // then writes the value of the newer update, not an older value it read
+    // before the wait.
+    const value = persistenceMap.get(key())
+    // A root this config never read from holds no value. An empty document
+    // makes the next read of that root heal it.
+    if (value === undefined)
+      return
+
+    const tmpPath = `${path}.${randomUUID()}.tmp`
+    await writeFile(tmpPath, JSON.stringify(value))
+    await rename(tmpPath, path)
+  }
+
+  // Serializes every write to this config's file. Without it, two in-flight
+  // write -> rename sequences can finish out of order, and a slow throttled save
+  // could overwrite the newer state a `writeDurable()` already confirmed.
+  let writeChain: Promise<unknown> = Promise.resolve()
+  const enqueueWrite = (): Promise<void> => {
+    // Runs after the previous write whether it succeeded or not.
+    const scheduled = writeChain.then(writeToDisk, writeToDisk)
+    // The chain must not hold a rejected promise; the outcome still reaches the caller.
+    writeChain = scheduled.catch(() => {})
+    return scheduled
+  }
+
   const save = throttle(async () => {
     try {
-      const path = configPath()
-      await ensureConfigDirectory(path)
-      // The value is read here, after the wait. A save that overlaps this one
-      // then writes the value of the newer update, not an older value it read
-      // before the wait.
-      const value = persistenceMap.get(key())
-      // A root this config never read from holds no value. An empty document
-      // makes the next read of that root heal it.
-      if (value === undefined)
-        return
-
-      const tmpPath = `${path}.${randomUUID()}.tmp`
-      await writeFile(tmpPath, JSON.stringify(value))
-      await rename(tmpPath, path)
+      await enqueueWrite()
     }
     catch (error) {
       console.error('Failed to save config', error)
@@ -207,5 +231,6 @@ export function createConfig<TSchema extends PersistedSchema>(
     get,
     update,
     getDiagnostics,
+    writeDurable: enqueueWrite,
   }
 }
