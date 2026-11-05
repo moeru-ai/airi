@@ -23,14 +23,10 @@ type ManagedExtensionSession = LoadedExtensionSession | CleanupPendingExtensionS
 
 /** Separates active projections from session ownership retained for cleanup. */
 export interface ManagedSessionSnapshot {
-  /** Extensions that callers may treat as active. */
+  /** Extensions that callers may treat as active, in load order. */
   loadedExtensionIds: string[]
-  /** Manifests for active Extensions passed to the activation Planner. */
-  loadedManifests: ExtensionManifestV2[]
   /** Extensions hidden from active projections but still awaiting cleanup. */
   cleanupPendingExtensionIds: string[]
-  /** Manifests for every session still owned by the Electron Host. */
-  ownedManifests: ExtensionManifestV2[]
 }
 
 /** Identifies one cleanup owner that failed without hiding other cleanup results. */
@@ -54,6 +50,7 @@ export interface SessionCleanupReport {
 /**
  * Owns Electron extension sessions until runtime and asset cleanup both succeed.
  *
+ * The plugin host disposes the session container once. Asset revocation is an outside resource, so it keeps a retry.
  * Loaded state is only an activation projection. A session that leaves that
  * projection can still remain here as cleanup debt. Each cleanup owner records
  * completion independently, so retries never repeat a completed side effect.
@@ -107,14 +104,10 @@ export class ManagedExtensionSessions {
       loadedExtensionIds: sessions
         .filter(session => session.phase === 'loaded')
         .map(session => session.extensionId),
-      loadedManifests: sessions
-        .filter(session => session.phase === 'loaded')
-        .map(session => session.manifest),
       cleanupPendingExtensionIds: sessions
         .filter((session): session is CleanupPendingExtensionSession => session.phase === 'cleanup-pending')
         .sort((left, right) => left.cleanupSequence - right.cleanupSequence)
         .map(session => session.extensionId),
-      ownedManifests: sessions.map(session => session.manifest),
     }
   }
 

@@ -2,6 +2,7 @@ import type {
   ExtensionDirectoryImportPrepareResult,
   PluginCapabilityState,
   PluginHostDebugSnapshot,
+  PluginHostGraphSummary,
   PluginHostKitSummary,
   PluginHostSessionSummary,
   PluginRegistrySnapshot,
@@ -38,6 +39,7 @@ export const usePluginHostInspectorStore = defineStore('devtools:plugin-host-deb
   const sessions = ref<PluginHostSessionSummary[]>([])
   const kits = ref<PluginHostKitSummary[]>([])
   const capabilities = ref<PluginCapabilityState[]>([])
+  const graph = ref<PluginHostGraphSummary>()
   const refreshedAt = ref<number>()
   const error = ref<string>()
   const loading = ref(false)
@@ -66,6 +68,7 @@ export const usePluginHostInspectorStore = defineStore('devtools:plugin-host-deb
     sessions.value = snapshot.sessions
     kits.value = snapshot.kits
     capabilities.value = snapshot.capabilities
+    graph.value = snapshot.graph
     refreshedAt.value = snapshot.refreshedAt
   }
 
@@ -193,6 +196,7 @@ export const usePluginHostInspectorStore = defineStore('devtools:plugin-host-deb
     sessions,
     kits,
     capabilities,
+    graph,
     refreshedAt,
     loading,
     error,

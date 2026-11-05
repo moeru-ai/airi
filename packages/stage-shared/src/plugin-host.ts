@@ -107,6 +107,44 @@ export interface PluginHostModuleSummary {
   config: Record<string, unknown>
 }
 
+/** One service of the plugin host graph. Values come from injeca `graph().services()`. */
+export interface PluginHostGraphServiceSummary {
+  key: string
+  kind: 'service' | 'invocation'
+  /** The owner record of the container, for example `{ kind: 'plugin', pluginId, sessionId }`. */
+  owner: Record<string, unknown>
+  phase: string
+  /** The effective status of a running service. */
+  status?: 'ready' | 'degraded' | 'unavailable'
+  instanceId?: string
+  exported: boolean
+  /** The owner record of the consumer container of a per-consumer instance. */
+  consumer?: Record<string, unknown>
+}
+
+/** One record of the plugin host observe stream. */
+export interface PluginHostGraphEvent {
+  type: string
+  key: string
+  owner: Record<string, unknown>
+  from?: string
+  to?: string
+  decision?: string
+  hook?: string
+  reason?: string
+  /** Millisecond timestamp from the host process. */
+  at: number
+}
+
+/** A read-only view of the plugin host graph. */
+export interface PluginHostGraphSummary {
+  services: PluginHostGraphServiceSummary[]
+  /** Why each session that is not ready waits, one sentence for each blocker. */
+  explanations: Array<{ sessionId: string, extensionId: string, lines: string[] }>
+  /** The last records of the observe stream, oldest first. */
+  events: PluginHostGraphEvent[]
+}
+
 /** Registry and runtime state captured together for Plugin Host tooling. */
 export interface PluginHostDebugSnapshot {
   registry: PluginRegistrySnapshot
@@ -114,6 +152,8 @@ export interface PluginHostDebugSnapshot {
   kits: PluginHostKitSummary[]
   modules: PluginHostModuleSummary[]
   capabilities: PluginCapabilityState[]
+  /** The injeca graph of the plugin host. */
+  graph?: PluginHostGraphSummary
   /** Millisecond timestamp when this complete snapshot was captured. */
   refreshedAt: number
 }

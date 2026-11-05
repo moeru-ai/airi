@@ -53,6 +53,31 @@ const sessionByExtensionId = computed(() => {
   return map
 })
 
+/** The graph services, grouped by the plugin that owns them. Per-consumer instances group under their consumer. */
+const graphGroups = computed(() => {
+  const groups = new Map<string, NonNullable<typeof store.graph>['services']>()
+  for (const service of store.graph?.services ?? []) {
+    if (service.key.startsWith('capability:'))
+      continue
+    const owner = service.owner.kind === 'plugin' || service.owner.kind === 'module'
+      ? String(service.owner.pluginId)
+      : 'host'
+    groups.set(owner, [...(groups.get(owner) ?? []), service])
+  }
+  return [...groups.entries()].sort(([left], [right]) => left === 'host' ? -1 : right === 'host' ? 1 : left.localeCompare(right))
+})
+
+const recentGraphEvents = computed(() => (store.graph?.events ?? [])
+  .filter(event => !event.key.startsWith('capability:'))
+  .slice(-30)
+  .reverse())
+
+function graphPhaseTheme(phase: string, status?: string): 'neutral' | 'emerald' | 'amber' {
+  if (phase === 'running' && status !== 'unavailable')
+    return status === 'degraded' ? 'amber' : 'emerald'
+  return phase === 'pending' || phase === 'failed' || status === 'unavailable' ? 'amber' : 'neutral'
+}
+
 const readyCapabilitiesCount = computed(() => {
   return store.capabilities.filter(capability => capability.state === 'ready').length
 })
@@ -672,6 +697,81 @@ onMounted(async () => {
           <pre :class="['mt-2', 'overflow-auto', 'rounded-lg', 'bg-neutral-100', 'p-2', 'text-xs', 'dark:bg-neutral-900/70']">{{ JSON.stringify(capability.metadata ?? {}, null, 2) }}</pre>
         </div>
       </div>
+    </Section>
+
+    <Section
+      title="Plugin Graph"
+      icon="i-mingcute:layers-line"
+      inner-class="gap-3"
+    >
+      <div
+        v-if="!store.graph"
+        :class="['text-sm', 'opacity-70']"
+      >
+        No graph snapshot. Refresh the inspector.
+      </div>
+      <template v-else>
+        <div
+          v-for="explanation in store.graph.explanations"
+          :key="explanation.sessionId"
+          :class="['rounded-lg', 'bg-amber-50', 'p-3', 'dark:bg-amber-950/40']"
+        >
+          <div :class="['font-mono', 'text-xs', 'sm:text-sm']">
+            {{ explanation.extensionId }} waits
+          </div>
+          <ul :class="['mt-1', 'text-xs', 'opacity-80']">
+            <li v-for="(line, index) in explanation.lines" :key="index">
+              {{ line }}
+            </li>
+          </ul>
+        </div>
+
+        <div
+          v-for="[owner, services] in graphGroups"
+          :key="owner"
+          :class="['rounded-lg', 'bg-neutral-100/70', 'p-3', 'dark:bg-neutral-900/60']"
+        >
+          <div :class="['mb-2', 'text-xs', 'font-semibold', 'uppercase', 'opacity-60']">
+            {{ owner }}
+          </div>
+          <div :class="['grid', 'gap-1']">
+            <div
+              v-for="service in services"
+              :key="`${service.key}:${service.instanceId ?? service.phase}:${String(service.consumer?.sessionId ?? '')}`"
+              :class="['flex', 'flex-wrap', 'items-center', 'justify-between', 'gap-2']"
+            >
+              <span :class="['font-mono', 'text-xs']">
+                {{ service.key }}<span v-if="service.exported" :class="['opacity-60']"> (exported)</span>
+              </span>
+              <span :class="['rounded-full', 'px-2', 'py-0.5', 'text-xs', ...chipClasses(graphPhaseTheme(service.phase, service.status))]">
+                {{ service.phase }}{{ service.status ? ` · ${service.status}` : '' }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div :class="['rounded-lg', 'bg-neutral-100/70', 'p-3', 'dark:bg-neutral-900/60']">
+          <div :class="['mb-2', 'text-xs', 'font-semibold', 'uppercase', 'opacity-60']">
+            Recent events
+          </div>
+          <div
+            v-for="(event, index) in recentGraphEvents"
+            :key="index"
+            :class="['font-mono', 'text-xs', 'opacity-80']"
+          >
+            {{ event.key }}
+            <template v-if="event.type === 'phase' || event.type === 'status'">
+              {{ event.from ?? '-' }} → {{ event.to }}
+            </template>
+            <template v-else-if="event.type === 'decision'">
+              {{ event.hook }}: {{ event.decision }}
+            </template>
+            <template v-else>
+              {{ event.type }}
+            </template>
+          </div>
+        </div>
+      </template>
     </Section>
   </div>
 </template>
