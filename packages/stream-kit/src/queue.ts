@@ -1,14 +1,14 @@
 export interface HandlerContext<T> {
   data: T
-  emit: (eventName: string, ...params: any[]) => void
+  emit: (eventName: string, ...params: unknown[]) => void
 }
 
 export interface Events<T> {
   enqueue: Array<(payload: T, queueLength: number) => void>
   dequeue: Array<(payload: T, queueLength: number) => void>
-  process: Array<(payload: T, handler: (param: HandlerContext<T>) => Promise<any>) => void>
-  error: Array<(payload: T, error: unknown, handler: (param: HandlerContext<T>) => Promise<any>) => void>
-  result: Array<<R>(payload: T, result: R, handler: (param: HandlerContext<T>) => Promise<any>) => void>
+  process: Array<(payload: T, handler: (param: HandlerContext<T>) => Promise<unknown>) => void>
+  error: Array<(payload: T, error: unknown, handler: (param: HandlerContext<T>) => Promise<unknown>) => void>
+  result: Array<<R>(payload: T, result: R, handler: (param: HandlerContext<T>) => Promise<unknown>) => void>
   drain: Array<() => void>
 }
 
@@ -20,7 +20,9 @@ export function createQueue<T>(options: {
   // handler that enqueues must see this flag. Otherwise that enqueue starts a nested drain and runs its item first.
   let draining = false
 
-  const internalEventListeners: Events<T> = {
+  // Listeners are stored per event name. The record keeps only `unknown` because the event name selects the
+  // listener type, which the record type cannot express. `on` is the only writer, so it stores a matching listener.
+  const internalEventListeners: Record<keyof Events<T>, unknown[]> = {
     enqueue: [],
     dequeue: [],
     process: [],
@@ -28,23 +30,23 @@ export function createQueue<T>(options: {
     result: [],
     drain: [],
   }
-  const internalHandlerEventListeners: Record<string, Array<(...params: any[]) => void>> = {}
+  const internalHandlerEventListeners: Record<string, Array<(...params: unknown[]) => void>> = {}
 
   function on<E extends keyof Events<T>>(eventName: E, listener: Events<T>[E][number]) {
-    internalEventListeners[eventName].push(listener as any)
+    internalEventListeners[eventName].push(listener)
   }
 
   function emit<E extends keyof Events<T>>(eventName: E, ...params: Parameters<Events<T>[E][number]>) {
-    const listeners = internalEventListeners[eventName] as Events<T>[E]
-    listeners.forEach(listener => (listener as any)(...params))
+    const listeners = internalEventListeners[eventName] as Array<(...args: Parameters<Events<T>[E][number]>) => void>
+    listeners.forEach(listener => listener(...params))
   }
 
-  function onHandlerEvent(eventName: string, listener: (...params: any[]) => void) {
+  function onHandlerEvent(eventName: string, listener: (...params: unknown[]) => void) {
     internalHandlerEventListeners[eventName] = internalHandlerEventListeners[eventName] || []
     internalHandlerEventListeners[eventName].push(listener)
   }
 
-  function emitHandlerEvent(eventName: string, ...params: any[]) {
+  function emitHandlerEvent(eventName: string, ...params: unknown[]) {
     const listeners = internalHandlerEventListeners[eventName] || []
     listeners.forEach(listener => listener(...params))
   }
