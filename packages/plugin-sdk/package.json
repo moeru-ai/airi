@@ -51,6 +51,7 @@
   },
   "devDependencies": {
     "@types/semver": "catalog:",
-    "es-toolkit": "catalog:"
+    "es-toolkit": "catalog:",
+    "tsx": "catalog:"
   }
 }

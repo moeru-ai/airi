@@ -4479,6 +4479,9 @@ importers:
       es-toolkit:
         specifier: 'catalog:'
         version: 1.51.0
+      tsx:
+        specifier: 'catalog:'
+        version: 4.23.12
 
   packages/plugin-sdk-tamagotchi:
     dependencies:

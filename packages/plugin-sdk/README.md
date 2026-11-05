@@ -133,6 +133,10 @@ export default defineExtension({
 
 `createHarnessKit()` is a reference `airi.harness` Kit. `hooks.on(event, handler, { priority })` registers the listener with injeca `listen` on the plugin container, so it goes away with the plugin. `runHarnessHooks(host.container, event, context)` runs the listeners in priority order with a timeout.
 
+### Scenarios
+
+[`examples/README.md`](./examples/README.md) runs five plugin scenarios in workers and prints their injeca timeline.
+
 ## Kit API Naming
 
 Trusted Host-provided Kits hide transport details from extension authors. A normal extension uses a Host Kit as an API object directly from setup:
