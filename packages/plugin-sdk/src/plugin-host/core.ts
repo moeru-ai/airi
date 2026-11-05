@@ -46,7 +46,6 @@ import {
   ExtensionSessionService,
   KitApiBindingRegistryService,
   PermissionService,
-  ResourceService,
 } from './runtimes/shared'
 
 /** Stable empty declaration set for Manifests that do not provide Kits. */
@@ -237,7 +236,6 @@ export class ExtensionHost {
   private readonly airiVersion?: string
   private readonly permissionResolver?: ExtensionHostOptions['permissionResolver']
   private readonly persistedPermissionGrants = new Map<string, ModulePermissionGrant>()
-  private readonly resources = new ResourceService()
 
   private readonly installContext: ExtensionHostInstallContext
 
@@ -249,7 +247,6 @@ export class ExtensionHost {
     }
     this.airiVersion = options.airiVersion
     this.permissionResolver = options.permissionResolver
-    this.resources.setValue(protocolListProvidersEventName, [] as Array<{ name: string }>)
     this.markCapabilityReady(protocolListProvidersEventName, { source: 'plugin-host' })
     this.installContext = this.createInstallContext()
 
@@ -630,8 +627,6 @@ export class ExtensionHost {
   private createInstallContext(): ExtensionHostInstallContext {
     return {
       registerKit: kit => this.registerKit(kit),
-      setResourceResolver: (key, resolver) => this.setResourceResolver(key, resolver),
-      setResourceValue: (key, value) => this.setResourceValue(key, value),
       announceCapability: (key, metadata) => {
         this.announceCapability(key, metadata)
       },
@@ -949,14 +944,6 @@ export class ExtensionHost {
     })
 
     return session
-  }
-
-  setResourceResolver<T>(key: string, resolver: () => Promise<T> | T) {
-    this.resources.setResolver(key, resolver)
-  }
-
-  setResourceValue<T>(key: string, value: T) {
-    this.resources.setValue(key, value)
   }
 
   announceCapability(key: string, metadata?: Record<string, unknown>) {

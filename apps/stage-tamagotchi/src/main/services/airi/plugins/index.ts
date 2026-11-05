@@ -2,16 +2,12 @@ import type { IpcMainEvent, OpenDialogOptions } from 'electron'
 
 import type { ExtensionHostService, SetupExtensionHostOptions } from './types'
 
-import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
+import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { BrowserWindow, dialog, ipcMain } from 'electron'
 
 import { electronPluginGetAssetBaseUrl } from '../../../../shared/eventa/plugin/assets'
-import {
-  electronPluginUpdateCapability,
-  pluginProtocolListProviders,
-  pluginProtocolListProvidersEventName,
-} from '../../../../shared/eventa/plugin/capabilities'
+import { electronPluginUpdateCapability } from '../../../../shared/eventa/plugin/capabilities'
 import {
   electronPluginCancelDirectoryImport,
   electronPluginCommitDirectoryImport,
@@ -107,7 +103,6 @@ function trackDirectoryImportOwner(
 export async function setupExtensionHost(options: SetupExtensionHostOptions): Promise<ExtensionHostService> {
   const hostService = await setupExtensionHostServiceInternal(options)
   const { context } = createContext(ipcMain)
-  const invokePluginProtocolListProviders = defineInvoke(context, pluginProtocolListProviders)
   // A plan remains owned by the renderer that displayed its review. Reopening
   // Settings creates a new renderer, which must start a new import review.
   const directoryImportPlanOwners = new Map<string, number>()
@@ -231,13 +226,6 @@ export async function setupExtensionHost(options: SetupExtensionHostOptions): Pr
   })
 
   defineInvokeHandler(context, electronPluginUpdateCapability, async (payload) => {
-    if (payload.key === pluginProtocolListProvidersEventName && payload.state === 'ready') {
-      hostService.host.setResourceResolver(
-        pluginProtocolListProvidersEventName,
-        async () => await invokePluginProtocolListProviders(),
-      )
-    }
-
     switch (payload.state) {
       case 'announced':
         return hostService.host.announceCapability(payload.key, payload.metadata)

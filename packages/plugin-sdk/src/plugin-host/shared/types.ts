@@ -470,7 +470,7 @@ export interface ExtensionHostContribution {
  *
  * Use when:
  * - Installing a host feature into `ExtensionHost`
- * - Registering kits, resources, or capabilities
+ * - Registering kits or capabilities
  *
  * Expects:
  * - Installation happens during `ExtensionHost` construction
@@ -483,8 +483,6 @@ export interface ExtensionHostInstallContext {
   markCapabilityDegraded: (key: string, metadata?: Record<string, unknown>) => void
   markCapabilityReady: (key: string, metadata?: Record<string, unknown>) => void
   registerKit: (kit: KitDescriptor) => HostSourceLease<KitDescriptorSnapshot>
-  setResourceResolver: <T>(key: string, resolver: () => Promise<T> | T) => void
-  setResourceValue: <T>(key: string, value: T) => void
   withdrawCapability: (key: string, metadata?: Record<string, unknown>) => void
 }
 
