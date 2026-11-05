@@ -28,6 +28,7 @@ export default defineConfig({
         extends: true,
         test: {
           name: 'node',
+          execArgv: ['--no-experimental-webstorage'],
           include: ['src-web/src/**/*.test.ts'],
           exclude: ['src-web/src/**/*.browser.test.ts'],
         },
