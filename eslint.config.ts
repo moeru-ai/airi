@@ -79,6 +79,22 @@ export default defineConfig({
     'no-restricted-imports': ['error', {
       paths: [
         {
+          name: '@better-fetch/fetch',
+          message: 'Use `ofetch` for HTTP requests. In a better-auth client plugin, type it with `BetterAuthClientPlugin` from `better-auth/client`.',
+        },
+        {
+          name: 'awilix',
+          message: 'Use `injeca` for dependency injection.',
+        },
+        {
+          name: 'colorjs.io',
+          message: 'Use `culori` for color parsing and conversion.',
+        },
+        {
+          name: 'debug',
+          message: 'Use `@guiiai/logg` and its debug log level.',
+        },
+        {
           name: 'localforage',
           message: 'Use the unstorage instance in `@proj-airi/stage-ui/database/storage`. Mount an IndexedDB store there and read and write raw values.',
         },

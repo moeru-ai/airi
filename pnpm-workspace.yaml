@@ -85,7 +85,6 @@ catalog:
   '@better-auth/cli': ^1.4.22
   '@better-auth/drizzle-adapter': 1.6.25
   '@better-auth/oauth-provider': 1.6.25
-  '@better-fetch/fetch': ^1.3.1
   '@capacitor/android': ^8.6.0
   '@capacitor/app': ^8.1.1
   '@capacitor/barcode-scanner': ^3.1.1
@@ -289,7 +288,6 @@ catalog:
   alien-signals: ^3.2.1
   animejs: ^4.5.0
   async-mutex: 0.5.0
-  awilix: ^13.0.5
   best-effort-json-parser: ^1.5.1
   better-auth: 1.6.25
   builder-util-runtime: ^9.7.0
@@ -299,13 +297,11 @@ catalog:
   capacitor-native-settings: ^8.2.0
   chess.js: ^1.4.0
   clustr: ^1.0.2
-  colorjs.io: ^0.7.1
   crossws: ^0.4.12
   csstype: ^3.2.3
   culori: ^4.0.2
   d3: 7.9.0
   date-fns: ^4.4.0
-  debug: ^4.4.3
   defu: ^6.1.7
   destr: ^2.0.5
   discord.js: ^14.27.0
