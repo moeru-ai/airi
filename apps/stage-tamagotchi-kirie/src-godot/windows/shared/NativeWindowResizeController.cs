@@ -40,7 +40,7 @@ internal sealed class NativeWindowResizeController : IDisposable
         int edgeThickness,
         int cornerSize)
     {
-        var isInsideWindow = position.X >= 0
+        bool isInsideWindow = position.X >= 0
             && position.Y >= 0
             && position.X < windowSize.X
             && position.Y < windowSize.Y;
@@ -49,10 +49,10 @@ internal sealed class NativeWindowResizeController : IDisposable
             return null;
         }
 
-        var isInLeftCorner = position.X < cornerSize;
-        var isInRightCorner = position.X >= windowSize.X - cornerSize;
-        var isInTopCorner = position.Y < cornerSize;
-        var isInBottomCorner = position.Y >= windowSize.Y - cornerSize;
+        bool isInLeftCorner = position.X < cornerSize;
+        bool isInRightCorner = position.X >= windowSize.X - cornerSize;
+        bool isInTopCorner = position.Y < cornerSize;
+        bool isInBottomCorner = position.Y >= windowSize.Y - cornerSize;
 
         if (isInTopCorner && isInLeftCorner)
         {
@@ -74,10 +74,10 @@ internal sealed class NativeWindowResizeController : IDisposable
             return DisplayServer.WindowResizeEdge.BottomRight;
         }
 
-        var isLeftEdge = position.X < edgeThickness;
-        var isRightEdge = position.X >= windowSize.X - edgeThickness;
-        var isTopEdge = position.Y < edgeThickness;
-        var isBottomEdge = position.Y >= windowSize.Y - edgeThickness;
+        bool isLeftEdge = position.X < edgeThickness;
+        bool isRightEdge = position.X >= windowSize.X - edgeThickness;
+        bool isTopEdge = position.Y < edgeThickness;
+        bool isBottomEdge = position.Y >= windowSize.Y - edgeThickness;
 
         if (isTopEdge)
         {
@@ -112,7 +112,7 @@ internal sealed class NativeWindowResizeController : IDisposable
 
         if (inputEvent is InputEventMouseMotion mouseMotion)
         {
-            var resizeEdge = ResolveResizeEdge(
+            DisplayServer.WindowResizeEdge? resizeEdge = ResolveResizeEdge(
                 mouseMotion.Position,
                 _window.Size,
                 _edgeThickness,
@@ -135,7 +135,7 @@ internal sealed class NativeWindowResizeController : IDisposable
             return;
         }
 
-        var edge = ResolveResizeEdge(
+        DisplayServer.WindowResizeEdge? edge = ResolveResizeEdge(
             mouseButton.Position,
             _window.Size,
             _edgeThickness,
@@ -151,7 +151,7 @@ internal sealed class NativeWindowResizeController : IDisposable
 
     private void RefreshHitTargets()
     {
-        var displayScale = DesktopWindowSizing.GetDisplayScale(_window);
+        float displayScale = DesktopWindowSizing.GetDisplayScale(_window);
         _edgeThickness = Math.Max(
             1,
             Mathf.CeilToInt(DefaultEdgeThickness * displayScale));

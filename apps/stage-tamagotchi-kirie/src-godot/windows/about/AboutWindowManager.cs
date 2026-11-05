@@ -44,9 +44,9 @@ internal sealed class AboutWindowManager
             return;
         }
 
-        var scene = ResourceLoader.Load<PackedScene>(WindowScenePath)
+        PackedScene scene = ResourceLoader.Load<PackedScene>(WindowScenePath)
             ?? throw new InvalidOperationException($"The about window scene is missing: {WindowScenePath}");
-        var window = scene.Instantiate<Window>();
+        Window window = scene.Instantiate<Window>();
         _window = window;
         _ready = false;
         try
@@ -67,9 +67,9 @@ internal sealed class AboutWindowManager
     private void AttachRuntime(Window window)
     {
         var kirie = KirieClient.FromNode(window.GetNode("KirieNode"));
-        var eventa = kirie.CreateEventaContext(_registry);
-        var platform = GdKiriePlatform.Attach(eventa.Context, window);
-        var microphonePermissionRegistration = _microphonePermissions.Attach(eventa.Context);
+        KirieEventaContextHandle eventa = kirie.CreateEventaContext(_registry);
+        GdKiriePlatformHost platform = GdKiriePlatform.Attach(eventa.Context, window);
+        IDisposable microphonePermissionRegistration = _microphonePermissions.Attach(eventa.Context);
         var permissions = new WebViewPermissionHandler(kirie, _rendererUrl);
 
         void OnWebViewReady()

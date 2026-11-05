@@ -31,9 +31,9 @@ internal sealed class LoopbackAuthServer : IDisposable
     {
         ArgumentException.ThrowIfNullOrEmpty(expectedState);
 
-        for (var attempt = 0; attempt < 10; attempt++)
+        for (int attempt = 0; attempt < 10; attempt++)
         {
-            var port = FindAvailablePort();
+            int port = FindAvailablePort();
             var listener = new HttpListener();
             listener.Prefixes.Add($"http://127.0.0.1:{port}/");
             try
@@ -83,7 +83,7 @@ internal sealed class LoopbackAuthServer : IDisposable
         {
             while (!cancellation.IsCancellationRequested && !_result.Task.IsCompleted)
             {
-                var context = await _listener.GetContextAsync()
+                HttpListenerContext context = await _listener.GetContextAsync()
                     .WaitAsync(cancellation.Token)
                     .ConfigureAwait(false);
                 await HandleAsync(context).ConfigureAwait(false);
@@ -120,8 +120,8 @@ internal sealed class LoopbackAuthServer : IDisposable
 
     private async Task HandleAsync(HttpListenerContext context)
     {
-        var request = context.Request;
-        var response = context.Response;
+        HttpListenerRequest request = context.Request;
+        HttpListenerResponse response = context.Response;
         AddCorsHeaders(response);
 
         if (StringComparer.Ordinal.Equals(request.HttpMethod, "OPTIONS"))
@@ -138,17 +138,17 @@ internal sealed class LoopbackAuthServer : IDisposable
             return;
         }
 
-        var state = request.QueryString["state"] ?? string.Empty;
+        string state = request.QueryString["state"] ?? string.Empty;
         if (!StringComparer.Ordinal.Equals(state, _expectedState))
         {
             await WriteHtmlAsync(response, HttpStatusCode.BadRequest, "Invalid state").ConfigureAwait(false);
             return;
         }
 
-        var error = request.QueryString["error"];
+        string? error = request.QueryString["error"];
         if (!string.IsNullOrEmpty(error))
         {
-            var description = request.QueryString["error_description"];
+            string? description = request.QueryString["error_description"];
             await WriteHtmlAsync(
                     response,
                     HttpStatusCode.OK,
@@ -159,7 +159,7 @@ internal sealed class LoopbackAuthServer : IDisposable
             return;
         }
 
-        var code = request.QueryString["code"] ?? string.Empty;
+        string code = request.QueryString["code"] ?? string.Empty;
         if (code.Length == 0)
         {
             await WriteHtmlAsync(response, HttpStatusCode.BadRequest, "Missing parameters").ConfigureAwait(false);
@@ -185,7 +185,7 @@ internal sealed class LoopbackAuthServer : IDisposable
         HttpStatusCode status,
         string message)
     {
-        var body = Encoding.UTF8.GetBytes($"<html><body><h2>{WebUtility.HtmlEncode(message)}</h2></body></html>");
+        byte[] body = Encoding.UTF8.GetBytes($"<html><body><h2>{WebUtility.HtmlEncode(message)}</h2></body></html>");
         response.StatusCode = (int)status;
         response.ContentType = "text/html; charset=utf-8";
         response.ContentLength64 = body.Length;

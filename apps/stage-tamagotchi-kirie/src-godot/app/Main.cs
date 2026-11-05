@@ -35,7 +35,7 @@ public partial class Main : Node
 
     public override void _Ready()
     {
-        var window = GetWindow();
+        Window window = GetWindow();
         DesktopWindowSizing.ApplyInitialDisplayScale(window);
         _nativeResize = new NativeWindowResizeController(window);
         _kirie = KirieClient.FromNode(GetNode("KirieNode"));
@@ -45,7 +45,7 @@ public partial class Main : Node
             return;
         }
 
-        var registry = ChatWindowContracts.Register(
+        KirieEventaJsonRegistry registry = ChatWindowContracts.Register(
             WidgetContracts.Register(
                 AiriDesktopContracts.Register(
                     GdKirieNotifications.Register(
@@ -78,7 +78,7 @@ public partial class Main : Node
         AboutWindowManager about;
         try
         {
-            var rendererUrl = ResolveInitialUrl();
+            string rendererUrl = ResolveInitialUrl();
             initialUrl = RendererUrl.ForMain(rendererUrl);
             _permissions = new WebViewPermissionHandler(
                 _kirie,
@@ -225,13 +225,13 @@ public partial class Main : Node
 
     private string ResolveInitialUrl()
     {
-        var launchUrl = _kirie!.GetLaunchOption(DevWebUrlOption).Trim();
+        string launchUrl = _kirie!.GetLaunchOption(DevWebUrlOption).Trim();
         if (launchUrl.Length > 0)
         {
             return launchUrl;
         }
 
-        var environmentUrl = OS.GetEnvironment("KIRIE_WEB_URL").Trim();
+        string environmentUrl = OS.GetEnvironment("KIRIE_WEB_URL").Trim();
         return environmentUrl.Length > 0 ? environmentUrl : PageUrl;
     }
 

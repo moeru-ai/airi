@@ -42,7 +42,7 @@ internal sealed class WidgetWindow : IDisposable
         if (snapshot.WindowSize is { } size)
         {
             float scale = DesktopWindowSizing.GetDisplayScale(_window);
-            var workArea = DisplayServer.ScreenGetUsableRect(_window.CurrentScreen);
+            Rect2I workArea = DisplayServer.ScreenGetUsableRect(_window.CurrentScreen);
             int minWidth = Math.Clamp((int)((size.MinWidth ?? 240) * scale), 1, workArea.Size.X);
             int minHeight = Math.Clamp((int)((size.MinHeight ?? 160) * scale), 1, workArea.Size.Y);
             int maxWidth = Math.Clamp((int)((size.MaxWidth ?? workArea.Size.X / scale) * scale), minWidth, workArea.Size.X);

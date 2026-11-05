@@ -17,12 +17,12 @@ internal static class CurrentDisplaySnapshotService
 
     private static DesktopDisplaySnapshotPayload Capture(Window hostWindow)
     {
-        var screen = hostWindow.CurrentScreen;
+        int screen = hostWindow.CurrentScreen;
         var bounds = new Rect2I(
             DisplayServer.ScreenGetPosition(screen),
             DisplayServer.ScreenGetSize(screen));
-        var workArea = DisplayServer.ScreenGetUsableRect(screen);
-        var scale = DesktopWindowSizing.GetDisplayScale(hostWindow);
+        Rect2I workArea = DisplayServer.ScreenGetUsableRect(screen);
+        float scale = DesktopWindowSizing.GetDisplayScale(hostWindow);
 
         return new DesktopDisplaySnapshotPayload(
             ToPayload(bounds),

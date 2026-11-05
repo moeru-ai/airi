@@ -28,14 +28,14 @@ internal sealed class AuthService : IDisposable
 
     public void ProcessPending()
     {
-        while (_pending.TryDequeue(out var result))
+        while (_pending.TryDequeue(out AuthResult? result))
         {
             if (result.Generation != _generation)
             {
                 continue;
             }
 
-            var binding = result.Binding;
+            AuthBinding binding = result.Binding;
             _attempt?.Dispose();
             _attempt = null;
             if (!binding.IsActive)
@@ -71,15 +71,15 @@ internal sealed class AuthService : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         CancelCurrentAttempt();
-        var generation = ++_generation;
+        long generation = ++_generation;
 
         try
         {
-            var configuration = binding.Configuration
+            AuthConfiguration configuration = binding.Configuration
                 ?? throw new InvalidOperationException("The renderer must configure authentication before sign-in.");
-            var state = GenerateSecret();
-            var codeVerifier = GenerateSecret();
-            var codeChallenge = Base64Url.EncodeToString(
+            string state = GenerateSecret();
+            string codeVerifier = GenerateSecret();
+            string codeChallenge = Base64Url.EncodeToString(
                 SHA256.HashData(Encoding.ASCII.GetBytes(codeVerifier)));
             var loopback = LoopbackAuthServer.Start(state);
             var attempt = new LoginAttempt(
@@ -90,12 +90,12 @@ internal sealed class AuthService : IDisposable
                 loopback);
             _attempt = attempt;
 
-            var authorizationUrl = BuildAuthorizationUrl(
+            string authorizationUrl = BuildAuthorizationUrl(
                 configuration,
                 loopback.Port,
                 state,
                 codeChallenge);
-            var openResult = Godot.OS.ShellOpen(authorizationUrl);
+            Error openResult = Godot.OS.ShellOpen(authorizationUrl);
             if (openResult != Error.Ok)
             {
                 throw new InvalidOperationException($"The system browser could not open the sign-in URL: {openResult}.");
@@ -130,10 +130,10 @@ internal sealed class AuthService : IDisposable
     {
         try
         {
-            var code = await attempt.Server.Result
+            string code = await attempt.Server.Result
                 .WaitAsync(attempt.Cancellation.Token)
                 .ConfigureAwait(false);
-            var tokens = await ExchangeCodeAsync(
+            AuthTokensPayload tokens = await ExchangeCodeAsync(
                     code,
                     attempt.CodeVerifier,
                     attempt.Configuration,
@@ -156,8 +156,8 @@ internal sealed class AuthService : IDisposable
         AuthConfiguration configuration,
         CancellationToken cancellationToken)
     {
-        var serverUrl = configuration.ServerUrl;
-        var redirectUri = new Uri(serverUrl, "/api/auth/oidc/electron-callback").AbsoluteUri;
+        Uri serverUrl = configuration.ServerUrl;
+        string redirectUri = new Uri(serverUrl, "/api/auth/oidc/electron-callback").AbsoluteUri;
         using var content = new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["grant_type"] = "authorization_code",
@@ -167,12 +167,12 @@ internal sealed class AuthService : IDisposable
             ["code_verifier"] = codeVerifier,
             ["resource"] = serverUrl.AbsoluteUri.TrimEnd('/'),
         });
-        using var response = await _http.PostAsync(
+        using HttpResponseMessage response = await _http.PostAsync(
                 new Uri(serverUrl, TokenPath),
                 content,
                 cancellationToken)
             .ConfigureAwait(false);
-        var responseText = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        string responseText = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         if (!response.IsSuccessStatusCode)
         {
             throw new InvalidOperationException(
@@ -180,9 +180,9 @@ internal sealed class AuthService : IDisposable
         }
 
         using var document = JsonDocument.Parse(responseText);
-        var root = document.RootElement;
-        var accessToken = ReadRequiredString(root, "access_token");
-        var expiresIn = ReadRequiredInt32(root, "expires_in");
+        JsonElement root = document.RootElement;
+        string accessToken = ReadRequiredString(root, "access_token");
+        int expiresIn = ReadRequiredInt32(root, "expires_in");
         return new AuthTokensPayload(
             accessToken,
             ReadOptionalString(root, "refresh_token"),
@@ -196,8 +196,8 @@ internal sealed class AuthService : IDisposable
         string state,
         string codeChallenge)
     {
-        var serverUrl = configuration.ServerUrl;
-        var redirectUri = new Uri(serverUrl, "/api/auth/oidc/electron-callback").AbsoluteUri;
+        Uri serverUrl = configuration.ServerUrl;
+        string redirectUri = new Uri(serverUrl, "/api/auth/oidc/electron-callback").AbsoluteUri;
         var query = new Dictionary<string, string>
         {
             ["response_type"] = "code",
@@ -210,20 +210,20 @@ internal sealed class AuthService : IDisposable
             ["prompt"] = "login",
             ["resource"] = serverUrl.AbsoluteUri.TrimEnd('/'),
         };
-        var encodedQuery = string.Join('&', query.Select(pair =>
+        string encodedQuery = string.Join('&', query.Select(pair =>
             $"{Uri.EscapeDataString(pair.Key)}={Uri.EscapeDataString(pair.Value)}"));
         return $"{new Uri(serverUrl, AuthorizePath).AbsoluteUri}?{encodedQuery}";
     }
 
     private static AuthConfiguration ValidateConfiguration(AuthConfigurationPayload payload)
     {
-        var clientId = payload.ClientId.Trim();
+        string clientId = payload.ClientId.Trim();
         if (clientId.Length == 0)
         {
             throw new ArgumentException("The authentication client ID must not be empty.", nameof(payload));
         }
 
-        if (!Uri.TryCreate(payload.ServerUrl.Trim(), UriKind.Absolute, out var serverUrl)
+        if (!Uri.TryCreate(payload.ServerUrl.Trim(), UriKind.Absolute, out Uri? serverUrl)
             || !StringComparer.OrdinalIgnoreCase.Equals(serverUrl.Scheme, Uri.UriSchemeHttps))
         {
             throw new ArgumentException("The authentication server URL must be absolute HTTPS.", nameof(payload));
@@ -239,7 +239,7 @@ internal sealed class AuthService : IDisposable
 
     private static string ReadRequiredString(JsonElement value, string propertyName)
     {
-        var result = ReadOptionalString(value, propertyName);
+        string? result = ReadOptionalString(value, propertyName);
         return !string.IsNullOrEmpty(result)
             ? result
             : throw new InvalidOperationException($"The token response is missing {propertyName}.");
@@ -247,7 +247,7 @@ internal sealed class AuthService : IDisposable
 
     private static string? ReadOptionalString(JsonElement value, string propertyName)
     {
-        return value.TryGetProperty(propertyName, out var property)
+        return value.TryGetProperty(propertyName, out JsonElement property)
             && property.ValueKind == JsonValueKind.String
                 ? property.GetString()
                 : null;
@@ -255,8 +255,8 @@ internal sealed class AuthService : IDisposable
 
     private static int ReadRequiredInt32(JsonElement value, string propertyName)
     {
-        return value.TryGetProperty(propertyName, out var property)
-            && property.TryGetInt32(out var result)
+        return value.TryGetProperty(propertyName, out JsonElement property)
+            && property.TryGetInt32(out int result)
                 ? result
                 : throw new InvalidOperationException($"The token response is missing {propertyName}.");
     }

@@ -159,7 +159,7 @@ public partial class NoticeWindow : Window
             throw new ArgumentException("The notice action does not match the open notice.", nameof(payload));
         }
 
-        var confirmed = payload.Action switch
+        bool confirmed = payload.Action switch
         {
             "confirm" => true,
             "cancel" or "close" => false,

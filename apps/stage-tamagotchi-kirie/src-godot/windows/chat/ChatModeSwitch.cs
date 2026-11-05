@@ -83,7 +83,7 @@ internal sealed class ChatModeSwitch
     {
         return RunAsync(() =>
         {
-            var mode = _getMode();
+            string mode = _getMode();
             _windows[mode].Open();
             CloseOtherWindows(mode);
         });
@@ -142,12 +142,12 @@ internal sealed class ChatModeSwitch
             return;
         }
 
-        var next = _windows[mode];
-        var savedMode = _getMode();
-        var draft = await CollectDraftAsync(_windows[from]);
+        ChatModeWindow next = _windows[mode];
+        string savedMode = _getMode();
+        JsonElement? draft = await CollectDraftAsync(_windows[from]);
         var handover = new DraftHandover(mode, draft);
         _handover = handover;
-        var wasOpen = next.IsOpen();
+        bool wasOpen = next.IsOpen();
         _setMode(mode);
 
         try
@@ -193,7 +193,7 @@ internal sealed class ChatModeSwitch
         }
 
         using var timeout = new CancellationTokenSource(CollectTimeout);
-        var reply = await context
+        ChatDraftPayload reply = await context
             .CreateInvokeClient(ChatWindowContracts.CollectDraft)
             .InvokeAsync(new EmptyPayload(), timeout.Token);
         return reply.Draft;
@@ -202,7 +202,7 @@ internal sealed class ChatModeSwitch
     /// <summary>Closes every chat window other than the one of <paramref name="mode"/>.</summary>
     private void CloseOtherWindows(string mode)
     {
-        foreach (var (other, window) in _windows)
+        foreach ((string? other, ChatModeWindow? window) in _windows)
         {
             if (other != mode)
             {

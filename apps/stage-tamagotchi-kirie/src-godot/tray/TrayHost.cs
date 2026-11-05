@@ -17,7 +17,7 @@ internal sealed class TrayHost : IDisposable
     private const double AlignmentDurationSeconds = 0.35;
 
     // These labels apply until the main renderer sends the translated labels.
-    // The source of truth is packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml.
+    // The source of truth is packages/i18n/src/locales/en/tamagotchi/tray.yaml.
     private static readonly TrayLabelsPayload DefaultLabels = new(
         Show: "Show",
         AdjustSizes: "Adjust sizes",
@@ -80,7 +80,7 @@ internal sealed class TrayHost : IDisposable
 
         try
         {
-            var menu = BuildMenu();
+            TrayMenu menu = BuildMenu();
             _tray = Track(new TrayIcon(new TrayOptions
             {
                 Icon = _isMacOS ? null : LoadIcon(),
@@ -111,7 +111,7 @@ internal sealed class TrayHost : IDisposable
     /// </summary>
     public void ApplyLabels(TrayLabelsPayload labels)
     {
-        foreach (var (entry, label) in _labels)
+        foreach ((MenuEntry? entry, Func<TrayLabelsPayload, string>? label) in _labels)
         {
             entry.Text = label(labels);
         }
@@ -135,7 +135,7 @@ internal sealed class TrayHost : IDisposable
         _events?.Dispose();
 
         // The tray releases the menu first. The menu then releases its entries.
-        for (var index = _objects.Count - 1; index >= 0; index--)
+        for (int index = _objects.Count - 1; index >= 0; index--)
         {
             _objects[index].Dispose();
         }
@@ -200,7 +200,7 @@ internal sealed class TrayHost : IDisposable
 
     private MenuItem Item(Func<TrayLabelsPayload, string> label, Action? action)
     {
-        var item = Labeled(
+        MenuItem item = Labeled(
             Track(new MenuItem(new MenuItemOptions(label(DefaultLabels))
             {
                 Enabled = action is not null,
@@ -218,7 +218,7 @@ internal sealed class TrayHost : IDisposable
         TrayWindowSizePreset preset,
         Func<TrayLabelsPayload, string> label)
     {
-        var item = Labeled(
+        CheckMenuItem item = Labeled(
             Track(new CheckMenuItem(new CheckMenuItemOptions(label(DefaultLabels)))),
             label);
         _sizeItems[preset] = item;
@@ -230,7 +230,7 @@ internal sealed class TrayHost : IDisposable
         TrayWindowAlignment alignment,
         Func<TrayLabelsPayload, string> label)
     {
-        var item = Labeled(
+        CheckMenuItem item = Labeled(
             Track(new CheckMenuItem(new CheckMenuItemOptions(label(DefaultLabels)))),
             label);
         _alignmentItems[alignment] = item;
@@ -281,7 +281,7 @@ internal sealed class TrayHost : IDisposable
     // Remove after tray-icon merges PR #391 and GdKirie.Tray publishes a new release.
     private void ApplyMacOSIcon()
     {
-        var native = GodotObject.InstanceFromId(_tray.InstanceId)
+        GodotObject native = GodotObject.InstanceFromId(_tray.InstanceId)
             ?? throw new InvalidOperationException("The native tray icon is missing.");
         using var icon = new Godot.Collections.Dictionary
         {
@@ -291,21 +291,21 @@ internal sealed class TrayHost : IDisposable
             ["height"] = IconSize,
             ["scale"] = MacOSIconScale,
         };
-        using var result = native.Call("set_icon", Variant.From(icon), true);
-        using var reply = result.AsGodotDictionary();
+        using Variant result = native.Call("set_icon", Variant.From(icon), true);
+        using Godot.Collections.Dictionary reply = result.AsGodotDictionary();
         if (!reply["ok"].AsBool())
         {
-            using var errorValue = reply["error"];
-            using var error = errorValue.AsGodotDictionary();
+            using Variant errorValue = reply["error"];
+            using Godot.Collections.Dictionary error = errorValue.AsGodotDictionary();
             throw new TrayException(error["code"].AsString(), error["message"].AsString());
         }
     }
 
     private static byte[] LoadIconPixels(string path)
     {
-        var texture = ResourceLoader.Load<Texture2D>(path)
+        Texture2D texture = ResourceLoader.Load<Texture2D>(path)
             ?? throw new InvalidOperationException($"The tray icon is missing: {path}");
-        var image = texture.GetImage()
+        Image image = texture.GetImage()
             ?? throw new InvalidOperationException($"The tray icon has no image: {path}");
         image.Resize(IconSize, IconSize, Image.Interpolation.Lanczos);
         image.Convert(Image.Format.Rgba8);
@@ -314,7 +314,7 @@ internal sealed class TrayHost : IDisposable
 
     private void OnMenuEvent(string id)
     {
-        if (!_actions.TryGetValue(id, out var action))
+        if (!_actions.TryGetValue(id, out Action? action))
         {
             return;
         }
@@ -334,7 +334,7 @@ internal sealed class TrayHost : IDisposable
 
         // The Electron tray opens the menu with a left click on macOS and
         // shows the main window with a left click on other platforms.
-        var showsMainWindow = _isMacOS
+        bool showsMainWindow = _isMacOS
             ? trayEvent.Type == TrayIconEventKind.DoubleClick
             : trayEvent.Type == TrayIconEventKind.Click
                 && trayEvent.Button == TrayMouseButton.Left
@@ -366,8 +366,8 @@ internal sealed class TrayHost : IDisposable
     {
         StopAlignment();
         RestoreMainWindow();
-        var workArea = CurrentWorkArea();
-        var bounds = TrayWindowGeometry.ResolveAnchoredBounds(
+        Rect2I workArea = CurrentWorkArea();
+        Rect2I bounds = TrayWindowGeometry.ResolveAnchoredBounds(
             CurrentBounds(),
             TrayWindowGeometry.ResolvePresetSize(
                 preset,
@@ -383,7 +383,7 @@ internal sealed class TrayHost : IDisposable
     {
         StopAlignment();
         RestoreMainWindow();
-        var target = TrayWindowGeometry.ResolveAlignedPosition(
+        Vector2I target = TrayWindowGeometry.ResolveAlignedPosition(
             alignment,
             CurrentWorkArea(),
             _mainWindow.Size);
@@ -407,20 +407,20 @@ internal sealed class TrayHost : IDisposable
 
     private void RefreshChecks()
     {
-        var bounds = CurrentBounds();
-        var workArea = CurrentWorkArea();
-        var displayScale = DesktopWindowSizing.GetDisplayScale(_mainWindow);
+        Rect2I bounds = CurrentBounds();
+        Rect2I workArea = CurrentWorkArea();
+        float displayScale = DesktopWindowSizing.GetDisplayScale(_mainWindow);
         _checkedBounds = bounds;
         _checkedScreen = _mainWindow.CurrentScreen;
 
-        foreach (var (preset, item) in _sizeItems)
+        foreach ((TrayWindowSizePreset preset, CheckMenuItem? item) in _sizeItems)
         {
             item.Checked = TrayWindowGeometry.IsSizeMatch(
                 bounds.Size,
                 TrayWindowGeometry.ResolvePresetSize(preset, workArea, displayScale));
         }
 
-        foreach (var (alignment, item) in _alignmentItems)
+        foreach ((TrayWindowAlignment alignment, CheckMenuItem? item) in _alignmentItems)
         {
             item.Checked = TrayWindowGeometry.IsPositionMatch(
                 bounds.Position,

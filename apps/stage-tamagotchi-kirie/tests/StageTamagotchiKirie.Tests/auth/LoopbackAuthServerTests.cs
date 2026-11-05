@@ -45,7 +45,7 @@ public class LoopbackAuthServerTests
         using var request = new HttpRequestMessage(
             HttpMethod.Get,
             $"http://127.0.0.1:{server.Port}/callback?code=ok&state=state-1");
-        request.Headers.Add("Origin", "https://api.airi.build");
+        request.Headers.Add("Origin", "https://example.com");
         using HttpResponseMessage response = await http.SendAsync(
             request,
             TestContext.Current.CancellationToken);

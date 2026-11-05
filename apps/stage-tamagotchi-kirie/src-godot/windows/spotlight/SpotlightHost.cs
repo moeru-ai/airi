@@ -68,7 +68,7 @@ internal sealed class SpotlightHost : IDisposable
             return false;
         }
 
-        foreach (var modifier in accelerator.Modifiers)
+        foreach (string modifier in accelerator.Modifiers)
         {
             if (SafeModifiers.Contains(modifier))
             {
@@ -111,7 +111,7 @@ internal sealed class SpotlightHost : IDisposable
 
         _disposed = true;
         _openRegistration.Dispose();
-        foreach (var binding in _bindings.ToArray())
+        foreach (ShortcutBinding? binding in _bindings.ToArray())
         {
             binding.Dispose();
         }
@@ -124,10 +124,10 @@ internal sealed class SpotlightHost : IDisposable
             || !GodotObject.IsInstanceValid(_window)
             || _window.IsQueuedForDeletion())
         {
-            var scene = ResourceLoader.Load<PackedScene>(WindowScenePath)
+            PackedScene scene = ResourceLoader.Load<PackedScene>(WindowScenePath)
                 ?? throw new InvalidOperationException(
                     $"The Spotlight window scene is missing: {WindowScenePath}");
-            var window = scene.Instantiate<SpotlightWindow>();
+            SpotlightWindow window = scene.Instantiate<SpotlightWindow>();
             _window = window;
             try
             {
@@ -161,7 +161,7 @@ internal sealed class SpotlightHost : IDisposable
 
     private SpotlightShortcutRegistrationResultPayload Set(SpotlightShortcutSetPayload payload)
     {
-        var next = payload.Accelerator ?? Default;
+        SpotlightAcceleratorPayload next = payload.Accelerator ?? Default;
         if (!IsSafe(next))
         {
             return new SpotlightShortcutRegistrationResultPayload(Id, false, InvalidReason, null);
@@ -170,7 +170,7 @@ internal sealed class SpotlightHost : IDisposable
         var config = new ConfigFile();
         config.SetValue(Section, "key", next.Key);
         config.SetValue(Section, "modifiers", string.Join(',', next.Modifiers));
-        var saveError = config.Save(ConfigPath);
+        Error saveError = config.Save(ConfigPath);
         if (saveError != Error.Ok)
         {
             throw new InvalidOperationException(
@@ -178,7 +178,7 @@ internal sealed class SpotlightHost : IDisposable
         }
 
         _accelerator = next;
-        foreach (var binding in _bindings.ToArray())
+        foreach (ShortcutBinding? binding in _bindings.ToArray())
         {
             if (binding.IsActive)
             {
@@ -197,14 +197,14 @@ internal sealed class SpotlightHost : IDisposable
         }
 
         var config = new ConfigFile();
-        var error = config.Load(ConfigPath);
+        Error error = config.Load(ConfigPath);
         if (error != Error.Ok)
         {
             GD.PushWarning($"Could not load the Spotlight shortcut: {error}.");
             return Default;
         }
 
-        var accelerator = TryCreate(
+        SpotlightAcceleratorPayload? accelerator = TryCreate(
             config.GetValue(Section, "key", string.Empty).AsString(),
             config.GetValue(Section, "modifiers", string.Empty).AsString());
         if (accelerator is not null)

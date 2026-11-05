@@ -81,14 +81,14 @@ internal sealed class SettingsWindowManager : IDisposable
     public void Open(string? requestedRoute)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        var route = ResolveRoute(requestedRoute);
+        string route = ResolveRoute(requestedRoute);
         if (_window is null
             || !GodotObject.IsInstanceValid(_window)
             || _window.IsQueuedForDeletion())
         {
-            var scene = ResourceLoader.Load<PackedScene>(WindowScenePath)
+            PackedScene scene = ResourceLoader.Load<PackedScene>(WindowScenePath)
                 ?? throw new InvalidOperationException($"The settings window scene is missing: {WindowScenePath}");
-            var window = scene.Instantiate<SettingsWindow>();
+            SettingsWindow window = scene.Instantiate<SettingsWindow>();
             _window = window;
             try
             {

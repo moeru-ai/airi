@@ -3,7 +3,7 @@ internal sealed class DisposableGroup(params IDisposable[] registrations) : IDis
 {
     public void Dispose()
     {
-        foreach (var registration in registrations)
+        foreach (IDisposable registration in registrations)
         {
             registration.Dispose();
         }

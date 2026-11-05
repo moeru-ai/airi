@@ -81,7 +81,7 @@ internal sealed class WidgetWindowManager : IDisposable
     public void Process()
     {
         ulong now = Time.GetTicksMsec();
-        foreach (var pair in _widgets)
+        foreach (KeyValuePair<string, WidgetState> pair in _widgets)
         {
             if (pair.Value.ExpiresAt is { } deadline && deadline <= now)
             {
@@ -165,8 +165,8 @@ internal sealed class WidgetWindowManager : IDisposable
 
         if (widget.Window is null)
         {
-            var scene = ResourceLoader.Load<PackedScene>("res://src-godot/windows/widgets/widget-window.tscn");
-            var window = scene.Instantiate<Window>();
+            PackedScene scene = ResourceLoader.Load<PackedScene>("res://src-godot/windows/widgets/widget-window.tscn");
+            Window window = scene.Instantiate<Window>();
             _owner.AddChild(window);
             window.CurrentScreen = _mainWindow.CurrentScreen;
             DesktopWindowSizing.ApplyInitialDisplayScale(window);
@@ -212,7 +212,7 @@ internal sealed class WidgetWindowManager : IDisposable
 
     private void Clear()
     {
-        foreach (var pair in _widgets)
+        foreach (KeyValuePair<string, WidgetState> pair in _widgets)
         {
             Remove(pair.Key);
         }
