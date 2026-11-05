@@ -77,7 +77,6 @@ function clientFor(value: KitProviderValue, caller: KitCaller): unknown {
 export class SelectedKit {
   private current: KitProviderValue
   private currentClient: unknown
-  private disposed = false
   private readonly listeners = new Set<() => void>()
 
   /** The stable client of the consumer. It forwards to the current provider. */
@@ -88,7 +87,8 @@ export class SelectedKit {
     this.currentClient = clientFor(value, caller)
     this.client = new Proxy(Object.freeze({}), {
       get: (_target, property) => {
-        if (property === 'then' || this.disposed)
+        // A disposed selection keeps its last target, so cleanup code that runs after the scope can still close its resources.
+        if (property === 'then')
           return undefined
         const target = this.currentClient
         if (target === null || (typeof target !== 'object' && typeof target !== 'function'))
@@ -145,7 +145,6 @@ export class SelectedKit {
   }
 
   dispose(): void {
-    this.disposed = true
     this.listeners.clear()
   }
 

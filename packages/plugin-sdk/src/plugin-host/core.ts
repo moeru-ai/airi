@@ -502,12 +502,15 @@ export class ExtensionHost {
   /** Stops each session, then disposes the plugin host container. */
   async dispose(): Promise<void> {
     const errors: unknown[] = []
-    for (const sessionId of [...this.sessions.keys()].reverse()) {
+    for (const [sessionId, controller] of [...this.sessions].reverse()) {
       try {
-        await this.stop(sessionId)
+        await controller.stop()
       }
       catch (error) {
         errors.push(error)
+      }
+      finally {
+        this.sessions.delete(sessionId)
       }
     }
     if (this.catalogTimer)

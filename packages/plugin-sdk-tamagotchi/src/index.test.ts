@@ -1,15 +1,17 @@
 import type {
   ExtensionModuleRef,
   KitAvailability,
+  KitClientOf,
   KitClientRuntime,
-  KitRef,
+  KitReference,
   KitUseResult,
+  RangedKitUse,
 } from '@proj-airi/plugin-sdk'
 import type { HostDataRecord } from '@proj-airi/plugin-sdk/plugin-host'
 
 import type { ToolKitRuntime } from './tools'
 
-import { DisposableStore } from '@proj-airi/plugin-sdk'
+import { DisposableStore, kitOfUse } from '@proj-airi/plugin-sdk'
 import { object, optional, picklist, string } from 'valibot'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -81,10 +83,11 @@ function createGameletModuleRef(input: {
   const module: ExtensionModuleRef = {
     id: input.id,
     kits: {
-      async use<TClient>(kit: KitRef<TClient>): Promise<TClient> {
+      async use<R extends KitReference>(kit: R | RangedKitUse<R>): Promise<KitClientOf<R>> {
         useKit(kit)
-        if (kit !== gameletKit) {
-          throw new Error(`Unexpected kit requested: ${kit.id}`)
+        const requested: KitReference = kitOfUse(kit)
+        if (requested.id !== gameletKit.id) {
+          throw new Error(`Unexpected kit requested: ${requested.id}`)
         }
 
         return gameletKit.createClient(createGameletRuntime({
@@ -93,18 +96,18 @@ function createGameletModuleRef(input: {
           moduleId: input.id,
           bind: input.bind,
           gamelets: input.gamelets,
-        })) as TClient
+        })) as KitClientOf<R>
       },
-      async tryUse<TClient>(kit: KitRef<TClient>): Promise<KitUseResult<TClient>> {
+      async tryUse<R extends KitReference>(kit: R | RangedKitUse<R>): Promise<KitUseResult<KitClientOf<R>>> {
         return {
           ok: false,
           reason: 'missing-kit',
-          error: new Error(`Unused test kit lookup: ${kit.id}`),
+          error: new Error(`Unused test kit lookup: ${kitOfUse(kit).id}`),
         }
       },
-      watch<TClient>(
-        _kit: KitRef<TClient>,
-        _callback: (availability: KitAvailability<TClient>) => void | Promise<void>,
+      watch<R extends KitReference>(
+        _kit: R | RangedKitUse<R>,
+        _callback: (availability: KitAvailability<KitClientOf<R>>) => void | Promise<void>,
       ) {
         return { dispose: vi.fn() }
       },
@@ -128,10 +131,11 @@ function createToolModuleRef(input: {
   const module: ExtensionModuleRef = {
     id: input.id,
     kits: {
-      async use<TClient>(kit: KitRef<TClient>): Promise<TClient> {
+      async use<R extends KitReference>(kit: R | RangedKitUse<R>): Promise<KitClientOf<R>> {
         useKit(kit)
-        if (kit !== toolKit) {
-          throw new Error(`Unexpected kit requested: ${kit.id}`)
+        const requested: KitReference = kitOfUse(kit)
+        if (requested.id !== toolKit.id) {
+          throw new Error(`Unexpected kit requested: ${requested.id}`)
         }
 
         return toolKit.createClient(createToolRuntime({
@@ -140,18 +144,18 @@ function createToolModuleRef(input: {
           moduleId: input.id,
           register: input.register,
           registerToolsetPrompt: input.registerToolsetPrompt,
-        })) as TClient
+        })) as KitClientOf<R>
       },
-      async tryUse<TClient>(kit: KitRef<TClient>): Promise<KitUseResult<TClient>> {
+      async tryUse<R extends KitReference>(kit: R | RangedKitUse<R>): Promise<KitUseResult<KitClientOf<R>>> {
         return {
           ok: false,
           reason: 'missing-kit',
-          error: new Error(`Unused test kit lookup: ${kit.id}`),
+          error: new Error(`Unused test kit lookup: ${kitOfUse(kit).id}`),
         }
       },
-      watch<TClient>(
-        _kit: KitRef<TClient>,
-        _callback: (availability: KitAvailability<TClient>) => void | Promise<void>,
+      watch<R extends KitReference>(
+        _kit: R | RangedKitUse<R>,
+        _callback: (availability: KitAvailability<KitClientOf<R>>) => void | Promise<void>,
       ) {
         return { dispose: vi.fn() }
       },
