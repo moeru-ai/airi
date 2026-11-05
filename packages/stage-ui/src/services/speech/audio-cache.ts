@@ -67,6 +67,10 @@ export class SpeechAudioCache {
   }
 
   set(key: string, blob: Blob): void {
+    // Keep oversized audio out of the bounded cache
+    if (blob.size > this.maxBytes)
+      return
+
     if (this.entries.has(key)) {
       const existing = this.entries.get(key)!
       this.currentBytes -= existing.size

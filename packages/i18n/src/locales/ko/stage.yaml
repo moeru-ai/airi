@@ -178,7 +178,6 @@ chat:
     reading: '이미지 읽는 중…'
     description: '첨부 이미지'
   actions:
-    replay: 다시 듣기
     reply: 답장
     retry: 다시 시도
     send: 메시지 보내기

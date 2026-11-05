@@ -681,6 +681,7 @@ export const useSpeechStore = defineStore('speech', () => {
         pitch: pitchValue,
         speed: typeof config.speed === 'number' ? config.speed : undefined,
         ssml: useSSML && canUseSSML,
+        extra: config.voiceSettings as Record<string, unknown> | undefined,
       })
       const cached = defaultAudioCache.get(cacheKey)
       if (cached)

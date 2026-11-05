@@ -96,7 +96,6 @@ chat:
     reading: 'กำลังอ่านรูปภาพ…'
     description: 'รูปภาพที่แนบ'
   actions:
-    replay: เล่นซ้ำ
     reply: ตอบกลับ
     retry: ลองอีกครั้ง
     send: ส่งข้อความ

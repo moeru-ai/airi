@@ -96,7 +96,6 @@ chat:
     reading: '画像を読み取り中…'
     description: '添付画像'
   actions:
-    replay: 再生
     reply: 返信
     retry: 再試行
     send: メッセージを送信

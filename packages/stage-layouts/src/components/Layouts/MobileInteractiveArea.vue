@@ -4,10 +4,11 @@ import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
 import { CharacterSwitcherDrawer, ChatBackgroundTasks, ChatHistory } from '@proj-airi/stage-ui/components'
-import { ChatComposerAddMenu, ChatComposerVoiceInput, ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSessionsDrawer, useChatImages, useStartVoiceCall, VoiceCallCapsule, VoicePresence } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatComposerAddMenu, ChatComposerVoiceInput, ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSessionsDrawer, getChatHistoryItemCopyText, useChatImages, useStartVoiceCall, VoiceCallCapsule, VoicePresence } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
+import { useCharacterStore } from '@proj-airi/stage-ui/stores/character'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
@@ -109,6 +110,12 @@ async function handleDeleteMessage(payload: { message: ChatHistoryItem, index: n
 
 async function handleRetryMessage(index: number) {
   await chatOrchestrator.retry({ sessionId: activeSessionId.value, index })
+}
+
+async function handleReplayMessage(payload: { message: ChatHistoryItem }) {
+  const text = getChatHistoryItemCopyText(payload.message)
+  if (text)
+    await useCharacterStore().replaySpeech(text)
 }
 
 const sessionsDrawerOpen = shallowRef(false)
@@ -379,6 +386,7 @@ onUnmounted(() => {
             @delete-message="handleDeleteMessage"
             @reply-message="handleReplyMessage"
             @retry-message="handleRetryMessage($event.index)"
+            @replay-message="handleReplayMessage"
             @tool-call-rerun="rerunToolCall"
           />
         </Transition>

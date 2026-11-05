@@ -132,4 +132,14 @@ describe('speechAudioCache', () => {
     expect(cache.byteSize).toBe(0)
     expect(cache.has('k1')).toBe(false)
   })
+
+  it('skips caching blobs larger than maxBytes budget', () => {
+    const cache = new SpeechAudioCache({ maxBytes: 100 })
+    const hugeBlob = new Blob([new Uint8Array(150)])
+    cache.set('huge', hugeBlob)
+
+    expect(cache.has('huge')).toBe(false)
+    expect(cache.size).toBe(0)
+    expect(cache.byteSize).toBe(0)
+  })
 })
