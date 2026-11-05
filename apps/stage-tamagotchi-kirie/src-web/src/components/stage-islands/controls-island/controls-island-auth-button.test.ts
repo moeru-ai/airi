@@ -1,30 +1,14 @@
 // @vitest-environment jsdom
 
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
+import { createPinia, disposePinia } from 'pinia'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, h, nextTick, ref } from 'vue'
 
 import ControlsIslandAuthButton from './controls-island-auth-button.vue'
 
 const subscriptions = vi.hoisted(() => ({ on: vi.fn(() => vi.fn()) }))
 const invokes = vi.hoisted(() => ({ startLogin: vi.fn(), openSettings: vi.fn() }))
-
-const authState = {
-  isAuthenticated: ref(true),
-  user: ref<{ name: string, image?: string }>({
-    name: 'Rainbow Bird',
-    image: 'https://example.com/broken-avatar.png',
-  }),
-  needsLogin: ref(false),
-  credits: ref(9620),
-  consumeLoginRequest: vi.fn(async () => {
-    authState.needsLogin.value = false
-    return true
-  }),
-}
-
-vi.mock('@proj-airi/stage-ui/stores/auth', () => ({
-  useAuthStore: () => authState,
-}))
 
 vi.mock('@proj-airi/stage-host-context', () => ({
   useHostEventaContext: () => ref({
@@ -40,8 +24,25 @@ vi.mock('vue-i18n', () => ({
   }),
 }))
 
+function authenticate(auth: ReturnType<typeof useAuthStore>, image?: string) {
+  const now = new Date()
+  auth.user = { id: 'user', name: 'Rainbow Bird', email: 'user@example.com', emailVerified: true, image, createdAt: now, updatedAt: now }
+  auth.session = { id: 'session', userId: 'user', token: 'session', expiresAt: new Date(now.getTime() + 3_600_000), createdAt: now, updatedAt: now }
+}
+
 describe('controlsIslandAuthButton', () => {
   const mountedApps: Array<{ app: ReturnType<typeof createApp>, host: HTMLElement }> = []
+  let auth: ReturnType<typeof useAuthStore>
+  let pinia: ReturnType<typeof createPinia>
+
+  beforeEach(() => {
+    // A Kirie renderer consumes the login request. A web build starts the browser sign-in at once.
+    vi.stubEnv('RUNTIME_ENVIRONMENT', 'kirie')
+    pinia = createPinia()
+    auth = useAuthStore(pinia)
+    // Authentication starts a credit request. Keep it away from the network.
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ flux: 9620 }))
+  })
 
   afterEach(() => {
     for (const { app, host } of mountedApps) {
@@ -49,12 +50,11 @@ describe('controlsIslandAuthButton', () => {
       host.remove()
     }
     mountedApps.length = 0
-    authState.isAuthenticated.value = true
-    authState.needsLogin.value = false
-    authState.consumeLoginRequest.mockClear()
     invokes.startLogin.mockReset()
     invokes.openSettings.mockReset()
-    authState.user.value.image = 'https://example.com/broken-avatar.png'
+    disposePinia(pinia)
+    vi.restoreAllMocks()
+    vi.unstubAllEnvs()
   })
 
   function mountComponent(active = ref(true)) {
@@ -63,29 +63,28 @@ describe('controlsIslandAuthButton', () => {
     const app = createApp({
       render: () => h(ControlsIslandAuthButton, { active: active.value }),
     })
+    app.use(pinia)
     app.mount(host)
     mountedApps.push({ app, host })
     return host
   }
 
   it('starts a deferred login when the hidden menu becomes active', async () => {
-    authState.isAuthenticated.value = false
     const active = ref(false)
     mountComponent(active)
 
-    authState.needsLogin.value = true
+    await auth.requestLogin()
     await nextTick()
     expect(invokes.startLogin).not.toHaveBeenCalled()
-    expect(authState.needsLogin.value).toBe(true)
+    expect(auth.needsLogin).toBe(true)
 
     active.value = true
-    await nextTick()
-    expect(authState.consumeLoginRequest).toHaveBeenCalledOnce()
-    expect(invokes.startLogin).toHaveBeenCalledOnce()
-    expect(authState.needsLogin.value).toBe(false)
+    await vi.waitFor(() => expect(invokes.startLogin).toHaveBeenCalledOnce())
+    expect(auth.needsLogin).toBe(false)
   })
 
   it('disposes both auth subscriptions when the menu unmounts', () => {
+    authenticate(auth, 'https://example.com/broken-avatar.png')
     subscriptions.on.mockClear()
     mountComponent()
     expect(subscriptions.on).toHaveBeenCalledTimes(2)
@@ -98,7 +97,7 @@ describe('controlsIslandAuthButton', () => {
   })
 
   it('renders the shared account fallback when no avatar is available', () => {
-    authState.user.value.image = undefined
+    authenticate(auth)
     const host = mountComponent()
 
     const fallback = host.querySelector('[data-avatar-fallback]')
@@ -107,10 +106,11 @@ describe('controlsIslandAuthButton', () => {
   })
 
   it('tries the next avatar URL after the authenticated user changes', async () => {
+    authenticate(auth, 'https://example.com/broken-avatar.png')
     const host = mountComponent()
     const previousImage = host.querySelector('[data-avatar-image]')
 
-    authState.user.value.image = 'https://example.com/new-avatar.png'
+    auth.user!.image = 'https://example.com/new-avatar.png'
     await nextTick()
 
     const nextImage = host.querySelector('[data-avatar-image]')

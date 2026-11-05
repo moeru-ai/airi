@@ -4,6 +4,7 @@ import type { ControlsIslandDock } from './use-controls-island-placement'
 
 import en from '@proj-airi/i18n/locales/en'
 
+import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
@@ -12,7 +13,7 @@ import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision/store'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
 import { createPinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { page } from 'vitest/browser'
 import { computed, defineComponent, h, nextTick, ref } from 'vue'
@@ -28,18 +29,6 @@ import 'virtual:uno.css'
 
 const isOutside = ref(false)
 const openSettings = vi.fn().mockResolvedValue(undefined)
-const authState = vi.hoisted(() => ({
-  credits: { value: 0 },
-  isAuthenticated: { value: false },
-  needsLogin: { value: false },
-  user: { value: null as { createdAt: Date, email: string, emailVerified: boolean, id: string, name: string, updatedAt: Date } | null },
-  // The card store reads the account id to synchronize the cards. Without an account it is `local`.
-  userId: { value: 'local' },
-  // Provider replica sync registers these when the island creates the provider store.
-  onAuthenticated: () => () => {},
-  onLogout: () => () => {},
-}))
-
 vi.mock('@proj-airi/stage-host-context', () => ({
   useHostEventaContext: () => ref({ on: vi.fn(() => vi.fn()), emit: vi.fn() }),
   useHostAlwaysOnTop: () => vi.fn().mockResolvedValue(undefined),
@@ -64,17 +53,6 @@ vi.mock('@moeru/eventa', async importOriginal => ({
   ...await importOriginal<typeof import('@moeru/eventa')>(),
   defineInvoke: () => vi.fn(),
 }))
-
-vi.mock('@proj-airi/stage-ui/stores/auth', async () => {
-  const { ref } = await import('vue')
-  authState.credits = ref(0)
-  authState.isAuthenticated = ref(false)
-  authState.needsLogin = ref(false)
-  authState.user = ref(null)
-  authState.userId = ref('local')
-
-  return { useAuthStore: () => authState }
-})
 
 function scrollOwners(island: HTMLElement) {
   return Array.from(island.querySelectorAll<HTMLElement>('[data-reka-scroll-area-viewport]'))
@@ -136,16 +114,21 @@ function mountControlsIsland(dock: ControlsIslandDock, size: typeof sizes[number
   })
   useSettings(pinia).controlsIslandIconSize = size
 
-  return { cards: useAiriCardStore(pinia), auth: authState, dock: dockRef, i18n, screen, settings: useSettings(pinia) }
+  return { cards: useAiriCardStore(pinia), auth: useAuthStore(pinia), dock: dockRef, i18n, screen, settings: useSettings(pinia) }
 }
 
 beforeEach(() => {
   isOutside.value = false
   openSettings.mockClear()
-  authState.credits.value = 0
-  authState.isAuthenticated.value = false
-  authState.needsLogin.value = false
-  authState.user.value = null
+  // Authentication starts a credit request. Other server requests stay pending, as they do offline.
+  vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+    const url = input instanceof Request ? input.url : input.toString()
+    return url.includes('/flux') ? Promise.resolve(Response.json({ flux: 999999999 })) : new Promise(() => {})
+  })
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
 })
 
 describe('controls Island overflow', () => {
@@ -319,15 +302,21 @@ describe('controls Island overflow', () => {
     await expect.poll(() => viewport.scrollLeft).toBeGreaterThan(0)
     const previousScrollWidth = viewport.scrollWidth
 
-    auth.credits.value = 999999999
-    auth.isAuthenticated.value = true
-    auth.user.value = {
+    auth.user = {
       createdAt: new Date('2020-01-01'),
       email: 'user@example.com',
       emailVerified: true,
       id: 'user',
       name: 'A very long authenticated user name that changes the island width',
       updatedAt: new Date('2020-01-01'),
+    }
+    auth.session = {
+      createdAt: new Date('2020-01-01'),
+      expiresAt: new Date(Date.now() + 3_600_000),
+      id: 'session',
+      token: 'session',
+      updatedAt: new Date('2020-01-01'),
+      userId: 'user',
     }
 
     await expect.poll(() => viewport.scrollWidth).toBeGreaterThan(previousScrollWidth)
