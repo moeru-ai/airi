@@ -381,6 +381,9 @@ export class PluginRuntime implements PluginEndpoint {
         const { handle } = await announced
         await this.host.withdrawProvide({ round: round.id, handle })
       },
+      setStatus: (status, options) => {
+        void this.host.setStatus({ round: round.id, kitId: id, status, reason: options?.reason, cause: options?.cause }).catch(() => undefined)
+      },
     }
   }
 

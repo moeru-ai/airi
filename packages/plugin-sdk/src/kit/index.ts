@@ -8,6 +8,7 @@ export type {
   KitMethodMap,
   KitProvider,
   KitProviderHandle,
+  KitProviderStatus,
   KitValue,
 } from './contract'
 export * from './errors'

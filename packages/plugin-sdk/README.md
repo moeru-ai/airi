@@ -125,7 +125,7 @@ export default defineExtension({
 `createDirectRunner()` runs plugin code in the Host thread. It is the default. `createWorkerRunner()` from the Node entry runs each plugin in a `worker_threads` Worker and talks to it over an eventa channel. The bridge is a first version. It moves to `@injeca/bridge` later.
 
 - The Host calls `startRound`, `abortRound`, `stopRound`, `startModule`, and `invokeProvider` (with the caller identity that the Host injects).
-- The plugin calls `provide` (announce), `setStatus`, `callKit`, `useKit`, `rebuild`, and `upsertModule`.
+- The plugin calls `provide` (announce), `setStatus` (from `handle.setStatus()` of a provided Kit), `callKit`, `useKit`, `rebuild`, and `upsertModule`.
 - A function in an argument or a result crosses as a callback, for example a harness hook listener. `callback.release` removes it.
 - A worker exit sets the `runtime` node to `unavailable`, so the Kits of the plugin are `unavailable`, and selections move to the next provider.
 

@@ -1,6 +1,6 @@
 import type { ExtensionSetupContext } from '../extension'
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { defineExtension } from '../extension'
 import { defineKit, defineKitContract, defineKitMethod, optional } from '../kit'
@@ -115,5 +115,28 @@ describe('the Kit references API of a session', () => {
     host.provideKit({ api: secretKit })
     const result = await capture(host, 'static-only', {}, ctx => ctx.kits.tryUse(secretKit).then(found => found.ok ? 'granted' : found.reason))
     expect(result).toBe('permission-denied')
+  })
+})
+
+describe('provider status reports', () => {
+  it('moves consumers to the next provider while a provider reports unavailable', async () => {
+    const host = new ExtensionHost({ kitProviderOrder: { [fsStoreKit.id]: ['store-provider', 'host'] } })
+    host.provideKit({ api: defineKit({ id: fsStoreKit.id, version: '1.0.0', createClient: () => ({ read: async () => 'host' }) }) })
+    let handle: ReturnType<ExtensionSetupContext['kits']['provide']> | undefined
+    await host.startExtension(defineExtension({
+      id: 'store-provider',
+      setup(ctx) {
+        handle = ctx.kits.provide(fsStoreKit, { methods: { read: () => 'plugin' } })
+      },
+    }), { manifest: manifest('store-provider', { kits: { provides: [{ id: fsStoreKit.id, version: '1.0.0', exposure: 'local-only' }] } }) })
+    const client = await host.resolveKit(fsStoreKit)
+    await expect(client.read({ key: 'k' })).resolves.toBe('plugin')
+
+    handle!.setStatus('unavailable', { reason: 'index rebuilding' })
+    await vi.waitFor(async () => expect(await client.read({ key: 'k' })).toBe('host'))
+    expect(host.inspect().services.find(service => service.key === `kit:${fsStoreKit.id}@store-provider`)).toMatchObject({ status: 'unavailable' })
+
+    handle!.setStatus('ready')
+    await vi.waitFor(async () => expect(await client.read({ key: 'k' })).toBe('plugin'))
   })
 })
