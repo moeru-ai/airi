@@ -3,7 +3,7 @@ import type { InferOutput } from 'valibot'
 import type { FeatureFlag } from '../libs/feature-flags'
 
 import { errorMessageFrom } from '@moeru/std'
-import { isStageTamagotchi } from '@proj-airi/stage-shared'
+import { isOfflineBuild, isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
 import { parse } from 'valibot'
@@ -95,6 +95,9 @@ export const useFeatureFlagsStore = defineStore('feature-flags', () => {
     request?.abort()
     request = new AbortController()
     policies.value = []
+    // An offline build never calls AIRI Cloud. Every feature keeps its local default.
+    if (isOfflineBuild())
+      return
     loading.value = true
     error.value = undefined
     try {

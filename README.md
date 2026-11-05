@@ -600,7 +600,15 @@ Também é possível baixar os 5 arquivos à mão e colocar cada um no local da 
 
 A Neptuna, as 13 animações do Utsuwa e o código da V1 e da V2 já estão no repositório. Eles não usam a internet.
 
-Sem internet, o `pnpm dev` mostra `Web fonts preflight fetch failed`. O app continua e usa as fontes do sistema.
+
+Para o espelho, use o build de produção offline. Ele não chama a nuvem do AIRI e usa as fontes locais:
+
+```shell
+VITE_AIRI_OFFLINE=true mise exec -- pnpm -F @proj-airi/stage-web build
+npx serve -s apps/stage-web/dist -l 4173
+```
+
+O inventário do que ainda acessa a internet, e as provas sem internet, estão em [`docs/alice-motion-engine/REVISAO_MAGICMIRROR_E_OFFLINE.md`](./docs/alice-motion-engine/REVISAO_MAGICMIRROR_E_OFFLINE.md).
 
 Para a conversa também ficar local, configure provedores locais nas configurações. Por exemplo: um LLM no Ollama ou em outro servidor compatível com OpenAI na rede local, e o Kokoro para a voz.
 

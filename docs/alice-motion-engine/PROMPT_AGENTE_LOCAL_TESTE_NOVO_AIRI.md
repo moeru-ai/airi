@@ -42,6 +42,10 @@ FASE 2 - TESTE AUTOMÁTICO DA V1 E DA V2 (sem LLM e sem TTS de verdade)
 1. Leia docs/alice-motion-engine/teste-app/README.md.
 2. Rode os 3 passos do README: o stage-web, o servidor falso (fake-openai-server.cjs) e o teste (teste-app-v1-v2.cjs). Use VIDEO=1 para gravar o vídeo.
 3. O teste termina com código 0 quando as 9 verificações passam. Copie o conteúdo de resultado-checks.json no relatório.
+   Rode também o teste da ponte NeoAlice (seção "Teste da ponte NeoAlice (S08)" do mesmo README), com um Mosquitto
+   SÓ DE TESTE em 127.0.0.1 nas portas 11883 (mqtt) e 19001 (websockets), nunca o broker de produção, e rode com
+   BRIDGE_WS_URL=ws://127.0.0.1:19001 PUBLISH_URL=mqtt://127.0.0.1:11883. As 6 verificações precisam passar,
+   e o log desse Mosquitto não pode ter "Received PUBLISH from airi-neoalice-bridge".
 4. Abra as capturas e o vídeo e confirme com os seus olhos:
    - Parada: ela troca de animação de espera a cada poucos segundos.
    - Esperando a resposta: mão no queixo.
@@ -62,16 +66,35 @@ FASE 3 - TESTE COM O LLM E A VOZ DE VERDADE
 5. Critério de aprovação: o avatar nunca congela, cada motion pedida pelo LLM toca, o humor fica até o próximo humor e o lip-sync acompanha a voz.
 6. Importe um VRMA próprio na seção Motions (Configurações > Modelos), escreva uma descrição em inglês e confirme que o LLM o usa quando o pedido combina com a descrição.
 
-FASE 4 - PERFIL DE TESTE NO MAGICMIRROR (a produção continua igual)
-1. Gere o build do AIRI: mise exec -- pnpm -F @proj-airi/stage-web build. Sirva a pasta apps/stage-web/dist com um servidor estático local (por exemplo: npx serve -s apps/stage-web/dist -l 5174). Teste no navegador da máquina do espelho.
-2. Crie um módulo NOVO e mínimo, MMM-AiriStage, numa pasta nova dentro de modules/ do MagicMirror. Ele só mostra um iframe com a URL do AIRI, em tela cheia, com a permissão de microfone e autoplay (allow="autoplay; microphone"). Não altere o MMM-AvatarMQTT.
-3. Crie um arquivo de configuração NOVO, config/config.airi-teste.js, copiado do config.js de produção, trocando o MMM-AvatarMQTT pelo MMM-AiriStage. Não edite o config.js de produção.
-4. Inicie o MagicMirror com o perfil de teste: MM_CONFIG_FILE=config/config.airi-teste.js npm run start (ou o comando que a máquina usa, com a mesma variável).
-5. Teste no espelho: o avatar aparece, anima parado, responde a uma conversa e a voz sai pela saída de áudio do espelho. Meça o uso de CPU, GPU e memória durante 5 minutos de conversa e compare com o TalkingHead da produção.
-6. Volte à produção: pare o MagicMirror e inicie sem MM_CONFIG_FILE. Rode de novo o smoke-test-mqtt.sh e compare com a referência da fase 0. O resultado precisa ser igual.
+FASE 4 - PERFIL DE TESTE NO MAGICMIRROR, SEM INTERNET (a produção continua igual)
+Siga docs/alice-motion-engine/REVISAO_MAGICMIRROR_E_OFFLINE.md, seção 3.
+1. Atualize o clone do MMM-avatar-3d (git pull --rebase) e rode:
+   node --test tests/mood-map.test.mjs
+   node --test tests/airi-stage.test.mjs
+   node scripts/teste-offline-modulo.cjs <pasta do servidor TalkingHead> ./saida-offline
+   O último precisa terminar com "PASSOU" e 0 requisições externas.
+2. Faça o backup da produção (fase 0) e então atualize o módulo instalado MMM-AvatarMQTT com a versão do repositório
+   (MMM-AvatarMQTT.js, package.json e node_modules/three). Reinicie o MagicMirror com a configuração de produção
+   e confira que o avatar atual carrega. Teste também com a internet desligada.
+3. Gere o build offline do AIRI: VITE_AIRI_OFFLINE=true mise exec -- pnpm -F @proj-airi/stage-web build
+   Sirva apps/stage-web/dist com um servidor estático com fallback de SPA, por exemplo: npx serve -s apps/stage-web/dist -l 4173
+   Rode: AIRI_URL=http://127.0.0.1:4173/ node scripts/teste-offline-airi-stage.cjs ./saida-airi-stage (no MMM-avatar-3d). Precisa terminar com "PASSOU".
+4. Copie a pasta MMM-AiriStage do repositório para modules/ do MagicMirror. Não altere o MMM-AvatarMQTT além do passo 2.
+5. Crie um arquivo NOVO, config/config.airi-teste.js, copiado do config.js de produção, trocando o MMM-AvatarMQTT
+   pelo MMM-AiriStage (position "fullscreen_below", url http://localhost:4173/). Não edite o config.js de produção.
+6. Inicie o MagicMirror com o perfil de teste: MM_CONFIG_FILE=config/config.airi-teste.js e o comando que a máquina usa.
+7. No AIRI dentro do espelho, configure Configurações > Módulos > NeoAlice Bridge: o mesmo endereço WebSocket
+   do broker que o MMM-AvatarMQTT usa (MQTT_BROKER_WS), o site do espelho, e Speech conforme a NeoAlice:
+   "Play the audio that NeoAlice sends" se ela manda cmd/tts/audio, ou "Speak the text with the AIRI voice settings" com o Kokoro.
+   Importe a Neptuna e escolha-a.
+8. Teste no espelho, com a internet desligada: o avatar aparece, anima parado, pensa quando a NeoAlice recebe a fala
+   (evt/stt/final), fala com a boca sincronizada, muda de humor e faz os gestos. Meça CPU, GPU e memória
+   durante 5 minutos de conversa e compare com o TalkingHead da produção.
+9. Volte à produção: pare o MagicMirror e inicie sem MM_CONFIG_FILE. Rode de novo o smoke-test-mqtt.sh
+   e compare com a referência da fase 0. O resultado precisa ser igual.
 
 O QUE NÃO FAZER AGORA
-- Não ligar o AIRI aos tópicos MQTT da NeoAlice. A ponte MQTT é a sprint S08 e ainda não existe. O teste do espelho usa o chat do próprio AIRI.
+- Não publicar nada no MQTT a partir do AIRI. A ponte só lê, e o teste deve confirmar isso no log do broker.
 - Não converter a Eva (GLB) para VRM. Isso é a sprint V4.
 - Não trocar o perfil de produção do espelho.
 
@@ -81,7 +104,7 @@ RELATÓRIO FINAL (um arquivo .md, guardado fora do repositório público)
 3. Fase 1: comandos e resultado. Diga se a instalação precisou de internet.
 4. Fase 2: resultado-checks.json e as suas observações das capturas e do vídeo.
 5. Fase 3: a tabela dos 10 turnos, os endereços usados (com segredos trocados por ***) e os problemas encontrados.
-6. Fase 4: o código do MMM-AiriStage, o diff entre config.js e config.airi-teste.js, as medidas de CPU, GPU e memória, e o resultado do smoke test depois de voltar à produção.
+6. Fase 4: as saídas dos testes offline, o diff entre config.js e config.airi-teste.js, as medidas de CPU, GPU e memória, o teste com a internet desligada, e o resultado do smoke test depois de voltar à produção.
 7. Uma lista do que falhou, com o erro exato e o passo para reproduzir.
 8. O que a NeoAlice precisaria mudar para a próxima fase (só a descrição, sem mudar nada).
 ```

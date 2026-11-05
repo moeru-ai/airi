@@ -22,3 +22,17 @@ Keep the page in the foreground. Reloading the page clears the recording.
 
 For device comparisons, use the same scene, model, warm-up period, and recording duration.
 The development server and the visible overlay affect performance, so record these conditions with the results.
+
+## Offline build
+
+Set `VITE_AIRI_OFFLINE=true` for a machine without internet, for example the mirror of the Alice fork.
+
+- The app sends no request to AIRI Cloud. Feature flags keep their local defaults.
+- The fonts come from the local `@fontsource` packages, as in `stage-tamagotchi`. This is true for every build.
+- Product analytics stay off, as in every build without `VITE_ENABLE_ANALYTICS`.
+
+```sh
+VITE_AIRI_OFFLINE=true pnpm -F @proj-airi/stage-web build
+```
+
+The first build downloads the Live2D SDK and the preset models into `.cache`. Later builds use the cache.

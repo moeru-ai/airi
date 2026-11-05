@@ -81,7 +81,7 @@ Variáveis opcionais:
 | 7 | `cmd/tts/say` em outro site | Nunca é falado |
 | 8 | `cmd/avatar/gesture` `moonwalk` | Ignorado com o motivo `the catalog has no action for this command` |
 
-Requisitos a mais: um broker com listener WebSocket e TCP. Por exemplo, um Mosquitto só para o teste:
+Requisitos a mais: um broker com listener WebSocket e TCP. Por exemplo, um Mosquitto só para o teste. Numa máquina que já tem um broker de produção na porta 1883, use outras portas e passe `BRIDGE_WS_URL` e `PUBLISH_URL`:
 
 ```text
 listener 1883 127.0.0.1

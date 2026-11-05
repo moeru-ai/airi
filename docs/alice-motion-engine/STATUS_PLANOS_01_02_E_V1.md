@@ -102,7 +102,16 @@ Verificações da V2:
 
 Falta testar o app desktop. Lá, o chat e o palco podem rodar em janelas diferentes.
 
-## 6. Próximos passos, na ordem do plano
+## 6. MagicMirror e funcionamento sem internet (05/11/2026)
+
+**Feito.** Inventário, mudanças e provas em `REVISAO_MAGICMIRROR_E_OFFLINE.md`.
+
+- Avatar atual do espelho: three.js local no `MMM-AvatarMQTT`, inclusive para os endereços `esm.sh` do servidor TalkingHead. Carregou sem internet, com 0 requisições externas.
+- AIRI: build `VITE_AIRI_OFFLINE=true` sem chamada à nuvem e com fontes locais. 0 requisições externas.
+- Módulo novo `MMM-AiriStage` (repositório `MMM-avatar-3d`): mostra o AIRI offline no espelho. Testado sem internet.
+- Fica online: o Google TTS do texto de `cmd/tts/say`. Sem internet, a NeoAlice precisa mandar o áudio do Kokoro, o que depende de liberar a NeoAlice.
+
+## 7. Próximos passos, na ordem do plano
 
 1. Rodar o kit `teste-app/` na sua máquina, e depois com o seu LLM e o Kokoro de verdade.
 2. Contratos v1 aprovados em 05/11/2026. S03 (director) e S04 (scheduler) em andamento.

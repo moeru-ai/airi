@@ -7,8 +7,10 @@ export default mergeConfigs([
   {
     presets: [
       presetWebFonts({
+        // The fonts come from the local @fontsource packages that `src/main.ts` imports, as in stage-tamagotchi.
+        // So the web build needs no font CDN and works without internet (Alice fork, offline mirror).
         fonts: {
-          ...presetWebFontsFonts('fontsource'),
+          ...presetWebFontsFonts('none'),
         },
         timeouts: {
           warning: 5000,
