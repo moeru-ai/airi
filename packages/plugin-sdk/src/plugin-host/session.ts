@@ -524,6 +524,10 @@ export class PluginSessionController implements HostPort {
   private exportOption(round: HostRound, entry: ProvideEntry, declaration: ExtensionProvidedKitDeclaration): ProvideOptionWithKeys<KitProviderValue, { runtime: string }> {
     const { kitId, version, methods } = entry.input
     const pluginId = this.pluginId
+    // NOTICE:
+    // The proxy is not `perConsumer`: a `perConsumer` export resolves its own `runtime` from the consumer container.
+    // So the selection connects a client for each caller. See "injeca gaps found" in docs/ai/adr/2026-11-06-plugin-host-on-injeca.md.
+    // Make the proxy `perConsumer` when injeca resolves export dependencies from the exporting container.
     return {
       export: true,
       metadata: Object.freeze({
@@ -989,7 +993,7 @@ export class PluginSessionController implements HostPort {
 
     // NOTICE:
     // An optional dependency on a `perConsumer` key does not demand the consumer instance when the key registers later.
-    // Probe: scratchpad/probes2/q4.mjs of the plugin-sdk injeca move. injeca `watch` demands it, so the watch uses it.
+    // injeca `watch` demands it, so the watch uses it. See "injeca gaps found" in docs/ai/adr/2026-11-06-plugin-host-on-injeca.md.
     // Use `invoke` with `optional()` again when injeca demands consumer instances for late optional dependencies.
     const key = kitSelectionKey(input.kitId)
     let last: string | undefined

@@ -159,6 +159,63 @@ Rules for a rebuild:
 - An unload does not wait for a setup that does not settle. injeca 0.3.1 stops at once after it aborts the start hook.
 - A cleanup that waits for its own plugin after an `await` ends with the stop timeout. Today plugin-sdk detects it with `AsyncLocalStorage`.
 
+## Implementation
+
+The branch `neko/refactor/plugin-sdk-injeca` builds this design on the local injeca build with exported registrations. These details differ from the proposal or add to it.
+
+### Graph
+
+| Node | Container | Shape |
+| --- | --- | --- |
+| `kit:<id>@host` | plugin host | `perConsumer`. Its build creates the client with the caller identity of the consumer container. |
+| `kit:<id>` | plugin host | The selection. `perConsumer`, with `firstAvailable` over the provider keys in the configured order. The Host Kit comes first by default. |
+| `kit:<id>@<plugin>` | plugin | Exported, not `perConsumer`. Its value connects a client for each caller. Its status follows the reports of the plugin and the health of `runtime`. |
+| `package`, `compat`, `runtime`, `session` | plugin | One plugin container for each session. The owner is `{ kind: 'plugin', pluginId, sessionId, version }`. |
+| `module:<id>` | plugin | A dynamic module from `ctx.modules.upsert()`. |
+| module scope | child of plugin | `ctx.modules.register()` creates a child container, so its clients have the module as caller. |
+
+- The selection build checks the grant and the version range of the consumer, because it builds the client for one consumer. A denied grant fails that consumer instance with `permission-denied`.
+- A session depends on `where(kit:<id>, condition)`. The condition reads the provider list in the metadata of the selection. `where` cannot wrap `firstAvailable`, so the selection build checks the version of the selected provider again.
+- The selection handles `dependency-change` in place: its stable client forwards to the new provider. A rebuild of an intermediate service stops it first, so its consumers would lose the Kit for a moment.
+- The plugin Kit proxy is not `perConsumer`. A `perConsumer` export resolves its own dependencies from the consumer container, so it would get the `runtime` of the consumer.
+- `reload(id)` stops the old session, then starts a new one. `reload(id, { atomic: true })` starts a new plugin container first. Its exports take over, and the consumers move with `dependency-change`. Fixed binding ids collide in the atomic form, so it is not the default.
+- One session service instance is one setup round. A rebuild during setup replaces the registration, and the start hook signal ends the old round. A rebuild after setup is an atomic replacement. The new round replaces the exports with `tx.replace`.
+
+### Plugin side
+
+- `ctx.effect(setup)` stores a cleanup with the setup round.
+- `ctx.kits.tryUse()` resolves a Kit now and does not rebuild. `ctx.kits.use()` in a module scope does the same.
+- `ctx.kits.watch()` follows the selection with injeca `watch`.
+- The Host stores found dependencies in an injectable `KitDependencyStore`, and dynamic grants in a `KitGrantStore`. Both are in memory now.
+
+### Runners and the bridge
+
+- `createDirectRunner()` runs the plugin in the Host thread. The Electron host uses it, because its Host Kits pass objects that cannot cross a worker boundary.
+- `createWorkerRunner()` runs each plugin in a `worker_threads` Worker. The first bridge is in plugin-sdk (`plugin-host/bridge/channel.ts`). Each port method is one eventa invoke. Functions cross as callbacks, and errors cross with their class and fields.
+- A worker exit sets `runtime` to `unavailable`. Cleanup calls to an ended worker resolve, and other calls reject.
+
+### Harness hooks
+
+`createHarnessKit()` and `runHarnessHooks()` are a reference in plugin-sdk. The real AIRI harness does not use them yet.
+
+### Behavior changes
+
+- A plugin whose required Kit is missing installs and waits in `pending`. The Electron host no longer rejects the enablement or the unload of a provider.
+- Two providers of one Kit do not conflict. A Host Kit id in `provides` is a second provider.
+- An unload does not wait for a setup that does not settle. `start` rejects with `stopped before setup completed`.
+- A cleanup that stops its own session rejects with `reentrant-dispose` on Node. A Web Host ends it with the stop timeout.
+- `ctx.kits.use()` of a Kit that is not a dependency rebuilds the session, so setup runs again.
+
+### injeca gaps found
+
+| Gap | Effect | Workaround |
+| --- | --- | --- |
+| A `perConsumer` export resolves its own dependencies from the consumer container. | A plugin Kit cannot be a `perConsumer` export that depends on `runtime`. | The proxy is not `perConsumer`. The selection connects a client for each caller. |
+| `where()` does not accept `firstAvailable()`. | A consumer cannot put a version range on a selection. | A condition on the selection metadata, and a check in the selection build. |
+| A rebuild after a replaced dependency stops the service first. | A replace is atomic only for direct dependents. | The selection handles `dependency-change` in place. |
+| An optional dependency on a `perConsumer` key does not create the consumer instance when the key registers after the dependent. | `invoke` with `optional()` misses a Kit that appears later. | `ctx.kits.watch()` uses injeca `watch`. |
+| `explain()` of a key reports the serving instance, not a pending replacement. | An upsert timeout cannot explain the new registration. | The explanation reads the Kit keys of the module. |
+
 ## Consequences
 
 - One graph holds the host services, the built-in Kits, the plugins, and the plugin Kits. Install, uninstall, reload, failure, and status changes follow the injeca rules.
@@ -177,14 +234,14 @@ Rules for a rebuild:
 
 ## Open questions
 
-- Exported registrations in injeca (gap G1): `provide(child, key, { export: true })`, or a container option.
-- An injectable async context in `createContainer` to detect a cleanup that waits for itself after an `await` (gap G7).
 - The user interface for provider selection and for dynamic Kit grants.
+- Where the grant store and the found dependencies persist in the Electron host.
+- How Host Kits that pass objects, for example the gamelet and tool Kits, run with the worker runner.
 
 ## Follow-up
 
-- Release injeca 0.3.1.
-- Design and implement exported registrations in injeca.
-- Design and implement `@injeca/bridge`.
+- Release injeca 0.3.1 with exported registrations, and drop the local `file:` override.
+- Fix the injeca gaps in "Implementation".
+- Design and implement `@injeca/bridge`, and move the first bridge out of plugin-sdk.
 - Move plugin-sdk in small pull requests: remove the unused registries, put the host on a container, make Host Kits `perConsumer`, run sessions in child containers, publish plugin Kits through transactions, replace the Planner, and add the graph view to the inspector.
 - Explain the removal of the Activation Planner in issue #2507.

@@ -100,6 +100,11 @@ A conformance test suite checks that each SDK follows the injeca rules for phase
 - Which source format defines the Kit contracts: Valibot with JSON Schema export, or a separate IDL?
 - How does the host authenticate a plugin process on the channel?
 
+## Implementation status
+
+- plugin-sdk runs on injeca. See [Run the plugin host on injeca](./2026-11-06-plugin-host-on-injeca.md).
+- A first bridge for JavaScript plugins in `worker_threads` is in plugin-sdk. It has no handshake, heartbeat, or reconnect yet. It moves to the injeca bridge package.
+
 ## Follow-up
 
 - Release injeca 0.3.

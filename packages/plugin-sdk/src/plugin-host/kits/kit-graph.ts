@@ -202,6 +202,10 @@ export class KitGraph {
       build: async ({ dependsOn, consumer, on, effect }) => {
         await this.checkAccess(consumer, kitId, dependsOn.provider)
         const selected = new SelectedKit(dependsOn.provider, callerOf(consumer))
+        // NOTICE:
+        // The selection moves in place. Without a handler it rebuilds by stop-then-build, and its consumers lose the Kit for a moment.
+        // See "injeca gaps found" in docs/ai/adr/2026-11-06-plugin-host-on-injeca.md.
+        // Remove the in-place move when injeca rebuilds an intermediate service without a gap.
         on('dependency-change', async ({ dependsOn: current, decide }) => {
           const next = current.provider.value
           try {
@@ -229,6 +233,10 @@ export class KitGraph {
    * The selection build checks the version of the selected provider again.
    */
   dependencyOf(use: NormalizedKitUse) {
+    // NOTICE:
+    // `where()` does not accept `firstAvailable()`, so the range cannot apply to the selected provider here.
+    // The condition reads the provider list of the selection, and the selection build checks the selected version.
+    // See "injeca gaps found" in docs/ai/adr/2026-11-06-plugin-host-on-injeca.md. Remove when injeca supports it.
     const condition = ({ metadata }: { metadata: Readonly<Record<string, unknown>> }) => selectionProvidersOf(metadata).some(provider => satisfies(provider.version, use.range))
     const conditional = where(kitSelectionKey(use.id), condition)
     return use.optional ? optional(conditional) : conditional
