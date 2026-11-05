@@ -1,8 +1,9 @@
 import type { MemoryEntry, MemoryWrite } from '../../types/memory'
 
-import localforage from 'localforage'
-
+import { prefixStorage } from 'unstorage'
 import { v7 as uuidv7 } from 'uuid'
+
+import { listRawItems, storage } from '../storage'
 
 /** A removed entry stays as a tombstone with the time of the removal, so a later sync can remove it on other devices. */
 interface MemoryTombstone {
@@ -13,7 +14,7 @@ interface MemoryTombstone {
 
 type StoredMemory = MemoryEntry | MemoryTombstone
 
-const records = localforage.createInstance({ name: 'airi-memory', storeName: 'entries' })
+const records = prefixStorage(storage, 'memory')
 
 /**
  * Runs one write. Every write of every window takes this lock, so a write that reads the stored records sees every
@@ -25,7 +26,7 @@ function write<T>(run: () => Promise<T>) {
 
 /** The stored entry with this id, or undefined when it is missing or removed. */
 async function storedEntry(id: string) {
-  const stored = await records.getItem<StoredMemory>(id)
+  const stored = await records.getItemRaw<StoredMemory>(id)
   return stored && !('deleted' in stored) ? stored : undefined
 }
 
@@ -33,16 +34,14 @@ async function storedEntry(id: string) {
 export const memoryRepo = {
   /** The entries that are not removed, oldest change first. */
   async list() {
-    const entries: MemoryEntry[] = []
-    await records.iterate<StoredMemory, void>((record) => {
-      if (!('deleted' in record))
-        entries.push(record)
-    })
+    const entries = (await listRawItems<StoredMemory>(records, ''))
+      .map(([, record]) => record)
+      .filter((record): record is MemoryEntry => !('deleted' in record))
     return entries.sort((left, right) => left.updatedAt - right.updatedAt)
   },
   /** Adds entries as they are, with their ids. Only the move from localStorage uses it. */
   async add(entries: MemoryEntry[]) {
-    await write(() => Promise.all(entries.map(entry => records.setItem<MemoryEntry>(entry.id, entry))))
+    await write(() => Promise.all(entries.map(entry => records.setItemRaw<MemoryEntry>(entry.id, entry))))
   },
   /**
    * Saves a fact on the card of `persona`, on the stored records. An id of the card's own stored entry replaces that
@@ -59,7 +58,7 @@ export const memoryRepo = {
         persona,
         updatedAt,
       }
-      await records.setItem<MemoryEntry>(entry.id, entry)
+      await records.setItemRaw<MemoryEntry>(entry.id, entry)
       return entry
     })
   },
@@ -70,7 +69,7 @@ export const memoryRepo = {
       if (!stored?.persona)
         return false
       const { persona: _card, ...general } = stored
-      await records.setItem<MemoryEntry>(id, { ...general, updatedAt })
+      await records.setItemRaw<MemoryEntry>(id, { ...general, updatedAt })
       return true
     })
   },
@@ -82,13 +81,13 @@ export const memoryRepo = {
     return write(async () => {
       if ((await storedEntry(id))?.persona !== persona)
         return false
-      await records.setItem<MemoryTombstone>(id, { id, updatedAt, deleted: true })
+      await records.setItemRaw<MemoryTombstone>(id, { id, updatedAt, deleted: true })
       return true
     })
   },
   /** Replaces each entry with a tombstone, whoever owns it. Only the owner removes entries this way, in Settings. */
   async remove(ids: string[], updatedAt: number) {
-    await write(() => Promise.all(ids.map(id => records.setItem<MemoryTombstone>(id, { id, updatedAt, deleted: true }))))
+    await write(() => Promise.all(ids.map(id => records.setItemRaw<MemoryTombstone>(id, { id, updatedAt, deleted: true }))))
   },
   /** Deletes every record, tombstones too. Only deleting all data uses it. */
   async clear() {

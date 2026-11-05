@@ -76,6 +76,14 @@ export default defineConfig({
     'import/order': 'off',
     'markdown/require-alt-text': 'off',
     'no-console': ['error', { allow: ['warn', 'error', 'info'] }],
+    'no-restricted-imports': ['error', {
+      paths: [
+        {
+          name: 'localforage',
+          message: 'Use the unstorage instance in `@proj-airi/stage-ui/database/storage`. Mount an IndexedDB store there and read and write raw values.',
+        },
+      ],
+    }],
     // Catches the manual `error instanceof Error ? error.message : ...`
     // pattern AGENTS.md forbids. The selector matches a ConditionalExpression
     // whose test is `<x> instanceof Error` and whose consequent is `<x>.message`,
@@ -109,6 +117,17 @@ export default defineConfig({
     'style/padding-line-between-statements': 'error',
     'vue/prefer-separate-static-class': 'off',
     'yaml/plain-scalar': 'off',
+  },
+}, {
+  // These tests write records with localforage, as releases before the unstorage migration did.
+  // They prove that the unstorage mounts read those records and that an earlier release reads new ones.
+  files: [
+    'packages/stage-ui/src/database/storage.browser.test.ts',
+    'packages/stage-ui/src/database/repos/display-models.repo.browser.test.ts',
+    'packages/stage-ui/src/database/repos/stickers.repo.browser.test.ts',
+  ],
+  rules: {
+    'no-restricted-imports': 'off',
   },
 }, {
   files: ['server/apps/api/**/*.ts'],
