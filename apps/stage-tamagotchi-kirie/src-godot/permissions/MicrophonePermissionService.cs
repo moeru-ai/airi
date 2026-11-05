@@ -105,11 +105,11 @@ internal sealed class MicrophonePermissionCoordinator : IDisposable
 
     private string? CompletePending(bool granted)
     {
-        var completedPromptId = _promptId;
+        string? completedPromptId = _promptId;
         _promptId = null;
         _promptStartedAt = 0;
 
-        foreach (var resolve in _pending)
+        foreach (Action<bool> resolve in _pending)
         {
             resolve(granted);
         }
@@ -133,15 +133,15 @@ internal sealed class MicrophonePermissionStore
         }
 
         var config = new ConfigFile();
-        var error = config.Load(ConfigPath);
+        Error error = config.Load(ConfigPath);
         if (error != Error.Ok)
         {
             GD.PushWarning($"Could not load microphone permission state: {error}.");
             return MicrophonePermissionState.NotDetermined;
         }
 
-        var stored = config.GetValue(Section, Key, "not-determined").AsString();
-        if (TryParse(stored, out var state))
+        string stored = config.GetValue(Section, Key, "not-determined").AsString();
+        if (TryParse(stored, out MicrophonePermissionState state))
         {
             return state;
         }
@@ -155,7 +155,7 @@ internal sealed class MicrophonePermissionStore
         var config = new ConfigFile();
         if (Godot.FileAccess.FileExists(ConfigPath))
         {
-            var loadError = config.Load(ConfigPath);
+            Error loadError = config.Load(ConfigPath);
             if (loadError != Error.Ok)
             {
                 throw new InvalidOperationException(
@@ -164,7 +164,7 @@ internal sealed class MicrophonePermissionStore
         }
 
         config.SetValue(Section, Key, Serialize(state));
-        var saveError = config.Save(ConfigPath);
+        Error saveError = config.Save(ConfigPath);
         if (saveError != Error.Ok)
         {
             throw new InvalidOperationException(
@@ -238,13 +238,13 @@ internal sealed class MicrophonePermissionService : IDisposable
     public void Request(Action<bool> resolve)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        var prompt = _coordinator.Request(resolve, Time.GetTicksMsec());
+        MicrophonePermissionPromptPayload? prompt = _coordinator.Request(resolve, Time.GetTicksMsec());
         if (prompt is null)
         {
             return;
         }
 
-        var promptBinding = _promptBinding;
+        PermissionBinding? promptBinding = _promptBinding;
         if (promptBinding is null || !promptBinding.IsActive)
         {
             _coordinator.Reset();
@@ -261,7 +261,7 @@ internal sealed class MicrophonePermissionService : IDisposable
             return;
         }
 
-        var promptId = _coordinator.Expire(Time.GetTicksMsec());
+        string? promptId = _coordinator.Expire(Time.GetTicksMsec());
         if (promptId is not null)
         {
             DismissPrompt(promptId);
@@ -276,7 +276,7 @@ internal sealed class MicrophonePermissionService : IDisposable
         }
 
         _disposed = true;
-        foreach (var binding in _bindings.ToArray())
+        foreach (PermissionBinding? binding in _bindings.ToArray())
         {
             binding.Dispose();
         }
@@ -299,7 +299,7 @@ internal sealed class MicrophonePermissionService : IDisposable
     private MicrophonePermissionStatePayload Reset()
     {
         _store.Save(MicrophonePermissionState.NotDetermined);
-        var promptId = _coordinator.Reset();
+        string? promptId = _coordinator.Reset();
         BroadcastState();
         if (promptId is not null)
         {
@@ -311,7 +311,7 @@ internal sealed class MicrophonePermissionService : IDisposable
 
     private void Resolve(MicrophonePermissionDecisionPayload payload)
     {
-        if (!MicrophonePermissionStore.TryParse(payload.Decision, out var decision)
+        if (!MicrophonePermissionStore.TryParse(payload.Decision, out MicrophonePermissionState decision)
             || decision == MicrophonePermissionState.NotDetermined)
         {
             throw new ArgumentException("The microphone permission decision is invalid.", nameof(payload));
@@ -325,15 +325,15 @@ internal sealed class MicrophonePermissionService : IDisposable
         }
 
         _store.Save(decision);
-        var promptId = _coordinator.Resolve(payload.PromptId, decision);
+        string promptId = _coordinator.Resolve(payload.PromptId, decision);
         BroadcastState();
         DismissPrompt(promptId);
     }
 
     private void BroadcastState()
     {
-        var payload = GetState();
-        foreach (var binding in _bindings.ToArray())
+        MicrophonePermissionStatePayload payload = GetState();
+        foreach (PermissionBinding? binding in _bindings.ToArray())
         {
             if (binding.IsActive)
             {

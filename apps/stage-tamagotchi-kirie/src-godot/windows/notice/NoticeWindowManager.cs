@@ -52,7 +52,7 @@ internal sealed class NoticeWindowManager : IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
         Validate(payload);
 
-        var id = string.IsNullOrEmpty(payload.Id)
+        string id = string.IsNullOrEmpty(payload.Id)
             ? Guid.NewGuid().ToString("N")[..8]
             : payload.Id;
         if (_window is not null
@@ -62,9 +62,9 @@ internal sealed class NoticeWindowManager : IDisposable
             return _window.Open(_mainWindow.CurrentScreen, id, payload, cancellationToken);
         }
 
-        var scene = ResourceLoader.Load<PackedScene>(WindowScenePath)
+        PackedScene scene = ResourceLoader.Load<PackedScene>(WindowScenePath)
             ?? throw new InvalidOperationException($"The notice window scene is missing: {WindowScenePath}");
-        var window = scene.Instantiate<NoticeWindow>();
+        NoticeWindow window = scene.Instantiate<NoticeWindow>();
         _window = window;
         try
         {

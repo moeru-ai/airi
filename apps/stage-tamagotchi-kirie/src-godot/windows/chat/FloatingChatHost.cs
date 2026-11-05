@@ -124,7 +124,7 @@ internal sealed class FloatingChatHost : IDisposable
     public void Open()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        var window = _window ?? CreateWindow();
+        FloatingChatWindow window = _window ?? CreateWindow();
         SetFolded(false);
         EmitState();
         if (_ready)
@@ -197,7 +197,7 @@ internal sealed class FloatingChatHost : IDisposable
             return;
         }
 
-        var now = Time.GetTicksMsec();
+        ulong now = Time.GetTicksMsec();
         if (_settleDeadline is { } deadline && deadline <= now)
         {
             _settleDeadline = null;
@@ -249,10 +249,10 @@ internal sealed class FloatingChatHost : IDisposable
 
     private FloatingChatWindow CreateWindow()
     {
-        var scene = ResourceLoader.Load<PackedScene>(WindowScenePath)
+        PackedScene scene = ResourceLoader.Load<PackedScene>(WindowScenePath)
             ?? throw new InvalidOperationException(
                 $"The floating chat window scene is missing: {WindowScenePath}");
-        var window = scene.Instantiate<FloatingChatWindow>();
+        FloatingChatWindow window = scene.Instantiate<FloatingChatWindow>();
         _window = window;
         try
         {
@@ -262,8 +262,8 @@ internal sealed class FloatingChatHost : IDisposable
             _owner.AddChild(window);
             window.CurrentScreen = _mainWindow.CurrentScreen;
             DesktopWindowSizing.ApplyInitialDisplayScale(window);
-            var scale = DesktopWindowSizing.GetDisplayScale(window);
-            var saved = _preferences.Current.Floating;
+            float scale = DesktopWindowSizing.GetDisplayScale(window);
+            FloatingChatBounds saved = _preferences.Current.Floating;
             window.MinSize = ToNative(MinimumLogicalSize, scale);
             window.Size = new Vector2I(
                 Math.Max(window.MinSize.X, Mathf.RoundToInt(saved.Width * scale)),
@@ -273,7 +273,7 @@ internal sealed class FloatingChatHost : IDisposable
             // The saved position can be on a display that is gone or smaller now.
             if (!IsAttached && saved.Position is { } position)
             {
-                var kept = FloatingChatPlacement.KeepOnDisplay(
+                Rect2I kept = FloatingChatPlacement.KeepOnDisplay(
                     new Rect2I(position, _size),
                     Displays());
                 _size = kept.Size;
@@ -376,8 +376,8 @@ internal sealed class FloatingChatHost : IDisposable
 
     private ChatFloatingStatePayload CurrentState()
     {
-        var settings = _preferences.Current;
-        var attached = IsAttached;
+        ChatWindowSettings settings = _preferences.Current;
+        bool attached = IsAttached;
         return new ChatFloatingStatePayload(
             settings.Placement,
             settings.Danmaku,
@@ -453,7 +453,7 @@ internal sealed class FloatingChatHost : IDisposable
         _slide = null;
         if (IsAttached)
         {
-            var main = MainRect();
+            Rect2I main = MainRect();
             _layout = FloatingChatPlacement.ChooseAttachedLayout(
                 main,
                 _size,
@@ -497,7 +497,7 @@ internal sealed class FloatingChatHost : IDisposable
     /// </summary>
     private void FollowMain(FloatingChatWindow window, ulong now)
     {
-        var mainPinned = _mainWindow.AlwaysOnTop;
+        bool mainPinned = _mainWindow.AlwaysOnTop;
         if (mainPinned != _lastMainPinned)
         {
             _lastMainPinned = mainPinned;
@@ -505,7 +505,7 @@ internal sealed class FloatingChatHost : IDisposable
             EmitState();
         }
 
-        var mainVisible = _mainWindow.Visible;
+        bool mainVisible = _mainWindow.Visible;
         if (mainVisible != _lastMainVisible)
         {
             _lastMainVisible = mainVisible;
@@ -519,7 +519,7 @@ internal sealed class FloatingChatHost : IDisposable
             }
         }
 
-        var main = MainRect();
+        Rect2I main = MainRect();
         if (main != _lastMainRect)
         {
             _lastMainRect = main;
@@ -528,9 +528,9 @@ internal sealed class FloatingChatHost : IDisposable
 
         if (_slide is { } slide)
         {
-            var progress = Math.Min(1.0, (now - slide.StartedAt) / (double)SlideMilliseconds);
+            double progress = Math.Min(1.0, (now - slide.StartedAt) / (double)SlideMilliseconds);
             // outCubic, as the Electron slide uses.
-            var eased = 1.0 - Math.Pow(1.0 - progress, 3);
+            double eased = 1.0 - Math.Pow(1.0 - progress, 3);
             var offset = new Vector2I(
                 Mathf.RoundToInt(slide.From.X + ((slide.To.X - slide.From.X) * eased)),
                 Mathf.RoundToInt(slide.From.Y + ((slide.To.Y - slide.From.Y) * eased)));
@@ -549,14 +549,14 @@ internal sealed class FloatingChatHost : IDisposable
             return;
         }
 
-        var next = FloatingChatPlacement.ChooseAttachedLayout(
+        AttachedChatLayout next = FloatingChatPlacement.ChooseAttachedLayout(
             main,
             _size,
             WorkAreaOf(main),
             _layout,
             ReturnMargin(window));
-        var sideChanged = next.Side != _layout.Side;
-        var anchorChanged = next.Anchor != _layout.Anchor;
+        bool sideChanged = next.Side != _layout.Side;
+        bool anchorChanged = next.Anchor != _layout.Anchor;
 
         // A hidden chat has nothing to animate.
         if (!window.Visible || _folded)
@@ -585,9 +585,9 @@ internal sealed class FloatingChatHost : IDisposable
 
         if (anchorChanged)
         {
-            var from = window.Position - main.Position;
+            Vector2I from = window.Position - main.Position;
             _layout = next;
-            var to = FloatingChatPlacement.AttachedOffset(main, _size, WorkAreaOf(main), _layout);
+            Vector2I to = FloatingChatPlacement.AttachedOffset(main, _size, WorkAreaOf(main), _layout);
             _slide = new Slide(from, to, Time.GetTicksMsec());
             // The chat resizes from the edges away from the new anchor.
             EmitState();
@@ -604,7 +604,7 @@ internal sealed class FloatingChatHost : IDisposable
     private void FinishRelocation(FloatingChatWindow window)
     {
         _relocating = false;
-        var main = MainRect();
+        Rect2I main = MainRect();
         // The main window can move on while the content folds.
         _layout = FloatingChatPlacement.ChooseAttachedLayout(
             main,
@@ -618,8 +618,8 @@ internal sealed class FloatingChatHost : IDisposable
 
     private void MoveToLayout(FloatingChatWindow window)
     {
-        var main = MainRect();
-        var offset = FloatingChatPlacement.AttachedOffset(main, _size, WorkAreaOf(main), _layout);
+        Rect2I main = MainRect();
+        Vector2I offset = FloatingChatPlacement.AttachedOffset(main, _size, WorkAreaOf(main), _layout);
         PlaceAt(window, main.Position + offset);
     }
 
@@ -639,9 +639,9 @@ internal sealed class FloatingChatHost : IDisposable
             return;
         }
 
-        var scale = DesktopWindowSizing.GetDisplayScale(window);
-        var delta = ToNative(new Vector2I(payload.DeltaX, payload.DeltaY), scale);
-        var kept = FloatingChatPlacement.KeepOnDisplay(
+        float scale = DesktopWindowSizing.GetDisplayScale(window);
+        Vector2I delta = ToNative(new Vector2I(payload.DeltaX, payload.DeltaY), scale);
+        Rect2I kept = FloatingChatPlacement.KeepOnDisplay(
             new Rect2I(window.Position + delta, _size),
             Displays());
         _size = kept.Size;
@@ -661,15 +661,15 @@ internal sealed class FloatingChatHost : IDisposable
         // The layout stays during a resize, so the chat never jumps to the other side under the
         // cursor.
         _slide = null;
-        var scale = DesktopWindowSizing.GetDisplayScale(window);
-        var resized = FloatingChatPlacement.ResizeByDelta(
+        float scale = DesktopWindowSizing.GetDisplayScale(window);
+        Rect2I resized = FloatingChatPlacement.ResizeByDelta(
             new Rect2I(window.Position, _size),
             ToNative(new Vector2I(payload.DeltaX, payload.DeltaY), scale),
             payload.Direction,
             window.MinSize);
         // The chat stops growing at the edges of the work area, so the edge under the cursor stays
         // in reach.
-        var kept = FloatingChatPlacement.KeepOnDisplay(resized, Displays());
+        Rect2I kept = FloatingChatPlacement.KeepOnDisplay(resized, Displays());
         _size = kept.Size;
         window.Size = kept.Size;
         PlaceAt(window, kept.Position);
@@ -694,10 +694,10 @@ internal sealed class FloatingChatHost : IDisposable
             return;
         }
 
-        var scale = DesktopWindowSizing.GetDisplayScale(window);
-        var settings = _preferences.Current;
+        float scale = DesktopWindowSizing.GetDisplayScale(window);
+        ChatWindowSettings settings = _preferences.Current;
         // An attached chat takes its position from the main window, so only a free chat saves one.
-        var position = IsAttached ? settings.Floating.Position : window.Position;
+        Vector2I? position = IsAttached ? settings.Floating.Position : window.Position;
         _preferences.Save(settings with
         {
             Floating = new FloatingChatBounds(
@@ -714,16 +714,16 @@ internal sealed class FloatingChatHost : IDisposable
 
     private static Rect2I WorkAreaOf(Rect2I bounds)
     {
-        var screen = DisplayServer.GetScreenFromRect(new Rect2(bounds.Position, bounds.Size));
+        int screen = DisplayServer.GetScreenFromRect(new Rect2(bounds.Position, bounds.Size));
         return DisplayServer.ScreenGetUsableRect(
             screen == DisplayServer.InvalidScreen ? 0 : screen);
     }
 
     private static DisplayArea[] Displays()
     {
-        var count = DisplayServer.GetScreenCount();
+        int count = DisplayServer.GetScreenCount();
         var displays = new DisplayArea[count];
-        for (var screen = 0; screen < count; screen++)
+        for (int screen = 0; screen < count; screen++)
         {
             displays[screen] = new DisplayArea(
                 new Rect2I(

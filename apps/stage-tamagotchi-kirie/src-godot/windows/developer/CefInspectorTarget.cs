@@ -15,20 +15,20 @@ internal static class CefInspectorTarget
             throw new InvalidDataException("The CEF debugging target list must be a JSON array.");
         }
 
-        foreach (var target in document.RootElement.EnumerateArray())
+        foreach (JsonElement target in document.RootElement.EnumerateArray())
         {
             if (!HasStringValue(target, "type", "page"))
             {
                 continue;
             }
 
-            var inspectorUri = ReadInspectorUri(target);
+            Uri? inspectorUri = ReadInspectorUri(target);
             if (inspectorUri is null)
             {
                 continue;
             }
 
-            if (TryReadString(target, "url", out var pageUrl) && IsLeaderPage(pageUrl))
+            if (TryReadString(target, "url", out string? pageUrl) && IsLeaderPage(pageUrl))
             {
                 return inspectorUri;
             }
@@ -39,7 +39,7 @@ internal static class CefInspectorTarget
 
     private static bool IsLeaderPage(string pageUrl)
     {
-        if (!Uri.TryCreate(pageUrl, UriKind.Absolute, out var uri))
+        if (!Uri.TryCreate(pageUrl, UriKind.Absolute, out Uri? uri))
         {
             return false;
         }
@@ -52,8 +52,8 @@ internal static class CefInspectorTarget
 
     private static Uri? ReadInspectorUri(JsonElement target)
     {
-        if (!TryReadString(target, "devtoolsFrontendUrl", out var value)
-            || !Uri.TryCreate(value, UriKind.Absolute, out var uri)
+        if (!TryReadString(target, "devtoolsFrontendUrl", out string? value)
+            || !Uri.TryCreate(value, UriKind.Absolute, out Uri? uri)
             || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
         {
             return null;
@@ -64,20 +64,20 @@ internal static class CefInspectorTarget
 
     private static bool HasStringValue(JsonElement element, string property, string expected)
     {
-        return TryReadString(element, property, out var value)
+        return TryReadString(element, property, out string? value)
             && StringComparer.Ordinal.Equals(value, expected);
     }
 
     private static bool TryReadString(JsonElement element, string property, out string value)
     {
         value = string.Empty;
-        if (!element.TryGetProperty(property, out var jsonValue)
+        if (!element.TryGetProperty(property, out JsonElement jsonValue)
             || jsonValue.ValueKind != JsonValueKind.String)
         {
             return false;
         }
 
-        var stringValue = jsonValue.GetString();
+        string? stringValue = jsonValue.GetString();
         if (string.IsNullOrWhiteSpace(stringValue))
         {
             return false;

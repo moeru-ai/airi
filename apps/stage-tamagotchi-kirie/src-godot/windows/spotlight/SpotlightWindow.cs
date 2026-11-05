@@ -127,7 +127,7 @@ public partial class SpotlightWindow : Window
 
     private void FocusWebView()
     {
-        var cef = GetNode<Control>("KirieNode/KirieCefWebView");
+        Control cef = GetNode<Control>("KirieNode/KirieCefWebView");
 
         cef.FocusMode = Control.FocusModeEnum.All;
         cef.GrabFocus();
@@ -146,7 +146,7 @@ public partial class SpotlightWindow : Window
 
     private void ArmNativeTransparency()
     {
-        var windowId = GetWindowId();
+        int windowId = GetWindowId();
         if (windowId == DisplayServer.InvalidWindowId)
         {
             return;

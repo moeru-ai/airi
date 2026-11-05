@@ -146,7 +146,7 @@ public partial class OnboardingWindow : Window
             return;
         }
 
-        var safeTitleMargins = DisplayServer.WindowGetSafeTitleMargins(GetWindowId());
+        Vector3I safeTitleMargins = DisplayServer.WindowGetSafeTitleMargins(GetWindowId());
         if (!IsInSafeTitleRegion(mouseButton.Position, Size, safeTitleMargins))
         {
             return;

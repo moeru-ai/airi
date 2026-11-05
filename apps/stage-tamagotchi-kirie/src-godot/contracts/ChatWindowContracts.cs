@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using Eventa;
 using GdKirie.EventaAdapter;
 
@@ -120,8 +121,8 @@ internal static class ChatWindowContracts
 
     public static KirieEventaJsonRegistry Register(KirieEventaJsonRegistry registry)
     {
-        var empty = AiriDesktopJsonContext.Default.EmptyPayload;
-        var json = ChatWindowJsonContext.Default;
+        JsonTypeInfo<EmptyPayload> empty = AiriDesktopJsonContext.Default.EmptyPayload;
+        ChatWindowJsonContext json = ChatWindowJsonContext.Default;
         return registry
             .RegisterInvoke(GetChatButtonState, json.ChatButtonStatePayload, empty)
             .RegisterEvent(ChatButtonStateChanged, json.ChatButtonStatePayload)

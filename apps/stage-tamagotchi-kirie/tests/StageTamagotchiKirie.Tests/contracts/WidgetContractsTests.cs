@@ -39,7 +39,7 @@ public class WidgetContractsTests
             payload.Id!, payload.ComponentName!, payload.ComponentProps!, true,
             payload.Size!.Value, payload.WindowSize, payload.TtlMs!.Value);
 
-        using JsonDocument serialized = JsonDocument.Parse(JsonSerializer.Serialize(
+        using var serialized = JsonDocument.Parse(JsonSerializer.Serialize(
             snapshot, WidgetJsonContext.Default.WidgetSnapshotPayload));
         JsonElement root = serialized.RootElement;
 

@@ -36,8 +36,8 @@ internal static class TrayWindowGeometry
         Rect2I workArea,
         float displayScale)
     {
-        var aspectRatio = (float)RecommendedLogicalSize.X / RecommendedLogicalSize.Y;
-        var halfHeight = workArea.Size.Y / 2;
+        float aspectRatio = (float)RecommendedLogicalSize.X / RecommendedLogicalSize.Y;
+        int halfHeight = workArea.Size.Y / 2;
         return preset switch
         {
             TrayWindowSizePreset.Recommended => new Vector2I(
@@ -63,15 +63,15 @@ internal static class TrayWindowGeometry
         Vector2I targetSize,
         Rect2I workArea)
     {
-        var width = Math.Min(targetSize.X, workArea.Size.X);
-        var height = Math.Min(targetSize.Y, workArea.Size.Y);
-        var currentCenter = currentBounds.Position + (currentBounds.Size / 2);
-        var workAreaCenter = workArea.Position + (workArea.Size / 2);
+        int width = Math.Min(targetSize.X, workArea.Size.X);
+        int height = Math.Min(targetSize.Y, workArea.Size.Y);
+        Vector2I currentCenter = currentBounds.Position + (currentBounds.Size / 2);
+        Vector2I workAreaCenter = workArea.Position + (workArea.Size / 2);
 
-        var x = currentCenter.X > workAreaCenter.X
+        int x = currentCenter.X > workAreaCenter.X
             ? currentBounds.End.X - width
             : currentBounds.Position.X;
-        var y = currentCenter.Y > workAreaCenter.Y
+        int y = currentCenter.Y > workAreaCenter.Y
             ? currentBounds.End.Y - height
             : currentBounds.Position.Y;
 
@@ -90,10 +90,10 @@ internal static class TrayWindowGeometry
         Rect2I workArea,
         Vector2I windowSize)
     {
-        var left = workArea.Position.X;
-        var top = workArea.Position.Y;
-        var right = workArea.End.X - windowSize.X;
-        var bottom = workArea.End.Y - windowSize.Y;
+        int left = workArea.Position.X;
+        int top = workArea.Position.Y;
+        int right = workArea.End.X - windowSize.X;
+        int bottom = workArea.End.Y - windowSize.Y;
         return alignment switch
         {
             TrayWindowAlignment.Center => new Vector2I(

@@ -120,7 +120,7 @@ internal sealed class ChatWindowManager : IDisposable
         }
 
         _disposed = true;
-        foreach (var registration in _mainRegistrations)
+        foreach (IDisposable registration in _mainRegistrations)
         {
             registration.Dispose();
         }
@@ -170,7 +170,7 @@ internal sealed class ChatWindowManager : IDisposable
 
     private ChatWindowPreferencesPayload PreferencesFor(string mode)
     {
-        var settings = _preferences.Current;
+        ChatWindowSettings settings = _preferences.Current;
         return new ChatWindowPreferencesPayload(
             mode,
             settings.Placement,
@@ -212,8 +212,8 @@ internal sealed class ChatWindowManager : IDisposable
     /// </summary>
     private void SavePreferences(ChatWindowPreferencesChangePayload changes)
     {
-        var previous = _preferences.Current;
-        var next = previous with
+        ChatWindowSettings previous = _preferences.Current;
+        ChatWindowSettings next = previous with
         {
             Placement = changes.Placement ?? previous.Placement,
             Danmaku = changes.Danmaku ?? previous.Danmaku,
@@ -252,7 +252,7 @@ internal sealed class ChatWindowManager : IDisposable
 
     private ChatButtonStatePayload ButtonState()
     {
-        var mode = _preferences.Current.Mode;
+        string mode = _preferences.Current.Mode;
         return new ChatButtonStatePayload(
             mode,
             mode == ChatWindowPreferences.FloatingMode && _floating.IsUnfolded);
@@ -278,16 +278,16 @@ internal sealed class ChatWindowManager : IDisposable
 
     private void OpenLegacy()
     {
-        var window = LiveLegacyWindow() ?? CreateLegacyWindow();
+        ChatWindow window = LiveLegacyWindow() ?? CreateLegacyWindow();
         window.Open(_mainWindow.CurrentScreen);
     }
 
     private ChatWindow CreateLegacyWindow()
     {
-        var scene = ResourceLoader.Load<PackedScene>(WindowScenePath)
+        PackedScene scene = ResourceLoader.Load<PackedScene>(WindowScenePath)
             ?? throw new InvalidOperationException(
                 $"The chat window scene is missing: {WindowScenePath}");
-        var window = scene.Instantiate<ChatWindow>();
+        ChatWindow window = scene.Instantiate<ChatWindow>();
         _window = window;
         try
         {

@@ -2,8 +2,8 @@ internal static class RendererUrl
 {
     public static string ForMain(string baseUrl)
     {
-        var parts = Split(baseUrl);
-        var leaderValues = GetLeaderValues(parts.Query);
+        UrlParts parts = Split(baseUrl);
+        string[] leaderValues = GetLeaderValues(parts.Query);
         if (leaderValues.Length > 1)
         {
             throw new InvalidOperationException("The startup URL has duplicate synced-leader query values.");
@@ -34,12 +34,12 @@ internal static class RendererUrl
 
     private static string ForFollowerRoute(string baseUrl, string route, string? stageRuntime)
     {
-        var parts = Split(baseUrl);
+        UrlParts parts = Split(baseUrl);
         var queryParts = parts.Query
             .Split('&', StringSplitOptions.RemoveEmptyEntries)
             .Where(part =>
             {
-                var key = part.Split('=', 2)[0];
+                string key = part.Split('=', 2)[0];
                 return !StringComparer.Ordinal.Equals(key, "synced-leader")
                     && !StringComparer.Ordinal.Equals(key, "stage-runtime");
             })
@@ -50,16 +50,16 @@ internal static class RendererUrl
             queryParts.Add($"stage-runtime={stageRuntime}");
         }
 
-        var query = string.Join('&', queryParts);
-        var fragment = route.StartsWith("/", StringComparison.Ordinal) ? route : $"/{route}";
+        string query = string.Join('&', queryParts);
+        string fragment = route.StartsWith("/", StringComparison.Ordinal) ? route : $"/{route}";
         return Build(parts.Location, query, "false", fragment);
     }
 
     private static string Build(string location, string query, string leader, string fragment)
     {
-        var leaderQuery = $"synced-leader={leader}";
-        var nextQuery = query.Length > 0 ? $"{query}&{leaderQuery}" : leaderQuery;
-        var nextFragment = fragment.Length > 0 ? $"#{fragment.TrimStart('#')}" : string.Empty;
+        string leaderQuery = $"synced-leader={leader}";
+        string nextQuery = query.Length > 0 ? $"{query}&{leaderQuery}" : leaderQuery;
+        string nextFragment = fragment.Length > 0 ? $"#{fragment.TrimStart('#')}" : string.Empty;
         return $"{location}?{nextQuery}{nextFragment}";
     }
 
@@ -75,12 +75,12 @@ internal static class RendererUrl
 
     private static UrlParts Split(string url)
     {
-        var fragmentStart = url.IndexOf('#', StringComparison.Ordinal);
-        var locationAndQuery = fragmentStart >= 0 ? url[..fragmentStart] : url;
-        var fragment = fragmentStart >= 0 ? url[(fragmentStart + 1)..] : string.Empty;
-        var queryStart = locationAndQuery.IndexOf('?', StringComparison.Ordinal);
-        var location = queryStart >= 0 ? locationAndQuery[..queryStart] : locationAndQuery;
-        var query = queryStart >= 0 ? locationAndQuery[(queryStart + 1)..] : string.Empty;
+        int fragmentStart = url.IndexOf('#', StringComparison.Ordinal);
+        string locationAndQuery = fragmentStart >= 0 ? url[..fragmentStart] : url;
+        string fragment = fragmentStart >= 0 ? url[(fragmentStart + 1)..] : string.Empty;
+        int queryStart = locationAndQuery.IndexOf('?', StringComparison.Ordinal);
+        string location = queryStart >= 0 ? locationAndQuery[..queryStart] : locationAndQuery;
+        string query = queryStart >= 0 ? locationAndQuery[(queryStart + 1)..] : string.Empty;
         return new UrlParts(location, query, fragment);
     }
 

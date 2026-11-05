@@ -62,7 +62,7 @@ internal sealed class DeveloperToolsService : IDisposable
             throw new InvalidOperationException("The CEF web inspector is available only in debug builds.");
         }
 
-        var port = ProjectSettings.GetSetting(
+        int port = ProjectSettings.GetSetting(
             RemoteDevtoolsPortSetting,
             DefaultRemoteDevtoolsPort).AsInt32();
         if (port is < 1 or > 65535)
@@ -70,14 +70,14 @@ internal sealed class DeveloperToolsService : IDisposable
             throw new InvalidOperationException($"The CEF remote debugging port is invalid: {port}.");
         }
 
-        var targetsEndpoint = new UriBuilder(
+        Uri targetsEndpoint = new UriBuilder(
             Uri.UriSchemeHttp,
             "127.0.0.1",
             port,
             "/json/list").Uri;
-        var targetsJson = await _http.GetStringAsync(targetsEndpoint, cancellationToken);
-        var inspectorUri = CefInspectorTarget.SelectMainInspectorUri(targetsJson);
-        var result = OS.ShellOpen(inspectorUri.AbsoluteUri);
+        string targetsJson = await _http.GetStringAsync(targetsEndpoint, cancellationToken);
+        Uri inspectorUri = CefInspectorTarget.SelectMainInspectorUri(targetsJson);
+        Error result = OS.ShellOpen(inspectorUri.AbsoluteUri);
         if (result != Error.Ok)
         {
             throw new InvalidOperationException($"The system browser could not open the CEF web inspector: {result}.");
@@ -88,11 +88,11 @@ internal sealed class DeveloperToolsService : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         ValidateWindowRequest(request);
-        if (!_windows.TryGetValue(request.Key, out var window)
+        if (!_windows.TryGetValue(request.Key, out DeveloperWindow? window)
             || !GodotObject.IsInstanceValid(window)
             || window.IsQueuedForDeletion())
         {
-            var scene = ResourceLoader.Load<PackedScene>(WindowScenePath)
+            PackedScene scene = ResourceLoader.Load<PackedScene>(WindowScenePath)
                 ?? throw new InvalidOperationException($"The developer window scene is missing: {WindowScenePath}");
             window = scene.Instantiate<DeveloperWindow>();
             _windows[request.Key] = window;
@@ -126,7 +126,7 @@ internal sealed class DeveloperToolsService : IDisposable
             throw new ArgumentException("The developer window key must not be empty.", nameof(request));
         }
 
-        var route = request.Route ?? "/devtools";
+        string route = request.Route ?? "/devtools";
         if (!StringComparer.Ordinal.Equals(route, "/devtools")
             && !route.StartsWith("/devtools/", StringComparison.Ordinal))
         {
@@ -141,7 +141,7 @@ internal sealed class DeveloperToolsService : IDisposable
 
     private void OnWindowClosed(string key, DeveloperWindow window)
     {
-        if (_windows.TryGetValue(key, out var current) && current == window)
+        if (_windows.TryGetValue(key, out DeveloperWindow? current) && current == window)
         {
             _windows.Remove(key);
         }

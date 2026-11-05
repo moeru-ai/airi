@@ -103,9 +103,9 @@ public partial class DeveloperWindow : Window
 
     private void ShowAndFocus()
     {
-        var request = _request
+        OpenDevtoolsWindowPayload request = _request
             ?? throw new InvalidOperationException("The developer window request is missing.");
-        var scale = DesktopWindowSizing.GetDisplayScale(this);
+        float scale = DesktopWindowSizing.GetDisplayScale(this);
         MinSize = Scale(_minimumSize, scale);
         Size = Scale(
             new Vector2I(
@@ -117,7 +117,7 @@ public partial class DeveloperWindow : Window
         DesktopWindowSizing.MoveToUsableCenter(this);
         if (request.X is not null || request.Y is not null)
         {
-            var centeredPosition = Position;
+            Vector2I centeredPosition = Position;
             Position = new Vector2I(
                 request.X is null ? centeredPosition.X : Mathf.RoundToInt(request.X.Value * scale),
                 request.Y is null ? centeredPosition.Y : Mathf.RoundToInt(request.Y.Value * scale));

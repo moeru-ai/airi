@@ -74,7 +74,7 @@ internal sealed class ChatWindowPreferences
             config.SetValue(FloatingSection, "y", position.Y);
         }
 
-        var error = config.Save(ConfigPath);
+        Error error = config.Save(ConfigPath);
         if (error != Error.Ok)
         {
             throw new InvalidOperationException(
@@ -92,7 +92,7 @@ internal sealed class ChatWindowPreferences
         }
 
         var config = new ConfigFile();
-        var error = config.Load(ConfigPath);
+        Error error = config.Load(ConfigPath);
         if (error != Error.Ok)
         {
             GD.PushWarning($"Could not load the chat window preferences: {error}.");
@@ -100,11 +100,11 @@ internal sealed class ChatWindowPreferences
         }
 
         // A value that is missing or not valid takes its default, and the other values stay.
-        var mode = config.GetValue(ChatSection, "mode", Default.Mode).AsString();
-        var placement = config.GetValue(ChatSection, "placement", Default.Placement).AsString();
-        var width = config.GetValue(FloatingSection, "width", Default.Floating.Width).AsInt32();
-        var height = config.GetValue(FloatingSection, "height", Default.Floating.Height).AsInt32();
-        var hasPosition = config.HasSectionKey(FloatingSection, "x")
+        string mode = config.GetValue(ChatSection, "mode", Default.Mode).AsString();
+        string placement = config.GetValue(ChatSection, "placement", Default.Placement).AsString();
+        int width = config.GetValue(FloatingSection, "width", Default.Floating.Width).AsInt32();
+        int height = config.GetValue(FloatingSection, "height", Default.Floating.Height).AsInt32();
+        bool hasPosition = config.HasSectionKey(FloatingSection, "x")
             && config.HasSectionKey(FloatingSection, "y");
         Vector2I? position = hasPosition
             ? new Vector2I(

@@ -10,7 +10,7 @@ internal static class DesktopWindowSizing
     /// </summary>
     public static void ApplyInitialDisplayScale(Window window)
     {
-        var displayScale = GetDisplayScale(window);
+        float displayScale = GetDisplayScale(window);
         if (Mathf.IsEqualApprox(displayScale, 1.0f))
         {
             return;
@@ -35,7 +35,7 @@ internal static class DesktopWindowSizing
     /// </summary>
     public static void FitDecoratedSizeToInitialSize(Window window)
     {
-        var decorationSize = window.GetSizeWithDecorations() - window.Size;
+        Vector2I decorationSize = window.GetSizeWithDecorations() - window.Size;
         window.Size = new Vector2I(
             Math.Max(1, window.Size.X - decorationSize.X),
             Math.Max(1, window.Size.Y - decorationSize.Y));
@@ -47,15 +47,15 @@ internal static class DesktopWindowSizing
     /// </summary>
     public static void MoveToSpotlightSlot(Window window)
     {
-        var mouse = DisplayServer.MouseGetPosition();
-        var screen = DisplayServer.GetScreenFromRect(new Rect2(mouse, Vector2.One));
+        Vector2I mouse = DisplayServer.MouseGetPosition();
+        int screen = DisplayServer.GetScreenFromRect(new Rect2(mouse, Vector2.One));
         if (screen == DisplayServer.InvalidScreen)
         {
             screen = window.CurrentScreen;
         }
 
         window.CurrentScreen = screen;
-        var workArea = DisplayServer.ScreenGetUsableRect(screen);
+        Rect2I workArea = DisplayServer.ScreenGetUsableRect(screen);
         window.Position = ResolveSpotlightPosition(workArea, window.Size);
     }
 
@@ -64,9 +64,9 @@ internal static class DesktopWindowSizing
     /// </summary>
     public static void MoveToUsableCenter(Window window)
     {
-        var workArea = DisplayServer.ScreenGetUsableRect(window.CurrentScreen);
-        var decoratedSize = window.GetSizeWithDecorations();
-        var decorationOffset = window.Position - window.GetPositionWithDecorations();
+        Rect2I workArea = DisplayServer.ScreenGetUsableRect(window.CurrentScreen);
+        Vector2I decoratedSize = window.GetSizeWithDecorations();
+        Vector2I decorationOffset = window.Position - window.GetPositionWithDecorations();
 
         window.Position = ResolveUsableCenter(
             workArea,
@@ -79,7 +79,7 @@ internal static class DesktopWindowSizing
     /// </summary>
     public static float GetDisplayScale(Window window)
     {
-        var displayServerName = DisplayServer.GetName();
+        string displayServerName = DisplayServer.GetName();
         if (displayServerName == "Windows")
         {
             return ResolveDisplayScale(
@@ -88,7 +88,7 @@ internal static class DesktopWindowSizing
                 DisplayServer.ScreenGetDpi(window.CurrentScreen));
         }
 
-        var screenScale = displayServerName == "Wayland"
+        float screenScale = displayServerName == "Wayland"
             ? DisplayServer.ScreenGetScale((int)DisplayServer.ScreenOfMainWindow)
             : DisplayServer.ScreenGetScale(window.CurrentScreen);
         return ResolveDisplayScale(
@@ -109,7 +109,7 @@ internal static class DesktopWindowSizing
         Vector2I decoratedSize,
         Vector2I decorationOffset)
     {
-        var decoratedPosition = workArea.Position + new Vector2I(
+        Vector2I decoratedPosition = workArea.Position + new Vector2I(
             (workArea.Size.X - decoratedSize.X) / 2,
             (workArea.Size.Y - decoratedSize.Y) / 2);
 

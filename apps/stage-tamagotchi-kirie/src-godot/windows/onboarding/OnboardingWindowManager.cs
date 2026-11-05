@@ -58,9 +58,9 @@ internal sealed class OnboardingWindowManager : IDisposable
             || !GodotObject.IsInstanceValid(_window)
             || _window.IsQueuedForDeletion())
         {
-            var scene = ResourceLoader.Load<PackedScene>(WindowScenePath)
+            PackedScene scene = ResourceLoader.Load<PackedScene>(WindowScenePath)
                 ?? throw new InvalidOperationException($"The onboarding window scene is missing: {WindowScenePath}");
-            var window = scene.Instantiate<OnboardingWindow>();
+            OnboardingWindow window = scene.Instantiate<OnboardingWindow>();
             _window = window;
             try
             {

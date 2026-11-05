@@ -50,9 +50,9 @@ internal static class FloatingChatPlacement
         AttachedChatLayout current,
         int returnMargin)
     {
-        var leftRoom = main.Position.X - size.X - workArea.Position.X;
-        var fitsRight = main.End.X + size.X <= workArea.End.X;
-        var side = current.Side;
+        int leftRoom = main.Position.X - size.X - workArea.Position.X;
+        bool fitsRight = main.End.X + size.X <= workArea.End.X;
+        AttachedChatSide side = current.Side;
         if (current.Side == AttachedChatSide.Left && leftRoom < 0 && fitsRight)
         {
             side = AttachedChatSide.Right;
@@ -63,9 +63,9 @@ internal static class FloatingChatPlacement
             side = AttachedChatSide.Left;
         }
 
-        var bottomAnchorRoom = main.End.Y - size.Y - workArea.Position.Y;
-        var fitsTopAnchor = main.Position.Y + size.Y <= workArea.End.Y;
-        var anchor = current.Anchor;
+        int bottomAnchorRoom = main.End.Y - size.Y - workArea.Position.Y;
+        bool fitsTopAnchor = main.Position.Y + size.Y <= workArea.End.Y;
+        AttachedChatAnchor anchor = current.Anchor;
         if (current.Anchor == AttachedChatAnchor.Bottom && bottomAnchorRoom < 0 && fitsTopAnchor)
         {
             anchor = AttachedChatAnchor.Top;
@@ -89,8 +89,8 @@ internal static class FloatingChatPlacement
         Rect2I workArea,
         AttachedChatLayout layout)
     {
-        var x = layout.Side == AttachedChatSide.Left ? main.Position.X - size.X : main.End.X;
-        var y = layout.Anchor == AttachedChatAnchor.Bottom ? main.End.Y - size.Y : main.Position.Y;
+        int x = layout.Side == AttachedChatSide.Left ? main.Position.X - size.X : main.End.X;
+        int y = layout.Anchor == AttachedChatAnchor.Bottom ? main.End.Y - size.Y : main.Position.Y;
         return new Vector2I(
             ClampToRange(x, workArea.Position.X, workArea.End.X - size.X) - main.Position.X,
             ClampToRange(y, workArea.Position.Y, workArea.End.Y - size.Y) - main.Position.Y);
@@ -103,8 +103,8 @@ internal static class FloatingChatPlacement
     /// </summary>
     public static string[] AttachedResizeEdges(AttachedChatLayout layout)
     {
-        var vertical = layout.Anchor == AttachedChatAnchor.Bottom ? "n" : "s";
-        var horizontal = layout.Side == AttachedChatSide.Left ? "w" : "e";
+        string vertical = layout.Anchor == AttachedChatAnchor.Bottom ? "n" : "s";
+        string horizontal = layout.Side == AttachedChatSide.Left ? "w" : "e";
         return [vertical, horizontal, vertical + horizontal];
     }
 
@@ -117,11 +117,11 @@ internal static class FloatingChatPlacement
     {
         DisplayArea? dominant = null;
         long dominantArea = -1;
-        foreach (var display in displays)
+        foreach (DisplayArea display in displays)
         {
             // The full display bounds identify the display. The system UI does not change which
             // display owns a chat that crosses the edge of a work area.
-            var area = IntersectionArea(bounds, display.Bounds);
+            long area = IntersectionArea(bounds, display.Bounds);
             if (area > dominantArea)
             {
                 dominant = display;
@@ -134,9 +134,9 @@ internal static class FloatingChatPlacement
             return bounds;
         }
 
-        var workArea = owner.WorkArea;
-        var width = Math.Min(bounds.Size.X, workArea.Size.X);
-        var height = Math.Min(bounds.Size.Y, workArea.Size.Y);
+        Rect2I workArea = owner.WorkArea;
+        int width = Math.Min(bounds.Size.X, workArea.Size.X);
+        int height = Math.Min(bounds.Size.Y, workArea.Size.Y);
         return new Rect2I(
             Math.Min(Math.Max(bounds.Position.X, workArea.Position.X), workArea.End.X - width),
             Math.Min(Math.Max(bounds.Position.Y, workArea.Position.Y), workArea.End.Y - height),
@@ -154,10 +154,10 @@ internal static class FloatingChatPlacement
         string direction,
         Vector2I minimumSize)
     {
-        var x = bounds.Position.X;
-        var y = bounds.Position.Y;
-        var width = bounds.Size.X;
-        var height = bounds.Size.Y;
+        int x = bounds.Position.X;
+        int y = bounds.Position.Y;
+        int width = bounds.Size.X;
+        int height = bounds.Size.Y;
 
         if (direction.Contains('e', StringComparison.Ordinal))
         {
@@ -165,7 +165,7 @@ internal static class FloatingChatPlacement
         }
         else if (direction.Contains('w', StringComparison.Ordinal))
         {
-            var newWidth = Math.Max(minimumSize.X, width - delta.X);
+            int newWidth = Math.Max(minimumSize.X, width - delta.X);
             x += width - newWidth;
             width = newWidth;
         }
@@ -176,7 +176,7 @@ internal static class FloatingChatPlacement
         }
         else if (direction.Contains('n', StringComparison.Ordinal))
         {
-            var newHeight = Math.Max(minimumSize.Y, height - delta.Y);
+            int newHeight = Math.Max(minimumSize.Y, height - delta.Y);
             y += height - newHeight;
             height = newHeight;
         }
@@ -194,10 +194,10 @@ internal static class FloatingChatPlacement
 
     private static long IntersectionArea(Rect2I a, Rect2I b)
     {
-        var left = Math.Max(a.Position.X, b.Position.X);
-        var top = Math.Max(a.Position.Y, b.Position.Y);
-        var right = Math.Min(a.End.X, b.End.X);
-        var bottom = Math.Min(a.End.Y, b.End.Y);
+        int left = Math.Max(a.Position.X, b.Position.X);
+        int top = Math.Max(a.Position.Y, b.Position.Y);
+        int right = Math.Min(a.End.X, b.End.X);
+        int bottom = Math.Min(a.End.Y, b.End.Y);
         if (right <= left || bottom <= top)
         {
             return 0;

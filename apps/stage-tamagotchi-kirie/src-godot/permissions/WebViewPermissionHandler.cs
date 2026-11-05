@@ -44,7 +44,7 @@ internal sealed class WebViewPermissionHandler : IDisposable
 
     private void Resolve(long requestId, bool granted)
     {
-        var resolved = granted
+        bool resolved = granted
             ? _kirie.GrantPermission(requestId)
             : _kirie.DenyPermission(requestId);
         if (!resolved)
@@ -56,7 +56,7 @@ internal sealed class WebViewPermissionHandler : IDisposable
 
     private bool HasSameOrigin(string origin)
     {
-        if (!Uri.TryCreate(origin, UriKind.Absolute, out var requestOrigin))
+        if (!Uri.TryCreate(origin, UriKind.Absolute, out Uri? requestOrigin))
         {
             return false;
         }
@@ -68,7 +68,7 @@ internal sealed class WebViewPermissionHandler : IDisposable
 
     private static Uri ParseOrigin(string rendererUrl)
     {
-        if (!Uri.TryCreate(rendererUrl, UriKind.Absolute, out var origin))
+        if (!Uri.TryCreate(rendererUrl, UriKind.Absolute, out Uri? origin))
         {
             throw new InvalidOperationException("The renderer URL must have an absolute origin.");
         }
