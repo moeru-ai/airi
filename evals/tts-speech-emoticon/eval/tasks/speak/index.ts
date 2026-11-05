@@ -40,11 +40,11 @@ const pass = defineScore('emoticon.pass', {
   primary: true,
 })
 
-const kindMetric = defineMetric('tts_speech_text.kind', {
+const kindMetric = defineMetric('tts_speech_emoticon.kind', {
   description: { 'en': 'The form of emoticon that the case covers. `keep` holds text that only looks like an emoticon.', 'zh-Hans': '用例覆盖的颜文字形式。`keep` 是只是看起来像颜文字的文本。' },
   label: { 'en': 'Kind', 'zh-Hans': '形式' },
 })
-const emotionsMetric = defineMetric('tts_speech_text.emotions', {
+const emotionsMetric = defineMetric('tts_speech_emoticon.emotions', {
   description: { 'en': 'The emotions that the test object sent to the avatar, in order.', 'zh-Hans': '测试对象发给头像的情绪，按顺序。' },
   label: { 'en': 'Emotions', 'zh-Hans': '情绪' },
 })
@@ -71,7 +71,7 @@ export function describeEmoticonSpeechTask(language: Language, speakText: SpeakT
         body: `${JSON.stringify({ ...item, result }, null, 2)}\n`,
         contentType: 'application/json',
         label: { 'en': 'Result', 'zh-Hans': '结果' },
-        purpose: 'tts_speech_text.result',
+        purpose: 'tts_speech_emoticon.result',
       })
     })
   }, {

@@ -1,4 +1,4 @@
-import { describeEmoticonSpeechTask } from '@proj-airi/evals-tts-speech-text'
+import { describeEmoticonSpeechTask } from '@proj-airi/evals-tts-speech-emoticon'
 
 import { speakText } from '../../../src/speak-text'
 

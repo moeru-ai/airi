@@ -7,6 +7,6 @@ import { defineConfig } from 'vieval'
  * `vieval run` runs every workspace in its own process, and `benchmark.case.id` aligns their cases.
  */
 export default defineConfig({
-  id: 'tts-speech-text',
+  id: 'tts-speech-emoticon',
   workspaces: ['eval/test-objects/*'],
 })

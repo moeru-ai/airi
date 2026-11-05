@@ -1,7 +1,7 @@
-import type { SpeakText } from '@proj-airi/evals-tts-speech-text'
+import type { SpeakText } from '@proj-airi/evals-tts-speech-emoticon'
 
 import { toSpeechText } from '@proj-airi/core-agent'
-import { voiceLanguage } from '@proj-airi/evals-tts-speech-text'
+import { voiceLanguage } from '@proj-airi/evals-tts-speech-emoticon'
 
 /**
  * The Unicode blocks that the `filter_emoji` text transform of LiveKit Agents removes: pictographs and symbols

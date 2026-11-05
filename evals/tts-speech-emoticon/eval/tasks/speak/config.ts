@@ -19,7 +19,7 @@ function selectedLanguages(): string[] {
  * Builds the workspace config of one test object. A test object is one way to turn a reply into the text that TTS
  * reads. Its project runs the tasks under its own `tasks/`. The suite calls no model, so it has no matrix.
  */
-export function defineSpeechTextConfig(testObject: string) {
+export function defineEmoticonSpeechConfig(testObject: string) {
   return defineConfig({
     projects: [
       {

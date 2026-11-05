@@ -1,6 +1,6 @@
-# @proj-airi/evals-tts-speech-text
+# @proj-airi/evals-tts-speech-emoticon
 
-A [vieval](https://vieval.dev/) comparison of the text that AIRI sends to TTS. It records the text that a TTS provider cannot read as written, and the expected text for each case. The first dataset covers emoticons in Chinese, English, Japanese, and Korean.
+A [vieval](https://vieval.dev/) comparison of how AIRI handles emoticons before TTS. It records the emoticons that a TTS provider cannot read as written, with the expected text and emotion for each case. It covers Chinese, English, Japanese, and Korean.
 
 ## What the suite measures
 
@@ -23,7 +23,7 @@ For each case, a test object turns a reply into the text that TTS reads and the 
 Compare all test objects:
 
 ```shell
-pnpm -F @proj-airi/evals-tts-speech-text eval:compare
+pnpm -F @proj-airi/evals-tts-speech-emoticon eval:compare
 ```
 
 The script builds `@proj-airi/core-agent` first, so the `rule` test object reads the code in your working tree.
@@ -32,7 +32,7 @@ To run one test object and keep its report, run its workspace config:
 
 ```shell
 pnpm -F @proj-airi/core-agent build
-cd evals/tts-speech-text
+cd evals/tts-speech-emoticon
 pnpm exec vieval run --config ./eval/test-objects/rule/vieval.config.ts --report-out .vieval/reports/rule
 ```
 
@@ -62,7 +62,7 @@ The test objects are:
 - `emoji-filter`: the default TTS text transforms of LiveKit Agents, `filter_markdown` then `filter_emoji`. They remove Unicode emoji blocks only. The markdown step is the AIRI one, so the comparison differs only in the emoticon step.
 - `bracket-filter`: the default `tts_filter` of Open-LLM-VTuber. It deletes text in `*…*`, `[…]`, `(…)`, and `<…>`, then keeps only letters, numbers, punctuation, and whitespace.
 
-To add a test object, add a directory under `eval/test-objects/` with a `SpeakText` adapter, a config that calls `defineSpeechTextConfig`, and one task file per language.
+To add a test object, add a directory under `eval/test-objects/` with a `SpeakText` adapter, a config that calls `defineEmoticonSpeechConfig`, and one task file per language.
 
 ## Dataset
 
@@ -127,8 +127,9 @@ Every test object gets 30 emotion points from the `keep` and `any` cases, becaus
 
 - Do not use it to compare TTS providers. It sends nothing to TTS.
 - Do not use it for formulas, money, or units. `evals/tts-speech-formula` covers them.
+- Do not use it for other text that TTS cannot read, for example markdown or file paths. It covers emoticons only.
 
 ## Known issues
 
 - vieval schedules a task only when a model target is registered, so each project registers a `local:deterministic` model that is never called.
-- vieval loads config files with Node type stripping, which does not resolve a relative import without its extension. Thus, the test object configs import the shared config through the separate package export `@proj-airi/evals-tts-speech-text/config`.
+- vieval loads config files with Node type stripping, which does not resolve a relative import without its extension. Thus, the test object configs import the shared config through the separate package export `@proj-airi/evals-tts-speech-emoticon/config`.

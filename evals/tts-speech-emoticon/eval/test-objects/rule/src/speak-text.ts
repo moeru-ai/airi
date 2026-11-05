@@ -1,8 +1,8 @@
-import type { SpeakText } from '@proj-airi/evals-tts-speech-text'
+import type { SpeakText } from '@proj-airi/evals-tts-speech-emoticon'
 import type { StreamingControlEmotion } from '@proj-airi/pipelines-audio'
 
 import { VoiceController } from '@proj-airi/core-agent'
-import { voiceLanguage } from '@proj-airi/evals-tts-speech-text'
+import { voiceLanguage } from '@proj-airi/evals-tts-speech-emoticon'
 import { normalizeActPayload, Playback } from '@proj-airi/pipelines-audio'
 
 const actPrefix = '<|ACT '

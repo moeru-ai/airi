@@ -1,3 +1,3 @@
-import { defineSpeechTextConfig } from '@proj-airi/evals-tts-speech-text/config'
+import { defineEmoticonSpeechConfig } from '@proj-airi/evals-tts-speech-emoticon/config'
 
-export default defineSpeechTextConfig('raw')
+export default defineEmoticonSpeechConfig('raw')

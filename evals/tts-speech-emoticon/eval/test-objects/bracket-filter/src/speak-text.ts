@@ -1,4 +1,4 @@
-import type { SpeakText } from '@proj-airi/evals-tts-speech-text'
+import type { SpeakText } from '@proj-airi/evals-tts-speech-emoticon'
 
 // The default `tts_filter` of Open-LLM-VTuber, every option on, in its order: asterisks, square brackets, parentheses,
 // angle brackets, then special characters. It runs on the reply as written, as Open-LLM-VTuber does.
