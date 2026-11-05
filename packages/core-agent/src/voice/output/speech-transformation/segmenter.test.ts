@@ -57,4 +57,57 @@ describe('markdownSegmenter', () => {
     expect(segmenter.push('^2$')).toEqual([])
     expect(segmenter.flush()).toEqual(['In $x^2$'])
   })
+
+  // https://github.com/moeru-ai/airi/issues/3391
+  // ROOT CAUSE:
+  // An unclosed `[`, as the emoticon `:[`, kept `brackets` above zero for the rest of the reply.
+  // Link text cannot cross a blank line, so the blank line now resets `brackets` and `url`.
+  it('Issue #3391: flushes subsequent paragraphs when a preceding paragraph contains an unmatched opening bracket', () => {
+    const text = 'Here is an emoticon :[\n\nSecond paragraph is ready. Next sentence.'
+    const segments = segmentsOf(text)
+
+    expect(segments).toEqual([
+      'Here is an emoticon :[\n',
+      '\n',
+      'Second paragraph is ready. ',
+      'Next sentence.',
+    ])
+    expect(segments.join('')).toBe(text)
+  })
+
+  it('Issue #3391: emits segments during active streaming before end is called', () => {
+    const segmenter = new MarkdownSegmenter()
+
+    const firstPush = segmenter.push('Emoticon :[\n\nSecond paragraph. More text follows.')
+    expect(firstPush).toEqual(['Emoticon :[\n\nSecond paragraph. '])
+
+    expect(segmenter.end()).toEqual(['More text follows.'])
+  })
+
+  it('Issue #3391: resets unclosed url state across blank lines', () => {
+    const text = 'Check [broken link](\n\nNew paragraph is ready. Next sentence.'
+    const segments = segmentsOf(text)
+
+    expect(segments).toEqual([
+      'Check [broken link](\n',
+      '\n',
+      'New paragraph is ready. ',
+      'Next sentence.',
+    ])
+    expect(segments.join('')).toBe(text)
+  })
+
+  it('Issue #3391: resets multiple unmatched brackets across blank lines', () => {
+    const segmenter = new MarkdownSegmenter()
+    const firstPush = segmenter.push('Emoticons :[ :[ :[\n\nParagraph two. Continuing stream.')
+    expect(firstPush).toEqual(['Emoticons :[ :[ :[\n\nParagraph two. '])
+    expect(segmenter.end()).toEqual(['Continuing stream.'])
+  })
+
+  it('preserves valid markdown links that contain single newlines without blank lines', () => {
+    const segmenter = new MarkdownSegmenter()
+    const pushResult = segmenter.push('See [link\nlabel](https://example.com/path). More text follows.')
+    expect(pushResult).toEqual(['See [link\nlabel](https://example.com/path). '])
+    expect(segmenter.end()).toEqual(['More text follows.'])
+  })
 })
