@@ -20,14 +20,15 @@ vi.mock('vue-i18n', () => ({
   useI18n: () => ({ locale: { value: 'en' }, t: (key: string) => key }),
 }))
 
-vi.mock('localforage', () => ({
-  default: {
-    getItem: vi.fn(async () => undefined),
-    iterate: vi.fn(async () => undefined),
-    removeItem: vi.fn(async () => undefined),
-    setItem: vi.fn(async <T>(_: string, value: T) => value),
-  },
-}))
+// Node has no IndexedDB. An in-memory driver replaces the IndexedDB mounts.
+vi.mock('../../database/storage', async (importOriginal) => {
+  const { createStorage } = await import('unstorage')
+  const { default: memoryDriver } = await import('unstorage/drivers/memory')
+  return {
+    ...await importOriginal<typeof import('../../database/storage')>(),
+    storage: createStorage({ driver: memoryDriver() }),
+  }
+})
 
 function card(provider = '', model = ''): AiriCard {
   return {

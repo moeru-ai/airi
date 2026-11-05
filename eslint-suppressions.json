@@ -731,7 +731,7 @@
   },
   "packages/stage-ui/src/stores/background.ts": {
     "ts/no-explicit-any": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/stage-ui/src/stores/mods/api/channel-server.ts": {
@@ -802,11 +802,6 @@
   "packages/ui/src/utils/shim/local-storage.ts": {
     "ts/no-explicit-any": {
       "count": 1
-    }
-  },
-  "plugins/airi-plugin-claude-code/src/utils/general.ts": {
-    "ts/no-explicit-any": {
-      "count": 4
     }
   },
   "services/computer-use-mcp/src/bin/e2e-airi-chat-observable.ts": {

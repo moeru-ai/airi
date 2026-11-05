@@ -85,7 +85,6 @@ catalog:
   '@better-auth/cli': ^1.4.22
   '@better-auth/drizzle-adapter': 1.6.25
   '@better-auth/oauth-provider': 1.6.25
-  '@better-fetch/fetch': ^1.3.1
   '@capacitor/android': ^8.6.0
   '@capacitor/app': ^8.1.1
   '@capacitor/barcode-scanner': ^3.1.1
@@ -128,7 +127,7 @@ catalog:
   '@grammyjs/files': ^1.2.0
   '@guiiai/logg': ^1.2.12
   '@histoire/plugin-vue': 1.0.0-beta.1
-  '@hono/node-server': ^2.1.5
+  '@hono/node-server': ^2.1.1
   '@hono/node-ws': ^1.3.1
   '@hono/otel': ^1.1.2
   '@huggingface/transformers': 3.8.1
@@ -153,7 +152,7 @@ catalog:
   '@laplace.live/event-types': ^2.0.21
   '@lemonneko/crop-empty-pixels': 0.1.1
   '@mediapipe/tasks-vision': ^1.0.1
-  '@modelcontextprotocol/sdk': ^1.32.2
+  '@modelcontextprotocol/sdk': ^1.30.0
   '@moeru/eslint-config': 0.1.0-beta.19
   '@moeru/eventa': 1.0.2
   '@moeru/std': 0.1.0-beta.17
@@ -289,7 +288,6 @@ catalog:
   alien-signals: ^3.2.1
   animejs: ^4.5.0
   async-mutex: 0.5.0
-  awilix: ^13.0.5
   best-effort-json-parser: ^1.5.1
   better-auth: 1.6.25
   builder-util-runtime: ^9.7.0
@@ -299,18 +297,16 @@ catalog:
   capacitor-native-settings: ^8.2.0
   chess.js: ^1.4.0
   clustr: ^1.0.2
-  colorjs.io: ^0.7.1
   crossws: ^0.4.12
   csstype: ^3.2.3
   culori: ^4.0.2
   d3: 7.9.0
   date-fns: ^4.4.0
-  debug: ^4.4.3
   defu: ^6.1.7
   destr: ^2.0.5
   discord.js: ^14.27.0
   dockview-vue: ^8.2.0
-  dompurify: ^3.4.17
+  dompurify: ^3.4.14
   driver.js: ^1.8.0
   drizzle-kit: ^0.31.10
   drizzle-orm: ^0.45.2
@@ -460,7 +456,7 @@ catalog:
   vite-plugin-vue-layouts: ^0.11.0
   vitest-browser-vue: ^2.1.0
   vscode-ext-gen: ^1.6.0
-  vue: ^3.5.44
+  vue: ^3.5.41
   vue-demi: ^0.14.10
   vue-i18n: ^11.4.9
   vue-json-pretty: ^2.6.0
@@ -487,9 +483,9 @@ catalog:
   zod-to-json-schema: ^3.25.2
 catalogs:
   vitest:
-    '@vitest/browser-playwright': ^4.1.12
-    '@vitest/coverage-v8': ^4.1.12
-    vitest: ^4.1.12
+    '@vitest/browser-playwright': ^4.1.11
+    '@vitest/coverage-v8': ^4.1.11
+    vitest: ^4.1.11
   xsai:
     unspeech: ^0.1.16
 
