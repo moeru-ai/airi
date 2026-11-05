@@ -811,8 +811,8 @@ catalogs:
       specifier: ^6.3.0
       version: 6.3.0
     injeca:
-      specifier: ^0.2.0
-      version: 0.2.0
+      specifier: ^0.3.0
+      version: 0.3.0
     ioredis:
       specifier: ^6.0.0
       version: 6.0.0
@@ -2289,7 +2289,7 @@ importers:
         version: 2.0.1-rc.29(crossws@0.4.12(srvx@1.0.8))
       injeca:
         specifier: 'catalog:'
-        version: 0.2.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.3.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
       jszip:
         specifier: 'catalog:'
         version: 3.10.1
@@ -2680,7 +2680,7 @@ importers:
         version: 1.51.0
       injeca:
         specifier: 'catalog:'
-        version: 0.2.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.3.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
       jszip:
         specifier: 'catalog:'
         version: 3.10.1
@@ -3690,7 +3690,7 @@ importers:
         version: 5.0.4
       injeca:
         specifier: 'catalog:'
-        version: 0.2.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.3.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
       isolated-vm:
         specifier: 'catalog:'
         version: 7.0.1
@@ -3972,7 +3972,7 @@ importers:
         version: 1.51.0
       injeca:
         specifier: 'catalog:'
-        version: 0.2.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.3.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
       nanoid:
         specifier: 'catalog:'
         version: 6.0.1
@@ -6524,7 +6524,7 @@ importers:
         version: 0.5.3(hono@4.13.3)(unstorage@1.17.5(idb-keyval@6.3.0)(ioredis@6.0.0(supports-color@10.2.2)))
       injeca:
         specifier: 'catalog:'
-        version: 0.2.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.3.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
       ioredis:
         specifier: 'catalog:'
         version: 6.0.0(supports-color@10.2.2)
@@ -6663,7 +6663,7 @@ importers:
         version: 0.5.3(hono@4.13.3)(unstorage@1.17.5(idb-keyval@6.3.0)(ioredis@6.0.0(supports-color@10.2.2)))
       injeca:
         specifier: 'catalog:'
-        version: 0.2.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.3.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
       ioredis:
         specifier: 'catalog:'
         version: 6.0.0(supports-color@10.2.2)
@@ -15803,6 +15803,9 @@ packages:
   es-toolkit@1.51.0:
     resolution: {integrity: sha512-zC2lQGkM7QX+Gm6iM3+WIdZJzthsEd14LvRNJneSO2hzyz/zNBENR8+YXWo1cKxgPBtV6ksPYHELbcwBRzmdCw==}
 
+  es-toolkit@1.53.1:
+    resolution: {integrity: sha512-VhMc6IXmexu8iYFfL2aaAww6IvJTdHlqBLruLoEUs33YD4IcP5DdZcLOybMsMmmLsiy1c8PsiLsrM0DdIuuRUA==}
+
   es5-ext@0.10.64:
     resolution: {integrity: sha512-p2snDhiLaXe6dahss1LddxqEm+SkuDvV8dnIQG0MWjyHpcMNfXKPE+/Cc0y+PhxJX3A4xGNeFCj5oc0BUh6deg==}
     engines: {node: '>=0.10'}
@@ -17005,8 +17008,8 @@ packages:
     resolution: {integrity: sha512-ifK0CgjALofS5bkrcTy4RaQ9Vx2Knf/eLeIO+NaswQEpH1UblrtTSCIvN71qQDMq0PeQ/SSPojvEJp9vvvfr+w==}
     engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0}
 
-  injeca@0.2.0:
-    resolution: {integrity: sha512-uV++UZJQMx/wGzIFQzPB1/+3Xc3QQxZ0zvFZFyNlcSpbNqcn/8X7vGvRM2K9Nrj1qMsodQhAhCHP4GCMhXrDfQ==}
+  injeca@0.3.0:
+    resolution: {integrity: sha512-bOlhVowhLQKPhf/n6b7UtYV/hwoMawA4i9q5LwRSlfhOYRt161jjPh7PZcDWkOSxlfcoXCls+bMZJkP4jQFOYA==}
     peerDependencies:
       '@guiiai/logg': '>= 1'
       error-stack-parser: ^2.1.4
@@ -31081,6 +31084,8 @@ snapshots:
 
   es-toolkit@1.51.0: {}
 
+  es-toolkit@1.53.1: {}
+
   es5-ext@0.10.64:
     dependencies:
       es6-iterator: 2.0.3
@@ -32747,9 +32752,11 @@ snapshots:
 
   ini@7.0.0: {}
 
-  injeca@0.2.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1):
+  injeca@0.3.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1):
     dependencies:
+      alien-signals: 3.2.1
       error-stack-parser: 2.1.4
+      es-toolkit: 1.53.1
       nanoid: 6.0.1
     optionalDependencies:
       '@guiiai/logg': 1.2.12

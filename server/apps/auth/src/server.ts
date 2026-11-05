@@ -18,7 +18,7 @@ import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
 import { logger as honoLogger } from 'hono/logger'
-import { createContainer, createLoggLogger, lifecycle, provide, resolve, start, stop } from 'injeca'
+import { createContainer, createLoggLogger, provide, resolve, start, stop } from 'injeca'
 
 import { createAuth, getTrustedClientSeedSummaries, seedTrustedClients } from './auth'
 import { createAuthDrizzle } from './db'
@@ -140,8 +140,8 @@ export async function createAuthServer() {
     build: ({ dependsOn }) => initAuthOtel(dependsOn.env),
   })
   const db = provide(container, 'datastore:db', {
-    dependsOn: { env, lifecycle },
-    build: async ({ dependsOn }) => {
+    dependsOn: { env },
+    build: async ({ dependsOn, on }) => {
       const connection = await initializeExternalDependency('Database', logger, async (attempt) => {
         const candidate = createAuthDrizzle(dependsOn.env)
         try {
@@ -156,13 +156,13 @@ export async function createAuthServer() {
           throw error
         }
       })
-      dependsOn.lifecycle.appHooks.onStop(() => connection.pool.end())
+      on('stop', () => connection.pool.end())
       return connection.db
     },
   })
   const redis = provide(container, 'datastore:redis', {
-    dependsOn: { env, lifecycle },
-    build: async ({ dependsOn }) => {
+    dependsOn: { env },
+    build: async ({ dependsOn, on }) => {
       const instance = await initializeExternalDependency('Redis', logger, async (attempt) => {
         const candidate = new Redis(dependsOn.env.REDIS_URL, { lazyConnect: true })
         try {
@@ -175,7 +175,7 @@ export async function createAuthServer() {
           throw error
         }
       })
-      dependsOn.lifecycle.appHooks.onStop(async () => {
+      on('stop', async () => {
         await instance.quit()
       })
       return instance
