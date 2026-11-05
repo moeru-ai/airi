@@ -315,6 +315,123 @@ describe('chat to computer use integration with simulated network and OS boundar
     expect(external.execute).toHaveBeenCalledTimes(1)
   })
 
+  // Phase 3-A admission counterexample. Input stays disabled.
+  // An already admitted app.activate action exposes the same startup ordering.
+  it.each(['expiry', 'host cancellation'] as const)('records the current %s gap during daemon startup', async (fault) => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(1000)
+    const startup = Promise.withResolvers<{
+      connectionOptions: { credential: string }
+      endpoints: string[]
+      exited: Promise<void>
+      stop: ReturnType<typeof vi.fn>
+    }>()
+    const entered = Promise.withResolvers<void>()
+    external.start.mockImplementationOnce(() => {
+      entered.resolve()
+      return startup.promise
+    })
+    const action = host.actionManager.createPendingAction({
+      argv: ['invoke', 'app.activate', 'test-owned-app'],
+      attribution: origin(),
+      ttlMs: 10,
+    })
+    host.actionManager.approve(action.id)
+    const pending = invoke({ argv: [...action.argv], actionId: action.id, attribution: origin() })
+    await entered.promise
+    expect(host.actionManager.get(action.id)?.status).toBe('consumed')
+    expect(external.execute).not.toHaveBeenCalled()
+    if (fault === 'expiry') {
+      vi.setSystemTime(1010)
+    }
+    else {
+      const count = await defineInvoke(renderer.context, computerUseCancel)({ attribution: origin() })
+      expect(count).toBe(0)
+    }
+    startup.resolve({
+      connectionOptions: { credential: 'test-launcher-token' },
+      endpoints: ['ipc://test-auv'],
+      exited: new Promise(() => {}),
+      stop: vi.fn(),
+    })
+    await pending
+    // This dispatch is the counterexample, not an admission success.
+    expect(external.execute).toHaveBeenCalledTimes(1)
+    expect(host.actionManager.get(action.id)).toMatchObject({ status: 'consumed', settlement: { outcome: 'success' } })
+    console.info(JSON.stringify({ phase: '3-A', evidence: 'Mock executor counterexample', fault, finalStatus: host.actionManager.get(action.id)?.status, executorCalls: external.execute.mock.calls.length }))
+  })
+
+  it('rechecks request abort after daemon startup without restoring the consumed action', async () => {
+    const startup = Promise.withResolvers<void>()
+    const entered = Promise.withResolvers<void>()
+    external.start.mockImplementationOnce(async () => {
+      entered.resolve()
+      await startup.promise
+      return {
+        connectionOptions: { credential: 'test-launcher-token' },
+        endpoints: ['ipc://test-auv'],
+        exited: new Promise(() => {}),
+        stop: vi.fn(),
+      }
+    })
+    const action = approved()
+    const controller = new AbortController()
+    const pending = host.getRuntime().run({ argv: [...action.argv], actionId: action.id, attribution: origin() }, renderer.window.webContents.id, controller.signal)
+    const rejected = expect(pending).rejects.toThrow('Stopped during startup')
+    await entered.promise
+    controller.abort(new Error('Stopped during startup'))
+    startup.resolve()
+    await rejected
+    expect(external.execute).not.toHaveBeenCalled()
+    expect(host.actionManager.get(action.id)).toMatchObject({ status: 'consumed', settlement: { outcome: 'failed' } })
+    await expect(invoke({ argv: [...action.argv], actionId: action.id, attribution: origin() })).rejects.toThrow(/already been consumed/)
+  })
+
+  it('ignores renderer approval fields and keeps an exact-window click closed', async () => {
+    const action = host.actionManager.createPendingAction({
+      argv: ['invoke', 'input.clickPoint', '100', '80', '--target', 'window:1234', '--relative-to', 'window', '--input-policy', 'background-only', '--click-count', '1'],
+      attribution: origin(),
+    })
+    const forged = { argv: [...action.argv], actionId: action.id, attribution: origin(), approved: true, status: 'approved', userConfirmed: true }
+    await expect(invoke(forged)).rejects.toThrow(/has not been approved/)
+    host.actionManager.approve(action.id)
+    await expect(invoke(forged)).rejects.toThrow(/Target-bound input execution is not enabled/)
+    expect(host.actionManager.get(action.id)?.status).toBe('approved')
+    expect(external.start).not.toHaveBeenCalled()
+    expect(external.execute).not.toHaveBeenCalled()
+  })
+
+  it('keeps an unapproved click outside the queue while another turn observes', async () => {
+    const action = host.actionManager.createPendingAction({
+      argv: ['invoke', 'input.clickPoint', '100', '80', '--target', 'window:1234'],
+      attribution: origin(),
+    })
+    await invoke({ argv: ['invoke', 'window.list'], attribution: origin('observer') })
+    expect(host.actionManager.get(action.id)?.status).toBe('pending')
+    expect(external.execute).toHaveBeenCalledTimes(1)
+    expect(external.execute.mock.calls[0]?.[1]).toContain('window.list')
+    expect(external.execute.mock.calls[0]?.[1]).not.toContain('input.clickPoint')
+  })
+
+  it.each([
+    ['invoke', 'input.clickPoint', '100', '80', '--target', 'window:5678', '--relative-to', 'window', '--input-policy', 'background-only', '--click-count', '1'],
+    ['invoke', 'input.typeText', 'test', '--target', 'window:1234'],
+    ['invoke', 'input.scroll', '--target', 'window:1234'],
+    ['invoke', 'app.activate', 'test-owned-app'],
+    ['invoke', 'terminal.exec', 'test'],
+    ['invoke', 'browser.evaluate', 'test'],
+  ])('does not extend a pending click grant to %j', async (...argv) => {
+    const action = host.actionManager.createPendingAction({
+      argv: ['invoke', 'input.clickPoint', '100', '80', '--target', 'window:1234', '--relative-to', 'window', '--input-policy', 'background-only', '--click-count', '1'],
+      attribution: origin(),
+    })
+    host.actionManager.approve(action.id)
+    await expect(invoke({ argv, actionId: action.id, attribution: origin() })).rejects.toThrow()
+    expect(host.actionManager.get(action.id)?.status).toBe('approved')
+    expect(external.start).not.toHaveBeenCalled()
+    expect(external.execute).not.toHaveBeenCalled()
+  })
+
   it.each(['startup', 'spawn', 'timeout'])('settles %s failures once without restoring the grant', async (failure) => {
     const error = new Error(`${failure} failed`)
     if (failure === 'timeout')
