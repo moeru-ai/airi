@@ -57,7 +57,6 @@ export default defineKirieConfig({
           '@proj-airi/stage-ui/*',
           '@proj-airi/drizzle-duckdb-wasm',
           '@proj-airi/drizzle-duckdb-wasm/*',
-          '@proj-airi/electron-screen-capture',
 
           // Live2D SDK
           '@framework/live2dcubismframework',

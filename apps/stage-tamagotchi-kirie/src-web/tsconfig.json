@@ -29,7 +29,6 @@
     },
     "resolveJsonModule": true,
     "types": [
-      "@types/audioworklet",
       "vitest",
       "vite/client",
       "vite-plugin-vue-layouts/client",

@@ -12,7 +12,7 @@ type Translate = (key: string) => string
 
 const labelKeyPrefix = 'tamagotchi.tray.menu.labels.label'
 
-/** Translates the tray labels with the Electron tray keys. */
+/** Translates the tray labels with the shared tray keys. */
 function createHostTrayLabels(t: Translate): AiriTrayLabels {
   const label = (key: string) => t(`${labelKeyPrefix}.${key}`)
 

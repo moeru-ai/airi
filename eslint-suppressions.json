@@ -24,16 +24,6 @@
       "count": 1
     }
   },
-  "apps/stage-tamagotchi-kirie/src-web/src/shared/eventa/index.ts": {
-    "ts/no-explicit-any": {
-      "count": 2
-    }
-  },
-  "apps/stage-tamagotchi-kirie/src-web/src/shared/eventa/plugin/host.ts": {
-    "ts/no-explicit-any": {
-      "count": 2
-    }
-  },
   "apps/stage-tamagotchi-kirie/src-web/src/stores/tools/builtin/image-journal.ts": {
     "ts/no-explicit-any": {
       "count": 1
