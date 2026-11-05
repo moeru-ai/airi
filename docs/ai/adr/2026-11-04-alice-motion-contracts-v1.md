@@ -1,6 +1,6 @@
 # Alice motion contracts, version 1
 
-Status: proposed. It waits for the approval of the project owner, as the S02 exit criterion in Plan 03 requires.
+Status: accepted. The project owner approved this ADR on 2026-11-05. This approval is the S02 exit criterion in Plan 03, and it unblocks S03, S04, and S08.
 
 ## Context
 
@@ -13,9 +13,19 @@ The NeoAlice backend already sends avatar commands over MQTT. Plan 03 forbids ch
 - The contracts live in `packages/alice-motion/src/contracts.ts` as Valibot schemas. Types are inferred from the schemas.
 - `MotionIntent` keeps the fields of Plan 01 and adds an optional `sessionId`. Plan 01 requires cancellation by session (sections 6 and 11), but its type had no field for it.
 - `MotionCue` needs exactly one of `clipId` and `generatorId`.
-- `parseMotionIntent` and `parseMotionCue` never throw. A message above 4096 bytes is refused before parsing.
+- `parseMotionIntent` and `parseMotionCue` never throw. A message above 4096 bytes is refused before parsing. See "Message size limit".
 - The semantic action whitelist comes from the motion catalog at runtime (`allowedActions`). The schema checks only the name format.
 - Mood and relationship contracts stay in `services/alice-companion/src/contracts.ts`. The mood name table stays in `services/alice-companion/src/mood-vocabulary.ts`. This ADR does not copy them.
+
+## Message size limit
+
+The project owner approved this limit explicitly.
+
+- One serialized `MotionIntent` or `MotionCue` can have at most 4096 bytes. The count uses the UTF-8 bytes of `JSON.stringify(message)`.
+- The constant is `maxMessageBytes` in `packages/alice-motion/src/contracts.ts`.
+- A larger message is refused with the reason `message is larger than 4096 bytes`. The parser does not read it, so a large or hostile message cannot slow the director or the scheduler.
+- The limit applies to motion messages only. Audio, for example `cmd/tts/audio` with a base64 WAV, does not pass through these parsers and has no such limit.
+- To change the limit, write a new ADR. Version 1 consumers depend on it.
 
 ## NeoAlice messages and their intent (implemented in S08)
 

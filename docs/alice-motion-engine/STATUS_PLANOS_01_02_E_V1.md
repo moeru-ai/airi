@@ -8,7 +8,7 @@
 
 | Fase | O que o plano pede | Estado | O que existe | O que falta |
 | --- | --- | --- | --- | --- |
-| Seção 5 | Contratos `MotionIntent` e `MotionCue` | Parcial | `packages/alice-motion` com Valibot e 15 testes. ADR `2026-11-04-alice-motion-contracts-v1.md`. | O ADR está "proposed": falta a sua aprovação. |
+| Seção 5 | Contratos `MotionIntent` e `MotionCue` | Feito | `packages/alice-motion` com Valibot e 15 testes. ADR `2026-11-04-alice-motion-contracts-v1.md`, aprovado pelo responsável em 05/11/2026, com o limite de 4096 bytes por mensagem registrado na seção "Message size limit". | — |
 | P0 | Baseline, fixture, telemetria, vídeo antes e depois | Parcial | Versões e resultados de typecheck e testes registrados (S02). Fixture VRM Neptuna. Vídeo da V1. | Telemetria própria por quadro (`motion_trace.jsonl`, FPS, `mixer_ms`). Medição em hardware real. |
 | P1 | MotionDirector com estados, fala, emoção e ações semânticas | Parcial | O diretor do xiaoke (V1) cobre os estados parada, pensando e falando para cabeça e tronco, com aleatoriedade injetável. | O director que recebe `MotionIntent` e escolhe ações semânticas (S03). Estados `listening`, `walking`, `acting`, `interrupted`. |
 | P2 | Scheduler: prioridades, reserva de canais, interrupção | Falta | — | S04 inteira. |
@@ -105,6 +105,6 @@ Falta testar o app desktop. Lá, o chat e o palco podem rodar em janelas diferen
 ## 6. Próximos passos, na ordem do plano
 
 1. Rodar o kit `teste-app/` na sua máquina, e depois com o seu LLM e o Kokoro de verdade.
-2. Aprovar os contratos v1 (ADR) e começar a S03 (director) e a S04 (scheduler).
+2. Contratos v1 aprovados em 05/11/2026. S03 (director) e S04 (scheduler) em andamento.
 3. S08: ponte MQTT, para o AIRI receber os comandos e o humor da NeoAlice sem alterá-la.
 4. V3: respiração, pose e peso por humor, e contato visual (conceitos do TalkingHead).
