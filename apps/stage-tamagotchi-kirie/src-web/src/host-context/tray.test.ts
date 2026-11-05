@@ -34,10 +34,10 @@ describe('host tray labels', () => {
 
     expect(invoke).toHaveBeenCalledOnce()
     expect(invoke).toHaveBeenCalledWith(setLabelsEventId, expect.objectContaining({
-      show: 'en:tamagotchi.electron.tray.menu.labels.label.show',
-      recommendedSize: 'en:tamagotchi.electron.tray.menu.labels.label.recommended_size',
-      troubleshootBeatSync: 'en:tamagotchi.electron.tray.menu.labels.label.troubleshoot_beatsync',
-      quit: 'en:tamagotchi.electron.tray.menu.labels.label.quit',
+      show: 'en:tamagotchi.tray.menu.labels.label.show',
+      recommendedSize: 'en:tamagotchi.tray.menu.labels.label.recommended_size',
+      troubleshootBeatSync: 'en:tamagotchi.tray.menu.labels.label.troubleshoot_beatsync',
+      quit: 'en:tamagotchi.tray.menu.labels.label.quit',
     }))
 
     stop()
@@ -52,7 +52,7 @@ describe('host tray labels', () => {
 
     expect(invoke).toHaveBeenCalledTimes(2)
     expect(invoke).toHaveBeenLastCalledWith(setLabelsEventId, expect.objectContaining({
-      settings: 'zh-Hans:tamagotchi.electron.tray.menu.labels.label.settings',
+      settings: 'zh-Hans:tamagotchi.tray.menu.labels.label.settings',
     }))
 
     stop()
