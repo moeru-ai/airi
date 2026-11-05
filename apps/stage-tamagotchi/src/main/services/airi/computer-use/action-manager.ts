@@ -30,7 +30,7 @@ export interface PendingActionSettlement {
 export interface PendingAction {
   /** Unique action ID */
   id: string
-  /** Trusted caller attribution (session, turn, toolCall, sender) */
+  /** Renderer request correlation plus the independently observed Electron source. */
   attribution: InvocationAttribution
   /** Immutable arguments frozen at registration */
   argv: readonly string[]
@@ -119,7 +119,7 @@ export function verifyExecutionPreconditions(command: string, argv: readonly str
 }
 
 /**
- * Owns approval state. Queued actions remain approved and cancellable until execution consumes them.
+ * Owns approval state. Actions remain approved and cancellable through daemon readiness until Host dispatch consumes them.
  * Consumed actions never regain approval and accept exactly one execution settlement.
  * All public records are detached snapshots. Source, session, turn, call and arguments bind each approval.
  */
@@ -326,7 +326,7 @@ export class PendingActionManager {
     this.validateAction(id, request)
   }
 
-  /** Rechecks expiry, provenance and arguments at execution start, then consumes once without awaiting. */
+  /** Commits Host dispatch after expiry, request and argument checks. It does not confirm native execution. */
   consume(id: string, request: { argv: readonly string[], attribution: InvocationAttribution }): PendingAction {
     const action = this.validateAction(id, request)
     action.status = 'consumed'

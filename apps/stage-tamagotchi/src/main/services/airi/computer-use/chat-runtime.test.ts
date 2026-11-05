@@ -315,9 +315,9 @@ describe('chat to computer use integration with simulated network and OS boundar
     expect(external.execute).toHaveBeenCalledTimes(1)
   })
 
-  // Phase 3-A admission counterexample. Input stays disabled.
-  // An already admitted app.activate action exposes the same startup ordering.
-  it.each(['expiry', 'host cancellation'] as const)('records the current %s gap during daemon startup', async (fault) => {
+  // Phase 3-A reproduced consumption before daemon readiness.
+  // The existing app.activate path exercises authorization without enabling input.
+  it.each(['expiry', 'host cancellation', 'renderer destruction'] as const)('rejects %s during daemon startup before dispatch', async (fault) => {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(1000)
     const startup = Promise.withResolvers<{
@@ -337,16 +337,18 @@ describe('chat to computer use integration with simulated network and OS boundar
       ttlMs: 10,
     })
     host.actionManager.approve(action.id)
-    const pending = invoke({ argv: [...action.argv], actionId: action.id, attribution: origin() })
+    const pending = invoke({ argv: [...action.argv], actionId: action.id, attribution: origin() }).catch((error: unknown) => error)
     await entered.promise
-    expect(host.actionManager.get(action.id)?.status).toBe('consumed')
-    expect(external.execute).not.toHaveBeenCalled()
+    const waitingStatus = host.actionManager.get(action.id)?.status
+    let cancelled: number | undefined
     if (fault === 'expiry') {
       vi.setSystemTime(1010)
     }
+    else if (fault === 'host cancellation') {
+      cancelled = await defineInvoke(renderer.context, computerUseCancel)({ attribution: origin() })
+    }
     else {
-      const count = await defineInvoke(renderer.context, computerUseCancel)({ attribution: origin() })
-      expect(count).toBe(0)
+      renderer.window.webContents.emit('destroyed')
     }
     startup.resolve({
       connectionOptions: { credential: 'test-launcher-token' },
@@ -354,14 +356,17 @@ describe('chat to computer use integration with simulated network and OS boundar
       exited: new Promise(() => {}),
       stop: vi.fn(),
     })
-    await pending
-    // This dispatch is the counterexample, not an admission success.
-    expect(external.execute).toHaveBeenCalledTimes(1)
-    expect(host.actionManager.get(action.id)).toMatchObject({ status: 'consumed', settlement: { outcome: 'success' } })
-    console.info(JSON.stringify({ phase: '3-A', evidence: 'Mock executor counterexample', fault, finalStatus: host.actionManager.get(action.id)?.status, executorCalls: external.execute.mock.calls.length }))
+    const result = await pending
+    console.info(JSON.stringify({ phase: '3-B1', evidence: 'Controlled process boundary', fault, waitingStatus, finalStatus: host.actionManager.get(action.id)?.status, executorCalls: external.execute.mock.calls.length }))
+    expect(external.execute).not.toHaveBeenCalled()
+    expect(waitingStatus).toBe('approved')
+    expect(result).toMatchObject({ message: expect.stringContaining(fault === 'expiry' ? 'expired' : 'cancelled') })
+    expect(host.actionManager.get(action.id)?.status).toBe(fault === 'expiry' ? 'expired' : 'cancelled')
+    if (fault === 'host cancellation')
+      expect(cancelled).toBe(1)
   })
 
-  it('rechecks request abort after daemon startup without restoring the consumed action', async () => {
+  it('rechecks request abort after daemon startup and cancels the unconsumed action', async () => {
     const startup = Promise.withResolvers<void>()
     const entered = Promise.withResolvers<void>()
     external.start.mockImplementationOnce(async () => {
@@ -383,8 +388,187 @@ describe('chat to computer use integration with simulated network and OS boundar
     startup.resolve()
     await rejected
     expect(external.execute).not.toHaveBeenCalled()
-    expect(host.actionManager.get(action.id)).toMatchObject({ status: 'consumed', settlement: { outcome: 'failed' } })
-    await expect(invoke({ argv: [...action.argv], actionId: action.id, attribution: origin() })).rejects.toThrow(/already been consumed/)
+    expect(host.actionManager.get(action.id)).toMatchObject({ status: 'cancelled', settlement: { outcome: 'failed' } })
+    await expect(invoke({ argv: [...action.argv], actionId: action.id, attribution: origin() })).rejects.toThrow(/was cancelled/)
+  })
+
+  it.each(['expiry', 'host cancellation'] as const)('rechecks %s after a ready daemon yields before dispatch', async (fault) => {
+    await invoke({ argv: ['invoke', 'window.list'], attribution: origin('warmup') })
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(1000)
+    const action = host.actionManager.createPendingAction({
+      argv: ['invoke', 'app.activate', 'test-owned-app'],
+      attribution: origin(),
+      ttlMs: 10,
+    })
+    host.actionManager.approve(action.id)
+    const pending = host.getRuntime().run({ argv: [...action.argv], actionId: action.id, attribution: origin() }, renderer.window.webContents.id).catch((error: unknown) => error)
+    const invalidated = Promise.withResolvers<void>()
+    // A cached async connect still yields once. This microtask precedes its continuation.
+    queueMicrotask(() => {
+      if (fault === 'expiry')
+        vi.setSystemTime(1010)
+      else
+        host.actionManager.cancelInvocation(origin())
+      invalidated.resolve()
+    })
+    await invalidated.promise
+    const result = await pending
+    expect(result).toMatchObject({ message: expect.stringContaining(fault === 'expiry' ? 'expired' : 'cancelled') })
+    expect(external.execute).toHaveBeenCalledTimes(1)
+    expect(external.execute.mock.calls[0]?.[1]).toContain('window.list')
+    expect(host.actionManager.get(action.id)?.status).toBe(fault === 'expiry' ? 'expired' : 'cancelled')
+  })
+
+  it('rejects shutdown during startup before consumption and dispatch', async () => {
+    const entered = Promise.withResolvers<void>()
+    const startup = Promise.withResolvers<void>()
+    const stop = vi.fn()
+    external.start.mockImplementationOnce(async () => {
+      entered.resolve()
+      await startup.promise
+      return { connectionOptions: { credential: 'test-launcher-token' }, endpoints: ['ipc://test-auv'], exited: new Promise(() => {}), stop }
+    })
+    const action = approved()
+    const runtime = host.getRuntime()
+    const pending = runtime.run({ argv: [...action.argv], actionId: action.id, attribution: origin() }, renderer.window.webContents.id).catch((error: unknown) => error)
+    await entered.promise
+    const stopped = runtime.dispose()
+    startup.resolve()
+    const result = await pending
+    await stopped
+    expect(external.execute).not.toHaveBeenCalled()
+    expect(result).toMatchObject({ message: expect.stringContaining('stopped') })
+    expect(host.actionManager.get(action.id)).toMatchObject({ status: 'cancelled', settlement: { outcome: 'failed' } })
+    expect(stop).toHaveBeenCalledTimes(1)
+  })
+
+  it('cancels an aborted queued action without restoring its approved state', async () => {
+    const entered = Promise.withResolvers<void>()
+    const release = Promise.withResolvers<CliResult>()
+    external.execute.mockImplementationOnce(() => {
+      entered.resolve()
+      return execution(release.promise)
+    })
+    const runtime = host.getRuntime()
+    const observation = runtime.run({ argv: ['invoke', 'window.list'], attribution: origin('observer') }, renderer.window.webContents.id)
+    await entered.promise
+    const action = approved()
+    const controller = new AbortController()
+    const pending = runtime.run({ argv: [...action.argv], actionId: action.id, attribution: origin() }, renderer.window.webContents.id, controller.signal).catch((error: unknown) => error)
+    controller.abort(new Error('Queued request stopped'))
+    release.resolve({ stdout: '[]', stderr: '' })
+    await observation
+    expect(await pending).toMatchObject({ message: 'Queued request stopped' })
+    expect(external.execute).toHaveBeenCalledTimes(1)
+    expect(external.execute.mock.calls[0]?.[1]).toContain('window.list')
+    expect(host.actionManager.get(action.id)).toMatchObject({ status: 'cancelled', settlement: { outcome: 'failed' } })
+  })
+
+  it('isolates another turn while a startup-waiting action is cancelled', async () => {
+    const entered = Promise.withResolvers<void>()
+    const release = Promise.withResolvers<void>()
+    external.start.mockImplementationOnce(async () => {
+      entered.resolve()
+      await release.promise
+      return { connectionOptions: { credential: 'test-launcher-token' }, endpoints: ['ipc://test-auv'], exited: new Promise(() => {}), stop: vi.fn() }
+    })
+    const runtime = host.getRuntime()
+    const a = approved()
+    const b = approved(origin('turn-b'))
+    const pendingA = runtime.run({ argv: [...a.argv], actionId: a.id, attribution: origin() }, renderer.window.webContents.id).catch((error: unknown) => error)
+    await entered.promise
+    const pendingB = runtime.run({ argv: [...b.argv], actionId: b.id, attribution: origin('turn-b') }, renderer.window.webContents.id)
+    const count = await defineInvoke(renderer.context, computerUseCancel)({ attribution: origin() })
+    release.resolve()
+    const resultA = await pendingA
+    await pendingB
+    expect(count).toBe(1)
+    expect(resultA).toMatchObject({ message: expect.stringContaining('cancelled') })
+    expect(host.actionManager.get(a.id)?.status).toBe('cancelled')
+    expect(host.actionManager.get(b.id)).toMatchObject({ status: 'consumed', settlement: { outcome: 'success' } })
+    expect(external.execute).toHaveBeenCalledTimes(1)
+  })
+
+  it('allows only one dispatch when the same approved action is queued twice', async () => {
+    const entered = Promise.withResolvers<void>()
+    const release = Promise.withResolvers<void>()
+    external.start.mockImplementationOnce(async () => {
+      entered.resolve()
+      await release.promise
+      return { connectionOptions: { credential: 'test-launcher-token' }, endpoints: ['ipc://test-auv'], exited: new Promise(() => {}), stop: vi.fn() }
+    })
+    const runtime = host.getRuntime()
+    const action = approved()
+    const input = { argv: [...action.argv], actionId: action.id, attribution: origin() }
+    const first = runtime.run(input, renderer.window.webContents.id)
+    const second = runtime.run(input, renderer.window.webContents.id).catch((error: unknown) => error)
+    await entered.promise
+    release.resolve()
+    await first
+    expect(await second).toMatchObject({ message: expect.stringContaining('already been consumed') })
+    expect(external.execute).toHaveBeenCalledTimes(1)
+    expect(host.actionManager.get(action.id)?.settlement?.outcome).toBe('success')
+  })
+
+  it.each(['expiry', 'host cancellation', 'request abort'] as const)('preserves the dispatched result after %s', async (fault) => {
+    const entered = Promise.withResolvers<void>()
+    const release = Promise.withResolvers<CliResult>()
+    external.execute.mockImplementationOnce(() => {
+      entered.resolve()
+      return execution(release.promise)
+    })
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(1000)
+    const action = host.actionManager.createPendingAction({
+      argv: ['invoke', 'app.activate', 'test-owned-app'],
+      attribution: origin(),
+      ttlMs: 10,
+    })
+    host.actionManager.approve(action.id)
+    const controller = new AbortController()
+    const runtime = host.getRuntime()
+    const pending = runtime.run({ argv: [...action.argv], actionId: action.id, attribution: origin() }, renderer.window.webContents.id, controller.signal)
+    await entered.promise
+    const waiting = host.actionManager.get(action.id)
+    if (fault === 'expiry')
+      vi.setSystemTime(1010)
+    else if (fault === 'host cancellation')
+      expect(await defineInvoke(renderer.context, computerUseCancel)({ attribution: origin() })).toBe(0)
+    else
+      controller.abort(new Error('Too late to retract dispatch'))
+    const next = runtime.run({ argv: ['invoke', 'window.list'], attribution: origin('observer') }, renderer.window.webContents.id)
+    expect(waiting?.status).toBe('consumed')
+    expect(waiting?.settlement).toBeUndefined()
+    expect(external.execute).toHaveBeenCalledTimes(1)
+    release.resolve({ stdout: '{"receipt":"mock-application-result"}', stderr: '' })
+    const result = await pending
+    await next
+    expect(result).toMatchObject({ exitCode: 0, output: { receipt: 'mock-application-result' } })
+    expect(host.actionManager.get(action.id)).toMatchObject({ status: 'consumed', settlement: { outcome: 'success' } })
+    expect(external.execute).toHaveBeenCalledTimes(2)
+  })
+
+  it('retains a dispatched nonzero result after Host cancellation', async () => {
+    const entered = Promise.withResolvers<void>()
+    const release = Promise.withResolvers<CliResult>()
+    external.execute.mockImplementationOnce(() => {
+      entered.resolve()
+      return execution(release.promise)
+    })
+    const action = approved()
+    const pending = invoke({ argv: [...action.argv], actionId: action.id, attribution: origin() })
+    await entered.promise
+    expect(await defineInvoke(renderer.context, computerUseCancel)({ attribution: origin() })).toBe(0)
+    release.reject(Object.assign(new Error('Driver reported failure'), {
+      code: 3,
+      stdout: '{"failure_details":"mock partial effect is uncertain"}',
+      stderr: 'Driver reported failure',
+    }))
+    const result = await pending
+    expect(result).toMatchObject({ exitCode: 3, output: { failure_details: 'mock partial effect is uncertain' } })
+    expect(host.actionManager.get(action.id)).toMatchObject({ status: 'consumed', settlement: { outcome: 'failed', exitCode: 3 } })
+    expect(external.execute).toHaveBeenCalledTimes(1)
   })
 
   it('ignores renderer approval fields and keeps an exact-window click closed', async () => {
@@ -445,8 +629,8 @@ describe('chat to computer use integration with simulated network and OS boundar
     const action = approved()
     const input = { argv: [...action.argv], actionId: action.id, attribution: origin() }
     await expect(invoke(input)).rejects.toThrow(error.message)
-    expect(host.actionManager.get(action.id)).toMatchObject({ status: 'consumed', settlement: { outcome: 'failed', error: error.message } })
-    await expect(invoke(input)).rejects.toThrow(/already been consumed/)
+    expect(host.actionManager.get(action.id)).toMatchObject({ status: failure === 'startup' ? 'cancelled' : 'consumed', settlement: { outcome: 'failed', error: error.message } })
+    await expect(invoke(input)).rejects.toThrow(failure === 'startup' ? /was cancelled/ : /already been consumed/)
   })
 
   it('preserves a normal nonzero CLI result and settles its consumed approval', async () => {

@@ -113,7 +113,7 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
       throw new Error(`Use invoke with a desktop command or --help. (${classification.reason})`)
     }
 
-    // 4. Trusted Invocation Attribution (Fail-Closed when enabled)
+    // 4. Request correlation and the independently observed Electron source.
     let attribution: InvocationAttribution | undefined
     if (parsed.attribution) {
       attribution = validateAttribution(parsed.attribution, callerWebContentsId)
@@ -150,12 +150,13 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
     return enqueue(async () => {
       let consumedActionId: string | undefined
       try {
-        // Queue wait is outside the execution commitment. Cancellation and expiry remain effective until this point.
+        // Reject invalidated queued work before starting or reconnecting the daemon.
         if (classification.category === 'mutating' && options.actionManager && parsed.actionId && attribution) {
-          options.actionManager.consume(parsed.actionId, { argv: validatedArgv, attribution })
-          consumedActionId = parsed.actionId
+          options.actionManager.validate(parsed.actionId, { argv: validatedArgv, attribution })
         }
         const active = await connect()
+        if (disposed)
+          throw new Error('Computer use has stopped.')
         signal?.throwIfAborted()
         const command = [...validatedArgv]
         if (!command.includes('--json') && !isComputerUseHelpCall(command))
@@ -167,11 +168,19 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
         const credential = active.connectionOptions.credential
         if (!credential)
           throw new Error('AUV did not issue a launcher token.')
+        const environment = { ...process.env, AUV_ENDPOINT: active.endpoints[0], AUV_CONTEXT: undefined }
+        const args = ['--credential-stdin', ...command]
         try {
+          // Readiness is complete. Consume and dispatch in the same synchronous turn.
+          // Consumption commits Host dispatch, not proof of native execution or its effects.
+          if (classification.category === 'mutating' && options.actionManager && parsed.actionId && attribution) {
+            options.actionManager.consume(parsed.actionId, { argv: validatedArgv, attribution })
+            consumedActionId = parsed.actionId
+          }
           // Send the launcher token on stdin. Other processes of the same user can read argv and the environment.
-          const pending = execFileAsync(options.binaryPath, ['--credential-stdin', ...command], {
+          const pending = execFileAsync(options.binaryPath, args, {
             // connectionOptions.endpoint is a bare socket path. The CLI needs the URI form from endpoints.
-            env: { ...process.env, AUV_ENDPOINT: active.endpoints[0], AUV_CONTEXT: undefined },
+            env: environment,
             encoding: 'utf8',
             timeout: 120000,
             maxBuffer: 4 * 1024 * 1024,
@@ -222,7 +231,15 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
         }
         throw error
       }
-    }, signal)
+    }, signal).catch((error: unknown) => {
+      // A pre-dispatch failure must not leave a reusable approval, including an aborted queue wait.
+      // Consumed work keeps its settlement. Existing cancellation and expiry retain their reason.
+      if (classification.category === 'mutating' && parsed.actionId
+        && options.actionManager?.get(parsed.actionId)?.status === 'approved') {
+        options.actionManager.cancel(parsed.actionId, errorMessageFrom(error) ?? 'Computer use failed before dispatch.')
+      }
+      throw error
+    })
   }
 
   async function readImage(input: unknown, callerWebContentsId?: number, signal?: AbortSignal): Promise<string> {
