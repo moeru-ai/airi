@@ -1,11 +1,10 @@
 import en from '@proj-airi/i18n/locales/en'
 
-import { CHARACTER_CARD_SYNC_FLAG } from '@proj-airi/stage-ui/libs/feature-flags'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
-import { useFeatureFlagsStore } from '@proj-airi/stage-ui/stores/feature-flags'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
+import { useSyncPreferencesStore } from '@proj-airi/stage-ui/stores/sync-preferences'
 import { createPinia, disposePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render } from 'vitest-browser-vue'
@@ -66,7 +65,7 @@ describe('card detail history', () => {
   it('shows the past revisions of a card and restores one', async () => {
     const { screen, cardId } = await renderDetail()
     signIn(useAuthStore(pinia))
-    useFeatureFlagsStore(pinia).setPreference(CHARACTER_CARD_SYNC_FLAG.key, true)
+    useSyncPreferencesStore(pinia).setEnabled('character-cards', true)
     vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
       const url = String(input)
       if (url.includes(`/${encodeURIComponent(cardId)}/history/1`)) {
@@ -100,9 +99,10 @@ describe('card detail history', () => {
     await expect.element(screen.getByRole('button', { name: 'Restore this version' })).toBeEnabled()
   })
 
-  it('does not offer history for a signed-in user who has not turned cloud sync on', async () => {
+  it('does not offer history for a signed-in user who turned cloud sync off', async () => {
     const { screen, cardId } = await renderDetail()
 
+    useSyncPreferencesStore(pinia).setEnabled('character-cards', false)
     signIn(useAuthStore(pinia))
     await screen.rerender({ cardId })
 

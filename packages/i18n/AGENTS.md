@@ -2,6 +2,13 @@
 
 Scope: `packages/i18n/**`, and every string that a user sees. The root `AGENTS.md` gives the rules for which locale files to edit.
 
+## Keys
+
+- After you add, rename, or delete a key, run `pnpm i18n:check` in the repository root. Fix each error that it reports.
+- Do not edit `.x18n/check-baseline.json` or run `x18n check --update-baseline`. The autofix.ci workflow updates the baseline.
+  The update also writes new errors into the baseline, and then CI does not report them.
+- Before you delete a key that x18n reports as unused, search the code for its parent key. x18n cannot follow keys built at runtime.
+
 ## Glossary
 
 `packages/i18n/glossary/terms.yaml` gives the approved English term for each product concept.

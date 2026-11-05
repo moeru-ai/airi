@@ -7,6 +7,7 @@ import { CharacterSwitcherDrawer, ChatBackgroundTasks, ChatHistory } from '@proj
 import { ChatComposerAddMenu, ChatComposerVoiceInput, ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSessionsDrawer, useChatImages, useStartVoiceCall, VoiceCallCapsule, VoicePresence } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
+import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
@@ -76,6 +77,7 @@ const voiceInput = useTemplateRef<InstanceType<typeof ChatComposerVoiceInput>>('
 const voiceAttachment = useTemplateRef<HTMLElement>('voiceAttachment')
 const voiceSurface = useTemplateRef<HTMLElement>('voiceSurface')
 const router = useRouter()
+const authStore = useAuthStore()
 const call = useVoiceCallStore()
 const startVoiceCall = useStartVoiceCall(route => router.push(route), () => !voiceRecording.value)
 const hasSubmission = computed(() => !!messageInput.value.trim() || attachments.value.length > 0)
@@ -426,6 +428,7 @@ onUnmounted(() => {
         v-if="!chatReady"
         :class="['mx-3']"
         @configure="router.push('/settings/providers')"
+        @sign-in="authStore.requestLogin()"
       />
       <div
         ref="messageComposer"
