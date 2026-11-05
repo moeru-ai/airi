@@ -5,7 +5,7 @@ import { createTestingPinia } from '@pinia/testing'
 import { setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { getSpeechBusContext, voiceSpeechCommand } from '../services/speech/bus'
+import { getSpeechBusContext, voiceGetTurns, voiceInterrupt, voiceSpeechCommand } from '../services/speech/bus'
 import { setCharacterLlmMarkerParserFactoryForTest, useCharacterStore } from './character'
 import { useChatSessionStore } from './chat/session-store'
 import { useAiriCardStore } from './modules'
@@ -49,7 +49,7 @@ describe('store character', () => {
     parserEndSpy.mockClear()
 
     useChatSessionStore(pinia).activeSessionId = 'session-1'
-    stopHost = defineInvokeHandler(getSpeechBusContext(), voiceSpeechCommand, (command) => {
+    const stopSpeech = defineInvokeHandler(getSpeechBusContext(), voiceSpeechCommand, (command) => {
       if (command.type === 'text')
         writeLiteralSpy(command.value)
       if (command.type === 'end')
@@ -58,6 +58,13 @@ describe('store character', () => {
         finishSpy()
       return { status: 'accepted' }
     })
+    const stopTurns = defineInvokeHandler(getSpeechBusContext(), voiceGetTurns, () => [])
+    const stopInterrupt = defineInvokeHandler(getSpeechBusContext(), voiceInterrupt, () => ({ status: 'recorded' }))
+    stopHost = () => {
+      stopSpeech()
+      stopTurns()
+      stopInterrupt()
+    }
 
     const airiCardStore = useAiriCardStore(pinia)
     // @ts-expect-error - testing purpose
@@ -140,6 +147,47 @@ describe('store character', () => {
     store.onSparkNotifyReactionStreamEnd('missing', 'Ignored')
 
     expect(store.reactions).toHaveLength(0)
+  })
+
+  it('replays speech text by emitting speech output', async () => {
+    const store = useCharacterStore()
+
+    await store.replaySpeech('Say this again.')
+
+    await vi.waitFor(() => {
+      expect(parserConsumeSpy).toHaveBeenCalledWith('Say this again.')
+      expect(parserEndSpy).toHaveBeenCalled()
+      expect(writeLiteralSpy).toHaveBeenCalledWith('Say this again.')
+      expect(endSpy).toHaveBeenCalled()
+    })
+  })
+
+  it('replays last speech from session assistant messages', async () => {
+    const store = useCharacterStore()
+    const sessionStore = useChatSessionStore()
+    sessionStore.messages = [
+      { role: 'user', content: 'Hi' } as any,
+      { role: 'assistant', content: 'Hello there!' } as any,
+    ]
+
+    const replayed = await store.replayLastSpeech()
+    expect(replayed).toBe(true)
+
+    await vi.waitFor(() => {
+      expect(parserConsumeSpy).toHaveBeenCalledWith('Hello there!')
+      expect(writeLiteralSpy).toHaveBeenCalledWith('Hello there!')
+    })
+  })
+
+  it('returns false when replayLastSpeech finds no assistant message', async () => {
+    const store = useCharacterStore()
+    const sessionStore = useChatSessionStore()
+    sessionStore.messages = [
+      { role: 'user', content: 'Hello' } as any,
+    ]
+
+    const replayed = await store.replayLastSpeech()
+    expect(replayed).toBe(false)
   })
 
   it('clears reactions', () => {

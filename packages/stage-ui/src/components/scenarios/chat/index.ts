@@ -33,3 +33,5 @@ export { useVoiceInput } from './composables/use-voice-input'
 export { default as JournalPreviewModal } from './JournalPreviewModal.vue'
 export { getChatReplyPreview, isChatReplyTargetMessage, normalizeChatReplyPreview } from './reply'
 export type { ChatHistoryReplyPayload } from './reply'
+
+export { getChatHistoryItemCopyText, getChatHistoryItemKey } from './utils'

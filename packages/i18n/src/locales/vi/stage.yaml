@@ -96,6 +96,7 @@ chat:
     reading: 'Đang đọc ảnh…'
     description: 'Ảnh đính kèm'
   actions:
+    replay: Phát lại
     reply: Trả lời
     retry: Thử lại
     send: Gửi tin nhắn

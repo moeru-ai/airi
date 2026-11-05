@@ -92,6 +92,7 @@ chat:
     reading: 'Lecture des images…'
     description: 'Image jointe'
   actions:
+    replay: Rejouer
     reply: Répondre
     retry: Réessayer
     send: Envoyer le message

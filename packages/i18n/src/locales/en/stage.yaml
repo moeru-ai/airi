@@ -213,6 +213,7 @@ chat:
     reading: 'Reading images…'
     description: 'Image attachment'
   actions:
+    replay: Replay
     reply: Reply
     retry: Retry
     send: Send message

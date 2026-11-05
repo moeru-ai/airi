@@ -96,6 +96,7 @@ chat:
     reading: '正在讀取圖片…'
     description: '圖片附件'
   actions:
+    replay: 重播
     reply: 回覆
     retry: 重試
     send: 傳送訊息

@@ -86,6 +86,7 @@ const emit = defineEmits<{
   (e: 'deleteMessage', payload: { message: ChatHistoryItem, index: number, key: string | number }): void
   (e: 'replyMessage', payload: ChatHistoryReplyPayload): void
   (e: 'retryMessage', payload: { message: ChatHistoryItem, index: number, key: string | number }): void
+  (e: 'replayMessage', payload: { message: ChatHistoryItem, index: number, key: string | number }): void
   (e: 'toolCallRerun', payload: ChatToolCallRerunEvent): void
 }>()
 
@@ -218,6 +219,14 @@ function emitRetryMessage(message: ChatHistoryItem, index: number) {
   })
 }
 
+function emitReplayMessage(message: ChatHistoryItem, index: number) {
+  emit('replayMessage', {
+    message,
+    index,
+    key: getChatHistoryItemKey(message, index),
+  })
+}
+
 function emitReplyMessage(message: ChatHistoryItem) {
   if (!canReplyToMessage(message))
     return
@@ -323,6 +332,7 @@ function emitToolCallRerun(
               @copy="emitCopyMessage(message, index)"
               @delete="emitDeleteMessage(message, index)"
               @reply="emitReplyMessage(message)"
+              @replay="emitReplayMessage(message, index)"
               @tool-call-rerun="emitToolCallRerun(message, index, $event)"
             />
             <ChatNoticeItem
