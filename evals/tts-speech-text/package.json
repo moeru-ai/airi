@@ -1,0 +1,35 @@
+{
+  "name": "@proj-airi/evals-tts-speech-text",
+  "type": "module",
+  "private": true,
+  "description": "Vieval suite for the text that AIRI sends to TTS, starting with emoticons",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "evals/tts-speech-text"
+  },
+  "exports": {
+    ".": "./eval/index.ts",
+    "./config": "./eval/tasks/speak/config.ts"
+  },
+  "scripts": {
+    "test:run": "vitest run --config vitest.config.ts",
+    "eval:compare": "pnpm -F @proj-airi/core-agent build && vieval run --config ./vieval.config.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@proj-airi/core-agent": "workspace:^",
+    "@proj-airi/pipelines-audio": "workspace:^"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "vieval": "catalog:",
+    "vitest": "catalog:vitest"
+  }
+}
