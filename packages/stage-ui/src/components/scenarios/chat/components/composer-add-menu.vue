@@ -23,7 +23,12 @@ const props = withDefaults(defineProps<{
    * @default false
    */
   recording?: boolean
-}>(), { size: 'sm', inCall: false, recording: false })
+  /**
+   * Whether screen capture is supported in the current environment.
+   * @default false
+   */
+  canCaptureScreen?: boolean
+}>(), { size: 'sm', inCall: false, recording: false, canCaptureScreen: false })
 
 const emit = defineEmits<{
   /** The user asked to attach images. The host opens its file picker. */
@@ -68,7 +73,7 @@ const open = shallowRef(false)
       <span :class="['i-mingcute:pic-line size-4.5 shrink-0']" />
       <span>{{ t('stage.chat.composer.images') }}</span>
     </MenuItem>
-    <MenuItem data-testid="composer-add-screen" @select="emit('captureScreen')">
+    <MenuItem v-if="props.canCaptureScreen" data-testid="composer-add-screen" @select="emit('captureScreen')">
       <span :class="['i-mingcute:computer-line size-4.5 shrink-0']" />
       <span>{{ t('stage.chat.composer.screen') }}</span>
     </MenuItem>

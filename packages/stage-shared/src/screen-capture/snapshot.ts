@@ -4,6 +4,7 @@ import type { SerializableDesktopCapturerSource } from '@proj-airi/electron-scre
 import { setupElectronScreenCapture } from '@proj-airi/electron-screen-capture/renderer'
 
 import { isStageTamagotchi } from '../environment'
+import { errorMessageFromValue } from '../error-message'
 
 export type ElectronEventaContext = ReturnType<typeof createContext>['context']
 
@@ -18,6 +19,15 @@ export interface ScreenSnapshotOptions {
   height?: number
   /** Name of the generated File. Defaults to `screen-${Date.now()}.jpg`. */
   fileName?: string
+}
+
+/**
+ * Returns whether screen capture is supported in the current environment.
+ */
+export function isScreenCaptureSupported(context?: ElectronEventaContext): boolean {
+  if (context && (isStageTamagotchi() || (typeof window !== 'undefined' && 'electron' in window)))
+    return true
+  return typeof navigator !== 'undefined' && typeof navigator.mediaDevices?.getDisplayMedia === 'function'
 }
 
 /**
@@ -54,26 +64,46 @@ export async function captureScreenSnapshotFile(options: ScreenSnapshotOptions =
       }
     }
     catch (error) {
-      console.warn('Electron desktopCapturer failed, falling back to displayMedia:', error)
+      console.warn('Electron desktopCapturer failed, falling back to displayMedia:', errorMessageFromValue(error))
     }
   }
 
   // 2. Web browser or fallback via getDisplayMedia
   if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getDisplayMedia) {
-    const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })
+    let stream: MediaStream
+    try {
+      stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false })
+    }
+    catch (error: unknown) {
+      const name = (error as { name?: string })?.name
+      if (name === 'NotAllowedError' || name === 'AbortError') {
+        return null
+      }
+      console.warn('Screen capture getDisplayMedia failed:', errorMessageFromValue(error))
+      return null
+    }
+
     try {
       const video = document.createElement('video')
       video.srcObject = stream
       await video.play()
 
+      let targetWidth = video.videoWidth
+      let targetHeight = video.videoHeight
+      if (targetWidth > width || targetHeight > height) {
+        const ratio = Math.min(width / targetWidth, height / targetHeight)
+        targetWidth = Math.max(1, Math.round(targetWidth * ratio))
+        targetHeight = Math.max(1, Math.round(targetHeight * ratio))
+      }
+
       const canvas = document.createElement('canvas')
-      canvas.width = video.videoWidth
-      canvas.height = video.videoHeight
+      canvas.width = targetWidth
+      canvas.height = targetHeight
       const ctx = canvas.getContext('2d')
       if (!ctx)
         return null
 
-      ctx.drawImage(video, 0, 0)
+      ctx.drawImage(video, 0, 0, targetWidth, targetHeight)
       const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/jpeg', quality))
       if (!blob)
         return null

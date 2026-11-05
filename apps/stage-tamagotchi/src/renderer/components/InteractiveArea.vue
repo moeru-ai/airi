@@ -226,13 +226,16 @@ async function handleCaptureScreen(event?: MouseEvent) {
       context: getElectronEventaContext(),
     })
     if (file) {
+      const initialCount = attachments.value.length
       await handleFilePaste([file])
       if (event?.shiftKey) {
-        if (!messageInput.value.trim()) {
-          messageInput.value = t('stage.chat.images.screen-question')
-        }
         await until(pendingImages).toBe(0)
-        await handleSend()
+        if (attachments.value.length > initialCount && !imageError.value) {
+          if (!messageInput.value.trim()) {
+            messageInput.value = t('stage.chat.images.screen-question')
+          }
+          await handleSend()
+        }
       }
     }
   }

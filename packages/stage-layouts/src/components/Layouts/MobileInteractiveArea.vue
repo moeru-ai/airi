@@ -2,7 +2,7 @@
 import type { ChatHistoryReplyPayload } from '@proj-airi/stage-ui/components/scenarios/chat'
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
-import { captureScreenSnapshotFile } from '@proj-airi/stage-shared'
+import { captureScreenSnapshotFile, isScreenCaptureSupported } from '@proj-airi/stage-shared'
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
 import { CharacterSwitcherDrawer, ChatBackgroundTasks, ChatHistory } from '@proj-airi/stage-ui/components'
 import { ChatComposerAddMenu, ChatComposerVoiceInput, ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSessionsDrawer, useChatImages, useStartVoiceCall, VoiceCallCapsule, VoicePresence } from '@proj-airi/stage-ui/components/scenarios/chat'
@@ -68,6 +68,7 @@ const {
 } = composer
 const { addFiles, selectFiles, error: imageError, pending: pendingImages } = useChatImages(composer, () => activeSessionId.value)
 const isCapturingScreen = shallowRef(false)
+const canCaptureScreen = computed(() => isScreenCaptureSupported())
 
 async function handleCaptureScreen() {
   if (isCapturingScreen.value)
@@ -462,6 +463,7 @@ onUnmounted(() => {
           size="md"
           :in-call="call.active"
           :recording="voiceRecording"
+          :can-capture-screen="canCaptureScreen"
           :class="[
             'self-end backdrop-blur-md',
             'border-2 border-solid border-neutral-200/60 bg-neutral-100/80',

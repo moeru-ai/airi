@@ -1,8 +1,10 @@
 import type { ElectronEventaContext } from './snapshot'
 
+import { createContext } from '@moeru/eventa'
+import { setupElectronScreenCapture } from '@proj-airi/electron-screen-capture/renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { captureScreenSnapshotFile } from './snapshot'
+import { captureScreenSnapshotFile, isScreenCaptureSupported } from './snapshot'
 
 vi.mock('@proj-airi/electron-screen-capture/renderer', () => ({
   setupElectronScreenCapture: vi.fn(),
@@ -11,6 +13,23 @@ vi.mock('@proj-airi/electron-screen-capture/renderer', () => ({
 vi.mock('../environment', () => ({
   isStageTamagotchi: vi.fn(),
 }))
+
+type CapturerInstance = ReturnType<typeof setupElectronScreenCapture>
+
+function createMockScreenCapturer(getSources: CapturerInstance['getSources']): CapturerInstance {
+  return {
+    getSources,
+    setSource: vi.fn(),
+    selectWithSource: vi.fn(),
+    resetSource: vi.fn(),
+    checkMacOSPermission: vi.fn().mockResolvedValue('granted'),
+    requestMacOSPermission: vi.fn().mockResolvedValue(true),
+  }
+}
+
+function createMockEventaContext(): ElectronEventaContext {
+  return createContext() as ElectronEventaContext
+}
 
 describe('captureScreenSnapshotFile', () => {
   beforeEach(() => {
@@ -22,9 +41,7 @@ describe('captureScreenSnapshotFile', () => {
   })
 
   it('captures a screen thumbnail in electron environment when sources are available', async () => {
-    const { setupElectronScreenCapture } = await import('@proj-airi/electron-screen-capture/renderer')
     const { isStageTamagotchi } = await import('../environment')
-
     vi.mocked(isStageTamagotchi).mockReturnValue(true)
 
     const dummyBytes = new Uint8Array([0xFF, 0xD8, 0xFF, 0xE0])
@@ -36,11 +53,9 @@ describe('captureScreenSnapshotFile', () => {
       },
     ])
 
-    vi.mocked(setupElectronScreenCapture).mockReturnValue({
-      getSources: mockGetSources,
-    } as any)
+    vi.mocked(setupElectronScreenCapture).mockReturnValue(createMockScreenCapturer(mockGetSources))
 
-    const fakeContext = {} as ElectronEventaContext
+    const fakeContext = createMockEventaContext()
     const result = await captureScreenSnapshotFile({
       context: fakeContext,
       fileName: 'test-shot.jpg',
@@ -58,9 +73,7 @@ describe('captureScreenSnapshotFile', () => {
   })
 
   it('falls back when electron desktop capturer returns empty thumbnail', async () => {
-    const { setupElectronScreenCapture } = await import('@proj-airi/electron-screen-capture/renderer')
     const { isStageTamagotchi } = await import('../environment')
-
     vi.mocked(isStageTamagotchi).mockReturnValue(true)
 
     const mockGetSources = vi.fn().mockResolvedValue([
@@ -71,15 +84,41 @@ describe('captureScreenSnapshotFile', () => {
       },
     ])
 
-    vi.mocked(setupElectronScreenCapture).mockReturnValue({
-      getSources: mockGetSources,
-    } as any)
+    vi.mocked(setupElectronScreenCapture).mockReturnValue(createMockScreenCapturer(mockGetSources))
 
+    const fakeContext = createMockEventaContext()
     const result = await captureScreenSnapshotFile({
-      context: {} as ElectronEventaContext,
+      context: fakeContext,
     })
 
     expect(result).toBeNull()
+  })
+
+  it('handles getDisplayMedia cancellation cleanly without throwing', async () => {
+    const { isStageTamagotchi } = await import('../environment')
+    vi.mocked(isStageTamagotchi).mockReturnValue(false)
+
+    const notAllowedError = new Error('Permission denied')
+    notAllowedError.name = 'NotAllowedError'
+
+    const originalMediaDevices = navigator.mediaDevices
+    Object.defineProperty(navigator, 'mediaDevices', {
+      value: {
+        getDisplayMedia: vi.fn().mockRejectedValue(notAllowedError),
+      },
+      configurable: true,
+    })
+
+    try {
+      const result = await captureScreenSnapshotFile()
+      expect(result).toBeNull()
+    }
+    finally {
+      Object.defineProperty(navigator, 'mediaDevices', {
+        value: originalMediaDevices,
+        configurable: true,
+      })
+    }
   })
 
   it('returns null when neither electron nor getDisplayMedia is supported', async () => {
@@ -95,6 +134,60 @@ describe('captureScreenSnapshotFile', () => {
     try {
       const result = await captureScreenSnapshotFile()
       expect(result).toBeNull()
+    }
+    finally {
+      Object.defineProperty(navigator, 'mediaDevices', {
+        value: originalMediaDevices,
+        configurable: true,
+      })
+    }
+  })
+})
+
+describe('isScreenCaptureSupported', () => {
+  it('returns true when context is provided in electron environment', async () => {
+    const { isStageTamagotchi } = await import('../environment')
+    vi.mocked(isStageTamagotchi).mockReturnValue(true)
+
+    const fakeContext = createMockEventaContext()
+    expect(isScreenCaptureSupported(fakeContext)).toBe(true)
+  })
+
+  it('returns true when getDisplayMedia is available in browser', async () => {
+    const { isStageTamagotchi } = await import('../environment')
+    vi.mocked(isStageTamagotchi).mockReturnValue(false)
+
+    const originalMediaDevices = navigator.mediaDevices
+    Object.defineProperty(navigator, 'mediaDevices', {
+      value: {
+        getDisplayMedia: vi.fn(),
+      },
+      configurable: true,
+    })
+
+    try {
+      expect(isScreenCaptureSupported()).toBe(true)
+    }
+    finally {
+      Object.defineProperty(navigator, 'mediaDevices', {
+        value: originalMediaDevices,
+        configurable: true,
+      })
+    }
+  })
+
+  it('returns false when getDisplayMedia is absent', async () => {
+    const { isStageTamagotchi } = await import('../environment')
+    vi.mocked(isStageTamagotchi).mockReturnValue(false)
+
+    const originalMediaDevices = navigator.mediaDevices
+    Object.defineProperty(navigator, 'mediaDevices', {
+      value: undefined,
+      configurable: true,
+    })
+
+    try {
+      expect(isScreenCaptureSupported()).toBe(false)
     }
     finally {
       Object.defineProperty(navigator, 'mediaDevices', {
