@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ChatComposerController, ChatImageAttachment } from '@proj-airi/stage-ui/components/scenarios/chat'
 
+import { captureScreenSnapshotFile } from '@proj-airi/stage-shared'
 import { ChatComposerAddMenu, ChatComposerVoiceInput, ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSendButton, useChatImages, useStartVoiceCall, VoicePresence } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
@@ -36,6 +37,22 @@ const startVoiceCall = useStartVoiceCall(route => router.push(route), () => !voi
 const imageInput = useTemplateRef<HTMLInputElement>('imageInput')
 const chatSession = useChatSessionStore()
 const { addFiles, selectFiles, error: imageError, pending: pendingImages } = useChatImages(props.composer, () => chatSession.activeSessionId)
+const isCapturingScreen = shallowRef(false)
+
+async function handleCaptureScreen() {
+  if (isCapturingScreen.value)
+    return
+  isCapturingScreen.value = true
+  try {
+    const file = await captureScreenSnapshotFile()
+    if (file) {
+      await addFiles([file])
+    }
+  }
+  finally {
+    isCapturingScreen.value = false
+  }
+}
 const { attachments, removeAttachment } = props.composer
 
 const messageInput = props.composer.draft
@@ -223,7 +240,7 @@ watch(replyTarget, async (target) => {
 
       <!-- The toolbar inside the composer, like the desktop app: add menu, recording status, microphone, and send. -->
       <div :class="['absolute inset-x-1.5 bottom-1.5 z-10 flex items-center gap-1.5']">
-        <ChatComposerAddMenu :in-call="call.active" :recording="voiceRecording" @attach-images="imageInput?.click()" @call="startVoiceCall" />
+        <ChatComposerAddMenu :in-call="call.active" :recording="voiceRecording" @attach-images="imageInput?.click()" @capture-screen="handleCaptureScreen" @call="startVoiceCall" />
         <!-- The recording status and the walkie-talkie bar show here, so the composer keeps its height. -->
         <div ref="voiceStatus" data-testid="composer-voice-status" :class="['relative h-9 min-w-0 flex-1 rounded-full']" />
         <!-- A call listens already, so the microphone becomes the mute button of the call. -->

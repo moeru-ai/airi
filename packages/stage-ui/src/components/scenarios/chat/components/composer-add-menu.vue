@@ -28,6 +28,8 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   /** The user asked to attach images. The host opens its file picker. */
   attachImages: []
+  /** The user asked to capture a screen snapshot. */
+  captureScreen: []
   /** The user asked to start a voice call. It is a user gesture, so the host can ask for microphone permission. */
   call: []
 }>()
@@ -65,6 +67,10 @@ const open = shallowRef(false)
     <MenuItem data-testid="composer-add-images" @select="emit('attachImages')">
       <span :class="['i-mingcute:pic-line size-4.5 shrink-0']" />
       <span>{{ t('stage.chat.composer.images') }}</span>
+    </MenuItem>
+    <MenuItem data-testid="composer-add-screen" @select="emit('captureScreen')">
+      <span :class="['i-mingcute:computer-line size-4.5 shrink-0']" />
+      <span>{{ t('stage.chat.composer.screen') }}</span>
     </MenuItem>
     <MenuItem data-testid="composer-add-call" :disabled="props.inCall || props.recording" @select="emit('call')">
       <span :class="['i-mingcute:phone-line size-4.5 shrink-0']" />

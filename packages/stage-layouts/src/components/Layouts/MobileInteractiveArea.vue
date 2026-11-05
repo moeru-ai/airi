@@ -2,6 +2,7 @@
 import type { ChatHistoryReplyPayload } from '@proj-airi/stage-ui/components/scenarios/chat'
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
+import { captureScreenSnapshotFile } from '@proj-airi/stage-shared'
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
 import { CharacterSwitcherDrawer, ChatBackgroundTasks, ChatHistory } from '@proj-airi/stage-ui/components'
 import { ChatComposerAddMenu, ChatComposerVoiceInput, ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSessionsDrawer, useChatImages, useStartVoiceCall, VoiceCallCapsule, VoicePresence } from '@proj-airi/stage-ui/components/scenarios/chat'
@@ -66,6 +67,22 @@ const {
   selectReply,
 } = composer
 const { addFiles, selectFiles, error: imageError, pending: pendingImages } = useChatImages(composer, () => activeSessionId.value)
+const isCapturingScreen = shallowRef(false)
+
+async function handleCaptureScreen() {
+  if (isCapturingScreen.value)
+    return
+  isCapturingScreen.value = true
+  try {
+    const file = await captureScreenSnapshotFile()
+    if (file) {
+      await addFiles([file])
+    }
+  }
+  finally {
+    isCapturingScreen.value = false
+  }
+}
 const imageInput = useTemplateRef<HTMLInputElement>('imageInput')
 /** A recording bar or the walkie-talkie bar covers the input bubble, so the text is hidden under it. */
 const voiceCovering = shallowRef(false)
@@ -451,6 +468,7 @@ onUnmounted(() => {
             'dark:border-neutral-700/60 dark:bg-neutral-950/80',
           ]"
           @attach-images="imageInput?.click()"
+          @capture-screen="handleCaptureScreen"
           @call="startVoiceCall"
         />
         <input ref="imageInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple :class="['hidden']" @change="selectFiles">
