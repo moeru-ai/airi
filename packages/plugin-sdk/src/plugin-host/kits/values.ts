@@ -1,5 +1,9 @@
+import type { Container } from 'injeca'
+
 import type { KitProviderInfo, KitStatus } from '../../kit/references'
 import type { KitSnapshot } from '../bridge/ports'
+
+import { DisposableStore } from '../../extension/disposable'
 
 /** Graph key names of the plugin host. A plugin never sees them. */
 export const pluginNodeKeys = Object.freeze({
@@ -12,9 +16,14 @@ export const pluginNodeKeys = Object.freeze({
 /** The provider id of a Host Kit in a provider key. */
 export const hostProviderId = 'host'
 
-/** The selection service of a Kit. Consumers depend on it. */
-export function kitSelectionKey(kitId: string): string {
-  return `kit:${kitId}`
+/**
+ * The selection service of a Kit for one version range. Consumers depend on it.
+ *
+ * @example
+ * kitSelectionKey('airi.memory-backend', '^1') // => 'kit:airi.memory-backend#^1'
+ */
+export function kitSelectionKey(kitId: string, range: string): string {
+  return `kit:${kitId}#${range}`
 }
 
 /** The key of one provider of a Kit, for example `kit:airi.memory-backend@host`. */
@@ -39,13 +48,20 @@ export interface KitCaller {
   readonly moduleId?: string
 }
 
+/** The consumer scope that a provider connects a client for. */
+export interface KitConnectScope {
+  /** The consumer container. Host Kit listeners register in it. */
+  readonly container: Container
+  /** The subscriptions of the client. They end when the client moves to another provider or the consumer scope ends. */
+  readonly subscriptions: DisposableStore
+}
+
 declare const providerValueBrand: unique symbol
 
 /**
  * The value of one Kit provider service.
  *
- * A Host Kit is a `perConsumer` service, so its value already has a client for the consumer.
- * A plugin Kit is one proxy service, so its value connects a client for each caller.
+ * A provider is one service for all consumers. The `perConsumer` selection service connects a client for each caller.
  */
 export interface KitProviderValue {
   readonly [providerValueBrand]?: true
@@ -53,19 +69,13 @@ export interface KitProviderValue {
   readonly version: string
   readonly provider: KitProviderInfo
   readonly instanceId: string
-  /** The client of a Host Kit for the consumer. `undefined` for a descriptor-only Host Kit. */
-  readonly client?: unknown
-  /** Creates a client of a plugin Kit for one caller. */
-  readonly connect?: (caller: KitCaller) => unknown
+  /** Creates a client for one caller. A descriptor-only Host Kit gives `undefined`. */
+  readonly connect: (caller: KitCaller, scope: KitConnectScope) => unknown
 }
 
 /** Creates the value of a Kit provider service. */
 export function createKitProviderValue(value: Omit<KitProviderValue, typeof providerValueBrand>): KitProviderValue {
   return Object.freeze({ ...value })
-}
-
-function clientFor(value: KitProviderValue, caller: KitCaller): unknown {
-  return value.connect ? value.connect(caller) : value.client
 }
 
 /**
@@ -77,14 +87,16 @@ function clientFor(value: KitProviderValue, caller: KitCaller): unknown {
 export class SelectedKit {
   private current: KitProviderValue
   private currentClient: unknown
+  private subscriptions = new DisposableStore()
   private readonly listeners = new Set<() => void>()
 
   /** The stable client of the consumer. It forwards to the current provider. */
   readonly client: unknown
 
-  constructor(value: KitProviderValue, private readonly caller: KitCaller) {
+  /** `key` is the selection key that the consumer depends on, and `container` is the consumer container. */
+  constructor(readonly key: string, value: KitProviderValue, private readonly caller: KitCaller, private readonly container: Container) {
     this.current = value
-    this.currentClient = clientFor(value, caller)
+    this.currentClient = value.connect(caller, { container, subscriptions: this.subscriptions })
     this.client = new Proxy(Object.freeze({}), {
       get: (_target, property) => {
         // A disposed selection keeps its last target, so cleanup code that runs after the scope can still close its resources.
@@ -124,11 +136,15 @@ export class SelectedKit {
     return this.currentClient
   }
 
-  /** Moves the selection to another provider instance. */
+  /** Moves the selection to another provider instance. The subscriptions of the old client end. */
   move(next: KitProviderValue): void {
+    const previous = this.subscriptions
+    this.subscriptions = new DisposableStore()
     this.current = next
-    this.currentClient = clientFor(next, this.caller)
+    this.currentClient = next.connect(this.caller, { container: this.container, subscriptions: this.subscriptions })
     this.notify()
+    // A subscription of the old client that fails to end does not undo the move.
+    void previous.dispose().catch(() => undefined)
   }
 
   /** Calls each listener after a status change of the provider. */
@@ -144,8 +160,10 @@ export class SelectedKit {
     }
   }
 
-  dispose(): void {
+  /** Ends the listeners and the subscriptions of the current client. */
+  async dispose(): Promise<void> {
     this.listeners.clear()
+    await this.subscriptions.dispose()
   }
 
   /** The snapshot that the plugin side gets. A direct runner gets the client value too. */
@@ -159,10 +177,4 @@ export class SelectedKit {
       ...(passValue ? { value: this.client } : {}),
     })
   }
-}
-
-/** Reads the provider list from the metadata of a selection service. */
-export function selectionProvidersOf(metadata: Readonly<Record<string, unknown>>): readonly { id: string, version: string }[] {
-  const providers = metadata.providers
-  return Array.isArray(providers) ? providers as readonly { id: string, version: string }[] : []
 }

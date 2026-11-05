@@ -19,8 +19,8 @@ describe('scenario S2: a provider plugin already runs', () => {
     // An atomic reload of plugin-b moves plugin-a in place: the session of plugin-a stays, and its selections get `dependency-change`.
     expect(forward.pluginASessionAfterReload).toBe(forward.pluginASessionBeforeReload)
     expect(forward.selectionDecisionsOnReload).toEqual(expect.arrayContaining([
-      'kit:airi.fs-store dependency-change:handled',
-      'kit:airi.auto-memory dependency-change:handled',
+      'kit:airi.fs-store#^1 dependency-change:handled',
+      'kit:airi.auto-memory#^1 dependency-change:handled',
     ]))
     expect(forward.pingAfterReload.whoami.instance).not.toBe(forward.ping.whoami.instance)
     expect(forward.pingAfterReload.whoami.thread).not.toBe(forward.ping.whoami.thread)

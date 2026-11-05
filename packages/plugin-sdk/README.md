@@ -81,8 +81,8 @@ The Host is one injeca container. See [the ADR](../../docs/ai/adr/2026-11-06-plu
 
 ```text
 plugin-host container
-├─ kit:<id>@host          a Host Kit, perConsumer: one client for each consumer scope
-├─ kit:<id>               the selection of a Kit: firstAvailable over its providers, perConsumer
+├─ kit:<id>@host          a Host Kit. Its value connects a client for each caller.
+├─ kit:<id>#<range>       the selection of a Kit for one version range, perConsumer: one client for each consumer scope
 ├─ capability:<key>       a Host capability
 └─ plugin container       one for each session, owner { kind: 'plugin', pluginId, sessionId }
    ├─ package, compat     Manifest and engine checks
@@ -93,6 +93,7 @@ plugin-host container
 ```
 
 - A Kit has a provider key for each provider, so two providers of one Kit do not conflict. `kitProviderOrder` sets the order of the selection. The Host Kit comes first by default.
+- Each version range in use has its own selection. It selects the first available provider with a version in the range.
 - A consumer that is installed before its provider waits in `pending`. `session.explanation` tells why, for example `No provider of Kit airi.fs-store is installed.` It starts when the provider commits.
 - `reload(id)` stops the old session, then starts a new one. `reload(id, { atomic: true })` starts the new session first, so the consumers of its Kits move without a gap.
 

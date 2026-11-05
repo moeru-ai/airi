@@ -5,7 +5,6 @@ import type { KitClientOf, KitReference } from '../kit/references'
 import type { AnnounceBindingInput, UpdateBindingInput } from '../plugin/apis/client/bindings'
 import type { CatalogSnapshot } from './bridge/ports'
 import type { KitDependencyStore, KitGrantPolicy, KitGrantStore } from './kits/access'
-import type { KitProviderValue } from './kits/values'
 import type { PluginRunner } from './runners/types'
 import type { ExtensionSession, SessionHost } from './session'
 import type { BindingRecord, KitCapabilityDescriptor, KitCapabilityDescriptorSnapshot, KitDescriptor, KitDescriptorSnapshot } from './shared'
@@ -40,10 +39,9 @@ import {
 } from '../plugin/apis/client/bindings'
 import { protocolListProvidersEventName } from '../plugin/apis/protocol/resources/providers'
 import { CapabilityRegistry } from './capabilities'
-import { describeExplanation } from './diagnostics'
 import { createMemoryKitDependencyStore, createMemoryKitGrantStore, denyAllKitGrants } from './kits/access'
 import { KitGraph } from './kits/kit-graph'
-import { hostProviderId, kitSelectionKey, pluginNodeKeys, SelectedKit } from './kits/values'
+import { hostProviderId, SelectedKit } from './kits/values'
 import { createDirectRunner } from './runners/direct'
 import { KitApiBindingRegistryService, PermissionService } from './runtimes/shared'
 import { PluginSessionController } from './session'
@@ -186,6 +184,14 @@ function protocolPermissionsOf(manifest: ExtensionManifestV2): ModulePermissionD
   return permissions
 }
 
+/**
+ * Tells whether a Kit provider service counts as a provider in the lists.
+ * A Host Kit counts from its registration. A plugin Kit counts while it runs.
+ */
+function isListedProvider(service: GraphService): boolean {
+  return (service.metadata.provider as { kind?: unknown } | undefined)?.kind === 'host' ? service.phase !== 'withdrawn' : service.phase === 'running'
+}
+
 function plainEvent(record: ObserveRecord): PluginHostEventRecord {
   const base = { type: record.type, key: record.key, owner: record.owner, instanceId: record.instanceId, reason: record.reason, at: Date.now() }
   switch (record.type) {
@@ -266,7 +272,7 @@ export class ExtensionHost {
       timeouts: { start: options.timeouts?.start ?? 30_000, stop: options.timeouts?.stop ?? 10_000 },
       ...(options.container ? {} : { asyncContext: options.asyncContext }),
     })
-    this.kitGraph = new KitGraph(this.container, (consumer, kitId, provider) => this.checkKitAccess(consumer, kitId, provider), options.kitProviderOrder)
+    this.kitGraph = new KitGraph(this.container, (consumer, kitId) => this.checkKitAccess(consumer, kitId), options.kitProviderOrder)
     this.capabilities = new CapabilityRegistry(this.container)
     this.sessionHost = {
       container: this.container,
@@ -311,17 +317,17 @@ export class ExtensionHost {
     }
   }
 
-  private async checkKitAccess(consumer: OwnerRecord | undefined, kitId: string, provider: KitProviderValue): Promise<void> {
+  private async checkKitAccess(consumer: OwnerRecord | undefined, kitId: string): Promise<void> {
     if (consumer?.kind !== 'plugin' && consumer?.kind !== 'module')
       return
     const session = this.sessions.get(String(consumer.sessionId))
     if (!session)
       return
-    await session.checkKitAccess(kitId, consumer.kind === 'module' ? String(consumer.moduleId) : undefined, provider)
+    await session.checkKitAccess(kitId, consumer.kind === 'module' ? String(consumer.moduleId) : undefined)
   }
 
   private catalogFor(session: PluginSessionController): CatalogSnapshot {
-    const kits = graph(this.container).services().filter(service => service.metadata.kind === 'kit' && service.consumer === undefined).filter(service => service.perConsumer ? service.phase !== 'withdrawn' : service.phase === 'running').filter(service => session.canSeeKit(String(service.metadata.kitId))).map(service => ({
+    const kits = graph(this.container).services().filter(service => service.metadata.kind === 'kit' && service.consumer === undefined).filter(isListedProvider).filter(service => session.canSeeKit(String(service.metadata.kitId))).map(service => ({
       id: String(service.metadata.kitId),
       version: String(service.metadata.version),
       provider: service.metadata.provider as { kind: 'host' | 'extension', id: string },
@@ -423,7 +429,7 @@ export class ExtensionHost {
     })
     this.sessions.set(sessionId, controller)
     for (const declaration of manifest.kits?.provides ?? [])
-      this.kitGraph.ensureSelection(declaration.id, manifest.id, declaration.version)
+      this.kitGraph.addProvider(declaration.id, manifest.id, declaration.version)
     controller.install()
 
     try {
@@ -528,7 +534,7 @@ export class ExtensionHost {
   }
 
   /**
-   * Registers one Host Kit as a `perConsumer` service on `kit:<id>@host`.
+   * Registers one Host Kit as a service on `kit:<id>@host`. The selection service connects a client for each caller.
    * A Kit with a descriptor and an API registers both in one call.
    */
   provideKit(source: HostKitSource): KitRegistration {
@@ -540,7 +546,7 @@ export class ExtensionHost {
    * The client follows the selected provider: it moves to another provider without a new call.
    */
   async resolveKit<R extends KitReference>(kit: R, options: { timeoutMs?: number } = {}): Promise<KitClientOf<R>> {
-    const { selected } = await resolve(this.container, { selected: kitSelectionKey(kit.id) }, { timeoutMs: options.timeoutMs ?? 5_000 })
+    const { selected } = await resolve(this.container, { selected: this.kitGraph.selectionOf(kit.id, '*') }, { timeoutMs: options.timeoutMs ?? 5_000 })
     if (!(selected instanceof SelectedKit))
       throw new Error(`Kit \`${kit.id}\` did not resolve to a selection.`)
     return selected.client as KitClientOf<R>
@@ -564,7 +570,7 @@ export class ExtensionHost {
   listKitProviders(): readonly ReadyKitProviderSnapshot[] {
     return Object.freeze(graph(this.container).services()
       .filter(service => service.metadata.kind === 'kit' && service.consumer === undefined)
-      .filter(service => service.perConsumer ? service.phase !== 'withdrawn' : service.phase === 'running')
+      .filter(isListedProvider)
       .map((service): ReadyKitProviderSnapshot => {
         const provider = service.metadata.provider as { kind: 'host' | 'extension', id: string }
         return Object.freeze({
@@ -607,10 +613,7 @@ export class ExtensionHost {
     const explanations = [...this.sessions.values()].flatMap((controller) => {
       if (controller.currentPhase() === 'ready')
         return []
-      const lines = [pluginNodeKeys.session, pluginNodeKeys.runtime, pluginNodeKeys.compat, pluginNodeKeys.package]
-        .map(node => graph(controller.container).explain(node))
-        .filter(explanation => explanation.phase !== 'running')
-        .map(describeExplanation)
+      const lines = controller.explanationLines() ?? []
       return [{ sessionId: controller.sessionId, extensionId: controller.pluginId, lines }]
     })
     return Object.freeze({

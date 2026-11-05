@@ -356,7 +356,7 @@ export class PluginSessionController implements HostPort {
   private sessionOption(): ProvideOptionWithKeys<{ round: string }, DependencyDeclarations> {
     const dependsOn: DependencyDeclarations = { runtime: pluginNodeKeys.runtime }
     for (const use of this.uses())
-      dependsOn[kitSelectionKey(use.id)] = this.host.kits.dependencyOf(use)
+      dependsOn[kitSelectionKey(use.id, use.range)] = this.host.kits.dependencyOf(use)
     return {
       metadata: { kind: 'plugin-node', node: 'session', uses: this.uses().map(use => ({ ...use })) },
       dependsOn,
@@ -408,15 +408,15 @@ export class PluginSessionController implements HostPort {
       round.unsubscribe.push(selected.onChange(() => void this.pushKits(round, runtime)))
   }
 
-  private statusOf(container: Container, kitId: string): KitStatus {
-    const result = peek(container, kitSelectionKey(kitId))
+  private statusOf(container: Container, key: string): KitStatus {
+    const result = peek(container, key)
     if (result.kind === 'resolved')
       return result.status
     return 'unavailable'
   }
 
   private snapshots(kits: ReadonlyMap<string, SelectedKit>, container: Container = this.container): KitSnapshot[] {
-    return [...kits.values()].map(selected => selected.snapshot(this.statusOf(container, selected.kitId), this.passesValues))
+    return [...kits.values()].map(selected => selected.snapshot(this.statusOf(container, selected.key), this.passesValues))
   }
 
   private async pushKits(round: HostRound, runtime: RuntimeValue): Promise<void> {
@@ -524,10 +524,7 @@ export class PluginSessionController implements HostPort {
   private exportOption(round: HostRound, entry: ProvideEntry, declaration: ExtensionProvidedKitDeclaration): ProvideOptionWithKeys<KitProviderValue, { runtime: string }> {
     const { kitId, version, methods } = entry.input
     const pluginId = this.pluginId
-    // NOTICE:
-    // The proxy is not `perConsumer`: a `perConsumer` export resolves its own `runtime` from the consumer container.
-    // So the selection connects a client for each caller. See "injeca gaps found" in docs/ai/adr/2026-11-06-plugin-host-on-injeca.md.
-    // Make the proxy `perConsumer` when injeca resolves export dependencies from the exporting container.
+    // The proxy is one service for all consumers. The `perConsumer` selection service connects a client for each caller.
     return {
       export: true,
       metadata: Object.freeze({
@@ -658,6 +655,14 @@ export class PluginSessionController implements HostPort {
 
   /** Why the session is not ready, or `undefined` when it is ready. */
   explain(): string | undefined {
+    return this.explanationLines()?.join('\n')
+  }
+
+  /**
+   * Why the session is not ready, in one line for each blocked node, or `undefined` when it is ready.
+   * A Kit selection that waits gets its own line, because the selection holds the version range and its rejected providers.
+   */
+  explanationLines(): string[] | undefined {
     if (this.stopped)
       return undefined
     try {
@@ -665,12 +670,16 @@ export class PluginSessionController implements HostPort {
       if (explanation.phase === 'running')
         return undefined
       const lines = [describeExplanation(explanation)]
+      for (const blocker of explanation.blockers) {
+        if (blocker.kind === 'pending-dependency' && blocker.key.startsWith('kit:'))
+          lines.push(describeExplanation(graph(this.container).explain(blocker.key)))
+      }
       for (const node of [pluginNodeKeys.runtime, pluginNodeKeys.compat, pluginNodeKeys.package]) {
         const nodeExplanation = graph(this.container).explain(node)
         if (nodeExplanation.phase !== 'running')
           lines.push(describeExplanation(nodeExplanation))
       }
-      return lines.join('\n')
+      return lines
     }
     catch {
       return undefined
@@ -797,14 +806,11 @@ export class PluginSessionController implements HostPort {
     errorsInto(errors, `Extension \`${this.pluginId}\` stop failed.`)
   }
 
-  /** Checks the permission and the version range of one consumer scope of this session. */
-  async checkKitAccess(kitId: string, moduleId: string | undefined, provider: KitProviderValue): Promise<void> {
+  /** Checks the permission of one consumer scope of this session. The selection key already holds the version range. */
+  async checkKitAccess(kitId: string, moduleId: string | undefined): Promise<void> {
     const scope = moduleId === undefined ? undefined : this.scopes.get(moduleId)
     if (!(await this.allowsKit(kitId, scope)))
       throw new KitUnavailableError(kitId, 'permission-denied', `Extension \`${this.pluginId}\` has no grant for this Kit.`)
-    const range = this.uses().find(use => use.id === kitId)?.range
-    if (range && !satisfies(provider.version, range))
-      throw new KitUnavailableError(kitId, 'incompatible-version', `Extension \`${this.pluginId}\` needs ${range}, but ${provider.provider.id} provides ${provider.version}.`)
   }
 
   /** Returns `true` when the scope can use the Kit: a static use, an API grant, or a dynamic grant. */
@@ -908,12 +914,10 @@ export class PluginSessionController implements HostPort {
   }
 
   async callKit(input: { round: string, scope?: string, kitId: string, method: string, args: readonly unknown[] }): Promise<unknown> {
-    const result = peek(this.containerOf(input.scope), kitSelectionKey(input.kitId))
-    if (result.kind !== 'resolved' || !(result.value instanceof SelectedKit))
-      throw new KitUnavailableError(input.kitId, 'not-ready', `The Kit is ${result.kind}.`)
+    const selected = this.selectedIn(input.round, input.scope, input.kitId)
     // A dotted method name reads nested members, for example `hooks.on`.
     const path = input.method.split('.')
-    let receiver: unknown = result.value.target
+    let receiver: unknown = selected.target
     for (const segment of path.slice(0, -1))
       receiver = receiver === null || receiver === undefined ? undefined : Reflect.get(receiver as object, segment)
     const method = receiver === null || receiver === undefined ? undefined : Reflect.get(receiver as object, path.at(-1)!)
@@ -921,6 +925,24 @@ export class PluginSessionController implements HostPort {
       throw new KitUnavailableError(input.kitId, 'not-ready', `The Kit has no method \`${input.method}\`.`)
     const target = receiver
     return await Reflect.apply(method, target, [...input.args])
+  }
+
+  /**
+   * The running selection of a Kit in a scope. A session dependency comes first.
+   * Otherwise the first running selection of any range serves, because `tryUse` and a module scope `use` resolve one range for each Kit.
+   */
+  private selectedIn(roundId: string, scope: string | undefined, kitId: string): SelectedKit {
+    const container = this.containerOf(scope)
+    const dependency = scope === undefined ? this.rounds.get(roundId)?.deps.get(kitId)?.key : undefined
+    let kind = 'missing'
+    for (const key of dependency === undefined ? this.host.kits.selectionKeysOf(kitId) : [dependency]) {
+      const result = peek(container, key)
+      if (result.kind === 'resolved' && result.value instanceof SelectedKit)
+        return result.value
+      if (kind === 'missing')
+        kind = result.kind
+    }
+    throw new KitUnavailableError(kitId, 'not-ready', `The Kit is ${kind}.`)
   }
 
   async useKit(input: { round: string, scope?: string, kitId: string, range: string }): Promise<KitSnapshot> {
@@ -936,7 +958,7 @@ export class PluginSessionController implements HostPort {
 
     const selected = round.deps.get(input.kitId)
     if (selected && satisfies(selected.version, input.range))
-      return selected.snapshot(this.statusOf(this.container, input.kitId), this.passesValues)
+      return selected.snapshot(this.statusOf(this.container, selected.key), this.passesValues)
 
     // Discovery: the session does not depend on the Kit. A rebuild adds it, and this round ends.
     if (!(await this.allowsKit(input.kitId)))
@@ -951,7 +973,7 @@ export class PluginSessionController implements HostPort {
     if (input.scope === undefined) {
       const selected = round.deps.get(input.kitId)
       if (selected && satisfies(selected.version, input.range))
-        return { ok: true, kit: selected.snapshot(this.statusOf(this.container, input.kitId), this.passesValues) }
+        return { ok: true, kit: selected.snapshot(this.statusOf(this.container, selected.key), this.passesValues) }
     }
     return await this.resolveNow(input.scope, input.kitId, input.range)
   }
@@ -961,7 +983,10 @@ export class PluginSessionController implements HostPort {
     const container = this.containerOf(scope)
     if (!(await this.allowsKit(kitId, scope === undefined ? undefined : this.scopes.get(scope))))
       return { ok: false, reason: 'permission-denied' }
-    const key = kitSelectionKey(kitId)
+    const key = this.host.kits.selectionOf(kitId, range)
+    const incompatible = this.host.kits.incompatibleProviders(kitId, range)
+    if (incompatible)
+      return { ok: false, reason: 'incompatible-version', detail: `The use needs ${range}, but the providers are: ${incompatible.map(provider => `${provider.id} ${provider.version}`).join(', ')}.` }
     if (peek(container, key).kind === 'missing')
       return { ok: false, reason: 'missing-kit' }
     let selected: unknown
@@ -975,9 +1000,7 @@ export class PluginSessionController implements HostPort {
     }
     if (!(selected instanceof SelectedKit))
       return { ok: false, reason: 'not-ready' }
-    if (!satisfies(selected.version, range))
-      return { ok: false, reason: 'incompatible-version', detail: `${selected.provider.id} provides ${selected.version}, but the use needs ${range}.` }
-    return { ok: true, kit: selected.snapshot(this.statusOf(container, kitId), this.passesValues) }
+    return { ok: true, kit: selected.snapshot(this.statusOf(container, key), this.passesValues) }
   }
 
   async watchKit(input: { round: string, scope?: string, kitId: string, range: string, callback: (update: WatchUpdate) => void | Promise<void> }): Promise<() => Promise<void>> {
@@ -991,11 +1014,8 @@ export class PluginSessionController implements HostPort {
       return async () => {}
     }
 
-    // NOTICE:
-    // An optional dependency on a `perConsumer` key does not demand the consumer instance when the key registers later.
-    // injeca `watch` demands it, so the watch uses it. See "injeca gaps found" in docs/ai/adr/2026-11-06-plugin-host-on-injeca.md.
-    // Use `invoke` with `optional()` again when injeca demands consumer instances for late optional dependencies.
-    const key = kitSelectionKey(input.kitId)
+    // injeca `watch` demands the consumer instance of the selection, also when the selection registers later.
+    const key = this.host.kits.selectionOf(input.kitId, input.range)
     let last: string | undefined
     let stopMoves: (() => void) | undefined
     const report = (update: WatchUpdate) => {
@@ -1008,10 +1028,7 @@ export class PluginSessionController implements HostPort {
     const reportSelected = () => {
       const result = peek(container, key)
       if (result.kind === 'resolved' && result.value instanceof SelectedKit) {
-        if (!satisfies(result.value.version, input.range))
-          report({ available: false, reason: 'incompatible-version', detail: `${result.value.provider.id} provides ${result.value.version}.` })
-        else
-          report({ available: true, kit: result.value.snapshot(result.status, this.passesValues) })
+        report({ available: true, kit: result.value.snapshot(result.status, this.passesValues) })
         return result.value
       }
       if (result.kind === 'unavailable')
@@ -1039,9 +1056,15 @@ export class PluginSessionController implements HostPort {
         return
       }
       // A consumer instance that builds now is not a change yet. One that waits for a missing provider is missing.
+      // One whose providers all have a version outside the range is incompatible.
       queueMicrotask(() => {
-        if (graph(container).explain(key).phase === 'pending' && this.stablyBlockedIn(container, key, 0))
-          report({ available: false, reason: 'missing-kit' })
+        const explanation = graph(container).explain(key)
+        if (explanation.phase !== 'pending' || !this.stablyBlockedIn(container, key, 0))
+          return
+        const incompatible = this.host.kits.incompatibleProviders(input.kitId, input.range)
+        report(incompatible
+          ? { available: false, reason: 'incompatible-version', detail: `The providers are: ${incompatible.map(provider => `${provider.id} ${provider.version}`).join(', ')}.` }
+          : { available: false, reason: 'missing-kit' })
       })
     })
     const handle = {
@@ -1108,7 +1131,7 @@ export class PluginSessionController implements HostPort {
       }
       const dependsOn: DependencyDeclarations = { runtime: pluginNodeKeys.runtime }
       for (const use of input.kits)
-        dependsOn[kitSelectionKey(use.id)] = this.host.kits.dependencyOf(use)
+        dependsOn[kitSelectionKey(use.id, use.range)] = this.host.kits.dependencyOf(use)
 
       try {
         await resolve(this.container, dependsOn, { timeoutMs: input.timeoutMs, signal: controller.signal })
@@ -1119,7 +1142,7 @@ export class PluginSessionController implements HostPort {
         if (error instanceof KitUnavailableError)
           throw error
         if (error instanceof WaitTimeoutError) {
-          const lines = input.kits.filter(use => !use.optional).map(use => describeExplanation(graph(this.container).explain(kitSelectionKey(use.id))))
+          const lines = input.kits.filter(use => !use.optional).map(use => describeExplanation(graph(this.container).explain(kitSelectionKey(use.id, use.range))))
           throw new ModuleUpsertError('upsert-timeout', input.moduleId, `Module \`${input.moduleId}\` did not get its Kits in ${input.timeoutMs}ms. ${lines.join(' ')}`, { cause: error })
         }
         throw new ModuleUpsertError('upsert-failed', input.moduleId, `Module \`${input.moduleId}\` cannot resolve its Kits: ${errorMessageFrom(error) ?? 'unknown error'}`, { cause: error })

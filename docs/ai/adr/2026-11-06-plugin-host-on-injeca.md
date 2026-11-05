@@ -167,17 +167,16 @@ The branch `neko/refactor/plugin-sdk-injeca` builds this design on the local inj
 
 | Node | Container | Shape |
 | --- | --- | --- |
-| `kit:<id>@host` | plugin host | `perConsumer`. Its build creates the client with the caller identity of the consumer container. |
-| `kit:<id>` | plugin host | The selection. `perConsumer`, with `firstAvailable` over the provider keys in the configured order. The Host Kit comes first by default. |
-| `kit:<id>@<plugin>` | plugin | Exported, not `perConsumer`. Its value connects a client for each caller. Its status follows the reports of the plugin and the health of `runtime`. |
+| `kit:<id>@host` | plugin host | One service. Its value connects a client for each caller. |
+| `kit:<id>#<range>` | plugin host | The selection for one version range. `perConsumer`, with `where(firstAvailable(...), range)` over the provider keys in the configured order. The Host Kit comes first by default. |
+| `kit:<id>@<plugin>` | plugin | Exported. Its value connects a client for each caller. Its status follows the reports of the plugin and the health of `runtime`. |
 | `package`, `compat`, `runtime`, `session` | plugin | One plugin container for each session. The owner is `{ kind: 'plugin', pluginId, sessionId, version }`. |
 | `module:<id>` | plugin | A dynamic module from `ctx.modules.upsert()`. |
 | module scope | child of plugin | `ctx.modules.register()` creates a child container, so its clients have the module as caller. |
 
-- The selection build checks the grant and the version range of the consumer, because it builds the client for one consumer. A denied grant fails that consumer instance with `permission-denied`.
-- A session depends on `where(kit:<id>, condition)`. The condition reads the provider list in the metadata of the selection. `where` cannot wrap `firstAvailable`, so the selection build checks the version of the selected provider again.
-- The selection handles `dependency-change` in place: its stable client forwards to the new provider. A rebuild of an intermediate service stops it first, so its consumers would lose the Kit for a moment.
-- The plugin Kit proxy is not `perConsumer`. A `perConsumer` export resolves its own dependencies from the consumer container, so it would get the `runtime` of the consumer.
+- The selection is the only `perConsumer` Kit service. A `perConsumer` service resolves its dependencies from its registration container, so a provider behind the selection cannot see the consumer. The selection build checks the grant of the consumer and connects the client with the caller identity. A denied grant fails that consumer instance with `permission-denied`.
+- A session depends on the selection of its range. The selection skips a provider with a version outside the range and selects the next one. A range gets its selection service on its first use, or with the first provider of the Kit.
+- The selection handles `dependency-change` in place. Its stable client forwards to the new provider, so a holder of the client, for example `resolveKit()` or plugin code, follows the provider without a new call.
 - `reload(id)` stops the old session, then starts a new one. `reload(id, { atomic: true })` starts a new plugin container first. Its exports take over, and the consumers move with `dependency-change`. Fixed binding ids collide in the atomic form, so it is not the default.
 - One session service instance is one setup round. A rebuild during setup replaces the registration, and the start hook signal ends the old round. A rebuild after setup is an atomic replacement. The new round replaces the exports with `tx.replace`.
 
@@ -185,7 +184,7 @@ The branch `neko/refactor/plugin-sdk-injeca` builds this design on the local inj
 
 - `ctx.effect(setup)` stores a cleanup with the setup round.
 - `ctx.kits.tryUse()` resolves a Kit now and does not rebuild. `ctx.kits.use()` in a module scope does the same.
-- `ctx.kits.watch()` follows the selection with injeca `watch`.
+- `ctx.kits.watch()` follows the selection with injeca `watch`. The watch demands the consumer instance, also when the selection registers later.
 - The Host stores found dependencies in an injectable `KitDependencyStore`, and dynamic grants in a `KitGrantStore`. Both are in memory now.
 
 ### Runners and the bridge
@@ -208,13 +207,15 @@ The branch `neko/refactor/plugin-sdk-injeca` builds this design on the local inj
 
 ### injeca gaps found
 
-| Gap | Effect | Workaround |
-| --- | --- | --- |
-| A `perConsumer` export resolves its own dependencies from the consumer container. | A plugin Kit cannot be a `perConsumer` export that depends on `runtime`. | The proxy is not `perConsumer`. The selection connects a client for each caller. |
-| `where()` does not accept `firstAvailable()`. | A consumer cannot put a version range on a selection. | A condition on the selection metadata, and a check in the selection build. |
-| A rebuild after a replaced dependency stops the service first. | A replace is atomic only for direct dependents. | The selection handles `dependency-change` in place. |
-| An optional dependency on a `perConsumer` key does not create the consumer instance when the key registers after the dependent. | `invoke` with `optional()` misses a Kit that appears later. | `ctx.kits.watch()` uses injeca `watch`. |
-| `explain()` of a key reports the serving instance, not a pending replacement. | An upsert timeout cannot explain the new registration. | The explanation reads the Kit keys of the module. |
+The build found five gaps in injeca. injeca fixed all of them before release, so plugin-sdk has no workaround for them:
+
+- A `perConsumer` service resolves its dependencies from its registration container, also for an export.
+- `where()` accepts `firstAvailable()`, and `explain()` names each rejected candidate.
+- A rebuild of a running service is make-before-break. Its dependents get `dependency-change`, not a withdrawal.
+- An optional or fallback edge demands the consumer service of a `perConsumer` key that registers later.
+- `explain()` has `replacement` for a pending `replace()`.
+
+An upsert timeout still explains the Kit selections of the module, not `replacement`. The upsert resolves the Kits before `replace()`, because a pending `replace()` cannot be cancelled without a successor, and the old module must stay after a timeout.
 
 ## Consequences
 
@@ -240,8 +241,7 @@ The branch `neko/refactor/plugin-sdk-injeca` builds this design on the local inj
 
 ## Follow-up
 
-- Release injeca 0.3.1 with exported registrations, and drop the local `file:` override.
-- Fix the injeca gaps in "Implementation".
+- Release injeca 0.3.1 with exported registrations and the gap fixes, and drop the local `file:` override.
 - Design and implement `@injeca/bridge`, and move the first bridge out of plugin-sdk.
-- Move plugin-sdk in small pull requests: remove the unused registries, put the host on a container, make Host Kits `perConsumer`, run sessions in child containers, publish plugin Kits through transactions, replace the Planner, and add the graph view to the inspector.
+- Move plugin-sdk in small pull requests: remove the unused registries, put the host on a container, make Kit selections `perConsumer`, run sessions in child containers, publish plugin Kits through transactions, replace the Planner, and add the graph view to the inspector.
 - Explain the removal of the Activation Planner in issue #2507.

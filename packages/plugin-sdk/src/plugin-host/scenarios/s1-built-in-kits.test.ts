@@ -11,6 +11,8 @@ describe('scenario S1: built-in Kits', () => {
       ['airi.widget', 'show', 's1-consumer'],
       ['airi.computer-use', 'click', 's1-consumer'],
     ])
-    expect(result.consumers).toEqual(expect.arrayContaining(['kit:airi.widget', 'kit:airi.widget@host', 'kit:airi.computer-use', 'kit:airi.computer-use@host']))
+    // The selection is the only per-consumer service. It connects the Host Kit client with the caller identity.
+    expect(result.consumers).toEqual(expect.arrayContaining(['kit:airi.widget#^1', 'kit:airi.computer-use#^1']))
+    expect(result.consumers).not.toContain('kit:airi.widget@host')
   })
 })

@@ -1479,7 +1479,8 @@ describe('setupExtensionHost', () => {
     expect(stopSpy).toHaveBeenCalledTimes(1)
     // The Consumer loses its required Kit. It stops its setup and waits in `pending` without an unload.
     expect(consumer.phase).toBe('pending')
-    expect(consumer.explanation).toContain('`kit:dev.airi.runtime`')
+    expect(consumer.explanation).toContain('`kit:dev.airi.runtime#^1.0.0` is pending.')
+    expect(consumer.explanation).toContain('No provider of Kit `dev.airi.runtime` is installed.')
 
     await invokeLoadEnabled()
     await vi.waitFor(() => expect(consumer.phase).toBe('ready'))

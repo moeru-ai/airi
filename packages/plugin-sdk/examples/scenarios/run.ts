@@ -340,7 +340,7 @@ export async function runS5(print?: ScenarioPrinter): Promise<S5Result> {
       provides: [{ id: 'airi.memory-backend', version: '1.1.0' }, { id: 'bmb.control', version: '1.0.0' }],
     }))
     timeline.explain(bmb.id)
-    await waitUntil(() => timeline.decisions('kit:airi.memory-backend', 'plugin-b').length > 0, 5_000, 'plugin-b selection move')
+    await waitUntil(() => timeline.decisions('kit:airi.memory-backend#^1', 'plugin-b').length > 0, 5_000, 'plugin-b selection move')
     const selected = (await autoMemory.remember({ text: 'with bmb' })).backend
     timeline.note(`auto-memory stores in: ${selected}`)
 
@@ -351,7 +351,7 @@ export async function runS5(print?: ScenarioPrinter): Promise<S5Result> {
     timeline.step('S5: the worker of bmb exits. The selection falls back to the Host.')
     const marker = timeline.records.length
     await (await scenario.host.resolveKit(bmbControlKit)).crash()
-    await waitUntil(() => timeline.records.slice(marker).some(record => record.type === 'decision' && record.owner.pluginId === 'plugin-b' && record.key === 'kit:airi.memory-backend'), 5_000, 'fallback to host')
+    await waitUntil(() => timeline.records.slice(marker).some(record => record.type === 'decision' && record.owner.pluginId === 'plugin-b' && record.key === 'kit:airi.memory-backend#^1'), 5_000, 'fallback to host')
     const afterCrash = (await autoMemory.remember({ text: 'after crash' })).backend
     timeline.note(`auto-memory stores in: ${afterCrash}`)
     timeline.explainKey('kit:airi.memory-backend@bmb')

@@ -12,7 +12,7 @@ describe('scenario S5: provider selection and harness hooks', () => {
 
     // The worker of bmb exits. The selection of plugin-b moves to the Host with `dependency-change`.
     expect(result.afterCrash).toBe('host')
-    expect(result.pluginBDecisions).toContain('kit:airi.memory-backend dependency-change:handled')
+    expect(result.pluginBDecisions).toContain('kit:airi.memory-backend#^1 dependency-change:handled')
 
     // The hook goes away with bmb.
     expect(result.injectedAfterUnload).toEqual([])

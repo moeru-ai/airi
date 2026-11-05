@@ -2,10 +2,11 @@ import type { ServiceBlocker, ServiceExplanation } from 'injeca'
 
 import { errorMessageFrom } from '@moeru/std'
 
+/** Reads the Kit id from a selection key `kit:<id>#<range>` or a provider key `kit:<id>@<provider>`. */
 function kitIdOfKey(key: string): string | undefined {
   if (!key.startsWith('kit:'))
     return undefined
-  const id = key.slice('kit:'.length)
+  const id = key.slice('kit:'.length).split('#')[0]!
   const at = id.lastIndexOf('@')
   return at === -1 ? id : id.slice(0, at)
 }
@@ -33,10 +34,8 @@ export function describeBlocker(blocker: ServiceBlocker): string {
     }
     case 'rejected-provider': {
       const kitId = kitIdOfKey(blocker.key)
-      const providers = Array.isArray(blocker.metadata.providers)
-        ? (blocker.metadata.providers as { id: string, version: string }[]).map(provider => `${provider.id} ${provider.version}`).join(', ')
-        : String(blocker.metadata.version ?? 'unknown')
-      return `No provider of Kit \`${kitId ?? blocker.key}\` has a version in the range. The providers are: ${providers}.`
+      const provider = blocker.metadata.provider as { id?: unknown } | undefined
+      return `Provider \`${String(provider?.id ?? blocker.key)}\` of Kit \`${kitId ?? blocker.key}\` has version ${String(blocker.metadata.version ?? 'unknown')}, which is not in the range.`
     }
     case 'failed-dependency':
       return `\`${blocker.key}\` failed: ${errorMessageFrom(blocker.error) ?? 'unknown error'}`

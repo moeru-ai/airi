@@ -139,4 +139,46 @@ describe('provider status reports', () => {
     handle!.setStatus('ready')
     await vi.waitFor(async () => expect(await client.read({ key: 'k' })).toBe('plugin'))
   })
+
+  it('selects the first provider with a version in the range of the consumer', async () => {
+    const clockV2Kit = defineKitContract({ id: clockKit.id, version: '2.0.0', methods: { now: defineKitMethod<undefined, string>() }, events: {} })
+    const host = new ExtensionHost()
+    // The Host Kit comes first in the order, but its version 1.0.0 is outside `^2`.
+    host.provideKit({ api: clockKit })
+    await host.startExtension(defineExtension({
+      id: 'clock-v2',
+      setup(ctx) {
+        ctx.kits.provide(clockV2Kit, { methods: { now: () => 'v2' } })
+      },
+    }), { manifest: manifest('clock-v2', { kits: { provides: [{ id: clockKit.id, version: '2.0.0', exposure: 'local-only' }] } }) })
+
+    const v2 = await capture(host, 'v2-reader', { kits: { uses: [{ id: clockKit.id, version: '^2' }] } }, ctx => ctx.kits.get(clockV2Kit).now(undefined))
+    const v1 = await capture(host, 'v1-reader', { kits: { uses: [{ id: clockKit.id, version: '^1' }] } }, ctx => ctx.kits.get(clockKit).now())
+
+    expect(v2).toBe('v2')
+    expect(v1).toBe(42)
+  })
+
+  it('gives an optional Kit to a running session when its first provider starts later', async () => {
+    const host = new ExtensionHost()
+    let reader: ExtensionSetupContext | undefined
+    const session = await host.startExtension(defineExtension({
+      id: 'late-reader',
+      setup(ctx) {
+        reader = ctx
+      },
+    }), { manifest: manifest('late-reader', { kits: { uses: [{ id: fsStoreKit.id, version: '^1', optional: true }] } }) })
+    expect(session.phase).toBe('ready')
+    expect(reader!.kits.has(optional(fsStoreKit))).toBe(false)
+
+    await host.startExtension(defineExtension({
+      id: 'store-provider',
+      setup(ctx) {
+        ctx.kits.provide(fsStoreKit, { methods: { read: ({ key }) => key } })
+      },
+    }), { manifest: manifest('store-provider', { kits: { provides: [{ id: fsStoreKit.id, version: '1.0.0', exposure: 'local-only' }] } }) })
+
+    await vi.waitFor(() => expect(reader!.kits.has(optional(fsStoreKit))).toBe(true))
+    expect(await reader!.kits.get(optional(fsStoreKit))!.read({ key: 'late' })).toBe('late')
+  })
 })
