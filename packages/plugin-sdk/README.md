@@ -120,9 +120,18 @@ export default defineExtension({
 - Setup must be safe to run again. Register side effects with `ctx.effect()` or `ctx.subscriptions`.
 - A Kit that is not in `kits.uses` needs an API grant, or `permissions.kits.dynamic` with an optional `allow` list. The Host asks `kitGrantPolicy` once and stores the answer. The check runs when the per-consumer client builds.
 
-### Runners
+### Runners and the worker bridge
 
-`createDirectRunner()` runs plugin code in the Host thread. It is the default.
+`createDirectRunner()` runs plugin code in the Host thread. It is the default. `createWorkerRunner()` from the Node entry runs each plugin in a `worker_threads` Worker and talks to it over an eventa channel. The bridge is a first version. It moves to `@injeca/bridge` later.
+
+- The Host calls `startRound`, `abortRound`, `stopRound`, `startModule`, and `invokeProvider` (with the caller identity that the Host injects).
+- The plugin calls `provide` (announce), `setStatus`, `callKit`, `useKit`, `rebuild`, and `upsertModule`.
+- A function in an argument or a result crosses as a callback, for example a harness hook listener. `callback.release` removes it.
+- A worker exit sets the `runtime` node to `unavailable`, so the Kits of the plugin are `unavailable`, and selections move to the next provider.
+
+### Harness hooks
+
+`createHarnessKit()` is a reference `airi.harness` Kit. `hooks.on(event, handler, { priority })` registers the listener with injeca `listen` on the plugin container, so it goes away with the plugin. `runHarnessHooks(host.container, event, context)` runs the listeners in priority order with a timeout.
 
 ## Kit API Naming
 

@@ -11,6 +11,8 @@ import { createNodeAsyncContext } from './async-context'
 export * from '../../api'
 export { createNodeAsyncContext } from './async-context'
 export * from './loaders'
+export { createWorkerRunner } from './worker-runner'
+export type { WorkerRunnerOptions } from './worker-runner'
 
 /**
  * The plugin host for Node and Electron. It injects `AsyncLocalStorage` as the injeca async context of a root container.
