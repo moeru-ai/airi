@@ -4,6 +4,7 @@ import type { AnimationMixer, Group } from 'three'
 import type { AvatarAnimator } from '../../composables/vrm/avatar-animator'
 import type { useVRMEmote } from '../../composables/vrm/expression'
 import type { VrmInteractionColliderSet } from '../../composables/vrm/interaction'
+import type { MoodBody } from '../../composables/vrm/mood-body'
 import type { MoodFace } from '../../composables/vrm/mood-face'
 import type { PerformanceDirector } from '../../composables/vrm/performance-director'
 
@@ -18,6 +19,8 @@ export interface ManagedVrmInstance {
   emote: ReturnType<typeof useVRMEmote>
   /** Mood face, reactions, blink, and emote face, ported from Utsuwa. */
   moodFace: MoodFace
+  /** Breathing, posture, head, and eye contact by mood (sprint V3). */
+  moodBody: MoodBody
   group: Group
   interactionColliders: VrmInteractionColliderSet
   mixer: AnimationMixer

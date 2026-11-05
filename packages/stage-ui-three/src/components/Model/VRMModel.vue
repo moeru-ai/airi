@@ -84,6 +84,7 @@ import { useVRMEmote } from '../../composables/vrm/expression'
 import { createVrmInteractionColliders } from '../../composables/vrm/interaction'
 import { resolveInternalVrmHooks } from '../../composables/vrm/internal-hooks'
 import { useVRMLipSync } from '../../composables/vrm/lip-sync'
+import { MoodBody } from '../../composables/vrm/mood-body'
 import { MoodFace } from '../../composables/vrm/mood-face'
 import { PerformanceDirector } from '../../composables/vrm/performance-director'
 import { createThinkingClip } from '../../composables/vrm/thinking-pose'
@@ -216,6 +217,7 @@ const vrmAnimationMixer = ref<AnimationMixer>()
 const vrmAnimator = shallowRef<AvatarAnimator>()
 const vrmDirector = shallowRef<PerformanceDirector>()
 const vrmMoodFace = shallowRef<MoodFace>()
+const vrmMoodBody = shallowRef<MoodBody>()
 /** Mouth opening written by lip sync in the last frame, read by the director in the next one. */
 let lastMouth = 0
 let lastIdleUrl: string | null = null
@@ -329,13 +331,14 @@ function getManagedVrmScopeKey() {
 }
 
 function getActiveManagedVrmInstance() {
-  if (!modelSrc.value || !vrm.value || !vrmGroup.value || !vrmAnimationMixer.value || !vrmEmote.value || !vrmAnimator.value || !vrmDirector.value || !vrmMoodFace.value)
+  if (!modelSrc.value || !vrm.value || !vrmGroup.value || !vrmAnimationMixer.value || !vrmEmote.value || !vrmAnimator.value || !vrmDirector.value || !vrmMoodFace.value || !vrmMoodBody.value)
     return undefined
 
   return createManagedVrmInstance({
     animator: vrmAnimator.value,
     director: vrmDirector.value,
     moodFace: vrmMoodFace.value,
+    moodBody: vrmMoodBody.value,
     emote: vrmEmote.value,
     group: vrmGroup.value,
     interactionColliders: interactionColliders.value!,
@@ -349,6 +352,7 @@ function clearActiveManagedVrmRefs() {
   vrmAnimator.value = undefined
   vrmDirector.value = undefined
   vrmMoodFace.value = undefined
+  vrmMoodBody.value = undefined
   vrmEmote.value = undefined
   vrm.value = undefined
   vrmGroup.value = undefined
@@ -377,6 +381,7 @@ function applyManagedVrmInstance(instance: ManagedVrmInstance) {
   vrmAnimator.value = instance.animator
   vrmDirector.value = instance.director
   vrmMoodFace.value = instance.moodFace
+  vrmMoodBody.value = instance.moodBody
   vrmEmote.value = instance.emote
   interactionColliders.value = instance.interactionColliders
 }
@@ -568,8 +573,11 @@ function bindManagedVrmInstanceRenderLoop() {
     const director = vrmDirector.value
     // The director undoes its offsets of the last frame before the mixer writes the
     // new pose. Bones without an animation track would otherwise keep adding up.
+    const moodBody = vrmMoodBody.value
     if (activeVrm && director)
       director.restore(activeVrm)
+    if (activeVrm && moodBody)
+      moodBody.restore(activeVrm)
     const animationMixerMs = measureFrameStep(tracingEnabled, () => {
       if (vrmAnimator.value)
         vrmAnimator.value.update(delta)
@@ -592,6 +600,10 @@ function bindManagedVrmInstanceRenderLoop() {
       if (events.nudgeIdleAfterSeconds !== null)
         vrmAnimator.value?.requestIdleSwitch(events.nudgeIdleAfterSeconds)
     }
+    // Breathing, posture, and head by mood (V3). It returns the eye contact offset for the look-at below.
+    const bodyFrame = activeVrm && moodBody
+      ? moodBody.apply(activeVrm, delta, { speaking: props.speechActive === true, emotePlaying: vrmAnimator.value?.emotePlaying ?? false })
+      : undefined
     updateManagedVrmMaterials(activeVrm, delta)
     const vrmFrameHookMs = measureFrameStep(tracingEnabled, () => {
       if (activeVrm && activeVrmGroup) {
@@ -611,7 +623,18 @@ function bindManagedVrmInstanceRenderLoop() {
       activeVrm?.humanoid.update()
     })
     const lookAtMs = measureFrameStep(tracingEnabled, () => {
+      // Eye contact by mood: the target moves away for a moment, for example down when sad,
+      // and comes back after this update, so the tracking target of the camera or the mouse stays as it was.
+      const lookTarget = activeVrm?.lookAt?.target
+      if (lookTarget && bodyFrame) {
+        lookTarget.position.x += bodyFrame.gazeOffsetX
+        lookTarget.position.y += bodyFrame.gazeOffsetY
+      }
       activeVrm?.lookAt?.update?.(delta)
+      if (lookTarget && bodyFrame) {
+        lookTarget.position.x -= bodyFrame.gazeOffsetX
+        lookTarget.position.y -= bodyFrame.gazeOffsetY
+      }
     })
     const blinkAndSaccadeMs = measureFrameStep(tracingEnabled, () => {
       // Mood, reactions, blink, and the emote face, as in Utsuwa. The blink stops and the
@@ -1054,6 +1077,7 @@ async function loadModel() {
       animator: nextVrmAnimator,
       director: new PerformanceDirector(),
       moodFace: new MoodFace(Object.keys(_vrm.expressionManager?.expressionMap ?? {})),
+      moodBody: new MoodBody(),
       emote: nextVrmEmote,
       group: _vrmGroup,
       interactionColliders: nextInteractionColliders,
@@ -1268,6 +1292,7 @@ defineExpose({
   /** Sets the mood: a reaction first, then a resting face that stays until the next mood. */
   setExpression(expression: string, intensity = 1) {
     vrmMoodFace.value?.setMood(expression, intensity)
+    vrmMoodBody.value?.setMood(expression, intensity)
     if (intensity > 0)
       vrmMoodFace.value?.react(expression)
   },
