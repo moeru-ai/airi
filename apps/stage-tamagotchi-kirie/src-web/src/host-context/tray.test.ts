@@ -28,7 +28,7 @@ describe('host tray labels', () => {
     invoke.mockReset().mockResolvedValue(undefined)
   })
 
-  it('sends the translated Electron tray labels to Godot at start', () => {
+  it('sends the translated tray labels to Godot at start', () => {
     const locale = ref('en')
     const stop = startHostTrayLabels({ locale, t: key => `${locale.value}:${key}` })
 

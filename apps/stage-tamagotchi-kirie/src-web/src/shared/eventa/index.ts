@@ -7,12 +7,6 @@ import type {
   ShortcutAccelerator,
   ShortcutRegistrationResult,
 } from '@proj-airi/stage-shared/global-shortcut'
-import type {
-  StageViewErrorPayload,
-  StageViewPatch,
-  StageViewRequestAckPayload,
-  StageViewSnapshotPayload,
-} from '@proj-airi/stage-shared/godot-stage'
 import type { ServerChannelQrPayload } from '@proj-airi/stage-shared/server-channel-qr'
 import type {
   ThreeHitTestReadTracePayload,
@@ -285,17 +279,7 @@ export const airiGetServerChannelConfig = defineInvokeEventa<AiriServerChannelCo
 export const airiApplyServerChannelConfig = defineInvokeEventa<AiriServerChannelConfig, Partial<AiriServerChannelConfig>>('eventa:invoke:airi:server-channel:apply-config')
 export const airiGetServerChannelQrPayload = defineInvokeEventa<ServerChannelQrPayload>('eventa:invoke:airi:server-channel:get-qr-payload')
 
-export type AiriUpdaterChannel = 'latest' | 'stable' | 'alpha' | 'beta' | 'nightly' | 'canary'
-
-export interface AiriUpdaterPreferences {
-  channel?: AiriUpdaterChannel
-}
-
-export const airiGetUpdaterPreferences = defineInvokeEventa<AiriUpdaterPreferences>('eventa:invoke:airi:auto-updater:get-preferences')
-export const airiSetUpdaterPreferences = defineInvokeEventa<AiriUpdaterPreferences, AiriUpdaterPreferences>('eventa:invoke:airi:auto-updater:set-preferences')
-
 export * from './plugin/assets'
-export * from './plugin/capabilities'
 export * from './plugin/host'
 export * from './plugin/tools'
 
@@ -303,12 +287,12 @@ export interface NoticeOpenPayload {
   id?: string
   route: string
   type?: string
-  payload?: Record<string, any>
+  payload?: Record<string, unknown>
 }
 export interface NoticePendingPayload {
   id: string
   type?: string
-  payload?: Record<string, any>
+  payload?: Record<string, unknown>
 }
 
 // Notice window contract. The Godot host mirrors these ids and payload shapes
@@ -566,61 +550,6 @@ export interface AiriWindowLifecycleState {
 }
 
 export const airiAppQuit = defineInvokeEventa<void>('eventa:invoke:airi:app:quit')
-
-export type AiriGodotStageState = 'stopped' | 'starting' | 'running' | 'stopping' | 'error'
-
-/**
- * Snapshot of the Godot sidecar lifecycle owned by the host.
- *
- * Use when:
- * - Renderer windows need to reflect whether the external Godot window is available
- * - Settings or stage pages need lifecycle feedback after start/stop actions
- *
- * Expects:
- * - `pid` is only set while the Godot child process exists
- * - `lastError` is present for the most recent lifecycle or scene-apply failure
- *
- * Returns:
- * - N/A
- */
-export interface AiriGodotStageStatus {
-  state: AiriGodotStageState
-  pid: number | null
-  lastError?: string
-  updatedAt: number
-}
-
-/**
- * Serialized scene input payload forwarded from renderer to the host.
- *
- * Use when:
- * - The selected model should be materialized to disk and applied to the Godot scene
- *
- * Expects:
- * - `data` contains the full model file bytes
- * - `fileName` matches the original model asset name when available
- *
- * Returns:
- * - N/A
- */
-export interface AiriGodotStageSceneInputPayload {
-  modelId: string
-  format: 'vrm'
-  name: string
-  fileName: string
-  data: Uint8Array
-}
-
-export const airiGodotStageStart = defineInvokeEventa<AiriGodotStageStatus>('eventa:invoke:airi:godot-stage:start')
-export const airiGodotStageStop = defineInvokeEventa<AiriGodotStageStatus>('eventa:invoke:airi:godot-stage:stop')
-export const airiGodotStageGetStatus = defineInvokeEventa<AiriGodotStageStatus>('eventa:invoke:airi:godot-stage:get-status')
-export const airiGodotStageApplySceneInput = defineInvokeEventa<void, AiriGodotStageSceneInputPayload>('eventa:invoke:airi:godot-stage:apply-scene-input')
-export const airiGodotStageGetViewSnapshot = defineInvokeEventa<StageViewSnapshotPayload | null>('eventa:invoke:airi:godot-stage:view-snapshot:get')
-export const airiGodotStageApplyViewPatch = defineInvokeEventa<StageViewRequestAckPayload, StageViewPatch>('eventa:invoke:airi:godot-stage:view-state:apply-patch')
-export const airiGodotStageRequestViewSnapshot = defineInvokeEventa<StageViewRequestAckPayload>('eventa:invoke:airi:godot-stage:view-state:request-snapshot')
-export const airiGodotStageStatusChanged = defineEventa<AiriGodotStageStatus>('eventa:event:airi:godot-stage:status-changed')
-export const airiGodotStageViewSnapshotChanged = defineEventa<StageViewSnapshotPayload>('eventa:event:airi:godot-stage:view-snapshot-changed')
-export const airiGodotStageViewStateError = defineEventa<StageViewErrorPayload>('eventa:event:airi:godot-stage:view-state-error')
 
 // Global shortcut ->
 

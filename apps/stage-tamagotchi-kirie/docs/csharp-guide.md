@@ -15,14 +15,14 @@ This guide applies to the C# code in `src-godot/` and `tests/`.
 | `tests/StageTamagotchiKirie.Tests` | xUnit tests in folders that mirror `src-godot` |
 
 - Put a new file in the folder of the window or service that owns it.
-- Move a file to `windows/shared` or `app` only when a second owner uses it.
+- When a second owner uses a file, move it to `windows/shared` or `app`.
 
 ## Names
 
 - Name each `.cs` file after its main type in PascalCase, for example `ChatWindowManager.cs`.
 - Name scenes and other files in kebab-case, for example `chat-window.tscn`.
-- Keep the `.uid` file next to its script when you move or rename the script.
-- Update `res://` paths in scenes and C# code when you move a scene or an asset.
+- When you move or rename a script, keep its `.uid` file next to it.
+- When you move a scene or an asset, update its `res://` paths in scenes and C# code.
 
 Godot finds a scene script class by its file name.
 The [Godot C# basics](https://docs.godotengine.org/en/stable/tutorials/scripting/c_sharp/c_sharp_basics.html) require that the file name and the class name match.
@@ -47,7 +47,7 @@ Classify each change before you write code:
 ## Style
 
 - Use 4 spaces, LF, UTF-8, and Allman braces.
-- Keep lines at 100 columns when practical.
+- When practical, keep lines within 100 columns.
 - Put `System.*` usings first. Remove unused usings.
 - Use keyword types such as `string` and `int`.
 - Use `var` only when the right side shows the type.

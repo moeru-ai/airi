@@ -14,7 +14,7 @@
 | AIRI Godot services | Application windows, the tray menu, authentication, microphone policy, and service attachments |
 
 The renderer has one Eventa transport owner. Capability clients borrow its context.
-[Platform](https://github.com/gd-kirie/gd-kirie/blob/v0.14.2/packages/platform/README.md) and [Notifications](https://github.com/gd-kirie/kirie-plugins/blob/main/packages/notifications/README.md) document the upstream capability APIs.
+[Platform](https://github.com/gd-kirie/gd-kirie/blob/v0.16.0/packages/platform/README.md) and [Notifications](https://github.com/gd-kirie/kirie-plugins/blob/main/packages/notifications/README.md) document the upstream capability APIs.
 
 Kirie-local adapters always use Kirie.
 Kirie builds set `RUNTIME_ENVIRONMENT='kirie'`. `isStageTamagotchi()` is true for the Electron and Kirie builds, so both show the desktop UI.

@@ -43,7 +43,7 @@ mise x -- pnpm dev
 ```
 
 `pnpm dev` runs `kirie dev`, which starts Vite, Godot, and the CEF renderers.
-The [dev command](https://github.com/gd-kirie/gd-kirie/blob/v0.14.2/packages/cli/src/commands/dev.ts) checks required addons and reuses the last C# build.
+The [dev command](https://github.com/gd-kirie/gd-kirie/blob/v0.16.0/packages/cli/src/commands/dev.ts) checks required addons and reuses the last C# build.
 After a C# change, repeat both commands.
 Spotlight opens through its global shortcut and has no in-app entry point.
 
@@ -77,7 +77,7 @@ The following work remains deferred:
 | Screen capture | Source selection, macOS permission, the Vision devtools page, and the Screen Capture devtools page |
 
 Kirie has no pages for the deferred windows and devtools.
-To add one, port it from [stage-tamagotchi](../stage-tamagotchi/src/renderer/pages) when the host capability exists.
+When a host capability exists, port its page from [stage-tamagotchi](../stage-tamagotchi/src/renderer/pages).
 
 The Node services remain outside the Kirie bootstrap until AIRI supplies their runtime and lifecycle.
 The workspace Node.js command is not a production sidecar.
@@ -121,6 +121,6 @@ mise x -- pnpm lint
 | `Accelerated OSR unavailable` | Make sure that desktop uses Forward+ with Metal, Direct3D 12, or Vulkan. |
 | NuGet reports a missing pinned release | Compare official feed metadata with the package reference before a dependency workaround. |
 
-The [installer](https://github.com/gd-kirie/gd-kirie/blob/v0.14.2/packages/cli/src/commands/doctor/addons.ts) checks archive digests and records them under `.godot/kirie/`.
-The [doctor](https://github.com/gd-kirie/gd-kirie/blob/v0.14.2/packages/cli/src/commands/doctor/index.ts) checks configured dependencies and versions.
+The [installer](https://github.com/gd-kirie/gd-kirie/blob/v0.16.0/packages/cli/src/commands/doctor/addons.ts) checks archive digests and records them under `.godot/kirie/`.
+The [doctor](https://github.com/gd-kirie/gd-kirie/blob/v0.16.0/packages/cli/src/commands/doctor/index.ts) checks configured dependencies and versions.
 It does not hash installed native files or inspect macOS signatures.

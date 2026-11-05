@@ -1,8 +1,4 @@
-import type {
-  ExtensionDirectoryImportPrepareResult,
-  PluginHostDebugSnapshot,
-  PluginRegistrySnapshot,
-} from '@proj-airi/stage-shared/plugin-host'
+import type { PluginHostDebugSnapshot } from '@proj-airi/stage-shared/plugin-host'
 
 import { defineInvokeEventa } from '@moeru/eventa'
 
@@ -44,18 +40,9 @@ export interface PluginModuleWidgetPayload {
   moduleId: string
   title?: string
   widgetComponent?: string
-  componentProps?: Record<string, any>
-  payload?: Record<string, any>
+  componentProps?: Record<string, unknown>
+  payload?: Record<string, unknown>
   windowSize?: PluginModuleWidgetWindowSize
 }
 
-export const airiPluginList = defineInvokeEventa<PluginRegistrySnapshot>('eventa:invoke:airi:plugins:list')
-export const airiPluginSetEnabled = defineInvokeEventa<PluginRegistrySnapshot, { extensionId: string, enabled: boolean, path?: string }>('eventa:invoke:airi:plugins:set-enabled')
-export const airiPluginSetAutoReload = defineInvokeEventa<PluginRegistrySnapshot, { extensionId: string, enabled: boolean }>('eventa:invoke:airi:plugins:set-auto-reload')
-export const airiPluginLoadEnabled = defineInvokeEventa<PluginRegistrySnapshot>('eventa:invoke:airi:plugins:load-enabled')
-export const airiPluginLoad = defineInvokeEventa<PluginRegistrySnapshot, { extensionId: string }>('eventa:invoke:airi:plugins:load')
-export const airiPluginUnload = defineInvokeEventa<PluginRegistrySnapshot, { extensionId: string }>('eventa:invoke:airi:plugins:unload')
 export const airiPluginInspect = defineInvokeEventa<PluginHostDebugSnapshot>('eventa:invoke:airi:plugins:inspect')
-export const airiPluginPrepareDirectoryImport = defineInvokeEventa<ExtensionDirectoryImportPrepareResult>('eventa:invoke:airi:plugins:import-directory:prepare')
-export const airiPluginCommitDirectoryImport = defineInvokeEventa<PluginRegistrySnapshot, { planId: string }>('eventa:invoke:airi:plugins:import-directory:commit')
-export const airiPluginCancelDirectoryImport = defineInvokeEventa<void, { planId: string }>('eventa:invoke:airi:plugins:import-directory:cancel')

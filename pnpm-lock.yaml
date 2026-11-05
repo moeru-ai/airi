@@ -2612,9 +2612,6 @@ importers:
       reka-ui:
         specifier: 'catalog:'
         version: 2.10.3(vue@3.5.41(typescript@6.0.3))
-      semver:
-        specifier: 'catalog:'
-        version: 7.8.5
       splitpanes:
         specifier: 'catalog:'
         version: 4.1.2(vue@3.5.41(typescript@6.0.3))
@@ -2627,9 +2624,6 @@ importers:
       valibot:
         specifier: 'catalog:'
         version: 1.5.0(typescript@6.0.3)
-      vaul-vue:
-        specifier: 'catalog:'
-        version: 0.4.1(reka-ui@2.10.3(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3))
       vue:
         specifier: 'catalog:'
         version: 3.5.41(typescript@6.0.3)
@@ -2688,9 +2682,6 @@ importers:
       '@intlify/unplugin-vue-i18n':
         specifier: 'catalog:'
         version: 11.2.5(@vue/compiler-dom@3.5.44)(eslint@10.9.0(jiti@2.7.0)(supports-color@10.2.2))(rollup@4.62.5)(supports-color@10.2.2)(typescript@6.0.3)(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))(vue-i18n@11.4.9(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3))
-      '@proj-airi/electron-eventa':
-        specifier: workspace:^
-        version: link:../../packages/electron-eventa
       '@proj-airi/iconify-meteocons':
         specifier: 'catalog:'
         version: 0.1.5
@@ -2709,18 +2700,12 @@ importers:
       '@proj-airi/unplugin-live2d-sdk':
         specifier: 'catalog:'
         version: 0.1.7(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1)
-      '@types/audioworklet':
-        specifier: 'catalog:'
-        version: 0.0.100
       '@types/culori':
         specifier: 'catalog:'
         version: 4.0.1
       '@types/node':
         specifier: 'catalog:'
         version: 26.2.0
-      '@types/semver':
-        specifier: 'catalog:'
-        version: 7.8.0
       '@types/splitpanes':
         specifier: 'catalog:'
         version: 2.2.6

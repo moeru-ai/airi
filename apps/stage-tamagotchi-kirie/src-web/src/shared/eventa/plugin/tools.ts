@@ -1,26 +1,4 @@
-import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
-
-/**
- * Renderer-facing plugin tool descriptor used by agent tooling UIs.
- *
- * Use when:
- * - Listing plugin-backed tools for discovery or debugging
- *
- * Expects:
- * - Activation metadata is already normalized for renderer display
- *
- * Returns:
- * - N/A
- */
-export interface AiriPluginToolDescriptor {
-  id: string
-  title: string
-  description: string
-  activation: {
-    keywords: string[]
-    patterns: string[]
-  }
-}
+import { defineInvokeEventa } from '@moeru/eventa'
 
 /**
  * Serialized xsai tool definition exposed by the plugin host.
@@ -80,28 +58,9 @@ export interface AiriPluginXsaiToolsetDefinition {
   prompts: AiriPluginToolsetPromptDefinition[]
 }
 
-/**
- * Describes why plugin-backed runtime tools should be refreshed.
- *
- * Use when:
- * - The main process notifies renderers after plugin lifecycle changes
- *
- * Expects:
- * - `extensionId` is present when the change is scoped to one extension
- *
- * Returns:
- * - N/A
- */
-export interface AiriPluginToolsChangedPayload {
-  reason: 'loaded' | 'load-enabled' | 'unloaded' | 'enabled-state-changed'
-  extensionId?: string
-}
-
-export const airiPluginListAgentTools = defineInvokeEventa<AiriPluginToolDescriptor[]>('eventa:invoke:airi:plugins:tools:list')
 export const airiPluginListXsaiTools = defineInvokeEventa<AiriPluginXsaiToolsetDefinition>('eventa:invoke:airi:plugins:tools:list-xsai')
 export const airiPluginInvokeTool = defineInvokeEventa<unknown, {
   ownerExtensionId: string
   name: string
   input: unknown
 }>('eventa:invoke:airi:plugins:tools:invoke')
-export const airiPluginToolsChanged = defineEventa<AiriPluginToolsChangedPayload>('eventa:event:airi:plugins:tools:changed')
