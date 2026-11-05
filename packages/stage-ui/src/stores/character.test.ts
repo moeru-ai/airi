@@ -1,3 +1,4 @@
+import type { ChatHistoryItem } from '../types/chat'
 import type { AiriCard } from './modules'
 
 import { defineInvokeHandler } from '@moeru/eventa'
@@ -165,10 +166,21 @@ describe('store character', () => {
   it('replays last speech from session assistant messages', async () => {
     const store = useCharacterStore()
     const sessionStore = useChatSessionStore()
-    sessionStore.messages = [
-      { role: 'user', content: 'Hi' } as any,
-      { role: 'assistant', content: 'Hello there!' } as any,
-    ]
+    const userMessage: ChatHistoryItem = {
+      id: 'msg-user-1',
+      role: 'user',
+      content: 'Hi',
+      createdAt: 1,
+    }
+    const assistantMessage: ChatHistoryItem = {
+      id: 'msg-assistant-1',
+      role: 'assistant',
+      content: 'Hello there!',
+      createdAt: 2,
+      slices: [],
+      tool_results: [],
+    }
+    sessionStore.messages = [userMessage, assistantMessage]
 
     const replayed = await store.replayLastSpeech()
     expect(replayed).toBe(true)
@@ -182,9 +194,13 @@ describe('store character', () => {
   it('returns false when replayLastSpeech finds no assistant message', async () => {
     const store = useCharacterStore()
     const sessionStore = useChatSessionStore()
-    sessionStore.messages = [
-      { role: 'user', content: 'Hello' } as any,
-    ]
+    const userMessage: ChatHistoryItem = {
+      id: 'msg-user-1',
+      role: 'user',
+      content: 'Hello',
+      createdAt: 1,
+    }
+    sessionStore.messages = [userMessage]
 
     const replayed = await store.replayLastSpeech()
     expect(replayed).toBe(false)

@@ -668,7 +668,6 @@ export const useSpeechStore = defineStore('speech', () => {
     }
     if (!model || !voiceId)
       throw new Error('Speech requires a model and voice')
-    const provider = providersStore.getProviderInstance<SpeechProviderWithExtraOptions<string, Record<string, unknown>>>(providerId)
     return { ...output, language, synthesize: async (request, signal) => {
       signal = AbortSignal.any([signal, synthesisSignal])
       signal.throwIfAborted()
@@ -686,7 +685,7 @@ export const useSpeechStore = defineStore('speech', () => {
       const cached = defaultAudioCache.get(cacheKey)
       if (cached)
         return cached
-      const client = await provider
+      const client = await providersStore.getProviderInstance<SpeechProviderWithExtraOptions<string, Record<string, unknown>>>(providerId)
       signal.throwIfAborted()
       const settings = providerId === OFFICIAL_SPEECH_PROVIDER_ID
         ? { ...config, extraBody: { ...(config.extraBody as Record<string, unknown> | undefined), airi_analytics: { trigger: 'auto', source: 'chat_auto_tts', voice_type: voiceType, turn_id: turn.turnId } } }

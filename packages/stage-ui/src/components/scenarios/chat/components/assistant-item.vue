@@ -142,7 +142,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
     <ChatActionMenu
       :copy-text="copyText"
       :can-reply="canReply"
-      :can-replay="canReplay && !streaming && !showPlaceholder"
+      :can-replay="canReplay && !streaming && !showPlaceholder && !!copyText.trim()"
       :can-delete="!showPlaceholder"
       :press-feedback-enabled="variant === 'mobile'"
       :scroll-container="scrollContainer"
