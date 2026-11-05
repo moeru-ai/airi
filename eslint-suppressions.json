@@ -804,11 +804,6 @@
       "count": 1
     }
   },
-  "plugins/airi-plugin-claude-code/src/utils/general.ts": {
-    "ts/no-explicit-any": {
-      "count": 4
-    }
-  },
   "services/computer-use-mcp/src/bin/e2e-airi-chat-observable.ts": {
     "ts/no-explicit-any": {
       "count": 11
