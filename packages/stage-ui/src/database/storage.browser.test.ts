@@ -9,8 +9,12 @@ import { listRawItems, storage } from './storage'
 // Each test writes and removes only its own keys, because browser test files share one IndexedDB.
 const previousDevice = localforage.createInstance({ name: 'localforage', storeName: 'keyvaluepairs' })
 const previousChatAssets = localforage.createInstance({ name: 'airi-chat-assets', storeName: 'assets' })
+const previousMemory = localforage.createInstance({ name: 'airi-memory', storeName: 'entries' })
+const previousRecipes = localforage.createInstance({ name: 'airi-recipes', storeName: 'recipes' })
 const device = prefixStorage(storage, 'device')
 const chatAssets = prefixStorage(storage, 'chat-assets')
+const memory = prefixStorage(storage, 'memory')
+const recipes = prefixStorage(storage, 'recipes')
 
 /** One key of each record kind that the callers of the `device` mount write. */
 const deviceKeys = [
@@ -23,6 +27,8 @@ const deviceKeys = [
   'mmd-motion-V1StGXR8_Z5jdHi6B-myT',
 ]
 const chatAssetKey = 'a'.repeat(64)
+const memoryKey = '019a1f2e-7c3b-7d4e-9f10-123456789abc'
+const recipeKey = 'user:V1StGXR8_Z5jdHi6B-myT'
 
 function recordFor(key: string) {
   return { id: key, file: new File([`bytes of ${key}`], `${key}.bin`, { type: 'application/octet-stream' }), importedAt: 1 }
@@ -31,6 +37,8 @@ function recordFor(key: string) {
 afterEach(async () => {
   await Promise.all(deviceKeys.map(key => previousDevice.removeItem(key)))
   await previousChatAssets.removeItem(chatAssetKey)
+  await previousMemory.removeItem(memoryKey)
+  await previousRecipes.removeItem(recipeKey)
 })
 
 describe('stores that localforage wrote', () => {
@@ -71,5 +79,21 @@ describe('stores that localforage wrote', () => {
 
     await chatAssets.setItemRaw(chatAssetKey, { ...stored, owners: ['a', 'b'] })
     expect(await previousChatAssets.getItem(chatAssetKey)).toMatchObject({ mimeType: 'image/png', owners: ['a', 'b'] })
+  })
+
+  it('reads and writes memory entries and recipes in both directions', async () => {
+    const entry = { id: memoryKey, description: 'Nickname', body: 'Neko', persona: 'airi', updatedAt: 1 }
+    const recipe = { id: recipeKey, recipe: { id: recipeKey, name: 'Music' }, order: 1, createdAt: 1, updatedAt: 1 }
+    await previousMemory.setItem(memoryKey, entry)
+    await previousRecipes.setItem(recipeKey, recipe)
+
+    expect(await listRawItems(memory, '')).toContainEqual([memoryKey, entry])
+    expect(await listRawItems(recipes, '')).toContainEqual([recipeKey, recipe])
+
+    const tombstone = { id: memoryKey, updatedAt: 2, deleted: true }
+    await memory.setItemRaw(memoryKey, tombstone)
+    await recipes.setItemRaw(recipeKey, { ...recipe, order: 2 })
+    expect(await previousMemory.getItem(memoryKey)).toEqual(tombstone)
+    expect(await previousRecipes.getItem(recipeKey)).toEqual({ ...recipe, order: 2 })
   })
 })

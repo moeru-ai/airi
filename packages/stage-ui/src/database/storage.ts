@@ -12,7 +12,7 @@ export const storage = createStorage({
 storage.mount('local', indexedDbDriver({ base: 'airi-local' }))
 storage.mount('outbox', indexedDbDriver({ base: 'airi-sync-queue' }))
 
-// The `device` and `chat-assets` stores are the ones that localforage created. Their names are permanent, because user files live in them.
+// The `device`, `chat-assets`, `memory`, and `recipes` stores are the ones that localforage created. Their names are permanent, because user files live in them.
 // Read and write raw values, because the records hold `Blob` and `File` objects.
 
 // Do not call `clear()` on `device` or the root storage. `device` holds every imported model, background, and motion.
@@ -22,6 +22,10 @@ storage.mount('outbox', indexedDbDriver({ base: 'airi-sync-queue' }))
 storage.mount('device', indexedDbDriver({ dbName: 'localforage', storeName: 'keyvaluepairs' }))
 /** Media of chat messages, keyed by content hash. */
 storage.mount('chat-assets', indexedDbDriver({ dbName: 'airi-chat-assets', storeName: 'assets' }))
+/** Long-term memory, one record for each entry, keyed by the entry ID. */
+storage.mount('memory', indexedDbDriver({ dbName: 'airi-memory', storeName: 'entries' }))
+/** Recipes, one record for each recipe, keyed by the recipe ID. */
+storage.mount('recipes', indexedDbDriver({ dbName: 'airi-recipes', storeName: 'recipes' }))
 /** The sticker library. Entries and images have their own key prefixes. */
 storage.mount('stickers', indexedDbDriver({ dbName: 'airi-sticker-library', storeName: 'records' }))
 
