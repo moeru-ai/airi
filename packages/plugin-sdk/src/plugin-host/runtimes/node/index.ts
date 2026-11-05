@@ -1,11 +1,25 @@
 import type { EventContext } from '@moeru/eventa'
 
+import type { ExtensionHostOptions } from '../../shared/types'
 import type { PluginTransport } from '../../transports'
 
 import { createContext } from '@moeru/eventa'
 
+import { ExtensionHost as BaseExtensionHost } from '../../core'
+import { createNodeAsyncContext } from './async-context'
+
 export * from '../../api'
+export { createNodeAsyncContext } from './async-context'
 export * from './loaders'
+
+/**
+ * The plugin host for Node and Electron. It injects `AsyncLocalStorage` as the injeca async context of a root container.
+ */
+export class ExtensionHost extends BaseExtensionHost {
+  constructor(options: ExtensionHostOptions = {}) {
+    super({ ...options, asyncContext: options.asyncContext ?? (options.container ? undefined : createNodeAsyncContext()) })
+  }
+}
 
 /**
  * Creates the Eventa context used by node-side extension host sessions.

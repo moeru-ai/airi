@@ -13,7 +13,8 @@ function isExtensionDefinition(value: unknown): value is Extension {
     && typeof (value as { setup?: unknown }).setup === 'function'
 }
 
-function coerceExtensionFromModule(moduleValue: unknown): Extension {
+/** Reads the `defineExtension(...)` value from a loaded entrypoint module. */
+export function coerceExtensionFromModule(moduleValue: unknown): Extension {
   if (isExtensionDefinition(moduleValue)) {
     return moduleValue
   }

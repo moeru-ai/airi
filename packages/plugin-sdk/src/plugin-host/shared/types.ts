@@ -3,10 +3,13 @@ import type {
   ModulePermissionDeclaration as ProtocolModulePermissionDeclaration,
   ModulePermissionGrant as ProtocolModulePermissionGrant,
 } from '@proj-airi/plugin-protocol/types'
+import type { AsyncContext, Container } from 'injeca'
 import type { GenericSchema } from 'valibot'
 
+import type { KitRef } from '../../kit'
 import type { ExposePolicy } from '../../kit/exposure-policy'
-import type { HostSourceLease } from './host-sources'
+import type { KitDependencyStore, KitGrantPolicy, KitGrantStore } from '../kits/access'
+import type { PluginRunner } from '../runners/types'
 import type { KitDescriptor, KitDescriptorSnapshot } from './kits'
 
 import semver from 'semver'
@@ -229,8 +232,8 @@ export interface ExtensionProvidedKitDeclaration {
 /**
  * Declares one Kit that an Extension consumes.
  *
- * Required declarations participate in activation planning. Optional declarations
- * let an Extension start before a Provider is available.
+ * A required declaration keeps the session `pending` until a provider is available. An optional
+ * declaration lets an Extension start before a Provider is available.
  */
 export interface ExtensionUsedKitDeclaration {
   /** Stable Kit contract identifier. */
@@ -248,10 +251,27 @@ export interface ExtensionKitManifest {
 }
 
 /**
+ * Declares the Kits that a plugin can start to use at run time.
+ *
+ * Without it, a plugin can use only the Kits in `kits.uses` and the Kits that its API permissions allow.
+ */
+export interface ExtensionKitPermissionDeclaration {
+  dynamic?: {
+    /** Kit id patterns that the plugin can ask for. `*` matches any characters. Without it, any Kit id. */
+    allow?: string[]
+  }
+}
+
+/** The permissions of a Manifest: the protocol permissions and the Kit permissions. */
+export type ExtensionPermissionDeclaration = ProtocolModulePermissionDeclaration & {
+  kits?: ExtensionKitPermissionDeclaration
+}
+
+/**
  * Describes a version-2 Extension manifest consumed by `ExtensionHost`.
  *
  * The manifest is the package contract for discovery, import, compatibility,
- * permissions, and activation planning. Runtime registration happens later.
+ * permissions, and Kit dependencies. Runtime registration happens later.
  */
 export interface ExtensionManifestV2 {
   /** Manifest schema version expected by the current Host. */
@@ -279,8 +299,8 @@ export interface ExtensionManifestV2 {
     web?: string
   }
   /** Package and session permission ceiling that Module permissions cannot exceed. */
-  permissions: ModulePermissionDeclaration
-  /** Kit contracts used to build the static activation plan. */
+  permissions: ExtensionPermissionDeclaration
+  /** Kit contracts that the plugin provides and uses. `uses` becomes the static dependencies of the session. */
   kits?: ExtensionKitManifest
 }
 
@@ -350,6 +370,11 @@ const permissionDeclarationSchema = strictObject({
     ...permissionSpecFields,
     actions: pipe(array(picklist(['read', 'write', 'subscribe'])), minLength(1)),
   }))),
+  kits: optional(strictObject({
+    dynamic: optional(strictObject({
+      allow: optional(array(pipe(string(), trim(), minLength(1)))),
+    })),
+  })),
 })
 
 const manifestEntrypointSchema = pipe(string(), trim(), minLength(1))
@@ -452,10 +477,10 @@ export const extensionManifestV2Schema = pipe(
  * Installs one generic host feature into `ExtensionHost`.
  *
  * Use when:
- * - The host should register kits, resources, capabilities, or runtime-specific behavior
+ * - The host should register kits, capabilities, or runtime-specific behavior
  *
  * Expects:
- * - The installation owner stores registration leases and does not register a current source twice
+ * - The installation owner stores the Kit registrations and does not register one Kit twice
  * - Contributions keep domain-specific behavior out of the low-level host core
  *
  * Returns:
@@ -482,8 +507,27 @@ export interface ExtensionHostInstallContext {
   announceCapability: (key: string, metadata?: Record<string, unknown>) => void
   markCapabilityDegraded: (key: string, metadata?: Record<string, unknown>) => void
   markCapabilityReady: (key: string, metadata?: Record<string, unknown>) => void
-  registerKit: (kit: KitDescriptor) => HostSourceLease<KitDescriptorSnapshot>
+  provideKit: (source: HostKitSource) => KitRegistration
   withdrawCapability: (key: string, metadata?: Record<string, unknown>) => void
+}
+
+/** The input of `ExtensionHost.provideKit()`. A Host Kit has a descriptor, an API, or both. */
+export interface HostKitSource<TClient = unknown> {
+  /** Capability metadata for inspection and bindings. */
+  descriptor?: KitDescriptor
+  /** The client factory that consumers use. */
+  api?: KitRef<TClient>
+}
+
+/** One accepted Host Kit registration. Withdraw it to remove the Kit. */
+export interface KitRegistration {
+  readonly kitId: string
+  readonly version: string
+  readonly descriptor?: KitDescriptorSnapshot
+  /** Withdraws this registration. Consumers stop or move first. A stale registration resolves `false`. */
+  readonly withdraw: () => Promise<boolean>
+  /** Replaces the API of this registration without a gap. Running clients move to the new API. */
+  readonly replace: (source: HostKitSource) => Promise<boolean>
 }
 
 /**
@@ -511,11 +555,32 @@ export interface ExtensionHostOptions {
     requested: ModulePermissionDeclaration
   }) => ModulePermissionGrant | Promise<ModulePermissionGrant>
   /**
-   * Host execution runtime and default Extension target. Only Node/Electron Hosts enable asynchronous cleanup self-wait detection.
-   * Per-start overrides change the Extension target, not the Host's cleanup context.
+   * Host execution runtime and default Extension target. Per-start overrides change the Extension target.
    * @default 'electron'
    */
   runtime?: PluginRuntime
+  /** The parent container of the plugin host container, for example the main container of the app. */
+  container?: Container
+  /**
+   * The async context of a root plugin host container. The Node entry passes `AsyncLocalStorage`.
+   * With it, a cleanup that awaits the stop of its own session rejects with `reentrant-dispose` at once.
+   * A host with `container` uses the async context of that root.
+   */
+  asyncContext?: AsyncContext
+  /** The time limits of setup and cleanup. @default { start: 30_000, stop: 10_000 } */
+  timeouts?: { start?: number, stop?: number }
+  /** Runs plugin code. @default the direct runner, which runs the plugin in the Host thread */
+  runner?: PluginRunner
+  /** The provider order of each Kit id, by provider id, for example `{ 'airi.memory-backend': ['bmb', 'host'] }`. */
+  kitProviderOrder?: Readonly<Record<string, readonly string[]>>
+  /** Decides the dynamic Kit grants. @default deny */
+  kitGrantPolicy?: KitGrantPolicy
+  /** Stores the dynamic Kit grants. @default in memory */
+  kitGrantStore?: KitGrantStore
+  /** Stores the Kit dependencies that plugins found at run time. @default in memory */
+  kitDependencyStore?: KitDependencyStore
+  /** The number of rebuilds in a row that add dependencies before the session fails. @default 5 */
+  rebuildLimit?: number
 }
 
 /**
@@ -573,4 +638,6 @@ export interface ExtensionStartOptions {
   cwd?: string
   /** Runtime override used for this specific start operation. */
   runtime?: PluginRuntime
+  /** Runner override used for this specific start operation. */
+  runner?: PluginRunner
 }

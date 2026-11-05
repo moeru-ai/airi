@@ -4460,6 +4460,9 @@ importers:
       '@proj-airi/plugin-protocol':
         specifier: workspace:*
         version: link:../plugin-protocol
+      injeca:
+        specifier: file:../../../../../injeca/.worktrees/exports/packages/injeca
+        version: file:../../../injeca/.worktrees/exports/packages/injeca(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
       nanoid:
         specifier: 'catalog:'
         version: 6.0.1

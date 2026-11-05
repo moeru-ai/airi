@@ -61,23 +61,68 @@ export default defineExtension({
 })
 ```
 
-The Host reserves every declared Kit before setup starts. It publishes all registrations only after setup succeeds. If setup fails or omits a declared Kit, the Host rolls back the registrations. Stop and reload withdraw the exact Provider session. A stale handle cannot withdraw a later generation.
+The Host declares every provided Kit in an injeca transaction before setup starts. It publishes all of them only after setup succeeds. If setup fails, omits a declared Kit, or withdraws one before the commit, the Host aborts the transaction. A stale handle cannot withdraw the Kit of a newer session.
 
-Stop also releases reservations while setup is pending. It does not wait for suspended Extension code. A stopped setup rejects when it settles and cannot publish Providers or register modules.
+Stop disposes the session container. It aborts a setup that is in progress and does not wait for it. A stopped setup cannot provide Kits or register modules, and `start` rejects with `stopped before setup completed`.
 
-Cleanup attempts every module and root subscription even when a disposer fails. Each subscription group runs sequentially in reverse registration order, without automatic retries.
+Stop withdraws the provided Kits first, so consumers stop or move before the cleanup callbacks run. Cleanup attempts every module and root subscription even when a disposer fails. One failure keeps its identity. More failures use `AggregateError`. Concurrent stops share one result.
 
-The Host removes the session after these attempts. One failure retains its original identity. Multiple failures use `AggregateError`, with nested groups preserved.
+The Node entry of `@proj-airi/plugin-sdk/plugin-host` injects `AsyncLocalStorage` as the injeca async context. A cleanup that stops or reloads its own session then rejects with `reentrant-dispose`, also after `await`. A Web Host has no async context, so a configured stop timeout ends such a cleanup.
 
-Node/Electron Hosts reject stop or reload from the target session's active cleanup chain, including calls after `await`.
-Nested cleanup cannot wait for an active ancestor session. External concurrent callers still await the complete cleanup result.
-The Host loads Node asynchronous context only when its configured runtime is `node` or `electron`. Web Hosts do not provide this detection.
-
-Only root setup can provide a Kit. Module scopes can consume Host-provided Kits, but they cannot provide an Extension-hosted Kit. Phase 3 stores Provider handlers without invoking them. Consumer Clients, method calls, events, permissions, and transport belong to Phase 4.
+Only root setup can provide a Kit. Module scopes can consume Kits, but they cannot provide one.
 
 Load the [registration example](../../apps/stage-tamagotchi/src/main/services/airi/plugins/examples/hosted-kit-provider/README.md) through the Extension Host Inspector.
 
 The manifest owns the Extension version for the Host session. `defineExtension(...)` must use the same Extension id.
+
+## Plugin Host on injeca
+
+The Host is one injeca container. See [the ADR](../../docs/ai/adr/2026-11-06-plugin-host-on-injeca.md).
+
+```text
+plugin-host container
+├─ kit:<id>@host          a Host Kit, perConsumer: one client for each consumer scope
+├─ kit:<id>               the selection of a Kit: firstAvailable over its providers, perConsumer
+├─ capability:<key>       a Host capability
+└─ plugin container       one for each session, owner { kind: 'plugin', pluginId, sessionId }
+   ├─ package, compat     Manifest and engine checks
+   ├─ runtime             the plugin runtime from the runner (direct or worker)
+   ├─ session             setup. It depends on runtime and on each used Kit.
+   ├─ module:<id>         a dynamic module from ctx.modules.upsert()
+   └─ kit:<id>@<plugin>   an exported proxy for each provided Kit
+```
+
+- A Kit has a provider key for each provider, so two providers of one Kit do not conflict. `kitProviderOrder` sets the order of the selection. The Host Kit comes first by default.
+- A consumer that is installed before its provider waits in `pending`. `session.explanation` tells why, for example `No provider of Kit airi.fs-store is installed.` It starts when the provider commits.
+- `reload(id)` stops the old session, then starts a new one. `reload(id, { atomic: true })` starts the new session first, so the consumers of its Kits move without a gap.
+
+### Typed Kit references
+
+A plugin passes the contract or the Kit reference itself. The type follows the reference. A plugin never sees injeca keys or containers.
+
+```ts
+export default defineExtension({
+  id: 'plugin-a',
+  async setup(ctx) {
+    const fsStore = ctx.kits.get(fsStoreKit) // a dependency from `kits.uses`
+    const memory = ctx.kits.get(optional(autoMemoryKit)) // `undefined` when no provider runs
+    const later = await ctx.kits.use(otherKit) // not a dependency: the round ends, and the session rebuilds with it
+    ctx.kits.find({ id: 'airi.memory-backend' }) // the providers that the plugin can see
+    ctx.extensions.find('plugin-b')
+    ctx.effect(() => startWatcher()) // cleaned when the round ends
+    await ctx.modules.upsert('notes', { kits: [fsStoreKit], setup: m => startNotes(m.kits.get(fsStoreKit)) })
+  },
+})
+```
+
+- `has`, `get`, and `find` are synchronous. The Host resolves the dependencies before setup starts.
+- `ctx.self.rebuild({ uses })` replaces the dynamic dependencies. During setup, the current round ends. After setup, the old round serves until the new one runs. After 5 rebuilds in a row that add Kits, the session fails.
+- Setup must be safe to run again. Register side effects with `ctx.effect()` or `ctx.subscriptions`.
+- A Kit that is not in `kits.uses` needs an API grant, or `permissions.kits.dynamic` with an optional `allow` list. The Host asks `kitGrantPolicy` once and stores the answer. The check runs when the per-consumer client builds.
+
+### Runners
+
+`createDirectRunner()` runs plugin code in the Host thread. It is the default.
 
 ## Kit API Naming
 
