@@ -1,6 +1,5 @@
 import type { ResolvedArtistryConfig } from '@proj-airi/stage-ui/stores/modules/artistry'
 import type { Tool } from '@xsai/shared-chat'
-import type { JsonSchema } from 'xsschema'
 
 import { defineInvoke } from '@moeru/eventa'
 import { getHostEventaContext } from '@proj-airi/stage-host-context'
@@ -11,6 +10,7 @@ import { resolveArtistryConfigFromStore, useArtistryStore } from '@proj-airi/sta
 import { rawTool } from '@xsai/tool'
 
 import { widgetsAdd } from '../../../shared/eventa'
+import { imageJournalToolDefinition } from './image-journal-definition'
 
 export function getArtistryConfig(): ResolvedArtistryConfig {
   return resolveArtistryConfigFromStore(useArtistryStore())
@@ -32,42 +32,6 @@ function getInvokers(): Invokers {
     invokeCache = createInvokers()
   return invokeCache
 }
-
-const imageJournalParams = {
-  type: 'object',
-  properties: {
-    action: {
-      type: 'string',
-      enum: ['create', 'apply'],
-      description: 'Choose "create" to generate a new image, or "apply" to use an existing one.',
-    },
-    prompt: {
-      type: ['string', 'null'],
-      description: 'Description for the image (required for "create").',
-    },
-    title: {
-      type: ['string', 'null'],
-      description: 'Label for the entry (optional).',
-    },
-    query: {
-      type: ['string', 'null'],
-      description: 'Search term for existing images (required for "apply").',
-    },
-    mode: {
-      type: ['string', 'null'],
-      enum: ['inline', 'widget', 'bg', 'bg_widget', null],
-      description: 'Display mode: "inline" (in chat), "widget" (overlay), "bg" (environment), or "bg_widget" (both). Defaults to character preference.',
-    },
-  },
-  required: [
-    'action',
-    'prompt',
-    'title',
-    'query',
-    'mode',
-  ],
-  additionalProperties: false,
-} satisfies JsonSchema
 
 async function executeCreateImageJournalEntry(params: { prompt?: string, title?: string, mode?: 'inline' | 'widget' | 'bg' | 'bg_widget' }) {
   if (!params.prompt?.trim())
@@ -227,10 +191,8 @@ async function executeImageJournalAction(params: any) {
 
 const tools: Promise<Tool>[] = [
   Promise.resolve(rawTool({
-    name: 'image_journal',
-    description: 'Manage AI-generated images. Use "create" to generate and display images. An optional "mode" (inline, widget, bg, bg_widget) can override the default character routing preference. Use "apply" to switch to an existing image from the journal.',
+    ...imageJournalToolDefinition,
     execute: params => executeImageJournalAction(params),
-    parameters: imageJournalParams,
   })),
 ]
 
