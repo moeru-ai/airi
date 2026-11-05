@@ -195,9 +195,9 @@ export class MarkdownSegmenter {
       // The character that ends a sentence. Closing emphasis keeps the end before it, as in `**Done.** Next`.
       let terminal = char
       if (char === '[') {
-        // An emoticon, as `:[`, `>:[`, or `:-[`, does not open a link label.
-        const before = text.slice(Math.max(0, index - 2), index)
-        const isEmoticon = /[:;]$|>:$|:-$|;-$|>=$/.test(before)
+        // An emoticon, as `:[`, `>:[`, or `:-[`, does not open a link label when preceded by whitespace or punctuation.
+        const before = text.slice(Math.max(0, index - 3), index)
+        const isEmoticon = /(?:^|[^\w])(?:[:;]|:-|;-|>:)$/.test(before)
         if (!isEmoticon) {
           if (state.brackets === 0) {
             state.bracketStart = index
@@ -234,7 +234,11 @@ export class MarkdownSegmenter {
         index += run - 1
       }
 
-      // An unclosed bracket expires after 200 characters without a closing bracket.
+      // NOTICE:
+      // Heuristic expiration of unmatched opening brackets to prevent speech buffering stalls.
+      // An unmatched bracket keeps state.brackets > 0, postponing TTS until stream completion.
+      // Context: moeru-ai/airi#3391 and PR #3395 review by balabommablock-cpu.
+      // Removal condition: Safe to delete when segmenter adopts AST-based lookahead parsing.
       if (state.brackets > 0 && state.bracketStart !== undefined && index - state.bracketStart > 200) {
         state.brackets = 0
         state.bracketStart = undefined
@@ -249,7 +253,11 @@ export class MarkdownSegmenter {
       else if (latinSentenceEnds.has(terminal) && (text[index + 1] === ' ' || text[index + 1] === '\t') && !/^\s*\d+$/.test(text.slice(text.lastIndexOf('\n', index) + 1, index)))
         end = index + 1
 
-      // An open bracket expires after two sentence ends.
+      // NOTICE:
+      // Heuristic expiration after two completed sentences within an unclosed bracket.
+      // Prevents unclosed brackets from delaying multi-sentence companion replies.
+      // Context: moeru-ai/airi#3391 and PR #3395 review by balabommablock-cpu.
+      // Removal condition: Safe to delete when segmenter adopts AST-based lookahead parsing.
       if (end !== undefined && state.brackets > 0) {
         state.bracketSentences = (state.bracketSentences ?? 0) + 1
         if (state.bracketSentences >= 2) {

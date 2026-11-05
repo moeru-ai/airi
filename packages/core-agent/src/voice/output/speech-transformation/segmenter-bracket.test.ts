@@ -148,4 +148,13 @@ describe('markdownSegmenter bracket handling', () => {
       'Really.',
     ])
   })
+
+  it('preserves valid markdown links whose opening bracket follows a colon without whitespace', () => {
+    const text = 'See:[a. b](https://example.com). More text follows.'
+    const segments = segmentsOf(text)
+    expect(segments).toEqual([
+      'See:[a. b](https://example.com). ',
+      'More text follows.',
+    ])
+  })
 })
