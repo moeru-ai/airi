@@ -102,4 +102,20 @@ describe('disposable store', () => {
     expect(first).toHaveBeenCalledWith({ signal })
     expect(late).toHaveBeenCalledWith({ signal })
   })
+
+  it('drops an asynchronous failure of an entry added after the disposal', async () => {
+    const store = new DisposableStore()
+    await store.dispose()
+    let calls = 0
+    // A plain function, because `vi.fn` keeps the returned promise and handles its rejection.
+    const late = async () => {
+      calls += 1
+      throw new Error('late cleanup failed')
+    }
+
+    store.add({ dispose: late })
+    // Vitest fails the run on an unhandled rejection, so the next macrotask shows that the failure has a handler.
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(calls).toBe(1)
+  })
 })

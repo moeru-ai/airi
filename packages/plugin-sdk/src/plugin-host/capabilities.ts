@@ -43,7 +43,8 @@ export class CapabilityRegistry {
 
     if (state === 'withdrawn') {
       if (current) {
-        void current.registration?.withdraw()
+        // Nothing waits for the withdrawal. A teardown error of a dependent stays in the observe stream and in the phase of that dependent.
+        void current.registration?.withdraw().catch(() => undefined)
         this.records.set(key, { descriptor })
       }
       else {

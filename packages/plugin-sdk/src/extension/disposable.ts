@@ -23,7 +23,7 @@ export interface Disposable {
  * Repeated disposal is a no-op, including while disposal is pending.
  * Each entry gets the `options` of the disposal, so a Host cleanup gives its stop signal to each entry.
  *
- * Entries added after disposal starts run immediately with the same `options`. Their disposal is not joined to the pending operation.
+ * Entries added after disposal starts run immediately with the same `options`. Their disposal is not joined to the pending operation, and an asynchronous failure of such an entry is dropped.
  */
 export class DisposableStore implements Disposable {
   private readonly disposables: Disposable[] = []
@@ -31,7 +31,8 @@ export class DisposableStore implements Disposable {
 
   add(disposable: Disposable) {
     if (this.disposed) {
-      void disposable.dispose(this.disposed)
+      // Nothing waits for a late entry, so its failure has no caller. Without the handler, it is an unhandled rejection, which ends a plugin worker.
+      void Promise.resolve(disposable.dispose(this.disposed)).catch(() => undefined)
       return disposable
     }
 
