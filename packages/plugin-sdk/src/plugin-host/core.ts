@@ -124,6 +124,10 @@ export interface PluginHostEventRecord {
   readonly to?: string
   readonly decision?: string
   readonly hook?: string
+  /** The `stop()` or `dispose()` call of a `wait-aborted` or `reentrant-call` record. */
+  readonly call?: 'stop' | 'dispose'
+  /** The phase of the service when the wait of a `wait-aborted` record ended. */
+  readonly phase?: string
   readonly reason?: string
   readonly error?: string
   readonly at: number
@@ -215,6 +219,10 @@ function plainEvent(record: ObserveRecord): PluginHostEventRecord {
       return { ...base, hook: record.hook }
     case 'error':
       return { ...base, error: errorMessageFrom(record.error) ?? 'unknown error' }
+    case 'wait-aborted':
+      return { ...base, call: record.call, phase: record.phase, error: errorMessageFrom(record.abortReason) ?? 'unknown reason' }
+    case 'reentrant-call':
+      return { ...base, call: record.call }
     default:
       return base
   }

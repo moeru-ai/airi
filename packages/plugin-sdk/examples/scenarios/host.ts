@@ -249,6 +249,10 @@ export function formatRecord(record: ObserveRecord): string | undefined {
       return `${where} ${record.hook}: ${record.decision}${record.ignored ? ' (ignored)' : ''}`
     case 'timeout':
       return `${where} ${record.hook} timed out after ${record.timeoutMs}ms`
+    case 'wait-aborted':
+      return `${where} ${record.call}() stopped waiting in ${record.phase}${record.reason ? ` — ${record.reason}` : ''}`
+    case 'reentrant-call':
+      return `${where} cleanup called ${record.call}() of its own container — resolved at once, the ${record.call === 'dispose' ? 'disposal' : 'stop'} continues`
     default:
       return undefined
   }
