@@ -157,11 +157,11 @@ Rules for a rebuild:
 
 - A plugin whose required Kit is missing installs and waits in `pending`. Today the Planner rejects it. The plugin page shows the explanation.
 - An unload does not wait for a setup that does not settle. injeca 0.3.1 stops at once after it aborts the start hook.
-- A cleanup that waits for its own plugin after an `await` ends with the stop timeout. Today plugin-sdk detects it with `AsyncLocalStorage`.
+- A cleanup that stops its own plugin passes its signal. injeca then warns and resolves the call at once, and the stop continues. A call after an `await` without a signal ends with the stop timeout.
 
 ## Implementation
 
-The branch `neko/refactor/plugin-sdk-injeca` builds this design on the local injeca build with exported registrations. These details differ from the proposal or add to it.
+The branch `neko/refactor/plugin-sdk-injeca` builds this design on the local injeca 0.4 build, with exported registrations and AbortSignal cancellation. These details differ from the proposal or add to it.
 
 ### Graph
 
@@ -202,7 +202,9 @@ The branch `neko/refactor/plugin-sdk-injeca` builds this design on the local inj
 - A plugin whose required Kit is missing installs and waits in `pending`. The Electron host no longer rejects the enablement or the unload of a provider.
 - Two providers of one Kit do not conflict. A Host Kit id in `provides` is a second provider.
 - An unload does not wait for a setup that does not settle. `start` rejects with `stopped before setup completed`.
-- A cleanup that stops its own session rejects with `reentrant-dispose` on Node. A Web Host ends it with the stop timeout.
+- A cleanup that stops its own session passes its signal. `ctx.self.stop()` passes the signal of the cleanup of its round, and Host code calls `host.stop(id, { signal })`. injeca then warns, sends a `reentrant-call` record, and resolves the call at once. The stop continues.
+- A cleanup that calls `host.stop(id)` or `host.reload(id)` without a signal after an `await` waits for itself. The stop timeout ends that cleanup, and each caller gets the timeout error. No Host has an async context.
+- Each wait on injeca passes a signal from `timeout(container, ms)`. The plugin API keeps `timeoutMs` as a number.
 - `ctx.kits.use()` of a Kit that is not a dependency rebuilds the session, so setup runs again.
 
 ### injeca gaps found
@@ -215,7 +217,7 @@ The build found five gaps in injeca. injeca fixed all of them before release, so
 - An optional or fallback edge demands the consumer service of a `perConsumer` key that registers later.
 - `explain()` has `replacement` for a pending `replace()`.
 
-An upsert timeout still explains the Kit selections of the module, not `replacement`. The upsert resolves the Kits before `replace()`, because a pending `replace()` cannot be cancelled without a successor, and the old module must stay after a timeout.
+An upsert timeout still explains the Kit selections of the module, not `replacement`. The upsert resolves the Kits before `replace()`, so the old module stays after a timeout. `replace()` gets the abort signal of the upsert, so a newer upsert cancels a pending replacement.
 
 ## Consequences
 
@@ -241,7 +243,7 @@ An upsert timeout still explains the Kit selections of the module, not `replacem
 
 ## Follow-up
 
-- Release injeca 0.3.1 with exported registrations and the gap fixes, and drop the local `file:` override.
+- Release injeca 0.4.0 with exported registrations, the gap fixes, and AbortSignal cancellation. Then drop the local `file:` override, and bump the catalog.
 - Design and implement `@injeca/bridge`, and move the first bridge out of plugin-sdk.
 - Move plugin-sdk in small pull requests: remove the unused registries, put the host on a container, make Kit selections `perConsumer`, run sessions in child containers, publish plugin Kits through transactions, replace the Planner, and add the graph view to the inspector.
 - Explain the removal of the Activation Planner in issue #2507.

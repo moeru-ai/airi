@@ -102,7 +102,7 @@ A conformance test suite checks that each SDK follows the injeca rules for phase
 
 ## Implementation status
 
-- plugin-sdk runs on injeca. See [Run the plugin host on injeca](./2026-11-06-plugin-host-on-injeca.md).
+- plugin-sdk runs on injeca 0.4, with AbortSignal cancellation and no async context. See [Run the plugin host on injeca](./2026-11-06-plugin-host-on-injeca.md).
 - A first bridge for JavaScript plugins in `worker_threads` is in plugin-sdk. It has no handshake, heartbeat, or reconnect yet. It moves to the injeca bridge package.
 
 ## Follow-up
