@@ -155,6 +155,29 @@ describe('voiceController output', () => {
     await controller.close()
   })
 
+  it('speaks no emoticon, and sends its emotion before its sentence unless the model selected one', async () => {
+    const requested: string[] = []
+    const specials: string[] = []
+    const playback = new Playback({ nowMs: () => 0, play: () => ({ done: Promise.resolve({ throughMs: 1 }), stop: async () => ({ throughMs: 0 }) }) })
+    const controller = new VoiceController({ speech: () => ({ playback, onSpecial: special => specials.push(special), synthesize: async (request) => {
+      requested.push(request.text)
+      return new Blob([request.text])
+    } }) })
+    const response = controller.openResponse({ sessionId: 'alice', turnId: 'emoticon' })
+    const speech = response.openSpeech({ purpose: 'answer' })
+    // The model streams tokens, so a face can arrive in two writes.
+    speech.write('Aww :(')
+    speech.write('(( that sounds rough. ')
+    speech.special('<|ACT {"emotion":"happy"}|>')
+    speech.write('Good news（（（ though.')
+    speech.end()
+
+    expect(await response.finish()).toBe('finished')
+    expect(requested).toEqual(['Aww that sounds rough.', 'Good news though.'])
+    expect(specials).toEqual(['<|ACT {"emotion":{"name":"sad","intensity":1}}|>', '<|ACT {"emotion":"happy"}|>'])
+    await controller.close()
+  })
+
   it('reads a formula that two writes split as one formula in the voice language', async () => {
     const requested: string[] = []
     const playback = new Playback({ nowMs: () => 0, play: () => ({ done: Promise.resolve({ throughMs: 1 }), stop: async () => ({ throughMs: 0 }) }) })
