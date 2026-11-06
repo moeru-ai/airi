@@ -1,0 +1,29 @@
+{
+  "name": "@proj-airi/font-kirakara-maru",
+  "type": "module",
+  "version": "0.15.1",
+  "description": "Essential CSS for font, KirakaraMaru (a.k.a. 耀圆体), used by Project AIRI",
+  "author": {
+    "name": "feiyangjun-1",
+    "url": "https://github.com/feiyangjun-1"
+  },
+  "license": "SIL Open Font License",
+  "homepage": "https://github.com/feiyangjun-1/KirakaraMaru",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/font-kirakara-maru"
+  },
+  "exports": {
+    ".": { "default": "./dist/index.css" },
+    "./index.css": { "default": "./dist/index.css" },
+    "./files/*": { "default": "./dist/files/*" },
+    "./files/*.ttf": { "default": "./dist/files/*.ttf" },
+    "./*": { "default": "./*.css" }
+  },
+  "main": "./dist/index.css",
+  "scripts": {
+    "dev": "pnpm run build",
+    "build": "tsdown"
+  }
+}

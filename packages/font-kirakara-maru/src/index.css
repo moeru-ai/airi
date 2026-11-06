@@ -1,0 +1,17 @@
+/* KirakaraMaru Regular */
+@font-face {
+  font-family: 'KirakaraMaru';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(./files/KirakaraMaru-Regular.ttf) format('truetype');
+}
+
+/* KirakaraMaru Bold */
+@font-face {
+  font-family: 'KirakaraMaru';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(./files/KirakaraMaru-Bold.ttf) format('truetype');
+}
