@@ -559,7 +559,11 @@ export interface ExtensionHostOptions {
    * @default 'electron'
    */
   runtime?: PluginRuntime
-  /** The parent container of the plugin host container, for example the main container of the app. */
+  /**
+   * The parent container of the plugin host container, for example the main container of the app.
+   * The Host container and the plugin containers use its logger and its `logging` value.
+   * Without it, injeca warnings go to `console`, and the lifecycle logs are off.
+   */
   container?: Container
   /** The time limits of setup and cleanup. @default { start: 30_000, stop: 10_000 } */
   timeouts?: { start?: number, stop?: number }

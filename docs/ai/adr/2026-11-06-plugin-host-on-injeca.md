@@ -205,7 +205,7 @@ The branch `neko/refactor/plugin-sdk-injeca` builds this design on the local inj
 - An unload does not wait for a setup that does not settle. `start` rejects with `stopped before setup completed`.
 - Each plugin cleanup gets `{ signal }`. A cleanup that stops its own session passes it: `ctx.self.stop({ signal })` in plugin code, `host.stop(id, { signal })` in Host code. injeca then warns, sends a `reentrant-call` record, and resolves the call at once. The stop continues. The Kit withdraws of a stop get the same signal.
 - A cleanup that calls `ctx.self.stop()`, `host.stop(id)`, or `host.reload(id)` without its signal after an `await` waits for itself. The stop timeout ends that wait with a warning and a `timeout` record, and each caller resolves. No Host has an async context, and no Host finds the caller by its round.
-- The Host container keeps the injeca warnings and turns off the other injeca logs.
+- The Host container uses the logger and the `logging` value of its parent container. injeca warnings always go out. The lifecycle logs are off by default.
 - Each wait on injeca passes a signal from `timeout(container, ms)`. The plugin API keeps `timeoutMs` as a number.
 - `ctx.kits.use()` of a Kit that is not a dependency rebuilds the session, so setup runs again.
 
@@ -219,10 +219,7 @@ The build found these gaps in injeca. injeca fixed them before release, so plugi
 - An optional or fallback edge demands the consumer service of a `perConsumer` key that registers later.
 - `explain()` has `replacement` for a pending `replace()`.
 - A re-entrant `dispose()` or `stop()` from the cleanup of a service that holds a service of the container resolves at once. So a Host service that uses a plugin Kit can stop that plugin from its cleanup.
-
-This gap is open:
-
-- `enabled: false` turns off all logs, also `warn`. The Host uses a no-op logger with a real `warn`, with a `NOTICE`.
+- `logging` turns the lifecycle logs on and off. `warn` always writes, so the Host needs no logger of its own.
 
 An upsert timeout still explains the Kit selections of the module, not `replacement`. The upsert resolves the Kits before `replace()`, so the old module stays after a timeout. `replace()` gets the abort signal of the upsert, so a newer upsert cancels a pending replacement.
 

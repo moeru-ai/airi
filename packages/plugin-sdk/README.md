@@ -80,7 +80,9 @@ ctx.subscriptions.add({
 
 A cleanup that stops its own session passes its signal. Plugin code calls `ctx.self.stop({ signal })`. Host code in an injeca cleanup calls `host.stop(id, { signal })`. injeca then warns, sends a `reentrant-call` record, and resolves the call at once. The stop continues. The Kit withdraw of the stop also gets the signal.
 
-A call after an `await` without the signal waits for its own cleanup. The configured stop timeout ends that wait. injeca then writes a warning and sends a `timeout` record, and each caller resolves. The cleanup goes on in the background. The Host keeps the injeca warnings, and turns off the other injeca logs.
+A call after an `await` without the signal waits for its own cleanup. The configured stop timeout ends that wait. injeca then writes a warning and sends a `timeout` record, and each caller resolves. The cleanup goes on in the background.
+
+The Host container uses the logger of its parent container. injeca always writes its warnings there. It writes the lifecycle logs only when the parent container has `logging: true`.
 
 Only root setup can provide a Kit. Module scopes can consume Kits, but they cannot provide one.
 
