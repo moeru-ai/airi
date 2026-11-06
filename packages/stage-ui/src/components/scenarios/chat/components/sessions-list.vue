@@ -166,7 +166,7 @@ function deleteDesktopSession(sessionId: string) {
         :disabled="selecting && selectedRows.length === 0"
         :loading="!selecting && isCreatingSession"
         :class="[
-          'session-primary-action h-9 min-w-0 flex-1 rounded-lg px-2 text-sm outline-none',
+          'session-primary-action session-primary-action--start h-9 min-w-0 flex-1 rounded-lg px-2 text-sm outline-none',
           selecting
             ? ['text-red-500 hover:bg-red-500/10 dark:text-red-400', confirmingBatchDelete ? 'bg-red-500/10' : '']
             : 'text-primary-600 hover:bg-primary-50 dark:text-primary-300 dark:hover:bg-primary-950/70',
@@ -175,7 +175,7 @@ function deleteDesktopSession(sessionId: string) {
         @click="runPrimaryAction"
       >
         <Transition name="session-action-swap" mode="out-in">
-          <span :key="primaryAction.key" :class="['min-w-0 inline-flex items-center gap-2']">
+          <span :key="primaryAction.key" :class="['min-w-0 max-w-full inline-flex items-center gap-2']">
             <span aria-hidden="true" :class="[primaryAction.icon, 'size-4.5 shrink-0']" />
             <span :class="['truncate']">{{ primaryAction.label }}</span>
           </span>
@@ -189,11 +189,11 @@ function deleteDesktopSession(sessionId: string) {
         size="unset"
         :disabled="selecting && selectedRows.length === 0"
         :loading="!selecting && isCreatingSession"
-        :class="['min-h-12 min-w-0 flex-1 rounded-2xl px-4 py-3']"
+        :class="['session-primary-action min-h-12 min-w-0 flex-1 rounded-2xl px-4 py-3']"
         @click="runPrimaryAction"
       >
         <Transition name="session-action-swap" mode="out-in">
-          <span :key="primaryAction.key" :class="['min-w-0 inline-flex items-center gap-2']">
+          <span :key="primaryAction.key" :class="['min-w-0 max-w-full inline-flex items-center gap-2']">
             <span aria-hidden="true" :class="[primaryAction.icon, 'size-5 shrink-0']" />
             <span :class="['truncate']">{{ primaryAction.label }}</span>
           </span>
@@ -554,6 +554,8 @@ function deleteDesktopSession(sessionId: string) {
 .session-primary-action :deep(.basic-button-content) {
   width: 100%;
   min-width: 0;
+}
+.session-primary-action--start :deep(.basic-button-content) {
   justify-content: flex-start;
 }
 

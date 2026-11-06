@@ -255,8 +255,8 @@ chat:
     select-all: Select all
     clear-selection: Clear selection
     done-selecting: Done
-    delete-selected: Delete {count} conversation | Delete {count} conversations
-    confirm-delete-selected: Confirm deleting {count} conversation | Confirm deleting {count} conversations
+    delete-selected: Delete {count}
+    confirm-delete-selected: Confirm delete {count}
 avatar-model-missing:
   title: No model selected
   unavailable-title: This model is not on this device
