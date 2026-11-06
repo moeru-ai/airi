@@ -1,0 +1,26 @@
+/* LXGW 975 Yuan SC Regular */
+@font-face {
+  font-family: 'LXGW 975 Yuan SC';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(./files/LXGW975YuanSC-400W.ttf) format('truetype');
+}
+
+/* LXGW 975 Yuan SC Medium */
+@font-face {
+  font-family: 'LXGW 975 Yuan SC';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(./files/LXGW975YuanSC-500W.ttf) format('truetype');
+}
+
+/* LXGW 975 Yuan SC Bold */
+@font-face {
+  font-family: 'LXGW 975 Yuan SC';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(./files/LXGW975YuanSC-700W.ttf) format('truetype');
+}

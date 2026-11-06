@@ -4318,6 +4318,8 @@ importers:
 
   packages/font-departure-mono: {}
 
+  packages/font-lxgw-975yuan: {}
+
   packages/font-xiaolai: {}
 
   packages/i18n:

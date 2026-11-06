@@ -197,6 +197,7 @@ words:
   - lowpass
   - lucide
   - luoling
+  - lxgw
   - lydell
   - Maekawa
   - magnifer
@@ -412,6 +413,7 @@ words:
   - xsschema
   - xwayland
   - yauzl
+  - yuan
   - zhipu
 ignoreWords:
   - smol-toml
