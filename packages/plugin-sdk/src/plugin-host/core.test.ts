@@ -652,8 +652,8 @@ describe('extension-hosted Kit registration lifecycle', () => {
   // ROOT CAUSE:
   //
   // Stop joined the cleanup promise that awaited its own disposer, including after await.
-  // A self-stop without a signal is not found after an `await`, so it waits for itself until the configured stop timeout.
-  // injeca then stops waiting for that cleanup with a warning, and every caller resolves. External callers share one outcome, and the later cleanup still runs.
+  // A self-stop without a signal after an `await` waits for itself until the stop timeout.
+  // Then injeca warns, and every caller resolves. The later cleanup still runs.
   it('resolves a self-stop without a signal after the stop timeout, with a warning, while external stops share the outcome (PR #2687)', async () => {
     const { host, time, warnings, records } = hostOnManualClock()
     const entered = Promise.withResolvers<void>()
@@ -704,8 +704,8 @@ describe('extension-hosted Kit registration lifecycle', () => {
   // ROOT CAUSE:
   //
   // Reload joined the same session cleanup from inside a module disposer and never reached fresh start.
-  // Without a signal, the reload waits for its own cleanup until the configured stop timeout. injeca then warns, and the stop and the reload resolve.
-  // The reload then starts a fresh session, because the old session is gone.
+  // Without a signal, the reload waits for its own cleanup until the stop timeout.
+  // Then injeca warns, the stop resolves, and the reload starts a fresh session.
   it('resolves a module self-reload without a signal after the stop timeout, with a warning (PR #2687)', async () => {
     const { host, time, warnings, records } = hostOnManualClock()
     const remaining = vi.fn()

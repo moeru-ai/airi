@@ -284,9 +284,9 @@ export class ExtensionHost {
     this.dependencyStore = options.kitDependencyStore ?? createMemoryKitDependencyStore()
     this.rebuildLimit = options.rebuildLimit ?? 5
     // NOTICE:
-    // The Host turns off the lifecycle logs of injeca, but keeps its warnings: stop timeouts, re-entrant calls, and late cleanup failures.
-    // `enabled: false` gives a no-op logger, so it also drops `warn`. The warnings go to the logger of the parent container, or to the default logger.
-    // Source: injeca `createContainer` in src/primitives/container.ts.
+    // The Host turns off the injeca lifecycle logs, but keeps the injeca warnings.
+    // `enabled: false` gives a no-op logger, so it also drops `warn`.
+    // Source: injeca src/primitives/container.ts, `createContainer`.
     // Remove when injeca can turn off the lifecycle logs without the warnings.
     const warnings = options.container?.logger ?? createDefaultLogger()
     this.container = createContainer({
