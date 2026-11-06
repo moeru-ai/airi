@@ -517,18 +517,30 @@ describe('beat sync plugins', () => {
     expect(controller.velocityY.value).toBeCloseTo(0, 1)
   })
 
-  it('keeps the owner of the frame when the pose starts in the middle of it', () => {
-    const { controller } = createBeatingController()
+  it.each([
+    { name: 'starts', before: false },
+    { name: 'ends', before: true },
+  ])('adds the current beat on the frame where a pose $name', ({ before }) => {
+    const { clock, controller } = createBeatingController()
     const context = createContext({ timeDelta: frameSeconds })
-    let poseActive = false
+    let poseActive = before
     const plugins = useMotionUpdatePluginsBeatSync(controller, () => poseActive)
 
+    // Half a second: the beat reaches the left side.
+    for (let frame = 0; frame < 30; frame += 1) {
+      clock.ms += frameSeconds * 1000
+      plugins.pre(context)
+      plugins.layer(context)
+    }
+
+    vi.mocked(context.model.addParameterValueById).mockClear()
+    clock.ms += frameSeconds * 1000
     plugins.pre(context)
-    // The manual-control plugin starts its spring between the two Beat Sync plugins.
-    poseActive = true
+    // The manual-control plugin starts or settles its spring between the two Beat Sync plugins.
+    poseActive = !before
     plugins.layer(context)
 
-    expect(context.model.addParameterValueById).not.toHaveBeenCalled()
+    expect(context.model.addParameterValueById).toHaveBeenCalledWith('ParamAngleY', expect.closeTo(-10, 0))
   })
 })
 

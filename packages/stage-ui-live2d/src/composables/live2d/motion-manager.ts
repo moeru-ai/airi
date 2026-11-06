@@ -228,9 +228,9 @@ function stepBeatSyncSpring(position: number, target: number, velocity: { value:
  *   MAGIC driver, it springs the beat offset from the base angles and adds it, because the pose writes absolute
  *   head angles and hides anything that the pre phase wrote.
  *
- * `pre` reads `isLayered` at the start of the frame, and `layer` reuses that answer. The manual-control plugin
- * can change the answer in the middle of the frame, and one decision keeps the beat from moving twice or not at all.
- * `pre` also springs the beat offset on every frame, so the layer continues the current beat when a pose starts.
+ * Only `pre` advances the springs, once per frame. It springs the beat offset on every frame, whoever owns the head.
+ * The manual-control plugin can start or end a pose between the two plugins. `layer` adds the offset when the pose
+ * wrote the head in this frame, or when `pre` left the head to a pose at the start of it.
  */
 export function useMotionUpdatePluginsBeatSync(beatSync: BeatSyncController, isLayered: () => boolean): { pre: MotionManagerPlugin, layer: MotionManagerPlugin } {
   let layered = false
@@ -265,7 +265,7 @@ export function useMotionUpdatePluginsBeatSync(beatSync: BeatSyncController, isL
   }
 
   const layer: MotionManagerPlugin = (ctx) => {
-    if (!layered)
+    if (!layered && !isLayered())
       return
 
     if (offset.y)
