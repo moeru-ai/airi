@@ -794,16 +794,6 @@
       "count": 9
     }
   },
-  "packages/ui/src/components/animations/transition-horizontal.vue": {
-    "ts/no-explicit-any": {
-      "count": 5
-    }
-  },
-  "packages/ui/src/utils/shim/local-storage.ts": {
-    "ts/no-explicit-any": {
-      "count": 1
-    }
-  },
   "services/computer-use-mcp/src/bin/e2e-airi-chat-observable.ts": {
     "ts/no-explicit-any": {
       "count": 11
