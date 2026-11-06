@@ -53,6 +53,7 @@ export interface McpManager {
   applyAndRestart: () => Promise<ElectronMcpApplyResult>
   /** Returns the complete active-server catalog. Any discovery failure rejects with server names and reasons. */
   listTools: () => Promise<ElectronMcpToolDescriptor[]>
+  /** Dispatches the exact tool name once. A failed reply does not prove the absence of effects. */
   callTool: (payload: ElectronMcpCallToolPayload) => Promise<ElectronMcpCallToolResult>
   stopAll: () => Promise<void>
   getRuntimeStatus: () => ElectronMcpRuntimeStatus
@@ -91,22 +92,6 @@ function parseQualifiedToolName(name: string) {
     serverName: name.slice(0, separatorIndex),
     toolName: name.slice(separatorIndex + toolNameSeparator.length),
   }
-}
-
-function resolveFallbackToolName(toolName: string): string | undefined {
-  const normalizedTransportPrefix = toolName
-    .replace(/^\.(?:stdio|stdo)::/, '')
-    .replace(/^(?:stdio|stdo)::/, '')
-  if (normalizedTransportPrefix !== toolName) {
-    return normalizedTransportPrefix
-  }
-
-  const lastSeparatorIndex = toolName.lastIndexOf(toolNameSeparator)
-  if (lastSeparatorIndex <= 0 || lastSeparatorIndex === toolName.length - toolNameSeparator.length) {
-    return undefined
-  }
-
-  return toolName.slice(lastSeparatorIndex + toolNameSeparator.length)
 }
 
 async function closeSession(session: McpServerSession) {
@@ -342,36 +327,13 @@ export function createMcpManager(): McpManager {
       throw new Error(`mcp server is not running: ${serverName}`)
     }
 
-    let result
-    try {
-      result = await session.client.callTool({
-        name: toolName,
-        arguments: payload.arguments ?? {},
-      }, undefined, {
-        timeout: mcpRequestTimeoutMsec,
-        maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
-      })
-    }
-    catch (error) {
-      const fallbackToolName = resolveFallbackToolName(toolName)
-      if (!fallbackToolName || fallbackToolName === toolName) {
-        throw error
-      }
-
-      log.withFields({
-        serverName,
-        requestedToolName: toolName,
-        fallbackToolName,
-      }).warn('retrying mcp tool call with normalized tool name')
-
-      result = await session.client.callTool({
-        name: fallbackToolName,
-        arguments: payload.arguments ?? {},
-      }, undefined, {
-        timeout: mcpRequestTimeoutMsec,
-        maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
-      })
-    }
+    const result = await session.client.callTool({
+      name: toolName,
+      arguments: payload.arguments ?? {},
+    }, undefined, {
+      timeout: mcpRequestTimeoutMsec,
+      maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
+    })
 
     const normalized: ElectronMcpCallToolResult = {}
     if ('content' in result && Array.isArray(result.content)) {

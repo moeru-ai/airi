@@ -1,3 +1,5 @@
+import type { Client } from '@modelcontextprotocol/sdk/client/index.js'
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import type { ElectronMainContextExtensions, ElectronMainEmitOptions } from '@moeru/eventa/adapters/electron/main'
 
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
@@ -21,6 +23,7 @@ const shellMock = vi.hoisted(() => ({
 }))
 
 const clientMocks = vi.hoisted(() => ({
+  callTool: vi.fn<Client['callTool']>(),
   close: vi.fn(),
   connect: vi.fn(),
   listTools: vi.fn(),
@@ -48,6 +51,7 @@ vi.mock('../../../libs/bootkit/lifecycle', () => ({
 
 vi.mock('@modelcontextprotocol/sdk/client/index.js', () => ({
   Client: class {
+    callTool = clientMocks.callTool
     close = clientMocks.close
     connect = clientMocks.connect
     listTools = clientMocks.listTools
@@ -98,6 +102,7 @@ describe('createMcpManager', () => {
     clientMocks.close.mockResolvedValue(undefined)
     clientMocks.connect.mockResolvedValue(undefined)
     clientMocks.listTools.mockResolvedValue({ tools: [] })
+    clientMocks.callTool.mockReset()
   })
 
   afterEach(async () => {
@@ -200,6 +205,81 @@ describe('createMcpManager', () => {
       { serverName: 'alpha', name: 'alpha::read', toolName: 'read', description: 'Read memory.', inputSchema: { type: 'object' } },
       { serverName: 'zeta', name: 'zeta::search', toolName: 'search', description: 'Search files.', inputSchema: { type: 'object' } },
     ])
+  })
+
+  it.each(['terminal_exec', 'stdio::terminal_exec', '.stdio::terminal_exec', 'scope::terminal_exec'])(
+    'calls the exact advertised tool name %s once',
+    async (toolName) => {
+      const manager = await startServers('terminal')
+      clientMocks.listTools.mockResolvedValue({ tools: [{ name: toolName, inputSchema: { type: 'object' } }] })
+      let effects = 0
+      clientMocks.callTool.mockImplementation(async () => {
+        effects += 1
+        return { content: [{ type: 'text', text: 'done' }] }
+      })
+      const [descriptor] = await manager.listTools()
+
+      await manager.callTool({ name: descriptor.name, arguments: { command: 'fixture-operation' } })
+
+      expect(descriptor.toolName).toBe(toolName)
+      expect(clientMocks.callTool).toHaveBeenCalledOnce()
+      expect(clientMocks.callTool).toHaveBeenCalledWith(
+        { name: toolName, arguments: { command: 'fixture-operation' } },
+        undefined,
+        { timeout: 10_000, maxTotalTimeout: 15_000 },
+      )
+      expect(effects).toBe(1)
+    },
+  )
+
+  it.each(['response lost', 'connection closed', 'request timed out'])(
+    'preserves %s after a committed effect without trying an alias',
+    async (message) => {
+      const manager = await startServers('terminal')
+      const error = new Error(message)
+      let effects = 0
+      clientMocks.callTool.mockImplementation(async () => {
+        effects += 1
+        throw error
+      })
+
+      await expect(manager.callTool({ name: 'terminal::stdio::write' })).rejects.toBe(error)
+
+      expect(clientMocks.callTool).toHaveBeenCalledOnce()
+      expect(effects).toBe(1)
+    },
+  )
+
+  it('preserves an MCP error result without dispatching again', async () => {
+    const manager = await startServers('terminal')
+    const denial = { isError: true, content: [{ type: 'text', text: 'Action denied.' }] } satisfies CallToolResult
+    let effects = 0
+    clientMocks.callTool.mockImplementation(async ({ name }) => {
+      if (name === 'write')
+        effects += 1
+      return denial
+    })
+
+    expect(await manager.callTool({ name: 'terminal::stdio::write' })).toEqual(denial)
+    expect(clientMocks.callTool).toHaveBeenCalledOnce()
+    expect(effects).toBe(0)
+  })
+
+  it('does not guess another tool when the requested tool is absent', async () => {
+    const manager = await startServers('terminal')
+    const error = new Error('Unknown tool: missing::write')
+    let effects = 0
+    clientMocks.callTool.mockImplementation(async ({ name }) => {
+      if (name !== 'write')
+        throw error
+      effects += 1
+      return { content: [{ type: 'text', text: 'unexpected write' }] }
+    })
+
+    await expect(manager.callTool({ name: 'terminal::missing::write' })).rejects.toBe(error)
+
+    expect(clientMocks.callTool).toHaveBeenCalledOnce()
+    expect(effects).toBe(0)
   })
 
   it('includes stderr captured during connect failures in MCP server test results', async () => {
