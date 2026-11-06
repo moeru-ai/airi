@@ -1,0 +1,8 @@
+/* ChillRoundF Regular */
+@font-face {
+  font-family: 'ChillRoundF';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(./files/ChillRoundF.ttf) format('truetype');
+}

@@ -4312,6 +4312,8 @@ importers:
         specifier: 'catalog:'
         version: 3.5.41(typescript@6.0.3)
 
+  packages/font-chillroundf: {}
+
   packages/font-chillroundm: {}
 
   packages/font-cjkfonts-allseto: {}
