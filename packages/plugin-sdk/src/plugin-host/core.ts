@@ -124,8 +124,8 @@ export interface PluginHostEventRecord {
   readonly to?: string
   readonly decision?: string
   readonly hook?: string
-  /** The `stop()` or `dispose()` call of a `wait-aborted` or `reentrant-call` record. */
-  readonly call?: 'stop' | 'dispose'
+  /** The `stop()`, `dispose()`, or `withdraw()` call of a `wait-aborted` or `reentrant-call` record. */
+  readonly call?: Extract<ObserveRecord, { type: 'reentrant-call' }>['call']
   /** The phase of the service when the wait of a `wait-aborted` record ended. */
   readonly phase?: string
   readonly reason?: string
