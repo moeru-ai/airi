@@ -28,6 +28,7 @@ const props = withDefaults(defineProps<{
   label: string
   replyTarget?: ChatHistoryReplyPayload
   canReply?: boolean
+  canReplay?: boolean
   scrollContainer?: HTMLElement | null
   showPlaceholder?: boolean
   /** The reply is still being written. */
@@ -40,6 +41,7 @@ const props = withDefaults(defineProps<{
   toolCallWidgets?: ChatToolCallWidgetRegistry
 }>(), {
   canReply: false,
+  canReplay: true,
   showPlaceholder: false,
   streaming: false,
   scrollContainer: null,
@@ -53,6 +55,7 @@ const emit = defineEmits<{
   (e: 'copy'): void
   (e: 'delete'): void
   (e: 'reply'): void
+  (e: 'replay'): void
   (e: 'toolCallRerun', payload: ToolCallRerunRequest): void
 }>()
 
@@ -139,12 +142,14 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
     <ChatActionMenu
       :copy-text="copyText"
       :can-reply="canReply"
+      :can-replay="canReplay && !streaming && !showPlaceholder && !!copyText.trim()"
       :can-delete="!showPlaceholder"
       :press-feedback-enabled="variant === 'mobile'"
       :scroll-container="scrollContainer"
       @copy="emit('copy')"
       @delete="emit('delete')"
       @reply="emit('reply')"
+      @replay="emit('replay')"
     >
       <template #default="{ setMeasuredElement }">
         <div

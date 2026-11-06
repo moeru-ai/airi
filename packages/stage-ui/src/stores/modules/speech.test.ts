@@ -874,3 +874,17 @@ describe('speechFieldsKeyOf', () => {
     expect(speechFieldsKeyOf([])).toBeUndefined()
   })
 })
+
+describe('createOutput speech audio cache', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  it('exposes audioCache instance on speech store', () => {
+    const store = useSpeechStore()
+    expect(store.audioCache).toBeDefined()
+    expect(typeof store.audioCache.get).toBe('function')
+    expect(typeof store.audioCache.set).toBe('function')
+    expect(store.audioCache.size).toBe(0)
+  })
+})

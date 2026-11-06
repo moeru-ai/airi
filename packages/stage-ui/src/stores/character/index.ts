@@ -1,10 +1,12 @@
 import type { SpeechClient } from '../../services/speech/speech-client'
 
+import { defineInvoke } from '@moeru/eventa'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, reactive, ref } from 'vue'
 
 import { useLlmmarkerParser } from '../../composables/llm-marker-parser'
+import { getSpeechBusContext, voiceGetTurns, voiceInterrupt } from '../../services/speech/bus'
 import { SpeechClient as Speech } from '../../services/speech/speech-client'
 import { useChatSessionStore } from '../chat/session-store'
 import { useAiriCardStore } from '../modules'
@@ -127,6 +129,41 @@ export const useCharacterStore = defineStore('character', () => {
     }
   }
 
+  const interruptVoice = defineInvoke(getSpeechBusContext(), voiceInterrupt)
+  const getTurns = defineInvoke(getSpeechBusContext(), voiceGetTurns)
+
+  async function replaySpeech(text: string) {
+    if (!text.trim())
+      return
+
+    try {
+      const activeTurns = await getTurns(undefined, { signal: AbortSignal.timeout(200) })
+      if (activeTurns && activeTurns.length > 0)
+        await interruptVoice({ turns: activeTurns, cause: 'replay' }, { signal: AbortSignal.timeout(500) })
+    }
+    catch {
+      // Proceed even if voice host is detached or response times out
+    }
+
+    await emitTextOutput(text)
+  }
+
+  async function replayLastSpeech(): Promise<boolean> {
+    const lastAssistant = [...sessions.messages].reverse().find(m => m.role === 'assistant')
+    if (!lastAssistant)
+      return false
+
+    const text = typeof lastAssistant.content === 'string'
+      ? lastAssistant.content
+      : lastAssistant.slices?.flatMap(s => s.type === 'text' || s.type === 'card' ? [s.text] : []).join('\n\n') ?? ''
+
+    if (!text.trim())
+      return false
+
+    await replaySpeech(text)
+    return true
+  }
+
   function clearReactions() {
     reactions.value = []
   }
@@ -142,5 +179,7 @@ export const useCharacterStore = defineStore('character', () => {
     clearReactions,
 
     emitTextOutput,
+    replaySpeech,
+    replayLastSpeech,
   }
 })

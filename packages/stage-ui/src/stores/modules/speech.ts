@@ -20,6 +20,7 @@ import { injectKeyPiniaSynced } from '../../libs/pinia/synced-context'
 import { getDefinedProvider } from '../../libs/providers/providers'
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, pickOfficialSpeechVoice, picksSpeechVoiceAutomatically } from '../../libs/providers/providers/official'
 import { streamSpeech } from '../../libs/speech/streaming-pipeline'
+import { createSpeechAudioCacheKey, SpeechAudioCache } from '../../services/speech/audio-cache'
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
 
@@ -129,6 +130,8 @@ const useSpeechCatalog = defineStore('speech-catalog', () => {
   const resetGeneration = refManualReset(0)
   return { availableVoices, voiceCatalogIdentities, resetGeneration }
 }, { synced: { state: true } })
+
+const defaultAudioCache = new SpeechAudioCache()
 
 export const useSpeechStore = defineStore('speech', () => {
   const pinia = getActivePinia()
@@ -665,19 +668,33 @@ export const useSpeechStore = defineStore('speech', () => {
     }
     if (!model || !voiceId)
       throw new Error('Speech requires a model and voice')
-    const provider = providersStore.getProviderInstance<SpeechProviderWithExtraOptions<string, Record<string, unknown>>>(providerId)
     return { ...output, language, synthesize: async (request, signal) => {
       signal = AbortSignal.any([signal, synthesisSignal])
       signal.throwIfAborted()
-      const client = await provider
-      signal.throwIfAborted()
       const input = voice && useSSML && canUseSSML ? generateSSML(request.text, voice, { ...config, pitch: pitchValue }) : request.text
+      const cacheKey = createSpeechAudioCacheKey({
+        providerId,
+        model,
+        voiceId,
+        text: input,
+        pitch: pitchValue,
+        speed: typeof config.speed === 'number' ? config.speed : undefined,
+        ssml: useSSML && canUseSSML,
+        extra: config.voiceSettings as Record<string, unknown> | undefined,
+      })
+      const cached = defaultAudioCache.get(cacheKey)
+      if (cached)
+        return cached
+      const client = await providersStore.getProviderInstance<SpeechProviderWithExtraOptions<string, Record<string, unknown>>>(providerId)
+      signal.throwIfAborted()
       const settings = providerId === OFFICIAL_SPEECH_PROVIDER_ID
         ? { ...config, extraBody: { ...(config.extraBody as Record<string, unknown> | undefined), airi_analytics: { trigger: 'auto', source: 'chat_auto_tts', voice_type: voiceType, turn_id: turn.turnId } } }
         : config
       const audio = await generateSpeech({ ...client.speech(model, settings), input, voice: voiceId, abortSignal: signal })
       signal.throwIfAborted()
-      return new Blob([audio])
+      const blob = new Blob([audio])
+      defaultAudioCache.set(cacheKey, blob)
+      return blob
     } }
   }
 
@@ -845,6 +862,7 @@ export const useSpeechStore = defineStore('speech', () => {
     generateSSML,
     resolveSpeechInput,
     createOutput,
+    audioCache: defaultAudioCache,
     resetState,
     resetSettings,
   }
