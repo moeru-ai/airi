@@ -6,10 +6,12 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 
 import type { ExecuteAction } from '../server/action-executor'
+import type { TerminalCommandResult } from '../types'
 import type { WorkflowDefinition } from './types'
 
 import { describe, expect, it, vi } from 'vitest'
 
+import { formatWorkflowStructuredContent } from '../server/workflow-formatter'
 import { RunStateManager } from '../state'
 import { executeWorkflow, resumeWorkflow } from './engine'
 
@@ -89,6 +91,81 @@ describe('workflow engine', () => {
     expect(result.stepResults.every(r => r.succeeded)).toBe(true)
     expect(result.suspension).toBeUndefined()
     expect(executeAction).toHaveBeenCalledTimes(2)
+  })
+
+  it.each([
+    { exitCode: 1, timedOut: false, stderr: 'fixture validation failed' },
+    { exitCode: 124, timedOut: true, stderr: 'fixture command timeout' },
+  ])('fails an executed Terminal command with exitCode=$exitCode and timedOut=$timedOut', async ({ exitCode, timedOut, stderr }) => {
+    const workflow = makeTwoStepWorkflow()
+    workflow.steps = [{ ...workflow.steps[0]!, critical: true, params: { command: 'fixture-command' } }]
+    const terminalResult: TerminalCommandResult = {
+      command: 'fixture-command',
+      exitCode,
+      timedOut,
+      stdout: '',
+      stderr,
+      effectiveCwd: '/home/user',
+      durationMs: 1,
+    }
+    const effects: string[] = []
+    const executeAction = vi.fn<ExecuteAction>(async () => {
+      effects.push('fixture side effect committed')
+      return {
+        content: [{ type: 'text', text: 'Terminal command returned.' }],
+        structuredContent: { status: 'executed', action: 'terminal_exec', backendResult: terminalResult },
+      }
+    })
+    const stateManager = new RunStateManager()
+    stateManager.updateTerminalResult({ ...terminalResult, exitCode: 0, timedOut: false, stderr: '' })
+
+    const result = await executeWorkflow({ workflow, executeAction, stateManager })
+    const formatted = formatWorkflowStructuredContent({ workflowId: workflow.id, result, runState: stateManager.getState() })
+
+    expect(executeAction).toHaveBeenCalledOnce()
+    expect(effects).toEqual(['fixture side effect committed'])
+    expect(result.success).toBe(false)
+    expect(result.task.phase).toBe('failed')
+    expect(result.task.failureCount).toBe(1)
+    expect(result.stepResults[0]?.succeeded).toBe(false)
+    expect(result.stepResults[0]?.toolResult?.structuredContent?.backendResult).toEqual(terminalResult)
+    expect(result.stepResults[0]?.advisories.some(a => a.kind === 'wait_and_retry' || a.kind === 'retry_after_error')).toBe(false)
+    expect(formatted.status).toBe('failed')
+    expect(formatted.stepResults[0]?.explanation).toContain(`exitCode=${exitCode}`)
+    expect(formatted.stepResults[0]?.explanation).toContain(`timedOut=${timedOut}`)
+    expect(formatted.stepResults[0]?.explanation).toContain(stderr)
+    expect(formatted.stepResults[0]?.explanation).toContain('dispatched')
+    expect(formatted.stepResults[0]?.explanation).toContain('side effects')
+  })
+
+  it.each([true, false])('keeps exit0 command completion separate from business verification=%s', async (businessCompletes) => {
+    const workflow = makeTwoStepWorkflow()
+    workflow.steps = [{ ...workflow.steps[0]!, params: { command: 'fixture-command' } }]
+    const business = { complete: false, effects: 0 }
+    const executeAction = vi.fn<ExecuteAction>(async () => {
+      business.effects += 1
+      business.complete = businessCompletes
+      return {
+        content: [{ type: 'text', text: 'Command exited 0.' }],
+        structuredContent: {
+          status: 'executed',
+          action: 'terminal_exec',
+          backendResult: { command: 'fixture-command', exitCode: 0, timedOut: false, stdout: '', stderr: '', effectiveCwd: '/home/user', durationMs: 1 } satisfies TerminalCommandResult,
+        },
+      }
+    })
+    const stateManager = new RunStateManager()
+
+    const result = await executeWorkflow({ workflow, executeAction, stateManager })
+    const formatted = formatWorkflowStructuredContent({ workflowId: workflow.id, result, runState: stateManager.getState() })
+
+    expect(executeAction).toHaveBeenCalledOnce()
+    expect(business.effects).toBe(1)
+    expect(business.complete).toBe(businessCompletes)
+    expect(result.success).toBe(true)
+    expect(result.task.phase).toBe('completed')
+    expect(formatted.status).toBe('completed')
+    expect(formatted).not.toHaveProperty('businessVerified')
   })
 
   it('returns suspension when a step requires approval', async () => {

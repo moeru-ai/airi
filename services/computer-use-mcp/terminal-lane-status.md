@@ -22,6 +22,18 @@ See `docs/ai/convergence/execution-authorization-boundary.md` from the repositor
 
 This file is the handoff record for terminal lane work. It moved here from `AGENTS.md` without content changes.
 
+## Workflow result correction: 2026-11-06
+
+Workflow exec steps now treat a reported nonzero exit code or timeout as failure.
+The existing formatter forwards the exit code, timeout flag, and bounded error output in the step explanation.
+The explanation preserves dispatch and possible side effects. Recovery requires inspecting the result before another decision.
+Command exit zero does not verify an independent business outcome.
+
+- PTY self-acquire routing and PTY completion semantics are unchanged.
+- This correction uses controlled executor and provider boundaries. No new real AIRI Chat E2E ran.
+- Public self-approval remains denied in approval modes. No trusted native approval UI was added.
+- Support-matrix labels are unchanged. Real GUI writes remain outside admission.
+
 ## Current Status Snapshot
 
 Updated for the current terminal-lane-v2 workstream.

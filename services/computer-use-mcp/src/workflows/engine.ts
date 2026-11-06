@@ -811,13 +811,22 @@ export async function executeWorkflow(params: {
         }
       }
 
-      if (isError) {
-        const errorMsg = extractErrorMessage(result)
-        const recovery = buildRecoveryPlan({
-          failedAction: action,
-          errorMessage: errorMsg,
-          state: stateManager.getState(),
-        })
+      const terminalError = action.kind === 'terminal_exec' ? describeTerminalFailure(result) : undefined
+      if (isError || terminalError) {
+        const errorMsg = terminalError ?? extractErrorMessage(result)
+        const recovery: StrategyAdvisory = terminalError
+          ? {
+              kind: 'read_error_first',
+              category: 'recovery',
+              recommendedSurface: 'terminal',
+              reason: 'Inspect the command result and current state before deciding the next step.',
+              evidence: [terminalError],
+            }
+          : buildRecoveryPlan({
+              failedAction: action,
+              errorMessage: errorMsg,
+              state: stateManager.getState(),
+            })
 
         stateManager.completeCurrentStep('failure', errorMsg)
         // NOTICE: completeCurrentStep already increments failureCount — do NOT double-count.
@@ -1155,6 +1164,32 @@ function extractErrorMessage(result: CallToolResult): string {
     .filter((c): c is { type: 'text', text: string } => c.type === 'text')
     .map(c => c.text)
   return textParts.join(' ') || 'Unknown error'
+}
+
+function describeTerminalFailure(result: CallToolResult): string | undefined {
+  const structured = toRecord(result.structuredContent)
+  if (structured?.status !== 'executed')
+    return undefined
+
+  const backend = toRecord(structured.backendResult)
+  const exitCode = typeof backend?.exitCode === 'number' && Number.isFinite(backend.exitCode) ? backend.exitCode : undefined
+  const timedOut = backend?.timedOut === true
+  if (!timedOut && (exitCode === undefined || exitCode === 0))
+    return undefined
+
+  // The formatter forwards this explanation without the original backend result.
+  const parts = [
+    `Terminal command ${timedOut ? 'timed out' : 'failed'} (exitCode=${exitCode ?? 'unavailable'}, timedOut=${timedOut}).`,
+    'The command was dispatched and side effects are possible.',
+  ]
+  const stderr = typeof backend?.stderr === 'string' ? backend.stderr.trim() : ''
+  const stdout = typeof backend?.stdout === 'string' ? backend.stdout.trim() : ''
+  if (stderr)
+    parts.push(`stderr: ${stderr.slice(0, 500)}`)
+  else if (stdout)
+    parts.push(`stdout: ${stdout.slice(0, 500)}`)
+
+  return parts.join(' ')
 }
 
 function toRecord(value: unknown): Record<string, unknown> | undefined {
