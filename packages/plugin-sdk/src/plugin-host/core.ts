@@ -27,7 +27,7 @@ import type {
 import semver from 'semver'
 
 import { errorMessageFrom } from '@moeru/std'
-import { createContainer, dispose, graph, observe, resolve, start, timeout } from 'injeca'
+import { createContainer, createDefaultLogger, createNoopLogger, dispose, graph, observe, resolve, start, timeout } from 'injeca'
 import { nanoid } from 'nanoid/non-secure'
 
 import {
@@ -283,10 +283,16 @@ export class ExtensionHost {
     this.grantStore = options.kitGrantStore ?? createMemoryKitGrantStore()
     this.dependencyStore = options.kitDependencyStore ?? createMemoryKitDependencyStore()
     this.rebuildLimit = options.rebuildLimit ?? 5
+    // NOTICE:
+    // The Host turns off the lifecycle logs of injeca, but keeps its warnings: stop timeouts, re-entrant calls, and late cleanup failures.
+    // `enabled: false` gives a no-op logger, so it also drops `warn`. The warnings go to the logger of the parent container, or to the default logger.
+    // Source: injeca `createContainer` in src/primitives/container.ts.
+    // Remove when injeca can turn off the lifecycle logs without the warnings.
+    const warnings = options.container?.logger ?? createDefaultLogger()
     this.container = createContainer({
       parent: options.container,
       owner: { kind: 'plugin-host' },
-      enabled: false,
+      logger: { ...createNoopLogger(), warn: message => warnings.warn(message) },
       timeouts: { start: options.timeouts?.start ?? 30_000, stop: options.timeouts?.stop ?? 10_000 },
     })
     this.kitGraph = new KitGraph(this.container, (consumer, kitId) => this.checkKitAccess(consumer, kitId), options.kitProviderOrder)
