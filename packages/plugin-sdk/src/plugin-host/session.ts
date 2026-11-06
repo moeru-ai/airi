@@ -12,7 +12,7 @@ import type {
 
 import type { Extension } from '../extension/shared'
 import type { KitStatus, NormalizedKitUse } from '../kit/references'
-import type { CatalogSnapshot, HostPort, KitSnapshot, ProvideAnnounceInput, TryUseResult, WatchUpdate } from './bridge/ports'
+import type { CatalogSnapshot, HostPort, KitSnapshot, PluginEndpoint, ProvideAnnounceInput, TryUseResult, WatchUpdate } from './bridge/ports'
 import type { KitDependencyStore, KitGrantPolicy, KitGrantStore } from './kits/access'
 import type { KitGraph } from './kits/kit-graph'
 import type { KitProviderValue } from './kits/values'
@@ -48,7 +48,7 @@ import {
 } from 'injeca'
 
 import { KitUnavailableError } from '../kit/errors'
-import { ExtensionRebuildLimitError, ExtensionRoundEndedError, ModuleUpsertError } from './bridge/errors'
+import { encodeError, ExtensionRebuildLimitError, ExtensionRoundEndedError, ModuleUpsertError } from './bridge/errors'
 import { describeExplanation } from './diagnostics'
 import { KitProviderRegistrationError } from './kit-capture'
 import { matchKitPattern } from './kits/access'
@@ -148,8 +148,6 @@ interface HostRound {
   ended?: string
   failure?: unknown
   cleaned?: Promise<void>
-  /** The signal of the stop hook of the round, while the cleanup runs. `ctx.self.stop()` passes it, so injeca knows the caller. */
-  cleanupSignal?: AbortSignal
 }
 
 interface ScopeRecord {
@@ -239,6 +237,9 @@ export class PluginSessionController implements HostPort {
   private stopped = false
   private stopping?: Promise<void>
   private readonly settleChecks = new Set<() => void>()
+  /** The injeca hook signal of each plugin-side cleanup run that has not ended, by run id. `stopSession` passes it to injeca. */
+  private readonly cleanupRuns = new Map<string, AbortSignal>()
+  private nextCleanupRun = 0
 
   constructor(private readonly host: SessionHost, readonly input: PluginSessionInput) {
     this.container = createContainer({
@@ -392,8 +393,7 @@ export class PluginSessionController implements HostPort {
 
     on('start', ({ signal, decide }) => this.runSetup(round, runtime, signal, decide))
     on('stop', async ({ signal }) => {
-      round.cleanupSignal = signal
-      await this.cleanupRound(round, runtime)
+      await this.cleanupRound(round, runtime, signal)
     })
     on('dependency-change', ({ dependsOn: current, decide }) => {
       round.deps = selectedKitsOf(current)
@@ -518,9 +518,13 @@ export class PluginSessionController implements HostPort {
     return decide.handled()
   }
 
+  /**
+   * Cleans a round whose setup failed. It runs in the `start` hook, so no `stop` signal exists.
+   * A stop from such a cleanup does not wait for it, because injeca does not wait for a `start` hook in progress.
+   */
   private async failRound(round: HostRound, runtime: RuntimeValue, error: unknown): Promise<unknown> {
     try {
-      await this.cleanupRound(round, runtime)
+      await this.cleanupRound(round, runtime, undefined)
     }
     catch (cleanupError) {
       return new AggregateError([error, cleanupError], `Extension \`${this.pluginId}\` setup and cleanup both failed.`, { cause: error })
@@ -566,8 +570,9 @@ export class PluginSessionController implements HostPort {
   /**
    * Runs the cleanup of one round once. A final stop withdraws the provided Kits and the dynamic modules first.
    * A round that a newer round replaced keeps them, because the newer round owns them.
+   * `signal` is the signal of the `stop` hook that runs the cleanup. The plugin-side cleanup gets it, so a re-entrant stop from it resolves at once.
    */
-  private cleanupRound(round: HostRound, runtime: RuntimeValue): Promise<void> {
+  private cleanupRound(round: HostRound, runtime: RuntimeValue, signal: AbortSignal | undefined): Promise<void> {
     round.cleaned ??= (async () => {
       round.phase = 'stopped'
       round.ended ??= 'The round stopped.'
@@ -604,7 +609,7 @@ export class PluginSessionController implements HostPort {
       }
       round.watchers.clear()
       try {
-        await runtime.handle.endpoint.stopRound({ round: round.id })
+        await this.runPluginCleanup(runtime.handle.endpoint, signal, cleanup => runtime.handle.endpoint.stopRound({ round: round.id, cleanup }))
       }
       catch (error) {
         errors.push(error)
@@ -630,6 +635,37 @@ export class PluginSessionController implements HostPort {
       errorsInto(errors, `Extension \`${this.pluginId}\` cleanup failed.`)
     })()
     return round.cleaned
+  }
+
+  /**
+   * Runs one plugin-side cleanup with the signal of the injeca hook that runs it.
+   *
+   * A signal cannot cross the worker boundary, so the Host keeps it under a run id until the run ends.
+   * The plugin side gives the callbacks of the run a signal of its own for the id. `ctx.self.stop({ signal })` sends the id back to `stopSession`.
+   * When `signal` aborts, for example at the stop timeout, `abortCleanup` aborts the plugin-side signal with the same reason.
+   * Without `signal`, the run still gets an id, but a stop from it has no signal.
+   */
+  private async runPluginCleanup(endpoint: PluginEndpoint, signal: AbortSignal | undefined, run: (cleanup: string) => Promise<void>): Promise<void> {
+    const cleanup = `cleanup-${++this.nextCleanupRun}`
+    if (!signal)
+      return await run(cleanup)
+    this.cleanupRuns.set(cleanup, signal)
+    const forwardAbort = () => {
+      // The run can end before the abort arrives. Then the plugin side ignores it.
+      void endpoint.abortCleanup({ cleanup, reason: encodeError(signal.reason) }).catch(() => undefined)
+    }
+    const running = run(cleanup)
+    if (signal.aborted)
+      forwardAbort()
+    else
+      signal.addEventListener('abort', forwardAbort, { once: true })
+    try {
+      await running
+    }
+    finally {
+      signal.removeEventListener('abort', forwardAbort)
+      this.cleanupRuns.delete(cleanup)
+    }
   }
 
   private releaseBindings(): void {
@@ -1172,8 +1208,8 @@ export class PluginSessionController implements HostPort {
               return decide.fail(error)
             }
           })
-          on('stop', async () => {
-            await endpoint.stopModule({ moduleId: input.moduleId, revision })
+          on('stop', async ({ signal }) => {
+            await this.runPluginCleanup(endpoint, signal, cleanup => endpoint.stopModule({ moduleId: input.moduleId, revision, cleanup }))
           })
           return { moduleId: input.moduleId, revision }
         },
@@ -1219,11 +1255,12 @@ export class PluginSessionController implements HostPort {
 
   /**
    * Stops the session for `ctx.self.stop()`.
-   * A call from the cleanup of a round passes the signal of that cleanup. injeca then resolves it at once, and the stop continues.
-   * A round that already ended still stops the session, without a signal.
+   * A call from a plugin-side cleanup run sends the id of the run. The Host passes the hook signal of that run, so injeca resolves it at once, and the stop continues.
+   * Without an id, or with the id of a run that ended, the session stops without a signal.
    */
-  async stopSession(input: { round: string }): Promise<void> {
-    await this.host.stopSession(this.sessionId, this.rounds.get(input.round)?.cleanupSignal)
+  async stopSession(input: { cleanup?: string }): Promise<void> {
+    const signal = input.cleanup === undefined ? undefined : this.cleanupRuns.get(input.cleanup)
+    await this.host.stopSession(this.sessionId, signal)
   }
 
   async registerScope(input: { round: string, moduleId: string, permissions?: ModulePermissionDeclaration, labels?: Record<string, string> }): Promise<{ scope: string, permissions: ModulePermissionGrant }> {

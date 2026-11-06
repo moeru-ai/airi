@@ -1,3 +1,4 @@
+import type { DisposeOptions } from '../../extension/disposable'
 import type {
   Extension,
   ExtensionDynamicModuleContext,
@@ -14,7 +15,8 @@ import type { KitAvailability, KitIdentity, KitUseResult } from '../../kit'
 import type { KitContract, KitProvider, KitProviderHandle } from '../../kit/contract'
 import type { KitInfo, KitReference, KitUse, NormalizedKitUse, RebuildDecision } from '../../kit/references'
 import type { ExtensionProvidedKitDeclaration } from '../shared/types'
-import type { CatalogSnapshot, HostPort, KitSnapshot, PluginEndpoint, RoundStartInput, SessionIdentity, WatchUpdate } from './ports'
+import type { WireError } from './errors'
+import type { CatalogSnapshot, CleanupRunInput, HostPort, KitSnapshot, PluginEndpoint, RoundStartInput, SessionIdentity, WatchUpdate } from './ports'
 
 import semver from 'semver'
 
@@ -22,7 +24,7 @@ import { DisposableStore } from '../../extension/disposable'
 import { KitUnavailableError, kitUseFailure } from '../../kit'
 import { createKitHandle, kitOfUse, normalizeKitUse } from '../../kit/references'
 import { captureProvidedContract, captureProviderEndpoint, KitProviderRegistrationError } from '../kit-capture'
-import { ExtensionRoundEndedError } from './errors'
+import { decodeError, ExtensionRoundEndedError } from './errors'
 
 /** The default time that `ctx.modules.upsert()` waits for its Kits. */
 const defaultUpsertTimeoutMs = 10_000
@@ -77,7 +79,7 @@ function createRemoteKitClient(call: (method: string, args: readonly unknown[]) 
 function effectInto(store: DisposableStore, setup: ExtensionEffect): void {
   const cleanup = setup()
   if (typeof cleanup === 'function')
-    store.add({ dispose: cleanup })
+    store.add({ dispose: options => cleanup(options ?? {}) })
 }
 
 /**
@@ -90,6 +92,10 @@ function effectInto(store: DisposableStore, setup: ExtensionEffect): void {
 export class PluginRuntime implements PluginEndpoint {
   private readonly rounds = new Map<string, RoundState>()
   private readonly dynamicModules = new Map<string, DynamicModuleState>()
+  /** The controllers of the cleanup runs that have not ended, by the run id of the Host. `abortCleanup` aborts them. */
+  private readonly cleanupRuns = new Map<string, AbortController>()
+  /** The run id of each cleanup signal. `ctx.self.stop({ signal })` sends it to the Host. The entry stays after the run, and the Host ignores an ended id. */
+  private readonly cleanupIds = new WeakMap<AbortSignal, string>()
   private catalog: CatalogSnapshot = { kits: [], extensions: [] }
 
   constructor(
@@ -131,24 +137,28 @@ export class PluginRuntime implements PluginEndpoint {
       round.ended ??= input.reason
   }
 
-  async stopRound(input: { round: string }): Promise<void> {
+  async stopRound(input: { round: string } & CleanupRunInput): Promise<void> {
     const round = this.rounds.get(input.round)
     if (!round)
       return
     round.ended ??= 'The round stopped.'
     this.rounds.delete(input.round)
+    await this.runCleanup(input.cleanup, options => this.cleanupRound(round, options))
+  }
 
+  /** Disposes the module scopes of a round, then its root subscriptions. Each callback gets the signal of the run. */
+  private async cleanupRound(round: RoundState, options: DisposeOptions): Promise<void> {
     const errors: unknown[] = []
     for (const module of [...round.modules.values()].reverse()) {
       try {
-        await module.dispose()
+        await module.dispose(options)
       }
       catch (error) {
         errors.push(error)
       }
     }
     try {
-      await round.store.dispose()
+      await round.store.dispose(options)
     }
     catch (error) {
       errors.push(error)
@@ -194,14 +204,35 @@ export class PluginRuntime implements PluginEndpoint {
     }
   }
 
-  async stopModule(input: { moduleId: string, revision: number }): Promise<void> {
+  async stopModule(input: { moduleId: string, revision: number } & CleanupRunInput): Promise<void> {
     const state = this.dynamicModules.get(input.moduleId)
     const run = state?.runs.get(input.revision)
     if (!state || !run)
       return
     state.runs.delete(input.revision)
     state.setups.delete(input.revision)
-    await run.store.dispose()
+    await this.runCleanup(input.cleanup, options => run.store.dispose(options))
+  }
+
+  async abortCleanup(input: CleanupRunInput & { reason: WireError }): Promise<void> {
+    this.cleanupRuns.get(input.cleanup)?.abort(decodeError(input.reason))
+  }
+
+  /**
+   * Runs one cleanup of the Host with a signal of its own for the run id.
+   * The signal cannot cross the worker boundary, so the plugin side makes one, and `abortCleanup` follows the Host signal.
+   * The run is registered before the first `await`, so an `abortCleanup` that the Host sends after the start finds it.
+   */
+  private async runCleanup(cleanup: string, run: (options: DisposeOptions) => Promise<void>): Promise<void> {
+    const controller = new AbortController()
+    this.cleanupRuns.set(cleanup, controller)
+    this.cleanupIds.set(controller.signal, cleanup)
+    try {
+      await run({ signal: controller.signal })
+    }
+    finally {
+      this.cleanupRuns.delete(cleanup)
+    }
   }
 
   async dropModule(input: { moduleId: string, revision: number }): Promise<void> {
@@ -323,7 +354,7 @@ export class PluginRuntime implements PluginEndpoint {
       self: {
         rebuild: options => this.requestRebuild(round, options.uses),
         // A cleanup of the round can stop the session, so this call does not check that the round is active.
-        stop: () => this.host.stopSession({ round: round.id }),
+        stop: options => this.host.stopSession({ cleanup: options?.signal && this.cleanupIds.get(options.signal) }),
       },
       extensions: {
         find: id => this.catalog.extensions.find(extension => extension.id === id),
@@ -422,7 +453,7 @@ export class PluginRuntime implements PluginEndpoint {
       permissions,
       kits: this.createKitConsumer(round, scope, subscriptions),
       subscriptions,
-      dispose: () => {
+      dispose: (options) => {
         disposePromise ??= (async () => {
           const errors: unknown[] = []
           // Bindings disappear before the module callbacks run. A binding failure does not skip them.
@@ -433,7 +464,7 @@ export class PluginRuntime implements PluginEndpoint {
             errors.push(error)
           }
           try {
-            await subscriptions.dispose()
+            await subscriptions.dispose(options)
           }
           catch (error) {
             errors.push(error)

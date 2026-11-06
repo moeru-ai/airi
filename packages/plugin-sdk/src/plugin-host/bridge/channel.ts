@@ -53,6 +53,7 @@ export const pluginEndpointMethods = [
   'startModule',
   'stopModule',
   'dropModule',
+  'abortCleanup',
   'invokeProvider',
 ] as const satisfies readonly (keyof PluginEndpoint)[]
 

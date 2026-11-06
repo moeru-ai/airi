@@ -1,3 +1,4 @@
+import type { DisposeOptions } from './disposable'
 import type { ExtensionModuleRef, ExtensionSetupContext } from './shared'
 
 import { nanoid } from 'nanoid/non-secure'
@@ -27,8 +28,8 @@ export async function createModule(
   const id = options.id ?? nanoid()
   const module = await ctx.modules.register({ id })
   let disposePromise: Promise<void> | undefined
-  const dispose = () => {
-    disposePromise ??= module.dispose()
+  const dispose = (options?: DisposeOptions) => {
+    disposePromise ??= module.dispose(options)
     return disposePromise
   }
 

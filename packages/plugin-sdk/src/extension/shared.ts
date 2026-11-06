@@ -20,7 +20,7 @@ import type {
   RangedKitUse,
   RebuildDecision,
 } from '../kit'
-import type { Disposable, DisposableStore } from './disposable'
+import type { Disposable, DisposableStore, DisposeOptions } from './disposable'
 
 /**
  * Describes an optional advanced lifecycle/attribution scope inside an extension session.
@@ -102,8 +102,8 @@ export interface ExtensionModuleContext {
   kits: ExtensionKitConsumer
   /** Cleanup callbacks owned by this module. */
   subscriptions: DisposableStore
-  /** Disposes module-owned resources. */
-  dispose: () => Promise<void>
+  /** Disposes module-owned resources. Each callback gets `options`. The first call decides them. */
+  dispose: (options?: DisposeOptions) => Promise<void>
 }
 
 /**
@@ -116,12 +116,12 @@ export interface ExtensionModuleRef {
   kits: ExtensionKitConsumer
   /** Cleanup callbacks owned by this module. */
   subscriptions: DisposableStore
-  /** Disposes module-owned resources. */
-  dispose: () => Promise<void>
+  /** Disposes module-owned resources. Each callback gets `options`. The first call decides them. */
+  dispose: (options?: DisposeOptions) => Promise<void>
 }
 
-/** A side effect that returns its cleanup. */
-export type ExtensionEffect = () => (() => void | Promise<void>) | void
+/** A side effect that returns its cleanup. A Host cleanup gives its stop signal to the cleanup. */
+export type ExtensionEffect = () => ((options: DisposeOptions) => void | Promise<void>) | void
 
 /** The context of one run of a dynamic module setup. */
 export interface ExtensionDynamicModuleContext {
@@ -176,9 +176,19 @@ export interface ExtensionSelf {
   /**
    * Stops this session. The Host withdraws its Kits and runs its cleanup.
    *
-   * From a cleanup of this session, it resolves at once, and the stop continues.
+   * A cleanup of this session passes the `signal` that it got. Then the call resolves at once, and the stop continues.
+   * A call from a cleanup without that signal waits for the cleanup itself, until the stop timeout ends the wait.
    */
-  stop: () => Promise<void>
+  stop: (options?: ExtensionSelfStopOptions) => Promise<void>
+}
+
+/** The options of `ctx.self.stop()`. */
+export interface ExtensionSelfStopOptions {
+  /**
+   * The signal that a cleanup of this session got in its `DisposeOptions`. The Host then knows that the call comes from that cleanup.
+   * Pass the signal as it is. A signal from `AbortSignal.any()`, or any other signal, has no effect.
+   */
+  signal?: AbortSignal
 }
 
 /** Reads the plugins that the plugin can see. */

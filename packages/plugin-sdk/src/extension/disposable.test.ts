@@ -87,4 +87,19 @@ describe('disposable store', () => {
     await store.dispose()
     expect(remaining).toHaveBeenCalledTimes(1)
   })
+
+  it('gives the options of the disposal to each entry, also to an entry added during the disposal', async () => {
+    const store = new DisposableStore()
+    const signal = new AbortController().signal
+    const first = vi.fn()
+    const late = vi.fn()
+    store.add({ dispose: first })
+    store.add({ dispose: () => {
+      store.add({ dispose: late })
+    } })
+
+    await store.dispose({ signal })
+    expect(first).toHaveBeenCalledWith({ signal })
+    expect(late).toHaveBeenCalledWith({ signal })
+  })
 })

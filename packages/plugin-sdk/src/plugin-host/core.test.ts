@@ -1,6 +1,6 @@
 import type { Logger, ObserveRecord } from 'injeca'
 
-import type { ExtensionModuleContext, ExtensionSelf } from '../extension'
+import type { ExtensionModuleContext, ExtensionSelf, ExtensionSetupContext } from '../extension'
 import type { ExtensionSession } from './session'
 import type { ExtensionManifestV2, ModulePermissionDeclaration } from './shared/types'
 
@@ -11,7 +11,7 @@ import { drained, manualClock } from 'injeca/testing'
 import { safeParse } from 'valibot'
 import { describe, expect, it, vi } from 'vitest'
 
-import { ExtensionHost, extensionManifestV2Schema, FileSystemLoader, pluginNodeKeys } from '.'
+import { ExtensionHost, extensionManifestV2Schema, FileSystemLoader, moduleNodeKey, pluginNodeKeys } from '.'
 import { defineExtension } from '../extension'
 import { defineKit, defineKitContract, defineKitMethod } from '../kit'
 import { ExtensionHost as NodeExtensionHost } from './runtimes/node'
@@ -750,10 +750,10 @@ describe('extension-hosted Kit registration lifecycle', () => {
     await host.dispose()
   })
 
-  // `ctx.self.stop()` passes the signal of the cleanup of its round, so injeca finds the self-wait also after an `await`.
-  // The manual clock never moves, so the stop timeout cannot end this cleanup.
-  it('resolves ctx.self.stop() from a module cleanup at once while external stops share the outcome', async () => {
-    const { host, records: reentrantCalls } = hostOnManualClock()
+  // A plugin cleanup gets the stop signal of its Host run in `DisposeOptions`. `ctx.self.stop({ signal })` sends the run id back,
+  // so injeca finds the self-wait also after an `await`. The manual clock never moves, so the stop timeout cannot end this cleanup.
+  it('resolves ctx.self.stop({ signal }) from a module cleanup at once while external stops share the outcome', async () => {
+    const { host, records } = hostOnManualClock()
     const entered = Promise.withResolvers<void>()
     const resume = Promise.withResolvers<void>()
     const remaining = vi.fn()
@@ -764,10 +764,10 @@ describe('extension-hosted Kit registration lifecycle', () => {
         ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
         ctx.subscriptions.add({ dispose: remaining })
         const module = await ctx.modules.register({ id: 'module-one' })
-        module.subscriptions.add({ dispose: async () => {
+        module.subscriptions.add({ dispose: async (options) => {
           entered.resolve()
           await resume.promise
-          await ctx.self.stop()
+          await ctx.self.stop({ signal: options?.signal })
           selfStopped = true
         } })
       },
@@ -782,10 +782,90 @@ describe('extension-hosted Kit registration lifecycle', () => {
     expect(await stoppingAgain).toBe(session)
     expect(selfStopped).toBe(true)
     expect(remaining).toHaveBeenCalledTimes(1)
-    expect(reentrantCalls).toHaveLength(1)
-    expect(reentrantCalls[0]).toMatchObject({ call: 'dispose', key: pluginNodeKeys.session, owner: { kind: 'plugin', pluginId: 'self-stop-signal', sessionId: session.id } })
+    expect(records).toHaveLength(1)
+    expect(records[0]).toMatchObject({ type: 'reentrant-call', call: 'dispose', key: pluginNodeKeys.session, owner: { kind: 'plugin', pluginId: 'self-stop-signal', sessionId: session.id } })
     expect(host.listSessions()).toEqual([])
     expect(host.getKitProvider(contract.id)).toBeUndefined()
+  })
+
+  it('resolves ctx.self.stop({ signal }) from a dynamic module cleanup at once', async () => {
+    const { host, records } = hostOnManualClock()
+    const contexts: ExtensionSetupContext[] = []
+    let selfStopped = false
+    const session = await host.startExtension(defineExtension({
+      id: 'self-stop-dynamic',
+      setup(ctx) {
+        contexts.push(ctx)
+      },
+    }), { manifest: { ...manifest('self-stop-dynamic'), kits: undefined } })
+    await contexts[0].modules.upsert('script', {
+      kits: [],
+      setup(module) {
+        module.subscriptions.add({ dispose: async (options) => {
+          await Promise.resolve()
+          await contexts[0].self.stop({ signal: options?.signal })
+          selfStopped = true
+        } })
+      },
+    })
+
+    expect(await host.stop(session.id)).toBe(session)
+    expect(selfStopped).toBe(true)
+    expect(records).toHaveLength(1)
+    expect(records[0]).toMatchObject({ type: 'reentrant-call', call: 'dispose', key: moduleNodeKey('script') })
+    expect(host.listSessions()).toEqual([])
+  })
+
+  // Only the signal of the cleanup tells the Host where the call comes from. A call without it waits for its own cleanup.
+  it('waits for ctx.self.stop() without the cleanup signal until the stop timeout', async () => {
+    const { host, time, warnings, records } = hostOnManualClock()
+    let selfStop: Promise<void> | undefined
+    const session = await host.startExtension(defineExtension({
+      id: 'self-stop-no-signal',
+      setup(ctx) {
+        ctx.subscriptions.add({ dispose: async () => {
+          await Promise.resolve()
+          selfStop = ctx.self.stop()
+          await selfStop
+        } })
+      },
+    }), { manifest: { ...manifest('self-stop-no-signal'), kits: undefined } })
+
+    const stopping = host.stop(session.id)
+    await vi.waitFor(() => expect(selfStop).toBeDefined())
+    await drained(host.container)
+    expect(records).toEqual([])
+
+    time.advance(1_000)
+    expect(await stopping).toBe(session)
+    await selfStop
+    expect(records).toHaveLength(1)
+    expect(records[0]).toMatchObject({ type: 'timeout', hook: 'stop', key: pluginNodeKeys.session })
+    expect(warnings).toHaveLength(1)
+  })
+
+  it('aborts the signal of a plugin cleanup when the stop timeout passes', async () => {
+    const { host, time } = hostOnManualClock()
+    const signals: AbortSignal[] = []
+    const session = await host.startExtension(defineExtension({
+      id: 'cleanup-timeout',
+      setup(ctx) {
+        ctx.effect(() => async ({ signal }) => {
+          if (signal)
+            signals.push(signal)
+          await new Promise(() => {})
+        })
+      },
+    }), { manifest: { ...manifest('cleanup-timeout'), kits: undefined } })
+
+    const stopping = host.stop(session.id)
+    await vi.waitFor(() => expect(signals).toHaveLength(1))
+    expect(signals[0].aborted).toBe(false)
+
+    time.advance(1_000)
+    expect(await stopping).toBe(session)
+    await vi.waitFor(() => expect(signals[0].aborted).toBe(true))
+    expect(signals[0].reason).toMatchObject({ name: 'HookTimeoutError', code: 'hook-timeout' })
   })
 
   it('stops its own session with ctx.self.stop() after setup', async () => {

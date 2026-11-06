@@ -22,7 +22,7 @@ export interface WorkerRunnerOptions {
 }
 
 /** The endpoint calls that are cleanup. After the worker ends, they have nothing to clean, so they resolve. */
-const cleanupCalls: ReadonlySet<keyof PluginEndpoint> = new Set<keyof PluginEndpoint>(['abortRound', 'stopRound', 'stopModule', 'dropModule', 'updateKits', 'updateCatalog'])
+const cleanupCalls: ReadonlySet<keyof PluginEndpoint> = new Set<keyof PluginEndpoint>(['abortRound', 'stopRound', 'stopModule', 'dropModule', 'abortCleanup', 'updateKits', 'updateCatalog'])
 
 /**
  * Wraps the endpoint of a worker so that no call waits for a worker that ended.

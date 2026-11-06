@@ -5,6 +5,7 @@ import type { KitCallContext } from '../../kit/contract'
 import type { KitUnavailableReason } from '../../kit/ref'
 import type { ExtensionInfo, KitProviderInfo, KitStatus, NormalizedKitUse } from '../../kit/references'
 import type { ExtensionProvidedKitDeclaration } from '../shared/types'
+import type { WireError } from './errors'
 
 /**
  * The ports between the Host and a plugin runtime.
@@ -83,6 +84,17 @@ export type WatchUpdate
   = | { readonly available: true, readonly kit: KitSnapshot }
     | { readonly available: false, readonly reason: KitUnavailableReason, readonly detail?: string }
 
+/**
+ * One plugin-side cleanup that the Host runs from an injeca `stop` hook: a round cleanup or a dynamic module cleanup.
+ *
+ * `cleanup` is an id that the Host makes for the run. The Host keeps the stop signal of the hook under this id while the run lasts.
+ * The plugin side gives each callback of the run its own signal for the id. `ctx.self.stop({ signal })` sends the id back in `stopSession`.
+ * When the Host signal aborts, `abortCleanup` aborts the plugin-side signal with the same reason.
+ */
+export interface CleanupRunInput {
+  readonly cleanup: string
+}
+
 /** The calls from the plugin side to the Host. */
 export interface HostPort {
   /** Announces one provided Kit (id, version, methods). The Host checks the Manifest and adds it to the setup transaction. */
@@ -107,8 +119,11 @@ export interface HostPort {
   registerScope: (input: { round: string, moduleId: string, permissions?: ModulePermissionDeclaration, labels?: Record<string, string> }) => Promise<{ scope: string, permissions: ModulePermissionGrant }>
   /** Disposes one module scope and the Host resources that it owns. */
   disposeScope: (input: { round: string, scope: string }) => Promise<void>
-  /** Stops the session. A call from the cleanup of `round` resolves at once, and the stop continues. */
-  stopSession: (input: { round: string }) => Promise<void>
+  /**
+   * Stops the session. With the `cleanup` id of a run that has not ended, the Host passes the stop signal of that run to injeca.
+   * Then a call from that cleanup resolves at once, and the stop continues. An unknown or ended id stops the session without a signal.
+   */
+  stopSession: (input: { cleanup?: string }) => Promise<void>
 }
 
 /** The calls from the Host to the plugin side. */
@@ -120,7 +135,7 @@ export interface PluginEndpoint {
   /** Ends one round that has not completed setup. Later calls from the round fail. */
   abortRound: (input: { round: string, reason: string }) => Promise<void>
   /** Runs the cleanup of one round: module scopes first, then the root subscriptions. */
-  stopRound: (input: { round: string }) => Promise<void>
+  stopRound: (input: { round: string } & CleanupRunInput) => Promise<void>
   /** Sends the new Kit dependencies of a round after a dependency change. */
   updateKits: (input: { round: string, kits: readonly KitSnapshot[] }) => Promise<void>
   /** Sends the Kits and plugins that the plugin can see. */
@@ -128,7 +143,9 @@ export interface PluginEndpoint {
   /** Runs the setup of one revision of a dynamic module. */
   startModule: (input: { round: string, moduleId: string, revision: number, kits: readonly KitSnapshot[] }) => Promise<void>
   /** Runs the cleanup of one revision of a dynamic module. */
-  stopModule: (input: { moduleId: string, revision: number }) => Promise<void>
+  stopModule: (input: { moduleId: string, revision: number } & CleanupRunInput) => Promise<void>
+  /** Aborts the signal of one cleanup run, because the Host signal of the run aborted. An ended run ignores it. */
+  abortCleanup: (input: CleanupRunInput & { reason: WireError }) => Promise<void>
   /** Forgets one revision of a dynamic module that did not start, for example after a timeout. */
   dropModule: (input: { moduleId: string, revision: number }) => Promise<void>
   /** Calls one method of a provided Kit. The Host injects the caller identity. */
