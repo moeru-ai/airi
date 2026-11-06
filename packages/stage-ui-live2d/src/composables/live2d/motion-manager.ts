@@ -199,7 +199,7 @@ const beatSyncMaximumFrameSeconds = 0.05
 const beatSyncMaximumStepSeconds = 1 / 120
 
 /** Moves `position` one frame toward `target`, and returns the new position. */
-function stepBeatSyncSpring(position: number, target: number, velocity: Ref<number>, timeDelta: number) {
+function stepBeatSyncSpring(position: number, target: number, velocity: { value: number }, timeDelta: number) {
   const frameSeconds = Math.min(Math.max(timeDelta, 0), beatSyncMaximumFrameSeconds)
   const stepCount = Math.max(1, Math.ceil(frameSeconds / beatSyncMaximumStepSeconds))
   const stepSeconds = frameSeconds / stepCount
@@ -230,18 +230,25 @@ function stepBeatSyncSpring(position: number, target: number, velocity: Ref<numb
  *
  * `pre` reads `isLayered` at the start of the frame, and `layer` reuses that answer. The manual-control plugin
  * can change the answer in the middle of the frame, and one decision keeps the beat from moving twice or not at all.
+ * `pre` also springs the beat offset on every frame, so the layer continues the current beat when a pose starts.
  */
 export function useMotionUpdatePluginsBeatSync(beatSync: BeatSyncController, isLayered: () => boolean): { pre: MotionManagerPlugin, layer: MotionManagerPlugin } {
   let layered = false
   const offset = { y: 0, z: 0 }
+  const offsetVelocity = { y: { value: 0 }, z: { value: 0 } }
 
   const pre: MotionManagerPlugin = (ctx) => {
     layered = isLayered()
-    if (layered)
-      return
 
     // `ctx.now` is in seconds. The controller schedules beats on its own clock in milliseconds.
     beatSync.updateTargets()
+
+    const targetOffset = beatSync.targetOffsets()
+    offset.y = stepBeatSyncSpring(offset.y, targetOffset.y, offsetVelocity.y, ctx.timeDelta)
+    offset.z = stepBeatSyncSpring(offset.z, targetOffset.z, offsetVelocity.z, ctx.timeDelta)
+
+    if (layered)
+      return
 
     const paramAngleX = stepBeatSyncSpring(ctx.model.getParameterValueById('ParamAngleX') as number, beatSync.targetX.value, beatSync.velocityX, ctx.timeDelta)
     const paramAngleY = stepBeatSyncSpring(ctx.model.getParameterValueById('ParamAngleY') as number, beatSync.targetY.value, beatSync.velocityY, ctx.timeDelta)
@@ -253,17 +260,8 @@ export function useMotionUpdatePluginsBeatSync(beatSync: BeatSyncController, isL
   }
 
   const layer: MotionManagerPlugin = (ctx) => {
-    if (!layered) {
-      // The pre-phase plugin owns the head now. Start from no offset when the layer comes back.
-      offset.y = 0
-      offset.z = 0
+    if (!layered)
       return
-    }
-
-    beatSync.updateTargets()
-    const target = beatSync.targetOffsets()
-    offset.y = stepBeatSyncSpring(offset.y, target.y, beatSync.velocityY, ctx.timeDelta)
-    offset.z = stepBeatSyncSpring(offset.z, target.z, beatSync.velocityZ, ctx.timeDelta)
 
     if (offset.y)
       ctx.model.addParameterValueById('ParamAngleY', offset.y)

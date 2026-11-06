@@ -474,6 +474,27 @@ describe('beat sync plugins', () => {
     expect(context.model.setParameterValueById).not.toHaveBeenCalled()
   })
 
+  it('carries the current beat offset into the layer when a pose starts', () => {
+    const { clock, controller } = createBeatingController()
+    const context = createContext({ timeDelta: frameSeconds })
+    let poseActive = false
+    const plugins = useMotionUpdatePluginsBeatSync(controller, () => poseActive)
+
+    // Half a second without a pose: the beat reaches the left side.
+    for (let frame = 0; frame < 30; frame += 1) {
+      clock.ms += frameSeconds * 1000
+      plugins.pre(context)
+      plugins.layer(context)
+    }
+
+    poseActive = true
+    clock.ms += frameSeconds * 1000
+    plugins.pre(context)
+    plugins.layer(context)
+
+    expect(context.model.addParameterValueById).toHaveBeenCalledWith('ParamAngleY', expect.closeTo(-10, 0))
+  })
+
   it('keeps the owner of the frame when the pose starts in the middle of it', () => {
     const { controller } = createBeatingController()
     const context = createContext({ timeDelta: frameSeconds })
