@@ -26,7 +26,9 @@ It does not establish real-model continuation or real-human production authoriza
 Phase 5.2 verifies bounded cancellation and direct-process lifecycle cases with controlled barriers.
 The final private dispatch boundary rechecks the MCP request signal and deadline.
 Windows direct shell closure does not prove descendant termination. Terminal commands are not sandboxed.
-B0 Notice is not connected. Native GUI writes remain closed.
+B0-style notice delivery now uses the original Host request and existing Core FIFO and persistent message identity.
+Controlled and delegated UI tests use a mock provider. Real-model acceptance remains a separate gate.
+Native GUI writes remain closed.
 The historical run-grant claims below do not establish current product support.
 See `docs/ai/convergence/execution-authorization-boundary.md` from the repository root for evidence and remaining limits.
 

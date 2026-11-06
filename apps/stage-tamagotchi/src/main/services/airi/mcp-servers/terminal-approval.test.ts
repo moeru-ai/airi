@@ -1,4 +1,4 @@
-import type { TerminalSnapshot } from '@proj-airi/stage-shared/terminal-approval'
+import type { TerminalNotice, TerminalSnapshot } from '@proj-airi/stage-shared/terminal-approval'
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { terminalDiscardMethod, terminalExecuteMethod } from '@proj-airi/stage-shared/terminal-approval'
@@ -39,6 +39,7 @@ function fixture(shared: { actions?: PendingActionManager, runtime?: ReturnType<
   const queued = barrier<void>()
   const ended = barrier<void>()
   const oracle = { dispatches: 0, effects: 0, discarded: 0 }
+  const notices: TerminalNotice[] = []
   const runtime = shared.runtime ?? createComputerUseRuntime({ binaryPath: 'fixture-auv', storeRoot: '/fixture', actionManager: actions })
   if (!shared.runtime)
     cleanups.push(runtime.dispose)
@@ -56,7 +57,10 @@ function fixture(shared: { actions?: PendingActionManager, runtime?: ReturnType<
   const client = new Client({ name: 'mock-main', version: '1.0.0' })
   client.request = rpc as Client['request']
   const connection = { client, serverName: 'fixture', nonce: 'c'.repeat(64), pid: 101, isCurrent: () => true }
-  const options = { actions, present: vi.fn(() => decision.promise), executeInSlot: <T>(operation: (signal: AbortSignal) => Promise<T>) => runtime.executeInSlot(async (lifetime) => {
+  const options = { actions, present: vi.fn(() => decision.promise), notify: vi.fn(async (notice: TerminalNotice) => {
+    notices.push(structuredClone(notice))
+    return { status: 'stored' as const, sessionId: notice.sessionId, messageId: `terminal:${notice.actionId}` }
+  }), executeInSlot: <T>(operation: (signal: AbortSignal) => Promise<T>) => runtime.executeInSlot(async (lifetime) => {
     queued.release()
     await ready.promise
     try {
@@ -68,9 +72,9 @@ function fixture(shared: { actions?: PendingActionManager, runtime?: ReturnType<
   }) }
   const bind = () => bindTerminalApproval({ options, connection, attribution, payload: { name: 'fixture::terminal_exec', arguments: { command: 'fixture-command' }, requestId: request.id, attribution }, result: { content: [{ type: 'text', text: 'Approval required.' }], structuredContent: { status: 'approval_required', preparedTerminal: snapshot } } })
   function record(actionId: string) {
-    evidence.push({ oracle: { ...oracle }, action: actions.get(actionId), rpcMethods: rpc.mock.calls.map(([input]) => input.method) })
+    evidence.push({ oracle: { ...oracle }, action: actions.get(actionId), notices: structuredClone(notices), rpcMethods: rpc.mock.calls.map(([input]) => input.method) })
   }
-  return { actions, attribution, request, snapshot, decision, ready, queued, ended, oracle, rpc, connection, options, bind, record, runtime }
+  return { actions, attribution, request, snapshot, decision, ready, queued, ended, oracle, rpc, connection, options, bind, record, runtime, notices }
 }
 
 describe('main Terminal approval controller', () => {
@@ -90,6 +94,7 @@ describe('main Terminal approval controller', () => {
     await h.ended.promise
     expect(h.oracle).toMatchObject({ dispatches: 1, effects: 1 })
     expect(h.actions.get(id)).toMatchObject({ status: 'consumed', settlement: { outcome: 'success', exitCode: 0 } })
+    expect(h.notices).toMatchObject([{ status: 'executed', actionId: id, sessionId: h.attribution.sessionId, turnId: h.attribution.turnId, toolCallId: h.attribution.toolCallId, result: { structuredContent: { backendResult: { exitCode: 0, timedOut: false } } } }])
     expect(() => h.actions.consume(id, { argv: [h.snapshot.shell, ...h.snapshot.argv], attribution: h.attribution, kind: 'terminal' })).toThrow(/replay/)
     h.record(id)
   })
@@ -100,6 +105,7 @@ describe('main Terminal approval controller', () => {
     h.decision.release(false)
     await vi.waitFor(() => expect(h.oracle.discarded).toBe(1))
     expect(h.actions.get(id)?.status).toBe('rejected')
+    expect(h.notices).toMatchObject([{ status: 'rejected', actionId: id }])
     expect(h.oracle).toMatchObject({ dispatches: 0, effects: 0 })
     h.record(id)
   })
@@ -111,6 +117,7 @@ describe('main Terminal approval controller', () => {
     h.decision.release(true)
     await vi.waitFor(() => expect(h.oracle.discarded).toBe(1))
     expect(h.actions.get(id)?.status).toBe('cancelled')
+    expect(h.notices).toMatchObject([{ status: 'cancelled', actionId: id }])
     expect(h.oracle).toMatchObject({ dispatches: 0, effects: 0 })
     h.record(id)
   })
@@ -199,6 +206,7 @@ describe('main Terminal approval controller', () => {
     await h.ended.promise
     expect(h.oracle).toMatchObject({ dispatches: 1, effects: 1 })
     expect(h.actions.get(id)).toMatchObject({ status: 'consumed', settlement: { outcome: 'failed', exitCode: backend.exitCode } })
+    expect(h.notices).toMatchObject([{ status: 'failed', result: { structuredContent: { backendResult: backend } } }])
     expect(() => h.actions.approve(id)).toThrow(/consumed/)
     h.record(id)
   })
@@ -222,6 +230,7 @@ describe('main Terminal approval controller', () => {
       competingDispatches++
     }).then(() => 'completed', () => 'stopped')
     await new Promise<void>(resolve => setImmediate(resolve))
+    expect(h.notices).toMatchObject([{ status: 'unknown', error: 'Response lost after the controlled business effect.' }])
     expect(competingDispatches).toBe(0)
     expect(h.actions.get(id)).toMatchObject({ status: 'consumed' })
     expect(h.actions.get(id)?.settlement).toBeUndefined()

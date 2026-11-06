@@ -148,7 +148,7 @@ export function verifyExecutionPreconditions(command: string, argv: readonly str
  */
 export class PendingActionManager {
   private actions = new Map<string, PendingAction>()
-  private requests = new Map<string, ChatRequest>()
+  private requests = new Map<string, { record: ChatRequest, cancel: AbortController }>()
   private defaultTtlMs = 60_000 // 60 seconds
 
   constructor(options?: { defaultTtlMs?: number }) {
@@ -163,7 +163,7 @@ export class PendingActionManager {
       throw new Error('A Host request requires a verified Runtime source.')
     const submitted = v.parse(chatRequestSchema, input)
     const now = Date.now()
-    for (const request of this.requests.values()) {
+    for (const { record: request } of this.requests.values()) {
       if (now >= request.expiresAt) {
         this.cancelRequest(request.id, request.senderWebContentsId)
         this.requests.delete(request.id)
@@ -180,13 +180,13 @@ export class PendingActionManager {
       closed: false,
       cancelled: false,
     }
-    this.requests.set(request.id, request)
+    this.requests.set(request.id, { record: request, cancel: new AbortController() })
     return structuredClone(request)
   }
 
   /** Resolves the Host record and rejects replacement labels or execution sources. Closed runs admit no new tools. */
   validateRequest(id: string, attribution: InvocationAttribution, options: { allowClosed?: boolean } = {}): ChatRequest {
-    const request = this.requests.get(id)
+    const request = this.requests.get(id)?.record
     if (!request)
       throw new Error(`Unknown Host request '${id}'.`)
     if (request.senderWebContentsId !== attribution.senderWebContentsId
@@ -204,7 +204,7 @@ export class PendingActionManager {
 
   /** Ends new-tool admission without cancelling actions that already wait for an independent approval. */
   finishRequest(id: string, senderWebContentsId: number): void {
-    const request = this.requests.get(id)
+    const request = this.requests.get(id)?.record
     if (!request || request.senderWebContentsId !== senderWebContentsId)
       throw new Error('Host request source does not match.')
     request.closed = true
@@ -212,11 +212,20 @@ export class PendingActionManager {
 
   /** Invalidates an original request. Existing dispatches keep their real settlement. */
   cancelRequest(id: string, senderWebContentsId: number): number {
-    const request = this.requests.get(id)
+    const request = this.requests.get(id)?.record
     if (!request || request.senderWebContentsId !== senderWebContentsId)
       throw new Error('Host request source does not match.')
     request.cancelled = true
     return this.cancelInvocation({ sessionId: request.sessionId, turnId: request.turnId, senderWebContentsId })
+  }
+
+  /** Cancels a queued notice through the existing request owner, without revoking a committed executor operation. */
+  requestSignal(id: string, attribution: InvocationAttribution): AbortSignal {
+    this.validateRequest(id, attribution, { allowClosed: true })
+    const request = this.requests.get(id)
+    if (!request)
+      throw new Error(`Unknown Host request '${id}'.`)
+    return request.cancel.signal
   }
 
   /**
@@ -480,10 +489,11 @@ export class PendingActionManager {
   cancelInvocation(attribution: InvocationAttribution, reason?: string): number {
     const now = Date.now()
     let count = 0
-    for (const request of this.requests.values()) {
+    for (const { record: request, cancel } of this.requests.values()) {
       if (request.sessionId === attribution.sessionId && request.turnId === attribution.turnId
         && request.senderWebContentsId === attribution.senderWebContentsId) {
         request.cancelled = true
+        cancel.abort(new Error(reason ?? 'The original Chat request was cancelled.'))
       }
     }
     for (const action of this.actions.values()) {
@@ -505,9 +515,11 @@ export class PendingActionManager {
 
   /** Invalidates waiting approvals when their renderer is destroyed. In-flight work retains its real settlement. */
   cancelBySender(senderWebContentsId: number): void {
-    for (const request of this.requests.values()) {
-      if (request.senderWebContentsId === senderWebContentsId)
+    for (const { record: request, cancel } of this.requests.values()) {
+      if (request.senderWebContentsId === senderWebContentsId) {
         request.cancelled = true
+        cancel.abort(new Error('The original Runtime was destroyed.'))
+      }
     }
     for (const action of this.actions.values()) {
       if (action.attribution.senderWebContentsId === senderWebContentsId && (action.status === 'pending' || action.status === 'approved'))
@@ -520,8 +532,10 @@ export class PendingActionManager {
    */
   invalidateAll(): void {
     const now = Date.now()
-    for (const request of this.requests.values())
+    for (const { record: request, cancel } of this.requests.values()) {
       request.cancelled = true
+      cancel.abort(new Error('The Host stopped.'))
+    }
     for (const action of this.actions.values()) {
       if (action.status === 'pending' || action.status === 'approved') {
         action.status = 'cancelled'

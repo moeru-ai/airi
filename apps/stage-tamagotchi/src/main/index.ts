@@ -51,6 +51,7 @@ import { registerIOTraceHub } from './services/airi/io-trace-hub/register'
 import { IOTraceRecordingService } from './services/airi/io-trace-recording'
 import { recordHubRecords } from './services/airi/io-trace-recording/hub'
 import { setupMcpManager } from './services/airi/mcp-servers'
+import { deliverTerminalNotice } from './services/airi/mcp-servers/terminal-notice'
 import { setupExtensionHost } from './services/airi/plugins'
 import { setupArtistryBridge } from './services/airi/widgets/artistry-bridge'
 import { isExternallyUpdatedInstall, setupAutoUpdater } from './services/electron/auto-updater'
@@ -334,6 +335,7 @@ app.whenReady().then(async () => {
       actions: dependsOn.pendingActions,
       present: dependsOn.terminalApproval.present,
       executeInSlot: operation => dependsOn.computerUse.getRuntime().executeInSlot(operation),
+      notify: notice => deliverTerminalNotice(dependsOn.pendingActions, notice),
     }),
   })
 

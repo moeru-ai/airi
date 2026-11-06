@@ -48,3 +48,18 @@ export const terminalDiscardSchema = v.strictObject({
   preparedId: v.string(),
   requestId: v.string(),
 })
+
+/** A Terminal-specific Host observation. It carries no approval or permission for another operation. */
+export const terminalNoticeSchema = v.strictObject({
+  actionId: v.string(),
+  requestId: v.string(),
+  sessionId: v.string(),
+  turnId: v.string(),
+  toolCallId: v.string(),
+  status: v.picklist(['executed', 'failed', 'rejected', 'cancelled', 'expired', 'unknown']),
+  command: v.string(),
+  effectiveCwd: v.string(),
+  result: v.optional(v.record(v.string(), v.unknown())),
+  error: v.optional(v.string()),
+})
+export type TerminalNotice = v.InferOutput<typeof terminalNoticeSchema>

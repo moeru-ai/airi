@@ -420,11 +420,26 @@ export const useChatStore = defineStore('chat', () => {
    * Tells a conversation about finished background work. The main agent reads the notice and decides what to say, or stays quiet.
    * Only the owner's own conversation gets a notice, so background results never reach a scene.
    */
-  async function notifyConversation(sessionId: string, notice: { source: string, text: string }) {
-    if (!isOwnerSession(sessionId))
+  async function notifyConversation(sessionId: string, notice: { source: string, text: string, messageId?: string }, options: { waitForCompletion?: boolean, signal?: AbortSignal } = {}) {
+    if (!chatSession.sessionMetas[sessionId] || !isOwnerSession(sessionId))
       return
     try {
-      await executeSend({ sessionId, text: notice.text }, { notice: { source: notice.source } })
+      const messageId = notice.messageId ?? nanoid()
+      const request = startSend({ sessionId, text: notice.text, messageId }, false, { notice: { source: notice.source } })
+      const cancel = () => {
+        void cancelTurn({ sessionId, turnId: messageId })
+      }
+      options.signal?.addEventListener('abort', cancel, { once: true })
+      if (options.signal?.aborted)
+        cancel()
+      const done = request.done.catch((error) => {
+        console.warn('[chat] Failed to finish a notice turn:', errorMessageFrom(error))
+      })
+      // Once stored, this is a new turn with its own Chat cancellation. The old request only controls its queued admission.
+      const receipt = request.accepted.catch(() => undefined).finally(() => options.signal?.removeEventListener('abort', cancel))
+      if (options.waitForCompletion !== false)
+        await done
+      return await receipt
     }
     catch (error) {
       console.warn('[chat] Failed to deliver a notice:', errorMessageFrom(error))

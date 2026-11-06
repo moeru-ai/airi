@@ -29,7 +29,7 @@ Refused, expired, cancelled or consumed records cannot grant a later operation.
 ## Results and limits
 
 The original model Tool Result reports preparation only. It does not confirm execution or business success.
-Main keeps actual executor output separately. A command exit of zero still needs a business Oracle.
+Main sends actual outcomes through a separate notice turn. A command exit of zero still needs a business Oracle.
 An ambiguous failed reply cannot restore approval or cause an alias retry.
 Without a lifecycle receipt, the active queue slot stays held until Host shutdown.
 
@@ -38,7 +38,7 @@ On Windows, this does not establish descendant termination or containment of app
 The adapter is not a shell sandbox. It grants no native GUI input or workflow-wide approval.
 
 Phase 5.1 tests cover controlled protocol execution and delegated normal-UI decisions with a mock provider.
-Phase 5.2 adds deterministic lifecycle checks. Phase 5.3 notification and Phase 5.4 real-model acceptance remain separate gates.
+Phase 5.2 adds deterministic lifecycle checks. Phase 5.3 adds bounded notice continuation. Phase 5.4 real-model acceptance remains separate.
 Automated operator decisions do not prove real-human production authorization.
 
 Existing MCP configuration and server-test management RPC remain a privileged surface.
@@ -58,3 +58,25 @@ Host shutdown rejects later queue entries before releasing an unknown hold.
 Controlled tests cover request and transport cancellation, expiry after readiness, post-dispatch cancellation, timeout closure, replay and interleaved Sessions.
 Counterfactual test transforms that remove the unknown hold or direct-close wait make the corresponding safety assertion fail.
 These transforms run only in the test loader and never change product source.
+
+## Notice continuation
+
+Main binds each notice to the saved request, Session, Turn, Tool Call, Action and command snapshot.
+It invokes only the original Runtime WebContents. It never broadcasts the outcome or falls back to the active conversation.
+The temporary window context is disposed after delivery.
+
+The Renderer uses the existing `notifyConversation` facade and stable message ID `terminal:<actionId>`.
+Core stores the notice source, submits a new turn through the existing Session FIFO and deduplicates existing message IDs.
+No old provider stream is resumed. The notice grants no permission to another command.
+
+`stored` acknowledges the message receipt. It does not confirm generation completion or business success.
+Explicit cancellation suppresses a replacement notice. A queued notice also follows the original request cancellation signal until storage.
+After storage, it is a distinct turn with its own Chat cancellation. Delivery-context cleanup cannot cancel that new generation.
+The default facade behavior still waits for completion. Only the Host adapter opts into the storage receipt.
+
+Nonzero exit, timeout, rejection, expiry and unknown results retain their actual facts.
+Unknown results do not reset consumed approval or cause an automatic command replay.
+Unavailable owners and failed receipts remain delivery failures. There is no automatic reroute or durable retry scheduler.
+
+Controlled tests and delegated UI experiments use a mock provider for this gate.
+They do not establish real-model recovery or real-human production authorization.

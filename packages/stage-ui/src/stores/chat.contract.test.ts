@@ -380,6 +380,70 @@ describe('chat store contract', () => {
     sessionMessages['session-1'] = [{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }]
   })
 
+  it('stops a queued Host notice when its delivery signal is cancelled before storage', async () => {
+    const held = Promise.withResolvers<void>()
+    const started = Promise.withResolvers<void>()
+    llmStreamMock.mockImplementationOnce(async () => {
+      started.resolve()
+      await held.promise
+    })
+    const store = useChatStore()
+    const first = store.send({ sessionId: 'session-1', text: 'Existing original turn.' })
+    await started.promise
+    const control = new AbortController()
+    const queued = store.notifyConversation('session-1', { source: 'airi:terminal-settlement', text: 'Controlled execution result.', messageId: 'terminal:queued-action' }, { waitForCompletion: false, signal: control.signal })
+    await vi.waitFor(() => expect(store.pendingQueuedSendCount).toBe(1))
+    control.abort(new Error('The original request was cancelled.'))
+    held.resolve()
+    await first
+    expect(await queued).toBeUndefined()
+    expect(llmStreamMock).toHaveBeenCalledOnce()
+    expect(sessionMessages['session-1'].some(message => message.id === 'terminal:queued-action')).toBe(false)
+  })
+
+  it('acknowledges a stored Host notice without tying the new generation to delivery cleanup', async () => {
+    const held = Promise.withResolvers<void>()
+    const started = Promise.withResolvers<void>()
+    let generationSignal: AbortSignal | undefined
+    llmStreamMock.mockImplementationOnce(async (_model: string, _provider: GenerationProvider, _messages: Conversation, options: StreamOptions) => {
+      generationSignal = options.abortSignal
+      started.resolve()
+      await held.promise
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    const store = useChatStore()
+    const control = new AbortController()
+    const receipt = await store.notifyConversation('session-1', { source: 'airi:terminal-settlement', text: 'Controlled execution result.', messageId: 'terminal:stored-action' }, { waitForCompletion: false, signal: control.signal })
+    await started.promise
+    control.abort(new Error('The Main delivery context has finished.'))
+    expect(receipt).toEqual({ sessionId: 'session-1', messageId: 'terminal:stored-action' })
+    expect(generationSignal?.aborted).toBe(false)
+    held.resolve()
+    await vi.waitFor(() => expect(store.activeTurns).toHaveLength(0))
+    expect(sessionMessages['session-1'].find(message => message.id === receipt?.messageId)).toMatchObject({ notice: { source: 'airi:terminal-settlement' } })
+    expect(llmStreamMock).toHaveBeenCalledOnce()
+  })
+
+  it('keeps the existing default of awaiting a notice generation before returning', async () => {
+    const held = Promise.withResolvers<void>()
+    const started = Promise.withResolvers<void>()
+    llmStreamMock.mockImplementationOnce(async () => {
+      started.resolve()
+      await held.promise
+    })
+    const store = useChatStore()
+    let finished = false
+    const delivery = store.notifyConversation('session-1', { source: 'background-task', text: 'Controlled task result.' }).then((receipt) => {
+      finished = true
+      return receipt
+    })
+    await started.promise
+    expect(finished).toBe(false)
+    held.resolve()
+    expect(await delivery).toMatchObject({ sessionId: 'session-1' })
+    expect(finished).toBe(true)
+  })
+
   it('cancels a named submission while session preparation is pending', async () => {
     const loading = Promise.withResolvers<boolean>()
     loadSessionMock.mockReturnValueOnce(loading.promise)
