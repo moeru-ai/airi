@@ -14,7 +14,7 @@ import * as v from 'valibot'
  * Main owns the decision. Public tools cannot reach these methods, and no request can consume a prepared record twice.
  */
 export function registerTerminalApproval(server: McpServer, runtime: ComputerUseServerRuntime, executeAction: ExecuteAction) {
-  server.server.setRequestHandler(z.object({ method: z.literal(terminalExecuteMethod), params: z.unknown() }), async (request) => {
+  server.server.setRequestHandler(z.object({ method: z.literal(terminalExecuteMethod), params: z.unknown() }), async (request, extra) => {
     const params = v.parse(terminalCommitSchema, request.params)
     const { snapshot } = params
     const refused = (message: string, retired = false) => new McpError(ErrorCode.InvalidParams, message, {
@@ -30,9 +30,10 @@ export function registerTerminalApproval(server: McpServer, runtime: ComputerUse
       throw refused('The prepared Terminal operation is missing or was consumed.')
     if (JSON.stringify(pending.preparedTerminal) !== JSON.stringify(snapshot))
       throw refused('The prepared Terminal snapshot does not match.')
-    if (Date.now() >= params.expiresAt) {
+    if (extra.signal.aborted || Date.now() >= params.expiresAt) {
       runtime.session.removePendingAction(pending.id)
-      throw refused('Host authorization expired before executor dispatch.', true)
+      runtime.stateManager.setPendingApprovalCount(runtime.session.listPendingActions().length)
+      throw refused('Host authorization expired or its control request was cancelled before executor dispatch.', true)
     }
     const startPrepared = runtime.terminalRunner.startPrepared
     if (!startPrepared)
@@ -44,7 +45,7 @@ export function registerTerminalApproval(server: McpServer, runtime: ComputerUse
     const result = await executeAction(pending.action, pending.toolName, {
       skipApprovalQueue: true,
       terminalExecution: () => {
-        if (runtime.session.getPendingAction(pending.id) !== pending || Date.now() >= params.expiresAt)
+        if (extra.signal.aborted || runtime.session.getPendingAction(pending.id) !== pending || Date.now() >= params.expiresAt)
           throw refused('The prepared operation was cancelled, consumed or expired before executor dispatch.')
         // These checks, record consumption and executor invocation share one synchronous turn.
         runtime.session.removePendingAction(pending.id)

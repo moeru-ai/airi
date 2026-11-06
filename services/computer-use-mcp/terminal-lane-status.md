@@ -23,7 +23,8 @@ The private executor protocol freezes spawn arguments before approval and waits 
 
 This slice has controlled tests and delegated UI operator evidence with a mock provider.
 It does not establish real-model continuation or real-human production authorization.
-Phase 5.2 cancellation and process lifecycle admission remains pending.
+Phase 5.2 verifies bounded cancellation and direct-process lifecycle cases with controlled barriers.
+The final private dispatch boundary rechecks the MCP request signal and deadline.
 Windows direct shell closure does not prove descendant termination. Terminal commands are not sandboxed.
 B0 Notice is not connected. Native GUI writes remain closed.
 The historical run-grant claims below do not establish current product support.

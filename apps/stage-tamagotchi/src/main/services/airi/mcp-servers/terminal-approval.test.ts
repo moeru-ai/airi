@@ -5,6 +5,7 @@ import { terminalDiscardMethod, terminalExecuteMethod } from '@proj-airi/stage-s
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { PendingActionManager } from '../computer-use/action-manager'
+import { createComputerUseRuntime } from '../computer-use/runtime'
 import { bindTerminalApproval } from './terminal-approval'
 
 function barrier<T>() {
@@ -19,15 +20,18 @@ function barrier<T>() {
 }
 
 const evidence: Array<Record<string, unknown>> = []
-afterEach(() => {
+const cleanups: Array<() => Promise<void>> = []
+afterEach(async () => {
+  for (const cleanup of cleanups.splice(0))
+    await cleanup()
   vi.useRealTimers()
   for (const record of evidence.splice(0))
     console.info(JSON.stringify({ boundary: 'Mock Main UI decision and controlled executor. No real approval or spawn.', ...record }))
 })
 
-function fixture() {
-  const actions = new PendingActionManager()
-  const attribution = { sessionId: 'session-a', turnId: 'turn-a', toolCallId: 'call-a', senderWebContentsId: 71 }
+function fixture(shared: { actions?: PendingActionManager, runtime?: ReturnType<typeof createComputerUseRuntime>, sessionId?: string } = {}) {
+  const actions = shared.actions ?? new PendingActionManager()
+  const attribution = { sessionId: shared.sessionId ?? 'session-a', turnId: 'turn-a', toolCallId: `call-${shared.sessionId ?? 'a'}`, senderWebContentsId: 71 }
   const request = actions.registerRequest({ sessionId: attribution.sessionId, turnId: attribution.turnId, text: 'Run the isolated fixture.' }, attribution.senderWebContentsId)
   const snapshot: TerminalSnapshot = { protocol: 'airi-terminal-approval/1', preparedId: 'prepared-a', requestId: request.id, toolCallId: attribution.toolCallId, command: 'fixture-command', shell: 'fixture-shell', argv: ['--command', 'fixture-command'], effectiveCwd: '/fixture', cwdSource: 'runner-state', executorPid: 101, executorPlatform: 'fixture', executorCwd: '/fixture', timeoutMs: 1000, detached: false, windowsHide: true }
   const decision = barrier<boolean>()
@@ -35,7 +39,9 @@ function fixture() {
   const queued = barrier<void>()
   const ended = barrier<void>()
   const oracle = { dispatches: 0, effects: 0, discarded: 0 }
-  const lifetime = new AbortController()
+  const runtime = shared.runtime ?? createComputerUseRuntime({ binaryPath: 'fixture-auv', storeRoot: '/fixture', actionManager: actions })
+  if (!shared.runtime)
+    cleanups.push(runtime.dispose)
   const rpc = vi.fn(async (input: { method: string }) => {
     if (input.method === terminalDiscardMethod) {
       oracle.discarded++
@@ -50,21 +56,21 @@ function fixture() {
   const client = new Client({ name: 'mock-main', version: '1.0.0' })
   client.request = rpc as Client['request']
   const connection = { client, serverName: 'fixture', nonce: 'c'.repeat(64), pid: 101, isCurrent: () => true }
-  const options = { actions, present: vi.fn(() => decision.promise), executeInSlot: async <T>(operation: (signal: AbortSignal) => Promise<T>) => {
+  const options = { actions, present: vi.fn(() => decision.promise), executeInSlot: <T>(operation: (signal: AbortSignal) => Promise<T>) => runtime.executeInSlot(async (lifetime) => {
     queued.release()
     await ready.promise
     try {
-      return await operation(lifetime.signal)
+      return await operation(lifetime)
     }
     finally {
       ended.release()
     }
-  } }
+  }) }
   const bind = () => bindTerminalApproval({ options, connection, attribution, payload: { name: 'fixture::terminal_exec', arguments: { command: 'fixture-command' }, requestId: request.id, attribution }, result: { content: [{ type: 'text', text: 'Approval required.' }], structuredContent: { status: 'approval_required', preparedTerminal: snapshot } } })
   function record(actionId: string) {
     evidence.push({ oracle: { ...oracle }, action: actions.get(actionId), rpcMethods: rpc.mock.calls.map(([input]) => input.method) })
   }
-  return { actions, attribution, request, snapshot, decision, ready, queued, ended, oracle, rpc, connection, options, bind, record }
+  return { actions, attribution, request, snapshot, decision, ready, queued, ended, oracle, rpc, connection, options, bind, record, runtime }
 }
 
 describe('main Terminal approval controller', () => {
@@ -132,5 +138,128 @@ describe('main Terminal approval controller', () => {
     expect(h.options.present).not.toHaveBeenCalled()
     expect(h.oracle).toMatchObject({ dispatches: 0, effects: 0 })
     evidence.push({ rejectedField: field, original, oracle: h.oracle })
+  })
+
+  it.each(['request', 'renderer', 'host'] as const)('starts no executor when %s invalidates an approved operation still waiting for its slot', async (kind) => {
+    const h = fixture()
+    const id = String(h.bind().structuredContent?.hostActionId)
+    h.decision.release(true)
+    await h.queued.promise
+    if (kind === 'request')
+      h.actions.cancelRequest(h.request.id, h.attribution.senderWebContentsId)
+    else if (kind === 'renderer')
+      h.actions.cancelBySender(h.attribution.senderWebContentsId)
+    const stopped = kind === 'host' ? h.runtime.dispose() : undefined
+    h.ready.release()
+    await h.ended.promise
+    await stopped
+    expect(h.oracle).toMatchObject({ dispatches: 0, effects: 0 })
+    expect(h.actions.get(id)?.status).toBe('cancelled')
+    h.record(id)
+  })
+
+  it('retains the actual settlement after user cancellation or Renderer destruction follows dispatch', async () => {
+    const h = fixture()
+    const started = barrier<void>()
+    const reply = barrier<void>()
+    const originalRpc = h.rpc.getMockImplementation()!
+    h.rpc.mockImplementation(async (input) => {
+      const result = await originalRpc(input)
+      started.release()
+      await reply.promise
+      return result
+    })
+    const id = String(h.bind().structuredContent?.hostActionId)
+    h.decision.release(true)
+    h.ready.release()
+    await started.promise
+    h.actions.cancelRequest(h.request.id, h.attribution.senderWebContentsId)
+    h.actions.cancelBySender(h.attribution.senderWebContentsId)
+    expect(h.actions.get(id)?.status).toBe('consumed')
+    expect(h.actions.get(id)?.settlement).toBeUndefined()
+    reply.release()
+    await h.ended.promise
+    expect(h.actions.get(id)?.settlement).toMatchObject({ outcome: 'success', exitCode: 0 })
+    expect(h.oracle).toMatchObject({ dispatches: 1, effects: 1 })
+    h.record(id)
+  })
+
+  it.each([{ exitCode: 1, timedOut: false }, { exitCode: 124, timedOut: true }])('keeps dispatched failure facts %j without restoring approval', async (backend) => {
+    const h = fixture()
+    const originalRpc = h.rpc.getMockImplementation()!
+    h.rpc.mockImplementation(async (input) => {
+      const result = await originalRpc(input)
+      if (!result.structuredContent)
+        return result
+      return { ...result, content: [{ type: 'text', text: 'Controlled failure after a possible effect.' }], structuredContent: { terminalLifecycle: 'closed', backendResult: backend } }
+    })
+    const id = String(h.bind().structuredContent?.hostActionId)
+    h.decision.release(true)
+    h.ready.release()
+    await h.ended.promise
+    expect(h.oracle).toMatchObject({ dispatches: 1, effects: 1 })
+    expect(h.actions.get(id)).toMatchObject({ status: 'consumed', settlement: { outcome: 'failed', exitCode: backend.exitCode } })
+    expect(() => h.actions.approve(id)).toThrow(/consumed/)
+    h.record(id)
+  })
+
+  it('holds the actual desktop slot when a response is lost after a controlled effect', async () => {
+    const h = fixture()
+    const started = barrier<void>()
+    h.rpc.mockImplementation(async () => {
+      h.oracle.dispatches++
+      h.oracle.effects++
+      started.release()
+      throw new Error('Response lost after the controlled business effect.')
+    })
+    const id = String(h.bind().structuredContent?.hostActionId)
+    h.decision.release(true)
+    h.ready.release()
+    await started.promise
+    let competingDispatches = 0
+    await new Promise<void>(resolve => setImmediate(resolve))
+    const competing = h.runtime.executeInSlot(async () => {
+      competingDispatches++
+    }).then(() => 'completed', () => 'stopped')
+    await new Promise<void>(resolve => setImmediate(resolve))
+    expect(competingDispatches).toBe(0)
+    expect(h.actions.get(id)).toMatchObject({ status: 'consumed' })
+    expect(h.actions.get(id)?.settlement).toBeUndefined()
+    const stopped = h.runtime.dispose()
+    await h.ended.promise
+    await stopped
+    expect(await competing).toBe('stopped')
+    expect(competingDispatches).toBe(0)
+    expect(h.oracle).toMatchObject({ dispatches: 1, effects: 1 })
+    h.record(id)
+  })
+
+  it('preserves two Session owners while sharing one actual execution queue', async () => {
+    const a = fixture()
+    const b = fixture({ actions: a.actions, runtime: a.runtime, sessionId: 'session-b' })
+    const actionA = String(a.bind().structuredContent?.hostActionId)
+    let observations = 0
+    await a.runtime.executeInSlot(async () => {
+      observations++
+    })
+    expect(observations).toBe(1)
+    expect(a.actions.get(actionA)?.status).toBe('pending')
+    const actionB = String(b.bind().structuredContent?.hostActionId)
+    a.decision.release(true)
+    await a.queued.promise
+    b.decision.release(true)
+    b.ready.release()
+    expect(a.oracle.dispatches).toBe(0)
+    expect(b.oracle.dispatches).toBe(0)
+    expect(() => a.actions.consume(actionA, { argv: [a.snapshot.shell, ...a.snapshot.argv], attribution: b.attribution, kind: 'terminal' })).toThrow(/attribution/)
+    a.ready.release()
+    await a.ended.promise
+    await b.ended.promise
+    expect(a.oracle).toMatchObject({ dispatches: 1, effects: 1 })
+    expect(b.oracle).toMatchObject({ dispatches: 1, effects: 1 })
+    expect(a.actions.get(actionA)?.attribution.sessionId).toBe('session-a')
+    expect(a.actions.get(actionB)?.attribution.sessionId).toBe('session-b')
+    a.record(actionA)
+    b.record(actionB)
   })
 })

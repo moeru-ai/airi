@@ -104,10 +104,18 @@ async function fixture() {
     expect(oracle.effects).toBe(0)
     return v.parse(terminalSnapshotSchema, result.structuredContent?.preparedTerminal)
   }
-  function commit(snapshot: TerminalSnapshot, overrides: Record<string, unknown> = {}) {
-    return client.request({ method: terminalExecuteMethod, params: { nonce, snapshot, expiresAt: Date.now() + 10_000, ...overrides } }, CallToolResultSchema)
+  function commit(snapshot: TerminalSnapshot, overrides: Record<string, unknown> = {}, signal?: AbortSignal) {
+    return client.request({ method: terminalExecuteMethod, params: { nonce, snapshot, expiresAt: Date.now() + 10_000, ...overrides } }, CallToolResultSchema, { signal })
   }
-  return { client, terminal, oracle, prepare, commit }
+  return { client, terminal, oracle, prepare, commit, runtime, serverTransport }
+}
+
+function barrier() {
+  let release!: () => void
+  const promise = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  return { promise, release: () => release() }
 }
 
 describe('main-only Terminal execution protocol', () => {
@@ -221,5 +229,107 @@ describe('main-only Terminal execution protocol', () => {
     expect(data.noNewDispatch).toBe(true)
     expect(h.oracle.dispatches).toBe(1)
     expect(h.oracle.effects).toBe(1)
+  })
+
+  it.each(['notification', 'transport-close'] as const)('performs zero executor dispatches when %s cancels control while readiness is blocked', async (mode) => {
+    const h = await fixture()
+    const prepared = await h.prepare()
+    const ready = barrier()
+    const release = barrier()
+    const cancelled = barrier()
+    const retired = barrier()
+    const originalRemove = h.runtime.session.removePendingAction.bind(h.runtime.session)
+    vi.spyOn(h.runtime.session, 'removePendingAction').mockImplementation((id) => {
+      const result = originalRemove(id)
+      retired.release()
+      return result
+    })
+    vi.spyOn(h.runtime.executor, 'getForegroundContext').mockImplementationOnce(async () => {
+      ready.release()
+      await release.promise
+      return { available: true, appName: 'Fixture', windowTitle: 'Fixture', platform }
+    })
+    const receive = h.serverTransport.onmessage
+    h.serverTransport.onmessage = (message, extra) => {
+      receive?.(message, extra)
+      if ('method' in message && message.method === 'notifications/cancelled')
+        cancelled.release()
+    }
+    const abort = new AbortController()
+    const result = h.commit(prepared, {}, abort.signal)
+    const rejected = expect(result).rejects.toThrow()
+    await ready.promise
+    if (mode === 'notification') {
+      abort.abort(new Error('Host stopped before the executor boundary.'))
+      await cancelled.promise
+    }
+    else {
+      await h.client.close()
+    }
+    release.release()
+    await rejected
+    await retired.promise
+    evidence.push({ case: 'control-cancel-during-readiness', mode, oracle: { ...h.oracle }, pendingAfter: h.runtime.session.getPendingAction(prepared.preparedId) })
+    expect(h.oracle.dispatches).toBe(0)
+    expect(h.oracle.effects).toBe(0)
+  })
+
+  it('rechecks expiry at the executor boundary after asynchronous readiness', async () => {
+    const h = await fixture()
+    const prepared = await h.prepare()
+    const ready = barrier()
+    const release = barrier()
+    vi.spyOn(h.runtime.executor, 'getForegroundContext').mockImplementationOnce(async () => {
+      ready.release()
+      await release.promise
+      return { available: true, appName: 'Fixture', windowTitle: 'Fixture', platform }
+    })
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1000)
+    try {
+      const pending = h.commit(prepared, { expiresAt: 2000 })
+      await ready.promise
+      now.mockReturnValue(2000)
+      release.release()
+      const result = await pending
+      evidence.push({ case: 'expiry-after-readiness', privateHostResult: result, oracle: { ...h.oracle } })
+      expect(result.isError).toBe(true)
+      expect(result.structuredContent).toMatchObject({ executorInvoked: false, noNewDispatch: true, terminalLifecycle: 'closed' })
+      expect(h.oracle).toEqual({ dispatches: 0, effects: 0 })
+    }
+    finally {
+      now.mockRestore()
+    }
+  })
+
+  it('keeps a timeout result pending until the direct executor lifecycle actually closes', async () => {
+    const h = await fixture()
+    const prepared = await h.prepare()
+    const started = barrier()
+    const closed = barrier()
+    const updateResult = vi.spyOn(h.runtime.stateManager, 'updateTerminalResult')
+    if (!h.terminal.startPrepared)
+      throw new Error('Missing prepared executor.')
+    vi.mocked(h.terminal.startPrepared).mockImplementation((input) => {
+      h.oracle.dispatches++
+      h.oracle.effects++
+      started.release()
+      return { result: Promise.resolve({ command: input.command, effectiveCwd: input.effectiveCwd, exitCode: 124, timedOut: true, stdout: 'Controlled effect occurred.', stderr: 'timeout', durationMs: 1000 }), closed: closed.promise }
+    })
+    let replied = false
+    const result = h.commit(prepared).then((value) => {
+      replied = true
+      return value
+    })
+    await started.promise
+    await new Promise<void>(resolve => setImmediate(resolve))
+    const beforeClose = { replied, resultUpdates: updateResult.mock.calls.length, oracle: { ...h.oracle } }
+    closed.release()
+    const reply = await result
+    expect(beforeClose.replied).toBe(false)
+    expect(beforeClose.resultUpdates).toBe(0)
+    expect(beforeClose.oracle).toEqual({ dispatches: 1, effects: 1 })
+    expect(updateResult).toHaveBeenCalledOnce()
+    evidence.push({ case: 'timeout-before-close', privateHostResult: reply, oracle: { ...h.oracle } })
+    expect(reply.structuredContent).toMatchObject({ terminalLifecycle: 'closed', backendResult: { exitCode: 124, timedOut: true } })
   })
 })

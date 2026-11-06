@@ -38,8 +38,23 @@ On Windows, this does not establish descendant termination or containment of app
 The adapter is not a shell sandbox. It grants no native GUI input or workflow-wide approval.
 
 Phase 5.1 tests cover controlled protocol execution and delegated normal-UI decisions with a mock provider.
-Phase 5.2 lifecycle admission, Phase 5.3 notification and Phase 5.4 real-model acceptance remain separate gates.
+Phase 5.2 adds deterministic lifecycle checks. Phase 5.3 notification and Phase 5.4 real-model acceptance remain separate gates.
 Automated operator decisions do not prove real-human production authorization.
 
 Existing MCP configuration and server-test management RPC remain a privileged surface.
 This slice does not isolate an already compromised Renderer from those baseline management capabilities.
+
+## Lifecycle checks
+
+The private handler checks MCP cancellation at entry and at the final synchronous spawn boundary.
+Readiness waits cannot turn an already cancelled control request into a new executor invocation.
+The deadline is checked at that same boundary. No wait separates the final checks, record removal and spawn call.
+
+Pending and approved actions remain cancellable until Main commits its private RPC.
+After consumption, Chat cancellation does not abort that RPC or invent a rollback.
+Known late results keep their real settlement. A lost result leaves a consumed, unsettled action and holds the desktop slot.
+Host shutdown rejects later queue entries before releasing an unknown hold.
+
+Controlled tests cover request and transport cancellation, expiry after readiness, post-dispatch cancellation, timeout closure, replay and interleaved Sessions.
+Counterfactual test transforms that remove the unknown hold or direct-close wait make the corresponding safety assertion fail.
+These transforms run only in the test loader and never change product source.
