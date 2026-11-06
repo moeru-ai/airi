@@ -4,9 +4,16 @@ import type { InvocationAttributionPayload } from '../../../../shared/eventa/com
 
 import { defineInvoke } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/renderer'
+import { errorMessageFrom } from '@moeru/std'
 import { rawTool } from '@xsai/tool'
 
-import { computerUseCancel, computerUseReadImage, computerUseRun } from '../../../../shared/eventa/computer-use'
+import {
+  computerUseCancel,
+  ComputerUseExecutionError,
+  computerUseReadImage,
+  computerUseRun,
+  extractExecutionState,
+} from '../../../../shared/eventa/computer-use'
 
 /** Application-owned execution options. Model arguments cannot supply approval IDs or correlation. */
 export interface ComputerUseToolExecuteOptions extends ToolExecuteOptions {
@@ -50,7 +57,10 @@ export async function computerUseTools(options?: ComputerUseToolsOptions): Promi
       const cancel = () => client().cancel({ attribution: request, reason: 'Turn was aborted' })
       if (signal.aborted) {
         await cancel()
-        throw signal.reason ?? new Error('This operation was aborted')
+        throw new ComputerUseExecutionError(errorMessageFrom(signal.reason) ?? 'This operation was aborted', {
+          executionState: 'not_executed',
+          cause: signal.reason,
+        })
       }
       let registered = cancellations.get(signal)
       if (!registered) {
@@ -67,8 +77,12 @@ export async function computerUseTools(options?: ComputerUseToolsOptions): Promi
         }, { once: true })
       }
     }
-    if (signal?.aborted)
-      throw signal.reason ?? new Error('This operation was aborted')
+    if (signal?.aborted) {
+      throw new ComputerUseExecutionError(errorMessageFrom(signal.reason) ?? 'This operation was aborted', {
+        executionState: 'not_executed',
+        cause: signal.reason,
+      })
+    }
     return attribution
   }
   return [
@@ -87,10 +101,45 @@ export async function computerUseTools(options?: ComputerUseToolsOptions): Promi
         const execution = executeOptions as ComputerUseToolExecuteOptions
         const attribution = await bindCancellation(execution)
         const rawInput = input as { argv: string[] }
-        const result = await client().run({ argv: rawInput.argv, actionId: execution.actionId, attribution }, { signal: execution.abortSignal })
-        if (result.exitCode !== 0)
-          throw new Error(JSON.stringify(result))
-        return JSON.stringify(result)
+        try {
+          const result = await client().run(
+            { argv: rawInput.argv, actionId: execution.actionId, attribution },
+            { signal: execution.abortSignal },
+          )
+          if (result.exitCode !== 0) {
+            throw new ComputerUseExecutionError(JSON.stringify(result), {
+              executionState: result.executionState ?? 'executed',
+              argv: result.argv,
+              exitCode: result.exitCode,
+              stderr: result.stderr,
+            })
+          }
+          return JSON.stringify(result)
+        }
+        catch (error) {
+          if (error instanceof ComputerUseExecutionError)
+            throw error
+          let executionState = extractExecutionState(error)
+          if (executionState === 'not_executed' && execution.abortSignal?.aborted) {
+            // Cancellation happened after dispatch was in-flight. Side effects are unknown.
+            executionState = 'unknown'
+          }
+          const errRecord = error && typeof error === 'object' ? (error as Record<string, unknown>) : undefined
+          const exitCode = typeof errRecord?.exitCode === 'number'
+            ? errRecord.exitCode
+            : typeof errRecord?.code === 'number'
+              ? errRecord.code
+              : undefined
+          const stderr = typeof errRecord?.stderr === 'string' ? errRecord.stderr : undefined
+          const message = errorMessageFrom(error) ?? 'Computer use execution failed.'
+          throw new ComputerUseExecutionError(message, {
+            executionState,
+            argv: rawInput.argv,
+            exitCode,
+            stderr,
+            cause: error,
+          })
+        }
       },
     }),
     rawTool({

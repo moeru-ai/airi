@@ -20,12 +20,71 @@ export interface ComputerUseReadImageInput {
   attribution?: InvocationAttributionPayload
 }
 
+/** Underlying execution state of a computer use command. */
+export type ExecutionState = 'not_executed' | 'executed' | 'unknown'
+
+/** Structured error details for computer use failures across process boundaries. */
+export interface ComputerUseErrorDetails {
+  executionState: ExecutionState
+  argv?: readonly string[]
+  exitCode?: number
+  stderr?: string
+  cause?: unknown
+}
+
+/** Error thrown when computer use execution fails, preserving execution state and context. */
+export class ComputerUseExecutionError extends Error {
+  readonly executionState: ExecutionState
+  readonly argv?: readonly string[]
+  readonly exitCode?: number
+  readonly stderr?: string
+
+  constructor(message: string, details: ComputerUseErrorDetails) {
+    super(message, { cause: details })
+    this.name = 'ComputerUseExecutionError'
+    this.executionState = details.executionState
+    this.argv = details.argv
+    this.exitCode = details.exitCode
+    this.stderr = details.stderr
+    Object.setPrototypeOf(this, new.target.prototype)
+  }
+
+  toJSON() {
+    return {
+      name: this.name,
+      message: this.message,
+      executionState: this.executionState,
+      argv: this.argv,
+      exitCode: this.exitCode,
+      stderr: this.stderr,
+    }
+  }
+}
+
+/** Resolves execution state from an error or error-like object. Defaults to not_executed. */
+export function extractExecutionState(error: unknown): ExecutionState {
+  if (error && typeof error === 'object') {
+    const errorRecord = error as Record<string, unknown>
+    if ('executionState' in errorRecord && typeof errorRecord.executionState === 'string') {
+      return errorRecord.executionState as ExecutionState
+    }
+    if ('cause' in errorRecord && errorRecord.cause && typeof errorRecord.cause === 'object') {
+      const causeRecord = errorRecord.cause as Record<string, unknown>
+      if (typeof causeRecord.executionState === 'string') {
+        return causeRecord.executionState as ExecutionState
+      }
+    }
+  }
+  return 'not_executed'
+}
+
 /** AUV invocation result. A zero exit code does not verify the requested UI effect. */
 export interface ComputerUseResult {
   argv: string[]
   exitCode: number
   output: unknown
   stderr: string
+  executionState: ExecutionState
 }
 
 export interface ComputerUseCancelInput {

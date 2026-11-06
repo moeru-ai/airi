@@ -4,13 +4,23 @@
  * and conservative target-binding preconditions.
  */
 
+import type { ChatRequestInput } from '@proj-airi/stage-shared/chat-request'
+import type { TerminalSnapshot } from '@proj-airi/stage-shared/terminal-approval'
+
+import type { ExecutionState } from '../../../../shared/eventa/computer-use'
 import type { InvocationAttribution } from './attribution'
-import type { AuvCommandClassification } from './classifier'
 
 import { randomUUID } from 'node:crypto'
 
+import { chatRequestSchema } from '@proj-airi/stage-shared/chat-request'
+import { terminalSnapshotSchema } from '@proj-airi/stage-shared/terminal-approval'
+
+import * as v from 'valibot'
+
 import { validateAttribution } from './attribution'
 import { classifyAuvCommand } from './classifier'
+
+export type { ExecutionState }
 
 export type PendingActionStatus
   = | 'pending'
@@ -22,6 +32,7 @@ export type PendingActionStatus
 
 export interface PendingActionSettlement {
   outcome: 'success' | 'failed'
+  executionState: ExecutionState
   exitCode?: number
   error?: string
   settledAt: number
@@ -34,8 +45,6 @@ export interface PendingAction {
   attribution: InvocationAttribution
   /** Immutable arguments frozen at registration */
   argv: readonly string[]
-  /** Classification result */
-  classification: AuvCommandClassification
   /** Command name (e.g. 'input.clickPoint', 'window.clickText') */
   command: string
   /** Resolved target (e.g. 'app:notepad', 'window:1234'), if specified */
@@ -45,6 +54,18 @@ export interface PendingAction {
   createdAt: number
   expiresAt: number
   settlement?: PendingActionSettlement
+  /** Present only for an exact prepared Terminal operation. Native AUV approvals cannot acquire this authority. */
+  terminal?: { serverName: string, snapshot: TerminalSnapshot }
+}
+
+/** Main-issued origin of a submitted Runtime request. Session and turn remain captured routing labels, not authenticated accounts. */
+export interface ChatRequest extends ChatRequestInput {
+  id: string
+  senderWebContentsId: number
+  createdAt: number
+  expiresAt: number
+  closed: boolean
+  cancelled: boolean
 }
 
 /**
@@ -125,12 +146,75 @@ export function verifyExecutionPreconditions(command: string, argv: readonly str
  */
 export class PendingActionManager {
   private actions = new Map<string, PendingAction>()
+  private requests = new Map<string, ChatRequest>()
   private defaultTtlMs = 60_000 // 60 seconds
 
   constructor(options?: { defaultTtlMs?: number }) {
     if (options?.defaultTtlMs) {
       this.defaultTtlMs = options.defaultTtlMs
     }
+  }
+
+  /** Captures a normal Chat submission before provider startup. The IPC boundary must supply the independently verified Runtime source. */
+  registerRequest(input: ChatRequestInput, senderWebContentsId: number): ChatRequest {
+    if (!Number.isSafeInteger(senderWebContentsId) || senderWebContentsId <= 0)
+      throw new Error('A Host request requires a verified Runtime source.')
+    const submitted = v.parse(chatRequestSchema, input)
+    const now = Date.now()
+    for (const request of this.requests.values()) {
+      if (now >= request.expiresAt) {
+        this.cancelRequest(request.id, request.senderWebContentsId)
+        this.requests.delete(request.id)
+      }
+    }
+    if (this.requests.size >= 1024)
+      throw new Error('Too many active Host requests.')
+    const request: ChatRequest = {
+      ...submitted,
+      id: `req_${randomUUID().replace(/-/g, '')}`,
+      senderWebContentsId,
+      createdAt: now,
+      expiresAt: now + 15 * 60_000,
+      closed: false,
+      cancelled: false,
+    }
+    this.requests.set(request.id, request)
+    return structuredClone(request)
+  }
+
+  /** Resolves the Host record and rejects replacement labels or execution sources. Closed runs admit no new tools. */
+  validateRequest(id: string, attribution: InvocationAttribution, options: { allowClosed?: boolean } = {}): ChatRequest {
+    const request = this.requests.get(id)
+    if (!request)
+      throw new Error(`Unknown Host request '${id}'.`)
+    if (request.senderWebContentsId !== attribution.senderWebContentsId
+      || request.sessionId !== attribution.sessionId || request.turnId !== attribution.turnId) {
+      throw new Error('Host request source or routing labels do not match the original submission.')
+    }
+    if (request.cancelled)
+      throw new Error('Host request was cancelled.')
+    if (Date.now() >= request.expiresAt)
+      throw new Error('Host request has expired.')
+    if (request.closed && !options.allowClosed)
+      throw new Error('Host request is closed to new tool calls.')
+    return structuredClone(request)
+  }
+
+  /** Ends new-tool admission without cancelling actions that already wait for an independent approval. */
+  finishRequest(id: string, senderWebContentsId: number): void {
+    const request = this.requests.get(id)
+    if (!request || request.senderWebContentsId !== senderWebContentsId)
+      throw new Error('Host request source does not match.')
+    request.closed = true
+  }
+
+  /** Invalidates an original request. Existing dispatches keep their real settlement. */
+  cancelRequest(id: string, senderWebContentsId: number): number {
+    const request = this.requests.get(id)
+    if (!request || request.senderWebContentsId !== senderWebContentsId)
+      throw new Error('Host request source does not match.')
+    request.cancelled = true
+    return this.cancelInvocation({ sessionId: request.sessionId, turnId: request.turnId, senderWebContentsId })
   }
 
   /**
@@ -162,7 +246,6 @@ export class PendingActionManager {
       id,
       attribution,
       argv: frozenArgv,
-      classification,
       command,
       target,
       status: 'pending',
@@ -171,6 +254,52 @@ export class PendingActionManager {
     }
 
     this.actions.set(id, action)
+    return structuredClone(action)
+  }
+
+  /** Binds a prepared local Terminal operation to the original Main request and the actual model call input. */
+  createTerminalAction(params: {
+    requestId: string
+    attribution: InvocationAttribution
+    serverName: string
+    snapshot: unknown
+    arguments: Record<string, unknown>
+  }): PendingAction {
+    const request = this.validateRequest(params.requestId, params.attribution)
+    if (!params.attribution.toolCallId)
+      throw new Error('A Terminal action requires the original tool call ID.')
+    const snapshot = v.parse(terminalSnapshotSchema, params.snapshot)
+    if (snapshot.requestId !== request.id || snapshot.toolCallId !== params.attribution.toolCallId)
+      throw new Error('The prepared operation belongs to a different Host request or tool call.')
+    const args = params.arguments
+    if (Object.keys(args).some(key => !['command', 'cwd', 'timeoutMs'].includes(key))
+      || typeof args.command !== 'string' || args.command !== snapshot.command
+      || (args.cwd !== undefined && typeof args.cwd !== 'string')
+      || (typeof args.cwd === 'string' ? args.cwd.trim() || undefined : undefined) !== snapshot.requestedCwd
+      || (args.timeoutMs !== undefined && args.timeoutMs !== snapshot.timeoutMs)) {
+      throw new Error('The prepared Terminal operation differs from the original tool arguments.')
+    }
+    for (const existing of this.actions.values()) {
+      if (existing.terminal?.snapshot.requestId === request.id && existing.attribution.toolCallId === params.attribution.toolCallId) {
+        if (existing.terminal.serverName !== params.serverName || JSON.stringify(existing.terminal.snapshot) !== JSON.stringify(snapshot))
+          throw new Error('The original tool call already identifies another immutable operation.')
+        return structuredClone(existing)
+      }
+    }
+    Object.freeze(snapshot.argv)
+    Object.freeze(snapshot)
+    const now = Date.now()
+    const action: PendingAction = {
+      id: `act_${randomUUID().replace(/-/g, '')}`,
+      attribution: { sessionId: request.sessionId, turnId: request.turnId, toolCallId: params.attribution.toolCallId, senderWebContentsId: request.senderWebContentsId },
+      argv: Object.freeze([snapshot.shell, ...snapshot.argv]),
+      command: 'terminal_exec',
+      status: 'pending',
+      createdAt: now,
+      expiresAt: Math.min(now + this.defaultTtlMs, request.expiresAt),
+      terminal: { serverName: params.serverName, snapshot },
+    }
+    this.actions.set(action.id, action)
     return structuredClone(action)
   }
 
@@ -232,6 +361,7 @@ export class PendingActionManager {
     action.status = 'rejected'
     action.settlement = {
       outcome: 'failed',
+      executionState: 'not_executed',
       error: reason ?? 'Rejected by human reviewer',
       settledAt: Date.now(),
     }
@@ -253,6 +383,7 @@ export class PendingActionManager {
     action.status = 'cancelled'
     action.settlement = {
       outcome: 'failed',
+      executionState: 'not_executed',
       error: reason ?? 'Cancelled',
       settledAt: Date.now(),
     }
@@ -316,7 +447,10 @@ export class PendingActionManager {
     }
 
     // 3. Execution preconditions check (conservative target check)
-    verifyExecutionPreconditions(action.command, action.argv)
+    if (action.terminal)
+      this.validateRequest(action.terminal.snapshot.requestId, request.attribution, { allowClosed: true })
+    else
+      verifyExecutionPreconditions(action.command, action.argv)
 
     return action
   }
@@ -336,17 +470,34 @@ export class PendingActionManager {
   /**
    * Settles an action after execution finishes.
    */
-  settle(id: string, outcome: { outcome: 'success' | 'failed', exitCode?: number, error?: string }): void {
+  settle(id: string, outcome: {
+    outcome: 'success' | 'failed'
+    executionState?: ExecutionState
+    exitCode?: number
+    error?: string
+  }): void {
     const action = this.actions.get(id)
     if (!action || action.status !== 'consumed' || action.settlement)
       throw new Error(`Pending action '${id}' must be consumed and unsettled before settlement.`)
-    action.settlement = { ...outcome, settledAt: Date.now() }
+    const executionState: ExecutionState = outcome.executionState
+      ?? (outcome.outcome === 'success' ? 'executed' : (outcome.exitCode !== undefined ? 'executed' : 'unknown'))
+    action.settlement = {
+      ...outcome,
+      executionState,
+      settledAt: Date.now(),
+    }
   }
 
   /** Cancels waiting actions of this source and turn. Other turns and committed executions retain their state. */
   cancelInvocation(attribution: InvocationAttribution, reason?: string): number {
     const now = Date.now()
     let count = 0
+    for (const request of this.requests.values()) {
+      if (request.sessionId === attribution.sessionId && request.turnId === attribution.turnId
+        && request.senderWebContentsId === attribution.senderWebContentsId) {
+        request.cancelled = true
+      }
+    }
     for (const action of this.actions.values()) {
       if (action.attribution.sessionId === attribution.sessionId
         && action.attribution.turnId === attribution.turnId
@@ -355,6 +506,7 @@ export class PendingActionManager {
         action.status = 'cancelled'
         action.settlement = {
           outcome: 'failed',
+          executionState: 'not_executed',
           error: reason ?? 'Request or session was cancelled',
           settledAt: now,
         }
@@ -366,6 +518,10 @@ export class PendingActionManager {
 
   /** Invalidates waiting approvals when their renderer is destroyed. In-flight work retains its real settlement. */
   cancelBySender(senderWebContentsId: number): void {
+    for (const request of this.requests.values()) {
+      if (request.senderWebContentsId === senderWebContentsId)
+        request.cancelled = true
+    }
     for (const action of this.actions.values()) {
       if (action.attribution.senderWebContentsId === senderWebContentsId && (action.status === 'pending' || action.status === 'approved'))
         this.cancel(action.id, 'Source renderer closed')
@@ -377,11 +533,14 @@ export class PendingActionManager {
    */
   invalidateAll(): void {
     const now = Date.now()
+    for (const request of this.requests.values())
+      request.cancelled = true
     for (const action of this.actions.values()) {
       if (action.status === 'pending' || action.status === 'approved') {
         action.status = 'cancelled'
         action.settlement = {
           outcome: 'failed',
+          executionState: 'not_executed',
           error: 'Host runtime disposed or reset',
           settledAt: now,
         }

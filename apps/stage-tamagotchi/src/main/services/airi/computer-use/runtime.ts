@@ -17,7 +17,7 @@ import { fileTypeFromBuffer } from 'file-type'
 
 import * as v from 'valibot'
 
-import { isComputerUseHelpCall } from '../../../../shared/eventa/computer-use'
+import { ComputerUseExecutionError, isComputerUseHelpCall } from '../../../../shared/eventa/computer-use'
 import { validateAttribution } from './attribution'
 import { classifyAuvCommand, MANAGED_FLAGS } from './classifier'
 
@@ -86,7 +86,7 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
   function enqueue<T>(operation: () => Promise<T>, signal?: AbortSignal): Promise<T> {
     const next = queue.then(() => {
       if (disposed)
-        throw new Error('Computer use has stopped.')
+        throw new ComputerUseExecutionError('Computer use has stopped.', { executionState: 'not_executed' })
       // Eventa owns request cancellation. Work that has not started must not outlive its Chat turn.
       signal?.throwIfAborted()
       return operation()
@@ -104,13 +104,13 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
 
     // 2. The host owns routing and artifact storage. CLI global flags must not replace them.
     if (validatedArgv.some(arg => MANAGED_FLAGS.some(flag => arg === flag || arg.startsWith(`${flag}=`))))
-      throw new Error('Computer use routing and storage are managed by AIRI.')
+      throw new ComputerUseExecutionError('Computer use routing and storage are managed by AIRI.', { executionState: 'not_executed', argv: validatedArgv })
 
     // 3. Host Enforcement Gate: evaluate command classification on the frozen argv.
     const classification = classifyAuvCommand(validatedArgv)
 
     if (classification.category === 'unknown') {
-      throw new Error(`Use invoke with a desktop command or --help. (${classification.reason})`)
+      throw new ComputerUseExecutionError(`Use invoke with a desktop command or --help. (${classification.reason})`, { executionState: 'not_executed', argv: validatedArgv })
     }
 
     // 4. Request correlation and the independently observed Electron source.
@@ -119,21 +119,22 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
       attribution = validateAttribution(parsed.attribution, callerWebContentsId)
     }
     else if (!classification.isHelp && options.requireAttribution !== false) {
-      throw new Error('Invocation attribution is required (missing sessionId).')
+      throw new ComputerUseExecutionError('Invocation attribution is required (missing sessionId).', { executionState: 'not_executed', argv: validatedArgv })
     }
     if (!classification.isHelp && options.requireAttribution !== false && (!attribution?.turnId || !attribution.toolCallId))
-      throw new Error('Invocation attribution requires the original turn ID and tool-call ID.')
+      throw new ComputerUseExecutionError('Invocation attribution requires the original turn ID and tool-call ID.', { executionState: 'not_executed', argv: validatedArgv })
 
     // 5. Host Authorization & PendingAction enforcement for mutating commands
     if (classification.category === 'mutating') {
       if (options.actionManager) {
         if (!parsed.actionId) {
-          throw new Error(
+          throw new ComputerUseExecutionError(
             `Mutating desktop operation '${classification.command ?? 'unknown'}' requires an approved action (actionId missing).`,
+            { executionState: 'not_executed', argv: validatedArgv },
           )
         }
         if (!attribution) {
-          throw new Error('Invocation attribution is required (missing sessionId).')
+          throw new ComputerUseExecutionError('Invocation attribution is required (missing sessionId).', { executionState: 'not_executed', argv: validatedArgv })
         }
         // Reject invalid approvals before they can wait behind another operation.
         options.actionManager.validate(parsed.actionId, {
@@ -142,7 +143,7 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
         })
       }
       else {
-        throw new Error(`Mutating desktop operation '${classification.command ?? 'unknown'}' is not authorized on this host.`)
+        throw new ComputerUseExecutionError(`Mutating desktop operation '${classification.command ?? 'unknown'}' is not authorized on this host.`, { executionState: 'not_executed', argv: validatedArgv })
       }
     }
 
@@ -156,7 +157,7 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
         }
         const active = await connect()
         if (disposed)
-          throw new Error('Computer use has stopped.')
+          throw new ComputerUseExecutionError('Computer use has stopped.', { executionState: 'not_executed', argv: validatedArgv })
         signal?.throwIfAborted()
         const command = [...validatedArgv]
         if (!command.includes('--json') && !isComputerUseHelpCall(command))
@@ -167,7 +168,7 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
         let exitCode = 0
         const credential = active.connectionOptions.credential
         if (!credential)
-          throw new Error('AUV did not issue a launcher token.')
+          throw new ComputerUseExecutionError('AUV did not issue a launcher token.', { executionState: 'not_executed', argv: validatedArgv })
         const environment = { ...process.env, AUV_ENDPOINT: active.endpoints[0], AUV_CONTEXT: undefined }
         const args = ['--credential-stdin', ...command]
         try {
@@ -177,6 +178,8 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
             options.actionManager.consume(parsed.actionId, { argv: validatedArgv, attribution })
             consumedActionId = parsed.actionId
           }
+          // Merge runtime lifecycle and request-level cancellation signals
+          const executionSignal = signal ? AbortSignal.any([abort.signal, signal]) : abort.signal
           // Send the launcher token on stdin. Other processes of the same user can read argv and the environment.
           const pending = execFileAsync(options.binaryPath, args, {
             // connectionOptions.endpoint is a bare socket path. The CLI needs the URI form from endpoints.
@@ -185,7 +188,7 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
             timeout: 120000,
             maxBuffer: 4 * 1024 * 1024,
             windowsHide: true,
-            signal: abort.signal,
+            signal: executionSignal,
           })
           // A CLI that exits before it reads stdin must not raise EPIPE as an unhandled error.
           pending.child.stdin?.on('error', () => {})
@@ -193,11 +196,26 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
           ;({ stdout, stderr } = await pending)
         }
         catch (error) {
-          // Nonzero exits carry AUV's failure_details. Spawn failures and timeouts throw.
+          // Check for spawn error where child process was never created
+          if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+            throw new ComputerUseExecutionError(error.message, {
+              executionState: 'not_executed',
+              argv: validatedArgv,
+              cause: error,
+            })
+          }
+          // Nonzero exits carry AUV's failure_details. Spawn failures, killed processes and timeouts throw.
           if (!(error instanceof Error) || !('code' in error) || typeof error.code !== 'number'
             || ('killed' in error && error.killed) || !('stdout' in error) || typeof error.stdout !== 'string'
             || !('stderr' in error) || typeof error.stderr !== 'string') {
-            throw error
+            const errRecord = error && typeof error === 'object' ? (error as Record<string, unknown>) : undefined
+            throw new ComputerUseExecutionError(errorMessageFrom(error) ?? 'Command execution failed', {
+              executionState: 'unknown',
+              argv: validatedArgv,
+              exitCode: typeof errRecord?.code === 'number' ? errRecord.code : undefined,
+              stderr: typeof errRecord?.stderr === 'string' ? errRecord.stderr : undefined,
+              cause: error,
+            })
           }
           exitCode = error.code
           stdout = error.stdout
@@ -208,6 +226,7 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
         if (consumedActionId && options.actionManager) {
           options.actionManager.settle(consumedActionId, {
             outcome: exitCode === 0 ? 'success' : 'failed',
+            executionState: 'executed',
             exitCode,
             error: exitCode === 0 ? undefined : stderr,
           })
@@ -220,13 +239,16 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
         catch {
           // Help output is text. Keep it intact for command discovery.
         }
-        return { argv: [...validatedArgv], exitCode, output, stderr }
+        return { argv: [...validatedArgv], exitCode, output, stderr, executionState: 'executed' as const }
       }
       catch (error) {
         if (consumedActionId && options.actionManager && !options.actionManager.get(consumedActionId)?.settlement) {
+          const executionState = error instanceof ComputerUseExecutionError ? error.executionState : 'unknown'
           options.actionManager.settle(consumedActionId, {
             outcome: 'failed',
+            executionState,
             error: errorMessageFrom(error) ?? 'Computer use execution failed.',
+            exitCode: error instanceof ComputerUseExecutionError ? error.exitCode : undefined,
           })
         }
         throw error
@@ -238,7 +260,13 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
         && options.actionManager?.get(parsed.actionId)?.status === 'approved') {
         options.actionManager.cancel(parsed.actionId, errorMessageFrom(error) ?? 'Computer use failed before dispatch.')
       }
-      throw error
+      throw error instanceof ComputerUseExecutionError
+        ? error
+        : new ComputerUseExecutionError(errorMessageFrom(error) ?? 'Computer use failed before dispatch.', {
+            executionState: 'not_executed',
+            argv: validatedArgv,
+            cause: error,
+          })
     })
   }
 
@@ -301,5 +329,6 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
     await daemon?.stop()
   }
 
-  return { run, readImage, previewImage, dispose }
+  // Terminal approval waits outside this slot. Actual Terminal execution shares the existing conservative desktop queue.
+  return { run, readImage, previewImage, executeInSlot: enqueue, dispose }
 }
