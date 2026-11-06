@@ -5,11 +5,14 @@ import { describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
 import { neutralLive2DMotionControlPose } from '../../stores/motion-control'
+import { createBeatSyncController } from './beat-sync'
 import { createLive2DFocusBias } from './focus-bias'
 import { createLive2DMotionSpring } from './motion-control-spring'
 import {
   disableLive2DSdkBreath,
   useMotionUpdatePluginAutoEyeBlink,
+  useMotionUpdatePluginBeatSync,
+  useMotionUpdatePluginBeatSyncLayer,
   useMotionUpdatePluginBreathControl,
   useMotionUpdatePluginIdleDisable,
   useMotionUpdatePluginLightSquint,
@@ -350,6 +353,107 @@ describe('live2d motion manager plugins', () => {
       pose: neutralLive2DMotionControlPose,
       dynamics: { follow: 0.6, inertia: 0.35 },
     }), createLive2DMotionSpring())(context)
+
+    expect(context.model.setParameterValueById).not.toHaveBeenCalled()
+  })
+})
+
+describe('beat sync plugins', () => {
+  const frameSeconds = 1 / 60
+
+  /** A sway controller around zero base angles, primed at 10 s and hit by a beat at 10.5 s. */
+  function createBeatingController() {
+    const clock = { ms: 10_000 }
+    const controller = createBeatSyncController({
+      baseAngles: () => ({ x: 0, y: 0, z: 0 }),
+      initialStyle: 'sway-sine',
+      now: () => clock.ms,
+    })
+    controller.scheduleBeat()
+    clock.ms = 10_500
+    controller.scheduleBeat()
+    return { clock, controller }
+  }
+
+  it('follows a beat between frames although the frames count time in seconds', () => {
+    // ROOT CAUSE:
+    //
+    // Beats used `performance.now()` in milliseconds, and frames used `ctx.now` in seconds.
+    // Each frame came before the segment start, so the target only moved on the next beat.
+    //
+    // beatSync.updateTargets(ctx.now)
+    //
+    // We fixed this with one controller clock for beats and targets.
+    // beatSync.updateTargets()
+    const { clock, controller } = createBeatingController()
+    clock.ms = 10_625
+
+    useMotionUpdatePluginBeatSync(controller)(createContext({ now: clock.ms / 1000, timeDelta: frameSeconds }))
+
+    // Half of the 250 ms segment toward the left side: easeOutCubic(0.5) of -10 degrees.
+    expect(controller.targetY.value).toBeCloseTo(-8.75)
+    expect(controller.targetZ.value).toBeCloseTo(8.75)
+  })
+
+  it('adds the beat on top of a MAGIC pose that the final phase writes', () => {
+    // ROOT CAUSE:
+    //
+    // The MAGIC pose writes absolute head angles in the final phase.
+    // Beat Sync wrote them in the pre phase, so the pose replaced them on every frame.
+    //
+    // register(useMotionUpdatePluginBeatSync(beatSync), 'pre')
+    //
+    // We fixed this with a final-phase layer that adds the beat offset after the pose.
+    function runFrames(beating: boolean) {
+      const { clock, controller } = createBeatingController()
+      const context = createContext({ timeDelta: frameSeconds })
+      const spring = createLive2DMotionSpring()
+      const isLayered = () => spring.output.value.active
+      const plugins = [
+        useMotionUpdatePluginBeatSync(controller, isLayered),
+        useMotionUpdatePluginManualControl(ref({
+          active: true,
+          ownerId: 'stage:live2d-motion-magic',
+          pose: { ...neutralLive2DMotionControlPose, headY: 0.2, headZ: -0.1 },
+          dynamics: { follow: 0.6, inertia: 0.35 },
+        }), spring),
+        ...(beating ? [useMotionUpdatePluginBeatSyncLayer(controller, isLayered)] : []),
+      ]
+
+      // One second after the beat: the beat reached the left side, and the release after 1.8 s has not started.
+      for (let frame = 0; frame < 60; frame += 1) {
+        clock.ms += frameSeconds * 1000
+        context.now = clock.ms / 1000
+        plugins.forEach(plugin => plugin(context))
+      }
+
+      return {
+        angleY: context.model.getParameterValueById('ParamAngleY'),
+        angleZ: context.model.getParameterValueById('ParamAngleZ'),
+      }
+    }
+
+    const withoutBeat = runFrames(false)
+    const withBeat = runFrames(true)
+
+    expect(withBeat.angleY - withoutBeat.angleY).toBeCloseTo(-10, 0)
+    expect(withBeat.angleZ - withoutBeat.angleZ).toBeCloseTo(10, 0)
+  })
+
+  it('leaves the head to the pre-phase plugin when no pose is layered', () => {
+    const { controller } = createBeatingController()
+    const context = createContext({ timeDelta: frameSeconds })
+
+    useMotionUpdatePluginBeatSyncLayer(controller, () => false)(context)
+
+    expect(context.model.addParameterValueById).not.toHaveBeenCalled()
+  })
+
+  it('stops the pre-phase plugin while a pose is layered', () => {
+    const { controller } = createBeatingController()
+    const context = createContext({ timeDelta: frameSeconds })
+
+    useMotionUpdatePluginBeatSync(controller, () => true)(context)
 
     expect(context.model.setParameterValueById).not.toHaveBeenCalled()
   })

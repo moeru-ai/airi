@@ -43,6 +43,7 @@ import {
   useLive2DMotionManagerUpdate,
   useMotionUpdatePluginAutoEyeBlink,
   useMotionUpdatePluginBeatSync,
+  useMotionUpdatePluginBeatSyncLayer,
   useMotionUpdatePluginBreathControl,
   useMotionUpdatePluginExpression,
   useMotionUpdatePluginIdleDisable,
@@ -296,6 +297,9 @@ const beatSync = createBeatSyncController({
   }),
   initialStyle: 'sway-sine',
 })
+// A manual pose, for example from the MAGIC driver, writes the head angles in the final phase.
+// Beat Sync then moves as a layer on top of that pose.
+const beatSyncIsLayered = () => manualMotionSpring.output.value.active
 
 // Listen for model reload requests (e.g., when runtime motion is uploaded)
 const disposeShouldUpdateView = live2dStore.onShouldUpdateView(() => {
@@ -473,7 +477,7 @@ async function performModelLoad() {
       lastUpdateTime,
     })
 
-    motionManagerUpdate.register(useMotionUpdatePluginBeatSync(beatSync), 'pre')
+    motionManagerUpdate.register(useMotionUpdatePluginBeatSync(beatSync, beatSyncIsLayered), 'pre')
     motionManagerUpdate.register(useMotionUpdatePluginIdleDisable(), 'pre')
     motionManagerUpdate.register(useMotionUpdatePluginIdleFocus(), 'post')
     // Both run in 'final' stage (ignores handled state).
@@ -497,6 +501,7 @@ async function performModelLoad() {
       controller: manualFocusBias,
       target: focusBiasTarget,
     }), 'final')
+    motionManagerUpdate.register(useMotionUpdatePluginBeatSyncLayer(beatSync, beatSyncIsLayered), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginLipSync(mouthOpenSize, nowSpeaking), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginBreathControl(manualBreathControl), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginTouchReaction(touchReaction.sample), 'final')
