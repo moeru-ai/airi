@@ -3,6 +3,7 @@ import type { Env } from './libs/env'
 import type { OtelInstance } from './otel'
 import type { Verifier as AppleIapVerifier } from './routes/apple-iap/verifier'
 import type { StreamingTtsVoiceType } from './routes/audio-speech-ws/session'
+import type { AccountEventPublisher } from './services/adapters/account-events'
 import type { ConfigKVService } from './services/adapters/config-kv'
 import type { RevenuecatSubscriberClient } from './services/adapters/revenuecat-subscriber'
 import type { RevenuecatSubscriptionSync } from './services/adapters/revenuecat-subscriptions'
@@ -44,6 +45,7 @@ import { createLoggLogger, injeca, lifecycle } from 'injeca'
 import { createDrizzle, migrateDatabase } from './libs/db'
 import { parsedEnv } from './libs/env'
 import { initializeExternalDependency } from './libs/external-dependency'
+import { createStreamPublisher } from './libs/redis/stream'
 import { resolveRequestAuth } from './libs/request-auth'
 import { createUnauthorizedWsEvents } from './libs/ws-auth'
 import { authGuard, sessionMiddleware } from './middlewares/auth'
@@ -71,6 +73,7 @@ import { createProviderRoutes } from './routes/providers'
 import { createRevenuecatRoutes } from './routes/revenuecat'
 import { createStripeRoutes } from './routes/stripe'
 import { createVoicePackRoutes } from './routes/voice-packs'
+import { accountEventsStream, createUserDeletedEventHandler } from './services/adapters/account-events'
 import { createConfigKVService } from './services/adapters/config-kv'
 import { createConfigKVStore } from './services/adapters/config-kv/store'
 import { createS3ObjectStore } from './services/adapters/object-store'
@@ -114,6 +117,7 @@ interface AppDeps {
   billingService: BillingService
   speechBilling: SpeechBilling
   subscriptionSync: RevenuecatSubscriptionSync
+  accountEvents: AccountEventPublisher
   revenuecatSubscriber: RevenuecatSubscriberClient
   requestLogService: RequestLogService
   voicePackService: VoicePackService
@@ -450,6 +454,8 @@ export async function buildApp(deps: AppDeps) {
      */
     .route('/api/v1/revenuecat', createRevenuecatRoutes(
       deps.subscriptionSync,
+      deps.accountEvents,
+      deps.revenuecatSubscriber,
       deps.env,
       deps.otel?.rateLimit ?? null,
     ))
@@ -737,6 +743,12 @@ export async function createApp() {
     }),
   })
 
+  // Producer of the account events stream that Cloud turns into notifications.
+  const accountEvents = injeca.provide('adapters:accountEvents', {
+    dependsOn: { redis },
+    build: ({ dependsOn }) => createStreamPublisher(dependsOn.redis, accountEventsStream),
+  })
+
   const subscriptionSync = injeca.provide('services:revenuecatSubscriptionSync', {
     dependsOn: { billingService, configKV, revenuecatSubscriber },
     build: ({ dependsOn }) => createRevenuecatSubscriptionSync(
@@ -752,19 +764,21 @@ export async function createApp() {
   //   1. give it a `deleteAllForUser(userId)` method
   //   2. add one `service.register(...)` line below
   // Domain knowledge stays inside each service instead of being copied into
-  // a parallel handler file. See `server/apps/api/docs/ai-context/account-deletion.md`.
+  // a parallel handler file.
   const userDeletionService = injeca.provide('services:userDeletion', {
-    dependsOn: { paymentService, fluxService, providerService, characterService, characterCardService, chatService },
+    dependsOn: { paymentService, fluxService, providerService, characterService, characterCardService, chatService, accountEvents },
     build: ({ dependsOn }) => {
       const service = createUserDeletionService()
       // priority: 20 = financial / cache state (Flux balance + Redis),
-      //           30 = pure DB soft-delete (no external touch).
+      //           30 = pure DB soft-delete (no external touch),
+      //           40 = account event for Cloud, after every soft delete.
       service.register({ name: 'payment', priority: 30, softDelete: ({ userId }) => dependsOn.paymentService.deleteAllForUser(userId) })
       service.register({ name: 'flux', priority: 20, softDelete: ({ userId }) => dependsOn.fluxService.deleteAllForUser(userId) })
       service.register({ name: 'providers', priority: 30, softDelete: ({ userId }) => dependsOn.providerService.deleteAllForUser(userId) })
       service.register({ name: 'characters', priority: 30, softDelete: ({ userId }) => dependsOn.characterService.deleteAllForUser(userId) })
       service.register({ name: 'characterCards', priority: 30, softDelete: ({ userId }) => dependsOn.characterCardService.deleteAllForUser(userId) })
       service.register({ name: 'chats', priority: 30, softDelete: ({ userId }) => dependsOn.chatService.deleteAllForUser(userId) })
+      service.register(createUserDeletedEventHandler(dependsOn.accountEvents))
       return service
     },
   })
@@ -807,6 +821,7 @@ export async function createApp() {
     productEventService,
     paymentService,
     subscriptionSync,
+    accountEvents,
     appleIapVerifier,
     stripe,
     billingService,
@@ -838,6 +853,7 @@ export async function createApp() {
     fluxTransactionService: resolved.fluxTransactionService,
     paymentService: resolved.paymentService,
     subscriptionSync: resolved.subscriptionSync,
+    accountEvents: resolved.accountEvents,
     appleIapVerifier: resolved.appleIapVerifier,
     stripe: resolved.stripe,
     voicePackService: resolved.voicePackService,

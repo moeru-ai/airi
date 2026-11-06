@@ -12,6 +12,8 @@ import { useI18n } from 'vue-i18n'
 
 import WakeWordConflicts from '../components/wake-word-conflicts.vue'
 
+import { wakeWordSearchKey } from './wake-words.search'
+
 /**
  * How one card pronunciation behaves on this device.
  *
@@ -93,7 +95,7 @@ const stateClasses: Record<PronunciationState, string[]> = {
         <p v-if="character.words.length === 0" :class="['text-sm text-neutral-500 dark:text-neutral-400']">
           {{ t('settings.pages.modules.hearing.wake-words.empty') }}
         </p>
-        <div v-for="word in character.words" :key="word.text" :class="['flex flex-col gap-2']">
+        <div v-for="word in character.words" :key="word.text" :data-settings-search="wakeWordSearchKey(character.id, word.text)" :class="['flex flex-col gap-2']">
           <h3 :class="['font-medium text-neutral-800 dark:text-neutral-100']">
             {{ word.text }}
           </h3>

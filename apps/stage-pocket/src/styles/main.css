@@ -43,12 +43,29 @@ html.dark {
   color-scheme: dark;
 }
 
+/*
+ * Stage transition colours (StageTransitionGroup in App.vue): pale tints of the theme. They live in CSS so they follow
+ * `--chromatic-hue`, including the `dynamic-hue` animation, and dark mode.
+ */
+:root {
+  --stage-transition-primary: color-mix(in srgb, theme('colors.primary.200') 90%, oklch(90% 0 360));
+  --stage-transition-secondary: color-mix(in srgb, theme('colors.complementary.200') 90%, oklch(90% 0 360));
+  /* primary + 60°: a third of the way from primary (h) to complementary (h + 180°), going up in hue */
+  --stage-transition-tertiary: color-mix(in srgb, color-mix(in oklch increasing hue, theme('colors.primary.200') 66.667%, theme('colors.complementary.200')) 90%, oklch(90% 0 360));
+}
+
+.dark {
+  --stage-transition-primary: color-mix(in srgb, theme('colors.primary.200') 70%, oklch(50% 0 360));
+  --stage-transition-secondary: color-mix(in srgb, theme('colors.complementary.200') 70%, oklch(50% 0 360));
+  --stage-transition-tertiary: color-mix(in srgb, color-mix(in oklch increasing hue, theme('colors.primary.200') 66.667%, theme('colors.complementary.200')) 70%, oklch(50% 0 360));
+}
+
 #nprogress {
   pointer-events: none;
 }
 
 #nprogress .bar {
-  background: color-mix(in srgb, oklch(95% var(--chromatic-chroma-900) calc(var(--chromatic-hue) + ${0})) 70%, oklch(50% 0 360));
+  background: color-mix(in srgb, theme('colors.primary.200') 70%, oklch(50% 0 360));
   opacity: 0.75;
   position: fixed;
   z-index: 1031;
@@ -59,7 +76,7 @@ html.dark {
 }
 
 .dark #nprogress .bar {
-  background: `color-mix(in srgb, oklch(95% var(--chromatic-chroma-900) calc(var(--chromatic-hue) + ${0})) 90%, oklch(90% 0 360))`;
+  background: color-mix(in srgb, theme('colors.primary.200') 90%, oklch(90% 0 360));
 }
 
 @media (display-mode: standalone) {

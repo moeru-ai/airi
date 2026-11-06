@@ -37,14 +37,14 @@ const DocumentIdSchema = v.pipe(v.string(), v.minLength(1), v.maxLength(64))
 
 const DeleteQuerySchema = v.object({
   /** The document revision that the client last received. A newer revision on the server rejects the deletion. */
-  revision: v.pipe(v.string(), v.regex(/^\d+$/), v.transform(Number), RevisionSchema),
+  revision: v.pipe(v.string(), v.digits(), v.transform(Number), RevisionSchema),
 })
 
 const DEFAULT_HISTORY_LIMIT = 50
 const MAX_HISTORY_LIMIT = 200
 
-const OptionalRevisionQuerySchema = v.optional(v.pipe(v.string(), v.regex(/^\d+$/), v.transform(Number), RevisionSchema))
-const OptionalLimitQuerySchema = v.optional(v.pipe(v.string(), v.regex(/^\d+$/), v.transform(Number), v.integer(), v.minValue(1), v.maxValue(MAX_HISTORY_LIMIT)))
+const OptionalRevisionQuerySchema = v.optional(v.pipe(v.string(), v.digits(), v.transform(Number), RevisionSchema))
+const OptionalLimitQuerySchema = v.optional(v.pipe(v.string(), v.digits(), v.transform(Number), v.integer(), v.minValue(1), v.maxValue(MAX_HISTORY_LIMIT)))
 
 const HistoryQuerySchema = v.object({
   /** Lists revisions older than this one. Omit it to start from the newest revision. */
@@ -53,7 +53,7 @@ const HistoryQuerySchema = v.object({
   limit: OptionalLimitQuerySchema,
 })
 
-const RevisionParamSchema = v.pipe(v.string(), v.regex(/^\d+$/), v.transform(Number), RevisionSchema)
+const RevisionParamSchema = v.pipe(v.string(), v.digits(), v.transform(Number), RevisionSchema)
 
 export type PushedField = v.InferOutput<typeof PushRequestSchema>['fields'][number]
 

@@ -1,6 +1,10 @@
+import type { BackdropRegion } from '@proj-airi/electron-native-backdrop/types'
 import type { VoiceHostSnapshot, VoiceInputCommand } from '@proj-airi/stage-ui/services/speech/bus'
 
+import type { WindowBackdropStatus } from '../../../shared/eventa'
+
 import { defineInvokeHandler } from '@moeru/eventa'
+import { backdropSurfaceHostKey } from '@proj-airi/stage-ui/composables/backdrop-surface'
 import { getSpeechBusContext, voiceInputCommand, voiceSnapshotChanged } from '@proj-airi/stage-ui/services/speech/bus'
 import { createPinia, disposePinia } from 'pinia'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -10,9 +14,12 @@ import { createI18n } from 'vue-i18n'
 
 import VoiceInlay from './voice-inlay.vue'
 
+import { createWindowBackdropHost } from '../../composables/window-backdrop'
+
 import 'virtual:uno.css'
 
-const { returnHome, setIgnoreMouseEvents, registerShortcut, unregisterShortcut, shortcutListeners, cursor } = vi.hoisted(() => ({
+const { backdrop, returnHome, setIgnoreMouseEvents, registerShortcut, unregisterShortcut, shortcutListeners, cursor, isWayland } = vi.hoisted(() => ({
+  backdrop: vi.fn<(request: { regions: BackdropRegion[] }) => Promise<WindowBackdropStatus>>(async () => ({ state: 'unsupported', reason: 'Browser test' })),
   returnHome: vi.fn(),
   setIgnoreMouseEvents: vi.fn(),
   registerShortcut: vi.fn(async () => ({ ok: true })),
@@ -21,16 +28,20 @@ const { returnHome, setIgnoreMouseEvents, registerShortcut, unregisterShortcut, 
   shortcutListeners: new Set<(event: { body?: { id: string, phase: 'down' | 'up' } }) => void>(),
   /** The cursor position that the main process reports. The mock factory fills it with refs. */
   cursor: {} as { x?: { value: number }, y?: { value: number } },
+  /** Whether the mocked platform is Wayland. Most tests cover the click-through platforms. */
+  isWayland: { value: false },
 }))
 
 // The inlay talks to its Electron window through these IPC composables. The cursor starts outside the page.
 vi.mock('@proj-airi/electron-vueuse', async () => {
   const { shallowRef } = await import('vue')
-  const { electronInlayReturnHome, electronShortcutRegister, electronShortcutUnregister } = await import('../../../shared/eventa')
+  const { electronAppIsWayland, electronInlayReturnHome, electronShortcutRegister, electronShortcutUnregister } = await import('../../../shared/eventa')
   const invokes = new Map<unknown, unknown>([
     [electronInlayReturnHome, returnHome],
     [electronShortcutRegister, registerShortcut],
     [electronShortcutUnregister, unregisterShortcut],
+    // Not Wayland by default: the inlay window can stay click-through around its card.
+    [electronAppIsWayland, () => Promise.resolve(isWayland.value)],
   ])
   return {
     useElectronEventaInvoke: (eventa: unknown) => invokes.get(eventa) ?? setIgnoreMouseEvents,
@@ -53,6 +64,9 @@ const cleanups: (() => void)[] = []
 
 afterEach(() => {
   cleanups.splice(0).reverse().forEach(cleanup => cleanup())
+  isWayland.value = false
+  backdrop.mockReset()
+  backdrop.mockResolvedValue({ state: 'unsupported', reason: 'Browser test' })
   returnHome.mockReset()
   setIgnoreMouseEvents.mockReset()
   registerShortcut.mockClear()
@@ -73,7 +87,14 @@ function renderInlay() {
   const pinia = createPinia()
   cleanups.push(() => disposePinia(pinia))
   // Test Utils stubs <Transition> by default. The inlay depends on its leave hooks, so the real component runs.
-  const view = render(VoiceInlay, { global: { stubs: { transition: false }, plugins: [pinia, createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false })] } })
+  const view = render(VoiceInlay, {
+    global: {
+      stubs: { transition: false },
+      plugins: [pinia, createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false })],
+      // The app root provides the native glass host. The test gives it the mocked IPC.
+      provide: { [backdropSurfaceHostKey as symbol]: createWindowBackdropHost(backdrop) },
+    },
+  })
   cleanups.push(() => view.unmount())
   return view
 }
@@ -90,6 +111,31 @@ const capturing = { requestId: 'speech', sessionId: 'alice', phase: 'capturing' 
 const draft = { id: 'draft', sessionId: 'alice', rawText: 'hello', text: 'Hello there.' }
 
 describe('voice inlay', () => {
+  it('follows the real capsule and draft card bounds with native glass, then clears on dismissal', async () => {
+    backdrop.mockResolvedValue({ state: 'active' })
+    renderInlay()
+    publish({ drafts: [], input: { ...capturing, text: '', segments: [] } })
+    const nativeRegion = () => backdrop.mock.calls.at(-1)?.[0].regions[0]
+    await expect.poll(() => nativeRegion()?.width).toBe(176)
+    expect(nativeRegion()?.height).toBe(44)
+    expect(nativeRegion()?.radius).toBe(22)
+    const capsule = document.querySelector<HTMLElement>('[data-testid="voice-inlay"]')!
+    // The card keeps its own translucent fill over native glass.
+    expect(getComputedStyle(capsule).backgroundColor).toBe('rgba(255, 255, 255, 0.8)')
+
+    publish({ drafts: [draft] })
+    await expect.poll(() => nativeRegion()?.height).toBe(160)
+    await expect.poll(() => nativeRegion()?.radius).toBe(24)
+    const rect = capsule.getBoundingClientRect()
+    expect(nativeRegion()?.x).toBeCloseTo(rect.x, 1)
+    expect(nativeRegion()?.y).toBeCloseTo(rect.y, 1)
+    expect(nativeRegion()?.width).toBeCloseTo(rect.width, 1)
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    await expect.poll(() => backdrop.mock.calls.at(-1)?.[0].regions).toEqual([])
+    await expect.poll(inlayView).toBe('hidden')
+  })
+
   it('passes clicks through while it paints nothing', async () => {
     renderInlay()
 
@@ -111,6 +157,14 @@ describe('voice inlay', () => {
 
     await expect.poll(inlayView).toBe('hidden')
     await expect.poll(() => setIgnoreMouseEvents.mock.calls.at(-1)).toEqual([[true, { forward: true }]])
+  })
+
+  it('stays interactive on Wayland, where the cursor signal cannot drive click-through', async () => {
+    isWayland.value = true
+    renderInlay()
+
+    await expect.poll(() => setIgnoreMouseEvents.mock.calls.at(-1)).toEqual([[false, { forward: true }]])
+    expect(inlayView()).toBe('hidden')
   })
 
   it('shows a capsule when capture starts, and grows into the card when text arrives', async () => {
@@ -150,11 +204,11 @@ describe('voice inlay', () => {
     publish({ drafts: [{ ...draft, sending: true }], frontDraftId: 'draft' })
     await expect.poll(inlayView).toBe('sent')
     const card = document.querySelector('[data-testid="voice-inlay"]')!
-    expect(card.classList.contains('inlay-send')).toBe(false)
+    expect(card.classList.contains('voice-presence-send')).toBe(false)
 
     await expect.element(view.getByRole('status')).toHaveTextContent('Hello there.')
     publish({ drafts: [] })
-    await expect.poll(() => card.classList.contains('inlay-send'), { timeout: 3000 }).toBe(true)
+    await expect.poll(() => card.classList.contains('voice-presence-send'), { timeout: 3000 }).toBe(true)
     await expect.poll(inlayView, { timeout: 3000 }).toBe('hidden')
   })
 
@@ -173,11 +227,20 @@ describe('voice inlay', () => {
     publish({ drafts: [], input: { ...capturing, text: '', segments: [] } })
     await expect.poll(inlayView).toBe('capsule')
 
-    await new Promise(resolve => setTimeout(resolve, 5500))
+    // Fake timers move the clock past the 5 s delay without a real wait.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    cleanups.push(() => vi.useRealTimers())
+    await vi.advanceTimersByTimeAsync(5500)
     expect(returnHome).not.toHaveBeenCalled()
 
     publish({ drafts: [] })
-    await expect.poll(() => returnHome.mock.calls.length, { timeout: 7000 }).toBe(1)
+    // The leave transition ends on a timer too, so each poll moves the clock forward a little.
+    await expect.poll(async () => {
+      await vi.advanceTimersByTimeAsync(50)
+      return inlayView()
+    }).toBe('hidden')
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(returnHome).toHaveBeenCalledTimes(1)
   })
 
   it('cancels live speech on Escape and shrinks away', async () => {

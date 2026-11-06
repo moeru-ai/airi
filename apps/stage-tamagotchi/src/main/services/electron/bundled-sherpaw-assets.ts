@@ -14,8 +14,11 @@ const modelAssetName = /^\/(?:preload-[\w-]+\.data|preload\.js-[\w-]+\.metadata)
  *   -> `airi-sherpaw://assets/<filename>` request
  *     -> `protocol.handle`
  *       -> `net.fetch` from the renderer assets directory
+ *
+ * The handler calls `getRendererDirectory` for each request, not at setup.
+ * Thus it reads from the same renderer root that windows load from.
  */
-export function setupSherpawModelAssetsProtocol(rendererDirectory: string): void {
+export function setupSherpawModelAssetsProtocol(getRendererDirectory: () => string): void {
   // NOTICE:
   // Renderer fetch cannot read local model files through file:// in Electron.
   // Sherpaw loads its model pair with fetch before it starts a Worker session.
@@ -27,7 +30,7 @@ export function setupSherpawModelAssetsProtocol(rendererDirectory: string): void
       return new Response('Not Found', { status: 404 })
 
     const filename = url.pathname.slice(1)
-    const fileURL = pathToFileURL(join(rendererDirectory, 'assets', filename))
+    const fileURL = pathToFileURL(join(getRendererDirectory(), 'assets', filename))
     const response = await net.fetch(fileURL.href, { signal: request.signal })
     const headers = new Headers(response.headers)
     headers.set('Access-Control-Allow-Origin', '*')

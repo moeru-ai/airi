@@ -4,7 +4,7 @@ import type {} from 'pinia-plugin-synced'
 import { errorMessageFrom } from '@moeru/std'
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useTimeoutFn, whenever } from '@vueuse/core'
-import { defineStore } from 'pinia'
+import { defineStore, getActivePinia } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
 import { client } from '../composables/api'
@@ -69,6 +69,9 @@ export interface AuthTokenSet {
  * `providers` to safely depend on it without creating a circular import.
  */
 export const useAuthStore = defineStore('auth', () => {
+  // A watcher or an await runs outside the setup of this store. The active
+  // Pinia can then be another one, so keep the Pinia that owns this store.
+  const pinia = getActivePinia()
   const storage = createLocalStorageForAuth()
 
   // Pinia owns live auth state. Persistence is command-driven so a state patch
@@ -93,6 +96,11 @@ export const useAuthStore = defineStore('auth', () => {
   // This runtime version follows user intent across windows. New sign-in, logout,
   // and explicit clearing advance it. Requests from older versions cannot commit.
   const sessionVersion = ref(0)
+  // The session version that `user` belongs to. A new sign-in replaces the token first, and `user`
+  // follows after the session request. Until they match, `user` does not describe the token.
+  const verifiedSessionVersion = ref(0)
+  /** False while the token can belong to another account than `user`. Requests that move private data must wait. */
+  const isSessionVerified = computed(() => verifiedSessionVersion.value === sessionVersion.value)
   let signingOut = false
 
   const credits = ref(0)
@@ -212,7 +220,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   const { start: startRefreshTimer, stop: stopRefreshTimer } = useTimeoutFn(
-    () => { void useAuthStore().refreshTokenNow() },
+    () => { void useAuthStore(pinia).refreshTokenNow() },
     refreshDelayMs,
     { immediate: false },
   )
@@ -309,6 +317,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (data) {
       user.value = data.user
       session.value = data.session
+      verifiedSessionVersion.value = version
       return true
     }
 
@@ -496,6 +505,8 @@ export const useAuthStore = defineStore('auth', () => {
     signOut,
     refreshTokenNow,
     sessionVersion,
+    verifiedSessionVersion,
+    isSessionVerified,
     consumeLoginRequest,
     requestLogin,
     expireSession,

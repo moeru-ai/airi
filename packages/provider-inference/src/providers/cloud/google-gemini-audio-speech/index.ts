@@ -1,3 +1,4 @@
+import { GoogleGenAI } from '@google/genai'
 import { toWavFromPCM16 } from '@proj-airi/audio/encoding'
 import { z } from 'zod'
 
@@ -66,6 +67,12 @@ function decodeBase64(base64: string) {
 }
 
 function createAudioFetch(apiKey: string, baseUrl: string) {
+  const client = new GoogleGenAI({
+    apiKey,
+    // baseUrl already includes the API version path, so apiVersion is empty to avoid appending it twice.
+    httpOptions: { apiVersion: '', baseUrl },
+  })
+
   return async (_input: RequestInfo | URL, init?: RequestInit) => {
     if (!init?.body || typeof init.body !== 'string')
       throw new Error('Invalid request body')
@@ -81,27 +88,19 @@ function createAudioFetch(apiKey: string, baseUrl: string) {
     if (!body.model)
       throw new Error('Missing model for Gemini TTS')
 
-    const response = await globalThis.fetch(new URL(`models/${body.model}:generateContent`, baseUrl), {
-      method: 'POST',
-      headers: { 'x-goog-api-key': apiKey, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: body.input }] }],
-        generationConfig: {
-          responseModalities: ['AUDIO'],
-          speechConfig: {
-            voiceConfig: { prebuiltVoiceConfig: { voiceName: body.voice || 'Kore' } },
-          },
-          ...(body.temperature !== undefined ? { temperature: body.temperature } : {}),
+    const response = await client.models.generateContent({
+      model: body.model,
+      contents: [{ parts: [{ text: body.input }] }],
+      config: {
+        responseModalities: ['AUDIO'],
+        speechConfig: {
+          voiceConfig: { prebuiltVoiceConfig: { voiceName: body.voice || 'Kore' } },
         },
-      }),
+        ...(body.temperature !== undefined ? { temperature: body.temperature } : {}),
+      },
     })
-    if (!response.ok)
-      throw new Error(`Gemini TTS request failed: ${response.status} ${await response.text().catch(() => '')}`)
 
-    const data = await response.json() as {
-      candidates?: Array<{ content?: { parts?: Array<{ inlineData?: { data?: string } }> } }>
-    }
-    const audio = data.candidates?.[0]?.content?.parts?.find(part => part.inlineData)?.inlineData?.data
+    const audio = response.candidates?.[0]?.content?.parts?.find(part => part.inlineData?.data)?.inlineData?.data
     if (!audio)
       throw new Error('Gemini TTS response missing audio data')
 

@@ -8,6 +8,7 @@ import type { VoicePackService } from '../voice-packs'
 import { useLogger } from '@guiiai/logg'
 import { context, SpanStatusCode, trace } from '@opentelemetry/api'
 import { ApiError, createBadRequestError, createPaymentRequiredError } from '@proj-airi/http-error-shared'
+import { check, pipe, safeParse, string, transform } from 'valibot'
 
 import { nanoid } from '../../../utils/id'
 import {
@@ -29,6 +30,27 @@ const SAFE_ERROR_RESPONSE_HEADERS = new Set([
   'content-type',
   'retry-after',
 ])
+
+/**
+ * The language of the speech text, as a BCP 47 tag such as `en-US` or `ja`.
+ * The output is the canonical form, so adapters compare tags without case handling: `ZH-cn` becomes `zh-CN`.
+ * Each TTS adapter decides which languages its provider reads.
+ */
+const speechLanguageSchema = pipe(
+  string(),
+  check(isLanguageTag, 'must be a BCP 47 language tag'),
+  transform(tag => Intl.getCanonicalLocales(tag)[0]!),
+)
+
+/** `Intl.getCanonicalLocales` parses BCP 47 and throws a `RangeError` for a malformed tag. */
+function isLanguageTag(value: string): boolean {
+  try {
+    return Intl.getCanonicalLocales(value).length === 1
+  }
+  catch {
+    return false
+  }
+}
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
   if (typeof value !== 'object' || value == null || Array.isArray(value))
@@ -90,6 +112,7 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
     const requestVoice = typeof input.body.voice === 'string' ? input.body.voice : undefined
     const inputText = typeof input.body.input === 'string' ? input.body.input : ''
     const analytics = ttsAnalyticsContext(input.body)
+    const language = speechLanguage(input.body)
 
     const voicePackRequest = await voicePackRequestOptions(input.body, {
       requestedModel,
@@ -140,6 +163,7 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
       voice: routedVoice,
       speed: voicePackRequest.speed ?? (typeof input.body.speed === 'number' ? input.body.speed : undefined),
       responseFormat: typeof input.body.response_format === 'string' ? input.body.response_format : undefined,
+      language,
       extraOptions: voicePackRequest.extraOptions,
     }
 
@@ -261,6 +285,27 @@ function ttsAnalyticsContext(body: Record<string, unknown>): TtsAnalyticsContext
     : 'audio.speech'
   const turnId = typeof analytics?.turn_id === 'string' ? analytics.turn_id : undefined
   return { trigger, source, turnId }
+}
+
+/**
+ * Reads the language of the speech text from `extra_body.language`.
+ *
+ * AIRI extensions of the OpenAI speech body live in `extra_body`, as `voice_pack` and `airi_analytics` do.
+ * An absent language returns `undefined`, so the provider reads the text as before. A malformed tag fails the request
+ * before billing, because the caller sent a value that no adapter can map.
+ */
+function speechLanguage(body: Record<string, unknown>): string | undefined {
+  const value = asRecord(body.extra_body)?.language
+  if (value === undefined)
+    return undefined
+
+  const result = safeParse(speechLanguageSchema, value)
+  if (!result.success) {
+    throw createBadRequestError('extra_body.language must be a BCP 47 language tag, for example en-US', 'INVALID_SPEECH_LANGUAGE', {
+      field: 'extra_body.language',
+    })
+  }
+  return result.output
 }
 
 async function voicePackRequestOptions(

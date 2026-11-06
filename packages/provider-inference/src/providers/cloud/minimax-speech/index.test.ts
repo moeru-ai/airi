@@ -51,7 +51,7 @@ function voiceResponse(body: unknown) {
 }
 
 function sseResponse(events: string[]) {
-  return new Response(`${events.join('\n\n')}\n`, {
+  return new Response(`${events.join('\n\n')}\n\n`, {
     status: 200,
     headers: { 'Content-Type': 'text/event-stream' },
   })

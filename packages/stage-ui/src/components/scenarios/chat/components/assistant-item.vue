@@ -6,7 +6,9 @@ import type { ChatToolCallRendererRegistry, ChatToolCallWidgetRegistry } from '.
 
 import { isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
+import ChatReplyCard from './reply-card.vue'
 import ChatReplyQuote from './reply-quote.vue'
 import ResponseCitations from './response-citations.vue'
 import ChatResponsePart from './response-part.vue'
@@ -21,12 +23,15 @@ import { createToolCallResultLookup, resolveToolCallBlockState } from './tool-ca
 import { builtinToolCallWidgets } from './tool-call-widgets'
 
 const props = withDefaults(defineProps<{
-  message: ChatAssistantMessage
+  /** A reply of the history, or the reply that streams now. The card state of its tool calls is keyed by its id. */
+  message: ChatAssistantMessage & { id?: string }
   label: string
   replyTarget?: ChatHistoryReplyPayload
   canReply?: boolean
   scrollContainer?: HTMLElement | null
   showPlaceholder?: boolean
+  /** The reply is still being written. */
+  streaming?: boolean
   variant?: 'desktop' | 'mobile'
   /** How the bubble paints its background; see `ChatHistory`'s `surface`. */
   surface?: 'translucent' | 'opaque'
@@ -36,6 +41,7 @@ const props = withDefaults(defineProps<{
 }>(), {
   canReply: false,
   showPlaceholder: false,
+  streaming: false,
   scrollContainer: null,
   variant: 'desktop',
   surface: 'translucent',
@@ -49,6 +55,8 @@ const emit = defineEmits<{
   (e: 'reply'): void
   (e: 'toolCallRerun', payload: ToolCallRerunRequest): void
 }>()
+
+const { t } = useI18n()
 
 const resolvedSlices = computed<ChatSlices[]>(() => {
   if (props.message.slices?.length) {
@@ -104,11 +112,13 @@ function emitToolCallRerun(sliceIndex: number, payload: ToolCallRerunRequest) {
 
 const toolCallWidgets = computed<ChatToolCallWidgetRegistry>(() => ({ ...builtinToolCallWidgets, ...props.toolCallWidgets }))
 
+// The model writes a card for this reply now. Until it arrives, the reply says so, so it never looks empty.
+const drawingCard = computed(() => props.streaming && props.message.pendingContent === 'card')
+
 // A call with its own renderer shows by itself. Every other call joins a group with the calls next to it.
 const sliceEntries = computed(() => groupToolCallSlices(resolvedSlices.value, toolName => Boolean(props.toolCallRenderers[toolName])))
 
 const showLoader = computed(() => props.showPlaceholder && resolvedSlices.value.length === 0)
-const containerClass = computed(() => props.variant === 'mobile' ? 'mr-0' : 'mr-12')
 const boxClasses = computed(() => {
   const spacing = props.variant === 'mobile' ? 'px-2 py-2 text-sm' : 'px-3 py-3'
   if (props.surface === 'opaque')
@@ -125,7 +135,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
 </script>
 
 <template>
-  <div :class="['flex font-cute ph-no-capture', containerClass]">
+  <div :class="['mr-12 flex font-cute ph-no-capture']">
     <ChatActionMenu
       :copy-text="copyText"
       :can-reply="canReply"
@@ -163,6 +173,8 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
                 :items="entry.items"
                 :result-of="getToolCallResult"
                 :widgets="toolCallWidgets"
+                :streaming="streaming"
+                :message-id="message.id"
                 @tool-call-rerun="emitToolCallRerun"
               />
               <component
@@ -176,8 +188,13 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
                 @tool-call-rerun="emitToolCallRerun(entry.sliceIndex, $event)"
               />
               <ChatSticker v-else-if="entry.slice.type === 'sticker'" :sticker-id="entry.slice.stickerId" />
-              <MarkdownRenderer v-else-if="entry.slice.type === 'text'" :content="entry.slice.text" />
+              <ChatReplyCard v-else-if="entry.slice.type === 'card'" :card="entry.slice" />
+              <MarkdownRenderer v-else-if="entry.slice.type === 'text'" :content="entry.slice.text" :streaming="streaming" />
             </template>
+            <div v-if="drawingCard" :class="['flex items-center gap-1.5 text-[11px]', 'text-neutral-500 dark:text-neutral-400']" aria-live="polite">
+              <span :class="['i-svg-spinners:ring-resize', 'text-xs', 'text-primary-500 dark:text-primary-300']" aria-hidden="true" />
+              <span>{{ t('stage.chat.reply-card.drawing') }}</span>
+            </div>
           </div>
           <ResponseCitations v-if="message.citations?.length" :citations="message.citations" />
           <div v-if="!resolvedSlices.length && showLoader" :class="['i-eos-icons:three-dots-loading']" />

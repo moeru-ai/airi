@@ -80,7 +80,8 @@ afterEach(() => {
 })
 
 describe('controls Island microphone', () => {
-  it('turns the microphone on after permission and off again without opening Hearing controls', async () => {
+  // The Island button must close the microphone for every feature, not only stop listening.
+  it('starts listening after permission, then turns the microphone off without opening Hearing controls', async () => {
     const { screen, device, askPermission } = mountControlsIsland()
     askPermission.mockResolvedValue(true)
     const microphone = screen.getByTestId('controls-island-microphone')
@@ -91,14 +92,31 @@ describe('controls Island microphone', () => {
     await expect.element(microphone).toHaveAttribute('aria-pressed', 'true')
     await expect.element(microphone).toHaveAccessibleName('Turn off microphone')
     expect(device.enabled).toBe(true)
+    expect(device.off).toBe(false)
     expect(askPermission).toHaveBeenCalledOnce()
     expect(screen.getByTestId('hearing-config-dialog').query()).toBeNull()
 
     await microphone.click()
 
     await expect.element(microphone).toHaveAttribute('aria-pressed', 'false')
-    expect(device.enabled).toBe(false)
+    expect(device.off).toBe(true)
+    expect(device.enabled).toBe(true)
     expect(askPermission).toHaveBeenCalledOnce()
+  })
+
+  it('turns the microphone on again and listens without a second permission request', async () => {
+    localStorage.setItem('settings/audio/input/enabled', 'true')
+    localStorage.setItem('settings/audio/input/off', 'true')
+    const { screen, device, askPermission } = mountControlsIsland()
+    const microphone = screen.getByTestId('controls-island-microphone')
+    await expect.element(microphone).toHaveAttribute('aria-pressed', 'false')
+
+    await microphone.click()
+
+    await expect.element(microphone).toHaveAttribute('aria-pressed', 'true')
+    expect(device.off).toBe(false)
+    expect(device.listening).toBe(true)
+    expect(askPermission).not.toHaveBeenCalled()
   })
 
   it('ignores presses while the permission prompt is pending', async () => {

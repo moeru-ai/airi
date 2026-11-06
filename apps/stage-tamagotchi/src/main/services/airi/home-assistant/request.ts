@@ -1,5 +1,7 @@
 import type { HomeAssistantConfigUpdate } from '../../../../shared/eventa/home-assistant'
 
+import { errorMessageFrom } from '@moeru/std'
+
 import { homeAssistantConfigRejections } from '../../../../shared/eventa/home-assistant'
 
 /**
@@ -170,4 +172,18 @@ export async function toRequestError(response: Response): Promise<Error> {
     return new Error(`Home Assistant rejected the access token (401). ${detail}`.trim())
 
   return new Error(`Home Assistant answered ${response.status} ${response.statusText}. ${detail}`.trim())
+}
+
+/**
+ * Turns a failed `fetch` into a message that names the cause.
+ *
+ * Node reports every connection failure as `fetch failed`. The reason, for
+ * example `UNABLE_TO_VERIFY_LEAF_SIGNATURE` or `ENOTFOUND`, is in `cause`.
+ */
+export function toNetworkError(baseUrl: string, error: unknown): Error {
+  const cause = error instanceof Error ? error.cause : undefined
+  const code = typeof cause === 'object' && cause !== null && 'code' in cause && typeof cause.code === 'string' ? cause.code : undefined
+  const detail = [code, errorMessageFrom(cause)].filter(Boolean).join(': ')
+  const message = `${errorMessageFrom(error) ?? 'unknown network error'}${detail ? ` (${detail})` : ''}`
+  return new Error(`Could not reach Home Assistant at ${baseUrl}: ${message}`, { cause: error })
 }

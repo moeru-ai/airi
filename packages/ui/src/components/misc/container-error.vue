@@ -9,6 +9,10 @@ type HeightPreset = 'sm' | 'md' | 'lg' | 'xl' | 'auto'
 
 interface ContainerErrorProps {
   error?: unknown
+  /** Replaces the error name in the title row. The error name then starts the message. */
+  title?: string
+  /** Short context under the title row, for example the phase that failed. */
+  description?: string
   message?: string
   stack?: string
   includeStack?: boolean
@@ -35,13 +39,26 @@ const emit = defineEmits<{
   (e: 'feedback'): void
 }>()
 
+defineSlots<{
+  /** Buttons at the end of the panel, for example a retry action. */
+  actions: (props: Record<string, unknown>) => unknown
+}>()
+
 const copied = shallowRef(false)
 
+const actionButtonClasses = [
+  'size-7 rounded-md',
+  'text-red-500 dark:text-red-300',
+  'hover:bg-red-500/10 hover:text-red-600 dark:hover:bg-red-400/10 dark:hover:text-red-200',
+  'focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-400',
+]
+
+// The preset limits the height of the details area. Short content keeps its natural height.
 const heightPresetClasses: Record<HeightPreset, string[]> = {
-  sm: ['h-32'],
-  md: ['h-36'],
-  lg: ['h-42'],
-  xl: ['h-48'],
+  sm: ['max-h-32'],
+  md: ['max-h-36'],
+  lg: ['max-h-42'],
+  xl: ['max-h-48'],
   auto: [],
 }
 
@@ -69,23 +86,27 @@ const resolvedMessage = computed(() => {
   return props.error == null ? '' : String(props.error).trim()
 })
 
+function stackWithoutMessage(stack: string): string {
+  const index = stack.indexOf(resolvedMessage.value)
+  const frames = index >= 0 ? stack.slice(index + resolvedMessage.value.length) : stack
+
+  // The stack lines show in their own block, so the engine indentation is not necessary.
+  return frames
+    .split('\n')
+    .map(line => line.trim())
+    .filter(Boolean)
+    .join('\n')
+}
+
 const resolvedStack = computed(() => {
   const fromProp = props.stack?.trim()
-  if (fromProp) {
-    const index = fromProp.indexOf(resolvedMessage.value)
-    if (index >= 0)
-      return fromProp.slice(index + resolvedMessage.value.length).trim()
-  }
+  if (fromProp)
+    return stackWithoutMessage(fromProp)
 
   if (!props.includeStack)
     return ''
 
-  const resolved = (errorStackFrom(props.error) ?? '').trim()
-  const index = resolved.indexOf(resolvedMessage.value)
-  if (index >= 0)
-    return resolved.slice(index + resolvedMessage.value.length).trim()
-
-  return resolved
+  return stackWithoutMessage(errorStackFrom(props.error) ?? '')
 })
 
 const resolvedCause = computed(() => {
@@ -109,6 +130,13 @@ const resolvedCause = computed(() => {
   }
 
   return String(cause).trim()
+})
+
+const displayedMessage = computed(() => {
+  if (!props.title || !resolvedErrorName.value)
+    return resolvedMessage.value
+
+  return resolvedMessage.value ? `${resolvedErrorName.value}: ${resolvedMessage.value}` : resolvedErrorName.value
 })
 
 const panelContent = computed(() => {
@@ -157,47 +185,97 @@ async function copyContent() {
 <template>
   <div
     :class="[
-      'relative w-full rounded-lg bg-red-50/60 dark:bg-red-950/25 backdrop-blur-md p-1',
+      'w-full flex flex-col overflow-hidden',
+      'rounded-lg',
+      'bg-red-50/80 dark:bg-red-950/40 backdrop-blur-md',
     ]"
   >
-    <div :class="['absolute right-2 -translate-x-full top-2 z-10']">
-      <IconButton
-        v-if="showCopyButton"
-        icon="i-solar:copy-line-duotone"
-        :title="copied ? copiedButtonLabel : copyButtonLabel"
-        :aria-label="copied ? copiedButtonLabel : copyButtonLabel"
-        @click="copyContent"
-      />
+    <div :class="['flex items-center gap-2', 'py-1.5 pl-3 pr-1.5']">
+      <div :class="['i-mingcute:warning-line', 'size-4 shrink-0', 'text-red-500 dark:text-red-300']" />
+      <div :class="['min-w-0 flex-1 truncate', 'text-sm font-semibold', 'text-red-600 dark:text-red-300']">
+        {{ title || resolvedErrorName || 'Error' }}
+      </div>
 
-      <IconButton
-        v-if="showFeedbackButton"
-        icon="i-solar:square-share-line-line-duotone"
-        :title="feedbackButtonLabel"
-        :aria-label="feedbackButtonLabel"
-        @click="emit('feedback')"
-      />
+      <div :class="['flex shrink-0 items-center gap-0.5']">
+        <IconButton
+          v-if="showCopyButton"
+          type="button"
+          :icon="copied ? 'i-mingcute:check-line' : 'i-mingcute:copy-2-line'"
+          :title="copied ? copiedButtonLabel : copyButtonLabel"
+          :aria-label="copied ? copiedButtonLabel : copyButtonLabel"
+          :class="actionButtonClasses"
+          @click="copyContent"
+        />
+
+        <IconButton
+          v-if="showFeedbackButton"
+          type="button"
+          icon="i-mingcute:message-4-line"
+          :title="feedbackButtonLabel"
+          :aria-label="feedbackButtonLabel"
+          :class="actionButtonClasses"
+          @click="emit('feedback')"
+        />
+      </div>
     </div>
 
-    <ScrollableArea
+    <p
+      v-if="description"
       :class="[
-        'relative w-full overflow-hidden rounded-xl',
-        ...heightPresetClasses[heightPreset],
+        'm-0 -mt-1 px-3 pb-1.5',
+        'text-xs',
+        'text-neutral-500 dark:text-neutral-400',
       ]"
+      v-text="description"
+    />
+
+    <ScrollableArea
+      :class="['w-full', ...heightPresetClasses[heightPreset]]"
       :viewport-class="['h-full w-full']"
     >
-      <div :class="['flex flex-col gap-2 p-3 text-xs']">
-        <div v-if="resolvedErrorName || resolvedMessage" :class="['font-mono text-red-700 leading-relaxed dark:text-red-300']">
-          {{ resolvedErrorName || 'Error' }}
-          <span v-if="resolvedMessage">
-            : {{ resolvedMessage }}
-          </span>
+      <div :class="['flex flex-col gap-2', 'px-3 pb-2.5']">
+        <p
+          v-if="displayedMessage"
+          :class="[
+            'm-0 whitespace-pre-wrap break-words',
+            'text-sm leading-relaxed',
+            'text-neutral-800 dark:text-neutral-100',
+          ]"
+          v-text="displayedMessage"
+        />
+        <div
+          v-if="resolvedStack"
+          :class="[
+            'flex flex-col',
+            'font-mono text-xs leading-relaxed',
+            'text-neutral-600 dark:text-neutral-300',
+          ]"
+        >
+          <!-- Each frame starts with an inset, and a wrapped line hangs below the frame text. -->
+          <div
+            v-for="(frame, index) in resolvedStack.split('\n')"
+            :key="index"
+            :class="['break-all', 'pl-6 -indent-3']"
+          >
+            {{ frame }}
+          </div>
         </div>
-        <pre v-if="resolvedStack" :class="['whitespace-pre-wrap break-words text-neutral-700 leading-relaxed dark:text-neutral-200']">    {{ resolvedStack }}</pre>
-        <pre v-if="resolvedCause" :class="['whitespace-pre-wrap break-words text-neutral-700 leading-relaxed dark:text-neutral-200']">{{ `Cause:\n${resolvedCause}` }}</pre>
-        <div v-if="!panelContent" :class="['text-neutral-600 dark:text-neutral-300']">
+        <pre
+          v-if="resolvedCause"
+          :class="[
+            'm-0 whitespace-pre-wrap break-all',
+            'font-mono text-xs leading-relaxed',
+            'text-neutral-600 dark:text-neutral-300',
+          ]"
+        >{{ `Cause:\n${resolvedCause}` }}</pre>
+        <p v-if="!panelContent" :class="['m-0 text-sm', 'text-neutral-600 dark:text-neutral-300']">
           No error details available.
-        </div>
+        </p>
       </div>
     </ScrollableArea>
+
+    <div v-if="$slots.actions" :class="['flex justify-end gap-2', 'px-3 pb-3']">
+      <slot name="actions" />
+    </div>
   </div>
 </template>

@@ -1,9 +1,13 @@
 import { ScrollableArea } from '@proj-airi/ui'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { defineComponent } from 'vue'
 
 import ChatPageShell from './chat-page-shell.vue'
+
+vi.mock('@proj-airi/electron-vueuse', () => ({
+  useElectronEventaInvoke: () => async () => ({ state: 'unsupported', reason: 'Browser test' }),
+}))
 
 describe('desktop chat page scrolling', () => {
   it('leaves scrolling to the rendered chat history viewport', async () => {

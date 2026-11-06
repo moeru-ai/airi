@@ -59,6 +59,24 @@ describe('createStreamingCategorizer', () => {
     expect(result.reasoning).toBe('thinking about this')
   })
 
+  it('keeps text after a `<` or `&` that does not start a tag', () => {
+    // ROOT CAUSE:
+    //
+    // rehype writes a text `<` as `&#x3C;` and a text `&` as `&#x26;`. The incomplete tag check compared that output
+    // with the raw buffer, so they never matched again, and all text after `a < b` or `<=>` was dropped.
+    for (const text of ['合成氨是一个可逆反应：$\\ce{N2 + 3H2 <=> 2NH3}$。', 'a \\leq b 且 a < b 成立。', 'Tom & Jerry < 3 cats'] as const) {
+      const categorizer = createStreamingCategorizer()
+      let spoken = ''
+      let position = 0
+      for (const piece of text.match(/.{1,4}/gsu)!) {
+        categorizer.consume(piece)
+        spoken += categorizer.filterToSpeech(piece, position)
+        position += piece.length
+      }
+      expect(spoken).toBe(text)
+    }
+  })
+
   it('should handle tags split across chunks', () => {
     const categorizer = createStreamingCategorizer()
     const chunks = [

@@ -10,6 +10,7 @@
   },
   "license": "MIT",
   "scripts": {
+    "test:run": "vitest run --config vitest.config.ts",
     "build": "vite build",
     "dev": "vite --host",
     "lint": "eslint .",

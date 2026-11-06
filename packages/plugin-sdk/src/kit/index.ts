@@ -1,8 +1,22 @@
 import type { Disposable, DisposableStore } from '../extension/disposable'
+import type { ExposePolicy } from './exposure-policy'
 
 import { KitUnavailableError } from './errors'
 
-export type ExposePolicy = 'local-only' | 'remote-observable' | 'remote-callable'
+export { defineKitContract, defineKitEvent, defineKitMethod } from './contract'
+export type {
+  KitCallContext,
+  KitContract,
+  KitEventContract,
+  KitEventMap,
+  KitMethodContract,
+  KitMethodMap,
+  KitProvider,
+  KitProviderHandle,
+  KitValue,
+} from './contract'
+export * from './errors'
+export * from './exposure-policy'
 
 /**
  * Host-provided runtime values used to create a scope-aware kit client.
@@ -19,26 +33,36 @@ export interface KitClientRuntime {
 }
 
 /**
- * Defines one kit API surface available to extension setup and optional module scopes.
+ * Creates one Consumer-scoped Client without an implicit receiver.
  *
- * Kits that support remote use should expose kit-owned Eventa API contracts
- * such as `gameletKitApis`, then build local and remote clients with the same
- * authoring shape. Keep transport/RPC words out of the author-facing client:
- * authors should use `gamelets.mount(...)`, not `invokeGameletMount(...)`.
+ * @param TClient Client type returned to the Extension.
+ */
+export type HostClientFactory<TClient> = (
+  this: void,
+  runtime: KitClientRuntime,
+) => TClient
+
+/**
+ * Defines one trusted Host Kit API surface available to Extension setup and module scopes.
+ *
+ * A remote Kit exposes a Kit-owned Eventa contract, such as `gameletKitApis`.
+ * Local and remote clients use the same authoring shape. Keep transport words
+ * out of the author-facing Client. Authors use `gamelets.mount(...)`, not
+ * `invokeGameletMount(...)`.
  *
  * @param TClient Kit client type returned to extension authors.
  */
 export interface KitRef<TClient> {
   /** Stable kit id. */
-  id: string
+  readonly id: string
   /** Kit API version used for compatibility checks. */
-  version: string
+  readonly version: string
   /** Exposure policies this kit can support across host/peer boundaries. */
-  allowedExposePolicies?: ExposePolicy[]
+  readonly allowedExposePolicies?: readonly ExposePolicy[]
   /** Default exposure policy when module/host policy does not override it. */
-  defaultExposePolicy?: ExposePolicy
+  readonly defaultExposePolicy?: ExposePolicy
   /** Creates a scope-aware client for this kit. */
-  createClient: (runtime: KitClientRuntime) => TClient
+  readonly createClient: HostClientFactory<TClient>
 }
 
 export type KitUnavailableReason = 'missing-kit' | 'permission-denied' | 'incompatible-version' | 'not-ready'
@@ -55,7 +79,7 @@ export type KitAvailability<TClient>
  * Defines a kit reference.
  *
  * Use when:
- * - Implementing a host-provided or extension-provided kit API surface
+ * - Implementing a trusted Host-provided Kit API surface
  * - Publishing a typed kit that extensions can pass to `ctx.kits.use(...)`
  *
  * Expects:
@@ -94,4 +118,3 @@ export function kitUseFailure<TClient>(
 }
 
 export type { Disposable }
-export * from './errors'

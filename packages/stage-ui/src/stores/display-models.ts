@@ -1,28 +1,16 @@
-import type { TransferTask } from '../libs/file-transfer/transfer-queue'
 import type { CloudDisplayModel } from '../services/display-model-sync'
 
 import { errorMessageFrom } from '@moeru/std'
 import { createEventHook, until } from '@vueuse/core'
 import { nanoid } from 'nanoid'
-import { defineStore } from 'pinia'
-import { computed, ref, watch } from 'vue'
-
-import * as v from 'valibot'
+import { defineStore, getActivePinia } from 'pinia'
+import { computed, getCurrentScope, ref, watch } from 'vue'
 
 import { displayModelsRepo } from '../database/repos/display-models.repo'
-import { DISPLAY_MODEL_SYNC_FLAG } from '../libs/feature-flags'
-import { downloadVerified, putToTarget, sha256Hex } from '../libs/file-transfer/transfer'
-import { TransferQueue } from '../libs/file-transfer/transfer-queue'
-import {
-  completeDisplayModelUpload,
-  deleteCloudDisplayModel,
-  listCloudDisplayModels,
-  renameCloudDisplayModel,
-  requestDisplayModelDownload,
-  reserveDisplayModelUpload,
-} from '../services/display-model-sync'
+import { downloadVerified } from '../libs/file-transfer/transfer'
+import { requestDisplayModelDownload } from '../services/display-model-sync'
 import { useAuthStore } from './auth'
-import { useFeatureFlagsStore } from './feature-flags'
+import { resolveCloudOwnerId, useDisplayModelCloudStore } from './display-model-cloud'
 
 export enum DisplayModelFormat {
   Live2dZip = 'live2d-zip',
@@ -57,6 +45,8 @@ export interface DisplayModelFile {
   importedAt: number
   /** The account whose cloud directory holds this model. Absent for device-only imports. */
   cloudOwnerId?: string
+  /** The name that this device last agreed on with the account. A difference on one side is a rename on that side. */
+  syncedName?: string
 }
 
 export interface DisplayModelURL {
@@ -72,8 +62,6 @@ export interface DisplayModelURL {
 export type DisplayModelSyncStatus = 'local-only' | 'queued' | 'uploading' | 'synced' | 'cloud-only' | 'downloading' | 'failed'
 
 const syncableFormats: string[] = [DisplayModelFormat.Live2dZip, DisplayModelFormat.VRM]
-const uploadTaskKind = 'upload-display-model'
-const UploadPayloadSchema = v.object({ modelId: v.string(), requestId: v.string() })
 
 const displayModelsPresets: DisplayModel[] = [
   { id: 'preset-live2d-1', format: DisplayModelFormat.Live2dZip, type: 'url', url: presetLive2dProUrl, name: 'Hiyori (Pro)', previewImage: presetLive2dPreview, importedAt: 1733113886840 },
@@ -86,33 +74,22 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
   const displayModels = ref<DisplayModel[]>([])
 
   // --- Cloud sync ---
-  const cloudOwnerId = ref<string>()
-  const cloudModels = ref<CloudDisplayModel[]>([])
-  const cloudDirectoryLoaded = ref(false)
-  const queuedUploads = ref<Record<string, TransferTask['status']>>({})
+  const pinia = getActivePinia()
+  const storeScope = getCurrentScope()
+  const cloud = useDisplayModelCloudStore()
+  const cloudModels = computed(() => cloud.models)
   const downloadingIds = ref<string[]>([])
   // Keyed by owner and model id. Model ids are unique per owner on the server.
   const pendingDownloads = new Map<string, { promise: Promise<DisplayModelFile>, controller: AbortController }>()
-  const syncErrors = ref<Record<string, string>>({})
+  const downloadErrors = ref<Record<string, string>>({})
+  const syncErrors = computed(() => ({ ...cloud.errors, ...downloadErrors.value }))
   // Reports IDs that no longer exist on this device or in the account. Removing only the
   // local copy of a model that the account keeps does not report it, because the model can
   // download again. The card store removes the references to reported IDs.
   const displayModelsDeleted = createEventHook<[deletedIds: string[]]>()
-
-  const transferQueue = new TransferQueue(
-    { [uploadTaskKind]: runUploadTask },
-    {
-      save: task => displayModelsRepo.saveUpload(task),
-      remove: id => displayModelsRepo.removeUpload(id),
-      list: () => displayModelsRepo.listUploads(),
-    },
-    (task, removed) => {
-      const { [task.id]: _previous, ...rest } = queuedUploads.value
-      queuedUploads.value = removed ? rest : { ...rest, [task.id]: task.status }
-      if (task.status === 'failed' && !removed)
-        syncErrors.value = { ...syncErrors.value, [task.id]: task.error ?? 'Upload failed' }
-    },
-  )
+  /** Increases when a model that this window could not load can have become available. */
+  const availabilityRevision = computed(() => cloud.completedRuns + cloud.localRevision)
+  let accountWatcherStarted = false
 
   let generateLive2DPreview: (file: File) => Promise<string | undefined>
   let generateVrmPreview: (file: File) => Promise<string | undefined>
@@ -121,6 +98,7 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
   let generateMMDPreview: (file: File) => Promise<string | undefined>
 
   const displayModelsFromIndexedDBLoading = ref(false)
+  let displayModelsLoadPromise: Promise<void> | undefined
 
   /** Downloaded private models stay hidden from other signed-in accounts on this device. */
   function isVisibleToAccount(model: DisplayModelFile) {
@@ -128,24 +106,51 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     return !model.cloudOwnerId || !authStore.isAuthenticated || authStore.userId === model.cloudOwnerId
   }
 
-  async function loadDisplayModelsFromIndexedDB() {
+  function loadDisplayModelsFromIndexedDB() {
+    if (!displayModelsLoadPromise) {
+      displayModelsLoadPromise = (async () => {
+        await until(displayModelsFromIndexedDBLoading).toBe(false)
+
+        displayModelsFromIndexedDBLoading.value = true
+        const models = [...displayModelsPresets]
+
+        try {
+          for (const model of await displayModelsRepo.list()) {
+            if (isVisibleToAccount(model))
+              models.push(model)
+          }
+        }
+        catch (err) {
+          console.error(err)
+        }
+
+        displayModels.value = models.sort((a, b) => b.importedAt - a.importedAt)
+        displayModelsFromIndexedDBLoading.value = false
+      })().finally(() => {
+        displayModelsLoadPromise = undefined
+      })
+    }
+
+    return displayModelsLoadPromise
+  }
+
+  // Another window changed a file. Wait for a load in progress, because it can have read the old files.
+  watch(() => cloud.localRevision, async () => {
+    await displayModelsLoadPromise
+    await loadDisplayModelsFromIndexedDB()
+  })
+
+  // The leader removed the files of these models. Update its list before the card store reads it.
+  cloud.onModelsDeleted(async (deletedIds) => {
     await until(displayModelsFromIndexedDBLoading).toBe(false)
+    if (displayModels.value.some(model => deletedIds.includes(model.id)))
+      displayModels.value = displayModels.value.filter(model => !deletedIds.includes(model.id))
+    await displayModelsDeleted.trigger(deletedIds)
+  })
 
-    displayModelsFromIndexedDBLoading.value = true
-    const models = [...displayModelsPresets]
-
-    try {
-      for (const model of await displayModelsRepo.list()) {
-        if (isVisibleToAccount(model))
-          models.push(model)
-      }
-    }
-    catch (err) {
-      console.error(err)
-    }
-
-    displayModels.value = models.sort((a, b) => b.importedAt - a.importedAt)
-    displayModelsFromIndexedDBLoading.value = false
+  /** Tells other windows to read the files again. A failure leaves them stale until the next change. */
+  async function announceLocalChange() {
+    await cloud.announceLocalChange().catch(err => console.error('[display-models] failed to announce a local change:', err))
   }
 
   async function getDisplayModel(id: string) {
@@ -157,13 +162,18 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     // Source/context: model-selector confirmImport/handleAddVRMModel -> model-settings handleModelPick.
     // Removal condition: custom model imports and selection are handled by a single transactional API.
     const modelFromMemory = displayModels.value.find(model => model.id === id)
-    if (modelFromMemory)
+    if (modelFromMemory?.type === 'url' || (modelFromMemory && isVisibleToAccount(modelFromMemory)))
       return modelFromMemory
 
     // A card can reference a model that another account downloaded on this device.
     const modelFromFile = await displayModelsRepo.get(id)
     if (modelFromFile) {
-      return isVisibleToAccount(modelFromFile) ? modelFromFile : undefined
+      if (!isVisibleToAccount(modelFromFile))
+        return undefined
+      // Another window stored this file. List it, so the status stops reporting a cloud-only model.
+      if (!modelFromMemory)
+        displayModels.value = [modelFromFile, ...displayModels.value].sort((a, b) => b.importedAt - a.importedAt)
+      return modelFromFile
     }
 
     // Fallback to in-memory presets if not found in storage
@@ -226,8 +236,10 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     await displayModelsRepo.save(newDisplayModel)
       .catch(err => console.error(err))
 
+    await announceLocalChange()
+
     // The local copy is already usable. A failed enqueue only delays cloud sync.
-    if (cloudOwnerId.value && syncableFormats.includes(format))
+    if (resolveCloudOwnerId(pinia) && syncableFormats.includes(format))
       await uploadDisplayModel(newDisplayModel.id).catch(err => console.error('[display-models] failed to queue cloud upload:', err))
 
     return newDisplayModel
@@ -250,143 +262,91 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
       displayModels.value[index].name = name
     }
 
-    if (displayModel.type === 'file')
-      await displayModelsRepo.save(displayModel)
+    if (displayModel.type !== 'file')
+      return
 
-    const cloudModel = cloudModels.value.find(model => model.id === id)
-    if (cloudModel) {
-      try {
-        replaceCloudModel(await renameCloudDisplayModel(id, name, cloudModel.revision))
-      }
-      catch (err) {
-        syncErrors.value = { ...syncErrors.value, [id]: errorMessageFrom(err) ?? 'Rename failed' }
-      }
-    }
+    await displayModelsRepo.save(displayModel)
+    await announceLocalChange()
+    // The run sends the new name. A failure stays visible in `syncErrors`, and the next run sends it again.
+    if (displayModel.cloudOwnerId)
+      await refreshCloudModels()
   }
 
   async function removeLocalCopy(id: string) {
     await until(displayModelsFromIndexedDBLoading).toBe(false)
-    if (queuedUploads.value[id])
-      await transferQueue.cancel(id)
+    if (cloud.uploads[id])
+      await cloud.cancelUpload(id)
     await displayModelsRepo.remove(id)
     displayModels.value = displayModels.value.filter(model => model.id !== id)
+    await announceLocalChange()
   }
 
-  /** IDs of the given models that the account does not keep, so they are gone after a local removal. */
-  function withoutCloudModels(ids: string[]) {
-    return ids.filter(id => !cloudModels.value.some(model => model.id === id))
+  /**
+   * The account keeps a model when its directory lists it, or when this copy came from the account.
+   * The second check holds while the directory is not loaded, or after sign-out or with sync off.
+   */
+  function isKeptByAccount(model: Pick<DisplayModelFile, 'id' | 'cloudOwnerId'>) {
+    return !!model.cloudOwnerId || cloud.models.some(item => item.id === model.id)
   }
 
   /** Removes the model from this device. A model that the account keeps stays available for download. */
   async function removeDisplayModel(id: string) {
+    const record = await displayModelsRepo.get(id)
     await removeLocalCopy(id)
-    const deleted = withoutCloudModels([id])
-    if (deleted.length > 0)
-      await displayModelsDeleted.trigger(deleted)
+    if (!isKeptByAccount(record ?? { id }))
+      await displayModelsDeleted.trigger([id])
   }
 
   async function resetDisplayModels() {
     await loadDisplayModelsFromIndexedDB()
-    const userModelIds = displayModels.value.filter(model => model.type === 'file').map(model => model.id)
-    for (const id of userModelIds) {
-      await removeLocalCopy(id)
+    const userModels = displayModels.value.filter((model): model is DisplayModelFile => model.type === 'file')
+    for (const model of userModels) {
+      await removeLocalCopy(model.id)
     }
 
     displayModels.value = [...displayModelsPresets].sort((a, b) => b.importedAt - a.importedAt)
-    const deleted = withoutCloudModels(userModelIds)
+    const deleted = userModels.filter(model => !isKeptByAccount(model)).map(model => model.id)
     if (deleted.length > 0)
       await displayModelsDeleted.trigger(deleted)
   }
 
   /** Models that exist only in the account directory and have no local file on this device. */
-  const cloudOnlyModels = computed(() => cloudModels.value.filter(cloud => !displayModels.value.some(model => model.id === cloud.id)))
+  const cloudOnlyModels = computed(() => cloud.models.filter(item => !displayModels.value.some(model => model.id === item.id)))
 
   const syncStatuses = computed(() => {
     const statuses: Record<string, DisplayModelSyncStatus> = {}
-    if (!cloudOwnerId.value)
+    const owner = cloud.ownerId
+    if (!owner)
       return statuses
 
-    const cloudIds = new Set(cloudModels.value.map(model => model.id))
+    const cloudIds = new Set(cloud.models.map(model => model.id))
     for (const model of displayModels.value) {
       if (model.type !== 'file' || !syncableFormats.includes(model.format))
         continue
-      const queued = queuedUploads.value[model.id]
-      statuses[model.id] = queued === 'running'
-        ? 'uploading'
-        : queued ?? (cloudIds.has(model.id) ? 'synced' : 'local-only')
+      const queued = cloud.uploads[model.id]
+      if (queued)
+        statuses[model.id] = queued === 'running' ? 'uploading' : queued
+      else
+        // A finished upload marks the copy before the directory lists it, and a failed refresh can delay the list.
+        statuses[model.id] = cloudIds.has(model.id) || model.cloudOwnerId === owner ? 'synced' : 'local-only'
     }
-    for (const cloud of cloudOnlyModels.value)
-      statuses[cloud.id] = downloadingIds.value.includes(cloud.id) ? 'downloading' : 'cloud-only'
+    for (const item of cloudOnlyModels.value)
+      statuses[item.id] = downloadingIds.value.includes(item.id) ? 'downloading' : 'cloud-only'
     return statuses
   })
 
-  function replaceCloudModel(next: CloudDisplayModel) {
-    cloudModels.value = [...cloudModels.value.filter(model => model.id !== next.id), ...(next.deletedAt ? [] : [next])]
-  }
-
+  /** Reads the account directory now, for example when a model list opens. A failure only logs. */
   async function refreshCloudModels() {
-    const ownerId = cloudOwnerId.value
-    const models = await listCloudDisplayModels()
-    if (ownerId !== cloudOwnerId.value)
-      return
-
-    const deletedIds = new Set(models.filter(model => model.deletedAt).map(model => model.id))
-    cloudModels.value = models.filter(model => !model.deletedAt)
-    // Deletion markers remove the cached copy that this account downloaded or uploaded.
-    for (const model of displayModels.value) {
-      if (model.type === 'file' && model.cloudOwnerId === ownerId && deletedIds.has(model.id))
-        await removeLocalCopy(model.id)
-    }
-    cloudDirectoryLoaded.value = true
-    // The server keeps deletion markers, so each refresh reports them again. Removing a
-    // reference that is already gone changes nothing.
-    if (deletedIds.size > 0)
-      await displayModelsDeleted.trigger([...deletedIds])
-  }
-
-  async function runUploadTask(task: TransferTask, signal: AbortSignal) {
-    const { modelId, requestId } = v.parse(UploadPayloadSchema, task.payload)
-    const record = await displayModelsRepo.get(modelId)
-    // The model was removed from this device before its turn. Nothing is left to upload.
-    if (!record)
-      return
-
-    const upload = await reserveDisplayModelUpload({
-      id: modelId,
-      requestId,
-      format: record.format as 'live2d-zip' | 'vrm',
-      name: record.name,
-      originalFilename: record.file.name,
-      byteSize: record.file.size,
-      sha256: await sha256Hex(record.file),
-    }, signal)
-    if (upload) {
-      await putToTarget(record.file, upload, signal)
-      await completeDisplayModelUpload(upload.uploadId, signal)
-    }
-
-    if (signal.aborted)
-      return
-    const synced: DisplayModelFile = { ...record, cloudOwnerId: task.ownerId }
-    await displayModelsRepo.save(synced)
-    const index = displayModels.value.findIndex(model => model.id === modelId)
-    if (index !== -1)
-      displayModels.value[index] = synced
-    const { [modelId]: _cleared, ...rest } = syncErrors.value
-    syncErrors.value = rest
-    await refreshCloudModels()
+    await cloud.synchronize().catch(err => console.error('[display-models] failed to refresh the cloud models:', err))
   }
 
   /** Queues a local model for upload. Calling it again after a failure retries the upload. */
   async function uploadDisplayModel(id: string) {
     const model = displayModels.value.find(item => item.id === id)
-    if (!cloudOwnerId.value || model?.type !== 'file' || !syncableFormats.includes(model.format))
+    const ownerId = resolveCloudOwnerId(pinia)
+    if (!ownerId || model?.type !== 'file' || !syncableFormats.includes(model.format))
       return
-    if (queuedUploads.value[id] === 'failed')
-      return transferQueue.retry(id)
-    if (queuedUploads.value[id])
-      return
-    await transferQueue.enqueue({ id, kind: uploadTaskKind, payload: { modelId: id, requestId: nanoid() } })
+    await cloud.queueUpload(id, ownerId)
   }
 
   /**
@@ -399,14 +359,14 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     if (local)
       return local
 
-    if (cloudOwnerId.value)
-      await until(cloudDirectoryLoaded).toBe(true, { timeout: 15_000, throwOnTimeout: true })
-    const cloud = cloudModels.value.find(model => model.id === id)
-    if (!cloud)
+    const ownerId = resolveCloudOwnerId(pinia)
+    if (!ownerId)
       return undefined
 
-    const ownerId = cloudOwnerId.value
-    if (!ownerId)
+    // At startup the leader can still be on its first run. A caller keeps the selection after this timeout and retries.
+    await until(() => cloud.ownerId === ownerId && cloud.directoryLoaded).toBe(true, { timeout: 15_000, throwOnTimeout: true })
+    const cloudModel = cloud.models.find(model => model.id === id)
+    if (!cloudModel)
       return undefined
 
     // The selector and the stage settings both resolve a picked model. They share one download.
@@ -416,7 +376,7 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
       const controller = new AbortController()
       const entry = {
         controller,
-        promise: downloadCloudModel(cloud, ownerId, controller.signal).finally(() => {
+        promise: downloadCloudModel(cloudModel, ownerId, controller.signal).finally(() => {
           if (pendingDownloads.get(key) === entry)
             pendingDownloads.delete(key)
         }),
@@ -428,23 +388,24 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
   }
 
   /** Downloads a model for the owner that was signed in when the download started. */
-  async function downloadCloudModel(cloud: CloudDisplayModel, ownerId: string, signal: AbortSignal) {
-    const id = cloud.id
-    const { [id]: _previousError, ...otherErrors } = syncErrors.value
-    syncErrors.value = otherErrors
+  async function downloadCloudModel(cloudModel: CloudDisplayModel, ownerId: string, signal: AbortSignal) {
+    const id = cloudModel.id
+    const { [id]: _previousError, ...otherErrors } = downloadErrors.value
+    downloadErrors.value = otherErrors
     downloadingIds.value = [...downloadingIds.value, id]
     try {
       const source = await requestDisplayModelDownload(id, signal)
       const blob = await downloadVerified(source, signal)
-      const file = new File([blob], cloud.originalFilename)
+      const file = new File([blob], cloudModel.originalFilename)
       const model: DisplayModelFile = {
         id,
-        format: cloud.format as DisplayModelFormat,
+        format: cloudModel.format as DisplayModelFormat,
         type: 'file',
         file,
-        name: cloud.name,
-        importedAt: Date.parse(cloud.createdAt),
+        name: cloudModel.name,
+        importedAt: Date.parse(cloudModel.createdAt),
         cloudOwnerId: ownerId,
+        syncedName: cloudModel.name,
       }
       model.previewImage = await generatePreview(model.format, file).catch((err) => {
         console.error('[display-models] preview generation failed for a downloaded model:', err)
@@ -453,12 +414,13 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
       // The account changed during the download. The bytes belong to the previous account.
       signal.throwIfAborted()
       await displayModelsRepo.save(model)
-      displayModels.value = [model, ...displayModels.value].sort((a, b) => b.importedAt - a.importedAt)
+      displayModels.value = [model, ...displayModels.value.filter(item => item.id !== id)].sort((a, b) => b.importedAt - a.importedAt)
+      await announceLocalChange()
       return model
     }
     catch (err) {
       if (!signal.aborted)
-        syncErrors.value = { ...syncErrors.value, [id]: errorMessageFrom(err) ?? 'Download failed' }
+        downloadErrors.value = { ...downloadErrors.value, [id]: errorMessageFrom(err) ?? 'Download failed' }
       throw err
     }
     finally {
@@ -468,46 +430,34 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
 
   /** Deletes the model from the account. Other devices drop their cached copy on their next sync. */
   async function deleteCloudDisplayModelById(id: string) {
-    const cloud = cloudModels.value.find(model => model.id === id)
-    if (!cloud)
-      return
-    await deleteCloudDisplayModel(id, cloud.revision)
-    await removeLocalCopy(id)
-    await displayModelsDeleted.trigger([id])
-    await refreshCloudModels()
+    await cloud.deleteModel(id)
   }
 
-  async function activateCloudSync(userId: string) {
-    cloudOwnerId.value = userId
-    cloudDirectoryLoaded.value = false
-    await transferQueue.activate(userId)
-    await refreshCloudModels()
-  }
-
-  function deactivateCloudSync() {
-    transferQueue.deactivate()
+  function abortDownloads() {
     for (const download of pendingDownloads.values())
       download.controller.abort()
     pendingDownloads.clear()
-    cloudOwnerId.value = undefined
-    cloudModels.value = []
-    cloudDirectoryLoaded.value = false
-    syncErrors.value = {}
+    downloadErrors.value = {}
+  }
+
+  /** Follows the account in this window. The bytes and the list of the previous account must not stay. */
+  function startAccountWatcher() {
+    if (accountWatcherStarted)
+      return
+    accountWatcherStarted = true
+
+    const authStore = useAuthStore()
+    storeScope?.run(() => {
+      // In the same task as the change, because the next request of a download sends the token of the new account.
+      watch(() => resolveCloudOwnerId(pinia), abortDownloads, { flush: 'sync' })
+      watch(() => authStore.isAuthenticated ? authStore.userId : undefined, () => loadDisplayModelsFromIndexedDB())
+    })
   }
 
   async function initialize() {
     // Start sync before the preview renderers load. A renderer that fails to load must not stop sync.
-    const authStore = useAuthStore()
-    const featureFlagsStore = useFeatureFlagsStore()
-    watch(
-      () => authStore.isAuthenticated && featureFlagsStore.isEnabled(DISPLAY_MODEL_SYNC_FLAG.key) ? authStore.userId : undefined,
-      (userId) => {
-        deactivateCloudSync()
-        if (userId)
-          activateCloudSync(userId).catch(err => console.error('[display-models] failed to start cloud sync:', err))
-      },
-      { immediate: true },
-    )
+    startAccountWatcher()
+    cloud.start()
 
     await import('@proj-airi/stage-ui-live2d/utils/live2d-zip-loader')
     await import('@proj-airi/stage-ui-live2d/utils/live2d-opfs-registration')
@@ -541,6 +491,7 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     displayModels,
     displayModelsFromIndexedDBLoading,
     cloudModels,
+    availabilityRevision,
     cloudOnlyModels,
     syncStatuses,
     syncErrors,
@@ -549,6 +500,7 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     loadDisplayModelsFromIndexedDB,
     getDisplayModel,
     ensureDisplayModelAvailable,
+    refreshCloudModels,
     uploadDisplayModel,
     deleteCloudDisplayModel: deleteCloudDisplayModelById,
     addDisplayModel,

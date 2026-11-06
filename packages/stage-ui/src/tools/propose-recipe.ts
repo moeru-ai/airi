@@ -101,7 +101,7 @@ function decisionRecipeFromInput(input: InferOutput<typeof proposeRecipeParamete
 /** Options for the recipe proposal tool. */
 interface CreateProposeRecipeToolOptions {
   /** Stores the proposal unapproved. The owner approves it in Settings. */
-  propose: (recipe: Omit<Recipe, 'id' | 'source' | 'approved' | 'enabled'>) => Recipe
+  propose: (recipe: Omit<Recipe, 'id' | 'source' | 'approved' | 'enabled'>) => Promise<Recipe>
 }
 
 /**
@@ -124,7 +124,7 @@ export async function createProposeRecipeTool(options: CreateProposeRecipeToolOp
         const recipe = recipeFromInput(parsed.output)
         if (typeof recipe === 'string')
           return `Recipe not saved: ${recipe}`
-        const proposal = options.propose(recipe)
+        const proposal = await options.propose(recipe)
         return `Saved the recipe proposal "${proposal.name}". It waits for the owner's approval in Settings, under Modules, Long-term memory, Recipes.`
       },
     }),

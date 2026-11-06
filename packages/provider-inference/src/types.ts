@@ -374,6 +374,12 @@ export interface ProviderDefinition<TConfig = Record<string, unknown>, TId exten
      */
     speech?: {
       transport: 'rest' | 'bidirectional-ws'
+      /**
+       * Whether the voice catalogue differs for each model, as on the AIRI server.
+       * Then the catalogue of one model is not the catalogue of the provider.
+       * A caller that needs every voice, such as the settings search, asks `listVoices` once for each model.
+       */
+      voicesByModel?: boolean
     }
   }
   /**

@@ -45,9 +45,20 @@ Key files and directories:
 Use pnpm workspace filters to limit a command to one workspace. Replace `<package name>` with the `name` field in `package.json`, for example `@proj-airi/stage-tamagotchi`.
 
 - Typecheck one workspace: `pnpm -F <package name> typecheck`. For stage-tamagotchi, this command runs `tsc` and `vue-tsc`.
-- Test one file: `pnpm exec vitest run <path>`.
+- Test one file: `pnpm -F <package name> exec vitest run <path>`. Give `<path>` relative to the workspace.
 - Test one workspace: `pnpm -F <package name> exec vitest run`.
-- Test all projects: `pnpm test:run`. If Vitest finds no tests, examine the `include` patterns in `vitest.config.ts`.
+- Test all workspaces: `pnpm test:run`. Turbo runs the `test:run` script of each workspace, with its browser projects.
+- Test the root scripts in `.github/scripts`: `pnpm test:root`. The root `vitest.config.ts` has only these tests.
+- Test the changes of a branch: run the `test:run` script of each changed workspace and of each workspace that depends on it.
+  Use the merge base with `origin/main` as the base.
+
+  ```sh
+  base=$(git merge-base origin/main HEAD)
+  TURBO_SCM_BASE="$base" pnpm exec turbo run test:run --affected
+  ```
+
+  If the branch changes `.github/scripts`, also run `pnpm test:root`.
+
 - Lint: `pnpm lint`. ESLint also does the formatting. To fix lint and format errors, run `pnpm lint:fix`.
 - Build one workspace: `pnpm -F <package name> build`. For stage-tamagotchi, this command runs the typecheck and `electron-vite build`.
 
@@ -59,10 +70,25 @@ Use pnpm workspace filters to limit a command to one workspace. Replace `<packag
 - If new logic can become a shared utility, propose the shared approach to the user.
 - If a refactor is small, do it step by step.
 - After a task, run the typecheck and the related tests for each workspace that you changed.
+- Before you create a PR or push to one, run the tests of the branch changes. CI runs every project, including the browser projects.
+- If a change alters UI structure, layout, or interaction, review the related browser and end-to-end tests.
+- If intended behavior changes, update the affected assertions. Keep valid regression checks. Do not delete an assertion only to make a test pass.
+- After the final UI change, run the related tests on the final commit.
+- Before you report a CI success, make sure that CI tested the current PR head.
 - If you change a shared package or an exported type, also run the root `pnpm typecheck`.
 - Run `pnpm lint` before you finish.
 - Report only the checks that you ran. Give each command and its result.
 - At the end, summarize the changes, the commands that you ran, and the follow-up work.
+
+## Private Data
+
+- Do not put private data in the repository or on GitHub. This rule applies to code, tests, fixtures, docs, comments, commit messages, PR and issue text, and review replies.
+- Private data is data about a real person, device, or network. For example: names, email addresses, usernames, host names, domains, IP addresses, local paths, device names, tokens, and recorded content.
+- If a value looks private, treat it as private. For example, a domain or a path from the user's machine is private.
+- Do not copy values from the user's configuration, logs, traces, or command output into a commit.
+- In examples and tests, use reserved values: `example.com`, `user@example.com`, `192.0.2.0/24`, `198.51.100.0/24`, and `/home/user`.
+- Before you commit or push, search the diff and the commit message for private data.
+- If private data is already on GitHub, stop and tell the user. Do not rewrite pushed history without approval.
 
 ## Code Rules
 
@@ -106,6 +132,9 @@ Use pnpm workspace filters to limit a command to one workspace. Replace `<packag
 - If the user asks you to use a specific tool or dependency, read its documentation in Context7 first. Then examine how this repository uses it.
 - If Context7 returns several names without a clear difference, ask the user to choose one.
 - If the documentation conflicts with the typecheck result, examine the dependency source in `node_modules` to find the cause.
+- Do not add an `install`, `postinstall`, or `prepare` script to a workspace package. Every `pnpm install` runs it, also for contributors who do not use the package.
+- Put a download, build, or code generation step in the script that needs it, for example `dev` or `build`. You can also load the file at runtime.
+- An install script is permitted only if every install of its package needs it, and it runs fast and offline. Before you add one, ask the user.
 
 ## Documentation
 
@@ -154,7 +183,9 @@ Skills are in `.agents/skills/<name>/SKILL.md`. Read the listed file before you 
 | Write documentation, code comments, commit messages, or PR and issue text | [`simple-english`](.agents/skills/simple-english/SKILL.md) |
 | Analyze why a chat, speech, or audio turn was slow or failed, using saved IO traces | [`analyze-io-traces`](.agents/skills/analyze-io-traces/SKILL.md) |
 | Create or prepare a pull request | [`create-pr`](.agents/skills/create-pr/SKILL.md) |
+| Cut a release with `bumpp`, a release tag, or a GitHub release. Also, write release notes. | [`release-note-writer`](.agents/skills/release-note-writer/SKILL.md). Draft the notes before you create the GitHub release. |
 | Upload a local file through a file input or a file chooser in a web or Electron app | [`use-agent-browser-with-input-file`](.agents/skills/use-agent-browser-with-input-file/SKILL.md) and [`agent-browser`](.agents/skills/agent-browser/SKILL.md). For Electron, also read [`agent-browser-electron`](.agents/skills/agent-browser-electron/SKILL.md). |
+| Write or review motion, reactions, animations, or springs that a Pixi, TresJS, or Three render loop samples | [`enforce-rules-for-render-loops`](.agents/skills/enforce-rules-for-render-loops/SKILL.md) |
 | Test Live2D, VRM, or MMD import and rendering in stage-web, stage-tamagotchi, or stage-pocket | [`use-agent-browser-for-airi`](.agents/skills/use-agent-browser-for-airi/SKILL.md) |
 
 These directories also have their own `AGENTS.md`. Read it before you work in the directory:

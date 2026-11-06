@@ -3,6 +3,7 @@ import type { GenerationAdapter } from './types'
 import { openaiChatModels } from 'model-bank/openai'
 
 import { generationProtocols } from '../../../schemas/generation-protocol'
+import { upstreamHeaders } from './headers'
 
 // Catalog IDs describe dispatched models, not gateway aliases.
 const searchModels = new Set(openaiChatModels.filter(model => model.abilities?.search).map(model => model.id))
@@ -49,7 +50,7 @@ export const responsesAdapter: GenerationAdapter = {
         method: 'POST',
         headers: {
           ...request.headers,
-          'authorization': upstream.headerTemplate.replace('{KEY}', apiKey),
+          ...upstreamHeaders(upstream, apiKey),
           'content-type': 'application/json',
         },
         body: JSON.stringify({ ...body, model: upstream.overrideModel ?? request.modelName }),

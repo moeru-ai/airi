@@ -1,6 +1,7 @@
 export * from './audio-input'
 export * from './capture'
 export * from './eventa'
+export * from './level'
 export * from './llm-streaming-control'
 export * from './managers/playback-manager'
 export * from './observe'

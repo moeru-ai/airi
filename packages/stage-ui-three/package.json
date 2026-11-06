@@ -22,6 +22,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
+    "test:run": "vitest run --config vitest.config.ts",
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {

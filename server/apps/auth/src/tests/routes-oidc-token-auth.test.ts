@@ -5,6 +5,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createAuthRoutes } from '../routes'
 
+/**
+ * A token in the compact JWS shape: three base64url parts. The verifier is mocked, so the signature is not real.
+ * `jwsCompact` rejects a part whose length base64url never produces, such as the 5 letters of `token`.
+ */
+const SIGNED_JWT = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEifQ.c2lnbmF0dXJl'
+
 const { jwtVerify } = vi.hoisted(() => ({
   jwtVerify: vi.fn(),
 }))
@@ -90,7 +96,7 @@ describe('oidc token auth routes', () => {
     // We now validate the JWT first and only use Better Auth as the fallback.
     const response = await app.request(path, {
       method,
-      headers: { Authorization: 'Bearer signed.jwt.token' },
+      headers: { Authorization: `Bearer ${SIGNED_JWT}` },
     })
 
     expect(response.status).toBe(200)
@@ -105,7 +111,7 @@ describe('oidc token auth routes', () => {
     const { app, getSession } = await buildRoutes()
 
     const response = await app.request('/api/auth/get-session', {
-      headers: { Authorization: 'Bearer not.a.valid-token' },
+      headers: { Authorization: `Bearer ${SIGNED_JWT}` },
     })
 
     expect(response.status).toBe(200)
@@ -117,7 +123,7 @@ describe('oidc token auth routes', () => {
     const { app, getSession } = await buildRoutes()
 
     const response = await app.request('/api/auth/get-session', {
-      headers: { Authorization: 'bEaReR signed.jwt.token' },
+      headers: { Authorization: `bEaReR ${SIGNED_JWT}` },
     })
 
     expect(response.status).toBe(200)
@@ -129,7 +135,7 @@ describe('oidc token auth routes', () => {
     getJwks.mockRejectedValueOnce(new Error('database unavailable'))
 
     const response = await app.request('/api/auth/get-session', {
-      headers: { Authorization: 'Bearer signed.jwt.token' },
+      headers: { Authorization: `Bearer ${SIGNED_JWT}` },
     })
 
     expect(response.status).toBe(500)
@@ -146,7 +152,7 @@ describe('oidc token auth routes', () => {
     const { app, findFirst, getSession } = await buildRoutes()
 
     const response = await app.request('/api/auth/get-session', {
-      headers: { Authorization: 'Bearer signed.jwt.token' },
+      headers: { Authorization: `Bearer ${SIGNED_JWT}` },
     })
 
     expect(response.status).toBe(200)

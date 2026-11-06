@@ -105,7 +105,8 @@ vi.mock('@proj-airi/electron-vueuse/main', () => ({
 
 vi.mock('../../libs/electron/location', () => ({
   baseUrl: vi.fn(() => 'http://localhost:5173'),
-  getElectronMainDirname: vi.fn(() => '/tmp/airi-main'),
+  getPreloadPath: vi.fn(() => '/tmp/airi-preload/index.mjs'),
+  getRendererRoot: vi.fn(() => '/tmp/airi-renderer'),
   load: vi.fn(async () => undefined),
   withHashRoute: vi.fn((_base: string, route: string) => route),
 }))

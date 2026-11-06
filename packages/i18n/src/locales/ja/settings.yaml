@@ -187,8 +187,6 @@ live2d:
           description: 付属の MAGIC データセットからモーションを生成します。
       magic:
         profile:
-          title: MAGIC プロファイル
-          description: MAGIC ドライバーに適した付属のモーションデータセットを選択してください。
           options:
             idle-calm:
               title: 待機 / 落ち着き
@@ -242,14 +240,7 @@ live2d:
     sdk-preset-preserved-notice: >
       無効化しても SDK の表情およびまばたきプリセットは保持されます。
     no-expression: このモデルで利用可能な表情はありません。
-    llm-integration-wip: LLM 統合エンジンは未完了です。
-    save-default: デフォルトの表情を保存
     reset: すべての表情をリセット
-    expose-to-llm-toggle: LLM へのアクセスを許可
-    expose-to-llm-options:
-      none: なし
-      all: すべて
-      custom: カスタム
 microphone: マイク
 models: モデル
 pages:
@@ -837,8 +828,6 @@ pages:
             description: 適切な音声認識プロバイダーを選択
           microphone:
             title: マイク
-            label: マイク
-            description: 聴覚用のマイクを有効にしてください。入力モードによって AIRI が聞き取るタイミングを決めます。
             error: マイクを利用できません
           input-device:
             label: 入力デバイス
@@ -1397,11 +1386,9 @@ pages:
       buy: 購入
       description: 選択可能な Flux パッケージ。
   capacitor:
-    description: Capacitor は Flux を蓄え、自動で充電されます。
     statusError: Capacitor を読み込めませんでした。後でもう一度お試しください。
     packagesError: Capacitor の一覧を読み込めませんでした。後でもう一度お試しください。
     preferenceError: 設定を保存できませんでした。後でもう一度お試しください。
-    noCapacitor: Capacitor なし
     remaining: '残り {percent}'
     rechargesAt: '{date} に充電'
     renewsAt: '{date} に更新'

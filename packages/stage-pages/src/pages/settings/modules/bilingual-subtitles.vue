@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { Alert } from '@proj-airi/stage-ui/components'
 import { OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '@proj-airi/stage-ui/libs/providers/providers/official'
 import { isBufferedStreamingResourceId, resolveStreamingSessionModel } from '@proj-airi/stage-ui/libs/speech/streaming-buffer'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { bilingualLanguageOptions, useSettingsBilingualSubtitles } from '@proj-airi/stage-ui/stores/settings/bilingual-subtitles'
-import { FieldCheckbox } from '@proj-airi/ui'
+import { Alert, FieldCheckbox } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'

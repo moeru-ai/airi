@@ -35,6 +35,18 @@ function noteFeedback() {
     </Variant>
 
     <Variant
+      id="updater-retry"
+      title="Updater Retry (About Page)"
+    >
+      <div class="max-w-3xl">
+        <ContainerError
+          message="net::ERR_CONNECTION_CLOSED The updater tries again at 2026-10-28T15:18:07.760Z."
+          height-preset="sm"
+        />
+      </div>
+    </Variant>
+
+    <Variant
       id="with-stack"
       title="With Stack Trace"
     >

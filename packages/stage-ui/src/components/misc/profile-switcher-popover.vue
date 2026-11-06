@@ -357,7 +357,7 @@ function toggleOpen() {
             'border-neutral-200 bg-white/95 dark:border-neutral-800 dark:bg-neutral-900/95',
           ]"
         >
-          <div ref="createContentRef" :class="['flex flex-wrap items-center justify-end gap-2 border-2 rounded-xl p-2']">
+          <div ref="createContentRef" :class="['flex flex-wrap items-center justify-end gap-2 rounded-xl p-2']">
             <input
               ref="nameInputRef"
               v-model="newProfileName"

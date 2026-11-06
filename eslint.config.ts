@@ -13,11 +13,14 @@ export default defineConfig({
   vue: true,
 }, {
   ignores: [
+    'eslint-suppressions.json',
     'cspell.config.yaml',
     'cspell.config.yml',
     'crowdin.yaml',
     'crowdin.yml',
     '**/assets/js/**',
+    'packages/cloud-client/src/generated/**', // Hey API owns these files.
+    'packages/cloud-client/openapi.yaml', // Generated from the Cloud protobuf contract.
     '**/assets/live2d/models/**',
     'apps/stage-tamagotchi/out/**',
     'apps/stage-tamagotchi-kirie/addons/**',
@@ -55,6 +58,15 @@ export default defineConfig({
     'slop/no-trivial-type-aliases': 'off',
     // The autofix workflow must preserve existing comment syntax.
     'slop/prefer-jsdoc': 'off',
+  },
+}, {
+  files: ['**/*.{ts,tsx,mts,cts,vue}'],
+  ignores: [
+    '**/*.{test,spec,story}.{ts,tsx,mts,cts,vue}',
+    '**/stories/**',
+  ],
+  rules: {
+    'ts/no-explicit-any': 'error',
   },
 }, {
   rules: {

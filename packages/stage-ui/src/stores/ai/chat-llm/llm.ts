@@ -1,5 +1,6 @@
 import type { Conversation, StreamOptions } from '@proj-airi/core-agent'
 import type { GenerationProvider } from '@proj-airi/provider-inference'
+import type { Tool } from '@xsai/shared-chat'
 
 import type { DescribeToolImage } from './tool-images'
 
@@ -17,6 +18,11 @@ export { isContentArrayRelatedError, isToolRelatedError } from '@proj-airi/core-
 export interface LlmStreamOptions extends StreamOptions {
   /** Reads the images in tool results as text. See {@link resolveLlmTools}. */
   describeToolImage?: DescribeToolImage
+  /**
+   * The only tools of a task beside the chat, for example the icon search of a tool card. The request gets them in
+   * place of the tools of the chat, and without the tools of the provider, so a task runs nothing else.
+   */
+  taskTools?: Tool[]
 }
 
 export const useLLM = defineStore('llm', () => {
@@ -28,8 +34,9 @@ export const useLLM = defineStore('llm', () => {
     // `prepareConversation` runs for every resolved request, so the key follows a step that changes the model.
     let key = modelKey(model, chatProvider.generation(model))
     let toolExecutionStarted = false
-    const { tools: customTools, describeToolImage, ...streamOptions } = options ?? {}
-    const builtinToolsResolver = () => resolveLlmTools({ customTools, describeImage: describeToolImage })
+    const { tools: customTools, describeToolImage, taskTools, ...streamOptions } = options ?? {}
+    const resolveTools = async () => taskTools ?? await resolveLlmTools({ customTools, describeImage: describeToolImage })
+    const builtinToolsResolver = resolveTools
     const resolveStep = streamOptions.resolveStep
 
     const runStream = () => coreStreamFrom({
@@ -38,9 +45,10 @@ export const useLLM = defineStore('llm', () => {
       conversation: context,
       options: {
         ...streamOptions,
+        ...(taskTools ? { providerTools: false } : {}),
         // Core uses only the tools of a resolved step, so each step carries the complete tool list.
         resolveStep: resolveStep
-          ? async () => ({ ...await resolveStep(), tools: await resolveLlmTools({ customTools, describeImage: describeToolImage }) })
+          ? async () => ({ ...await resolveStep(), tools: await resolveTools() })
           : undefined,
         prepareConversation: async (conversation, target) => {
           key = modelKey(target.model, target.request)

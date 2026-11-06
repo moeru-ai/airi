@@ -1,12 +1,26 @@
 catalogMode: prefer
 minimumReleaseAge: 4320
 minimumReleaseAgeExclude:
+  # NOTICE:
+  # Install the CVE-2026-111497 fix before the release-age delay ends.
+  # Electron 43.8.4 includes the patched Node.js 24.22.1 runtime.
+  # Source: https://releases.electronjs.org/release/v43.8.4
+  # Remove this exception after 2026-10-30T18:05:12Z.
+  - electron@43.8.4
+  # NOTICE:
+  # Install the download retry before the release-age delay ends. A dropped download failed release and CI builds.
+  # 0.2.6 retries network errors, stalls, truncated bodies, and 5xx statuses. Our team publishes this package.
+  # Source: https://github.com/proj-airi/unplugin-fetch/pull/4
+  # Remove this exception after 2026-11-07T08:45:06Z.
+  - '@proj-airi/unplugin-fetch@0.2.6'
   # Packages from the AIRI team must always be trusted
+  - '@auv-js/*'
   - '@gd-kirie/*'
   - '@moeru/*'
   - '@proj-airi/*'
   - '@sherpaw/*'
   - '@vishot/*'
+  - '@vieval/*'
   - '@xsai/*'
   - '@xsai-apple-speech/*'
   - '@xsai-apple-vision/*'
@@ -15,6 +29,8 @@ minimumReleaseAgeExclude:
   - kirie
   - pinia-plugin-synced
   - xsschema
+  - vieval
+  - '@ergosphere-it/*'
 
 shellEmulator: true
 packages:
@@ -30,14 +46,18 @@ packages:
   - '!**/dist/**'
 
 overrides:
-  '@types/hast': 'catalog:'
+  # @huggingface/transformers 3.8.1 pins an onnxruntime-web dev build. Use the catalog version, which @sherpaw needs.
+  # Remove when @huggingface/transformers declares the catalog version.
+  '@huggingface/transformers>onnxruntime-web': 'catalog:'
   array-flatten: npm:@nolyfill/array-flatten@^1.0.44
   axios: npm:feaxios@^0.0.23
   'eslint-plugin-sonarjs>typescript': 'catalog:'
-  hono: 4.13.3
   is-core-module: npm:@nolyfill/is-core-module@^1.0.39
   isarray: npm:@nolyfill/isarray@^1.0.44
-  onnxruntime-web: npm:onnxruntime-web@^1.27.0
+  # rehype-katex 7.0.1 and micromark-extension-math 3.1.0 declare katex ^0.16. The speech transformers parse with the
+  # catalog katex, so display and speech use one version. Remove when both declare the catalog version.
+  micromark-extension-math>katex: 'catalog:'
+  rehype-katex>katex: 'catalog:'
   safe-buffer: npm:@nolyfill/safe-buffer@^1.0.44
   safer-buffer: npm:@nolyfill/safer-buffer@^1.0.44
   side-channel: npm:@nolyfill/side-channel@^1.0.44
@@ -57,8 +77,8 @@ catalog:
   '@anthropic-ai/claude-code': ^2.1.241
   '@apple/app-store-server-library': ^3.1.0
   '@arethetypeswrong/core': ^0.18.5
-  '@auv-js/cli': 0.0.28
-  '@auv-js/sdk': 0.0.28
+  '@auv-js/cli': 0.0.40
+  '@auv-js/sdk': 0.0.40
   '@aws-sdk/client-s3': ^3.1135.0
   '@aws-sdk/s3-request-presigner': ^3.1135.0
   '@ax-llm/ax': ^24.0.5
@@ -66,17 +86,19 @@ catalog:
   '@better-auth/drizzle-adapter': 1.6.25
   '@better-auth/oauth-provider': 1.6.25
   '@better-fetch/fetch': ^1.3.1
-  '@capacitor/android': ^8.5.0
+  '@capacitor/android': ^8.6.0
   '@capacitor/app': ^8.1.1
   '@capacitor/barcode-scanner': ^3.1.1
-  '@capacitor/cli': ^8.5.0
-  '@capacitor/core': ^8.5.0
-  '@capacitor/ios': ^8.5.0
+  '@capacitor/cli': ^8.6.0
+  '@capacitor/core': ^8.6.0
+  '@capacitor/ios': ^8.6.0
   '@capacitor/keyboard': ^8.0.5
   '@capacitor/local-notifications': ^8.3.1
+  '@cortex-js/compute-engine': ^0.153.0
   '@date-fns/utc': ^2.1.1
   '@discordjs/voice': ^0.19.2
   '@dotenvx/dotenvx': ^2.21.0
+  '@duckdb/duckdb-wasm': 1.29.1-dev68.0
   '@electric-sql/pglite': ^0.5.6
   '@electric-sql/pglite-pgvector': 0.0.7
   '@electron-toolkit/eslint-config-ts': ^3.1.0
@@ -84,22 +106,25 @@ catalog:
   '@electron-toolkit/tsconfig': ^2.0.0
   '@electron-toolkit/utils': ^4.0.0
   '@electron/notarize': ^3.1.1
+  '@ergosphere-it/electron': ^0.0.16
   '@esotericsoftware/spine-webgl': ~4.2.0
   '@esotericsoftware/spine-webgl-4-0': npm:@esotericsoftware/spine-webgl@~4.0.31
   '@esotericsoftware/spine-webgl-4-1': npm:@esotericsoftware/spine-webgl@~4.1.56
   '@ffmpeg-installer/ffmpeg': ^1.1.0
+  '@flowershow/remark-wiki-link': 3.4.0
   '@fontsource-variable/comfortaa': ^5.3.0
   '@fontsource-variable/dm-sans': ^5.3.0
   '@fontsource-variable/jura': ^5.3.0
   '@fontsource-variable/nunito': ^5.3.0
   '@fontsource-variable/quicksand': ^5.3.0
   '@fontsource-variable/urbanist': ^5.3.0
-  '@fontsource/dm-mono': ^5.3.0
   '@fontsource/dm-serif-display': ^5.3.0
   '@fontsource/gugi': ^5.3.0
   '@fontsource/kiwi-maru': ^5.3.0
   '@fontsource/m-plus-rounded-1c': ^5.3.0
+  '@fontsource/maple-mono': ^5.3.0
   '@formkit/auto-animate': ^0.10.0
+  '@google/genai': ^2.30.0
   '@grammyjs/files': ^1.2.0
   '@guiiai/logg': ^1.2.12
   '@histoire/plugin-vue': 1.0.0-beta.1
@@ -141,7 +166,6 @@ catalog:
   '@opentelemetry/api': ^1.9.1
   '@opentelemetry/api-logs': ^0.221.0
   '@opentelemetry/auto-instrumentations-node': ^0.79.0
-  '@opentelemetry/core': ^2.10.0
   '@opentelemetry/exporter-logs-otlp-proto': ^0.221.0
   '@opentelemetry/exporter-metrics-otlp-proto': ^0.221.0
   '@opentelemetry/exporter-trace-otlp-proto': ^0.221.0
@@ -155,9 +179,9 @@ catalog:
   '@opentelemetry/sdk-logs': ^0.221.0
   '@opentelemetry/sdk-metrics': ^2.10.0
   '@opentelemetry/sdk-node': ^0.221.0
-  '@opentelemetry/sdk-trace-base': ^2.10.0
   '@opentelemetry/sdk-trace-node': ^2.10.0
   '@opentelemetry/semantic-conventions': ^1.43.0
+  '@openuidev/lang-core': 0.4.1
   '@pinia/colada': ^1.4.2
   '@pinia/testing': ^2.0.1
   '@pixi/app': ^6.5.10
@@ -177,12 +201,12 @@ catalog:
   '@pixiv/three-vrm-animation': ^3.5.5
   '@pixiv/three-vrm-core': ^3.5.5
   '@pnpm/find-workspace-dir': ^1000.1.5
-  '@proj-airi/chromatic': ^1.1.4
+  '@proj-airi/chromatic': ^2.0.1
   '@proj-airi/drizzle-duckdb-wasm': ^0.6.0
   '@proj-airi/iconify-meteocons': ^0.1.5
   '@proj-airi/lobe-icons': ^1.0.19
-  '@proj-airi/unocss-preset-chromatic': ^1.1.4
-  '@proj-airi/unplugin-fetch': ^0.2.3
+  '@proj-airi/unocss-preset-chromatic': ^2.0.1
+  '@proj-airi/unplugin-fetch': ^0.2.6
   '@proj-airi/unplugin-live2d-sdk': ^0.1.7
   '@revenuecat/purchases-js': ^1.15.0
   '@rive-app/canvas-lite': ^2.40.1
@@ -223,6 +247,8 @@ catalog:
   '@unocss/reset': 66.7.5
   '@valibot/to-json-schema': 1.0.0-rc.0
   '@velin-dev/core': ^0.4.0
+  '@velin-dev/core-vue': 1.0.0-beta.6
+  '@vieval/ui': ^0.10.3
   '@vishot/cli': ^0.2.0
   '@vishot/mockup-desktop-vue': ^0.2.0
   '@vishot/renderer-browser': ^0.2.0
@@ -288,11 +314,10 @@ catalog:
   drizzle-kit: ^0.31.10
   drizzle-orm: ^0.45.2
   drizzle-valibot: ^0.4.2
-  electron: ^43.4.1
+  electron: ^43.8.4
   electron-builder: ^26.16.1
   electron-click-drag-plugin: ^2.0.2
-  electron-updater: ^6.8.9
-  electron-vite: ^5.0.0
+  electron-vite: ^6.0.0
   embla-carousel-autoplay: 9.0.0-rc01
   embla-carousel-vue: 9.0.0-rc02
   es-toolkit: ^1.51.0
@@ -303,6 +328,7 @@ catalog:
   eslint-plugin-slop: 0.1.3
   eventemitter3: ^5.0.4
   fflate: ^0.8.3
+  file-type: ^22.2.0
   floating-vue: ^5.2.2
   fluent-ffmpeg: ^2.1.3
   get-port-please: ^3.2.0
@@ -323,6 +349,7 @@ catalog:
   jose: ^6.2.10
   jsdom: ^30.0.1
   jszip: ^3.10.1
+  katex: 0.19.0
   knip: ^6.32.2
   kokoro-js: ^1.2.1
   kysely: 0.29.5
@@ -331,6 +358,7 @@ catalog:
   localforage: ^1.10.0
   mediabunny: ^1.55.2
   meta-png: ^1.0.6
+  mhchemparser: ^4.2.1
   minecraft-data: 3.102.3
   mineflayer: ^4.37.1
   mineflayer-armor-manager: ^2.0.1
@@ -354,7 +382,7 @@ catalog:
   p-limit: ^7.3.1
   pg: ^8.23.0
   pinia: ^4.0.3
-  pinia-plugin-synced: ^0.1.5
+  pinia-plugin-synced: ^0.1.7
   pixi-filters: ^4.2.0
   pixi-live2d-display: ^0.4.0
   playwright: ^1.62.1
@@ -372,6 +400,7 @@ catalog:
   rehype-parse: ^9.0.1
   rehype-stringify: ^10.0.1
   reka-ui: ^2.10.3
+  remark-cjk-friendly: ^2.3.3
   remark-math: ^6.0.0
   remark-parse: ^11.0.0
   remark-rehype: ^11.1.2
@@ -381,6 +410,7 @@ catalog:
   semver: ^7.8.5
   shiki: ^4.4.3
   simple-git-hooks: ^2.13.1
+  speech-rule-engine: 5.0.0-rc.4
   splitpanes: ^4.1.2
   sponsorkit: 17.1.0
   sponsors-svg: ^0.3.0
@@ -418,9 +448,9 @@ catalog:
   valibot: ^1.4.2
   vaul-vue: ^0.4.1
   vec3: ^0.2.0
-  vieval: ^0.2.0
+  vieval: ^0.10.3
   virtua: ^0.50.4
-  vite: ^8.2.2
+  vite: ^8.3.4
   vite-bundle-visualizer: ^1.2.1
   vite-plugin-inspect: 12.0.0-beta.1
   vite-plugin-mkcert: ^2.1.0
@@ -439,6 +469,7 @@ catalog:
   vue-tsc: ^3.3.11
   wavefile: ^11.0.0
   web-haptics: ^0.0.6
+  web-worker: ^1.5.0
   whatwg-mimetype: ^5.0.0
   wheel-gestures: ^2.2.48
   wlipsync: ^1.3.1
@@ -449,7 +480,7 @@ catalog:
   xastscript: ^4.0.0
   xsai-chromium-prompt: ^0.2.2
   xsschema: 0.5.1
-  yaml: ^2.9.0
+  yaml: ^2.9.1
   yauzl: ^3.4.0
   zod: ^4.4.3
   zod-to-json-schema: ^3.25.2
@@ -469,7 +500,9 @@ allowBuilds:
   '@ffmpeg-installer/darwin-x64': true
   '@ffmpeg-installer/linux-arm64': true
   '@ffmpeg-installer/linux-x64': true
+  '@google/genai': false
   '@napi-rs/image': true
+  '@openuidev/lang-core': false # Its postinstall only sends install telemetry.
   '@parcel/watcher': true
   '@prisma/client': false
   better-sqlite3: false

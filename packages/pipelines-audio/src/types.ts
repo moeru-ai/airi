@@ -7,6 +7,8 @@ export interface PriorityResolver {
 export interface TextToken {
   type: 'literal' | 'special' | 'flush'
   value?: string
+  /** True when a flush ends a bilingual translation pair, not only a segment. */
+  pair?: boolean
   turnId?: string
   streamId: string
   intentId: string
@@ -22,6 +24,8 @@ export interface TextSegment {
   text: string
   special: string | null
   reason: 'boost' | 'limit' | 'hard' | 'flush' | 'special'
+  /** Bilingual pair that owns this segment, starting at 0. */
+  pairIndex?: number
   createdAt: number
 }
 
@@ -35,6 +39,8 @@ export interface TtsRequest {
   special: string | null
   /** Chunker boundary that produced this text. Tracing uses it to explain synthesis latency. */
   reason: TextSegment['reason']
+  /** Bilingual pair that owns this request, starting at 0. */
+  pairIndex?: number
   priority: number
   createdAt: number
 }
@@ -48,6 +54,8 @@ export interface TtsResult<TAudio> {
   text: string
   special: string | null
   audio: TAudio
+  /** Bilingual pair that owns this result, starting at 0. */
+  pairIndex?: number
   createdAt: number
 }
 
@@ -63,6 +71,8 @@ export interface PlaybackItem<TAudio> {
   text: string
   special: string | null
   audio: TAudio
+  /** Bilingual pair that owns this item, starting at 0. */
+  pairIndex?: number
   createdAt: number
 }
 
@@ -86,19 +96,6 @@ export interface PlaybackRejectEvent<TAudio> {
   item: PlaybackItem<TAudio>
   reason: string
   rejectedAt?: number
-}
-
-/**
- * Fired once after an intent is sealed (no more items will be scheduled)
- * and no active or waiting item remains. A transient empty queue between
- * streaming sentences does not fire this. It also fires after rejects or
- * interrupts drain a sealed intent. Consumers use it as the turn-level
- * playback-complete signal.
- */
-export interface PlaybackIntentDrainedEvent {
-  intentId: string
-  turnId?: string
-  drainedAt: number
 }
 
 export type IntentBehavior = 'queue' | 'interrupt' | 'replace'
@@ -133,7 +130,7 @@ export interface IntentHandle {
   ownerId?: string
   writeLiteral: (text: string) => void
   writeSpecial: (special: string) => void
-  writeFlush: () => void
+  writeFlush: (pair?: boolean) => void
   end: () => void
   cancel: (reason?: string) => void
   stream: ReadableStream<TextToken>

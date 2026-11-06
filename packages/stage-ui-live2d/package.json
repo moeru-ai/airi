@@ -42,7 +42,8 @@
     "./utils/opfs-loader": "./src/utils/opfs-loader.ts"
   },
   "scripts": {
-    "typecheck": "vue-tsc --noEmit"
+    "typecheck": "vue-tsc --noEmit",
+    "test:run": "vitest run"
   },
   "dependencies": {
     "@lemonneko/crop-empty-pixels": "catalog:",

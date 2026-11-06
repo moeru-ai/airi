@@ -6,18 +6,45 @@ import { createPushStream } from '@proj-airi/stream-kit'
 import { readGraphemeClusters } from 'clustr'
 
 export const TTS_FLUSH_INSTRUCTION = '\u200B'
+/**
+ * Ends one bilingual translation pair. It cuts like a flush, and the chunker
+ * also advances its pair index so captions can follow the pair, not text.
+ * A private-use code point stays its own grapheme cluster, unlike ZWNJ.
+ */
+export const TTS_PAIR_FLUSH_INSTRUCTION = '\uE000'
 export const TTS_SPECIAL_TOKEN = '\u2063'
 
 const regexpAnySingleDigit = /\d/
+/** A character that continues a token after a `.`, as in an address or a file path. */
+const regexpTokenContinuation = /[\p{L}\p{N}_~/\\%@-]/u
+const regexpCjk = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u
 
-const keptPunctuations = new Set('?？!！')
+/**
+ * A chunk without a letter, a digit, or an emoji, as a lone closing quote `”`, has no sound and is not a TTS request.
+ * Emoji stay, because some providers read them.
+ */
+const regexpSound = /[\p{L}\p{N}\p{Extended_Pictographic}]/u
 const hardPunctuations = new Set('.。?？!！…⋯～~\n\t\r')
 const softPunctuations = new Set(',，、–—:：;；《》「」')
+const regexpKana = /[\p{Script=Hiragana}\p{Script=Katakana}]/u
+
+/**
+ * Whether a length limit can end a chunk at `punctuation`.
+ *
+ * Chinese `、` separates the items of a list, as in 网络、地址解析, and a voice does not pause at it. Japanese `、` is a
+ * comma, so text with kana can end there. A chunk of twice the word limit can end at `、` too, so a long list does not
+ * make one long TTS request.
+ */
+function canEndAtLimit(punctuation: string | undefined, text: string, words: number, maximumWords: number): boolean {
+  return punctuation !== '、' || regexpKana.test(text) || words > 2 * maximumWords
+}
 
 export interface TtsInputChunk {
   text: string
   words: number
   reason: 'boost' | 'limit' | 'hard' | 'flush' | 'special'
+  /** True when this flush ends a bilingual translation pair. */
+  pair?: boolean
 }
 
 export interface TtsInputChunkOptions {
@@ -56,6 +83,8 @@ export interface TtsChunkItem {
   chunk: string
   special: string | null
   reason: 'boost' | 'limit' | 'hard' | 'flush' | 'special'
+  /** Bilingual pair that owns this chunk, starting at 0. */
+  pairIndex?: number
 }
 
 export async function* chunkTtsInput(
@@ -138,11 +167,11 @@ export async function* chunkTtsInput(
     if (value === '\r\n')
       value = '\n'
 
-    const flush = value === TTS_FLUSH_INSTRUCTION
+    const flush = value === TTS_FLUSH_INSTRUCTION || value === TTS_PAIR_FLUSH_INSTRUCTION
+    const pairFlush = value === TTS_PAIR_FLUSH_INSTRUCTION
     const special = value === TTS_SPECIAL_TOKEN
     const hard = hardPunctuations.has(value)
     const soft = softPunctuations.has(value)
-    const kept = keptPunctuations.has(value)
     let next: IteratorResult<string, void> | undefined
     let afterNext: IteratorResult<string, void> | undefined
 
@@ -169,24 +198,24 @@ export async function* chunkTtsInput(
       switch (value) {
         case '.':
         case ',': {
-          if (previousValue !== undefined && regexpAnySingleDigit.test(previousValue)) {
-            next = await iterator.next()
-            if (!next.done && next.value && regexpAnySingleDigit.test(next.value)) {
-              buffer += value
-              current = next
-              next = undefined
-              continue
-            }
+          next = await iterator.next()
+          const following = next.done ? undefined : next.value
+          // `3.14` and `1,000` are numbers. A `.` before a letter, as in `example.com`, `index.ts`, or `U.S`, is inside
+          // a token, so it does not end a sentence either. A `.` before a space, punctuation, CJK text, or the end does.
+          const inNumber = previousValue !== undefined && regexpAnySingleDigit.test(previousValue) && following !== undefined && regexpAnySingleDigit.test(following)
+          const inToken = value === '.' && following !== undefined && regexpTokenContinuation.test(following) && !regexpCjk.test(following)
+          if (inNumber || inToken) {
+            buffer += value
+            current = next
+            next = undefined
+            continue
           }
-          else if (value === '.') {
-            next = await iterator.next()
-            if (!next.done && next.value && next.value === '.') {
-              afterNext = await iterator.next()
-              if (!afterNext.done && afterNext.value && afterNext.value === '.') {
-                value = '…'
-                next = undefined
-                afterNext = undefined
-              }
+          if (value === '.' && following === '.') {
+            afterNext = await iterator.next()
+            if (!afterNext.done && afterNext.value && afterNext.value === '.') {
+              value = '…'
+              next = undefined
+              afterNext = undefined
             }
           }
         }
@@ -202,6 +231,16 @@ export async function* chunkTtsInput(
           yieldCount++
           chunkWordsCount = 0
         }
+        // An empty pair still advances the pair index, so the next pair
+        // keeps the same caption id as its translation.
+        else if (flush) {
+          yield {
+            text: '',
+            words: 0,
+            reason: 'flush',
+            ...(pairFlush ? { pair: true } : {}),
+          }
+        }
 
         previousValue = value
         current = await iterator.next()
@@ -210,14 +249,19 @@ export async function* chunkTtsInput(
 
       const words = [...segmenter.segment(buffer)].filter(w => w.isWordLike)
 
-      if (chunkWordsCount > minimumWords && chunkWordsCount + words.length > maximumWords) {
-        const text = kept ? chunk.trim() + value : chunk.trim()
-        yield {
-          text,
-          words: chunkWordsCount,
-          reason: 'limit',
+      if (chunkWordsCount > minimumWords && chunkWordsCount + words.length > maximumWords
+        && canEndAtLimit(chunk.at(-1), chunk, chunkWordsCount + words.length, maximumWords)) {
+        // The punctuation ends the buffer, not the chunk before it, so it stays with the buffer. Adding a `？` here too
+        // read it twice, as 方向、？ and then 移动？.
+        const text = chunk.trim()
+        if (regexpSound.test(text)) {
+          yield {
+            text,
+            words: chunkWordsCount,
+            reason: 'limit',
+          }
+          yieldCount++
         }
-        yieldCount++
         chunk = ''
         chunkWordsCount = 0
       }
@@ -239,14 +283,27 @@ export async function* chunkTtsInput(
       }
       // A boost chunk ends early at soft punctuation only once it is long enough to be worth its
       // own TTS request. A shorter opening clause stays in the chunk and joins the next one.
-      else if (flush || hard || chunkWordsCount > maximumWords || (yieldCount < boost && chunkWordsCount >= minimumWords)) {
+      else if (flush || hard || (chunkWordsCount > maximumWords && canEndAtLimit(value, chunk, chunkWordsCount, maximumWords)) || (yieldCount < boost && chunkWordsCount >= minimumWords)) {
         const text = chunk.trim()
-        yield {
-          text,
-          words: chunkWordsCount,
-          reason: flush ? 'flush' : hard ? 'hard' : chunkWordsCount > maximumWords ? 'limit' : 'boost',
+        if (regexpSound.test(text)) {
+          yield {
+            text,
+            words: chunkWordsCount,
+            reason: flush ? 'flush' : hard ? 'hard' : chunkWordsCount > maximumWords ? 'limit' : 'boost',
+            ...(flush && pairFlush ? { pair: true } : {}),
+          }
+          yieldCount++
         }
-        yieldCount++
+        else if (flush && pairFlush) {
+          // A soundless pair still advances the pair index, so captions keep
+          // the same one-to-one order as translations.
+          yield {
+            text: '',
+            words: 0,
+            reason: 'flush',
+            pair: true,
+          }
+        }
         chunk = ''
         chunkWordsCount = 0
       }
@@ -284,7 +341,7 @@ export async function* chunkTtsInput(
     current = next
   }
 
-  if (chunk.length > 0 || buffer.length > 0) {
+  if (regexpSound.test(chunk + buffer)) {
     const text = (chunk + buffer).trim()
     yield {
       text,
@@ -304,23 +361,26 @@ export async function chunkEmitter(
     return text
       .replaceAll(TTS_SPECIAL_TOKEN, '')
       .replaceAll(TTS_FLUSH_INSTRUCTION, '')
+      .replaceAll(TTS_PAIR_FLUSH_INSTRUCTION, '')
       .trim()
   }
 
   try {
+    let pairIndex = 0
     for await (const chunk of chunkTtsInput(reader, options)) {
       const cleanedText = sanitizeChunk(chunk.text)
-      if (!cleanedText && chunk.reason !== 'special') {
-        continue
+      if (cleanedText || chunk.reason === 'special') {
+        const pair = options?.flushBoundaries ? { pairIndex } : {}
+        if (chunk.reason === 'special') {
+          const specialToken = pendingSpecials.shift()
+          await handler({ chunk: cleanedText, special: specialToken ?? null, reason: chunk.reason, ...pair })
+        }
+        else {
+          await handler({ chunk: cleanedText, special: null, reason: chunk.reason, ...pair })
+        }
       }
-
-      if (chunk.reason === 'special') {
-        const specialToken = pendingSpecials.shift()
-        await handler({ chunk: cleanedText, special: specialToken ?? null, reason: chunk.reason })
-      }
-      else {
-        await handler({ chunk: cleanedText, special: null, reason: chunk.reason })
-      }
+      if (chunk.pair)
+        pairIndex += 1
     }
   }
   catch (e) {
@@ -552,7 +612,7 @@ export function createTtsSegmentStream(
             writeBytes(encoder.encode(TTS_SPECIAL_TOKEN))
           }
           else if (value.type === 'flush') {
-            writeBytes(encoder.encode(TTS_FLUSH_INSTRUCTION))
+            writeBytes(encoder.encode(value.pair ? TTS_PAIR_FLUSH_INSTRUCTION : TTS_FLUSH_INSTRUCTION))
           }
         }
       }
@@ -585,6 +645,7 @@ export function createTtsSegmentStream(
           text: chunk.chunk,
           special: chunk.special,
           reason: chunk.reason,
+          ...(chunk.pairIndex !== undefined ? { pairIndex: chunk.pairIndex } : {}),
           createdAt: Date.now(),
         })
       })

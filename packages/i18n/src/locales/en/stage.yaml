@@ -18,11 +18,19 @@ mobile-tools:
   view: View
   close-view: Save and close view controls
   hearing: Hearing
+  menu: Menu
+  menu-unread: Menu, {count} unread notifications
 chat:
+  audio:
+    hearing-disabled: '[Audio recording: transcription is disabled.]'
   provider-configuration:
     title: Chat provider isn't configured
     description: Choose and validate a provider in Settings before sending a message.
     action: Open provider settings
+    sign-in-title: Sign in to start chatting
+    sign-in-description: Sign in to use the official AIRI provider, or set up your own provider in Settings.
+    sign-in-description-official-only: Sign in to use the official AIRI provider.
+    sign-in-action: Sign in
   voice-message:
     recording: Recording
     starting: Starting microphone
@@ -31,17 +39,19 @@ chat:
     position: Playback position
     no-speech: No speech was recognized, so the voice message was not sent.
   voice-composer:
+    unavailable: The microphone is not available. Check that it is turned on in Hearing.
     audio: Voice message
     transcription: Dictation
-    hold-hint: Hold to record. Click to switch between voice message and dictation. Press Enter to record without holding.
+    walkie: Walkie-talkie
+    mode-hint: Long-press or right-click to choose the voice input
+    hold-to-talk: Hold to talk
+    release-to-send: Release to send
+    release-to-insert: Release to insert the text
+    release-to-cancel: Release to cancel
+    keyboard: Use the keyboard
     listening: Listening…
-    lock: Slide up to lock
-    cancel-hint: Slide left to cancel
     processing: Finishing…
     cancel: Cancel
-    send: Send voice message
-    insert: Insert text
-    retry: Send voice message again
     discard: Discard voice message
     failed: Voice input failed
     configure-title: Set up Hearing
@@ -56,6 +66,10 @@ chat:
     push-to-talk-unavailable: This device has no Push to Talk key, so AIRI does not listen. Change the input mode in Hearing settings.
     wake-word: Listen for wake words
     hearing-settings: More Hearing settings…
+    use-microphone: Use microphone
+    microphone-off: The microphone is off
+    microphone-off-description: Turn on the microphone to record.
+    turn-on-microphone: Turn on
     options-hint: Hover or right-click for options
     recording: Recording
     stop: Stop recording
@@ -83,7 +97,26 @@ chat:
     listening: Listening
     finalizing: Finishing…
     sent: Sent
+    dismiss: Dismiss
+    issues:
+      show: Show {count} problem | Show {count} problems
+      voice: Voice input
+      microphone: Microphone
+      wake-words: Wake words
   voice-input: Voice input
+  composer:
+    add: Add
+    images: Images
+    call: Voice call
+  call:
+    mute: Mute the microphone
+    unmute: Unmute the microphone
+    hang-up: Hang up
+    failed: Could not start the voice call
+    microphone-denied: AIRI cannot use the microphone.
+    microphone-off: The microphone is turned off. Turn it on in Hearing to start a voice call.
+    busy: Finish or cancel the recording first, then start the voice call.
+    configure-description: Select a transcription provider and model in Hearing to start a voice call.
   notice:
     label: 'Background report from {name}'
   background-tasks:
@@ -149,10 +182,19 @@ chat:
     other: Other data
     widget: Widget
     rerun: Run again
+    card-making: Making a card for this tool…
+    card-remaking: Making a new card…
+    card-regenerate: Make a new card
+    card-failed: Could not make a card for this tool
+    card-retry: Try again
     state:
       executing: Running
       done: Done
       error: Failed
+  reply-card:
+    drawing: Drawing a card…
+    raw: Raw data
+    card: Card
   error-details:
     show: Show details
     hide: Hide details
@@ -204,6 +246,11 @@ chat:
     cloud-badge: Synced to cloud
     new-chat-fallback: New chat
     delete: Delete conversation
+    rename: Rename conversation
+    rename-input: Conversation name
+    rename-placeholder: Enter a conversation name
+    save-rename: Save conversation name
+    cancel-rename: Cancel renaming
 avatar-model-missing:
   title: No model selected
   unavailable-title: This model is not on this device
@@ -350,3 +397,33 @@ status:
   sign-in-unconfirmed: Could not confirm your session. Please sign in again.
   dismiss: Dismiss
   configure-hearing: Select and configure a Hearing provider in Settings.
+
+model-assets:
+  retry: Retry
+  errors:
+    network: Could not connect to {host}. Check your network or proxy settings.
+    server: '{host} returned an error (HTTP {status}).'
+    incomplete: The download from {host} stopped before it finished.
+    unknown: 'The download stopped with an error: {error}'
+
+notifications:
+  title: Notifications
+  open: Open notifications
+  open-unread: Open notifications, {count} unread
+  mark-all-read: Mark all as read
+  empty: No notifications yet
+  loading: Loading notifications
+  back: Back
+  error: Notifications could not load.
+  retry: Retry
+  just-now: Just now
+  kinds:
+    flux-granted:
+      title: You received {amount} Flux
+    subscription-renewed:
+      title: '{plan} renewed'
+      body: Active until {periodEnd}.
+    subscription-payment-failed:
+      title: Renewal payment failed
+      body: We will retry on {retryAt}. Update your payment method to keep {plan}.
+      body-no-retry: Update your payment method to keep {plan}.

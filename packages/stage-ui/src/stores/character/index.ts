@@ -17,6 +17,7 @@ import { useAiriCardStore } from '../modules'
 import { useProviderStore } from '../providers/provider'
 import { useSettingsBilingualSubtitles } from '../settings/bilingual-subtitles'
 
+export * from './avatar-touch'
 export * from './notebook'
 export * from './orchestrator'
 

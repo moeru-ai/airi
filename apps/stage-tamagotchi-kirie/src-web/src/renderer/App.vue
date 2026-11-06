@@ -8,6 +8,7 @@ import { initializeAnalytics } from '@proj-airi/stage-ui/libs/product-signals'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
+import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
@@ -34,7 +35,7 @@ import {
 import { initializeElectronAuthCallbackBridge } from './bridges/electron-auth-callback'
 import { initializeStageThreeRuntimeTraceBridge } from './bridges/stage-three-runtime-trace'
 import { useLanguage } from './composables/use-language'
-import { initializeHostContext, startHostOwnedSpotlightShortcut, useHostMicrophonePermission } from './host-context'
+import { initializeHostContext, startHostOwnedSpotlightShortcut, startHostTrayLabels, useHostMicrophonePermission } from './host-context'
 import { useStageWindowLifecycleStore } from './stores/stage-window-lifecycle'
 import { useTamagotchiBuiltinToolsStore } from './stores/tools/built-in'
 import { resolveInitialRendererRoutePath, resolveRendererWindowContext } from './window-context'
@@ -56,16 +57,24 @@ const builtinToolsStore = useTamagotchiBuiltinToolsStore()
 const syncedPinia = usePiniaSynced()
 const isSettingsWindow = initialRoutePath === '/settings' || initialRoutePath.startsWith('/settings/')
 const isChatWindow = initialRoutePath === '/chat'
+const isFloatingChatWindow = initialRoutePath === '/chat-floating'
 const isSpotlightWindow = initialRoutePath === '/spotlight'
 const isMainRenderer = windowContext.leadership === 'leader-only'
 const microphonePermission = useHostMicrophonePermission()
 const microphonePermissionPrompt = microphonePermission.prompt
 const microphonePermissionBusy = shallowRef(false)
-const { t } = useI18n()
+const { t, locale: i18nLocale } = useI18n()
 let stopSpotlightShortcut: (() => void) | undefined
+// Godot owns the tray. The main renderer only supplies its translated labels.
+const stopTrayLabels = isMainRenderer
+  ? startHostTrayLabels({ locale: i18nLocale, t })
+  : undefined
 
 if (isSpotlightWindow)
   document.documentElement.classList.add('spotlight-window')
+// The floating chat window is transparent. Only its bubbles and controls paint.
+if (isFloatingChatWindow)
+  document.documentElement.classList.add('chat-floating-window')
 
 watch(microphonePermission.status, (state, previousState) => {
   if (previousState !== 'granted' || state === 'granted')
@@ -174,11 +183,14 @@ function createFullStageRuntime() {
 const fullStageRuntime = windowContext.stageRuntime === 'full'
   ? createFullStageRuntime()
   : null
+const chatStreamView = !fullStageRuntime && (isChatWindow || isFloatingChatWindow)
+  ? useContextBridgeStore()
+  : null
 
 const { restore: restoreLocale } = useLanguage(language, getMainLocale, setLocale)
 
 const { updateThemeColor } = useThemeColor(themeColorFromValue(
-  isSpotlightWindow
+  isSpotlightWindow || isFloatingChatWindow
     ? { light: 'rgb(255 255 255 / 0)', dark: 'rgb(18 18 18 / 0)' }
     : { light: 'rgb(255 255 255)', dark: 'rgb(18 18 18)' },
 ))
@@ -200,7 +212,7 @@ if (isSettingsWindow) {
   context.value.emit(electronSettingsReady, {})
 }
 
-if (isChatWindow) {
+if (isChatWindow || isFloatingChatWindow) {
   context.value.emit(electronChatReady, {})
 }
 
@@ -229,6 +241,7 @@ onMounted(async () => {
 
   await chatStore.initialize(syncedPinia)
   await fullStageRuntime?.initialize()
+  await chatStreamView?.initializeStreamView()
 })
 
 watch(themeColorsHue, () => {
@@ -241,9 +254,11 @@ watch(themeColorsHueDynamic, () => {
 
 onUnmounted(() => {
   stopSpotlightShortcut?.()
+  stopTrayLabels?.()
   stopLeadershipListener?.()
   chatStore.dispose()
   fullStageRuntime?.dispose()
+  void chatStreamView?.dispose()
 })
 
 function handleRouteRenderError(error: unknown, _instance: unknown, info: string) {

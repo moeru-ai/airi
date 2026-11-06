@@ -119,6 +119,7 @@
     "@iconify-json/simple-icons": "catalog:",
     "@iconify-json/solar": "catalog:",
     "@iconify-json/svg-spinners": "catalog:",
+    "@iconify-json/tabler": "catalog:",
     "@iconify-json/vscode-icons": "catalog:",
     "@intlify/unplugin-vue-i18n": "catalog:",
     "@proj-airi/cap-vite": "workspace:*",

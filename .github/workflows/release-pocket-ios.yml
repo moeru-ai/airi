@@ -23,7 +23,12 @@ on:
 jobs:
   build:
     name: Build iOS
-    runs-on: macos-26
+    # NOTICE:
+    # iPhone Duo shows a build from the iOS 26 SDK at a fixed size, with empty space around it.
+    # Full display needs the iOS 27.1 SDK, and the `macos-26` image has only Xcode 26.x.
+    # Source: https://github.com/actions/runner-images/issues/14404 (Xcode 27 public preview).
+    # Removal condition: a GA macOS image has Xcode 27.1 or later. Then use that image.
+    runs-on: xcode-27
     env:
       PRODUCT_NAME: 'AIRI'
       VITE_ENABLE_ANALYTICS: 'true'
@@ -32,9 +37,15 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Select Xcode 27.1
+        run: |
+          sudo xcode-select -s /Applications/Xcode_27.1.app
+          xcodebuild -version
+          xcodebuild -showsdks | grep iphoneos
+
       - uses: pnpm/setup@v2
         with:
-          runtime: node@26.7.0
+          runtime: node@^26.12.1
           cache: true
           install: false
 

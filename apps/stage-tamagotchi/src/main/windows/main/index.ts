@@ -19,12 +19,8 @@ import type { FullscreenPlace } from '../shared/fullscreen'
 import type { SpotlightWindowManager } from '../spotlight'
 import type { WidgetsWindowManager } from '../widgets'
 
-import { dirname, join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
-
 import { useLogg } from '@guiiai/logg'
 import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
-import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
 import { isRendererUnavailable } from '@proj-airi/electron-vueuse/main'
 import { animate, cubicBezier, utils } from 'animejs'
@@ -37,13 +33,15 @@ import { array, number, object, optional, string } from 'valibot'
 import icon from '../../../../resources/icon.png?asset'
 
 import { electronFullscreenExit, electronFullscreenOpen, electronFullscreenPack, electronFullscreenRequestClose, electronFullscreenSetMode, electronFullscreenSurfaceChanged, electronMainWindowEnterFullscreen, electronMainWindowGetFullscreenState, electronMainWindowSetFullscreenBounds, electronStartDraggingWindow } from '../../../shared/eventa'
-import { onAppBeforeQuit } from '../../libs/bootkit/lifecycle'
 import { shouldOpenDevTools } from '../../libs/electron/devtools'
-import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
+import { isWindowFocusIgnored, showWindow } from '../../libs/electron/focus'
+import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
+import { createWindowContext } from '../../libs/electron/window-context'
 import { setupSettingsPageInvokes } from '../settings/rpc/index.electron'
 import { protectPrivilegedWindowNavigation, setWindowAlwaysOnTop, transparentWindowConfig } from '../shared'
 import { centerWindowOnDisplay, computeCenteredWindowBounds } from '../shared/display'
+import { hideOnClose } from './hide-on-close'
 import { setupMainWindowElectronInvokes } from './rpc/index.electron'
 
 const appConfigSchema = object({
@@ -120,7 +118,7 @@ export async function setupMainWindow(params: {
     show: false,
     icon,
     webPreferences: {
-      preload: join(dirname(fileURLToPath(import.meta.url)), '../preload/index.mjs'),
+      preload: getPreloadPath(),
       sandbox: false,
     },
     // Thanks to [@HeartArmy](https://github.com/HeartArmy) for the tip implementation.
@@ -135,14 +133,11 @@ export async function setupMainWindow(params: {
     params.onWindowCreated(window)
   }
 
-  let allowClose = false
-  onAppBeforeQuit(() => {
-    allowClose = true
-  })
+  hideOnClose(window)
 
   if (shouldOpenDevTools()) {
     try {
-      window.webContents.openDevTools({ mode: 'detach' })
+      window.webContents.openDevTools({ mode: 'detach', activate: !isWindowFocusIgnored() })
     }
     catch (err) {
       console.error('failed to open devtools:', err)
@@ -203,14 +198,6 @@ export async function setupMainWindow(params: {
 
   window.on('resize', () => handleNewBounds(window.getBounds()))
   window.on('move', () => handleNewBounds(window.getBounds()))
-  window.on('close', (event) => {
-    if (allowClose) {
-      return
-    }
-
-    event.preventDefault()
-    window.hide()
-  })
 
   // Thanks to [@HeartArmy](https://github.com/HeartArmy) for the tip implementation.
   //
@@ -239,7 +226,7 @@ export async function setupMainWindow(params: {
   }
   applyPin()
 
-  window.on('ready-to-show', () => window!.show())
+  window.on('ready-to-show', () => showWindow(window!))
   protectPrivilegedWindowNavigation(window)
 
   await setupMainWindowElectronInvokes({
@@ -262,7 +249,7 @@ export async function setupMainWindow(params: {
     center: centerWindow,
   })
 
-  await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/', {
+  await load(window, withHashRoute(baseUrl(getRendererRoot()), '/', {
     // The main window page hosts the fullscreen mode, so it routes the fullscreen surfaces under its own page.
     query: { 'synced-leader': 'true', 'fullscreen-host': 'main-window' },
   }))
@@ -299,7 +286,7 @@ export async function setupMainWindow(params: {
     // manage events within eventa's context system.
     ipcMain.setMaxListeners(0)
 
-    const { context } = createContext(ipcMain, window)
+    const { context } = createWindowContext(window)
     const cleanUpWindowDraggingInvokeHandler = defineInvokeHandler(context, electronStartDraggingWindow, handleStartDraggingWindow)
 
     window.on('closed', () => {
@@ -345,7 +332,7 @@ export async function setupMainWindow(params: {
 
   // `onlySameWindow` hears only this window, so no other window can move it or end its fullscreen mode. The context
   // and its handlers go away when the window closes.
-  const { context: fullscreenContext } = createContext(ipcMain, window, { onlySameWindow: true })
+  const { context: fullscreenContext } = createWindowContext(window)
   // In the `single-window` mode the settings pages show in this window, so it answers what they ask of the settings
   // window. This context hears only this window, so a request from the settings window stays with that window.
   setupSettingsPageInvokes({
@@ -445,7 +432,7 @@ export async function setupMainWindow(params: {
     if (window.isMinimized())
       window.restore()
     if (!window.isVisible())
-      window.show()
+      showWindow(window)
     fullscreenContext.emit(electronFullscreenOpen, request)
     return true
   }

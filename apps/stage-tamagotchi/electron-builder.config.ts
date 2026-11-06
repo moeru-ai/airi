@@ -3,6 +3,7 @@
 import type { Configuration } from 'electron-builder'
 
 import { execSync } from 'node:child_process'
+import { env } from 'node:process'
 
 import { isMacOS } from 'std-env'
 
@@ -103,7 +104,7 @@ export default {
     '!electron.vite.config.{js,ts,mjs,cjs}',
     '!vite.config.{js,ts,mjs,cjs}',
     '!uno.config.{js,ts,mjs,cjs}',
-    '!{.eslintcache,eslint.config.ts,.yaml,dev-app-update.yml,CHANGELOG.md,README.md}',
+    '!{.eslintcache,eslint.config.ts,.yaml,CHANGELOG.md,README.md}',
     '!{.env,.env.*,.npmrc,pnpm-lock.yaml}',
     '!{tsconfig.json}',
   ],
@@ -120,8 +121,11 @@ export default {
     },
   ],
   extraMetadata: {
+    // CI names each build in `ERGOSPHERE_IT_VERSION`, for example `0.13.1-nightly.45.1bf946f`. The installer and its
+    // electron-updater feed must have the version of the installer manifest, so the app takes the installer.
+    ...(env.ERGOSPHERE_IT_VERSION ? { version: env.ERGOSPHERE_IT_VERSION } : {}),
     name: 'ai.moeru.airi',
-    main: 'out/main/index.js',
+    main: 'out/launcher/index.mjs',
     homepage: 'https://airi.moeru.ai/docs/',
     repository: 'https://github.com/moeru-ai/airi',
     license: 'MIT',
@@ -244,9 +248,12 @@ export default {
     artifactName: '${productName}-${version}-darwin-${arch}.${ext}',
   },
   linux: {
+    // AUR packages and Arch users install the `pacman` package. Other distributions can run the AppImage.
     target: [
       'deb',
       'rpm',
+      'pacman',
+      'AppImage',
     ],
     // NOTICE: Same channel rule as Windows/macOS. Keep `${arch}` to avoid x64/arm64 feed collisions on Linux.
     publish: {
@@ -264,6 +271,38 @@ export default {
   },
   appImage: {
     artifactName: '${productName}-${version}-linux-${arch}.${ext}',
+  },
+  pacman: {
+    // NOTICE:
+    // The default depends name `http-parser` and `libappindicator-gtk3`. Arch removed both, so `pacman -U` fails.
+    // Source: getDefaultDepends in app-builder-lib/out/targets/FpmTarget.js.
+    // Remove it when electron-builder updates its pacman defaults.
+    // This list comes from `ldd`, plus the libraries that Electron loads at run time.
+    depends: [
+      'alsa-lib',
+      'at-spi2-core',
+      'gtk3',
+      'libcups',
+      'libnotify',
+      'libsecret',
+      'libxkbcommon',
+      'libxss',
+      'libxt',
+      'libxtst',
+      'mesa',
+      'nspr',
+      'nss',
+      'util-linux-libs',
+      'xdg-utils',
+    ],
+  },
+  rpm: {
+    // NOTICE:
+    // Two Electron rpm packages conflict on the same `/usr/lib/.build-id` links, so one of them fails to install.
+    // rpmbuild creates these links for each ELF file. Electron ships the same Chromium binaries in each app.
+    // https://github.com/jordansissel/fpm/issues/1503, https://github.com/jgraph/drawio-desktop/issues/259
+    // Remove it when fpm stops the creation of build-id links by default.
+    fpm: ['--rpm-rpmbuild-define', '_build_id_links none'],
   },
   npmRebuild: false,
 

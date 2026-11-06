@@ -1,3 +1,5 @@
+/// <reference path="../../settings-search-entries.d.ts" />
+
 import messages from '@proj-airi/i18n/locales'
 import workerURL from '@sherpaw/xsai-transcription/worker?worker&url'
 
@@ -32,5 +34,8 @@ export const providerSherpawTranscription = defineProvider({
   to: '/settings/modules/hearing/transcriber',
   views: {
     hearing: () => import('./hearing-settings.vue'),
+  },
+  viewSearchEntries: {
+    hearing: () => import('./hearing-settings.vue?settings-search'),
   },
 })

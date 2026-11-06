@@ -220,8 +220,8 @@ export const actionsList: Action[] = [
       num: z.number().int().describe('The number of items to put in the chest.').min(1),
     }),
     perform: mineflayer => async (item_name: string, num: number) => {
-      await putInChest(mineflayer, item_name, num)
-      return `Put [${item_name}]x${num} in chest`
+      const transferred = await putInChest(mineflayer, item_name, num)
+      return `Put [${item_name}]x${transferred} in chest`
     },
   },
   {
@@ -233,8 +233,8 @@ export const actionsList: Action[] = [
       num: z.number().int().describe('The number of items to take.').min(1),
     }),
     perform: mineflayer => async (item_name: string, num: number) => {
-      await takeFromChest(mineflayer, item_name, num)
-      return `Took [${item_name}]x${num} from chest`
+      const transferred = await takeFromChest(mineflayer, item_name, num)
+      return `Took [${item_name}]x${transferred} from chest`
     },
   },
   {

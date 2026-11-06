@@ -1,9 +1,9 @@
 import type { ChatSessionMeta } from '../../types/chat-session'
-import type { CloudChatMapper, RemoteChat } from './cloud-mapper'
+import type { CloudChatMapper, ListedRemoteChat } from './cloud-mapper'
 
 import { describe, expect, it, vi } from 'vitest'
 
-import { applyCreateActions, createCloudChatMapper, reconcileLocalAndRemote } from './cloud-mapper'
+import { applyCreateActions, characterIdOfRemoteChat, createCloudChatMapper, reconcileLocalAndRemote } from './cloud-mapper'
 
 function makeMeta(partial: Partial<ChatSessionMeta>): ChatSessionMeta {
   return {
@@ -16,15 +16,37 @@ function makeMeta(partial: Partial<ChatSessionMeta>): ChatSessionMeta {
   }
 }
 
-function makeRemote(partial: Partial<RemoteChat>): RemoteChat {
+function makeRemote(partial: Partial<ListedRemoteChat>): ListedRemoteChat {
   return {
     id: partial.id ?? 'chat-1',
     type: partial.type ?? 'bot',
     title: partial.title ?? null,
     createdAt: partial.createdAt ?? '2026-01-01T00:00:00.000Z',
     updatedAt: partial.updatedAt ?? '2026-01-01T00:00:00.000Z',
+    members: partial.members ?? membersOf('char-1'),
   }
 }
+
+function membersOf(...characterIds: string[]): ListedRemoteChat['members'] {
+  return [
+    { memberType: 'user', characterId: null },
+    ...characterIds.map(characterId => ({ memberType: 'character' as const, characterId })),
+  ]
+}
+
+describe('characterIdOfRemoteChat', () => {
+  it('returns the character member of a chat', () => {
+    expect(characterIdOfRemoteChat(makeRemote({ members: membersOf('luna') }))).toBe('luna')
+  })
+
+  it('returns undefined for a chat without a character member', () => {
+    expect(characterIdOfRemoteChat(makeRemote({ members: membersOf() }))).toBeUndefined()
+  })
+
+  it('returns undefined for a chat with many character members', () => {
+    expect(characterIdOfRemoteChat(makeRemote({ members: membersOf('luna', 'sol') }))).toBeUndefined()
+  })
+})
 
 describe('reconcileLocalAndRemote', () => {
   /**
@@ -55,6 +77,15 @@ describe('reconcileLocalAndRemote', () => {
     expect(plan.claim).toEqual([])
     expect(plan.create).toEqual([{ sessionId: 'abc', characterId: 'char-42' }])
     expect(plan.adopt).toEqual([])
+  })
+
+  it('carries a pending title into an unmapped session create', () => {
+    const plan = reconcileLocalAndRemote(
+      [makeMeta({ sessionId: 'abc', title: 'Local title', cloudTitlePending: 'Pending title' })],
+      [],
+    )
+
+    expect(plan.create).toEqual([{ sessionId: 'abc', characterId: 'char-1', title: 'Pending title' }])
   })
 
   /**
@@ -152,6 +183,52 @@ function emptyResponse(init: { status?: number, statusText?: string } = {}): Res
   })
 }
 
+describe('reconcileLocalAndRemote · reassign', () => {
+  /**
+   * @example
+   * An earlier version put the received chat "abc" under `default`.
+   * The remote chat has the character member "luna".
+   * Expected: the session moves to "luna".
+   */
+  it('reassigns a mapped session whose remote chat has another character', () => {
+    const plan = reconcileLocalAndRemote(
+      [makeMeta({ sessionId: 'abc', cloudChatId: 'abc', characterId: 'default' })],
+      [makeRemote({ id: 'abc', members: membersOf('luna') })],
+    )
+    expect(plan.reassign).toEqual([{ sessionId: 'abc', characterId: 'luna' }])
+  })
+
+  it('leaves a session whose remote chat has the same character', () => {
+    const plan = reconcileLocalAndRemote(
+      [makeMeta({ sessionId: 'abc', cloudChatId: 'abc', characterId: 'luna' })],
+      [makeRemote({ id: 'abc', members: membersOf('luna') })],
+    )
+    expect(plan.reassign).toEqual([])
+  })
+
+  it('leaves a session whose remote chat has no single character member', () => {
+    const plan = reconcileLocalAndRemote(
+      [
+        makeMeta({ sessionId: 'none', cloudChatId: 'none', characterId: 'default' }),
+        makeMeta({ sessionId: 'many', cloudChatId: 'many', characterId: 'default' }),
+      ],
+      [
+        makeRemote({ id: 'none', members: membersOf() }),
+        makeRemote({ id: 'many', members: membersOf('luna', 'sol') }),
+      ],
+    )
+    expect(plan.reassign).toEqual([])
+  })
+
+  it('leaves a session that has no remote chat', () => {
+    const plan = reconcileLocalAndRemote(
+      [makeMeta({ sessionId: 'abc', cloudChatId: 'gone', characterId: 'default' })],
+      [],
+    )
+    expect(plan.reassign).toEqual([])
+  })
+})
+
 describe('createCloudChatMapper.listChats', () => {
   /**
    * @example
@@ -159,11 +236,15 @@ describe('createCloudChatMapper.listChats', () => {
    */
   it('returns the chats array on 2xx', async () => {
     const fetchMock = vi.fn(async () => jsonResponse({
-      chats: [{ id: 'a', type: 'bot', title: null, createdAt: '2026-01-01', updatedAt: '2026-01-01' }],
+      chats: [{ id: 'a', type: 'bot', title: null, createdAt: '2026-01-01', updatedAt: '2026-01-01', members: [
+        { id: 'm1', chatId: 'a', memberType: 'user', userId: 'u1', characterId: null },
+        { id: 'm2', chatId: 'a', memberType: 'character', userId: null, characterId: 'luna' },
+      ] }],
     }))
     const mapper = createCloudChatMapper({ serverUrl: 'https://api.example.com', fetch: fetchMock as unknown as typeof fetch })
     const chats = await mapper.listChats()
     expect(chats.map(c => c.id)).toEqual(['a'])
+    expect(chats.map(characterIdOfRemoteChat)).toEqual(['luna'])
     expect(fetchMock).toHaveBeenCalledWith(
       'https://api.example.com/api/v1/chats',
       expect.objectContaining({ method: 'GET' }),
@@ -175,6 +256,19 @@ describe('createCloudChatMapper.listChats', () => {
    * Server schema drift: `chats` is `null` instead of an array. Without
    * boundary validation this would feed `null.length` down into reconcile.
    */
+  /**
+   * @example
+   * A server older than this client returns chats without `members`.
+   * A parse that accepted them would put every received chat under `default`.
+   */
+  it('rejects a chat without members', async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({
+      chats: [{ id: 'a', type: 'bot', title: null, createdAt: '2026-01-01', updatedAt: '2026-01-01' }],
+    }))
+    const mapper = createCloudChatMapper({ serverUrl: 'https://api.example.com', fetch: fetchMock as unknown as typeof fetch })
+    await expect(mapper.listChats()).rejects.toThrow()
+  })
+
   it('rejects malformed responses on 2xx via schema validation', async () => {
     const fetchMock = vi.fn(async () => jsonResponse({ chats: null }))
     const mapper = createCloudChatMapper({ serverUrl: 'https://api.example.com', fetch: fetchMock as unknown as typeof fetch })
@@ -237,7 +331,7 @@ describe('createCloudChatMapper.createChat', () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(jsonResponse({ message: 'already exists' }, { status: 409, statusText: 'Conflict' }))
       .mockResolvedValueOnce(jsonResponse({
-        chats: [{ id: 'minted', type: 'bot', title: null, createdAt: '2026-01-01', updatedAt: '2026-01-01' }],
+        chats: [{ id: 'minted', type: 'bot', title: null, createdAt: '2026-01-01', updatedAt: '2026-01-01', members: [] }],
       }))
     const mapper = createCloudChatMapper({ serverUrl: 'https://api.example.com', fetch: fetchMock as unknown as typeof fetch })
     const chat = await mapper.createChat({ id: 'minted', type: 'bot' })
@@ -256,6 +350,23 @@ describe('createCloudChatMapper.createChat', () => {
     const mapper = createCloudChatMapper({ serverUrl: 'https://api.example.com', fetch: fetchMock as unknown as typeof fetch })
     await expect(mapper.createChat({ type: 'bot' })).rejects.toThrow(/HTTP 409/)
     expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('createCloudChatMapper.updateChat', () => {
+  it('patches the cloud title and validates the response', async () => {
+    const updated = { id: 'abc', type: 'bot', title: 'Project notes', createdAt: '2026-01-01', updatedAt: '2026-01-02' }
+    const fetchMock = vi.fn(async () => jsonResponse(updated))
+    const mapper = createCloudChatMapper({ serverUrl: 'https://api.example.com', fetch: fetchMock as unknown as typeof fetch })
+
+    await expect(mapper.updateChat('abc', { title: 'Project notes' })).resolves.toEqual(updated)
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.example.com/api/v1/chats/abc',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ title: 'Project notes' }),
+      }),
+    )
   })
 })
 
@@ -310,6 +421,7 @@ describe('applyCreateActions', () => {
     const mapper: CloudChatMapper = {
       listChats: async () => [],
       createChat: async input => ({ id: input.id!, type: 'bot', title: null, createdAt: '', updatedAt: '' }),
+      updateChat: async () => ({ id: '', type: 'bot', title: null, createdAt: '', updatedAt: '' }),
       deleteChat: async () => {},
     }
     const results = await applyCreateActions(mapper, [
@@ -320,6 +432,27 @@ describe('applyCreateActions', () => {
       { sessionId: 's1', cloudChatId: 's1' },
       { sessionId: 's2', cloudChatId: 's2' },
     ])
+  })
+
+  it('sends the pending title when creating a cloud chat', async () => {
+    const createChat = vi.fn(async (input: { id?: string, title?: string }) => ({
+      id: input.id!,
+      type: 'bot' as const,
+      title: input.title ?? null,
+      createdAt: '',
+      updatedAt: '',
+    }))
+    const mapper: CloudChatMapper = {
+      listChats: async () => [],
+      createChat,
+      updateChat: async () => ({ id: '', type: 'bot', title: null, createdAt: '', updatedAt: '' }),
+      deleteChat: async () => {},
+    }
+
+    await expect(applyCreateActions(mapper, [{ sessionId: 's1', characterId: 'c1', title: 'Project notes' }])).resolves.toEqual([
+      { sessionId: 's1', cloudChatId: 's1', remoteTitle: 'Project notes' },
+    ])
+    expect(createChat).toHaveBeenCalledWith(expect.objectContaining({ title: 'Project notes' }))
   })
 
   /**
@@ -336,6 +469,7 @@ describe('applyCreateActions', () => {
           throw new Error('boom')
         return { id: input.id!, type: 'bot', title: null, createdAt: '', updatedAt: '' }
       },
+      updateChat: async () => ({ id: '', type: 'bot', title: null, createdAt: '', updatedAt: '' }),
       deleteChat: async () => {},
     }
     const results = await applyCreateActions(mapper, [
@@ -359,6 +493,7 @@ describe('applyCreateActions', () => {
     const mapper: CloudChatMapper = {
       listChats: async () => [],
       createChat: createChat as unknown as CloudChatMapper['createChat'],
+      updateChat: async () => ({ id: '', type: 'bot', title: null, createdAt: '', updatedAt: '' }),
       deleteChat: async () => {},
     }
     expect(await applyCreateActions(mapper, [])).toEqual([])

@@ -9,9 +9,11 @@ import { isRendererUnavailable } from '@proj-airi/electron-vueuse/main'
 import { shell } from 'electron'
 import { isMacOS, isWindows } from 'std-env'
 
+import { focusWindow } from '../../libs/electron/focus'
 import { createServerChannelService } from '../../services/airi/channel-server'
 import { createI18nService } from '../../services/airi/i18n'
-import { createAppService, createPowerMonitorService, createScreenService, createSystemPreferencesService, createWindowService } from '../../services/electron'
+import { createAppService, createAppVersionService, createPowerMonitorService, createScreenService, createSystemPreferencesService, createWindowService } from '../../services/electron'
+import { WindowBackdropService } from '../../services/electron/window-backdrop'
 
 export function toggleWindowShow(window?: BrowserWindow | null): void {
   if (!window) {
@@ -25,8 +27,7 @@ export function toggleWindowShow(window?: BrowserWindow | null): void {
     window?.restore()
   }
 
-  window?.show()
-  window?.focus()
+  focusWindow(window)
 }
 
 export function transparentWindowConfig(): BrowserWindowConstructorOptions {
@@ -76,6 +77,26 @@ export function protectPrivilegedWindowNavigation(window: BrowserWindow): void {
     event.preventDefault()
     openSafeExternalUrl(navigationUrl)
   })
+}
+
+/**
+ * Removes the native title bar from an opaque window, so the renderer can draw its own.
+ *
+ * Use when:
+ * - The window page renders `Window/TitleBar.vue` or `Window/window-controls.vue`
+ *
+ * Expects:
+ * - The window receives `createWindowService`, which serves the window controls
+ *
+ * Returns:
+ * - Options that keep the system traffic lights on macOS, and remove all window buttons on Windows and Linux
+ */
+export function customTitleBarWindowConfig(): BrowserWindowConstructorOptions {
+  return {
+    titleBarStyle: 'hidden',
+    // Centers the traffic lights in the 44px title bar.
+    ...(isMacOS ? { trafficLightPosition: { x: 16, y: 15 } } : {}),
+  }
 }
 
 export function blurryWindowConfig(): BrowserWindowConstructorOptions {
@@ -179,8 +200,10 @@ export async function setupBaseWindowElectronInvokes(params: {
   createScreenService({ context: params.context, window: params.window })
   createWindowService({ context: params.context, window: params.window, setAlwaysOnTop: params.setAlwaysOnTop })
   createAppService({ context: params.context, window: params.window })
+  createAppVersionService({ window: params.window })
   createPowerMonitorService({ context: params.context, window: params.window })
   createSystemPreferencesService({ context: params.context, window: params.window })
+  WindowBackdropService.install(params.window)
 
   await createI18nService({ context: params.context, window: params.window, i18n: params.i18n })
 

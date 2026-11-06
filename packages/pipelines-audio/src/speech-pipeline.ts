@@ -32,12 +32,6 @@ export interface SpeechPipelineOptions<TAudio> {
   ttsMaxConcurrent?: number
   playback: {
     schedule: (item: PlaybackItem<TAudio>) => void
-    /**
-     * Seals an intent after its producer finished. The playback manager can
-     * then emit its terminal drain event once every item ended. Optional
-     * for adapter compatibility; without it no drain event is emitted.
-     */
-    sealIntent?: (intentId: string, turnId?: string) => void
     stopAll: (reason: string) => void
     stopByIntent: (intentId: string, reason: string) => void
     stopByOwner: (ownerId: string, reason: string) => void
@@ -209,6 +203,7 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
             text: completedRequest.text,
             special: completedRequest.special,
             audio: completedRequest.audio,
+            ...(completedRequest.pairIndex !== undefined ? { pairIndex: completedRequest.pairIndex } : {}),
             createdAt: Date.now(),
           })
         }
@@ -250,6 +245,7 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
           text: request.text,
           special: request.special,
           audio,
+          ...(request.pairIndex !== undefined ? { pairIndex: request.pairIndex } : {}),
           createdAt: Date.now(),
         }
 
@@ -299,6 +295,7 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
           text: value.text,
           special: value.special,
           reason: value.reason,
+          ...(value.pairIndex !== undefined ? { pairIndex: value.pairIndex } : {}),
           priority: intent.priority,
           createdAt: Date.now(),
         }
@@ -310,19 +307,10 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
       await Promise.allSettled(inFlightTasks)
       scheduleCompletedRequests()
       await timeline.flush('speech')
-      // Producer side is finished and every scheduled playback item has
-      // ended. Seal so the manager emits the single terminal drain event.
-      // Without the seal, transient gaps between streaming items would
-      // look like premature drains and dump subtitles mid-turn.
-      options.playback.sealIntent?.(intent.intentId, intent.turnId)
       reader.releaseLock()
     }
     catch (err) {
       logger.warn('Speech pipeline intent failed:', err)
-      // The producer is dead: no further items will be scheduled. Seal so
-      // the manager emits intentDrained and the terminal turn cleanup runs.
-      // Idempotent with the cancel path, which seals through stopByIntent.
-      options.playback.sealIntent?.(intent.intentId, intent.turnId)
     }
     finally {
       if (intent.canceled) {
@@ -411,11 +399,12 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
           createdAt: Date.now(),
         })
       },
-      writeFlush() {
+      writeFlush(pair?: boolean) {
         if (intent.canceled)
           return
         write({
           type: 'flush',
+          ...(pair ? { pair: true } : {}),
           turnId,
           streamId,
           intentId,

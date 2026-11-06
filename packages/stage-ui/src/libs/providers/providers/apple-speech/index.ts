@@ -1,3 +1,5 @@
+/// <reference path="../../settings-search-entries.d.ts" />
+
 import type {
   AppleSpeechTranscription,
   TranscriptionEvent,
@@ -228,6 +230,9 @@ export const providerAppleSpeechTranscription = defineProvider<AppleSpeechConfig
   to: '/settings/modules/hearing/transcriber',
   views: {
     hearing: () => import('./hearing-settings.vue'),
+  },
+  viewSearchEntries: {
+    hearing: () => import('./hearing-settings.vue?settings-search'),
   },
   capabilities: {
     transcription: {

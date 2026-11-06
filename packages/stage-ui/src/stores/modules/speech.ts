@@ -1,5 +1,5 @@
 import type { SpeechOutput, TurnRef } from '@proj-airi/core-agent'
-import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
+import type { SpeechProvider, SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type {} from 'pinia-plugin-synced'
 
 import type { AiriExtension } from '../../types/airiCard'
@@ -18,7 +18,7 @@ import { x } from 'xastscript'
 
 import { injectKeyPiniaSynced } from '../../libs/pinia/synced-context'
 import { getDefinedProvider } from '../../libs/providers/providers'
-import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, pickOfficialSpeechVoice } from '../../libs/providers/providers/official'
+import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, pickOfficialSpeechVoice, picksSpeechVoiceAutomatically } from '../../libs/providers/providers/official'
 import { isBufferedStreamingResourceId } from '../../libs/speech/streaming-buffer'
 import { streamSpeech } from '../../libs/speech/streaming-pipeline'
 import { isFlushBoundaryTurn } from '../../services/bilingual-captions'
@@ -31,6 +31,70 @@ export function toSignedPercent(value: number): string {
   if (value < 0)
     return `-${Math.abs(value)}%`
   return '0%'
+}
+
+/** A field that a speech selection needs before it can speak. */
+export type MissingSpeechField = 'model' | 'voice'
+
+/**
+ * Resolves the model and the voice that a speech selection speaks with.
+ * The provider config can supply them, for example for an OpenAI-compatible provider.
+ * A streaming provider needs a model with a resource path. Without one, it uses `defaultModel`, the default model of the provider.
+ */
+function resolveSpeechSelection(selection: AiriExtension['modules']['speech'], config: Record<string, unknown>, defaultModel: () => string | null | undefined) {
+  const model = selection.model || (typeof config.model === 'string' ? config.model : '')
+  const voiceId = selection.voice_id || (typeof config.voice === 'string' ? config.voice : '')
+  const streaming = getDefinedProvider(selection.provider)?.capabilities?.speech?.transport === 'bidirectional-ws'
+  const streamingModel = streaming ? (model.includes('/') ? model : defaultModel()) : undefined
+  return { model, voiceId, streaming, streamingModel }
+}
+
+/** The empty fields of a speech selection. */
+export interface SpeechFieldStatus {
+  /** Fields that the speech lacks. Without them, `createOutput` of the speech store cannot speak, so the replies stay text only. */
+  missing: MissingSpeechField[]
+  /** Empty fields that a catalog fills after it loads. Until then, it is unknown if the speech can speak. */
+  pending: MissingSpeechField[]
+}
+
+/**
+ * Tells which fields a speech selection lacks before it can speak. Both lists are empty when speech is off, or when it can speak.
+ * The store picks a voice for an official provider from its voice catalog, and a streaming provider uses the default model of
+ * its model catalog. While these catalogs load, their empty fields are pending, not missing.
+ * A catalog that failed, that came back empty, or that nobody requested fills nothing, so its empty fields are missing.
+ *
+ * @param config The config of the selected provider.
+ * @param defaultModel Gives the default model of the selected provider. It gives `null` when there is none, and `undefined` while the model catalog loads.
+ * @param voiceCatalogLoading Whether the voice catalog of the selected provider is loading now.
+ */
+export function speechFieldStatus(
+  selection: AiriExtension['modules']['speech'],
+  config: Record<string, unknown>,
+  defaultModel: () => string | null | undefined,
+  voiceCatalogLoading: boolean,
+): SpeechFieldStatus {
+  const status: SpeechFieldStatus = { missing: [], pending: [] }
+  if (!selection.provider || selection.provider === 'speech-noop')
+    return status
+  const { model, voiceId, streaming, streamingModel } = resolveSpeechSelection(selection, config, defaultModel)
+  if (streaming ? !streamingModel?.includes('/') : !model)
+    status[streaming && streamingModel === undefined ? 'pending' : 'missing'].push('model')
+  if (!voiceId)
+    status[picksSpeechVoiceAutomatically(selection.provider) && voiceCatalogLoading ? 'pending' : 'missing'].push('voice')
+  return status
+}
+
+/** One key for a set of speech fields, for the strings that name them. It is `undefined` for no fields. */
+export function speechFieldsKeyOf(fields: readonly MissingSpeechField[]): 'model' | 'voice' | 'model-voice' | undefined {
+  const model = fields.includes('model')
+  const voice = fields.includes('voice')
+  if (model && voice)
+    return 'model-voice'
+  if (model)
+    return 'model'
+  if (voice)
+    return 'voice'
+  return undefined
 }
 
 interface SpeechInputOptions {
@@ -86,6 +150,16 @@ export const useSpeechStore = defineStore('speech', () => {
 
   // State
   const activeSpeechProvider = useLocalStorageManualReset<string>('settings/speech/active-provider', 'speech-noop', persistenceOptions)
+  const enabled = useLocalStorageManualReset('settings/speech/enabled', true, persistenceOptions)
+  // Disabling invalidates synthesis captured by an open response, including requests that have not started yet.
+  let synthesis = new AbortController()
+  watch(enabled, (value) => {
+    if (value)
+      synthesis = new AbortController()
+    else
+      synthesis.abort(new DOMException('Speech is disabled', 'AbortError'))
+  }, { immediate: true, flush: 'sync' })
+  onScopeDispose(() => synthesis.abort())
   const activeSpeechModel = useLocalStorageManualReset<string>('settings/speech/active-model', '', persistenceOptions)
   const activeSpeechVoiceId = useLocalStorageManualReset<string>('settings/speech/voice', '', persistenceOptions)
   const activeSpeechVoice = refManualReset<VoiceInfo | undefined>(undefined)
@@ -407,6 +481,17 @@ export const useSpeechStore = defineStore('speech', () => {
     clearVoiceSelection()
   }
 
+  /** Selects a source in the leader. None disables speech, and selecting the saved source restores its model and voice. */
+  async function selectSource(provider: string) {
+    enabled.value = provider !== 'speech-noop'
+    if (!enabled.value)
+      return
+    const restoresStreamingSource = provider === OFFICIAL_SPEECH_PROVIDER_ID && activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
+    if (activeSpeechProvider.value !== provider && !restoresStreamingSource)
+      await selectProviderModel(provider, '')
+    return { provider: activeSpeechProvider.value, model: activeSpeechModel.value, voice_id: activeSpeechVoiceId.value }
+  }
+
   /** Commits an explicit selection in the leader before watchers request its catalog. An omitted voice preserves an unchanged selection. */
   async function selectProviderModel(provider: string, model: string, voiceId?: string) {
     if (disposed)
@@ -519,17 +604,19 @@ export const useSpeechStore = defineStore('speech', () => {
    * @returns ArrayBuffer containing the audio data
    */
   async function speech(
-    provider: SpeechProviderWithExtraOptions<string, any>,
+    provider: SpeechProvider | SpeechProviderWithExtraOptions<string, Record<string, unknown>>,
     model: string,
     input: string,
     voice: string,
-    providerConfig: Record<string, any> = {},
+    providerConfig: Record<string, unknown> = {},
     analytics: SpeechAnalytics = {
       trigger: 'manual',
       source: 'manual_preview',
       voice_type: resolveVoiceType(voice),
     },
   ): Promise<ArrayBuffer> {
+    const signal = synthesis.signal
+    signal.throwIfAborted()
     const requestProviderConfig = activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID
       || activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
       ? withAiriTtsAnalytics(providerConfig, analytics)
@@ -538,33 +625,37 @@ export const useSpeechStore = defineStore('speech', () => {
       ...provider.speech(model, requestProviderConfig),
       input,
       voice,
+      abortSignal: signal,
     })
 
+    signal.throwIfAborted()
     return response
   }
 
   /** Captures one response's provider, voice, model, and settings before any asynchronous work. */
   function createOutput(turn: TurnRef, selection: AiriExtension['modules']['speech'], output: Pick<SpeechOutput, 'playback' | 'onPlaybackStart' | 'onPlaybackEnd' | 'onSpecial'>, audioContext: AudioContext): SpeechOutput {
+    if (!enabled.value)
+      return { ...output, synthesize: async () => null }
+    const synthesisSignal = synthesis.signal
     const providerId = selection.provider
     const config = structuredClone(toRaw(providerStore.getProviderConfig(providerId) ?? {}))
     const selectedVoice = availableVoices.value[providerId]?.find(voice => voice.id === selection.voice_id)
     const voice = selectedVoice ? structuredClone(toRaw(selectedVoice)) : undefined
-    const model = selection.model || (typeof config.model === 'string' ? config.model : '')
-    const voiceId = selection.voice_id || (typeof config.voice === 'string' ? config.voice : '')
+    const { model, voiceId, streaming, streamingModel } = resolveSpeechSelection(selection, config, () => providersStore.getDefaultModelForProvider(providerId))
     const useSSML = ssmlEnabled.value
     const canUseSSML = ['elevenlabs', 'microsoft-speech', 'azure-speech'].includes(providerId) || (providerId === 'alibaba-cloud-model-studio' && model === 'cosyvoice-v2')
     const pitchValue = pitch.value
+    const language = voice?.languages[0]?.code
     const voiceType = providerId === OFFICIAL_SPEECH_PROVIDER_ID || providerId === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
       ? 'official_selected' as const
       : 'custom_configured' as const
     if (!providerId || providerId === 'speech-noop')
       return { ...output, synthesize: async () => null }
-    if (getDefinedProvider(providerId)?.capabilities?.speech?.transport === 'bidirectional-ws') {
-      const streamingModel = model.includes('/') ? model : providersStore.getDefaultModelForProvider(providerId)
+    if (streaming) {
       if (!streamingModel?.includes('/') || !voiceId)
         throw new Error('Streaming speech requires a model and voice')
       const resource = streamingModel.split('/', 2)[1]
-      return { ...output, stream: async (text, signal) => streamSpeech({
+      return { ...output, language, stream: async (text, signal) => streamSpeech({
         audioContext,
         model: streamingModel,
         voice: voiceId,
@@ -572,17 +663,19 @@ export const useSpeechStore = defineStore('speech', () => {
         ttsVoiceType: voiceType,
         bufferEntireSession: isBufferedStreamingResourceId(resource),
         extraBody: { api_resource_id: resource, audio: { sample_rate: 24000, bit_rate: 64000 } },
-      }, text, signal) }
+      }, text, AbortSignal.any([signal, synthesisSignal])) }
     }
     if (!model || !voiceId)
       throw new Error('Speech requires a model and voice')
     const provider = providersStore.getProviderInstance<SpeechProviderWithExtraOptions<string, Record<string, unknown>>>(providerId)
     return {
       ...output,
+      language,
       // Bilingual turns cut the REST chunker only on explicit flush markers,
       // so one clip synthesizes per translation pair.
       ...(isFlushBoundaryTurn(turn.turnId) ? { boundaryMode: 'flush' as const } : {}),
       synthesize: async (request, signal) => {
+        signal = AbortSignal.any([signal, synthesisSignal])
         signal.throwIfAborted()
         const client = await provider
         signal.throwIfAborted()
@@ -591,6 +684,7 @@ export const useSpeechStore = defineStore('speech', () => {
           ? { ...config, extraBody: { ...(config.extraBody as Record<string, unknown> | undefined), airi_analytics: { trigger: 'auto', source: 'chat_auto_tts', voice_type: voiceType, turn_id: turn.turnId } } }
           : config
         const audio = await generateSpeech({ ...client.speech(model, settings), input, voice: voiceId, abortSignal: signal })
+        signal.throwIfAborted()
         return new Blob([audio])
       },
     }
@@ -672,6 +766,8 @@ export const useSpeechStore = defineStore('speech', () => {
   }
 
   const configured = computed(() => {
+    if (!enabled.value)
+      return false
     if (activeSpeechProvider.value === 'speech-noop')
       return false
 
@@ -699,6 +795,7 @@ export const useSpeechStore = defineStore('speech', () => {
 
   /** Resets shared settings in the leader and rejects catalog results started before this reset. */
   async function resetSettings() {
+    enabled.reset()
     // Invalidate request ownership before the reset publishes new settings.
     cancelCatalogRequests()
     activeSpeechProvider.reset()
@@ -719,6 +816,7 @@ export const useSpeechStore = defineStore('speech', () => {
   return {
     // State
     configured,
+    enabled,
     activeSpeechProvider,
     activeSpeechModel,
     activeSpeechVoice,
@@ -748,6 +846,7 @@ export const useSpeechStore = defineStore('speech', () => {
     loadVoiceCatalog,
     invalidateVoiceCatalogs,
     selectProviderModel,
+    selectSource,
     ensureActiveSpeechVoice,
     getVoicesForProvider,
     ensureStreamingDefaultModel,
@@ -760,7 +859,7 @@ export const useSpeechStore = defineStore('speech', () => {
   }
 }, {
   synced: {
-    actions: ['loadVoiceCatalog', 'invalidateVoiceCatalogs', 'selectProviderModel', 'ensureActiveSpeechVoice', 'resetSettings'],
+    actions: ['loadVoiceCatalog', 'invalidateVoiceCatalogs', 'selectProviderModel', 'selectSource', 'ensureActiveSpeechVoice', 'resetSettings'],
     state: true,
   },
 })

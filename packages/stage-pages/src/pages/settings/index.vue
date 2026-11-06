@@ -1,30 +1,15 @@
 <script setup lang="ts">
-import { IconItem, RippleGrid } from '@proj-airi/stage-ui/components'
+import { IconItem, RippleGrid, SettingsNeedsAttention, SettingsSearchField, SettingsSearchResults } from '@proj-airi/stage-ui/components'
 import { useRippleGridState } from '@proj-airi/stage-ui/composables/use-ripple-grid-state'
-import { useSettings } from '@proj-airi/stage-ui/stores/settings'
+import { useSettingsNeedsAttention } from '@proj-airi/stage-ui/composables/use-settings-needs-attention'
+import { useSettingsSearch } from '@proj-airi/stage-ui/composables/use-settings-search'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
-const resolveAnimation = ref<() => void>()
 const { t } = useI18n()
 const { lastClickedIndex, setLastClickedIndex } = useRippleGridState()
-
-const settingsStore = useSettings()
-
-const removeBeforeEach = router.beforeEach(async (_, __, next) => {
-  if (!settingsStore.usePageSpecificTransitions || settingsStore.disableTransitions) {
-    next()
-    return
-  }
-
-  await new Promise<void>((resolve) => {
-    resolveAnimation.value = resolve
-  })
-  removeBeforeEach()
-  next()
-})
 
 const settings = computed(() => {
   return router
@@ -38,11 +23,35 @@ const settings = computed(() => {
       to: route.path,
     }))
 })
+
+const searchQuery = ref('')
+const searchResults = useSettingsSearch(searchQuery)
+const searching = computed(() => searchQuery.value.trim() !== '')
+const { items: needsAttention, dismiss: dismissNeedsAttention } = useSettingsNeedsAttention()
 </script>
 
 <template>
   <div flex="~ col gap-4" font-normal>
-    <div pb-12>
+    <!-- The search stays at the top while the list scrolls under it, as the page header does above it. -->
+    <!-- It is the first element, so it rests where it sticks and does not move when the list starts to scroll. -->
+    <div :class="['sticky top-0 z-10', 'bg-$bg-color', 'pb-2']">
+      <SettingsSearchField v-model="searchQuery" />
+    </div>
+    <!-- Results appear at once while the user types, so they skip the enter animation of the categories. -->
+    <div v-if="searching" :class="['pb-12']">
+      <p v-if="!searchResults.length" :class="['text-sm text-neutral-500 dark:text-neutral-400']">
+        {{ t('settings.search.empty', { query: searchQuery.trim() }) }}
+      </p>
+      <SettingsSearchResults v-else :results="searchResults" :query="searchQuery" />
+    </div>
+    <div v-else pb-12>
+      <!-- Settings that keep a feature in use from working. It is secondary, so it scrolls with the list. -->
+      <SettingsNeedsAttention
+        :items="needsAttention"
+        :class="['mb-4']"
+        @fix="item => router.push(item.to)"
+        @dismiss="item => dismissNeedsAttention(item.id)"
+      />
       <RippleGrid
         :items="settings"
         :get-key="item => item.to"

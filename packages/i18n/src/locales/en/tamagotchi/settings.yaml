@@ -22,6 +22,12 @@ spotlight:
     prefix: 'Something went wrong: {message}'
     shortcutRegistrationFailed: 'Something went wrong: failed to register Spotlight shortcut.'
 pages:
+  connection:
+    apply-error:
+      title: Connection settings not applied
+  models:
+    godot-stage-error:
+      title: Godot Stage error
   modules:
     mcp-server:
       description: Connect and manage MCP server and tools
@@ -315,7 +321,11 @@ devtools:
           previous-track: Select previous track
           next-track: Select next track
         timeline-label: Motion timeline
-        timeline-help: Drag the ruler to scrub. Use the wheel to zoom. Hold Shift and drag to pan. Double-click a selected curve to add a point. Each view-target key holds until the next key.
+        timeline-help: Drag the ruler to scrub. Use the wheel to zoom, and drag an empty part of the tracks to pan. Double-click a selected curve to add a point, or a point to remove it. Each view-target key holds until the next key.
+        playhead: Playhead
+        resize-labels: Resize the track labels
+        timeline-items: Overlays and keyframes
+        keyframe-item: Keyframe at {time}, value {value}
         overlay-count: '{count} overlays'
         controls:
           add: Add
@@ -540,9 +550,47 @@ devtools:
       description: Stress markdown parsing and rendering with heavy chat payloads
     io-tracer:
       title: IO Tracer
+      description: Records what voice, chat, and agents do, as lanes on one clock.
+      actions:
+        back: Back
+        record: Record
+        pause: Pause
+        start-from-now: Start from now
+        start-from-now-description: Clears the records so far and follows from now.
+        export: Export JSONL
+        fit: Fit
+        show: Show {name}
+        hide: Hide {name}
+        clear-cursor: Clear cursor
+      toggles:
+        follow: Follow
+      panels:
+        timeline: Timeline
+        pipeline: Pipeline
+        log: Event log
+        detail: Detail
+        metrics: Metrics
+      view:
+        label: View
+        all: All tracks
+      detail:
+        empty: Select a span, an event, or a state on the timeline.
+      status:
+        paused: Paused
+        duration: Duration
+        running: Running
+        idle: Idle
+        records: '{count} records'
+        tokens: '{count} tokens'
+        late: '{count} late'
+        reordered: '{count} reordered'
+        reordered-description: Times that clock conversion put a record before its cause.
+      collection:
+        title: Keep recent IO traces in memory
+        description: Keep the trace records of the last 30 minutes, up to 16 MB, so the IO Tracer can show what happened before it opened.
       recording:
         title: Record IO traces automatically
-        description: Save ended IO spans as JSON Lines in the app data folder so coding agents can analyze them. Files older than seven days are removed.
+        description: Save trace records as JSON Lines in the app data folder so coding agents can analyze them. Files older than seven days are removed.
     widgets-calling:
       title: Widget Calling
 

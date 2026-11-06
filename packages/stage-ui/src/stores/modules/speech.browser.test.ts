@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp } from 'vue'
 import { createI18n } from 'vue-i18n'
 
+import { trackPendingActions } from '../../libs/pinia/pending-actions'
 import { injectKeyPiniaSynced } from '../../libs/pinia/synced-context'
 import { useAuthStore } from '../auth'
 import { useProviderConfigStore } from '../providers/config'
@@ -20,6 +21,7 @@ const syncedContexts: Array<{
   app: App
   pinia: ReturnType<typeof createPinia>
   runtime: SyncedPiniaRuntime
+  pendingCatalogLoads: () => number
 }> = []
 
 const nativeFetch = globalThis.fetch
@@ -48,6 +50,8 @@ function createSyncedContext(namespace: string, leadership: LeadershipMode, with
   pinia.use(runtime.plugin)
 
   let speechStore: ReturnType<typeof useSpeechStore> | undefined
+  // A leader keeps loading a catalog after a reset releases the caller, so cleanup waits for every load to settle.
+  const pendingCatalogLoads = trackPendingActions(pinia, (storeId, action) => storeId === 'speech' && (action === 'loadVoicesForProvider' || action === 'loadVoiceCatalog'))
   const app = createApp({
     setup() {
       speechStore = useSpeechStore()
@@ -65,8 +69,8 @@ function createSyncedContext(namespace: string, leadership: LeadershipMode, with
   if (!speechStore)
     throw new Error('Speech store did not initialize')
 
-  syncedContexts.push({ app, pinia, runtime })
-  return { pinia, runtime, speechStore }
+  syncedContexts.push({ app, pinia, runtime, pendingCatalogLoads })
+  return { pinia, runtime, speechStore, pendingCatalogLoads }
 }
 
 /** Creates two real renderers and waits until their leader routing agrees. */
@@ -167,7 +171,8 @@ describe('speech synchronization', () => {
     localStorage.clear()
   })
 
-  afterEach(() => {
+  afterEach(async () => {
+    await expect.poll(() => syncedContexts.map(context => context.pendingCatalogLoads())).toEqual(syncedContexts.map(() => 0))
     for (const context of syncedContexts.splice(0)) {
       context.app.unmount()
       context.runtime.dispose()
@@ -580,6 +585,8 @@ describe('speech synchronization', () => {
     finally {
       finishOld(Response.json({ voices: [] }))
       await refresh
+      // The closed leader still finishes its interrupted load. It must settle before the next test starts.
+      await expect.poll(() => leader.pendingCatalogLoads()).toBe(0)
     }
   })
   // https://github.com/moeru-ai/airi/pull/2490#discussion_r3964310221

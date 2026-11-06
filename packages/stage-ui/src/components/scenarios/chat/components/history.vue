@@ -314,6 +314,7 @@ function emitToolCallRerun(
               :reply-target="getReplyTarget(message)"
               :can-reply="canReplyToMessage(message)"
               :show-placeholder="shouldShowPlaceholder(message) && showStreamingPlaceholder"
+              :streaming="shouldShowPlaceholder(message)"
               :scroll-container="chatHistoryRef"
               :variant="variant"
               :surface="surface"

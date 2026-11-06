@@ -32,11 +32,13 @@ const getAttached = defineInvoke(context.value, captionGetIsFollowingWindow)
 const captionAnimatorByType = {
   'caption-speaker': createFadeAnimator({ duration: 180 }),
   'caption-assistant': createFadeAnimator({ duration: 180 }),
+  'caption-assistant-translation': createFadeAnimator({ duration: 180 }),
 } satisfies Record<CaptionChannelEvent['type'], ReturnType<typeof createFadeAnimator>>
 
 const captionTypes = [
   'caption-speaker',
   'caption-assistant',
+  'caption-assistant-translation',
 ] satisfies CaptionChannelEvent['type'][]
 
 function toCaptionTextSegments(type: CaptionChannelEvent['type']) {
@@ -51,6 +53,7 @@ function toCaptionTextSegments(type: CaptionChannelEvent['type']) {
 const captionTextByType = computed(() => ({
   'caption-speaker': toCaptionTextSegments('caption-speaker'),
   'caption-assistant': toCaptionTextSegments('caption-assistant'),
+  'caption-assistant-translation': toCaptionTextSegments('caption-assistant-translation'),
 }))
 
 onMounted(async () => {
@@ -71,7 +74,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  stopListenCaptions()
+  stopListenCaptions?.()
   disposeCaptionItems()
 })
 </script>
@@ -101,13 +104,14 @@ onUnmounted(() => {
           :class="[
             type === 'caption-speaker' ? 'rounded-md px-2 py-1 text-[1.1rem] text-neutral-50 font-medium text-shadow-lg text-shadow-color-neutral-900/60' : '',
             type === 'caption-assistant' ? 'rounded-md px-2 py-1 text-[1.35rem] text-primary-50 font-semibold text-stroke-4 text-stroke-primary-300/50 text-shadow-lg text-shadow-color-primary-700/50' : '',
+            type === 'caption-assistant-translation' ? 'flex flex-col items-center gap-0.5 rounded-md px-0.5 py-0.5 text-[1rem] text-neutral-200/90 dark:text-neutral-300/90 text-shadow-lg text-shadow-color-neutral-900/50' : '',
           ]"
           :style="type === 'caption-assistant' ? { paintOrder: 'stroke fill' } : undefined"
         >
           <PoppinText
             :text="captionTextByType[type]"
             :animator="captionAnimatorByType[type]"
-            :text-class="type === 'caption-assistant' ? 'color-neutral-50! align-middle' : type === 'caption-speaker' ? 'color-neutral-50! align-middle' : ''"
+            :text-class="type === 'caption-assistant' ? 'color-neutral-50! align-middle' : type === 'caption-speaker' ? 'color-neutral-50! align-middle' : 'color-neutral-200! dark:color-neutral-300! align-middle'"
           />
         </div>
       </div>

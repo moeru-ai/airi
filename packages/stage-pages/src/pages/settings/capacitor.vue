@@ -4,7 +4,7 @@ import type { CapacitorPackage } from '@proj-airi/stage-ui/composables/use-subsc
 import { isFluxPurchaseDisabled } from '@proj-airi/stage-shared'
 import { useSubscription } from '@proj-airi/stage-ui/composables/use-subscription'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
-import { Button, Callout, FieldCheckbox, SettingsCard, Skeleton } from '@proj-airi/ui'
+import { Alert, Button, FieldCheckbox, SettingsCard, Skeleton } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onScopeDispose, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -170,12 +170,13 @@ async function handleSubscribe(packageId: string) {
 
 <template>
   <div :class="['flex flex-col gap-6', 'p-4']">
-    <Callout
+    <Alert
       v-if="message"
-      :theme="message.type === 'success' ? 'lime' : 'orange'"
-      :label="message.text"
-      role="status"
-    />
+      :tone="message.type === 'success' ? 'success' : 'danger'"
+      live="polite"
+    >
+      {{ message.text }}
+    </Alert>
 
     <!-- Status: how much is left today, when it refills, and when the subscription renews -->
     <Skeleton v-if="statusLoading" :class="['h-40 rounded-xl']" />

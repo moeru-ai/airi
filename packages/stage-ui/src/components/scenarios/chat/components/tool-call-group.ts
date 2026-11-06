@@ -4,6 +4,11 @@ import type { ChatSlices, ChatSlicesToolCall, ChatSlicesToolCallResult } from '.
 export interface ToolCallGroupItem {
   sliceIndex: number
   toolCall: ChatSlicesToolCall['toolCall']
+  /**
+   * The call in its reply: its id and its occurrence in the whole reply, because a provider can repeat an id across
+   * rounds. Result slices land between calls while a reply streams, so the slice index is no key.
+   */
+  key: string
 }
 
 /**
@@ -48,7 +53,7 @@ export function groupToolCallSlices(slices: readonly ChatSlices[], hasOwnRendere
           group = { kind: 'tool-group', key: `${slice.toolCall.toolCallId}#${occurrence}`, items: [] }
           entries.push(group)
         }
-        group.items.push({ sliceIndex, toolCall: slice.toolCall })
+        group.items.push({ sliceIndex, toolCall: slice.toolCall, key: `${slice.toolCall.toolCallId}#${occurrence}` })
         continue
       }
     }

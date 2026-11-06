@@ -4,10 +4,10 @@ import type { CaptionChannelEvent } from '@proj-airi/stage-shared'
 import { BILINGUAL_LANGUAGES } from '@proj-airi/pipelines-audio'
 import { publishCaption } from '@proj-airi/stage-shared'
 
-// Offset binder between UST pairs and TTS playback. Each translation
-// records where its spoken sentence began in the spoken text. Playback
-// reports each started clip's text, so the pair whose offset is reached
-// reveals itself. Clips per pair can vary without breaking alignment.
+// Binder between UST pairs and TTS playback. REST bilingual clips carry the
+// pair index from the chunker, so a translation reveals when its own pair
+// starts playing. Streaming clips carry no pair index and fall back to the
+// splitter's spoken-text offset.
 
 interface TurnState {
   /** Translation text by pair id, present once the bracket closes. */
@@ -16,6 +16,11 @@ interface TurnState {
   starts: Map<number, number>
   /** Cumulative non-whitespace clip characters that started playing. */
   played: number
+  /**
+   * Highest bilingual pair that started playing. `-1` until a clip carries a
+   * pair id; streaming clips keep using the text-offset fallback.
+   */
+  pairCursor: number
   /** Pair ids already revealed, in insertion order. */
   revealed: Set<number>
 }
@@ -33,6 +38,7 @@ const RESET_EVENT: CaptionChannelEvent = { operation: 'replace', text: '', type:
 
 export interface BilingualCaptionBus {
   ingestTranslation: (turnId: string, payload: TokenTranslationPayload) => void
+  notePlayedPair: (turnId: string, pairIndex: number) => void
   notePlayedText: (turnId: string, clipText: string) => void
   flushTurn: (turnId: string) => void
   resetTurn: (turnId: string) => void
@@ -53,12 +59,18 @@ function createBus(): BilingualCaptionBus {
 
   // Reveal every pair whose offset the playback reached. A missing
   // translation reveals itself when it arrives, so one gap never blocks
-  // the rest. `played` excludes the pair at that offset: its text has
-  // not started playing yet.
+  // the rest. A clip with a pair id reveals by pair order; text offsets
+  // remain the fallback for streaming clips without a pair id.
   function revealReady(turn: TurnState): CaptionChannelEvent[] {
     const events: CaptionChannelEvent[] = []
     const due = [...turn.translations.keys()]
-      .filter(id => !turn.revealed.has(id) && (turn.starts.get(id) ?? Infinity) < turn.played)
+      .filter((id) => {
+        if (turn.revealed.has(id))
+          return false
+        return turn.pairCursor >= 0
+          ? id <= turn.pairCursor
+          : (turn.starts.get(id) ?? Infinity) < turn.played
+      })
       .sort((a, b) => (turn.starts.get(a) ?? 0) - (turn.starts.get(b) ?? 0))
     for (const id of due) {
       const pair = turn.translations.get(id)
@@ -73,7 +85,7 @@ function createBus(): BilingualCaptionBus {
   function ensureTurn(turnId: string): TurnState {
     let turn = turns.get(turnId)
     if (!turn) {
-      turn = { translations: new Map(), starts: new Map(), played: 0, revealed: new Set() }
+      turn = { translations: new Map(), starts: new Map(), played: 0, pairCursor: -1, revealed: new Set() }
       turns.set(turnId, turn)
     }
     return turn
@@ -89,10 +101,18 @@ function createBus(): BilingualCaptionBus {
       turn.starts.set(payload.pairId, payload.spokenStart)
       emit(revealReady(turn))
     },
+    notePlayedPair(turnId, pairIndex) {
+      // Clips of one pair can arrive in several chunks; only the first one
+      // matters, and an older pair must not move the cursor backwards.
+      const turn = ensureTurn(turnId)
+      if (pairIndex <= turn.pairCursor)
+        return
+      turn.pairCursor = pairIndex
+      emit(revealReady(turn))
+    },
     notePlayedText(turnId, clipText) {
-      // Clip text equals the spoken substring the splitter counted: the
-      // chunker never rewrites characters in flush mode. Whitespace is
-      // stripped on both sides, so the offsets cannot drift.
+      // Fallback for streaming clips without a pair id. It counts the same
+      // non-whitespace characters the splitter used for spokenStart.
       const spoken = clipText.replace(/\s/g, '').length
       if (spoken === 0)
         return

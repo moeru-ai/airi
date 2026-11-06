@@ -34,10 +34,6 @@ vi.mock('@xsai/stream-text', () => ({
   streamText: streamTextMock,
 }))
 
-vi.mock('@xsai/shared-chat', () => ({
-  stepCountAtLeast: vi.fn(),
-}))
-
 vi.mock('../../../tools', () => ({
   mcp: mcpMock,
   debug: debugMock,

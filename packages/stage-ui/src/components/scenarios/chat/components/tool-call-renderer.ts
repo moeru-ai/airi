@@ -49,7 +49,8 @@ export interface ChatToolCallTitle {
  * - A tool returns data that reads better as a small view than as fields, for example a forecast or a list of links
  *
  * Expects:
- * - `read` gets the raw tool result and the serialized arguments of the call.
+ * - `read` gets the raw tool result and the serialized arguments as the model wrote them. They also hold the call
+ *   summary, so a reader reads only the fields that it needs.
  * - `read` returns `undefined` when the widget cannot show the result, for example an error text.
  * - `title` gets the same values, and `undefined` as the result while the call runs.
  *

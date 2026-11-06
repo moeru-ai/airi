@@ -46,12 +46,15 @@ const HIT_CLASS = ['size-4.5 flex items-center justify-center rounded-full', 'bg
   >
     <template #trigger>
       <!-- A pill without a panel only labels something, so it is no button. -->
+      <!-- Each end padding equals the vertical padding, so the first hit and the chevron are concentric with the round ends. -->
+      <!-- A pill without a panel ends with its label, which keeps a wider end padding. -->
       <component
         :is="$slots.default ? 'button' : 'span'"
         :type="$slots.default ? 'button' : undefined"
         :aria-expanded="$slots.default ? open : undefined"
         :class="[
-          'max-w-full inline-flex items-center gap-1.5 rounded-full py-0.5 pl-1 pr-2 text-xs',
+          'max-w-full inline-flex items-center gap-1.5 rounded-full py-0.5 pl-0.5 text-xs',
+          $slots.default ? 'pr-0.5' : 'pr-2',
           'outline-none transition-colors duration-200',
           'text-primary-700 dark:text-primary-100',
           'focus-visible:ring-2 focus-visible:ring-primary-400/60',
@@ -76,11 +79,10 @@ const HIT_CLASS = ['size-4.5 flex items-center justify-center rounded-full', 'bg
         <span :class="['min-w-0 truncate font-medium']">
           <slot name="label" />
         </span>
-        <span
-          v-if="$slots.default"
-          :class="['i-mingcute:down-line', 'shrink-0 text-xs', 'transition-transform duration-200', open ? 'rotate-180' : '']"
-          aria-hidden="true"
-        />
+        <!-- The chevron sits in a box of the hit size, like the first hit at the other end. -->
+        <span v-if="$slots.default" :class="['size-4.5 shrink-0 flex items-center justify-center']" aria-hidden="true">
+          <span :class="['i-mingcute:down-line', 'text-xs', 'transition-transform duration-200', open ? 'rotate-180' : '']" />
+        </span>
       </component>
     </template>
 

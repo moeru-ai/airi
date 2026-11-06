@@ -3,14 +3,13 @@ import type { ProviderMetadata } from '../../../../libs/providers/metadata'
 import type { OnboardingStepNextHandler, OnboardingStepPrevHandler } from './types'
 
 import { errorMessageFrom } from '@moeru/std'
-import { Button, Callout, FieldCheckbox, FieldInput, ScrollableArea } from '@proj-airi/ui'
+import { Alert, Button, Callout, FieldCheckbox, FieldInput, ScrollableArea } from '@proj-airi/ui'
 import { computedAsync } from '@vueuse/core'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useProviderConfigStore } from '../../../../stores/providers/config'
 import { useProviderStore } from '../../../../stores/providers/provider'
-import { Alert } from '../../../misc'
 import { ProviderAccountIdInput } from '../../../scenarios/providers'
 
 interface Props {
@@ -316,21 +315,12 @@ initializeForm()
         />
 
         <!-- Validation Status -->
-        <Alert v-if="validation === 'failed'" type="error">
-          <template #title>
-            <div class="w-full flex items-center justify-between">
-              <span>{{ t('settings.dialogs.onboarding.validationFailed') }}</span>
-              <button
-                type="button"
-                class="ml-2 rounded bg-red-100 px-2 py-0.5 text-xs text-red-600 font-medium transition-colors dark:bg-red-800/30 hover:bg-red-200 dark:text-red-300 dark:hover:bg-red-700/40"
-                @click="handleContinueAnyway"
-              >
-                {{ t('settings.pages.providers.common.continueAnyway') }}
-              </button>
-            </div>
-          </template>
-          <template v-if="validationError" #content>
-            <pre class="whitespace-pre-wrap break-all">{{ String(validationError) }}</pre>
+        <Alert v-if="validation === 'failed'" tone="danger" :title="t('settings.dialogs.onboarding.validationFailed')">
+          <pre v-if="validationError" :class="['whitespace-pre-wrap break-all']">{{ String(validationError) }}</pre>
+          <template #actions>
+            <Button size="sm" color="red" @click="handleContinueAnyway">
+              {{ t('settings.pages.providers.common.continueAnyway') }}
+            </Button>
           </template>
         </Alert>
       </div>

@@ -1,8 +1,8 @@
 <script lang="ts">
 import type { ChatSessionMeta } from '../../../../types/chat-session'
 
-import { BasicButton, Button, GhostButton, ScrollableArea, SwipeActionButton, SwipeActionsContent, SwipeActionsItem, SwipeActionsList, SwipeActionsRoot } from '@proj-airi/ui'
-import { shallowRef } from 'vue'
+import { BasicButton, Button, GhostButton, Input, ScrollableArea, SwipeActionButton, SwipeActionsContent, SwipeActionsItem, SwipeActionsList, SwipeActionsRoot } from '@proj-airi/ui'
+import { ref, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 /** A conversation preview prepared by the session owner for either dialog surface. */
@@ -28,6 +28,7 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   deleteSession: [sessionId: string]
   newSession: []
+  renameSession: [payload: { sessionId: string, title: string }]
   selectSession: [sessionId: string]
 }>()
 
@@ -35,10 +36,37 @@ const { t } = useI18n()
 // The expanded row belongs to this open list, never to persisted session state.
 const expandedSessionId = shallowRef<string>()
 const pendingDeleteSessionId = shallowRef<string>()
+const renamingSessionId = shallowRef<string>()
+const renameTitle = ref('')
 
 function selectSession(sessionId: string) {
   pendingDeleteSessionId.value = undefined
+  renamingSessionId.value = undefined
   emit('selectSession', sessionId)
+}
+
+function startRename(row: SessionRow) {
+  pendingDeleteSessionId.value = undefined
+  renamingSessionId.value = row.meta.sessionId
+  renameTitle.value = row.meta.title ?? row.preview
+}
+
+function cancelRename() {
+  renamingSessionId.value = undefined
+  renameTitle.value = ''
+}
+
+function commitRename(row: SessionRow) {
+  if (renamingSessionId.value !== row.meta.sessionId)
+    return
+
+  emit('renameSession', { sessionId: row.meta.sessionId, title: renameTitle.value })
+  cancelRename()
+}
+
+function handleEscape() {
+  pendingDeleteSessionId.value = undefined
+  cancelRename()
 }
 
 function deleteDesktopSession(sessionId: string) {
@@ -78,7 +106,7 @@ function deleteDesktopSession(sessionId: string) {
           :key="row.meta.sessionId"
           :class="['overflow-hidden', props.compact ? 'rounded-lg' : 'rounded-2xl']"
           @mouseleave="props.compact && (pendingDeleteSessionId = undefined)"
-          @keydown.esc.stop="props.compact && (pendingDeleteSessionId = undefined)"
+          @keydown.esc.stop="handleEscape"
         >
           <div
             v-if="props.compact"
@@ -89,7 +117,40 @@ function deleteDesktopSession(sessionId: string) {
                 : 'bg-transparent hover:bg-neutral-100/80 dark:hover:bg-neutral-800/80',
             ]"
           >
+            <div
+              v-if="renamingSessionId === row.meta.sessionId"
+              :class="['min-h-12 min-w-0 flex flex-1 items-center gap-1 px-2 py-1.5']"
+            >
+              <Input
+                v-model="renameTitle"
+                :aria-label="t('stage.chat.sessions.rename-input')"
+                :placeholder="t('stage.chat.sessions.rename-placeholder')"
+                autofocus
+                @click.stop
+                @keydown.enter.stop="commitRename(row)"
+                @keydown.esc.stop="cancelRename"
+              />
+              <GhostButton
+                size="unset"
+                :aria-label="t('stage.chat.sessions.save-rename')"
+                :title="t('stage.chat.sessions.save-rename')"
+                :class="['size-8 shrink-0 rounded-md text-primary-500 hover:bg-primary-500/10', 'focus-visible:outline-2 focus-visible:outline-primary-500']"
+                @click.stop="commitRename(row)"
+              >
+                <span aria-hidden="true" :class="['i-solar:check-circle-outline size-4']" />
+              </GhostButton>
+              <GhostButton
+                size="unset"
+                :aria-label="t('stage.chat.sessions.cancel-rename')"
+                :title="t('stage.chat.sessions.cancel-rename')"
+                :class="['size-8 shrink-0 rounded-md text-neutral-400 hover:bg-neutral-500/10', 'focus-visible:outline-2 focus-visible:outline-primary-500']"
+                @click.stop="cancelRename"
+              >
+                <span aria-hidden="true" :class="['i-solar:close-circle-outline size-4']" />
+              </GhostButton>
+            </div>
             <BasicButton
+              v-else
               size="unset"
               :aria-current="row.isActive ? 'true' : undefined"
               :class="[
@@ -119,6 +180,16 @@ function deleteDesktopSession(sessionId: string) {
                 </span>
               </span>
             </BasicButton>
+            <GhostButton
+              v-if="renamingSessionId !== row.meta.sessionId"
+              size="unset"
+              :aria-label="`${t('stage.chat.sessions.rename')}: ${row.preview}`"
+              :title="t('stage.chat.sessions.rename')"
+              :class="['size-8 shrink-0 rounded-md text-neutral-400 opacity-0 transition-all hover:bg-primary-500/10 hover:text-primary-500 group-hover:opacity-100 focus-visible:opacity-100', 'focus-visible:outline-2 focus-visible:outline-primary-500']"
+              @click.stop="startRename(row)"
+            >
+              <span aria-hidden="true" :class="['i-solar:pen-2-linear size-4']" />
+            </GhostButton>
             <GhostButton
               size="unset"
               :active="pendingDeleteSessionId === row.meta.sessionId"
@@ -179,7 +250,40 @@ function deleteDesktopSession(sessionId: string) {
                   row.isActive ? 'bg-primary-50/80 dark:bg-primary-950/80' : props.compact ? 'bg-transparent hover:bg-neutral-100/80 dark:hover:bg-neutral-800/80' : 'bg-white dark:bg-neutral-800',
                 ]"
               >
+                <div
+                  v-if="renamingSessionId === row.meta.sessionId"
+                  :class="[props.compact ? 'min-h-12 rounded-lg px-2 py-1.5' : 'min-h-20 rounded-2xl px-3 py-3', 'min-w-0 flex flex-1 items-center gap-1']"
+                >
+                  <Input
+                    v-model="renameTitle"
+                    :aria-label="t('stage.chat.sessions.rename-input')"
+                    :placeholder="t('stage.chat.sessions.rename-placeholder')"
+                    autofocus
+                    @click.stop
+                    @keydown.enter.stop="commitRename(row)"
+                    @keydown.esc.stop="cancelRename"
+                  />
+                  <GhostButton
+                    size="unset"
+                    :aria-label="t('stage.chat.sessions.save-rename')"
+                    :title="t('stage.chat.sessions.save-rename')"
+                    :class="['size-9 shrink-0 rounded-lg text-primary-500 hover:bg-primary-500/10', 'focus-visible:outline-2 focus-visible:outline-primary-500']"
+                    @click.stop="commitRename(row)"
+                  >
+                    <span aria-hidden="true" :class="['i-solar:check-circle-outline size-5']" />
+                  </GhostButton>
+                  <GhostButton
+                    size="unset"
+                    :aria-label="t('stage.chat.sessions.cancel-rename')"
+                    :title="t('stage.chat.sessions.cancel-rename')"
+                    :class="['size-9 shrink-0 rounded-lg text-neutral-400 hover:bg-neutral-500/10', 'focus-visible:outline-2 focus-visible:outline-primary-500']"
+                    @click.stop="cancelRename"
+                  >
+                    <span aria-hidden="true" :class="['i-solar:close-circle-outline size-5']" />
+                  </GhostButton>
+                </div>
                 <BasicButton
+                  v-else
                   size="unset"
                   :aria-current="row.isActive ? 'true' : undefined"
                   :class="[
@@ -214,6 +318,20 @@ function deleteDesktopSession(sessionId: string) {
                     </span>
                   </span>
                 </BasicButton>
+                <GhostButton
+                  v-if="renamingSessionId !== row.meta.sessionId"
+                  size="unset"
+                  :class="[
+                    'shrink-0 text-neutral-400 hover:bg-primary-500/10 hover:text-primary-500',
+                    props.compact ? 'size-8 rounded-md opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100' : 'size-11 rounded-xl',
+                  ]"
+                  :aria-label="`${t('stage.chat.sessions.rename')}: ${row.preview}`"
+                  :title="t('stage.chat.sessions.rename')"
+                  :style="props.compact ? undefined : { opacity: 'calc(1 - var(--swipe-progress, 0))' }"
+                  @click.stop="startRename(row)"
+                >
+                  <span aria-hidden="true" :class="['i-solar:pen-2-linear', props.compact ? 'size-4' : 'size-5']" />
+                </GhostButton>
                 <GhostButton
                   size="unset"
                   :class="[

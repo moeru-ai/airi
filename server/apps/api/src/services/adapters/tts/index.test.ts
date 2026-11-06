@@ -471,6 +471,54 @@ describe('stepfunAdapter', () => {
     expect(body.extra_body.voice_label).toEqual({ emotion: '高兴' })
   })
 
+  it.each([
+    ['en-US', 'en'],
+    ['ja', 'ja'],
+    ['zh-CN', 'zh'],
+  ])('sends the StepFun language code for %s', async (language, expected) => {
+    const adapter = getAdapter('stepfun')
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response(new Uint8Array([1]), {
+      status: 200,
+      headers: { 'content-type': 'audio/mpeg' },
+    }))
+
+    await adapter.send(
+      { text: '50 percent', language },
+      {
+        keyPlaintext: Buffer.from('step-key', 'utf8'),
+        baseURL: 'https://api.stepfun.com',
+        unspeechBaseURL: 'http://unspeech.local',
+        adapterParams: { model: 'stepaudio-2.5-tts' },
+        fetchImpl,
+      },
+    )
+
+    const body = JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body))
+    expect(body.extra_body.language).toBe(expected)
+  })
+
+  it('does not send a language that StepFun does not read', async () => {
+    const adapter = getAdapter('stepfun')
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response(new Uint8Array([1]), {
+      status: 200,
+      headers: { 'content-type': 'audio/mpeg' },
+    }))
+
+    await adapter.send(
+      { text: 'Hallo', language: 'de-DE' },
+      {
+        keyPlaintext: Buffer.from('step-key', 'utf8'),
+        baseURL: 'https://api.stepfun.com',
+        unspeechBaseURL: 'http://unspeech.local',
+        adapterParams: { model: 'stepaudio-2.5-tts' },
+        fetchImpl,
+      },
+    )
+
+    const body = JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body))
+    expect(body).not.toHaveProperty('extra_body.language')
+  })
+
   it('throws TtsUpstreamResponseError when unspeech returns non-2xx', async () => {
     const adapter = getAdapter('stepfun')
     const fetchImpl = vi.fn(async () => new Response('bad key', { status: 401 })) as unknown as typeof fetch
