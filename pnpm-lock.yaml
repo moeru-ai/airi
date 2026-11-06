@@ -276,6 +276,12 @@ catalogs:
     '@nekopaw/tempora':
       specifier: 0.4.0-alpha.1
       version: 0.4.0-alpha.1
+    '@node-macos-disclaim/darwin-arm64':
+      specifier: ^0.0.1
+      version: 0.0.1
+    '@node-macos-disclaim/darwin-x64':
+      specifier: ^0.0.1
+      version: 0.0.1
     '@openpanel/sdk':
       specifier: 1.3.1
       version: 1.3.1
@@ -900,6 +906,9 @@ catalogs:
     nanoid:
       specifier: ^6.0.1
       version: 6.0.1
+    node-macos-disclaim:
+      specifier: ^0.0.1
+      version: 0.0.1
     node-pty:
       specifier: npm:@lydell/node-pty@^1.2.0-beta.15
       version: 1.2.0-beta.15
@@ -1905,6 +1914,9 @@ importers:
       electron-updater:
         specifier: ^6.8.9
         version: 6.8.9(supports-color@10.2.2)
+      node-macos-disclaim:
+        specifier: 'catalog:'
+        version: 0.0.1
       uiohook-napi:
         specifier: 'catalog:'
         version: 1.5.5(patch_hash=012c5e5ad881d5ae40fc0af58832e31a0772ab0a74c038c8f4dfe51efaf398dd)
@@ -2435,6 +2447,12 @@ importers:
         specifier: 'catalog:'
         version: 4.4.3
     optionalDependencies:
+      '@node-macos-disclaim/darwin-arm64':
+        specifier: 'catalog:'
+        version: 0.0.1
+      '@node-macos-disclaim/darwin-x64':
+        specifier: 'catalog:'
+        version: 0.0.1
       '@xsai-apple-speech/transcription-native-darwin-arm64':
         specifier: 'catalog:'
         version: 0.1.3
@@ -9742,6 +9760,16 @@ packages:
   '@noble/hashes@2.3.0':
     resolution: {integrity: sha512-oN+QwyX7VSHotibwubG3kpzbwKrfnyR6OOO+3Nk/53ADL7FmgHHz4TgrbaYKvvOw09u6QTx0oiH1cNCIOuN0CQ==}
     engines: {node: '>= 20.19.0'}
+
+  '@node-macos-disclaim/darwin-arm64@0.0.1':
+    resolution: {integrity: sha512-3K5xn/TDYN6U9AyV3cWJoacJPL7OBDxsBgIWm1tc6tMmfmnN1HEhLaD+5WOSkF6SC03DUiWIfrJBym7AFfHsQw==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@node-macos-disclaim/darwin-x64@0.0.1':
+    resolution: {integrity: sha512-qXinzs3SrdLaYkFGAPPZ2dx7Fg5pgvPhj5/IQP66Od3WpcYHsQZ46ptxH1KD4BfSIglVWhYC/KDMBI9iQ7hZ9A==}
+    cpu: [x64]
+    os: [darwin]
 
   '@nodelib/fs.scandir@2.1.5':
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
@@ -18265,6 +18293,10 @@ packages:
     resolution: {integrity: sha512-vv8fJuOUCCvSPjDjBLlMqYMHob4aGjkmrkaE42/mZr0VT+ZAU10jRF8oTnX9+pgU9/vYJ8P7YT3Vd6ajkmzSCw==}
     engines: {node: '>=0.12'}
 
+  node-macos-disclaim@0.0.1:
+    resolution: {integrity: sha512-DdXNTWpvAOWvXd5eJ7FpGjQJsn+8OdgEbt9nUWIF77/FM6W2dnGFO9J34PnGbj1bD1o1srG4yTP3PeL0EmBStg==}
+    engines: {node: '>=20'}
+
   node-mock-http@1.0.5:
     resolution: {integrity: sha512-KQyt/wLjG3TAc7DOUhpqWzgd4ERxR80JOlTK5VE5R1S12IaPVN5qkj4klBce9HPG1Njuup4Sb5bljaT34lIyjw==}
 
@@ -25092,6 +25124,12 @@ snapshots:
   '@noble/hashes@1.8.0': {}
 
   '@noble/hashes@2.3.0': {}
+
+  '@node-macos-disclaim/darwin-arm64@0.0.1':
+    optional: true
+
+  '@node-macos-disclaim/darwin-x64@0.0.1':
+    optional: true
 
   '@nodelib/fs.scandir@2.1.5':
     dependencies:
@@ -34318,6 +34356,11 @@ snapshots:
   node-localstorage@2.2.1:
     dependencies:
       write-file-atomic: 1.3.4
+
+  node-macos-disclaim@0.0.1:
+    optionalDependencies:
+      '@node-macos-disclaim/darwin-arm64': 0.0.1
+      '@node-macos-disclaim/darwin-x64': 0.0.1
 
   node-mock-http@1.0.5: {}
 
