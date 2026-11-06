@@ -229,6 +229,8 @@ describe('f-Contract-1: Production Host Execution Result Contract Regression', (
     // 4. Model tool result must distinguish unknown from pre-execution rejection
     expect(rendererError).toBeDefined()
     expect(rendererError?.message).toContain('Command timed out after 120000ms')
+    expect(rendererError?.message).toContain('[executionState: unknown]')
+    expect(rendererError?.message).not.toContain('not_executed')
 
     console.info('CASE_C_EVIDENCE', JSON.stringify({
       case: 'Case C (Side Effect Occurred + Timeout/Killed)',
@@ -294,6 +296,11 @@ describe('f-Contract-1: Production Host Execution Result Contract Regression', (
       rendererError = err as Error
     }
 
+    await vi.waitFor(() => {
+      const rec = host.actionManager.get(action.id)
+      expect(rec?.settlement).toBeDefined()
+    })
+
     const settled = host.actionManager.get(action.id)
     expect(external.execute).toHaveBeenCalledTimes(1)
     expect(settled?.status).toBe('consumed')
@@ -309,6 +316,8 @@ describe('f-Contract-1: Production Host Execution Result Contract Regression', (
     expect((settled?.settlement as any)?.executionState).toBe('unknown')
     // 4. Renderer must NOT erase unknown
     expect((rendererError as any)?.executionState).toBe('unknown')
+    expect(rendererError?.message).toContain('[executionState: unknown]')
+    expect(rendererError?.message).not.toContain('not_executed')
 
     console.info('CASE_D_EVIDENCE', JSON.stringify({
       case: 'Case D (In-flight Interruption/Cancellation)',
@@ -437,19 +446,31 @@ describe('f-Contract-1: Production Host Execution Result Contract Regression', (
         action1Running = true
         physicalSideEffects++
         action1Started?.()
-        const child = new PassThrough()
+        const child = Object.assign(new EventEmitter(), {
+          stdin: new PassThrough(),
+          exitCode: null as number | null,
+          signalCode: null as NodeJS.Signals | null,
+          killed: false,
+          pid: 99999,
+          kill: vi.fn(),
+        })
         return Object.assign(
           new Promise<CliResult>((_, reject) => {
             options.signal?.addEventListener('abort', () => {
-              // Subprocess kill takes 40ms to close
+              // Real Node execFileAsync rejects immediately on abort with AbortError
+              child.killed = true
+              reject(Object.assign(new Error('The operation was aborted'), { name: 'AbortError', code: 'ABORT_ERR' }))
+
+              // But the child process takes 40ms to close and emit 'close'
               setTimeout(() => {
                 action1Running = false
                 action1Closed = true
-                reject(Object.assign(new Error('Process terminated by abort'), { killed: true, code: null }))
+                child.exitCode = 0
+                child.emit('close', 0, null)
               }, 40)
             })
           }),
-          { child: { stdin: child } },
+          { child },
         ) as CliExecution
       }
 

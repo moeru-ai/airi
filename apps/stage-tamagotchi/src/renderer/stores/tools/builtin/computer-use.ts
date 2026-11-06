@@ -12,7 +12,7 @@ import {
   ComputerUseExecutionError,
   computerUseReadImage,
   computerUseRun,
-  extractExecutionState,
+  extractErrorDetails,
 } from '../../../../shared/eventa/computer-use'
 
 /** Application-owned execution options. Model arguments cannot supply approval IDs or correlation. */
@@ -78,8 +78,10 @@ export async function computerUseTools(options?: ComputerUseToolsOptions): Promi
       }
     }
     if (signal?.aborted) {
-      throw new ComputerUseExecutionError(errorMessageFrom(signal.reason) ?? 'This operation was aborted', {
+      const rawMessage = errorMessageFrom(signal.reason) ?? 'This operation was aborted'
+      throw new ComputerUseExecutionError(`[executionState: not_executed] ${rawMessage}`, {
         executionState: 'not_executed',
+        rawMessage,
         cause: signal.reason,
       })
     }
@@ -107,8 +109,10 @@ export async function computerUseTools(options?: ComputerUseToolsOptions): Promi
             { signal: execution.abortSignal },
           )
           if (result.exitCode !== 0) {
-            throw new ComputerUseExecutionError(JSON.stringify(result), {
+            const rawMessage = JSON.stringify(result)
+            throw new ComputerUseExecutionError(`[executionState: ${result.executionState ?? 'executed'}] ${rawMessage}`, {
               executionState: result.executionState ?? 'executed',
+              rawMessage,
               argv: result.argv,
               exitCode: result.exitCode,
               stderr: result.stderr,
@@ -117,26 +121,21 @@ export async function computerUseTools(options?: ComputerUseToolsOptions): Promi
           return JSON.stringify(result)
         }
         catch (error) {
-          if (error instanceof ComputerUseExecutionError)
-            throw error
-          let executionState = extractExecutionState(error)
+          const details = extractErrorDetails(error)
+          let executionState = details.executionState
           if (executionState === 'not_executed' && execution.abortSignal?.aborted) {
             // Cancellation happened after dispatch was in-flight. Side effects are unknown.
             executionState = 'unknown'
           }
-          const errRecord = error && typeof error === 'object' ? (error as Record<string, unknown>) : undefined
-          const exitCode = typeof errRecord?.exitCode === 'number'
-            ? errRecord.exitCode
-            : typeof errRecord?.code === 'number'
-              ? errRecord.code
-              : undefined
-          const stderr = typeof errRecord?.stderr === 'string' ? errRecord.stderr : undefined
-          const message = errorMessageFrom(error) ?? 'Computer use execution failed.'
-          throw new ComputerUseExecutionError(message, {
+          const rawMessage = details.rawMessage ?? errorMessageFrom(error) ?? 'Computer use execution failed.'
+          const formattedMessage = rawMessage.includes('[executionState:')
+            ? rawMessage
+            : `[executionState: ${executionState}] ${rawMessage}`
+          throw new ComputerUseExecutionError(formattedMessage, {
+            ...details,
             executionState,
-            argv: rawInput.argv,
-            exitCode,
-            stderr,
+            rawMessage,
+            argv: details.argv ?? rawInput.argv,
             cause: error,
           })
         }

@@ -17,7 +17,7 @@ import { fileTypeFromBuffer } from 'file-type'
 
 import * as v from 'valibot'
 
-import { ComputerUseExecutionError, isComputerUseHelpCall } from '../../../../shared/eventa/computer-use'
+import { ComputerUseExecutionError, extractErrorDetails, isComputerUseHelpCall } from '../../../../shared/eventa/computer-use'
 import { validateAttribution } from './attribution'
 import { classifyAuvCommand, MANAGED_FLAGS } from './classifier'
 
@@ -170,35 +170,74 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
         if (!credential)
           throw new ComputerUseExecutionError('AUV did not issue a launcher token.', { executionState: 'not_executed', argv: validatedArgv })
         const environment = { ...process.env, AUV_ENDPOINT: active.endpoints[0], AUV_CONTEXT: undefined }
+        // Readiness is complete. Consume and dispatch in the same synchronous turn.
+        // Consumption commits Host dispatch, not proof of native execution or its effects.
+        if (classification.category === 'mutating' && options.actionManager && parsed.actionId && attribution) {
+          options.actionManager.consume(parsed.actionId, { argv: validatedArgv, attribution })
+          consumedActionId = parsed.actionId
+        }
         const args = ['--credential-stdin', ...command]
-        try {
-          // Readiness is complete. Consume and dispatch in the same synchronous turn.
-          // Consumption commits Host dispatch, not proof of native execution or its effects.
-          if (classification.category === 'mutating' && options.actionManager && parsed.actionId && attribution) {
-            options.actionManager.consume(parsed.actionId, { argv: validatedArgv, attribution })
-            consumedActionId = parsed.actionId
+        // Merge runtime lifecycle and request-level cancellation signals
+        const executionSignal = signal ? AbortSignal.any([abort.signal, signal]) : abort.signal
+        // Send the launcher token on stdin. Other processes of the same user can read argv and the environment.
+        const pending = execFileAsync(options.binaryPath, args, {
+          // connectionOptions.endpoint is a bare socket path. The CLI needs the URI form from endpoints.
+          env: environment,
+          encoding: 'utf8',
+          timeout: 120000,
+          maxBuffer: 4 * 1024 * 1024,
+          windowsHide: true,
+          signal: executionSignal,
+        })
+        const child = pending.child
+        const childClosed = new Promise<void>((resolve) => {
+          if (!child || !('once' in child) || typeof child.once !== 'function' || child.exitCode !== null || child.signalCode !== null) {
+            resolve()
+            return
           }
-          // Merge runtime lifecycle and request-level cancellation signals
-          const executionSignal = signal ? AbortSignal.any([abort.signal, signal]) : abort.signal
-          // Send the launcher token on stdin. Other processes of the same user can read argv and the environment.
-          const pending = execFileAsync(options.binaryPath, args, {
-            // connectionOptions.endpoint is a bare socket path. The CLI needs the URI form from endpoints.
-            env: environment,
-            encoding: 'utf8',
-            timeout: 120000,
-            maxBuffer: 4 * 1024 * 1024,
-            windowsHide: true,
-            signal: executionSignal,
-          })
+          let forceKillTimer: NodeJS.Timeout | undefined
+          const cleanup = () => {
+            if (forceKillTimer)
+              clearTimeout(forceKillTimer)
+            resolve()
+          }
+          child.once('close', cleanup)
+          child.once('error', cleanup)
+
+          if (executionSignal) {
+            const onAbort = () => {
+              forceKillTimer = setTimeout(() => {
+                try {
+                  child.kill?.('SIGKILL')
+                }
+                catch {}
+              }, 3000)
+            }
+            if (executionSignal.aborted) {
+              onAbort()
+            }
+            else {
+              executionSignal.addEventListener('abort', onAbort, { once: true })
+            }
+          }
+        })
+
+        try {
           // A CLI that exits before it reads stdin must not raise EPIPE as an unhandled error.
           pending.child.stdin?.on('error', () => {})
           pending.child.stdin?.end(`${credential}\n`)
           ;({ stdout, stderr } = await pending)
         }
         catch (error) {
+          // Wait for child process to close before releasing execution lock or settling
+          await childClosed
+
           // Check for spawn error where child process was never created
-          if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-            throw new ComputerUseExecutionError(error.message, {
+          const isSpawnFailure = (error instanceof Error && 'code' in error && (error.code === 'ENOENT' || error.code === 'EACCES'))
+            || (child && 'pid' in child && child.pid === undefined)
+
+          if (isSpawnFailure) {
+            throw new ComputerUseExecutionError(errorMessageFrom(error) ?? 'Failed to spawn process', {
               executionState: 'not_executed',
               argv: validatedArgv,
               cause: error,
@@ -244,10 +283,13 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
       catch (error) {
         if (consumedActionId && options.actionManager && !options.actionManager.get(consumedActionId)?.settlement) {
           const executionState = error instanceof ComputerUseExecutionError ? error.executionState : 'unknown'
+          const rawError = error instanceof ComputerUseExecutionError
+            ? error.rawMessage
+            : extractErrorDetails(error).rawMessage ?? errorMessageFrom(error)?.replace(/^\[executionState:\s*\w+\]\s*/, '') ?? 'Computer use execution failed.'
           options.actionManager.settle(consumedActionId, {
             outcome: 'failed',
             executionState,
-            error: errorMessageFrom(error) ?? 'Computer use execution failed.',
+            error: rawError,
             exitCode: error instanceof ComputerUseExecutionError ? error.exitCode : undefined,
           })
         }
@@ -258,7 +300,10 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
       // Consumed work keeps its settlement. Existing cancellation and expiry retain their reason.
       if (classification.category === 'mutating' && parsed.actionId
         && options.actionManager?.get(parsed.actionId)?.status === 'approved') {
-        options.actionManager.cancel(parsed.actionId, errorMessageFrom(error) ?? 'Computer use failed before dispatch.')
+        const rawCancelReason = error instanceof ComputerUseExecutionError
+          ? error.rawMessage
+          : extractErrorDetails(error).rawMessage ?? errorMessageFrom(error)?.replace(/^\[executionState:\s*\w+\]\s*/, '') ?? 'Computer use failed before dispatch.'
+        options.actionManager.cancel(parsed.actionId, rawCancelReason)
       }
       throw error instanceof ComputerUseExecutionError
         ? error
@@ -329,6 +374,5 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
     await daemon?.stop()
   }
 
-  // Terminal approval waits outside this slot. Actual Terminal execution shares the existing conservative desktop queue.
-  return { run, readImage, previewImage, executeInSlot: enqueue, dispose }
+  return { run, readImage, previewImage, dispose }
 }

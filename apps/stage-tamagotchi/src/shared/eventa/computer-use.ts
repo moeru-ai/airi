@@ -29,6 +29,7 @@ export interface ComputerUseErrorDetails {
   argv?: readonly string[]
   exitCode?: number
   stderr?: string
+  rawMessage?: string
   cause?: unknown
 }
 
@@ -38,10 +39,12 @@ export class ComputerUseExecutionError extends Error {
   readonly argv?: readonly string[]
   readonly exitCode?: number
   readonly stderr?: string
+  readonly rawMessage: string
 
   constructor(message: string, details: ComputerUseErrorDetails) {
     super(message, { cause: details })
     this.name = 'ComputerUseExecutionError'
+    this.rawMessage = details.rawMessage ?? message.replace(/^\[executionState:\s*\w+\]\s*/, '')
     this.executionState = details.executionState
     this.argv = details.argv
     this.exitCode = details.exitCode
@@ -53,6 +56,7 @@ export class ComputerUseExecutionError extends Error {
     return {
       name: this.name,
       message: this.message,
+      rawMessage: this.rawMessage,
       executionState: this.executionState,
       argv: this.argv,
       exitCode: this.exitCode,
@@ -61,21 +65,60 @@ export class ComputerUseExecutionError extends Error {
   }
 }
 
+/** Resolves structured error details from an error or error-like object, including across structured clone. */
+export function extractErrorDetails(error: unknown): ComputerUseErrorDetails {
+  const direct = error && typeof error === 'object' ? (error as Record<string, unknown>) : undefined
+  const cause = (direct && 'cause' in direct && direct.cause && typeof direct.cause === 'object')
+    ? (direct.cause as Record<string, unknown>)
+    : undefined
+
+  const executionState = (typeof direct?.executionState === 'string'
+    ? direct.executionState
+    : typeof cause?.executionState === 'string'
+      ? cause.executionState
+      : undefined) as ExecutionState | undefined
+
+  const exitCode = typeof direct?.exitCode === 'number'
+    ? direct.exitCode
+    : typeof cause?.exitCode === 'number'
+      ? cause.exitCode
+      : typeof direct?.code === 'number'
+        ? direct.code
+        : typeof cause?.code === 'number'
+          ? cause.code
+          : undefined
+
+  const stderr = typeof direct?.stderr === 'string'
+    ? direct.stderr
+    : typeof cause?.stderr === 'string'
+      ? cause.stderr
+      : undefined
+
+  const argv = Array.isArray(direct?.argv)
+    ? direct.argv as readonly string[]
+    : Array.isArray(cause?.argv)
+      ? cause.argv as readonly string[]
+      : undefined
+
+  const rawMessage = typeof direct?.rawMessage === 'string'
+    ? direct.rawMessage
+    : typeof cause?.rawMessage === 'string'
+      ? cause.rawMessage
+      : undefined
+
+  return {
+    executionState: executionState ?? 'not_executed',
+    argv,
+    exitCode,
+    stderr,
+    rawMessage,
+    cause: error,
+  }
+}
+
 /** Resolves execution state from an error or error-like object. Defaults to not_executed. */
 export function extractExecutionState(error: unknown): ExecutionState {
-  if (error && typeof error === 'object') {
-    const errorRecord = error as Record<string, unknown>
-    if ('executionState' in errorRecord && typeof errorRecord.executionState === 'string') {
-      return errorRecord.executionState as ExecutionState
-    }
-    if ('cause' in errorRecord && errorRecord.cause && typeof errorRecord.cause === 'object') {
-      const causeRecord = errorRecord.cause as Record<string, unknown>
-      if (typeof causeRecord.executionState === 'string') {
-        return causeRecord.executionState as ExecutionState
-      }
-    }
-  }
-  return 'not_executed'
+  return extractErrorDetails(error).executionState
 }
 
 /** AUV invocation result. A zero exit code does not verify the requested UI effect. */
