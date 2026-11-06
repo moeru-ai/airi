@@ -270,7 +270,6 @@ export class ExtensionHost {
       owner: { kind: 'plugin-host' },
       enabled: false,
       timeouts: { start: options.timeouts?.start ?? 30_000, stop: options.timeouts?.stop ?? 10_000 },
-      ...(options.container ? {} : { asyncContext: options.asyncContext }),
     })
     this.kitGraph = new KitGraph(this.container, (consumer, kitId) => this.checkKitAccess(consumer, kitId), options.kitProviderOrder)
     this.capabilities = new CapabilityRegistry(this.container)
@@ -458,7 +457,7 @@ export class ExtensionHost {
 
   /**
    * Withdraws the Kits of the session, then disposes its container. Concurrent external callers share the outcome.
-   * A cleanup that stops its own session rejects with `reentrant-dispose`.
+   * A cleanup that stops its own session after an `await` waits for itself, until the stop timeout ends that cleanup.
    */
   async stop(sessionId: string): Promise<ExtensionSession | undefined> {
     const controller = this.sessions.get(sessionId)

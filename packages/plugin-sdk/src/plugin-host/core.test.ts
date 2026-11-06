@@ -1,8 +1,11 @@
+import type { Clock } from 'injeca'
+
 import type { ExtensionModuleContext } from '../extension'
 import type { ExtensionManifestV2, ModulePermissionDeclaration } from './shared/types'
 
 import { join } from 'node:path'
 
+import { createContainer } from 'injeca'
 import { safeParse } from 'valibot'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -10,6 +13,39 @@ import { ExtensionHost, extensionManifestV2Schema, FileSystemLoader } from '.'
 import { defineExtension } from '../extension'
 import { defineKit, defineKitContract, defineKitMethod } from '../kit'
 import { ExtensionHost as NodeExtensionHost } from './runtimes/node'
+
+/**
+ * A container clock that moves only on `advance`, so that a test can end a stop timeout without a real wait.
+ *
+ * @example
+ * const time = manualClock()
+ * const host = new ExtensionHost({ container: createContainer({ clock: time.clock }), timeouts: { stop: 1_000 } })
+ * time.advance(1_000) // runs the stop timeout
+ */
+function manualClock() {
+  let now = 0
+  const timers = new Set<{ readonly at: number, readonly callback: () => void }>()
+  const clock: Clock = {
+    now: () => now,
+    setTimeout: (callback, ms) => {
+      const timer = { at: now + ms, callback }
+      timers.add(timer)
+      return () => {
+        timers.delete(timer)
+      }
+    },
+  }
+  return {
+    clock,
+    advance: (ms: number) => {
+      now += ms
+      for (const timer of [...timers].filter(timer => timer.at <= now).sort((a, b) => a.at - b.at)) {
+        timers.delete(timer)
+        timer.callback()
+      }
+    },
+  }
+}
 
 describe('extension manifest schema', () => {
   it('accepts extension.airi.json v2 manifests', () => {
@@ -626,12 +662,15 @@ describe('extension-hosted Kit registration lifecycle', () => {
   // ROOT CAUSE:
   //
   // Stop joined the cleanup promise that awaited its own disposer, including after await.
-  // The Node Host injects `AsyncLocalStorage`, so injeca rejects the self-wait with `reentrant-dispose` while external callers share the outcome.
-  it('rejects self-stop across an await while external stops share completed cleanup (PR #2687)', async () => {
-    const host = new NodeExtensionHost()
+  // A self-stop without a signal is not found after an `await`, so the configured stop timeout ends that cleanup.
+  // External callers still share one outcome, and the later cleanup still runs.
+  it('ends a self-stop without a signal with the stop timeout while external stops share the outcome (PR #2687)', async () => {
+    const time = manualClock()
+    const host = new NodeExtensionHost({ container: createContainer({ clock: time.clock }), timeouts: { stop: 1_000 } })
     const entered = Promise.withResolvers<void>()
     const resume = Promise.withResolvers<void>()
     const remaining = vi.fn()
+    let selfStopCalled = false
     const session = await host.startExtension(defineExtension({
       id: 'self-stop',
       setup(ctx) {
@@ -640,6 +679,7 @@ describe('extension-hosted Kit registration lifecycle', () => {
         ctx.subscriptions.add({ dispose: async () => {
           entered.resolve()
           await resume.promise
+          selfStopCalled = true
           await host.stop(session.id)
         } })
       },
@@ -652,13 +692,15 @@ describe('extension-hosted Kit registration lifecycle', () => {
     void stoppingAgain.then(() => {
       externalFinished = true
     })
+    resume.resolve()
+    await vi.waitFor(() => expect(selfStopCalled).toBe(true))
     await Promise.resolve()
     expect(externalFinished).toBe(false)
     expect(remaining).not.toHaveBeenCalled()
-    resume.resolve()
 
+    time.advance(1_000)
     const failure = await stopping
-    expect(failure).toMatchObject({ code: 'reentrant-dispose' })
+    expect(failure).toMatchObject({ code: 'hook-timeout', hook: 'stop' })
     expect(await stoppingAgain).toBe(failure)
     expect(remaining).toHaveBeenCalledTimes(1)
     expect(host.listSessions()).toEqual([])
@@ -668,36 +710,15 @@ describe('extension-hosted Kit registration lifecycle', () => {
   // https://github.com/moeru-ai/airi/pull/2687
   // ROOT CAUSE:
   //
-  // Direct self-stop returned the pending cleanup promise while the disposer remained pending.
-  // injeca now rejects the join, and best-effort disposal continues.
-  it('rejects synchronous self-stop without skipping later cleanup (PR #2687)', async () => {
-    const host = new NodeExtensionHost({ runtime: 'node' })
-    const remaining = vi.fn()
-    const session = await host.startExtension(defineExtension({
-      id: 'self-stop-sync',
-      setup(ctx) {
-        ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
-        ctx.subscriptions.add({ dispose: remaining })
-        ctx.subscriptions.add({ dispose: async () => {
-          await host.stop(session.id)
-        } })
-      },
-    }), { manifest: { ...manifest('self-stop-sync'), engines: { airi: '*', runtimes: ['node'] } } })
-
-    await expect(host.stop(session.id)).rejects.toMatchObject({ code: 'reentrant-dispose' })
-    expect(remaining).toHaveBeenCalledTimes(1)
-    expect(host.listSessions()).toEqual([])
-  })
-
-  // https://github.com/moeru-ai/airi/pull/2687
-  // ROOT CAUSE:
-  //
   // Reload joined the same session cleanup from inside a module disposer and never reached fresh start.
-  // The self-wait now rejects with `reentrant-dispose`, so the reload does not start a replacement.
-  it('rejects module self-reload after an await without starting a replacement (PR #2687)', async () => {
-    const host = new NodeExtensionHost()
+  // Without a signal, the configured stop timeout ends that cleanup. The reload gets the same failure and does not start a replacement.
+  it('ends a module self-reload without a signal with the stop timeout, without a replacement (PR #2687)', async () => {
+    const time = manualClock()
+    const host = new NodeExtensionHost({ container: createContainer({ clock: time.clock }), timeouts: { stop: 1_000 } })
     const start = vi.spyOn(host, 'start')
     const remaining = vi.fn()
+    const reloaded = Promise.withResolvers<unknown>()
+    let selfReloadCalled = false
     const session = await host.startExtension(defineExtension({
       id: 'self-reload',
       async setup(ctx) {
@@ -706,14 +727,28 @@ describe('extension-hosted Kit registration lifecycle', () => {
         const module = await ctx.modules.register({ id: 'module-one' })
         module.subscriptions.add({ dispose: async () => {
           await Promise.resolve()
-          await host.reload(session.id)
+          selfReloadCalled = true
+          reloaded.resolve(await host.reload(session.id).catch((error: unknown) => error))
         } })
       },
     }), { manifest: manifest('self-reload') })
 
-    await expect(host.stop(session.id)).rejects.toMatchObject({ code: 'reentrant-dispose' })
+    const stopping = host.stop(session.id).catch((error: unknown) => error)
+    let reloadFinished = false
+    void reloaded.promise.then(() => {
+      reloadFinished = true
+    })
+    await vi.waitFor(() => expect(selfReloadCalled).toBe(true))
+    await Promise.resolve()
+    expect(reloadFinished).toBe(false)
+
+    time.advance(1_000)
+    const failure = await stopping
+    expect(failure).toMatchObject({ code: 'hook-timeout', hook: 'stop' })
+    expect(await reloaded.promise).toBe(failure)
     expect(start).not.toHaveBeenCalled()
-    expect(remaining).toHaveBeenCalledTimes(1)
+    // The abandoned cleanup goes on in the background after the timeout.
+    await vi.waitFor(() => expect(remaining).toHaveBeenCalledTimes(1))
     expect(session.modules.size).toBe(0)
     expect(host.listSessions()).toEqual([])
   })
@@ -748,7 +783,7 @@ describe('extension-hosted Kit registration lifecycle', () => {
     await expect(host.stop(first.id)).resolves.toBeUndefined()
   })
 
-  it('preserves shared external cleanup for a Web Host without an async context', async () => {
+  it('preserves shared external cleanup for a Web Host', async () => {
     const host = new ExtensionHost({ runtime: 'web' })
     const entered = Promise.withResolvers<void>()
     const resume = Promise.withResolvers<void>()

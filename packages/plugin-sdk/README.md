@@ -67,7 +67,7 @@ Stop disposes the session container. It aborts a setup that is in progress and d
 
 Stop withdraws the provided Kits first, so consumers stop or move before the cleanup callbacks run. Cleanup attempts every module and root subscription even when a disposer fails. One failure keeps its identity. More failures use `AggregateError`. Concurrent stops share one result.
 
-The Node entry of `@proj-airi/plugin-sdk/plugin-host` injects `AsyncLocalStorage` as the injeca async context. A cleanup that stops or reloads its own session then rejects with `reentrant-dispose`, also after `await`. A Web Host has no async context, so a configured stop timeout ends such a cleanup.
+A cleanup that stops or reloads its own session after an `await` waits for itself. The configured stop timeout ends that cleanup, and each caller gets the timeout error.
 
 Only root setup can provide a Kit. Module scopes can consume Kits, but they cannot provide one.
 

@@ -3,7 +3,7 @@ import type {
   ModulePermissionDeclaration as ProtocolModulePermissionDeclaration,
   ModulePermissionGrant as ProtocolModulePermissionGrant,
 } from '@proj-airi/plugin-protocol/types'
-import type { AsyncContext, Container } from 'injeca'
+import type { Container } from 'injeca'
 import type { GenericSchema } from 'valibot'
 
 import type { KitRef } from '../../kit'
@@ -561,12 +561,6 @@ export interface ExtensionHostOptions {
   runtime?: PluginRuntime
   /** The parent container of the plugin host container, for example the main container of the app. */
   container?: Container
-  /**
-   * The async context of a root plugin host container. The Node entry passes `AsyncLocalStorage`.
-   * With it, a cleanup that awaits the stop of its own session rejects with `reentrant-dispose` at once.
-   * A host with `container` uses the async context of that root.
-   */
-  asyncContext?: AsyncContext
   /** The time limits of setup and cleanup. @default { start: 30_000, stop: 10_000 } */
   timeouts?: { start?: number, stop?: number }
   /** Runs plugin code. @default the direct runner, which runs the plugin in the Host thread */
