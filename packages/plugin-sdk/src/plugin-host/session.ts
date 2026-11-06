@@ -570,7 +570,7 @@ export class PluginSessionController implements HostPort {
   /**
    * Runs the cleanup of one round once. A final stop withdraws the provided Kits and the dynamic modules first.
    * A round that a newer round replaced keeps them, because the newer round owns them.
-   * `signal` is the signal of the `stop` hook that runs the cleanup. The plugin-side cleanup gets it, so a re-entrant stop from it resolves at once.
+   * `signal` is the signal of the `stop` hook that runs the cleanup. The withdrawals and the plugin-side cleanup get it, so a re-entrant call from them resolves at once.
    */
   private cleanupRound(round: HostRound, runtime: RuntimeValue, signal: AbortSignal | undefined): Promise<void> {
     round.cleaned ??= (async () => {
@@ -581,7 +581,7 @@ export class PluginSessionController implements HostPort {
       if (finalStop) {
         for (const registration of [...this.exportRegistrations.values()].reverse()) {
           try {
-            await registration.withdraw()
+            await registration.withdraw({ signal })
           }
           catch (error) {
             errors.push(error)
@@ -591,7 +591,7 @@ export class PluginSessionController implements HostPort {
         this.exportsOwner = undefined
         for (const module of this.dynamicModules.values()) {
           try {
-            await module.registration?.withdraw()
+            await module.registration?.withdraw({ signal })
           }
           catch (error) {
             errors.push(error)
@@ -830,7 +830,7 @@ export class PluginSessionController implements HostPort {
     const errors: unknown[] = []
     for (const registration of [...this.exportRegistrations.values()].reverse()) {
       try {
-        await registration.withdraw()
+        await registration.withdraw({ signal })
       }
       catch (error) {
         errors.push(error)

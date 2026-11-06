@@ -6,12 +6,12 @@ import type { ExtensionManifestV2, ModulePermissionDeclaration } from './shared/
 
 import { join } from 'node:path'
 
-import { createContainer, createNoopLogger, observe } from 'injeca'
+import { createContainer, createNoopLogger, observe, provide, waitFor } from 'injeca'
 import { drained, manualClock } from 'injeca/testing'
 import { safeParse } from 'valibot'
 import { describe, expect, it, vi } from 'vitest'
 
-import { ExtensionHost, extensionManifestV2Schema, FileSystemLoader, moduleNodeKey, pluginNodeKeys } from '.'
+import { ExtensionHost, extensionManifestV2Schema, FileSystemLoader, kitProviderKey, moduleNodeKey, pluginNodeKeys } from '.'
 import { defineExtension } from '../extension'
 import { defineKit, defineKitContract, defineKitMethod } from '../kit'
 import { ExtensionHost as NodeExtensionHost } from './runtimes/node'
@@ -866,6 +866,42 @@ describe('extension-hosted Kit registration lifecycle', () => {
     expect(await stopping).toBe(session)
     await vi.waitFor(() => expect(signals[0].aborted).toBe(true))
     expect(signals[0].reason).toMatchObject({ name: 'HookTimeoutError', code: 'hook-timeout' })
+  })
+
+  // A Host service that uses a plugin Kit stops before the Kit withdraws. Here its cleanup stops that plugin with its signal.
+  // The withdrawal of the Kit from that stop waits for the cleanup, so injeca resolves the withdraw at once with a `reentrant-call` record.
+  it('resolves the Kit withdraw of a provider stop from the cleanup of a consumer of that Kit', async () => {
+    const { host, time, records } = hostOnManualClock()
+    const session = await host.startExtension(defineExtension({
+      id: 'provider-reentrant',
+      setup(ctx) {
+        ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
+      },
+    }), { manifest: manifest('provider-reentrant') })
+    let innerStop: Promise<unknown> | undefined
+    const consumer = provide(host.container, 'host:consumer', {
+      dependsOn: { kit: kitProviderKey(contract.id, 'provider-reentrant') },
+      build: ({ on }) => {
+        on('stop', async ({ signal }) => {
+          await Promise.resolve()
+          innerStop = host.stop(session.id, { signal }).catch((error: unknown) => error)
+          await innerStop
+        })
+        return {}
+      },
+    })
+    await waitFor(host.container, 'host:consumer', { status: 'ready' })
+
+    const withdrawing = consumer.withdraw()
+    await vi.waitFor(() => expect(records).toHaveLength(1))
+    expect(records[0]).toMatchObject({ type: 'reentrant-call', call: 'withdraw', key: 'host:consumer' })
+
+    // TODO: The disposal of the plugin container after the withdraw still waits for this cleanup, because the cleanup is outside that container.
+    // injeca finds a re-entrant dispose() only in the subtree of the container. Remove the clock step when injeca also follows the held instances.
+    time.advance(1_000)
+    expect(await withdrawing).toBe(true)
+    expect(await innerStop).toMatchObject({ code: 'hook-timeout' })
+    await vi.waitFor(() => expect(session.phase).toBe('stopped'))
   })
 
   it('stops its own session with ctx.self.stop() after setup', async () => {
