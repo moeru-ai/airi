@@ -257,6 +257,12 @@ chat:
     rename-placeholder: 输入对话名称
     save-rename: 保存对话名称
     cancel-rename: 取消重命名
+    select: 选择对话
+    select-all: 全选
+    clear-selection: 取消全选
+    done-selecting: 完成
+    delete-selected: 删除 {count} 个对话
+    confirm-delete-selected: 确认删除 {count} 个对话
 avatar-model-missing:
   title: 还没有选择模型
   unavailable-title: 这台设备上没有这个模型
