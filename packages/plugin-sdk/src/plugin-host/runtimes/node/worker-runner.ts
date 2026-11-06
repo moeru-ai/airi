@@ -48,7 +48,7 @@ function guardEndpoint(endpoint: PluginEndpoint, ended: () => Error | undefined,
 
 function defaultWorkerUrl(): URL {
   // NOTICE:
-  // The worker needs a real entry file: `worker-entry.ts` in the source tree, `worker-entry.mjs` in a build.
+  // The worker needs a real entry file: `worker-entry.ts` in source, `worker-entry.mjs` in a build.
   // A bundler can move this module into a shared chunk, so this sibling path works only without bundling.
   // Source: packages/plugin-sdk/tsdown.config.ts emits the worker entry separately.
   // Remove this default when `@injeca/bridge` owns the worker entry.

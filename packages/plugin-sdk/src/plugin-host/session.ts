@@ -789,7 +789,7 @@ export class PluginSessionController implements HostPort {
    */
   async stop(signal?: AbortSignal): Promise<void> {
     this.stopping ??= Promise.resolve()
-    for (const check of [...this.settleChecks])
+    for (const check of this.settleChecks)
       check()
     const errors: unknown[] = []
     for (const registration of [...this.exportRegistrations.values()].reverse()) {

@@ -26,14 +26,9 @@ interface PluginHostDebugBridge {
 }
 
 export const usePluginHostInspectorStore = defineStore('devtools:plugin-host-debug', () => {
-  // Runtime bridge injected by the renderer host (Electron).
-  //
-  // Why this exists:
-  // - `stage-pages` is shared by web + desktop.
-  // - Plugin-host IPC only exists in desktop (stage-tamagotchi main process).
-  // - This store keeps UI code shared, and receives runtime-specific operations via `setBridge(...)`.
-  //
-  // In web/non-electron runtimes, bridge stays undefined and debug actions fail with a clear message.
+  // The renderer host (Electron) injects the runtime bridge with `setBridge(...)`.
+  // `stage-pages` is shared by web and desktop, but plugin-host IPC exists only in the desktop main process.
+  // Without a bridge, for example on the web, debug actions fail with a clear message.
   const bridge = ref<PluginHostDebugBridge>()
   const registry = ref<PluginRegistrySnapshot>()
   const sessions = ref<PluginHostSessionSummary[]>([])
@@ -73,17 +68,9 @@ export const usePluginHostInspectorStore = defineStore('devtools:plugin-host-deb
   }
 
   async function withBridge<T>(run: (activeBridge: PluginHostDebugBridge) => Promise<T>) {
-    // Single guard/flow wrapper for every debug action.
-    //
-    // What it does:
-    // 1) Runtime gate: blocks actions until bridge is registered.
-    // 2) Loading lifecycle: toggles `loading` in a centralized place.
-    // 3) Error normalization: stores user-facing error text for the debug page.
-    //
-    // Why debug store needs this:
-    // - Debug actions are async IPC calls and may fail for runtime/setup reasons.
-    // - A shared wrapper avoids duplicated try/catch/loading logic across each action.
-    // - It gives deterministic UI behavior (same errors/spinner semantics for all commands).
+    // The one wrapper of each debug action. It blocks the action until the bridge is registered,
+    // sets `loading`, and stores a user-facing error text for the debug page.
+    // So all debug actions, which are async IPC calls, have the same error and spinner behavior.
     if (!bridge.value) {
       const message = 'Plugin host debug bridge is not available in this runtime.'
       error.value = message
