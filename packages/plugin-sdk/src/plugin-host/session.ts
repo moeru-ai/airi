@@ -173,6 +173,29 @@ function satisfies(version: string, range: string): boolean {
   return semver.satisfies(version, range, { includePrerelease: true })
 }
 
+/**
+ * Member names that lead out of a Kit client into the objects of the Host realm.
+ * For example, `constructor.constructor` is `Function`, and `__proto__.__defineGetter__` changes `Object.prototype`.
+ */
+const realmMemberNames = new Set(['__proto__', 'constructor', 'prototype'])
+
+/**
+ * Reads one member of a Kit client for a call from the plugin side.
+ * A member that `Object.prototype` or `Function.prototype` gives, for example `bind` or `__defineSetter__`, is not part of a Kit, so it reads as missing.
+ *
+ * @example
+ * kitMemberOf({ hooks: { on } }, 'hooks') // => { on }
+ * kitMemberOf({ ping }, 'constructor') // => undefined
+ */
+function kitMemberOf(receiver: unknown, name: string): unknown {
+  if (receiver === null || (typeof receiver !== 'object' && typeof receiver !== 'function') || realmMemberNames.has(name))
+    return undefined
+  const member: unknown = Reflect.get(receiver, name)
+  if (member !== undefined && (member === Reflect.get(Object.prototype, name) || member === Reflect.get(Function.prototype, name)))
+    return undefined
+  return member
+}
+
 function errorsInto(errors: unknown[], message: string): void {
   if (errors.length === 1)
     throw errors[0]
@@ -965,8 +988,8 @@ export class PluginSessionController implements HostPort {
     const path = input.method.split('.')
     let receiver: unknown = selected.target
     for (const segment of path.slice(0, -1))
-      receiver = receiver === null || receiver === undefined ? undefined : Reflect.get(receiver as object, segment)
-    const method = receiver === null || receiver === undefined ? undefined : Reflect.get(receiver as object, path.at(-1)!)
+      receiver = kitMemberOf(receiver, segment)
+    const method = kitMemberOf(receiver, path.at(-1)!)
     if (typeof method !== 'function')
       throw new KitUnavailableError(input.kitId, 'not-ready', `The Kit has no method \`${input.method}\`.`)
     const target = receiver
