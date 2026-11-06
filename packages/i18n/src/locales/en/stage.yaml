@@ -251,6 +251,12 @@ chat:
     rename-placeholder: Enter a conversation name
     save-rename: Save conversation name
     cancel-rename: Cancel renaming
+    select: Select conversations
+    select-all: Select all
+    clear-selection: Clear selection
+    done-selecting: Done
+    delete-selected: Delete {count} conversation | Delete {count} conversations
+    confirm-delete-selected: Confirm deleting {count} conversation | Confirm deleting {count} conversations
 avatar-model-missing:
   title: No model selected
   unavailable-title: This model is not on this device
