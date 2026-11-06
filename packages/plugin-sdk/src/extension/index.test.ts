@@ -11,7 +11,7 @@ function createTestExtensionContext(register: ExtensionSetupContext['modules']['
     effect: vi.fn(),
     kits: { use: vi.fn(), tryUse: vi.fn(), watch: vi.fn(), provide: vi.fn(), find: vi.fn(), has: vi.fn(), get: vi.fn() },
     modules: { register, upsert: vi.fn() },
-    self: { rebuild: vi.fn() },
+    self: { rebuild: vi.fn(), stop: vi.fn() },
     extensions: { find: vi.fn() },
   }
 }
@@ -66,7 +66,7 @@ describe('defineExtension', () => {
         register: vi.fn(),
         upsert: vi.fn(),
       },
-      self: { rebuild: vi.fn() },
+      self: { rebuild: vi.fn(), stop: vi.fn() },
       extensions: { find: vi.fn() },
     })
 

@@ -173,6 +173,12 @@ export interface ExtensionSelf {
    * After setup, the old session serves until the new session runs. The worker does not restart.
    */
   rebuild: (options: { uses: readonly KitUse[] }) => RebuildDecision
+  /**
+   * Stops this session. The Host withdraws its Kits and runs its cleanup.
+   *
+   * From a cleanup of this session, it resolves at once, and the stop continues.
+   */
+  stop: () => Promise<void>
 }
 
 /** Reads the plugins that the plugin can see. */

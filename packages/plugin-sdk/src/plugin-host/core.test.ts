@@ -1,15 +1,15 @@
-import type { Clock } from 'injeca'
+import type { Clock, ObserveRecord } from 'injeca'
 
-import type { ExtensionModuleContext } from '../extension'
+import type { ExtensionModuleContext, ExtensionSelf } from '../extension'
 import type { ExtensionManifestV2, ModulePermissionDeclaration } from './shared/types'
 
 import { join } from 'node:path'
 
-import { createContainer } from 'injeca'
+import { createContainer, createNoopLogger, observe } from 'injeca'
 import { safeParse } from 'valibot'
 import { describe, expect, it, vi } from 'vitest'
 
-import { ExtensionHost, extensionManifestV2Schema, FileSystemLoader } from '.'
+import { ExtensionHost, extensionManifestV2Schema, FileSystemLoader, pluginNodeKeys } from '.'
 import { defineExtension } from '../extension'
 import { defineKit, defineKitContract, defineKitMethod } from '../kit'
 import { ExtensionHost as NodeExtensionHost } from './runtimes/node'
@@ -750,6 +750,68 @@ describe('extension-hosted Kit registration lifecycle', () => {
     // The abandoned cleanup goes on in the background after the timeout.
     await vi.waitFor(() => expect(remaining).toHaveBeenCalledTimes(1))
     expect(session.modules.size).toBe(0)
+    expect(host.listSessions()).toEqual([])
+  })
+
+  // `ctx.self.stop()` passes the signal of the cleanup of its round, so injeca finds the self-wait also after an `await`.
+  // The manual clock never moves, so the stop timeout cannot end this cleanup.
+  it('resolves ctx.self.stop() from a module cleanup at once while external stops share the outcome', async () => {
+    const time = manualClock()
+    const host = new NodeExtensionHost({ container: createContainer({ clock: time.clock, logger: createNoopLogger() }), timeouts: { stop: 1_000 } })
+    const reentrantCalls: ObserveRecord[] = []
+    observe(host.container, (record) => {
+      if (record.type === 'reentrant-call')
+        reentrantCalls.push(record)
+    })
+    const entered = Promise.withResolvers<void>()
+    const resume = Promise.withResolvers<void>()
+    const remaining = vi.fn()
+    let selfStopped = false
+    const session = await host.startExtension(defineExtension({
+      id: 'self-stop-signal',
+      async setup(ctx) {
+        ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
+        ctx.subscriptions.add({ dispose: remaining })
+        const module = await ctx.modules.register({ id: 'module-one' })
+        module.subscriptions.add({ dispose: async () => {
+          entered.resolve()
+          await resume.promise
+          await ctx.self.stop()
+          selfStopped = true
+        } })
+      },
+    }), { manifest: manifest('self-stop-signal') })
+
+    const stopping = host.stop(session.id)
+    await entered.promise
+    const stoppingAgain = host.stop(session.id)
+    resume.resolve()
+
+    expect(await stopping).toBe(session)
+    expect(await stoppingAgain).toBe(session)
+    expect(selfStopped).toBe(true)
+    expect(remaining).toHaveBeenCalledTimes(1)
+    expect(reentrantCalls).toHaveLength(1)
+    expect(reentrantCalls[0]).toMatchObject({ call: 'dispose', key: pluginNodeKeys.session, owner: { kind: 'plugin', pluginId: 'self-stop-signal', sessionId: session.id } })
+    expect(host.listSessions()).toEqual([])
+    expect(host.getKitProvider(contract.id)).toBeUndefined()
+  })
+
+  it('stops its own session with ctx.self.stop() after setup', async () => {
+    const host = new NodeExtensionHost()
+    const selves: ExtensionSelf[] = []
+    const remaining = vi.fn()
+    const session = await host.startExtension(defineExtension({
+      id: 'self-stop-running',
+      setup(ctx) {
+        selves.push(ctx.self)
+        ctx.subscriptions.add({ dispose: remaining })
+      },
+    }), { manifest: { ...manifest('self-stop-running'), kits: undefined } })
+
+    await selves[0].stop()
+    expect(remaining).toHaveBeenCalledTimes(1)
+    expect(session.phase).toBe('stopped')
     expect(host.listSessions()).toEqual([])
   })
 

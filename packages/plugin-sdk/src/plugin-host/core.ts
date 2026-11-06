@@ -85,6 +85,16 @@ export interface ExtensionHostBindingListOptions {
 }
 
 /** Options of `ExtensionHost.reload()`. */
+/** The options of `stop()`. */
+export interface ExtensionStopOptions {
+  /**
+   * The signal of the caller. Host code in an injeca cleanup of the session passes the signal of that cleanup.
+   * injeca then warns and resolves the call at once, and the stop continues. Without it, such a call waits until the stop timeout.
+   * When the signal aborts for another caller, the call stops waiting, and the stop continues.
+   */
+  signal?: AbortSignal
+}
+
 export interface ExtensionReloadOptions extends ExtensionStartOptions {
   /**
    * Starts the new session before the old session stops, so the consumers of its Kits move without a gap.
@@ -285,6 +295,9 @@ export class ExtensionHost {
       assertCompatible: (manifest, runtime) => this.assertManifestCompatibility(manifest, runtime),
       catalogFor: session => this.catalogFor(session),
       changed: () => this.scheduleCatalogPush(),
+      stopSession: async (sessionId, signal) => {
+        await this.stop(sessionId, { signal })
+      },
     }
     observe(this.container, (record) => {
       this.events.push(plainEvent(record))
@@ -457,16 +470,16 @@ export class ExtensionHost {
 
   /**
    * Withdraws the Kits of the session, then disposes its container. Concurrent external callers share the outcome.
-   * A cleanup that stops its own session after an `await` waits for itself, until the stop timeout ends that cleanup.
+   * A cleanup of the session that passes its `signal` resolves at once. Without a signal, it waits for itself after an `await`, until the stop timeout ends that cleanup.
    */
-  async stop(sessionId: string): Promise<ExtensionSession | undefined> {
+  async stop(sessionId: string, options: ExtensionStopOptions = {}): Promise<ExtensionSession | undefined> {
     const controller = this.sessions.get(sessionId)
     if (!controller) {
       return undefined
     }
 
     try {
-      await controller.stop()
+      await controller.stop(options.signal)
     }
     finally {
       if (controller.currentPhase() === 'stopped' && this.sessions.get(sessionId) === controller)

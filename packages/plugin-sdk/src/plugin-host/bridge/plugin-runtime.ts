@@ -322,6 +322,8 @@ export class PluginRuntime implements PluginEndpoint {
       },
       self: {
         rebuild: options => this.requestRebuild(round, options.uses),
+        // A cleanup of the round can stop the session, so this call does not check that the round is active.
+        stop: () => this.host.stopSession({ round: round.id }),
       },
       extensions: {
         find: id => this.catalog.extensions.find(extension => extension.id === id),

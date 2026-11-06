@@ -107,6 +107,8 @@ export interface HostPort {
   registerScope: (input: { round: string, moduleId: string, permissions?: ModulePermissionDeclaration, labels?: Record<string, string> }) => Promise<{ scope: string, permissions: ModulePermissionGrant }>
   /** Disposes one module scope and the Host resources that it owns. */
   disposeScope: (input: { round: string, scope: string }) => Promise<void>
+  /** Stops the session. A call from the cleanup of `round` resolves at once, and the stop continues. */
+  stopSession: (input: { round: string }) => Promise<void>
 }
 
 /** The calls from the Host to the plugin side. */

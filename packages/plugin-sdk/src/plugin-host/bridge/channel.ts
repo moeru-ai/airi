@@ -39,6 +39,7 @@ export const hostPortMethods = [
   'upsertModule',
   'registerScope',
   'disposeScope',
+  'stopSession',
 ] as const satisfies readonly (keyof HostPort)[]
 
 /** The methods of the plugin endpoint that the Host calls. */

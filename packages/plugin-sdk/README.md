@@ -67,7 +67,7 @@ Stop disposes the session container. It aborts a setup that is in progress and d
 
 Stop withdraws the provided Kits first, so consumers stop or move before the cleanup callbacks run. Cleanup attempts every module and root subscription even when a disposer fails. One failure keeps its identity. More failures use `AggregateError`. Concurrent stops share one result.
 
-A cleanup that stops or reloads its own session after an `await` waits for itself. The configured stop timeout ends that cleanup, and each caller gets the timeout error.
+A cleanup that stops its own session passes its signal. `ctx.self.stop()` passes the signal of the cleanup of its round automatically. Host code in an injeca cleanup of the session calls `host.stop(id, { signal })`. injeca then warns, sends a `reentrant-call` record, and resolves the call at once. The stop continues. A call after an `await` without a signal waits for itself, until the configured stop timeout ends that cleanup. Each caller then gets the timeout error.
 
 Only root setup can provide a Kit. Module scopes can consume Kits, but they cannot provide one.
 
@@ -118,6 +118,7 @@ export default defineExtension({
 
 - `has`, `get`, and `find` are synchronous. The Host resolves the dependencies before setup starts.
 - `ctx.self.rebuild({ uses })` replaces the dynamic dependencies. During setup, the current round ends. After setup, the old round serves until the new one runs. After 5 rebuilds in a row that add Kits, the session fails.
+- `ctx.self.stop()` stops the session. From a cleanup of the session, it resolves at once, and the stop continues.
 - Setup must be safe to run again. Register side effects with `ctx.effect()` or `ctx.subscriptions`.
 - A Kit that is not in `kits.uses` needs an API grant, or `permissions.kits.dynamic` with an optional `allow` list. The Host asks `kitGrantPolicy` once and stores the answer. The check runs when the per-consumer client builds.
 

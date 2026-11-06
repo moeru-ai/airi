@@ -115,6 +115,8 @@ export interface SessionHost {
   readonly assertCompatible: (manifest: ExtensionManifestV2, runtime: PluginRuntime) => void
   readonly catalogFor: (session: PluginSessionController) => CatalogSnapshot
   readonly changed: () => void
+  /** Stops one session through the Host, so that the session map and the catalog follow. */
+  readonly stopSession: (sessionId: string, signal: AbortSignal | undefined) => Promise<void>
 }
 
 /** The input of one session. */
@@ -146,6 +148,8 @@ interface HostRound {
   ended?: string
   failure?: unknown
   cleaned?: Promise<void>
+  /** The signal of the stop hook of the round, while the cleanup runs. `ctx.self.stop()` passes it, so injeca knows the caller. */
+  cleanupSignal?: AbortSignal
 }
 
 interface ScopeRecord {
@@ -387,7 +391,8 @@ export class PluginSessionController implements HostPort {
     })
 
     on('start', ({ signal, decide }) => this.runSetup(round, runtime, signal, decide))
-    on('stop', async () => {
+    on('stop', async ({ signal }) => {
+      round.cleanupSignal = signal
       await this.cleanupRound(round, runtime)
     })
     on('dependency-change', ({ dependsOn: current, decide }) => {
@@ -778,8 +783,11 @@ export class PluginSessionController implements HostPort {
     })
   }
 
-  /** Withdraws the provided Kits, then disposes the container. Each step runs even when an earlier one fails. */
-  async stop(): Promise<void> {
+  /**
+   * Withdraws the provided Kits, then disposes the container. Each step runs even when an earlier one fails.
+   * `signal` is the signal of the caller. A cleanup of this session passes its own signal, so the disposal does not wait for that cleanup.
+   */
+  async stop(signal?: AbortSignal): Promise<void> {
     this.stopping ??= Promise.resolve()
     for (const check of [...this.settleChecks])
       check()
@@ -793,7 +801,7 @@ export class PluginSessionController implements HostPort {
       }
     }
     try {
-      await dispose(this.container)
+      await dispose(this.container, { signal })
     }
     catch (error) {
       errors.push(error)
@@ -1207,6 +1215,15 @@ export class PluginSessionController implements HostPort {
       if (record.pending === controller)
         record.pending = undefined
     }
+  }
+
+  /**
+   * Stops the session for `ctx.self.stop()`.
+   * A call from the cleanup of a round passes the signal of that cleanup. injeca then resolves it at once, and the stop continues.
+   * A round that already ended still stops the session, without a signal.
+   */
+  async stopSession(input: { round: string }): Promise<void> {
+    await this.host.stopSession(this.sessionId, this.rounds.get(input.round)?.cleanupSignal)
   }
 
   async registerScope(input: { round: string, moduleId: string, permissions?: ModulePermissionDeclaration, labels?: Record<string, string> }): Promise<{ scope: string, permissions: ModulePermissionGrant }> {
