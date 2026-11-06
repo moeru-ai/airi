@@ -67,7 +67,20 @@ Stop disposes the session container. It aborts a setup that is in progress and d
 
 Stop withdraws the provided Kits first, so consumers stop or move before the cleanup callbacks run. Cleanup attempts every module and root subscription even when a disposer fails. One failure keeps its identity. More failures use `AggregateError`. Concurrent stops share one result.
 
-A cleanup that stops its own session passes its signal. `ctx.self.stop()` passes the signal of the cleanup of its round automatically. Host code in an injeca cleanup of the session calls `host.stop(id, { signal })`. injeca then warns, sends a `reentrant-call` record, and resolves the call at once. The stop continues. A call after an `await` without a signal waits for itself, until the configured stop timeout ends that cleanup. Each caller then gets the timeout error.
+Each cleanup that the Host runs gets `{ signal }`: a `subscriptions.add({ dispose })` callback, a module `dispose`, and an `effect` cleanup. The signal aborts when the stop timeout passes.
+
+```ts
+ctx.subscriptions.add({
+  dispose: async ({ signal } = {}) => {
+    await flush()
+    await ctx.self.stop({ signal }) // resolves at once, and the stop continues
+  },
+})
+```
+
+A cleanup that stops its own session passes its signal. Plugin code calls `ctx.self.stop({ signal })`. Host code in an injeca cleanup calls `host.stop(id, { signal })`. injeca then warns, sends a `reentrant-call` record, and resolves the call at once. The stop continues. The Kit withdraw of the stop also gets the signal.
+
+A call after an `await` without the signal waits for its own cleanup. The configured stop timeout ends that wait. injeca then writes a warning and sends a `timeout` record, and each caller resolves. The cleanup goes on in the background. The Host keeps the injeca warnings, and turns off the other injeca logs.
 
 Only root setup can provide a Kit. Module scopes can consume Kits, but they cannot provide one.
 
@@ -118,7 +131,7 @@ export default defineExtension({
 
 - `has`, `get`, and `find` are synchronous. The Host resolves the dependencies before setup starts.
 - `ctx.self.rebuild({ uses })` replaces the dynamic dependencies. During setup, the current round ends. After setup, the old round serves until the new one runs. After 5 rebuilds in a row that add Kits, the session fails.
-- `ctx.self.stop()` stops the session. From a cleanup of the session, it resolves at once, and the stop continues.
+- `ctx.self.stop({ signal })` stops the session. From a cleanup of the session, pass the `signal` of the cleanup. Then the call resolves at once, and the stop continues.
 - Setup must be safe to run again. Register side effects with `ctx.effect()` or `ctx.subscriptions`.
 - A Kit that is not in `kits.uses` needs an API grant, or `permissions.kits.dynamic` with an optional `allow` list. The Host asks `kitGrantPolicy` once and stores the answer. The check runs when the per-consumer client builds.
 
@@ -127,7 +140,8 @@ export default defineExtension({
 `createDirectRunner()` runs plugin code in the Host thread. It is the default. `createWorkerRunner()` from the Node entry runs each plugin in a `worker_threads` Worker and talks to it over an eventa channel. The bridge is a first version. It moves to `@injeca/bridge` later.
 
 - The Host calls `startRound`, `abortRound`, `stopRound`, `startModule`, and `invokeProvider` (with the caller identity that the Host injects).
-- The plugin calls `provide` (announce), `setStatus` (from `handle.setStatus()` of a provided Kit), `callKit`, `useKit`, `rebuild`, and `upsertModule`.
+- The plugin calls `provide` (announce), `setStatus` (from `handle.setStatus()` of a provided Kit), `callKit`, `useKit`, `rebuild`, `upsertModule`, and `stopSession`.
+- A signal cannot cross the worker boundary. `stopRound` and `stopModule` carry a cleanup run id. The plugin side makes a signal for the id, and `ctx.self.stop({ signal })` sends the id back. `abortCleanup` aborts that signal when the Host signal aborts.
 - A function in an argument or a result crosses as a callback, for example a harness hook listener. `callback.release` removes it.
 - A worker exit sets the `runtime` node to `unavailable`, so the Kits of the plugin are `unavailable`, and selections move to the next provider.
 

@@ -157,7 +157,7 @@ Rules for a rebuild:
 
 - A plugin whose required Kit is missing installs and waits in `pending`. Today the Planner rejects it. The plugin page shows the explanation.
 - An unload does not wait for a setup that does not settle. injeca 0.3.1 stops at once after it aborts the start hook.
-- A cleanup that stops its own plugin passes its signal. injeca then warns and resolves the call at once, and the stop continues. A call after an `await` without a signal ends with the stop timeout.
+- A cleanup that stops its own plugin passes its signal. injeca then warns and resolves the call at once, and the stop continues. A call after an `await` without a signal waits until the stop timeout. Then injeca warns, and each caller resolves.
 
 ## Implementation
 
@@ -192,6 +192,7 @@ The branch `neko/refactor/plugin-sdk-injeca` builds this design on the local inj
 - `createDirectRunner()` runs the plugin in the Host thread. The Electron host uses it, because its Host Kits pass objects that cannot cross a worker boundary.
 - `createWorkerRunner()` runs each plugin in a `worker_threads` Worker. The first bridge is in plugin-sdk (`plugin-host/bridge/channel.ts`). Each port method is one eventa invoke. Functions cross as callbacks, and errors cross with their class and fields.
 - A worker exit sets `runtime` to `unavailable`. Cleanup calls to an ended worker resolve, and other calls reject.
+- A signal cannot cross the worker boundary. The Host gives each plugin cleanup run an id with `stopRound` and `stopModule`, and keeps the injeca hook signal under that id. The plugin side gives the callbacks of the run a signal for the id. `ctx.self.stop({ signal })` sends the id back, and the Host passes the hook signal to injeca. `abortCleanup` aborts the plugin signal when the hook signal aborts.
 
 ### Harness hooks
 
@@ -202,20 +203,26 @@ The branch `neko/refactor/plugin-sdk-injeca` builds this design on the local inj
 - A plugin whose required Kit is missing installs and waits in `pending`. The Electron host no longer rejects the enablement or the unload of a provider.
 - Two providers of one Kit do not conflict. A Host Kit id in `provides` is a second provider.
 - An unload does not wait for a setup that does not settle. `start` rejects with `stopped before setup completed`.
-- A cleanup that stops its own session passes its signal. `ctx.self.stop()` passes the signal of the cleanup of its round, and Host code calls `host.stop(id, { signal })`. injeca then warns, sends a `reentrant-call` record, and resolves the call at once. The stop continues.
-- A cleanup that calls `host.stop(id)` or `host.reload(id)` without a signal after an `await` waits for itself. The stop timeout ends that cleanup, and each caller gets the timeout error. No Host has an async context.
+- Each plugin cleanup gets `{ signal }`. A cleanup that stops its own session passes it: `ctx.self.stop({ signal })` in plugin code, `host.stop(id, { signal })` in Host code. injeca then warns, sends a `reentrant-call` record, and resolves the call at once. The stop continues. The Kit withdraws of a stop get the same signal.
+- A cleanup that calls `ctx.self.stop()`, `host.stop(id)`, or `host.reload(id)` without its signal after an `await` waits for itself. The stop timeout ends that wait with a warning and a `timeout` record, and each caller resolves. No Host has an async context, and no Host finds the caller by its round.
+- The Host container keeps the injeca warnings and turns off the other injeca logs.
 - Each wait on injeca passes a signal from `timeout(container, ms)`. The plugin API keeps `timeoutMs` as a number.
 - `ctx.kits.use()` of a Kit that is not a dependency rebuilds the session, so setup runs again.
 
 ### injeca gaps found
 
-The build found five gaps in injeca. injeca fixed all of them before release, so plugin-sdk has no workaround for them:
+The build found these gaps in injeca. injeca fixed them before release, so plugin-sdk has no workaround for them:
 
 - A `perConsumer` service resolves its dependencies from its registration container, also for an export.
 - `where()` accepts `firstAvailable()`, and `explain()` names each rejected candidate.
 - A rebuild of a running service is make-before-break. Its dependents get `dependency-change`, not a withdrawal.
 - An optional or fallback edge demands the consumer service of a `perConsumer` key that registers later.
 - `explain()` has `replacement` for a pending `replace()`.
+
+These gaps are open:
+
+- `enabled: false` turns off all logs, also `warn`. The Host uses a no-op logger with a real `warn`, with a `NOTICE`.
+- injeca finds a re-entrant `dispose()` only when the caller is in the subtree of the container. A Host service that uses a plugin Kit and stops that plugin from its cleanup gets a re-entrant Kit withdraw. The disposal after it still waits until the stop timeout.
 
 An upsert timeout still explains the Kit selections of the module, not `replacement`. The upsert resolves the Kits before `replace()`, so the old module stays after a timeout. `replace()` gets the abort signal of the upsert, so a newer upsert cancels a pending replacement.
 
