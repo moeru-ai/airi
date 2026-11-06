@@ -193,12 +193,23 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
 const beatSyncStiffness = 120 // Higher -> Snappier
 const beatSyncDamping = 16 // Higher -> Less bounce
 const beatSyncMass = 1
+// Explicit damping diverges at long frames (a 0.1 s frame overshoots more on each step),
+// so bound the frame and integrate in short steps, as `createLive2DMotionSpring` does.
+const beatSyncMaximumFrameSeconds = 0.05
+const beatSyncMaximumStepSeconds = 1 / 120
 
 /** Moves `position` one frame toward `target`, and returns the new position. */
 function stepBeatSyncSpring(position: number, target: number, velocity: Ref<number>, timeDelta: number) {
-  const accel = (beatSyncStiffness * (target - position) - beatSyncDamping * velocity.value) / beatSyncMass
-  velocity.value = velocity.value + accel * timeDelta
-  const next = position + velocity.value * timeDelta
+  const frameSeconds = Math.min(Math.max(timeDelta, 0), beatSyncMaximumFrameSeconds)
+  const stepCount = Math.max(1, Math.ceil(frameSeconds / beatSyncMaximumStepSeconds))
+  const stepSeconds = frameSeconds / stepCount
+
+  let next = position
+  for (let step = 0; step < stepCount; step += 1) {
+    const accel = (beatSyncStiffness * (target - next) - beatSyncDamping * velocity.value) / beatSyncMass
+    velocity.value = velocity.value + accel * stepSeconds
+    next = next + velocity.value * stepSeconds
+  }
 
   // Snap
   if (Math.abs(target - next) < 0.01 && Math.abs(velocity.value) < 0.01) {

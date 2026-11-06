@@ -440,6 +440,20 @@ describe('beat sync plugins', () => {
     expect(withBeat.angleZ - withoutBeat.angleZ).toBeCloseTo(10, 0)
   })
 
+  it('settles instead of swinging wider when frames are long', () => {
+    const { clock, controller } = createBeatingController()
+    const context = createContext({ timeDelta: 0.1 })
+    const plugin = useMotionUpdatePluginBeatSync(controller)
+
+    // 100 ms frames, as Pixi gives at its lowest frame rate. The release starts 1.8 s after the beat.
+    for (let frame = 0; frame < 15; frame += 1) {
+      clock.ms += 100
+      plugin(context)
+    }
+
+    expect(context.model.getParameterValueById('ParamAngleY')).toBeCloseTo(-10, 0)
+  })
+
   it('leaves the head to the pre-phase plugin when no pose is layered', () => {
     const { controller } = createBeatingController()
     const context = createContext({ timeDelta: frameSeconds })
