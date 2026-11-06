@@ -869,9 +869,9 @@ describe('extension-hosted Kit registration lifecycle', () => {
   })
 
   // A Host service that uses a plugin Kit stops before the Kit withdraws. Here its cleanup stops that plugin with its signal.
-  // The withdrawal of the Kit from that stop waits for the cleanup, so injeca resolves the withdraw at once with a `reentrant-call` record.
+  // The Kit withdraw and the disposal of the plugin container wait for that cleanup. injeca resolves each one at once with a `reentrant-call` record.
   it('resolves the Kit withdraw of a provider stop from the cleanup of a consumer of that Kit', async () => {
-    const { host, time, records } = hostOnManualClock()
+    const { host, records } = hostOnManualClock()
     const session = await host.startExtension(defineExtension({
       id: 'provider-reentrant',
       setup(ctx) {
@@ -892,16 +892,13 @@ describe('extension-hosted Kit registration lifecycle', () => {
     })
     await waitFor(host.container, 'host:consumer', { status: 'ready' })
 
-    const withdrawing = consumer.withdraw()
-    await vi.waitFor(() => expect(records).toHaveLength(1))
-    expect(records[0]).toMatchObject({ type: 'reentrant-call', call: 'withdraw', key: 'host:consumer' })
-
-    // TODO: The disposal of the plugin container after the withdraw still waits for this cleanup, because the cleanup is outside that container.
-    // injeca finds a re-entrant dispose() only in the subtree of the container. Remove the clock step when injeca also follows the held instances.
-    time.advance(1_000)
-    expect(await withdrawing).toBe(true)
-    expect(await innerStop).toMatchObject({ code: 'hook-timeout' })
-    await vi.waitFor(() => expect(session.phase).toBe('stopped'))
+    expect(await consumer.withdraw()).toBe(true)
+    expect(await innerStop).toBe(session)
+    expect(session.phase).toBe('stopped')
+    expect(records).toEqual([
+      expect.objectContaining({ type: 'reentrant-call', call: 'withdraw', key: 'host:consumer' }),
+      expect.objectContaining({ type: 'reentrant-call', call: 'dispose', key: 'host:consumer' }),
+    ])
   })
 
   it('stops its own session with ctx.self.stop() after setup', async () => {

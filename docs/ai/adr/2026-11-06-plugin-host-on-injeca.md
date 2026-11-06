@@ -218,11 +218,11 @@ The build found these gaps in injeca. injeca fixed them before release, so plugi
 - A rebuild of a running service is make-before-break. Its dependents get `dependency-change`, not a withdrawal.
 - An optional or fallback edge demands the consumer service of a `perConsumer` key that registers later.
 - `explain()` has `replacement` for a pending `replace()`.
+- A re-entrant `dispose()` or `stop()` from the cleanup of a service that holds a service of the container resolves at once. So a Host service that uses a plugin Kit can stop that plugin from its cleanup.
 
-These gaps are open:
+This gap is open:
 
 - `enabled: false` turns off all logs, also `warn`. The Host uses a no-op logger with a real `warn`, with a `NOTICE`.
-- injeca finds a re-entrant `dispose()` only when the caller is in the subtree of the container. A Host service that uses a plugin Kit and stops that plugin from its cleanup gets a re-entrant Kit withdraw. The disposal after it still waits until the stop timeout.
 
 An upsert timeout still explains the Kit selections of the module, not `replacement`. The upsert resolves the Kits before `replace()`, so the old module stays after a timeout. `replace()` gets the abort signal of the upsert, so a newer upsert cancels a pending replacement.
 
