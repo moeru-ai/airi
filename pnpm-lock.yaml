@@ -409,17 +409,17 @@ catalogs:
       specifier: ^0.6.0
       version: 0.6.0
     '@proj-airi/font-chillroundm':
-      specifier: ^0.15.1
-      version: 0.15.1
+      specifier: ^0.17.0
+      version: 0.17.0
     '@proj-airi/font-cjkfonts-allseto':
-      specifier: ^0.15.1
-      version: 0.15.1
+      specifier: ^0.17.0
+      version: 0.17.0
     '@proj-airi/font-departure-mono':
-      specifier: ^0.15.1
-      version: 0.15.1
+      specifier: ^0.17.0
+      version: 0.17.0
     '@proj-airi/font-xiaolai':
-      specifier: ^0.15.1
-      version: 0.15.1
+      specifier: ^0.17.0
+      version: 0.17.0
     '@proj-airi/iconify-meteocons':
       specifier: ^0.1.5
       version: 0.1.5
@@ -1558,13 +1558,13 @@ importers:
         version: 0.6.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9))(web-worker@1.5.0)
       '@proj-airi/font-chillroundm':
         specifier: 'catalog:'
-        version: 0.15.1
+        version: 0.17.0
       '@proj-airi/font-cjkfonts-allseto':
         specifier: 'catalog:'
-        version: 0.15.1
+        version: 0.17.0
       '@proj-airi/font-xiaolai':
         specifier: 'catalog:'
-        version: 0.15.1
+        version: 0.17.0
       '@proj-airi/i18n':
         specifier: workspace:^
         version: link:../../packages/i18n
@@ -2067,13 +2067,13 @@ importers:
         version: link:../../packages/electron-vueuse
       '@proj-airi/font-chillroundm':
         specifier: 'catalog:'
-        version: 0.15.1
+        version: 0.17.0
       '@proj-airi/font-cjkfonts-allseto':
         specifier: 'catalog:'
-        version: 0.15.1
+        version: 0.17.0
       '@proj-airi/font-xiaolai':
         specifier: 'catalog:'
-        version: 0.15.1
+        version: 0.17.0
       '@proj-airi/i18n':
         specifier: workspace:^
         version: link:../../packages/i18n
@@ -2557,13 +2557,13 @@ importers:
         version: 0.6.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9))(web-worker@1.5.0)
       '@proj-airi/font-chillroundm':
         specifier: 'catalog:'
-        version: 0.15.1
+        version: 0.17.0
       '@proj-airi/font-cjkfonts-allseto':
         specifier: 'catalog:'
-        version: 0.15.1
+        version: 0.17.0
       '@proj-airi/font-xiaolai':
         specifier: 'catalog:'
-        version: 0.15.1
+        version: 0.17.0
       '@proj-airi/i18n':
         specifier: workspace:^
         version: link:../../packages/i18n
@@ -3002,13 +3002,13 @@ importers:
         version: 0.6.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9))(web-worker@1.5.0)
       '@proj-airi/font-chillroundm':
         specifier: 'catalog:'
-        version: 0.15.1
+        version: 0.17.0
       '@proj-airi/font-cjkfonts-allseto':
         specifier: 'catalog:'
-        version: 0.15.1
+        version: 0.17.0
       '@proj-airi/font-xiaolai':
         specifier: 'catalog:'
-        version: 0.15.1
+        version: 0.17.0
       '@proj-airi/i18n':
         specifier: workspace:^
         version: link:../../packages/i18n
@@ -3372,13 +3372,13 @@ importers:
         version: 1.4.1
       '@proj-airi/font-chillroundm':
         specifier: 'catalog:'
-        version: 0.15.1
+        version: 0.17.0
       '@proj-airi/font-cjkfonts-allseto':
         specifier: 'catalog:'
-        version: 0.15.1
+        version: 0.17.0
       '@proj-airi/font-xiaolai':
         specifier: 'catalog:'
-        version: 0.15.1
+        version: 0.17.0
       '@proj-airi/i18n':
         specifier: workspace:^
         version: link:../../packages/i18n
@@ -5102,13 +5102,13 @@ importers:
         version: 0.6.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9))(web-worker@1.5.0)
       '@proj-airi/font-chillroundm':
         specifier: 'catalog:'
-        version: 0.15.1
+        version: 0.17.0
       '@proj-airi/font-cjkfonts-allseto':
         specifier: 'catalog:'
-        version: 0.15.1
+        version: 0.17.0
       '@proj-airi/font-xiaolai':
         specifier: 'catalog:'
-        version: 0.15.1
+        version: 0.17.0
       '@proj-airi/i18n':
         specifier: workspace:^
         version: link:../i18n
@@ -6009,7 +6009,7 @@ importers:
         version: 0.1.0-beta.17
       '@proj-airi/font-departure-mono':
         specifier: 'catalog:'
-        version: 0.15.1
+        version: 0.17.0
       '@proj-airi/ui':
         specifier: workspace:^
         version: link:../ui
@@ -6200,13 +6200,13 @@ importers:
     dependencies:
       '@proj-airi/font-cjkfonts-allseto':
         specifier: 'catalog:'
-        version: 0.15.1
+        version: 0.17.0
       '@proj-airi/font-departure-mono':
         specifier: 'catalog:'
-        version: 0.15.1
+        version: 0.17.0
       '@proj-airi/font-xiaolai':
         specifier: 'catalog:'
-        version: 0.15.1
+        version: 0.17.0
       '@unocss/core':
         specifier: '>=66'
         version: 66.8.1
@@ -11888,17 +11888,17 @@ packages:
       web-worker:
         optional: true
 
-  '@proj-airi/font-chillroundm@0.15.1':
-    resolution: {integrity: sha512-He8p3weQxryzV7WG1fv1O2UyRHTFxx7niWeBvH+vNp5/SR+/y4vqDDespOI0oD0QLxDXBV9ARibkga71IJCjRw==}
+  '@proj-airi/font-chillroundm@0.17.0':
+    resolution: {integrity: sha512-rK62wmovHF73fri5r8W9LuER1h/I4YP6UPnwUaqh43rQQX0VMi5itkh9aCoDVfqFmO/RlgCXLRqE120rKUfdjQ==}
 
-  '@proj-airi/font-cjkfonts-allseto@0.15.1':
-    resolution: {integrity: sha512-On4alyWbD+bJn5qTMEsuOLNVJvQFhq+5YgOzkwKProxvmX/pwU74RL5hX7cNsb5H1PxVSTd/ogUurC214AExjw==}
+  '@proj-airi/font-cjkfonts-allseto@0.17.0':
+    resolution: {integrity: sha512-aFYvSdzdoEyZPgzha4AT4WGZyNUSef4ZZXL7fOfjdhLwTtbikVcKA7kK96cDjvkuMURO1TFYWUw3bC0vLzEz2Q==}
 
-  '@proj-airi/font-departure-mono@0.15.1':
-    resolution: {integrity: sha512-91VDfG1R83kohz2CGS7N45IPjUsW5ms88uDHmcZ26kXOhl07D2tJJbWHtFsdk/joTfO1MHACkbUAddzd8V1NOw==}
+  '@proj-airi/font-departure-mono@0.17.0':
+    resolution: {integrity: sha512-AkFtw/X+RlV4zlXDyletmQpeuhKJHYNA1W3zyTYL4/eth6BYCQhFGymkD651rdOq9sz0O1ywX8jiCfyO+Rxi3g==}
 
-  '@proj-airi/font-xiaolai@0.15.1':
-    resolution: {integrity: sha512-cpnT3kNQHKDCuidBHHFlH46IT1MYjfOvjfhgTaOMkOs8otnr3TI9SknmPnnAawbnZv4jxRGd9SO7X+VXgImXQw==}
+  '@proj-airi/font-xiaolai@0.17.0':
+    resolution: {integrity: sha512-WcG1NgAufYStmUtpl5vjYleXrGkWOO3oJ7148rTONa68d1jR4eLxHpA/quyRqyjgD4ZdQX6xd2/G/3RC4RMuPQ==}
 
   '@proj-airi/iconify-meteocons@0.1.5':
     resolution: {integrity: sha512-TqhG2K3kRrg4Y7IyjcQV+ik0oMVYdOubr72wejVIk1s+dJTIw3lSu6Z+C30GEIS/XvsywkH4EnJosBUVPLqv5Q==}
@@ -26883,13 +26883,13 @@ snapshots:
     optionalDependencies:
       web-worker: 1.5.0
 
-  '@proj-airi/font-chillroundm@0.15.1': {}
+  '@proj-airi/font-chillroundm@0.17.0': {}
 
-  '@proj-airi/font-cjkfonts-allseto@0.15.1': {}
+  '@proj-airi/font-cjkfonts-allseto@0.17.0': {}
 
-  '@proj-airi/font-departure-mono@0.15.1': {}
+  '@proj-airi/font-departure-mono@0.17.0': {}
 
-  '@proj-airi/font-xiaolai@0.15.1': {}
+  '@proj-airi/font-xiaolai@0.17.0': {}
 
   '@proj-airi/iconify-meteocons@0.1.5':
     dependencies:

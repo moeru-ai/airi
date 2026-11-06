@@ -207,10 +207,10 @@ catalog:
   '@pnpm/find-workspace-dir': ^1000.1.5
   '@proj-airi/chromatic': ^2.0.1
   '@proj-airi/drizzle-duckdb-wasm': ^0.6.0
-  '@proj-airi/font-chillroundm': ^0.15.1
-  '@proj-airi/font-cjkfonts-allseto': ^0.15.1
-  '@proj-airi/font-departure-mono': ^0.15.1
-  '@proj-airi/font-xiaolai': ^0.15.1
+  '@proj-airi/font-chillroundm': ^0.17.0
+  '@proj-airi/font-cjkfonts-allseto': ^0.17.0
+  '@proj-airi/font-departure-mono': ^0.17.0
+  '@proj-airi/font-xiaolai': ^0.17.0
   '@proj-airi/iconify-meteocons': ^0.1.5
   '@proj-airi/lobe-icons': ^1.0.19
   '@proj-airi/unocss-preset-chromatic': ^2.0.1
