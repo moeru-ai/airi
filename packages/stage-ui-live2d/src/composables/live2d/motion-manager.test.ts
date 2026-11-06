@@ -495,6 +495,28 @@ describe('beat sync plugins', () => {
     expect(context.model.addParameterValueById).toHaveBeenCalledWith('ParamAngleY', expect.closeTo(-10, 0))
   })
 
+  it('hands a settled velocity back when a pose ends', () => {
+    const { clock, controller } = createBeatingController()
+    const context = createContext({ timeDelta: frameSeconds })
+    let poseActive = false
+    const plugins = useMotionUpdatePluginsBeatSync(controller, () => poseActive)
+    const runFrames = (count: number) => {
+      for (let frame = 0; frame < count; frame += 1) {
+        clock.ms += frameSeconds * 1000
+        plugins.pre(context)
+        plugins.layer(context)
+      }
+    }
+
+    // The head swings toward the left side, then a pose holds it while the beat settles there.
+    runFrames(6)
+    expect(Math.abs(controller.velocityY.value)).toBeGreaterThan(1)
+    poseActive = true
+    runFrames(60)
+
+    expect(controller.velocityY.value).toBeCloseTo(0, 1)
+  })
+
   it('keeps the owner of the frame when the pose starts in the middle of it', () => {
     const { controller } = createBeatingController()
     const context = createContext({ timeDelta: frameSeconds })

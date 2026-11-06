@@ -247,8 +247,13 @@ export function useMotionUpdatePluginsBeatSync(beatSync: BeatSyncController, isL
     offset.y = stepBeatSyncSpring(offset.y, targetOffset.y, offsetVelocity.y, ctx.timeDelta)
     offset.z = stepBeatSyncSpring(offset.z, targetOffset.z, offsetVelocity.z, ctx.timeDelta)
 
-    if (layered)
+    if (layered) {
+      // Keep the absolute spring moving with the beat, so the head does not kick when the pose ends.
+      beatSync.velocityX.value = 0
+      beatSync.velocityY.value = offsetVelocity.y.value
+      beatSync.velocityZ.value = offsetVelocity.z.value
       return
+    }
 
     const paramAngleX = stepBeatSyncSpring(ctx.model.getParameterValueById('ParamAngleX') as number, beatSync.targetX.value, beatSync.velocityX, ctx.timeDelta)
     const paramAngleY = stepBeatSyncSpring(ctx.model.getParameterValueById('ParamAngleY') as number, beatSync.targetY.value, beatSync.velocityY, ctx.timeDelta)
