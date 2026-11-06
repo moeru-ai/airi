@@ -1261,11 +1261,11 @@ catalogs:
       version: 0.1.16
 
 overrides:
-  injeca: file:../../../injeca/.worktrees/exports/packages/injeca
   '@huggingface/transformers>onnxruntime-web': ^1.27.0
   array-flatten: npm:@nolyfill/array-flatten@^1.0.44
   axios: npm:feaxios@^0.0.23
   eslint-plugin-sonarjs>typescript: ^6.0.3
+  injeca: file:../../../injeca/.worktrees/signals/packages/injeca
   is-core-module: npm:@nolyfill/is-core-module@^1.0.39
   isarray: npm:@nolyfill/isarray@^1.0.44
   micromark-extension-math>katex: 0.19.0
@@ -2298,8 +2298,8 @@ importers:
         specifier: 'catalog:'
         version: 2.0.1-rc.29(crossws@0.4.12(srvx@1.0.8))
       injeca:
-        specifier: file:../../../../../injeca/.worktrees/exports/packages/injeca
-        version: file:../../../injeca/.worktrees/exports/packages/injeca(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        specifier: file:../../../../../injeca/.worktrees/signals/packages/injeca
+        version: file:../../../injeca/.worktrees/signals/packages/injeca(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
       jszip:
         specifier: 'catalog:'
         version: 3.10.1
@@ -2695,7 +2695,7 @@ importers:
         specifier: 'catalog:'
         version: 1.51.0
       injeca:
-        specifier: file:../../../../../injeca/.worktrees/exports/packages/injeca
+        specifier: file:../../../../../injeca/.worktrees/signals/packages/injeca
         version: link:../../../../../injeca/.worktrees/exports/packages/injeca
       jszip:
         specifier: 'catalog:'
@@ -3705,7 +3705,7 @@ importers:
         specifier: 'catalog:'
         version: 5.0.4
       injeca:
-        specifier: file:../../../../../injeca/.worktrees/exports/packages/injeca
+        specifier: file:../../../../../injeca/.worktrees/signals/packages/injeca
         version: link:../../../../../injeca/.worktrees/exports/packages/injeca
       isolated-vm:
         specifier: 'catalog:'
@@ -3987,8 +3987,8 @@ importers:
         specifier: 'catalog:'
         version: 1.51.0
       injeca:
-        specifier: file:../../../../../../injeca/.worktrees/exports/packages/injeca
-        version: file:../../../injeca/.worktrees/exports/packages/injeca(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        specifier: file:../../../../../../injeca/.worktrees/signals/packages/injeca
+        version: file:../../../injeca/.worktrees/signals/packages/injeca(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
       nanoid:
         specifier: 'catalog:'
         version: 6.0.1
@@ -4461,8 +4461,8 @@ importers:
         specifier: workspace:*
         version: link:../plugin-protocol
       injeca:
-        specifier: file:../../../../../injeca/.worktrees/exports/packages/injeca
-        version: file:../../../injeca/.worktrees/exports/packages/injeca(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        specifier: file:../../../../../injeca/.worktrees/signals/packages/injeca
+        version: file:../../../injeca/.worktrees/signals/packages/injeca(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
       nanoid:
         specifier: 'catalog:'
         version: 6.0.1
@@ -6545,7 +6545,7 @@ importers:
         specifier: 'catalog:'
         version: 0.5.3(hono@4.13.3)(unstorage@1.17.5(idb-keyval@6.3.0)(ioredis@6.0.0(supports-color@10.2.2)))
       injeca:
-        specifier: file:../../../../../../injeca/.worktrees/exports/packages/injeca
+        specifier: file:../../../../../../injeca/.worktrees/signals/packages/injeca
         version: link:../../../../../../injeca/.worktrees/exports/packages/injeca
       ioredis:
         specifier: 'catalog:'
@@ -6684,7 +6684,7 @@ importers:
         specifier: 'catalog:'
         version: 0.5.3(hono@4.13.3)(unstorage@1.17.5(idb-keyval@6.3.0)(ioredis@6.0.0(supports-color@10.2.2)))
       injeca:
-        specifier: file:../../../../../../injeca/.worktrees/exports/packages/injeca
+        specifier: file:../../../../../../injeca/.worktrees/signals/packages/injeca
         version: link:../../../../../../injeca/.worktrees/exports/packages/injeca
       ioredis:
         specifier: 'catalog:'
@@ -17040,8 +17040,8 @@ packages:
     resolution: {integrity: sha512-ifK0CgjALofS5bkrcTy4RaQ9Vx2Knf/eLeIO+NaswQEpH1UblrtTSCIvN71qQDMq0PeQ/SSPojvEJp9vvvfr+w==}
     engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0}
 
-  injeca@file:../../../injeca/.worktrees/exports/packages/injeca:
-    resolution: {directory: ../../../injeca/.worktrees/exports/packages/injeca, type: directory}
+  injeca@file:../../../injeca/.worktrees/signals/packages/injeca:
+    resolution: {directory: ../../../injeca/.worktrees/signals/packages/injeca, type: directory}
     peerDependencies:
       '@guiiai/logg': '>= 1'
       error-stack-parser: ^2.1.4
@@ -32794,7 +32794,7 @@ snapshots:
 
   ini@7.0.0: {}
 
-  injeca@file:../../../injeca/.worktrees/exports/packages/injeca(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1):
+  injeca@file:../../../injeca/.worktrees/signals/packages/injeca(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1):
     dependencies:
       alien-signals: 3.2.1
       error-stack-parser: 2.1.4

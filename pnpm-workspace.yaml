@@ -56,10 +56,10 @@ overrides:
   axios: npm:feaxios@^0.0.23
   'eslint-plugin-sonarjs>typescript': 'catalog:'
   # NOTICE:
-  # Use the local injeca build with exported registrations before it is on npm. `file:` resolves its peers from this workspace. Run `pnpm install` again after an injeca rebuild.
-  # Source: moeru-ai/injeca PR #21 and #22.
-  # Remove this override after injeca 0.3.1 or later with exports is published, and bump the catalog entry.
-  injeca: file:../../../injeca/.worktrees/exports/packages/injeca
+  # Use the local injeca build with exported registrations and AbortSignal cancellation before it is on npm. `file:` resolves its peers from this workspace. Run `pnpm install` again after an injeca rebuild.
+  # Source: moeru-ai/injeca PR #22, and the injeca branch neko/feat/abort-signals.
+  # Remove this override after injeca 0.4.0 is published, and bump the catalog entry.
+  injeca: file:../../../injeca/.worktrees/signals/packages/injeca
   is-core-module: npm:@nolyfill/is-core-module@^1.0.39
   isarray: npm:@nolyfill/isarray@^1.0.44
   # rehype-katex 7.0.1 and micromark-extension-math 3.1.0 declare katex ^0.16. The speech transformers parse with the
