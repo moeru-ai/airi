@@ -221,14 +221,23 @@ function stepBeatSyncSpring(position: number, target: number, velocity: Ref<numb
 }
 
 /**
- * Pre-phase plugin that springs the head angles toward the Beat Sync targets.
+ * Creates the two Beat Sync plugins. They decide once per frame who moves the head.
  *
- * When `isLayered` returns true, a final-phase plugin writes the head angles, for example
- * the MAGIC driver. This plugin then stops, and `useMotionUpdatePluginBeatSyncLayer` adds the beat.
+ * - `pre` runs in the pre phase. Without a manual pose, it springs the head angles toward the Beat Sync targets.
+ * - `layer` runs in the final phase after the manual-control plugin. With a manual pose, for example from the
+ *   MAGIC driver, it springs the beat offset from the base angles and adds it, because the pose writes absolute
+ *   head angles and hides anything that the pre phase wrote.
+ *
+ * `pre` reads `isLayered` at the start of the frame, and `layer` reuses that answer. The manual-control plugin
+ * can change the answer in the middle of the frame, and one decision keeps the beat from moving twice or not at all.
  */
-export function useMotionUpdatePluginBeatSync(beatSync: BeatSyncController, isLayered: () => boolean = () => false): MotionManagerPlugin {
-  return (ctx) => {
-    if (isLayered())
+export function useMotionUpdatePluginsBeatSync(beatSync: BeatSyncController, isLayered: () => boolean): { pre: MotionManagerPlugin, layer: MotionManagerPlugin } {
+  let layered = false
+  const offset = { y: 0, z: 0 }
+
+  const pre: MotionManagerPlugin = (ctx) => {
+    layered = isLayered()
+    if (layered)
       return
 
     // `ctx.now` is in seconds. The controller schedules beats on its own clock in milliseconds.
@@ -242,27 +251,15 @@ export function useMotionUpdatePluginBeatSync(beatSync: BeatSyncController, isLa
     ctx.model.setParameterValueById('ParamAngleY', paramAngleY)
     ctx.model.setParameterValueById('ParamAngleZ', paramAngleZ)
   }
-}
 
-/**
- * Final-phase plugin that adds the Beat Sync head motion on top of a pose that another final plugin wrote.
- *
- * The MAGIC driver and the motion devtools write absolute head angles after the pre phase, so they hide
- * `useMotionUpdatePluginBeatSync`. While `isLayered` returns true, this plugin springs the beat offset from
- * the base angles and adds it. Register it after the plugin that writes the pose.
- */
-export function useMotionUpdatePluginBeatSyncLayer(beatSync: BeatSyncController, isLayered: () => boolean): MotionManagerPlugin {
-  const offset = { y: 0, z: 0 }
-
-  return (ctx) => {
-    if (!isLayered()) {
+  const layer: MotionManagerPlugin = (ctx) => {
+    if (!layered) {
       // The pre-phase plugin owns the head now. Start from no offset when the layer comes back.
       offset.y = 0
       offset.z = 0
       return
     }
 
-    // `ctx.now` is in seconds. The controller schedules beats on its own clock in milliseconds.
     beatSync.updateTargets()
     const target = beatSync.targetOffsets()
     offset.y = stepBeatSyncSpring(offset.y, target.y, beatSync.velocityY, ctx.timeDelta)
@@ -273,6 +270,8 @@ export function useMotionUpdatePluginBeatSyncLayer(beatSync: BeatSyncController,
     if (offset.z)
       ctx.model.addParameterValueById('ParamAngleZ', offset.z)
   }
+
+  return { pre, layer }
 }
 
 export function useMotionUpdatePluginIdleDisable(idleEyeFocus = useLive2DIdleEyeFocus()): MotionManagerPlugin {

@@ -11,12 +11,11 @@ import { createLive2DMotionSpring } from './motion-control-spring'
 import {
   disableLive2DSdkBreath,
   useMotionUpdatePluginAutoEyeBlink,
-  useMotionUpdatePluginBeatSync,
-  useMotionUpdatePluginBeatSyncLayer,
   useMotionUpdatePluginBreathControl,
   useMotionUpdatePluginIdleDisable,
   useMotionUpdatePluginLightSquint,
   useMotionUpdatePluginManualControl,
+  useMotionUpdatePluginsBeatSync,
   useMotionUpdatePluginTouchReaction,
 } from './motion-manager'
 
@@ -388,7 +387,7 @@ describe('beat sync plugins', () => {
     const { clock, controller } = createBeatingController()
     clock.ms = 10_625
 
-    useMotionUpdatePluginBeatSync(controller)(createContext({ now: clock.ms / 1000, timeDelta: frameSeconds }))
+    useMotionUpdatePluginsBeatSync(controller, () => false).pre(createContext({ now: clock.ms / 1000, timeDelta: frameSeconds }))
 
     // Half of the 250 ms segment toward the left side: easeOutCubic(0.5) of -10 degrees.
     expect(controller.targetY.value).toBeCloseTo(-8.75)
@@ -408,16 +407,16 @@ describe('beat sync plugins', () => {
       const { clock, controller } = createBeatingController()
       const context = createContext({ timeDelta: frameSeconds })
       const spring = createLive2DMotionSpring()
-      const isLayered = () => spring.output.value.active
+      const beatSyncPlugins = useMotionUpdatePluginsBeatSync(controller, () => beating && spring.output.value.active)
       const plugins = [
-        useMotionUpdatePluginBeatSync(controller, isLayered),
+        beatSyncPlugins.pre,
         useMotionUpdatePluginManualControl(ref({
           active: true,
           ownerId: 'stage:live2d-motion-magic',
           pose: { ...neutralLive2DMotionControlPose, headY: 0.2, headZ: -0.1 },
           dynamics: { follow: 0.6, inertia: 0.35 },
         }), spring),
-        ...(beating ? [useMotionUpdatePluginBeatSyncLayer(controller, isLayered)] : []),
+        beatSyncPlugins.layer,
       ]
 
       // One second after the beat: the beat reached the left side, and the release after 1.8 s has not started.
@@ -443,7 +442,7 @@ describe('beat sync plugins', () => {
   it('settles instead of swinging wider when frames are long', () => {
     const { clock, controller } = createBeatingController()
     const context = createContext({ timeDelta: 0.1 })
-    const plugin = useMotionUpdatePluginBeatSync(controller)
+    const plugin = useMotionUpdatePluginsBeatSync(controller, () => false).pre
 
     // 100 ms frames, as Pixi gives at its lowest frame rate. The release starts 1.8 s after the beat.
     for (let frame = 0; frame < 15; frame += 1) {
@@ -457,9 +456,12 @@ describe('beat sync plugins', () => {
   it('leaves the head to the pre-phase plugin when no pose is layered', () => {
     const { controller } = createBeatingController()
     const context = createContext({ timeDelta: frameSeconds })
+    const plugins = useMotionUpdatePluginsBeatSync(controller, () => false)
 
-    useMotionUpdatePluginBeatSyncLayer(controller, () => false)(context)
+    plugins.pre(context)
+    plugins.layer(context)
 
+    expect(context.model.setParameterValueById).toHaveBeenCalledWith('ParamAngleY', expect.any(Number))
     expect(context.model.addParameterValueById).not.toHaveBeenCalled()
   })
 
@@ -467,9 +469,23 @@ describe('beat sync plugins', () => {
     const { controller } = createBeatingController()
     const context = createContext({ timeDelta: frameSeconds })
 
-    useMotionUpdatePluginBeatSync(controller, () => true)(context)
+    useMotionUpdatePluginsBeatSync(controller, () => true).pre(context)
 
     expect(context.model.setParameterValueById).not.toHaveBeenCalled()
+  })
+
+  it('keeps the owner of the frame when the pose starts in the middle of it', () => {
+    const { controller } = createBeatingController()
+    const context = createContext({ timeDelta: frameSeconds })
+    let poseActive = false
+    const plugins = useMotionUpdatePluginsBeatSync(controller, () => poseActive)
+
+    plugins.pre(context)
+    // The manual-control plugin starts its spring between the two Beat Sync plugins.
+    poseActive = true
+    plugins.layer(context)
+
+    expect(context.model.addParameterValueById).not.toHaveBeenCalled()
   })
 })
 

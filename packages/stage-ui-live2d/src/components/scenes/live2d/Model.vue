@@ -42,8 +42,6 @@ import {
   resolveLive2DTouchRegion,
   useLive2DMotionManagerUpdate,
   useMotionUpdatePluginAutoEyeBlink,
-  useMotionUpdatePluginBeatSync,
-  useMotionUpdatePluginBeatSyncLayer,
   useMotionUpdatePluginBreathControl,
   useMotionUpdatePluginExpression,
   useMotionUpdatePluginIdleDisable,
@@ -51,6 +49,7 @@ import {
   useMotionUpdatePluginLightSquint,
   useMotionUpdatePluginLipSync,
   useMotionUpdatePluginManualControl,
+  useMotionUpdatePluginsBeatSync,
   useMotionUpdatePluginTouchReaction,
 } from '../../../composables/live2d'
 import { useFitModel } from '../../../composables/live2d/fit-model'
@@ -477,7 +476,8 @@ async function performModelLoad() {
       lastUpdateTime,
     })
 
-    motionManagerUpdate.register(useMotionUpdatePluginBeatSync(beatSync, beatSyncIsLayered), 'pre')
+    const beatSyncPlugins = useMotionUpdatePluginsBeatSync(beatSync, beatSyncIsLayered)
+    motionManagerUpdate.register(beatSyncPlugins.pre, 'pre')
     motionManagerUpdate.register(useMotionUpdatePluginIdleDisable(), 'pre')
     motionManagerUpdate.register(useMotionUpdatePluginIdleFocus(), 'post')
     // Both run in 'final' stage (ignores handled state).
@@ -501,7 +501,7 @@ async function performModelLoad() {
       controller: manualFocusBias,
       target: focusBiasTarget,
     }), 'final')
-    motionManagerUpdate.register(useMotionUpdatePluginBeatSyncLayer(beatSync, beatSyncIsLayered), 'final')
+    motionManagerUpdate.register(beatSyncPlugins.layer, 'final')
     motionManagerUpdate.register(useMotionUpdatePluginLipSync(mouthOpenSize, nowSpeaking), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginBreathControl(manualBreathControl), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginTouchReaction(touchReaction.sample), 'final')
