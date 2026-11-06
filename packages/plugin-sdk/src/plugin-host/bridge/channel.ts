@@ -10,7 +10,7 @@ import { decodeError, encodeError } from './errors'
 // NOTICE:
 // This is the first version of the plugin worker bridge over one eventa channel.
 // The protocol belongs in `@injeca/bridge`, which does not exist yet. It has no handshake, heartbeat, or reconnect.
-// Source: docs/ai/adr/2026-11-05-plugin-system-layers.md.
+// Source: "Runners and the worker bridge" in the plugin-sdk README.
 // Remove this file when plugin-sdk uses a published `@injeca/bridge`.
 
 /** The tag of a function that crossed the bridge. The other side calls it with `callback.invoke`. */

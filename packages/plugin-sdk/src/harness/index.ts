@@ -6,7 +6,7 @@ import { createKitHandle } from '../kit/references'
  * The reference harness Kit.
  *
  * It shows how a plugin changes an agent turn through harness hooks. The real AIRI harness is not wired to it yet.
- * See docs/ai/adr/2026-11-06-plugin-host-on-injeca.md, "Hooks of the harness".
+ * See "Harness hooks" in the plugin-sdk README.
  */
 
 /** The hook events of one agent turn. */

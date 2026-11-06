@@ -92,7 +92,7 @@ The manifest owns the Extension version for the Host session. `defineExtension(.
 
 ## Plugin Host on injeca
 
-The Host is one injeca container. See [the ADR](../../docs/ai/adr/2026-11-06-plugin-host-on-injeca.md).
+The Host is one injeca container.
 
 ```text
 plugin-host container
