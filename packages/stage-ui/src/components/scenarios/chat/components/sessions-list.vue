@@ -212,7 +212,7 @@ function deleteDesktopSession(sessionId: string) {
           <Button
             v-else
             color="neutral" variant="secondary" size="unset"
-            :class="['h-12 whitespace-nowrap rounded-2xl px-4 text-sm']"
+            :class="['h-12 whitespace-nowrap rounded-2xl px-4']"
             @click="toggleAllSelected"
           >
             {{ allSelected ? t('stage.chat.sessions.clear-selection') : t('stage.chat.sessions.select-all') }}
