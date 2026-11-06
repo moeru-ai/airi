@@ -522,6 +522,8 @@ export type AppType = Awaited<ReturnType<typeof buildApp>>['app']
 export async function createApp() {
   initLogger(LoggerLevel.Debug, LoggerFormat.Pretty)
   injeca.setLogger(createLoggLogger(useLogger('injeca').useGlobalConfig()))
+  // The server log keeps the injeca lifecycle trace of the API services.
+  injeca.getContainer().logging = true
   const logger = useLogger('app').useGlobalConfig()
 
   // Forward logg output to OpenTelemetry log exporter
