@@ -811,8 +811,8 @@ catalogs:
       specifier: ^6.3.0
       version: 6.3.0
     injeca:
-      specifier: ^0.2.0
-      version: 0.2.0
+      specifier: ^0.3.0
+      version: 0.3.0
     ioredis:
       specifier: ^6.0.0
       version: 6.0.0
@@ -2289,7 +2289,7 @@ importers:
         version: 2.0.1-rc.29(crossws@0.4.12(srvx@1.0.8))
       injeca:
         specifier: 'catalog:'
-        version: 0.2.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.3.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
       jszip:
         specifier: 'catalog:'
         version: 3.10.1
@@ -2680,7 +2680,7 @@ importers:
         version: 1.51.0
       injeca:
         specifier: 'catalog:'
-        version: 0.2.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.3.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
       jszip:
         specifier: 'catalog:'
         version: 3.10.1
@@ -3690,7 +3690,7 @@ importers:
         version: 5.0.4
       injeca:
         specifier: 'catalog:'
-        version: 0.2.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.3.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
       isolated-vm:
         specifier: 'catalog:'
         version: 7.0.1
@@ -3972,7 +3972,7 @@ importers:
         version: 1.51.0
       injeca:
         specifier: 'catalog:'
-        version: 0.2.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.3.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
       nanoid:
         specifier: 'catalog:'
         version: 6.0.1
@@ -6524,7 +6524,7 @@ importers:
         version: 0.5.3(hono@4.13.3)(unstorage@1.17.5(idb-keyval@6.3.0)(ioredis@6.0.0(supports-color@10.2.2)))
       injeca:
         specifier: 'catalog:'
-        version: 0.2.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.3.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
       ioredis:
         specifier: 'catalog:'
         version: 6.0.0(supports-color@10.2.2)
@@ -6663,7 +6663,7 @@ importers:
         version: 0.5.3(hono@4.13.3)(unstorage@1.17.5(idb-keyval@6.3.0)(ioredis@6.0.0(supports-color@10.2.2)))
       injeca:
         specifier: 'catalog:'
-        version: 0.2.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.3.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
       ioredis:
         specifier: 'catalog:'
         version: 6.0.0(supports-color@10.2.2)
@@ -15803,6 +15803,9 @@ packages:
   es-toolkit@1.51.0:
     resolution: {integrity: sha512-zC2lQGkM7QX+Gm6iM3+WIdZJzthsEd14LvRNJneSO2hzyz/zNBENR8+YXWo1cKxgPBtV6ksPYHELbcwBRzmdCw==}
 
+  es-toolkit@1.53.1:
+    resolution: {integrity: sha512-VhMc6IXmexu8iYFfL2aaAww6IvJTdHlqBLruLoEUs33YD4IcP5DdZcLOybMsMmmLsiy1c8PsiLsrM0DdIuuRUA==}
+
   es5-ext@0.10.64:
     resolution: {integrity: sha512-p2snDhiLaXe6dahss1LddxqEm+SkuDvV8dnIQG0MWjyHpcMNfXKPE+/Cc0y+PhxJX3A4xGNeFCj5oc0BUh6deg==}
     engines: {node: '>=0.10'}
@@ -17005,8 +17008,8 @@ packages:
     resolution: {integrity: sha512-ifK0CgjALofS5bkrcTy4RaQ9Vx2Knf/eLeIO+NaswQEpH1UblrtTSCIvN71qQDMq0PeQ/SSPojvEJp9vvvfr+w==}
     engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0}
 
-  injeca@0.2.0:
-    resolution: {integrity: sha512-uV++UZJQMx/wGzIFQzPB1/+3Xc3QQxZ0zvFZFyNlcSpbNqcn/8X7vGvRM2K9Nrj1qMsodQhAhCHP4GCMhXrDfQ==}
+  injeca@0.3.0:
+    resolution: {integrity: sha512-bOlhVowhLQKPhf/n6b7UtYV/hwoMawA4i9q5LwRSlfhOYRt161jjPh7PZcDWkOSxlfcoXCls+bMZJkP4jQFOYA==}
     peerDependencies:
       '@guiiai/logg': '>= 1'
       error-stack-parser: ^2.1.4
@@ -21637,7 +21640,7 @@ snapshots:
       apeira: 0.0.7(zod@4.4.3)
       c12: 4.0.0-beta.5(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magicast@0.5.4)
       chokidar: 5.0.0
-      es-toolkit: 1.51.0
+      es-toolkit: 1.53.1
       jiti: 2.7.0
       minimatch: 10.2.6
       ofetch: 1.5.1
@@ -21671,7 +21674,7 @@ snapshots:
       '@xsai/shared-chat': 0.5.1
       '@xsai/stream-text': 0.5.1
       '@xsai/tool': 0.5.1(@valibot/to-json-schema@1.8.0(valibot@1.5.0(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
-      es-toolkit: 1.51.0
+      es-toolkit: 1.53.1
       minimatch: 10.2.6
       oxc-parser: 0.142.0
       pathe: 2.0.3
@@ -21935,7 +21938,7 @@ snapshots:
       '@grpc/grpc-js': 1.14.4
       '@moeru/std': 0.1.0-beta.20
       date-fns: 4.4.0
-      es-toolkit: 1.51.0
+      es-toolkit: 1.53.1
       std-env: 4.2.0
       tinyexec: 1.3.0
 
@@ -23578,7 +23581,7 @@ snapshots:
       '@ergosphere-it/protocol': 0.0.16(typescript@6.0.3)
       '@henrygd/queue': 1.2.0
       '@moeru/std': 0.1.0-beta.20
-      es-toolkit: 1.51.0
+      es-toolkit: 1.53.1
       valibot: 1.5.0(typescript@6.0.3)
     transitivePeerDependencies:
       - typescript
@@ -23610,7 +23613,7 @@ snapshots:
   '@ergosphere-it/publish@0.0.16(typescript@6.0.3)':
     dependencies:
       '@ergosphere-it/protocol': 0.0.16(typescript@6.0.3)
-      es-toolkit: 1.51.0
+      es-toolkit: 1.53.1
     transitivePeerDependencies:
       - typescript
 
@@ -26809,7 +26812,7 @@ snapshots:
       apache-arrow: 21.2.0
       date-fns: 4.4.0
       drizzle-orm: 0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9)
-      es-toolkit: 1.51.0
+      es-toolkit: 1.53.1
     optionalDependencies:
       web-worker: 1.5.0
 
@@ -26822,7 +26825,7 @@ snapshots:
       date-fns: 4.4.0
       defu: 6.1.7
       drizzle-orm: 0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9)
-      es-toolkit: 1.51.0
+      es-toolkit: 1.53.1
     optionalDependencies:
       web-worker: 1.5.0
 
@@ -31081,6 +31084,8 @@ snapshots:
 
   es-toolkit@1.51.0: {}
 
+  es-toolkit@1.53.1: {}
+
   es5-ext@0.10.64:
     dependencies:
       es6-iterator: 2.0.3
@@ -32747,9 +32752,11 @@ snapshots:
 
   ini@7.0.0: {}
 
-  injeca@0.2.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1):
+  injeca@0.3.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1):
     dependencies:
+      alien-signals: 3.2.1
       error-stack-parser: 2.1.4
+      es-toolkit: 1.53.1
       nanoid: 6.0.1
     optionalDependencies:
       '@guiiai/logg': 1.2.12
@@ -34871,7 +34878,7 @@ snapshots:
   pinia-plugin-synced@0.1.7(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3)):
     dependencies:
       '@moeru/std': 0.1.0-beta.20
-      es-toolkit: 1.51.0
+      es-toolkit: 1.53.1
       pinia: 4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3))
       tab-election: 4.6.2(patch_hash=ff8fe3c9aed66469fa00180f039fbf9f4f8e682430bfb3f6a07d9baf3f850674)
       vue: 3.5.41(typescript@6.0.3)
