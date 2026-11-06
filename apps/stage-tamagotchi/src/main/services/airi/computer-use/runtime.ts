@@ -301,5 +301,9 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
     await daemon?.stop()
   }
 
-  return { run, readImage, previewImage, dispose }
+  /** Shares the existing desktop queue and Host shutdown signal. Approval waiting stays outside this execution slot. */
+  function executeInSlot<T>(operation: (lifetime: AbortSignal) => Promise<T>) {
+    return enqueue(() => operation(abort.signal))
+  }
+  return { run, readImage, previewImage, executeInSlot, dispose }
 }

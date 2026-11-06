@@ -14,7 +14,10 @@ import type { ExecuteAction } from './action-executor'
 import type { ComputerUseServerRuntime } from './runtime'
 
 import { errorMessageFrom } from '@moeru/std'
+import { terminalOriginMetaKey, terminalOriginSchema } from '@proj-airi/stage-shared/terminal-approval'
 import { z } from 'zod'
+
+import * as v from 'valibot'
 
 import { diagnoseBrowserActionError } from '../browser-dom/browser-repair-contract'
 import { getUnsupportedBrowserDomActions, isBrowserDomActionSupported } from '../browser-dom/capabilities'
@@ -338,7 +341,12 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       cwd: z.string().optional().describe('Optional working directory override'),
       timeoutMs: z.number().int().min(1).max(120_000).optional().describe('Optional timeout override in milliseconds'),
     },
-    async (input: TerminalExecActionInput) => executeAction({ kind: 'terminal_exec', input }, 'terminal_exec'),
+    async (input: TerminalExecActionInput, extra) => {
+      const origin = v.safeParse(terminalOriginSchema, extra._meta?.[terminalOriginMetaKey])
+      return executeAction({ kind: 'terminal_exec', input }, 'terminal_exec', {
+        terminalOrigin: origin.success && origin.output.nonce === runtime.terminalControlNonce ? origin.output : undefined,
+      })
+    },
   )
 
   server.tool(

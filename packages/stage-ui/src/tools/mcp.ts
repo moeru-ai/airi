@@ -1,4 +1,6 @@
-import type { Tool } from '@xsai/shared-chat'
+import type { Tool, ToolExecuteOptions } from '@xsai/shared-chat'
+
+import type { ToolAttributionContext } from '../types/chat'
 
 import { errorMessageFrom } from '@moeru/std'
 import { tool } from '@xsai/tool'
@@ -42,6 +44,11 @@ export interface McpCallToolPayload {
   arguments?: Record<string, unknown>
 }
 
+/** Application execution context. It is separate from the model-facing MCP argument JSON. */
+export interface McpExecutionOptions extends ToolExecuteOptions {
+  attribution?: ToolAttributionContext & { toolCallId?: string }
+}
+
 /**
  * Result returned from an MCP tool invocation.
  *
@@ -75,7 +82,7 @@ export interface McpCallToolResult {
  */
 export interface McpToolRuntime {
   listTools: () => Promise<McpToolDescriptor[]>
-  callTool: (payload: McpCallToolPayload) => Promise<McpCallToolResult>
+  callTool: (payload: McpCallToolPayload, options?: McpExecutionOptions) => Promise<McpCallToolResult>
 }
 
 /** The proxy tool that calls an MCP tool. Each call names the MCP tool in its `name` argument, as `server::tool`. */
@@ -112,10 +119,11 @@ export function createMcpTools(runtime: McpToolRuntime): Array<Promise<Tool>> {
     tool({
       name: MCP_CALL_TOOL_NAME,
       description: 'Call an MCP tool by name. Use builtIn_mcpListTools first to get available tool names.',
-      execute: async ({ name, arguments: argsJson }) => {
+      execute: async ({ name, arguments: argsJson }, options?: McpExecutionOptions) => {
         try {
+          options?.abortSignal?.throwIfAborted()
           const args = argsJson ? JSON.parse(argsJson) : {}
-          return await runtime.callTool({ name, arguments: args })
+          return await runtime.callTool({ name, arguments: args }, options)
         }
         catch (error) {
           return {

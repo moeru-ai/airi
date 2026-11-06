@@ -585,6 +585,8 @@ export interface ElectronMcpToolDescriptor {
 export interface ElectronMcpCallToolPayload {
   name: string
   arguments?: Record<string, unknown>
+  requestId?: string
+  attribution?: import('./computer-use').InvocationAttributionPayload
 }
 
 export interface ElectronMcpCallToolResult {

@@ -93,7 +93,7 @@ describe('mcp discovery', () => {
     expect(await listTools.execute({}, { messages: [], toolCallId: 'list-success' })).toEqual(descriptors)
     expect(await callTool.execute({ name: 'memory::read_graph', arguments: '{}' }, { messages: [], toolCallId: 'call-success' }))
       .toEqual({ content: [{ type: 'text', text: 'ok' }] })
-    expect(runtime.callTool).toHaveBeenCalledWith({ name: 'memory::read_graph', arguments: {} })
+    expect(runtime.callTool).toHaveBeenCalledWith({ name: 'memory::read_graph', arguments: {} }, expect.objectContaining({ toolCallId: 'call-success' }))
   })
 
   it('retains invocation failures as MCP error results', async () => {

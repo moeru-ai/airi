@@ -1,3 +1,5 @@
+import type { TerminalSnapshot, TerminalSpawnInput } from '@proj-airi/stage-shared/terminal-approval'
+
 export type ApprovalMode = 'never' | 'actions' | 'all'
 export type ExecutorKind = 'auv' | 'dry-run' | 'macos-local' | 'linux-x11'
 export type ExecutionMode = 'dry-run' | 'local-windowed' | 'remote'
@@ -416,6 +418,7 @@ export interface PendingActionRecord {
   action: PendingExecutableAction
   policy: PolicyDecision
   context: ForegroundContext
+  preparedTerminal?: TerminalSnapshot
 }
 
 export interface LaunchContext {
@@ -677,4 +680,14 @@ export interface TerminalRunner {
   execute: (input: TerminalExecActionInput) => Promise<TerminalCommandResult>
   getState: () => TerminalState
   resetState: (reason?: string) => TerminalState
+  /** Local executors can freeze spawn inputs before an independent Host decision. Missing capability fails closed. */
+  prepare?: (input: TerminalExecActionInput) => TerminalSpawnInput
+  /** Starts synchronously. Result readiness and direct shell close are separate lifecycle facts. */
+  startPrepared?: (input: TerminalSpawnInput) => TerminalExecution
+}
+
+/** Result readiness does not confirm that the direct shell process has closed. */
+export interface TerminalExecution {
+  result: Promise<TerminalCommandResult>
+  closed: Promise<void>
 }

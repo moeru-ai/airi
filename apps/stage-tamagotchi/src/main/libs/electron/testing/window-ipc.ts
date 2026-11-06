@@ -27,6 +27,7 @@ export function createWindowIpc(ipcMain: EventEmitter) {
     webContents: Object.assign(new EventEmitter(), {
       id: nextWebContentsId++,
       isDestroyed: () => false,
+      mainFrame: {},
       send: (channel: string, payload: unknown) => rendererIpc.emit(channel, {}, payload),
     }),
   })
@@ -35,7 +36,7 @@ export function createWindowIpc(ipcMain: EventEmitter) {
       rendererIpc.on(channel, listener)
       return () => rendererIpc.off(channel, listener)
     },
-    send: (channel: string, payload: unknown) => ipcMain.emit(channel, { sender: window.webContents }, payload),
+    send: (channel: string, payload: unknown) => ipcMain.emit(channel, { sender: window.webContents, senderFrame: window.webContents.mainFrame }, payload),
   }
   const { context } = createRendererContext(ipcRenderer as never)
 

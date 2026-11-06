@@ -1,5 +1,7 @@
 import type { ChildProcess } from 'node:child_process'
 
+import type { TerminalSpawnInput } from '@proj-airi/stage-shared/terminal-approval'
+
 import type {
   ApprovalGrantScope,
   ComputerUseConfig,
@@ -10,8 +12,8 @@ import type {
 } from '../types'
 
 import { spawn } from 'node:child_process'
-import { basename } from 'node:path'
-import { env, kill as killProcess, platform, cwd as processCwd } from 'node:process'
+import { basename, resolve } from 'node:path'
+import { env, kill as killProcess, pid, platform, cwd as processCwd } from 'node:process'
 
 export const TERMINAL_OUTPUT_MAX_CHARS = 16_384
 
@@ -156,7 +158,119 @@ export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunne
     effectiveCwd: processCwd(),
   }
 
+  function prepare(input: TerminalExecActionInput): TerminalSpawnInput {
+    const requestedCwd = input.cwd?.trim()
+    const invocation = resolveShellInvocation(config.terminalShell, input.command)
+    return {
+      command: input.command,
+      shell: config.terminalShell,
+      argv: invocation.args,
+      effectiveCwd: resolve(requestedCwd || state.effectiveCwd || processCwd()),
+      requestedCwd,
+      cwdSource: requestedCwd ? 'argument' : 'runner-state',
+      timeoutMs: Math.max(1, input.timeoutMs ?? config.timeoutMs),
+      executorPid: pid,
+      executorPlatform: platform,
+      executorCwd: processCwd(),
+      detached: invocation.detached,
+      windowsHide: invocation.windowsHide,
+    }
+  }
+
+  function startPrepared(input: TerminalSpawnInput) {
+    const { effectiveCwd, timeoutMs } = input
+    let confirmClose!: () => void
+    const closed = new Promise<void>((resolve) => {
+      confirmClose = resolve
+    })
+    const startedAt = Date.now()
+    const execution = new Promise<TerminalCommandResult>((resolve, reject) => {
+      const child = spawn(input.shell, input.argv, {
+        cwd: effectiveCwd,
+        env,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        detached: input.detached,
+        windowsHide: input.windowsHide,
+      })
+
+      const stdout = createOutputCapture()
+      const stderr = createOutputCapture()
+      let finished = false
+      let timedOut = false
+      let escalationTimer: ReturnType<typeof setTimeout> | undefined
+
+      const stopTimer = setTimeout(() => {
+        if (finished)
+          return
+
+        timedOut = true
+        finished = true
+        signalProcessGroup(child, 'SIGTERM')
+        escalationTimer = setTimeout(signalProcessGroup, PROCESS_GROUP_KILL_GRACE_MS, child, 'SIGKILL')
+        escalationTimer.unref()
+        const timeoutStderr = appendTimeoutMessage(stderr, timeoutMs)
+        resolve({
+          command: input.command,
+          stdout: stdout.value,
+          stderr: timeoutStderr.value,
+          stdoutTruncated: stdout.truncated,
+          stderrTruncated: timeoutStderr.truncated,
+          stdoutOriginalLength: stdout.originalLength,
+          stderrOriginalLength: timeoutStderr.originalLength,
+          exitCode: 124,
+          effectiveCwd,
+          durationMs: Date.now() - startedAt,
+          timedOut: true,
+        })
+      }, timeoutMs)
+
+      const cleanup = () => {
+        clearTimeout(stopTimer)
+        if (escalationTimer != null)
+          clearTimeout(escalationTimer)
+      }
+      child.stdout.on('data', chunk => appendOutput(stdout, chunk.toString('utf-8')))
+      child.stderr.on('data', chunk => appendOutput(stderr, chunk.toString('utf-8')))
+      child.on('error', (error) => {
+        if (finished)
+          return
+        finished = true
+        cleanup()
+        reject(error)
+      })
+      child.on('close', (code) => {
+        cleanup()
+        confirmClose()
+        if (finished)
+          return
+        finished = true
+        resolve({
+          command: input.command,
+          stdout: stdout.value,
+          stderr: stderr.value,
+          stdoutTruncated: stdout.truncated,
+          stderrTruncated: stderr.truncated,
+          stdoutOriginalLength: stdout.originalLength,
+          stderrOriginalLength: stderr.originalLength,
+          exitCode: typeof code === 'number' ? code : 1,
+          effectiveCwd,
+          durationMs: Date.now() - startedAt,
+          timedOut,
+        })
+      })
+    })
+    const result = execution.then((result) => {
+      state.effectiveCwd = result.effectiveCwd
+      state.lastExitCode = result.exitCode
+      state.lastCommandSummary = summarizeCommand(result.command)
+      return result
+    })
+    return { result, closed }
+  }
+
   return {
+    prepare,
+    startPrepared,
     describe: () => ({
       kind: 'local-shell-runner',
       notes: [
@@ -174,112 +288,7 @@ export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunne
       delete state.approvalSessionActive
       return { ...state }
     },
-    execute: async (input: TerminalExecActionInput) => {
-      const effectiveCwd = input.cwd?.trim() || state.effectiveCwd || processCwd()
-      const timeoutMs = Math.max(1, input.timeoutMs ?? config.timeoutMs)
-      const invocation = resolveShellInvocation(config.terminalShell, input.command)
-
-      const startedAt = Date.now()
-      const result = await new Promise<TerminalCommandResult>((resolve, reject) => {
-        const child = spawn(config.terminalShell, invocation.args, {
-          cwd: effectiveCwd,
-          env,
-          stdio: ['ignore', 'pipe', 'pipe'],
-          // Become a process-group leader so a timeout can reap the whole group
-          // on POSIX (the shell plus any background grandchildren).
-          // POSIX shells only: detached PowerShell on Windows exits 0 immediately,
-          // and Windows has no POSIX process groups.
-          detached: invocation.detached,
-          windowsHide: invocation.windowsHide,
-        })
-
-        const stdout = createOutputCapture()
-        const stderr = createOutputCapture()
-        let finished = false
-        let timedOut = false
-        let escalationTimer: ReturnType<typeof setTimeout> | undefined
-
-        const stopTimer = setTimeout(() => {
-          if (finished)
-            return
-
-          timedOut = true
-          finished = true
-
-          // Reap the command's process group on POSIX, or direct child on Windows.
-          // Escalate to SIGKILL after a grace period if the group ignores SIGTERM.
-          signalProcessGroup(child, 'SIGTERM')
-          escalationTimer = setTimeout(signalProcessGroup, PROCESS_GROUP_KILL_GRACE_MS, child, 'SIGKILL')
-          escalationTimer.unref()
-
-          const timeoutStderr = appendTimeoutMessage(stderr, timeoutMs)
-          resolve({
-            command: input.command,
-            stdout: stdout.value,
-            stderr: timeoutStderr.value,
-            stdoutTruncated: stdout.truncated,
-            stderrTruncated: timeoutStderr.truncated,
-            stdoutOriginalLength: stdout.originalLength,
-            stderrOriginalLength: timeoutStderr.originalLength,
-            exitCode: 124,
-            effectiveCwd,
-            durationMs: Date.now() - startedAt,
-            timedOut: true,
-          })
-        }, timeoutMs)
-
-        const cleanup = () => {
-          clearTimeout(stopTimer)
-          if (escalationTimer != null)
-            clearTimeout(escalationTimer)
-        }
-
-        child.stdout.on('data', (chunk) => {
-          appendOutput(stdout, chunk.toString('utf-8'))
-        })
-
-        child.stderr.on('data', (chunk) => {
-          appendOutput(stderr, chunk.toString('utf-8'))
-        })
-
-        child.on('error', (error) => {
-          if (finished)
-            return
-
-          finished = true
-          cleanup()
-          reject(error)
-        })
-
-        child.on('close', (code) => {
-          // Always clear pending timers, including the post-timeout SIGKILL
-          // escalation once the group has actually exited.
-          cleanup()
-          if (finished)
-            return
-
-          finished = true
-          resolve({
-            command: input.command,
-            stdout: stdout.value,
-            stderr: stderr.value,
-            stdoutTruncated: stdout.truncated,
-            stderrTruncated: stderr.truncated,
-            stdoutOriginalLength: stdout.originalLength,
-            stderrOriginalLength: stderr.originalLength,
-            exitCode: typeof code === 'number' ? code : 1,
-            effectiveCwd,
-            durationMs: Date.now() - startedAt,
-            timedOut,
-          })
-        })
-      })
-
-      state.effectiveCwd = result.effectiveCwd
-      state.lastExitCode = result.exitCode
-      state.lastCommandSummary = summarizeCommand(result.command)
-      return result
-    },
+    execute: async input => startPrepared(prepare(input)).result,
   }
 }
 
