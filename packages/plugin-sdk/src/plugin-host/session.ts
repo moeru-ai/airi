@@ -40,9 +40,11 @@ import {
   provide,
   resolve,
   start,
+  timeout,
   transaction,
   WaitTimeoutError,
   watch,
+  withTimeout,
 } from 'injeca'
 
 import { KitUnavailableError } from '../kit/errors'
@@ -991,7 +993,7 @@ export class PluginSessionController implements HostPort {
       return { ok: false, reason: 'missing-kit' }
     let selected: unknown
     try {
-      selected = (await resolve(container, { kit: key }, { timeoutMs: resolveNowTimeoutMs })).kit
+      selected = (await resolve(container, { kit: key }, { signal: timeout(container, resolveNowTimeoutMs) })).kit
     }
     catch (error) {
       if (error instanceof KitUnavailableError)
@@ -1134,7 +1136,7 @@ export class PluginSessionController implements HostPort {
         dependsOn[kitSelectionKey(use.id, use.range)] = this.host.kits.dependencyOf(use)
 
       try {
-        await resolve(this.container, dependsOn, { timeoutMs: input.timeoutMs, signal: controller.signal })
+        await resolve(this.container, dependsOn, { signal: withTimeout(controller.signal, input.timeoutMs, this.container) })
       }
       catch (error) {
         if (controller.signal.aborted)
@@ -1170,7 +1172,7 @@ export class PluginSessionController implements HostPort {
       }
 
       if (record.registration) {
-        const replaced = await record.registration.replace(option)
+        const replaced = await record.registration.replace(option, { signal: controller.signal })
         if (!replaced)
           throw new ModuleUpsertError('upsert-superseded', input.moduleId, `A newer upsert of module \`${input.moduleId}\` superseded this one.`)
       }

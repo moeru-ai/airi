@@ -2,7 +2,7 @@ import type { Container, Registration, ServiceStatus, SetStatusOptions } from 'i
 
 import type { CapabilityDescriptor } from '../plugin/apis/protocol'
 
-import { provide, waitFor } from 'injeca'
+import { provide, timeout, waitFor } from 'injeca'
 
 import { capabilityKey } from './kits/values'
 
@@ -98,7 +98,7 @@ export class CapabilityRegistry {
 
   async waitFor(key: string, timeoutMs: number): Promise<CapabilityDescriptor> {
     try {
-      await waitFor(this.container, capabilityKey(key), { status: 'ready', timeoutMs })
+      await waitFor(this.container, capabilityKey(key), { status: 'ready', signal: timeout(this.container, timeoutMs) })
     }
     catch (error) {
       throw new Error(`Capability \`${key}\` is not ready after ${timeoutMs}ms.`, { cause: error })

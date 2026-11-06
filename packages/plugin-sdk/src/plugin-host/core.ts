@@ -27,7 +27,7 @@ import type {
 import semver from 'semver'
 
 import { errorMessageFrom } from '@moeru/std'
-import { createContainer, dispose, graph, observe, resolve, start } from 'injeca'
+import { createContainer, dispose, graph, observe, resolve, start, timeout } from 'injeca'
 import { nanoid } from 'nanoid/non-secure'
 
 import {
@@ -545,7 +545,7 @@ export class ExtensionHost {
    * The client follows the selected provider: it moves to another provider without a new call.
    */
   async resolveKit<R extends KitReference>(kit: R, options: { timeoutMs?: number } = {}): Promise<KitClientOf<R>> {
-    const { selected } = await resolve(this.container, { selected: this.kitGraph.selectionOf(kit.id, '*') }, { timeoutMs: options.timeoutMs ?? 5_000 })
+    const { selected } = await resolve(this.container, { selected: this.kitGraph.selectionOf(kit.id, '*') }, { signal: timeout(this.container, options.timeoutMs ?? 5_000) })
     if (!(selected instanceof SelectedKit))
       throw new Error(`Kit \`${kit.id}\` did not resolve to a selection.`)
     return selected.client as KitClientOf<R>
