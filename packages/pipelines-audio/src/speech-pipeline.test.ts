@@ -259,6 +259,75 @@ describe('createSpeechPipeline', () => {
       'turn:turn-1',
     ])
   })
+  it('dispatches special controls only after preceding async TTS playback ends', async () => {
+    const { scheduled, playback, end } = createPlaybackSpy({ autoEnd: false })
+    const events: string[] = []
+
+    const pipeline = createSpeechPipeline<string>({
+      ttsMaxConcurrent: 2,
+      segmenter: (_tokens, meta) => {
+        return new ReadableStream<TextSegment>({
+          start(controller) {
+            controller.enqueue({
+              turnId: meta.turnId,
+              streamId: meta.streamId,
+              intentId: meta.intentId,
+              segmentId: 'segment:0',
+              text: 'before',
+              special: null,
+              reason: 'flush',
+              createdAt: Date.now(),
+            })
+            controller.enqueue({
+              turnId: meta.turnId,
+              streamId: meta.streamId,
+              intentId: meta.intentId,
+              segmentId: 'segment:1',
+              text: '',
+              special: '<|CALL ["plugin.action"]|>',
+              reason: 'special',
+              createdAt: Date.now(),
+            })
+            controller.close()
+          },
+        })
+      },
+      playback,
+      async tts(request) {
+        await delay(20)
+        events.push(`tts:${request.text}`)
+        return request.text
+      },
+    })
+
+    pipeline.on('onSpecial', (segment) => {
+      events.push(`special:${segment.special}`)
+      events.push(`turn:${segment.turnId}`)
+    })
+
+    const intent = pipeline.openIntent({ turnId: 'turn-1' })
+    intent.end()
+
+    // Give time for the special token to be processed while TTS is still pending
+    await delay(5)
+    // The special token MUST NOT dispatch while the preceding segment is in flight
+    expect(events).toEqual([])
+
+    // Wait for TTS to finish and playback to be scheduled
+    await delay(30)
+    expect(scheduled.map(item => item.text)).toEqual(['before'])
+    expect(events).toEqual(['tts:before'])
+
+    // End playback of the preceding item
+    end(scheduled[0]!)
+    await delay(0)
+
+    expect(events).toEqual([
+      'tts:before',
+      'special:<|CALL ["plugin.action"]|>',
+      'turn:turn-1',
+    ])
+  })
 
   it('does not schedule queued timeline playback after the owning intent is cancelled', async () => {
     const { scheduled, playback, end } = createPlaybackSpy({ autoEnd: false })
