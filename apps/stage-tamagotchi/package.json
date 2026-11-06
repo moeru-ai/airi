@@ -47,9 +47,12 @@
     "@xsai-apple-vision/vision-native": "catalog:",
     "electron-click-drag-plugin": "catalog:",
     "electron-updater": "^6.8.9",
+    "node-macos-disclaim": "catalog:",
     "uiohook-napi": "catalog:"
   },
   "optionalDependencies": {
+    "@node-macos-disclaim/darwin-arm64": "catalog:",
+    "@node-macos-disclaim/darwin-x64": "catalog:",
     "@xsai-apple-speech/transcription-native-darwin-arm64": "catalog:",
     "@xsai-apple-speech/transcription-native-darwin-x64": "catalog:",
     "@xsai-apple-vision/vision-native-darwin-arm64": "catalog:"
