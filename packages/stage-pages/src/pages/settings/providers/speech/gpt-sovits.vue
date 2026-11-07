@@ -87,9 +87,9 @@ async function handleGenerateSpeech(input: string, voiceId: string) {
       <Callout :label="t('settings.pages.providers.provider.gpt-sovits.callout_no_model_title')">
         {{ t('settings.pages.providers.provider.gpt-sovits.callout_model_switch') }}
       </Callout>
-      <p :class="['text-sm', 'text-neutral-400', 'dark:text-neutral-500', 'px-1']">
-        ⓘ {{ t('settings.pages.providers.provider.gpt-sovits.callout_no_api_key') }}
-      </p>
+      <Callout :label="t('settings.pages.providers.provider.gpt-sovits.callout_no_api_key')">
+        {{ t('settings.pages.providers.provider.gpt-sovits.callout_no_api_key') }}
+      </Callout>
       <FieldInput
         v-model="refAudioPath"
         :label="t('settings.pages.providers.provider.gpt-sovits.fields.refAudioPath.label')"
@@ -141,6 +141,7 @@ async function handleGenerateSpeech(input: string, voiceId: string) {
         :available-voices="availableVoices"
         :generate-speech="handleGenerateSpeech"
         :api-key-configured="apiKeyConfigured"
+        :ssml-enabled="false"
         :use-ssml="false"
         :default-text="t('settings.pages.providers.provider.gpt-sovits.fields.textLang.playground-default-text')"
       />
