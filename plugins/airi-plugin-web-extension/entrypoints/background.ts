@@ -2,7 +2,6 @@ import type {
   BackgroundToContentMessage,
   ContentToBackgroundMessage,
   ExtensionSettings,
-  VideoContextPayload,
 } from '../src/shared/types'
 
 import { defineInvokeHandler } from '@moeru/eventa'
@@ -16,7 +15,6 @@ import {
   toStatus,
 } from '../src/background/client'
 import { loadSettings, saveSettings } from '../src/background/storage'
-import { createVideoNotifyGate } from '../src/background/video-notify'
 import { DEFAULT_SETTINGS, STORAGE_KEY } from '../src/shared/constants'
 import {
   backgroundStatusChanged,
@@ -32,6 +30,7 @@ import { detectSiteFromUrl } from '../src/shared/sites'
 const state = createClientState()
 
 let settings: ExtensionSettings = { ...DEFAULT_SETTINGS }
+let lastVideoNotifyKey = ''
 let lastStatusSentAt = 0
 let connectionKey = ''
 let eventaContext: ReturnType<typeof createRuntimeEventaContext>['context'] | undefined
@@ -46,6 +45,18 @@ async function refreshClient() {
     state.connected = false
   }
   await ensureClient(state, settings)
+}
+
+function buildNotifyKey(payload: { url: string, title?: string, videoId?: string }) {
+  return [payload.videoId, payload.title, payload.url].filter(Boolean).join('|')
+}
+
+function shouldNotifyVideo(payload: { url: string, title?: string, videoId?: string }) {
+  const key = buildNotifyKey(payload)
+  if (!key || key === lastVideoNotifyKey)
+    return false
+  lastVideoNotifyKey = key
+  return true
 }
 
 function emitStatus() {
@@ -69,12 +80,6 @@ async function init() {
   emitStatus()
 }
 
-// The gate calls back after a video title settles. Only then does the character get a notification.
-const videoNotifyGate = createVideoNotifyGate<VideoContextPayload>((payload) => {
-  handleVideoContext(state, settings, payload, { notify: true })
-  emitStatus()
-})
-
 function handleContentMessage(message: ContentToBackgroundMessage) {
   switch (message.type) {
     case 'content:page': {
@@ -91,8 +96,7 @@ function handleContentMessage(message: ContentToBackgroundMessage) {
         ...message.payload,
         site: message.payload.site === 'unknown' ? detectSiteFromUrl(message.payload.url) : message.payload.site,
       }
-      handleVideoContext(state, settings, payload, { notify: false })
-      videoNotifyGate.report(payload)
+      handleVideoContext(state, settings, payload, { notify: shouldNotifyVideo(payload) })
       emitStatus()
       break
     }
