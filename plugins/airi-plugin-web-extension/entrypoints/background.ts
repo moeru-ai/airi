@@ -30,7 +30,9 @@ import { detectSiteFromUrl } from '../src/shared/sites'
 const state = createClientState()
 
 let settings: ExtensionSettings = { ...DEFAULT_SETTINGS }
-let lastVideoNotifyKey = ''
+let lastNotifiedVideoKey = ''
+let lastNotifiedVideoTitle = ''
+const pendingVideoTitles = new Map<string, string>()
 let lastStatusSentAt = 0
 let connectionKey = ''
 let eventaContext: ReturnType<typeof createRuntimeEventaContext>['context'] | undefined
@@ -47,15 +49,33 @@ async function refreshClient() {
   await ensureClient(state, settings)
 }
 
-function buildNotifyKey(payload: { url: string, title?: string, videoId?: string }) {
-  return [payload.videoId, payload.title, payload.url].filter(Boolean).join('|')
-}
-
+/**
+ * Decides whether a video report starts a new character notification.
+ *
+ * YouTube changes the URL before it changes the page title. A report can carry
+ * the new video id with the old title. So a video notifies only once, by id,
+ * after its title differs from the last notified title and arrives twice.
+ */
 function shouldNotifyVideo(payload: { url: string, title?: string, videoId?: string }) {
-  const key = buildNotifyKey(payload)
-  if (!key || key === lastVideoNotifyKey)
+  const key = payload.videoId || payload.url
+  const title = payload.title?.trim() ?? ''
+  if (!key || !title || key === lastNotifiedVideoKey)
     return false
-  lastVideoNotifyKey = key
+
+  if (lastNotifiedVideoTitle && title.includes(lastNotifiedVideoTitle))
+    return false
+
+  // Track each video separately. Reports from other tabs must not reset the wait.
+  if (pendingVideoTitles.get(key) !== title) {
+    pendingVideoTitles.set(key, title)
+    if (pendingVideoTitles.size > 20)
+      pendingVideoTitles.delete(pendingVideoTitles.keys().next().value!)
+    return false
+  }
+
+  pendingVideoTitles.clear()
+  lastNotifiedVideoKey = key
+  lastNotifiedVideoTitle = title
   return true
 }
 
