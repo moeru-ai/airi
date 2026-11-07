@@ -31,6 +31,23 @@ export const compatibleProtocols = {
   defaultProtocol: 'chat-completions',
 } as const satisfies GenerationCapabilities
 
+/**
+ * Whether a Responses endpoint accepts `input_audio` parts in user messages.
+ *
+ * OpenRouter documents audio input for `/api/v1/responses`, in `wav` and `mp3`. The OpenAI Responses API rejects
+ * audio, so other endpoints get the transcript of a voice message instead.
+ * https://openrouter.ai/docs/guides/overview/multimodal/audio
+ */
+export function supportsResponsesAudioInputEndpoint(baseURL: string | URL): boolean {
+  try {
+    const endpoint = new URL(baseURL)
+    return endpoint.origin === 'https://openrouter.ai' && /^\/api\/v1\/?$/.test(endpoint.pathname)
+  }
+  catch {
+    return false
+  }
+}
+
 /** Provider drafts can contain incomplete URLs. Only the known endpoint advertises hosted search. */
 export function supportsOpenAIWebSearchEndpoint(baseURL: string | URL): boolean {
   try {

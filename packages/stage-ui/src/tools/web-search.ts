@@ -1,14 +1,23 @@
 import type { Tool, ToolExecuteOptions } from '@xsai/shared-chat'
+import type { InferOutput } from 'valibot'
 
 import { rawTool } from '@xsai/tool'
 import { toJsonSchema } from 'xsschema'
 import { z } from 'zod/v4'
+
+import * as v from 'valibot'
 
 /**
  * Tavily search endpoint. The provider is fixed (never model-supplied) so this
  * tool has no SSRF surface — the model only controls the query and filters.
  */
 const TAVILY_SEARCH_URL = 'https://api.tavily.com/search'
+
+/** Search requests use fixed endpoints, independent of model input and chat provider settings. */
+const DEEPSEEK_SEARCH_URL = 'https://api.deepseek.com/v1/tools/search'
+
+/** The search service selected independently of the chat model. */
+export type WebSearchProvider = 'tavily' | 'deepseek'
 
 /** The name of the search tool. The chat shows the results of calls with this name as links. */
 export const WEB_SEARCH_TOOL_NAME = 'web_search'
@@ -50,6 +59,26 @@ const webSearchParameters = z.object({
 })
 
 type WebSearchInput = z.infer<typeof webSearchParameters>
+
+const deepSeekQueryDescription = 'Search query, 1-128 Unicode characters, not blank. Supports site:, -site:, after:, before:, lang:, and quoted phrases.'
+
+// Every tool property is required. Null selects the default result count for strict function calling.
+const deepSeekParameters = v.strictObject({
+  query: v.pipe(v.string(), v.minCodePoints(1), v.maxCodePoints(128), v.description(deepSeekQueryDescription)),
+  max_results: v.pipe(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(MIN_MAX_RESULTS), v.maxValue(MAX_MAX_RESULTS))), v.description('How many results to return (1-10), or null for the default of 5.')),
+})
+
+type DeepSeekInput = InferOutput<typeof deepSeekParameters>
+
+const deepSeekResponse = v.object({
+  results: v.array(v.object({
+    title: v.string(),
+    url: v.string(),
+    summary: v.string(),
+    date: v.nullable(v.string()),
+    site_icon: v.nullable(v.string()),
+  })),
+})
 
 /**
  * System-prompt guidance that MUST accompany this tool whenever it is mounted.
@@ -173,6 +202,47 @@ async function searchTavily(apiKey: string, input: WebSearchInput, maxResults: n
   }))
 }
 
+async function searchDeepSeek(apiKey: string, input: DeepSeekInput, signal: AbortSignal): Promise<SearchResult[]> {
+  const response = await fetch(DEEPSEEK_SEARCH_URL, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      query: input.query,
+      count: input.max_results ?? DEFAULT_MAX_RESULTS,
+      need_content: false,
+    }),
+    signal,
+  })
+
+  if (!response.ok) {
+    const detail = (await response.text().catch(() => '')).slice(0, 200)
+    throw new Error(`web search failed: deepseek ${response.status}${detail ? `: ${detail}` : ''}`)
+  }
+
+  let json: unknown
+  try {
+    json = await response.json()
+  }
+  catch {
+    throw new Error('web search failed: deepseek returned a non-JSON response')
+  }
+
+  const parsed = v.safeParse(deepSeekResponse, json)
+  if (!parsed.success)
+    throw new Error('web search failed: deepseek returned an invalid response')
+
+  return parsed.output.results.slice(0, input.max_results ?? DEFAULT_MAX_RESULTS).map(result => ({
+    title: result.title,
+    url: result.url,
+    snippet: result.summary.slice(0, DEFAULT_RESULT_CHARS),
+    ...(result.date ? { ageHint: result.date } : {}),
+    ...(result.site_icon ? { favicon: result.site_icon } : {}),
+  }))
+}
+
 /**
  * Renders results as a numbered list the model can read and cite. Each snippet
  * is wrapped as untrusted content; the leading `[N] url` citations survive even
@@ -227,41 +297,55 @@ export function parseWebSearchResults(text: string): { query: string, links: Web
 }
 
 /**
- * Builds the `web_search` LLM tool, backed by Tavily.
+ * Builds the `web_search` tool for the selected search service.
  *
- * Only mount this when an API key is configured — a search with no key can only
- * ever error, so callers gate on the web-search module's `configured` state and
- * simply omit the tool otherwise (see `resolveWebSearchTools` in
- * `stores/ai/chat-llm/tool-resolver.ts`). The returned tool reads the web on the model's
- * behalf; results are wrapped as untrusted content and must be paired with
- * {@link WEB_SEARCH_TOOLSET_PROMPT} in the system prompt.
+ * Mount this only when the selected service has an API key.
+ * Results contain untrusted web content. Pair this tool with {@link WEB_SEARCH_TOOLSET_PROMPT} in the system prompt.
  *
- * `options.apiKey` is the Tavily key (BYO, from the web-search module settings);
- * `options.timeoutMs` bounds the outbound request (default 15000ms).
+ * @param options - Service credentials and request timeout.
+ * @param options.provider - Search service, independent of the chat provider.
+ * @param options.apiKey - The selected service's API key.
+ * @param options.timeoutMs - Request timeout in milliseconds. Defaults to 15000.
  */
-export async function createWebSearchTools(options: { apiKey: string, timeoutMs?: number }): Promise<Tool[]> {
-  const { apiKey, timeoutMs = DEFAULT_TIMEOUT_MS } = options
+export async function createWebSearchTools(options: { provider: WebSearchProvider, apiKey: string, timeoutMs?: number }): Promise<Tool[]> {
+  const { provider, apiKey, timeoutMs = DEFAULT_TIMEOUT_MS } = options
 
-  // Keep the generated JSON Schema provider-neutral. Each provider adapter
-  // converts unsupported schema forms before it sends the request.
-  const parameters = await toJsonSchema(webSearchParameters)
+  // NOTICE:
+  // JSON Schema counts Unicode code points. Valibot minLength counts UTF-16 units.
+  // Conversion alone uses length actions because code-point actions are unsupported.
+  // Source: @valibot/to-json-schema 1.7, convertAction.
+  // Remove this conversion schema when code-point actions are supported. Runtime validation retains deepSeekParameters.
+  const parameters = await toJsonSchema(provider === 'deepseek'
+    ? v.strictObject({
+        ...deepSeekParameters.entries,
+        query: v.pipe(v.string(), v.minLength(1), v.maxLength(128), v.description(deepSeekQueryDescription)),
+      })
+    : webSearchParameters)
 
   return [
     rawTool({
-      // NOTICE: intentionally snake_case with no `builtIn_` prefix — `web_search`
-      // is the model-recognized name for this user-facing capability, unlike the
-      // always-on `builtIn_` infra tools (mcp/debug/spark).
+      // The chat widget recognizes this name across both search services.
       name: WEB_SEARCH_TOOL_NAME,
       description: 'Search the web for current or unfamiliar information and return a list of results with source URLs. Prefer what you already know; use this when the user asks or when the answer needs up-to-date facts.',
       parameters,
       execute: async (rawInput, { abortSignal }: ToolExecuteOptions) => {
-        const input = rawInput as WebSearchInput
-        // Keep the runtime range check because rawTool does not validate input.
-        const maxResults = Math.min(Math.max(MIN_MAX_RESULTS, Math.trunc(input.max_results ?? DEFAULT_MAX_RESULTS)), MAX_MAX_RESULTS)
         // Compose the caller's abort (turn cancelled) with our own timeout so
         // either can cancel the outbound fetch.
         const timeout = AbortSignal.timeout(timeoutMs)
         const signal = abortSignal ? AbortSignal.any([abortSignal, timeout]) : timeout
+        if (provider === 'deepseek') {
+          const parsed = v.safeParse(deepSeekParameters, rawInput)
+          if (!parsed.success)
+            throw new Error(`web search failed: deepseek invalid input: ${v.summarize(parsed.issues)}`)
+          if (!parsed.output.query.trim())
+            throw new Error('web search failed: deepseek query must not be blank')
+          const results = await searchDeepSeek(apiKey, parsed.output, signal)
+          return formatResults(parsed.output.query, results)
+        }
+
+        const input = rawInput as WebSearchInput
+        // rawTool does not validate Tavily input, so enforce the result-count bounds here.
+        const maxResults = Math.min(Math.max(MIN_MAX_RESULTS, Math.trunc(input.max_results ?? DEFAULT_MAX_RESULTS)), MAX_MAX_RESULTS)
         const results = await searchTavily(apiKey, input, maxResults, signal)
         return formatResults(input.query, results)
       },

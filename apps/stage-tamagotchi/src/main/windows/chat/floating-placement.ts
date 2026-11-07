@@ -108,7 +108,7 @@ export function wholePixels(value: number) {
 /**
  * Bounds that keep the floating chat whole on one display, in whole pixels.
  *
- * The chat has no title bar: its resize grip and drag handle are the only way
+ * The chat has no title bar: its edges and its drag handle are the only way
  * to move it back, so no part of it may leave the work area. The display that
  * would hold most of `bounds` takes the chat, which lets a drag carry it onto
  * another display. A chat larger than that work area shrinks to it.

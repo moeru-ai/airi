@@ -13,7 +13,7 @@ import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
 import { useTheme } from '@proj-airi/ui'
 import { createPinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { page } from 'vitest/browser'
 import { computed, defineComponent, h, nextTick, ref } from 'vue'
@@ -88,7 +88,7 @@ function mountControlsIsland(dock: ControlsIslandDock, size: typeof sizes[number
           useSettingsStageModel()
           useVisionStore()
           const defaultCard = {
-            name: 'ReLU',
+            name: 'Iru',
             version: '1.0.0',
             extensions: {
               airi: {
@@ -126,6 +126,14 @@ function mountControlsIsland(dock: ControlsIslandDock, size: typeof sizes[number
   return { cards: useAiriCardStore(pinia), auth: authState, dock: dockRef, i18n, screen, settings: useSettings(pinia) }
 }
 
+/**
+ * Starts a clock that runs with real time and that a test can move forward.
+ * The menu timers start when the Island mounts, so a test calls this before it mounts the Island.
+ */
+function useSkippableClock() {
+  vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] })
+}
+
 beforeEach(() => {
   isOutside.value = false
   openSettings.mockClear()
@@ -133,6 +141,10 @@ beforeEach(() => {
   authState.isAuthenticated.value = false
   authState.needsLogin.value = false
   authState.user.value = null
+})
+
+afterEach(() => {
+  vi.useRealTimers()
 })
 
 describe('controls Island overflow', () => {
@@ -377,6 +389,7 @@ describe('controls Island overflow', () => {
   // The interaction path is independent from the size and dock matrix.
   it('issue #2400 keeps the expanded menu open during a scrollbar drag', async () => {
     await page.viewport(450, 300)
+    useSkippableClock()
     const { i18n, screen } = mountControlsIsland('bottom-right')
     const label = (key: string) => i18n.global.t(`tamagotchi.stage.controls-island.${key}`)
     await screen.getByLabelText(label('expand'), { exact: true }).click()
@@ -394,9 +407,11 @@ describe('controls Island overflow', () => {
     // signal above — a real click leaves the browser's own pointer state
     // "inside" until something moves it away.
     document.dispatchEvent(new MouseEvent('mouseleave'))
-    await new Promise(resolve => setTimeout(resolve, 1700))
+    await vi.advanceTimersByTimeAsync(1700)
     expect(screen.getByTestId('controls-menu').element()).toBeInTheDocument()
     window.dispatchEvent(new MouseEvent('mouseup'))
+    // The collapse check runs every 1.5 s.
+    await vi.advanceTimersByTimeAsync(1600)
     await expect.poll(() => screen.getByTestId('controls-menu').element().closest('[aria-hidden]')?.getAttribute('aria-hidden'), { timeout: 3500 }).toBe('true')
   })
 })
@@ -434,6 +449,7 @@ it('keeps the menu open while genuinely hovered even if the Electron cursor sign
   // agrees the pointer is inside, and only collapses once both agree it
   // left.
   await page.viewport(450, 300)
+  useSkippableClock()
   const { i18n, screen } = mountControlsIsland('bottom-right')
   const label = (key: string) => i18n.global.t(`tamagotchi.stage.controls-island.${key}`)
   const toggle = screen.getByLabelText(label('expand'), { exact: true })
@@ -444,13 +460,15 @@ it('keeps the menu open while genuinely hovered even if the Electron cursor sign
   // reporting "outside" the whole time, even while the real pointer sits
   // on the island (a genuine click just landed there).
   isOutside.value = true
-  await new Promise(resolve => setTimeout(resolve, 1700))
+  await vi.advanceTimersByTimeAsync(1700)
   expect(screen.getByTestId('controls-menu').element().closest('[aria-hidden]')?.getAttribute('aria-hidden')).not.toBe('true')
 
   // The pointer genuinely leaves: now both signals agree, so the menu
   // collapses as it did before this fix.
   island.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }))
   document.dispatchEvent(new MouseEvent('mouseleave'))
+  // The collapse check runs every 1.5 s.
+  await vi.advanceTimersByTimeAsync(1600)
   await expect.poll(() => screen.getByTestId('controls-menu').element().closest('[aria-hidden]')?.getAttribute('aria-hidden'), { timeout: 3500 }).toBe('true')
 })
 
@@ -501,6 +519,7 @@ it('keeps the profile creation form open for pointer interaction (PR #2474)', as
   // Closing the selector canceled creation, and the body portal counted as an
   // outside click. The selector and form must share one interaction lifecycle.
   await page.viewport(600, 300)
+  useSkippableClock()
   const { cards, i18n, screen } = mountControlsIsland('bottom-right', 'auto', ref('bottom-right'), true)
   await screen.getByLabelText(i18n.global.t('tamagotchi.stage.controls-island.expand'), { exact: true }).click()
   await screen.getByRole('combobox').click()
@@ -510,7 +529,7 @@ it('keeps the profile creation form open for pointer interaction (PR #2474)', as
   await input.fill('New profile')
   await expect.element(input).toHaveValue('New profile')
   isOutside.value = true
-  await new Promise(resolve => setTimeout(resolve, 1700))
+  await vi.advanceTimersByTimeAsync(1700)
   expect(screen.getByTestId('controls-menu').element().closest('[inert]')).toBeNull()
   for (const [width, height] of [[160, 200], [100, 80], [600, 600]] as const) {
     await page.viewport(width, height)
@@ -520,10 +539,12 @@ it('keeps the profile creation form open for pointer interaction (PR #2474)', as
     expect(form.getBoundingClientRect().left).toBeGreaterThanOrEqual(8)
     expect(form.getBoundingClientRect().top).toBeGreaterThanOrEqual(8)
   }
+  // The cursor comes back before Save. Save ends the creation that blocked the collapse, and a cursor that is still
+  // outside lets the next collapse check close the menu before the selector opens again.
+  isOutside.value = false
   await page.getByRole('button', { name: i18n.global.t('stage.profile-switcher.save-as-new'), exact: true }).click()
   await expect.poll(() => cards.activeCard?.name).toBe('New profile')
   await expect.element(input).not.toBeInTheDocument()
-  isOutside.value = false
 
   // ROOT CAUSE:
   // Reopening the selector while creation was active changed the selected
@@ -536,9 +557,9 @@ it('keeps the profile creation form open for pointer interaction (PR #2474)', as
   await page.getByRole('option', { name: i18n.global.t('stage.profile-switcher.save-as-new') }).click()
   await page.getByPlaceholder(i18n.global.t('stage.profile-switcher.new-profile-name')).fill('Stale profile name')
   await screen.getByRole('combobox').click()
-  await page.getByRole('option', { name: 'ReLU' }).click()
+  await page.getByRole('option', { name: 'Iru' }).click()
   await expect.element(page.getByTestId('profile-create-form')).not.toBeInTheDocument()
-  await expect.poll(() => cards.activeCard?.name).toBe('ReLU')
+  await expect.poll(() => cards.activeCard?.name).toBe('Iru')
 
   await screen.getByRole('combobox').click()
   await page.getByRole('option', { name: i18n.global.t('stage.profile-switcher.save-as-new') }).click()

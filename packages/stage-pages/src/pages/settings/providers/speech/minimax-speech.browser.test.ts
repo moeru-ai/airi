@@ -5,7 +5,7 @@ import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { createPinia, disposePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render } from 'vitest-browser-vue'
+import { cleanup, render } from 'vitest-browser-vue'
 import { page } from 'vitest/browser'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
@@ -64,6 +64,26 @@ async function renderPage(store: ReturnType<typeof createPinia>) {
   })
 }
 
+/**
+ * The page checks the saved key 500 ms after mount, then loads the catalog.
+ * The settings form also loads it on mount, so a loaded catalog does not mean
+ * that the page load ended. A test must wait for it, or it runs on the next
+ * test's Pinia. Call it before the render, so that no action is missed.
+ */
+function pageCatalogLoad(owner: ReturnType<typeof createPinia>) {
+  let checked = false
+  return new Promise<void>((resolve) => {
+    owner.use(({ store: created }) => {
+      created.$onAction(({ name, after }) => {
+        if (created.$id === 'provider' && name === 'validateProviderConfig')
+          checked = true
+        if (created.$id === 'speech' && name === 'loadVoicesForProvider' && checked)
+          after(() => resolve())
+      })
+    })
+  })
+}
+
 /** The playground voice selector, addressed by its field description. */
 function voiceSelector() {
   return page.getByRole('combobox', { name: /Select preferred voice/ })
@@ -90,6 +110,7 @@ describe('minimax speech settings page', () => {
   })
 
   afterEach(() => {
+    cleanup()
     for (const store of stores)
       disposePinia(store)
     vi.unstubAllGlobals()
@@ -105,10 +126,12 @@ describe('minimax speech settings page', () => {
   it('lists the account voices when the key is already saved', async () => {
     storeConfiguredProvider(savedCredentials)
 
+    const loaded = pageCatalogLoad(pinia)
     await renderPage(pinia)
 
     await expect.poll(() => useSpeechStore(pinia).availableVoices[providerId]?.length, { timeout: 5000 })
       .toBeGreaterThan(0)
+    await loaded
 
     const requestedUrls = vi.mocked(globalThis.fetch).mock.calls.map(call => String(call[0]))
 
@@ -125,6 +148,7 @@ describe('minimax speech settings page', () => {
   it('marks the provider configured after the user enters a valid API key', async () => {
     storeConfiguredProvider({ ...savedCredentials, apiKey: '' })
 
+    const loaded = pageCatalogLoad(pinia)
     await renderPage(pinia)
 
     await page.getByPlaceholder('API Key').fill('user-entered-key')
@@ -136,6 +160,8 @@ describe('minimax speech settings page', () => {
         return undefined
       return JSON.parse(stored)[providerId]?.status
     }, { timeout: 4000 }).toBe('configured')
+    // The saved key also loads the catalog. The test must not end before it.
+    await loaded
   })
 
   // ROOT CAUSE:
@@ -147,10 +173,12 @@ describe('minimax speech settings page', () => {
   it('keeps a picked voice after the page is reopened', async () => {
     storeConfiguredProvider(savedCredentials)
 
+    const loaded = pageCatalogLoad(pinia)
     const screen = await renderPage(pinia)
 
     await expect.poll(() => useSpeechStore(pinia).availableVoices[providerId]?.length, { timeout: 5000 })
       .toBe(3)
+    await loaded
 
     // A non-default choice, so a fallback to the first entry cannot pass.
     await voiceSelector().click()
@@ -164,12 +192,14 @@ describe('minimax speech settings page', () => {
     screen.unmount()
     const reopened = createPinia()
     stores.push(reopened)
+    const reloaded = pageCatalogLoad(reopened)
     const restored = await renderPage(reopened)
 
     await expect.poll(() => useSpeechStore(reopened).availableVoices[providerId]?.length, { timeout: 5000 })
       .toBe(3)
     await expect.poll(() => voiceLabel(restored.getByRole('combobox', { name: /Select preferred voice/ })), { timeout: 5000 })
       .toContain('Wise Scholar')
+    await reloaded
   }, 30_000)
 
   // A voice the catalog no longer lists cannot be synthesized. The selection
@@ -177,6 +207,7 @@ describe('minimax speech settings page', () => {
   it('falls back to a listed voice when the saved one is gone', async () => {
     storeConfiguredProvider({ ...savedCredentials, voice: 'Spanish_Serene_Woman' })
 
+    const loaded = pageCatalogLoad(pinia)
     const screen = await renderPage(pinia)
 
     await expect.poll(() => useSpeechStore(pinia).availableVoices[providerId]?.length, { timeout: 5000 })
@@ -185,5 +216,6 @@ describe('minimax speech settings page', () => {
     await expect.poll(() => voiceLabel(screen.getByRole('combobox', { name: /Select preferred voice/ })), { timeout: 5000 })
       .toContain('Graceful Lady')
     await expect.poll(() => storedConfig()?.voice, { timeout: 5000 }).toBe('English_Graceful_Lady')
+    await loaded
   }, 30_000)
 })

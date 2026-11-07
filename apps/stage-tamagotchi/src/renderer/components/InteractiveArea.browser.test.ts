@@ -8,6 +8,7 @@ import MobileInteractiveArea from '@proj-airi/stage-layouts/components/Layouts/M
 import { PiniaColada } from '@pinia/colada'
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
 import { browserAuthorizationHandler, registerAuthorizationHandler } from '@proj-airi/stage-ui/libs/auth'
+import { trackPendingActions } from '@proj-airi/stage-ui/libs/pinia/pending-actions'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
@@ -59,7 +60,13 @@ async function renderArea(component: Component = InteractiveArea, options: { pro
     updatedAt: 2,
   }
   const pinia = createPinia()
-  onTestFinished(() => disposePinia(pinia))
+  // The area reloads backgrounds when it mounts. Let each load end before its
+  // Pinia is destroyed.
+  const pendingBackgroundLoads = trackPendingActions(pinia, (storeId, action) => storeId === 'background-entries' && action === 'initializeStore')
+  onTestFinished(async () => {
+    await expect.poll(pendingBackgroundLoads).toBe(0)
+    disposePinia(pinia)
+  })
   pinia.state.value = {
     'chat-session-selection': { activeSessionId: 'session-b' },
     'chat-session': {
@@ -183,9 +190,11 @@ async function expectElectronReplyBubble(screen: Awaited<ReturnType<typeof rende
   expect(cancelButton.parentElement?.getAttribute('aria-hidden')).toBe('true')
   expect(bubble.getBoundingClientRect().height).toBeGreaterThan(collapsedHeight)
   expect(bubble.getBoundingClientRect().height).toBeCloseTo(expandedHeight, 0)
-  await new Promise(resolve => setTimeout(resolve, 50))
-  expect(bubble.getBoundingClientRect().height).toBeGreaterThan(collapsedHeight)
-  expect(bubble.getBoundingClientRect().height).toBeLessThan(expandedHeight)
+  await vi.waitFor(() => {
+    const height = bubble.getBoundingClientRect().height
+    expect(height).toBeGreaterThan(collapsedHeight)
+    expect(height).toBeLessThan(expandedHeight)
+  })
   await vi.waitFor(() => {
     expect(bubble.getBoundingClientRect().height).toBeCloseTo(collapsedHeight, 0)
   })
@@ -220,11 +229,12 @@ describe('interactive area synchronized state', () => {
     }
   })
 
-  it('places the mobile attachment control beside the input bubble', async () => {
+  // Images are attached from the add menu, so its button takes the place of the attachment control.
+  it('places the mobile add control beside the input bubble', async () => {
     await page.viewport(390, 844)
     const { screen } = await renderArea(MobileInteractiveArea)
     const bubble = screen.getByTestId('mobile-input-bubble').element()
-    const attach = screen.getByRole('button', { name: 'stage.chat.images.attach' }).element()
+    const attach = screen.getByRole('button', { name: 'stage.chat.composer.add' }).element()
     expect(bubble.contains(attach)).toBe(false)
     expect(attach.getBoundingClientRect().right).toBeLessThan(bubble.getBoundingClientRect().left)
     expect(attach.getBoundingClientRect().bottom).toBe(bubble.getBoundingClientRect().bottom)
@@ -233,7 +243,7 @@ describe('interactive area synchronized state', () => {
   it('opens mobile settings from an icon-only header and restores focus', async () => {
     await page.viewport(390, 844)
     const { screen } = await renderArea(MobileInteractiveArea)
-    const trigger = screen.getByRole('button', { name: 'stage.mobile-tools.title', exact: true })
+    const trigger = screen.getByRole('button', { name: 'stage.mobile-tools.menu', exact: true })
     const bounds = trigger.element().getBoundingClientRect()
     expect(bounds.width).toBeGreaterThanOrEqual(44)
     expect(bounds.height).toBeGreaterThanOrEqual(44)
@@ -455,21 +465,14 @@ describe('interactive area synchronized state', () => {
     }
   })
 
-  // https://github.com/moeru-ai/airi/pull/2832
-  // ROOT CAUSE:
-  //
-  // The mobile composer now owns the Hearing drawer. The old test still looked
-  // for the removed settings-menu entry and timed out before testing the drawer.
-  //
-  // Test the composer trigger and its focus restoration after the drawer closes.
-  it('closes hearing and restores focus to the mobile voice button', async () => {
+  // Hearing details moved from the composer drawer into settings. The composer keeps only the voice input mode.
+  it('opens Hearing settings from the mobile settings drawer', async () => {
     const { screen } = await renderArea(MobileInteractiveArea)
-    const voiceButton = screen.getByTestId('mobile-voice-button')
-    await voiceButton.click()
-    await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.hearing' })).toBeVisible()
-    await userEvent.keyboard('{Escape}')
-    await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.hearing' })).not.toBeInTheDocument()
-    await expect.element(voiceButton).toHaveFocus()
+    expect(screen.container.querySelector('[data-testid="mobile-voice-button"]')).toBeNull()
+    await screen.getByTestId('mobile-settings-button').click()
+    const hearing = screen.getByTestId('mobile-hearing-settings')
+    await expect.element(hearing).toBeVisible()
+    await expect.element(hearing).toHaveAttribute('href', '/settings/modules/hearing')
   })
 
   it('expands the Electron input bubble around a reply preview', async () => {
@@ -583,6 +586,28 @@ describe('interactive area synchronized state', () => {
 
     await screen.getByText('stage.chat.provider-configuration.action').click()
     await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/settings/providers'))
+  })
+
+  it('keeps the draft when a fold or a resize replaces the layout', async () => {
+    // ROOT CAUSE:
+    //
+    // Each layout created a composer, and unfolding a device replaces one layout with the other.
+    //
+    // Before the fix, the new layout started with an empty draft.
+    //
+    // We fixed this by moving the composer to a store that outlives both layouts.
+    const layoutSwitch = defineComponent({
+      props: { mobile: { type: Boolean, default: true } },
+      setup: props => () => h(props.mobile ? MobileInteractiveArea : SharedInteractiveArea),
+    })
+    const { screen } = await renderArea(layoutSwitch)
+    await screen.getByRole('textbox').fill('typed on the outer display')
+
+    await screen.rerender({ mobile: false })
+    await expect.element(screen.getByRole('textbox')).toHaveValue('typed on the outer display')
+
+    await screen.rerender({ mobile: true })
+    await expect.element(screen.getByRole('textbox')).toHaveValue('typed on the outer display')
   })
 
   // https://github.com/moeru-ai/airi/pull/2399

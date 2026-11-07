@@ -1,0 +1,26 @@
+name: Save Turbo cache
+description: Save the Turbo cache when this job added new entries.
+
+inputs:
+  turbo-cache:
+    description: Name of the Turbo cache to save. Use the name that the setup-workspace action restored.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - id: entries
+      name: Find new Turbo entries
+      shell: bash
+      # A saved cache restores into the next job, so old entries stay until this removes them.
+      run: |
+        find .turbo/cache -type f -mtime +14 -delete
+        if [ -n "$(find .turbo/cache -type f -newer .turbo/cache-restored -print -quit)" ]; then
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+        fi
+
+    - if: steps.entries.outputs.changed == 'true'
+      uses: actions/cache/save@v5
+      with:
+        path: .turbo/cache
+        key: ${{ runner.os }}-turbo-${{ inputs.turbo-cache }}-${{ github.sha }}

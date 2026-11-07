@@ -105,7 +105,7 @@ function handleReady({ api }: DockviewReadyEvent) {
 @import 'dockview-vue/dist/styles/dockview.css';
 
 .dockview-theme-airi {
-  --motion-workbench-accent: oklch(clamp(0%, calc(74% * var(--chromatic-bri, 1)), 100%) calc(var(--chromatic-chroma-400) * var(--chromatic-sat, 1)) calc(var(--chromatic-hue) + 0));
+  --motion-workbench-accent: theme('colors.primary.400');
   --dv-tabs-and-actions-container-height: 2.25rem;
   --dv-tabs-and-actions-container-background-color: rgb(250 250 250 / 0.92);
   --dv-group-view-background-color: rgb(255 255 255 / 0.68);

@@ -27,7 +27,7 @@ From repo root, run:
 
 ```bash
 pnpm -F @proj-airi/stage-tamagotchi build
-pnpm exec vishot capture --target electron ./packages/scenarios-stage-tamagotchi-electron/src/scenarios/demo-controls-settings-chat-websocket/index.ts --app-entrypoint ./apps/stage-tamagotchi/out/main/index.js --cwd . --output-dir ./packages/scenarios-stage-tamagotchi-browser/artifacts/raw --format avif
+pnpm exec vishot capture --target electron ./packages/scenarios-stage-tamagotchi-electron/src/scenarios/demo-controls-settings-chat-websocket/index.ts --app-entrypoint ./apps/stage-tamagotchi --cwd . --output-dir ./packages/scenarios-stage-tamagotchi-browser/artifacts/raw --format avif
 ```
 
 Expected result:
@@ -45,7 +45,7 @@ AIRI_DISPLAY_MODEL_PATH=/absolute/path/to/avatar.vrm \
 pnpm exec vishot capture \
   ./packages/scenarios-stage-tamagotchi-electron/src/scenarios/display-model-from-file.ts \
   --target electron \
-  --app-entrypoint ./apps/stage-tamagotchi/out/main/index.js \
+  --app-entrypoint ./apps/stage-tamagotchi \
   --cwd . \
   --settle-ms 2500 \
   --output-dir ./.vishot/display-model/vrm

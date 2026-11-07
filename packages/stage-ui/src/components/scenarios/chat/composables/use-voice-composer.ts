@@ -1,6 +1,7 @@
 import type { ChatToolReference } from '../../../../types/chat'
 
 import { errorMessageFrom } from '@moeru/std'
+import { useNow } from '@vueuse/core'
 import { nanoid } from 'nanoid/non-secure'
 import { computed, onScopeDispose, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -8,6 +9,7 @@ import { useI18n } from 'vue-i18n'
 import { getSpeechBusContext, voiceMessageDropped } from '../../../../services/speech/bus'
 import { useHearingStore } from '../../../../stores/modules/hearing'
 import { useVoiceControlsStore } from '../../../../stores/voice-controls'
+import { formatClockDuration } from '../../../../utils/clock-duration'
 
 /**
  * `audio` records a voice message and sends it as an audio attachment.
@@ -20,6 +22,22 @@ export type VoiceComposerMode = 'audio' | 'transcription'
  * `processing` encodes and sends a voice message, or finishes a transcript.
  */
 export type VoiceComposerPhase = 'idle' | 'starting' | 'recording' | 'processing'
+
+/**
+ * How `finish` ended a recording.
+ *
+ * - `inserted`: dictation produced text, and `onTranscript` received it.
+ * - `empty`: dictation ended without text.
+ * - `finished`: the host finished a voice message. It sends it or keeps it pending.
+ * - `cancelled`: the recording had not captured audio yet, or another action cancelled it while it finished.
+ * - `failed`: the host could not finish it. `onError` received the reason.
+ *
+ * A host sends dictated text only on `inserted`, so a cancelled or failed dictation never sends text typed earlier.
+ */
+export type VoiceComposerFinish = 'inserted' | 'empty' | 'finished' | 'cancelled' | 'failed'
+
+/** How `send` ended. `busy` means that a send of the same message still runs, so the host does nothing. */
+export type VoiceComposerSend = 'sent' | 'failed' | 'busy'
 
 export interface UseVoiceComposerOptions {
   /** Session that owns a new recording. Read once when recording starts. */
@@ -37,9 +55,10 @@ export interface UseVoiceComposerOptions {
 }
 
 /** The recording that this control started. The host identifies it by `id`. */
+/** The recording that this control started. The host identifies it by `id`. `seen` is true after the host published it. */
 type ActiveRecording
   = { mode: 'audio', id: string, finishing: boolean, seen: boolean, send: boolean }
-    | { mode: 'transcription', id: string, finishing: boolean }
+    | { mode: 'transcription', id: string, finishing: boolean, seen: boolean }
 
 /**
  * Drives one composer voice control through the voice host.
@@ -96,11 +115,24 @@ export function useVoiceComposer(options: UseVoiceComposerOptions) {
   const transcript = computed(() => input.value?.text ?? '')
   const level = computed(() => phase.value === 'recording' ? controls.level : 0)
 
+  /** When capture ended. The time stops there while the recording finishes. */
+  const stoppedAt = shallowRef<number>()
   watch(phase, (value) => {
     if (value === 'recording')
       startedAt.value ??= Date.now()
-    if (value === 'idle')
+    if (value === 'processing')
+      stoppedAt.value = Date.now()
+    if (value === 'idle') {
       startedAt.value = undefined
+      stoppedAt.value = undefined
+    }
+  })
+  const now = useNow({ interval: 250 })
+  /** The recording time as `m:ss`. It runs while capture runs and stops while the recording finishes. */
+  const elapsed = computed(() => {
+    if (!startedAt.value)
+      return formatClockDuration(0)
+    return formatClockDuration(((stoppedAt.value ?? now.value.getTime()) - startedAt.value) / 1000)
   })
 
   // A voice message leaves the host list after it is sent or discarded. Other terminal states end the control here.
@@ -120,7 +152,9 @@ export function useVoiceComposer(options: UseVoiceComposerOptions) {
         active.value = undefined
       }
       // A recording finished without sending becomes a pending message. The control is free for the next recording.
-      else if (snapshot.phase === 'ready' && recording.finishing && !recording.send) {
+      // The host can also finish a recording that the user did not stop, when the microphone turns off or another
+      // window takes it. That recording waits for the user too.
+      else if (snapshot.phase === 'ready' && (!recording.finishing || !recording.send)) {
         active.value = undefined
       }
       // The host owns a message that it sends. The send can wait in the session queue behind a reply, so the control
@@ -138,6 +172,30 @@ export function useVoiceComposer(options: UseVoiceComposerOptions) {
     }
   })
 
+  // The input can settle before this control finished it. Another control can cancel it, for example Escape on the
+  // voice presence card. The host can also fail to capture, for example when microphone access is denied. The control
+  // is free again either way. The host clears its error when an input begins, so an error now belongs to this input.
+  // The input can settle, or leave the snapshot, before this control finished it. Another control can cancel it, for
+  // example Escape on the voice presence card. The host can fail to capture, for example when microphone access is
+  // denied, or drop the input when Hearing turns off. The control is free again in each case. The host clears its error
+  // when an input begins, so an error now belongs to this input.
+  watch(input, (snapshot) => {
+    const recording = active.value
+    if (recording?.mode !== 'transcription' || recording.finishing)
+      return
+    if (!snapshot) {
+      if (recording.seen)
+        active.value = undefined
+      return
+    }
+    recording.seen = true
+    if (snapshot.phase !== 'settled')
+      return
+    active.value = undefined
+    if (controls.snapshot.error)
+      options.onError(controls.snapshot.error)
+  })
+
   // A sent message can leave the chat again when its transcript has no speech. Only the recording control reports it.
   const recorded = new Set<string>()
   const stopDropped = getSpeechBusContext().on(voiceMessageDropped, ({ body }) => {
@@ -146,8 +204,10 @@ export function useVoiceComposer(options: UseVoiceComposerOptions) {
   })
   onScopeDispose(stopDropped)
 
-  function fail(cause: unknown, fallback: string) {
-    active.value = undefined
+  /** Ends the recording `id` with an error. A newer recording keeps the control, so a late failure only reports. */
+  function fail(id: string, cause: unknown, fallback: string) {
+    if (active.value?.id === id)
+      active.value = undefined
     options.onError(errorMessageFrom(cause) ?? fallback)
   }
 
@@ -163,14 +223,25 @@ export function useVoiceComposer(options: UseVoiceComposerOptions) {
       active.value = { mode, id, finishing: false, seen: false, send: true }
       const replyToMessageId = options.replyToMessageId?.()
       const tools = options.tools?.()
-      await controls.messageCommand({ type: 'record', id, sessionId, ...(replyToMessageId ? { replyToMessageId } : {}), ...(tools ? { tools: [...tools] } : {}) })
-        .catch(cause => fail(cause, 'Could not start recording'))
+      const result = await controls.messageCommand({ type: 'record', id, sessionId, ...(replyToMessageId ? { replyToMessageId } : {}), ...(tools ? { tools: [...tools] } : {}) })
+        .catch((cause) => {
+          fail(id, cause, 'Could not start recording')
+          return undefined
+        })
+      // The host refuses without an error, for example while the microphone switch is off or another window records.
+      if (result?.status === 'closed')
+        fail(id, undefined, t('stage.chat.voice-composer.unavailable'))
       return
     }
 
-    active.value = { mode, id, finishing: false }
-    await controls.command({ type: 'begin', requestId: id, sessionId, target: 'composer' })
-      .catch(cause => fail(cause, 'Could not start dictation'))
+    active.value = { mode, id, finishing: false, seen: false }
+    const result = await controls.command({ type: 'begin', requestId: id, sessionId, target: 'composer' })
+      .catch((cause) => {
+        fail(id, cause, 'Could not start dictation')
+        return undefined
+      })
+    if (result?.status === 'closed')
+      fail(id, undefined, t('stage.chat.voice-composer.unavailable'))
   }
 
   /**
@@ -185,36 +256,44 @@ export function useVoiceComposer(options: UseVoiceComposerOptions) {
      * @default true
      */
     send?: boolean
-  } = {}) {
+  } = {}): Promise<VoiceComposerFinish> {
     const recording = active.value
     if (!recording || recording.finishing)
-      return
-    if (phase.value === 'starting')
-      return cancel()
+      return 'cancelled'
+    if (phase.value === 'starting') {
+      await cancel()
+      return 'cancelled'
+    }
 
     const sendAfterEncoding = finishOptions.send ?? true
     active.value = recording.mode === 'audio' ? { ...recording, finishing: true, send: sendAfterEncoding } : { ...recording, finishing: true }
     if (recording.mode === 'audio') {
       // The control can already be free when an auto send fails, for example on a recording without speech.
       // Then a newer recording keeps the control, and only the error is reported.
-      await controls.messageCommand({ type: 'finish', id: recording.id, send: sendAfterEncoding }).catch((cause) => {
-        if (active.value?.id === recording.id)
-          fail(cause, 'Could not finish recording')
-        else
-          options.onError(errorMessageFrom(cause) ?? 'Could not finish recording')
-      })
-      return
+      try {
+        await controls.messageCommand({ type: 'finish', id: recording.id, send: sendAfterEncoding })
+        return 'finished'
+      }
+      catch (cause) {
+        fail(recording.id, cause, 'Could not finish recording')
+        return 'failed'
+      }
     }
 
     try {
       const result = await controls.command({ type: 'end', requestId: recording.id })
-      if (result.text)
-        options.onTranscript(result.text)
-      if (active.value?.id === recording.id)
-        active.value = undefined
+      // A cancel while the transcript finished, for example Escape, discards the text the host still returned.
+      if (active.value?.id !== recording.id)
+        return 'cancelled'
+      active.value = undefined
+      if (!result.text)
+        return 'empty'
+      options.onTranscript(result.text)
+      return 'inserted'
     }
     catch (cause) {
-      fail(cause, 'Could not finish dictation')
+      fail(recording.id, cause, 'Could not finish dictation')
+      return 'failed'
     }
   }
 
@@ -235,15 +314,24 @@ export function useVoiceComposer(options: UseVoiceComposerOptions) {
    * Sends a pending voice message, or sends a failed one again. `text` goes into the same user message.
    * Returns whether the chat accepted it. A failure is reported through `onError` and keeps the message pending.
    */
-  async function send(id: string, text?: string) {
+  /** Voice messages whose send runs now. A second send of one of them, for example a double Enter, does nothing. */
+  const sending = new Set<string>()
+
+  async function send(id: string, text?: string): Promise<VoiceComposerSend> {
+    if (sending.has(id))
+      return 'busy'
+    sending.add(id)
     try {
       await controls.messageCommand({ type: 'send', id, ...(text?.trim() ? { text } : {}) })
       options.onSent?.()
-      return true
+      return 'sent'
     }
     catch (cause) {
       options.onError(errorMessageFrom(cause) ?? 'Could not send voice message')
-      return false
+      return 'failed'
+    }
+    finally {
+      sending.delete(id)
     }
   }
 
@@ -265,6 +353,7 @@ export function useVoiceComposer(options: UseVoiceComposerOptions) {
     transcript,
     level,
     startedAt,
+    elapsed,
     pending,
     start,
     finish,

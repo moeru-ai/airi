@@ -29,7 +29,7 @@ export async function computerUseTools(): Promise<Tool[]> {
   return [
     rawTool({
       name: COMPUTER_USE_TOOL_NAME,
-      description: 'Control native desktop apps, inspect windows, capture screenshots, and use keyboard or mouse input. On macOS, call app.probePermissions before visual tasks. If screen_recording is missing, ask the user to grant permission; captures can contain only a blank background. Start with argv ["invoke", "--help"], then inspect command help. Pass each CLI argument separately. Use explicit window targets when available. Preserve failure_details and verified metadata: exitCode 0 does not prove the intended UI effect. Use computer_use_read_image to view screenshot artifact paths. This tool acts on the local computer.',
+      description: 'Control native desktop apps, inspect windows, capture screenshots, and use keyboard or mouse input. On macOS, call permission.probe before visual tasks. If screen_recording is missing, ask the user to grant permission; captures can contain only a blank background. Start with argv ["invoke", "--help"], then inspect command help. Pass each CLI argument separately. Use explicit window targets when available. Preserve failure_details and verified metadata: exitCode 0 does not prove the intended UI effect. Use computer_use_read_image to view screenshot artifact paths. This tool acts on the local computer.',
       parameters: {
         type: 'object',
         properties: {
@@ -47,7 +47,7 @@ export async function computerUseTools(): Promise<Tool[]> {
     }),
     rawTool({
       name: COMPUTER_USE_READ_IMAGE_TOOL_NAME,
-      description: 'View a PNG or JPEG screenshot artifact produced by computer_use. Only files inside AIRI computer-use storage can be read. Select this tool together with computer_use for visual tasks.',
+      description: 'View a PNG, JPEG, or WebP screenshot artifact produced by computer_use. Only files inside AIRI computer-use storage can be read. Select this tool together with computer_use for visual tasks.',
       parameters: {
         type: 'object',
         properties: { path: { type: 'string', description: 'Absolute screenshot artifact path returned by computer_use.' } },

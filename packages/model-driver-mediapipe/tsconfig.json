@@ -8,6 +8,9 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "resolveJsonModule": true,
+    "types": [
+      "vite/client"
+    ],
     "strict": true,
     "strictNullChecks": true,
     "noUnusedLocals": true,
@@ -20,8 +23,7 @@
   },
   "include": [
     "src/**/*.ts",
-    "src/**/*.d.ts",
-    "tasks/**/*.ts"
+    "src/**/*.d.ts"
   ],
   "exclude": [
     "dist",

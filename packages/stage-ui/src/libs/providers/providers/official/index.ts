@@ -2,7 +2,7 @@ import type { ChatRequestOptions, GenerationRequest } from '@proj-airi/provider-
 
 import type { ModelInfo, ProviderModelCatalog, VoiceInfo } from '../../types'
 
-import { compatibleProtocols, generationProtocolOptions } from '@proj-airi/provider-inference'
+import { generationProtocolOptions, openAIProtocols } from '@proj-airi/provider-inference'
 import { z } from 'zod'
 
 import { getAuthToken } from '../../../../libs/auth'
@@ -16,7 +16,7 @@ export { OFFICIAL_CHAT_PROVIDER_ID, OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH
 
 const officialConfigSchema = z.object({})
 const officialChatConfigSchema = z.object({
-  api: z.enum(compatibleProtocols.supportedProtocols).default(compatibleProtocols.defaultProtocol),
+  api: z.enum(openAIProtocols.supportedProtocols).default(openAIProtocols.defaultProtocol),
 })
 
 type OfficialChatConfig = z.input<typeof officialChatConfigSchema>
@@ -67,12 +67,12 @@ export const providerOfficialChat = defineProvider<OfficialChatConfig, typeof OF
   icon: OFFICIAL_ICON,
   requiresCredentials: false,
   configuredBy: 'authentication',
-  capabilities: { chat: { generation: compatibleProtocols } },
+  capabilities: { chat: { generation: openAIProtocols } },
 
   createProviderConfig: ({ t }) => officialChatConfigSchema.extend({
     api: officialChatConfigSchema.shape.api.meta({
       type: 'select',
-      options: generationProtocolOptions(compatibleProtocols),
+      options: generationProtocolOptions(openAIProtocols),
       labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-protocol.label'),
       descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-protocol.description'),
     }),
@@ -84,7 +84,7 @@ export const providerOfficialChat = defineProvider<OfficialChatConfig, typeof OF
       generation(model: string, _options?: ChatRequestOptions): GenerationRequest {
         const request = provider.chat(model)
         request.fetch = withCredentials(getAITransportFetch())
-        switch (config.api ?? compatibleProtocols.defaultProtocol) {
+        switch (config.api ?? openAIProtocols.defaultProtocol) {
           case 'responses':
             return {
               protocol: 'responses',
@@ -126,6 +126,9 @@ export const providerOfficialSpeech = defineProvider({
   icon: OFFICIAL_ICON,
   requiresCredentials: false,
   configuredBy: 'authentication',
+  capabilities: {
+    speech: { transport: 'rest', voicesByModel: true },
+  },
   createProviderConfig: () => officialConfigSchema,
   createProvider(_config) {
     const provider = createOfficialAudioProvider()
@@ -248,7 +251,7 @@ export const providerOfficialSpeechStreaming = defineProvider({
   configuredBy: 'authentication',
   // The speech adapter selects the WebSocket transport from this capability.
   capabilities: {
-    speech: { transport: 'bidirectional-ws' },
+    speech: { transport: 'bidirectional-ws', voicesByModel: true },
   },
   createProviderConfig: () => officialConfigSchema,
   createProvider(_config) {
@@ -421,6 +424,11 @@ function findRecommendedVoice(voices: VoiceInfo[], recommendedMap: Record<string
 }
 
 const AUTO_PICK_PROVIDER_IDS = new Set([OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID])
+
+/** Whether the speech store picks a voice for this provider, after its voice catalog loads. */
+export function picksSpeechVoiceAutomatically(providerId: string) {
+  return AUTO_PICK_PROVIDER_IDS.has(providerId)
+}
 
 // NOTICE: Only the official speech providers (HTTP + streaming) auto-configure
 // a default voice after login. Third-party providers leave voice selection to

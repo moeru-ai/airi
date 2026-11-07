@@ -1,34 +1,20 @@
 <script setup lang="ts">
 import type { DataSettingsStatusEmits } from '../status'
 
-import { sherpawModels } from '@proj-airi/provider-inference/sherpaw-transcription/models'
-import { speakerModel } from '@proj-airi/stage-shared/speaker-model'
 import { useModelAssetStatus } from '@proj-airi/stage-ui/composables/use-model-asset-status'
-import { cancelSherpawModelAssets, isSherpawModelBundled, listSherpawModelAssets, removeSherpawModelAssets } from '@proj-airi/stage-ui/libs/providers/providers/sherpaw/model-assets'
-import { kwsModel } from '@proj-airi/stage-ui/libs/voice/kws-model-info'
+import { cancelSherpawModelAssets, listSherpawModelAssets, removeSherpawModelAssets } from '@proj-airi/stage-ui/libs/providers/providers/sherpaw/model-assets'
 import { DoubleCheckButton, GhostButton } from '@proj-airi/ui'
 import { computed, onMounted, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { downloadedModelSearchKey, downloadedModelsOf } from '../downloaded-models'
 import { createDataSettingsStatusHelpers } from '../status'
 
 const emit = defineEmits<DataSettingsStatusEmits>()
 const { t } = useI18n()
 const { emitStatus, handleActionError } = createDataSettingsStatusHelpers(emit)
 const { models } = useModelAssetStatus()
-const names = new Map<string, string>(Object.values(sherpawModels).map(model => [model.id, model.name]))
-// Transcription presets show their recognizer family. The wake word and voiceprint packs have no family name users know.
-const packNameKeys = new Map<string, string>([
-  [kwsModel.id, 'settings.pages.data.sections.model-downloads.wake-word-model'],
-  [speakerModel.id, 'settings.pages.data.sections.model-downloads.voiceprint-model'],
-])
-const downloads = computed(() => models.value.flatMap((status) => {
-  const nameKey = packNameKeys.get(status.id)
-  const name = nameKey ? t(nameKey) : names.get(status.id)
-  if (!name || isSherpawModelBundled(status.id) || (status.state !== 'installed' && status.state !== 'downloading'))
-    return []
-  return [{ ...status, name }]
-}))
+const downloads = computed(() => downloadedModelsOf(models.value, t))
 const refreshing = shallowRef(false)
 const pendingId = shallowRef<string>()
 
@@ -106,6 +92,7 @@ onMounted(refresh)
       <div
         v-for="model in downloads"
         :key="model.id"
+        :data-settings-search="downloadedModelSearchKey(model.id)"
         :class="['flex flex-wrap items-center justify-between gap-3 rounded-lg bg-neutral-100/70 px-3 py-2', 'dark:bg-neutral-800/60']"
       >
         <div :class="['flex flex-col gap-1']">

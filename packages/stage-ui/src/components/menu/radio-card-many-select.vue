@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import { Alert } from '@proj-airi/ui'
 import { computed, ref } from 'vue'
 
-import Alert from '../misc/alert.vue'
 import RadioCardDetail from './radio-card-detail.vue'
 
 interface Item {
@@ -33,6 +33,11 @@ interface Props {
    * expand/collapse stays visible above the grid scroll area (e.g. onboarding modal).
    */
   fillAvailableHeight?: boolean
+  /**
+   * The settings search marker of each item, such as a model's key. A settings page passes it,
+   * so a search result for an item scrolls to that item. Without it, the items have no marker.
+   */
+  searchKeyOf?: (item: Item) => string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -165,9 +170,9 @@ function updateCustomValue(value: string) {
         v-model="searchQuery"
         type="search"
         :class="[
-          'w-full rounded-xl border-2 border-solid border-neutral-200 bg-white p-2.5 pl-10 text-sm outline-none',
+          'w-full rounded-xl border-2 border-solid border-neutral-100 bg-white p-2.5 pl-10 text-sm outline-none',
           'transition-all duration-200 ease-in-out',
-          'focus:border-primary-100 dark:border-neutral-800 dark:bg-neutral-900 dark:focus:border-primary-400/50',
+          'focus:border-primary-300 dark:border-neutral-900 dark:bg-neutral-900 dark:focus:border-primary-400/50',
         ]"
         :placeholder="searchPlaceholder"
       >
@@ -186,13 +191,8 @@ function updateCustomValue(value: string) {
       </div>
 
       <!-- No search results -->
-      <Alert v-if="searchQuery && filteredItems.length === 0" type="warning">
-        <template #title>
-          {{ searchNoResultsTitle }}
-        </template>
-        <template #content>
-          {{ searchNoResultsDescription.replace('{query}', searchQuery) }}
-        </template>
+      <Alert v-if="searchQuery && filteredItems.length === 0" tone="warning" :title="searchNoResultsTitle">
+        {{ searchNoResultsDescription.replace('{query}', searchQuery) }}
       </Alert>
 
       <!-- Items grid -->
@@ -209,6 +209,7 @@ function updateCustomValue(value: string) {
               :id="item.id"
               :key="item.id"
               v-model="modelValue"
+              :data-settings-search="props.searchKeyOf?.(item)"
               :value="item.id"
               :title="item.name"
               :description="item.description"

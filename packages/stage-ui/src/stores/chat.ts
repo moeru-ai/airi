@@ -1,6 +1,7 @@
 import type { ChatAttachment, ChatInvokedSkill, ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, Conversation, Recipe, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
 import type { GenerationProvider, GenerationRequest } from '@proj-airi/provider-inference'
 import type { WebSocketEventInputs } from '@proj-airi/server-sdk'
+import type { TraceSpan } from '@proj-airi/trace-kit'
 import type { Message } from '@xsai/shared-chat'
 import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
@@ -10,22 +11,26 @@ import type { ToolCallRerunPayload } from './tool-call-rerun'
 
 import { errorMessageFrom } from '@moeru/std'
 import { decodeBase64 } from '@moeru/std/base64'
-import { SpanStatusCode } from '@opentelemetry/api'
 import { fileSource } from '@proj-airi/audio/encoding'
 import { createChatOrchestratorRuntime, isBackgroundRecipe, matchKeywordRecipes, renderConversationPreview } from '@proj-airi/core-agent'
-import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
+import { supportsResponsesAudioInputEndpoint } from '@proj-airi/provider-inference'
+import { ATTR_GEN_AI_AGENT_ID, ATTR_GEN_AI_CONVERSATION_ID, ATTR_GEN_AI_OPERATION_NAME, ATTR_GEN_AI_PROVIDER_NAME, ATTR_GEN_AI_REQUEST_MODEL, ATTR_GEN_AI_TOOL_CALL_ARGUMENTS, ATTR_GEN_AI_TOOL_CALL_ID, ATTR_GEN_AI_TOOL_CALL_RESULT, ATTR_GEN_AI_TOOL_NAME, beginSpan, TraceLinkRelations, trackPath } from '@proj-airi/trace-kit'
+import { AgentAttributes, AgentIdKeys, AgentNames, AgentTracks } from '@proj-airi/trace-kit/agent'
+import { VoiceIdKeys } from '@proj-airi/trace-kit/voice'
+import { isEqual } from 'es-toolkit'
 import { nanoid } from 'nanoid'
-import { defineStore, storeToRefs } from 'pinia'
+import { defineStore, getActivePinia, storeToRefs } from 'pinia'
 import { computed, shallowRef, toRaw } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { getConversationAnalyticsSurface } from '../composables'
 import { useAiriRuntimePrompt } from '../composables/use-airi-runtime-prompt'
-import { registerTurnSpan, startSpan, takeComposerVoiceParent, takeVoiceTurnParent } from '../composables/use-io-tracer'
+import { getTraceSink, LOCAL_AGENT_ACTOR } from '../composables/use-trace'
 import { useChatVision } from '../composables/vision/use-chat-vision'
 import { useVisionInference } from '../composables/vision/use-vision-inference'
 import { chatAssetIdFrom, inlineConversationAssets, storeChatAttachments } from '../libs/chat-assets'
 import { extractMessageText, isCloudSyncableMessage } from '../libs/chat-sync'
+import { syncedRoles } from '../libs/pinia/synced-context'
 import { createChatAnalyticsHooks, getProviderMode } from '../libs/product-signals/events/chat'
 import {
   AIRI_CHAT_APP_SURFACE_HEADER,
@@ -37,6 +42,7 @@ import { composeDrawCardPrompt, createDrawCardTool, DRAW_CARD_TOOL_NAME, drawCar
 import { createJudgeRecipeTool, judgmentSkillText } from '../tools/judge-recipe'
 import { composeMemoryPrompt, createMemoryTools } from '../tools/memory'
 import { createProposeRecipeTool } from '../tools/propose-recipe'
+import { createSearchIconsTool } from '../tools/search-icons'
 import { createUseRecipeTool } from '../tools/use-recipe'
 import { createWakeWordTool } from '../tools/wake-words'
 import { useLLM } from './ai/chat-llm/llm'
@@ -247,7 +253,16 @@ const STORED_TOOL_IMAGE = 'A tool image was left out of the history.'
 /** Stands in for an earlier image whose read failed with the current vision selection. */
 const UNREADABLE_EARLIER_IMAGE = 'The user attached an image here earlier. The vision model failed to read it.'
 
+// REVIEW:
+// Executor order: the leader, the caller, then any speech player. With several Stage tabs, a call from elsewhere
+// speaks in an arbitrary one, and a cancel can miss its turn. The chat runtime can elect its own owner among speech
+// players, as a Kubernetes controller does with a Lease.
+const inSpeechPlayer = { roles: [syncedRoles.speechPlayer] }
+
 export const useChatStore = defineStore('chat', () => {
+  // A watcher or an await runs outside the setup of this store. The active
+  // Pinia can then be another one, so keep the Pinia that owns this store.
+  const pinia = getActivePinia()
   const { t } = useI18n()
   const runtimePrompt = useAiriRuntimePrompt()
   const authStore = useAuthStore()
@@ -321,10 +336,10 @@ export const useChatStore = defineStore('chat', () => {
     return [...open, ...tasks.filter(task => !open.includes(task))]
   })
   /**
-   * Interaction turn spans that this store started, keyed by `JSON.stringify([sessionId, turnId])`.
-   * Concurrent sessions each own one trace. `onSendSettled` ends the span of its own turn only.
+   * Chat turn spans that this store started, keyed by `JSON.stringify([sessionId, turnId])`.
+   * Concurrent sessions each own one span. `onSendSettled` ends the span of its own turn only.
    */
-  const ownedTurnSpans = new Map<string, { span: ReturnType<typeof startSpan>, unregister: () => void }>()
+  const ownedTurnSpans = new Map<string, TraceSpan>()
   let stopLeadershipListener: (() => void) | undefined
   const analyticsHooks = createChatAnalyticsHooks({
     getSessionMessages: sessionId => chatSession.getSessionMessages(sessionId),
@@ -379,9 +394,12 @@ export const useChatStore = defineStore('chat', () => {
   /** Turns that a voice message without speech removed. Their cancellation is not reported as a send error. */
   const droppedTurns = new Set<string>()
 
-  /** Audio input reaches only Chat Completions models whose catalog entry lists audio input. Other requests get transcripts. */
+  /**
+   * Audio input reaches a model whose catalog entry lists audio input, over Chat Completions or a Responses endpoint
+   * that accepts audio. Other requests get transcripts.
+   */
   async function supportsAudioInput(providerId: string, modelId: string, request: GenerationRequest) {
-    if (request.protocol !== 'chat-completions')
+    if (request.protocol === 'responses' && !supportsResponsesAudioInputEndpoint(request.config.baseURL))
       return false
     const model = (await consciousnessStore.getModelsForProvider(providerId)).find(model => model.id === modelId)
     return model?.inputModalities?.includes('audio') === true
@@ -523,6 +541,8 @@ export const useChatStore = defineStore('chat', () => {
   /** Deletes a finished task's hidden session. It never moves the selected conversation. */
   async function deleteTaskSession(sessionId: string) {
     failedImageReads.delete(sessionId)
+    // Release the runtime's history cut before its owning session disappears.
+    await cancelPendingSends(sessionId)
     await chatSession.deleteHiddenSession(sessionId)
   }
 
@@ -622,7 +642,7 @@ export const useChatStore = defineStore('chat', () => {
     const persona = personaOf(sessionId)
     const sourceTools = async () => [
       ...(typeof tools === 'function' ? await tools() ?? [] : tools ?? []),
-      ...memory.enabled ? await createMemoryTools({ read: name => memory.read(name, persona), write: entry => memory.write(entry, persona), forget: name => memory.forget(name, persona) }) : [],
+      ...memory.enabled ? await createMemoryTools({ read: id => memory.read(id, persona), write: entry => memory.write(entry, persona), forget: id => memory.forget(id, persona) }) : [],
     ]
     // A recipe's own session runs only that recipe. It cannot start recipes, save them, or choose silence.
     if (isTaskSession(sessionId))
@@ -634,8 +654,9 @@ export const useChatStore = defineStore('chat', () => {
       ...(ownerOnly ? await createUseRecipeTool({ recipes: () => recipes.recipes, start: (recipe, task) => startRecipe(recipe, { parentSessionId: sessionId, task }) }) : []),
       // The owner can turn proposals off. Every proposal waits for the owner's approval.
       ...(ownerOnly && recipes.proposalsEnabled ? await createProposeRecipeTool({ propose: recipe => recipes.propose(recipe) }) : []),
-      // Cards show in the owner's own chat only. A scene, such as a Discord channel, gets text.
-      ...(drawsCards(sessionId) ? await createDrawCardTool() : []),
+      // Cards show in the owner's own chat only. A scene, such as a Discord channel, gets text. A card names its icons
+      // from a search, so the model never guesses an icon name.
+      ...(drawsCards(sessionId) ? [...await createDrawCardTool(), ...await createSearchIconsTool()] : []),
     ]
   }
 
@@ -654,6 +675,7 @@ export const useChatStore = defineStore('chat', () => {
     const turnSpan = correlation
       ? openTurnSpan({ sessionId: correlation.conversationId, turnId: correlation.turnId })
       : undefined
+    const turnIds = correlation ? { [VoiceIdKeys.Conversation]: correlation.conversationId, [VoiceIdKeys.Turn]: correlation.turnId } : undefined
 
     // Analytics correlation goes only to the official provider. A resolved step can change the provider, so each request rebuilds it.
     function requestHeaders(providerId: string | undefined) {
@@ -669,7 +691,7 @@ export const useChatStore = defineStore('chat', () => {
     // Stored messages reference their images and recordings. The provider request carries the bytes.
     context = await inlineConversationAssets(context)
 
-    const visionStore = useVisionStore()
+    const visionStore = useVisionStore(pinia)
     // NOTICE:
     // These image decisions read the model of the first step and hold for the stream.
     // `resolveStep` (#2709) can change the model between steps. Audio follows each step
@@ -724,7 +746,7 @@ export const useChatStore = defineStore('chat', () => {
 
           if (description.trim()) {
             if (sessionId)
-              saveImageDescription(sessionId, turnId, imageIndex, description)
+              await saveImageDescription(sessionId, turnId, imageIndex, description)
             return description
           }
           sessionFailedReads.add(readKey)
@@ -740,7 +762,7 @@ export const useChatStore = defineStore('chat', () => {
       if (!source.turns.some(turn => turn.type === 'user' && turn.content.some(part => part.type === 'audio')))
         return source
 
-      const hearing = useHearingStore()
+      const hearing = useHearingStore(pinia)
       const signal = options?.abortSignal ?? new AbortController().signal
 
       // Project a request copy. Stored messages retain recordings and reusable ASR results.
@@ -771,10 +793,15 @@ export const useChatStore = defineStore('chat', () => {
           }
 
           if (!text) {
+            if (!hearing.enabled) {
+              // Stored recordings stay intact. A text-only model can continue the conversation while recognition is disabled.
+              turn.content[index] = { type: 'text', text: t('stage.chat.audio.hearing-disabled') }
+              continue
+            }
             // The recording belongs to this turn. A voice input of another turn can run at the same time.
-            transcriber ??= hearing.createTranscriber(undefined, { traceParent: turnSpan })
             if (!hearing.configured)
               throw new Error('Configure a transcription provider to send audio to this model')
+            transcriber ??= hearing.createTranscriber(undefined, { ids: turnIds })
 
             const blob = new Blob([new Uint8Array(decodeBase64(part.data))], { type: part.format === 'mp3' ? 'audio/mpeg' : 'audio/wav' })
             let completed = false
@@ -791,7 +818,7 @@ export const useChatStore = defineStore('chat', () => {
               throw new Error('The recording has no completed transcription')
 
             if (sessionId && stored?.id)
-              writeAudioTranscript(sessionId, stored.id, sourceIndex, text)
+              await writeAudioTranscript(sessionId, stored.id, sourceIndex, text)
           }
 
           turn.content[index] = { type: 'text', text }
@@ -812,16 +839,33 @@ export const useChatStore = defineStore('chat', () => {
 
     const resolveStep = options?.resolveStep
 
-    const llmSpan = startSpan(IOSpanNames.LLMInference, turnSpan, {
-      [IOAttributes.Subsystem]: IOSubsystems.LLM,
-      [IOAttributes.GenAIRequestModel]: model,
-      [IOAttributes.LLMInputMessageCount]: providerMessages.length,
-      [IOAttributes.LLMInputUserMessageCount]: providerMessages.filter(message => message.role === 'user').length,
-      [IOAttributes.TurnId]: options?.requestCorrelation?.turnId ?? '',
+    const sink = getTraceSink()
+    const llmSpan = beginSpan(sink, {
+      track: trackPath(AgentTracks.LLM, { agent: LOCAL_AGENT_ACTOR }),
+      name: AgentNames.ModelRequest,
+      parent: turnSpan,
+      ids: turnIds,
+      attrs: {
+        [ATTR_GEN_AI_OPERATION_NAME]: 'chat',
+        [ATTR_GEN_AI_REQUEST_MODEL]: model,
+        ...(options?.providerId ? { [ATTR_GEN_AI_PROVIDER_NAME]: options.providerId } : {}),
+        [AgentAttributes.LLMInputMessageCount]: providerMessages.length,
+        [AgentAttributes.LLMInputUserMessageCount]: providerMessages.filter(message => message.role === 'user').length,
+        [AgentAttributes.LLMInputMessageRoles]: providerMessages.map(message => message.role),
+      },
     })
-    llmSpan.setAttribute(IOAttributes.LLMInputMessageRoles, providerMessages.map(message => message.role))
-    const llmRequestTs = performance.now()
-    let llmFirstTokenEmitted = false
+    const llmRequestTs = sink.now()
+    let llmTtftMs: number | undefined
+    let llmError: unknown
+    // A call runs from its complete arguments to its result. Its ID pairs the two events.
+    const toolSpans = new Map<string, TraceSpan>()
+    const markFirstChunk = () => {
+      if (llmTtftMs !== undefined)
+        return
+      const firstChunkAt = sink.now()
+      llmTtftMs = Math.round(firstChunkAt - llmRequestTs)
+      llmSpan.instant(AgentNames.LLMFirstChunk, undefined, firstChunkAt)
+    }
 
     try {
       await llmStore.stream(model, chatProvider, providerContext, {
@@ -852,24 +896,65 @@ export const useChatStore = defineStore('chat', () => {
           if (isTextDelta(event)) {
             llmOutputChunkCount += 1
             llmOutputChunkLengths.push(event.text.length)
-            if (!llmFirstTokenEmitted) {
-              llmFirstTokenEmitted = true
-              llmSpan.addEvent(IOEvents.LLMFirstToken, {
-                [IOAttributes.LLM_TTFT]: performance.now() - llmRequestTs,
-              })
-            }
+            markFirstChunk()
             llmTextLength += event.text.length
+          }
+          else if (event.type === 'tool-call-start') {
+            markFirstChunk()
+          }
+          else if (event.type === 'tool-call') {
+            toolSpans.set(event.toolCallId, beginSpan(sink, {
+              track: trackPath(AgentTracks.Tools, { agent: LOCAL_AGENT_ACTOR }),
+              name: event.toolName,
+              parent: llmSpan,
+              ids: { ...turnIds, [AgentIdKeys.ToolCall]: event.toolCallId },
+              attrs: {
+                [ATTR_GEN_AI_OPERATION_NAME]: AgentNames.ToolCall,
+                [ATTR_GEN_AI_TOOL_NAME]: event.toolName,
+                [ATTR_GEN_AI_TOOL_CALL_ID]: event.toolCallId,
+                [ATTR_GEN_AI_TOOL_CALL_ARGUMENTS]: event.args,
+              },
+            }))
+          }
+          else if (event.type === 'tool-result' || event.type === 'tool-error') {
+            const toolSpan = toolSpans.get(event.toolCallId)
+            toolSpans.delete(event.toolCallId)
+            const result = typeof event.result === 'string' ? event.result : undefined
+            const attrs = result === undefined ? undefined : { [ATTR_GEN_AI_TOOL_CALL_RESULT]: result }
+            if (event.type === 'tool-error')
+              toolSpan?.end({ status: 'error', message: result ?? 'Tool call failed', attrs })
+            else
+              toolSpan?.end({ attrs })
           }
 
           await options?.onStreamEvent?.(event)
         },
       })
     }
+    catch (error) {
+      llmError = error
+      throw error
+    }
     finally {
-      llmSpan.setAttribute(IOAttributes.LLMOutputChunkCount, llmOutputChunkCount)
-      llmSpan.setAttribute(IOAttributes.LLMOutputChunkLengths, llmOutputChunkLengths)
-      llmSpan.setAttribute(IOAttributes.LLMTextLength, llmTextLength)
-      llmSpan.end()
+      const attrs = {
+        [AgentAttributes.LLMOutputChunkCount]: llmOutputChunkCount,
+        [AgentAttributes.LLMOutputChunkLengths]: llmOutputChunkLengths,
+        [AgentAttributes.LLMTextLength]: llmTextLength,
+        ...(llmTtftMs !== undefined ? { [AgentAttributes.LLMTtftMs]: llmTtftMs } : {}),
+      }
+      // A call without a result ends with its request.
+      for (const toolSpan of toolSpans.values()) {
+        if (llmError !== undefined && !options?.abortSignal?.aborted)
+          toolSpan.end({ status: 'error', message: errorMessageFrom(llmError) ?? 'Model request failed' })
+        else
+          toolSpan.end({ status: 'cancelled', reason: 'aborted' })
+      }
+      if (llmError === undefined)
+        llmSpan.end({ attrs })
+      else if (options?.abortSignal?.aborted)
+        llmSpan.end({ status: 'cancelled', reason: 'aborted', attrs })
+      else
+        llmSpan.end({ status: 'error', message: errorMessageFrom(llmError) ?? 'Model request failed', attrs })
     }
   }
 
@@ -885,41 +970,44 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   /**
-   * Returns the `Interaction turn` span of a turn, and starts it on the first call.
+   * Returns the chat turn span of a turn, and starts it on the first call. `onSendSettled` ends it.
    *
-   * The LLM stream and the speech output of a turn both need this span as their parent. The voice host opens the
-   * speech output before the stream starts, so the first of the two callers starts the span. `onSendSettled` ends it.
-   * A spoken turn continues the trace of its voice input. A turn after a composer dictation continues that
-   * dictation, because the composer sends the dictated text under a new ID. Any other turn starts a new trace.
+   * A spoken turn uses the input ID as its turn ID, so the span links to the voice input with that ID. A typed turn
+   * has no such input, and the link points to nothing.
    */
   function openTurnSpan(turn: { sessionId: string, turnId: string }) {
     const key = JSON.stringify([turn.sessionId, turn.turnId])
     const owned = ownedTurnSpans.get(key)
     if (owned)
-      return owned.span
+      return owned
 
-    const voiceParent = takeVoiceTurnParent(turn.turnId) ?? takeComposerVoiceParent(turn.sessionId)
-    const span = startSpan(IOSpanNames.InteractionTurn, voiceParent, {
-      [IOAttributes.TurnId]: turn.turnId,
-      [IOAttributes.GenAIConversationId]: turn.sessionId,
+    const characterId = chatSession.sessionMetas[turn.sessionId]?.characterId
+    const span = beginSpan(getTraceSink(), {
+      track: trackPath(AgentTracks.Turn, { agent: LOCAL_AGENT_ACTOR }),
+      name: AgentNames.ChatTurn,
+      ids: { [VoiceIdKeys.Conversation]: turn.sessionId, [VoiceIdKeys.Turn]: turn.turnId },
+      attrs: {
+        [ATTR_GEN_AI_CONVERSATION_ID]: turn.sessionId,
+        ...(characterId ? { [ATTR_GEN_AI_AGENT_ID]: characterId } : {}),
+      },
+      links: [{ rel: TraceLinkRelations.CausedBy, to: { key: VoiceIdKeys.Input, id: turn.turnId } }],
     })
-    ownedTurnSpans.set(key, { span, unregister: registerTurnSpan(turn.turnId, span) })
+    ownedTurnSpans.set(key, span)
     return span
   }
 
   function settleOwnedTurnSpan(turn: { sessionId: string, turnId: string, status: 'finished' | 'cancelled' | 'failed' }) {
     const key = JSON.stringify([turn.sessionId, turn.turnId])
-    const owned = ownedTurnSpans.get(key)
-    if (!owned)
+    const span = ownedTurnSpans.get(key)
+    if (!span)
       return
 
-    const { span, unregister } = owned
     if (turn.status === 'cancelled')
-      span.setAttribute(IOAttributes.Cancelled, true)
+      span.end({ status: 'cancelled' })
     else if (turn.status === 'failed')
-      span.setStatus({ code: SpanStatusCode.ERROR })
-    span.end()
-    unregister()
+      span.end({ status: 'error' })
+    else
+      span.end()
     ownedTurnSpans.delete(key)
   }
 
@@ -937,30 +1025,24 @@ export const useChatStore = defineStore('chat', () => {
       ?.description
   }
 
-  function saveImageDescription(sessionId: string, turnId: string, imageIndex: number, description: string) {
-    const messages = chatSession.getSessionMessages(sessionId)
-    const messageIndex = messages.findIndex(message => message.role === 'user' && ownsProjectedTurn(message, turnId))
-    if (messageIndex < 0)
+  async function saveImageDescription(sessionId: string, turnId: string, imageIndex: number, description: string) {
+    const message = chatSession.getSessionMessages(sessionId).find(message => message.role === 'user' && ownsProjectedTurn(message, turnId))
+    if (message?.role !== 'user' || !message.id)
       return
 
-    const message = messages[messageIndex]
     const imageDescriptions = [
-      ...(message.imageDescriptions ?? []).filter(cached => cached.imageIndex !== imageIndex),
+      // A reactive entry is a proxy, which `structuredClone` rejects when the fields leave this context.
+      ...(toRaw(message.imageDescriptions) ?? []).filter(cached => cached.imageIndex !== imageIndex).map(cached => toRaw(cached)),
       { description, imageIndex },
     ]
-    const nextMessages = [...messages]
-    // Spreading a reactive message copies its nested arrays as proxies, which
-    // `structuredClone` rejects when the send result leaves the leader.
-    nextMessages[messageIndex] = { ...toRaw(message), imageDescriptions }
-    chatSession.setSessionMessages(sessionId, nextMessages)
+    await chatSession.updateUserMessage(sessionId, message.id, { imageDescriptions })
   }
 
   const runtime = createChatOrchestratorRuntime({
     session: {
-      ensureSession: sessionId => chatSession.ensureSession(sessionId),
       getSessionMessages: sessionId => chatSession.getSessionMessages(sessionId).map(message => toRaw(message)),
-      appendSessionMessage: (sessionId, message) => chatSession.appendSessionMessage(sessionId, message),
       commitUserMessage: (sessionId, message) => chatSession.commitUserMessage(sessionId, message),
+      commitAssistantMessage: (sessionId, message) => chatSession.storeMessage(sessionId, message),
       getSessionGeneration: sessionId => chatSession.getSessionGeneration(sessionId),
     },
     context: {
@@ -991,6 +1073,7 @@ export const useChatStore = defineStore('chat', () => {
     getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
     // Identity follows the session's persona at request time, so a card switch never rewrites another session.
     getSystemPrompt: sessionSystemPrompt,
+    getContextWindow: sessionId => cardStore.getCard(personaOf(sessionId))?.extensions.airi.contextWindow ?? -1,
     runtimeContextProviders: [
       () => createRuntimePromptContext(runtimePrompt.value),
       createMinecraftContext,
@@ -1148,17 +1231,13 @@ export const useChatStore = defineStore('chat', () => {
     return [...names].map(name => ({ name }))
   }
 
-  function writeAudioTranscript(sessionId: string, messageId: string, index: number, text: string) {
-    const messages = chatSession.getSessionMessagesIfLoaded(sessionId)
-    if (!messages?.some(message => message.id === messageId))
+  async function writeAudioTranscript(sessionId: string, messageId: string, index: number, text: string) {
+    const message = chatSession.getSessionMessagesIfLoaded(sessionId)?.find(message => message.id === messageId)
+    if (message?.role !== 'user')
       return
-    chatSession.setSessionMessages(sessionId, messages.map((message) => {
-      if (message.id !== messageId)
-        return message
-      const audioTranscripts = [...(message.audioTranscripts ?? [])]
-      audioTranscripts[index] = text
-      return { ...message, audioTranscripts }
-    }))
+    const audioTranscripts = [...(message.audioTranscripts ?? [])]
+    audioTranscripts[index] = text
+    await chatSession.updateUserMessage(sessionId, messageId, { audioTranscripts })
   }
 
   /**
@@ -1168,7 +1247,7 @@ export const useChatStore = defineStore('chat', () => {
   async function settleAudioTranscript(payload: { sessionId: string, messageId: string, transcript?: string }) {
     const key = JSON.stringify([payload.sessionId, payload.messageId])
     if (payload.transcript) {
-      writeAudioTranscript(payload.sessionId, payload.messageId, 0, payload.transcript)
+      await writeAudioTranscript(payload.sessionId, payload.messageId, 0, payload.transcript)
     }
     else if (payload.transcript === '') {
       droppedTurns.add(key)
@@ -1188,12 +1267,12 @@ export const useChatStore = defineStore('chat', () => {
     if (!chatSession.getSessionMessagesIfLoaded(sessionId))
       return
 
-    chatSession.appendSessionMessage(sessionId, {
+    void chatSession.storeMessage(sessionId, {
       role: 'error',
       content: errorMessageFrom(error) ?? 'Unknown chat operation failure',
       id: nanoid(),
       createdAt: Date.now(),
-    })
+    }).catch(storeError => console.error('[chat] Failed to store a send error:', errorMessageFrom(storeError)))
   }
 
   /** Options that only the host sets: a background recipe task, a notice, and what keyword-matched recipes gave the message. */
@@ -1316,15 +1395,17 @@ export const useChatStore = defineStore('chat', () => {
 
     const abort = new AbortController()
     // A keyword invokes its recipes like slash commands. A decision among them judges with the judgment tool.
-    const invoked = keywordRecipesFor(payload, extra)
-    const prepared = prepareSend({ ...payload, messageId }, abort.signal, voice, { ...extra, skills: invokedSkillsOf(invoked) }, invoked)
+    // The recipes and the memory index come from IndexedDB, so the first send of a window waits until they are read.
+    const invokedRecipes = Promise.all([recipes.ready(), memory.ready()]).then(() => keywordRecipesFor(payload, extra))
+    const prepared = invokedRecipes
+      .then(invoked => prepareSend({ ...payload, messageId }, abort.signal, voice, { ...extra, skills: invokedSkillsOf(invoked) }, invoked))
       .then(options => runtime.submit(payload.text, options, payload.sessionId))
     const request = {
       accepted: prepared.then(value => value.accepted),
       done: prepared.then(value => value.done),
     }
     // A background recipe starts once the owner's message is stored, so its task never runs for a refused send.
-    void request.accepted.then(() => {
+    void request.accepted.then(() => invokedRecipes).then((invoked) => {
       for (const recipe of invoked.filter(isBackgroundRecipe))
         void startRecipe(recipe, { parentSessionId: payload.sessionId, task: `The owner said: ${payload.text}` })
     }).catch(() => {})
@@ -1403,8 +1484,10 @@ export const useChatStore = defineStore('chat', () => {
       throw new Error('Retry target has no retriable user message')
 
     // The new turn must not see the source turn or its replies, so the history ends before the source while it runs.
-    const retryHistory = currentMessages.slice(0, sourceIndex)
-    chatSession.setSessionMessages(payload.sessionId, retryHistory)
+    // Raw messages, because a reactive proxy cannot leave this context.
+    const storedMessages = toRaw(currentMessages).map(message => toRaw(message))
+    const retryHistory = storedMessages.slice(0, sourceIndex)
+    await chatSession.replaceSessionHistory(payload.sessionId, retryHistory)
     // A retried notice stays a notice, so it never becomes owner speech.
     const request = startSend({
       sessionId: payload.sessionId,
@@ -1418,9 +1501,10 @@ export const useChatStore = defineStore('chat', () => {
     }
     catch (error) {
       // The new turn was never stored. The source turn can hold the only copy of a recording or image, so it comes back.
-      // The session store replaces the array on every change, so the same array means that nothing else changed the history.
-      if (toRaw(chatSession.getSessionMessagesIfLoaded(payload.sessionId)) === retryHistory)
-        chatSession.setSessionMessages(payload.sessionId, currentMessages)
+      // The same message identities mean that nothing else changed the history meanwhile.
+      const historyIds = chatSession.getSessionMessagesIfLoaded(payload.sessionId)?.map(message => message.id)
+      if (isEqual(historyIds, retryHistory.map(message => message.id)))
+        await chatSession.replaceSessionHistory(payload.sessionId, storedMessages)
       appendSendError(payload.sessionId, error)
       throw error
     }
@@ -1460,13 +1544,14 @@ export const useChatStore = defineStore('chat', () => {
         describeImage: chatVision.toolImageReader(activeModel.value),
       }),
     })
-    chatSession.setSessionMessages(payload.sessionId, nextMessages)
+    // Raw messages, because a reactive proxy cannot leave this context.
+    await chatSession.replaceSessionHistory(payload.sessionId, nextMessages.map(message => toRaw(message)))
   }
 
   /** Clears one session and stops runtime work that still belongs to it. */
   async function cleanup(sessionId: string) {
     failedImageReads.delete(sessionId)
-    chatSession.cleanupMessages(sessionId)
+    await chatSession.clearSessionMessages(sessionId)
     chatContext.resetContexts()
     await cancelPendingSends(sessionId)
     chatStream.resetStream()
@@ -1474,9 +1559,16 @@ export const useChatStore = defineStore('chat', () => {
 
   /** Cancels queued work before permanently removing its owning session. */
   async function deleteSession(sessionId: string): Promise<void> {
-    failedImageReads.delete(sessionId)
-    await cancelPendingSends(sessionId)
-    return chatSession.deleteSession(sessionId)
+    return deleteSessions([sessionId])
+  }
+
+  /** Cancels queued work of each session, then removes all of them in one batch. */
+  async function deleteSessions(sessionIds: string[]): Promise<void> {
+    for (const sessionId of sessionIds) {
+      failedImageReads.delete(sessionId)
+      await cancelPendingSends(sessionId)
+    }
+    return chatSession.deleteSessions(sessionIds)
   }
 
   async function ingestOnFork(
@@ -1521,6 +1613,7 @@ export const useChatStore = defineStore('chat', () => {
     dispose,
     cleanup,
     deleteSession,
+    deleteSessions,
     ingest,
     ingestOnFork,
     rerunToolCall,
@@ -1564,7 +1657,23 @@ export const useChatStore = defineStore('chat', () => {
   }
 }, {
   synced: {
-    actions: ['submit', 'settleAudioTranscript', 'cancelTurn', 'receiveInterruption', 'cancelPendingSends', 'cleanup', 'deleteSession', 'dismissBackgroundTask', 'rerunToolCall', 'retry', 'send', 'stopBackgroundTask'],
+    // Only the Stage chat hooks speak a reply, so generation runs in a speech player. Requests and runtime turns are
+    // local to that context, so every chat action runs there. Without a speech player, the leader runs them silently.
+    actions: {
+      submit: inSpeechPlayer,
+      settleAudioTranscript: inSpeechPlayer,
+      cancelTurn: inSpeechPlayer,
+      receiveInterruption: inSpeechPlayer,
+      cancelPendingSends: inSpeechPlayer,
+      cleanup: inSpeechPlayer,
+      deleteSession: inSpeechPlayer,
+      deleteSessions: inSpeechPlayer,
+      dismissBackgroundTask: inSpeechPlayer,
+      rerunToolCall: inSpeechPlayer,
+      retry: inSpeechPlayer,
+      send: inSpeechPlayer,
+      stopBackgroundTask: inSpeechPlayer,
+    },
     state: true,
   },
 })

@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import { Alert } from '@proj-airi/ui'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
-import Alert from '../misc/alert.vue'
 import VoiceCard from './voice-card.vue'
 
 const props = withDefaults(defineProps<Props>(), {
@@ -47,6 +47,11 @@ interface Voice {
 
 interface Props {
   voices: Voice[]
+  /**
+   * The settings search marker of each voice. A settings page passes it,
+   * so a search result for a voice scrolls to that voice. Without it, the voices have no marker.
+   */
+  searchKeyOf?: (voice: Voice) => string
   columns?: number
   searchable?: boolean
   searchPlaceholder?: string
@@ -340,13 +345,8 @@ const customVoiceName = ref('')
       </div>
 
       <!-- No search results -->
-      <Alert v-if="searchQuery && filteredVoices.length === 0" type="warning">
-        <template #title>
-          {{ searchNoResultsTitle }}
-        </template>
-        <template #content>
-          {{ searchNoResultsDescription.replace('{query}', searchQuery) }}
-        </template>
+      <Alert v-if="searchQuery && filteredVoices.length === 0" tone="warning" :title="searchNoResultsTitle">
+        {{ searchNoResultsDescription.replace('{query}', searchQuery) }}
       </Alert>
 
       <!-- Voices grid -->
@@ -372,13 +372,8 @@ const customVoiceName = ref('')
           :style="{ '--cols': props.columns }"
         >
           <!-- Not support voices warning -->
-          <Alert v-if="!searchQuery && filteredVoices.length === 0" type="warning">
-            <template #title>
-              {{ unsupportedVoiceWarningTitle }}
-            </template>
-            <template #content>
-              {{ unsupportedVoiceWarningContent }}
-            </template>
+          <Alert v-if="!searchQuery && filteredVoices.length === 0" tone="warning" :title="unsupportedVoiceWarningTitle">
+            {{ unsupportedVoiceWarningContent }}
           </Alert>
 
           <!-- Voice card with preview button -->
@@ -387,6 +382,7 @@ const customVoiceName = ref('')
             :key="voice.id"
             v-model:voice-id="voiceId"
             v-model:custom-voice-name="customVoiceName"
+            :data-settings-search="props.searchKeyOf?.(voice)"
             name="voice"
             class="snap-start"
             :voice="voice"

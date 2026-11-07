@@ -21,7 +21,7 @@ export function createTestRedis(): Redis {
  * Reads every entry of a Redis Stream as a field record, oldest first.
  *
  * @example
- * await readStreamFields(redis, 'airi:account-events')
+ * await readStreamFields(redis, 'account-events')
  * // => [{ id: 'revenuecat:evt-1', type: 'subscription.renewed', ... }]
  */
 export async function readStreamFields(redis: Redis, key: string): Promise<Record<string, string>[]> {

@@ -25,18 +25,25 @@ export type {
 } from './input/types'
 export type { Interruption, VoiceInterruptionEvent } from './interruption'
 export { SpeechStream, VoiceResponse } from './output/response'
-export type { SpeechAudio, SpeechClip, SpeechClipEnd, SpeechOutput } from './output/response'
+export type { SpeechAudio, SpeechClip, SpeechClipEnd, SpeechOutput, SpeechOutputEvent } from './output/response'
+export { defaultSpeechPreprocessors, toSpeechText } from './output/speech-transformation'
+export type { SpeechTextOptions } from './output/speech-transformation'
+export { defaultTokenReaders, mathSpeech, mathSpeechPreprocessor, moneySpeechPreprocessor, speakMath, tokenSpeechPreprocessor, toMathJson } from './output/speech-transformation/preprocessor'
+export type { SpeechFormulaContext, SpeechPreprocessor, SpeechProseContext, SpeechTokenContext, SpeechTokenReader } from './output/speech-transformation/preprocessor'
 export type {
   AudioPluginTask,
   FinalizeContext,
   FinalizeOptions,
   SpeechInputControl,
   SpeechInputScope,
+  SpeechOutputScope,
   TranscriptWatchOptions,
   VoicePlugin,
+  VoicePluginAudio,
   VoicePluginControls,
   VoicePluginError,
   VoicePluginHandle,
+  VoicePluginOutputAudio,
   VoicePluginScope,
   VoicePluginSettings,
 } from './plugins/types'
@@ -53,7 +60,7 @@ export {
   pausedSignal,
   speechActivitySignal,
 } from './policy/events'
-export { createEndJudgementRule, createPauseRule, createSpeechActivityRule } from './policy/rules'
+export { createEndJudgementRule, createPauseRule, createSpeechActivityRule, DEFAULT_SPEECH_THRESHOLD } from './policy/rules'
 export type { PauseRuleOptions, SpeechActivityRuleOptions } from './policy/rules'
 export type { Emission, InputRevisions, RevisionMetadata, RuleContext, RuleStep, VoiceCommand, VoiceRule } from './policy/types'
 export { turnKey } from './turn'

@@ -73,7 +73,7 @@ describe('internal auth routes', () => {
       const response = await requestDeletion(deletionApp(redis))
 
       expect(response.status).toBe(200)
-      expect((await readStreamFields(redis, 'airi:account-events')).map(event => event.id)).toEqual(['user-deletion:user-1'])
+      expect((await readStreamFields(redis, 'account-events')).map(event => event.id)).toEqual(['user-deletion:user-1'])
     })
 
     it('fails the deletion when the publish fails, so Auth retries it', async () => {
@@ -83,7 +83,7 @@ describe('internal auth routes', () => {
       const response = await requestDeletion(deletionApp(redis))
 
       expect(response.status).toBe(500)
-      expect(await readStreamFields(redis, 'airi:account-events')).toEqual([])
+      expect(await readStreamFields(redis, 'account-events')).toEqual([])
     })
   })
 

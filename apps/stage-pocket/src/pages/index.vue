@@ -62,7 +62,8 @@ const { stageModelRenderer } = storeToRefs(useSettings())
 const { syncBackgroundTheme } = useBackgroundThemeColor({ backgroundSurface, selectedOption, sampledColor })
 onMounted(() => syncBackgroundTheme())
 
-useVoiceListening()
+// Small screens offer no control for continuous listening, so only a voice call listens there.
+useVoiceListening({ continuous: () => !isMobile.value })
 
 const router = useRouter()
 </script>
@@ -77,20 +78,21 @@ const router = useRouter()
   >
     <div
       :class="[
-        'relative z-2 h-full w-100vw overflow-hidden pt-safe md:h-100dvh',
+        'relative z-2 h-full w-100vw overflow-hidden md:h-100dvh',
+        'pt-safe px-safe md:pb-safe',
         'flex flex-col',
       ]"
     >
       <!-- header -->
-      <div class="px-0 py-1 md:px-3 md:py-3" w-full gap-2>
+      <div :class="['px-0 py-1 md:px-3 md:py-3', 'w-full gap-2']">
         <Header class="hidden md:flex" />
       </div>
       <!-- page -->
-      <div relative flex="~ 1 row gap-y-0 gap-x-2 <md:col" min-h-0>
-        <div relative min-w="1/2" min-h-0 flex-1>
+      <div :class="['relative min-h-0', 'flex flex-1 flex-row gap-x-2 gap-y-0 <md:flex-col']">
+        <div :class="['relative min-h-0 min-w-1/2 flex-1']">
           <div
-            absolute left-0 z-15 px-3
             :class="[
+              'absolute left-0 z-15 px-3',
               stageModelRenderer === 'live2d' ? 'top-0 h-full py-[20vh]' : 'top-1/2 -translate-y-1/2',
             ]"
           >
@@ -98,7 +100,7 @@ const router = useRouter()
           </div>
           <WidgetStage
             v-model:state="modelRenderState"
-            h-full w-full
+            :class="['h-full w-full']"
             :enable-orbit-controls="!isMobile"
             :paused="paused"
             :focus-at="{
@@ -109,7 +111,15 @@ const router = useRouter()
             @select-avatar-model="router.push('/settings/models')"
           />
         </div>
-        <InteractiveArea v-if="!isMobile" h="85dvh" absolute right-4 flex flex-1 flex-col max-w="500px" min-w="30%" />
+        <!-- A fixed width keeps the chat panel narrow on wide screens. A percentage minimum overrode the maximum there. -->
+        <!-- The action buttons render below the chat and outside this box. The maximum height keeps them above the home indicator. -->
+        <InteractiveArea
+          v-if="!isMobile"
+          :class="[
+            'absolute right-4 h-[85dvh] max-h-[calc(100%-2.5rem)] w-[min(440px,45%)]',
+            'flex flex-col',
+          ]"
+        />
       </div>
     </div>
     <Teleport to="body">

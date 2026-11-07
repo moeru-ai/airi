@@ -15,6 +15,7 @@ import { toolCardDataRepo } from '../database/repos/tool-card-data.repo'
 import { problemsOfProgram } from '../libs/cards/program'
 import { cardLanguagePrompt } from '../libs/cards/prompt'
 import { MCP_CALL_TOOL_NAME } from '../tools/mcp'
+import { createSearchIconsTool } from '../tools/search-icons'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
 import { useConsciousnessStore } from './modules/consciousness'
 
@@ -166,6 +167,8 @@ const useToolCardsStateStore = defineStore('tool-cards-state', () => {
     const agent = createToolCardAgent({
       generateText: generateText({ providerId, model }),
       validate: program => problemsOfProgram(program, { key: request.key, data: request.data }),
+      // The model searches the icons that it names, so a card never guesses one.
+      tools: await createSearchIconsTool(),
     })
     return agent.make({
       catalogPrompt: ['You write a card in openui-lang, a declarative UI language, as the program of an app card.', '', cardLanguagePrompt()].join('\n'),

@@ -20,7 +20,7 @@ const timestampSchema = pipe(string(), isoTimestamp())
  * - `user.deleted`: `user-deletion:<userId>`, so a deletion retry deletes the inbox one time.
  */
 export const accountEventsStream = defineStream({
-  key: 'airi:account-events',
+  key: 'account-events',
   maxLength: 100_000,
   events: {
     'subscription.renewed': {

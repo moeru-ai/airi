@@ -1,4 +1,6 @@
 export { loadCaseEnvironment } from './environment'
+export { audioCaseLive2D, configureLive2D } from './live2d'
+export type { Live2DConfiguration } from './live2d'
 export { configureModuleConsciousness } from './module-consciousness'
 export type { ConsciousnessModuleConfiguration } from './module-consciousness'
 export { configureModuleHearing } from './module-hearing'

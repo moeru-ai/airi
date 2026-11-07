@@ -62,6 +62,20 @@ export const llmUpstreamSchema = object({
   overrideModel: optional(string()),
   keys: pipe(array(keyEntrySchema), check(v => v.length >= 1, 'llm.upstreams[].keys must contain at least 1 entry')),
   headerTemplate: optional(string(), 'Bearer {KEY}'),
+  /**
+   * Request headers, for example Authorization and OpenRouter `HTTP-Referer` / `X-Title`. `{KEY}` in a value is
+   * replaced with the key of each attempt. Without an Authorization entry, `headerTemplate` supplies it.
+   */
+  headers: pipe(
+    optional(record(
+      pipe(string(), regex(/^[!#$%&'*+.^`|~\w-]+$/, 'llm.upstreams[].headers names must be HTTP tokens')),
+      string(),
+    ), {}),
+    check(
+      headers => Object.keys(headers).every(name => name.toLowerCase() !== 'content-type'),
+      'llm.upstreams[].headers must not set content-type',
+    ),
+  ),
   timeoutMs: optional(number()),
 })
 

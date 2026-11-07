@@ -216,17 +216,21 @@ export interface QueuedSendSnapshot {
 
 /**
  * Session operations required by the core chat orchestrator runtime.
+ *
+ * The session owner can run in another context than the runtime. So the runtime writes a session only through the
+ * commit operations, and the read operations must not write.
  */
 export interface ChatOrchestratorSessionPort {
   /** Resolves after durable storage. A repeated identity does not append or change an existing user message. */
   commitUserMessage: (sessionId: string, message: Extract<ChatHistoryItem, { role: 'user' }> & { id: string }) => Promise<{ status: 'inserted' | 'existing', messageId: string }>
-  /** Ensures a session exists before messages are appended. */
-  ensureSession: (sessionId: string) => void
-  /** Returns chronological chat history for a session. */
+  /**
+   * Stores a finalized assistant message. Resolves after the session owner stores it.
+   * A repeated identity replaces the stored message, so a retried commit does not append it twice.
+   */
+  commitAssistantMessage: (sessionId: string, message: Extract<ChatHistoryItem, { role: 'assistant' }> & { id: string }) => Promise<void>
+  /** Returns chronological chat history for a session. It does not create or change the session. */
   getSessionMessages: (sessionId: string) => ChatHistoryItem[]
-  /** Appends a finalized user/assistant/tool history item. */
-  appendSessionMessage: (sessionId: string, message: ChatHistoryItem) => void
-  /** Returns a monotonic generation used to reject stale queued sends. */
+  /** Returns a monotonic generation used to reject stale queued sends. It does not change the session. */
   getSessionGeneration: (sessionId: string) => number
 }
 
@@ -324,6 +328,11 @@ export interface ChatOrchestratorRuntimeDeps {
    * With it, history carries no identity. Stored system messages are skipped, so a persona edit or switch reaches the next send of its own sessions only.
    */
   getSystemPrompt?: (sessionId: string) => string | undefined
+  /**
+   * Returns the conversation turn limit, including the current input's turn. A turn contains a user group and its assistant/tool group.
+   * `-1` keeps all history. `0` sends only current input. System messages are exempt.
+   */
+  getContextWindow?: (sessionId: string) => number | undefined
   /** Runtime context providers ingested immediately before prompt composition. */
   runtimeContextProviders?: Array<() => ContextMessage | null | undefined>
   /**
@@ -519,6 +528,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     message?: StreamingAssistantMessage
   }>()
   const sendQueues = new Map<string, ReturnType<typeof createQueue<QueuedSend>>>()
+  // Runtime-only cuts belong to sessions. A stable start permits prefix cache reuse between trims.
+  // Changed limits, session generations, or removed anchors invalidate the cut. Session cancellation releases it.
+  const historyCuts = new Map<string, { limit: number, generation: number, start: ChatHistoryItem }>()
   const hooks = createChatHooks()
   const now = deps.now ?? (() => Date.now())
   const monotonicNow = deps.monotonicNow ?? (() => globalThis.performance?.now?.() ?? Date.now())
@@ -630,6 +642,57 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     return { turns }
   }
 
+  function trimConversationHistory(sessionId: string, generation: number, history: ChatHistoryItem[], contextWindow: number | undefined) {
+    if (contextWindow === undefined || !Number.isInteger(contextWindow) || contextWindow < 0) {
+      historyCuts.delete(sessionId)
+      return history
+    }
+
+    const systemMessages = history.filter(message => message.role === 'system')
+    if (contextWindow === 0) {
+      historyCuts.delete(sessionId)
+      const currentInput = history.findLast(message => message.role === 'user')
+      return currentInput ? [...systemMessages, currentInput] : systemMessages
+    }
+
+    const previous = historyCuts.get(sessionId)
+    const anchor = previous?.limit === contextWindow && previous.generation === generation ? previous.start : undefined
+    const turnStarts: number[] = []
+    let userStart: number | undefined
+    let reachedAnchor = false
+
+    // Scan newest turns only, up to the cached boundary or one turn beyond the limit.
+    // Deletions can join role groups across that boundary, so finish the whole user group before stopping.
+    for (let index = history.length - 1; index >= 0; index--) {
+      const message = history[index]!
+      if (message.role === 'user') {
+        userStart = index
+        if (anchor && (anchor.id ? message.id === anchor.id : message === anchor))
+          reachedAnchor = true
+      }
+      else if ((message.role === 'assistant' || message.role === 'tool') && userStart !== undefined) {
+        turnStarts.push(userStart)
+        userStart = undefined
+        if (reachedAnchor || turnStarts.length > contextWindow)
+          break
+      }
+    }
+    if (userStart !== undefined)
+      turnStarts.push(userStart)
+
+    // Round up to keep small windows full. Only complete turns leave the retained prefix.
+    const retainedTurns = Math.ceil(contextWindow * 0.9)
+    const start = turnStarts.length > contextWindow
+      ? turnStarts[retainedTurns - 1]!
+      : turnStarts.at(-1) ?? history.length
+    const nextAnchor = history[start]
+    if (nextAnchor)
+      historyCuts.set(sessionId, { limit: contextWindow, generation, start: nextAnchor })
+    else
+      historyCuts.delete(sessionId)
+    return [...systemMessages, ...history.slice(start).filter(message => message.role !== 'system')]
+  }
+
   async function performSend(
     sendingMessage: string,
     options: ChatOrchestratorSendOptions,
@@ -641,8 +704,6 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   ) {
     if (!sendingMessage && !options.attachments?.length)
       return
-
-    deps.session.ensureSession(sessionId)
 
     const existingSessionMessages = deps.session.getSessionMessages(sessionId)
     let replyToMessageId = resolveReplyTargetId(options.replyToMessageId, existingSessionMessages)
@@ -707,6 +768,10 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       id: assistantMessageId,
       ...(options.notice ? { proactive: { turnId: roundId, source: options.notice.source } } : {}),
     }
+    // A failed store must not replace the error or the abort that interrupted the turn.
+    const storeInterruptedAssistant = () => deps.session
+      .commitAssistantMessage(sessionId, { ...cloneStreamingMessage(buildingMessage), id: assistantMessageId, interrupted: true, completedAt: now() })
+      .catch(error => console.error('Failed to store an interrupted assistant message:', error))
     // Received calls and the content of finished content calls stay here until their slices join the reply. Interrupted
     // turns preserve them without waiting for token hooks.
     const pendingSlices = new Set<ChatSlicesToolCall | ChatSlicesToolContent>()
@@ -959,7 +1024,13 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
       // Identity comes from the session's persona at request time. Without a host identity, the stored history keeps its own system message.
       const systemPrompt = deps.getSystemPrompt?.(sessionId)
-      const context = buildContext(deps.getSystemPrompt ? sessionMessagesForSend.filter(message => message.role !== 'system') : sessionMessagesForSend)
+      const history = trimConversationHistory(
+        sessionId,
+        generation,
+        deps.getSystemPrompt ? sessionMessagesForSend.filter(message => message.role !== 'system') : sessionMessagesForSend,
+        deps.getContextWindow?.(sessionId),
+      )
+      const context = buildContext(history)
       // The stored notice ends the history. Only this request tells the model that it can stay quiet about it.
       if (options.notice) {
         const lastTurn = context.turns.at(-1)
@@ -1217,7 +1288,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       if (!silent && !shouldAbort() && (buildingMessage.slices.length > 0 || generatedTurn?.rounds.length)) {
         const finalAssistant = buildingMessage
         finalAssistant.completedAt = now()
-        deps.session.appendSessionMessage(sessionId, finalAssistant)
+        await deps.session.commitAssistantMessage(sessionId, { ...finalAssistant, id: assistantMessageId })
         assistantStored = true
         deps.onAssistantMessageAppended?.({
           sessionId,
@@ -1288,7 +1359,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       if (!assistantStored && !generationCompleted && hasAssistantOutput(buildingMessage)) {
         // Keep received output local, but do not run completion hooks or cloud
         // sync for an assistant turn that never reached a terminal event.
-        deps.session.appendSessionMessage(sessionId, { ...cloneStreamingMessage(buildingMessage), interrupted: true, completedAt: now() })
+        await storeInterruptedAssistant()
       }
       resetForegroundStream(sessionId)
 
@@ -1323,7 +1394,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         && abortSignal.aborted
         && !isStaleGeneration()
         && hasAssistantOutput(buildingMessage)) {
-        deps.session.appendSessionMessage(sessionId, { ...cloneStreamingMessage(buildingMessage), interrupted: true, completedAt: now() })
+        await storeInterruptedAssistant()
         resetForegroundStream(sessionId)
       }
       activeSends.delete(sessionId)
@@ -1426,6 +1497,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   }
 
   function cancelPendingSends(sessionId?: string) {
+    if (sessionId)
+      historyCuts.delete(sessionId)
+    else
+      historyCuts.clear()
+
     for (const [activeSessionId, active] of activeSends) {
       if (!sessionId || sessionId === activeSessionId)
         active.controller.abort(new Error('Chat session send was cancelled'))

@@ -9,6 +9,8 @@ const props = withDefaults(defineProps<{
   showBackButton?: boolean
   disableBackButton?: boolean
   fallbackRoute?: string
+  /** Drops the page background so the header floats over a page that fills the screen. */
+  transparent?: boolean
 }>(), {
   showBackButton: true,
   disableBackButton: false,
@@ -77,7 +79,7 @@ watch([() => props.title, () => props.subtitle, route], async () => {
     }"
     sticky inset-x-0 top-0 z-99 w-full pb-6 pt-10
     flex="~ row items-center gap-2"
-    bg="$bg-color"
+    :class="[transparent ? 'bg-transparent' : 'bg-$bg-color']"
   >
     <button @click="handleBack">
       <div

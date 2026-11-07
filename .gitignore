@@ -102,10 +102,6 @@ components.d.ts
 .devenv*
 devenv.*
 
-# Rust
-target/
-crates/*/target/
-
 # turborepo
 .turbo
 
@@ -123,9 +119,6 @@ twitter-session.json
 result*
 # Nix develop outputs
 outputs/
-
-# MediaPipe task assets
-packages/model-driver-mediapipe/tasks/assets/*
 
 # Plugins
 plugins/local

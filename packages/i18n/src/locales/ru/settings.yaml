@@ -187,8 +187,6 @@ live2d:
           description: Создаёт движения из встроенного набора данных MAGIC.
       magic:
         profile:
-          title: Профиль MAGIC
-          description: Выберите встроенный набор движений для драйвера MAGIC.
           options:
             idle-calm:
               title: Покой / спокойствие
@@ -242,14 +240,7 @@ live2d:
     sdk-preset-preserved-notice: >
       Диспетчер выражений SDK и моргание глаз сохраняются, если выключены.
     no-expression: Нет выражений для этой модели.
-    llm-integration-wip: Интеграция инструментов LLM еще не завершена.
-    save-default: Сохранить выражение по умолчанию
     reset: Сбросить все выражения
-    expose-to-llm-toggle: Распространять в LLM
-    expose-to-llm-options:
-      none: Отсутствует
-      all: Все
-      custom: Пользовательский
 microphone: Микрофон
 models: Модель
 pages:
@@ -443,7 +434,7 @@ pages:
     delete: Удалить
     delete_card: Удалить карту
     delete_confirmation: Вы уверены, что хотите удалить эту карту?
-    description: Используйте предустановленные карты персонажей AIRI
+    description: Управление картами персонажей AIRI
     description_label: Описание
     drop_here: Перетащите сюда для загрузки
     create_card: Создать новую карту
@@ -723,7 +714,7 @@ pages:
       gaming: Игры
       artistry: Создание изображений
     consciousness:
-      description: Личность, модель сознания и др.
+      description: Выбор и настройка языковой модели
       sections:
         section:
           provider-model-selection:
@@ -836,8 +827,6 @@ pages:
             description: Выберите подходящего провайдера синтеза речи
           microphone:
             title: Микрофон
-            label: Микрофон
-            description: Включите микрофон для модуля слуха. Режим ввода определяет, когда AIRI слушает.
             error: Микрофон недоступен
           input-device:
             label: Устройство ввода
@@ -969,7 +958,7 @@ pages:
       title: Речь
     title: Модули
     vision:
-      description: Зрение
+      description: Настройки понимания изображений и захвата экрана
       title: Зрение
       tool-images:
         label: Использовать модель зрения для изображений инструментов
@@ -1396,11 +1385,9 @@ pages:
       buy: Пополнить
       description: Пакеты Flux на выбор.
   capacitor:
-    description: Capacitor хранит Flux и перезаряжается автоматически.
     statusError: Не удалось загрузить ваш Capacitor. Повторите попытку позже.
     packagesError: Не удалось загрузить список Capacitor. Повторите попытку позже.
     preferenceError: Не удалось сохранить настройку. Повторите попытку позже.
-    noCapacitor: Нет Capacitor
     remaining: 'Осталось {percent}'
     rechargesAt: Перезарядка {date}
     renewsAt: Продление {date}
@@ -1933,7 +1920,7 @@ pages:
         playground:
           title: Песочница транскрипции
       aihubmix:
-        description: https://aihubmix.com (скидка 10%)
+        description: aihubmix.com (скидка 10%)
     title: Провайдеры
   connection:
     description: Настроить соединение сервера WebSocket

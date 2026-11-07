@@ -44,7 +44,6 @@ const syncIcon = computed(() => props.syncState ? syncIcons[props.syncState] : u
         'transition-[transform,box-shadow] duration-350 ease-out',
         'group-hover:-translate-y-1 group-hover:shadow-[0_14px_28px_-12px_rgb(0_0_0/0.55)]',
         'motion-reduce:transition-none motion-reduce:group-hover:translate-y-0',
-        isActive ? 'outline-2 outline-offset-3 outline-primary-500 dark:outline-primary-400' : '',
       ]"
     >
       <span

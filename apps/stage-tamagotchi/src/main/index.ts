@@ -2,13 +2,14 @@ import type { BrowserWindow } from 'electron'
 
 import type { FullscreenMode, FullscreenSurfaceId } from '../shared/eventa'
 import type { FileLoggerHandle } from './app/file-logger'
+import type { AutoUpdater } from './services/electron/auto-updater'
 import type { SettingsWindowManager } from './windows/settings'
 import type { FullscreenPlace } from './windows/shared/fullscreen'
 import type { WorkspaceWindowManager } from './windows/workspace'
 
 import process, { env, platform } from 'node:process'
 
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import messages from '@proj-airi/i18n/locales'
@@ -18,8 +19,7 @@ import { Format, LogLevel, setGlobalFormat, setGlobalHookPostLog, setGlobalLogLe
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { hasSelectedScreenCaptureSource, initScreenCaptureForMain } from '@proj-airi/electron-screen-capture/main'
 import { app, ipcMain, protocol, session } from 'electron'
-import { noop } from 'es-toolkit'
-import { createLoggLogger, injeca, lifecycle } from 'injeca'
+import { createLoggLogger, injeca } from 'injeca'
 import { isLinux } from 'std-env'
 
 import devIcon from '../../resources/icon-dev.png?asset'
@@ -28,11 +28,13 @@ import { openDebugger, setupDebugger } from './app/debugger'
 import { nullFileLoggerHandle, setupFileLogger } from './app/file-logger'
 import { resolveIsWayland } from './app/ozone'
 import { installSingleInstanceGuard } from './app/single-instance'
+import { trustSystemCACertificates } from './app/system-ca'
 import { createArtistryConfig } from './configs/artistry'
 import { createGlobalAppConfig } from './configs/global'
+import { createIOTraceHubConfig } from './configs/io-trace-hub'
 import { createIOTraceRecordingConfig } from './configs/io-trace-recording'
 import { emitAppBeforeQuit, emitAppWindowAllClosed } from './libs/bootkit/lifecycle'
-import { getElectronMainDirname, setElectronMainDirname } from './libs/electron/location'
+import { getRendererRoot, setElectronMainDirname } from './libs/electron/location'
 import { createI18n } from './libs/i18n'
 import { setupAppleSpeechTranscriptionService } from './services/airi/apple-speech-transcription'
 import { setupAppleVisionService } from './services/airi/apple-vision'
@@ -41,11 +43,14 @@ import { setupComputerUse } from './services/airi/computer-use'
 import { setupGodotStageManager } from './services/airi/godot-stage'
 import { setupHomeAssistant } from './services/airi/home-assistant'
 import { setupBuiltInServer } from './services/airi/http-server'
+import { IOTraceHub } from './services/airi/io-trace-hub'
+import { registerIOTraceHub } from './services/airi/io-trace-hub/register'
 import { IOTraceRecordingService } from './services/airi/io-trace-recording'
+import { recordHubRecords } from './services/airi/io-trace-recording/hub'
 import { setupMcpManager } from './services/airi/mcp-servers'
 import { setupExtensionHost } from './services/airi/plugins'
 import { setupArtistryBridge } from './services/airi/widgets/artistry-bridge'
-import { setupAutoUpdater } from './services/electron/auto-updater'
+import { isExternallyUpdatedInstall, setupAutoUpdater } from './services/electron/auto-updater'
 import { setupSherpawModelAssetsProtocol } from './services/electron/bundled-sherpaw-assets'
 import { setupGlobalShortcutService } from './services/electron/global-shortcut'
 import { setupPermissionHandlers } from './services/electron/media-permissions'
@@ -85,6 +90,7 @@ protocol.registerSchemesAsPrivileged([{
 setGlobalFormat(Format.Pretty)
 setGlobalLogLevel(LogLevel.Log)
 setupDebugger()
+trustSystemCACertificates()
 
 const log = useLogg('main').useGlobalConfig()
 
@@ -246,7 +252,7 @@ app.whenReady().then(async () => {
 
   await injeca.resolve({ networkProxy: networkProxyService })
 
-  setupSherpawModelAssetsProtocol(resolve(getElectronMainDirname(), '..', 'renderer'))
+  setupSherpawModelAssetsProtocol(getRendererRoot)
   setupSherpawModelAssets(createContext(ipcMain).context)
   setupPermissionHandlers(session.defaultSession, hasSelectedScreenCaptureSource)
 
@@ -265,11 +271,12 @@ app.whenReady().then(async () => {
   const appConfig = injeca.provide('configs:app', () => createGlobalAppConfig())
   const artistryConfig = injeca.provide('configs:artistry', () => createArtistryConfig())
   const ioTraceRecordingConfig = injeca.provide('configs:io-trace-recording', () => createIOTraceRecordingConfig())
+  const ioTraceHubConfig = injeca.provide('configs:io-trace-hub', () => createIOTraceHubConfig())
   const electronApp = injeca.provide('host:electron:app', () => app)
   const autoUpdater = injeca.provide('services:auto-updater', {
     dependsOn: { appConfig },
     build: ({ dependsOn }) => setupAutoUpdater({
-      enabled: import.meta.env.VITE_DISTRIBUTION !== 'steam',
+      enabled: !isExternallyUpdatedInstall(),
       getStoredUpdateLane: () => dependsOn.appConfig.get()?.updateChannel,
       setStoredUpdateLane: (lane) => {
         const currentConfig = dependsOn.appConfig.get()
@@ -289,8 +296,8 @@ app.whenReady().then(async () => {
   })
 
   const serverChannel = injeca.provide('modules:channel-server', {
-    dependsOn: { app: electronApp, lifecycle },
-    build: async ({ dependsOn }) => setupServerChannel(dependsOn),
+    dependsOn: { app: electronApp },
+    build: async ({ on }) => setupServerChannel({ on }),
   })
 
   const airiHttpServer = injeca.provide('modules:airi-http-server', {
@@ -302,28 +309,44 @@ app.whenReady().then(async () => {
   })
 
   const appleSpeechTranscription = injeca.provide('modules:apple-speech-transcription', {
-    dependsOn: { lifecycle },
-    build: ({ dependsOn }) => setupAppleSpeechTranscriptionService(dependsOn),
+    build: ({ on }) => setupAppleSpeechTranscriptionService({ on }),
   })
 
   const appleVision = injeca.provide('modules:apple-vision', {
-    dependsOn: { lifecycle },
-    build: ({ dependsOn }) => setupAppleVisionService(dependsOn),
+    build: ({ on }) => setupAppleVisionService({ on }),
   })
 
   const mcpManager = injeca.provide('modules:mcp-manager', {
     build: async () => setupMcpManager(),
   })
 
+  const ioTraceHub = injeca.provide('services:io-trace-hub', {
+    dependsOn: { config: ioTraceHubConfig },
+    build: ({ dependsOn, on }) => {
+      const hub = new IOTraceHub({
+        getStoredCollecting: () => dependsOn.config.get()?.collecting ?? false,
+        setStoredCollecting: collecting => dependsOn.config.update({ collecting }),
+      })
+      const unregister = registerIOTraceHub(hub)
+      on('stop', unregister)
+      return hub
+    },
+  })
+
   const ioTraceRecording = injeca.provide('services:io-trace-recording', {
-    dependsOn: { config: ioTraceRecordingConfig, lifecycle },
-    build: ({ dependsOn }) => {
+    dependsOn: { config: ioTraceRecordingConfig, hub: ioTraceHub },
+    build: ({ dependsOn, on }) => {
       const service = new IOTraceRecordingService({
         directory: join(app.getPath('userData'), 'io-traces'),
         getStoredEnabled: () => dependsOn.config.get()?.enabled ?? false,
         setStoredEnabled: enabled => dependsOn.config.update({ enabled }),
+        sensitivityOf: dependsOn.hub.collector.sensitivityOf,
       })
-      dependsOn.lifecycle.appHooks.onStart(async () => {
+      const stopFlightDumps = dependsOn.hub.onFlightDump((dump) => {
+        service.writeFlightDump(dump).catch(error => log.withError(error).error('Failed to write trace flight dump'))
+      })
+      const stopRecording = recordHubRecords(dependsOn.hub, service, error => log.withError(error).error('Failed to record trace record'))
+      on('start', async () => {
         try {
           await service.restore()
         }
@@ -331,7 +354,13 @@ app.whenReady().then(async () => {
           log.withError(error).error('Failed to restore IO trace recording')
         }
       })
-      dependsOn.lifecycle.appHooks.onStop(() => service.dispose())
+      // injeca runs the stop hooks of one service in reverse order, so one hook keeps this order:
+      // stop the record feeds, then dispose the service.
+      on('stop', () => {
+        stopRecording()
+        stopFlightDumps()
+        return service.dispose()
+      })
       return service
     },
   })
@@ -401,7 +430,7 @@ app.whenReady().then(async () => {
   })
 
   const settingsWindow = injeca.provide('windows:settings', {
-    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, serverChannel, godotStageManager, mcpManager, i18n, globalShortcut, spotlightWindow, ioTraceRecording },
+    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, editorWindow, serverChannel, godotStageManager, mcpManager, i18n, globalShortcut, spotlightWindow, ioTraceRecording },
     build: async ({ dependsOn }) => {
       settingsWindowManager = setupSettingsWindowReusableFunc({
         ...dependsOn,
@@ -414,7 +443,7 @@ app.whenReady().then(async () => {
   })
 
   const workspaceWindow = injeca.provide('windows:workspace', {
-    dependsOn: { chatWindow, widgetsManager, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, serverChannel, godotStageManager, mcpManager, i18n, globalShortcut, spotlightWindow, ioTraceRecording },
+    dependsOn: { chatWindow, widgetsManager, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, editorWindow, serverChannel, godotStageManager, mcpManager, i18n, globalShortcut, spotlightWindow, ioTraceRecording },
     build: ({ dependsOn }) => {
       workspaceWindowManager = setupWorkspaceWindowManager({
         ...dependsOn,
@@ -476,18 +505,11 @@ app.whenReady().then(async () => {
   })
 
   // Desktop grounding overlay — gated by AIRI_DESKTOP_OVERLAY=1
+  // injeca.start() builds every registered service, so the overlay needs no consumer.
   if (isDesktopOverlayEnabled()) {
-    const desktopOverlay = injeca.provide('windows:desktop-overlay', {
+    injeca.provide('windows:desktop-overlay', {
       dependsOn: { mcpManager, serverChannel, i18n },
       build: async ({ dependsOn }) => setupDesktopOverlayWindow(dependsOn),
-    })
-
-    // NOTICE: Separate invoke ensures the overlay is eagerly built.
-    // Without this, injeca.start() would skip it because no other
-    // provider depends on 'windows:desktop-overlay'.
-    injeca.invoke({
-      dependsOn: { desktopOverlay },
-      callback: noop,
     })
   }
 
@@ -505,7 +527,19 @@ app.whenReady().then(async () => {
     },
   })
 
-  injeca.start().catch(err => log.withError(err).error('Failed to start injeca'))
+  // The update launcher keeps a new bundle only after it reports healthy, and rolls it back otherwise. The updater service
+  // reports it when every module has started and the main window has mounted its page.
+  let updates: AutoUpdater | undefined
+  injeca.invoke({
+    dependsOn: { autoUpdater },
+    callback: (deps) => {
+      updates = deps.autoUpdater
+    },
+  })
+
+  injeca.start()
+    .then(() => updates?.markMainReady())
+    .catch(err => log.withError(err).error('Failed to start injeca'))
 
   // Extra
   openDebugger()

@@ -218,9 +218,16 @@ live2d:
           title: MAGIC
           description: Generate motion from the bundled MAGIC dataset.
       magic:
+        idle-profile:
+          title: Idle profile
+          description: Select the motion dataset that MAGIC plays while AIRI does not speak.
+        speaking-profile:
+          title: Speaking profile
+          description: Select the motion dataset that MAGIC plays while AIRI replies.
+        follow-speech:
+          title: Follow speech
+          description: Blend to the speaking profile while the voice of AIRI plays. Blend back to the idle profile after the voice stops.
         profile:
-          title: MAGIC profile
-          description: Select the bundled motion dataset that fits the MAGIC driver.
           options:
             idle-calm:
               title: Idle / calm
@@ -338,6 +345,24 @@ pages:
         accountAlreadyLinkedToDifferentUser: This OAuth account is already linked to another AIRI account. Choose a different provider account, or unlink it from the other AIRI account first.
         oauthCallbackFailed: We could not connect this OAuth account. Try again or choose another provider account.
         lastAccount: This is your only sign-in method. Set a password first before unlinking it.
+    sync:
+      tab: Sync
+      title: Sync
+      description: Choose the data that this device syncs to your account. Your choices apply only to this device.
+      off_note: When you turn off a sync, your data stays on this device and in your account. Changes from this device sync when you turn it on again.
+      items:
+        chats:
+          title: Chats
+          description: The text of your chats and their titles. Images and stickers stay on this device.
+        providers:
+          title: Providers
+          description: Your provider settings, with their API keys. The server keeps them encrypted.
+        character_cards:
+          title: Character cards
+          description: Your character cards. A card that you delete stays restorable for 30 days.
+        display_models:
+          title: Models
+          description: The Live2D and VRM models that you import. Large files use your account storage and network data.
     security:
       tab: Security
       title: Security
@@ -397,8 +422,6 @@ pages:
       action: Choose who answers
     sync:
       notice: Character cards sync to your account. A deleted card stays restorable for 30 days.
-      off_notice: You are signed in, but character card sync is off.
-      off_notice_link: Turn it on in Experimental Features.
       state:
         synced: Synced to your account
         pending: Waiting to upload
@@ -480,7 +503,7 @@ pages:
     delete: Delete
     delete_card: Delete Card
     delete_confirmation: Are you sure you want to delete this card?
-    description: Use AIRI character card presets
+    description: Manage AIRI character cards
     description_label: Description
     drop_here: Drop to upload
     create_card: Create a new Card
@@ -536,6 +559,7 @@ pages:
         greetings: How your character should say "hello" ?
         systemprompt: Explain here to the AI LLM how it should answer when prompted.
         posthistoryinstructions: Place here anything the AI LLM should read after the messages history.
+        context_window: 'Turn limit, including the current turn. Each turn contains your message and the assistant reply, including tool calls. Consecutive messages from the same role stay together. Leave empty for All. Use 0 to send only your current message. When exceeded, the newest 90% of the limit is retained, rounded up to whole turns. Saved chats stay intact.'
         version: >-
           Card version, you should increase this if you are making changes from
           a previous card.
@@ -560,6 +584,8 @@ pages:
     no_results: No matching cards found
     personality: Personality
     posthistoryinstructions: Post-History Instructions
+    context_window: Turns to remember
+    context_window_all: All
     recent: Recently Added
     scenario: Scenario
     search: Search cards...
@@ -659,6 +685,48 @@ pages:
       desktop_window_centered: Desktop window moved to screen center.
       desktop_reset: Desktop data reset.
   models:
+    editor:
+      model:
+        all-models: All models
+      tabs:
+        model: Model
+        placement: Placement
+        motion: Motion
+        look: Look
+        display: Display
+      tools:
+        size: Size
+        position: Position
+        look-at: Look at
+        eyes: Eyes
+        idle-motion: Idle motion
+        motion-source: Motion source
+        expressions: Expressions
+        shadow: Shadow
+        theme-color: Theme color
+      position:
+        horizontal: Horizontal
+        vertical: Vertical
+        description: Drag the character on the stage, or use the rulers below.
+      look-at:
+        title: Where the character looks
+        options:
+          cursor: Cursor
+          off: Straight ahead
+      eyes:
+        look-around: Look around when idle
+        blink: Blink
+        blink-options:
+          off: 'Off'
+          model: From the model
+          airi: AIRI timer
+      reset: Reset
+      back: Back
+      clear-cache-confirm:
+        title: Clear the model cache?
+        description: The files of all Live2D models are deleted from this device. Each model downloads again the next time it loads.
+        confirm: Clear
+        cancel: Cancel
     description: Live2D, VRM, Spine, MMD, etc.
     title: Models
     sections:
@@ -671,11 +739,16 @@ pages:
           description: Configure 3D VRM models and settings
         scene: Scene
   modules:
+    availability:
+      none: None
     beat_sync:
       description: Vibe with beats from the audio source
       title: Beat Sync
       sections:
         audio_source:
+          no_audio:
+            title: No audio detected
+            description: Make sure that you gave the permissions and that the audio source plays sound.
           actions:
             start_screen_capture: Start screen capture
             stop: Stop
@@ -787,7 +860,7 @@ pages:
       gaming: Gaming
       artistry: Artistry
     consciousness:
-      description: Personality, desired model, etc.
+      description: Language model selection and settings
       sections:
         section:
           provider-model-selection:
@@ -938,14 +1011,26 @@ pages:
             description: Select the suitable speech recognition provider
           microphone:
             title: Microphone
-            label: Microphone
-            description: Turn on the microphone for Hearing. The input mode controls when AIRI listens.
             error: The microphone is not available
+          microphone-switch:
+            label: Use microphone
+            description: When this is off, no feature in AIRI can use the microphone.
+          listen:
+            label: Listen
+            description: AIRI listens in the input mode above. This needs the microphone.
           input-device:
             label: Input device
             description: Select the microphone that AIRI uses.
             playground-description: Hearing and the playground use this microphone.
             placeholder: Select a microphone
+            system-default: System default
+            allow: Allow microphone access
+            allow-description: AIRI lists your microphones after you allow access.
+            allow-action: Allow
+            blocked: The browser blocked the microphone
+            blocked-description: Allow the microphone for this site in the browser site settings, then try again.
+            retry: Try again
+            missing: No microphone found. Connect one, then open this page again.
           auto-send:
             title: Transcripts
             description: Choose what AIRI does with the text of your speech.
@@ -958,6 +1043,7 @@ pages:
             title: Input mode
             description: Choose how AIRI starts to listen while the microphone is on.
             label: Start listening
+            call-only: On a small screen, AIRI listens only during a voice call. To start one, use the add button next to the chat input.
             always-on: Always on
             always-on-description: AIRI listens all the time and replies when you speak.
             push-to-talk: Push to Talk
@@ -989,6 +1075,7 @@ pages:
             model: Model
             model-placeholder: Select a model
           playground:
+            vad-error-title: Voice activity detection error
             current: Current transcript
             description: Listen through the active Hearing pipeline and keep each completed speech segment below.
             empty: Start monitoring and speak into the selected microphone.
@@ -1132,6 +1219,7 @@ pages:
             loading: Loading Voice Packs...
             title: Voice Pack
           provider-voice-selection:
+            load_error: Cannot load voices
             custom_model_placeholder: Enter custom model name...
             custom_voice_placeholder: Enter custom voice ID...
             description: Select the suitable speech provider
@@ -1164,7 +1252,7 @@ pages:
       title: Speech
     title: Modules
     vision:
-      description: Vision
+      description: Image understanding and screen capture settings
       title: Vision
       tool-images:
         label: Use the vision model for tool images
@@ -1479,6 +1567,11 @@ pages:
       description: Let AIRI search the web for current information
       enable: Enable Web Search
       enable-description: Allow AIRI to search the web during chat
+      provider: Search provider
+      deepseek:
+        api-key: DeepSeek API Key
+        api-key-description: Enter a DeepSeek API key for web search. This key is separate from your chat provider settings.
+        api-key-placeholder: Enter your DeepSeek API key
       api-key: Tavily API Key
       api-key-description: Web search is powered by Tavily. Get a free API key at tavily.com.
       api-key-placeholder: Enter your Tavily API key
@@ -2155,6 +2248,11 @@ pages:
           default-text: Hello! This is a test of MiniMax speech synthesis.
         title: MiniMax Speech
       mimo:
+        model-behavior:
+          title: MiMo model behavior
+          preset: '{model} uses the preset voice list below.'
+          voice-design: '{model} uses the style prompt to design a new voice. It does not accept {field}.'
+          voice-clone: '{model} uses the voice sample that you paste. It ignores the preset voice.'
         description: api.xiaomimimo.com
         title: Xiaomi MiMo
       mistral:
@@ -2200,6 +2298,9 @@ pages:
         description: perplexity.ai
         title: Perplexity
       player2:
+        app-missing:
+          download: 'Download and run the Player2 app: {link}'
+          support: 'If the problem continues after you install it, contact us on Discord: {link}'
         description: player2.game
         title: Player2
       together:
@@ -2261,6 +2362,18 @@ pages:
         description: Aliyun NLS
         title: Aliyun NLS
       browser-web-speech-api:
+        test:
+          unavailable: The Web Speech API is not available in this browser.
+          select-device: Select an audio input device to start the test.
+          error-title: Transcription error
+          streaming-mode: 'Streaming mode: the transcription shows in real time while you speak.'
+        no-api-key: No API key is necessary. The Web Speech API is free and built into your browser.
+        intro:
+          title: Free speech recognition in the browser
+          description: The Web Speech API is free and built into the browser. It needs no API key and no external service. It uses the speech recognition of your browser.
+        unavailable:
+          title: Web Speech API is not available
+          description: This browser does not support the Web Speech API. Use Chrome, Edge, Safari, or another Chromium-based browser. You cannot use this provider in the current environment.
         description: Browser-native STT (requires Chrome/Edge/Safari)
         title: Web Speech API
       prompt-api:
@@ -2280,7 +2393,7 @@ pages:
           title: Transcription Playground
       aihubmix:
         title: AIHubMix
-        description: https://aihubmix.com (10% off)
+        description: aihubmix.com (10% off)
     title: Providers
   connection:
     description: Configure WebSocket server connection
@@ -2339,12 +2452,6 @@ pages:
         global: Available to signed-in accounts
         account: Available to your account
       features:
-        character_card_sync:
-          title: Character card cloud sync
-          description: Sync your character cards to your account when you are signed in, so they reach your other devices. Off by default. A card you delete stays in your account history for 30 days.
-        display_model_sync:
-          title: Model cloud sync
-          description: Upload imported Live2D and VRM models to your account when you are signed in, so you can use them on other devices. Off by default.
         fullscreen_workspace:
           title: Fullscreen workspace
           description: Open settings and the chat in a workspace that covers the screen, with the character on the left. Off by default.
@@ -2386,6 +2493,59 @@ pages:
               markdown-stress:
                 title: Markdown Stress
                 description: Stress markdown parsing and rendering with heavy chat payloads
+              needs-attention:
+                title: Needs Attention
+                description: Test the needs-attention list of the settings home. See the provider checks and the speech of each character, and cause problems on purpose
+                timing-label: Check timing
+                timing-signed-in: 'Signed in: the app checks the added providers at sign-in, and after each sync every {minutes} min'
+                timing-signed-out: 'Not signed in: no automatic check. A check runs only on some provider settings pages, or when you use the button below.'
+                timing-periodic: '{names} also check every {seconds} s'
+                check-all: Check all now
+                restore-all: 'Show all dismissed again ({count})'
+                empty: No provider was checked yet.
+                not-checked: not checked yet
+                checked-ago: '{seconds} s ago'
+                every: 'every {seconds} s'
+                measured: 'last {count} checks {seconds} s apart on average'
+                dismissed: Dismissed
+                restore-one: Undo dismiss
+                simulate: Fail on purpose
+                simulated-reason: Simulated failure from the developer tools.
+                speech-title: Character speech
+                speech-off: Speech is off
+                speech-ready: Can speak
+                speech-missing-model: No speech model
+                speech-missing-voice: No voice
+                speech-missing-model-voice: No speech model or voice
+                speech-provider-unusable: 'The speech module cannot use the provider now, so the list shows the provider instead'
+                speech-pending: Waiting for the catalog
+                items-title: Items in the list
+                items-empty: Nothing needs attention now.
+                selections-title: Module providers
+                selection-usable: Can be used
+                selection-provider-item: The provider item reports it
+                selection-awaiting-check: 'Added, waiting for its check'
+                selection-unusable: The module cannot use it
+                simulate-unusable: Treat as unusable
+                voice-input-title: Voice input
+                voice-input-mic-on: Microphone on
+                voice-input-mic-off: Microphone off
+                voice-input-ready: Hearing can transcribe
+                voice-input-not-ready: Hearing has no transcription provider or model
+                simulate-voice-input: Treat as on without transcription
+                simulate-speech: Treat as no voice
+                kinds:
+                  chat: Chat
+                  vision: Vision
+                  speech: Speech
+                  transcription: Transcription
+                  other: Other
+                status:
+                  unconfigured: Not set up
+                  validating: Checking
+                  configured: Passed
+                  invalid: Failed
+                  bypassed: Not checked
               tool-payloads-as-json:
                 title: Show tool data as JSON
                 description: Show the arguments and results of chat tool calls as a JSON tree, not as formatted fields. Cards in replies also offer their raw data.
@@ -2561,6 +2721,29 @@ pages:
       label: Tip!
       description: Using a square image will leverage <b>cover</b> cropping in
         portrait mode, focusing on the center of the scene.
+search:
+  placeholder: Search settings
+  empty: 'No settings match "{query}".'
+  not-shown: '"{name}" shows only in another state of this page, for example after you turn on a switch or choose another model type.'
+needs-attention:
+  title-one: '{name} failed its last check'
+  title-unconfigured: '{name} is not set up'
+  title-many: '{count} items need attention'
+  speech-no-model: '{name} has no speech model'
+  speech-no-voice: '{name} has no voice'
+  speech-no-model-voice: '{name} has no speech model or voice'
+  text-only: Replies are text only
+  simulated: Simulated from the developer tools
+  character-provider-unavailable: 'The {module} provider of {name} cannot be used'
+  module-provider-unavailable: 'The {module} provider cannot be used'
+  provider-not-listed: '{provider} is not in the provider list'
+  hearing-no-provider: Voice input is on, but no transcription provider is selected
+  hearing-no-model: Voice input is on, but no transcription model is selected
+  not-transcribed: Your speech is not transcribed
+  affects: 'Affects {modules}'
+  used-by: 'Used by {modules}'
+  fix: Edit
+  dismiss: Dismiss
 sections:
   section:
     general:
@@ -2715,6 +2898,10 @@ tachie:
     title: Rendering
     render-scale: Render Scale
     shadow: Theme-colored drop shadow
+  audit-report:
+    status: 'Status: {status}'
+    critical-issues: Critical issues
+    warnings: Warnings
 websocket-secure-enabled:
   title: Serve as Secure WebSocket (WSS)
   description: >-

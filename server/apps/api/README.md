@@ -61,7 +61,7 @@ Each change stays in one domain module, plus wiring in `app.ts`:
 
 - To add a stream or an event, edit the `defineStream` call of the domain module.
 - To add a producer, provide `createStreamPublisher` through `injeca`.
-- To add a consumer, provide `createStreamConsumer` through `injeca`, and register `start()` and `stop()` with `lifecycle.appHooks`.
+- To add a consumer, provide `createStreamConsumer` through `injeca`. In its `build`, register `start()` with `on('start')` and `stop()` with `on('stop')`.
 
 The account events stream (`src/services/adapters/account-events.ts`) is the first user. Cloud (`proj-airi/backend`) reads it and writes user notifications.
 

@@ -58,7 +58,12 @@ export type TransitionStage
     | 'after-leave' // Complete animation cycle finished
 
 // Define hook types
-type TransitionHook = (stage: TransitionStage, data: any) => void | Promise<void>
+interface TransitionHookData {
+  transitionName: StageTransitionCommonParams['name']
+  config?: TransitionOptions
+}
+
+type TransitionHook = (stage: TransitionStage, data: TransitionHookData) => void | Promise<void>
 type NavigationCallback = () => void
 
 interface TransitionOptions {
@@ -116,7 +121,7 @@ function addTransitionHook(hook: TransitionHook): () => void {
 }
 
 // Trigger all hooks for a stage
-async function triggerHooks(stage: TransitionStage, data: any = {}) {
+async function triggerHooks(stage: TransitionStage, data: TransitionHookData) {
   transitionStage.value = stage
 
   // Execute all hooks and wait for them to complete
@@ -186,7 +191,7 @@ async function triggerTransitionAsyncFn(params: StageTransitionCommonParams, nex
     showTransition.value = true
 
     // Enter active phase
-    await triggerHooks('enter-active', { transitionName: name })
+    await triggerHooks('enter-active', { transitionName: params.name })
 
     // Trigger navigation phase at the configured time
     setTimeout(async () => {

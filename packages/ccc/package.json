@@ -4,6 +4,7 @@
   "private": true,
   "exports": "./src/index.ts",
   "scripts": {
+    "test:run": "vitest run --config vitest.config.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",

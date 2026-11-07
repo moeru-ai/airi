@@ -11,6 +11,7 @@ import { createI18n } from 'vue-i18n'
 import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
 import { useAuthStore } from '../auth'
 import { useAiriCardStore } from '../modules/airi-card'
+import { useSyncPreferencesStore } from '../sync-preferences'
 
 vi.mock('../../database/repos/chat-sessions.repo', () => ({
   chatSessionsRepo: {
@@ -57,6 +58,7 @@ vi.mock('../../libs/chat-sync', async importOriginal => ({
   ...await importOriginal<typeof import('../../libs/chat-sync')>(),
   createCloudChatMapper: () => ({
     deleteChat: vi.fn().mockResolvedValue(undefined),
+    updateChat: vi.fn().mockResolvedValue(undefined),
     createChat: async (options: { id: string }) => ({ id: options.id, type: 'bot', title: null, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' }),
     listChats: vi.fn().mockResolvedValue([]),
   }),
@@ -160,6 +162,46 @@ describe('chat session synchronization', () => {
     expect(leader.sessionMetas[fork]?.parentSessionId).toBe(first)
     expect(leader.sessionMetas[fork]?.hidden).toBe(true)
     expect(leader.sessionMetas[fork]?.characterId).toBe('default')
+  })
+
+  it('keeps a message that the leader commits while a follower reads the session', async () => {
+    // ROOT CAUSE:
+    //
+    // Reading an empty session wrote it. The follower then proposed its session state without the committed message,
+    // and the leader applied that proposal after the commit.
+    //
+    // Before the fix, both copies lost the user message.
+    //
+    // The fix makes reads pure.
+    const namespace = `chat-read:${crypto.randomUUID()}`
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+    const leader = useChatSessionStore(leaderContext.pinia)
+    await leader.initialize()
+
+    const followerContext = createSyncedContext(namespace, 'follower-only')
+    const follower = useChatSessionStore(followerContext.pinia)
+    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+    await follower.initialize()
+    const sessionId = await follower.createSession('default')
+    await vi.waitFor(() => expect(follower.sessionMessages[sessionId]).toEqual([]))
+
+    expect(follower.getSessionMessages(sessionId)).toEqual([])
+    expect(follower.getSessionGeneration(sessionId)).toBe(leader.getSessionGeneration(sessionId))
+    await follower.commitUserMessage(sessionId, { id: 'user-1', role: 'user', content: 'hello', createdAt: 1 })
+    await follower.storeMessage(sessionId, { id: 'assistant-1', role: 'assistant', content: 'hi', slices: [], tool_results: [], createdAt: 2 })
+    // A retried store replaces the message, so the history keeps one copy.
+    await follower.storeMessage(sessionId, { id: 'assistant-1', role: 'assistant', content: 'hi there', slices: [], tool_results: [], createdAt: 2 })
+
+    const expected = [
+      { id: 'user-1', role: 'user', content: 'hello', createdAt: 1 },
+      { id: 'assistant-1', role: 'assistant', content: 'hi there', slices: [], tool_results: [], createdAt: 2 },
+    ]
+    await vi.waitFor(() => expect(follower.sessionMessages[sessionId]).toEqual(expected))
+    // A late proposal would arrive within a commit task. Give it time, then check both copies again.
+    await new Promise(resolve => setTimeout(resolve, 100))
+    expect(leader.sessionMessages[sessionId]).toEqual(expected)
+    expect(follower.sessionMessages[sessionId]).toEqual(expected)
   })
 
   // A background task keeps its status in its own session, so every window lists it and a restart still knows how it ended.
@@ -583,5 +625,32 @@ describe('chat session synchronization', () => {
     expect(chatSyncMocks.clients[0]?.destroy).toHaveBeenCalledOnce()
     expect(chatSyncMocks.clients[1]?.connect).toHaveBeenCalledOnce()
     stopLeadershipListener()
+  })
+
+  it('closes and opens the cloud connection of the leader when a follower changes the chat sync switch', async () => {
+    const namespace = `chat-session:${crypto.randomUUID()}`
+    const leaderContext = createSyncedContext(namespace, 'follower-preferred')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+
+    setActivePinia(leaderContext.pinia)
+    const leaderAuthStore = useAuthStore()
+    leaderAuthStore.user = { id: 'cloud-user', name: 'User', email: 'user@example.test', emailVerified: true, createdAt: new Date(0), updatedAt: new Date(0) }
+    leaderAuthStore.token = 'cloud-token'
+    await useChatSessionStore().initialize()
+    expect(chatSyncMocks.clients).toHaveLength(1)
+
+    const followerContext = createSyncedContext(namespace, 'follower-preferred')
+    setActivePinia(followerContext.pinia)
+    useChatSessionStore()
+    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+    const followerSyncPreferences = useSyncPreferencesStore(followerContext.pinia)
+
+    followerSyncPreferences.setEnabled('chats', false)
+    await vi.waitFor(() => expect(chatSyncMocks.clients[0]?.destroy).toHaveBeenCalledOnce())
+    expect(chatSyncMocks.clients).toHaveLength(1)
+
+    followerSyncPreferences.setEnabled('chats', true)
+    await vi.waitFor(() => expect(chatSyncMocks.clients).toHaveLength(2))
+    expect(chatSyncMocks.clients[1]?.connect).toHaveBeenCalledOnce()
   })
 })

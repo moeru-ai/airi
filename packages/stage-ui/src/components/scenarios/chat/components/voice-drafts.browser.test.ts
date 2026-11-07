@@ -3,6 +3,7 @@ import en from '@proj-airi/i18n/locales/en'
 import { createPinia, disposePinia, setActivePinia } from 'pinia'
 import { afterEach, describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-vue'
+import { page } from 'vitest/browser'
 import { createI18n } from 'vue-i18n'
 
 import VoiceDrafts from './voice-drafts.vue'
@@ -19,7 +20,7 @@ afterEach(() => {
   localStorage.clear()
 })
 
-function renderComposer(attrs: { onPresence?: (visible: boolean) => void, showSilentSpeech?: boolean } = {}) {
+function renderComposer(attrs: { onPresence?: (visible: boolean) => void, showSilentSpeech?: boolean } = {}, slots: { hint?: string } = {}) {
   const pinia = createPinia()
   setActivePinia(pinia)
   cleanups.push(() => disposePinia(pinia))
@@ -28,12 +29,13 @@ function renderComposer(attrs: { onPresence?: (visible: boolean) => void, showSi
   cleanups.push(() => container.remove())
   return render(VoiceDrafts, {
     container,
-    props: { variant: 'composer', ...attrs },
+    props: attrs,
+    slots,
     global: { plugins: [pinia, createI18n({ legacy: false, locale: 'en', messages: { en } })] },
   })
 }
 
-describe('voiceDrafts composer variant', () => {
+describe('voiceDrafts', () => {
   it('continues the draft with live speech in one read-only paragraph', async () => {
     const view = renderComposer()
     getSpeechBusContext().emit(voiceSnapshotChanged, {
@@ -196,5 +198,30 @@ describe('voiceDrafts composer variant', () => {
 
     await expect.element(view.getByRole('textbox', { name: 'Voice draft' })).toHaveValue('Hello there.')
     await expect.element(view.getByRole('button', { name: 'Send message' })).toBeEnabled()
+  })
+
+  it('counts host problems beside the hint and lists them on hover, while the draft stays sendable', async () => {
+    const view = renderComposer({}, { hint: 'Press esc' })
+    getSpeechBusContext().emit(voiceSnapshotChanged, {
+      connected: true,
+      drafts: [{ id: 'draft', sessionId: 'alice', rawText: 'hello', text: 'Hello there.' }],
+      frontDraftId: 'draft',
+      error: 'No chat model is configured for voice rephrasing',
+      microphone: { enabled: true, ready: false, error: 'Permission denied' },
+    })
+
+    const trigger = view.getByRole('button', { name: 'Show 2 problems' })
+    await expect.element(trigger).toHaveTextContent('2')
+    await expect.element(view.getByText('Press esc')).toBeVisible()
+    await expect.element(view.getByRole('textbox', { name: 'Voice draft' })).toHaveValue('Hello there.')
+    await expect.element(view.getByRole('button', { name: 'Send message' })).toBeEnabled()
+    // A screen reader hears each problem without opening the list.
+    await expect.element(view.getByRole('status').filter({ hasText: 'Microphone: Permission denied.' })).toBeInTheDocument()
+    expect(page.getByRole('list').query()).toBeNull()
+
+    await trigger.hover()
+    const list = page.getByRole('list')
+    await expect.element(list).toHaveTextContent('Voice inputNo chat model is configured for voice rephrasing')
+    await expect.element(list).toHaveTextContent('MicrophonePermission denied')
   })
 })

@@ -5,6 +5,7 @@ import type { UploadTarget } from '../libs/file-transfer/transfer'
 import * as v from 'valibot'
 
 import { authedFetch } from '../libs/auth-fetch'
+import { TransferRequestError } from '../libs/file-transfer/request-error'
 import { SERVER_URL } from '../libs/server'
 
 const CloudDisplayModelSchema = v.object({
@@ -39,6 +40,7 @@ export type CloudDisplayModel = InferOutput<typeof CloudDisplayModelSchema>
 
 export interface ReserveUploadInput {
   id: string
+  /** Idempotency key of one attempt. The server returns the same session for the same key. */
   requestId: string
   format: CloudDisplayModel['format']
   name: string
@@ -49,9 +51,13 @@ export interface ReserveUploadInput {
 
 const base = `${SERVER_URL}/api/v1/display-models`
 
-async function readJson<TSchema extends v.GenericSchema>(response: Response, schema: TSchema): Promise<v.InferOutput<TSchema>> {
-  if (!response.ok)
-    throw new Error(`Display model request failed with status ${response.status}: ${(await response.text()).slice(0, 200)}`)
+async function readJson<TSchema extends v.GenericSchema>(response: Response, schema: TSchema, retryableStatuses: number[] = []): Promise<v.InferOutput<TSchema>> {
+  if (!response.ok) {
+    const message = `Display model request failed with status ${response.status}: ${(await response.text()).slice(0, 200)}`
+    if (retryableStatuses.includes(response.status))
+      throw new TransferRequestError(response.status, message, false)
+    throw new TransferRequestError(response.status, message)
+  }
   return v.parse(schema, await response.json())
 }
 
@@ -72,19 +78,20 @@ export async function reserveDisplayModelUpload(input: ReserveUploadInput, signa
 }
 
 export async function completeDisplayModelUpload(uploadId: string, signal?: AbortSignal) {
-  return readJson(await authedFetch(`${base}/uploads/${encodeURIComponent(uploadId)}/complete`, { method: 'POST', signal }), CloudDisplayModelSchema)
+  // On this route, 409 means that the bytes have not reached storage. On the reservation route, it is a final refusal.
+  return readJson(await authedFetch(`${base}/uploads/${encodeURIComponent(uploadId)}/complete`, { method: 'POST', signal }), CloudDisplayModelSchema, [409])
 }
 
 export async function requestDisplayModelDownload(id: string, signal?: AbortSignal) {
   return readJson(await authedFetch(`${base}/${encodeURIComponent(id)}/download`, { method: 'POST', signal }), DownloadResponseSchema)
 }
 
-export async function renameCloudDisplayModel(id: string, name: string, revision: number) {
-  return readJson(await authedFetch(`${base}/${encodeURIComponent(id)}`, jsonRequest('PATCH', { name, revision })), CloudDisplayModelSchema)
+export async function renameCloudDisplayModel(id: string, name: string, revision: number, signal?: AbortSignal) {
+  return readJson(await authedFetch(`${base}/${encodeURIComponent(id)}`, jsonRequest('PATCH', { name, revision }, signal)), CloudDisplayModelSchema)
 }
 
 export async function deleteCloudDisplayModel(id: string, revision: number) {
   const response = await authedFetch(`${base}/${encodeURIComponent(id)}?revision=${revision}`, { method: 'DELETE' })
   if (!response.ok)
-    throw new Error(`Display model delete failed with status ${response.status}`)
+    throw new TransferRequestError(response.status, `Display model delete failed with status ${response.status}`)
 }

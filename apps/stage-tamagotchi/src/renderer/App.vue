@@ -36,6 +36,7 @@ import { RouterView, useRoute, useRouter } from 'vue-router'
 import { toast, Toaster } from 'vue-sonner'
 
 import ResizeHandler from './components/ResizeHandler.vue'
+import SettingsWindowFrame from './components/Window/settings-window-frame.vue'
 
 import {
   electronGetServerChannelConfig,
@@ -65,7 +66,7 @@ import {
 } from '../shared/eventa/plugin/host'
 import { electronPluginToolsChanged } from '../shared/eventa/plugin/tools'
 import { initializeElectronAuthCallbackBridge } from './bridges/electron-auth-callback'
-import { initializeIOTraceRecordingBridge } from './bridges/io-trace-recording'
+import { initializeIOTraceHubBridge } from './bridges/io-trace-hub'
 import { initializeStageThreeRuntimeTraceBridge } from './bridges/stage-three-runtime-trace'
 import { useLanguage } from './composables/use-language'
 import { useFullscreenStore } from './stores/fullscreen'
@@ -116,17 +117,15 @@ const mcpToolsStore = useTamagotchiMcpToolsStore()
 const pluginToolsStore = useTamagotchiPluginToolsStore()
 const syncedPinia = usePiniaSynced()
 const isSpotlightWindow = initialRoutePath === '/spotlight'
-// The floating chat resizes from its own grip, which keeps the corner beside the character in place.
+// The floating chat resizes from its own edges, which keep the edges beside the character in place.
 const isFloatingChatWindow = initialRoutePath === '/chat-floating'
 // The fullscreen mode places the main window itself, so its edges offer no resize.
 const { active: mainWindowFullscreen } = storeToRefs(useFullscreenStore())
 // A window that hosts the fullscreen mode can load on a settings route, after a reload for example. So the windows
 // are told apart by the host that the main process names, not by the first route alone.
-const isMainWindow = windowContext.fullscreenHost === 'main-window'
 const isSettingsWindow = !windowContext.fullscreenHost && (initialRoutePath === '/settings' || initialRoutePath.startsWith('/settings/'))
-const stopIOTraceRecordingBridge = isMainWindow
-  ? initializeIOTraceRecordingBridge(context.value)
-  : undefined
+// Every window sends its spans to the hub, so the IO tracer and the trace files have the spans of every window.
+const stopIOTraceHubBridge = initializeIOTraceHubBridge(context.value)
 
 async function refreshPluginRuntimeTools() {
   try {
@@ -417,7 +416,7 @@ watch(themeColorsHueDynamic, () => {
 }, { immediate: true })
 
 onUnmounted(() => {
-  stopIOTraceRecordingBridge?.()
+  stopIOTraceHubBridge()
   stopModelAssetStatus()
   stopLeadershipListener?.()
   chatStore.dispose()
@@ -431,7 +430,9 @@ onUnmounted(() => {
     <Toaster />
   </ToasterRoot>
   <ResizeHandler v-if="!isSpotlightWindow && !isFloatingChatWindow && !mainWindowFullscreen" />
-  <RouterView />
+  <SettingsWindowFrame :enabled="!windowContext.fullscreenHost">
+    <RouterView />
+  </SettingsWindowFrame>
 </template>
 
 <style>

@@ -26,6 +26,12 @@ Provide a minimal closed loop that stage-web can consume:
 - Running mode: `VIDEO`
 - Landmarks are normalized (`x`/`y` in `[0..1]`) and drawn onto the overlay canvas
 
+**Assets**
+
+- The model files load at runtime from `storage.googleapis.com`. The devtools page needs network access the first time it starts each task.
+- The bundler serves the Wasm files from the installed `@mediapipe/tasks-vision` package.
+- `pnpm install` does not download or copy files for this package.
+
 **Docs**
 
 Keep upstream docs/snippets in `packages/model-driver-mediapipe/references/`.

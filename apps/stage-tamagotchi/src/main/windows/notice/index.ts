@@ -4,8 +4,6 @@ import type { RequestWindowPayload } from '../../../shared/eventa'
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 
-import { join, resolve } from 'node:path'
-
 import { defineInvokeHandler } from '@moeru/eventa'
 import { safeClose } from '@proj-airi/electron-vueuse/main'
 import { BrowserWindow as ElectronBrowserWindow } from 'electron'
@@ -13,9 +11,9 @@ import { BrowserWindow as ElectronBrowserWindow } from 'electron'
 import icon from '../../../../resources/icon.png?asset'
 
 import { noticeWindowEventa } from '../../../shared/eventa'
-import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
+import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
 import { createReferencedWindowManager } from '../shared/referenced-window'
-import { protectPrivilegedWindowNavigation } from '../shared/window'
+import { customTitleBarWindowConfig, protectPrivilegedWindowNavigation } from '../shared/window'
 
 export interface NoticeWindowManager {
   open: (payload: RequestWindowPayload) => Promise<boolean>
@@ -25,8 +23,6 @@ export function setupNoticeWindowManager(params: {
   i18n: I18n
   serverChannel: ServerChannel
 }): NoticeWindowManager {
-  const rendererBase = baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'))
-
   function createWindow(_id: string): BrowserWindow {
     const window = new ElectronBrowserWindow({
       title: 'Notice',
@@ -34,8 +30,9 @@ export function setupNoticeWindowManager(params: {
       height: 600,
       show: false,
       icon,
+      ...customTitleBarWindowConfig(),
       webPreferences: {
-        preload: join(getElectronMainDirname(), '../preload/index.mjs'),
+        preload: getPreloadPath(),
         sandbox: false,
       },
     })
@@ -47,7 +44,7 @@ export function setupNoticeWindowManager(params: {
 
   async function loadNoticeRoute(window: BrowserWindow, payload: RequestWindowPayload & { id: string }) {
     const routeWithId = `${payload.route}?id=${payload.id}`
-    await load(window, withHashRoute(rendererBase, routeWithId, {
+    await load(window, withHashRoute(baseUrl(getRendererRoot()), routeWithId, {
       query: { 'synced-leader': 'false' },
     }))
   }

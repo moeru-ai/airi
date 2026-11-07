@@ -45,11 +45,6 @@ docs:
   style:
     title: รูปแบบหน้าต่างแชท
     legacy: หน้าต่างแบบคลาสสิก
-    floating-attached: ลอยอยู่ข้างตัวละคร
-    floating-free: ลอยได้ทุกที่บนหน้าจอ
-    floating-danmaku: ลอยแบบฟีดข้อความ
-    pinned: อยู่บนสุดเสมอ
-  resize: ลากเพื่อปรับขนาดแชท
   move: ลากเพื่อย้ายแชท
   fold: ซ่อนแชท
   composer:
