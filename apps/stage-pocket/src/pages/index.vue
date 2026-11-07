@@ -32,10 +32,12 @@ watch([modelRenderState, modelRenderError, () => startup.resources.find(resource
     startup.complete('model')
 })
 
+/** Lets startup report renderer failures instead of waiting for the model timeout. */
 function markModelFailed(error: Error) {
   modelRenderError.value = error
 }
 
+/** Pauses stage animation while the settings drawer covers the character. */
 function handleSettingsOpen(open: boolean) {
   paused.value = open
 }
@@ -71,7 +73,7 @@ const router = useRouter()
 <template>
   <BackgroundProvider
     ref="backgroundSurface"
-    class="widgets top-widgets"
+    :class="['widgets top-widgets']"
     :background="selectedOption"
     :style="stageSurfaceStyle"
     :top-color="sampledColor"
@@ -85,12 +87,13 @@ const router = useRouter()
     >
       <!-- header -->
       <div :class="['px-0 py-1 md:px-3 md:py-3', 'w-full gap-2']">
-        <Header class="hidden md:flex" />
+        <Header :class="['hidden md:flex']" />
       </div>
       <!-- page -->
       <div :class="['relative min-h-0', 'flex flex-1 flex-row gap-x-2 gap-y-0 <md:flex-col']">
         <div :class="['relative min-h-0 min-w-1/2 flex-1']">
           <div
+            v-if="!isMobile || stageModelRenderer !== 'live2d'"
             :class="[
               'absolute left-0 z-15 px-3',
               stageModelRenderer === 'live2d' ? 'top-0 h-full py-[20vh]' : 'top-1/2 -translate-y-1/2',

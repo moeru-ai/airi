@@ -14,7 +14,8 @@ import Live2DExpressionList from '../live2d-expression-list.vue'
 import ModelSettingsPreviewStage from '../preview-stage.vue'
 import ModelStrip from './model-strip.vue'
 import OptionSelect from './option-select.vue'
-import Ruler from './ruler.vue'
+import PlacementPanel from './placement-panel.vue'
+import PlacementSurface from './placement-surface.vue'
 import ToolPanel from './tool-panel.vue'
 
 import { useSettingsFullBleed } from '../../../../../composables/settings-full-bleed'
@@ -133,6 +134,11 @@ const activeTool = computed<ToolId>({
   },
 })
 
+const placementTool = computed<'size' | 'position'>({
+  get: () => activeTool.value === 'position' ? 'position' : 'size',
+  set: (value) => { activeTool.value = value },
+})
+
 function selectTab(id: TabId) {
   activeTab.value = id
   idleMotionListOpen.value = false
@@ -216,41 +222,6 @@ const frameRateOptions = computed(() => [
 ])
 const renderScaleOptions = [0.5, 1, 1.5, 2].map(value => ({ value, label: `${value}×` }))
 
-const formatScale = (value: number) => `${value.toFixed(2)}×`
-const formatOffset = (value: number) => `${value > 0 ? '+' : ''}${Math.round(value)}%`
-
-/**
- * Dragging the character on the stage moves it. The model position is stored as a percent of the stage size,
- * so the pointer movement is divided by the size of the drag surface, which covers the same area as the canvas.
- * Screen Y grows downward and model Y grows upward, so the vertical movement is inverted.
- */
-const stageDrag = ref<{ pointerId: number, startX: number, startY: number, width: number, height: number, origin: { x: number, y: number } }>()
-
-function onStagePointerDown(event: PointerEvent) {
-  const surface = event.currentTarget as HTMLElement
-  surface.setPointerCapture(event.pointerId)
-  const rect = surface.getBoundingClientRect()
-  stageDrag.value = {
-    pointerId: event.pointerId,
-    startX: event.clientX,
-    startY: event.clientY,
-    width: rect.width,
-    height: rect.height,
-    origin: { x: position.value.x, y: position.value.y },
-  }
-}
-
-function onStagePointerMove(event: PointerEvent) {
-  const drag = stageDrag.value
-  if (drag?.pointerId !== event.pointerId)
-    return
-
-  position.value = {
-    x: Math.round(drag.origin.x + ((event.clientX - drag.startX) / drag.width) * 100),
-    y: Math.round(drag.origin.y - ((event.clientY - drag.startY) / drag.height) * 100),
-  }
-}
-
 /**
  * After a pick, the model name shows over the stage, because the thumbnails have no names.
  * It stays while the stage loads the model, then hides after a moment.
@@ -300,14 +271,11 @@ defineExpose({
       @runtime-snapshot-changed="runtimeSnapshot = $event"
     />
 
-    <div
-      v-if="activeTab === 'placement'"
-      aria-hidden="true"
-      :class="['absolute inset-0 cursor-grab touch-none']"
-      @pointerdown="onStagePointerDown"
-      @pointermove="onStagePointerMove"
-      @pointerup="stageDrag = undefined"
-      @pointercancel="stageDrag = undefined"
+    <PlacementSurface
+      v-if="activeTab === 'placement' && runtimeSnapshot.phase === 'mounted'"
+      :key="stageModelSelected"
+      v-model:scale="scale"
+      v-model:position="position"
     />
 
     <section
@@ -373,50 +341,15 @@ defineExpose({
         </button>
       </nav>
 
-      <ToolPanel v-model="activeTool" :label="activeTabLabel" :tools="panelTools">
+      <PlacementPanel
+        v-if="activeTab === 'placement'"
+        v-model:scale="scale"
+        v-model:position="position"
+        v-model:tool="placementTool"
+      />
+      <ToolPanel v-else v-model="activeTool" :label="activeTabLabel" :tools="panelTools">
         <template #model>
           <ModelStrip :selected-id="stageModelSelectedDisplayModel?.id" :loading-id="loadingModelId" @pick="pickModel" />
-        </template>
-
-        <template #size>
-          <Ruler
-            v-model="scale"
-            :label="t('settings.pages.models.editor.tools.size')"
-            :min="0.1"
-            :max="3"
-            :step="0.01"
-            :default-value="1"
-            :format="formatScale"
-          />
-        </template>
-
-        <template #position>
-          <div :class="['flex flex-col gap-0.5']">
-            <span :class="['text-sm font-semibold text-neutral-900 dark:text-neutral-50']">
-              {{ t('settings.pages.models.editor.tools.position') }}
-            </span>
-            <span :class="['text-xs text-neutral-500 dark:text-neutral-400']">
-              {{ t('settings.pages.models.editor.position.description') }}
-            </span>
-          </div>
-          <Ruler
-            v-model="position.x"
-            :label="t('settings.pages.models.editor.position.horizontal')"
-            :min="-100"
-            :max="100"
-            :step="1"
-            :default-value="0"
-            :format="formatOffset"
-          />
-          <Ruler
-            v-model="position.y"
-            :label="t('settings.pages.models.editor.position.vertical')"
-            :min="-100"
-            :max="100"
-            :step="1"
-            :default-value="0"
-            :format="formatOffset"
-          />
         </template>
 
         <template #look-at>
