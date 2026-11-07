@@ -87,7 +87,7 @@ async function handleGenerateSpeech(input: string, voiceId: string) {
       <Callout :label="t('settings.pages.providers.provider.gpt-sovits.callout_no_model_title')">
         {{ t('settings.pages.providers.provider.gpt-sovits.callout_model_switch') }}
       </Callout>
-      <Callout :label="t('settings.pages.providers.provider.gpt-sovits.callout_no_api_key')">
+      <Callout :label="t('settings.pages.providers.provider.gpt-sovits.callout_no_api_key_title')">
         {{ t('settings.pages.providers.provider.gpt-sovits.callout_no_api_key') }}
       </Callout>
       <FieldInput
