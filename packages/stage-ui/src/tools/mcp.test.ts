@@ -35,6 +35,67 @@ describe('tools mcp schema', () => {
 })
 
 describe('mcp discovery', () => {
+  it('registers live discovery when the optional index does not respond', async () => {
+    vi.useFakeTimers()
+    try {
+      const runtime = createRuntime()
+      vi.mocked(runtime.listTools).mockReturnValueOnce(new Promise(() => {}))
+      let registered = false
+      const registration = Promise.all(createMcpTools(runtime)).then((tools) => {
+        registered = true
+        return tools
+      })
+
+      await vi.advanceTimersByTimeAsync(1000)
+
+      expect(registered).toBe(true)
+      const [listTools] = await registration
+      expect(listTools.function.description).toContain('index is unavailable')
+      expect(runtime.callTool).not.toHaveBeenCalled()
+      expect(await listTools.execute({}, { messages: [], toolCallId: 'list-after-index-deadline' }))
+        .toBe('No MCP tools are available. Do not retry discovery during this assistant turn.')
+    }
+    finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('advertises the connected tool index before the first model choice without dispatching an operation', async () => {
+    const runtime = createRuntime()
+    vi.mocked(runtime.listTools).mockResolvedValue([{
+      serverName: 'fixture',
+      name: 'fixture::terminal_exec',
+      toolName: 'terminal_exec',
+      inputSchema: { type: 'object', properties: {} },
+    }])
+
+    const [listTools] = await Promise.all(createMcpTools(runtime))
+
+    expect(listTools.function.description).toContain('fixture::terminal_exec')
+    expect(runtime.listTools).toHaveBeenCalledTimes(1)
+    expect(runtime.callTool).not.toHaveBeenCalled()
+
+    vi.mocked(runtime.listTools).mockResolvedValue([])
+    const result = await listTools.execute({}, { messages: [], toolCallId: 'list-current' })
+
+    expect(result).toBe('No MCP tools are available. Do not retry discovery during this assistant turn.')
+    expect(runtime.listTools).toHaveBeenCalledTimes(2)
+    expect(runtime.callTool).not.toHaveBeenCalled()
+  })
+
+  it('keeps live discovery available when the registration index fails', async () => {
+    const runtime = createRuntime()
+    vi.mocked(runtime.listTools).mockRejectedValueOnce(new Error('Catalog transport unavailable.'))
+    const [listTools] = await Promise.all(createMcpTools(runtime))
+
+    expect(listTools.function.description).toContain('index is unavailable')
+    expect(runtime.callTool).not.toHaveBeenCalled()
+
+    vi.mocked(runtime.listTools).mockResolvedValue([])
+    expect(await listTools.execute({}, { messages: [], toolCallId: 'list-recovered' }))
+      .toBe('No MCP tools are available. Do not retry discovery during this assistant turn.')
+  })
+
   // https://github.com/moeru-ai/airi/issues/2779
   // ROOT CAUSE:
   //
@@ -56,7 +117,7 @@ describe('mcp discovery', () => {
     const result = await listTools.execute({}, { messages: [], toolCallId: 'list-empty' })
 
     expect(result).toBe('No MCP tools are available. Do not retry discovery during this assistant turn.')
-    expect(runtime.listTools).toHaveBeenCalledTimes(1)
+    expect(runtime.listTools).toHaveBeenCalledTimes(2)
   })
 
   // https://github.com/moeru-ai/airi/issues/2779
@@ -75,7 +136,7 @@ describe('mcp discovery', () => {
       isError: true,
       content: [{ type: 'text', text: 'MCP tool discovery failed: MCP connection closed.' }],
     })
-    expect(runtime.listTools).toHaveBeenCalledTimes(1)
+    expect(runtime.listTools).toHaveBeenCalledTimes(2)
   })
 
   it('retains available tool descriptors and proxies invocation', async () => {
