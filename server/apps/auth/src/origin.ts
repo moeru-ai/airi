@@ -1,4 +1,4 @@
-import { matchesTrustedOriginRule } from '@proj-airi/auth-shared'
+import { matchesTrustedOriginRule, TRUSTED_ORIGINS } from '@proj-airi/auth-shared'
 
 function getOriginFromUrl(url: string): string | undefined {
   try {
@@ -9,21 +9,11 @@ function getOriginFromUrl(url: string): string | undefined {
   }
 }
 
-const TRUSTED_EXACT_ORIGINS = [
-  'https://airi.moeru.ai', // Production web app
-  'capacitor://localhost', // Capacitor mobile (iOS)
-  'ai.moeru.airi-pocket://links', // Android deep link
-  'https://accounts.airi.build', // Standalone auth UI
-  'https://server-dev.airi-server-auth.pages.dev', // Server-dev standalone auth UI
-  'https://admin.airi.build', // Standalone admin UI
-  'https://server-dev.airi-server-admin.pages.dev', // Server-dev standalone admin UI
-]
-
 // NOTICE:
 // Better Auth accepts non-http(s) origins by prefix (`url.startsWith(pattern)`),
-// so native deep-link schemes must not be copied from TRUSTED_EXACT_ORIGINS
+// so native deep-link schemes must not be copied from TRUSTED_ORIGINS
 // into auth callback validation. Browser auth callbacks only need web origins.
-const TRUSTED_AUTH_CALLBACK_ORIGINS = TRUSTED_EXACT_ORIGINS.filter((origin) => {
+const TRUSTED_AUTH_CALLBACK_ORIGINS = TRUSTED_ORIGINS.filter((origin) => {
   const protocol = new URL(origin).protocol
   return protocol === 'http:' || protocol === 'https:'
 })
@@ -32,7 +22,8 @@ const TRUSTED_AUTH_CALLBACK_ORIGINS = TRUSTED_EXACT_ORIGINS.filter((origin) => {
  * Returns `origin` when it matches built-in trust rules or `additionalTrustedOrigins`.
  *
  * Use when:
- * - Auth CORS allowlists and callback validation need the same trust policy.
+ * - OIDC redirect URI and Better Auth callback validation need the shared redirect allowlist.
+ *   This check does not decide CORS.
  *
  * Expects:
  * - `origin` is the raw `Origin` header value or `new URL(referer).origin`.
@@ -44,7 +35,7 @@ const TRUSTED_AUTH_CALLBACK_ORIGINS = TRUSTED_EXACT_ORIGINS.filter((origin) => {
 export function getTrustedOrigin(origin: string, additionalTrustedOrigins: readonly string[] = []): string {
   if (!origin)
     return origin
-  if (TRUSTED_EXACT_ORIGINS.includes(origin))
+  if (TRUSTED_ORIGINS.includes(origin))
     return origin
   if (additionalTrustedOrigins.includes(origin))
     return origin

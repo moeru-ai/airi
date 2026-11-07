@@ -49,6 +49,17 @@ pnpm dev:backend
 stay on its private network. The internal `/internal/*` boundary has no
 application token, and Caddy rejects that path at the public edge.
 
+## Cross-origin requests
+
+`/api/*` gives credentials to one origin only: the origin of `AUTH_UI_URL`, after the server-dev UI is resolved.
+That origin gets its own origin and `Access-Control-Allow-Credentials: true`.
+Every other origin gets `Access-Control-Allow-Origin: *`, because stage clients send bearer tokens.
+For a local Auth UI, set `AUTH_UI_URL` to its dev server.
+
+OIDC redirect URIs and Better Auth `trustedOrigins` read `TRUSTED_ORIGINS` from `@proj-airi/auth-shared`.
+They also read `ADDITIONAL_TRUSTED_ORIGINS`. This redirect allowlist does not decide CORS.
+See [the cross-origin ADR](../../docs/ai/adr/2026-11-07-cross-origin-boundary.md).
+
 ## Native Google sign-in
 
 Set `AUTH_GOOGLE_NATIVE_CLIENT_IDS` to a comma-separated list of additional Google OAuth client IDs.

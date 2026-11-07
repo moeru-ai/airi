@@ -60,6 +60,39 @@ describe('standalone auth app', () => {
     expect(deps.auth.handler).toHaveBeenCalledTimes(1)
   })
 
+  it('gives credentials only to a preflight from the Auth UI origin', async () => {
+    const { app } = await buildAuthApp(createTestDeps())
+    const preflight = (origin: string) => app.request('/api/auth/get-session', {
+      method: 'OPTIONS',
+      headers: {
+        'Origin': origin,
+        'Access-Control-Request-Method': 'GET',
+        'Access-Control-Request-Headers': 'content-type',
+      },
+    })
+
+    const ui = await preflight('https://accounts.airi.build')
+    expect(ui.status).toBe(204)
+    expect(ui.headers.get('access-control-allow-origin')).toBe('https://accounts.airi.build')
+    expect(ui.headers.get('access-control-allow-credentials')).toBe('true')
+    expect(ui.headers.get('access-control-allow-headers')).toBe('content-type')
+    expect(ui.headers.get('vary')).toBe('Origin, Access-Control-Request-Headers')
+
+    const other = await preflight('https://airi.moeru.ai')
+    expect(other.status).toBe(204)
+    expect(other.headers.get('access-control-allow-origin')).toBe('*')
+    expect(other.headers.get('access-control-allow-credentials')).toBeNull()
+  })
+
+  it('gives the Auth UI origin credentials on a Better Auth response', async () => {
+    const { app } = await buildAuthApp(createTestDeps())
+    const response = await app.request('/api/auth/get-session', { headers: { Origin: 'https://accounts.airi.build' } })
+
+    expect(response.headers.get('access-control-allow-origin')).toBe('https://accounts.airi.build')
+    expect(response.headers.get('access-control-allow-credentials')).toBe('true')
+    expect(response.headers.get('vary')).toBe('Origin')
+  })
+
   it('checks only the infrastructure needed by the auth surface', async () => {
     const deps = createTestDeps()
     const { app } = await buildAuthApp(deps)
