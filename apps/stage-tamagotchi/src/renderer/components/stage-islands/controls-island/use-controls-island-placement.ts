@@ -26,6 +26,8 @@ const displayCenterDeadZoneRatio = 0.05
 /**
  * Resolves the window corner in the same quadrant as its display position.
  *
+ * The dock uses the opposite window edge if the quadrant edge is outside the
+ * work area and the opposite edge is inside.
  * The screen geometry stays in Electron logical coordinates. The returned
  * dock contains no DOM coordinates, so display scaling cannot affect layout.
  */
@@ -61,6 +63,27 @@ export function resolveControlsIslandDock(options: ResolveControlsIslandDockOpti
   }
   else if (windowCenterY > displayCenterY + verticalDeadZone) {
     verticalDock = 'bottom'
+  }
+
+  const leftEdgeOutside = options.windowBounds.x < display.workArea.x
+  const rightEdgeOutside = options.windowBounds.x + options.windowBounds.width > display.workArea.x + display.workArea.width
+  const topEdgeOutside = options.windowBounds.y < display.workArea.y
+  const bottomEdgeOutside = options.windowBounds.y + options.windowBounds.height > display.workArea.y + display.workArea.height
+
+  // An oversized window can cross both opposite edges. Keep its quadrant choice
+  // in that case so feeding the resolved dock back into this function is stable.
+  if (horizontalDock === 'left' && leftEdgeOutside && !rightEdgeOutside) {
+    horizontalDock = 'right'
+  }
+  else if (horizontalDock === 'right' && rightEdgeOutside && !leftEdgeOutside) {
+    horizontalDock = 'left'
+  }
+
+  if (verticalDock === 'top' && topEdgeOutside && !bottomEdgeOutside) {
+    verticalDock = 'bottom'
+  }
+  else if (verticalDock === 'bottom' && bottomEdgeOutside && !topEdgeOutside) {
+    verticalDock = 'top'
   }
 
   if (verticalDock === 'top') {
