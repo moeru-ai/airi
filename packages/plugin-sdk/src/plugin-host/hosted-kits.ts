@@ -1,8 +1,11 @@
+import type { Container, ProvidedKey, ProviderInfo, Registration } from 'injeca'
+
 import type { HostClientFactory, KitContract, KitProvider, KitProviderHandle, KitRef } from '../kit'
 import type { HostSourceKind, HostSourceLease } from './shared/host-sources'
 import type { KitDescriptor, KitDescriptorSnapshot } from './shared/kits'
 import type { ExtensionProvidedKitDeclaration, PluginRuntime } from './shared/types'
 
+import { createContainer, defineKey, peek, provide, where } from 'injeca'
 import { safeParse } from 'valibot'
 
 import {
@@ -66,16 +69,6 @@ export type HostKitSource<TClient = unknown>
     readonly factory: KitRef<TClient>
   }
 
-type AcceptedHostSource<TClient = unknown>
-  = | {
-    readonly kind: 'descriptor'
-    readonly accepted: KitDescriptorSnapshot
-  }
-  | {
-    readonly kind: 'client-factory'
-    readonly accepted: KitRef<TClient>
-  }
-
 export type { HostSourceLease } from './shared/host-sources'
 
 /** Withdraws all Provider registrations published by one Extension setup commit. */
@@ -120,22 +113,6 @@ export class KitProviderRegistrationError extends Error {
   readonly sourceKind?: HostSourceKind
 }
 
-interface Tokenized<T> {
-  readonly token: symbol
-  readonly payload: T
-}
-
-interface HostReadySlot {
-  readonly state: 'host-ready'
-  readonly id: string
-  readonly version: string
-  readonly generation: number
-  readonly sources: {
-    readonly descriptor?: Tokenized<KitDescriptorSnapshot>
-    readonly clientFactory?: Tokenized<KitRef<unknown>>
-  }
-}
-
 interface AcceptedKitContract {
   readonly contract: KitContract
   readonly methodNames: readonly string[]
@@ -153,29 +130,30 @@ type PendingProviderState
     | { readonly state: 'withdrawn' }
 
 interface ExtensionPendingSlot {
-  readonly state: 'extension-pending'
   readonly declaration: ExtensionProvidedKitDeclaration
-  readonly owner: ExtensionKitProviderOwner
   readonly transactionToken: symbol
   readonly provider: PendingProviderState
 }
 
-interface ExtensionReadySlot {
-  readonly state: 'extension-ready'
-  readonly id: string
-  readonly version: string
-  readonly generation: number
-  readonly exposure: ExtensionProvidedKitDeclaration['exposure']
-  readonly owner: ExtensionKitProviderOwner
-  readonly registrationToken: symbol
-  readonly contract: AcceptedKitContract
-  readonly endpoint: AcceptedProviderEndpoint
-}
-
-type KitSlot = HostReadySlot | ExtensionPendingSlot | ExtensionReadySlot
-
 interface AcceptedProviderEndpoint {
   readonly methods: Readonly<Record<string, unknown>>
+}
+
+/**
+ * One ready Provider registration, kept as the metadata of its injeca unit.
+ *
+ * The unit owner is the Provider owner: the Host container or the Extension session container.
+ * A Host registration carries its accepted sources. An Extension registration carries its token, Contract, and handlers.
+ */
+interface ProviderMetadata {
+  readonly version: string
+  readonly generation: number
+  readonly exposure?: ExtensionProvidedKitDeclaration['exposure']
+  readonly descriptor?: KitDescriptorSnapshot
+  readonly clientFactory?: KitRef<unknown>
+  readonly registrationToken?: symbol
+  readonly contract?: AcceptedKitContract
+  readonly endpoint?: AcceptedProviderEndpoint
 }
 
 interface CapturedHostDescriptor {
@@ -208,17 +186,11 @@ interface CapturedProviderMethod {
 
 interface TransactionState {
   readonly owner: ExtensionKitProviderOwner
+  /** Session container that owns the published registrations. */
+  readonly container: Container
   readonly kitIds: readonly string[]
   readonly token: symbol
   phase: 'pending' | 'committed' | 'rolled-back'
-}
-
-interface PreparedExtensionPublication {
-  readonly id: string
-  readonly generation: number
-  readonly readySlot: ExtensionReadySlot
-  readonly registrationToken: symbol
-  readonly snapshot: ReadyKitProviderSnapshot
 }
 
 interface ProviderSessionCaptureContext {
@@ -476,29 +448,64 @@ function captureExtensionProviderSessionInput(input: unknown): {
 /**
  * Owns Provider identity, registration transactions, and generation assignment.
  *
- * One Kit ID has one active slot. Host sources share one Host slot, while
- * Extension pending and ready states use distinct slot variants. Every visible
- * Host aggregate change creates a generation. Exact-source leases prevent stale
- * cleanup from withdrawing replacement registrations.
+ * Each ready Provider is one injeca unit of an exclusive key for its Kit ID, with its record as unit metadata.
+ * A Host Provider is a unit of the Host container. An Extension Provider is a unit of its session container
+ * with `visibility: 'parent'`, so the disposal of that container withdraws it. The units never build: callers read
+ * a registration in the same turn as its change, so the Registry reads the metadata, not the value.
  *
- * Pending transactions use `sessionId` as their global correlation key. A second
- * pending transaction with the same key is rejected even when its Extension ID
- * differs. Private transaction tokens isolate pending slots and stale rollback
- * calls. Registration tokens separately isolate stale Provider handles.
+ * Host sources share one unit. Every visible Host aggregate change replaces the unit with a new generation.
+ * Exact-source leases prevent stale cleanup from withdrawing replacement registrations.
+ *
+ * Pending transactions stay in the Registry until commit. They use `sessionId` as their global correlation key. A second
+ * pending transaction with the same key is rejected even when its Extension ID differs. Private transaction tokens isolate
+ * pending slots and stale rollback calls. Registration tokens separately isolate stale Provider handles.
  */
 export class KitProviderRegistry {
-  private readonly slots = new Map<string, KitSlot>()
+  private readonly keys = new Map<string, ProvidedKey<string, ProviderMetadata, undefined>>()
+  private readonly registrations = new Map<string, Registration<string, ProviderMetadata, undefined>>()
+  private readonly pending = new Map<string, ExtensionPendingSlot>()
   private readonly transactions = new Map<string, TransactionState>()
   private readonly lastGenerations = new Map<string, number>()
 
+  /** @param host Container of the Host Providers. Each session container is its child. */
+  constructor(private readonly host: Container = createContainer({ owner: { kind: 'host' } })) {}
+
   private nextGeneration(id: string) {
-    const generation = this.getNextGeneration(id)
-    this.lastGenerations.set(id, generation)
-    return generation
+    return (this.lastGenerations.get(id) ?? 0) + 1
   }
 
-  private getNextGeneration(id: string) {
-    return (this.lastGenerations.get(id) ?? 0) + 1
+  /** Reads the current Provider of `id`, as a consumer in the Host container sees it. */
+  private current(id: string) {
+    const key = this.keys.get(id)
+    if (!key) {
+      return undefined
+    }
+    let current: ProviderInfo | undefined
+    // NOTICE:
+    // `peek` gives a value only after a build, and metadata only for a `rejected` result.
+    // injeca calls a `where` condition for the selected provider in every phase (0.5.1 `resolveKey`).
+    // Remove when `peek` returns the metadata of a provider that does not run.
+    peek(this.host, where(key, (provider) => {
+      current = provider
+      return true
+    }))
+    return current as { readonly owner: KitProviderOwner, readonly metadata: ProviderMetadata } | undefined
+  }
+
+  /** Registers one Provider unit. Its key leaves the Host area at once on withdrawal, so the next read in this turn sees the change. */
+  private register(container: Container, id: string, metadata: ProviderMetadata, visibility: 'local' | 'parent') {
+    let key = this.keys.get(id)
+    if (!key) {
+      key = defineKey<ProviderMetadata>(id, { exclusive: true })
+      this.keys.set(id, key)
+    }
+    this.lastGenerations.set(id, metadata.generation)
+    this.registrations.set(id, provide(container, key, { visibility, metadata: { ...metadata }, build: () => metadata }))
+  }
+
+  private withdraw(id: string) {
+    void this.registrations.get(id)?.withdraw()
+    this.registrations.delete(id)
   }
 
   /**
@@ -514,7 +521,7 @@ export class KitProviderRegistry {
     if (sourceKind === 'descriptor') {
       const input = readHostSource('descriptor', '', () => (source as Extract<HostKitSource, { kind: 'descriptor' }>).descriptor)
       const accepted = normalizeHostDescriptor(captureHostDescriptorInput(input))
-      return this.publishHostSource({ kind: 'descriptor', accepted })
+      return this.publishHostSource(accepted.kitId, accepted.version, 'descriptor', accepted)
     }
 
     if (sourceKind !== 'client-factory') {
@@ -523,100 +530,58 @@ export class KitProviderRegistry {
 
     const input = readHostSource('client-factory', '', () => (source as Extract<HostKitSource<TClient>, { kind: 'client-factory' }>).factory)
     const accepted = normalizeHostClientFactory<TClient>(captureHostClientFactoryInput(input))
-    return this.publishHostSource({ kind: 'client-factory', accepted })
+    return this.publishHostSource(accepted.id, accepted.version, 'client-factory', accepted)
   }
 
-  private getHostSlotForContribution(id: string, version: string, sourceKind: HostSourceKind): HostReadySlot | undefined {
-    const current = this.slots.get(id)
-    if (!current) {
-      return undefined
-    }
-    if (current.state !== 'host-ready' || current.version !== version) {
+  private publishHostSource<TAccepted extends KitDescriptorSnapshot | KitRef<unknown>>(
+    id: string,
+    version: string,
+    sourceKind: HostSourceKind,
+    accepted: TAccepted,
+  ): HostSourceLease<TAccepted> {
+    const field = sourceKind === 'descriptor' ? 'descriptor' : 'clientFactory'
+    const current = this.current(id)
+    if (this.pending.has(id) || (current && (current.owner.kind !== 'host' || current.metadata.version !== version || current.metadata[field]))) {
       throw new KitProviderRegistrationError('provider-slot-conflict', id, undefined, undefined, { sourceKind })
     }
-    const duplicate = sourceKind === 'descriptor'
-      ? current.sources.descriptor
-      : current.sources.clientFactory
-    if (duplicate) {
-      throw new KitProviderRegistrationError('provider-slot-conflict', id, undefined, undefined, { sourceKind })
+    if (current) {
+      this.withdraw(id)
     }
-    return current
-  }
-
-  private publishHostSource(source: Extract<AcceptedHostSource, { kind: 'descriptor' }>): HostSourceLease<KitDescriptorSnapshot>
-  private publishHostSource<TClient>(source: Extract<AcceptedHostSource<TClient>, { kind: 'client-factory' }>): HostSourceLease<KitRef<TClient>>
-  private publishHostSource<TClient>(source: AcceptedHostSource<TClient>): HostSourceLease<KitDescriptorSnapshot | KitRef<TClient>> {
-    const id = source.kind === 'descriptor' ? source.accepted.kitId : source.accepted.id
-    const version = source.accepted.version
-    const current = this.getHostSlotForContribution(id, version, source.kind)
-    const token = Symbol(id)
-    const sources: HostReadySlot['sources'] = source.kind === 'descriptor'
-      ? {
-          descriptor: { token, payload: source.accepted },
-          clientFactory: current?.sources.clientFactory,
-        }
-      : {
-          descriptor: current?.sources.descriptor,
-          clientFactory: { token, payload: source.accepted },
-        }
-    this.slots.set(id, {
-      state: 'host-ready',
-      id,
-      version,
-      generation: this.nextGeneration(id),
-      sources,
-    })
+    this.register(this.host, id, { ...current?.metadata, version, generation: this.nextGeneration(id), [field]: accepted }, 'local')
     return Object.freeze({
-      accepted: source.accepted,
+      accepted,
       kitId: id,
-      sourceKind: source.kind,
-      dispose: () => this.withdrawHostSource(id, source.kind, token),
+      sourceKind,
+      dispose: () => this.withdrawHostSource(id, field, accepted),
     })
   }
 
-  private withdrawHostSource(id: string, sourceKind: HostSourceKind, token: symbol): boolean {
-    const current = this.slots.get(id)
-    if (current?.state !== 'host-ready') {
-      // A stale lease cannot withdraw a slot that was removed or replaced by an Extension Provider.
-      return false
-    }
-    const registered = sourceKind === 'descriptor'
-      ? current.sources.descriptor
-      : current.sources.clientFactory
-    if (registered?.token !== token) {
+  private withdrawHostSource(id: string, field: 'descriptor' | 'clientFactory', accepted: unknown): boolean {
+    const current = this.current(id)
+    if (current?.owner.kind !== 'host' || current.metadata[field] !== accepted) {
       // The source changed after this lease was issued, so disposal must leave the replacement intact.
       return false
     }
 
-    const descriptor = sourceKind === 'descriptor' ? undefined : current.sources.descriptor
-    const clientFactory = sourceKind === 'client-factory' ? undefined : current.sources.clientFactory
-    if (!descriptor && !clientFactory) {
-      this.slots.delete(id)
-      return true
+    this.withdraw(id)
+    const remaining: ProviderMetadata = { ...current.metadata, [field]: undefined, generation: this.nextGeneration(id) }
+    if (remaining.descriptor || remaining.clientFactory) {
+      this.register(this.host, id, remaining, 'local')
     }
-
-    this.slots.set(id, {
-      ...current,
-      generation: this.nextGeneration(id),
-      sources: { descriptor, clientFactory },
-    })
     return true
   }
 
   /** Returns the immutable descriptor captured from the current Host registration. Re-query after registration changes. */
   getHostDescriptor(id: string): KitDescriptorSnapshot | undefined {
-    const slot = this.slots.get(id)
-    return slot?.state === 'host-ready' ? slot.sources.descriptor?.payload : undefined
+    return this.current(id)?.metadata.descriptor
   }
 
   /** Returns immutable point-in-time descriptors, optionally filtered by runtime. Re-query after registration changes. */
   listHostDescriptors(runtime?: PluginRuntime): readonly KitDescriptorSnapshot[] {
-    return Object.freeze([...this.slots.values()]
-      .filter((slot): slot is HostReadySlot => slot.state === 'host-ready')
-      .flatMap((slot) => {
-        const descriptor = slot.sources.descriptor?.payload
-        return descriptor && (!runtime || descriptor.runtimes.includes(runtime)) ? [descriptor] : []
-      }))
+    return Object.freeze([...this.keys.keys()].flatMap((id) => {
+      const descriptor = this.getHostDescriptor(id)
+      return descriptor && (!runtime || descriptor.runtimes.includes(runtime)) ? [descriptor] : []
+    }))
   }
 
   /**
@@ -624,18 +589,17 @@ export class KitProviderRegistry {
    * A previously returned function is not revoked. Re-query before creating a Client after registration changes.
    */
   getHostClientFactory<TClient>(id: string): HostClientFactory<TClient> | undefined {
-    const slot = this.slots.get(id)
-    if (slot?.state !== 'host-ready') {
-      return undefined
-    }
-    return slot.sources.clientFactory?.payload.createClient as HostClientFactory<TClient> | undefined
+    return this.current(id)?.metadata.clientFactory?.createClient as HostClientFactory<TClient> | undefined
   }
 
   /**
    * Reserves all declarations for one Extension setup transaction.
    * The owner session ID is the global correlation key, and a private token isolates every reserved slot.
+   *
+   * @param input Owner and declarations of the session.
+   * @param container Session container that owns the published Providers. Without it, the Registry creates a child of the Host container.
    */
-  beginExtensionSession(input: ExtensionProviderSessionInput): ExtensionProviderTransaction {
+  beginExtensionSession(input: ExtensionProviderSessionInput, container?: Container): ExtensionProviderTransaction {
     const { owner, declarations } = captureExtensionProviderSessionInput(input)
     if (this.transactions.has(owner.sessionId)) {
       throw new KitProviderRegistrationError('stale-provider-transaction', '', owner.extensionId, owner.sessionId)
@@ -643,7 +607,7 @@ export class KitProviderRegistry {
 
     const ids = new Set<string>()
     for (const declaration of declarations) {
-      if (ids.has(declaration.id) || this.slots.has(declaration.id)) {
+      if (ids.has(declaration.id) || this.pending.has(declaration.id) || this.current(declaration.id)) {
         throw new KitProviderRegistrationError('provider-slot-conflict', declaration.id, owner.extensionId, owner.sessionId)
       }
       ids.add(declaration.id)
@@ -651,18 +615,13 @@ export class KitProviderRegistry {
 
     const transaction: TransactionState = {
       owner,
+      container: container ?? createContainer({ parent: this.host, owner: { ...owner } }),
       kitIds: Object.freeze([...ids]),
       token: Symbol(owner.sessionId),
       phase: 'pending',
     }
     for (const declaration of declarations) {
-      this.slots.set(declaration.id, {
-        state: 'extension-pending',
-        declaration,
-        owner,
-        transactionToken: transaction.token,
-        provider: { state: 'unfilled' },
-      })
+      this.pending.set(declaration.id, { declaration, transactionToken: transaction.token, provider: { state: 'unfilled' } })
     }
     this.transactions.set(owner.sessionId, transaction)
 
@@ -688,7 +647,7 @@ export class KitProviderRegistry {
           throw new KitProviderRegistrationError('duplicate-provide', normalized.id, owner.extensionId, owner.sessionId)
         }
         const registrationToken = Symbol(normalized.id)
-        this.slots.set(normalized.id, {
+        this.pending.set(normalized.id, {
           ...currentSlot,
           provider: { state: 'filled', registrationToken, contract: acceptedContract, endpoint },
         })
@@ -781,63 +740,39 @@ export class KitProviderRegistry {
 
   private commitTransaction(transaction: TransactionState): ExtensionProviderCommit {
     this.assertTransactionCurrent(transaction)
-    const publications: PreparedExtensionPublication[] = []
-    for (const id of transaction.kitIds) {
+    const filled = transaction.kitIds.map((id) => {
       const slot = this.getCurrentPendingSlot(transaction, id)
       if (slot.provider.state !== 'filled') {
         throw new KitProviderRegistrationError('missing-declared-kit', id, transaction.owner.extensionId, transaction.owner.sessionId)
       }
-      const provider = slot.provider
-      const generation = this.getNextGeneration(slot.declaration.id)
-      const snapshot = this.createSnapshot({
-        id: slot.declaration.id,
-        version: slot.declaration.version,
-        exposure: slot.declaration.exposure,
-        generation,
-        owner: transaction.owner,
-      })
-      const readySlot: ExtensionReadySlot = Object.freeze({
-        state: 'extension-ready',
-        id: snapshot.id,
-        version: snapshot.version,
-        generation: snapshot.generation,
-        exposure: slot.declaration.exposure,
-        owner: transaction.owner,
+      return { declaration: slot.declaration, provider: slot.provider }
+    })
+
+    // Every declaration is filled, so this turn publishes all Providers of the commit.
+    const providers = Object.freeze(filled.map(({ declaration, provider }) => {
+      const metadata: ProviderMetadata = {
+        version: declaration.version,
+        exposure: declaration.exposure,
+        generation: this.nextGeneration(declaration.id),
         registrationToken: provider.registrationToken,
         contract: provider.contract,
         endpoint: provider.endpoint,
-      })
-      publications.push(Object.freeze({
-        id: snapshot.id,
-        generation,
-        readySlot,
-        registrationToken: provider.registrationToken,
-        snapshot,
-      }))
-    }
-
-    const providers = Object.freeze(publications.map(publication => publication.snapshot))
-    const registrations = Object.freeze(publications.map(publication => Object.freeze({
-      id: publication.id,
-      token: publication.registrationToken,
-    })))
+      }
+      this.pending.delete(declaration.id)
+      this.register(transaction.container, declaration.id, metadata, 'parent')
+      return this.createSnapshot(declaration.id, transaction.owner, metadata)
+    }))
     const lease: ExtensionRegistrationLease = Object.freeze({
       owner: transaction.owner,
       providers,
-      dispose: () => registrations.reduce(
-        (changed, registration) => this.withdrawProviderToken(registration.id, registration.token) || changed,
+      dispose: () => filled.reduce(
+        (changed, { declaration, provider }) => this.withdrawProviderToken(declaration.id, provider.registrationToken) || changed,
         false,
       ),
     })
-    const commit = Object.freeze({ providers, lease })
-
-    for (const publication of publications) {
-      this.lastGenerations.set(publication.id, publication.generation)
-      this.slots.set(publication.id, publication.readySlot)
-    }
     transaction.phase = 'committed'
     this.transactions.delete(transaction.owner.sessionId)
-    return commit
+    return Object.freeze({ providers, lease })
   }
 
   private rollbackTransaction(transaction: TransactionState): void {
@@ -847,9 +782,8 @@ export class KitProviderRegistry {
     }
     transaction.phase = 'rolled-back'
     for (const id of transaction.kitIds) {
-      const slot = this.slots.get(id)
-      if (slot?.state === 'extension-pending' && slot.transactionToken === transaction.token) {
-        this.slots.delete(id)
+      if (this.pending.get(id)?.transactionToken === transaction.token) {
+        this.pending.delete(id)
       }
     }
     this.transactions.delete(transaction.owner.sessionId)
@@ -863,8 +797,8 @@ export class KitProviderRegistry {
 
   private getCurrentPendingSlot(transaction: TransactionState, id: string): ExtensionPendingSlot {
     this.assertTransactionCurrent(transaction)
-    const slot = this.slots.get(id)
-    if (slot?.state !== 'extension-pending' || slot.transactionToken !== transaction.token) {
+    const slot = this.pending.get(id)
+    if (slot?.transactionToken !== transaction.token) {
       const declared = transaction.kitIds.includes(id)
       const code = declared ? 'stale-provider-transaction' : 'undeclared-kit'
       throw new KitProviderRegistrationError(code, id, transaction.owner.extensionId, transaction.owner.sessionId)
@@ -873,44 +807,38 @@ export class KitProviderRegistry {
   }
 
   private withdrawProviderToken(id: string, token: symbol): boolean {
-    const slot = this.slots.get(id)
-    if (slot?.state === 'extension-pending' && slot.provider.state === 'filled' && slot.provider.registrationToken === token) {
-      this.slots.set(id, { ...slot, provider: { state: 'withdrawn' } })
+    const slot = this.pending.get(id)
+    if (slot?.provider.state === 'filled' && slot.provider.registrationToken === token) {
+      this.pending.set(id, { ...slot, provider: { state: 'withdrawn' } })
       return true
     }
-    if (slot?.state === 'extension-ready' && slot.registrationToken === token) {
-      this.slots.delete(id)
+    if (this.current(id)?.metadata.registrationToken === token) {
+      this.withdraw(id)
       return true
     }
     // The handle is stale or already disposed, so leaving the current registration unchanged is safe.
     return false
   }
 
-  private createSnapshot(snapshot: ReadyKitProviderSnapshot): ReadyKitProviderSnapshot {
-    return Object.freeze({ ...snapshot, owner: Object.freeze({ ...snapshot.owner }) })
+  private createSnapshot(id: string, owner: KitProviderOwner, metadata: ProviderMetadata): ReadyKitProviderSnapshot {
+    return Object.freeze({
+      id,
+      version: metadata.version,
+      ...(metadata.exposure === undefined ? undefined : { exposure: metadata.exposure }),
+      generation: metadata.generation,
+      owner: Object.freeze({ ...owner }),
+    })
   }
 
   /** Returns an immutable point-in-time snapshot. Re-query after stop or reload to check the current generation. */
   getReady(id: string): ReadyKitProviderSnapshot | undefined {
-    const slot = this.slots.get(id)
-    if (slot?.state === 'host-ready') {
-      return this.createSnapshot({ id, version: slot.version, generation: slot.generation, owner: { kind: 'host' } })
-    }
-    if (slot?.state === 'extension-ready') {
-      return this.createSnapshot({
-        id,
-        version: slot.version,
-        exposure: slot.exposure,
-        generation: slot.generation,
-        owner: slot.owner,
-      })
-    }
-    return undefined
+    const current = this.current(id)
+    return current && this.createSnapshot(id, current.owner, current.metadata)
   }
 
   /** Returns an immutable point-in-time list. Re-query after stop or reload to check current generations. */
   listReady(): readonly ReadyKitProviderSnapshot[] {
-    return Object.freeze([...this.slots.keys()]
+    return Object.freeze([...this.keys.keys()]
       .sort()
       .flatMap((id) => {
         const snapshot = this.getReady(id)
