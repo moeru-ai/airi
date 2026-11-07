@@ -1,103 +1,82 @@
 import { describe, expect, it } from 'vitest'
 
-import { getTrustedOrigin, resolveCheckoutRedirectBase, resolveTrustedRequestOrigin } from '../origin'
+import { resolveCheckoutRedirectBase } from '../origin'
 
-describe('origin utils', () => {
-  it('allows localhost origins', () => {
-    expect(getTrustedOrigin('http://localhost:5173')).toBe('http://localhost:5173')
+const fallback = 'https://airi.moeru.ai'
+
+function checkoutRequest(headers: Record<string, string>) {
+  return new Request('http://localhost/api/v1/stripe/checkout', { method: 'POST', headers })
+}
+
+describe('resolveCheckoutRedirectBase', () => {
+  it.each([
+    'http://localhost:5173',
+    'https://localhost:5273',
+    'https://127.0.0.1:5273',
+    'https://accounts.airi.build',
+    'https://server-dev.airi-server-auth.pages.dev',
+    'https://preview.moeru-ai.workers.dev',
+  ])('returns the trusted web origin %s', (origin) => {
+    expect(resolveCheckoutRedirectBase(checkoutRequest({ origin }), [], fallback)).toBe(origin)
   })
 
-  it('allows https localhost (mkcert dev)', () => {
-    expect(getTrustedOrigin('https://localhost:5273')).toBe('https://localhost:5273')
-    expect(getTrustedOrigin('https://127.0.0.1:5273')).toBe('https://127.0.0.1:5273')
-  })
-
-  it('allows the standalone auth UI origins', () => {
-    expect(getTrustedOrigin('https://accounts.airi.build')).toBe('https://accounts.airi.build')
-    expect(getTrustedOrigin('https://server-dev.airi-server-auth.pages.dev')).toBe('https://server-dev.airi-server-auth.pages.dev')
-  })
-
-  it('rejects retired management UI origins', () => {
-    expect(getTrustedOrigin('https://admin.airi.build')).toBe('')
-    expect(getTrustedOrigin('https://server-dev.airi-server-admin.pages.dev')).toBe('')
-  })
-
-  it('rejects private LAN Vite dev origins unless listed in ADDITIONAL_TRUSTED_ORIGINS', () => {
-    expect(getTrustedOrigin('https://10.0.0.129:5273')).toBe('')
-    expect(getTrustedOrigin('https://198.18.0.1:5273')).toBe('')
-    expect(getTrustedOrigin('https://192.168.1.5:5273')).toBe('')
-
-    const extra = ['https://10.0.0.129:5273', 'https://198.18.0.1:5273', 'https://192.168.1.5:5273']
-    expect(getTrustedOrigin('https://10.0.0.129:5273', extra)).toBe('https://10.0.0.129:5273')
-    expect(getTrustedOrigin('https://198.18.0.1:5273', extra)).toBe('https://198.18.0.1:5273')
-    expect(getTrustedOrigin('https://192.168.1.5:5273', extra)).toBe('https://192.168.1.5:5273')
-  })
-
-  it('rejects untrusted origins', () => {
-    expect(getTrustedOrigin('https://example.com')).toBe('')
-  })
-
-  it('prefers a trusted referer origin', () => {
-    const request = new Request('http://localhost/api/v1/stripe/checkout', {
-      headers: {
-        referer: 'https://airi.moeru.ai/settings/flux',
-        origin: 'https://example.com',
-      },
+  it('prefers a trusted referer origin over the Origin header', () => {
+    const request = checkoutRequest({
+      referer: 'http://localhost:5173/settings/flux',
+      origin: 'https://example.com',
     })
 
-    expect(resolveTrustedRequestOrigin(request)).toBe('https://airi.moeru.ai')
+    expect(resolveCheckoutRedirectBase(request, [], fallback)).toBe('http://localhost:5173')
   })
 
-  it('falls back to a trusted origin header when referer is missing', () => {
-    const request = new Request('http://localhost/api/v1/stripe/checkout', {
-      headers: {
-        origin: 'http://localhost:5173',
-      },
+  it('uses the Origin header when the referer origin is not trusted', () => {
+    const request = checkoutRequest({
+      referer: 'https://example.com/page',
+      origin: 'http://localhost:5173',
     })
 
-    expect(resolveTrustedRequestOrigin(request)).toBe('http://localhost:5173')
+    expect(resolveCheckoutRedirectBase(request, [], fallback)).toBe('http://localhost:5173')
   })
 
-  describe('resolveCheckoutRedirectBase', () => {
-    const fallback = 'https://airi.moeru.ai'
+  it('returns a private LAN dev origin only when ADDITIONAL_TRUSTED_ORIGINS lists it', () => {
+    const request = checkoutRequest({ origin: 'https://10.0.0.129:5273' })
 
-    it('prefers the trusted request origin over the fallback', () => {
-      const request = new Request('http://localhost/api/v1/stripe/checkout', {
-        headers: { referer: 'http://localhost:5173/settings/flux' },
-      })
+    expect(resolveCheckoutRedirectBase(request, [], fallback)).toBe(fallback)
+    expect(resolveCheckoutRedirectBase(request, ['https://10.0.0.129:5273'], fallback)).toBe('https://10.0.0.129:5273')
+  })
 
-      expect(resolveCheckoutRedirectBase(request, [], fallback)).toBe('http://localhost:5173')
-    })
+  // A native app origin is not a page that a browser can open after Stripe.
+  // See server/docs/ai/adr/2026-11-07-cross-origin-boundary.md.
+  it.each([
+    'capacitor://localhost',
+    'https://localhost',
+    'ai.moeru.airi-pocket://links',
+  ])('falls back to the web app URL for the stage-pocket origin %s', (origin) => {
+    expect(resolveCheckoutRedirectBase(checkoutRequest({ origin }), [], fallback)).toBe(fallback)
+  })
 
-    // ROOT CAUSE:
-    //
-    // The packaged Electron renderer loads from file://, so its Stripe checkout
-    // request carries no Referer and an opaque/absent Origin. resolveTrustedRequestOrigin
-    // then returns undefined and the checkout route threw
-    // `createBadRequestError('Missing trusted request origin', 'INVALID_ORIGIN')`,
-    // blocking FLUX purchases on desktop (web/mobile were unaffected because they
-    // send a trusted web origin).
-    //
-    // Before patch: no trusted origin -> undefined -> route throws INVALID_ORIGIN.
-    // After patch: no trusted origin -> falls back to the configured web app URL,
-    // which Stripe accepts as a success_url/cancel_url base.
-    it('falls back to the web app URL when the request has no trusted origin (Electron file://)', () => {
-      const request = new Request('http://localhost/api/v1/stripe/checkout', {
-        method: 'POST',
-        // file:// renderers send no Referer; Origin is absent or the opaque literal "null".
-        headers: { origin: 'null' },
-      })
+  it('falls back to the web app URL for a stage-pocket referer', () => {
+    const request = checkoutRequest({ referer: 'https://localhost/settings/flux' })
 
-      expect(resolveTrustedRequestOrigin(request, [])).toBeUndefined()
-      expect(resolveCheckoutRedirectBase(request, [], fallback)).toBe(fallback)
-    })
+    expect(resolveCheckoutRedirectBase(request, [], fallback)).toBe(fallback)
+  })
 
-    it('falls back to the web app URL for an untrusted web origin', () => {
-      const request = new Request('http://localhost/api/v1/stripe/checkout', {
-        headers: { origin: 'https://evil.example.com' },
-      })
+  // ROOT CAUSE:
+  //
+  // Packaged Electron loads from file://, so checkout sends no Referer and an opaque or absent Origin.
+  // The route threw INVALID_ORIGIN and desktop FLUX purchases failed.
+  //
+  // We fixed this by falling back to the configured web app URL.
+  it('falls back to the web app URL when the request has no trusted origin (Electron file://)', () => {
+    expect(resolveCheckoutRedirectBase(checkoutRequest({ origin: 'null' }), [], fallback)).toBe(fallback)
+    expect(resolveCheckoutRedirectBase(checkoutRequest({}), [], fallback)).toBe(fallback)
+  })
 
-      expect(resolveCheckoutRedirectBase(request, [], fallback)).toBe(fallback)
-    })
+  it.each([
+    'https://evil.example.com',
+    // A raw `Origin` header comes from the client, so it can carry a path that ends with a trusted host suffix.
+    'https://evil.example/x.moeru-ai.workers.dev',
+  ])('falls back to the web app URL for the untrusted origin %s', (origin) => {
+    expect(resolveCheckoutRedirectBase(checkoutRequest({ origin }), [], fallback)).toBe(fallback)
   })
 })
