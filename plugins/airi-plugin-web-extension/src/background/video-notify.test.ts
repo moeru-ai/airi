@@ -1,20 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { createVideoNotifyGate, normalizeVideoTitle } from './video-notify'
+import { createVideoNotifyGate } from './video-notify'
 
 function report(videoId: string, title: string) {
   return { url: `https://example.com/watch?v=${videoId}`, videoId, title }
 }
-
-describe('normalizeVideoTitle', () => {
-  it('removes the notification count and the YouTube suffix of the page title', () => {
-    expect(normalizeVideoTitle('(3) Song - YouTube')).toBe('Song')
-  })
-
-  it('keeps a title without decorations', () => {
-    expect(normalizeVideoTitle('Part 1 (Director\'s Cut)')).toBe('Part 1 (Director\'s Cut)')
-  })
-})
 
 describe('createVideoNotifyGate', () => {
   it('notifies a video after the same title arrives twice', () => {

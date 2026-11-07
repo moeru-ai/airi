@@ -6,10 +6,13 @@ export interface VideoNotifyReport {
 }
 
 /**
- * Removes page decorations from a video title, so that the page title and the player title compare as equal.
- * For example, `(3) Song - YouTube` becomes `Song`.
+ * Normalizes a video title, so that the page title and the player title of one video compare as equal.
+ *
+ * @example
+ * normalizeVideoTitle('(3) Song - YouTube')
+ * // => 'Song'
  */
-export function normalizeVideoTitle(title: string) {
+function normalizeVideoTitle(title: string) {
   return title
     .replace(/^\(\d+\)\s*/, '')
     .replace(/\s+-\s+YouTube$/i, '')
@@ -22,6 +25,10 @@ export function normalizeVideoTitle(title: string) {
  * YouTube changes the URL before it changes the page title. A report can carry
  * the new video id with the old title. So a video notifies only once, by id,
  * after its title differs from the last notified title and arrives twice.
+ *
+ * The gate keeps its state in memory for the life of the background page.
+ * `lastNotifiedVideoKey` and `lastNotifiedVideoTitle` hold the last notified video.
+ * `pendingVideoTitles` holds the last seen title of each video that waits for a second report.
  */
 export function createVideoNotifyGate() {
   let lastNotifiedVideoKey = ''
@@ -41,6 +48,7 @@ export function createVideoNotifyGate() {
     // Track each video separately. Reports from other tabs must not reset the wait.
     if (pendingVideoTitles.get(key) !== title) {
       pendingVideoTitles.set(key, title)
+      // Drop the oldest entry, so that videos that never settle do not grow the map.
       if (pendingVideoTitles.size > 20)
         pendingVideoTitles.delete(pendingVideoTitles.keys().next().value!)
       return false
