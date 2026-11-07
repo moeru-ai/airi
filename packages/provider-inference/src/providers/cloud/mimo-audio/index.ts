@@ -53,7 +53,7 @@ function createMimoValidators<TConfig extends MimoConfig>(id: string) {
   }
 }
 
-function createMimoSpeechProvider(config: MimoSpeechConfig) {
+function createMimoSpeechProvider(config: MimoSpeechConfig, context?: ProviderContext) {
   const apiKey = config.apiKey?.trim() ?? ''
   const baseUrl = normalizeBaseUrl(config.baseUrl)
   const defaultModel = config.model || 'mimo-v2.5-tts'
@@ -97,7 +97,7 @@ function createMimoSpeechProvider(config: MimoSpeechConfig) {
         if (model === 'mimo-v2.5-tts-voicedesign' && !stylePrompt)
           throw new Error('MiMo voice design requires a style prompt in the user message.')
 
-        const response = await fetch(new URL('chat/completions', baseUrl), {
+        const response = await (context?.fetch ?? globalThis.fetch)(new URL('chat/completions', baseUrl), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'api-key': apiKey },
           body: JSON.stringify({
@@ -159,7 +159,7 @@ async function readBlobAsDataUri(file: Blob): Promise<string> {
   return `data:${file.type || 'audio/wav'};base64,${btoa(binary)}`
 }
 
-function createMimoTranscriptionProvider(config: MimoTranscriptionConfig) {
+function createMimoTranscriptionProvider(config: MimoTranscriptionConfig, context?: ProviderContext) {
   const apiKey = config.apiKey?.trim() ?? ''
   const baseUrl = normalizeBaseUrl(config.baseUrl)
   const defaultModel = config.model || 'mimo-v2-omni'
@@ -180,7 +180,7 @@ function createMimoTranscriptionProvider(config: MimoTranscriptionConfig) {
         const modelName = String(init.body.get('model') || defaultModel)
         const dataUri = await readBlobAsDataUri(file)
         const base64Data = dataUri.split(',')[1]
-        const response = await fetch(new URL('chat/completions', baseUrl), {
+        const response = await (context?.fetch ?? globalThis.fetch)(new URL('chat/completions', baseUrl), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'api-key': apiKey },
           body: JSON.stringify({

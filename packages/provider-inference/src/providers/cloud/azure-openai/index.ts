@@ -150,7 +150,7 @@ function mapChatBodyToCompletions(body: Record<string, unknown>): Record<string,
   return mappedBody
 }
 
-function createAzureOpenAIFetch(config: AzureOpenAIConfig) {
+function createAzureOpenAIFetch(config: AzureOpenAIConfig, fetch: typeof globalThis.fetch = globalThis.fetch) {
   const endpointHints = parseAzureEndpointHints(config.baseUrl)
   const completionsApiVersion = resolveCompletionsApiVersion(config, endpointHints)
   const apiKey = (config.apiKey || '').trim()
@@ -235,34 +235,34 @@ export const providerAzureOpenAI = defineProvider<AzureOpenAIConfig, 'azure-open
       section: 'advanced',
     }),
   }),
-  createProvider(config) {
+  createProvider(config, context) {
     const normalizedBaseUrl = resolveProviderBaseUrl(config.baseUrl || DEFAULT_AZURE_BASE_URL)
-    const provider = createOpenAI(config.apiKey || '', normalizedBaseUrl) as any
-    const fetch = createAzureOpenAIFetch(config)
+    const provider = createOpenAI(config.apiKey || '', normalizedBaseUrl)
+    const fetch = createAzureOpenAIFetch(config, context?.fetch)
 
     return {
       ...provider,
-      model: (...args: any[]) => ({
+      model: (...args: Parameters<typeof provider.model>) => ({
         ...provider.model(...args),
         fetch,
       }),
-      chat: (...args: any[]) => ({
+      chat: (...args: Parameters<typeof provider.chat>) => ({
         ...provider.chat(...args),
         fetch,
       }),
-      embed: (...args: any[]) => ({
+      embed: (...args: Parameters<typeof provider.embed>) => ({
         ...provider.embed(...args),
         fetch,
       }),
-      image: (...args: any[]) => ({
+      image: (...args: Parameters<typeof provider.image>) => ({
         ...provider.image(...args),
         fetch,
       }),
-      speech: (...args: any[]) => ({
+      speech: (...args: Parameters<typeof provider.speech>) => ({
         ...provider.speech(...args),
         fetch,
       }),
-      transcription: (...args: any[]) => ({
+      transcription: (...args: Parameters<typeof provider.transcription>) => ({
         ...provider.transcription(...args),
         fetch,
       }),
@@ -312,7 +312,8 @@ export const providerAzureOpenAI = defineProvider<AzureOpenAIConfig, 'azure-open
       ({ t }) => ({
         id: 'azure-openai:check-completions-connectivity',
         name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-connectivity.title'),
-        validator: async (config) => {
+        validator: async (config, _provider, _extra, context) => {
+          const fetch = context?.fetch ?? globalThis.fetch
           const errors: Array<{ error: unknown }> = []
 
           const apiKey = typeof config.apiKey === 'string' ? config.apiKey.trim() : ''
@@ -341,8 +342,8 @@ export const providerAzureOpenAI = defineProvider<AzureOpenAIConfig, 'azure-open
                 },
               })
 
+              const responseText = await response.text()
               if (response.status === 401 || response.status === 403) {
-                const responseText = await response.text()
                 errors.push({ error: new Error(`Authentication failed (${response.status}). Check API key / endpoint. Response: ${responseText || 'empty'}`) })
               }
               else if (response.status >= 500) {
@@ -372,9 +373,8 @@ export const providerAzureOpenAI = defineProvider<AzureOpenAIConfig, 'azure-open
                 }),
               })
 
+              const responseText = await response.text()
               if (response.status >= 400) {
-                const responseText = await response.text()
-
                 if (response.status === 400) {
                   return {
                     errors,

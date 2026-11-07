@@ -74,11 +74,6 @@
       "count": 2
     }
   },
-  "apps/stage-tamagotchi/src/main/services/airi/widgets/artistry-bridge.ts": {
-    "ts/no-explicit-any": {
-      "count": 11
-    }
-  },
   "apps/stage-tamagotchi/src/main/services/airi/widgets/providers/base.ts": {
     "ts/no-explicit-any": {
       "count": 4
@@ -86,17 +81,12 @@
   },
   "apps/stage-tamagotchi/src/main/services/airi/widgets/providers/comfyui.ts": {
     "ts/no-explicit-any": {
-      "count": 15
+      "count": 10
     }
   },
   "apps/stage-tamagotchi/src/main/services/airi/widgets/providers/nanobanana.ts": {
     "ts/no-explicit-any": {
       "count": 1
-    }
-  },
-  "apps/stage-tamagotchi/src/main/services/airi/widgets/providers/replicate.ts": {
-    "ts/no-explicit-any": {
-      "count": 11
     }
   },
   "apps/stage-tamagotchi/src/main/tray/index.ts": {
@@ -417,21 +407,6 @@
   "packages/plugin-sdk/src/plugin/apis/client/resources/providers/index.ts": {
     "ts/no-explicit-any": {
       "count": 2
-    }
-  },
-  "packages/provider-inference/src/providers/cloud/amazon-bedrock/index.ts": {
-    "ts/no-explicit-any": {
-      "count": 13
-    }
-  },
-  "packages/provider-inference/src/providers/cloud/anthropic/index.ts": {
-    "ts/no-explicit-any": {
-      "count": 2
-    }
-  },
-  "packages/provider-inference/src/providers/cloud/azure-openai/index.ts": {
-    "ts/no-explicit-any": {
-      "count": 7
     }
   },
   "packages/provider-inference/src/validators/openai-compatible.ts": {
@@ -765,11 +740,6 @@
     }
   },
   "packages/stage-ui/src/utils/stream.ts": {
-    "ts/no-explicit-any": {
-      "count": 2
-    }
-  },
-  "packages/stage-ui/src/utils/tts.ts": {
     "ts/no-explicit-any": {
       "count": 2
     }

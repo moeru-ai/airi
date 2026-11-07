@@ -5,6 +5,7 @@ import { defineProvider } from '../../registry'
 const speechNoopConfigSchema = z.object({})
 
 export const providerSpeechNoop = defineProvider({
+  usesHTTP: false,
   id: 'speech-noop',
   name: 'None',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.speech-noop.title'),

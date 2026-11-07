@@ -91,6 +91,7 @@ async function listModelCatalog(): Promise<ProviderModelCatalog> {
 }
 
 export const providerAppleVision = defineProvider<Config, ProviderId>({
+  usesHTTP: false,
   id: PROVIDER_ID,
   name: 'Apple Vision',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.apple-vision.title'),

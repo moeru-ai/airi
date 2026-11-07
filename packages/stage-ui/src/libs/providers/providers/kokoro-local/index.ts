@@ -73,6 +73,7 @@ async function ensureModelLoaded(adapter: KokoroAdapter, modelId: string) {
 let lastLoadedModelId: string | null = null
 
 export const providerKokoroLocal = defineProvider({
+  usesHTTP: false,
   id: 'kokoro-local',
   name: 'Kokoro TTS',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.kokoro-local.title'),

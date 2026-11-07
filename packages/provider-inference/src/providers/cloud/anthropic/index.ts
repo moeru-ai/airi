@@ -18,17 +18,11 @@ const anthropicConfigSchema = z.object({
 
 type AnthropicConfig = z.input<typeof anthropicConfigSchema>
 
-function createAnthropic(apiKey: string, baseURL: string = 'https://api.anthropic.com/v1/') {
-  const anthropicFetch = async (input: any, init: any) => {
-    init.headers ??= {}
-    if (Array.isArray(init.headers))
-      init.headers.push(['anthropic-dangerous-direct-browser-access', 'true'])
-    else if (init.headers instanceof Headers)
-      init.headers.append('anthropic-dangerous-direct-browser-access', 'true')
-    else
-      init.headers['anthropic-dangerous-direct-browser-access'] = 'true'
-
-    return fetch(input, init)
+function createAnthropic(apiKey: string, baseURL: string = 'https://api.anthropic.com/v1/', transport: typeof fetch = globalThis.fetch) {
+  const anthropicFetch: typeof fetch = (input, init) => {
+    const request = new Request(input, init)
+    request.headers.set('anthropic-dangerous-direct-browser-access', 'true')
+    return transport(request)
   }
 
   return merge(
@@ -61,8 +55,8 @@ export const providerAnthropic = defineProvider<AnthropicConfig, 'anthropic'>({
       placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
     }),
   }),
-  createProvider(config) {
-    return createAnthropic(config.apiKey, config.baseUrl)
+  createProvider(config, context) {
+    return createAnthropic(config.apiKey, config.baseUrl, context?.fetch)
   },
 
   extraMethods: {

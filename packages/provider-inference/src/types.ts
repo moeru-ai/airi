@@ -72,6 +72,8 @@ export type ProviderTranslator = (input: string) => string
 
 /** Context shared by provider callbacks that need interface translation. */
 export interface ProviderContext {
+  /** HTTP transport captured for this operation. Local inference adapters keep their own fetch implementations. */
+  fetch?: typeof globalThis.fetch
   /** Translates labels and descriptions for the active interface locale. */
   t: ProviderTranslator
 }
@@ -171,7 +173,7 @@ export interface ProviderExtraMethods<TConfig> {
    * discard aborted response side effects, including recommendation caches.
    */
 
-  listVoices?: (config: TConfig, provider: ProviderInstance, model?: string, signal?: AbortSignal) => Promise<VoiceInfo[]>
+  listVoices?: (config: TConfig, provider: ProviderInstance, model?: string, signal?: AbortSignal, contextOptions?: ProviderContext) => Promise<VoiceInfo[]>
   loadModel?: (config: TConfig, provider: ProviderInstance, hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void }) => Promise<void>
 }
 
@@ -264,6 +266,8 @@ export interface VoiceInfo {
 
 /** A provider definition and its configuration contract. */
 export interface ProviderDefinition<TConfig = Record<string, unknown>, TId extends string = string> {
+  /** False preserves a local runtime across HTTP transport changes. @default true */
+  usesHTTP?: boolean
   /** Stable provider definition id. */
   id: TId
   order?: number
@@ -322,7 +326,7 @@ export interface ProviderDefinition<TConfig = Record<string, unknown>, TId exten
   /** Builds the validation schema and its UI metadata for the current draft. */
   createProviderConfig: (contextOptions: ProviderConfigContext<TConfig>) => MaybePromise<$ZodType<TConfig>>
   onboardingFields?: (ctx: ProviderContext) => MaybePromise<ProviderOnboardingField[]>
-  createProvider: (config: TConfig) => MaybePromise<ProviderInstance>
+  createProvider: (config: TConfig, contextOptions?: ProviderContext) => MaybePromise<ProviderInstance>
   extraMethods?: ProviderExtraMethods<TConfig>
   /**
    * Returns true when the configuration has enough input for automatic validation.

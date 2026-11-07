@@ -134,9 +134,9 @@ export const providerDeepgramTts = defineProvider<UnspeechConfig, 'deepgram-tts'
       { id: 'aura', name: 'Aura (Legacy)', provider: 'deepgram-tts', description: 'Original Aura model', deprecated: true },
     ],
     voiceCatalogConfig: ({ apiKey, baseUrl }) => ({ apiKey, baseUrl }),
-    listVoices: async (config) => {
+    listVoices: async (config, _provider, _model, signal, context) => {
       const provider = createUnDeepgram(config.apiKey.trim(), config.baseUrl?.trim() ?? '') as VoiceProviderWithExtraOptions<UnDeepgramOptions>
-      const voices = await listVoices(toListVoicesOptions(provider))
+      const voices = await listVoices({ ...toListVoicesOptions(provider), fetch: (input: RequestInfo | URL, init?: RequestInit) => (context?.fetch ?? globalThis.fetch)(input, { ...init, signal }) })
       return voices.map(voice => ({
         id: voice.id,
         name: voice.name,
@@ -164,9 +164,9 @@ export const providerMicrosoftSpeech = defineProvider<MicrosoftSpeechConfig, 'mi
   extraMethods: {
     listModels: async () => [{ id: 'v1', name: 'v1', provider: 'microsoft-speech', description: '', deprecated: false }],
     voiceCatalogConfig: ({ apiKey, baseUrl, region }) => ({ apiKey, baseUrl, region }),
-    listVoices: async (config) => {
+    listVoices: async (config, _provider, _model, signal, context) => {
       const provider = createUnMicrosoft(config.apiKey.trim(), config.baseUrl?.trim() ?? '') as VoiceProviderWithExtraOptions<UnMicrosoftOptions>
-      const voices = await listVoices(toListVoicesOptions(provider, { region: config.region ?? '' }))
+      const voices = await listVoices({ ...toListVoicesOptions(provider, { region: config.region ?? '' }), fetch: (input: RequestInfo | URL, init?: RequestInit) => (context?.fetch ?? globalThis.fetch)(input, { ...init, signal }) })
       return voices.map(voice => ({
         id: voice.id,
         name: voice.name,
@@ -197,9 +197,9 @@ export const providerAlibabaCloudModelStudio = defineProvider<UnspeechConfig, 'a
       { id: 'cosyvoice-v2', name: 'CosyVoice (New)', provider: 'alibaba-cloud-model-studio', description: '', deprecated: false },
     ],
     voiceCatalogConfig: ({ apiKey, baseUrl }) => ({ apiKey, baseUrl }),
-    listVoices: async (config) => {
+    listVoices: async (config, _provider, _model, signal, context) => {
       const provider = createUnAlibabaCloud(config.apiKey.trim(), config.baseUrl?.trim() ?? '') as VoiceProviderWithExtraOptions<UnAlibabaCloudOptions>
-      const voices = await listVoices(toListVoicesOptions(provider))
+      const voices = await listVoices({ ...toListVoicesOptions(provider), fetch: (input: RequestInfo | URL, init?: RequestInit) => (context?.fetch ?? globalThis.fetch)(input, { ...init, signal }) })
       return voices.map(voice => ({
         id: voice.id,
         name: voice.name,
@@ -228,9 +228,9 @@ export const providerVolcengineSpeech = defineProvider<VolcengineSpeechConfig, '
   extraMethods: {
     listModels: async () => [{ id: 'v1', name: 'v1', provider: 'volcano-engine', description: '', deprecated: false }],
     voiceCatalogConfig: ({ apiKey, baseUrl }) => ({ apiKey, baseUrl }),
-    listVoices: async (config) => {
+    listVoices: async (config, _provider, _model, signal, context) => {
       const provider = createUnVolcengine(config.apiKey.trim(), config.baseUrl?.trim() ?? '') as VoiceProviderWithExtraOptions<UnVolcengineOptions>
-      const voices = await listVoices(toListVoicesOptions(provider))
+      const voices = await listVoices({ ...toListVoicesOptions(provider), fetch: (input: RequestInfo | URL, init?: RequestInit) => (context?.fetch ?? globalThis.fetch)(input, { ...init, signal }) })
       return voices.map(voice => ({
         id: voice.id,
         name: voice.name,
