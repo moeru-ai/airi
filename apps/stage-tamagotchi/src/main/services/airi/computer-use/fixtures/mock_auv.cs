@@ -1,3 +1,7 @@
+// Test fixture: Mock AUV binary source for Windows native process tests.
+// Used by real-process-issue2.test.ts to test child process lifecycle and stdio drainage.
+// Compiled on-demand via C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe during test execution.
+// Platform: win32 only.
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -18,6 +22,7 @@ class MockAuv {
             psi.FileName = "powershell.exe";
             psi.Arguments = "-NoProfile -Command \"Start-Sleep -Seconds 5\"";
             psi.UseShellExecute = false;
+            psi.CreateNoWindow = true;
             // Inherit standard output and error handles
             Process gc = Process.Start(psi);
 

@@ -77,7 +77,6 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
       signal: abort.signal,
     })
     daemon = started
-    hasLingeringMutationRisk = false
     void started.exited.then(() => {
       if (daemon === started)
         daemon = undefined
@@ -154,7 +153,7 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
         }
         if (hasLingeringMutationRisk) {
           throw new ComputerUseExecutionError(
-            `Mutating desktop operation '${classification.command ?? 'unknown'}' is rejected: previous mutating operation ended with unconfirmed background processes. Reconnect or restart daemon before dispatching new mutations.`,
+            `Mutating desktop operation '${classification.command ?? 'unknown'}' is rejected: previous mutating operation ended with unconfirmed background processes. Restart application before dispatching new mutations.`,
             { executionState: 'not_executed', argv: validatedArgv },
           )
         }
@@ -177,7 +176,7 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
       try {
         if (classification.category === 'mutating' && hasLingeringMutationRisk) {
           throw new ComputerUseExecutionError(
-            `Mutating desktop operation '${classification.command ?? 'unknown'}' is rejected: previous mutating operation ended with unconfirmed background processes. Reconnect or restart daemon before dispatching new mutations.`,
+            `Mutating desktop operation '${classification.command ?? 'unknown'}' is rejected: previous mutating operation ended with unconfirmed background processes. Restart application before dispatching new mutations.`,
             { executionState: 'not_executed', argv: validatedArgv },
           )
         }
@@ -467,7 +466,6 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
   /** Rejects queued calls, aborts active work, and waits for the owned daemon to exit. */
   async function dispose() {
     disposed = true
-    hasLingeringMutationRisk = false
     abort.abort()
     options.actionManager?.invalidateAll()
     await queue

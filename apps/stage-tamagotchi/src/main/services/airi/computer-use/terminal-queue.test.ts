@@ -41,7 +41,12 @@ describe('shared Terminal and native desktop admission', () => {
     const actions = new PendingActionManager()
     const runtime = createComputerUseRuntime({ binaryPath: 'fixture-auv', storeRoot: '/fixture', actionManager: actions })
     cleanups.push(runtime.dispose)
+    let exitDaemon!: () => void
+    const exited = new Promise<void>((resolve) => {
+      exitDaemon = resolve
+    })
     external.start.mockResolvedValue({ connectionOptions: { credential: 'fixture-token' }, endpoints: ['ipc://fixture-auv'], exited: new Promise(() => {}), stop: vi.fn() })
+    external.start.mockResolvedValueOnce({ connectionOptions: { credential: 'fixture-token' }, endpoints: ['ipc://fixture-auv'], exited, stop: vi.fn() })
     const attribution = { sessionId: 'session-a', turnId: 'turn-a', toolCallId: 'call-a', senderWebContentsId: 71 }
     const argv = ['invoke', 'app.activate', 'fixture-app']
     const action = actions.createPendingAction({ argv, attribution })
@@ -92,5 +97,22 @@ describe('shared Terminal and native desktop admission', () => {
     const observed = await runtime.run({ argv: ['invoke', 'window.list'], attribution: { ...attribution, toolCallId: 'read-after-risk' } }, 71)
     expect(observed.executionState).toBe('executed')
     expect(external.execute).toHaveBeenCalledTimes(2)
+
+    exitDaemon()
+    await Promise.resolve()
+    const reconnectedChild = new ChildProcess()
+    reconnectedChild.stdin = new PassThrough()
+    external.execute.mockImplementationOnce(() => {
+      void Promise.resolve().then(() => reconnectedChild.emit('close', 0, null))
+      return Object.assign(Promise.resolve({ stdout: '[]', stderr: '' }), { child: reconnectedChild })
+    })
+    const reconnected = await runtime.run({ argv: ['invoke', 'window.list'], attribution: { ...attribution, toolCallId: 'read-after-reconnect' } }, 71)
+    const afterReconnect = await runtime.executeInSlot(operation).catch((error: unknown) => error)
+    console.info(JSON.stringify({ boundary: 'Controlled daemon restart, native observation and Terminal callback. No OS input.', timing, daemonStarts: external.start.mock.calls.length, nativeCalls: external.execute.mock.calls.length, oracle, terminalError: errorMessageFrom(afterReconnect) ?? null }))
+    expect(reconnected.executionState).toBe('executed')
+    expect(external.start).toHaveBeenCalledTimes(2)
+    expect(external.execute).toHaveBeenCalledTimes(3)
+    expect(oracle).toEqual({ terminalDispatches: 0, terminalEffects: 0 })
+    expect(afterReconnect).toMatchObject({ executionState: 'not_executed' })
   })
 })

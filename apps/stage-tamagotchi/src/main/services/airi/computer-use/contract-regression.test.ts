@@ -1047,4 +1047,106 @@ describe('f-Contract-1: Production Host Execution Result Contract Regression', (
       executorCalls: 2,
     }))
   })
+
+  // --------------------------------------------------------------------------
+  // Scenario E: Daemon restart or reconnect does NOT clear lingering mutation risk
+  // --------------------------------------------------------------------------
+  it('scenario E: Reconnecting or restarting daemon does not clear lingering mutation risk and preserves mutation blocking', async () => {
+    let daemon1Exited: () => void
+    const daemon1ExitedPromise = new Promise<void>(r => (daemon1Exited = r))
+
+    // First daemon instance
+    external.start.mockResolvedValueOnce({
+      connectionOptions: { credential: 'test-token-1' },
+      endpoints: ['ipc://test-auv-1'],
+      exited: daemon1ExitedPromise,
+      stop: vi.fn(),
+    })
+
+    const action1 = createApprovedAction(['invoke', 'app.activate', 'Calculator'])
+    const abortController = new AbortController()
+
+    let action1Entered: () => void
+    const action1EnteredPromise = new Promise<void>(r => (action1Entered = r))
+
+    external.execute.mockImplementationOnce((_file, _args, options) => {
+      action1Entered()
+      const child = new EventEmitter() as any
+      child.exitCode = null
+      child.signalCode = null
+      child.stdin = new PassThrough()
+      const p = new Promise<CliResult>((_resolve, reject) => {
+        options.signal?.addEventListener('abort', () => {
+          reject(Object.assign(new Error('Aborted'), { killed: true }))
+        })
+      })
+      return Object.assign(p, { child }) as CliExecution
+    })
+
+    const action1Promise = executeTool(
+      { argv: [...action1.argv] },
+      { attribution: action1.attribution, actionId: action1.id, abortSignal: abortController.signal },
+    ).catch(err => err as Error)
+
+    await action1EnteredPromise
+    abortController.abort(new Error('User abort'))
+    await action1Promise
+
+    // Lingering mutation risk is now active.
+    // Simulate daemon exit
+    daemon1Exited!()
+    await new Promise(r => setTimeout(r, 10))
+
+    // Set up mock for the restarted daemon instance
+    external.start.mockResolvedValueOnce({
+      connectionOptions: { credential: 'test-token-2' },
+      endpoints: ['ipc://test-auv-2'],
+      exited: new Promise(() => {}),
+      stop: vi.fn(),
+    })
+
+    // Execute read-only command on the restarted daemon (triggers connect())
+    external.execute.mockImplementationOnce(() => {
+      return execution({ stdout: JSON.stringify([{ id: 'win-restarted', title: 'Active Window' }]), stderr: '' })
+    })
+
+    const readOnlyResult = await executeTool(
+      { argv: ['invoke', 'window.list'] },
+      { attribution: origin('turn-read-reconnected') },
+    )
+
+    expect(readOnlyResult).toBeDefined()
+    expect(JSON.parse(readOnlyResult as string).output).toEqual([{ id: 'win-restarted', title: 'Active Window' }])
+    expect(external.start).toHaveBeenCalledTimes(2)
+
+    // Attempt a new mutating operation: must remain blocked because risk flag was not cleared by connect()
+    const mutatingAction = createApprovedAction(['invoke', 'app.activate', 'Notepad'], origin('turn-new-mutating'))
+    let mutatingError: Error | undefined
+    try {
+      await executeTool(
+        { argv: [...mutatingAction.argv] },
+        { attribution: mutatingAction.attribution, actionId: mutatingAction.id },
+      )
+    }
+    catch (err) {
+      mutatingError = err as Error
+    }
+
+    expect(mutatingError).toBeDefined()
+    expect((mutatingError as any).executionState).toBe('not_executed')
+    expect(mutatingError?.message).toContain('unconfirmed background processes')
+    expect(mutatingError?.message).toContain('Restart application before dispatching new mutations.')
+
+    // Mutating command was rejected before dispatch and never sent to external.execute
+    expect(external.execute).toHaveBeenCalledTimes(2)
+
+    console.info('SCENARIO_E_EVIDENCE', JSON.stringify({
+      case: 'Scenario E (Daemon Restart Does Not Clear Lingering Mutation Risk)',
+      daemonStarts: external.start.mock.calls.length,
+      readOnlyAfterRestartSucceeded: true,
+      mutatingExecutionState: (mutatingError as any).executionState,
+      mutatingBlockedMessage: mutatingError?.message,
+      mutatingDispatched: false,
+    }))
+  })
 })
