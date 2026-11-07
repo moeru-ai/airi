@@ -59,7 +59,7 @@ it('closes every capture and opens no new one while the microphone is off', asyn
 })
 
 // Wake word and speech input stopped after the microphone was lost, for example an unplugged or busy device.
-it('creates new inputs when the track of the selected device ends', async () => {
+it('creates a new input when the track of the selected device ends', async () => {
   // ROOT CAUSE:
   //
   // Inputs were created again only when the device ID changed:
@@ -67,7 +67,7 @@ it('creates new inputs when the track of the selected device ends', async () => 
   // watch(capturedDeviceId, () => { source.value = createSource(...) })
   //
   // An ended track ended every subscription, and nothing opened the device again.
-  // We fixed this by creating the inputs again when a device track ends.
+  // We fixed this by creating the input again when its device track ends.
   const { device, selected } = mountDevice()
   await device.askPermission()
   await expect.poll(() => selected.value).not.toBe('')
@@ -85,8 +85,37 @@ it('creates new inputs when the track of the selected device ends', async () => 
 
   expect(await reader.read()).toEqual({ done: true, value: undefined })
   await expect.poll(() => device.input.value).not.toBe(input)
-  expect(device.unprocessedInput.value).not.toBe(unprocessedInput)
+  // The keyword track did not end, so its input stays.
+  expect(device.unprocessedInput.value).toBe(unprocessedInput)
   const reopened = new AbortController()
   cleanups.push(() => reopened.abort())
   expect((await device.input.value.subscribe({ signal: reopened.signal }).getReader().read()).done).toBe(false)
+})
+
+// A new processed input cancels the speech input in progress, so a lost keyword track must not replace it.
+it('keeps the processed input when only the keyword track ends', async () => {
+  const { device, selected } = mountDevice()
+  await device.askPermission()
+  await expect.poll(() => selected.value).not.toBe('')
+  await expect.poll(() => device.audioInputs.value.length).toBeGreaterThan(0)
+  const input = device.input.value
+  const unprocessedInput = device.unprocessedInput.value
+  const opened: MediaStream[] = []
+  const getUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices)
+  vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockImplementation(async (constraints) => {
+    const stream = await getUserMedia(constraints)
+    opened.push(stream)
+    return stream
+  })
+  const subscription = new AbortController()
+  cleanups.push(() => subscription.abort())
+  const reader = unprocessedInput.subscribe({ signal: subscription.signal }).getReader()
+  await reader.read()
+  expect(opened).toHaveLength(1)
+
+  opened[0].getAudioTracks()[0].dispatchEvent(new Event('ended'))
+
+  expect(await reader.read()).toEqual({ done: true, value: undefined })
+  await expect.poll(() => device.unprocessedInput.value).not.toBe(unprocessedInput)
+  expect(device.input.value).toBe(input)
 })

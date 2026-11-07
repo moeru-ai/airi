@@ -165,11 +165,16 @@ export function useAudioDevice(selectedAudioInput: Ref<string> = ref(''), option
     return created
   }
 
-  /** Creates new inputs for the selected device. Subscribers move to them themselves. */
-  function recreateInputs() {
+  /** Creates a new processed input for the selected device. Subscribers move to it themselves. */
+  function recreateProcessedInput() {
     stream.value = undefined
     source.value = createSource(deviceConstraints.value)
     input.value = markRaw(new AudioInput(source.value, { historyMs: MICROPHONE_HISTORY_MS }))
+  }
+
+  /** Creates new inputs for the selected device. Subscribers move to them themselves. */
+  function recreateInputs() {
+    recreateProcessedInput()
     unprocessedInput.value = createUnprocessedInput()
   }
 
@@ -177,7 +182,9 @@ export function useAudioDevice(selectedAudioInput: Ref<string> = ref(''), option
    * Opens the device again after it ended a track of `lost`, a source or an input of this device.
    *
    * The list refreshes first. A device that left the list falls back to the preferred device, and the device watch
-   * creates the inputs. A device that is still listed, for example the system default, gets new inputs here.
+   * creates both inputs. A device that is still listed, for example the system default, gets a new input here only
+   * for the track that ended. A new processed input cancels the speech input in progress, so a lost keyword track
+   * must not replace it.
    */
   async function recoverLostDevice(lost: MicrophoneSource | AudioInput) {
     const current = () => lost === source.value || lost === unprocessedInput.value
@@ -190,8 +197,12 @@ export function useAudioDevice(selectedAudioInput: Ref<string> = ref(''), option
       // The old list stays. The inputs are created for the same selection.
     }
     await nextTick()
-    if (!disposed && current())
-      recreateInputs()
+    if (disposed)
+      return
+    if (lost === source.value)
+      recreateProcessedInput()
+    else if (lost === unprocessedInput.value)
+      unprocessedInput.value = createUnprocessedInput()
   }
 
   // Browsers hide device IDs until permission, so the fallback waits for a list with IDs.
