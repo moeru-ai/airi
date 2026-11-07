@@ -56,7 +56,6 @@ watch(() => modelValue.value?.id, (id) => {
   enableBlur.value = modelValue.value?.blur ?? false
 })
 
-/** Keeps one object URL per uploaded image until the picker is disposed. */
 function ensureObjectUrl(id: string, file: File) {
   let blobRef = blobRefs.get(id)
   let urlRef = urlRefs.get(id)
@@ -74,7 +73,6 @@ function ensureObjectUrl(id: string, file: File) {
   return urlRef!.value!
 }
 
-/** Bounds the image load wait before the preview supplies theme colors. */
 async function waitForPreviewReady() {
   await nextTick()
   const image = previewRef.value?.querySelector('img')
@@ -137,7 +135,6 @@ watch(selectedOption, async (option) => {
   }
 })
 
-/** Reuses upload URLs so selection changes do not reload the same image. */
 function getPreviewSrc(option?: BackgroundOption) {
   if (!option)
     return ''
