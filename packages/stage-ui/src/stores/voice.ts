@@ -9,6 +9,7 @@ import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
 import { DEFAULT_SPEECH_THRESHOLD, turnKey } from '@proj-airi/core-agent'
 import { observeLevel } from '@proj-airi/pipelines-audio'
+import { VoiceIdKeys } from '@proj-airi/trace-kit/voice'
 import { defineStore, storeToRefs } from 'pinia'
 import { onScopeDispose, shallowRef, watch } from 'vue'
 
@@ -109,7 +110,8 @@ export const useVoiceStore = defineStore('voice', () => {
 
   const inputTracer = createVoiceInputTracer({ speechThreshold: DEFAULT_SPEECH_THRESHOLD })
   const { controller, state, snapshot: transcript, error } = useVoiceController({
-    transcriber: () => hearing.createTranscriber(),
+    // The recognition span belongs to its input, which can still finalize after the next input began.
+    transcriber: ({ inputId, sessionId }) => hearing.createTranscriber(undefined, { ids: { [VoiceIdKeys.Input]: inputId, [VoiceIdKeys.Conversation]: sessionId } }),
     speech: (turn) => {
       if (!output)
         throw new Error('Voice output host is not connected')
