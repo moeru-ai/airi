@@ -112,9 +112,11 @@ export class MarkdownSegmenter {
 
       if (char === '\n') {
         lineStart = true
-        // Inline code and emphasis do not cross a blank line.
+        // Inline code, links, and emphasis do not cross a blank line.
         if (text[index + 1] === '\n') {
           state.code = undefined
+          state.brackets = 0
+          state.url = false
           state.emphasis = false
           state.strong = false
           if (state.math === '$')
