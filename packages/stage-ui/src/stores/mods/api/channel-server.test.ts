@@ -8,6 +8,8 @@ const serverSdkMocks = vi.hoisted(() => {
 
     readonly listeners = new Map<string, Set<(event: any) => void | Promise<void>>>()
     readonly sent: any[] = []
+    /** The real client refuses sends until its handshake has finished, which is after `module:authenticated`. */
+    acceptsSends = true
 
     constructor(public readonly options: Record<string, any>) {
       MockClient.instances.push(this)
@@ -45,6 +47,10 @@ const serverSdkMocks = vi.hoisted(() => {
     }
 
     send(event: any) {
+      if (!this.acceptsSends) {
+        return false
+      }
+
       this.sent.push(event)
       return true
     }
@@ -174,6 +180,80 @@ describe('channel-server store reconnect', () => {
         data: { message: 'queued-during-disconnect' },
       }),
     ]))
+  })
+
+  // Regression coverage for https://github.com/moeru-ai/airi/issues/2837
+  it('issue #2837: keeps events the sdk refuses between authenticated and ready queued until it reports ready', async () => {
+    const store = useModsServerChannelStore()
+
+    store.send({
+      type: 'spark:notify',
+      data: { message: 'before-init' },
+    } as any)
+
+    const initializePromise = store.initialize({ token: 'secret' })
+    const client = serverSdkMocks.MockClient.instances.at(-1)!
+    client.acceptsSends = false
+
+    client.simulateAuthenticated()
+    await initializePromise
+
+    expect(store.connected).toBe(true)
+
+    store.send({
+      type: 'module:consumer:register',
+      data: { event: 'input:text', mode: 'consumer-group', group: 'chat-ingestion' },
+    } as any)
+
+    expect(client.sent).toEqual([])
+    expect(store.pendingSendCount).toBe(2)
+
+    client.acceptsSends = true
+    client.simulateReconnectReady()
+
+    expect(store.pendingSendCount).toBe(0)
+    expect(client.sent).toEqual([
+      expect.objectContaining({
+        type: 'spark:notify',
+        data: { message: 'before-init' },
+      }),
+      expect.objectContaining({
+        type: 'module:consumer:register',
+        data: { event: 'input:text', mode: 'consumer-group', group: 'chat-ingestion' },
+      }),
+    ])
+  })
+
+  it('drops events the sdk refused when the client is replaced before it is ready', async () => {
+    const store = useModsServerChannelStore()
+
+    const initializePromise = store.initialize({ token: 'secret' })
+    const firstClient = serverSdkMocks.MockClient.instances[0]
+    firstClient.acceptsSends = false
+
+    firstClient.simulateAuthenticated()
+    await initializePromise
+
+    store.send({
+      type: 'module:consumer:register',
+      data: { event: 'input:text', mode: 'consumer-group', group: 'chat-ingestion' },
+    } as any)
+
+    expect(store.pendingSendCount).toBe(1)
+
+    store.websocketAuthToken = 'rotated-secret'
+    await nextTick()
+
+    expect(store.pendingSendCount).toBe(0)
+
+    const secondClient = serverSdkMocks.MockClient.instances.at(-1)!
+    expect(secondClient).not.toBe(firstClient)
+
+    secondClient.simulateAuthenticated()
+    secondClient.simulateReconnectReady()
+
+    expect(firstClient.sent).toEqual([])
+    expect(secondClient.sent).toEqual([])
   })
 
   it('uses explicit heartbeat settings to avoid client/server timeout mismatch', async () => {
