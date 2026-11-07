@@ -1,0 +1,35 @@
+using System;
+using System.Diagnostics;
+using System.IO;
+using System.Threading;
+
+class MockAuv {
+    static int Main(string[] args) {
+        // Read stdin until newline
+        try {
+            Console.ReadLine();
+        } catch {}
+
+        string mode = Environment.GetEnvironmentVariable("MOCK_AUV_MODE") ?? "normal";
+
+        if (mode == "leak_stdio") {
+            // Spawn a grandchild process that inherits handles and sleeps
+            ProcessStartInfo psi = new ProcessStartInfo();
+            psi.FileName = "powershell.exe";
+            psi.Arguments = "-NoProfile -Command \"Start-Sleep -Seconds 5\"";
+            psi.UseShellExecute = false;
+            // Inherit standard output and error handles
+            Process gc = Process.Start(psi);
+
+            // Print valid json response from direct child with grandchild PID
+            Console.WriteLine("{\"activated\": true, \"mode\": \"leak_stdio\", \"grandchildPid\": " + gc.Id + "}");
+            Console.Out.Flush();
+
+            // Direct child exits immediately with code 0!
+            return 0;
+        }
+
+        Console.WriteLine("{\"activated\": true, \"mode\": \"normal\"}");
+        return 0;
+    }
+}

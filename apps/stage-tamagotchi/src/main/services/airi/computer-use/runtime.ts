@@ -1,6 +1,6 @@
 import type { AuvDaemon } from '@auv-js/sdk/node'
 
-import type { ComputerUseResult } from '../../../../shared/eventa/computer-use'
+import type { ComputerUseResult, ExecutionState } from '../../../../shared/eventa/computer-use'
 import type { PendingActionManager } from './action-manager'
 import type { InvocationAttribution } from './attribution'
 
@@ -61,6 +61,7 @@ export interface ComputerUseRuntimeOptions {
 export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
   let daemon: AuvDaemon | undefined
   let disposed = false
+  let hasLingeringMutationRisk = false
   let queue: Promise<unknown> = Promise.resolve()
   const abort = new AbortController()
 
@@ -76,6 +77,7 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
       signal: abort.signal,
     })
     daemon = started
+    hasLingeringMutationRisk = false
     void started.exited.then(() => {
       if (daemon === started)
         daemon = undefined
@@ -97,60 +99,88 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
   }
 
   async function run(input: unknown, callerWebContentsId?: number, signal?: AbortSignal): Promise<ComputerUseResult> {
-    const parsed = v.parse(inputSchema, input)
-
-    // Snapshot caller arguments before the queue wait.
-    const validatedArgv = Object.freeze([...parsed.argv])
-
-    // 2. The host owns routing and artifact storage. CLI global flags must not replace them.
-    if (validatedArgv.some(arg => MANAGED_FLAGS.some(flag => arg === flag || arg.startsWith(`${flag}=`))))
-      throw new ComputerUseExecutionError('Computer use routing and storage are managed by AIRI.', { executionState: 'not_executed', argv: validatedArgv })
-
-    // 3. Host Enforcement Gate: evaluate command classification on the frozen argv.
-    const classification = classifyAuvCommand(validatedArgv)
-
-    if (classification.category === 'unknown') {
-      throw new ComputerUseExecutionError(`Use invoke with a desktop command or --help. (${classification.reason})`, { executionState: 'not_executed', argv: validatedArgv })
-    }
-
-    // 4. Request correlation and the independently observed Electron source.
+    let validatedArgv: readonly string[] = []
+    let parsed: v.InferOutput<typeof inputSchema>
+    let classification: ReturnType<typeof classifyAuvCommand>
     let attribution: InvocationAttribution | undefined
-    if (parsed.attribution) {
-      attribution = validateAttribution(parsed.attribution, callerWebContentsId)
-    }
-    else if (!classification.isHelp && options.requireAttribution !== false) {
-      throw new ComputerUseExecutionError('Invocation attribution is required (missing sessionId).', { executionState: 'not_executed', argv: validatedArgv })
-    }
-    if (!classification.isHelp && options.requireAttribution !== false && (!attribution?.turnId || !attribution.toolCallId))
-      throw new ComputerUseExecutionError('Invocation attribution requires the original turn ID and tool-call ID.', { executionState: 'not_executed', argv: validatedArgv })
 
-    // 5. Host Authorization & PendingAction enforcement for mutating commands
-    if (classification.category === 'mutating') {
-      if (options.actionManager) {
-        if (!parsed.actionId) {
+    try {
+      parsed = v.parse(inputSchema, input)
+
+      // Snapshot caller arguments before the queue wait.
+      validatedArgv = Object.freeze([...parsed.argv])
+
+      // 2. The host owns routing and artifact storage. CLI global flags must not replace them.
+      if (validatedArgv.some(arg => MANAGED_FLAGS.some(flag => arg === flag || arg.startsWith(`${flag}=`))))
+        throw new ComputerUseExecutionError('Computer use routing and storage are managed by AIRI.', { executionState: 'not_executed', argv: validatedArgv })
+
+      // 3. Host Enforcement Gate: evaluate command classification on the frozen argv.
+      classification = classifyAuvCommand(validatedArgv)
+
+      if (classification.category === 'unknown') {
+        throw new ComputerUseExecutionError(`Use invoke with a desktop command or --help. (${classification.reason})`, { executionState: 'not_executed', argv: validatedArgv })
+      }
+
+      // 4. Request correlation and the independently observed Electron source.
+      if (parsed.attribution) {
+        attribution = validateAttribution(parsed.attribution, callerWebContentsId)
+      }
+      else if (!classification.isHelp && options.requireAttribution !== false) {
+        throw new ComputerUseExecutionError('Invocation attribution is required (missing sessionId).', { executionState: 'not_executed', argv: validatedArgv })
+      }
+      if (!classification.isHelp && options.requireAttribution !== false && (!attribution?.turnId || !attribution.toolCallId))
+        throw new ComputerUseExecutionError('Invocation attribution requires the original turn ID and tool-call ID.', { executionState: 'not_executed', argv: validatedArgv })
+
+      // 5. Host Authorization & PendingAction enforcement for mutating commands
+      if (classification.category === 'mutating') {
+        if (options.actionManager) {
+          if (!parsed.actionId) {
+            throw new ComputerUseExecutionError(
+              `Mutating desktop operation '${classification.command ?? 'unknown'}' requires an approved action (actionId missing).`,
+              { executionState: 'not_executed', argv: validatedArgv },
+            )
+          }
+          if (!attribution) {
+            throw new ComputerUseExecutionError('Invocation attribution is required (missing sessionId).', { executionState: 'not_executed', argv: validatedArgv })
+          }
+          // Reject invalid approvals before they can wait behind another operation.
+          options.actionManager.validate(parsed.actionId, {
+            argv: validatedArgv,
+            attribution,
+          })
+        }
+        else {
+          throw new ComputerUseExecutionError(`Mutating desktop operation '${classification.command ?? 'unknown'}' is not authorized on this host.`, { executionState: 'not_executed', argv: validatedArgv })
+        }
+        if (hasLingeringMutationRisk) {
           throw new ComputerUseExecutionError(
-            `Mutating desktop operation '${classification.command ?? 'unknown'}' requires an approved action (actionId missing).`,
+            `Mutating desktop operation '${classification.command ?? 'unknown'}' is rejected: previous mutating operation ended with unconfirmed background processes. Reconnect or restart daemon before dispatching new mutations.`,
             { executionState: 'not_executed', argv: validatedArgv },
           )
         }
-        if (!attribution) {
-          throw new ComputerUseExecutionError('Invocation attribution is required (missing sessionId).', { executionState: 'not_executed', argv: validatedArgv })
-        }
-        // Reject invalid approvals before they can wait behind another operation.
-        options.actionManager.validate(parsed.actionId, {
-          argv: validatedArgv,
-          attribution,
-        })
       }
-      else {
-        throw new ComputerUseExecutionError(`Mutating desktop operation '${classification.command ?? 'unknown'}' is not authorized on this host.`, { executionState: 'not_executed', argv: validatedArgv })
-      }
+    }
+    catch (error) {
+      if (error instanceof ComputerUseExecutionError)
+        throw error
+      throw new ComputerUseExecutionError(errorMessageFrom(error) ?? 'Computer use failed before dispatch.', {
+        executionState: 'not_executed',
+        argv: validatedArgv,
+        cause: error,
+      })
     }
 
     // 6. Authorized or read-only execution: enters queue and runs via AUV daemon.
+    let dispatched = false
     return enqueue(async () => {
       let consumedActionId: string | undefined
       try {
+        if (classification.category === 'mutating' && hasLingeringMutationRisk) {
+          throw new ComputerUseExecutionError(
+            `Mutating desktop operation '${classification.command ?? 'unknown'}' is rejected: previous mutating operation ended with unconfirmed background processes. Reconnect or restart daemon before dispatching new mutations.`,
+            { executionState: 'not_executed', argv: validatedArgv },
+          )
+        }
         // Reject invalidated queued work before starting or reconnecting the daemon.
         if (classification.category === 'mutating' && options.actionManager && parsed.actionId && attribution) {
           options.actionManager.validate(parsed.actionId, { argv: validatedArgv, attribution })
@@ -179,6 +209,7 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
         const args = ['--credential-stdin', ...command]
         // Merge runtime lifecycle and request-level cancellation signals
         const executionSignal = signal ? AbortSignal.any([abort.signal, signal]) : abort.signal
+        dispatched = true
         // Send the launcher token on stdin. Other processes of the same user can read argv and the environment.
         const pending = execFileAsync(options.binaryPath, args, {
           // connectionOptions.endpoint is a bare socket path. The CLI needs the URI form from endpoints.
@@ -190,29 +221,79 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
           signal: executionSignal,
         })
         const child = pending.child
+
+        let stdioDrainedOrDestroyed = false
+        let lingeringDescendants = false
+        let forceKillTimer: NodeJS.Timeout | undefined
+        let stdioDrainTimer: NodeJS.Timeout | undefined
+        let onAbort: (() => void) | undefined
+
+        const destroyStdio = () => {
+          if (!stdioDrainedOrDestroyed) {
+            stdioDrainedOrDestroyed = true
+            lingeringDescendants = true
+            try {
+              child.stdout?.destroy()
+            }
+            catch {}
+            try {
+              child.stderr?.destroy()
+            }
+            catch {}
+            try {
+              child.stdin?.destroy()
+            }
+            catch {}
+          }
+        }
+
         const childClosed = new Promise<void>((resolve) => {
           if (!child || !('once' in child) || typeof child.once !== 'function' || child.exitCode !== null || child.signalCode !== null) {
             resolve()
             return
           }
-          let forceKillTimer: NodeJS.Timeout | undefined
           const cleanup = () => {
             if (forceKillTimer)
               clearTimeout(forceKillTimer)
+            if (stdioDrainTimer)
+              clearTimeout(stdioDrainTimer)
+            if (executionSignal && onAbort)
+              executionSignal.removeEventListener('abort', onAbort)
             resolve()
           }
-          child.once('close', cleanup)
+
+          child.once('close', () => {
+            stdioDrainedOrDestroyed = true
+            cleanup()
+          })
           child.once('error', cleanup)
 
-          if (executionSignal) {
-            const onAbort = () => {
-              forceKillTimer = setTimeout(() => {
-                try {
-                  child.kill?.('SIGKILL')
-                }
-                catch {}
-              }, 3000)
+          // Direct child process termination: if child exits, drain stdio with bounded window (1000ms)
+          child.once('exit', () => {
+            if (!stdioDrainedOrDestroyed && !stdioDrainTimer) {
+              stdioDrainTimer = setTimeout(() => {
+                destroyStdio()
+                cleanup()
+              }, 1000)
             }
+          })
+
+          onAbort = () => {
+            forceKillTimer = setTimeout(() => {
+              try {
+                child.kill?.('SIGKILL')
+              }
+              catch {}
+              if (!stdioDrainTimer) {
+                stdioDrainTimer = setTimeout(() => {
+                  destroyStdio()
+                  cleanup()
+                }, 1000)
+              }
+            }, 3000)
+          }
+
+          if (executionSignal) {
             if (executionSignal.aborted) {
               onAbort()
             }
@@ -227,6 +308,7 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
           pending.child.stdin?.on('error', () => {})
           pending.child.stdin?.end(`${credential}\n`)
           ;({ stdout, stderr } = await pending)
+          await childClosed
         }
         catch (error) {
           // Wait for child process to close before releasing execution lock or settling
@@ -248,6 +330,8 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
             || ('killed' in error && error.killed) || !('stdout' in error) || typeof error.stdout !== 'string'
             || !('stderr' in error) || typeof error.stderr !== 'string') {
             const errRecord = error && typeof error === 'object' ? (error as Record<string, unknown>) : undefined
+            if (classification.category === 'mutating')
+              hasLingeringMutationRisk = true
             throw new ComputerUseExecutionError(errorMessageFrom(error) ?? 'Command execution failed', {
               executionState: 'unknown',
               argv: validatedArgv,
@@ -259,6 +343,18 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
           exitCode = error.code
           stdout = error.stdout
           stderr = error.stderr
+        }
+        finally {
+          if (forceKillTimer)
+            clearTimeout(forceKillTimer)
+          if (stdioDrainTimer)
+            clearTimeout(stdioDrainTimer)
+          if (executionSignal && onAbort)
+            executionSignal.removeEventListener('abort', onAbort)
+        }
+
+        if (classification.category === 'mutating' && lingeringDescendants) {
+          hasLingeringMutationRisk = true
         }
 
         // Settle action in actionManager if an actionId was consumed
@@ -305,13 +401,16 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
           : extractErrorDetails(error).rawMessage ?? errorMessageFrom(error)?.replace(/^\[executionState:\s*\w+\]\s*/, '') ?? 'Computer use failed before dispatch.'
         options.actionManager.cancel(parsed.actionId, rawCancelReason)
       }
-      throw error instanceof ComputerUseExecutionError
-        ? error
-        : new ComputerUseExecutionError(errorMessageFrom(error) ?? 'Computer use failed before dispatch.', {
-            executionState: 'not_executed',
-            argv: validatedArgv,
-            cause: error,
-          })
+      if (error instanceof ComputerUseExecutionError) {
+        throw error
+      }
+      const executionState: ExecutionState = dispatched ? 'unknown' : 'not_executed'
+      const fallbackMessage = dispatched ? 'Computer use execution failed.' : 'Computer use failed before dispatch.'
+      throw new ComputerUseExecutionError(errorMessageFrom(error) ?? fallbackMessage, {
+        executionState,
+        argv: validatedArgv,
+        cause: error,
+      })
     })
   }
 
@@ -368,6 +467,7 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
   /** Rejects queued calls, aborts active work, and waits for the owned daemon to exit. */
   async function dispose() {
     disposed = true
+    hasLingeringMutationRisk = false
     abort.abort()
     options.actionManager?.invalidateAll()
     await queue

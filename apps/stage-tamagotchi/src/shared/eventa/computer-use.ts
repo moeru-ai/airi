@@ -26,6 +26,7 @@ export type ExecutionState = 'not_executed' | 'executed' | 'unknown'
 /** Structured error details for computer use failures across process boundaries. */
 export interface ComputerUseErrorDetails {
   executionState: ExecutionState
+  authoritativeState?: ExecutionState
   argv?: readonly string[]
   exitCode?: number
   stderr?: string
@@ -72,11 +73,18 @@ export function extractErrorDetails(error: unknown): ComputerUseErrorDetails {
     ? (direct.cause as Record<string, unknown>)
     : undefined
 
-  const executionState = (typeof direct?.executionState === 'string'
+  const explicitState = (typeof direct?.executionState === 'string'
     ? direct.executionState
     : typeof cause?.executionState === 'string'
       ? cause.executionState
       : undefined) as ExecutionState | undefined
+
+  const messageMatch = typeof direct?.message === 'string'
+    ? direct.message.match(/\[executionState:\s*(\w+)\]/)?.[1] as ExecutionState | undefined
+    : undefined
+
+  const authoritativeState = explicitState ?? messageMatch
+  const executionState = authoritativeState ?? 'not_executed'
 
   const exitCode = typeof direct?.exitCode === 'number'
     ? direct.exitCode
@@ -107,7 +115,8 @@ export function extractErrorDetails(error: unknown): ComputerUseErrorDetails {
       : undefined
 
   return {
-    executionState: executionState ?? 'not_executed',
+    executionState,
+    authoritativeState,
     argv,
     exitCode,
     stderr,

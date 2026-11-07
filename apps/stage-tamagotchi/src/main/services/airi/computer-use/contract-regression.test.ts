@@ -15,7 +15,7 @@ import { createContext as createMainContext } from '@moeru/eventa/adapters/elect
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { computerUseTools } from '../../../../renderer/stores/tools/builtin/computer-use'
-import { computerUseRun } from '../../../../shared/eventa/computer-use'
+import { ComputerUseExecutionError, computerUseRun } from '../../../../shared/eventa/computer-use'
 import { emitAppBeforeQuit } from '../../../libs/bootkit/lifecycle'
 import { createWindowIpc } from '../../../libs/electron/testing/window-ipc'
 import { setupComputerUse } from './index'
@@ -615,6 +615,436 @@ describe('f-Contract-1: Production Host Execution Result Contract Regression', (
       rendererExecutionState: (rendererError as any)?.executionState,
       retainedErrorMessage: rendererError?.message,
       hostSettlement: hostSettled?.settlement,
+    }))
+  })
+
+  // --------------------------------------------------------------------------
+  // Case J: Cancellation While Queued on Host (Pre-dispatch) - Renderer Retains not_executed (ISSUE-1)
+  // --------------------------------------------------------------------------
+  it('case J: Host returns authoritative not_executed while renderer abortSignal is aborted - renderer retains not_executed', async () => {
+    const action = createApprovedAction(['invoke', 'app.activate', 'Calculator'])
+    const abortController = new AbortController()
+
+    // Host confirms cancelled before dispatch and throws not_executed, while abortSignal is simultaneously aborted
+    const originalSend = renderer.window.webContents.send
+    renderer.window.webContents.send = (channel: string, payload: unknown) => {
+      originalSend(channel, payload)
+      if (!abortController.signal.aborted) {
+        abortController.abort(new Error('Turn aborted by client'))
+      }
+    }
+
+    vi.spyOn(host.getRuntime(), 'run').mockImplementation(async () => {
+      throw new ComputerUseExecutionError('Host confirmed: queued work cancelled before dispatch', {
+        executionState: 'not_executed',
+        argv: action.argv,
+      })
+    })
+
+    let rendererError: Error | undefined
+    try {
+      await executeTool(
+        { argv: [...action.argv] },
+        { attribution: action.attribution, actionId: action.id, abortSignal: abortController.signal },
+      )
+    }
+    catch (err) {
+      rendererError = err as Error
+    }
+
+    expect(rendererError).toBeDefined()
+    expect(abortController.signal.aborted).toBe(true)
+    expect((rendererError as any)?.executionState).toBe('not_executed')
+    expect(rendererError?.message).toContain('not_executed')
+    expect(rendererError?.message).toContain('Host confirmed: queued work cancelled before dispatch')
+
+    console.info('CASE_J_EVIDENCE', JSON.stringify({
+      case: 'Case J (Authoritative not_executed Retained Under AbortSignal)',
+      rendererExecutionState: (rendererError as any)?.executionState,
+      message: rendererError?.message,
+    }))
+  })
+
+  // --------------------------------------------------------------------------
+  // Case K: Missing Host Authoritative State - Renderer Conservatively Infers unknown
+  // --------------------------------------------------------------------------
+  it('case K: Missing host authoritative state conservatively infers unknown without downgrading', async () => {
+    const action = createApprovedAction(['invoke', 'app.activate', 'Calculator'])
+
+    // Simulate an unexpected error across IPC that carries NO authoritative executionState
+    external.execute.mockImplementation(() => {
+      throw new Error('Transport pipe unexpectedly disconnected')
+    })
+
+    let rendererError: Error | undefined
+    try {
+      await executeTool(
+        { argv: [...action.argv] },
+        { attribution: action.attribution, actionId: action.id },
+      )
+    }
+    catch (err) {
+      rendererError = err as Error
+    }
+
+    expect(rendererError).toBeDefined()
+    // When Host cannot provide authoritative state after dispatch, conservative state must be unknown
+    expect((rendererError as any)?.executionState).toBe('unknown')
+
+    console.info('CASE_K_EVIDENCE', JSON.stringify({
+      case: 'Case K (Missing Authoritative State Infers Unknown)',
+      rendererExecutionState: (rendererError as any)?.executionState,
+      message: rendererError?.message,
+    }))
+  })
+
+  // --------------------------------------------------------------------------
+  // Case L: Redundant Error Wrapping Elimination (ISSUE-5)
+  // --------------------------------------------------------------------------
+  it('case L: Nonzero exit throws ComputerUseExecutionError without duplicate nested wrapping', async () => {
+    const action = createApprovedAction(['invoke', 'app.activate', 'NonExistentApp'])
+    external.execute.mockImplementation(() => {
+      const cliError = Object.assign(new Error('Command failed: auv invoke app.activate NonExistentApp'), {
+        code: 1,
+        stdout: '',
+        stderr: 'Error: Application "NonExistentApp" not found.',
+        killed: false,
+      })
+      const child = new PassThrough()
+      return Object.assign(Promise.reject(cliError), { child: { stdin: child } }) as CliExecution
+    })
+
+    let rendererError: Error | undefined
+    try {
+      await executeTool(
+        { argv: [...action.argv] },
+        { attribution: action.attribution, actionId: action.id },
+      )
+    }
+    catch (err) {
+      rendererError = err as Error
+    }
+
+    expect(rendererError).toBeDefined()
+    expect((rendererError as any)?.executionState).toBe('executed')
+    // Must NOT wrap another ComputerUseExecutionError as its cause
+    expect(rendererError?.cause).not.toBeInstanceOf(ComputerUseExecutionError)
+
+    console.info('CASE_L_EVIDENCE', JSON.stringify({
+      case: 'Case L (No Redundant Re-wrapping)',
+      name: rendererError?.name,
+      causeType: rendererError?.cause ? typeof rendererError.cause : 'none',
+      isDuplicateWrapped: rendererError?.cause instanceof ComputerUseExecutionError,
+    }))
+  })
+
+  // --------------------------------------------------------------------------
+  // Case M: Long-lived AbortSignal listener cleanup (ISSUE-3)
+  // --------------------------------------------------------------------------
+  it('case M: AbortSignal listener is cleaned up after process completion', async () => {
+    vi.useFakeTimers()
+    try {
+      const action = createApprovedAction(['invoke', 'app.activate', 'Calculator'])
+      const longLivedController = new AbortController()
+
+      let capturedSignal: AbortSignal | undefined
+      const killSpy = vi.fn()
+      external.execute.mockImplementation((_file, _args, options) => {
+        capturedSignal = options.signal
+        const execResult = execution({ stdout: JSON.stringify({ activated: true }), stderr: '' })
+        ;(execResult.child as any).kill = killSpy
+        return execResult
+      })
+
+      await executeTool(
+        { argv: [...action.argv] },
+        { attribution: action.attribution, actionId: action.id, abortSignal: longLivedController.signal },
+      )
+
+      expect(external.execute).toHaveBeenCalledTimes(1)
+      expect(capturedSignal).toBeDefined()
+
+      // Aborting after completion must NOT schedule force-kill or invoke kill on the completed child
+      longLivedController.abort(new Error('Post-execution abort'))
+      vi.advanceTimersByTime(5000)
+
+      expect(killSpy).not.toHaveBeenCalled()
+
+      console.info('CASE_M_EVIDENCE', JSON.stringify({
+        case: 'Case M (Abort Listener Cleanup)',
+        signalCleaned: true,
+        deadChildKillCalled: false,
+      }))
+    }
+    finally {
+      vi.useRealTimers()
+    }
+  })
+
+  // --------------------------------------------------------------------------
+  // Case N: Pre-dispatch Failure Does Not Falsely Report unknown (ISSUE-4 / Req 4)
+  // --------------------------------------------------------------------------
+  it('case N: Pre-dispatch validation failures reliably report not_executed and never unknown', async () => {
+    // Sub-case 1: Mutating action invoked before approval (pending state)
+    const pendingAction = host.actionManager.createPendingAction({
+      argv: ['invoke', 'app.activate', 'Calculator'],
+      attribution: origin(),
+    })
+    expect(pendingAction.status).toBe('pending')
+
+    let unapprovedError: Error | undefined
+    try {
+      await executeTool(
+        { argv: [...pendingAction.argv] },
+        { attribution: pendingAction.attribution, actionId: pendingAction.id },
+      )
+    }
+    catch (err) {
+      unapprovedError = err as Error
+    }
+
+    expect(unapprovedError).toBeDefined()
+    expect((unapprovedError as any)?.executionState).toBe('not_executed')
+    expect(unapprovedError?.message).toContain('[executionState: not_executed]')
+    expect(unapprovedError?.message).toContain('has not been approved')
+    expect(external.execute).toHaveBeenCalledTimes(0)
+
+    // Sub-case 2: Invalid input schema (< 2 argv items)
+    let schemaError: Error | undefined
+    try {
+      await executeTool(
+        { argv: ['invoke'] },
+        { attribution: origin() },
+      )
+    }
+    catch (err) {
+      schemaError = err as Error
+    }
+
+    expect(schemaError).toBeDefined()
+    expect((schemaError as any)?.executionState).toBe('not_executed')
+    expect(schemaError?.message).toContain('[executionState: not_executed]')
+    expect(external.execute).toHaveBeenCalledTimes(0)
+
+    console.info('CASE_N_EVIDENCE', JSON.stringify({
+      case: 'Case N (Pre-dispatch Failures Reliably not_executed)',
+      unapprovedActionExecutionState: (unapprovedError as any)?.executionState,
+      schemaValidationExecutionState: (schemaError as any)?.executionState,
+      executorCalls: 0,
+    }))
+  })
+
+  // --------------------------------------------------------------------------
+  // Scenario A: First executor leaves lingering risk -> already-queued mutating operation blocked
+  // --------------------------------------------------------------------------
+  it('scenario A: Already-queued mutating operation is blocked before dispatch when prior operation leaves lingering risk', async () => {
+    const action1 = createApprovedAction(['invoke', 'app.activate', 'Calculator'])
+    const action2 = createApprovedAction(['invoke', 'app.activate', 'Terminal'], origin('turn-2'))
+
+    let action1Entered: () => void
+    const action1EnteredPromise = new Promise<void>(r => (action1Entered = r))
+    let action1Child: any
+
+    external.execute.mockImplementationOnce(() => {
+      action1Entered()
+      action1Child = new EventEmitter()
+      action1Child.exitCode = null
+      action1Child.signalCode = null
+      action1Child.stdin = new PassThrough()
+
+      const p = new Promise<CliResult>((resolve) => {
+        setTimeout(() => {
+          // Direct child exits, but stdio never closes (simulating lingering background worker)
+          action1Child.emit('exit', 0, null)
+          resolve({ stdout: JSON.stringify({ activated: true, mode: 'lingering' }), stderr: '' })
+        }, 50)
+      })
+
+      return Object.assign(p, { child: action1Child }) as CliExecution
+    })
+
+    const action1Promise = executeTool(
+      { argv: [...action1.argv] },
+      { attribution: action1.attribution, actionId: action1.id },
+    ).catch(err => err as Error)
+
+    await action1EnteredPromise
+
+    // Enqueue action 2 while action 1 is still in-flight
+    const action2Promise = executeTool(
+      { argv: [...action2.argv] },
+      { attribution: action2.attribution, actionId: action2.id },
+    ).catch(err => err as Error)
+
+    const [action1Res, action2Res] = await Promise.all([action1Promise, action2Promise])
+
+    // Action 1 completed, but triggered bounded 1000ms pipe destruction -> lingering mutation risk
+    expect(action1Res).not.toBeInstanceOf(Error)
+
+    // Action 2 was already queued, but must be blocked before dispatch with not_executed
+    expect(action2Res).toBeInstanceOf(Error)
+    expect((action2Res as any).executionState).toBe('not_executed')
+    expect((action2Res as any).message).toContain('unconfirmed background processes')
+    expect(external.execute).toHaveBeenCalledTimes(1)
+
+    console.info('SCENARIO_A_EVIDENCE', JSON.stringify({
+      case: 'Scenario A (Already-queued Mutating Blocked by Prior Lingering Risk)',
+      action1Succeeded: typeof action1Res === 'string',
+      action2ExecutionState: (action2Res as any).executionState,
+      executorCalls: 1,
+    }))
+  }, 10000)
+
+  // --------------------------------------------------------------------------
+  // Scenario B: Risk flag set -> new mutating operation blocked, read-only operation continues
+  // --------------------------------------------------------------------------
+  it('scenario B: When risk flag is set, new mutating operations are blocked while read-only operations succeed', async () => {
+    const action1 = createApprovedAction(['invoke', 'app.activate', 'Calculator'])
+    const abortController = new AbortController()
+
+    let action1Entered: () => void
+    const action1EnteredPromise = new Promise<void>(r => (action1Entered = r))
+
+    external.execute.mockImplementationOnce((_file, _args, options) => {
+      action1Entered()
+      const child = new EventEmitter() as any
+      child.exitCode = null
+      child.signalCode = null
+      child.stdin = new PassThrough()
+      const p = new Promise<CliResult>((_resolve, reject) => {
+        options.signal?.addEventListener('abort', () => {
+          reject(Object.assign(new Error('Aborted'), { killed: true }))
+        })
+      })
+      return Object.assign(p, { child }) as CliExecution
+    })
+
+    const action1Promise = executeTool(
+      { argv: [...action1.argv] },
+      { attribution: action1.attribution, actionId: action1.id, abortSignal: abortController.signal },
+    ).catch(err => err as Error)
+
+    await action1EnteredPromise
+    abortController.abort(new Error('User abort'))
+    await action1Promise
+
+    // Risk flag is active. Initiate a NEW mutating action
+    const mutatingAction = createApprovedAction(['invoke', 'app.activate', 'Notepad'], origin('turn-new'))
+    let mutatingError: Error | undefined
+    try {
+      await executeTool(
+        { argv: [...mutatingAction.argv] },
+        { attribution: mutatingAction.attribution, actionId: mutatingAction.id },
+      )
+    }
+    catch (err) {
+      mutatingError = err as Error
+    }
+
+    expect(mutatingError).toBeDefined()
+    expect((mutatingError as any).executionState).toBe('not_executed')
+    expect(mutatingError?.message).toContain('unconfirmed background processes')
+
+    // Initiate a NEW read-only action
+    external.execute.mockImplementationOnce(() => {
+      return execution({ stdout: JSON.stringify([{ id: 'win-1', title: 'Main' }]), stderr: '' })
+    })
+
+    const readOnlyResult = await executeTool(
+      { argv: ['invoke', 'window.list'] },
+      { attribution: origin('turn-read') },
+    )
+
+    expect(readOnlyResult).toBeDefined()
+    expect(JSON.parse(readOnlyResult as string).output).toEqual([{ id: 'win-1', title: 'Main' }])
+
+    console.info('SCENARIO_B_EVIDENCE', JSON.stringify({
+      case: 'Scenario B (Risk Gating: Mutating Blocked, Read-only Allowed)',
+      mutatingExecutionState: (mutatingError as any).executionState,
+      readOnlySucceeded: true,
+    }))
+  })
+
+  // --------------------------------------------------------------------------
+  // Scenario C: Post-dispatch unexpected JS exception -> executionState MUST NOT be not_executed
+  // --------------------------------------------------------------------------
+  it('scenario C: Ordinary JS exception post-dispatch results in unknown and never not_executed', async () => {
+    const action = createApprovedAction(['invoke', 'app.activate', 'Calculator'])
+
+    external.execute.mockImplementationOnce(() => {
+      throw new TypeError('Unexpected JS exception in executor pipeline')
+    })
+
+    let postDispatchError: Error | undefined
+    try {
+      await executeTool(
+        { argv: [...action.argv] },
+        { attribution: action.attribution, actionId: action.id },
+      )
+    }
+    catch (err) {
+      postDispatchError = err as Error
+    }
+
+    expect(postDispatchError).toBeDefined()
+    expect((postDispatchError as any).executionState).not.toBe('not_executed')
+    expect((postDispatchError as any).executionState).toBe('unknown')
+    expect(postDispatchError?.message).toContain('[executionState: unknown]')
+    expect(postDispatchError?.message).toContain('Unexpected JS exception in executor pipeline')
+
+    console.info('SCENARIO_C_EVIDENCE', JSON.stringify({
+      case: 'Scenario C (Post-dispatch Exception Never not_executed)',
+      executionState: (postDispatchError as any).executionState,
+      message: postDispatchError?.message,
+    }))
+  })
+
+  // --------------------------------------------------------------------------
+  // Scenario D: Normal child exit with delayed stdio drain does not permanently lock mutating operations
+  // --------------------------------------------------------------------------
+  it('scenario D: Normal child exit with delayed stdio drain does not lock mutating operations', async () => {
+    const action1 = createApprovedAction(['invoke', 'app.activate', 'Calculator'])
+    const action2 = createApprovedAction(['invoke', 'app.activate', 'Terminal'], origin('turn-2'))
+
+    external.execute.mockImplementationOnce(() => {
+      const child = new EventEmitter() as any
+      child.exitCode = null
+      child.signalCode = null
+      child.stdin = new PassThrough()
+      const p = new Promise<CliResult>((resolve) => {
+        setTimeout(() => {
+          child.emit('exit', 0, null)
+          setTimeout(() => {
+            child.emit('close', 0, null)
+            resolve({ stdout: JSON.stringify({ activated: true }), stderr: '' })
+          }, 60)
+        }, 20)
+      })
+      return Object.assign(p, { child }) as CliExecution
+    })
+
+    external.execute.mockImplementationOnce(() => {
+      return execution({ stdout: JSON.stringify({ activated: true }), stderr: '' })
+    })
+
+    const action1Result = await executeTool(
+      { argv: [...action1.argv] },
+      { attribution: action1.attribution, actionId: action1.id },
+    )
+    expect(action1Result).toBeDefined()
+
+    const action2Result = await executeTool(
+      { argv: [...action2.argv] },
+      { attribution: action2.attribution, actionId: action2.id },
+    )
+    expect(action2Result).toBeDefined()
+    expect(external.execute).toHaveBeenCalledTimes(2)
+
+    console.info('SCENARIO_D_EVIDENCE', JSON.stringify({
+      case: 'Scenario D (Delayed Stdio Normal Drain Does Not Lock Mutation)',
+      action1Succeeded: true,
+      action2Succeeded: true,
+      executorCalls: 2,
     }))
   })
 })

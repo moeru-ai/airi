@@ -1,6 +1,6 @@
 import type { Tool, ToolExecuteOptions } from '@xsai/shared-chat'
 
-import type { InvocationAttributionPayload } from '../../../../shared/eventa/computer-use'
+import type { ComputerUseResult, InvocationAttributionPayload } from '../../../../shared/eventa/computer-use'
 
 import { defineInvoke } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/renderer'
@@ -57,8 +57,10 @@ export async function computerUseTools(options?: ComputerUseToolsOptions): Promi
       const cancel = () => client().cancel({ attribution: request, reason: 'Turn was aborted' })
       if (signal.aborted) {
         await cancel()
-        throw new ComputerUseExecutionError(errorMessageFrom(signal.reason) ?? 'This operation was aborted', {
+        const rawMessage = errorMessageFrom(signal.reason) ?? 'This operation was aborted'
+        throw new ComputerUseExecutionError(`[executionState: not_executed] ${rawMessage}`, {
           executionState: 'not_executed',
+          rawMessage,
           cause: signal.reason,
         })
       }
@@ -103,42 +105,43 @@ export async function computerUseTools(options?: ComputerUseToolsOptions): Promi
         const execution = executeOptions as ComputerUseToolExecuteOptions
         const attribution = await bindCancellation(execution)
         const rawInput = input as { argv: string[] }
+        let result: ComputerUseResult
         try {
-          const result = await client().run(
+          result = await client().run(
             { argv: rawInput.argv, actionId: execution.actionId, attribution },
             { signal: execution.abortSignal },
           )
-          if (result.exitCode !== 0) {
-            const rawMessage = JSON.stringify(result)
-            throw new ComputerUseExecutionError(`[executionState: ${result.executionState ?? 'executed'}] ${rawMessage}`, {
-              executionState: result.executionState ?? 'executed',
-              rawMessage,
-              argv: result.argv,
-              exitCode: result.exitCode,
-              stderr: result.stderr,
-            })
-          }
-          return JSON.stringify(result)
         }
         catch (error) {
           const details = extractErrorDetails(error)
-          let executionState = details.executionState
-          if (executionState === 'not_executed' && execution.abortSignal?.aborted) {
-            // Cancellation happened after dispatch was in-flight. Side effects are unknown.
-            executionState = 'unknown'
-          }
+          const executionState = details.authoritativeState ?? 'unknown'
           const rawMessage = details.rawMessage ?? errorMessageFrom(error) ?? 'Computer use execution failed.'
           const formattedMessage = rawMessage.includes('[executionState:')
             ? rawMessage
             : `[executionState: ${executionState}] ${rawMessage}`
+          if (error instanceof ComputerUseExecutionError && error.message.includes('[executionState:') && error.executionState === executionState) {
+            throw error
+          }
           throw new ComputerUseExecutionError(formattedMessage, {
             ...details,
             executionState,
             rawMessage,
             argv: details.argv ?? rawInput.argv,
-            cause: error,
+            cause: error instanceof ComputerUseExecutionError ? error.cause : error,
           })
         }
+
+        if (result.exitCode !== 0) {
+          const rawMessage = JSON.stringify(result)
+          throw new ComputerUseExecutionError(`[executionState: ${result.executionState ?? 'executed'}] ${rawMessage}`, {
+            executionState: result.executionState ?? 'executed',
+            rawMessage,
+            argv: result.argv,
+            exitCode: result.exitCode,
+            stderr: result.stderr,
+          })
+        }
+        return JSON.stringify(result)
       },
     }),
     rawTool({
