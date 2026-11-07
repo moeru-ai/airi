@@ -46,6 +46,9 @@ const deleteCloudChatMock = vi.fn<(id: string) => Promise<void>>()
 const listChatsMock = vi.fn()
 const updateChatMock = vi.fn()
 const pullMessagesMock = vi.fn()
+const sendMessagesMock = vi.fn()
+const dequeueOutboxMock = vi.fn()
+const enqueueOutboxMock = vi.fn()
 const connectCloudWsMock = vi.fn()
 let cloudWsStatus: 'idle' | 'open' = 'idle'
 let cloudStatusListener: ((status: 'idle' | 'open') => void) | undefined
@@ -59,8 +62,8 @@ vi.mock('../../database/repos/chat-sessions.repo', () => ({
     deleteSession: (id: string) => deleteSessionRepoMock(id),
     releaseAssets: (id: string, ids: Iterable<string>) => releaseAssetsMock(id, ids),
     getOutbox: (uid: string) => getOutboxMock(uid),
-    enqueueOutbox: vi.fn().mockResolvedValue(undefined),
-    dequeueOutbox: vi.fn().mockResolvedValue(undefined),
+    enqueueOutbox: (...args: unknown[]) => enqueueOutboxMock(...args),
+    dequeueOutbox: (...args: unknown[]) => dequeueOutboxMock(...args),
     updateOutboxEntries: vi.fn().mockResolvedValue(undefined),
     dropOutboxForSession: (uid: string, id: string) => dropOutboxForSessionMock(uid, id),
     getTombstones: (uid: string) => getTombstonesMock(uid),
@@ -96,7 +99,7 @@ vi.mock('../../libs/chat-sync', async importOriginal => ({
     connect: connectCloudWsMock,
     disconnect: vi.fn(),
     destroy: vi.fn(),
-    sendMessages: vi.fn().mockResolvedValue({ ok: true }),
+    sendMessages: (...args: unknown[]) => sendMessagesMock(...args),
     pullMessages: (...args: unknown[]) => pullMessagesMock(...args),
     onNewMessages: () => () => {},
     onStatusChange: (listener: (status: 'idle' | 'open') => void) => {
@@ -150,6 +153,9 @@ beforeEach(() => {
   listChatsMock.mockReset().mockResolvedValue([])
   updateChatMock.mockReset().mockResolvedValue({ id: '', type: 'bot', title: null, createdAt: '', updatedAt: '' })
   pullMessagesMock.mockReset().mockResolvedValue({ messages: [], seq: 0 })
+  sendMessagesMock.mockReset().mockResolvedValue({ seq: 1 })
+  dequeueOutboxMock.mockReset().mockResolvedValue(undefined)
+  enqueueOutboxMock.mockReset().mockResolvedValue(undefined)
   connectCloudWsMock.mockReset()
   cloudWsStatus = 'idle'
   cloudStatusListener = undefined
@@ -1209,5 +1215,259 @@ describe('chat-session-store · synchronized data actions', () => {
     expect(store.activeSessionId).toBe('window-local-session')
     expect(store.$state).not.toHaveProperty('activeSessionId')
     expect(store.getSnapshot().index?.characters.default?.activeSessionId).toBe('persisted-session')
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2671
+  //
+  // ROOT CAUSE:
+  //
+  // If a user sends a message, deletes it locally, and switches characters, deleted messages resurrect.
+  // This happens because pushMessageToCloud never updated cloudMaxSeq from the server sequence response.
+  //
+  // const response = await wsClient.sendMessages(...)
+  // // cloudMaxSeq stayed 0, so subsequent pullCloudMessages used afterSeq: 0 and re-fetched the deleted message
+  //
+  // We fixed this by capturing response.seq and advancing cloudMaxSeq to the confirmed sequence.
+  // await updateSessionCloudMaxSeq(sessionId, response.seq, 1)
+  it('advances cloudMaxSeq upon sending messages so deleted messages do not resurrect after switching characters for Issue #2671', async () => {
+    userIdRef.value = 'cloud-user'
+    cloudWsStatus = 'open'
+
+    const sessionA: ChatSessionMeta = {
+      sessionId: 'session-a',
+      cloudChatId: 'chat-a',
+      userId: 'cloud-user',
+      characterId: 'default',
+      cloudMaxSeq: 41,
+      createdAt: 1,
+      updatedAt: 1,
+    }
+    const store = useChatSessionStore()
+    await store.initialize()
+    store.applyRemoteSnapshot({
+      activeSessionId: 'session-a',
+      sessionMessages: {
+        'session-a': [
+          { id: 'm1', role: 'user', content: 'hello' },
+        ],
+      },
+      sessionMetas: {
+        'session-a': sessionA,
+      },
+      index: {
+        userId: 'cloud-user',
+        characters: {
+          default: {
+            activeSessionId: 'session-a',
+            sessions: { 'session-a': sessionA },
+          },
+        },
+      },
+    })
+
+    sendMessagesMock.mockResolvedValueOnce({ seq: 42 })
+    pullMessagesMock.mockResolvedValueOnce({ messages: [], seq: 42 })
+    await store.pushMessageToCloud('session-a', {
+      id: 'm1',
+      role: 'user',
+      content: 'hello',
+    })
+    await flushMicrotasks()
+
+    expect(store.sessionMetas['session-a']?.cloudMaxSeq).toBe(42)
+
+    // User deletes message m1 locally
+    await store.deleteMessage({ sessionId: 'session-a', messageId: 'm1' })
+    expect(store.getSessionMessages('session-a')).toHaveLength(0)
+
+    // A catch-up pull for session-a uses afterSeq = 42
+    listChatsMock.mockResolvedValueOnce([
+      { id: 'chat-a', type: 'bot', title: null, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z', members: [] },
+    ])
+    pullMessagesMock.mockResolvedValueOnce({ messages: [], seq: 42 })
+    cloudStatusListener?.('open')
+    await vi.waitFor(() => {
+      expect(pullMessagesMock).toHaveBeenCalledWith({ chatId: 'chat-a', afterSeq: 42 })
+    })
+
+    // Message m1 remains deleted
+    expect(store.getSessionMessages('session-a')).toHaveLength(0)
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2671
+  //
+  // ROOT CAUSE:
+  //
+  // If sendMessages returns a sequence above unpulled messages, moving cloudMaxSeq directly creates a gap.
+  // This happens because the client never pulled the intermediate messages, and pullCloudMessages requests rows after that cursor.
+  //
+  // sessionMetas.value[sessionId] = { ...meta, cloudMaxSeq: seq }
+  //
+  // We fixed this by pulling missing messages before advancing the cursor.
+  // await pullCloudMessages(sessionId)
+  it('fills sequence gap by pulling missing messages before advancing cloudMaxSeq for Issue #2671', async () => {
+    userIdRef.value = 'cloud-user'
+    cloudWsStatus = 'open'
+
+    const sessionA: ChatSessionMeta = {
+      sessionId: 'session-a',
+      cloudChatId: 'chat-a',
+      userId: 'cloud-user',
+      characterId: 'default',
+      cloudMaxSeq: 5,
+      createdAt: 1,
+      updatedAt: 1,
+    }
+    const store = useChatSessionStore()
+    await store.initialize()
+    store.applyRemoteSnapshot({
+      activeSessionId: 'session-a',
+      sessionMessages: {
+        'session-a': [
+          { id: 'm1', role: 'user', content: 'hello' },
+        ],
+      },
+      sessionMetas: {
+        'session-a': sessionA,
+      },
+    })
+
+    sendMessagesMock.mockResolvedValueOnce({ seq: 10 })
+    pullMessagesMock.mockResolvedValueOnce({
+      messages: [
+        { id: 'm-gap-1', role: 'assistant', content: 'gap reply', seq: 6, createdAt: '2026-01-01T00:00:00.000Z' },
+      ],
+      seq: 10,
+    })
+
+    await store.pushMessageToCloud('session-a', {
+      id: 'm1',
+      role: 'user',
+      content: 'hello',
+    })
+    await flushMicrotasks()
+
+    expect(pullMessagesMock).toHaveBeenCalledWith({ chatId: 'chat-a', afterSeq: 5 })
+    expect(store.sessionMetas['session-a']?.cloudMaxSeq).toBe(10)
+    expect(store.getSessionMessages('session-a')).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'm-gap-1' })]),
+    )
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2671
+  //
+  // ROOT CAUSE:
+  //
+  // If a message is deleted locally before send completion, the outbox still sends it to the cloud later.
+  // This happens because deleteMessage only removed the message from local reactive state and messages IDB store.
+  //
+  // await chatSessionsRepo.deleteMessage(userId, sessionId, messageId)
+  // // outbox entry remained pending in IDB and drained to the cloud on reconnect
+  //
+  // We fixed this by dequeuing the deleted message id from the outbox immediately.
+  // await chatSessionsRepo.dequeueOutbox(userId, [messageId])
+  it('removes pending message from outbox when deleted locally before send for Issue #2671', async () => {
+    userIdRef.value = 'cloud-user'
+    cloudWsStatus = 'idle' // WS is closed, message stays in outbox
+
+    const sessionA: ChatSessionMeta = {
+      sessionId: 'session-a',
+      cloudChatId: 'chat-a',
+      userId: 'cloud-user',
+      characterId: 'default',
+      cloudMaxSeq: 41,
+      createdAt: 1,
+      updatedAt: 1,
+    }
+    const store = useChatSessionStore()
+    store.applyRemoteSnapshot({
+      activeSessionId: 'session-a',
+      sessionMessages: {
+        'session-a': [
+          { id: 'pending-1', role: 'user', content: 'draft' },
+        ],
+      },
+      sessionMetas: { 'session-a': sessionA },
+    })
+
+    await store.pushMessageToCloud('session-a', {
+      id: 'pending-1',
+      role: 'user',
+      content: 'draft',
+    })
+    await flushMicrotasks()
+
+    // Now delete the pending message
+    await store.deleteMessage({ sessionId: 'session-a', messageId: 'pending-1' })
+    await flushMicrotasks()
+
+    expect(dequeueOutboxMock).toHaveBeenCalledWith('cloud-user', ['pending-1'])
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2671
+  //
+  // ROOT CAUSE:
+  //
+  // If a cloud chat is deleted on the server, reconnecting throws 404 ApiErrors continuously.
+  // This happens because reconcileCloudSessions called pullCloudMessages for every local cloudChatId unconditionally.
+  //
+  // for (const [sessionId, meta] of Object.entries(sessionMetas.value)) {
+  //   if (meta?.cloudChatId) await pullCloudMessages(sessionId)
+  // }
+  //
+  // We fixed this by filtering against the remote chats list returned by listChats.
+  // if (remoteById.has(meta.cloudChatId)) await pullCloudMessages(sessionId)
+  it('reconcileCloudSessions skips pulling messages for remote chats that no longer exist on server for Issue #2671', async () => {
+    userIdRef.value = 'cloud-user'
+    cloudWsStatus = 'open'
+
+    const sessionA: ChatSessionMeta = {
+      sessionId: 'session-a',
+      cloudChatId: 'chat-a', // this chat is NOT returned by listChats
+      userId: 'cloud-user',
+      characterId: 'default',
+      createdAt: 1,
+      updatedAt: 1,
+    }
+    const sessionB: ChatSessionMeta = {
+      sessionId: 'session-b',
+      cloudChatId: 'chat-b', // this chat IS returned by listChats
+      userId: 'cloud-user',
+      characterId: 'default',
+      createdAt: 1,
+      updatedAt: 1,
+    }
+
+    listChatsMock.mockResolvedValueOnce([
+      { id: 'chat-b', type: 'bot', title: 'Remote B', createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z', members: [] },
+    ])
+    pullMessagesMock.mockResolvedValue({ messages: [], seq: 0 })
+
+    const store = useChatSessionStore()
+    await store.initialize()
+    store.applyRemoteSnapshot({
+      activeSessionId: 'session-b',
+      sessionMessages: { 'session-a': [], 'session-b': [] },
+      sessionMetas: { 'session-a': sessionA, 'session-b': sessionB },
+      index: {
+        userId: 'cloud-user',
+        characters: {
+          default: {
+            activeSessionId: 'session-b',
+            sessions: { 'session-a': sessionA, 'session-b': sessionB },
+          },
+        },
+      },
+    })
+
+    cloudWsStatus = 'open'
+    cloudStatusListener?.('open')
+    await vi.waitFor(() => {
+      expect(store.cloudSyncReady).toBe(true)
+    })
+
+    // Only chat-b is pulled. The store skips chat-a because the server deleted it.
+    expect(pullMessagesMock).toHaveBeenCalledWith({ chatId: 'chat-b', afterSeq: 0 })
+    expect(pullMessagesMock).not.toHaveBeenCalledWith({ chatId: 'chat-a', afterSeq: 0 })
   })
 })
