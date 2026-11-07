@@ -7,6 +7,7 @@ import { BasicInputFile } from '@proj-airi/ui'
 import { useObjectUrl } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { computed, nextTick, onScopeDispose, ref, shallowRef, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { colorFromElement, patchThemeSamplingHtml2CanvasClone } from '../../../../libs'
 import { useSettings } from '../../../../stores/settings'
@@ -29,6 +30,7 @@ const emit = defineEmits<{
 }>()
 
 const { themeColorsHue } = useSettings()
+const { t } = useI18n()
 
 const modelValue = defineModel<BackgroundOption | undefined>({ default: undefined })
 
@@ -54,6 +56,7 @@ watch(() => modelValue.value?.id, (id) => {
   enableBlur.value = modelValue.value?.blur ?? false
 })
 
+/** Keeps one object URL per uploaded image until the picker is disposed. */
 function ensureObjectUrl(id: string, file: File) {
   let blobRef = blobRefs.get(id)
   let urlRef = urlRefs.get(id)
@@ -71,6 +74,7 @@ function ensureObjectUrl(id: string, file: File) {
   return urlRef!.value!
 }
 
+/** Bounds the image load wait before the preview supplies theme colors. */
 async function waitForPreviewReady() {
   await nextTick()
   const image = previewRef.value?.querySelector('img')
@@ -133,6 +137,7 @@ watch(selectedOption, async (option) => {
   }
 })
 
+/** Reuses upload URLs so selection changes do not reload the same image. */
 function getPreviewSrc(option?: BackgroundOption) {
   if (!option)
     return ''
@@ -144,11 +149,12 @@ function getPreviewSrc(option?: BackgroundOption) {
   return option.src ?? ''
 }
 
+/** Imports each upload and applies it after its preview mounts. */
 async function handleFilesChange(files: File[]) {
   for (const file of files) {
     const option: BackgroundOption = {
       id: `${props.idPrefix}custom-${nanoid(6)}`,
-      label: file.name || 'Custom Background',
+      label: file.name || t('stage.background-picker.custom'),
       file,
       kind: 'image',
     }
@@ -165,12 +171,10 @@ watch(uploadingFiles, (files) => {
   handleFilesChange(files ?? [])
 })
 
+/** Applies the selected background with its preview settings and sampled color. */
 async function applySelection(isImport = false) {
   if (!selectedOption.value)
     return
-
-  // If we are already sampling (from the watcher), wait for it or use the current previewColor
-  // For auto-import, we might want to wait a bit to get a real color, or just use what we have.
 
   busy.value = true
   try {
@@ -181,18 +185,18 @@ async function applySelection(isImport = false) {
 
       const payload = { option: { ...selectedOption.value, blur }, color }
       if (isImport)
-        (emit as any)('import', payload) // TODO: so ugly, need to fix the typing of emit
+        emit('import', payload)
       else
-        (emit as any)('apply', payload)
+        emit('apply', payload)
       return
     }
 
     if (selectedOption.value.kind === 'transparent') {
       const payload = { option: { ...selectedOption.value, blur }, color: 'transparent' }
       if (isImport)
-        (emit as any)('import', payload)
+        emit('import', payload)
       else
-        (emit as any)('apply', payload)
+        emit('apply', payload)
       return
     }
 
@@ -207,9 +211,9 @@ async function applySelection(isImport = false) {
 
     const payload = { option: { ...selectedOption.value, blur }, color: previewColor.value }
     if (isImport)
-      (emit as any)('import', payload)
+      emit('import', payload)
     else
-      (emit as any)('apply', payload)
+      emit('apply', payload)
   }
   catch (error) {
     console.error('Background application failed:', error)
@@ -221,10 +225,10 @@ async function applySelection(isImport = false) {
 </script>
 
 <template>
-  <div class="h-full min-h-0 flex flex-col py-2">
-    <div class="flex-1 overflow-x-hidden overflow-y-auto overscroll-contain p-1 scrollbar-none">
-      <div class="flex flex-col gap-4">
-        <div class="grid grid-cols-2 gap-3 md:grid-cols-3">
+  <div :class="['h-full min-h-0 flex flex-col py-2']">
+    <div :class="['flex-1 overflow-x-hidden overflow-y-auto overscroll-contain p-1 scrollbar-none']">
+      <div :class="['flex flex-col gap-4']">
+        <div :class="['grid grid-cols-2 gap-3 md:grid-cols-3']">
           <button
             v-for="option in mergedOptions"
             :key="option.id"
@@ -241,39 +245,43 @@ async function applySelection(isImport = false) {
               <component
                 :is="option.component"
                 v-if="option.component"
-                class="h-full w-full"
+                :class="['h-full w-full']"
               />
               <img
                 v-else-if="getPreviewSrc(option)"
                 :src="getPreviewSrc(option)"
-                class="h-full w-full object-cover"
+                :class="['h-full w-full object-cover']"
                 loading="lazy"
                 decoding="async"
               >
-              <div v-else class="h-full w-full flex items-center justify-center text-sm text-neutral-500 dark:text-neutral-400">
-                No preview
+              <div v-else :class="['h-full w-full flex items-center justify-center text-sm text-neutral-500 dark:text-neutral-400']">
+                {{ t('stage.background-picker.no-preview') }}
               </div>
             </div>
-            <div class="mt-2 flex flex-col gap-1">
-              <span class="text-base text-neutral-800 font-medium dark:text-neutral-100">{{ option.label }}</span>
-              <span v-if="option.description" class="text-xs text-neutral-500 dark:text-neutral-400">
+            <div :class="['mt-2 flex flex-col gap-1']">
+              <span :class="['text-base text-neutral-800 font-medium dark:text-neutral-100']">{{ option.label }}</span>
+              <span v-if="option.description" :class="['text-xs text-neutral-500 dark:text-neutral-400']">
                 {{ option.description }}
               </span>
             </div>
             <div
               v-if="option.removable"
-              class="trash-button absolute right-2 top-2 z-10 flex cursor-pointer items-center justify-center rounded-full bg-neutral-200/50 p-1 text-neutral-600 backdrop-blur-md transition-opacity dark:bg-neutral-800/50"
-              :class="[option.id === selectedId ? 'opacity-100' : 'opacity-0']"
-              title="Remove background"
+              :class="[
+                'trash-button absolute right-2 top-2 z-10 rounded-full p-1',
+                'flex cursor-pointer items-center justify-center backdrop-blur-md transition-opacity',
+                'bg-neutral-200/50 text-neutral-600 dark:bg-neutral-800/50',
+                option.id === selectedId ? 'opacity-100' : 'opacity-0',
+              ]"
+              :title="t('stage.background-picker.remove')"
               @click.stop="emit('remove', option)"
             >
-              <div class="i-solar:trash-bin-trash-bold h-4 w-4" />
+              <div :class="['i-solar:trash-bin-trash-bold h-4 w-4']" />
             </div>
           </button>
         </div>
 
-        <div v-if="allowUpload" class="flex flex-wrap gap-2">
-          <BasicInputFile v-model="uploadingFiles" class="cursor-pointer">
+        <div v-if="allowUpload" :class="['flex flex-wrap gap-2']">
+          <BasicInputFile v-model="uploadingFiles" :class="['cursor-pointer']">
             <div
               :class="[
                 'upload-button flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors',
@@ -281,42 +289,44 @@ async function applySelection(isImport = false) {
               ]"
             >
               <div :class="['i-mingcute:add-line']" />
-              <span>Add custom background</span>
+              <span>{{ t('stage.background-picker.add-custom') }}</span>
             </div>
           </BasicInputFile>
         </div>
 
         <div :class="['rounded-xl p-3', 'bg-neutral-50 dark:bg-neutral-900/70']">
-          <p class="mb-2 text-sm text-neutral-600 dark:text-neutral-300">
-            Preview
+          <p :class="['mb-2 text-sm text-neutral-600 dark:text-neutral-300']">
+            {{ t('stage.background-picker.preview') }}
           </p>
           <label
             v-if="selectedOption?.kind === 'image'"
-            class="flex items-center gap-2 pb-2 text-sm text-neutral-700 dark:text-neutral-200"
+            :class="['flex items-center gap-2 pb-2 text-sm text-neutral-700 dark:text-neutral-200']"
           >
-            <input v-model="enableBlur" type="checkbox" class="accent-primary-500">
-            <span>Blur</span>
+            <input v-model="enableBlur" type="checkbox" :class="['accent-primary-500']">
+            <span>{{ t('stage.background-picker.blur') }}</span>
           </label>
           <div
             ref="previewRef"
             :class="['relative h-48 overflow-hidden rounded-xl', 'bg-neutral-100 dark:bg-neutral-800']"
           >
             <div
-              class="h-full w-full transition-all duration-300"
-              :class="[(enableBlur && selectedOption?.kind === 'image') ? 'blur-md scale-110' : '']"
+              :class="[
+                'h-full w-full transition-all duration-300',
+                (enableBlur && selectedOption?.kind === 'image') ? 'blur-md scale-110' : '',
+              ]"
             >
               <component
                 :is="selectedOption?.component"
                 v-if="selectedOption?.component"
-                class="h-full w-full"
+                :class="['h-full w-full']"
               />
               <img
                 v-else-if="getPreviewSrc(selectedOption)"
                 :src="getPreviewSrc(selectedOption)"
-                class="h-full w-full object-cover"
+                :class="['h-full w-full object-cover']"
               >
-              <div v-else class="h-full w-full flex items-center justify-center text-neutral-500 dark:text-neutral-400">
-                Select a background
+              <div v-else :class="['h-full w-full flex items-center justify-center text-neutral-500 dark:text-neutral-400']">
+                {{ t('stage.background-picker.select') }}
               </div>
             </div>
             <BackgroundGradientOverlay v-if="selectedOption?.kind === 'image'" :color="previewColor" />
@@ -325,13 +335,13 @@ async function applySelection(isImport = false) {
       </div>
     </div>
 
-    <div class="flex justify-end bg-inherit pt-4">
+    <div :class="['flex justify-end bg-inherit pt-4']">
       <button
-        class="apply-button rounded-lg bg-primary-500 px-4 py-2 text-sm text-white font-medium shadow transition-transform disabled:cursor-not-allowed disabled:opacity-60"
+        :class="['apply-button rounded-lg bg-primary-500 px-4 py-2 text-sm text-white font-medium shadow transition-transform disabled:cursor-not-allowed disabled:opacity-60']"
         :disabled="!selectedOption || busy"
         @click="() => applySelection()"
       >
-        {{ busy ? 'Sampling...' : 'Use this background' }}
+        {{ busy ? t('stage.background-picker.sampling') : t('stage.background-picker.apply') }}
       </button>
     </div>
   </div>
