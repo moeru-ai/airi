@@ -1212,4 +1212,119 @@ describe('context bridge contract', () => {
 
     await store.dispose()
   })
+
+  it('broadcasts a translation under the session that owns the send', async () => {
+    const outgoingStreamMessages = collectChannelMessages<{ sessionId: string, type: string }>(CHAT_STREAM_CHANNEL_NAME)
+    const store = useContextBridgeStore()
+    await store.initialize()
+    const context = {
+      sessionId: 'session-a',
+      turnId: 'turn-1',
+      message: { role: 'user', content: 'ping' },
+      contexts: {},
+      composedMessage: [],
+    } satisfies ChatStreamEventContext
+
+    // The active session and the orchestrator's send session both differ, so a
+    // borrowed owner would send the translation to the wrong window.
+    chatOrchestratorMock.activeSendSessionId = 'session-c'
+    activeSessionIdRef.value = 'session-b'
+    await chatOrchestratorMock.emitTokenTranslationHooks(
+      { language: 'zh', pairId: 0, spokenStart: 0, text: '你好' },
+      context,
+    )
+    await vi.waitFor(() => expect(outgoingStreamMessages).toHaveLength(1))
+
+    expect(outgoingStreamMessages[0]).toMatchObject({ type: 'token-translation', sessionId: 'session-a' })
+    await store.dispose()
+  })
+
+  it('delivers a remote translation to the current turn hooks', async () => {
+    const translations: unknown[] = []
+    chatOrchestratorMock.onTokenTranslation(async (translation) => {
+      translations.push(translation)
+    })
+    const store = useContextBridgeStore()
+    await store.initialize()
+    const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
+    const context = {
+      sessionId: 'session-1',
+      turnId: 'turn-1',
+      message: { role: 'user', content: 'ping' },
+      contexts: {},
+      composedMessage: [],
+    } satisfies ChatStreamEventContext
+
+    streamSender.postMessage({ type: 'before-send', message: 'ping', sessionId: 'session-1', context })
+    await vi.waitFor(() => expect(store.isReceivingRemoteStream).toBe(true))
+    streamSender.postMessage({
+      type: 'token-translation',
+      translation: { language: 'zh', pairId: 0, spokenStart: 0, text: '你好' },
+      sessionId: 'session-1',
+      context,
+    })
+    await vi.waitFor(() => expect(translations).toHaveLength(1))
+
+    await store.dispose()
+  })
+
+  it('ignores a translation for a turn that already ended', async () => {
+    const translations: unknown[] = []
+    chatOrchestratorMock.onTokenTranslation(async (translation) => {
+      translations.push(translation)
+    })
+    const store = useContextBridgeStore()
+    await store.initialize()
+    const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
+    const context = {
+      sessionId: 'session-1',
+      turnId: 'turn-1',
+      message: { role: 'user', content: 'ping' },
+      contexts: {},
+      composedMessage: [],
+    } satisfies ChatStreamEventContext
+
+    streamSender.postMessage({ type: 'before-send', message: 'ping', sessionId: 'session-1', context })
+    await vi.waitFor(() => expect(store.isReceivingRemoteStream).toBe(true))
+    streamSender.postMessage({ type: 'assistant-end', message: 'done', sessionId: 'session-1', context })
+    await vi.waitFor(() => expect(store.isReceivingRemoteStream).toBe(false))
+    streamSender.postMessage({
+      type: 'token-translation',
+      translation: { language: 'zh', pairId: 0, spokenStart: 0, text: '迟到的译文' },
+      sessionId: 'session-1',
+      context,
+    })
+    await waitForBroadcastDelivery()
+
+    expect(translations).toHaveLength(0)
+    await store.dispose()
+  })
+
+  it('ignores a translation for a session without an active remote turn', async () => {
+    const translations: unknown[] = []
+    chatOrchestratorMock.onTokenTranslation(async (translation) => {
+      translations.push(translation)
+    })
+    const store = useContextBridgeStore()
+    await store.initialize()
+    const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
+    const context = {
+      sessionId: 'session-2',
+      turnId: 'turn-2',
+      message: { role: 'user', content: 'background ping' },
+      contexts: {},
+      composedMessage: [],
+    } satisfies ChatStreamEventContext
+
+    streamSender.postMessage({
+      type: 'token-translation',
+      translation: { language: 'zh', pairId: 0, spokenStart: 0, text: '外部会话的译文' },
+      sessionId: 'session-2',
+      context,
+    })
+    await waitForBroadcastDelivery()
+
+    expect(translations).toHaveLength(0)
+    await store.dispose()
+  })
 })
