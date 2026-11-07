@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { promisify } from 'node:util'
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { PendingActionManager } from './action-manager'
 import { createComputerUseRuntime } from './runtime'
@@ -52,25 +52,42 @@ vi.mock('@auv-js/sdk/node', () => ({
 
 vi.mock('electron', () => ({ app: { isPackaged: false, getPath: vi.fn() } }))
 
-// Find mock_auv.exe across possible paths
-function resolveMockAuv(): string {
-  const candidates = [
-    resolve(__dirname, '../../../../../../../mock_auv.exe'),
-    resolve(process.cwd(), 'mock_auv.exe'),
-    resolve(process.cwd(), '../../mock_auv.exe'),
+// Compile mock_auv.cs on demand via Windows standard csc.exe into a temporary directory
+async function resolveOrCompileMockAuv(tempDir: string): Promise<string> {
+  if (process.env.MOCK_AUV_BINARY && existsSync(process.env.MOCK_AUV_BINARY))
+    return process.env.MOCK_AUV_BINARY
+
+  const cscCandidates = [
+    'C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe',
+    'C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\csc.exe',
   ]
-  for (const candidate of candidates) {
-    if (existsSync(candidate))
-      return candidate
-  }
-  return candidates[0]
+  const cscPath = cscCandidates.find(p => existsSync(p))
+  if (!cscPath)
+    throw new Error(`Cannot compile mock_auv.cs: csc.exe not found in standard paths: ${cscCandidates.join(', ')}`)
+
+  const sourceCandidates = [
+    resolve(__dirname, 'fixtures/mock_auv.cs'),
+    resolve(process.cwd(), 'apps/stage-tamagotchi/src/main/services/airi/computer-use/fixtures/mock_auv.cs'),
+  ]
+  const sourcePath = sourceCandidates.find(p => existsSync(p))
+  if (!sourcePath)
+    throw new Error(`Cannot find mock_auv.cs in candidate paths: ${sourceCandidates.join(', ')}`)
+
+  const targetBinary = join(tempDir, 'mock_auv.exe')
+  const { execFile: realExecFile } = await vi.importActual<typeof import('node:child_process')>('node:child_process')
+  const realExecFileAsync = promisify(realExecFile)
+
+  await realExecFileAsync(cscPath, ['/nologo', `/out:${targetBinary}`, sourcePath])
+  if (!existsSync(targetBinary))
+    throw new Error(`Compilation succeeded but binary not found at ${targetBinary}`)
+
+  return targetBinary
 }
 
 describe('issue-2 real native child process timeline and queue behavior', () => {
   let directory: string
   let storeRoot: string
   let actionManager: PendingActionManager
-  const binaryPath = resolveMockAuv()
 
   beforeEach(async () => {
     vi.clearAllMocks()
@@ -185,157 +202,174 @@ describe('issue-2 real native child process timeline and queue behavior', () => 
 
   // --------------------------------------------------------------------------
   // Full Runtime Integration Test with Real Native Process (mock_auv.exe)
+  // Guarded to win32 only: requires Windows native process and C# compiler.
   // --------------------------------------------------------------------------
-  it('measures real native timeline: child exit vs child close vs queue admission', async () => {
-    process.env.MOCK_AUV_MODE = 'leak_stdio'
+  describe.runIf(process.platform === 'win32')('real native child process execution with mock_auv', () => {
+    let binaryPath: string
+    let fixtureTempDir: string
 
-    const startTime = Date.now()
-    console.info('[ISSUE-2 EXPERIMENT START] Time: 0ms')
+    beforeAll(async () => {
+      fixtureTempDir = await mkdtemp(join(tmpdir(), 'airi-mock-auv-'))
+      binaryPath = await resolveOrCompileMockAuv(fixtureTempDir)
+    })
 
-    let op1ChildExitTime = 0
-    let op1ChildCloseTime = 0
-    let op2ChildExitTime = 0
-    let op2ChildCloseTime = 0
-    let callIndex = 0
+    afterAll(async () => {
+      if (fixtureTempDir) {
+        await rm(fixtureTempDir, { recursive: true, force: true }).catch(() => {})
+      }
+    })
 
-    external.onChild.mockImplementation((child) => {
-      const idx = ++callIndex
-      child.on('exit', (code, signal) => {
-        const exitTime = Date.now() - startTime
-        if (idx === 1)
-          op1ChildExitTime = exitTime
-        else
-          op2ChildExitTime = exitTime
-        console.info(`[TIMELINE] Child #${idx} exit event at ${exitTime}ms (exitCode: ${code}, signal: ${signal})`)
+    it('measures real native timeline: child exit vs child close vs queue admission', async () => {
+      process.env.MOCK_AUV_MODE = 'leak_stdio'
+
+      const startTime = Date.now()
+      console.info('[ISSUE-2 EXPERIMENT START] Time: 0ms')
+
+      let op1ChildExitTime = 0
+      let op1ChildCloseTime = 0
+      let op2ChildExitTime = 0
+      let op2ChildCloseTime = 0
+      let callIndex = 0
+
+      external.onChild.mockImplementation((child) => {
+        const idx = ++callIndex
+        child.on('exit', (code, signal) => {
+          const exitTime = Date.now() - startTime
+          if (idx === 1)
+            op1ChildExitTime = exitTime
+          else
+            op2ChildExitTime = exitTime
+          console.info(`[TIMELINE] Child #${idx} exit event at ${exitTime}ms (exitCode: ${code}, signal: ${signal})`)
+        })
+        child.on('close', (code, signal) => {
+          const closeTime = Date.now() - startTime
+          if (idx === 1)
+            op1ChildCloseTime = closeTime
+          else
+            op2ChildCloseTime = closeTime
+          console.info(`[TIMELINE] Child #${idx} close event at ${closeTime}ms (exitCode: ${code}, signal: ${signal})`)
+        })
       })
-      child.on('close', (code, signal) => {
-        const closeTime = Date.now() - startTime
-        if (idx === 1)
-          op1ChildCloseTime = closeTime
-        else
-          op2ChildCloseTime = closeTime
-        console.info(`[TIMELINE] Child #${idx} close event at ${closeTime}ms (exitCode: ${code}, signal: ${signal})`)
+
+      const runtime = createComputerUseRuntime({
+        binaryPath,
+        storeRoot,
+        actionManager,
+        requireAttribution: false,
       })
-    })
 
-    const runtime = createComputerUseRuntime({
-      binaryPath,
-      storeRoot,
-      actionManager,
-      requireAttribution: false,
-    })
+      let op1SettledTime = 0
+      let op2StartTime = 0
+      let op2SettledTime = 0
+      let grandchildPid: number | undefined
 
-    let op1SettledTime = 0
-    let op2StartTime = 0
-    let op2SettledTime = 0
-    let grandchildPid: number | undefined
+      const action = actionManager.createPendingAction({
+        argv: ['invoke', 'app.activate', 'Calculator'],
+        attribution: {
+          sessionId: 'session-1',
+          turnId: 'turn-1',
+          toolCallId: 'call-1',
+          senderWebContentsId: 1,
+        },
+      })
+      actionManager.approve(action.id)
 
-    const action = actionManager.createPendingAction({
-      argv: ['invoke', 'app.activate', 'Calculator'],
-      attribution: {
-        sessionId: 'session-1',
-        turnId: 'turn-1',
-        toolCallId: 'call-1',
-        senderWebContentsId: 1,
-      },
-    })
-    actionManager.approve(action.id)
+      // Operation 1: Mutating operation that triggers descendant handle leak
+      const op1Promise = runtime.run({
+        argv: ['invoke', 'app.activate', 'Calculator'],
+        actionId: action.id,
+        attribution: action.attribution,
+      }, 1).then(
+        (res) => {
+          op1SettledTime = Date.now() - startTime
+          grandchildPid = (res.output as Record<string, unknown>)?.grandchildPid as number | undefined
+          console.info(`[EVENT] Op1 resolved at ${op1SettledTime}ms:`, res)
+          return res
+        },
+        (err) => {
+          op1SettledTime = Date.now() - startTime
+          console.info(`[EVENT] Op1 rejected at ${op1SettledTime}ms:`, err.message)
+          throw err
+        },
+      )
 
-    // Operation 1: Mutating operation that triggers descendant handle leak
-    const op1Promise = runtime.run({
-      argv: ['invoke', 'app.activate', 'Calculator'],
-      actionId: action.id,
-      attribution: action.attribution,
-    }, 1).then(
-      (res) => {
-        op1SettledTime = Date.now() - startTime
-        grandchildPid = (res.output as Record<string, unknown>)?.grandchildPid as number | undefined
-        console.info(`[EVENT] Op1 resolved at ${op1SettledTime}ms:`, res)
+      // Enqueue Operation 2: Arrives at 500ms (after direct child has exited, but while grandchild still holds stdio)
+      await new Promise(r => setTimeout(r, 500))
+      console.info(`[STATE at 500ms] Direct child has already exited (${op1ChildExitTime}ms). Op1 settlement status: ${op1SettledTime > 0 ? 'settled' : 'pending'}`)
+
+      const op2Promise = (async () => {
+        op2StartTime = Date.now() - startTime
+        console.info(`[QUEUE] Enqueueing Op2 at ${op2StartTime}ms...`)
+        const res = await runtime.run({
+          argv: ['invoke', 'window.list'],
+        })
+        op2SettledTime = Date.now() - startTime
+        console.info(`[EVENT] Op2 resolved at ${op2SettledTime}ms`)
         return res
-      },
-      (err) => {
-        op1SettledTime = Date.now() - startTime
-        console.info(`[EVENT] Op1 rejected at ${op1SettledTime}ms:`, err.message)
-        throw err
-      },
-    )
+      })()
 
-    // Enqueue Operation 2: Arrives at 500ms (after direct child has exited, but while grandchild still holds stdio)
-    await new Promise(r => setTimeout(r, 500))
-    console.info(`[STATE at 500ms] Direct child has already exited (${op1ChildExitTime}ms). Op1 settlement status: ${op1SettledTime > 0 ? 'settled' : 'pending'}`)
+      await Promise.all([op1Promise, op2Promise])
 
-    const op2Promise = (async () => {
-      op2StartTime = Date.now() - startTime
-      console.info(`[QUEUE] Enqueueing Op2 at ${op2StartTime}ms...`)
-      const res = await runtime.run({
-        argv: ['invoke', 'window.list'],
+      const totalDuration = Date.now() - startTime
+      console.info(`[ISSUE-2 EXPERIMENT END] Total duration: ${totalDuration}ms. op1SettledTime: ${op1SettledTime}ms, op2SettledTime: ${op2SettledTime}ms`)
+
+      // Verify timeline measurements:
+      expect(op1ChildExitTime).toBeGreaterThan(0)
+      expect(op1ChildExitTime).toBeLessThan(op1SettledTime) // Exit happened before settlement
+      expect(op1ChildCloseTime).toBeGreaterThanOrEqual(op1ChildExitTime) // Close happened on or after exit
+      expect(op1SettledTime).toBeLessThan(2500) // Bounded cleanup unblocked op1!
+      expect(op2SettledTime).toBeGreaterThanOrEqual(op1SettledTime)
+      expect(op2ChildExitTime).toBeGreaterThanOrEqual(op1SettledTime) // Op2 ran strictly after Op1 settled!
+
+      // Verify descendant alive status at settlement:
+      let grandchildAlive = false
+      if (typeof grandchildPid === 'number') {
+        try {
+          process.kill(grandchildPid, 0)
+          grandchildAlive = true
+        }
+        catch {}
+        // Clean up background descendant
+        try {
+          process.kill(grandchildPid)
+        }
+        catch {}
+      }
+
+      console.info('[ISSUE-2 MEASUREMENTS]', JSON.stringify({
+        case: 'Issue-2 Native Child Process Timeline',
+        op1ChildExitTime,
+        op1ChildCloseTime,
+        op1SettledTime,
+        op2ChildExitTime,
+        op2ChildCloseTime,
+        op2SettledTime,
+        grandchildPid,
+        grandchildAliveAtOp1Settlement: grandchildAlive,
+      }))
+
+      expect(grandchildAlive).toBe(true)
+
+      // Now test that a subsequent MUTATING operation is safely rejected due to lingering descendant risk
+      const action2 = actionManager.createPendingAction({
+        argv: ['invoke', 'app.activate', 'Terminal'],
+        attribution: {
+          sessionId: 'session-1',
+          turnId: 'turn-2',
+          toolCallId: 'call-2',
+          senderWebContentsId: 1,
+        },
       })
-      op2SettledTime = Date.now() - startTime
-      console.info(`[EVENT] Op2 resolved at ${op2SettledTime}ms`)
-      return res
-    })()
+      actionManager.approve(action2.id)
 
-    await Promise.all([op1Promise, op2Promise])
+      await expect(runtime.run({
+        argv: ['invoke', 'app.activate', 'Terminal'],
+        actionId: action2.id,
+        attribution: action2.attribution,
+      }, 1)).rejects.toThrow(/unconfirmed background processes/)
 
-    const totalDuration = Date.now() - startTime
-    console.info(`[ISSUE-2 EXPERIMENT END] Total duration: ${totalDuration}ms. op1SettledTime: ${op1SettledTime}ms, op2SettledTime: ${op2SettledTime}ms`)
-
-    // Verify timeline measurements:
-    expect(op1ChildExitTime).toBeGreaterThan(0)
-    expect(op1ChildExitTime).toBeLessThan(op1SettledTime) // Exit happened before settlement
-    expect(op1ChildCloseTime).toBeGreaterThanOrEqual(op1ChildExitTime) // Close happened on or after exit
-    expect(op1SettledTime).toBeLessThan(2500) // Bounded cleanup unblocked op1!
-    expect(op2SettledTime).toBeGreaterThanOrEqual(op1SettledTime)
-    expect(op2ChildExitTime).toBeGreaterThanOrEqual(op1SettledTime) // Op2 ran strictly after Op1 settled!
-
-    // Verify descendant alive status at settlement:
-    let grandchildAlive = false
-    if (typeof grandchildPid === 'number') {
-      try {
-        process.kill(grandchildPid, 0)
-        grandchildAlive = true
-      }
-      catch {}
-      // Clean up background descendant
-      try {
-        process.kill(grandchildPid)
-      }
-      catch {}
-    }
-
-    console.info('[ISSUE-2 MEASUREMENTS]', JSON.stringify({
-      case: 'Issue-2 Native Child Process Timeline',
-      op1ChildExitTime,
-      op1ChildCloseTime,
-      op1SettledTime,
-      op2ChildExitTime,
-      op2ChildCloseTime,
-      op2SettledTime,
-      grandchildPid,
-      grandchildAliveAtOp1Settlement: grandchildAlive,
-    }))
-
-    expect(grandchildAlive).toBe(true)
-
-    // Now test that a subsequent MUTATING operation is safely rejected due to lingering descendant risk
-    const action2 = actionManager.createPendingAction({
-      argv: ['invoke', 'app.activate', 'Terminal'],
-      attribution: {
-        sessionId: 'session-1',
-        turnId: 'turn-2',
-        toolCallId: 'call-2',
-        senderWebContentsId: 1,
-      },
-    })
-    actionManager.approve(action2.id)
-
-    await expect(runtime.run({
-      argv: ['invoke', 'app.activate', 'Terminal'],
-      actionId: action2.id,
-      attribution: action2.attribution,
-    }, 1)).rejects.toThrow(/unconfirmed background processes/)
-
-    await runtime.dispose()
-    delete process.env.MOCK_AUV_MODE
-  }, 15000)
+      await runtime.dispose()
+      delete process.env.MOCK_AUV_MODE
+    }, 15000)
+  })
 })
