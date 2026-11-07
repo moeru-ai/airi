@@ -6,8 +6,9 @@ import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import type { ChatDraftHandover } from '../../shared/eventa'
 
-import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import { getElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useChatInterruption } from '@proj-airi/stage-layouts/composables/use-chat-interruption'
+import { captureScreenSnapshotFile } from '@proj-airi/stage-shared'
 import { ChatBackgroundTasks, ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
 import { ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSendButton, useChatComposer, useChatImages, VoiceInputButton } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
@@ -209,9 +210,38 @@ function sendFromKeyboard() {
 }
 
 const fileInput = ref<HTMLInputElement | null>(null)
+const isCapturingScreen = shallowRef(false)
 
 function handleManualAttach() {
   fileInput.value?.click()
+}
+
+async function handleCaptureScreen(event?: MouseEvent) {
+  if (isCapturingScreen.value)
+    return
+
+  isCapturingScreen.value = true
+  try {
+    const file = await captureScreenSnapshotFile({
+      context: getElectronEventaContext(),
+    })
+    if (file) {
+      const initialCount = attachments.value.length
+      await handleFilePaste([file])
+      if (event?.shiftKey) {
+        await until(pendingImages).toBe(0)
+        if (attachments.value.length > initialCount && !imageError.value) {
+          if (!messageInput.value.trim()) {
+            messageInput.value = t('stage.chat.images.screen-question')
+          }
+          await handleSend()
+        }
+      }
+    }
+  }
+  finally {
+    isCapturingScreen.value = false
+  }
 }
 
 function handleMessageInputKeydown(event: KeyboardEvent) {
@@ -576,6 +606,22 @@ defineExpose({
             @click="handleManualAttach"
           >
             <span :class="['i-solar:paperclip-bold-duotone h-5 w-5']" />
+          </GhostButton>
+          <GhostButton
+            data-testid="chat-screen-capture-button"
+            size="unset"
+            :class="['size-9 transition-colors duration-200 motion-reduce:transition-none']"
+            :title="t('stage.chat.images.capture-screen')"
+            :aria-label="t('stage.chat.images.capture-screen')"
+            :disabled="isCapturingScreen"
+            @click="handleCaptureScreen"
+          >
+            <span
+              :class="[
+                isCapturingScreen ? 'i-svg-spinners:ring-resize' : 'i-solar:screencast-bold-duotone',
+                'h-5 w-5',
+              ]"
+            />
           </GhostButton>
           <GhostButton
             data-testid="computer-use-toggle"

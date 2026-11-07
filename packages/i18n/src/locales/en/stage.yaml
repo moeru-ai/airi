@@ -125,6 +125,7 @@ chat:
   composer:
     add: Add
     images: Images
+    screen: Screen capture
     call: Voice call
   call:
     mute: Mute the microphone
@@ -221,6 +222,9 @@ chat:
     use-vision: Use the vision model for chat images
     use-vision-description: Choose a provider and model below. It reads attached images before your chat model replies. Without a vision model, images go directly to the chat model.
     attach: 'Attach images'
+    capture-screen: 'Capture screen (Hold Shift to ask immediately)'
+    capturing-screen: 'Capturing screen…'
+    screen-question: 'What is on my screen right now?'
     remove: 'Remove {name}'
     unsupported: 'Use PNG, JPEG, WebP, or GIF images.'
     too-large: 'Each image must be 3 MB or smaller.'
