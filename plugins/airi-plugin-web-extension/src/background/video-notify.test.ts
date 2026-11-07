@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { createVideoNotifyGate, normalizeVideoTitle } from './video-notify'
 
 function report(videoId: string, title: string) {
-  return { url: `https://www.youtube.com/watch?v=${videoId}`, videoId, title }
+  return { url: `https://example.com/watch?v=${videoId}`, videoId, title }
 }
 
 describe('normalizeVideoTitle', () => {
