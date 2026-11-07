@@ -22,8 +22,8 @@ import { ReflexManager } from './reflex/reflex-manager'
  * so a caller decides when a service starts, for example the rule engine after the bot spawns.
  */
 export function createAgentContainer(airiClient: Client) {
-  // The agent logs its own startup. The container logs nothing, as before the move to injeca.
-  const container = createContainer({ enabled: false })
+  // The agent logs its own startup. The container writes no lifecycle logs, as before the move to injeca.
+  const container = createContainer()
 
   // Create independent logger for each agent
   const logger = provide(container, 'logger', () => useLogg('agent').useGlobalConfig())

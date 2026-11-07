@@ -829,8 +829,8 @@ catalogs:
       specifier: ^6.3.0
       version: 6.3.0
     injeca:
-      specifier: ^0.3.0
-      version: 0.3.0
+      specifier: ^0.5.1
+      version: 0.5.1
     ioredis:
       specifier: ^6.0.0
       version: 6.0.0
@@ -2313,7 +2313,7 @@ importers:
         version: 2.0.1-rc.29(crossws@0.4.12(srvx@1.0.8))
       injeca:
         specifier: 'catalog:'
-        version: 0.3.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.5.1(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
       jszip:
         specifier: 'catalog:'
         version: 3.10.1
@@ -2710,7 +2710,7 @@ importers:
         version: 1.51.0
       injeca:
         specifier: 'catalog:'
-        version: 0.3.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.5.1(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
       jszip:
         specifier: 'catalog:'
         version: 3.10.1
@@ -3720,7 +3720,7 @@ importers:
         version: 5.0.4
       injeca:
         specifier: 'catalog:'
-        version: 0.3.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.5.1(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
       isolated-vm:
         specifier: 'catalog:'
         version: 7.0.1
@@ -4002,7 +4002,7 @@ importers:
         version: 1.51.0
       injeca:
         specifier: 'catalog:'
-        version: 0.3.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.5.1(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
       nanoid:
         specifier: 'catalog:'
         version: 6.0.1
@@ -6546,7 +6546,7 @@ importers:
         version: 0.5.3(hono@4.13.3)(unstorage@1.17.5(idb-keyval@6.3.0)(ioredis@6.0.0(supports-color@10.2.2)))
       injeca:
         specifier: 'catalog:'
-        version: 0.3.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.5.1(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
       ioredis:
         specifier: 'catalog:'
         version: 6.0.0(supports-color@10.2.2)
@@ -6685,7 +6685,7 @@ importers:
         version: 0.5.3(hono@4.13.3)(unstorage@1.17.5(idb-keyval@6.3.0)(ioredis@6.0.0(supports-color@10.2.2)))
       injeca:
         specifier: 'catalog:'
-        version: 0.3.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.5.1(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
       ioredis:
         specifier: 'catalog:'
         version: 6.0.0(supports-color@10.2.2)
@@ -12385,7 +12385,9 @@ packages:
   '@smithy/core@3.35.0':
     resolution: {integrity: sha512-zRMhfkByhT2snNdr1si24vJitU6Cr9ix2MikUfWmkAgp4jrNP0GcKSP5YvwQ+TlI8AZXER5QOGJn3JsVtSD9/A==}
     engines: {node: '>=18.0.0'}
-    deprecated: Deprecated due to a bug in custom logger data redaction. See https://github.com/aws/aws-sdk-js-v3/issues/8393.
+    deprecated: |-
+      Deprecated due to a bug in custom logger data redaction. Upgrade to the latest version. If you used a custom logger with this
+        version, review your logs and rotate any credentials or other secrets. See https://github.com/aws/aws-sdk-js-v3/issues/8393.
 
   '@smithy/credential-provider-imds@4.5.2':
     resolution: {integrity: sha512-A9uSdn72ozbRUSit0eib0TW7nXuNPlaeM0zcGkJ+nE6tFcSDbnmtwoxbTCFBukVQcszDAyvsd7+rTduPTXpygg==}
@@ -17052,8 +17054,8 @@ packages:
     resolution: {integrity: sha512-ifK0CgjALofS5bkrcTy4RaQ9Vx2Knf/eLeIO+NaswQEpH1UblrtTSCIvN71qQDMq0PeQ/SSPojvEJp9vvvfr+w==}
     engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0}
 
-  injeca@0.3.0:
-    resolution: {integrity: sha512-bOlhVowhLQKPhf/n6b7UtYV/hwoMawA4i9q5LwRSlfhOYRt161jjPh7PZcDWkOSxlfcoXCls+bMZJkP4jQFOYA==}
+  injeca@0.5.1:
+    resolution: {integrity: sha512-WvPidtYhlEGNMuOAbawz59WcHCFr5B/+STTsahUofr8yqpHQIrcc/kV5jLyPoLVtJC3RM7y592t8YBacxKiReQ==}
     peerDependencies:
       '@guiiai/logg': '>= 1'
       error-stack-parser: ^2.1.4
@@ -32814,7 +32816,7 @@ snapshots:
 
   ini@7.0.0: {}
 
-  injeca@0.3.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1):
+  injeca@0.5.1(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1):
     dependencies:
       alien-signals: 3.2.1
       error-stack-parser: 2.1.4
