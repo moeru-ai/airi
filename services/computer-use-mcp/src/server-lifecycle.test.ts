@@ -29,6 +29,8 @@ vi.mock('@modelcontextprotocol/sdk/server/stdio.js', async (original) => {
 describe('stdio service lifetime', () => {
   it('drains owned direct Shells on EOF and closes once without fake close confirmation', async () => {
     const root = await mkdtemp(join(tmpdir(), 'airi-mcp-exit-'))
+    if (!resolve(root).startsWith(resolve(tmpdir()) + sep))
+      throw new Error('Fixture cleanup escaped its temporary root.')
     let confirmClose!: () => void
     const closed = new Promise<void>((resolve) => {
       confirmClose = resolve
@@ -73,8 +75,6 @@ describe('stdio service lifetime', () => {
     finally {
       confirmClose()
       await service.shutdown()
-      if (!resolve(root).startsWith(resolve(tmpdir()) + sep))
-        throw new Error('Fixture cleanup escaped its temporary root.')
       await rm(root, { recursive: true, force: true })
     }
   })
