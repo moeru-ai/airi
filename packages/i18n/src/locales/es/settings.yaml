@@ -351,8 +351,6 @@ pages:
       action: Elegir quién responde
     sync:
       notice: Las tarjetas de personaje se sincronizan con tu cuenta. Puedes restaurar una tarjeta eliminada durante 30 días.
-      off_notice: Has iniciado sesión, pero la sincronización de tarjetas de personaje está desactivada.
-      off_notice_link: Actívala en Funciones experimentales.
       state:
         synced: Sincronizado con tu cuenta
         pending: Pendiente de subir
@@ -1928,10 +1926,6 @@ pages:
         local: Tu preferencia en este dispositivo
         global: Disponible para cuentas con sesión iniciada
         account: Disponible para tu cuenta
-      features:
-        character_card_sync:
-          title: Sincronización de tarjetas de personaje en la nube
-          description: Sincroniza tus tarjetas de personaje con tu cuenta cuando inicias sesión para usarlas en otros dispositivos. Desactivado por defecto. Las tarjetas eliminadas permanecen en el historial durante 30 días.
     color-scheme:
       description: Cambiar el esquema de colores del escenario.
       title: Esquema de Colores

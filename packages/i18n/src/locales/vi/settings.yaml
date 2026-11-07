@@ -351,8 +351,6 @@ pages:
       action: Chọn nhân vật trả lời
     sync:
       notice: Thẻ nhân vật được đồng bộ với tài khoản. Bạn có thể khôi phục thẻ đã xóa trong 30 ngày.
-      off_notice: Bạn đã đăng nhập nhưng đồng bộ thẻ nhân vật đang tắt.
-      off_notice_link: Bật tính năng trong mục Tính năng thử nghiệm.
       state:
         synced: Đã đồng bộ với tài khoản
         pending: Đang chờ tải lên
@@ -1940,10 +1938,6 @@ pages:
         local: Lựa chọn trên thiết bị
         global: Khả dụng cho tài khoản đã đăng nhập
         account: Khả dụng cho tài khoản của bạn
-      features:
-        character_card_sync:
-          title: Đồng bộ thẻ nhân vật trên đám mây
-          description: Đồng bộ thẻ nhân vật với tài khoản khi đăng nhập để dùng trên thiết bị khác. Mặc định tắt. Thẻ đã xóa vẫn nằm trong lịch sử tài khoản trong 30 ngày.
     color-scheme:
       description: Đổi bảng màu sân khấu.
       title: Bảng màu

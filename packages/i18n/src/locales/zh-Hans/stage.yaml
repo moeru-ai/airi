@@ -109,16 +109,9 @@ chat:
     images: 图片
     call: 语音通话
   call:
-    title: 语音通话
-    listening: 正在聆听
-    hearing: 正在听你说
-    speaking: 正在说话
-    muted: 已静音
     mute: 麦克风静音
     unmute: 取消麦克风静音
     hang-up: 挂断
-    minimize: 收起通话
-    expand: 回到通话
     failed: 无法开始语音通话
     microphone-denied: AIRI 无法使用麦克风。
     microphone-off: 麦克风已关闭。请在听觉设置中打开麦克风，再开始语音通话。
