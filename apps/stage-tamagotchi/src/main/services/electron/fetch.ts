@@ -38,15 +38,18 @@ export function createFetchService() {
     const target = new URL(payload.url)
     if (target.protocol !== 'http:' && target.protocol !== 'https:')
       throw new Error('Fetch bridge only supports HTTP(S) targets')
-    const controller = payload.requestId ? new AbortController() : undefined
-    if (payload.requestId && controller)
-      activeFetches.set(payload.requestId, controller)
+    const controller = new AbortController()
+    const requestKey = `${event.sender.id}:${payload.requestId}`
+    const abort = () => controller.abort()
+    event.sender.once('destroyed', abort)
+    if (payload.requestId)
+      activeFetches.set(requestKey, controller)
     try {
       const response = await fetch(target, {
         method: payload.method ?? 'GET',
         headers: payload.headers,
         body: payload.body,
-        signal: controller?.signal,
+        signal: controller.signal,
       })
 
       const headers: Record<string, string> = {}
@@ -79,13 +82,14 @@ export function createFetchService() {
       }
     }
     finally {
+      event.sender.removeListener('destroyed', abort)
       if (payload.requestId)
-        activeFetches.delete(payload.requestId)
+        activeFetches.delete(requestKey)
     }
   })
   ipcMain.handle('airi:electron:fetch-cancel', (event, requestId: string) => {
     if (!isLocalAppURL(event.senderFrame?.url ?? event.sender.getURL()))
       throw new Error('Renderer is not authorized to cancel fetches')
-    activeFetches.get(requestId)?.abort()
+    activeFetches.get(`${event.sender.id}:${requestId}`)?.abort()
   })
 }

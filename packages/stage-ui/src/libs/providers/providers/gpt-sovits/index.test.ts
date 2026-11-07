@@ -37,7 +37,7 @@ describe('gpt-sovits configuration', () => {
 
   it('uses the translated required-field key', async () => {
     const validator = await providerGptSovits.validators!.validateConfig![0](context)
-    const result = await validator.validator({ ...config, refAudioPath: '' }, context)
+    const result = await validator.validator({ ...config, refAudioPath: '   ' }, context)
     expect(result.reason).toBe('settings.pages.providers.provider.gpt-sovits.fields.validation.refAudioRequired')
   })
 })

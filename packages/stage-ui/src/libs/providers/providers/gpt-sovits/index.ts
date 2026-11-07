@@ -18,7 +18,7 @@ interface GptSovitsConfig {
 }
 
 async function electronFetch(url: string, init?: RequestInit & { requestId?: string }): Promise<Response> {
-  const electron = typeof window !== 'undefined' ? (window as Window & { electron?: { ipcRenderer?: { invoke: (channel: string, payload: unknown) => Promise<any> } } }).electron : undefined
+  const electron = typeof window !== 'undefined' ? (window as Window & { electron?: { ipcRenderer?: { invoke: (channel: string, payload: unknown) => Promise<{ bodyBase64?: string, body: string, status: number, statusText: string, headers: Record<string, string> }> } } }).electron : undefined
   if (!electron?.ipcRenderer)
     return globalThis.fetch(url, init)
 
@@ -108,7 +108,7 @@ export const providerGptSovits = defineProvider<GptSovitsConfig, 'gpt-sovits'>({
         const errors = []
         if (!config.baseUrl)
           errors.push({ error: new Error(t('settings.pages.providers.provider.gpt-sovits.fields.validation.baseUrlRequired')) })
-        if (!config.refAudioPath)
+        if (!config.refAudioPath.trim())
           errors.push({ error: new Error(t('settings.pages.providers.provider.gpt-sovits.fields.validation.refAudioRequired')) })
         if (!z.enum(languageCodes).safeParse(config.textLang).success || !z.enum(languageCodes).safeParse(config.promptLang).success)
           errors.push({ error: new Error(t('settings.pages.providers.provider.gpt-sovits.fields.validation.languageUnsupported')) })
@@ -132,7 +132,8 @@ export const providerGptSovits = defineProvider<GptSovitsConfig, 'gpt-sovits'>({
     })],
   },
   extraMethods: {
-    listModels: async (_config, _provider, contextOptions) => [{ id: 'gpt-sovits', name: 'GPT-SoVITS', provider: 'gpt-sovits', description: contextOptions?.t('settings.pages.providers.provider.gpt-sovits.modelDescription') ?? 'GPT-SoVITS voice cloning model', contextLength: 0, deprecated: false }],
+    voiceCatalogConfig: () => ({}),
+    listModels: async () => [{ id: 'gpt-sovits', name: 'GPT-SoVITS', provider: 'gpt-sovits', description: '', contextLength: 0, deprecated: false }],
     listVoices: async (config) => {
       const languageTitles: Record<string, string> = { zh: 'Chinese', en: 'English', ja: 'Japanese', ko: 'Korean', yue: 'Cantonese' }
       const aliases: Record<string, string> = { auto_yue: 'yue', all_zh: 'zh', all_ja: 'ja', all_yue: 'yue', all_ko: 'ko' }
