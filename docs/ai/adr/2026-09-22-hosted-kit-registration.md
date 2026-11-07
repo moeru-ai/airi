@@ -1,8 +1,12 @@
 # Hosted Kit registration ownership
 
-- Status: Accepted
+- Status: Accepted. The sections "Lifecycle ownership", "Best-effort cleanup", "Cleanup self-wait detection", "Extension transaction publication", and "Host lease adapter and cleanup" are superseded by the plugin host on injeca. See "Plugin Host on injeca" in [the plugin-sdk README](../../../packages/plugin-sdk/README.md#plugin-host-on-injeca).
 - Date: 2026-09-22
 - Scope: Plugin SDK and the Electron Extension Host
+
+> [!NOTE]
+> The registration rules stay: declare before setup, publish all only after setup succeeds, roll back on failure, and a stale handle cannot withdraw a newer registration.
+> injeca registrations, transactions, and containers implement them now. Generations are injeca `instanceId` values. Leases are `KitRegistration` objects.
 
 ## Context
 

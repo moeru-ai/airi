@@ -15,20 +15,7 @@ function createWidgetsManagerStub() {
 }
 
 describe('createBuiltInExtensionKitRuntime', () => {
-  it('exposes one declaration for each built-in Host Kit', () => {
-    const runtime = createBuiltInExtensionKitRuntime({
-      widgetsManager: createWidgetsManagerStub(),
-    })
-
-    expect(runtime.hostProvidedKits).toEqual([
-      { id: 'kit.gamelet', version: '1.0.0' },
-      { id: 'kit.tool', version: '1.0.0' },
-      { id: 'kit.widget', version: '1.0.0' },
-    ])
-    runtime.dispose()
-  })
-
-  it('owns built-in Host source leases across duplicate installation and disposal', () => {
+  it('owns built-in Host Kit registrations across duplicate installation and disposal', async () => {
     const runtime = createBuiltInExtensionKitRuntime({
       widgetsManager: createWidgetsManagerStub(),
     })
@@ -43,12 +30,12 @@ describe('createBuiltInExtensionKitRuntime', () => {
       'kit.widget',
     ])
 
-    runtime.dispose()
+    await runtime.dispose()
 
     expect(host.listKitProviders()).toEqual([])
   })
 
-  it('rejects installation on another Host', () => {
+  it('rejects installation on another Host', async () => {
     // ROOT CAUSE:
     //
     // The runtime used a non-empty lease array as its complete installation state.
@@ -64,10 +51,10 @@ describe('createBuiltInExtensionKitRuntime', () => {
 
     expect(() => runtime.registerHostKits(secondHost)).toThrow('another Extension Host')
     expect(secondHost.listKitProviders()).toEqual([])
-    runtime.dispose()
+    await runtime.dispose()
   })
 
-  it('rejects installation after disposal', () => {
+  it('rejects installation after disposal', async () => {
     // ROOT CAUSE:
     //
     // Disposal emptied the lease array and destroyed the shared Kit runtimes.
@@ -79,28 +66,28 @@ describe('createBuiltInExtensionKitRuntime', () => {
     const host = new ExtensionHost()
 
     runtime.registerHostKits(host)
-    runtime.dispose()
+    await runtime.dispose()
 
     expect(() => runtime.registerHostKits(host)).toThrow('disposed')
     expect(host.listKitProviders()).toEqual([])
   })
 
-  it('rolls back leases when built-in Host Kit installation fails', () => {
+  it('rolls back registrations when built-in Host Kit installation fails', async () => {
     const runtime = createBuiltInExtensionKitRuntime({
       widgetsManager: createWidgetsManagerStub(),
     })
     const host = new ExtensionHost()
-    const conflictLease = host.registerKit({
+    const conflict = host.provideKit({ descriptor: {
       kitId: 'kit.gamelet',
       version: '1.0.0',
       runtimes: ['electron'],
       capabilities: [],
-    })
+    } })
 
     expect(() => runtime.registerHostKits(host)).toThrow('provider-slot-conflict')
-    expect(host.listKitProviders().map(provider => provider.id)).toEqual(['kit.gamelet'])
+    await vi.waitFor(() => expect(host.listKitProviders().map(provider => provider.id)).toEqual(['kit.gamelet']))
 
-    conflictLease.dispose()
+    await conflict.withdraw()
     runtime.registerHostKits(host)
     expect(host.listKitProviders().map(provider => provider.id)).toEqual([
       'kit.gamelet',
@@ -108,7 +95,7 @@ describe('createBuiltInExtensionKitRuntime', () => {
       'kit.widget',
     ])
 
-    runtime.dispose()
+    await runtime.dispose()
     expect(host.listKitProviders()).toEqual([])
   })
 })

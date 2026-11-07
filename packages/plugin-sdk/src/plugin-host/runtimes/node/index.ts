@@ -6,6 +6,8 @@ import { createContext } from '@moeru/eventa'
 
 export * from '../../api'
 export * from './loaders'
+export { createWorkerRunner } from './worker-runner'
+export type { WorkerRunnerOptions } from './worker-runner'
 
 /**
  * Creates the Eventa context used by node-side extension host sessions.

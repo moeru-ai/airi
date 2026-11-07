@@ -993,7 +993,7 @@ describe('setupExtensionHost', () => {
     expect(error).toEqual(expect.objectContaining({ enabled: true, loaded: false }))
   })
 
-  it('keeps config unchanged when enablement has a missing required Kit', async () => {
+  it('enables a Consumer whose required Kit is missing, and it waits in pending with the explanation', async () => {
     const extensionDir = join(pluginsDir, 'missing-kit-consumer')
     await mkdir(extensionDir, { recursive: true })
     await writeEntrypoint({
@@ -1012,22 +1012,27 @@ describe('setupExtensionHost', () => {
 
     await setupExtensionHost()
     const invokeSetEnabled = defineInvoke(contextState.lastContext!, electronPluginSetEnabled)
-    const invokeList = defineInvoke(contextState.lastContext!, electronPluginList)
+    const invokeLoad = defineInvoke(contextState.lastContext!, electronPluginLoad)
+    const invokeInspect = defineInvoke(contextState.lastContext!, electronPluginInspect)
 
-    await expect(invokeSetEnabled({
-      extensionId: 'missing-kit-consumer',
-      enabled: true,
-    })).rejects.toThrow('requires missing Kit "dev.airi.missing"')
-
-    const snapshot = await invokeList()
+    // The graph orders sessions, so the Host accepts the enablement. The Consumer waits until a provider appears.
+    await invokeSetEnabled({ extensionId: 'missing-kit-consumer', enabled: true })
+    const snapshot = await invokeLoad({ extensionId: 'missing-kit-consumer' })
     expect(snapshot.plugins).toContainEqual(expect.objectContaining({
       extensionId: 'missing-kit-consumer',
-      enabled: false,
-      loaded: false,
+      enabled: true,
+      loaded: true,
+    }))
+
+    const inspected = await invokeInspect()
+    expect(inspected.sessions).toContainEqual(expect.objectContaining({ extensionId: 'missing-kit-consumer', phase: 'pending' }))
+    expect(inspected.graph?.explanations).toContainEqual(expect.objectContaining({
+      extensionId: 'missing-kit-consumer',
+      lines: expect.arrayContaining([expect.stringContaining('No provider of Kit `dev.airi.missing` is installed.')]),
     }))
   })
 
-  it('keeps a Provider enabled while an enabled Consumer requires it', async () => {
+  it('lets a Provider be disabled while an enabled Consumer requires it', async () => {
     const providerDir = join(pluginsDir, 'required-provider')
     const consumerDir = join(pluginsDir, 'required-consumer')
     await mkdir(providerDir, { recursive: true })
@@ -1057,14 +1062,16 @@ describe('setupExtensionHost', () => {
     await invokeSetEnabled({ extensionId: 'required-provider', enabled: true })
     await invokeSetEnabled({ extensionId: 'required-consumer', enabled: true })
 
-    await expect(invokeSetEnabled({
-      extensionId: 'required-provider',
-      enabled: false,
-    })).rejects.toThrow('requires missing Kit "dev.airi.required"')
+    // The Consumer waits in `pending` when it loads without the Provider, so disabling the Provider is allowed.
+    await invokeSetEnabled({ extensionId: 'required-provider', enabled: false })
 
     const snapshot = await invokeList()
     expect(snapshot.plugins).toContainEqual(expect.objectContaining({
       extensionId: 'required-provider',
+      enabled: false,
+    }))
+    expect(snapshot.plugins).toContainEqual(expect.objectContaining({
+      extensionId: 'required-consumer',
       enabled: true,
     }))
   })
@@ -1150,7 +1157,7 @@ describe('setupExtensionHost', () => {
 
     expect(service.host.getKitProvider('dev.airi.example-hosted')).toMatchObject({
       version: '1.0.0',
-      generation: 1,
+      instanceId: expect.any(String),
       owner: { kind: 'extension', extensionId: 'hosted-kit-provider' },
     })
 
@@ -1190,11 +1197,11 @@ describe('setupExtensionHost', () => {
 
     const disabledReport = await service.setSystemEnabled(false)
 
-    expect(disabledReport.plan.enabledExtensionIds).toEqual([
+    // The system stops the sessions in reverse load order, so the Consumer stops first.
+    expect(disabledReport.unloadedExtensionIds).toEqual([
       'system-consumer',
       'system-provider',
     ])
-    expect(disabledReport.plan.targetLoadedExtensionIds).toEqual([])
     expect(stopSpy.mock.calls.map(([sessionId]) => sessionId)).toHaveLength(2)
     expect(service.host.listSessions()).toEqual([])
     const disabledSnapshot = await service.list()
@@ -1206,7 +1213,7 @@ describe('setupExtensionHost', () => {
     const startSpy = vi.spyOn(service.host, 'start')
     const enabledReport = await service.setSystemEnabled(true)
 
-    expect(enabledReport.plan.loadOrder).toEqual([
+    expect(enabledReport.loadedExtensionIds).toEqual([
       'system-provider',
       'system-consumer',
     ])
@@ -1433,7 +1440,7 @@ describe('setupExtensionHost', () => {
     ])
   })
 
-  it('does not unload a Provider while a loaded Consumer requires it', async () => {
+  it('unloads a Provider while a loaded Consumer requires it, and the Consumer waits for it', async () => {
     const providerDir = join(pluginsDir, 'runtime-provider')
     const consumerDir = join(pluginsDir, 'runtime-consumer')
     await mkdir(providerDir, { recursive: true })
@@ -1464,12 +1471,19 @@ describe('setupExtensionHost', () => {
     await invokeSetEnabled({ extensionId: 'runtime-provider', enabled: true })
     await invokeSetEnabled({ extensionId: 'runtime-consumer', enabled: true })
     await invokeLoadEnabled()
+    const consumer = service.host.listSessions().find(session => session.extension.id === 'runtime-consumer')!
+    expect(consumer.phase).toBe('ready')
     const stopSpy = vi.spyOn(service.host, 'stop')
 
-    await expect(
-      invokeUnload({ extensionId: 'runtime-provider' }),
-    ).rejects.toThrow('requires missing Kit "dev.airi.runtime"')
-    expect(stopSpy).not.toHaveBeenCalled()
+    await invokeUnload({ extensionId: 'runtime-provider' })
+    expect(stopSpy).toHaveBeenCalledTimes(1)
+    // The Consumer loses its required Kit. It stops its setup and waits in `pending` without an unload.
+    expect(consumer.phase).toBe('pending')
+    expect(consumer.explanation).toContain('`kit:dev.airi.runtime#^1.0.0` is pending.')
+    expect(consumer.explanation).toContain('No provider of Kit `dev.airi.runtime` is installed.')
+
+    await invokeLoadEnabled()
+    await vi.waitFor(() => expect(consumer.phase).toBe('ready'))
   })
 
   it('retries runtime cleanup when unloading a cleanup-pending Extension', async () => {
@@ -1855,7 +1869,7 @@ describe('setupExtensionHost', () => {
     }))
   })
 
-  it('skips required Consumers after Provider setup fails and continues independent branches', async () => {
+  it('keeps a required Consumer pending after its Provider setup fails, and continues independent branches', async () => {
     const providerDir = join(pluginsDir, 'failing-provider')
     const consumerDir = join(pluginsDir, 'dependent-consumer')
     const independentDir = join(pluginsDir, 'independent-extension')
@@ -1902,14 +1916,20 @@ describe('setupExtensionHost', () => {
 
     const snapshot = await invokeLoadEnabled()
 
+    // The Consumer starts and waits for the Kit. It runs no setup until a provider commits.
     expect(snapshot.plugins).toEqual(expect.arrayContaining([
       expect.objectContaining({ extensionId: 'failing-provider', loaded: false }),
-      expect.objectContaining({ extensionId: 'dependent-consumer', loaded: false }),
+      expect.objectContaining({ extensionId: 'dependent-consumer', loaded: true }),
       expect.objectContaining({ extensionId: 'independent-extension', loaded: true }),
+    ]))
+    const inspected = await defineInvoke(contextState.lastContext!, electronPluginInspect)()
+    expect(inspected.sessions).toEqual(expect.arrayContaining([
+      expect.objectContaining({ extensionId: 'dependent-consumer', phase: 'pending' }),
+      expect.objectContaining({ extensionId: 'independent-extension', phase: 'ready' }),
     ]))
   })
 
-  it('keeps enabled intent without starting a required Consumer when Provider registration is missing', async () => {
+  it('keeps enabled intent and a pending Consumer when Provider registration is missing', async () => {
     const providerDir = join(pluginsDir, 'missing-registration-provider')
     const consumerDir = join(pluginsDir, 'missing-registration-consumer')
     await mkdir(providerDir, { recursive: true })
@@ -1936,9 +1956,10 @@ describe('setupExtensionHost', () => {
 
     expect(snapshot.plugins).toEqual(expect.arrayContaining([
       expect.objectContaining({ extensionId: 'missing-registration-provider', enabled: true, loaded: false }),
-      expect.objectContaining({ extensionId: 'missing-registration-consumer', enabled: true, loaded: false }),
+      expect.objectContaining({ extensionId: 'missing-registration-consumer', enabled: true, loaded: true }),
     ]))
     expect(service.host.getKitProvider('dev.airi.missing-registration')).toBeUndefined()
+    expect(service.host.listSessions().find(session => session.extension.id === 'missing-registration-consumer')?.phase).toBe('pending')
   })
 
   it('emits a plugin tools changed event after loading an extension through IPC', async () => {
@@ -2116,7 +2137,7 @@ describe('setupExtensionHost', () => {
     await invokeUnload({ extensionId: 'test-auto-reload-reload' })
   })
 
-  it('reloads a Provider after its required Consumer stops', async () => {
+  it('reloads a Provider while its Consumer keeps its session and waits for the new Provider', async () => {
     const providerDir = join(pluginsDir, 'reload-provider')
     const consumerDir = join(pluginsDir, 'reload-consumer')
     await mkdir(providerDir, { recursive: true })
@@ -2156,7 +2177,7 @@ describe('setupExtensionHost', () => {
     await invokeSetAutoReload({ extensionId: 'reload-provider', enabled: true })
 
     const before = await invokeInspect()
-    const oldGeneration = service.host.getKitProvider('dev.airi.reload-order')?.generation
+    const oldInstanceId = service.host.getKitProvider('dev.airi.reload-order')?.instanceId
     const oldSessionIdByExtensionId = new Map(
       before.sessions.map(session => [session.extensionId, session.id]),
     )
@@ -2182,21 +2203,20 @@ describe('setupExtensionHost', () => {
         providerSessionId
         && consumerSessionId
         && providerSessionId !== oldSessionIdByExtensionId.get('reload-provider')
-        && consumerSessionId !== oldSessionIdByExtensionId.get('reload-consumer')
+        && after.sessions.find(session => session.extensionId === 'reload-consumer')?.phase === 'ready'
       ) {
         break
       }
     }
 
-    expect(stopSpy.mock.calls.map(([sessionId]) => extensionIdByOldSessionId.get(sessionId))).toEqual([
-      'reload-consumer',
-      'reload-provider',
-    ])
-    expect(startSpy.mock.calls.map(([manifest]) => manifest.id)).toEqual([
-      'reload-provider',
-      'reload-consumer',
-    ])
-    expect(service.host.getKitProvider('dev.airi.reload-order')?.generation).toBe((oldGeneration ?? 0) + 1)
+    // Only the Provider restarts. The Consumer loses its Kit, waits in `pending`, and runs setup again when the new Provider commits.
+    expect(stopSpy.mock.calls.map(([sessionId]) => extensionIdByOldSessionId.get(sessionId))).toEqual(['reload-provider'])
+    expect(startSpy.mock.calls.map(([manifest]) => manifest.id)).toEqual(['reload-provider'])
+    expect(after.sessions.find(session => session.extensionId === 'reload-consumer')).toMatchObject({
+      id: oldSessionIdByExtensionId.get('reload-consumer'),
+      phase: 'ready',
+    })
+    expect(service.host.getKitProvider('dev.airi.reload-order')?.instanceId).not.toBe(oldInstanceId)
 
     await invokeSetAutoReload({ extensionId: 'reload-provider', enabled: false })
     await invokeSetEnabled({ extensionId: 'reload-consumer', enabled: false })
@@ -2205,7 +2225,7 @@ describe('setupExtensionHost', () => {
     await invokeUnload({ extensionId: 'reload-provider' })
   })
 
-  it('continues a Provider reload after its Consumer stop fails', async () => {
+  it('skips the restart of a Provider whose stop fails, and keeps its Consumer session', async () => {
     const providerDir = join(pluginsDir, 'failure-reload-provider')
     const consumerDir = join(pluginsDir, 'failure-reload-consumer')
     await mkdir(providerDir, { recursive: true })
@@ -2248,7 +2268,7 @@ describe('setupExtensionHost', () => {
       before.sessions.map(session => [session.id, session.extensionId]),
     )
     const stopSpy = vi.spyOn(service.host, 'stop')
-    stopSpy.mockRejectedValueOnce(new Error('Consumer stop failed.'))
+    stopSpy.mockRejectedValueOnce(new Error('Provider stop failed.'))
     const startSpy = vi.spyOn(service.host, 'start')
 
     await writeFile(
@@ -2257,14 +2277,13 @@ describe('setupExtensionHost', () => {
     )
 
     await vi.waitFor(() => {
-      expect(stopSpy).toHaveBeenCalledTimes(2)
-      expect(startSpy).toHaveBeenCalledOnce()
+      expect(stopSpy).toHaveBeenCalledOnce()
     }, { timeout: 3000 })
-    expect(stopSpy.mock.calls.map(([sessionId]) => extensionIdByOldSessionId.get(sessionId))).toEqual([
-      'failure-reload-consumer',
-      'failure-reload-provider',
-    ])
-    expect(startSpy.mock.calls[0]?.[0].id).toBe('failure-reload-provider')
+    await new Promise(resolve => setTimeout(resolve, 100))
+    expect(stopSpy.mock.calls.map(([sessionId]) => extensionIdByOldSessionId.get(sessionId))).toEqual(['failure-reload-provider'])
+    // A restart does not start a second session while the first one still owns cleanup.
+    expect(startSpy).not.toHaveBeenCalled()
+    expect(service.host.listSessions().map(session => session.extension.id)).toEqual(expect.arrayContaining(['failure-reload-consumer']))
 
     await invokeSetAutoReload({ extensionId: 'failure-reload-provider', enabled: false })
     await invokeSetEnabled({ extensionId: 'failure-reload-consumer', enabled: false })
@@ -2277,7 +2296,7 @@ describe('setupExtensionHost', () => {
     expect(service.host.listSessions()).toEqual([])
   })
 
-  it('keeps the live session when an auto-reload manifest has an invalid activation plan', async () => {
+  it('reloads into a pending session when an auto-reload manifest adds a missing Kit', async () => {
     const pluginDir = join(pluginsDir, 'test-auto-reload-invalid-plan')
     await mkdir(pluginDir, { recursive: true })
     await writeFile(
@@ -2322,19 +2341,22 @@ describe('setupExtensionHost', () => {
       },
     }, null, 2))
 
-    await vi.waitFor(() => {
-      expect(logMock.error).toHaveBeenCalledWith('extension auto-reload failed')
+    // A Manifest that needs a missing Kit is still valid. The new session waits for the Kit.
+    await vi.waitFor(async () => {
+      const after = await invokeInspect()
+      const session = after.sessions.find(candidate => candidate.extensionId === 'test-auto-reload-invalid-plan')
+      expect(session?.id).not.toBe(beforeSessionId)
+      expect(session?.phase).toBe('pending')
     }, { timeout: 3000 })
+    expect(stopSpy).toHaveBeenCalledOnce()
+    expect(startSpy).toHaveBeenCalledOnce()
     const after = await invokeInspect()
-    const afterSessionId = after.sessions.find(
-      session => session.extensionId === 'test-auto-reload-invalid-plan',
-    )?.id
-    expect(afterSessionId).toBe(beforeSessionId)
-    expect(stopSpy).not.toHaveBeenCalled()
-    expect(startSpy).not.toHaveBeenCalled()
+    expect(after.graph?.explanations).toContainEqual(expect.objectContaining({
+      extensionId: 'test-auto-reload-invalid-plan',
+      lines: expect.arrayContaining([expect.stringContaining('No provider of Kit `dev.airi.missing-after-change` is installed.')]),
+    }))
 
     await invokeSetAutoReload({ extensionId: 'test-auto-reload-invalid-plan', enabled: false })
-    await invokeSetEnabled({ extensionId: 'test-auto-reload-invalid-plan', enabled: false })
     await invokeUnload({ extensionId: 'test-auto-reload-invalid-plan' })
   })
 
@@ -3031,12 +3053,12 @@ describe('setupExtensionHost', () => {
       contents: createEmptyExtensionEntrypoint('test-dynamic-module'),
     })
     const session = await host.start(createDynamicModuleManifest(dynamicEntrypoint), { cwd: pluginsDir })
-    host.registerKit({
+    host.provideKit({ descriptor: {
       kitId: 'kit.web-only',
       version: '1.0.0',
       runtimes: ['web'],
       capabilities: [{ key: 'kit.web-only.module', actions: ['announce'] }],
-    })
+    } })
 
     expect(() => host.bindExtensionKitModule(session.id, {
       moduleId: 'web-only-shell',

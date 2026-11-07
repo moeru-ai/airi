@@ -1,4 +1,4 @@
-# Activation Planner Consumer
+# Kit Dependency Consumer
 
 This example requires `dev.airi.example-activation` with the version range `^1.0.0`.
 
@@ -7,10 +7,7 @@ Use it with the `activation-planner-provider` example:
 1. Open `/devtools/plugin-host` in Stage Tamagotchi.
 2. Import the Provider folder next to this folder.
 3. Import this folder.
-4. Enable the Provider.
-5. Enable this Consumer.
-6. Load the enabled Extensions.
+4. Enable this Consumer, then load the enabled Extensions. The Consumer waits in `pending`. The inspector graph says that no provider of the Kit is installed.
+5. Enable the Provider, then load the enabled Extensions again. The Consumer starts by itself.
 
-The Host loads the Provider before this Consumer. When the system stops, the Host stops this Consumer before the Provider.
-
-This example does not call a runtime Kit. Its `kits.uses` entry creates a static dependency for the Activation Planner. Consumer Client lookup belongs to Phase 4.
+The `kits.uses` entry is a required dependency of the session. The Host runs setup only when a provider of the Kit is available.

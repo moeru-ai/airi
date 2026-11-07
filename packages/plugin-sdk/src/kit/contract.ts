@@ -138,8 +138,17 @@ export interface KitProvider<TContract extends KitContract> {
   }
 }
 
+/** The status that a provider reports for its Kit. */
+export type KitProviderStatus = 'ready' | 'degraded' | 'unavailable'
+
 /** Withdraws this exact registration. Stale handles cannot withdraw a replacement. */
-export interface KitProviderHandle extends Disposable {}
+export interface KitProviderHandle extends Disposable {
+  /**
+   * Reports the status of the provided Kit, for example `unavailable` while a backend reconnects.
+   * Consumers of an `unavailable` Kit move to the next provider when they have one. A report before the commit has no effect.
+   */
+  setStatus: (status: KitProviderStatus, options?: { reason?: string, cause?: { key: string, status: KitProviderStatus, reason?: string } }) => void
+}
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {

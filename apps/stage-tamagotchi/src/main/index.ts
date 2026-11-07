@@ -264,6 +264,8 @@ app.whenReady().then(async () => {
   })
 
   injeca.setLogger(createLoggLogger(useLogg('injeca').useGlobalConfig()))
+  // The main process log and the log file keep the injeca lifecycle trace of the app services.
+  injeca.getContainer().logging = true
 
   const appConfig = injeca.provide('configs:app', () => createGlobalAppConfig())
   const artistryConfig = injeca.provide('configs:artistry', () => createArtistryConfig())

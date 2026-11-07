@@ -44,12 +44,14 @@
     "@moeru/eventa": "catalog:",
     "@moeru/std": "catalog:",
     "@proj-airi/plugin-protocol": "workspace:*",
+    "injeca": "catalog:",
     "nanoid": "catalog:",
     "semver": "catalog:",
     "valibot": "catalog:"
   },
   "devDependencies": {
     "@types/semver": "catalog:",
-    "es-toolkit": "catalog:"
+    "es-toolkit": "catalog:",
+    "tsx": "catalog:"
   }
 }

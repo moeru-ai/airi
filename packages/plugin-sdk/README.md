@@ -61,23 +61,99 @@ export default defineExtension({
 })
 ```
 
-The Host reserves every declared Kit before setup starts. It publishes all registrations only after setup succeeds. If setup fails or omits a declared Kit, the Host rolls back the registrations. Stop and reload withdraw the exact Provider session. A stale handle cannot withdraw a later generation.
+The Host declares every provided Kit in an injeca transaction before setup starts. It publishes all of them only after setup succeeds. If setup fails, omits a declared Kit, or withdraws one before the commit, the Host aborts the transaction. A stale handle cannot withdraw the Kit of a newer session.
 
-Stop also releases reservations while setup is pending. It does not wait for suspended Extension code. A stopped setup rejects when it settles and cannot publish Providers or register modules.
+Stop disposes the session container. It aborts a setup that is in progress and does not wait for it. A stopped setup cannot provide Kits or register modules, and `start` rejects with `stopped before setup completed`.
 
-Cleanup attempts every module and root subscription even when a disposer fails. Each subscription group runs sequentially in reverse registration order, without automatic retries.
+Stop withdraws the provided Kits first, so consumers stop or move before the cleanup callbacks run. Cleanup attempts every module and root subscription even when a disposer fails. One failure keeps its identity. More failures use `AggregateError`. Concurrent stops share one result.
 
-The Host removes the session after these attempts. One failure retains its original identity. Multiple failures use `AggregateError`, with nested groups preserved.
+Each cleanup that the Host runs gets `{ signal }`: a `subscriptions.add({ dispose })` callback, a module `dispose`, and an `effect` cleanup. The signal aborts when the stop timeout passes.
 
-Node/Electron Hosts reject stop or reload from the target session's active cleanup chain, including calls after `await`.
-Nested cleanup cannot wait for an active ancestor session. External concurrent callers still await the complete cleanup result.
-The Host loads Node asynchronous context only when its configured runtime is `node` or `electron`. Web Hosts do not provide this detection.
+```ts
+ctx.subscriptions.add({
+  dispose: async ({ signal } = {}) => {
+    await flush()
+    await ctx.self.stop({ signal }) // resolves at once, and the stop continues
+  },
+})
+```
 
-Only root setup can provide a Kit. Module scopes can consume Host-provided Kits, but they cannot provide an Extension-hosted Kit. Phase 3 stores Provider handlers without invoking them. Consumer Clients, method calls, events, permissions, and transport belong to Phase 4.
+A cleanup that stops its own session passes its signal. Plugin code calls `ctx.self.stop({ signal })`. Host code in an injeca cleanup calls `host.stop(id, { signal })`. injeca then warns, sends a `reentrant-call` record, and resolves the call at once. The stop continues. The Kit withdraw of the stop also gets the signal.
+
+A call after an `await` without the signal waits for its own cleanup. The configured stop timeout ends that wait. injeca then writes a warning and sends a `timeout` record, and each caller resolves. The cleanup goes on in the background.
+
+The Host container uses the logger of its parent container. injeca always writes its warnings there. It writes the lifecycle logs only when the parent container has `logging: true`.
+
+Only root setup can provide a Kit. Module scopes can consume Kits, but they cannot provide one.
 
 Load the [registration example](../../apps/stage-tamagotchi/src/main/services/airi/plugins/examples/hosted-kit-provider/README.md) through the Extension Host Inspector.
 
 The manifest owns the Extension version for the Host session. `defineExtension(...)` must use the same Extension id.
+
+## Plugin Host on injeca
+
+The Host is one injeca container.
+
+```text
+plugin-host container
+├─ kit:<id>@host          a Host Kit. Its value connects a client for each caller.
+├─ kit:<id>#<range>       the selection of a Kit for one version range, perConsumer: one client for each consumer scope
+├─ capability:<key>       a Host capability
+└─ plugin container       one for each session, owner { kind: 'plugin', pluginId, sessionId }
+   ├─ package, compat     Manifest and engine checks
+   ├─ runtime             the plugin runtime from the runner (direct or worker)
+   ├─ session             setup. It depends on runtime and on each used Kit.
+   ├─ module:<id>         a dynamic module from ctx.modules.upsert()
+   └─ kit:<id>@<plugin>   an exported proxy for each provided Kit
+```
+
+- A Kit has a provider key for each provider, so two providers of one Kit do not conflict. `kitProviderOrder` sets the order of the selection. The Host Kit comes first by default.
+- Each version range in use has its own selection. It selects the first available provider with a version in the range.
+- A consumer that is installed before its provider waits in `pending`. `session.explanation` tells why, for example `No provider of Kit airi.fs-store is installed.` It starts when the provider commits.
+- `reload(id)` stops the old session, then starts a new one. `reload(id, { atomic: true })` starts the new session first, so the consumers of its Kits move without a gap.
+
+### Typed Kit references
+
+A plugin passes the contract or the Kit reference itself. The type follows the reference. A plugin never sees injeca keys or containers.
+
+```ts
+export default defineExtension({
+  id: 'plugin-a',
+  async setup(ctx) {
+    const fsStore = ctx.kits.get(fsStoreKit) // a dependency from `kits.uses`
+    const memory = ctx.kits.get(optional(autoMemoryKit)) // `undefined` when no provider runs
+    const later = await ctx.kits.use(otherKit) // not a dependency: the round ends, and the session rebuilds with it
+    ctx.kits.find({ id: 'airi.memory-backend' }) // the providers that the plugin can see
+    ctx.extensions.find('plugin-b')
+    ctx.effect(() => startWatcher()) // cleaned when the round ends
+    await ctx.modules.upsert('notes', { kits: [fsStoreKit], setup: m => startNotes(m.kits.get(fsStoreKit)) })
+  },
+})
+```
+
+- `has`, `get`, and `find` are synchronous. The Host resolves the dependencies before setup starts.
+- `ctx.self.rebuild({ uses })` replaces the dynamic dependencies. During setup, the current round ends. After setup, the old round serves until the new one runs. After 5 rebuilds in a row that add Kits, the session fails.
+- `ctx.self.stop({ signal })` stops the session. From a cleanup of the session, pass the `signal` of the cleanup. Then the call resolves at once, and the stop continues.
+- Setup must be safe to run again. Register side effects with `ctx.effect()` or `ctx.subscriptions`.
+- A Kit that is not in `kits.uses` needs an API grant, or `permissions.kits.dynamic` with an optional `allow` list. The Host asks `kitGrantPolicy` once and stores the answer. The check runs when the per-consumer client builds.
+
+### Runners and the worker bridge
+
+`createDirectRunner()` runs plugin code in the Host thread. It is the default. `createWorkerRunner()` from the Node entry runs each plugin in a `worker_threads` Worker and talks to it over an eventa channel. The bridge is a first version. It moves to `@injeca/bridge` later.
+
+- The Host calls `startRound`, `abortRound`, `stopRound`, `startModule`, and `invokeProvider` (with the caller identity that the Host injects).
+- The plugin calls `provide` (announce), `setStatus` (from `handle.setStatus()` of a provided Kit), `callKit`, `useKit`, `rebuild`, `upsertModule`, and `stopSession`.
+- A signal cannot cross the worker boundary. `stopRound` and `stopModule` carry a cleanup run id. The plugin side makes a signal for the id, and `ctx.self.stop({ signal })` sends the id back. `abortCleanup` aborts that signal when the Host signal aborts.
+- A function in an argument or a result crosses as a callback, for example a harness hook listener. `callback.release` removes it.
+- A worker exit sets the `runtime` node to `unavailable`, so the Kits of the plugin are `unavailable`, and selections move to the next provider.
+
+### Harness hooks
+
+`createHarnessKit()` is a reference `airi.harness` Kit. `hooks.on(event, handler, { priority })` registers the listener with injeca `listen` on the plugin container, so it goes away with the plugin. `runHarnessHooks(host.container, event, context)` runs the listeners in priority order with a timeout.
+
+### Scenarios
+
+[`examples/README.md`](./examples/README.md) runs five plugin scenarios in workers and prints their injeca timeline.
 
 ## Kit API Naming
 

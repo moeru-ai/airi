@@ -1,13 +1,20 @@
+import type { Logger, ObserveRecord } from 'injeca'
+
+import type { ExtensionModuleContext, ExtensionSelf, ExtensionSetupContext } from '../extension'
+import type { ExtensionSession } from './session'
 import type { ExtensionManifestV2, ModulePermissionDeclaration } from './shared/types'
 
 import { join } from 'node:path'
 
+import { createContainer, createNoopLogger, observe, provide, waitFor } from 'injeca'
+import { drained, manualClock } from 'injeca/testing'
 import { safeParse } from 'valibot'
 import { describe, expect, it, vi } from 'vitest'
 
-import { ExtensionHost, extensionManifestV2Schema, FileSystemLoader } from '.'
+import { ExtensionHost, extensionManifestV2Schema, FileSystemLoader, kitProviderKey, moduleNodeKey, pluginNodeKeys } from '.'
 import { defineExtension } from '../extension'
 import { defineKit, defineKitContract, defineKitMethod } from '../kit'
+import { ExtensionHost as NodeExtensionHost } from './runtimes/node'
 
 describe('extension manifest schema', () => {
   it('accepts extension.airi.json v2 manifests', () => {
@@ -411,6 +418,27 @@ describe('extension manifest schema', () => {
   })
 })
 
+/**
+ * Creates a Node Host on a manual clock with a stop timeout of 1 second.
+ * It keeps the injeca warnings, and the `timeout` and `reentrant-call` records of the Host container.
+ *
+ * @example
+ * const { host, time, warnings } = hostOnManualClock()
+ * time.advance(1_000) // runs the stop timeout
+ */
+function hostOnManualClock() {
+  const time = manualClock()
+  const warnings: string[] = []
+  const logger: Logger = { ...createNoopLogger(), warn: message => warnings.push(message) }
+  const host = new NodeExtensionHost({ container: createContainer({ clock: time.clock, logger }), timeouts: { stop: 1_000 } })
+  const records: ObserveRecord[] = []
+  observe(host.container, (record) => {
+    if (record.type === 'timeout' || record.type === 'reentrant-call')
+      records.push(record)
+  })
+  return { host, time, warnings, records }
+}
+
 describe('extension-hosted Kit registration lifecycle', () => {
   const contract = defineKitContract({
     id: 'kit.hosted-lifecycle',
@@ -448,29 +476,35 @@ describe('extension-hosted Kit registration lifecycle', () => {
     })
 
     const session = await host.startExtension(extension, { manifest: manifest(extension.id) })
-    expect(host.getKitProvider(contract.id)).toMatchObject({ generation: 1, owner: { sessionId: session.id } })
+    expect(host.getKitProvider(contract.id)).toMatchObject({ instanceId: expect.any(String), owner: { kind: 'extension', sessionId: session.id } })
     await expect(host.stop(session.id)).rejects.toBe(cleanupError)
     expect(host.getKitProvider(contract.id)).toBeUndefined()
   })
 
   // https://github.com/moeru-ai/airi/pull/2687
-  it('releases pending slots on stop and rejects late setup publication (PR #2687)', async () => {
+  it('releases a setup on stop without waiting for it, and rejects late setup publication (PR #2687)', async () => {
     // ROOT CAUSE:
     //
     // Stop owned only committed leases, so an async setup retained its pending transaction.
     // The old setup then published after stop or blocked a replacement session.
-    // Session lifecycle state now owns the transaction until commit and releases it on stop.
+    // The setup transaction now aborts with the start hook signal, and stop does not wait for the setup.
     const host = new ExtensionHost()
     const entered = Promise.withResolvers<void>()
     const resume = Promise.withResolvers<void>()
     const dispose = vi.fn()
+    let lateProvide: unknown
     const starting = host.startExtension(defineExtension({
       id: 'provider-one',
       async setup(ctx) {
-        ctx.kits.provide(contract, { methods: { read: () => 'old' } })
         ctx.subscriptions.add({ dispose })
         entered.resolve()
         await resume.promise
+        try {
+          ctx.kits.provide(contract, { methods: { read: () => 'old' } })
+        }
+        catch (error) {
+          lateProvide = error
+        }
       },
     }), { manifest: manifest('provider-one') })
     const result = starting.catch((error: unknown) => error)
@@ -478,39 +512,41 @@ describe('extension-hosted Kit registration lifecycle', () => {
     const [pending] = host.listSessions()
     expect(pending.phase).toBe('setting-up')
 
-    const stopping = host.stop(pending.id)
+    await host.stop(pending.id)
+    expect(await result).toMatchObject({ message: expect.stringContaining('stopped before setup completed') })
     const replacement = await host.startExtension(defineExtension({
       id: 'provider-two',
       setup(ctx) {
         ctx.kits.provide(contract, { methods: { read: () => 'new' } })
       },
     }), { manifest: manifest('provider-two') })
-    await stopping
     resume.resolve()
-    expect(await result).toMatchObject({ message: expect.stringContaining('stopped before setup completed') })
+    await vi.waitFor(() => expect(lateProvide).toMatchObject({ code: 'provide-after-setup' }))
 
     expect(pending.phase).toBe('stopped')
     expect(dispose).toHaveBeenCalledTimes(1)
     expect(host.listSessions()).toEqual([replacement])
-    expect(host.getKitProvider(contract.id)).toMatchObject({ generation: 1, owner: { sessionId: replacement.id } })
+    expect(host.getKitProvider(contract.id)).toMatchObject({ owner: { sessionId: replacement.id } })
   })
 
   // https://github.com/moeru-ai/airi/pull/2687
   // ROOT CAUSE:
   //
   // Stop released only committed Providers, so suspended setup retained its transaction and module registration access.
-  // The released lifecycle now rolls back pending ownership and rejects late registration.
+  // The stopped round now rejects late provide and module registration.
   it('cancels an unfilled setup and rejects late provide and module registration (PR #2687)', async () => {
     const host = new ExtensionHost()
     const entered = Promise.withResolvers<void>()
     const resume = Promise.withResolvers<void>()
+    const late = Promise.withResolvers<void>()
     const starting = host.startExtension(defineExtension({
       id: 'provider-one',
       async setup(ctx) {
         entered.resolve()
         await resume.promise
-        expect(() => ctx.kits.provide(contract, { methods: { read: () => 'late' } })).toThrow()
+        expect(() => ctx.kits.provide(contract, { methods: { read: () => 'late' } })).toThrow('provide-after-setup')
         await expect(ctx.modules.register({ id: 'late-module' })).rejects.toThrow('stopped')
+        late.resolve()
       },
     }), { manifest: manifest('provider-one') })
     const result = starting.catch((error: unknown) => error)
@@ -519,6 +555,7 @@ describe('extension-hosted Kit registration lifecycle', () => {
     await host.stop(pending.id)
     resume.resolve()
     expect(await result).toMatchObject({ message: expect.stringContaining('stopped before setup completed') })
+    await late.promise
 
     expect(host.listSessions()).toEqual([])
     expect(host.listModules()).toEqual([])
@@ -529,21 +566,20 @@ describe('extension-hosted Kit registration lifecycle', () => {
         ctx.kits.provide(contract, { methods: { read: () => 'new' } })
       },
     }), { manifest: manifest('provider-two') })
-    expect(host.getKitProvider(contract.id)).toMatchObject({ generation: 1, owner: { sessionId: replacement.id } })
+    expect(host.getKitProvider(contract.id)).toMatchObject({ owner: { sessionId: replacement.id } })
   })
 
   // https://github.com/moeru-ai/airi/pull/2687
   // ROOT CAUSE:
   //
-  // Repeated cleanup returned early after disposal started, so late setup failure lost the pending stop's cleanup error.
-  // A shared cleanup promise now preserves that error for every lifecycle caller.
-  it('shares in-flight stop cleanup with late setup failure (PR #2687)', async () => {
+  // Repeated cleanup returned early after disposal started, so a concurrent caller lost the cleanup error.
+  // Concurrent stops now share one container disposal and its errors. A setup failure after stop is ignored.
+  it('shares in-flight stop cleanup between callers and ignores a late setup failure (PR #2687)', async () => {
     const host = new ExtensionHost()
     const entered = Promise.withResolvers<void>()
     const resume = Promise.withResolvers<void>()
     const cleaning = Promise.withResolvers<void>()
     const finishCleanup = Promise.withResolvers<void>()
-    const setupError = new Error('late setup failure')
     const cleanupError = new Error('stop cleanup failure')
     const dispose = vi.fn(async () => {
       cleaning.resolve()
@@ -553,11 +589,10 @@ describe('extension-hosted Kit registration lifecycle', () => {
     const starting = host.startExtension(defineExtension({
       id: 'provider-one',
       async setup(ctx) {
-        ctx.kits.provide(contract, { methods: { read: () => 'old' } })
         ctx.subscriptions.add({ dispose })
         entered.resolve()
         await resume.promise
-        throw setupError
+        throw new Error('late setup failure')
       },
     }), { manifest: manifest('provider-one') })
     const result = starting.catch((error: unknown) => error)
@@ -568,7 +603,7 @@ describe('extension-hosted Kit registration lifecycle', () => {
     await cleaning.promise
     resume.resolve()
     finishCleanup.resolve()
-    expect(await result).toMatchObject({ errors: [setupError, cleanupError], cause: setupError })
+    expect(await result).toMatchObject({ message: expect.stringContaining('stopped before setup completed') })
     expect(await stopping).toBe(cleanupError)
     expect(await stoppingAgain).toBe(cleanupError)
 
@@ -596,25 +631,35 @@ describe('extension-hosted Kit registration lifecycle', () => {
     }), { manifest: manifest('provider-two') })).rejects.toThrow('missing-declared-kit')
     expect(host.getKitProvider(contract.id)).toBeUndefined()
 
-    await host.startExtension(defineExtension({
+    await expect(host.startExtension(defineExtension({
+      id: 'provider-withdrawn',
+      async setup(ctx) {
+        // A provide that setup withdraws before the commit leaves the declaration unfilled.
+        await ctx.kits.provide(contract, { methods: { read: () => 'ready' } }).dispose()
+      },
+    }), { manifest: manifest('provider-withdrawn') })).rejects.toThrow('missing-declared-kit')
+
+    const session = await host.startExtension(defineExtension({
       id: 'provider-three',
       setup(ctx) {
         ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
       },
     }), { manifest: manifest('provider-three') })
-    expect(host.getKitProvider(contract.id)?.generation).toBe(1)
+    expect(host.getKitProvider(contract.id)?.owner).toMatchObject({ sessionId: session.id })
   })
 
   // https://github.com/moeru-ai/airi/pull/2687
   // ROOT CAUSE:
   //
   // Stop joined the cleanup promise that awaited its own disposer, including after await.
-  // Node asynchronous context now rejects self-waits while external callers retain the shared outcome.
-  it('rejects self-stop across an await while external stops share completed cleanup (PR #2687)', async () => {
-    const host = new ExtensionHost()
+  // A self-stop without a signal after an `await` waits for itself until the stop timeout.
+  // Then injeca warns, and every caller resolves. The later cleanup still runs.
+  it('resolves a self-stop without a signal after the stop timeout, with a warning, while external stops share the outcome (PR #2687)', async () => {
+    const { host, time, warnings, records } = hostOnManualClock()
     const entered = Promise.withResolvers<void>()
     const resume = Promise.withResolvers<void>()
     const remaining = vi.fn()
+    let selfStop: Promise<ExtensionSession | undefined> | undefined
     const session = await host.startExtension(defineExtension({
       id: 'self-stop',
       setup(ctx) {
@@ -623,29 +668,33 @@ describe('extension-hosted Kit registration lifecycle', () => {
         ctx.subscriptions.add({ dispose: async () => {
           entered.resolve()
           await resume.promise
-          await host.stop(session.id)
+          selfStop = host.stop(session.id)
+          await selfStop
         } })
       },
     }), { manifest: manifest('self-stop') })
 
-    const stopping = host.stop(session.id).catch((error: unknown) => error)
+    const stopping = host.stop(session.id)
     await entered.promise
-    const stoppingAgain = host.stop(session.id).catch((error: unknown) => error)
-    const reloading = host.reload(session.id).catch((error: unknown) => error)
+    const stoppingAgain = host.stop(session.id)
     let externalFinished = false
     void stoppingAgain.then(() => {
       externalFinished = true
     })
-    await Promise.resolve()
+    resume.resolve()
+    await vi.waitFor(() => expect(selfStop).toBeDefined())
+    await drained(host.container)
     expect(externalFinished).toBe(false)
     expect(remaining).not.toHaveBeenCalled()
-    resume.resolve()
 
-    const failure = await stopping
-    expect(failure).toBeInstanceOf(Error)
-    expect(failure).toHaveProperty('message', expect.stringContaining('from its own cleanup'))
-    expect(await stoppingAgain).toBe(failure)
-    expect(await reloading).toBe(failure)
+    time.advance(1_000)
+    expect(await stopping).toBe(session)
+    expect(await stoppingAgain).toBe(session)
+    expect(await selfStop).toBe(session)
+    expect(records).toHaveLength(1)
+    expect(records[0]).toMatchObject({ type: 'timeout', hook: 'stop', key: pluginNodeKeys.session, timeoutMs: 1_000 })
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0]).toContain('It must pass its signal to stop() or dispose().')
     expect(remaining).toHaveBeenCalledTimes(1)
     expect(host.listSessions()).toEqual([])
     expect(host.getKitProvider(contract.id)).toBeUndefined()
@@ -654,36 +703,13 @@ describe('extension-hosted Kit registration lifecycle', () => {
   // https://github.com/moeru-ai/airi/pull/2687
   // ROOT CAUSE:
   //
-  // Direct self-stop returned the pending cleanup promise while the disposer remained pending.
-  // Cleanup context now rejects the join, and best-effort disposal continues.
-  it('rejects synchronous self-stop without skipping later cleanup (PR #2687)', async () => {
-    const host = new ExtensionHost({ runtime: 'node' })
-    const remaining = vi.fn()
-    const session = await host.startExtension(defineExtension({
-      id: 'self-stop-sync',
-      setup(ctx) {
-        ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
-        ctx.subscriptions.add({ dispose: remaining })
-        ctx.subscriptions.add({ dispose: async () => {
-          await host.stop(session.id)
-        } })
-      },
-    }), { manifest: { ...manifest('self-stop-sync'), engines: { airi: '*', runtimes: ['node'] } } })
-
-    await expect(host.stop(session.id)).rejects.toThrow('from its own cleanup')
-    expect(remaining).toHaveBeenCalledTimes(1)
-    expect(host.listSessions()).toEqual([])
-  })
-
-  // https://github.com/moeru-ai/airi/pull/2687
-  // ROOT CAUSE:
-  //
   // Reload joined the same session cleanup from inside a module disposer and never reached fresh start.
-  // The shared cleanup join now rejects calls from that session's active cleanup chain.
-  it('rejects module self-reload after an await without starting a replacement (PR #2687)', async () => {
-    const host = new ExtensionHost()
-    const start = vi.spyOn(host, 'start')
+  // Without a signal, the reload waits for its own cleanup until the stop timeout.
+  // Then injeca warns, the stop resolves, and the reload starts a fresh session.
+  it('resolves a module self-reload without a signal after the stop timeout, with a warning (PR #2687)', async () => {
+    const { host, time, warnings, records } = hostOnManualClock()
     const remaining = vi.fn()
+    let selfReload: Promise<ExtensionSession> | undefined
     const session = await host.startExtension(defineExtension({
       id: 'self-reload',
       async setup(ctx) {
@@ -692,50 +718,204 @@ describe('extension-hosted Kit registration lifecycle', () => {
         const module = await ctx.modules.register({ id: 'module-one' })
         module.subscriptions.add({ dispose: async () => {
           await Promise.resolve()
-          await host.reload(session.id)
+          // Only the first session reloads. The fresh session must not reload again when the test disposes it.
+          selfReload ??= host.reload(session.id)
+          await selfReload
         } })
       },
     }), { manifest: manifest('self-reload') })
 
-    await expect(host.stop(session.id)).rejects.toThrow('from its own cleanup')
-    expect(start).not.toHaveBeenCalled()
-    expect(remaining).toHaveBeenCalledTimes(1)
+    const stopping = host.stop(session.id)
+    let reloadFinished = false
+    await vi.waitFor(() => expect(selfReload).toBeDefined())
+    void selfReload!.then(() => {
+      reloadFinished = true
+    })
+    await drained(host.container)
+    expect(reloadFinished).toBe(false)
+
+    time.advance(1_000)
+    expect(await stopping).toBe(session)
+    const fresh = await selfReload!
+    expect(fresh.id).not.toBe(session.id)
+    expect(fresh.phase).toBe('ready')
+    expect(records).toHaveLength(1)
+    expect(records[0]).toMatchObject({ type: 'timeout', hook: 'stop', key: pluginNodeKeys.session, timeoutMs: 1_000 })
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0]).toContain('It must pass its signal to stop() or dispose().')
+    // The abandoned cleanup goes on in the background after the timeout.
+    await vi.waitFor(() => expect(remaining).toHaveBeenCalledTimes(1))
     expect(session.modules.size).toBe(0)
+    expect(host.listSessions().map(listed => listed.id)).toEqual([fresh.id])
+    await host.dispose()
+  })
+
+  // A plugin cleanup gets the stop signal of its Host run in `DisposeOptions`. `ctx.self.stop({ signal })` sends the run id back,
+  // so injeca finds the self-wait also after an `await`. The manual clock never moves, so the stop timeout cannot end this cleanup.
+  it('resolves ctx.self.stop({ signal }) from a module cleanup at once while external stops share the outcome', async () => {
+    const { host, records } = hostOnManualClock()
+    const entered = Promise.withResolvers<void>()
+    const resume = Promise.withResolvers<void>()
+    const remaining = vi.fn()
+    let selfStopped = false
+    const session = await host.startExtension(defineExtension({
+      id: 'self-stop-signal',
+      async setup(ctx) {
+        ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
+        ctx.subscriptions.add({ dispose: remaining })
+        const module = await ctx.modules.register({ id: 'module-one' })
+        module.subscriptions.add({ dispose: async (options) => {
+          entered.resolve()
+          await resume.promise
+          await ctx.self.stop({ signal: options?.signal })
+          selfStopped = true
+        } })
+      },
+    }), { manifest: manifest('self-stop-signal') })
+
+    const stopping = host.stop(session.id)
+    await entered.promise
+    const stoppingAgain = host.stop(session.id)
+    resume.resolve()
+
+    expect(await stopping).toBe(session)
+    expect(await stoppingAgain).toBe(session)
+    expect(selfStopped).toBe(true)
+    expect(remaining).toHaveBeenCalledTimes(1)
+    expect(records).toHaveLength(1)
+    expect(records[0]).toMatchObject({ type: 'reentrant-call', call: 'dispose', key: pluginNodeKeys.session, owner: { kind: 'plugin', pluginId: 'self-stop-signal', sessionId: session.id } })
+    expect(host.listSessions()).toEqual([])
+    expect(host.getKitProvider(contract.id)).toBeUndefined()
+  })
+
+  it('resolves ctx.self.stop({ signal }) from a dynamic module cleanup at once', async () => {
+    const { host, records } = hostOnManualClock()
+    const contexts: ExtensionSetupContext[] = []
+    let selfStopped = false
+    const session = await host.startExtension(defineExtension({
+      id: 'self-stop-dynamic',
+      setup(ctx) {
+        contexts.push(ctx)
+      },
+    }), { manifest: { ...manifest('self-stop-dynamic'), kits: undefined } })
+    await contexts[0].modules.upsert('script', {
+      kits: [],
+      setup(module) {
+        module.subscriptions.add({ dispose: async (options) => {
+          await Promise.resolve()
+          await contexts[0].self.stop({ signal: options?.signal })
+          selfStopped = true
+        } })
+      },
+    })
+
+    expect(await host.stop(session.id)).toBe(session)
+    expect(selfStopped).toBe(true)
+    expect(records).toHaveLength(1)
+    expect(records[0]).toMatchObject({ type: 'reentrant-call', call: 'dispose', key: moduleNodeKey('script') })
     expect(host.listSessions()).toEqual([])
   })
 
-  // https://github.com/moeru-ai/airi/pull/2687
-  // ROOT CAUSE:
-  //
-  // A disposer stopped another session whose cleanup then awaited the first session.
-  // Active cleanup ancestors remain visible across nested asynchronous calls, so the cyclic join rejects.
-  it('allows cleanup to stop another session but rejects a wait on an ancestor cleanup (PR #2687)', async () => {
-    const host = new ExtensionHost()
-    const order: string[] = []
-    let secondId: string
-    const first = await host.startExtension(defineExtension({
-      id: 'first-cleanup',
+  // Only the signal of the cleanup tells the Host where the call comes from. A call without it waits for its own cleanup.
+  it('waits for ctx.self.stop() without the cleanup signal until the stop timeout', async () => {
+    const { host, time, warnings, records } = hostOnManualClock()
+    let selfStop: Promise<void> | undefined
+    const session = await host.startExtension(defineExtension({
+      id: 'self-stop-no-signal',
       setup(ctx) {
         ctx.subscriptions.add({ dispose: async () => {
-          order.push('first')
-          await host.stop(secondId)
-        } })
-      },
-    }), { manifest: { ...manifest('first-cleanup'), kits: undefined } })
-    const second = await host.startExtension(defineExtension({
-      id: 'second-cleanup',
-      setup(ctx) {
-        ctx.subscriptions.add({ dispose: async () => {
-          order.push('second')
           await Promise.resolve()
-          await host.stop(first.id)
+          selfStop = ctx.self.stop()
+          await selfStop
         } })
       },
-    }), { manifest: { ...manifest('second-cleanup'), kits: undefined } })
-    secondId = second.id
+    }), { manifest: { ...manifest('self-stop-no-signal'), kits: undefined } })
 
-    await expect(host.stop(first.id)).rejects.toThrow('from its own cleanup')
-    expect(order).toEqual(['first', 'second'])
+    const stopping = host.stop(session.id)
+    await vi.waitFor(() => expect(selfStop).toBeDefined())
+    await drained(host.container)
+    expect(records).toEqual([])
+
+    time.advance(1_000)
+    expect(await stopping).toBe(session)
+    await selfStop
+    expect(records).toHaveLength(1)
+    expect(records[0]).toMatchObject({ type: 'timeout', hook: 'stop', key: pluginNodeKeys.session })
+    expect(warnings).toHaveLength(1)
+  })
+
+  it('aborts the signal of a plugin cleanup when the stop timeout passes', async () => {
+    const { host, time } = hostOnManualClock()
+    const signals: AbortSignal[] = []
+    const session = await host.startExtension(defineExtension({
+      id: 'cleanup-timeout',
+      setup(ctx) {
+        ctx.effect(() => async ({ signal }) => {
+          if (signal)
+            signals.push(signal)
+          await new Promise(() => {})
+        })
+      },
+    }), { manifest: { ...manifest('cleanup-timeout'), kits: undefined } })
+
+    const stopping = host.stop(session.id)
+    await vi.waitFor(() => expect(signals).toHaveLength(1))
+    expect(signals[0].aborted).toBe(false)
+
+    time.advance(1_000)
+    expect(await stopping).toBe(session)
+    await vi.waitFor(() => expect(signals[0].aborted).toBe(true))
+    expect(signals[0].reason).toMatchObject({ name: 'HookTimeoutError', code: 'hook-timeout' })
+  })
+
+  // A Host service that uses a plugin Kit stops before the Kit withdraws. Here its cleanup stops that plugin with its signal.
+  // The Kit withdraw and the disposal of the plugin container wait for that cleanup. injeca resolves each one at once with a `reentrant-call` record.
+  it('resolves the Kit withdraw of a provider stop from the cleanup of a consumer of that Kit', async () => {
+    const { host, records } = hostOnManualClock()
+    const session = await host.startExtension(defineExtension({
+      id: 'provider-reentrant',
+      setup(ctx) {
+        ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
+      },
+    }), { manifest: manifest('provider-reentrant') })
+    let innerStop: Promise<unknown> | undefined
+    const consumer = provide(host.container, 'host:consumer', {
+      dependsOn: { kit: kitProviderKey(contract.id, 'provider-reentrant') },
+      build: ({ on }) => {
+        on('stop', async ({ signal }) => {
+          await Promise.resolve()
+          innerStop = host.stop(session.id, { signal }).catch((error: unknown) => error)
+          await innerStop
+        })
+        return {}
+      },
+    })
+    await waitFor(host.container, 'host:consumer', { status: 'ready' })
+
+    expect(await consumer.withdraw()).toBe(true)
+    expect(await innerStop).toBe(session)
+    expect(session.phase).toBe('stopped')
+    expect(records).toEqual([
+      expect.objectContaining({ type: 'reentrant-call', call: 'withdraw', key: 'host:consumer' }),
+      expect.objectContaining({ type: 'reentrant-call', call: 'dispose', key: 'host:consumer' }),
+    ])
+  })
+
+  it('stops its own session with ctx.self.stop() after setup', async () => {
+    const host = new NodeExtensionHost()
+    const selves: ExtensionSelf[] = []
+    const remaining = vi.fn()
+    const session = await host.startExtension(defineExtension({
+      id: 'self-stop-running',
+      setup(ctx) {
+        selves.push(ctx.self)
+        ctx.subscriptions.add({ dispose: remaining })
+      },
+    }), { manifest: { ...manifest('self-stop-running'), kits: undefined } })
+
+    await selves[0].stop()
+    expect(remaining).toHaveBeenCalledTimes(1)
+    expect(session.phase).toBe('stopped')
     expect(host.listSessions()).toEqual([])
   })
 
@@ -745,7 +925,7 @@ describe('extension-hosted Kit registration lifecycle', () => {
   // A Host-wide flag cannot distinguish valid nested cleanup from self-wait.
   // This companion case requires exact session ancestry and permits independent later operations.
   it('keeps cleanup context isolated from unrelated sessions and later operations (PR #2687)', async () => {
-    const host = new ExtensionHost()
+    const host = new NodeExtensionHost()
     const remaining = vi.fn()
     const second = await host.startExtension(defineExtension({
       id: 'independent-cleanup',
@@ -769,7 +949,7 @@ describe('extension-hosted Kit registration lifecycle', () => {
     await expect(host.stop(first.id)).resolves.toBeUndefined()
   })
 
-  it('preserves shared external cleanup for a Web Host without Node context detection', async () => {
+  it('preserves shared external cleanup for a Web Host', async () => {
     const host = new ExtensionHost({ runtime: 'web' })
     const entered = Promise.withResolvers<void>()
     const resume = Promise.withResolvers<void>()
@@ -808,7 +988,7 @@ describe('extension-hosted Kit registration lifecycle', () => {
     const order: string[] = []
     const observe = vi.fn()
     const kit = defineKit({ id: 'kit.cleanup-watch', version: '1.0.0', createClient: () => ({}) })
-    const lease = host.registerKitApi(kit)
+    const registration = host.provideKit({ api: kit })
     const session = await host.startExtension(defineExtension({
       id: 'provider-one',
       async setup(ctx) {
@@ -834,17 +1014,18 @@ describe('extension-hosted Kit registration lifecycle', () => {
       ...manifest('provider-one'),
       permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
     } })
-    expect(observe).toHaveBeenCalledTimes(1)
+    await vi.waitFor(() => expect(observe).toHaveBeenCalledTimes(1))
 
     await expect(host.stop(session.id)).rejects.toBe(cleanupError)
     expect(order).toEqual(['failing-error', 'failing-tail', 'first', 'root'])
     expect(session.modules.size).toBe(0)
     expect(host.listSessions()).toEqual([])
     expect(host.getKitProvider(contract.id)).toBeUndefined()
-    lease.dispose()
-    const replacementLease = host.registerKitApi(kit)
+    await registration.withdraw()
+    const replacement = host.provideKit({ api: kit })
+    await new Promise(resolve => setTimeout(resolve, 20))
     expect(observe).toHaveBeenCalledTimes(1)
-    replacementLease.dispose()
+    await replacement.withdraw()
   })
 
   // https://github.com/moeru-ai/airi/pull/2687
@@ -891,7 +1072,7 @@ describe('extension-hosted Kit registration lifecycle', () => {
     if (!(failure instanceof AggregateError)) {
       throw new Error('Expected all cleanup failures.')
     }
-    expect(failure.errors).toEqual([expect.objectContaining({ errors: [secondError, firstError] }), rootError])
+    expect(failure.errors).toEqual([secondError, firstError, rootError])
     expect(await stoppingAgain).toBe(failure)
     expect(remaining).toHaveBeenCalledTimes(1)
     expect(session.modules.size).toBe(0)
@@ -910,18 +1091,18 @@ describe('extension-hosted Kit registration lifecycle', () => {
     const failing = vi.fn(() => {
       throw cleanupError
     })
+    let module: ExtensionModuleContext | undefined
     const session = await host.startExtension(defineExtension({
       id: 'provider-one',
       async setup(ctx) {
         ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
-        const module = await ctx.modules.register({ id: 'module-one' })
+        module = await ctx.modules.register({ id: 'module-one' })
         module.subscriptions.add({ dispose: remaining })
         module.subscriptions.add({ dispose: failing })
       },
     }), { manifest: manifest('provider-one') })
-    const [module] = session.modules.values()
 
-    await expect(module.dispose()).rejects.toBe(cleanupError)
+    await expect(module!.dispose()).rejects.toBe(cleanupError)
     expect(session.modules.size).toBe(0)
     await host.stop(session.id)
     expect(remaining).toHaveBeenCalledTimes(1)
@@ -959,16 +1140,23 @@ describe('extension-hosted Kit registration lifecycle', () => {
     expect(host.getKitProvider(contract.id)).toBeUndefined()
   })
 
-  it('rejects a Host-owned slot and leaves the Host descriptor intact', async () => {
-    const host = new ExtensionHost()
-    host.registerKit({ kitId: contract.id, version: '1.0.0', runtimes: ['electron'], capabilities: [] })
-    await expect(host.startExtension(defineExtension({
+  it('lets a Host Kit and a plugin provide one Kit id, and selects by the provider order', async () => {
+    // Each provider has its own key (`kit:<id>@host`, `kit:<id>@<plugin>`), so two providers do not conflict.
+    const host = new ExtensionHost({ kitProviderOrder: { [contract.id]: ['provider-one', 'host'] } })
+    host.provideKit({ descriptor: { kitId: contract.id, version: '1.0.0', runtimes: ['electron'], capabilities: [] } })
+    expect(host.getKitProvider(contract.id)?.owner.kind).toBe('host')
+
+    const session = await host.startExtension(defineExtension({
       id: 'provider-one',
       setup(ctx) {
         ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
       },
-    }), { manifest: manifest('provider-one') })).rejects.toThrow('provider-slot-conflict')
+    }), { manifest: manifest('provider-one') })
     expect(host.getKit(contract.id)?.version).toBe('1.0.0')
+    expect(host.getKitProvider(contract.id)?.owner).toMatchObject({ kind: 'extension', sessionId: session.id })
+    expect(host.listKitProviders().map(provider => provider.owner.kind)).toEqual(['host', 'extension'])
+
+    await host.stop(session.id)
     expect(host.getKitProvider(contract.id)?.owner.kind).toBe('host')
   })
 
@@ -988,15 +1176,8 @@ describe('extension-hosted Kit registration lifecycle', () => {
     expect(host.getKitProvider(contract.id)?.owner.kind).toBe('extension')
   })
 
-  // https://github.com/moeru-ai/airi/pull/2687
-  // ROOT CAUSE:
-  //
-  // A Host-wide flag cannot distinguish external reload from a self-wait during cleanup.
-  // This companion case requires external reload to await full cleanup before it starts a new generation.
-  it('awaits concurrent external cleanup before reload and ignores an old handle (PR #2687)', async () => {
+  it('reloads after a full stop, and a stale handle cannot withdraw the new provider', async () => {
     const host = new ExtensionHost()
-    const entered = Promise.withResolvers<void>()
-    const resume = Promise.withResolvers<void>()
     const fixture = await import('./testdata/test-hosted-kit-provider-entrypoint')
     const session = await host.start({
       ...manifest('reload-provider'),
@@ -1004,36 +1185,60 @@ describe('extension-hosted Kit registration lifecycle', () => {
       entrypoints: { electron: join(import.meta.dirname, 'testdata', 'test-hosted-kit-provider-entrypoint.ts') },
     })
     const oldHandle = fixture.providerHandleState.current
-    session.subscriptions.add({ dispose: async () => {
-      entered.resolve()
-      await resume.promise
-    } })
+    const oldProvider = host.getKitProvider(fixture.hostedKitContract.id)
 
-    const stopping = host.stop(session.id)
-    await entered.promise
-    const reloading = host.reload(session.id)
-    expect(host.getKitProvider(fixture.hostedKitContract.id)).toBeUndefined()
-    expect(host.listSessions()).toEqual([session])
-    resume.resolve()
-    expect(await stopping).toBe(session)
-    const next = await reloading
-    oldHandle?.dispose()
+    const next = await host.reload(session.id)
+    await oldHandle?.dispose()
 
     expect(next.id).not.toBe(session.id)
-    expect(host.getKitProvider(fixture.hostedKitContract.id)).toMatchObject({
-      generation: 2,
-      owner: { sessionId: next.id },
+    expect(host.listSessions()).toEqual([next])
+    const provider = host.getKitProvider(fixture.hostedKitContract.id)
+    expect(provider).toMatchObject({ owner: { sessionId: next.id } })
+    expect(provider?.instanceId).not.toBe(oldProvider?.instanceId)
+  })
+
+  it('reloads atomically: the new session runs before the old one stops', async () => {
+    const host = new ExtensionHost()
+    const order: string[] = []
+    let round = 0
+    const extension = defineExtension({
+      id: 'atomic-provider',
+      setup(ctx) {
+        round += 1
+        const current = round
+        order.push(`setup ${current}`)
+        ctx.kits.provide(contract, { methods: { read: () => `round ${current}` } })
+        ctx.subscriptions.add({ dispose: () => {
+          order.push(`cleanup ${current}`)
+        } })
+      },
     })
+    const consumer = await host.startExtension(defineExtension({
+      id: 'atomic-consumer',
+      setup() {},
+    }), { manifest: { ...manifest('atomic-consumer'), kits: { uses: [{ id: contract.id, version: '^1' }] } } })
+    expect(consumer.phase).toBe('pending')
+
+    const session = await host.startExtension(extension, { manifest: manifest(extension.id) })
+    await vi.waitFor(() => expect(host.getSession(consumer.id)?.phase).toBe('ready'))
+    const client = await host.resolveKit(contract)
+    await expect(client.read()).resolves.toBe('round 1')
+
+    // `startExtension` sessions keep their loaded Extension, so the atomic reload starts the same definition again.
+    await host.reload(session.id, { atomic: true })
+    expect(order).toEqual(['setup 1', 'setup 2', 'cleanup 1'])
+    await expect(client.read()).resolves.toBe('round 2')
+    expect(host.getSession(consumer.id)?.phase).toBe('ready')
   })
 })
 
 describe('host-provided Kit registration integrity', () => {
-  it('keeps Host sources under the identity captured at registration', () => {
+  it('keeps Host sources under the identity captured at registration', async () => {
     // ROOT CAUSE:
     //
     // The Provider Registry captured one ID, but the Host payload stores read
     // the caller's ID again. A changing getter split one registration in two.
-    // The Registry now stores and publishes the one captured ID.
+    // The Host now captures one ID before it registers the service.
     const host = new ExtensionHost()
     let apiReads = 0
     const apiId = vi.fn(() => ++apiReads === 1 ? 'kit.api' : 'kit.api-drift')
@@ -1042,10 +1247,10 @@ describe('host-provided Kit registration integrity', () => {
       get: apiId,
     })
 
-    const apiLease = host.registerKitApi(api)
+    const apiRegistration = host.provideKit({ api })
     expect(apiId).toHaveBeenCalledTimes(1)
     expect(host.getKitProvider('kit.api')?.owner.kind).toBe('host')
-    expect(apiLease.dispose()).toBe(true)
+    await expect(apiRegistration.withdraw()).resolves.toBe(true)
     expect(host.getKitProvider('kit.api')).toBeUndefined()
 
     let descriptorReads = 0
@@ -1055,10 +1260,10 @@ describe('host-provided Kit registration integrity', () => {
       get: descriptorId,
     })
 
-    const descriptorLease = host.registerKit(descriptor)
+    const descriptorRegistration = host.provideKit({ descriptor })
     expect(descriptorId).toHaveBeenCalledTimes(1)
     expect(host.getKit('kit.descriptor')?.kitId).toBe('kit.descriptor')
-    expect(descriptorLease.dispose()).toBe(true)
+    await expect(descriptorRegistration.withdraw()).resolves.toBe(true)
     expect(host.getKitProvider('kit.descriptor')).toBeUndefined()
   })
 
@@ -1066,7 +1271,7 @@ describe('host-provided Kit registration integrity', () => {
     // ROOT CAUSE:
     //
     // Host payload access failed after the Registry changed registration state.
-    // The Registry now captures the complete source before publication.
+    // The Host now captures the complete source before it registers the service.
     const host = new ExtensionHost()
     const failure = new Error('client factory is unavailable')
     const api = Object.defineProperty({ id: 'kit.failed', version: '1.0.0', createClient: () => ({}) }, 'createClient', {
@@ -1078,7 +1283,7 @@ describe('host-provided Kit registration integrity', () => {
 
     let registrationError: unknown
     try {
-      host.registerKitApi(api)
+      host.provideKit({ api })
     }
     catch (error) {
       registrationError = error
@@ -1089,6 +1294,27 @@ describe('host-provided Kit registration integrity', () => {
     })
     expect(registrationError).not.toHaveProperty('cause')
     expect(host.getKitProvider('kit.failed')).toBeUndefined()
+  })
+
+  it('rejects invalid Host payloads before it registers a service', () => {
+    const host = new ExtensionHost()
+    expect(() => host.provideKit({ descriptor: { kitId: '   ', version: '1.0.0', runtimes: ['electron'], capabilities: [] } })).toThrow('invalid-host-source')
+    expect(() => host.provideKit({ descriptor: { kitId: 'kit.invalid-version', version: 'latest', runtimes: ['electron'], capabilities: [] } })).toThrow('invalid-host-source')
+    expect(() => host.provideKit({ descriptor: { kitId: 'kit.no-runtime', version: '1.0.0', runtimes: [], capabilities: [] } })).toThrow('invalid-host-source')
+    expect(() => host.provideKit({ descriptor: {
+      kitId: 'kit.duplicate-action',
+      version: '1.0.0',
+      runtimes: ['electron'],
+      capabilities: [{ key: 'kit.duplicate-action.read', actions: ['invoke', 'invoke'] }],
+    } })).toThrow('invalid-host-source')
+    expect(() => Reflect.apply(host.provideKit, host, [{ api: {
+      id: 'kit.invalid-policy',
+      version: '1.0.0',
+      allowedExposePolicies: ['unknown'],
+      createClient: () => ({}),
+    } }])).toThrow('invalid-host-source')
+    expect(() => host.provideKit({})).toThrow('invalid-host-source')
+    expect(host.listKitProviders()).toEqual([])
   })
 
   it('invokes a Host Kit factory without a receiver', async () => {
@@ -1105,7 +1331,7 @@ describe('host-provided Kit registration integrity', () => {
         return { value: 'accepted' }
       },
     })
-    host.registerKitApi(kit)
+    host.provideKit({ api: kit })
     let observed = ''
     const extension = defineExtension({
       id: 'host-kit-receiver-consumer',
@@ -1129,63 +1355,39 @@ describe('host-provided Kit registration integrity', () => {
     expect(observed).toBe('accepted')
   })
 
-  it('keeps matching Host sources together until the last source leaves', () => {
+  it('registers a descriptor and an API of one Kit in one call', async () => {
     const host = new ExtensionHost()
     const descriptor = { kitId: 'kit.shared', version: '1.0.0', runtimes: ['electron' as const], capabilities: [] }
     const api = { id: descriptor.kitId, version: descriptor.version, createClient: () => ({}) }
 
-    const descriptorLease = host.registerKit(descriptor)
-    const firstGeneration = host.getKitProvider(descriptor.kitId)?.generation
-    const factoryLease = host.registerKitApi(api)
-    expect(host.getKitProvider(descriptor.kitId)?.generation).toBe((firstGeneration ?? 0) + 1)
-    expect(() => host.registerKitApi({ ...api, version: '2.0.0' })).toThrow('provider-slot-conflict')
+    expect(() => host.provideKit({ descriptor, api: { ...api, version: '2.0.0' } })).toThrow('invalid-host-source')
+    const registration = host.provideKit({ descriptor, api })
+    expect(() => host.provideKit({ api })).toThrow('provider-slot-conflict')
+    expect(host.getKit(descriptor.kitId)?.version).toBe('1.0.0')
 
-    descriptorLease.dispose()
+    await registration.withdraw()
     expect(host.getKit(descriptor.kitId)).toBeUndefined()
-    expect(host.getKitProvider(descriptor.kitId)?.owner.kind).toBe('host')
-    factoryLease.dispose()
     expect(host.getKitProvider(descriptor.kitId)).toBeUndefined()
   })
 
-  it('rejects a Host API replacement within the current generation', () => {
-    // ROOT CAUSE:
-    //
-    // A second API source replaced the Client factory without changing the
-    // Provider generation. The snapshot no longer identified one payload.
-    // The Registry now rejects a second current factory for the same Kit.
+  it('replaces a Host Kit API without a gap, so running clients move', async () => {
     const host = new ExtensionHost()
     const first = { id: 'kit.replacement', version: '1.0.0', createClient: () => ({ value: 'first' }) }
-    host.registerKitApi(first)
-    const generation = host.getKitProvider(first.id)?.generation
+    const registration = host.provideKit({ api: first })
+    const client = await host.resolveKit(first)
+    expect(client.value).toBe('first')
 
-    expect(() => host.registerKitApi({ ...first, createClient: () => ({ value: 'second' }) }))
-      .toThrow('provider-slot-conflict')
-    expect(host.getKitProvider(first.id)?.generation).toBe(generation)
-  })
-
-  it('does not leave a Host reservation after descriptor collision', () => {
-    // ROOT CAUSE:
-    //
-    // Descriptor conflicts escaped from the nested descriptor store as plain
-    // errors. Callers then lost the registration error code and Kit ID.
-    // The Registry now reports the conflict and keeps the current registration.
-    const host = new ExtensionHost()
-    const lease = host.registerKit({ kitId: 'kit.conflict', version: '1.0.0', runtimes: ['electron'], capabilities: [] })
-
-    expect(() => host.registerKit({ kitId: 'kit.conflict', version: '1.0.0', runtimes: ['node'], capabilities: [] }))
-      .toThrow(expect.objectContaining({ code: 'provider-slot-conflict', kitId: 'kit.conflict' }))
-    expect(host.getKit('kit.conflict')?.runtimes).toEqual(['electron'])
-    expect(host.getKitProvider('kit.conflict')?.version).toBe('1.0.0')
-    lease.dispose()
-    expect(host.getKitProvider('kit.conflict')).toBeUndefined()
+    await expect(registration.replace({ api: { ...first, createClient: () => ({ value: 'second' }) } })).resolves.toBe(true)
+    expect(client.value).toBe('second')
+    await expect(registration.replace({ api: { ...first, version: '2.0.0' } })).rejects.toThrow('kit-version-mismatch')
   })
 
   it('keeps accepted Host payloads stable after caller mutation', async () => {
     // ROOT CAUSE:
     //
     // The old registration stored caller-owned arrays and factory fields.
-    // Caller mutations then changed the current registration without a new generation.
-    // The Registry now stores immutable copies of accepted Host payloads.
+    // Caller mutations then changed the current registration without a new instance.
+    // The Host now stores immutable copies of accepted Host payloads.
     const host = new ExtensionHost()
     const descriptor = {
       kitId: 'kit.mutable',
@@ -1198,8 +1400,7 @@ describe('host-provided Kit registration integrity', () => {
       version: descriptor.version,
       createClient: () => ({ value: 'original' }),
     }
-    host.registerKit(descriptor)
-    host.registerKitApi(api)
+    host.provideKit({ descriptor, api })
 
     descriptor.version = '2.0.0'
     descriptor.capabilities[0].actions.push('changed')
@@ -1216,7 +1417,7 @@ describe('host-provided Kit registration integrity', () => {
     const extension = defineExtension({
       id: 'host-kit-consumer',
       async setup(ctx) {
-        observed = (await ctx.kits.use(api)).value
+        observed = (await ctx.kits.tryUse({ ...api, version: '1.0.0' }).then(result => result.ok ? result.client.value : 'missing'))
       },
     })
     await host.startExtension(extension, {
@@ -1233,19 +1434,19 @@ describe('host-provided Kit registration integrity', () => {
     expect(observed).toBe('original')
   })
 
-  it('returns mutable copies from the legacy Host Kit query interface', () => {
+  it('returns mutable copies from the Host Kit query interface', () => {
     // ROOT CAUSE:
     //
-    // The Provider Registry owns frozen descriptor snapshots. The Host exposed
+    // The Host owns frozen descriptor snapshots. It exposed
     // those internal snapshots through methods that previously returned copies.
-    // The Host now returns deep mutable copies from its legacy query methods.
+    // The Host now returns deep mutable copies from its query methods.
     const host = new ExtensionHost()
-    host.registerKit({
+    host.provideKit({ descriptor: {
       kitId: 'kit.query-copy',
       version: '1.0.0',
       runtimes: ['electron'],
       capabilities: [{ key: 'kit.query-copy.read', actions: ['invoke'] }],
-    })
+    } })
 
     const descriptor = host.getKit('kit.query-copy')!
     descriptor.runtimes.push('web')
@@ -1382,13 +1583,15 @@ describe('for ExtensionHost', () => {
         },
       }),
     })
-    host.registerKit({
-      kitId: 'kit.cleanup-failure',
-      version: '1.0.0',
-      runtimes: ['electron'],
-      capabilities: [],
+    host.provideKit({
+      descriptor: {
+        kitId: 'kit.cleanup-failure',
+        version: '1.0.0',
+        runtimes: ['electron'],
+        capabilities: [],
+      },
+      api: kit,
     })
-    host.registerKitApi(kit)
     const extension = defineExtension({
       id: 'airi-extension-cleanup-failure',
       async setup(ctx) {
@@ -1440,13 +1643,15 @@ describe('for ExtensionHost', () => {
         },
       }),
     })
-    host.registerKit({
-      kitId: 'kit.module-dispose',
-      version: '1.0.0',
-      runtimes: ['electron'],
-      capabilities: [],
+    host.provideKit({
+      descriptor: {
+        kitId: 'kit.module-dispose',
+        version: '1.0.0',
+        runtimes: ['electron'],
+        capabilities: [],
+      },
+      api: kit,
     })
-    host.registerKitApi(kit)
     const permissions: ModulePermissionDeclaration = {
       apis: [
         { key: 'kit.module-dispose', actions: ['invoke'] },
@@ -1495,7 +1700,7 @@ describe('for ExtensionHost', () => {
         ping: () => `${runtime.extensionId}:${runtime.sessionId}:${runtime.moduleId ?? 'root'}`,
       }),
     })
-    host.registerKitApi(kit)
+    host.provideKit({ api: kit })
 
     let observed = ''
     const extension = defineExtension({
@@ -1532,7 +1737,7 @@ describe('for ExtensionHost', () => {
       version: '1.0.0',
       createClient: () => ({ ping: () => 'pong' }),
     })
-    host.registerKitApi(kit)
+    host.provideKit({ api: kit })
 
     const extension = defineExtension({
       id: 'airi-extension-direct-kit-denied',
@@ -1572,7 +1777,7 @@ describe('for ExtensionHost', () => {
       version: '1.0.0',
       createClient: () => ({ ping: () => 'pong' }),
     })
-    host.registerKitApi(kit)
+    host.provideKit({ api: kit })
 
     const extension = defineExtension({
       id: 'airi-extension-direct-kit-resolver-denied',
@@ -1616,7 +1821,7 @@ describe('for ExtensionHost', () => {
       version: '1.0.0',
       createClient: () => ({ ping: () => 'pong' }),
     })
-    host.registerKitApi(kit)
+    host.provideKit({ api: kit })
 
     const manifest = {
       manifestVersion: 2,
@@ -1663,7 +1868,7 @@ describe('for ExtensionHost', () => {
       version: '1.0.0',
       createClient: () => ({ ping: () => 'pong' }),
     })
-    host.registerKitApi(kit)
+    host.provideKit({ api: kit })
 
     const extension = defineExtension({
       id: 'airi-extension-module-inherited-grant',
@@ -1705,7 +1910,7 @@ describe('for ExtensionHost', () => {
       version: '1.0.0',
       createClient: () => ({ ping: () => 'pong' }),
     })
-    host.registerKitApi(kit)
+    host.provideKit({ api: kit })
 
     const extension = defineExtension({
       id: 'airi-extension-module-kit-resolver-denied',
@@ -1771,22 +1976,23 @@ describe('for ExtensionHost', () => {
         entrypoints: {},
       },
     })
+    await vi.waitFor(() => expect(observed).toEqual([false]))
 
-    const firstLease = host.registerKitApi(kit)
+    const firstRegistration = host.provideKit({ api: kit })
+    await vi.waitFor(() => expect(observed).toEqual([false, true]))
 
-    expect(observed).toEqual([false, true])
+    await expect(firstRegistration.withdraw()).resolves.toBe(true)
+    await vi.waitFor(() => expect(observed).toEqual([false, true, false]))
 
-    expect(firstLease.dispose()).toBe(true)
-    expect(observed).toEqual([false, true, false])
+    const secondRegistration = host.provideKit({ api: kit })
+    await vi.waitFor(() => expect(observed).toEqual([false, true, false, true]))
 
-    const secondLease = host.registerKitApi(kit)
+    // A stale registration cannot withdraw a newer one.
+    await expect(firstRegistration.withdraw()).resolves.toBe(false)
     expect(observed).toEqual([false, true, false, true])
 
-    expect(firstLease.dispose()).toBe(false)
-    expect(observed).toEqual([false, true, false, true])
-
-    expect(secondLease.dispose()).toBe(true)
-    expect(observed).toEqual([false, true, false, true, false])
+    await expect(secondRegistration.withdraw()).resolves.toBe(true)
+    await vi.waitFor(() => expect(observed).toEqual([false, true, false, true, false]))
   })
 
   it('disposes extension-scoped kit availability watchers with the extension session', async () => {
@@ -1820,9 +2026,11 @@ describe('for ExtensionHost', () => {
         entrypoints: {},
       },
     })
+    await vi.waitFor(() => expect(observed).toEqual([false]))
 
-    await session.subscriptions.dispose()
-    host.registerKitApi(kit)
+    await host.stop(session.id)
+    host.provideKit({ api: kit })
+    await new Promise(resolve => setTimeout(resolve, 20))
 
     expect(observed).toEqual([false])
   })
@@ -1834,7 +2042,7 @@ describe('for ExtensionHost', () => {
       version: '1.0.0',
       createClient: () => ({ ping: () => 'pong' }),
     })
-    host.registerKitApi(kit)
+    host.provideKit({ api: kit })
 
     let watched = false
     const extension = defineExtension({
@@ -1872,7 +2080,7 @@ describe('for ExtensionHost', () => {
       },
     })
 
-    expect(watched).toBe(true)
+    await vi.waitFor(() => expect(watched).toBe(true))
   })
 
   it('disposes module-scoped kit availability watchers with the module scope', async () => {
@@ -1918,8 +2126,10 @@ describe('for ExtensionHost', () => {
     if (!disposeModule) {
       throw new Error('Expected module scope to be registered.')
     }
+    await vi.waitFor(() => expect(observed).toEqual([false]))
     await disposeModule()
-    host.registerKitApi(kit)
+    host.provideKit({ api: kit })
+    await new Promise(resolve => setTimeout(resolve, 20))
 
     expect(observed).toEqual([false])
   })
@@ -2006,7 +2216,7 @@ describe('for ExtensionHost', () => {
       version: '1.0.0',
       createClient: () => ({ ping: () => 'pong' }),
     })
-    host.registerKitApi(kit)
+    host.provideKit({ api: kit })
 
     const extension = defineExtension({
       id: 'airi-extension-kit-denied',
@@ -2313,7 +2523,7 @@ describe('for migrated extension testdata', () => {
   it('runs the migrated injected kit fixture through ctx.modules and module.kits', async () => {
     const host = new ExtensionHost()
     const { testWidgetKit } = await import('./testdata/test-injected-host-apis-plugin')
-    host.registerKitApi(testWidgetKit)
+    host.provideKit({ api: testWidgetKit })
 
     const session = await host.start({
       manifestVersion: 2,
