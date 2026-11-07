@@ -41,36 +41,34 @@ export function createQueue<T>(options: {
     [E in keyof Events<T>]: [eventName: E, ...params: Parameters<Events<T>[E][number]>]
   }[keyof Events<T>]
 
+  function excludeFirstArgument<Args extends unknown[]>([, ...params]: [unknown, ...Args]): Args {
+    return params
+  }
+
   function emit(...args: EventArgs) {
     switch (args[0]) {
       case 'enqueue': {
-        const [, ...params] = args
-        internalEventListeners.enqueue.forEach(listener => listener(...params))
+        internalEventListeners.enqueue.forEach(listener => listener(...excludeFirstArgument(args)))
         break
       }
       case 'dequeue': {
-        const [, ...params] = args
-        internalEventListeners.dequeue.forEach(listener => listener(...params))
+        internalEventListeners.dequeue.forEach(listener => listener(...excludeFirstArgument(args)))
         break
       }
       case 'process': {
-        const [, ...params] = args
-        internalEventListeners.process.forEach(listener => listener(...params))
+        internalEventListeners.process.forEach(listener => listener(...excludeFirstArgument(args)))
         break
       }
       case 'error': {
-        const [, ...params] = args
-        internalEventListeners.error.forEach(listener => listener(...params))
+        internalEventListeners.error.forEach(listener => listener(...excludeFirstArgument(args)))
         break
       }
       case 'result': {
-        const [, ...params] = args
-        internalEventListeners.result.forEach(listener => listener(...params))
+        internalEventListeners.result.forEach(listener => listener(...excludeFirstArgument(args)))
         break
       }
       case 'drain': {
-        const [, ...params] = args
-        internalEventListeners.drain.forEach(listener => listener(...params))
+        internalEventListeners.drain.forEach(listener => listener(...excludeFirstArgument(args)))
         break
       }
     }
