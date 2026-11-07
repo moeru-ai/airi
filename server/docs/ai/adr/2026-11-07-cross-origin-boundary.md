@@ -42,7 +42,9 @@ Each cross-origin response also follows these rules:
 - A preflight reflects `Access-Control-Request-Headers` and allows `GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS`.
 - `Access-Control-Max-Age` is `7200`, the Chromium limit.
 - A service lists the response headers that clients read in `Access-Control-Expose-Headers`.
-- A response sends `Vary: Origin, Access-Control-Request-Headers` when its headers depend on them.
+- A service with a credentialed origin sends `Vary: Origin` on every response. A preflight also sends `Vary: Access-Control-Request-Headers`.
+- An empty `Access-Control-Request-Headers` sends no `Access-Control-Allow-Headers`.
+- An `OPTIONS` request without `Access-Control-Request-Method` is not a preflight. It goes to the route.
 
 A wildcard response is safe for a cookie service too. A browser does not show a credentialed response that has `Access-Control-Allow-Origin: *`. CSRF protection for cookie routes stays in the service, for example the Better Auth origin check and `SameSite=Lax` cookies.
 
@@ -71,9 +73,9 @@ These features read one list, `TRUSTED_ORIGINS` in `@proj-airi/auth-shared`, plu
 ### Implementation
 
 - TypeScript: `@proj-airi/auth-shared` exports the policy as one framework-free function, `resolveCrossOriginHeaders`. The API and Auth each apply it to `/api/*` with a small Hono middleware, because `auth-shared` does not depend on Hono. The API exposes `Retry-After`. Auth sets no expose list, so the expose headers of the Better Auth `bearer` and `jwt` plugins stay.
-- Go: one middleware in `proj-airi/backend` applies the policy to Cloud and Admin. The Cloud and Admin origin checks and the unused lists are removed.
-- Bucket: `proj-airi/airi-deploy` keeps the bucket CORS rule as code and a script that applies it.
-- Contract check: `proj-airi/airi-deploy` sends preflights with each client origin to each host and checks the headers.
+- Go: `CrossOrigin` in `proj-airi/backend` `internal/httpserver/servers/middlewares/cors.go` applies the policy to Cloud and Admin. The Cloud and Admin origin checks are removed. The unused `internal/services/authpolicy` package and `ADDITIONAL_TRUSTED_ORIGINS` are removed from Go. The Admin cover upload Origin check, which is a CSRF check, accepts only the `ADMIN_UI_URL` origin too.
+- Bucket: `proj-airi/airi-deploy` keeps the rule in `storage/bucket-cors.json`. `scripts/apply-bucket-cors.ts` applies it and reads it back.
+- Contract check: `proj-airi/airi-deploy` `scripts/check-cors.ts` sends a preflight and a GET with each client origin to each host and checks the headers. A workflow runs it every day and on demand.
 
 ## Module dependency graph
 
@@ -82,7 +84,7 @@ flowchart LR
   shared["@proj-airi/auth-shared<br/>cross-origin policy, TRUSTED_ORIGINS"]
   api["server/apps/api"]
   auth["server/apps/auth"]
-  gomw["backend internal/httpserver/middlewares<br/>CrossOrigin"]
+  gomw["backend internal/httpserver/servers/middlewares<br/>CrossOrigin"]
   cloud["backend Cloud"]
   admin["backend Admin"]
   deploy["airi-deploy<br/>bucket CORS, contract check"]
@@ -117,16 +119,19 @@ moeru-ai/airi
 └── server/dev/s3/cors.json        allows every origin
 
 proj-airi/backend
-├── internal/httpserver/middlewares/cors.go    one CrossOrigin middleware
-├── internal/cloudhttp/server.go               uses it, no list
-├── internal/httpserver/routes.go              Admin uses it with ADMIN_UI_URL
-├── internal/services/authpolicy/              unused lists removed
-└── internal/configs/config.go                 unused origin settings removed
+├── internal/httpserver/servers/middlewares/cors.go   one CrossOrigin middleware
+├── internal/cloudhttp/server.go                      uses it, no list
+├── internal/httpserver/servers/routes.go             Admin uses it with ADMIN_UI_URL
+├── internal/httpserver/servers/admin_wiring.go       Admin wiring
+├── internal/services/authpolicy/                     deleted, nothing called it
+├── internal/configs/config.go                        ADDITIONAL_TRUSTED_ORIGINS removed
+└── docs/cross-origin.md
 
 proj-airi/airi-deploy
 ├── storage/bucket-cors.json + scripts/apply-bucket-cors.ts
-├── scripts/check-cors.ts + its workflow
-└── caddy/Caddyfile                            forwards every /api/admin/ route to Admin
+├── scripts/check-cors.ts + .github/workflows/cors-contract.yml
+├── caddy/Caddyfile                            forwards every /api/admin/ path to Admin
+└── docs/architecture/cors.md
 ```
 
 ## Sequence
@@ -172,6 +177,7 @@ sequenceDiagram
   - The configured UI origin gets its own origin and `Allow-Credentials: true`.
   - Another origin gets `*` and no `Allow-Credentials`.
   - Requested headers are reflected, and `Max-Age` is `7200`.
+  - The `Vary`, empty request headers, and non-preflight `OPTIONS` rules hold.
 - Route tests in the API, Auth, Cloud, and Admin for one preflight each.
 - A test that the Stripe return base falls back to `WEB_APP_URL` for `capacitor://localhost` and `https://localhost`.
 - The contract check against production and dev after each deploy.
