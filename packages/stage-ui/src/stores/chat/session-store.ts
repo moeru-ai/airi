@@ -1888,9 +1888,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   }
 
   async function importSessions(payload: ChatSessionsExport) {
-    if (payload.format !== 'chat-sessions-index:v1')
-      return
-
     index.value = cloneDeep(payload.index)
     sessionMessages.value = {}
     sessionMetas.value = {}

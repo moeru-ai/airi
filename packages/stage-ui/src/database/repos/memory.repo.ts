@@ -43,6 +43,13 @@ export const memoryRepo = {
   async add(entries: MemoryEntry[]) {
     await write(() => Promise.all(entries.map(entry => records.setItemRaw<MemoryEntry>(entry.id, entry))))
   },
+  /** Replaces the stored entries as one operation against other windows' writes. */
+  async replace(entries: MemoryEntry[]) {
+    await write(async () => {
+      await records.clear()
+      await Promise.all(entries.map(entry => records.setItem<MemoryEntry>(entry.id, entry)))
+    })
+  },
   /**
    * Saves a fact on the card of `persona`, on the stored records. An id of the card's own stored entry replaces that
    * entry. Any other id, for example of a general or a removed entry, adds a new entry with a new id.
