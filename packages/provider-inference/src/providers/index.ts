@@ -13,6 +13,7 @@ import { providerCerebrasAI } from './cloud/cerebras-ai'
 import { providerCloudflareWorkersAI } from './cloud/cloudflare-workers-ai'
 import { providerCometAPI, providerCometAPISpeech, providerCometAPITranscription } from './cloud/comet-api'
 import { providerDeepSeek } from './cloud/deepseek'
+import { providerDemonRoute } from './cloud/demonroute'
 import { providerElevenLabs } from './cloud/elevenlabs'
 import { providerFeatherlessAI } from './cloud/featherless-ai'
 import { providerFireworksAI } from './cloud/fireworks-ai'
@@ -101,6 +102,7 @@ export const portableProviderDefinitions = eraseProviderDefinitions(
   providerCometAPISpeech,
   providerCometAPITranscription,
   providerDeepSeek,
+  providerDemonRoute,
   providerElevenLabs,
   providerFeatherlessAI,
   providerFireworksAI,
