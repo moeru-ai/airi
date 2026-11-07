@@ -163,7 +163,6 @@ describe('createMcpManager', () => {
   // We fixed this by propagating discovery errors through the existing invoke contract.
   it('passes production discovery failures to the model as an error result (Issue #2779)', async () => {
     const manager = await startServers('memory')
-    clientMocks.listTools.mockRejectedValueOnce(new Error('MCP request timed out.'))
     const context = createContext<ElectronMainContextExtensions, ElectronMainEmitOptions>()
     createMcpServersService({ context, manager })
     const listMcpTools = defineInvoke(context, electronMcpListTools)
@@ -172,6 +171,7 @@ describe('createMcpManager', () => {
       listTools: () => listMcpTools(),
       callTool: payload => callMcpTool(payload),
     }))
+    clientMocks.listTools.mockRejectedValueOnce(new Error('MCP request timed out.'))
 
     const result = await listTools.execute({}, { messages: [], toolCallId: 'failed-discovery' })
 

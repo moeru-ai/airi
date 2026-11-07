@@ -3,7 +3,9 @@ import type { DesktopSessionController } from '../desktop-session'
 import type { ComputerUseConfig, DesktopExecutor, TerminalRunner } from '../types'
 import type { CdpBridgeManager } from './cdp-manager'
 
-import { platform } from 'node:process'
+import { env, platform } from 'node:process'
+
+import { terminalControlEnabledEnv, terminalControlNonceEnv } from '@proj-airi/stage-shared/terminal-approval'
 
 import { BrowserDomExtensionBridge } from '../browser-dom/extension-bridge'
 import { createChromeSessionManager } from '../chrome-session-manager'
@@ -22,6 +24,8 @@ import { createCdpBridgeManager } from './cdp-manager'
 export interface ComputerUseServerOptions {
   executorFactory?: (config: ComputerUseConfig) => DesktopExecutor
   terminalRunnerFactory?: (config: ComputerUseConfig) => TerminalRunner
+  /** Only the controlling Host or a mock Host supplies this private-connection credential. It never comes from tool arguments. */
+  terminalControlNonce?: string
 }
 
 export interface ComputerUseServerRuntime {
@@ -29,6 +33,7 @@ export interface ComputerUseServerRuntime {
   session: ComputerUseSession
   executor: DesktopExecutor
   terminalRunner: TerminalRunner
+  terminalControlNonce?: string
   browserDomBridge: BrowserDomExtensionBridge
   cdpBridgeManager: CdpBridgeManager
   /** Unified run-level state manager. */
@@ -72,6 +77,14 @@ function createTerminal(config: ComputerUseConfig, options: ComputerUseServerOpt
 }
 
 export async function createRuntime(config = resolveComputerUseConfig(), options: ComputerUseServerOptions = {}) {
+  const terminalControlNonce = options.terminalControlNonce
+    ?? (env[terminalControlEnabledEnv] === '1' ? env[terminalControlNonceEnv] : undefined)
+  if (terminalControlNonce !== undefined && !/^[a-f0-9]{64}$/.test(terminalControlNonce))
+    throw new Error('Host Terminal control requires a valid private connection credential.')
+  if (terminalControlNonce && config.approvalMode === 'never')
+    throw new Error('Host-controlled Terminal requires server approval mode actions or all.')
+  // Capture once so no executor or browser child inherits this private connection credential.
+  delete env[terminalControlNonceEnv]
   const session = new ComputerUseSession(config)
   await session.init()
   const executor = createExecutor(config, options)
@@ -89,6 +102,7 @@ export async function createRuntime(config = resolveComputerUseConfig(), options
     session,
     executor,
     terminalRunner,
+    terminalControlNonce,
     browserDomBridge,
     cdpBridgeManager,
     stateManager,

@@ -13,7 +13,9 @@ import type {
   ElectronMcpTestResult,
   ElectronMcpToolDescriptor,
 } from '../../../../shared/eventa'
+import type { TerminalApprovalOptions } from './terminal-approval'
 
+import { randomBytes } from 'node:crypto'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
@@ -23,6 +25,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
+import { terminalControlEnabledEnv, terminalControlNonceEnv, terminalOriginMetaKey } from '@proj-airi/stage-shared/terminal-approval'
 import { app, shell } from 'electron'
 
 import {
@@ -37,6 +40,9 @@ import {
 } from '../../../../shared/eventa'
 import { isHttpServerConfig, parseElectronMcpConfigText } from '../../../../shared/mcp-config'
 import { onAppBeforeQuit } from '../../../libs/bootkit/lifecycle'
+import { requireMainFrameSender } from '../../../libs/electron/window-context'
+import { validateAttribution } from '../computer-use/attribution'
+import { bindTerminalApproval } from './terminal-approval'
 
 /** A transport that the MCP client can drive. Both kinds expose `close`. */
 type McpTransport = StdioClientTransport | StreamableHTTPClientTransport
@@ -45,6 +51,7 @@ interface McpServerSession {
   client: Client
   transport: McpTransport
   config: ElectronMcpServerConfig
+  terminalNonce?: string
 }
 
 export interface McpManager {
@@ -54,7 +61,7 @@ export interface McpManager {
   /** Returns the complete active-server catalog. Any discovery failure rejects with server names and reasons. */
   listTools: () => Promise<ElectronMcpToolDescriptor[]>
   /** Dispatches the exact tool name once. A failed reply does not prove the absence of effects. */
-  callTool: (payload: ElectronMcpCallToolPayload) => Promise<ElectronMcpCallToolResult>
+  callTool: (payload: ElectronMcpCallToolPayload, senderWebContentsId?: number, signal?: AbortSignal) => Promise<ElectronMcpCallToolResult>
   stopAll: () => Promise<void>
   getRuntimeStatus: () => ElectronMcpRuntimeStatus
   readConfigText: () => Promise<ElectronMcpConfigText>
@@ -173,7 +180,7 @@ function describeRuntime(
  * `applyAndRestart` replaces the sessions from disk. `stopAll` closes them.
  * Discovery returns a complete catalog or rejects with all server failures.
  */
-export function createMcpManager(): McpManager {
+export function createMcpManager(terminalApproval?: TerminalApprovalOptions): McpManager {
   const log = useLogg('main/mcp').useGlobalConfig()
   const sessions = new Map<string, McpServerSession>()
   const runtimeStatuses = new Map<string, ElectronMcpServerRuntimeStatus>()
@@ -219,7 +226,9 @@ export function createMcpManager(): McpManager {
   }
 
   const startServer = async (name: string, config: ElectronMcpServerConfig) => {
-    const transport = createTransport(config)
+    const terminalNonce = !isHttpServerConfig(config) && config.env?.[terminalControlEnabledEnv] === '1' && terminalApproval ? randomBytes(32).toString('hex') : undefined
+    const controlledConfig = terminalNonce && !isHttpServerConfig(config) ? { ...config, env: { ...config.env, [terminalControlNonceEnv]: terminalNonce } } : config
+    const transport = createTransport(controlledConfig)
     const client = new Client({
       name: `proj-airi:stage-tamagotchi:mcp:${name}`,
       version: app.getVersion(),
@@ -235,7 +244,7 @@ export function createMcpManager(): McpManager {
           }
         })
       }
-      sessions.set(name, { client, transport, config })
+      sessions.set(name, { client, transport, config, terminalNonce })
       setRuntimeStatus(describeRuntime(name, config, 'running', {
         pid: transport instanceof StdioClientTransport ? transport.pid : null,
       }))
@@ -320,19 +329,27 @@ export function createMcpManager(): McpManager {
     return tools
   }
 
-  const callTool = async (payload: ElectronMcpCallToolPayload): Promise<ElectronMcpCallToolResult> => {
+  const callTool = async (payload: ElectronMcpCallToolPayload, senderWebContentsId?: number, signal?: AbortSignal): Promise<ElectronMcpCallToolResult> => {
     const { serverName, toolName } = parseQualifiedToolName(payload.name)
     const session = sessions.get(serverName)
     if (!session) {
       throw new Error(`mcp server is not running: ${serverName}`)
     }
+    const attribution = payload.requestId && terminalApproval ? validateAttribution(payload.attribution, senderWebContentsId) : undefined
+    if (payload.requestId && terminalApproval && attribution)
+      terminalApproval.actions.validateRequest(payload.requestId, attribution)
+    const controlledTerminal = !!session.terminalNonce && toolName === 'terminal_exec'
+    if (controlledTerminal && (!attribution?.toolCallId || !payload.requestId))
+      throw new Error('Terminal execution requires a normal Chat request registered by the Host.')
 
     const result = await session.client.callTool({
       name: toolName,
       arguments: payload.arguments ?? {},
+      ...(controlledTerminal ? { _meta: { [terminalOriginMetaKey]: { nonce: session.terminalNonce, requestId: payload.requestId, toolCallId: attribution?.toolCallId } } } : {}),
     }, undefined, {
       timeout: mcpRequestTimeoutMsec,
       maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
+      ...(signal ? { signal } : {}),
     })
 
     const normalized: ElectronMcpCallToolResult = {}
@@ -349,6 +366,9 @@ export function createMcpManager(): McpManager {
       normalized.toolResult = result.toolResult
     }
 
+    if (controlledTerminal && attribution && terminalApproval && session.terminalNonce && normalized.structuredContent?.status === 'approval_required') {
+      return bindTerminalApproval({ options: terminalApproval, connection: { client: session.client, serverName, nonce: session.terminalNonce, pid: session.transport instanceof StdioClientTransport ? session.transport.pid : null, isCurrent: () => sessions.get(serverName) === session }, payload, attribution, result: normalized })
+    }
     return normalized
   }
 
@@ -457,9 +477,9 @@ export function createMcpManager(): McpManager {
   }
 }
 
-export async function setupMcpManager() {
+export async function setupMcpManager(terminalApproval?: TerminalApprovalOptions) {
   const log = useLogg('main/mcp').useGlobalConfig()
-  const manager = createMcpManager()
+  const manager = createMcpManager(terminalApproval)
 
   onAppBeforeQuit(async () => {
     await manager.stopAll()
@@ -494,8 +514,8 @@ export function createMcpServersService(params: { context: ReturnType<typeof cre
     return params.manager.listTools()
   })
 
-  defineInvokeHandler(params.context, electronMcpCallTool, async (payload) => {
-    return params.manager.callTool(payload)
+  defineInvokeHandler(params.context, electronMcpCallTool, async (payload, options) => {
+    return params.manager.callTool(payload, requireMainFrameSender(options).id, options?.abortController?.signal)
   })
 
   defineInvokeHandler(params.context, electronMcpReadConfigText, async () => {

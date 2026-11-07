@@ -474,5 +474,13 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
     await daemon?.stop()
   }
 
-  return { run, readImage, previewImage, dispose }
+  /** Shares desktop mutation admission and the Host shutdown signal. Approval waiting stays outside this execution slot. */
+  function executeInSlot<T>(operation: (lifetime: AbortSignal) => Promise<T>) {
+    return enqueue(() => {
+      if (hasLingeringMutationRisk)
+        throw new ComputerUseExecutionError('Terminal dispatch is blocked by an earlier desktop operation with unconfirmed background processes.', { executionState: 'not_executed' })
+      return operation(abort.signal)
+    })
+  }
+  return { run, readImage, previewImage, executeInSlot, dispose }
 }

@@ -17,6 +17,7 @@ import { registerTaskMemoryTools } from './server/register-task-memory'
 import { registerComputerUseTools } from './server/register-tools'
 import { registerVscodeTools } from './server/register-vscode'
 import { createRuntime } from './server/runtime'
+import { registerTerminalApproval } from './server/terminal-approval'
 
 const packageVersion = '0.1.0'
 const enableTestTools = ['1', 'true', 'yes', 'on'].includes((env.COMPUTER_USE_ENABLE_TEST_TOOLS || '').trim().toLowerCase())
@@ -37,6 +38,7 @@ export async function createComputerUseMcpServer(config = resolveComputerUseConf
     executeAction,
     enableTestTools,
   })
+  registerTerminalApproval(server, runtime, executeAction)
 
   registerTaskMemoryTools(server, runtime)
 

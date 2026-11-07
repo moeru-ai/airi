@@ -1,4 +1,5 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
+import type { TerminalOrigin } from '@proj-airi/stage-shared/terminal-approval'
 
 import type { DisplayPointResolution, MultiDisplaySnapshot } from '../display'
 import type {
@@ -10,9 +11,14 @@ import type {
   PolicyDecision,
   ScreenshotArtifact,
   TerminalCommandResult,
+  TerminalExecution,
   TerminalState,
 } from '../types'
 import type { ComputerUseServerRuntime } from './runtime'
+
+import { terminalSnapshotSchema } from '@proj-airi/stage-shared/terminal-approval'
+
+import * as v from 'valibot'
 
 import { normalizeConfiguredAppAction } from '../app-aliases'
 import { decideBrowserTypeAction } from '../browser-action-router'
@@ -50,6 +56,9 @@ import {
 
 export interface ExecuteActionOptions {
   skipApprovalQueue?: boolean
+  terminalOrigin?: TerminalOrigin
+  /** The private Host handler supplies the final check and synchronous executor start. Public tools cannot supply callbacks. */
+  terminalExecution?: () => TerminalExecution
 }
 
 export type ExecuteAction = (action: ActionInvocation, toolName: string, options?: ExecuteActionOptions) => Promise<CallToolResult>
@@ -382,6 +391,19 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         context,
         policy: decision,
       })
+      if (normalizedAction.kind === 'terminal_exec' && options.terminalOrigin) {
+        if (options.terminalOrigin.nonce !== runtime.terminalControlNonce || !runtime.terminalRunner.prepare)
+          throw new Error('The executor cannot prepare this Host Terminal operation.')
+        const snapshot = v.parse(terminalSnapshotSchema, {
+          protocol: 'airi-terminal-approval/1' as const,
+          preparedId: pending.id,
+          requestId: options.terminalOrigin.requestId,
+          toolCallId: options.terminalOrigin.toolCallId,
+          ...runtime.terminalRunner.prepare(normalizedAction.input),
+        })
+        Object.freeze(snapshot.argv)
+        pending.preparedTerminal = Object.freeze(snapshot)
+      }
       runtime.stateManager.setPendingApprovalCount(runtime.session.listPendingActions().length)
 
       await runtime.session.record({
@@ -613,7 +635,19 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           break
         }
         case 'terminal_exec': {
-          const result = await runtime.terminalRunner.execute(normalizedAction.input)
+          let result: TerminalCommandResult
+          if (options.terminalExecution) {
+            const execution = options.terminalExecution()
+            try {
+              result = await execution.result
+            }
+            finally {
+              await execution.closed
+            }
+          }
+          else {
+            result = await runtime.terminalRunner.execute(normalizedAction.input)
+          }
           runtime.session.setTerminalState(runtime.terminalRunner.getState())
           runtime.stateManager.updateTerminalResult(result)
           backendResult = {

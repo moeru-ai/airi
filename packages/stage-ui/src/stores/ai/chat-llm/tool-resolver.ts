@@ -2,6 +2,7 @@ import type { StreamOptions } from '@proj-airi/core-agent'
 import type { WebSocketEvents } from '@proj-airi/server-sdk'
 import type { Tool } from '@xsai/shared-chat'
 
+import type { ToolAttributionContext } from '../../../types/chat'
 import type { DescribeToolImage } from './tool-images'
 
 import { createSparkCommandTool } from '@proj-airi/core-agent/agents/spark-command'
@@ -15,12 +16,6 @@ import { withDescribedImages } from './tool-images'
 import { useLlmToolsStore } from './tools'
 
 type ToolSource = Tool[] | (() => Promise<Tool[]>)
-
-/** Request-level invocation provenance bound to tool executions */
-export interface ToolAttributionContext {
-  sessionId: string
-  turnId?: string
-}
 
 /**
  * Overrides for resolving the complete LLM-visible tool list.

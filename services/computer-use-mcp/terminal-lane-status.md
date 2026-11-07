@@ -14,10 +14,22 @@ Real MCP protocol tests reproduced them with mock executors before the correctio
 - Raw CDP evaluation, navigation, and optional delegated browser execution remain closed in those modes.
 - Explicit `never` retains its broad operator-configured scope. The desktop executor does not sandbox shell commands.
 
-No trusted native approval adapter is installed in this integration baseline.
-The historical run-grant and desktop approval claims below do not establish current product support.
-Pending expiry, Chat ownership, cancellation cleanup, and exact GUI target binding remain admission work.
-No approval UI, B0 Notice, or real GUI write was added.
+Phase 5.1 adds an opt-in trusted Terminal approval adapter in Electron Main.
+The adapter requires a Main-managed direct stdio connection and a registered Chat request.
+A separate Main-created window presents the frozen command, shell arguments, executor identity and cwd source.
+Only its actual main frame can return a decision. Model-facing approval remains denied.
+Main consumes its existing PendingAction once inside the shared desktop execution queue.
+The private executor protocol freezes spawn arguments before approval and waits for direct shell closure.
+
+This slice has controlled tests and delegated UI operator evidence with a mock provider.
+It does not establish real-model continuation or real-human production authorization.
+Phase 5.2 verifies bounded cancellation and direct-process lifecycle cases with controlled barriers.
+The final private dispatch boundary rechecks the MCP request signal and deadline.
+Windows direct shell closure does not prove descendant termination. Terminal commands are not sandboxed.
+B0-style notice delivery now uses the original Host request and existing Core FIFO and persistent message identity.
+Controlled and delegated UI tests use a mock provider. Real-model acceptance remains a separate gate.
+Native GUI writes remain closed.
+The historical run-grant claims below do not establish current product support.
 See `docs/ai/convergence/execution-authorization-boundary.md` from the repository root for evidence and remaining limits.
 
 This file is the handoff record for terminal lane work. It moved here from `AGENTS.md` without content changes.
@@ -31,7 +43,7 @@ Command exit zero does not verify an independent business outcome.
 
 - PTY self-acquire routing and PTY completion semantics are unchanged.
 - This correction uses controlled executor and provider boundaries. No new real AIRI Chat E2E ran.
-- Public self-approval remains denied in approval modes. No trusted native approval UI was added.
+- Public self-approval remains denied in approval modes. The Phase 5.1 adapter does not grant workflow auto-approval.
 - Support-matrix labels are unchanged. Real GUI writes remain outside admission.
 
 ## Current Status Snapshot

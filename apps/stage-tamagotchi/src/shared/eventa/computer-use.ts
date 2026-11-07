@@ -66,25 +66,29 @@ export class ComputerUseExecutionError extends Error {
   }
 }
 
-/** Resolves structured error details from an error or error-like object, including across structured clone. */
+function isExecutionState(value: unknown): value is ExecutionState {
+  return value === 'not_executed' || value === 'executed' || value === 'unknown'
+}
+
+/** Resolves error details across structured clone. Missing or invalid execution facts remain unknown. */
 export function extractErrorDetails(error: unknown): ComputerUseErrorDetails {
   const direct = error && typeof error === 'object' ? (error as Record<string, unknown>) : undefined
   const cause = (direct && 'cause' in direct && direct.cause && typeof direct.cause === 'object')
     ? (direct.cause as Record<string, unknown>)
     : undefined
 
-  const explicitState = (typeof direct?.executionState === 'string'
+  const explicitState = isExecutionState(direct?.executionState)
     ? direct.executionState
-    : typeof cause?.executionState === 'string'
+    : isExecutionState(cause?.executionState)
       ? cause.executionState
-      : undefined) as ExecutionState | undefined
+      : undefined
 
   const messageMatch = typeof direct?.message === 'string'
-    ? direct.message.match(/\[executionState:\s*(\w+)\]/)?.[1] as ExecutionState | undefined
+    ? direct.message.match(/\[executionState:\s*(\w+)\]/)?.[1]
     : undefined
 
-  const authoritativeState = explicitState ?? messageMatch
-  const executionState = authoritativeState ?? 'not_executed'
+  const authoritativeState = explicitState ?? (isExecutionState(messageMatch) ? messageMatch : undefined)
+  const executionState = authoritativeState ?? 'unknown'
 
   const exitCode = typeof direct?.exitCode === 'number'
     ? direct.exitCode
@@ -123,11 +127,6 @@ export function extractErrorDetails(error: unknown): ComputerUseErrorDetails {
     rawMessage,
     cause: error,
   }
-}
-
-/** Resolves execution state from an error or error-like object. Defaults to not_executed. */
-export function extractExecutionState(error: unknown): ExecutionState {
-  return extractErrorDetails(error).executionState
 }
 
 /** AUV invocation result. A zero exit code does not verify the requested UI effect. */

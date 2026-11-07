@@ -1,4 +1,6 @@
-import type { Tool } from '@xsai/shared-chat'
+import type { Tool, ToolExecuteOptions } from '@xsai/shared-chat'
+
+import type { ToolAttributionContext } from '../types/chat'
 
 import { errorMessageFrom } from '@moeru/std'
 import { tool } from '@xsai/tool'
@@ -42,6 +44,11 @@ export interface McpCallToolPayload {
   arguments?: Record<string, unknown>
 }
 
+/** Application execution context. It is separate from the model-facing MCP argument JSON. */
+export interface McpExecutionOptions extends ToolExecuteOptions {
+  attribution?: ToolAttributionContext & { toolCallId?: string }
+}
+
 /**
  * Result returned from an MCP tool invocation.
  *
@@ -75,23 +82,42 @@ export interface McpCallToolResult {
  */
 export interface McpToolRuntime {
   listTools: () => Promise<McpToolDescriptor[]>
-  callTool: (payload: McpCallToolPayload) => Promise<McpCallToolResult>
+  callTool: (payload: McpCallToolPayload, options?: McpExecutionOptions) => Promise<McpCallToolResult>
 }
 
 /** The proxy tool that calls an MCP tool. Each call names the MCP tool in its `name` argument, as `server::tool`. */
 export const MCP_CALL_TOOL_NAME = 'builtIn_mcpCallTool'
+
+/** Optional tool metadata cannot hold registration until a remote server's request deadline. */
+const indexTimeoutMs = 1000
+const unavailableIndex = 'The registration tool index is unavailable. Call this tool to discover the current catalog.'
 
 /**
  * Creates MCP proxy tools backed by a runtime-provided transport.
  *
  * Discovery returns descriptors, an explicit empty-catalog message, or an MCP
  * error result. Runtime owners register these tools in the shared LLM tool store.
+ * A registration-time name index helps models find connected capabilities.
+ * Live discovery supplies current schemas. The index grants no execution authority.
  */
 export function createMcpTools(runtime: McpToolRuntime): Array<Promise<Tool>> {
+  const catalog = runtime.listTools().then(
+    tools => tools.length > 0
+      ? `Tool names at registration: ${JSON.stringify(tools.map(tool => tool.name))}. Call this tool for current descriptions and input schemas.`
+      : 'The tool index was empty at registration. Call this tool for the current catalog.',
+    () => unavailableIndex,
+  )
+  let timer: ReturnType<typeof setTimeout>
+  const index = Promise.race([
+    catalog,
+    new Promise<string>((resolve) => {
+      timer = setTimeout(resolve, indexTimeoutMs, unavailableIndex)
+    }),
+  ]).finally(() => clearTimeout(timer))
   return [
-    tool({
+    index.then(index => tool({
       name: 'builtIn_mcpListTools',
-      description: 'List all available MCP tools. Call this first to discover tool names before calling builtIn_mcpCallTool.',
+      description: `List tools from connected MCP servers. Call this before builtIn_mcpCallTool to get current names and input schemas. ${index}`,
       execute: async () => {
         try {
           const tools = await runtime.listTools()
@@ -108,14 +134,15 @@ export function createMcpTools(runtime: McpToolRuntime): Array<Promise<Tool>> {
         }
       },
       parameters: z.object({}).strict(),
-    }),
+    })),
     tool({
       name: MCP_CALL_TOOL_NAME,
       description: 'Call an MCP tool by name. Use builtIn_mcpListTools first to get available tool names.',
-      execute: async ({ name, arguments: argsJson }) => {
+      execute: async ({ name, arguments: argsJson }, options?: McpExecutionOptions) => {
         try {
+          options?.abortSignal?.throwIfAborted()
           const args = argsJson ? JSON.parse(argsJson) : {}
-          return await runtime.callTool({ name, arguments: args })
+          return await runtime.callTool({ name, arguments: args }, options)
         }
         catch (error) {
           return {

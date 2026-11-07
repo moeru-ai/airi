@@ -33,6 +33,7 @@ export function buildApprovalResponse(
     structuredContent: {
       status: 'approval_required',
       pendingActionId: pending.id,
+      preparedTerminal: pending.preparedTerminal,
       toolName: pending.toolName,
       action: pending.action,
       policy: decision,
