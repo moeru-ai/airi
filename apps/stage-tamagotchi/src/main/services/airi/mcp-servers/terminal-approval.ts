@@ -137,7 +137,10 @@ export function bindTerminalApproval(params: {
   })
   return {
     ...params.result,
-    content: [...(params.result.content ?? []), { type: 'text', text: 'This response confirms preparation only. Approval is managed by AIRI. Execution and business success are not confirmed by this response.' }],
+    content: [...(params.result.content ?? []), {
+      type: 'text',
+      text: 'This response confirms preparation only. AIRI manages approval. It does not confirm execution or business success. Execution outcomes arrive through a Host notice in a new turn of this conversation. If approval is pending, finish this turn and wait for that notice. An empty MCP pending list does not prove that the command did not execute.',
+    }],
     structuredContent: { ...params.result.structuredContent, hostActionId: actionId },
   }
 }
