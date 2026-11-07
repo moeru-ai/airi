@@ -52,6 +52,14 @@ interface DeviceBinding {
   restart: () => void
 }
 
+/** Marks a failure of the plugin detector, so it is not taken for a failure of the device. */
+class DetectorFailure extends Error {
+  constructor(override readonly cause: Error) {
+    super(cause.message, { cause })
+    this.name = 'DetectorFailure'
+  }
+}
+
 class PluginInstallation<TNode> implements VoicePluginHandle {
   readonly abort = new AbortController()
   readonly inputs = new Set<PluginInput>()
@@ -201,7 +209,12 @@ class PluginInstallation<TNode> implements VoicePluginHandle {
     }
   }
 
-  /** Observes one side of the audio for the life of the plugin. A replaced device closes the old generation and observes the new one. */
+  /**
+   * Observes one side of the audio for the life of the plugin. A replaced device closes the old generation and observes the new one.
+   *
+   * A device that ends or fails closes only its generation, and the observation waits for the next device.
+   * A detector failure ends the whole observation, because the next device runs the same detector.
+   */
   private observe(side: AudioSide, settings: WindowOptions & { minWindowMs?: number }, run: (ctx: AudioPluginTask) => Promise<void>): Observer {
     const completion = Promise.withResolvers<Awaited<Observer['done']>>()
     const scope = createScope(settings.signal ? AbortSignal.any([this.abort.signal, settings.signal]) : this.abort.signal)
@@ -225,7 +238,7 @@ class PluginInstallation<TNode> implements VoicePluginHandle {
       }), { signal })
       const outcome = await task.done
       if (outcome.status === 'failed')
-        throw outcome.error
+        throw new DetectorFailure(outcome.error)
     }
 
     const start = () => {
@@ -240,14 +253,19 @@ class PluginInstallation<TNode> implements VoicePluginHandle {
       // The detector publishes through task controls, so observation results need no callback.
       const observer = observe(audio, { ...settings, signal: current.signal }, detect, () => {})
       void observer.done.then((outcome) => {
-        // A replaced generation ends quietly. Source failure or completion ends the whole observation.
+        // A replaced generation ends quietly.
         if (current.signal.aborted)
           return
-        if (outcome.status === 'failed')
-          this.report('audio', outcome.error)
-        if (outcome.status !== 'cancelled')
-          completion.resolve(outcome)
-        void scope.close()
+        void current.close()
+        if (outcome.status !== 'failed')
+          return
+        if (outcome.error instanceof DetectorFailure) {
+          this.report('audio', outcome.error.cause)
+          completion.resolve({ status: 'failed', error: outcome.error.cause })
+          void scope.close()
+          return
+        }
+        this.report('audio', outcome.error)
       })
     }
 

@@ -119,6 +119,66 @@ describe('voiceController input', () => {
     await controller.close()
   })
 
+  // Wake word and speech input stopped after a microphone was lost or replaced, until listening restarted.
+  it('resumes an audio plugin on a replacement source after the old source ended', async () => {
+    // ROOT CAUSE:
+    //
+    // An ended source closed the whole observation and removed its device binding:
+    //
+    // void scope.close()
+    //
+    // A later `replaceAudio` had nothing to restart.
+    // We fixed this by closing only the ended generation.
+    const oldFrames = createPushStream<PcmBlock>()
+    const nextFrames = createPushStream<PcmBlock>()
+    const oldAudio = new AudioInput(pcmSource(oldFrames.stream))
+    const nextAudio = new AudioInput(pcmSource(nextFrames.stream))
+    const controller = new VoiceController({ audio: oldAudio })
+    const detected = vi.fn(async (_task: AudioPluginTask) => {})
+    let observation: import('@proj-airi/pipelines-audio').Observer | undefined
+    controller.use({ name: 'detector', setup(scope) {
+      observation = scope.input.observe({ windowMs: 4, hopMs: 4 }, detected)
+    } })
+    const settled = vi.fn()
+    void observation!.done.then(settled)
+    oldFrames.write({ range: { sourceId: 'old', startFrame: 0, endFrame: 4 }, sampleRate: 1000, channels: [new Float32Array(4)] })
+    await expect.poll(() => detected.mock.calls.length).toBe(1)
+
+    oldFrames.close()
+    await expect.poll(() => oldAudio.position).toBeUndefined()
+    controller.replaceAudio(nextAudio)
+    nextFrames.write({ range: { sourceId: 'next', startFrame: 0, endFrame: 4 }, sampleRate: 1000, channels: [new Float32Array(4)] })
+
+    await expect.poll(() => detected.mock.calls.length).toBe(2)
+    expect(detected.mock.calls[1][0].window.range.sourceId).toBe('next')
+    expect(settled).not.toHaveBeenCalled()
+    await controller.close()
+    expect(await observation!.done).toMatchObject({ status: 'cancelled' })
+  })
+
+  it('reports a failed source and resumes an audio plugin on the replacement source', async () => {
+    const oldFrames = createPushStream<PcmBlock>()
+    const nextFrames = createPushStream<PcmBlock>()
+    const oldAudio = new AudioInput(pcmSource(oldFrames.stream))
+    const nextAudio = new AudioInput(pcmSource(nextFrames.stream))
+    const onError = vi.fn()
+    const controller = new VoiceController({ audio: oldAudio })
+    const detected = vi.fn(async (_task: AudioPluginTask) => {})
+    controller.use({ name: 'detector', setup(scope) {
+      scope.input.observe({ windowMs: 4, hopMs: 4 }, detected)
+    } }, { onError })
+
+    oldFrames.error(new Error('Device is busy'))
+    await expect.poll(() => onError.mock.calls.length).toBe(1)
+    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ plugin: 'detector', stage: 'audio', error: expect.objectContaining({ message: 'Device is busy' }) }))
+    controller.replaceAudio(nextAudio)
+    nextFrames.write({ range: { sourceId: 'next', startFrame: 0, endFrame: 4 }, sampleRate: 1000, channels: [new Float32Array(4)] })
+
+    await expect.poll(() => detected.mock.calls.length).toBe(1)
+    expect(detected.mock.calls[0][0].window.range.sourceId).toBe('next')
+    await controller.close()
+  })
+
   it('keeps the shared input available after the controller closes', async () => {
     const frames = createPushStream<PcmBlock>()
     const close = vi.fn()

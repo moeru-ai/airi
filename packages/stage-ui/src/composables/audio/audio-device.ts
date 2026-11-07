@@ -4,7 +4,7 @@ import type { Ref } from 'vue'
 import { microphoneSource } from '@proj-airi/audio/browser'
 import { AudioInput } from '@proj-airi/pipelines-audio'
 import { useDevicesList } from '@vueuse/core'
-import { computed, markRaw, onScopeDispose, ref, shallowRef, watch } from 'vue'
+import { computed, markRaw, nextTick, onScopeDispose, ref, shallowRef, watch } from 'vue'
 
 import { useAnalytics } from '../use-analytics'
 
@@ -65,7 +65,8 @@ function resolvePreferredAudioInput(audioInputs: readonly MediaDeviceInfo[]) {
  *
  * Consumers subscribe to an input with their own abort signal. The first subscriber opens the microphone,
  * and the last one to leave releases it. Selecting another device creates new inputs. Existing
- * subscriptions keep the old device until their owners move to the new inputs.
+ * subscriptions keep the old device until their owners move to the new inputs. When the device ends a track, for
+ * example after it was unplugged, the device list refreshes and new inputs are created in the same way.
  *
  * `selectedAudioInput` can be a persisted preference. An empty or unavailable selection falls back to the
  * preferred device once the browser lists device IDs, so controls show the device that capture uses.
@@ -124,6 +125,7 @@ export function useAudioDevice(selectedAudioInput: Ref<string> = ref(''), option
   const source = shallowRef<MicrophoneSource>(createSource(deviceConstraints.value))
   const input = shallowRef(markRaw(new AudioInput(source.value, { historyMs: MICROPHONE_HISTORY_MS })))
   const unprocessedInput = shallowRef(createUnprocessedInput())
+  let disposed = false
 
   /** Refuses to open the device while the microphone is off. The check runs for each new connection. */
   function guard(source: MicrophoneSource): MicrophoneSource {
@@ -149,13 +151,47 @@ export function useAudioDevice(selectedAudioInput: Ref<string> = ref(''), option
         if (source.value === created)
           stream.value = opened
       },
+      onEnded: () => void recoverLostDevice(created),
     })))
     return created
   }
 
   /** Keyword spotting needs no history, because a wake starts its input after the keyword. */
   function createUnprocessedInput() {
-    return markRaw(new AudioInput(markRaw(guard(microphoneSource(unprocessedConstraints.value, { contextOptions: MICROPHONE_CONTEXT })))))
+    const created: AudioInput = markRaw(new AudioInput(markRaw(guard(microphoneSource(unprocessedConstraints.value, {
+      contextOptions: MICROPHONE_CONTEXT,
+      onEnded: () => void recoverLostDevice(created),
+    })))))
+    return created
+  }
+
+  /** Creates new inputs for the selected device. Subscribers move to them themselves. */
+  function recreateInputs() {
+    stream.value = undefined
+    source.value = createSource(deviceConstraints.value)
+    input.value = markRaw(new AudioInput(source.value, { historyMs: MICROPHONE_HISTORY_MS }))
+    unprocessedInput.value = createUnprocessedInput()
+  }
+
+  /**
+   * Opens the device again after it ended a track of `lost`, a source or an input of this device.
+   *
+   * The list refreshes first. A device that left the list falls back to the preferred device, and the device watch
+   * creates the inputs. A device that is still listed, for example the system default, gets new inputs here.
+   */
+  async function recoverLostDevice(lost: MicrophoneSource | AudioInput) {
+    const current = () => lost === source.value || lost === unprocessedInput.value
+    if (!current())
+      return
+    try {
+      devices.value = await navigator.mediaDevices.enumerateDevices()
+    }
+    catch {
+      // The old list stays. The inputs are created for the same selection.
+    }
+    await nextTick()
+    if (!disposed && current())
+      recreateInputs()
   }
 
   // Browsers hide device IDs until permission, so the fallback waits for a list with IDs.
@@ -167,12 +203,7 @@ export function useAudioDevice(selectedAudioInput: Ref<string> = ref(''), option
   }, { immediate: true })
 
   // Subscribers move to the new input themselves. The old device closes when its last subscriber leaves.
-  watch(capturedDeviceId, () => {
-    stream.value = undefined
-    source.value = createSource(deviceConstraints.value)
-    input.value = markRaw(new AudioInput(source.value, { historyMs: MICROPHONE_HISTORY_MS }))
-    unprocessedInput.value = createUnprocessedInput()
-  })
+  watch(capturedDeviceId, recreateInputs)
 
   // Closing ends the subscriptions without an error, as if the device stopped. Owners of an active recording
   // stop it first in their own watchers of the same switch, so a closed input never looks like finished speech.
@@ -223,6 +254,7 @@ export function useAudioDevice(selectedAudioInput: Ref<string> = ref(''), option
   }
 
   onScopeDispose(() => {
+    disposed = true
     if (permissionStatus)
       permissionStatus.onchange = null
     void input.value.close()

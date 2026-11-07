@@ -147,6 +147,11 @@ export function microphoneSource(constraints: MediaStreamConstraints, options: {
   contextOptions?: AudioContextOptions
   /** Runs with the tracks when a connection opens, and with undefined when it closes. */
   onStream?: (stream: MediaStream | undefined) => void
+  /**
+   * Runs when the device ends a track of an open connection, for example after it was unplugged or taken by another app.
+   * Closing the connection stops its tracks and does not call it.
+   */
+  onEnded?: () => void
 } = {}): MicrophoneSource {
   let current: MediaStream | undefined
 
@@ -179,6 +184,9 @@ export function microphoneSource(constraints: MediaStreamConstraints, options: {
       await resumed
       current = stream
       options.onStream?.(stream)
+      // `track.stop()` fires no `ended` event, so only the device ends the track here.
+      for (const track of stream.getAudioTracks())
+        track.addEventListener('ended', () => options.onEnded?.(), { once: true, signal: scope.signal })
       await pipeMediaStream(context, stream, scope, output)
     }),
   }

@@ -57,3 +57,36 @@ it('closes every capture and opens no new one while the microphone is off', asyn
 
   expect(openMicrophone).toHaveBeenCalledOnce()
 })
+
+// Wake word and speech input stopped after the microphone was lost, for example an unplugged or busy device.
+it('creates new inputs when the track of the selected device ends', async () => {
+  // ROOT CAUSE:
+  //
+  // Inputs were created again only when the device ID changed:
+  //
+  // watch(capturedDeviceId, () => { source.value = createSource(...) })
+  //
+  // An ended track ended every subscription, and nothing opened the device again.
+  // We fixed this by creating the inputs again when a device track ends.
+  const { device, selected } = mountDevice()
+  await device.askPermission()
+  await expect.poll(() => selected.value).not.toBe('')
+  await expect.poll(() => device.audioInputs.value.length).toBeGreaterThan(0)
+  const input = device.input.value
+  const unprocessedInput = device.unprocessedInput.value
+  const subscription = new AbortController()
+  cleanups.push(() => subscription.abort())
+  const reader = input.subscribe({ signal: subscription.signal }).getReader()
+  await reader.read()
+  const track = device.stream.value!.getAudioTracks()[0]
+
+  // The browser fires `ended` when the device goes away. `stop()` does not fire it.
+  track.dispatchEvent(new Event('ended'))
+
+  expect(await reader.read()).toEqual({ done: true, value: undefined })
+  await expect.poll(() => device.input.value).not.toBe(input)
+  expect(device.unprocessedInput.value).not.toBe(unprocessedInput)
+  const reopened = new AbortController()
+  cleanups.push(() => reopened.abort())
+  expect((await device.input.value.subscribe({ signal: reopened.signal }).getReader().read()).done).toBe(false)
+})
