@@ -1,4 +1,3 @@
-import type { TamagotchiToolRegistry } from '@proj-airi/plugin-sdk-tamagotchi/tools'
 import type { ExtensionActivationPlan } from '@proj-airi/plugin-sdk/plugin-host'
 import type {
   ExtensionDirectoryImportPlan,
@@ -11,6 +10,7 @@ import type {
   ExtensionAssetSession,
   ExtensionAssetSnapshotService,
 } from '../features/static-assets'
+import type { TamagotchiToolRegistry } from '../kits/tool/registry'
 import type { ExtensionHostService, SetupExtensionHostOptions } from '../types'
 import type { SessionCleanupReport } from './managed-sessions'
 

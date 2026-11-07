@@ -6,10 +6,10 @@ import type { SetupExtensionHostOptions } from '../types'
 import type { GameletOrchestrationRuntime } from './gamelet/orchestration'
 
 import { gameletKit, toolKit } from '@proj-airi/plugin-sdk-tamagotchi'
-import { TamagotchiToolRegistry } from '@proj-airi/plugin-sdk-tamagotchi/tools'
 
 import { gameletPluginKitDescriptor } from './gamelet'
 import { createGameletOrchestrationRuntime } from './gamelet/orchestration'
+import { TamagotchiToolRegistry } from './tool/registry'
 import { widgetPluginKitDescriptor } from './widget'
 
 type GameletKitClient = ReturnType<typeof gameletKit.createClient>
