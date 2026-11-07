@@ -159,7 +159,7 @@ about:
       restart-silent: 重新启动以静默更新
       restart-install: 重启并安装更新
       confirm-restart: 确认重新启动
-      whats-new: 更新内容
+      whats-new: '更新内容'
       view-changes: 查看代码变更
     dialog:
       title: 有可用的更新

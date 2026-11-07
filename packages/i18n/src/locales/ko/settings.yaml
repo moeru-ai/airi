@@ -372,8 +372,6 @@ pages:
       action: 응답할 캐릭터 선택
     sync:
       notice: 캐릭터 카드는 계정과 동기화됩니다. 삭제된 카드는 30일 동안 복원할 수 있습니다.
-      off_notice: 로그인되어 있지만 캐릭터 카드 동기화가 꺼져 있습니다.
-      off_notice_link: 실험적 기능에서 켜세요.
       state:
         synced: 계정과 동기화됨
         pending: 업로드 대기 중
@@ -2126,12 +2124,6 @@ pages:
         global: 로그인한 계정에서 사용 가능
         account: 내 계정에서 사용 가능
       features:
-        character_card_sync:
-          title: 캐릭터 카드 클라우드 동기화
-          description: 로그인한 동안 캐릭터 카드를 계정과 동기화하여 다른 기기에서도 사용할 수 있게 합니다. 기본적으로 꺼져 있습니다. 삭제한 카드는 계정 기록에 30일 동안 남습니다.
-        display_model_sync:
-          title: 모델 클라우드 동기화
-          description: 가져온 Live2D, VRM 모델을 로그인한 동안 계정에 업로드하여 다른 기기에서도 사용할 수 있게 합니다. 기본적으로 꺼져 있습니다.
         fullscreen_workspace:
           title: 전체 화면 작업 공간
           description: 설정과 채팅을 화면 전체를 덮는 작업 공간에서 열고, 캐릭터를 왼쪽에 둡니다. 기본적으로 꺼져 있습니다.

@@ -351,8 +351,6 @@ pages:
       action: 選擇回應的角色
     sync:
       notice: 角色卡會同步至帳戶。已刪除的角色卡可在 30 天內還原。
-      off_notice: 你已登入，但角色卡同步尚未開啟。
-      off_notice_link: 請在實驗性功能中開啟。
       state:
         synced: 已同步至帳戶
         pending: 等待上傳
@@ -1956,10 +1954,6 @@ pages:
         local: 你的裝置選擇
         global: 已登入帳戶可使用
         account: 你的帳戶可使用
-      features:
-        character_card_sync:
-          title: 角色卡雲端同步
-          description: 登入時將角色卡同步至帳戶，讓其他裝置也能使用。預設停用，已刪除的角色卡會在帳戶歷史記錄中保留 30 天。
     color-scheme:
       description: 更改舞台的配色方案
       title: 配色方案
