@@ -155,6 +155,74 @@ describe('voiceController output', () => {
     await controller.close()
   })
 
+  // https://github.com/moeru-ai/airi/issues/3167
+  it('issue #3167: dispatches an opening special token when its speech starts, not while TTS runs', async () => {
+    const audio = Promise.withResolvers<Blob>()
+    const synthesize = vi.fn(() => audio.promise)
+    const events: string[] = []
+    const playback = new Playback({ nowMs: () => 0, play: (clip) => {
+      clip.onStart?.()
+      return { done: Promise.resolve({ throughMs: 1 }), stop: async () => ({ throughMs: 0 }) }
+    } })
+    const controller = new VoiceController({ speech: () => ({
+      playback,
+      synthesize,
+      onSpecial: special => events.push(`special:${special}`),
+      onPlaybackStart: clip => events.push(`start:${clip.text}`),
+    }) })
+    const response = controller.openResponse({ sessionId: 'alice', turnId: 'greeting' })
+    const speech = response.openSpeech({ purpose: 'answer' })
+    speech.special('<|ACT happy|>')
+    await speech.write('Hello there.')
+    speech.end()
+
+    await expect.poll(() => synthesize.mock.calls.length).toBe(1)
+    expect(events).toEqual([])
+
+    audio.resolve(new Blob(['Hello there.']))
+
+    expect(await response.finish()).toBe('finished')
+    expect(events).toEqual(['special:<|ACT happy|>', 'start:Hello there.'])
+    await controller.close()
+  })
+
+  it('dispatches special tokens of a streaming provider when its audio starts', async () => {
+    const words: string[] = []
+    const events: string[] = []
+    const output = createPushStream<SpeechAudio>()
+    const playback = new Playback({ nowMs: () => 0, play: (clip) => {
+      clip.onStart?.()
+      return { done: Promise.resolve({ throughMs: 1 }), stop: async () => ({ throughMs: 0 }) }
+    } })
+    const controller = new VoiceController({ speech: () => ({
+      playback,
+      onSpecial: special => events.push(`special:${special}`),
+      onPlaybackStart: clip => events.push(`start:${clip.text}`),
+      stream: async (text) => {
+        void (async () => {
+          for await (const part of text)
+            words.push(part)
+        })()
+        return output.stream
+      },
+    }) })
+    const response = controller.openResponse({ sessionId: 'alice', turnId: 'greeting' })
+    const speech = response.openSpeech({ purpose: 'answer' })
+    speech.special('<|ACT happy|>')
+    await speech.write('Hello there.')
+    speech.end()
+
+    await expect.poll(() => words).toEqual(['Hello there.'])
+    expect(events).toEqual([])
+
+    output.write({ text: 'Hello there.', audio: new Blob(['Hello there.']) })
+    await expect.poll(() => events).toEqual(['special:<|ACT happy|>', 'start:Hello there.'])
+    output.close()
+
+    expect(await response.finish()).toBe('finished')
+    await controller.close()
+  })
+
   it('reads a formula that two writes split as one formula in the voice language', async () => {
     const requested: string[] = []
     const playback = new Playback({ nowMs: () => 0, play: () => ({ done: Promise.resolve({ throughMs: 1 }), stop: async () => ({ throughMs: 0 }) }) })
