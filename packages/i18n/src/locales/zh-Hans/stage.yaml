@@ -1,3 +1,21 @@
+background-picker:
+  title: 选择背景
+  add-custom: 添加自定义背景
+  custom: 自定义背景
+  preview: 预览
+  no-preview: 暂无预览
+  select: 请选择背景
+  blur: 模糊
+  remove: 移除背景
+  sampling: 正在提取颜色…
+  apply: 使用此背景
+  presets:
+    colorful-wave:
+      label: 彩色波浪
+      description: 十字网格上的动态波浪
+    transparent:
+      label: 透明背景
+      description: 透出应用的底层背景
 character-switcher:
   title: 切换角色
   manage: 管理角色

@@ -659,11 +659,6 @@
       "count": 1
     }
   },
-  "packages/stage-ui/src/components/scenarios/dialogs/background-picker/background-picker.vue": {
-    "ts/no-explicit-any": {
-      "count": 6
-    }
-  },
   "packages/stage-ui/src/components/scenarios/dialogs/onboarding/step-provider-configuration.vue": {
     "ts/no-explicit-any": {
       "count": 1

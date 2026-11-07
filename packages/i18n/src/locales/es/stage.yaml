@@ -1,3 +1,21 @@
+background-picker:
+  title: Elegir un fondo
+  add-custom: Añadir fondo personalizado
+  custom: Fondo personalizado
+  preview: Vista previa
+  no-preview: Sin vista previa
+  select: Selecciona un fondo
+  blur: Desenfocar
+  remove: Eliminar fondo
+  sampling: Extrayendo colores…
+  apply: Usar este fondo
+  presets:
+    colorful-wave:
+      label: Olas de colores
+      description: Olas animadas sobre una cuadrícula de cruces
+    transparent:
+      label: Transparente
+      description: Mostrar el fondo bajo la interfaz de la aplicación
 character-switcher:
   title: Cambiar de Personaje
   manage: Gestionar personajes
