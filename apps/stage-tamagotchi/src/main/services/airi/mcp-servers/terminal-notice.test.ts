@@ -3,7 +3,7 @@ import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { TerminalNotice, TerminalSnapshot } from '@proj-airi/stage-shared/terminal-approval'
 
 import { defineInvokeHandler } from '@moeru/eventa'
-import { createChatOrchestratorRuntime } from '@proj-airi/core-agent'
+import { createChatOrchestratorRuntime, streamFrom } from '@proj-airi/core-agent'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { terminalOutcomeNotice } from '../../../../shared/eventa/terminal-approval'
@@ -26,13 +26,26 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-function fixture() {
+function fixture(projectToProvider = false) {
   // The Main window context and fake Renderer must share Electron's actual test IPC bus.
   const mainIpc = import('electron').then(module => module.ipcMain)
   const messages: Record<string, ChatHistoryItem[]> = { 'session-a': [], 'session-b': [] }
   const providerInputs: Conversation[] = []
+  const providerRequests: unknown[] = []
+  const projectionProvider: GenerationProvider = { generation: model => ({ protocol: 'chat-completions', config: {
+    model,
+    baseURL: 'https://example.com/v1/',
+    fetch: async (_url: RequestInfo | URL, init?: RequestInit) => {
+      providerRequests.push(JSON.parse(String(init?.body)))
+      return new Response('data: {"choices":[{"index":0,"delta":{"content":"Controlled notice response."},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n', { headers: { 'Content-Type': 'text/event-stream' } })
+    },
+  } }) }
   const stream = vi.fn(async (_model: string, _provider: GenerationProvider, conversation: Conversation, options?: StreamOptions) => {
     providerInputs.push(structuredClone(conversation))
+    if (projectToProvider) {
+      await streamFrom({ model: _model, chatProvider: projectionProvider, conversation, options })
+      return
+    }
     await options?.onStreamEvent?.({ type: 'text-delta', text: 'Controlled notice response.' })
     await options?.onStreamEvent?.({ type: 'finish' })
   })
@@ -60,11 +73,11 @@ function fixture() {
   }
   const core = runtime()
   cleanup.push(core.cancelPendingSends)
-  return { mainIpc, messages, providerInputs, stream, core, runtime }
+  return { mainIpc, messages, providerInputs, providerRequests, stream, core, runtime }
 }
 
-async function connect(status: TerminalNotice['status'] = 'executed') {
-  const h = fixture()
+async function connect(status: TerminalNotice['status'] = 'executed', projectToProvider = false, exitCode = status === 'failed' ? 1 : 0) {
+  const h = fixture(projectToProvider)
   const owner = createWindowIpc(await h.mainIpc)
   electron.fromId.mockReturnValue(owner.window.webContents)
   electron.fromWebContents.mockReturnValue(owner.window)
@@ -77,7 +90,7 @@ async function connect(status: TerminalNotice['status'] = 'executed') {
     actions.approve(action.id)
     actions.consume(action.id, { argv: action.argv, attribution, kind: 'terminal' })
     if (status !== 'unknown')
-      actions.settle(action.id, { outcome: status === 'executed' ? 'success' : 'failed', exitCode: status === 'executed' ? 0 : 1 })
+      actions.settle(action.id, { outcome: status === 'executed' ? 'success' : 'failed', exitCode })
   }
   else if (status === 'rejected') {
     actions.reject(action.id)
@@ -110,6 +123,26 @@ async function connect(status: TerminalNotice['status'] = 'executed') {
 }
 
 describe('host Terminal notice routing', () => {
+  it.each([{ exitCode: 0, timedOut: false }, { exitCode: 1, timedOut: false }, { exitCode: 124, timedOut: true }])('preserves scoped Terminal facts %j in the actual next provider request', async (backend) => {
+    const h = await connect(backend.exitCode === 0 ? 'executed' : 'failed', true, backend.exitCode)
+    h.notice.result = {
+      content: [{ type: 'text', text: 'Terminal backend: local-shell-runner. executionTarget and context describe the desktop backend.' }],
+      structuredContent: { terminalBackend: 'local-shell-runner', executionTarget: { mode: 'dry-run' }, context: { available: false }, backendResult: { ...backend, effectiveCwd: '/fixture' } },
+    }
+    await h.deliver()
+    await Promise.all(h.completions)
+    console.info(JSON.stringify({ boundary: 'Controlled Terminal notice and Electron IPC. Real Core, SDK and provider request projection. No native execution.', backend, providerRequests: h.providerRequests, action: h.actions.get(h.notice.actionId) }))
+
+    expect(h.providerRequests).toHaveLength(1)
+    expect(h.providerRequests[0]).toMatchObject({ messages: expect.arrayContaining([expect.objectContaining({ role: 'user', content: expect.stringContaining(JSON.stringify(h.notice)) })]) })
+    expect(JSON.stringify(h.providerRequests[0])).toContain('Notice from airi:terminal-settlement, not a message from the owner.')
+    expect(h.actions.get(h.notice.actionId)?.settlement).toMatchObject({ executionState: 'executed', exitCode: backend.exitCode })
+    expect(h.messages['session-b']).toEqual([])
+    await h.deliver()
+    await Promise.all(h.completions)
+    expect(h.providerRequests).toHaveLength(1)
+  })
+
   it.each(['executed', 'failed', 'rejected', 'expired', 'unknown'] as const)('persists %s in the original Session and starts a distinct notice turn', async (status) => {
     const h = await connect(status)
     const receipt = await h.deliver()

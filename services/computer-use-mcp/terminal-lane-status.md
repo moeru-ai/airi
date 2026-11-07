@@ -2,6 +2,19 @@
 
 Scope: terminal lane work in `services/computer-use-mcp/**`.
 
+## Terminal environment scope: 2026-11-07
+
+Terminal responses retain the existing desktop `executionTarget` and `context` fields.
+The `terminalBackend` field comes from the actual Terminal runner, independently of the desktop executor.
+Desktop dry-run does not establish whether a Shell command executed.
+Command results retain their actual exit code, timeout and possible side effects.
+
+`backendResult.effectiveCwd` is the directory used for that command's spawn.
+`terminalState.effectiveCwd` is the runner default for a later command.
+Neither field tracks the current directory of an interactive Shell.
+Controlled MCP and provider projection tests cover this information contract.
+Native execution and business effects require their separate Host and Fixture evidence.
+
 ## Convergence authorization correction: 2026-11-05
 
 The accepted integration baseline had three independent approval bypasses.

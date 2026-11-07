@@ -32,7 +32,7 @@ afterEach(async () => {
     console.info(JSON.stringify({ boundary: 'Mock Terminal through real MCP protocol. No UI approval or native spawn.', ...record }))
 })
 
-async function fixture() {
+async function fixture(desktopDryRun = false) {
   const root = await mkdtemp(join(tmpdir(), 'airi-terminal-approval-'))
   cleanups.push(async () => {
     if (!resolve(root).startsWith(resolve(tmpdir()) + sep))
@@ -73,15 +73,19 @@ async function fixture() {
   const options: ComputerUseServerOptions & { terminalControlNonce: string } = {
     terminalControlNonce: nonce,
     terminalRunnerFactory: () => terminal,
-    executorFactory: config => ({
-      ...createDryRunExecutor(config),
-      getForegroundContext: async () => ({ available: true, appName: 'Fixture', windowTitle: 'Fixture', platform }),
-      getExecutionTarget: async () => createLocalExecutionTarget({ hostName: 'fixture-host' }),
-      getDisplayInfo: async () => createDisplayInfo(),
-      getPermissionInfo: async () => createPermissionInfo(),
-    }),
+    executorFactory: (config) => {
+      const executor = createDryRunExecutor(config)
+      return {
+        ...executor,
+        getForegroundContext: desktopDryRun ? executor.getForegroundContext : async () => ({ available: true, appName: 'Fixture', windowTitle: 'Fixture', platform }),
+        getExecutionTarget: desktopDryRun ? executor.getExecutionTarget : async () => createLocalExecutionTarget({ hostName: 'fixture-host' }),
+        getDisplayInfo: async () => createDisplayInfo(),
+        getPermissionInfo: async () => createPermissionInfo(),
+      }
+    },
   }
   const { server, runtime } = await createComputerUseMcpServer(config, options)
+  vi.spyOn(runtime.cdpBridgeManager, 'probeAvailability').mockResolvedValue({ endpoint: 'http://example.com', connected: false, connectable: false, lastError: 'Browser probing is disabled in this controlled fixture.' })
   const client = new Client({ name: 'mock-main', version: '1.0.0' })
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
   await Promise.all([server.connect(serverTransport), client.connect(clientTransport)])
@@ -119,6 +123,42 @@ function barrier() {
 }
 
 describe('main-only Terminal execution protocol', () => {
+  it.each([{ exitCode: 0, timedOut: false }, { exitCode: 1, timedOut: false }, { exitCode: 124, timedOut: true }])('separates desktop dry-run from the Terminal result %j', async (backend) => {
+    const h = await fixture(true)
+    const start = vi.mocked(h.terminal.startPrepared!)
+    const original = start.getMockImplementation()!
+    start.mockImplementationOnce((input) => {
+      const execution = original(input)
+      return { ...execution, result: execution.result.then(result => ({ ...result, ...backend })) }
+    })
+    const prepared = await h.prepare()
+    const result = await h.commit(prepared)
+    evidence.push({ privateHostResult: result, oracle: { ...h.oracle } })
+
+    expect(h.oracle).toEqual({ dispatches: 1, effects: 1 })
+    expect(result.structuredContent).toMatchObject({ terminalBackend: 'local-shell-runner', executionTarget: { mode: 'dry-run' }, context: { available: false }, backendResult: { ...backend, effectiveCwd: prepared.effectiveCwd }, executorInvoked: true, terminalLifecycle: 'closed' })
+    expect(JSON.stringify(result.content)).toContain('executionTarget and context describe the desktop backend')
+    expect(JSON.stringify(result.content)).toContain('backendResult.effectiveCwd is the directory used to spawn this command')
+  })
+
+  it('scopes a Terminal exception without claiming that it failed on a dry-run Shell', async () => {
+    const h = await fixture(true)
+    vi.mocked(h.terminal.startPrepared!).mockImplementationOnce(() => {
+      h.oracle.dispatches++
+      h.oracle.effects++
+      return { result: Promise.reject(new Error('Controlled Terminal response failure.')), closed: Promise.resolve() }
+    })
+    const prepared = await h.prepare()
+    const result = await h.commit(prepared)
+    evidence.push({ privateHostResult: result, oracle: { ...h.oracle } })
+
+    expect(h.oracle).toEqual({ dispatches: 1, effects: 1 })
+    expect(result.isError).toBe(true)
+    expect(result.structuredContent).toMatchObject({ terminalBackend: 'local-shell-runner', executionTarget: { mode: 'dry-run' }, executorInvoked: true, terminalLifecycle: 'closed' })
+    expect(JSON.stringify(result.content)).not.toContain('failed on local dry-run')
+    expect(JSON.stringify(result.content)).toContain('executionTarget and context describe the desktop backend')
+  })
+
   it('prepares without effects and dispatches the exact snapshot once from the private Host request', async () => {
     const h = await fixture()
     const prepared = await h.prepare()

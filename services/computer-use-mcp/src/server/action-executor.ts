@@ -45,7 +45,7 @@ import {
 } from '../utils/env-file'
 import { errorMessageFromValue } from '../utils/error-message'
 import { executeDesktopClickTarget } from './desktop-grounding-actions'
-import { describeExecutionTarget } from './formatters'
+import { describeExecutionTarget, describeTerminalBackend } from './formatters'
 import { refreshRuntimeRunState } from './refresh-run-state'
 import {
   buildApprovalResponse,
@@ -246,6 +246,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
   return async (action, toolName, options = {}) => {
     const normalizedAction = normalizeConfiguredAppAction(action, runtime.config.openableApps)
     const { executionTarget, context: actualContext, displayInfo } = await refreshRuntimeRunState(runtime)
+    const terminalBackend = normalizedAction.kind.startsWith('terminal_') ? runtime.terminalRunner.describe().kind : undefined
     const context = getPolicyEvaluationContext({
       action: normalizedAction,
       actualContext,
@@ -429,6 +430,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
 
     try {
       let backendResult: Record<string, unknown> = {}
+      let terminalResult: TerminalCommandResult | undefined
       let clipboardStructuredContent: Record<string, unknown> | undefined
       let secretStructuredContent: Record<string, unknown> | undefined
       let summaryOverride: string | undefined
@@ -648,6 +650,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           else {
             result = await runtime.terminalRunner.execute(normalizedAction.input)
           }
+          terminalResult = result
           runtime.session.setTerminalState(runtime.terminalRunner.getState())
           runtime.stateManager.updateTerminalResult(result)
           backendResult = {
@@ -740,12 +743,14 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
       }
 
       // Transparency: explain what just happened.
-      const outcome = explainActionOutcome({
+      let outcome = explainActionOutcome({
         action: normalizedAction,
         succeeded: true,
-        terminalResult: normalizedAction.kind === 'terminal_exec' ? (backendResult as unknown as TerminalCommandResult) : undefined,
+        terminalResult,
         context,
       })
+      if (terminalBackend)
+        outcome += ` ${describeTerminalBackend(terminalBackend)}`
 
       await runtime.session.record({
         event: 'executed',
@@ -756,6 +761,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         result: {
           ...backendResult,
           executionTarget,
+          terminalBackend,
           screenshotPath: screenshot?.path,
           displayInfo,
         },
@@ -771,6 +777,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           policy: decision,
           launchContext: preflight.launchContext,
           executionTarget,
+          terminalBackend,
           displayInfo,
           coordinateSpace: buildCoordinateSpaceInfo({
             config: runtime.config,
@@ -817,6 +824,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         policy: decision,
         result: {
           executionTarget,
+          terminalBackend,
           error: errorMessage,
         },
       })
@@ -826,6 +834,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         action: normalizedAction,
         context,
         executionTarget,
+        terminalBackend,
         policy: decision,
       })
     }
