@@ -1,62 +1,145 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createVideoNotifyGate } from './video-notify'
 
-function report(videoId: string, title: string) {
-  return { url: `https://example.com/watch?v=${videoId}`, videoId, title }
+function report(videoId: string, title: string, currentTimeSec = 0) {
+  return { url: `https://example.com/watch?v=${videoId}`, videoId, title, currentTimeSec }
 }
 
 describe('createVideoNotifyGate', () => {
-  it('notifies a video after the same title arrives twice', () => {
-    const gate = createVideoNotifyGate()
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
 
-    expect(gate.shouldNotify(report('a', 'Song A'))).toBe(false)
-    expect(gate.shouldNotify(report('a', 'Song A'))).toBe(true)
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('notifies a video after its title stays the same', () => {
+    const onSettle = vi.fn()
+    const gate = createVideoNotifyGate(onSettle)
+
+    gate.report(report('a', 'Song A'))
+    vi.advanceTimersByTime(2_999)
+    expect(onSettle).not.toHaveBeenCalled()
+
+    vi.advanceTimersByTime(1)
+    expect(onSettle).toHaveBeenCalledTimes(1)
+    expect(onSettle).toHaveBeenCalledWith(report('a', 'Song A'))
+  })
+
+  it('notifies after one report, without a second report', () => {
+    const onSettle = vi.fn()
+    const gate = createVideoNotifyGate(onSettle)
+
+    gate.report(report('a', 'Song A'))
+    vi.advanceTimersByTime(3_000)
+
+    expect(onSettle).toHaveBeenCalledTimes(1)
   })
 
   it('notifies a video only once', () => {
-    const gate = createVideoNotifyGate()
-    gate.shouldNotify(report('a', 'Song A'))
-    gate.shouldNotify(report('a', 'Song A'))
+    const onSettle = vi.fn()
+    const gate = createVideoNotifyGate(onSettle)
+    gate.report(report('a', 'Song A'))
+    vi.advanceTimersByTime(3_000)
 
-    expect(gate.shouldNotify(report('a', 'Song A'))).toBe(false)
+    gate.report(report('a', 'Song A', 15))
+    vi.advanceTimersByTime(20_000)
+
+    expect(onSettle).toHaveBeenCalledTimes(1)
   })
 
-  it('ignores reports that carry a new video id with the previous title', () => {
-    const gate = createVideoNotifyGate()
-    gate.shouldNotify(report('a', 'Song A'))
-    gate.shouldNotify(report('a', 'Song A'))
+  it('sends the latest report of a video', () => {
+    const onSettle = vi.fn()
+    const gate = createVideoNotifyGate(onSettle)
 
-    expect(gate.shouldNotify(report('b', 'Song A'))).toBe(false)
-    expect(gate.shouldNotify(report('b', 'Song A'))).toBe(false)
-    expect(gate.shouldNotify(report('b', 'Song B'))).toBe(false)
-    expect(gate.shouldNotify(report('b', 'Song B'))).toBe(true)
+    gate.report(report('a', 'Song A', 1))
+    gate.report(report('a', 'Song A', 2))
+    vi.advanceTimersByTime(3_000)
+
+    expect(onSettle).toHaveBeenCalledWith(report('a', 'Song A', 2))
+  })
+
+  it('waits for the real title when a new video id carries the previous title', () => {
+    const onSettle = vi.fn()
+    const gate = createVideoNotifyGate(onSettle)
+    gate.report(report('a', 'Song A'))
+    vi.advanceTimersByTime(3_000)
+    onSettle.mockClear()
+
+    gate.report(report('b', 'Song A'))
+    vi.advanceTimersByTime(2_000)
+    gate.report(report('b', 'Song B'))
+    vi.advanceTimersByTime(3_000)
+
+    expect(onSettle).toHaveBeenCalledTimes(1)
+    expect(onSettle).toHaveBeenCalledWith(report('b', 'Song B'))
   })
 
   it('ignores a stale page title of the previous video', () => {
-    const gate = createVideoNotifyGate()
-    gate.shouldNotify(report('a', 'Song'))
-    gate.shouldNotify(report('a', 'Song'))
+    const onSettle = vi.fn()
+    const gate = createVideoNotifyGate(onSettle)
+    gate.report(report('a', 'Song'))
+    vi.advanceTimersByTime(3_000)
+    onSettle.mockClear()
 
-    expect(gate.shouldNotify(report('b', '(3) Song - YouTube'))).toBe(false)
-    expect(gate.shouldNotify(report('b', '(3) Song - YouTube'))).toBe(false)
+    gate.report(report('b', '(3) Song - YouTube'))
+    vi.advanceTimersByTime(9_999)
+
+    expect(onSettle).not.toHaveBeenCalled()
+  })
+
+  it('notifies a new video with the same title after the title stays', () => {
+    const onSettle = vi.fn()
+    const gate = createVideoNotifyGate(onSettle)
+    gate.report(report('a', 'Live'))
+    vi.advanceTimersByTime(3_000)
+    onSettle.mockClear()
+
+    gate.report(report('b', 'Live'))
+    vi.advanceTimersByTime(9_999)
+    expect(onSettle).not.toHaveBeenCalled()
+
+    vi.advanceTimersByTime(1)
+    expect(onSettle).toHaveBeenCalledWith(report('b', 'Live'))
   })
 
   it('notifies a new title that contains the previous title', () => {
-    const gate = createVideoNotifyGate()
-    gate.shouldNotify(report('a', 'Part 1'))
-    gate.shouldNotify(report('a', 'Part 1'))
+    const onSettle = vi.fn()
+    const gate = createVideoNotifyGate(onSettle)
+    gate.report(report('a', 'Part 1'))
+    vi.advanceTimersByTime(3_000)
+    onSettle.mockClear()
 
-    expect(gate.shouldNotify(report('b', 'Part 1 (Director\'s Cut)'))).toBe(false)
-    expect(gate.shouldNotify(report('b', 'Part 1 (Director\'s Cut)'))).toBe(true)
+    gate.report(report('b', 'Part 1 (Director\'s Cut)'))
+    vi.advanceTimersByTime(3_000)
+
+    expect(onSettle).toHaveBeenCalledWith(report('b', 'Part 1 (Director\'s Cut)'))
   })
 
-  it('keeps the pending title of another tab after one video notifies', () => {
-    const gate = createVideoNotifyGate()
-    gate.shouldNotify(report('a', 'Song A'))
-    gate.shouldNotify(report('b', 'Song B'))
+  it('notifies each of two playing tabs once', () => {
+    const onSettle = vi.fn()
+    const gate = createVideoNotifyGate(onSettle)
 
-    expect(gate.shouldNotify(report('a', 'Song A'))).toBe(true)
-    expect(gate.shouldNotify(report('b', 'Song B'))).toBe(true)
+    gate.report(report('a', 'Song A'))
+    gate.report(report('b', 'Song B'))
+    vi.advanceTimersByTime(3_000)
+    gate.report(report('a', 'Song A', 15))
+    gate.report(report('b', 'Song B', 15))
+    vi.advanceTimersByTime(20_000)
+
+    expect(onSettle).toHaveBeenCalledTimes(2)
+  })
+
+  it('stops pending timers on dispose', () => {
+    const onSettle = vi.fn()
+    const gate = createVideoNotifyGate(onSettle)
+
+    gate.report(report('a', 'Song A'))
+    gate.dispose()
+    vi.advanceTimersByTime(3_000)
+
+    expect(onSettle).not.toHaveBeenCalled()
   })
 })
