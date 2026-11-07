@@ -7,7 +7,7 @@ import { BackgroundProvider } from '@proj-airi/stage-layouts/components/Backgrou
 import { useBackgroundThemeColor } from '@proj-airi/stage-layouts/composables/theme-color'
 import { useBackgroundStore } from '@proj-airi/stage-layouts/stores/background'
 import { HoloCoupon } from '@proj-airi/stage-ui/components'
-import { ViewControlSlider, WidgetStage } from '@proj-airi/stage-ui/components/scenes'
+import { CaptionOverlay, ViewControlSlider, WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useVoiceHoldKey } from '@proj-airi/stage-ui/composables/voice-hold'
 import { useVoiceListening, useVoicePushToTalk } from '@proj-airi/stage-ui/composables/voice-input-mode'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
@@ -123,6 +123,9 @@ const router = useRouter()
             @error="markModelFailed"
             @select-avatar-model="router.push('/settings/models')"
           />
+          <div class="pointer-events-none absolute inset-x-0 bottom-3 z-20 flex justify-center px-3">
+            <CaptionOverlay />
+          </div>
         </div>
         <!-- A fixed width keeps the chat panel narrow on wide screens. A percentage minimum overrode the maximum there. -->
         <InteractiveArea v-if="!isMobile" :class="['absolute right-4 h-[85dvh] w-[min(440px,45%)] flex flex-col']" />

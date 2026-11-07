@@ -1,6 +1,6 @@
 import type { ToolMessage } from '@xsai/shared-chat'
 
-import type { AgentHookRegistry, ChatHookRegistry } from '../contracts/hook-types'
+import type { AgentHookRegistry, ChatHookRegistry, TokenTranslationPayload } from '../contracts/hook-types'
 import type { ChatStreamEventContext, StreamingAssistantMessage } from '../types/chat'
 
 export function createChatHooks(): ChatHookRegistry {
@@ -9,6 +9,7 @@ export function createChatHooks(): ChatHookRegistry {
   const onBeforeSendHooks: Array<(message: string, context: ChatStreamEventContext) => Promise<void>> = []
   const onAfterSendHooks: Array<(message: string, context: ChatStreamEventContext) => Promise<void>> = []
   const onTokenLiteralHooks: Array<(literal: string, context: ChatStreamEventContext) => Promise<void>> = []
+  const onTokenTranslationHooks: Array<(translation: TokenTranslationPayload, context: ChatStreamEventContext) => Promise<void>> = []
   const onTokenSpecialHooks: Array<(special: string, context: ChatStreamEventContext) => Promise<void>> = []
   const onStreamEndHooks: Array<(context: ChatStreamEventContext) => Promise<void>> = []
   const onAssistantResponseEndHooks: Array<(message: string, context: ChatStreamEventContext) => Promise<void>> = []
@@ -57,6 +58,15 @@ export function createChatHooks(): ChatHookRegistry {
       const index = onTokenLiteralHooks.indexOf(cb)
       if (index >= 0)
         onTokenLiteralHooks.splice(index, 1)
+    }
+  }
+
+  function onTokenTranslation(cb: (translation: TokenTranslationPayload, context: ChatStreamEventContext) => Promise<void>) {
+    onTokenTranslationHooks.push(cb)
+    return () => {
+      const index = onTokenTranslationHooks.indexOf(cb)
+      if (index >= 0)
+        onTokenTranslationHooks.splice(index, 1)
     }
   }
 
@@ -111,6 +121,7 @@ export function createChatHooks(): ChatHookRegistry {
     onBeforeSendHooks.length = 0
     onAfterSendHooks.length = 0
     onTokenLiteralHooks.length = 0
+    onTokenTranslationHooks.length = 0
     onTokenSpecialHooks.length = 0
     onStreamEndHooks.length = 0
     onAssistantResponseEndHooks.length = 0
@@ -141,6 +152,17 @@ export function createChatHooks(): ChatHookRegistry {
   async function emitTokenLiteralHooks(literal: string, context: ChatStreamEventContext) {
     for (const hook of onTokenLiteralHooks)
       await hook(literal, context)
+  }
+
+  async function emitTokenTranslationHooks(translation: TokenTranslationPayload, context: ChatStreamEventContext) {
+    // A failing subtitle consumer must not stop the turn or mute TTS.
+    const results = await Promise.allSettled(
+      onTokenTranslationHooks.map(hook => hook(translation, context)),
+    )
+    for (const result of results) {
+      if (result.status === 'rejected')
+        console.warn('[agent-hooks] onTokenTranslation hook failed:', result.reason)
+    }
   }
 
   async function emitTokenSpecialHooks(special: string, context: ChatStreamEventContext) {
@@ -174,6 +196,7 @@ export function createChatHooks(): ChatHookRegistry {
     onBeforeSend,
     onAfterSend,
     onTokenLiteral,
+    onTokenTranslation,
     onTokenSpecial,
     onStreamEnd,
     onAssistantResponseEnd,
@@ -184,6 +207,7 @@ export function createChatHooks(): ChatHookRegistry {
     emitBeforeSendHooks,
     emitAfterSendHooks,
     emitTokenLiteralHooks,
+    emitTokenTranslationHooks,
     emitTokenSpecialHooks,
     emitStreamEndHooks,
     emitAssistantResponseEndHooks,

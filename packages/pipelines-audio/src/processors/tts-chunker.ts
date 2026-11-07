@@ -6,6 +6,12 @@ import { createPushStream } from '@proj-airi/stream-kit'
 import { readGraphemeClusters } from 'clustr'
 
 export const TTS_FLUSH_INSTRUCTION = '\u200B'
+/**
+ * Ends one bilingual translation pair. It cuts like a flush, and the chunker
+ * also advances its pair index so captions can follow the pair, not text.
+ * A private-use code point stays its own grapheme cluster, unlike ZWNJ.
+ */
+export const TTS_PAIR_FLUSH_INSTRUCTION = '\uE000'
 export const TTS_SPECIAL_TOKEN = '\u2063'
 
 const regexpAnySingleDigit = /\d/
@@ -37,6 +43,8 @@ export interface TtsInputChunk {
   text: string
   words: number
   reason: 'boost' | 'limit' | 'hard' | 'flush' | 'special'
+  /** True when this flush ends a bilingual translation pair. */
+  pair?: boolean
 }
 
 export interface TtsInputChunkOptions {
@@ -60,12 +68,23 @@ export interface TtsInputChunkOptions {
   maximumWords?: number
   stripNarrative?: boolean
   keepNarrativeText?: boolean
+  /**
+   * Bilingual mode: only the explicit flush marker cuts one spoken
+   * sentence. Sentence punctuation, abbreviation periods, and newlines
+   * stay inside the chunk, so the number of boundary chunks equals the
+   * number of translation pairs exactly. In the default punctuation mode
+   * any hard punctuation can end a chunk, which is correct for ordinary
+   * TTS but would emit a spurious mid-pair boundary in bilingual mode.
+   */
+  flushBoundaries?: boolean
 }
 
 export interface TtsChunkItem {
   chunk: string
   special: string | null
   reason: 'boost' | 'limit' | 'hard' | 'flush' | 'special'
+  /** Bilingual pair that owns this chunk, starting at 0. */
+  pairIndex?: number
 }
 
 export async function* chunkTtsInput(
@@ -76,6 +95,7 @@ export async function* chunkTtsInput(
     boost = 2,
     minimumWords = 4,
     maximumWords = 12,
+    flushBoundaries = false,
   } = options ?? {}
 
   const iterator = readGraphemeClusters(
@@ -99,6 +119,46 @@ export async function* chunkTtsInput(
   let previousValue: string | undefined
   let current = await iterator.next()
 
+  /**
+   * Flush mode cannot rely on punctuation to keep TTS requests short:
+   * punctuation stays in the buffer until the pair flush marker. A spoken
+   * pair longer than `maximumWords` would otherwise become one oversized
+   * synthesis request, which providers reject or time out (observed as
+   * missing audio mid-turn). Cut the overflow at a word boundary into a
+   * non-boundary `limit` item; the later flush item still owns the pair's
+   * single sentence boundary. Returns true when a chunk was emitted.
+   */
+  function takeFlushOverflow(): string | false {
+    // Keep the raw text: cutting on a trimmed copy drops the whitespace at
+    // the cut point from both sides and glues two words together. The rest
+    // may keep a leading space; the chunk emitter trims it before synthesis.
+    const text = chunk + buffer
+    if (!text.trim())
+      return false
+    const segments = [...segmenter.segment(text)]
+    if (segments.filter(segment => segment.isWordLike).length <= maximumWords)
+      return false
+
+    let wordsSeen = 0
+    let cutIndex = text.length
+    for (const segment of segments) {
+      if (segment.isWordLike)
+        wordsSeen += 1
+      if (wordsSeen === maximumWords) {
+        cutIndex = segment.index + segment.segment.length
+        break
+      }
+    }
+
+    const head = text.slice(0, cutIndex)
+    const rest = text.slice(cutIndex)
+
+    chunk = ''
+    chunkWordsCount = 0
+    buffer = rest
+    return head
+  }
+
   while (!current.done) {
     let value = current.value
 
@@ -107,12 +167,32 @@ export async function* chunkTtsInput(
     if (value === '\r\n')
       value = '\n'
 
-    const flush = value === TTS_FLUSH_INSTRUCTION
+    const flush = value === TTS_FLUSH_INSTRUCTION || value === TTS_PAIR_FLUSH_INSTRUCTION
+    const pairFlush = value === TTS_PAIR_FLUSH_INSTRUCTION
     const special = value === TTS_SPECIAL_TOKEN
     const hard = hardPunctuations.has(value)
     const soft = softPunctuations.has(value)
     let next: IteratorResult<string, void> | undefined
     let afterNext: IteratorResult<string, void> | undefined
+
+    if (flushBoundaries && !flush && !special && (hard || soft)) {
+      // Bilingual mode: punctuation never ends a pair. Line breaks become
+      // spaces so TTS does not receive raw newlines; abbreviation periods
+      // and every other punctuation stay in the chunk until the flush
+      // marker cuts the sentence exactly once per translation pair.
+      buffer += value === '\n' || value === '\r' || value === '\t' ? ' ' : value
+      previousValue = value
+      // Punctuation is the common word boundary (including space-less CJK
+      // sentences), so re-check the word cap here even though it does not
+      // cut a pair.
+      const overflow = takeFlushOverflow()
+      if (overflow !== false) {
+        yield { text: overflow, words: maximumWords, reason: 'limit' }
+        yieldCount += 1
+      }
+      current = await iterator.next()
+      continue
+    }
 
     if (flush || special || hard || soft) {
       switch (value) {
@@ -150,6 +230,16 @@ export async function* chunkTtsInput(
           }
           yieldCount++
           chunkWordsCount = 0
+        }
+        // An empty pair still advances the pair index, so the next pair
+        // keeps the same caption id as its translation.
+        else if (flush) {
+          yield {
+            text: '',
+            words: 0,
+            reason: 'flush',
+            ...(pairFlush ? { pair: true } : {}),
+          }
         }
 
         previousValue = value
@@ -200,8 +290,19 @@ export async function* chunkTtsInput(
             text,
             words: chunkWordsCount,
             reason: flush ? 'flush' : hard ? 'hard' : chunkWordsCount > maximumWords ? 'limit' : 'boost',
+            ...(flush && pairFlush ? { pair: true } : {}),
           }
           yieldCount++
+        }
+        else if (flush && pairFlush) {
+          // A soundless pair still advances the pair index, so captions keep
+          // the same one-to-one order as translations.
+          yield {
+            text: '',
+            words: 0,
+            reason: 'flush',
+            pair: true,
+          }
         }
         chunk = ''
         chunkWordsCount = 0
@@ -227,6 +328,15 @@ export async function* chunkTtsInput(
 
     buffer += value
     previousValue = value
+    // Space-delimited text may omit sentence punctuation, so re-check the
+    // word cap at spaces; the punctuation branch above covers the rest.
+    if (flushBoundaries && /\s/.test(value)) {
+      const overflow = takeFlushOverflow()
+      if (overflow !== false) {
+        yield { text: overflow, words: maximumWords, reason: 'limit' }
+        yieldCount += 1
+      }
+    }
     next = await iterator.next()
     current = next
   }
@@ -251,23 +361,26 @@ export async function chunkEmitter(
     return text
       .replaceAll(TTS_SPECIAL_TOKEN, '')
       .replaceAll(TTS_FLUSH_INSTRUCTION, '')
+      .replaceAll(TTS_PAIR_FLUSH_INSTRUCTION, '')
       .trim()
   }
 
   try {
+    let pairIndex = 0
     for await (const chunk of chunkTtsInput(reader, options)) {
       const cleanedText = sanitizeChunk(chunk.text)
-      if (!cleanedText && chunk.reason !== 'special') {
-        continue
+      if (cleanedText || chunk.reason === 'special') {
+        const pair = options?.flushBoundaries ? { pairIndex } : {}
+        if (chunk.reason === 'special') {
+          const specialToken = pendingSpecials.shift()
+          await handler({ chunk: cleanedText, special: specialToken ?? null, reason: chunk.reason, ...pair })
+        }
+        else {
+          await handler({ chunk: cleanedText, special: null, reason: chunk.reason, ...pair })
+        }
       }
-
-      if (chunk.reason === 'special') {
-        const specialToken = pendingSpecials.shift()
-        await handler({ chunk: cleanedText, special: specialToken ?? null, reason: chunk.reason })
-      }
-      else {
-        await handler({ chunk: cleanedText, special: null, reason: chunk.reason })
-      }
+      if (chunk.pair)
+        pairIndex += 1
     }
   }
   catch (e) {
@@ -426,7 +539,7 @@ export function processNarrative(text: string, options?: TtsInputChunkOptions): 
 
 export function createTtsSegmentStream(
   tokens: ReadableStream<TextToken>,
-  meta: { streamId: string, intentId: string, turnId?: string },
+  meta: { streamId: string, intentId: string, turnId?: string, flushBoundaries?: boolean },
   options?: TtsInputChunkOptions,
 ) {
   const { stream, write, close, error } = createPushStream<TextSegment>()
@@ -499,7 +612,7 @@ export function createTtsSegmentStream(
             writeBytes(encoder.encode(TTS_SPECIAL_TOKEN))
           }
           else if (value.type === 'flush') {
-            writeBytes(encoder.encode(TTS_FLUSH_INSTRUCTION))
+            writeBytes(encoder.encode(value.pair ? TTS_PAIR_FLUSH_INSTRUCTION : TTS_FLUSH_INSTRUCTION))
           }
         }
       }
@@ -523,7 +636,7 @@ export function createTtsSegmentStream(
   void (async () => {
     const reader = byteStream.getReader()
     try {
-      await chunkEmitter(reader, pendingSpecials, options, async (chunk) => {
+      await chunkEmitter(reader, pendingSpecials, { ...options, flushBoundaries: meta.flushBoundaries ?? options?.flushBoundaries }, async (chunk) => {
         write({
           turnId: meta.turnId,
           streamId: meta.streamId,
@@ -532,6 +645,7 @@ export function createTtsSegmentStream(
           text: chunk.chunk,
           special: chunk.special,
           reason: chunk.reason,
+          ...(chunk.pairIndex !== undefined ? { pairIndex: chunk.pairIndex } : {}),
           createdAt: Date.now(),
         })
       })

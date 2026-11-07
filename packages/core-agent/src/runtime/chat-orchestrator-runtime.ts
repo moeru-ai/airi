@@ -1,4 +1,6 @@
+import type { BilingualTurnEvent, BilingualTurnSnapshot } from '@proj-airi/pipelines-audio'
 import type { GenerationProvider } from '@proj-airi/provider-inference'
+import type { ItemParam } from '@xsai-ext/responses'
 import type { CommonContentPart, Message, ToolMessage } from '@xsai/shared-chat'
 
 import type { AgentContextPort } from '../contracts/context-port'
@@ -8,6 +10,7 @@ import type { AssistantTurn, Conversation, Turn } from '../messages/types'
 import type { ChatHistoryItem, ChatInvokedSkill, ChatSlices, ChatSlicesToolCall, ChatSlicesToolContent, ChatStreamEventContext, ChatToolReference, ContextMessage, StreamingAssistantMessage } from '../types/chat'
 import type { LlmUsage, StreamEvent, StreamOptions } from '../types/llm'
 
+import { createBilingualTurnSplitter, projectSpokenText, TTS_FLUSH_INSTRUCTION } from '@proj-airi/pipelines-audio'
 import { createQueue } from '@proj-airi/stream-kit'
 
 import { chatMessagesToTurns } from '../messages/chat-completions'
@@ -311,8 +314,8 @@ export interface ToolContent {
 export interface ChatOrchestratorRuntimeDeps {
   /** Session persistence and generation guard port. */
   session: ChatOrchestratorSessionPort
-  /** Context registry facade used for runtime context ingest and prompt snapshots. */
-  context: Pick<AgentContextPort, 'ingest' | 'snapshot'>
+  /** Context registry facade used for runtime context ingest, removal, and prompt snapshots. */
+  context: Pick<AgentContextPort, 'ingest' | 'remove' | 'snapshot'>
   /** Foreground assistant stream port controlled by the UI facade. */
   foregroundStream: AgentForegroundStreamPort
   /** Provider-agnostic LLM streaming port. */
@@ -323,6 +326,26 @@ export interface ChatOrchestratorRuntimeDeps {
   getActiveProvider: () => string | undefined
   /** Returns optional prompt text appended to the provider system message for this send. */
   getSystemPromptSupplement?: () => string | undefined
+  /**
+   * Returns the bilingual snapshot for this send. Read once per send so that
+   * settings changes do not affect an in-flight response. Undefined disables
+   * splitting and leaves the text path unchanged.
+   */
+  getBilingualSnapshot?: () => BilingualTurnSnapshot | undefined
+  /**
+   * Builds the bilingual runtime prompt context for the snapshot captured at
+   * the start of this send. The orchestrator reads the snapshot before any
+   * async hook runs, so the injected prompt and the output splitter always
+   * use the same mode. Undefined result adds no context.
+   */
+  getBilingualInstructionContext?: (snapshot: BilingualTurnSnapshot | undefined) => ContextMessage | undefined
+  /**
+   * Stable context bucket key of the bilingual instruction. When the
+   * feature is disabled for a send, that bucket is removed from the
+   * registry so a prompt injected by an earlier turn cannot survive the
+   * setting change and keep making the model emit bracketed translations.
+   */
+  bilingualContextKey?: string
   /**
    * Returns the identity and format rules for the session's persona, read when the send starts.
    * With it, history carries no identity. Stored system messages are skipped, so a persona edit or switch reaches the next send of its own sessions only.
@@ -505,6 +528,106 @@ async function waitForProvider(work: Promise<unknown>, signal: AbortSignal) {
   }
 }
 
+/** Projects one text-bearing value to spoken text. Returns it unchanged when no bracket was stripped. */
+function projectTextPart<T>(part: T, read: (part: T) => string | undefined, rebuild: (part: T, text: string) => T): T {
+  const text = read(part)
+  if (text === undefined)
+    return part
+  const spoken = projectSpokenText(text)
+  return spoken === text ? part : rebuild(part, spoken)
+}
+
+/** Projects one Chat Completions assistant message to spoken text. Refusals and tool calls stay intact. */
+function projectChatMessageToSpoken(message: Message): Message {
+  if (message.role !== 'assistant')
+    return message
+  const content = message.content
+  if (typeof content === 'string') {
+    const spoken = projectSpokenText(content)
+    return spoken === content ? message : { ...message, content: spoken }
+  }
+  if (!Array.isArray(content))
+    return message
+  let changed = false
+  const parts = content.map((part) => {
+    const projected = projectTextPart(
+      part,
+      entry => entry.type === 'text' ? entry.text : undefined,
+      // Projection shifts every character offset, so the old citation spans
+      // no longer point at the cited range. Rebuild without them instead of
+      // replaying misaligned citations.
+      (entry, text) => ({ ...entry, text }),
+    )
+    if (projected !== part)
+      changed = true
+    return projected
+  })
+  return changed ? { ...message, content: parts } : message
+}
+
+/** Projects one Responses assistant message item to spoken text. Refusals and call items stay intact. */
+function projectResponsesItemToSpoken(item: ItemParam): ItemParam {
+  if (item.type !== 'message' || item.role !== 'assistant')
+    return item
+  const content = item.content
+  if (typeof content === 'string') {
+    const spoken = projectSpokenText(content)
+    return spoken === content ? item : { ...item, content: spoken }
+  }
+  if (!Array.isArray(content))
+    return item
+  let changed = false
+  const parts = content.map((part) => {
+    const projected = projectTextPart(
+      part,
+      entry => entry.type === 'output_text' ? entry.text : undefined,
+      // Same offset shift as the portable projection: drop annotations with
+      // the unprojected text instead of replaying misaligned spans.
+      (entry, text) => ({ ...entry, text, annotations: [] }),
+    )
+    if (projected !== part)
+      changed = true
+    return projected
+  })
+  return changed ? { ...item, content: parts } : item
+}
+
+/**
+ * Projects a completed generated turn to spoken-only text for persisted
+ * history. buildContext replays generationTranscript verbatim on the next
+ * request, so an unprojected bilingual turn leaks every bracket translation
+ * back to the provider and keeps feeding the model UST examples after the
+ * feature is turned off. Text is projected in both the portable segments and
+ * the provider continuation: the same provider scope replays continuation
+ * data instead of the portable content, so projection must cover both.
+ * Refusals, tool segments, tool invocations, and model calls stay intact.
+ */
+function projectTurnToSpoken(turn: AssistantTurn): AssistantTurn {
+  return {
+    ...turn,
+    rounds: turn.rounds.map((round) => {
+      const continuation = round.continuation
+      return {
+        ...round,
+        content: round.content.map((segment) => {
+          if (segment.type !== 'text')
+            return segment
+          const spoken = projectSpokenText(segment.text)
+          if (spoken === segment.text)
+            return segment
+          // Projection shifts every character offset, so the old citation spans
+          // no longer point at the cited range. Rebuild without them instead of
+          // replaying misaligned citations.
+          return { type: 'text', text: spoken }
+        }),
+        continuation: continuation && (continuation.protocol === 'chat-completions'
+          ? { ...continuation, data: continuation.data.map(projectChatMessageToSpoken) }
+          : { ...continuation, data: continuation.data.map(projectResponsesItemToSpoken) }),
+      }
+    }),
+  }
+}
+
 /**
  * Creates the core chat orchestrator runtime used behind UI facades.
  *
@@ -604,11 +727,20 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       deps.foregroundStream.reset()
   }
 
-  function ingestRuntimeContexts() {
+  function ingestRuntimeContexts(bilingualSnapshot?: BilingualTurnSnapshot) {
     for (const provider of deps.runtimeContextProviders ?? []) {
       const contextMessage = provider()
       if (contextMessage)
         deps.context.ingest(contextMessage)
+    }
+    const bilingualContext = deps.getBilingualInstructionContext?.(bilingualSnapshot)
+    if (bilingualContext) {
+      deps.context.ingest(bilingualContext)
+    }
+    else if (bilingualSnapshot === undefined && deps.bilingualContextKey) {
+      // Disabled for this send: drop the dedicated bucket so the model
+      // stops receiving the bracket-format instruction from earlier turns.
+      deps.context.remove(deps.bilingualContextKey)
     }
   }
 
@@ -624,8 +756,10 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     const nowTs = now()
     const messagesById = new Map(history.flatMap(message => message.id ? [[message.id, message] as const] : []))
     const turns = history.flatMap((message, historyIndex): Turn[] => {
-      if (message.role === 'assistant' && message.generationTranscript)
-        return [structuredClone(unwrapMessage(message.generationTranscript))]
+      if (message.role === 'assistant' && message.generationTranscript) {
+        const turn = structuredClone(unwrapMessage(message.generationTranscript))
+        return [message.bilingual ? projectTurnToSpoken(turn) : turn]
+      }
       const noticePrefix = message.role === 'user' && message.notice ? `[Notice from ${message.notice.source}, not a message from the owner.]\n` : ''
       const source = message.role === 'user'
         ? prependTextToContent(unwrapMessage(message), `${formatTimePrefix(getStablePromptTimestamp(message, nowTs))}${noticePrefix}${formatReplyPromptPrefix(message.replyToMessageId, messagesById)}`)
@@ -637,8 +771,13 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         if (userTurn?.type === 'user')
           userTurn.content.push(...message.skills.map(skill => ({ type: 'text' as const, text: `\n\n[The owner used the skill "${skill.name}". Follow its steps in this reply and in later replies while they fit.]\n${skill.instructions}` })))
       }
-      return turns
+      return message.role === 'assistant' && message.bilingual
+        ? turns.map(turn => turn.type === 'assistant' ? projectTurnToSpoken(turn) : turn)
+        : turns
     })
+    // Projection is limited to replies marked as bilingual. Other assistant
+    // history can contain ordinary brackets, for example [Figure 1], and
+    // must reach the provider unchanged.
     return { turns }
   }
 
@@ -714,11 +853,16 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     // must not inflate the one-time activation milestones.
     const isActivationAttempt = !existingSessionMessages.some(message => message.role === 'assistant' && !message.interrupted)
 
+    // Read once before async hooks and runtime-context ingest. The bilingual
+    // prompt and the output splitter must share this value, or a mid-send
+    // settings change pairs prompt and splitter in mismatched modes.
+    const bilingualSnapshot = deps.getBilingualSnapshot?.()
+
     // Datetime is no longer injected through the side-channel context store.
     // It is applied at message-assembly time (see below) as a system-prompt
     // date anchor + per-message [HH:MM] prefixes, which is more KV-cache
     // friendly and less prone to weak models echoing timestamps verbatim.
-    ingestRuntimeContexts()
+    ingestRuntimeContexts(bilingualSnapshot)
 
     const sendingCreatedAt = now()
 
@@ -743,6 +887,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       input: options.input,
       // The owner hears the reply unless it answers a scene or runs in the background.
       speaks: !options.background && !options.scene,
+      ...(bilingualSnapshot ? { bilingual: bilingualSnapshot } : {}),
     }
     deps.onLifecycle?.({
       phase: 'before-compose',
@@ -767,6 +912,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       createdAt: now(),
       id: assistantMessageId,
       ...(options.notice ? { proactive: { turnId: roundId, source: options.notice.source } } : {}),
+      ...(bilingualSnapshot ? { bilingual: true } : {}),
     }
     // A failed store must not replace the error or the abort that interrupted the turn.
     const storeInterruptedAssistant = () => deps.session
@@ -909,6 +1055,88 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       const stickers = options.stickers
       let stickerEmitted = false
 
+      // Splitter state is owned by this send. The snapshot itself was
+      // captured before the async before-compose hook above.
+      const bilingual = bilingualSnapshot
+        ? createBilingualTurnSplitter()
+        : undefined
+
+      function appendTextToBuildingMessage(text: string) {
+        // Text after every content call has its result means that the model writes on instead of trying again. Text
+        // before a call can arrive late, when the call flushes it, so it does not count.
+        if (openContentCalls.size === 0 && text.trim())
+          delete buildingMessage.pendingContent
+        buildingMessage.content += text
+        const lastSlice = buildingMessage.slices.at(-1)
+        if (lastSlice?.type === 'text') {
+          lastSlice.text += text
+        }
+        else {
+          buildingMessage.slices.push({
+            type: 'text',
+            text,
+          })
+        }
+      }
+
+      // Spoken text stays on the chat surface: bubble, slices, stored history,
+      // and the TTS literal hook. Translation text is subtitle-only and never
+      // reaches the chat message, so history keeps just the spoken reply.
+      async function applyBilingualEvent(event: BilingualTurnEvent): Promise<boolean> {
+        if (event.kind === 'translation') {
+          // Flush the spoken sentence in the TTS segmenter at the pair
+          // boundary. The chunker cuts on sentence punctuation already;
+          // the zero-width flush instruction is the deterministic fallback
+          // when the model omitted punctuation. It never reaches the bubble
+          // and the chunker strips it before synthesis.
+          await hooks.emitTokenLiteralHooks(TTS_FLUSH_INSTRUCTION, streamingMessageContext)
+          await hooks.emitTokenTranslationHooks({
+            language: bilingualSnapshot!.translationLanguage,
+            pairId: event.pairId,
+            spokenStart: event.spokenStart,
+            text: event.text,
+          }, streamingMessageContext)
+          return false
+        }
+
+        appendTextToBuildingMessage(event.text)
+        if (event.text.trim())
+          await hooks.emitTokenLiteralHooks(event.text, streamingMessageContext)
+        return true
+      }
+
+      async function routeSpeechEvents(rawText: string) {
+        if (!rawText)
+          return
+
+        let text = rawText
+        // Leading whitespace belongs to speech only after visible text arrives.
+        if (!speechStarted) {
+          pendingSpeechWhitespace += text
+          if (!pendingSpeechWhitespace.trim())
+            return
+          text = pendingSpeechWhitespace
+          pendingSpeechWhitespace = ''
+          speechStarted = true
+        }
+
+        if (!bilingual) {
+          appendTextToBuildingMessage(text)
+          await hooks.emitTokenLiteralHooks(text, streamingMessageContext)
+          if (shouldAbort())
+            return
+          updateStream(sessionId, buildingMessage)
+          return
+        }
+
+        let bubbleChanged = false
+        for (const event of bilingual.consume(text))
+          bubbleChanged = (await applyBilingualEvent(event)) || bubbleChanged
+
+        if (bubbleChanged)
+          updateStream(sessionId, buildingMessage)
+      }
+
       const parser = useLlmmarkerParser({
         onLiteral: async (literal) => {
           if (shouldAbort())
@@ -916,41 +1144,10 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
           categorizer.consume(literal)
 
-          let speechOnly = categorizer.filterToSpeech(literal, streamPosition)
+          const speechOnly = categorizer.filterToSpeech(literal, streamPosition)
           streamPosition += literal.length
 
-          if (speechOnly) {
-            if (!speechStarted) {
-              // Leading whitespace belongs to speech only after visible text arrives.
-              pendingSpeechWhitespace += speechOnly
-              if (!pendingSpeechWhitespace.trim())
-                return
-              speechOnly = pendingSpeechWhitespace
-              pendingSpeechWhitespace = ''
-              speechStarted = true
-            }
-            buildingMessage.content += speechOnly
-
-            await hooks.emitTokenLiteralHooks(speechOnly, streamingMessageContext)
-            if (shouldAbort())
-              return
-
-            // Text after every content call has its result means that the model writes on instead of trying again. Text
-            // before a call can arrive late, when the call flushes it, so it does not count.
-            if (openContentCalls.size === 0 && speechOnly.trim())
-              delete buildingMessage.pendingContent
-            const lastSlice = buildingMessage.slices.at(-1)
-            if (lastSlice?.type === 'text') {
-              lastSlice.text += speechOnly
-            }
-            else {
-              buildingMessage.slices.push({
-                type: 'text',
-                text: speechOnly,
-              })
-            }
-            updateStream(sessionId, buildingMessage)
-          }
+          await routeSpeechEvents(speechOnly)
         },
         onSpecial: async (special) => {
           if (shouldAbort())
@@ -1266,8 +1463,38 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       if (shouldAbort())
         return
 
+      // Flush splitter state at stream end. A final translation block
+      // without a closing bracket still reaches the subtitle track; an
+      // unclosed bracket candidate stays in the message but never reaches
+      // TTS.
+      if (bilingual) {
+        let spokenTail = ''
+        for (const event of bilingual.end()) {
+          if (event.kind === 'spoken') {
+            spokenTail += event.text
+          }
+          else {
+            await hooks.emitTokenTranslationHooks({
+              language: bilingualSnapshot!.translationLanguage,
+              pairId: event.pairId,
+              spokenStart: event.spokenStart,
+              text: event.text,
+            }, streamingMessageContext)
+          }
+        }
+        if (spokenTail) {
+          appendTextToBuildingMessage(spokenTail)
+          updateStream(sessionId, buildingMessage)
+        }
+      }
+
       generationCompleted = true
-      buildingMessage.generationTranscript = generatedTurn
+      // Bilingual turns keep bracket translations inside the portable
+      // transcript; strip them before the message reaches stored history so
+      // the next provider request replays spoken text only.
+      buildingMessage.generationTranscript = bilingualSnapshot && generatedTurn
+        ? projectTurnToSpoken(generatedTurn)
+        : generatedTurn
       try {
         deps.onAssistantResponseRendered?.({
           ...correlation,

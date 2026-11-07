@@ -1,10 +1,10 @@
 // packages/pipelines-audio/src/processors/tts-chunker.test.ts
 
-import type { TtsInputChunk } from './tts-chunker'
+import type { TtsChunkItem, TtsInputChunk, TtsInputChunkOptions } from './tts-chunker'
 
 import { describe, expect, it } from 'vitest'
 
-import { chunkTtsInput, isProbablyAngleTag, processNarrative } from './tts-chunker'
+import { chunkEmitter, chunkTtsInput, isProbablyAngleTag, processNarrative, TTS_PAIR_FLUSH_INSTRUCTION } from './tts-chunker'
 
 async function collectChunkText(input: string) {
   const chunks: string[] = []
@@ -239,6 +239,66 @@ describe('tTS Chunker Logic Cleanup', () => {
       const chunks = await collectChunkText(input)
 
       expect(chunks.join('')).toBe(input)
+    })
+  })
+
+  describe('chunkEmitter bilingual pairs', () => {
+    function textReader(text: string) {
+      return new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(text))
+          controller.close()
+        },
+      }).getReader()
+    }
+
+    async function collectItems(text: string, options?: TtsInputChunkOptions) {
+      const items: TtsChunkItem[] = []
+      await chunkEmitter(textReader(text), [], options, (item) => {
+        items.push(item)
+      })
+      return items
+    }
+
+    it('cuts only at pair boundaries and numbers each pair', async () => {
+      const items = await collectItems(
+        `Hello there.${TTS_PAIR_FLUSH_INSTRUCTION}How are you?${TTS_PAIR_FLUSH_INSTRUCTION}`,
+        { flushBoundaries: true },
+      )
+
+      expect(items.map(item => [item.chunk, item.pairIndex, item.reason])).toEqual([
+        ['Hello there.', 0, 'flush'],
+        ['How are you?', 1, 'flush'],
+      ])
+    })
+
+    it('keeps sentence punctuation inside one pair chunk', async () => {
+      const items = await collectItems(`First. Second?${TTS_PAIR_FLUSH_INSTRUCTION}`, { flushBoundaries: true })
+
+      expect(items).toHaveLength(1)
+      expect(items[0]?.chunk).toBe('First. Second?')
+    })
+
+    it('removes the pair marker from the chunk text', async () => {
+      const items = await collectItems(`Hi.${TTS_PAIR_FLUSH_INSTRUCTION}`, { flushBoundaries: true })
+
+      expect(items[0]?.chunk).toBe('Hi.')
+      expect(items[0]?.chunk).not.toContain(TTS_PAIR_FLUSH_INSTRUCTION)
+    })
+
+    it('advances the pair index for a pair without sound', async () => {
+      const items = await collectItems(`${TTS_PAIR_FLUSH_INSTRUCTION}Hi there.${TTS_PAIR_FLUSH_INSTRUCTION}`, { flushBoundaries: true })
+
+      expect(items).toHaveLength(1)
+      expect(items[0]?.chunk).toBe('Hi there.')
+      expect(items[0]?.pairIndex).toBe(1)
+    })
+
+    it('leaves chunks without a pair index outside bilingual mode', async () => {
+      const items = await collectItems('Hello there. How are you?')
+
+      expect(items.length).toBeGreaterThan(1)
+      expect(items.every(item => item.pairIndex === undefined)).toBe(true)
     })
   })
 })

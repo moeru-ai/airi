@@ -1,17 +1,11 @@
 <script setup lang="ts">
-import type { CaptionChannelEvent } from '@proj-airi/stage-shared'
-
 import { defineInvoke } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronMouseAroundWindowBorder, useElectronMouseInWindow } from '@proj-airi/electron-vueuse'
-import { createFadeAnimator, PoppinText } from '@proj-airi/stage-ui/components'
-import { refDebounced, useBroadcastChannel } from '@vueuse/core'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { CaptionOverlay } from '@proj-airi/stage-ui/components/scenes'
+import { refDebounced } from '@vueuse/core'
+import { computed, onMounted, ref } from 'vue'
 
 import { captionGetIsFollowingWindow, captionIsFollowingWindowChanged } from '../../shared/eventa'
-import { useCaptionItems } from '../composables/useCaptionItems'
-
-/** Keep stale captions from lingering after the last broadcast update. */
-const CAPTION_TEXT_EXPIRY_MS = 10_000
 
 const attached = ref(true)
 
@@ -22,36 +16,8 @@ const shouldFadeOnCursorWithin = computed(() => !isOutsideWindowFor250Ms.value)
 const { isNearAnyBorder: isAroundWindowBorder } = useElectronMouseAroundWindowBorder({ threshold: 30 })
 const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
 
-// Broadcast channel for captions
-const { data } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'airi-caption-overlay' })
-const { items: captionItems, add: addCaptionItem, dispose: disposeCaptionItems } = useCaptionItems({ ttlMs: CAPTION_TEXT_EXPIRY_MS })
-
 const context = useElectronEventaContext()
 const getAttached = defineInvoke(context.value, captionGetIsFollowingWindow)
-
-const captionAnimatorByType = {
-  'caption-speaker': createFadeAnimator({ duration: 180 }),
-  'caption-assistant': createFadeAnimator({ duration: 180 }),
-} satisfies Record<CaptionChannelEvent['type'], ReturnType<typeof createFadeAnimator>>
-
-const captionTypes = [
-  'caption-speaker',
-  'caption-assistant',
-] satisfies CaptionChannelEvent['type'][]
-
-function toCaptionTextSegments(type: CaptionChannelEvent['type']) {
-  return captionItems.value
-    .filter(item => item.type === type)
-    .map((item, index) => ({
-      key: item.id,
-      text: index === 0 ? item.text : ` ${item.text}`,
-    }))
-}
-
-const captionTextByType = computed(() => ({
-  'caption-speaker': toCaptionTextSegments('caption-speaker'),
-  'caption-assistant': toCaptionTextSegments('caption-assistant'),
-}))
 
 onMounted(async () => {
   try {
@@ -66,25 +32,6 @@ onMounted(async () => {
     })
   }
   catch {}
-
-  try {
-    // Update texts from broadcast channel
-    watch(data, (event) => {
-      if (!event)
-        return
-      if (event.type === 'caption-speaker') {
-        addCaptionItem(event)
-      }
-      else if (event.type === 'caption-assistant') {
-        addCaptionItem(event)
-      }
-    }, { immediate: true })
-  }
-  catch {}
-})
-
-onUnmounted(() => {
-  disposeCaptionItems()
 })
 </script>
 
@@ -105,24 +52,7 @@ onUnmounted(() => {
         <div class="absolute left-1/2 top-1/2 h-[3px] w-4 rounded-full bg-[rgba(255,255,255,0.85)] -translate-x-1/2 -translate-y-1/2" />
       </div>
 
-      <div class="max-w-[80vw] flex flex-col gap-1">
-        <div
-          v-for="type in captionTypes"
-          v-show="captionTextByType[type].length > 0"
-          :key="type"
-          :class="[
-            type === 'caption-speaker' ? 'rounded-md px-2 py-1 text-[1.1rem] text-neutral-50 font-medium text-shadow-lg text-shadow-color-neutral-900/60' : '',
-            type === 'caption-assistant' ? 'rounded-md px-2 py-1 text-[1.35rem] text-primary-50 font-semibold text-stroke-4 text-stroke-primary-300/50 text-shadow-lg text-shadow-color-primary-700/50' : '',
-          ]"
-          :style="type === 'caption-assistant' ? { paintOrder: 'stroke fill' } : undefined"
-        >
-          <PoppinText
-            :text="captionTextByType[type]"
-            :animator="captionAnimatorByType[type]"
-            :text-class="type === 'caption-assistant' ? 'color-neutral-50! align-middle' : type === 'caption-speaker' ? 'color-neutral-50! align-middle' : ''"
-          />
-        </div>
-      </div>
+      <CaptionOverlay />
     </div>
 
     <Transition
