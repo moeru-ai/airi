@@ -39,8 +39,8 @@ watch(() => cardStore.builtInCard.description, (description, previous) => {
     void cardStore.updateCard('default', { ...card, description })
 })
 
-// The dialog stays open during sign-in. A canceled sign-in returns to it, and a finished
-// sign-in closes it through `closeAfterAuthentication`.
+// The dialog stays open during sign-in. A canceled sign-in returns to it. A finished sign-in
+// ends provider setup through `closeAfterAuthentication`, and the flow goes on with the device steps.
 async function handleLogin() {
   await authStore.requestLogin()
 }

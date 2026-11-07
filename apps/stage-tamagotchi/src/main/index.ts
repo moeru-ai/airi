@@ -383,7 +383,7 @@ app.whenReady().then(async () => {
   const devtoolsMarkdownStressWindow = injeca.provide('windows:devtools:markdown-stress', () => setupDevtoolsWindow())
 
   const onboardingWindowManager = injeca.provide('windows:onboarding', {
-    dependsOn: { serverChannel, i18n },
+    dependsOn: { serverChannel, i18n, globalShortcut },
     build: ({ dependsOn }) => setupOnboardingWindowManager(dependsOn),
   })
 
