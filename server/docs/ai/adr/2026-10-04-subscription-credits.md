@@ -48,6 +48,7 @@ The client calls it after a purchase and when the Capacitor page opens.
 Thus a late webhook does not reject the first requests of a new subscriber, and a lost webhook is repaired on the next page visit.
 The route allows 10 calls for each user in one minute, because each call reads RevenueCat.
 The latest purchase wins when two mapped Capacitors are active.
+A promotional subscription has no product. It uses the quota of its entitlement, as [Promotional Capacitors](./2026-10-29-promotional-capacitors.md) describes.
 
 `syncCapacitor` stores the quota, the expiry, and the period start. It does not grant Flux directly.
 
@@ -147,7 +148,6 @@ The rule also covers App Store and Google Play subscriptions, which the server c
 
 A subscription can still charge unless its `status` is `expired` or `incomplete`, or its `auto_renewal_status` is `will_not_renew`.
 For the status `unknown`, the renewal status decides.
-A promotional subscription has no product, so it grants no Capacitor.
 Thus a cancelled subscription does not refuse. It keeps its access until the period ends, and the deletion clears the wallet.
 A subscription in `in_billing_retry` refuses. It gives no access, but a recovered payment charges the customer.
 

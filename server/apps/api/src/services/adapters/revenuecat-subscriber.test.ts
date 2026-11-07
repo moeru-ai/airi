@@ -103,14 +103,19 @@ describe('revenuecat subscriber client', () => {
     })
 
     // https://github.com/moeru-ai/airi/pull/2910#discussion_r4240813205
-    it('grants nothing for a promotional subscription, which has no product', async () => {
-      const promotional = { ...goSubscription, product_id: null }
+    it('returns a promotional subscription without a product and reads no product', async () => {
+      const promotional = { ...goSubscription, product_id: null, auto_renewal_status: 'will_not_renew' }
       const { client, paths } = revenuecat({
         subscriptions: [promotional],
         activeEntitlements: [{ entitlement_id: 'entl_go', expires_at: periodEnd }],
       })
 
-      expect(await client.fetchEntitlements('user-1')).toEqual([])
+      expect(await client.fetchEntitlements('user-1')).toEqual([{
+        entitlementId: 'airi_go',
+        productId: null,
+        purchasedAt: new Date(periodStart),
+        accessUntil: new Date(periodEnd),
+      }])
       expect(paths.filter(path => path.startsWith('/products'))).toEqual([])
     })
 
