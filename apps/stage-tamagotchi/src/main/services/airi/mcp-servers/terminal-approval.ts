@@ -16,6 +16,7 @@ import * as v from 'valibot'
 export interface TerminalApprovalOptions {
   actions: PendingActionManager
   present: (actionId: string) => Promise<boolean>
+  onDispatch?: (actionId: string) => void
   executeInSlot: <T>(operation: (lifetime: AbortSignal) => Promise<T>) => Promise<T>
   notify: (notice: TerminalNotice) => Promise<{ status: 'stored' | 'suppressed', sessionId: string, messageId: string }>
 }
@@ -104,6 +105,7 @@ export function bindTerminalApproval(params: {
       }
       trace('consumed', { expiresAt: consumed.expiresAt })
       try {
+        options.onDispatch?.(actionId)
         const result = await connection.client.request({ method: terminalExecuteMethod, params: { nonce: connection.nonce, snapshot: committed, expiresAt: consumed.expiresAt } }, CallToolResultSchema, { signal: lifetime, timeout: committed.timeoutMs + 30_000, maxTotalTimeout: committed.timeoutMs + 30_000 })
         if (result.structuredContent?.noNewDispatch === true) {
           const refusal = v.safeParse(v.object({ ...refusalFields, executorInvoked: v.literal(false) }), result.structuredContent)

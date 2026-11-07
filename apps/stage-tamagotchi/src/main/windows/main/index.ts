@@ -19,6 +19,8 @@ import type { FullscreenPlace } from '../shared/fullscreen'
 import type { SpotlightWindowManager } from '../spotlight'
 import type { WidgetsWindowManager } from '../widgets'
 
+import { argv } from 'node:process'
+
 import { useLogg } from '@guiiai/logg'
 import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
@@ -226,7 +228,10 @@ export async function setupMainWindow(params: {
   }
   applyPin()
 
-  window.on('ready-to-show', () => showWindow(window!))
+  window.on('ready-to-show', () => {
+    if (!argv.includes('--start-hidden'))
+      showWindow(window!)
+  })
   protectPrivilegedWindowNavigation(window)
 
   await setupMainWindowElectronInvokes({
@@ -251,13 +256,13 @@ export async function setupMainWindow(params: {
 
   await load(window, withHashRoute(baseUrl(getRendererRoot()), '/', {
     // The main window page hosts the fullscreen mode, so it routes the fullscreen surfaces under its own page.
-    query: { 'synced-leader': 'true', 'fullscreen-host': 'main-window' },
+    query: { 'synced-leader': 'true', 'fullscreen-host': 'main-window', ...(argv.includes('--start-hidden') ? { 'start-hidden': 'true' } : {}) },
   }))
 
   // The inlay loads once and stays shown, so the first speech does not wait for a window and a page load.
   // It is transparent and click-through until speech starts. Showing it inactive keeps focus in the main window.
   void params.inlayWindow().then((inlay) => {
-    if (!inlay.isDestroyed())
+    if (!inlay.isDestroyed() && !argv.includes('--start-hidden'))
       inlay.showInactive()
   }).catch(error => console.error('Failed to prepare the inlay window', error))
 

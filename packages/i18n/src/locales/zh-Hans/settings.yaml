@@ -1492,6 +1492,24 @@ pages:
       configured: 网络搜索已就绪！
     mcp-server:
       title: MCP 集成
+      terminal:
+        title: 随包 Terminal
+        description: 连接应用随附的 Terminal 工具。每条命令仍需单独批准，GUI 和 Browser 写入保持关闭。保存并重启后生效。
+        restore: 显示 Terminal 请求
+        approval: Terminal 命令与结果
+        approve: 单次批准
+        reject: 拒绝
+        details: 完整执行器报告
+        pending: 等待批准。此命令尚未获得授权。
+        authorized: 已单次批准，正在等待共享执行队列；尚未确认完成。
+        dispatched: 已向执行器派发，等待结果及直接 Shell 关闭确认。
+        result:
+          executed: 命令以退出码 0 结束。业务目标仍需独立验证。
+          failed: 命令失败，之前可能已产生副作用。再次申请前请检查执行报告。
+          unknown: 结果未知，可能已产生副作用。原批准不能授权重放。
+          rejected: 已拒绝，此请求未派发新的命令。
+          cancelled: 已在派发前取消，此请求未执行。
+          expired: 授权在派发前过期，此请求未执行。
       description: 配置其他 MCP 服务器并将能力拓展至 AIRI
       config-path: 配置文件
       runtime-title: 运行状态
@@ -1508,6 +1526,9 @@ pages:
         pending-badge: 未保存
       status:
         unknown: 未加载
+        running: 已连接
+        stopped: 已断开
+        error: 暂不可用
       actions:
         open-config: 在文件管理器中查看
         apply-and-restart: 保存并重启

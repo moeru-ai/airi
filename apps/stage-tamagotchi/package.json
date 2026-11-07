@@ -26,6 +26,7 @@
     "build:unpack": "pnpm run build && electron-builder --dir",
     "build:flatpak": "pnpm run build:unpack && flatpak-builder --user --install-deps-from=flathub ./flatpak ai.moeru.airi.flatpak.yml --force-clean",
     "build:win": "pnpm run build && electron-builder --win",
+    "build:terminal-beta": "tsx scripts/build-terminal-beta.ts",
     "build:mac": "pnpm run build && electron-builder --mac",
     "build:linux": "pnpm run build && electron-builder --linux",
     "rename-artifacts": "mkdir -p bundle && tsx scripts/rename-artifacts.ts",
@@ -47,6 +48,7 @@
     "@xsai-apple-vision/vision-native": "catalog:",
     "electron-click-drag-plugin": "catalog:",
     "electron-updater": "^6.8.9",
+    "node-pty": "catalog:",
     "uiohook-napi": "catalog:"
   },
   "optionalDependencies": {
@@ -96,6 +98,7 @@
     "@proj-airi/audio": "workspace:^",
     "@proj-airi/ccc": "workspace:^",
     "@proj-airi/core-agent": "workspace:^",
+    "@proj-airi/computer-use-mcp": "workspace:^",
     "@proj-airi/drizzle-duckdb-wasm": "catalog:",
     "@proj-airi/electron-eventa": "workspace:^",
     "@proj-airi/electron-screen-capture": "workspace:^",
@@ -235,7 +238,6 @@
     "zod": "catalog:"
   },
   "build": {
-    "appId": "ai.moeru.airi",
     "extends": "electron-builder.config.ts"
   }
 }

@@ -334,8 +334,12 @@ app.whenReady().then(async () => {
     build: async ({ dependsOn }) => setupMcpManager({
       actions: dependsOn.pendingActions,
       present: dependsOn.terminalApproval.present,
+      onDispatch: dependsOn.terminalApproval.dispatched,
       executeInSlot: operation => dependsOn.computerUse.getRuntime().executeInSlot(operation),
-      notify: notice => deliverTerminalNotice(dependsOn.pendingActions, notice),
+      notify: (notice) => {
+        dependsOn.terminalApproval.report(notice)
+        return deliverTerminalNotice(dependsOn.pendingActions, notice)
+      },
     }),
   })
 
@@ -517,7 +521,7 @@ app.whenReady().then(async () => {
   })
 
   const tray = injeca.provide('app:tray', {
-    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, serverChannel, beatSyncBgWindow: beatSync, aboutWindow, inlayWindow, i18n, appConfig },
+    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, serverChannel, beatSyncBgWindow: beatSync, aboutWindow, inlayWindow, i18n, appConfig, terminalApproval },
     build: async ({ dependsOn }) => setupTray(dependsOn),
   })
 

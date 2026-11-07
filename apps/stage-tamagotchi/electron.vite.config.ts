@@ -71,6 +71,12 @@ export default defineConfig({
       // Keep only native modules there: they use `__dirname` or load `.node` and binary files at runtime.
       // Put every pure JS package in `devDependencies`, so main bundles it and app.asar does not copy it again.
       externalizeDeps: true,
+      lib: {
+        entry: {
+          index: resolve(import.meta.dirname, 'src/main/index.ts'),
+          terminal: resolve(import.meta.dirname, 'src/main/terminal.ts'),
+        },
+      },
     },
     plugins: [
       ErgosphereMain({ launcher: 'src/launcher/index.ts' }),

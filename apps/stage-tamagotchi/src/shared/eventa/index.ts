@@ -534,6 +534,7 @@ export interface ElectronMcpHttpServerConfig {
 export type ElectronMcpServerConfig = ElectronMcpStdioServerConfig | ElectronMcpHttpServerConfig
 
 export interface ElectronMcpConfigFile {
+  terminalEnabled?: boolean
   mcpServers: Record<string, ElectronMcpServerConfig>
 }
 

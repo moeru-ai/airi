@@ -407,6 +407,7 @@ describe('setupAutoUpdater', () => {
     { name: 'a Flatpak sandbox', env: { FLATPAK_ID: 'ai.moeru.airi' }, externallyUpdated: true },
     { name: 'a Steam build', env: { VITE_DISTRIBUTION: 'steam' }, externallyUpdated: true },
     { name: 'a Nix package', env: { AIRI_DISTRIBUTION: 'nix' }, externallyUpdated: true },
+    { name: 'an internal Terminal Beta', env: { AIRI_DISTRIBUTION: 'terminal-beta' }, externallyUpdated: true },
     { name: 'a direct download', env: {}, externallyUpdated: false },
   ])('reports whether a store or a package manager updates $name', async ({ env, externallyUpdated }) => {
     vi.stubEnv('FLATPAK_ID', undefined)

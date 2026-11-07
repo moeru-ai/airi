@@ -3,7 +3,7 @@ import type { TerminalNotice } from '@proj-airi/stage-shared/terminal-approval'
 
 import { defineInvokeEventa } from '@moeru/eventa'
 import { chatRequestSchema } from '@proj-airi/stage-shared/chat-request'
-import { terminalSnapshotSchema } from '@proj-airi/stage-shared/terminal-approval'
+import { terminalNoticeSchema, terminalSnapshotSchema } from '@proj-airi/stage-shared/terminal-approval'
 
 import * as v from 'valibot'
 
@@ -21,5 +21,8 @@ export const terminalApprovalViewSchema = v.strictObject({
   serverName: v.string(),
   submission: v.strictObject({ ...chatRequestSchema.entries, senderWebContentsId: v.number() }),
   snapshot: terminalSnapshotSchema,
+  authorized: v.optional(v.boolean()),
+  dispatched: v.optional(v.boolean()),
+  outcome: v.optional(terminalNoticeSchema),
 })
 export type TerminalApprovalView = v.InferOutput<typeof terminalApprovalViewSchema>

@@ -3,8 +3,10 @@ import type { TerminalApprovalView } from '../../shared/eventa/terminal-approval
 
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { Button } from '@proj-airi/ui'
-import { onMounted, ref } from 'vue'
+import { Alert, Button } from '@proj-airi/ui'
+import { useIntervalFn } from '@vueuse/core'
+import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
 import * as v from 'valibot'
@@ -14,13 +16,15 @@ import WindowTitleBar from '../components/Window/TitleBar.vue'
 import { terminalApprovalViewSchema, terminalApprovalWindow } from '../../shared/eventa/terminal-approval'
 
 const route = useRoute()
+const { t } = useI18n()
+const tn = (key: string) => t(`settings.pages.modules.mcp-server.terminal.${key}`)
 const mounted = useElectronEventaInvoke(terminalApprovalWindow.pageMounted)
 const decide = useElectronEventaInvoke(terminalApprovalWindow.windowAction)
 const view = ref<TerminalApprovalView>()
 const error = ref('')
 const sending = ref(false)
 
-onMounted(async () => {
+async function refresh() {
   try {
     const id = typeof route.query.id === 'string' ? route.query.id : undefined
     const pending = await mounted({ id })
@@ -31,10 +35,30 @@ onMounted(async () => {
   catch (failure) {
     error.value = errorMessageFrom(failure) ?? 'This approval request is unavailable.'
   }
+}
+onMounted(refresh)
+useIntervalFn(() => {
+  void refresh()
+}, 1000)
+
+const outcome = computed(() => view.value?.outcome)
+const backend = computed(() => outcome.value?.result?.structuredContent as { backendResult?: { exitCode?: number, timedOut?: boolean } } | undefined)
+const status = computed(() => {
+  if (outcome.value?.status === 'unknown')
+    return tn('result.unknown')
+  if (outcome.value?.status === 'executed')
+    return tn('result.executed')
+  if (outcome.value)
+    return tn(`result.${outcome.value.status}`)
+  if (view.value?.dispatched)
+    return tn('dispatched')
+  if (view.value?.authorized)
+    return tn('authorized')
+  return tn('pending')
 })
 
 async function respond(action: 'confirm' | 'cancel') {
-  if (!view.value || sending.value)
+  if (!view.value || sending.value || view.value.authorized || outcome.value)
     return
   sending.value = true
   try {
@@ -52,8 +76,17 @@ async function respond(action: 'confirm' | 'cancel') {
     <WindowTitleBar />
     <div v-if="view" class="min-h-0 flex-1 overflow-y-auto px-5 pb-4 pt-10" data-testid="terminal-approval">
       <h1 class="text-lg font-semibold">
-        Approve a Terminal command
+        {{ tn('approval') }}
       </h1>
+      <Alert :tone="outcome?.status === 'unknown' || outcome?.status === 'failed' ? 'warning' : 'info'" :class="['mt-3']" data-testid="approval-status">
+        {{ status }}
+        <p v-if="backend?.backendResult">
+          Exit: {{ backend.backendResult.exitCode ?? 'unconfirmed' }} · Timeout: {{ backend.backendResult.timedOut ?? 'unconfirmed' }}
+        </p>
+        <p v-if="outcome?.error" :class="['whitespace-pre-wrap break-words']">
+          {{ outcome.error }}
+        </p>
+      </Alert>
       <p class="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
         This command can change files, start applications, and affect the desktop. Approval applies once to this exact operation.
       </p>
@@ -90,12 +123,12 @@ async function respond(action: 'confirm' | 'cancel') {
     <p v-if="error" class="px-5 py-3 text-sm text-red-600" role="alert">
       {{ error }}
     </p>
-    <div class="flex justify-end gap-3 px-5 py-4">
+    <div v-if="!view?.authorized && !outcome" class="flex justify-end gap-3 px-5 py-4">
       <Button :disabled="!view || sending" data-testid="approval-reject" @click="respond('cancel')">
-        Reject
+        {{ tn('reject') }}
       </Button>
       <Button variant="primary" :disabled="!view || sending" data-testid="approval-confirm" @click="respond('confirm')">
-        Approve once
+        {{ tn('approve') }}
       </Button>
     </div>
   </div>

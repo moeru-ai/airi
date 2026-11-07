@@ -675,7 +675,7 @@ watch(
   },
 )
 onMounted(() => {
-  if (onboardingStore.needsOnboarding)
+  if (onboardingStore.needsOnboarding && new URLSearchParams(location.search).get('start-hidden') !== 'true')
     openOnboarding()
 })
 

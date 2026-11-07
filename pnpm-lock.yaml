@@ -1907,6 +1907,9 @@ importers:
       electron-updater:
         specifier: ^6.8.9
         version: 6.8.9(supports-color@10.2.2)
+      node-pty:
+        specifier: 'catalog:'
+        version: '@lydell/node-pty@1.2.0-beta.15'
       uiohook-napi:
         specifier: 'catalog:'
         version: 1.5.5(patch_hash=012c5e5ad881d5ae40fc0af58832e31a0772ab0a74c038c8f4dfe51efaf398dd)
@@ -2031,6 +2034,9 @@ importers:
       '@proj-airi/ccc':
         specifier: workspace:^
         version: link:../../packages/ccc
+      '@proj-airi/computer-use-mcp':
+        specifier: workspace:^
+        version: link:../../services/computer-use-mcp
       '@proj-airi/core-agent':
         specifier: workspace:^
         version: link:../../packages/core-agent

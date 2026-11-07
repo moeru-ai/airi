@@ -14,6 +14,8 @@ import { electronMcpCallTool, electronMcpListTools } from '../../../../shared/ev
 import { createMcpManager, createMcpServersService } from './index'
 
 const appMock = vi.hoisted(() => ({
+  isPackaged: false,
+  getAppPath: vi.fn(),
   getPath: vi.fn(),
   getVersion: vi.fn(),
 }))
@@ -23,6 +25,7 @@ const shellMock = vi.hoisted(() => ({
 }))
 
 const clientMocks = vi.hoisted(() => ({
+  instances: [] as Array<Pick<Client, 'onclose' | 'onerror'>>,
   callTool: vi.fn<Client['callTool']>(),
   close: vi.fn(),
   connect: vi.fn(),
@@ -51,6 +54,12 @@ vi.mock('../../../libs/bootkit/lifecycle', () => ({
 
 vi.mock('@modelcontextprotocol/sdk/client/index.js', () => ({
   Client: class {
+    onclose?: Client['onclose']
+    onerror?: Client['onerror']
+    constructor() {
+      clientMocks.instances.push(this)
+    }
+
     callTool = clientMocks.callTool
     close = clientMocks.close
     connect = clientMocks.connect
@@ -94,10 +103,13 @@ describe('createMcpManager', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks()
+    clientMocks.instances.length = 0
+    appMock.isPackaged = false
     httpTransportMock.options = undefined
     httpTransportMock.url = undefined
     userDataPath = await mkdtemp(join(tmpdir(), 'airi-mcp-discovery-'))
     appMock.getPath.mockReturnValue(userDataPath)
+    appMock.getAppPath.mockReturnValue(join(userDataPath, 'app'))
     appMock.getVersion.mockReturnValue('0.10.0')
     clientMocks.close.mockResolvedValue(undefined)
     clientMocks.connect.mockResolvedValue(undefined)
@@ -109,6 +121,7 @@ describe('createMcpManager', () => {
     for (const manager of managers.splice(0))
       await manager.stopAll()
     await rm(userDataPath, { recursive: true, force: true })
+    vi.unstubAllEnvs()
   })
 
   async function startServers(...serverNames: string[]) {
@@ -120,6 +133,49 @@ describe('createMcpManager', () => {
     expect((await manager.applyAndRestart()).failed).toEqual([])
     return manager
   }
+
+  it('starts the bundled Terminal in a new packaged Beta profile without external Node or a persisted install path', async () => {
+    appMock.isPackaged = true
+    vi.stubEnv('AIRI_DISTRIBUTION', 'terminal-beta')
+    const manager = createMcpManager()
+    managers.push(manager)
+
+    const result = await manager.applyAndRestart()
+
+    expect(result.started).toEqual([{ name: 'airi-terminal' }])
+    expect(manager.getRuntimeStatus().servers).toMatchObject([{ name: 'airi-terminal', state: 'running', command: process.execPath, args: [join(userDataPath, 'app', 'out', 'bundle', 'main', 'terminal.mjs')] }])
+    expect(JSON.parse((await manager.readConfigText()).text)).toEqual({ terminalEnabled: true, mcpServers: {} })
+  })
+
+  it('reports a closed current connection as stopped', async () => {
+    const manager = await startServers('memory')
+
+    clientMocks.instances[0].onclose?.()
+
+    expect(manager.getRuntimeStatus().servers[0].state).toBe('stopped')
+    await expect(manager.listTools()).resolves.toEqual([])
+  })
+
+  it('reports a discovery failure without presenting a stale connected state', async () => {
+    const manager = await startServers('memory')
+    clientMocks.listTools.mockRejectedValueOnce(new Error('Fixture connection unavailable.'))
+
+    await expect(manager.listTools()).rejects.toThrow('Fixture connection unavailable.')
+
+    expect(manager.getRuntimeStatus().servers[0]).toMatchObject({ state: 'error', lastError: 'Fixture connection unavailable.' })
+  })
+
+  it('ignores a replaced connection close callback and keeps the current connection identity', async () => {
+    const manager = await startServers('memory')
+    const previous = clientMocks.instances[0]
+    await manager.applyAndRestart()
+    const current = clientMocks.instances[1]
+
+    previous.onclose?.()
+    expect(manager.getRuntimeStatus().servers[0].state).toBe('running')
+    current.onclose?.()
+    expect(manager.getRuntimeStatus().servers[0].state).toBe('stopped')
+  })
 
   // https://github.com/moeru-ai/airi/pull/2946#discussion_r4254219145
   // ROOT CAUSE:

@@ -18,6 +18,7 @@ import type { TerminalApprovalOptions } from './terminal-approval'
 import { randomBytes } from 'node:crypto'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { env, execPath } from 'node:process'
 
 import { useLogg } from '@guiiai/logg'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
@@ -69,9 +70,7 @@ export interface McpManager {
   testServer: (payload: ElectronMcpTestPayload) => Promise<ElectronMcpTestResult>
 }
 
-const defaultMcpConfig: ElectronMcpConfigFile = {
-  mcpServers: {},
-}
+const bundledTerminalName = 'airi-terminal'
 const toolNameSeparator = '::'
 const mcpRequestTimeoutMsec = 10_000
 const mcpRequestMaxTotalTimeoutMsec = 15_000
@@ -199,6 +198,10 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
       await readFile(path, 'utf-8')
     }
     catch {
+      const defaultMcpConfig: ElectronMcpConfigFile = {
+        ...(app.isPackaged && env.AIRI_DISTRIBUTION === 'terminal-beta' ? { terminalEnabled: true } : {}),
+        mcpServers: {},
+      }
       await writeFile(path, `${JSON.stringify(defaultMcpConfig, null, 2)}\n`)
     }
 
@@ -244,7 +247,18 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
           }
         })
       }
-      sessions.set(name, { client, transport, config, terminalNonce })
+      const session: McpServerSession = { client, transport, config, terminalNonce }
+      sessions.set(name, session)
+      client.onclose = () => {
+        if (sessions.get(name) !== session)
+          return
+        sessions.delete(name)
+        setRuntimeStatus(describeRuntime(name, config, 'stopped'))
+      }
+      client.onerror = (error) => {
+        if (sessions.get(name) === session)
+          setRuntimeStatus(describeRuntime(name, config, 'error', { lastError: stringifyError(error) }))
+      }
       setRuntimeStatus(describeRuntime(name, config, 'running', {
         pid: transport instanceof StdioClientTransport ? transport.pid : null,
       }))
@@ -258,6 +272,25 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
   const applyAndRestart = async (): Promise<ElectronMcpApplyResult> => {
     const { path } = await ensureConfigFile()
     const config = await readConfigFile(path)
+    const servers = { ...config.mcpServers }
+    if (config.terminalEnabled) {
+      if (bundledTerminalName in servers)
+        throw new Error(`The server name "${bundledTerminalName}" is reserved for the bundled Terminal. Rename the external server or disable the bundled Terminal.`)
+      servers[bundledTerminalName] = {
+        command: execPath,
+        args: [join(app.getAppPath(), 'out', 'bundle', 'main', 'terminal.mjs')],
+        cwd: app.getPath('userData'),
+        env: {
+          ELECTRON_RUN_AS_NODE: '1',
+          [terminalControlEnabledEnv]: '1',
+          COMPUTER_USE_APPROVAL_MODE: 'actions',
+          COMPUTER_USE_EXECUTOR: 'dry-run',
+          COMPUTER_USE_BROWSER_DOM_BRIDGE_ENABLED: 'false',
+          COMPUTER_USE_DEFAULT_CAPTURE_AFTER: 'false',
+          COMPUTER_USE_SESSION_ROOT: join(app.getPath('userData'), 'terminal-sessions'),
+        },
+      }
+    }
 
     await stopAll()
     runtimeStatuses.clear()
@@ -269,7 +302,7 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
       skipped: [],
     }
 
-    for (const [name, server] of Object.entries(config.mcpServers)) {
+    for (const [name, server] of Object.entries(servers)) {
       if (server.enabled === false) {
         result.skipped.push({ name, reason: 'disabled' })
         setRuntimeStatus(describeRuntime(name, server, 'stopped'))
@@ -313,12 +346,19 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
     // Each result matches the sorted session snapshot. A partial catalog must
     // not report successful discovery while a server's tools remain unknown.
     for (const [index, result] of listResult.entries()) {
+      const [serverName, session] = entries[index]
       if (result.status === 'fulfilled') {
+        if (sessions.get(serverName) === session) {
+          setRuntimeStatus(describeRuntime(serverName, session.config, 'running', {
+            pid: session.transport instanceof StdioClientTransport ? session.transport.pid : null,
+          }))
+        }
         tools.push(...result.value)
         continue
       }
 
-      const [serverName] = entries[index]
+      if (sessions.get(serverName) === session)
+        setRuntimeStatus(describeRuntime(serverName, session.config, 'error', { lastError: stringifyError(result.reason) }))
       log.withFields({ serverName }).withError(result.reason).warn('failed to list tools from mcp server')
       failures.push(new Error(`MCP server "${serverName}": ${errorMessageFrom(result.reason) ?? 'Unknown error.'}`, { cause: result.reason }))
     }
