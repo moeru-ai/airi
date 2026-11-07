@@ -52,10 +52,12 @@ A wildcard response is safe for a cookie service too. A browser does not show a 
 | --- | --- | --- |
 | API | None | |
 | Cloud | None | |
-| Auth | Origin of `AUTH_UI_URL` | `server/apps/auth/src/env.ts` |
+| Auth | Origin of `AUTH_UI_URL`, after `resolveAuthUiUrl` | `server/apps/auth/src/env.ts`, `server/apps/auth/src/routes.ts` |
 | Admin | Origin of `ADMIN_UI_URL` | `proj-airi/backend` `internal/configs` |
 
 Each service has one credentialed origin at most. A local environment sets the UI URL to its dev server.
+
+Auth reads the UI URL through `resolveAuthUiUrl`. On server-dev, the default `AUTH_UI_URL` resolves to the server-dev Pages UI. The Auth UI sends every request with `credentials: 'include'`, so the resolved origin must get credentials.
 
 ### Redirect allowlist
 
@@ -68,7 +70,7 @@ These features read one list, `TRUSTED_ORIGINS` in `@proj-airi/auth-shared`, plu
 
 ### Implementation
 
-- TypeScript: `@proj-airi/auth-shared` exports the policy as one function. The API and Auth apply it to `/api/*`.
+- TypeScript: `@proj-airi/auth-shared` exports the policy as one framework-free function, `resolveCrossOriginHeaders`. The API and Auth each apply it to `/api/*` with a small Hono middleware, because `auth-shared` does not depend on Hono. The API exposes `Retry-After`. Auth sets no expose list, so the expose headers of the Better Auth `bearer` and `jwt` plugins stay.
 - Go: one middleware in `proj-airi/backend` applies the policy to Cloud and Admin. The Cloud and Admin origin checks and the unused lists are removed.
 - Bucket: `proj-airi/airi-deploy` keeps the bucket CORS rule as code and a script that applies it.
 - Contract check: `proj-airi/airi-deploy` sends preflights with each client origin to each host and checks the headers.
@@ -102,12 +104,15 @@ moeru-ai/airi
 ├── server/docs/ai/adr/2026-11-07-cross-origin-boundary.md
 ├── server/packages/auth-shared/src/
 │   ├── cross-origin.ts            policy function
+│   ├── cross-origin.test.ts       policy unit tests
 │   └── origin.ts                  TRUSTED_ORIGINS, the one redirect allowlist
 ├── server/apps/api/src/
 │   ├── app.ts                     applies the bearer policy
+│   ├── middlewares/cross-origin.ts  Hono middleware, exposes Retry-After
 │   └── utils/origin.ts            redirect helpers only, web-only Stripe base
 ├── server/apps/auth/src/
 │   ├── server.ts                  applies the policy with the AUTH_UI_URL origin
+│   ├── cross-origin.ts            Hono middleware
 │   └── origin.ts                  reads TRUSTED_ORIGINS
 └── server/dev/s3/cors.json        allows every origin
 
