@@ -1,11 +1,11 @@
 electronCallback:
   title:
     loading: 登录中
-    openingAiri: 正在打开AIRI
+    openingAiri: 正在打开 AIRI
     signedIn: 登录成功
     signInFailed: 登录失败
-    finishSignInInAiri: 登录完成
-    openAiriToContinue: 打开AIRI以继续
+    finishSignInInAiri: 在 AIRI 中完成登录
+    openAiriToContinue: 打开 AIRI 以继续
   message:
     checkingResponse: 正在检查鉴权是否有效，并准备将登录状态转交给 AIRI...
     passingToAiri: 正在将登录状态转交至 AIRI 客户端。本页面即将自动关闭...
@@ -199,6 +199,6 @@ webCallback:
     missingCodeOrState: 缺少授权码或状态
     missingFlowState: 缺少OIDC 流状态-请重新登录
     tokenExchangeFailed: 令牌交换失败
-    finalizing: AIRI登录完成
+    finalizing: 正在完成 AIRI 身份验证。
   action:
     tryAgain: 重试
