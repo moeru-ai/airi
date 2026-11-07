@@ -20,9 +20,7 @@ export function createQueue<T>(options: {
   // handler that enqueues must see this flag. Otherwise that enqueue starts a nested drain and runs its item first.
   let draining = false
 
-  // Listeners are stored per event name. The record keeps only `unknown` because the event name selects the
-  // listener type, which the record type cannot express. `on` is the only writer, so it stores a matching listener.
-  const internalEventListeners: Record<keyof Events<T>, unknown[]> = {
+  const internalEventListeners: Events<T> = {
     enqueue: [],
     dequeue: [],
     process: [],
@@ -33,12 +31,49 @@ export function createQueue<T>(options: {
   const internalHandlerEventListeners: Record<string, Array<(...params: unknown[]) => void>> = {}
 
   function on<E extends keyof Events<T>>(eventName: E, listener: Events<T>[E][number]) {
-    internalEventListeners[eventName].push(listener)
+    const listeners: Array<Events<T>[E][number]> = internalEventListeners[eventName]
+    listeners.push(listener)
   }
 
-  function emit<E extends keyof Events<T>>(eventName: E, ...params: Parameters<Events<T>[E][number]>) {
-    const listeners = internalEventListeners[eventName] as Array<(...args: Parameters<Events<T>[E][number]>) => void>
-    listeners.forEach(listener => listener(...params))
+  // Pair each event name with the parameter tuple of its own listeners. The switch in `emit` then narrows the
+  // name and the parameters together, so every listener call keeps its full type.
+  type EventArgs = {
+    [E in keyof Events<T>]: [eventName: E, ...params: Parameters<Events<T>[E][number]>]
+  }[keyof Events<T>]
+
+  function emit(...args: EventArgs) {
+    switch (args[0]) {
+      case 'enqueue': {
+        const [, ...params] = args
+        internalEventListeners.enqueue.forEach(listener => listener(...params))
+        break
+      }
+      case 'dequeue': {
+        const [, ...params] = args
+        internalEventListeners.dequeue.forEach(listener => listener(...params))
+        break
+      }
+      case 'process': {
+        const [, ...params] = args
+        internalEventListeners.process.forEach(listener => listener(...params))
+        break
+      }
+      case 'error': {
+        const [, ...params] = args
+        internalEventListeners.error.forEach(listener => listener(...params))
+        break
+      }
+      case 'result': {
+        const [, ...params] = args
+        internalEventListeners.result.forEach(listener => listener(...params))
+        break
+      }
+      case 'drain': {
+        const [, ...params] = args
+        internalEventListeners.drain.forEach(listener => listener(...params))
+        break
+      }
+    }
   }
 
   function onHandlerEvent(eventName: string, listener: (...params: unknown[]) => void) {
