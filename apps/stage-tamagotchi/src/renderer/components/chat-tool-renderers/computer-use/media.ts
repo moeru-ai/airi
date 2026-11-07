@@ -40,15 +40,15 @@ const readMediaControl: ComputerUseCommandReader = (result) => {
 
 /** Now playing and the media controls. */
 export const mediaReaders: Record<string, ComputerUseCommandReader> = {
-  'mediaControl.nowPlaying': (result) => {
+  'media.getNowPlaying': (result) => {
     const parsed = safeParse(MediaStateSchema, result)
     if (!parsed.success)
       return undefined
     return { view: { kind: 'now-playing', state: parsed.output }, shown: { result: PLAYER_SHOWN }, omitted: { result: SCHEMA_VERSION_OMITTED } }
   },
-  'mediaControl.play': readMediaControl,
-  'mediaControl.pause': readMediaControl,
-  'mediaControl.togglePlayPause': readMediaControl,
-  'mediaControl.next': readMediaControl,
-  'mediaControl.previous': readMediaControl,
+  'media.play': readMediaControl,
+  'media.pause': readMediaControl,
+  'media.togglePlayback': readMediaControl,
+  'media.skipToNextTrack': readMediaControl,
+  'media.skipToPreviousTrack': readMediaControl,
 }

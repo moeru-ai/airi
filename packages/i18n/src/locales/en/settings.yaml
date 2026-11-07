@@ -503,7 +503,7 @@ pages:
     delete: Delete
     delete_card: Delete Card
     delete_confirmation: Are you sure you want to delete this card?
-    description: Use AIRI character card presets
+    description: Manage AIRI character cards
     description_label: Description
     drop_here: Drop to upload
     create_card: Create a new Card
@@ -874,7 +874,7 @@ pages:
       gaming: Gaming
       artistry: Artistry
     consciousness:
-      description: Personality, desired model, etc.
+      description: Language model selection and settings
       sections:
         section:
           provider-model-selection:
@@ -1266,7 +1266,7 @@ pages:
       title: Speech
     title: Modules
     vision:
-      description: Vision
+      description: Image understanding and screen capture settings
       title: Vision
       tool-images:
         label: Use the vision model for tool images
@@ -2407,7 +2407,7 @@ pages:
           title: Transcription Playground
       aihubmix:
         title: AIHubMix
-        description: https://aihubmix.com (10% off)
+        description: aihubmix.com (10% off)
     title: Providers
   connection:
     description: Configure WebSocket server connection

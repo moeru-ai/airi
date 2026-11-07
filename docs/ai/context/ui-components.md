@@ -795,7 +795,10 @@ Tab-like selection using radio buttons with animated indicator.
 | `options` | `SelectTabOption[]` | *(required)* | Tab options `{ label, value, description?, icon? }` |
 | `disabled` | `boolean?` | `false` | Disabled |
 | `readonly` | `boolean?` | `false` | Read-only |
-| `size` | `'sm' \| 'md'` | `'md'` | Size |
+| `size` | `'xs' \| 'sm' \| 'md'` | `'md'` | Size |
+| `tabSpace` | `'compact' \| 'spaced'` | `'spaced'` | Item width. `spaced` adds a minimum width to each item. |
+| `radius` | `'lg' \| 'xl' \| 'full'` | `'lg'` | Corner radius of the track, the thumb, and the items |
+| `color` | `'primary' \| 'neutral'` | `'primary'` | Color family of the track, the thumb, and the items |
 
 **v-model**: `modelValue: T`
 

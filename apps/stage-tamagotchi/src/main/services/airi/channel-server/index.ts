@@ -1,5 +1,5 @@
 import type { Server, ServerOptions } from '@proj-airi/server-runtime/server'
-import type { Lifecycle } from 'injeca'
+import type { LifecycleContext } from 'injeca'
 
 import type { ElectronServerChannelConfig } from '../../../../shared/eventa'
 
@@ -354,7 +354,7 @@ async function getOrCreateCertificate() {
   return { cert: withCertificateChain(cert, caCert), key }
 }
 
-export async function setupServerChannel(params: { lifecycle: Lifecycle }): Promise<Server> {
+export async function setupServerChannel(params: { on: LifecycleContext['on'] }): Promise<Server> {
   channelServerConfigStore.setup()
   configureServerChannelCertificateTrust()
 
@@ -368,7 +368,7 @@ export async function setupServerChannel(params: { lifecycle: Lifecycle }): Prom
 
   const mutex = new Mutex()
 
-  params.lifecycle.appHooks.onStart(async () => {
+  params.on('start', async () => {
     const release = await mutex.acquire()
 
     const log = useLogg('main/server-runtime').useGlobalConfig()
@@ -384,7 +384,7 @@ export async function setupServerChannel(params: { lifecycle: Lifecycle }): Prom
       release()
     }
   })
-  params.lifecycle.appHooks.onStop(async () => {
+  params.on('stop', async () => {
     const release = await mutex.acquire()
 
     const log = useLogg('main/server-runtime').useGlobalConfig()

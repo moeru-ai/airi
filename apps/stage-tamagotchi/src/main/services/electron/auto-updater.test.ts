@@ -16,6 +16,7 @@ vi.mock('electron', async () => {
   return {
     app: { getPath: (name: string) => `/tmp/${name}` },
     ipcMain: new EventEmitter(),
+    net: { fetch: vi.fn().mockRejectedValue(new Error('No network in tests.')) },
   }
 })
 
@@ -47,6 +48,7 @@ vi.mock('@guiiai/logg', () => ({
       error: vi.fn(),
       withError: () => ({
         error: vi.fn(),
+        warn: vi.fn(),
       }),
     }),
   }),
@@ -237,6 +239,67 @@ describe('setupAutoUpdater', () => {
     await service.downloadUpdate()
 
     expect(service.state).toMatchObject({ status: 'error', error: { message: 'No space left.' } })
+  })
+
+  it('adds the release notes and the release page of an update', async () => {
+    const fake = createFakeUpdater()
+    const fetchReleaseNotes = vi.fn().mockResolvedValue('## v0.9.0-beta.6 Highlights')
+    const { setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater({ updater: fake.updater, fetchReleaseNotes })
+    const states = vi.fn()
+    service.subscribe(states)
+
+    fake.setStatus({ status: 'available', update })
+    expect(service.state).toMatchObject({ changesUrl: 'https://github.com/moeru-ai/airi/releases/tag/v0.9.0-beta.6' })
+    expect(service.state.info?.releaseNotes).toBeUndefined()
+
+    await vi.waitFor(() => expect(service.state.info?.releaseNotes).toBe('## v0.9.0-beta.6 Highlights'))
+    expect(states).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'available' }))
+
+    fake.setStatus({ status: 'ready', update })
+    expect(service.state).toMatchObject({ status: 'downloaded', info: { releaseNotes: '## v0.9.0-beta.6 Highlights' } })
+    expect(fetchReleaseNotes).toHaveBeenCalledTimes(1)
+    expect(fetchReleaseNotes).toHaveBeenCalledWith('0.9.0-beta.6')
+  })
+
+  it('links a dev build to the commits since the running build, and does not ask for notes', async () => {
+    bundleState.version = '0.13.1-dev.821.13eef81'
+    const fake = createFakeUpdater()
+    const fetchReleaseNotes = vi.fn()
+    const { setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater({ updater: fake.updater, fetchReleaseNotes })
+
+    fake.setStatus({ status: 'ready', update: { ...update, version: '0.13.1-dev.830.4b5c6d7' } })
+
+    expect(service.state.changesUrl).toBe('https://github.com/moeru-ai/airi/compare/13eef81...4b5c6d7')
+    expect(fetchReleaseNotes).not.toHaveBeenCalled()
+  })
+
+  it('asks for failed notes once while a download reports progress', async () => {
+    const fake = createFakeUpdater()
+    const fetchReleaseNotes = vi.fn().mockRejectedValue(new Error('GitHub returned 404.'))
+    const { setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater({ updater: fake.updater, fetchReleaseNotes })
+
+    fake.setStatus({ status: 'available', update })
+    await vi.waitFor(() => expect(fetchReleaseNotes).toHaveBeenCalledTimes(1))
+    for (const percent of [10, 20, 30])
+      fake.setStatus({ status: 'downloading', bytesPerSecond: 1, downloadedBytes: percent, percent, totalBytes: 100, update })
+
+    expect(fetchReleaseNotes).toHaveBeenCalledTimes(1)
+    expect(service.state).toMatchObject({ status: 'downloading', changesUrl: 'https://github.com/moeru-ai/airi/releases/tag/v0.9.0-beta.6' })
+  })
+
+  it('shows no changes when no update waits', async () => {
+    const fake = createFakeUpdater()
+    const fetchReleaseNotes = vi.fn()
+    const { setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater({ updater: fake.updater, fetchReleaseNotes })
+
+    fake.setStatus({ status: 'up-to-date' })
+
+    expect(service.state.changesUrl).toBeUndefined()
+    expect(fetchReleaseNotes).not.toHaveBeenCalled()
   })
 
   it('saves the download preference and the lane from one renderer request', async () => {

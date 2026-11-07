@@ -274,7 +274,7 @@ pages:
         label: 昵称
         placeholder: 别人如何看到你
       avatar:
-        gravatarNotice: Gravatar头像。
+        gravatarNotice: Gravatar 头像。
         gravatarLink: 在 gravatar.com 上管理
       action:
         save: 保存更改
@@ -462,11 +462,11 @@ pages:
     delete: 删除
     delete_card: 删除角色卡
     delete_confirmation: 确定要删除这张角色卡吗？
-    description: 使用 AIRI 角色卡预设
+    description: 管理 AIRI 角色卡
     description_label: 描述
-    drop_here: 放开以上传文件
+    drop_here: 松手以上传文件
     create_card: 创建新角色卡
-    edit_card: 卡片编辑
+    edit_card: 编辑卡片
     saved: 角色卡已保存
     unsaved:
       badge: 未保存
@@ -567,11 +567,11 @@ pages:
     title: AIRI 角色卡
     try_different_search: 尝试使用其他关键词搜索
     export: 导出
-    exported: 卡片包已导出
-    export_failed: 导出卡片包失败
-    imported: 卡片包已导入
-    import_missing_file: 卡片包缺少必需文件
-    import_invalid_file: 卡片包文件无效
+    exported: 角色卡已导出
+    export_failed: 导出角色卡失败
+    imported: 角色卡已导入
+    import_missing_file: 角色卡缺少必需文件
+    import_invalid_file: 角色卡文件无效
     upload: 上传
     upload_desc: 点击或拖动 AIRI 角色卡包以导入
   memory:
@@ -821,7 +821,7 @@ pages:
       gaming: 游戏
       artistry: 绘图
     consciousness:
-      description: 人格设定、使用的模型等配置
+      description: 选择并配置语言模型
       sections:
         section:
           provider-model-selection:
@@ -1199,7 +1199,7 @@ pages:
       title: 发声
     title: 机体模块
     vision:
-      description: 视觉
+      description: 图像识别和截图设置
       title: 视觉
       tool-images:
         label: 使用视觉模型理解工具图片
@@ -2204,7 +2204,7 @@ pages:
         playground:
           title: 实验平台
       aihubmix:
-        description: https://aihubmix.com (九折优惠)
+        description: aihubmix.com (九折优惠)
     title: 服务来源
   connection:
     description: 配置 WebSocket 服务器连接

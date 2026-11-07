@@ -59,7 +59,7 @@ export function createComputerUseRuntime(options: { binaryPath: string, storeRoo
 
   async function run(input: unknown): Promise<ComputerUseResult> {
     const { argv } = v.parse(inputSchema, input)
-    if (argv[0] !== 'invoke' || !/^(?:--help|-h|help|(?:app|display|screen|window|input|mediaControl)\.[a-zA-Z]+)$/.test(argv[1]))
+    if (argv[0] !== 'invoke' || !/^(?:--help|-h|help|(?:application|permission|accessibility|display|window|input|media)\.[a-zA-Z]+)$/.test(argv[1]))
       throw new Error('Use invoke with a desktop command or --help.')
 
     // The host owns routing and artifact storage. CLI global flags must not replace them.
