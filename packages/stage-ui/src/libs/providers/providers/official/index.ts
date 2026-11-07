@@ -103,12 +103,19 @@ export const providerOfficialChat = defineProvider<OfficialChatConfig, typeof OF
   validationRequiredWhen: () => false,
 
   extraMethods: {
-    listModels: async () => [
+    // Each id is a client alias on the server. Hearing selects `asr-rewrite` to rewrite transcripts with a small model.
+    listModels: async (_config, _provider, context) => [
       {
         id: 'auto',
         name: 'Auto',
         provider: OFFICIAL_CHAT_PROVIDER_ID,
         description: 'Automatically routed by AI Gateway',
+      },
+      {
+        id: 'asr-rewrite',
+        name: context?.t('settings.pages.providers.provider.official.models.asr-rewrite') ?? 'Transcript rewrite',
+        provider: OFFICIAL_CHAT_PROVIDER_ID,
+        description: 'Rewrites voice transcripts. Routed by AI Gateway',
       },
     ],
   },

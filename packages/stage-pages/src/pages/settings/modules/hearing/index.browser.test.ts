@@ -1,7 +1,12 @@
 import en from '@proj-airi/i18n/locales/en'
+import zhHans from '@proj-airi/i18n/locales/zh-Hans'
 
 import { pushToTalkTriggerKey } from '@proj-airi/stage-ui/composables/push-to-talk-trigger'
+import { OFFICIAL_CHAT_PROVIDER_ID } from '@proj-airi/stage-ui/libs/providers/providers/official/constants'
+import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { createPinia, disposePinia } from 'pinia'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render } from 'vitest-browser-vue'
@@ -26,7 +31,7 @@ afterEach(() => {
  * Renders the Hearing overview in a host that declares whether it has a Push to Talk trigger. `undefined` provides nothing.
  * The page renders selects on a wide screen and row lists on a narrow one, so each test sets its width.
  */
-async function renderHearing(trigger: boolean | undefined, width = 1280) {
+async function renderHearing(trigger: boolean | undefined, width = 1280, { locale = 'en', messages = en }: { locale?: string, messages?: typeof en } = {}) {
   await page.viewport(width, 800)
   const pinia = createPinia()
   pinias.push(pinia)
@@ -38,7 +43,7 @@ async function renderHearing(trigger: boolean | undefined, width = 1280) {
 
   return render(HearingPage, {
     global: {
-      plugins: [pinia, router, createI18n({ legacy: false, locale: 'en', messages: { en }, missingWarn: false, fallbackWarn: false })],
+      plugins: [pinia, router, createI18n({ legacy: false, locale, messages: { [locale]: messages }, missingWarn: false, fallbackWarn: false })],
       provide: trigger === undefined ? {} : { [pushToTalkTriggerKey as symbol]: trigger },
     },
   })
@@ -91,6 +96,40 @@ describe('hearing overview', () => {
     const screen = await renderHearing(true)
 
     await expect.element(screen.getByTestId('hearing-wake-word-status')).toHaveTextContent('No character has wake words.')
+  })
+})
+
+describe('hearing transcript rewrite', () => {
+  /**
+   * @example
+   * localStorage.setItem('settings/hearing/rephrase-provider', 'official-provider')
+   */
+  it.each([
+    ['en', en, 'Transcript rewrite'],
+    ['zh-Hans', zhHans, '语音改写'],
+  ])('offers the official asr-rewrite alias as the rewrite model in %s', async (locale, messages, label) => {
+    // The signed-in session requests account data. No test server answers it.
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => Response.json({}))
+    localStorage.setItem('settings/hearing/rephrase-provider', OFFICIAL_CHAT_PROVIDER_ID)
+    const screen = await renderHearing(true, 1280, { locale, messages })
+    const pinia = pinias[pinias.length - 1]
+    const now = new Date()
+    useAuthStore(pinia).$patch({
+      token: 'access-token',
+      user: { id: 'owner', name: 'Owner', email: 'owner@example.com', emailVerified: true, createdAt: now, updatedAt: now },
+      session: { id: 'session', userId: 'owner', token: 'session-token', createdAt: now, updatedAt: now, expiresAt: new Date(now.getTime() + 60000) },
+    })
+    await useProviderConfigStore(pinia).ensureProvider(OFFICIAL_CHAT_PROVIDER_ID, OFFICIAL_CHAT_PROVIDER_ID, {})
+    await useProviderStore(pinia).forceProviderConfigured(OFFICIAL_CHAT_PROVIDER_ID)
+    await useProviderStore(pinia).fetchModelsForProvider(OFFICIAL_CHAT_PROVIDER_ID)
+
+    const model = screen.getByTestId('hearing-rephrase-model').getByRole('combobox')
+    await model.click()
+    const option = screen.getByRole('option', { name: label })
+    await expect.element(option).toBeVisible()
+    await option.click()
+
+    expect(useHearingStore(pinia).rephraseModel).toBe('asr-rewrite')
   })
 })
 
