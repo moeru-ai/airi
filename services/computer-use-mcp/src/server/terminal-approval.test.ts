@@ -123,6 +123,35 @@ function barrier() {
 }
 
 describe('main-only Terminal execution protocol', () => {
+  it('passes transport cancellation to an already dispatched executor without claiming zero dispatch', async () => {
+    const h = await fixture()
+    const started = barrier()
+    const closed = barrier()
+    const stopped = barrier()
+    let stopRequests = 0
+    vi.mocked(h.terminal.startPrepared!).mockImplementationOnce((input, signal) => {
+      h.oracle.dispatches++
+      h.oracle.effects++
+      signal?.addEventListener('abort', () => {
+        stopRequests++
+        stopped.release()
+      }, { once: true })
+      started.release()
+      return { result: closed.promise.then(() => ({ command: input.command, effectiveCwd: input.effectiveCwd, stdout: 'Side effect recorded independently.', stderr: '', exitCode: 1, timedOut: false, durationMs: 1 })), closed: closed.promise }
+    })
+    const prepared = await h.prepare()
+    const result = h.commit(prepared).catch(error => error)
+    await started.promise
+    await h.client.close()
+    const error = await result
+    // Protocol close aborts synchronously. The independent close gate still owns the executor.
+    evidence.push({ oracle: { ...h.oracle }, stopRequests, providerResult: String(error), directShellClosed: false })
+    closed.release()
+    expect(h.oracle).toEqual({ dispatches: 1, effects: 1 })
+    expect(stopRequests).toBe(1)
+    await stopped.promise
+  })
+
   it.each([{ exitCode: 0, timedOut: false }, { exitCode: 1, timedOut: false }, { exitCode: 124, timedOut: true }])('separates desktop dry-run from the Terminal result %j', async (backend) => {
     const h = await fixture(true)
     const start = vi.mocked(h.terminal.startPrepared!)

@@ -683,7 +683,9 @@ export interface TerminalRunner {
   /** Local executors can freeze spawn inputs before an independent Host decision. Missing capability fails closed. */
   prepare?: (input: TerminalExecActionInput) => TerminalSpawnInput
   /** Starts synchronously. Result readiness and direct shell close are separate lifecycle facts. */
-  startPrepared?: (input: TerminalSpawnInput) => TerminalExecution
+  startPrepared?: (input: TerminalSpawnInput, signal?: AbortSignal) => TerminalExecution
+  /** Stops admission and waits for owned direct Shell processes to close. Descendants are not confirmed by this boundary. */
+  close?: () => Promise<void>
 }
 
 /** Result readiness does not confirm that the direct shell process has closed. */

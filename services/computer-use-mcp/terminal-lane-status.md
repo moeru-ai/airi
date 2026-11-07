@@ -2,6 +2,19 @@
 
 Scope: terminal lane work in `services/computer-use-mcp/**`.
 
+## Windows Beta lifecycle: 2026-11-08
+
+The bundled stdio service closes on input EOF, transport close, SIGINT and SIGTERM.
+Shutdown stops Terminal admission and drains owned direct Shell processes.
+The private prepared request passes protocol cancellation to the runner.
+Cancellation after dispatch requests process termination. It does not reverse effects or prove zero dispatch.
+Result readiness and direct Shell close remain separate. A timeout result does not release ownership.
+Windows termination still covers the direct Shell only. Descendant cleanup remains unverified at this boundary.
+The Main shared queue retains its existing unknown-result and descendant-risk protection.
+
+Tests: `pnpm -F @proj-airi/computer-use-mcp exec vitest run src/server-lifecycle.test.ts src/terminal/runner-lifecycle.test.ts src/server/terminal-approval.test.ts`.
+These controlled tests use mock processes and the real MCP protocol. They do not establish human production authorization.
+
 ## Terminal environment scope: 2026-11-07
 
 Terminal responses retain the existing desktop `executionTarget` and `context` fields.

@@ -154,6 +154,8 @@ function summarizeCommand(command: string) {
 }
 
 export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunner {
+  const active = new Set<{ stop: () => void, closed: Promise<void> }>()
+  let closing: Promise<void> | undefined
   const state: TerminalState = {
     effectiveCwd: processCwd(),
   }
@@ -177,7 +179,10 @@ export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunne
     }
   }
 
-  function startPrepared(input: TerminalSpawnInput) {
+  function startPrepared(input: TerminalSpawnInput, signal?: AbortSignal) {
+    if (closing)
+      throw new Error('The Terminal runner is closed.')
+    signal?.throwIfAborted()
     const { effectiveCwd, timeoutMs } = input
     let confirmClose!: () => void
     const closed = new Promise<void>((resolve) => {
@@ -185,19 +190,41 @@ export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunne
     })
     const startedAt = Date.now()
     const execution = new Promise<TerminalCommandResult>((resolve, reject) => {
-      const child = spawn(input.shell, input.argv, {
-        cwd: effectiveCwd,
-        env,
-        stdio: ['ignore', 'pipe', 'pipe'],
-        detached: input.detached,
-        windowsHide: input.windowsHide,
-      })
+      let child: ReturnType<typeof spawn>
+      try {
+        child = spawn(input.shell, input.argv, {
+          cwd: effectiveCwd,
+          env,
+          stdio: ['ignore', 'pipe', 'pipe'],
+          detached: input.detached,
+          windowsHide: input.windowsHide,
+        })
+      }
+      catch (error) {
+        // Node rejected the spawn before it returned a process. No close event can follow this synchronous failure.
+        confirmClose()
+        reject(error)
+        return
+      }
 
       const stdout = createOutputCapture()
       const stderr = createOutputCapture()
       let finished = false
       let timedOut = false
+      let shellClosed = false
       let escalationTimer: ReturnType<typeof setTimeout> | undefined
+      const stop = () => {
+        if (shellClosed || escalationTimer)
+          return
+        signalProcessGroup(child, 'SIGTERM')
+        escalationTimer = setTimeout(signalProcessGroup, PROCESS_GROUP_KILL_GRACE_MS, child, 'SIGKILL')
+        escalationTimer.unref()
+      }
+      const owned = { stop, closed }
+      active.add(owned)
+      signal?.addEventListener('abort', stop, { once: true })
+      if (signal?.aborted)
+        stop()
 
       const stopTimer = setTimeout(() => {
         if (finished)
@@ -205,9 +232,7 @@ export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunne
 
         timedOut = true
         finished = true
-        signalProcessGroup(child, 'SIGTERM')
-        escalationTimer = setTimeout(signalProcessGroup, PROCESS_GROUP_KILL_GRACE_MS, child, 'SIGKILL')
-        escalationTimer.unref()
+        stop()
         const timeoutStderr = appendTimeoutMessage(stderr, timeoutMs)
         resolve({
           command: input.command,
@@ -229,8 +254,8 @@ export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunne
         if (escalationTimer != null)
           clearTimeout(escalationTimer)
       }
-      child.stdout.on('data', chunk => appendOutput(stdout, chunk.toString('utf-8')))
-      child.stderr.on('data', chunk => appendOutput(stderr, chunk.toString('utf-8')))
+      child.stdout?.on('data', chunk => appendOutput(stdout, chunk.toString('utf-8')))
+      child.stderr?.on('data', chunk => appendOutput(stderr, chunk.toString('utf-8')))
       child.on('error', (error) => {
         if (finished)
           return
@@ -239,6 +264,9 @@ export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunne
         reject(error)
       })
       child.on('close', (code) => {
+        shellClosed = true
+        active.delete(owned)
+        signal?.removeEventListener('abort', stop)
         cleanup()
         confirmClose()
         if (finished)
@@ -271,6 +299,18 @@ export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunne
   return {
     prepare,
     startPrepared,
+    close: () => {
+      if (!closing) {
+        // Install the latch before signalling children. A result does not remove ownership before close.
+        closing = Promise.resolve().then(async () => {
+          const executions = [...active]
+          for (const execution of executions)
+            execution.stop()
+          await Promise.all(executions.map(execution => execution.closed))
+        })
+      }
+      return closing
+    },
     describe: () => ({
       kind: 'local-shell-runner',
       notes: [

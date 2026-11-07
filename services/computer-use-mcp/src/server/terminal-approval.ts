@@ -50,7 +50,7 @@ export function registerTerminalApproval(server: McpServer, runtime: ComputerUse
         // These checks, record consumption and executor invocation share one synchronous turn.
         runtime.session.removePendingAction(pending.id)
         executorInvoked = true
-        const execution = startPrepared(snapshot)
+        const execution = startPrepared(snapshot, extra.signal)
         return {
           result: execution.result,
           closed: execution.closed.then(() => { closed = true }),
