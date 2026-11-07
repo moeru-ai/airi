@@ -95,10 +95,7 @@ const toolsByTab = computed<Record<TabId, Array<{ id: ToolId, label: string, ico
   model: [
     { id: 'model', label: t('settings.pages.models.editor.tabs.model'), icon: 'i-mingcute:user-3-line' },
   ],
-  placement: [
-    { id: 'size', label: t('settings.pages.models.editor.tools.size'), icon: 'i-mingcute:zoom-in-line' },
-    { id: 'position', label: t('settings.pages.models.editor.tools.position'), icon: 'i-mingcute:move-line' },
-  ],
+  placement: [],
   motion: [
     { id: 'look-at', label: t('settings.pages.models.editor.tools.look-at'), icon: 'i-mingcute:eye-2-line' },
     { id: 'eyes', label: t('settings.pages.models.editor.tools.eyes'), icon: 'i-mingcute:eye-close-line' },
@@ -180,13 +177,10 @@ const blinkOptions = computed(() => [
 ])
 
 /**
- * The tools whose values differ from the defaults. Their buttons show a dot. The defaults match the Live2D settings
- * store and the reset values of the rulers. The model, the theme color, and the cache tools have no default.
+ * Marks changed tools outside the shared placement controls. Their defaults match the Live2D settings store.
  */
 const changedTools = computed(() => {
   const changed: Partial<Record<ToolId, boolean>> = {
-    'size': scale.value !== 1,
-    'position': position.value.x !== 0 || position.value.y !== 0,
     'look-at': !live2dEyeTracking.value,
     'eyes': !live2dForceIdleEyeAnimation.value || blink.value !== 'airi',
     'idle-motion': !live2dIdleAnimationEnabled.value,

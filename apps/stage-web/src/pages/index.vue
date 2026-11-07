@@ -34,12 +34,10 @@ watch([modelRenderState, modelRenderError, () => startup.resources.find(resource
     startup.complete('model')
 })
 
-/** Lets startup report renderer failures instead of waiting for the model timeout. */
 function markModelFailed(error: Error) {
   modelRenderError.value = error
 }
 
-/** Pauses stage animation while the settings drawer covers the character. */
 function handleSettingsOpen(open: boolean) {
   paused.value = open
 }

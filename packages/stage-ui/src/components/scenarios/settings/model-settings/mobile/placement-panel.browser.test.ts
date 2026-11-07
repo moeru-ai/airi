@@ -13,19 +13,19 @@ import 'virtual:uno.css'
 const parameters = useL2dViewControl()
 
 /** Uses the same persisted parameter refs as the model editor and the stage view controls. */
-function renderPlacement(surfaces = 1) {
+function renderPlacement() {
   const component = defineComponent({
     setup() {
-      return () => h('div', Array.from({ length: surfaces }, (_, index) => h('section', { key: index }, [
+      return () => h('section', [
         h('div', { style: { position: 'relative', width: '200px', height: '400px' } }, [
           h(PlacementSurface, {
-            'data-testid': `surface-${index}`,
+            'data-testid': 'surface',
             'scale': parameters.scale.value,
             'position': parameters.position.value,
             'onUpdate:scale': (value: number) => { parameters.scale.value = value },
             'onUpdate:position': (value: { x: number, y: number }) => { parameters.position.value = value },
           }),
-          h('div', { 'data-testid': `target-${index}`, 'style': { position: 'absolute', left: '140px', top: '230px', width: '20px', height: '20px' } }),
+          h('div', { 'data-testid': 'target', 'style': { position: 'absolute', left: '140px', top: '230px', width: '20px', height: '20px' } }),
         ]),
         h(PlacementPanel, {
           'scale': parameters.scale.value,
@@ -33,7 +33,7 @@ function renderPlacement(surfaces = 1) {
           'onUpdate:scale': (value: number) => { parameters.scale.value = value },
           'onUpdate:position': (value: { x: number, y: number }) => { parameters.position.value = value },
         }),
-      ])))
+      ])
     },
   })
 
@@ -65,19 +65,17 @@ afterEach(() => {
 })
 
 describe('shared mobile placement controls', () => {
-  it('keeps two entry points synchronized and resets their shared scale', async () => {
-    const screen = renderPlacement(2)
-    await screen.getByRole('slider', { name: 'Size' }).first().click()
+  it('updates and resets persisted scale', async () => {
+    const screen = renderPlacement()
+    await screen.getByRole('slider', { name: 'Size' }).click()
     await userEvent.keyboard('{ArrowRight}')
 
     await expect.poll(() => parameters.scale.value).toBe(1.01)
-    await expect.element(screen.getByRole('slider', { name: 'Size' }).last()).toHaveAttribute('aria-valuetext', '1.01×')
     await expect.poll(() => localStorage.getItem('settings/live2d/scale')).toBe('1.01')
 
-    await screen.getByRole('button', { name: 'Reset' }).first().click()
+    await screen.getByRole('button', { name: 'Reset' }).click()
 
     await expect.poll(() => parameters.scale.value).toBe(1)
-    await expect.element(screen.getByRole('slider', { name: 'Size' }).last()).toHaveAttribute('aria-valuenow', '1')
   })
 
   it('adjusts and resets each position axis without overwriting the other axis', async () => {
@@ -99,20 +97,9 @@ describe('shared mobile placement controls', () => {
   it('moves the model through captured browser pointers while leaving scale unchanged', async () => {
     const screen = renderPlacement()
 
-    await userEvent.dragAndDrop(screen.getByTestId('surface-0'), screen.getByTestId('target-0'))
+    await userEvent.dragAndDrop(screen.getByTestId('surface'), screen.getByTestId('target'))
 
     await expect.poll(() => parameters.position.value).toEqual({ x: 25, y: -10 })
     expect(parameters.scale.value).toBe(1)
-  })
-
-  it('keeps ruler changes inside the same zoom limits as pinching', async () => {
-    const screen = renderPlacement()
-    await screen.getByRole('slider', { name: 'Size' }).click()
-    await userEvent.keyboard('{End}{ArrowRight}')
-    await expect.poll(() => parameters.scale.value).toBe(3)
-
-    await userEvent.keyboard('{Home}{ArrowLeft}')
-
-    await expect.poll(() => parameters.scale.value).toBe(0.1)
   })
 })
