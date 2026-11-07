@@ -4,7 +4,6 @@ import type { ServerChannel } from '../../services/airi/channel-server'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { safeClose } from '@proj-airi/electron-vueuse/main'
 import { BrowserWindow, ipcMain } from 'electron'
-import { isMacOS } from 'std-env'
 
 import icon from '../../../../resources/icon.png?asset'
 
@@ -14,7 +13,7 @@ import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '.
 import { createWindowContext } from '../../libs/electron/window-context'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { createAuthService } from '../../services/airi/auth'
-import { protectPrivilegedWindowNavigation, toggleWindowShow } from '../shared'
+import { customTitleBarWindowConfig, protectPrivilegedWindowNavigation, toggleWindowShow } from '../shared'
 import { setupBaseWindowElectronInvokes } from '../shared/window'
 
 export interface OnboardingWindowManager {
@@ -46,8 +45,7 @@ export function setupOnboardingWindowManager(params: {
       show: false,
       icon,
       resizable: true,
-      frame: !isMacOS,
-      titleBarStyle: isMacOS ? 'hidden' : undefined,
+      ...customTitleBarWindowConfig(),
       transparent: false,
       backgroundColor: '#0f0f0f',
       webPreferences: {

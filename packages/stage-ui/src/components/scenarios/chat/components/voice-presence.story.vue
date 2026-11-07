@@ -110,7 +110,7 @@ const VoiceHostFixture = defineComponent({
   setup(props) {
     const controls = useVoiceControlsStore()
     const sessions = useChatSessionStore()
-    sessions.sessionMetas[SESSION_ID] = { sessionId: SESSION_ID, userId: 'local', characterId: 'default', title: 'ReLU', createdAt: Date.now(), updatedAt: Date.now() }
+    sessions.sessionMetas[SESSION_ID] = { sessionId: SESSION_ID, userId: 'local', characterId: 'default', title: 'Iru', createdAt: Date.now(), updatedAt: Date.now() }
 
     // The level bars move only while the host captures speech, so the fixture feeds a slow wave.
     let phase = 0

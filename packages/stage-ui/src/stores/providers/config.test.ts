@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, nextTick } from 'vue'
 
+import { useSyncPreferencesStore } from '../sync-preferences'
 import { useProviderConfigStore } from './config'
 
 class MemoryStorage implements Storage {
@@ -126,6 +127,39 @@ describe('provider config store', () => {
     vi.clearAllMocks()
     vi.unstubAllGlobals()
     vi.useRealTimers()
+  })
+
+  it('sends no request while the provider sync is off on this device', async () => {
+    const store = installStore()
+    useSyncPreferencesStore().setEnabled('providers', false)
+    store.providers[localProvider.id] = { ...localProvider, status: 'configured' }
+    authState.isAuthenticated = true
+
+    await store.syncProviders()
+    await store.pushProviders()
+
+    expect(mocks.service.listRemote).not.toHaveBeenCalled()
+    expect(mocks.service.upsertRemote).not.toHaveBeenCalled()
+    expect(store.replicaSyncState).toEqual({})
+  })
+
+  it('syncs the changes of this device when the provider sync turns on again', async () => {
+    const store = installStore()
+    const syncPreferences = useSyncPreferencesStore()
+    syncPreferences.setEnabled('providers', false)
+    store.providers[localProvider.id] = { ...localProvider, status: 'configured' }
+    authState.isAuthenticated = true
+    await nextTick()
+
+    syncPreferences.setEnabled('providers', true)
+
+    await vi.waitFor(() => expect(mocks.service.upsertRemote).toHaveBeenCalledTimes(1))
+    expect(mocks.service.listRemote).toHaveBeenCalledTimes(1)
+    expect(mocks.service.upsertRemote).toHaveBeenCalledWith(mocks.client, {
+      id: localProvider.id,
+      definitionId: localProvider.definitionId,
+      config: localProvider.config,
+    })
   })
 
   it('merges a remote list into the local snapshot', async () => {

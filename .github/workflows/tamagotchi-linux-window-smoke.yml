@@ -22,9 +22,22 @@ on:
   push:
     branches:
       - main
+    # This workflow has no required checks, so a filter cannot block a pull request.
+    paths-ignore: &docs-paths
+      - 'docs/**'
+      - '.agents/**'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/*.md'
+      - '**/docs/**/*.md'
+      - '**/README*.md'
+      - '**/AGENTS.md'
+      - '**/CLAUDE.md'
+      - 'DESIGN.md'
+      - 'LICENSE'
   pull_request:
     branches:
       - main
+    paths-ignore: *docs-paths
   workflow_dispatch:
   schedule:
     # Wayland coverage runs nightly rather than per-PR: it depends on a
@@ -66,20 +79,6 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Cache turbo build setup
-        uses: actions/cache@v5
-        with:
-          path: .turbo
-          key: ${{ runner.os }}-turbo-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-turbo-
-
-      - uses: pnpm/setup@v2
-        with:
-          runtime: node@^26.12.1
-          cache: true
-          install: false
-
       - name: Install Electron runtime + Xvfb dependencies
         run: |
           sudo apt-get update
@@ -96,8 +95,7 @@ jobs:
             libgbm1 \
             libasound2t64
 
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm run build:packages
+      - uses: ./.github/actions/setup-workspace
       - run: pnpm -F @proj-airi/stage-tamagotchi run build
 
       - name: Record toolchain versions
@@ -140,20 +138,6 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Cache turbo build setup
-        uses: actions/cache@v5
-        with:
-          path: .turbo
-          key: ${{ runner.os }}-turbo-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-turbo-
-
-      - uses: pnpm/setup@v2
-        with:
-          runtime: node@^26.12.1
-          cache: true
-          install: false
-
       - name: Install Electron runtime + Weston dependencies
         run: |
           sudo apt-get update
@@ -169,8 +153,7 @@ jobs:
             libgbm1 \
             libasound2t64
 
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm run build:packages
+      - uses: ./.github/actions/setup-workspace
       - run: pnpm -F @proj-airi/stage-tamagotchi run build
 
       - name: Record toolchain versions

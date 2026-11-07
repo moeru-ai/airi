@@ -27,6 +27,10 @@ chat:
     title: Chat provider isn't configured
     description: Choose and validate a provider in Settings before sending a message.
     action: Open provider settings
+    sign-in-title: Sign in to start chatting
+    sign-in-description: Sign in to use the official AIRI provider, or set up your own provider in Settings.
+    sign-in-description-official-only: Sign in to use the official AIRI provider.
+    sign-in-action: Sign in
   voice-message:
     recording: Recording
     starting: Starting microphone
@@ -105,16 +109,9 @@ chat:
     images: Images
     call: Voice call
   call:
-    title: Voice call
-    listening: Listening
-    hearing: Hearing you
-    speaking: Speaking
-    muted: Muted
     mute: Mute the microphone
     unmute: Unmute the microphone
     hang-up: Hang up
-    minimize: Minimize the call
-    expand: Return to the call
     failed: Could not start the voice call
     microphone-denied: AIRI cannot use the microphone.
     microphone-off: The microphone is turned off. Turn it on in Hearing to start a voice call.
@@ -249,6 +246,17 @@ chat:
     cloud-badge: Synced to cloud
     new-chat-fallback: New chat
     delete: Delete conversation
+    rename: Rename conversation
+    rename-input: Conversation name
+    rename-placeholder: Enter a conversation name
+    save-rename: Save conversation name
+    cancel-rename: Cancel renaming
+    select: Select conversations
+    select-all: Select all
+    clear-selection: Clear selection
+    done-selecting: Done
+    delete-selected: Delete {count}
+    confirm-delete-selected: Confirm delete {count}
 avatar-model-missing:
   title: No model selected
   unavailable-title: This model is not on this device

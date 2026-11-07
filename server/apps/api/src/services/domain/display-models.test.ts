@@ -4,6 +4,7 @@ import type { ObjectStore } from '../adapters/object-store'
 import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
 
+import { eq } from 'drizzle-orm'
 import { safeParse } from 'valibot'
 import { beforeEach, describe, expect, it } from 'vitest'
 
@@ -113,6 +114,26 @@ describe('displayModelService', () => {
 
     expect(replay.upload!.uploadId).toBe(first.upload!.uploadId)
     await expect(service.reserveUpload('owner', reserveInput(zipBytes, { sha256: 'a'.repeat(64) }))).rejects.toMatchObject({ statusCode: 409 })
+  })
+
+  // The client reserves a new session for each attempt, so an old session cannot block a later attempt.
+  it('publishes a model with a new request id after an earlier session expired', async () => {
+    const service = createService()
+    const expired = await service.reserveUpload('owner', reserveInput())
+    store.objects.set(new URL(expired.upload!.url).pathname.slice(1), zipBytes)
+    await db.update(schema.uploadSessions).set({ expiresAt: new Date(Date.now() - 1000) }).where(eq(schema.uploadSessions.id, expired.upload!.uploadId))
+    await expect(service.completeUpload('owner', expired.upload!.uploadId)).rejects.toMatchObject({ statusCode: 410 })
+
+    await expect(upload(service, 'owner', zipBytes, { requestId: 'req-2' })).resolves.toMatchObject({ id: 'display-model-a' })
+  })
+
+  it('publishes a model with a new request id after verification aborted an earlier session', async () => {
+    const service = createService()
+    const aborted = await service.reserveUpload('owner', reserveInput())
+    store.objects.set(new URL(aborted.upload!.url).pathname.slice(1), Buffer.concat([zipBytes, Buffer.from('x')]))
+    await expect(service.completeUpload('owner', aborted.upload!.uploadId)).rejects.toMatchObject({ statusCode: 422 })
+
+    await expect(upload(service, 'owner', zipBytes, { requestId: 'req-2' })).resolves.toMatchObject({ id: 'display-model-a' })
   })
 
   it('skips the upload for a ready model with the same bytes and rejects different bytes', async () => {

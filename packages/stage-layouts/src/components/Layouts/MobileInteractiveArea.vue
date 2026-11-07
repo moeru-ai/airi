@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import type { ChatHistoryReplyPayload, ChatImageAttachment } from '@proj-airi/stage-ui/components/scenarios/chat'
+import type { ChatHistoryReplyPayload } from '@proj-airi/stage-ui/components/scenarios/chat'
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
 import { CharacterSwitcherDrawer, ChatBackgroundTasks, ChatHistory } from '@proj-airi/stage-ui/components'
-import { ChatComposerAddMenu, ChatComposerVoiceInput, ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSessionsDrawer, useChatComposer, useChatImages, useStartVoiceCall, VoiceCallCapsule, VoicePresence } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatComposerAddMenu, ChatComposerVoiceInput, ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSessionsDrawer, useChatImages, useStartVoiceCall, VoiceCallCapsule, VoicePresence } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
+import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
@@ -31,6 +32,7 @@ import { useChatInterruption } from '../../composables/use-chat-interruption'
 import { useMobileInteractiveAreaLayout } from '../../composables/use-mobile-interactive-area-layout'
 import { useChatToolCallRerun } from '../../composables/useChatToolCallRerun'
 import { useStopSpeakingButton } from '../../composables/useStopSpeakingButton'
+import { useStageChatComposerStore } from '../../stores/chat-composer'
 
 const emit = defineEmits<{
   /** Reports the stable height and offset that keep the Stage in the same screen position. */
@@ -53,15 +55,7 @@ const isActiveSessionSending = computed(() => (
 const visibleStreamingMessage = streamingMessage
 const { trackChatMessageDeleted } = useAnalytics()
 const { rerunToolCall } = useChatToolCallRerun()
-const composer = useChatComposer<ChatImageAttachment>({
-  activeSessionId,
-  send: submission => chatOrchestrator.send({
-    sessionId: submission.sessionId,
-    text: submission.text,
-    attachments: submission.attachments.map(({ type, data, mimeType }) => ({ type, data, mimeType })),
-    replyToMessageId: submission.replyToMessageId,
-  }),
-})
+const { composer } = useStageChatComposerStore()
 const {
   attachments,
   removeAttachment,
@@ -83,6 +77,7 @@ const voiceInput = useTemplateRef<InstanceType<typeof ChatComposerVoiceInput>>('
 const voiceAttachment = useTemplateRef<HTMLElement>('voiceAttachment')
 const voiceSurface = useTemplateRef<HTMLElement>('voiceSurface')
 const router = useRouter()
+const authStore = useAuthStore()
 const call = useVoiceCallStore()
 const startVoiceCall = useStartVoiceCall(route => router.push(route), () => !voiceRecording.value)
 const hasSubmission = computed(() => !!messageInput.value.trim() || attachments.value.length > 0)
@@ -154,6 +149,7 @@ watch(
 const mobileInteractiveAreaClass = [
   'pointer-events-none fixed inset-x-0 top-0 z-20 w-full',
   'flex flex-col',
+  'pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]',
 ]
 const chatHistoryClass = [
   'pointer-events-auto relative z-20',
@@ -432,6 +428,7 @@ onUnmounted(() => {
         v-if="!chatReady"
         :class="['mx-3']"
         @configure="router.push('/settings/providers')"
+        @sign-in="authStore.requestLogin()"
       />
       <div
         ref="messageComposer"
@@ -585,7 +582,7 @@ onUnmounted(() => {
         </div>
       </div>
     </div>
-    <VoiceCallCapsule persistent />
+    <VoiceCallCapsule placement="below-header" />
     <div
       v-show="viewControlsEnabled"
       data-testid="view-controls-toolbar"

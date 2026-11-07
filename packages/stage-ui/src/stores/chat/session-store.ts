@@ -9,7 +9,7 @@ import type { ChatSessionMeta, ChatSessionRecord, ChatSessionsExport, ChatSessio
 import { errorMessageFrom } from '@moeru/std'
 import { cloneDeep } from 'es-toolkit'
 import { nanoid } from 'nanoid'
-import { defineStore, storeToRefs } from 'pinia'
+import { defineStore, getActivePinia, storeToRefs } from 'pinia'
 import { computed, ref, toRaw, watch } from 'vue'
 
 import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
@@ -29,6 +29,7 @@ import { captureAnalyticsEvent } from '../../libs/product-signals'
 import { SERVER_URL } from '../../libs/server'
 import { useAuthStore } from '../auth'
 import { useAiriCardStore } from '../modules/airi-card'
+import { useSyncPreferencesStore } from '../sync-preferences'
 import { staysLocal } from './session-locality'
 import { mergeLoadedSessionMessages } from './session-message-merge'
 
@@ -65,7 +66,13 @@ const useChatSessionSelectionStore = defineStore('chat-session-selection', () =>
 })
 
 export const useChatSessionStore = defineStore('chat-session', () => {
+  // A watcher or an await runs outside the setup of this store. The active
+  // Pinia can then be another one, so keep the Pinia that owns this store.
+  const pinia = getActivePinia()
   const { userId, token: authToken } = storeToRefs(useAuthStore())
+  const syncPreferences = useSyncPreferencesStore()
+  /** Chats sync only while this switch is on. While it is off, the outbox and the tombstones keep the changes for a later sync. */
+  const chatSyncEnabled = computed(() => syncPreferences.isEnabled('chats'))
   const cards = useAiriCardStore()
   const { activeCardId } = storeToRefs(cards)
 
@@ -257,6 +264,35 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         const snapshot = cloneDeep(index.value)
         await chatSessionsRepo.saveIndex(snapshot)
       }
+    })
+  }
+
+  /** Persists metadata without loading message state into memory. */
+  async function persistSessionMeta(sessionId: string) {
+    await enqueuePersist(async () => {
+      const meta = sessionMetas.value[sessionId]
+      if (!meta)
+        return
+
+      const updatedMeta = {
+        ...cloneDeep(meta),
+        updatedAt: Date.now(),
+      }
+      sessionMetas.value[sessionId] = updatedMeta
+      const characterIndex = index.value?.characters[meta.characterId]
+      if (characterIndex)
+        characterIndex.sessions[sessionId] = updatedMeta
+
+      const stored = await chatSessionsRepo.getSession(sessionId)
+      if (stored) {
+        await chatSessionsRepo.saveSession(sessionId, {
+          meta: updatedMeta,
+          messages: stored.messages,
+        })
+      }
+
+      if (index.value)
+        await chatSessionsRepo.saveIndex(cloneDeep(index.value))
     })
   }
 
@@ -567,7 +603,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       conversation_id: sessionId,
       source: options?.messages?.length ? 'fork' : 'new_session',
       character_id: characterId,
-      cloud_synced: currentUserId !== 'local',
+      cloud_synced: currentUserId !== 'local' && chatSyncEnabled.value,
     })
 
     // Fire-and-forget cloud reconcile so the freshly-minted session gets a
@@ -580,62 +616,112 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     return sessionId
   }
 
-  /**
-   * Permanently removes a session locally and tombstones its cloud identity.
-   *
-   * Cloud failures are logged but do not restore the local session. A
-   * tombstone prevents the next reconcile from importing it again.
-   */
-  async function deleteSession(sessionId: string) {
-    // Keep a monotonic tombstone in memory so queued and streaming sends that
-    // captured the previous generation cannot become current again after the
-    // session record is removed.
-    bumpSessionGeneration(sessionId)
-
+  /** Updates a session title locally and mirrors it to the cloud when mapped. */
+  async function renameSession(sessionId: string, title: string): Promise<boolean> {
     const meta = sessionMetas.value[sessionId]
     if (!meta)
-      return
+      return false
 
-    // Snapshot count before the in-memory wipe below zeroes it out.
-    const messageCount = (sessionMessages.value[sessionId] ?? []).length
-    captureAnalyticsEvent('chat_session_deleted', {
-      session_id: sessionId,
-      message_count: messageCount,
-    })
-    captureAnalyticsEvent('conversation_deleted', {
-      conversation_id: sessionId,
-      message_count: messageCount,
-      cloud_synced: !!meta.cloudChatId,
-    })
+    const normalizedTitle = title.trim()
+    sessionMetas.value[sessionId] = {
+      ...meta,
+      title: normalizedTitle || undefined,
+      cloudTitlePending: normalizedTitle,
+    }
+    await persistSessionMeta(sessionId)
 
-    const wasActive = activeSessionId.value === sessionId
-    const characterId = meta.characterId
-    const cloudChatId = meta.cloudChatId
+    void syncPendingSessionTitle(sessionId)
+
+    return true
+  }
+
+  async function syncPendingSessionTitle(sessionId: string): Promise<boolean> {
+    const meta = sessionMetas.value[sessionId]
+    const title = meta?.cloudTitlePending
+    // While chat sync is off, the title stays pending. The reconcile after the next sync sends it.
+    if (!meta?.cloudChatId || title === undefined || !chatSyncEnabled.value)
+      return false
+
+    try {
+      const remote = await getCloudMapper().updateChat(meta.cloudChatId, { title })
+      const latest = sessionMetas.value[sessionId]
+      if (!latest || latest.cloudTitlePending !== title)
+        return true
+
+      sessionMetas.value[sessionId] = {
+        ...latest,
+        title: remote.title ?? undefined,
+        cloudTitlePending: undefined,
+      }
+      await persistSessionMeta(sessionId)
+      return true
+    }
+    catch (error) {
+      console.warn('[chat-sync] Failed to update conversation title:', errorMessageFrom(error))
+      return false
+    }
+  }
+
+  /**
+   * Permanently removes one session locally and tombstones its cloud identity.
+   * See {@link deleteSessions}.
+   */
+  async function deleteSession(sessionId: string) {
+    await deleteSessions([sessionId])
+  }
+
+  /**
+   * Permanently removes sessions locally and tombstones their cloud identities.
+   *
+   * Each affected character gets a new selection only after all removals. A
+   * batch never loads or creates a session that a later id in it removes.
+   * Cloud failures are logged but do not restore the local sessions. A
+   * tombstone prevents the next reconcile from importing them again.
+   */
+  async function deleteSessions(sessionIds: string[]) {
     const currentUserId = getCurrentUserId()
     const isCloudUser = currentUserId !== 'local'
+    const removed: Array<{ sessionId: string, cloudChatId?: string }> = []
+    // Each character that lost a session. The value is true when this window displayed one of the removed sessions.
+    const affectedCharacters = new Map<string, boolean>()
 
-    // ROOT CAUSE:
-    //
-    // If we awaited the cloud DELETE before mutating in-memory state, any
-    // other code path firing a `persistSession` during that await would
-    // snapshot the index *with the doomed entry still in it* and write that
-    // snapshot to IDB. The user then sees the row reappear after a reload.
-    //
-    // Old behavior: await mapper.deleteChat → mutate → persist; the
-    // overlapping persistSession races us and wins.
-    //
-    // We fixed this by performing every in-memory and IDB mutation
-    // synchronously up front, then firing the cloud DELETE as
-    // fire-and-forget. Persistence races now read the post-deletion state.
-    delete sessionMetas.value[sessionId]
-    delete sessionMessages.value[sessionId]
-    loadedSessions.delete(sessionId)
-    staleSessions.delete(sessionId)
-    cloudHydratedSessions.delete(sessionId)
-    loadingSessions.delete(sessionId)
+    for (const sessionId of new Set(sessionIds)) {
+      // Keep a monotonic tombstone in memory so queued and streaming sends that
+      // captured the previous generation cannot become current again after the
+      // session record is removed.
+      bumpSessionGeneration(sessionId)
 
-    if (index.value) {
-      const characterIndex = index.value.characters[characterId]
+      const meta = sessionMetas.value[sessionId]
+      if (!meta)
+        continue
+
+      // Snapshot count before the in-memory wipe below zeroes it out.
+      const messageCount = (sessionMessages.value[sessionId] ?? []).length
+      captureAnalyticsEvent('chat_session_deleted', {
+        session_id: sessionId,
+        message_count: messageCount,
+      })
+      captureAnalyticsEvent('conversation_deleted', {
+        conversation_id: sessionId,
+        message_count: messageCount,
+        cloud_synced: !!meta.cloudChatId,
+      })
+
+      const wasActive = activeSessionId.value === sessionId
+      affectedCharacters.set(meta.characterId, (affectedCharacters.get(meta.characterId) ?? false) || wasActive)
+      removed.push({ sessionId, cloudChatId: meta.cloudChatId })
+
+      // Every in-memory and index mutation happens before the first await.
+      // A `persistSession` that runs during a later await then writes an index
+      // without these entries, so the rows cannot come back after a reload.
+      delete sessionMetas.value[sessionId]
+      delete sessionMessages.value[sessionId]
+      loadedSessions.delete(sessionId)
+      staleSessions.delete(sessionId)
+      cloudHydratedSessions.delete(sessionId)
+      loadingSessions.delete(sessionId)
+
+      const characterIndex = index.value?.characters[meta.characterId]
       if (characterIndex) {
         delete characterIndex.sessions[sessionId]
         if (characterIndex.activeSessionId === sessionId)
@@ -643,65 +729,75 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       }
     }
 
-    await enqueuePersist(() => chatSessionsRepo.deleteSession(sessionId))
-    // Drop any pending outbox sends for this session — pushing messages
-    // to a deleted chat is wasted work and may surface as a server-side
-    // 404/410 next time we drain.
-    if (isCloudUser)
-      await enqueuePersist(() => chatSessionsRepo.dropOutboxForSession(currentUserId, sessionId))
+    if (removed.length === 0)
+      return
+
+    for (const { sessionId } of removed) {
+      await enqueuePersist(() => chatSessionsRepo.deleteSession(sessionId))
+      // Drop any pending outbox sends for this session. Pushing messages to a
+      // deleted chat is wasted work and can surface as a server-side 404/410
+      // next time we drain.
+      if (isCloudUser)
+        await enqueuePersist(() => chatSessionsRepo.dropOutboxForSession(currentUserId, sessionId))
+    }
     await persistIndex()
     await refreshOutboxPendingCount()
 
     if (isCloudUser) {
-      const remoteChatId = cloudChatId ?? sessionId
-      // Tombstone first: even if the cloud DELETE never reaches the server
-      // (offline, transient 5xx), the next reconcile will see the remote id
-      // here and skip the adopt branch — preventing the ghost-session bug
-      // where the server still has the row and re-creates the local mapping.
-      // The reconcile-driven `drainTombstones` retries failed DELETEs.
-      await enqueuePersist(() => chatSessionsRepo.addTombstone(currentUserId, remoteChatId))
-      if (cloudChatId) {
-        getCloudMapper().deleteChat(cloudChatId).then(
-          async () => {
-            // Server confirmed the delete; reconcile will not see this id again,
-            // so we can drop the tombstone.
-            await enqueuePersist(() => chatSessionsRepo.removeTombstones(currentUserId, [cloudChatId]))
-          },
-          (err) => {
-            console.warn('[chat-sync] DELETE /api/v1/chats failed for', sessionId, errorMessageFrom(err))
-          },
-        )
+      for (const { sessionId, cloudChatId } of removed) {
+        const remoteChatId = cloudChatId ?? sessionId
+        // Tombstone first: even if the cloud DELETE never reaches the server
+        // (offline, transient 5xx), the next reconcile will see the remote id
+        // here and skip the adopt branch — preventing the ghost-session bug
+        // where the server still has the row and re-creates the local mapping.
+        // The reconcile-driven `drainTombstones` retries failed DELETEs.
+        await enqueuePersist(() => chatSessionsRepo.addTombstone(currentUserId, remoteChatId))
+        // While chat sync is off, the tombstone waits. `drainTombstones` sends the deletion after the next sync.
+        if (cloudChatId && chatSyncEnabled.value) {
+          getCloudMapper().deleteChat(cloudChatId).then(
+            async () => {
+              // Server confirmed the delete; reconcile will not see this id again,
+              // so we can drop the tombstone.
+              await enqueuePersist(() => chatSessionsRepo.removeTombstones(currentUserId, [cloudChatId]))
+            },
+            (err) => {
+              console.warn('[chat-sync] DELETE /api/v1/chats failed for', sessionId, errorMessageFrom(err))
+            },
+          )
+        }
       }
     }
 
-    const characterIndex = index.value?.characters[characterId]
-    // A hidden session, such as a background task's own space, never becomes the selected conversation.
-    const fallbackId = characterIndex
-      ? Object.keys(characterIndex.sessions).find(id => sessionMetas.value[id] && !sessionMetas.value[id].hidden)
-      : undefined
+    for (const [characterId, wasActive] of affectedCharacters) {
+      const characterIndex = index.value?.characters[characterId]
+      // A hidden session, such as a background task's own space, never becomes the selected conversation.
+      const fallbackId = characterIndex
+        ? Object.keys(characterIndex.sessions).find(id => sessionMetas.value[id] && !sessionMetas.value[id].hidden)
+        : undefined
 
-    // Persisted character fallback is shared, but live selection is local to
-    // the window that was displaying the deleted session.
-    if (fallbackId && characterIndex) {
-      characterIndex.activeSessionId = fallbackId
-      if (wasActive) {
-        activeSessionId.value = fallbackId
-        await loadSession(fallbackId)
-      }
-      await persistIndex()
-      return
-    }
-
-    const replacementSessionId = await createSession(characterId, { setActive: wasActive })
-    if (!wasActive) {
-      // The synchronized leader may be displaying a different character, but
-      // this replacement is still the canonical fallback for the character
-      // whose final session was deleted. Persist that index choice without
-      // navigating the leader's window-local selection.
-      const replacementCharacterIndex = index.value?.characters[characterId]
-      if (replacementCharacterIndex) {
-        replacementCharacterIndex.activeSessionId = replacementSessionId
+      // Persisted character fallback is shared, but live selection is local to
+      // the window that was displaying the deleted session.
+      if (fallbackId && characterIndex) {
+        characterIndex.activeSessionId = fallbackId
+        if (wasActive) {
+          activeSessionId.value = fallbackId
+          await loadSession(fallbackId)
+        }
         await persistIndex()
+        continue
+      }
+
+      const replacementSessionId = await createSession(characterId, { setActive: wasActive })
+      if (!wasActive) {
+        // The synchronized leader may be displaying a different character, but
+        // this replacement is still the canonical fallback for the character
+        // whose final session was deleted. Persist that index choice without
+        // navigating the leader's window-local selection.
+        const replacementCharacterIndex = index.value?.characters[characterId]
+        if (replacementCharacterIndex) {
+          replacementCharacterIndex.activeSessionId = replacementSessionId
+          await persistIndex()
+        }
       }
     }
   }
@@ -736,7 +832,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       activeSessionId.value = characterIndex.activeSessionId
       // Use the public action so follower hydration is routed to the elected
       // leader instead of becoming a stale full-state proposal.
-      await useChatSessionStore().loadSession(characterIndex.activeSessionId)
+      await useChatSessionStore(pinia).loadSession(characterIndex.activeSessionId)
       return characterIndex.activeSessionId
     })()
     try {
@@ -847,6 +943,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         console.info('[chat-sync] reconcile skipped: anonymous user')
         return
       }
+      if (!chatSyncEnabled.value) {
+        console.info('[chat-sync] reconcile skipped: chat sync is off on this device')
+        return
+      }
 
       console.info('[chat-sync] reconcile start', { userId: currentUserId, serverUrl: SERVER_URL })
       const mapper = getCloudMapper()
@@ -895,7 +995,31 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         if (!meta)
           continue
         sessionMetas.value[action.sessionId] = { ...meta, cloudChatId: action.cloudChatId }
-        void persistSession(action.sessionId)
+        void persistSessionMeta(action.sessionId)
+      }
+
+      // A title change is not delivered by the chat message WebSocket. Apply
+      // the remote title during reconciliation unless this session has a
+      // locally persisted title waiting for delivery.
+      const remoteById = new Map(remoteChats.map(chat => [chat.id, chat]))
+      const titleSyncSessions: string[] = []
+      for (const meta of Object.values(sessionMetas.value)) {
+        if (meta.userId !== currentUserId || staysLocal(meta))
+          continue
+        const remote = remoteById.get(meta.cloudChatId ?? meta.sessionId)
+        if (!remote)
+          continue
+        if (meta.cloudTitlePending !== undefined) {
+          if (meta.cloudChatId)
+            titleSyncSessions.push(meta.sessionId)
+          continue
+        }
+
+        const remoteTitle = remote.title ?? undefined
+        if (meta.title === remoteTitle)
+          continue
+        sessionMetas.value[meta.sessionId] = { ...meta, title: remoteTitle }
+        await persistSessionMeta(meta.sessionId)
       }
 
       // reassign: move a session to the character of its remote chat.
@@ -948,8 +1072,20 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         const meta = sessionMetas.value[result.sessionId]
         if (!meta)
           continue
-        sessionMetas.value[result.sessionId] = { ...meta, cloudChatId: result.cloudChatId }
-        void persistSession(result.sessionId)
+        const hasPendingTitle = meta.cloudTitlePending !== undefined
+        const titleWasCreated = hasPendingTitle && (
+          result.remoteTitle === meta.cloudTitlePending
+          || (meta.cloudTitlePending === '' && result.remoteTitle === null)
+        )
+        const createdMeta: ChatSessionMeta = {
+          ...meta,
+          cloudChatId: result.cloudChatId,
+          ...(titleWasCreated ? { cloudTitlePending: undefined } : {}),
+        }
+        sessionMetas.value[result.sessionId] = createdMeta
+        await persistSessionMeta(result.sessionId)
+        if (hasPendingTitle && !titleWasCreated)
+          titleSyncSessions.push(result.sessionId)
 
         // Enqueue every pre-existing local syncable message into the
         // outbox so anonymous-era messages and turns typed during the
@@ -1020,6 +1156,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         return
       await persistIndex()
 
+      // PATCH failures stay represented by `cloudTitlePending`, so a later
+      // reconcile retries them after a reconnect or another sync trigger.
+      await Promise.all([...new Set(titleSyncSessions)].map(sessionId => syncPendingSessionTitle(sessionId)))
+
       // After reconcile, fan out a catch-up pull for every session that has
       // a cloudChatId now (claimed + created + previously-mapped). This
       // closes the window between offline writes on other devices and the
@@ -1067,6 +1207,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   function ensureCloudWsClient() {
     if (getCurrentUserId() === 'local') {
       console.info('[chat-sync] WS skipped: anonymous user')
+      return
+    }
+    if (!chatSyncEnabled.value) {
+      console.info('[chat-sync] WS skipped: chat sync is off on this device')
       return
     }
     if (wsClient)
@@ -1171,6 +1315,22 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     }
 
     await ensureCurrentSession()
+  }
+
+  /**
+   * Opens or closes the cloud connection after the chat sync switch changes.
+   * The synchronization plugin routes this action to the renderer that owns the connection.
+   *
+   * Each window calls it when it sees the change, and the owner can see the change later than the caller.
+   * The call is idempotent, so the call of the owner itself applies the final value.
+   */
+  async function applySyncPreference() {
+    if (!chatSyncEnabled.value) {
+      teardownCloudWsClient()
+      return
+    }
+
+    ensureCloudWsClient()
   }
 
   /**
@@ -1428,7 +1588,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     }
     initializing.value = true
     initializePromise = (async () => {
-      const sessionId = await useChatSessionStore().ensureCurrentSession()
+      const sessionId = await useChatSessionStore(pinia).ensureCurrentSession()
       if (sessionId)
         activeSessionId.value = sessionId
       else
@@ -1496,7 +1656,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     activeSessionId.value = sessionId
 
     if (ready.value)
-      await useChatSessionStore().loadSession(sessionId)
+      await useChatSessionStore(pinia).loadSession(sessionId)
     else if (!hasKnownSession(sessionId))
       ensureSession(sessionId)
   }
@@ -1793,7 +1953,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       return
 
     try {
-      const sessionId = await useChatSessionStore().ensureCurrentSession()
+      const sessionId = await useChatSessionStore(pinia).ensureCurrentSession()
       if (sessionId)
         activeSessionId.value = sessionId
     }
@@ -1802,11 +1962,20 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     }
   })
 
+  watch(chatSyncEnabled, async () => {
+    try {
+      await useChatSessionStore(pinia).applySyncPreference()
+    }
+    catch (error) {
+      console.error('[chat-session] Failed to apply the chat sync switch:', error)
+    }
+  })
+
   // Each renderer observes the synchronized identity. Route the transition to
   // the leader so followers never write synchronized chat state directly.
   watch(userId, async () => {
     try {
-      await useChatSessionStore().activateCurrentUser()
+      await useChatSessionStore(pinia).activateCurrentUser()
     }
     catch (error) {
       console.error('[chat-session] Failed to activate the current user:', error)
@@ -1858,8 +2027,11 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     deleteHiddenSession,
     loadSession,
     refreshSession,
+    renameSession,
     deleteSession,
+    deleteSessions,
     activateCurrentUser,
+    applySyncPreference,
     ensureCurrentSession,
     ensureCharacterSession,
 
@@ -1871,6 +2043,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   synced: {
     actions: [
       'activateCurrentUser',
+      'applySyncPreference',
       'clearSessionMessages',
       'commitUserMessage',
       'replaceSessionHistory',
@@ -1880,6 +2053,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       'createSession',
       'deleteMessage',
       'deleteSession',
+      'deleteSessions',
       'ensureCurrentSession',
       'ensureBoundSession',
       'ensureCharacterSession',
@@ -1889,6 +2063,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       'loadSession',
       'pushMessageToCloud',
       'refreshSession',
+      'renameSession',
       'resetAllSessions',
       'setSessionTask',
       'deleteHiddenSession',

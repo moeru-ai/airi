@@ -1,6 +1,6 @@
 import type { PcmBlock } from '@proj-airi/pipelines-audio'
 
-import { AudioInput, capture, Playback } from '@proj-airi/pipelines-audio'
+import { AudioInput, capture, observeLevel, Playback } from '@proj-airi/pipelines-audio'
 import { createPushStream } from '@proj-airi/stream-kit'
 import { expect, it, vi } from 'vitest'
 
@@ -86,6 +86,49 @@ it('fades real playback on the audio clock before confirming silence', async () 
   expect(result.played[0].throughMs).toBeGreaterThan(0)
   expect(result.played[0].interval!.endMs).toBeGreaterThanOrEqual(stoppedAt * 1000 + 45)
   expect(await clip).toBe('stopped')
+  await context.close()
+})
+
+it('reports the level of what the playback plays through its output', async () => {
+  const context = new AudioContext()
+  await context.resume()
+  const playback = new Playback(new BrowserPlayback(context))
+  const abort = new AbortController()
+  const levels: number[] = []
+  const observer = observeLevel(playback.output!, abort.signal, level => levels.push(level))
+
+  // Silence before the clip, then a tone at -20 dBFS, which is level 2/3.
+  await expect.poll(() => levels.length).toBeGreaterThan(2)
+  expect(Math.max(...levels)).toBe(0)
+  const group = playback.openGroup('voice')
+  void group.enqueue({ id: 'tone', audio: new Blob([toWav(new Float32Array(24000).fill(0.1).buffer, 48000)]) })
+  await expect.poll(() => Math.max(...levels), { timeout: 2000 }).toBeCloseTo(2 / 3, 1)
+
+  abort.abort()
+  await observer.done
+  await group.stop({ fadeMs: 10 })
+  await context.close()
+})
+
+it('connects a graph node to the played audio until it disconnects', async () => {
+  const context = new AudioContext()
+  await context.resume()
+  const playback = new Playback(new BrowserPlayback(context))
+  const analyser = context.createAnalyser()
+  const samples = new Float32Array(analyser.fftSize)
+  const peak = () => {
+    analyser.getFloatTimeDomainData(samples)
+    return Math.max(...samples.map(Math.abs))
+  }
+  const disconnect = playback.connect!(analyser)
+
+  const group = playback.openGroup('voice')
+  void group.enqueue({ id: 'tone', audio: new Blob([toWav(new Float32Array(24000).fill(0.1).buffer, 48000)]) })
+  await expect.poll(peak, { timeout: 2000 }).toBeCloseTo(0.1, 2)
+
+  disconnect()
+  await expect.poll(peak, { timeout: 2000 }).toBe(0)
+  await group.stop({ fadeMs: 10 })
   await context.close()
 })
 

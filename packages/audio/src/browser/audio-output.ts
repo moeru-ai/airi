@@ -27,7 +27,6 @@ export class AudioOutput implements PlayingAudio {
     /** Earliest context time, in milliseconds, for the first sample. */
     startAtMs?: number
     onStart?: () => void
-    onSource?: (source: AudioBufferSourceNode) => void
   }) {
     this.gain = context.createGain()
     this.gain.connect(destination)
@@ -93,7 +92,6 @@ export class AudioOutput implements PlayingAudio {
         this.finish()
     }
     source.start(start)
-    this.options?.onSource?.(source)
     if (!this.started) {
       this.started = true
       this.options?.onStart?.()

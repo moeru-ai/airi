@@ -48,6 +48,12 @@ Runtime context keeps one bucket per writer. `replace-self` replaces the writer'
 
 ## Turn history
 
+`getContextWindow` limits conversation turns, including the current input's turn. Each turn contains a user group and its assistant replies and tool exchanges.
+Consecutive messages from the same role stay together, including groups joined by manual deletion. System messages do not count toward the limit.
+When the limit is exceeded, the newest `ceil(limit * 0.9)` turns remain. The retained start stays fixed until the limit is exceeded again.
+The runtime scans backward through the needed turns instead of rebuilding an index for all saved history on each send.
+An omitted limit or `-1` keeps all history. `0` sends only the current input and system messages. Saved chat records stay intact.
+
 After all SDK steps settle, `onGeneratedTurn` receives the new `AssistantTurn`. Each round records model usage, its finish reason, tool invocations, and native continuation data. SDK input snapshots define round boundaries; message roles do not define runtime rounds.
 
 The generated turn contains settled rounds and is stored under the existing `generationTranscript` history key. Live deltas still use the existing stream event contract. An interrupted execution does not store a generated turn. If it produced visible output, local Chat history preserves that output with `interrupted: true` so the user can read and retry it.
@@ -172,6 +178,18 @@ const result = await input.end()
 
 ### Trusted plugins
 
+A plugin gets one `onXxx` hook for each stage of a turn, and the audio of both sides for its whole life:
+
+| API | Runs |
+| --- | --- |
+| `onInput(install)` | Once for each accepted speech input. It gives `watch` and `finalize`. |
+| `onOutput(install)` | Once for each response that speaks. It gives the speech events of that response. |
+| `input.observe(window, run)` | For the life of the plugin, on windows of the microphone. |
+| `output.observe(window, run)` | For the life of the plugin, on windows of the played speech. |
+| `output.connect(node)` | For the life of the plugin, connects a graph node of the platform to the played speech. |
+
+A replaced microphone (`replaceAudio`) or playback (`replacePlayback`) moves the observations and the connections to it.
+
 A speech input has two phases, and a plugin can take part in both.
 
 - While the provider transcribes, the document changes. `watch` runs work for the newest document only, like a language server analysis. A newer key aborts the active run.
@@ -183,7 +201,7 @@ Use `watch` for speculative work that a stage reuses, so the stage does not wait
 voice.use({
   name: 'memory',
   setup(plugin) {
-    plugin.onSpeechInput((input) => {
+    plugin.onInput((input) => {
       let speculation: { text: string, matches: Promise<Match[]> } | undefined
 
       input.watch((document, signal) => {
@@ -205,7 +223,7 @@ voice.use({
 - A stage writes with `ctx.patch(edits)` and `ctx.attach(key, value)`. Writes after the stage ends or times out are rejected.
 - A failed stage is reported through `onError` with the stage `finalize`. The next stage still runs. A timeout skips the stage without an error.
 - Plugin corrections apply only during finalization. During capture, only a user correction through `correctInput` changes the corrected text.
-- `onSpeechInput` can be asynchronous. Finalization waits for pending installs.
+- `onInput` can be asynchronous. Finalization waits for pending installs.
 - `input.control` gives input commands, such as `end`, to a plugin with the `input-control` grant.
 
 VAD, PTT, wake words, speaker models, turn detection, memory search, and rewrite models remain external policy or adapters.
@@ -228,7 +246,7 @@ voice.use({
   name: 'voice-activity',
   setup(scope) {
     scope.rule(createSpeechActivityRule({ target: () => ({ sessionId, interruptTurns: [] }) }))
-    scope.observeAudio({ windowMs: 32, hopMs: 32, scheduling: 'ordered' }, async ({ window, signal }) => {
+    scope.input.observe({ windowMs: 32, hopMs: 32, scheduling: 'ordered' }, async ({ window, signal }) => {
       const score = await vad.score(window, signal)
       scope.emit(speechActivitySignal, { range: window.range, durationMs: 32, score, discontinuity: window.discontinuity, accepted: true })
     })
@@ -245,6 +263,46 @@ voice.use({
   `cancel` wins.
 - First-party rules: `createSpeechActivityRule` (VAD begin, silence limit, minimum speech), `createPauseRule`
   (emits `paused`), and `createEndJudgementRule` (seals on a current `complete` judgement).
+
+### Output plugins
+
+`onOutput` runs once for each response that opens. The scope gives the turn, a signal that aborts when the response
+closes, the controls of the plugin grants, and these events in order:
+
+| Event | When |
+| --- | --- |
+| `tts-request` | Synthesis of one text segment starts. It carries `segmentId`, the text, and the chunker `reason`. |
+| `tts-result` | Synthesis ends with `audio`, `no-audio`, `cancelled`, or `failed`. |
+| `playback-start` | The first audio of the segment is scheduled. |
+| `playback-end` | The segment ends, stops, or fails. A stop carries its reason. |
+| `token-special` | Playback reaches a special token, for example an expression marker. |
+
+`segmentId` joins the synthesis and the playback of one segment. A streaming provider has no segments: its stream is
+one `tts-request`, and each audio part plays with its own ID.
+
+```ts
+const voice = new VoiceController<AudioNode>({ playback, speech: turn => speechOutputFor(turn) })
+
+voice.use({
+  name: 'speech-level',
+  setup(scope) {
+    scope.onOutput((output) => {
+      output.on('playback-start', () => startMeter())
+      output.onDispose(() => stopMeter())
+    })
+    return undefined
+  },
+})
+
+// A lip sync worklet hears the played speech after the clip fades and before the user volume.
+const lipSync: VoicePlugin<AudioNode> = { name: 'lip-sync', setup(scope) {
+  scope.output.connect?.(lipSyncNode)
+  return undefined
+} }
+```
+
+`TNode` is the node type of the platform audio graph. A plugin that needs no graph is a `VoicePlugin`, which installs
+on every host. A `VoicePlugin<AudioNode>` installs only on a host whose playback is a Web Audio graph.
 
 ### Output without voice input
 
@@ -266,13 +324,15 @@ A producer streams its text to TTS by segments. `MarkdownSegmenter` ends a segme
 So an answer starts to speak after its first sentence, and a formula that later writes complete is still read as one formula.
 Symbols that markdown keeps as text, for example `2 * 3` and `x ~= 3`, stay in the speech text.
 TeX formulas, `\ce{}` chemistry, units, and dollar prices are read as words of the sentence language: Chinese, English, Japanese, or Korean.
+Tokens such as web addresses and file paths are read as words, in prose, inline code, and link text. For example `https://home.example.com` reads as `https home 点 example 点 com` in Chinese, and `./src/index.ts` as `dot slash src slash index dot ts` in English. Other languages use the English words. Each kind of token has a reader. A token that no reader recognizes stays as written. To add a reading, pass `tokenSpeechPreprocessor({ readers: [myReader, ...defaultTokenReaders()] })`.
+Obsidian links read as the text that Obsidian shows. `[[Note|Alias]]` reads `Alias`, `[[Note#Heading]]` reads `Note Heading`, and `![[shot.png]]` reads the word for an image, audio, video, or PDF file. An image without alternative text also reads as an image.
 The rules are in [`@proj-airi/speech-transformer-math`](../speech-transformer-math) and [`@proj-airi/speech-transformer-chem`](../speech-transformer-chem), see [the ADR](../../docs/ai/adr/2026-10-20-speech-text-preprocessor.md).
 `mathSpeech` is the instance that AIRI uses: the built-in locale packs, with chemistry.
 
 `toMathJson(tex)` returns the MathJSON of a formula without reading it, for tools that inspect formulas.
 `options.language` is the BCP 47 code of the voice. The words around a formula or a price select its language first.
 
-`toSpeechText` is a host of preprocessor plugins. The default plugins are `moneySpeechPreprocessor` and `mathSpeechPreprocessor`.
+`toSpeechText` is a host of preprocessor plugins. The default plugins are `tokenSpeechPreprocessor`, `moneySpeechPreprocessor`, and `mathSpeechPreprocessor`, in that order.
 A plugin can have three hooks: `prepare` rewrites the markdown, `formula` reads one formula, and `prose` rewrites a run of text.
 To add a reading, pass `preprocessors: [myPlugin, ...defaultSpeechPreprocessors()]`.
 

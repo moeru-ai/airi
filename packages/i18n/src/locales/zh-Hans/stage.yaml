@@ -27,6 +27,10 @@ chat:
     title: 尚未正确配置聊天 Provider
     description: 请先前往设置页面选择并验证一个 Provider，再发送消息。
     action: 打开 Provider 设置
+    sign-in-title: 登录后即可开始聊天
+    sign-in-description: 登录即可使用 AIRI 官方 Provider，也可以在设置中配置你自己的 Provider。
+    sign-in-description-official-only: 登录即可使用 AIRI 官方 Provider。
+    sign-in-action: 登录
   voice-message:
     recording: 正在录制
     starting: 正在启动麦克风
@@ -248,6 +252,17 @@ chat:
     cloud-badge: 已同步到云
     new-chat-fallback: 新建对话
     delete: 删除对话
+    rename: 重命名对话
+    rename-input: 对话名称
+    rename-placeholder: 输入对话名称
+    save-rename: 保存对话名称
+    cancel-rename: 取消重命名
+    select: 选择对话
+    select-all: 全选
+    clear-selection: 取消全选
+    done-selecting: 完成
+    delete-selected: 删除 {count} 个对话
+    confirm-delete-selected: 确认删除 {count} 个对话
 avatar-model-missing:
   title: 还没有选择模型
   unavailable-title: 这台设备上没有这个模型

@@ -49,28 +49,25 @@ function releaseContext(context: AudioContext) {
 }
 
 /**
- * Copies a MediaStream's samples into `output` until `scope` closes.
+ * Copies the samples that reach `node` into `output` until `scope` closes.
  *
- * Track end closes the output. Context shutdown errors it. The graph is muted, because it only reads samples.
- * Scope cleanup disconnects the nodes and never stops tracks. The caller decides who owns them.
+ * The tap is muted, because it only reads samples. Context shutdown errors the output.
+ * Scope cleanup disconnects only the nodes of the tap. The caller keeps `node` and its other connections.
  */
-async function pipeMediaStream(context: AudioContext, stream: MediaStream, scope: Scope, output: StreamController<PcmBlock>) {
-  if (!stream.getAudioTracks().some(track => track.readyState === 'live'))
-    throw new Error('Audio stream has no live track')
-
+async function pipeAudioNode(context: AudioContext, node: AudioNode, scope: Scope, output: StreamController<PcmBlock>) {
   await loadCaptureWorklet(context)
   scope.signal.throwIfAborted()
 
   const sourceId = nanoid()
-  const node = context.createMediaStreamSource(stream)
   const worklet = new AudioWorkletNode(context, 'airi-capture')
   const mute = context.createGain()
   mute.gain.value = 0
-  node.connect(worklet).connect(mute).connect(context.destination)
+  node.connect(worklet)
+  worklet.connect(mute).connect(context.destination)
   scope.defer(() => {
     worklet.port.postMessage({ type: 'close' })
     worklet.port.close()
-    node.disconnect()
+    node.disconnect(worklet)
     worklet.disconnect()
     mute.disconnect()
   })
@@ -79,12 +76,26 @@ async function pipeMediaStream(context: AudioContext, stream: MediaStream, scope
     output.write({ range: { sourceId, startFrame: data.startFrame, endFrame: data.startFrame + data.channels[0].length }, sampleRate: data.sampleRate, channels: data.channels })
   }
   worklet.onprocessorerror = () => output.error(new Error('Audio capture processor failed'))
-  for (const track of stream.getAudioTracks())
-    track.addEventListener('ended', () => output.close(), { once: true, signal: scope.signal })
   context.addEventListener('statechange', () => {
     if (context.state === 'closed')
       output.error(new Error('Audio context closed during capture'))
   }, { signal: scope.signal })
+}
+
+/**
+ * Copies a MediaStream's samples into `output` until `scope` closes.
+ *
+ * Track end closes the output. Scope cleanup disconnects the nodes and never stops tracks. The caller decides who owns them.
+ */
+async function pipeMediaStream(context: AudioContext, stream: MediaStream, scope: Scope, output: StreamController<PcmBlock>) {
+  if (!stream.getAudioTracks().some(track => track.readyState === 'live'))
+    throw new Error('Audio stream has no live track')
+
+  const node = context.createMediaStreamSource(stream)
+  scope.defer(() => node.disconnect())
+  for (const track of stream.getAudioTracks())
+    track.addEventListener('ended', () => output.close(), { once: true, signal: scope.signal })
+  await pipeAudioNode(context, node, scope, output)
 }
 
 /** Starts `connect` inside one connection scope and exposes its blocks. Cancelling the stream closes the scope. */
@@ -97,6 +108,18 @@ function openConnection(signal: AbortSignal, connect: (scope: Scope, output: Str
     void scope.close(error)
   })
   return output.stream
+}
+
+/**
+ * The samples that reach a borrowed Web Audio node, as a source. For example, the mix of a playback.
+ *
+ * Each connection adds a muted tap to `node` and removes only that tap when it closes. The node stays with its owner.
+ */
+export function audioNodeSource(node: AudioNode, context: AudioContext): LiveAudioSource {
+  return {
+    live: true,
+    open: signal => openConnection(signal, (scope, output) => pipeAudioNode(context, node, scope, output)),
+  }
 }
 
 /** A borrowed MediaStream as a source. Tracks stay with their owner. */

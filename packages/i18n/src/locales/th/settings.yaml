@@ -187,8 +187,6 @@ live2d:
           description: สร้างท่าทางจากชุดข้อมูล MAGIC ที่มาพร้อมแอป
       magic:
         profile:
-          title: โปรไฟล์ MAGIC
-          description: เลือกชุดข้อมูลท่าทางที่มาพร้อมแอปซึ่งเหมาะกับตัวขับเคลื่อน MAGIC
           options:
             idle-calm:
               title: อยู่นิ่ง / สงบ
@@ -436,7 +434,7 @@ pages:
     delete: ลบ
     delete_card: ลบการ์ด
     delete_confirmation: คุณแน่ใจไหมว่าต้องการลบการ์ดนี้?
-    description: ใช้พรีเซ็ตการ์ดตัวละครของ AIRI
+    description: จัดการการ์ดตัวละคร AIRI
     description_label: คำอธิบาย
     drop_here: วางเพื่ออัปโหลด
     create_card: สร้างการ์ดใหม่
@@ -716,7 +714,7 @@ pages:
       gaming: เกม
       artistry: การสร้างภาพ
     consciousness:
-      description: บุคลิกภาพ โมเดลที่ต้องการ และอื่น ๆ
+      description: การเลือกและตั้งค่าโมเดลภาษา
       sections:
         section:
           provider-model-selection:
@@ -960,7 +958,7 @@ pages:
       title: การพูด
     title: โมดูล
     vision:
-      description: การมองเห็น
+      description: การตั้งค่าความเข้าใจภาพและการจับภาพหน้าจอ
       title: การมองเห็น
       tool-images:
         label: ใช้โมเดลการมองเห็นกับรูปภาพจากเครื่องมือ
@@ -1871,7 +1869,7 @@ pages:
         playground:
           title: พื้นที่ทดลองการถอดเสียง
       aihubmix:
-        description: https://aihubmix.com (ลด 10%)
+        description: aihubmix.com (ลด 10%)
     title: ผู้ให้บริการ
   connection:
     description: ตั้งค่าการเชื่อมต่อเซิร์ฟเวอร์ WebSocket

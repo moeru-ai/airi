@@ -20,14 +20,15 @@ vi.mock('vue-i18n', () => ({
   useI18n: () => ({ locale: { value: 'en' }, t: (key: string) => key }),
 }))
 
-vi.mock('localforage', () => ({
-  default: {
-    getItem: vi.fn(async () => undefined),
-    iterate: vi.fn(async () => undefined),
-    removeItem: vi.fn(async () => undefined),
-    setItem: vi.fn(async <T>(_: string, value: T) => value),
-  },
-}))
+// Node has no IndexedDB. An in-memory driver replaces the IndexedDB mounts.
+vi.mock('../../database/storage', async (importOriginal) => {
+  const { createStorage } = await import('unstorage')
+  const { default: memoryDriver } = await import('unstorage/drivers/memory')
+  return {
+    ...await importOriginal<typeof import('../../database/storage')>(),
+    storage: createStorage({ driver: memoryDriver() }),
+  }
+})
 
 function card(provider = '', model = ''): AiriCard {
   return {
@@ -179,6 +180,26 @@ describe('card inheritance with real module stores', () => {
     await cards.activateCard('default')
     expect(consciousness.activeProvider).toBe('')
     expect(consciousness.activeModel).toBe('')
+  })
+
+  // https://github.com/moeru-ai/airi/issues/3154
+  // ROOT CAUSE: Deleting a provider cleared only the defaults and the active card.
+  // An inactive card restored the deleted provider when it became active.
+  it('clears a deleted provider from inactive cards (Issue #3154)', async () => {
+    const cards = useAiriCardStore()
+    await cards.initialize()
+    const uploaded = card('removed-provider', 'card-model')
+    uploaded.extensions.airi.modules.speech = { provider: 'removed-provider', model: 'tts-1', voice_id: 'alloy' }
+    const id = await cards.addCard(uploaded, 'import')
+    expect(cards.activeCardId).not.toBe(id)
+
+    await cards.clearProviderSelections('removed-provider')
+
+    expect(cards.getCard(id)?.extensions.airi.modules.consciousness).toEqual({ provider: '', model: '' })
+    expect(cards.getCard(id)?.extensions.airi.modules.speech).toEqual({ provider: 'speech-noop', model: '', voice_id: '' })
+    await cards.activateCard(id)
+    expect(useConsciousnessStore().activeProvider).not.toBe('removed-provider')
+    expect(useSpeechStore().activeSpeechProvider).toBe('speech-noop')
   })
 
   it('does not inherit a voice from a different speech model', async () => {

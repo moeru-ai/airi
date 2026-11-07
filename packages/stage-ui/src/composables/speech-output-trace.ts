@@ -2,10 +2,10 @@ import type { SpeechAudio, SpeechOutput, TurnRef } from '@proj-airi/core-agent'
 import type { TraceAttributes, TraceSink, TraceSpan } from '@proj-airi/trace-kit'
 
 import { errorMessageFrom } from '@moeru/std'
+import { levelOf } from '@proj-airi/pipelines-audio'
 import { beginSpan, SeriesWriter, TraceEndReasons, trackPath } from '@proj-airi/trace-kit'
 import { VoiceAttributes, VoiceIdKeys, VoiceNames, VoiceSeries, VoiceTracks } from '@proj-airi/trace-kit/voice'
 
-import { levelOf } from '../libs/voice/input-level'
 import { getTraceSink } from './use-trace'
 
 /** The decoded audio of one synthesized segment: its duration, and its samples for the level waveform. */

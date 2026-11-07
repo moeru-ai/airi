@@ -9,8 +9,8 @@ import type { ChatSessionMeta } from '../types/chat-session'
 import type { LlmStreamOptions } from './ai/chat-llm/llm'
 
 import { errorMessageFrom } from '@moeru/std'
-import { ATTR_GEN_AI_CONVERSATION_ID } from '@proj-airi/trace-kit'
-import { AgentAttributes, AgentNames } from '@proj-airi/trace-kit/agent'
+import { ATTR_GEN_AI_CONVERSATION_ID, ATTR_GEN_AI_OPERATION_NAME, ATTR_GEN_AI_TOOL_NAME } from '@proj-airi/trace-kit'
+import { AgentAttributes, AgentIdKeys, AgentNames } from '@proj-airi/trace-kit/agent'
 import { VoiceIdKeys } from '@proj-airi/trace-kit/voice'
 import { createPinia, defineStore, disposePinia, setActivePinia } from 'pinia'
 import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
@@ -68,7 +68,7 @@ const persistSessionMessagesMock = vi.fn()
 const forkSessionMock = vi.fn()
 const createSessionMock = vi.fn()
 const loadSessionMock = vi.fn()
-const deleteSessionMock = vi.fn()
+const deleteSessionsMock = vi.fn()
 const initializeSessionMock = vi.fn()
 const disposeSessionMock = vi.fn()
 const ensureCurrentSessionMock = vi.fn()
@@ -176,7 +176,7 @@ vi.mock('./chat/session-store', () => ({
     getSessionMessages: (sessionId: string) => sessionMessages[sessionId] ?? [],
     getSessionMessagesIfLoaded: (sessionId: string) => sessionMessages[sessionId],
     loadSession: loadSessionMock,
-    deleteSession: deleteSessionMock,
+    deleteSessions: deleteSessionsMock,
     initialize: initializeSessionMock,
     dispose: disposeSessionMock,
     ensureCurrentSession: ensureCurrentSessionMock,
@@ -340,7 +340,7 @@ describe('chat store contract', () => {
       sessionMessages[sessionId] = []
       return sessionId
     })
-    deleteSessionMock.mockReset().mockResolvedValue(undefined)
+    deleteSessionsMock.mockReset().mockResolvedValue(undefined)
     initializeSessionMock.mockReset().mockResolvedValue(undefined)
     disposeSessionMock.mockReset()
     ensureCurrentSessionMock.mockReset().mockResolvedValue('session-1')
@@ -542,6 +542,38 @@ describe('chat store contract', () => {
     ]))
     expect(requests[1]?.turns.findLast(turn => turn.type === 'user')?.content).toEqual(expect.arrayContaining([
       { type: 'text', text: 'spoken words' },
+    ]))
+    expect(requests[1]?.turns.findLast(turn => turn.type === 'user')?.content).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'audio' }),
+    ]))
+  })
+
+  it('sends audio over Responses only to an endpoint that accepts it', async () => {
+    cardSelections.set('alice', { provider: 'mock-provider', model: 'audio-model' })
+    consciousnessModels.value = [{ id: 'audio-model', inputModalities: ['text', 'audio'], metadata: {} }]
+    const requests: Conversation[] = []
+    llmStreamMock.mockImplementation(async (model: string, chatProvider: GenerationProvider, context: Conversation, options: LlmStreamOptions) => {
+      requests.push(await options.prepareConversation!(context, { model, providerId: options.providerId, request: chatProvider.generation(model) }))
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    const store = useChatStore()
+    for (const baseURL of ['https://openrouter.ai/api/v1', 'https://api.openai.com/v1']) {
+      getChatProviderInstanceMock.mockResolvedValueOnce({
+        generation: (model: string) => ({ protocol: 'responses', webSearch: false, config: { model, baseURL } }),
+      } satisfies GenerationProvider)
+      await store.send({
+        sessionId: 'session-1',
+        text: '',
+        attachments: [{ type: 'audio', mimeType: 'audio/wav', data: 'UklGRg==', transcript: 'spoken words' }],
+      })
+    }
+
+    expect(requests).toHaveLength(2)
+    expect(requests[0]?.turns.findLast(turn => turn.type === 'user')?.content).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'audio' }),
+    ]))
+    expect(requests[1]?.turns.findLast(turn => turn.type === 'user')?.content).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'text', text: expect.stringContaining('spoken words') }),
     ]))
     expect(requests[1]?.turns.findLast(turn => turn.type === 'user')?.content).not.toEqual(expect.arrayContaining([
       expect.objectContaining({ type: 'audio' }),
@@ -856,6 +888,35 @@ describe('chat store contract', () => {
         content: expect.stringContaining('A red square.'),
       }),
     ]))
+  })
+
+  it('traces each tool call of a model request as a span on the tools track', async () => {
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'tool-call-start', toolCallId: 'call-1', toolName: 'home_assistant_list_entities' })
+      await options.onStreamEvent?.({ type: 'tool-call', toolCallId: 'call-1', toolCallType: 'function', toolName: 'home_assistant_list_entities', args: '{"domain":"light"}' })
+      await options.onStreamEvent?.({ type: 'tool-error', toolCallId: 'call-1', result: 'Could not reach Home Assistant: fetch failed', isError: true })
+      await options.onStreamEvent?.({ type: 'tool-call', toolCallId: 'call-2', toolCallType: 'function', toolName: 'web_search', args: '{}' })
+      await options.onStreamEvent?.({ type: 'tool-result', toolCallId: 'call-2', result: 'ok' })
+      await options.onStreamEvent?.({ type: 'tool-call', toolCallId: 'call-3', toolCallType: 'function', toolName: 'web_search', args: '{}' })
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    await useChatStore().send({ sessionId: 'session-1', text: 'Turn on the lights' })
+
+    const [llm] = spanBegins(AgentNames.ModelRequest)
+    const [failed] = spanBegins('home_assistant_list_entities')
+    const [succeeded, unanswered] = spanBegins('web_search')
+    expect(failed).toMatchObject({
+      track: 'agents/agent/tools',
+      parentSpanId: llm.spanId,
+      ids: { [AgentIdKeys.ToolCall]: 'call-1' },
+      attrs: { [ATTR_GEN_AI_OPERATION_NAME]: AgentNames.ToolCall, [ATTR_GEN_AI_TOOL_NAME]: 'home_assistant_list_entities' },
+    })
+    expect(spanEnds(failed.spanId)).toEqual([expect.objectContaining({ status: 'error', message: 'Could not reach Home Assistant: fetch failed' })])
+    expect(spanEnds(succeeded.spanId)).toEqual([expect.objectContaining({ status: 'ok' })])
+    expect(spanEnds(unanswered.spanId)).toEqual([expect.objectContaining({ status: 'cancelled' })])
+    // The first tool call is the first output of the model, so it ends the time to first token.
+    expect(spanEnds(llm.spanId)[0]?.attrs?.[AgentAttributes.LLMTtftMs]).toEqual(expect.any(Number))
   })
 
   it('reuses a persisted image description on later turns', async () => {
@@ -1935,7 +1996,7 @@ describe('chat store contract', () => {
         releaseFirstSend = resolve
       })
     })
-    deleteSessionMock.mockImplementationOnce(async () => {
+    deleteSessionsMock.mockImplementationOnce(async () => {
       currentGeneration += 1
       delete sessionMessages['session-1']
     })
@@ -1966,7 +2027,7 @@ describe('chat store contract', () => {
     })
     await store.deleteSession('session-1')
 
-    expect(deleteSessionMock).toHaveBeenCalledWith('session-1')
+    expect(deleteSessionsMock).toHaveBeenCalledWith(['session-1'])
     expect(await queuedOutcome).toBe('Chat session was reset before send could start')
     expect(sessionMessages['session-1']).toBeUndefined()
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { homeAssistantConfigRejections } from '../../../../shared/eventa/home-assistant'
-import { assertAllowedRequest, normalizeBaseUrl, readBody, resolveConfigUpdate, resolveRequestUrl, toRequestError, toTokenPreview } from './request'
+import { assertAllowedRequest, normalizeBaseUrl, readBody, resolveConfigUpdate, resolveRequestUrl, toNetworkError, toRequestError, toTokenPreview } from './request'
 
 describe('normalizeBaseUrl', () => {
   it('trims the value and drops trailing slashes', () => {
@@ -193,5 +193,20 @@ describe('toRequestError', () => {
 
     expect(error.message).toContain('500 Internal Server Error')
     expect(error.message).toContain('nope')
+  })
+})
+
+describe('toNetworkError', () => {
+  it('names the cause that Node hides behind fetch failed', () => {
+    const cause = Object.assign(new Error('unable to verify the first certificate'), { code: 'UNABLE_TO_VERIFY_LEAF_SIGNATURE' })
+    const error = toNetworkError('https://ha.example', new TypeError('fetch failed', { cause }))
+
+    expect(error.message).toBe('Could not reach Home Assistant at https://ha.example: fetch failed (UNABLE_TO_VERIFY_LEAF_SIGNATURE: unable to verify the first certificate)')
+  })
+
+  it('keeps the message alone when the error has no cause', () => {
+    const error = toNetworkError('https://ha.example', new DOMException('The operation was aborted due to timeout', 'TimeoutError'))
+
+    expect(error.message).toBe('Could not reach Home Assistant at https://ha.example: The operation was aborted due to timeout')
   })
 })

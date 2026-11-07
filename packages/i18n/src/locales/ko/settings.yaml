@@ -201,8 +201,6 @@ live2d:
           description: 포함된 MAGIC 데이터셋으로 모션을 생성합니다.
       magic:
         profile:
-          title: MAGIC 프로필
-          description: MAGIC 드라이버에 사용할 내장 모션 데이터셋을 선택하세요.
           options:
             idle-calm:
               title: 대기 / 차분함
@@ -457,7 +455,7 @@ pages:
     delete: 삭제
     delete_card: 카드 삭제
     delete_confirmation: 이 카드를 삭제하시겠습니까?
-    description: AIRI 캐릭터 카드 프리셋 사용
+    description: AIRI 캐릭터 카드 관리
     description_label: 설명
     drop_here: 여기로 끌어서 업로드
     create_card: 새로운 카드 만들기
@@ -755,7 +753,7 @@ pages:
       gaming: 게임
       artistry: 이미지 생성
     consciousness:
-      description: 성격, 원하는 모델 등.
+      description: 언어 모델 선택 및 설정
       sections:
         section:
           provider-model-selection:
@@ -1121,7 +1119,7 @@ pages:
       title: 발성
     title: 모듈
     vision:
-      description: 시각
+      description: 이미지 이해 및 화면 캡처 설정
       title: 시각
       tool-images:
         label: 도구 이미지에 시각 모델 사용
@@ -2073,7 +2071,7 @@ pages:
         playground:
           title: 음성 인식 놀이터
       aihubmix:
-        description: https://aihubmix.com (10% 할인)
+        description: aihubmix.com (10% 할인)
     title: 제공자
   connection:
     description: 웹소켓 서버 연결 구성

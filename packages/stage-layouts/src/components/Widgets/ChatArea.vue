@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import type { ChatComposerController, ChatImageAttachment } from '@proj-airi/stage-ui/components/scenarios/chat'
 
-import { ChatComposerAddMenu, ChatComposerVoiceInput, ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSendButton, useChatImages, useStartVoiceCall, VoiceCallPanel, VoicePresence } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatComposerAddMenu, ChatComposerVoiceInput, ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSendButton, useChatImages, useStartVoiceCall, VoicePresence } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useVoiceCallStore } from '@proj-airi/stage-ui/stores/voice-call'
-import { BasicTextarea } from '@proj-airi/ui'
+import { BasicButton, BasicTextarea } from '@proj-airi/ui'
 import { useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, ref, shallowRef, useTemplateRef, watch } from 'vue'
@@ -47,6 +48,7 @@ const lastEnterTime = ref(0)
 
 const { themeColorsHueDynamic } = storeToRefs(useSettings())
 const { chatReady } = storeToRefs(useConsciousnessStore())
+const authStore = useAuthStore()
 
 const replyTarget = props.composer.replyTarget
 const { t } = useI18n()
@@ -145,12 +147,11 @@ watch(replyTarget, async (target) => {
 </script>
 
 <template>
-  <!-- A call keeps the composer below it, so the user can still type. Its panel holds the live transcript. -->
-  <VoiceCallPanel v-if="call.active && !call.minimized" :class="['mb-2']">
-    <VoicePresence :class="['mx-auto']" />
-  </VoiceCallPanel>
-  <!-- Speech and drafts show above the composer. The text field below stays free while the user speaks. -->
-  <div v-else :class="['flex justify-center empty:hidden', 'px-1 pb-2']">
+  <!--
+    Speech and drafts show above the composer, also during a call. The text field below stays free while the user
+    speaks. The call capsule at the top of the page holds the call status and the hang-up button.
+  -->
+  <div :class="['flex justify-center empty:hidden', 'px-1 pb-2']">
     <VoicePresence>
       <template #hint>
         <kbd
@@ -164,19 +165,24 @@ watch(replyTarget, async (target) => {
       </template>
     </VoicePresence>
   </div>
-  <ChatProviderSetupCallout
+  <div
     v-if="!chatReady"
     :class="[
-      'mb-1',
+      'mb-1 px-2',
       // The callout takes the panel width. Its content must not widen the panel.
       'w-0 min-w-full',
     ]"
-    @configure="router.push('/settings/providers')"
-  />
-  <div ref="composer" :class="['flex gap-2 <md:h-full', 'ph-no-capture']">
+  >
+    <ChatProviderSetupCallout @configure="router.push('/settings/providers')" @sign-in="authStore.requestLogin()" />
+  </div>
+  <!--
+    The composer keeps a 0.5rem inset from the panel edges, like the chat history above it.
+    The corner radius is the `rounded-xl` of ChatContainer minus this inset, so the two corners stay concentric.
+  -->
+  <div ref="composer" :class="['flex gap-2 px-2 pb-2 <md:h-full', 'ph-no-capture']">
     <div
       :class="[
-        'relative w-full overflow-hidden rounded-t-xl',
+        'relative w-full overflow-hidden rounded',
         'border-t-2 border-solid border-primary-200/20 bg-primary-100/50 backdrop-blur-md',
         'dark:border-primary-400/20 dark:bg-primary-900/70',
       ]"
@@ -220,10 +226,26 @@ watch(replyTarget, async (target) => {
         <ChatComposerAddMenu :in-call="call.active" :recording="voiceRecording" @attach-images="imageInput?.click()" @call="startVoiceCall" />
         <!-- The recording status and the walkie-talkie bar show here, so the composer keeps its height. -->
         <div ref="voiceStatus" data-testid="composer-voice-status" :class="['relative h-9 min-w-0 flex-1 rounded-full']" />
-        <!--
-          A call listens already, so the microphone is hidden during a call. It stays mounted, so a voice message that
-          waits for the send button can still be sent.
-        -->
+        <!-- A call listens already, so the microphone becomes the mute button of the call. -->
+        <BasicButton
+          v-if="call.active"
+          size="unset"
+          type="button"
+          :aria-pressed="call.muted"
+          :aria-label="t(call.muted ? 'stage.chat.call.unmute' : 'stage.chat.call.mute')"
+          :title="t(call.muted ? 'stage.chat.call.unmute' : 'stage.chat.call.mute')"
+          :class="[
+            composerActionButtonClass,
+            'shrink-0 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary-500',
+            call.muted
+              ? 'bg-neutral-700 text-white dark:bg-white/20 dark:text-white'
+              : 'text-neutral-500 hover:bg-neutral-900/8 dark:text-neutral-400 dark:hover:bg-white/10',
+          ]"
+          @click="call.toggleMuted()"
+        >
+          <span aria-hidden="true" :class="[call.muted ? 'i-mingcute:mic-off-line' : 'i-mingcute:mic-line', 'size-5']" />
+        </BasicButton>
+        <!-- The microphone stays mounted during a call, so a voice message that waits for the send button is kept. -->
         <ChatComposerVoiceInput
           ref="voiceButton"
           v-model="messageInput"
