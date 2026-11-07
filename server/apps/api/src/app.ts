@@ -69,6 +69,7 @@ import { createFluxRoutes } from './routes/flux'
 import { createInternalAuthRoutes } from './routes/internal-auth'
 import { createLlmRequestRoutes } from './routes/llm-requests'
 import { createV1Routes } from './routes/openai/v1'
+import { AIRI_REQUEST_ID_HEADER } from './routes/openai/v1/analytics'
 import { createProviderRoutes } from './routes/providers'
 import { createRevenuecatRoutes } from './routes/revenuecat'
 import { createStripeRoutes } from './routes/stripe'
@@ -167,6 +168,7 @@ export async function buildApp(deps: AppDeps) {
       cors({
         origin: origin => getTrustedOrigin(origin, deps.env.ADDITIONAL_TRUSTED_ORIGINS),
         credentials: true,
+        exposeHeaders: [AIRI_REQUEST_ID_HEADER],
       }),
     )
     .use(honoLogger())
