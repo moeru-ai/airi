@@ -15,6 +15,7 @@ import {
   toStatus,
 } from '../src/background/client'
 import { loadSettings, saveSettings } from '../src/background/storage'
+import { createVideoNotifyGate } from '../src/background/video-notify'
 import { DEFAULT_SETTINGS, STORAGE_KEY } from '../src/shared/constants'
 import {
   backgroundStatusChanged,
@@ -28,11 +29,9 @@ import { createRuntimeEventaContext } from '../src/shared/eventa-runtime'
 import { detectSiteFromUrl } from '../src/shared/sites'
 
 const state = createClientState()
+const videoNotifyGate = createVideoNotifyGate()
 
 let settings: ExtensionSettings = { ...DEFAULT_SETTINGS }
-let lastNotifiedVideoKey = ''
-let lastNotifiedVideoTitle = ''
-const pendingVideoTitles = new Map<string, string>()
 let lastStatusSentAt = 0
 let connectionKey = ''
 let eventaContext: ReturnType<typeof createRuntimeEventaContext>['context'] | undefined
@@ -47,36 +46,6 @@ async function refreshClient() {
     state.connected = false
   }
   await ensureClient(state, settings)
-}
-
-/**
- * Decides whether a video report starts a new character notification.
- *
- * YouTube changes the URL before it changes the page title. A report can carry
- * the new video id with the old title. So a video notifies only once, by id,
- * after its title differs from the last notified title and arrives twice.
- */
-function shouldNotifyVideo(payload: { url: string, title?: string, videoId?: string }) {
-  const key = payload.videoId || payload.url
-  const title = payload.title?.trim() ?? ''
-  if (!key || !title || key === lastNotifiedVideoKey)
-    return false
-
-  if (lastNotifiedVideoTitle && title.includes(lastNotifiedVideoTitle))
-    return false
-
-  // Track each video separately. Reports from other tabs must not reset the wait.
-  if (pendingVideoTitles.get(key) !== title) {
-    pendingVideoTitles.set(key, title)
-    if (pendingVideoTitles.size > 20)
-      pendingVideoTitles.delete(pendingVideoTitles.keys().next().value!)
-    return false
-  }
-
-  pendingVideoTitles.clear()
-  lastNotifiedVideoKey = key
-  lastNotifiedVideoTitle = title
-  return true
 }
 
 function emitStatus() {
@@ -116,7 +85,7 @@ function handleContentMessage(message: ContentToBackgroundMessage) {
         ...message.payload,
         site: message.payload.site === 'unknown' ? detectSiteFromUrl(message.payload.url) : message.payload.site,
       }
-      handleVideoContext(state, settings, payload, { notify: shouldNotifyVideo(payload) })
+      handleVideoContext(state, settings, payload, { notify: videoNotifyGate.shouldNotify(payload) })
       emitStatus()
       break
     }
