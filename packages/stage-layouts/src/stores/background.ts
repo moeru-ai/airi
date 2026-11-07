@@ -6,6 +6,7 @@ import { useLocalStorage, useObjectUrl } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { prefixStorage } from 'unstorage'
 import { computed, markRaw, onScopeDispose, ref, shallowRef, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { DefaultBackgroundPreview, TransparentBackgroundPreview } from '../components/Backgrounds/default'
 
@@ -29,28 +30,30 @@ type PersistedBackgroundItem = Omit<BackgroundItem, 'file'> & {
 type BackgroundPreferenceRecord = Record<string, Pick<BackgroundOption, 'id' | 'blur'>>
 
 export const useBackgroundStore = defineStore('background', () => {
+  const { t } = useI18n()
   // TODO: STORAGE_PREFIX used with multiple less maintainable `key.startsWith(...)` calls that create complexity.
   const STORAGE_PREFIX = 'background-'
-  const presets: BackgroundItem[] = [
+  /** Preset labels follow the active language while their persisted IDs stay unchanged. */
+  const presets = computed<BackgroundItem[]>(() => [
     {
       id: 'colorful-wave',
-      label: 'Colorful Wave',
-      description: 'Animated wave on cross grid',
+      label: t('stage.background-picker.presets.colorful-wave.label'),
+      description: t('stage.background-picker.presets.colorful-wave.description'),
       kind: BackgroundKind.Wave,
       component: markRaw(DefaultBackgroundPreview),
     },
     {
       id: 'transparent',
-      label: 'Transparent',
-      description: 'Reveal the native background behind the WebView',
+      label: t('stage.background-picker.presets.transparent.label'),
+      description: t('stage.background-picker.presets.transparent.description'),
       kind: BackgroundKind.Transparent,
       component: markRaw(TransparentBackgroundPreview),
     },
-  ]
+  ])
 
   const loading = ref(false)
   const galleryOptions = useLocalStorage<BackgroundPreferenceRecord>('settings/theme/background/gallery-options', {})
-  const galleryId = useLocalStorage<string>('settings/theme/background/gallery-active', presets[0]?.id)
+  const galleryId = useLocalStorage<string>('settings/theme/background/gallery-active', presets.value[0]?.id)
   const storedOptions = ref<BackgroundItem[]>([])
 
   const sampledColor = useLocalStorage<string>('settings/theme/background/sampled-color', '')
@@ -59,7 +62,7 @@ export const useBackgroundStore = defineStore('background', () => {
     set: value => galleryId.value = value,
   })
   const options = computed(() => {
-    const merged = [...presets, ...storedOptions.value].map((option) => {
+    const merged = [...presets.value, ...storedOptions.value].map((option) => {
       const stored = galleryOptions.value[option.id]
       if (!stored || stored.blur === undefined || option.blur === stored.blur)
         return option
