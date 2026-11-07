@@ -14,12 +14,14 @@ const emptyConfig = { baseUrl: '', hasToken: false, tokenPreview: '' }
 
 const invokeMocks = vi.hoisted(() => ({
   getConfig: vi.fn(),
+  request: vi.fn(),
 }))
 
 // The renderer reaches the main process through these, and no call here needs it.
-vi.mock('@proj-airi/electron-vueuse', () => ({
-  useElectronEventaInvoke: () => invokeMocks.getConfig,
-}))
+vi.mock('@proj-airi/electron-vueuse', async () => {
+  const { homeAssistantGetConfig } = await import('../../../shared/eventa/home-assistant')
+  return { useElectronEventaInvoke: (event: unknown) => event === homeAssistantGetConfig ? invokeMocks.getConfig : invokeMocks.request }
+})
 
 type SyncedRuntime = ReturnType<typeof usePiniaSynced>
 const windows: Array<{ app: ReturnType<typeof createApp>, pinia: ReturnType<typeof createPinia> }> = []
@@ -55,6 +57,7 @@ describe('tamagotchiHomeAssistantStore', () => {
   beforeEach(() => {
     invokeMocks.getConfig.mockReset()
     invokeMocks.getConfig.mockResolvedValue(emptyConfig)
+    invokeMocks.request.mockReset()
   })
 
   afterEach(() => {
@@ -63,6 +66,24 @@ describe('tamagotchiHomeAssistantStore', () => {
       disposePinia(window.pinia)
     }
     localStorage.clear()
+  })
+
+  it('refuses an already resolved tool after the service is disabled', async () => {
+    invokeMocks.getConfig.mockResolvedValue({ baseUrl: 'https://example.com', hasToken: true, tokenPreview: '' })
+    const leader = openWindow('leader-only')
+    await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+    setActivePinia(leader.pinia)
+    const settings = useHomeAssistantStore()
+    settings.enabled = true
+    const runtime = useTamagotchiHomeAssistantStore()
+    await runtime.refresh()
+    const tool = useLlmToolsStore().activeTools.find(tool => tool.group === 'home-assistant')
+    expect(tool).toBeDefined()
+    settings.enabled = false
+    const result = await tool!.execute({}, { messages: [], toolCallId: 'example-call' })
+    expect(result).toBe('Home Assistant is disabled or unconfigured.')
+    expect(invokeMocks.request).not.toHaveBeenCalled()
+    await runtime.refresh()
   })
 
   // https://github.com/moeru-ai/airi/pull/2903#discussion_r4241734042

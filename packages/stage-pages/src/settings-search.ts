@@ -36,5 +36,6 @@ export const settingsSearchModules: Readonly<Record<string, SettingsSearchModule
   'providers:comfyui': () => import('./pages/settings/providers/artistry/comfyui.search'),
   'settings:scene': () => import('./pages/settings/scene/index.search'),
   'settings:system': { routes: ['/settings/system'] },
+  'system:session-features': () => import('./pages/settings/system/session-features.search'),
   'system:experimental': () => import('./pages/settings/system/experimental.search'),
 }

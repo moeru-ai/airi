@@ -15,6 +15,12 @@ const settings = computed(() => [
     to: '/settings/system/general',
   },
   {
+    title: t('settings.session-features.title'),
+    description: t('settings.session-features.description'),
+    icon: 'i-solar:checklist-minimalistic-bold-duotone',
+    to: '/settings/system/session-features',
+  },
+  {
     title: t('settings.pages.system.color-scheme.title'),
     description: t('settings.pages.system.color-scheme.description'),
     icon: 'i-solar:pallete-2-bold-duotone',

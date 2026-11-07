@@ -12,6 +12,7 @@ import { useLlmStreamingControlStore } from './ai/chat-llm/streaming-control'
 import { useChatStore } from './chat'
 import { useSpeechStore } from './modules/speech'
 import { useSettingsAudioDevice } from './settings/audio-device'
+import { useSpeechOutputControlStore } from './speech-output-control'
 import { useVoiceStore } from './voice'
 
 const cleanups: (() => void)[] = []
@@ -25,7 +26,12 @@ afterEach(() => {
 // https://github.com/moeru-ai/airi/issues/3153
 // ROOT CAUSE:
 // Cancelling a response also cancels chat generation and tool handlers. Disabling speech now cancels only its producers and playback.
-it.each(['local', 'remote'] as const)('issue #3153: disabling %s speech preserves the chat turn and its tool handlers', async (source) => {
+it.each([
+  { source: 'local', setting: 'module' },
+  { source: 'remote', setting: 'module' },
+  { source: 'local', setting: 'mute' },
+  { source: 'remote', setting: 'mute' },
+] as const)('issue #3153: disabling $setting speech for $source preserves the chat turn and its tool handlers', async ({ source, setting }) => {
   const pinia = createPinia()
   let voice!: ReturnType<typeof useVoiceStore>
   const app = createApp({ setup() {
@@ -43,7 +49,7 @@ it.each(['local', 'remote'] as const)('issue #3153: disabling %s speech preserve
   settings.enabled = true
   const cancelChat = vi.spyOn(useChatStore(pinia), 'cancelTurn')
   const control = useLlmStreamingControlStore(pinia)
-  const turn = { sessionId: 'alice', turnId: `speech-disabled-${source}` }
+  const turn = { sessionId: 'alice', turnId: `speech-disabled-${source}-${setting}` }
   const generation = control.beginTurn({ turnId: turn.turnId })
   const tool = vi.fn()
   generation.on({ name: 'test.continue', prompt: 'Continue the task.' }, tool)
@@ -73,7 +79,10 @@ it.each(['local', 'remote'] as const)('issue #3153: disabling %s speech preserve
   }
   await expect.poll(() => played.mock.calls.length).toBe(1)
 
-  settings.enabled = false
+  if (setting === 'module')
+    settings.enabled = false
+  else
+    useSpeechOutputControlStore(pinia).setSpeechMuted(true)
 
   expect(cancelChat).not.toHaveBeenCalled()
   expect(voice.activeTurns).toEqual([turn])
@@ -81,6 +90,8 @@ it.each(['local', 'remote'] as const)('issue #3153: disabling %s speech preserve
   await expect.poll(() => stopped.mock.calls.length).toBe(1)
   await control.dispatchWith('<|CALL ["test.continue"]|>', { turnId: turn.turnId })
   expect(tool).toHaveBeenCalledOnce()
+  settings.enabled = true
+  useSpeechOutputControlStore(pinia).setSpeechMuted(false)
   if (source === 'local')
     expect(await voice.getSpeech(turn)!.write('Later text.')).toEqual({ status: 'closed' })
   else
@@ -89,6 +100,56 @@ it.each(['local', 'remote'] as const)('issue #3153: disabling %s speech preserve
   expect(voice.activeTurns).toEqual([])
   expect(cancelChat).not.toHaveBeenCalled()
   await expect(generation.done).resolves.toEqual({ type: 'completed' })
+})
+
+it.each(['local', 'remote'] as const)('does not create %s speech output while global output is muted', async (source) => {
+  const pinia = createPinia()
+  let voice!: ReturnType<typeof useVoiceStore>
+  const app = createApp({ setup() {
+    voice = useVoiceStore()
+    return () => null
+  } }).use(pinia).use(createI18n({ legacy: false, locale: 'en', messages: { en: {} }, missingWarn: false, fallbackWarn: false }))
+  app.mount(document.createElement('div'))
+  cleanups.push(() => {
+    app.unmount()
+    disposePinia(pinia)
+  })
+  const settings = useSpeechStore(pinia)
+  settings.enabled = true
+  const controls = useSpeechOutputControlStore(pinia)
+  controls.setSpeechMuted(true)
+  const output: SpeechOutput = {
+    playback: new Playback({ nowMs: () => 0, play: () => ({ done: Promise.resolve({ throughMs: 0 }), stop: async () => ({ throughMs: 0 }) }) }),
+    stream: vi.fn(async () => new ReadableStream({ start(controller) { controller.close() } })),
+  }
+  const createOutput = vi.fn(() => output)
+  cleanups.push(voice.connectOutput(createOutput))
+  const turn = { sessionId: 'example-session', turnId: `muted-${source}` }
+  const control = useLlmStreamingControlStore(pinia)
+  const generation = control.beginTurn({ turnId: turn.turnId })
+  const handler = vi.fn()
+  generation.on({ name: 'test.continue', prompt: 'Continue.' }, handler)
+  const command = defineInvoke(getSpeechBusContext(), voiceSpeechCommand)
+  const producer = { originId: 'example-window', producerId: 'answer', turn }
+  if (source === 'local')
+    expect(voice.startResponse(turn)).toBe(false)
+  else
+    expect(await command({ ...producer, type: 'open', purpose: 'answer' })).toEqual({ status: 'closed' })
+  expect(createOutput).not.toHaveBeenCalled()
+  expect(voice.getSpeech(turn)).toBeUndefined()
+  expect(voice.activeTurns).toEqual([])
+  await control.dispatchWith('<|CALL ["test.continue"]|>', { turnId: turn.turnId })
+  expect(handler).toHaveBeenCalledOnce()
+  controls.setSpeechMuted(false)
+  if (source === 'remote')
+    expect(await command({ ...producer, type: 'open', purpose: 'answer' })).toEqual({ status: 'closed' })
+  expect(createOutput).not.toHaveBeenCalled()
+  await voice.finishResponse(turn)
+  await expect(generation.done).resolves.toEqual({ type: 'completed' })
+  const next = { ...turn, turnId: `next-${source}` }
+  expect(voice.startResponse(next)).toBe(true)
+  expect(createOutput).toHaveBeenCalledOnce()
+  await voice.finishResponse(next)
 })
 
 // A level meter in a menu asks for the level when a hover opens the menu. Users saw the system microphone indicator

@@ -2,6 +2,7 @@ import type { GenerationProvider, GenerationRequest } from '@proj-airi/provider-
 import type { CommonContentPart, CompletionToolCall, Tool, ToolChoice } from '@xsai/shared-chat'
 
 import type { AssistantTurn, Conversation } from '../messages/types'
+import type { SessionFeatures } from './session-features'
 
 /** Describes whether generation usage came from the provider or a local fallback. */
 export type LlmUsageSource = 'reported' | 'estimated' | 'unavailable'
@@ -29,6 +30,8 @@ export type StreamEvent
 
 /** Options shared by generation adapters. SDK payloads stay inside each adapter. */
 export interface StreamOptions {
+  /** Captured session policy for host adapters. It never enters the provider payload. */
+  features?: SessionFeatures
   /**
    * Adapts the conversation to the provider request that the runtime resolved.
    *

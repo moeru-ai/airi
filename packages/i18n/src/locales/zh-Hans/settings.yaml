@@ -248,9 +248,9 @@ live2d:
   clear-model-cache: 清除模型缓存
   expressions:
     title: 表情
-    override-toggle: 表情系统
+    override-toggle: 使用 AIRI 处理表情
     sdk-preset-preserved-notice: >
-      禁用时仍保留 SDK 表情管理器和眨眼功能。
+      关闭后使用模型自带的表情处理。
     no-expression: 此模型没有可用表情。
     reset: 重置所有表情
 microphone: 麦克风
@@ -1041,8 +1041,8 @@ pages:
               如果您的提供商没有返回 verbose_json 结果。置信度阈值将不会影响转录。
     memory-long-term:
       description: 长期记忆
-      enable: 使用长期记忆
-      enable-description: 角色会记住聊过的事。关掉后，它什么都不记得。
+      enable: 默认使用长期记忆
+      enable-description: 可在单个会话中另行设置。
       memories:
         title: 记忆
         description: 这是每个角色自己记下的小秘密，彼此看不到。共享后所有角色都会知道，而且收不回来哦。你可以删掉任何一条，但不能改写。
@@ -1240,8 +1240,8 @@ pages:
         100: 适合时都可发送（100%）
       title: 表情包
       description: 为聊天回复添加可选的图片表情
-      enable: 启用表情包
-      enable-description: 允许角色根据名称和情绪标签，为适合的回复选择一张表情。
+      enable: 默认使用表情包
+      enable-description: 可在单个会话中另行设置。
       local-only: 图片保留在当前设备。云端聊天同步目前仅传输文字。
       catalog: 可用表情
       unavailable: 表情不可用
@@ -2689,3 +2689,52 @@ wip:
 streamer-mode:
   title: 直播模式
   description: 隐藏角色窗口中的麦克风和登录提示。
+
+session-features:
+  title: '会话默认设置'
+  description: '会话默认的回复行为。'
+  session-title: '会话功能'
+  session-action: '设置“{title}”的功能'
+  close: '关闭会话功能'
+  restore-all: '恢复全部'
+  open-settings: '前往设置'
+  blocked:
+    search-disabled: '搜索服务已关闭。'
+    stickers-empty: '暂无可用表情包。'
+    search-unconfigured: '请先配置搜索服务。'
+    vision-disabled: '视觉模块已关闭。'
+    vision-unconfigured: '请先配置视觉服务和模型。'
+    vision-context-disabled: '视觉信息未向对话开放。'
+    mcp-unavailable: '暂无已连接的 MCP 工具。'
+    tools-unavailable: '此来源暂无可用工具。'
+    home-assistant-disabled: '家居控制已关闭。'
+    home-assistant-unconfigured: '请先配置家居控制。'
+    parent-restricted: '受原会话的权限限制。'
+  saving: '正在保存…'
+  missing-session: '此会话已不可用，请返回会话列表。'
+  save-error: '无法保存功能设置，请重试。'
+  tasks-disabled: '此会话已关闭后台任务。'
+  groups:
+    behavior: '回复与行为'
+    tools: '工具与信息'
+  tools:
+    web-search: '联网搜索'
+    mcp: 'MCP 工具'
+    plugins: '插件工具'
+    home-assistant: '家居控制'
+  features:
+    reactions:
+      label: '回复表情与动作'
+      description: '关闭语音时也可触发表情和动作。'
+    stickers:
+      label: '表情包'
+    skills:
+      label: 'Skill 指令'
+      description: '将已启用的 Skill 指令用于回复。'
+    tasks:
+      label: '允许启动后台任务'
+      detail: '不会停止正在运行的任务，请到任务列表停止。'
+    memory:
+      label: '长期记忆'
+    screen:
+      label: '使用屏幕信息'

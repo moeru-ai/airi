@@ -1,4 +1,4 @@
-import type { VoiceInterruptionEvent } from '@proj-airi/core-agent'
+import type { SessionFeatureOverrides, VoiceInterruptionEvent } from '@proj-airi/core-agent'
 
 import type { ChatHistoryItem } from './chat'
 
@@ -20,6 +20,8 @@ export interface ChatSessionTask {
 }
 
 export interface ChatSessionMeta {
+  /** Omitted feature choices follow the user's current defaults. */
+  features?: SessionFeatureOverrides
   sessionId: string
   userId: string
   characterId: string

@@ -93,4 +93,14 @@ describe('speech output control', () => {
     store.setSpeechMuted(false)
     expect(store.speechVolume).toBe(1)
   })
+
+  it('treats persisted zero volume as speech off before a producer can open', () => {
+    localStorage.setItem('settings/speech/enabled', 'true')
+    localStorage.setItem('settings/speech/output-volume', '0')
+    const store = createStore()
+    expect(store.speechMuted).toBe(true)
+    store.setSpeechMuted(false)
+    expect(store.speechMuted).toBe(false)
+    expect(store.speechVolume).toBe(1)
+  })
 })

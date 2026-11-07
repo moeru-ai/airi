@@ -51,3 +51,11 @@ describe('memory tools', () => {
     expect(composeMemoryPrompt('')).toContain('The memory index is empty.')
   })
 })
+
+it('gives a read-only conversation no instructions to write or forget memories', () => {
+  const prompt = composeMemoryPrompt('entry: a remembered fact', true)
+  expect(prompt).toContain('entry: a remembered fact')
+  expect(prompt).toContain(READ_MEMORY_TOOL_NAME)
+  expect(prompt).not.toContain(WRITE_MEMORY_TOOL_NAME)
+  expect(prompt).not.toContain(FORGET_MEMORY_TOOL_NAME)
+})

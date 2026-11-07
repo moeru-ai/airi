@@ -789,6 +789,7 @@ Option item within combobox (uses provide/inject).
 ### SelectTab
 
 Tab-like selection using radio buttons with animated indicator.
+Arrow keys change the selection. Each option shows a keyboard focus outline. Reduced motion disables the indicator transition.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
@@ -851,6 +852,12 @@ Displays field information on the left and a compact action button on the right.
 | `placement` | `'left' \| 'right'` | `'right'` | Switch position |
 
 **v-model**: `modelValue: boolean`
+
+**Slots**: `label`, `description`, `label-suffix`.
+
+`label-suffix` places an auxiliary control beside the label text. Its button stays outside the clickable label.
+The `description` slot also stays outside the clickable label, so it can contain a link.
+Both slots preserve the label association and connect descriptions with `aria-describedby`. Other fields retain their wrapping label.
 
 ### FieldTextArea
 

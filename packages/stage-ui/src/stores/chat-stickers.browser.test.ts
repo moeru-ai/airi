@@ -71,6 +71,7 @@ it('captures the direct ingest session, provider, and supplement before waiting 
   const prompts = useLlmToolsetPromptsStore(pinia)
   prompts.registerToolsetPrompts('test', [{ id: 'original', content: 'Original supplement' }])
   const catalog = Promise.withResolvers<undefined>()
+  useStickersStore(pinia).enabled = true
   vi.spyOn(useStickersStore(pinia), 'selectCatalogForReply').mockReturnValue(catalog.promise)
   const provider: GenerationProvider = {
     generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.com/' } }),
@@ -110,7 +111,8 @@ it.each(['cancel', 'cleanup', 'delete', 'direct-delete'] as const)('cancels dire
   await sessions.initialize()
   const sessionId = sessions.activeSessionId
   const catalog = Promise.withResolvers<undefined>()
-  vi.spyOn(useStickersStore(pinia), 'selectCatalogForReply').mockReturnValue(catalog.promise)
+  useStickersStore(pinia).enabled = true
+  const sampling = vi.spyOn(useStickersStore(pinia), 'selectCatalogForReply').mockReturnValue(catalog.promise)
   const provider: GenerationProvider = {
     generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.com/' } }),
   }
@@ -118,6 +120,7 @@ it.each(['cancel', 'cleanup', 'delete', 'direct-delete'] as const)('cancels dire
   const pending = chat.ingest('Cancelled request', { model: 'test-model', chatProvider: provider }, sessionId)
   const rejected = expect(pending).rejects.toMatchObject({ name: 'AbortError' })
   try {
+    await expect.poll(() => sampling.mock.calls.length).toBe(1)
     if (operation === 'cancel')
       await chat.cancelPendingSends(sessionId)
     else if (operation === 'cleanup')

@@ -2,6 +2,11 @@
 
 `@proj-airi/core-agent` owns scheduling, context composition, tool rounds, and generation events. Stage applications provide persistence and UI through its ports. Provider registration and configuration belong to `provider-inference`. Authentication and Flux billing belong to the gateway.
 
+`SessionFeatures` describes a conversation's permitted optional behavior. `SessionFeatureOverrides` keeps explicit choices while omitted choices inherit user defaults.
+Tool overrides merge by source. Restoring `tools.mcp` changes only MCP inheritance. Resolved snapshots retain the selected source list.
+The orchestrator copies each send's feature snapshot before queueing. It applies skill and sticker gates and exposes separate speech and reaction permissions.
+Hosts apply memory, tool-source, context, and output policies. See [conversation features](../../docs/ai/context/session-features.md) for the complete contract.
+
 ## Conversation and protocol projection
 
 `Conversation` contains ordered `Turn` values. `UserTurn` owns user content. `SystemTurn` owns instructions or application context. Its authority distinguishes system instructions, developer instructions, and context data. Application context does not gain instruction authority merely because the application supplied it.

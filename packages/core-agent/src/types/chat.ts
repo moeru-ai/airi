@@ -3,6 +3,7 @@ import type { AssistantMessage, CommonContentPart, CompletionToolCall, Message, 
 
 import type { AssistantTurn } from '../messages/types'
 import type { DecisionQuestion } from '../runtime/recipe'
+import type { SessionFeatures } from './session-features'
 
 export interface ChatSlicesText {
   type: 'text'
@@ -152,6 +153,10 @@ export interface ChatStreamEventContext {
   input?: WebSocketEventInputs
   /** Whether the reply speaks on the host. Scene replies and background tasks stay silent. */
   speaks?: boolean
+  /** Whether this reply can drive the host character independently of speech. */
+  reactions?: boolean
+  /** Request snapshot shared by prompt preparation and output consumers. */
+  features?: SessionFeatures
 }
 
 export type ChatStreamEvent

@@ -36,12 +36,10 @@ export const useWebSearchStore = defineStore('web-search', () => {
   })
   const configured = computed(() => enabled.value && activeApiKey.value.trim().length > 0)
 
-  // Keep the safety/when-to-search guidance mounted iff the tool is mounted.
-  // Clauses must key off the same `configured` gate the tool does, never a raw
-  // key read, so the model is never told about a tool it cannot call.
+  // The service switch controls both tool admission and its safety instructions.
   watch(configured, (isConfigured) => {
     if (isConfigured)
-      toolsetPromptsStore.registerToolsetPrompts('web-search', [{ id: 'web-search', content: WEB_SEARCH_TOOLSET_PROMPT }])
+      toolsetPromptsStore.registerToolsetPrompts('web-search', [{ id: 'web-search', group: 'web-search', content: WEB_SEARCH_TOOLSET_PROMPT }])
     else
       toolsetPromptsStore.clearToolsetPrompts('web-search')
   }, { immediate: true })

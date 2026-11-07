@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { SelectTab } from '@proj-airi/ui'
-import { ref } from 'vue'
+import { shallowRef } from 'vue'
 
-const focusMode = ref<'mode-1' | 'mode-2' | 'mode-3'>('mode-1')
-const quality = ref<'low' | 'balanced' | 'high'>('balanced')
-const locked = ref<'auto' | 'manual'>('auto')
+const focusMode = shallowRef<'mode-1' | 'mode-2' | 'mode-3'>('mode-1')
+const quality = shallowRef<'low' | 'balanced' | 'high'>('balanced')
+const locked = shallowRef<'auto' | 'manual'>('auto')
 
 const focusOptions = [
   {
@@ -49,9 +49,9 @@ const lockedOptions = [
       id="default"
       title="Mode selection"
     >
-      <div class="max-w-4xl w-full flex flex-col gap-4">
-        <SelectTab v-model="focusMode" :options="focusOptions" />
-        <p class="text-sm text-neutral-600 dark:text-neutral-300">
+      <div :class="['max-w-4xl w-full flex flex-col gap-4']">
+        <SelectTab v-model="focusMode" :options="focusOptions" :aria-label="focusOptions.map(option => option.label).join(', ')" />
+        <p :class="['text-sm text-neutral-600 dark:text-neutral-300']">
           Selected mode: {{ focusMode }}
         </p>
       </div>
@@ -61,9 +61,9 @@ const lockedOptions = [
       id="with-descriptions"
       title="Sizing and descriptions"
     >
-      <div class="max-w-3xl w-full flex flex-col gap-4">
-        <SelectTab v-model="quality" size="sm" :options="qualityOptions" />
-        <p class="text-sm text-neutral-600 dark:text-neutral-300">
+      <div :class="['max-w-3xl w-full flex flex-col gap-4']">
+        <SelectTab v-model="quality" size="sm" tab-space="compact" :options="qualityOptions" />
+        <p :class="['text-sm text-neutral-600 dark:text-neutral-300']">
           Rendering quality: {{ quality }}
         </p>
       </div>
@@ -84,10 +84,10 @@ const lockedOptions = [
       id="disabled-readonly"
       title="Disabled and readonly states"
     >
-      <div class="max-w-3xl w-full flex flex-col gap-4">
+      <div :class="['max-w-3xl w-full flex flex-col gap-4']">
         <SelectTab v-model="locked" :options="lockedOptions" disabled />
         <SelectTab v-model="locked" :options="lockedOptions" readonly />
-        <p class="text-sm text-neutral-600 dark:text-neutral-300">
+        <p :class="['text-sm text-neutral-600 dark:text-neutral-300']">
           Locked selection mirrors both states: {{ locked }}
         </p>
       </div>

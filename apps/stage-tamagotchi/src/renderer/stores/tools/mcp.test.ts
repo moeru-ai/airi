@@ -70,7 +70,7 @@ describe('useTamagotchiMcpToolsStore', async () => {
       arguments: JSON.stringify({ query: 'hello', limit: 10 }),
     }, toolOptions)
 
-    expect(invokeMocks.listMcpTools).toHaveBeenCalledTimes(1)
+    expect(invokeMocks.listMcpTools).toHaveBeenCalledTimes(2)
     expect(invokeMocks.callMcpTool).toHaveBeenCalledWith({
       name: 'filesystem::search',
       arguments: { query: 'hello', limit: 10 },
@@ -90,8 +90,18 @@ describe('useTamagotchiMcpToolsStore', async () => {
       isError: false,
     })
 
-    store.dispose()
+    await store.dispose()
 
     expect(llmToolsStore.tools.filter(tool => tool.id.startsWith('mcp:'))).toEqual([])
+  })
+
+  it('removes the MCP source when discovery reports no available tools', async () => {
+    const tools = useLlmToolsStore()
+    const store = useTamagotchiMcpToolsStore()
+    await store.refresh()
+    expect(tools.tools.some(tool => tool.group === 'mcp')).toBe(true)
+    invokeMocks.listMcpTools.mockResolvedValueOnce([])
+    await store.refresh()
+    expect(tools.tools.some(tool => tool.group === 'mcp')).toBe(false)
   })
 })

@@ -9,7 +9,7 @@ import { computed } from 'vue'
  * Connects chat speech controls to the active Stage output host.
  *
  * Manual interruption stops generation and playback, then records an agent control event.
- * Mute is persisted by the shared store and also blocks future TTS sessions.
+ * Mute and volume are global output choices. They do not write conversation preferences.
  */
 export function useStopSpeakingButton(options: {
   /**
@@ -42,24 +42,24 @@ export function useStopSpeakingButton(options: {
   }
 
   async function toggleSpeechMuted() {
-    let wasSpeaking: boolean
+    const muted = !speechMuted.value
+    let speakingState: boolean | Promise<boolean>
     try {
-      wasSpeaking = await (options.resolveSpeakingState?.() ?? nowSpeaking.value)
+      speakingState = options.resolveSpeakingState?.() ?? nowSpeaking.value
     }
     catch {
-      // Muting is the user action; analytics must not make it fail when an
-      // auxiliary renderer cannot reach the output host during a reload.
-      speechOutputControlStore.setSpeechMuted(!speechMuted.value)
+      // Output still changes when another window cannot provide playback telemetry.
+      speechOutputControlStore.setSpeechMuted(muted)
       return
     }
 
-    const muted = !speechMuted.value
-
     speechOutputControlStore.setSpeechMuted(muted)
-    trackSpeechMuteToggled({
-      muted,
-      was_speaking: wasSpeaking,
-    })
+    try {
+      trackSpeechMuteToggled({ muted, was_speaking: await speakingState })
+    }
+    catch {
+      // Telemetry does not delay or reverse the output choice.
+    }
   }
 
   return {

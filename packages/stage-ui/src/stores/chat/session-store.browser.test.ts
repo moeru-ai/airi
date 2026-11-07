@@ -2,16 +2,36 @@ import type { LeadershipMode, SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
 import type { ChatSessionMeta } from '../../types/chat-session'
 
+import en from '@proj-airi/i18n/locales/en'
+
+import { DEFAULT_SESSION_FEATURES } from '@proj-airi/core-agent'
 import { createPinia, disposePinia, setActivePinia } from 'pinia'
 import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createApp, defineComponent, h } from 'vue'
+import { render } from 'vitest-browser-vue'
+import { page, userEvent } from 'vitest/browser'
+import { createApp, defineComponent, effectScope, h, nextTick, ref } from 'vue'
 import { createI18n } from 'vue-i18n'
+import { createMemoryHistory, createRouter } from 'vue-router'
 
+import SessionFeatureSettings from '../../components/scenarios/chat/components/session-feature-settings.vue'
+import SessionsDialog from '../../components/scenarios/chat/components/sessions-dialog.vue'
+
+import { useSessionOutputFeatures } from '../../composables/session-output-features'
 import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
+import { useLlmToolsStore } from '../ai/chat-llm/tools'
 import { useAuthStore } from '../auth'
+import { useMemoryStore } from '../memory'
 import { useAiriCardStore } from '../modules/airi-card'
+import { useHomeAssistantStore } from '../modules/home-assistant'
+import { useStickersStore } from '../modules/stickers'
+import { useVisionStore } from '../modules/vision'
+import { useWebSearchStore } from '../modules/web-search'
 import { useSyncPreferencesStore } from '../sync-preferences'
+import { useChatFeaturesStore } from './features-store'
+
+import '@unocss/reset/tailwind.css'
+import 'virtual:uno.css'
 
 vi.mock('../../database/repos/chat-sessions.repo', () => ({
   chatSessionsRepo: {
@@ -653,4 +673,353 @@ describe('chat session synchronization', () => {
     await vi.waitFor(() => expect(chatSyncMocks.clients).toHaveLength(2))
     expect(chatSyncMocks.clients[1]?.connect).toHaveBeenCalledOnce()
   })
+})
+
+describe('conversation feature inheritance', () => {
+  it('uses existing module preferences as defaults and resets only the conversation exceptions', async () => {
+    const context = createSyncedContext(`chat-module-defaults:${crypto.randomUUID()}`, 'leader-only')
+    await vi.waitFor(() => expect(context.runtime.isLeader()).toBe(true))
+    const sessions = useChatSessionStore(context.pinia)
+    await sessions.initialize()
+    const memory = useMemoryStore(context.pinia)
+    const stickers = useStickersStore(context.pinia)
+    memory.enabled = false
+    stickers.enabled = false
+    const inherited = await sessions.createSession('default')
+    const custom = await sessions.createSession('default', { features: { memory: 'read', stickers: true } })
+    expect(sessions.sessionFeatures[inherited]?.memory).toBe('off')
+    expect(sessions.sessionFeatures[inherited]?.stickers).toBe(false)
+    expect(sessions.sessionFeatures[custom]?.memory).toBe('read')
+    expect(sessions.sessionFeatures[custom]?.stickers).toBe(true)
+    memory.enabled = true
+    stickers.enabled = true
+    await sessions.setSessionFeatures(custom, { memory: 'off', stickers: false })
+    expect(sessions.sessionFeatures[inherited]?.memory).toBe('write')
+    expect(sessions.sessionFeatures[inherited]?.stickers).toBe(true)
+    expect(sessions.sessionFeatures[custom]?.memory).toBe('off')
+    expect(sessions.sessionFeatures[custom]?.stickers).toBe(false)
+    await sessions.setSessionFeatures(custom)
+    expect(sessions.sessionMetas[custom]?.features).toBeUndefined()
+    expect(sessions.sessionFeatures[custom]).toEqual(sessions.sessionFeatures[inherited])
+    expect(memory.enabled).toBe(true)
+    expect(stickers.enabled).toBe(true)
+  })
+
+  it('synchronizes individual tool choices without fixing their sibling sources', async () => {
+    const namespace = `chat-tool-choices:${crypto.randomUUID()}`
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+    const leader = useChatSessionStore(leaderContext.pinia)
+    await leader.initialize()
+    const followerContext = createSyncedContext(namespace, 'follower-only')
+    const follower = useChatSessionStore(followerContext.pinia)
+    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+    await follower.initialize()
+    const sessionId = await follower.createSession('default', { setActive: false })
+    await follower.setSessionFeatures(sessionId, { tools: { mcp: false } })
+    await follower.setSessionFeatures(sessionId, { tools: { 'web-search': false } })
+    await vi.waitFor(() => expect(leader.sessionMetas[sessionId]?.features?.tools).toEqual({ 'mcp': false, 'web-search': false }))
+    expect(follower.sessionFeatures[sessionId]?.tools).toContain('plugins')
+    await leader.setSessionFeatures(sessionId, { tools: { plugins: false } })
+    await vi.waitFor(() => expect(follower.sessionFeatures[sessionId]?.tools).not.toContain('plugins'))
+    await follower.setSessionFeatures(sessionId, {}, ['tools.mcp'])
+    expect(follower.sessionMetas[sessionId]?.features?.tools).toEqual({ 'plugins': false, 'web-search': false })
+    expect(follower.sessionFeatures[sessionId]?.tools).toContain('mcp')
+    await follower.setSessionFeatures(sessionId)
+    expect(follower.sessionMetas[sessionId]?.features).toBeUndefined()
+    expect(follower.sessionFeatures[sessionId]?.tools).toEqual(DEFAULT_SESSION_FEATURES.tools)
+  })
+
+  it('persists explicit choices through the leader, follows defaults, and restores individual choices without a feedback write', async () => {
+    const namespace = `chat-features:${crypto.randomUUID()}`
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+    const leader = useChatSessionStore(leaderContext.pinia)
+    await leader.initialize()
+    const followerContext = createSyncedContext(namespace, 'follower-only')
+    const follower = useChatSessionStore(followerContext.pinia)
+    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+    await follower.initialize()
+    const defaults = useChatFeaturesStore(leaderContext.pinia)
+    defaults.resetState()
+    const first = await follower.createSession('default', { setActive: false, features: { speech: false, memory: 'read' } })
+    const second = await follower.createSession('default', { setActive: false })
+    const selected = follower.activeSessionId
+
+    defaults.setDefaults({ reactions: false, tasks: false })
+    await vi.waitFor(() => expect(follower.sessionFeatures[second]?.reactions).toBe(false))
+    expect(follower.sessionFeatures[first]?.memory).toBe('read')
+    await follower.setSessionFeatures(first, { reactions: true })
+    await vi.waitFor(() => expect(leader.sessionMetas[first]?.features?.reactions).toBe(true))
+    const writes = vi.mocked(chatSessionsRepo.saveSession).mock.calls.length
+    await new Promise(resolve => setTimeout(resolve, 80))
+    expect(vi.mocked(chatSessionsRepo.saveSession).mock.calls.length).toBe(writes)
+    expect(follower.activeSessionId).toBe(selected)
+
+    await follower.setSessionFeatures(first, {}, ['reactions'])
+    expect(follower.sessionMetas[first]?.features?.reactions).toBeUndefined()
+    expect(follower.sessionFeatures[first]?.reactions).toBe(false)
+    expect(follower.sessionMetas[first]?.features?.memory).toBe('read')
+    await follower.setSessionFeatures(first)
+    expect(follower.sessionMetas[first]?.features).toBeUndefined()
+    expect(follower.sessionFeatures[first]?.memory).toBe('write')
+    defaults.resetState()
+  })
+
+  it('keeps branch choices independent and prevents task sessions from extending parent access', async () => {
+    const context = createSyncedContext(`chat-feature-branches:${crypto.randomUUID()}`, 'leader-only')
+    await vi.waitFor(() => expect(context.runtime.isLeader()).toBe(true))
+    const sessions = useChatSessionStore(context.pinia)
+    await sessions.initialize()
+    useChatFeaturesStore(context.pinia).resetState()
+    const toolChoices = Object.fromEntries(DEFAULT_SESSION_FEATURES.tools.map(group => [group, group === 'mcp']))
+    const parent = await sessions.createSession('default', { features: { memory: 'read', tools: toolChoices, reactions: false } })
+    const branch = await sessions.forkSession({ fromSessionId: parent })
+    expect(sessions.sessionMetas[branch]?.features).toEqual(sessions.sessionMetas[parent]?.features)
+    await sessions.setSessionFeatures(branch, { reactions: true })
+    expect(sessions.sessionFeatures[parent]?.reactions).toBe(false)
+    expect(sessions.sessionFeatures[branch]?.reactions).toBe(true)
+    const task = await sessions.createSession('default', {
+      setActive: false,
+      recipeId: 'user:example',
+      parentSessionId: parent,
+      features: { memory: 'write', tools: { ...toolChoices, plugins: true }, reactions: true },
+    })
+    expect(sessions.sessionFeatures[task]?.memory).toBe('read')
+    expect(sessions.sessionFeatures[task]?.tools).toEqual(['mcp'])
+    expect(sessions.sessionFeatures[task]?.reactions).toBe(false)
+    const exported = await sessions.exportSessions()
+    expect(exported.sessions[parent]?.meta.features).toEqual({ memory: 'read', tools: toolChoices, reactions: false })
+  })
+})
+
+it('stops only the owning speech producer and keeps expressions independent across identical turn ids', async () => {
+  const context = createSyncedContext(`chat-output-features:${crypto.randomUUID()}`, 'leader-only')
+  await vi.waitFor(() => expect(context.runtime.isLeader()).toBe(true))
+  setActivePinia(context.pinia)
+  const sessions = useChatSessionStore(context.pinia)
+  await sessions.initialize()
+  const defaults = useChatFeaturesStore(context.pinia)
+  defaults.resetState()
+  const first = await sessions.createSession('default', { features: { reactions: false } })
+  const second = await sessions.createSession('default', { features: { speech: false } })
+  const stopSpeech = vi.fn()
+  const scope = effectScope()
+  const output = scope.run(() => useSessionOutputFeatures(stopSpeech))!
+  const spoken = { sessionId: first, turnId: 'same-input-id', speaks: true, reactions: false }
+  const silent = { sessionId: second, turnId: 'same-input-id', speaks: false, reactions: true }
+  output.begin(spoken)
+  output.begin(silent)
+  expect(output.canSpeak(spoken)).toBe(true)
+  expect(output.canSpeak(silent)).toBe(false)
+  expect(output.canReactFor(spoken.turnId, first)).toBe(false)
+  expect(output.canReactFor(silent.turnId, second)).toBe(true)
+  await sessions.setSessionFeatures(first, { speech: false })
+  await nextTick()
+  expect(stopSpeech).toHaveBeenCalledExactlyOnceWith(spoken)
+  expect(output.canSpeak(spoken)).toBe(false)
+  expect(output.canReact(silent)).toBe(true)
+  await sessions.setSessionFeatures(first, {}, ['speech'])
+  expect(output.canSpeak(spoken)).toBe(false)
+  output.end(spoken)
+  const next = { ...spoken, turnId: 'next-input-id' }
+  output.begin(next)
+  expect(output.canSpeak(next)).toBe(true)
+  scope.stop()
+})
+
+it('edits available conversation choices and restores all controls, including choices outside the panel', async () => {
+  const context = createSyncedContext(`chat-feature-form:${crypto.randomUUID()}`, 'leader-only')
+  await vi.waitFor(() => expect(context.runtime.isLeader()).toBe(true))
+  const sessions = useChatSessionStore(context.pinia)
+  await sessions.initialize()
+  const defaults = useChatFeaturesStore(context.pinia)
+  defaults.resetState()
+  const sessionId = await sessions.createSession('default', { features: { speech: false, cards: false, memory: 'read', tools: { 'computer-use': false } } })
+  const tools = useLlmToolsStore(context.pinia)
+  const search = useWebSearchStore(context.pinia)
+  const memory = useMemoryStore(context.pinia)
+  const stickers = useStickersStore(context.pinia)
+  stickers.enabled = false
+  search.enabled = false
+  memory.enabled = true
+  const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/:pathMatch(.*)*', component: defineComponent({ render: () => h('div') }) }] })
+  const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
+  const screen = await render(SessionFeatureSettings, { props: { sessionId }, global: { plugins: [context.pinia, router, i18n] } })
+  try {
+    const restoreAll = screen.getByRole('button', { name: 'Reset all', exact: true })
+    await expect.element(restoreAll).toBeEnabled()
+    expect(screen.getByRole('radiogroup').elements()).toHaveLength(0)
+    expect(screen.getByRole('combobox').elements()).toHaveLength(0)
+    expect(screen.getByRole('link').elements()).toHaveLength(0)
+    expect(screen.getByRole('switch', { name: 'Automatic speech', exact: true }).elements()).toHaveLength(0)
+    const stickerSwitch = screen.getByRole('switch', { name: 'Stickers', exact: true })
+    await expect.element(stickerSwitch).not.toBeChecked()
+    await stickerSwitch.click()
+    await vi.waitFor(() => expect(sessions.sessionMetas[sessionId]?.features?.stickers).toBe(true))
+    expect(stickers.enabled).toBe(false)
+    expect(screen.getByRole('switch', { name: 'MCP tools', exact: true }).elements()).toHaveLength(0)
+    expect(screen.getByRole('region', { name: 'Tools and information', exact: true }).elements()).toHaveLength(0)
+    const memorySwitch = screen.getByRole('switch', { name: 'Long-term memory', exact: true })
+    await expect.element(memorySwitch).toBeChecked()
+    expect(sessions.sessionFeatures[sessionId]?.memory).toBe('read')
+    await memorySwitch.click()
+    await vi.waitFor(() => expect(sessions.sessionFeatures[sessionId]?.memory).toBe('off'))
+    expect(memory.enabled).toBe(true)
+
+    const reactions = screen.getByRole('switch', { name: 'Reply expressions and actions', exact: true })
+    defaults.setDefaults({ reactions: false })
+    await expect.element(reactions).not.toBeChecked()
+    await reactions.click()
+    await vi.waitFor(() => expect(sessions.sessionMetas[sessionId]?.features?.reactions).toBe(true))
+    defaults.setDefaults({ reactions: true })
+    defaults.setDefaults({ reactions: false })
+    await expect.element(reactions).toBeChecked()
+
+    expect(screen.getByRole('button', { name: /^About / }).elements()).toHaveLength(0)
+
+    stickers.enabled = true
+    await expect.element(screen.getByRole('switch', { name: 'Stickers', exact: true })).toBeChecked()
+    search.enabled = true
+    search.activeApiKey = 'test-key'
+    const vision = useVisionStore(context.pinia)
+    vision.activeProvider = 'example-vision'
+    vision.activeModel = 'example-model'
+    for (const group of ['mcp', 'plugins', 'home-assistant'] as const) {
+      tools.addTools({ id: `example:${group}`, group, type: 'function', function: { name: `example_${group}`, description: 'Example tool', parameters: { type: 'object', properties: {} } }, execute: async () => 'done' })
+    }
+    const homeAssistant = useHomeAssistantStore(context.pinia)
+    homeAssistant.enabled = true
+    homeAssistant.hasCredentials = true
+    await expect.element(screen.getByRole('switch', { name: 'Home Assistant', exact: true })).toBeVisible()
+    expect(screen.getByRole('switch').elements()).toHaveLength(10)
+    const mcp = screen.getByRole('switch', { name: 'MCP tools', exact: true })
+    const plugin = screen.getByRole('switch', { name: 'Plugin tools', exact: true })
+    const webSearch = screen.getByRole('switch', { name: 'Web search', exact: true })
+    await expect.element(mcp).toBeChecked()
+    await mcp.click()
+    await vi.waitFor(() => expect(sessions.sessionFeatures[sessionId]?.tools).not.toContain('mcp'))
+    await expect.element(mcp).toBeVisible()
+    await expect.element(plugin).toBeChecked()
+    await webSearch.click()
+    await vi.waitFor(() => expect(sessions.sessionFeatures[sessionId]?.tools).not.toContain('web-search'))
+    expect(search.enabled).toBe(true)
+    search.enabled = false
+    await expect.element(webSearch).toBeVisible()
+    await expect.element(webSearch).toBeDisabled()
+    await expect.element(screen.getByText('Search services are off.', { exact: false })).toBeVisible()
+    expect(screen.getByRole('link', { name: 'Open settings', exact: true }).element().closest('label')).toBeNull()
+    expect(sessions.sessionMetas[sessionId]?.features?.tools?.['web-search']).toBe(false)
+    search.enabled = true
+    await expect.element(webSearch).not.toBeChecked()
+    await expect.element(webSearch).toBeEnabled()
+    expect(screen.getByText('Search services are off.', { exact: false }).elements()).toHaveLength(0)
+    const screenSwitch = screen.getByRole('switch', { name: 'Use screen information', exact: true })
+    vision.enabled = false
+    await expect.element(screenSwitch).toBeDisabled()
+    await expect.element(screenSwitch).not.toBeChecked()
+    await expect.element(screen.getByText('The vision module is off.', { exact: false })).toBeVisible()
+    expect(sessions.sessionFeatures[sessionId]?.screen).toBe(true)
+    vision.enabled = true
+    await expect.element(screenSwitch).toBeChecked()
+    expect(screen.getByText('The vision module is off.', { exact: false }).elements()).toHaveLength(0)
+    expect(screen.getByRole('button', { name: /Restore defaults for/ }).elements()).toHaveLength(0)
+    await restoreAll.click()
+    await vi.waitFor(() => expect(sessions.sessionMetas[sessionId]?.features).toBeUndefined())
+    await expect.element(reactions).not.toBeChecked()
+    await expect.element(memorySwitch).toBeChecked()
+    await expect.element(mcp).toBeChecked()
+    await expect.element(webSearch).toBeChecked()
+    expect(sessions.sessionFeatures[sessionId]?.speech).toBe(true)
+    expect(sessions.sessionFeatures[sessionId]?.cards).toBe(true)
+    expect(sessions.sessionFeatures[sessionId]?.tools).toContain('computer-use')
+    await expect.element(restoreAll).toBeDisabled()
+    await screen.unmount()
+    const remounted = await render(SessionFeatureSettings, { props: { sessionId }, global: { plugins: [context.pinia, router, i18n] } })
+    await expect.element(remounted.getByRole('switch', { name: 'Reply expressions and actions', exact: true })).not.toBeChecked()
+    await remounted.unmount()
+  }
+  finally {
+    defaults.resetState()
+  }
+})
+
+it.each(['dialog', 'popover'] as const)('opens features from the %s list, restores focus, and preserves batch deletion', async (desktopMode) => {
+  await page.viewport(1280, 900)
+  const context = createSyncedContext(`chat-feature-navigation:${crypto.randomUUID()}`, 'leader-only')
+  await vi.waitFor(() => expect(context.runtime.isLeader()).toBe(true))
+  const sessions = useChatSessionStore(context.pinia)
+  await sessions.initialize()
+  const sessionId = await sessions.createSession('default')
+  const title = 'A conversation with a long title that remains identifiable while editing its features'
+  const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/:pathMatch(.*)*', component: defineComponent({ render: () => h('div') }) }] })
+  const i18n = createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false, messages: { en: { stage: { chat: { sessions: {
+    'new': 'New conversation',
+    'select': 'Select conversations',
+    'delete-selected': 'Delete selected',
+    'confirm-delete-selected': 'Confirm deletion',
+  } } }, settings: { 'session-features': {
+    'session-action': 'Features for {title}',
+    'session-title': 'Conversation features',
+    'restore-all': 'Reset all',
+    'close': 'Close conversation features',
+  } } } } })
+  const deleteSessions = vi.fn()
+  const harness = defineComponent({
+    setup() {
+      const open = ref(true)
+      return () => h(SessionsDialog, {
+        'open': open.value,
+        'onUpdate:open': (value: boolean) => open.value = value,
+        'rows': [{ meta: sessions.sessionMetas[sessionId], preview: title, isActive: true, activityAtLabel: 'now' }],
+        'isDesktop': true,
+        'isCreatingSession': false,
+        'onDeleteSessions': deleteSessions,
+        desktopMode,
+      }, { trigger: () => h('button', { type: 'button' }, 'Conversations') })
+    },
+  })
+  const screen = await render(harness, { global: { plugins: [context.pinia, router, i18n] } })
+  try {
+    const configure = screen.getByRole('button', { name: `Features for ${title}`, exact: true })
+    await configure.click()
+    const dialog = screen.getByRole('dialog', { name: 'Conversation features', exact: true })
+    await expect.element(dialog).toHaveAttribute('aria-modal', 'true')
+    await expect.poll(() => {
+      const bounds = dialog.element().getBoundingClientRect()
+      return Math.abs(bounds.x + bounds.width / 2 - window.innerWidth / 2)
+    }).toBeLessThan(2)
+    await expect.poll(() => {
+      const bounds = dialog.element().getBoundingClientRect()
+      return Math.abs(bounds.y + bounds.height / 2 - window.innerHeight / 2)
+    }).toBeLessThan(2)
+    expect(dialog.getByText(title, { exact: true }).elements()).toHaveLength(0)
+    expect(dialog.getByRole('button', { name: 'Back to conversations', exact: true }).elements()).toHaveLength(0)
+    expect(dialog.getByRole('link').elements()).toHaveLength(0)
+    expect(dialog.element().contains(document.activeElement)).toBe(true)
+    expect(sessions.activeSessionId).toBe(sessionId)
+
+    const trigger = screen.getByRole('button', { name: 'Conversations', exact: true })
+    await userEvent.keyboard('{Escape}')
+    await expect.element(dialog).not.toBeInTheDocument()
+    await expect.element(trigger).toHaveFocus()
+    await trigger.click()
+    await expect.element(screen.getByRole('button', { name: 'New conversation', exact: true })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'New conversation', exact: true }).elements()).toHaveLength(1)
+    await screen.getByRole('button', { name: 'Select conversations', exact: true }).click()
+    await expect.element(configure).not.toBeInTheDocument()
+    await screen.getByRole('button', { name: new RegExp(title) }).click()
+    await screen.getByRole('button', { name: 'Delete selected', exact: true }).click()
+    expect(deleteSessions).not.toHaveBeenCalled()
+    await screen.getByRole('button', { name: 'Confirm deletion', exact: true }).click()
+    expect(deleteSessions).toHaveBeenCalledExactlyOnceWith([sessionId])
+    await expect.element(configure).toBeVisible()
+    await configure.click()
+    await screen.getByRole('button', { name: 'Close conversation features', exact: true }).click()
+    await expect.element(dialog).not.toBeInTheDocument()
+    await expect.element(trigger).toHaveFocus()
+  }
+  finally {
+    await screen.unmount()
+  }
 })

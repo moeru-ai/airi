@@ -16,6 +16,7 @@ interface RemoteCallMessage {
   type: 'turn-call'
   fromInstanceId: string
   turnId: string
+  sessionId?: string
   callName: string
   payload?: Record<string, unknown>
 }
@@ -37,6 +38,7 @@ export const useLlmStreamingControlStore = defineStore('llm-streaming-control', 
       : [message.callName, message.payload]
     void dispatchWith(`<|CALL ${JSON.stringify(callPayload)}|>`, {
       turnId: message.turnId,
+      sessionId: message.sessionId,
       remote: true,
     })
   })
@@ -84,6 +86,7 @@ export const useLlmStreamingControlStore = defineStore('llm-streaming-control', 
               type: 'turn-call',
               fromInstanceId: instanceId,
               turnId: context.turnId,
+              sessionId: context.sessionId,
               callName: event.callName,
               ...(event.payload ? { payload: event.payload } : {}),
             })

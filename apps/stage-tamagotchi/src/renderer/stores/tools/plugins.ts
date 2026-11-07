@@ -39,12 +39,14 @@ export const useTamagotchiPluginToolsStore = defineStore('tamagotchi-plugin-tool
       'plugin-tools',
       definitions.prompts.map(definition => ({
         id: `${definition.ownerExtensionId}:${definition.id}`,
+        group: 'plugins',
         title: definition.prompt.title,
         content: definition.prompt.content,
       })),
     )
 
     const tools = definitions.tools.map((definition): ExecutableTool => ({
+      group: 'plugins',
       ...rawTool({
         name: definition.name,
         description: definition.description,

@@ -1,4 +1,4 @@
-import type { StreamOptions } from '@proj-airi/core-agent'
+import type { SessionToolGroup, StreamOptions } from '@proj-airi/core-agent'
 import type { WebSocketEvents } from '@proj-airi/server-sdk'
 import type { Tool } from '@xsai/shared-chat'
 
@@ -9,6 +9,7 @@ import { uniqBy } from 'es-toolkit'
 
 import { createWebSearchTools, debug, mcp } from '../../../tools'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
+import { useHomeAssistantStore } from '../../modules/home-assistant'
 import { useWebSearchStore } from '../../modules/web-search'
 import { withCallSummary } from './tool-call-summary'
 import { withDescribedImages } from './tool-images'
@@ -23,6 +24,8 @@ type ToolSource = Tool[] | (() => Promise<Tool[]>)
  * every source to exercise merge and precedence policy without real stores.
  */
 export interface ResolveLlmToolsOptions {
+  /** Allowed tool sources for this request. Omission selects all configured sources. */
+  groups?: readonly SessionToolGroup[]
   /**
    * MCP-backed built-in tools.
    *
@@ -151,7 +154,10 @@ async function resolveWebSearchTools(webSearchTools?: ToolSource): Promise<Tool[
  * Every tool asks the model for a summary of each call. See {@link withCallSummary}.
  */
 export async function resolveLlmTools(options: ResolveLlmToolsOptions = {}): Promise<Tool[]> {
-  const activeTools = await resolveActiveTools(options.activeTools)
+  const allows = (group: SessionToolGroup) => (!options.groups || options.groups.includes(group))
+    && (group !== 'home-assistant' || useHomeAssistantStore().configured)
+  const registered = await resolveActiveTools(options.activeTools)
+  const activeTools = registered.filter(tool => allows((tool as Tool & { group?: SessionToolGroup }).group ?? 'application'))
   const [
     builtInTools,
     debugTools,
@@ -159,10 +165,10 @@ export async function resolveLlmTools(options: ResolveLlmToolsOptions = {}): Pro
     webSearchTools,
     customTools,
   ] = await Promise.all([
-    resolveToolSource(options.builtInTools ?? mcp),
-    resolveToolSource(options.debugTools ?? debug),
-    resolveSparkCommandTools(options.sparkCommandTools),
-    resolveWebSearchTools(options.webSearchTools),
+    allows('mcp') ? resolveToolSource(options.builtInTools ?? mcp) : [],
+    allows('application') ? resolveToolSource(options.debugTools ?? debug) : [],
+    allows('application') ? resolveSparkCommandTools(options.sparkCommandTools) : [],
+    allows('web-search') ? resolveWebSearchTools(options.webSearchTools) : [],
     resolveCustomTools(options.customTools),
   ])
 
@@ -172,7 +178,11 @@ export async function resolveLlmTools(options: ResolveLlmToolsOptions = {}): Pro
       ...debugTools,
       ...sparkCommandTools,
       ...webSearchTools,
-      ...customTools,
+      ...customTools.filter((tool) => {
+        const group = (tool as Tool & { group?: SessionToolGroup }).group
+        // Request-owned run tools already follow their feature policy. Registered references retain their source group.
+        return group === undefined || allows(group)
+      }),
       ...activeTools,
     ].toReversed(),
     tool => toolNameFrom(tool) ?? tool,

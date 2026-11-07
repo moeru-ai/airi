@@ -24,6 +24,7 @@ const props = withDefaults(defineProps<{
 })
 
 const emit = defineEmits<{
+  configureSession: [sessionId: string]
   deleteSession: [sessionId: string]
   deleteSessions: [sessionIds: string[]]
   newSession: []
@@ -371,6 +372,17 @@ function deleteDesktopSession(sessionId: string) {
             <GhostButton
               v-if="renamingSessionId !== row.meta.sessionId"
               size="unset"
+              :aria-label="t('settings.session-features.session-action', { title: row.preview })"
+              :data-session-features="row.meta.sessionId"
+              :title="t('settings.session-features.session-title')"
+              :class="['size-8 shrink-0 rounded-md text-neutral-400 opacity-0 transition-opacity hover:text-primary-500 group-hover:opacity-100 focus-visible:opacity-100']"
+              @click.stop="emit('configureSession', row.meta.sessionId)"
+            >
+              <span aria-hidden="true" :class="['i-solar:checklist-minimalistic-outline size-4']" />
+            </GhostButton>
+            <GhostButton
+              v-if="renamingSessionId !== row.meta.sessionId"
+              size="unset"
               :aria-label="`${t('stage.chat.sessions.rename')}: ${row.preview}`"
               :title="t('stage.chat.sessions.rename')"
               :class="['size-8 shrink-0 rounded-md text-neutral-400 opacity-0 transition-all hover:bg-primary-500/10 hover:text-primary-500 group-hover:opacity-100 focus-visible:opacity-100', 'focus-visible:outline-2 focus-visible:outline-primary-500']"
@@ -506,6 +518,17 @@ function deleteDesktopSession(sessionId: string) {
                     </span>
                   </span>
                 </BasicButton>
+                <GhostButton
+                  v-if="renamingSessionId !== row.meta.sessionId"
+                  size="unset"
+                  :aria-label="t('settings.session-features.session-action', { title: row.preview })"
+                  :data-session-features="row.meta.sessionId"
+                  :title="t('settings.session-features.session-title')"
+                  :class="['size-11 shrink-0 rounded-xl text-neutral-400 hover:text-primary-500']"
+                  @click.stop="emit('configureSession', row.meta.sessionId)"
+                >
+                  <span aria-hidden="true" :class="['i-solar:checklist-minimalistic-outline size-5']" />
+                </GhostButton>
                 <GhostButton
                   v-if="renamingSessionId !== row.meta.sessionId"
                   size="unset"

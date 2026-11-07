@@ -9,9 +9,9 @@ export {
   formatContextPromptText,
 } from './messages/context-prompt'
 export type { ContextSnapshot } from './messages/context-prompt'
-
 export { formatTimePrefix } from './messages/datetime-prefix'
 export { renderConversationPreview } from './messages/preview'
+
 export type { AssistantTurn, Citation, ContentSegment, Conversation, GenerationRound, ProviderContinuation, SystemTurn, ToolExecution, ToolInvocation, Turn, UserTurn } from './messages/types'
 export { createChatHooks } from './runtime/agent-hooks'
 export type {
@@ -68,11 +68,13 @@ export type {
   ErrorMessage,
   StreamingAssistantMessage,
 } from './types/chat'
-
 export type {
   BuiltinToolsResolver,
   StreamEvent,
   StreamFromOptions,
   StreamOptions,
 } from './types/llm'
+export { DEFAULT_SESSION_FEATURES, resolveSessionFeatures, restrictSessionFeatures, updateSessionFeatureOverrides } from './types/session-features'
+
+export type { SessionFeatureKey, SessionFeatureOverrides, SessionFeatures, SessionToolGroup } from './types/session-features'
 export * from './voice'

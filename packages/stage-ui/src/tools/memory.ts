@@ -30,15 +30,19 @@ const writeParameters = strictObject({
  * The memory part of a run's prompt: how to use memory, and the index of the run's persona.
  * The index changes only when an entry changes, so it stays in the cacheable prefix.
  */
-export function composeMemoryPrompt(index: string) {
+export function composeMemoryPrompt(index: string, readOnly = false) {
   return [
     '',
     '',
     'Long-term memory. You keep it yourself. Each index line gives the id of one remembered fact, and states the fact or when it matters.',
     `Read entries with ${READ_MEMORY_TOOL_NAME} when they matter for your reply. An index line that already states the fact needs no read.`,
-    `Save with ${WRITE_MEMORY_TOOL_NAME} only when someone asks you to remember something, or states a lasting fact. Most turns save nothing.`,
-    'One fact per entry. To update an entry, write it with its id instead of adding a near copy. Never save what a recipe already holds, your own rules, codes, passwords, or secrets.',
-    `Forget an entry by its id with ${FORGET_MEMORY_TOOL_NAME} when it turns out wrong or someone asks. General entries belong to the owner, so you cannot change or forget them.`,
+    ...readOnly
+      ? ['Memory is read-only in this conversation. Do not add, change, or forget entries.']
+      : [
+          `Save with ${WRITE_MEMORY_TOOL_NAME} only when someone asks you to remember something, or states a lasting fact. Most turns save nothing.`,
+          'One fact per entry. To update an entry, write it with its id instead of adding a near copy. Never save what a recipe already holds, your own rules, codes, passwords, or secrets.',
+          `Forget an entry by its id with ${FORGET_MEMORY_TOOL_NAME} when it turns out wrong or someone asks. General entries belong to the owner, so you cannot change or forget them.`,
+        ],
     index ? `Memory index:\n${index}` : 'The memory index is empty.',
   ].join('\n')
 }

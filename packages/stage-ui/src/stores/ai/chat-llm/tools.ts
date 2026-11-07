@@ -1,3 +1,4 @@
+import type { SessionToolGroup } from '@proj-airi/core-agent'
 import type { Tool } from '@xsai/shared-chat'
 import type {} from 'pinia-plugin-synced'
 
@@ -10,6 +11,8 @@ export interface ToolDefinition extends Omit<Tool, 'execute'> {
   id: string
   /** Includes this tool when a request does not select it explicitly. */
   defaultActive?: boolean
+  /** Tool source used by session policy. @default 'application' */
+  group?: SessionToolGroup
   /** Requires selection on each request; history and default activation cannot grant access. */
   requiresExplicitSelection?: boolean
   /**
@@ -25,6 +28,8 @@ export interface ExecutableTool extends Tool {
   id: string
   /** Includes this tool when a request does not select it explicitly. */
   defaultActive?: boolean
+  /** Tool source used by session policy. @default 'application' */
+  group?: SessionToolGroup
   /** Requires selection on each request; history and default activation cannot grant access. */
   requiresExplicitSelection?: boolean
   /**
@@ -49,23 +54,25 @@ export const useLlmToolsStore = defineStore('llm-tools', () => {
   const tools = ref<ToolDefinition[]>([])
   const executors = new Map<string, Tool['execute']>()
 
-  function executableToolFrom(definition: ToolDefinition): Tool {
+  function executableToolFrom(definition: ToolDefinition): ExecutableTool {
     const execute = executors.get(definition.id)
       ?? (() => unavailableToolResult(definition.function.name))
 
     return {
+      id: definition.id,
+      group: definition.group,
       type: definition.type,
       function: definition.function,
       execute,
     }
   }
 
-  const activeTools = computed<Tool[]>(() => tools.value
+  const activeTools = computed<ExecutableTool[]>(() => tools.value
     .filter(tool => tool.defaultActive !== false && !tool.requiresExplicitSelection)
     .map(executableToolFrom))
 
   /** Resolves registered tools in the requested model-facing name order. */
-  function getToolsByNames(...names: string[]): Tool[] {
+  function getToolsByNames(...names: string[]): ExecutableTool[] {
     return names.flatMap((name) => {
       const definition = tools.value.findLast(tool => tool.function.name === name)
       return definition ? [executableToolFrom(definition)] : []
@@ -79,6 +86,7 @@ export const useLlmToolsStore = defineStore('llm-tools', () => {
     for (const tool of nextTools) {
       const definition = structuredClone<ToolDefinition>({
         id: tool.id,
+        group: tool.group ?? 'application',
         type: tool.type,
         function: tool.function,
         ...(tool.defaultActive === undefined ? {} : { defaultActive: tool.defaultActive }),

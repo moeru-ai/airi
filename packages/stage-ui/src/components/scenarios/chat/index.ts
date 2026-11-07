@@ -10,6 +10,8 @@ export { default as ChatImageAttachmentPreview } from './components/image-attach
 export { default as ChatProviderSetupCallout } from './components/provider-setup-callout.vue'
 export { default as ChatReplyPreview } from './components/reply-preview.vue'
 export { default as ChatSendButton } from './components/send-button.vue'
+export { default as SessionFeatureField } from './components/session-feature-field.vue'
+export { default as SessionFeatureSettings } from './components/session-feature-settings.vue'
 export { default as ChatSessionsDrawer } from './components/sessions-drawer.vue'
 export { createToolResultError, normalizeToolResultText } from './components/tool-call-display'
 export type { ChatToolCallRendererProps, ChatToolCallRendererRegistry, ChatToolCallTitle, ChatToolCallWidget, ChatToolCallWidgetReading, ChatToolCallWidgetRegistry } from './components/tool-call-renderer'

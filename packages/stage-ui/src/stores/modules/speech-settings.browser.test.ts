@@ -18,6 +18,8 @@ import { injectKeyPiniaSynced } from '../../libs/pinia/synced-context'
 import { captureAnalyticsEvent, enableAnalyticsCapture, isAnalyticsAvailableInBuild } from '../../libs/product-signals/client'
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
+import { useSpeechOutputControlStore } from '../speech-output-control'
+import { useSpeechOutputSettingsStore } from '../speech-output-settings'
 import { useSpeechStore } from './speech'
 
 // Analytics delivery is external IO. Exercise the real page and stores while
@@ -64,6 +66,30 @@ afterEach(() => {
   localStorage.clear()
 })
 
+it('shares output settings between windows without a snapshot feedback mutation', async () => {
+  const namespace = `speech-output:${crypto.randomUUID()}`
+  const leader = mountRenderer(namespace)
+  await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+  const follower = mountRenderer(namespace, { render: () => null })
+  await vi.waitFor(() => expect(follower.runtime.getLeaderId()).toBe(leader.runtime.participantId))
+  const main = useSpeechOutputSettingsStore(leader.pinia)
+  const chat = useSpeechOutputSettingsStore(follower.pinia)
+  await vi.waitFor(() => expect(chat.enabled).toBe(main.enabled))
+  let mainMutations = 0
+  let chatMutations = 0
+  main.$subscribe(() => mainMutations++, { flush: 'sync' })
+  chat.$subscribe(() => chatMutations++, { flush: 'sync' })
+  main.setEnabled(false)
+  await vi.waitFor(() => expect(chat.enabled).toBe(false))
+  expect(mainMutations).toBe(1)
+  expect(chatMutations).toBe(1)
+  expect(follower.speech.enabled).toBe(false)
+  useSpeechOutputControlStore(follower.pinia).toggleSpeechMuted()
+  await vi.waitFor(() => expect(leader.speech.enabled).toBe(true))
+  expect(main.enabled).toBe(true)
+  expect(localStorage.getItem('settings/speech/output-muted')).toBeNull()
+})
+
 // https://github.com/moeru-ai/airi/issues/3153
 // ROOT CAUSE:
 // None replaced the selected speech configuration. The source action now retains it and commits activation in the leader.
@@ -88,6 +114,7 @@ it.each(['provider', 'switch'] as const)('issue #3153: disables speech with the 
   else
     await page.elementLocator(none.element().closest('label')!).click()
   await vi.waitFor(() => expect(leader.speech.enabled).toBe(false))
+  expect(useSpeechOutputControlStore(leader.pinia).speechMuted).toBe(true)
   expect(leader.speech.configured).toBe(false)
   expect(leader.speech.activeSpeechProvider).toBe(provider)
   expect(leader.speech.activeSpeechModel).toBe('tts-1')
@@ -95,6 +122,7 @@ it.each(['provider', 'switch'] as const)('issue #3153: disables speech with the 
   // The leader commits before the follower renders its snapshot. Wait for the
   // displayed state before clicking a radio that was previously selected.
   await expect.element(toggle).not.toBeChecked()
+  expect(useSpeechOutputControlStore(follower.pinia).speechMuted).toBe(true)
   await expect.element(none).toBeChecked()
   if (control === 'switch') {
     await toggle.click()
@@ -106,6 +134,14 @@ it.each(['provider', 'switch'] as const)('issue #3153: disables speech with the 
   }
   await vi.waitFor(() => expect(leader.speech.enabled).toBe(true))
   await expect.element(toggle).toBeChecked()
+  expect(useSpeechOutputControlStore(follower.pinia).speechMuted).toBe(false)
+  const output = useSpeechOutputControlStore(follower.pinia)
+  output.setSpeechVolume(0)
+  await vi.waitFor(() => expect(leader.speech.enabled).toBe(false))
+  await expect.element(toggle).not.toBeChecked()
+  await toggle.click()
+  await vi.waitFor(() => expect(output.speechMuted).toBe(false))
+  expect(output.speechVolume).toBeGreaterThan(0)
   expect(follower.speech.activeSpeechProvider).toBe(provider)
   expect(leader.speech.activeSpeechModel).toBe('tts-1')
   expect(leader.speech.activeSpeechVoiceId).toBe('alloy')

@@ -35,7 +35,7 @@ export const useLLM = defineStore('llm', () => {
     let key = modelKey(model, chatProvider.generation(model))
     let toolExecutionStarted = false
     const { tools: customTools, describeToolImage, taskTools, ...streamOptions } = options ?? {}
-    const resolveTools = async () => taskTools ?? await resolveLlmTools({ customTools, describeImage: describeToolImage })
+    const resolveTools = async () => taskTools ?? await resolveLlmTools({ customTools, describeImage: describeToolImage, groups: options?.features?.tools })
     const builtinToolsResolver = resolveTools
     const resolveStep = streamOptions.resolveStep
 
@@ -45,7 +45,7 @@ export const useLLM = defineStore('llm', () => {
       conversation: context,
       options: {
         ...streamOptions,
-        ...(taskTools ? { providerTools: false } : {}),
+        ...(taskTools || (options?.features && !options.features.tools.includes('web-search')) ? { providerTools: false } : {}),
         // Core uses only the tools of a resolved step, so each step carries the complete tool list.
         resolveStep: resolveStep
           ? async () => ({ ...await resolveStep(), tools: await resolveTools() })

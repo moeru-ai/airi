@@ -281,9 +281,9 @@ live2d:
   expressions:
     title: Expressions
     description: Activate an Expression temporarily or choose whether AIRI can use it.
-    override-toggle: Expression system
+    override-toggle: Use AIRI expression handling
     sdk-preset-preserved-notice: >
-      SDK expression manager and eye blink are preserved when disabled.
+      When off, the model uses its built-in expression handling.
     no-expression: No expressions available for this model.
     reset: Reset all expressions
     parameter-count: '{count} parameters'
@@ -1104,8 +1104,8 @@ pages:
               filtering had no effect on the last transcription.
     memory-long-term:
       description: Long-term memory specific settings and management
-      enable: Use long-term memory
-      enable-description: The character remembers what you talk about. When this is off, it remembers nothing.
+      enable: Use long-term memory by default
+      enable-description: Individual conversations can use a different choice.
       memories:
         title: Memories
         description: Each character keeps its own secrets, and the others cannot see them. After you share a secret, every character knows it, and you cannot take it back. You can delete any secret, but you cannot rewrite one.
@@ -1308,8 +1308,8 @@ pages:
         100: Whenever appropriate (100%)
       title: Stickers
       description: Add optional image reactions to chat replies
-      enable: Enable stickers
-      enable-description: Let the character choose one sticker per eligible reply based on its name and emotion tags.
+      enable: Use stickers by default
+      enable-description: Individual conversations can use a different choice.
       local-only: Images stay on this device. Cloud chat sync currently transfers text only.
       catalog: Available stickers
       unavailable: Sticker unavailable
@@ -2916,3 +2916,52 @@ wip:
 streamer-mode:
   title: Streamer mode
   description: Hide microphone and sign-in indicators on the character window.
+
+session-features:
+  title: 'Default conversation settings'
+  description: 'Default reply behavior for conversations.'
+  session-title: 'Conversation features'
+  session-action: 'Features for {title}'
+  close: 'Close conversation features'
+  restore-all: 'Reset all'
+  open-settings: 'Open settings'
+  blocked:
+    search-disabled: 'Search services are off.'
+    stickers-empty: 'No stickers are available.'
+    search-unconfigured: 'Configure a search service first.'
+    vision-disabled: 'The vision module is off.'
+    vision-unconfigured: 'Configure a vision provider and model first.'
+    vision-context-disabled: 'Vision information is off for chat.'
+    mcp-unavailable: 'No connected MCP tools are available.'
+    tools-unavailable: 'No tools are available from this source.'
+    home-assistant-disabled: 'Home Assistant is off.'
+    home-assistant-unconfigured: 'Configure Home Assistant first.'
+    parent-restricted: 'The original conversation restricts this feature.'
+  saving: 'Saving changes…'
+  missing-session: 'This conversation is no longer available. Return to the conversation list.'
+  save-error: 'Cannot save feature settings. Try again.'
+  tasks-disabled: 'Background tasks are disabled for this conversation.'
+  groups:
+    behavior: 'Replies and behavior'
+    tools: 'Tools and information'
+  tools:
+    web-search: 'Web search'
+    mcp: 'MCP tools'
+    plugins: 'Plugin tools'
+    home-assistant: 'Home Assistant'
+  features:
+    reactions:
+      label: 'Reply expressions and actions'
+      description: 'Expressions and actions can accompany replies while speech is off.'
+    stickers:
+      label: 'Stickers'
+    skills:
+      label: 'Skill instructions'
+      description: 'Use instructions from enabled Skills in replies.'
+    tasks:
+      label: 'Allow background tasks'
+      detail: 'Running tasks continue. Stop them from the task list.'
+    memory:
+      label: 'Long-term memory'
+    screen:
+      label: 'Use screen information'

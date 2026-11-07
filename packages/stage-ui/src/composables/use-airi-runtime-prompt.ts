@@ -10,7 +10,7 @@ const RUNTIME_PROMPT_KEYS = [
 ]
 
 /** Returns the localized emotion and emoji prompt for each model request. */
-export function useAiriRuntimePrompt() {
+export function useAiriRuntimePrompt(reactions = true) {
   const { locale, t, te } = useI18n()
 
   return computed(() => {
@@ -18,11 +18,11 @@ export function useAiriRuntimePrompt() {
       return ''
 
     return [
-      t('base.prompt.emotion'),
-      EMOTION_VALUES
-        .map(emotion => `- ${emotion} (Emotion for feeling ${EMOTION_EmotionMotionName_value[emotion]})`)
-        .join('\n'),
-      t('base.prompt.suffix'),
+      ...reactions
+        ? [t('base.prompt.emotion'), EMOTION_VALUES
+            .map(emotion => `- ${emotion} (Emotion for feeling ${EMOTION_EmotionMotionName_value[emotion]})`)
+            .join('\n'), t('base.prompt.suffix')]
+        : [],
       t('base.prompt.emoji'),
     ].join('\n\n')
   })

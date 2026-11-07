@@ -37,6 +37,7 @@ describe('useLlmToolsStore', () => {
 
     expect(store.tools).toEqual([{
       id: 'plugin:chess:play',
+      group: 'application',
       type: 'function',
       function: {
         name: 'play_chess',

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useWebSearchStore } from '../../modules/web-search'
 import { resolveLlmTools, toolNameFrom } from './tool-resolver'
+import { useLlmToolsStore } from './tools'
 
 // The default (non-injected) spark-command branch reads the channel store. Mock
 // it so the test observes the exact event the tool hands to the socket, without
@@ -234,4 +235,27 @@ describe('resolveLlmTools', () => {
       expect(result).toContain('broadcast')
     })
   })
+})
+
+it('does not initialize disabled sources or expose registered and historical tools from them', async () => {
+  const pinia = createPinia()
+  setActivePinia(pinia)
+  try {
+    const registry = useLlmToolsStore()
+    registry.addTools({ ...createTool('disabled_tool'), id: 'plugin:disabled', group: 'plugins' })
+    const disabledSource = vi.fn(async () => [createTool('unavailable_source')])
+    const result = await resolveLlmTools({
+      groups: [],
+      builtInTools: disabledSource,
+      debugTools: disabledSource,
+      sparkCommandTools: disabledSource,
+      webSearchTools: disabledSource,
+      customTools: registry.getToolsByNames('disabled_tool'),
+    })
+    expect(result).toEqual([])
+    expect(disabledSource).not.toHaveBeenCalled()
+  }
+  finally {
+    disposePinia(pinia)
+  }
 })

@@ -12,16 +12,26 @@ import { createI18n } from 'vue-i18n'
 import { useChatInterruption } from './use-chat-interruption'
 import { useStopSpeakingButton } from './useStopSpeakingButton'
 
+vi.mock('../../../stage-ui/src/database/repos/chat-sessions.repo', () => ({
+  chatSessionsRepo: {
+    getIndex: vi.fn().mockResolvedValue(null),
+    getSession: vi.fn().mockResolvedValue(null),
+    getTombstones: vi.fn().mockResolvedValue([]),
+    saveIndex: vi.fn().mockResolvedValue(undefined),
+    saveSession: vi.fn().mockResolvedValue(undefined),
+  },
+}))
+
 const cleanups: (() => void)[] = []
 
-function mountControls(options: ChatInterruptionOptions) {
+function mountControls(options: ChatInterruptionOptions, speechOptions: Parameters<typeof useStopSpeakingButton>[0] = {}) {
   const pinia = createPinia()
   setActivePinia(pinia)
   let controls!: ReturnType<typeof useChatInterruption>
   let speech!: ReturnType<typeof useStopSpeakingButton>
   const app = createApp(defineComponent({ setup() {
     controls = useChatInterruption(options)
-    speech = useStopSpeakingButton()
+    speech = useStopSpeakingButton(speechOptions)
     return () => h('div')
   } }))
   app.use(pinia).use(createI18n({ legacy: false, locale: 'en', messages: { en: {} } }))
@@ -132,13 +142,42 @@ describe('chat interruption controls', () => {
     expect(interrupt).not.toHaveBeenCalled()
   })
 
-  it('keeps mute separate from external interruption and targets all sessions only on explicit request', async () => {
+  it('keeps mute global without changing conversation choices and targets all sessions only on explicit interruption', async () => {
     const { speech, output } = mountControls({ sessionId: ref('alice'), generating: ref(false), hasSubmission: ref(false), submit: vi.fn() })
     const interrupt = connectHost()
+    const sessions = useChatSessionStore()
+    await sessions.initialize()
+    const first = await sessions.createSession('default')
+    const second = await sessions.createSession('default', { setActive: false })
     await speech.toggleSpeechMuted()
     expect(output.speechMuted).toBe(true)
+    expect(sessions.sessionMetas[first]?.features).toBeUndefined()
+    expect(sessions.sessionMetas[second]?.features).toBeUndefined()
+    sessions.activeSessionId = second
+    expect(speech.speechMuted.value).toBe(true)
+    await sessions.setSessionFeatures(first)
+    expect(speech.speechMuted.value).toBe(true)
+    await speech.toggleSpeechMuted()
+    expect(output.speechMuted).toBe(false)
+    expect(sessions.sessionMetas[first]?.features).toBeUndefined()
+    expect(sessions.sessionMetas[second]?.features).toBeUndefined()
     expect(interrupt).not.toHaveBeenCalled()
     await speech.stopAllSpeaking()
     expect(interrupt.mock.calls[0]?.[0].turns).toEqual([{ sessionId: 'alice', turnId: 'a' }, { sessionId: 'bob', turnId: 'b' }])
+  })
+
+  it.each(['resolve', 'reject'] as const)('changes global output before remote telemetry can %s', async (outcome) => {
+    const receipt = Promise.withResolvers<boolean>()
+    const { speech, output } = mountControls({ sessionId: ref('alice'), generating: ref(false), hasSubmission: ref(false), submit: vi.fn() }, {
+      resolveSpeakingState: () => receipt.promise,
+    })
+    const changing = speech.toggleSpeechMuted()
+    expect(output.speechMuted).toBe(true)
+    if (outcome === 'resolve')
+      receipt.resolve(true)
+    else
+      receipt.reject(new Error('Output host is unavailable'))
+    await changing
+    expect(output.speechMuted).toBe(true)
   })
 })

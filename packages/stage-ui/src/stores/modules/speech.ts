@@ -22,6 +22,7 @@ import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, pic
 import { streamSpeech } from '../../libs/speech/streaming-pipeline'
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
+import { useSpeechOutputSettingsStore } from '../speech-output-settings'
 
 export function toSignedPercent(value: number): string {
   if (value > 0)
@@ -141,6 +142,7 @@ export const useSpeechStore = defineStore('speech', () => {
   const providerStore = useProviderConfigStore()
   const { allAudioSpeechProvidersMetadata } = storeToRefs(providersStore)
   const { locale } = useI18n()
+  const outputSettings = useSpeechOutputSettingsStore()
 
   // Pinia synchronization owns live cross-window state. localStorage only
   // loads and saves durable values for this synchronized store.
@@ -148,7 +150,11 @@ export const useSpeechStore = defineStore('speech', () => {
 
   // State
   const activeSpeechProvider = useLocalStorageManualReset<string>('settings/speech/active-provider', 'speech-noop', persistenceOptions)
-  const enabled = useLocalStorageManualReset('settings/speech/enabled', true, persistenceOptions)
+  // The module exposes the shared choice without adding it to its replicated state.
+  const enabled = computed({
+    get: () => outputSettings.enabled,
+    set: value => outputSettings.setEnabled(value),
+  })
   // Disabling invalidates synthesis captured by an open response, including requests that have not started yet.
   let synthesis = new AbortController()
   watch(enabled, (value) => {
@@ -786,7 +792,7 @@ export const useSpeechStore = defineStore('speech', () => {
 
   /** Resets shared settings in the leader and rejects catalog results started before this reset. */
   async function resetSettings() {
-    enabled.reset()
+    outputSettings.resetState()
     // Invalidate request ownership before the reset publishes new settings.
     cancelCatalogRequests()
     activeSpeechProvider.reset()

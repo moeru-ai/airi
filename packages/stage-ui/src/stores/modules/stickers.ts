@@ -122,8 +122,8 @@ export const useStickersStore = defineStore('stickers', () => {
   }
 
   /** Freeze eligibility before loading. Copy model metadata before provider startup or a queue wait. */
-  async function selectCatalogForReply() {
-    if (!enabled.value || (frequency.value < 100 && Math.random() * 100 >= frequency.value))
+  async function selectCatalogForReply(allowed = enabled.value) {
+    if (!allowed || (frequency.value < 100 && Math.random() * 100 >= frequency.value))
       return undefined
     await load()
     return libraryCatalog.value.map(sticker => ({ ...sticker }))

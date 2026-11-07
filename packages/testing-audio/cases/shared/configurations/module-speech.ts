@@ -33,7 +33,7 @@ export function configureModuleSpeech(resolve: SpeechModuleResolver): AudioInput
       'settings/speech/active-provider': configuration.provider.id,
       'settings/speech/active-model': configuration.provider.model,
       'settings/speech/voice': configuration.voice,
-      'settings/speech/output-muted': String(configuration.muted ?? false),
+      'settings/speech/enabled': String(!configuration.muted),
     })
   }
 }

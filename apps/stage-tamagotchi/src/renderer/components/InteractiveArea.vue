@@ -586,7 +586,7 @@ defineExpose({
             :active="computerUseEnabled"
             :aria-pressed="computerUseEnabled"
             :disabled="isActiveSessionSending"
-            @click="computerUseEnabled = !computerUseEnabled"
+            @click="toolSelection.setComputerUseEnabled(!computerUseEnabled)"
           >
             <span :class="['i-solar:monitor-bold-duotone h-5 w-5 shrink-0']" />
           </GhostButton>

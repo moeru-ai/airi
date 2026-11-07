@@ -40,6 +40,7 @@ export const useTamagotchiBuiltinToolsStore = defineStore('tamagotchi-builtin-to
     llmToolsStore.removeToolsByIds(...registeredToolIds())
     llmToolsStore.addTools(...groups.flatMap(({ tools, icon }) => tools.map(tool => ({
       ...tool,
+      group: tool.function.name.startsWith('computer_use') ? 'computer-use' : 'desktop',
       icon,
       defaultActive: false,
       id: `${toolIdPrefix}${tool.function.name}`,

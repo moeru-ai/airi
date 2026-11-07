@@ -104,6 +104,13 @@ export const useTamagotchiHomeAssistantStore = defineStore('tamagotchi-home-assi
     if (replacements.length) {
       llmToolsStore.addTools(...replacements.map(tool => ({
         ...tool,
+        execute: async (args, options) => {
+          // A resolved tool can outlive the refresh that removes its definition.
+          if (!settings.configured)
+            return 'Home Assistant is disabled or unconfigured.'
+          return tool.execute(args, options)
+        },
+        group: 'home-assistant',
         icon: TOOL_ICONS.homeAssistant,
         id: `${toolIdPrefix}${tool.function.name}`,
       } satisfies ExecutableTool)))

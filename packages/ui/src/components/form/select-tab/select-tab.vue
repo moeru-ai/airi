@@ -96,6 +96,7 @@ const rootStyle = computed(() => ({
 <template>
   <RadioGroupRoot
     v-model="modelValue"
+    orientation="horizontal"
     :disabled="isDisabled"
     :aria-readonly="props.readonly"
     :class="[
@@ -117,6 +118,7 @@ const rootStyle = computed(() => ({
       'before:pointer-events-none',
       'before:opacity-$select-tab-indicator-opacity',
       'before:top-$select-tab-padding',
+      'motion-reduce:before:transition-none',
     ]"
     :style="[
       rootStyle,
@@ -135,7 +137,8 @@ const rootStyle = computed(() => ({
         'flex', 'flex-1', 'items-center', 'justify-center', 'gap-2',
         'text-center', 'text-neutral-700', 'dark:text-neutral-200', 'font-medium',
         'transition-[color,background-color,border-color,transform]', 'duration-200', 'ease-out',
-        'focus-visible:border-none', 'focus-visible:outline-none',
+        'focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-[-2px]',
+        'motion-reduce:transition-none',
         sizeClasses,
         radiusClasses[props.radius].item,
         isDisabled
@@ -144,7 +147,7 @@ const rootStyle = computed(() => ({
         colorClasses[props.color].item,
       ]"
     >
-      <span v-if="option.icon" :class="['size-4 shrink-0 text-current', option.icon]" />
+      <span v-if="option.icon" aria-hidden="true" :class="['size-4 shrink-0 text-current', option.icon]" />
       <span :class="['truncate']">
         {{ option.label }}
       </span>

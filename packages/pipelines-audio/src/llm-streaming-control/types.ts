@@ -2,6 +2,8 @@
  * Context attached when a parsed LLM streaming control token is dispatched.
  */
 export interface LlmStreamingControlDispatchContext {
+  /** Conversation owning a turn-scoped output token. */
+  sessionId?: string
   /** Turn id that owns the token and its timeline children, when known. */
   turnId?: string
   /** Speech intent id that carried the token, when known. Prefer `turnId` for lifecycle work. */

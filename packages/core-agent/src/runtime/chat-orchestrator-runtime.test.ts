@@ -10,6 +10,7 @@ import { ContextUpdateStrategy } from '@proj-airi/server-shared/types'
 import { describe, expect, it, vi } from 'vitest'
 
 import { chatMessagesToTurns, conversationToChatMessages } from '../messages/chat-completions'
+import { DEFAULT_SESSION_FEATURES, resolveSessionFeatures } from '../types/session-features'
 import { createChatOrchestratorRuntime } from './chat-orchestrator-runtime'
 import { streamFrom } from './llm-service'
 
@@ -2213,5 +2214,94 @@ it('isolates sticker catalogs, providers, and supplements across concurrent and 
   expect(harness.sessionMessages['session-2']!.at(-1)).toMatchObject({
     slices: [{ type: 'text', text: 'Reply ' }, { type: 'sticker', stickerId: 'dog' }],
     categorization: { speech: 'Reply ' },
+  })
+})
+
+describe('session feature execution', () => {
+  it.each([
+    { skills: false, tasks: true, included: 'BACKGROUND_MARKER', excluded: 'SKILL_STEPS' },
+    { skills: true, tasks: false, included: 'SKILL_STEPS', excluded: 'BACKGROUND_MARKER' },
+  ])('keeps skill and background task instructions independent: $included', async ({ skills, tasks, included, excluded }) => {
+    const harness = createHarness()
+    harness.stream.mockImplementation(async (_model, _provider, context) => {
+      expect(JSON.stringify(context)).toContain(included)
+      expect(JSON.stringify(context)).not.toContain(excluded)
+    })
+    await harness.runtime.ingest('Hello', {
+      model: 'test',
+      chatProvider: provider,
+      features: resolveSessionFeatures(DEFAULT_SESSION_FEATURES, { skills, tasks }),
+      skills: [
+        { kind: 'steps', name: 'Example skill', instructions: 'SKILL_STEPS' },
+        { kind: 'background', name: 'Example task', instructions: 'BACKGROUND_MARKER' },
+      ],
+    })
+    const message = harness.sessionMessages['session-1']!.findLast(message => message.role === 'user')
+    expect(message?.skills).toHaveLength(1)
+    expect(message?.skills?.[0]?.instructions).toBe(included)
+  })
+
+  it('omits disabled skill instructions and stickers while allowing silent character reactions', async () => {
+    const harness = createHarness()
+    harness.sessionMessages['session-1']!.push({
+      id: 'earlier-skill',
+      role: 'user',
+      content: 'An earlier message',
+      skills: [{ kind: 'steps', name: 'Example skill', instructions: 'PRIVATE_SKILL_STEPS' }],
+    })
+    const beforeSend = vi.fn()
+    harness.runtime.hooks.onBeforeSend(beforeSend)
+    harness.stream.mockImplementation(async (_model, _provider, context, options) => {
+      expect(JSON.stringify(context)).not.toContain('PRIVATE_SKILL_STEPS')
+      expect(JSON.stringify(context)).not.toContain('Choose the ID')
+      expect(options?.features?.skills).toBe(false)
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'Reply <|STICKER heart|>' })
+    })
+    await harness.runtime.ingest('Hello', {
+      model: 'test',
+      chatProvider: provider,
+      features: resolveSessionFeatures(DEFAULT_SESSION_FEATURES, { speech: false, reactions: true, skills: false, stickers: false }),
+      stickers: [{ id: 'heart', description: 'A heart' }],
+      skills: [{ kind: 'steps', name: 'Example skill', instructions: 'PRIVATE_SKILL_STEPS' }],
+    })
+    expect(beforeSend).toHaveBeenCalledWith('Hello', expect.objectContaining({ speaks: false, reactions: true }))
+    const reply = harness.sessionMessages['session-1']!.at(-1)
+    expect(reply?.role).toBe('assistant')
+    if (reply?.role !== 'assistant')
+      throw new Error('Expected an assistant reply')
+    expect(reply.slices.some(slice => slice.type === 'sticker')).toBe(false)
+    expect(harness.sessionMessages['session-1']!.at(-2)).not.toHaveProperty('skills')
+  })
+
+  it('captures independent feature choices before concurrent and queued turns run', async () => {
+    const harness = createHarness()
+    const held = Promise.withResolvers<void>()
+    const firstStarted = Promise.withResolvers<void>()
+    const seen: Record<string, boolean | undefined> = {}
+    harness.runtime.hooks.onBeforeSend(async (text, context) => {
+      seen[text] = context.speaks
+    })
+    harness.stream.mockImplementation(async (model) => {
+      if (model === 'held') {
+        firstStarted.resolve()
+        await held.promise
+      }
+    })
+    const first = harness.runtime.ingest('first', { model: 'held', chatProvider: provider })
+    await firstStarted.promise
+    const queuedPolicy = resolveSessionFeatures(DEFAULT_SESSION_FEATURES, { speech: false })
+    const queued = harness.runtime.ingest('queued', { model: 'next', chatProvider: provider, features: queuedPolicy })
+    queuedPolicy.speech = true
+    const other = harness.runtime.ingest('other', { model: 'other', chatProvider: provider, features: resolveSessionFeatures(DEFAULT_SESSION_FEATURES, { speech: true }) }, 'session-2')
+    try {
+      await other
+      expect(seen.other).toBe(true)
+    }
+    finally {
+      held.resolve()
+      await Promise.all([first, queued, other])
+    }
+    expect(seen.first).toBe(true)
+    expect(seen.queued).toBe(false)
   })
 })

@@ -32,3 +32,10 @@ describe('useAiriRuntimePrompt', () => {
     expect(prompt).toContain('base.prompt.emoji')
   })
 })
+
+it('omits character action instructions when the conversation disables reactions', () => {
+  i18nMock.hasTranslation.mockReturnValue(true)
+  expect(useAiriRuntimePrompt(false).value).toContain('base.prompt.emoji')
+  expect(useAiriRuntimePrompt(false).value).not.toContain('base.prompt.emotion')
+  expect(useAiriRuntimePrompt(false).value).not.toContain('base.prompt.suffix')
+})

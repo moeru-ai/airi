@@ -29,6 +29,7 @@ export const useTamagotchiMcpToolsStore = defineStore('tamagotchi-mcp-tools', ()
     llmToolsStore.removeToolsByIds(...registeredToolIds())
     llmToolsStore.addTools(...tools.map(tool => ({
       ...tool,
+      group: 'mcp',
       icon: TOOL_ICONS.mcp,
       id: `${toolIdPrefix}${tool.function.name}`,
     } satisfies ExecutableTool)))

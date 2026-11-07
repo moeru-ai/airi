@@ -2,6 +2,15 @@
 
 Shared core for stage
 
+## Conversation features
+
+Users set conversation defaults in Settings and adjust individual conversations from the existing conversation list.
+Unset choices follow current defaults. Restoring a choice removes its override.
+Memory and sticker defaults reuse their module settings. Service prerequisites remain independent of conversation choices.
+Speech settings, stage speaker buttons, and volume share one synchronized output preference.
+The shared form and execution policy cover speech, character reactions, stickers, cards, skills, tasks, drawing, memory, tools, and automatic context.
+See [conversation features](../../docs/ai/context/session-features.md) for persistence, execution gates, and adapter use.
+
 ## Optional modules
 
 Provider lists expose `None` for optional features. Switches control module activation.

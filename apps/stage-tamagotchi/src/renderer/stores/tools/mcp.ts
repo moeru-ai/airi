@@ -21,6 +21,11 @@ export const useTamagotchiMcpToolsStore = defineStore('tamagotchi-mcp-tools', ()
   }
 
   async function refresh() {
+    const available = await listMcpTools()
+    if (!available.length) {
+      llmToolsStore.removeToolsByIds(...registeredToolIds())
+      return
+    }
     const tools = await Promise.all(createMcpTools({
       listTools: () => listMcpTools(),
       callTool: payload => callMcpTool(payload),
@@ -29,6 +34,7 @@ export const useTamagotchiMcpToolsStore = defineStore('tamagotchi-mcp-tools', ()
     llmToolsStore.removeToolsByIds(...registeredToolIds())
     llmToolsStore.addTools(...tools.map(tool => ({
       ...tool,
+      group: 'mcp',
       icon: TOOL_ICONS.mcp,
       id: `${toolIdPrefix}${tool.function.name}`,
     } satisfies ExecutableTool)))

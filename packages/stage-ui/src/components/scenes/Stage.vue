@@ -4,6 +4,7 @@ import type { Profile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import type { CaptionChannelEvent, PresenceBubbleState } from '@proj-airi/stage-shared'
 import type { VrmInteractionTarget } from '@proj-airi/stage-ui-three'
 
+import type { SessionOutputContext } from '../../composables/session-output-features'
 import type { EmotionPayload } from '../../constants/emotions'
 
 import { defineInvokeHandler } from '@moeru/eventa'
@@ -32,6 +33,7 @@ import StageAvatarModelMissing from './stage-avatar-model-missing.vue'
 import StageRenderError from './stage-render-error.vue'
 
 // import { useDuckDb } from '../../composables/use-duck-db'
+import { useSessionOutputFeatures } from '../../composables/session-output-features'
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 import { useLive2DStageMotionMagic } from '../../features/motions/live2d/use-live2d-stage-motion-magic'
 import { createAvatarTouchAggregator } from '../../libs/avatar-touch/notify'
@@ -251,6 +253,8 @@ const chatPresence = computed<PresenceBubbleState>(() => chatSending.value ? pre
 const presenceBubble = computed<PresenceBubbleState>(() => presenceOverride.value ?? chatPresence.value)
 const speechStore = useSpeechStore()
 const chatSession = useChatSessionStore()
+const voice = useVoiceStore()
+const outputFeatures = useSessionOutputFeatures(turn => voice.getSpeech(turn)?.cancel('Automatic speech disabled for this conversation'))
 const backgroundStore = useBackgroundStore()
 const { activeBackgroundUrl } = storeToRefs(backgroundStore)
 
@@ -262,9 +266,11 @@ const live2d = createLive2D({
 })
 useSharedLive2DExpressionPreview(live2d, selectedCharacterId, () => selectedAvatarModel.value?.id)
 
-const emotionsQueue = createQueue<EmotionPayload>({
+const emotionsQueue = createQueue<EmotionPayload & { turnId?: string, sessionId?: string }>({
   handlers: [
     async (ctx) => {
+      if (ctx.data.turnId && !outputFeatures.canReactFor(ctx.data.turnId, ctx.data.sessionId))
+        return
       if (stageModelRenderer.value === 'vrm') {
         // console.debug('VRM emotion anime: ', ctx.data)
         const value = EMOTION_VRMExpressionName_value[ctx.data.name]
@@ -316,8 +322,10 @@ function toStageEmotionPayload(payload: { name: string, intensity: number }): Em
   }
 }
 
-chatHookCleanups.push(streamingControl.onSignal(async (signal) => {
+chatHookCleanups.push(streamingControl.onSignal(async (signal, context) => {
   if (signal.type === 'act') {
+    if (context.turnId && !outputFeatures.canReactFor(context.turnId, context.sessionId))
+      return
     const act = normalizeActPayload(signal.payload)
     let explicitLive2DMotion = false
 
@@ -342,7 +350,7 @@ chatHookCleanups.push(streamingControl.onSignal(async (signal) => {
 
       // eslint-disable-next-line no-console
       console.debug('emotion detected', emotion)
-      emotionsQueue.enqueue(emotion)
+      emotionsQueue.enqueue({ ...emotion, turnId: context.turnId, sessionId: context.sessionId })
     }
     return
   }
@@ -359,20 +367,23 @@ async function playSpecialToken(
   special: string,
   options?: {
     turnId?: string
+    sessionId?: string
     intentId?: string
     streamId?: string
   },
 ) {
   await streamingControl.dispatchWith(special, {
     turnId: options?.turnId,
+    sessionId: options?.sessionId,
     intentId: options?.intentId,
     streamId: options?.streamId,
   })
 }
 let disconnectLipSync: (() => void) | undefined
+// Reset invalidates worklets that finish loading after speech was disabled or the renderer changed.
+let lipSyncSetupVersion = 0
 let disconnectAnalyser: (() => void) | undefined
 
-const voice = useVoiceStore()
 const avatarTouch = useAvatarTouchStore()
 // A burst of touches on the avatar becomes one notification for the character.
 // The avatar already plays its own reaction, so a skipped notification still shows the touch.
@@ -388,8 +399,6 @@ const avatarTouchAggregator = createAvatarTouchAggregator({
 // The playback connects them before this volume, so a low volume does not change the mouth or the analyser.
 const speechDestination = audioContext.createGain()
 speechDestination.connect(audioContext.destination)
-/** Connects a renderer node, for example the VRM or MMD lip sync worklet, to the played speech. */
-const connectSpeech = (node: AudioNode) => voice.connectSpeechNode(node)
 // setTargetAtTime smooths slider drags into the gain, so volume changes do not click.
 watch(speechVolume, (volume) => {
   speechDestination.gain.setTargetAtTime(volume, audioContext.currentTime, 0.05)
@@ -412,7 +421,7 @@ const cards = useAiriCardStore()
 const disconnectVoiceOutput = voice.connectOutput((turn) => {
   const output = {
     playback,
-    onSpecial: (special: string) => void playSpecialToken(special, { turnId: turn.turnId }),
+    onSpecial: (special: string) => void playSpecialToken(special, { turnId: turn.turnId, sessionId: turn.sessionId }),
     onPlaybackStart: ({ text }: { text: string }) => {
       playingCount += 1
       nowSpeaking.value = true
@@ -474,10 +483,13 @@ function stopLipSyncLoop() {
 }
 
 function resetLive2dLipSync() {
+  lipSyncSetupVersion += 1
   stopLipSyncLoop()
 
   disconnectLipSync?.()
   disconnectLipSync = undefined
+  live2dLipSync.value?.node.disconnect()
+  live2dLipSync.value?.node.port.close()
   live2dLipSync.value = undefined
   lipSyncStarted.value = false
 }
@@ -500,11 +512,19 @@ async function setupLipSync() {
   if (lipSyncStarted.value)
     return
 
+  const setupVersion = lipSyncSetupVersion
   try {
     const lipSync = await createLive2DLipSync(audioContext, wlipsyncProfile as Profile, live2dLipSyncOptions)
+    if (setupVersion !== lipSyncSetupVersion || !voice.outputEnabled) {
+      lipSync.node.disconnect()
+      lipSync.node.port.close()
+      return
+    }
     live2dLipSync.value = lipSync
-    disconnectLipSync = connectSpeech(lipSync.node)
+    disconnectLipSync = voice.connectSpeechNode(lipSync.node)
     await audioContext.resume()
+    if (setupVersion !== lipSyncSetupVersion || !voice.outputEnabled)
+      return
     lipSyncStarted.value = true
     syncLipSyncLoop()
   }
@@ -517,26 +537,34 @@ async function setupLipSync() {
 function setupAnalyser() {
   if (!audioAnalyser.value) {
     audioAnalyser.value = audioContext.createAnalyser()
-    disconnectAnalyser = connectSpeech(audioAnalyser.value)
+    disconnectAnalyser = voice.connectSpeechNode(audioAnalyser.value)
   }
 }
 
-watch(speechMuted, (muted) => {
-  if (muted) {
-    for (const turn of voice.activeTurns)
-      voice.getSpeech(turn)?.cancel('Speech muted')
-  }
-})
+watch(() => voice.outputEnabled, (enabled) => {
+  if (enabled)
+    return
+  resetLive2dLipSync()
+  disconnectAnalyser?.()
+  disconnectAnalyser = undefined
+  audioAnalyser.value?.disconnect()
+  audioAnalyser.value = undefined
+  resetSpeakingState()
+}, { flush: 'sync' })
 
-// Only a reply that speaks drives speech and expression. Background work and scene replies never speak here.
-function holdsVoice(context: { speaks?: boolean }) {
-  return context.speaks ?? false
+async function finishOutput(context: SessionOutputContext) {
+  try {
+    await voice.finishResponse(context)
+  }
+  finally {
+    outputFeatures.end(context)
+  }
 }
 
 chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
-  if (!holdsVoice(context))
+  outputFeatures.begin(context)
+  if (!outputFeatures.canSpeak(context) || !voice.startResponse(context))
     return
-  voice.startResponse(context)
   if (context.sessionId === chatSession.activeSessionId)
     resetAssistantSpeechSurface('new-message')
   setupAnalyser()
@@ -544,32 +572,28 @@ chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
 }))
 
 chatHookCleanups.push(onBeforeSend(async (_message, context) => {
-  if (holdsVoice(context))
+  if (outputFeatures.canReact(context))
     currentMotion.value = { group: EmotionThinkMotionName }
 }))
 
 chatHookCleanups.push(onTokenLiteral(async (literal, context) => {
-  if (holdsVoice(context) && !speechMuted.value)
+  if (outputFeatures.canSpeak(context) && !speechMuted.value)
     await voice.getSpeech(context)?.write(literal)
 }))
 
 chatHookCleanups.push(onTokenSpecial(async (special, context) => {
-  if (!holdsVoice(context))
-    return
-  if (speechMuted.value)
-    await playSpecialToken(special, { turnId: context.turnId })
-  else
+  if (outputFeatures.canSpeak(context) && !speechMuted.value)
     voice.getSpeech(context)?.special(special)
+  else if (outputFeatures.canReact(context))
+    await playSpecialToken(special, { turnId: context.turnId, sessionId: context.sessionId })
 }))
 
 chatHookCleanups.push(onStreamEnd(async (context) => {
-  void voice.finishResponse(context).catch(error => console.error('Speech response completion failed', error))
+  void finishOutput(context).catch(error => console.error('Speech response completion failed', error))
 }))
 
 chatHookCleanups.push(onAssistantResponseEnd(async (_message, context) => {
-  if (!holdsVoice(context))
-    return
-  void voice.finishResponse(context).catch(error => console.error('Speech response completion failed', error))
+  void finishOutput(context).catch(error => console.error('Speech response completion failed', error))
 }))
 
 // Resume audio context on first user interaction (browser requirement)
@@ -716,7 +740,7 @@ defineExpose({
         :show-axes="stageViewControlsEnabled"
         :enable-orbit-controls="props.enableOrbitControls"
         :audio-context="audioContext"
-        :connect-speech="connectSpeech"
+        :connect-speech="voice.connectSpeechNode"
         :speech-active="nowSpeaking"
         @error="reportStageRenderError"
         @vrm-interact="onVRMInteract"
@@ -765,7 +789,7 @@ defineExpose({
         :cursor-position="cursorPosition"
         :enable-orbit-controls="props.enableOrbitControls"
         :audio-context="audioContext"
-        :connect-speech="connectSpeech"
+        :connect-speech="voice.connectSpeechNode"
         @error="reportStageRenderError"
       />
       <div

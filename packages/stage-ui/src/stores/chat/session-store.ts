@@ -1,3 +1,4 @@
+import type { SessionFeatureKey, SessionFeatureOverrides } from '@proj-airi/core-agent'
 import type { MessageRole, NewMessagesPayload } from '@proj-airi/server-sdk-shared'
 import type {} from 'pinia-plugin-synced'
 
@@ -7,6 +8,7 @@ import type { ChatHistoryItem } from '../../types/chat'
 import type { ChatSessionMeta, ChatSessionRecord, ChatSessionsExport, ChatSessionsIndex, ChatSessionTask, StoredVoiceInterruption } from '../../types/chat-session'
 
 import { errorMessageFrom } from '@moeru/std'
+import { updateSessionFeatureOverrides } from '@proj-airi/core-agent'
 import { cloneDeep } from 'es-toolkit'
 import { nanoid } from 'nanoid'
 import { defineStore, getActivePinia, storeToRefs } from 'pinia'
@@ -30,6 +32,8 @@ import { SERVER_URL } from '../../libs/server'
 import { useAuthStore } from '../auth'
 import { useAiriCardStore } from '../modules/airi-card'
 import { useSyncPreferencesStore } from '../sync-preferences'
+import { useChatFeaturesStore } from './features-store'
+import { featuresForSession } from './session-features'
 import { staysLocal } from './session-locality'
 import { mergeLoadedSessionMessages } from './session-message-merge'
 
@@ -76,6 +80,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   const cards = useAiriCardStore()
   const { activeCardId } = storeToRefs(cards)
 
+  const featureDefaults = useChatFeaturesStore()
+
   const chatSessionSelection = useChatSessionSelectionStore()
   // The selected conversation belongs to one window. Expose it through the
   // existing chat-session API as a computed property so synchronized session
@@ -86,6 +92,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   })
   const sessionMessages = ref<Record<string, ChatHistoryItem[]>>({})
   const sessionMetas = ref<Record<string, ChatSessionMeta>>({})
+  const sessionFeatures = computed(() => Object.fromEntries(Object.keys(sessionMetas.value)
+    .map(sessionId => [sessionId, featuresForSession(featureDefaults.defaults, sessionMetas.value, sessionId)])))
   const sessionGenerations = ref<Record<string, number>>({})
   /** Canonical session index replicated so each window can derive its local selection. */
   const index = ref<ChatSessionsIndex | null>(null)
@@ -554,12 +562,14 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     hidden?: boolean
     recipeId?: string
     task?: ChatSessionTask
+    features?: SessionFeatureOverrides
   }) {
     const currentUserId = getCurrentUserId()
     const sessionId = nanoid()
     const now = Date.now()
     const meta: ChatSessionMeta = {
       sessionId,
+      features: options?.features ? cloneDeep(options.features) : undefined,
       userId: currentUserId,
       characterId,
       title: options?.title,
@@ -614,6 +624,17 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       void reconcileCloudSessions()
 
     return sessionId
+  }
+
+  /** Persists only explicit choices. Passing no change restores the complete session to user defaults. */
+  async function setSessionFeatures(sessionId: string, change?: SessionFeatureOverrides, restore?: readonly SessionFeatureKey[]) {
+    if (!await loadSession(sessionId))
+      return false
+    const meta = sessionMetas.value[sessionId]
+    const features = updateSessionFeatureOverrides(meta.features, change, restore)
+    sessionMetas.value[sessionId] = { ...meta, features: Object.keys(features).length ? features : undefined }
+    await persistSessionMeta(sessionId)
+    return true
   }
 
   /** Updates a session title locally and mirrors it to the cloud when mapped. */
@@ -1847,6 +1868,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       setActive: false,
       messages: nextMessages,
       bindings: parentMeta.bindings,
+      features: parentMeta.features,
       parentSessionId: options.fromSessionId,
       hidden: options.hidden,
     })
@@ -2012,6 +2034,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     getSessionMessagesIfLoaded,
     sessionMessages,
     sessionMetas,
+    sessionFeatures,
     getSessionGeneration,
     bumpSessionGeneration,
     getSessionGenerationValue,
@@ -2028,6 +2051,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     loadSession,
     refreshSession,
     renameSession,
+    setSessionFeatures,
     deleteSession,
     deleteSessions,
     activateCurrentUser,
@@ -2064,6 +2088,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       'pushMessageToCloud',
       'refreshSession',
       'renameSession',
+      'setSessionFeatures',
       'resetAllSessions',
       'setSessionTask',
       'deleteHiddenSession',

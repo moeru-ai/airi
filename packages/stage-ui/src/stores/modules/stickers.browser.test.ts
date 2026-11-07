@@ -95,6 +95,18 @@ it.each([25, 50, 75, 100])('enforces the %i percent eligibility boundary without
   }
 })
 
+it('allows a conversation to override the sticker default without changing it', async () => {
+  const store = createStore()
+  store.enabled = false
+  store.frequency = 100
+  expect((await store.selectCatalogForReply(true))?.map(item => item.id)).toEqual(chatStickers.map(item => item.id))
+  expect(store.enabled).toBe(false)
+  expect(await store.selectCatalogForReply()).toBeUndefined()
+  store.enabled = true
+  expect(await store.selectCatalogForReply(false)).toBeUndefined()
+  expect(store.enabled).toBe(true)
+})
+
 it('persists frequency independently of the toggle and resets both preferences', async () => {
   const store = createStore()
   expect(store.frequency).toBe(50)
@@ -121,7 +133,7 @@ it('lets users enable stickers and choose each frequency through the real settin
     global: { plugins: [pinia, createI18n({ legacy: false, locale: 'en', messages: { en } })] },
   })
   const frequency = view.getByRole('combobox')
-  await expect.element(frequency).toBeDisabled()
+  await expect.element(frequency).toBeEnabled()
   await view.getByRole('switch').click()
   await expect.element(frequency).toBeEnabled()
   for (const [value, label] of [[25, 'Occasionally (25%)'], [50, 'Sometimes (50%)'], [75, 'Often (75%)'], [100, 'Whenever appropriate (100%)']] as const) {
@@ -132,7 +144,7 @@ it('lets users enable stickers and choose each frequency through the real settin
     await expect.element(frequency).toHaveTextContent(label)
   }
   await view.getByRole('switch').click()
-  await expect.element(frequency).toBeDisabled()
+  await expect.element(frequency).toBeEnabled()
   expect(store.frequency).toBe(100)
 })
 

@@ -7,12 +7,14 @@ import type { AgentForegroundStreamPort } from '../contracts/stream-port'
 import type { AssistantTurn, Conversation, Turn } from '../messages/types'
 import type { ChatHistoryItem, ChatInvokedSkill, ChatSlices, ChatSlicesToolCall, ChatSlicesToolContent, ChatStreamEventContext, ChatToolReference, ContextMessage, StreamingAssistantMessage } from '../types/chat'
 import type { LlmUsage, StreamEvent, StreamOptions } from '../types/llm'
+import type { SessionFeatures } from '../types/session-features'
 
 import { createQueue } from '@proj-airi/stream-kit'
 
 import { chatMessagesToTurns } from '../messages/chat-completions'
 import { formatTimePrefix } from '../messages/datetime-prefix'
 import { renderConversationPreview } from '../messages/preview'
+import { DEFAULT_SESSION_FEATURES, resolveSessionFeatures } from '../types/session-features'
 import { createChatHooks } from './agent-hooks'
 import { useLlmmarkerParser } from './llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from './response-categoriser'
@@ -125,6 +127,8 @@ export type ChatAttachment
 
 /** Options accepted by the chat orchestrator runtime for one user send. */
 export interface ChatOrchestratorSendOptions {
+  /** Session policy captured before queueing. Omission uses the module availability defaults. */
+  features?: SessionFeatures
   /** Identity captured with chatProvider. Omission selects the active provider when the request is enqueued. */
   providerId?: string
   /** Model capabilities captured before the request enters its session queue. */
@@ -327,14 +331,14 @@ export interface ChatOrchestratorRuntimeDeps {
    * Returns the identity and format rules for the session's persona, read when the send starts.
    * With it, history carries no identity. Stored system messages are skipped, so a persona edit or switch reaches the next send of its own sessions only.
    */
-  getSystemPrompt?: (sessionId: string) => string | undefined
+  getSystemPrompt?: (sessionId: string, features: SessionFeatures) => string | undefined
   /**
    * Returns the conversation turn limit, including the current input's turn. A turn contains a user group and its assistant/tool group.
    * `-1` keeps all history. `0` sends only current input. System messages are exempt.
    */
   getContextWindow?: (sessionId: string) => number | undefined
   /** Runtime context providers ingested immediately before prompt composition. */
-  runtimeContextProviders?: Array<() => ContextMessage | null | undefined>
+  runtimeContextProviders?: Array<(scope: { sessionId: string, features: SessionFeatures }) => ContextMessage | null | undefined>
   /**
    * Tools whose calls show as content of the reply, by tool name. A reply keeps no slice for their calls, and the model
    * still sees the calls in the provider transcript.
@@ -447,12 +451,14 @@ export interface ChatOrchestratorRuntimeDeps {
   }) => void
   /** Called after user turn persistence, before provider prompt composition. */
   onUserTurnReady?: (event: {
+    features: SessionFeatures
     sessionId: string
     messageText: string
     sessionMessages: ChatHistoryItem[]
   }) => void
   /** Called after assistant streaming and hook finalization. */
   onAssistantTurnReady?: (event: {
+    features: SessionFeatures
     sessionId: string
     messageText: string
     sessionMessages: ChatHistoryItem[]
@@ -604,9 +610,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       deps.foregroundStream.reset()
   }
 
-  function ingestRuntimeContexts() {
+  function ingestRuntimeContexts(scope: { sessionId: string, features: SessionFeatures }) {
     for (const provider of deps.runtimeContextProviders ?? []) {
-      const contextMessage = provider()
+      const contextMessage = provider(scope)
       if (contextMessage)
         deps.context.ingest(contextMessage)
     }
@@ -620,7 +626,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     return fallbackCreatedAt
   }
 
-  function buildContext(history: ChatHistoryItem[]): Conversation {
+  function allowedSkills(skills: readonly ChatInvokedSkill[] | undefined, features: SessionFeatures) {
+    return skills?.filter(skill => skill.kind === 'background' ? features.tasks : features.skills)
+  }
+
+  function buildContext(history: ChatHistoryItem[], features: SessionFeatures): Conversation {
     const nowTs = now()
     const messagesById = new Map(history.flatMap(message => message.id ? [[message.id, message] as const] : []))
     const turns = history.flatMap((message, historyIndex): Turn[] => {
@@ -632,10 +642,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         : unwrapMessage(message)
       const turns = chatMessagesToTurns(source.role === 'assistant' && source.providerTranscript?.length ? source.providerTranscript : [source], message.id ?? `history-${historyIndex}`)
       // An invoked skill joins its message as the owner's own instruction, like a slash command.
-      if (message.role === 'user' && message.skills?.length) {
+      const skills = message.role === 'user' ? allowedSkills(message.skills, features) : undefined
+      if (skills?.length) {
         const userTurn = turns.find(turn => turn.type === 'user')
         if (userTurn?.type === 'user')
-          userTurn.content.push(...message.skills.map(skill => ({ type: 'text' as const, text: `\n\n[The owner used the skill "${skill.name}". Follow its steps in this reply and in later replies while they fit.]\n${skill.instructions}` })))
+          userTurn.content.push(...skills.map(skill => ({ type: 'text' as const, text: `\n\n[The owner used the skill "${skill.name}". Follow its steps in this reply and in later replies while they fit.]\n${skill.instructions}` })))
       }
       return turns
     })
@@ -718,7 +729,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     // It is applied at message-assembly time (see below) as a system-prompt
     // date anchor + per-message [HH:MM] prefixes, which is more KV-cache
     // friendly and less prone to weak models echoing timestamps verbatim.
-    ingestRuntimeContexts()
+    const features = options.features ?? DEFAULT_SESSION_FEATURES
+    const scope = { sessionId, features }
+    ingestRuntimeContexts(scope)
 
     const sendingCreatedAt = now()
 
@@ -738,11 +751,13 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         id: streamContextMessageId,
         ...(replyToMessageId ? { replyToMessageId } : {}),
       },
-      contexts: deps.context.snapshot(),
+      contexts: deps.context.snapshot(scope),
       composedMessage: [],
       input: options.input,
       // The owner hears the reply unless it answers a scene or runs in the background.
-      speaks: !options.background && !options.scene,
+      speaks: features.speech && !options.background && !options.scene,
+      reactions: features.reactions && !options.background && !options.scene,
+      features,
     }
     deps.onLifecycle?.({
       phase: 'before-compose',
@@ -862,6 +877,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         delete streamingMessageContext.message.replyToMessageId
 
       // A notice is stored with its source, so later requests still know it, and none read it as owner speech.
+      const skills = allowedSkills(options.skills, features)
       const userMessage = {
         role: 'user' as const,
         content: finalContent,
@@ -869,7 +885,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         id: roundId,
         ...(replyToMessageId ? { replyToMessageId } : {}),
         ...(options.toolReferences?.length ? { tools: options.toolReferences } : {}),
-        ...(options.skills?.length ? { skills: options.skills.map(skill => ({ ...skill })) } : {}),
+        ...(skills?.length ? { skills: skills.map(skill => ({ ...skill })) } : {}),
         ...(audioTranscripts?.some(Boolean) ? { audioTranscripts } : {}),
         ...(options.notice ? { notice: { source: options.notice.source } } : {}),
       }
@@ -897,6 +913,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
       const sessionMessagesForSend = deps.session.getSessionMessages(sessionId)
       deps.onUserTurnReady?.({
+        features,
         sessionId,
         messageText: sendingMessage,
         sessionMessages: sessionMessagesForSend,
@@ -906,7 +923,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       let streamPosition = 0
       let pendingSpeechWhitespace = ''
       let speechStarted = false
-      const stickers = options.stickers
+      const stickers = features.stickers ? options.stickers : undefined
       let stickerEmitted = false
 
       const parser = useLlmmarkerParser({
@@ -1023,14 +1040,14 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       })
 
       // Identity comes from the session's persona at request time. Without a host identity, the stored history keeps its own system message.
-      const systemPrompt = deps.getSystemPrompt?.(sessionId)
+      const systemPrompt = deps.getSystemPrompt?.(sessionId, features)
       const history = trimConversationHistory(
         sessionId,
         generation,
         deps.getSystemPrompt ? sessionMessagesForSend.filter(message => message.role !== 'system') : sessionMessagesForSend,
         deps.getContextWindow?.(sessionId),
       )
-      const context = buildContext(history)
+      const context = buildContext(history, features)
       // The stored notice ends the history. Only this request tells the model that it can stay quiet about it.
       if (options.notice) {
         const lastTurn = context.turns.at(-1)
@@ -1057,7 +1074,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           context.turns.unshift({ id: 'system-supplement', type: 'system', authority: 'system', content: [{ type: 'text', text: systemPromptSupplement }] })
       }
 
-      const contextsSnapshot = deps.context.snapshot()
+      const contextsSnapshot = deps.context.snapshot(scope)
       const entries = Object.entries(contextsSnapshot).flatMap(([source, messages]) => messages.map(message => ({ source, text: message.text })))
       if (entries.length) {
         const lastMessage = context.turns.at(-1)
@@ -1106,6 +1123,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       const resolveOwnerStep = options.resolveStep
       await waitForProvider(deps.llm.stream(options.model, options.chatProvider, context, {
         headers,
+        features,
         providerId: activeProvider,
         // A resolved prompt replaces the composed system message, so it must carry the same supplement.
         resolveStep: resolveOwnerStep
@@ -1323,6 +1341,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       if (shouldAbort())
         return
       deps.onAssistantTurnReady?.({
+        features,
         sessionId,
         messageText: fullText,
         sessionMessages: sessionMessagesForSend,
@@ -1481,6 +1500,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       sendingMessage,
       options: {
         ...options,
+        features: resolveSessionFeatures(options.features ?? DEFAULT_SESSION_FEATURES),
         systemPromptSupplement: options.systemPromptSupplement ?? deps.getSystemPromptSupplement?.(),
         stickers: options.stickers?.map(({ id, description }) => ({ id, description })),
       },

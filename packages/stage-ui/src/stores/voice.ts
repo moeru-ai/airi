@@ -10,7 +10,7 @@ import { errorMessageFrom } from '@moeru/std'
 import { DEFAULT_SPEECH_THRESHOLD, turnKey } from '@proj-airi/core-agent'
 import { observeLevel } from '@proj-airi/pipelines-audio'
 import { defineStore, storeToRefs } from 'pinia'
-import { onScopeDispose, shallowRef, watch } from 'vue'
+import { computed, onScopeDispose, shallowRef, watch } from 'vue'
 
 import { useVoiceController } from '../composables/audio/voice-controller'
 import { traceSpeechOutput } from '../composables/speech-output-trace'
@@ -56,6 +56,8 @@ export const useVoiceStore = defineStore('voice', () => {
   const devices = useSettingsAudioDevice()
   const hearing = useHearingStore()
   const speechSettings = useSpeechStore()
+  /** Global admission for speech producers and their renderer resources. */
+  const outputEnabled = computed(() => speechSettings.enabled)
   const chat = useChatStore()
   const sessions = useChatSessionStore()
   const voiceMessages = useVoiceMessagesStore()
@@ -269,9 +271,13 @@ export const useVoiceStore = defineStore('voice', () => {
     speechTraces.delete(key)
   }
 
+  /** Returns false before creating a response or producer when global speech output is off. */
   function startResponse(turn: TurnRef) {
+    if (!outputEnabled.value)
+      return false
     const entry = getResponse(turn)
     entry.speech ??= entry.response.openSpeech({ purpose: 'answer' })
+    return true
   }
 
   function getSpeech(turn: TurnRef) {
@@ -281,8 +287,11 @@ export const useVoiceStore = defineStore('voice', () => {
   async function finishResponse(turn: TurnRef) {
     const key = turnKey(turn)
     const entry = responses.get(key)
-    if (!entry)
+    if (!entry) {
+      // Silent turns still own control handlers until their text generation finishes.
+      streamingControl.completeTurn(turn.turnId)
       return
+    }
 
     const result = await entry.response.finish()
     streamingControl.completeTurn(turn.turnId)
@@ -389,7 +398,7 @@ export const useVoiceStore = defineStore('voice', () => {
     const opened = new Set<string>()
     const stops = [
       // Disabling speech stops local and remote producers. The response stays open for text generation and tools.
-      watch(() => speechSettings.enabled, (enabled) => {
+      watch(outputEnabled, (enabled) => {
         if (enabled)
           return
         for (const { response, speech } of responses.values()) {
@@ -510,6 +519,8 @@ export const useVoiceStore = defineStore('voice', () => {
             return { status: producers.has(key) ? 'accepted' : 'closed' }
 
           opened.add(key)
+          if (!outputEnabled.value)
+            return { status: 'closed' }
           const speech = getResponse(body.turn).response.openSpeech({ purpose: body.purpose })
           producers.set(key, speech)
           void speech.done.then(() => producers.delete(key))
@@ -714,5 +725,5 @@ export const useVoiceStore = defineStore('voice', () => {
     void stopListening()
   })
 
-  return { controller, state, transcript, error, drafts, activeTurns, callActive, callMuted, startCall, endCall, setCallMuted, beginInput, beginManual, endInput, cancelInput, sendDraft, discardDraft, startResponse, getSpeech, finishResponse, interrupt, connectOutput, connectSpeechNode, connectTools, startListening, stopListening, resolveWakeTarget }
+  return { controller, state, transcript, error, drafts, activeTurns, outputEnabled, callActive, callMuted, startCall, endCall, setCallMuted, beginInput, beginManual, endInput, cancelInput, sendDraft, discardDraft, startResponse, getSpeech, finishResponse, interrupt, connectOutput, connectSpeechNode, connectTools, startListening, stopListening, resolveWakeTarget }
 })

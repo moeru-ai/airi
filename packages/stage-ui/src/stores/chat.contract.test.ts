@@ -9,6 +9,7 @@ import type { ChatSessionMeta } from '../types/chat-session'
 import type { LlmStreamOptions } from './ai/chat-llm/llm'
 
 import { errorMessageFrom } from '@moeru/std'
+import { DEFAULT_SESSION_FEATURES } from '@proj-airi/core-agent'
 import { ATTR_GEN_AI_CONVERSATION_ID, ATTR_GEN_AI_OPERATION_NAME, ATTR_GEN_AI_TOOL_NAME } from '@proj-airi/trace-kit'
 import { AgentAttributes, AgentIdKeys, AgentNames } from '@proj-airi/trace-kit/agent'
 import { VoiceIdKeys } from '@proj-airi/trace-kit/voice'
@@ -28,11 +29,13 @@ import {
 } from '../libs/product-signals/headers'
 import { composeDrawCardPrompt } from '../tools/draw-card'
 import { composeMemoryPrompt } from '../tools/memory'
+import { useLlmToolsetPromptsStore } from './ai/chat-llm/toolset-prompts'
 import { useChatStore } from './chat'
 import { CHAT_FORMAT_RULES } from './chat/prompt-recipe'
 import { useContextObservabilityStore } from './devtools/context-observability'
 import { useMemoryStore } from './memory'
 import { useConsciousnessSettingsStore } from './modules/consciousness-settings'
+import { useStickersStore } from './modules/stickers'
 import { useRecipesStore } from './recipes'
 
 const traceRecords: TraceRecord[] = []
@@ -218,12 +221,6 @@ vi.mock('./ai/chat-llm/tools', () => ({
   }),
 }))
 
-vi.mock('./ai/chat-llm/toolset-prompts', () => ({
-  useLlmToolsetPromptsStore: () => ({
-    activeToolsetPrompt: 'Plugin toolset guidance.',
-  }),
-}))
-
 vi.mock('./modules/consciousness', () => ({
   useConsciousnessStore: defineStore('consciousness', () => ({
     activeModel: activeModelRef,
@@ -298,6 +295,7 @@ describe('chat store contract', () => {
     await recipesRepo.clear()
     cardPrompt.value = 'system prompt'
     setActivePinia(createPinia())
+    useLlmToolsetPromptsStore().registerToolsetPrompts('plugin-tools', [{ id: 'guidance', content: 'Plugin toolset guidance.' }])
     vi.spyOn(getAnalytics(), 'emit').mockImplementation((event, properties) => {
       switch (event.name) {
         case 'message_round':
@@ -378,6 +376,69 @@ describe('chat store contract', () => {
       sessionMetas[sessionId] = { sessionId, userId: 'local', characterId, createdAt: 1, updatedAt: 1 }
 
     sessionMessages['session-1'] = [{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }]
+  })
+
+  it('gates prompts, catalog discovery, and run tools through the target session choices', async () => {
+    sessionMetas['session-1'].features = {
+      speech: false,
+      reactions: false,
+      stickers: false,
+      cards: false,
+      skills: false,
+      tasks: false,
+      artistry: false,
+      memory: 'off',
+      tools: Object.fromEntries(DEFAULT_SESSION_FEATURES.tools.map(group => [group, false])),
+      screen: false,
+      modules: false,
+    }
+    const memory = useMemoryStore()
+    memory.enabled = true
+    await memory.write({ description: 'Example memory index entry.', body: 'Example memory body.' }, 'alice')
+    const catalog = vi.spyOn(useStickersStore(), 'selectCatalogForReply')
+    const context = (contextId: string, text: string) => ({ contextId, text, id: contextId, strategy: 'replace-self', createdAt: 1 })
+    getContextsSnapshotMock.mockReturnValue({
+      vision: [context('vision:screen', 'Example screen observation.')],
+      modules: [context('module:example', 'Example module observation.')],
+    })
+    const tools: string[][] = []
+    const prompts: string[] = []
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, conversation: Conversation, options: StreamOptions) => {
+      prompts.push(JSON.stringify(conversation))
+      const selected = typeof options.tools === 'function' ? await options.tools() : options.tools
+      tools.push((selected ?? []).map(tool => tool.function.name))
+      expect(options.features?.tools).toEqual([])
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    const store = useChatStore()
+    await store.ingest('First reply', { model: 'gpt-test', chatProvider: provider })
+    expect(tools[0]).toEqual([])
+    expect(prompts[0]).not.toContain('Example memory index entry.')
+    expect(prompts[0]).not.toContain('Example screen observation.')
+    expect(prompts[0]).not.toContain('Example module observation.')
+    expect(prompts[0]).not.toContain('Plugin toolset guidance.')
+    expect(prompts[0]).not.toContain(composeDrawCardPrompt())
+    expect(createMinecraftContextMock).not.toHaveBeenCalled()
+    expect(createRuntimePromptContextMock).toHaveBeenCalledWith('base.prompt.emoji')
+
+    sessionMetas['session-1'].features.memory = 'read'
+    memory.enabled = false
+    await store.send({ sessionId: 'session-1', text: 'Read only' })
+    expect(tools[1]).toEqual(['builtIn_readMemory'])
+    expect(prompts[1]).toContain('Example memory index entry.')
+    expect(prompts[1]).not.toContain('builtIn_writeMemory')
+    expect(prompts[1]).not.toContain('builtIn_forgetMemory')
+    expect(catalog).not.toHaveBeenCalled()
+    expect(memory.enabled).toBe(false)
+
+    sessionMetas['session-1'].features.stickers = true
+    const stickers = useStickersStore()
+    stickers.enabled = false
+    stickers.frequency = 100
+    await store.send({ sessionId: 'session-1', text: 'Use the conversation sticker choice' })
+    expect(catalog).toHaveBeenCalledExactlyOnceWith(true)
+    expect(stickers.enabled).toBe(false)
   })
 
   it('cancels a named submission while session preparation is pending', async () => {
@@ -1675,7 +1736,7 @@ describe('chat store contract', () => {
       throw new Error('Expected system and user turns')
     expect(composedMessages[0].content).toEqual([
       { type: 'text', text: `${CHAT_FORMAT_RULES}system prompt${composeMemoryPrompt('')}${composeDrawCardPrompt()}` },
-      { type: 'text', text: '\n\nPlugin toolset guidance.' },
+      { type: 'text', text: '\n\n## Toolset\n\nPlugin toolset guidance.' },
     ])
     expect(composedMessages[1].content[0]).toMatchObject({
       type: 'text',
@@ -1846,7 +1907,7 @@ describe('chat store contract', () => {
     expect(spanEnds(aliceTurn)).toHaveLength(1)
   })
 
-  it('ingests the runtime prompt before composing prompt snapshots', async () => {
+  it('keeps the runtime prompt local to each request while ingesting shared module context', async () => {
     const runtimePromptContext = {
       id: 'airi-runtime-prompt-context',
       contextId: 'system:airi-runtime-prompt',
@@ -1870,10 +1931,10 @@ describe('chat store contract', () => {
       'system:airi-runtime-prompt': [runtimePromptContext],
       'system:minecraft': [minecraftContext],
     })
-    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: GenerationProvider, context: Conversation, options: any) => {
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: GenerationProvider, context: Conversation, options: StreamOptions) => {
       composedMessages = context.turns
-      await options.onStreamEvent({ type: 'text-delta', text: 'minecraft reply' })
-      await options.onStreamEvent({ type: 'finish' })
+      await options.onStreamEvent?.({ type: 'text-delta', text: 'minecraft reply' })
+      await options.onStreamEvent?.({ type: 'finish' })
     })
 
     const store = useChatStore()
@@ -1885,9 +1946,9 @@ describe('chat store contract', () => {
 
     expect(createRuntimePromptContextMock).toHaveBeenCalledWith(expect.stringContaining('base.prompt.emotion'))
     expect(createRuntimePromptContextMock).toHaveBeenCalledWith(expect.stringContaining('base.prompt.emoji'))
-    expect(ingestContextMessageMock).toHaveBeenCalledTimes(2)
-    expect(ingestContextMessageMock).toHaveBeenNthCalledWith(1, runtimePromptContext)
-    expect(ingestContextMessageMock).toHaveBeenNthCalledWith(2, minecraftContext)
+    expect(ingestContextMessageMock).toHaveBeenCalledTimes(1)
+    expect(ingestContextMessageMock).not.toHaveBeenCalledWith(runtimePromptContext)
+    expect(ingestContextMessageMock).toHaveBeenCalledWith(minecraftContext)
     expect(ingestContextMessageMock.mock.invocationCallOrder[0]).toBeLessThan(
       getContextsSnapshotMock.mock.invocationCallOrder[0],
     )
@@ -1896,8 +1957,8 @@ describe('chat store contract', () => {
     expect(composedMessages[1].content[1]).toEqual({
       type: 'runtime-context',
       entries: [
-        { source: 'system:airi-runtime-prompt', text: runtimePromptContext.text },
         { source: 'system:minecraft', text: 'player is near spawn' },
+        { source: 'system:airi-runtime-prompt', text: runtimePromptContext.text },
       ],
     })
   })
