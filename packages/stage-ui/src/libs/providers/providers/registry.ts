@@ -6,6 +6,7 @@ import type { ProviderConfigContext, ProviderDefinition } from '../types'
 import type { providerAliyunNlsTranscription } from './aliyun-nls'
 import type { providerAppleSpeechTranscription } from './apple-speech'
 import type { providerAppleVision } from './apple-vision'
+import type { providerGptSovits } from './gpt-sovits'
 import type { providerKokoroLocal } from './kokoro-local'
 import type {
   providerAppLocalAudioSpeech,
@@ -36,6 +37,7 @@ type StageOnlyProviderId
     | typeof providerBrowserLocalAudioSpeech.id
     | typeof providerBrowserLocalAudioTranscription.id
     | typeof providerKokoroLocal.id
+    | typeof providerGptSovits.id
     | typeof providerNvidia.id
     | typeof providerOfficialChat.id
     | typeof providerOfficialSpeech.id
