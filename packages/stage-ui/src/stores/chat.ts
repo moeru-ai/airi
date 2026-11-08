@@ -420,12 +420,22 @@ export const useChatStore = defineStore('chat', () => {
    * Tells a conversation about finished background work. The main agent reads the notice and decides what to say, or stays quiet.
    * Only the owner's own conversation gets a notice, so background results never reach a scene.
    */
-  async function notifyConversation(sessionId: string, notice: { source: string, text: string, messageId?: string }, options: { waitForCompletion?: boolean, signal?: AbortSignal } = {}) {
+  async function notifyConversation(sessionId: string, notice: { source: string, text: string, messageId?: string }, options: {
+    waitForCompletion?: boolean
+    signal?: AbortSignal
+    /** Continue with only the source turn's tools that the current request selection still permits. */
+    continueFrom?: { turnId: string, tools: ChatToolReference[] }
+  } = {}) {
     if (!chatSession.sessionMetas[sessionId] || !isOwnerSession(sessionId))
       return
     try {
       const messageId = notice.messageId ?? nanoid()
-      const request = startSend({ sessionId, text: notice.text, messageId }, false, { notice: { source: notice.source } })
+      const continuation = options.continueFrom
+      const source = continuation && chatSession.getSessionMessagesIfLoaded(sessionId)?.find(message => message.id === continuation.turnId && message.role === 'user')
+      // Loaded history binds the original turn in this session. Missing history grants no restricted tools.
+      // Resolve synchronously, before startSend owns cancellation, rather than hydrating a stale session here.
+      const tools = source?.tools?.filter(tool => continuation?.tools.some(selected => selected.name === tool.name))
+      const request = startSend({ sessionId, text: notice.text, messageId, tools }, false, { notice: { source: notice.source } })
       const cancel = () => {
         void cancelTurn({ sessionId, turnId: messageId })
       }

@@ -54,6 +54,7 @@ async function setupChat(reply: (prompt: string, options?: StreamOptions) => Pro
   consciousness.activeModel = 'test-model'
   vi.spyOn(consciousness, 'getChatProviderInstance').mockResolvedValue(provider)
   const prompts: string[] = []
+  const stream = useLLM(pinia).stream
   vi.spyOn(useLLM(pinia), 'stream').mockImplementation(async (_model, _provider, context, options) => {
     const prompt = JSON.stringify(context)
     prompts.push(prompt)
@@ -62,7 +63,7 @@ async function setupChat(reply: (prompt: string, options?: StreamOptions) => Pro
       await options?.onStreamEvent?.({ type: 'text-delta', text })
     await options?.onStreamEvent?.({ type: 'finish' })
   })
-  return { pinia, chat: useChatStore(pinia), sessions, recipes: useRecipesStore(pinia), prompts }
+  return { pinia, chat: useChatStore(pinia), sessions, recipes: useRecipesStore(pinia), prompts, stream }
 }
 
 /**
@@ -83,6 +84,60 @@ afterEach(async () => {
   }
   localStorage.clear()
   await recipesRepo.clear()
+})
+
+it.each([
+  { original: ['computer_use', 'computer_use_read_image'], selected: ['computer_use', 'unrelated_tool'], expected: ['computer_use'], sourceTurn: 'owner-turn' },
+  { original: ['computer_use'], selected: [], expected: [], sourceTurn: 'owner-turn' },
+  { original: [], selected: ['computer_use'], expected: [], sourceTurn: 'owner-turn' },
+  { original: ['computer_use'], selected: ['computer_use'], expected: [], sourceTurn: 'missing-turn' },
+])('bounds notice tools by the source turn and current selection: %j', async ({ original, selected, expected, sourceTurn }) => {
+  const { pinia, chat, sessions, stream } = await setupChat(async () => '')
+  const execute = vi.fn(async () => 'No native executor in this fixture.')
+  const names = ['computer_use', 'computer_use_read_image', 'unrelated_tool']
+  useLlmToolsStore(pinia).addTools(...names.map(name => ({
+    id: `fixture:${name}`,
+    type: 'function' as const,
+    function: { name, description: 'Controlled read-only fixture.', parameters: { type: 'object' as const, properties: {} } },
+    requiresExplicitSelection: true,
+    execute,
+  })))
+  const requests: Array<{ tools?: Array<{ function: { name: string } }> }> = []
+  const recordingProvider: GenerationProvider = { generation: model => ({ protocol: 'chat-completions', config: {
+    model,
+    baseURL: 'https://example.com/v1/',
+    fetch: async (_url: RequestInfo | URL, init?: RequestInit) => {
+      requests.push(JSON.parse(String(init?.body)))
+      return new Response('data: {"choices":[{"index":0,"delta":{"content":"Observed."},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n', { headers: { 'Content-Type': 'text/event-stream' } })
+    },
+  } }) }
+  vi.mocked(useLLM(pinia).stream).mockImplementation(async (model, _provider, conversation, options) => {
+    const resolveStep = options?.resolveStep
+    await stream(model, recordingProvider, conversation, {
+      ...options,
+      resolveStep: resolveStep ? async () => ({ ...await resolveStep(), chatProvider: recordingProvider }) : undefined,
+    })
+  })
+  const parent = sessions.activeSessionId
+  await chat.send({ sessionId: parent, text: 'Use the selected observation tools.', messageId: 'owner-turn', tools: original.map(name => ({ name })) })
+  const character = sessions.sessionMetas[parent]!.characterId
+  const other = await sessions.createSession(character)
+  await chat.notifyConversation(parent, { source: 'airi:terminal-settlement', messageId: 'notice-one', text: 'Controlled Terminal outcome. No new authorization.' }, {
+    continueFrom: { turnId: sourceTurn, tools: selected.map(name => ({ name })) },
+  })
+  const actual = requests.at(-1)?.tools?.map(tool => tool.function.name).filter(name => names.includes(name)) ?? []
+  console.info(JSON.stringify({ boundary: 'Real Chat stores, resolver, Core and SDK provider projection. Mock provider and executors.', original, selected, sourceTurn, actual, requestTools: requests.map(request => request.tools?.map(tool => tool.function.name)), dispatches: execute.mock.calls.length }))
+  expect(actual).toEqual(expected)
+  await chat.notifyConversation(parent, { source: 'airi:terminal-settlement', messageId: 'notice-two', text: 'Next controlled outcome.' }, {
+    continueFrom: { turnId: 'notice-one', tools: names.map(name => ({ name })) },
+  })
+  const chained = requests.at(-1)?.tools?.map(tool => tool.function.name).filter(name => names.includes(name)) ?? []
+  expect(chained).toEqual(expected)
+  console.info(JSON.stringify({ boundary: 'Second Notice uses the first Notice as its exact source. A larger current selection cannot restore a dropped tool.', original, selected, chained, dispatches: execute.mock.calls.length }))
+  expect(sessions.activeSessionId).toBe(other)
+  expect(sessions.getSessionMessages(other)).toHaveLength(0)
+  expect(sessions.getSessionMessages(parent).filter(message => message.role === 'user' && !message.notice)).toHaveLength(1)
+  expect(execute).not.toHaveBeenCalled()
 })
 
 // ROOT CAUSE:

@@ -15,9 +15,11 @@ import * as v from 'valibot'
 
 import { electronMcpCallTool, electronMcpListTools } from '../../../shared/eventa'
 import { chatRequestCancel, chatRequestFinish, chatRequestRegister, terminalOutcomeNotice } from '../../../shared/eventa/terminal-approval'
+import { useToolSelectionStore } from './selection'
 
 export const useTamagotchiMcpToolsStore = defineStore('tamagotchi-mcp-tools', () => {
   const llmToolsStore = useLlmToolsStore()
+  const toolSelection = useToolSelectionStore()
   const listMcpTools = useElectronEventaInvoke(electronMcpListTools)
   const callMcpTool = useElectronEventaInvoke(electronMcpCallTool)
   const registerRequest = useElectronEventaInvoke(chatRequestRegister)
@@ -37,7 +39,11 @@ export const useTamagotchiMcpToolsStore = defineStore('tamagotchi-mcp-tools', ()
       source: 'airi:terminal-settlement',
       messageId,
       text: `${facts}\n${JSON.stringify(notice)}`,
-    }, { waitForCompletion: false, signal: options?.abortController?.signal })
+    }, {
+      waitForCompletion: false,
+      signal: options?.abortController?.signal,
+      continueFrom: { turnId: notice.turnId, tools: toolSelection.requestTools },
+    })
     if (!receipt)
       throw new Error('The original Terminal conversation cannot accept this notice.')
     return { status: 'stored' as const, sessionId: receipt.sessionId, messageId: receipt.messageId }
