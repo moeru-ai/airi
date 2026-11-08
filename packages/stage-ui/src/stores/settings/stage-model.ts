@@ -35,6 +35,9 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   const stageModelSelectionStore = useStageModelSelectionStore()
   const { selected: stageModelSelectedState } = storeToRefs(stageModelSelectionStore)
   let stageModelUpdateSequence = 0
+  // The load that runs now. A pick writes the selection, so the selection watcher and the picker
+  // both request a load of the same model. The second request waits for the first load.
+  let activeStageModelUpdate: { modelId: string, requestId: number, promise: Promise<void> } | undefined
   // The selection could not load. The next change of the available models tries again.
   let stageModelLoadPending = false
   let legacyModelIdentityResetPromise: Promise<void> | undefined
@@ -116,9 +119,21 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     return legacyModelIdentityResetPromise
   }
 
-  async function updateStageModel() {
-    const requestId = ++stageModelUpdateSequence
+  function updateStageModel() {
     const selectedModelId = stageModelSelectedState.value
+    if (activeStageModelUpdate?.modelId === selectedModelId)
+      return activeStageModelUpdate.promise
+
+    const requestId = ++stageModelUpdateSequence
+    const promise = loadStageModel(selectedModelId, requestId).finally(() => {
+      if (activeStageModelUpdate?.requestId === requestId)
+        activeStageModelUpdate = undefined
+    })
+    activeStageModelUpdate = { modelId: selectedModelId, requestId, promise }
+    return promise
+  }
+
+  async function loadStageModel(selectedModelId: string, requestId: number) {
     stageModelLoadPending = false
     stageModelUnavailable.value = false
 
