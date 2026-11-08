@@ -29,7 +29,8 @@ import type {
 
 import semver from 'semver'
 
-import { createContainer, dispose, effect } from 'injeca'
+import { errorMessageFrom } from '@moeru/std'
+import { createContainer, dispose, effect, watch } from 'injeca'
 
 import { DisposableStore } from '../extension/disposable'
 import { kitUseFailure } from '../kit'
@@ -119,8 +120,10 @@ export interface ExtensionSession {
   runtime?: PluginRuntime
   /** Loaded extension definition. */
   entrypoint: Extension
-  /** Current extension setup phase. */
-  phase: 'setting-up' | 'ready' | 'failed' | 'stopped'
+  /** Current extension setup phase. A `pending` session waits for the Kits in `missingKitIds`, and its setup has not run. */
+  phase: 'pending' | 'setting-up' | 'ready' | 'failed' | 'stopped'
+  /** Required Kits without a ready Provider of a compatible version. It is empty after the session leaves `pending`. */
+  missingKitIds: string[]
   /** Modules registered by this extension setup. */
   modules: Map<string, ExtensionModuleContext>
   /** Requested and granted permissions for the extension session. */
@@ -277,10 +280,24 @@ export class ExtensionHost {
     }
   }
 
+  /** Lists the required Kits of a Manifest without a ready Provider whose version satisfies the requested range. */
+  private findMissingKitIds(manifest: ExtensionManifestV2): string[] {
+    return (manifest.kits?.uses ?? []).filter((declaration) => {
+      if (declaration.optional) {
+        return false
+      }
+      const provider = this.providers.getReady(declaration.id)
+      return !provider || !semver.satisfies(provider.version, declaration.version)
+    }).map(declaration => declaration.id)
+  }
+
   /**
-   * Runs setup and publishes its declared Providers only while the session remains pending.
+   * Runs setup and publishes its declared Providers only while the session remains in setup.
    * Stop releases reservations immediately but does not abort Extension code.
    * If stop interrupts setup, this promise rejects when setup settles.
+   *
+   * A session with a missing required Kit resolves at once in `pending`. Its setup runs when a compatible Provider is ready.
+   * A failure of that later setup goes to the container logger, and the session stops.
    */
   async startExtension(
     extension: Extension,
@@ -333,6 +350,7 @@ export class ExtensionHost {
       runtime,
       entrypoint: extension,
       phase: 'setting-up',
+      missingKitIds: this.findMissingKitIds(options.manifest),
       modules: new Map(),
       permissions: {
         requested: permissionSnapshot.requested,
@@ -398,12 +416,43 @@ export class ExtensionHost {
       },
     }
 
+    if (session.missingKitIds.length === 0) {
+      return await this.setupExtensionSession(session, ctx, providerTransaction)
+    }
+
+    session.phase = 'pending'
+    for (const declaration of options.manifest.kits?.uses ?? []) {
+      if (declaration.optional) {
+        continue
+      }
+      // A Provider change of a required Kit checks all required Kits again. The container disposal ends the subscription.
+      watch(container, declaration.id, () => {
+        if (session.phase !== 'pending') {
+          return
+        }
+        session.missingKitIds = this.findMissingKitIds(options.manifest)
+        if (session.missingKitIds.length === 0) {
+          session.phase = 'setting-up'
+          this.setupExtensionSession(session, ctx, providerTransaction).catch((error: unknown) => {
+            this.container.logger.warn(`The setup of Extension \`${extension.id}\` failed after its Kits became ready: ${errorMessageFrom(error)}`)
+          })
+        }
+      })
+    }
+    return session
+  }
+
+  private async setupExtensionSession(session: ExtensionSession, ctx: ExtensionSetupContext, providerTransaction: ExtensionProviderTransaction) {
+    const extension = session.entrypoint
     try {
       await extension.setup(ctx)
       if (session.phase === 'stopped') {
         throw new Error(`Extension session ${session.id} stopped before setup completed.`)
       }
-      owned.lease = providerTransaction.commit().lease
+      const lease = providerTransaction.commit().lease
+      const owned = this.sessionContainers.get(session)
+      if (owned)
+        owned.lease = lease
       session.phase = 'ready'
       return session
     }

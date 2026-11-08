@@ -1,4 +1,3 @@
-import type { ExtensionActivationPlan } from '@proj-airi/plugin-sdk/plugin-host'
 import type {
   ExtensionDirectoryImportPlan,
   PluginHostDebugSnapshot,
@@ -18,7 +17,7 @@ import { dirname, join } from 'node:path'
 
 import { useLogg } from '@guiiai/logg'
 import { errorMessageFrom } from '@moeru/std'
-import { planExtensionActivation } from '@proj-airi/plugin-sdk/plugin-host'
+import { checkExtensionActivation } from '@proj-airi/plugin-sdk/plugin-host'
 import { Mutex } from 'async-mutex'
 import { app, session as electronSession } from 'electron'
 
@@ -38,15 +37,10 @@ import {
 
 const extensionAssetSessionTtlMs = 30 * 24 * 60 * 60 * 1000
 
-/** Separates runtime failures from static Planner diagnostics. */
+/** Separates runtime failures from static activation check diagnostics. */
 interface ActivationExecutionReport {
-  plan: ExtensionActivationPlan
   loadedExtensionIds: string[]
   unloadedExtensionIds: string[]
-  skippedExtensionIds: Array<{
-    extensionId: string
-    reason: 'required-provider-failed'
-  }>
   failures: Array<{
     extensionId: string
     operation: 'load' | 'unload'
@@ -101,8 +95,8 @@ export interface ExtensionHostServiceInternal extends ExtensionHostService {
   /**
    * Applies the main-process system activation state without changing enabled intent.
    *
-   * A disabled system stops live sessions in Consumer-first order. Re-enabling the
-   * system restores the persisted enabled set in Provider-first order.
+   * A disabled system stops live sessions in reverse start order. Re-enabling the
+   * system starts the persisted enabled set. A Consumer waits for its required Kits.
    */
   setSystemEnabled: (enabled: boolean) => Promise<ActivationExecutionReport>
 
@@ -302,7 +296,6 @@ export async function setupExtensionHostServiceInternal(
   })
   const getLoadedExtensionIds = () => managedSessions.snapshot().loadedExtensionIds
   const getLoadedExtensionIdSet = () => new Set(getLoadedExtensionIds())
-  const getLoadedManifests = () => managedSessions.snapshot().loadedManifests
 
   const directoryImporter = new ExtensionDirectoryImporter(
     extensionsRoot,
@@ -327,25 +320,16 @@ export async function setupExtensionHostServiceInternal(
 
   const getConfig = () => extensionConfig.get()
 
-  const planActivation = (
-    proposedEnabledExtensionIds: readonly string[],
-    restartExtensionIds: readonly string[] = [],
-    proposedSystemEnabled = systemEnabled,
-  ) => {
-    const result = planExtensionActivation({
+  const checkActivation = (enabledExtensionIds: readonly string[]) => {
+    const diagnostics = checkExtensionActivation({
       installedManifests: extensionRegistry.listManifests(),
-      loadedManifests: getLoadedManifests(),
-      proposedEnabledExtensionIds,
-      restartExtensionIds,
-      hostProvidedKits: kits.hostProvidedKits,
+      enabledExtensionIds,
       runtime: 'electron',
       airiVersion,
-      systemEnabled: proposedSystemEnabled,
     })
-    if (!result.ok) {
-      throw new Error(result.diagnostics.map(diagnostic => diagnostic.message).join('\n'))
+    if (diagnostics.length > 0) {
+      throw new Error(diagnostics.map(diagnostic => diagnostic.message).join('\n'))
     }
-    return result.plan
   }
 
   const listSnapshot = (): PluginRegistrySnapshot => {
@@ -457,15 +441,16 @@ export async function setupExtensionHostServiceInternal(
     return await stopLoadedExtensionById(extensionId)
   }
 
-  const executeActivationPlan = async (
-    plan: ExtensionActivationPlan,
+  /** Stops `unload` in order, retries other cleanup debt, then starts `load` in order. */
+  const executeActivation = async (
+    transition: { unload?: readonly string[], load?: readonly string[] },
     options: { cacheBustKey?: string, rejectOnFailure?: boolean } = {},
   ): Promise<ActivationExecutionReport> => {
+    const unloadExtensionIds = transition.unload ?? []
+    const loadExtensionIds = transition.load ?? []
     const report: ActivationExecutionReport = {
-      plan,
       loadedExtensionIds: [],
       unloadedExtensionIds: [],
-      skippedExtensionIds: [],
       failures: [],
     }
     const failedExtensionIds = new Set<string>()
@@ -503,41 +488,19 @@ export async function setupExtensionHostServiceInternal(
         log.withError(error).withFields({ extensionId }).error('extension failed to stop')
       }
     }
-    for (const extensionId of plan.unloadOrder) {
+    for (const extensionId of unloadExtensionIds) {
       await executeUnload(extensionId)
     }
 
-    // Cleanup debt is intentionally absent from the Planner's loaded snapshot.
-    // Retry owners that are also absent from the target state after planned stops.
-    const targetLoadedExtensionIdSet = new Set(plan.targetLoadedExtensionIds)
-    const plannedUnloadExtensionIdSet = new Set(plan.unloadOrder)
-    const pendingCleanupExtensionIds = managedSessions.snapshot().cleanupPendingExtensionIds.filter(extensionId => !targetLoadedExtensionIdSet.has(extensionId)).filter(extensionId => !plannedUnloadExtensionIdSet.has(extensionId))
-    for (const extensionId of pendingCleanupExtensionIds) {
+    // Cleanup debt is absent from the loaded snapshot. Retry owners that this transition neither stops nor starts.
+    const { cleanupPendingExtensionIds } = managedSessions.snapshot()
+    for (const extensionId of cleanupPendingExtensionIds.filter(id => !loadExtensionIds.includes(id) && !unloadExtensionIds.includes(id))) {
       await executeUnload(extensionId)
     }
 
-    for (const extensionId of plan.loadOrder) {
+    for (const extensionId of loadExtensionIds) {
       if (failedExtensionIds.has(extensionId)) {
         log.withFields({ extensionId }).error('extension restart skipped because stop failed')
-        continue
-      }
-      const unavailableProviderIds = plan.resolutions
-        .filter(resolution => resolution.consumerExtensionId === extensionId && !resolution.optional)
-        .flatMap((resolution) => {
-          if (resolution.provider.kind !== 'extension') {
-            return []
-          }
-          return failedExtensionIds.has(resolution.provider.extensionId)
-            ? [resolution.provider.extensionId]
-            : []
-        })
-      if (unavailableProviderIds.length > 0) {
-        failedExtensionIds.add(extensionId)
-        report.skippedExtensionIds.push({
-          extensionId,
-          reason: 'required-provider-failed',
-        })
-        log.withFields({ extensionId, unavailableProviderIds }).error('extension start skipped because a required Provider failed')
         continue
       }
 
@@ -573,7 +536,7 @@ export async function setupExtensionHostServiceInternal(
       }
     }
 
-    if (report.failures.length > 0 || report.skippedExtensionIds.length > 0) {
+    if (report.failures.length > 0) {
       log.withFields({ report }).error('extension activation finished with runtime failures')
     }
 
@@ -609,8 +572,11 @@ export async function setupExtensionHostServiceInternal(
     reload: async (extensionId) => {
       await activationMutex.runExclusive(async () => {
         await refreshManifests()
-        const plan = planActivation(getLoadedExtensionIds(), [extensionId])
-        await executeActivationPlan(plan, { cacheBustKey: `auto-reload-${Date.now()}` })
+        if (!managedSessions.isLoaded(extensionId)) {
+          throw new Error(`Extension "${extensionId}" cannot restart because it is not loaded.`)
+        }
+        checkActivation(getLoadedExtensionIds())
+        await executeActivation({ unload: [extensionId], load: [extensionId] }, { cacheBustKey: `auto-reload-${Date.now()}` })
         autoReloadFeature.sync()
       })
     },
@@ -618,14 +584,12 @@ export async function setupExtensionHostServiceInternal(
 
   const loadEnabledExtensions = async () => {
     const config = getConfig()
-    const plan = planActivation(config.enabled)
+    checkActivation(config.enabled)
     // loadEnabled reconciles persisted intent without undoing Devtools raw loads.
-    // Raw-loaded sessions are runtime facts, so this operation ignores planned unloads.
-    const loadOnlyPlan: ExtensionActivationPlan = {
-      ...plan,
-      unloadOrder: [],
-    }
-    const report = await executeActivationPlan(loadOnlyPlan)
+    // Raw-loaded sessions are runtime facts, so this operation stops nothing.
+    const report = await executeActivation({
+      load: systemEnabled ? config.enabled.filter(extensionId => !managedSessions.isLoaded(extensionId)) : [],
+    })
     autoReloadFeature.sync()
     return report
   }
@@ -636,7 +600,7 @@ export async function setupExtensionHostServiceInternal(
       await loadEnabledExtensions()
     }
     catch (error) {
-      log.withError(error).error('extension activation plan rejected during startup')
+      log.withError(error).error('extension activation rejected during startup')
     }
   })
   autoReloadFeature.sync()
@@ -688,7 +652,7 @@ export async function setupExtensionHostServiceInternal(
           enabled.delete(payload.extensionId)
         }
 
-        planActivation([...enabled])
+        checkActivation([...enabled])
 
         const entry = extensionRegistry.findManifestEntry(payload.extensionId)
         const manifestPath = entry?.path ?? payload.path ?? ''
@@ -741,8 +705,8 @@ export async function setupExtensionHostServiceInternal(
     async load(extensionId) {
       return await activationMutex.runExclusive(async () => {
         await refreshManifests()
-        const plan = planActivation([...getLoadedExtensionIds(), extensionId])
-        await executeActivationPlan(plan, { rejectOnFailure: true })
+        checkActivation([...getLoadedExtensionIds(), extensionId])
+        await executeActivation({ load: managedSessions.isLoaded(extensionId) ? [] : [extensionId] }, { rejectOnFailure: true })
         autoReloadFeature.sync()
         return listSnapshot()
       })
@@ -750,10 +714,7 @@ export async function setupExtensionHostServiceInternal(
     async unload(extensionId) {
       return await activationMutex.runExclusive(async () => {
         await refreshManifests()
-        const proposedLoadedExtensionIds = getLoadedExtensionIds()
-          .filter(loadedExtensionId => loadedExtensionId !== extensionId)
-        const plan = planActivation(proposedLoadedExtensionIds)
-        await executeActivationPlan(plan, { rejectOnFailure: true })
+        await executeActivation({ unload: managedSessions.isLoaded(extensionId) ? [extensionId] : [] }, { rejectOnFailure: true })
         autoReloadFeature.sync()
         return listSnapshot()
       })
@@ -761,9 +722,14 @@ export async function setupExtensionHostServiceInternal(
     async setSystemEnabled(enabled) {
       return await activationMutex.runExclusive(async () => {
         await refreshManifests()
-        const plan = planActivation(getConfig().enabled, [], enabled)
+        const config = getConfig()
+        checkActivation(config.enabled)
         systemEnabled = enabled
-        const report = await executeActivationPlan(plan)
+        const targetExtensionIds = new Set(enabled ? config.enabled : [])
+        const report = await executeActivation({
+          unload: getLoadedExtensionIds().filter(extensionId => !targetExtensionIds.has(extensionId)).reverse(),
+          load: [...targetExtensionIds].filter(extensionId => !managedSessions.isLoaded(extensionId)),
+        })
         autoReloadFeature.sync()
         return report
       })
@@ -781,26 +747,11 @@ export async function setupExtensionHostServiceInternal(
     async dispose() {
       await activationMutex.runExclusive(async () => {
         const cleanupFailures: unknown[] = []
-        const managedManifests = managedSessions.snapshot().ownedManifests
-        const shutdownResult = planExtensionActivation({
-          installedManifests: [],
-          loadedManifests: managedManifests,
-          proposedEnabledExtensionIds: [],
-          hostProvidedKits: kits.hostProvidedKits,
-          runtime: 'electron',
-          airiVersion,
-          systemEnabled: false,
+        const report = await executeActivation({
+          unload: managedSessions.snapshot().ownedManifests.map(manifest => manifest.id).reverse(),
         })
-        if (!shutdownResult.ok) {
-          cleanupFailures.push(new Error(
-            shutdownResult.diagnostics.map(diagnostic => diagnostic.message).join('\n'),
-          ))
-        }
-        else {
-          const report = await executeActivationPlan(shutdownResult.plan)
-          for (const failure of report.failures) {
-            cleanupFailures.push(failure.error)
-          }
+        for (const failure of report.failures) {
+          cleanupFailures.push(failure.error)
         }
 
         // Session cleanup runs first because Extension stop handlers can still use
