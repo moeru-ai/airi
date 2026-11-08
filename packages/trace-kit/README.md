@@ -15,13 +15,14 @@ The package depends only on `@proj-airi/stream-kit`, `es-toolkit`, and `valibot`
 ## Do not use it for
 
 - Product UI. Product UI reads domain projections of eventa events, not traces.
-- Remote telemetry. Upload to a telemetry service is out of scope.
+- Remote telemetry. Upload to a telemetry service is out of scope. A service that sends OpenTelemetry data can still import the names from `@proj-airi/trace-kit/semconv`.
 - Logs that a person reads in a terminal. Use `@guiiai/logg`.
 
 ## Entry points
 
 | Import | Contents |
 | --- | --- |
+| `@proj-airi/trace-kit/semconv` | Only the OpenTelemetry GenAI names: attribute keys, enum values, and metric names. It imports no other module, so a server can use it without the trace runtime. |
 | `@proj-airi/trace-kit` | Record types, the Valibot schema, the `define*` functions, `ClockGraph`, `TraceSource`, `TraceSpan`, `SeriesWriter` for frequent series such as audio levels, and the conventions |
 | `@proj-airi/trace-kit/collector` | `TraceCollector`: buffer, pinned set, series rings, watermarks, source lifecycle, and the flight recorder |
 | `@proj-airi/trace-kit/projections` | `TraceReader`, the timeline, the event log, and attribute metrics |
@@ -65,9 +66,11 @@ import { ATTR_AIRI_TOPIC_ID, ATTR_GEN_AI_REQUEST_MODEL } from '@proj-airi/trace-
 span.update({ [ATTR_GEN_AI_REQUEST_MODEL]: model, [ATTR_AIRI_TOPIC_ID]: topicId })
 ```
 
-- The `ATTR_GEN_AI_*` constants are copies of the exports of `@opentelemetry/semantic-conventions/incubating`, with the same names and values. `SEMCONV_VERSION` is the package version that they follow.
-- Upstream tells libraries not to import the incubating entry at runtime. A test compares each copy with the installed package, so a change upstream fails the tests.
-- `ATTR_GEN_AI_MEMORY_QUERY_TEXT` is not in the npm package yet. It follows the GenAI conventions repository.
+- The `gen_ai.*` names come from `src/conventions/semconv.ts`. It is generated from a pinned commit of [`open-telemetry/semantic-conventions-genai`](https://github.com/open-telemetry/semantic-conventions-genai). `SEMCONV_GENAI_COMMIT` is that commit.
+- That repository has no release and no npm package. The GenAI exports of `@opentelemetry/semantic-conventions` are deprecated and use the old names.
+- Do not edit `src/conventions/semconv.ts` by hand. To upgrade, change `COMMIT` in `scripts/semconv/generate.ts` and run `pnpm -F @proj-airi/trace-kit generate:semconv`. The script needs network access.
+- Read the diff of the generated file. A removed or renamed name breaks the typecheck of each consumer. If a metric name changed, update the Grafana dashboards in `proj-airi/airi-deploy` in the same release.
+- When OpenTelemetry publishes an npm package for the GenAI conventions, import the names from it and delete the generator.
 - The other constants, for example `ATTR_CENSORED`, `ATTR_DECISION_LATENCY_MS`, and `ATTR_AIRI_TOPIC_ID`, are AIRI names.
 
 ## Collect and read

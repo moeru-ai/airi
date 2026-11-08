@@ -180,9 +180,8 @@ function makeFakeDeps(overrides: {
     })),
   }
   const genAi = {
-    operationCount: { add: vi.fn() },
     operationDuration: { record: vi.fn() },
-    firstTokenDuration: { record: vi.fn() },
+    timeToFirstChunk: { record: vi.fn() },
   }
   const configKV = {
     getOptional: vi.fn(async (key: string) => {
@@ -286,9 +285,8 @@ describe('audio-speech-ws route', () => {
     })
 
     // Duration and time to first audio are recorded once, with the start frame's model.
-    expect(deps.genAi.operationCount.add).toHaveBeenCalledTimes(1)
     expect(deps.genAi.operationDuration.record).toHaveBeenCalledTimes(1)
-    expect(deps.genAi.firstTokenDuration.record).toHaveBeenCalledTimes(1)
+    expect(deps.genAi.timeToFirstChunk.record).toHaveBeenCalledTimes(1)
     expect(deps.genAi.operationDuration.record.mock.calls[0][1]).toMatchObject({
       'gen_ai.request.model': 'volcengine/seed-tts-2.0',
       'http.response.status_code': 200,
