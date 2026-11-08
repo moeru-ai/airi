@@ -336,9 +336,10 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
 
   server.tool(
     'terminal_exec',
+    `Run command text inside the configured local Shell. terminal_exec is an MCP tool, not a Shell command. ${runtime.terminalRunner.describe().notes.join(' ')}`,
     {
-      command: z.string().min(1).describe('Shell command to execute in the local background runner'),
-      cwd: z.string().optional().describe('Optional working directory override'),
+      command: z.string().min(1).describe('Command text interpreted by the configured Shell'),
+      cwd: z.string().optional().describe('Optional spawn directory. Omit to use the previous spawn directory. Relative paths resolve against the executor process directory.'),
       timeoutMs: z.number().int().min(1).max(120_000).optional().describe('Optional timeout override in milliseconds'),
     },
     async (input: TerminalExecActionInput, extra) => {
@@ -351,6 +352,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
 
   server.tool(
     'terminal_get_state',
+    'Read the Terminal executor contract and default spawn directory without executing a command. This is not a live interactive Shell directory.',
     {},
     async () => {
       const terminalState = runtime.session.getTerminalState()
@@ -361,6 +363,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         structuredContent: {
           status: 'ok',
           terminalState,
+          terminalBackend: runtime.terminalRunner.describe(),
         },
       }
     },

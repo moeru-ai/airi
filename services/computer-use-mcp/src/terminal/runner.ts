@@ -314,9 +314,10 @@ export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunne
     describe: () => ({
       kind: 'local-shell-runner',
       notes: [
-        'commands execute in a background local shell process',
-        'Terminal.app is not used as the execution substrate',
-        'cwd is sticky across calls unless the next tool call overrides it explicitly',
+        `Configured Shell executable: ${config.terminalShell}. Executor platform: ${platform}.`,
+        'Each command starts a new background Shell process, without a terminal application.',
+        'The default cwd is the previous spawn directory. Shell-internal directory changes do not persist.',
+        'Relative cwd arguments resolve against the executor process directory, not the previous spawn directory.',
       ],
     }),
     getState: () => ({ ...state }),

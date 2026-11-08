@@ -2,6 +2,17 @@
 
 Scope: terminal lane work in `services/computer-use-mcp/**`.
 
+## Executor discovery contract: 2026-11-08
+
+MCP discovery includes the Terminal runner's configured Shell and platform before command preparation.
+The local runner describes fresh Shell processes, default spawn directories, and relative cwd resolution.
+`terminal_get_state` returns that contract with the current default directory without executing a command.
+The tool name is an MCP method. It is not a command installed inside PowerShell.
+The executor still accepts command text. Its syntax and effects require independent inspection.
+Shell version is not probed or inferred from the executable name.
+Approval still freezes argv and spawn cwd. Referenced scripts and their dependencies are not frozen.
+These information changes grant no execution authority. Main approvals and GUI write restrictions remain unchanged.
+
 ## Windows Beta lifecycle: 2026-11-08
 
 The bundled stdio service closes on input EOF, transport close, SIGINT and SIGTERM.

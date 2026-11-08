@@ -46,7 +46,7 @@ async function fixture(desktopDryRun = false) {
     return { command: input.command, effectiveCwd: input.effectiveCwd, stdout: 'Executor claim only. Oracle is separate.', stderr: '', exitCode: 0, timedOut: false, durationMs: 1 }
   }
   const terminal: TerminalRunner = {
-    describe: () => ({ kind: 'local-shell-runner', notes: ['Mock executor.'] }),
+    describe: () => ({ kind: 'local-shell-runner', notes: ['Configured shell: fixture-shell. Platform: fixture-platform.'] }),
     getState: () => ({ effectiveCwd: root }),
     resetState: () => ({ effectiveCwd: root }),
     prepare: input => ({ command: input.command, shell: 'fixture-shell', argv: ['--command', input.command], effectiveCwd: input.cwd || root, requestedCwd: input.cwd, cwdSource: input.cwd ? 'argument' : 'runner-state', timeoutMs: input.timeoutMs ?? 1000, executorPid: pid, executorPlatform: platform, executorCwd: cwd(), detached: false, windowsHide: true }),
@@ -123,6 +123,23 @@ function barrier() {
 }
 
 describe('main-only Terminal execution protocol', () => {
+  it('exposes the executor contract through discovery and state before any dispatch', async () => {
+    const h = await fixture(true)
+    const tools = await h.client.listTools()
+    const terminal = tools.tools.find(tool => tool.name === 'terminal_exec')
+    expect(terminal?.description).toContain('fixture-shell')
+    expect(terminal?.description).toContain('fixture-platform')
+    expect(terminal?.description).toContain('MCP tool')
+    expect(terminal?.inputSchema.properties?.cwd).toMatchObject({ description: expect.stringContaining('spawn directory') })
+    const state = CallToolResultSchema.parse(await h.client.callTool({ name: 'terminal_get_state', arguments: {} }))
+    expect(state.structuredContent?.terminalBackend).toEqual(h.terminal.describe())
+    expect(state.structuredContent?.terminalState).toEqual(h.terminal.getState())
+    expect(h.oracle.dispatches).toBe(0)
+    expect(h.oracle.effects).toBe(0)
+    expect(h.terminal.startPrepared).not.toHaveBeenCalled()
+    evidence.push({ phase: 'discovery-before-dispatch', tools: tools.tools.filter(tool => tool.name === 'terminal_exec'), state, oracle: { ...h.oracle } })
+  })
+
   it('passes transport cancellation to an already dispatched executor without claiming zero dispatch', async () => {
     const h = await fixture()
     const started = barrier()
