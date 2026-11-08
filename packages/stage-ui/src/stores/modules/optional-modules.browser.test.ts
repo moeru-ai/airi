@@ -11,6 +11,7 @@ import { createI18n } from 'vue-i18n'
 import { trackPendingActions } from '../../libs/pinia/pending-actions'
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '../../libs/providers/providers/official'
 import { useProviderConfigStore } from '../providers/config'
+import { useSpeechOutputSettingsStore } from '../speech-output-settings'
 import { useHearingStore } from './hearing'
 import { useSpeechStore } from './speech'
 import { useVisionStore } from './vision/store'
@@ -21,7 +22,7 @@ const contexts: { pinia: ReturnType<typeof createPinia>, runtime?: SyncedPiniaRu
 
 function createContext(namespace?: string, leadership?: LeadershipMode) {
   const pinia = createPinia()
-  // The speech store loads the voice catalog when it starts, and a follower waits for the leader. Disposing first leaves that load running into the next test.
+  // Speech catalog loading can outlive disposal. Wait for pending catalog actions before cleanup to isolate the next test.
   const pendingCatalogLoads = trackPendingActions(pinia, storeId => storeId === 'speech')
   const runtime = namespace ? createSyncedPiniaPlugin({ namespace, leadership, callTimeout: 1000 }) : undefined
   if (runtime)
@@ -39,7 +40,7 @@ function createContext(namespace?: string, leadership?: LeadershipMode) {
   }).use(createI18n({ legacy: false, locale: 'en', messages: { en: {} }, missingWarn: false, fallbackWarn: false })).use(pinia)
   app.mount(document.createElement('div'))
   contexts.push({ pinia, runtime, pendingCatalogLoads, unmount: () => app.unmount() })
-  return { pinia, runtime, hearing, vision, speech }
+  return { pinia, runtime, hearing, vision, speech, speechOutput: useSpeechOutputSettingsStore(pinia) }
 }
 
 afterEach(async () => {
@@ -90,9 +91,9 @@ it('replicates disabled states without a follower proposal', async () => {
   await vi.waitFor(() => expect(follower.runtime?.getLeaderId()).toBe(leader.runtime?.participantId))
   let leaderMutations = 0
   let followerMutations = 0
-  for (const store of [leader.hearing, leader.vision, leader.speech])
+  for (const store of [leader.hearing, leader.vision, leader.speechOutput])
     store.$subscribe(() => leaderMutations++, { flush: 'sync' })
-  for (const store of [follower.hearing, follower.vision, follower.speech])
+  for (const store of [follower.hearing, follower.vision, follower.speechOutput])
     store.$subscribe(() => followerMutations++, { flush: 'sync' })
 
   leader.hearing.enabled = false
