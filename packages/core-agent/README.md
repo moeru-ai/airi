@@ -22,7 +22,10 @@ The byte measurement uses the protocol projection and current system prompt. It 
 The callback returns a request copy. Stored history and complete generation records stay unchanged.
 Stage also uses this callback for audio projection and conversation Compact.
 
-Stage starts background Compact at 256 KiB of request context and gates the next foreground request at 512 KiB.
+Stage defaults Compact to Off and gates new requests at 512 KiB in every mode.
+The local experiment offers Synchronous or Background scheduling from a 256 KiB soft limit.
+Both modes share snapshots, summary generation, delta merging, and stale-result checks.
+Changing modes invalidates only summary work. It does not cancel tool execution.
 The background model receives a frozen prefix with no tools. New rounds continue below the hard budget.
 A matching prefix can merge its summary with later content. Changed prefixes, cancellation, session clear and provider changes discard stale work.
 Owner messages, Host notices, tool identities, arguments and text receipts remain exact. Old images and assistant narratives become context-level summaries.

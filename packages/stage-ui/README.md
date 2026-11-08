@@ -16,6 +16,10 @@ Disabling Speech stops its producers and playback. Text generation and tool work
 
 ## Experimental features
 
+Conversation Compact starts Off. Enable its local experiment and select Synchronous or Background to summarize older observations.
+All modes retain the hard request byte limit. Disabling Compact invalidates summaries without cancelling tool execution.
+These byte limits do not measure the model token window.
+
 Register flags in `libs/feature-flags.ts`. Read their state through `useFeatureFlagsStore().isEnabled(key)`.
 Set `availability` to `local` or `cloud`. Local flags expose device switches without Cloud access.
 Cloud decides whether each granted Cloud flag allows account opt-in or uses direct control. Client registrations do not duplicate this mode.

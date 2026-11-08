@@ -1,5 +1,8 @@
-import type { StreamOptions } from '@proj-airi/core-agent'
+import type { Conversation } from '@proj-airi/core-agent'
 import type { GenerationProvider } from '@proj-airi/provider-inference'
+import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
+
+import type { LlmStreamOptions } from './ai/chat-llm/llm'
 
 import en from '@proj-airi/i18n/locales/en'
 
@@ -10,10 +13,12 @@ import { defineComponent, h } from 'vue'
 import { createI18n } from 'vue-i18n'
 
 import { recipesRepo } from '../database/repos/recipes.repo'
+import { CONVERSATION_COMPACT_FLAG } from '../libs/feature-flags'
 import { useLLM } from './ai/chat-llm/llm'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
 import { useChatStore } from './chat'
 import { useChatSessionStore } from './chat/session-store'
+import { useFeatureFlagsStore } from './feature-flags'
 import { useModsServerChannelStore } from './mods/api/channel-server'
 import { useConsciousnessStore } from './modules/consciousness'
 import { useRecipesStore } from './recipes'
@@ -28,7 +33,7 @@ const provider: GenerationProvider = {
  * Mounts the chat with real stores. Only the model boundary is replaced: provider resolution and the stream.
  * `reply` answers each request from its prompt, and the returned prompts list every request in order.
  */
-async function setupChat(reply: (prompt: string, options?: StreamOptions) => Promise<string>, contextWindow = -1) {
+async function setupChat(reply: (prompt: string, options?: LlmStreamOptions) => Promise<string>, contextWindow = -1) {
   // A send reads the provider and model of the session character. The card store reads them from storage when it starts.
   const modules = {
     consciousness: { provider: 'openai', model: 'test-model' },
@@ -84,6 +89,94 @@ afterEach(async () => {
   }
   localStorage.clear()
   await recipesRepo.clear()
+})
+
+it.each(['off', 'cleanup', 'delete', 'leadership', 'cancel'] as const)('invalidates the correct summary on %s without aborting an unrelated request', async (change) => {
+  const started = [Promise.withResolvers<AbortSignal>(), Promise.withResolvers<AbortSignal>()]
+  const summaryGate = Promise.withResolvers<void>()
+  const mainGate = Promise.withResolvers<void>()
+  const mainSignals: AbortSignal[] = []
+  let summaries = 0
+  const source: Conversation = { turns: [{ type: 'assistant', id: 'fixture-run', status: 'completed', rounds: [0, 1, 2, 3].map(index => ({
+    id: `fixture-round-${index}`,
+    content: [{ type: 'text', text: 'F'.repeat(100000) }],
+    toolInvocations: [],
+    projectionIssues: [],
+  })) }] }
+  const { pinia, chat, sessions } = await setupChat(async (_prompt, options) => {
+    if (options?.taskTools) {
+      const signal = options.abortSignal
+      if (!signal)
+        throw new Error('Missing summary signal')
+      started[summaries++].resolve(signal)
+      await summaryGate.promise
+      return 'Stale fixture summary'
+    }
+    if (options?.abortSignal)
+      mainSignals.push(options.abortSignal)
+    await options?.prepareConversation?.(source, {
+      scope: 'fixture-model',
+      model: 'test-model',
+      request: provider.generation('test-model'),
+      measureContextBytes: context => new TextEncoder().encode(JSON.stringify(context)).byteLength,
+    })
+    await mainGate.promise
+    return 'Fixture finished'
+  })
+  const flags = useFeatureFlagsStore(pinia)
+  flags.setVariant(CONVERSATION_COMPACT_FLAG.key, 'background')
+  flags.setPreference(CONVERSATION_COMPACT_FLAG.key, true)
+  let leadershipChanged: ((leader: boolean) => void) | undefined
+  if (change === 'leadership') {
+    const leadership: SyncedPiniaRuntime = {
+      addRole: () => () => {},
+      dispose: () => {},
+      getLeaderId: () => undefined,
+      getParticipantCount: () => 1,
+      getParticipants: () => [],
+      getRoles: () => [],
+      isLeader: () => false,
+      onCoordinationChange: () => () => {},
+      onLeadershipChange: (listener) => {
+        leadershipChanged = listener
+        return () => {}
+      },
+      participantId: 'fixture',
+      plugin: () => {},
+    }
+    await chat.initialize(leadership)
+  }
+  const a = sessions.activeSessionId
+  const sendA = chat.send({ sessionId: a, text: 'Controlled lifecycle A' })
+  const signalA = await started[0].promise
+  const b = await sessions.createSession(sessions.sessionMetas[a]!.characterId)
+  const sendB = chat.send({ sessionId: b, text: 'Controlled lifecycle B' })
+  const signalB = await started[1].promise
+  expect(summaries).toBe(2)
+  let cleanup: Promise<void> | undefined
+  try {
+    if (change === 'off')
+      flags.setPreference(CONVERSATION_COMPACT_FLAG.key, false)
+    if (change === 'cleanup')
+      cleanup = chat.cleanup(a)
+    if (change === 'delete')
+      cleanup = chat.deleteSession(a)
+    if (change === 'cancel')
+      cleanup = chat.cancelPendingSends(a)
+    if (change === 'leadership')
+      leadershipChanged?.(false)
+    expect(signalA.aborted).toBe(true)
+    expect(signalB.aborted).toBe(change === 'off' || change === 'leadership')
+    expect(mainSignals[1].aborted).toBe(false)
+    if (change === 'off' || change === 'leadership')
+      expect(mainSignals[0].aborted).toBe(false)
+    console.info(JSON.stringify({ change, summaryAAborted: signalA.aborted, summaryBAborted: signalB.aborted, unrelatedRequestAborted: mainSignals[1].aborted }))
+  }
+  finally {
+    mainGate.resolve()
+    summaryGate.resolve()
+    await Promise.allSettled([sendA, sendB, cleanup])
+  }
 })
 
 it.each([
@@ -239,8 +332,12 @@ it('runs a recipe with every registered tool', async () => {
   await waitForNotices(chat, sessions, parent, 1)
 })
 
-it('runs a tool-free background summary while the foreground continues, then merges it only into its session request', async () => {
+it.each(['off', 'synchronous', 'background'] as const)('uses %s scheduling with real Chat and provider requests, preserving the session history', async (mode) => {
   const { pinia, chat, sessions, stream } = await setupChat(async () => '')
+  if (mode !== 'off') {
+    useFeatureFlagsStore(pinia).setVariant(CONVERSATION_COMPACT_FLAG.key, mode)
+    useFeatureFlagsStore(pinia).setPreference(CONVERSATION_COMPACT_FLAG.key, true)
+  }
   let releaseSummary: () => void = () => {}
   const summaryGate = new Promise<void>((resolve) => {
     releaseSummary = resolve
@@ -255,7 +352,7 @@ it('runs a tool-free background summary while the foreground continues, then mer
   let observations = 0
   const observer = vi.fn(async () => {
     observations++
-    if (observations === 4) {
+    if (mode === 'background' && observations === 4) {
       releaseSummary()
       await summaryFinished
     }
@@ -269,9 +366,9 @@ it('runs a tool-free background summary while the foreground continues, then mer
       const body = JSON.parse(String(init?.body))
       const summary = String(body.messages[0]?.content).startsWith('Summarize earlier observations')
       requests.push({ summary, body })
-      if (summary)
+      if (summary && mode === 'background')
         await summaryGate
-      else
+      if (!summary)
         foregroundRequests++
       const callsTool = !summary && foregroundRequests < 5
       const chunk = { choices: [{ index: 0, delta: callsTool
@@ -295,12 +392,17 @@ it('runs a tool-free background summary while the foreground continues, then mer
   await chat.send({ sessionId: owner, text: 'Observe this fixture four times.' })
   expect(observer).toHaveBeenCalledTimes(4)
   expect(foregroundRequests).toBe(5)
-  await expect.poll(() => completedSummaries).toBe(2)
+  await expect.poll(() => completedSummaries).toBe(mode === 'off' ? 0 : 2)
   const summaries = requests.filter(request => request.summary)
-  expect(summaries).toHaveLength(2)
+  expect(summaries).toHaveLength(mode === 'off' ? 0 : 2)
   expect(summaries.every(request => !request.body.tools?.length)).toBe(true)
-  expect(JSON.stringify(summaries[1].body.messages)).toContain('Earlier fixture visual facts.')
-  expect(JSON.stringify(requests.filter(request => !request.summary).at(-1)?.body)).toContain('Earlier fixture visual facts.')
+  if (mode !== 'off') {
+    expect(JSON.stringify(summaries[1].body.messages)).toContain('Earlier fixture visual facts.')
+    expect(JSON.stringify(requests.filter(request => !request.summary).at(-1)?.body)).toContain('Earlier fixture visual facts.')
+  }
+  else {
+    expect(JSON.stringify(requests.at(-1)?.body)).not.toContain('Earlier fixture visual facts.')
+  }
   const history = sessions.getSessionMessages(owner)
   expect(history.filter(message => message.role === 'user')).toHaveLength(1)
   expect(history.filter(message => message.role === 'assistant')).toHaveLength(1)
@@ -312,5 +414,5 @@ it('runs a tool-free background summary while the foreground continues, then mer
   await chat.send({ sessionId: other, text: 'Another session question.' })
   expect(JSON.stringify(requests.at(-1)?.body)).not.toContain('Earlier fixture visual facts.')
   expect(JSON.stringify(requests.at(-1)?.body)).not.toContain('Read-only receipt.')
-  console.info(JSON.stringify({ boundary: 'Real Chat stores, resolver, SDK and summary stream. Controlled provider and read-only fixture.', observations, foregroundRequests, summaryRequests: summaries.length, summaryTools: summaries[0].body.tools, persistedMessages: history.length }))
+  console.info(JSON.stringify({ boundary: 'Real Chat stores, resolver, SDK and summary stream. Controlled provider and read-only fixture.', mode, observations, foregroundRequests, summaryRequests: summaries.length, summaryTools: summaries[0]?.body.tools, persistedMessages: history.length }))
 })

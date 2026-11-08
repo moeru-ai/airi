@@ -21,6 +21,7 @@ describe.each(['chat-completions', 'responses'] as const)('%s request context', 
       started = resolve
     })
     const compact = new ConversationCompact({ softLimitBytes: 6000, hardLimitBytes: 14000, retainRounds: 1 })
+    compact.setMode('background')
     const controller = new AbortController()
     const fetch: typeof globalThis.fetch = async (_url, init) => {
       requests.push(JSON.parse(String(init?.body)))

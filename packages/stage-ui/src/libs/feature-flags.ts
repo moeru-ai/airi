@@ -83,8 +83,25 @@ export const FULLSCREEN_WORKSPACE_FLAG = {
   },
 } as const satisfies FeatureFlag
 
-/** Only implemented experiments belong here. An empty catalog produces an empty settings page. */
-export const featureFlags: readonly FeatureFlag[] = [CHARACTER_CARD_SYNC_FLAG, DISPLAY_MODEL_SYNC_FLAG, FULLSCREEN_WORKSPACE_FLAG]
+/** Device opt-in selects one scheduler. Disabling the experiment leaves the request byte gate active. */
+export const CONVERSATION_COMPACT_FLAG: FeatureFlag = {
+  key: 'conversation-compact',
+  titleKey: 'settings.pages.system.experimental.features.conversation_compact.title',
+  descriptionKey: 'settings.pages.system.experimental.features.conversation_compact.description',
+  defaultEnabled: false,
+  availability: 'local',
+  variants: {
+    titleKey: 'settings.pages.system.experimental.features.conversation_compact.mode.title',
+    descriptionKey: 'settings.pages.system.experimental.features.conversation_compact.mode.description',
+    options: [
+      { value: 'synchronous', titleKey: 'settings.pages.system.experimental.features.conversation_compact.mode.synchronous' },
+      { value: 'background', titleKey: 'settings.pages.system.experimental.features.conversation_compact.mode.background' },
+    ],
+  },
+}
+
+/** Only implemented experiments belong here. */
+export const featureFlags: readonly FeatureFlag[] = [CHARACTER_CARD_SYNC_FLAG, DISPLAY_MODEL_SYNC_FLAG, FULLSCREEN_WORKSPACE_FLAG, CONVERSATION_COMPACT_FLAG]
 
 /** The variant of a feature: the saved one while the feature still offers it, otherwise the first one. */
 export function resolveFeatureVariant(feature: FeatureFlag | undefined, saved: string | undefined): string | undefined {

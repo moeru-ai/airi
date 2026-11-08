@@ -1,4 +1,4 @@
-import type { ChatAttachment, ChatInvokedSkill, ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, Conversation, Recipe, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
+import type { ChatAttachment, ChatInvokedSkill, ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, CompactMode, Conversation, Recipe, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
 import type { GenerationProvider, GenerationRequest } from '@proj-airi/provider-inference'
 import type { WebSocketEventInputs } from '@proj-airi/server-sdk'
 import type { TraceSpan } from '@proj-airi/trace-kit'
@@ -19,7 +19,7 @@ import { VoiceIdKeys } from '@proj-airi/trace-kit/voice'
 import { isEqual } from 'es-toolkit'
 import { nanoid } from 'nanoid'
 import { defineStore, getActivePinia, storeToRefs } from 'pinia'
-import { computed, shallowRef, toRaw } from 'vue'
+import { computed, shallowRef, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { getConversationAnalyticsSurface } from '../composables'
@@ -29,6 +29,7 @@ import { useChatVision } from '../composables/vision/use-chat-vision'
 import { useVisionInference } from '../composables/vision/use-vision-inference'
 import { chatAssetIdFrom, inlineConversationAssets, storeChatAttachments } from '../libs/chat-assets'
 import { extractMessageText, isCloudSyncableMessage } from '../libs/chat-sync'
+import { CONVERSATION_COMPACT_FLAG } from '../libs/feature-flags'
 import { syncedRoles } from '../libs/pinia/synced-context'
 import { createChatAnalyticsHooks, getProviderMode } from '../libs/product-signals/events/chat'
 import {
@@ -57,6 +58,7 @@ import { staysLocal } from './chat/session-locality'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
 import { useContextObservabilityStore } from './devtools/context-observability'
+import { useFeatureFlagsStore } from './feature-flags'
 import { useMemoryStore } from './memory'
 import { useAiriCardStore } from './modules/airi-card'
 import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
@@ -347,6 +349,17 @@ export const useChatStore = defineStore('chat', () => {
   // These application limits measure context bytes, not the provider's token window.
   const compactBudget = { softLimitBytes: 256 * 1024, hardLimitBytes: 512 * 1024, retainRounds: 2 }
   const conversationCompacts = new Map<string, ConversationCompact>()
+  const featureFlags = useFeatureFlagsStore()
+  const compactMode = computed<CompactMode>(() => {
+    if (!featureFlags.isEnabled(CONVERSATION_COMPACT_FLAG.key))
+      return 'off'
+    return featureFlags.variantOf(CONVERSATION_COMPACT_FLAG.key) === 'background' ? 'background' : 'synchronous'
+  })
+  // Invalidate immediately, even when no further model request arrives. These caches never own executor cancellation.
+  watch(compactMode, (mode) => {
+    for (const compact of conversationCompacts.values())
+      compact.setMode(mode)
+  }, { flush: 'sync' })
 
   /**
    * Initializes chat state and binds local consumers to synchronized leadership.
@@ -920,11 +933,15 @@ export const useChatStore = defineStore('chat', () => {
           if (projected !== conversation && options?.requestCorrelation?.conversationId)
             contextObservability.captureProviderPromptProjection(options.requestCorrelation.conversationId, renderConversationPreview(projected))
           const sessionId = options?.requestCorrelation?.conversationId
-          if (!sessionId)
+          if (!sessionId) {
+            if (target.measureContextBytes(projected) >= compactBudget.hardLimitBytes)
+              throw new Error('Conversation context exceeds the request byte budget')
             return projected
+          }
           let compact = conversationCompacts.get(sessionId)
           if (!compact) {
             compact = new ConversationCompact({ ...compactBudget, onEvent: event => console.info('[chat:compact]', JSON.stringify({ sessionId, ...event })) })
+            compact.setMode(compactMode.value)
             conversationCompacts.set(sessionId, compact)
           }
           const request = target.request

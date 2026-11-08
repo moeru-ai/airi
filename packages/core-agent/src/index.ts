@@ -9,7 +9,7 @@ export {
   formatContextPromptText,
 } from './messages/context-prompt'
 export type { ContextSnapshot } from './messages/context-prompt'
-export type { CompactOptions, CompactRequest } from './messages/conversation-compact'
+export type { CompactMode, CompactOptions, CompactRequest } from './messages/conversation-compact'
 export { ConversationCompact } from './messages/conversation-compact'
 
 export { formatTimePrefix } from './messages/datetime-prefix'

@@ -2256,6 +2256,14 @@ pages:
         display_model_sync:
           title: 模型云同步
           description: 登录后把导入的 Live2D 和 VRM 模型上传到账号，方便在其他设备上使用。默认关闭。
+        conversation_compact:
+          title: 会话 Compact
+          description: 默认关闭。摘要压缩较早的观察，保留完整工具回执。限制按字节计算，不代表模型 Token 窗口。
+          mode:
+            title: 调度方式
+            description: 关闭实验会丢弃待应用摘要，请求硬字节限制仍然有效。
+            synchronous: '同步：等待摘要后再发起请求'
+            background: '后台：低于硬字节限制时继续运行'
         fullscreen_workspace:
           title: 全屏工作区
           description: 在铺满屏幕的工作区里打开设置和聊天，角色在左边。默认关闭。

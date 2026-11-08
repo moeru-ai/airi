@@ -1,5 +1,8 @@
 import type { Conversation, GenerationRound, Turn } from './types'
 
+/** Scheduling changes no execution state. Off retains the request byte gate. */
+export type CompactMode = 'off' | 'synchronous' | 'background'
+
 interface Checkpoint {
   prefix: string[]
   rounds: Set<string>
@@ -57,6 +60,8 @@ function canCompact(round: GenerationRound) {
 
 /** One session owns this disposable request cache. Stored history and Host execution state never enter its ownership. */
 export class ConversationCompact {
+  private mode: CompactMode = 'off'
+  private modeVersion = 0
   private scope?: string
   private committed?: Checkpoint
   private job?: SummaryJob
@@ -77,6 +82,15 @@ export class ConversationCompact {
     this.committed = undefined
     this.failure = undefined
     this.scope = undefined
+  }
+
+  /** A mode change invalidates only this cache and its summary request, including summaries ready for application. */
+  setMode(mode: CompactMode) {
+    if (mode === this.mode)
+      return
+    this.reset()
+    this.mode = mode
+    this.modeVersion++
   }
 
   private project(source: Turn[], checkpoint = this.committed): Conversation {
@@ -189,7 +203,7 @@ export class ConversationCompact {
     }
   }
 
-  /** Starts background work below the hard budget. At the hard budget, waits or rejects before the next provider dispatch. */
+  /** Off enforces the hard byte gate. Synchronous waits at the soft limit. Background waits only at the hard limit. */
   async prepare(conversation: Conversation, target: CompactRequest, signal?: AbortSignal): Promise<Conversation> {
     signal?.throwIfAborted()
     const source = units(structuredClone(conversation))
@@ -210,13 +224,23 @@ export class ConversationCompact {
       this.job = undefined
     }
     let projected = this.project(source)
-    if (measure(projected) >= this.options.softLimitBytes && !this.job)
+    if (this.mode !== 'off' && measure(projected) >= this.options.softLimitBytes && !this.job)
       this.start(source, target, signal)
-    if (measure(projected) < this.options.hardLimitBytes)
+    if (measure(projected) < this.options.hardLimitBytes && (this.mode !== 'synchronous' || !this.job))
       return projected
     const job = this.job
     if (job) {
-      await this.wait(job, signal)
+      const modeVersion = this.modeVersion
+      try {
+        await this.wait(job, signal)
+      }
+      catch (error) {
+        signal?.throwIfAborted()
+        // A scheduling change invalidates the summary, not the foreground request. Recheck its current byte gate.
+        if (modeVersion !== this.modeVersion)
+          return this.prepare(conversation, target, signal)
+        throw error
+      }
       if (this.job !== job || this.scope !== target.scope)
         throw new Error('Conversation changed while waiting for its summary')
       if (job.error)

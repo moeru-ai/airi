@@ -3,11 +3,18 @@ import type { FeatureFlag } from './feature-flags'
 import { parse } from 'valibot'
 import { describe, expect, it } from 'vitest'
 
-import { CHARACTER_CARD_SYNC_FLAG, featureFlagResponseSchema, featureFlags, FULLSCREEN_WORKSPACE_FLAG, offeredFeatureFlags, resolveFeatureFlag, resolveFeatureVariant } from './feature-flags'
+import { CHARACTER_CARD_SYNC_FLAG, CONVERSATION_COMPACT_FLAG, featureFlagResponseSchema, featureFlags, FULLSCREEN_WORKSPACE_FLAG, offeredFeatureFlags, resolveFeatureFlag, resolveFeatureVariant } from './feature-flags'
 
 const feature: FeatureFlag = { key: 'test-feature', titleKey: 'test.title', descriptionKey: 'test.description', defaultEnabled: false, availability: 'local' }
 
 describe('feature flag decisions', () => {
+  it('keeps Compact Off by default and offers one scheduling variant at a time', () => {
+    expect(featureFlags).toContain(CONVERSATION_COMPACT_FLAG)
+    expect(resolveFeatureFlag(CONVERSATION_COMPACT_FLAG, undefined, undefined, false).enabled).toBe(false)
+    expect(resolveFeatureVariant(CONVERSATION_COMPACT_FLAG, undefined)).toBe('synchronous')
+    expect(resolveFeatureVariant(CONVERSATION_COMPACT_FLAG, 'background')).toBe('background')
+    expect(CONVERSATION_COMPACT_FLAG.variants?.options.map(option => option.value)).toEqual(['synchronous', 'background'])
+  })
   it('allows local choices without a cloud grant or an account', () => {
     expect(resolveFeatureFlag(feature, undefined, undefined, false)).toEqual({ enabled: false, source: 'default', selectable: true })
     expect(resolveFeatureFlag(feature, true, undefined, false)).toEqual({ enabled: true, source: 'local', selectable: true })

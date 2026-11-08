@@ -38,8 +38,109 @@ const target = { scope: 'session/model', measureContextBytes: measure }
 const limits = { softLimitBytes: 6000, hardLimitBytes: 23000, retainRounds: 1 }
 
 describe('conversationCompact', () => {
+  it('defaults to Off without summary dispatch and retains the hard request gate', async () => {
+    const summarize = vi.fn(async () => 'Not requested')
+    const compact = new ConversationCompact(limits)
+    const source = conversation()
+    await compact.prepare(source, { ...target, summarize })
+    expect(summarize).not.toHaveBeenCalled()
+    source.turns.push({ type: 'user', id: 'oversized', content: [{ type: 'text', text: 'D'.repeat(25000) }] })
+    let providerDispatches = 0
+    await expect(compact.prepare(source, { ...target, summarize }).then(() => {
+      providerDispatches++
+    })).rejects.toThrow('context exceeds')
+    expect(providerDispatches).toBe(0)
+    expect(summarize).not.toHaveBeenCalled()
+    console.info(JSON.stringify({ mode: 'off', summaryDispatches: summarize.mock.calls.length, providerDispatches }))
+  })
+
+  it('waits at the soft budget only in Synchronous mode and uses the shared projection', async () => {
+    const gate = barrier<string>()
+    const started = barrier<void>()
+    const compact = new ConversationCompact(limits)
+    compact.setMode('synchronous')
+    let dispatches = 0
+    const pending = compact.prepare(conversation(), { ...target, summarize: async () => {
+      started.release()
+      return gate.promise
+    } }).then((value) => {
+      dispatches++
+      return value
+    })
+    await started.promise
+    expect(dispatches).toBe(0)
+    gate.release('Earlier observations.')
+    const value = await pending
+    expect(dispatches).toBe(1)
+    expect(measure(value)).toBeLessThan(measure(conversation()))
+  })
+
+  it.each(['off', 'synchronous'] as const)('invalidates Background work immediately when switching to %s', async (mode) => {
+    const gate = barrier<string>()
+    const started = barrier<AbortSignal>()
+    const compact = new ConversationCompact(limits)
+    compact.setMode('background')
+    const executeSignal = new AbortController()
+    let effects = 0
+    const executorGate = barrier<void>()
+    const executor = executorGate.promise.then(() => {
+      executeSignal.signal.throwIfAborted()
+      effects++
+    })
+    await compact.prepare(conversation(), { ...target, summarize: async (_snapshot, signal) => {
+      started.release(signal)
+      return gate.promise
+    } }, executeSignal.signal)
+    const summarySignal = await started.promise
+    compact.setMode(mode)
+    expect(summarySignal.aborted).toBe(true)
+    expect(executeSignal.signal.aborted).toBe(false)
+    gate.release('STALE')
+    await gate.promise
+    await Promise.resolve()
+    compact.setMode('off')
+    expect(JSON.stringify(await compact.prepare(conversation(), { ...target, summarize: async () => 'Never' }))).not.toContain('STALE')
+    executorGate.release()
+    await executor
+    expect(effects).toBe(1)
+    console.info(JSON.stringify({ change: mode, summaryAborted: summarySignal.aborted, executorAborted: executeSignal.signal.aborted, effects }))
+  })
+
+  it.each(['off', 'background'] as const)('continues a soft-budget synchronous wait after switching to %s', async (mode) => {
+    const started = barrier<void>()
+    const compact = new ConversationCompact(limits)
+    compact.setMode('synchronous')
+    const pending = compact.prepare(conversation(), { ...target, summarize: async () => {
+      started.release()
+      return new Promise<string>(() => {})
+    } })
+    await started.promise
+    compact.setMode(mode)
+    expect(measure(await pending)).toBeLessThan(limits.hardLimitBytes)
+    compact.reset()
+  })
+
+  it('does not bypass the hard gate when Off interrupts a pending wait', async () => {
+    const started = barrier<void>()
+    const compact = new ConversationCompact(limits)
+    compact.setMode('synchronous')
+    const source = conversation()
+    source.turns.push({ type: 'user', id: 'delta', content: [{ type: 'text', text: 'D'.repeat(10000) }] })
+    let dispatches = 0
+    const pending = compact.prepare(source, { ...target, summarize: async () => {
+      started.release()
+      return new Promise<string>(() => {})
+    } }).then(() => { dispatches++ })
+    const rejected = expect(pending).rejects.toThrow('context exceeds')
+    await started.promise
+    compact.setMode('off')
+    await rejected
+    expect(dispatches).toBe(0)
+  })
+
   it('does not retry a failed prefix but admits one new summary when later images become eligible', async () => {
     const compact = new ConversationCompact({ softLimitBytes: 6000, hardLimitBytes: 14000, retainRounds: 2 })
+    compact.setMode('background')
     const summarize = vi.fn(async () => summarize.mock.calls.length === 1 ? 'ineffective '.repeat(6000) : 'Visual observations retained.')
     const request = { ...target, summarize }
     const source = conversation()
@@ -71,6 +172,7 @@ describe('conversationCompact', () => {
     }
     const summarize = vi.fn(async () => 'No visual or narrative information to compress')
     const compact = new ConversationCompact(limits)
+    compact.setMode('background')
     await compact.prepare(source, { ...target, summarize })
     await Promise.resolve()
     expect(summarize).not.toHaveBeenCalled()
@@ -85,6 +187,7 @@ describe('conversationCompact', () => {
       return gate.promise
     })
     const compact = new ConversationCompact(limits)
+    compact.setMode('background')
     const request = { ...target, summarize }
     const source = conversation()
     const original = structuredClone(source)
@@ -117,6 +220,7 @@ describe('conversationCompact', () => {
     const gate = barrier<string>()
     const started = barrier<void>()
     const compact = new ConversationCompact(limits)
+    compact.setMode('background')
     const request = { ...target, summarize: async () => {
       started.release()
       return gate.promise
@@ -147,6 +251,7 @@ describe('conversationCompact', () => {
       return gate.promise
     })
     const compact = new ConversationCompact(limits)
+    compact.setMode('background')
     const request = { ...target, summarize }
     const controller = new AbortController()
     const source = conversation()
@@ -172,6 +277,7 @@ describe('conversationCompact', () => {
   it('cancels a hard-budget wait even when the summarizer ignores cancellation', async () => {
     const started = barrier<void>()
     const compact = new ConversationCompact(limits)
+    compact.setMode('background')
     const request = { ...target, summarize: async () => {
       started.release()
       return new Promise<string>(() => {})
@@ -191,11 +297,12 @@ describe('conversationCompact', () => {
     compact.reset()
   })
 
-  it('stops rather than retrying failed or ineffective summaries at the hard budget', async () => {
+  it.each(['synchronous', 'background'] as const)('stops rather than retrying failed or ineffective %s summaries at the hard budget', async (mode) => {
     for (const summarize of [vi.fn(async () => {
       throw new Error('Provider unavailable')
     }), vi.fn(async () => 'large '.repeat(6000))]) {
       const compact = new ConversationCompact(limits)
+      compact.setMode(mode)
       const request = { ...target, summarize }
       const source = conversation()
       await compact.prepare(source, request)
@@ -218,6 +325,7 @@ describe('conversationCompact', () => {
     assistant.rounds[2].projectionIssues.push('Opaque native result')
     const summarize = vi.fn(async () => 'Never called')
     const compact = new ConversationCompact(limits)
+    compact.setMode('background')
     const request = { ...target, summarize }
     expect(await compact.prepare(source, request)).toEqual({ turns: [source.turns[0], source.turns[1], ...assistant.rounds.map(item => ({ ...assistant, rounds: [item] })), source.turns[3]] })
     source.turns.push({ type: 'user', id: 'large-goal', content: [{ type: 'text', text: 'P'.repeat(25000) }] })
