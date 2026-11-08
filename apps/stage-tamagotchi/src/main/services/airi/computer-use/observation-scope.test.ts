@@ -39,9 +39,9 @@ afterEach(async () => {
 
 // U7 made two global OCR calls and one region read. These OS mocks never access a desktop.
 it.each([
-  ['invoke', 'screen.findText', 'first-fixture-marker'],
-  ['invoke', 'screen.findText', 'second-fixture-marker'],
-  ['invoke', 'screen.captureRegion', '0', '0', '100', '100'],
+  ['invoke', 'screen.findText', 'first-fixture-marker', '--json', '--detail'],
+  ['invoke', 'screen.findText', 'second-fixture-marker', '--json', '--detail'],
+  ['invoke', 'screen.captureRegion', '--x', '340', '--y', '440', '--width', '320', '--height', '30', '--label', 'challenge-token', '--json'],
 ])('u7 refuses unscoped observation %j before daemon startup', async (...argv) => {
   const error = await defineInvoke(renderer.context, computerUseRun)({ argv, attribution }).then(() => undefined, error => error)
   console.info(JSON.stringify({ argv, daemonStarts: external.start.mock.calls.length, dispatches: external.execute.mock.calls.length, error: String(error) }))

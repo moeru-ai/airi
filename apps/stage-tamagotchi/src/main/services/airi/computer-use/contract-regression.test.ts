@@ -896,7 +896,7 @@ describe('f-Contract-1: Production Host Execution Result Contract Regression', (
   }, 10000)
 
   // --------------------------------------------------------------------------
-  // Scenario B: Risk flag set -> new mutating operation blocked, read-only operation continues
+  // Scenario B: Risk flag set -> new mutating operation blocked, command help continues
   // --------------------------------------------------------------------------
   it('scenario B: When risk flag is set, new mutating operations are blocked while command help remains available', async () => {
     const action1 = createApprovedAction(['invoke', 'app.activate', 'Calculator'])
@@ -945,23 +945,23 @@ describe('f-Contract-1: Production Host Execution Result Contract Regression', (
     expect((mutatingError as any).executionState).toBe('not_executed')
     expect(mutatingError?.message).toContain('unconfirmed background processes')
 
-    // Initiate a NEW read-only action
+    // Request command help without observing the desktop
     external.execute.mockImplementationOnce(() => {
-      return execution({ stdout: JSON.stringify([{ id: 'win-1', title: 'Main' }]), stderr: '' })
+      return execution({ stdout: 'AUV command usage', stderr: '' })
     })
 
-    const readOnlyResult = await executeTool(
+    const helpResult = await executeTool(
       { argv: ['invoke', 'window.list', '--help'] },
       { attribution: origin('turn-read') },
     )
 
-    expect(readOnlyResult).toBeDefined()
-    expect(JSON.parse(readOnlyResult as string).output).toEqual([{ id: 'win-1', title: 'Main' }])
+    expect(helpResult).toBeDefined()
+    expect(JSON.parse(helpResult as string).output).toBe('AUV command usage')
 
     console.info('SCENARIO_B_EVIDENCE', JSON.stringify({
-      case: 'Scenario B (Risk Gating: Mutating Blocked, Read-only Allowed)',
+      case: 'Scenario B (Risk Gating: Mutating Blocked, Help Allowed)',
       mutatingExecutionState: (mutatingError as any).executionState,
-      readOnlySucceeded: true,
+      helpSucceeded: true,
     }))
   })
 
@@ -1105,18 +1105,18 @@ describe('f-Contract-1: Production Host Execution Result Contract Regression', (
       stop: vi.fn(),
     })
 
-    // Execute read-only command on the restarted daemon (triggers connect())
+    // Request command help on the restarted daemon (triggers connect())
     external.execute.mockImplementationOnce(() => {
-      return execution({ stdout: JSON.stringify([{ id: 'win-restarted', title: 'Active Window' }]), stderr: '' })
+      return execution({ stdout: 'AUV command usage', stderr: '' })
     })
 
-    const readOnlyResult = await executeTool(
+    const helpResult = await executeTool(
       { argv: ['invoke', 'window.list', '--help'] },
       { attribution: origin('turn-read-reconnected') },
     )
 
-    expect(readOnlyResult).toBeDefined()
-    expect(JSON.parse(readOnlyResult as string).output).toEqual([{ id: 'win-restarted', title: 'Active Window' }])
+    expect(helpResult).toBeDefined()
+    expect(JSON.parse(helpResult as string).output).toBe('AUV command usage')
     expect(external.start).toHaveBeenCalledTimes(2)
 
     // Attempt a new mutating operation: must remain blocked because risk flag was not cleared by connect()
@@ -1143,7 +1143,7 @@ describe('f-Contract-1: Production Host Execution Result Contract Regression', (
     console.info('SCENARIO_E_EVIDENCE', JSON.stringify({
       case: 'Scenario E (Daemon Restart Does Not Clear Lingering Mutation Risk)',
       daemonStarts: external.start.mock.calls.length,
-      readOnlyAfterRestartSucceeded: true,
+      helpAfterRestartSucceeded: true,
       mutatingExecutionState: (mutatingError as any).executionState,
       mutatingBlockedMessage: mutatingError?.message,
       mutatingDispatched: false,
