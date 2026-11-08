@@ -1,6 +1,7 @@
+import process, { env } from 'node:process'
+
 import { execFileSync } from 'node:child_process'
 import { join, resolve } from 'node:path'
-import { env } from 'node:process'
 
 import ErgosphereMain from '@ergosphere-it/electron/vite/main'
 import ErgospherePreload from '@ergosphere-it/electron/vite/preload'
@@ -22,7 +23,7 @@ import { createSettingsSearch } from '@proj-airi/stage-pages/vite/settings-searc
 import { speakerModel } from '@proj-airi/stage-shared/speaker-model'
 import { kwsModel } from '@proj-airi/stage-ui/libs/voice/kws-model-info'
 import { Download } from '@proj-airi/unplugin-fetch'
-import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'
+import { Cubism2Core, DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'
 import { resolveModelEndpoint, Sherpaw } from '@proj-airi/vite-plugin-sherpaw'
 import { defineConfig } from 'electron-vite'
 
@@ -344,6 +345,12 @@ export default defineConfig({
         endpoint: sherpawModelEndpoint,
       }),
       DownloadLive2DSDK(),
+      Cubism2Core({
+        distribution: 'bundle',
+        sources: process.env.AIRI_CUBISM2_CORE_PATH && process.env.AIRI_CUBISM2_CORE_SHA256
+          ? [{ path: process.env.AIRI_CUBISM2_CORE_PATH, sha256: process.env.AIRI_CUBISM2_CORE_SHA256, optional: true }]
+          : [],
+      }),
       Download('https://dist.ayaka.moe/live2d-models/hiyori_free_zh.zip', 'hiyori_free_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
       Download('https://dist.ayaka.moe/live2d-models/hiyori_pro_zh.zip', 'hiyori_pro_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
       Download('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-A/AvatarSample_A.vrm', 'AvatarSample_A.vrm', 'vrm/models/AvatarSample-A', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),

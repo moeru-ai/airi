@@ -76,6 +76,44 @@ export function isPointInLive2DMesh(point: { x: number, y: number }, vertices: A
   return false
 }
 
+/** The drawable mesh API of a Cubism 3+ core. */
+export interface Live2DDrawableMeshes {
+  count: () => number
+  /** True when the drawable is visible and not fully transparent. */
+  isPainted: (index: number) => boolean
+  /** Three vertex indices for each triangle of the drawable. */
+  vertexIndices: (index: number) => ArrayLike<number>
+}
+
+interface Live2DDrawableMeshCore {
+  getDrawableCount?: () => number
+  getDrawableDynamicFlagIsVisible?: (index: number) => boolean
+  getDrawableOpacity?: (index: number) => number
+  getDrawableVertexIndices?: (index: number) => ArrayLike<number>
+}
+
+/**
+ * The drawable meshes of a core that publishes them, or `undefined` for a core that does not.
+ *
+ * A Cubism 2 core publishes no triangles, visibility, or opacity of a drawable.
+ * The methods are read off the core and called back against it, because they are prototype methods.
+ */
+export function live2DDrawableMeshesFor(coreModel: object): Live2DDrawableMeshes | undefined {
+  const { getDrawableCount, getDrawableDynamicFlagIsVisible, getDrawableOpacity, getDrawableVertexIndices } = coreModel as Live2DDrawableMeshCore
+  if (typeof getDrawableCount !== 'function'
+    || typeof getDrawableDynamicFlagIsVisible !== 'function'
+    || typeof getDrawableOpacity !== 'function'
+    || typeof getDrawableVertexIndices !== 'function') {
+    return undefined
+  }
+
+  return {
+    count: () => getDrawableCount.call(coreModel),
+    isPainted: index => getDrawableDynamicFlagIsVisible.call(coreModel, index) && getDrawableOpacity.call(coreModel, index) > 0,
+    vertexIndices: index => getDrawableVertexIndices.call(coreModel, index),
+  }
+}
+
 /** Limits of the gesture recognition, in CSS pixels and milliseconds. */
 export interface Live2DTouchGestureOptions {
   /** Largest pointer travel of a tap. @default 8 */

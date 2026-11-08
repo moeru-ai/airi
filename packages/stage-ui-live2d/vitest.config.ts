@@ -1,3 +1,4 @@
+import { Cubism2Core } from '@proj-airi/unplugin-live2d-sdk/vite'
 import { playwright } from '@vitest/browser-playwright'
 import { defineConfig } from 'vitest/config'
 
@@ -6,6 +7,11 @@ export default defineConfig({
   test: {
     projects: [
       {
+        // `live2d-runtime` imports `virtual:live2d-sdk/cores` at module scope, and
+        // Vitest gives each inline project its own Vite config, so a `plugins` entry
+        // on this file would not reach them. Without sources the plugin reports an
+        // unavailable capability, the state these tests exercise.
+        plugins: [Cubism2Core()],
         test: {
           name: 'node',
           include: ['src/**/*.test.ts'],
@@ -13,6 +19,7 @@ export default defineConfig({
         },
       },
       {
+        plugins: [Cubism2Core()],
         test: {
           name: 'browser',
           include: ['src/**/*.browser.test.ts'],

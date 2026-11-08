@@ -6,6 +6,7 @@ import {
   defaultLive2DTouchGestureOptions,
   findLive2DTouchMotionGroup,
   isPointInLive2DMesh,
+  live2DDrawableMeshesFor,
   resolveLive2DTouchRegion,
 } from './touch'
 
@@ -45,6 +46,39 @@ describe('isPointInLive2DMesh', () => {
 
   it('ignores triangles that a deformer collapsed', () => {
     expect(isPointInLive2DMesh({ x: 50, y: 50 }, [5, 5, 5, 5, 5, 5], [0, 1, 2])).toBe(false)
+  })
+})
+
+describe('live2DDrawableMeshesFor', () => {
+  it('reads the meshes of a Cubism 3+ core and calls them against the core', () => {
+    const core = {
+      opacities: [1, 0, 1],
+      getDrawableCount() { return this.opacities.length },
+      getDrawableDynamicFlagIsVisible(index: number) { return index !== 2 },
+      getDrawableOpacity(index: number) { return this.opacities[index] },
+      getDrawableVertexIndices: (index: number) => [index, index, index],
+    }
+
+    const meshes = live2DDrawableMeshesFor(core)
+
+    expect(meshes?.count()).toBe(3)
+    expect([0, 1, 2].map(index => meshes?.isPainted(index))).toEqual([true, false, false])
+    expect(meshes?.vertexIndices(1)).toEqual([1, 1, 1])
+  })
+
+  it('has no meshes for a Cubism 2 core', () => {
+    // ROOT CAUSE:
+    //
+    // A tap read the drawable API of the Cubism 3+ core:
+    //
+    // coreModel.getDrawableCount()
+    //
+    // A Cubism 2 core has no such method, so the tap threw.
+    // We fixed this with a probe. A Cubism 2 model falls back to its hit areas and head box.
+    expect(live2DDrawableMeshesFor({
+      getParamFloat: () => 0,
+      setParamFloat: () => {},
+    })).toBeUndefined()
   })
 })
 

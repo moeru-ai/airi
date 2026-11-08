@@ -571,12 +571,7 @@
   },
   "packages/stage-ui-live2d/src/components/scenes/live2d/Model.vue": {
     "ts/no-explicit-any": {
-      "count": 9
-    }
-  },
-  "packages/stage-ui-live2d/src/composables/live2d/animation.ts": {
-    "ts/no-explicit-any": {
-      "count": 1
+      "count": 7
     }
   },
   "packages/stage-ui-live2d/src/composables/live2d/motion-manager.ts": {

@@ -18,9 +18,6 @@ import Live2DPresenceBubble from './live2d/presence-bubble.vue'
 import { createLive2DTouchGestureTracker, useLive2DEyeFocusFor, useSettingsLive2d } from '../../composables/live2d'
 import { createLive2D, provideLive2D } from '../../contexts/live2d'
 
-import '../../utils/live2d-zip-loader'
-import '../../utils/live2d-opfs-registration'
-
 const props = withDefaults(defineProps<{
   cursorPosition?: Live2DEyeFocusSource
   /** Controls of this renderer. The scene owns a new context when this is not set. */

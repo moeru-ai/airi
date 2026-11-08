@@ -87,6 +87,64 @@ describe('live2D expressions context', () => {
     expect(expressions.parameters.value.get('ParamMultiply')?.currentValue).toBe(1)
   })
 
+  // ROOT CAUSE:
+  //
+  // Cubism 2 expression files store an absolute `val` and a default `def`.
+  // The exp3 parser rejected them. Read as absolute values, an `add` with `def: 1` gives `1 + 1`.
+  //
+  // We fixed this by converting `val` relative to `def`, as the Cubism 2 SDK does.
+  it('applies Cubism 2 expressions relative to their defaults, and leaves the model unchanged until activation', () => {
+    const values = new Map<string, number>([
+      ['PARAM_PART_X', 1],
+      ['PARAM_PART_SCALE', 0.5],
+      ['PARAM_PART_VISIBLE', 1],
+    ])
+    const coreModel = {
+      getParameterValueById: (parameterId: string) => values.get(parameterId) ?? 0,
+      setParameterValueById: vi.fn((parameterId: string, value: number) => {
+        values.set(parameterId, value)
+      }),
+    }
+    const expressions = createLive2DExpressionsContext({
+      getParameterDefault: parameterId => values.get(parameterId) ?? 0,
+      isEnabled: () => true,
+    })
+
+    const definition = parseLive2DExpression('parts', 'parts.exp.json', JSON.stringify({
+      params: [
+        { id: 'PARAM_PART_X', val: 2, def: 1, calc: 'add' },
+        { id: 'PARAM_PART_SCALE', val: 1, def: 0.5, calc: 'mult' },
+        { id: 'PARAM_PART_VISIBLE', val: 0, def: 1, calc: 'set' },
+        // `add` is the default calculation, and a `def` of 0 means no default.
+        { id: 'PARAM_PART_Y', val: 0.25 },
+        { id: 'PARAM_PART_ALPHA', val: 0.5, def: 0, calc: 'mult' },
+      ],
+    }))
+    expect(definition.parameters).toEqual([
+      { parameterId: 'PARAM_PART_X', value: 1, blend: 'Add' },
+      { parameterId: 'PARAM_PART_SCALE', value: 2, blend: 'Multiply' },
+      { parameterId: 'PARAM_PART_VISIBLE', value: 0, blend: 'Overwrite' },
+      { parameterId: 'PARAM_PART_Y', value: 0.25, blend: 'Add' },
+      { parameterId: 'PARAM_PART_ALPHA', value: 0.5, blend: 'Multiply' },
+    ])
+
+    expressions.register(definition)
+    expressions.apply(coreModel)
+    expect(coreModel.setParameterValueById).not.toHaveBeenCalled()
+
+    expressions.activate('parts')
+    expressions.apply(coreModel)
+    expect(values.get('PARAM_PART_X')).toBe(2)
+    expect(values.get('PARAM_PART_SCALE')).toBe(1)
+    expect(values.get('PARAM_PART_VISIBLE')).toBe(0)
+
+    expressions.reset()
+    expressions.apply(coreModel)
+    expect(values.get('PARAM_PART_X')).toBe(1)
+    expect(values.get('PARAM_PART_SCALE')).toBe(0.5)
+    expect(values.get('PARAM_PART_VISIBLE')).toBe(1)
+  })
+
   it('uses the selected preview blend when expressions share a parameter', () => {
     const expressions = createLive2DExpressionsContext({
       getParameterDefault: () => 0.5,

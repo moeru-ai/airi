@@ -9,6 +9,7 @@ import Basemove, { createS3Provider } from 'unplugin-basemove/vite'
 import Yaml from 'unplugin-yaml/vite'
 import Inspect from 'vite-plugin-inspect'
 
+import { Cubism2Core } from '@proj-airi/unplugin-live2d-sdk/vite'
 import { defineConfig } from 'vite'
 
 // For Histoire
@@ -46,6 +47,9 @@ export default defineConfig({
     Yaml() as Plugin,
     Vue(),
     ...Unocss() as Plugin[],
+    // Stories reach the Live2D runtime, which imports `virtual:live2d-sdk/cores`.
+    // Without sources, the plugin reports an unavailable Cubism 2 capability, so stories use Cubism 4.
+    Cubism2Core() as Plugin,
     // TODO: Type wrong for `unplugin-yaml` in Histoire required
     // Vite version, wait until Histoire updates to support Vite 7
     Inspect() as Plugin,

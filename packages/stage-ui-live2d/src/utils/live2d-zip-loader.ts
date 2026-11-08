@@ -1,87 +1,175 @@
-import type { CubismSpec, JSONObject, ModelSettings } from 'pixi-live2d-display/cubism4'
+import type { CubismSpec, JSONObject, ModelSettings } from 'pixi-live2d-display'
+
+import type { Live2DRuntime } from './live2d-runtime'
 
 import JSZip from 'jszip'
 
-import { Cubism4ModelSettings, FileLoader, Live2DFactory, ZipLoader } from 'pixi-live2d-display/cubism4'
+import { errorMessageFrom } from '@moeru/std'
 
 import { resolveLive2DModelControls } from '../controls/manifest'
+import { createCubism4FakeSettings } from '../generations/cubism4/model-settings'
+import { isLive2DSettingsFile, selectLive2DSettings, shouldIgnoreLive2DArchiveEntry } from '../generations/loader'
 import { decodeZipFileName } from './decode-zip-filename'
 
-// Legacy/VTube-Studio archives often store entry names without the UTF-8 flag in a legacy
-// codepage; decode them so non-ASCII names (e.g. `手姿势切换.exp3.json`) don't become
-// mojibake. The same decoder must be used by `validateLive2DZip`, otherwise validation
-// sees mojibake paths and rejects archives before they reach this loader.
-ZipLoader.zipReader = (data: Blob, _url: string) => JSZip.loadAsync(data, { decodeFileName: decodeZipFileName })
+let configuredRuntime: Live2DRuntime | undefined
 
-interface IgnoredArchivePathSegmentRule {
-  matches: (segment: string) => boolean
+export function isMocFile(file: string): boolean {
+  return file.endsWith('.moc3') || file.endsWith('.moc')
 }
 
-const ignoredArchivePathSegmentRules: IgnoredArchivePathSegmentRule[] = [
-  { matches: segment => segment === '__MACOSX' },
-  { matches: segment => segment.startsWith('._') },
-]
-
-function shouldIgnoreLive2DArchiveEntry(filePath: string): boolean {
-  return filePath
-    .split('/')
-    .some(segment => ignoredArchivePathSegmentRules.some(rule => rule.matches(segment)))
+export function basename(path: string): string {
+  return path.split(/[\\/]/).pop()!
 }
 
-ZipLoader.createSettings = async (reader: JSZip) => {
-  const filePaths = Object.keys(reader.files)
-    .filter(filePath => !shouldIgnoreLive2DArchiveEntry(filePath))
-  const settings = await (async () => {
-    const settingsFilePath = filePaths.find(file => isSettingsFile(file))
-    if (!settingsFilePath) {
-      return createFakeSettings(filePaths)
+function createModelSettings(json: JSONObject, url: string): ModelSettings {
+  if (!configuredRuntime)
+    throw new Error('Live2D runtime has not been configured.')
+  const selected = selectLive2DSettings([{ path: url, json }])
+  const settings = selected.loader.createSettings(configuredRuntime, selected.loader.sanitizeSettings(json), url)
+  const resolveURL = settings.resolveURL.bind(settings)
+  settings.resolveURL = (path) => {
+    try {
+      return decodeURI(resolveURL(path))
     }
-    return createModelSettings(await ZipLoader.readText(reader, settingsFilePath), settingsFilePath)
-  })()
-
-  mergeDiscoveredControlsIntoSettings(settings, filePaths)
-
-  // Extract CDI data from the zip if available
-  try {
-    const metadataSettings = settings as ModelSettings & {
-      _cdiData?: unknown
-      _expFiles?: Array<{ name: string, fileName: string, data: unknown }>
-    }
-
-    // Find and parse CDI file
-    const cdiPath = filePaths.find(f => f.toLowerCase().endsWith('.cdi3.json'))
-    if (cdiPath) {
-      const cdiText = await reader.file(cdiPath)!.async('text')
-      metadataSettings._cdiData = JSON.parse(cdiText)
-      console.info('[ZipLoader] Extracted CDI data from:', cdiPath)
-    }
-
-    // Find and collect expression files
-    const expPaths = filePaths.filter(f => f.toLowerCase().endsWith('.exp3.json'))
-    if (expPaths.length > 0) {
-      const expFiles: Array<{ name: string, fileName: string, data: unknown }> = []
-      for (const expPath of expPaths) {
-        const expText = await reader.file(expPath)!.async('text')
-        const baseName = expPath.split('/').pop()?.replace('.exp3.json', '') || expPath
-        expFiles.push({
-          name: baseName,
-          fileName: expPath,
-          data: JSON.parse(expText),
-        })
-      }
-      metadataSettings._expFiles = expFiles
-      console.info('[ZipLoader] Extracted', expFiles.length, 'expression files')
+    catch {
+      return resolveURL(path)
     }
   }
-  catch (e) {
-    console.warn('[ZipLoader] Failed to extract CDI/EXP metadata:', e)
-  }
-
   return settings
 }
 
-function mergeDiscoveredControlsIntoSettings(settings: ModelSettings, filePaths: string[]) {
-  if (!(settings instanceof Cubism4ModelSettings))
+// Raw ZIP entries include directories and macOS AppleDouble sidecars. A sidecar
+// copies the name of a real file but holds binary data. Every ZIP step reads this
+// list, which applies the validator's filter, so a sidecar never counts as a model file.
+function listModelPaths(reader: JSZip): string[] {
+  const paths: string[] = []
+  reader.forEach((relativePath, file) => {
+    if (!file.dir && !shouldIgnoreLive2DArchiveEntry(relativePath))
+      paths.push(relativePath)
+  })
+  return paths
+}
+
+async function selectZipSettings(reader: JSZip, modelPaths: string[]) {
+  const paths = modelPaths.filter(isLive2DSettingsFile)
+  const candidates = await Promise.all(paths.map(async path => ({
+    path,
+    json: JSON.parse(await reader.file(path)!.async('text')) as JSONObject,
+  })))
+  return candidates.length ? selectLive2DSettings(candidates) : undefined
+}
+
+async function selectFileSettings(files: File[]) {
+  const candidates = await Promise.all(files
+    .filter(file => isLive2DSettingsFile(file.webkitRelativePath || file.name))
+    .map(async file => ({
+      path: file.webkitRelativePath || file.name,
+      json: JSON.parse(await file.text()) as JSONObject,
+      file,
+    })))
+  if (!candidates.length)
+    return undefined
+  const selected = selectLive2DSettings(candidates)
+  return { ...selected, file: candidates.find(candidate => candidate.path === selected.path)!.file }
+}
+
+/**
+ * Model metadata AIRI attaches to upstream `ModelSettings`.
+ *
+ * Both loader paths must produce this identical shape: consumers snapshot
+ * expression parameter defaults from `_expFiles` at load time, and the second
+ * and every later load of a model is served from the OPFS cache through
+ * `FileLoader`, never `ZipLoader`.
+ */
+interface Live2DModelMetadata {
+  /** Parsed `.cdi3.json`, absent for Cubism 2 archives and Cubism 3+ archives that ship none. */
+  _cdiData?: unknown
+  /**
+   * Every readable `.exp.json` / `.exp3.json` in the model, each named by its
+   * extension-stripped basename. Files that fail to parse are left out rather
+   * than failing the load; see {@link collectMetadata}.
+   */
+  _expFiles?: Array<{ name: string, fileName: string, data: unknown }>
+}
+
+/**
+ * One metadata candidate, decoupled from the loader that produced it: `ZipLoader`
+ * reads through JSZip while `FileLoader` reads OPFS-restored `File`s.
+ */
+interface MetadataSource {
+  path: string
+  readText: () => Promise<string>
+}
+
+function isExpressionPath(path: string): boolean {
+  const lowerCased = path.toLowerCase()
+  return lowerCased.endsWith('.exp3.json') || lowerCased.endsWith('.exp.json')
+}
+
+function isCdiPath(path: string): boolean {
+  return path.toLowerCase().endsWith('.cdi3.json')
+}
+
+function expressionNameOf(path: string): string {
+  return basename(path).replace(/\.exp3?\.json$/i, '')
+}
+
+/**
+ * Reads one metadata payload, reporting an unparseable file as "no metadata
+ * here" instead of throwing.
+ *
+ * Returns a wrapper rather than the value itself so a legitimately parsed
+ * `null` stays distinguishable from a failed read.
+ */
+async function readOptionalJSON(source: MetadataSource): Promise<{ data: unknown } | undefined> {
+  try {
+    return { data: JSON.parse(await source.readText()) }
+  }
+  catch (error) {
+    console.warn(`[Live2D] Ignoring unreadable metadata file "${source.path}":`, errorMessageFrom(error))
+    return undefined
+  }
+}
+
+/**
+ * Collects the optional `.cdi3.json` and expression payloads AIRI attaches to
+ * `ModelSettings`, for whichever loader supplied the sources.
+ *
+ * Parse failures are per-file and non-fatal. This metadata decorates a model
+ * that its settings file and render assets already describe completely, and the
+ * expression initializer skips individual expressions it cannot use, so letting
+ * one malformed or stray sidecar reject `createSettings` would turn an optional
+ * problem into a failed import of the entire model.
+ */
+async function collectMetadata(sources: MetadataSource[]): Promise<Live2DModelMetadata> {
+  const metadata: Live2DModelMetadata = {}
+
+  const cdiSource = sources.find(source => isCdiPath(source.path))
+  if (cdiSource) {
+    const parsed = await readOptionalJSON(cdiSource)
+    if (parsed)
+      metadata._cdiData = parsed.data
+  }
+
+  const expressions = await Promise.all(
+    sources.filter(source => isExpressionPath(source.path)).map(async (source) => {
+      const parsed = await readOptionalJSON(source)
+      return parsed && { name: expressionNameOf(source.path), fileName: source.path, data: parsed.data }
+    }),
+  )
+  metadata._expFiles = expressions.filter(expression => expression != null)
+
+  return metadata
+}
+
+/**
+ * Adds the expression and motion files that the settings do not reference, so that the runtime IDs match the controls manifest.
+ *
+ * Only Cubism 3+ settings take part, because the controls manifest reads exp3 and motion3 files only.
+ * The check uses the class of the selected runtime. The combined bundle and the Cubism 4 bundle each define their own class.
+ */
+function mergeDiscoveredControlsIntoSettings(runtime: Live2DRuntime, settings: ModelSettings, filePaths: string[]) {
+  if (!(settings instanceof runtime.Cubism4ModelSettings))
     return
 
   const existingExpressions = settings.expressions ?? []
@@ -108,188 +196,76 @@ function mergeDiscoveredControlsIntoSettings(settings: ModelSettings, filePaths:
 }
 
 /**
- * Normalizes Live2D model settings JSON before upstream path resolution.
- *
- * Before:
- * - `{ "FileReferences": { "Physics": null } }`
- *
- * After:
- * - `{ "FileReferences": {} }`
+ * Installs AIRI's ZIP and directory policies on the selected runtime exactly once.
  */
-function sanitizeModelSettingsText(text: string): string {
-  const json = JSON.parse(text) as Record<string, unknown>
-  const refs = json.FileReferences
+export function configureLive2DLoaders(runtime: Live2DRuntime): void {
+  if (configuredRuntime === runtime)
+    return
+  configuredRuntime = runtime
 
-  if (refs && typeof refs === 'object') {
-    const fileReferences = refs as Record<string, unknown>
-    if (fileReferences.Physics === null)
-      delete fileReferences.Physics
-    if (fileReferences.Pose === null)
-      delete fileReferences.Pose
-    if (fileReferences.DisplayInfo === null)
-      delete fileReferences.DisplayInfo
+  const { FileLoader, ZipLoader } = runtime
+  ZipLoader.zipReader = (data: Blob) => JSZip.loadAsync(data, { decodeFileName: decodeZipFileName })
+
+  ZipLoader.createSettings = async (reader: JSZip) => {
+    const filePaths = listModelPaths(reader)
+    const selected = await selectZipSettings(reader, filePaths)
+    const settings = selected
+      ? createModelSettings(selected.json, selected.path)
+      : createCubism4FakeSettings(runtime, filePaths)
+    mergeDiscoveredControlsIntoSettings(runtime, settings, filePaths)
+    Object.assign(settings, await collectMetadata(
+      filePaths.map(path => ({ path, readText: () => reader.file(path)!.async('text') })),
+    ))
+
+    return settings
   }
 
-  return JSON.stringify(json)
-}
-
-/**
- * Normalizes a resolved Live2D resource path to the decoded archive representation.
- *
- * @example
- * normalizeLive2DArchivePath('Model%20Package/Avatar%20Model.moc3')
- * // => 'Model Package/Avatar Model.moc3'
- */
-function normalizeLive2DArchivePath(path: string): string {
-  try {
-    return decodeURI(path)
-  }
-  catch {
-    // Malformed percent escapes cannot be URI-decoded and therefore represent a literal archive path.
-    return path
-  }
-}
-
-function useArchivePathResolution(settings: ModelSettings): ModelSettings {
-  const resolveURL = settings.resolveURL.bind(settings)
-  settings.resolveURL = path => normalizeLive2DArchivePath(resolveURL(path))
-  return settings
-}
-
-function createModelSettings(text: string, url: string): ModelSettings {
-  if (!text) {
-    throw new Error(`Empty settings file: ${url}`)
+  ZipLoader.readText = async (reader: JSZip, path: string) => {
+    const file = reader.file(path)
+    if (!file)
+      throw new Error(`Cannot find file: ${path}`)
+    const text = await file.async('text')
+    if (!isLive2DSettingsFile(path))
+      return text
+    const json = JSON.parse(text) as JSONObject
+    const selected = selectLive2DSettings([{ path, json }])
+    return JSON.stringify(selected.loader.sanitizeSettings(json))
   }
 
-  const settingsJSON = JSON.parse(text) as JSONObject & { url?: string }
-  settingsJSON.url = url
-  const runtime = Live2DFactory.findRuntime(settingsJSON)
+  ZipLoader.getFilePaths = async (reader: JSZip) => listModelPaths(reader)
 
-  if (!runtime) {
-    throw new Error('Unknown settings JSON')
+  ZipLoader.getFiles = (reader: JSZip, paths: string[]) =>
+    Promise.all(paths.map(async (path) => {
+      const file = new File([await reader.file(path)!.async('blob')], basename(path))
+      Object.defineProperty(file, 'webkitRelativePath', { value: path })
+      return file
+    }))
+
+  const defaultReadText = FileLoader.readText
+  FileLoader.createSettings = async (files: File[]) => {
+    const selected = await selectFileSettings(files)
+    const filePaths = files
+      .map(file => file.webkitRelativePath || file.name)
+      .filter(path => !shouldIgnoreLive2DArchiveEntry(path))
+    const settings = selected
+      ? createModelSettings(selected.json, selected.path)
+      : createCubism4FakeSettings(runtime, filePaths)
+    mergeDiscoveredControlsIntoSettings(runtime, settings, filePaths)
+    if (selected)
+      Object.assign(settings, { _objectURL: URL.createObjectURL(selected.file) })
+    Object.assign(settings, await collectMetadata(
+      files.map(file => ({ path: file.webkitRelativePath || file.name, readText: () => file.text() })),
+    ))
+
+    return settings
   }
-
-  return useArchivePathResolution(runtime.createModelSettings(settingsJSON))
-}
-
-export function isSettingsFile(file: string) {
-  return !shouldIgnoreLive2DArchiveEntry(file)
-    && !file.endsWith('items_pinned_to_model.json')
-    && (file.endsWith('.model3.json') || file.endsWith('.model.json'))
-}
-
-export function isMocFile(file: string) {
-  return file.endsWith('.moc3')
-}
-
-export function basename(path: string): string {
-  // https://stackoverflow.com/a/15270931
-  return path.split(/[\\/]/).pop()!
-}
-
-// copy and modified from https://github.com/guansss/live2d-viewer-web/blob/f6060b2ce52c2e26b6b61fa903c837fe343f72d1/src/app/upload.ts#L81-L142
-function createFakeSettings(files: string[]): ModelSettings {
-  const mocFiles = files.filter(file => isMocFile(file))
-
-  if (mocFiles.length !== 1) {
-    const fileList = mocFiles.length ? `(${mocFiles.map(f => `"${f}"`).join(',')})` : ''
-
-    throw new Error(`Expected exactly one moc file, got ${mocFiles.length} ${fileList}`)
+  FileLoader.readText = async (file: File) => {
+    const text = await defaultReadText(file)
+    const path = file.webkitRelativePath || file.name
+    if (!isLive2DSettingsFile(path))
+      return text
+    const json = JSON.parse(text) as JSONObject
+    const selected = selectLive2DSettings([{ path, json }])
+    return JSON.stringify(selected.loader.sanitizeSettings(json))
   }
-
-  const mocFile = mocFiles[0]
-  const modelName = basename(mocFile).replace(/\.moc3?/, '')
-
-  const textures = files.filter(f => f.endsWith('.png'))
-
-  if (!textures.length) {
-    throw new Error('Textures not found')
-  }
-
-  const motions = files.filter(f => f.endsWith('.mtn') || f.endsWith('.motion3.json'))
-  const physics = files.find(f => f.includes('physics'))
-  const pose = files.find(f => f.includes('pose'))
-
-  const settings = new Cubism4ModelSettings({
-    url: `${modelName}.model3.json`,
-    Version: 3,
-    FileReferences: {
-      Moc: mocFile,
-      Textures: textures,
-      Physics: physics,
-      Pose: pose,
-      Motions: motions.length
-        ? {
-            '': motions.map(motion => ({ File: motion })),
-          }
-        : undefined,
-    },
-  })
-
-  settings.name = modelName
-
-  // provide this property for FileLoader
-  Object.assign(settings, { _objectURL: `example://${settings.url}` })
-
-  return settings
 }
-
-ZipLoader.readText = async (jsZip: JSZip, path: string) => {
-  const file = jsZip.file(path)
-
-  if (!file) {
-    throw new Error(`Cannot find file: ${path}`)
-  }
-
-  const text = await file.async('text')
-
-  return isSettingsFile(path) ? sanitizeModelSettingsText(text) : text
-}
-
-const defaultFileLoaderReadText = FileLoader.readText
-FileLoader.createSettings = async (files: File[]) => {
-  const settingsFile = files.find(file => isSettingsFile(file.webkitRelativePath || file.name))
-
-  if (!settingsFile) {
-    throw new TypeError('Settings file not found')
-  }
-
-  const settingsUrl = settingsFile.webkitRelativePath || settingsFile.name
-  const settingsText = await FileLoader.readText(settingsFile)
-  const settings = createModelSettings(settingsText, settingsUrl)
-  mergeDiscoveredControlsIntoSettings(settings, files.map(file => file.webkitRelativePath || file.name).filter(path => !shouldIgnoreLive2DArchiveEntry(path)))
-
-  Object.assign(settings, { _objectURL: URL.createObjectURL(settingsFile) })
-
-  return settings
-}
-
-FileLoader.readText = async (file: File) => {
-  const text = await defaultFileLoaderReadText(file)
-  const path = file.webkitRelativePath || file.name
-
-  return isSettingsFile(path) ? sanitizeModelSettingsText(text) : text
-}
-
-ZipLoader.getFilePaths = (jsZip: JSZip) => {
-  const paths: string[] = []
-
-  jsZip.forEach((relativePath, file) => {
-    if (!file.dir && !shouldIgnoreLive2DArchiveEntry(relativePath)) {
-      paths.push(relativePath)
-    }
-  })
-
-  return Promise.resolve(paths)
-}
-
-ZipLoader.getFiles = (jsZip: JSZip, paths: string[]) =>
-  Promise.all(paths.map(
-    async (path) => {
-      const fileName = path.slice(path.lastIndexOf('/') + 1)
-
-      const blob = await jsZip.file(path)!.async('blob')
-
-      return new File([blob], fileName)
-    },
-  ))

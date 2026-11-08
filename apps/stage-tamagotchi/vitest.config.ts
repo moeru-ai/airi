@@ -5,7 +5,7 @@ import UnoCss from 'unocss/vite'
 import Info from 'unplugin-info/vite'
 import VueRouter from 'vue-router/vite'
 
-import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'
+import { Cubism2Core, DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'
 import { playwright } from '@vitest/browser-playwright'
 import { loadEnv, normalizePath } from 'vite'
 import { defineConfig } from 'vitest/config'
@@ -57,6 +57,10 @@ export default defineConfig({
         extends: true,
         plugins: [
           DownloadLive2DSDK(),
+          // The renderer tests mount modules that import the shared Live2D runtime.
+          // That runtime imports `virtual:live2d-sdk/cores`, which `Cubism2Core()` provides.
+          // Without sources, the plugin reports an unavailable Cubism 2 capability.
+          Cubism2Core(),
           // The settings pages carry a `<route>` block, and this plugin is the
           // one that turns that block into a module. A test that imports a page
           // fails to resolve it without this plugin.

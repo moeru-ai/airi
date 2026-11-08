@@ -282,13 +282,46 @@ export function createLive2DExpressionsContext(
   }
 }
 
-/** Parses one exp3 JSON resource into a registration definition. */
+/**
+ * Parses the `params` array of a Cubism 2 `.exp.json` resource.
+ *
+ * Cubism 2 stores an absolute `val` and the parameter default `def`. The blend operand is relative to `def`,
+ * as the SDK computes it: `val - def` for `add`, the default calculation, and `val / def` for `mult`.
+ * The SDK reads a `def` of 0 as absent, so a `mult` never divides by 0.
+ * Source/context: `Live2DExpression` in `pixi-live2d-display/dist/cubism2.es.js`.
+ */
+function parseCubism2ExpressionParameters(fileName: string, params: unknown[]): Live2DExpressionParameterDefinition[] {
+  return params.map((parameter) => {
+    if (
+      typeof parameter !== 'object'
+      || parameter === null
+      || !('id' in parameter)
+      || typeof parameter.id !== 'string'
+      || !('val' in parameter)
+      || typeof parameter.val !== 'number'
+    ) {
+      throw new TypeError(`Expression file "${fileName}" contains an invalid parameter.`)
+    }
+
+    const calc = 'calc' in parameter && typeof parameter.calc === 'string' ? parameter.calc : 'add'
+    const def = 'def' in parameter && typeof parameter.def === 'number' ? parameter.def : 0
+    if (calc === 'add')
+      return { parameterId: parameter.id, value: parameter.val - def, blend: 'Add' } satisfies Live2DExpressionParameterDefinition
+    if (calc === 'mult')
+      return { parameterId: parameter.id, value: parameter.val / (def || 1), blend: 'Multiply' } satisfies Live2DExpressionParameterDefinition
+    return { parameterId: parameter.id, value: parameter.val, blend: 'Overwrite' } satisfies Live2DExpressionParameterDefinition
+  })
+}
+
+/** Parses one exp3 JSON resource, or one Cubism 2 `.exp.json` resource, into a registration definition. */
 export function parseLive2DExpression(
   name: string,
   fileName: string,
   source: string,
 ): Live2DExpressionDefinition {
   const value: unknown = JSON.parse(source)
+  if (typeof value === 'object' && value !== null && !('Parameters' in value) && 'params' in value && Array.isArray(value.params))
+    return { name, fileName, parameters: parseCubism2ExpressionParameters(fileName, value.params) }
   if (typeof value !== 'object' || value === null || !('Parameters' in value) || !Array.isArray(value.Parameters))
     throw new TypeError(`Expression file "${fileName}" does not contain a Parameters array.`)
 

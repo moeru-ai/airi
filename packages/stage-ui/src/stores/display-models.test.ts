@@ -81,8 +81,9 @@ async function startCloudSync() {
   signIn('owner-a')
   useSyncPreferencesStore().setEnabled('display-models', true)
   const store = useDisplayModelsStore()
-  // The preview renderers need `window` and fail to load in Node. Sync starts before they load.
-  await expect(store.initialize()).rejects.toThrow('window is not defined')
+  // The preview renderers are browser modules and fail to load in Node. Sync starts before they load.
+  // The first module that fails sets the error. The Live2D runtime loads lazily, so it is not always `window is not defined`.
+  await expect(store.initialize()).rejects.toThrow()
   await vi.waitFor(() => expect(store.cloudModels).toHaveLength(1))
   return store
 }
