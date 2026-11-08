@@ -6,9 +6,10 @@ import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/el
 import { themeColorFromValue, useThemeColor } from '@proj-airi/stage-layouts/composables/theme-color'
 import { artistrySyncConfig } from '@proj-airi/stage-shared'
 import { ToasterRoot } from '@proj-airi/stage-ui/components'
-import { useInferencePreload } from '@proj-airi/stage-ui/composables'
+import { updateModelAssetStatus, useInferencePreload } from '@proj-airi/stage-ui/composables'
 import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
 import { initializeAnalytics } from '@proj-airi/stage-ui/libs/product-signals'
+import { isSherpawModelBundled, setSherpawModelAssetHost } from '@proj-airi/stage-ui/libs/providers/providers/sherpaw/model-assets'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -35,6 +36,7 @@ import { RouterView, useRoute, useRouter } from 'vue-router'
 import { toast, Toaster } from 'vue-sonner'
 
 import ResizeHandler from './components/ResizeHandler.vue'
+import SettingsWindowFrame from './components/Window/settings-window-frame.vue'
 
 import {
   electronGetServerChannelConfig,
@@ -44,6 +46,7 @@ import {
   i18nGetLocale,
   i18nSetLocale,
 } from '../shared/eventa'
+import { electronModelAssetCancel, electronModelAssetEnsure, electronModelAssetRemove, electronModelAssetsClear, electronModelAssetsList, electronModelAssetStatusChanged } from '../shared/eventa/model-assets'
 import {
   electronPluginUpdateCapability,
   pluginProtocolListProviders,
@@ -63,13 +66,15 @@ import {
 } from '../shared/eventa/plugin/host'
 import { electronPluginToolsChanged } from '../shared/eventa/plugin/tools'
 import { initializeElectronAuthCallbackBridge } from './bridges/electron-auth-callback'
-import { initializeIOTraceRecordingBridge } from './bridges/io-trace-recording'
+import { initializeIOTraceHubBridge } from './bridges/io-trace-hub'
 import { initializeStageThreeRuntimeTraceBridge } from './bridges/stage-three-runtime-trace'
 import { useLanguage } from './composables/use-language'
+import { useFullscreenStore } from './stores/fullscreen'
 import { useServerChannelSettingsStore } from './stores/settings/server-channel'
 import { useStageWindowLifecycleStore } from './stores/stage-window-lifecycle'
 import {
   useTamagotchiBuiltinToolsStore,
+  useTamagotchiHomeAssistantStore,
   useTamagotchiMcpToolsStore,
   useTamagotchiPluginToolsStore,
 } from './stores/tools'
@@ -81,22 +86,46 @@ const { language, themeColorsHue, themeColorsHueDynamic } = storeToRefs(settings
 const router = useRouter()
 const route = useRoute()
 const context = useElectronEventaContext()
+const listModelAssets = useElectronEventaInvoke(electronModelAssetsList)
+const ensureModelAsset = useElectronEventaInvoke(electronModelAssetEnsure)
+const cancelModelAsset = useElectronEventaInvoke(electronModelAssetCancel)
+const removeModelAsset = useElectronEventaInvoke(electronModelAssetRemove)
+const clearModelAssets = useElectronEventaInvoke(electronModelAssetsClear)
+const stopModelAssetStatus = context.value.on(electronModelAssetStatusChanged, (event) => {
+  if (event.body && !isSherpawModelBundled(event.body.id))
+    updateModelAssetStatus(event.body)
+})
+setSherpawModelAssetHost({
+  fetch: (model, fileName, signal) => fetch(
+    `airi-model://assets/${encodeURIComponent(model.id)}/${encodeURIComponent(model.revision)}/${fileName}`,
+    { signal },
+  ),
+  list: listModelAssets,
+  ensure: ensureModelAsset,
+  cancel: cancelModelAsset,
+  remove: removeModelAsset,
+  clear: clearModelAssets,
+})
 const getMainLocale = useElectronEventaInvoke(i18nGetLocale)
 const setLocale = useElectronEventaInvoke(i18nSetLocale)
 const windowContext = resolveRendererWindowContext()
 const initialRoutePath = resolveInitialRendererRoutePath(route.path)
 const chatStore = useChatStore()
 const builtinToolsStore = useTamagotchiBuiltinToolsStore()
+const homeAssistantStore = useTamagotchiHomeAssistantStore()
 const mcpToolsStore = useTamagotchiMcpToolsStore()
 const pluginToolsStore = useTamagotchiPluginToolsStore()
 const syncedPinia = usePiniaSynced()
 const isSpotlightWindow = initialRoutePath === '/spotlight'
-// The floating chat resizes from its own grip, which keeps the corner beside the character in place.
+// The floating chat resizes from its own edges, which keep the edges beside the character in place.
 const isFloatingChatWindow = initialRoutePath === '/chat-floating'
-const isSettingsWindow = initialRoutePath === '/settings' || initialRoutePath.startsWith('/settings/')
-const stopIOTraceRecordingBridge = initialRoutePath === '/'
-  ? initializeIOTraceRecordingBridge(context.value)
-  : undefined
+// The fullscreen mode places the main window itself, so its edges offer no resize.
+const { active: mainWindowFullscreen } = storeToRefs(useFullscreenStore())
+// A window that hosts the fullscreen mode can load on a settings route, after a reload for example. So the windows
+// are told apart by the host that the main process names, not by the first route alone.
+const isSettingsWindow = !windowContext.fullscreenHost && (initialRoutePath === '/settings' || initialRoutePath.startsWith('/settings/'))
+// Every window sends its spans to the hub, so the IO tracer and the trace files have the spans of every window.
+const stopIOTraceHubBridge = initializeIOTraceHubBridge(context.value)
 
 async function refreshPluginRuntimeTools() {
   try {
@@ -118,6 +147,9 @@ const stopLeadershipListener = syncedPinia.onLeadershipChange((isLeader) => {
   })
   void mcpToolsStore.refresh().catch((error) => {
     console.warn('[App] Failed to refresh MCP runtime tools:', error)
+  })
+  void homeAssistantStore.refresh().catch((error) => {
+    console.warn('[App] Failed to refresh Home Assistant tools:', error)
   })
   void refreshPluginRuntimeTools()
 })
@@ -178,7 +210,7 @@ function createFullStageRuntime() {
   const reportPluginCapability = useElectronEventaInvoke(electronPluginUpdateCapability)
   const getGodotStageStatus = useElectronEventaInvoke(electronGodotStageGetStatus)
   const syncArtistryConfig = useElectronEventaInvoke(artistrySyncConfig)
-  const usesGodotStage = initialRoutePath === '/' || initialRoutePath.startsWith('/settings')
+  const usesGodotStage = !!windowContext.fullscreenHost || initialRoutePath.startsWith('/settings')
   const isWidgetsWindow = initialRoutePath === '/widgets'
 
   function syncGodotStageRenderer(state: { state: 'stopped' | 'starting' | 'running' | 'stopping' | 'error' }) {
@@ -298,7 +330,7 @@ function createFullStageRuntime() {
       }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
       contextBridgeStore.initialize()
       if (!isWidgetsWindow) {
-        characterOrchestratorStore.initialize()
+        characterOrchestratorStore.initialize(syncedPinia)
       }
 
       defineInvokeHandler(context.value, pluginProtocolListProviders, async () => listProvidersForPluginHost())
@@ -318,6 +350,7 @@ function createFullStageRuntime() {
     dispose() {
       stopAuthenticatedSetup?.()
       stopLoggedOutSetup?.()
+      characterOrchestratorStore.dispose()
       contextBridgeStore.dispose()
     },
   }
@@ -325,6 +358,11 @@ function createFullStageRuntime() {
 
 const fullStageRuntime = windowContext.stageRuntime === 'full'
   ? createFullStageRuntime()
+  : null
+// A minimal chat window shows the live reply of the turn that the main window runs.
+// The full runtime starts the whole context bridge, which includes this view.
+const chatStreamView = !fullStageRuntime && (initialRoutePath === '/chat' || isFloatingChatWindow)
+  ? useContextBridgeStore()
   : null
 
 const { restore: restoreLocale } = useLanguage(language, getMainLocale, setLocale)
@@ -348,6 +386,13 @@ if (isSettingsWindow) {
 }
 
 onMounted(async () => {
+  void listModelAssets().then((statuses) => {
+    for (const status of statuses) {
+      if (!isSherpawModelBundled(status.id))
+        updateModelAssetStatus(status)
+    }
+  }).catch(error => console.warn('Failed to read model asset status:', error))
+
   // NOTICE: Issue #1658
   // When Electron restarts, renderer localStorage may not be flushed to disk.
   // The store's onMounted hook falls back to navigator.language, which triggers
@@ -359,6 +404,7 @@ onMounted(async () => {
   await chatStore.initialize(syncedPinia)
 
   await fullStageRuntime?.initialize()
+  await chatStreamView?.initializeStreamView()
 })
 
 watch(themeColorsHue, () => {
@@ -370,10 +416,12 @@ watch(themeColorsHueDynamic, () => {
 }, { immediate: true })
 
 onUnmounted(() => {
-  stopIOTraceRecordingBridge?.()
+  stopIOTraceHubBridge()
+  stopModelAssetStatus()
   stopLeadershipListener?.()
   chatStore.dispose()
   fullStageRuntime?.dispose()
+  void chatStreamView?.dispose()
 })
 </script>
 
@@ -381,8 +429,10 @@ onUnmounted(() => {
   <ToasterRoot @close="id => toast.dismiss(id)">
     <Toaster />
   </ToasterRoot>
-  <ResizeHandler v-if="!isSpotlightWindow && !isFloatingChatWindow" />
-  <RouterView />
+  <ResizeHandler v-if="!isSpotlightWindow && !isFloatingChatWindow && !mainWindowFullscreen" />
+  <SettingsWindowFrame :enabled="!windowContext.fullscreenHost">
+    <RouterView />
+  </SettingsWindowFrame>
 </template>
 
 <style>

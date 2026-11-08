@@ -91,7 +91,7 @@ export function presetWebFontsFonts(provider: 'fontsource' | 'none'): Record<str
       provider,
     },
     'mono': {
-      name: 'DM Mono',
+      name: 'Maple Mono',
       provider,
     },
     'cutejp': {
@@ -191,6 +191,8 @@ export function sharedUnoConfig() {
           '(components|src)/**/*.{js,ts,vue}', // THIS CAN INCLUDE node_modules
           '**/stage-ui/**/*.{vue,js,ts}', // THIS TOO
           '**/ui/**/*.{vue,js,ts}', // THIS TOO
+          // Provider definitions declare their brand icons, such as `i-lobe-icons:openai`. Apps load the built files.
+          '**/provider-inference/**/*.{mjs,ts}',
         ],
         exclude: [
 
@@ -216,6 +218,7 @@ export function sharedUnoConfig() {
     theme: {
       fontFamily: {
         'sans': `"DM Sans Variant", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
+        'mono': `"Maple Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;`,
         'sans-rounded': `"Comfortaa Variable", "Comfortaa", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
         'cute': `"Nunito Variable", "Nunito", "ChillRoundM", "Kiwi Maru", "Comfortaa Variable", "Comfortaa", "DM Sans Variant", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
         'cuteen': `"Nunito Variable", "Nunito", "ChillRoundM", "Kiwi Maru", "Comfortaa Variable", "Comfortaa", "DM Sans Variant", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,

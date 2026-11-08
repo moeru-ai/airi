@@ -1,18 +1,22 @@
-import type { IpcRenderer } from '@electron-toolkit/preload'
+import type { createContext } from '@moeru/eventa/adapters/electron/renderer'
 import type { SourcesOptions } from 'electron'
 import type { MaybeRefOrGetter } from 'vue'
 
 import type { ScreenCaptureSetSourceRequest, SerializableDesktopCapturerSource } from '..'
 
 import { defineInvoke } from '@moeru/eventa'
-import { createContext } from '@moeru/eventa/adapters/electron/renderer'
 import { toRaw, toValue } from 'vue'
 
 import { screenCapture } from '..'
 
-export function useElectronScreenCapture(ipcRenderer: IpcRenderer, sourcesOptions: MaybeRefOrGetter<SourcesOptions>) {
-  const context = createContext(ipcRenderer).context
-
+/**
+ * Screen capture commands on the eventa context of the window.
+ *
+ * Pass the shared context of the window, for example `getElectronEventaContext()` of `@proj-airi/electron-vueuse`.
+ * Each eventa context adds an IPC listener that handles every message to the window, and the listener stays for the
+ * life of the page.
+ */
+export function useElectronScreenCapture(context: ReturnType<typeof createContext>['context'], sourcesOptions: MaybeRefOrGetter<SourcesOptions>) {
   const invokeGetSources = defineInvoke(context, screenCapture.getSources)
   const setSource = defineInvoke(context, screenCapture.setSource)
   const resetSource = defineInvoke(context, screenCapture.resetSource)

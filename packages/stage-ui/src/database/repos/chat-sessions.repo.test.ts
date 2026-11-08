@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('../storage', () => ({
   storage: createStorage({ driver: memoryDriver() }),
 }))
+vi.mock('./chat-assets.repo')
 
 const { chatSessionsRepo } = await import('./chat-sessions.repo')
 const { storage } = await import('../storage')

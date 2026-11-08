@@ -7,7 +7,7 @@ import { computed, onMounted, onUnmounted, watch } from 'vue'
 
 const props = withDefaults(defineProps<{ colorClass?: string }>(), { colorClass: 'text-primary-500 dark:text-primary-200' })
 const settingsAudio = useSettingsAudioDevice()
-const { stream, enabled } = storeToRefs(settingsAudio)
+const { stream, listening } = storeToRefs(settingsAudio)
 
 const { audioContext } = storeToRefs(useAudioContext())
 const { startAnalyzer, stopAnalyzer, volumeLevel } = useAudioAnalyzer()
@@ -30,7 +30,7 @@ function teardown() {
 
 async function setup() {
   teardown()
-  if (!enabled.value || !stream.value)
+  if (!listening.value || !stream.value)
     return
 
   const ctx = audioContext.value
@@ -45,7 +45,7 @@ async function setup() {
 }
 
 onMounted(() => {
-  watch([enabled, stream], () => setup(), { immediate: true })
+  watch([listening, stream], () => setup(), { immediate: true })
 })
 
 onUnmounted(() => teardown())
@@ -54,7 +54,8 @@ onUnmounted(() => teardown())
 <template>
   <div :class="['flex items-center justify-center', props.colorClass]">
     <!-- Inline SVG mic with level fill using gradient stops -->
-    <svg width="24" height="24" viewBox="0 0 256 256" aria-hidden="true">
+    <!-- The SVG fills the icon size class of the root. A fixed size moves the button baseline, and the button shifts. -->
+    <svg class="size-full" viewBox="0 0 256 256" aria-hidden="true">
       <defs>
         <linearGradient id="micLevel" x1="0%" y1="0%" x2="0%" y2="100%">
           <stop offset="0%" stop-color="currentColor" stop-opacity="0" />

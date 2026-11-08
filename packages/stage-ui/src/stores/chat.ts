@@ -1,29 +1,36 @@
-import type { ChatAttachment, ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, Conversation, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
-import type { GenerationProvider } from '@proj-airi/provider-inference'
+import type { ChatAttachment, ChatInvokedSkill, ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, Conversation, Recipe, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
+import type { GenerationProvider, GenerationRequest } from '@proj-airi/provider-inference'
 import type { WebSocketEventInputs } from '@proj-airi/server-sdk'
+import type { TraceSpan } from '@proj-airi/trace-kit'
 import type { Message } from '@xsai/shared-chat'
 import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
 import type { ChatHistoryItem, ChatToolReference } from '../types/chat'
-import type { StoredVoiceInterruption } from '../types/chat-session'
+import type { ChatSessionTaskStatus, StoredVoiceInterruption } from '../types/chat-session'
 import type { ToolCallRerunPayload } from './tool-call-rerun'
 
 import { errorMessageFrom } from '@moeru/std'
 import { decodeBase64 } from '@moeru/std/base64'
 import { fileSource } from '@proj-airi/audio/encoding'
-import { createChatOrchestratorRuntime, renderConversationPreview } from '@proj-airi/core-agent'
-import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
+import { createChatOrchestratorRuntime, isBackgroundRecipe, matchKeywordRecipes, renderConversationPreview } from '@proj-airi/core-agent'
+import { supportsResponsesAudioInputEndpoint } from '@proj-airi/provider-inference'
+import { ATTR_GEN_AI_AGENT_ID, ATTR_GEN_AI_CONVERSATION_ID, ATTR_GEN_AI_OPERATION_NAME, ATTR_GEN_AI_PROVIDER_NAME, ATTR_GEN_AI_REQUEST_MODEL, ATTR_GEN_AI_TOOL_CALL_ARGUMENTS, ATTR_GEN_AI_TOOL_CALL_ID, ATTR_GEN_AI_TOOL_CALL_RESULT, ATTR_GEN_AI_TOOL_NAME, beginSpan, TraceLinkRelations, trackPath } from '@proj-airi/trace-kit'
+import { AgentAttributes, AgentIdKeys, AgentNames, AgentTracks } from '@proj-airi/trace-kit/agent'
+import { VoiceIdKeys } from '@proj-airi/trace-kit/voice'
+import { isEqual } from 'es-toolkit'
 import { nanoid } from 'nanoid'
-import { defineStore, storeToRefs } from 'pinia'
+import { defineStore, getActivePinia, storeToRefs } from 'pinia'
 import { computed, shallowRef, toRaw } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { getConversationAnalyticsSurface } from '../composables'
 import { useAiriRuntimePrompt } from '../composables/use-airi-runtime-prompt'
-import { activeTurnSpan, startSpan } from '../composables/use-io-tracer'
+import { getTraceSink, LOCAL_AGENT_ACTOR } from '../composables/use-trace'
 import { useChatVision } from '../composables/vision/use-chat-vision'
 import { useVisionInference } from '../composables/vision/use-vision-inference'
+import { chatAssetIdFrom, inlineConversationAssets, storeChatAttachments } from '../libs/chat-assets'
 import { extractMessageText, isCloudSyncableMessage } from '../libs/chat-sync'
+import { syncedRoles } from '../libs/pinia/synced-context'
 import { createChatAnalyticsHooks, getProviderMode } from '../libs/product-signals/events/chat'
 import {
   AIRI_CHAT_APP_SURFACE_HEADER,
@@ -31,6 +38,13 @@ import {
   AIRI_CHAT_SESSION_ID_HEADER,
 } from '../libs/product-signals/headers'
 import { getSpeechBusContext, voiceGenerationEnded } from '../services/speech/bus'
+import { composeDrawCardPrompt, createDrawCardTool, DRAW_CARD_TOOL_NAME, drawCardContent } from '../tools/draw-card'
+import { createJudgeRecipeTool, judgmentSkillText } from '../tools/judge-recipe'
+import { composeMemoryPrompt, createMemoryTools } from '../tools/memory'
+import { createProposeRecipeTool } from '../tools/propose-recipe'
+import { createSearchIconsTool } from '../tools/search-icons'
+import { createUseRecipeTool } from '../tools/use-recipe'
+import { createWakeWordTool } from '../tools/wake-words'
 import { useLLM } from './ai/chat-llm/llm'
 import { resolveLlmTools } from './ai/chat-llm/tool-resolver'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
@@ -39,9 +53,12 @@ import { useAuthStore } from './auth'
 import { createMinecraftContext, createRuntimePromptContext, createUserAccountContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
 import { describeChatImages, replaceToolResultImages } from './chat/image-projection'
+import { composeRecipeSpacePrompt, composeSystemPrompt } from './chat/prompt-recipe'
+import { staysLocal } from './chat/session-locality'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
 import { useContextObservabilityStore } from './devtools/context-observability'
+import { useMemoryStore } from './memory'
 import { useAiriCardStore } from './modules/airi-card'
 import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
@@ -49,7 +66,10 @@ import { useHearingStore } from './modules/hearing'
 import { useStickersStore } from './modules/stickers'
 import { useVisionStore } from './modules/vision'
 import { useWebSearchStore } from './modules/web-search'
+import { useRecipesStore } from './recipes'
 import { executeToolCallRerun } from './tool-call-rerun'
+import { useToolCardsStore } from './tool-cards'
+import { useWakeWordsStore } from './wake-words'
 
 interface ForkOptions {
   fromSessionId?: string
@@ -72,6 +92,11 @@ export interface ChatSendPayload {
   replyToMessageId?: string
   /** User text for the new turn. */
   text: string
+  /**
+   * The transcript of the audio attachment arrives after the submit through `settleAudioTranscript`.
+   * A model without audio input waits for it instead of transcribing the file.
+   */
+  audioTranscriptPending?: boolean
   /** Application-formatted voice evidence captured before submission. */
   speechContext?: string
   /** Request-specific tools selected by their model-facing names. */
@@ -81,6 +106,26 @@ export interface ChatSendPayload {
   /** Request-specific top_p override. */
   topP?: number
 }
+
+/** One background task for the task list: its own session, its recipe, and where it stands. */
+export interface BackgroundTask {
+  sessionId: string
+  recipeName: string
+  status: ChatSessionTaskStatus
+  /** The running turn, while the task runs. */
+  turnId?: string
+}
+
+/** Whether a background task still runs. */
+export function isOpenTask(status: ChatSessionTaskStatus) {
+  return status === 'running'
+}
+
+/**
+ * Finished tasks whose sessions stay, so the task list can show how they ended. Older ones are deleted.
+ * The result already reached the conversation as a stored notice, so nothing else reads these sessions.
+ */
+const KEPT_FINISHED_TASKS = 3
 
 /** The durable messages appended while one chat request executes. */
 export interface ChatSendResult {
@@ -121,6 +166,22 @@ function ownsProjectedTurn(message: ChatHistoryItem, turnId: string) {
   return message.id === turnId || `${message.id}-0` === turnId
 }
 
+/** Resolves with `promise`, or rejects with the abort reason once `signal` aborts. */
+function waitWithSignal<T>(promise: Promise<T>, signal: AbortSignal) {
+  return new Promise<T>((resolve, reject) => {
+    if (signal.aborted)
+      return reject(signal.reason)
+    const abort = () => reject(signal.reason)
+    signal.addEventListener('abort', abort, { once: true })
+    promise.then(resolve, reject).finally(() => signal.removeEventListener('abort', abort))
+  })
+}
+
+/** Whether a consciousness selection can send. The `prompt-api` provider runs without a selected model. */
+function isChatSelectionReady(providerId: string, modelId: string) {
+  return !!providerId && (!!modelId || providerId === 'prompt-api')
+}
+
 function retryContentFrom(message: ChatHistoryItem | undefined): Pick<ChatSendPayload, 'attachments' | 'text'> | null {
   if (!message || message.role !== 'user')
     return null
@@ -145,11 +206,17 @@ function retryContentFrom(message: ChatHistoryItem | undefined): Pick<ChatSendPa
   }, []).join('\n\n')
 
   const attachments = message.content.flatMap((part): ChatAttachment[] => {
-    if (part.type === 'input_audio')
-      return [{ type: 'audio', data: part.input_audio.data, mimeType: part.input_audio.format === 'wav' ? 'audio/wav' : 'audio/mpeg' }]
+    if (part.type === 'input_audio') {
+      const mimeType = part.input_audio.format === 'wav' ? 'audio/wav' : 'audio/mpeg'
+      return [chatAssetIdFrom(part.input_audio.data)
+        ? { type: 'audio', url: part.input_audio.data, mimeType }
+        : { type: 'audio', data: part.input_audio.data, mimeType }]
+    }
     if (part.type !== 'image_url')
       return []
 
+    if (chatAssetIdFrom(part.image_url.url))
+      return [{ type: 'image', url: part.image_url.url }]
     const match = /^data:([^;,]+);base64,(.+)$/.exec(part.image_url.url)
     return match ? [{ type: 'image' as const, mimeType: match[1], data: match[2] }] : []
   })
@@ -186,7 +253,16 @@ const STORED_TOOL_IMAGE = 'A tool image was left out of the history.'
 /** Stands in for an earlier image whose read failed with the current vision selection. */
 const UNREADABLE_EARLIER_IMAGE = 'The user attached an image here earlier. The vision model failed to read it.'
 
+// REVIEW:
+// Executor order: the leader, the caller, then any speech player. With several Stage tabs, a call from elsewhere
+// speaks in an arbitrary one, and a cancel can miss its turn. The chat runtime can elect its own owner among speech
+// players, as a Kubernetes controller does with a Lease.
+const inSpeechPlayer = { roles: [syncedRoles.speechPlayer] }
+
 export const useChatStore = defineStore('chat', () => {
+  // A watcher or an await runs outside the setup of this store. The active
+  // Pinia can then be another one, so keep the Pinia that owns this store.
+  const pinia = getActivePinia()
   const { t } = useI18n()
   const runtimePrompt = useAiriRuntimePrompt()
   const authStore = useAuthStore()
@@ -202,13 +278,39 @@ export const useChatStore = defineStore('chat', () => {
   const consciousnessStore = useConsciousnessStore()
   const chatVision = useChatVision()
   const artistryAutonomousStore = useAutonomousArtistryStore()
-  const { activeProvider, activeModel, chatReady } = storeToRefs(consciousnessStore)
+  const { activeProvider, activeModel } = storeToRefs(consciousnessStore)
   const chatSession = useChatSessionStore()
   const chatStream = useChatStreamStore()
   const chatContext = useChatContextStore()
   const cardStore = useAiriCardStore()
+  const recipes = useRecipesStore()
+  const memory = useMemoryStore()
+
+  /** The persona of a session. A session without one uses the selected card. */
+  function personaOf(sessionId: string) {
+    return chatSession.sessionMetas[sessionId]?.characterId || cardStore.activeCardId || 'default'
+  }
+
+  /**
+   * The system prompt of a session: format rules, the persona's identity, its memory index, and when to draw a card.
+   * A recipe's own session adds the recipe's steps after the identity. They stay the same there, so its prefix stays cacheable.
+   * The first request and every later model step read it, so a card edit reaches the next step.
+   */
+  function sessionSystemPrompt(sessionId: string) {
+    const persona = personaOf(sessionId)
+    const identity = composeSystemPrompt(cardStore.getSystemPrompt(persona))
+      + (memory.enabled ? composeMemoryPrompt(memory.indexFor(persona)) : '')
+      + (drawsCards(sessionId) ? composeDrawCardPrompt() : '')
+    const recipeId = chatSession.sessionMetas[sessionId]?.recipeId
+    const recipe = recipeId ? recipes.recipes.find(entry => entry.id === recipeId) : undefined
+    return recipe ? identity + composeRecipeSpacePrompt(recipe) : identity
+  }
+  const wakeWords = useWakeWordsStore()
   const stickersStore = useStickersStore()
   const contextObservability = useContextObservabilityStore()
+  // The leader makes the cards of tool calls for every window, so its synced action must exist in the leader even when
+  // the leader shows no tool call. Every window creates the chat store, so the chat store creates the card store too.
+  const toolCards = useToolCardsStore()
   const { activeSessionId } = storeToRefs(chatSession)
   const { streamingMessage } = storeToRefs(chatStream)
 
@@ -217,7 +319,27 @@ export const useChatStore = defineStore('chat', () => {
   const activeSendSessionId = shallowRef<string>()
   const activeStreamingMessage = computed(() => chatStream.activeTurns.find(turn => turn.sessionId === activeSendSessionId.value)?.message)
   const pendingQueuedSendCount = shallowRef(0)
-  let ownedActiveTurnSpan: typeof activeTurnSpan.value
+  // A turn in a recipe's own session is a background task, so every window can show and stop it.
+  // Each task has its own recipe session, and the session keeps its status. Every window reads the list from the session metas.
+  const backgroundTasks = computed<BackgroundTask[]>(() => {
+    const tasks = Object.values(chatSession.sessionMetas)
+      .flatMap((meta): BackgroundTask[] => meta.recipeId && meta.task
+        ? [{
+            sessionId: meta.sessionId,
+            recipeName: recipes.recipes.find(entry => entry.id === meta.recipeId)?.name ?? meta.title ?? meta.recipeId,
+            status: meta.task.status,
+            turnId: activeTurns.value.find(turn => turn.sessionId === meta.sessionId)?.turnId,
+          }]
+        : [])
+      .sort((left, right) => (chatSession.sessionMetas[right.sessionId]?.task?.startedAt ?? 0) - (chatSession.sessionMetas[left.sessionId]?.task?.startedAt ?? 0))
+    const open = tasks.filter(task => isOpenTask(task.status))
+    return [...open, ...tasks.filter(task => !open.includes(task))]
+  })
+  /**
+   * Chat turn spans that this store started, keyed by `JSON.stringify([sessionId, turnId])`.
+   * Concurrent sessions each own one span. `onSendSettled` ends the span of its own turn only.
+   */
+  const ownedTurnSpans = new Map<string, TraceSpan>()
   let stopLeadershipListener: (() => void) | undefined
   const analyticsHooks = createChatAnalyticsHooks({
     getSessionMessages: sessionId => chatSession.getSessionMessages(sessionId),
@@ -237,9 +359,17 @@ export const useChatStore = defineStore('chat', () => {
       void chatSession.ensureCurrentSession().catch((error) => {
         console.error('[chat] Failed to start chat consumers after leader promotion:', error)
       })
+      void interruptOrphanedTasks().catch((error) => {
+        console.warn('[chat] Failed to mark interrupted background tasks:', errorMessageFrom(error))
+      })
+      // The plugin restores the synced state before it reports the promotion, so the old leader's requests are there.
+      toolCards.releaseOrphanedCards()
     })
 
     await chatSession.initialize()
+    // The leadership callback can run before the session index loads, so the leader checks again once it has loaded.
+    if (syncedPinia.isLeader())
+      await interruptOrphanedTasks()
   }
 
   /** Stops chat consumers that belong to this window. */
@@ -256,6 +386,25 @@ export const useChatStore = defineStore('chat', () => {
    */
   const failedImageReads = new Map<string, Set<string>>()
 
+  /**
+   * Voice messages whose transcript is still coming, keyed by session and message. Each lives in the leader, which runs
+   * both the submit and the provider projection that waits for it.
+   */
+  const liveTranscripts = new Map<string, PromiseWithResolvers<void>>()
+  /** Turns that a voice message without speech removed. Their cancellation is not reported as a send error. */
+  const droppedTurns = new Set<string>()
+
+  /**
+   * Audio input reaches a model whose catalog entry lists audio input, over Chat Completions or a Responses endpoint
+   * that accepts audio. Other requests get transcripts.
+   */
+  async function supportsAudioInput(providerId: string, modelId: string, request: GenerationRequest) {
+    if (request.protocol === 'responses' && !supportsResponsesAudioInputEndpoint(request.config.baseURL))
+      return false
+    const model = (await consciousnessStore.getModelsForProvider(providerId)).find(model => model.id === modelId)
+    return model?.inputModalities?.includes('audio') === true
+  }
+
   function failedImageReadsOf(sessionId: string) {
     let reads = failedImageReads.get(sessionId)
     if (!reads) {
@@ -263,6 +412,252 @@ export const useChatStore = defineStore('chat', () => {
       failedImageReads.set(sessionId, reads)
     }
     return reads
+  }
+
+  /** Whether a session is the owner's own conversation: it has no scene binding. */
+  function isOwnerSession(sessionId: string) {
+    return !chatSession.sessionMetas[sessionId]?.bindings?.length
+  }
+
+  /**
+   * Tells a conversation about finished background work. The main agent reads the notice and decides what to say, or stays quiet.
+   * Only the owner's own conversation gets a notice, so background results never reach a scene.
+   */
+  async function notifyConversation(sessionId: string, notice: { source: string, text: string }) {
+    if (!isOwnerSession(sessionId))
+      return
+    try {
+      await executeSend({ sessionId, text: notice.text }, { notice: { source: notice.source } })
+    }
+    catch (error) {
+      console.warn('[chat] Failed to deliver a notice:', errorMessageFrom(error))
+    }
+  }
+
+  /** Whether a session is a background task's own space. */
+  function isTaskSession(sessionId: string) {
+    return Boolean(chatSession.sessionMetas[sessionId]?.recipeId)
+  }
+
+  /**
+   * Whether a session's replies can hold cards: the owner's own chat, with reply cards on. A background task reports in
+   * text, and a card there would take the details out of its report.
+   */
+  function drawsCards(sessionId: string) {
+    return toolCards.replyCardsEnabled && isOwnerSession(sessionId) && !isTaskSession(sessionId)
+  }
+
+  /** Whether a turn answers the owner: not a background task, and not a reply to a stored notice. */
+  function isOwnerTurn(sessionId: string, sessionMessages: ChatHistoryItem[]) {
+    const lastUserMessage = sessionMessages.findLast(message => message.role === 'user')
+    return !isTaskSession(sessionId) && (lastUserMessage?.role !== 'user' || !lastUserMessage.notice)
+  }
+
+  /** Whether a session reaches cloud sync. A local-only session, such as a task or a scene, never syncs. */
+  function syncsToCloud(sessionId: string) {
+    const meta = chatSession.sessionMetas[sessionId]
+    return Boolean(meta && !staysLocal(meta))
+  }
+
+  /** Runs one task: its own send without voice, then its status and a notice to the parent conversation. */
+  async function runBackgroundTask(recipe: Recipe, sessionId: string, request: { parentSessionId: string, task: string, tools: ChatToolReference[] }) {
+    const notify = (ok: boolean, text: string) => notifyConversation(request.parentSessionId, {
+      source: `recipe:${recipe.name}`,
+      text: `${ok ? `The background task "${recipe.name}" finished.` : `The background task "${recipe.name}" could not finish.`}\n${text.trim()}`,
+    })
+    // A cancelled send ends without an error. Only the change that moves the task out of `running` reports, so a stopped task never reports a result.
+    try {
+      // A stop can land while the status write settles. The send registers in the same step as this check, so any later stop aborts it.
+      if (chatSession.sessionMetas[sessionId]?.task?.status !== 'running')
+        return
+      await startSend({ sessionId, text: request.task, tools: request.tools }, false, { background: true }).done
+      const reply = chatSession.getSessionMessagesIfLoaded(sessionId)?.findLast(message => message.role === 'assistant')
+      const text = reply ? extractMessageText(reply).trim() : ''
+      // A run with nothing to say, for example because its steps told it to stop, ends without a notice.
+      if (await chatSession.setSessionTask(sessionId, { status: 'done', endedAt: Date.now() }, ['running']) && text)
+        void notify(true, text)
+    }
+    catch (error) {
+      if (await chatSession.setSessionTask(sessionId, { status: 'failed', endedAt: Date.now() }, ['running']))
+        void notify(false, errorMessageFrom(error) ?? 'The recipe run failed')
+    }
+    finally {
+      await pruneFinishedTasks()
+    }
+  }
+
+  /**
+   * Starts a task recipe in a new session of its own, without voice. Each task starts with an empty history.
+   * Resolves once the task starts or is refused. When it settles, its result reaches the parent conversation as a notice.
+   */
+  async function startRecipe(recipe: Recipe, request: { parentSessionId: string, task: string }): Promise<{ status: 'started' } | { status: 'refused', reason: string }> {
+    // An empty send never runs, so an empty task ends as done without doing anything.
+    if (!request.task.trim())
+      return { status: 'refused', reason: 'A background recipe needs a task.' }
+    const tools = recipeRunTools()
+    let sessionId: string
+    try {
+      sessionId = await chatSession.createSession(personaOf(request.parentSessionId), {
+        setActive: false,
+        hidden: true,
+        title: recipe.name,
+        parentSessionId: request.parentSessionId,
+        recipeId: recipe.id,
+        task: { status: 'running', startedAt: Date.now() },
+      })
+    }
+    catch (error) {
+      return { status: 'refused', reason: errorMessageFrom(error) ?? 'The recipe space could not open' }
+    }
+    runInBackground(recipe, sessionId, { ...request, tools })
+    return { status: 'started' }
+  }
+
+  /** Each task runs in its own session, so tasks run at the same time and never wait for each other. */
+  function runInBackground(recipe: Recipe, sessionId: string, request: { parentSessionId: string, task: string, tools: ChatToolReference[] }) {
+    void runBackgroundTask(recipe, sessionId, request).catch((error: unknown) => {
+      console.warn('[chat] Background task failed:', errorMessageFrom(error))
+    })
+  }
+
+  /** Stops a background task. A running one is cancelled without a result. */
+  async function stopBackgroundTask(sessionId: string) {
+    if (!await chatSession.setSessionTask(sessionId, { status: 'interrupted', endedAt: Date.now() }, ['running']))
+      return
+    // The task can still be preparing, before its turn is active, so every request of its session stops.
+    abortSessionRequests(sessionId, new DOMException('Background task stopped', 'AbortError'))
+    const turn = activeTurns.value.find(entry => entry.sessionId === sessionId)
+    if (turn)
+      await cancelTurn(turn)
+  }
+
+  /** Removes a finished task from the list, with its session. */
+  async function dismissBackgroundTask(sessionId: string) {
+    const status = chatSession.sessionMetas[sessionId]?.task?.status
+    if (status && !isOpenTask(status))
+      await deleteTaskSession(sessionId)
+  }
+
+  /** Deletes a finished task's hidden session. It never moves the selected conversation. */
+  async function deleteTaskSession(sessionId: string) {
+    failedImageReads.delete(sessionId)
+    // Release the runtime's history cut before its owning session disappears.
+    await cancelPendingSends(sessionId)
+    await chatSession.deleteHiddenSession(sessionId)
+  }
+
+  /** Deletes the sessions of finished tasks beyond the newest few, so finished tasks never grow storage. */
+  async function pruneFinishedTasks() {
+    const finished = Object.values(chatSession.sessionMetas)
+      .filter(meta => meta.recipeId && meta.task && !isOpenTask(meta.task.status))
+      .sort((left, right) => (right.task?.endedAt ?? 0) - (left.task?.endedAt ?? 0))
+    for (const meta of finished.slice(KEPT_FINISHED_TASKS))
+      await deleteTaskSession(meta.sessionId)
+  }
+
+  /**
+   * A new leader does not continue the runs of an earlier leader, so tasks that ran there are interrupted.
+   * Only this leader's own requests count. Replicated turns can still name a turn of the leader that left.
+   */
+  async function interruptOrphanedTasks() {
+    for (const meta of Object.values(chatSession.sessionMetas)) {
+      const status = meta.task?.status
+      if (status && isOpenTask(status) && !hasLocalRequest(meta.sessionId))
+        await chatSession.setSessionTask(meta.sessionId, { status: 'interrupted', endedAt: Date.now() }, ['running'])
+    }
+    await pruneFinishedTasks()
+  }
+
+  /**
+   * Tools that a recipe run can use: every registered tool, computer use included.
+   * The owner approved the recipe, or asked for this one run, so a recipe run uses the tools of the app.
+   */
+  function recipeRunTools(): ChatToolReference[] {
+    return llmToolsStore.tools.map(tool => ({ name: tool.function.name }))
+  }
+
+  /** Whether a send answers the owner's own message in the owner's conversation: not a notice, a scene, or a task. */
+  function isOwnerSend(payload: ChatSendPayload, extra: HostSendOptions) {
+    return !extra.notice && isOwnerSession(payload.sessionId) && !isTaskSession(payload.sessionId)
+  }
+
+  /**
+   * Recipes that the owner's message invokes by keyword, like a slash command.
+   * Only the owner's own conversation invokes them, and a notice never does.
+   */
+  function keywordRecipesFor(payload: ChatSendPayload, extra: HostSendOptions) {
+    if (!isOwnerSend(payload, extra))
+      return []
+    return matchKeywordRecipes(recipes.usable, payload.text).filter(recipe => recipe.instructions.trim() || recipe.decision)
+  }
+
+  /**
+   * Recipes that a send can act on: those that the owner invoked by keyword in this conversation, now or in an earlier message,
+   * and those that their decisions lead to. The owner can answer a question in a later message without the keyword.
+   * A notice or a task never answers the owner, so it never judges anything.
+   */
+  function reachableRecipesFor(payload: ChatSendPayload, extra: HostSendOptions, invoked: readonly Recipe[]) {
+    if (!isOwnerSend(payload, extra))
+      return []
+    const invokedEarlier = new Set(chatSession.getSessionMessages(payload.sessionId).flatMap(message => message.role === 'user' ? message.skills?.map(skill => skill.name) ?? [] : []))
+    const reached = recipes.usable.filter(recipe => invoked.some(entry => entry.id === recipe.id) || invokedEarlier.has(recipe.name))
+    // An answer can lead to another recipe, so follow the actions until nothing new appears.
+    for (let index = 0; index < reached.length; index++) {
+      for (const action of Object.values(reached[index]!.decision?.actions ?? {})) {
+        const target = action.kind === 'recipe' ? recipes.usable.find(recipe => recipe.id === action.recipeId) : undefined
+        if (target && !reached.includes(target))
+          reached.push(target)
+      }
+    }
+    return reached
+  }
+
+  /**
+   * What each invoked recipe gives the owner's message. It is stored with the message, so later replies keep it.
+   * A background recipe keeps its steps in its own space, so the message only says that it runs.
+   * A decision gives only its question and answers. The judgment tool feeds what follows the answer.
+   */
+  function invokedSkillsOf(invoked: readonly Recipe[]): ChatInvokedSkill[] | undefined {
+    if (!invoked.length)
+      return undefined
+    return invoked.map((recipe): ChatInvokedSkill => {
+      if (recipe.decision)
+        // The stored message keeps its own copy of the question. A reactive recipe would also fail `structuredClone`.
+        return { kind: 'decision', name: recipe.name, instructions: judgmentSkillText(recipe), question: structuredClone(toRaw(recipe.decision.question)) }
+      if (isBackgroundRecipe(recipe))
+        return { kind: 'background', name: recipe.name, instructions: 'It runs in the background for this message, and its result reaches you later. Reply briefly, and do not do its task yourself.' }
+      return { kind: 'steps', name: recipe.name, instructions: recipe.instructions.trim() }
+    })
+  }
+
+  /**
+   * Adds the run tools: memory for the session's persona, and the recipe tools in the owner's own conversation.
+   * They stay in every request of the session, so the tool list stays stable across turns.
+   */
+  function withRunTools(tools: StreamOptions['tools'], correlation: StreamOptions['requestCorrelation']): StreamOptions['tools'] {
+    if (!correlation)
+      return tools
+    const { conversationId: sessionId } = correlation
+    // Each character card keeps its own memories and reads the general ones. A scene's card keeps its own as well.
+    const persona = personaOf(sessionId)
+    const sourceTools = async () => [
+      ...(typeof tools === 'function' ? await tools() ?? [] : tools ?? []),
+      ...memory.enabled ? await createMemoryTools({ read: id => memory.read(id, persona), write: entry => memory.write(entry, persona), forget: id => memory.forget(id, persona) }) : [],
+    ]
+    // A recipe's own session runs only that recipe. It cannot start recipes, save them, or choose silence.
+    if (isTaskSession(sessionId))
+      return sourceTools
+    // Only the owner's private conversations start or save recipes. Each recipe runs in its own space.
+    const ownerOnly = isOwnerSession(sessionId)
+    return async () => [
+      ...await sourceTools(),
+      ...(ownerOnly ? await createUseRecipeTool({ recipes: () => recipes.recipes, start: (recipe, task) => startRecipe(recipe, { parentSessionId: sessionId, task }) }) : []),
+      // The owner can turn proposals off. Every proposal waits for the owner's approval.
+      ...(ownerOnly && recipes.proposalsEnabled ? await createProposeRecipeTool({ propose: recipe => recipes.propose(recipe) }) : []),
+      // Cards show in the owner's own chat only. A scene, such as a Discord channel, gets text. A card names its icons
+      // from a search, so the model never guesses an icon name.
+      ...(drawsCards(sessionId) ? [...await createDrawCardTool(), ...await createSearchIconsTool()] : []),
+    ]
   }
 
   async function streamWithStageAdapters(
@@ -274,26 +669,34 @@ export const useChatStore = defineStore('chat', () => {
     let llmTextLength = 0
     let llmOutputChunkCount = 0
     const llmOutputChunkLengths: number[] = []
-    const headers = { ...options?.headers }
+    // The runtime always correlates its turns. A call without correlation has no settle event, so it starts no turn span,
+    // and its LLM span starts a trace of its own.
+    const correlation = options?.requestCorrelation
+    const turnSpan = correlation
+      ? openTurnSpan({ sessionId: correlation.conversationId, turnId: correlation.turnId })
+      : undefined
+    const turnIds = correlation ? { [VoiceIdKeys.Conversation]: correlation.conversationId, [VoiceIdKeys.Turn]: correlation.turnId } : undefined
 
-    if (getProviderMode(options?.providerId ?? activeProvider.value) === 'official' && options?.requestCorrelation) {
-      headers[AIRI_CHAT_SESSION_ID_HEADER] = options.requestCorrelation.conversationId
-      headers[AIRI_CHAT_ROUND_ID_HEADER] = options.requestCorrelation.turnId
-      headers[AIRI_CHAT_APP_SURFACE_HEADER] = getConversationAnalyticsSurface()
+    // Analytics correlation goes only to the official provider. A resolved step can change the provider, so each request rebuilds it.
+    function requestHeaders(providerId: string | undefined) {
+      const headers = { ...options?.headers }
+      if (getProviderMode(providerId ?? activeProvider.value) === 'official' && options?.requestCorrelation) {
+        headers[AIRI_CHAT_SESSION_ID_HEADER] = options.requestCorrelation.conversationId
+        headers[AIRI_CHAT_ROUND_ID_HEADER] = options.requestCorrelation.turnId
+        headers[AIRI_CHAT_APP_SURFACE_HEADER] = getConversationAnalyticsSurface()
+      }
+      return headers
     }
 
-    const hadExistingTurn = !!activeTurnSpan.value
-    if (!hadExistingTurn) {
-      const turnSpan = startSpan(IOSpanNames.InteractionTurn)
-      activeTurnSpan.value = turnSpan
-      ownedActiveTurnSpan = turnSpan
-    }
+    // Stored messages reference their images and recordings. The provider request carries the bytes.
+    context = await inlineConversationAssets(context)
 
-    const visionStore = useVisionStore()
+    const visionStore = useVisionStore(pinia)
     // NOTICE:
-    // These decisions read the model of the first step and hold for the stream.
-    // `resolveStep` (#2709) can change the model between steps, and no stage-ui
-    // caller uses it yet. Decide for each step when one does.
+    // These image decisions read the model of the first step and hold for the stream.
+    // `resolveStep` (#2709) can change the model between steps. Audio follows each step
+    // through `prepareConversation`, but image reading runs once before the stream.
+    // Move image projection into `prepareConversation` to decide it for each step.
     const describeToolImage = chatVision.toolImageReader(model, options?.abortSignal)
     // The vision model reads new tool images, so stored ones follow the same
     // decision. Without a reader, stored tool images replay as they are.
@@ -343,7 +746,7 @@ export const useChatStore = defineStore('chat', () => {
 
           if (description.trim()) {
             if (sessionId)
-              saveImageDescription(sessionId, turnId, imageIndex, description)
+              await saveImageDescription(sessionId, turnId, imageIndex, description)
             return description
           }
           sessionFailedReads.add(readKey)
@@ -359,7 +762,7 @@ export const useChatStore = defineStore('chat', () => {
       if (!source.turns.some(turn => turn.type === 'user' && turn.content.some(part => part.type === 'audio')))
         return source
 
-      const hearing = useHearingStore()
+      const hearing = useHearingStore(pinia)
       const signal = options?.abortSignal ?? new AbortController().signal
 
       // Project a request copy. Stored messages retain recordings and reusable ASR results.
@@ -377,13 +780,28 @@ export const useChatStore = defineStore('chat', () => {
             continue
 
           const sourceIndex = audioIndex++
-          const stored = sessionId ? chatSession.getSessionMessages(sessionId).find(message => ownsProjectedTurn(message, turn.id)) : undefined
+          const findStored = () => sessionId ? chatSession.getSessionMessages(sessionId).find(message => ownsProjectedTurn(message, turn.id)) : undefined
+          let stored = findStored()
           let text = stored?.audioTranscripts?.[sourceIndex]
 
+          // A voice message is submitted before its transcript is ready. Waiting avoids a second transcription.
+          const live = sessionId && stored?.id ? liveTranscripts.get(JSON.stringify([sessionId, stored.id])) : undefined
+          if (!text && live) {
+            await waitWithSignal(live.promise, signal)
+            stored = findStored()
+            text = stored?.audioTranscripts?.[sourceIndex]
+          }
+
           if (!text) {
-            transcriber ??= hearing.createTranscriber()
+            if (!hearing.enabled) {
+              // Stored recordings stay intact. A text-only model can continue the conversation while recognition is disabled.
+              turn.content[index] = { type: 'text', text: t('stage.chat.audio.hearing-disabled') }
+              continue
+            }
+            // The recording belongs to this turn. A voice input of another turn can run at the same time.
             if (!hearing.configured)
               throw new Error('Configure a transcription provider to send audio to this model')
+            transcriber ??= hearing.createTranscriber(undefined, { ids: turnIds })
 
             const blob = new Blob([new Uint8Array(decodeBase64(part.data))], { type: part.format === 'mp3' ? 'audio/mpeg' : 'audio/wav' })
             let completed = false
@@ -399,12 +817,8 @@ export const useChatStore = defineStore('chat', () => {
             if (!completed || !text?.trim())
               throw new Error('The recording has no completed transcription')
 
-            if (sessionId && stored) {
-              const messages = chatSession.getSessionMessages(sessionId)
-              const audioTranscripts = [...(stored.audioTranscripts ?? [])]
-              audioTranscripts[sourceIndex] = text
-              chatSession.setSessionMessages(sessionId, messages.map(message => message.id === stored.id ? { ...message, audioTranscripts } : message))
-            }
+            if (sessionId && stored?.id)
+              await writeAudioTranscript(sessionId, stored.id, sourceIndex, text)
           }
 
           turn.content[index] = { type: 'text', text }
@@ -414,52 +828,133 @@ export const useChatStore = defineStore('chat', () => {
       return projected
     }
 
-    if (!options?.supportsAudioInput)
-      providerContext = await prepareTextOnlyAudioContext(providerContext)
+    // The first request is projected before the LLM span starts, so transcription time stays outside model latency.
+    // Its transcripts are stored, so a later projection for another model reuses them.
+    const initialProjection = options?.supportsAudioInput ? providerContext : await prepareTextOnlyAudioContext(providerContext)
+    const isInitialTarget = (target: { model: string, providerId?: string }) => target.model === model && target.providerId === options?.providerId
 
-    const providerMessages = renderConversationPreview(providerContext)
+    const providerMessages = renderConversationPreview(initialProjection)
     if (options?.requestCorrelation?.conversationId)
       contextObservability.captureProviderPromptProjection(options.requestCorrelation.conversationId, providerMessages)
 
-    const llmSpan = startSpan(IOSpanNames.LLMInference, activeTurnSpan.value, {
-      [IOAttributes.Subsystem]: IOSubsystems.LLM,
-      [IOAttributes.GenAIRequestModel]: model,
-      [IOAttributes.LLMInputMessageCount]: providerMessages.length,
-      [IOAttributes.LLMInputUserMessageCount]: providerMessages.filter(message => message.role === 'user').length,
-      [IOAttributes.TurnId]: options?.requestCorrelation?.turnId ?? '',
+    const resolveStep = options?.resolveStep
+
+    const sink = getTraceSink()
+    const llmSpan = beginSpan(sink, {
+      track: trackPath(AgentTracks.LLM, { agent: LOCAL_AGENT_ACTOR }),
+      name: AgentNames.ModelRequest,
+      parent: turnSpan,
+      ids: turnIds,
+      attrs: {
+        [ATTR_GEN_AI_OPERATION_NAME]: 'chat',
+        [ATTR_GEN_AI_REQUEST_MODEL]: model,
+        ...(options?.providerId ? { [ATTR_GEN_AI_PROVIDER_NAME]: options.providerId } : {}),
+        [AgentAttributes.LLMInputMessageCount]: providerMessages.length,
+        [AgentAttributes.LLMInputUserMessageCount]: providerMessages.filter(message => message.role === 'user').length,
+        [AgentAttributes.LLMInputMessageRoles]: providerMessages.map(message => message.role),
+      },
     })
-    llmSpan.setAttribute(IOAttributes.LLMInputMessageRoles, providerMessages.map(message => message.role))
-    const llmRequestTs = performance.now()
-    let llmFirstTokenEmitted = false
+    const llmRequestTs = sink.now()
+    let llmTtftMs: number | undefined
+    let llmError: unknown
+    // A call runs from its complete arguments to its result. Its ID pairs the two events.
+    const toolSpans = new Map<string, TraceSpan>()
+    const markFirstChunk = () => {
+      if (llmTtftMs !== undefined)
+        return
+      const firstChunkAt = sink.now()
+      llmTtftMs = Math.round(firstChunkAt - llmRequestTs)
+      llmSpan.instant(AgentNames.LLMFirstChunk, undefined, firstChunkAt)
+    }
 
     try {
       await llmStore.stream(model, chatProvider, providerContext, {
         ...options,
+        tools: withRunTools(options?.tools, options?.requestCorrelation),
         prepareStringContent: prepareTextOnlyAudioContext,
-        headers,
+        headers: requestHeaders(options?.providerId),
+        resolveStep: resolveStep
+          ? async () => {
+            const step = await resolveStep()
+            return { ...step, headers: requestHeaders(step.providerId) }
+          }
+          : undefined,
+        // Audio projection follows the model of each request. A tool step can switch between audio and text models.
+        prepareConversation: async (conversation, target) => {
+          if (conversation === providerContext && isInitialTarget(target))
+            return initialProjection
+          if (target.providerId && await supportsAudioInput(target.providerId, target.model, target.request))
+            return conversation
+
+          const projected = await prepareTextOnlyAudioContext(conversation)
+          if (projected !== conversation && options?.requestCorrelation?.conversationId)
+            contextObservability.captureProviderPromptProjection(options.requestCorrelation.conversationId, renderConversationPreview(projected))
+          return projected
+        },
         describeToolImage,
         onStreamEvent: async (event: StreamEvent) => {
           if (isTextDelta(event)) {
             llmOutputChunkCount += 1
             llmOutputChunkLengths.push(event.text.length)
-            if (!llmFirstTokenEmitted) {
-              llmFirstTokenEmitted = true
-              llmSpan.addEvent(IOEvents.LLMFirstToken, {
-                [IOAttributes.LLM_TTFT]: performance.now() - llmRequestTs,
-              })
-            }
+            markFirstChunk()
             llmTextLength += event.text.length
+          }
+          else if (event.type === 'tool-call-start') {
+            markFirstChunk()
+          }
+          else if (event.type === 'tool-call') {
+            toolSpans.set(event.toolCallId, beginSpan(sink, {
+              track: trackPath(AgentTracks.Tools, { agent: LOCAL_AGENT_ACTOR }),
+              name: event.toolName,
+              parent: llmSpan,
+              ids: { ...turnIds, [AgentIdKeys.ToolCall]: event.toolCallId },
+              attrs: {
+                [ATTR_GEN_AI_OPERATION_NAME]: AgentNames.ToolCall,
+                [ATTR_GEN_AI_TOOL_NAME]: event.toolName,
+                [ATTR_GEN_AI_TOOL_CALL_ID]: event.toolCallId,
+                [ATTR_GEN_AI_TOOL_CALL_ARGUMENTS]: event.args,
+              },
+            }))
+          }
+          else if (event.type === 'tool-result' || event.type === 'tool-error') {
+            const toolSpan = toolSpans.get(event.toolCallId)
+            toolSpans.delete(event.toolCallId)
+            const result = typeof event.result === 'string' ? event.result : undefined
+            const attrs = result === undefined ? undefined : { [ATTR_GEN_AI_TOOL_CALL_RESULT]: result }
+            if (event.type === 'tool-error')
+              toolSpan?.end({ status: 'error', message: result ?? 'Tool call failed', attrs })
+            else
+              toolSpan?.end({ attrs })
           }
 
           await options?.onStreamEvent?.(event)
         },
       })
     }
+    catch (error) {
+      llmError = error
+      throw error
+    }
     finally {
-      llmSpan.setAttribute(IOAttributes.LLMOutputChunkCount, llmOutputChunkCount)
-      llmSpan.setAttribute(IOAttributes.LLMOutputChunkLengths, llmOutputChunkLengths)
-      llmSpan.setAttribute(IOAttributes.LLMTextLength, llmTextLength)
-      llmSpan.end()
+      const attrs = {
+        [AgentAttributes.LLMOutputChunkCount]: llmOutputChunkCount,
+        [AgentAttributes.LLMOutputChunkLengths]: llmOutputChunkLengths,
+        [AgentAttributes.LLMTextLength]: llmTextLength,
+        ...(llmTtftMs !== undefined ? { [AgentAttributes.LLMTtftMs]: llmTtftMs } : {}),
+      }
+      // A call without a result ends with its request.
+      for (const toolSpan of toolSpans.values()) {
+        if (llmError !== undefined && !options?.abortSignal?.aborted)
+          toolSpan.end({ status: 'error', message: errorMessageFrom(llmError) ?? 'Model request failed' })
+        else
+          toolSpan.end({ status: 'cancelled', reason: 'aborted' })
+      }
+      if (llmError === undefined)
+        llmSpan.end({ attrs })
+      else if (options?.abortSignal?.aborted)
+        llmSpan.end({ status: 'cancelled', reason: 'aborted', attrs })
+      else
+        llmSpan.end({ status: 'error', message: errorMessageFrom(llmError) ?? 'Model request failed', attrs })
     }
   }
 
@@ -474,14 +969,52 @@ export const useChatStore = defineStore('chat', () => {
     pendingQueuedSendCount.value = state.pendingQueuedSendCount
   }
 
-  function settleOwnedActiveTurnSpan() {
-    if (!ownedActiveTurnSpan)
+  /**
+   * Returns the chat turn span of a turn, and starts it on the first call. `onSendSettled` ends it.
+   *
+   * A spoken turn uses the input ID as its turn ID, so the span links to the voice input with that ID. A typed turn
+   * has no such input, and the link points to nothing.
+   */
+  function openTurnSpan(turn: { sessionId: string, turnId: string }) {
+    const key = JSON.stringify([turn.sessionId, turn.turnId])
+    const owned = ownedTurnSpans.get(key)
+    if (owned)
+      return owned
+
+    const characterId = chatSession.sessionMetas[turn.sessionId]?.characterId
+    const span = beginSpan(getTraceSink(), {
+      track: trackPath(AgentTracks.Turn, { agent: LOCAL_AGENT_ACTOR }),
+      name: AgentNames.ChatTurn,
+      ids: { [VoiceIdKeys.Conversation]: turn.sessionId, [VoiceIdKeys.Turn]: turn.turnId },
+      attrs: {
+        [ATTR_GEN_AI_CONVERSATION_ID]: turn.sessionId,
+        ...(characterId ? { [ATTR_GEN_AI_AGENT_ID]: characterId } : {}),
+      },
+      links: [{ rel: TraceLinkRelations.CausedBy, to: { key: VoiceIdKeys.Input, id: turn.turnId } }],
+    })
+    ownedTurnSpans.set(key, span)
+    return span
+  }
+
+  function settleOwnedTurnSpan(turn: { sessionId: string, turnId: string, status: 'finished' | 'cancelled' | 'failed' }) {
+    const key = JSON.stringify([turn.sessionId, turn.turnId])
+    const span = ownedTurnSpans.get(key)
+    if (!span)
       return
 
-    ownedActiveTurnSpan.end()
-    if (activeTurnSpan.value === ownedActiveTurnSpan)
-      activeTurnSpan.value = undefined
-    ownedActiveTurnSpan = undefined
+    if (turn.status === 'cancelled')
+      span.end({ status: 'cancelled' })
+    else if (turn.status === 'failed')
+      span.end({ status: 'error' })
+    else
+      span.end()
+    ownedTurnSpans.delete(key)
+  }
+
+  /** The character that owns a session. A queued turn keeps it when another window selects a different card. */
+  function sessionCard(sessionId: string) {
+    const characterId = chatSession.sessionMetas[sessionId]?.characterId
+    return characterId ? cardStore.getCard(characterId) : undefined
   }
 
   function getImageDescription(sessionId: string, turnId: string, imageIndex: number) {
@@ -492,30 +1025,24 @@ export const useChatStore = defineStore('chat', () => {
       ?.description
   }
 
-  function saveImageDescription(sessionId: string, turnId: string, imageIndex: number, description: string) {
-    const messages = chatSession.getSessionMessages(sessionId)
-    const messageIndex = messages.findIndex(message => message.role === 'user' && ownsProjectedTurn(message, turnId))
-    if (messageIndex < 0)
+  async function saveImageDescription(sessionId: string, turnId: string, imageIndex: number, description: string) {
+    const message = chatSession.getSessionMessages(sessionId).find(message => message.role === 'user' && ownsProjectedTurn(message, turnId))
+    if (message?.role !== 'user' || !message.id)
       return
 
-    const message = messages[messageIndex]
     const imageDescriptions = [
-      ...(message.imageDescriptions ?? []).filter(cached => cached.imageIndex !== imageIndex),
+      // A reactive entry is a proxy, which `structuredClone` rejects when the fields leave this context.
+      ...(toRaw(message.imageDescriptions) ?? []).filter(cached => cached.imageIndex !== imageIndex).map(cached => toRaw(cached)),
       { description, imageIndex },
     ]
-    const nextMessages = [...messages]
-    // Spreading a reactive message copies its nested arrays as proxies, which
-    // `structuredClone` rejects when the send result leaves the leader.
-    nextMessages[messageIndex] = { ...toRaw(message), imageDescriptions }
-    chatSession.setSessionMessages(sessionId, nextMessages)
+    await chatSession.updateUserMessage(sessionId, message.id, { imageDescriptions })
   }
 
   const runtime = createChatOrchestratorRuntime({
     session: {
-      ensureSession: sessionId => chatSession.ensureSession(sessionId),
       getSessionMessages: sessionId => chatSession.getSessionMessages(sessionId).map(message => toRaw(message)),
-      appendSessionMessage: (sessionId, message) => chatSession.appendSessionMessage(sessionId, message),
       commitUserMessage: (sessionId, message) => chatSession.commitUserMessage(sessionId, message),
+      commitAssistantMessage: (sessionId, message) => chatSession.storeMessage(sessionId, message),
       getSessionGeneration: sessionId => chatSession.getSessionGeneration(sessionId),
     },
     context: {
@@ -544,21 +1071,31 @@ export const useChatStore = defineStore('chat', () => {
     getActiveSessionId: () => activeSessionId.value,
     getActiveProvider: () => activeProvider.value,
     getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
+    // Identity follows the session's persona at request time, so a card switch never rewrites another session.
+    getSystemPrompt: sessionSystemPrompt,
+    getContextWindow: sessionId => cardStore.getCard(personaOf(sessionId))?.extensions.airi.contextWindow ?? -1,
     runtimeContextProviders: [
       () => createRuntimePromptContext(runtimePrompt.value),
       createMinecraftContext,
     ],
+    // A card that the model draws is part of its answer, so the reply shows the card, not the call.
+    toolContents: { [DRAW_CARD_TOOL_NAME]: drawCardContent },
     createId: nanoid,
     unwrapMessage: message => toRaw(message),
     onStateChange: syncRuntimeState,
     onSendSettled: (event) => {
-      settleOwnedActiveTurnSpan()
+      settleOwnedTurnSpan(event)
       getSpeechBusContext().emit(voiceGenerationEnded, event)
     },
     ...analyticsHooks,
+    // A background task is not owner activity, so its rounds stay out of product signals.
+    onMessageRound: event => isTaskSession(event.conversationId) ? undefined : analyticsHooks.onMessageRound?.(event),
+    onMessageRoundFailed: event => isTaskSession(event.conversationId) ? undefined : analyticsHooks.onMessageRoundFailed?.(event),
     onLifecycle: record => contextObservability.recordLifecycle(record),
     onPromptProjection: payload => contextObservability.capturePromptProjection(payload),
     onUserMessageAppended: ({ sessionId, message, messageText, source, model, provider, roundId, turnIndex }) => {
+      if (isTaskSession(sessionId))
+        return
       analyticsHooks.onUserMessageAppended?.({
         sessionId,
         message,
@@ -569,7 +1106,7 @@ export const useChatStore = defineStore('chat', () => {
         roundId,
         turnIndex,
       })
-      if (isCloudSyncableMessage(message)) {
+      if (isCloudSyncableMessage(message) && syncsToCloud(sessionId)) {
         void chatSession.pushMessageToCloud(sessionId, {
           id: message.id,
           role: 'user',
@@ -580,21 +1117,35 @@ export const useChatStore = defineStore('chat', () => {
     },
     onAssistantMessageAppended: ({ sessionId, message, roundId }) => {
       const source = chatSession.getSessionMessages(sessionId).find(message => message.role === 'user' && message.id === roundId)
-      if (source && isCloudSyncableMessage(source) && isCloudSyncableMessage(message) && message.id) {
+      if (source && isCloudSyncableMessage(source) && isCloudSyncableMessage(message) && message.id && syncsToCloud(sessionId)) {
         void chatSession.pushMessageToCloud(sessionId, {
           id: message.id,
           role: 'assistant',
           content: extractMessageText(message),
         })
       }
+      // Each finished call of a saved reply becomes the latest call on the card of its tool.
+      for (const slice of message.slices) {
+        if (slice.type !== 'tool-call')
+          continue
+        const result = message.tool_results.findLast(entry => entry.id === slice.toolCall.toolCallId)
+        if (!result || result.isError)
+          continue
+        toolCards.recordCall(slice.toolCall.toolName, slice.toolCall.args, result.result)
+          .catch(error => console.warn('[chat] Failed to keep a tool call on its card:', errorMessageFrom(error)))
+      }
     },
-    onUserTurnReady: ({ messageText, sessionMessages }) => {
-      const autonomousTarget = cardStore.activeCard?.extensions?.airi?.modules?.artistry?.autonomousTarget || 'user'
+    onUserTurnReady: ({ sessionId, messageText, sessionMessages }) => {
+      if (!isOwnerTurn(sessionId, sessionMessages))
+        return
+      const autonomousTarget = sessionCard(sessionId)?.extensions?.airi?.modules?.artistry?.autonomousTarget || 'user'
       if (autonomousTarget === 'user')
         void artistryAutonomousStore.runArtistTask(messageText, toProviderHistory(sessionMessages))
     },
-    onAssistantTurnReady: ({ messageText, sessionMessages }) => {
-      const artistry = cardStore.activeCard?.extensions?.airi?.modules?.artistry
+    onAssistantTurnReady: ({ sessionId, messageText, sessionMessages }) => {
+      if (!isOwnerTurn(sessionId, sessionMessages))
+        return
+      const artistry = sessionCard(sessionId)?.extensions?.airi?.modules?.artistry
       if (artistry?.autonomousEnabled && artistry?.autonomousTarget === 'assistant')
         void artistryAutonomousStore.runArtistTask(messageText, toProviderHistory(sessionMessages))
     },
@@ -606,6 +1157,19 @@ export const useChatStore = defineStore('chat', () => {
     abort: AbortController
     request: ReturnType<typeof runtime.submit>
   }>()
+
+  /** Whether this window runs a request of the session. */
+  function hasLocalRequest(sessionId: string) {
+    return [...requests.values()].some(entry => entry.sessionId === sessionId)
+  }
+
+  /** Aborts every request of one session, including requests that still prepare. */
+  function abortSessionRequests(sessionId: string, reason: unknown) {
+    for (const entry of requests.values()) {
+      if (entry.sessionId === sessionId)
+        entry.abort.abort(reason)
+    }
+  }
 
   async function ingest(
     sendingMessage: string,
@@ -667,36 +1231,72 @@ export const useChatStore = defineStore('chat', () => {
     return [...names].map(name => ({ name }))
   }
 
+  async function writeAudioTranscript(sessionId: string, messageId: string, index: number, text: string) {
+    const message = chatSession.getSessionMessagesIfLoaded(sessionId)?.find(message => message.id === messageId)
+    if (message?.role !== 'user')
+      return
+    const audioTranscripts = [...(message.audioTranscripts ?? [])]
+    audioTranscripts[index] = text
+    await chatSession.updateUserMessage(sessionId, messageId, { audioTranscripts })
+  }
+
+  /**
+   * Settles the transcript of a submitted voice message. Text is stored with the message. An empty transcript means no
+   * speech, so the turn is cancelled and the message removed. Without a transcript, the chat transcribes the file.
+   */
+  async function settleAudioTranscript(payload: { sessionId: string, messageId: string, transcript?: string }) {
+    const key = JSON.stringify([payload.sessionId, payload.messageId])
+    if (payload.transcript) {
+      await writeAudioTranscript(payload.sessionId, payload.messageId, 0, payload.transcript)
+    }
+    else if (payload.transcript === '') {
+      droppedTurns.add(key)
+      const done = requests.get(key)?.request.done
+      await cancelTurn({ sessionId: payload.sessionId, turnId: payload.messageId })
+      await done?.catch(() => {})
+      await chatSession.deleteMessage({ sessionId: payload.sessionId, messageId: payload.messageId })
+      droppedTurns.delete(key)
+    }
+    liveTranscripts.get(key)?.resolve()
+    liveTranscripts.delete(key)
+  }
+
   function appendSendError(sessionId: string, error: unknown) {
     if (error instanceof DOMException && error.name === 'AbortError')
       return
     if (!chatSession.getSessionMessagesIfLoaded(sessionId))
       return
 
-    chatSession.appendSessionMessage(sessionId, {
+    void chatSession.storeMessage(sessionId, {
       role: 'error',
       content: errorMessageFrom(error) ?? 'Unknown chat operation failure',
-    })
+      id: nanoid(),
+      createdAt: Date.now(),
+    }).catch(storeError => console.error('[chat] Failed to store a send error:', errorMessageFrom(storeError)))
   }
 
-  /** Freeze request settings before asynchronous provider and session startup. */
-  async function prepareSend(payload: ChatSendPayload, signal: AbortSignal, voice: boolean): Promise<ChatOrchestratorSendOptions> {
+  /** Options that only the host sets: a background recipe task, a notice, and what keyword-matched recipes gave the message. */
+  type HostSendOptions = Pick<ChatOrchestratorSendOptions, 'background' | 'notice' | 'skills'>
+
+  /**
+   * Freeze request settings before asynchronous provider and session startup.
+   * `invoked` holds the recipes that this message invoked by keyword.
+   */
+  async function prepareSend(payload: ChatSendPayload, signal: AbortSignal, voice: boolean, extra: HostSendOptions = {}, invoked: readonly Recipe[] = []): Promise<ChatOrchestratorSendOptions> {
     if (!await chatSession.loadSession(payload.sessionId))
       throw new Error('Failed to load the target chat session')
+    const reachable = reachableRecipesFor(payload, extra, invoked)
+    const decisions = reachable.filter(recipe => recipe.decision)
 
     signal.throwIfAborted()
 
-    let providerId = activeProvider.value
-    let modelId = activeModel.value
-    if (voice) {
-      const characterId = chatSession.sessionMetas[payload.sessionId]?.characterId
-      if (!characterId)
-        throw new Error('The target session has no character')
+    // Typed and voice turns use the character that owns the session, not the selected card.
+    // Selecting another card while this turn waits in the queue cannot redirect it.
+    const characterId = chatSession.sessionMetas[payload.sessionId]?.characterId
+    if (!characterId)
+      throw new Error('The target session has no character')
 
-      const selection = cardStore.getModules(characterId).consciousness
-      providerId = selection.provider
-      modelId = selection.model
-    }
+    const { provider: providerId, model: modelId } = cardStore.getModules(characterId).consciousness
 
     const temperature = payload.temperature ?? consciousnessStore.activeTemperature
     const topP = payload.topP ?? consciousnessStore.activeTopP
@@ -711,10 +1311,9 @@ export const useChatStore = defineStore('chat', () => {
 
     const systemPromptSupplement = supplements.filter(Boolean).join('\n\n')
 
-    // Voice turns use the session character's selection, which the active-selection readiness check does not cover.
-    const ready = voice ? !!providerId && (!!modelId || providerId === 'prompt-api') : chatReady.value
-    if (!ready)
-      throw new Error('No active chat provider or model configured')
+    // The active-selection readiness check does not cover the session character's selection.
+    if (!isChatSelectionReady(providerId, modelId))
+      throw new Error('No chat provider or model configured for this character')
 
     const stickers = await stickersStore.selectCatalogForReply()
     signal.throwIfAborted()
@@ -726,32 +1325,68 @@ export const useChatStore = defineStore('chat', () => {
       throw new Error(`Failed to resolve chat provider "${providerId}"`)
 
     const selectedModel = (await consciousnessStore.getModelsForProvider(providerId)).find(model => model.id === modelId)
-    const supportsAudioInput = selectedModel?.inputModalities?.includes('audio') === true && chatProvider.generation(modelId).protocol === 'chat-completions'
+
+    /**
+     * Reads the session character's current consciousness settings and prompt before each model request.
+     * A tool step that edits the character changes the next request. Card selection does not.
+     */
+    const resolveStep = async () => {
+      const selection = cardStore.getModules(characterId).consciousness
+      if (!isChatSelectionReady(selection.provider, selection.model))
+        throw new Error('No chat provider or model configured for this character')
+
+      const stepProvider = await consciousnessStore.getChatProviderInstance(selection.provider)
+      if (!stepProvider)
+        throw new Error(`Failed to resolve chat provider "${selection.provider}"`)
+
+      return {
+        model: selection.model,
+        chatProvider: stepProvider,
+        providerId: selection.provider,
+        systemPrompt: sessionSystemPrompt(payload.sessionId),
+        temperature,
+        topP,
+      }
+    }
 
     return {
       providerId,
-      supportsAudioInput,
+      supportsAudioInput: await supportsAudioInput(providerId, modelId, chatProvider.generation(modelId)),
       supportsVisionInput: selectedModel?.metadata?.abilities?.vision === true,
+      resolveStep,
       signal,
       model: modelId,
       chatProvider,
       messageId: payload.messageId,
-      attachments: payload.attachments,
+      attachments: await storeChatAttachments(payload.attachments, payload.sessionId),
       input: payload.input,
       replyToMessageId: payload.replyToMessageId,
       toolReferences: payload.tools,
+      // A session with scene bindings answers other people, so its reply never speaks on the host.
+      scene: !isOwnerSession(payload.sessionId) || undefined,
       temperature,
       topP,
       systemPromptSupplement,
+      ...extra,
       stickers,
       tools: async () => {
         const references = collectToolReferences(payload.sessionId, payload.tools)
-        return llmToolsStore.getToolsByNames(...references.map(tool => tool.name))
+        return [
+          ...llmToolsStore.getToolsByNames(...references.map(tool => tool.name)),
+          await createWakeWordTool({ characterId, setWords: wakeWords.setWords }),
+          ...(decisions.length
+            ? await createJudgeRecipeTool({
+                decisions,
+                recipes: recipes.usable,
+                start: recipe => startRecipe(recipe, { parentSessionId: payload.sessionId, task: `The owner said: ${payload.text}` }),
+              })
+            : []),
+        ]
       },
     }
   }
 
-  function startSend(payload: ChatSendPayload, voice = false): ReturnType<typeof runtime.submit> {
+  function startSend(payload: ChatSendPayload, voice = false, extra: HostSendOptions = {}): ReturnType<typeof runtime.submit> {
     const messageId = payload.messageId ?? nanoid()
     const key = JSON.stringify([payload.sessionId, messageId])
     const existing = requests.get(key)
@@ -759,12 +1394,21 @@ export const useChatStore = defineStore('chat', () => {
       return existing.request
 
     const abort = new AbortController()
-    const prepared = prepareSend({ ...payload, messageId }, abort.signal, voice)
+    // A keyword invokes its recipes like slash commands. A decision among them judges with the judgment tool.
+    // The recipes and the memory index come from IndexedDB, so the first send of a window waits until they are read.
+    const invokedRecipes = Promise.all([recipes.ready(), memory.ready()]).then(() => keywordRecipesFor(payload, extra))
+    const prepared = invokedRecipes
+      .then(invoked => prepareSend({ ...payload, messageId }, abort.signal, voice, { ...extra, skills: invokedSkillsOf(invoked) }, invoked))
       .then(options => runtime.submit(payload.text, options, payload.sessionId))
     const request = {
       accepted: prepared.then(value => value.accepted),
       done: prepared.then(value => value.done),
     }
+    // A background recipe starts once the owner's message is stored, so its task never runs for a refused send.
+    void request.accepted.then(() => invokedRecipes).then((invoked) => {
+      for (const recipe of invoked.filter(isBackgroundRecipe))
+        void startRecipe(recipe, { parentSessionId: payload.sessionId, task: `The owner said: ${payload.text}` })
+    }).catch(() => {})
 
     requests.set(key, { sessionId: payload.sessionId, abort, request })
     void request.accepted.catch(() => {})
@@ -773,9 +1417,9 @@ export const useChatStore = defineStore('chat', () => {
     return request
   }
 
-  async function executeSend(payload: ChatSendPayload): Promise<ChatSendResult> {
+  async function executeSend(payload: ChatSendPayload, extra: HostSendOptions = {}): Promise<ChatSendResult> {
     const messageCount = chatSession.getSessionMessages(payload.sessionId).length
-    await startSend(payload).done
+    await startSend(payload, false, extra).done
     const completedMessages = chatSession.getSessionMessagesIfLoaded(payload.sessionId)
     if (!completedMessages)
       throw new Error('Chat session was removed before send completed')
@@ -788,8 +1432,14 @@ export const useChatStore = defineStore('chat', () => {
 
   /** Returns the storage receipt while generation continues in the elected leader. */
   async function submit(payload: ChatSendPayload & { messageId: string }) {
+    const key = JSON.stringify([payload.sessionId, payload.messageId])
+    if (payload.audioTranscriptPending && !liveTranscripts.has(key))
+      liveTranscripts.set(key, Promise.withResolvers<void>())
     const request = startSend(payload, true)
-    void request.done.catch(error => appendSendError(payload.sessionId, error))
+    void request.done.catch((error) => {
+      if (!droppedTurns.has(key))
+        appendSendError(payload.sessionId, error)
+    })
 
     return request.accepted
   }
@@ -833,19 +1483,47 @@ export const useChatStore = defineStore('chat', () => {
     if (!retryContent)
       throw new Error('Retry target has no retriable user message')
 
-    chatSession.setSessionMessages(payload.sessionId, currentMessages.slice(0, sourceIndex))
+    // The new turn must not see the source turn or its replies, so the history ends before the source while it runs.
+    // Raw messages, because a reactive proxy cannot leave this context.
+    const storedMessages = toRaw(currentMessages).map(message => toRaw(message))
+    const retryHistory = storedMessages.slice(0, sourceIndex)
+    await chatSession.replaceSessionHistory(payload.sessionId, retryHistory)
+    // A retried notice stays a notice, so it never becomes owner speech.
+    const request = startSend({
+      sessionId: payload.sessionId,
+      ...retryContent,
+      replyToMessageId: sourceMessage?.replyToMessageId,
+      tools: payload.tools ?? sourceMessage?.tools?.filter(tool => !requiresToolSelection(tool.name)),
+    }, false, sourceMessage?.notice ? { notice: { source: sourceMessage.notice.source } } : {})
 
     try {
-      return await executeSend({
-        sessionId: payload.sessionId,
-        ...retryContent,
-        replyToMessageId: sourceMessage?.replyToMessageId,
-        tools: payload.tools ?? sourceMessage?.tools?.filter(tool => !requiresToolSelection(tool.name)),
-      })
+      await request.accepted
+    }
+    catch (error) {
+      // The new turn was never stored. The source turn can hold the only copy of a recording or image, so it comes back.
+      // The same message identities mean that nothing else changed the history meanwhile.
+      const historyIds = chatSession.getSessionMessagesIfLoaded(payload.sessionId)?.map(message => message.id)
+      if (isEqual(historyIds, retryHistory.map(message => message.id)))
+        await chatSession.replaceSessionHistory(payload.sessionId, storedMessages)
+      appendSendError(payload.sessionId, error)
+      throw error
+    }
+
+    try {
+      await request.done
     }
     catch (error) {
       appendSendError(payload.sessionId, error)
       throw error
+    }
+
+    const completedMessages = chatSession.getSessionMessagesIfLoaded(payload.sessionId)
+    if (!completedMessages)
+      throw new Error('Chat session was removed before send completed')
+
+    return {
+      messages: completedMessages.slice(sourceIndex).map(message => structuredClone(toRaw(message))),
+      sessionId: payload.sessionId,
     }
   }
 
@@ -866,13 +1544,14 @@ export const useChatStore = defineStore('chat', () => {
         describeImage: chatVision.toolImageReader(activeModel.value),
       }),
     })
-    chatSession.setSessionMessages(payload.sessionId, nextMessages)
+    // Raw messages, because a reactive proxy cannot leave this context.
+    await chatSession.replaceSessionHistory(payload.sessionId, nextMessages.map(message => toRaw(message)))
   }
 
   /** Clears one session and stops runtime work that still belongs to it. */
   async function cleanup(sessionId: string) {
     failedImageReads.delete(sessionId)
-    chatSession.cleanupMessages(sessionId)
+    await chatSession.clearSessionMessages(sessionId)
     chatContext.resetContexts()
     await cancelPendingSends(sessionId)
     chatStream.resetStream()
@@ -880,9 +1559,16 @@ export const useChatStore = defineStore('chat', () => {
 
   /** Cancels queued work before permanently removing its owning session. */
   async function deleteSession(sessionId: string): Promise<void> {
-    failedImageReads.delete(sessionId)
-    await cancelPendingSends(sessionId)
-    return chatSession.deleteSession(sessionId)
+    return deleteSessions([sessionId])
+  }
+
+  /** Cancels queued work of each session, then removes all of them in one batch. */
+  async function deleteSessions(sessionIds: string[]): Promise<void> {
+    for (const sessionId of sessionIds) {
+      failedImageReads.delete(sessionId)
+      await cancelPendingSends(sessionId)
+    }
+    return chatSession.deleteSessions(sessionIds)
   }
 
   async function ingestOnFork(
@@ -920,22 +1606,30 @@ export const useChatStore = defineStore('chat', () => {
     activeTurns,
     activeSendSessionId,
     activeStreamingMessage,
+    backgroundTasks,
     pendingQueuedSendCount,
 
     initialize,
     dispose,
     cleanup,
     deleteSession,
+    deleteSessions,
     ingest,
     ingestOnFork,
     rerunToolCall,
     retry,
     send,
+    startRecipe,
+    stopBackgroundTask,
+    dismissBackgroundTask,
+    notifyConversation,
     submit,
+    settleAudioTranscript,
     cancelTurn,
     receiveInterruption,
     cancelPendingSends,
     getPendingQueuedSendSnapshot,
+    openTurnSpan,
 
     clearHooks: runtime.hooks.clearHooks,
 
@@ -963,7 +1657,23 @@ export const useChatStore = defineStore('chat', () => {
   }
 }, {
   synced: {
-    actions: ['submit', 'cancelTurn', 'receiveInterruption', 'cancelPendingSends', 'cleanup', 'deleteSession', 'rerunToolCall', 'retry', 'send'],
+    // Only the Stage chat hooks speak a reply, so generation runs in a speech player. Requests and runtime turns are
+    // local to that context, so every chat action runs there. Without a speech player, the leader runs them silently.
+    actions: {
+      submit: inSpeechPlayer,
+      settleAudioTranscript: inSpeechPlayer,
+      cancelTurn: inSpeechPlayer,
+      receiveInterruption: inSpeechPlayer,
+      cancelPendingSends: inSpeechPlayer,
+      cleanup: inSpeechPlayer,
+      deleteSession: inSpeechPlayer,
+      deleteSessions: inSpeechPlayer,
+      dismissBackgroundTask: inSpeechPlayer,
+      rerunToolCall: inSpeechPlayer,
+      retry: inSpeechPlayer,
+      send: inSpeechPlayer,
+      stopBackgroundTask: inSpeechPlayer,
+    },
     state: true,
   },
 })

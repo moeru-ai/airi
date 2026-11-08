@@ -4,6 +4,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { oidcJwtBearer } from '../plugins/oidc-jwt-bearer'
 
+/**
+ * A token in the compact JWS shape: three base64url parts. The verifier is mocked, so the signature is not real.
+ * `jwsCompact` rejects a part whose length base64url never produces, such as the 5 letters of `token`.
+ */
+const SIGNED_JWT = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEifQ.c2lnbmF0dXJl'
+
 const { jwtVerify } = vi.hoisted(() => ({
   jwtVerify: vi.fn(),
 }))
@@ -46,7 +52,7 @@ function createContext(session: AuthSession['session'] | null) {
   const createSession = vi.fn()
   const findOne = vi.fn(async (): Promise<unknown> => session)
   const findUserById = vi.fn(async (): Promise<unknown> => user)
-  const headers = new Headers({ Authorization: 'Bearer signed.jwt.token' })
+  const headers = new Headers({ Authorization: `Bearer ${SIGNED_JWT}` })
 
   return {
     createSession,

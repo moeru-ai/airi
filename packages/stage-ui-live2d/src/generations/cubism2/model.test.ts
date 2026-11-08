@@ -59,6 +59,25 @@ describe('legacy Live2D model adapter', () => {
     expect(internalModel.coreModel.getParameterDefaultValueById?.('ParamAngleX')).toBe(3)
   })
 
+  it('adds to a parameter through its native ID, as the Cubism 3+ core does', () => {
+    // ROOT CAUSE:
+    //
+    // The touch reaction and the Beat Sync layer add offsets on top of other motion:
+    //
+    // ctx.model.addParameterValueById('ParamAngleY', offset)
+    //
+    // A Cubism 2 core has no such method, so the plugin threw in the motion update.
+    // We fixed this by adding the method to the adapted core.
+    const values = new Map<string, number>([['PARAM_ANGLE_Y', 4]])
+    const internalModel = adaptInternalModel({ coreModel: createCubism2Core(values) })
+
+    internalModel.coreModel.addParameterValueById('ParamAngleY', -6)
+    expect(values.get('PARAM_ANGLE_Y')).toBe(-2)
+
+    internalModel.coreModel.addParameterValueById('ParamAngleY', 4, 0.5)
+    expect(values.get('PARAM_ANGLE_Y')).toBe(0)
+  })
+
   it('writes both eye smile parameters through their own native IDs', () => {
     const values = new Map<string, number>()
     const internalModel = adaptInternalModel({ coreModel: createCubism2Core(values) })

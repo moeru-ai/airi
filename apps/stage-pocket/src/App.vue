@@ -82,30 +82,18 @@ function registerAuthenticatedSetup() {
   stopLoggedOutSetup ??= authStore.onLogout(removeAuthenticationProviderConfiguration)
 }
 
-const primaryColor = computed(() => {
-  return isDark.value
-    ? `color-mix(in srgb, oklch(95% var(--chromatic-chroma-900) calc(var(--chromatic-hue) + ${0})) 70%, oklch(50% 0 360))`
-    : `color-mix(in srgb, oklch(95% var(--chromatic-chroma-900) calc(var(--chromatic-hue) + ${0})) 90%, oklch(90% 0 360))`
-})
-
-const secondaryColor = computed(() => {
-  return isDark.value
-    ? `color-mix(in srgb, oklch(95% var(--chromatic-chroma-900) calc(var(--chromatic-hue) + ${180})) 70%, oklch(50% 0 360))`
-    : `color-mix(in srgb, oklch(95% var(--chromatic-chroma-900) calc(var(--chromatic-hue) + ${180})) 90%, oklch(90% 0 360))`
-})
-
-const tertiaryColor = computed(() => {
-  return isDark.value
-    ? `color-mix(in srgb, oklch(95% var(--chromatic-chroma-900) calc(var(--chromatic-hue) + ${60})) 70%, oklch(50% 0 360))`
-    : `color-mix(in srgb, oklch(95% var(--chromatic-chroma-900) calc(var(--chromatic-hue) + ${60})) 90%, oklch(90% 0 360))`
-})
+// Defined in `styles/main.css`, so they follow the theme hue (including `dynamic-hue`) and dark mode.
+const primaryColor = 'var(--stage-transition-primary)'
+const secondaryColor = 'var(--stage-transition-secondary)'
+const tertiaryColor = 'var(--stage-transition-tertiary)'
 
 const colors = computed(() => {
-  return [primaryColor.value, secondaryColor.value, tertiaryColor.value, isDark.value ? '#121212' : '#FFFFFF']
+  return [primaryColor, secondaryColor, tertiaryColor, isDark.value ? '#121212' : '#FFFFFF']
 })
 
 watch(settings.language, () => {
   i18n.locale.value = settings.language.value
+  document.documentElement.lang = i18n.locale.value
 })
 
 watch(settings.themeColorsHue, () => {
@@ -130,7 +118,7 @@ async function loadStartup() {
     await startup.run('services', () => {
       void serverChannelStore.initialize({ possibleEvents: ['ui:configure'], connector: getHostWebSocketConnector }).catch(error => console.error('Mods server initialization failed:', error))
       contextBridgeStore.initialize()
-      characterOrchestratorStore.initialize()
+      characterOrchestratorStore.initialize(syncedPinia)
     })
     await startup.run('modelData', () => displayModelsStore.loadDisplayModelsFromIndexedDB())
     await startup.run('modelSelection', () => settingsStore.initializeStageModel())
@@ -156,6 +144,7 @@ watch(() => [startup.resources.find(resource => resource.id === 'modelSelection'
 })
 
 onUnmounted(() => {
+  characterOrchestratorStore.dispose()
   stopAuthenticatedSetup?.()
   stopLoggedOutSetup?.()
   contextBridgeStore.dispose()
@@ -214,8 +203,7 @@ const extraSteps = computed(() => [
       :scale-background="false"
       :instant-open="startupOnboarding"
       :extra-steps="extraSteps"
-      @configured="onboardingStore.markSetupCompleted()"
-      @skipped="onboardingStore.markSetupSkipped()"
+      @configured="showingSetup = false"
     />
   </StartupOverlay>
 </template>

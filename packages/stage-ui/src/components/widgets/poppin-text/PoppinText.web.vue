@@ -24,6 +24,17 @@ const props = defineProps<{
   text?: string | PoppinTextSegment[] | ReadableStream<Uint8Array>
   textClass?: string | string[]
   animator?: Animator
+  /**
+   * The root element tag. Use `span` to place the text inside a paragraph.
+   * @default 'div'
+   */
+  as?: string
+  /**
+   * Renders each grapheme as an inline box that inherits the text color, so the text wraps by words like a paragraph.
+   * Without it, each grapheme is an inline block in the theme color, so transform animations can move it.
+   * @default false
+   */
+  inline?: boolean
 }>()
 
 const emits = defineEmits<{
@@ -148,21 +159,16 @@ watch([targets, () => props.animator], ([targets, animator]) => {
 </script>
 
 <template>
-  <div>
+  <component :is="props.as ?? 'div'">
     <span
       v-for="target in targets"
       :key="target.id"
       ref="elements"
-      class="inline-block whitespace-pre-wrap color-primary-400 dark:color-primary-100"
       :class="[
-        ...(
-          typeof props.textClass === 'string'
-            ? [props.textClass]
-            : (props.textClass || [])
-        ),
+        'whitespace-pre-wrap',
+        props.inline ? '' : 'inline-block color-primary-400 dark:color-primary-100',
+        ...(typeof props.textClass === 'string' ? [props.textClass] : (props.textClass || [])),
       ]"
-    >
-      {{ target.grapheme }}
-    </span>
-  </div>
+    >{{ target.grapheme }}</span>
+  </component>
 </template>

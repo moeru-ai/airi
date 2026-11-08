@@ -5,6 +5,7 @@ export const all = {
   'ja': '日本語',
   'ko': '한국어',
   'ru': 'Русский',
+  'th': 'ไทย',
   'vi': 'Tiếng Việt',
   'zh-Hans': '简体中文',
   'zh-Hant': '繁體中文',
@@ -32,6 +33,8 @@ export const localeRemap: Record<string, string> = {
   'ko-KR': 'ko',
   'ru': 'ru',
   'ru-RU': 'ru',
+  'th': 'th',
+  'th-TH': 'th',
   'vi': 'vi',
   'vi-VN': 'vi',
 }
@@ -48,4 +51,5 @@ export function resolveSupportedLocale(
     : fallbackLocale
 }
 
+export { createFallbackOptions } from './fallback'
 export { serializeStartupFallbackLocales } from './startup-fallback'

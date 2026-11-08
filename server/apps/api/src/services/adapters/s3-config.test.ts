@@ -5,7 +5,7 @@ import { S3EnvironmentSchema } from './s3-config'
 
 describe('s3 configuration', () => {
   it('allows an API without object storage', () => {
-    expect(parse(S3EnvironmentSchema, {})).toEqual({})
+    expect(safeParse(S3EnvironmentSchema, {}).success).toBe(false)
   })
 
   it('supports the default AWS credential chain', () => {

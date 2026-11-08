@@ -13,4 +13,4 @@ Use it with the `activation-planner-provider` example:
 
 The Host loads the Provider before this Consumer. When the system stops, the Host stops this Consumer before the Provider.
 
-This example does not call a runtime Kit. Its `kits.uses` entry only creates a static Phase 2 dependency. Runtime Kit lookup belongs to Phase 3.
+This example does not call a runtime Kit. Its `kits.uses` entry creates a static dependency for the Activation Planner. Consumer Client lookup belongs to Phase 4.

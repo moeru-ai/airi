@@ -233,6 +233,71 @@ it('continues one assistant turn in Responses after a Chat Completions tool swit
   expect(rounds[0].toolInvocations[0].id).toBe(`${rounds[0].id}/switch-1`)
 })
 
+it('projects stored audio again for the model that a tool step selects', async () => {
+  const live: { protocol: 'responses' | 'chat-completions', model: string } = { protocol: 'chat-completions', model: 'audio-model' }
+  const requests: Array<{ url: string, body: Record<string, unknown> }> = []
+  const fetch: typeof globalThis.fetch = async (url, init) => {
+    requests.push({ url: String(url), body: JSON.parse(String(init?.body)) })
+    if (requests.length === 1) {
+      return sse([
+        { choices: [{ index: 0, delta: { role: 'assistant', tool_calls: [{ index: 0, id: 'switch-1', type: 'function', function: { name: 'switch_model', arguments: '{}' } }] }, finish_reason: null }] },
+        { choices: [{ index: 0, delta: {}, finish_reason: 'tool_calls' }] },
+      ])
+    }
+    return sse(completed([{ type: 'message', role: 'assistant', id: 'answer-1', content: [{ type: 'output_text', text: 'Continued.', annotations: [] }] }]))
+  }
+  const liveProvider: GenerationProvider = {
+    generation: model => live.protocol === 'chat-completions'
+      ? { protocol: 'chat-completions', config: { model, baseURL: 'https://chat.example/v1/', fetch } }
+      : { protocol: 'responses', webSearch: false, config: { model, baseURL: 'https://responses.example/v1/', fetch } },
+  }
+  const conversation: Conversation = {
+    turns: [{ type: 'user', id: 'audio-question', content: [{ type: 'audio', data: 'AA==', format: 'wav' }] }],
+  }
+  // The callback stands in for a host that sends audio only to a Chat Completions audio model.
+  const prepareConversation = vi.fn(async (source: Conversation, target: { model: string }) => {
+    if (target.model === 'audio-model')
+      return source
+    const projected = structuredClone(source)
+    for (const turn of projected.turns) {
+      if (turn.type === 'user')
+        turn.content = turn.content.map(part => part.type === 'audio' ? { type: 'text' as const, text: 'spoken words' } : part)
+    }
+    return projected
+  })
+
+  await streamFrom({
+    model: live.model,
+    chatProvider: liveProvider,
+    conversation,
+    options: {
+      prepareConversation,
+      resolveStep: async () => ({
+        model: live.model,
+        chatProvider: liveProvider,
+        providerId: 'live',
+        systemPrompt: '',
+        tools: [{
+          type: 'function',
+          function: { name: 'switch_model', parameters: { type: 'object', properties: {} } },
+          execute: () => {
+            live.protocol = 'responses'
+            live.model = 'text-model'
+            return 'switched'
+          },
+        }],
+      }),
+    },
+  })
+
+  expect(prepareConversation).toHaveBeenCalledTimes(2)
+  expect(prepareConversation.mock.calls.map(([, target]) => target.model)).toEqual(['audio-model', 'text-model'])
+  expect(JSON.stringify(requests[0].body.messages)).toContain('input_audio')
+  expect(JSON.stringify(requests[1].body.input)).toContain('spoken words')
+  expect(JSON.stringify(requests[1].body.input)).not.toContain('input_audio')
+  expect(conversation.turns[0]).toMatchObject({ content: [{ type: 'audio', data: 'AA==' }] })
+})
+
 // https://github.com/moeru-ai/airi/pull/2477#discussion_r4005498788
 // https://github.com/moeru-ai/airi/pull/2477#discussion_r4005940671
 it.each([
@@ -349,6 +414,15 @@ describe('responses generation', () => {
     await streamFrom({ model: 'test', chatProvider: provider(fetch), conversation: { turns: readTurns([{ id: 'user', role: 'user', segments: [{ type: 'image', url: 'data:image/png;base64,AA==', detail: 'low' }] }]) }, options: { toolChoice: { type: 'function', function: { name: 'inspect' } } } })
   })
 
+  it('maps audio input to an input_audio part', async () => {
+    const fetch: typeof globalThis.fetch = async (_url, init) => {
+      const request = JSON.parse(String(init?.body))
+      expect(request.input).toEqual([{ type: 'message', role: 'user', content: [{ type: 'input_audio', input_audio: { data: 'UklGRg==', format: 'wav' } }] }])
+      return sse(completed([]))
+    }
+    await streamFrom({ model: 'test', chatProvider: provider(fetch), conversation: { turns: readTurns([{ id: 'user', role: 'user', segments: [{ type: 'audio', data: 'UklGRg==', format: 'wav' }] }]) } })
+  })
+
   it('does not persist a failed response', async () => {
     const onGeneratedTurn = vi.fn()
     await expect(streamFrom({
@@ -385,14 +459,21 @@ describe('responses generation', () => {
   })
 })
 
-it('fails instead of storing an unanswered function call at the step limit', async () => {
+it('keeps calling tools until the model answers, with no step limit', async () => {
+  // ROOT CAUSE:
+  // The tool loop stopped after 10 steps with "Generation tool step limit
+  // reached", so a long computer-use task failed in the middle.
+  // The loop now ends only when the model answers or the request aborts.
+  const toolSteps = 15
   let requestCount = 0
   const execute = vi.fn(() => 'done')
   const onGeneratedTurn = vi.fn()
-  await expect(streamFrom({
+  await streamFrom({
     model: 'test',
     chatProvider: provider(async () => {
       requestCount += 1
+      if (requestCount > toolSteps)
+        return sse(completed([{ type: 'message', role: 'assistant', id: 'answer-1', content: [{ type: 'output_text', text: 'Done.', annotations: [] }] }]))
       return sse(completed([{ type: 'function_call', id: `fc_${requestCount}`, call_id: `call_${requestCount}`, name: 'repeat', arguments: '{}' }]))
     }),
     conversation: { turns: [] },
@@ -400,10 +481,38 @@ it('fails instead of storing an unanswered function call at the step limit', asy
       tools: [{ type: 'function', function: { name: 'repeat', parameters: { type: 'object', properties: {} } }, execute }],
       onGeneratedTurn,
     },
-  })).rejects.toThrow('tool step limit')
-  expect(requestCount).toBe(10)
-  expect(execute).toHaveBeenCalledTimes(9)
-  expect(onGeneratedTurn).not.toHaveBeenCalled()
+  })
+  expect(requestCount).toBe(toolSteps + 1)
+  expect(execute).toHaveBeenCalledTimes(toolSteps)
+  expect(onGeneratedTurn).toHaveBeenCalledTimes(1)
+  expect(onGeneratedTurn.mock.calls[0][0].rounds).toHaveLength(toolSteps + 1)
+})
+
+it('forces the tool choice only on the first request, so the model can answer after the tool', async () => {
+  // ROOT CAUSE:
+  // Each request of the tool loop kept a tool choice that names one function.
+  // The model had to call it again every time, so a loop without a step limit
+  // never ended. The caller's tool choice now applies to the first request.
+  const bodies: Array<{ tool_choice?: unknown }> = []
+  const execute = vi.fn(() => 'sent')
+  await streamFrom({
+    model: 'test',
+    chatProvider: provider(async (_url, init) => {
+      bodies.push(JSON.parse(String(init?.body)))
+      if (bodies.length === 1)
+        return sse(completed([{ type: 'function_call', id: 'fc_1', call_id: 'call_1', name: 'command', arguments: '{}' }]))
+      return sse(completed([{ type: 'message', role: 'assistant', id: 'answer-1', content: [{ type: 'output_text', text: 'Done.', annotations: [] }] }]))
+    }),
+    conversation: { turns: [] },
+    options: {
+      tools: [{ type: 'function', function: { name: 'command', parameters: { type: 'object', properties: {} } }, execute }],
+      toolChoice: { type: 'function', function: { name: 'command' } },
+    },
+  })
+  expect(bodies).toHaveLength(2)
+  expect(bodies[0].tool_choice).toEqual({ type: 'function', name: 'command' })
+  expect(bodies[1].tool_choice).toBeUndefined()
+  expect(execute).toHaveBeenCalledOnce()
 })
 
 it('projects structured context and media directly without Chat compatibility loss', async () => {

@@ -8,7 +8,7 @@ import type {
 
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronScreenCapture } from '@proj-airi/electron-screen-capture/vue'
-import { useElectronAllDisplays, useElectronWindowBounds } from '@proj-airi/electron-vueuse'
+import { getElectronEventaContext, useElectronAllDisplays, useElectronWindowBounds } from '@proj-airi/electron-vueuse'
 import {
   ambientLightSampleFromHex,
   sampleScreenAmbientLight,
@@ -140,7 +140,7 @@ export function useScreenAmbientLight(sources: {
     selectWithSource,
     checkMacOSPermission,
     requestMacOSPermission,
-  } = useElectronScreenCapture(window.electron.ipcRenderer, sourcesOptions)
+  } = useElectronScreenCapture(getElectronEventaContext(), sourcesOptions)
 
   // The display the window mostly covers. It decides which screen the capture
   // opens, and `undefined` means the answer is not known yet: the display list

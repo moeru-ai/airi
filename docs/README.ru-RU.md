@@ -1,15 +1,15 @@
 <picture>
   <source
     width="100%"
-    srcset="./content/public/banner-dark-1280x640.avif"
+    srcset="./assets/banner-dark-1280x640.avif"
     media="(prefers-color-scheme: dark)"
   />
   <source
     width="100%"
-    srcset="./content/public/banner-light-1280x640.avif"
+    srcset="./assets/banner-light-1280x640.avif"
     media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
   />
-  <img width="250" src="./content/public/banner-light-1280x640.avif" />
+  <img width="250" src="./assets/banner-light-1280x640.avif" />
 </picture>
 
 <h1 align="center">Проект AIRI</h1>
@@ -32,50 +32,50 @@
 
 <p float="left" align="center">
   <!-- readme-section:release-binary-windows -->
-  <a href="https://github.com/moeru-ai/airi/releases/download/v0.12.0-beta.5/AIRI-0.12.0-beta.5-windows-x64-setup.exe">
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.14.1/AIRI-0.14.1-windows-x64-setup.exe">
     <picture>
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.windows.dark.en-US.avif"
+        srcset="./assets/download-buttons/download-buttons.windows.dark.en-US.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.windows.light.en-US.avif"
+        srcset="./assets/download-buttons/download-buttons.windows.light.en-US.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./content/public/assets/download-buttons/download-buttons.windows.light.en-US.avif" />
+      <img width="33%" src="./assets/download-buttons/download-buttons.windows.light.en-US.avif" />
     </picture>
   </a>
   <!-- readme-section:release-binary-macos -->
-  <a href="https://github.com/moeru-ai/airi/releases/download/v0.12.0-beta.5/AIRI-0.12.0-beta.5-darwin-arm64.dmg">
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.14.1/AIRI-0.14.1-darwin-arm64.dmg">
     <picture>
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.macos.dark.en-US.avif"
+        srcset="./assets/download-buttons/download-buttons.macos.dark.en-US.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.macos.light.en-US.avif"
+        srcset="./assets/download-buttons/download-buttons.macos.light.en-US.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./content/public/assets/download-buttons/download-buttons.macos.light.en-US.avif" />
+      <img width="33%" src="./assets/download-buttons/download-buttons.macos.light.en-US.avif" />
     </picture>
   </a>
   <a href="https://github.com/moeru-ai/airi/releases/latest">
     <picture>
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.linux.dark.en-US.avif"
+        srcset="./assets/download-buttons/download-buttons.linux.dark.en-US.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.linux.light.en-US.avif"
+        srcset="./assets/download-buttons/download-buttons.linux.light.en-US.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./content/public/assets/download-buttons/download-buttons.linux.light.en-US.avif" />
+      <img width="33%" src="./assets/download-buttons/download-buttons.linux.light.en-US.avif" />
     </picture>
   </a>
 </p>
@@ -84,45 +84,45 @@
     <picture>
       <source
         width="33%"
-        srcset="./content/public/assets/QR%20code%20button/section.cards.qrcode.dark.ru-RU.avif"
+        srcset="./assets/QR%20code%20button/section.cards.qrcode.dark.ru-RU.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="33%"
-        srcset="./content/public/assets/QR%20code%20button/section.cards.qrcode.light.ru-RU.avif"
+        srcset="./assets/QR%20code%20button/section.cards.qrcode.light.ru-RU.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./content/public/assets/QR%20code%20button/section.cards.qrcode.light.ru-RU.avif" />
+      <img width="33%" src="./assets/QR%20code%20button/section.cards.qrcode.light.ru-RU.avif" />
     </picture>
   </a>
   <a href="https://airi.moeru.ai">
     <picture>
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.mobile.dark.en-US.avif"
+        srcset="./assets/download-buttons/download-buttons.mobile.dark.en-US.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.mobile.light.en-US.avif"
+        srcset="./assets/download-buttons/download-buttons.mobile.light.en-US.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./content/public/assets/download-buttons/download-buttons.mobile.light.en-US.avif" />
+      <img width="33%" src="./assets/download-buttons/download-buttons.mobile.light.en-US.avif" />
     </picture>
   </a>
   <a href="https://airi.moeru.ai">
     <picture>
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.browser.dark.en-US.avif"
+        srcset="./assets/download-buttons/download-buttons.browser.dark.en-US.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.browser.light.en-US.avif"
+        srcset="./assets/download-buttons/download-buttons.browser.light.en-US.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./content/public/assets/download-buttons/download-buttons.browser.light.en-US.avif" />
+      <img width="33%" src="./assets/download-buttons/download-buttons.browser.light.en-US.avif" />
     </picture>
   </a>
 </p>
@@ -335,9 +335,7 @@ sudo pnpm dev:tamagotchi
 
 ### Сайт документации
 
-```shell
-pnpm dev:docs
-```
+Сайт документации находится в [moeru-ai/airi-docs](https://github.com/moeru-ai/airi-docs).
 
 ### Публикация
 
@@ -495,7 +493,7 @@ flowchart LR
 </p>
 
 <p align="center">
-  <img src="./content/public/assets/sponsors/sponsors.svg" alt="Project AIRI supporters" />
+  <img src="./assets/sponsors/sponsors.svg" alt="Project AIRI supporters" />
 </p>
 
 ## Особая благодарность

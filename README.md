@@ -1,15 +1,15 @@
 <picture>
   <source
     width="100%"
-    srcset="./docs/content/public/banner-dark-1280x640.avif"
+    srcset="./docs/assets/banner-dark-1280x640.avif"
     media="(prefers-color-scheme: dark)"
   />
   <source
     width="100%"
-    srcset="./docs/content/public/banner-light-1280x640.avif"
+    srcset="./docs/assets/banner-light-1280x640.avif"
     media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
   />
-  <img width="250" src="./docs/content/public/banner-light-1280x640.avif" />
+  <img width="250" src="./docs/assets/banner-light-1280x640.avif" />
 </picture>
 
 <h1 align="center">Project AIRI</h1>
@@ -32,50 +32,50 @@
 
 <p float="left" align="center">
   <!-- readme-section:release-binary-windows -->
-  <a href="https://github.com/moeru-ai/airi/releases/download/v0.12.0-beta.5/AIRI-0.12.0-beta.5-windows-x64-setup.exe">
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.14.1/AIRI-0.14.1-windows-x64-setup.exe">
     <picture>
       <source
         width="33%"
-        srcset="./docs/content/public/assets/download-buttons/download-buttons.windows.dark.en-US.avif"
+        srcset="./docs/assets/download-buttons/download-buttons.windows.dark.en-US.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="33%"
-        srcset="./docs/content/public/assets/download-buttons/download-buttons.windows.light.en-US.avif"
+        srcset="./docs/assets/download-buttons/download-buttons.windows.light.en-US.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./docs/content/public/assets/download-buttons/download-buttons.windows.light.en-US.avif" />
+      <img width="33%" src="./docs/assets/download-buttons/download-buttons.windows.light.en-US.avif" />
     </picture>
   </a>
   <!-- readme-section:release-binary-macos -->
-  <a href="https://github.com/moeru-ai/airi/releases/download/v0.12.0-beta.5/AIRI-0.12.0-beta.5-darwin-arm64.dmg">
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.14.1/AIRI-0.14.1-darwin-arm64.dmg">
     <picture>
       <source
         width="33%"
-        srcset="./docs/content/public/assets/download-buttons/download-buttons.macos.dark.en-US.avif"
+        srcset="./docs/assets/download-buttons/download-buttons.macos.dark.en-US.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="33%"
-        srcset="./docs/content/public/assets/download-buttons/download-buttons.macos.light.en-US.avif"
+        srcset="./docs/assets/download-buttons/download-buttons.macos.light.en-US.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./docs/content/public/assets/download-buttons/download-buttons.macos.light.en-US.avif" />
+      <img width="33%" src="./docs/assets/download-buttons/download-buttons.macos.light.en-US.avif" />
     </picture>
   </a>
   <a href="https://github.com/moeru-ai/airi/releases/latest">
     <picture>
       <source
         width="33%"
-        srcset="./docs/content/public/assets/download-buttons/download-buttons.linux.dark.en-US.avif"
+        srcset="./docs/assets/download-buttons/download-buttons.linux.dark.en-US.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="33%"
-        srcset="./docs/content/public/assets/download-buttons/download-buttons.linux.light.en-US.avif"
+        srcset="./docs/assets/download-buttons/download-buttons.linux.light.en-US.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./docs/content/public/assets/download-buttons/download-buttons.linux.light.en-US.avif" />
+      <img width="33%" src="./docs/assets/download-buttons/download-buttons.linux.light.en-US.avif" />
     </picture>
   </a>
 </p>
@@ -85,45 +85,45 @@
     <picture>
       <source
         width="33%"
-        srcset="./docs/content/public/assets/QR%20code%20button/section.cards.qrcode.dark.en-US.avif"
+        srcset="./docs/assets/QR%20code%20button/section.cards.qrcode.dark.en-US.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="33%"
-        srcset="./docs/content/public/assets/QR%20code%20button/section.cards.qrcode.light.en-US.avif"
+        srcset="./docs/assets/QR%20code%20button/section.cards.qrcode.light.en-US.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./docs/content/public/assets/QR%20code%20button/section.cards.qrcode.light.en-US.avif" />
+      <img width="33%" src="./docs/assets/QR%20code%20button/section.cards.qrcode.light.en-US.avif" />
     </picture>
   </a>
   <a href="https://airi.moeru.ai">
     <picture>
       <source
         width="33%"
-        srcset="./docs/content/public/assets/download-buttons/download-buttons.mobile.dark.en-US.avif"
+        srcset="./docs/assets/download-buttons/download-buttons.mobile.dark.en-US.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="33%"
-        srcset="./docs/content/public/assets/download-buttons/download-buttons.mobile.light.en-US.avif"
+        srcset="./docs/assets/download-buttons/download-buttons.mobile.light.en-US.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./docs/content/public/assets/download-buttons/download-buttons.mobile.light.en-US.avif" />
+      <img width="33%" src="./docs/assets/download-buttons/download-buttons.mobile.light.en-US.avif" />
     </picture>
   </a>
   <a href="https://airi.moeru.ai">
     <picture>
       <source
         width="33%"
-        srcset="./docs/content/public/assets/download-buttons/download-buttons.browser.dark.en-US.avif"
+        srcset="./docs/assets/download-buttons/download-buttons.browser.dark.en-US.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="33%"
-        srcset="./docs/content/public/assets/download-buttons/download-buttons.browser.light.en-US.avif"
+        srcset="./docs/assets/download-buttons/download-buttons.browser.light.en-US.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./docs/content/public/assets/download-buttons/download-buttons.browser.light.en-US.avif" />
+      <img width="33%" src="./docs/assets/download-buttons/download-buttons.browser.light.en-US.avif" />
     </picture>
   </a>
 </p>
@@ -334,9 +334,7 @@ Then enable secure websocket in tamagotchi `settings/connections`.
 
 ### Documentation Site
 
-```shell
-pnpm dev:docs
-```
+The documentation site lives in [moeru-ai/airi-docs](https://github.com/moeru-ai/airi-docs).
 
 ### Publish
 
@@ -495,7 +493,7 @@ flowchart LR
 </p>
 
 <p align="center">
-  <img src="./docs/content/public/assets/sponsors/sponsors.svg" alt="Project AIRI supporters" />
+  <img src="./docs/assets/sponsors/sponsors.svg" alt="Project AIRI supporters" />
 </p>
 
 ## Special Thanks

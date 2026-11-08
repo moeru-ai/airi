@@ -1,14 +1,48 @@
 import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
+import type { InferOutput } from 'valibot'
 
 import type { AvatarModelConfig } from '../types/character-avatar-model'
-import type { CharacterCapabilityConfig } from '../types/character-capability'
 
 import { user } from '@proj-airi/auth-shared'
 import { relations } from 'drizzle-orm'
 import { integer, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
+import { literal, number, object, optional, string, union } from 'valibot'
 
 import { nanoid } from '../utils/id'
 import { characterBookmarks, characterLikes } from './user-character'
+
+export const CharacterCapabilityTypeSchema = union([
+  literal('llm'),
+  literal('tts'),
+  literal('vlm'),
+  literal('asr'),
+])
+
+export type CharacterCapabilityType = InferOutput<typeof CharacterCapabilityTypeSchema>
+
+export const CharacterCapabilityConfigSchema = object({
+  apiKey: string(),
+  apiBaseUrl: string(),
+  llm: optional(object({
+    temperature: number(),
+    topP: optional(number()),
+    model: string(),
+  })),
+  tts: optional(object({
+    ssml: string(),
+    voiceId: string(),
+    speed: number(),
+    pitch: number(),
+  })),
+  vlm: optional(object({
+    image: string(),
+  })),
+  asr: optional(object({
+    audio: string(),
+  })),
+})
+
+export type CharacterCapabilityConfig = InferOutput<typeof CharacterCapabilityConfigSchema>
 
 export const character = pgTable(
   'characters',
@@ -87,9 +121,9 @@ export const characterCapabilities = pgTable(
     id: text('id').primaryKey().$defaultFn(() => nanoid()),
     characterId: text('character_id').notNull().references(() => character.id, { onDelete: 'cascade' }),
 
-    type: text('type').notNull().$type<keyof CharacterCapabilityConfig>(),
+    type: text('type').notNull().$type<CharacterCapabilityType>(),
 
-    config: jsonb('config').notNull().$type<CharacterCapabilityConfig[keyof CharacterCapabilityConfig]>(),
+    config: jsonb('config').notNull().$type<CharacterCapabilityConfig>(),
   },
 )
 

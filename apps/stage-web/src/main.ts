@@ -6,11 +6,15 @@ import NProgress from 'nprogress'
 
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
 import { PiniaColada } from '@pinia/colada'
+import { settingsSearchModules } from '@proj-airi/stage-pages/settings-search'
 import { isEnvTruthy } from '@proj-airi/stage-shared'
+import { pushToTalkTriggerKey } from '@proj-airi/stage-ui/composables/push-to-talk-trigger'
 import { trackButtonPlugin } from '@proj-airi/stage-ui/directives/track-button'
 import { browserAuthorizationHandler, registerAuthorizationHandler } from '@proj-airi/stage-ui/libs/auth'
 import { piniaPluginTracing, setupSynced } from '@proj-airi/stage-ui/libs/pinia'
 import { configureAnalyticsAdapter } from '@proj-airi/stage-ui/libs/product-signals'
+import { settingsSearch } from '@proj-airi/stage-ui/libs/settings-search'
+import { useMediaQuery } from '@vueuse/core'
 import { MotionPlugin } from '@vueuse/motion'
 import { createPinia } from 'pinia'
 import { setupLayouts } from 'virtual:generated-layouts'
@@ -35,6 +39,13 @@ configureAnalyticsAdapter(async (options) => {
   return createOpenpanelAdapter(options)
 })
 registerAuthorizationHandler(browserAuthorizationHandler)
+
+// The settings search lists only what these modules hold. Each module decides at runtime whether it is on.
+for (const [name, source] of Object.entries({
+  ...settingsSearchModules,
+  'settings:characters': { routes: ['/settings/characters'] },
+}))
+  settingsSearch.provide(name, source)
 
 const pinia = createPinia()
 const synced = setupSynced()
@@ -71,6 +82,12 @@ createApp(App)
   .use(i18n)
   .use(Tres)
   .use(trackButtonPlugin)
+  // NOTICE:
+  // Push to Talk holds Space, but no Web API reports a hardware keyboard.
+  // A fine pointer (mouse or trackpad) is the closest live signal. Phones and touch-only tablets lack it.
+  // Source: https://www.w3.org/TR/mediaqueries-4/#any-input
+  // Remove when stage-web gets a touch hold control.
+  .provide(pushToTalkTriggerKey, useMediaQuery('(any-pointer: fine)'))
   .mount('#app')
 
 if (import.meta.env.DEV && !import.meta.env.SSR) {

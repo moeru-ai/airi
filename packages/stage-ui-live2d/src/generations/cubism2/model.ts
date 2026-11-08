@@ -45,6 +45,7 @@ interface Cubism2RendererContext {
 }
 
 interface CompatibleCoreModel {
+  addParameterValueById: (id: string, value: number, weight?: number) => void
   getParameterDefaultValueById?: (id: string) => number
   getParameterValueById: (id: string) => number
   setParameterValueById: (id: string, value: number) => void
@@ -215,6 +216,11 @@ export function adaptInternalModel<TInternalModel extends AdaptableInternalModel
   }
   compatibleCore.setParameterValueById = (id: string, value: number) => {
     compatibleCore.setParamFloat(nativeId(id), value)
+  }
+  // The Cubism 3+ core adds `value * weight`. The touch reaction and the Beat Sync layer add on top of other motion with it.
+  compatibleCore.addParameterValueById = (id: string, value: number, weight = 1) => {
+    const resolvedId = nativeId(id)
+    compatibleCore.setParamFloat(resolvedId, compatibleCore.getParamFloat(resolvedId) + value * weight)
   }
   compatibleCore.getParameterDefaultValueById = (id: string) => {
     const resolvedId = nativeId(id)

@@ -1,12 +1,18 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { execFile } from 'node:child_process'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { promisify } from 'node:util'
 
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { checkLocales } from './check-locales'
 
 const roots: string[] = []
+
+/** The command line the Crowdin workflow runs, so the summary is read as it is written there. */
+const script = fileURLToPath(new URL('check-locales.ts', import.meta.url))
 
 /** Writes `{ 'en/settings.yaml': '...' }` style files into a new locales directory. */
 async function locales(files: Record<string, string>) {
@@ -224,5 +230,120 @@ describe('checkLocales', () => {
     const issues = await checkLocales({ root })
 
     expect(issues).toEqual([expect.objectContaining({ level: 'error', locale: 'ko', file: 'settings.yaml', key: '' })])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2904
+  it('reports a choice separator that no count can select (PR #2904)', async () => {
+    // ROOT CAUSE:
+    //
+    // vue-i18n reads `|` as a choice separator and picks a form with the `count`
+    // parameter. The Anthropic provider card was written as `Anthropic | Claude`, which
+    // has no count, so every render returned `Anthropic` and the second name never
+    // appeared.
+    //
+    //   providers.anthropic: Anthropic | Claude
+    //
+    // We fixed this by writing the pipe as {'|'}, and by warning about a separator
+    // that the message itself cannot select.
+    const root = await locales({
+      'en/settings.yaml': 'providers:\n  anthropic: Anthropic | Claude\n',
+    })
+
+    const issues = await checkLocales({ root })
+
+    // A warning, not an error: the call site decides which form a message uses,
+    // and `t(key, plural)` selects one with a bare number.
+    expect(issues).toEqual([expect.objectContaining({ level: 'warning', locale: 'en', file: 'settings.yaml', key: 'providers.anthropic' })])
+  })
+
+  it('accepts a pipe that the message writes as a literal', async () => {
+    const root = await locales({
+      'en/settings.yaml': 'providers:\n  anthropic: Anthropic {\'|\'} Claude\n',
+    })
+
+    expect(await checkLocales({ root })).toEqual([])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2904#discussion_r4241724158
+  // https://github.com/moeru-ai/airi/pull/2904#discussion_r4241821862
+  // https://github.com/moeru-ai/airi/pull/2904#discussion_r4241866639
+  it('reports a separator beside a literal that holds a selector (PR #2904)', async () => {
+    // ROOT CAUSE:
+    //
+    // The check read a `{count}` inside a literal span as a selector, so a message
+    // that explains the token and holds a raw pipe passed.
+    // The pattern also read the body up to the first apostrophe it met.
+    // An escaped apostrophe ended the span early and left the rest of the message bare.
+    //
+    // The spans are removed before the selector is read now. The body follows the
+    // escape grammar of the compiler, and the pattern accepts spaces around the body
+    // as well.
+    const root = await locales({
+      'en/settings.yaml': 'files:\n  hint: Use {\'{count}\'} | total\n  other: Use {\'don\\\'t type {count}\'} | total\n  spaced: Use { \'{count}\' } | total\n',
+    })
+
+    const issues = await checkLocales({ root })
+
+    expect(issues).toEqual([
+      expect.objectContaining({ level: 'warning', key: 'files.hint' }),
+      expect.objectContaining({ level: 'warning', key: 'files.other' }),
+      expect.objectContaining({ level: 'warning', key: 'files.spaced' }),
+    ])
+  })
+
+  it('accepts a separator that a count selects', async () => {
+    const root = await locales({
+      'en/settings.yaml': 'files:\n  count: \'{count} file | {count} files\'\n',
+    })
+
+    expect(await checkLocales({ root })).toEqual([])
+  })
+
+  it('reports the separator in a translation as well', async () => {
+    const root = await locales({
+      'en/settings.yaml': english,
+      'ja/settings.yaml': 'animation:\n  title: アニメーション | モーション\n',
+    })
+
+    const issues = await checkLocales({ root })
+
+    expect(issues).toEqual([expect.objectContaining({ level: 'warning', locale: 'ja', key: 'animation.title' })])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2904#discussion_r4241505158
+  it('escapes a pipe in the summary so the row keeps its five columns (PR #2904)', async () => {
+    // ROOT CAUSE:
+    //
+    // The Crowdin workflow appends this table to the step summary, and the warning
+    // shows a literal pipe. An unescaped pipe in that message ended the cell early, so
+    // the row grew a column.
+    //
+    // We fixed this by escaping every dynamic cell of the table.
+    const root = await locales({
+      'en/settings.yaml': 'providers:\n  anthropic: Anthropic | Claude\n',
+    })
+    const summary = join(root, 'summary.md')
+
+    await promisify(execFile)(process.execPath, [script, '--root', root, '--summary', summary])
+
+    const table = await readFile(summary, 'utf8')
+    const row = table.split('\n').find(line => line.includes('providers.anthropic')) ?? ''
+    expect(row).toContain("{'\\|'}")
+    // Five columns hold six delimiters. An escaped pipe adds none.
+    expect(row.replace(/\\\|/g, '').split('|')).toHaveLength(7)
+  })
+
+  it('accepts a separator that a bare number selects', async () => {
+    // t(key, plural) picks a form with the number itself, so the message needs no
+    // placeholder. This is why the check reports a warning and not an error.
+    const root = await locales({
+      'en/settings.yaml': 'files:\n  car: car | cars\n',
+    })
+
+    const reported = await checkLocales({ root })
+
+    expect(reported).toEqual([
+      expect.objectContaining({ level: 'warning', key: 'files.car' }),
+    ])
   })
 })

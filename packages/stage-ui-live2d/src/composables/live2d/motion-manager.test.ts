@@ -9,18 +9,20 @@ import { ref } from 'vue'
 
 import { neutralLive2DMotionControlPose } from '../../stores/motion-control'
 import { createBeatSyncController } from './beat-sync'
+import { createLive2DFocusBias } from './focus-bias'
 import { createLive2DMotionSpring } from './motion-control-spring'
 import {
   disableLive2DSdkBreath,
   resolveIdleMotionGroup,
   useLive2DMotionManagerUpdate,
   useMotionUpdatePluginAutoEyeBlink,
-  useMotionUpdatePluginBeatSync,
   useMotionUpdatePluginBreathControl,
   useMotionUpdatePluginIdleDisable,
   useMotionUpdatePluginIdleFocus,
   useMotionUpdatePluginLightSquint,
   useMotionUpdatePluginManualControl,
+  useMotionUpdatePluginsBeatSync,
+  useMotionUpdatePluginTouchReaction,
 } from './motion-manager'
 
 vi.mock('./animation', () => ({
@@ -33,6 +35,9 @@ function createModel(initialValues: Record<string, number> = {}) {
     getParameterValueById: vi.fn((id: string) => values.get(id) ?? 1),
     setParameterValueById: vi.fn((id: string, value: number) => {
       values.set(id, value)
+    }),
+    addParameterValueById: vi.fn((id: string, value: number) => {
+      values.set(id, (values.get(id) ?? 0) + value)
     }),
     values,
   }
@@ -343,6 +348,31 @@ describe('live2d motion manager plugins', () => {
     expect(context.model.getParameterValueById('ParamMouthForm')).toBeCloseTo(-0.25)
   })
 
+  it('biases a manual pose toward the focus target and back after it goes away', () => {
+    const context = createContext({ deltaMs: 1000 / 60 })
+    const target = ref<{ x: number, y: number }>()
+    const plugin = useMotionUpdatePluginManualControl(ref({
+      active: true,
+      ownerId: 'magic',
+      pose: neutralLive2DMotionControlPose,
+      dynamics: { follow: 1, inertia: 0.6 },
+    }), createLive2DMotionSpring(), {
+      controller: createLive2DFocusBias({ headGain: 0.5, bodyGain: 0, fadeSeconds: 0.1, followSeconds: 0.05 }),
+      target: () => target.value,
+    })
+
+    target.value = { x: 1, y: 0 }
+    for (let frame = 0; frame < 240; frame += 1)
+      plugin(context)
+    expect(context.model.getParameterValueById('ParamAngleX')).toBeCloseTo(15, 0)
+    expect(context.model.getParameterValueById('ParamEyeBallX')).toBeCloseTo(0.5, 1)
+
+    target.value = undefined
+    for (let frame = 0; frame < 240; frame += 1)
+      plugin(context)
+    expect(context.model.getParameterValueById('ParamAngleX')).toBeCloseTo(0, 0)
+  })
+
   it('leaves motion parameters unchanged after manual control is released', () => {
     const context = createContext()
 
@@ -354,6 +384,212 @@ describe('live2d motion manager plugins', () => {
     }), createLive2DMotionSpring())(context)
 
     expect(context.model.setParameterValueById).not.toHaveBeenCalled()
+  })
+})
+
+describe('beat sync plugins', () => {
+  const frameSeconds = 1 / 60
+
+  /** A sway controller around zero base angles, primed at 10 s and hit by a beat at 10.5 s. */
+  function createBeatingController() {
+    const clock = { ms: 10_000 }
+    const controller = createBeatSyncController({
+      baseAngles: () => ({ x: 0, y: 0, z: 0 }),
+      initialStyle: 'sway-sine',
+      now: () => clock.ms,
+    })
+    controller.scheduleBeat()
+    clock.ms = 10_500
+    controller.scheduleBeat()
+    return { clock, controller }
+  }
+
+  it('follows a beat between frames although the frames count model time', () => {
+    // ROOT CAUSE:
+    //
+    // Beats used `performance.now()` in milliseconds, and frames used `ctx.now` in seconds.
+    // Each frame came before the segment start, so the target only moved on the next beat.
+    //
+    // beatSync.updateTargets(ctx.now)
+    //
+    // We fixed this with one controller clock for beats and targets.
+    // beatSync.updateTargets()
+    const { clock, controller } = createBeatingController()
+    clock.ms = 10_625
+
+    useMotionUpdatePluginsBeatSync(controller, () => false).pre(createContext({ nowMs: clock.ms, deltaMs: frameSeconds * 1000 }))
+
+    // Half of the 250 ms segment toward the left side: easeOutCubic(0.5) of -10 degrees.
+    expect(controller.targetY.value).toBeCloseTo(-8.75)
+    expect(controller.targetZ.value).toBeCloseTo(8.75)
+  })
+
+  it('adds the beat on top of a MAGIC pose that the final phase writes', () => {
+    // ROOT CAUSE:
+    //
+    // The MAGIC pose writes absolute head angles in the final phase.
+    // Beat Sync wrote them in the pre phase, so the pose replaced them on every frame.
+    //
+    // register(useMotionUpdatePluginBeatSync(beatSync), 'pre')
+    //
+    // We fixed this with a final-phase layer that adds the beat offset after the pose.
+    function runFrames(beating: boolean) {
+      const { clock, controller } = createBeatingController()
+      const context = createContext({ deltaMs: frameSeconds * 1000 })
+      const spring = createLive2DMotionSpring()
+      const beatSyncPlugins = useMotionUpdatePluginsBeatSync(controller, () => beating && spring.output.value.active)
+      const plugins = [
+        beatSyncPlugins.pre,
+        useMotionUpdatePluginManualControl(ref({
+          active: true,
+          ownerId: 'stage:live2d-motion-magic',
+          pose: { ...neutralLive2DMotionControlPose, headY: 0.2, headZ: -0.1 },
+          dynamics: { follow: 0.6, inertia: 0.35 },
+        }), spring),
+        beatSyncPlugins.layer,
+      ]
+
+      // One second after the beat: the beat reached the left side, and the release after 1.8 s has not started.
+      for (let frame = 0; frame < 60; frame += 1) {
+        clock.ms += frameSeconds * 1000
+        context.nowMs = clock.ms
+        plugins.forEach(plugin => plugin(context))
+      }
+
+      return {
+        angleY: context.model.getParameterValueById('ParamAngleY'),
+        angleZ: context.model.getParameterValueById('ParamAngleZ'),
+      }
+    }
+
+    const withoutBeat = runFrames(false)
+    const withBeat = runFrames(true)
+
+    expect(withBeat.angleY - withoutBeat.angleY).toBeCloseTo(-10, 0)
+    expect(withBeat.angleZ - withoutBeat.angleZ).toBeCloseTo(10, 0)
+  })
+
+  it('settles instead of swinging wider when frames are long', () => {
+    const { clock, controller } = createBeatingController()
+    const context = createContext({ deltaMs: 100 })
+    const plugin = useMotionUpdatePluginsBeatSync(controller, () => false).pre
+
+    // 100 ms frames, as Pixi gives at its lowest frame rate. The release starts 1.8 s after the beat.
+    for (let frame = 0; frame < 15; frame += 1) {
+      clock.ms += 100
+      plugin(context)
+    }
+
+    expect(context.model.getParameterValueById('ParamAngleY')).toBeCloseTo(-10, 0)
+  })
+
+  it('leaves the head to the pre-phase plugin when no pose is layered', () => {
+    const { controller } = createBeatingController()
+    const context = createContext({ deltaMs: frameSeconds * 1000 })
+    const plugins = useMotionUpdatePluginsBeatSync(controller, () => false)
+
+    plugins.pre(context)
+    plugins.layer(context)
+
+    expect(context.model.setParameterValueById).toHaveBeenCalledWith('ParamAngleY', expect.any(Number))
+    expect(context.model.addParameterValueById).not.toHaveBeenCalled()
+  })
+
+  it('stops the pre-phase plugin while a pose is layered', () => {
+    const { controller } = createBeatingController()
+    const context = createContext({ deltaMs: frameSeconds * 1000 })
+
+    useMotionUpdatePluginsBeatSync(controller, () => true).pre(context)
+
+    expect(context.model.setParameterValueById).not.toHaveBeenCalled()
+  })
+
+  it('carries the current beat offset into the layer when a pose starts', () => {
+    const { clock, controller } = createBeatingController()
+    const context = createContext({ deltaMs: frameSeconds * 1000 })
+    let poseActive = false
+    const plugins = useMotionUpdatePluginsBeatSync(controller, () => poseActive)
+
+    // Half a second without a pose: the beat reaches the left side.
+    for (let frame = 0; frame < 30; frame += 1) {
+      clock.ms += frameSeconds * 1000
+      plugins.pre(context)
+      plugins.layer(context)
+    }
+
+    poseActive = true
+    clock.ms += frameSeconds * 1000
+    plugins.pre(context)
+    plugins.layer(context)
+
+    expect(context.model.addParameterValueById).toHaveBeenCalledWith('ParamAngleY', expect.closeTo(-10, 0))
+  })
+
+  it('hands a settled velocity back when a pose ends', () => {
+    const { clock, controller } = createBeatingController()
+    const context = createContext({ deltaMs: frameSeconds * 1000 })
+    let poseActive = false
+    const plugins = useMotionUpdatePluginsBeatSync(controller, () => poseActive)
+    const runFrames = (count: number) => {
+      for (let frame = 0; frame < count; frame += 1) {
+        clock.ms += frameSeconds * 1000
+        plugins.pre(context)
+        plugins.layer(context)
+      }
+    }
+
+    // The head swings toward the left side, then a pose holds it while the beat settles there.
+    runFrames(6)
+    expect(Math.abs(controller.velocityY.value)).toBeGreaterThan(1)
+    poseActive = true
+    runFrames(60)
+
+    expect(controller.velocityY.value).toBeCloseTo(0, 1)
+  })
+
+  it.each([
+    { name: 'starts', before: false },
+    { name: 'ends', before: true },
+  ])('adds the current beat on the frame where a pose $name', ({ before }) => {
+    const { clock, controller } = createBeatingController()
+    const context = createContext({ deltaMs: frameSeconds * 1000 })
+    let poseActive = before
+    const plugins = useMotionUpdatePluginsBeatSync(controller, () => poseActive)
+
+    // Half a second: the beat reaches the left side.
+    for (let frame = 0; frame < 30; frame += 1) {
+      clock.ms += frameSeconds * 1000
+      plugins.pre(context)
+      plugins.layer(context)
+    }
+
+    vi.mocked(context.model.addParameterValueById).mockClear()
+    clock.ms += frameSeconds * 1000
+    plugins.pre(context)
+    // The manual-control plugin starts or settles its spring between the two Beat Sync plugins.
+    poseActive = !before
+    plugins.layer(context)
+
+    expect(context.model.addParameterValueById).toHaveBeenCalledWith('ParamAngleY', expect.closeTo(-10, 0))
+  })
+})
+
+describe('touch reaction plugin', () => {
+  it('adds the reaction on top of the other motion and narrows the eyes', () => {
+    // The context reports model time in milliseconds. The reaction samples it in seconds.
+    const context = createContext({ nowMs: 12_000 })
+    context.model.setParameterValueById('ParamAngleY', 4)
+    context.model.setParameterValueById('ParamAngleZ', -2)
+    context.model.setParameterValueById('ParamEyeROpen', 0.8)
+    const sample = vi.fn(() => ({ angleX: 0, angleY: -6, angleZ: 5, bodyAngleX: 0, bodyAngleY: 0, eyeSquint: 0.5 }))
+
+    useMotionUpdatePluginTouchReaction(sample)(context)
+
+    expect(sample).toHaveBeenCalledWith(12)
+    expect(context.model.getParameterValueById('ParamAngleY')).toBe(-2)
+    expect(context.model.getParameterValueById('ParamAngleZ')).toBe(3)
+    expect(context.model.getParameterValueById('ParamEyeLOpen')).toBe(0.5)
+    expect(context.model.getParameterValueById('ParamEyeROpen')).toBeCloseTo(0.4)
   })
 })
 
@@ -875,7 +1111,7 @@ describe('beat sync clock domain', () => {
       pageNow.mockReturnValue(12_500)
       beatSync.scheduleBeat()
 
-      const plugin = useMotionUpdatePluginBeatSync(beatSync)
+      const plugin = useMotionUpdatePluginsBeatSync(beatSync, () => false).pre
       // The model joined the ticker three frames ago, so its clock reads ~48ms
       // against the 12.5s the page has behind it.
       const ctx = createContext({ nowMs: 48, deltaMs: 16 })

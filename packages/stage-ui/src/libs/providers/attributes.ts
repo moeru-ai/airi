@@ -98,6 +98,7 @@ const providerAttributesById = {
   'openrouter-audio-speech': paidCloud,
   'perplexity-ai': paidCloud,
   'player2-speech': freeLocal,
+  'runcrate': paidCloud,
   'speech-noop': false,
   'together-ai': paidCloud,
   'voicevox': freeLocal,

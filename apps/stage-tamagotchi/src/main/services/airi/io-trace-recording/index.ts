@@ -1,10 +1,15 @@
-import type { IOTraceRecordingState, SerializedIOSpan } from '@proj-airi/stage-shared/types/io-trace'
+import type { IOTraceRecordingState } from '@proj-airi/stage-shared/types/io-trace'
+import type { ContentPolicy, TraceRecord } from '@proj-airi/trace-kit'
+import type { FlightRecorderDump } from '@proj-airi/trace-kit/collector'
 
 import { appendFile, mkdir, readdir, rm, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 
+import { utc } from '@date-fns/utc'
 import { errorMessageFrom } from '@moeru/std'
+import { applyContentPolicy } from '@proj-airi/trace-kit'
 import { Mutex } from 'async-mutex'
+import { format } from 'date-fns'
 
 const RETENTION_MS = 7 * 24 * 60 * 60 * 1000
 
@@ -12,12 +17,39 @@ interface IOTraceRecordingServiceOptions {
   directory: string
   getStoredEnabled: () => boolean
   setStoredEnabled: (enabled: boolean) => void
+  /**
+   * The sensitivity of an attribute key. Files remove `content` and `secret` attributes.
+   * @default every key counts as `none`
+   */
+  sensitivityOf?: ContentPolicy['sensitivityOf']
 }
+
+/** Files keep timing, counts, and IDs. User content stays in the live buffer only. */
+const FILE_KEEPS_CONTENT = false
+
+/** The file name of a recording that starts now, in UTC, for example `flight-error-2026-10-30T09-41-07-512Z.jsonl`. */
+function fileName(prefix: string): string {
+  return `${prefix}${format(utc(Date.now()), 'yyyy-MM-dd\'T\'HH-mm-ss-SSS\'Z\'')}.jsonl`
+}
+
+/**
+ * Writes trace records as JSON Lines, one record for each line.
+ *
+ * State model:
+ * - Persisted setting: `enabled`, through the injected getter and setter.
+ * - Runtime state: `filePath` is the file of the current recording. A new file starts each time recording starts.
+ * - Flight dumps go to their own files, also while recording is off. A dump that overlaps the previous dump appends to
+ *   the previous file.
+ * - Files older than seven days go when recording starts and when a new flight dump file starts.
+ *
+ * One mutex orders every write, so lines of two writers never interleave.
+ */
 
 export class IOTraceRecordingService {
   private readonly listeners = new Set<(state: IOTraceRecordingState) => void>()
   private readonly mutex = new Mutex()
   private filePath: string | undefined
+  private flightFilePath: string | undefined
   private error: string | undefined
 
   constructor(private readonly options: IOTraceRecordingServiceOptions) {}
@@ -57,11 +89,25 @@ export class IOTraceRecordingService {
     })
   }
 
-  async recordSpan(span: SerializedIOSpan): Promise<void> {
+  async recordRecord(record: TraceRecord): Promise<void> {
     await this.mutex.runExclusive(async () => {
       if (!this.filePath)
         return
-      await appendFile(this.filePath, `${JSON.stringify(span)}\n`, { mode: 0o600 })
+      await appendFile(this.filePath, `${JSON.stringify(this.forFile(record))}\n`, { mode: 0o600 })
+    })
+  }
+
+  /** Writes the records of a flight recorder dump, also while recording is off. */
+  async writeFlightDump(dump: FlightRecorderDump): Promise<void> {
+    await this.mutex.runExclusive(async () => {
+      await mkdir(this.options.directory, { mode: 0o700, recursive: true })
+      if (!dump.append || !this.flightFilePath) {
+        // Dumps also come while recording is off, so a new dump file removes expired files too.
+        await this.pruneExpiredFiles()
+        this.flightFilePath = join(this.options.directory, fileName(`flight-${dump.reason}-`))
+      }
+      const lines = dump.records.map(record => `${JSON.stringify(this.forFile(record))}\n`).join('')
+      await appendFile(this.flightFilePath, lines, { mode: 0o600 })
     })
   }
 
@@ -78,13 +124,17 @@ export class IOTraceRecordingService {
     try {
       await mkdir(this.options.directory, { mode: 0o700, recursive: true })
       await this.pruneExpiredFiles()
-      this.filePath = join(this.options.directory, `${new Date().toISOString().replace(/[:.]/g, '-')}.jsonl`)
+      this.filePath = join(this.options.directory, fileName(''))
       this.error = undefined
     }
     catch (error) {
       this.error = errorMessageFrom(error) ?? 'Failed to start IO trace recording.'
       throw error
     }
+  }
+
+  private forFile(record: TraceRecord): TraceRecord {
+    return applyContentPolicy(record, { keepContent: FILE_KEEPS_CONTENT, sensitivityOf: this.options.sensitivityOf ?? (() => undefined) })
   }
 
   private async pruneExpiredFiles(): Promise<void> {

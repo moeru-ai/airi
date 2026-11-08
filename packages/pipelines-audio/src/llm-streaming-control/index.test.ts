@@ -253,23 +253,6 @@ describe('createStreamingControlParser', () => {
 
   /**
    * @example
-   * await control.dispatchWith('<|ACT:"emotion":{"name":"happy"}|>')
-   * // -> false
-   */
-  it('rejects non-standard ACT and DELAY syntaxes', async () => {
-    const control = createStreamingControlParser()
-    const handler = vi.fn()
-    const dispose = control.onSignal(handler)
-
-    await expect(control.dispatchWith('<|ACT:"emotion":{"name":"happy"}|>')).resolves.toBe(false)
-    await expect(control.dispatchWith('<|DELAY:1|>')).resolves.toBe(false)
-    expect(handler).not.toHaveBeenCalled()
-
-    dispose()
-  })
-
-  /**
-   * @example
    * const control = createStreamingControlParser({ parsers: [customParser] })
    * await expect(control.dispatchWith('<|CUSTOM|>')).resolves.toBe(true)
    */

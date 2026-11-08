@@ -27,7 +27,7 @@ describe('billingService', () => {
 
   beforeEach(async () => {
     redis = createTestRedis()
-    billingService = createBillingService(db, redis)
+    billingService = createBillingService(db, redis, { getOptional: async () => null })
 
     await db.delete(schema.fluxTransaction)
     await db.delete(schema.userFlux).where(eq(schema.userFlux.userId, 'user-billing-1'))

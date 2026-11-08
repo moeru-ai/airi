@@ -2,12 +2,12 @@ import type { ConfigKVService } from '../../services/adapters/config-kv'
 import type { PaymentService } from '../../services/domain/payment'
 import type { HonoEnv } from '../../types/hono'
 
+import { ApiError } from '@proj-airi/http-error-shared'
 import { Hono } from 'hono'
 import { describe, expect, it, vi } from 'vitest'
 
 import { createStripeRoutes } from '.'
 import { createTestRedis } from '../../libs/tests/redis'
-import { ApiError } from '../../utils/error'
 import { createWebhookOperation } from './operations/webhook'
 
 function createMockPayment(overrides: Partial<PaymentService> = {}): PaymentService {

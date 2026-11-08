@@ -3,11 +3,25 @@ operations:
   load-models-status:
     loading: 加载中
     ready: 已就绪
+'resource-island':
+  loading: 正在准备资源…
+  ready: 资源已就绪
+  preparing: 正在准备模型文件
+  failed: 模型下载失败
 docs:
   theme:
     navbar:
       appearance:
         title: 外观
+'fullscreen-island':
+  settings: 设置
+  chat: 聊天
+  switch-to-dark-mode: 切换到暗色模式
+  switch-to-system-mode: 跟随系统主题
+  switch-to-light-mode: 切换到亮色模式
+  exit: 退出全屏
+'fullscreen-surface':
+  resize: 拖动调整面板宽度
 'controls-island':
   'fade-on-hover':
     enable: 悬停时隐藏
@@ -18,11 +32,14 @@ docs:
   'refresh': 刷新
   'center-main-window': 移至屏幕中央
   'open-hearing-controls': 打开听力控制
+  'enable-microphone': 打开麦克风
+  'disable-microphone': 关闭麦克风
   'drag-to-move-window': 拖动以移动窗口
   'mute': 静音
   'unmute': 取消静音
   'switch-to-light-mode': 切换到亮色模式
   'switch-to-dark-mode': 切换到暗色模式
+  'switch-to-system-mode': 跟随系统主题
   'pin-on-top': 置顶窗口
   'unpin-from-top': 取消置顶
   'switch-profile': 切换角色
@@ -37,16 +54,31 @@ docs:
   style:
     title: 聊天窗口样式
     legacy: 经典窗口
-    floating-attached: 悬浮，吸附在角色旁
-    floating-free: 悬浮，自由摆放
-    floating-danmaku: 悬浮，弹幕机
-    pinned: 保持置顶
-  resize: 拖动以调整聊天大小
+    floating: 悬浮
+    fullscreen: 全屏，在角色旁
+    attached: 吸附在角色旁
   move: 拖动以移动聊天
+  resize-corner:
+    ne: 从右上角调整大小
+    nw: 从左上角调整大小
+    se: 从右下角调整大小
+    sw: 从左下角调整大小
+  danmaku: 弹幕机
+  pin: 保持置顶
   fold: 收起聊天
+  conversations: 对话
   composer:
     show: 展开输入框
     hide: 收起输入框
+  danmaku-feed:
+    title: 消息停留时间
+    hide-read: 自动隐藏已读消息
+    hide-read-description: 读完后自动消失，有语音时随语音结束消失。
+    options-hint: 悬停或右键查看选项
+    reading-speed: 阅读速度
+    reading-speed-value: '{count} 字/秒'
+    minimum-time: 最短停留时间
+    minimum-time-value: '{count} 秒'
 widgets:
   close: 关闭小部件
   empty:
@@ -55,7 +87,15 @@ widgets:
   loading: 正在加载小部件…
   waiting: 正在等待小部件 "{id}" 的数据…
 inlay:
-  hide: 隐藏
+  dismiss: 关闭
+window:
+  minimize: 最小化
+  maximize: 最大化
+  restore: 还原
+  close: 关闭
+  titles:
+    about: 关于 AIRI
+    editor: AIRI 编辑器
 notice:
   'fade-on-hover':
     title: 悬停淡出
@@ -73,13 +113,18 @@ notice:
 about:
   subtitle: 桌面版本
   current-version: 当前版本
+  build-origin: "{time}构建，基于 {branch}{'@'}{commit}"
   common:
     cancel: 取消
+    close: 关闭
   links:
     title: 网址
     home: 首页
     documentation: 文档
   update:
+    auto-download:
+      label: 自动下载更新
+      description: 关闭后，只有点击「下载更新」时才会下载更新。
     lane:
       label: 更新频道
       description: 选择更新频道
@@ -89,9 +134,11 @@ about:
       stable: 稳定版
       alpha: Alpha 测试版
       beta: Beta 测试版
-      nightly: 每夜构建
       canary: 尝鲜版
+      nightly: 每日更新版
+      dev: 开发版
     status:
+      manual-install-required: 新版本 v{version} 需要重新安装。请下载后手动安装。
       downloading: 正在下载更新......
       error-prefix: 错误
       latest: 已是最新版（v{version}）
@@ -99,6 +146,7 @@ about:
         windows: 已准备好静默更新版本至 v{version}
         restart: 已准备好重启后安装版本 v{version}
     actions:
+      open-download-page: 打开下载页面
       download: 下载更新
       download-short: 下载
       confirm-download: 确认下载
@@ -106,12 +154,159 @@ about:
       checking: 正在检查...
       latest-version: 最新版本
       disabled-dev: 已禁用开发环境时的更新
-      managed-by-store: 更新由应用商店管理
+      managed-by-store: 更新由应用商店或包管理器管理
       retry-check: 重新检查
       restart-silent: 重新启动以静默更新
       restart-install: 重启并安装更新
       confirm-restart: 确认重新启动
+      whats-new: 更新内容
+      view-changes: 查看代码变更
     dialog:
       title: 有可用的更新
       description: 有新的 v{version} 版本可用
       no-release-notes-markdown: _无发布日志_
+      view-on-github: 在 GitHub 上查看
+    notices:
+      admin-required:
+        title: 需要管理员权限
+        description: AIRI 安装在受保护的 Windows 文件夹中，安装更新时 Windows 可能会弹出用户账户控制（UAC）窗口请求管理员权限。
+        path: '安装位置：{path}'
+      downgrade-available:
+        title: 此更新是旧版本
+        description: 所选更新频道提供的版本比当前版本更旧。安装此更新会将 AIRI 降级到旧版本。
+      downgrade-downloaded:
+        title: 已下载旧版本
+        description: 从所选更新频道下载的安装包是旧版本。重启 AIRI 后将安装该旧版本。
+computer-use-tool-call:
+  help: 帮助
+  status:
+    completed: 已完成
+    failed: 失败
+  display: 显示器
+  built-in: 内建
+  primary: 主显示器
+  logical-size: 逻辑尺寸
+  pixel-size: 像素尺寸
+  backend: 截图后端
+  fallback: 回退原因
+  file: 文件
+  window: 窗口
+  region: 区域
+  main: 主窗口
+  hidden: 不可见
+  displays: '{count} 个显示器'
+  windows: '{count} 个窗口'
+  found: '找到 “{query}”'
+  matches: '{count} 处'
+  not-found: '没有找到 “{query}”'
+  clicked-text: '点了 “{query}”'
+  options: 选项
+  typed: 逐字输入
+  pasted: 粘贴
+  pressed: 按下
+  interval: '间隔 {ms} 毫秒'
+  hold: '按住 {ms} 毫秒'
+  steps: '按顺序执行 {count} 步'
+  focused: '聚焦到 “{query}”'
+  app: 应用
+  process: 进程
+  control: 控件
+  title: 标题
+  value: 当前内容
+  ax-path: 辅助功能路径
+  moved: 移到
+  clicked: 点击
+  dragged: 拖拽
+  requested: 请求位置
+  on-screen: 屏幕位置
+  start: 起点
+  end: 终点
+  final: 实际终点
+  duration: '{ms} 毫秒'
+  normalized: 归一化坐标
+  relative:
+    screen: 相对屏幕
+    window: 相对窗口
+    display: 相对显示器
+  buttons:
+    left: 左键
+    right: 右键
+    middle: 中键
+  clicks:
+    single: 单击
+    double: 双击
+  delivery:
+    path: 送达方式
+    verified: 已验证效果
+    not-verified: 效果未验证
+    disturbance: 打扰
+    mouse: 鼠标
+    focus: 焦点
+    clipboard: 剪贴板
+    attempt: '第 {index} 次尝试'
+    attempt-succeeded: 成功
+    attempt-failed: 失败
+  paths:
+    foreground_system_events: 前台系统事件
+    window_targeted_keyboard: 发往窗口的键盘事件
+    ax_focus: 辅助功能聚焦
+  disturbances:
+    none: 未打扰
+    temporary: 暂时
+    foreground: 切到前台
+    unknown: 未知
+  activated: '切到 {app}'
+  in-front: 已在前台
+  front-is: '前台是 {app}'
+  front-unknown: 没能确认前台应用
+  permissions:
+    title: 系统权限
+    names:
+      screen_recording: 屏幕录制
+      accessibility: 辅助功能
+      automation_to_system_events: 自动化（System Events）
+    states:
+      granted: 已授权
+      missing: 未授权
+      denied: 已拒绝
+      unknown: 未知
+  media:
+    commands:
+      play: 播放
+      pause: 暂停
+      toggle: 播放或暂停
+      next: 下一首
+      previous: 上一首
+    verified: 已验证
+    not-verified: 未验证
+    playing: 正在播放
+    paused: 已暂停
+    nothing: 没有在播放
+    liked: 已喜欢
+    rate: '{rate} 倍速'
+computer-use-read-image-tool-call:
+  description: 视觉模型的描述
+  failed: 视觉模型没能读出这张图
+tool-call-screenshot:
+  view-full: 查看大图
+weather-tool-call:
+  feels-like: 体感
+  humidity: 湿度
+  wind: 风速
+  precipitation: 降水概率
+  high: 最高
+  low: 最低
+  conditions:
+    clear-day: 晴
+    clear-night: 晴
+    partly-cloudy-day: 多云
+    partly-cloudy-night: 多云
+    overcast: 阴
+    fog: 雾
+    drizzle: 毛毛雨
+    sleet: 雨夹雪
+    rain: 雨
+    extreme-rain: 大雨
+    snow: 雪
+    extreme-snow: 大雪
+    thunderstorm: 雷暴

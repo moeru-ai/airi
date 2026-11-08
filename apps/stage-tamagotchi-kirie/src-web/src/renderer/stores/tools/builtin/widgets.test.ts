@@ -553,6 +553,22 @@ describe('widgets tool helpers', () => {
       expect(invokers.openWindow).toHaveBeenCalledWith({ id: 'prepared-id' })
     })
 
+    it('opens the prepared window when the caller supplies no id', async () => {
+      const invokers = makeInvokers()
+      vi.mocked(invokers.prepareWindow).mockResolvedValue('generated-widget')
+      await executeWidgetAction({
+        action: 'open',
+        id: '',
+        componentName: '',
+        componentProps: '{}',
+        size: 'm',
+        ttlSeconds: 0,
+      }, { invokers })
+
+      expect(invokers.prepareWindow).toHaveBeenCalledWith({})
+      expect(invokers.openWindow).toHaveBeenCalledWith({ id: 'generated-widget' })
+    })
+
     it('clears widgets', async () => {
       const invokers = makeInvokers()
       await executeWidgetAction({
@@ -564,7 +580,7 @@ describe('widgets tool helpers', () => {
         ttlSeconds: 0,
       }, { invokers })
 
-      expect(invokers.clearWidgets).toHaveBeenCalledTimes(1)
+      expect(invokers.clearWidgets).toHaveBeenCalledWith({})
     })
   })
 

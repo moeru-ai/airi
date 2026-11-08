@@ -88,13 +88,13 @@ function togglePlayback() {
 
 <template>
   <label
-    border="2px solid"
-    class="scroll-snap-align-start form_voice-card relative flex flex-col overflow-hidden rounded-xl"
-    transition="all duration-200 ease-in-out"
     :class="[
+      'scroll-snap-align-start form_voice-card relative flex flex-col overflow-hidden rounded-xl',
+      'border-2 border-solid transition-all duration-200 ease-in-out',
+      // The tinted fill and the radio dot show the selection, so a selected card hides its border.
       voiceId === props.voice.id
-        ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-100 dark:border-primary-900 hover:border-primary-500/30 dark:hover:border-primary-400/30'
-        : 'bg-white dark:bg-neutral-900/20 border-neutral-100 dark:border-neutral-900 hover:border-primary-500/30 dark:hover:border-primary-400/30',
+        ? 'bg-primary-50 dark:bg-primary-900/20 border-transparent'
+        : 'bg-white dark:bg-neutral-900/20 border-neutral-100 dark:border-neutral-900',
       voiceId === props.voice.id
         ? 'form_voice-card-active'
         : '',

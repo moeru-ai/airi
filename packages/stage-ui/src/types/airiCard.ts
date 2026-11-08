@@ -1,6 +1,7 @@
 import type { Card } from '@proj-airi/ccc'
 
 import type { WakeWord } from '../libs/voice/wake-words'
+import type { CharacterAvatarModelReference } from './avatar-model'
 
 /**
  * AIRI-specific runtime configuration embedded in a character card.
@@ -10,7 +11,20 @@ import type { WakeWord } from '../libs/voice/wake-words'
  * losing each other's configuration.
  */
 export interface AiriExtension {
+  /**
+   * Conversation turn limit, including the current input's turn. Each turn contains a user group and its assistant/tool group.
+   * Missing or `-1` keeps all history. `0` sends only current input. System messages are exempt.
+   */
+  contextWindow?: number
+
   wakeWords?: WakeWord[]
+
+  /** Character-owned references to stored display-model resources. */
+  avatarModels: CharacterAvatarModelReference[]
+
+  /** Avatar Model that the Character selects when it becomes active. */
+  defaultAvatarModelId?: string
+
   modules: {
     consciousness: {
       provider: string
@@ -45,8 +59,6 @@ export interface AiriExtension {
       url?: string
     }
 
-    /** ID from the display-models store. */
-    displayModelId?: string
     activeBackgroundId?: string
 
     artistry?: {
@@ -68,6 +80,19 @@ export interface AiriExtension {
     prompt: string
     enabled?: boolean
   }>
+}
+
+/**
+ * Normalizes a character card context window.
+ *
+ * @example
+ * normalizeContextWindow(undefined)
+ * // => -1
+ */
+export function normalizeContextWindow(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value) && value >= -1
+    ? value
+    : -1
 }
 
 /** Character card normalized with the AIRI extension required by the runtime. */

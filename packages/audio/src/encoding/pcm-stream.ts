@@ -113,7 +113,9 @@ export class Pcm16Encoder {
       return
     this.closed = true
     try {
-      await this.reader.cancel(reason)
+      // A source that already errored rejects the cancel with its stored error. It has nothing left to release.
+      // The abort handler cannot await this, so a rejection here was unhandled when a speech input was cancelled.
+      await this.reader.cancel(reason).catch(() => {})
     }
     finally {
       this.release()

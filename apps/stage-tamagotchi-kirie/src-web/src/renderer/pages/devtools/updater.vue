@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useHostAutoUpdater } from '@proj-airi/stage-host-context'
-import { Button, Callout, Progress } from '@proj-airi/ui'
+import { Alert, Button, Progress } from '@proj-airi/ui'
 import { computed } from 'vue'
 
 const {
@@ -34,9 +34,9 @@ const diagnosticsEntries = computed(() => {
 
 <template>
   <div :class="['flex flex-col gap-4', 'pb-8']">
-    <Callout v-if="!isSupported" theme="orange" label="Updater unavailable">
+    <Alert v-if="!isSupported" tone="warning" title="Updater unavailable">
       The Kirie host does not provide the Electron updater API.
-    </Callout>
+    </Alert>
 
     <div :class="['flex flex-wrap gap-2']">
       <Button
@@ -70,16 +70,9 @@ const diagnosticsEntries = computed(() => {
       <Progress :progress="updateState.progress?.percent ?? 0" />
     </div>
 
-    <div
-      v-if="updateState.status === 'error'"
-      :class="[
-        'rounded-2xl border-2 p-4 text-sm whitespace-pre-wrap',
-        'border-red-300/60 bg-red-50 text-red-700',
-        'dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-100',
-      ]"
-    >
-      {{ updateState.error?.message }}
-    </div>
+    <Alert v-if="updateState.status === 'error'" tone="danger" title="Update failed">
+      <pre :class="['whitespace-pre-wrap break-all']">{{ updateState.error?.message }}</pre>
+    </Alert>
 
     <section :class="['rounded-2xl border-2 p-4', 'border-neutral-200 bg-white/70 dark:border-neutral-700/60 dark:bg-neutral-950/40']">
       <div :class="['mb-3 text-sm text-neutral-600 dark:text-neutral-400']">

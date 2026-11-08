@@ -186,17 +186,7 @@ Browse the live UI component storyboard at [airi.moeru.ai/ui](https://airi.moeru
 
 ### Documentation site
 
-```shell
-pnpm dev:docs
-```
-
-> [!NOTE]
->
-> For [@antfu/ni](https://github.com/antfu-collective/ni) users, you can
->
-> ```shell
-> nr dev:docs
-> ```
+The documentation site lives in [moeru-ai/airi-docs](https://github.com/moeru-ai/airi-docs), see its README for development.
 
 ### Telegram bot integration
 
@@ -317,6 +307,31 @@ pnpm to-avif <PATH_TO_IMAGE_OR_DIRECTORY1> <PATH_2> <PATH_3> ...
 > ```shell
 > nr lint && nr typecheck
 > ```
+
+Then run the unit tests the way CI runs them.
+Node.js 26 has its own `localStorage`, and it replaces the `localStorage` of the test environment.
+CI turns it off with `--no-experimental-webstorage` for `test:run`.
+The browser projects need Chromium, and `test:root` runs the tests of `.github/scripts`:
+
+```shell
+pnpm exec playwright install chromium
+pnpm run build:packages
+pnpm run test:root
+NODE_OPTIONS=--no-experimental-webstorage pnpm run test:run
+```
+
+In Windows PowerShell, set the option before `test:run`:
+
+```powershell
+pnpm exec playwright install chromium
+pnpm run build:packages
+pnpm run test:root
+$env:NODE_OPTIONS = '--no-experimental-webstorage'
+pnpm run test:run
+```
+
+Without this option, some tests fail with `Cannot read properties of undefined (reading 'clear')`.
+For example, `packages/stage-ui/src/stores/onboarding.test.ts` fails.
 
 ### Commit
 

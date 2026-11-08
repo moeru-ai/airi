@@ -6,6 +6,9 @@
     ],
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "types": [
+      "node"
+    ],
     "strict": true,
     "skipLibCheck": true
   },

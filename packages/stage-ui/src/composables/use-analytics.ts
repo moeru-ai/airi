@@ -272,15 +272,18 @@ export function useAnalytics() {
     })
   }
 
-  /**
-   * Deletion email sent (user confirmed in the dialog). The completion
-   * event lands on ui-server-auth's success page; this one is the churn
-   * intent signal even when the user never clicks the email link.
-   */
+  /** Records explicit deletion intent before the server accepts or rejects the request. */
   function trackAccountDeletionRequested() {
     if (!canCapture())
       return
     captureAnalyticsEvent('account_deletion_requested', { app_surface: getConversationAnalyticsSurface() })
+  }
+
+  /** Records server-confirmed deletion while honoring the same analytics consent as other events. */
+  function trackAccountDeletionCompleted() {
+    if (!canCapture())
+      return
+    captureAnalyticsEvent('account_deletion_completed', { app_surface: getConversationAnalyticsSurface() })
   }
 
   function trackOnboardingStarted(properties: { entry: ProductAnalyticsEntry }) {
@@ -997,6 +1000,7 @@ export function useAnalytics() {
     trackOauthProviderLinkStarted,
     trackOauthProviderUnlinked,
     trackAccountDeletionRequested,
+    trackAccountDeletionCompleted,
     trackOnboardingStarted,
     trackOnboardingCompleted,
     trackCharacterCreated,

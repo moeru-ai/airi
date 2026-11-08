@@ -11,12 +11,10 @@ export interface BeatSyncController {
   velocityX: Ref<number>
   velocityY: Ref<number>
   velocityZ: Ref<number>
-  /**
-   * Advances the beat pose to `timestamp`, defaulting to the controller's own
-   * page clock. Pass a timestamp only from a caller that already reads that
-   * same clock (a `requestAnimationFrame` callback, for instance).
-   */
-  updateTargets: (timestamp?: number | null) => void
+  /** Advances the targets to `now`, in milliseconds of the controller clock. */
+  updateTargets: (now?: number) => void
+  /** Returns how far the current targets are from the base angles. The beat patterns move only Y and Z. */
+  targetOffsets: () => { y: number, z: number }
   scheduleBeat: (timestamp?: number | null) => void
   debugState: () => {
     primed: boolean
@@ -51,6 +49,12 @@ interface CreateBeatSyncControllerOptions {
   styles?: Partial<Record<BeatSyncStyleName, BeatStyleConfig>>
   initialStyle?: BeatSyncStyleName
   autoStyleShift?: boolean
+  /**
+   * Clock in milliseconds for beats and targets.
+   *
+   * @default performance.now
+   */
+  now?: () => number
 }
 
 type BeatStylePattern = 'v' | 'swing' | 'sway'
@@ -73,27 +77,6 @@ const defaultStyles: Record<BeatSyncStyleName, BeatStyleConfig> = {
   'sway-sine': { topYaw: 10, topRoll: 0, bottomDip: 0, swingLift: 10, pattern: 'sway' },
 }
 
-/**
- * The one clock every beat timestamp — scheduled or evaluated — is stamped
- * against.
- *
- * Beats arrive from the audio pipeline outside any render loop, so scheduling
- * has no model timestamp to borrow and has always used page time. Evaluation
- * has to read the same clock or segment starts are compared against an origin
- * they were never expressed in.
- *
- * The Live2D runtime clock is not that clock. `motionManager.update` is handed
- * `Live2DModel.elapsedTime`, a render-loop accumulator: it is seeded from
- * `performance.now()` in the constructor, then stays frozen until `modelLoaded`
- * registers the model on the shared ticker, and afterwards each frame adds a
- * `Ticker.deltaMS` that is clamped to `maxElapsedMS` (100ms by default). Model
- * load time and every stall past that clamp become permanent lag, so runtime
- * time trails page time by an unbounded amount.
- */
-function beatClockNow(): number {
-  return typeof performance !== 'undefined' ? performance.now() : Date.now()
-}
-
 export function createBeatSyncController(options: CreateBeatSyncControllerOptions): BeatSyncController {
   const {
     baseAngles: baseAnglesGetter,
@@ -102,6 +85,7 @@ export function createBeatSyncController(options: CreateBeatSyncControllerOption
     styles = {},
     initialStyle = 'punchy-v',
     autoStyleShift = false,
+    now: clock = () => performance.now(),
   } = options
 
   const styleMap = { ...defaultStyles, ...styles }
@@ -154,12 +138,7 @@ export function createBeatSyncController(options: CreateBeatSyncControllerOption
     }
   }
 
-  function resolveTimestamp(timestamp?: number | null): number {
-    return timestamp != null && Number.isFinite(timestamp) ? Number(timestamp) : beatClockNow()
-  }
-
-  function updateTargets(timestamp?: number | null) {
-    const now = resolveTimestamp(timestamp)
+  function updateTargets(now = clock()) {
     let currentY: number | undefined = targetY.value
     let currentZ: number | undefined = targetZ.value
 
@@ -214,7 +193,9 @@ export function createBeatSyncController(options: CreateBeatSyncControllerOption
   }
 
   function scheduleBeat(timestamp?: number | null) {
-    const now = resolveTimestamp(timestamp)
+    const now = timestamp != null && Number.isFinite(timestamp)
+      ? Number(timestamp)
+      : clock()
     updateTargets(now)
 
     if (!primed.value) {
@@ -370,6 +351,10 @@ export function createBeatSyncController(options: CreateBeatSyncControllerOption
     velocityY,
     velocityZ,
     updateTargets,
+    targetOffsets: () => ({
+      y: targetY.value - baseAngles.value.y,
+      z: targetZ.value - baseAngles.value.z,
+    }),
     scheduleBeat,
     setStyle: (s: BeatSyncStyleName) => { style.value = s },
     getStyle: () => style.value,

@@ -233,3 +233,40 @@ describe('setupApp websocket liveness', () => {
     expect(peer.peer.close).toHaveBeenCalledOnce()
   })
 })
+
+describe('setupApp event forwarding', () => {
+  beforeEach(() => {
+    h3Mocks.handlers.clear()
+  })
+
+  it('stamps the sending connection on a forwarded event and replaces a claimed sender', () => {
+    const runtime = setupApp()
+    const handler = wsHandler()
+    const observer = createPeer('observer')
+    const modulePeer = createPeer('module-peer')
+
+    handler.open?.(observer.peer)
+    handler.open?.(modulePeer.peer)
+    sendEvent(handler, modulePeer.peer, createExtensionModuleAnnounceEvent())
+    observer.sent.length = 0
+
+    sendEvent(handler, modulePeer.peer, {
+      type: 'asset:get:request',
+      data: { ref: 'airi-asset:abc' },
+      metadata: {
+        source: { kind: 'plugin', id: 'someone-else', plugin: { id: 'someone-else' } },
+        event: { id: 'request-1' },
+        sender: { peerId: 'observer', modules: ['stage'] },
+      },
+    } as WebSocketEvent)
+
+    expect(decodeEvents(observer.sent)).toEqual([
+      expect.objectContaining({
+        type: 'asset:get:request',
+        metadata: expect.objectContaining({ sender: { peerId: 'module-peer', modules: ['memory'] } }),
+      }),
+    ])
+
+    runtime.dispose()
+  })
+})

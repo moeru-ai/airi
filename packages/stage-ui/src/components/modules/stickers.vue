@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { StickerEmotion, StickerEntry } from '../../types/sticker'
 
-import { Button, FieldCheckbox, FieldInput, FieldInputFile, FieldSelect, GhostButton } from '@proj-airi/ui'
+import { Button, FieldCheckbox, FieldInput, FieldInputFile, FieldSelect, GhostButton, SettingsCard } from '@proj-airi/ui'
 import { useObjectUrl } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
@@ -9,7 +9,7 @@ import { useI18n } from 'vue-i18n'
 
 import { chatStickers } from '../../assets/stickers'
 import { StickerValidationError, validateStickerImage } from '../../libs/stickers/import'
-import { useStickersStore } from '../../stores/modules/stickers'
+import { stickerDisplayName, stickerSearchKey, useStickersStore } from '../../stores/modules/stickers'
 import { stickerEmotions } from '../../types/sticker'
 
 const { t } = useI18n()
@@ -33,8 +33,7 @@ const previewSrc = computed(() => validFile.value && preview.value ? preview.val
 const builtin = computed(() => chatStickers.some(sticker => sticker.id === editingId.value))
 
 function displayName(entry: StickerEntry) {
-  const bundled = chatStickers.find(sticker => sticker.id === entry.id)
-  return bundled && entry.name === bundled.description ? t(`settings.pages.modules.stickers.artwork.${entry.id}`) : entry.name
+  return stickerDisplayName(entry, t)
 }
 
 function showError(cause: unknown) {
@@ -116,13 +115,13 @@ async function remove(entry: StickerEntry) {
 
 <template>
   <div :class="['flex flex-col gap-4']">
-    <div :class="['flex flex-col gap-4', 'rounded-xl bg-neutral-100 p-4 dark:bg-neutral-900']">
+    <SettingsCard>
       <FieldCheckbox v-model="enabled" :label="t('settings.pages.modules.stickers.enable')" :description="t('settings.pages.modules.stickers.enable-description')" />
       <FieldSelect v-model="frequency" :disabled="!enabled" :label="t('settings.pages.modules.stickers.frequency')" :description="t('settings.pages.modules.stickers.frequency-description')" :options="frequencyOptions" />
       <p :class="['text-sm text-neutral-600 dark:text-neutral-400']">
         {{ t('settings.pages.modules.stickers.local-only') }}
       </p>
-    </div>
+    </SettingsCard>
     <p v-if="error" role="alert" :class="['text-sm text-red-600 dark:text-red-400']">
       {{ t('settings.pages.modules.stickers.errors.storage') }}
     </p>
@@ -164,7 +163,7 @@ async function remove(entry: StickerEntry) {
       {{ formError }}
     </p>
     <ul :aria-label="t('settings.pages.modules.stickers.catalog')" :class="['grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4']">
-      <li v-for="entry in entries" :key="entry.id" :class="['flex flex-col items-center gap-3', 'rounded-xl bg-neutral-100 p-3 dark:bg-neutral-900']">
+      <li v-for="entry in entries" :key="entry.id" :data-settings-search="stickerSearchKey(entry.id)" :class="['flex flex-col items-center gap-3', 'rounded-xl bg-neutral-100 p-3 dark:bg-neutral-900']">
         <img :src="artwork[entry.assetId]" :alt="displayName(entry)" width="96" height="96" :class="['size-24 object-contain']">
         <span :class="['max-w-full break-words text-center text-sm font-medium']">{{ displayName(entry) }}</span>
         <div :class="['flex flex-wrap justify-center gap-1']">

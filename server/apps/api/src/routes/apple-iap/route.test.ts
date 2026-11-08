@@ -5,11 +5,11 @@ import type { HonoEnv } from '../../types/hono'
 import type { Verifier } from './verifier'
 
 import { Environment } from '@apple/app-store-server-library'
+import { ApiError } from '@proj-airi/http-error-shared'
 import { Hono } from 'hono'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { mockDB } from '../../libs/mock-db'
-import { ApiError } from '../../utils/error'
 import { createAppleIapRoutes } from './index'
 
 import * as schema from '../../schemas'

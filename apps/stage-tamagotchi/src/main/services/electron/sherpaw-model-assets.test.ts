@@ -3,7 +3,7 @@ import { pathToFileURL } from 'node:url'
 
 import { beforeEach, expect, it, vi } from 'vitest'
 
-import { setupSherpawModelAssetsProtocol } from './sherpaw-model-assets'
+import { setupSherpawModelAssetsProtocol } from './bundled-sherpaw-assets'
 
 const { fetchFile, handleProtocol } = vi.hoisted(() => ({
   fetchFile: vi.fn(),
@@ -21,7 +21,7 @@ beforeEach(() => {
 
 it('serves only model files with a fetchable response', async () => {
   fetchFile.mockResolvedValue(new Response('model data'))
-  setupSherpawModelAssetsProtocol('/app/out/renderer')
+  setupSherpawModelAssetsProtocol(() => '/app/out/renderer')
 
   const handler = handleProtocol.mock.calls[0][1] as (request: Request) => Promise<Response>
   const response = await handler(new Request('airi-sherpaw://assets/preload-abc123.data'))
@@ -36,7 +36,7 @@ it('serves only model files with a fetchable response', async () => {
 })
 
 it('rejects paths outside the model asset names', async () => {
-  setupSherpawModelAssetsProtocol('/app/out/renderer')
+  setupSherpawModelAssetsProtocol(() => '/app/out/renderer')
 
   const handler = handleProtocol.mock.calls[0][1] as (request: Request) => Promise<Response>
   const response = await handler(new Request('airi-sherpaw://assets/../main/index.js'))

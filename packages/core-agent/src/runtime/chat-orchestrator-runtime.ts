@@ -5,7 +5,7 @@ import type { AgentContextPort } from '../contracts/context-port'
 import type { AgentLLMPort } from '../contracts/llm-port'
 import type { AgentForegroundStreamPort } from '../contracts/stream-port'
 import type { AssistantTurn, Conversation, Turn } from '../messages/types'
-import type { ChatHistoryItem, ChatSlices, ChatStreamEventContext, ChatToolReference, ContextMessage, StreamingAssistantMessage } from '../types/chat'
+import type { ChatHistoryItem, ChatInvokedSkill, ChatSlices, ChatSlicesToolCall, ChatSlicesToolContent, ChatStreamEventContext, ChatToolReference, ContextMessage, StreamingAssistantMessage } from '../types/chat'
 import type { LlmUsage, StreamEvent, StreamOptions } from '../types/llm'
 
 import { createQueue } from '@proj-airi/stream-kit'
@@ -108,10 +108,20 @@ function hasAssistantOutput(message: StreamingAssistantMessage) {
     || !!message.categorization?.reasoning.trim()
 }
 
-/** Encoded attachments belong to one user message. Media capture and storage stay outside chat orchestration. */
+/**
+ * Attachments belong to one user message. Media capture and storage stay outside chat orchestration.
+ *
+ * `data` holds base64 bytes. `url` holds a reference that the application stores in the message as it is,
+ * such as an asset URL, and resolves before provider rendering.
+ */
 export type ChatAttachment
-  = { type: 'image', data: string, mimeType: string }
-    | { type: 'audio', data: string, mimeType: 'audio/wav' | 'audio/mpeg' }
+  = ({ type: 'image' } & ({ data: string, mimeType: string, url?: never } | { url: string, mimeType?: string, data?: never }))
+    | ({
+      type: 'audio'
+      mimeType: 'audio/wav' | 'audio/mpeg'
+      /** Speech recognized while the recording was captured. Text-only models receive it instead of the audio. */
+      transcript?: string
+    } & ({ data: string, url?: never } | { url: string, data?: never }))
 
 /** Options accepted by the chat orchestrator runtime for one user send. */
 export interface ChatOrchestratorSendOptions {
@@ -138,6 +148,12 @@ export interface ChatOrchestratorSendOptions {
   attachments?: ChatAttachment[]
   /** Tool definitions passed through to the LLM stream port. */
   tools?: StreamOptions['tools']
+  /**
+   * Reads the current settings of the request owner before each model request.
+   * The runtime appends this request's system prompt supplement to the returned prompt.
+   * Omission keeps `model`, `chatProvider`, and the composed system prompt for every step.
+   */
+  resolveStep?: StreamOptions['resolveStep']
   /** Serializable tool names stored with the user message for later requests. */
   toolReferences?: ChatToolReference[]
   /** Original transport input metadata used by bridge/devtools observers. */
@@ -148,6 +164,21 @@ export interface ChatOrchestratorSendOptions {
   temperature?: number
   /** Top_p for the LLM request. */
   topP?: number
+  /** Work beside the conversation, for example a task recipe in its own session. It never speaks. */
+  background?: boolean
+  /** The send answers an external scene, for example a Discord channel. Its reply returns as text and never speaks on the host. */
+  scene?: boolean
+  /** Skills that the owner invoked with this message. They are stored with it. */
+  skills?: readonly ChatInvokedSkill[]
+  /**
+   * The text is a notice for the conversation, not owner speech, for example a finished background task.
+   * It is stored as a user message marked as a notice, so no request reads it as owner speech.
+   * The reply is stored as a proactive message, and the run can stay quiet.
+   */
+  notice?: {
+    /** What sent the notice, for the reply's trace. */
+    source: string
+  }
 }
 
 interface QueuedSend {
@@ -185,17 +216,21 @@ export interface QueuedSendSnapshot {
 
 /**
  * Session operations required by the core chat orchestrator runtime.
+ *
+ * The session owner can run in another context than the runtime. So the runtime writes a session only through the
+ * commit operations, and the read operations must not write.
  */
 export interface ChatOrchestratorSessionPort {
   /** Resolves after durable storage. A repeated identity does not append or change an existing user message. */
   commitUserMessage: (sessionId: string, message: Extract<ChatHistoryItem, { role: 'user' }> & { id: string }) => Promise<{ status: 'inserted' | 'existing', messageId: string }>
-  /** Ensures a session exists before messages are appended. */
-  ensureSession: (sessionId: string) => void
-  /** Returns chronological chat history for a session. */
+  /**
+   * Stores a finalized assistant message. Resolves after the session owner stores it.
+   * A repeated identity replaces the stored message, so a retried commit does not append it twice.
+   */
+  commitAssistantMessage: (sessionId: string, message: Extract<ChatHistoryItem, { role: 'assistant' }> & { id: string }) => Promise<void>
+  /** Returns chronological chat history for a session. It does not create or change the session. */
   getSessionMessages: (sessionId: string) => ChatHistoryItem[]
-  /** Appends a finalized user/assistant/tool history item. */
-  appendSessionMessage: (sessionId: string, message: ChatHistoryItem) => void
-  /** Returns a monotonic generation used to reject stale queued sends. */
+  /** Returns a monotonic generation used to reject stale queued sends. It does not change the session. */
   getSessionGeneration: (sessionId: string) => number
 }
 
@@ -265,6 +300,14 @@ interface ChatRoundCorrelation {
 /**
  * Dependency surface used by the platform-agnostic chat orchestrator runtime.
  */
+/** A tool whose calls add content to the reply in place of the calls. The host owns the tool and its content. */
+export interface ToolContent {
+  /** The kind of content that a call adds. While a call is on its way, the reply names this kind. */
+  kind: ChatSlicesToolContent['type']
+  /** The content of a finished call. An empty list adds nothing, for example when the model has to try again. */
+  contentOf: (args: string, result: unknown) => ChatSlicesToolContent[]
+}
+
 export interface ChatOrchestratorRuntimeDeps {
   /** Session persistence and generation guard port. */
   session: ChatOrchestratorSessionPort
@@ -280,8 +323,23 @@ export interface ChatOrchestratorRuntimeDeps {
   getActiveProvider: () => string | undefined
   /** Returns optional prompt text appended to the provider system message for this send. */
   getSystemPromptSupplement?: () => string | undefined
+  /**
+   * Returns the identity and format rules for the session's persona, read when the send starts.
+   * With it, history carries no identity. Stored system messages are skipped, so a persona edit or switch reaches the next send of its own sessions only.
+   */
+  getSystemPrompt?: (sessionId: string) => string | undefined
+  /**
+   * Returns the conversation turn limit, including the current input's turn. A turn contains a user group and its assistant/tool group.
+   * `-1` keeps all history. `0` sends only current input. System messages are exempt.
+   */
+  getContextWindow?: (sessionId: string) => number | undefined
   /** Runtime context providers ingested immediately before prompt composition. */
   runtimeContextProviders?: Array<() => ContextMessage | null | undefined>
+  /**
+   * Tools whose calls show as content of the reply, by tool name. A reply keeps no slice for their calls, and the model
+   * still sees the calls in the provider transcript.
+   */
+  toolContents?: Readonly<Record<string, ToolContent>>
   /** Clock used for persisted message timestamps. @default Date.now */
   now?: () => number
   /** Monotonic clock used for elapsed telemetry in milliseconds. @default performance.now */
@@ -470,6 +528,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     message?: StreamingAssistantMessage
   }>()
   const sendQueues = new Map<string, ReturnType<typeof createQueue<QueuedSend>>>()
+  // Runtime-only cuts belong to sessions. A stable start permits prefix cache reuse between trims.
+  // Changed limits, session generations, or removed anchors invalidate the cut. Session cancellation releases it.
+  const historyCuts = new Map<string, { limit: number, generation: number, start: ChatHistoryItem }>()
   const hooks = createChatHooks()
   const now = deps.now ?? (() => Date.now())
   const monotonicNow = deps.monotonicNow ?? (() => globalThis.performance?.now?.() ?? Date.now())
@@ -565,12 +626,71 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     const turns = history.flatMap((message, historyIndex): Turn[] => {
       if (message.role === 'assistant' && message.generationTranscript)
         return [structuredClone(unwrapMessage(message.generationTranscript))]
+      const noticePrefix = message.role === 'user' && message.notice ? `[Notice from ${message.notice.source}, not a message from the owner.]\n` : ''
       const source = message.role === 'user'
-        ? prependTextToContent(unwrapMessage(message), `${formatTimePrefix(getStablePromptTimestamp(message, nowTs))}${formatReplyPromptPrefix(message.replyToMessageId, messagesById)}`)
+        ? prependTextToContent(unwrapMessage(message), `${formatTimePrefix(getStablePromptTimestamp(message, nowTs))}${noticePrefix}${formatReplyPromptPrefix(message.replyToMessageId, messagesById)}`)
         : unwrapMessage(message)
-      return chatMessagesToTurns(source.role === 'assistant' && source.providerTranscript?.length ? source.providerTranscript : [source], message.id ?? `history-${historyIndex}`)
+      const turns = chatMessagesToTurns(source.role === 'assistant' && source.providerTranscript?.length ? source.providerTranscript : [source], message.id ?? `history-${historyIndex}`)
+      // An invoked skill joins its message as the owner's own instruction, like a slash command.
+      if (message.role === 'user' && message.skills?.length) {
+        const userTurn = turns.find(turn => turn.type === 'user')
+        if (userTurn?.type === 'user')
+          userTurn.content.push(...message.skills.map(skill => ({ type: 'text' as const, text: `\n\n[The owner used the skill "${skill.name}". Follow its steps in this reply and in later replies while they fit.]\n${skill.instructions}` })))
+      }
+      return turns
     })
     return { turns }
+  }
+
+  function trimConversationHistory(sessionId: string, generation: number, history: ChatHistoryItem[], contextWindow: number | undefined) {
+    if (contextWindow === undefined || !Number.isInteger(contextWindow) || contextWindow < 0) {
+      historyCuts.delete(sessionId)
+      return history
+    }
+
+    const systemMessages = history.filter(message => message.role === 'system')
+    if (contextWindow === 0) {
+      historyCuts.delete(sessionId)
+      const currentInput = history.findLast(message => message.role === 'user')
+      return currentInput ? [...systemMessages, currentInput] : systemMessages
+    }
+
+    const previous = historyCuts.get(sessionId)
+    const anchor = previous?.limit === contextWindow && previous.generation === generation ? previous.start : undefined
+    const turnStarts: number[] = []
+    let userStart: number | undefined
+    let reachedAnchor = false
+
+    // Scan newest turns only, up to the cached boundary or one turn beyond the limit.
+    // Deletions can join role groups across that boundary, so finish the whole user group before stopping.
+    for (let index = history.length - 1; index >= 0; index--) {
+      const message = history[index]!
+      if (message.role === 'user') {
+        userStart = index
+        if (anchor && (anchor.id ? message.id === anchor.id : message === anchor))
+          reachedAnchor = true
+      }
+      else if ((message.role === 'assistant' || message.role === 'tool') && userStart !== undefined) {
+        turnStarts.push(userStart)
+        userStart = undefined
+        if (reachedAnchor || turnStarts.length > contextWindow)
+          break
+      }
+    }
+    if (userStart !== undefined)
+      turnStarts.push(userStart)
+
+    // Round up to keep small windows full. Only complete turns leave the retained prefix.
+    const retainedTurns = Math.ceil(contextWindow * 0.9)
+    const start = turnStarts.length > contextWindow
+      ? turnStarts[retainedTurns - 1]!
+      : turnStarts.at(-1) ?? history.length
+    const nextAnchor = history[start]
+    if (nextAnchor)
+      historyCuts.set(sessionId, { limit: contextWindow, generation, start: nextAnchor })
+    else
+      historyCuts.delete(sessionId)
+    return [...systemMessages, ...history.slice(start).filter(message => message.role !== 'system')]
   }
 
   async function performSend(
@@ -584,8 +704,6 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   ) {
     if (!sendingMessage && !options.attachments?.length)
       return
-
-    deps.session.ensureSession(sessionId)
 
     const existingSessionMessages = deps.session.getSessionMessages(sessionId)
     let replyToMessageId = resolveReplyTargetId(options.replyToMessageId, existingSessionMessages)
@@ -623,6 +741,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       contexts: deps.context.snapshot(),
       composedMessage: [],
       input: options.input,
+      // The owner hears the reply unless it answers a scene or runs in the background.
+      speaks: !options.background && !options.scene,
     }
     deps.onLifecycle?.({
       phase: 'before-compose',
@@ -646,7 +766,25 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       tool_results: [],
       createdAt: now(),
       id: assistantMessageId,
+      ...(options.notice ? { proactive: { turnId: roundId, source: options.notice.source } } : {}),
     }
+    // A failed store must not replace the error or the abort that interrupted the turn.
+    const storeInterruptedAssistant = () => deps.session
+      .commitAssistantMessage(sessionId, { ...cloneStreamingMessage(buildingMessage), id: assistantMessageId, interrupted: true, completedAt: now() })
+      .catch(error => console.error('Failed to store an interrupted assistant message:', error))
+    // Received calls and the content of finished content calls stay here until their slices join the reply. Interrupted
+    // turns preserve them without waiting for token hooks.
+    const pendingSlices = new Set<ChatSlicesToolCall | ChatSlicesToolContent>()
+    // Calls of content tools wait here for their results, which become content of the reply.
+    const contentCalls = new Map<string, { content: ToolContent, args: string, flushed: Promise<unknown> }>()
+    // Content calls from their start until their result or error. Text in this time was written before the call.
+    const openContentCalls = new Set<string>()
+
+    function preservePendingSlices() {
+      buildingMessage.slices.push(...pendingSlices)
+      pendingSlices.clear()
+    }
+
     activeSends.get(sessionId)!.turnId = roundId
     beginStream(sessionId, buildingMessage)
     const hasVoice = options.input?.type === 'input:voice'
@@ -686,13 +824,13 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       if (options.attachments) {
         for (const attachment of options.attachments) {
           if (attachment.type === 'audio') {
-            contentParts.push({ type: 'input_audio', input_audio: { data: attachment.data, format: attachment.mimeType === 'audio/wav' ? 'wav' : 'mp3' } })
+            contentParts.push({ type: 'input_audio', input_audio: { data: attachment.url ?? attachment.data, format: attachment.mimeType === 'audio/wav' ? 'wav' : 'mp3' } })
           }
           if (attachment.type === 'image') {
             contentParts.push({
               type: 'image_url',
               image_url: {
-                url: `data:${attachment.mimeType};base64,${attachment.data}`,
+                url: attachment.url ?? `data:${attachment.mimeType};base64,${attachment.data}`,
               },
             })
           }
@@ -700,6 +838,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       }
 
       const finalContent = contentParts.length > 1 ? contentParts : sendingMessage
+      // Transcripts follow audio part order, which is the cache key that text-only projection reads.
+      const audioTranscripts = options.attachments?.filter(attachment => attachment.type === 'audio').map(attachment => attachment.transcript ?? '')
       if (!streamingMessageContext.input) {
         streamingMessageContext.input = {
           type: 'input:text',
@@ -721,6 +861,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       else
         delete streamingMessageContext.message.replyToMessageId
 
+      // A notice is stored with its source, so later requests still know it, and none read it as owner speech.
       const userMessage = {
         role: 'user' as const,
         content: finalContent,
@@ -728,6 +869,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         id: roundId,
         ...(replyToMessageId ? { replyToMessageId } : {}),
         ...(options.toolReferences?.length ? { tools: options.toolReferences } : {}),
+        ...(options.skills?.length ? { skills: options.skills.map(skill => ({ ...skill })) } : {}),
+        ...(audioTranscripts?.some(Boolean) ? { audioTranscripts } : {}),
+        ...(options.notice ? { notice: { source: options.notice.source } } : {}),
       }
       const receipt = await deps.session.commitUserMessage(sessionId, userMessage)
       accepted.resolve({ sessionId, messageId: receipt.messageId })
@@ -737,17 +881,19 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       }
 
       // Cloud sync v1: only the raw text part round-trips; image attachments
-      // and other non-text parts stay local.
-      deps.onUserMessageAppended?.({
-        sessionId,
-        message: userMessage,
-        messageText: sendingMessage,
-        source: sendSource,
-        model: options.model,
-        provider: activeProvider,
-        roundId,
-        turnIndex,
-      })
+      // and other non-text parts stay local. A notice is not owner text, so it stays local too.
+      if (!options.notice) {
+        deps.onUserMessageAppended?.({
+          sessionId,
+          message: userMessage,
+          messageText: sendingMessage,
+          source: sendSource,
+          model: options.model,
+          provider: activeProvider,
+          roundId,
+          turnIndex,
+        })
+      }
 
       const sessionMessagesForSend = deps.session.getSessionMessages(sessionId)
       deps.onUserTurnReady?.({
@@ -758,6 +904,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
       const categorizer = createStreamingCategorizer(activeProvider)
       let streamPosition = 0
+      let pendingSpeechWhitespace = ''
+      let speechStarted = false
       const stickers = options.stickers
       let stickerEmitted = false
 
@@ -768,16 +916,29 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
           categorizer.consume(literal)
 
-          const speechOnly = categorizer.filterToSpeech(literal, streamPosition)
+          let speechOnly = categorizer.filterToSpeech(literal, streamPosition)
           streamPosition += literal.length
 
-          if (speechOnly.trim()) {
+          if (speechOnly) {
+            if (!speechStarted) {
+              // Leading whitespace belongs to speech only after visible text arrives.
+              pendingSpeechWhitespace += speechOnly
+              if (!pendingSpeechWhitespace.trim())
+                return
+              speechOnly = pendingSpeechWhitespace
+              pendingSpeechWhitespace = ''
+              speechStarted = true
+            }
             buildingMessage.content += speechOnly
 
             await hooks.emitTokenLiteralHooks(speechOnly, streamingMessageContext)
             if (shouldAbort())
               return
 
+            // Text after every content call has its result means that the model writes on instead of trying again. Text
+            // before a call can arrive late, when the call flushes it, so it does not count.
+            if (openContentCalls.size === 0 && speechOnly.trim())
+              delete buildingMessage.pendingContent
             const lastSlice = buildingMessage.slices.at(-1)
             if (lastSlice?.type === 'text') {
               lastSlice.text += speechOnly
@@ -837,6 +998,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
             if (shouldAbort())
               return
             if (ctx.data.type === 'tool-call') {
+              if (!pendingSlices.delete(ctx.data))
+                return
               buildingMessage.slices.push(ctx.data)
               updateStream(sessionId, buildingMessage)
               return
@@ -845,12 +1008,37 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
             if (ctx.data.type === 'tool-call-result') {
               buildingMessage.tool_results.push(ctx.data)
               updateStream(sessionId, buildingMessage)
+              return
+            }
+
+            if (ctx.data.type === 'card') {
+              if (!pendingSlices.delete(ctx.data))
+                return
+              buildingMessage.slices.push(ctx.data)
+              delete buildingMessage.pendingContent
+              updateStream(sessionId, buildingMessage)
             }
           },
         ],
       })
 
-      const context = buildContext(sessionMessagesForSend)
+      // Identity comes from the session's persona at request time. Without a host identity, the stored history keeps its own system message.
+      const systemPrompt = deps.getSystemPrompt?.(sessionId)
+      const history = trimConversationHistory(
+        sessionId,
+        generation,
+        deps.getSystemPrompt ? sessionMessagesForSend.filter(message => message.role !== 'system') : sessionMessagesForSend,
+        deps.getContextWindow?.(sessionId),
+      )
+      const context = buildContext(history)
+      // The stored notice ends the history. Only this request tells the model that it can stay quiet about it.
+      if (options.notice) {
+        const lastTurn = context.turns.at(-1)
+        if (lastTurn?.type === 'user')
+          lastTurn.content.push({ type: 'text', text: '\n[Speak about this notice only if it fits now, or stay quiet.]' })
+      }
+      if (systemPrompt?.trim())
+        context.turns.unshift({ id: 'system-identity', type: 'system', authority: 'system', content: [{ type: 'text', text: systemPrompt }] })
       const stickerPrompt = stickers?.length
         ? [
             'You can send one optional sticker per reply with a marker from this catalog.',
@@ -915,9 +1103,17 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         hasVoice,
       })
 
+      const resolveOwnerStep = options.resolveStep
       await waitForProvider(deps.llm.stream(options.model, options.chatProvider, context, {
         headers,
         providerId: activeProvider,
+        // A resolved prompt replaces the composed system message, so it must carry the same supplement.
+        resolveStep: resolveOwnerStep
+          ? async () => {
+            const step = await resolveOwnerStep()
+            return { ...step, systemPrompt: [step.systemPrompt, systemPromptSupplement].filter(Boolean).join('\n\n') }
+          }
+          : undefined,
         supportsAudioInput: options.supportsAudioInput,
         supportsVisionInput: options.supportsVisionInput,
         abortSignal,
@@ -948,7 +1144,6 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         onStreamEvent: async (event: StreamEvent) => {
           if (shouldAbort())
             return
-
           switch (event.type) {
             case 'search':
               buildingMessage.search = { id: event.id, status: event.status }
@@ -958,14 +1153,51 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
               buildingMessage.citations = [...(buildingMessage.citations ?? []), ...event.citations]
               updateStream(sessionId, buildingMessage)
               break
-            case 'tool-call':
-              toolCallQueue.enqueue({
-                type: 'tool-call',
-                toolCall: event,
-              })
-
+            case 'tool-call-start': {
+              const content = deps.toolContents?.[event.toolName]
+              if (content) {
+                openContentCalls.add(event.toolCallId)
+                buildingMessage.pendingContent = content.kind
+                updateStream(sessionId, buildingMessage)
+              }
               break
-            case 'tool-result':
+            }
+            case 'tool-call': {
+              const content = deps.toolContents?.[event.toolName]
+              if (content) {
+                // The content joins when the result arrives, after the flush, so the text before the call stays in front of it.
+                const flushed = parser.flush().catch(() => undefined)
+                contentCalls.set(event.toolCallId, { content, args: event.args, flushed })
+                openContentCalls.add(event.toolCallId)
+                buildingMessage.pendingContent = content.kind
+                updateStream(sessionId, buildingMessage)
+                break
+              }
+              // The flush covers only preceding text. A call stays pending until its slice joins, including during interruption.
+              const call: ChatSlicesToolCall = { type: 'tool-call', toolCall: event }
+              pendingSlices.add(call)
+              const enqueue = () => {
+                if (pendingSlices.has(call))
+                  toolCallQueue.enqueue(call)
+              }
+              void parser.flush().then(enqueue, enqueue)
+              break
+            }
+            case 'tool-result': {
+              const contentCall = contentCalls.get(event.toolCallId)
+              if (contentCall) {
+                contentCalls.delete(event.toolCallId)
+                openContentCalls.delete(event.toolCallId)
+                // The content joins after the flush, so the text before the call stays in front of it. Until then it is
+                // pending, so an interrupted turn keeps it.
+                const slices = contentCall.content.contentOf(contentCall.args, event.result)
+                slices.forEach(slice => pendingSlices.add(slice))
+                void contentCall.flushed.then(() => slices.forEach((slice) => {
+                  if (pendingSlices.has(slice))
+                    toolCallQueue.enqueue(slice)
+                }))
+                break
+              }
               toolCallQueue.enqueue({
                 type: 'tool-call-result',
                 id: event.toolCallId,
@@ -973,7 +1205,12 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
               })
 
               break
+            }
             case 'tool-error':
+              // A failed content call adds nothing. The model reads the error and tries again or writes on.
+              openContentCalls.delete(event.toolCallId)
+              if (contentCalls.delete(event.toolCallId))
+                break
               toolCallQueue.enqueue({
                 type: 'tool-call-result',
                 id: event.toolCallId,
@@ -1042,9 +1279,16 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         console.error('Assistant response observer failed:', error)
       }
 
-      if (!shouldAbort() && (buildingMessage.slices.length > 0 || generatedTurn?.rounds.length)) {
+      // A notice lets the conversation stay quiet. Only rendered text, stickers, cards, and tool calls count as a reply.
+      const hasVisibleReply = buildingMessage.slices.some(slice => slice.type === 'sticker'
+        || slice.type === 'card'
+        || slice.type === 'tool-call'
+        || (slice.type === 'text' && Boolean(slice.text.trim())))
+      const silent = Boolean(options.notice) && !hasVisibleReply
+      if (!silent && !shouldAbort() && (buildingMessage.slices.length > 0 || generatedTurn?.rounds.length)) {
         const finalAssistant = buildingMessage
-        deps.session.appendSessionMessage(sessionId, finalAssistant)
+        finalAssistant.completedAt = now()
+        await deps.session.commitAssistantMessage(sessionId, { ...finalAssistant, id: assistantMessageId })
         assistantStored = true
         deps.onAssistantMessageAppended?.({
           sessionId,
@@ -1066,7 +1310,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       await hooks.emitAfterSendHooks(sendingMessage, streamingMessageContext)
       if (shouldAbort())
         return
-      await hooks.emitAssistantMessageHooks({ ...buildingMessage }, fullText, streamingMessageContext)
+      if (!silent)
+        await hooks.emitAssistantMessageHooks({ ...buildingMessage }, fullText, streamingMessageContext)
       if (shouldAbort())
         return
       await hooks.emitChatTurnCompleteHooks({
@@ -1109,11 +1354,12 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       if (shouldAbort())
         return
       failed = true
+      preservePendingSlices()
 
       if (!assistantStored && !generationCompleted && hasAssistantOutput(buildingMessage)) {
         // Keep received output local, but do not run completion hooks or cloud
         // sync for an assistant turn that never reached a terminal event.
-        deps.session.appendSessionMessage(sessionId, { ...cloneStreamingMessage(buildingMessage), interrupted: true })
+        await storeInterruptedAssistant()
       }
       resetForegroundStream(sessionId)
 
@@ -1139,12 +1385,16 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       throw error
     }
     finally {
+      if (abortSignal.aborted && !isStaleGeneration())
+        preservePendingSlices()
+      // A late flush cannot enqueue calls or content after this turn ends, including when its session no longer exists.
+      pendingSlices.clear()
       if (!assistantStored
         && !generationCompleted
         && abortSignal.aborted
         && !isStaleGeneration()
         && hasAssistantOutput(buildingMessage)) {
-        deps.session.appendSessionMessage(sessionId, { ...cloneStreamingMessage(buildingMessage), interrupted: true })
+        await storeInterruptedAssistant()
         resetForegroundStream(sessionId)
       }
       activeSends.delete(sessionId)
@@ -1247,6 +1497,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   }
 
   function cancelPendingSends(sessionId?: string) {
+    if (sessionId)
+      historyCuts.delete(sessionId)
+    else
+      historyCuts.clear()
+
     for (const [activeSessionId, active] of activeSends) {
       if (!sessionId || sessionId === activeSessionId)
         active.controller.abort(new Error('Chat session send was cancelled'))

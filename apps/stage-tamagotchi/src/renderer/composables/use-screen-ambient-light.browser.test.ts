@@ -26,6 +26,7 @@ const offeredSources = vi.hoisted(() => ({ list: [] as { id: string, display_id:
 // The returned functions run at composable setup, after the consts above
 // exist; the factory itself runs before them and must not touch them.
 vi.mock('@proj-airi/electron-vueuse', () => ({
+  getElectronEventaContext: () => ({}),
   useElectronAllDisplays: () => displayList,
   useElectronWindowBounds: () => bounds,
 }))

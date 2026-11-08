@@ -11,6 +11,7 @@ public partial class SettingsWindow : Window
     private WebViewPermissionHandler? _permissions;
     private IDisposable? _authRegistration;
     private IDisposable? _microphonePermissionRegistration;
+    private Action? _detachWidgets;
     private IDisposable? _developerToolsRegistration;
     private IDisposable? _spotlightShortcutRegistration;
     private IDisposable? _settingsReadyRegistration;
@@ -28,7 +29,8 @@ public partial class SettingsWindow : Window
         AuthService auth,
         MicrophonePermissionService microphonePermissions,
         DeveloperToolsService developerTools,
-        SpotlightHost spotlight)
+        SpotlightHost spotlight,
+        WidgetWindowManager widgets)
     {
         if (!IsInsideTree())
         {
@@ -50,6 +52,7 @@ public partial class SettingsWindow : Window
 
         _eventa = _kirie.CreateEventaContext(registry);
         _platform = GdKiriePlatform.Attach(_eventa.Context, this);
+        _detachWidgets = widgets.Attach(_eventa.Context);
         _authRegistration = auth.Attach(_eventa.Context);
         _microphonePermissionRegistration = microphonePermissions.Attach(_eventa.Context);
         _developerToolsRegistration = developerTools.Attach(_eventa.Context);
@@ -104,6 +107,7 @@ public partial class SettingsWindow : Window
         _developerToolsRegistration?.Dispose();
         _microphonePermissionRegistration?.Dispose();
         _authRegistration?.Dispose();
+        _detachWidgets?.Invoke();
         _permissions?.Dispose();
         _platform?.Dispose();
         _eventa?.Dispose();

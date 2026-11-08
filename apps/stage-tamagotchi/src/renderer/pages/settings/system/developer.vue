@@ -1,31 +1,48 @@
 <script setup lang="ts">
-import type { IOTraceRecordingState } from '@proj-airi/stage-shared/types/io-trace'
+import type { IOTraceHubState, IOTraceRecordingState } from '@proj-airi/stage-shared/types/io-trace'
 
 import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { ButtonBar, CheckBar, IconItem } from '@proj-airi/stage-ui/components'
-import { useSettings } from '@proj-airi/stage-ui/stores/settings'
+import { useSettings, useSettingsDeveloper } from '@proj-airi/stage-ui/stores/settings'
+import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
-import { electronOpenDevtoolsWindow, electronOpenEditor, electronOpenMainDevtools, ioTraceRecordingChanged, ioTraceRecordingGet, ioTraceRecordingSetEnabled } from '../../../../shared/eventa'
+import { electronOpenDevtoolsWindow, electronOpenEditor, electronOpenMainDevtools, ioTraceHubGet, ioTraceHubSetCollecting, ioTraceRecordingChanged, ioTraceRecordingGet, ioTraceRecordingSetEnabled } from '../../../../shared/eventa'
 
 const { t } = useI18n()
 const settings = useSettings()
+const { showToolPayloadsAsJson } = storeToRefs(useSettingsDeveloper())
 const router = useRouter()
 const eventaContext = useElectronEventaContext()
 const getIOTraceRecording = useElectronEventaInvoke(ioTraceRecordingGet)
 const setIOTraceRecordingEnabled = useElectronEventaInvoke(ioTraceRecordingSetEnabled)
 const ioTraceRecording = ref<IOTraceRecordingState>()
 const ioTraceRecordingBusy = ref(false)
+const getIOTraceHub = useElectronEventaInvoke(ioTraceHubGet)
+const setIOTraceHubCollecting = useElectronEventaInvoke(ioTraceHubSetCollecting)
+const ioTraceHub = ref<IOTraceHubState>()
+const ioTraceHubBusy = ref(false)
 
 const stopIOTraceRecordingListener = eventaContext.value.on(ioTraceRecordingChanged, (event) => {
   ioTraceRecording.value = event.body
 })
 onMounted(async () => {
   ioTraceRecording.value = await getIOTraceRecording()
+  ioTraceHub.value = await getIOTraceHub()
 })
 onUnmounted(stopIOTraceRecordingListener)
+
+async function updateIOTraceHubCollecting(collecting: boolean | undefined) {
+  ioTraceHubBusy.value = true
+  try {
+    ioTraceHub.value = await setIOTraceHubCollecting({ collecting: collecting === true })
+  }
+  finally {
+    ioTraceHubBusy.value = false
+  }
+}
 
 async function updateIOTraceRecording(enabled: boolean | undefined) {
   ioTraceRecordingBusy.value = true
@@ -140,6 +157,12 @@ const menu = computed(() => [
     icon: 'i-solar:chat-line-line-duotone',
     to: '/devtools/presence-bubble',
   },
+  {
+    title: t('settings.pages.system.sections.section.developer.sections.section.needs-attention.title'),
+    description: t('settings.pages.system.sections.section.developer.sections.section.needs-attention.description'),
+    icon: 'i-solar:shield-check-bold-duotone',
+    to: '/devtools/needs-attention',
+  },
 ])
 
 const openDevTools = useElectronEventaInvoke(electronOpenMainDevtools)
@@ -183,6 +206,17 @@ const openEditor = useElectronEventaInvoke(electronOpenEditor)
     {{ t('tamagotchi.settings.devtools.pages.io-tracer.title') }}
   </ButtonBar>
   <CheckBar
+    :model-value="ioTraceHub?.collecting ?? false"
+    :disabled="ioTraceHub === undefined || ioTraceHubBusy"
+    :class="['mb-2']"
+    icon-on="i-solar:history-bold-duotone"
+    icon-off="i-solar:history-line-duotone"
+    text="tamagotchi.settings.devtools.pages.io-tracer.collection.title"
+    description="tamagotchi.settings.devtools.pages.io-tracer.collection.description"
+    transition="all ease-in-out duration-250"
+    @update:model-value="updateIOTraceHubCollecting"
+  />
+  <CheckBar
     :model-value="ioTraceRecording?.enabled ?? false"
     :disabled="ioTraceRecording === undefined || ioTraceRecordingBusy"
     :class="['mb-2']"
@@ -212,6 +246,12 @@ const openEditor = useElectronEventaInvoke(electronOpenEditor)
     text="settings.animations.use-page-specific-transitions.title"
     description="settings.animations.use-page-specific-transitions.description"
     :class="['transition-all duration-250 ease-in-out']"
+  />
+  <CheckBar
+    v-model="showToolPayloadsAsJson"
+    text="settings.pages.system.sections.section.developer.sections.section.tool-payloads-as-json.title"
+    description="settings.pages.system.sections.section.developer.sections.section.tool-payloads-as-json.description"
+    :class="['mt-2', 'transition-all duration-250 ease-in-out']"
   />
   <div :class="['flex flex-col gap-4', 'mt-2 pb-12']">
     <IconItem

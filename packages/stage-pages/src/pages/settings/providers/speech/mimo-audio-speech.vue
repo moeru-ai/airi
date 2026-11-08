@@ -1,16 +1,12 @@
 <script setup lang="ts">
 import type { SpeechProvider } from '@xsai-ext/providers/utils'
 
-import {
-  Alert,
-  SpeechPlayground,
-  SpeechProviderSettings,
-} from '@proj-airi/stage-ui/components'
+import { SpeechPlayground, SpeechProviderSettings } from '@proj-airi/stage-ui/components'
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
-import { FieldCombobox, FieldTextArea } from '@proj-airi/ui'
+import { Alert, Button, FieldCombobox, FieldTextArea } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -204,42 +200,45 @@ const {
     </template>
 
     <template #advanced-settings>
-      <Alert type="info">
-        <template #title>
-          MiMo model behavior
-        </template>
-        <template #content>
-          <div class="whitespace-pre-wrap break-words text-sm space-y-1">
-            <div>`mimo-v2.5-tts` uses the preset voice list below.</div>
-            <div>`mimo-v2.5-tts-voicedesign` uses the style prompt to design a new voice and does not accept `audio.voice`.</div>
-            <div>`mimo-v2.5-tts-voiceclone` uses the pasted voice sample and ignores the preset voice selector.</div>
-          </div>
+      <Alert tone="info" :title="t('settings.pages.providers.provider.mimo.model-behavior.title')">
+        <ul>
+          <li>
+            <i18n-t keypath="settings.pages.providers.provider.mimo.model-behavior.preset" scope="global">
+              <template #model>
+                <code>mimo-v2.5-tts</code>
+              </template>
+            </i18n-t>
+          </li>
+          <li>
+            <i18n-t keypath="settings.pages.providers.provider.mimo.model-behavior.voice-design" scope="global">
+              <template #model>
+                <code>mimo-v2.5-tts-voicedesign</code>
+              </template>
+              <template #field>
+                <code>audio.voice</code>
+              </template>
+            </i18n-t>
+          </li>
+          <li>
+            <i18n-t keypath="settings.pages.providers.provider.mimo.model-behavior.voice-clone" scope="global">
+              <template #model>
+                <code>mimo-v2.5-tts-voiceclone</code>
+              </template>
+            </i18n-t>
+          </li>
+        </ul>
+      </Alert>
+      <Alert v-if="!isValid && isValidating === 0 && validationMessage" tone="danger" :title="t('settings.dialogs.onboarding.validationFailed')">
+        <div :class="['whitespace-pre-wrap break-all']">
+          {{ validationMessage }}
+        </div>
+        <template #actions>
+          <Button size="sm" color="red" @click="forceValid">
+            {{ t('settings.pages.providers.common.continueAnyway') }}
+          </Button>
         </template>
       </Alert>
-      <Alert v-if="!isValid && isValidating === 0 && validationMessage" type="error">
-        <template #title>
-          <div class="w-full flex items-center justify-between">
-            <span>{{ t('settings.dialogs.onboarding.validationFailed') }}</span>
-            <button
-              type="button"
-              class="ml-2 rounded bg-red-100 px-2 py-0.5 text-xs text-red-600 font-medium transition-colors dark:bg-red-800/30 hover:bg-red-200 dark:text-red-300 dark:hover:bg-red-700/40"
-              @click="forceValid"
-            >
-              {{ t('settings.pages.providers.common.continueAnyway') }}
-            </button>
-          </div>
-        </template>
-        <template v-if="validationMessage" #content>
-          <div class="whitespace-pre-wrap break-all">
-            {{ validationMessage }}
-          </div>
-        </template>
-      </Alert>
-      <Alert v-if="isValid && isValidating === 0" type="success">
-        <template #title>
-          {{ t('settings.dialogs.onboarding.validationSuccess') }}
-        </template>
-      </Alert>
+      <Alert v-if="isValid && isValidating === 0" tone="success" :title="t('settings.dialogs.onboarding.validationSuccess')" />
     </template>
   </SpeechProviderSettings>
 </template>

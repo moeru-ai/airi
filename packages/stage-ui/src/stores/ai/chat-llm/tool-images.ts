@@ -20,6 +20,28 @@ const mcpResultSchema = v.looseObject({
   content: v.array(v.unknown()),
 })
 
+const DESCRIPTION_START = '[Image description from the vision model]'
+const DESCRIPTION_END = '[End image description]'
+const DESCRIPTION_FAILED = 'The vision model failed to read this image.'
+
+/**
+ * Reads the text part that replaced a tool image.
+ *
+ * Returns the description, `{ failed: true }` when the vision model could not read the image,
+ * and `undefined` for any other text.
+ *
+ * @example
+ * parseToolImageDescription('[Image description from the vision model]\nA desktop.\n[End image description]')
+ * // => { description: 'A desktop.' }
+ */
+export function parseToolImageDescription(text: string): { description: string } | { failed: true } | undefined {
+  if (text === DESCRIPTION_FAILED)
+    return { failed: true }
+  if (text.startsWith(`${DESCRIPTION_START}\n`) && text.endsWith(`\n${DESCRIPTION_END}`))
+    return { description: text.slice(DESCRIPTION_START.length + 1, -(DESCRIPTION_END.length + 1)) }
+  return undefined
+}
+
 /** Replaces one image part with its description. A text part replaces an unreadable image. */
 async function describePart(part: unknown, describe: DescribeToolImage, abortSignal?: AbortSignal): Promise<unknown> {
   let imageUrl: string
@@ -43,8 +65,8 @@ async function describePart(part: unknown, describe: DescribeToolImage, abortSig
   return {
     type: 'text',
     text: description
-      ? `[Image description from the vision model]\n${description}\n[End image description]`
-      : 'The vision model failed to read this image.',
+      ? `${DESCRIPTION_START}\n${description}\n${DESCRIPTION_END}`
+      : DESCRIPTION_FAILED,
   }
 }
 

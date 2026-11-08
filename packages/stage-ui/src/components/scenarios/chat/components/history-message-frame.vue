@@ -11,7 +11,10 @@ const props = withDefaults(defineProps<{
   scrollContainer?: HTMLElement | null
   variant?: 'desktop' | 'mobile'
   replyEnabled?: boolean
+  /** `true` fades the message out and then hides it, without changing the layout. A hidden message takes no pointer. */
+  expired?: boolean
 }>(), {
+  expired: false,
   replyEnabled: false,
   scrollContainer: null,
   variant: 'desktop',
@@ -34,6 +37,14 @@ const isVisible = useElementVisibility(messageRef, {
   scrollTarget,
 })
 
+// An expired message stays mounted, so its place in the layout never changes.
+const visibilityClass = computed(() => {
+  if (props.expired)
+    return 'invisible opacity-0'
+
+  return isVisible.value ? 'chat-message-item-visible opacity-100' : 'opacity-0'
+})
+
 const { trigger: triggerHaptic } = useWebHaptics()
 
 function getReplyIconStyle(swipe: SwipeableSlotProps) {
@@ -53,8 +64,9 @@ function getReplyIconStyle(swipe: SwipeableSlotProps) {
     ref="message"
     :class="[
       'chat-message-item relative',
-      'transition-opacity duration-200 ease-out motion-reduce:transition-none',
-      isVisible ? 'chat-message-item-visible opacity-100' : 'opacity-0',
+      // Visibility follows the fade, so an expired message hides only after it faded out.
+      'transition-[opacity,visibility] duration-200 ease-out motion-reduce:transition-none',
+      visibilityClass,
       variant === 'mobile' ? 'pb-1' : 'pb-2',
     ]"
   >

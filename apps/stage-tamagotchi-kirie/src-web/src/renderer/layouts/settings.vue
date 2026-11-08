@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { PageHeader } from '@proj-airi/stage-ui/components'
+import { useSettingsSearchReveal } from '@proj-airi/stage-ui/composables/use-settings-search'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -15,6 +16,9 @@ const { t } = useI18n()
 const providersStore = useProviderStore()
 const scrollContainer = ref<HTMLElement>()
 useRestoreScroll(scrollContainer)
+// A search result opens its page with the setting in the query. Scroll to that row and highlight it.
+// This watcher comes after the scroll restore, so it scrolls on from the restored position.
+useSettingsSearchReveal(scrollContainer)
 
 const routeMeta = computed(() => route.meta as {
   titleKey?: string
@@ -61,7 +65,7 @@ const routeHeaderMetadata = computed(() => {
 </script>
 
 <template>
-  <div h-full w-full bg="$bg-color" flex="~ col">
+  <div :class="['h-full w-full', 'flex flex-col', 'bg-$bg-color']">
     <WindowTitleBar :title="routeHeaderMetadata?.title ?? ''" icon="i-solar:settings-bold" />
     <div
       :style="{
@@ -70,20 +74,19 @@ const routeHeaderMetadata = computed(() => {
         paddingRight: 'env(safe-area-inset-right, 0px)',
         paddingLeft: 'env(safe-area-inset-left, 0px)',
       }"
-
-      min-h-0 flex-1
+      :class="['min-h-0 flex-1', 'flex flex-col']"
     >
-      <div ref="scrollContainer" relative h-full w-full overflow-y-auto scrollbar-none>
-        <div flex="~ col" mx-auto h-full max-w-screen-xl>
-          <PageHeader
-            :title="routeHeaderMetadata?.title ?? ''"
-            :subtitle="routeHeaderMetadata?.subtitle ?? ''"
-            :disable-back-button="isStageTamagotchi() && route.path === '/settings'"
-            px-4
-          />
-          <div min-h-0 flex-1 px-4>
-            <RouterView />
-          </div>
+      <!-- The header stays above the scroll container, as in the shared settings layout. -->
+      <!-- A sticky part of a page, such as the settings search, then sticks right below it. -->
+      <PageHeader
+        :title="routeHeaderMetadata?.title ?? ''"
+        :subtitle="routeHeaderMetadata?.subtitle ?? ''"
+        :disable-back-button="isStageTamagotchi() && route.path === '/settings'"
+        :class="['mx-auto max-w-screen-xl', 'px-4']"
+      />
+      <div ref="scrollContainer" :class="['relative min-h-0 w-full flex-1', 'overflow-y-auto scrollbar-none']">
+        <div :class="['mx-auto h-full max-w-screen-xl', 'px-4']">
+          <RouterView />
         </div>
       </div>
     </div>

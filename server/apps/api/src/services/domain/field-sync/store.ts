@@ -5,9 +5,8 @@ import type { FieldSyncTables } from './tables'
 import { Buffer } from 'node:buffer'
 import { isDeepStrictEqual } from 'node:util'
 
+import { createConflictError, createPayloadTooLargeError } from '@proj-airi/http-error-shared'
 import { and, desc, eq, getTableName, inArray, isNotNull, isNull, lt, lte, or, sql } from 'drizzle-orm'
-
-import { createConflictError, createPayloadTooLargeError } from '../../../utils/error'
 
 type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0]
 

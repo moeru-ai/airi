@@ -153,11 +153,8 @@ describe('useLinkedAccounts link dispatch', () => {
       error: null,
     }))
 
-    // Separate composable instances: a successful link without a redirect
-    // URL leaves `inFlight` set (the row refreshes in place), so a second
-    // link call on the same instance would be a no-op.
-    const steamHolder = await mountLinkedAccounts(fakeLinkedAccountsClient({ linkSteam }))
-    await steamHolder.link('steam', 'Steam')
+    const holder = await mountLinkedAccounts(fakeLinkedAccountsClient({ linkSocial, linkSteam }))
+    await holder.link('steam', 'Steam')
     expect(linkSteam).toHaveBeenCalledTimes(1)
     expect(linkSteam).toHaveBeenCalledWith({
       callbackURL: 'https://accounts.airi.build/ui/profile',
@@ -165,8 +162,7 @@ describe('useLinkedAccounts link dispatch', () => {
     })
     expect(linkSocial).not.toHaveBeenCalled()
 
-    const socialHolder = await mountLinkedAccounts(fakeLinkedAccountsClient({ linkSocial }))
-    await socialHolder.link('google', 'Google')
+    await holder.link('google', 'Google')
     expect(linkSocial).toHaveBeenCalledTimes(1)
     expect(linkSocial).toHaveBeenCalledWith({
       provider: 'google',
@@ -174,6 +170,35 @@ describe('useLinkedAccounts link dispatch', () => {
       errorCallbackURL: 'https://accounts.airi.build/ui/profile',
     })
     expect(linkSteam).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('useLinkedAccounts pending state', () => {
+  // Reported for stage-tamagotchi: the settings row keeps spinning after the
+  // system browser completes the link.
+  //
+  // ROOT CAUSE:
+  //
+  // `link` cleared `inFlight` on failure only, so a successful link without a
+  // redirect URL left the row busy for good. We fixed this by clearing
+  // `inFlight` in a `finally`.
+  it('clears the pending state when the provider links without a redirect', async () => {
+    const holder = await mountLinkedAccounts(fakeLinkedAccountsClient())
+
+    await holder.link('google', 'Google')
+
+    expect(holder.inFlight.value).toBeNull()
+  })
+
+  it('clears the pending state when the server reports a link failure', async () => {
+    const holder = await mountLinkedAccounts(fakeLinkedAccountsClient({
+      linkSocial: vi.fn(async () => ({ data: null, error: { message: 'nope' } })),
+    }))
+
+    await holder.link('google', 'Google')
+
+    expect(holder.error.value).toBe('link failed')
+    expect(holder.inFlight.value).toBeNull()
   })
 })
 

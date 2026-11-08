@@ -58,6 +58,7 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
   const ids = ['stream-context', 'assistant-id', 'user-id', 'fallback-id']
   let nextId = 0
   let systemPromptSupplement: string | undefined
+  let contextWindow = -1
   let nowValue = new Date(2026, 3, 25, 18, 47).getTime()
   let monotonicNowValues = [1000]
   let generation = 1
@@ -73,11 +74,8 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
   const runtime = createChatOrchestratorRuntime({
     session: {
       commitUserMessage,
-      ensureSession: (sessionId) => {
-        sessionMessages[sessionId] ??= []
-      },
       getSessionMessages: sessionId => sessionMessages[sessionId] ?? [],
-      appendSessionMessage: (sessionId, message) => {
+      commitAssistantMessage: async (sessionId, message) => {
         sessionMessages[sessionId] ??= []
         sessionMessages[sessionId].push(message)
       },
@@ -97,6 +95,7 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
     getActiveSessionId: () => 'session-1',
     getActiveProvider,
     getSystemPromptSupplement: () => systemPromptSupplement,
+    getContextWindow: () => contextWindow,
     now: () => nowValue,
     monotonicNow: () => monotonicNowValues.shift() ?? 1000,
     createId: () => ids.shift() ?? `generated-${nextId++}`,
@@ -135,6 +134,11 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
     },
     assistantTurns,
     contextSnapshot,
+    contextWindow: {
+      set: (next: number) => {
+        contextWindow = next
+      },
+    },
     foregroundPatches,
     foregroundResets,
     generation: {
@@ -170,6 +174,485 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
 }
 
 describe('createChatOrchestratorRuntime', () => {
+  // https://github.com/moeru-ai/airi/pull/3289#pullrequestreview-5731937285
+  // ROOT CAUSE:
+  // Message counts and rounded-down retention split turns and discarded recent replies in small windows.
+  // Count user/assistant groups as turns and round 90 percent retention up.
+  it.each([
+    [0, [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]],
+    [-1, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]],
+    [1, [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]],
+    [2, [1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]],
+    [3, [1, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3]],
+    [5, [1, 2, 3, 4, 5, 5, 5, 5, 5, 5, 5, 5]],
+    [10, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 9, 10]],
+    [11, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 10]],
+  ])('retains whole turns across twelve sends at limit %i (PR #3289)', async (limit, expected) => {
+    const harness = createHarness()
+    harness.contextWindow.set(limit)
+    for (let index = 0; index < 12; index++)
+      await harness.runtime.ingest(`input-${index}`, { model: 'gpt-test', chatProvider: provider })
+
+    const requests = harness.stream.mock.calls.map(call => call[2].turns.filter(turn => turn.type !== 'system'))
+    expect(requests.map(turns => turns.filter(turn => turn.type === 'user').length)).toEqual(expected)
+    for (const [index, turns] of requests.entries()) {
+      expect(turns.map(turn => turn.type)).toEqual([
+        ...Array.from({ length: expected[index]! - 1 }, () => ['user', 'assistant']).flat(),
+        'user',
+      ])
+      expect(JSON.stringify(turns.at(-1))).toContain(`input-${index}`)
+    }
+    expect(harness.sessionMessages['session-1']).toHaveLength(25)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/3289#pullrequestreview-5731937285
+  // ROOT CAUSE:
+  // Deletions join messages with the same role. A message offset can split the resulting group.
+  // Find whole user groups and keep their assistant and tool messages together.
+  it.each(['user', 'assistant'] as const)('keeps consecutive %s messages together after deletion (PR #3289)', async (role) => {
+    const harness = createHarness()
+    harness.contextWindow.set(3)
+    for (let index = 0; index < 4; index++)
+      await harness.runtime.ingest(`input-${index}`, { model: 'gpt-test', chatProvider: provider })
+
+    const messages = harness.sessionMessages['session-1']
+    const deletedIndex = role === 'user' ? 4 : 5
+    messages.splice(deletedIndex, 1)
+    await harness.runtime.ingest('after deletion', { model: 'gpt-test', chatProvider: provider })
+
+    const request = harness.stream.mock.calls[4]![2]
+    const types = request.turns.map(turn => turn.type)
+    expect(types).toEqual(role === 'user'
+      ? ['system', 'user', 'user', 'assistant', 'user', 'assistant', 'user']
+      : ['system', 'user', 'assistant', 'assistant', 'user', 'assistant', 'user'])
+    expect(JSON.stringify(request)).toContain('input-1')
+    expect(JSON.stringify(request)).not.toContain('input-0')
+  })
+
+  it('expands the cached boundary when deletion joins its user group to an earlier user message', async () => {
+    const harness = createHarness()
+    harness.contextWindow.set(10)
+    for (let index = 0; index < 11; index++)
+      await harness.runtime.ingest(`input-${index}`, { model: 'gpt-test', chatProvider: provider })
+
+    const messages = harness.sessionMessages['session-1']
+    const joinedUser = messages[3]!
+    expect(harness.stream.mock.calls[10]![2].turns.map(turn => turn.id)).not.toContain(`${joinedUser.id}-0`)
+    messages.splice(4, 1)
+    await harness.runtime.ingest('after deletion', { model: 'gpt-test', chatProvider: provider })
+
+    const turns = harness.stream.mock.calls[11]![2].turns
+    expect(turns[1]?.id).toBe(`${joinedUser.id}-0`)
+    expect(turns.slice(1, 4).map(turn => turn.type)).toEqual(['user', 'user', 'assistant'])
+    expect(turns.filter(turn => turn.type === 'assistant')).toHaveLength(9)
+    expect(JSON.stringify(turns)).not.toContain('input-0')
+  })
+
+  it('keeps consecutive current inputs in one turn after the last reply is deleted', async () => {
+    const harness = createHarness()
+    harness.contextWindow.set(2)
+    await harness.runtime.ingest('first input', { model: 'gpt-test', chatProvider: provider })
+    await harness.runtime.ingest('second input', { model: 'gpt-test', chatProvider: provider })
+    harness.sessionMessages['session-1'].pop()
+    await harness.runtime.ingest('third input', { model: 'gpt-test', chatProvider: provider })
+
+    const turns = harness.stream.mock.calls[2]![2].turns
+    expect(turns.map(turn => turn.type)).toEqual(['system', 'user', 'assistant', 'user', 'user'])
+    expect(JSON.stringify(turns)).toContain('first input')
+    expect(JSON.stringify(turns)).toContain('second input')
+    expect(JSON.stringify(turns)).toContain('third input')
+  })
+
+  it('keeps the newest 90 percent of turns when a card context window is exceeded', async () => {
+    const harness = createHarness()
+    harness.contextWindow.set(10)
+    for (let index = 0; index < 20; index++) {
+      if (index % 2 === 0) {
+        harness.sessionMessages['session-1'].push({ role: 'user', content: `history-${index}`, id: `history-${index}` })
+      }
+      else {
+        harness.sessionMessages['session-1'].push({ role: 'assistant', content: `history-${index}`, id: `history-${index}`, slices: [], tool_results: [] })
+      }
+    }
+
+    await harness.runtime.ingest('latest message', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    const turns = harness.stream.mock.calls[0]![2].turns
+    expect(turns.filter(turn => turn.type !== 'system')).toHaveLength(17)
+    expect(turns[0]?.type).toBe('system')
+    expect(turns[1]?.type).toBe('user')
+    expect(turns.at(-1)?.type).toBe('user')
+    expect(JSON.stringify(turns)).toContain('latest message')
+    expect(JSON.stringify(turns)).not.toContain('history-0')
+  })
+
+  it('holds the history prefix until the retained turns exceed the limit again', async () => {
+    const harness = createHarness()
+    harness.contextWindow.set(20)
+    for (let index = 0; index < 40; index++) {
+      harness.sessionMessages['session-1'].push(index % 2 === 0
+        ? { role: 'user', content: `history-${index}`, id: `history-${index}` }
+        : { role: 'assistant', content: `history-${index}`, id: `history-${index}`, slices: [], tool_results: [] })
+    }
+    const originalIds = harness.sessionMessages['session-1'].map(message => message.id)
+    for (let index = 0; index < 4; index++)
+      await harness.runtime.ingest(`new-${index}`, { model: 'gpt-test', chatProvider: provider })
+
+    const requests = harness.stream.mock.calls.map(call => call[2].turns.filter(turn => turn.type !== 'system'))
+    expect(requests.map(turns => turns.length)).toEqual([35, 37, 39, 35])
+    expect(requests[0]?.[0]?.id).toBe('history-6-0')
+    expect(requests[1]?.slice(0, 35)).toEqual(requests[0])
+    expect(requests[2]?.slice(0, 35)).toEqual(requests[0])
+    expect(requests[3]?.[0]?.id).toBe('history-12-0')
+    expect(harness.sessionMessages['session-1'].slice(0, originalIds.length).map(message => message.id)).toEqual(originalIds)
+  })
+
+  it('skips assistant and tool messages at the cut and preserves complete later tool exchanges', async () => {
+    const harness = createHarness()
+    harness.contextWindow.set(2)
+    harness.sessionMessages['session-1'].push(
+      { role: 'user', content: 'old user', id: 'old-user' },
+      { role: 'assistant', content: '', id: 'old-call', slices: [], tool_results: [], tool_calls: [{ id: 'old-tool', type: 'function', function: { name: 'weather', arguments: '{}' } }] },
+      { role: 'tool', content: 'old result', tool_call_id: 'old-tool', id: 'old-result' },
+      { role: 'user', content: 'kept user', id: 'kept-user' },
+      {
+        role: 'assistant',
+        content: 'weather reply',
+        id: 'kept-call',
+        slices: [],
+        tool_results: [],
+        providerTranscript: [
+          { role: 'assistant', content: '', tool_calls: [{ id: 'kept-tool', type: 'function', function: { name: 'weather', arguments: '{}' } }] },
+          { role: 'tool', content: 'kept result', tool_call_id: 'kept-tool' },
+          { role: 'assistant', content: 'weather reply' },
+        ],
+      },
+    )
+    await harness.runtime.ingest('latest', { model: 'gpt-test', chatProvider: provider })
+
+    const request = harness.stream.mock.calls[0]![2]
+    expect(request.turns[0]?.type).toBe('system')
+    expect(request.turns[1]?.id).toBe('kept-user-0')
+    expect(JSON.stringify(request)).not.toContain('old-tool')
+    expect(JSON.stringify(request)).toContain('kept-tool')
+    expect(JSON.stringify(request)).toContain('kept result')
+  })
+
+  it('sends only the system prompt and current input when the limit is zero', async () => {
+    const harness = createHarness()
+    harness.contextWindow.set(0)
+    await harness.runtime.ingest('old input', { model: 'gpt-test', chatProvider: provider })
+    await harness.runtime.ingest('current input', { model: 'gpt-test', chatProvider: provider })
+
+    const request = harness.stream.mock.calls[1]![2]
+    expect(request.turns.map(turn => turn.type)).toEqual(['system', 'user'])
+    expect(JSON.stringify(request)).toContain('current input')
+    expect(JSON.stringify(request)).not.toContain('old input')
+  })
+
+  it('isolates history cuts by session and resets them when the limit changes', async () => {
+    const harness = createHarness()
+    harness.contextWindow.set(2)
+    for (let index = 0; index < 3; index++)
+      await harness.runtime.ingest(`first-${index}`, { model: 'gpt-test', chatProvider: provider })
+    await harness.runtime.ingest('second session', { model: 'gpt-test', chatProvider: provider }, 'session-2')
+    expect(JSON.stringify(harness.stream.mock.calls[3]![2])).toContain('second session')
+    expect(JSON.stringify(harness.stream.mock.calls[3]![2])).not.toContain('first-')
+
+    harness.contextWindow.set(20)
+    await harness.runtime.ingest('larger limit', { model: 'gpt-test', chatProvider: provider })
+    expect(JSON.stringify(harness.stream.mock.calls[4]![2])).toContain('first-0')
+    harness.contextWindow.set(-1)
+    await harness.runtime.ingest('all history', { model: 'gpt-test', chatProvider: provider })
+    expect(JSON.stringify(harness.stream.mock.calls[5]![2])).toContain('first-0')
+  })
+
+  it('recomputes the cut after the retained start is removed from history', async () => {
+    const harness = createHarness()
+    harness.contextWindow.set(2)
+    for (let index = 0; index < 3; index++)
+      await harness.runtime.ingest(`old-${index}`, { model: 'gpt-test', chatProvider: provider })
+    harness.sessionMessages['session-1'] = [{ role: 'user', content: 'replacement', id: 'replacement' }]
+    await harness.runtime.ingest('new input', { model: 'gpt-test', chatProvider: provider })
+    expect(harness.stream.mock.calls[3]![2].turns[0]?.id).toBe('replacement-0')
+  })
+
+  it.each(['generation', 'cancellation'] as const)('resets the cut on session %s', async (reset) => {
+    const harness = createHarness()
+    harness.contextWindow.set(10)
+    for (let index = 0; index < 11; index++)
+      await harness.runtime.ingest(`old-${index}`, { model: 'gpt-test', chatProvider: provider })
+    // Retain the anchor but shorten the conversation, as when history is edited or restored.
+    harness.sessionMessages['session-1'] = harness.sessionMessages['session-1'].slice(0, 7)
+    if (reset === 'generation')
+      harness.generation.set(2)
+    else
+      harness.runtime.cancelPendingSends('session-1')
+    await harness.runtime.ingest('after reset', { model: 'gpt-test', chatProvider: provider })
+    expect(JSON.stringify(harness.stream.mock.calls[11]![2])).toContain('old-0')
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2899
+  // ROOT CAUSE:
+  //
+  // The marker parser can emit whitespace as a separate literal.
+  // The speechOnly.trim() check discarded it before history, slices, and hooks received it.
+  //
+  // We keep every non-empty speech literal so delta boundaries do not remove whitespace.
+  it.each([
+    ['spaces', 'Hello world again'],
+    ['paragraph breaks', 'First paragraph\n\nSecond paragraph'],
+    ['indentation', 'Example:\n\t  code line\nDone'],
+    ['leading and trailing spaces', '  Hello world  '],
+  ])('preserves %s across stream delta boundaries (Issue #2899)', async (_name, text) => {
+    for (const deltas of [[text], Array.from(text)]) {
+      const harness = createHarness()
+      const literals: string[] = []
+      harness.runtime.hooks.onTokenLiteral(async (literal) => {
+        literals.push(literal)
+      })
+      harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+        for (const delta of deltas)
+          await options?.onStreamEvent?.({ type: 'text-delta', text: delta })
+        await options?.onStreamEvent?.({ type: 'finish' })
+      })
+
+      await harness.runtime.ingest('return formatted text', {
+        model: 'gpt-test',
+        chatProvider: provider,
+      })
+
+      const saved = harness.sessionMessages['session-1'].findLast(message => message.role === 'assistant')
+      expect(saved?.content).toBe(text)
+      expect(saved?.role === 'assistant' && saved.slices.filter(slice => slice.type === 'text').map(slice => slice.text).join('')).toBe(text)
+      expect(literals.join('')).toBe(text)
+    }
+  })
+
+  it.each([
+    ['reasoning and a marker', ['<think>analysis</think>', 'Visible reply<|ACT|>'], 'Visible reply', ['<|ACT|>']],
+    ['reasoning only', ['<think>analysis</think>'], undefined, []],
+    ['empty output', [''], undefined, []],
+  ])('keeps %s separate from speech literals', async (_name, deltas, expected, expectedSpecials) => {
+    const harness = createHarness()
+    const literals: string[] = []
+    const specials: string[] = []
+    harness.runtime.hooks.onTokenLiteral(async (literal) => {
+      literals.push(literal)
+    })
+    harness.runtime.hooks.onTokenSpecial(async (special) => {
+      specials.push(special)
+    })
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      for (const text of deltas)
+        await options?.onStreamEvent?.({ type: 'text-delta', text })
+      await options?.onStreamEvent?.({ type: 'finish' })
+    })
+
+    await harness.runtime.ingest('return reply', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    const saved = harness.sessionMessages['session-1'].findLast(message => message.role === 'assistant')
+    expect(saved?.content).toBe(expected)
+    expect(literals.join('')).toBe(expected ?? '')
+    expect(specials).toEqual(expectedSpecials)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2911#discussion_r4238926356
+  // ROOT CAUSE:
+  //
+  // A whitespace-only literal created a text slice before any visible speech arrived.
+  // The completion path stored that slice as a blank reply.
+  //
+  // Buffering leading whitespace until visible speech arrives avoids blank speech slices and hooks.
+  it.each([
+    ['spaces', '        '],
+    ['tabs', '\t\t\t\t\t\t\t\t'],
+    ['line breaks', '\n\n\n\n\n\n\n\n'],
+    ['mixed whitespace', ' \t\n \t\n  '],
+    ['reasoning with a trailing newline', '<think>analysis</think>\n'],
+    ['reasoning with trailing whitespace', '<think>analysis</think> \t\n'],
+  ])('does not store a blank speech reply for %s (PR #2911)', async (_name, text) => {
+    const reasoning = '<think>analysis</think>'
+    const streamedDeltas = text.startsWith(reasoning)
+      ? [reasoning, ...Array.from(text.slice(reasoning.length))]
+      : Array.from(text)
+    for (const deltas of [[text], streamedDeltas]) {
+      const harness = createHarness()
+      const literals: string[] = []
+      harness.runtime.hooks.onTokenLiteral(async (literal) => {
+        literals.push(literal)
+      })
+      harness.stream.mockImplementationOnce(async (_model, _provider, _context, options) => {
+        for (const text of deltas)
+          await options?.onStreamEvent?.({ type: 'text-delta', text })
+        await options?.onStreamEvent?.({ type: 'finish' })
+      })
+      await harness.runtime.ingest('reply', { model: 'test', chatProvider: provider })
+      expect(harness.sessionMessages['session-1'].filter(message => message.role === 'assistant')).toEqual([])
+      expect(harness.assistantAppended).toEqual([])
+      expect(literals).toEqual([])
+    }
+  })
+
+  it('does not retain blank speech when the stream fails', async () => {
+    const harness = createHarness()
+    harness.stream.mockImplementationOnce(async (_model, _provider, _context, options) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: '        ' })
+      throw new Error('stream interrupted')
+    })
+    await expect(harness.runtime.ingest('reply', { model: 'test', chatProvider: provider })).rejects.toThrow('stream interrupted')
+    expect(harness.sessionMessages['session-1'].filter(message => message.role === 'assistant')).toEqual([])
+  })
+
+  it.each(['tool', 'sticker', 'generated turn'])('retains %s output without blank speech slices', async (kind) => {
+    const harness = createHarness()
+    const literals: string[] = []
+    const [generatedTurn] = chatMessagesToTurns([{ role: 'assistant', content: ' ' }])
+    if (generatedTurn.type !== 'assistant')
+      throw new Error('Expected assistant turn')
+    harness.runtime.hooks.onTokenLiteral(async (literal) => {
+      literals.push(literal)
+    })
+    harness.stream.mockImplementationOnce(async (_model, _provider, _context, options) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: '        ' })
+      if (kind === 'tool') {
+        await options?.onStreamEvent?.({ type: 'tool-call', toolCallId: 'call-weather', toolCallType: 'function', toolName: 'weather', args: '{}' })
+        await options?.onStreamEvent?.({ type: 'tool-result', toolCallId: 'call-weather', result: 'sunny' })
+      }
+      else if (kind === 'sticker') {
+        await options?.onStreamEvent?.({ type: 'text-delta', text: '<|STICKER heart|>' })
+      }
+      else {
+        await options?.onGeneratedTurn?.(generatedTurn)
+      }
+      await options?.onStreamEvent?.({ type: 'finish' })
+    })
+    await harness.runtime.ingest('reply', { model: 'test', chatProvider: provider, stickers: [{ id: 'heart', description: 'A heart' }] })
+    const saved = harness.sessionMessages['session-1'].findLast(message => message.role === 'assistant')
+    expect(saved?.role).toBe('assistant')
+    expect(saved?.content).toBe('')
+    expect(saved?.role === 'assistant' && saved.slices.filter(slice => slice.type === 'text')).toEqual([])
+    expect(literals).toEqual([])
+    if (kind === 'tool') {
+      expect(saved?.role === 'assistant' && saved.slices.some(slice => slice.type === 'tool-call')).toBe(true)
+      expect(saved?.role === 'assistant' && saved.tool_results).toEqual([{ type: 'tool-call-result', id: 'call-weather', result: 'sunny' }])
+    }
+    else if (kind === 'sticker') {
+      expect(saved?.role === 'assistant' && saved.slices).toEqual([{ type: 'sticker', stickerId: 'heart' }])
+    }
+    else {
+      expect(saved?.role === 'assistant' && saved.generationTranscript).toEqual(generatedTurn)
+    }
+  })
+
+  // ROOT CAUSE:
+  //
+  // The marker parser holds back the end of the text and handles text later than it receives it.
+  // A tool call joined the reply at once, so it landed inside the sentence before it.
+  //
+  // We now flush the parser at each tool call first.
+  it.each([
+    ['the text settled before the call', true],
+    ['the text and the call arrive together', false],
+  ])('keeps the text before a tool call in front of it when %s', async (_name, settled) => {
+    const harness = createHarness()
+    const call = { type: 'tool-call', toolCallId: 'call-weather', toolCallType: 'function', toolName: 'weather', args: '{}' } as const
+    harness.stream.mockImplementationOnce(async (_model, _provider, _context, options) => {
+      // xsAI does not wait for the handler of an event before it sends the next one.
+      for (const text of ['查曼谷', '和上海', '未来三天的天气。'])
+        void options?.onStreamEvent?.({ type: 'text-delta', text })
+      if (settled)
+        await new Promise(resolve => setTimeout(resolve, 20))
+      void options?.onStreamEvent?.(call)
+      void options?.onStreamEvent?.({ type: 'tool-result', toolCallId: 'call-weather', result: 'sunny' })
+      void options?.onStreamEvent?.({ type: 'text-delta', text: '第 1/3 步完成。' })
+      await options?.onStreamEvent?.({ type: 'finish' })
+    })
+
+    await harness.runtime.ingest('weather', { model: 'test', chatProvider: provider })
+
+    const saved = harness.sessionMessages['session-1'].findLast(message => message.role === 'assistant')
+    expect(saved?.role === 'assistant' && saved.slices).toEqual([
+      { type: 'text', text: '查曼谷和上海未来三天的天气。' },
+      { type: 'tool-call', toolCall: call },
+      { type: 'text', text: '第 1/3 步完成。' },
+    ])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/3008#discussion_r4302605324
+  // ROOT CAUSE:
+  // Calls wait for preceding text hooks before they join the reply.
+  // An error or cancellation can save the reply before those hooks finish.
+  // The interrupted reply must retain received calls without waiting for the hooks.
+  it.each([
+    ['provider error', true],
+    ['provider error', false],
+    ['cancellation', true],
+    ['cancellation', false],
+  ] as const)('preserves calls after %s with prior visible text: %s (PR #3008)', async (failure, priorText) => {
+    const harness = createHarness()
+    const firstLiteral = Promise.withResolvers<void>()
+    const blockedLiteral = Promise.withResolvers<void>()
+    const releaseHook = Promise.withResolvers<void>()
+    const receivedCalls = Promise.withResolvers<void>()
+    const releaseProvider = Promise.withResolvers<void>()
+    let literalCount = 0
+    harness.runtime.hooks.onTokenLiteral(async () => {
+      if (priorText && ++literalCount === 1) {
+        firstLiteral.resolve()
+        return
+      }
+      blockedLiteral.resolve()
+      await releaseHook.promise
+    })
+    harness.stream.mockImplementationOnce(async (_model, _provider, _context, options) => {
+      if (priorText) {
+        await options?.onStreamEvent?.({ type: 'text-delta', text: 'Text that already reached the reply.' })
+        await firstLiteral.promise
+      }
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'Text that waits for a token hook.' })
+      await blockedLiteral.promise
+      for (const toolCallId of ['call-first', 'call-second'])
+        await options?.onStreamEvent?.({ type: 'tool-call', toolCallId, toolCallType: 'function', toolName: 'weather', args: '{}' })
+      receivedCalls.resolve()
+      if (failure === 'provider error')
+        throw new Error('Provider disconnected after delivering calls')
+      await releaseProvider.promise
+    })
+    const request = harness.runtime.submit('weather', { model: 'test', chatProvider: provider, messageId: 'interrupted-turn' }, 'session-1')
+    const done = request.done.catch(error => error)
+    try {
+      await receivedCalls.promise
+      if (failure === 'cancellation')
+        harness.runtime.cancelTurn({ sessionId: 'session-1', turnId: 'interrupted-turn' })
+      const outcome = await done
+      if (failure === 'provider error')
+        expect(outcome).toBeInstanceOf(Error)
+
+      const saved = harness.sessionMessages['session-1'].findLast(message => message.role === 'assistant')
+      expect(saved).toMatchObject({ role: 'assistant', interrupted: true })
+      expect(saved?.role === 'assistant' && saved.slices.filter(slice => slice.type === 'tool-call').map(slice => slice.toolCall.toolCallId)).toEqual(['call-first', 'call-second'])
+
+      const snapshot = structuredClone(saved)
+      const patchCount = harness.foregroundPatches.length
+      releaseHook.resolve()
+      await new Promise<void>(resolve => setImmediate(resolve))
+      expect(saved).toEqual(snapshot)
+      expect(harness.foregroundPatches).toHaveLength(patchCount)
+    }
+    finally {
+      releaseHook.resolve()
+      releaseProvider.resolve()
+      await done
+    }
+  })
+
   it('admits a replacement turn when the cancelled provider ignores abort', async () => {
     const harness = createHarness()
     const held = Promise.withResolvers<void>()
@@ -235,6 +718,20 @@ describe('createChatOrchestratorRuntime', () => {
     expect(harness.stream).toHaveBeenCalledTimes(1)
     const user = harness.stream.mock.calls[0][2].turns.find(turn => turn.type === 'user')
     expect(user?.content).toContainEqual({ type: 'audio', data: 'YXVkaW8=', format: 'wav' })
+  })
+
+  it('stores the transcript of a voice attachment for text-only projection', async () => {
+    const harness = createHarness()
+    const request = harness.runtime.submit('', {
+      model: 'gpt-test',
+      chatProvider: provider,
+      messageId: 'spoken',
+      attachments: [{ type: 'audio' as const, data: 'YXVkaW8=', mimeType: 'audio/wav' as const, transcript: 'hello there' }],
+    }, 'session-1')
+    await request.done
+
+    const stored = harness.sessionMessages['session-1'].find(message => message.id === 'spoken')
+    expect(stored).toMatchObject({ role: 'user', audioTranscripts: ['hello there'] })
   })
 
   it('acknowledges persistence before generation and reuses a retried message identity', async () => {
@@ -320,8 +817,10 @@ describe('createChatOrchestratorRuntime', () => {
   // caller still receives the failure and can append its normal error item.
   it('stores visible assistant output when the stream fails', async () => {
     const harness = createHarness()
+    const failedAt = new Date(2026, 3, 25, 18, 48).getTime()
     harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
       await options?.onStreamEvent?.({ type: 'text-delta', text: 'partial reply' })
+      harness.now.set(failedAt)
       throw new Error('stream interrupted')
     })
 
@@ -335,6 +834,7 @@ describe('createChatOrchestratorRuntime', () => {
       interrupted: true,
       content: 'partial ',
       slices: [{ type: 'text', text: 'partial ' }],
+      completedAt: failedAt,
     })
     expect(harness.assistantAppended).toHaveLength(0)
     expect(harness.foregroundResets).toHaveLength(1)
@@ -723,6 +1223,24 @@ describe('createChatOrchestratorRuntime', () => {
       role: 'system',
       content: 'system prompt\n\nPlugin toolset guidance.',
     })
+  })
+
+  it('appends the request supplement to the system prompt of each resolved step', async () => {
+    const harness = createHarness()
+    harness.systemPromptSupplement.set('Plugin toolset guidance.')
+    let resolvedPrompt: string | undefined
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      resolvedPrompt = (await options?.resolveStep?.())?.systemPrompt
+      await options?.onStreamEvent?.({ type: 'finish' })
+    })
+
+    await harness.runtime.ingest('hello from user', {
+      model: 'gpt-test',
+      chatProvider: provider,
+      resolveStep: async () => ({ model: 'edited-model', chatProvider: provider, providerId: 'mock-provider', systemPrompt: 'edited prompt' }),
+    })
+
+    expect(resolvedPrompt).toBe('edited prompt\n\nPlugin toolset guidance.')
   })
 
   it('creates a system message when only a system prompt supplement is available', async () => {
@@ -1349,6 +1867,7 @@ describe('createChatOrchestratorRuntime', () => {
 
   it('handles attachments, reasoning deltas, tool events, and assistant finalization', async () => {
     const harness = createHarness()
+    const finishedAt = new Date(2026, 3, 25, 18, 48).getTime()
     let composedMessages: Message[] = []
     harness.stream.mockImplementationOnce(async (_model, _chatProvider, messages, options) => {
       composedMessages = conversationToChatMessages(messages)
@@ -1365,6 +1884,7 @@ describe('createChatOrchestratorRuntime', () => {
         result: 'sunny',
       } as StreamEvent)
       await options?.onStreamEvent?.({ type: 'text-delta', text: 'visible reply' })
+      harness.now.set(finishedAt)
       await options?.onStreamEvent?.({ type: 'finish' })
     })
 
@@ -1399,7 +1919,9 @@ describe('createChatOrchestratorRuntime', () => {
       categorization: {
         reasoning: 'thinking',
       },
+      completedAt: finishedAt,
     })
+    expect(assistant?.createdAt).toBeLessThan(finishedAt)
     expect((assistant as StreamingAssistantMessage).slices).toEqual([
       expect.objectContaining({
         type: 'tool-call',
@@ -1484,12 +2006,15 @@ describe('responses generated turn ownership', () => {
     const send = harness.runtime.ingest('hello', { model: 'test', chatProvider: provider })
     await visibleOutput
 
+    const cancelledAt = new Date(2026, 3, 25, 18, 48).getTime()
+    harness.now.set(cancelledAt)
     harness.runtime.cancelPendingSends('session-1')
     await send
 
     expect(harness.sessionMessages['session-1']?.at(-1)).toEqual(expect.objectContaining({
       content: expect.stringContaining('partial answer'),
       interrupted: true,
+      completedAt: cancelledAt,
     }))
     expect(harness.settled).toEqual([{ sessionId: 'session-1', turnId: 'user-id', status: 'cancelled' }])
     expect(harness.foregroundResets).toHaveLength(1)
@@ -1547,7 +2072,7 @@ describe('chat stickers', () => {
     })
     harness.stream.mockImplementationOnce(async (_model, _provider, context, options) => {
       expect(JSON.stringify(context)).toContain('<|STICKER heart|>')
-      for (const text of ['Hello! ', '<', '|STI', 'CKER heart|', '>', '<|STICKER heart|>', '<|EMOTE happy|>'])
+      for (const text of ['Hello! ', '<', '|STI', 'CKER heart|', '>', '<|STICKER heart|>', '<|ACT|>'])
         await options?.onStreamEvent?.({ type: 'text-delta', text })
     })
     await harness.runtime.ingest('Send a heart', { model: 'test', chatProvider: provider, stickers })
@@ -1558,8 +2083,8 @@ describe('chat stickers', () => {
       slices: [{ type: 'text', text: 'Hello! ' }, { type: 'sticker', stickerId: 'heart' }],
     })
     expect(literals.join('')).toBe('Hello! ')
-    expect(specials).toEqual(['<|EMOTE happy|>'])
-    expect(saved?.role === 'assistant' && saved.categorization?.speech).toBe('Hello! <|EMOTE happy|>')
+    expect(specials).toEqual(['<|ACT|>'])
+    expect(saved?.role === 'assistant' && saved.categorization?.speech).toBe('Hello! <|ACT|>')
   })
 
   it('ignores unknown IDs, model URLs, and an unfinished marker', async () => {

@@ -1,16 +1,24 @@
 import type { SpeechSubmission } from '@proj-airi/core-agent'
 
 import type { VoiceDraft } from '../services/speech/bus'
+import type { ChatToolReference } from '../types/chat'
 
+import { joinTranscriptSegments } from '@proj-airi/provider-inference'
 import { ref } from 'vue'
 
 import { useChatStore } from '../stores/chat'
 import { useHearingStore } from '../stores/modules/hearing'
 
-/** Owns voice draft selection, source evidence, and submission to the chat runtime. */
-export function useVoiceDrafts(report: (cause: unknown) => void) {
+/**
+ * Owns voice draft selection, source evidence, and submission to the chat runtime.
+ * `tools` returns the tool references of a sent draft, read once at each send. Without tools, a draft sends none.
+ * `autoSend` decides, for each spoken input, whether it is sent at once or kept as a draft for review. It receives the
+ * submission, so the host can decide by the input that produced it. Without it, the Hearing auto send setting decides.
+ */
+export function useVoiceDrafts(report: (cause: unknown) => void, tools: () => readonly ChatToolReference[] | undefined, autoSend?: (submission: SpeechSubmission) => boolean) {
   const chat = useChatStore()
   const hearing = useHearingStore()
+  const sendsAtOnce = autoSend ?? (() => hearing.autoSendEnabled)
   const drafts = ref<VoiceDraft[]>([])
   const frontDraftId = ref<string>()
   const sending = new Map<string, ReturnType<typeof chat.submit>>()
@@ -20,8 +28,10 @@ export function useVoiceDrafts(report: (cause: unknown) => void) {
     if (!submissions)
       return undefined
 
-    const evidence = submissions.map(source => ({ context: source.context, speakers: source.speakers }))
-    if (!evidence.some(item => item.context.length || item.speakers))
+    // Speaker evidence stays out of the prompt. Its cosine has no calibrated threshold yet, and the model can read a low
+    // score as another person. The speaker gate decides what the model receives. Until then, only the IO trace has it.
+    const evidence = submissions.map(source => ({ context: source.context }))
+    if (!evidence.some(item => item.context.length))
       return undefined
 
     // Prompt formatting is an application transport boundary. Plugin context keeps its typed values.
@@ -37,7 +47,8 @@ export function useVoiceDrafts(report: (cause: unknown) => void) {
   async function acceptSpeech(submission: SpeechSubmission, signal: AbortSignal) {
     signal.throwIfAborted()
     const text = submission.text.trim()
-    const existing = hearing.autoSendEnabled
+    const sendNow = sendsAtOnce(submission)
+    const existing = sendNow
       ? undefined
       : drafts.value.find(draft => draft.sessionId === submission.sessionId && !sending.has(draft.id))
     const id = existing?.id ?? submission.submissionId
@@ -47,13 +58,14 @@ export function useVoiceDrafts(report: (cause: unknown) => void) {
       id,
       sessionId: submission.sessionId,
       rawText: evidence.map(source => source.transcript.raw.text).join('\n'),
-      text: [existing?.text, text].filter(Boolean).join('\n'),
+      // Later speech continues the same paragraph. Presentation shows live speech with the same joining rule.
+      text: joinTranscriptSegments([existing?.text ?? '', text]),
     }
 
     sources.set(id, evidence)
     drafts.value = [...drafts.value.filter(item => item.id !== id), draft]
     frontDraftId.value = id
-    if (!hearing.autoSendEnabled || !text)
+    if (!sendNow || !text)
       return { status: 'drafted' as const, draftId: id }
 
     const receipt = await sendDraft(id, signal)
@@ -74,16 +86,28 @@ export function useVoiceDrafts(report: (cause: unknown) => void) {
     }
 
     const speechContext = formatSpeechContext(sources.get(id))
+    // The send crosses windows as a synced action, so it takes a plain copy of the references.
+    const requestTools = tools()?.map(tool => ({ ...tool }))
     signal?.addEventListener('abort', cancel, { once: true })
-    const committed = chat.submit({ sessionId: draft.sessionId, messageId: draft.id, text: draft.text, speechContext }).then((receipt) => {
+    markSending(id, true)
+    const committed = chat.submit({ sessionId: draft.sessionId, messageId: draft.id, text: draft.text, speechContext, ...(requestTools ? { tools: requestTools } : {}) }).then((receipt) => {
       removeDraft(id)
       return receipt
+    }).catch((error: unknown) => {
+      // A failed send keeps the draft, so the user can edit it and send it again.
+      markSending(id, false)
+      throw error
     }).finally(() => {
       sending.delete(id)
       signal?.removeEventListener('abort', cancel)
     })
     sending.set(id, committed)
     return committed
+  }
+
+  /** Publishes the send state. Controls hide a draft while it is sent and show it again after a failure. */
+  function markSending(id: string, value: boolean) {
+    drafts.value = drafts.value.map(item => item.id === id ? { ...item, sending: value } : item)
   }
 
   function removeDraft(id: string) {

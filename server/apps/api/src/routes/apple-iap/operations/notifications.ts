@@ -5,9 +5,9 @@ import type { Verifier } from '../verifier'
 
 import { NotificationTypeV2 } from '@apple/app-store-server-library'
 import { useLogger } from '@guiiai/logg'
+import { createBadRequestError } from '@proj-airi/http-error-shared'
 import { minLength, object, pipe, safeParse, string } from 'valibot'
 
-import { createBadRequestError } from '../../../utils/error'
 import {
   canCreditTransaction,
   evidenceReceiptFromTransaction,

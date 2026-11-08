@@ -37,13 +37,13 @@ function toggleExpansion() {
 <template>
   <label
     :key="id"
-    class="form_radio-card-detail relative flex cursor-pointer items-start rounded-xl p-3 pr-[20px]"
-    transition="all duration-200 ease-in-out"
-    border="2 solid"
     :class="[
+      'form_radio-card-detail relative flex cursor-pointer items-start rounded-xl p-3 pr-[20px]',
+      'border-2 border-solid transition-all duration-200 ease-in-out',
+      // The tinted fill and the radio dot show the selection, so a selected card hides its border.
       modelValue === value
-        ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-100 dark:border-primary-900 hover:border-primary-500/30 dark:hover:border-primary-400/30'
-        : 'bg-white dark:bg-neutral-900/20 border-neutral-100 dark:border-neutral-900 hover:border-primary-500/30 dark:hover:border-primary-400/30',
+        ? 'bg-primary-50 dark:bg-primary-900/20 border-transparent'
+        : 'bg-white dark:bg-neutral-900/20 border-neutral-100 dark:border-neutral-900',
       modelValue === value
         ? 'form_radio-card-detail-active'
         : '',

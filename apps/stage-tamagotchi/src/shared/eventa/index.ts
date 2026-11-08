@@ -1,4 +1,5 @@
 import type { Locale } from '@intlify/core'
+import type { ResizeDirection } from '@proj-airi/electron-eventa'
 import type {
   GameletIframeRequestPayload as GameletIframeInvokePayload,
   GameletIframeResponsePayload,
@@ -16,7 +17,7 @@ import type {
   StageViewSnapshotPayload,
 } from '@proj-airi/stage-shared/godot-stage'
 import type { ServerChannelQrPayload } from '@proj-airi/stage-shared/server-channel-qr'
-import type { IOTraceRecordingState, SerializedIOSpan } from '@proj-airi/stage-shared/types/io-trace'
+import type { IOTraceHubState, IOTraceRecordingState } from '@proj-airi/stage-shared/types/io-trace'
 import type {
   ThreeHitTestReadTracePayload,
   ThreeSceneRenderInfoTracePayload,
@@ -28,7 +29,10 @@ import type {
   VrmUpdateFrameTracePayload,
 } from '@proj-airi/stage-ui-three/trace'
 import type { ChatHistoryReplyPayload } from '@proj-airi/stage-ui/components/scenarios/chat'
+import type { TraceFeedMessage } from '@proj-airi/trace-kit'
 import type { Rectangle } from 'electron'
+
+import type { UpdateChannel } from '../update-channels'
 
 import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
 
@@ -38,44 +42,170 @@ export const electronOpenMainDevtools = defineInvokeEventa('eventa:invoke:electr
 export const electronCenterMainWindow = defineInvokeEventa<Rectangle>('eventa:invoke:electron:windows:main:center')
 export const electronOpenEditor = defineInvokeEventa<void>('eventa:invoke:electron:windows:editor:open')
 export const electronOpenSettings = defineInvokeEventa<void, { route?: string }>('eventa:invoke:electron:windows:settings:open')
+/**
+ * What the fullscreen mode shows on the right, in either window that hosts it.
+ *
+ * - `settings`: the settings pages.
+ * - `chat`: the chat, in the `fullscreen` chat mode.
+ */
+export type FullscreenSurfaceId = 'settings' | 'chat'
+/** The surface that the fullscreen mode shows when a request names none. */
+export const defaultFullscreenSurface: FullscreenSurfaceId = 'settings'
+
+/** The state that one mounted surface hands to the next host. The surface decides what it is. */
+export interface FullscreenCarriedSurface {
+  id: FullscreenSurfaceId
+  state?: unknown
+}
+
+/**
+ * What the fullscreen mode shows, packed by one host for the next one when the window mode changes: the surfaces that
+ * stay mounted with their states, and the surface in front.
+ */
+export interface FullscreenPack {
+  surface: FullscreenSurfaceId
+  surfaces: FullscreenCarriedSurface[]
+}
+
+/** What a host of the fullscreen mode shows on request: a surface and its page, or what the previous host packed. */
+export interface FullscreenOpenRequest {
+  surface: FullscreenSurfaceId
+  route?: string
+  pack?: FullscreenPack
+}
+
+/**
+ * Starts the fullscreen mode of the main window. The window stops keeping its bounds in the config and leaves always on top.
+ * Returns its bounds and the work area of its display, so the page can plan the move.
+ */
+export const electronMainWindowEnterFullscreen = defineInvokeEventa<{ bounds: Rectangle, workArea: Rectangle }>('eventa:invoke:electron:windows:main:fullscreen:enter')
+/** The control points of a CSS `cubic-bezier()` curve, so a window glide can move with a CSS transition. */
+export type FullscreenGlideCurve = [x1: number, y1: number, x2: number, y2: number]
+/**
+ * Sets the main window bounds in fullscreen mode. With a duration, the window keeps its size and glides to the position
+ * along `curve` after `delay`, and the call resolves when the glide ends.
+ */
+export const electronMainWindowSetFullscreenBounds = defineInvokeEventa<void, { bounds: Rectangle, duration?: number, delay?: number, curve?: FullscreenGlideCurve }>('eventa:invoke:electron:windows:main:fullscreen:bounds')
+/**
+ * Reports what the page shows on the right and which surfaces it keeps mounted, or nothing once fullscreen mode
+ * closes. The main process shows the same surface after a reload, and collects the chat draft from a mounted chat.
+ */
+export const electronFullscreenSurfaceChanged = defineInvokeEventa<void, { surface?: FullscreenSurfaceId, mounted: FullscreenSurfaceId[] }>('eventa:invoke:electron:fullscreen:surface-changed')
+/**
+ * Reads whether the main window is in fullscreen mode. A page that loads while it is, after a reload for example,
+ * shows the fullscreen mode at once. Returns the bounds before fullscreen, the work area, and the surface.
+ */
+export const electronMainWindowGetFullscreenState = defineInvokeEventa<{ home: Rectangle, workArea: Rectangle, surface?: FullscreenSurfaceId } | undefined>('eventa:invoke:electron:windows:main:fullscreen:state')
+/**
+ * Reads what the window of the `multi-window` mode opened for. Its page asks when it mounts, because the request came
+ * before the page could hear it. After a reload of the page, it returns the surface that the page showed.
+ */
+export const electronWorkspaceWindowGetOpenRequest = defineInvokeEventa<FullscreenOpenRequest | undefined>('eventa:invoke:electron:windows:workspace:open-request')
+/**
+ * Ends the fullscreen mode of the window. The main window returns to the bounds and the always-on-top state that it had
+ * before, and the window of the `multi-window` mode closes. The main process logs `reason`.
+ */
+export const electronFullscreenExit = defineInvokeEventa<void, { reason: string }>('eventa:invoke:electron:fullscreen:exit')
+/**
+ * Where the fullscreen mode shows, as the user chose in the experiments.
+ *
+ * - `off`: nowhere. Settings open in the settings window, and no chat uses the fullscreen mode.
+ * - `single-window`: in the main window, which grows over its display.
+ * - `multi-window`: in a window of its own. The main window stays on the desktop as it is.
+ */
+export type FullscreenMode = 'off' | 'single-window' | 'multi-window'
+/**
+ * Reports the fullscreen mode that the user chose. The main process treats it as `off` until the main window page
+ * reports. Settings and the fullscreen chat open where the mode says. When the mode goes off, the call resolves after
+ * a chat in the fullscreen mode has moved to the default mode.
+ */
+export const electronFullscreenSetMode = defineInvokeEventa<void, { mode: FullscreenMode }>('eventa:invoke:electron:fullscreen:mode')
+/**
+ * Asks the page of a window that hosts the fullscreen mode to show a surface. Settings entry points and the fullscreen
+ * chat mode send it while the experiment is on. With `pack`, the page shows what the previous host packed instead.
+ */
+export const electronFullscreenOpen = defineEventa<FullscreenOpenRequest>('eventa:event:electron:fullscreen:open')
+/**
+ * Asks the page of a window that hosts the fullscreen mode to close the mode, for a chat mode switch that leaves the
+ * fullscreen chat. The new chat window holds the draft by then.
+ */
+export const electronFullscreenClose = defineEventa('eventa:event:electron:fullscreen:close')
+/** Asks the page of a host what the mode shows, packed for the next host. Answers `undefined` while the mode is closed. */
+export const electronFullscreenPack = defineInvokeEventa<FullscreenPack | undefined>('eventa:invoke:electron:fullscreen:pack')
+/**
+ * Asks the page of a host to close the mode the way its island does, so a page with unsaved changes can stop it.
+ * Answers whether the mode closes.
+ */
+export const electronFullscreenRequestClose = defineInvokeEventa<boolean>('eventa:invoke:electron:fullscreen:request-close')
 /** Shows the inlay without focus. The tray menu opens it with focus. */
 export const electronOpenInlay = defineInvokeEventa<void>('eventa:invoke:electron:windows:inlay:open')
-export const electronInlayHide = defineInvokeEventa<void>('eventa:invoke:electron:windows:inlay:hide')
+/** Moves a dragged inlay back to the bottom center of the primary display. The inlay calls it when it has been idle. */
+export const electronInlayReturnHome = defineInvokeEventa<void>('eventa:invoke:electron:windows:inlay:return-home')
 export const electronSettingsNavigate = defineEventa<{ route: string }>('eventa:event:electron:windows:settings:navigate')
 export const electronOpenChat = defineInvokeEventa('eventa:invoke:electron:windows:chat:open')
 
 export const ioTraceRecordingChanged = defineEventa<IOTraceRecordingState>('eventa:event:electron:io-trace-recording:changed')
 export const ioTraceRecordingGet = defineInvokeEventa<IOTraceRecordingState>('eventa:invoke:electron:io-trace-recording:get')
 export const ioTraceRecordingSetEnabled = defineInvokeEventa<IOTraceRecordingState, { enabled: boolean }>('eventa:invoke:electron:io-trace-recording:set-enabled')
-export const ioTraceRecordingRecordSpan = defineInvokeEventa<void, SerializedIOSpan>('eventa:invoke:electron:io-trace-recording:record-span')
 
 /**
- * Which window the Controls Island chat button opens.
+ * Sends a batch of trace records of this window to the trace hub in the main process.
+ * The hub validates each record, so a bad record of one window cannot break the views of the others.
+ */
+export const ioTraceHubEmit = defineInvokeEventa<void, { records: unknown[] }>('eventa:invoke:electron:io-trace-hub:emit')
+/** Returns the value of the hub clock now. A window pairs it with its own clock in a clock snapshot. */
+export const ioTraceHubPing = defineInvokeEventa<number>('eventa:invoke:electron:io-trace-hub:ping')
+export const ioTraceHubGet = defineInvokeEventa<IOTraceHubState>('eventa:invoke:electron:io-trace-hub:get')
+export const ioTraceHubSetCollecting = defineInvokeEventa<IOTraceHubState, { collecting: boolean }>('eventa:invoke:electron:io-trace-hub:set-collecting')
+/**
+ * Returns the backlog of the hub feed, and sends each later feed message to this window as `ioTraceHubFeed`.
+ * `tracks` are the track paths that the view of this window shows.
+ */
+export const ioTraceHubSubscribe = defineInvokeEventa<{ messages: TraceFeedMessage[], traceClock: string }, { tracks: string[] | '*' }>('eventa:invoke:electron:io-trace-hub:subscribe')
+export const ioTraceHubSetTracks = defineInvokeEventa<void, { tracks: string[] | '*' }>('eventa:invoke:electron:io-trace-hub:set-tracks')
+export const ioTraceHubUnsubscribe = defineInvokeEventa<void>('eventa:invoke:electron:io-trace-hub:unsubscribe')
+/** Later feed messages for a subscribed window, in feed order. */
+export const ioTraceHubFeed = defineEventa<TraceFeedMessage[]>('eventa:event:electron:io-trace-hub:feed')
+/** The tracks that viewers show now. Each window skips costly series of other tracks. */
+export const ioTraceHubWanted = defineEventa<{ tracks: string[] | '*' }>('eventa:event:electron:io-trace-hub:wanted')
+/**
+ * The system resumed from sleep. Monotonic clocks can stop or continue through sleep, so each window writes a clock
+ * discontinuity and measures its clock again.
+ */
+export const ioTraceHubResync = defineEventa<void>('eventa:event:electron:io-trace-hub:resync')
+
+/**
+ * Where the Controls Island chat button opens the chat.
  *
  * - `legacy`: the opaque chat window with a title bar.
  * - `floating`: a transparent, click-through window where only the chat
  *   bubbles and controls are drawn. The chat button folds and unfolds it.
+ * - `fullscreen`: the main window covers its display and shows the chat
+ *   beside the character. It has no window of its own.
  */
-export type ChatWindowMode = 'legacy' | 'floating'
+export type ChatWindowMode = 'legacy' | 'floating' | 'fullscreen'
 
 /**
  * Where the floating chat window stays.
  *
  * - `attached`: beside the main window, moving with it.
  * - `free`: where the user drags it.
- * - `danmaku`: where the user drags it, like `free`. The chat shows as a
- *   message feed: the composer folds away, and with fade on hover the feed
- *   only follows new messages and lets every click through.
  */
-export type ChatFloatingPlacement = 'attached' | 'free' | 'danmaku'
+export type ChatFloatingPlacement = 'attached' | 'free'
 
 /** Chat window choices that the main process persists for every chat renderer. */
 export interface ChatWindowPreferences {
   mode: ChatWindowMode
   placement: ChatFloatingPlacement
   /**
-   * Keeps a `free` floating chat above other windows. An `attached` or
-   * `danmaku` chat ignores it and follows the main window's pin state instead.
+   * Shows the floating chat as a message feed: the composer folds away, and
+   * with fade on hover the feed only follows new messages and lets every
+   * click through.
+   */
+  danmaku: boolean
+  /**
+   * Keeps a `free` floating chat above other windows. An `attached` chat
+   * ignores it and follows the main window's pin state instead.
    */
   pinned: boolean
 }
@@ -83,12 +213,19 @@ export interface ChatWindowPreferences {
 /** What the floating chat renderer needs from the main process to lay itself out. */
 export interface ChatFloatingState {
   placement: ChatFloatingPlacement
+  danmaku: boolean
   /**
-   * The side of the main window that the chat sits on in `attached` placement.
-   * The renderer folds toward the character on this side and puts the resize
-   * grip on the other. `left` in `free` and `danmaku` placement.
+   * The side of the main window that the chat sits on in `attached`
+   * placement. The renderer folds toward the character on this side. `left`
+   * in `free` placement.
    */
   side: 'left' | 'right'
+  /**
+   * The edges and corners that resize the chat. A `free` chat resizes from
+   * all of them. An `attached` chat keeps the edges that it shares with the
+   * main window, so it resizes only from the others.
+   */
+  resizeEdges: ResizeDirection[]
   /**
    * `true` after the chat button folds the chat. The renderer plays the fold
    * and then calls {@link electronChatFloatingContentHidden}, so the main
@@ -140,13 +277,18 @@ export interface ChatButtonState {
 export const electronGetChatButtonState = defineInvokeEventa<ChatButtonState>('eventa:invoke:electron:windows:chat:get-button-state')
 export const electronChatButtonStateChanged = defineEventa<ChatButtonState>('eventa:event:electron:windows:chat:button-state-changed')
 
+/**
+ * Reads the saved placement, message feed, and pin, with the mode of the chat that asks. That mode is the saved mode,
+ * except in a fullscreen chat that the fullscreen island opened while another mode is saved.
+ */
 export const electronChatWindowGetPreferences = defineInvokeEventa<ChatWindowPreferences>('eventa:invoke:electron:windows:chat:get-preferences')
 /**
- * Persists the preferences and swaps the open chat window when the mode
- * changes. The swap carries the unsent draft over, and it rejects without
- * closing the open window when the draft cannot be carried.
+ * Persists the preferences that the request names, and keeps the others. A
+ * mode that differs from the mode of the chat that asks moves the chat to the
+ * window of that mode. The move carries the unsent draft over, and it rejects
+ * without closing the chat that asked when the draft cannot be carried.
  */
-export const electronChatWindowSetPreferences = defineInvokeEventa<void, ChatWindowPreferences>('eventa:invoke:electron:windows:chat:set-preferences')
+export const electronChatWindowSetPreferences = defineInvokeEventa<void, Partial<ChatWindowPreferences>>('eventa:invoke:electron:windows:chat:set-preferences')
 /**
  * Asks the chat window that a mode switch is about to close for its unsent
  * draft. The main process invokes it and the chat renderer answers, after any
@@ -160,6 +302,11 @@ export const electronChatWindowCollectDraft = defineInvokeEventa<ChatDraftHandov
  */
 export const electronChatWindowTakeDraft = defineInvokeEventa<ChatDraftHandover | undefined>('eventa:invoke:electron:windows:chat:take-draft')
 /**
+ * Tells a chat window that is already open that a mode switch carries a draft to it. The page takes the draft again,
+ * as it did when it mounted.
+ */
+export const electronChatWindowDraftOffered = defineEventa('eventa:event:electron:windows:chat:draft-offered')
+/**
  * Reports what happened to the taken draft. The mode switch closes the
  * previous window only after `restored: true`; with `false` it closes the new
  * window instead, and the draft stays where it was. A window with no draft to
@@ -171,11 +318,10 @@ export const electronChatFloatingStateChanged = defineEventa<ChatFloatingState>(
 /** The renderer finished hiding the chat content for a fold or a relocation. */
 export const electronChatFloatingContentHidden = defineInvokeEventa<void>('eventa:invoke:electron:windows:chat-floating:content-hidden')
 /**
- * Resizes the floating chat window from its resize grip, by the cursor
- * movement in screen pixels. The window grows away from the character, so the
- * corner beside the main window stays in place.
+ * Resizes the floating chat window from one of its {@link ChatFloatingState.resizeEdges}, by the cursor movement in
+ * screen pixels. The edges across from it stay in place.
  */
-export const electronChatFloatingResizeBy = defineInvokeEventa<void, { deltaX: number, deltaY: number }>('eventa:invoke:electron:windows:chat-floating:resize-by')
+export const electronChatFloatingResizeBy = defineInvokeEventa<void, { deltaX: number, deltaY: number, direction: ResizeDirection }>('eventa:invoke:electron:windows:chat-floating:resize-by')
 /**
  * Moves a `free` floating chat to where its drag handle puts it: the window
  * position in screen pixels, before any screen edge stops it. The main
@@ -206,9 +352,12 @@ export const electronGetServerChannelConfig = defineInvokeEventa<ElectronServerC
 export const electronApplyServerChannelConfig = defineInvokeEventa<ElectronServerChannelConfig, Partial<ElectronServerChannelConfig>>('eventa:invoke:electron:server-channel:apply-config')
 export const electronGetServerChannelQrPayload = defineInvokeEventa<ServerChannelQrPayload>('eventa:invoke:electron:server-channel:get-qr-payload')
 
-export type ElectronUpdaterChannel = 'latest' | 'stable' | 'alpha' | 'beta' | 'nightly' | 'canary'
+export type ElectronUpdaterChannel = UpdateChannel
 
+/** Every updater preference. A set call sends all of them, and `channel` undefined means auto. */
 export interface ElectronUpdaterPreferences {
+  /** Whether a check downloads the update that it finds. Off, the renderer starts the download. */
+  autoDownload: boolean
   channel?: ElectronUpdaterChannel
 }
 
@@ -219,6 +368,7 @@ export * from './plugin/assets'
 export * from './plugin/capabilities'
 export * from './plugin/host'
 export * from './plugin/tools'
+export * from './window-backdrop'
 
 export interface DesktopOverlayReadiness {
   state: 'booting' | 'ready' | 'degraded'
@@ -359,29 +509,68 @@ export interface ElectronMcpStdioServerConfig {
   enabled?: boolean
 }
 
-export interface ElectronMcpStdioConfigFile {
-  mcpServers: Record<string, ElectronMcpStdioServerConfig>
+/**
+ * One remote MCP server that AIRI reaches over streamable HTTP.
+ *
+ * Use when:
+ * - A server runs outside this machine and AIRI talks to it by URL
+ *
+ * Expects:
+ * - `url` is an absolute `http` or `https` endpoint
+ * - `headers` carries whatever the server expects, usually an `Authorization` entry
+ */
+export interface ElectronMcpHttpServerConfig {
+  url: string
+  headers?: Record<string, string>
+  enabled?: boolean
 }
 
-export interface ElectronMcpStdioApplyResult {
+/**
+ * Configuration of one MCP server.
+ *
+ * The transport follows from the fields that are present: `command` starts a
+ * child process over stdio, `url` reaches a remote server over streamable HTTP.
+ */
+export type ElectronMcpServerConfig = ElectronMcpStdioServerConfig | ElectronMcpHttpServerConfig
+
+export interface ElectronMcpConfigFile {
+  mcpServers: Record<string, ElectronMcpServerConfig>
+}
+
+export interface ElectronMcpApplyResult {
   path: string
   started: Array<{ name: string }>
   failed: Array<{ name: string, error: string }>
   skipped: Array<{ name: string, reason: string }>
 }
 
-export interface ElectronMcpStdioServerRuntimeStatus {
-  name: string
-  state: 'running' | 'stopped' | 'error'
-  command: string
-  args: string[]
-  pid: number | null
-  lastError?: string
-}
+/**
+ * Runtime state of one MCP server, narrowed by the transport that carries it.
+ *
+ * A stdio server reports the process it spawned. An HTTP server reports the
+ * endpoint it talks to and has no process to report.
+ */
+export type ElectronMcpServerRuntimeStatus
+  = | {
+    name: string
+    state: 'running' | 'stopped' | 'error'
+    transport: 'stdio'
+    command: string
+    args: string[]
+    pid: number | null
+    lastError?: string
+  }
+  | {
+    name: string
+    state: 'running' | 'stopped' | 'error'
+    transport: 'http'
+    url: string
+    lastError?: string
+  }
 
-export interface ElectronMcpStdioRuntimeStatus {
+export interface ElectronMcpRuntimeStatus {
   path: string
-  servers: ElectronMcpStdioServerRuntimeStatus[]
+  servers: ElectronMcpServerRuntimeStatus[]
   updatedAt: number
 }
 
@@ -405,31 +594,31 @@ export interface ElectronMcpCallToolResult {
   isError?: boolean
 }
 
-export interface ElectronMcpStdioConfigText {
+export interface ElectronMcpConfigText {
   path: string
   text: string
 }
 
-export interface ElectronMcpStdioTestResult {
+export interface ElectronMcpTestResult {
   ok: boolean
   error?: string
   tools?: string[]
   durationMs: number
 }
 
-export interface ElectronMcpStdioTestPayload {
+export interface ElectronMcpTestPayload {
   name: string
-  config: ElectronMcpStdioServerConfig
+  config: ElectronMcpServerConfig
 }
 
 export const electronMcpOpenConfigFile = defineInvokeEventa<{ path: string }>('eventa:invoke:electron:mcp:open-config-file')
-export const electronMcpApplyAndRestart = defineInvokeEventa<ElectronMcpStdioApplyResult>('eventa:invoke:electron:mcp:apply-and-restart')
-export const electronMcpGetRuntimeStatus = defineInvokeEventa<ElectronMcpStdioRuntimeStatus>('eventa:invoke:electron:mcp:get-runtime-status')
+export const electronMcpApplyAndRestart = defineInvokeEventa<ElectronMcpApplyResult>('eventa:invoke:electron:mcp:apply-and-restart')
+export const electronMcpGetRuntimeStatus = defineInvokeEventa<ElectronMcpRuntimeStatus>('eventa:invoke:electron:mcp:get-runtime-status')
 export const electronMcpListTools = defineInvokeEventa<ElectronMcpToolDescriptor[]>('eventa:invoke:electron:mcp:list-tools')
 export const electronMcpCallTool = defineInvokeEventa<ElectronMcpCallToolResult, ElectronMcpCallToolPayload>('eventa:invoke:electron:mcp:call-tool')
-export const electronMcpReadConfigText = defineInvokeEventa<ElectronMcpStdioConfigText>('eventa:invoke:electron:mcp:read-config-text')
-export const electronMcpWriteConfigText = defineInvokeEventa<ElectronMcpStdioConfigText, { text: string }>('eventa:invoke:electron:mcp:write-config-text')
-export const electronMcpTestServer = defineInvokeEventa<ElectronMcpStdioTestResult, ElectronMcpStdioTestPayload>('eventa:invoke:electron:mcp:test-server')
+export const electronMcpReadConfigText = defineInvokeEventa<ElectronMcpConfigText>('eventa:invoke:electron:mcp:read-config-text')
+export const electronMcpWriteConfigText = defineInvokeEventa<ElectronMcpConfigText, { text: string }>('eventa:invoke:electron:mcp:write-config-text')
+export const electronMcpTestServer = defineInvokeEventa<ElectronMcpTestResult, ElectronMcpTestPayload>('eventa:invoke:electron:mcp:test-server')
 
 export const widgetsOpenWindow = defineInvokeEventa<void, { id?: string }>('eventa:invoke:electron:windows:widgets:open')
 export const widgetsHideWindow = defineInvokeEventa<void, { id?: string }>('eventa:invoke:electron:windows:widgets:hide')
@@ -442,6 +631,36 @@ export const widgetsPrepareWindow = defineInvokeEventa<string | undefined, { id?
 export const widgetsIframePublish = defineInvokeEventa<void, { id: string, event: Record<string, unknown> }>('eventa:invoke:electron:windows:widgets:iframe-publish')
 
 export const electronWindowClose = defineInvokeEventa<void>('eventa:invoke:electron:window:close')
+export const electronWindowMinimize = defineInvokeEventa<void>('eventa:invoke:electron:window:minimize')
+export const electronWindowToggleMaximize = defineInvokeEventa<void>('eventa:invoke:electron:window:toggle-maximize')
+
+/**
+ * What the self-drawn title bar shows for its window. The main process owns these values.
+ */
+export interface ElectronWindowControlsState {
+  /** The system draws the window buttons, so the title bar draws none and leaves room for them. Only true on macOS. */
+  systemControls: boolean
+  /** On macOS, the traffic lights hide in fullscreen, so the title bar stops leaving room for them. */
+  fullscreen: boolean
+  /** Selects the restore or the maximize button. */
+  maximized: boolean
+  /** Hides the minimize button when false. Linux always reports true. */
+  minimizable: boolean
+  /** Hides the maximize button when false. Linux always reports true. */
+  maximizable: boolean
+  /** Hides the close button when false. */
+  closable: boolean
+}
+
+export const electronGetWindowControlsState = defineInvokeEventa<ElectronWindowControlsState>('eventa:invoke:electron:window:get-controls-state')
+/**
+ * Centers the macOS traffic lights on a title bar that is not 44px high, for example the tab bar of a workbench.
+ * Without `centerY`, the traffic lights go back to the position that the window was created with.
+ * Other platforms ignore it.
+ */
+export const electronWindowCenterSystemControls = defineInvokeEventa<void, { centerY?: number }>('eventa:invoke:electron:window:center-system-controls')
+export const electronWindowControlsStateChanged = defineEventa<ElectronWindowControlsState>('eventa:event:electron:window:controls-state-changed')
+
 export type ElectronWindowLifecycleReason
   = | 'initial'
     | 'snapshot'
@@ -465,8 +684,20 @@ export const electronGetWindowLifecycleState = defineInvokeEventa<ElectronWindow
 export const electronWindowSetAlwaysOnTop = defineInvokeEventa<void, boolean>('eventa:invoke:electron:window:set-always-on-top')
 export const electronAppOpenUserDataFolder = defineInvokeEventa<{ path: string }>('eventa:invoke:electron:app:open-user-data-folder')
 export const electronAppQuit = defineInvokeEventa<void>('eventa:invoke:electron:app:quit')
+/**
+ * The version of the installed app, from `app.getVersion()` in the main process.
+ *
+ * Packaging can set a version that the renderer bundle does not know, for example
+ * `electron-builder -c.extraMetadata.version`. Screens that show the app version use this value.
+ */
+export const electronAppGetVersion = defineInvokeEventa<string>('eventa:invoke:electron:app:get-version')
 /** Whether the app runs on the Wayland Ozone backend, where Electron cannot read the cursor position reliably. */
 export const electronAppIsWayland = defineInvokeEventa<boolean>('eventa:invoke:electron:app:is-wayland')
+/**
+ * The main window mounted its page. The update launcher keeps a new bundle only when it reports healthy, so the page
+ * calls it once it mounts, also after a page-only update reloaded it.
+ */
+export const electronMainPageMounted = defineInvokeEventa<void>('eventa:invoke:electron:main-window:page-mounted')
 export const electronAppIconGet = defineInvokeEventa<boolean>('eventa:invoke:electron:app-icon:get')
 export const electronAppIconSet = defineInvokeEventa<boolean, boolean>('eventa:invoke:electron:app-icon:set')
 

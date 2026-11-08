@@ -11,6 +11,7 @@ import type { RequestLogService } from '../../../services/domain/request-log'
 import type { VoicePackService } from '../../../services/domain/voice-packs'
 import type { HonoEnv } from '../../../types/hono'
 
+import { ApiError } from '@proj-airi/http-error-shared'
 import { Hono } from 'hono'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -27,7 +28,6 @@ import { createBillingService } from '../../../services/domain/billing/billing-s
 import { microFluxToFlux } from '../../../services/domain/billing/flux-posting'
 import { createLlmBillingService } from '../../../services/domain/billing/llm-billing'
 import { createRequestLogService } from '../../../services/domain/request-log'
-import { ApiError } from '../../../utils/error'
 import {
   AIRI_CHAT_APP_SURFACE_HEADER,
   AIRI_CHAT_ROUND_ID_HEADER,
@@ -44,8 +44,8 @@ function createMockFluxService(flux = 100): FluxService {
 
 type BillingService = WalletBillingService & LlmBillingService
 
-function createTestBillingService(db: Parameters<typeof createBillingService>[0], redis: Parameters<typeof createBillingService>[1], _config: ConfigKVService, metrics?: Parameters<typeof createBillingService>[2]): BillingService {
-  const billing = createBillingService(db, redis, metrics)
+function createTestBillingService(db: Parameters<typeof createBillingService>[0], redis: Parameters<typeof createBillingService>[1], config: ConfigKVService, metrics?: Parameters<typeof createBillingService>[3]): BillingService {
+  const billing = createBillingService(db, redis, config, metrics)
   return { ...billing, ...createLlmBillingService(billing, metrics) }
 }
 
@@ -1531,6 +1531,68 @@ describe('v1CompletionsRoutes', () => {
       expect(productEventService.track).not.toHaveBeenCalled()
     })
 
+    /**
+     * @example
+     * POST /api/v1/audio/speech { "input": "50 percent", "extra_body": { "language": "EN-us" } }
+     */
+    it('passes the canonical language of the speech text to the TTS router', async () => {
+      const routeTts = vi.fn(async () => new Response(new Uint8Array([1]), {
+        status: 200,
+        headers: { 'Content-Type': 'audio/mpeg' },
+      }))
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV({ DEFAULT_TTS_MODEL: 'tts-1-hd' }),
+        undefined,
+        undefined,
+        undefined,
+        createMockLlmRouter({ routeTts }),
+      )
+
+      const response = await app.fetch(
+        new Request('http://localhost/api/v1/audio/speech', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'auto', input: '50 percent', voice: 'alloy', extra_body: { language: 'EN-us' } }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(response.status).toBe(200)
+      expect(routeTts).toHaveBeenCalledWith(expect.objectContaining({
+        input: expect.objectContaining({ text: '50 percent', language: 'en-US' }),
+      }), expect.any(Object))
+    })
+
+    /**
+     * @example
+     * POST /api/v1/audio/speech { "input": "hello", "extra_body": { "language": "english please" } }
+     */
+    it('rejects a malformed language before billing or upstream routing', async () => {
+      const routeTts = vi.fn(async () => new Response(new Uint8Array([1]), { status: 200 }))
+      const app = createTestApp(
+        createMockFluxService(),
+        createMockConfigKV({ DEFAULT_TTS_MODEL: 'tts-1-hd' }),
+        undefined,
+        undefined,
+        undefined,
+        createMockLlmRouter({ routeTts }),
+      )
+
+      const response = await app.fetch(
+        new Request('http://localhost/api/v1/audio/speech', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'auto', input: 'hello', voice: 'alloy', extra_body: { language: 'english please' } }),
+        }),
+        { user: testUser } as any,
+      )
+
+      expect(response.status).toBe(400)
+      expect(await response.json()).toMatchObject({ error: 'INVALID_SPEECH_LANGUAGE' })
+      expect(routeTts).not.toHaveBeenCalled()
+    })
+
     it('should not charge when routeTts upstream returns error', async () => {
       const llmRouter = createMockLlmRouter({
         routeTts: vi.fn(async () => new Response('{"error":"service down"}', {
@@ -2919,7 +2981,7 @@ describe('issue #2479 hosted Responses', () => {
     const nowSpy = vi.spyOn(Date, 'now').mockImplementation(() => now)
     vi.mocked(flux.getFlux).mockImplementation(async () => {
       now = 1000
-      return { userId: 'user-1', flux: 100, unsettledMicroFlux: 0 }
+      return { userId: 'user-1', flux: 100, unsettledMicroFlux: 0, fallbackToFlux: false, capacitorPercent: null, capacitorRechargesAt: null }
     })
     vi.mocked(catalog.resolveEnabledAlias).mockImplementation(async () => {
       now = 2000
@@ -3581,8 +3643,8 @@ it('keeps partial Responses content on unexpected EOF', async () => {
 // https://github.com/moeru-ai/airi/pull/2644#discussion_r4122406969
 // ROOT CAUSE:
 // Sequential candidate validation allowed primary dispatch before fallback pricing validation.
-// Validate the complete alias plan before the first route call.
-it.each(['chat/completions', 'responses'])('validates the full alias plan before dispatch for %s (PR #2644)', async (protocol) => {
+// Validate the complete alias capacitor before the first route call.
+it.each(['chat/completions', 'responses'])('validates the full alias capacitor before dispatch for %s (PR #2644)', async (protocol) => {
   const catalog = createMockProviderCatalogService()
   const alias = await catalog.resolveEnabledAlias('llm', 'auto')
   vi.mocked(catalog.resolveEnabledAlias).mockResolvedValue({ ...alias, fallbackEnabled: true, routes: [

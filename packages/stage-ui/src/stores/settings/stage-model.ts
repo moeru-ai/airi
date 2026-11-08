@@ -2,10 +2,9 @@ import type {} from 'pinia-plugin-synced'
 
 import type { DisplayModel } from '../display-models'
 
-import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { refManualReset, useEventListener } from '@vueuse/core'
-import { defineStore, storeToRefs } from 'pinia'
-import { computed, watch } from 'vue'
+import { defineStore, getActivePinia, storeToRefs } from 'pinia'
+import { computed, onScopeDispose, shallowRef, watch } from 'vue'
 
 import { DisplayModelFormat, useDisplayModelsStore } from '../display-models'
 
@@ -13,14 +12,12 @@ export type StageModelRenderer = 'live2d' | 'vrm' | 'spine' | 'tachie' | 'mmd' |
 type BuiltInStageModelRenderer = Exclude<StageModelRenderer, 'godot'>
 
 const useStageModelSelectionStore = defineStore('settings-stage-model-selection', () => {
-  // Pinia synchronization owns live cross-window state. localStorage only
-  // loads and saves the durable model selection.
-  const selected = useLocalStorageManualReset<string>('settings/stage/model', 'preset-live2d-1', {
-    listenToStorageChanges: false,
-  })
+  // The active Character owns the durable Avatar Model references. This store
+  // only replicates the current runtime selection between renderer windows.
+  const selected = shallowRef('')
 
   function resetState() {
-    selected.reset()
+    selected.value = ''
   }
 
   return {
@@ -38,8 +35,18 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   const stageModelSelectionStore = useStageModelSelectionStore()
   const { selected: stageModelSelectedState } = storeToRefs(stageModelSelectionStore)
   let stageModelUpdateSequence = 0
+  // The selection could not load. The next change of the available models tries again.
+  let stageModelLoadPending = false
   let legacyModelIdentityResetPromise: Promise<void> | undefined
-  const defaultStageModelId = 'preset-live2d-1'
+  // The Three.js store loads after an await. By then another Pinia can be
+  // active, or this one can be disposed, so keep the Pinia that owns this store.
+  const pinia = getActivePinia()
+  let disposed = false
+  onScopeDispose(() => {
+    disposed = true
+    // Cancel a pending update. Its next store action would make this disposed Pinia active again.
+    stageModelUpdateSequence++
+  })
   const stageModelSelected = computed<string>({
     get: () => stageModelSelectedState.value,
     set: (value) => {
@@ -50,6 +57,10 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   const stageModelSelectedUrl = refManualReset<string | undefined>(undefined)
   const stageModelRenderer = refManualReset<StageModelRenderer>(undefined)
   const stageModelBuiltInRenderer = refManualReset<BuiltInStageModelRenderer>(undefined)
+  // True when the selected model is not on this device and the account cannot download it.
+  // The Stage then asks the user to select another model. A download in progress or a failed
+  // download keeps it false, because the model still exists.
+  const stageModelUnavailable = refManualReset<boolean>(false)
 
   const stageViewControlsEnabled = refManualReset<boolean>(false)
 
@@ -96,7 +107,10 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     // The Three.js store is browser-only. Load it only during browser startup so
     // Node consumers of the shared settings store do not evaluate rendering APIs.
     legacyModelIdentityResetPromise ??= import('@proj-airi/stage-ui-three').then(({ useModelStore }) => {
-      useModelStore().resetLegacyModelIdentity()
+      // A disposed Pinia cannot create the Three.js store, and nothing renders it anymore.
+      if (disposed)
+        return
+      useModelStore(pinia).resetLegacyModelIdentity()
     })
 
     return legacyModelIdentityResetPromise
@@ -105,6 +119,8 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   async function updateStageModel() {
     const requestId = ++stageModelUpdateSequence
     const selectedModelId = stageModelSelectedState.value
+    stageModelLoadPending = false
+    stageModelUnavailable.value = false
 
     const legacyModelIdentityReset = resetLegacyModelIdentity()
     if (legacyModelIdentityReset) {
@@ -122,19 +138,25 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
       return
     }
 
-    const model = await displayModelsStore.getDisplayModel(selectedModelId)
+    let model: Awaited<ReturnType<typeof displayModelsStore.ensureDisplayModelAvailable>>
+    try {
+      model = await displayModelsStore.ensureDisplayModelAvailable(selectedModelId)
+    }
+    catch (error) {
+      // The selection stays. A cloud model that cannot download now is retried after the next synchronization.
+      console.error('[stage-model] failed to make the selected display model available:', error)
+      if (requestId === stageModelUpdateSequence)
+        stageModelLoadPending = true
+      return
+    }
     if (requestId !== stageModelUpdateSequence)
       return
 
     if (!model) {
-      if (selectedModelId !== defaultStageModelId) {
-        stageModelSelectedState.value = defaultStageModelId
-        await updateStageModel()
-        return
-      }
-
+      stageModelLoadPending = true
       replaceStageModelUrl(undefined)
       stageModelSelectedDisplayModel.value = undefined
+      stageModelUnavailable.value = true
       stageModelBuiltInRenderer.value = 'disabled'
       if (stageModelRenderer.value !== 'godot')
         stageModelRenderer.value = 'disabled'
@@ -184,6 +206,12 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     void updateStageModel()
   })
 
+  // A sign-in, a reconnection, or another device can make the selection available without changing it.
+  watch(() => displayModelsStore.availabilityRevision, () => {
+    if (stageModelLoadPending)
+      void updateStageModel()
+  })
+
   async function resetState() {
     revokeStageModelUrl(stageModelSelectedUrl.value)
 
@@ -192,6 +220,7 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     stageModelSelectedUrl.reset()
     stageModelRenderer.reset()
     stageModelBuiltInRenderer.reset()
+    stageModelUnavailable.reset()
     stageViewControlsEnabled.reset()
 
     await updateStageModel()
@@ -202,6 +231,7 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     stageModelSelected,
     stageModelSelectedUrl,
     stageModelSelectedDisplayModel,
+    stageModelUnavailable,
     stageViewControlsEnabled,
 
     initializeStageModel,

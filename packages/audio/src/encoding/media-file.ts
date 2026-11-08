@@ -43,13 +43,20 @@ export async function encodeWav(frames: ReadableStream<PcmBlock>, options: WavOp
         break
 
       startFrame ??= block.range.startFrame
-      await source.add(new AudioSample({
+      const sample = new AudioSample({
         data: planar(block),
         format: 'f32-planar',
         numberOfChannels: block.channels.length,
         sampleRate: block.sampleRate,
         timestamp: (block.range.startFrame - startFrame) / block.sampleRate,
-      }))
+      })
+      try {
+        await source.add(sample)
+      }
+      finally {
+        // The source does not close every sample that it receives, for example when no resampling is needed.
+        sample.close()
+      }
     }
     source.close()
     await output.finalize()

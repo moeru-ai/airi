@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { Alert, ErrorContainer, RadioCardManySelect, RadioCardSimple } from '@proj-airi/stage-ui/components'
+import { RadioCardManySelect, RadioCardSimple } from '@proj-airi/stage-ui/components'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useVisionActivityStore, useVisionProcessingStore, useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
-import { FieldCheckbox, FieldRange } from '@proj-airi/ui'
+import { Alert, FieldCheckbox, FieldRange, SettingsCard } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
+
+import { moduleModelSearchKey, moduleProviderSearchKey } from './module-model-search'
 
 const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
@@ -54,8 +56,14 @@ watch(activeProvider, async (provider) => {
 }, { immediate: true })
 
 async function selectProvider(provider: string) {
+  if (!provider) {
+    visionStore.enabled = false
+    return
+  }
   await airiCardStore.selectActiveCardVisionProvider(provider)
 }
+
+const selectedProvider = computed(() => visionStore.enabled ? activeProvider.value : '')
 
 async function persistSelection() {
   await airiCardStore.updateActiveCardVision({ provider: activeProvider.value, model: activeModel.value })
@@ -103,18 +111,21 @@ function formatRelativeTime(timestamp: number | null) {
 
 <template>
   <div :class="['flex', 'flex-col', 'gap-6']">
-    <FieldCheckbox
-      v-model="useForChat"
-      :label="t('stage.chat.images.use-vision')"
-      :description="t('stage.chat.images.use-vision-description')"
-    />
-    <FieldCheckbox
-      v-model="useForToolImages"
-      :label="t('settings.pages.modules.vision.tool-images.label')"
-      :description="t('settings.pages.modules.vision.tool-images.description')"
-    />
+    <SettingsCard>
+      <FieldCheckbox v-model="visionStore.enabled" :label="t('settings.pages.modules.vision.title')" />
+      <FieldCheckbox
+        v-model="useForChat"
+        :label="t('stage.chat.images.use-vision')"
+        :description="t('stage.chat.images.use-vision-description')"
+      />
+      <FieldCheckbox
+        v-model="useForToolImages"
+        :label="t('settings.pages.modules.vision.tool-images.label')"
+        :description="t('settings.pages.modules.vision.tool-images.description')"
+      />
+    </SettingsCard>
 
-    <div :class="['rounded-xl', 'bg-neutral-50', 'p-4', 'dark:bg-[rgba(0,0,0,0.3)]']">
+    <SettingsCard>
       <div :class="['flex', 'flex-col', 'gap-4']">
         <div>
           <h2 :class="['text-lg', 'text-neutral-500', 'md:text-2xl', 'dark:text-neutral-500']">
@@ -126,15 +137,23 @@ function formatRelativeTime(timestamp: number | null) {
         </div>
         <div :class="['max-w-full']">
           <fieldset
-            v-if="moduleVisionProvidersMetadata.length > 0"
             :class="['flex', 'min-w-0', 'flex-row', 'gap-4', 'overflow-x-auto', 'scroll-smooth']"
             role="radiogroup"
           >
             <RadioCardSimple
+              id="vision-none"
+              :model-value="selectedProvider"
+              name="provider"
+              value=""
+              :title="t('settings.pages.modules.availability.none')"
+              @update:model-value="selectProvider"
+            />
+            <RadioCardSimple
               v-for="metadata in moduleVisionProvidersMetadata"
               :id="metadata.id"
               :key="metadata.id"
-              :model-value="activeProvider"
+              :data-settings-search="moduleProviderSearchKey('vision', metadata.id)"
+              :model-value="selectedProvider"
               name="provider"
               :value="metadata.id"
               :title="metadata.localizedName || 'Unknown'"
@@ -194,10 +213,10 @@ function formatRelativeTime(timestamp: number | null) {
                 'transition',
                 'duration-200',
                 'ease-in-out',
-                'hover:border-primary-500/30',
+                'hover:bg-neutral-50',
                 'dark:border-neutral-900',
                 'dark:bg-neutral-900/20',
-                'dark:hover:border-primary-400/30',
+                'dark:hover:bg-neutral-900/50',
                 'flex',
                 'items-center',
                 'justify-center',
@@ -210,7 +229,7 @@ function formatRelativeTime(timestamp: number | null) {
               />
             </RouterLink>
           </fieldset>
-          <div v-else>
+          <div v-if="moduleVisionProvidersMetadata.length === 0">
             <RouterLink
               to="/settings/providers#vision"
               :class="[
@@ -218,15 +237,11 @@ function formatRelativeTime(timestamp: number | null) {
                 'items-center',
                 'gap-3',
                 'rounded-lg',
-                'border-2',
-                'border-dashed',
-                'border-neutral-200',
                 'bg-neutral-50',
                 'p-4',
                 'transition',
                 'duration-200',
                 'ease-in-out',
-                'dark:border-neutral-800',
                 'dark:bg-neutral-800',
               ]"
             >
@@ -244,9 +259,9 @@ function formatRelativeTime(timestamp: number | null) {
           </div>
         </div>
       </div>
-    </div>
+    </SettingsCard>
 
-    <div v-if="activeProvider && supportsModelListing" :class="['rounded-xl', 'bg-neutral-50', 'p-4', 'dark:bg-[rgba(0,0,0,0.3)]']">
+    <SettingsCard v-if="selectedProvider && supportsModelListing">
       <div :class="['flex', 'flex-col', 'gap-4']">
         <div>
           <h2 :class="['text-lg', 'md:text-2xl']">
@@ -264,22 +279,20 @@ function formatRelativeTime(timestamp: number | null) {
           <span>{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.loading') }}</span>
         </div>
 
-        <ErrorContainer
+        <Alert
           v-else-if="activeProviderModelError"
+          tone="danger"
           :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
-          :error="activeProviderModelError"
-        />
+        >
+          <pre :class="['whitespace-pre-wrap break-all']">{{ String(activeProviderModelError) }}</pre>
+        </Alert>
 
         <Alert
           v-else-if="providerModels.length === 0 && !isLoadingActiveProviderModels"
-          type="warning"
+          tone="warning"
+          :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models')"
         >
-          <template #title>
-            {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models') }}
-          </template>
-          <template #content>
-            {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description') }}
-          </template>
+          {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description') }}
         </Alert>
 
         <template v-else-if="providerModels.length > 0">
@@ -287,6 +300,7 @@ function formatRelativeTime(timestamp: number | null) {
             v-model="activeModel"
             v-model:search-query="modelSearchQuery"
             :items="providerModels.sort((a, b) => a.id === activeModel ? -1 : b.id === activeModel ? 1 : 0)"
+            :search-key-of="model => moduleModelSearchKey('vision', activeProvider, model.id)"
             :searchable="true"
             :search-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"
             :search-no-results-title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results')"
@@ -301,9 +315,9 @@ function formatRelativeTime(timestamp: number | null) {
           />
         </template>
       </div>
-    </div>
+    </SettingsCard>
 
-    <div v-else-if="activeProvider && !supportsModelListing" :class="['rounded-xl', 'bg-neutral-50', 'p-4', 'dark:bg-[rgba(0,0,0,0.3)]']">
+    <SettingsCard v-else-if="selectedProvider && !supportsModelListing">
       <div :class="['flex', 'flex-col', 'gap-4']">
         <div>
           <h2 :class="['text-lg', 'text-neutral-500', 'md:text-2xl', 'dark:text-neutral-400']">
@@ -314,30 +328,9 @@ function formatRelativeTime(timestamp: number | null) {
           </div>
         </div>
 
-        <div
-          :class="[
-            'flex',
-            'items-center',
-            'gap-3',
-            'rounded-lg',
-            'border',
-            'border-primary-200',
-            'bg-primary-50',
-            'p-4',
-            'dark:border-primary-800',
-            'dark:bg-primary-900/20',
-          ]"
-        >
-          <div :class="['text-2xl', 'text-primary-500', 'dark:text-primary-400', 'i-solar:info-circle-line-duotone']" />
-          <div :class="['flex', 'flex-col']">
-            <span :class="['font-medium']">
-              {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.not_supported') }}
-            </span>
-            <span :class="['text-sm', 'text-primary-600', 'dark:text-primary-400']">
-              {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.not_supported_description') }}
-            </span>
-          </div>
-        </div>
+        <Alert tone="info" :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.not_supported')">
+          {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.not_supported_description') }}
+        </Alert>
 
         <div :class="['mt-2']">
           <label :class="['mb-1', 'block', 'text-sm', 'font-medium']">
@@ -362,9 +355,9 @@ function formatRelativeTime(timestamp: number | null) {
           >
         </div>
       </div>
-    </div>
+    </SettingsCard>
 
-    <div :class="['rounded-xl', 'bg-neutral-50', 'p-4', 'dark:bg-[rgba(0,0,0,0.3)]']">
+    <SettingsCard>
       <div :class="['flex', 'flex-col', 'gap-4']">
         <div>
           <h2 :class="['text-lg', 'text-neutral-500', 'md:text-2xl', 'dark:text-neutral-400']">
@@ -386,7 +379,7 @@ function formatRelativeTime(timestamp: number | null) {
         />
 
         <div :class="['grid', 'gap-4', 'md:grid-cols-3']">
-          <div :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white', 'p-3', 'dark:border-neutral-800', 'dark:bg-neutral-900']">
+          <div :class="['rounded-lg p-3', 'bg-neutral-100/70 dark:bg-neutral-800/50']">
             <div :class="['text-xs', 'uppercase', 'tracking-wide', 'text-neutral-400']">
               {{ t('settings.pages.modules.vision.stats.captures') }}
             </div>
@@ -398,7 +391,7 @@ function formatRelativeTime(timestamp: number | null) {
             </div>
           </div>
 
-          <div :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white', 'p-3', 'dark:border-neutral-800', 'dark:bg-neutral-900']">
+          <div :class="['rounded-lg p-3', 'bg-neutral-100/70 dark:bg-neutral-800/50']">
             <div :class="['text-xs', 'uppercase', 'tracking-wide', 'text-neutral-400']">
               {{ t('settings.pages.modules.vision.stats.context-updates') }}
             </div>
@@ -410,7 +403,7 @@ function formatRelativeTime(timestamp: number | null) {
             </div>
           </div>
 
-          <div :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white', 'p-3', 'dark:border-neutral-800', 'dark:bg-neutral-900']">
+          <div :class="['rounded-lg p-3', 'bg-neutral-100/70 dark:bg-neutral-800/50']">
             <div :class="['text-xs', 'uppercase', 'tracking-wide', 'text-neutral-400']">
               {{ t('settings.pages.modules.vision.stats.inferences') }}
             </div>
@@ -422,7 +415,7 @@ function formatRelativeTime(timestamp: number | null) {
             </div>
           </div>
 
-          <div :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white', 'p-3', 'dark:border-neutral-800', 'dark:bg-neutral-900']">
+          <div :class="['rounded-lg p-3', 'bg-neutral-100/70 dark:bg-neutral-800/50']">
             <div :class="['text-xs', 'uppercase', 'tracking-wide', 'text-neutral-400']">
               {{ t('settings.pages.modules.vision.stats.failed-inferences') }}
             </div>
@@ -434,7 +427,7 @@ function formatRelativeTime(timestamp: number | null) {
             </div>
           </div>
 
-          <div :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white', 'p-3', 'dark:border-neutral-800', 'dark:bg-neutral-900']">
+          <div :class="['rounded-lg p-3', 'bg-neutral-100/70 dark:bg-neutral-800/50']">
             <div :class="['text-xs', 'uppercase', 'tracking-wide', 'text-neutral-400']">
               {{ t('settings.pages.modules.vision.stats.last-inference') }}
             </div>
@@ -463,12 +456,9 @@ function formatRelativeTime(timestamp: number | null) {
           </div>
         </div>
       </div>
-    </div>
+    </SettingsCard>
 
-    <div
-      v-if="isOllamaVisionProvider"
-      :class="['rounded-xl', 'bg-neutral-50', 'p-4', 'dark:bg-[rgba(0,0,0,0.3)]']"
-    >
+    <SettingsCard v-if="isOllamaVisionProvider">
       <div :class="['flex', 'flex-col', 'gap-4']">
         <div>
           <h2 :class="['text-lg', 'text-neutral-500', 'md:text-2xl', 'dark:text-neutral-400']">
@@ -485,7 +475,7 @@ function formatRelativeTime(timestamp: number | null) {
           :description="t('settings.pages.modules.vision.ollama.thinking.description')"
         />
       </div>
-    </div>
+    </SettingsCard>
   </div>
 </template>
 

@@ -284,3 +284,32 @@ describe('pushMessages', () => {
     expect(messages).toHaveLength(0)
   })
 })
+
+describe('listChats', () => {
+  let db: Database
+
+  beforeEach(async () => {
+    db = await mockDB(schema)
+  })
+
+  it('returns the members of each chat of the user', async () => {
+    const service = createChatService(db)
+    await service.createChat('owner', { id: 'luna-chat', type: 'bot', members: [{ type: 'character', characterId: 'luna' }] })
+    await service.createChat('owner', { id: 'sol-chat', type: 'bot', members: [{ type: 'character', characterId: 'sol' }] })
+    await service.createChat('stranger', { id: 'other-chat', type: 'bot', members: [{ type: 'character', characterId: 'luna' }] })
+
+    const chats = await service.listChats('owner')
+
+    const characterIdsByChatId = Object.fromEntries(chats.map(chat => [
+      chat.id,
+      chat.members.filter(member => member.memberType === 'character').map(member => member.characterId),
+    ]))
+    expect(characterIdsByChatId).toEqual({ 'luna-chat': ['luna'], 'sol-chat': ['sol'] })
+  })
+
+  it('returns an empty list for a user without chats', async () => {
+    const service = createChatService(db)
+
+    expect(await service.listChats('owner')).toEqual([])
+  })
+})

@@ -28,13 +28,24 @@ export interface WakeWordConflict {
   readonly owner?: string
 }
 
+/**
+ * Identifies one pronunciation of one model. Owner choices and conflicts use this key, so settings views compute it the same way.
+ *
+ * @example
+ * wakeWordKey('kws-model', ['HEY', 'AIRI'])
+ * // => '["kws-model",["HEY","AIRI"]]'
+ */
+export function wakeWordKey(modelId: string, tokens: readonly string[]) {
+  return JSON.stringify([modelId, tokens])
+}
+
 /** A pronunciation has at most one active owner. Unresolved conflicts pause only the matching pronunciation. */
 export function resolveWakeWords(cards: readonly { characterId: string, words: readonly WakeWord[] }[], owners: Readonly<Record<string, string>>) {
   const groups = new Map<string, Map<string, WakePronunciation>>()
   for (const card of cards) {
     for (const word of card.words) {
       for (const tokens of word.pronunciations) {
-        const key = JSON.stringify([word.modelId, tokens])
+        const key = wakeWordKey(word.modelId, tokens)
         const group = groups.get(key) ?? new Map<string, WakePronunciation>()
         group.set(card.characterId, { key, characterId: card.characterId, text: word.text, modelId: word.modelId, tokens })
         groups.set(key, group)

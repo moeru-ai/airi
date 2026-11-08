@@ -1,23 +1,29 @@
-FROM node:24-trixie AS build-stage
+FROM node:24.22.1-trixie AS build-stage
 
 WORKDIR /app
 
 ARG VITE_ENABLE_ANALYTICS=false
 ENV VITE_ENABLE_ANALYTICS=${VITE_ENABLE_ANALYTICS}
 
-RUN apt update && apt install -y ca-certificates curl
+RUN apt update && apt install -y build-essential ca-certificates curl python3 python3-setuptools
 RUN update-ca-certificates
-RUN apt update && apt install -y build-essential python3 python3-setuptools curl
 
 RUN corepack enable
 
+ENV pnpm_config_store_dir=/root/.pnpm-store
+
+# Only the lockfile decides this layer, so a source change does not download dependencies again.
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY patches/ ./patches/
+RUN --mount=type=cache,id=pnpm-store,target=/root/.pnpm-store \
+    pnpm fetch
+
 COPY . .
 RUN --mount=type=cache,id=pnpm-store,target=/root/.pnpm-store \
-    pnpm install --frozen-lockfile
+    pnpm install --frozen-lockfile --offline
 
 RUN pnpm -F @proj-airi/stage-web run build && \
-    pnpm -F @proj-airi/docs run build:base && \
-    mv ./docs/.vitepress/dist ./apps/stage-web/dist/docs && \
+    ./scripts/build-airi-docs.sh ./apps/stage-web/dist/docs && \
     pnpm -F @proj-airi/stage-ui run story:build && \
     mv ./packages/stage-ui/.histoire/dist ./apps/stage-web/dist/ui
 

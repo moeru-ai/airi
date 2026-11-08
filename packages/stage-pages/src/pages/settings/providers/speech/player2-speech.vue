@@ -2,15 +2,11 @@
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { UnElevenLabsOptions } from 'unspeech'
 
-import {
-  Alert,
-  SpeechPlayground,
-  SpeechProviderSettings,
-} from '@proj-airi/stage-ui/components'
+import { SpeechPlayground, SpeechProviderSettings } from '@proj-airi/stage-ui/components'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
-import { FieldRange } from '@proj-airi/ui'
+import { Alert, FieldRange } from '@proj-airi/ui'
 import { cloneDeep } from 'es-toolkit'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -105,27 +101,21 @@ watch(speedRatio, async () => {
       />
     </template>
   </SpeechProviderSettings>
-  <Alert v-if="!hasPlayer2" type="error">
-    <template #title>
-      {{ t('settings.dialogs.onboarding.validationFailed') }}
-    </template>
-    <template #content>
-      <div class="whitespace-pre-wrap break-all">
-        <div>
-          Please download and run the Player2 App:
-          <a href="https://player2.game" target="_blank" rel="noopener noreferrer">
-            https://player2.game
-          </a>
-
-          <div>
-            After downloading, if you still are having trouble, please reach out to us on Discord:
-            <a href="https://player2.game/discord" target="_blank" rel="noopener noreferrer">
-              https://player2.game/discord
-            </a>.
-          </div>
-        </div>
-      </div>
-    </template>
+  <Alert v-if="!hasPlayer2" tone="danger" :title="t('settings.dialogs.onboarding.validationFailed')">
+    <p>
+      <i18n-t keypath="settings.pages.providers.provider.player2.app-missing.download" scope="global">
+        <template #link>
+          <a href="https://player2.game" target="_blank" rel="noopener noreferrer">https://player2.game</a>
+        </template>
+      </i18n-t>
+    </p>
+    <p>
+      <i18n-t keypath="settings.pages.providers.provider.player2.app-missing.support" scope="global">
+        <template #link>
+          <a href="https://player2.game/discord" target="_blank" rel="noopener noreferrer">https://player2.game/discord</a>
+        </template>
+      </i18n-t>
+    </p>
   </Alert>
 </template>
 

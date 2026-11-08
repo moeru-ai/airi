@@ -1,9 +1,9 @@
 import type { AuthRoutesDeps, HonoEnv } from '../routes'
 
+import { ApiError } from '@proj-airi/http-error-shared'
 import { Hono } from 'hono'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { ApiError } from '../error'
 import { createAuthRoutes } from '../routes'
 
 // The /oauth2/userinfo guard composes resolveSessionIgnoringBan (cookie path

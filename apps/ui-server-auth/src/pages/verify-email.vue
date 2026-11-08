@@ -83,12 +83,12 @@ async function resumeIfSessionReady(): Promise<boolean> {
   }
 }
 
+// Keep the result tab visible. Only the original pending tab resumes its login flow.
 onMounted(async () => {
   if (verified.value) {
     trackEmailVerificationCompleted()
     if (isSupported.value)
       post('verified')
-    window.location.replace(import.meta.env.VITE_WEB_APP_URL)
     return
   }
 

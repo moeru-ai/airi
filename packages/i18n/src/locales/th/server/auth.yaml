@@ -1,0 +1,201 @@
+electronCallback:
+  title:
+    loading: กำลังเข้าสู่ระบบให้เสร็จสิ้น
+    openingAiri: กำลังเปิด AIRI
+    signedIn: คุณเข้าสู่ระบบแล้ว
+    signInFailed: เข้าสู่ระบบไม่สำเร็จ
+    finishSignInInAiri: เข้าสู่ระบบให้เสร็จใน AIRI
+    openAiriToContinue: เปิด AIRI เพื่อดำเนินการต่อ
+  message:
+    checkingResponse: กำลังตรวจสอบผลการเข้าสู่ระบบและเตรียมส่งต่อไปยัง AIRI
+    passingToAiri: กำลังส่งการเข้าสู่ระบบของคุณกลับไปยัง AIRI หน้านี้น่าจะปิดในอีกสักครู่
+    syncedAndSafeToClose: เราแจ้งไคลเอนต์ AIRI ที่คุณใช้เข้าสู่ระบบแล้ว
+    invalidResponse: เราใช้ผลการเข้าสู่ระบบนี้ไม่ได้
+    loopbackUnreachable: เบราว์เซอร์ติดต่อ AIRI ผ่านพอร์ต callback ในเครื่องไม่ได้
+    tryOpenDirectly: เราจะลองเปิดการส่งต่อในเครื่องโดยตรง ถ้ายังไม่สำเร็จ ให้ใช้ปุ่มด้านล่าง
+    automaticHandoffFailed: การส่งต่ออัตโนมัติไม่เสร็จสิ้นในเซสชันเบราว์เซอร์นี้
+  label:
+    signIn: เข้าสู่ระบบ
+    safeToClose: ตอนนี้ปิดแท็บนี้ได้อย่างปลอดภัยแล้ว
+    whyStillHere: ทำไมแท็บนี้ยังอยู่?
+  action:
+    openAiriManually: เปิด AIRI ด้วยตัวเอง
+  hint:
+    closeTabManually: เบราว์เซอร์บางตัวไม่อนุญาตให้หน้านี้ปิดตัวเองโดยอัตโนมัติ คุณปิดแท็บนี้เองได้
+signIn:
+  title: เข้าสู่ระบบ
+  step:
+    identify:
+      heading: เข้าสู่ระบบ
+      description: กรอกอีเมลของคุณเพื่อเข้าสู่ระบบหรือสร้างบัญชี
+    password:
+      heading: ยินดีต้อนรับกลับมา
+      description: ดำเนินการต่อในชื่อ {email}
+    create:
+      heading: สร้างบัญชีของคุณ
+      description: เราจะสร้างบัญชีใหม่สำหรับ {email}
+  email:
+    label: อีเมล
+  password:
+    label: รหัสผ่าน
+    placeholder: รหัสผ่านของคุณ
+  newPassword:
+    label: สร้างรหัสผ่าน
+    placeholder: อย่างน้อย 8 ตัวอักษร
+  confirmPassword:
+    label: ยืนยันรหัสผ่าน
+    placeholder: กรอกรหัสผ่านอีกครั้ง
+  name:
+    label: ชื่อที่แสดง
+    placeholder: ไม่บังคับ ค่าเริ่มต้นคือชื่อผู้ใช้ในอีเมลของคุณ
+  action:
+    continue: ดำเนินการต่อ
+    signIn: เข้าสู่ระบบ
+    createAccount: สร้างบัญชี
+    forgotPassword: ลืมรหัสผ่าน?
+    useDifferentEmail: ใช้อีเมลอื่น
+  divider:
+    or: หรือ
+  message:
+    redirecting: กำลังเปลี่ยนเส้นทางไปยัง {provider}…
+  error:
+    fallback: เข้าสู่ระบบไม่สำเร็จ
+    providerTimeout: การเข้าสู่ระบบผ่านผู้ให้บริการหมดเวลา โปรดลองอีกครั้ง
+    unknown: เกิดข้อผิดพลาดที่ไม่รู้จัก
+    socialOnlyNoPassword: อีเมลนี้ลงทะเบียนด้วย Google หรือ GitHub ให้เข้าสู่ระบบด้วยปุ่มด้านล่าง คุณเพิ่มรหัสผ่านได้ในการตั้งค่าบัญชีหลังเข้าสู่ระบบ
+    passwordMismatch: รหัสผ่านกับการยืนยันรหัสผ่านไม่ตรงกัน
+    invalidEmail: โปรดกรอกอีเมลที่ถูกต้อง
+  footer:
+    prefix: เมื่อดำเนินการต่อ แสดงว่าคุณยอมรับ
+    terms: ข้อกำหนดการใช้งาน
+    and: และ
+    privacy: นโยบายความเป็นส่วนตัว
+verifyEmail:
+  title:
+    pending: ตรวจสอบกล่องจดหมายของคุณ
+    success: ยืนยันอีเมลแล้ว
+    failed: การยืนยันล้มเหลว
+  message:
+    pending: เราส่งลิงก์ยืนยันไปยังอีเมลของคุณแล้ว เปิดลิงก์เพื่อสร้างบัญชีให้เสร็จ หน้านี้จะดำเนินการต่อโดยอัตโนมัติเมื่อคุณคลิกลิงก์
+    pendingWithAddress: เราส่งลิงก์ยืนยันไปยัง {email} แล้ว เปิดลิงก์เพื่อสร้างบัญชีให้เสร็จ หน้านี้จะดำเนินการต่อโดยอัตโนมัติเมื่อคุณคลิกลิงก์
+    success: ยืนยันอีเมลของคุณและเข้าสู่ระบบแล้ว คุณปิดแท็บนี้ได้
+    failed: เรายืนยันอีเมลของคุณไม่ได้ ({error}) ลองขอลิงก์ใหม่
+  action:
+    backToSignIn: กลับไปที่การเข้าสู่ระบบ
+forgotPassword:
+  title: รีเซ็ตรหัสผ่านของคุณ
+  description: กรอกอีเมลที่ใช้กับบัญชีของคุณ แล้วเราจะส่งลิงก์สำหรับรีเซ็ตให้
+  email:
+    label: อีเมล
+  action:
+    send: ส่งลิงก์รีเซ็ต
+    backToSignIn: กลับไปที่การเข้าสู่ระบบ
+  message:
+    sent: ถ้า {email} ตรงกับบัญชีใด ลิงก์รีเซ็ตกำลังส่งไปให้
+  error:
+    fallback: เราส่งอีเมลรีเซ็ตไม่ได้
+deleteAccount:
+  title:
+    success: ลบบัญชีแล้ว
+    failed: ลบบัญชีไม่ได้
+  message:
+    success: บัญชีของคุณถูกลบแล้ว
+  action:
+    closeTab: คุณปิดแท็บนี้ได้
+resetPassword:
+  title:
+    default: ตั้งรหัสผ่านใหม่
+    success: อัปเดตรหัสผ่านแล้ว
+  password:
+    label: รหัสผ่านใหม่
+    placeholder: อย่างน้อย 8 ตัวอักษร
+  confirmPassword:
+    label: ยืนยันรหัสผ่านใหม่
+    placeholder: กรอกรหัสผ่านใหม่อีกครั้ง
+  action:
+    reset: อัปเดตรหัสผ่าน
+    goSignIn: ไปที่การเข้าสู่ระบบ
+  message:
+    success: อัปเดตรหัสผ่านของคุณแล้ว เข้าสู่ระบบด้วยรหัสผ่านใหม่
+  error:
+    fallback: เราอัปเดตรหัสผ่านของคุณไม่ได้
+    missingToken: ลิงก์รีเซ็ตไม่ถูกต้องหรือหมดอายุแล้ว
+    passwordMismatch: รหัสผ่านกับการยืนยันรหัสผ่านไม่ตรงกัน
+profile:
+  title: โปรไฟล์บัญชี
+  description: จัดการรูปโปรไฟล์ ชื่อที่แสดง และบัญชีที่เชื่อมต่อ
+  section:
+    profile: โปรไฟล์
+    avatar: รูปโปรไฟล์
+    password: รหัสผ่าน
+    linkedAccounts: บัญชีที่เชื่อมต่อ
+  field:
+    email: อีเมล
+    emailVerified: สถานะอีเมล
+    createdAt: เข้าร่วมเมื่อ
+  label:
+    verified: ยืนยันแล้ว
+    unverified: ยังไม่ยืนยัน
+  name:
+    label: ชื่อที่แสดง
+    placeholder: ชื่อที่คนอื่นเห็น
+  avatar:
+    altText: รูปโปรไฟล์
+    gravatarNotice: รูปโปรไฟล์จาก Gravatar
+    gravatarLink: จัดการที่ gravatar.com
+  password:
+    currentLabel: รหัสผ่านปัจจุบัน
+    currentPlaceholder: กรอกรหัสผ่านปัจจุบันของคุณ
+    newLabel: รหัสผ่านใหม่
+    newPlaceholder: อย่างน้อย 8 ตัวอักษร
+    confirmLabel: ยืนยันรหัสผ่านใหม่
+    confirmPlaceholder: กรอกรหัสผ่านใหม่อีกครั้ง
+    setDescription: คุณเข้าสู่ระบบผ่านผู้ให้บริการโซเชียล จึงยังไม่มีรหัสผ่านปัจจุบัน เราจะส่งลิงก์ที่ปลอดภัยไปทางอีเมลเพื่อให้คุณตั้งรหัสผ่าน
+    setLinkSent: ตรวจสอบลิงก์สำหรับตั้งรหัสผ่านที่ {email}
+    setLinkFailed: เราส่งลิงก์สำหรับตั้งรหัสผ่านไม่ได้
+  linkedAccounts:
+    description: เข้าสู่ระบบ AIRI ผ่านผู้ให้บริการเหล่านี้ ยกเลิกการเชื่อมโยงเพื่อเพิกถอนการเข้าถึง แล้วเชื่อมโยงอีกครั้งเพื่อเปลี่ยนไปใช้บัญชีอื่น
+    status:
+      linked: เชื่อมโยงแล้ว
+      notLinked: ยังไม่ได้เชื่อมโยง
+      linkedSince: เชื่อมโยงเมื่อ {date}
+    action:
+      link: เชื่อมโยง
+      unlink: ยกเลิกการเชื่อมโยง
+    message:
+      loading: กำลังโหลดบัญชีที่เชื่อมต่อ...
+      unlinked: 'ยกเลิกการเชื่อมต่อ {provider} แล้ว'
+      linkStarted: กำลังเปลี่ยนเส้นทางไปยัง {provider}…
+    error:
+      listFailed: โหลดบัญชีที่เชื่อมต่อไม่ได้
+      unlinkFailed: ยกเลิกการเชื่อมโยงบัญชีนี้ไม่ได้
+      linkFailed: เริ่มขั้นตอนการเชื่อมโยงไม่ได้
+      lastAccount: นี่เป็นวิธีเข้าสู่ระบบเพียงวิธีเดียวของคุณ ตั้งรหัสผ่านก่อน แล้วจึงยกเลิกการเชื่อมโยง
+  action:
+    saveProfile: บันทึกการเปลี่ยนแปลง
+    changePassword: เปลี่ยนรหัสผ่าน
+    sendSetPasswordLink: ส่งลิงก์สำหรับตั้งรหัสผ่านทางอีเมล
+    signOut: ออกจากระบบ
+  message:
+    loading: กำลังโหลดโปรไฟล์ของคุณ...
+    profileSaved: อัปเดตโปรไฟล์แล้ว
+    passwordChanged: เปลี่ยนรหัสผ่านแล้ว เซสชันอื่น ๆ ถูกออกจากระบบแล้ว
+  error:
+    loadFailed: เราโหลดโปรไฟล์ของคุณไม่ได้
+    saveFailed: เราบันทึกการเปลี่ยนแปลงของคุณไม่ได้
+    changePasswordFailed: เราเปลี่ยนรหัสผ่านของคุณไม่ได้
+    signOutFailed: เราออกจากระบบให้คุณไม่ได้
+    passwordMismatch: รหัสผ่านใหม่กับการยืนยันรหัสผ่านไม่ตรงกัน
+    passwordSameAsCurrent: รหัสผ่านใหม่ต้องไม่ซ้ำกับรหัสผ่านปัจจุบัน
+webCallback:
+  title:
+    signIn: เข้าสู่ระบบ
+    errorLabel: เกิดข้อผิดพลาดขณะเข้าสู่ระบบให้คุณ
+    loading: กำลังเข้าสู่ระบบ...
+  message:
+    missingCodeOrState: ไม่มีรหัสการอนุญาตหรือค่า state
+    missingFlowState: ไม่มีสถานะขั้นตอน OIDC โปรดลองเข้าสู่ระบบอีกครั้ง
+    tokenExchangeFailed: การแลกเปลี่ยนโทเค็นล้มเหลว
+    finalizing: กำลังยืนยันตัวตนกับ AIRI ให้เสร็จสิ้น
+  action:
+    tryAgain: ลองอีกครั้ง

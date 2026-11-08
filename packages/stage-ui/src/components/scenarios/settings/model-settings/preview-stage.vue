@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import type { Live2DContext } from '@proj-airi/stage-ui-live2d'
+
 import type { ModelSettingsRuntimeSnapshot } from './runtime'
 
-import { Live2DScene } from '@proj-airi/stage-ui-live2d'
+import { Live2DScene, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
 import { MMDScene } from '@proj-airi/stage-ui-mmd'
 import { SpineScene } from '@proj-airi/stage-ui-spine'
 import { TachieScene } from '@proj-airi/stage-ui-tachie'
@@ -10,6 +12,9 @@ import { useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
+import { useLive2DStageMotionMagic } from '../../../../features/motions/live2d/use-live2d-stage-motion-magic'
+import { useSharedLive2DExpressionPreview } from '../../../../stores/live2d'
+import { useAiriCardStore } from '../../../../stores/modules/airi-card'
 import { useSettings } from '../../../../stores/settings'
 import {
   createEmptyModelSettingsRuntimeSnapshot,
@@ -18,6 +23,7 @@ import {
 
 const props = defineProps<{
   live2dSceneClass?: string | string[]
+  live2dContext: Live2DContext
   vrmSceneClass?: string | string[]
   spineSceneClass?: string | string[]
   tachieSceneClass?: string | string[]
@@ -30,6 +36,8 @@ const emit = defineEmits<{
 
 const settingsStore = useSettings()
 const modelStore = useModelStore()
+const { activeCardId, selectedAvatarModelId } = storeToRefs(useAiriCardStore())
+useSharedLive2DExpressionPreview(props.live2dContext, activeCardId, selectedAvatarModelId)
 const live2dSceneRef = ref<{ canvasElement: () => HTMLCanvasElement | undefined }>()
 const vrmSceneRef = ref<{ canvasElement: () => HTMLCanvasElement | undefined }>()
 const spineSceneRef = ref<{ canvasElement: () => HTMLCanvasElement | undefined }>()
@@ -57,6 +65,12 @@ const {
   spineRenderScale,
 } = storeToRefs(settingsStore)
 const { sceneMutationLocked, scenePhase } = storeToRefs(modelStore)
+const { live2dMotionDriver } = storeToRefs(useSettingsLive2d())
+
+// The web settings route unmounts the main stage, so the preview runs its own driver.
+useLive2DStageMotionMagic({
+  active: () => stageModelRenderer.value === 'live2d' && live2dMotionDriver.value === 'magic',
+})
 
 const live2dSceneClassList = computed(() => normalizeClassList(props.live2dSceneClass))
 const vrmSceneClassList = computed(() => normalizeClassList(props.vrmSceneClass))
@@ -207,6 +221,7 @@ const cursorPosition = computed(() => ({
       <Live2DScene
         ref="live2dSceneRef"
         v-model:state="live2dComponentState"
+        :context="live2dContext"
         :model-src="stageModelSelectedUrl"
         :model-id="stageModelSelected"
         :cursor-position="cursorPosition"

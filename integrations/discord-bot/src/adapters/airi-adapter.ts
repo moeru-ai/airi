@@ -5,7 +5,6 @@ import { env } from 'node:process'
 
 import { useLogg } from '@guiiai/logg'
 import { Client as ServerChannel } from '@proj-airi/server-sdk'
-import { ContextUpdateStrategy } from '@proj-airi/server-shared/types'
 import { Client, Events, GatewayIntentBits, Partials } from 'discord.js'
 
 import { handlePing, registerCommands, VoiceManager } from '../bots/discord/commands'
@@ -246,18 +245,8 @@ export class DiscordAdapter {
           ? `on server '${serverName}'`
           : 'in Direct Message'
 
-        // Calculate sessionId based on guild or DM
-        let targetSessionId = 'discord'
-        if (normalizedDiscord?.guildId) {
-          targetSessionId = `discord-guild-${normalizedDiscord.guildId}`
-        }
-        else {
-          targetSessionId = `discord-dm-${normalizedDiscord?.guildMember?.id || 'unknown'}`
-        }
-
-        const discordNotice = normalizedDiscord
-          ? `The input is coming from Discord channel ${normalizedDiscord.channelId} (Guild: ${normalizedDiscord.guildId ?? 'unknown'}).`
-          : undefined
+        // Channels, including threads and DMs, own independent persistent conversations.
+        const binding = `discord:channel:${message.channelId}`
 
         this.airiClient.send({
           type: 'input:text',
@@ -268,18 +257,8 @@ export class DiscordAdapter {
               messagePrefix: displayName
                 ? `(From Discord user ${displayName} ${contextPrefix}): `
                 : `(From Discord user ${contextPrefix}): `,
-              sessionId: targetSessionId,
+              binding,
             },
-            contextUpdates: discordNotice
-              ? [{
-                  strategy: ContextUpdateStrategy.AppendSelf,
-                  text: discordNotice,
-                  content: discordNotice,
-                  metadata: {
-                    discord: normalizedDiscord,
-                  },
-                }]
-              : undefined,
             discord: normalizedDiscord,
           },
         })

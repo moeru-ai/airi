@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { CheckBar, IconItem } from '@proj-airi/stage-ui/components'
-import { useSettings } from '@proj-airi/stage-ui/stores/settings'
+import { useSettings, useSettingsDeveloper } from '@proj-airi/stage-ui/stores/settings'
+import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 const settings = useSettings()
+const { showToolPayloadsAsJson } = storeToRefs(useSettingsDeveloper())
 
 const menu = computed(() => [
   {
@@ -116,6 +118,12 @@ const menu = computed(() => [
     icon: 'i-solar:sledgehammer-bold-duotone',
     to: '/devtools/model-driver-mediapipe',
   },
+  {
+    title: t('settings.pages.system.sections.section.developer.sections.section.needs-attention.title'),
+    description: t('settings.pages.system.sections.section.developer.sections.section.needs-attention.description'),
+    icon: 'i-solar:shield-check-bold-duotone',
+    to: '/devtools/needs-attention',
+  },
 ])
 </script>
 
@@ -141,6 +149,17 @@ const menu = computed(() => [
     :duration="250 + (20 * 10)"
     :delay="2 * 50"
     :class="['transition-all duration-250 ease-in-out']"
+  />
+  <CheckBar
+    v-model="showToolPayloadsAsJson"
+    v-motion
+    text="settings.pages.system.sections.section.developer.sections.section.tool-payloads-as-json.title"
+    description="settings.pages.system.sections.section.developer.sections.section.tool-payloads-as-json.description"
+    :initial="{ opacity: 0, y: 10 }"
+    :enter="{ opacity: 1, y: 0 }"
+    :duration="250 + (21 * 10)"
+    :delay="3 * 50"
+    :class="['mt-2', 'transition-all duration-250 ease-in-out']"
   />
 
   <div :class="['flex flex-col gap-4', 'pb-12']">

@@ -1,7 +1,13 @@
+<script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+</script>
+
 <template>
   <div class="transparent-preview">
     <div class="transparent-preview__label">
-      Transparent
+      {{ t('stage.background-picker.presets.transparent.label') }}
     </div>
   </div>
 </template>

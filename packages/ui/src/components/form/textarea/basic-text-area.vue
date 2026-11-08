@@ -55,8 +55,11 @@ watch(input, () => {
       return
     }
 
-    // scrollHeight includes padding but excludes the two 2px borders.
-    textareaHeight.value = `${textareaRef.value.scrollHeight + 4}px`
+    // scrollHeight includes padding but excludes borders. A border-box height adds the real border widths.
+    // A fixed 2px per border made borderless textareas grow 4px on the first input.
+    const style = getComputedStyle(textareaRef.value)
+    const borders = Number.parseFloat(style.borderTopWidth) + Number.parseFloat(style.borderBottomWidth)
+    textareaHeight.value = `${textareaRef.value.scrollHeight + borders}px`
   })
 }, { immediate: true })
 </script>

@@ -1,11 +1,11 @@
 import type { VoicePackService } from '../../services/domain/voice-packs'
 import type { HonoEnv } from '../../types/hono'
 
+import { ApiError } from '@proj-airi/http-error-shared'
 import { Hono } from 'hono'
 import { describe, expect, it, vi } from 'vitest'
 
 import { createVoicePackRoutes } from '.'
-import { ApiError } from '../../utils/error'
 
 function createTestApp(service: VoicePackService, user: { id: string } | null) {
   return new Hono<HonoEnv>()

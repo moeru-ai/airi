@@ -3,11 +3,11 @@ import type { createContext } from '@moeru/eventa'
 import type { ChatDraftHandover } from '../../shared/eventa'
 
 import { defineInvoke } from '@moeru/eventa'
-import { describe, expect, it, onTestFinished, vi } from 'vitest'
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { defineComponent } from 'vue'
 
-import { electronChatWindowCollectDraft, electronChatWindowTakeDraft } from '../../shared/eventa'
+import { electronChatWindowCollectDraft, electronChatWindowDraftOffered, electronChatWindowTakeDraft } from '../../shared/eventa'
 import { useChatDraftHandover } from './use-chat-draft-handover'
 
 const mocks = vi.hoisted(() => ({
@@ -43,6 +43,11 @@ async function mountHandover(composer: { snapshotDraft: () => Promise<ChatDraftH
 }
 
 describe('useChatDraftHandover', () => {
+  beforeEach(() => {
+    mocks.takeDraft.mockReset()
+    mocks.settleDraft.mockReset()
+  })
+
   it('reports a failed restore, so the switch keeps the previous window', async () => {
     mocks.takeDraft.mockResolvedValue(draft)
     await mountHandover({ snapshotDraft: async () => undefined, restoreDraft: async () => false })
@@ -56,5 +61,21 @@ describe('useChatDraftHandover', () => {
 
     const collectDraft = defineInvoke(mocks.context!, electronChatWindowCollectDraft)
     await expect(collectDraft()).resolves.toEqual(draft)
+  })
+
+  // A switch can move the chat to a window that is already open, such as the window of the saved mode while the
+  // fullscreen chat shows.
+  it('takes a draft that a switch offers after the page mounted', async () => {
+    mocks.takeDraft.mockResolvedValueOnce(undefined).mockResolvedValueOnce(draft)
+    const restoreDraft = vi.fn(async () => true)
+    await mountHandover({ snapshotDraft: async () => undefined, restoreDraft })
+    await vi.waitFor(() => expect(mocks.settleDraft).toHaveBeenCalledTimes(1))
+    expect(restoreDraft).not.toHaveBeenCalled()
+
+    mocks.context!.emit(electronChatWindowDraftOffered, undefined)
+
+    await vi.waitFor(() => expect(restoreDraft).toHaveBeenCalledWith(draft))
+    await vi.waitFor(() => expect(mocks.settleDraft).toHaveBeenLastCalledWith({ restored: true }))
+    expect(mocks.settleDraft).toHaveBeenCalledTimes(2)
   })
 })

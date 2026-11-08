@@ -1,16 +1,18 @@
 <script setup lang="ts">
-import { Alert, ErrorContainer, RadioCardManySelect, RadioCardSimple } from '@proj-airi/stage-ui/components'
+import { RadioCardManySelect, RadioCardSimple } from '@proj-airi/stage-ui/components'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useConsciousnessSettingsStore } from '@proj-airi/stage-ui/stores/modules/consciousness-settings'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
-import { FieldCheckbox, FieldRange } from '@proj-airi/ui'
+import { Alert, FieldCheckbox, FieldRange, SettingsCard } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
+
+import { moduleModelSearchKey, moduleProviderSearchKey } from './module-model-search'
 
 const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
@@ -27,6 +29,8 @@ const {
   modelSearchQuery,
   supportsModelListing,
   providerModels,
+  activeModelRequiresReasoning,
+  activeModelUsesProviderReasoningDefault,
   isLoadingActiveProviderModels,
   activeProviderModelError,
   temperature,
@@ -78,7 +82,7 @@ async function updateTopPEnabled(value: boolean) {
 </script>
 
 <template>
-  <div bg="neutral-50 dark:[rgba(0,0,0,0.3)]" rounded-xl p-4 flex="~ col gap-4">
+  <SettingsCard>
     <div>
       <div flex="~ col gap-4">
         <div>
@@ -106,6 +110,7 @@ async function updateTopPEnabled(value: boolean) {
               :id="metadata.id"
               :key="metadata.id"
               v-model="activeProvider"
+              :data-settings-search="moduleProviderSearchKey('consciousness', metadata.id)"
               name="provider"
               :value="metadata.id"
               :title="metadata.localizedName || 'Unknown'"
@@ -131,11 +136,12 @@ async function updateTopPEnabled(value: boolean) {
             </RadioCardSimple>
             <RouterLink
               to="/settings/providers"
-              border="2px solid"
-              class="border-neutral-100 bg-white dark:border-neutral-900 hover:border-primary-500/30 dark:bg-neutral-900/20 dark:hover:border-primary-400/30"
-              flex="~ col items-center justify-center"
-              transition="all duration-200 ease-in-out"
-              relative min-w-50 w-fit rounded-xl p-4
+              :class="[
+                'relative min-w-50 w-fit flex flex-col items-center justify-center rounded-xl p-4',
+                'border-2 border-solid border-neutral-100 bg-white dark:border-neutral-900 dark:bg-neutral-900/20',
+                'hover:bg-neutral-50 dark:hover:bg-neutral-900/50',
+                'transition-all duration-200 ease-in-out',
+              ]"
             >
               <div i-solar:add-circle-line-duotone class="text-2xl text-neutral-500 dark:text-neutral-500" />
               <div
@@ -148,7 +154,6 @@ async function updateTopPEnabled(value: boolean) {
           <div v-else>
             <RouterLink
               class="flex items-center gap-3 rounded-lg p-4"
-              border="2 dashed neutral-200 dark:neutral-800"
               bg="neutral-50 dark:neutral-800"
               transition="colors duration-200 ease-in-out"
               to="/settings/providers"
@@ -188,10 +193,9 @@ async function updateTopPEnabled(value: boolean) {
 
         <!-- Error state -->
         <template v-else-if="activeProviderModelError">
-          <ErrorContainer
-            :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
-            :error="activeProviderModelError"
-          />
+          <Alert tone="danger" :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')">
+            <pre :class="['whitespace-pre-wrap break-all']">{{ String(activeProviderModelError) }}</pre>
+          </Alert>
           <!-- Manual model input fallback when model list fails to load -->
           <div class="mt-2">
             <label class="mb-1 block text-sm font-medium">
@@ -209,13 +213,8 @@ async function updateTopPEnabled(value: boolean) {
         <!-- No models available - Allow custom model input via search -->
         <!-- Only show when there are truly no models (not when fetch error occurred) to avoid competing UIs -->
         <template v-else-if="providerModels.length === 0 && !isLoadingActiveProviderModels && !activeProviderModelError">
-          <Alert type="warning">
-            <template #title>
-              {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models') }}
-            </template>
-            <template #content>
-              {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description') }}
-            </template>
+          <Alert tone="warning" :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models')">
+            {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description') }}
           </Alert>
 
           <!-- Using the new RadioCardManySelect component - works with empty list for custom input -->
@@ -243,6 +242,7 @@ async function updateTopPEnabled(value: boolean) {
             v-model:search-query="modelSearchQuery"
             :model-value="activeModel"
             :items="providerModels"
+            :search-key-of="model => moduleModelSearchKey('consciousness', activeProvider, model.id)"
             :searchable="true"
             :allow-custom="true"
             :search-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"
@@ -272,17 +272,9 @@ async function updateTopPEnabled(value: boolean) {
           </div>
         </div>
 
-        <div
-          class="flex items-center gap-3 border border-primary-200 rounded-lg bg-primary-50 p-4 dark:border-primary-800 dark:bg-primary-900/20"
-        >
-          <div i-solar:info-circle-line-duotone class="text-2xl text-primary-500 dark:text-primary-400" />
-          <div class="flex flex-col">
-            <span class="font-medium">{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.not_supported')
-            }}</span>
-            <span class="text-sm text-primary-600 dark:text-primary-400">{{
-              t('settings.pages.modules.consciousness.sections.section.provider-model-selection.not_supported_description') }}</span>
-          </div>
-        </div>
+        <Alert tone="info" :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.not_supported')">
+          {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.not_supported_description') }}
+        </Alert>
 
         <!-- Manual model input for providers without model listing -->
         <div class="mt-2">
@@ -307,15 +299,29 @@ async function updateTopPEnabled(value: boolean) {
         {{ t('settings.pages.modules.consciousness.sections.section.model-options.title') }}
       </h2>
 
+      <div
+        v-if="activeModelUsesProviderReasoningDefault"
+        :class="['flex', 'flex-col', 'gap-1']"
+      >
+        <span class="text-sm font-medium">
+          {{ t('settings.pages.modules.consciousness.sections.section.model-options.thinking.label') }}
+        </span>
+        <span :class="['text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
+          {{ t('settings.pages.modules.consciousness.sections.section.model-options.thinking.provider-default-description') }}
+        </span>
+      </div>
       <FieldCheckbox
-        :model-value="reasoning"
+        v-else
+        :model-value="reasoning || activeModelRequiresReasoning"
         :label="t('settings.pages.modules.consciousness.sections.section.model-options.thinking.label')"
+        :description="activeModelRequiresReasoning ? t('settings.pages.modules.consciousness.sections.section.model-options.thinking.required-description') : undefined"
+        :disabled="activeModelRequiresReasoning"
         @update:model-value="updateReasoning"
       />
     </section>
-  </div>
+  </SettingsCard>
 
-  <div v-if="activeProvider" :class="['bg-neutral-50 dark:bg-[rgba(0,0,0,0.3)]', 'rounded-xl', 'p-4', 'flex flex-col gap-4', 'mt-4']">
+  <SettingsCard v-if="activeProvider" class="mt-4">
     <div :class="['flex flex-col gap-4']">
       <FieldCheckbox
         :model-value="temperatureEnabled"
@@ -350,7 +356,7 @@ async function updateTopPEnabled(value: boolean) {
         :format-value="value => value.toFixed(1)"
       />
     </div>
-  </div>
+  </SettingsCard>
 
   <div
     v-motion

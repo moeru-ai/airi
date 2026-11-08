@@ -5,6 +5,7 @@ import { createI18n } from 'vue-i18n'
 import Workbench from './workbench.vue'
 
 import '@proj-airi/ui/main.css'
+import 'virtual:uno.css'
 
 function createTestI18n() {
   return createI18n({
@@ -24,6 +25,10 @@ describe('live2d motion workbench', () => {
     //
     // The workbench used an undefined --color-primary-400 variable. Dockview
     // created its drop target, but the browser resolved its background to transparent.
+    //
+    // The accent is now `theme('colors.primary.400')`, which reads the chromatic preset's
+    // custom properties from the UnoCSS preflight, so the test loads `virtual:uno.css`
+    // like the apps do.
     await render(Workbench, {
       attrs: { style: 'width: 1200px; height: 800px' },
       global: { plugins: [createTestI18n()] },

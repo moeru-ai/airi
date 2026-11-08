@@ -9,9 +9,9 @@ import WebSocket from 'ws'
 
 import { useLogger } from '@guiiai/logg'
 import { context as otelContext, SpanStatusCode, trace } from '@opentelemetry/api'
+import { ApiError } from '@proj-airi/http-error-shared'
 import { ofetch } from 'ofetch'
 
-import { ApiError } from '../../utils/error'
 import { nanoid } from '../../utils/id'
 import {
   AIRI_ATTR_BILLING_FLUX_CONSUMED,

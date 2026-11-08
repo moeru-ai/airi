@@ -1,32 +1,81 @@
 <script setup lang="ts">
-import { BasicButton, BasicTextarea, Button, GhostButton } from '@proj-airi/ui'
-import { computed, ref, useTemplateRef, watch } from 'vue'
+import type { VoiceDraft } from '../../../../services/speech/bus'
+
+import { joinTranscriptSegments } from '@proj-airi/provider-inference'
+import { AnimatedContent, BasicButton, BasicTextarea, GhostButton } from '@proj-airi/ui'
+import { HoverCardContent, HoverCardPortal, HoverCardRoot, HoverCardTrigger } from 'reka-ui'
+import { computed, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+
+import PoppinText from '../../../widgets/poppin-text/PoppinText.web.vue'
+import RewriteText from '../../../widgets/rewrite-text/rewrite-text.vue'
 
 import { useChatSessionStore } from '../../../../stores/chat/session-store'
 import { useAiriCardStore } from '../../../../stores/modules/airi-card'
 import { useVoiceControlsStore } from '../../../../stores/voice-controls'
+import { createBlurFadeAnimator } from '../../../widgets/poppin-text/animators'
 
+/**
+ * Fills its host, such as the desktop inlay card, and leaves the surface to the host.
+ */
 const props = withDefaults(defineProps<{
   /**
-   * Layout and surface treatment.
-   * `card` draws its own panel with labeled actions.
-   * `composer` follows the chat composer layout and leaves the surface to the host, such as a vibrancy window.
-   * @default 'card'
+   * Shows the listening state while the host captures speech that has no transcript text yet.
+   * A host that opens at the start of a capture, such as the desktop inlay for Push to Talk, uses it.
+   * @default false
    */
-  variant?: 'card' | 'composer'
-}>(), { variant: 'card' })
+  showSilentSpeech?: boolean
+}>(), { showSilentSpeech: false })
+
+const emit = defineEmits<{
+  /** Whether a draft or live speech is shown. A host window can hide itself when nothing is shown. */
+  presence: [visible: boolean]
+}>()
 
 const { t } = useI18n()
 const controls = useVoiceControlsStore()
 const sessions = useChatSessionStore()
 const cards = useAiriCardStore()
 const sending = ref(false)
-const draft = computed(() => controls.snapshot.drafts.find(draft => draft.id === controls.snapshot.frontDraftId))
-const characterName = computed(() => {
-  const characterId = draft.value && sessions.sessionMetas[draft.value.sessionId]?.characterId
-  return characterId ? cards.getCard(characterId)?.name : undefined
+
+/** Drafts that the user can still edit. A draft that the host is sending is on its way to the chat and stays hidden. */
+const drafts = computed(() => controls.snapshot.drafts.filter(item => !item.sending))
+
+/**
+ * Speech that the host is still transcribing. It is shown read-only until it becomes part of a draft.
+ * Without `showSilentSpeech`, a capture appears only after its first transcript text.
+ */
+const liveInput = computed(() => {
+  const input = controls.snapshot.input
+  if (!input || (input.phase !== 'capturing' && input.phase !== 'finalizing'))
+    return undefined
+  return props.showSilentSpeech || input.segments.some(segment => segment.text.trim()) ? input : undefined
 })
+
+/**
+ * The draft on screen.
+ * Live speech shows the draft of its own session, because the host merges the speech into that draft.
+ * Otherwise the host's front draft is shown, and the newest draft replaces a front draft that is being sent.
+ */
+const draft = computed(() => {
+  if (liveInput.value)
+    return drafts.value.find(item => item.sessionId === liveInput.value!.sessionId)
+  return drafts.value.find(item => item.id === controls.snapshot.frontDraftId) ?? drafts.value.at(-1)
+})
+
+function nameOf(sessionId: string) {
+  const characterId = sessions.sessionMetas[sessionId]?.characterId
+  return (characterId ? cards.getCard(characterId)?.name : undefined) ?? sessions.sessionMetas[sessionId]?.title
+}
+
+const characterName = computed(() => {
+  const sessionId = liveInput.value?.sessionId ?? draft.value?.sessionId
+  return sessionId ? nameOf(sessionId) : undefined
+})
+
+/** Drafts of other conversations. Live speech hides the switcher, because the speech already selects its conversation. */
+const otherDrafts = computed<readonly VoiceDraft[]>(() => liveInput.value || drafts.value.length < 2 ? [] : drafts.value)
+
 const text = computed({
   get: () => draft.value?.text ?? '',
   set: (value) => {
@@ -34,15 +83,10 @@ const text = computed({
       void controls.command({ type: 'edit-draft', draftId: draft.value.id, text: value }).catch(() => {})
   },
 })
-/** Speech that the host is still transcribing. It is shown read-only until it becomes part of a draft. */
-const liveInput = computed(() => {
-  const input = controls.snapshot.input
-  if (!input || (input.phase !== 'capturing' && input.phase !== 'finalizing'))
-    return undefined
-  return input.segments.some(segment => segment.text.trim()) ? input : undefined
-})
+
 /**
- * Final text uses the body color. Interim text uses the theme color, and the newest interim segment is stronger.
+ * Live speech continues the draft paragraph, joined by the same rule that the host uses when the speech settles.
+ * Final text uses the body color. Pending text uses the theme color at a lower opacity, and the newest pending segment uses full opacity.
  */
 const liveSegments = computed(() => {
   const segments = liveInput.value?.segments ?? []
@@ -53,6 +97,49 @@ const liveSegments = computed(() => {
     tier: segment.final ? 'final' as const : index === latest ? 'latest' as const : 'interim' as const,
   }))
 })
+/**
+ * The draft text when the current speech began. The host merges the speech into the draft one snapshot before the
+ * input settles. The live paragraph keeps this text, so the speech does not show twice in that snapshot.
+ */
+const spokenBase = shallowRef('')
+watch(() => liveInput.value?.requestId, (requestId, previous) => {
+  if (requestId && requestId !== previous)
+    spokenBase.value = text.value.trim()
+}, { immediate: true })
+
+const liveSeparator = computed(() => {
+  const base = spokenBase.value
+  const live = liveInput.value?.text.trim() ?? ''
+  if (!base || !live)
+    return ''
+  return joinTranscriptSegments([base, live]).length > base.length + live.length ? ' ' : ''
+})
+
+/** New transcript graphemes fade in. One animator for the component, because a new animator replays all text. */
+const appear = createBlurFadeAnimator()
+
+/**
+ * The rewrite that plays when live speech settles into a draft with other text, for example after the rephrase
+ * plugin. Only the changed words animate. The textarea returns when the animation finishes, and new speech drops it.
+ */
+const rewrite = shallowRef<{ from: string, to: string }>()
+watch(liveInput, (input, previous) => {
+  if (input) {
+    rewrite.value = undefined
+    return
+  }
+  if (!previous)
+    return
+
+  // The last live paragraph, joined by the same rule as on screen. It is built once, when the speech settles.
+  const from = joinTranscriptSegments([spokenBase.value, previous.text.trim()]).trim()
+  const to = text.value.trim()
+  rewrite.value = from && to && from !== to ? { from, to } : undefined
+})
+
+const visible = computed(() => !!draft.value || !!liveInput.value)
+watch(visible, value => emit('presence', value), { immediate: true })
+
 const scroller = useTemplateRef<HTMLElement>('scroller')
 
 // New speech and host draft updates keep the newest text visible. Edits in the textarea do not scroll.
@@ -67,6 +154,19 @@ watch(
   },
   { flush: 'post' },
 )
+
+/**
+ * Problems that the host reports. None of them blocks the draft, so the card keeps them behind a small count.
+ * The host keeps each problem until the next voice action clears it.
+ */
+const issues = computed(() => {
+  const { microphone, wakeWords } = controls.snapshot
+  return [
+    { key: 'voice', label: t('stage.chat.voice-draft.issues.voice'), message: controls.error },
+    { key: 'microphone', label: t('stage.chat.voice-draft.issues.microphone'), message: microphone?.error },
+    { key: 'wake-words', label: t('stage.chat.voice-draft.issues.wake-words'), message: wakeWords?.error },
+  ].filter((issue): issue is { key: string, label: string, message: string } => !!issue.message)
+})
 
 const canSend = computed(() => !sending.value && !liveInput.value && !!text.value.trim() && controls.snapshot.connected)
 
@@ -104,127 +204,164 @@ function handleKeydown(event: KeyboardEvent) {
 </script>
 
 <template>
+  <!-- The whole surface drags its host window. Text editing and buttons opt out. -->
   <section
-    v-if="(draft || liveInput) && props.variant === 'composer'"
+    v-if="visible"
     :aria-label="t('stage.chat.voice-draft.title')"
-    :class="['h-full min-h-0 w-full flex flex-col gap-1']"
+    :class="['drag-region h-full min-h-0 w-full flex flex-col']"
   >
-    <!-- The editable draft and the read-only live speech share one scroll area, so they read as one text. -->
+    <header :class="['flex shrink-0 flex-col items-center gap-1.5 px-4 pt-3']">
+      <div :class="['min-w-0 w-full flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400']">
+        <span
+          aria-hidden="true"
+          :class="[
+            'size-1.5 shrink-0 rounded-full',
+            liveInput ? 'bg-primary-500 animate-pulse motion-reduce:animate-none' : 'bg-neutral-400 dark:bg-neutral-500',
+          ]"
+        />
+        <span role="status" :class="['shrink-0']">
+          {{ t(liveInput?.phase === 'finalizing' ? 'stage.chat.voice-draft.finalizing' : liveInput ? 'stage.chat.voice-draft.listening' : 'stage.chat.voice-draft.title') }}
+        </span>
+        <span v-if="characterName && !otherDrafts.length" :class="['min-w-0 truncate']">· {{ characterName }}</span>
+        <div v-if="otherDrafts.length" :class="['min-w-0 flex items-center gap-1 overflow-x-auto scrollbar-none', '[-webkit-app-region:no-drag]']">
+          <GhostButton
+            v-for="item in otherDrafts"
+            :key="item.id"
+            size="sm"
+            :class="['max-w-32 shrink-0 truncate rounded-full px-2 text-xs']"
+            :active="item.id === draft?.id"
+            :aria-pressed="item.id === draft?.id"
+            :disabled="sending"
+            @click="select(item.id)"
+          >
+            {{ nameOf(item.sessionId) ?? t('stage.chat.voice-draft.title') }}
+          </GhostButton>
+        </div>
+      </div>
+    </header>
+    <!-- The draft and the live speech are one paragraph. Speech is read-only until it settles into the draft. -->
     <div
       ref="scroller"
       data-testid="voice-draft-scroller"
       :class="[
-        'min-h-0 w-full flex-1 overflow-y-auto px-2 py-2 font-medium [scrollbar-gutter:stable]',
-        'text-neutral-700 dark:text-neutral-200',
+        'min-h-0 w-full flex-1 overflow-y-auto px-4 py-1.5 text-[15px] font-medium leading-relaxed [scrollbar-gutter:stable]',
+        'text-neutral-800 dark:text-neutral-100',
       ]"
     >
+      <!-- v-text keeps template whitespace out of this pre-wrap block. -->
+      <p v-if="liveInput" data-testid="voice-draft-live" :class="['m-0 whitespace-pre-wrap break-words']">
+        <span v-if="spokenBase" v-text="spokenBase + liveSeparator" />
+        <!-- Keyed by grapheme position, so a provider revision of shown text does not replay it. -->
+        <PoppinText
+          v-for="segment in liveSegments"
+          :key="segment.id"
+          as="span"
+          inline
+          :text="[{ key: segment.id, text: segment.text }]"
+          :animator="appear"
+          :data-tier="segment.tier"
+          :class="[
+            'transition-colors duration-300 motion-reduce:transition-none',
+            segment.tier === 'interim' ? 'text-primary-600/60 dark:text-primary-300/60' : '',
+            segment.tier === 'latest' ? 'text-primary-600 dark:text-primary-300' : '',
+          ]"
+        />
+      </p>
+      <p v-else-if="rewrite" data-testid="voice-draft-rewrite" :class="['m-0 whitespace-pre-wrap break-words']">
+        <RewriteText :from="rewrite.from" :to="rewrite.to" @finished="rewrite = undefined" />
+      </p>
       <BasicTextarea
-        v-if="draft"
+        v-else-if="draft"
         v-model="text"
         :submit-on-enter="false"
         :disabled="sending || !controls.snapshot.connected"
         :aria-label="t('stage.chat.voice-draft.title')"
         :class="[
-          'block w-full resize-none overflow-hidden border-0 bg-transparent p-0 outline-none',
+          'block w-full resize-none overflow-hidden border-0 bg-transparent p-0 leading-relaxed outline-none',
           '[-webkit-app-region:no-drag]',
         ]"
         @keydown="handleKeydown"
       />
-      <!-- v-text keeps template whitespace out of this pre-wrap block. -->
-      <p v-if="liveInput" data-testid="voice-draft-live" :class="['m-0 whitespace-pre-wrap break-words']">
-        <span
-          v-for="segment in liveSegments"
-          :key="segment.id"
-          :data-tier="segment.tier"
-          :class="[
-            'transition-colors duration-300 motion-reduce:transition-none',
-            segment.tier === 'interim' ? 'text-primary-200/70 dark:text-primary-700/70' : '',
-            segment.tier === 'latest' ? 'text-primary-600 dark:text-primary-300' : '',
-          ]"
-          v-text="segment.text"
-        />
-      </p>
     </div>
-    <p v-if="controls.error" role="alert" :class="['px-2 text-sm text-red-600 dark:text-red-400']">
-      {{ controls.error }}
-    </p>
-    <div :class="['flex shrink-0 items-center gap-1 pt-1']">
-      <span v-if="characterName" :class="['max-w-32 truncate px-2 text-xs text-neutral-500 dark:text-neutral-400']">
-        {{ characterName }}
-      </span>
-      <div v-if="controls.snapshot.drafts.length > 1 && draft" :class="['min-w-0 flex items-center gap-1 overflow-x-auto scrollbar-none', '[-webkit-app-region:no-drag]']">
-        <GhostButton
-          v-for="(item, index) in controls.snapshot.drafts"
-          :key="item.id"
-          size="unset"
-          :class="['size-7 shrink-0 text-xs']"
-          :active="item.id === draft.id"
-          :aria-pressed="item.id === draft.id"
-          :disabled="sending"
-          :aria-label="t('stage.chat.voice-draft.select', { number: index + 1 })"
-          @click="select(item.id)"
-        >
-          {{ index + 1 }}
-        </GhostButton>
+    <footer :class="['h-11 flex shrink-0 items-center gap-2 px-3']">
+      <div :class="['min-w-0 flex flex-1 items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400']">
+        <!-- The list opens only on hover or focus, so a screen reader reads each new problem from this region. -->
+        <span role="status" :class="['sr-only']">
+          <span v-for="issue in issues" :key="issue.key">{{ issue.label }}: {{ issue.message }}. </span>
+        </span>
+        <!-- Hover or focus shows the problems. The count stays small, so the draft and the hint keep their room. -->
+        <HoverCardRoot v-if="issues.length" :open-delay="120" :close-delay="160">
+          <HoverCardTrigger
+            as="button"
+            type="button"
+            :aria-label="t('stage.chat.voice-draft.issues.show', issues.length)"
+            :class="[
+              'h-6 flex shrink-0 items-center gap-1 rounded-full px-2 text-xs font-medium tabular-nums outline-none',
+              'bg-amber-500/12 text-amber-700 dark:bg-amber-400/12 dark:text-amber-200',
+              'transition-colors duration-200 ease-in-out motion-reduce:transition-none',
+              'hover:bg-amber-500/20 dark:hover:bg-amber-400/20',
+              'focus-visible:outline-2 focus-visible:outline-amber-400 focus-visible:outline-offset-1',
+              '[-webkit-app-region:no-drag]',
+            ]"
+          >
+            <span aria-hidden="true" :class="['i-mingcute:warning-fill size-3.5 text-amber-500 dark:text-amber-400']" />
+            {{ issues.length }}
+          </HoverCardTrigger>
+          <HoverCardPortal>
+            <HoverCardContent
+              as-child
+              side="top"
+              align="start"
+              :side-offset="8"
+              :collision-padding="8"
+              :class="[
+                'z-[10000] w-72 max-w-[calc(100vw-1rem)] rounded-xl p-1 shadow-lg outline-none backdrop-blur-md',
+                'bg-neutral-100/90 text-neutral-700 dark:bg-neutral-800/90 dark:text-neutral-100',
+              ]"
+            >
+              <AnimatedContent>
+                <ul role="list" :class="['m-0 flex flex-col p-0']">
+                  <li v-for="issue in issues" :key="issue.key" :class="['flex items-start gap-2 rounded-lg px-2.5 py-2']">
+                    <span aria-hidden="true" :class="['i-mingcute:warning-fill mt-0.5 size-3.5 shrink-0 text-amber-500 dark:text-amber-400']" />
+                    <div :class="['min-w-0 flex flex-col gap-0.5 text-xs leading-4']">
+                      <span :class="['font-medium text-neutral-800 dark:text-neutral-100']">{{ issue.label }}</span>
+                      <span :class="['break-words text-neutral-600 dark:text-neutral-300']">{{ issue.message }}</span>
+                    </div>
+                  </li>
+                </ul>
+              </AnimatedContent>
+            </HoverCardContent>
+          </HoverCardPortal>
+        </HoverCardRoot>
+        <!-- The host puts content at the start of the action row, such as a shortcut hint. -->
+        <slot name="hint" />
       </div>
-      <span v-if="liveInput?.phase === 'finalizing'" role="status" :class="['px-2 text-xs text-neutral-500 dark:text-neutral-400']">
-        {{ t('stage.chat.voice-draft.finalizing') }}
-      </span>
-      <div :class="['ml-auto flex shrink-0 items-center gap-1', '[-webkit-app-region:no-drag]']">
+      <div :class="['flex shrink-0 items-center gap-1', '[-webkit-app-region:no-drag]']">
+        <GhostButton
+          v-if="draft && !liveInput"
+          size="unset"
+          :class="['size-8 rounded-full']"
+          :disabled="sending"
+          :title="t('stage.chat.voice-draft.discard')"
+          :aria-label="t('stage.chat.voice-draft.discard')"
+          @click="discard"
+        >
+          <span :class="['i-solar:trash-bin-minimalistic-linear size-4.5']" />
+        </GhostButton>
         <BasicButton
           size="unset"
           :disabled="!canSend"
           :title="t('stage.chat.actions.send')"
           :aria-label="t('stage.chat.actions.send')"
           :class="[
-            'size-9 rounded-full bg-primary-500 text-white',
-            'hover:bg-primary-600 disabled:pointer-events-none disabled:bg-neutral-200 disabled:text-neutral-400 dark:disabled:bg-neutral-700 dark:disabled:text-neutral-500 motion-reduce:transition-none',
+            'size-8 rounded-full bg-primary-500 text-white',
+            'hover:bg-primary-600 disabled:pointer-events-none disabled:bg-neutral-900/10 disabled:text-neutral-400 dark:disabled:bg-white/10 dark:disabled:text-neutral-500 motion-reduce:transition-none',
           ]"
           @click="send"
         >
-          <span :class="['i-solar:arrow-up-outline size-5']" />
+          <span :class="['i-solar:arrow-up-outline size-4.5']" />
         </BasicButton>
       </div>
-    </div>
-  </section>
-  <section
-    v-else-if="draft"
-    :aria-label="t('stage.chat.voice-draft.title')"
-    :class="['min-w-0 w-full flex flex-col gap-2 rounded-xl p-3', 'bg-neutral-100/90 text-neutral-900 dark:bg-neutral-900/90 dark:text-neutral-100']"
-  >
-    <div :class="['min-w-0 w-full flex items-center gap-2 overflow-x-auto text-sm scrollbar-none']">
-      <span :class="['shrink-0']">{{ t('stage.chat.voice-draft.title') }}</span>
-      <span v-if="characterName" :class="['max-w-32 shrink-0 truncate']">{{ characterName }}</span>
-      <Button
-        v-for="(item, index) in controls.snapshot.drafts"
-        :key="item.id"
-        size="sm"
-        :class="['shrink-0']"
-        :disabled="sending || item.id === draft.id"
-        :aria-label="t('stage.chat.voice-draft.select', { number: index + 1 })"
-        @click="select(item.id)"
-      >
-        {{ index + 1 }}
-      </Button>
-    </div>
-    <BasicTextarea
-      v-model="text"
-      :submit-on-enter="false"
-      :class="['w-full max-w-full']"
-      :disabled="sending || !controls.snapshot.connected"
-      :aria-label="t('stage.chat.voice-draft.title')"
-      @keydown="handleKeydown"
-    />
-    <p v-if="controls.error" role="alert" :class="['text-sm text-red-600 dark:text-red-400']">
-      {{ controls.error }}
-    </p>
-    <div :class="['flex justify-end gap-2']">
-      <Button :disabled="sending" size="sm" @click="discard">
-        {{ t('stage.chat.voice-draft.discard') }}
-      </Button>
-      <Button :disabled="!canSend" size="sm" variant="primary" @click="send">
-        {{ t('stage.chat.actions.send') }}
-      </Button>
-    </div>
+    </footer>
   </section>
 </template>

@@ -3,6 +3,7 @@ import type { HonoEnv } from '../../types/hono'
 
 import { Buffer } from 'node:buffer'
 
+import { ApiError } from '@proj-airi/http-error-shared'
 import { Hono } from 'hono'
 import { beforeAll, describe, expect, it } from 'vitest'
 
@@ -10,7 +11,6 @@ import { createProviderRoutes } from '.'
 import { mockDB } from '../../libs/mock-db'
 import { createProviderService } from '../../services/domain/providers'
 import { createEnvelopeCrypto } from '../../utils/envelope-crypto'
-import { ApiError } from '../../utils/error'
 
 import * as schema from '../../schemas'
 

@@ -16,6 +16,12 @@ interface ChatHistoryScrollOptions<TMessage> {
    * turns passive.
    */
   passive?: Readonly<Ref<boolean>>
+  /**
+   * Number of messages at the start that the history hides in place. When it
+   * grows, only the newest messages stay readable, so the history returns to
+   * the tail, as it does when it turns passive.
+   */
+  hiddenBefore?: Readonly<Ref<number>>
 }
 
 /**
@@ -32,6 +38,7 @@ export function useChatHistoryScroll<TMessage>({
   scrollToIndex,
   tailInset,
   passive = shallowRef(false),
+  hiddenBefore = shallowRef(0),
 }: ChatHistoryScrollOptions<TMessage>) {
   let didRequestInitialScroll = false
   let hasUserScrollIntent = false
@@ -157,17 +164,24 @@ export function useChatHistoryScroll<TMessage>({
     { flush: 'post', immediate: true },
   )
 
-  // Nobody can scroll or inspect a passive history, and an older selection
-  // or pointer ends with no event that clears its flag. The history returns
-  // to the tail, and the scroll listener follows it again.
-  watch(passive, (isPassive) => {
-    if (!isPassive)
-      return
-
+  // Nobody can scroll or inspect a passive history, or a message that it
+  // hides, and an older selection or pointer ends with no event that clears
+  // its flag. The history returns to the tail, and the scroll listener
+  // follows it again.
+  function returnToTail() {
     isPointerOrFocusOnOlderMessage = false
     isSelectionInOlderMessage = false
     const lastIndex = messages.value.length - 1
     if (container.value && lastIndex >= 0)
       scrollToIndex(lastIndex, 'end')
+  }
+
+  watch(passive, (isPassive) => {
+    if (isPassive)
+      returnToTail()
+  }, { flush: 'post' })
+  watch(hiddenBefore, (hidden, previous) => {
+    if (hidden > previous)
+      returnToTail()
   }, { flush: 'post' })
 }

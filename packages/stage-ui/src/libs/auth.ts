@@ -128,10 +128,14 @@ export async function signInOIDC(params: OIDCFlowParams) {
 
   const { provider, ...oidcParams } = params
   const { url, flowState } = await buildAuthorizationURL(oidcParams)
+  const authorizationUrl = new URL(url)
+  // Provider handoffs already authenticate. A plain login must not reuse the Auth cookie silently.
+  if (!provider)
+    authorizationUrl.searchParams.set('prompt', 'login')
   persistFlowState(flowState, params)
 
   const result = await handler({
-    authorizationUrl: url.toString(),
+    authorizationUrl: authorizationUrl.toString(),
     provider,
   })
   if (result?.callbackUrl)

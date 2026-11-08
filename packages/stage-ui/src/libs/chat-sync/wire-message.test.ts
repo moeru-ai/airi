@@ -78,6 +78,12 @@ describe('isCloudSyncableMessage', () => {
     expect(isCloudSyncableMessage({ role: 'user', content: 'x' })).toBe(true)
     expect(isCloudSyncableMessage({ role: 'assistant', content: 'x', slices: [], tool_results: [] })).toBe(true)
   })
+
+  // The wire schema cannot mark a notice, so a notice and the reply to it stay local.
+  it('keeps a notice and the reply to it local', () => {
+    expect(isCloudSyncableMessage({ role: 'user', content: 'The task finished.', notice: { source: 'recipe:Check' } })).toBe(false)
+    expect(isCloudSyncableMessage({ role: 'assistant', content: 'x', proactive: { turnId: 't', source: 'recipe:Check' }, slices: [], tool_results: [] })).toBe(false)
+  })
 })
 
 describe('wireMessageToLocal', () => {

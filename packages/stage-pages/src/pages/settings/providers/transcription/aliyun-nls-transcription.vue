@@ -8,17 +8,12 @@ import vadWorkletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worke
 
 import { toPCM16FromFloat32 } from '@proj-airi/audio/encoding'
 import { errorMessageFromValue } from '@proj-airi/stage-shared'
-import {
-  Alert,
-  ProviderBasicSettings,
-  ProviderSettingsContainer,
-  ProviderSettingsLayout,
-} from '@proj-airi/stage-ui/components'
+import { ProviderBasicSettings, ProviderSettingsContainer, ProviderSettingsLayout } from '@proj-airi/stage-ui/components'
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
-import { Button, FieldCombobox, FieldInput } from '@proj-airi/ui'
+import { Alert, Button, FieldCombobox, FieldInput } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef } from 'vue'
 
@@ -393,31 +388,18 @@ onBeforeUnmount(async () => {
           />
         </ProviderBasicSettings>
 
-        <Alert v-if="!isValid && isValidating === 0 && validationMessage" type="error">
-          <template #title>
-            <div class="w-full flex items-center justify-between">
-              <span>{{ t('settings.dialogs.onboarding.validationFailed') }}</span>
-              <button
-                type="button"
-                class="ml-2 rounded bg-red-100 px-2 py-0.5 text-xs text-red-600 font-medium transition-colors dark:bg-red-800/30 hover:bg-red-200 dark:text-red-300 dark:hover:bg-red-700/40"
-                @click="forceValid"
-              >
-                {{ t('settings.pages.providers.common.continueAnyway') }}
-              </button>
-            </div>
-          </template>
-          <template #content>
-            <div class="whitespace-pre-wrap break-all">
-              {{ validationMessage }}
-            </div>
+        <Alert v-if="!isValid && isValidating === 0 && validationMessage" tone="danger" :title="t('settings.dialogs.onboarding.validationFailed')">
+          <div :class="['whitespace-pre-wrap break-all']">
+            {{ validationMessage }}
+          </div>
+          <template #actions>
+            <Button size="sm" color="red" @click="forceValid">
+              {{ t('settings.pages.providers.common.continueAnyway') }}
+            </Button>
           </template>
         </Alert>
 
-        <Alert v-if="isValid && isValidating === 0" type="success">
-          <template #title>
-            {{ t('settings.dialogs.onboarding.validationSuccess') }}
-          </template>
-        </Alert>
+        <Alert v-if="isValid && isValidating === 0" tone="success" :title="t('settings.dialogs.onboarding.validationSuccess')" />
       </ProviderSettingsContainer>
 
       <div class="w-full flex flex-1 flex-col gap-6">

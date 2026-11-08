@@ -223,7 +223,7 @@ async function handleClear() {
   busy.value = true
 
   try {
-    await clearWidgets()
+    await clearWidgets({})
     lastAction.value = 'Cleared all widgets.'
   }
   catch (error) {

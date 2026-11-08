@@ -9,8 +9,11 @@ import type {
 } from '@proj-airi/stage-shared/screen-ambient-light'
 import type { Live2DModel as PixiLive2DModel } from 'pixi-live2d-display'
 
-import type { PixiLive2DInternalModel } from '../../../composables/live2d'
+import type { Live2DFocusTarget, Live2DTouch, PixiLive2DInternalModel } from '../../../composables/live2d'
+import type { Live2DExpressionControl } from '../../../controls/manifest'
+import type { Live2DRuntime } from '../../../utils/live2d-runtime'
 
+import { Point } from '@pixi/math'
 import { listenBeatSyncBeatSignal } from '@proj-airi/stage-shared/beat-sync'
 import { ambientLightDefaults, ambientLightNeutralEnvironment, ambientLightPerceptualLevel, wholeWindowRectangle } from '@proj-airi/stage-shared/screen-ambient-light'
 import { useTheme } from '@proj-airi/ui'
@@ -22,17 +25,25 @@ import { storeToRefs } from 'pinia'
 import { DropShadowFilter } from 'pixi-filters'
 import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 'vue'
 
+import Live2DExpression from '../../live2d/expression.vue'
+
 import {
   createBeatSyncController,
+  createLive2DFocusBias,
   createLive2DHeadTracker,
   createLive2DMotionSpring,
+  createLive2DTouchReaction,
   disableLive2DSdkBreath,
+  findLive2DTouchMotionGroup,
+  isPointInLive2DMesh,
   live2DCanvasRectToParent,
+  live2DDrawableMeshesFor,
+  live2DFocusTargetFromModelPoint,
   resolveIdleMotionGroup,
-  useExpressionController,
+  resolveLive2DFocusTargetMode,
+  resolveLive2DTouchRegion,
   useLive2DMotionManagerUpdate,
   useMotionUpdatePluginAutoEyeBlink,
-  useMotionUpdatePluginBeatSync,
   useMotionUpdatePluginBreathControl,
   useMotionUpdatePluginExpression,
   useMotionUpdatePluginIdleDisable,
@@ -40,9 +51,12 @@ import {
   useMotionUpdatePluginLightSquint,
   useMotionUpdatePluginLipSync,
   useMotionUpdatePluginManualControl,
+  useMotionUpdatePluginsBeatSync,
+  useMotionUpdatePluginTouchReaction,
 } from '../../../composables/live2d'
 import { useFitModel } from '../../../composables/live2d/fit-model'
 import { Emotion, EmotionNeutralMotionName } from '../../../constants/emotions'
+import { useLive2D } from '../../../contexts/live2d'
 import { ScreenAmbientLightFilter } from '../../../filters/screen-ambient-light'
 import { disableIdleEyeMovement } from '../../../generations/loader'
 import { getLive2DMotionControlModelOffset, useL2dViewControl, useLive2DMotionControl, useLive2dParams } from '../../../stores'
@@ -62,6 +76,8 @@ const props = withDefaults(defineProps<{
   focusAt?: { x: number, y: number }
   eyeTracking?: boolean
   eyeFocusSourceActive?: boolean
+  /** Turns a manual pose, for example a MAGIC pose, toward `focusAt` while the focus source is active. */
+  focusBias?: boolean
   themeColorsHue?: number
   themeColorsHueDynamic?: boolean
   live2dIdleAnimationEnabled?: boolean
@@ -84,6 +100,7 @@ const props = withDefaults(defineProps<{
   focusAt: () => ({ x: 0, y: 0 }),
   eyeTracking: false,
   eyeFocusSourceActive: false,
+  focusBias: false,
   disableFocusAt: false,
   scale: 1,
   themeColorsHue: 220.44,
@@ -113,6 +130,7 @@ const { position, scale } = useL2dViewControl()
 const {
   breathControl: manualBreathControl,
   control: manualMotionControl,
+  exclusiveOwnerId: manualExclusiveOwnerId,
 } = storeToRefs(useLive2DMotionControl())
 
 const modelSrcRef = toRef(() => props.modelSrc)
@@ -124,6 +142,8 @@ let isUnmounted = false
 const modelLoadMutex = new Mutex()
 
 const manualMotionSpring = createLive2DMotionSpring()
+const manualFocusBias = createLive2DFocusBias()
+const touchReaction = createLive2DTouchReaction()
 const manualControlOffset = computed(() => getLive2DMotionControlModelOffset(manualMotionSpring.output.value))
 const offset = computed(() => ({
   x: (position.value.x / 100) * props.width + manualControlOffset.value.x,
@@ -134,7 +154,8 @@ const pixiApp = toRef(() => props.app)
 const paused = toRef(() => props.paused)
 const focusAt = toRef(() => props.focusAt)
 const model = shallowRef<PixiLive2DModel<PixiLive2DInternalModel>>()
-const forceMotionPriority = shallowRef<number>()
+/** The motion priorities of the runtime that loaded the model. */
+const motionPriority = shallowRef<Live2DRuntime['MotionPriority']>()
 const initialModelWidth = ref<number>(0)
 const initialModelHeight = ref<number>(0)
 const mouthOpenSize = computed(() => Math.max(0, Math.min(100, props.mouthOpenSize)))
@@ -222,7 +243,25 @@ function setScaleAndPosition(animated = false) {
   })
 }
 
+function destroyRenderedModel() {
+  const renderedModel = model.value
+  if (!renderedModel)
+    return
+
+  try {
+    pixiApp.value?.stage?.removeChild(renderedModel)
+    destroyModel(renderedModel)
+  }
+  catch (error) {
+    console.warn('Failed to destroy the rendered Live2D model:', error)
+  }
+  finally {
+    model.value = undefined
+  }
+}
+
 const live2dStore = useLive2dParams()
+const live2d = useLive2D()
 const {
   currentMotion,
   availableMotions,
@@ -249,17 +288,9 @@ const screenAmbientLightMode = toRef(() => props.screenAmbientLightMode)
 const screenAmbientLightStrength = toRef(() => props.screenAmbientLightStrength)
 const screenAmbientLightSquint = toRef(() => props.screenAmbientLightSquint)
 
-// --- Expression controller
-// Chooses which drawables stand in for the head once per model, so it is reset
-// whenever the model is replaced.
 const headTracker = createLive2DHeadTracker()
-const internalModelRef = shallowRef<PixiLive2DInternalModel>()
-const expressionController = useExpressionController({
-  internalModel: internalModelRef,
-})
-// This identity belongs to model.value. It changes only when a model load
-// commits, so expression initialization cannot observe a newer prop by mistake.
-let loadedModelId: string | undefined
+const expressionReferences = shallowRef<Live2DExpressionControl[]>([])
+const expressionLoader = shallowRef<(fileName: string) => Promise<string>>()
 // Saved SDK manager references for runtime expression toggle (restore on disable)
 const savedEyeBlink = shallowRef<any>(null)
 const savedExpressionManager = shallowRef<any>(null)
@@ -273,11 +304,21 @@ const beatSync = createBeatSyncController({
   }),
   initialStyle: 'sway-sine',
 })
+// A manual pose, for example from the MAGIC driver, writes the head angles in the final phase.
+// Beat Sync then moves as a layer on top of that pose.
+const beatSyncIsLayered = () => manualMotionSpring.output.value.active
 
 // Listen for model reload requests (e.g., when runtime motion is uploaded)
 const disposeShouldUpdateView = live2dStore.onShouldUpdateView(() => {
   loadModel()
 })
+
+// The textures sit in the global Pixi texture cache under the model's blob URLs.
+// Each cached texture holds a listener into the renderer that uploaded it, so a
+// texture left there keeps that renderer's WebGL context and GPU memory alive.
+function destroyModel(target: PixiLive2DModel) {
+  target.destroy({ texture: true, baseTexture: true })
+}
 
 async function loadModel() {
   await until(modelLoading).not.toBeTruthy()
@@ -294,6 +335,9 @@ async function loadModel() {
 async function performModelLoad() {
   modelLoading.value = true
   componentState.value = 'loading'
+  const modelSource = modelSrcRef.value
+  const modelId = props.modelId
+  live2d.beginModelLoad()
 
   if (!pixiApp.value || !pixiApp.value.stage) {
     try {
@@ -309,27 +353,15 @@ async function performModelLoad() {
   }
 
   // REVIEW: here as await until(...) guarded the pixiApp and stage to be valid.
-  if (model.value && pixiApp.value?.stage) {
-    // Dispose expression controller before destroying the old model
-    expressionController.dispose()
-    internalModelRef.value = undefined
-    loadedModelId = undefined
-
-    try {
-      pixiApp.value.stage.removeChild(model.value)
-      model.value.destroy()
-    }
-    catch (error) {
-      console.warn('Error removing old model:', error)
-    }
-    model.value = undefined
+  if (model.value) {
+    expressionReferences.value = []
+    expressionLoader.value = undefined
+    destroyRenderedModel()
     headTracker.reset()
+    // A touch on the previous model must not play on the next one.
+    touchReaction.reset()
   }
-  const pendingModel = {
-    id: props.modelId,
-    src: modelSrcRef.value,
-  }
-  if (!pendingModel.src) {
+  if (!modelSource) {
     console.warn('No Live2D model source provided.')
     modelLoading.value = false
     componentState.value = 'mounted'
@@ -345,11 +377,13 @@ async function performModelLoad() {
 
     const { runtime } = await resolveLive2DRuntime()
     const { Live2DModel, MotionPriority } = runtime
-    forceMotionPriority.value = MotionPriority.FORCE
+    motionPriority.value = MotionPriority
     const live2DModel = new Live2DModel<PixiLive2DInternalModel>()
-    await setupLive2DModel(runtime, live2DModel, { url: pendingModel.src, id: pendingModel.id }, pixiApp.value!.renderer, { autoInteract: false })
-    if (isUnmounted) {
-      live2DModel.destroy()
+    await setupLive2DModel(runtime, live2DModel, { url: modelSource, id: modelId }, pixiApp.value!.renderer, { autoInteract: false })
+    // The unmount hook ran while the model was loading, so it had no model to destroy.
+    // A newer source also replaces this load.
+    if (isUnmounted || modelSource !== modelSrcRef.value) {
+      destroyModel(live2DModel)
       return
     }
 
@@ -362,13 +396,6 @@ async function performModelLoad() {
     initialModelHeight.value = model.value.height
     model.value.anchor.set(0.5, 0.5)
     setScaleAndPosition()
-
-    // --- Interaction
-
-    model.value.on('hit', (hitAreas) => {
-      if (model.value && hitAreas.includes('body'))
-        model.value.motion('tap_body')
-    })
 
     // --- Motion
 
@@ -392,6 +419,14 @@ async function performModelLoad() {
         fileName: motion.File ?? motion.file,
       })) || []))
       .filter(Boolean)
+    live2d.motions.register(availableMotions.value.map(motion => ({
+      fileName: motion.fileName,
+      group: motion.motionName,
+      index: motion.motionIndex,
+    })))
+    live2d.motions.setExecutor({
+      play: motion => setMotion(motion.group, motion.index),
+    })
 
     availableMotions.value.forEach((motion) => {
       motionMap.value[motion.fileName] = motion.motionName in Emotion
@@ -427,14 +462,15 @@ async function performModelLoad() {
       lastUpdateAtMs,
     })
 
-    motionManagerUpdate.register(useMotionUpdatePluginBeatSync(beatSync), 'pre')
+    const beatSyncPlugins = useMotionUpdatePluginsBeatSync(beatSync, beatSyncIsLayered)
+    motionManagerUpdate.register(beatSyncPlugins.pre, 'pre')
     motionManagerUpdate.register(useMotionUpdatePluginIdleDisable(), 'pre')
     motionManagerUpdate.register(useMotionUpdatePluginIdleFocus(), 'final')
     // Both run in 'final' stage (ignores handled state).
     // Expression first: sets desired parameter values (e.g. closed eyes = 0).
     // Blink second: reads post-expression eye values, Multiply-modulates on top.
     // This ensures blink respects expression state (0 × blinkFactor = 0).
-    motionManagerUpdate.register(useMotionUpdatePluginExpression(expressionController), 'final')
+    motionManagerUpdate.register(useMotionUpdatePluginExpression(live2d.expressions), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginAutoEyeBlink(live2dExpressionEnabled), 'final')
     // After the blink plugin, so that it only narrows the value a blink returns
     // to. The signal is the light behind the character, not the screen level:
@@ -447,9 +483,14 @@ async function performModelLoad() {
       ),
       'final',
     )
-    motionManagerUpdate.register(useMotionUpdatePluginManualControl(manualMotionControl, manualMotionSpring), 'final')
+    motionManagerUpdate.register(useMotionUpdatePluginManualControl(manualMotionControl, manualMotionSpring, {
+      controller: manualFocusBias,
+      target: focusBiasTarget,
+    }), 'final')
+    motionManagerUpdate.register(beatSyncPlugins.layer, 'final')
     motionManagerUpdate.register(useMotionUpdatePluginLipSync(mouthOpenSize, nowSpeaking), 'final')
     motionManagerUpdate.register(useMotionUpdatePluginBreathControl(manualBreathControl), 'final')
+    motionManagerUpdate.register(useMotionUpdatePluginTouchReaction(touchReaction.sample), 'final')
 
     const hookedUpdate = motionManager.update as (model: PixiLive2DInternalModel['coreModel'], now: number) => boolean
     motionManager.update = function (model: PixiLive2DInternalModel['coreModel'], now: number) {
@@ -466,7 +507,7 @@ async function performModelLoad() {
       const selectedMotionIndex = localStorage.getItem('selected-runtime-motion-index')
 
       if (selectedMotionGroup !== null && selectedMotionIndex && live2dIdleAnimationEnabled.value) {
-        // Restart the selected runtime motion immediately for seamless looping
+        // Restart the selected runtime motion at once, so the loop has no gap
         console.info('Motion finished, restarting runtime motion:', selectedMotionGroup, selectedMotionIndex)
         // Use requestAnimationFrame to restart on the next frame for smooth transition
         requestAnimationFrame(() => {
@@ -484,11 +525,10 @@ async function performModelLoad() {
     // toggled off at runtime.
     savedEyeBlink.value = internalModel.eyeBlink
     savedExpressionManager.value = motionManager.expressionManager
-    loadedModelId = pendingModel.id
 
-    // --- Expression controller initialisation (conditional)
+    // --- Expression context initialisation (conditional)
     if (live2dExpressionEnabled.value) {
-      // Disable built-in Cubism expression manager — our expression-controller
+      // Disable built-in Cubism expression manager — the Root expression context
       // replaces it. The SDK's manager runs after motionManager.update() and
       // would overwrite our final-plugin values every frame.
       if (motionManager.expressionManager) {
@@ -501,52 +541,52 @@ async function performModelLoad() {
       if (internalModel.eyeBlink) {
         ;(internalModel as any).eyeBlink = null
       }
-
-      internalModelRef.value = internalModel
     }
 
+    live2d.setModel(internalModel)
     emits('modelLoaded')
   }
   catch (error) {
+    if (isUnmounted || modelSource !== modelSrcRef.value)
+      return
+
     console.error('[Live2D] Failed to load model:', error)
     emits('error', error instanceof Error ? error : new Error(String(error)))
   }
   finally {
     modelLoading.value = false
     componentState.value = 'mounted'
-    await initExpressionController(internalModelRef.value, loadedModelId).catch((err) => {
-      console.warn('[Model.vue] Expression controller initialization failed:', err)
-    })
+    configureExpressions(model.value?.internalModel)
   }
 }
 
-/**
- * Initialise the expression controller by reading expression definitions from
- * the model settings and parsing each referenced expression file.
- *
- * This is intentionally fire-and-forget from loadModel so that a failure in
- * expression loading does not prevent the model itself from rendering.
- */
-async function initExpressionController(internalModel?: PixiLive2DInternalModel, modelId?: string) {
-  // Dispose any previous state (handles model reloads)
-  expressionController.dispose()
+/** One expression reference in the model settings. Cubism 2 settings use lower-case field names. */
+interface Live2DExpressionSettingsReference {
+  Name?: string
+  File?: string
+  name?: string
+  file?: string
+}
 
-  const settings = internalModel?.settings as any
-  if (!settings)
+function configureExpressions(internalModel?: PixiLive2DInternalModel) {
+  const settings = internalModel?.settings as (PixiLive2DInternalModel['settings'] & {
+    expressions?: Live2DExpressionSettingsReference[]
+    _expFiles?: Array<{ fileName: string, data: unknown }>
+  }) | undefined
+  if (!settings) {
+    expressionReferences.value = []
+    expressionLoader.value = undefined
     return
+  }
 
-  const expressionRefs: { Name: string, File: string }[] = (settings.expressions ?? []).map((expression: any) => ({
-    Name: expression.Name ?? expression.name,
-    File: expression.File ?? expression.file,
-  }))
-  if (expressionRefs.length === 0)
-    return
-
-  // Build a function that can read exp3 files relative to the model root.
-  // For URL-loaded models, resolveURL gives us the full URL. For ZIP-loaded
-  // models the resolved URL points to an in-memory blob/object URL.
-  const readExpFile = async (filePath: string): Promise<string> => {
-    const embeddedExpression = settings._expFiles?.find((expression: any) =>
+  expressionReferences.value = (settings.expressions ?? []).flatMap((expression) => {
+    const name = expression.Name ?? expression.name
+    const fileName = expression.File ?? expression.file
+    return name && fileName ? [{ name, fileName }] : []
+  })
+  expressionLoader.value = async (filePath: string) => {
+    // The AIRI loaders attach the parsed expression files, so a model from a ZIP or OPFS does not fetch them again.
+    const embeddedExpression = settings._expFiles?.find(expression =>
       expression.fileName === filePath || expression.fileName.endsWith(`/${filePath}`),
     )
     if (embeddedExpression)
@@ -555,27 +595,52 @@ async function initExpressionController(internalModel?: PixiLive2DInternalModel,
     const resolvedUrl: string = settings.resolveURL?.(filePath) ?? filePath
     const response = await fetch(resolvedUrl)
     if (!response.ok)
-      throw new Error(`Failed to fetch exp3 file: ${filePath} (${response.status})`)
+      throw new Error(`Failed to fetch expression file: ${filePath} (${response.status})`)
     return response.text()
   }
 
-  await expressionController.initialise(modelId, expressionRefs, readExpFile)
+  selectExpressionExecutor()
+}
+
+/** The Root blends expressions when the expression system is on. Otherwise the SDK manager applies them. */
+function selectExpressionExecutor() {
+  const sdkManager = savedExpressionManager.value
+  live2d.expressions.setExecutor(live2dExpressionEnabled.value
+    ? {
+        activate: (name) => {
+          live2d.expressions.reset()
+          return live2d.expressions.activate(name)
+        },
+        reset: () => {
+          live2d.expressions.reset()
+          return true
+        },
+      }
+    : {
+        activate: name => sdkManager?.setExpression(name) ?? false,
+        reset: () => {
+          sdkManager?.resetExpression()
+          return !!sdkManager
+        },
+      })
 }
 
 async function setMotion(motionName: string, index?: number) {
   // TODO: motion? Not every Live2D model has motion, we do need to help users to set motion
   if (!model.value) {
     console.warn('Cannot set motion: model not loaded')
-    return
+    return false
   }
 
   console.info('Setting motion:', motionName, 'index:', index)
   try {
-    await model.value.motion(motionName, index, forceMotionPriority.value)
+    await model.value.motion(motionName, index, motionPriority.value?.FORCE)
     console.info('Motion started successfully:', motionName)
+    return true
   }
   catch (error) {
     console.error('Failed to start motion:', motionName, error)
+    return false
   }
 }
 
@@ -705,27 +770,66 @@ watch(live2dExpressionEnabled, (enabled) => {
       (im as any).eyeBlink = null
     }
 
-    internalModelRef.value = im
-    initExpressionController(im, loadedModelId).catch((err) => {
-      console.warn('[Model.vue] Expression controller initialisation failed:', err)
-    })
+    configureExpressions(im)
   }
   else {
     mm.expressionManager = savedExpressionManager.value
     im.eyeBlink = savedEyeBlink.value
-    expressionController.dispose()
-    internalModelRef.value = undefined
+    live2d.expressions.reset()
+    selectExpressionExecutor()
   }
 })
 
-watch(focusAt, (value) => {
-  if (!model.value)
-    return
-  if (!props.eyeTracking)
+/**
+ * Sets the target of the Pixi focus controller.
+ *
+ * Pixi keeps the last target and adds it to the head, body, and eye angles on
+ * every frame. Without a reset, the model stays turned after tracking stops,
+ * and the turn also adds to a MAGIC pose. `Live2DModel.focus` always puts the
+ * target on the unit circle, so the center needs a direct `focus(0, 0)`.
+ */
+function updateFocusTarget() {
+  const current = model.value
+  if (!current)
     return
 
-  model.value.focus(value.x, value.y)
+  const mode = resolveLive2DFocusTargetMode({
+    eyeTracking: props.eyeTracking,
+    sourceActive: props.eyeFocusSourceActive,
+    idleEyeFocus: props.live2dForceIdleEyeAnimation,
+  })
+  if (mode === 'follow')
+    current.focus(focusAt.value.x, focusAt.value.y)
+  else if (mode === 'center')
+    current.internalModel.focusController.focus(0, 0)
+}
+
+watch([model, focusAt, live2dEyeTrackingEnabled, live2dEyeFocusSourceActive, live2dForceIdleEyeAnimation], updateFocusTarget)
+
+/**
+ * The focus target that biases a manual pose in the current frame.
+ *
+ * A devtools window that owns the model exclusively drives the pose by hand,
+ * so the bias stays off for it.
+ */
+// A devtools window that takes exclusive control gets the joystick pose without a fading cursor bias.
+watch(manualExclusiveOwnerId, (owner) => {
+  if (owner !== null)
+    manualFocusBias.reset()
 })
+
+function focusBiasTarget(): Live2DFocusTarget | undefined {
+  const current = model.value
+  if (!current || !props.focusBias || !props.eyeFocusSourceActive || manualExclusiveOwnerId.value !== null)
+    return undefined
+
+  const internalModel = current.internalModel
+  const point = current.toModelPosition(new Point(focusAt.value.x, focusAt.value.y))
+  return live2DFocusTargetFromModelPoint(point, {
+    width: internalModel.originalWidth,
+    height: internalModel.originalHeight,
+  })
+}
 
 onMounted(() => {
   const removeListener = listenBeatSyncBeatSignal(() => beatSync.scheduleBeat())
@@ -740,8 +844,8 @@ onUnmounted(() => {
   isUnmounted = true
   resizeAnimation?.pause()
   disposeShouldUpdateView?.()
-  expressionController.dispose()
-  loadedModelId = undefined
+  expressionReferences.value = []
+  expressionLoader.value = undefined
 
   // Destroying a display object does not destroy its filters, and each mount
   // creates its own pair, so the light-map textures and the blur pass would
@@ -751,7 +855,99 @@ onUnmounted(() => {
     model.value.filters = []
   screenAmbientLightFilter.value.destroy()
   dropShadowFilter.value.destroy()
+
+  // The model registers on the global `Ticker.shared` when it is built, and only
+  // `destroy()` removes it. Without this, each stage remount leaves the old model
+  // updating every frame and holding its Cubism memory. This component unmounts
+  // before the canvas, so the stage still exists here.
+  destroyRenderedModel()
 })
+
+/**
+ * Finds the part of the character under a point of the Pixi stage.
+ *
+ * Hit areas of the author come first. Most models have none, so the head box
+ * of the head tracker and the meshes of the visible drawables are the fallback.
+ *
+ * A hit area is a drawable that the author draws with a transparent texture,
+ * so it is tested by its mesh and never counts as a painted part.
+ *
+ * A Cubism 2 core publishes no meshes. Its hit areas are tested by their
+ * bounds, as the SDK `hitTest` does. It cannot tell a painted drawable from a
+ * hidden one, so only the head box stands in for the painted parts.
+ */
+function touchAt(stagePoint: { x: number, y: number }): Omit<Live2DTouch, 'gesture'> | undefined {
+  const current = model.value
+  if (!current)
+    return undefined
+
+  const internalModel = current.internalModel
+  const coreModel = internalModel.coreModel
+  const point = current.toModelPosition(new Point(stagePoint.x, stagePoint.y))
+  const meshes = live2DDrawableMeshesFor(coreModel)
+
+  function insideMesh(index: number) {
+    // The box is a cheap first test. The mesh decides, so the empty space inside the box does not count.
+    const bounds = internalModel.getDrawableBounds(index)
+    if (point.x < bounds.x || point.x > bounds.x + bounds.width || point.y < bounds.y || point.y > bounds.y + bounds.height)
+      return false
+    return !meshes || isPointInLive2DMesh(point, internalModel.getDrawableVertices(index), meshes.vertexIndices(index))
+  }
+
+  const hitAreas = Object.values(internalModel.hitAreas)
+  const hitAreaIndices = new Set(hitAreas.map(area => area.index))
+  const headRect = headTracker.bounds(internalModel)
+  const insideHead = !!headRect
+    && point.x >= headRect.x && point.x <= headRect.x + headRect.width
+    && point.y >= headRect.y && point.y <= headRect.y + headRect.height
+  let insideDrawable = !meshes && insideHead
+  if (meshes) {
+    const drawableCount = meshes.count()
+    for (let index = 0; index < drawableCount && !insideDrawable; index += 1) {
+      if (hitAreaIndices.has(index) || !meshes.isPainted(index))
+        continue
+      insideDrawable = insideMesh(index)
+    }
+  }
+
+  const region = resolveLive2DTouchRegion({
+    hitAreaNames: hitAreas.filter(area => insideMesh(area.index)).map(area => area.name),
+    insideHead,
+    insideDrawable,
+  })
+  if (!region)
+    return undefined
+
+  return {
+    region,
+    side: Math.min(1, Math.max(-1, point.x / internalModel.originalWidth * 2 - 1)),
+  }
+}
+
+/**
+ * Plays the procedural reaction of the model to one touch, at once.
+ *
+ * The reaction plugin samples with the motion clock, `ctx.nowMs` in seconds, which comes
+ * from `Live2DModel.elapsedTime`. That clock falls behind `performance.now()`
+ * whenever the Pixi ticker clamps a long frame, for example after the tab was
+ * hidden. The trigger uses the same clock as the samples, so the reaction
+ * starts on the next frame and not after the drift.
+ */
+function react(touch: Live2DTouch) {
+  if (model.value)
+    touchReaction.trigger(touch, lastUpdateAtMs.value / 1000)
+}
+
+/** Plays the touch motion group of the model, for example `TapBody`, when the model has one. */
+function playTouchMotion(region: Live2DTouch['region']) {
+  const current = model.value
+  if (!current)
+    return
+
+  const group = findLive2DTouchMotionGroup(Object.keys(current.internalModel.motionManager.definitions), region)
+  if (group)
+    void current.motion(group, undefined, motionPriority.value?.NORMAL)
+}
 
 function listMotionGroups() {
   return availableMotions.value
@@ -769,9 +965,6 @@ function headAnchor() {
   if (!current)
     return undefined
 
-  // Read the internal model off the instance rather than `internalModelRef`,
-  // which the expression controller owns: it holds a value only while Live2D
-  // expressions are enabled, and is cleared when they are turned off.
   const internalModel = current.internalModel
 
   // Pixi refreshes a local transform while it renders. A caller running ahead of
@@ -797,6 +990,9 @@ defineExpose({
   initialModelHeight,
   initialModelWidth,
   headAnchor,
+  touchAt,
+  react,
+  playTouchMotion,
 })
 
 import.meta.hot?.dispose(() => {
@@ -806,6 +1002,13 @@ import.meta.hot?.dispose(() => {
 </script>
 
 <template>
+  <Live2DExpression
+    v-for="expression in expressionReferences"
+    :key="expression.name"
+    :name="expression.name"
+    :file-name="expression.fileName"
+    :load="expressionLoader!"
+  />
   <div ref="dropShadowColorComputer" hidden bg="primary-400 dark:primary-500" />
   <slot />
 </template>

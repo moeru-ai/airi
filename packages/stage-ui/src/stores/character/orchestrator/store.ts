@@ -1,9 +1,10 @@
 import type { SparkNotifyResponseControl } from '@proj-airi/core-agent/agents/spark-notify'
 import type { WebSocketBaseEvent, WebSocketEventOf, WebSocketEvents } from '@proj-airi/server-sdk'
+import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
 import { createSparkNotifyAgent, createSparkNotifyReactionPlugin } from '@proj-airi/core-agent/agents/spark-notify'
 import { defineStore, storeToRefs } from 'pinia'
-import { ref } from 'vue'
+import { onScopeDispose, ref } from 'vue'
 
 import { useCharacterNotebookStore, useCharacterStore } from '../'
 import { useAiriRuntimePrompt } from '../../../composables/use-airi-runtime-prompt'
@@ -45,6 +46,8 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
 
   let tickTimer: ReturnType<typeof setInterval> | undefined
   let initialized = false
+  let leadership: SyncedPiniaRuntime | undefined
+  let stopLeadershipListener: (() => void) | undefined
   const eventUnsubscribes: Array<() => void> = []
   const sparkNotifyAgent = createSparkNotifyAgent({
     runner: {
@@ -211,7 +214,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   }
 
   async function tick() {
-    if (processing.value)
+    if (!leadership?.isLeader() || processing.value)
       return
 
     const now = Date.now()
@@ -264,14 +267,15 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     return undefined
   }
 
-  function initialize() {
-    if (initialized)
+  // Only the leader renderer handles notifications, so several windows never do the same work twice.
+  function startConsumers() {
+    if (eventUnsubscribes.length)
       return
-
-    initialized = true
 
     eventUnsubscribes.push(
       modsServerChannelStore.onEvent('spark:notify', async (event) => {
+        if (!leadership?.isLeader())
+          return
         try {
           await handleIncomingSparkNotify(event)
         }
@@ -283,6 +287,8 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
 
     eventUnsubscribes.push(
       modsServerChannelStore.onEvent('spark:emit', async (event) => {
+        if (!leadership?.isLeader())
+          return
         try {
           await handleSparkEmit(event)
         }
@@ -295,7 +301,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     startTicker()
   }
 
-  function dispose() {
+  function stopConsumers() {
     stopTicker()
 
     for (const unsubscribe of eventUnsubscribes) {
@@ -303,8 +309,31 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     }
 
     eventUnsubscribes.length = 0
+  }
+
+  /** Starts background consumers only while this renderer owns synchronized leadership. */
+  function initialize(syncedPinia: SyncedPiniaRuntime) {
+    if (initialized)
+      return
+    initialized = true
+    leadership = syncedPinia
+    stopLeadershipListener = syncedPinia.onLeadershipChange((isLeader) => {
+      if (isLeader)
+        startConsumers()
+      else
+        stopConsumers()
+    })
+  }
+
+  function dispose() {
+    stopLeadershipListener?.()
+    stopLeadershipListener = undefined
+    stopConsumers()
+    leadership = undefined
     initialized = false
   }
+
+  onScopeDispose(dispose)
 
   return {
     processing,

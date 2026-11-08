@@ -31,6 +31,20 @@ function setupChat() {
   return pinia
 }
 
+/**
+ * Typed sends read the provider and model of the session character.
+ * Call this before `setupChat`, because the card store reads storage when it starts.
+ */
+function storeDefaultCharacter(provider: string, model: string) {
+  const modules = {
+    consciousness: { provider, model },
+    vision: { provider: '', model: '' },
+    speech: { provider: '', model: '', voice_id: '' },
+  }
+  localStorage.setItem('airi-cards', JSON.stringify([['default', { name: 'Character', version: '1.0', extensions: { airi: { agents: {}, modules } } }]]))
+  localStorage.setItem('airi-card-module-defaults', JSON.stringify(modules))
+}
+
 afterEach(() => {
   vi.restoreAllMocks()
   for (const pinia of stores.splice(0)) {
@@ -42,6 +56,8 @@ afterEach(() => {
   localStorage.removeItem('settings/stickers/frequency')
   localStorage.removeItem('settings/consciousness/active-provider')
   localStorage.removeItem('settings/consciousness/active-model')
+  localStorage.removeItem('airi-cards')
+  localStorage.removeItem('airi-card-module-defaults')
 })
 
 it('captures the direct ingest session, provider, and supplement before waiting for the library', async () => {
@@ -128,6 +144,7 @@ it.each(['cancel', 'cleanup', 'delete', 'direct-delete'] as const)('cancels dire
 // A catalog read after provider startup can apply newer settings to an older
 // request. Preparing eligibility once keeps missed and selected requests stable.
 it('preserves sticker eligibility across provider startup and resamples only for a new send (PR #2714)', async () => {
+  storeDefaultCharacter('openai', 'test-model')
   const pinia = setupChat()
   const chat = useChatStore(pinia)
   const sessions = useChatSessionStore(pinia)
@@ -172,6 +189,7 @@ it('preserves sticker eligibility across provider startup and resamples only for
 })
 
 it('freezes names, emotion tags, and image versions for active and queued replies while the library is edited', async () => {
+  storeDefaultCharacter('openai', 'test-model')
   const pinia = setupChat()
   const chat = useChatStore(pinia)
   const sessions = useChatSessionStore(pinia)

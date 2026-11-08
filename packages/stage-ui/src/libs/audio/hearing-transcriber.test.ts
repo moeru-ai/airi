@@ -1,11 +1,15 @@
 import type { PcmBlock } from '@proj-airi/pipelines-audio'
+import type { TraceRecord } from '@proj-airi/trace-kit'
 
 import type { AIRIStreamTranscriptionDelta } from '../providers/stream-transcription'
 
 import { VoiceController } from '@proj-airi/core-agent'
-import { AudioInput, createPushStream } from '@proj-airi/pipelines-audio'
+import { AudioInput } from '@proj-airi/pipelines-audio'
+import { createPushStream } from '@proj-airi/stream-kit'
+import { VoiceIdKeys, VoiceNames } from '@proj-airi/trace-kit/voice'
 import { expect, it, vi } from 'vitest'
 
+import { configureTraceTransport } from '../../composables/use-trace'
 import { createHearingTranscriber } from './hearing-transcriber'
 
 it('streams provider updates before capture ends and preserves the final response after normal finish', async () => {
@@ -77,19 +81,14 @@ it('retains a sentence correction when another sentence appends to streaming tra
   const final = Promise.withResolvers<string>()
   const transcriber = createHearingTranscriber(async () => ({ mode: 'stream', fullStream: events.stream, text: final.promise, textStream: new ReadableStream<string>() }))
   const controller = new VoiceController({ audio, transcriber: () => transcriber, submit: async () => ({ status: 'drafted', draftId: 'draft' }) })
-  controller.use({ name: 'rewrite', setup(plugin) {
-    plugin.onSpeechInput((input) => {
-      input.subscribe({ transcript: 'raw', scope: { kind: 'segment', neighbors: 0 }, scheduling: 'latest' }, async (ctx) => {
-        const first = ctx.snapshot.transcript.segments[0]
-        if (first?.text === 'Air listens. ')
-          ctx.patch({ edits: [{ segmentId: first.id, range: { kind: 'tokens', start: 0, end: 1 }, expectedText: 'Air', replacement: 'AIRI' }], evidenceIds: [] })
-      })
-    })
-  } }, { grants: ['transcript-patch'] })
   const input = controller.beginInput({ sessionId: 'alice', interruptTurns: [], start: { kind: 'after-silence' } })
   frames.write({ range: { sourceId: 'mic', startFrame: 0, endFrame: 4 }, sampleRate: 1000, channels: [new Float32Array(4)] })
   events.write({ type: 'transcript.text.delta', delta: 'Air listens. ' })
-  await expect.poll(() => input.input?.transcript.corrected.text).toBe('AIRI listens. ')
+  await expect.poll(() => input.input?.transcript.raw.text).toBe('Air listens. ')
+  // A user correction during capture targets the first sentence. It stays only if that segment keeps its identity.
+  const first = input.input!.transcript.raw.segments[0]
+  expect(controller.correctInput(input.id, [{ segmentId: first.id, range: { kind: 'tokens', start: 0, end: 1 }, expectedText: 'Air', replacement: 'AIRI' }])).toEqual({ status: 'applied' })
+  expect(input.input?.transcript.corrected.text).toBe('AIRI listens. ')
   events.write({ type: 'transcript.text.delta', delta: 'Another sentence.' })
   await expect.poll(() => input.input?.transcript.corrected.text).toBe('AIRI listens. Another sentence.')
   expect(input.input?.transcript.patchHistory.filter(patch => patch.active)).toHaveLength(1)
@@ -116,4 +115,24 @@ it('aborts all provider outputs when standalone transcription fails', async () =
   expect(providerSignal?.aborted).toBe(true)
   await expect.poll(() => releasedText).toHaveBeenCalledOnce()
   expect(releasedEvents).toHaveBeenCalledOnce()
+})
+
+it('records speech recognition with the IDs that the caller names', async () => {
+  const recorded: TraceRecord[] = []
+  const stopTransport = configureTraceTransport({ source: 'test', clock: 'mono:test', runtime: 'test', send: record => recorded.push(record) })
+  try {
+    const transcriber = createHearingTranscriber(async () => {
+      throw new Error('provider failed')
+    }, { ids: { [VoiceIdKeys.Conversation]: 'alice', [VoiceIdKeys.Turn]: 'turn-1' } })
+    const reader = transcriber.transcribe({ audio: new ReadableStream<PcmBlock>(), signal: new AbortController().signal }).getReader()
+    await expect(reader.read()).rejects.toThrow('provider failed')
+  }
+  finally {
+    stopTransport()
+  }
+
+  const recognition = recorded.find(record => record.type === 'span.begin' && record.name === VoiceNames.SpeechRecognition)!
+  expect(recognition.ids).toEqual({ [VoiceIdKeys.Conversation]: 'alice', [VoiceIdKeys.Turn]: 'turn-1' })
+  const end = recorded.find(record => record.type === 'span.end')
+  expect(end?.type === 'span.end' && end.status).toBe('error')
 })

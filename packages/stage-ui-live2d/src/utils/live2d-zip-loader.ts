@@ -1,4 +1,4 @@
-import type { JSONObject, ModelSettings } from 'pixi-live2d-display'
+import type { CubismSpec, JSONObject, ModelSettings } from 'pixi-live2d-display'
 
 import type { Live2DRuntime } from './live2d-runtime'
 
@@ -6,6 +6,7 @@ import JSZip from 'jszip'
 
 import { errorMessageFrom } from '@moeru/std'
 
+import { resolveLive2DModelControls } from '../controls/manifest'
 import { createCubism4FakeSettings } from '../generations/cubism4/model-settings'
 import { isLive2DSettingsFile, selectLive2DSettings, shouldIgnoreLive2DArchiveEntry } from '../generations/loader'
 import { decodeZipFileName } from './decode-zip-filename'
@@ -162,6 +163,39 @@ async function collectMetadata(sources: MetadataSource[]): Promise<Live2DModelMe
 }
 
 /**
+ * Adds the expression and motion files that the settings do not reference, so that the runtime IDs match the controls manifest.
+ *
+ * Only Cubism 3+ settings take part, because the controls manifest reads exp3 and motion3 files only.
+ * The check uses the class of the selected runtime. The combined bundle and the Cubism 4 bundle each define their own class.
+ */
+function mergeDiscoveredControlsIntoSettings(runtime: Live2DRuntime, settings: ModelSettings, filePaths: string[]) {
+  if (!(settings instanceof runtime.Cubism4ModelSettings))
+    return
+
+  const existingExpressions = settings.expressions ?? []
+  const existingMotions = settings.motions ?? {}
+  const controls = resolveLive2DModelControls(settings.url, {
+    Expressions: existingExpressions,
+    Motions: existingMotions,
+  }, filePaths)
+
+  settings.expressions = controls.expressions.length > 0
+    ? controls.expressions.map(control => existingExpressions.find(expression => (
+        expression.Name === control.name && expression.File === control.fileName
+      )) ?? { Name: control.name, File: control.fileName })
+    : undefined
+
+  const motions: Record<string, CubismSpec.Motion[]> = {}
+  for (const control of controls.motions) {
+    const existingMotion = existingMotions[control.group]?.[control.index]
+    const group = motions[control.group] ?? []
+    group.push(existingMotion?.File === control.fileName ? existingMotion : { File: control.fileName })
+    motions[control.group] = group
+  }
+  settings.motions = Object.keys(motions).length > 0 ? motions : undefined
+}
+
+/**
  * Installs AIRI's ZIP and directory policies on the selected runtime exactly once.
  */
 export function configureLive2DLoaders(runtime: Live2DRuntime): void {
@@ -178,6 +212,7 @@ export function configureLive2DLoaders(runtime: Live2DRuntime): void {
     const settings = selected
       ? createModelSettings(selected.json, selected.path)
       : createCubism4FakeSettings(runtime, filePaths)
+    mergeDiscoveredControlsIntoSettings(runtime, settings, filePaths)
     Object.assign(settings, await collectMetadata(
       filePaths.map(path => ({ path, readText: () => reader.file(path)!.async('text') })),
     ))
@@ -209,9 +244,13 @@ export function configureLive2DLoaders(runtime: Live2DRuntime): void {
   const defaultReadText = FileLoader.readText
   FileLoader.createSettings = async (files: File[]) => {
     const selected = await selectFileSettings(files)
+    const filePaths = files
+      .map(file => file.webkitRelativePath || file.name)
+      .filter(path => !shouldIgnoreLive2DArchiveEntry(path))
     const settings = selected
       ? createModelSettings(selected.json, selected.path)
-      : createCubism4FakeSettings(runtime, files.map(file => file.webkitRelativePath || file.name))
+      : createCubism4FakeSettings(runtime, filePaths)
+    mergeDiscoveredControlsIntoSettings(runtime, settings, filePaths)
     if (selected)
       Object.assign(settings, { _objectURL: URL.createObjectURL(selected.file) })
     Object.assign(settings, await collectMetadata(

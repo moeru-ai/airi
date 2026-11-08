@@ -23,7 +23,7 @@ beforeEach(async () => {
   await db.delete(schema.fluxUsage)
   await db.delete(schema.userFlux)
   await db.insert(schema.userFlux).values({ userId: 'wallet', flux: 10 })
-  billing = createBillingService(db, createTestRedis())
+  billing = createBillingService(db, createTestRedis(), { getOptional: async () => null })
   llm = createLlmBillingService(billing)
 })
 

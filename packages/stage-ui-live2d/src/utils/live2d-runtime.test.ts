@@ -1,5 +1,9 @@
 import type { Cubism2CoreCapability } from '@proj-airi/unplugin-live2d-sdk/vite'
 
+import { readFile } from 'node:fs/promises'
+import { createRequire } from 'node:module'
+import { dirname, join } from 'node:path'
+
 import { describe, expect, it, vi } from 'vitest'
 
 import { selectLive2DRuntime } from './live2d-runtime'
@@ -79,5 +83,29 @@ describe('live2D runtime selection', () => {
     expect(selected.supportsCubism2).toBe(false)
     expect(deps.loadCore).toHaveBeenCalledOnce()
     expect(deps.loadCubism4).toHaveBeenCalledOnce()
+  })
+
+  // https://github.com/moeru-ai/airi/issues/3291
+  //
+  // ROOT CAUSE:
+  //
+  // #3323 patched the screen colors into `dist/cubism4.es.js` only.
+  // With a Cubism 2 Core, every model uses the combined bundle:
+  //
+  // loadCombined: () => import('pixi-live2d-display')
+  //
+  // Its own renderer copy drew the black block again.
+  // We fixed this by patching the combined bundle the same way.
+  it('issue #3291: draws the multiply and screen colors in the combined bundle as in the Cubism 4 bundle', async () => {
+    const dist = dirname(createRequire(import.meta.url).resolve('pixi-live2d-display'))
+    // A Windows checkout can apply patch lines with CRLF endings, so the comparison ignores line endings.
+    const readLines = async (fileName: string) => (await readFile(join(dist, fileName), 'utf-8')).split(/\r?\n/)
+    const cubism4 = await readLines('cubism4.es.js')
+    const combined = new Set(await readLines('index.es.js'))
+    const colorLines = cubism4.filter(line => /multiplycolor|screencolor/i.test(line))
+
+    expect(colorLines.length).toBeGreaterThan(0)
+    for (const line of colorLines)
+      expect(combined.has(line), line).toBe(true)
   })
 })

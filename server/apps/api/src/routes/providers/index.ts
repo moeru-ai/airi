@@ -1,11 +1,11 @@
 import type { ProviderService } from '../../services/domain/providers'
 import type { HonoEnv } from '../../types/hono'
 
+import { createBadRequestError } from '@proj-airi/http-error-shared'
 import { Hono } from 'hono'
 import { safeParse } from 'valibot'
 
 import { authGuard } from '../../middlewares/auth'
-import { createBadRequestError } from '../../utils/error'
 import { UpsertProviderConfigSchema } from './schema'
 
 export function createProviderRoutes(providerService: ProviderService) {

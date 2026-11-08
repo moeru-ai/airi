@@ -20,14 +20,15 @@ vi.mock('vue-i18n', () => ({
   useI18n: () => ({ locale: { value: 'en' }, t: (key: string) => key }),
 }))
 
-vi.mock('localforage', () => ({
-  default: {
-    getItem: vi.fn(async () => undefined),
-    iterate: vi.fn(async () => undefined),
-    removeItem: vi.fn(async () => undefined),
-    setItem: vi.fn(async <T>(_: string, value: T) => value),
-  },
-}))
+// Node has no IndexedDB. An in-memory driver replaces the IndexedDB mounts.
+vi.mock('../../database/storage', async (importOriginal) => {
+  const { createStorage } = await import('unstorage')
+  const { default: memoryDriver } = await import('unstorage/drivers/memory')
+  return {
+    ...await importOriginal<typeof import('../../database/storage')>(),
+    storage: createStorage({ driver: memoryDriver() }),
+  }
+})
 
 function card(provider = '', model = ''): AiriCard {
   return {
@@ -36,6 +37,7 @@ function card(provider = '', model = ''): AiriCard {
     description: '',
     extensions: {
       airi: {
+        avatarModels: [],
         modules: {
           consciousness: { provider, model },
           vision: { provider: '', model: '' },
@@ -178,6 +180,26 @@ describe('card inheritance with real module stores', () => {
     await cards.activateCard('default')
     expect(consciousness.activeProvider).toBe('')
     expect(consciousness.activeModel).toBe('')
+  })
+
+  // https://github.com/moeru-ai/airi/issues/3154
+  // ROOT CAUSE: Deleting a provider cleared only the defaults and the active card.
+  // An inactive card restored the deleted provider when it became active.
+  it('clears a deleted provider from inactive cards (Issue #3154)', async () => {
+    const cards = useAiriCardStore()
+    await cards.initialize()
+    const uploaded = card('removed-provider', 'card-model')
+    uploaded.extensions.airi.modules.speech = { provider: 'removed-provider', model: 'tts-1', voice_id: 'alloy' }
+    const id = await cards.addCard(uploaded, 'import')
+    expect(cards.activeCardId).not.toBe(id)
+
+    await cards.clearProviderSelections('removed-provider')
+
+    expect(cards.getCard(id)?.extensions.airi.modules.consciousness).toEqual({ provider: '', model: '' })
+    expect(cards.getCard(id)?.extensions.airi.modules.speech).toEqual({ provider: 'speech-noop', model: '', voice_id: '' })
+    await cards.activateCard(id)
+    expect(useConsciousnessStore().activeProvider).not.toBe('removed-provider')
+    expect(useSpeechStore().activeSpeechProvider).toBe('speech-noop')
   })
 
   it('does not inherit a voice from a different speech model', async () => {
@@ -328,6 +350,53 @@ describe('card inheritance with real module stores', () => {
       expect(voiceRequests).toHaveLength(1)
       expect(speechStore.activeSpeechVoiceId).toBe('voice-a')
     })
+  })
+
+  it('gives an inherited card the voice that the official catalog picks after login', async () => {
+    // ROOT CAUSE:
+    //
+    // Login stored the defaults before the voice catalog loaded. The catalog picked a voice later, but the defaults
+    // kept an empty one, so replies failed with "Speech requires a model and voice".
+    //
+    // The fix keeps inherited defaults in step with the runtime modules.
+    const speechStore = useSpeechStore()
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input) => {
+      if (String(input).includes('/api/v1/audio/voices')) {
+        return Response.json({
+          recommended: { 'en-US': 'voice-a' },
+          voices: [{ id: 'voice-a', name: 'Voice A', languages: ['en-US'] }],
+        })
+      }
+      return Response.json({ flux: 0 })
+    }))
+    const user: User = {
+      id: 'user-1',
+      name: 'AIRI User',
+      email: 'user@example.com',
+      emailVerified: true,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    }
+    const session: Session = {
+      id: 'session-1',
+      token: 'server-session-token',
+      userId: user.id,
+      expiresAt: new Date('2026-12-01T00:00:00.000Z'),
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+    }
+    useAuthStore().$patch({ session, token: 'restored-access-token', user })
+    await nextTick()
+
+    const cards = useAiriCardStore()
+    await cards.initialize()
+    await cards.configureForAuthentication(true)
+
+    await vi.waitFor(() => expect(speechStore.activeSpeechVoiceId).toBe('voice-a'))
+    await vi.waitFor(() => expect(cards.getModules(cards.activeCardId).speech).toMatchObject({
+      provider: OFFICIAL_SPEECH_PROVIDER_ID,
+      voice_id: 'voice-a',
+    }))
   })
 
   // https://github.com/moeru-ai/airi/pull/2490#discussion_r3960117808

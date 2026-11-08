@@ -1,9 +1,9 @@
 import type { ConfigKVService } from '../../../adapters/config-kv'
 import type { RouterConfig } from '../types'
 
+import { ApiError } from '@proj-airi/http-error-shared'
 import { describe, expect, it, vi } from 'vitest'
 
-import { ApiError } from '../../../../utils/error'
 import { createConfigLoader } from '../config-loader'
 
 function makeConfig(): RouterConfig {
@@ -16,6 +16,7 @@ function makeConfig(): RouterConfig {
               baseURL: 'https://openrouter.example/v1',
               keys: [{ id: 'k1', ciphertext: 'v1.aa.bb.cc' }],
               headerTemplate: 'Bearer {KEY}',
+              headers: {},
             },
           ],
           fallbackTriggers: { httpCodes: [401, 402, 403, 429, 500, 502, 503, 504], onTimeout: true },

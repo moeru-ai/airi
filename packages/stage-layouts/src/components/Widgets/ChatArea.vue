@@ -1,20 +1,18 @@
 <script setup lang="ts">
 import type { ChatComposerController, ChatImageAttachment } from '@proj-airi/stage-ui/components/scenarios/chat'
 
-import { ChatImageAttachmentPreview, ChatReplyPreview, useChatImages, useVoiceInput, VoiceDrafts, VoiceMessageControls } from '@proj-airi/stage-ui/components/scenarios/chat'
-import { HearingConfig } from '@proj-airi/stage-ui/components/scenarios/dialogs/audio-input/index'
-import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
-import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
+import { ChatComposerAddMenu, ChatComposerVoiceInput, ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSendButton, useChatImages, useStartVoiceCall, VoicePresence } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
-import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { BasicTextarea } from '@proj-airi/ui'
+import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
+import { useSettings } from '@proj-airi/stage-ui/stores/settings'
+import { useVoiceCallStore } from '@proj-airi/stage-ui/stores/voice-call'
+import { BasicButton, BasicTextarea } from '@proj-airi/ui'
 import { useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
-import { computed, nextTick, onUnmounted, ref, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-
-import IndicatorMicVolume from './IndicatorMicVolume.vue'
+import { useRouter } from 'vue-router'
 
 import { useChatInterruption } from '../../composables/use-chat-interruption'
 
@@ -24,6 +22,16 @@ const props = defineProps<{
 }>()
 
 const composerRoot = useTemplateRef<HTMLDivElement>('composer')
+const voiceStatus = useTemplateRef<HTMLDivElement>('voiceStatus')
+const voiceAttachment = useTemplateRef<HTMLDivElement>('voiceAttachment')
+const voiceButton = useTemplateRef<InstanceType<typeof ChatComposerVoiceInput>>('voiceButton')
+/** A recorded voice message waits for the send button. It can be sent without text. */
+const voicePending = shallowRef(false)
+/** A recording is open. Its transcript is not in the text yet, so send waits until it closes. */
+const voiceRecording = shallowRef(false)
+const router = useRouter()
+const call = useVoiceCallStore()
+const startVoiceCall = useStartVoiceCall(route => router.push(route), () => !voiceRecording.value)
 
 const imageInput = useTemplateRef<HTMLInputElement>('imageInput')
 const chatSession = useChatSessionStore()
@@ -31,7 +39,6 @@ const { addFiles, selectFiles, error: imageError, pending: pendingImages } = use
 const { attachments, removeAttachment } = props.composer
 
 const messageInput = props.composer.draft
-const hearingPopoverOpen = ref(false)
 const isComposing = props.composer.isComposing
 const DOUBLE_ENTER_INTERVAL_MS = 300
 const TRAILING_NEWLINES_REGEX = /[\r\n]+$/
@@ -40,14 +47,12 @@ const sendMode = useLocalStorage<SendMode>('ui/chat/settings/send-mode', 'enter'
 const lastEnterTime = ref(0)
 
 const { themeColorsHueDynamic } = storeToRefs(useSettings())
+const { chatReady } = storeToRefs(useConsciousnessStore())
+const authStore = useAuthStore()
 
-const { askPermission } = useSettingsAudioDevice()
-const { enabled, stream } = storeToRefs(useSettingsAudioDevice())
 const replyTarget = props.composer.replyTarget
-const { audioContext } = useAudioContext()
 const { t } = useI18n()
 
-const { isListening, start: startVoiceInput, end: endVoiceInput, autoSendEnabled } = useVoiceInput()
 const hasSubmission = computed(() => !!messageInput.value.trim() || attachments.value.length > 0)
 const { showStopAction, stopActiveResponse, submitInterruptingResponse } = useChatInterruption({
   sessionId: computed(() => chatSession.activeSessionId),
@@ -61,20 +66,25 @@ const { showStopAction, stopActiveResponse, submitInterruptingResponse } = useCh
   },
 })
 
-const secondaryComposerButtonClass = [
-  'size-8 flex items-center justify-center rounded-md outline-none',
-  'text-neutral-500 transition-colors duration-200 active:bg-primary-100/80 dark:text-neutral-400 dark:active:bg-primary-900/60',
-  'hover:bg-primary-100/60 hover:text-primary-600 dark:hover:bg-primary-900/40 dark:hover:text-primary-300 motion-reduce:transition-none',
-]
-
 const composerActionButtonClass = [
   'size-9 flex items-center justify-center rounded-full outline-none',
   'transition-colors duration-200 motion-reduce:transition-none',
 ]
 
 async function handleSend() {
-  if (!pendingImages.value)
-    await submitInterruptingResponse()
+  // The draft stays in the composer while the setup callout is shown.
+  if (voiceRecording.value || pendingImages.value || !chatReady.value)
+    return
+
+  // A waiting voice message takes the composer text into the same user message.
+  const voice = await voiceButton.value?.sendPending(messageInput.value)
+  if (voice === 'sent')
+    messageInput.value = ''
+  // A failed send keeps the text for a retry. A send that still runs, for example after a double Enter, clears it itself.
+  if (voice && voice !== 'none')
+    return
+
+  await submitInterruptingResponse()
 }
 
 async function handleCancelReply() {
@@ -123,45 +133,6 @@ function handleMessageInputKeydown(event: KeyboardEvent) {
   }
 }
 
-watch(hearingPopoverOpen, async (value) => {
-  if (value) {
-    await askPermission()
-  }
-})
-
-const { startAnalyzer, stopAnalyzer } = useAudioAnalyzer()
-let analyzerSource: MediaStreamAudioSourceNode | undefined
-
-function teardownAnalyzer() {
-  try {
-    analyzerSource?.disconnect()
-  }
-  catch {}
-  analyzerSource = undefined
-  stopAnalyzer()
-}
-
-async function setupAnalyzer() {
-  teardownAnalyzer()
-  if (!hearingPopoverOpen.value || !enabled.value || !stream.value)
-    return
-  if (audioContext.state === 'suspended')
-    await audioContext.resume()
-  const analyser = startAnalyzer(audioContext)
-  if (!analyser)
-    return
-  analyzerSource = audioContext.createMediaStreamSource(stream.value)
-  analyzerSource.connect(analyser)
-}
-
-watch([enabled], () => {
-  setupAnalyzer()
-}, { immediate: true })
-
-onUnmounted(() => {
-  teardownAnalyzer()
-})
-
 watch(sendMode, () => {
   lastEnterTime.value = 0
 })
@@ -176,12 +147,42 @@ watch(replyTarget, async (target) => {
 </script>
 
 <template>
-  <VoiceDrafts />
-  <VoiceMessageControls />
-  <div ref="composer" h="<md:full" flex gap-2 class="ph-no-capture">
+  <!--
+    Speech and drafts show above the composer, also during a call. The text field below stays free while the user
+    speaks. The call capsule at the top of the page holds the call status and the hang-up button.
+  -->
+  <div :class="['flex justify-center empty:hidden', 'px-1 pb-2']">
+    <VoicePresence>
+      <template #hint>
+        <kbd
+          :class="[
+            'min-w-6 rounded-md border px-1.5 py-0.5 text-center font-sans text-[11px] leading-none',
+            'border-neutral-900/15 bg-neutral-900/5 text-neutral-600',
+            'dark:border-white/15 dark:bg-white/8 dark:text-neutral-300',
+          ]"
+        >esc</kbd>
+        <span>{{ t('stage.chat.voice-draft.dismiss') }}</span>
+      </template>
+    </VoicePresence>
+  </div>
+  <div
+    v-if="!chatReady"
+    :class="[
+      'mb-1 px-2',
+      // The callout takes the panel width. Its content must not widen the panel.
+      'w-0 min-w-full',
+    ]"
+  >
+    <ChatProviderSetupCallout @configure="router.push('/settings/providers')" @sign-in="authStore.requestLogin()" />
+  </div>
+  <!--
+    The composer keeps a 0.5rem inset from the panel edges, like the chat history above it.
+    The corner radius is the `rounded-xl` of ChatContainer minus this inset, so the two corners stay concentric.
+  -->
+  <div ref="composer" :class="['flex gap-2 px-2 pb-2 <md:h-full', 'ph-no-capture']">
     <div
       :class="[
-        'relative w-full overflow-hidden rounded-t-xl',
+        'relative w-full overflow-hidden rounded',
         'border-t-2 border-solid border-primary-200/20 bg-primary-100/50 backdrop-blur-md',
         'dark:border-primary-400/20 dark:bg-primary-900/70',
       ]"
@@ -196,82 +197,69 @@ watch(replyTarget, async (target) => {
       <p v-if="imageError" role="alert" :class="['px-2 text-sm text-red-600']">
         {{ imageError }}
       </p>
-      <p v-if="pendingImages" role="status">
+      <p v-if="pendingImages" role="status" :class="['px-3 text-xs text-neutral-500']">
         {{ t('stage.chat.images.reading') }}
       </p>
+
+      <div ref="voiceAttachment" :class="['px-2 pt-2 empty:hidden']" />
 
       <input ref="imageInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple :class="['hidden']" @change="selectFiles">
       <BasicTextarea
         v-model="messageInput"
         :submit-on-enter="false"
         :placeholder="t('stage.message')"
-        text="primary-600 dark:primary-100  placeholder:primary-500 dark:placeholder:primary-200"
-        bg="transparent"
-        min-h="[100px]" max-h="[300px]" w-full
-        p-4 font-medium pb="[60px]"
-        outline-none transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
-        :class="{
-          'transition-colors-none placeholder:transition-colors-none': themeColorsHueDynamic,
-        }"
+        :class="[
+          'max-h-[300px] min-h-[82px] w-full px-3 pb-12 pt-2.5 font-medium outline-none',
+          'bg-transparent text-primary-600 dark:text-primary-100',
+          'placeholder:text-primary-500 dark:placeholder:text-primary-200',
+          'transition-all duration-250 ease-in-out placeholder:transition-all placeholder:duration-250 placeholder:ease-in-out',
+          themeColorsHueDynamic && 'transition-colors-none placeholder:transition-colors-none',
+        ]"
         @keydown="handleMessageInputKeydown"
         @paste-file="addFiles"
         @compositionstart="isComposing = true"
         @compositionend="isComposing = false"
       />
 
-      <!-- Input configuration controls -->
-      <div
-        absolute bottom-2 left-2 z-10 flex items-center gap-2
-      >
-        <button
+      <!-- The toolbar inside the composer, like the desktop app: add menu, recording status, microphone, and send. -->
+      <div :class="['absolute inset-x-1.5 bottom-1.5 z-10 flex items-center gap-1.5']">
+        <ChatComposerAddMenu :in-call="call.active" :recording="voiceRecording" @attach-images="imageInput?.click()" @call="startVoiceCall" />
+        <!-- The recording status and the walkie-talkie bar show here, so the composer keeps its height. -->
+        <div ref="voiceStatus" data-testid="composer-voice-status" :class="['relative h-9 min-w-0 flex-1 rounded-full']" />
+        <!-- A call listens already, so the microphone becomes the mute button of the call. -->
+        <BasicButton
+          v-if="call.active"
+          size="unset"
           type="button"
-          :aria-label="t('stage.chat.images.attach')"
-          :class="secondaryComposerButtonClass"
-          @click="imageInput?.click()"
+          :aria-pressed="call.muted"
+          :aria-label="t(call.muted ? 'stage.chat.call.unmute' : 'stage.chat.call.mute')"
+          :title="t(call.muted ? 'stage.chat.call.unmute' : 'stage.chat.call.mute')"
+          :class="[
+            composerActionButtonClass,
+            'shrink-0 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary-500',
+            call.muted
+              ? 'bg-neutral-700 text-white dark:bg-white/20 dark:text-white'
+              : 'text-neutral-500 hover:bg-neutral-900/8 dark:text-neutral-400 dark:hover:bg-white/10',
+          ]"
+          @click="call.toggleMuted()"
         >
-          <span :class="['i-solar:gallery-outline size-5']" />
-        </button>
-        <!-- Microphone icon button -->
-        <PopoverRoot v-model:open="hearingPopoverOpen">
-          <PopoverTrigger as-child>
-            <button
-              :class="secondaryComposerButtonClass"
-              :title="t('settings.hearing.title')"
-              :aria-label="t('settings.hearing.title')"
-            >
-              <Transition name="fade" mode="out-in">
-                <IndicatorMicVolume v-if="enabled" class="h-5 w-5" :color-class="isListening ? undefined : 'text-neutral-500 dark:text-neutral-400'" />
-                <div v-else :class="['relative size-5 opacity-55']">
-                  <div :class="['i-solar:microphone-3-outline size-5']" />
-                  <span aria-hidden="true" :class="['absolute left-0 top-1/2 h-px w-full rotate-45 bg-current']" />
-                </div>
-              </Transition>
-            </button>
-          </PopoverTrigger>
-          <PopoverPortal>
-            <PopoverContent
-              side="top"
-              :side-offset="8"
-              :collision-padding="8"
-              :class="[
-                'z-[10010] w-[min(18rem,calc(100vw-1rem))] rounded-xl border border-neutral-200/60 bg-neutral-50/90 p-4',
-                'shadow-lg backdrop-blur-md dark:border-neutral-800/30 dark:bg-neutral-900/80',
-                'flex flex-col gap-3',
-              ]"
-            >
-              <HearingConfig
-                v-model:auto-send="autoSendEnabled"
-                :transcription="isListening"
-                @toggle-transcription="() => isListening ? endVoiceInput() : startVoiceInput()"
-              />
-            </PopoverContent>
-          </PopoverPortal>
-        </PopoverRoot>
-      </div>
-
-      <div
-        absolute bottom-2 right-2 z-10 flex items-center gap-1
-      >
+          <span aria-hidden="true" :class="[call.muted ? 'i-mingcute:mic-off-line' : 'i-mingcute:mic-line', 'size-5']" />
+        </BasicButton>
+        <!-- The microphone stays mounted during a call, so a voice message that waits for the send button is kept. -->
+        <ChatComposerVoiceInput
+          ref="voiceButton"
+          v-model="messageInput"
+          :hidden="call.active"
+          :surface="voiceStatus"
+          :attachment-element="voiceAttachment"
+          :session-id="chatSession.activeSessionId"
+          :reply-to-message-id="replyTarget?.message.id"
+          @recording-change="voiceRecording = $event"
+          @pending-change="voicePending = $event"
+          @sent="props.composer.clearReply()"
+          @submit="handleSend"
+          @configure="route => router.push(route)"
+        />
         <button
           v-if="showStopAction"
           data-testid="stop-speaking-button"
@@ -285,19 +273,14 @@ watch(replyTarget, async (target) => {
         >
           <div class="i-solar:stop-outline size-5" />
         </button>
-        <button
+        <!-- Hover or right-click the send button to choose the send key. -->
+        <ChatSendButton
           v-else
-          type="button"
-          :aria-label="t('stage.chat.actions.send')"
-          :disabled="!!pendingImages || (!messageInput.trim() && !attachments.length) || isComposing"
-          :class="[
-            composerActionButtonClass,
-            'bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-40',
-          ]"
-          @click="handleSend"
-        >
-          <span :class="['i-solar:arrow-up-outline size-5']" />
-        </button>
+          v-model:send-mode="sendMode"
+          :disabled="voiceRecording || !!pendingImages || (!messageInput.trim() && !attachments.length && !voicePending) || isComposing"
+          :button-class="[composerActionButtonClass, 'bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-40']"
+          @send="handleSend"
+        />
       </div>
     </div>
   </div>

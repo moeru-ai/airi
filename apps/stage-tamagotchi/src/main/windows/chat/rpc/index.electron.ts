@@ -3,7 +3,7 @@ import type { BrowserWindow } from 'electron'
 
 import type { I18n } from '../../../libs/i18n'
 import type { ServerChannel } from '../../../services/airi/channel-server'
-import type { McpStdioManager } from '../../../services/airi/mcp-servers'
+import type { McpManager } from '../../../services/airi/mcp-servers'
 import type { SettingsWindowManager } from '../../settings'
 import type { WidgetsWindowManager } from '../../widgets'
 
@@ -20,7 +20,7 @@ export async function setupChatWindowElectronInvokes(params: {
   window: BrowserWindow
   widgetsManager: WidgetsWindowManager
   serverChannel: ServerChannel
-  mcpStdioManager: McpStdioManager
+  mcpManager: McpManager
   i18n: I18n
   openSettingsWindow: SettingsWindowManager['openWindow']
 }) {
@@ -29,7 +29,7 @@ export async function setupChatWindowElectronInvokes(params: {
   await setupBaseWindowElectronInvokes({ context, window: params.window, i18n: params.i18n, serverChannel: params.serverChannel })
 
   createWidgetsService({ context, widgetsManager: params.widgetsManager, window: params.window })
-  createMcpServersService({ context, manager: params.mcpStdioManager })
+  createMcpServersService({ context, manager: params.mcpManager })
 
   defineInvokeHandler(context, electronOpenMainDevtools, () => params.window.webContents.openDevTools({ mode: 'detach' }))
   defineInvokeHandler(context, electronOpenSettings, payload => params.openSettingsWindow(payload?.route))

@@ -23,7 +23,7 @@ API details belong in the [component reference](./docs/ai/context/ui-components.
 ## Colors
 
 - [UnoCSS configuration](./uno.config.ts) provides Chromatic palettes, fonts, icons, and shared animations.
-- [UI fallback variables](./packages/ui/src/fallback.css) define `--chromatic-hue` and shade-specific chroma variables.
+- [UI fallback variables](./packages/ui/src/fallback.css) define the `--chromatic-hue` fallback.
 - [Theme settings](./packages/stage-ui/src/stores/settings/theme.ts) store the selected hue. The default is `220.44`.
 - [The UI stylesheet entry](./packages/ui/src/main.css) includes fallback variables, lamp animation, and component styles.
 
@@ -31,7 +31,7 @@ API details belong in the [component reference](./docs/ai/context/ui-components.
 
 `neutral` supplies standard surfaces and text. Light and dark modes define separate backgrounds, foregrounds, borders, and opacity values.
 
-Buttons also support independent palettes, such as red, orange, and green. `Callout` supports `primary`, `violet`, `lime`, and `orange`. It has no shared success or error API.
+Buttons also support independent palettes, such as red, orange, and green. `Callout` supports `primary`, `violet`, `lime`, and `orange` as accents only. `Alert` gives the shared status palette: `info` follows `primary`, `success` is green, `warning` is amber, and `danger` is red.
 
 Use text or icons to explain business states. A palette name does not establish a status meaning.
 
@@ -87,6 +87,7 @@ Use neutral surface changes to separate ordinary content. Use translucency and b
 | Standard inputs | Neutral fill, 2px border, `shadow-sm` | Define the editable area without a floating-card appearance. |
 | Overlay controls | Translucent neutral fill and background blur | Preserve a relationship to the stage while keeping actions legible. |
 | Callouts | Tinted surface and a vertical accent bar | Separate contextual guidance from ordinary text. |
+| Alerts | Opaque tinted surface without a border, and a tone icon | Show a status or a result that the user must notice. Stay readable over translucent stage panels. |
 | Bottom drawer | Neutral surface, `shadow-xl`, and `bg-black/35` backdrop | Focus attention on a temporary task. |
 
 Button outlines express interaction, not elevation. Leave space for hover and focus outlines instead of clipping them at a container edge.
@@ -94,6 +95,21 @@ Button outlines express interaction, not elevation. Leave space for hover and fo
 Check translucent controls against bright, dark, and detailed backgrounds. A blur value alone does not guarantee readable text.
 
 Use existing popup and drawer layering. Do not increase local `z-index` values to compensate for an unclear stacking relationship.
+
+### Borders
+
+A border separates a surface only when a fill change is not enough. Keep it quiet.
+
+| Case | Use | Do not use |
+| --- | --- | --- |
+| Idle cards and inputs | A neutral border no brighter than `neutral-100` in light mode and `neutral-900` in dark mode | `neutral-200` or `neutral-300` solid borders, or a `neutral-700` solid border in dark mode |
+| Selected or active item | A tinted fill and an indicator, such as a radio dot, a check icon, or a badge | A border color change on top of the fill and the indicator |
+| Selected image thumbnail | `border-transparent` or no ring when idle, and a primary border or ring when selected | A neutral border on every thumbnail |
+| Hover | A fill change | A border color change |
+| Decoration | A tinted fill or no frame | Primary-colored frames, or a border inside another border |
+| Dashed border | A real drop zone only | Buttons and empty states. Use a fill and a short text for an empty state. |
+
+Keep `focus-visible` outlines. They show keyboard focus.
 
 ## Shapes
 
@@ -123,6 +139,7 @@ Keep parallelogram styling in the existing button shape. Preserve its counter-sk
 | [GhostButton](./packages/ui/src/components/misc/ghost-button.vue) | Transparent at rest. Interaction adds a faint primary surface. Keyboard focus has an outline. | Toolbars and low-emphasis actions. |
 | [IconButton](./packages/ui/src/components/misc/icon-button.vue) | Removes padding. No built-in surface, shape, or fixed square size. | Favorite, copy, retry, and other icon actions. |
 | [OverlayButton](./packages/ui/src/components/misc/overlay-button.vue) | Translucent neutral surface, background blur, and `rounded-xl`. | Actions over the stage. |
+| [DockButton](./packages/ui/src/components/misc/dock/dock-button.vue) | Round icon button in a `Dock`. A toggle that is on shows only a theme-color icon. The label shows as a tooltip. | Docks, such as the floating chat dock and the fullscreen island. |
 
 `Button` defaults are `color="neutral"`, `variant="secondary"`, `shape="rect"`, `size="md"`, and `outline=true`.
 
@@ -167,6 +184,8 @@ Padding and text sizes do not guarantee touch target dimensions. Check the final
 
 Inputs use `neutral-50` backgrounds in light mode and `neutral-950` in dark mode. Focus borders use `primary-300` and `primary-400/50`, respectively.
 
+Input, Select, and Combobox triggers share the idle border `neutral-100` in light mode and `neutral-900` in dark mode. Their popups use a 1px `neutral-100` or `neutral-800` border and a shadow.
+
 The `Input` variants `primary` and `secondary` currently look identical. `primary-dimmed` omits the shadow class.
 
 In light mode, `primary-dimmed` uses `neutral-100` instead of `neutral-50`. In dark mode, it uses the lighter `neutral-800` instead of `neutral-950`.
@@ -190,9 +209,11 @@ Prefer the corresponding `Field*` component for labels and descriptions. Busines
 
 `Select` popup content uses `z-[10010]`. These are current component values, not a complete global layer scale.
 
-### Callout and SwipeActions
+### Callout, Alert, and SwipeActions
 
-[Callout](./packages/ui/src/components/misc/callout.vue) combines a tinted surface, a vertical accent bar, and an emphasized title. The caller supplies meaningful text.
+[Callout](./packages/ui/src/components/misc/callout.vue) combines a tinted surface, a vertical accent bar, and an emphasized title. Use it for introductions, tips, and background information. The caller supplies meaningful text.
+
+[Alert](./packages/ui/src/components/misc/alert.vue) shows a status: an error, a warning, a success, or an operation that runs. Use it instead of a hand-written tinted `div`. Do not use a `Callout` color to show a status.
 
 [SwipeActions](./packages/ui/src/components/swipe-actions/index.ts) owns swipe regions and gestures. [SwipeActionButton](./packages/ui/src/components/misc/swipe-action-button.vue) owns the pill surface, icon, and label.
 
@@ -206,12 +227,17 @@ Use an opaque background for swipe content. If the visible label is hidden, pres
 | `Checkbox` thumb | 250ms translation, `ease-in-out` |
 | [TransitionVertical](./packages/ui/src/components/animations/transition-vertical.vue) | Default 250ms height and opacity transition |
 | [TransitionHorizontal](./packages/ui/src/components/animations/transition-horizontal.vue) | 500ms width and opacity transition |
+| [TransitionBud](./packages/ui/src/components/animations/transition-bud.vue) | Buds out with a spring (bounce 0.45, perceived 520ms, 1300ms in all). Merges back in 220ms with an ease-in quad |
 | [AnimatedContent](./packages/ui/src/components/animations/animated-content.vue) | 220ms enter, 160ms exit, and 6px inner blur transition |
 | Shared UnoCSS animations | Overlay 300ms, content 150ms, directional entrance 400ms, fade 200ms |
+| [Blur fade](./packages/stage-ui/src/components/widgets/poppin-text/animators/blur-fade.ts) | Each grapheme fades and sharpens from 3px blur over 500ms. Starts are 40ms apart, at most 600ms in total |
+| [RewriteText](./packages/stage-ui/src/components/widgets/rewrite-text/rewrite-text.vue) | Changed words blur out, then the new words blur in, with the blur fade timing |
 
 `AnimatedContent` owns motion, not surface styles. Its lifecycle owner supplies `data-state` and keeps the node mounted until the exit animation ends.
 
-`AnimatedContent` and `BottomDrawer` explicitly handle reduced-motion preferences. Check other controls individually instead of assuming library-wide support.
+Live voice text appears with the blur fade through `PoppinText`. A rewrite of spoken text, for example by the rephrase plugin, plays `RewriteText`, so only the changed words move.
+
+`AnimatedContent`, `BottomDrawer`, `TransitionBud`, and the blur fade explicitly handle reduced-motion preferences. Check other controls individually instead of assuming library-wide support.
 
 Icons use Iconify. Existing components and stories use sets such as Solar and Phosphor. The repository does not require one exclusive icon set.
 

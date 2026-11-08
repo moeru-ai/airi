@@ -16,14 +16,16 @@ import {
   unknown,
 } from 'valibot'
 
+import { normalizeContextWindow } from '../types/airiCard'
+
 export type AiriCardDraftValidationError = 'name' | 'version' | 'invalid_artistry_json'
 
 /** Module settings owned by the AIRI Card editor form. */
 interface AiriCardEditorModules {
+  contextWindow: number
   consciousness: AiriExtension['modules']['consciousness']
   vision: AiriExtension['modules']['vision']
   speech: Pick<AiriExtension['modules']['speech'], 'provider' | 'model' | 'voice_id'>
-  displayModelId?: string
   artistry: Pick<
     NonNullable<AiriExtension['modules']['artistry']>,
     | 'provider'
@@ -44,10 +46,12 @@ interface AiriCardEditorModules {
  */
 export function getAiriCardEditorModuleSettings(
   card: Card | undefined,
-): Pick<AiriCardEditorModules, 'consciousness' | 'vision' | 'speech' | 'displayModelId'> {
-  const modules = getAiriCardModules(card?.extensions?.airi)
+): Pick<AiriCardEditorModules, 'contextWindow' | 'consciousness' | 'vision' | 'speech'> & { displayModelId: string } {
+  const extension = isAiriExtension(card?.extensions?.airi) ? card.extensions.airi : undefined
+  const modules = getAiriCardModules(extension)
 
   return {
+    contextWindow: normalizeContextWindow(extension?.contextWindow),
     consciousness: {
       provider: getModuleString(modules?.consciousness, 'provider'),
       model: getModuleString(modules?.consciousness, 'model'),
@@ -61,7 +65,7 @@ export function getAiriCardEditorModuleSettings(
       model: getModuleString(modules?.speech, 'model'),
       voice_id: getModuleString(modules?.speech, 'voice_id'),
     },
-    displayModelId: getModuleString(modules, 'displayModelId'),
+    displayModelId: extension?.avatarModels?.find(model => model.id === extension.defaultAvatarModelId)?.displayModelId ?? '',
   }
 }
 
@@ -156,6 +160,8 @@ export function applyAiriCardEditorModules(
   const existing = isAiriExtension(card.extensions?.airi)
     ? card.extensions.airi
     : undefined
+  const existingModules = { ...existing?.modules }
+  Reflect.deleteProperty(existingModules, 'displayModelId')
 
   return {
     ...card,
@@ -163,9 +169,12 @@ export function applyAiriCardEditorModules(
       ...card.extensions,
       airi: {
         ...existing,
+        contextWindow: edited.contextWindow,
+        avatarModels: existing?.avatarModels ?? [],
         modules: {
-          ...existing?.modules,
-          ...edited,
+          ...existingModules,
+          consciousness: edited.consciousness,
+          vision: edited.vision,
           speech: {
             ...existing?.modules.speech,
             ...edited.speech,

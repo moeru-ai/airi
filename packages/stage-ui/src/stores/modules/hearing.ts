@@ -4,6 +4,7 @@ import type { WithUnknown } from '@xsai/shared'
 import type { StreamTranscriptionOptions as XSAIStreamTranscriptionOptions } from '@xsai/stream-transcription'
 import type {} from 'pinia-plugin-synced'
 
+import type { HearingTranscriberTraceOptions } from '../../libs/audio/hearing-transcriber'
 import type { AIRIStreamTranscriptionResult } from '../../libs/providers/stream-transcription'
 import type { HearingTranscriptionResult } from '../../libs/providers/transcription-types'
 
@@ -15,7 +16,7 @@ import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { refManualReset } from '@vueuse/core'
 import { generateTranscription } from '@xsai/generate-transcription'
 import { defineStore, storeToRefs } from 'pinia'
-import { computed, ref, toRaw, watch } from 'vue'
+import { computed, onScopeDispose, ref, toRaw, watch } from 'vue'
 
 import { useAnalytics } from '../../composables/use-analytics'
 import { createHearingTranscriber } from '../../libs/audio/hearing-transcriber'
@@ -277,6 +278,38 @@ export function resolveTranscriptionProviderOptions(providerConfig?: Record<stri
   }
 }
 
+/**
+ * How Hearing starts a speech input while microphone input is on.
+ *
+ * - `always-on`: voice activity detection starts an input when the user speaks. The microphone stays open.
+ * - `push-to-talk`: an input starts only while the user holds the Push to Talk key. The microphone opens only during the hold.
+ * - `wake-word`: the microphone stays open, but only a character's wake word starts an input. Speech alone does not.
+ */
+export type HearingInputMode = 'always-on' | 'push-to-talk' | 'wake-word'
+
+/**
+ * Tells if a mode keeps the microphone open and runs voice activity detection.
+ * The microphone settings store and `useVoiceListening` both read this, so they open and close the microphone together.
+ */
+export function listensContinuously(mode: HearingInputMode): boolean {
+  switch (mode) {
+    case 'always-on':
+    case 'wake-word':
+      return true
+    case 'push-to-talk':
+      return false
+  }
+}
+
+/**
+ * Tells if speech that voice activity detection finds starts an input without a wake word.
+ * The voice store reads this on every window, so a mode change applies without restarting the listener.
+ * Wake word detection runs in every mode that {@link listensContinuously}. A wake always starts an input for its character.
+ */
+export function startsInputOnSpeech(mode: HearingInputMode): boolean {
+  return mode === 'always-on'
+}
+
 export const useHearingStore = defineStore('hearing-store', () => {
   const providersStore = useProviderStore()
   const providerStore = useProviderConfigStore()
@@ -291,17 +324,33 @@ export const useHearingStore = defineStore('hearing-store', () => {
   // Pinia synchronization owns live cross-window state. localStorage only
   // loads and saves durable values for this synchronized store.
   const persistenceOptions = { listenToStorageChanges: false }
+  const enabled = useLocalStorageManualReset('settings/hearing/enabled', true, persistenceOptions)
+
+  // Each enabled period owns its requests. Disabling also invalidates transcribers captured by pending recordings.
+  let recognition = new AbortController()
+  watch(enabled, (value) => {
+    if (value)
+      recognition = new AbortController()
+    else
+      recognition.abort(new DOMException('Hearing is disabled', 'AbortError'))
+  }, { immediate: true, flush: 'sync' })
+  onScopeDispose(() => recognition.abort())
 
   // State
   const activeTranscriptionProvider = useLocalStorageManualReset('settings/hearing/active-provider', '', persistenceOptions)
   const activeTranscriptionModel = useLocalStorageManualReset('settings/hearing/active-model', '', persistenceOptions)
   const activeCustomModelName = useLocalStorageManualReset('settings/hearing/active-custom-model', '', persistenceOptions)
   const transcriptionModelSearchQuery = refManualReset<string>('')
+  const inputMode = useLocalStorageManualReset<HearingInputMode>('settings/hearing/input-mode', 'always-on', persistenceOptions)
   const autoSendEnabled = useLocalStorageManualReset<boolean>('settings/hearing/auto-send-enabled', false, persistenceOptions)
   const autoSendDelay = useLocalStorageManualReset<number>('settings/hearing/auto-send-delay', 2000, persistenceOptions) // Default 2 seconds
   const confidenceThreshold = useLocalStorageManualReset<number>('settings/hearing/confidence-threshold', CONFIDENCE_THRESHOLD_DISABLED, persistenceOptions)
-  // Rephrasing sends transcripts to a chat model, so it is off by default.
-  const rephraseEnabled = useLocalStorageManualReset<boolean>('settings/hearing/rephrase-enabled', false, persistenceOptions)
+  // Rephrasing sends transcripts to a chat model. Voice input already sends them to that model, so it is on by default.
+  const rephraseEnabled = useLocalStorageManualReset<boolean>('settings/hearing/rephrase-enabled', true, persistenceOptions)
+  // A chat model reads paused transcripts and ends finished messages before the silence limit.
+  const endJudgeEnabled = useLocalStorageManualReset<boolean>('settings/hearing/end-judge-enabled', true, persistenceOptions)
+  // Speaker recognition compares each voice input with the saved voiceprint and traces the score. It changes no input.
+  const speakerRecognitionEnabled = useLocalStorageManualReset<boolean>('settings/hearing/speaker-recognition-enabled', false, persistenceOptions)
   // An empty provider uses the chat model of the consciousness module.
   const rephraseProvider = useLocalStorageManualReset('settings/hearing/rephrase-provider', '', persistenceOptions)
   const rephraseModel = useLocalStorageManualReset('settings/hearing/rephrase-model', '', persistenceOptions)
@@ -349,7 +398,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
   }
 
   const configured = computed(() => {
-    if (!activeTranscriptionProvider.value)
+    if (!enabled.value || !activeTranscriptionProvider.value)
       return false
 
     // Web Speech API doesn't strictly need a model selected (it has a default)
@@ -369,16 +418,31 @@ export const useHearingStore = defineStore('hearing-store', () => {
   })
 
   function resetState() {
+    enabled.reset()
     activeTranscriptionProvider.reset()
     activeTranscriptionModel.reset()
     activeCustomModelName.reset()
     transcriptionModelSearchQuery.reset()
+    inputMode.reset()
     autoSendEnabled.reset()
     autoSendDelay.reset()
     confidenceThreshold.reset()
     rephraseEnabled.reset()
+    endJudgeEnabled.reset()
+    speakerRecognitionEnabled.reset()
     rephraseProvider.reset()
     rephraseModel.reset()
+  }
+
+  /** Clears a selection whose provider settings were removed. Other hearing preferences stay unchanged. */
+  async function clearUnavailableProviderSelection() {
+    if (!activeTranscriptionProvider.value || providersStore.isProviderAvailableWithoutConfiguration(activeTranscriptionProvider.value))
+      return
+
+    activeTranscriptionProvider.value = ''
+    activeTranscriptionModel.value = ''
+    activeCustomModelName.value = ''
+    transcriptionModelSearchQuery.value = ''
   }
 
   async function transcription(
@@ -389,6 +453,8 @@ export const useHearingStore = defineStore('hearing-store', () => {
     format?: 'json' | 'verbose_json',
     options?: HearingTranscriptionInvokeOptions,
   ): Promise<HearingTranscriptionResult> {
+    const signal = AbortSignal.any([recognition.signal, ...(options?.signal ? [options.signal] : [])])
+    signal.throwIfAborted()
     const normalizedInput = (input instanceof File ? { file: input } : input ?? {}) as {
       file?: File
       fileName?: string
@@ -421,7 +487,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
 
     try {
       if (features.supportsStreamOutput && streamExecutor) {
-        const request = { ...provider.transcription(model, options?.providerOptions), abortSignal: options?.signal }
+        const request = { ...provider.transcription(model, options?.providerOptions), abortSignal: signal }
 
         // Recorder files contain encoded media. Sherpaw accepts only the raw PCM16 stream from the live pipeline.
         if (providerId === SHERPAW_TRANSCRIPTION_PROVIDER_ID && normalizedInput.file && !normalizedInput.inputAudioStream) {
@@ -481,11 +547,13 @@ export const useHearingStore = defineStore('hearing-store', () => {
       const useVerboseJson = !format && threshold > CONFIDENCE_THRESHOLD_DISABLED
       const response = await generateTranscription({
         ...provider.transcription(model, options?.providerOptions),
-        abortSignal: options?.signal,
+        abortSignal: signal,
         file: normalizedInput.file,
         fileName: resolveTranscriptionFileName(normalizedInput.file, normalizedInput.fileName),
         responseFormat: useVerboseJson ? 'verbose_json' : format,
       })
+
+      signal.throwIfAborted()
 
       if (useVerboseJson) {
         if (response.segments) {
@@ -519,7 +587,9 @@ export const useHearingStore = defineStore('hearing-store', () => {
   }
 
   /** Freezes Hearing settings for one request. The controller supplies media and owns cancellation. */
-  function createTranscriber(providerId = activeTranscriptionProvider.value): StreamingTranscriber {
+  function createTranscriber(providerId = activeTranscriptionProvider.value, trace: HearingTranscriberTraceOptions = {}): StreamingTranscriber {
+    const recognitionSignal = recognition.signal
+    recognitionSignal.throwIfAborted()
     const config = structuredClone(toRaw(providerStore.getProviderConfig(providerId) ?? {}))
     const model = resolveActiveTranscriptionModel(activeTranscriptionModel.value, config)
     const threshold = confidenceThreshold.value
@@ -532,7 +602,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
       upload = 'media-stream'
     else if (providerId === SHERPAW_TRANSCRIPTION_PROVIDER_ID || features.supportsStreamInput)
       upload = 'pcm'
-    return createHearingTranscriber(async (audio, signal) => {
+    const transcriber = createHearingTranscriber(async (audio, signal) => {
       const setupError = resolveActiveTranscriptionProviderError(providerId)
       if (setupError)
         throw new Error(setupError)
@@ -583,19 +653,29 @@ export const useHearingStore = defineStore('hearing-store', () => {
         await dispose()
         throw error
       }
-    })
+    }, trace)
+    return {
+      transcribe: request => transcriber.transcribe({
+        ...request,
+        signal: AbortSignal.any([request.signal, recognitionSignal]),
+      }),
+    }
   }
 
   return {
+    enabled,
     activeTranscriptionProvider,
     activeTranscriptionModel,
     availableProvidersMetadata,
     activeCustomModelName,
     transcriptionModelSearchQuery,
+    inputMode,
     autoSendEnabled,
     autoSendDelay,
     confidenceThreshold,
     rephraseEnabled,
+    endJudgeEnabled,
+    speakerRecognitionEnabled,
     rephraseProvider,
     rephraseModel,
     verboseJsonNotSupported,
@@ -610,10 +690,12 @@ export const useHearingStore = defineStore('hearing-store', () => {
     createTranscriber,
     loadModelsForProvider,
     getModelsForProvider,
+    clearUnavailableProviderSelection,
     resetState,
   }
 }, {
   synced: {
+    actions: ['clearUnavailableProviderSelection'],
     state: true,
   },
 })
