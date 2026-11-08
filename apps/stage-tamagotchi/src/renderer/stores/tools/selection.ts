@@ -3,7 +3,7 @@ import type { ChatToolReference } from '@proj-airi/stage-ui/types/chat'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
-import { artistryToolReferences, computerUseToolReferences } from './built-in'
+import { artistryToolReferences, computerUseToolReferences, routineToolReferences } from './built-in'
 
 /**
  * The tools that the user grants to new chat turns.
@@ -19,8 +19,8 @@ export const useToolSelectionStore = defineStore('tamagotchi-tool-selection', ()
 
   /** Tool references of a new turn. Retries and tool reruns build their own lists from {@link computerUseEnabled}. */
   const requestTools = computed<ChatToolReference[]>(() => computerUseEnabled.value
-    ? [...artistryToolReferences, ...computerUseToolReferences]
-    : artistryToolReferences)
+    ? [...artistryToolReferences, ...routineToolReferences, ...computerUseToolReferences]
+    : [...artistryToolReferences, ...routineToolReferences])
 
   return { computerUseEnabled, requestTools }
 }, {

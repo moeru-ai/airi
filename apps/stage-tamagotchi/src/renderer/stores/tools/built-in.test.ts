@@ -47,8 +47,11 @@ describe('useTamagotchiBuiltinToolsStore', async () => {
       { id: 'tamagotchi:get_weather', defaultActive: false },
       { id: 'tamagotchi:computer_use', defaultActive: false },
       { id: 'tamagotchi:computer_use_read_image', defaultActive: false },
+      { id: 'tamagotchi:routine_query', defaultActive: false },
+      { id: 'tamagotchi:routine_propose_change', defaultActive: false },
     ])
     expect(toolsStore.tools.filter(tool => tool.requiresExplicitSelection).map(tool => tool.function.name)).toEqual(['computer_use', 'computer_use_read_image'])
     expect(toolsStore.getToolsByNames('get_weather')[0]?.function.name).toBe('get_weather')
+    expect(toolsStore.getToolsByNames('routine_query', 'routine_propose_change').map(tool => tool.function.name)).toEqual(['routine_query', 'routine_propose_change'])
   })
 })

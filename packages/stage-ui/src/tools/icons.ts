@@ -21,6 +21,7 @@ export const TOOL_ICONS = {
   weather: 'i-tabler:cloud-rain',
   widgets: 'i-tabler:layout-grid',
   imageJournal: 'i-tabler:palette',
+  routines: 'i-tabler:calendar-time',
   computerUse: 'i-tabler:device-desktop',
   homeAssistant: 'i-tabler:home',
   memory: 'i-tabler:book-2',

@@ -3,6 +3,7 @@ import { cwd } from 'node:process'
 import vue from '@vitejs/plugin-vue'
 import UnoCss from 'unocss/vite'
 import Info from 'unplugin-info/vite'
+import Yaml from 'unplugin-yaml/vite'
 import VueRouter from 'vue-router/vite'
 
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'
@@ -17,6 +18,7 @@ export default defineConfig({
   plugins: [
     Info(),
     vue(),
+    Yaml(),
     UnoCss({
       ...unoConfig,
       // NOTICE:

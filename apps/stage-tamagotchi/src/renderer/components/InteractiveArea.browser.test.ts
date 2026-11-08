@@ -205,6 +205,17 @@ describe('interactive area synchronized state', () => {
     await page.viewport(1280, 720)
   })
 
+  it('offers routine tools on normal chat requests without computer access', async () => {
+    const { chat, screen } = await renderArea()
+    const send = vi.spyOn(chat, 'send').mockResolvedValueOnce({ messages: [], sessionId: 'session-b' })
+    await screen.getByRole('button', { name: 'stage.computer-use.label', exact: true }).click()
+    await submitDraft(screen, 'AIRI, what is my next activity?')
+    await vi.waitFor(() => expect(send).toHaveBeenCalledTimes(1))
+    const tools = send.mock.calls[0][0].tools
+    expect(tools).toEqual(expect.arrayContaining([{ name: 'routine_query' }, { name: 'routine_propose_change' }]))
+    expect(tools).not.toContainEqual({ name: 'computer_use' })
+  })
+
   it('centers the mobile textarea when no reply preview is visible', async () => {
     // ROOT CAUSE:
     //
