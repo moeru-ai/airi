@@ -764,11 +764,6 @@
       "count": 2
     }
   },
-  "packages/stage-ui/src/utils/tts.ts": {
-    "ts/no-explicit-any": {
-      "count": 2
-    }
-  },
   "packages/stage-ui/src/workers/background-removal/worker.ts": {
     "ts/no-explicit-any": {
       "count": 2
@@ -782,11 +777,6 @@
   "packages/stage-ui/src/workers/vad/vad.ts": {
     "ts/no-explicit-any": {
       "count": 3
-    }
-  },
-  "packages/stream-kit/src/queue.ts": {
-    "ts/no-explicit-any": {
-      "count": 9
     }
   },
   "services/computer-use-mcp/src/bin/e2e-airi-chat-observable.ts": {
