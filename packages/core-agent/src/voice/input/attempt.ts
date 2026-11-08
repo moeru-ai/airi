@@ -25,6 +25,8 @@ export interface SpeechInputAttemptOwner {
   interrupt: (options: { turns: readonly TurnRef[], cause: string }) => Interruption
   createPlugins: (attempt: SpeechInputAttempt, input: SpeechInput) => InputPluginLifetime
   options: SpeechInputPorts
+  /** After the input ends, the provider must close its transcript within this time. */
+  transcriptionTimeoutMs: number
   seal: (attempt: SpeechInputAttempt) => void
   reportError: (stage: string, error: unknown) => void
 }
@@ -51,6 +53,7 @@ export class SpeechInputAttempt {
   private sealedFrame: number | undefined
   private stage: 'source' | 'admission' | 'capture' | 'transcription' | 'submission' = 'source'
   private started = false
+  private transcriptionTimer: ReturnType<typeof setTimeout> | undefined
 
   constructor(private readonly owner: SpeechInputAttemptOwner, private readonly options: BeginSpeechInput) {
     this.sessionId = options.sessionId
@@ -80,6 +83,11 @@ export class SpeechInputAttempt {
       this.owner.seal(this)
       this.sealedFrame = this.audio?.position?.frame
       this.change({ phase: 'finalizing' })
+      // A provider that never closes its stream would hold the input in `finalizing` forever, with its text and the
+      // plugin stages that wait for it. The next input can begin meanwhile, so the hang is hidden from the speaker.
+      this.transcriptionTimer = setTimeout(() => {
+        this.settle({ status: 'failed', stage: 'transcription', error: new Error('Speech recognition did not finish after the input ended') })
+      }, this.owner.transcriptionTimeoutMs)
       void this.capture?.finish()
     }
 
@@ -115,7 +123,9 @@ export class SpeechInputAttempt {
       this.plugins = this.owner.createPlugins(this, this.accepted)
       this.change({ phase: 'capturing', from: this.from! })
 
-      if (!await this.readTranscription(provider, capture))
+      const transcribed = await this.readTranscription(provider, capture)
+      clearTimeout(this.transcriptionTimer)
+      if (!transcribed)
         return
 
       await this.submitInput()
@@ -216,7 +226,7 @@ export class SpeechInputAttempt {
     this.stage = 'capture'
     this.audio = audio
 
-    const provider = this.owner.options.transcriber?.(this.sessionId)
+    const provider = this.owner.options.transcriber?.({ inputId: this.id, sessionId: this.sessionId })
     if (!provider)
       throw new Error('Speech transcription is not configured')
 
@@ -274,6 +284,7 @@ export class SpeechInputAttempt {
     if (this.current.phase === 'settled')
       return
 
+    clearTimeout(this.transcriptionTimer)
     this.owner.seal(this)
     this.change({ phase: 'settled', outcome })
     if (outcome.status === 'cancelled' || outcome.status === 'failed') {

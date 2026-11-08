@@ -156,7 +156,7 @@ src/voice/
 ```ts
 const voice = new VoiceController({
   audio,
-  transcriber: sessionId => hearingFor(sessionId),
+  transcriber: ({ inputId, sessionId }) => hearingFor(sessionId, inputId),
   submit: (input, signal) => saveDraftOrSubmit(input, signal),
   speech: turn => speechOutputFor(turn),
   recordInterruption: event => agent.receiveInterruption(event),
@@ -180,6 +180,7 @@ const result = await input.end()
 - `audio` is a shared `AudioInput`. Attempts and plugins subscribe to it. The controller never closes it.
 - `replaceAudio(input)` cancels active attempts and moves plugin observations to the new input.
 - A transcriber receives continuous PCM. An adapter that needs a file or a MediaStream converts the PCM itself.
+- After `end()`, the provider must close its transcript within `transcriptionTimeoutMs` (30 s by default). Otherwise the input fails at the `transcription` stage.
 
 ### Trusted plugins
 
