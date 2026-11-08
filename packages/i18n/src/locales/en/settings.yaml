@@ -303,7 +303,7 @@ pages:
     logout: Sign out
     fluxBalance: Flux Balance
     viewFluxDetails: View details
-    capacitorEntry: Capacitor
+    capacitorEntry: Subscription
     viewCapacitor: View
     signedInAs: Signed in as
     profile:
@@ -414,7 +414,7 @@ pages:
         error:
           reauthenticate: Sign in again, then return here to confirm deletion. No email is sent.
           fallback: Could not start deletion. Try again later.
-          subscriptionActive: Your subscription is still active. Cancel it on the Capacitor page first, then delete your account.
+          subscriptionActive: Your subscription is still active. Cancel it on the Subscription page first, then delete your account.
   card:
     wake-word-conflicts:
       title: 'One shared wake word pronunciation needs a character | {count} shared wake word pronunciations need a character'
@@ -1708,7 +1708,7 @@ pages:
       buy: Charge
       description: Flux packages to choose from.
   capacitor:
-    title: Capacitor
+    title: Subscription
     statusError: Failed to load your Capacitor. Please try again later.
     packagesError: Failed to load Capacitors. Please try again later.
     preferenceError: Failed to save preference. Please try again later.
@@ -1717,21 +1717,21 @@ pages:
     rechargesAt: Refills {date}
     renewsAt: Renews {date}
     expiresAt: Ends {date}
-    change: Change Capacitor
+    change: Change subscription
     quota:
       day: '{quota} Flux every day'
       week: '{quota} Flux every week'
       month: '{quota} Flux every month'
     perMonth: / month
     currentPackage: Current
-    install: Install
+    install: Subscribe
     upgrade: Upgrade
     downgrade: Downgrade
     manageSubscription: Manage subscription
-    fallbackToFlux: Use Flux when the Capacitor is empty
+    fallbackToFlux: Use your Flux balance when the Capacitor is empty
     fallbackToFluxHint: When off, chat and speech stop until the Capacitor refills.
     checkout:
-      success: Your Capacitor is installed and charged.
+      success: You are subscribed. Your Capacitor is full.
       pending: Payment received. Your Capacitor charges shortly.
       canceled: Purchase was canceled.
       error: Something went wrong. Please try again later.
