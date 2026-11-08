@@ -1,3 +1,4 @@
+import type { GenerationRequest } from '@proj-airi/provider-inference'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { CompletionStep, Message, Tool } from '@xsai/shared-chat'
 
@@ -8,7 +9,7 @@ import type { ResolvedStep } from './request-context'
 import { hasToolCall, not } from '@xsai/shared-chat'
 import { streamText } from '@xsai/stream-text'
 
-import { chatContentToString, chatMessagesToProjectionEntries, conversationToChatMessages } from '../messages/chat-completions'
+import { chatMessagesToProjectionEntries, conversationToChatMessages } from '../messages/chat-completions'
 import { createGeneration } from './generation'
 import { createContinuationScope, mergeRequestHeaders, replaceProviderConfig, supportsContentArray, supportsTools } from './request-context'
 import { RequestSwitch } from './request-switch'
@@ -42,16 +43,16 @@ export function streamChatCompletions(input: {
   let providerConfigKeys = Object.keys(input.config)
   const requestOptions: Parameters<typeof streamText>[0] = {
     ...input.config,
-    prepareStep: ({ input: current, steps }: { input: Message[], steps: CompletionStep[] }) => {
+    prepareStep: async ({ input: current, steps }: { input: Message[], steps: CompletionStep[] }) => {
+      const sdkInput = current
+      const completed = generation.snapshot(current, steps)
       const resolveStep = input.options?.resolveStep
-      if (!resolveStep) {
-        scopes.push(input.scope)
-        generation.prepareStep({ input: current })
-        return { toolChoice: callerToolChoice(steps) }
-      }
-      return (async () => {
+      let next: ResolvedStep | undefined
+      let request: GenerationRequest = { protocol: 'chat-completions', config: input.config }
+      let contentArraySupported = input.supportsContentArray
+      if (resolveStep) {
         const firstStep = scopes.length === 0 && input.initialStep
-        const next = firstStep || await resolveStep()
+        next = firstStep || await resolveStep()
 
         const nextRequest = firstStep
           ? { protocol: 'chat-completions' as const, config: input.config }
@@ -61,6 +62,7 @@ export function streamChatCompletions(input: {
           const partialTurn = await generation.complete(Promise.resolve(current), Promise.resolve(steps))
           throw new RequestSwitch(next, partialTurn)
         }
+        request = nextRequest
 
         // NOTICE:
         // xsAI 0.5 prepareStep returns only input, model, and toolChoice.
@@ -79,28 +81,39 @@ export function streamChatCompletions(input: {
           tools: toolsSupported && next.tools?.length ? next.tools : undefined,
           toolChoice: undefined,
         })
-        generation.prepareStep({ input: current, model: next.model })
-        const contentArraySupported = supportsContentArray(next.model, nextRequest, input.options)
-        scopes.push(nextScope)
-        if (!contentArraySupported) {
-          for (const [index, message] of current.entries()) {
-            if (!Array.isArray(message.content))
-              continue
-            current[index] = {
-              ...message,
-              content: chatContentToString(message.content),
-            } as Message
-          }
-        }
-        const systemIndex = current.findIndex(message => message.role === 'system')
-        const systemMessage = current[systemIndex]
+        contentArraySupported = supportsContentArray(next.model, nextRequest, input.options)
+      }
+      const project = (conversation: Conversation) => {
+        const projected = conversationToChatMessages(conversation, contentArraySupported, input.scope)
+        if (!next)
+          return projected
+        const systemIndex = projected.findIndex(message => message.role === 'system')
+        const systemMessage = projected[systemIndex]
         if (systemMessage?.role === 'system')
-          current[systemIndex] = { ...systemMessage, content: next.systemPrompt }
+          projected[systemIndex] = { ...systemMessage, content: next.systemPrompt }
         else if (next.systemPrompt)
-          current.unshift({ role: 'system', content: next.systemPrompt })
+          projected.unshift({ role: 'system', content: next.systemPrompt })
+        return projected
+      }
+      if (input.options?.prepareConversation || input.options?.prepareStringContent || next) {
+        let conversation: Conversation = completed.rounds.length
+          ? { turns: [...input.conversation.turns, completed] }
+          : input.conversation
+        conversation = await input.options?.prepareConversation?.(conversation, {
+          model: next?.model ?? input.config.model,
+          providerId: next?.providerId ?? input.options?.providerId,
+          request,
+          scope: input.scope,
+          measureContextBytes: source => new TextEncoder().encode(JSON.stringify({ messages: project(source), tools: requestOptions.tools })).byteLength,
+        }) ?? conversation
+        input.options?.abortSignal?.throwIfAborted()
+        current = project(conversation)
+      }
+      // xsAI appends output to its original array, not the projected request array.
+      scopes.push(input.scope)
+      generation.prepareStep({ input: sdkInput, model: next?.model })
 
-        return { input: current, model: next.model, toolChoice: toolsSupported ? callerToolChoice(steps) : undefined }
-      })()
+      return { input: current, model: next?.model ?? input.config.model, toolChoice: !next || requestOptions.tools?.length ? callerToolChoice(steps) : undefined }
     },
     abortSignal: input.options?.abortSignal,
     temperature: input.options?.temperature,

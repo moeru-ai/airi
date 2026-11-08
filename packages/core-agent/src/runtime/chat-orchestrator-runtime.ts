@@ -628,6 +628,10 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         ? prependTextToContent(unwrapMessage(message), `${formatTimePrefix(getStablePromptTimestamp(message, nowTs))}${noticePrefix}${formatReplyPromptPrefix(message.replyToMessageId, messagesById)}`)
         : unwrapMessage(message)
       const turns = chatMessagesToTurns(source.role === 'assistant' && source.providerTranscript?.length ? source.providerTranscript : [source], message.id ?? `history-${historyIndex}`)
+      const notice = message.role === 'user' ? message.notice : undefined
+      const noticeTurn = notice ? turns.find(turn => turn.type === 'user') : undefined
+      if (notice && noticeTurn?.type === 'user')
+        noticeTurn.notice = { ...notice }
       // An invoked skill joins its message as the owner's own instruction, like a slash command.
       if (message.role === 'user' && message.skills?.length) {
         const userTurn = turns.find(turn => turn.type === 'user')

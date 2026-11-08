@@ -32,8 +32,8 @@ export interface StreamOptions {
   /**
    * Adapts the conversation to the provider request that the runtime resolved.
    *
-   * It runs before each SDK stream, after `resolveStep` and before the protocol adapter projects its input.
-   * A request scope change after a tool round starts a new stream, so the callback runs again for the new model.
+   * It runs before every provider request, including tool continuations, after `resolveStep`.
+   * Completed rounds remain in the source even when a preceding request used a shorter projection.
    * It returns a request copy. The caller's conversation and stored history stay unchanged.
    */
   prepareConversation?: (conversation: Conversation, target: {
@@ -42,6 +42,10 @@ export interface StreamOptions {
     /** Provider registry identity of the resolved request. */
     providerId?: string
     request: GenerationRequest
+    /** Native continuation scope, isolated by provider, endpoint, model and session. */
+    scope: string
+    /** UTF-8 bytes of the projected context and current tool schemas. This is not a token count. */
+    measureContextBytes: (conversation: Conversation) => number
   }) => Promise<Conversation>
   /** Reads the pinned character's current settings before each model request. */
   resolveStep?: () => Promise<{

@@ -238,3 +238,79 @@ it('runs a recipe with every registered tool', async () => {
   await expect.poll(() => task() && sessions.getSessionMessages(task()!.sessionId).find(message => message.role === 'user')?.tools).toContainEqual({ name: 'computer_use' })
   await waitForNotices(chat, sessions, parent, 1)
 })
+
+it('runs a tool-free background summary while the foreground continues, then merges it only into its session request', async () => {
+  const { pinia, chat, sessions, stream } = await setupChat(async () => '')
+  let releaseSummary: () => void = () => {}
+  const summaryGate = new Promise<void>((resolve) => {
+    releaseSummary = resolve
+  })
+  let finishSummary: () => void = () => {}
+  const summaryFinished = new Promise<void>((resolve) => {
+    finishSummary = resolve
+  })
+  const requests: Array<{ summary: boolean, body: { messages: Array<{ role: string, content?: unknown }>, tools?: Array<{ function: { name: string } }> } }> = []
+  let foregroundRequests = 0
+  let completedSummaries = 0
+  let observations = 0
+  const observer = vi.fn(async () => {
+    observations++
+    if (observations === 4) {
+      releaseSummary()
+      await summaryFinished
+    }
+    return [{ type: 'image_url' as const, image_url: { url: `data:image/png;base64,${'A'.repeat(100000)}` } }, { type: 'text' as const, text: `Observation ${observations}. Read-only receipt.` }]
+  })
+  useLlmToolsStore(pinia).addTools({ id: 'fixture-read', type: 'function', function: { name: 'fixture_read', parameters: { type: 'object', properties: {} } }, execute: observer })
+  const recordingProvider: GenerationProvider = { generation: model => ({ protocol: 'chat-completions', config: {
+    model,
+    baseURL: 'https://example.com/v1/',
+    fetch: async (_url: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body))
+      const summary = String(body.messages[0]?.content).startsWith('Summarize earlier observations')
+      requests.push({ summary, body })
+      if (summary)
+        await summaryGate
+      else
+        foregroundRequests++
+      const callsTool = !summary && foregroundRequests < 5
+      const chunk = { choices: [{ index: 0, delta: callsTool
+        ? { tool_calls: [{ index: 0, id: `observe-${foregroundRequests}`, type: 'function', function: { name: 'fixture_read', arguments: '{}' } }] }
+        : { content: summary ? 'Earlier fixture visual facts.' : 'Observed the fixture.' }, finish_reason: callsTool ? 'tool_calls' : 'stop' }] }
+      return new Response(`data: ${JSON.stringify(chunk)}\n\ndata: [DONE]\n\n`, { headers: { 'Content-Type': 'text/event-stream' } })
+    },
+  } }) }
+  vi.mocked(useLLM(pinia).stream).mockImplementation(async (model, _provider, conversation, options) => {
+    const resolveStep = options?.resolveStep
+    await stream(model, recordingProvider, conversation, {
+      ...options,
+      resolveStep: resolveStep ? async () => ({ ...await resolveStep(), chatProvider: recordingProvider }) : undefined,
+    })
+    if (options?.taskTools) {
+      completedSummaries++
+      finishSummary()
+    }
+  })
+  const owner = sessions.activeSessionId
+  await chat.send({ sessionId: owner, text: 'Observe this fixture four times.' })
+  expect(observer).toHaveBeenCalledTimes(4)
+  expect(foregroundRequests).toBe(5)
+  await expect.poll(() => completedSummaries).toBe(2)
+  const summaries = requests.filter(request => request.summary)
+  expect(summaries).toHaveLength(2)
+  expect(summaries.every(request => !request.body.tools?.length)).toBe(true)
+  expect(JSON.stringify(summaries[1].body.messages)).toContain('Earlier fixture visual facts.')
+  expect(JSON.stringify(requests.filter(request => !request.summary).at(-1)?.body)).toContain('Earlier fixture visual facts.')
+  const history = sessions.getSessionMessages(owner)
+  expect(history.filter(message => message.role === 'user')).toHaveLength(1)
+  expect(history.filter(message => message.role === 'assistant')).toHaveLength(1)
+  const assistant = history.find(message => message.role === 'assistant')
+  expect(assistant?.role === 'assistant' && assistant.generationTranscript?.rounds).toHaveLength(5)
+  expect(JSON.stringify(history)).not.toContain('Earlier fixture visual facts.')
+  expect(JSON.stringify(history)).toContain('A'.repeat(100000))
+  const other = await sessions.createSession(sessions.sessionMetas[owner]!.characterId)
+  await chat.send({ sessionId: other, text: 'Another session question.' })
+  expect(JSON.stringify(requests.at(-1)?.body)).not.toContain('Earlier fixture visual facts.')
+  expect(JSON.stringify(requests.at(-1)?.body)).not.toContain('Read-only receipt.')
+  console.info(JSON.stringify({ boundary: 'Real Chat stores, resolver, SDK and summary stream. Controlled provider and read-only fixture.', observations, foregroundRequests, summaryRequests: summaries.length, summaryTools: summaries[0].body.tools, persistedMessages: history.length }))
+})

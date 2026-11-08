@@ -9,6 +9,7 @@ import type { ChatSessionMeta } from '../types/chat-session'
 import type { LlmStreamOptions } from './ai/chat-llm/llm'
 
 import { errorMessageFrom } from '@moeru/std'
+import { conversationToChatMessages } from '@proj-airi/core-agent'
 import { ATTR_GEN_AI_CONVERSATION_ID, ATTR_GEN_AI_OPERATION_NAME, ATTR_GEN_AI_TOOL_NAME } from '@proj-airi/trace-kit'
 import { AgentAttributes, AgentIdKeys, AgentNames } from '@proj-airi/trace-kit/agent'
 import { VoiceIdKeys } from '@proj-airi/trace-kit/voice'
@@ -460,7 +461,8 @@ describe('chat store contract', () => {
   it('waits for the transcript of a submitted voice message instead of transcribing the file', async () => {
     const requests: Conversation[] = []
     llmStreamMock.mockImplementation(async (model: string, chatProvider: GenerationProvider, context: Conversation, options: LlmStreamOptions) => {
-      requests.push(await options.prepareConversation!(context, { model, providerId: options.providerId, request: chatProvider.generation(model) }))
+      const measureContextBytes = (value: Conversation) => new TextEncoder().encode(JSON.stringify(conversationToChatMessages(value))).byteLength
+      requests.push(await options.prepareConversation!(context, { model, providerId: options.providerId, request: chatProvider.generation(model), scope: 'audio-model', measureContextBytes }))
       await options.onStreamEvent?.({ type: 'finish' })
     })
     const store = useChatStore()
@@ -588,10 +590,11 @@ describe('chat store contract', () => {
     ]
     const requests: Conversation[] = []
     llmStreamMock.mockImplementation(async (model: string, chatProvider: GenerationProvider, context: Conversation, options: LlmStreamOptions) => {
-      requests.push(await options.prepareConversation!(context, { model, providerId: options.providerId, request: chatProvider.generation(model) }))
+      const measureContextBytes = (value: Conversation) => new TextEncoder().encode(JSON.stringify(conversationToChatMessages(value))).byteLength
+      requests.push(await options.prepareConversation!(context, { model, providerId: options.providerId, request: chatProvider.generation(model), scope: model, measureContextBytes }))
       // Core passes a new conversation with the completed tool round after a scope change.
       const continued: Conversation = { turns: [...context.turns] }
-      requests.push(await options.prepareConversation!(continued, { model: 'text-model', providerId: 'mock-provider', request: chatProvider.generation('text-model') }))
+      requests.push(await options.prepareConversation!(continued, { model: 'text-model', providerId: 'mock-provider', request: chatProvider.generation('text-model'), scope: 'text-model', measureContextBytes }))
       await options.onStreamEvent?.({ type: 'finish' })
     })
     const store = useChatStore()

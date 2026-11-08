@@ -61,6 +61,7 @@ describe('chat orchestrator host options', () => {
     // A later turn still knows the result, and only the request that delivered the notice offers silence.
     expect(harness.prompt(1)).toContain('[Notice from recipe:Research, not a message from the owner.]')
     expect(harness.prompt(1)).not.toContain('Speak about this notice only if it fits now')
+    expect(harness.stream.mock.calls[1]?.[2].turns.find(turn => turn.type === 'user' && turn.notice)).toMatchObject({ notice: { source: 'recipe:Research' } })
   })
 
   it('leaves stored system messages out of the prompt, and reads identity per session', async () => {

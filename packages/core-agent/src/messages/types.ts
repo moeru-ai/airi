@@ -34,6 +34,8 @@ export interface UserTurn {
   type: 'user'
   id: string
   content: (InputSegment | ContextSegment)[]
+  /** Host notices remain source-tagged data through request projections. */
+  notice?: { source: string }
 }
 
 /** Context supplied by the application is not automatically a trusted instruction. */
