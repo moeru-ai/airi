@@ -10,7 +10,7 @@ import type {
 } from '../extension/shared'
 import type { KitAvailability, KitRef, KitUseResult } from '../kit'
 import type { AnnounceBindingInput, UpdateBindingInput } from '../plugin/apis/client/bindings'
-import type { ExtensionProviderTransaction } from './hosted-kits'
+import type { ExtensionProviderTransaction, ExtensionRegistrationLease } from './hosted-kits'
 import type { BindingRecord, HostSourceLease, KitCapabilityDescriptor, KitCapabilityDescriptorSnapshot, KitDescriptor, KitDescriptorSnapshot } from './shared'
 import type {
   ExtensionHostContribution,
@@ -61,6 +61,13 @@ const emptyProvidedKitDeclarations: readonly ExtensionProvidedKitDeclaration[] =
  * A cleanup that awaits the stop of its own session settles only after this time.
  */
 const sessionStopTimeoutMs = 10_000
+
+interface SessionLifecycle {
+  readonly container: Container
+  readonly transaction: ExtensionProviderTransaction
+  /** Set by the setup commit. Stop disposes it before the container. */
+  lease?: ExtensionRegistrationLease
+}
 
 /**
  * Extension host lifecycle overview.
@@ -229,8 +236,8 @@ export class ExtensionHost {
   private readonly dependencies = new DependencyService()
   private readonly container = createContainer({ owner: { kind: 'host' }, timeouts: { stop: sessionStopTimeoutMs } })
   private readonly providers = new KitProviderRegistry(this.container)
-  /** The container of each session. Its disposal withdraws the session Providers, then runs the session cleanup effect. */
-  private readonly sessionContainers = new WeakMap<ExtensionSession, { container: Container, transaction: ExtensionProviderTransaction }>()
+  /** The lifecycle of each session. Container disposal runs the session cleanup effect. */
+  private readonly sessionContainers = new WeakMap<ExtensionSession, SessionLifecycle>()
   private readonly kitApiWatchers = new Map<string, Set<() => Promise<void>>>()
   private readonly modules = new KitApiBindingRegistryService()
   private readonly extensionModuleResources = new Map<string, ExtensionModuleResourceTracker>()
@@ -335,7 +342,8 @@ export class ExtensionHost {
       subscriptions,
     }
 
-    this.sessionContainers.set(session, { container, transaction: providerTransaction })
+    const owned: SessionLifecycle = { container, transaction: providerTransaction }
+    this.sessionContainers.set(session, owned)
     // Effects dispose in reverse order. So the session leaves the list after its resources, also when their cleanup passes the stop timeout.
     effect(container, () => () => {
       this.extensionSessionService.remove(session.id)
@@ -395,7 +403,7 @@ export class ExtensionHost {
       if (session.phase === 'stopped') {
         throw new Error(`Extension session ${session.id} stopped before setup completed.`)
       }
-      providerTransaction.commit()
+      owned.lease = providerTransaction.commit().lease
       session.phase = 'ready'
       return session
     }
@@ -669,6 +677,8 @@ export class ExtensionHost {
     if (session.phase !== 'stopped') {
       session.phase = 'stopped'
       owned.transaction.rollback()
+      // The Providers leave the Kit catalog in this turn, before the container disposal runs the session cleanups.
+      owned.lease?.dispose()
     }
     return dispose(owned.container)
   }

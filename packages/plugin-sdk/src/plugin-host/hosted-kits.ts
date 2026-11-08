@@ -1,11 +1,11 @@
-import type { Container, ProvidedKey, ProviderInfo, Registration } from 'injeca'
+import type { Container, ProvidedKey, Registration } from 'injeca'
 
 import type { HostClientFactory, KitContract, KitProvider, KitProviderHandle, KitRef } from '../kit'
 import type { HostSourceKind, HostSourceLease } from './shared/host-sources'
 import type { KitDescriptor, KitDescriptorSnapshot } from './shared/kits'
 import type { ExtensionProvidedKitDeclaration, PluginRuntime } from './shared/types'
 
-import { createContainer, defineKey, peek, provide, where } from 'injeca'
+import { createContainer, defineKey, provide } from 'injeca'
 import { safeParse } from 'valibot'
 
 import {
@@ -155,6 +155,15 @@ interface ProviderMetadata {
   readonly contract?: AcceptedKitContract
   readonly endpoint?: AcceptedProviderEndpoint
 }
+
+/** One catalog entry. The Registry reads `owner` and `metadata`. injeca runs the lifecycle of `registration`. */
+interface ProviderRecord {
+  readonly owner: KitProviderOwner
+  readonly metadata: ProviderMetadata
+  readonly registration: Registration<string, ProviderMetadata, undefined>
+}
+
+const hostOwner: KitProviderOwner = Object.freeze({ kind: 'host' })
 
 interface CapturedHostDescriptor {
   readonly kitId: unknown
@@ -448,10 +457,13 @@ function captureExtensionProviderSessionInput(input: unknown): {
 /**
  * Owns Provider identity, registration transactions, and generation assignment.
  *
- * Each ready Provider is one injeca unit of an exclusive key for its Kit ID, with its record as unit metadata.
+ * The Registry owns the Kit catalog: the owner, version, generation, and tokens of each ready Provider. Every read uses it.
+ * injeca owns only the Provider lifecycle: each catalog record holds one unit of an exclusive key for its Kit ID.
  * A Host Provider is a unit of the Host container. An Extension Provider is a unit of its session container
- * with `visibility: 'parent'`, so the disposal of that container withdraws it. The units never build: callers read
- * a registration in the same turn as its change, so the Registry reads the metadata, not the value.
+ * with `visibility: 'parent'`. The units never build.
+ *
+ * An Extension Provider leaves the catalog only through its commit lease or its handle. The session owner disposes
+ * the lease before it disposes the session container, so the catalog never keeps a Provider of a stopped session.
  *
  * Host sources share one unit. Every visible Host aggregate change replaces the unit with a new generation.
  * Exact-source leases prevent stale cleanup from withdrawing replacement registrations.
@@ -462,7 +474,8 @@ function captureExtensionProviderSessionInput(input: unknown): {
  */
 export class KitProviderRegistry {
   private readonly keys = new Map<string, ProvidedKey<string, ProviderMetadata, undefined>>()
-  private readonly registrations = new Map<string, Registration<string, ProviderMetadata, undefined>>()
+  /** The Kit catalog: the current Provider of each Kit ID. */
+  private readonly records = new Map<string, ProviderRecord>()
   private readonly pending = new Map<string, ExtensionPendingSlot>()
   private readonly transactions = new Map<string, TransactionState>()
   private readonly lastGenerations = new Map<string, number>()
@@ -474,38 +487,22 @@ export class KitProviderRegistry {
     return (this.lastGenerations.get(id) ?? 0) + 1
   }
 
-  /** Reads the current Provider of `id`, as a consumer in the Host container sees it. */
-  private current(id: string) {
-    const key = this.keys.get(id)
-    if (!key) {
-      return undefined
-    }
-    let current: ProviderInfo | undefined
-    // NOTICE:
-    // `peek` gives a value only after a build, and metadata only for a `rejected` result.
-    // injeca calls a `where` condition for the selected provider in every phase (0.5.1 `resolveKey`).
-    // Remove when `peek` returns the metadata of a provider that does not run.
-    peek(this.host, where(key, (provider) => {
-      current = provider
-      return true
-    }))
-    return current as { readonly owner: KitProviderOwner, readonly metadata: ProviderMetadata } | undefined
-  }
-
-  /** Registers one Provider unit. Its key leaves the Host area at once on withdrawal, so the next read in this turn sees the change. */
-  private register(container: Container, id: string, metadata: ProviderMetadata, visibility: 'local' | 'parent') {
+  /** Adds one Provider to the catalog and registers its unit. */
+  private register(container: Container, id: string, owner: KitProviderOwner, metadata: ProviderMetadata, visibility: 'local' | 'parent') {
     let key = this.keys.get(id)
     if (!key) {
       key = defineKey<ProviderMetadata>(id, { exclusive: true })
       this.keys.set(id, key)
     }
     this.lastGenerations.set(id, metadata.generation)
-    this.registrations.set(id, provide(container, key, { visibility, metadata: { ...metadata }, build: () => metadata }))
+    const registration = provide(container, key, { visibility, metadata: { ...metadata }, build: () => metadata })
+    this.records.set(id, { owner, metadata, registration })
   }
 
+  /** Removes the Provider from the catalog at once, then withdraws its unit. */
   private withdraw(id: string) {
-    void this.registrations.get(id)?.withdraw()
-    this.registrations.delete(id)
+    void this.records.get(id)?.registration.withdraw()
+    this.records.delete(id)
   }
 
   /**
@@ -540,14 +537,14 @@ export class KitProviderRegistry {
     accepted: TAccepted,
   ): HostSourceLease<TAccepted> {
     const field = sourceKind === 'descriptor' ? 'descriptor' : 'clientFactory'
-    const current = this.current(id)
+    const current = this.records.get(id)
     if (this.pending.has(id) || (current && (current.owner.kind !== 'host' || current.metadata.version !== version || current.metadata[field]))) {
       throw new KitProviderRegistrationError('provider-slot-conflict', id, undefined, undefined, { sourceKind })
     }
     if (current) {
       this.withdraw(id)
     }
-    this.register(this.host, id, { ...current?.metadata, version, generation: this.nextGeneration(id), [field]: accepted }, 'local')
+    this.register(this.host, id, hostOwner, { ...current?.metadata, version, generation: this.nextGeneration(id), [field]: accepted }, 'local')
     return Object.freeze({
       accepted,
       kitId: id,
@@ -557,7 +554,7 @@ export class KitProviderRegistry {
   }
 
   private withdrawHostSource(id: string, field: 'descriptor' | 'clientFactory', accepted: unknown): boolean {
-    const current = this.current(id)
+    const current = this.records.get(id)
     if (current?.owner.kind !== 'host' || current.metadata[field] !== accepted) {
       // The source changed after this lease was issued, so disposal must leave the replacement intact.
       return false
@@ -566,14 +563,14 @@ export class KitProviderRegistry {
     this.withdraw(id)
     const remaining: ProviderMetadata = { ...current.metadata, [field]: undefined, generation: this.nextGeneration(id) }
     if (remaining.descriptor || remaining.clientFactory) {
-      this.register(this.host, id, remaining, 'local')
+      this.register(this.host, id, hostOwner, remaining, 'local')
     }
     return true
   }
 
   /** Returns the immutable descriptor captured from the current Host registration. Re-query after registration changes. */
   getHostDescriptor(id: string): KitDescriptorSnapshot | undefined {
-    return this.current(id)?.metadata.descriptor
+    return this.records.get(id)?.metadata.descriptor
   }
 
   /** Returns immutable point-in-time descriptors, optionally filtered by runtime. Re-query after registration changes. */
@@ -589,7 +586,7 @@ export class KitProviderRegistry {
    * A previously returned function is not revoked. Re-query before creating a Client after registration changes.
    */
   getHostClientFactory<TClient>(id: string): HostClientFactory<TClient> | undefined {
-    return this.current(id)?.metadata.clientFactory?.createClient as HostClientFactory<TClient> | undefined
+    return this.records.get(id)?.metadata.clientFactory?.createClient as HostClientFactory<TClient> | undefined
   }
 
   /**
@@ -607,7 +604,7 @@ export class KitProviderRegistry {
 
     const ids = new Set<string>()
     for (const declaration of declarations) {
-      if (ids.has(declaration.id) || this.pending.has(declaration.id) || this.current(declaration.id)) {
+      if (ids.has(declaration.id) || this.pending.has(declaration.id) || this.records.has(declaration.id)) {
         throw new KitProviderRegistrationError('provider-slot-conflict', declaration.id, owner.extensionId, owner.sessionId)
       }
       ids.add(declaration.id)
@@ -759,7 +756,7 @@ export class KitProviderRegistry {
         endpoint: provider.endpoint,
       }
       this.pending.delete(declaration.id)
-      this.register(transaction.container, declaration.id, metadata, 'parent')
+      this.register(transaction.container, declaration.id, transaction.owner, metadata, 'parent')
       return this.createSnapshot(declaration.id, transaction.owner, metadata)
     }))
     const lease: ExtensionRegistrationLease = Object.freeze({
@@ -812,7 +809,7 @@ export class KitProviderRegistry {
       this.pending.set(id, { ...slot, provider: { state: 'withdrawn' } })
       return true
     }
-    if (this.current(id)?.metadata.registrationToken === token) {
+    if (this.records.get(id)?.metadata.registrationToken === token) {
       this.withdraw(id)
       return true
     }
@@ -832,7 +829,7 @@ export class KitProviderRegistry {
 
   /** Returns an immutable point-in-time snapshot. Re-query after stop or reload to check the current generation. */
   getReady(id: string): ReadyKitProviderSnapshot | undefined {
-    const current = this.current(id)
+    const current = this.records.get(id)
     return current && this.createSnapshot(id, current.owner, current.metadata)
   }
 
