@@ -133,6 +133,7 @@ model-select:
     sync:
       upload: Upload to cloud
       delete-cloud: Delete from cloud
+      upload-progress: 'Uploading {percent}%'
       status:
         local-only: This device only
         queued: Waiting to upload

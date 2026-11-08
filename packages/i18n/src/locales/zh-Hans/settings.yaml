@@ -121,6 +121,7 @@ model-select:
     sync:
       upload: 上传到云端
       delete-cloud: 从云端删除
+      upload-progress: '上传中 {percent}%'
       status:
         local-only: 仅在本设备
         queued: 等待上传
