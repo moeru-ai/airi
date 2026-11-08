@@ -74,9 +74,9 @@ export const providerRuncrate = defineProvider<RuncrateConfig, 'runcrate'>({
   },
 
   extraMethods: {
-    async listModels(config) {
+    async listModels(config, _provider, context) {
       const baseUrl = (config.baseUrl || RUNCRATE_DEFAULT_BASE_URL).replace(/\/?$/, '/')
-      const response = await fetch(`${baseUrl}models`, {
+      const response = await (context?.fetch ?? globalThis.fetch)(`${baseUrl}models`, {
         headers: { Authorization: `Bearer ${config.apiKey}` },
       })
       if (!response.ok)

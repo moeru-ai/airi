@@ -39,6 +39,7 @@ Keep provider request and response conversion outside the transport.
 ## When not to use it
 
 Do not use this package for WebSocket, browser inference, cloud configuration synchronization, or a public HTTP proxy.
+Do not use it for live microphone uploads. Official live transcription uses authenticated browser streaming to send audio before recording ends.
 It does not repair authentication, rate limits, invalid certificates, or unreachable services.
 
 ## Checks

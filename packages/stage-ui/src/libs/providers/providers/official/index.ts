@@ -358,7 +358,9 @@ export const providerOfficialTranscription = defineProvider({
     return {
       transcription: (model: string) => ({
         baseURL: new URL(`${SERVER_URL}/api/v1/audio/transcriptions/stream`),
-        fetch: withCredentials(getAITransportFetch()),
+        // Live audio uses browser streaming because the optional HTTP bridge buffers uploads.
+        // The desktop network proxy still applies through the renderer Session.
+        fetch: withCredentials(),
         model,
       }),
     }

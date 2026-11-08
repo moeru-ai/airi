@@ -114,7 +114,9 @@ Open Settings > System > General and enable **Local AI request proxy**.
 New AI HTTP requests use the desktop network stack and avoid browser CORS restrictions.
 The switch defaults to disabled. AIRI saves it on this device and shares it across desktop windows.
 
-The proxy covers chat, HTTP speech and transcription, models, voices, connection checks, image generation, and image downloads.
+The proxy covers chat, HTTP speech, file transcription, models, voices, connection checks, image generation, and image downloads.
+Official live transcription uses authenticated browser streaming because the bridge buffers uploads.
+It retains browser CORS rules and the configured network proxy through the renderer Session.
 Existing main-process image generation remains native with either setting.
 WebSocket and browser-local inference keep their existing APIs. This HTTP bridge does not repair upstream authentication, rate limits, certificates, or connectivity.
 The bridge adds no retries. Provider SDKs retain their own retry policies, including Replicate.
