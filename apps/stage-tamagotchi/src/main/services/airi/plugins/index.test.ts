@@ -38,6 +38,7 @@ import { electronPluginToolsChanged } from '../../../../shared/eventa/plugin/too
 import { setupExtensionHostServiceInternal } from './host'
 import { loadManifestsFrom } from './host/registry'
 import { setupExtensionHost as setupExtensionHostService } from './index'
+import { createBuiltInExtensionKits } from './kits'
 import { gameletPluginKitDescriptor } from './kits/gamelet'
 import { createGameletOrchestrationRuntime } from './kits/gamelet/orchestration'
 import { widgetPluginKitDescriptor } from './kits/widget'
@@ -66,12 +67,6 @@ const sessionMock = vi.hoisted(() => ({
 }))
 const contextState = vi.hoisted(() => ({
   lastContext: undefined as ReturnType<typeof createContext<any, any>> | undefined,
-}))
-const lifecycleMock = vi.hoisted(() => ({
-  beforeQuitHooks: [] as Array<() => Promise<void> | void>,
-  onAppBeforeQuit: vi.fn((hook: () => Promise<void> | void) => {
-    lifecycleMock.beforeQuitHooks.push(hook)
-  }),
 }))
 const logMock = vi.hoisted(() => {
   const logger = {
@@ -113,10 +108,6 @@ vi.mock('@moeru/eventa/adapters/electron/main', async () => {
     },
   }
 })
-
-vi.mock('../../../libs/bootkit/lifecycle', () => ({
-  onAppBeforeQuit: lifecycleMock.onAppBeforeQuit,
-}))
 
 const testDataRoot = resolve(
   import.meta.dirname,
@@ -445,10 +436,15 @@ function createWidgetsManagerDouble(options: { respondToRequests?: boolean } = {
   }
 }
 
+function createExtensionHostDependencies(widgetsManager: ReturnType<typeof createWidgetsManagerDouble>['widgetsManager']) {
+  const host = new ExtensionHost({ airiVersion: appMock.getVersion(), runtime: 'electron' })
+  return { host, kits: createBuiltInExtensionKits({ host, widgetsManager }) }
+}
+
 async function setupExtensionHostForTest() {
   const widgets = createWidgetsManagerDouble()
   const service = await setupExtensionHostService({
-    widgetsManager: widgets.widgetsManager,
+    ...createExtensionHostDependencies(widgets.widgetsManager),
     getExtensionManagementWebContentsId: () => extensionManagementWebContentsId,
   })
   return { service, ...widgets }
@@ -456,7 +452,7 @@ async function setupExtensionHostForTest() {
 
 async function setupExtensionHostServiceInternalForTest() {
   const widgets = createWidgetsManagerDouble()
-  const service = await setupExtensionHostServiceInternal({ widgetsManager: widgets.widgetsManager })
+  const service = await setupExtensionHostServiceInternal(createExtensionHostDependencies(widgets.widgetsManager))
   return { service, ...widgets }
 }
 
@@ -483,12 +479,10 @@ describe('setupExtensionHost', () => {
     //
     // The Electron before-quit listener discarded the Host disposal promise,
     // so application shutdown could finish before an active import settled.
-    await setupExtensionHostService({ widgetsManager: createWidgetsManagerDouble().widgetsManager })
+    // The modules:plugin-host stop hook now awaits the promise that dispose returns.
+    const service = await setupExtensionHostService(createExtensionHostDependencies(createWidgetsManagerDouble().widgetsManager))
 
-    expect(lifecycleMock.onAppBeforeQuit).toHaveBeenCalledOnce()
-    expect(lifecycleMock.beforeQuitHooks).toHaveLength(1)
-
-    const disposal = lifecycleMock.beforeQuitHooks[0]?.()
+    const disposal = service.dispose()
     expect(disposal).toBeInstanceOf(Promise)
     await disposal
   })
@@ -511,7 +505,6 @@ describe('setupExtensionHost', () => {
   })
 
   beforeEach(async () => {
-    lifecycleMock.beforeQuitHooks.length = 0
     extensionManagementWebContentsId = 42
     userDataDir = await mkdtemp(join(tmpdir(), 'airi-plugins-'))
     pluginsDir = join(userDataDir, 'extensions', 'v1')
@@ -1297,12 +1290,8 @@ describe('setupExtensionHost', () => {
     const loadPromise = invokeLoad({ extensionId })
     await vi.waitFor(() => expect(startSpy).toHaveBeenCalledOnce())
 
-    const disposeHost = lifecycleMock.beforeQuitHooks.at(-1)
-    if (!disposeHost) {
-      throw new Error('Expected the Extension Host disposal hook.')
-    }
     let disposalComplete = false
-    const disposalPromise = Promise.resolve(disposeHost()).then(() => {
+    const disposalPromise = service.dispose().then(() => {
       disposalComplete = true
     })
     await new Promise(resolve => setImmediate(resolve))
@@ -1421,11 +1410,7 @@ describe('setupExtensionHost', () => {
     )
     const stopSpy = vi.spyOn(service.host, 'stop')
 
-    const disposeHost = lifecycleMock.beforeQuitHooks.at(-1)
-    if (!disposeHost) {
-      throw new Error('Expected the Extension Host disposal hook.')
-    }
-    await disposeHost()
+    await service.dispose()
 
     expect(stopSpy.mock.calls.map(([sessionId]) => extensionIdBySessionId.get(sessionId))).toEqual([
       'a-dispose-consumer',
@@ -2269,11 +2254,7 @@ describe('setupExtensionHost', () => {
     await invokeSetAutoReload({ extensionId: 'failure-reload-provider', enabled: false })
     await invokeSetEnabled({ extensionId: 'failure-reload-consumer', enabled: false })
     await invokeSetEnabled({ extensionId: 'failure-reload-provider', enabled: false })
-    const disposeHost = lifecycleMock.beforeQuitHooks.at(-1)
-    if (!disposeHost) {
-      throw new Error('Expected the Extension Host disposal hook.')
-    }
-    await disposeHost()
+    await service.dispose()
     expect(service.host.listSessions()).toEqual([])
   })
 

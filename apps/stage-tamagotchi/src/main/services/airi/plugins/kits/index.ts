@@ -2,14 +2,14 @@ import type { KitRef } from '@proj-airi/plugin-sdk'
 import type { ToolKitRuntime } from '@proj-airi/plugin-sdk-tamagotchi/tools'
 import type { ExtensionHost, HostProvidedKitDeclaration, HostSourceLease, KitDescriptor } from '@proj-airi/plugin-sdk/plugin-host'
 
-import type { SetupExtensionHostOptions } from '../types'
+import type { ExtensionHostGameletWidgetsManager, SetupExtensionHostOptions } from '../types'
 import type { GameletOrchestrationRuntime } from './gamelet/orchestration'
 
 import { gameletKit, toolKit } from '@proj-airi/plugin-sdk-tamagotchi'
-import { TamagotchiToolRegistry } from '@proj-airi/plugin-sdk-tamagotchi/tools'
 
 import { gameletPluginKitDescriptor } from './gamelet'
 import { createGameletOrchestrationRuntime } from './gamelet/orchestration'
+import { TamagotchiToolRegistry } from './tool/registry'
 import { widgetPluginKitDescriptor } from './widget'
 
 type GameletKitClient = ReturnType<typeof gameletKit.createClient>
@@ -85,17 +85,8 @@ type HostKitDeclarationSource
 
 interface BuiltInHostSource {
   readonly declaration: HostKitDeclarationSource
-  readonly register: (host: ExtensionHost) => HostSourceLease
+  readonly register: () => HostSourceLease
 }
-
-type BuiltInKitRuntimeState
-  = | { readonly phase: 'created' }
-    | {
-      readonly phase: 'installed'
-      readonly host: ExtensionHost
-      readonly leases: readonly HostSourceLease[]
-    }
-    | { readonly phase: 'disposed' }
 
 function disposeHostKitLeases(leases: readonly HostSourceLease[]): void {
   // Later registrations can depend on earlier registrations. Reverse order removes dependent sources first.
@@ -136,87 +127,50 @@ function collectHostProvidedKitDeclarations(
 }
 
 /**
- * Creates the built-in kit runtime installed by the Electron extension host.
+ * Registers the built-in Kits on one Extension Host.
  *
  * Use when:
- * - Host bootstrap uses a Kit-layer interface instead of inline widget or gamelet details
- * - Built-in Kit registration stays outside the Host layer
+ * - The `modules:extension-host:built-in-kits` unit builds. Its `stop` hook calls `dispose`.
  *
  * Expects:
- * - `widgetsManager` is initialized before host construction
+ * - `widgetsManager` is initialized before the Kits are registered
  *
  * Returns:
- * - Helpers to register built-in kits on the host
+ * - The Host Kit declarations for the Planner, the tool registry, and `dispose`
  */
-export function createBuiltInExtensionKitRuntime(options: SetupExtensionHostOptions): {
-  registerHostKits: (host: ExtensionHost) => void
-  hostProvidedKits: readonly HostProvidedKitDeclaration[]
-  tools: TamagotchiToolRegistry
-  dispose: () => void
-} {
+export function createBuiltInExtensionKits(options: {
+  host: ExtensionHost
+  widgetsManager: ExtensionHostGameletWidgetsManager
+}): SetupExtensionHostOptions['kits'] & { dispose: () => void } {
+  const { host } = options
   const gamelets = createGameletOrchestrationRuntime(options.widgetsManager)
   const tools = new TamagotchiToolRegistry()
   const toolKitRef = createHostToolKit({ tools })
-  let state: BuiltInKitRuntimeState = { phase: 'created' }
   const hostSources: readonly BuiltInHostSource[] = [
-    {
-      declaration: widgetPluginKitDescriptor,
-      register: host => host.registerKit(widgetPluginKitDescriptor),
-    },
-    {
-      declaration: gameletPluginKitDescriptor,
-      register: host => host.registerKit(gameletPluginKitDescriptor),
-    },
-    {
-      declaration: gameletKit,
-      register: host => host.registerKitApi(createHostGameletKit({ host, gamelets })),
-    },
-    {
-      declaration: toolKitRef,
-      register: host => host.registerKitApi(toolKitRef),
-    },
+    { declaration: widgetPluginKitDescriptor, register: () => host.registerKit(widgetPluginKitDescriptor) },
+    { declaration: gameletPluginKitDescriptor, register: () => host.registerKit(gameletPluginKitDescriptor) },
+    { declaration: gameletKit, register: () => host.registerKitApi(createHostGameletKit({ host, gamelets })) },
+    { declaration: toolKitRef, register: () => host.registerKitApi(toolKitRef) },
   ]
   const hostProvidedKits = collectHostProvidedKitDeclarations(hostSources.map(source => source.declaration))
 
+  const leases: HostSourceLease[] = []
+  try {
+    for (const source of hostSources) {
+      leases.push(source.register())
+    }
+  }
+  catch (error) {
+    disposeHostKitLeases(leases)
+    throw error
+  }
+
   return {
-    registerHostKits(host) {
-      if (state.phase === 'disposed') {
-        throw new Error('The built-in Kit runtime is disposed.')
-      }
-      if (state.phase === 'installed') {
-        if (state.host !== host) {
-          throw new Error('The built-in Kit runtime is installed on another Extension Host.')
-        }
-        return
-      }
-      const acceptedLeases: HostSourceLease[] = []
-      try {
-        for (const source of hostSources) {
-          acceptedLeases.push(source.register(host))
-        }
-        state = {
-          phase: 'installed',
-          host,
-          leases: Object.freeze([...acceptedLeases]),
-        }
-      }
-      catch (error) {
-        disposeHostKitLeases(acceptedLeases)
-        throw error
-      }
-    },
     hostProvidedKits,
     tools,
     dispose() {
-      if (state.phase === 'disposed') {
-        return
-      }
-      const installed = state.phase === 'installed' ? state : undefined
-      state = { phase: 'disposed' }
-      if (installed) {
-        // Remove registrations first. Consumers cannot acquire a Client after its runtime is disposed.
-        disposeHostKitLeases(installed.leases)
-      }
+      // Remove registrations first. Consumers cannot acquire a Client after its runtime is disposed.
+      disposeHostKitLeases(leases)
       gamelets.dispose()
       tools.clear()
     },

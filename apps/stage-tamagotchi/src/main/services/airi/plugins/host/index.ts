@@ -1,4 +1,3 @@
-import type { TamagotchiToolRegistry } from '@proj-airi/plugin-sdk-tamagotchi/tools'
 import type { ExtensionActivationPlan } from '@proj-airi/plugin-sdk/plugin-host'
 import type {
   ExtensionDirectoryImportPlan,
@@ -11,6 +10,7 @@ import type {
   ExtensionAssetSession,
   ExtensionAssetSnapshotService,
 } from '../features/static-assets'
+import type { TamagotchiToolRegistry } from '../kits/tool/registry'
 import type { ExtensionHostService, SetupExtensionHostOptions } from '../types'
 import type { SessionCleanupReport } from './managed-sessions'
 
@@ -18,13 +18,12 @@ import { dirname, join } from 'node:path'
 
 import { useLogg } from '@guiiai/logg'
 import { errorMessageFrom } from '@moeru/std'
-import { ExtensionHost, planExtensionActivation } from '@proj-airi/plugin-sdk/plugin-host'
+import { planExtensionActivation } from '@proj-airi/plugin-sdk/plugin-host'
 import { Mutex } from 'async-mutex'
 import { app, session as electronSession } from 'electron'
 
 import { createExtensionAutoReloadFeature } from '../features/auto-reload'
 import { createExtensionAssetService } from '../features/static-assets'
-import { createBuiltInExtensionKitRuntime } from '../kits'
 import { createExtensionHostConfigStore } from './config'
 import { buildPluginHostDebugSnapshot } from './debug'
 import { ExtensionDirectoryImporter } from './directory-import'
@@ -90,7 +89,7 @@ function createElectronExtensionAssetCookieAdapter() {
  *
  * Expects:
  * - Consumers treat this as an internal bootstrap surface and keep the public facade unchanged
- * - `widgetsManager` is ready before startup begins
+ * - The built-in Kits are registered on `host` before startup begins
  *
  * Returns:
  * - The Host fields plus internal helpers for list/load/unload/inspect/dispose
@@ -236,24 +235,6 @@ export interface ExtensionHostServiceInternal extends ExtensionHostService {
    * - The current extension asset base URL, or an empty string when unavailable
    */
   getAssetBaseUrl: () => string
-
-  /**
-   * Disposes optional host features and asset hosting resources.
-   *
-   * Use when:
-   * - Electron shutdown needs to stop extension-owned background work
-   * - Tests need to release watchers and local asset servers deterministically
-   *
-   * Expects:
-   * - Disposal may be called after partial startup or after prior plugin failures
-   *
-   * Returns:
-   * - A promise that resolves after all cleanup attempts finish
-   *
-   * Failures:
-   * - Rejects with the remaining failure or an AggregateError after all cleanup attempts finish
-   */
-  dispose: () => Promise<void>
 }
 
 /**
@@ -280,17 +261,11 @@ export async function setupExtensionHostServiceInternal(
   const extensionConfig = createExtensionHostConfigStore()
   extensionConfig.setup()
 
-  // Kit API, Host
-  const builtInKitRuntime = createBuiltInExtensionKitRuntime(options)
+  const { host, kits } = options
   const airiVersion = app.getVersion()
-  const host = new ExtensionHost({
-    airiVersion,
-    runtime: 'electron',
-  })
   const activationMutex = new Mutex()
   let systemEnabled = true
   log.withFields({ extensionsRoot }).log('loading extension manifests')
-  builtInKitRuntime.registerHostKits(host)
 
   // Extension registry and asset service
   const extensionRegistry = createExtensionHostRegistry({ extensionsRoot, log })
@@ -362,7 +337,7 @@ export async function setupExtensionHostServiceInternal(
       loadedManifests: getLoadedManifests(),
       proposedEnabledExtensionIds,
       restartExtensionIds,
-      hostProvidedKits: builtInKitRuntime.hostProvidedKits,
+      hostProvidedKits: kits.hostProvidedKits,
       runtime: 'electron',
       airiVersion,
       systemEnabled: proposedSystemEnabled,
@@ -668,10 +643,7 @@ export async function setupExtensionHostServiceInternal(
 
   return {
     host,
-    // REVIEW: Tool registry ownership is currently hidden inside the built-in kit runtime even though
-    // the host service also exposes it for IPC listing/invocation. Consider moving registry ownership
-    // to this host service and passing it into kit registration as a dependency.
-    tools: builtInKitRuntime.tools,
+    tools: kits.tools,
     manifests: extensionRegistry.listManifests(),
     async prepareDirectoryImport(sourcePath, securityScopedBookmark) {
       await refreshManifests()
@@ -814,7 +786,7 @@ export async function setupExtensionHostServiceInternal(
           installedManifests: [],
           loadedManifests: managedManifests,
           proposedEnabledExtensionIds: [],
-          hostProvidedKits: builtInKitRuntime.hostProvidedKits,
+          hostProvidedKits: kits.hostProvidedKits,
           runtime: 'electron',
           airiVersion,
           systemEnabled: false,
@@ -841,12 +813,6 @@ export async function setupExtensionHostServiceInternal(
         }
         try {
           autoReloadFeature.dispose()
-        }
-        catch (error) {
-          cleanupFailures.push(error)
-        }
-        try {
-          builtInKitRuntime.dispose()
         }
         catch (error) {
           cleanupFailures.push(error)
