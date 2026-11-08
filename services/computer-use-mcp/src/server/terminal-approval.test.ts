@@ -123,6 +123,17 @@ function barrier() {
 }
 
 describe('main-only Terminal execution protocol', () => {
+  it('rejects caller termination claims without executing or consuming the prepared operation', async () => {
+    const h = await fixture()
+    const prepared = await h.prepare()
+    await expect(h.commit(prepared, { verifiedTerminated: true })).rejects.toThrow()
+    await expect(h.commit(prepared, { snapshot: { ...prepared, verifiedTerminated: true } })).rejects.toThrow()
+    expect(h.oracle).toEqual({ dispatches: 0, effects: 0 })
+    evidence.push({ case: 'caller-termination-claim-before-valid-commit', oracle: { ...h.oracle } })
+    await h.commit(prepared)
+    expect(h.oracle).toEqual({ dispatches: 1, effects: 1 })
+    evidence.push({ case: 'caller-termination-claim-rejected', oracle: { ...h.oracle } })
+  })
   it('identifies the actual MCP Desktop backend before any observation or Terminal dispatch', async () => {
     const h = await fixture(true)
     const capture = vi.spyOn(h.runtime.executor, 'takeScreenshot')
