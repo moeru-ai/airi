@@ -12,6 +12,7 @@ import {
   electron,
   electronGetWindowControlsState,
   electronGetWindowLifecycleState,
+  electronWindowCenterSystemControls,
   electronWindowClose,
   electronWindowControlsStateChanged,
   electronWindowLifecycleChanged,
@@ -21,6 +22,11 @@ import {
 } from '../../../shared/eventa'
 import { onAppBeforeQuit, onAppWindowAllClosed } from '../../libs/bootkit/lifecycle'
 import { resizeWindowByDelta, setWindowAlwaysOnTop } from '../../windows/shared/window'
+
+/** `customTitleBarWindowConfig` puts the traffic lights at y 15 to center them in a 44px title bar, so half of them is 7px. */
+const TRAFFIC_LIGHTS_HALF_HEIGHT = 7
+/** The x of `customTitleBarWindowConfig`, for a window that has the system position. */
+const TRAFFIC_LIGHTS_DEFAULT_X = 16
 
 export function createWindowService(params: {
   context: ReturnType<typeof createContext>['context']
@@ -174,5 +180,22 @@ export function createWindowService(params: {
   defineInvokeHandler(params.context, electronGetWindowControlsState, (_, options) => {
     if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id)
       return getWindowControlsState()
+  })
+
+  // The window options set the first position. A page that centers the traffic lights elsewhere restores it on leave.
+  const createdButtonPosition = isMacOS ? params.window.getWindowButtonPosition() : null
+  defineInvokeHandler(params.context, electronWindowCenterSystemControls, (payload, options) => {
+    if (!isMacOS || params.window.webContents.id !== options?.raw.ipcMainEvent.sender.id)
+      return
+
+    if (payload?.centerY === undefined) {
+      params.window.setWindowButtonPosition(createdButtonPosition)
+      return
+    }
+
+    params.window.setWindowButtonPosition({
+      x: createdButtonPosition?.x ?? TRAFFIC_LIGHTS_DEFAULT_X,
+      y: Math.round(payload.centerY - TRAFFIC_LIGHTS_HALF_HEIGHT),
+    })
   })
 }

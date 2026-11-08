@@ -70,6 +70,17 @@ const lockedOptions = [
     </Variant>
 
     <Variant
+      id="radius-color"
+      title="Radius and color"
+    >
+      <div class="max-w-3xl w-full flex flex-col items-start gap-4">
+        <SelectTab v-model="quality" size="sm" :options="qualityOptions" />
+        <SelectTab v-model="quality" size="sm" radius="xl" color="neutral" :options="qualityOptions" />
+        <SelectTab v-model="quality" size="xs" radius="full" color="neutral" :options="qualityOptions" />
+      </div>
+    </Variant>
+
+    <Variant
       id="disabled-readonly"
       title="Disabled and readonly states"
     >

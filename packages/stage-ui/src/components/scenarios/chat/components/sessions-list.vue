@@ -2,7 +2,7 @@
 import type { ChatSessionMeta } from '../../../../types/chat-session'
 
 import { BasicButton, Button, GhostButton, Input, ScrollableArea, SwipeActionButton, SwipeActionsContent, SwipeActionsItem, SwipeActionsList, SwipeActionsRoot } from '@proj-airi/ui'
-import { ref, shallowRef } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 /** A conversation preview prepared by the session owner for either dialog surface. */
@@ -19,14 +19,13 @@ const props = withDefaults(defineProps<{
   rows: SessionRow[]
   isCreatingSession: boolean
   compact?: boolean
-  showNewSession?: boolean
 }>(), {
   compact: false,
-  showNewSession: true,
 })
 
 const emit = defineEmits<{
   deleteSession: [sessionId: string]
+  deleteSessions: [sessionIds: string[]]
   newSession: []
   renameSession: [payload: { sessionId: string, title: string }]
   selectSession: [sessionId: string]
@@ -38,6 +37,82 @@ const expandedSessionId = shallowRef<string>()
 const pendingDeleteSessionId = shallowRef<string>()
 const renamingSessionId = shallowRef<string>()
 const renameTitle = ref('')
+// Selection mode belongs to the open list owner, so closing the list can end it.
+const selecting = defineModel<boolean>('selecting', { default: false })
+const selectedIds = shallowRef(new Set<string>())
+// Rows can disappear while selecting, for example after a delete in another window, so only listed rows count.
+const selectedRows = computed(() => props.rows.filter(row => selectedIds.value.has(row.meta.sessionId)))
+const allSelected = computed(() => props.rows.length > 0 && selectedRows.value.length === props.rows.length)
+// The first press on the batch delete action only asks for confirmation, like the single-row delete.
+const confirmingBatchDelete = shallowRef(false)
+/** The primary action creates a conversation, or deletes the selection while selecting. */
+const primaryAction = computed(() => {
+  if (!selecting.value) {
+    return {
+      key: 'new',
+      icon: props.compact ? 'i-solar:add-circle-outline' : 'i-solar:pen-new-square-outline',
+      label: t('stage.chat.sessions.new'),
+    }
+  }
+  if (confirmingBatchDelete.value) {
+    return {
+      key: 'confirm-delete',
+      icon: 'i-mingcute:delete-2-fill',
+      label: t('stage.chat.sessions.confirm-delete-selected', selectedRows.value.length),
+    }
+  }
+  return {
+    key: 'delete',
+    icon: 'i-mingcute:delete-2-line',
+    label: t('stage.chat.sessions.delete-selected', selectedRows.value.length),
+  }
+})
+
+watch(selectedIds, () => {
+  confirmingBatchDelete.value = false
+})
+
+watch(selecting, (value) => {
+  selectedIds.value = new Set()
+  confirmingBatchDelete.value = false
+  if (!value)
+    return
+  pendingDeleteSessionId.value = undefined
+  expandedSessionId.value = undefined
+  cancelRename()
+})
+
+function toggleSelected(sessionId: string) {
+  const next = new Set(selectedIds.value)
+  if (!next.delete(sessionId))
+    next.add(sessionId)
+  selectedIds.value = next
+}
+
+function toggleAllSelected() {
+  selectedIds.value = allSelected.value ? new Set() : new Set(props.rows.map(row => row.meta.sessionId))
+}
+
+function deleteSelected() {
+  const sessionIds = selectedRows.value.map(row => row.meta.sessionId)
+  if (sessionIds.length === 0)
+    return
+
+  emit('deleteSessions', sessionIds)
+  selecting.value = false
+}
+
+function runPrimaryAction() {
+  if (!selecting.value) {
+    emit('newSession')
+    return
+  }
+  if (!confirmingBatchDelete.value) {
+    confirmingBatchDelete.value = true
+    return
+  }
+  deleteSelected()
+}
 
 function selectSession(sessionId: string) {
   pendingDeleteSessionId.value = undefined
@@ -65,6 +140,7 @@ function commitRename(row: SessionRow) {
 }
 
 function handleEscape() {
+  selecting.value = false
   pendingDeleteSessionId.value = undefined
   cancelRename()
 }
@@ -82,16 +158,95 @@ function deleteDesktopSession(sessionId: string) {
 
 <template>
   <div :class="['min-h-0 flex flex-col', props.compact ? 'gap-0' : 'gap-4']">
-    <Button
-      v-if="props.showNewSession"
-      block color="primary" variant="secondary" size="unset"
-      :class="['min-h-12 shrink-0 rounded-2xl px-4 py-3']"
-      :loading="isCreatingSession"
-      @click="emit('newSession')"
-    >
-      <span aria-hidden="true" :class="['i-solar:pen-new-square-outline size-5']" />
-      {{ t('stage.chat.sessions.new') }}
-    </Button>
+    <div :class="['flex shrink-0 items-center']">
+      <BasicButton
+        v-if="props.compact"
+        block
+        size="unset"
+        :disabled="selecting && selectedRows.length === 0"
+        :loading="!selecting && isCreatingSession"
+        :class="[
+          'session-primary-action session-primary-action--start h-9 min-w-0 flex-1 rounded-lg px-2 text-sm outline-none',
+          selecting
+            ? ['text-red-500 hover:bg-red-500/10 dark:text-red-400', confirmingBatchDelete ? 'bg-red-500/10' : '']
+            : 'text-primary-600 hover:bg-primary-50 dark:text-primary-300 dark:hover:bg-primary-950/70',
+          'focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-[-2px]',
+        ]"
+        @click="runPrimaryAction"
+      >
+        <Transition name="session-action-swap" mode="out-in">
+          <span :key="primaryAction.key" :class="['min-w-0 max-w-full inline-flex items-center gap-2']">
+            <span aria-hidden="true" :class="[primaryAction.icon, 'size-4.5 shrink-0']" />
+            <span :class="['truncate']">{{ primaryAction.label }}</span>
+          </span>
+        </Transition>
+      </BasicButton>
+      <Button
+        v-else
+        block
+        :color="selecting ? 'red' : 'primary'"
+        :variant="confirmingBatchDelete ? 'primary' : 'secondary'"
+        size="unset"
+        :disabled="selecting && selectedRows.length === 0"
+        :loading="!selecting && isCreatingSession"
+        :class="['session-primary-action min-h-12 min-w-0 flex-1 rounded-2xl px-4 py-3']"
+        @click="runPrimaryAction"
+      >
+        <Transition name="session-action-swap" mode="out-in">
+          <span :key="primaryAction.key" :class="['min-w-0 max-w-full inline-flex items-center gap-2']">
+            <span aria-hidden="true" :class="[primaryAction.icon, 'size-5 shrink-0']" />
+            <span :class="['truncate']">{{ primaryAction.label }}</span>
+          </span>
+        </Transition>
+      </Button>
+      <Transition name="session-action-slot">
+        <div v-if="selecting" :class="['shrink-0 overflow-hidden max-w-40', props.compact ? 'ml-0.5' : 'ml-2']">
+          <GhostButton
+            v-if="props.compact"
+            size="unset"
+            :class="['h-9 whitespace-nowrap rounded-lg px-2 text-sm', 'focus-visible:outline-2 focus-visible:outline-primary-500']"
+            @click="toggleAllSelected"
+          >
+            {{ allSelected ? t('stage.chat.sessions.clear-selection') : t('stage.chat.sessions.select-all') }}
+          </GhostButton>
+          <Button
+            v-else
+            color="neutral" variant="secondary" size="unset"
+            :class="['h-12 whitespace-nowrap rounded-2xl px-4']"
+            @click="toggleAllSelected"
+          >
+            {{ allSelected ? t('stage.chat.sessions.clear-selection') : t('stage.chat.sessions.select-all') }}
+          </Button>
+        </div>
+      </Transition>
+      <template v-if="rows.length > 0 || selecting">
+        <GhostButton
+          v-if="props.compact"
+          size="unset"
+          :aria-label="selecting ? t('stage.chat.sessions.done-selecting') : t('stage.chat.sessions.select')"
+          :title="selecting ? t('stage.chat.sessions.done-selecting') : t('stage.chat.sessions.select')"
+          :class="['ml-0.5 size-9 shrink-0 rounded-lg text-neutral-400 hover:bg-neutral-500/10 hover:text-neutral-600 dark:hover:text-neutral-200', 'focus-visible:outline-2 focus-visible:outline-primary-500']"
+          @click="selecting = !selecting"
+        >
+          <Transition name="session-action-swap" mode="out-in">
+            <span :key="String(selecting)" aria-hidden="true" :class="[selecting ? 'i-mingcute:close-line' : 'i-mingcute:list-check-3-line', 'size-4.5']" />
+          </Transition>
+        </GhostButton>
+        <Button
+          v-else
+          color="neutral" variant="secondary" size="unset"
+          :aria-label="selecting ? t('stage.chat.sessions.done-selecting') : t('stage.chat.sessions.select')"
+          :title="selecting ? t('stage.chat.sessions.done-selecting') : t('stage.chat.sessions.select')"
+          :class="['ml-2 size-12 shrink-0 rounded-2xl']"
+          @click="selecting = !selecting"
+        >
+          <Transition name="session-action-swap" mode="out-in">
+            <span :key="String(selecting)" aria-hidden="true" :class="[selecting ? 'i-mingcute:close-line' : 'i-mingcute:list-check-3-line', 'size-5']" />
+          </Transition>
+        </Button>
+      </template>
+    </div>
+    <div v-if="props.compact" :class="['my-1 h-px shrink-0 bg-neutral-200/70 dark:bg-neutral-700/70']" />
     <ScrollableArea
       :class="['min-h-0', props.compact ? 'max-h-[min(24rem,60dvh)]' : 'max-h-[calc(80dvh-12rem)]']"
       :viewport-class="props.compact ? ['p-0.5'] : ['p-1']"
@@ -108,8 +263,41 @@ function deleteDesktopSession(sessionId: string) {
           @mouseleave="props.compact && (pendingDeleteSessionId = undefined)"
           @keydown.esc.stop="handleEscape"
         >
+          <BasicButton
+            v-if="selecting"
+            size="unset"
+            :aria-pressed="selectedIds.has(row.meta.sessionId)"
+            :class="[
+              'session-select active:scale-100! w-full min-w-0 text-left',
+              props.compact ? 'min-h-12 rounded-lg px-2 py-1.5' : 'min-h-20 rounded-2xl px-3 py-3',
+              selectedIds.has(row.meta.sessionId)
+                ? 'bg-primary-50/80 dark:bg-primary-950/80'
+                : props.compact ? 'bg-transparent hover:bg-neutral-100/80 dark:hover:bg-neutral-800/80' : 'bg-white dark:bg-neutral-800',
+              'focus-visible:outline-2 focus-visible:outline-primary-500',
+            ]"
+            @click="toggleSelected(row.meta.sessionId)"
+          >
+            <span
+              aria-hidden="true"
+              :class="[
+                'shrink-0',
+                props.compact ? 'size-4' : 'size-5',
+                selectedIds.has(row.meta.sessionId)
+                  ? 'i-mingcute:check-circle-fill text-primary-500'
+                  : 'border-2 border-solid border-neutral-300 rounded-full dark:border-neutral-600',
+              ]"
+            />
+            <span :class="['min-w-0 flex-1']">
+              <span :class="['block truncate text-sm font-medium']">{{ row.preview }}</span>
+              <span :class="['flex items-center gap-2 text-xs font-normal text-neutral-500 dark:text-neutral-400', props.compact ? 'mt-0.5' : 'mt-1']">
+                <span>{{ row.activityAtLabel }}</span>
+                <span v-if="row.isActive" :class="['text-primary-600 dark:text-primary-300']">{{ t('stage.chat.sessions.current') }}</span>
+                <span v-if="row.meta.cloudChatId" role="img" :aria-label="t('stage.chat.sessions.cloud-badge')" :title="t('stage.chat.sessions.cloud-badge')" :class="['i-solar:cloud-check-outline size-4 shrink-0']" />
+              </span>
+            </span>
+          </BasicButton>
           <div
-            v-if="props.compact"
+            v-else-if="props.compact"
             :class="[
               'group flex items-center overflow-hidden rounded-lg pr-0.5',
               row.isActive
@@ -363,6 +551,39 @@ function deleteDesktopSession(sessionId: string) {
   gap: 0.75rem;
 }
 
+.session-primary-action :deep(.basic-button-content) {
+  width: 100%;
+  min-width: 0;
+}
+.session-primary-action--start :deep(.basic-button-content) {
+  justify-content: flex-start;
+}
+
+.session-action-swap-enter-active,
+.session-action-swap-leave-active {
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+.session-action-swap-enter-from {
+  opacity: 0;
+  transform: translateY(4px);
+}
+.session-action-swap-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+/* The slot grows from zero width, so the primary action shrinks beside it instead of jumping. */
+.session-action-slot-enter-active,
+.session-action-slot-leave-active {
+  transition: max-width 220ms ease, margin 220ms ease, opacity 160ms ease;
+}
+.session-action-slot-enter-from,
+.session-action-slot-leave-to {
+  max-width: 0;
+  margin-left: 0;
+  opacity: 0;
+}
+
 .session-row-leave-active {
   transition: max-height 220ms ease, opacity 180ms ease, margin 220ms ease;
   max-height: 80px;
@@ -374,7 +595,11 @@ function deleteDesktopSession(sessionId: string) {
   margin-top: 0;
 }
 @media (prefers-reduced-motion: reduce) {
-  .session-row-leave-active {
+  .session-row-leave-active,
+  .session-action-swap-enter-active,
+  .session-action-swap-leave-active,
+  .session-action-slot-enter-active,
+  .session-action-slot-leave-active {
     transition: none;
   }
 }

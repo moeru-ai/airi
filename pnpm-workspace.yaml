@@ -7,10 +7,17 @@ minimumReleaseAgeExclude:
   # Source: https://releases.electronjs.org/release/v43.8.4
   # Remove this exception after 2026-10-30T18:05:12Z.
   - electron@43.8.4
+  # NOTICE:
+  # Install the download retry before the release-age delay ends. A dropped download failed release and CI builds.
+  # 0.2.6 retries network errors, stalls, truncated bodies, and 5xx statuses. Our team publishes this package.
+  # Source: https://github.com/proj-airi/unplugin-fetch/pull/4
+  # Remove this exception after 2026-11-07T08:45:06Z.
+  - '@proj-airi/unplugin-fetch@0.2.6'
   # Packages from the AIRI team must always be trusted
   - '@auv-js/*'
   - '@gd-kirie/*'
   - '@moeru/*'
+  - '@node-macos-disclaim/*'
   - '@proj-airi/*'
   - '@sherpaw/*'
   - '@vishot/*'
@@ -21,10 +28,12 @@ minimumReleaseAgeExclude:
   - '@xsai-ext/*'
   - '@xsai-transformers/*'
   - kirie
+  - node-macos-disclaim
   - pinia-plugin-synced
   - xsschema
   - vieval
   - '@ergosphere-it/*'
+  - injeca
 
 shellEmulator: true
 packages:
@@ -71,15 +80,14 @@ catalog:
   '@anthropic-ai/claude-code': ^2.1.241
   '@apple/app-store-server-library': ^3.1.0
   '@arethetypeswrong/core': ^0.18.5
-  '@auv-js/cli': 0.0.40
-  '@auv-js/sdk': 0.0.40
+  '@auv-js/cli': 0.0.43
+  '@auv-js/sdk': 0.0.43
   '@aws-sdk/client-s3': ^3.1135.0
   '@aws-sdk/s3-request-presigner': ^3.1135.0
   '@ax-llm/ax': ^24.0.5
   '@better-auth/cli': ^1.4.22
   '@better-auth/drizzle-adapter': 1.6.25
   '@better-auth/oauth-provider': 1.6.25
-  '@better-fetch/fetch': ^1.3.1
   '@capacitor/android': ^8.6.0
   '@capacitor/app': ^8.1.1
   '@capacitor/barcode-scanner': ^3.1.1
@@ -155,6 +163,8 @@ catalog:
   '@moeru/three-mmd-physics-ammo': 0.2.0-beta.2
   '@napi-rs/image': ^1.14.0
   '@nekopaw/tempora': 0.4.0-alpha.1
+  '@node-macos-disclaim/darwin-arm64': ^0.0.1
+  '@node-macos-disclaim/darwin-x64': ^0.0.1
   '@openpanel/sdk': 1.3.1
   '@openpanel/web': 1.4.1
   '@opentelemetry/api': ^1.9.1
@@ -197,10 +207,14 @@ catalog:
   '@pnpm/find-workspace-dir': ^1000.1.5
   '@proj-airi/chromatic': ^2.0.1
   '@proj-airi/drizzle-duckdb-wasm': ^0.6.0
+  '@proj-airi/font-chillroundm': ^0.17.0
+  '@proj-airi/font-cjkfonts-allseto': ^0.17.0
+  '@proj-airi/font-departure-mono': ^0.17.0
+  '@proj-airi/font-xiaolai': ^0.17.0
   '@proj-airi/iconify-meteocons': ^0.1.5
   '@proj-airi/lobe-icons': ^1.0.19
   '@proj-airi/unocss-preset-chromatic': ^2.0.1
-  '@proj-airi/unplugin-fetch': ^0.2.3
+  '@proj-airi/unplugin-fetch': ^0.2.6
   '@proj-airi/unplugin-live2d-sdk': ^0.1.7
   '@revenuecat/purchases-js': ^1.15.0
   '@rive-app/canvas-lite': ^2.40.1
@@ -254,6 +268,7 @@ catalog:
   '@vueuse/motion': ^3.0.3
   '@vueuse/shared': ^14.4.0
   '@wxt-dev/module-vue': ^1.0.3
+  '@x18n/cli': 0.1.5
   '@xsai-apple-speech/transcription': 0.1.3
   '@xsai-apple-speech/transcription-electron-plugin': 0.1.3
   '@xsai-apple-speech/transcription-native': 0.1.3
@@ -282,7 +297,6 @@ catalog:
   alien-signals: ^3.2.1
   animejs: ^4.5.0
   async-mutex: 0.5.0
-  awilix: ^13.0.5
   best-effort-json-parser: ^1.5.1
   better-auth: 1.6.25
   builder-util-runtime: ^9.7.0
@@ -292,13 +306,11 @@ catalog:
   capacitor-native-settings: ^8.2.0
   chess.js: ^1.4.0
   clustr: ^1.0.2
-  colorjs.io: ^0.7.1
   crossws: ^0.4.12
   csstype: ^3.2.3
   culori: ^4.0.2
   d3: 7.9.0
   date-fns: ^4.4.0
-  debug: ^4.4.3
   defu: ^6.1.7
   destr: ^2.0.5
   discord.js: ^14.27.0
@@ -335,7 +347,7 @@ catalog:
   hono-rate-limiter: ^0.5.3
   html2canvas: ^1.4.1
   idb-keyval: ^6.3.0
-  injeca: ^0.2.0
+  injeca: ^0.5.1
   ioredis: ^6.0.0
   ioredis-mock: ^8.13.1
   is-network-error: ^1.3.2
@@ -365,6 +377,7 @@ catalog:
   model-bank: 1.0.20260904203849
   nano-staged: ^1.0.2
   nanoid: ^6.0.1
+  node-macos-disclaim: ^0.0.1
   node-pty: npm:@lydell/node-pty@^1.2.0-beta.15
   node-vibrant: ^4.0.4
   nprogress: ^0.2.0
@@ -394,6 +407,7 @@ catalog:
   rehype-parse: ^9.0.1
   rehype-stringify: ^10.0.1
   reka-ui: ^2.10.3
+  remark-cjk-friendly: ^2.3.3
   remark-math: ^6.0.0
   remark-parse: ^11.0.0
   remark-rehype: ^11.1.2
@@ -406,7 +420,6 @@ catalog:
   speech-rule-engine: 5.0.0-rc.4
   splitpanes: ^4.1.2
   sponsorkit: 17.1.0
-  sponsors-svg: ^0.3.0
   srvx: ^0.12.7
   std-env: ^4.2.0
   stockfish: ^18.0.8

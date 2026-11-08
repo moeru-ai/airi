@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="T extends string | number">
-import type { SelectTabOption } from './types'
+import type { SelectTabColor, SelectTabOption, SelectTabRadius } from './types'
 
 import { RadioGroupItem, RadioGroupRoot } from 'reka-ui'
 import { computed } from 'vue'
@@ -8,13 +8,19 @@ const props = withDefaults(defineProps<{
   options: SelectTabOption<T>[]
   disabled?: boolean
   readonly?: boolean
-  size?: 'xs' | 'sm' | 'md' | 'w-xs' | 'w-sm' | 'w-md'
+  size?: 'xs' | 'sm' | 'md'
   tabSpace?: 'compact' | 'spaced'
+  /** Controls the corner radius of the track, the thumb, and the items. @default 'lg' */
+  radius?: SelectTabRadius
+  /** Selects the color family of the track, the thumb, and the items. @default 'primary' */
+  color?: SelectTabColor
 }>(), {
   disabled: false,
   readonly: false,
   size: 'md',
   tabSpace: 'spaced',
+  radius: 'lg',
+  color: 'primary',
 })
 
 const modelValue = defineModel<T>({ required: true })
@@ -26,16 +32,57 @@ const isDisabled = computed(() => props.disabled || props.readonly)
 const sizeClasses = computed(() =>
   props.size === 'xs'
     ? props.tabSpace === 'compact'
-      ? ['py-1', 'px-2', 'text-xs', 'rounded-md']
-      : ['py-1', 'px-2', 'text-xs', 'rounded-md', 'min-w-20']
+      ? ['py-1', 'px-2', 'text-xs']
+      : ['py-1', 'px-2', 'text-xs', 'min-w-20']
     : props.size === 'sm'
       ? props.tabSpace === 'compact'
-        ? ['py-2', 'px-3', 'text-xs', 'rounded-md']
-        : ['py-2', 'px-3', 'text-xs', 'rounded-md', 'min-w-24']
+        ? ['py-2', 'px-3', 'text-xs']
+        : ['py-2', 'px-3', 'text-xs', 'min-w-24']
       : props.tabSpace === 'compact'
-        ? ['py-2.5', 'px-3.5', 'text-sm', 'rounded-md']
-        : ['py-2.5', 'px-3.5', 'text-sm', 'rounded-md', 'min-w-32'],
+        ? ['py-2.5', 'px-3.5', 'text-sm']
+        : ['py-2.5', 'px-3.5', 'text-sm', 'min-w-32'],
 )
+
+const radiusClasses: Record<SelectTabRadius, { track: string, thumb: string[], item: string[] }> = {
+  lg: {
+    track: 'rounded-lg',
+    thumb: ['before:rounded-md', 'sm:before:rounded-lg'],
+    item: ['rounded-md', 'data-[state=unchecked]:rounded-lg'],
+  },
+  xl: {
+    track: 'rounded-xl',
+    thumb: ['before:rounded-xl'],
+    item: ['rounded-xl'],
+  },
+  full: {
+    track: 'rounded-full',
+    thumb: ['before:rounded-full'],
+    item: ['rounded-full'],
+  },
+}
+
+const colorClasses: Record<SelectTabColor, { track: string, thumb: string[], item: string[] }> = {
+  primary: {
+    track: 'bg-neutral-400/6 dark:bg-neutral-950/70',
+    thumb: ['before:bg-primary-300/50', 'dark:before:bg-primary-400/50'],
+    item: [
+      'data-[state=checked]:text-primary-950',
+      'dark:data-[state=checked]:text-primary-50',
+      'data-[state=unchecked]:hover:bg-primary-300/20',
+      'dark:data-[state=unchecked]:hover:bg-primary-400/20',
+    ],
+  },
+  neutral: {
+    track: 'bg-neutral-400/10 dark:bg-neutral-800/60',
+    thumb: ['before:bg-neutral-300/75', 'dark:before:bg-neutral-700'],
+    item: [
+      'data-[state=checked]:text-neutral-950',
+      'dark:data-[state=checked]:text-white',
+      'data-[state=unchecked]:hover:bg-neutral-400/15',
+      'dark:data-[state=unchecked]:hover:bg-neutral-500/20',
+    ],
+  },
+}
 
 const rootStyle = computed(() => ({
   '--select-tab-count': String(itemCount.value),
@@ -54,16 +101,17 @@ const rootStyle = computed(() => ({
     :class="[
       'select-tab',
       'is-interacting',
-      'relative', 'flex', 'items-stretch', 'rounded-lg',
+      'relative', 'flex', 'items-stretch',
+      radiusClasses[props.radius].track,
       'overflow-hidden',
-      'bg-neutral-400/6 dark:bg-neutral-950/70',
+      colorClasses[props.color].track,
       'transition-[border-color,box-shadow,opacity] duration-200 ease-out',
       isDisabled
         ? ['cursor-not-allowed', 'opacity-60']
         : ['shadow-[0_14px_50px_-32px_rgba(0,0,0,0.55)]', 'backdrop-blur-sm'],
       // before
-      'before:bg-primary-300/50', 'dark:before:bg-primary-400/50',
-      'before:rounded-md', 'sm:before:rounded-lg',
+      colorClasses[props.color].thumb,
+      radiusClasses[props.radius].thumb,
       'before:absolute', 'before:z-0', 'before:content-empty',
       'before:transition-[left,width,opacity,background-color]', 'before:duration-200', 'before:ease',
       'before:pointer-events-none',
@@ -89,13 +137,11 @@ const rootStyle = computed(() => ({
         'transition-[color,background-color,border-color,transform]', 'duration-200', 'ease-out',
         'focus-visible:border-none', 'focus-visible:outline-none',
         sizeClasses,
+        radiusClasses[props.radius].item,
         isDisabled
           ? 'pointer-events-none'
           : 'cursor-pointer',
-        // checked
-        'data-[state=checked]:text-primary-950', 'dark:data-[state=checked]:text-primary-50',
-        // unchecked
-        'data-[state=unchecked]:hover:bg-primary-300/20', 'dark:data-[state=unchecked]:hover:bg-primary-400/20', 'data-[state=unchecked]:rounded-lg',
+        colorClasses[props.color].item,
       ]"
     >
       <span v-if="option.icon" :class="['size-4 shrink-0 text-current', option.icon]" />
