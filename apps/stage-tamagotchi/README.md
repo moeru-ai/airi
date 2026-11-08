@@ -8,6 +8,19 @@ Shared character behavior belongs in `packages/stage-ui`. Use `stage-web` for br
 From the repository root, run `pnpm install`, then `pnpm dev:tamagotchi`.
 Run `pnpm -F @proj-airi/stage-tamagotchi build` to build the app.
 
+The root install builds shared packages and the desktop dependency graph, including the Terminal MCP service.
+If you install with `--ignore-scripts`, run `pnpm build:packages` before typecheck, development, or build.
+This generates the MCP package entry point and declarations. Do not copy `dist` from another worktree.
+
+Responses SDK extensions come from the versioned patch in [`patches/README.md`](../../patches/README.md).
+A fresh install applies it through `patchedDependencies`. Do not restore dependency files from another worktree.
+If an installation has unexpected dependency bytes, preserve the evidence and reproduce with an isolated store and virtual store.
+For example, run `pnpm install --frozen-lockfile --store-dir <empty-store> --virtual-store-dir <empty-virtual-store>`.
+The root lint command runs Oxlint and ESLint. Their rule handoff is explicit, including with an external virtual store.
+
+Desktop builds download model artifacts. They need network access and space for downloads, unpacked assets, and output.
+Keep download caches and generated assets separate from frozen experiment evidence.
+
 ## Local model files
 
 Sherpaw downloads remote model files into the app user data directory. The main
