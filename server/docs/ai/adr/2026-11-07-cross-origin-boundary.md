@@ -75,7 +75,7 @@ These features read one list, `TRUSTED_ORIGINS` in `@proj-airi/auth-shared`, plu
 - TypeScript: `@proj-airi/auth-shared` exports the policy as one framework-free function, `resolveCrossOriginHeaders`. The API and Auth each apply it to `/api/*` with a small Hono middleware, because `auth-shared` does not depend on Hono. The API exposes `Retry-After`. Auth sets no expose list, so the expose headers of the Better Auth `bearer` and `jwt` plugins stay.
 - Go: `CrossOrigin` in `proj-airi/backend` `internal/httpserver/servers/middlewares/cors.go` applies the policy to Cloud and Admin. The Cloud and Admin origin checks are removed. The unused `internal/services/authpolicy` package and `ADDITIONAL_TRUSTED_ORIGINS` are removed from Go. The Admin cover upload Origin check, which is a CSRF check, accepts only the `ADMIN_UI_URL` origin too.
 - Bucket: `proj-airi/airi-deploy` keeps the rule in `storage/bucket-cors.json`. `scripts/apply-bucket-cors.ts` applies it and reads it back.
-- Contract check: `proj-airi/airi-deploy` `scripts/check-cors.ts` sends a preflight and a GET with each client origin to each host and checks the headers. A workflow runs it every day and on demand.
+- Contract check: `proj-airi/airi-deploy` `scripts/check-cors.ts` sends a preflight and a GET with each client origin to each host and checks the headers. Run it after each deploy that changes a service, the edge, or a UI URL.
 
 ## Module dependency graph
 
@@ -129,7 +129,7 @@ proj-airi/backend
 
 proj-airi/airi-deploy
 ├── storage/bucket-cors.json + scripts/apply-bucket-cors.ts
-├── scripts/check-cors.ts + .github/workflows/cors-contract.yml
+├── scripts/check-cors.ts
 ├── caddy/Caddyfile                            forwards every /api/admin/ path to Admin
 └── docs/architecture/cors.md
 ```
@@ -158,7 +158,7 @@ sequenceDiagram
 - The CORS policy of the API, Auth, Cloud, and Admin.
 - One redirect allowlist for the TypeScript services.
 - The production and local bucket CORS rules.
-- A contract check that runs after deploys and on a schedule.
+- A contract check that runs after deploys.
 - The Admin cover routes that the production edge does not forward today.
 
 ## Non-goals
