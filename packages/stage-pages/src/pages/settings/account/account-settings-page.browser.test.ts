@@ -149,7 +149,7 @@ describe('unified account deletion', () => {
     const { screen, store } = await openDeletion()
     await screen.getByRole('dialog').getByRole('textbox').fill('person@example.com')
     await screen.getByRole('button', { name: 'Delete permanently' }).click()
-    await expect.element(screen.getByRole('alert')).toHaveTextContent('Cancel it on the Capacitor page')
+    await expect.element(screen.getByRole('alert')).toHaveTextContent('Cancel it on the Subscription page')
     expect(store.isAuthenticated).toBe(true)
     expect(capture.mock.calls.map(call => call[0])).toEqual(['account_deletion_requested'])
   })
