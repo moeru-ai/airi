@@ -7,7 +7,7 @@ import {
   ATTR_GEN_AI_PROVIDER_NAME,
   ATTR_GEN_AI_RESPONSE_MODEL,
   ATTR_GEN_AI_TOKEN_MODALITY,
-} from '@proj-airi/semconv-genai'
+} from '@proj-airi/trace-kit/semconv'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createRouteTelemetry, getLlmMetricAttributes, tracer } from './telemetry'

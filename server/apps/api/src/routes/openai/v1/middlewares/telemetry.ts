@@ -20,7 +20,7 @@ import {
   ATTR_GEN_AI_USAGE_INPUT_TOKENS,
   ATTR_GEN_AI_USAGE_OUTPUT_TOKENS,
   ATTR_GEN_AI_USAGE_REASONING_OUTPUT_TOKENS,
-} from '@proj-airi/semconv-genai'
+} from '@proj-airi/trace-kit/semconv'
 
 import {
   AIRI_ATTR_BILLING_FLUX_CONSUMED,

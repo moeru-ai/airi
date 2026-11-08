@@ -12,7 +12,7 @@ import { context as otelContext, SpanStatusCode, trace } from '@opentelemetry/ap
 import { ApiError } from '@proj-airi/http-error-shared'
 import {
   ATTR_GEN_AI_REQUEST_MODEL,
-} from '@proj-airi/semconv-genai'
+} from '@proj-airi/trace-kit/semconv'
 import { ofetch } from 'ofetch'
 
 import { nanoid } from '../../utils/id'

@@ -10,7 +10,7 @@ import type { UsageInfo } from '../../../../services/domain/generation-usage'
 import { createPaymentRequiredError, createServiceUnavailableError } from '@proj-airi/http-error-shared'
 import {
   ATTR_GEN_AI_REQUEST_MODEL,
-} from '@proj-airi/semconv-genai'
+} from '@proj-airi/trace-kit/semconv'
 import { safeParse } from 'valibot'
 
 import { resolveProviderCostAdapter } from '../../../../services/adapters/llm/cost'

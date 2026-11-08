@@ -11,7 +11,7 @@ import { ApiError, createBadRequestError, createPaymentRequiredError } from '@pr
 import {
   ATTR_GEN_AI_PROVIDER_NAME,
   ATTR_GEN_AI_REQUEST_MODEL,
-} from '@proj-airi/semconv-genai'
+} from '@proj-airi/trace-kit/semconv'
 import { check, pipe, safeParse, string, transform } from 'valibot'
 
 import { nanoid } from '../../../utils/id'

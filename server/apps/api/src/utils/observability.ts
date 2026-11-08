@@ -2,7 +2,7 @@
 // Span attribute constants (OTel semantic conventions + AIRI custom)
 // ---------------------------------------------------------------------------
 
-// GenAI semconv attributes come from `@proj-airi/semconv-genai`.
+// GenAI semconv attributes come from `@proj-airi/trace-kit/semconv`.
 
 // AIRI custom span attributes
 export const AIRI_ATTR_BILLING_FLUX_CONSUMED = 'airi.billing.flux_consumed'
@@ -58,7 +58,7 @@ export const METRIC_STRIPE_CHECKOUT_COMPLETED = 'stripe.checkout.completed'
 export const METRIC_STRIPE_EVENTS = 'stripe.events'
 export const METRIC_FLUX_INSUFFICIENT_BALANCE = 'flux.insufficient_balance'
 
-// GenAI semconv metric names come from `@proj-airi/semconv-genai`.
+// GenAI semconv metric names come from `@proj-airi/trace-kit/semconv`.
 // The conventions have no cost metric. This counter is the provider-reported upstream cost in USD.
 export const METRIC_AIRI_GEN_AI_CLIENT_COST = 'airi.gen_ai.client.cost'
 export const METRIC_FLUX_CONSUMED = 'airi.billing.flux.consumed'
