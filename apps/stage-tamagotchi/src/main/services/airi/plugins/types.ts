@@ -1,4 +1,4 @@
-import type { ExtensionHost, ExtensionManifestV2, HostProvidedKitDeclaration } from '@proj-airi/plugin-sdk/plugin-host'
+import type { ExtensionHost, ExtensionManifestV2 } from '@proj-airi/plugin-sdk/plugin-host'
 
 import type {
   WidgetsAddPayload,
@@ -89,7 +89,6 @@ export interface ExtensionHostGameletWidgetsManager {
 export interface SetupExtensionHostOptions {
   host: ExtensionHost
   kits: {
-    hostProvidedKits: readonly HostProvidedKitDeclaration[]
     tools: TamagotchiToolRegistry
   }
   /**
