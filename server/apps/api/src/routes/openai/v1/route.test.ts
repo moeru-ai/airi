@@ -72,11 +72,15 @@ function createMockBillingService(flux = 100): BillingService {
 function createMockGenAiMetrics(): GenAiMetrics {
   return {
     operationDuration: { record: vi.fn() },
-    operationCount: { add: vi.fn() },
-    tokenUsageInput: { add: vi.fn() },
-    tokenUsageOutput: { add: vi.fn() },
+    inferenceDuration: { record: vi.fn() },
+    timeToFirstChunk: { record: vi.fn() },
+    inputTokens: { add: vi.fn() },
+    outputTokens: { add: vi.fn() },
+    cacheReadInputTokens: { add: vi.fn() },
+    cacheWriteInputTokens: { add: vi.fn() },
+    reasoningOutputTokens: { add: vi.fn() },
+    costUsd: { add: vi.fn() },
     fluxConsumed: { add: vi.fn() },
-    firstTokenDuration: { record: vi.fn() },
     streamInterrupted: { add: vi.fn() },
   } as unknown as GenAiMetrics
 }
@@ -596,6 +600,10 @@ describe('v1CompletionsRoutes', () => {
       )
       // Telemetry reports the 38 Flux fee, not the 5 Flux that the drained wallet could pay.
       expect(genAi.fluxConsumed.add).toHaveBeenCalledWith(38, expect.anything())
+      // Cost and tokens are the upstream usage, also when the wallet cannot pay all of it.
+      expect(genAi.costUsd.add).toHaveBeenCalledWith(0.038, expect.objectContaining({ 'gen_ai.operation.name': 'chat' }))
+      expect(genAi.inputTokens.add).toHaveBeenCalledWith(20000, expect.objectContaining({ 'gen_ai.token.modality': 'unknown' }))
+      expect(genAi.outputTokens.add).toHaveBeenCalledWith(18000, expect.objectContaining({ 'gen_ai.token.modality': 'unknown' }))
     })
 
     it('should proxy upstream response on success', async () => {
@@ -3043,7 +3051,7 @@ describe('issue #2479 hosted Responses', () => {
     }, { user: testUser })
 
     expect(response.status).toBe(502)
-    expect(metrics.operationCount.add).toHaveBeenCalledWith(1, expect.objectContaining({ provider: 'openai' }))
+    expect(metrics.inferenceDuration.record).toHaveBeenCalledWith(expect.any(Number), expect.objectContaining({ 'gen_ai.provider.name': 'openai', 'error.type': '502' }))
   })
 
   it('rejects invalid JSON and insufficient balance before routing', async () => {
@@ -3118,7 +3126,7 @@ describe('issue #2479 hosted Responses', () => {
       const response = await harness.send({ stream: true })
       const reader = response.body!.getReader()
       await reader.read()
-      expect(metrics.firstTokenDuration.record).not.toHaveBeenCalled()
+      expect(metrics.timeToFirstChunk.record).not.toHaveBeenCalled()
 
       now = 1500
       upstream!.enqueue(encoder.encode('event: response.output_text.delta\ndata: {"type":"response.output_text.delta","delta":"hello"}\n\n'))
@@ -3128,7 +3136,7 @@ describe('issue #2479 hosted Responses', () => {
       while (!result.done)
         result = await reader.read()
 
-      expect(metrics.firstTokenDuration.record).toHaveBeenCalledWith(0.5, expect.objectContaining({ 'gen_ai.operation.name': 'responses' }))
+      expect(metrics.timeToFirstChunk.record).toHaveBeenCalledWith(0.5, expect.objectContaining({ 'gen_ai.operation.name': 'responses' }))
     }
     finally {
       nowSpy.mockRestore()

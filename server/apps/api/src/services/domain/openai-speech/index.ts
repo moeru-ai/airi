@@ -14,6 +14,7 @@ import { nanoid } from '../../../utils/id'
 import {
   AIRI_ATTR_BILLING_FLUX_CONSUMED,
   AIRI_ATTR_GEN_AI_OPERATION_KIND,
+  GEN_AI_ATTR_PROVIDER_NAME,
   GEN_AI_ATTR_REQUEST_MODEL,
 } from '../../../utils/observability'
 
@@ -262,10 +263,9 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
     const attrs = {
       [GEN_AI_ATTR_REQUEST_MODEL]: input.model,
       [AIRI_ATTR_GEN_AI_OPERATION_KIND]: 'tts',
+      [GEN_AI_ATTR_PROVIDER_NAME]: input.provider,
       'http.response.status_code': input.status,
-      'provider': input.provider,
     }
-    deps.genAi?.operationCount.add(1, attrs)
     deps.genAi?.operationDuration.record(input.durationMs / 1000, attrs)
     deps.genAi?.fluxConsumed.add(input.fluxConsumed, attrs)
   }

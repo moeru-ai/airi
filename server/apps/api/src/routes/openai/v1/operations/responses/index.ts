@@ -208,7 +208,7 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
       }
       telemetry.recordUsageOnSpan(span, { ...usage, fluxConsumed: feeFlux })
       telemetry.endSpan(span)
-      telemetry.recordMetrics({ ...usage, model, status: upstream.status, type: 'responses', provider: routeCtx.provider, durationMs, fluxConsumed: feeFlux })
+      telemetry.recordMetrics({ ...usage, costUsd: price.costReceipt.usage.costUsd, model, status: upstream.status, type: 'responses', provider: routeCtx.provider, durationMs, fluxConsumed: feeFlux })
       telemetry.recordRequestLog({ ...observation, ...usage, timeToFirstTokenMs, userId: input.userId, requestId, model, status: upstream.status, durationMs })
     }
 

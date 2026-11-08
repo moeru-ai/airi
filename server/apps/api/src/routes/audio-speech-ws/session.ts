@@ -473,10 +473,9 @@ export function createSessionState(
       [AIRI_ATTR_GEN_AI_STREAM]: true,
       'http.response.status_code': 200,
     }
-    opts.genAi?.operationCount.add(1, attrs)
     opts.genAi?.operationDuration.record((Date.now() - startedAt) / 1000, attrs)
     if (firstAudioAt != null)
-      opts.genAi?.firstTokenDuration.record((firstAudioAt - startedAt) / 1000, attrs)
+      opts.genAi?.timeToFirstChunk.record((firstAudioAt - startedAt) / 1000, attrs)
   }
 
   function finalize() {
