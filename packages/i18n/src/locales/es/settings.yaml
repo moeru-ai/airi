@@ -434,7 +434,7 @@ pages:
     delete: Eliminar
     delete_card: Eliminar Tarjeta
     delete_confirmation: '¿Estás seguro de que quieres eliminar esta tarjeta?'
-    description: Usar presets de tarjeta de personaje AIRI
+    description: Gestionar las tarjetas de personaje de AIRI
     description_label: Descripción
     drop_here: Suelta para subir
     create_card: Crear una nueva Tarjeta
@@ -714,7 +714,7 @@ pages:
       gaming: Juegos
       artistry: Generación de imágenes
     consciousness:
-      description: Personalidad, modelo deseado, etc.
+      description: Selección y configuración del modelo de lenguaje
       sections:
         section:
           provider-model-selection:
@@ -958,7 +958,7 @@ pages:
       title: Habla
     title: Módulos
     vision:
-      description: Visión
+      description: Configuración de comprensión de imágenes y captura de pantalla
       title: Visión
       tool-images:
         label: Usar el modelo de visión para imágenes de herramientas
@@ -1874,7 +1874,7 @@ pages:
         playground:
           title: Playground de Transcripción
       aihubmix:
-        description: https://aihubmix.com (10% de descuento)
+        description: aihubmix.com (10% de descuento)
     title: Proveedores
   connection:
     description: Configurar la conexión del servidor WebSocket

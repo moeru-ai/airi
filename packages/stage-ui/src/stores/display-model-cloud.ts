@@ -15,7 +15,6 @@ import { effectScope, onScopeDispose, ref, watch } from 'vue'
 import * as v from 'valibot'
 
 import { displayModelsRepo } from '../database/repos/display-models.repo'
-import { DISPLAY_MODEL_SYNC_FLAG } from '../libs/feature-flags'
 import { isPermanentTransferFailure } from '../libs/file-transfer/request-error'
 import { putToTarget, sha256Hex } from '../libs/file-transfer/transfer'
 import { TransferQueue } from '../libs/file-transfer/transfer-queue'
@@ -28,7 +27,7 @@ import {
   reserveDisplayModelUpload,
 } from '../services/display-model-sync'
 import { useAuthStore } from './auth'
-import { useFeatureFlagsStore } from './feature-flags'
+import { useSyncPreferencesStore } from './sync-preferences'
 
 const uploadTaskKind = 'upload-display-model'
 const UploadPayloadSchema = v.object({ modelId: v.string() })
@@ -45,7 +44,7 @@ const POLL_INTERVAL_MS = 10 * 60 * 1000
  */
 export function resolveCloudOwnerId(pinia?: Pinia) {
   const auth = useAuthStore(pinia)
-  return auth.isAuthenticated && auth.isSessionVerified && useFeatureFlagsStore(pinia).isEnabled(DISPLAY_MODEL_SYNC_FLAG.key) ? auth.userId : undefined
+  return auth.isAuthenticated && auth.isSessionVerified && useSyncPreferencesStore(pinia).isEnabled('display-models') ? auth.userId : undefined
 }
 
 /**

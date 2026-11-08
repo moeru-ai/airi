@@ -1,19 +1,19 @@
 import type { Session, User } from 'better-auth'
 import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
-import localforage from 'localforage'
-
 import { PiniaColada } from '@pinia/colada'
 import { createPinia, disposePinia, setActivePinia } from 'pinia'
 import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
+import { prefixStorage } from 'unstorage'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp } from 'vue'
 
-import { DISPLAY_MODEL_SYNC_FLAG } from '../libs/feature-flags'
+import { storage } from '../database/storage'
 import { useAuthStore } from './auth'
 import { DisplayModelFormat, useDisplayModelsStore } from './display-models'
-import { useFeatureFlagsStore } from './feature-flags'
+import { useSyncPreferencesStore } from './sync-preferences'
 
+const device = prefixStorage(storage, 'device')
 const modelId = 'display-model-window-test'
 const runtimes: SyncedPiniaRuntime[] = []
 const pinias: ReturnType<typeof createPinia>[] = []
@@ -56,7 +56,7 @@ async function openWindow(runtime: SyncedPiniaRuntime) {
   const auth = useAuthStore(pinia)
   auth.user = user
   auth.session = session
-  useFeatureFlagsStore(pinia).setPreference(DISPLAY_MODEL_SYNC_FLAG.key, true)
+  useSyncPreferencesStore(pinia).setEnabled('display-models', true)
 
   const store = useDisplayModelsStore(pinia)
   await store.initialize().catch(() => {})
@@ -69,7 +69,7 @@ describe('display model sync across windows', () => {
 
   beforeEach(async () => {
     namespace = `display-model-sync-${crypto.randomUUID()}`
-    await localforage.clear()
+    await storage.clear('device')
   })
 
   afterEach(async () => {
@@ -78,7 +78,7 @@ describe('display model sync across windows', () => {
     for (const runtime of runtimes.splice(0))
       runtime.dispose()
     vi.unstubAllGlobals()
-    await localforage.clear()
+    await storage.clear('device')
   })
 
   // ROOT CAUSE:
@@ -93,8 +93,8 @@ describe('display model sync across windows', () => {
     server.holdReservation = new Promise((resolve) => {
       release = resolve
     })
-    await localforage.setItem(modelId, { id: modelId, format: DisplayModelFormat.VRM, type: 'file', file: new File(['m'], 'x.vrm'), name: 'x.vrm', importedAt: 1 })
-    await localforage.setItem(`transfer-task-${modelId}`, { id: modelId, kind: 'upload-display-model', ownerId: 'owner-a', payload: { modelId }, status: 'queued' })
+    await device.setItemRaw(modelId, { id: modelId, format: DisplayModelFormat.VRM, type: 'file', file: new File(['m'], 'x.vrm'), name: 'x.vrm', importedAt: 1 })
+    await device.setItemRaw(`transfer-task-${modelId}`, { id: modelId, kind: 'upload-display-model', ownerId: 'owner-a', payload: { modelId }, status: 'queued' })
 
     const leader = await openWindow(createSyncedPiniaPlugin({ namespace, leadership: 'leader-only' }))
     await vi.waitFor(() => expect(server.reservations).toBe(1))
@@ -115,8 +115,8 @@ describe('display model sync across windows', () => {
   it('aborts an upload and starts no other while a new sign-in has no verified user', async () => {
     const server = createFakeServer()
     server.holdReservation = new Promise(() => {})
-    await localforage.setItem(modelId, { id: modelId, format: DisplayModelFormat.VRM, type: 'file', file: new File(['m'], 'x.vrm'), name: 'x.vrm', importedAt: 1 })
-    await localforage.setItem(`transfer-task-${modelId}`, { id: modelId, kind: 'upload-display-model', ownerId: 'owner-a', payload: { modelId }, status: 'queued' })
+    await device.setItemRaw(modelId, { id: modelId, format: DisplayModelFormat.VRM, type: 'file', file: new File(['m'], 'x.vrm'), name: 'x.vrm', importedAt: 1 })
+    await device.setItemRaw(`transfer-task-${modelId}`, { id: modelId, kind: 'upload-display-model', ownerId: 'owner-a', payload: { modelId }, status: 'queued' })
     const store = await openWindow(createSyncedPiniaPlugin({ namespace, leadership: 'leader-only' }))
     await vi.waitFor(() => expect(server.reservations).toBe(1))
 
@@ -133,8 +133,8 @@ describe('display model sync across windows', () => {
   it('resumes a persisted upload in the window that becomes the leader', async () => {
     const server = createFakeServer()
     server.holdReservation = new Promise(() => {})
-    await localforage.setItem(modelId, { id: modelId, format: DisplayModelFormat.VRM, type: 'file', file: new File(['m'], 'x.vrm'), name: 'x.vrm', importedAt: 1 })
-    await localforage.setItem(`transfer-task-${modelId}`, { id: modelId, kind: 'upload-display-model', ownerId: 'owner-a', payload: { modelId }, status: 'queued' })
+    await device.setItemRaw(modelId, { id: modelId, format: DisplayModelFormat.VRM, type: 'file', file: new File(['m'], 'x.vrm'), name: 'x.vrm', importedAt: 1 })
+    await device.setItemRaw(`transfer-task-${modelId}`, { id: modelId, kind: 'upload-display-model', ownerId: 'owner-a', payload: { modelId }, status: 'queued' })
 
     const firstRuntime = createSyncedPiniaPlugin({ namespace })
     await openWindow(firstRuntime)
@@ -172,7 +172,7 @@ describe('display model sync across windows', () => {
   it('sends a rename from a follower window once', async () => {
     const server = createFakeServer()
     server.directory = [directoryEntry('x.vrm')]
-    await localforage.setItem(modelId, { id: modelId, format: DisplayModelFormat.VRM, type: 'file', file: new File(['m'], 'x.vrm'), name: 'x.vrm', importedAt: 1, cloudOwnerId: 'owner-a', syncedName: 'x.vrm' })
+    await device.setItemRaw(modelId, { id: modelId, format: DisplayModelFormat.VRM, type: 'file', file: new File(['m'], 'x.vrm'), name: 'x.vrm', importedAt: 1, cloudOwnerId: 'owner-a', syncedName: 'x.vrm' })
     const leader = await openWindow(createSyncedPiniaPlugin({ namespace, leadership: 'leader-only' }))
     const follower = await openWindow(createSyncedPiniaPlugin({ namespace, leadership: 'follower-only' }))
     await vi.waitFor(() => expect(follower.syncStatuses[modelId]).toBe('synced'))

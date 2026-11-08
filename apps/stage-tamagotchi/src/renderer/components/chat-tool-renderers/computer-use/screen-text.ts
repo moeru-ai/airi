@@ -79,10 +79,10 @@ const readClickText: ComputerUseCommandReader = (result, invocation) => {
 
 /** Finding, waiting for, and clicking text on the screen or in a window. */
 export const screenTextReaders: Record<string, ComputerUseCommandReader> = {
-  'screen.findText': readFindText,
-  'screen.waitForText': readFindText,
+  'display.findText': readFindText,
+  'display.waitForText': readFindText,
   'window.findText': readFindText,
   'window.waitForText': readFindText,
-  'screen.clickText': readClickText,
+  'display.clickText': readClickText,
   'window.clickText': readClickText,
 }

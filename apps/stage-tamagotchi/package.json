@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/stage-tamagotchi",
   "type": "module",
-  "version": "0.14.1",
+  "version": "0.15.1",
   "private": true,
   "description": "LLM powered virtual character",
   "author": {
@@ -47,9 +47,12 @@
     "@xsai-apple-vision/vision-native": "catalog:",
     "electron-click-drag-plugin": "catalog:",
     "electron-updater": "^6.8.9",
+    "node-macos-disclaim": "catalog:",
     "uiohook-napi": "catalog:"
   },
   "optionalDependencies": {
+    "@node-macos-disclaim/darwin-arm64": "catalog:",
+    "@node-macos-disclaim/darwin-x64": "catalog:",
     "@xsai-apple-speech/transcription-native-darwin-arm64": "catalog:",
     "@xsai-apple-speech/transcription-native-darwin-x64": "catalog:",
     "@xsai-apple-vision/vision-native-darwin-arm64": "catalog:"
@@ -99,9 +102,9 @@
     "@proj-airi/electron-eventa": "workspace:^",
     "@proj-airi/electron-screen-capture": "workspace:^",
     "@proj-airi/electron-vueuse": "workspace:^",
-    "@proj-airi/font-chillroundm": "workspace:^",
-    "@proj-airi/font-cjkfonts-allseto": "workspace:^",
-    "@proj-airi/font-xiaolai": "workspace:^",
+    "@proj-airi/font-chillroundm": "catalog:",
+    "@proj-airi/font-cjkfonts-allseto": "catalog:",
+    "@proj-airi/font-xiaolai": "catalog:",
     "@proj-airi/i18n": "workspace:^",
     "@proj-airi/iconify-meteocons": "catalog:",
     "@proj-airi/input-gamepad-vueuse": "workspace:^",
@@ -165,7 +168,6 @@
     "builder-util-runtime": "catalog:",
     "cac": "catalog:",
     "chess.js": "catalog:",
-    "colorjs.io": "catalog:",
     "crossws": "catalog:",
     "csstype": "catalog:",
     "culori": "catalog:",
@@ -185,7 +187,6 @@
     "injeca": "catalog:",
     "jszip": "catalog:",
     "less": "catalog:",
-    "localforage": "catalog:",
     "mediabunny": "catalog:",
     "mkcert": "catalog:",
     "nanoid": "catalog:",

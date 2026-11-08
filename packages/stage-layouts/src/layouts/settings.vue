@@ -96,9 +96,9 @@ onMounted(() => updateThemeColor())
 </script>
 
 <template>
+  <!-- The bottom safe area is padded inside the scroll area, so content scrolls under the home indicator. -->
   <div
     :style="{
-      paddingBottom: 'env(safe-area-inset-bottom, 0px)',
       paddingTop: 'env(safe-area-inset-top, 0px)',
       paddingRight: 'env(safe-area-inset-right, 0px)',
       paddingLeft: 'env(safe-area-inset-left, 0px)',
@@ -133,14 +133,14 @@ onMounted(() => updateThemeColor())
           :transparent="fullBleed"
         />
       </div>
-      <!-- The scroll area reaches the screen edges and pads its content instead. A full-bleed page gets no padding. -->
+      <!-- The scroll area reaches the screen edges and pads its content instead. A full-bleed page gets no padding and pads its own controls. -->
       <div
         id="settings-scroll-container"
         ref="scrollContainer"
         :class="[
           'relative', 'min-h-0', 'flex-1', 'overflow-y-auto', 'scrollbar-none',
           '-mx-3 xl:-mx-4',
-          fullBleed ? '' : 'px-3 xl:px-4',
+          fullBleed ? '' : 'px-3 xl:px-4 pb-[env(safe-area-inset-bottom,0px)]',
         ]"
       >
         <RouterView />

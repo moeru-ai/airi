@@ -56,3 +56,9 @@ It preserves repository labels absent from the manifest because `prune` is false
 Restored testing, decision, agent, and `pr-review/waiting-on-maintainer` labels remain under human control.
 The automatic handoff uses `pr-review/waiting-maintainer` and `pr-review/waiting-on-author`.
 The review workflow also creates missing waiting labels.
+
+AgentScan runs when a pull request opens or reopens and scans the author's activity.
+It skips owners, members, and collaborators.
+It adds labels and comments for non-organic or community-listed accounts.
+It closes pull requests classified as `automation` and pull requests from community-listed accounts.
+The workflow does not scan issues or pull request code.

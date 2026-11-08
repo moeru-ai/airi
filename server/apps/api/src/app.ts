@@ -40,7 +40,7 @@ import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
 import { logger as honoLogger } from 'hono/logger'
 import { parseAccept } from 'hono/utils/accept'
-import { createLoggLogger, injeca, lifecycle } from 'injeca'
+import { createLoggLogger, injeca } from 'injeca'
 
 import { createDrizzle, migrateDatabase } from './libs/db'
 import { parsedEnv } from './libs/env'
@@ -522,6 +522,7 @@ export type AppType = Awaited<ReturnType<typeof buildApp>>['app']
 export async function createApp() {
   initLogger(LoggerLevel.Debug, LoggerFormat.Pretty)
   injeca.setLogger(createLoggLogger(useLogger('injeca').useGlobalConfig()))
+  injeca.getContainer().logging = true
   const logger = useLogger('app').useGlobalConfig()
 
   // Forward logg output to OpenTelemetry log exporter
@@ -532,7 +533,7 @@ export async function createApp() {
   // NOTICE: OTel SDK lifecycle (start/shutdown) is owned entirely by
   // instrumentation.ts (preload). This factory only consumes the global
   // MeterProvider that the preload set up, builds metric handles, and primes
-  // counters. No `lifecycle.onStop(shutdown)` here — preload registers SIGTERM
+  // counters. No `on('stop', shutdown)` here — preload registers SIGTERM
   // / SIGINT to flush exporters on its own.
   const otel = injeca.provide('libs:otel', {
     dependsOn: { env: parsedEnv },
@@ -540,8 +541,8 @@ export async function createApp() {
   })
 
   const db = injeca.provide('datastore:db', {
-    dependsOn: { env: parsedEnv, lifecycle, otel },
-    build: async ({ dependsOn }) => {
+    dependsOn: { env: parsedEnv, otel },
+    build: async ({ dependsOn, on }) => {
       const { db: dbInstance, pool } = await initializeExternalDependency(
         'Database',
         logger,
@@ -564,14 +565,14 @@ export async function createApp() {
 
       if (dependsOn.otel)
         registerDbPoolGauge(dependsOn.otel.database.poolConnections, pool)
-      dependsOn.lifecycle.appHooks.onStop(() => pool.end())
+      on('stop', () => pool.end())
       return dbInstance
     },
   })
 
   const redis = injeca.provide('datastore:redis', {
-    dependsOn: { env: parsedEnv, lifecycle },
-    build: async ({ dependsOn }) => {
+    dependsOn: { env: parsedEnv },
+    build: async ({ dependsOn, on }) => {
       const redisInstance = await initializeExternalDependency(
         'Redis',
         logger,
@@ -590,7 +591,7 @@ export async function createApp() {
         },
       )
 
-      dependsOn.lifecycle.appHooks.onStop(async () => {
+      on('stop', async () => {
         await redisInstance.quit()
       })
       return redisInstance
@@ -598,10 +599,10 @@ export async function createApp() {
   })
 
   const objectStore = injeca.provide('datastore:objectStore', {
-    dependsOn: { env: parsedEnv, lifecycle },
-    build: ({ dependsOn }) => {
+    dependsOn: { env: parsedEnv },
+    build: ({ dependsOn, on }) => {
       const store = createS3ObjectStore(dependsOn.env)
-      dependsOn.lifecycle.appHooks.onStop(() => store.dispose())
+      on('stop', () => store.dispose())
       return store
     },
   })

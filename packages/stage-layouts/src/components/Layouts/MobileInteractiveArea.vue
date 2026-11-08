@@ -5,8 +5,10 @@ import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
 import { CharacterSwitcherDrawer, ChatBackgroundTasks, ChatHistory } from '@proj-airi/stage-ui/components'
 import { ChatComposerAddMenu, ChatComposerVoiceInput, ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSessionsDrawer, useChatImages, useStartVoiceCall, VoiceCallCapsule, VoicePresence } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ModelPlacementPanel, ModelPlacementSurface } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings'
 import { useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
+import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
@@ -76,6 +78,7 @@ const voiceInput = useTemplateRef<InstanceType<typeof ChatComposerVoiceInput>>('
 const voiceAttachment = useTemplateRef<HTMLElement>('voiceAttachment')
 const voiceSurface = useTemplateRef<HTMLElement>('voiceSurface')
 const router = useRouter()
+const authStore = useAuthStore()
 const call = useVoiceCallStore()
 const startVoiceCall = useStartVoiceCall(route => router.push(route), () => !voiceRecording.value)
 const hasSubmission = computed(() => !!messageInput.value.trim() || attachments.value.length > 0)
@@ -164,8 +167,9 @@ const controlsIslandClass = computed(() => [
   ],
 ])
 const { themeColorsHueDynamic } = storeToRefs(useSettings())
-const { stageModelRenderer } = storeToRefs(useSettingsStageModel())
+const { stageModelRenderer, stageModelSelected } = storeToRefs(useSettingsStageModel())
 const l2dViewControl = useL2dViewControl()
+const { scale: modelScale, position: modelPosition } = l2dViewControl
 const threeViewControl = useThreeViewControl()
 const viewControlsAvailable = computed(() => stageModelRenderer.value === 'live2d' || stageModelRenderer.value === 'vrm')
 const viewControlsEnabled = computed(() => {
@@ -197,6 +201,7 @@ async function openViewControls() {
     ?.focus()
 }
 
+/** Ends the temporary edit mode while retaining the saved model placement. */
 function closeViewControls() {
   l2dViewControl.viewControlsEnabled.value = false
   threeViewControl.viewControlsEnabled.value = false
@@ -306,6 +311,7 @@ watch([listening, stream], () => {
 }, { immediate: true })
 
 onUnmounted(() => {
+  closeViewControls()
   teardownAnalyzer()
 })
 </script>
@@ -318,6 +324,13 @@ onUnmounted(() => {
     :style="mobileInteractiveAreaStyle"
     @keydown="handleViewControlsKeydown"
   >
+    <ModelPlacementSurface
+      v-if="viewControlsEnabled && stageModelRenderer === 'live2d'"
+      :key="stageModelSelected"
+      v-model:scale="modelScale"
+      v-model:position="modelPosition"
+      :class="['pointer-events-auto']"
+    />
     <MobileHeader v-if="!viewControlsEnabled">
       <BasicButton
         size="unset"
@@ -426,6 +439,7 @@ onUnmounted(() => {
         v-if="!chatReady"
         :class="['mx-3']"
         @configure="router.push('/settings/providers')"
+        @sign-in="authStore.requestLogin()"
       />
       <div
         ref="messageComposer"
@@ -581,15 +595,22 @@ onUnmounted(() => {
     </div>
     <VoiceCallCapsule placement="below-header" />
     <div
-      v-show="viewControlsEnabled"
+      v-if="viewControlsEnabled"
       data-testid="view-controls-toolbar"
       :class="[
         'pointer-events-auto fixed inset-x-0 z-30',
-        'pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))]',
+        stageModelRenderer === 'live2d'
+          ? 'pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]'
+          : 'pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))]',
         'bottom-[max(1rem,env(safe-area-inset-bottom))]',
       ]"
     >
-      <ViewControls variant="mobile-stage" />
+      <ModelPlacementPanel
+        v-if="stageModelRenderer === 'live2d'"
+        v-model:scale="modelScale"
+        v-model:position="modelPosition"
+      />
+      <ViewControls v-else variant="mobile-stage" />
     </div>
   </div>
 </template>

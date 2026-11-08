@@ -101,6 +101,7 @@ Use pnpm workspace filters to limit a command to one workspace. Replace `<packag
 - Use `@moeru/eventa` for all IPC, RPC, and cross-process events. Define the contracts in one central place, such as `apps/stage-tamagotchi/src/shared`.
 - Use dependency injection only at external boundaries: databases, model runtimes, queues, caches, filesystems, networks, clocks, environments, and feature gates. Use `injeca` for it.
 - Do not add dependency objects for internal functions that only call sibling helpers or forward parameters.
+- The plugin framework (`packages/plugin-sdk`) also uses `injeca` as its lifecycle runtime. Plugin sessions are child containers, and Kit Providers are injeca units. This use is not dependency injection for internal helpers.
 - Prefer classes for runtime or browser APIs. Also prefer classes for substantial business modules that own state, lifecycle, or a stable domain boundary.
 - Prefer functions for pure transformations and local helpers.
 - Use Valibot for schema validation. Keep each schema near its consumers.
@@ -132,6 +133,9 @@ Use pnpm workspace filters to limit a command to one workspace. Replace `<packag
 - If the user asks you to use a specific tool or dependency, read its documentation in Context7 first. Then examine how this repository uses it.
 - If Context7 returns several names without a clear difference, ask the user to choose one.
 - If the documentation conflicts with the typecheck result, examine the dependency source in `node_modules` to find the cause.
+- Do not add an `install`, `postinstall`, or `prepare` script to a workspace package. Every `pnpm install` runs it, also for contributors who do not use the package.
+- Put a download, build, or code generation step in the script that needs it, for example `dev` or `build`. You can also load the file at runtime.
+- An install script is permitted only if every install of its package needs it, and it runs fast and offline. Before you add one, ask the user.
 
 ## Documentation
 
@@ -180,6 +184,7 @@ Skills are in `.agents/skills/<name>/SKILL.md`. Read the listed file before you 
 | Write documentation, code comments, commit messages, or PR and issue text | [`simple-english`](.agents/skills/simple-english/SKILL.md) |
 | Analyze why a chat, speech, or audio turn was slow or failed, using saved IO traces | [`analyze-io-traces`](.agents/skills/analyze-io-traces/SKILL.md) |
 | Create or prepare a pull request | [`create-pr`](.agents/skills/create-pr/SKILL.md) |
+| Cut a release with `bumpp`, a release tag, or a GitHub release. Also, write release notes. | [`release-note-writer`](.agents/skills/release-note-writer/SKILL.md). Draft the notes before you create the GitHub release. |
 | Upload a local file through a file input or a file chooser in a web or Electron app | [`use-agent-browser-with-input-file`](.agents/skills/use-agent-browser-with-input-file/SKILL.md) and [`agent-browser`](.agents/skills/agent-browser/SKILL.md). For Electron, also read [`agent-browser-electron`](.agents/skills/agent-browser-electron/SKILL.md). |
 | Write or review motion, reactions, animations, or springs that a Pixi, TresJS, or Three render loop samples | [`enforce-rules-for-render-loops`](.agents/skills/enforce-rules-for-render-loops/SKILL.md) |
 | Test Live2D, VRM, or MMD import and rendering in stage-web, stage-tamagotchi, or stage-pocket | [`use-agent-browser-for-airi`](.agents/skills/use-agent-browser-for-airi/SKILL.md) |

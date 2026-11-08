@@ -290,6 +290,7 @@ export default defineConfig({
               '**/settings/modules/home-assistant.vue',
               '**/settings/modules/mcp.vue',
               '**/devtools/index.vue',
+              '**/devtools/io-tracer/index.vue',
               '**/settings/index.vue',
             ],
           },
