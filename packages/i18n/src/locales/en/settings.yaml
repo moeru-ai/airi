@@ -2575,6 +2575,8 @@ pages:
                   no-permissions: No permissions declared.
                   no-kits: No Kits declared.
                   imported: 'Imported Extension {extensionId}.'
+                session:
+                  waiting-for-kits: 'Waits for Kits: {kitIds}'
               use-magic-keys:
                 title: useMagicKeys Tool
                 description: Test shortcuts
