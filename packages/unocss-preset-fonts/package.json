@@ -30,8 +30,8 @@
     "@unocss/preset-web-fonts": ">=66"
   },
   "dependencies": {
-    "@proj-airi/font-cjkfonts-allseto": "workspace:^",
-    "@proj-airi/font-departure-mono": "workspace:^",
-    "@proj-airi/font-xiaolai": "workspace:^"
+    "@proj-airi/font-cjkfonts-allseto": "catalog:",
+    "@proj-airi/font-departure-mono": "catalog:",
+    "@proj-airi/font-xiaolai": "catalog:"
   }
 }
