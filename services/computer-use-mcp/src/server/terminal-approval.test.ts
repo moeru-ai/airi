@@ -123,6 +123,24 @@ function barrier() {
 }
 
 describe('main-only Terminal execution protocol', () => {
+  it('identifies the actual MCP Desktop backend before any observation or Terminal dispatch', async () => {
+    const h = await fixture(true)
+    const capture = vi.spyOn(h.runtime.executor, 'takeScreenshot')
+    const observe = vi.spyOn(h.runtime.executor, 'observeWindows')
+    const tools = await h.client.listTools()
+    for (const name of ['desktop_screenshot', 'desktop_observe_windows', 'desktop_observe']) {
+      const tool = tools.tools.find(tool => tool.name === name)
+      expect(tool?.description).toContain('MCP Desktop backend: dry-run')
+      if (platform !== 'darwin')
+        expect(tool?.description).toContain('placeholder')
+    }
+    expect(h.oracle.dispatches).toBe(0)
+    expect(h.oracle.effects).toBe(0)
+    expect(capture).not.toHaveBeenCalled()
+    expect(observe).not.toHaveBeenCalled()
+    evidence.push({ phase: 'desktop-discovery-before-dispatch', tools: tools.tools.filter(tool => ['desktop_screenshot', 'desktop_observe_windows', 'desktop_observe'].includes(tool.name)), oracle: { ...h.oracle }, captures: capture.mock.calls.length, observations: observe.mock.calls.length })
+  })
+
   it('exposes the executor contract through discovery and state before any dispatch', async () => {
     const h = await fixture(true)
     const tools = await h.client.listTools()

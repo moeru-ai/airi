@@ -13,6 +13,12 @@ Shell version is not probed or inferred from the executable name.
 Approval still freezes argv and spawn cwd. Referenced scripts and their dependencies are not frozen.
 These information changes grant no execution authority. Main approvals and GUI write restrictions remain unchanged.
 
+MCP Desktop observation descriptions also name their configured executor before a call.
+The dry-run executor reports empty native window observations.
+Windows and Linux screenshots are placeholders. macOS attempts native capture and returns a placeholder on failure.
+The separate AIRI `computer_use` tool names its native AUV backend.
+These descriptions distinguish the backends. They do not establish reliable model tool selection.
+
 ## Windows Beta lifecycle: 2026-11-08
 
 The bundled stdio service closes on input EOF, transport close, SIGINT and SIGTERM.

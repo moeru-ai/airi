@@ -68,7 +68,10 @@ export function createDryRunExecutor(config: ComputerUseConfig): DesktopExecutor
       kind: 'dry-run',
       notes: [
         'desktop input is not injected',
-        'screenshots are still attempted on the current host for debugging',
+        'window observation returns no native windows',
+        platform === 'darwin'
+          ? 'screenshots attempt the local macOS screencapture utility and return a placeholder on failure'
+          : 'screenshots return a placeholder image, not native screen pixels',
       ],
     }),
     getExecutionTarget: async () => executionTarget,

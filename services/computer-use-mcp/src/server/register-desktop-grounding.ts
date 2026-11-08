@@ -47,7 +47,10 @@ export function registerDesktopGroundingTools(params: {
   // -----------------------------------------------------------------------
 
   registerToolWithDescriptor(server, {
-    descriptor: requireDescriptor('desktop_observe'),
+    descriptor: {
+      ...requireDescriptor('desktop_observe'),
+      summary: `${requireDescriptor('desktop_observe').summary} MCP Desktop backend: ${runtime.executor.kind}. ${runtime.executor.describe().notes.join(' ')}`,
+    },
 
     schema: {
       includeChrome: z.boolean().optional().describe('Whether to include Chrome semantic data. Default: best-effort when browser surfaces are available.'),

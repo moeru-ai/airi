@@ -5,6 +5,7 @@ import type { ComputerUseServerRuntime } from './runtime'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { createDryRunExecutor } from '../executors/dry-run'
 import { RunStateManager } from '../state'
 import { createTestConfig } from '../test-fixtures'
 import { registerDesktopGroundingTools } from './register-desktop-grounding'
@@ -45,8 +46,9 @@ function createMockServer() {
 }
 
 function createRuntime() {
+  const config = createTestConfig()
   const runtime = {
-    config: createTestConfig(),
+    config,
     stateManager: new RunStateManager(),
     cdpBridgeManager: {
       getStatus: vi.fn().mockReturnValue({ connected: false }),
@@ -56,7 +58,7 @@ function createRuntime() {
       getSessionInfo: vi.fn().mockReturnValue(undefined),
     },
     browserDomBridge: {},
-    executor: {},
+    executor: createDryRunExecutor(config),
     session: {
       setLastScreenshot: vi.fn(),
     },

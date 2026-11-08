@@ -143,6 +143,8 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
   const server = createToolLaneHygieneServer(params.server, runtime.stateManager)
   const executePrepTool = createWorkflowPrepToolExecutor(runtime)
   const acquirePty = createAcquirePtyCallback(runtime)
+  const desktopBackend = runtime.executor.describe()
+  const desktopDescription = `MCP Desktop backend: ${desktopBackend.kind}. ${desktopBackend.notes.join(' ')}`
 
   async function refreshWorkflowRunState() {
     await refreshRuntimeRunState(runtime)
@@ -249,6 +251,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
 
   server.tool(
     'desktop_observe_windows',
+    `List windows observed by this MCP Desktop executor. ${desktopDescription}`,
     {
       limit: z.number().int().min(1).max(32).optional().describe('Maximum number of visible windows to return'),
       app: z.string().optional().describe('Optional app-name substring filter'),
@@ -258,6 +261,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
 
   server.tool(
     'desktop_screenshot',
+    `Capture an image from this MCP Desktop executor. ${desktopDescription}`,
     {
       label: z.string().optional().describe('Optional label for the saved screenshot file'),
     },

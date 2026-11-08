@@ -92,7 +92,7 @@ export async function computerUseTools(options?: ComputerUseToolsOptions): Promi
   return [
     rawTool({
       name: COMPUTER_USE_TOOL_NAME,
-      description: 'Inspect local desktop windows and capture screenshots. Desktop mutations require a matching host approval. Keyboard and pointer input are currently disabled. On macOS, call app.probePermissions before visual tasks. If screen_recording is missing, ask the user to grant permission. Captures can contain only a blank background without that permission. Start with argv ["invoke", "--help"], then inspect command help. Pass each CLI argument separately. Preserve failure_details and verified metadata. Exit code 0 does not prove the intended application effect. Use computer_use_read_image to view screenshot artifact paths.',
+      description: 'Use the native AUV CLI through the Electron Host to inspect local desktop windows and capture screenshots. This is independent of an MCP server desktop backend. Desktop mutations require a matching host approval. Keyboard and pointer input are currently disabled. On macOS, call app.probePermissions before visual tasks. If screen_recording is missing, ask the user to grant permission. Captures can contain only a blank background without that permission. Start with argv ["invoke", "--help"], then inspect command help. Pass each CLI argument separately. Preserve failure_details and verified metadata. Exit code 0 does not prove the intended application effect. Use computer_use_read_image to view screenshot artifact paths.',
       parameters: {
         type: 'object',
         properties: {
