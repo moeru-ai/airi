@@ -114,7 +114,7 @@ describe('chat to computer use integration with simulated network and OS boundar
       stop: vi.fn(),
     })
     external.execute.mockImplementation((_file, args) => {
-      const output = args.includes('window.list') ? [{ id: 1, title: 'Test application' }] : { file_path: screenshot }
+      const output = args.includes('--help') ? 'AUV command usage' : { file_path: screenshot }
       return execution({ stdout: JSON.stringify(output), stderr: '' })
     })
     const tools = await computerUseTools({ context: renderer.context })
@@ -167,11 +167,11 @@ describe('chat to computer use integration with simulated network and OS boundar
     return { chat, history, activeSession, tools }
   }
 
-  it('generates correlation in Chat and returns all three read-only results to the original history', async () => {
+  it('returns help and scoped observation refusals to the original Chat history', async () => {
     const harness = chatHarness()
     const waitingApproval = approved(origin('waiting-for-approval'))
     const model = providerFor([
-      { name: COMPUTER_USE_TOOL_NAME, input: { argv: ['invoke', 'window.list'] } },
+      { name: COMPUTER_USE_TOOL_NAME, input: { argv: ['invoke', 'window.list', '--help'] } },
       { name: COMPUTER_USE_TOOL_NAME, input: { argv: ['invoke', 'display.capture'] } },
       { name: COMPUTER_USE_READ_IMAGE_TOOL_NAME, input: { path: screenshot } },
     ])
@@ -183,21 +183,25 @@ describe('chat to computer use integration with simulated network and OS boundar
     await send.done
 
     expect(run.mock.calls[0]).toEqual([
-      { argv: ['invoke', 'window.list'], actionId: undefined, attribution: { sessionId: 'session-a', turnId: accepted.messageId, toolCallId: 'call-0' } },
+      { argv: ['invoke', 'window.list', '--help'], actionId: undefined, attribution: { sessionId: 'session-a', turnId: accepted.messageId, toolCallId: 'call-0' } },
       renderer.window.webContents.id,
       expect.any(AbortSignal),
     ])
-    expect(read.mock.calls[0]?.[0]).toMatchObject({ attribution: { sessionId: 'session-a', turnId: accepted.messageId, toolCallId: 'call-2' } })
+    expect(read).not.toHaveBeenCalled()
+    expect(model.requests[2]).toMatchObject({ messages: expect.arrayContaining([expect.objectContaining({ role: 'tool', tool_call_id: 'call-1', content: expect.stringContaining('trusted observation scope') })]) })
+    expect(model.requests[3]).toMatchObject({ messages: expect.arrayContaining([expect.objectContaining({ role: 'tool', tool_call_id: 'call-2', content: expect.stringContaining('capture provenance') })]) })
+    expect(external.execute).toHaveBeenCalledOnce()
     expect(model.requests).toHaveLength(4)
-    expect(model.requests[1]).toMatchObject({ messages: expect.arrayContaining([expect.objectContaining({ role: 'tool', tool_call_id: 'call-0', content: expect.stringContaining('Test application') })]) })
+    expect(model.requests[1]).toMatchObject({ messages: expect.arrayContaining([expect.objectContaining({ role: 'tool', tool_call_id: 'call-0', content: expect.stringContaining('AUV command usage') })]) })
     expect(harness.history('session-a').some(message => message.role === 'assistant' && message.content === 'Observation completed.')).toBe(true)
     expect(harness.history('session-c')).toEqual([])
     expect(host.actionManager.get(waitingApproval.id)?.status).toBe('approved')
+    console.info(JSON.stringify({ case: 'scope-refusals-at-provider-boundary', boundary: 'Real Chat, resolver and Main IPC. Controlled provider and OS.', requests: model.requests, helpDispatches: external.execute.mock.calls.length }))
   })
 
   it('keeps concurrent Chat sessions bound while the visible session changes', async () => {
     const harness = chatHarness()
-    const modelA = providerFor([{ name: COMPUTER_USE_TOOL_NAME, input: { argv: ['invoke', 'window.list'] } }])
+    const modelA = providerFor([{ name: COMPUTER_USE_TOOL_NAME, input: { argv: ['invoke', 'window.list', '--help'] } }])
     const modelB = providerFor([{ name: COMPUTER_USE_TOOL_NAME, input: { argv: ['invoke', 'display.capture'] } }])
     const run = vi.spyOn(host.getRuntime(), 'run')
     const a = harness.chat.submit('Observe A.', { model: 'test', chatProvider: modelA.provider, tools: harness.tools }, 'session-a')
@@ -208,8 +212,11 @@ describe('chat to computer use integration with simulated network and OS boundar
 
     expect(run.mock.calls.map(([input]) => input)).toEqual(expect.arrayContaining([
       expect.objectContaining({ attribution: { sessionId: 'session-a', turnId: acceptedA.messageId, toolCallId: 'call-0' } }),
-      expect.objectContaining({ attribution: { sessionId: 'session-b', turnId: acceptedB.messageId, toolCallId: 'call-0' } }),
+
     ]))
+    expect(acceptedB.messageId).toBeTruthy()
+    expect(modelB.requests[1]).toMatchObject({ messages: expect.arrayContaining([expect.objectContaining({ role: 'tool', tool_call_id: 'call-0', content: expect.stringContaining('trusted observation scope') })]) })
+    expect(modelA.requests[1]).toMatchObject({ messages: expect.arrayContaining([expect.objectContaining({ role: 'tool', tool_call_id: 'call-0', content: expect.stringContaining('AUV command usage') })]) })
     expect(harness.history('session-a').filter(message => message.role === 'assistant')).toHaveLength(1)
     expect(harness.history('session-b').filter(message => message.role === 'assistant')).toHaveLength(1)
     expect(harness.history('session-c')).toEqual([])
@@ -219,7 +226,7 @@ describe('chat to computer use integration with simulated network and OS boundar
     const harness = chatHarness()
     const waiting = Promise.withResolvers<void>()
     const resume = Promise.withResolvers<void>()
-    const model = providerFor([{ name: COMPUTER_USE_TOOL_NAME, input: { argv: ['invoke', 'window.list'] } }])
+    const model = providerFor([{ name: COMPUTER_USE_TOOL_NAME, input: { argv: ['invoke', 'window.list', '--help'] } }])
     const fetch = model.fetch
     const pausedFetch: typeof globalThis.fetch = async (url, init) => {
       if (model.requests.length > 0) {
@@ -276,7 +283,7 @@ describe('chat to computer use integration with simulated network and OS boundar
   it('cancels a queued approval without cancelling another turn or window', async () => {
     const blocker = Promise.withResolvers<CliResult>()
     external.execute.mockImplementationOnce(() => execution(blocker.promise))
-    const observation = invoke({ argv: ['invoke', 'window.list'], attribution: origin('observer') })
+    const observation = invoke({ argv: ['invoke', 'window.list', '--help'], attribution: origin('observer') })
     await vi.waitFor(() => expect(external.execute).toHaveBeenCalledTimes(1))
     const action = approved()
     const otherTurn = approved(origin('turn-b'))
@@ -299,7 +306,7 @@ describe('chat to computer use integration with simulated network and OS boundar
   it('rechecks expiry after waiting for the execution queue', async () => {
     const blocker = Promise.withResolvers<CliResult>()
     external.execute.mockImplementationOnce(() => execution(blocker.promise))
-    const observation = invoke({ argv: ['invoke', 'window.list'], attribution: origin() })
+    const observation = invoke({ argv: ['invoke', 'window.list', '--help'], attribution: origin() })
     await vi.waitFor(() => expect(external.execute).toHaveBeenCalledTimes(1))
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(1000)
@@ -393,7 +400,7 @@ describe('chat to computer use integration with simulated network and OS boundar
   })
 
   it.each(['expiry', 'host cancellation'] as const)('rechecks %s after a ready daemon yields before dispatch', async (fault) => {
-    await invoke({ argv: ['invoke', 'window.list'], attribution: origin('warmup') })
+    await invoke({ argv: ['invoke', 'window.list', '--help'], attribution: origin('warmup') })
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(1000)
     const action = host.actionManager.createPendingAction({
@@ -451,7 +458,7 @@ describe('chat to computer use integration with simulated network and OS boundar
       return execution(release.promise)
     })
     const runtime = host.getRuntime()
-    const observation = runtime.run({ argv: ['invoke', 'window.list'], attribution: origin('observer') }, renderer.window.webContents.id)
+    const observation = runtime.run({ argv: ['invoke', 'window.list', '--help'], attribution: origin('observer') }, renderer.window.webContents.id)
     await entered.promise
     const action = approved()
     const controller = new AbortController()
@@ -537,7 +544,7 @@ describe('chat to computer use integration with simulated network and OS boundar
       expect(await defineInvoke(renderer.context, computerUseCancel)({ attribution: origin() })).toBe(0)
     else
       controller.abort(new Error('Too late to retract dispatch'))
-    const next = runtime.run({ argv: ['invoke', 'window.list'], attribution: origin('observer') }, renderer.window.webContents.id)
+    const next = runtime.run({ argv: ['invoke', 'window.list', '--help'], attribution: origin('observer') }, renderer.window.webContents.id)
     expect(waiting?.status).toBe('consumed')
     expect(waiting?.settlement).toBeUndefined()
     expect(external.execute).toHaveBeenCalledTimes(1)
@@ -590,7 +597,7 @@ describe('chat to computer use integration with simulated network and OS boundar
       argv: ['invoke', 'input.clickPoint', '100', '80', '--target', 'window:1234'],
       attribution: origin(),
     })
-    await invoke({ argv: ['invoke', 'window.list'], attribution: origin('observer') })
+    await invoke({ argv: ['invoke', 'window.list', '--help'], attribution: origin('observer') })
     expect(host.actionManager.get(action.id)?.status).toBe('pending')
     expect(external.execute).toHaveBeenCalledTimes(1)
     expect(external.execute.mock.calls[0]?.[1]).toContain('window.list')
@@ -649,7 +656,7 @@ describe('chat to computer use integration with simulated network and OS boundar
     const pending = invoke({ argv: [...action.argv], actionId: action.id, attribution: origin() })
     await vi.waitFor(() => expect(external.execute).toHaveBeenCalledTimes(1))
     const count = await defineInvoke(renderer.context, computerUseCancel)({ attribution: origin() })
-    const observation = invoke({ argv: ['invoke', 'window.list'], attribution: origin('next-turn') })
+    const observation = invoke({ argv: ['invoke', 'window.list', '--help'], attribution: origin('next-turn') })
     expect(count).toBe(0)
     expect(host.actionManager.get(action.id)?.settlement).toBeUndefined()
     expect(external.execute).toHaveBeenCalledTimes(1)
@@ -665,10 +672,10 @@ describe('chat to computer use integration with simulated network and OS boundar
   it('cancels a queued read-only Chat tool before it reaches AUV', async () => {
     const blocker = Promise.withResolvers<CliResult>()
     external.execute.mockImplementationOnce(() => execution(blocker.promise))
-    const running = invoke({ argv: ['invoke', 'window.list'], attribution: origin('blocking-turn') })
+    const running = invoke({ argv: ['invoke', 'window.list', '--help'], attribution: origin('blocking-turn') })
     await vi.waitFor(() => expect(external.execute).toHaveBeenCalledTimes(1))
     const harness = chatHarness()
-    const model = providerFor([{ name: COMPUTER_USE_TOOL_NAME, input: { argv: ['invoke', 'window.list'] } }])
+    const model = providerFor([{ name: COMPUTER_USE_TOOL_NAME, input: { argv: ['invoke', 'window.list', '--help'] } }])
     const run = vi.spyOn(host.getRuntime(), 'run')
     const send = harness.chat.submit('Observe the desktop.', { model: 'test', chatProvider: model.provider, tools: harness.tools })
     const accepted = await send.accepted
@@ -677,7 +684,7 @@ describe('chat to computer use integration with simulated network and OS boundar
     blocker.resolve({ stdout: '{}', stderr: '' })
     await running
     await send.done
-    await invoke({ argv: ['invoke', 'window.list'], attribution: origin('following-turn') })
+    await invoke({ argv: ['invoke', 'window.list', '--help'], attribution: origin('following-turn') })
     expect(external.execute).toHaveBeenCalledTimes(2)
     expect(model.requests).toHaveLength(1)
   })
@@ -689,7 +696,7 @@ describe('chat to computer use integration with simulated network and OS boundar
       attribution: { sessionId: 'session-a', turnId: 'turn-a' },
     })
     const tool = tools.find(tool => tool.function.name === COMPUTER_USE_TOOL_NAME)!
-    await tool.execute({ argv: ['invoke', 'window.list'] }, { messages: [], toolCallId: 'call-a', abortSignal: controller.signal })
+    await tool.execute({ argv: ['invoke', 'window.list', '--help'] }, { messages: [], toolCallId: 'call-a', abortSignal: controller.signal })
     const action = approved()
     const otherTurn = approved(origin('turn-b'))
     controller.abort()
@@ -709,7 +716,7 @@ describe('chat to computer use integration with simulated network and OS boundar
   })
 
   it('invalidates approvals on renderer destruction', async () => {
-    await invoke({ argv: ['invoke', 'window.list'], attribution: origin() })
+    await invoke({ argv: ['invoke', 'window.list', '--help'], attribution: origin() })
     const action = approved()
     renderer.window.webContents.emit('destroyed')
     expect(host.actionManager.get(action.id)?.status).toBe('cancelled')
@@ -738,25 +745,25 @@ describe('chat to computer use integration with simulated network and OS boundar
 
   it('does not settle a supplied approval ID while executing an unrelated observation', async () => {
     const action = approved()
-    await invoke({ argv: ['invoke', 'window.list'], actionId: action.id, attribution: origin('another-turn') })
+    await invoke({ argv: ['invoke', 'window.list', '--help'], actionId: action.id, attribution: origin('another-turn') })
     expect(host.actionManager.get(action.id)?.status).toBe('approved')
     expect(host.actionManager.get(action.id)?.settlement).toBeUndefined()
   })
 
-  it('previews history under the shared artifact policy without fake model attribution', async () => {
+  it('rejects shared history images without trusted capture provenance', async () => {
     const preview = defineInvoke(renderer.context, computerUsePreviewImage)
-    expect(await preview({ path: screenshot })).toBe(`data:image/png;base64,${png.toString('base64')}`)
-    await expect(defineInvoke(renderer.context, computerUseReadImage)({ path: screenshot })).rejects.toThrow(/attribution is required/)
+    await expect(preview({ path: screenshot })).rejects.toThrow('trusted observation scope')
+    await expect(defineInvoke(renderer.context, computerUseReadImage)({ path: screenshot })).rejects.toThrow(/trusted observation scope/)
     const outside = join(directory, 'outside.png')
     await writeFile(outside, png)
-    await expect(preview({ path: outside })).rejects.toThrow(/Only screenshots/)
+    await expect(preview({ path: outside })).rejects.toThrow(/trusted observation scope/)
     expect(external.execute).not.toHaveBeenCalled()
   })
 
-  it('rejects partial correlation for model observations and image reads', async () => {
+  it('does not accept partial correlation as observation or image authority', async () => {
     const attribution = { sessionId: 'session-a' }
-    await expect(invoke({ argv: ['invoke', 'window.list'], attribution })).rejects.toThrow(/original turn ID and tool-call ID/)
-    await expect(defineInvoke(renderer.context, computerUseReadImage)({ path: screenshot, attribution })).rejects.toThrow(/original turn ID and tool-call ID/)
+    await expect(invoke({ argv: ['invoke', 'window.list'], attribution })).rejects.toThrow(/trusted observation scope/)
+    await expect(defineInvoke(renderer.context, computerUseReadImage)({ path: screenshot, attribution })).rejects.toThrow(/trusted observation scope/)
     expect(external.execute).not.toHaveBeenCalled()
   })
 })

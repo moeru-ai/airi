@@ -491,7 +491,7 @@ describe('f-Contract-1: Production Host Execution Result Contract Regression', (
 
     // Action 2 arrives while action 1 was aborted but still settling in background
     const action2Promise = runViaIpc({
-      argv: ['invoke', 'window.list'],
+      argv: ['invoke', 'window.list', '--help'],
       attribution: origin('turn-2'),
     })
 
@@ -898,7 +898,7 @@ describe('f-Contract-1: Production Host Execution Result Contract Regression', (
   // --------------------------------------------------------------------------
   // Scenario B: Risk flag set -> new mutating operation blocked, read-only operation continues
   // --------------------------------------------------------------------------
-  it('scenario B: When risk flag is set, new mutating operations are blocked while read-only operations succeed', async () => {
+  it('scenario B: When risk flag is set, new mutating operations are blocked while command help remains available', async () => {
     const action1 = createApprovedAction(['invoke', 'app.activate', 'Calculator'])
     const abortController = new AbortController()
 
@@ -951,7 +951,7 @@ describe('f-Contract-1: Production Host Execution Result Contract Regression', (
     })
 
     const readOnlyResult = await executeTool(
-      { argv: ['invoke', 'window.list'] },
+      { argv: ['invoke', 'window.list', '--help'] },
       { attribution: origin('turn-read') },
     )
 
@@ -1111,7 +1111,7 @@ describe('f-Contract-1: Production Host Execution Result Contract Regression', (
     })
 
     const readOnlyResult = await executeTool(
-      { argv: ['invoke', 'window.list'] },
+      { argv: ['invoke', 'window.list', '--help'] },
       { attribution: origin('turn-read-reconnected') },
     )
 

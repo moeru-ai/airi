@@ -2,6 +2,12 @@
 
 Scope: terminal lane work in `services/computer-use-mcp/**`.
 
+## Native observation admission: 2026-11-09
+
+The production AUV runtime rejects native window observation and reports foreground and display metadata unavailable.
+No trusted Host observation scope or lifecycle-bound AUV target contract exists.
+Terminal registration, approval, and execution remain independent. This restriction does not authorize GUI or Browser input.
+
 ## Executor discovery contract: 2026-11-08
 
 MCP discovery includes the Terminal runner's configured Shell and platform before command preparation.

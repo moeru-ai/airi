@@ -58,7 +58,16 @@ function createExecutor(config: ComputerUseConfig, options: ComputerUseServerOpt
     if (platform !== 'win32') {
       throw new Error(`auv executor requires a win32 host, current platform is ${platform}`)
     }
-    return createAuvExecutor(config)
+    const executor = createAuvExecutor(config)
+    const reason = 'A trusted observation scope is required. Native AUV observation is unavailable.'
+    // Keep Terminal registration independent. None of these metadata or observation paths can query the SDK.
+    return {
+      ...executor,
+      describe: () => ({ kind: 'auv', notes: [reason] }),
+      getForegroundContext: async () => ({ available: false, platform, unavailableReason: reason }),
+      getDisplayInfo: async () => ({ available: false, platform, capturedAt: new Date().toISOString(), note: reason }),
+      observeWindows: async () => { throw new Error(reason) },
+    }
   }
 
   if (config.executor === 'linux-x11')

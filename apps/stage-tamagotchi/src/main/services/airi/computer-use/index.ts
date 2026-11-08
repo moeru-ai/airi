@@ -9,10 +9,11 @@ import { binaryPath } from '@auv-js/cli/binary'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { app } from 'electron'
 
-import { computerUseCancel, computerUsePreviewImage, computerUseReadImage, computerUseRun } from '../../../../shared/eventa/computer-use'
+import { computerUseCancel, ComputerUseExecutionError, computerUsePreviewImage, computerUseReadImage, computerUseRun } from '../../../../shared/eventa/computer-use'
 import { onAppBeforeQuit } from '../../../libs/bootkit/lifecycle'
 import { PendingActionManager } from './action-manager'
 import { validateAttribution } from './attribution'
+import { classifyAuvCommand } from './classifier'
 import { createComputerUseRuntime } from './runtime'
 
 /** Registers host-owned computer use. The executable is resolved only on the first call. */
@@ -52,13 +53,21 @@ export function setupComputerUse(
     return runtime
   }
   defineInvokeHandler(context, computerUseRun, (input, ctx) => {
-    return getRuntime().run(input, caller(ctx), ctx?.abortController?.signal)
+    const sender = caller(ctx)
+    const command = classifyAuvCommand(input.argv)
+    // No trusted grant exists yet. AUV 0.0.40 cannot bind capture to an expected window lifecycle.
+    // Reject every native observation before the queue or daemon. Help never observes a window.
+    if (command.category === 'read_only' && !command.isHelp)
+      throw new ComputerUseExecutionError('A trusted observation scope is required. Native observation is unavailable until window lifecycle binding is supported.', { executionState: 'not_executed', argv: input.argv })
+    return getRuntime().run(input, sender, ctx?.abortController?.signal)
   })
-  defineInvokeHandler(context, computerUseReadImage, (input, ctx) => {
-    return getRuntime().readImage(input, caller(ctx), ctx?.abortController?.signal)
+  defineInvokeHandler(context, computerUseReadImage, (_input, ctx) => {
+    caller(ctx)
+    throw new ComputerUseExecutionError('A trusted observation scope and capture provenance are required to read an image.', { executionState: 'not_executed' })
   })
-  defineInvokeHandler(context, computerUsePreviewImage, (input, ctx) => {
-    return getRuntime().previewImage(input, caller(ctx))
+  defineInvokeHandler(context, computerUsePreviewImage, (_input, ctx) => {
+    caller(ctx)
+    throw new ComputerUseExecutionError('A trusted observation scope and capture provenance are required to preview an image.', { executionState: 'not_executed' })
   })
   defineInvokeHandler(context, computerUseCancel, (input, ctx) => {
     const attribution = validateAttribution(input.attribution, caller(ctx))

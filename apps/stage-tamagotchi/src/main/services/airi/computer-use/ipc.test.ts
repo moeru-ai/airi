@@ -105,14 +105,14 @@ describe('computer use Electron Main IPC host enforcement gate & attribution con
     await expect(runViaIpc({
       argv: ['invoke', 'window.list'],
     })).rejects.toThrow(
-      'Invocation attribution is required (missing sessionId).',
+      'trusted observation scope',
     )
     expect(sdkMock.startAuv).not.toHaveBeenCalled()
   })
 
   it('rejects when attribution contains empty or invalid sessionId', async () => {
     await expect(runViaIpc({
-      argv: ['invoke', 'window.list'],
+      argv: ['invoke', 'window.list', '--help'],
       attribution: { sessionId: '   ' },
     })).rejects.toThrow(
       'Invalid invocation attribution: sessionId must be a non-empty string.',
@@ -313,21 +313,21 @@ describe('computer use Electron Main IPC host enforcement gate & attribution con
     })).rejects.toThrow('Computer use has stopped.')
   })
 
-  it('preserves screenshot reading and enforces attribution on image reads', async () => {
+  it('refuses shared screenshots without trusted capture provenance', async () => {
     const imageBytes = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6SAAAAABJRU5ErkJggg==', 'base64')
     const screenshotPath = join(storeRoot, 'shot.png')
     await writeFile(screenshotPath, imageBytes)
 
     // 1. Without attribution: rejected
     await expect(readImageViaIpc({ path: screenshotPath })).rejects.toThrow(
-      'Invocation attribution is required (missing sessionId).',
+      'trusted observation scope',
     )
 
-    // 2. With valid attribution: succeeds
-    const dataUrl = await readImageViaIpc({
+    // Attribution is correlation, not capture authority.
+    await expect(readImageViaIpc({
       path: screenshotPath,
       attribution: origin('session-alpha'),
-    })
-    expect(dataUrl).toBe(`data:image/png;base64,${imageBytes.toString('base64')}`)
+    })).rejects.toThrow('trusted observation scope')
+    expect(sdkMock.startAuv).not.toHaveBeenCalled()
   })
 })

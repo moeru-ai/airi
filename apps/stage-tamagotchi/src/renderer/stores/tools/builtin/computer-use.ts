@@ -92,7 +92,7 @@ export async function computerUseTools(options?: ComputerUseToolsOptions): Promi
   return [
     rawTool({
       name: COMPUTER_USE_TOOL_NAME,
-      description: 'Use the native AUV CLI through the Electron Host to inspect local desktop windows and capture screenshots. This is independent of an MCP server desktop backend. Desktop mutations require a matching host approval. Keyboard and pointer input are currently disabled. On macOS, call app.probePermissions before visual tasks. If screen_recording is missing, ask the user to grant permission. Captures can contain only a blank background without that permission. Start with argv ["invoke", "--help"], then inspect command help. Pass each CLI argument separately. Preserve failure_details and verified metadata. Exit code 0 does not prove the intended application effect. Use computer_use_read_image to view screenshot artifact paths.',
+      description: 'Use native AUV command help through the Electron Host. Start with argv ["invoke", "--help"]. Native observation is currently unavailable: Main has no trusted observation scope or lifecycle-bound capture contract. Window targets, titles and attribution do not grant access. Screenshot reads are also unavailable. Desktop mutations require matching Host approval. Keyboard and pointer input remain disabled. Pass each CLI argument separately. Preserve failure_details and execution uncertainty. Exit code 0 does not prove an application effect. This tool is independent of the MCP Desktop backend.',
       parameters: {
         type: 'object',
         properties: {
@@ -146,7 +146,7 @@ export async function computerUseTools(options?: ComputerUseToolsOptions): Promi
     }),
     rawTool({
       name: COMPUTER_USE_READ_IMAGE_TOOL_NAME,
-      description: 'View a PNG, JPEG, or WebP screenshot artifact produced by computer_use. Only files inside AIRI computer-use storage can be read. Select this tool together with computer_use for visual tasks.',
+      description: 'Screenshot reading is currently unavailable without trusted observation scope and capture provenance. An artifact path or attribution does not authorize access. Main rejects reads, including previously stored images.',
       parameters: {
         type: 'object',
         properties: { path: { type: 'string', description: 'Absolute screenshot artifact path returned by computer_use.' } },
