@@ -75,9 +75,16 @@ export const providerGptSovits = defineProvider<GptSovitsConfig, 'gpt-sovits'>({
   async createProvider(config) {
     const baseUrl = config.baseUrl.replace(TRAILING_SLASH_RE, '')
     const switchWeights = async (path: string, endpoint: string) => {
-      const response = await electronFetch(`${baseUrl}/${endpoint}?weights_path=${encodeURIComponent(path)}`)
-      if (!response.ok)
-        throw new Error(`${endpoint} failed with HTTP ${response.status}`)
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 10_000)
+      try {
+        const response = await electronFetch(`${baseUrl}/${endpoint}?weights_path=${encodeURIComponent(path)}`, { signal: controller.signal })
+        if (!response.ok)
+          throw new Error(`${endpoint} failed with HTTP ${response.status}`)
+      }
+      finally {
+        clearTimeout(timeout)
+      }
     }
     if (config.gptWeightsPath)
       await switchWeights(config.gptWeightsPath, 'set_gpt_weights')

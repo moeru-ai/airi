@@ -82,7 +82,7 @@ async function handleGenerateSpeech(input: string, voiceId: string) {
 </script>
 
 <template>
-  <SpeechProviderSettings :provider-id="providerId" :default-model="defaultModel">
+  <SpeechProviderSettings :provider-id="providerId" :default-model="defaultModel" hide-api-key>
     <template #basic-settings>
       <Callout :label="t('settings.pages.providers.provider.gpt-sovits.callout_no_model_title')">
         {{ t('settings.pages.providers.provider.gpt-sovits.callout_model_switch') }}
