@@ -1,9 +1,15 @@
 import type { GenAiMetrics } from '../../../../otel'
 import type { RequestLogService } from '../../../../services/domain/request-log'
 
+import { ATTR_ERROR_TYPE } from '@opentelemetry/semantic-conventions'
+import {
+  ATTR_GEN_AI_OPERATION_NAME,
+  ATTR_GEN_AI_PROVIDER_NAME,
+  ATTR_GEN_AI_RESPONSE_MODEL,
+  ATTR_GEN_AI_TOKEN_MODALITY,
+} from '@proj-airi/semconv-genai'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { ERROR_ATTR_TYPE, GEN_AI_ATTR_OPERATION_NAME, GEN_AI_ATTR_PROVIDER_NAME, GEN_AI_ATTR_RESPONSE_MODEL, GEN_AI_ATTR_TOKEN_MODALITY } from '../../../../utils/observability'
 import { createRouteTelemetry, getLlmMetricAttributes, tracer } from './telemetry'
 
 describe('openAI route telemetry', () => {
@@ -25,14 +31,14 @@ describe('openAI route telemetry', () => {
     telemetry.recordFirstToken({ model: 'gpt-5', provider: 'openai', startedAt: 1000, firstChunkAt: 1500, operation: 'responses' })
 
     expect(startSpan).toHaveBeenCalledWith('llm.gateway.responses', expect.objectContaining({
-      attributes: expect.objectContaining({ [GEN_AI_ATTR_OPERATION_NAME]: 'responses' }),
+      attributes: expect.objectContaining({ [ATTR_GEN_AI_OPERATION_NAME]: 'responses' }),
     }))
-    expect(record).toHaveBeenCalledWith(0.5, expect.objectContaining({ [GEN_AI_ATTR_OPERATION_NAME]: 'responses', [GEN_AI_ATTR_PROVIDER_NAME]: 'openai' }))
+    expect(record).toHaveBeenCalledWith(0.5, expect.objectContaining({ [ATTR_GEN_AI_OPERATION_NAME]: 'responses', [ATTR_GEN_AI_PROVIDER_NAME]: 'openai' }))
   })
 
   it('attributes Responses operation metrics to the standard operation name', () => {
     expect(getLlmMetricAttributes({ model: 'gpt-5', provider: 'openai', status: 200, type: 'responses' })).toMatchObject({
-      [GEN_AI_ATTR_OPERATION_NAME]: 'responses',
+      [ATTR_GEN_AI_OPERATION_NAME]: 'responses',
     })
   })
 
@@ -73,12 +79,12 @@ describe('openAI route telemetry', () => {
 
     const attrs = {
       'gen_ai.request.model': 'gpt-5',
-      [GEN_AI_ATTR_RESPONSE_MODEL]: 'openai/gpt-5-2025-08-07',
-      [GEN_AI_ATTR_OPERATION_NAME]: 'chat',
-      [GEN_AI_ATTR_PROVIDER_NAME]: 'openrouter.ai',
+      [ATTR_GEN_AI_RESPONSE_MODEL]: 'openai/gpt-5-2025-08-07',
+      [ATTR_GEN_AI_OPERATION_NAME]: 'chat',
+      [ATTR_GEN_AI_PROVIDER_NAME]: 'openrouter.ai',
       'http.response.status_code': 200,
     }
-    const tokenAttrs = { ...attrs, [GEN_AI_ATTR_TOKEN_MODALITY]: 'unknown' }
+    const tokenAttrs = { ...attrs, [ATTR_GEN_AI_TOKEN_MODALITY]: 'unknown' }
     expect(genAi.inferenceDuration.record).toHaveBeenCalledWith(1.5, attrs)
     expect(genAi.inputTokens.add).toHaveBeenCalledWith(120, tokenAttrs)
     expect(genAi.outputTokens.add).toHaveBeenCalledWith(40, tokenAttrs)
@@ -93,8 +99,8 @@ describe('openAI route telemetry', () => {
 
     telemetry.recordMetrics({ model: 'gpt-5', status: 502, type: 'chat', provider: 'openrouter.ai', durationMs: 10, fluxConsumed: 0, promptTokens: 0, costUsd: 0 })
 
-    expect(genAi.inferenceDuration.record).toHaveBeenCalledWith(0.01, expect.objectContaining({ [ERROR_ATTR_TYPE]: '502' }))
-    expect(genAi.inferenceDuration.record.mock.calls[0][1]).not.toHaveProperty(GEN_AI_ATTR_RESPONSE_MODEL)
+    expect(genAi.inferenceDuration.record).toHaveBeenCalledWith(0.01, expect.objectContaining({ [ATTR_ERROR_TYPE]: '502' }))
+    expect(genAi.inferenceDuration.record.mock.calls[0][1]).not.toHaveProperty(ATTR_GEN_AI_RESPONSE_MODEL)
     for (const counter of [genAi.inputTokens, genAi.outputTokens, genAi.cacheReadInputTokens, genAi.cacheWriteInputTokens, genAi.reasoningOutputTokens, genAi.costUsd])
       expect(counter.add).not.toHaveBeenCalled()
   })

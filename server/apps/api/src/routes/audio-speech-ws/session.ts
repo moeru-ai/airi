@@ -10,6 +10,9 @@ import WebSocket from 'ws'
 import { useLogger } from '@guiiai/logg'
 import { context as otelContext, SpanStatusCode, trace } from '@opentelemetry/api'
 import { ApiError } from '@proj-airi/http-error-shared'
+import {
+  ATTR_GEN_AI_REQUEST_MODEL,
+} from '@proj-airi/semconv-genai'
 import { ofetch } from 'ofetch'
 
 import { nanoid } from '../../utils/id'
@@ -19,7 +22,6 @@ import {
   AIRI_ATTR_GEN_AI_GATEWAY_UPSTREAM_URL,
   AIRI_ATTR_GEN_AI_OPERATION_KIND,
   AIRI_ATTR_GEN_AI_STREAM,
-  GEN_AI_ATTR_REQUEST_MODEL,
 } from '../../utils/observability'
 import { bufferToString, readUsageChars, toBufferLike } from './protocol'
 
@@ -440,7 +442,7 @@ export function createSessionState(
     if (billed)
       return
     billed = true
-    span.setAttribute(GEN_AI_ATTR_REQUEST_MODEL, modelLabel)
+    span.setAttribute(ATTR_GEN_AI_REQUEST_MODEL, modelLabel)
 
     let fluxConsumed = 0
     try {
@@ -468,7 +470,7 @@ export function createSessionState(
 
   function recordMetrics() {
     const attrs = {
-      [GEN_AI_ATTR_REQUEST_MODEL]: modelLabel,
+      [ATTR_GEN_AI_REQUEST_MODEL]: modelLabel,
       [AIRI_ATTR_GEN_AI_OPERATION_KIND]: 'tts',
       [AIRI_ATTR_GEN_AI_STREAM]: true,
       'http.response.status_code': 200,

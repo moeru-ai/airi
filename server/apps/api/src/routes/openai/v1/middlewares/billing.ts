@@ -8,12 +8,14 @@ import type { FluxService } from '../../../../services/domain/flux'
 import type { UsageInfo } from '../../../../services/domain/generation-usage'
 
 import { createPaymentRequiredError, createServiceUnavailableError } from '@proj-airi/http-error-shared'
+import {
+  ATTR_GEN_AI_REQUEST_MODEL,
+} from '@proj-airi/semconv-genai'
 import { safeParse } from 'valibot'
 
 import { resolveProviderCostAdapter } from '../../../../services/adapters/llm/cost'
 import { billingPolicySchema, priceLlmCost } from '../../../../services/domain/billing/billing'
 import { availableMicroFlux, MICRO_FLUX_PER_FLUX, microFluxToFlux } from '../../../../services/domain/billing/flux-posting'
-import { GEN_AI_ATTR_REQUEST_MODEL } from '../../../../utils/observability'
 
 export interface ChatFluxDebitInput extends UsageInfo {
   llmBilling: LlmBillingService
@@ -104,7 +106,7 @@ export function createOpenAiRouteBilling(deps: {
     stage: 'streaming' | 'non_streaming'
   }): void {
     deps.revenue?.fluxUnbilled.add(input.amount, {
-      [GEN_AI_ATTR_REQUEST_MODEL]: input.model,
+      [ATTR_GEN_AI_REQUEST_MODEL]: input.model,
       reason: 'debit_failed',
       stage: input.stage,
     })
@@ -126,7 +128,7 @@ export async function debitChatFlux(input: ChatFluxDebitInput): Promise<number> 
 
   if (!result.replay && result.charged < result.requested) {
     input.revenue?.fluxUnbilled.add(result.requested - result.charged, {
-      [GEN_AI_ATTR_REQUEST_MODEL]: input.model,
+      [ATTR_GEN_AI_REQUEST_MODEL]: input.model,
       reason: 'partial_debit_drained',
       stage: input.stage,
     })

@@ -14,6 +14,7 @@ COPY patches/ ./patches/
 COPY server/apps/api/package.json server/apps/api/package.json
 COPY server/packages/auth-shared/package.json server/packages/auth-shared/package.json
 COPY server/packages/http-error-shared/package.json server/packages/http-error-shared/package.json
+COPY server/packages/semconv-genai/package.json server/packages/semconv-genai/package.json
 COPY server/packages/server-sdk-shared/package.json server/packages/server-sdk-shared/package.json
 
 RUN --mount=type=cache,id=pnpm-store,target=/root/.pnpm-store \
@@ -22,6 +23,7 @@ RUN --mount=type=cache,id=pnpm-store,target=/root/.pnpm-store \
 COPY server/apps/api server/apps/api
 COPY server/packages/auth-shared server/packages/auth-shared
 COPY server/packages/http-error-shared server/packages/http-error-shared
+COPY server/packages/semconv-genai server/packages/semconv-genai
 COPY server/packages/server-sdk-shared server/packages/server-sdk-shared
 
 RUN pnpm -F @proj-airi/server-sdk-shared run build

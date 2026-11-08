@@ -6525,6 +6525,9 @@ importers:
       '@proj-airi/http-error-shared':
         specifier: workspace:*
         version: link:../../packages/http-error-shared
+      '@proj-airi/semconv-genai':
+        specifier: workspace:*
+        version: link:../../packages/semconv-genai
       '@proj-airi/server-sdk-shared':
         specifier: workspace:*
         version: link:../../packages/server-sdk-shared
@@ -6754,6 +6757,24 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
+
+  server/packages/semconv-genai:
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.2.0
+      tsx:
+        specifier: 'catalog:'
+        version: 4.23.12
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      valibot:
+        specifier: 'catalog:'
+        version: 1.5.0(typescript@6.0.3)
+      yaml:
+        specifier: 'catalog:'
+        version: 2.9.1
 
   server/packages/server-sdk-shared:
     dependencies:

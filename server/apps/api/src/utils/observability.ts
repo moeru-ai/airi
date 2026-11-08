@@ -2,20 +2,7 @@
 // Span attribute constants (OTel semantic conventions + AIRI custom)
 // ---------------------------------------------------------------------------
 
-// GenAI semconv attributes — https://opentelemetry.io/docs/specs/semconv/gen-ai/
-export const GEN_AI_ATTR_OPERATION_NAME = 'gen_ai.operation.name'
-export const GEN_AI_ATTR_REQUEST_MODEL = 'gen_ai.request.model'
-export const GEN_AI_ATTR_PROVIDER_NAME = 'gen_ai.provider.name'
-export const GEN_AI_ATTR_RESPONSE_MODEL = 'gen_ai.response.model'
-export const GEN_AI_ATTR_TOKEN_MODALITY = 'gen_ai.token.modality'
-export const GEN_AI_ATTR_USAGE_INPUT_TOKENS = 'gen_ai.usage.input_tokens'
-export const GEN_AI_ATTR_USAGE_OUTPUT_TOKENS = 'gen_ai.usage.output_tokens'
-export const GEN_AI_ATTR_USAGE_CACHE_READ_INPUT_TOKENS = 'gen_ai.usage.cache_read.input_tokens'
-export const GEN_AI_ATTR_USAGE_CACHE_WRITE_INPUT_TOKENS = 'gen_ai.usage.cache_write.input_tokens'
-export const GEN_AI_ATTR_USAGE_REASONING_OUTPUT_TOKENS = 'gen_ai.usage.reasoning.output_tokens'
-
-// General semconv attributes
-export const ERROR_ATTR_TYPE = 'error.type'
+// GenAI semconv attributes come from `@proj-airi/semconv-genai`.
 
 // AIRI custom span attributes
 export const AIRI_ATTR_BILLING_FLUX_CONSUMED = 'airi.billing.flux_consumed'
@@ -71,18 +58,8 @@ export const METRIC_STRIPE_CHECKOUT_COMPLETED = 'stripe.checkout.completed'
 export const METRIC_STRIPE_EVENTS = 'stripe.events'
 export const METRIC_FLUX_INSUFFICIENT_BALANCE = 'flux.insufficient_balance'
 
-// GenAI — https://github.com/open-telemetry/semantic-conventions-genai (status: development)
-// Chat and Responses use the inference metrics. TTS is not an inference operation, so it uses `operation.duration`.
-// Request counts come from the `_count` series of the duration histograms.
-export const METRIC_GEN_AI_CLIENT_OPERATION_DURATION = 'gen_ai.client.operation.duration'
-export const METRIC_GEN_AI_CLIENT_INFERENCE_DURATION = 'gen_ai.client.inference.duration'
-export const METRIC_GEN_AI_CLIENT_INFERENCE_TIME_TO_FIRST_CHUNK = 'gen_ai.client.inference.time_to_first_chunk'
-export const METRIC_GEN_AI_CLIENT_INFERENCE_USAGE_INPUT_TOKENS = 'gen_ai.client.inference.usage.input_tokens'
-export const METRIC_GEN_AI_CLIENT_INFERENCE_USAGE_OUTPUT_TOKENS = 'gen_ai.client.inference.usage.output_tokens'
-export const METRIC_GEN_AI_CLIENT_INFERENCE_USAGE_CACHE_READ_INPUT_TOKENS = 'gen_ai.client.inference.usage.cache_read.input_tokens'
-export const METRIC_GEN_AI_CLIENT_INFERENCE_USAGE_CACHE_WRITE_INPUT_TOKENS = 'gen_ai.client.inference.usage.cache_write.input_tokens'
-export const METRIC_GEN_AI_CLIENT_INFERENCE_USAGE_REASONING_OUTPUT_TOKENS = 'gen_ai.client.inference.usage.reasoning.output_tokens'
-// The semantic conventions have no cost metric. This counter is the upstream cost in USD that the provider reports.
+// GenAI semconv metric names come from `@proj-airi/semconv-genai`.
+// The conventions have no cost metric. This counter is the provider-reported upstream cost in USD.
 export const METRIC_AIRI_GEN_AI_CLIENT_COST = 'airi.gen_ai.client.cost'
 export const METRIC_FLUX_CONSUMED = 'airi.billing.flux.consumed'
 
