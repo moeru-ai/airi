@@ -160,7 +160,8 @@ interface ProviderMetadata {
 interface ProviderRecord {
   readonly owner: KitProviderOwner
   readonly metadata: ProviderMetadata
-  readonly registration: Registration<string, ProviderMetadata, undefined>
+  /** Set right after the catalog entry, so a watcher that `provide` wakes reads the entry. */
+  registration?: Registration<string, ProviderMetadata, undefined>
 }
 
 const hostOwner: KitProviderOwner = Object.freeze({ kind: 'host' })
@@ -495,13 +496,21 @@ export class KitProviderRegistry {
       this.keys.set(id, key)
     }
     this.lastGenerations.set(id, metadata.generation)
-    const registration = provide(container, key, { visibility, metadata: { ...metadata }, build: () => metadata })
-    this.records.set(id, { owner, metadata, registration })
+    // The catalog entry comes first. `provide` can wake a watcher of the key at once, and that watcher reads the catalog.
+    const record: ProviderRecord = { owner, metadata }
+    this.records.set(id, record)
+    try {
+      record.registration = provide(container, key, { visibility, metadata: { ...metadata }, build: () => metadata })
+    }
+    catch (error) {
+      this.records.delete(id)
+      throw error
+    }
   }
 
   /** Removes the Provider from the catalog at once, then withdraws its unit. */
   private withdraw(id: string) {
-    void this.records.get(id)?.registration.withdraw()
+    void this.records.get(id)?.registration?.withdraw()
     this.records.delete(id)
   }
 
