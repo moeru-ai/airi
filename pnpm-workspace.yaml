@@ -420,7 +420,6 @@ catalog:
   speech-rule-engine: 5.0.0-rc.4
   splitpanes: ^4.1.2
   sponsorkit: 17.1.0
-  sponsors-svg: ^0.3.0
   srvx: ^0.12.7
   std-env: ^4.2.0
   stockfish: ^18.0.8
