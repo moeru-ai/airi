@@ -2,7 +2,7 @@ import type {
   ExtensionIdentity as ProtocolExtensionIdentity,
   ModulePermissionDeclaration as ProtocolModulePermissionDeclaration,
   ModulePermissionGrant as ProtocolModulePermissionGrant,
-} from '@proj-airi/plugin-protocol/types'
+} from '@proj-airi/extension-protocol'
 import type { GenericSchema } from 'valibot'
 
 import type { ExposePolicy } from '../../kit/exposure-policy'
