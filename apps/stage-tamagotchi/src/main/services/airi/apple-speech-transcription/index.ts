@@ -1,4 +1,4 @@
-import type { Lifecycle } from 'injeca'
+import type { LifecycleContext } from 'injeca'
 
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { setupAppleSpeechTranscription } from '@xsai-apple-speech/transcription-electron-plugin/main'
@@ -19,7 +19,7 @@ import { isMacOS } from 'std-env'
  *     -> {@link setupAppleSpeechTranscription}
  *       -> {@link createAppleSpeechProvider}
  */
-export async function setupAppleSpeechTranscriptionService(options: { lifecycle: Lifecycle }) {
+export async function setupAppleSpeechTranscriptionService(options: { on: LifecycleContext['on'] }) {
   if (!isMacOS)
     return { dispose: () => Promise.resolve() }
 
@@ -40,7 +40,7 @@ export async function setupAppleSpeechTranscriptionService(options: { lifecycle:
     return disposal
   }
 
-  options.lifecycle.appHooks.onStop(dispose)
+  options.on('stop', dispose)
 
   return { dispose }
 }

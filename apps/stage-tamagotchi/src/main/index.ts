@@ -18,9 +18,9 @@ import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalHookPostLog, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { hasSelectedScreenCaptureSource, initScreenCaptureForMain } from '@proj-airi/electron-screen-capture/main'
+import { ExtensionHost } from '@proj-airi/plugin-sdk/plugin-host'
 import { app, ipcMain, protocol, session } from 'electron'
-import { noop } from 'es-toolkit'
-import { createLoggLogger, injeca, lifecycle } from 'injeca'
+import { createLoggLogger, injeca } from 'injeca'
 import { isLinux } from 'std-env'
 
 import devIcon from '../../resources/icon-dev.png?asset'
@@ -50,6 +50,7 @@ import { IOTraceRecordingService } from './services/airi/io-trace-recording'
 import { recordHubRecords } from './services/airi/io-trace-recording/hub'
 import { setupMcpManager } from './services/airi/mcp-servers'
 import { setupExtensionHost } from './services/airi/plugins'
+import { createBuiltInExtensionKits } from './services/airi/plugins/kits'
 import { setupArtistryBridge } from './services/airi/widgets/artistry-bridge'
 import { isExternallyUpdatedInstall, setupAutoUpdater } from './services/electron/auto-updater'
 import { setupSherpawModelAssetsProtocol } from './services/electron/bundled-sherpaw-assets'
@@ -265,6 +266,7 @@ app.whenReady().then(async () => {
   })
 
   injeca.setLogger(createLoggLogger(useLogg('injeca').useGlobalConfig()))
+  injeca.getContainer().logging = true
 
   const appConfig = injeca.provide('configs:app', () => createGlobalAppConfig())
   const artistryConfig = injeca.provide('configs:artistry', () => createArtistryConfig())
@@ -294,8 +296,8 @@ app.whenReady().then(async () => {
   })
 
   const serverChannel = injeca.provide('modules:channel-server', {
-    dependsOn: { app: electronApp, lifecycle },
-    build: async ({ dependsOn }) => setupServerChannel(dependsOn),
+    dependsOn: { app: electronApp },
+    build: async ({ on }) => setupServerChannel({ on }),
   })
 
   const airiHttpServer = injeca.provide('modules:airi-http-server', {
@@ -307,13 +309,11 @@ app.whenReady().then(async () => {
   })
 
   const appleSpeechTranscription = injeca.provide('modules:apple-speech-transcription', {
-    dependsOn: { lifecycle },
-    build: ({ dependsOn }) => setupAppleSpeechTranscriptionService(dependsOn),
+    build: ({ on }) => setupAppleSpeechTranscriptionService({ on }),
   })
 
   const appleVision = injeca.provide('modules:apple-vision', {
-    dependsOn: { lifecycle },
-    build: ({ dependsOn }) => setupAppleVisionService(dependsOn),
+    build: ({ on }) => setupAppleVisionService({ on }),
   })
 
   const mcpManager = injeca.provide('modules:mcp-manager', {
@@ -321,21 +321,21 @@ app.whenReady().then(async () => {
   })
 
   const ioTraceHub = injeca.provide('services:io-trace-hub', {
-    dependsOn: { config: ioTraceHubConfig, lifecycle },
-    build: ({ dependsOn }) => {
+    dependsOn: { config: ioTraceHubConfig },
+    build: ({ dependsOn, on }) => {
       const hub = new IOTraceHub({
         getStoredCollecting: () => dependsOn.config.get()?.collecting ?? false,
         setStoredCollecting: collecting => dependsOn.config.update({ collecting }),
       })
       const unregister = registerIOTraceHub(hub)
-      dependsOn.lifecycle.appHooks.onStop(unregister)
+      on('stop', unregister)
       return hub
     },
   })
 
   const ioTraceRecording = injeca.provide('services:io-trace-recording', {
-    dependsOn: { config: ioTraceRecordingConfig, hub: ioTraceHub, lifecycle },
-    build: ({ dependsOn }) => {
+    dependsOn: { config: ioTraceRecordingConfig, hub: ioTraceHub },
+    build: ({ dependsOn, on }) => {
       const service = new IOTraceRecordingService({
         directory: join(app.getPath('userData'), 'io-traces'),
         getStoredEnabled: () => dependsOn.config.get()?.enabled ?? false,
@@ -346,11 +346,7 @@ app.whenReady().then(async () => {
         service.writeFlightDump(dump).catch(error => log.withError(error).error('Failed to write trace flight dump'))
       })
       const stopRecording = recordHubRecords(dependsOn.hub, service, error => log.withError(error).error('Failed to record trace record'))
-      dependsOn.lifecycle.appHooks.onStop(() => {
-        stopRecording()
-        stopFlightDumps()
-      })
-      dependsOn.lifecycle.appHooks.onStart(async () => {
+      on('start', async () => {
         try {
           await service.restore()
         }
@@ -358,7 +354,13 @@ app.whenReady().then(async () => {
           log.withError(error).error('Failed to restore IO trace recording')
         }
       })
-      dependsOn.lifecycle.appHooks.onStop(() => service.dispose())
+      // injeca runs the stop hooks of one service in reverse order, so one hook keeps this order:
+      // stop the record feeds, then dispose the service.
+      on('stop', () => {
+        stopRecording()
+        stopFlightDumps()
+        return service.dispose()
+      })
       return service
     },
   })
@@ -368,12 +370,26 @@ app.whenReady().then(async () => {
     build: ({ dependsOn }) => setupWidgetsWindowManager(dependsOn),
   })
 
+  const extensionHost = injeca.provide('modules:extension-host', () => new ExtensionHost({ airiVersion: app.getVersion(), runtime: 'electron' }))
+  const builtInExtensionKits = injeca.provide('modules:extension-host:built-in-kits', {
+    dependsOn: { host: extensionHost, widgetsManager },
+    build: ({ dependsOn, on }) => {
+      const kits = createBuiltInExtensionKits(dependsOn)
+      on('stop', () => kits.dispose())
+      return kits
+    },
+  })
   const pluginHost = injeca.provide('modules:plugin-host', {
-    dependsOn: { serverChannel, widgetsManager },
-    build: ({ dependsOn }) => setupExtensionHost({
-      ...dependsOn,
-      getExtensionManagementWebContentsId: () => extensionManagementWebContentsId,
-    }),
+    dependsOn: { serverChannel, host: extensionHost, kits: builtInExtensionKits },
+    build: async ({ dependsOn, on }) => {
+      const service = await setupExtensionHost({
+        ...dependsOn,
+        getExtensionManagementWebContentsId: () => extensionManagementWebContentsId,
+      })
+      // Extensions stop here, before the built-in Kits unit that this unit depends on.
+      on('stop', () => service.dispose())
+      return service
+    },
   })
 
   const globalShortcut = injeca.provide('services:global-shortcut', () => setupGlobalShortcutService())
@@ -503,18 +519,11 @@ app.whenReady().then(async () => {
   })
 
   // Desktop grounding overlay — gated by AIRI_DESKTOP_OVERLAY=1
+  // injeca.start() builds every registered service, so the overlay needs no consumer.
   if (isDesktopOverlayEnabled()) {
-    const desktopOverlay = injeca.provide('windows:desktop-overlay', {
+    injeca.provide('windows:desktop-overlay', {
       dependsOn: { mcpManager, serverChannel, i18n },
       build: async ({ dependsOn }) => setupDesktopOverlayWindow(dependsOn),
-    })
-
-    // NOTICE: Separate invoke ensures the overlay is eagerly built.
-    // Without this, injeca.start() would skip it because no other
-    // provider depends on 'windows:desktop-overlay'.
-    injeca.invoke({
-      dependsOn: { desktopOverlay },
-      callback: noop,
     })
   }
 

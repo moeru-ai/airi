@@ -2,6 +2,7 @@ import type { DisplayModelURL } from '../display-models'
 
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 
 import { DisplayModelFormat, useDisplayModelsStore } from '../display-models'
 import { useSettingsStageModel } from './stage-model'
@@ -124,5 +125,64 @@ describe('settings stage model store', () => {
     expect(resetLegacyModelIdentity).toHaveBeenCalledWith()
     expect(store.stageModelRenderer).toBe('vrm')
     expect(store.stageModelSelectedUrl).toBe(vrmModel.url)
+  })
+
+  // ROOT CAUSE:
+  //
+  // A pick writes the selection and then calls updateStageModel(). The selection
+  // watcher also calls updateStageModel(), so each pick resolved the model twice.
+  // The newer call made the first load stop, but only after its resolve finished.
+  //
+  // We fixed this by sharing the running load of the same selection.
+  it('resolves a picked model once when the watcher and the picker both request the load', async () => {
+    const vrmModel: DisplayModelURL = {
+      id: 'vrm-model',
+      format: DisplayModelFormat.VRM,
+      type: 'url',
+      url: 'https://example.com/character.vrm',
+      name: 'VRM character',
+      importedAt: 1,
+    }
+    const displayModelsStore = useDisplayModelsStore()
+    const ensureDisplayModelSpy = vi.spyOn(displayModelsStore, 'ensureDisplayModelAvailable').mockResolvedValue(vrmModel)
+
+    const store = useSettingsStageModel()
+    store.stageModelSelected = vrmModel.id
+    await store.updateStageModel()
+    await nextTick()
+
+    expect(ensureDisplayModelSpy).toHaveBeenCalledOnce()
+    expect(store.stageModelSelectedUrl).toBe(vrmModel.url)
+  })
+
+  it('loads a new pick while the previous pick still loads', async () => {
+    const models: DisplayModelURL[] = ['vrm-a', 'vrm-b'].map(id => ({
+      id,
+      format: DisplayModelFormat.VRM,
+      type: 'url',
+      url: `https://example.com/${id}.vrm`,
+      name: id,
+      importedAt: 1,
+    }))
+    let releaseFirst!: () => void
+    const displayModelsStore = useDisplayModelsStore()
+    const ensureDisplayModelSpy = vi.spyOn(displayModelsStore, 'ensureDisplayModelAvailable')
+      .mockImplementationOnce(() => new Promise(resolve => releaseFirst = () => resolve(models[0])))
+      .mockResolvedValueOnce(models[1])
+
+    const store = useSettingsStageModel()
+    store.stageModelSelected = models[0].id
+    const firstLoad = store.updateStageModel()
+    store.stageModelSelected = models[1].id
+    await store.updateStageModel()
+    releaseFirst()
+    await firstLoad
+    await nextTick()
+
+    expect(ensureDisplayModelSpy).toHaveBeenCalledTimes(2)
+    expect(ensureDisplayModelSpy).toHaveBeenNthCalledWith(1, models[0].id)
+    expect(ensureDisplayModelSpy).toHaveBeenNthCalledWith(2, models[1].id)
+    // The first load finishes last, but the newer pick stays on the Stage.
+    expect(store.stageModelSelectedUrl).toBe(models[1].url)
   })
 })

@@ -12,12 +12,22 @@ import { SeriesPyramid } from './series'
  */
 const WIDTH = 1600
 
-function time(run: () => void, repeat = 5): number {
+/**
+ * Returns the median time of `repeat` runs, after one warm-up run.
+ *
+ * The median ignores a single GC or JIT pause. With a mean of 5 runs, one 15 ms pause on a CI machine moved a 0.2 ms
+ * query over its 5 ms budget.
+ */
+function time(run: () => void, repeat = 9): number {
   run()
-  const started = performance.now()
-  for (let index = 0; index < repeat; index++)
+  const samples: number[] = []
+  for (let index = 0; index < repeat; index++) {
+    const started = performance.now()
     run()
-  return (performance.now() - started) / repeat
+    samples.push(performance.now() - started)
+  }
+  samples.sort((a, b) => a - b)
+  return samples[Math.floor(repeat / 2)]!
 }
 
 function intervals(count: number): IntervalColumn {
@@ -47,6 +57,10 @@ describe('timeline canvas benchmark', () => {
 
       // A zoomed-out view merges into a bounded number of shapes, whatever the item count.
       expect(fullRuns).toBeLessThanOrEqual(WIDTH * 3 * 2)
+      // A window visits only the intervals near it, whatever the item count: 30 s of starts every 10 ms, plus the
+      // longest span of 40 ms before the window. This bound does not depend on the speed of the machine.
+      const visible = column.visibleRange(total / 2, total / 2 + 30_000)
+      expect(visible.end - visible.begin).toBeLessThanOrEqual((30_000 + 40) / 10 + 1)
       expect(windowMs).toBeLessThan(5)
       expect(hitMs).toBeLessThan(1)
       expect(fullMs).toBeLessThan(count >= 1_000_000 ? 400 : 60)

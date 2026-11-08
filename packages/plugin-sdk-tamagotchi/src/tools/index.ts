@@ -6,7 +6,7 @@ import type {
   PluginToolDefinitionRecord,
   PluginToolsetPromptDefinitionRecord,
   ToolsetPromptManifest,
-} from './registry'
+} from './types'
 
 import { defineKit } from '@proj-airi/plugin-sdk'
 import { hostDataRecordSchema } from '@proj-airi/plugin-sdk/plugin-host'
@@ -20,11 +20,8 @@ export type {
   SerializedToolsetPromptDefinition,
   SerializedXsaiToolDefinition,
   SerializedXsaiToolsetDefinition,
-  ToolRegistryRecord,
   ToolsetPromptManifest,
-  ToolsetPromptRegistryRecord,
-} from './registry'
-export { TamagotchiToolRegistry } from './registry'
+} from './types'
 
 /**
  * Describes renderer-side discovery hints for a plugin tool.
