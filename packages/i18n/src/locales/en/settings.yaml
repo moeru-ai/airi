@@ -33,6 +33,8 @@ dialogs:
     skipForNow: Skip for now
     saveAndContinue: Save and Continue
     next: Next
+    back: Back
+    later: Later
     retry: Retry
     credentialsSafeLabel: Keep your API keys and credentials safe!
     credentialsSafeLocal: >-
@@ -66,7 +68,12 @@ dialogs:
       notificationsDescription: Allow reminders and important status updates.
       microphoneTitle: Microphone
       microphoneDescription: Allow AIRI to use your microphone for voice input and transcription.
+      accessibilityTitle: Accessibility
+      accessibilityDescription: Lets the Push to Talk shortcut work while another app is in front.
+      screenRecordingTitle: Screen Recording
+      screenRecordingDescription: Lets AIRI see your screen when you ask it to look.
       requestAction: Request access
+      openSettingsAction: Open System Settings
       optionalHint: You can continue even if these permissions are not granted.
       stateGranted: Granted
       stateNotGranted: Not granted
