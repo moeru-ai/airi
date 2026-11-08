@@ -48,10 +48,10 @@ function freeze(value: unknown) {
   }
 }
 
-function compactible(round: GenerationRound) {
+function canCompact(round: GenerationRound) {
   return !round.projectionIssues.length
     && round.toolInvocations.every(call => call.execution.status === 'succeeded')
-    && (round.content.some(part => part.type !== 'tool')
+    && (round.content.some(part => part.type !== 'tool' && (!('text' in part) || part.text.trim().length > 0))
       || round.toolInvocations.some(call => call.execution.status === 'succeeded' && call.execution.output.some(part => part.type === 'image')))
 }
 
@@ -60,7 +60,7 @@ export class ConversationCompact {
   private scope?: string
   private committed?: Checkpoint
   private job?: SummaryJob
-  private failure?: unknown
+  private failure?: { prefix: string[], error: unknown }
 
   constructor(private readonly options: CompactOptions) {
     if (!Number.isSafeInteger(options.softLimitBytes) || !Number.isSafeInteger(options.hardLimitBytes)
@@ -112,15 +112,19 @@ export class ConversationCompact {
     const { measureContextBytes: measure, summarize } = target
     const roundUnits = source.filter(turn => turn.type === 'assistant')
     const older = roundUnits.slice(0, -this.options.retainRounds)
-    const selected = older.filter(turn => turn.type === 'assistant' && !this.committed?.rounds.has(turn.rounds[0].id) && compactible(turn.rounds[0]))
+    const selected = older.filter(turn => turn.type === 'assistant' && !this.committed?.rounds.has(turn.rounds[0].id) && canCompact(turn.rounds[0]))
     const last = selected.at(-1)
     if (!last)
       return
     const prefix = source.slice(0, source.indexOf(last) + 1)
+    const prefixKey = prefix.map(turn => JSON.stringify(turn))
+    // A failed snapshot stays suppressed. Newly eligible observations define a different snapshot, not a retry of that job.
+    if (this.failure?.prefix.length === prefixKey.length && this.failure.prefix.every((value, index) => value === prefixKey[index]))
+      return
     const snapshot = structuredClone(this.project(prefix))
     // The summary uses no tools. Reserving space for its instructions also gates that provider request.
     if (measure(snapshot) + 2048 >= this.options.hardLimitBytes) {
-      this.failure = new Error('Summary input exceeds the context byte budget')
+      this.failure = { prefix: prefixKey, error: new Error('Summary input exceeds the context byte budget') }
       return
     }
     freeze(snapshot)
@@ -131,7 +135,7 @@ export class ConversationCompact {
     }
     const controller = new AbortController()
     const job: SummaryJob = {
-      checkpoint: { prefix: prefix.map(turn => JSON.stringify(turn)), rounds, text: '' },
+      checkpoint: { prefix: prefixKey, rounds, text: '' },
       controller,
       signal: signal ? AbortSignal.any([signal, controller.signal]) : controller.signal,
       ready: false,
@@ -158,11 +162,12 @@ export class ConversationCompact {
     const next = this.project(source, job.checkpoint)
     const bytes = measure(next)
     if (bytes >= measure(this.project(source))) {
-      this.failure = new Error('Conversation summary does not reduce the request context')
+      this.failure = { prefix: job.checkpoint.prefix, error: new Error('Conversation summary does not reduce the request context') }
       this.options.onEvent?.({ type: 'failed', rounds: job.checkpoint.rounds.size, bytes })
     }
     else {
       this.committed = job.checkpoint
+      this.failure = undefined
       this.options.onEvent?.({ type: 'applied', rounds: job.checkpoint.rounds.size, bytes })
     }
     this.job = undefined
@@ -200,12 +205,12 @@ export class ConversationCompact {
     }
     this.apply(source, measure)
     if (this.job?.error) {
-      this.failure = this.job.error
+      this.failure = { prefix: this.job.checkpoint.prefix, error: this.job.error }
       this.options.onEvent?.({ type: 'failed', rounds: this.job.checkpoint.rounds.size, bytes: measure(this.project(source)) })
       this.job = undefined
     }
     let projected = this.project(source)
-    if (measure(projected) >= this.options.softLimitBytes && !this.job && !this.failure)
+    if (measure(projected) >= this.options.softLimitBytes && !this.job)
       this.start(source, target, signal)
     if (measure(projected) < this.options.hardLimitBytes)
       return projected
@@ -215,13 +220,13 @@ export class ConversationCompact {
       if (this.job !== job || this.scope !== target.scope)
         throw new Error('Conversation changed while waiting for its summary')
       if (job.error)
-        this.failure = job.error
+        this.failure = { prefix: job.checkpoint.prefix, error: job.error }
       this.apply(source, measure)
       projected = this.project(source)
     }
     if (measure(projected) >= this.options.hardLimitBytes) {
       this.options.onEvent?.({ type: 'blocked', rounds: this.committed?.rounds.size ?? 0, bytes: measure(projected) })
-      throw new Error('Conversation context exceeds the request byte budget', { cause: this.failure })
+      throw new Error('Conversation context exceeds the request byte budget', { cause: this.failure?.error })
     }
     signal?.throwIfAborted()
     return projected

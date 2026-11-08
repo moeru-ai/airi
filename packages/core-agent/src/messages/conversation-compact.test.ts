@@ -38,6 +38,45 @@ const target = { scope: 'session/model', measureContextBytes: measure }
 const limits = { softLimitBytes: 6000, hardLimitBytes: 23000, retainRounds: 1 }
 
 describe('conversationCompact', () => {
+  it('does not retry a failed prefix but admits one new summary when later images become eligible', async () => {
+    const compact = new ConversationCompact({ softLimitBytes: 6000, hardLimitBytes: 14000, retainRounds: 2 })
+    const summarize = vi.fn(async () => summarize.mock.calls.length === 1 ? 'ineffective '.repeat(6000) : 'Visual observations retained.')
+    const request = { ...target, summarize }
+    const source = conversation()
+    await expect(compact.prepare(source, request)).rejects.toThrow('context exceeds')
+    await expect(compact.prepare(source, request)).rejects.toThrow('context exceeds')
+    expect(summarize).toHaveBeenCalledOnce()
+    const next = structuredClone(source)
+    const assistant = next.turns[2]
+    if (assistant.type !== 'assistant')
+      throw new Error('Missing fixture assistant')
+    assistant.rounds.push(round(4))
+    const projected = await compact.prepare(next, request)
+    expect(summarize).toHaveBeenCalledTimes(2)
+    expect(measure(projected)).toBeLessThan(14000)
+    expect(projected.turns.flatMap(turn => turn.type === 'assistant' ? turn.rounds.flatMap(item => item.toolInvocations.map(call => call.callId)) : [])).toEqual(['call-0', 'call-1', 'call-2', 'call-3', 'call-4'])
+    expect(JSON.stringify(projected)).toContain('"noNewDispatch\\":false')
+    expect(source.turns[2]).toMatchObject({ rounds: expect.any(Array) })
+    compact.reset()
+  })
+
+  it('does not summarize empty assistant text around exact text-only receipts', async () => {
+    const source = conversation()
+    const assistant = source.turns[2]
+    if (assistant.type !== 'assistant')
+      throw new Error('Missing fixture assistant')
+    for (const item of assistant.rounds) {
+      item.content[0] = { type: 'text', text: '' }
+      item.toolInvocations[0].execution = { status: 'succeeded', output: [{ type: 'text', text: 'Exact receipt '.repeat(200) }] }
+    }
+    const summarize = vi.fn(async () => 'No visual or narrative information to compress')
+    const compact = new ConversationCompact(limits)
+    await compact.prepare(source, { ...target, summarize })
+    await Promise.resolve()
+    expect(summarize).not.toHaveBeenCalled()
+    compact.reset()
+  })
+
   it('freezes the background prefix, retains exact receipts, and merges a later delta', async () => {
     const gate = barrier<string>()
     const started = barrier<Conversation>()

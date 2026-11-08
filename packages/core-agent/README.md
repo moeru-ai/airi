@@ -27,6 +27,7 @@ The background model receives a frozen prefix with no tools. New rounds continue
 A matching prefix can merge its summary with later content. Changed prefixes, cancellation, session clear and provider changes discard stale work.
 Owner messages, Host notices, tool identities, arguments and text receipts remain exact. Old images and assistant narratives become context-level summaries.
 Pending, failed and opaque rounds stay intact. Text-heavy receipts can fill the budget, in which case the next request stops.
+An ineffective summary suppresses its exact prefix. Newly eligible observations can start a different snapshot without retrying the failed job.
 These are application byte limits. They do not certify the provider's token window or the factual accuracy of a model summary.
 
 The chat orchestrator forwards a send's `resolveStep`. It appends that send's system prompt supplement, including sticker instructions, to each resolved prompt.

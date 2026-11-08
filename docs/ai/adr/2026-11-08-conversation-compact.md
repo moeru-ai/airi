@@ -27,7 +27,9 @@ The summary has context authority. It cannot select tools, approve an action, se
 Prefix comparisons include original content and ordering. Newly appended content joins the summary without rewriting that content.
 Edits, deletion, session clearing, provider-scope changes and cancellation invalidate stale jobs.
 Loss of renderer leadership and store disposal abort owned jobs. No work transfers through a summary.
-An empty, failed or ineffective summary does not retry automatically. At the hard budget, the next model request fails.
+An empty, failed or ineffective summary suppresses that exact prefix. Newly eligible observations can start one different snapshot.
+Empty assistant text around tool receipts does not qualify for compression. Existing pre-event transport retry rules still apply.
+At the hard budget, a request with no effective summary fails.
 Oversized pinned context also fails. No tool execution repeats to reconstruct missing context.
 
 The summary uses the resolved provider request and existing `useLLM.stream` with `taskTools: []` and provider tools disabled.
@@ -39,6 +41,8 @@ Controlled tests use real Core adapters and SDK serialization with provider resp
 Barriers retain a frozen prefix while later content arrives. Provider dispatch counts prove hard-budget waiting, cancellation and summary failure.
 Receipts containing `unknown`, a missing exit code and `noNewDispatch=false` survive exactly. The cache assigns no execution semantics to those fields.
 Browser tests use real Chat stores and the tool resolver. They verify tool-free background requests and separate Session projections.
+The first long real-model sample exposed session-wide failure suppression after an ineffective summary.
+Deterministic tests reproduce that block and the empty-text candidate. New-prefix admission fixes both without repeating a tool operation.
 
 ## Limits
 
