@@ -44,6 +44,7 @@
     "@moeru/eventa": "catalog:",
     "@moeru/std": "catalog:",
     "@proj-airi/plugin-protocol": "workspace:*",
+    "injeca": "catalog:",
     "nanoid": "catalog:",
     "semver": "catalog:",
     "valibot": "catalog:"

@@ -69,9 +69,10 @@ Cleanup attempts every module and root subscription even when a disposer fails. 
 
 The Host removes the session after these attempts. One failure retains its original identity. Multiple failures use `AggregateError`, with nested groups preserved.
 
-Node/Electron Hosts reject stop or reload from the target session's active cleanup chain, including calls after `await`.
-Nested cleanup cannot wait for an active ancestor session. External concurrent callers still await the complete cleanup result.
-The Host loads Node asynchronous context only when its configured runtime is `node` or `electron`. Web Hosts do not provide this detection.
+Each session runs in its own injeca child container of the Host container. Stop disposes that container, and every concurrent caller gets the same result.
+A stop or reload from the synchronous part of the target session's cleanup resolves at once.
+A cleanup that awaits the stop of its own session, or of an active ancestor session, waits until the session stop timeout of 10 seconds.
+Then the stop continues, and that cleanup keeps running. A later cleanup failure goes to the injeca logger. Web, Node, and Electron Hosts behave the same way.
 
 Only root setup can provide a Kit. Module scopes can consume Host-provided Kits, but they cannot provide an Extension-hosted Kit. Phase 3 stores Provider handlers without invoking them. Consumer Clients, method calls, events, permissions, and transport belong to Phase 4.
 

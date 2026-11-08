@@ -3,7 +3,7 @@ import type { ExtensionManifestV2, ModulePermissionDeclaration } from './shared/
 import { join } from 'node:path'
 
 import { safeParse } from 'valibot'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, onTestFinished, vi } from 'vitest'
 
 import { ExtensionHost, extensionManifestV2Schema, FileSystemLoader } from '.'
 import { defineExtension } from '../extension'
@@ -609,8 +609,12 @@ describe('extension-hosted Kit registration lifecycle', () => {
   // ROOT CAUSE:
   //
   // Stop joined the cleanup promise that awaited its own disposer, including after await.
-  // Node asynchronous context now rejects self-waits while external callers retain the shared outcome.
-  it('rejects self-stop across an await while external stops share completed cleanup (PR #2687)', async () => {
+  // The session stop timeout now ends the self-wait, while external callers retain the shared outcome.
+  it('ends self-stop across an await at the stop timeout while external stops share the outcome (PR #2687)', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    onTestFinished(() => {
+      vi.useRealTimers()
+    })
     const host = new ExtensionHost()
     const entered = Promise.withResolvers<void>()
     const resume = Promise.withResolvers<void>()
@@ -640,12 +644,12 @@ describe('extension-hosted Kit registration lifecycle', () => {
     expect(externalFinished).toBe(false)
     expect(remaining).not.toHaveBeenCalled()
     resume.resolve()
+    await vi.runAllTimersAsync()
 
-    const failure = await stopping
-    expect(failure).toBeInstanceOf(Error)
-    expect(failure).toHaveProperty('message', expect.stringContaining('from its own cleanup'))
-    expect(await stoppingAgain).toBe(failure)
-    expect(await reloading).toBe(failure)
+    expect(await stopping).toBe(session)
+    expect(await stoppingAgain).toBe(session)
+    // Reload continues after the stop. This session has no entrypoint, so the fresh start fails.
+    expect(await reloading).toHaveProperty('message', expect.stringContaining('entrypoint'))
     expect(remaining).toHaveBeenCalledTimes(1)
     expect(host.listSessions()).toEqual([])
     expect(host.getKitProvider(contract.id)).toBeUndefined()
@@ -655,8 +659,12 @@ describe('extension-hosted Kit registration lifecycle', () => {
   // ROOT CAUSE:
   //
   // Direct self-stop returned the pending cleanup promise while the disposer remained pending.
-  // Cleanup context now rejects the join, and best-effort disposal continues.
-  it('rejects synchronous self-stop without skipping later cleanup (PR #2687)', async () => {
+  // The session stop timeout now ends the join, and best-effort disposal continues.
+  it('ends direct self-stop at the stop timeout without skipping later cleanup (PR #2687)', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    onTestFinished(() => {
+      vi.useRealTimers()
+    })
     const host = new ExtensionHost({ runtime: 'node' })
     const remaining = vi.fn()
     const session = await host.startExtension(defineExtension({
@@ -670,7 +678,9 @@ describe('extension-hosted Kit registration lifecycle', () => {
       },
     }), { manifest: { ...manifest('self-stop-sync'), engines: { airi: '*', runtimes: ['node'] } } })
 
-    await expect(host.stop(session.id)).rejects.toThrow('from its own cleanup')
+    const stopping = host.stop(session.id)
+    await vi.runAllTimersAsync()
+    await expect(stopping).resolves.toBe(session)
     expect(remaining).toHaveBeenCalledTimes(1)
     expect(host.listSessions()).toEqual([])
   })
@@ -679,8 +689,12 @@ describe('extension-hosted Kit registration lifecycle', () => {
   // ROOT CAUSE:
   //
   // Reload joined the same session cleanup from inside a module disposer and never reached fresh start.
-  // The shared cleanup join now rejects calls from that session's active cleanup chain.
-  it('rejects module self-reload after an await without starting a replacement (PR #2687)', async () => {
+  // The session stop timeout now ends the join. Then reload continues with its fresh start.
+  it('ends module self-reload after an await at the stop timeout (PR #2687)', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    onTestFinished(() => {
+      vi.useRealTimers()
+    })
     const host = new ExtensionHost()
     const start = vi.spyOn(host, 'start')
     const remaining = vi.fn()
@@ -697,8 +711,10 @@ describe('extension-hosted Kit registration lifecycle', () => {
       },
     }), { manifest: manifest('self-reload') })
 
-    await expect(host.stop(session.id)).rejects.toThrow('from its own cleanup')
-    expect(start).not.toHaveBeenCalled()
+    const stopping = host.stop(session.id)
+    await vi.runAllTimersAsync()
+    await expect(stopping).resolves.toBe(session)
+    await vi.waitFor(() => expect(start).toHaveBeenCalledTimes(1))
     expect(remaining).toHaveBeenCalledTimes(1)
     expect(session.modules.size).toBe(0)
     expect(host.listSessions()).toEqual([])
@@ -708,8 +724,12 @@ describe('extension-hosted Kit registration lifecycle', () => {
   // ROOT CAUSE:
   //
   // A disposer stopped another session whose cleanup then awaited the first session.
-  // Active cleanup ancestors remain visible across nested asynchronous calls, so the cyclic join rejects.
-  it('allows cleanup to stop another session but rejects a wait on an ancestor cleanup (PR #2687)', async () => {
+  // The session stop timeout now ends the cyclic join.
+  it('allows cleanup to stop another session and ends a wait on an ancestor cleanup at the stop timeout (PR #2687)', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    onTestFinished(() => {
+      vi.useRealTimers()
+    })
     const host = new ExtensionHost()
     const order: string[] = []
     let secondId: string
@@ -734,7 +754,9 @@ describe('extension-hosted Kit registration lifecycle', () => {
     }), { manifest: { ...manifest('second-cleanup'), kits: undefined } })
     secondId = second.id
 
-    await expect(host.stop(first.id)).rejects.toThrow('from its own cleanup')
+    const stopping = host.stop(first.id)
+    await vi.runAllTimersAsync()
+    await expect(stopping).resolves.toBe(first)
     expect(order).toEqual(['first', 'second'])
     expect(host.listSessions()).toEqual([])
   })
