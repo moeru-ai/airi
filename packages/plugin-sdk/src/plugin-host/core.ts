@@ -29,7 +29,6 @@ import type {
 
 import semver from 'semver'
 
-import { errorMessageFrom } from '@moeru/std'
 import { createContainer, dispose, effect } from 'injeca'
 
 import { DisposableStore } from '../extension/disposable'
@@ -337,6 +336,10 @@ export class ExtensionHost {
     }
 
     this.sessionContainers.set(session, { container, transaction: providerTransaction })
+    // Effects dispose in reverse order. So the session leaves the list after its resources, also when their cleanup passes the stop timeout.
+    effect(container, () => () => {
+      this.extensionSessionService.remove(session.id)
+    })
     effect(container, () => () => this.disposeSessionResources(session))
     this.extensionSessionService.register(session)
 
@@ -682,20 +685,7 @@ export class ExtensionHost {
         this.modules.unbind(session.id, session.extension.id, module.moduleId)
       }
     } })
-    const cleanup = resources.dispose()
-    // NOTICE:
-    // A cleanup that awaits the stop of its own session waits for itself until a stop timeout.
-    // injeca 0.5.1 applies `timeouts.stop` to units, not to container effects.
-    // Source: injeca `beginDisposal` in `src/primitives/container.ts`.
-    // Remove when injeca applies `timeouts.stop` to container effects.
-    return new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => {
-        this.container.logger.warn(`The cleanup of Extension session ${session.id} did not settle within ${sessionStopTimeoutMs}ms. The stop continues.`)
-        cleanup.catch((error: unknown) => this.container.logger.warn(`The cleanup of Extension session ${session.id} failed after its stop timeout: ${errorMessageFrom(error)}`))
-        resolve()
-      }, sessionStopTimeoutMs)
-      void cleanup.then(resolve, reject).finally(() => clearTimeout(timer))
-    }).finally(() => this.extensionSessionService.remove(session.id))
+    return resources.dispose()
   }
 
   private getModuleOrThrow(moduleId: string) {
