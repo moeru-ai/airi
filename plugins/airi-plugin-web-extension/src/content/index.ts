@@ -1,6 +1,7 @@
 import type { BackgroundToContentMessage, ContentToBackgroundMessage, PageContextPayload, SubtitlePayload, VideoContextPayload, VideoSite, VisionFramePayload } from '../shared/types'
 
 import { detectSiteFromUrl, extractVideoId, normalizeText } from '../shared/sites'
+import { pickVideo } from './pick-video'
 import { getYouTubeNavigation } from './youtube-navigation'
 
 const VIDEO_PROGRESS_INTERVAL = 15000
@@ -70,8 +71,18 @@ function buildVideoContext(site: VideoSite, video: HTMLVideoElement, includeProg
   }
 }
 
+/** A YouTube Shorts page, `/shorts/<video id>`. It has no watch page heading of its own. */
+function isYouTubeShortsPage() {
+  return location.pathname.startsWith('/shorts/')
+}
+
 function findVideoTitle(site: VideoSite) {
   if (site === 'youtube') {
+    // On Shorts, the watch page heading belongs to the video in the mini player.
+    // Return nothing, so that the caller uses the page title of the Short.
+    if (isYouTubeShortsPage())
+      return undefined
+
     return (
       document.querySelector('ytd-watch-metadata h1 yt-formatted-string')?.textContent
       || document.querySelector('h1.title yt-formatted-string')?.textContent
@@ -92,6 +103,10 @@ function findVideoTitle(site: VideoSite) {
 
 function findChannelName(site: VideoSite) {
   if (site === 'youtube') {
+    // On Shorts, the watch page channel belongs to the video in the mini player.
+    if (isYouTubeShortsPage())
+      return undefined
+
     return (
       document.querySelector('#channel-name a')?.textContent
       || document.querySelector('ytd-channel-name a')?.textContent
@@ -267,7 +282,7 @@ function observeVideo(site: VideoSite) {
   }
 
   const attach = () => {
-    const found = document.querySelector('video') as HTMLVideoElement | null
+    const found = pickVideo(document.querySelectorAll('video'))
     if (!found || found === video)
       return
 
@@ -353,7 +368,7 @@ export function startContentObserver() {
 
   browser.runtime.onMessage.addListener((message: BackgroundToContentMessage) => {
     if (message.type === 'background:request-vision-frame') {
-      const video = document.querySelector('video') as HTMLVideoElement | null
+      const video = pickVideo(document.querySelectorAll('video'))
       if (!video)
         return
 
