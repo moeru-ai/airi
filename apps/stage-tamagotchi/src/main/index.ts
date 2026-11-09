@@ -18,6 +18,7 @@ import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalHookPostLog, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { hasSelectedScreenCaptureSource, initScreenCaptureForMain } from '@proj-airi/electron-screen-capture/main'
+import { ExtensionHost } from '@proj-airi/plugin-sdk/plugin-host'
 import { app, ipcMain, protocol, session } from 'electron'
 import { createLoggLogger, injeca } from 'injeca'
 import { isLinux } from 'std-env'
@@ -49,6 +50,7 @@ import { IOTraceRecordingService } from './services/airi/io-trace-recording'
 import { recordHubRecords } from './services/airi/io-trace-recording/hub'
 import { setupMcpManager } from './services/airi/mcp-servers'
 import { setupExtensionHost } from './services/airi/plugins'
+import { createBuiltInExtensionKits } from './services/airi/plugins/kits'
 import { setupArtistryBridge } from './services/airi/widgets/artistry-bridge'
 import { isExternallyUpdatedInstall, setupAutoUpdater } from './services/electron/auto-updater'
 import { setupSherpawModelAssetsProtocol } from './services/electron/bundled-sherpaw-assets'
@@ -264,6 +266,7 @@ app.whenReady().then(async () => {
   })
 
   injeca.setLogger(createLoggLogger(useLogg('injeca').useGlobalConfig()))
+  injeca.getContainer().logging = true
 
   const appConfig = injeca.provide('configs:app', () => createGlobalAppConfig())
   const artistryConfig = injeca.provide('configs:artistry', () => createArtistryConfig())
@@ -367,12 +370,26 @@ app.whenReady().then(async () => {
     build: ({ dependsOn }) => setupWidgetsWindowManager(dependsOn),
   })
 
+  const extensionHost = injeca.provide('modules:extension-host', () => new ExtensionHost({ airiVersion: app.getVersion(), runtime: 'electron' }))
+  const builtInExtensionKits = injeca.provide('modules:extension-host:built-in-kits', {
+    dependsOn: { host: extensionHost, widgetsManager },
+    build: ({ dependsOn, on }) => {
+      const kits = createBuiltInExtensionKits(dependsOn)
+      on('stop', () => kits.dispose())
+      return kits
+    },
+  })
   const pluginHost = injeca.provide('modules:plugin-host', {
-    dependsOn: { serverChannel, widgetsManager },
-    build: ({ dependsOn }) => setupExtensionHost({
-      ...dependsOn,
-      getExtensionManagementWebContentsId: () => extensionManagementWebContentsId,
-    }),
+    dependsOn: { serverChannel, host: extensionHost, kits: builtInExtensionKits },
+    build: async ({ dependsOn, on }) => {
+      const service = await setupExtensionHost({
+        ...dependsOn,
+        getExtensionManagementWebContentsId: () => extensionManagementWebContentsId,
+      })
+      // Extensions stop here, before the built-in Kits unit that this unit depends on.
+      on('stop', () => service.dispose())
+      return service
+    },
   })
 
   const globalShortcut = injeca.provide('services:global-shortcut', () => setupGlobalShortcutService())

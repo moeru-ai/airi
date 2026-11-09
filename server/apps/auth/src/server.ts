@@ -128,7 +128,7 @@ export type AuthAppType = Awaited<ReturnType<typeof buildAuthApp>>['app']
 export async function createAuthServer() {
   initLogger(LoggerLevel.Debug, LoggerFormat.Pretty)
   const logger = useLogger('auth-server').useGlobalConfig()
-  const container = createContainer({ logger: createLoggLogger(useLogger('injeca').useGlobalConfig()) })
+  const container = createContainer({ logger: createLoggLogger(useLogger('injeca').useGlobalConfig()), logging: true })
 
   setGlobalHookPostLog((log) => {
     emitOtelLog(log.level, log.context, log.message, log.fields as Record<string, string | number | boolean>)

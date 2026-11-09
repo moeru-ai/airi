@@ -50,6 +50,7 @@
     "@proj-airi/auth-shared": "workspace:*",
     "@proj-airi/http-error-shared": "workspace:*",
     "@proj-airi/server-sdk-shared": "workspace:*",
+    "@proj-airi/trace-kit": "workspace:^",
     "@xsai/shared-stream": "catalog:",
     "drizzle-orm": "catalog:",
     "drizzle-valibot": "catalog:",

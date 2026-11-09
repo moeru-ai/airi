@@ -20,6 +20,10 @@
       "types": "./dist/index.d.mts",
       "default": "./dist/index.mjs"
     },
+    "./semconv": {
+      "types": "./dist/semconv.d.mts",
+      "default": "./dist/semconv.mjs"
+    },
     "./collector": {
       "types": "./dist/collector/index.d.mts",
       "default": "./dist/collector/index.mjs"
@@ -55,7 +59,8 @@
   "scripts": {
     "test:run": "vitest run --config vitest.config.ts",
     "build": "tsdown",
-    "typecheck": "tsc --noEmit"
+    "generate:semconv": "tsx scripts/semconv/generate.ts",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p scripts"
   },
   "dependencies": {
     "@proj-airi/stream-kit": "workspace:^",
@@ -63,6 +68,8 @@
     "valibot": "catalog:"
   },
   "devDependencies": {
-    "@opentelemetry/semantic-conventions": "catalog:"
+    "@types/node": "catalog:",
+    "tsx": "catalog:",
+    "yaml": "catalog:"
   }
 }
