@@ -584,16 +584,6 @@
       "count": 2
     }
   },
-  "packages/stage-ui-spine/src/components/scenes/spine/Model.vue": {
-    "ts/no-explicit-any": {
-      "count": 2
-    }
-  },
-  "packages/stage-ui-spine/src/utils/spine-preview.ts": {
-    "ts/no-explicit-any": {
-      "count": 1
-    }
-  },
   "packages/stage-ui-three/src/components/Model/VRMModel.vue": {
     "ts/no-explicit-any": {
       "count": 4
