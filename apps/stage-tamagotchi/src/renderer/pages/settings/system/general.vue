@@ -7,7 +7,10 @@ import { onMounted, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
+import NetworkProxySettings from '../../../components/settings/network-proxy-settings.vue'
+
 import { electron, electronAppIconGet, electronAppIconSet } from '../../../../shared/eventa'
+import { aiProxyAvailable, aiProxyEnabled, setAIProxyEnabled } from '../../../modules/ai-transport'
 
 const { t } = useI18n()
 const getHidden = useElectronEventaInvoke(electronAppIconGet)
@@ -34,11 +37,29 @@ async function updateHidden(hidden: boolean) {
     toast.error(t('tamagotchi.settings.pages.system.general.hide-app-icon.save-error'))
   }
 }
+async function updateAIProxy(enabled: boolean) {
+  try {
+    await setAIProxyEnabled(enabled)
+  }
+  catch {
+    toast.error(t('tamagotchi.settings.pages.system.general.ai-proxy.save-error'))
+  }
+}
 </script>
 
 <template>
   <SettingsGeneralFields>
     <template #additional-fields>
+      <NetworkProxySettings />
+      <FieldCheckbox
+        :model-value="aiProxyEnabled"
+        :label="t('tamagotchi.settings.pages.system.general.ai-proxy.title')"
+        :description="t('tamagotchi.settings.pages.system.general.ai-proxy.description')"
+        @update:model-value="updateAIProxy"
+      />
+      <p role="status">
+        {{ t(`tamagotchi.settings.pages.system.general.ai-proxy.${!aiProxyAvailable ? 'unavailable' : aiProxyEnabled ? 'enabled' : 'disabled'}`) }}
+      </p>
       <FieldCheckbox
         v-if="hideAppIcon !== undefined"
         :model-value="hideAppIcon"

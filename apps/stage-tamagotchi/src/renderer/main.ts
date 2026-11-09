@@ -26,6 +26,7 @@ import App from './App.vue'
 import { electronWindowBackdropUpdate } from '../shared/eventa'
 import { nestFullscreenSurfaces } from './components/fullscreen/surfaces'
 import { createWindowBackdropHost } from './composables/window-backdrop'
+import { initializeAITransport } from './modules/ai-transport'
 import { i18n } from './modules/i18n'
 import { resolveRendererWindowContext } from './window-context'
 
@@ -92,19 +93,21 @@ if (import.meta.hot) {
   })
 }
 
-createApp(App)
-  .use(synced.vue)
-  .use(MotionPlugin)
+void initializeAITransport().then(() => {
+  createApp(App)
+    .use(synced.vue)
+    .use(MotionPlugin)
   // TODO: Fix autoAnimatePlugin type error
-  .use(autoAnimatePlugin as unknown as Plugin)
-  .use(router)
-  .use(pinia)
-  .use(PiniaColada)
-  .use(i18n)
-  .use(Tres)
-  .use(trackButtonPlugin)
+    .use(autoAnimatePlugin as unknown as Plugin)
+    .use(router)
+    .use(pinia)
+    .use(PiniaColada)
+    .use(i18n)
+    .use(Tres)
+    .use(trackButtonPlugin)
   // The stage window registers a global hold shortcut. Every window shares this app, so the settings window offers the mode too.
-  .provide(pushToTalkTriggerKey, true)
-  // Translucent surfaces in every window get native glass where the platform has it.
-  .provide(backdropSurfaceHostKey, createWindowBackdropHost(useElectronEventaInvoke(electronWindowBackdropUpdate)))
-  .mount('#app')
+    .provide(pushToTalkTriggerKey, true)
+    // Translucent surfaces use native glass when the platform supports it.
+    .provide(backdropSurfaceHostKey, createWindowBackdropHost(useElectronEventaInvoke(electronWindowBackdropUpdate)))
+    .mount('#app')
+})

@@ -8,6 +8,7 @@ import cozyTeaCornerInPastelHuesUrl from '../assets/backgrounds/cozy-tea-corner-
 import cuteStreamingRoomWithPastelDecorUrl from '../assets/backgrounds/cute-streaming-room-with-pastel-decor.avif'
 
 import { listRawItems, storage } from '../database/storage'
+import { getAITransportFetch } from '../libs/ai-transport'
 import { useAiriCardStore } from './modules/airi-card'
 
 /** A journal image that an earlier release stored under the `image-journal-` prefix. */
@@ -86,7 +87,9 @@ export const useBackgroundStore = defineStore('background-entries', () => {
 
   // Helper to fetch an asset as a blob
   async function fetchAssetAsBlob(url: string): Promise<Blob> {
-    const res = await fetch(url)
+    const res = await getAITransportFetch()(url)
+    if (!res.ok)
+      throw new Error(`Image download failed: HTTP ${res.status}`)
     return await res.blob()
   }
 

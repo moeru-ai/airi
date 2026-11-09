@@ -296,6 +296,7 @@ describe('provider store synchronization boundary', () => {
     // Login merge replaced the persisted OpenAI key and left providerInstanceCache
     // holding a client built from the previous key. Later chat returned that
     // client until reload.
+    const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => Response.json({ data: [] }))
     const store = useProviderStore()
     const configStore = useProviderConfigStore()
     const openaiConfig = {
@@ -326,6 +327,7 @@ describe('provider store synchronization boundary', () => {
     }
     finally {
       restore()
+      fetch.mockRestore()
     }
   })
 

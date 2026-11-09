@@ -21,10 +21,9 @@ describe('nanobanana provider', () => {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     }))
-    vi.stubGlobal('fetch', fetchMock)
     vi.useFakeTimers()
 
-    const provider = new NanoBananaProvider()
+    const provider = new NanoBananaProvider(fetchMock)
     await provider.initialize({
       nanobananaApiKey: 'test-key',
       nanobananaModel: 'gemini-3.1-flash-image-preview',

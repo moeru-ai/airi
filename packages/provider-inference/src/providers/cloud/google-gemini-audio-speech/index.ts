@@ -66,11 +66,11 @@ function decodeBase64(base64: string) {
   return bytes
 }
 
-function createAudioFetch(apiKey: string, baseUrl: string) {
+function createAudioFetch(apiKey: string, baseUrl: string, fetch: typeof globalThis.fetch = globalThis.fetch) {
   const client = new GoogleGenAI({
     apiKey,
     // baseUrl already includes the API version path, so apiVersion is empty to avoid appending it twice.
-    httpOptions: { apiVersion: '', baseUrl },
+    httpOptions: { apiVersion: '', baseUrl, fetch },
   })
 
   return async (_input: RequestInfo | URL, init?: RequestInit) => {
@@ -92,6 +92,7 @@ function createAudioFetch(apiKey: string, baseUrl: string) {
       model: body.model,
       contents: [{ parts: [{ text: body.input }] }],
       config: {
+        abortSignal: init.signal ?? undefined,
         responseModalities: ['AUDIO'],
         speechConfig: {
           voiceConfig: { prebuiltVoiceConfig: { voiceName: body.voice || 'Kore' } },
@@ -121,13 +122,13 @@ export const providerGoogleGeminiAudioSpeech = defineProvider<GoogleGeminiSpeech
   icon: 'i-lobe-icons:gemini',
   iconColor: 'i-lobe-icons:gemini-color',
   createProviderConfig: () => googleGeminiSpeechConfigSchema,
-  createProvider(config) {
+  createProvider(config, context) {
     const apiKey = config.apiKey.trim()
     const baseUrl = normalizeBaseUrl(config.baseUrl)
     return {
       speech: (model?: string, options?: Record<string, unknown>) => ({
         baseURL: baseUrl,
-        fetch: createAudioFetch(apiKey, baseUrl),
+        fetch: createAudioFetch(apiKey, baseUrl, context?.fetch),
         ...options,
         model: model || (typeof options?.model === 'string' ? options.model : DEFAULT_MODEL),
       }),

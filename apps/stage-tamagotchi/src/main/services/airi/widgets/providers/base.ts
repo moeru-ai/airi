@@ -7,6 +7,8 @@
  */
 
 export interface ArtistryRequest {
+  /** The requesting window owns cancellation of network work for this job. */
+  signal?: AbortSignal
   /** The text prompt describing the desired image */
   prompt: string
   /** Negative prompt — things to avoid (provider support varies) */

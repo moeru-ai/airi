@@ -104,9 +104,9 @@ export const providerElevenLabs = defineProvider<ElevenLabsConfig, 'elevenlabs'>
       deprecated: false,
     })),
     voiceCatalogConfig: ({ apiKey, baseUrl }) => ({ apiKey, baseUrl }),
-    listVoices: async (config) => {
+    listVoices: async (config, _provider, _model, signal, context) => {
       const provider = createUnElevenLabs(config.apiKey.trim(), config.baseUrl?.trim() ?? 'https://unspeech.hyp3r.link/v1/') as VoiceProviderWithExtraOptions<UnElevenLabsOptions>
-      const voices = await listVoices(toListVoicesOptions(provider))
+      const voices = await listVoices({ ...toListVoicesOptions(provider), fetch: (input: RequestInfo | URL, init?: RequestInit) => (context?.fetch ?? globalThis.fetch)(input, { ...init, signal }) })
       if (!Array.isArray(voices))
         return []
 

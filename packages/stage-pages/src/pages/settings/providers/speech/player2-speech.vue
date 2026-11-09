@@ -3,6 +3,7 @@ import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { UnElevenLabsOptions } from 'unspeech'
 
 import { SpeechPlayground, SpeechProviderSettings } from '@proj-airi/stage-ui/components'
+import { getAITransportFetch } from '@proj-airi/stage-ui/libs/ai-transport'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
@@ -56,7 +57,7 @@ onMounted(async () => {
   }
   try {
     const baseUrl = (providerConfig.baseUrl as string | undefined) ?? ''
-    const res = await fetch(`${baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl}/health`, {
+    const res = await getAITransportFetch()(`${baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl}/health`, {
       method: 'GET',
       headers: {
         'player2-game-key': 'airi',

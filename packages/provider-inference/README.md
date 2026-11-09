@@ -79,3 +79,12 @@ Reported search abilities do not select a native tool implementation.
 OpenAI reasoning controls use the exact model entry and effort levels from the pinned catalog.
 Unsupported effort values are omitted. In particular, models without a `none` effort keep their server default when reasoning is disabled.
 Generation validation uses the configured model before consulting the endpoint model list.
+
+## HTTP transport context
+
+Hosts can pass `{ t, fetch }` to provider creation, validators, and model and voice catalogs.
+Capture one Fetch implementation for each operation. Do not replace global Fetch.
+
+`defineProvider` adds the transport to SDK configurations that have no custom adapter.
+Custom HTTP adapters must pass the context transport to their final network call.
+Local inference adapters keep their own Fetch-shaped implementations.
