@@ -45,16 +45,19 @@ provide(settingsFullBleedHostKey, {
 const { isDark: dark } = useTheme()
 const { t } = useI18n()
 const providersStore = useProviderStore()
-const routeMeta = computed(() => route.meta as {
+
+interface SettingsRouteMeta {
   titleKey?: string
   subtitleKey?: string
   title?: string
   subtitle?: string
   disableBackButton?: boolean
-})
+}
+
+const routeMeta = computed(() => (route?.meta ?? {}) as SettingsRouteMeta)
 
 const providerTitle = computed(() => {
-  if (!route.path.startsWith('/settings/providers/'))
+  if (!route?.path?.startsWith('/settings/providers/'))
     return undefined
 
   const segments = route.path.split('/').filter(Boolean)
