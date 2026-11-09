@@ -74,7 +74,7 @@ async function init() {
 // The settled report can be seconds old, so it does not replace the video context.
 const videoNotifyGate = new VideoNotifyGate<VideoContextPayload>(payload => notifyVideo(state, settings, payload))
 
-function handleContentMessage(message: ContentToBackgroundMessage) {
+function handleContentMessage(message: ContentToBackgroundMessage, tabId?: number) {
   switch (message.type) {
     case 'content:page': {
       const payload = {
@@ -91,7 +91,7 @@ function handleContentMessage(message: ContentToBackgroundMessage) {
         site: message.payload.site === 'unknown' ? detectSiteFromUrl(message.payload.url) : message.payload.site,
       }
       handleVideoContext(state, settings, payload)
-      videoNotifyGate.report(payload)
+      videoNotifyGate.report(payload, tabId)
       emitStatus()
       break
     }
@@ -146,15 +146,17 @@ export default defineBackground(() => {
 
   void init()
 
-  browser.runtime.onMessage.addListener((message: unknown) => {
+  browser.runtime.onMessage.addListener((message: unknown, sender) => {
     if (!message || typeof message !== 'object')
       return
     if ('__eventa' in message)
       return
     if ('type' in message && typeof message.type === 'string' && message.type.startsWith('content:')) {
-      handleContentMessage(message as ContentToBackgroundMessage)
+      handleContentMessage(message as ContentToBackgroundMessage, sender.tab?.id)
     }
   })
+
+  browser.tabs.onRemoved.addListener(tabId => videoNotifyGate.forgetTab(tabId))
 
   browser.storage.onChanged.addListener((changes) => {
     if (changes[STORAGE_KEY]) {

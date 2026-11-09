@@ -64,13 +64,13 @@ describe('video notify gate', () => {
   it('waits for the real title when a new video id carries the previous title', () => {
     const onSettle = vi.fn()
     const gate = new VideoNotifyGate(onSettle)
-    gate.report(report('a', 'Song A'))
+    gate.report(report('a', 'Song A'), 1)
     vi.advanceTimersByTime(3_000)
     onSettle.mockClear()
 
-    gate.report(report('b', 'Song A'))
+    gate.report(report('b', 'Song A'), 1)
     vi.advanceTimersByTime(2_000)
-    gate.report(report('b', 'Song B'))
+    gate.report(report('b', 'Song B'), 1)
     vi.advanceTimersByTime(3_000)
 
     expect(onSettle).toHaveBeenCalledTimes(1)
@@ -80,11 +80,11 @@ describe('video notify gate', () => {
   it('ignores a stale page title of the previous video', () => {
     const onSettle = vi.fn()
     const gate = new VideoNotifyGate(onSettle)
-    gate.report(report('a', 'Song'))
+    gate.report(report('a', 'Song'), 1)
     vi.advanceTimersByTime(3_000)
     onSettle.mockClear()
 
-    gate.report(report('b', '(3) Song - YouTube'))
+    gate.report(report('b', '(3) Song - YouTube'), 1)
     vi.advanceTimersByTime(9_999)
 
     expect(onSettle).not.toHaveBeenCalled()
@@ -93,11 +93,11 @@ describe('video notify gate', () => {
   it('notifies a new video with the same title after the title stays', () => {
     const onSettle = vi.fn()
     const gate = new VideoNotifyGate(onSettle)
-    gate.report(report('a', 'Live'))
+    gate.report(report('a', 'Live'), 1)
     vi.advanceTimersByTime(3_000)
     onSettle.mockClear()
 
-    gate.report(report('b', 'Live'))
+    gate.report(report('b', 'Live'), 1)
     vi.advanceTimersByTime(9_999)
     expect(onSettle).not.toHaveBeenCalled()
 
@@ -108,14 +108,41 @@ describe('video notify gate', () => {
   it('notifies a new title that contains the previous title', () => {
     const onSettle = vi.fn()
     const gate = new VideoNotifyGate(onSettle)
-    gate.report(report('a', 'Part 1'))
+    gate.report(report('a', 'Part 1'), 1)
     vi.advanceTimersByTime(3_000)
     onSettle.mockClear()
 
-    gate.report(report('b', 'Part 1 (Director\'s Cut)'))
+    gate.report(report('b', 'Part 1 (Director\'s Cut)'), 1)
     vi.advanceTimersByTime(3_000)
 
     expect(onSettle).toHaveBeenCalledWith(report('b', 'Part 1 (Director\'s Cut)'))
+  })
+
+  it('does not treat the title of another tab as stale', () => {
+    const onSettle = vi.fn()
+    const gate = new VideoNotifyGate(onSettle)
+    gate.report(report('a', 'Song'), 1)
+    vi.advanceTimersByTime(3_000)
+    onSettle.mockClear()
+
+    gate.report(report('b', 'Song'), 2)
+    vi.advanceTimersByTime(3_000)
+
+    expect(onSettle).toHaveBeenCalledWith(report('b', 'Song'))
+  })
+
+  it('forgets the last title of a closed tab', () => {
+    const onSettle = vi.fn()
+    const gate = new VideoNotifyGate(onSettle)
+    gate.report(report('a', 'Song'), 1)
+    vi.advanceTimersByTime(3_000)
+    onSettle.mockClear()
+
+    gate.forgetTab(1)
+    gate.report(report('b', 'Song'), 1)
+    vi.advanceTimersByTime(3_000)
+
+    expect(onSettle).toHaveBeenCalledWith(report('b', 'Song'))
   })
 
   it('notifies each of two playing tabs once', () => {

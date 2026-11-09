@@ -45,7 +45,7 @@ function normalizeVideoTitle(title: string) {
  * YouTube changes the URL before it changes the page title. A report can carry
  * the new video id with the old title. So the gate waits until the title of a
  * video stays the same for {@link SETTLE_MS}. A title that equals the last
- * notified title waits {@link STALE_TITLE_WINDOW_MS}. Then the gate calls
+ * notified title of the same tab waits {@link STALE_TITLE_WINDOW_MS}. Then the gate calls
  * `onSettle` once with the latest report of that video.
  *
  * The content script sends a report only when the payload changes. So the gate
@@ -53,19 +53,20 @@ function normalizeVideoTitle(title: string) {
  *
  * State lives in memory for the life of the background page:
  * - `notifiedVideoKeys` holds recently notified videos. A notified video does not notify again.
- * - `lastNotifiedVideoTitle` holds the title of the last notified video, to detect stale reports.
+ * - `lastNotifiedTitles` holds the last notified title of each tab, to detect stale reports.
+ *   A stale title comes from the previous video of the same tab, so other tabs do not affect it.
  * - `pendingVideos` holds each waiting video with its title, latest report, and timer.
  *
- * Call `dispose` to stop all timers.
+ * Call `forgetTab` when a tab closes. Call `dispose` to stop all timers.
  */
 export class VideoNotifyGate<T extends VideoNotifyReport> {
   private readonly notifiedVideoKeys = new Set<string>()
-  private lastNotifiedVideoTitle = ''
-  private readonly pendingVideos = new Map<string, { title: string, report: T, timer: ReturnType<typeof setTimeout> }>()
+  private readonly lastNotifiedTitles = new Map<number, string>()
+  private readonly pendingVideos = new Map<string, { title: string, report: T, tabId?: number, timer: ReturnType<typeof setTimeout> }>()
 
   constructor(private readonly onSettle: (report: T) => void) {}
 
-  report(next: T) {
+  report(next: T, tabId?: number) {
     const key = next.videoId || next.url
     const title = normalizeVideoTitle(next.title ?? '')
     if (!key || !title || this.notifiedVideoKeys.has(key))
@@ -81,14 +82,19 @@ export class VideoNotifyGate<T extends VideoNotifyReport> {
     if (pending)
       clearTimeout(pending.timer)
 
-    const delay = title === this.lastNotifiedVideoTitle ? STALE_TITLE_WINDOW_MS : SETTLE_MS
-    this.pendingVideos.set(key, { title, report: next, timer: setTimeout(() => this.settle(key), delay) })
+    const lastTitle = tabId == null ? undefined : this.lastNotifiedTitles.get(tabId)
+    const delay = title === lastTitle ? STALE_TITLE_WINDOW_MS : SETTLE_MS
+    this.pendingVideos.set(key, { title, report: next, tabId, timer: setTimeout(() => this.settle(key), delay) })
 
     if (this.pendingVideos.size > PENDING_VIDEO_LIMIT) {
       const [oldestKey, oldest] = this.pendingVideos.entries().next().value!
       clearTimeout(oldest.timer)
       this.pendingVideos.delete(oldestKey)
     }
+  }
+
+  forgetTab(tabId: number) {
+    this.lastNotifiedTitles.delete(tabId)
   }
 
   dispose() {
@@ -107,7 +113,8 @@ export class VideoNotifyGate<T extends VideoNotifyReport> {
     if (this.notifiedVideoKeys.size > NOTIFIED_VIDEO_LIMIT)
       this.notifiedVideoKeys.delete(this.notifiedVideoKeys.values().next().value!)
 
-    this.lastNotifiedVideoTitle = pending.title
+    if (pending.tabId != null)
+      this.lastNotifiedTitles.set(pending.tabId, pending.title)
     this.onSettle(pending.report)
   }
 }
