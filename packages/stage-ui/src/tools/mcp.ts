@@ -117,7 +117,7 @@ export function createMcpTools(runtime: McpToolRuntime): Array<Promise<Tool>> {
   return [
     index.then(index => tool({
       name: 'builtIn_mcpListTools',
-      description: `List tools from connected MCP servers. Call this before builtIn_mcpCallTool to get current names and input schemas. ${index}`,
+      description: `List tools from connected MCP servers. Call this before builtIn_mcpCallTool to get current names and input schemas. For processes, CLI, files, and system interfaces, prefer Terminal, but do not call Terminal as a preflight. Reserve AUV for on-screen visual state or GUI interaction when the Host permits it. Prefer background application launches that avoid unrelated window changes. Never inject keyboard or mouse input through Shell to bypass AUV authorization. ${index}`,
       execute: async () => {
         try {
           const tools = await runtime.listTools()

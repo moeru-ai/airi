@@ -2,6 +2,7 @@ import type { Conversation, GenerationRound } from './types'
 
 import { describe, expect, it, vi } from 'vitest'
 
+import { measureContextBudget } from './context-budget'
 import { ConversationCompact } from './conversation-compact'
 
 function barrier<T>() {
@@ -52,6 +53,42 @@ describe('conversationCompact', () => {
     expect(providerDispatches).toBe(0)
     expect(summarize).not.toHaveBeenCalled()
     console.info(JSON.stringify({ mode: 'off', summaryDispatches: summarize.mock.calls.length, providerDispatches }))
+  })
+
+  it('keeps a vision request eligible when inline image bytes exceed the text gate', async () => {
+    const compact = new ConversationCompact({ softLimitBytes: 100, hardLimitBytes: 1000, retainRounds: 1 })
+    const source: Conversation = { turns: [{ type: 'user', id: 'image', content: [
+      { type: 'text', text: 'Describe this image.' },
+      { type: 'image', url: `data:image/png;base64,${'A'.repeat(5000)}` },
+    ] }] }
+    const request = {
+      scope: 'vision/model',
+      measureContextBytes: measure,
+      measureContextBudget,
+      supportsVisionInput: true,
+      summarize: vi.fn(async () => 'Never called'),
+    }
+
+    await expect(compact.prepare(source, request)).resolves.toEqual(source)
+    expect(request.summarize).not.toHaveBeenCalled()
+    expect(measureContextBudget(source).imageBytes).toBeGreaterThan(1000)
+
+    const textOnly = new ConversationCompact({ softLimitBytes: 100, hardLimitBytes: 1000, retainRounds: 1 })
+    await expect(textOnly.prepare(source, { ...request, supportsVisionInput: false })).rejects.toThrow('context exceeds')
+  })
+
+  it('uses the context budget of each resolved model request', async () => {
+    const compact = new ConversationCompact({ softLimitBytes: 500, hardLimitBytes: 1000, retainRounds: 1 })
+    const source: Conversation = { turns: [{ type: 'user', id: 'model-budget', content: [{ type: 'text', text: 'x'.repeat(300) }] }] }
+    const request = {
+      scope: 'model-budget/model',
+      measureContextBytes: measure,
+      contextBudgetLimits: { softLimitBytes: 100, hardLimitBytes: 200 },
+      summarize: vi.fn(async () => 'unused'),
+    }
+
+    await expect(compact.prepare(source, request)).rejects.toThrow('context exceeds')
+    await expect(compact.prepare(source, { ...request, contextBudgetLimits: { softLimitBytes: 500, hardLimitBytes: 1000 } })).resolves.toEqual(source)
   })
 
   it('waits at the soft budget only in Synchronous mode and uses the shared projection', async () => {

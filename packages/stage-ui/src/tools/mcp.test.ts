@@ -32,6 +32,12 @@ describe('tools mcp schema', () => {
     expect((props.name as JsonSchema).type).toBe('string')
     expect((props.arguments as JsonSchema).type).toBe('string')
   })
+
+  it('describes optional Terminal routing and Host-gated AUV use', async () => {
+    const [listTools] = await Promise.all(createMcpTools(createRuntime()))
+    expect(listTools.function.description).toContain('do not call Terminal as a preflight')
+    expect(listTools.function.description).toContain('Reserve AUV for on-screen visual state or GUI interaction when the Host permits it')
+  })
 })
 
 describe('mcp discovery', () => {

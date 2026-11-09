@@ -10,6 +10,7 @@ import { hasToolCall, not } from '@xsai/shared-chat'
 import { streamText } from '@xsai/stream-text'
 
 import { chatMessagesToProjectionEntries, conversationToChatMessages } from '../messages/chat-completions'
+import { measureContextBudget, resolveContextBudgetLimits } from '../messages/context-budget'
 import { createGeneration } from './generation'
 import { createContinuationScope, mergeRequestHeaders, replaceProviderConfig, supportsContentArray, supportsTools } from './request-context'
 import { RequestSwitch } from './request-switch'
@@ -96,6 +97,13 @@ export function streamChatCompletions(input: {
         return projected
       }
       if (input.options?.prepareConversation || input.options?.prepareStringContent || next) {
+        const contextWindowTokens = next ? next.contextWindowTokens : input.options?.contextWindowTokens
+        const modelMaxOutputTokens = next ? next.modelMaxOutputTokens : input.options?.modelMaxOutputTokens
+        const contextBudgetLimits = resolveContextBudgetLimits({
+          contextWindowTokens,
+          requestedOutputTokens: typeof requestOptions.maxTokens === 'number' ? requestOptions.maxTokens : undefined,
+          modelMaxOutputTokens,
+        })
         let conversation: Conversation = completed.rounds.length
           ? { turns: [...input.conversation.turns, completed] }
           : input.conversation
@@ -104,7 +112,12 @@ export function streamChatCompletions(input: {
           providerId: next?.providerId ?? input.options?.providerId,
           request,
           scope: input.scope,
+          contextWindowTokens,
+          modelMaxOutputTokens,
+          contextBudgetLimits: contextBudgetLimits.source === 'provider-model-metadata' ? contextBudgetLimits : undefined,
           measureContextBytes: source => new TextEncoder().encode(JSON.stringify({ messages: project(source), tools: requestOptions.tools })).byteLength,
+          measureContextBudget: source => measureContextBudget({ messages: project(source), tools: requestOptions.tools }),
+          supportsVisionInput: next ? next.supportsVisionInput === true : input.options?.supportsVisionInput === true,
         }) ?? conversation
         input.options?.abortSignal?.throwIfAborted()
         current = project(conversation)

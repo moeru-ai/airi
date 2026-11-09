@@ -77,7 +77,7 @@ const getChatProviderInstanceMock = vi.fn()
 const getToolsByNamesMock = vi.fn<(names: string[]) => Tool[]>()
 const visionMocks = vi.hoisted(() => ({ configured: false, model: 'system', runInference: vi.fn(), useForToolImages: true }))
 /** A catalog model can omit its abilities, as most provider catalogs do. */
-interface CatalogModel { id: string, inputModalities?: string[], metadata: { abilities?: { vision: boolean } } }
+interface CatalogModel { id: string, inputModalities?: string[], contextLength?: number, metadata: { abilities?: { vision: boolean }, maxOutput?: number } }
 const consciousnessModels = vi.hoisted(() => ({ value: [{ id: 'gpt-test', metadata: { abilities: { vision: false } } }] as CatalogModel[] }))
 
 const activeSessionIdRef = ref('session-1')
@@ -582,14 +582,19 @@ describe('chat store contract', () => {
     expect(getChatProviderInstanceMock).toHaveBeenLastCalledWith('official-provider', { reasoning: 'disabled' })
   })
 
-  it('projects stored audio again when a tool step changes to a text-only model', async () => {
-    cardSelections.set('alice', { provider: 'mock-provider', model: 'audio-model' })
+  it('projects stored audio and recognizes provider-declared image input across model changes', async () => {
+    cardSelections.set('alice', { provider: 'mock-provider', model: 'multimodal-model' })
     consciousnessModels.value = [
-      { id: 'audio-model', inputModalities: ['text', 'audio'], metadata: {} },
-      { id: 'text-model', inputModalities: ['text'], metadata: {} },
+      { id: 'multimodal-model', inputModalities: ['text', 'audio', 'image'], contextLength: 64000, metadata: { maxOutput: 8000 } },
+      { id: 'text-model', inputModalities: ['text'], contextLength: 16000, metadata: { abilities: { vision: false }, maxOutput: 2000 } },
     ]
     const requests: Conversation[] = []
     llmStreamMock.mockImplementation(async (model: string, chatProvider: GenerationProvider, context: Conversation, options: LlmStreamOptions) => {
+      const imageStep = await options.resolveStep!()
+      expect(imageStep).toMatchObject({ contextWindowTokens: 64000, modelMaxOutputTokens: 8000, supportsVisionInput: true })
+      cardSelections.set('alice', { provider: 'mock-provider', model: 'text-model' })
+      const textStep = await options.resolveStep!()
+      expect(textStep).toMatchObject({ contextWindowTokens: 16000, modelMaxOutputTokens: 2000, supportsVisionInput: false })
       const measureContextBytes = (value: Conversation) => new TextEncoder().encode(JSON.stringify(conversationToChatMessages(value))).byteLength
       requests.push(await options.prepareConversation!(context, { model, providerId: options.providerId, request: chatProvider.generation(model), scope: model, measureContextBytes }))
       // Core passes a new conversation with the completed tool round after a scope change.
