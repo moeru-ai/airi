@@ -1,7 +1,7 @@
 import type { globalAppConfigSchema } from '../configs/global'
 import type { Config } from '../libs/electron/persistence'
 
-import { errorReportingDataCollection, selectErrorReportingIntegrations } from '@proj-airi/stage-shared/analytics/error-reporting'
+import { SENTRY_PROJECTS, sharedSentryOptions } from '@proj-airi/stage-shared/analytics/sentry'
 import { init } from '@sentry/electron/main'
 
 /**
@@ -30,12 +30,9 @@ export class ErrorReporting {
   /** Starts the SDK. Call it once, before the app is ready, as the SDK must start the Electron crash reporter. */
   start(): void {
     init({
-      dsn: 'https://707a0d53d3bdc5dd83d2fc1ca894e450@o4512400996827136.ingest.us.sentry.io/4512401048797184',
+      ...sharedSentryOptions,
+      dsn: SENTRY_PROJECTS.desktop.dsn,
       environment: import.meta.env.MODE,
-      dataCollection: errorReportingDataCollection,
-      integrations: defaults => selectErrorReportingIntegrations(defaults, []),
-      // Client reports skip `beforeSend`, so they would still go out while the switch is off.
-      sendClientReports: false,
       beforeSend: event => this.enabled ? event : null,
     })
   }

@@ -11,7 +11,7 @@ import Layouts from 'vite-plugin-vue-layouts'
 import VueMacros from 'vue-macros/vite'
 import VueRouter from 'vue-router/vite'
 
-import { sentryVitePlugin } from '@sentry/bundler-plugins/vite'
+import { sentrySourceMaps } from '@proj-airi/stage-shared/analytics/sentry-vite'
 import { defineConfig, loadEnv } from 'vite'
 
 // NOTICE:
@@ -141,14 +141,7 @@ const config = defineConfig({
 
     // https://github.com/webfansplz/vite-plugin-vue-devtools
     VueDevTools(),
-    // Source maps go to Sentry only in CI builds that have the auth token.
-    sentryVitePlugin({
-      org: 'proj-airi',
-      project: 'stage-web',
-      authToken: env.SENTRY_AUTH_TOKEN,
-      disable: !env.SENTRY_AUTH_TOKEN,
-      telemetry: false,
-    }),
+    sentrySourceMaps({ project: 'web', authToken: env.SENTRY_AUTH_TOKEN }),
   ],
 })
 

@@ -5,6 +5,7 @@ import NProgress from 'nprogress'
 
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
 import { isEnvTruthy } from '@proj-airi/stage-shared'
+import { startErrorReporting } from '@proj-airi/stage-ui/libs/product-signals/error-reporting'
 import { MotionPlugin } from '@vueuse/motion'
 import { createPinia } from 'pinia'
 import { setupLayouts } from 'virtual:generated-layouts'
@@ -52,9 +53,11 @@ router.afterEach(() => {
 })
 
 const app = createApp(App)
-// The SDK stays out of the main chunk and loads only in builds with analytics.
-if (isEnvTruthy(import.meta.env.VITE_ENABLE_ANALYTICS))
-  void import('./modules/error-reporting').then(({ setupErrorReporting }) => setupErrorReporting(app))
+// The sign-in pages have no settings. Reports follow their analytics posture: on in every build with analytics.
+startErrorReporting(app, () => true, async (options) => {
+  const { createSentryAdapter } = await import('./modules/sentry')
+  return createSentryAdapter(options)
+})
 
 app
   .use(MotionPlugin)
