@@ -6,7 +6,7 @@ Status: proposed
 
 AIRI has no error reports from users' machines. Desktop crashes, mobile native crashes, and renderer exceptions are visible only when a user files an issue.
 
-PostHog keeps product events (moeru-ai/airi #3454). Sentry gets errors, because it groups issues, detects regressions, and reads Electron minidumps and iOS and Android crashes. Both are parts of one data collection layer: one build switch, one user switch, one AIRI user identity.
+The product analytics provider keeps product events. Sentry gets errors, because it groups issues, detects regressions, and reads Electron minidumps and iOS and Android crashes. Both are parts of one data collection layer: one build switch, one user switch, one AIRI user identity.
 
 ## Decision
 
@@ -34,7 +34,7 @@ Only errors are on. Tracing, Session Replay, logs, profiling, and user feedback 
 | Identity | `identify` and `reset` from the auth lifecycle | `setUser({ id })` and `setUser(null)` from the same calls |
 | Loading | Own chunk, bounded queue | Own chunk, bounded queue of Vue errors |
 
-`stage-shared/analytics` owns the constants and the options, next to the PostHog project key: `SENTRY_PROJECTS` (the DSN of each app) and `sharedSentryOptions` in `sentry.ts`, and the source map plugin `sentrySourceMaps` with the organization and project slugs in `sentry-vite.ts`. Node loads `sentry-vite.ts` from the Vite configs without a bundler, so it imports nothing relative.
+`stage-shared/analytics` owns the constants and the options, next to the product analytics configuration: `SENTRY_PROJECTS` (the DSN of each app) and `sharedSentryOptions` in `sentry.ts`, and the source map plugin `sentrySourceMaps` with the organization and project slugs in `sentry-vite.ts`. Node loads `sentry-vite.ts` from the Vite configs without a bundler, so it imports nothing relative.
 
 The apps do not use `@sentry/vue`. `startErrorReporting` sets `app.config.errorHandler` and sends the component name and the Vue lifecycle hook. This removes the version coupling between `@sentry/vue` and the Electron and Capacitor SDKs, which require exact Sentry JS versions.
 
@@ -53,7 +53,7 @@ A native crash in a session where the user turned the switch off stays on the de
 
 `sharedSentryOptions` turns off the data that the SDK collects by itself: inferred user identity, cookies, HTTP headers and bodies, URL query values, model inputs and outputs, and local variables. `beforeBreadcrumb` drops console breadcrumbs, because logs can hold chat text. Vue errors carry the component name, not its props.
 
-A report carries the AIRI user id after login, the same id that PostHog uses. Errors and product events of one user can then be read together.
+A report carries the AIRI user id after login, the same id that product analytics uses. Errors and product events of one user can then be read together.
 
 Electron crash dumps are process memory. Sentry processes them and does not store them by default.
 
@@ -125,7 +125,7 @@ sequenceDiagram
 - Out of scope: a tunnel for networks that block `sentry.io`. Add one if reports from those networks are missing.
 - Out of scope: source maps for the Docker and Hugging Face builds of stage-web. Their reports have minified stack traces.
 - Out of scope: iOS dSYM upload and Android ProGuard mapping upload. Native stack traces of AIRI code stay unsymbolicated.
-- Out of scope: a separate switch for error reports, and a link from a report to the PostHog session.
+- Out of scope: a separate switch for error reports, and a link from a report to the product analytics session.
 
 ## Test plan
 
