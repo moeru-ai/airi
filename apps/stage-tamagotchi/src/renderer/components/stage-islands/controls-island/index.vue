@@ -3,6 +3,7 @@ import { defineInvoke } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
 import { IS_DEV } from '@proj-airi/stage-shared'
 import { HearingConfigDialog, InboxPanel } from '@proj-airi/stage-ui/components'
+import { useHearingIssue } from '@proj-airi/stage-ui/composables/use-hearing-issue'
 import { useInboxStore } from '@proj-airi/stage-ui/stores/inbox'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { Badge, IconButton, ScrollableArea, useTheme } from '@proj-airi/ui'
@@ -144,6 +145,9 @@ const microphonePending = ref(false)
 const microphoneLabel = computed(() => listening.value
   ? t('tamagotchi.stage.controls-island.disable-microphone')
   : t('tamagotchi.stage.controls-island.enable-microphone'))
+// The stage has no hearing capsule, so the microphone button tells why hearing does not work.
+const hearingIssue = useHearingIssue()
+const hearingIssueId = useId()
 
 /**
  * Turns listening on, or turns the microphone off. The button is on while AIRI listens.
@@ -650,6 +654,7 @@ function resetMainWindowPosition() {
               data-testid="controls-island-microphone"
               :button-style="adjustStyleClasses.button"
               :aria-label="microphoneLabel"
+              :aria-describedby="hearingIssue ? hearingIssueId : undefined"
               :aria-pressed="listening"
               :aria-busy="microphonePending"
               :disabled="microphonePending"
@@ -659,9 +664,18 @@ function resetMainWindowPosition() {
                 <IndicatorMicVolume v-if="listening" :class="adjustStyleClasses.icon" />
                 <div v-else :class="['i-ph:microphone-slash text-neutral-800 dark:text-neutral-300', adjustStyleClasses.icon]" />
               </Transition>
+              <span
+                v-if="hearingIssue"
+                aria-hidden="true"
+                :class="[
+                  'pointer-events-none absolute right-0.5 top-0.5 size-3.5',
+                  'i-mingcute:warning-fill text-amber-500 dark:text-amber-400',
+                ]"
+              />
+              <span v-if="hearingIssue" :id="hearingIssueId" :class="['sr-only']">{{ hearingIssue }}</span>
             </ControlButton>
             <template #tooltip>
-              {{ microphoneLabel }}
+              <span :class="['text-left']">{{ hearingIssue ?? microphoneLabel }}</span>
             </template>
           </ControlButtonTooltip>
 

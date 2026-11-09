@@ -1,5 +1,6 @@
 import en from '@proj-airi/i18n/locales/en'
 
+import { getSpeechBusContext, voiceSnapshotChanged } from '@proj-airi/stage-ui/services/speech/bus'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { createPinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -174,5 +175,22 @@ describe('controls Island microphone', () => {
 
     await vi.waitFor(() => expect(microphone.element().querySelector('svg')).not.toBeNull())
     expect(microphone.element().getBoundingClientRect().top).toBe(before)
+  })
+
+  // The stage window has no hearing capsule, so the microphone button is where the user sees why hearing does not work.
+  it('describes a hearing problem on the microphone button', async () => {
+    const { screen } = mountControlsIsland()
+    const microphone = screen.getByTestId('controls-island-microphone')
+    await expect.element(microphone).not.toHaveAccessibleDescription(/./)
+
+    const context = getSpeechBusContext()
+    context.emit(voiceSnapshotChanged, { connected: true, drafts: [], microphone: { enabled: true, ready: true } })
+    await expect.element(microphone).toHaveAccessibleDescription('Select and configure a Hearing provider in Settings.')
+
+    context.emit(voiceSnapshotChanged, { connected: true, drafts: [], microphone: { enabled: true, ready: false, error: 'Microphone is unavailable' } })
+    await expect.element(microphone).toHaveAccessibleDescription('Microphone is unavailable')
+
+    context.emit(voiceSnapshotChanged, { connected: true, drafts: [], microphone: { enabled: false, ready: false } })
+    await expect.element(microphone).not.toHaveAccessibleDescription(/./)
   })
 })
