@@ -432,6 +432,10 @@ describe('interactive area synchronized state', () => {
     const { screen } = await renderArea(MobileInteractiveArea)
     const bubble = screen.getByTestId('mobile-input-bubble').element()
     const input = screen.getByRole('textbox').element()
+    const composer = screen.getByTestId('mobile-message-composer').element()
+
+    await userEvent.click(input)
+    await expect.poll(() => getComputedStyle(composer).paddingLeft).toBe('12px')
     const emptyWidth = bubble.getBoundingClientRect().width
 
     await userEvent.fill(input, 'hi')
