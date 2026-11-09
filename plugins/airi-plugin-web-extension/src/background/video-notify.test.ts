@@ -225,6 +225,19 @@ describe('video notify gate', () => {
     expect(onSettle).toHaveBeenCalledWith(report('c', 'Short C'))
   })
 
+  it('does not notify a video that the user left before it settled', () => {
+    const onSettle = vi.fn()
+    const gate = new VideoNotifyGate(onSettle)
+
+    gate.report(report('a', 'Short A'), 1)
+    vi.advanceTimersByTime(1_000)
+    gate.report(report('b', 'Short B'), 1)
+    vi.advanceTimersByTime(3_000)
+
+    expect(onSettle).toHaveBeenCalledTimes(1)
+    expect(onSettle).toHaveBeenCalledWith(report('b', 'Short B'))
+  })
+
   it('stops pending timers on dispose', () => {
     const onSettle = vi.fn()
     const gate = new VideoNotifyGate(onSettle)

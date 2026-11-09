@@ -64,7 +64,8 @@ function normalizeVideoTitle(title: string) {
  * - `notifiedVideoKeys` holds recently notified videos. A notified video does not notify again.
  * - `lastSettledTitles` holds the last settled title of each tab, to detect stale reports.
  *   A stale title comes from the previous video of the same tab, so other tabs do not affect it.
- * - `pendingVideos` holds each waiting video with its title, latest report, and timer.
+ * - `pendingVideos` holds each waiting video with its title, latest report, tab, and timer.
+ *   Each tab has at most one waiting video. A new video of the tab replaces it.
  * - `lastNotifiedAt` holds the time of the last notification, for the cooldown.
  *
  * Call `forgetTab` when a tab closes. Call `dispose` to stop all timers.
@@ -92,6 +93,17 @@ export class VideoNotifyGate<T extends VideoNotifyReport> {
 
     if (pending)
       clearTimeout(pending.timer)
+
+    // A tab shows one video at a time. When the user moves on, for example by scrolling Shorts,
+    // the video that the tab showed before must not settle and notify after the user left it.
+    if (tabId != null) {
+      for (const [otherKey, other] of this.pendingVideos) {
+        if (other.tabId === tabId && otherKey !== key) {
+          clearTimeout(other.timer)
+          this.pendingVideos.delete(otherKey)
+        }
+      }
+    }
 
     const lastTitle = tabId == null ? undefined : this.lastSettledTitles.get(tabId)
     const delay = title === lastTitle ? STALE_TITLE_WINDOW_MS : SETTLE_MS
