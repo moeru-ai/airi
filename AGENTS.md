@@ -133,9 +133,6 @@ Use pnpm workspace filters to limit a command to one workspace. Replace `<packag
 - If the user asks you to use a specific tool or dependency, read its documentation in Context7 first. Then examine how this repository uses it.
 - If Context7 returns several names without a clear difference, ask the user to choose one.
 - If the documentation conflicts with the typecheck result, examine the dependency source in `node_modules` to find the cause.
-- Do not add an `install`, `postinstall`, or `prepare` script to a workspace package. Every `pnpm install` runs it, also for contributors who do not use the package.
-- Put a download, build, or code generation step in the script that needs it, for example `dev` or `build`. You can also load the file at runtime.
-- An install script is permitted only if every install of its package needs it, and it runs fast and offline. Before you add one, ask the user.
 
 ## Documentation
 
