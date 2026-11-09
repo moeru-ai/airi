@@ -26,6 +26,7 @@ import { kwsModel } from '@proj-airi/stage-ui/libs/voice/kws-model-info'
 import { Download } from '@proj-airi/unplugin-fetch/vite'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk/vite'
 import { Sherpaw } from '@proj-airi/vite-plugin-sherpaw'
+import { sentryVitePlugin } from '@sentry/bundler-plugins/vite'
 import { LFS, SpaceCard } from 'hfup/vite'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -361,5 +362,13 @@ export default defineConfig({
             }),
           }),
         ]),
+    // Source maps go to Sentry only in CI builds that have the auth token.
+    sentryVitePlugin({
+      org: 'proj-airi',
+      project: 'stage-web',
+      authToken: env.SENTRY_AUTH_TOKEN,
+      disable: !env.SENTRY_AUTH_TOKEN,
+      telemetry: false,
+    }),
   ],
 })

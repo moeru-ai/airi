@@ -51,7 +51,12 @@ router.afterEach(() => {
   NProgress.done()
 })
 
-createApp(App)
+const app = createApp(App)
+// The SDK stays out of the main chunk and loads only in builds with analytics.
+if (isEnvTruthy(import.meta.env.VITE_ENABLE_ANALYTICS))
+  void import('./modules/error-reporting').then(({ setupErrorReporting }) => setupErrorReporting(app))
+
+app
   .use(MotionPlugin)
   // TODO: Fix autoAnimatePlugin type error
   .use(autoAnimatePlugin as unknown as Plugin)

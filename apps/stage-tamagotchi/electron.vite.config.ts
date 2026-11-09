@@ -24,6 +24,7 @@ import { kwsModel } from '@proj-airi/stage-ui/libs/voice/kws-model-info'
 import { Download } from '@proj-airi/unplugin-fetch'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'
 import { resolveModelEndpoint, Sherpaw } from '@proj-airi/vite-plugin-sherpaw'
+import { sentryVitePlugin } from '@sentry/bundler-plugins/vite'
 import { defineConfig } from 'electron-vite'
 
 const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
@@ -60,12 +61,36 @@ const buildTime = resolveBuildTime()
 /** The renderer chunk that holds the `unplugin-info` modules. Its file name has no hash. */
 const buildInfoChunkName = 'build-info'
 
+/** CI release builds set this token. Without it, the Electron builds make no source maps, as before. */
+const sentryAuthToken = env.SENTRY_AUTH_TOKEN
+
+/**
+ * Uploads the source maps of one Electron build to Sentry, then deletes them, so app.asar does not ship them.
+ * Pass the name of the build.
+ */
+function sentrySourceMaps(build: 'main' | 'preload' | 'renderer') {
+  return sentryVitePlugin({
+    org: 'proj-airi',
+    project: 'stage-tamagotchi',
+    authToken: sentryAuthToken,
+    disable: !sentryAuthToken,
+    telemetry: false,
+    sourcemaps: {
+      // Ergosphere writes each build to `out/bundle/<build>`. The main build also writes the launcher to `out/launcher`.
+      filesToDeleteAfterUpload: build === 'main'
+        ? ['out/bundle/main/**/*.map', 'out/launcher/**/*.map']
+        : [`out/bundle/${build}/**/*.map`],
+    },
+  })
+}
+
 export default defineConfig({
   main: {
     define: {
       'import.meta.env.SHERPAW_MODEL_ENDPOINT': JSON.stringify(sherpawModelEndpoint),
     },
     build: {
+      sourcemap: sentryAuthToken ? 'hidden' : false,
       // electron-vite externalizes exactly the `dependencies` of package.json.
       // electron-builder copies only `dependencies` into app.asar.
       // Keep only native modules there: they use `__dirname` or load `.node` and binary files at runtime.
@@ -112,6 +137,7 @@ export default defineConfig({
       Info({ time: buildTime }),
       // Main bundles `@proj-airi/i18n/locales`, and its locale sources are YAML files.
       Yaml(),
+      sentrySourceMaps('main'),
     ],
 
     resolve: {
@@ -125,6 +151,7 @@ export default defineConfig({
 
   preload: {
     build: {
+      sourcemap: sentryAuthToken ? 'hidden' : false,
       lib: {
         entry: {
           'index': resolve(join(import.meta.dirname, 'src', 'preload', 'index.ts')),
@@ -135,6 +162,7 @@ export default defineConfig({
 
     plugins: [
       ErgospherePreload(),
+      sentrySourceMaps('preload'),
     ],
   },
 
@@ -151,6 +179,7 @@ export default defineConfig({
     },
 
     build: {
+      sourcemap: sentryAuthToken ? 'hidden' : false,
       rolldownOptions: {
         input: {
           'main': resolve(join(import.meta.dirname, 'src', 'renderer', 'index.html')),
@@ -348,6 +377,7 @@ export default defineConfig({
       Download('https://dist.ayaka.moe/live2d-models/hiyori_pro_zh.zip', 'hiyori_pro_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
       Download('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-A/AvatarSample_A.vrm', 'AvatarSample_A.vrm', 'vrm/models/AvatarSample-A', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
       Download('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-B/AvatarSample_B.vrm', 'AvatarSample_B.vrm', 'vrm/models/AvatarSample-B', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
+      sentrySourceMaps('renderer'),
     ],
   },
 })

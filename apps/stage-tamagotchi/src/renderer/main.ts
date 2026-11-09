@@ -12,7 +12,7 @@ import { pushToTalkTriggerKey } from '@proj-airi/stage-ui/composables/push-to-ta
 import { trackButtonPlugin } from '@proj-airi/stage-ui/directives/track-button'
 import { browserAuthorizationHandler, registerAuthorizationHandler } from '@proj-airi/stage-ui/libs/auth'
 import { piniaPluginTracing, setupSynced } from '@proj-airi/stage-ui/libs/pinia'
-import { configureAnalyticsAdapter } from '@proj-airi/stage-ui/libs/product-signals'
+import { configureAnalyticsAdapter, isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/libs/product-signals'
 import { settingsSearch } from '@proj-airi/stage-ui/libs/settings-search'
 import { MotionPlugin } from '@vueuse/motion'
 import { createPinia } from 'pinia'
@@ -92,7 +92,12 @@ if (import.meta.hot) {
   })
 }
 
-createApp(App)
+const app = createApp(App)
+// The SDK stays out of the main chunk and loads only in builds with analytics.
+if (isAnalyticsAvailableInBuild())
+  void import('./modules/error-reporting').then(({ setupErrorReporting }) => setupErrorReporting(app, pinia))
+
+app
   .use(synced.vue)
   .use(MotionPlugin)
   // TODO: Fix autoAnimatePlugin type error
