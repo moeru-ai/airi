@@ -2,7 +2,7 @@ import type {
   ExtensionIdentity as ProtocolExtensionIdentity,
   ModulePermissionDeclaration as ProtocolModulePermissionDeclaration,
   ModulePermissionGrant as ProtocolModulePermissionGrant,
-} from '@proj-airi/plugin-protocol/types'
+} from '@proj-airi/extension-protocol'
 import type { GenericSchema } from 'valibot'
 
 import type { ExposePolicy } from '../../kit/exposure-policy'
@@ -229,8 +229,8 @@ export interface ExtensionProvidedKitDeclaration {
 /**
  * Declares one Kit that an Extension consumes.
  *
- * Required declarations participate in activation planning. Optional declarations
- * let an Extension start before a Provider is available.
+ * A required declaration keeps the Extension session `pending` until a compatible Provider is ready.
+ * An optional declaration lets an Extension start before a Provider is available.
  */
 export interface ExtensionUsedKitDeclaration {
   /** Stable Kit contract identifier. */
@@ -251,7 +251,7 @@ export interface ExtensionKitManifest {
  * Describes a version-2 Extension manifest consumed by `ExtensionHost`.
  *
  * The manifest is the package contract for discovery, import, compatibility,
- * permissions, and activation planning. Runtime registration happens later.
+ * permissions, and the Kits that a session waits for. Runtime registration happens later.
  */
 export interface ExtensionManifestV2 {
   /** Manifest schema version expected by the current Host. */
@@ -280,7 +280,7 @@ export interface ExtensionManifestV2 {
   }
   /** Package and session permission ceiling that Module permissions cannot exceed. */
   permissions: ModulePermissionDeclaration
-  /** Kit contracts used to build the static activation plan. */
+  /** Kit contracts that the Extension provides, and the Kits that its session waits for. */
   kits?: ExtensionKitManifest
 }
 
