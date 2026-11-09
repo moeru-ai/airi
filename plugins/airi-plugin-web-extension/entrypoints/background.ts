@@ -13,6 +13,7 @@ import {
   handlePageContext,
   handleSubtitle,
   handleVideoContext,
+  notifyVideo,
   toStatus,
 } from '../src/background/client'
 import { loadSettings, saveSettings } from '../src/background/storage'
@@ -70,10 +71,8 @@ async function init() {
 }
 
 // The gate calls back after a video title settles. Only then does the character get a notification.
-const videoNotifyGate = new VideoNotifyGate<VideoContextPayload>((payload) => {
-  handleVideoContext(state, settings, payload, { notify: true })
-  emitStatus()
-})
+// The settled report can be seconds old, so it does not replace the video context.
+const videoNotifyGate = new VideoNotifyGate<VideoContextPayload>(payload => notifyVideo(state, settings, payload))
 
 function handleContentMessage(message: ContentToBackgroundMessage) {
   switch (message.type) {
@@ -91,7 +90,7 @@ function handleContentMessage(message: ContentToBackgroundMessage) {
         ...message.payload,
         site: message.payload.site === 'unknown' ? detectSiteFromUrl(message.payload.url) : message.payload.site,
       }
-      handleVideoContext(state, settings, payload, { notify: false })
+      handleVideoContext(state, settings, payload)
       videoNotifyGate.report(payload)
       emitStatus()
       break

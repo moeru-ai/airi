@@ -3,7 +3,7 @@ import type { ExtensionSettings } from '../shared/types'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { DEFAULT_SETTINGS } from '../shared/constants'
-import { createClientState, disconnectClient, ensureClient, handleVideoContext } from './client'
+import { createClientState, disconnectClient, ensureClient, handleVideoContext, notifyVideo } from './client'
 
 const clients = vi.hoisted(() => [] as Array<{ options: Record<string, unknown>, send: ReturnType<typeof vi.fn> }>)
 
@@ -24,6 +24,11 @@ vi.mock('@proj-airi/server-sdk', () => ({
 }))
 
 const settings: ExtensionSettings = { ...DEFAULT_SETTINGS, token: 'test-token' }
+const video = { site: 'youtube', url: 'https://example.com/watch?v=a', title: 'Song A', videoId: 'a' } as const
+
+function sentEvents() {
+  return clients[0]!.send.mock.calls.map(([event]) => event)
+}
 
 describe('web extension client', () => {
   afterEach(() => {
@@ -51,17 +56,33 @@ describe('web extension client', () => {
     const state = createClientState()
     await ensureClient(state, settings)
 
-    handleVideoContext(state, settings, {
-      site: 'youtube',
-      url: 'https://example.com/watch?v=a',
-      title: 'Song A',
-      videoId: 'a',
-    }, { notify: true })
+    notifyVideo(state, settings, video)
 
-    const notify = clients[0]!.send.mock.calls
-      .map(([event]) => event)
-      .find(event => event.type === 'spark:notify')
+    const notify = sentEvents().find(event => event.type === 'spark:notify')
     expect(notify?.data.destinations).toEqual(['proj-airi:stage-*'])
+    disconnectClient(state)
+  })
+
+  it('notifies a video without replacing the video context', async () => {
+    const state = createClientState()
+    await ensureClient(state, settings)
+    handleVideoContext(state, settings, { ...video, url: 'https://example.com/watch?v=b', title: 'Song B', videoId: 'b' })
+    clients[0]!.send.mockClear()
+
+    notifyVideo(state, settings, video)
+
+    expect(sentEvents().map(event => event.type)).toEqual(['spark:notify'])
+    expect(state.lastVideo?.videoId).toBe('b')
+    disconnectClient(state)
+  })
+
+  it('updates the video context without a notification', async () => {
+    const state = createClientState()
+    await ensureClient(state, settings)
+
+    handleVideoContext(state, settings, video)
+
+    expect(sentEvents().map(event => event.type)).toEqual(['context:update'])
     disconnectClient(state)
   })
 })
