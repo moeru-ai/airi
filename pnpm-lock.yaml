@@ -829,8 +829,8 @@ catalogs:
       specifier: ^6.3.0
       version: 6.3.0
     injeca:
-      specifier: ^0.5.1
-      version: 0.5.1
+      specifier: ^0.5.2
+      version: 0.5.2
     ioredis:
       specifier: ^6.0.0
       version: 6.0.0
@@ -2307,7 +2307,7 @@ importers:
         version: 2.0.1-rc.29(crossws@0.4.12(srvx@1.0.8))
       injeca:
         specifier: 'catalog:'
-        version: 0.5.1(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
       jszip:
         specifier: 'catalog:'
         version: 3.10.1
@@ -2704,7 +2704,7 @@ importers:
         version: 1.51.0
       injeca:
         specifier: 'catalog:'
-        version: 0.5.1(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
       jszip:
         specifier: 'catalog:'
         version: 3.10.1
@@ -3714,7 +3714,7 @@ importers:
         version: 5.0.4
       injeca:
         specifier: 'catalog:'
-        version: 0.5.1(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
       isolated-vm:
         specifier: 'catalog:'
         version: 7.0.1
@@ -3996,7 +3996,7 @@ importers:
         version: 1.51.0
       injeca:
         specifier: 'catalog:'
-        version: 0.5.1(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
       nanoid:
         specifier: 'catalog:'
         version: 6.0.1
@@ -4318,6 +4318,8 @@ importers:
         specifier: 'catalog:'
         version: 3.5.41(typescript@6.0.3)
 
+  packages/extension-protocol: {}
+
   packages/i18n:
     devDependencies:
       unplugin-yaml:
@@ -4445,6 +4447,9 @@ importers:
       '@moeru/eventa':
         specifier: 'catalog:'
         version: 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
+      '@proj-airi/extension-protocol':
+        specifier: workspace:*
+        version: link:../extension-protocol
       '@xsai/shared-chat':
         specifier: 'catalog:'
         version: 0.5.1
@@ -4457,9 +4462,12 @@ importers:
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
-      '@proj-airi/plugin-protocol':
+      '@proj-airi/extension-protocol':
         specifier: workspace:*
-        version: link:../plugin-protocol
+        version: link:../extension-protocol
+      injeca:
+        specifier: 'catalog:'
+        version: 0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
       nanoid:
         specifier: 'catalog:'
         version: 6.0.1
@@ -5961,9 +5969,15 @@ importers:
         specifier: 'catalog:'
         version: 1.5.0(typescript@6.0.3)
     devDependencies:
-      '@opentelemetry/semantic-conventions':
+      '@types/node':
         specifier: 'catalog:'
-        version: 1.43.0
+        version: 26.2.0
+      tsx:
+        specifier: 'catalog:'
+        version: 4.23.12
+      yaml:
+        specifier: 'catalog:'
+        version: 2.9.1
 
   packages/ui:
     dependencies:
@@ -6520,6 +6534,9 @@ importers:
       '@proj-airi/server-sdk-shared':
         specifier: workspace:*
         version: link:../../packages/server-sdk-shared
+      '@proj-airi/trace-kit':
+        specifier: workspace:^
+        version: link:../../../packages/trace-kit
       '@xsai/shared-stream':
         specifier: 'catalog:'
         version: 0.5.1
@@ -6540,7 +6557,7 @@ importers:
         version: 0.5.3(hono@4.13.3)(unstorage@1.17.5(idb-keyval@6.3.0)(ioredis@6.0.0(supports-color@10.2.2)))
       injeca:
         specifier: 'catalog:'
-        version: 0.5.1(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
       ioredis:
         specifier: 'catalog:'
         version: 6.0.0(supports-color@10.2.2)
@@ -6679,7 +6696,7 @@ importers:
         version: 0.5.3(hono@4.13.3)(unstorage@1.17.5(idb-keyval@6.3.0)(ioredis@6.0.0(supports-color@10.2.2)))
       injeca:
         specifier: 'catalog:'
-        version: 0.5.1(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
       ioredis:
         specifier: 'catalog:'
         version: 6.0.0(supports-color@10.2.2)
@@ -16928,8 +16945,8 @@ packages:
     resolution: {integrity: sha512-ifK0CgjALofS5bkrcTy4RaQ9Vx2Knf/eLeIO+NaswQEpH1UblrtTSCIvN71qQDMq0PeQ/SSPojvEJp9vvvfr+w==}
     engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0}
 
-  injeca@0.5.1:
-    resolution: {integrity: sha512-WvPidtYhlEGNMuOAbawz59WcHCFr5B/+STTsahUofr8yqpHQIrcc/kV5jLyPoLVtJC3RM7y592t8YBacxKiReQ==}
+  injeca@0.5.2:
+    resolution: {integrity: sha512-eHXllHUCoVwj/COAJJak38CuQvUXXf+8vLa+OlZQDWPPJN/wy/FZfg06+UgsQXt1w6nuZgl3ai/HXwyLC7GJKQ==}
     peerDependencies:
       '@guiiai/logg': '>= 1'
       error-stack-parser: ^2.1.4
@@ -32382,7 +32399,7 @@ snapshots:
 
   ini@7.0.0: {}
 
-  injeca@0.5.1(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1):
+  injeca@0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1):
     dependencies:
       alien-signals: 3.2.1
       error-stack-parser: 2.1.4

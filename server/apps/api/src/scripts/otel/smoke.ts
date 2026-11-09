@@ -8,7 +8,7 @@
  * Grafana until an event happens — making panels look broken on fresh deploys
  * and absence-based alerts impossible to author.
  *
- * Histograms (gen_ai.client.first_token.duration, airi.email.duration, ...)
+ * Histograms (gen_ai.client.inference.duration, airi.email.duration, ...)
  * are intentionally NOT in the output — they only register on first .record().
  *
  * NOTE: Run WITHOUT `--import ./instrumentation.ts`. The preload would start
