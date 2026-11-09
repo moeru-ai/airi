@@ -1,4 +1,5 @@
-import { any, array, number, object, optional, string } from 'valibot'
+import { OPENAI_IMAGE_DEFAULTS } from '@proj-airi/stage-shared'
+import { array, number, object, optional, string, unknown } from 'valibot'
 
 import { createConfig } from '../libs/electron/persistence'
 
@@ -6,7 +7,7 @@ export const artistryConfigSchema = object({
   artistryProvider: optional(string(), 'none'),
   artistryGlobals: optional(object({
     comfyuiServerUrl: optional(string(), 'http://localhost:8188'),
-    comfyuiSavedWorkflows: optional(array(any()), []),
+    comfyuiSavedWorkflows: optional(array(unknown()), []),
     comfyuiActiveWorkflow: optional(string(), ''),
     replicateApiKey: optional(string(), ''),
     replicateDefaultModel: optional(string(), 'black-forest-labs/flux-schnell'),
@@ -15,6 +16,11 @@ export const artistryConfigSchema = object({
     nanobananaApiKey: optional(string(), ''),
     nanobananaModel: optional(string(), 'gemini-3.1-flash-image-preview'),
     nanobananaResolution: optional(string(), '1K'),
+    openaiImageApiKey: optional(string(), ''),
+    openaiImageBaseUrl: optional(string(), OPENAI_IMAGE_DEFAULTS.baseUrl),
+    openaiImageModel: optional(string(), OPENAI_IMAGE_DEFAULTS.model),
+    openaiImageWidth: optional(string(), ''),
+    openaiImageHeight: optional(string(), ''),
   }), {}),
 })
 

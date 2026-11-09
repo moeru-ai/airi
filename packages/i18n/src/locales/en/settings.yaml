@@ -2116,6 +2116,26 @@ pages:
           inference_steps:
             label: Inference Steps
             description: Number of steps for the diffusion process (lower is faster, higher is better quality)
+      openai-image:
+        title: OpenAI GPT Image
+        description: Generate and edit images with the native OpenAI Images API.
+        api-key:
+          label: Image API key
+          description: This key is used only for image generation. Chat credentials remain separate.
+          placeholder: Enter your image API key
+        base-url:
+          label: Image API base URL
+          description: Enter the API prefix, including /v1. Custom gateway paths and a trailing slash are supported.
+        model:
+          label: Image model
+          description: Use gpt-image-2.6-sunburst or another GPT Image model supported by your endpoint.
+        dimensions:
+          width: Default width (pixels)
+          height: Default height (pixels)
+          description: Enter both dimensions as positive multiples of 16, or leave both blank for automatic sizing. Click Save dimensions to apply. A request can override this default size.
+          placeholder: Let the upstream service choose
+          invalid: Enter both dimensions as positive multiples of 16, or leave both blank. Invalid edits are not saved.
+          save: Save dimensions
       nanobanana:
         settings:
           title: Nano Banana

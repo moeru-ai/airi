@@ -17,6 +17,7 @@ import { injeca } from 'injeca'
 
 import { ComfyUIProvider } from './providers/comfyui'
 import { NanoBananaProvider } from './providers/nanobanana'
+import { OpenAIImageProvider } from './providers/openai-image'
 import { ReplicateProvider } from './providers/replicate'
 
 const log = useLogg('artistry-bridge').useGlobalConfig()
@@ -103,6 +104,7 @@ export const artistryProviders = new Map<string, ArtistryProvider>()
 artistryProviders.set('comfyui', new ComfyUIProvider())
 artistryProviders.set('replicate', new ReplicateProvider())
 artistryProviders.set('nanobanana', new NanoBananaProvider())
+artistryProviders.set('openai-image', new OpenAIImageProvider())
 
 // Deduplication map for headless requests
 const pendingHeadlessRequests = new Map<string, Promise<{ imageUrl?: string, base64?: string, error?: string }>>()
@@ -311,13 +313,8 @@ async function handleArtistryTrigger(params: {
   const mode = props.mode || (remixId ? 'remix' : 'generate')
   const triggerFingerprint = `${mode}:${remixId || ''}:${prompt || ''}`
 
-  // [BY DESIGN]: We only trigger a new generation if the fingerprint (mode + remixId + prompt)
-  // has actually changed for this specific widget instance. This denotes our stance on the matter:
-  // it serves as a critical safety guard against redundant, billable API calls triggered
-  // by reactive UI loops or state synchronization "storms". While this prevents retrying
-  // the exact same prompt on the same widget instance without a manual modification,
-  // it protects users from unexpected credit consumption in a high-frequency reactive
-  // bridge environment. (Refer to Catalog Issue #31).
+  // Deduplicate each widget's mode, remix ID, and prompt to prevent repeated billable calls from reactive updates (Catalog Issue #31).
+  // The error handler clears this fingerprint so a failed request can retry.
   if (status === 'generating' && lastTriggerMap.get(params.id) !== triggerFingerprint && (prompt || remixId)) {
     log.log(`🎯 TRIGGER DETECTED [${params.id}]: ${triggerFingerprint} | Mode: ${mode} | Provider: ${providerId}`)
     lastTriggerMap.set(params.id, triggerFingerprint)
@@ -334,28 +331,29 @@ async function handleArtistryTrigger(params: {
       return
     }
 
-    // Initialize the provider with global config fallback
-    const activeGlobals = config.globals || artistryConfig.get()?.artistryGlobals
-    if (provider.initialize && activeGlobals) {
-      log.log(`[Artistry Bridge] Initializing provider ${providerId} with ${config.globals ? 'provided' : 'fallback'} globals...`)
-      await provider.initialize(activeGlobals)
-    }
-
     try {
-      // Build the abstract request
+      const activeGlobals = config.globals || artistryConfig.get()?.artistryGlobals
+      if (provider.initialize && activeGlobals) {
+        log.log(`[Artistry Bridge] Initializing provider ${providerId} with ${config.globals ? 'provided' : 'fallback'} globals...`)
+        await provider.initialize(activeGlobals)
+      }
+
+      const extra: Record<string, unknown> = {
+        ...options,
+        ...props, // Include root componentProps overrides (template, node overrides)
+        ...payload, // Payload takes precedence
+        internalJobId: runId, // Track each generation independently, even on the same widget.
+        remixId,
+      }
       const request: ArtistryRequest = {
         prompt: config.promptPrefix ? `${config.promptPrefix} ${prompt}` : (prompt || ''),
         model: config.model,
-        extra: {
-          ...options,
-          ...props, // Include root componentProps overrides (template, node overrides)
-          ...payload, // Payload takes precedence
-          internalJobId: runId, // Track each generation independently, even on the same widget.
-          remixId,
-        },
+        width: typeof extra.width === 'number' ? extra.width : undefined,
+        height: typeof extra.height === 'number' ? extra.height : undefined,
+        extra,
       }
 
-      const updateIfActive = (statusUpdate: Record<string, any>) => {
+      const updateIfActive = (statusUpdate: Record<string, unknown>) => {
         // NOTICE: the same widget can kick off another generation before the previous one fully
         // settles. Only the most recent run is allowed to keep updating the widget state.
         if (activeRunMap.get(params.id) !== runId)
@@ -367,7 +365,7 @@ async function handleArtistryTrigger(params: {
         params.widgetsManager.updateWidget({
           id: params.id,
           componentProps: {
-            ...(existing?.componentProps as any),
+            ...existing?.componentProps,
             ...statusUpdate,
           },
         })
@@ -376,7 +374,7 @@ async function handleArtistryTrigger(params: {
       // If the provider accepts callbacks (like ComfyUI streaming stdout)
       if (supportsJobCallback(provider)) {
         provider.setJobCallback(runId, (statusUpdate) => {
-          updateIfActive(statusUpdate as Record<string, any>)
+          updateIfActive({ ...statusUpdate })
           if (statusUpdate.status === 'succeeded') {
             log.log(`🎉 Job complete (via callback) for ${params.id}. Sending final status: done`)
             updateIfActive({ status: 'done', progress: 100, actionLabel: undefined })
@@ -416,7 +414,7 @@ async function handleArtistryTrigger(params: {
             isDone = true
           }
 
-          updateIfActive(status as Record<string, any>)
+          updateIfActive({ ...status })
 
           if (!isDone) {
             await new Promise(resolve => setTimeout(resolve, 2000))

@@ -76,7 +76,7 @@
   },
   "apps/stage-tamagotchi/src/main/services/airi/widgets/artistry-bridge.ts": {
     "ts/no-explicit-any": {
-      "count": 11
+      "count": 7
     }
   },
   "apps/stage-tamagotchi/src/main/services/airi/widgets/providers/base.ts": {
@@ -110,11 +110,6 @@
     }
   },
   "apps/stage-tamagotchi/src/renderer/pages/widgets.vue": {
-    "ts/no-explicit-any": {
-      "count": 1
-    }
-  },
-  "apps/stage-tamagotchi/src/renderer/stores/tools/builtin/image-journal.ts": {
     "ts/no-explicit-any": {
       "count": 1
     }
@@ -731,7 +726,7 @@
   },
   "packages/stage-ui/src/stores/modules/artistry.ts": {
     "ts/no-explicit-any": {
-      "count": 6
+      "count": 1
     }
   },
   "packages/stage-ui/src/stores/modules/gaming-minecraft.ts": {

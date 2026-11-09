@@ -15,6 +15,7 @@ import { useDisplayModelsStore } from '../stores/display-models'
 import { useMemoryStore } from '../stores/memory'
 import { useModsServerChannelStore } from '../stores/mods/api/channel-server'
 import { useAiriCardStore } from '../stores/modules/airi-card'
+import { useArtistryStore } from '../stores/modules/artistry'
 import { useConsciousnessStore } from '../stores/modules/consciousness'
 import { useConsciousnessSettingsStore } from '../stores/modules/consciousness-settings'
 import { useDiscordStore } from '../stores/modules/discord'
@@ -330,6 +331,20 @@ it('forgets what the character learned when modules reset', async () => {
 
   expect(memory.entries).toEqual([])
   expect(recipes.recipes.filter(recipe => recipe.source === 'user')).toEqual([])
+})
+
+it('clears the separate image API credentials when modules reset', async () => {
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [] })))
+  const { pinia, runtime, maintenance } = mountMaintenance(`maintenance:${crypto.randomUUID()}`, 'leader-only')
+  await vi.waitFor(() => expect(runtime.isLeader()).toBe(true))
+  const artistry = useArtistryStore(pinia)
+  artistry.openaiImageApiKey = 'image-key'
+  artistry.openaiImageBaseUrl = 'https://example.com/openai/v1/'
+  await maintenance.resetModulesSettings()
+  await nextTick()
+  expect(artistry.openaiImageApiKey).toBe('')
+  expect(artistry.openaiImageBaseUrl).toBe('https://api.openai.com/v1/')
+  expect(localStorage.getItem('artistry-openai-image-api-key')).toBe('')
 })
 
 it('removes downloaded speech models when all data is deleted', async () => {
