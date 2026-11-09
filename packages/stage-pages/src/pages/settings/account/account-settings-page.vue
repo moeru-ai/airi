@@ -504,6 +504,7 @@ async function handleConfirmDelete(event: Event) {
             <div :class="['flex items-center gap-4 py-2']">
               <Avatar
                 :src="userAvatar"
+                :seed="user?.id"
                 :class="['size-16 sm:size-20 rounded-full flex-shrink-0', 'bg-neutral-100 dark:bg-neutral-800', 'flex items-center justify-center']"
               />
               <div :class="['flex flex-col gap-0.5 min-w-0']">

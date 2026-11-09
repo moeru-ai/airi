@@ -154,12 +154,13 @@ const characterVoiceIcon = computed(() => {
         >
           <Avatar
             :src="isAuthenticated ? user?.image : null"
+            :seed="isAuthenticated ? user?.id : null"
             :class="[
               'size-12 shrink-0 rounded-full',
               isAuthenticated ? 'bg-neutral-200 text-neutral-500 dark:bg-neutral-700' : 'bg-primary-500/10 text-primary-500',
             ]"
           >
-            <template #fallback>
+            <template v-if="!isAuthenticated" #fallback>
               <span :class="['i-solar:user-rounded-outline size-6']" />
             </template>
           </Avatar>

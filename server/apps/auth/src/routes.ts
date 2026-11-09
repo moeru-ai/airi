@@ -187,7 +187,9 @@ function buildGravatarUrl(emailAddress: string): string | null {
     return null
 
   const url = new URL(createHash('sha256').update(normalized).digest('hex'), 'https://www.gravatar.com/avatar/')
-  url.searchParams.set('d', 'identicon')
+  // `d=404` makes Gravatar fail when the email has no Gravatar image.
+  // The client `Avatar` then draws its generated beam fallback from the user ID.
+  url.searchParams.set('d', '404')
   url.searchParams.set('s', '200')
   return url.toString()
 }

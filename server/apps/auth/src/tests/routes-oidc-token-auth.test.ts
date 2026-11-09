@@ -130,6 +130,20 @@ describe('oidc token auth routes', () => {
     expect(getSession).not.toHaveBeenCalled()
   })
 
+  it('returns a Gravatar URL that fails for users without a Gravatar image', async () => {
+    const { app } = await buildRoutes()
+
+    const response = await app.request('/api/auth/get-session', {
+      headers: { Authorization: `Bearer ${SIGNED_JWT}` },
+    })
+
+    // A Gravatar error lets the client render its own generated avatar instead of a Gravatar identicon.
+    const body = await response.json() as { user: { image: string } }
+    const image = new URL(body.user.image)
+    expect(image.origin).toBe('https://www.gravatar.com')
+    expect(image.searchParams.get('d')).toBe('404')
+  })
+
   it('surfaces a JWKS loader failure instead of treating it as an invalid token', async () => {
     const { app, getJwks, getSession } = await buildRoutes()
     getJwks.mockRejectedValueOnce(new Error('database unavailable'))
