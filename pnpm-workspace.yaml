@@ -218,6 +218,10 @@ catalog:
   '@proj-airi/unplugin-live2d-sdk': ^0.1.7
   '@revenuecat/purchases-js': ^1.15.0
   '@rive-app/canvas-lite': ^2.40.1
+  '@sentry/browser': ^11.11.0
+  '@sentry/bundler-plugins': ^11.11.0
+  '@sentry/capacitor': 4.5.0
+  '@sentry/electron': 8.3.0
   '@sherpaw/asr': 0.3.0
   '@sherpaw/kws': 0.3.0
   '@sherpaw/speaker-diarization': 0.3.0
@@ -511,6 +515,7 @@ allowBuilds:
   '@openuidev/lang-core': false # Its postinstall only sends install telemetry.
   '@parcel/watcher': true
   '@prisma/client': false
+  '@sentry/capacitor': false # Its postinstall only checks the versions of the other Sentry packages.
   better-sqlite3: false
   bufferutil: true
   canvas: true

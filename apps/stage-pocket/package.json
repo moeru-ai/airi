@@ -51,6 +51,7 @@
     "@proj-airi/stream-kit": "workspace:^",
     "@proj-airi/ui": "workspace:^",
     "@proj-airi/ui-transitions": "workspace:^",
+    "@sentry/capacitor": "catalog:",
     "@tresjs/cientos": "catalog:",
     "@tresjs/core": "catalog:",
     "@valibot/to-json-schema": "catalog:",
