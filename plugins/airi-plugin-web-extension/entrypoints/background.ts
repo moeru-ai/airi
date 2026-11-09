@@ -16,7 +16,7 @@ import {
   toStatus,
 } from '../src/background/client'
 import { loadSettings, saveSettings } from '../src/background/storage'
-import { createVideoNotifyGate } from '../src/background/video-notify'
+import { VideoNotifyGate } from '../src/background/video-notify'
 import { DEFAULT_SETTINGS, STORAGE_KEY } from '../src/shared/constants'
 import {
   backgroundStatusChanged,
@@ -70,7 +70,7 @@ async function init() {
 }
 
 // The gate calls back after a video title settles. Only then does the character get a notification.
-const videoNotifyGate = createVideoNotifyGate<VideoContextPayload>((payload) => {
+const videoNotifyGate = new VideoNotifyGate<VideoContextPayload>((payload) => {
   handleVideoContext(state, settings, payload, { notify: true })
   emitStatus()
 })

@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { createVideoNotifyGate } from './video-notify'
+import { VideoNotifyGate } from './video-notify'
 
 function report(videoId: string, title: string, currentTimeSec = 0) {
   return { url: `https://example.com/watch?v=${videoId}`, videoId, title, currentTimeSec }
 }
 
-describe('createVideoNotifyGate', () => {
+describe('video notify gate', () => {
   beforeEach(() => {
     vi.useFakeTimers()
   })
@@ -17,7 +17,7 @@ describe('createVideoNotifyGate', () => {
 
   it('notifies a video after its title stays the same', () => {
     const onSettle = vi.fn()
-    const gate = createVideoNotifyGate(onSettle)
+    const gate = new VideoNotifyGate(onSettle)
 
     gate.report(report('a', 'Song A'))
     vi.advanceTimersByTime(2_999)
@@ -30,7 +30,7 @@ describe('createVideoNotifyGate', () => {
 
   it('notifies after one report, without a second report', () => {
     const onSettle = vi.fn()
-    const gate = createVideoNotifyGate(onSettle)
+    const gate = new VideoNotifyGate(onSettle)
 
     gate.report(report('a', 'Song A'))
     vi.advanceTimersByTime(3_000)
@@ -40,7 +40,7 @@ describe('createVideoNotifyGate', () => {
 
   it('notifies a video only once', () => {
     const onSettle = vi.fn()
-    const gate = createVideoNotifyGate(onSettle)
+    const gate = new VideoNotifyGate(onSettle)
     gate.report(report('a', 'Song A'))
     vi.advanceTimersByTime(3_000)
 
@@ -52,7 +52,7 @@ describe('createVideoNotifyGate', () => {
 
   it('sends the latest report of a video', () => {
     const onSettle = vi.fn()
-    const gate = createVideoNotifyGate(onSettle)
+    const gate = new VideoNotifyGate(onSettle)
 
     gate.report(report('a', 'Song A', 1))
     gate.report(report('a', 'Song A', 2))
@@ -63,7 +63,7 @@ describe('createVideoNotifyGate', () => {
 
   it('waits for the real title when a new video id carries the previous title', () => {
     const onSettle = vi.fn()
-    const gate = createVideoNotifyGate(onSettle)
+    const gate = new VideoNotifyGate(onSettle)
     gate.report(report('a', 'Song A'))
     vi.advanceTimersByTime(3_000)
     onSettle.mockClear()
@@ -79,7 +79,7 @@ describe('createVideoNotifyGate', () => {
 
   it('ignores a stale page title of the previous video', () => {
     const onSettle = vi.fn()
-    const gate = createVideoNotifyGate(onSettle)
+    const gate = new VideoNotifyGate(onSettle)
     gate.report(report('a', 'Song'))
     vi.advanceTimersByTime(3_000)
     onSettle.mockClear()
@@ -92,7 +92,7 @@ describe('createVideoNotifyGate', () => {
 
   it('notifies a new video with the same title after the title stays', () => {
     const onSettle = vi.fn()
-    const gate = createVideoNotifyGate(onSettle)
+    const gate = new VideoNotifyGate(onSettle)
     gate.report(report('a', 'Live'))
     vi.advanceTimersByTime(3_000)
     onSettle.mockClear()
@@ -107,7 +107,7 @@ describe('createVideoNotifyGate', () => {
 
   it('notifies a new title that contains the previous title', () => {
     const onSettle = vi.fn()
-    const gate = createVideoNotifyGate(onSettle)
+    const gate = new VideoNotifyGate(onSettle)
     gate.report(report('a', 'Part 1'))
     vi.advanceTimersByTime(3_000)
     onSettle.mockClear()
@@ -120,7 +120,7 @@ describe('createVideoNotifyGate', () => {
 
   it('notifies each of two playing tabs once', () => {
     const onSettle = vi.fn()
-    const gate = createVideoNotifyGate(onSettle)
+    const gate = new VideoNotifyGate(onSettle)
 
     gate.report(report('a', 'Song A'))
     gate.report(report('b', 'Song B'))
@@ -134,7 +134,7 @@ describe('createVideoNotifyGate', () => {
 
   it('stops pending timers on dispose', () => {
     const onSettle = vi.fn()
-    const gate = createVideoNotifyGate(onSettle)
+    const gate = new VideoNotifyGate(onSettle)
 
     gate.report(report('a', 'Song A'))
     gate.dispose()

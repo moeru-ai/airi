@@ -38,7 +38,7 @@ function normalizeVideoTitle(title: string) {
 }
 
 /**
- * Creates the gate that decides when a video starts a character notification.
+ * Decides when a video starts a character notification.
  *
  * YouTube changes the URL before it changes the page title. A report can carry
  * the new video id with the old title. So the gate waits until the title of a
@@ -56,32 +56,20 @@ function normalizeVideoTitle(title: string) {
  *
  * Call `dispose` to stop all timers.
  */
-export function createVideoNotifyGate<T extends VideoNotifyReport>(onSettle: (report: T) => void) {
-  const notifiedVideoKeys = new Set<string>()
-  let lastNotifiedVideoTitle = ''
-  const pendingVideos = new Map<string, { title: string, report: T, timer: ReturnType<typeof setTimeout> }>()
+export class VideoNotifyGate<T extends VideoNotifyReport> {
+  private readonly notifiedVideoKeys = new Set<string>()
+  private lastNotifiedVideoTitle = ''
+  private readonly pendingVideos = new Map<string, { title: string, report: T, timer: ReturnType<typeof setTimeout> }>()
 
-  function settle(key: string) {
-    const pending = pendingVideos.get(key)
-    if (!pending)
-      return
+  constructor(private readonly onSettle: (report: T) => void) {}
 
-    pendingVideos.delete(key)
-    notifiedVideoKeys.add(key)
-    if (notifiedVideoKeys.size > NOTIFIED_VIDEO_LIMIT)
-      notifiedVideoKeys.delete(notifiedVideoKeys.values().next().value!)
-
-    lastNotifiedVideoTitle = pending.title
-    onSettle(pending.report)
-  }
-
-  function report(next: T) {
+  report(next: T) {
     const key = next.videoId || next.url
     const title = normalizeVideoTitle(next.title ?? '')
-    if (!key || !title || notifiedVideoKeys.has(key))
+    if (!key || !title || this.notifiedVideoKeys.has(key))
       return
 
-    const pending = pendingVideos.get(key)
+    const pending = this.pendingVideos.get(key)
     // The title did not change. Keep the timer, and send the latest report when it settles.
     if (pending?.title === title) {
       pending.report = next
@@ -91,21 +79,33 @@ export function createVideoNotifyGate<T extends VideoNotifyReport>(onSettle: (re
     if (pending)
       clearTimeout(pending.timer)
 
-    const delay = title === lastNotifiedVideoTitle ? STALE_TITLE_WINDOW_MS : SETTLE_MS
-    pendingVideos.set(key, { title, report: next, timer: setTimeout(settle, delay, key) })
+    const delay = title === this.lastNotifiedVideoTitle ? STALE_TITLE_WINDOW_MS : SETTLE_MS
+    this.pendingVideos.set(key, { title, report: next, timer: setTimeout(() => this.settle(key), delay) })
 
-    if (pendingVideos.size > PENDING_VIDEO_LIMIT) {
-      const [oldestKey, oldest] = pendingVideos.entries().next().value!
+    if (this.pendingVideos.size > PENDING_VIDEO_LIMIT) {
+      const [oldestKey, oldest] = this.pendingVideos.entries().next().value!
       clearTimeout(oldest.timer)
-      pendingVideos.delete(oldestKey)
+      this.pendingVideos.delete(oldestKey)
     }
   }
 
-  function dispose() {
-    for (const pending of pendingVideos.values())
+  dispose() {
+    for (const pending of this.pendingVideos.values())
       clearTimeout(pending.timer)
-    pendingVideos.clear()
+    this.pendingVideos.clear()
   }
 
-  return { report, dispose }
+  private settle(key: string) {
+    const pending = this.pendingVideos.get(key)
+    if (!pending)
+      return
+
+    this.pendingVideos.delete(key)
+    this.notifiedVideoKeys.add(key)
+    if (this.notifiedVideoKeys.size > NOTIFIED_VIDEO_LIMIT)
+      this.notifiedVideoKeys.delete(this.notifiedVideoKeys.values().next().value!)
+
+    this.lastNotifiedVideoTitle = pending.title
+    this.onSettle(pending.report)
+  }
 }
