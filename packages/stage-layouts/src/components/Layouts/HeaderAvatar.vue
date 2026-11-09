@@ -71,6 +71,7 @@ const notificationsLabel = computed(() => unread.value > 0
             <Avatar
               v-if="isAuthenticated"
               :src="userAvatar"
+              :seed="user?.id"
               :class="[
                 'h-7 w-7 rounded-full',
                 'bg-neutral-200 text-neutral-500 dark:bg-neutral-700 dark:text-neutral-400',
