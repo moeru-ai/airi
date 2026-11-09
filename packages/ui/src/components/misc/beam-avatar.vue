@@ -4,7 +4,8 @@
 // Upstream ships React components only, and its hosted API needs a paid subscription.
 // Source: boring-avatars 2.0.4 `dist/index.js`. Copyright (c) 2021 boringdesigners, MIT License:
 // https://github.com/boringdesigners/boring-avatars/blob/master/LICENSE
-// The hash and the shape math are identical to upstream, so one seed draws the same face in both.
+// The hash and the shape math are identical to upstream, so one seed draws the same shapes in both.
+// The colors differ from upstream: they follow the theme hue, as `palette` describes.
 // The upstream corner mask is omitted. The parent `Avatar` clips the corners, and inline SVG clips to its viewBox.
 // Remove this port when a maintained Vue or framework-free build of boring-avatars exists.
 
@@ -17,8 +18,26 @@ interface BeamAvatarProps {
 
 const props = defineProps<BeamAvatarProps>()
 
-/** The upstream default palette. The face colors need concrete hex values to compute contrast. */
-const colors = ['#92A1C6', '#146A7C', '#F0AB3D', '#C271B4', '#C20D90']
+/**
+ * Five colors around the theme hue, from 60 degrees below it to 60 degrees above it.
+ *
+ * Each app writes the theme hue to `--chromatic-hue` on the root element, and the dynamic hue mode animates it.
+ * CSS resolves the colors, so the avatar follows a hue change without a re-render.
+ * The fallback `220.44` is `DEFAULT_THEME_COLORS_HUE` in `@proj-airi/stage-ui`, for pages that do not set the variable.
+ *
+ * Upstream picks a black or white face from the wrapper's hex color. Here each color has a fixed OKLCH lightness,
+ * so `face` is fixed per color. The lightness values keep the face at a contrast of 3.6:1 or more at every hue.
+ */
+const palette = [
+  { offset: -60, lightness: 0.85, face: '#000000' },
+  { offset: -30, lightness: 0.72, face: '#000000' },
+  { offset: 0, lightness: 0.58, face: '#FFFFFF' },
+  { offset: 30, lightness: 0.78, face: '#000000' },
+  { offset: 60, lightness: 0.6, face: '#FFFFFF' },
+].map(({ offset, lightness, face }) => ({
+  color: `oklch(${lightness} 0.12 calc(var(--chromatic-hue, 220.44) + ${offset}))`,
+  face,
+}))
 
 /** Side of the square viewBox that the upstream shape math uses. */
 const size = 36
@@ -47,20 +66,12 @@ function getUnit(value: number, range: number, index?: number) {
 }
 
 function getColor(value: number) {
-  return colors[value % colors.length]!
-}
-
-/** Returns black or white, whichever reads better on the given `#rrggbb` color (YIQ brightness). */
-function getContrast(hex: string) {
-  const r = Number.parseInt(hex.slice(1, 3), 16)
-  const g = Number.parseInt(hex.slice(3, 5), 16)
-  const b = Number.parseInt(hex.slice(5, 7), 16)
-  return (r * 299 + g * 587 + b * 114) / 1000 >= 128 ? '#000000' : '#FFFFFF'
+  return palette[value % palette.length]!
 }
 
 const beam = computed(() => {
   const hash = hashCode(props.seed)
-  const wrapperColor = getColor(hash)
+  const wrapper = getColor(hash)
 
   // Small offsets are pushed out by `size / 9`, so the wrapper shape never sits centered.
   const rawTranslateX = getUnit(hash, 10, 1)
@@ -69,9 +80,9 @@ const beam = computed(() => {
   const wrapperTranslateY = rawTranslateY < 5 ? rawTranslateY + size / 9 : rawTranslateY
 
   return {
-    wrapperColor,
-    faceColor: getContrast(wrapperColor),
-    backgroundColor: getColor(hash + 13),
+    wrapperColor: wrapper.color,
+    faceColor: wrapper.face,
+    backgroundColor: getColor(hash + 13).color,
     wrapperTranslateX,
     wrapperTranslateY,
     wrapperRotate: getUnit(hash, 360),
@@ -96,14 +107,14 @@ const beam = computed(() => {
     aria-hidden="true"
     :class="['size-full']"
   >
-    <rect :width="size" :height="size" :fill="beam.backgroundColor" />
+    <rect :width="size" :height="size" :style="{ fill: beam.backgroundColor }" />
     <rect
       x="0"
       y="0"
       :width="size"
       :height="size"
       :transform="`translate(${beam.wrapperTranslateX} ${beam.wrapperTranslateY}) rotate(${beam.wrapperRotate} ${size / 2} ${size / 2}) scale(${beam.wrapperScale})`"
-      :fill="beam.wrapperColor"
+      :style="{ fill: beam.wrapperColor }"
       :rx="beam.isCircle ? size : size / 6"
     />
     <g :transform="`translate(${beam.faceTranslateX} ${beam.faceTranslateY}) rotate(${beam.faceRotate} ${size / 2} ${size / 2})`">
