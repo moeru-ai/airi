@@ -3,6 +3,7 @@ import type { CompletionStep, Message, Tool } from '@xsai/shared-chat'
 
 import type { Conversation } from '../messages/types'
 
+import { getDefinedProvider, getGenerationProvider } from '@proj-airi/provider-inference'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { chatMessagesToTurns, conversationToChatMessages } from '../messages/chat-completions'
@@ -15,6 +16,47 @@ const { streamTextMock } = vi.hoisted(() => ({
 vi.mock('@xsai/stream-text', () => ({
   streamText: streamTextMock,
 }))
+
+// https://github.com/moeru-ai/airi/issues/3432
+// ROOT CAUSE:
+//
+// The step hook replaced the provider's normalized model with the catalog ID.
+// Keep the model from the resolved provider request for every chat step.
+it.each(['volcengine-agent-plan/doubao-seed-2.0-mini', 'doubao-seed-2.0-mini'])(
+  'preserves the provider model for catalog and manual selections: %s (Issue #3432)',
+  async (model) => {
+    const definition = getDefinedProvider('volcengine-agent-plan')!
+    const instance = await definition.createProvider({ apiKey: 'test-key' })
+    const chatProvider = getGenerationProvider(instance)!
+    const sentModels: string[] = []
+    streamTextMock.mockImplementation((options: {
+      model: string
+      messages: Message[]
+      prepareStep: (step: { input: Message[], steps: CompletionStep[] }) => Promise<{ model: string }>
+    }) => {
+      const steps = (async () => {
+        for (let index = 0; index < 2; index++) {
+          const resolved = await options.prepareStep({ input: options.messages, steps: [] })
+          sentModels.push(resolved.model)
+        }
+        return []
+      })()
+      return {
+        steps,
+        messages: steps.then(() => []),
+        usage: Promise.resolve(undefined),
+        totalUsage: Promise.resolve(undefined),
+      }
+    })
+    await streamFrom({
+      model,
+      chatProvider,
+      conversation: { turns: [] },
+      options: { resolveStep: async () => ({ model, chatProvider, providerId: 'volcengine-agent-plan', systemPrompt: '' }) },
+    })
+    expect(sentModels).toEqual(['doubao-seed-2.0-mini', 'doubao-seed-2.0-mini'])
+  },
+)
 
 const provider: GenerationProvider = {
   generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.com/' } }),
