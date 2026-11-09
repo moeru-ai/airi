@@ -30,12 +30,11 @@ export function createClientState(): ClientState {
 
 function createIdentity() {
   return {
-    kind: 'plugin',
-    plugin: {
+    id: nanoid(),
+    extension: {
       id: PLUGIN_NAME,
       version: typeof packageJSON.version === 'string' ? packageJSON.version : undefined,
     },
-    id: nanoid(),
     labels: {
       runtime: 'web-extension',
     },
@@ -132,7 +131,7 @@ function sendSparkNotify(state: ClientState, data: { headline: string, note?: st
       headline: data.headline,
       note: data.note,
       payload: data.payload,
-      destinations: ['character'],
+      destinations: ['proj-airi:stage-*'],
     },
   })
 }

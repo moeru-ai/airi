@@ -121,6 +121,7 @@ model-select:
     sync:
       upload: 上传到云端
       delete-cloud: 从云端删除
+      upload-progress: '上传中 {percent}%'
       status:
         local-only: 仅在本设备
         queued: 等待上传
@@ -262,8 +263,9 @@ pages:
     notLoggedIn: 登录以查看您的帐户并访问所有功能
     login: 登录
     logout: 登出
-    fluxBalance: 剩余通量
+    fluxBalance: Flux 余额
     viewFluxDetails: 查看详情
+    capacitorEntry: 订阅
     viewCapacitor: 查看
     signedInAs: 登录 为
     profile:
@@ -373,7 +375,7 @@ pages:
         error:
           reauthenticate: 请重新登录，再回到此处确认删除。无需接收邮件。
           fallback: 无法开始删除操作，请稍后重试。
-          subscriptionActive: 您的订阅仍在生效。请先在 Capacitor 页面取消订阅，再删除帐户。
+          subscriptionActive: 您的订阅仍在生效。请先在订阅页面取消订阅，再删除帐户。
   card:
     wake-word-conflicts:
       title: '{count} 个共享的唤醒词发音需要选择角色'
@@ -1636,6 +1638,7 @@ pages:
       buy: 充值
       description: 可以选择购入的 Flux 电池包
   capacitor:
+    title: 订阅
     statusError: 暂时无法获取 Capacitor 的状态，可以之后再试试吗？
     packagesError: 暂时无法获取可用的 Capacitor，可以之后再试试吗？
     preferenceError: 偏好保存失败，请稍后再试。
@@ -1644,21 +1647,21 @@ pages:
     rechargesAt: '{date} 充满'
     renewsAt: '{date} 续订'
     expiresAt: '{date} 到期'
-    change: 更换 Capacitor
+    change: 更换订阅
     quota:
       day: '每天 {quota} Flux'
       week: '每周 {quota} Flux'
       month: '每月 {quota} Flux'
     perMonth: / 月
     currentPackage: 当前
-    install: 装配
+    install: 订阅
     upgrade: 升级
     downgrade: 降级
     manageSubscription: 管理订阅
-    fallbackToFlux: Capacitor 放空后使用 Flux
+    fallbackToFlux: Capacitor 用完后使用 Flux 余额
     fallbackToFluxHint: 关闭后，对话和语音会暂停，直到 Capacitor 充满。
     checkout:
-      success: Capacitor 已装配并充满。
+      success: 订阅成功，Capacitor 已充满。
       pending: 已收到付款，Capacitor 稍后充满。
       canceled: 购买被取消
       error: 哎呀，出错了，请稍后再试

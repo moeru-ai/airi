@@ -101,6 +101,7 @@ Use pnpm workspace filters to limit a command to one workspace. Replace `<packag
 - Use `@moeru/eventa` for all IPC, RPC, and cross-process events. Define the contracts in one central place, such as `apps/stage-tamagotchi/src/shared`.
 - Use dependency injection only at external boundaries: databases, model runtimes, queues, caches, filesystems, networks, clocks, environments, and feature gates. Use `injeca` for it.
 - Do not add dependency objects for internal functions that only call sibling helpers or forward parameters.
+- The plugin framework (`packages/plugin-sdk`) also uses `injeca` as its lifecycle runtime. Plugin sessions are child containers, and Kit Providers are injeca units. This use is not dependency injection for internal helpers.
 - Prefer classes for runtime or browser APIs. Also prefer classes for substantial business modules that own state, lifecycle, or a stable domain boundary.
 - Prefer functions for pure transformations and local helpers.
 - Use Valibot for schema validation. Keep each schema near its consumers.
@@ -132,9 +133,6 @@ Use pnpm workspace filters to limit a command to one workspace. Replace `<packag
 - If the user asks you to use a specific tool or dependency, read its documentation in Context7 first. Then examine how this repository uses it.
 - If Context7 returns several names without a clear difference, ask the user to choose one.
 - If the documentation conflicts with the typecheck result, examine the dependency source in `node_modules` to find the cause.
-- Do not add an `install`, `postinstall`, or `prepare` script to a workspace package. Every `pnpm install` runs it, also for contributors who do not use the package.
-- Put a download, build, or code generation step in the script that needs it, for example `dev` or `build`. You can also load the file at runtime.
-- An install script is permitted only if every install of its package needs it, and it runs fast and offline. Before you add one, ask the user.
 
 ## Documentation
 

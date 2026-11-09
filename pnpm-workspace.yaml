@@ -347,7 +347,7 @@ catalog:
   hono-rate-limiter: ^0.5.3
   html2canvas: ^1.4.1
   idb-keyval: ^6.3.0
-  injeca: ^0.5.1
+  injeca: ^0.5.2
   ioredis: ^6.0.0
   ioredis-mock: ^8.13.1
   is-network-error: ^1.3.2
@@ -420,7 +420,6 @@ catalog:
   speech-rule-engine: 5.0.0-rc.4
   splitpanes: ^4.1.2
   sponsorkit: 17.1.0
-  sponsors-svg: ^0.3.0
   srvx: ^0.12.7
   std-env: ^4.2.0
   stockfish: ^18.0.8
