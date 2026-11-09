@@ -12,6 +12,7 @@
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
     "compile": "vue-tsc --noEmit",
+    "test:run": "vitest run --config vitest.config.ts",
     "postinstall": "wxt prepare"
   },
   "devDependencies": {
