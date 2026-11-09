@@ -369,11 +369,6 @@
       "count": 2
     }
   },
-  "packages/model-driver-mediapipe/src/three/apply-pose-to-vrm.ts": {
-    "ts/no-explicit-any": {
-      "count": 4
-    }
-  },
   "packages/plugin-sdk/src/channels/index.ts": {
     "ts/no-explicit-any": {
       "count": 6
