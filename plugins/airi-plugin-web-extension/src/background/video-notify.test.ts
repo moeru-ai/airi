@@ -179,17 +179,33 @@ describe('video notify gate', () => {
     expect(onSettle).not.toHaveBeenCalled()
   })
 
-  it('does not notify a skipped video later', () => {
+  it('notifies a skipped video when the user comes back after the cooldown', () => {
     const onSettle = vi.fn()
     const gate = new VideoNotifyGate(onSettle)
     gate.report(report('a', 'Short A'), 1)
     vi.advanceTimersByTime(3_000)
     gate.report(report('b', 'Short B'), 1)
     vi.advanceTimersByTime(3_000)
+    gate.report(report('c', 'Short C'), 1)
+    vi.advanceTimersByTime(3_000)
+    onSettle.mockClear()
+
+    vi.advanceTimersByTime(30_000)
+    gate.report(report('b', 'Short B', 1), 1)
+    vi.advanceTimersByTime(3_000)
+
+    expect(onSettle).toHaveBeenCalledWith(report('b', 'Short B', 1))
+  })
+
+  it('does not notify a notified video when the user comes back', () => {
+    const onSettle = vi.fn()
+    const gate = new VideoNotifyGate(onSettle)
+    gate.report(report('a', 'Short A'), 1)
+    vi.advanceTimersByTime(3_000)
     onSettle.mockClear()
 
     vi.advanceTimersByTime(60_000)
-    gate.report(report('b', 'Short B', 70), 1)
+    gate.report(report('a', 'Short A', 1), 1)
     vi.advanceTimersByTime(3_000)
 
     expect(onSettle).not.toHaveBeenCalled()

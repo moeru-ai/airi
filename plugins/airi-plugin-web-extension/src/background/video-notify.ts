@@ -19,11 +19,12 @@ const SETTLE_MS = 3_000
 /** How long a new video must keep the title of the last settled video before the gate notifies. */
 const STALE_TITLE_WINDOW_MS = 10_000
 
-/** How many settled videos the gate remembers, so that two playing tabs do not notify each other in turns. */
-const SETTLED_VIDEO_LIMIT = 50
+/** How many notified videos the gate remembers, so that two playing tabs do not notify each other in turns. */
+const NOTIFIED_VIDEO_LIMIT = 50
 
 /**
  * The shortest time between two notifications. A video that settles sooner is skipped, not queued.
+ * A skipped video can notify when the user comes back to it after the cooldown.
  * Short videos, for example YouTube Shorts, settle every few seconds while the user scrolls.
  * A queued reaction would then be about a video that the user left long ago.
  */
@@ -60,7 +61,7 @@ function normalizeVideoTitle(title: string) {
  * uses its own timer and does not wait for a second report.
  *
  * State lives in memory for the life of the background page:
- * - `settledVideoKeys` holds recently settled videos, notified or skipped. A settled video does not notify again.
+ * - `notifiedVideoKeys` holds recently notified videos. A notified video does not notify again.
  * - `lastSettledTitles` holds the last settled title of each tab, to detect stale reports.
  *   A stale title comes from the previous video of the same tab, so other tabs do not affect it.
  * - `pendingVideos` holds each waiting video with its title, latest report, and timer.
@@ -69,7 +70,7 @@ function normalizeVideoTitle(title: string) {
  * Call `forgetTab` when a tab closes. Call `dispose` to stop all timers.
  */
 export class VideoNotifyGate<T extends VideoNotifyReport> {
-  private readonly settledVideoKeys = new Set<string>()
+  private readonly notifiedVideoKeys = new Set<string>()
   private readonly lastSettledTitles = new Map<number, string>()
   private readonly pendingVideos = new Map<string, { title: string, report: T, tabId?: number, timer: ReturnType<typeof setTimeout> }>()
   private lastNotifiedAt = Number.NEGATIVE_INFINITY
@@ -79,7 +80,7 @@ export class VideoNotifyGate<T extends VideoNotifyReport> {
   report(next: T, tabId?: number) {
     const key = next.videoId || next.url
     const title = normalizeVideoTitle(next.title ?? '')
-    if (!key || !title || this.settledVideoKeys.has(key))
+    if (!key || !title || this.notifiedVideoKeys.has(key))
       return
 
     const pending = this.pendingVideos.get(key)
@@ -119,9 +120,6 @@ export class VideoNotifyGate<T extends VideoNotifyReport> {
       return
 
     this.pendingVideos.delete(key)
-    this.settledVideoKeys.add(key)
-    if (this.settledVideoKeys.size > SETTLED_VIDEO_LIMIT)
-      this.settledVideoKeys.delete(this.settledVideoKeys.values().next().value!)
 
     // A skipped video is still the previous video of its tab. So it updates the stale title check too.
     if (pending.tabId != null)
@@ -130,6 +128,10 @@ export class VideoNotifyGate<T extends VideoNotifyReport> {
     const now = Date.now()
     if (now - this.lastNotifiedAt < NOTIFY_COOLDOWN_MS)
       return
+
+    this.notifiedVideoKeys.add(key)
+    if (this.notifiedVideoKeys.size > NOTIFIED_VIDEO_LIMIT)
+      this.notifiedVideoKeys.delete(this.notifiedVideoKeys.values().next().value!)
 
     this.lastNotifiedAt = now
     this.onSettle(pending.report)
