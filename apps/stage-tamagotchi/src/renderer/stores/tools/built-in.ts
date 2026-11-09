@@ -5,7 +5,6 @@ import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/ai/chat-llm/tools'
 import { TOOL_ICONS } from '@proj-airi/stage-ui/tools/icons'
 import { defineStore } from 'pinia'
 
-import { computerUseTools } from './builtin/computer-use'
 import { imageJournalTools } from './builtin/image-journal'
 import { weatherTools } from './builtin/weather'
 import { widgetsTools } from './builtin/widgets'
@@ -41,7 +40,6 @@ export const useTamagotchiBuiltinToolsStore = defineStore('tamagotchi-builtin-to
       imageJournalTools().then(tools => ({ tools, icon: TOOL_ICONS.imageJournal })),
       widgetsTools().then(tools => ({ tools, icon: TOOL_ICONS.widgets })),
       weatherTools().then(tools => ({ tools, icon: TOOL_ICONS.weather })),
-      computerUseTools().then(tools => ({ tools, icon: TOOL_ICONS.computerUse })),
     ])
 
     llmToolsStore.removeToolsByIds(...registeredToolIds())
@@ -49,7 +47,6 @@ export const useTamagotchiBuiltinToolsStore = defineStore('tamagotchi-builtin-to
       ...tool,
       icon,
       defaultActive: false,
-      requiresExplicitSelection: computerUseToolReferences.some(reference => reference.name === tool.function.name),
       id: `${toolIdPrefix}${tool.function.name}`,
     } satisfies ExecutableTool))))
   }

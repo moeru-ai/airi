@@ -294,6 +294,30 @@ function storedToolImageMessage(): ChatHistoryItem {
 }
 
 describe('chat store contract', () => {
+  it('projects old MCP schemas before the production request budget without editing tool receipts', async () => {
+    const schema = JSON.stringify([{ serverName: 'fixture', name: 'fixture::read', toolName: 'read', inputSchema: { type: 'object', description: 'schema detail '.repeat(5000) } }])
+    const context: Conversation = { turns: [
+      { type: 'assistant', id: 'catalog-run', status: 'completed', rounds: [{
+        id: 'catalog-run/0',
+        content: [{ type: 'tool', invocationId: 'catalog' }],
+        projectionIssues: [],
+        toolInvocations: [{ id: 'catalog', callId: 'catalog-call', name: 'builtIn_mcpListTools', arguments: '{}', execution: { status: 'succeeded', output: [{ type: 'text', text: schema }] } }],
+      }] },
+      { type: 'user', id: 'notice', notice: { source: 'host' }, content: [{ type: 'text', text: 'status=unknown; noNewDispatch=false' }] },
+    ] }
+    const original = structuredClone(context)
+    llmStreamMock.mockImplementation(async (model: string, provider: GenerationProvider, _conversation: Conversation, options: LlmStreamOptions) => {
+      const projected = await options.prepareConversation!(context, { model, request: provider.generation(model), scope: model, measureContextBytes: value => new TextEncoder().encode(JSON.stringify(value)).byteLength })
+      expect(JSON.stringify(projected)).toContain('schemasOmitted')
+      expect(JSON.stringify(projected)).not.toContain('schema detail')
+      expect(JSON.stringify(projected)).toContain('status=unknown; noNewDispatch=false')
+      expect(context).toEqual(original)
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    await useChatStore().send({ sessionId: 'session-1', text: 'Continue the fixture.' })
+    expect(llmStreamMock).toHaveBeenCalledOnce()
+  })
+
   beforeEach(async () => {
     await memoryRepo.clear()
     await recipesRepo.clear()

@@ -1,30 +1,13 @@
 import type { Tool, ToolExecuteOptions } from '@xsai/shared-chat'
 
 import type { ToolAttributionContext } from '../types/chat'
+import type { McpToolDescriptor } from '../types/mcp'
 
 import { errorMessageFrom } from '@moeru/std'
-import { tool } from '@xsai/tool'
+import { rawTool, tool } from '@xsai/tool'
 import { z } from 'zod'
 
-/**
- * Describes an MCP tool that can be exposed to the shared LLM runtime.
- *
- * Use when:
- * - A runtime needs to list available MCP tools before exposing them to models
- *
- * Expects:
- * - `name` is the fully-qualified tool name used for invocation
- *
- * Returns:
- * - The MCP tool descriptor metadata reported by the runtime
- */
-export interface McpToolDescriptor {
-  serverName: string
-  name: string
-  toolName: string
-  description?: string
-  inputSchema: Record<string, unknown>
-}
+export type { McpToolDescriptor } from '../types/mcp'
 
 /**
  * Payload for invoking an MCP tool through a runtime-specific transport.
@@ -87,6 +70,7 @@ export interface McpToolRuntime {
 
 /** The proxy tool that calls an MCP tool. Each call names the MCP tool in its `name` argument, as `server::tool`. */
 export const MCP_CALL_TOOL_NAME = 'builtIn_mcpCallTool'
+export const MCP_LIST_TOOL_NAME = 'builtIn_mcpListTools'
 
 /** Optional tool metadata cannot hold registration until a remote server's request deadline. */
 const indexTimeoutMs = 1000
@@ -97,30 +81,52 @@ const unavailableIndex = 'The registration tool index is unavailable. Call this 
  *
  * Discovery returns descriptors, an explicit empty-catalog message, or an MCP
  * error result. Runtime owners register these tools in the shared LLM tool store.
- * A registration-time name index helps models find connected capabilities.
+ * A registration-time server index helps models find connected capabilities.
  * Live discovery supplies current schemas. The index grants no execution authority.
  */
-export function createMcpTools(runtime: McpToolRuntime): Array<Promise<Tool>> {
+export async function createMcpTools(runtime: McpToolRuntime): Promise<Tool[]> {
   const catalog = runtime.listTools().then(
-    tools => tools.length > 0
-      ? `Tool names at registration: ${JSON.stringify(tools.map(tool => tool.name))}. Call this tool for current descriptions and input schemas.`
-      : 'The tool index was empty at registration. Call this tool for the current catalog.',
-    () => unavailableIndex,
+    tools => tools,
+    () => undefined,
   )
   let timer: ReturnType<typeof setTimeout>
-  const index = Promise.race([
+  const snapshot = await Promise.race([
     catalog,
-    new Promise<string>((resolve) => {
-      timer = setTimeout(resolve, indexTimeoutMs, unavailableIndex)
+    new Promise<undefined>((resolve) => {
+      timer = setTimeout(resolve, indexTimeoutMs, undefined)
     }),
   ]).finally(() => clearTimeout(timer))
-  return [
-    index.then(index => tool({
-      name: 'builtIn_mcpListTools',
+  const visible = snapshot?.filter(tool => tool.exposure !== 'disabled')
+  const servers = new Map<string, number>()
+  for (const descriptor of visible ?? [])
+    servers.set(descriptor.serverName, (servers.get(descriptor.serverName) ?? 0) + 1)
+  const index = snapshot === undefined ? unavailableIndex : `Servers at registration: ${JSON.stringify([...servers].map(([name, tools]) => ({ name, tools })))}. Discovery returns the live catalog.`
+
+  async function execute(payload: McpCallToolPayload, options?: McpExecutionOptions) {
+    try {
+      options?.abortSignal?.throwIfAborted()
+      // Registration is a visibility hint. Main rechecks current admission without
+      // making a Terminal call wait for discovery on unrelated MCP servers.
+      if (snapshot?.some(tool => tool.name === payload.name && tool.exposure === 'disabled'))
+        throw new Error(`MCP tool is unavailable or disabled: ${payload.name}`)
+      return await runtime.callTool(payload, options)
+    }
+    catch (error) {
+      return { isError: true, content: [{ type: 'text', text: errorMessageFrom(error) ?? 'Unknown error.' }] }
+    }
+  }
+
+  return Promise.all([
+    tool({
+      name: MCP_LIST_TOOL_NAME,
       description: `List tools from connected MCP servers. Call this before builtIn_mcpCallTool to get current names and input schemas. For processes, CLI, files, and system interfaces, prefer Terminal, but do not call Terminal as a preflight. Reserve AUV for on-screen visual state or GUI interaction when the Host permits it. Prefer background application launches that avoid unrelated window changes. Never inject keyboard or mouse input through Shell to bypass AUV authorization. ${index}`,
-      execute: async () => {
+      execute: async ({ name }) => {
         try {
-          const tools = await runtime.listTools()
+          const tools = (await runtime.listTools()).filter(tool => tool.exposure !== 'disabled')
+          if (name) {
+            const selected = tools.find(tool => tool.name === name)
+            return selected ? [selected] : { isError: true, content: [{ type: 'text', text: `MCP tool is unavailable or disabled: ${name}` }] }
+          }
           if (tools.length === 0)
             return 'No MCP tools are available. Do not retry discovery during this assistant turn.'
 
@@ -133,8 +139,8 @@ export function createMcpTools(runtime: McpToolRuntime): Array<Promise<Tool>> {
           }
         }
       },
-      parameters: z.object({}).strict(),
-    })),
+      parameters: z.object({ name: z.string().nullish().describe('Exact server::tool name for one current schema. Use null for the current catalog.') }).strict(),
+    }),
     tool({
       name: MCP_CALL_TOOL_NAME,
       description: 'Call an MCP tool by name. Use builtIn_mcpListTools first to get available tool names.',
@@ -142,7 +148,7 @@ export function createMcpTools(runtime: McpToolRuntime): Array<Promise<Tool>> {
         try {
           options?.abortSignal?.throwIfAborted()
           const args = argsJson ? JSON.parse(argsJson) : {}
-          return await runtime.callTool({ name, arguments: args }, options)
+          return await execute({ name, arguments: args }, options)
         }
         catch (error) {
           return {
@@ -161,7 +167,16 @@ export function createMcpTools(runtime: McpToolRuntime): Array<Promise<Tool>> {
         arguments: z.string().describe('JSON object of tool arguments, for example {"query":"hello","limit":10}'),
       }).strict(),
     }),
-  ]
+    ...(visible ?? []).filter(descriptor => descriptor.exposure === 'direct').map(descriptor => rawTool({
+      name: descriptor.toolName,
+      description: descriptor.description ?? `Call ${descriptor.name} through the Host.`,
+      parameters: descriptor.inputSchema,
+      // MCP schemas retain their optional fields. Strict conversion can make them
+      // required and nullable, although the server rejects null instead of omission.
+      strict: false,
+      execute: (arguments_, options?: McpExecutionOptions) => execute({ name: descriptor.name, arguments: arguments_ as Record<string, unknown> }, options),
+    })),
+  ])
 }
 
 /**

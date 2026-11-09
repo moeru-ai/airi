@@ -7,10 +7,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { createContext, defineInvoke } from '@moeru/eventa'
+import { resolveLlmTools } from '@proj-airi/stage-ui/stores/ai/chat-llm/tool-resolver'
 import { createMcpTools } from '@proj-airi/stage-ui/tools/mcp'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { electronMcpCallTool, electronMcpListTools } from '../../../../shared/eventa'
+import { PendingActionManager } from '../computer-use/action-manager'
 import { createMcpManager, createMcpServersService } from './index'
 
 const appMock = vi.hoisted(() => ({
@@ -223,10 +225,10 @@ describe('createMcpManager', () => {
     createMcpServersService({ context, manager })
     const listMcpTools = defineInvoke(context, electronMcpListTools)
     const callMcpTool = defineInvoke(context, electronMcpCallTool)
-    const [listTools] = await Promise.all(createMcpTools({
+    const [listTools] = await createMcpTools({
       listTools: () => listMcpTools(),
       callTool: payload => callMcpTool(payload),
-    }))
+    })
     clientMocks.listTools.mockRejectedValueOnce(new Error('MCP request timed out.'))
 
     const result = await listTools.execute({}, { messages: [], toolCallId: 'failed-discovery' })
@@ -244,6 +246,12 @@ describe('createMcpManager', () => {
     expect(clientMocks.listTools).not.toHaveBeenCalled()
   })
 
+  it('does not trust an external server to mark itself direct', async () => {
+    const manager = await startServers('external')
+    clientMocks.listTools.mockResolvedValue({ tools: [{ name: 'terminal_exec', exposure: 'direct', inputSchema: { type: 'object', properties: {} } }] })
+    expect((await manager.listTools())[0].exposure).toBe('router-only')
+  })
+
   it('treats successful discovery with no tools as an empty catalog', async () => {
     const manager = await startServers('memory')
 
@@ -258,9 +266,48 @@ describe('createMcpManager', () => {
       .mockResolvedValueOnce({ tools: [{ name: 'search', description: 'Search files.', inputSchema: { type: 'object' } }] })
 
     expect(await manager.listTools()).toEqual([
-      { serverName: 'alpha', name: 'alpha::read', toolName: 'read', description: 'Read memory.', inputSchema: { type: 'object' } },
-      { serverName: 'zeta', name: 'zeta::search', toolName: 'search', description: 'Search files.', inputSchema: { type: 'object' } },
+      { serverName: 'alpha', name: 'alpha::read', toolName: 'read', description: 'Read memory.', inputSchema: { type: 'object' }, exposure: 'router-only' },
+      { serverName: 'zeta', name: 'zeta::search', toolName: 'search', description: 'Search files.', inputSchema: { type: 'object' }, exposure: 'router-only' },
     ])
+  })
+
+  it('keeps direct Terminal behind Main request ownership and rejects disabled desktop calls before MCP dispatch', async () => {
+    const actions = new PendingActionManager()
+    const manager = createMcpManager({
+      actions,
+      present: vi.fn(async () => false),
+      executeInSlot: async operation => operation(new AbortController().signal),
+      notify: async notice => ({ status: 'stored', sessionId: notice.sessionId, messageId: 'fixture' }),
+    })
+    managers.push(manager)
+    await manager.writeConfigText(JSON.stringify({ terminalEnabled: true, mcpServers: {} }))
+    await manager.applyAndRestart()
+    clientMocks.listTools.mockResolvedValue({ tools: ['terminal_exec', 'terminal_history', 'desktop_capture'].map(name => ({ name, inputSchema: { type: 'object', properties: { command: { type: 'string' } } }, exposure: 'direct' })) })
+    const descriptors = await manager.listTools()
+    expect(descriptors.map(tool => [tool.toolName, tool.exposure])).toEqual([
+      ['terminal_exec', 'direct'],
+      ['terminal_history', 'router-only'],
+      ['desktop_capture', 'disabled'],
+    ])
+    await expect(manager.callTool({ name: 'airi-terminal::desktop_capture' })).rejects.toThrow('disabled by the Host')
+    await expect(manager.callTool({ name: 'airi-terminal::terminal_exec', arguments: { command: 'fixture' } })).rejects.toThrow('normal Chat request')
+    expect(clientMocks.callTool).not.toHaveBeenCalled()
+    const attribution = { sessionId: 'session-a', turnId: 'turn-a' }
+    const request = actions.registerRequest({ ...attribution, text: 'Run the fixture.' }, 71)
+    const tools = await resolveLlmTools({ builtInTools: [], debugTools: [], sparkCommandTools: [], webSearchTools: [], activeTools: await createMcpTools({
+      listTools: () => manager.listTools(),
+      callTool: (payload, options) => manager.callTool({ ...payload, requestId: request.id, attribution: options?.attribution }, 71, options?.abortSignal),
+    }), attribution })
+    clientMocks.callTool.mockResolvedValue({ isError: true, content: [{ type: 'text', text: 'Fixture policy rejected preparation.' }] })
+    const terminal = tools.find(tool => tool.function.name === 'terminal_exec')!
+    const result = await terminal.execute({ command: 'fixture', call_summary: 'Run fixture', call_icon: [] }, { messages: [], toolCallId: 'direct-call' })
+    expect(result).toMatchObject({ isError: true })
+    expect(clientMocks.callTool).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ name: 'terminal_exec', arguments: { command: 'fixture' }, _meta: expect.any(Object) }), undefined, expect.any(Object))
+    actions.cancelRequest(request.id, 71)
+    const cancelled = await terminal.execute({ command: 'fixture' }, { messages: [], toolCallId: 'cancelled-call' })
+    expect(cancelled).toMatchObject({ isError: true })
+    expect(clientMocks.callTool).toHaveBeenCalledTimes(1)
+    console.info(JSON.stringify({ boundary: 'Real Resolver and Main, controlled MCP client; policy rejection, no executor', prepareCalls: clientMocks.callTool.mock.calls.length, nativeExecutions: 0, disabledDispatches: 0 }))
   })
 
   it.each(['terminal_exec', 'stdio::terminal_exec', '.stdio::terminal_exec', 'scope::terminal_exec'])(

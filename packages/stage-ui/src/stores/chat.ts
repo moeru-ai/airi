@@ -40,6 +40,7 @@ import {
 import { getSpeechBusContext, voiceGenerationEnded } from '../services/speech/bus'
 import { composeDrawCardPrompt, createDrawCardTool, DRAW_CARD_TOOL_NAME, drawCardContent } from '../tools/draw-card'
 import { createJudgeRecipeTool, judgmentSkillText } from '../tools/judge-recipe'
+import { projectMcpCatalogHistory } from '../tools/mcp-catalog-projection'
 import { composeMemoryPrompt, createMemoryTools } from '../tools/memory'
 import { createProposeRecipeTool } from '../tools/propose-recipe'
 import { createSearchIconsTool } from '../tools/search-icons'
@@ -925,11 +926,12 @@ export const useChatStore = defineStore('chat', () => {
           : undefined,
         // Audio projection follows the model of each request. A tool step can switch between audio and text models.
         prepareConversation: async (conversation, target) => {
-          const projected = conversation === providerContext && isInitialTarget(target)
+          const mediaProjected = conversation === providerContext && isInitialTarget(target)
             ? initialProjection
             : target.providerId && await supportsAudioInput(target.providerId, target.model, target.request)
               ? conversation
               : await prepareTextOnlyAudioContext(conversation)
+          const projected = projectMcpCatalogHistory(mediaProjected)
           if (projected !== conversation && options?.requestCorrelation?.conversationId)
             contextObservability.captureProviderPromptProjection(options.requestCorrelation.conversationId, renderConversationPreview(projected))
           const sessionId = options?.requestCorrelation?.conversationId

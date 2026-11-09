@@ -325,6 +325,16 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
     return result
   }
 
+  // Only the bundled, nonce-bound server supplies a direct Terminal entry.
+  // Its desktop placeholders cannot become an alternative observation or input surface.
+  const exposureOf = (serverName: string, session: McpServerSession, toolName: string): ElectronMcpToolDescriptor['exposure'] => {
+    if (serverName !== bundledTerminalName || !session.terminalNonce)
+      return 'router-only'
+    if (toolName.startsWith('desktop_'))
+      return 'disabled'
+    return toolName === 'terminal_exec' ? 'direct' : 'router-only'
+  }
+
   const listTools = async (): Promise<ElectronMcpToolDescriptor[]> => {
     const entries = [...sessions.entries()].sort(([left], [right]) => left.localeCompare(right))
     const listResult = await Promise.allSettled(entries.map(async ([serverName, session]) => {
@@ -338,6 +348,7 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
         toolName: item.name,
         description: item.description,
         inputSchema: item.inputSchema,
+        exposure: exposureOf(serverName, session, item.name),
       }))
     }))
     const tools: ElectronMcpToolDescriptor[] = []
@@ -375,6 +386,8 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
     if (!session) {
       throw new Error(`mcp server is not running: ${serverName}`)
     }
+    if (exposureOf(serverName, session, toolName) === 'disabled')
+      throw new Error(`MCP tool is disabled by the Host: ${payload.name}`)
     const attribution = payload.requestId && terminalApproval ? validateAttribution(payload.attribution, senderWebContentsId) : undefined
     if (payload.requestId && terminalApproval && attribution)
       terminalApproval.actions.validateRequest(payload.requestId, attribution)

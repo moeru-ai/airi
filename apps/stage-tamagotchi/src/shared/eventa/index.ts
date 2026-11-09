@@ -575,13 +575,7 @@ export interface ElectronMcpRuntimeStatus {
   updatedAt: number
 }
 
-export interface ElectronMcpToolDescriptor {
-  serverName: string
-  name: string
-  toolName: string
-  description?: string
-  inputSchema: Record<string, unknown>
-}
+export type ElectronMcpToolDescriptor = import('@proj-airi/stage-ui/types/mcp').McpToolDescriptor
 
 export interface ElectronMcpCallToolPayload {
   name: string

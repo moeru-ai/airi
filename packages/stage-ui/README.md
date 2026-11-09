@@ -2,6 +2,24 @@
 
 Shared core for stage
 
+## MCP tool exposure
+
+The Desktop Host marks its bundled Terminal execution tool as Direct. It keeps extensions behind the existing MCP discovery and call tools.
+Direct calls use the same Main request binding, approval, cancellation, execution slot and settlement path.
+Exposure metadata grants no execution permission. External server metadata cannot opt into the Desktop Host's Direct policy.
+The Host rejects disabled bundled Desktop tools even when a caller invokes them through MCP directly.
+Unadmitted native AUV tools are absent from normal Chat registration. Their Main observation gates remain closed.
+
+`builtIn_mcpListTools` returns the live catalog. Supply an exact `name` for one current schema, or null for the full catalog.
+Registration descriptions contain server counts instead of every tool name. A discovery timeout leaves live discovery available.
+MCP schemas retain optional arguments. Direct definitions use non-strict provider schemas and retain server validation.
+
+`projectMcpCatalogHistory` keeps fresh discovery results intact for the next decision.
+Later request copies omit old schemas while retaining tool names, descriptions, identities and result links.
+The projection marks historical catalogs as snapshots and points to live schema discovery.
+It updates both portable output and correlated native continuation output. Stored history, generation records and unrelated provider fields remain intact.
+Failed results and other tools never enter this projection. Compact receives the projected copy and retains its existing scheduling modes.
+
 ## Optional modules
 
 Provider lists expose `None` for optional features. Switches control module activation.
