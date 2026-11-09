@@ -5,16 +5,18 @@ export interface VideoNotifyReport {
   videoId?: string
 }
 
-/**
- * How long a video title must stay the same before the gate notifies.
- * YouTube updates the title about 1 to 2 seconds after the URL.
- */
+// NOTICE:
+// YouTube changes the URL about 1 to 2 seconds before the title heading. Early reports carry the old title.
+// Source: `findVideoTitle` in `src/content/index.ts`. The delay was measured by hand on YouTube.
+// Remove it when the title source changes together with the video id.
+/** How long a video title must stay the same before the gate notifies. */
 const SETTLE_MS = 3_000
 
-/**
- * How long a new video must keep the title of the last notified video before the gate notifies.
- * At first such a title is a stale report. If it stays, the new video has the same name.
- */
+// NOTICE:
+// A slow page can keep the old title heading longer than `SETTLE_MS`.
+// So a new video with the last notified title waits longer. If the title stays, the video has the same name.
+// Remove this window together with `SETTLE_MS`.
+/** How long a new video must keep the title of the last notified video before the gate notifies. */
 const STALE_TITLE_WINDOW_MS = 10_000
 
 /** How many notified videos the gate remembers, so that two playing tabs do not notify each other in turns. */
