@@ -20,6 +20,7 @@ import { useDisplayModelsStore } from '../stores/display-models'
 import { useMcpStore } from '../stores/mcp'
 import { useMemoryStore } from '../stores/memory'
 import { useAiriCardStore } from '../stores/modules/airi-card'
+import { useArtistryStore } from '../stores/modules/artistry'
 import { useConsciousnessStore } from '../stores/modules/consciousness'
 import { useConsciousnessSettingsStore } from '../stores/modules/consciousness-settings'
 import { useDiscordStore } from '../stores/modules/discord'
@@ -123,6 +124,7 @@ export function useDataMaintenance() {
   const mcpStore = useMcpStore()
   const onboardingStore = useOnboardingStore()
   const airiCardStore = useAiriCardStore()
+  const artistryStore = useArtistryStore()
   const memoryStore = useMemoryStore()
   const recipesStore = useRecipesStore()
   const voiceprintStore = useVoiceprintStore()
@@ -150,6 +152,7 @@ export function useDataMaintenance() {
       () => consciousnessSettingsStore.resetState(),
       () => twitterStore.resetState(),
       () => webSearchStore.resetState(),
+      () => artistryStore.resetState(),
       () => discordStore.resetState(),
       () => factorioStore.resetState(),
       () => minecraftStore.resetState(),
