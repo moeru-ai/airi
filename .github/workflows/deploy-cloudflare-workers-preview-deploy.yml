@@ -9,6 +9,7 @@ on:
 
 jobs:
   ask-for-approval:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     name: Ask for approval to deploy - ${{ matrix.app_name }}
     runs-on: ubuntu-latest
     permissions:
@@ -59,7 +60,7 @@ jobs:
           NODE
 
       - name: Find Comment
-        if: ${{ always() }}
+        if: ${{ always() && steps.meta.outcome == 'success' }}
         uses: peter-evans/find-comment@v4
         id: fc
         with:
@@ -194,7 +195,7 @@ jobs:
           STAGE_UI_WARP_DRIVE_PREFIX: proj-airi/stage-ui/pr-${{ steps.meta.outputs.PR_NUM }}/
 
       - name: Find Comment
-        if: ${{ always() }}
+        if: ${{ always() && steps.meta.outcome == 'success' }}
         uses: peter-evans/find-comment@v4
         id: fc
         with:
