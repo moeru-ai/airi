@@ -22,8 +22,18 @@ The byte measurement uses the protocol projection and current system prompt. It 
 The callback returns a request copy. Stored history and complete generation records stay unchanged.
 Stage also uses this callback for audio projection and conversation Compact.
 
-Stage defaults Compact to Off and gates new requests at 512 KiB in every mode.
-The local experiment offers Synchronous or Background scheduling from a 256 KiB soft limit.
+Stage defaults Compact to Off. Every mode retains a request budget gate.
+Each resolved model supplies its catalog context window and output limit, when available.
+The byte policy subtracts the request output cap and a safety margin from that window.
+Without an explicit output cap, the policy reserves up to 4,096 tokens from the declared model output maximum.
+The safety margin is 5%, at least 256 tokens, capped at one quarter of small windows.
+Each remaining token allows one text byte. This estimate is not a tokenizer bound or measured usage.
+Without window metadata, the fallback uses 256 KiB soft and 512 KiB hard byte limits.
+Explicit vision support separates inline image bytes from text and tool-schema bytes.
+Missing vision metadata keeps the full byte gate. PDF and ordinary text remain in that gate.
+Images still consume provider context. The provider enforces image and actual token limits.
+Provider context errors after tool execution stop the run without automatically replaying settled tools.
+Synchronous and Background scheduling use the same request limits and projection.
 Both modes share snapshots, summary generation, delta merging, and stale-result checks.
 Changing modes invalidates only summary work. It does not cancel tool execution.
 The background model receives a frozen prefix with no tools. New rounds continue below the hard budget.

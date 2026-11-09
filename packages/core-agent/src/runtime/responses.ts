@@ -10,6 +10,7 @@ import type { ResolvedStep } from './request-context'
 import { responses } from '@xsai-ext/responses'
 import { hasToolCall, not } from '@xsai/shared-chat'
 
+import { measureContextBudget, resolveContextBudgetLimits } from '../messages/context-budget'
 import { renderSegmentText } from '../messages/render-context'
 import { projectInput, projectRound } from '../messages/turns'
 import { createGeneration } from './generation'
@@ -245,6 +246,13 @@ export function streamResponses(input: {
         return projected
       }
       if (input.options?.prepareConversation || next) {
+        const contextWindowTokens = next ? next.contextWindowTokens : input.options?.contextWindowTokens
+        const modelMaxOutputTokens = next ? next.modelMaxOutputTokens : input.options?.modelMaxOutputTokens
+        const contextBudgetLimits = resolveContextBudgetLimits({
+          contextWindowTokens,
+          requestedOutputTokens: typeof requestOptions.maxOutputTokens === 'number' ? requestOptions.maxOutputTokens : undefined,
+          modelMaxOutputTokens,
+        })
         const conversation = await input.options?.prepareConversation?.(completed.rounds.length
           ? { turns: [...input.conversation.turns, completed] }
           : input.conversation, {
@@ -252,7 +260,12 @@ export function streamResponses(input: {
           providerId: next?.providerId ?? input.options?.providerId,
           request,
           scope: input.scope,
+          contextWindowTokens,
+          modelMaxOutputTokens,
+          contextBudgetLimits: contextBudgetLimits.source === 'provider-model-metadata' ? contextBudgetLimits : undefined,
           measureContextBytes: source => new TextEncoder().encode(JSON.stringify({ input: project(source), tools: requestOptions.tools?.map(tool => tool.type === 'function' ? { type: 'function', description: tool.function.description ?? null, name: tool.function.name, parameters: tool.function.parameters, strict: tool.function.strict ?? true } : tool) })).byteLength,
+          measureContextBudget: source => measureContextBudget({ input: project(source), tools: requestOptions.tools?.map(tool => tool.type === 'function' ? { type: 'function', description: tool.function.description ?? null, name: tool.function.name, parameters: tool.function.parameters, strict: tool.function.strict ?? true } : tool) }),
+          supportsVisionInput: next ? next.supportsVisionInput === true : input.options?.supportsVisionInput === true,
         }) ?? { turns: [...input.conversation.turns, ...(completed.rounds.length ? [completed] : [])] }
         input.options?.abortSignal?.throwIfAborted()
         current = project(conversation)

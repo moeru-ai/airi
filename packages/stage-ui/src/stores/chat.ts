@@ -12,7 +12,7 @@ import type { ToolCallRerunPayload } from './tool-call-rerun'
 import { errorMessageFrom } from '@moeru/std'
 import { decodeBase64 } from '@moeru/std/base64'
 import { fileSource } from '@proj-airi/audio/encoding'
-import { ConversationCompact, createChatOrchestratorRuntime, isBackgroundRecipe, matchKeywordRecipes, renderConversationPreview } from '@proj-airi/core-agent'
+import { ConversationCompact, createChatOrchestratorRuntime, DEFAULT_CONTEXT_HARD_LIMIT_BYTES, DEFAULT_CONTEXT_SOFT_LIMIT_BYTES, isBackgroundRecipe, matchKeywordRecipes, renderConversationPreview } from '@proj-airi/core-agent'
 import { ATTR_GEN_AI_AGENT_ID, ATTR_GEN_AI_CONVERSATION_ID, ATTR_GEN_AI_OPERATION_NAME, ATTR_GEN_AI_PROVIDER_NAME, ATTR_GEN_AI_REQUEST_MODEL, ATTR_GEN_AI_TOOL_CALL_ARGUMENTS, ATTR_GEN_AI_TOOL_CALL_ID, ATTR_GEN_AI_TOOL_CALL_RESULT, ATTR_GEN_AI_TOOL_NAME, beginSpan, TraceLinkRelations, trackPath } from '@proj-airi/trace-kit'
 import { AgentAttributes, AgentIdKeys, AgentNames, AgentTracks } from '@proj-airi/trace-kit/agent'
 import { VoiceIdKeys } from '@proj-airi/trace-kit/voice'
@@ -25,7 +25,7 @@ import { useI18n } from 'vue-i18n'
 import { getConversationAnalyticsSurface } from '../composables'
 import { useAiriRuntimePrompt } from '../composables/use-airi-runtime-prompt'
 import { getTraceSink, LOCAL_AGENT_ACTOR } from '../composables/use-trace'
-import { useChatVision } from '../composables/vision/use-chat-vision'
+import { modelDeclaresImageInput, useChatVision } from '../composables/vision/use-chat-vision'
 import { useVisionInference } from '../composables/vision/use-vision-inference'
 import { chatAssetIdFrom, inlineConversationAssets, storeChatAttachments } from '../libs/chat-assets'
 import { extractMessageText, isCloudSyncableMessage } from '../libs/chat-sync'
@@ -347,7 +347,7 @@ export const useChatStore = defineStore('chat', () => {
     getSessionMessages: sessionId => chatSession.getSessionMessages(sessionId),
   })
   // These application limits measure context bytes, not the provider's token window.
-  const compactBudget = { softLimitBytes: 256 * 1024, hardLimitBytes: 512 * 1024, retainRounds: 2 }
+  const compactBudget = { softLimitBytes: DEFAULT_CONTEXT_SOFT_LIMIT_BYTES, hardLimitBytes: DEFAULT_CONTEXT_HARD_LIMIT_BYTES, retainRounds: 2 }
   const conversationCompacts = new Map<string, ConversationCompact>()
   const featureFlags = useFeatureFlagsStore()
   const compactMode = computed<CompactMode>(() => {
@@ -934,7 +934,10 @@ export const useChatStore = defineStore('chat', () => {
             contextObservability.captureProviderPromptProjection(options.requestCorrelation.conversationId, renderConversationPreview(projected))
           const sessionId = options?.requestCorrelation?.conversationId
           if (!sessionId) {
-            if (target.measureContextBytes(projected) >= compactBudget.hardLimitBytes)
+            const requestBytes = target.supportsVisionInput && target.measureContextBudget
+              ? target.measureContextBudget(projected).textBytes
+              : target.measureContextBytes(projected)
+            if (requestBytes >= (target.contextBudgetLimits?.hardLimitBytes ?? compactBudget.hardLimitBytes))
               throw new Error('Conversation context exceeds the request byte budget')
             return projected
           }
@@ -956,12 +959,18 @@ export const useChatStore = defineStore('chat', () => {
               supportsTools: false,
               toolChoice: 'none',
               providerId: target.providerId,
+              contextWindowTokens: target.contextWindowTokens,
+              modelMaxOutputTokens: target.modelMaxOutputTokens,
+              supportsVisionInput: target.supportsVisionInput,
               abortSignal: AbortSignal.any([signal, controller.signal]),
               maxTokens: 2048,
               temperature: 0,
               headers: requestHeaders(target.providerId),
               prepareConversation: async (context, summaryTarget) => {
-                if (summaryTarget.measureContextBytes(context) >= compactBudget.hardLimitBytes)
+                const requestBytes = summaryTarget.supportsVisionInput && summaryTarget.measureContextBudget
+                  ? summaryTarget.measureContextBudget(context).textBytes
+                  : summaryTarget.measureContextBytes(context)
+                if (requestBytes >= (summaryTarget.contextBudgetLimits?.hardLimitBytes ?? compactBudget.hardLimitBytes))
                   throw new Error('Summary context exceeds the request byte budget')
                 return context
               },
@@ -1424,12 +1433,16 @@ export const useChatStore = defineStore('chat', () => {
       const stepProvider = await consciousnessStore.getChatProviderInstance(selection.provider)
       if (!stepProvider)
         throw new Error(`Failed to resolve chat provider "${selection.provider}"`)
+      const stepModel = (await consciousnessStore.getModelsForProvider(selection.provider)).find(model => model.id === selection.model)
 
       return {
         model: selection.model,
         chatProvider: stepProvider,
         providerId: selection.provider,
         systemPrompt: sessionSystemPrompt(payload.sessionId),
+        contextWindowTokens: stepModel?.contextLength,
+        modelMaxOutputTokens: stepModel?.metadata?.maxOutput,
+        supportsVisionInput: modelDeclaresImageInput(stepModel),
         temperature,
         topP,
       }
@@ -1438,7 +1451,9 @@ export const useChatStore = defineStore('chat', () => {
     return {
       providerId,
       supportsAudioInput: await supportsAudioInput(providerId, modelId, chatProvider.generation(modelId)),
-      supportsVisionInput: selectedModel?.metadata?.abilities?.vision === true,
+      supportsVisionInput: modelDeclaresImageInput(selectedModel),
+      contextWindowTokens: selectedModel?.contextLength,
+      modelMaxOutputTokens: selectedModel?.metadata?.maxOutput,
       resolveStep,
       signal,
       model: modelId,

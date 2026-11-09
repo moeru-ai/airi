@@ -1,3 +1,4 @@
+import type { ContextBudget, ContextBudgetLimits } from './context-budget'
 import type { Conversation, GenerationRound, Turn } from './types'
 
 /** Scheduling changes no execution state. Off retains the request byte gate. */
@@ -30,6 +31,11 @@ export interface CompactOptions {
 export interface CompactRequest {
   scope: string
   measureContextBytes: (value: Conversation) => number
+  /** Optional media-aware measurement. It is used only for explicitly vision-capable requests. */
+  measureContextBudget?: (value: Conversation) => ContextBudget
+  supportsVisionInput?: boolean
+  /** Limits derived from the model and output cap of this exact provider request. */
+  contextBudgetLimits?: Pick<ContextBudgetLimits, 'softLimitBytes' | 'hardLimitBytes'>
   summarize: (snapshot: Conversation, signal: AbortSignal) => Promise<string>
 }
 
@@ -124,6 +130,7 @@ export class ConversationCompact {
 
   private start(source: Turn[], target: CompactRequest, signal?: AbortSignal) {
     const { measureContextBytes: measure, summarize } = target
+    const { hardLimitBytes } = this.limits(target)
     const roundUnits = source.filter(turn => turn.type === 'assistant')
     const older = roundUnits.slice(0, -this.options.retainRounds)
     const selected = older.filter(turn => turn.type === 'assistant' && !this.committed?.rounds.has(turn.rounds[0].id) && canCompact(turn.rounds[0]))
@@ -137,7 +144,7 @@ export class ConversationCompact {
       return
     const snapshot = structuredClone(this.project(prefix))
     // The summary uses no tools. Reserving space for its instructions also gates that provider request.
-    if (measure(snapshot) + 2048 >= this.options.hardLimitBytes) {
+    if (this.gateBytes(snapshot, target) + 2048 >= hardLimitBytes) {
       this.failure = { prefix: prefixKey, error: new Error('Summary input exceeds the context byte budget') }
       return
     }
@@ -167,6 +174,18 @@ export class ConversationCompact {
       job.checkpoint.text = text
       job.ready = true
     }).catch((error: unknown) => { job.error = error })
+  }
+
+  private gateBytes(conversation: Conversation, target: CompactRequest) {
+    // Provider-specific vision tokenization is unknown here. Keep image transport bytes separate;
+    // the Provider remains authoritative about image/context limits after this conservative text gate.
+    if (target.supportsVisionInput && target.measureContextBudget)
+      return target.measureContextBudget(conversation).textBytes
+    return target.measureContextBytes(conversation)
+  }
+
+  private limits(target: CompactRequest) {
+    return target.contextBudgetLimits ?? this.options
   }
 
   private apply(source: Turn[], measure: (value: Conversation) => number) {
@@ -208,6 +227,8 @@ export class ConversationCompact {
     signal?.throwIfAborted()
     const source = units(structuredClone(conversation))
     const measure = target.measureContextBytes
+    const gate = (value: Conversation) => this.gateBytes(value, target)
+    const { softLimitBytes, hardLimitBytes } = this.limits(target)
     if (this.scope !== target.scope || (this.committed && !matches(this.committed.prefix, source))) {
       this.reset()
       this.scope = target.scope
@@ -224,9 +245,9 @@ export class ConversationCompact {
       this.job = undefined
     }
     let projected = this.project(source)
-    if (this.mode !== 'off' && measure(projected) >= this.options.softLimitBytes && !this.job)
+    if (this.mode !== 'off' && gate(projected) >= softLimitBytes && !this.job)
       this.start(source, target, signal)
-    if (measure(projected) < this.options.hardLimitBytes && (this.mode !== 'synchronous' || !this.job))
+    if (gate(projected) < hardLimitBytes && (this.mode !== 'synchronous' || !this.job))
       return projected
     const job = this.job
     if (job) {
@@ -248,7 +269,7 @@ export class ConversationCompact {
       this.apply(source, measure)
       projected = this.project(source)
     }
-    if (measure(projected) >= this.options.hardLimitBytes) {
+    if (this.gateBytes(projected, target) >= hardLimitBytes) {
       this.options.onEvent?.({ type: 'blocked', rounds: this.committed?.rounds.size ?? 0, bytes: measure(projected) })
       throw new Error('Conversation context exceeds the request byte budget', { cause: this.failure?.error })
     }
