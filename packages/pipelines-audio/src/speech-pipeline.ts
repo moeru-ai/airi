@@ -131,7 +131,11 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
 
     const tokenStream = intent.stream
     const segmentStream = segmenter(tokenStream, { streamId: intent.streamId, intentId: intent.intentId, turnId: intent.turnId })
-    const completedRequests = new Map<number, TtsResult<TAudio> | null>()
+    type ScheduledItem
+      = | { type: 'playback', result: TtsResult<TAudio> | null }
+        | { type: 'special', segment: TextSegment }
+
+    const completedRequests = new Map<number, ScheduledItem>()
     const inFlightTasks = new Set<Promise<void>>()
     let nextRequestSequence = 0
     let nextSequenceToSchedule = 0
@@ -180,24 +184,29 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
 
     function scheduleCompletedRequests() {
       while (completedRequests.has(nextSequenceToSchedule)) {
-        const completedRequest = completedRequests.get(nextSequenceToSchedule) ?? null
+        const item = completedRequests.get(nextSequenceToSchedule)
         completedRequests.delete(nextSequenceToSchedule)
 
-        if (completedRequest) {
-          enqueuePlayback({
-            id: createId('playback'),
-            turnId: completedRequest.turnId,
-            streamId: completedRequest.streamId,
-            intentId: completedRequest.intentId,
-            segmentId: completedRequest.segmentId,
-            sequence: completedRequest.sequence,
-            ownerId: intent.ownerId,
-            priority: intent.priority,
-            text: completedRequest.text,
-            special: completedRequest.special,
-            audio: completedRequest.audio,
-            createdAt: Date.now(),
-          })
+        if (item?.type === 'playback') {
+          if (item.result) {
+            enqueuePlayback({
+              id: createId('playback'),
+              turnId: item.result.turnId,
+              streamId: item.result.streamId,
+              intentId: item.result.intentId,
+              segmentId: item.result.segmentId,
+              sequence: item.result.sequence,
+              ownerId: intent.ownerId,
+              priority: intent.priority,
+              text: item.result.text,
+              special: item.result.special,
+              audio: item.result.audio,
+              createdAt: Date.now(),
+            })
+          }
+        }
+        else if (item?.type === 'special') {
+          enqueueSpecial(item.segment)
         }
 
         nextSequenceToSchedule += 1
@@ -217,13 +226,13 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
         }
 
         if (intent.controller.signal.aborted) {
-          completedRequests.set(request.sequence, null)
+          completedRequests.set(request.sequence, { type: 'playback', result: null })
           scheduleCompletedRequests()
           return
         }
 
         if (!audio) {
-          completedRequests.set(request.sequence, null)
+          completedRequests.set(request.sequence, { type: 'playback', result: null })
           scheduleCompletedRequests()
           return
         }
@@ -241,7 +250,7 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
         }
 
         context.emit(speechPipelineEventMap.onTtsResult, ttsResult)
-        completedRequests.set(request.sequence, ttsResult)
+        completedRequests.set(request.sequence, { type: 'playback', result: ttsResult })
         scheduleCompletedRequests()
       })()
         .finally(() => {
@@ -273,7 +282,8 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
         context.emit(speechPipelineEventMap.onSegment, value)
 
         if (value.text === '' && value.special) {
-          enqueueSpecial(value)
+          completedRequests.set(nextRequestSequence++, { type: 'special', segment: value })
+          scheduleCompletedRequests()
           continue
         }
 
