@@ -5,6 +5,7 @@ import type { DisplayArea } from '../../../shared/utils/electron/display'
 import { screen } from 'electron'
 
 import { findDominantDisplayArea } from '../../../shared/utils/electron/display'
+import { showWindow } from '../../libs/electron/focus'
 
 export function currentDisplayBounds(window: BrowserWindow) {
   const bounds = window.getBounds()
@@ -55,7 +56,7 @@ export function computeCenteredWindowBounds(options: {
  * Returns:
  * - The centered bounds applied to the window
  */
-export function centerWindowOnDisplay(window: Pick<BrowserWindow, 'getBounds' | 'isDestroyed' | 'setBounds' | 'show'> | undefined): Rectangle {
+export function centerWindowOnDisplay(window: Pick<BrowserWindow, 'getBounds' | 'isDestroyed' | 'setBounds' | 'show' | 'showInactive'> | undefined): Rectangle {
   if (!window || window.isDestroyed())
     throw new Error('Main AIRI window is not available.')
 
@@ -64,7 +65,7 @@ export function centerWindowOnDisplay(window: Pick<BrowserWindow, 'getBounds' | 
   const centeredBounds = computeCenteredWindowBounds({ displayWorkArea, windowBounds })
 
   window.setBounds(centeredBounds)
-  window.show()
+  showWindow(window)
 
   return centeredBounds
 }
@@ -220,7 +221,7 @@ export function mapForBreakpoints<
   basedOn: number,
   sizes: { [key in keyof B]?: number } | number,
   options?: { breakpoints: B },
-) {
+): number {
   if (typeof sizes === 'number') {
     return sizes
   }
@@ -244,8 +245,16 @@ export function mapForBreakpoints<
     .sort((a, b) => b.min - a.min) // Sort descending by min width
 
   const fallback = sortedSizes.find(s => s.min <= basedOn)
+  if (fallback?.value != null) {
+    return fallback.value
+  }
 
-  return fallback?.value ?? Object.values(sizes)?.[0] ?? 0
+  // `basedOn` is below every supplied breakpoint (e.g. height < 640 with sm/md/lg
+  // sizes): use the breakpoint with the smallest minimum width. Selecting by min
+  // instead of `Object.values(sizes)[0]` keeps the result stable when the sizes
+  // object keys are reordered (e.g. by lint sorting rules).
+  const smallest = sortedSizes[sortedSizes.length - 1]
+  return smallest?.value ?? 0
 }
 
 /**

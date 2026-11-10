@@ -1,14 +1,19 @@
+import { resolve } from 'node:path'
+
 import { describe, expect, it, vi } from 'vitest'
 
-import { withHashRoute } from './location'
+import { baseUrl, getPreloadPath, getRendererRoot, setElectronMainDirname, withHashRoute } from './location'
 
-vi.mock(import('@electron-toolkit/utils'), () => {
-  return {
-    is: {
-      dev: true,
-    },
-  }
-})
+// The launcher of @ergosphere-it/electron knows the running bundle: the files of a built bundle, or the
+// development server under `electron-vite dev`.
+const bundle = vi.hoisted(() => ({ pageOrigin: 'http://127.0.0.1:40000/', preloadDir: '/opt/airi/bundles/2/preload' }))
+
+vi.mock('@ergosphere-it/electron/main', () => ({
+  activeBundle: {
+    pageUrl: (options?: { page?: string }) => new URL(options?.page ?? '', bundle.pageOrigin).href,
+    preloadOf: (name: string) => `${bundle.preloadDir}/${name}.js`,
+  },
+}))
 
 describe('withHashRoute', () => {
   it('should use string url construct URL with hash route correctly', () => {
@@ -44,5 +49,32 @@ describe('withHashRoute', () => {
         query: { 'synced-leader': 'false' },
       },
     })
+  })
+})
+
+describe('getRendererRoot', () => {
+  const mainDirname = resolve('/opt/airi/out/main')
+
+  it('resolves the packaged renderer directory next to the main bundle', () => {
+    setElectronMainDirname(mainDirname)
+
+    expect(getRendererRoot()).toBe(resolve('/opt/airi/out/renderer'))
+  })
+
+  it('loads the pages of the running bundle', () => {
+    setElectronMainDirname(mainDirname)
+
+    expect(baseUrl(getRendererRoot())).toEqual({ url: 'http://127.0.0.1:40000/' })
+    expect(baseUrl(getRendererRoot(), 'beat-sync.html')).toEqual({ url: 'http://127.0.0.1:40000/beat-sync.html' })
+  })
+})
+
+describe('getPreloadPath', () => {
+  it('resolves the default preload entry of the running bundle', () => {
+    expect(getPreloadPath()).toBe('/opt/airi/bundles/2/preload/index.js')
+  })
+
+  it('resolves a named preload entry of the running bundle', () => {
+    expect(getPreloadPath('beat-sync')).toBe('/opt/airi/bundles/2/preload/beat-sync.js')
   })
 })

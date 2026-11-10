@@ -1,6 +1,6 @@
 import messages from '@proj-airi/i18n/locales'
 
-import { resolveSupportedLocale } from '@proj-airi/i18n'
+import { createFallbackOptions, resolveSupportedLocale } from '@proj-airi/i18n'
 import { createI18n } from 'vue-i18n'
 
 function getLocale() {
@@ -21,6 +21,6 @@ function getLocale() {
 export const i18n = createI18n({
   legacy: false,
   locale: getLocale(),
-  fallbackLocale: 'en',
   messages,
+  ...createFallbackOptions(console.warn),
 })

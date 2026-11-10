@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { ConnectionSettings } from '@proj-airi/stage-ui/components'
-import { Callout, FieldCheckbox, IconButton, Input } from '@proj-airi/ui'
+import { Alert, FieldCheckbox, IconButton, Input } from '@proj-airi/ui'
 import { refDebounced, useClipboard } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, shallowRef, watch } from 'vue'
@@ -50,13 +50,14 @@ watch(authTokenInputDebounced, (value) => {
 
 <template>
   <div>
-    <Callout
+    <Alert
       v-if="lastApplyError"
-      theme="orange"
-      :label="t('settings.websocket-secure-enabled.title')"
+      tone="danger"
+      :title="t('tamagotchi.settings.pages.connection.apply-error.title')"
+      live="polite"
     >
       {{ lastApplyError }}
-    </Callout>
+    </Alert>
     <ConnectionSettings server-address-disabled>
       <template #before-server-address>
         <FieldCheckbox

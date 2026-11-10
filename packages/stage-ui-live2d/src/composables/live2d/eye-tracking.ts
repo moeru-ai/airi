@@ -57,3 +57,28 @@ export function useLive2DEyeFocusFor(options: {
 
   return mouseFocus
 }
+
+/** What drives the focus target of the Pixi model in this frame. */
+export type Live2DFocusTargetMode = 'center' | 'follow' | 'idle'
+
+/**
+ * Selects what drives the focus target of the Pixi model.
+ *
+ * Pixi keeps the last target and adds it to the head, body, and eye angles on
+ * every frame. When neither the cursor nor the idle eye focus drives the
+ * target, the target must go back to the center.
+ */
+export function resolveLive2DFocusTargetMode(options: {
+  /** Cursor tracking is on for the current motion driver. */
+  eyeTracking: boolean
+  /** A cursor position arrived recently. */
+  sourceActive: boolean
+  /** The idle eye focus moves the target while no cursor drives it. */
+  idleEyeFocus: boolean
+}): Live2DFocusTargetMode {
+  if (options.eyeTracking && options.sourceActive)
+    return 'follow'
+  if (options.idleEyeFocus)
+    return 'idle'
+  return 'center'
+}

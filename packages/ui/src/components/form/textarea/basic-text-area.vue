@@ -44,7 +44,9 @@ function onPaste(e: ClipboardEvent) {
 // javascript - Creating a textarea with auto-resize - Stack Overflow
 // https://stackoverflow.com/questions/454202/creating-a-textarea-with-auto-resize
 watch(input, () => {
-  textareaHeight.value = 'auto'
+  // An explicit baseline prevents a flex parent's minimum height from
+  // stretching the textarea before scrollHeight measures its content.
+  textareaHeight.value = props.defaultHeight || 'auto'
   requestAnimationFrame(() => {
     if (!textareaRef.value)
       return
@@ -53,12 +55,11 @@ watch(input, () => {
       return
     }
 
-    // NOTICE: not sure why 4px is required but if not added, when
-    // input happened and placeholder now disappeared, the textarea will shrink
-    // a little bit and cause the input box to shake.
-    // TODO: find out the root cause and remove this magic number, or at least
-    // reference a more specific source.
-    textareaHeight.value = `${textareaRef.value.scrollHeight + 4}px`
+    // scrollHeight includes padding but excludes borders. A border-box height adds the real border widths.
+    // A fixed 2px per border made borderless textareas grow 4px on the first input.
+    const style = getComputedStyle(textareaRef.value)
+    const borders = Number.parseFloat(style.borderTopWidth) + Number.parseFloat(style.borderBottomWidth)
+    textareaHeight.value = `${textareaRef.value.scrollHeight + borders}px`
   })
 }, { immediate: true })
 </script>
@@ -67,6 +68,7 @@ watch(input, () => {
   <textarea
     ref="textareaRef"
     v-model="input"
+    rows="1"
     :style="{ height: textareaHeight }"
     @keydown="onKeyDown"
     @paste="onPaste"

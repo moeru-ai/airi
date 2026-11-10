@@ -2,6 +2,11 @@ import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import { onUnmounted, ref } from 'vue'
 
 const amplification = 3 // Amplification factor for volume visualization
+/**
+ * One level every 50 ms gives a 20 Hz meter, the same rate as the voice host's input level.
+ * A level on each animation frame makes every meter render on each frame, at up to 120 Hz.
+ */
+const ANALYZE_INTERVAL_MS = 50
 
 const volumeLevel = ref(0) // 0-100
 const error = ref<string>()
@@ -9,7 +14,7 @@ const error = ref<string>()
 export function useAudioAnalyzer() {
   const analyzer = ref<AnalyserNode>()
   const dataArray = ref<Uint8Array<ArrayBuffer>>()
-  const animationFrame = ref<number>()
+  let timer: ReturnType<typeof setInterval> | undefined
 
   const onAnalyzerUpdateHooks = ref<Array<(volumeLevel: number) => void | Promise<void>>>([])
 
@@ -22,7 +27,7 @@ export function useAudioAnalyzer() {
   }
 
   function start() {
-    if (animationFrame.value)
+    if (timer)
       return // prevent multiple loops
 
     const analyze = () => {
@@ -43,11 +48,10 @@ export function useAudioAnalyzer() {
       for (const hook of onAnalyzerUpdateHooks.value) {
         hook(volumeLevel.value)
       }
-
-      animationFrame.value = requestAnimationFrame(analyze)
     }
 
     analyze()
+    timer = setInterval(analyze, ANALYZE_INTERVAL_MS)
   }
 
   function startAnalyzer(audioContext: AudioContext) {
@@ -77,11 +81,8 @@ export function useAudioAnalyzer() {
   }
 
   function stopAnalyzer() {
-    // Stop animation frame
-    if (animationFrame.value) {
-      cancelAnimationFrame(animationFrame.value)
-      animationFrame.value = undefined
-    }
+    clearInterval(timer)
+    timer = undefined
 
     analyzer.value = undefined
     dataArray.value = undefined

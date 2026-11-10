@@ -35,4 +35,18 @@ describe('createContextChannel', () => {
     expect(received).toHaveBeenCalledWith(expect.objectContaining({ text: 'hello' }))
     expect(localEcho).not.toHaveBeenCalled()
   })
+
+  it('delivers a correlated stream cancellation to another Stage context', async () => {
+    const sender = createContextChannel()
+    const receiver = createContextChannel()
+    channels.push(sender, receiver)
+    const received = vi.fn()
+    receiver.onStreamCancel(received)
+
+    await sender.emitStreamCancel({ sessionId: 'session-1', turnId: 'turn-1' })
+
+    await vi.waitFor(() => {
+      expect(received).toHaveBeenCalledWith({ sessionId: 'session-1', turnId: 'turn-1' })
+    })
+  })
 })

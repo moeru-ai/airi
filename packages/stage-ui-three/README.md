@@ -32,6 +32,12 @@ VRM runtime management is explicit in this package.
 
 This keeps ordinary remounts and HMR from immediately forcing deep VRM disposal, while still making model switches deterministic.
 
+## Lip-Sync Boundary
+
+`ThreeScene` receives the `AudioContext` and current audio source from its caller. The package does not import the Stage audio store.
+
+The shared driver produces AEIOU weights. The VRM adapter maps these weights to `aa`, `ee`, `ih`, `oh`, and `ou` expressions.
+
 ## Scene Lifecycle
 
 `ThreeScene` coordinates two independent async readiness signals before the scene becomes interactive:
@@ -64,6 +70,13 @@ Whichever signal arrives second completes the binding. The first signal to arriv
 ### Subtree Watch
 
 `ThreeScene` watches `modelRef` and `controlsRef` with `flush: 'sync'` to detect immediate detach events within the same tick. When `controlsRef` goes null (e.g. TresJS internal remount), `controlsReady` resets and a new binding transaction opens. When `modelRef` goes null, `scenePhase` reverts to `loading` without opening a new transaction, since the next `loadStart` event from `VRMModel` will open one.
+
+## Camera Gestures
+
+When orbit input is enabled, the canvas cancels native `dragstart` events.
+This prevents a retained text selection from cancelling the pointer stream during camera rotation.
+The listener belongs to the controls component and ends when that component unmounts.
+Text selection outside the canvas and incoming drag-over events remain unchanged.
 
 ## `trace` Submodule
 

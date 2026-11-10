@@ -2,7 +2,7 @@ import type { Ref } from 'vue'
 
 import type { SteamOAuthStartArgs, SteamOAuthStartResult } from '../libs/steam-auth-client'
 
-import { computed, onMounted, shallowRef, watch } from 'vue'
+import { computed, onMounted, onScopeDispose, shallowRef, watch } from 'vue'
 
 /**
  * Provider key for the linked-account actions. OAuth2 providers go through
@@ -107,6 +107,37 @@ export interface UseLinkedAccountsArgs {
    * from this page; treat this as "link attempt handed off".
    */
   onLinkStarted?: (providerId: string) => void
+}
+
+/**
+ * Runs `onReturn` when the window becomes active again, and returns a stop
+ * function.
+ *
+ * Electron blocks renderer navigation and opens the URL in the system
+ * browser instead, so the document survives the handoff and only the window
+ * state reports that the user came back. A browser unloads the document
+ * during the redirect, and the listeners die with it.
+ */
+function onWindowReturn(onReturn: () => void): () => void {
+  function stop() {
+    window.removeEventListener('focus', handleReturn)
+    document.removeEventListener('visibilitychange', handleVisible)
+  }
+
+  function handleReturn() {
+    stop()
+    onReturn()
+  }
+
+  function handleVisible() {
+    if (document.visibilityState === 'visible')
+      handleReturn()
+  }
+
+  window.addEventListener('focus', handleReturn)
+  document.addEventListener('visibilitychange', handleVisible)
+
+  return stop
 }
 
 /**
@@ -215,6 +246,31 @@ export function useLinkedAccounts(args: UseLinkedAccountsArgs) {
     }
   }
 
+  /**
+   * Removes the return listener of the pending handoff, when one exists.
+   */
+  let stopReturnListener: (() => void) | undefined
+
+  /**
+   * Reloads the rows when the user comes back from the provider's site.
+   *
+   * The consent step happens outside this document, so the row keeps its
+   * pre-link value until the server list is read again. A browser unloads
+   * the document during the redirect, and the listeners die with it.
+   */
+  function resyncOnWindowReturn() {
+    stopReturnListener?.()
+    stopReturnListener = onWindowReturn(() => {
+      stopReturnListener = undefined
+      void refresh()
+    })
+  }
+
+  onScopeDispose(() => {
+    stopReturnListener?.()
+    stopReturnListener = undefined
+  })
+
   async function link(providerId: LinkedProviderId, providerName: string) {
     if (inFlight.value)
       return
@@ -234,19 +290,27 @@ export function useLinkedAccounts(args: UseLinkedAccountsArgs) {
       const { data, error: apiError } = result
       if (apiError)
         throw new Error(apiError.message ?? 'link failed')
+      args.onLinkStarted?.(providerId)
       if (data?.url) {
-        args.onLinkStarted?.(providerId)
+        // Register the return listener before the redirect. Electron blocks
+        // the redirect and opens the URL in the system browser instead, so
+        // this listener is the only signal that the user came back.
+        resyncOnWindowReturn()
         window.location.assign(data.url)
         return
       }
       // No URL came back (e.g. provider returned success synchronously) —
       // refresh so the new row shows up without a navigation.
-      args.onLinkStarted?.(providerId)
       await refresh()
     }
     catch (err) {
       error.value = args.describeError(err) || args.messages.linkFailed
       message.value = null
+    }
+    finally {
+      // Every path must leave the row usable. A browser unloads the document
+      // during the redirect, so this write only matters in runtimes that
+      // block the redirect.
       inFlight.value = null
     }
   }

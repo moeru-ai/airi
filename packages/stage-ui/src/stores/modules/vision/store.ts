@@ -13,11 +13,15 @@ export const useVisionStore = defineStore('vision', () => {
   // Pinia synchronization owns live cross-window state. localStorage only
   // loads and saves durable values for this synchronized store.
   const persistenceOptions = { listenToStorageChanges: false }
+  const enabled = useLocalStorageManualReset('settings/vision/enabled', true, persistenceOptions)
 
   const activeProvider = useLocalStorageManualReset('settings/vision/active-provider', '', persistenceOptions)
   const activeModel = useLocalStorageManualReset('settings/vision/active-model', '', persistenceOptions)
   const activeCustomModelName = useLocalStorageManualReset('settings/vision/active-custom-model', '', persistenceOptions)
   const ollamaThinkingEnabled = useLocalStorageManualReset('settings/vision/ollama-thinking-enabled', false, persistenceOptions)
+  const useForChat = useLocalStorageManualReset('settings/vision/use-for-chat', true, persistenceOptions)
+  /** Whether the vision model reads the images that tools return, such as computer-use screenshots. */
+  const useForToolImages = useLocalStorageManualReset('settings/vision/use-for-tool-images', true, persistenceOptions)
   const modelSearchQuery = refManualReset('')
 
   const supportsModelListing = computed(() => {
@@ -46,7 +50,7 @@ export const useVisionStore = defineStore('vision', () => {
   })
 
   const configured = computed(() => {
-    return !!activeProvider.value && !!activeModel.value
+    return enabled.value && !!activeProvider.value && !!activeModel.value
   })
 
   function resetModelSelection() {
@@ -70,11 +74,17 @@ export const useVisionStore = defineStore('vision', () => {
   }
 
   function resetState() {
+    enabled.reset()
+    useForChat.reset()
+    useForToolImages.reset()
     activeProvider.reset()
     resetModelSelection()
   }
 
   return {
+    enabled,
+    useForChat,
+    useForToolImages,
     activeProvider,
     activeModel,
     customModelName: activeCustomModelName,

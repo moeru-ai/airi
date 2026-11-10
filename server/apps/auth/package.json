@@ -1,9 +1,10 @@
 {
   "name": "@proj-airi/auth-server",
   "type": "module",
-  "version": "0.12.0-beta.1",
+  "version": "0.15.2",
   "private": true,
   "scripts": {
+    "test:run": "vitest run --config vitest.config.ts",
     "apply:env": "dotenvx run -f .env.local --overload --ignore=MISSING_ENV_FILE",
     "auth:generate": "pnpm run apply:env -- better-auth generate --config src/tooling/auth-config.ts --output ../../packages/auth-shared/src/schema.ts -y",
     "dev": "pnpm run apply:env -- tsx --import ./instrumentation.ts --watch src/main.ts",
@@ -35,6 +36,7 @@
     "@opentelemetry/sdk-trace-node": "catalog:",
     "@opentelemetry/semantic-conventions": "catalog:",
     "@proj-airi/auth-shared": "workspace:*",
+    "@proj-airi/http-error-shared": "workspace:*",
     "better-auth": "catalog:",
     "drizzle-orm": "catalog:",
     "hono": "catalog:",
@@ -54,6 +56,7 @@
     "@electric-sql/pglite": "catalog:",
     "@types/pg": "catalog:",
     "drizzle-kit": "catalog:",
+    "kysely": "catalog:",
     "typescript": "catalog:"
   }
 }

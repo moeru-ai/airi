@@ -51,6 +51,8 @@ coverage/
 # Build
 out/
 bundle/
+flatpak/
+flatpak-repo/
 .flatpak-builder/
 .flatpak-repo/
 *.flatpak
@@ -99,10 +101,6 @@ components.d.ts
 .envrc
 .devenv*
 devenv.*
-
-# Rust
-target/
-crates/*/target/
 
 # turborepo
 .turbo
@@ -156,3 +154,11 @@ __screenshots__
 packages/i18n/glossary/glossary.tbx
 
 /airi-docs/
+.worktrees/
+
+# Sherpaw models downloaded by the Vite plugin
+apps/*/public/sherpaw/
+apps/*/src/renderer/public/sherpaw/
+
+# Vieval caches and report artifacts
+.vieval

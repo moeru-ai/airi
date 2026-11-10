@@ -1,12 +1,14 @@
-import { join, resolve } from 'node:path'
-
+import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
 import { BrowserWindow } from 'electron'
 
 import icon from '../../../../resources/icon.png?asset'
 
-import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
+import { showWindow } from '../../libs/electron/focus'
+import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
+import { createWindowContext } from '../../libs/electron/window-context'
 import { createReusableWindow } from '../../libs/electron/window-manager'
-import { protectPrivilegedWindowNavigation } from '../shared'
+import { createWindowService } from '../../services/electron'
+import { customTitleBarWindowConfig, protectPrivilegedWindowNavigation } from '../shared'
 
 export interface OpenDevtoolsWindowParams extends Partial<Electron.Rectangle> {
   key: string
@@ -18,7 +20,6 @@ export interface DevtoolsWindowManager {
 }
 
 export function setupDevtoolsWindow(): DevtoolsWindowManager {
-  const rendererBase = baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'))
   const defaultRoute = '/devtools'
   const reusableWindows = new Map<string, ReturnType<typeof createReusableWindow>>()
 
@@ -36,21 +37,27 @@ export function setupDevtoolsWindow(): DevtoolsWindowManager {
         minHeight: 480,
         show: false,
         icon,
+        ...customTitleBarWindowConfig(),
         webPreferences: {
-          preload: join(getElectronMainDirname(), '../preload/index.mjs'),
+          preload: getPreloadPath(),
           // Preload exposes Electron APIs and needs Node access.
           sandbox: false,
         },
       })
 
-      window.on('ready-to-show', () => window.show())
+      window.on('ready-to-show', () => showWindow(window))
       window.on('closed', () => {
         if (reusableWindows.get(key) === reusable)
           reusableWindows.delete(key)
       })
       protectPrivilegedWindowNavigation(window)
+      initScreenCaptureForWindow(window)
 
-      await load(window, withHashRoute(rendererBase, route, {
+      // The self-drawn title bar is the only way to close this window, so its page must reach the window controls.
+      const { context } = createWindowContext(window)
+      createWindowService({ context, window })
+
+      await load(window, withHashRoute(baseUrl(getRendererRoot()), route, {
         query: { 'synced-leader': 'false' },
       }))
       return window

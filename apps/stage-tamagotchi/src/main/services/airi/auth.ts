@@ -1,6 +1,8 @@
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { BrowserWindow } from 'electron'
 
+import type { ElectronAuthStatus } from '../../../shared/eventa'
+
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
@@ -14,8 +16,11 @@ import { shell } from 'electron'
 import {
   electronAuthCallback,
   electronAuthCallbackError,
+  electronAuthComplete,
+  electronAuthGetStatus,
   electronAuthLogout,
   electronAuthStartLogin,
+  electronAuthStatus,
 } from '../../../shared/eventa'
 import { startLoopbackServer } from './http-server/http/auth'
 
@@ -30,47 +35,122 @@ const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'https://api.airi.build'
 const OIDC_AUTHORIZE_PATH = '/api/auth/oauth2/authorize'
 const OIDC_TOKEN_PATH = '/api/auth/oauth2/token'
 
-// Active loopback server cleanup handle
-let closeLoopback: (() => void) | null = null
-let signingInFlight = false
+// One main-process attempt owns the callback across all renderer windows.
+// Replacement, logout, and owner closure invalidate it before cleanup. Async
+// continuations can publish results or clear ownership only while it is current.
+interface LoginAttempt {
+  attemptId: string
+  window: BrowserWindow
+  controller: AbortController
+  closeLoopback?: () => void
+}
+
+let activeAttempt: LoginAttempt | undefined
+const authContexts = new Set<MainContext>()
+let authStatus: ElectronAuthStatus | undefined
+let feedbackExpiresAt = 0
+
+function publishAuthStatus(status: ElectronAuthStatus) {
+  authStatus = status
+  feedbackExpiresAt = status.state === 'success' ? Date.now() + 3000 : 0
+  for (const context of authContexts)
+    context.emit(electronAuthStatus, status)
+}
+
+function cancelLogin(): void {
+  const attempt = activeAttempt
+  activeAttempt = undefined
+  attempt?.controller.abort()
+  attempt?.closeLoopback?.()
+}
 
 /**
- * Create the auth service IPC handlers for a given window context.
+ * Owns OIDC entry and completion for one window. Login opens the system browser,
+ * exchanges the loopback code, then asks the source renderer to confirm its
+ * session. Only that confirmation can publish success to the Stage windows.
+ * Replaced attempts and closed windows cannot publish a late completion.
  */
 export function createAuthService(params: {
   context: MainContext
   window: BrowserWindow
 }): void {
+  authContexts.add(params.context)
+  params.window.once('closed', () => {
+    authContexts.delete(params.context)
+    const attempt = activeAttempt
+    if (attempt?.window !== params.window)
+      return
+    if (authStatus?.state === 'waiting' || authStatus?.state === 'confirming') {
+      cancelLogin()
+      publishAuthStatus({ attemptId: attempt.attemptId, state: 'error' })
+    }
+  })
+  defineInvokeHandler(params.context, electronAuthGetStatus, (_, options) => {
+    if (params.window.webContents.id !== options?.raw.ipcMainEvent.sender.id)
+      return
+    // Success is a short notification, not a persisted sign-in banner.
+    return feedbackExpiresAt && Date.now() > feedbackExpiresAt ? undefined : authStatus
+  })
+  defineInvokeHandler(params.context, electronAuthComplete, (result, options) => {
+    // A late callback from a replaced attempt must not finish the current login.
+    if (params.window.webContents.id !== options?.raw.ipcMainEvent.sender.id
+      || activeAttempt?.window !== params.window
+      || result.attemptId !== activeAttempt.attemptId
+      || authStatus?.state !== 'confirming') {
+      return
+    }
+    activeAttempt = undefined
+    publishAuthStatus({ ...result, state: result.error ? 'error' : 'success' })
+  })
   defineInvokeHandler(params.context, electronAuthStartLogin, async (_, options) => {
     if (params.window.webContents.id !== options?.raw.ipcMainEvent.sender.id) {
       return
     }
 
-    if (signingInFlight) {
-      log.withFields({ windowId: params.window.webContents.id }).warn('Replacing in-flight OIDC login attempt with a new request')
-      closeLoopback?.()
-      closeLoopback = null
-      signingInFlight = false
-    }
-
-    signingInFlight = true
+    cancelLogin()
+    const attempt: LoginAttempt = { attemptId: generateState(), window: params.window, controller: new AbortController() }
+    activeAttempt = attempt
+    publishAuthStatus({ attemptId: attempt.attemptId, state: 'waiting' })
 
     try {
-      // Clean up any previous in-flight login
-      closeLoopback?.()
-
       const codeVerifier = generateCodeVerifier()
       const codeChallenge = await generateCodeChallenge(codeVerifier)
+      if (activeAttempt !== attempt)
+        return
       const state = generateState()
 
-      // Start loopback server to receive the callback
+      const redirectUri = `${SERVER_URL}/api/auth/oidc/electron-callback`
       const loopback = await startLoopbackServer(state)
-      closeLoopback = loopback.close
+      attempt.closeLoopback = loopback.close
+      // Handle rejection before cancellation or browser launch can close the server.
+      // IPC returns when the browser opens; this task owns callback completion.
+      void loopback.result.then(async ({ code }) => {
+        if (activeAttempt !== attempt)
+          return
+        const tokens = await exchangeCode(code, codeVerifier, redirectUri, attempt.controller.signal)
+        if (activeAttempt !== attempt)
+          return
+        publishAuthStatus({ attemptId: attempt.attemptId, state: 'confirming' })
+        params.context.emit(electronAuthCallback, { ...tokens, attemptId: attempt.attemptId })
+        log.log('OIDC token exchange successful')
+      }).catch((error) => {
+        if (activeAttempt !== attempt)
+          return
+        publishAuthStatus({ attemptId: attempt.attemptId, state: 'error', error: errorMessageFrom(error) ?? 'Sign-in failed' })
+        activeAttempt = undefined
+        log.withError(error).error('OIDC signing in failed')
+        params.context.emit(electronAuthCallbackError, { error: errorMessageFrom(error) ?? 'OIDC signing in failed' })
+      }).finally(() => {
+        loopback.close()
+      })
+      if (activeAttempt !== attempt) {
+        loopback.close()
+        return
+      }
 
       // Use the server-side relay as redirect_uri. The relay page serves HTML
       // that forwards the authorization code to the loopback via JS fetch().
       // The loopback port is encoded in the state parameter as "{port}:{state}".
-      const redirectUri = `${SERVER_URL}/api/auth/oidc/electron-callback`
       const stateWithPort = `${loopback.port}:${state}`
 
       // Build authorization URL
@@ -88,30 +168,15 @@ export function createAuthService(params: {
       url.searchParams.set('prompt', 'login')
       url.searchParams.set('resource', SERVER_URL)
 
-      // Open system browser
       await shell.openExternal(url.toString())
-
-      // Wait for the callback in the background
-      loopback.result
-        .then(async ({ code }) => {
-          const tokens = await exchangeCode(code, codeVerifier, redirectUri)
-          params.context.emit(electronAuthCallback, tokens)
-          log.log('OIDC token exchange successful')
-        })
-        .catch((err) => {
-          log.withError(err).error('OIDC signing in failed')
-          params.context.emit(electronAuthCallbackError, { error: errorMessageFrom(err) ?? 'OIDC signing in failed' })
-        })
-        .finally(() => {
-          closeLoopback = null
-          signingInFlight = false
-        })
     }
-    catch (err) {
-      closeLoopback = null
-      signingInFlight = false
-      log.withError(err).error('Failed to start OIDC signing in flow')
-      params.context.emit(electronAuthCallbackError, { error: errorMessageFrom(err) ?? 'OIDC signing in failed' })
+    catch (error) {
+      if (activeAttempt !== attempt)
+        return
+      cancelLogin()
+      publishAuthStatus({ attemptId: attempt.attemptId, state: 'error', error: errorMessageFrom(error) ?? 'Sign-in failed' })
+      log.withError(error).error('Failed to start OIDC signing in flow')
+      params.context.emit(electronAuthCallbackError, { error: errorMessageFrom(error) ?? 'OIDC signing in failed' })
     }
   })
 
@@ -120,13 +185,12 @@ export function createAuthService(params: {
       return
     }
 
-    closeLoopback?.()
-    closeLoopback = null
-    signingInFlight = false
+    const attempt = activeAttempt
+    cancelLogin()
+    if (attempt && (authStatus?.state === 'waiting' || authStatus?.state === 'confirming'))
+      publishAuthStatus({ attemptId: attempt.attemptId, state: 'error' })
   })
 }
-
-// --- Internal helpers ---
 
 interface TokenExchangeResult {
   accessToken: string
@@ -135,7 +199,7 @@ interface TokenExchangeResult {
   expiresIn: number
 }
 
-async function exchangeCode(code: string, codeVerifier: string, redirectUri: string): Promise<TokenExchangeResult> {
+async function exchangeCode(code: string, codeVerifier: string, redirectUri: string, signal: AbortSignal): Promise<TokenExchangeResult> {
   const body = new URLSearchParams({
     grant_type: 'authorization_code',
     code,
@@ -147,6 +211,7 @@ async function exchangeCode(code: string, codeVerifier: string, redirectUri: str
 
   const response = await fetch(new URL(OIDC_TOKEN_PATH, SERVER_URL), {
     method: 'POST',
+    signal,
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,
   })

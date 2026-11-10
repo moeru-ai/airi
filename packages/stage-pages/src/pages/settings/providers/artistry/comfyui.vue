@@ -6,10 +6,12 @@ import { createContext } from '@moeru/eventa/adapters/electron/renderer'
 import { errorMessageFrom } from '@moeru/std'
 import { artistryTestComfyUIConnection, isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
-import { Button, FieldInput, GhostButton } from '@proj-airi/ui'
+import { Alert, Button, FieldInput, GhostButton, ScrollableArea } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+
+import { comfyuiWorkflowSearchKey } from './comfyui.search'
 
 const artistryStore = useArtistryStore()
 const { t } = useI18n()
@@ -311,33 +313,21 @@ function copyToClipboard(text: string) {
             : t('settings.pages.providers.provider.comfyui.settings.connection.test') }}
         </Button>
       </div>
-      <div
+      <Alert
         v-if="connectionInfo"
-        class="rounded-lg px-3 py-2 text-sm"
-        :class="{
-          'bg-green-500/10 text-green-600 dark:text-green-400': connectionStatus === 'connected',
-          'bg-red-500/10 text-red-600 dark:text-red-400': connectionStatus === 'failed',
-        }"
+        :tone="connectionStatus === 'connected' ? 'success' : 'danger'"
+        live="polite"
       >
         {{ connectionInfo }}
-      </div>
+      </Alert>
 
       <!-- CORS Troubleshooting -->
-      <div
-        v-if="isCorsError"
-        class="flex flex-col gap-2 border-2 border-amber-500/20 rounded-xl bg-amber-500/10 p-4"
-      >
-        <div class="flex items-center gap-2 text-sm text-amber-600 font-bold dark:text-amber-400">
-          <div i-solar:shield-warning-bold-duotone />
-          {{ t('settings.pages.providers.provider.comfyui.settings.cors.title') }}
-        </div>
-        <p class="text-xs text-neutral-600 leading-relaxed dark:text-neutral-400">
-          {{ t('settings.pages.providers.provider.comfyui.settings.cors.description') }}
-        </p>
-        <div class="break-all rounded bg-black/5 p-2 text-[10px] text-neutral-500 font-mono dark:bg-black/20 dark:text-neutral-400">
+      <Alert v-if="isCorsError" tone="warning" :title="t('settings.pages.providers.provider.comfyui.settings.cors.title')">
+        <p>{{ t('settings.pages.providers.provider.comfyui.settings.cors.description') }}</p>
+        <div :class="['mt-2 break-all rounded-md p-2', 'bg-black/6 dark:bg-white/10', 'font-mono text-xs']">
           {{ t('settings.pages.providers.provider.comfyui.settings.cors.command') }}
         </div>
-      </div>
+      </Alert>
     </div>
 
     <!-- Saved Workflows -->
@@ -362,7 +352,7 @@ function copyToClipboard(text: string) {
         {{ t('settings.pages.providers.provider.comfyui.settings.workflows.empty') }}
       </div>
 
-      <div v-for="wf in comfyuiSavedWorkflows" :key="wf.id" class="flex flex-col gap-2 border border-neutral-200 rounded-lg p-3 dark:border-neutral-700">
+      <div v-for="wf in comfyuiSavedWorkflows" :key="wf.id" :data-settings-search="comfyuiWorkflowSearchKey(wf.id)" class="flex flex-col gap-2 border border-neutral-200 rounded-lg p-3 dark:border-neutral-700">
         <div class="flex items-center gap-3">
           <input
             type="radio"
@@ -476,9 +466,9 @@ function copyToClipboard(text: string) {
           >
         </div>
 
-        <div v-if="uploadError" class="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-500">
+        <Alert v-if="uploadError" tone="danger" live="polite">
           {{ uploadError }}
-        </div>
+        </Alert>
 
         <!-- Field Picker -->
         <div v-if="parsedWorkflow" class="flex flex-col gap-3">
@@ -493,34 +483,36 @@ function copyToClipboard(text: string) {
             {{ t('settings.pages.providers.provider.comfyui.settings.upload.select_fields') }}
           </div>
 
-          <div class="max-h-80 flex flex-col gap-2 overflow-y-auto">
-            <div
-              v-for="node in parsedWorkflow.nodes"
-              :key="node.id"
-              class="border border-neutral-200 rounded-lg p-3 dark:border-neutral-700"
-            >
-              <div class="mb-1 text-sm text-neutral-700 font-medium dark:text-neutral-300">
-                {{ node.title }}
-                <span class="ml-1 text-xs text-neutral-400">({{ node.type }})</span>
-              </div>
-              <div class="flex flex-col gap-1 pl-3">
-                <label
-                  v-for="(val, field) in node.inputs"
-                  :key="String(field)"
-                  class="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 text-xs hover:bg-neutral-50 dark:hover:bg-neutral-800"
-                >
-                  <input
-                    type="checkbox"
-                    class="accent-indigo-500"
-                    :checked="isFieldSelected(node.title, String(field))"
-                    @change="toggleField(node.title, String(field))"
+          <ScrollableArea :class="['max-h-80']">
+            <div :class="['flex flex-col gap-2']">
+              <div
+                v-for="node in parsedWorkflow.nodes"
+                :key="node.id"
+                class="border border-neutral-200 rounded-lg p-3 dark:border-neutral-700"
+              >
+                <div class="mb-1 text-sm text-neutral-700 font-medium dark:text-neutral-300">
+                  {{ node.title }}
+                  <span class="ml-1 text-xs text-neutral-400">({{ node.type }})</span>
+                </div>
+                <div class="flex flex-col gap-1 pl-3">
+                  <label
+                    v-for="(val, field) in node.inputs"
+                    :key="String(field)"
+                    class="flex cursor-pointer items-center gap-2 rounded px-1 py-0.5 text-xs hover:bg-neutral-50 dark:hover:bg-neutral-800"
                   >
-                  <span class="text-neutral-600 font-mono dark:text-neutral-400">{{ field }}</span>
-                  <span class="truncate text-neutral-400 dark:text-neutral-500">= {{ formatValue(val) }}</span>
-                </label>
+                    <input
+                      type="checkbox"
+                      class="accent-indigo-500"
+                      :checked="isFieldSelected(node.title, String(field))"
+                      @change="toggleField(node.title, String(field))"
+                    >
+                    <span class="text-neutral-600 font-mono dark:text-neutral-400">{{ field }}</span>
+                    <span class="truncate text-neutral-400 dark:text-neutral-500">= {{ formatValue(val) }}</span>
+                  </label>
+                </div>
               </div>
             </div>
-          </div>
+          </ScrollableArea>
 
           <div class="mt-2 flex items-center justify-between">
             <span class="text-xs text-neutral-400">{{ t('settings.pages.providers.provider.comfyui.settings.upload.fields_exposed', { count: totalExposed }) }}</span>

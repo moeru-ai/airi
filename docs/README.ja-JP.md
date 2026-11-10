@@ -1,15 +1,15 @@
 <picture>
   <source
     width="100%"
-    srcset="./content/public/banner-dark-1280x640.avif"
+    srcset="./assets/banner-dark-1280x640.avif"
     media="(prefers-color-scheme: dark)"
   />
   <source
     width="100%"
-    srcset="./content/public/banner-light-1280x640.avif"
+    srcset="./assets/banner-light-1280x640.avif"
     media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
   />
-  <img width="250" src="./content/public/banner-light-1280x640.avif" />
+  <img width="250" src="./assets/banner-light-1280x640.avif" />
 </picture>
 
 <h1 align="center">Project AIRI</h1>
@@ -32,50 +32,50 @@
 
 <p float="left" align="center">
   <!-- readme-section:release-binary-windows -->
-  <a href="https://github.com/moeru-ai/airi/releases/download/v0.11.3/AIRI-0.11.3-windows-x64-setup.exe">
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.15.2/AIRI-0.15.2-windows-x64-setup.exe">
     <picture>
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.windows.dark.en-US.avif"
+        srcset="./assets/download-buttons/download-buttons.windows.dark.en-US.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.windows.light.en-US.avif"
+        srcset="./assets/download-buttons/download-buttons.windows.light.en-US.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./content/public/assets/download-buttons/download-buttons.windows.light.en-US.avif" />
+      <img width="33%" src="./assets/download-buttons/download-buttons.windows.light.en-US.avif" />
     </picture>
   </a>
   <!-- readme-section:release-binary-macos -->
-  <a href="https://github.com/moeru-ai/airi/releases/download/v0.11.3/AIRI-0.11.3-darwin-arm64.dmg">
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.15.2/AIRI-0.15.2-darwin-arm64.dmg">
     <picture>
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.macos.dark.en-US.avif"
+        srcset="./assets/download-buttons/download-buttons.macos.dark.en-US.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.macos.light.en-US.avif"
+        srcset="./assets/download-buttons/download-buttons.macos.light.en-US.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./content/public/assets/download-buttons/download-buttons.macos.light.en-US.avif" />
+      <img width="33%" src="./assets/download-buttons/download-buttons.macos.light.en-US.avif" />
     </picture>
   </a>
   <a href="https://github.com/moeru-ai/airi/releases/latest">
     <picture>
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.linux.dark.en-US.avif"
+        srcset="./assets/download-buttons/download-buttons.linux.dark.en-US.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.linux.light.en-US.avif"
+        srcset="./assets/download-buttons/download-buttons.linux.light.en-US.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./content/public/assets/download-buttons/download-buttons.linux.light.en-US.avif" />
+      <img width="33%" src="./assets/download-buttons/download-buttons.linux.light.en-US.avif" />
     </picture>
   </a>
 </p>
@@ -84,45 +84,45 @@
     <picture>
       <source
         width="33%"
-        srcset="./content/public/assets/QR%20code%20button/section.cards.qrcode.dark.ja-JP.png"
+        srcset="./assets/QR%20code%20button/section.cards.qrcode.dark.ja-JP.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="33%"
-        srcset="./content/public/assets/QR%20code%20button/section.cards.qrcode.light.ja-JP.png"
+        srcset="./assets/QR%20code%20button/section.cards.qrcode.light.ja-JP.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./content/public/assets/QR%20code%20button/section.cards.qrcode.light.ja-JP.png" />
+      <img width="33%" src="./assets/QR%20code%20button/section.cards.qrcode.light.ja-JP.avif" />
     </picture>
   </a>
   <a href="https://airi.moeru.ai">
     <picture>
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.mobile.dark.en-US.avif"
+        srcset="./assets/download-buttons/download-buttons.mobile.dark.en-US.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.mobile.light.en-US.avif"
+        srcset="./assets/download-buttons/download-buttons.mobile.light.en-US.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./content/public/assets/download-buttons/download-buttons.mobile.light.en-US.avif" />
+      <img width="33%" src="./assets/download-buttons/download-buttons.mobile.light.en-US.avif" />
     </picture>
   </a>
   <a href="https://airi.moeru.ai">
     <picture>
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.browser.dark.en-US.png"
+        srcset="./assets/download-buttons/download-buttons.browser.dark.en-US.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.browser.light.en-US.png"
+        srcset="./assets/download-buttons/download-buttons.browser.light.en-US.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./content/public/assets/download-buttons/download-buttons.browser.light.en-US.png" />
+      <img width="33%" src="./assets/download-buttons/download-buttons.browser.light.en-US.avif" />
     </picture>
   </a>
 </p>
@@ -164,7 +164,10 @@
 > RAG、メモリシステム、組み込みデータベース、アイコン、Live2Dユーティリティなど多数あります！
 
 > [!TIP]
-> [Crowdin](https://crowdin.com/project/proj-airi) に翻訳プロジェクトがあります。翻訳が不自然・不正確だと感じた場合は、Crowdin で翻訳や修正にご協力ください。
+> [Crowdin](https://crowdin.com/project/proj-airi) で AIRI を翻訳するか、`packages/i18n/src/locales/` を変更する Pull Request を作成できます。どちらも同じ翻訳を更新します。
+>
+> 英語の本文と完全に同一の翻訳を送らないでください。レビューで拒否されます。翻訳がない文字列は英語で表示されます。
+>
 > <a href="https://crowdin.com/project/proj-airi" target="_blank" rel="nofollow"><img style="width: 140px; height: 40px;" src="https://badges.crowdin.net/badge/light/crowdin-on-dark.png" srcset="https://badges.crowdin.net/badge/light/crowdin-on-dark.png 1x, https://badges.crowdin.net/badge/light/crowdin-on-dark@2x.png 2x" alt="Crowdin | Agile localization for tech companies" width="140" height="40" /></a>
 
 サイバー生命体（サイバーワイフ、デジタルペット）、あるいは一緒に遊んで話せるデジタルコンパニオンを持つことを夢見たことはありますか？
@@ -332,9 +335,7 @@ sudo pnpm dev:tamagotchi
 
 ### ドキュメントサイト
 
-```shell
-pnpm dev:docs
-```
+ドキュメントサイトは [moeru-ai/airi-docs](https://github.com/moeru-ai/airi-docs) にあります。
 
 ### リリース
 
@@ -399,92 +400,57 @@ npx bumpp --no-commit --no-tag
 - [🥺 SAD](https://github.com/moeru-ai/sad): 自己ホストやブラウザで動かす LLM のドキュメントとノート
 
 ```mermaid
-%%{ init: { 'flowchart': { 'curve': 'catmullRom' } } }%%
-
-flowchart TD
-  Core("Core")
-  Unspeech("unspeech")
-  DBDriver("@proj-airi/drizzle-duckdb-wasm")
-  MemoryDriver("[WIP] メモリアラヤ")
-  DB1("@proj-airi/duckdb-wasm")
-  SVRT("@proj-airi/server-runtime")
-  Memory("Memory")
-  STT("STT")
-  Stage("ステージ")
-  StageUI("@proj-airi/stage-ui")
-  UI("@proj-airi/ui")
-
-  subgraph AIRI
-    DB1 --> DBDriver --> MemoryDriver --> Memory --> Core
-    UI --> StageUI --> Stage --> Core
-    Core --> STT
-    Core --> SVRT
+flowchart LR
+  subgraph Apps[Stage applications]
+    Web[stage-web]
+    Desktop[stage-tamagotchi]
+    Pocket[stage-pocket\nexperimental]
   end
 
-  subgraph UI_Components
-    UI --> StageUI
-    UITransitions("@proj-airi/ui-transitions") --> StageUI
-    UILoadingScreens("@proj-airi/ui-loading-screens") --> StageUI
-    FontCJK("@proj-airi/font-cjkfonts-allseto") --> StageUI
-    FontXiaolai("@proj-airi/font-xiaolai") --> StageUI
+  subgraph Shared[Shared product packages]
+    StageUI[stage-ui]
+    Domain[core-agent\ncore-character]
+    Audio[pipelines-audio]
+    Renderers[stage-ui-live2d\nstage-ui-three and renderers]
+    SDK[server-sdk\nserver-shared]
   end
 
-  subgraph Apps
-    Stage --> StageWeb("@proj-airi/stage-web")
-    Stage --> StageTamagotchi("@proj-airi/stage-tamagotchi")
-    Core --> RealtimeAudio("@proj-airi/realtime-audio")
-    Core --> PromptEngineering("@proj-airi/playground-prompt-engineering")
+  subgraph Channel[Desktop server channel]
+    Runtime[server-runtime]
   end
 
-  subgraph Server_Components
-    Core --> ServerSDK("@proj-airi/server-sdk")
-    ServerShared("@proj-airi/server-shared") --> SVRT
-    ServerShared --> ServerSDK
+  subgraph Integrations[Source-configured integrations]
+    Discord[discord-bot]
+    Minecraft[minecraft-bot]
+    Other[Telegram, Factorio, MCP, and others]
   end
 
-  STT -->|話す| Unspeech
-  SVRT -->|Factorioをプレイ| F_AGENT
-  SVRT -->|Minecraftをプレイ| MC_AGENT
-
-  subgraph Factorioエージェント
-    F_AGENT("Factorioエージェント")
-    F_API("Factorio RCON API")
-    factorio-server("factorio-server")
-    F_MOD1("autorio")
-
-    F_AGENT --> F_API -.-> factorio-server
-    F_MOD1 -.-> factorio-server
+  subgraph Hosted[Hosted backend]
+    Edge[Caddy]
+    API[api-server]
+    Auth[auth-server]
+    Database[(PostgreSQL)]
+    Cache[(Redis)]
   end
 
-  subgraph Minecraftエージェント
-    MC_AGENT("Minecraftエージェント")
-    Mineflayer("Mineflayer")
-    minecraft-server("minecraft-server")
-
-    MC_AGENT --> Mineflayer -.-> minecraft-server
-  end
-
-  XSAI("xsAI") --> Core
-  XSAI --> F_AGENT
-  XSAI --> MC_AGENT
-
-  Memory_PGVector("@proj-airi/memory-pgvector") --> Memory
-
-  style Core fill:#f9d4d4,stroke:#333,stroke-width:1px
-  style AIRI fill:#fcf7f7,stroke:#333,stroke-width:1px
-  style UI fill:#d4f9d4,stroke:#333,stroke-width:1px
-  style Stage fill:#d4f9d4,stroke:#333,stroke-width:1px
-  style UI_Components fill:#d4f9d4,stroke:#333,stroke-width:1px
-  style Server_Components fill:#d4e6f9,stroke:#333,stroke-width:1px
-  style Apps fill:#d4d4f9,stroke:#333,stroke-width:1px
-  style Factorioエージェント fill:#f9d4f2,stroke:#333,stroke-width:1px
-  style Minecraftエージェント fill:#f9d4f2,stroke:#333,stroke-width:1px
-
-  style DBDriver fill:#f9f9d4,stroke:#333,stroke-width:1px
-  style MemoryDriver fill:#f9f9d4,stroke:#333,stroke-width:1px
-  style DB1 fill:#f9f9d4,stroke:#333,stroke-width:1px
-  style Memory fill:#f9f9d4,stroke:#333,stroke-width:1px
-  style Memory_PGVector fill:#f9f9d4,stroke:#333,stroke-width:1px
+  Web --> StageUI
+  Desktop --> StageUI
+  Pocket --> StageUI
+  StageUI --> Domain
+  StageUI --> Audio
+  StageUI --> Renderers
+  StageUI --> SDK
+  Desktop --> Runtime
+  SDK <-->|server channel| Runtime
+  Discord --> SDK
+  Minecraft --> SDK
+  Other -. optional .-> SDK
+  Edge --> API
+  Edge --> Auth
+  API --> Database
+  API --> Cache
+  Auth --> Database
+  Auth --> Cache
 ```
 
 ## 類似プロジェクト
@@ -527,7 +493,7 @@ flowchart TD
 </p>
 
 <p align="center">
-  <img src="./content/public/assets/sponsors/sponsors.svg" alt="Project AIRI supporters" />
+  <img src="./assets/sponsors/sponsors.svg" alt="Project AIRI supporters" />
 </p>
 
 ## 特別の感謝
@@ -540,10 +506,10 @@ Project AIRIへの貢献に対して、すべての貢献者に特別の感謝�
 
 ## スター履歴
 
-<a href="https://star-history.com/#moeru-ai/airi&Date">
+<a href="https://star-history.dera.page/#moeru-ai/airi&Date">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=moeru-ai/airi&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=moeru-ai/airi&type=Date" />
-    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=moeru-ai/airi&type=Date" />
+    <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=moeru-ai/airi&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=moeru-ai/airi&type=Date" />
+    <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=moeru-ai/airi&type=Date" />
   </picture>
 </a>

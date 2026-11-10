@@ -38,13 +38,74 @@
         const setting = localStorage.getItem('vueuse-color-scheme') || 'auto'
         if (setting === 'dark' || (prefersDark && setting !== 'light'))
           document.documentElement.classList.toggle('dark', true)
+
+        const savedHue = localStorage.getItem('settings/theme/colors/hue')
+        const hue = Number(savedHue)
+        if (savedHue !== null && Number.isFinite(hue))
+          document.documentElement.style.setProperty('--chromatic-hue', hue.toString())
       })()
     </script>
-    <script src="/assets/js/CubismSdkForWeb-5-r.3/Core/live2dcubismcore.min.js"></script>
+    <style>
+      #boot-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        padding: max(calc(env(safe-area-inset-top) + 48px), calc(40vh - 82px)) 24px calc(env(safe-area-inset-bottom) + clamp(48px, 8vh, 96px));
+        background: #fff;
+        color: #262626;
+        font-family: "Comfortaa Variable", "Comfortaa", ui-sans-serif, system-ui, sans-serif;
+      }
+
+      #boot-splash .brand { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; gap: 20px; }
+      #boot-splash img { width: 96px; height: 96px; filter: hue-rotate(calc(var(--chromatic-hue, 220.44) * 1deg)); }
+      #boot-splash strong { font-size: 32px; font-weight: 700; letter-spacing: 0.07em; padding-left: 0.07em; -webkit-text-stroke: 0.5px currentColor; }
+      #boot-splash .status { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; width: min(220px, 60vw); height: 44px; }
+      #boot-splash .track-space { width: 48px; height: 3px; margin-top: 28px; }
+      #boot-splash .boot-error { display: none; position: absolute; bottom: max(calc(env(safe-area-inset-bottom) + 48px), 8vh); flex-direction: column; align-items: center; gap: 12px; max-width: 80vw; text-align: center; font-size: 13px; }
+      #boot-splash .boot-error button { padding: 10px 20px; border: 0; border-radius: 12px; background: oklch(65% 0.16 var(--chromatic-hue, 220.44)); color: #fff; font: inherit; cursor: pointer; }
+      #boot-splash.failed .boot-error { display: flex; }
+      #app:not(:empty) + #boot-splash { display: none; }
+      html.dark #boot-splash { background: #171717; color: #f5f5f5; }
+    </style>
+    <noscript><style>#boot-splash { display: none; }</style></noscript>
   </head>
   <body class="font-sans">
     <div id="app"></div>
+    <div id="boot-splash" role="status" aria-busy="true">
+      <div class="brand">
+        <img src="/favicon.svg" alt="" />
+        <strong>AIRI</strong>
+      </div>
+      <div class="status"><span class="track-space" aria-hidden="true"></span></div>
+      <div class="boot-error" role="alert"><span>AIRI could not start.</span><button type="button" onclick="location.reload()">Retry</button></div>
+    </div>
+    <script src="/assets/js/CubismSdkForWeb-5-r.3/Core/live2dcubismcore.min.js"></script>
     <script type="module" src="/src/main.ts"></script>
+    <script id="boot-splash-locales" type="application/json">__AIRI_STARTUP_LOCALES__</script>
+    <script>
+      ;(function () {
+        const data = JSON.parse(document.querySelector('#boot-splash-locales').textContent)
+        const preferred = localStorage.getItem('settings/language') || navigator.language
+        const locale = data.localeRemap[preferred] || preferred
+        const labels = data.labels[locale] || data.labels.en
+        document.querySelector('#boot-splash .boot-error span').textContent = labels.failed
+        document.querySelector('#boot-splash .boot-error button').textContent = labels.retry
+
+        setTimeout(() => {
+          if (document.querySelector('#app:empty')) {
+            const splash = document.querySelector('#boot-splash')
+            splash?.classList.add('failed')
+            splash?.setAttribute('aria-busy', 'false')
+          }
+        }, 15000)
+      })()
+    </script>
     <noscript> This website requires JavaScript to function properly. Please enable JavaScript to continue. </noscript>
   </body>
 </html>

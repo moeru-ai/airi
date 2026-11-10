@@ -3,7 +3,7 @@ import type { ComfyUIWorkflowTemplate } from '@proj-airi/stage-ui/stores/modules
 
 import { REPLICATE_IMAGEGEN_PRESETS } from '@proj-airi/stage-shared'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
-import { Button, Checkbox, FieldInput, FieldRange, IconButton, Select } from '@proj-airi/ui'
+import { Alert, Button, Checkbox, FieldInput, FieldRange, IconButton, Select } from '@proj-airi/ui'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -104,25 +104,31 @@ function openReplicateModel() {
 </script>
 
 <template>
-  <div class="tab-content ml-auto mr-auto w-95%">
-    <p class="mb-3">
+  <div :class="['flex flex-col gap-5']">
+    <p :class="['text-sm text-neutral-500 dark:text-neutral-400']">
       {{ t('settings.pages.modules.artistry.card.description') }}
     </p>
 
     <!-- Autonomous Artist Section -->
-    <div :class="['mb-6', 'p-4', 'rounded-2xl', 'bg-primary-500/5', 'border-2', 'border-primary-500/10']">
-      <div :class="['flex', 'items-center', 'justify-between', 'mb-2']">
-        <label :class="['flex', 'items-center', 'gap-2', 'font-bold', 'text-primary-600', 'dark:text-primary-400']">
-          <div i-solar:magic-stick-bold-duotone />
+    <div
+      :class="[
+        'rounded-xl border border-neutral-200/70 dark:border-neutral-800',
+        'bg-neutral-50/60 dark:bg-neutral-900/40',
+        'p-4',
+      ]"
+    >
+      <div :class="['flex items-center justify-between gap-2']">
+        <label :class="['flex items-center gap-2', 'text-sm font-semibold text-neutral-700 dark:text-neutral-200']">
+          <div i-solar:magic-stick-bold-duotone :class="['text-base text-primary-500 dark:text-primary-400']" />
           {{ t('settings.pages.modules.artistry.autonomous.title') }}
         </label>
         <Checkbox v-model="selectedArtistryAutonomousEnabled" />
       </div>
-      <p :class="['text-xs', 'text-neutral-500', 'mb-4']">
+      <p :class="['mt-1 text-xs text-neutral-500 dark:text-neutral-400']">
         {{ t('settings.pages.modules.artistry.autonomous.description') }}
       </p>
 
-      <div v-if="selectedArtistryAutonomousEnabled" :class="['space-y-4', 'animate-in', 'fade-in', 'slide-in-from-top-2']">
+      <div v-if="selectedArtistryAutonomousEnabled" :class="['mt-4', 'animate-in fade-in slide-in-from-top-2']">
         <FieldRange
           v-model="selectedArtistryAutonomousThreshold"
           :label="t('settings.pages.modules.artistry.autonomous.threshold')"
@@ -138,10 +144,9 @@ function openReplicateModel() {
       </div>
     </div>
 
-    <div :class="['grid', 'grid-cols-1', 'gap-4', 'ml-auto', 'mr-auto', 'w-90%']">
-      <div :class="['flex', 'flex-col', 'gap-2']">
-        <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
-          <div i-lucide:image />
+    <div :class="['grid grid-cols-1 gap-4']">
+      <div :class="['flex flex-col gap-1.5']">
+        <label :class="['text-xs font-medium text-neutral-500 dark:text-neutral-400']">
           {{ t('settings.pages.modules.artistry.provider') }}
         </label>
         <Select
@@ -152,9 +157,8 @@ function openReplicateModel() {
         />
       </div>
 
-      <div :class="['flex', 'flex-col', 'gap-2']">
-        <label :class="['flex', 'flex-row', 'items-center', 'gap-2', 'text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
-          <div i-solar:route-bold-duotone />
+      <div :class="['flex flex-col gap-1.5']">
+        <label :class="['text-xs font-medium text-neutral-500 dark:text-neutral-400']">
           {{ t('settings.pages.modules.artistry.spawn_mode.label') }}
         </label>
         <Select
@@ -162,7 +166,7 @@ function openReplicateModel() {
           :options="spawnModeOptions"
           class="w-full"
         />
-        <p :class="['text-[10px]', 'text-neutral-400', 'px-1']">
+        <p :class="['text-xs text-neutral-400 dark:text-neutral-500']">
           {{ t('settings.pages.modules.artistry.spawn_mode.description') }}
         </p>
       </div>
@@ -189,15 +193,9 @@ function openReplicateModel() {
         v-if="selectedArtistryProvider === 'comfyui'"
         class="mb-2 flex flex-col gap-3"
       >
-        <div
-          v-if="comfyuiWorkflows.length === 0"
-          :class="['flex flex-row items-center gap-3 rounded-xl border-2 border-amber-500/20 bg-amber-500/5 p-4 text-sm text-amber-600 dark:text-amber-400']"
-        >
-          <div i-solar:info-circle-bold-duotone class="shrink-0 text-lg" />
-          <p>
-            {{ t('settings.pages.modules.artistry.card.comfyui_empty') }}
-          </p>
-        </div>
+        <Alert v-if="comfyuiWorkflows.length === 0" tone="warning">
+          {{ t('settings.pages.modules.artistry.card.comfyui_empty') }}
+        </Alert>
         <div v-else class="grid grid-cols-2 gap-3">
           <Button
             v-for="wf in comfyuiWorkflows"
@@ -223,7 +221,7 @@ function openReplicateModel() {
             v-model="selectedArtistryModel"
             :label="t('settings.pages.modules.artistry.model.label')"
             :description="t('settings.pages.modules.artistry.model.description')"
-            placeholder="e.g. black-forest-labs/flux-schnell"
+            :placeholder="t('settings.pages.modules.artistry.model.placeholder')"
           />
           <IconButton
             v-if="selectedArtistryProvider === 'replicate' && selectedArtistryModel"
@@ -270,19 +268,20 @@ function openReplicateModel() {
           v-model="selectedArtistryPromptPrefix"
           :label="t('settings.pages.modules.artistry.prompt-prefix.label')"
           :description="t('settings.pages.modules.artistry.prompt-prefix.description')"
-          placeholder="e.g. Masterpiece, high quality, 1girl, anime,"
+          :placeholder="t('settings.pages.modules.artistry.prompt-prefix.placeholder')"
         />
         <FieldInput
           v-model="selectedArtistryWidgetInstruction"
           :label="t('settings.pages.modules.artistry.widget-instructions.label')"
           :description="t('settings.pages.modules.artistry.widget-instructions.description')"
           :single-line="false"
-          :rows="12"
+          input-class="min-h-40 md:min-h-[clamp(12rem,30dvh,24rem)]"
         />
         <FieldInput
           v-model="selectedArtistryConfigStr"
           :label="t('settings.pages.modules.artistry.options.label')"
           :single-line="false"
+          input-class="min-h-28 font-mono text-xs md:min-h-[clamp(8rem,20dvh,16rem)]"
         />
       </div>
     </div>

@@ -21,6 +21,29 @@ Current docs capture target route:
 - `/docs/setup-and-use/main-window` -> `src/scenes/docs/setup-and-use/main-window.vue`
 - `/docs/setup-and-use/settings` -> `src/scenes/docs/setup-and-use/settings.vue`
 
+## Release Areas
+
+Each release has a scene at `/releases/<version>`, for example `/releases/v0-13` -> `src/scenes/releases/v0-13/index.vue`. The scene shows the feature areas of that release. Each area is a 1600x640 (2.5:1) capture root, so each one exports as one shareable image.
+
+| Route | Areas |
+| --- | --- |
+| `/releases/v0-12` | Cover, avatars, Live2D, tool calls, voice, desktop, web and mobile, stickers |
+| `/releases/v0-13` | Cover, settings search, needs attention, desktop updates, fixes |
+
+- Each area renders in a dark and a light theme. Vishot exports `<area>-dark.png` and `<area>-light.png`.
+- The raw screenshots are in `artifacts/raw/releases/<version>`. A `-light` file is the same state in the light app theme. `<version>/components/release-shots.ts` lists them with the CSS width of the screen that took each one.
+- The text of the areas of a release is in `<version>/components/release-copy.ts`.
+- `src/scenes/releases/components` has the parts that all releases share: the area frame, `ReleaseReveal`, `ShotCrop`, the theme, and the timeline.
+- Each layer is a `ReleaseReveal` with an entry time `at`. `?play` plays the entry timeline with the AIRI blur fade, so a screen recorder can record an area as a video.
+- `?area=<name>` shows one area, for example `?area=release-v0-13-needs-attention`.
+- `?theme=dark` or `?theme=light` shows one theme.
+
+Export all areas of a release in both themes, 3200x1280 each:
+
+```bash
+pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --route /releases/v0-13 --output-dir artifacts/final/releases/v0-13 --settle-ms 1000
+```
+
 ## Workflow
 
 1. Run Electron capture first and populate `artifacts/raw` (see electron package README).
@@ -31,17 +54,19 @@ Current docs capture target route:
 From repo root, run:
 
 ```bash
-pnpm exec vishot capture --target electron ./packages/scenarios-stage-tamagotchi-electron/src/scenarios/demo-controls-settings-chat-websocket/index.ts --app-entrypoint ./apps/stage-tamagotchi/out/main/index.js --cwd . --output-dir ./packages/scenarios-stage-tamagotchi-browser/artifacts/raw --format avif
-pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --format avif --route '/docs/setup-and-use/intro-chat' --output-dir ../../docs/content/en/docs/manual/tamagotchi/setup-and-use/assets --settle-ms 800
-pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --format avif --route '/docs/setup-and-use/intro-websocket' --output-dir ../../docs/content/en/docs/manual/tamagotchi/setup-and-use/assets --settle-ms 800
-pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --format avif --route '/docs/setup-and-use/main-window' --output-dir ../../docs/content/en/docs/manual/tamagotchi/setup-and-use/assets --settle-ms 800
-pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --format avif --route '/docs/setup-and-use/settings' --output-dir ../../docs/content/en/docs/manual/tamagotchi/setup-and-use/assets --settle-ms 800
+pnpm exec vishot capture --target electron ./packages/scenarios-stage-tamagotchi-electron/src/scenarios/demo-controls-settings-chat-websocket/index.ts --app-entrypoint ./apps/stage-tamagotchi --cwd . --output-dir ./packages/scenarios-stage-tamagotchi-browser/artifacts/raw --format avif
+pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --format avif --route '/docs/setup-and-use/intro-chat' --output-dir ../../airi-docs/content/en/docs/manual/tamagotchi/setup-and-use/assets --settle-ms 800
+pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --format avif --route '/docs/setup-and-use/intro-websocket' --output-dir ../../airi-docs/content/en/docs/manual/tamagotchi/setup-and-use/assets --settle-ms 800
+pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --format avif --route '/docs/setup-and-use/main-window' --output-dir ../../airi-docs/content/en/docs/manual/tamagotchi/setup-and-use/assets --settle-ms 800
+pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --format avif --route '/docs/setup-and-use/settings' --output-dir ../../airi-docs/content/en/docs/manual/tamagotchi/setup-and-use/assets --settle-ms 800
 ```
 
 Expected results:
 
 - Raw: `27` files under `packages/scenarios-stage-tamagotchi-browser/artifacts/raw`
-- Final docs assets: `manual-*.avif` and `intro-chat-window.avif` under `docs/content/en/docs/manual/tamagotchi/setup-and-use/assets`
+- Final docs assets: `manual-*.avif` and `intro-chat-window.avif` under `airi-docs/content/en/docs/manual/tamagotchi/setup-and-use/assets`
+
+The documentation lives in [moeru-ai/airi-docs](https://github.com/moeru-ai/airi-docs). Clone it to `airi-docs/` at the repository root (ignored by Git) before capturing.
 
 ## Capture Flags
 
@@ -58,7 +83,7 @@ Examples:
 pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --format avif --settle-ms 800
 pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --route /docs/setup-and-use --settle-ms 800
 pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --route /docs/setup-and-use/settings --settle-ms 800
-pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --format avif --route /docs/setup-and-use --output-dir ../../docs/content/en/docs/manual/tamagotchi/setup-and-use/assets --settle-ms 800
+pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --format avif --route /docs/setup-and-use --output-dir ../../airi-docs/content/en/docs/manual/tamagotchi/setup-and-use/assets --settle-ms 800
 ```
 
 The browser capture flow starts from Playwright PNG screenshots, then optionally transforms to AVIF via Vishot `imageTransformers`.

@@ -8,6 +8,8 @@ import { storeToRefs } from 'pinia'
 import { computed, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import FpsHistory from './fps-history.vue'
+
 import { useDevtoolsLagStore } from '../../stores/devtools-lag'
 
 const { n, t } = useI18n()
@@ -56,6 +58,7 @@ const metricsWithStats = computed(() => visibleMetrics.value.map(metric => ({
   stats: metricStatsMap.value[metric.key],
 })))
 const recordingElapsedSeconds = computed(() => Math.min(60, Math.floor(recordingElapsedMs.value / 1000)))
+const fpsHistoryEnd = computed(() => buffers.value.fps.at(-1)?.ts ?? 0)
 const recordingButtonLabel = computed(() => recording.value
   ? t('tamagotchi.settings.devtools.pages.performance-visualizer.overlay.stop')
   : t('tamagotchi.settings.devtools.pages.performance-visualizer.overlay.record'))
@@ -212,7 +215,14 @@ function resetPosition() {
               </template>
             </span>
           </div>
+          <FpsHistory
+            v-if="metric.key === 'fps'"
+            :samples="buffers.fps"
+            :started-at="fpsHistoryEnd - 10000"
+            :stopped-at="fpsHistoryEnd"
+          />
           <div
+            v-else
             :class="['h-10 overflow-hidden rounded bg-white/5 px-1 py-1', 'flex items-end gap-0.5']"
             aria-hidden="true"
           >

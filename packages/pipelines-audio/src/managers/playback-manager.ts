@@ -37,6 +37,12 @@ export interface PlaybackManagerOptions<TAudio> {
   ownerOverflowPolicy?: OwnerOverflowPolicy
 }
 
+/**
+ * Schedules playback under global and per-owner voice limits.
+ * Owner overflow takes precedence when both limits apply. Targeted stops remove
+ * matching active and queued items, then resume eligible items from other targets.
+ * Item IDs are unique only while active or queued; completed IDs can be reused.
+ */
 export function createPlaybackManager<TAudio>(
   options: PlaybackManagerOptions<TAudio>,
 ) {
@@ -138,9 +144,12 @@ export function createPlaybackManager<TAudio>(
   }
 
   function finalize(entry: ActivePlayback<TAudio>, interrupted?: string, options?: { allowStartWaiting?: boolean }) {
-    if (!active.delete(entry.item.id)) {
+    // An interrupted promise can settle after its item ID belongs to a new playback.
+    // Only the current entry can release the slot or emit its terminal event.
+    if (active.get(entry.item.id) !== entry) {
       return
     }
+    active.delete(entry.item.id)
 
     if (interrupted) {
       emit(

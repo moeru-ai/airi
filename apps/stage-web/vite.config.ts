@@ -4,6 +4,7 @@ import { execSync } from 'node:child_process'
 import { join, resolve } from 'node:path'
 
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
+import messages from '@proj-airi/i18n/locales'
 import templateCompilerOptions from '@tresjs/core/template-compiler-options'
 import Vue from '@vitejs/plugin-vue'
 import Unocss from 'unocss/vite'
@@ -17,14 +18,22 @@ import VueMacros from 'vue-macros/vite'
 import VueRouter from 'vue-router/vite'
 
 import { tryCatch } from '@moeru/std'
+import { localeRemap, serializeStartupFallbackLocales } from '@proj-airi/i18n'
+import { paraformerBilingualZhEn, xAsrBilingualZhEnInt8, zipformerMultilingual } from '@proj-airi/provider-inference/sherpaw-transcription/models'
+import { createSettingsSearch } from '@proj-airi/stage-pages/vite/settings-search'
+import { sentrySourceMaps } from '@proj-airi/stage-shared/analytics/sentry-vite'
+import { speakerModel } from '@proj-airi/stage-shared/speaker-model'
+import { kwsModel } from '@proj-airi/stage-ui/libs/voice/kws-model-info'
 import { Download } from '@proj-airi/unplugin-fetch/vite'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk/vite'
+import { Sherpaw } from '@proj-airi/vite-plugin-sherpaw'
 import { LFS, SpaceCard } from 'hfup/vite'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
 const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
+const settingsSearch = createSettingsSearch()
 
 function hasFlagEnableMkcert(): boolean {
   if (process.argv.includes('--mkcert')) {
@@ -97,7 +106,7 @@ export default defineConfig({
         chunkFileNames: (chunkInfo) => {
           const containsAnalyticsModule = chunkInfo.moduleIds.some((moduleId) => {
             const normalizedModuleId = moduleId.replaceAll('\\', '/').toLowerCase()
-            return normalizedModuleId.includes('analytics') || normalizedModuleId.includes('posthog')
+            return normalizedModuleId.includes('analytics') || normalizedModuleId.includes('openpanel')
           })
 
           // Only analytics/provider chunks receive the manual neutral mapping;
@@ -120,6 +129,10 @@ export default defineConfig({
   },
 
   plugins: [
+    {
+      name: 'airi-startup-locales',
+      transformIndexHtml: html => html.replace('__AIRI_STARTUP_LOCALES__', serializeStartupFallbackLocales(messages, localeRemap)),
+    },
     ...(
       hasFlagEnableMkcert()
         ? [Mkcert((() => {
@@ -135,6 +148,8 @@ export default defineConfig({
     Info(),
 
     Yaml(),
+
+    settingsSearch.plugin,
 
     VueMacros({
       plugins: {
@@ -156,6 +171,7 @@ export default defineConfig({
         resolve(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src', 'pages'),
       ],
       exclude: ['**/components/**'],
+      extendRoute: settingsSearch.extendRoute,
     }),
 
     // https://github.com/JohnCampionJr/vite-plugin-vue-layouts
@@ -218,6 +234,25 @@ export default defineConfig({
           },
           workbox: {
             maximumFileSizeToCacheInBytes: 64 * 1024 * 1024,
+            // The WebAssembly files are over 80% of the build (DuckDB alone ships
+            // three variants and a browser loads one). Precaching them downloads
+            // them all at install, so they are cached on first use instead.
+            globIgnores: ['**/*.wasm'],
+            runtimeCaching: [
+              {
+                urlPattern: ({ url }) => url.pathname.endsWith('.wasm'),
+                // The file names carry a content hash, so a cached file never goes stale.
+                handler: 'CacheFirst',
+                options: {
+                  cacheName: 'wasm',
+                  expiration: { maxEntries: 8 },
+                },
+              },
+            ],
+            // Cloudflare redirects /index.html to /. Cache the canonical response
+            // so navigation fallbacks never replay a redirected response.
+            modifyURLPrefix: { 'index.html': './' },
+            navigateFallback: './',
             navigateFallbackDenylist: [
               /^\/docs\//,
               /^\/ui\//,
@@ -234,9 +269,13 @@ export default defineConfig({
       fullInstall: true,
     }),
 
-    // https://github.com/webfansplz/vite-plugin-vue-devtools
-    VueDevTools(),
+    // Browser tests mount short-lived apps. A delayed DevTools setup can run
+    // after the test app is gone, so only load this plugin for the real app.
+    ...(env.VITEST ? [] : [VueDevTools()]),
 
+    // Web exposes pinned remote models. The browser downloads only the selected model.
+    // The wake word and voiceprint models download when their features first prepare.
+    Sherpaw({ models: [paraformerBilingualZhEn, zipformerMultilingual, xAsrBilingualZhEnInt8, kwsModel, speakerModel], cacheDir: sharedCacheDir }),
     DownloadLive2DSDK(),
     Download('https://dist.ayaka.moe/live2d-models/hiyori_free_zh.zip', 'hiyori_free_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
     Download('https://dist.ayaka.moe/live2d-models/hiyori_pro_zh.zip', 'hiyori_pro_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
@@ -294,7 +333,7 @@ export default defineConfig({
       : [
           Basemove({
             prefix: env.STAGE_WEB_WARP_DRIVE_PREFIX || 'proj-airi/stage-web/main/',
-            include: [/\.wasm$/i, /\.ttf$/i, /\.vrm$/i, /\.zip$/i], // in existing assets, wasm, ttf, vrm files are the largest ones
+            include: [/\.wasm$/i, /\.ttf$/i, /\.vrm$/i, /\.zip$/i, /\.(?:data|metadata)$/i],
             manifest: true,
             clean: false,
             contentTypeBy: (filename: string) => {
@@ -304,7 +343,10 @@ export default defineConfig({
               if (filename.endsWith('.ttf')) {
                 return 'font/ttf'
               }
-              if (filename.endsWith('.vrm')) {
+              if (filename.endsWith('.metadata')) {
+                return 'application/json'
+              }
+              if (filename.endsWith('.vrm') || filename.endsWith('.data')) {
                 return 'application/octet-stream'
               }
               if (filename.endsWith('.zip')) {
@@ -320,5 +362,6 @@ export default defineConfig({
             }),
           }),
         ]),
+    sentrySourceMaps({ project: 'web', authToken: env.SENTRY_AUTH_TOKEN }),
   ],
 })

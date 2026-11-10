@@ -1,12 +1,13 @@
-import type { MessageRole, WireMessage } from '@proj-airi/server-sdk-shared'
+import type { MessageRole, SendMessagesRequest, WireMessage } from '@proj-airi/server-sdk-shared'
 
 import type { Database } from '../../libs/db'
 import type { EngagementMetrics } from '../../otel'
 
 import { useLogger } from '@guiiai/logg'
+import { createBadRequestError, createConflictError, createForbiddenError, createNotFoundError } from '@proj-airi/http-error-shared'
 import { and, eq, gt, inArray, isNull, sql } from 'drizzle-orm'
+import { groupBy } from 'es-toolkit'
 
-import { createBadRequestError, createConflictError, createForbiddenError, createNotFoundError } from '../../utils/error'
 import { nanoid } from '../../utils/id'
 
 import * as schema from '../../schemas/chats'
@@ -23,11 +24,7 @@ interface CreateChatPayload {
   members?: { type: ChatMemberType, userId?: string, characterId?: string }[]
 }
 
-interface PushMessage {
-  id: string
-  role: string
-  content: string
-}
+type PushMessage = SendMessagesRequest['messages'][number]
 
 // ---------------------------------------------------------------------------
 // Pure helpers (exported for testing)
@@ -141,7 +138,17 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
           isNull(schema.chats.deletedAt),
         ))
 
-      return rows.map(r => r.chat)
+      if (rows.length === 0)
+        return []
+
+      // A second device reads the character of each chat from its members.
+      const members = await db
+        .select()
+        .from(schema.chatMembers)
+        .where(inArray(schema.chatMembers.chatId, rows.map(r => r.chat.id)))
+      const membersByChatId = groupBy(members, member => member.chatId)
+
+      return rows.map(r => ({ ...r.chat, members: membersByChatId[r.chat.id] }))
     },
 
     async updateChat(userId: string, chatId: string, updates: { title?: string }) {
@@ -307,6 +314,7 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
               role: m.role,
               seq: currentSeq,
               content: m.content,
+              replyToMessageId: m.replyToMessageId ?? null,
               mediaIds: [] as string[],
               stickerIds: [] as string[],
               createdAt: now,
@@ -320,7 +328,7 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
         for (const m of updateMsgs) {
           currentSeq++
           await tx.update(schema.messages)
-            .set({ content: m.content, seq: currentSeq, updatedAt: now })
+            .set({ content: m.content, replyToMessageId: m.replyToMessageId ?? null, seq: currentSeq, updatedAt: now })
             .where(and(eq(schema.messages.id, m.id), eq(schema.messages.chatId, chatId)))
         }
 
@@ -479,6 +487,7 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
           senderId: r.senderId,
           role: r.role as MessageRole,
           content: r.content,
+          replyToMessageId: r.replyToMessageId,
           seq: r.seq!,
           createdAt: r.createdAt.getTime(),
           updatedAt: r.updatedAt.getTime(),

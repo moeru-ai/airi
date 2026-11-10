@@ -18,7 +18,7 @@ type SizePreset = 's' | 'm' | 'l'
 type WidgetActionInput
   = | {
     action: 'spawn'
-    id: string
+    id?: string
     componentName: string
     componentProps: string | Record<string, any>
     alwaysOnTop?: boolean
@@ -114,7 +114,7 @@ const widgetParams = z.object({
   alwaysOnTop: z.boolean().describe('Whether the widget window should stay above other windows. Defaults to false when omitted by internal callers.'),
   size: z.enum(['s', 'm', 'l']),
   windowSize: z.union([widgetWindowSizeParams, z.null()]).describe('Optional pixel window size and constraints, e.g. {"width":620,"height":760,"minWidth":480}'),
-  ttlSeconds: z.number().int().nonnegative().describe('Auto-close timer in seconds (spawn only)'),
+  ttlSeconds: z.number().int().nonnegative().describe('Automatic destruction delay in seconds. Use 0 to keep the widget until manual close.'),
 }).strict()
 
 type WidgetToolInput = z.infer<typeof widgetParams>
@@ -277,11 +277,13 @@ export async function executeWidgetAction(input: WidgetActionInput, deps?: { inv
       const componentProps = normalizeComponentProps(input.componentProps)
       const sanitizedComponentProps = sanitizeComponentPropsForDispatch(input.componentName, componentProps)
       const windowSize = resolveWindowSize(input.componentName, sanitizedComponentProps, input.windowSize)
+      const ttlMs = input.ttlSeconds === undefined ? undefined : Math.floor(input.ttlSeconds * 1000)
       await invokers.updateWidget({
         id: normalizedId,
         componentProps: sanitizedComponentProps,
         ...(input.alwaysOnTop === undefined ? {} : { alwaysOnTop: input.alwaysOnTop }),
         ...(windowSize === undefined ? {} : { windowSize }),
+        ...(ttlMs === undefined ? {} : { ttlMs }),
       })
 
       return `Updated widget (${normalizedId}).`

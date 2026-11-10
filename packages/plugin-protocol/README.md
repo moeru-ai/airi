@@ -7,6 +7,7 @@ Shared protocol contracts for plugin-module communication in Project AIRI.
 - Defines websocket event names and payload types for module/plugin orchestration.
 - Exposes Eventa event definitions bound to protocol event names.
 - Provides shared transport/event utility types used by server and plugin runtimes.
+- Re-exports the Extension identity and permission types from `@proj-airi/extension-protocol`.
 
 ## How to use
 
@@ -17,6 +18,9 @@ import { moduleAnnounce, moduleAuthenticate } from '@proj-airi/plugin-protocol/t
 ```
 
 ## When to use
+
+`input:text` can carry `overrides.binding` for an external scene. The host resolves that binding to a persistent persona session.
+`overrides.sessionId` identifies an existing host session. A binding takes precedence when both fields are present.
 
 - You need canonical protocol contracts for plugin <-> host communication.
 - You need event name stability and matching payload definitions across runtimes.

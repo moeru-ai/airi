@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "lib": ["ESNext", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "strict": true,
+    "noEmit": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true
+  },
+  "include": ["evals/**/*.ts", "src/**/*.ts", "vieval.config.ts"]
+}

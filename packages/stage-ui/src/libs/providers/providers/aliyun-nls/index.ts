@@ -25,7 +25,7 @@ const aliyunNlsConfigSchema = z.object({
 
 type AliyunNlsConfig = z.input<typeof aliyunNlsConfigSchema>
 
-export const providerAliyunNlsTranscription = defineProvider<AliyunNlsConfig>({
+export const providerAliyunNlsTranscription = defineProvider<AliyunNlsConfig, 'aliyun-nls-transcription'>({
   id: 'aliyun-nls-transcription',
   name: 'Aliyun NLS',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.aliyun-nls.title'),

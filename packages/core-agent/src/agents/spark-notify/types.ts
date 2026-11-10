@@ -1,7 +1,8 @@
+import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { WebSocketEventOf } from '@proj-airi/server-sdk'
-import type { ChatProvider } from '@xsai-ext/providers/utils'
-import type { Message, Tool, ToolChoice } from '@xsai/shared-chat'
+import type { Tool, ToolChoice } from '@xsai/shared-chat'
 
+import type { Conversation } from '../../messages/types'
 import type { StreamEvent } from '../../types/llm'
 import type { SparkNotifyCommandDraft } from './tools'
 
@@ -19,7 +20,7 @@ export interface SparkNotifyMessageOverride {
    */
   appendSystemInstructions?: string[]
   /**
-   * Additional serialized sections appended after the default user payload serialization.
+   * Additional serialized sections appended after the base or replacement user payload.
    *
    * Use when:
    * - A host wants to inject a pre-rendered message fragment for one run
@@ -32,7 +33,7 @@ export interface SparkNotifyMessageOverride {
    */
   appendUserSections?: string[]
   /**
-   * Replaces the default JSON user payload serialization entirely for one run.
+   * Replaces the default JSON user payload for one run while preserving appended sections.
    *
    * @default undefined
    */
@@ -115,7 +116,7 @@ export interface SparkNotifySelectedChat {
   /** Model identifier selected by the host. */
   model: string
   /** Resolved chat provider used for this notify run. */
-  provider: ChatProvider
+  provider: GenerationProvider
 }
 
 /** One fully resolved Spark Notify turn. */
@@ -136,8 +137,8 @@ export interface SparkNotifyTurn {
 export interface SparkNotifyRunRequest {
   /** Resolved model and provider for this run. */
   selectedChat: SparkNotifySelectedChat
-  /** Provider-ready messages produced by the agent and its plugins. */
-  messages: Message[]
+  /** Context projected by the host-selected protocol adapter. */
+  conversation: Conversation
   /** Tools exposed for this one model call. */
   tools: Tool[]
   /** Tool handling policy for this run. */

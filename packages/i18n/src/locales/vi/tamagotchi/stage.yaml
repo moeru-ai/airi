@@ -3,6 +3,11 @@ operations:
   load-models-status:
     loading: Đang tải
     ready: Sẵn sàng
+'resource-island':
+  loading: Đang chuẩn bị tài nguyên...
+  ready: Tài nguyên sẵn sàng
+  preparing: Đang chuẩn bị tệp mô hình
+  failed: Tải mô hình thất bại
 docs:
   theme:
     navbar:
@@ -14,14 +19,18 @@ docs:
     disable: Luôn hiển thị
   'open-settings': Mở cài đặt
   'open-chat': Mở trò chuyện
+  'hide-chat': Ẩn trò chuyện
   'refresh': Làm mới
-  'center-main-window': Move to screen center
+  'center-main-window': Di chuyển vào giữa màn hình
   'open-hearing-controls': Kiểm soát thính giác mở
+  'enable-microphone': Bật micrô
+  'disable-microphone': Tắt micrô
   'drag-to-move-window': Kéo để di chuyển cửa sổ
-  'stop-speaking': Dừng nói
-  'speaker-idle': Loa
+  'mute': Tắt tiếng
+  'unmute': Bật tiếng
   'switch-to-light-mode': Chuyển sang chế độ sáng
   'switch-to-dark-mode': Chuyển sang chế độ tối
+  'switch-to-system-mode': Theo giao diện hệ thống
   'pin-on-top': Ghim lên trên
   'unpin-from-top': Gỡ ghim khỏi đầu trang
   'switch-profile': Chuyển Hồ Sơ
@@ -32,13 +41,32 @@ docs:
   'logging-in': Đang đăng nhập...
   'account': Tài khoản
   'logout': Đăng xuất
+'chat-window':
+  style:
+    title: Kiểu cửa sổ trò chuyện
+    legacy: Cửa sổ cổ điển
+  move: Kéo để di chuyển trò chuyện
+  fold: Ẩn trò chuyện
+  composer:
+    show: Hiện ô nhập tin nhắn
+    hide: Ẩn ô nhập tin nhắn
+  danmaku-feed:
+    title: Thời gian hiển thị tin nhắn
+    hide-read: Ẩn tin nhắn đã đọc
+    hide-read-description: Tin nhắn biến mất sau khi đọc. Phản hồi có giọng nói biến mất khi nói xong.
+    reading-speed: Tốc độ đọc
+    reading-speed-value: '{count} ký tự/giây'
+    minimum-time: Thời gian tối thiểu
+    minimum-time-value: '{count} giây'
 widgets:
   close: Đóng tiện ích
   empty:
     title: Không có tiện ích hoạt động
-    description: Widgets will appear here when a tool or plugin spawns one.
+    description: Các widget sẽ xuất hiện tại đây khi một công cụ hoặc plugin tạo ra chúng.
   loading: Đang tải tiện ích…
   waiting: Đang đợi dữ liệu tiện ích cho "{id}"…
+inlay:
+  dismiss: Đóng
 notice:
   'fade-on-hover':
     title: Mờ dần khi rê chuột
@@ -47,7 +75,6 @@ notice:
     toggle: Tắt đi bằng cách rê chuột qua {controls} rồi bấm lại {icon}.
     controls-label: Đảo Điều Khiển
     icon-label: biểu tượng mắt gạch
-    value: '0'
     targets: Nhân vật và giao diện
     confirm: Đã hiểu
     dont-show-again: Đừng hiển thị lại
@@ -55,7 +82,7 @@ notice:
     read-more: Xem thêm
     preview-title: Đây là gì?
 about:
-  subtitle: Desktop ver.
+  subtitle: Phiên bản desktop
   current-version: Phiên Bản Hiện Tại
   common:
     cancel: Hủy
@@ -63,19 +90,15 @@ about:
     title: Các Liên Kết
     home: Trang chủ
     documentation: Tài liệu
-    github: GitHub
   update:
     lane:
-      label: Update lane
-      description: Choose channel release to follow
-      placeholder: Choose update lane
+      label: Luồng cập nhật
+      description: Chọn kênh phát hành để theo dõi
+      placeholder: Chọn luồng cập nhật
     channels:
       auto: Tự động
       stable: Ổn định
-      alpha: Alpha
-      beta: Beta
-      nightly: Nightly
-      canary: Canary
+      nightly: Hàng ngày
     status:
       downloading: Đang tải bản cập nhật...
       error-prefix: Lỗi
@@ -92,11 +115,11 @@ about:
       latest-version: Phiên bản mới nhất
       disabled-dev: Các bản cập nhật bị vô hiệu trong Dev
       managed-by-store: Bản cập nhật do cửa hàng ứng dụng quản lý
-      retry-check: Retry Check
+      retry-check: Thử lại bước kiểm tra
       restart-silent: Khởi động lại để cập nhật trong im lặng
       restart-install: Khởi động lại để tải bản cập nhật
       confirm-restart: Xác Nhận Khởi Động Lại
     dialog:
       title: Có Bản Cập Nhật Mới
       description: Hiện đang có phiên bản mới (v{version}).
-      no-release-notes-markdown: _No release notes provided._
+      no-release-notes-markdown: _Không có ghi chú phát hành nào được cung cấp._

@@ -1,5 +1,5 @@
 import { createInsertSchema, createSelectSchema } from 'drizzle-valibot'
-import { array, literal, number, object, optional, pipe, string, transform, union } from 'valibot'
+import { array, literal, object, optional, string, union } from 'valibot'
 
 import * as schema from '../../schemas/characters'
 
@@ -11,34 +11,6 @@ export const AvatarModelConfigSchema = object({
     urls: array(string()),
   })),
 })
-
-export const CharacterCapabilityConfigSchema = object({
-  apiKey: string(),
-  apiBaseUrl: string(),
-  llm: optional(object({
-    temperature: number(),
-    model: string(),
-  })),
-  tts: optional(object({
-    ssml: string(),
-    voiceId: string(),
-    speed: number(),
-    pitch: number(),
-  })),
-  vlm: optional(object({
-    image: string(),
-  })),
-  asr: optional(object({
-    audio: string(),
-  })),
-})
-
-const CharacterCapabilityTypeSchema = union([
-  literal('llm'),
-  literal('tts'),
-  literal('vlm'),
-  literal('asr'),
-])
 
 const AvatarModelTypeSchema = union([
   literal('vrm'),
@@ -63,11 +35,6 @@ export const InsertCharacterCoverSchema = createInsertSchema(schema.characterCov
 export const CharacterPromptSchema = createSelectSchema(schema.characterPrompts)
 export const InsertCharacterPromptSchema = createInsertSchema(schema.characterPrompts)
 
-const DateSchema = pipe(
-  string(),
-  transform(v => new Date(v)),
-)
-
 export const CreateCharacterSchema = object({
   // TODO: Replace createInsertSchema-derived request bodies with explicit HTTP DTO schemas.
   // The current shape still leaks persistence fields such as ownerId/creatorId into the API boundary.
@@ -83,8 +50,8 @@ export const CreateCharacterSchema = object({
   })),
   capabilities: optional(array(createInsertSchema(schema.characterCapabilities, {
     characterId: optional(string()),
-    type: CharacterCapabilityTypeSchema,
-    config: CharacterCapabilityConfigSchema,
+    type: schema.CharacterCapabilityTypeSchema,
+    config: schema.CharacterCapabilityConfigSchema,
   }))),
   avatarModels: optional(array(createInsertSchema(schema.avatarModel, {
     characterId: optional(string()),
@@ -102,16 +69,13 @@ export const CreateCharacterSchema = object({
 
 // TODO: Split update request schema from DB insert schema.
 // This route should reject server-managed fields like id/ownerId/creatorId/timestamps instead of allowing them here.
-export const UpdateCharacterSchema = createInsertSchema(schema.character, {
-  id: optional(string()),
+export const UpdateCharacterSchema = object({
   version: optional(string()),
   coverUrl: optional(string()),
-  avatarUrl: optional(string()),
-  creatorRole: optional(string()),
-  priceCredit: optional(string()),
-  creatorId: optional(string()),
-  ownerId: optional(string()),
   characterId: optional(string()),
-  createdAt: optional(DateSchema),
-  updatedAt: optional(DateSchema),
+  capabilities: optional(array(createInsertSchema(schema.characterCapabilities, {
+    characterId: optional(string()),
+    type: schema.CharacterCapabilityTypeSchema,
+    config: schema.CharacterCapabilityConfigSchema,
+  }))),
 })

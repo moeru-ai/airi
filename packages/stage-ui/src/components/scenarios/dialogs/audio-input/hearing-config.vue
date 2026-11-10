@@ -1,128 +1,156 @@
 <script setup lang="ts">
-import { Callout, FieldCheckbox, FieldCombobox } from '@proj-airi/ui'
+import { isStageTamagotchi } from '@proj-airi/stage-shared'
+import { Alert, FieldCheckbox, FieldSelect } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed } from 'vue'
+import { computed, shallowRef } from 'vue'
+import { useI18n } from 'vue-i18n'
 
-import { useAudioAnalyzer } from '../../../../composables'
-import { useSettingsAudioDevice } from '../../../../stores'
+import MicrophonePicker from '../../settings/microphone-picker.vue'
+import OptionList from '../../settings/option-list.vue'
+import WakeWordStatus from './wake-word-status.vue'
 
-const props = withDefaults(defineProps<{
-  granted?: boolean // permission status on OS level
-}>(), {
-  granted: false,
-})
+import { usePushToTalkTrigger } from '../../../../composables/push-to-talk-trigger'
+import { useBreakpoints } from '../../../../composables/use-breakpoints'
+import { useHearingStore } from '../../../../stores/modules/hearing'
+import { useSettingsAudioDevice } from '../../../../stores/settings/audio-device'
 
+const props = defineProps<{
+  /** Runs before the permission request when the user turns the microphone on. Other requests skip this hook. */
+  beforeEnable?: () => Promise<void>
+}>()
+
+const { t } = useI18n()
+const { inputMode } = storeToRefs(useHearingStore())
+const { available: pushToTalkAvailable, stranded: pushToTalkStranded } = usePushToTalkTrigger()
 const deviceStore = useSettingsAudioDevice()
-const { askPermission } = deviceStore
-const { audioInputOptions, enabled, permissionGranted, selectedAudioInput } = storeToRefs(deviceStore)
-const { volumeLevel } = useAudioAnalyzer()
+const { audioInputOptions, enabled, error, off: microphoneOff, permission, selectedAudioInput } = storeToRefs(deviceStore)
+// A phone shows this config in a bottom drawer. A select there opens a second floating layer, so choices are rows.
+const { isDesktop } = useBreakpoints()
+/**
+ * Small web and mobile screens listen only during a voice call, which the chat composer starts. The stage page does not
+ * run continuous listening there, so the input mode and the microphone switch would change nothing and are hidden.
+ * The desktop app keeps them at every window size, because its stage window listens by itself.
+ */
+const continuousListening = computed(() => isDesktop.value || isStageTamagotchi())
 
-const autoSend = defineModel<boolean | undefined>('autoSend')
-const hasAutoSendControl = computed(() => autoSend.value !== undefined)
-const autoSendEnabled = computed({
-  get: () => autoSend.value ?? false,
-  set: value => autoSend.value = value,
-})
-const hearingToggleLabel = computed(() => enabled.value ? 'Disable microphone input' : 'Enable microphone input')
-const hearingToggleClass = computed(() => [
-  'absolute left-1/2 top-1/2 grid h-16 w-16 place-items-center outline-none -translate-x-1/2 -translate-y-1/2',
-  'rounded-2xl backdrop-blur-md',
-  'transition-colors duration-150 ease-in-out',
-  'focus-visible:ring-2 focus-visible:ring-primary-400/40',
-  'active:scale-95',
-  enabled.value
-    ? [
-        'border-2 border-solid border-primary-300/30 bg-primary-200/90~45 text-primary-950',
-        'hover:border-primary-400/55 active:border-primary-500/60',
-        'dark:border-primary-400/30 dark:bg-primary-500/75~45*90 dark:text-primary-50',
-        'dark:hover:border-primary-300/55 dark:active:border-primary-300/70',
-      ]
-    : [
-        'border-2 border-solid border-neutral-300/40 bg-neutral-100/70 text-neutral-700',
-        'hover:border-neutral-400/55 active:border-neutral-500/60',
-        'dark:border-neutral-700/45 dark:bg-neutral-800/70 dark:text-neutral-200',
-        'dark:hover:border-neutral-600/65 dark:active:border-neutral-500/70',
-      ],
+const inputModeOptions = computed(() => [
+  {
+    value: 'always-on' as const,
+    label: t('settings.pages.modules.hearing.sections.section.input-mode.always-on'),
+    description: t('settings.pages.modules.hearing.sections.section.input-mode.always-on-description'),
+  },
+  {
+    value: 'push-to-talk' as const,
+    label: t('settings.pages.modules.hearing.sections.section.input-mode.push-to-talk'),
+    // Without a trigger the mode leaves the microphone closed, so the option stays visible but cannot be chosen.
+    description: pushToTalkAvailable.value
+      ? t('settings.pages.modules.hearing.sections.section.input-mode.push-to-talk-description')
+      : t('settings.pages.modules.hearing.sections.section.input-mode.push-to-talk-unavailable'),
+    disabled: !pushToTalkAvailable.value,
+  },
+  {
+    value: 'wake-word' as const,
+    label: t('settings.pages.modules.hearing.sections.section.input-mode.wake-word'),
+    description: t('settings.pages.modules.hearing.sections.section.input-mode.wake-word-description'),
+  },
 ])
-const ringEnabledClass = computed(() => enabled.value
-  ? 'bg-primary-500/15 dark:bg-primary-600/20'
-  : 'bg-neutral-300/20 dark:bg-neutral-700/20',
-)
 
-function toggleHearingEnabled() {
-  if (enabled.value)
-    return enabled.value = false
-  if (selectedAudioInput.value !== '' && permissionGranted.value)
-    return enabled.value = true
-  if (!permissionGranted.value)
-    return askPermission().then(() => { enabled.value = permissionGranted.value })
+/** True while the enable action waits for the host hook or the permission prompt. The switch ignores input until then. */
+const enabling = shallowRef(false)
+
+/**
+ * Only this explicit switch action asks for microphone permission. Rendering the controls never opens the microphone.
+ * A denied request leaves the switch off. The device store keeps the reason in `error`, which the alert shows.
+ */
+async function setListening(value: boolean) {
+  if (enabling.value)
+    return
+  if (!value) {
+    enabled.value = false
+    return
+  }
+
+  enabling.value = true
+  try {
+    if (props.beforeEnable)
+      await props.beforeEnable()
+    if (await deviceStore.askPermission())
+      enabled.value = true
+  }
+  finally {
+    enabling.value = false
+  }
 }
 </script>
 
 <template>
-  <div class="space-y-2">
-    <!-- Minimal mic control with animated rings -->
-    <div class="flex flex-col items-center justify-center py-2">
-      <div class="relative h-28 w-28 select-none">
-        <!-- Rings (scale + opacity follow volume) -->
-        <div
-          class="absolute left-1/2 top-1/2 h-20 w-20 rounded-full transition-all duration-150 -translate-x-1/2 -translate-y-1/2"
-          :style="{ transform: `translate(-50%, -50%) scale(${1 + (volumeLevel / 100) * 0.35})`, opacity: String(0.25 + (volumeLevel / 100) * 0.25) }"
-          :class="ringEnabledClass"
-        />
-        <div
-          class="absolute left-1/2 top-1/2 h-24 w-24 rounded-full transition-all duration-200 -translate-x-1/2 -translate-y-1/2"
-          :style="{ transform: `translate(-50%, -50%) scale(${1.2 + (volumeLevel / 100) * 0.55})`, opacity: String(0.15 + (volumeLevel / 100) * 0.2) }"
-          :class="enabled ? 'bg-primary-500/10 dark:bg-primary-600/15' : 'bg-neutral-300/10 dark:bg-neutral-700/10'"
-        />
-        <div
-          class="absolute left-1/2 top-1/2 h-28 w-28 rounded-full transition-all duration-300 -translate-x-1/2 -translate-y-1/2"
-          :style="{ transform: `translate(-50%, -50%) scale(${1.5 + (volumeLevel / 100) * 0.8})`, opacity: String(0.08 + (volumeLevel / 100) * 0.15) }"
-          :class="enabled ? 'bg-primary-500/5 dark:bg-primary-600/10' : 'bg-neutral-300/5 dark:bg-neutral-700/5'"
-        />
+  <div :class="['flex flex-col gap-4']">
+    <!-- The microphone switch. Off closes the microphone for every feature, so listening below waits until it is on. -->
+    <FieldCheckbox
+      data-testid="hearing-microphone-off-switch"
+      :model-value="!microphoneOff"
+      :label="t('settings.pages.modules.hearing.sections.section.microphone-switch.label')"
+      :description="t('settings.pages.modules.hearing.sections.section.microphone-switch.description')"
+      @update:model-value="value => microphoneOff = !value"
+    />
 
-        <!-- Mic icon button -->
-        <button
-          :aria-label="hearingToggleLabel"
-          :title="hearingToggleLabel"
-          :class="hearingToggleClass"
-          @click="toggleHearingEnabled"
-        >
-          <div :class="enabled ? 'i-ph:microphone' : 'i-ph:microphone-slash'" class="h-6 w-6" />
-        </button>
+    <p v-if="!continuousListening" data-testid="hearing-call-only" :class="['text-sm text-neutral-500 dark:text-neutral-400']">
+      {{ t('settings.pages.modules.hearing.sections.section.input-mode.call-only') }}
+    </p>
+    <FieldSelect
+      v-else-if="isDesktop"
+      v-model="inputMode"
+      data-testid="hearing-input-mode"
+      :label="t('settings.pages.modules.hearing.sections.section.input-mode.label')"
+      :description="t('settings.pages.modules.hearing.sections.section.input-mode.description')"
+      :options="inputModeOptions"
+      layout="vertical"
+    />
+    <div v-else data-testid="hearing-input-mode" :class="['flex flex-col gap-2']">
+      <div :class="['flex flex-col gap-1']">
+        <span :class="['text-sm font-medium']">{{ t('settings.pages.modules.hearing.sections.section.input-mode.label') }}</span>
+        <span :class="['text-xs text-neutral-500 dark:text-neutral-400']">{{ t('settings.pages.modules.hearing.sections.section.input-mode.description') }}</span>
       </div>
-
-      <div class="mt-3 h-1" />
-
-      <!-- Permission callout when needed (Electron contexts) -->
-      <div v-if="!props.granted" class="mt-3 w-full">
-        <Callout theme="orange" label="Microphone permission required">
-          <div class="text-sm">
-            The app doesn't have permission to access your microphone.
-            Please grant microphone access in your system settings to enable audio input.
-          </div>
-        </Callout>
-      </div>
+      <OptionList v-model="inputMode" :label="t('settings.pages.modules.hearing.sections.section.input-mode.label')" :options="inputModeOptions" />
     </div>
+    <WakeWordStatus v-if="continuousListening && inputMode === 'wake-word'" />
+    <Alert
+      v-if="continuousListening && pushToTalkStranded"
+      data-testid="hearing-input-mode-stranded"
+      tone="warning"
+      :title="t('settings.pages.modules.hearing.sections.section.input-mode.stranded-title')"
+    >
+      {{ t('settings.pages.modules.hearing.sections.section.input-mode.stranded-description') }}
+    </Alert>
 
-    <div v-if="hasAutoSendControl" class="mt-3">
-      <FieldCheckbox
-        v-model="autoSendEnabled"
-        label="Auto send"
-        description="Send transcribed text to chat automatically."
-      />
-    </div>
+    <FieldCheckbox
+      v-if="continuousListening"
+      data-testid="hearing-microphone-switch"
+      :model-value="enabled"
+      :disabled="enabling || microphoneOff"
+      :label="t('settings.pages.modules.hearing.sections.section.listen.label')"
+      :description="t('settings.pages.modules.hearing.sections.section.listen.description')"
+      @update:model-value="setListening"
+    />
 
-    <!-- Always-visible device selector -->
-    <div class="mt-3 w-full">
-      <FieldCombobox
-        v-model="selectedAudioInput"
-        label="Input device"
-        description="Select the microphone you want to use."
-        :options="audioInputOptions"
-        placeholder="Select microphone"
-        layout="vertical"
-      />
-    </div>
+    <MicrophonePicker
+      v-model="selectedAudioInput"
+      :label="t('settings.pages.modules.hearing.sections.section.input-device.label')"
+      :description="t('settings.pages.modules.hearing.sections.section.input-device.description')"
+      :options="audioInputOptions"
+      :placeholder="t('settings.pages.modules.hearing.sections.section.input-device.placeholder')"
+      :permission="permission"
+      :request-access="deviceStore.askPermission"
+    />
+
+    <Alert
+      v-if="error"
+      data-testid="hearing-microphone-error"
+      tone="danger"
+      live="polite"
+      :title="t('settings.pages.modules.hearing.sections.section.microphone.error')"
+    >
+      {{ error }}
+    </Alert>
   </div>
 </template>

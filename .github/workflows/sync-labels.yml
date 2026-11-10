@@ -24,3 +24,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           manifest: .github/labels.yml
+          prune: false

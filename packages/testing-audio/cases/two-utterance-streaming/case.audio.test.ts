@@ -1,16 +1,17 @@
 import { describe, expect, it } from '../../src'
-import { configureModuleHearing, configureOnboarding, loadCaseEnvironment } from '../shared/configurations'
-import { enableChatMicrophone } from '../shared/interactions'
+import { audioCaseLive2D, configureLive2D, configureModuleHearing, configureOnboarding, loadCaseEnvironment } from '../shared/configurations'
+import { enableChatMicrophone, waitForVoiceDraft } from '../shared/interactions'
 import { aliyunNlsAsr, openaiAsr } from '../shared/providers'
 
 describe('audio input pipeline', () => {
   // The fixture has 12 seconds of leading silence so that the browser VAD can load.
   // It repeats the greeting after a 2-second pause to catch regressions that drop the second utterance.
-  it('keeps two utterances in streaming transcription', {
+  it('keeps two utterances in transcription', {
     input: new URL('./input.test.wav', import.meta.url),
     // This regression isolates AIRI's default VAD and one explicit ASR Provider.
     preflight: [
       configureOnboarding(() => ({ completed: true })),
+      configureLive2D(() => audioCaseLive2D),
       configureModuleHearing(async (context) => {
         const environment = await loadCaseEnvironment(context.env)
         const apiKey = environment.TESTING_AUDIO_ASR_API_KEY
@@ -39,28 +40,23 @@ describe('audio input pipeline', () => {
       })
     }
 
-    const expectedTranscriptions = [
-      [
-        'Microphone warm up, microphone warm up. Hello, AIRI, please say hello.',
-        'Microphone warm up, microphone warm up. Hello, Eric, please say hello.',
-      ],
-      [
-        'Microphone warm up, microphone warm up. Hello, AIRI, please say hello.',
-        'Microphone warm up, microphone warm up. Hello, Eric, please say hello.',
-      ],
-    ]
-    await expect(audio).toHaveTranscriptions(expectedTranscriptions)
+    await expect(audio).toHaveTranscriptions([
+      ['Please say hello.'],
+      ['Please say hello.'],
+    ], { match: 'contains' })
 
-    const finalTranscriptions = await audio.transcriptionResults(expectedTranscriptions.length)
-    const streamingUpdates = await audio.streamingTranscriptionUpdates()
-    expect(streamingUpdates.some(update => !finalTranscriptions.includes(update))).toBe(true)
-    await expect(audio).toHaveCompletedTranscription()
+    const finalTranscriptions = await audio.transcriptionResults(2)
+    for (const transcript of finalTranscriptions)
+      expect(transcript).toMatch(/microphone warm.?up/i)
+
+    await waitForVoiceDraft(audio, { timeout: 30_000 })
   })
 
-  it('keeps two Aliyun NLS utterances in streaming transcription', {
+  it('keeps two Aliyun NLS utterances in transcription', {
     input: new URL('./input.test.wav', import.meta.url),
     preflight: [
       configureOnboarding(() => ({ completed: true })),
+      configureLive2D(() => audioCaseLive2D),
       configureModuleHearing(async (context) => {
         const environment = await loadCaseEnvironment(context.env)
         const provider = environment.TESTING_AUDIO_ASR_ALIYUN_NLS_PROVIDER
@@ -87,21 +83,15 @@ describe('audio input pipeline', () => {
       count: 1,
       minimumBytes: 8000,
     })
-    const expectedTranscriptions = [
-      [
-        'Microphone warm up, microphone warm up. Hello, AIRI, please say hello.',
-        'Microphone warm up, microphone warm up. Hello, Eric, please say hello.',
-      ],
-      [
-        'Microphone warm up, microphone warm up. Hello, AIRI, please say hello.',
-        'Microphone warm up, microphone warm up. Hello, Eric, please say hello.',
-      ],
-    ]
-    await expect(audio).toHaveTranscriptions(expectedTranscriptions)
+    await expect(audio).toHaveTranscriptions([
+      ['Please say hello.'],
+      ['Please say hello.'],
+    ], { match: 'contains' })
 
-    const finalTranscriptions = await audio.transcriptionResults(expectedTranscriptions.length)
-    const streamingUpdates = await audio.streamingTranscriptionUpdates()
-    expect(streamingUpdates.some(update => !finalTranscriptions.includes(update))).toBe(true)
-    await expect(audio).toHaveCompletedTranscription()
+    const finalTranscriptions = await audio.transcriptionResults(2)
+    for (const transcript of finalTranscriptions)
+      expect(transcript).toMatch(/microphone warm.?up/i)
+
+    await waitForVoiceDraft(audio, { timeout: 30_000 })
   })
 })

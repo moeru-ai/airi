@@ -2,6 +2,10 @@
 
 Allow アイリ to talk to you and many other users in Discord voice channels.
 
+## Channel sessions
+
+Text messages and voice transcriptions both bind to `discord:channel:<id>`. Without a binding, a reply would join the owner's private session.
+
 ## Getting started
 
 ```shell

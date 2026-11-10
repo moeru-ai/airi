@@ -32,6 +32,15 @@ Treat this service as a local-development and trusted-server tool only.
 
 3. Edit `integrations/minecraft/.env.local`.
 
+   In AIRI, open **Settings -> Connection** and copy the WebSocket authentication token.
+   Set `AIRI_WS_TOKEN` to that token in `.env.local`:
+
+   ```dotenv
+   AIRI_WS_TOKEN='paste-your-token-here'
+   ```
+
+   If the token changes, update `.env.local` and restart the bot.
+
 4. Start the service:
 
    ```bash

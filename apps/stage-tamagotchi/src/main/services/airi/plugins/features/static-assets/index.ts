@@ -146,6 +146,13 @@ export interface ExtensionAssetService extends ServerManager {
   revokeAll: () => Promise<void>
 }
 
+interface OwnedAssetCookie {
+  assetSessionId: string
+  ownerSessionId?: string
+  extensionId?: string
+  cookie: ExtensionAssetCookie
+}
+
 function createExtensionAssetCookie(baseUrl: string, session: StaticAssetSession): ExtensionAssetCookie {
   return {
     name: session.cookieName,
@@ -175,6 +182,7 @@ export function createExtensionAssetService(options: {
   cookieAdapter: ExtensionAssetCookieAdapter
 }): ExtensionAssetService {
   const server = createStaticAssetService({ getManifestEntryByExtensionId: options.getManifestEntryByExtensionId })
+  const ownedAssetCookies = new Map<string, OwnedAssetCookie>()
   let lastBaseUrl: string | undefined
 
   const readBaseUrl = () => {
@@ -183,15 +191,50 @@ export function createExtensionAssetService(options: {
     return baseUrl
   }
 
-  const revokeSessions = async (sessions: readonly StaticAssetSession[]) => {
+  const rememberRevokedSessions = (
+    sessions: readonly StaticAssetSession[],
+    ownership: { ownerSessionId?: string, extensionId?: string } = {},
+  ) => {
     const baseUrl = readBaseUrl() ?? lastBaseUrl
     if (!baseUrl) {
-      return
+      return []
     }
 
-    await Promise.all(
-      sessions.map(session => options.cookieAdapter.removeCookie(createExtensionAssetCookie(baseUrl, session))),
-    )
+    return sessions.map((session) => {
+      const existing = ownedAssetCookies.get(session.assetSessionId)
+      const ownedCookie: OwnedAssetCookie = {
+        assetSessionId: session.assetSessionId,
+        ownerSessionId: ownership.ownerSessionId ?? existing?.ownerSessionId,
+        extensionId: ownership.extensionId ?? existing?.extensionId,
+        cookie: createExtensionAssetCookie(baseUrl, session),
+      }
+      ownedAssetCookies.set(session.assetSessionId, ownedCookie)
+      return ownedCookie
+    })
+  }
+
+  const removeOwnedCookies = async (cookies: readonly OwnedAssetCookie[]) => {
+    const failures: unknown[] = []
+    for (const ownedCookie of cookies) {
+      try {
+        await options.cookieAdapter.removeCookie(ownedCookie.cookie)
+        ownedAssetCookies.delete(ownedCookie.assetSessionId)
+      }
+      catch (error) {
+        failures.push(error)
+      }
+    }
+
+    if (failures.length === 1) {
+      throw failures[0]
+    }
+    if (failures.length > 1) {
+      throw new AggregateError(failures, 'Extension asset cookie cleanup failed.')
+    }
+  }
+
+  const uniqueOwnedCookies = (cookies: readonly OwnedAssetCookie[]) => {
+    return [...new Map(cookies.map(cookie => [cookie.assetSessionId, cookie])).values()]
   }
 
   return {
@@ -200,8 +243,36 @@ export function createExtensionAssetService(options: {
       await server.start()
     },
     async stop() {
-      await revokeSessions(server.revokeAll())
-      await server.stop()
+      const failures: unknown[] = []
+      let serverCookies: OwnedAssetCookie[] = []
+      try {
+        serverCookies = rememberRevokedSessions(server.revokeAll())
+      }
+      catch (error) {
+        failures.push(error)
+      }
+      try {
+        await removeOwnedCookies(uniqueOwnedCookies([
+          ...serverCookies,
+          ...ownedAssetCookies.values(),
+        ]))
+      }
+      catch (error) {
+        failures.push(error)
+      }
+      try {
+        await server.stop()
+      }
+      catch (error) {
+        failures.push(error)
+      }
+
+      if (failures.length === 1) {
+        throw failures[0]
+      }
+      if (failures.length > 1) {
+        throw new AggregateError(failures, 'Extension asset service stop failed.')
+      }
     },
     getBaseUrl() {
       return readBaseUrl()
@@ -233,6 +304,12 @@ export function createExtensionAssetService(options: {
 
         const cookie = createExtensionAssetCookie(baseUrl, session)
         await options.cookieAdapter.setCookie(cookie)
+        ownedAssetCookies.set(session.assetSessionId, {
+          assetSessionId: session.assetSessionId,
+          ownerSessionId: input.ownerSessionId,
+          extensionId: input.extensionId,
+          cookie,
+        })
 
         return {
           url: new URL(mountedPath, baseUrl).toString(),
@@ -248,20 +325,37 @@ export function createExtensionAssetService(options: {
     },
     async revokeSession(assetSessionId) {
       const session = server.revokeSession(assetSessionId)
-      if (!session) {
-        return
-      }
-
-      await revokeSessions([session])
+      const serverCookies = session ? rememberRevokedSessions([session]) : []
+      const pendingCookie = ownedAssetCookies.get(assetSessionId)
+      await removeOwnedCookies(uniqueOwnedCookies([
+        ...serverCookies,
+        ...(pendingCookie ? [pendingCookie] : []),
+      ]))
     },
     async revokeByOwnerSessionId(ownerSessionId) {
-      await revokeSessions(server.revokeByOwnerSessionId(ownerSessionId))
+      const serverCookies = rememberRevokedSessions(
+        server.revokeByOwnerSessionId(ownerSessionId),
+        { ownerSessionId },
+      )
+      const pendingCookies = [...ownedAssetCookies.values()]
+        .filter(cookie => cookie.ownerSessionId === ownerSessionId)
+      await removeOwnedCookies(uniqueOwnedCookies([...serverCookies, ...pendingCookies]))
     },
     async revokeByExtensionId(extensionId) {
-      await revokeSessions(server.revokeByExtensionId(extensionId))
+      const serverCookies = rememberRevokedSessions(
+        server.revokeByExtensionId(extensionId),
+        { extensionId },
+      )
+      const pendingCookies = [...ownedAssetCookies.values()]
+        .filter(cookie => cookie.extensionId === extensionId)
+      await removeOwnedCookies(uniqueOwnedCookies([...serverCookies, ...pendingCookies]))
     },
     async revokeAll() {
-      await revokeSessions(server.revokeAll())
+      const serverCookies = rememberRevokedSessions(server.revokeAll())
+      await removeOwnedCookies(uniqueOwnedCookies([
+        ...serverCookies,
+        ...ownedAssetCookies.values(),
+      ]))
     },
   }
 }

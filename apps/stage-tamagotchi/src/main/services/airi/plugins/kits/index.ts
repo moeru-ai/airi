@@ -1,16 +1,16 @@
 import type { KitRef } from '@proj-airi/plugin-sdk'
 import type { ToolKitRuntime } from '@proj-airi/plugin-sdk-tamagotchi/tools'
-import type { ExtensionHost } from '@proj-airi/plugin-sdk/plugin-host'
+import type { ExtensionHost, HostSourceLease } from '@proj-airi/plugin-sdk/plugin-host'
 
-import type { SetupExtensionHostOptions } from '../types'
+import type { ExtensionHostGameletWidgetsManager, SetupExtensionHostOptions } from '../types'
 import type { GameletOrchestrationRuntime } from './gamelet/orchestration'
 
 import { gameletKit, toolKit } from '@proj-airi/plugin-sdk-tamagotchi'
-import { TamagotchiToolRegistry } from '@proj-airi/plugin-sdk-tamagotchi/tools'
 
-import { registerGameletPluginKit } from './gamelet'
+import { gameletPluginKitDescriptor } from './gamelet'
 import { createGameletOrchestrationRuntime } from './gamelet/orchestration'
-import { registerWidgetPluginKit } from './widget'
+import { TamagotchiToolRegistry } from './tool/registry'
+import { widgetPluginKitDescriptor } from './widget'
 
 type GameletKitClient = ReturnType<typeof gameletKit.createClient>
 type ToolKitClient = ReturnType<typeof toolKit.createClient>
@@ -18,7 +18,7 @@ type ToolKitClient = ReturnType<typeof toolKit.createClient>
 function createHostGameletKit(options: { host: ExtensionHost, gamelets: GameletOrchestrationRuntime }): KitRef<GameletKitClient> {
   return {
     ...gameletKit,
-    createClient(runtime) {
+    createClient: (runtime) => {
       const hostRuntime = {
         ...runtime,
         bindings: {
@@ -35,7 +35,7 @@ function createHostGameletKit(options: { host: ExtensionHost, gamelets: GameletO
 function createHostToolKit(options: { tools: TamagotchiToolRegistry }): KitRef<ToolKitClient> {
   return {
     ...toolKit,
-    createClient(runtime) {
+    createClient: (runtime) => {
       let cleanupRegistered = false
       const ensureCleanup = () => {
         if (cleanupRegistered) {
@@ -79,36 +79,56 @@ function createHostToolKit(options: { tools: TamagotchiToolRegistry }): KitRef<T
   }
 }
 
+function disposeHostKitLeases(leases: readonly HostSourceLease[]): void {
+  // Later registrations can depend on earlier registrations. Reverse order removes dependent sources first.
+  for (const lease of [...leases].reverse()) {
+    lease.dispose()
+  }
+}
+
 /**
- * Creates the built-in kit runtime installed by the Electron extension host.
+ * Registers the built-in Kits on one Extension Host.
  *
  * Use when:
- * - Host bootstrap should depend on a kit-layer API instead of wiring widget/gamelet details inline
- * - Built-in kit registration should remain outside the host layer
+ * - The `modules:extension-host:built-in-kits` unit builds. Its `stop` hook calls `dispose`.
  *
  * Expects:
- * - `widgetsManager` is initialized before host construction
+ * - `widgetsManager` is initialized before the Kits are registered
  *
  * Returns:
- * - Helpers to register built-in kits on the host
+ * - The tool registry and `dispose`
  */
-export function createBuiltInExtensionKitRuntime(options: SetupExtensionHostOptions): {
-  registerHostKits: (host: ExtensionHost) => void
-  tools: TamagotchiToolRegistry
-  dispose: () => void
-} {
+export function createBuiltInExtensionKits(options: {
+  host: ExtensionHost
+  widgetsManager: ExtensionHostGameletWidgetsManager
+}): SetupExtensionHostOptions['kits'] & { dispose: () => void } {
+  const { host } = options
   const gamelets = createGameletOrchestrationRuntime(options.widgetsManager)
   const tools = new TamagotchiToolRegistry()
+  const toolKitRef = createHostToolKit({ tools })
+  const hostSources: ReadonlyArray<() => HostSourceLease> = [
+    () => host.registerKit(widgetPluginKitDescriptor),
+    () => host.registerKit(gameletPluginKitDescriptor),
+    () => host.registerKitApi(createHostGameletKit({ host, gamelets })),
+    () => host.registerKitApi(toolKitRef),
+  ]
+
+  const leases: HostSourceLease[] = []
+  try {
+    for (const register of hostSources) {
+      leases.push(register())
+    }
+  }
+  catch (error) {
+    disposeHostKitLeases(leases)
+    throw error
+  }
 
   return {
-    registerHostKits(host) {
-      registerWidgetPluginKit(host)
-      registerGameletPluginKit(host)
-      host.registerKitApi(createHostGameletKit({ host, gamelets }))
-      host.registerKitApi(createHostToolKit({ tools }))
-    },
     tools,
     dispose() {
+      // Remove registrations first. Consumers cannot acquire a Client after its runtime is disposed.
+      disposeHostKitLeases(leases)
       gamelets.dispose()
       tools.clear()
     },

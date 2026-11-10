@@ -1,3 +1,4 @@
+import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { BrowserWindow, BrowserWindowConstructorOptions, Rectangle } from 'electron'
 import type { InferOutput } from 'valibot'
 
@@ -5,10 +6,8 @@ import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 
 import { createHash } from 'node:crypto'
-import { join, resolve } from 'node:path'
 
 import { defineInvokeHandler } from '@moeru/eventa'
-import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { animate, utils } from 'animejs'
 import { BrowserWindow as ElectronBrowserWindow, ipcMain, screen } from 'electron'
 import { debounce, throttle } from 'es-toolkit'
@@ -18,11 +17,15 @@ import { boolean, number, object, optional, record, string } from 'valibot'
 import icon from '../../../../resources/icon.png?asset'
 
 import { captionGetIsFollowingWindow, captionIsFollowingWindowChanged } from '../../../shared/eventa'
-import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
+import { clampBoundsWithinRect } from '../../../shared/utils/electron/display'
+import { focusWindow, showWindow } from '../../libs/electron/focus'
+import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
+import { createWindowContext } from '../../libs/electron/window-context'
 import { createReusableWindow } from '../../libs/electron/window-manager'
+import { showWindowOnAllWorkspaces } from '../shared/app-icon'
 import { mapForBreakpoints, resolutionBreakpoints, widthFrom } from '../shared/display'
-import { protectPrivilegedWindowNavigation, setupBaseWindowElectronInvokes, transparentWindowConfig } from '../shared/window'
+import { protectPrivilegedWindowNavigation, setupBaseWindowElectronInvokes, setWindowAlwaysOnTop, transparentWindowConfig } from '../shared/window'
 
 const captionConfigSchema = object({
   isFollowing: boolean(),
@@ -50,12 +53,6 @@ function computeDisplayMatrixHash(): string {
     .join('|')
 
   return createHash('sha256').update(signature).digest('hex').slice(0, 16)
-}
-
-function clampBoundsWithinRect(bounds: Rectangle, rect: Rectangle): Rectangle {
-  const x = Math.min(Math.max(bounds.x, rect.x), rect.x + rect.width - bounds.width)
-  const y = Math.min(Math.max(bounds.y, rect.y), rect.y + rect.height - bounds.height)
-  return { x, y, width: bounds.width, height: bounds.height }
 }
 
 function computeInitialCaptionBounds(params: { mainWindow: BrowserWindow, captionOptions?: Partial<Rectangle> }): Rectangle {
@@ -111,14 +108,14 @@ function createCaptionWindow(options?: BrowserWindowConstructorOptions) {
     show: false,
     icon,
     webPreferences: {
-      preload: join(getElectronMainDirname(), '../preload/index.mjs'),
+      preload: getPreloadPath(),
       sandbox: false,
     },
     // Thanks to [@HeartArmy](https://github.com/HeartArmy) for the tip implementation.
     //
     // https://github.com/electron/electron/issues/10078#issuecomment-3410164802
     // https://stackoverflow.com/questions/39835282/set-browserwindow-always-on-top-even-other-app-is-in-fullscreen-electron-mac
-    type: 'panel',
+    type: isMacOS ? 'panel' : undefined,
     ...transparentWindowConfig(),
     ...options,
   })
@@ -129,14 +126,14 @@ function createCaptionWindow(options?: BrowserWindowConstructorOptions) {
   //
   // https://github.com/electron/electron/issues/10078#issuecomment-3410164802
   // https://stackoverflow.com/questions/39835282/set-browserwindow-always-on-top-even-other-app-is-in-fullscreen-electron-mac
-  window.setAlwaysOnTop(true, 'screen-saver', 2)
-  window.setFullScreenable(false)
-  window.setVisibleOnAllWorkspaces(true)
+  showWindowOnAllWorkspaces(window)
   if (isMacOS) {
+    window.setFullScreenable(false)
     window.setWindowButtonVisibility(false)
   }
+  setWindowAlwaysOnTop(window, true, 2)
 
-  window.on('ready-to-show', () => window.show())
+  window.on('ready-to-show', () => showWindow(window))
   protectPrivilegedWindowNavigation(window)
 
   return window
@@ -305,7 +302,7 @@ export function setupCaptionWindowManager(params: {
 
     const window = createCaptionWindow()
     currentWindow = window
-    const { context } = createContext(ipcMain, window)
+    const { context } = createWindowContext(window)
     eventaContext = context
 
     await setupBaseWindowElectronInvokes({ context, window, serverChannel: params.serverChannel, i18n: params.i18n })
@@ -344,7 +341,7 @@ export function setupCaptionWindowManager(params: {
 
     const cleanupGetAttached = defineInvokeHandler(context, captionGetIsFollowingWindow, async () => isFollowing)
 
-    await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/caption', {
+    await load(window, withHashRoute(baseUrl(getRendererRoot()), '/caption', {
       query: { 'synced-leader': 'false' },
     }))
 
@@ -406,7 +403,7 @@ export function setupCaptionWindowManager(params: {
     }
 
     // Keep window visible after toggle
-    window.show()
+    showWindow(window)
 
     // Notify renderer for UI state (handle visibility)
     try {
@@ -460,8 +457,7 @@ export function setupCaptionWindowManager(params: {
     if (window.isMinimized()) {
       window.restore()
     }
-    window.show()
-    window.focus()
+    focusWindow(window)
   }
 
   function onVisibilityChanged(listener: () => void): () => void {

@@ -18,89 +18,6 @@ export interface CapVitePluginOptions {
   capArgs: string[]
 }
 
-async function stopCapProcess(current: Result | undefined) {
-  if (!current) {
-    return
-  }
-
-  current.kill('SIGINT')
-
-  try {
-    await current
-  }
-  catch {
-    // tinyexec rejects when a process is stopped during a restart.
-  }
-}
-
-function startCapProcess(cwd: string, capArgs: string[], url: URL) {
-  return x('cap', ['run', ...capArgs], {
-    throwOnError: false,
-    nodeOptions: {
-      cwd,
-      env: {
-        CAPACITOR_DEV_SERVER_URL: url.toString(),
-      },
-      // NOTICE: cap-vite owns the terminal shortcuts, so cap run should not
-      // consume stdin while still mirroring its stdout/stderr to the console.
-      stdio: ['ignore', 'inherit', 'inherit'],
-    },
-  })
-}
-
-function bindCapViteShortcuts(
-  onRestart: () => void,
-  onShutdown: () => Promise<void>,
-) {
-  if (!process.stdin.isTTY || typeof process.stdin.setRawMode !== 'function') {
-    return () => {}
-  }
-
-  process.stdin.resume()
-  process.stdin.setEncoding('utf8')
-  readline.emitKeypressEvents(process.stdin)
-
-  const shouldRestoreRawMode = !process.stdin.isRaw
-  if (shouldRestoreRawMode) {
-    process.stdin.setRawMode(true)
-  }
-
-  async function shutdownFromShortcut() {
-    try {
-      await onShutdown()
-    }
-    finally {
-      if (shouldRestoreRawMode) {
-        process.stdin.setRawMode(false)
-      }
-
-      process.kill(process.pid, 'SIGINT')
-    }
-  }
-
-  const onKeyPress = (input: string, key: readline.Key) => {
-    if (key.ctrl && key.name === 'c') {
-      void shutdownFromShortcut()
-      return
-    }
-
-    const keyName = key.name?.toLowerCase() ?? input.toLowerCase()
-    if (!key.ctrl && !key.meta && keyName === 'r') {
-      onRestart()
-    }
-  }
-
-  process.stdin.on('keypress', onKeyPress)
-
-  return () => {
-    process.stdin.off('keypress', onKeyPress)
-
-    if (shouldRestoreRawMode) {
-      process.stdin.setRawMode(false)
-    }
-  }
-}
-
 export function capVitePlugin(options: CapVitePluginOptions): Plugin {
   const platform = parseCapacitorPlatform(options.capArgs[0])
   if (!platform) {
@@ -110,7 +27,6 @@ export function capVitePlugin(options: CapVitePluginOptions): Plugin {
 
   return {
     apply: 'serve',
-    name: 'cap-vite:run-capacitor',
     async configureServer(server) {
       const resolvedCapArgs = await resolveCapRunArgs(options.capArgs)
       const cwd = resolve(server.config.root)
@@ -175,7 +91,23 @@ export function capVitePlugin(options: CapVitePluginOptions): Plugin {
         }
       }
 
-      function onWatcherEvent(_event, file) {
+      /**
+       * Requests a Capacitor restart after a native project file changes.
+       *
+       * Triggering workflow:
+       *
+       * `server.watcher`
+       *   -> `all`
+       *     -> `onWatcherEvent`
+       *       -> `requestRestart`
+       *
+       * Upstream:
+       * - `server.watcher`
+       *
+       * Downstream:
+       * - `requestRestart`
+       */
+      function onWatcherEvent(_event: string, file: string) {
         if (!shouldRestartForNativeChange(file, resolvedPlatform, cwd)) {
           return
         }
@@ -219,5 +151,89 @@ export function capVitePlugin(options: CapVitePluginOptions): Plugin {
       process.once('SIGINT', handleShutdownRequest)
       process.once('SIGTERM', handleShutdownRequest)
     },
+    name: 'cap-vite:run-capacitor',
+  }
+}
+
+function bindCapViteShortcuts(
+  onRestart: () => void,
+  onShutdown: () => Promise<void>,
+) {
+  if (!process.stdin.isTTY || typeof process.stdin.setRawMode !== 'function') {
+    return () => {}
+  }
+
+  process.stdin.resume()
+  process.stdin.setEncoding('utf8')
+  readline.emitKeypressEvents(process.stdin)
+
+  const shouldRestoreRawMode = !process.stdin.isRaw
+  if (shouldRestoreRawMode) {
+    process.stdin.setRawMode(true)
+  }
+
+  async function shutdownFromShortcut() {
+    try {
+      await onShutdown()
+    }
+    finally {
+      if (shouldRestoreRawMode) {
+        process.stdin.setRawMode(false)
+      }
+
+      process.kill(process.pid, 'SIGINT')
+    }
+  }
+
+  const onKeyPress = (input: string, key: readline.Key) => {
+    if (key.ctrl && key.name === 'c') {
+      void shutdownFromShortcut()
+      return
+    }
+
+    const keyName = key.name?.toLowerCase() ?? input.toLowerCase()
+    if (!key.ctrl && !key.meta && keyName === 'r') {
+      onRestart()
+    }
+  }
+
+  process.stdin.on('keypress', onKeyPress)
+
+  return () => {
+    process.stdin.off('keypress', onKeyPress)
+
+    if (shouldRestoreRawMode) {
+      process.stdin.setRawMode(false)
+    }
+  }
+}
+
+function startCapProcess(cwd: string, capArgs: string[], url: URL) {
+  return x('cap', ['run', ...capArgs], {
+    nodeOptions: {
+      cwd,
+      env: {
+        CAPACITOR_DEV_SERVER_URL: url.toString(),
+      },
+      // NOTICE: cap-vite owns the terminal shortcuts, so cap run should not
+      // consume stdin while still mirroring its stdout/stderr to the console.
+      stdio: ['ignore', 'inherit', 'inherit'],
+    },
+    throwOnError: false,
+  })
+}
+
+async function stopCapProcess(current: Result | undefined) {
+  if (!current) {
+    return
+  }
+
+  current.kill('SIGINT')
+
+  try {
+    await current
+  }
+  catch {
+    // tinyexec rejects when a process is stopped during a restart.
   }
 }

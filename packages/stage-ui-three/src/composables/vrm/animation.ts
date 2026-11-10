@@ -47,17 +47,19 @@ export async function clipFromVRMAnimation(vrm?: VRMCore, animation?: VRMAnimati
   return createVRMAnimationClip(animation, vrm)
 }
 
-// Set initial positions for animation
+/**
+ * Shifts a clip's position tracks to start at the current normalized hips position.
+ * Call before playback, with the rig in its rest pose. This mutates the clip and preserves relative motion between frames.
+ */
 export function reAnchorRootPositionTrack(clip: AnimationClip, _vrm: VRMCore) {
-// Get the hips node to re-anchor the root position track
   const hipNode = _vrm.humanoid?.getNormalizedBoneNode('hips')
   if (!hipNode) {
     console.warn('No hips node found in VRM model.')
     return
   }
-  hipNode.updateMatrixWorld(true)
-  const defaultHipPos = new Vector3()
-  hipNode.getWorldPosition(defaultHipPos)
+  // Tracks animate local positions. A world-space anchor bakes parent transforms into the clip,
+  // and the animation mixer applies those transforms again during playback.
+  const defaultHipPos = hipNode.position.clone()
 
   // Calculate the offset from the hips node to the hips's first frame position
   const hipsTrack = clip.tracks.find(track =>
@@ -93,6 +95,7 @@ export function useBlink() {
    */
   const isBlinking = ref(false)
   const blinkProgress = ref(0)
+  const isCycleSuppressed = ref(false)
   const timeSinceLastBlink = ref(0)
   const BLINK_DURATION = 0.2 // Duration of a single blink in seconds
   const MIN_BLINK_INTERVAL = 1 // Minimum time between blinks
@@ -100,7 +103,7 @@ export function useBlink() {
   const nextBlinkTime = ref(Math.random() * (MAX_BLINK_INTERVAL - MIN_BLINK_INTERVAL) + MIN_BLINK_INTERVAL)
 
   // Function to handle blinking animation
-  function update(vrm: VRMCore | undefined, delta: number) {
+  function update(vrm: VRMCore | undefined, delta: number, options?: { suppress?: boolean }) {
     if (!vrm?.expressionManager)
       return
 
@@ -110,14 +113,22 @@ export function useBlink() {
     if (!isBlinking.value && timeSinceLastBlink.value >= nextBlinkTime.value) {
       isBlinking.value = true
       blinkProgress.value = 0
+      isCycleSuppressed.value = Boolean(options?.suppress)
     }
 
     // Handle blinking animation
     if (isBlinking.value) {
       blinkProgress.value += delta / BLINK_DURATION
+      if (options?.suppress)
+        isCycleSuppressed.value = true
 
-      // Calculate blink value using sine curve for smooth animation
-      const blinkValue = Math.sin(Math.PI * blinkProgress.value)
+      // Calculate blink value using sine curve for smooth animation.
+      // While an emote owns the eye area, the controller keeps advancing so a
+      // blink interrupted mid-cycle cannot leave the lid stuck closed.
+      // If the cycle started under suppression or was suppressed mid-blink,
+      // hold the morph at 0 until the cycle completes so releasing suppression
+      // cannot pop the eyelid into a partially closed pose.
+      const blinkValue = isCycleSuppressed.value ? 0 : Math.sin(Math.PI * blinkProgress.value)
 
       // Apply blink expression
       vrm.expressionManager.setValue('blink', blinkValue)
@@ -125,10 +136,15 @@ export function useBlink() {
       // Reset blink when animation is complete
       if (blinkProgress.value >= 1) {
         isBlinking.value = false
+        isCycleSuppressed.value = false
         timeSinceLastBlink.value = 0
         vrm.expressionManager.setValue('blink', 0) // Reset blink value to 0
         nextBlinkTime.value = Math.random() * (MAX_BLINK_INTERVAL - MIN_BLINK_INTERVAL) + MIN_BLINK_INTERVAL
       }
+    }
+    else if (options?.suppress) {
+      // Release the lid when an emote begins between blinks.
+      vrm.expressionManager.setValue('blink', 0)
     }
   }
 

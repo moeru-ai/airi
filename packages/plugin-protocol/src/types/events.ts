@@ -1,7 +1,26 @@
 import type { Eventa } from '@moeru/eventa'
+import type {
+  ExtensionIdentity,
+  ExtensionModuleIdentity,
+  Localizable,
+  ModulePermissionDeclaration,
+  ModulePermissionError,
+  ModulePermissionGrant,
+} from '@proj-airi/extension-protocol'
 import type { AssistantMessage, CommonContentPart, Message, ToolMessage, UserMessage } from '@xsai/shared-chat'
 
 import { defineEventa } from '@moeru/eventa'
+
+export type {
+  ExtensionIdentity,
+  ExtensionModuleIdentity,
+  Localizable,
+  ModulePermissionArea,
+  ModulePermissionDeclaration,
+  ModulePermissionError,
+  ModulePermissionGrant,
+  ModulePermissionSpec,
+} from '@proj-airi/extension-protocol'
 
 export interface DiscordGuildMember {
   nickname: string
@@ -51,49 +70,6 @@ export interface ModuleIdentity {
   /**
    * K8s-style labels for routing and policy selectors.
    * Example: { env: "prod", app: "telegram", devtools: "true" }.
-   */
-  labels?: Record<string, string>
-}
-
-/**
- * Identifies an extension package/session that is loaded by an extension host.
- *
- * Extension identity is the package/session-level scope. Modules registered by
- * the extension get their own {@link ExtensionModuleIdentity}.
- */
-export interface ExtensionIdentity {
-  /**
-   * Stable extension identifier from `extension.airi.json`.
-   */
-  id: string
-  /**
-   * Optional semantic version for the extension package.
-   */
-  version?: string
-  /**
-   * Optional runtime session id assigned by the host for this loaded extension.
-   */
-  sessionId?: string
-  /**
-   * Optional labels used for routing, inspection, and policy selectors.
-   */
-  labels?: Record<string, string>
-}
-
-/**
- * Identifies one runtime module registered by an extension setup function.
- */
-export interface ExtensionModuleIdentity {
-  /**
-   * Stable module id within one extension session.
-   */
-  id: string
-  /**
-   * Owning extension session identity.
-   */
-  extension: ExtensionIdentity
-  /**
-   * Optional labels used for routing, inspection, and policy selectors.
    */
   labels?: Record<string, string>
 }
@@ -223,24 +199,6 @@ export type ModulePhase
     | 'configured'
     | 'ready'
     | 'failed'
-
-export type Localizable
-  = | string
-    | {
-    /**
-     * Localization key owned by the module.
-     * Example: "config.deprecated.model_driver.legacy"
-     */
-      key: string
-      /**
-       * Fallback display string when translation is unavailable.
-       */
-      fallback?: string
-      /**
-       * Params for string interpolation.
-       */
-      params?: Record<string, string | number | boolean>
-    }
 
 export interface ModuleConfigNotice {
   /**
@@ -409,57 +367,6 @@ export interface ModuleCapability {
   metadata?: Record<string, unknown>
 }
 
-export type ModulePermissionArea = 'apis' | 'resources' | 'capabilities' | 'processors' | 'pipelines'
-
-export interface ModulePermissionSpec<
-  Area extends ModulePermissionArea = ModulePermissionArea,
-  Action extends string = string,
-> {
-  key: string
-  actions: Action[]
-  /**
-   * Human-facing explanation for consent/permission UI.
-   * Prefer i18n key form over raw strings for localization.
-   */
-  reason?: Localizable
-  /**
-   * Optional short display label for permission prompts.
-   * Prefer i18n key form over raw strings for localization.
-   */
-  label?: Localizable
-  required?: boolean
-  metadata?: Record<string, unknown>
-  area?: Area
-}
-
-export interface ModulePermissionDeclaration {
-  apis?: ModulePermissionSpec<'apis', 'invoke' | 'emit'>[]
-  resources?: ModulePermissionSpec<'resources', 'read' | 'write' | 'subscribe'>[]
-  capabilities?: ModulePermissionSpec<'capabilities', 'wait' | 'snapshot'>[]
-  processors?: ModulePermissionSpec<'processors', 'register' | 'execute' | 'manage'>[]
-  pipelines?: ModulePermissionSpec<'pipelines', 'hook' | 'process' | 'emit' | 'manage'>[]
-}
-
-export type ModulePermissionGrant = ModulePermissionDeclaration
-
-/**
- * Describes a single authorization failure produced by host-side permission checks.
- *
- * Protocol expectations:
- * - `area`, `action`, and `key` identify the denied operation
- * - `reason` is intended for user-facing or diagnostic context and may be localized
- * - `recoverable` indicates whether the caller may reasonably retry after obtaining consent,
- *   reconfiguration, or a state change
- * - plugins should not treat `reason` as a stable machine-readable code
- */
-export interface ModulePermissionError {
-  area: ModulePermissionArea
-  action: string
-  key: string
-  reason?: Localizable
-  recoverable?: boolean
-}
-
 export type DeliveryMode = 'broadcast' | 'consumer' | 'consumer-group'
 
 export type DeliverySelectionStrategy = 'first' | 'round-robin' | 'priority' | 'sticky'
@@ -533,12 +440,24 @@ interface InputSource {
   'discord': Discord
 }
 
+/** An image or recording of the user message of a chat turn. Read its bytes with `asset:get:request`. */
+export interface ChatEventAttachment {
+  type: 'image' | 'audio'
+  /** `airi-asset:<id>`. */
+  ref: string
+  mimeType?: string
+  /** Speech recognized in a recording, when the stage has it. */
+  transcript?: string
+}
+
 interface OutputSource {
   'gen-ai:chat': {
     message: UserMessage
-    contexts: Record<string, ContextUpdate<Record<string, any>, unknown>[]>
+    contexts: Record<string, ContextUpdate<Record<string, unknown>, unknown>[]>
     composedMessage: Array<Message>
     input?: InputEventEnvelope
+    /** Images and recordings of the user message of this turn. `message` holds only its text. */
+    attachments?: ChatEventAttachment[]
   }
 }
 
@@ -561,9 +480,8 @@ export type ContextUpdateDestinationFilter
     | ContextUpdateDestinationList
 
 export interface ContextUpdate<
-  Metadata extends Record<string, any> = Record<string, unknown>,
-  // eslint-disable-next-line ts/no-unnecessary-type-constraint
-  Content extends any = undefined,
+  Metadata extends Record<string, unknown> = Record<string, unknown>,
+  Content = undefined,
 > {
   id: string
   /**
@@ -583,6 +501,8 @@ export interface ContextUpdate<
 
 export interface InputMessageOverrides {
   sessionId?: string
+  /** Stable external scene identity. The host resolves it to a persistent persona session. */
+  binding?: string
   messagePrefix?: string
 }
 
@@ -1084,6 +1004,26 @@ type OutputGenAiChatCompleteEvent = {
   usage: OutputGenAiChatUsage
 } & Partial<WithInputSource<'stage-web' | 'stage-tamagotchi' | 'discord'>> & Partial<WithOutputSource<'gen-ai:chat'>>
 
+/**
+ * Chat messages hold `airi-asset:<id>` in place of image and audio bytes, for example in `output:gen-ai:chat:message`.
+ * A module reads the bytes with `asset:get:request`.
+ */
+export const ASSET_REF_PREFIX = 'airi-asset:'
+
+/** Asks the stage for the bytes of one asset reference. */
+export interface AssetGetRequestEvent {
+  /** The reference as it appears in a message, `airi-asset:<id>`. */
+  ref: string
+}
+
+/**
+ * The stage answer to `asset:get:request`. `metadata.event.parentId` is the event ID of the request.
+ * It carries either the bytes or an error.
+ */
+export type AssetGetResponseEvent
+  = | { ref: string, mimeType: string, /** Base64 bytes. */ data: string }
+    | { ref: string, error: string }
+
 interface SparkNotifyEvent {
   id: string
   eventId: string
@@ -1147,7 +1087,15 @@ interface SparkCommandEvent {
   ack?: string
   guidance?: SparkCommandGuidance
   contexts?: Array<ContextUpdate>
-  destinations: Array<string>
+  /**
+   * The peers that receive this command.
+   *
+   * An omitted list reaches every authenticated peer. An explicit empty list
+   * reaches no peer. The delivery loop reads the rule from `collectDestinations`
+   * in `@proj-airi/server-runtime`, which preserves an array-shaped `destinations`
+   * and returns `undefined` when the field is absent.
+   */
+  destinations?: Array<string>
 }
 
 interface TransportConnectionHeartbeatEvent {
@@ -1270,6 +1218,9 @@ export const inputVoice = defineProtocolEventa<WebSocketEventInputVoice>('input:
 export const outputGenAiChatToolCall = defineProtocolEventa<OutputGenAiChatToolCallEvent>('output:gen-ai:chat:tool-call')
 export const outputGenAiChatMessage = defineProtocolEventa<OutputGenAiChatMessageEvent>('output:gen-ai:chat:message')
 export const outputGenAiChatComplete = defineProtocolEventa<OutputGenAiChatCompleteEvent>('output:gen-ai:chat:complete')
+
+export const assetGetRequest = defineProtocolEventa<AssetGetRequestEvent>('asset:get:request')
+export const assetGetResponse = defineProtocolEventa<AssetGetResponseEvent>('asset:get:response')
 
 export const sparkNotify = defineProtocolEventa<SparkNotifyEvent>('spark:notify')
 export const sparkEmit = defineProtocolEventa<SparkEmitEvent>('spark:emit')
@@ -1457,6 +1408,24 @@ export interface ProtocolEvents<C = undefined> {
   'output:gen-ai:chat:tool-call': OutputGenAiChatToolCallEvent
   'output:gen-ai:chat:message': OutputGenAiChatMessageEvent
   'output:gen-ai:chat:complete': OutputGenAiChatCompleteEvent
+
+  /**
+   * Reads the bytes of an image or recording that a chat message references (module → stage).
+   *
+   * Use when:
+   * - A module needs the media of a chat message, which holds `airi-asset:<id>` in place of bytes
+   *
+   * Expectations:
+   * - The stage answers only a connection that announced a module. It reads the server-set `metadata.sender`, not `metadata.source`
+   * - The answer goes to the asking connection only, through the destination `peer:<peerId>`
+   * - Assets are at most 50 MB. A larger one answers with an error
+   * - A module that can ask can read any reference. References are SHA-256 IDs of the bytes and appear only in chat events
+   */
+  'asset:get:request': AssetGetRequestEvent
+  /**
+   * The stage answer to `asset:get:request` (stage → module). `metadata.event.parentId` names the request.
+   */
+  'asset:get:response': AssetGetResponseEvent
 
   /**
    * Spark used for allowing agents in a network to raise an event toward the other destinations (e.g. character).

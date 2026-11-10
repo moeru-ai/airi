@@ -1,15 +1,24 @@
 import type { Cubism4InternalModel, InternalModel } from 'pixi-live2d-display/cubism4'
 import type { Ref } from 'vue'
 
+import type { Live2DExpressionsContext } from '../../contexts/expressions'
+import type { Live2DBreathControlState, Live2DMotionControlState } from '../../stores/motion-control'
 import type { BeatSyncController } from './beat-sync'
-import type { useExpressionController } from './expression-controller'
+import type { Live2DFocusBiasController, Live2DFocusTarget } from './focus-bias'
+import type { Live2DMotionSpringController } from './motion-control-spring'
+import type { Live2DTouchReactionOffsets } from './touch'
 
+import { sampleLive2DBreath } from '../../stores/motion-control'
 import { useLive2DIdleEyeFocus } from './animation'
+import { live2DPoseAngleDegrees } from './focus-bias'
 
 type CubismModel = Cubism4InternalModel['coreModel']
 type CubismEyeBlink = Cubism4InternalModel['eyeBlink']
 
+/** The Pixi internal-model surface that AIRI motion plugins consume. */
 export type PixiLive2DInternalModel = InternalModel & {
+  /** Cubism's breath controller, which AIRI removes before it applies its own curve. */
+  breath?: unknown
   eyeBlink?: CubismEyeBlink
   coreModel: CubismModel
 }
@@ -40,6 +49,8 @@ export type MotionManagerPluginContext = MotionManagerUpdateContext & {
 
 export type MotionManagerPlugin = (ctx: MotionManagerPluginContext) => void
 
+const clamp01 = (value: number) => Math.min(1, Math.max(0, value))
+
 export interface UseLive2DMotionManagerUpdateOptions {
   internalModel: PixiLive2DInternalModel
   motionManager: PixiLive2DInternalModel['motionManager']
@@ -51,6 +62,41 @@ export interface UseLive2DMotionManagerUpdateOptions {
   live2dAutoBlinkEnabled: Ref<boolean>
   live2dForceAutoBlinkEnabled: Ref<boolean>
   lastUpdateTime: Ref<number>
+}
+
+/**
+ * Disables the periodic breath pass that the Cubism runtime applies after AIRI's motion plugins.
+ */
+export function disableLive2DSdkBreath(internalModel: { breath?: unknown }) {
+  delete internalModel.breath
+}
+
+/**
+ * Applies AIRI's manual breath curve after normal motion updates.
+ *
+ * A release restores the configured static breath value once. Normal model
+ * motion can own the parameter again on later frames.
+ */
+export function useMotionUpdatePluginBreathControl(
+  control: Ref<Live2DBreathControlState>,
+  nowMs: () => number = Date.now,
+): MotionManagerPlugin {
+  let activeOwnerId: string | null = null
+
+  return (ctx) => {
+    const state = control.value
+    if (!state.active) {
+      if (activeOwnerId !== null)
+        ctx.model.setParameterValueById('ParamBreath', ctx.modelParameters.value.breath)
+      activeOwnerId = null
+      return
+    }
+
+    activeOwnerId = state.ownerId
+    const elapsedSeconds = Math.max(0, nowMs() - state.startedAtMs) / 1000
+    const sample = sampleLive2DBreath(state.options, elapsedSeconds)
+    ctx.model.setParameterValueById('ParamBreath', sample.value)
+  }
 }
 
 export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpdateOptions) {
@@ -143,70 +189,92 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
 
 // -- Plugins ---------------------------------------------------------------
 
-export function useMotionUpdatePluginBeatSync(beatSync: BeatSyncController): MotionManagerPlugin {
-  return (ctx) => {
-    beatSync.updateTargets(ctx.now)
+// Semi-implicit Euler spring of the Beat Sync head motion.
+const beatSyncStiffness = 120 // Higher -> Snappier
+const beatSyncDamping = 16 // Higher -> Less bounce
+const beatSyncMass = 1
+// Explicit damping diverges at long frames (a 0.1 s frame overshoots more on each step),
+// so bound the frame and integrate in short steps, as `createLive2DMotionSpring` does.
+const beatSyncMaximumFrameSeconds = 0.05
+const beatSyncMaximumStepSeconds = 1 / 120
 
-    // Semi-implicit Euler approach
-    const stiffness = 120 // Higher -> Snappier
-    const damping = 16 // Higher -> Less bounce
-    const mass = 1
+/** Moves `position` one frame toward `target`, and returns the new position. */
+function stepBeatSyncSpring(position: number, target: number, velocity: { value: number }, timeDelta: number) {
+  const frameSeconds = Math.min(Math.max(timeDelta, 0), beatSyncMaximumFrameSeconds)
+  const stepCount = Math.max(1, Math.ceil(frameSeconds / beatSyncMaximumStepSeconds))
+  const stepSeconds = frameSeconds / stepCount
 
-    let paramAngleX = ctx.model.getParameterValueById('ParamAngleX') as number
-    let paramAngleY = ctx.model.getParameterValueById('ParamAngleY') as number
-    let paramAngleZ = ctx.model.getParameterValueById('ParamAngleZ') as number
+  let next = position
+  for (let step = 0; step < stepCount; step += 1) {
+    const accel = (beatSyncStiffness * (target - next) - beatSyncDamping * velocity.value) / beatSyncMass
+    velocity.value = velocity.value + accel * stepSeconds
+    next = next + velocity.value * stepSeconds
+  }
 
-    // X
-    {
-      const target = beatSync.targetX.value
-      const pos = paramAngleX
-      const vel = beatSync.velocityX.value
-      const accel = (stiffness * (target - pos) - damping * vel) / mass
-      beatSync.velocityX.value = vel + accel * ctx.timeDelta
-      paramAngleX = pos + beatSync.velocityX.value * ctx.timeDelta
+  // Snap
+  if (Math.abs(target - next) < 0.01 && Math.abs(velocity.value) < 0.01) {
+    velocity.value = 0
+    return target
+  }
 
-      if (Math.abs(target - paramAngleX) < 0.01 && Math.abs(beatSync.velocityX.value) < 0.01) {
-        paramAngleX = target
-        beatSync.velocityX.value = 0
-      }
+  return next
+}
+
+/**
+ * Creates the two Beat Sync plugins. They decide once per frame who moves the head.
+ *
+ * - `pre` runs in the pre phase. Without a manual pose, it springs the head angles toward the Beat Sync targets.
+ * - `layer` runs in the final phase after the manual-control plugin. With a manual pose, for example from the
+ *   MAGIC driver, it springs the beat offset from the base angles and adds it, because the pose writes absolute
+ *   head angles and hides anything that the pre phase wrote.
+ *
+ * Only `pre` advances the springs, once per frame. It springs the beat offset on every frame, whoever owns the head.
+ * The manual-control plugin can start or end a pose between the two plugins. `layer` adds the offset when the pose
+ * wrote the head in this frame, or when `pre` left the head to a pose at the start of it.
+ */
+export function useMotionUpdatePluginsBeatSync(beatSync: BeatSyncController, isLayered: () => boolean): { pre: MotionManagerPlugin, layer: MotionManagerPlugin } {
+  let layered = false
+  const offset = { y: 0, z: 0 }
+  const offsetVelocity = { y: { value: 0 }, z: { value: 0 } }
+
+  const pre: MotionManagerPlugin = (ctx) => {
+    layered = isLayered()
+
+    // `ctx.now` is in seconds. The controller schedules beats on its own clock in milliseconds.
+    beatSync.updateTargets()
+
+    const targetOffset = beatSync.targetOffsets()
+    offset.y = stepBeatSyncSpring(offset.y, targetOffset.y, offsetVelocity.y, ctx.timeDelta)
+    offset.z = stepBeatSyncSpring(offset.z, targetOffset.z, offsetVelocity.z, ctx.timeDelta)
+
+    if (layered) {
+      // Keep the absolute spring moving with the beat, so the head does not kick when the pose ends.
+      beatSync.velocityX.value = 0
+      beatSync.velocityY.value = offsetVelocity.y.value
+      beatSync.velocityZ.value = offsetVelocity.z.value
+      return
     }
 
-    // Y
-    {
-      const target = beatSync.targetY.value
-      const pos = paramAngleY
-      const vel = beatSync.velocityY.value
-      const accel = (stiffness * (target - pos) - damping * vel) / mass
-      beatSync.velocityY.value = vel + accel * ctx.timeDelta
-      paramAngleY = pos + beatSync.velocityY.value * ctx.timeDelta
-
-      // Snap
-      if (Math.abs(target - paramAngleY) < 0.01 && Math.abs(beatSync.velocityY.value) < 0.01) {
-        paramAngleY = target
-        beatSync.velocityY.value = 0
-      }
-    }
-
-    // Z
-    {
-      const target = beatSync.targetZ.value
-      const pos = paramAngleZ
-      const vel = beatSync.velocityZ.value
-      const accel = (stiffness * (target - pos) - damping * vel) / mass
-      beatSync.velocityZ.value = vel + accel * ctx.timeDelta
-      paramAngleZ = pos + beatSync.velocityZ.value * ctx.timeDelta
-
-      // Snap
-      if (Math.abs(target - paramAngleZ) < 0.01 && Math.abs(beatSync.velocityZ.value) < 0.01) {
-        paramAngleZ = target
-        beatSync.velocityZ.value = 0
-      }
-    }
+    const paramAngleX = stepBeatSyncSpring(ctx.model.getParameterValueById('ParamAngleX') as number, beatSync.targetX.value, beatSync.velocityX, ctx.timeDelta)
+    const paramAngleY = stepBeatSyncSpring(ctx.model.getParameterValueById('ParamAngleY') as number, beatSync.targetY.value, beatSync.velocityY, ctx.timeDelta)
+    const paramAngleZ = stepBeatSyncSpring(ctx.model.getParameterValueById('ParamAngleZ') as number, beatSync.targetZ.value, beatSync.velocityZ, ctx.timeDelta)
 
     ctx.model.setParameterValueById('ParamAngleX', paramAngleX)
     ctx.model.setParameterValueById('ParamAngleY', paramAngleY)
     ctx.model.setParameterValueById('ParamAngleZ', paramAngleZ)
   }
+
+  const layer: MotionManagerPlugin = (ctx) => {
+    if (!layered && !isLayered())
+      return
+
+    if (offset.y)
+      ctx.model.addParameterValueById('ParamAngleY', offset.y)
+    if (offset.z)
+      ctx.model.addParameterValueById('ParamAngleZ', offset.z)
+  }
+
+  return { pre, layer }
 }
 
 export function useMotionUpdatePluginIdleDisable(idleEyeFocus = useLive2DIdleEyeFocus()): MotionManagerPlugin {
@@ -269,7 +337,6 @@ export function useMotionUpdatePluginAutoEyeBlink(
   const minDelay = 3000
   const maxDelay = 8000
 
-  const clamp01 = (value: number) => Math.min(1, Math.max(0, value))
   const randomBlinkOpenDuration = () => minBlinkOpenDuration + Math.random() * (maxBlinkOpenDuration - minBlinkOpenDuration)
 
   function resetBlinkState() {
@@ -335,7 +402,7 @@ export function useMotionUpdatePluginAutoEyeBlink(
     // logic from main so that hookUpdate returns the same handled state and
     // the SDK eyeBlink/motion pipeline is not disrupted.
     if (!live2dExpressionEnabled?.value) {
-      if (!ctx.isIdleMotion || ctx.handled)
+      if (!ctx.isIdleMotion || (ctx.handled && !ctx.live2dForceAutoBlinkEnabled.value))
         return
 
       const baseLeft = clamp01(ctx.modelParameters.value.leftEyeOpen)
@@ -439,6 +506,210 @@ export function useMotionUpdatePluginAutoEyeBlink(
   }
 }
 
+/** Window placement, as one comparable string. Empty where there is no window. */
+function windowPlacement() {
+  if (typeof window === 'undefined')
+    return ''
+  return `${window.screenX},${window.screenY},${window.outerWidth},${window.outerHeight}`
+}
+
+/**
+ * Narrows the eyes while the screen brightens faster than the model has adapted
+ * to it.
+ *
+ * The signal is the gap between a fast and a slow follower of the measured
+ * screen level, never the level itself. A desktop that simply stays bright
+ * leaves both followers together and the eyes fully open, while a switch from a
+ * dark window to a bright one opens a gap that closes again over a few seconds.
+ * Driving this from the level instead would hold the eyes half shut for as long
+ * as a bright application sits in front, which is the ordinary case rather than
+ * a rare one.
+ *
+ * Register at `final` after the blink plugin. This one only multiplies, so a
+ * blink still closes the eyes completely and the squint lowers the value the
+ * blink returns to. The floor keeps the eyes clear of the blink plugin's
+ * `BLINK_THRESHOLD`, below which it stops blinking altogether.
+ *
+ * @param exposure - Perceptual level of the light near the character for this
+ * frame, from 0 to 1. A screen-wide mean would let a bright window far from
+ * the character reach its eyes.
+ * @param amount - How much of the gap reaches the eyes. 0 disables the effect.
+ */
+export function useMotionUpdatePluginLightSquint(
+  exposure: () => number,
+  amount: () => number,
+  placement: () => string = windowPlacement,
+): MotionManagerPlugin {
+  /**
+   * Follower time constants, in seconds.
+   *
+   * `fast` is the light arriving now. `slow` is what the eye has adapted to,
+   * and it moves at two different speeds because the eye does: getting used to
+   * brighter surroundings takes seconds, while getting used to darker ones runs
+   * for minutes. So a bright spell followed by a short dark one leaves the eye
+   * still light-adapted, and the next brightening barely registers.
+   *
+   * The dark figure is compressed from the five to ten minutes a real cone
+   * phase takes. A character that stayed unreactive that long would read as
+   * broken, and ninety seconds already makes a few seconds of dark count for
+   * almost nothing, which is the case this models.
+   */
+  const fastSeconds = 0.15
+  const adaptToLightSeconds = 4
+  const adaptToDarkSeconds = 90
+  /**
+   * Lifts small gaps. A light change reads by its ratio rather than its
+   * difference, so an everyday window switch has to count for more than its
+   * size or it never becomes visible.
+   */
+  const gapExponent = 0.6
+  /**
+   * The lowest value the eyes may reach. The blink plugin stops blinking once
+   * both eyes sit at or below 0.15, so the squint has to stop above it.
+   */
+  const minimumEyeOpen = 0.2
+  /**
+   * Recovery speeds, in squint per second.
+   *
+   * The eyes open at a steady rate and then clear the last of it quickly. The
+   * follower gap decays exponentially, and releasing on that curve instead left
+   * the eyes a few percent short of open for the better part of ten seconds,
+   * which reads as never quite recovering. The release ignores the gap for that
+   * reason and runs on its own schedule, so it always arrives.
+   */
+  const releasePerSecond = 0.25
+  const quickFinishBelow = 0.12
+  const quickFinishPerSecond = 1.2
+
+  /**
+   * How long the eyes stay out of it after the window last moved, in seconds.
+   * Long enough for both followers to take in the newly uncovered desktop.
+   */
+  const settleSeconds = 0.4
+
+  let fast: number | undefined
+  let slow: number | undefined
+  /** Read on the first active frame, so an idle frame does not build the string. */
+  let lastPlacement: string | undefined
+  let settleRemaining = 0
+  /** Current squint depth, from 0 to 1. The gap drives it up; the release brings it back. */
+  let squintLevel = 0
+  let lastProposed = 0
+  const lastApplied = new Map<string, { base: number, written: number }>()
+
+  /**
+   * Hands the eyes back to whatever wrote them before this plugin did.
+   *
+   * Every other plugin rewrites these parameters each frame, but a model whose
+   * motion carries no eye curves would otherwise keep the last narrowed value.
+   * A value the plugin no longer recognizes was written by someone else since,
+   * and is left alone.
+   */
+  function releaseEyes(ctx: MotionManagerPluginContext) {
+    for (const [id, applied] of lastApplied) {
+      if (ctx.model.getParameterValueById(id) === applied.written)
+        ctx.model.setParameterValueById(id, applied.base)
+    }
+    lastApplied.clear()
+  }
+
+  return (ctx) => {
+    const level = clamp01(exposure())
+    const strength = Math.max(0, amount())
+    // Hold both followers on the level while the effect is off, so that turning
+    // it on does not read the whole standing difference as one sudden change.
+    // A squint under way when the amount drops is handed back at once.
+    if (fast === undefined || slow === undefined || strength === 0) {
+      fast = level
+      slow = level
+      squintLevel = 0
+      lastProposed = 0
+      lastPlacement = undefined
+      settleRemaining = 0
+      releaseEyes(ctx)
+      return
+    }
+
+    // The first active frame takes the placement as it is, so that the move
+    // check below cannot read the whole idle period as one move.
+    if (lastPlacement === undefined)
+      lastPlacement = placement()
+
+    // A backgrounded window delivers one huge step on return. Capping it keeps
+    // that step from reading as a light change the character reacts to.
+    const dt = Math.min(Math.max(ctx.timeDelta, 0), 0.1)
+
+    // Moving the window swaps the desktop behind it, and the measurement reports
+    // that as a light change. The eyes answer to the light, not to the
+    // character being carried across it, so a move pins both followers to the
+    // level until the new surroundings have settled in.
+    const currentPlacement = placement()
+    if (currentPlacement !== lastPlacement) {
+      lastPlacement = currentPlacement
+      settleRemaining = settleSeconds
+    }
+    const settling = settleRemaining > 0
+    if (settling) {
+      settleRemaining -= dt
+      fast = level
+      slow = level
+    }
+    else {
+      fast += (level - fast) * (1 - Math.exp(-dt / fastSeconds))
+      const adaptSeconds = level > slow ? adaptToLightSeconds : adaptToDarkSeconds
+      slow += (level - slow) * (1 - Math.exp(-dt / adaptSeconds))
+    }
+
+    // A squint already under way still opens on its own schedule while settling.
+    const proposed = settling ? 0 : clamp01(Math.max(0, fast - slow) ** gapExponent * strength)
+    // Only a gap that is still opening deepens the squint. A gap that has
+    // peaked stays above the released level for seconds while it decays, so
+    // comparing against the level instead would keep pulling the eyes back shut
+    // and the release would never run.
+    const brightening = proposed > lastProposed
+    lastProposed = proposed
+    if (brightening && proposed > squintLevel) {
+      squintLevel = proposed
+    }
+    else {
+      const speed = squintLevel < quickFinishBelow ? quickFinishPerSecond : releasePerSecond
+      squintLevel = Math.max(0, squintLevel - speed * dt)
+    }
+
+    const squint = squintLevel
+    if (squint === 0) {
+      releaseEyes(ctx)
+      return
+    }
+
+    const openness = 1 - squint
+    for (const id of ['ParamEyeLOpen', 'ParamEyeROpen'] as const) {
+      const base = baseFor(id, ctx)
+      // The floor applies to the value that reaches the model rather than to
+      // the multiplier, so that eyes an expression already narrowed past it are
+      // left alone instead of being widened back up to it.
+      const written = Math.max(Math.min(base, minimumEyeOpen), clamp01(base * openness))
+      ctx.model.setParameterValueById(id, written)
+      lastApplied.set(id, { base, written })
+    }
+  }
+
+  /**
+   * The value to narrow, which is whatever the motion, blink and expression
+   * plugins left on the parameter this frame.
+   *
+   * On a frame where none of them wrote, the parameter still holds this
+   * plugin's own output from the previous frame. Narrowing that again would
+   * compound every frame until the eyes shut, so a value this plugin recognizes
+   * as its own resolves back to the base it came from.
+   */
+  function baseFor(id: 'ParamEyeLOpen' | 'ParamEyeROpen', ctx: MotionManagerPluginContext) {
+    const current = ctx.model.getParameterValueById(id) as number
+    const applied = lastApplied.get(id)
+    return applied && current === applied.written ? applied.base : current
+  }
+}
+
 /**
  * Post-plugin that applies expression parameter overrides from the expression
  * store onto the Live2D model every frame.
@@ -448,11 +719,58 @@ export function useMotionUpdatePluginAutoEyeBlink(
  * It also does NOT call `ctx.markHandled()` so it never blocks other plugins.
  */
 export function useMotionUpdatePluginExpression(
-  controller: ReturnType<typeof useExpressionController>,
+  expressions: Pick<Live2DExpressionsContext, 'apply'>,
 ): MotionManagerPlugin {
   return (ctx) => {
     // Always apply regardless of handled state – expressions layer on top.
-    controller.applyExpressions(ctx.model)
+    expressions.apply(ctx.model)
+  }
+}
+
+/** A focus bias that turns the manual pose toward a target before the spring. */
+export interface Live2DManualControlFocusBias {
+  controller: Live2DFocusBiasController
+  /** The current target, or undefined when nothing holds the focus. */
+  target: () => Live2DFocusTarget | undefined
+}
+
+/**
+ * Applies the active manual pose after normal Live2D motion updates.
+ *
+ * The normalized joystick range maps to each standard parameter range. Models
+ * that omit one of these parameters ignore that write through the Cubism API.
+ */
+export function useMotionUpdatePluginManualControl(
+  control: Ref<Live2DMotionControlState>,
+  spring: Live2DMotionSpringController,
+  focusBias?: Live2DManualControlFocusBias,
+): MotionManagerPlugin {
+  return (ctx) => {
+    let state = control.value
+    if (focusBias) {
+      focusBias.controller.step(state.active ? focusBias.target() : undefined, ctx.timeDelta)
+      if (state.active)
+        state = { ...state, pose: focusBias.controller.apply(state.pose) }
+    }
+
+    const output = spring.step(state, ctx.timeDelta)
+    if (!output.active)
+      return
+
+    const { eyeX, eyeY, eyeSquint, headX, headY, headZ, bodyX, bodyY, bodyZ, mouthForm, mouthOpen } = output.pose
+    ctx.model.setParameterValueById('ParamEyeBallX', eyeX)
+    ctx.model.setParameterValueById('ParamEyeBallY', eyeY)
+    const remainingEyeOpen = 1 - eyeSquint
+    ctx.model.setParameterValueById('ParamEyeLOpen', ctx.model.getParameterValueById('ParamEyeLOpen') * remainingEyeOpen)
+    ctx.model.setParameterValueById('ParamEyeROpen', ctx.model.getParameterValueById('ParamEyeROpen') * remainingEyeOpen)
+    ctx.model.setParameterValueById('ParamAngleX', headX * live2DPoseAngleDegrees.head)
+    ctx.model.setParameterValueById('ParamAngleY', headY * live2DPoseAngleDegrees.head)
+    ctx.model.setParameterValueById('ParamAngleZ', headZ * live2DPoseAngleDegrees.head)
+    ctx.model.setParameterValueById('ParamBodyAngleX', bodyX * live2DPoseAngleDegrees.body)
+    ctx.model.setParameterValueById('ParamBodyAngleY', bodyY * live2DPoseAngleDegrees.body)
+    ctx.model.setParameterValueById('ParamBodyAngleZ', bodyZ * live2DPoseAngleDegrees.body)
+    ctx.model.setParameterValueById('ParamMouthForm', mouthForm)
+    ctx.model.setParameterValueById('ParamMouthOpenY', mouthOpen)
   }
 }
 
@@ -518,5 +836,34 @@ export function useMotionUpdatePluginLipSync(
     const blended = lastForcedValue * (1 - blend) + motionValue * blend
 
     ctx.model.setParameterValueById('ParamMouthOpenY', blended)
+  }
+}
+
+/**
+ * Final-phase plugin that adds the touch reaction on top of all other motion.
+ *
+ * It adds to the parameters instead of writing them, so a pat tilts the head
+ * of an idle motion, a MAGIC pose, and a manual pose the same way.
+ */
+export function useMotionUpdatePluginTouchReaction(
+  sample: (nowSeconds: number) => Live2DTouchReactionOffsets,
+): MotionManagerPlugin {
+  return (ctx) => {
+    const offsets = sample(ctx.now)
+    if (offsets.angleX)
+      ctx.model.addParameterValueById('ParamAngleX', offsets.angleX)
+    if (offsets.angleY)
+      ctx.model.addParameterValueById('ParamAngleY', offsets.angleY)
+    if (offsets.angleZ)
+      ctx.model.addParameterValueById('ParamAngleZ', offsets.angleZ)
+    if (offsets.bodyAngleX)
+      ctx.model.addParameterValueById('ParamBodyAngleX', offsets.bodyAngleX)
+    if (offsets.bodyAngleY)
+      ctx.model.addParameterValueById('ParamBodyAngleY', offsets.bodyAngleY)
+    if (offsets.eyeSquint) {
+      const remaining = 1 - offsets.eyeSquint
+      ctx.model.setParameterValueById('ParamEyeLOpen', ctx.model.getParameterValueById('ParamEyeLOpen') * remaining)
+      ctx.model.setParameterValueById('ParamEyeROpen', ctx.model.getParameterValueById('ParamEyeROpen') * remaining)
+    }
   }
 }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Button } from '@proj-airi/ui'
+import { Alert, Button } from '@proj-airi/ui'
 import { useWebHaptics } from 'web-haptics/vue'
 
 const presetButtons = [
@@ -40,17 +40,9 @@ const { trigger, isSupported } = useWebHaptics({
 
 <template>
   <div :class="['min-h-full flex flex-col gap-4 pb-12']">
-    <div
-      :class="[
-        'inline-flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-500 w-fit',
-        isSupported
-          ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/40 dark:text-emerald-200'
-          : 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/70 dark:bg-amber-950/40 dark:text-amber-200',
-      ]"
-    >
-      <span :class="[isSupported ? 'i-solar:check-circle-bold-duotone' : 'i-solar:danger-circle-bold-duotone']" />
-      <span>isSupported: {{ isSupported ? 'true' : 'false' }}</span>
-    </div>
+    <Alert :tone="isSupported ? 'success' : 'warning'">
+      isSupported: {{ isSupported ? 'true' : 'false' }}
+    </Alert>
 
     <div :class="['flex flex-row gap-3']">
       <div

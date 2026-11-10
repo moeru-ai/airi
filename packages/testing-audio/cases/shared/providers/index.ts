@@ -1,4 +1,8 @@
 export { aliyunNlsAsr } from './aliyun-nls'
 export type { AliyunNlsAsrOptions } from './aliyun-nls'
+export { appleSpeechAsr } from './apple-speech'
+export type { AppleSpeechAsrOptions } from './apple-speech'
 export { openaiAsr, openaiLlm, openaiTts } from './openai'
 export type { OpenAIProviderOptions, OpenAISpeechProviderOptions } from './openai'
+export { startScriptedLlm } from './scripted-llm'
+export type { ScriptedLlm, ScriptedLlmOptions } from './scripted-llm'

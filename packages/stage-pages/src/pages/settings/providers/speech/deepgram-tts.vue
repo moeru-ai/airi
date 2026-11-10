@@ -8,8 +8,10 @@ import {
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
+import { watchDebounced } from '@vueuse/core'
+import { cloneDeep } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
-import { computed, watch } from 'vue'
+import { computed } from 'vue'
 
 const providerId = 'deepgram-tts'
 const defaultModel = 'aura-2-thalia-en'
@@ -49,16 +51,23 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
   )
 }
 
-watch(providers, async () => {
+async function loadVoicesWhenConfigured() {
   const providerConfig = providerStore.getProviderConfig(providerId)
-  if ((await providersStore.validateProviderConfig(providerId, providerConfig)).valid) {
+  // Clone nested reactive values before the synchronized action sends its arguments.
+  const configSnapshot = cloneDeep(providerConfig)
+  if ((await providersStore.validateProviderConfig(providerId, configSnapshot)).valid) {
     await speechStore.loadVoicesForProvider(providerId)
   }
   else {
     console.error('Failed to validate provider config', providerConfig)
   }
-}, {
-  immediate: true,
+}
+
+watchDebounced([
+  () => providers.value[providerId]?.apiKey,
+  () => providers.value[providerId]?.baseUrl,
+], loadVoicesWhenConfigured, {
+  debounce: 500,
 })
 </script>
 

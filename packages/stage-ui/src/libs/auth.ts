@@ -1,11 +1,42 @@
 import type { OIDCFlowParams, TokenResponse } from './auth-oidc'
 
+import { readonly, shallowRef } from 'vue'
+
 import { useAuthStore } from '../stores/auth'
 import { authClient } from './auth-client'
 import { OIDC_CLIENT_ID, OIDC_REDIRECT_URI } from './auth-config'
-import { buildAuthorizationURL, persistFlowState } from './auth-oidc'
+import { buildAuthorizationURL, consumeFlowState, exchangeCodeForTokens, persistFlowState } from './auth-oidc'
 
 export type OAuthProvider = 'google' | 'github' | 'steam'
+
+/** An authorization request prepared by the shared OIDC flow. */
+export interface AuthorizationRequest {
+  /** URL of the hosted authorization endpoint. */
+  authorizationUrl: string
+  /** Social provider that should start immediately. @default undefined */
+  provider?: OAuthProvider
+}
+
+/** Result returned by a platform authorization handler. */
+export interface AuthorizationResult {
+  /** Callback URL returned directly by the platform, when available. @default undefined */
+  callbackUrl?: string
+}
+
+/** Starts authorization through the active app runtime. */
+export type AuthorizationHandler = (request: AuthorizationRequest) => Promise<AuthorizationResult | void>
+
+let authorizationHandler: AuthorizationHandler | undefined
+
+const signingIn = shallowRef(false)
+
+/** True from the start of `triggerSignIn` until it settles. It is local to this renderer. */
+export const isSigningIn = readonly(signingIn)
+
+/** Registers the authorization handler owned by the active app runtime. */
+export function registerAuthorizationHandler(handler: AuthorizationHandler): void {
+  authorizationHandler = handler
+}
 
 /** Returns the access token from the active auth store. */
 export function getAuthToken(): string | null {
@@ -43,30 +74,72 @@ export async function signOut() {
   await useAuthStore().signOut()
 }
 
-/**
- * Initiate OIDC Authorization Code + PKCE sign-in flow.
- * Builds the authorization URL, persists PKCE state, and navigates.
- */
-export async function signInOIDC(params: OIDCFlowParams) {
-  const { provider, ...oidcParams } = params
-  const { url, flowState } = await buildAuthorizationURL(oidcParams)
-  persistFlowState(flowState, params)
-
+/** Starts authorization with the browser flow used by web renderers. */
+export const browserAuthorizationHandler: AuthorizationHandler = async ({ authorizationUrl, provider }) => {
   if (!provider) {
-    window.location.href = url
+    window.location.href = authorizationUrl
+    // Assigning `href` returns before the browser leaves the page. Stay pending
+    // until the page hides so `isSigningIn` covers the wait for the login page.
+    await new Promise<void>(resolve => window.addEventListener('pagehide', () => resolve(), { once: true }))
     return
   }
 
   if (provider === 'steam') {
     // Steam is OpenID 2.0; only the Steam plugin endpoint can start it.
-    await authClient.signIn.steam({ callbackURL: url.toString() })
+    await authClient.signIn.steam({ callbackURL: authorizationUrl })
     return
   }
 
   await authClient.signIn.social({
     provider,
-    callbackURL: url.toString(),
+    callbackURL: authorizationUrl,
   })
+}
+
+/**
+ * Completes an OIDC sign-in from a platform callback URL.
+ *
+ * The function returns false when the URL is not an OIDC callback.
+ */
+export async function completeOIDCSignIn(callbackUrl: string): Promise<boolean> {
+  const url = new URL(callbackUrl)
+  const code = url.searchParams.get('code')
+  const state = url.searchParams.get('state')
+  if (!code || !state)
+    return false
+
+  const persisted = consumeFlowState()
+  if (!persisted)
+    throw new Error('OIDC flow status has expired or is no longer valid.')
+
+  const tokens = await exchangeCodeForTokens(code, persisted.flowState, persisted.params, state)
+  await applyOIDCTokens(tokens, persisted.params.clientId)
+  return true
+}
+
+/**
+ * Initiate OIDC Authorization Code + PKCE sign-in flow.
+ * Builds the authorization URL, persists PKCE state, and navigates.
+ */
+export async function signInOIDC(params: OIDCFlowParams) {
+  const handler = authorizationHandler
+  if (!handler)
+    throw new Error('No authorization handler is registered for this app runtime.')
+
+  const { provider, ...oidcParams } = params
+  const { url, flowState } = await buildAuthorizationURL(oidcParams)
+  const authorizationUrl = new URL(url)
+  // Provider handoffs already authenticate. A plain login must not reuse the Auth cookie silently.
+  if (!provider)
+    authorizationUrl.searchParams.set('prompt', 'login')
+  persistFlowState(flowState, params)
+
+  const result = await handler({
+    authorizationUrl: authorizationUrl.toString(),
+    provider,
+  })
+  if (result?.callbackUrl)
+    await completeOIDCSignIn(result.callbackUrl)
 }
 
 /**
@@ -90,9 +163,15 @@ export async function signInOIDC(params: OIDCFlowParams) {
  * (ui-server-auth) where the user can choose email/password or social.
  */
 export async function triggerSignIn(opts?: { provider?: OAuthProvider }): Promise<void> {
-  await signInOIDC({
-    clientId: OIDC_CLIENT_ID,
-    redirectUri: OIDC_REDIRECT_URI,
-    ...opts,
-  })
+  signingIn.value = true
+  try {
+    await signInOIDC({
+      clientId: OIDC_CLIENT_ID,
+      redirectUri: OIDC_REDIRECT_URI,
+      ...opts,
+    })
+  }
+  finally {
+    signingIn.value = false
+  }
 }

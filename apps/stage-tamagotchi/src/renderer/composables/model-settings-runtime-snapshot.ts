@@ -2,26 +2,30 @@ import type {
   ModelSettingsRuntimeSnapshot,
 } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
 
-import type { ModelSettingsRuntimeChannelEvent } from '../../shared/model-settings-runtime'
+import type { ModelSettingsRuntimeContext } from '../../shared/model-settings-runtime'
 
 import {
   createEmptyModelSettingsRuntimeSnapshot,
 } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
-import { useBroadcastChannel } from '@vueuse/core'
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 
 import {
-  modelSettingsRuntimeSnapshotChannelName,
+  getModelSettingsRuntimeContext,
+  modelSettingsRuntimeOwnerGone,
+  modelSettingsRuntimeSnapshotChanged,
+  modelSettingsRuntimeSnapshotRequested,
 } from '../../shared/model-settings-runtime'
 
-export function useModelSettingsRuntimeSnapshot() {
+interface UseModelSettingsRuntimeSnapshotOptions {
+  context?: ModelSettingsRuntimeContext
+}
+
+export function useModelSettingsRuntimeSnapshot(options: UseModelSettingsRuntimeSnapshotOptions = {}) {
   const runtimeSnapshot = ref<ModelSettingsRuntimeSnapshot>(createEmptyModelSettingsRuntimeSnapshot())
-  const { data, post } = useBroadcastChannel<ModelSettingsRuntimeChannelEvent, ModelSettingsRuntimeChannelEvent>({
-    name: modelSettingsRuntimeSnapshotChannelName,
-  })
+  const context = options.context ?? getModelSettingsRuntimeContext()
 
   const requestCurrent = () => {
-    post({ type: 'request-current' })
+    void context.emit(modelSettingsRuntimeSnapshotRequested, undefined)
   }
 
   const syncFromOwner = () => {
@@ -32,6 +36,17 @@ export function useModelSettingsRuntimeSnapshot() {
       requestCurrent()
   }
 
+  const stopSnapshots = context.on(modelSettingsRuntimeSnapshotChanged, (event) => {
+    if (event.body)
+      runtimeSnapshot.value = event.body
+  })
+  const stopOwnerGone = context.on(modelSettingsRuntimeOwnerGone, (event) => {
+    if (!event.body || runtimeSnapshot.value.ownerInstanceId !== event.body.ownerInstanceId)
+      return
+
+    runtimeSnapshot.value = createEmptyModelSettingsRuntimeSnapshot()
+  })
+
   onMounted(() => {
     requestCurrent()
     window.addEventListener('focus', syncFromOwner)
@@ -41,23 +56,8 @@ export function useModelSettingsRuntimeSnapshot() {
   onUnmounted(() => {
     window.removeEventListener('focus', syncFromOwner)
     document.removeEventListener('visibilitychange', syncFromOwnerWhenVisible)
-  })
-
-  watch(data, (event) => {
-    if (!event)
-      return
-
-    if (event.type === 'snapshot') {
-      runtimeSnapshot.value = event.snapshot
-      return
-    }
-
-    if (event.type === 'owner-gone') {
-      if (runtimeSnapshot.value.ownerInstanceId !== event.ownerInstanceId)
-        return
-
-      runtimeSnapshot.value = createEmptyModelSettingsRuntimeSnapshot()
-    }
+    stopSnapshots()
+    stopOwnerGone()
   })
 
   return {

@@ -7,6 +7,8 @@ import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import FpsHistory from '../../components/Devtools/fps-history.vue'
+
 import { useDevtoolsLagStore } from '../../stores/devtools-lag'
 
 const { n, t } = useI18n()
@@ -152,6 +154,11 @@ function metricDescription(metric: typeof metricControls.value[number]) {
         <span>{{ t('tamagotchi.settings.devtools.pages.performance-visualizer.metrics.long-task.label') }}: {{ n(lastRecording.samples.longtask.length) }}</span>
         <span>{{ t('tamagotchi.settings.devtools.pages.performance-visualizer.metrics.memory.label') }}: {{ n(lastRecording.samples.memory.length) }}</span>
       </div>
+      <FpsHistory
+        :samples="lastRecording.samples.fps"
+        :started-at="lastRecording.startedAt"
+        :stopped-at="lastRecording.stoppedAt"
+      />
     </section>
 
     <div :class="['text-xs text-neutral-500 dark:text-neutral-400']">

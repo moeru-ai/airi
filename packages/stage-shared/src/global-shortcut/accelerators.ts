@@ -235,17 +235,22 @@ const ELECTRON_KEY_OVERRIDES: Readonly<Record<string, string>> = {
   Slash: '/',
 }
 
+/** Keeps parser punctuation aliases aligned with Electron formatter output. */
+const ELECTRON_PUNCTUATION_ALIASES: ReadonlyMap<string, ShortcutKey> = new Map(
+  Object.entries(ELECTRON_KEY_OVERRIDES)
+    .filter(([, token]) => token.length === 1)
+    .map(([key, token]) => [token, key]),
+)
+
 const SINGLE_LETTER_RE = /^[A-Z]$/i
 const SINGLE_DIGIT_RE = /^\d$/
 
 /**
- * Normalizes a raw key token to a canonical `ShortcutKey`.
+ * Normalizes key tokens to W3C codes, including shorthand and Electron punctuation.
  *
- * Before:
- * - `"K"` / `"k"` / `"KeyK"` / `"Up"` / `"Esc"`
- *
- * After:
- * - `"KeyK"` / `"KeyK"` / `"KeyK"` / `"ArrowUp"` / `"Escape"`
+ * @example
+ * normalizeKeyToken(',')
+ * // => 'Comma'
  */
 function normalizeKeyToken(token: string): ShortcutKey {
   if (KEY_NAMES.has(token))
@@ -254,6 +259,10 @@ function normalizeKeyToken(token: string): ShortcutKey {
   const aliased = KEY_ALIASES.get(token)
   if (aliased !== undefined)
     return aliased
+
+  const punctuation = ELECTRON_PUNCTUATION_ALIASES.get(token)
+  if (punctuation !== undefined)
+    return punctuation
 
   if (SINGLE_LETTER_RE.test(token)) {
     const candidate = `Key${token.toUpperCase()}`
@@ -290,7 +299,7 @@ function lookupModifierToken(token: string): ShortcutModifier | undefined {
  * - `input` is a `+`-joined token string. Whitespace around tokens is
  *   tolerated and ignored. Modifier tokens are case-insensitive; key
  *   tokens are matched against `KEY_NAMES` and a small alias map, with
- *   single letters and digits accepted as shorthand.
+ *   single letters, digits, and Electron punctuation accepted as shorthand.
  *
  * Returns:
  * - A `ShortcutAccelerator` with modifiers in input order and a
@@ -432,4 +441,51 @@ export function formatElectronAccelerator(acc: ShortcutAccelerator): string {
   const tokens = canonicalModifiers(acc).map(m => MODIFIER_TO_ELECTRON_TOKEN[m])
   tokens.push(toElectronKey(acc.key))
   return tokens.join('+')
+}
+
+/**
+ * Tells if two accelerators match the same physical key combination.
+ *
+ * Use when:
+ * - Two shortcuts must not fire on one key press, for example a
+ *   uiohook hold binding and an Electron `globalShortcut` binding.
+ *   The uiohook driver does not consume key events, so one press
+ *   reaches both.
+ *
+ * Expects:
+ * - `options.isMacOS` tells how `cmd-or-ctrl` resolves: Cmd on macOS,
+ *   Ctrl elsewhere. `cmd` and `super` both mean the Meta key, as in
+ *   the uiohook driver.
+ *
+ * @example
+ *   isSameKeyCombination(
+ *     { modifiers: ['cmd-or-ctrl', 'shift'], key: 'KeyK' },
+ *     { modifiers: ['shift', 'ctrl'], key: 'KeyK' },
+ *     { isMacOS: false },
+ *   )
+ *   // => true
+ */
+export function isSameKeyCombination(a: ShortcutAccelerator, b: ShortcutAccelerator, options: { isMacOS: boolean }): boolean {
+  if (a.key !== b.key)
+    return false
+
+  const physicalModifiers = (accelerator: ShortcutAccelerator) => {
+    const keys = new Set<string>()
+    for (const modifier of accelerator.modifiers) {
+      switch (modifier) {
+        case 'cmd-or-ctrl':
+          keys.add(options.isMacOS ? 'meta' : 'ctrl')
+          break
+        case 'cmd':
+        case 'super':
+          keys.add('meta')
+          break
+        default:
+          keys.add(modifier)
+      }
+    }
+    return [...keys].sort().join('+')
+  }
+
+  return physicalModifiers(a) === physicalModifiers(b)
 }

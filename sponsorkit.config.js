@@ -8,6 +8,7 @@ const avatarMimeTypeMap = {
   '.jpeg': 'image/jpeg',
   '.png': 'image/png',
   '.webp': 'image/webp',
+  '.avif': 'image/avif',
   '.svg': 'image/svg+xml',
 }
 
@@ -16,7 +17,7 @@ const kofiProvider = {
   async fetchSponsors() {
     let raw = '[]'
     try {
-      raw = await readFile('docs/content/public/assets/sponsors/kofi-supporters.json', 'utf8')
+      raw = await readFile('docs/assets/sponsors/kofi-supporters.json', 'utf8')
     }
     catch {
       raw = '[]'

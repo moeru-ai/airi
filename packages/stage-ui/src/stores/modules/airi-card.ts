@@ -1,26 +1,140 @@
 import type { Card, ccv3 } from '@proj-airi/ccc'
+import type {
+  Live2DExpressionControl,
+  Live2DModelControls,
+  Live2DMotionControl,
+} from '@proj-airi/stage-ui-live2d/controls/manifest'
+import type { Live2DControlPolicy } from '@proj-airi/stage-ui-live2d/types/avatar-model'
 
+import type { DocumentFields, DocumentSnapshot, DocumentSyncClient, LocalDocumentChanges } from '../../libs/document-sync'
+import type { CardModuleDefaults, CardProviderModule } from '../../services/airi-card-modules'
 import type { AiriCard, AiriExtension } from '../../types/airiCard'
+import type { CharacterAvatarModelReference } from '../../types/avatar-model'
 
+import localeMessages from '@proj-airi/i18n/locales'
+
+import { errorMessageFrom } from '@moeru/std'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
+import { inspectLive2DModelControls } from '@proj-airi/stage-ui-live2d/controls/manifest'
+import { isLive2DControlEnabled } from '@proj-airi/stage-ui-live2d/controls/policy'
+import { StorageSerializers } from '@vueuse/core'
+import { isEqual } from 'es-toolkit'
 import { nanoid } from 'nanoid'
-import { defineStore } from 'pinia'
-import { computed } from 'vue'
+import { defineStore, getActivePinia, storeToRefs } from 'pinia'
+import { array, looseObject, object, parse, safeParse, string } from 'valibot'
+import { computed, getCurrentScope, onScopeDispose, ref, shallowRef, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-
-import SystemPromptV2 from '../../constants/prompts/system-v2'
+import { toast } from 'vue-sonner'
 
 import { DEFAULT_ARTISTRY_WIDGET_SPAWNING_PROMPT } from '../../constants/prompts/character-defaults'
-import { captureAnalyticsEvent } from '../../libs/analytics'
+import { formatLive2DActPrompt } from '../../constants/prompts/live2d-act'
+import { documentSyncRepo } from '../../database/repos/document-sync.repo'
+import { authedFetch } from '../../libs/auth-fetch'
+import { joinCard, splitCard } from '../../libs/character-card-sync'
+import { createDocumentSyncClient, syncedValues, synchronize } from '../../libs/document-sync'
+import { captureAnalyticsEvent } from '../../libs/product-signals'
+import { SERVER_URL } from '../../libs/server'
+import { SyncRunner, watchSyncTriggers } from '../../libs/sync-runner'
+import { wakeWordSchema } from '../../libs/voice/wake-words'
+import { clearModuleSelections, resolveModuleSelection } from '../../services/airi-card-modules'
+import { createAvatarModelReference } from '../../services/avatar-model'
+import { normalizeContextWindow } from '../../types/airiCard'
+import { useAuthStore } from '../auth'
+import { useDisplayModelsStore } from '../display-models'
+import { useProviderConfigStore } from '../providers/config'
+import { useProviderStore } from '../providers/provider'
 import { useSettingsStageModel } from '../settings/stage-model'
+import { useSyncPreferencesStore } from '../sync-preferences'
 import { useArtistryStore } from './artistry'
 import { useConsciousnessStore } from './consciousness'
+import { configureAsDefaultsIfEmpty, unconfigureAuthenticationProviders } from './default'
 import { useSpeechStore } from './speech'
 import { useVisionStore } from './vision'
 
 export type { AiriCard, AiriExtension } from '../../types/airiCard'
 
-function resolveSystemPrompt(card: AiriCard | undefined): string {
+/**
+ * Where a card stands with the account. `refused` means that the server does
+ * not accept the card, for example because the account is over its storage limit.
+ */
+export type CardSyncState = 'synced' | 'pending' | 'refused'
+
+/** The route of the server that stores the cards. */
+const CARDS_PATH = '/api/v1/character-cards'
+
+/** Names the sync state of the cards in the local storage. */
+const SYNC_STATE_NAME = 'character-cards'
+
+/**
+ * The text of the built-in description in every language. A device creates the
+ * built-in card once, in its language at that time. The language can change
+ * later, so a stored description can come from another language than the
+ * current one. None of these texts is an edit by the user.
+ */
+const builtInDescriptions = Object.values(localeMessages).flatMap((messages) => {
+  // A translation can lack the text until Crowdin delivers it. The language then shows the English text.
+  const parsed = safeParse(object({ base: object({ prompt: object({ prefix: string() }) }) }), messages)
+  return parsed.success ? [parsed.output.base.prompt.prefix] : []
+})
+
+/**
+ * SHA-256 of the built-in description in each language before the built-in character changed from ReLU to Iru.
+ * A stored `default` card with one of these descriptions has no description edit, so `initialize` gives it the current text.
+ * Each hash is of the text that `t('base.prompt.prefix')` returned. It differs from the raw message where the message has
+ * literal interpolations such as `{'|'}`.
+ */
+const preIruBuiltInDescriptionHashes = new Set([
+  '2a371f367e4330f4cec6b615ea6ea5e7d910d98dd5a14800a805f1c5d84d2ea5', // en
+  '47db7cdf33e9e15f9f90f3343ee74207e840a772a7fabe4257d885f7496a7617', // es
+  '1013da06f671c9e87fe5e68fbe196d53c30d3b2fcd50d8c7e90548482b9c5ae1', // fr
+  '616be7ae1d5355326964f2b80bbade01b75c74738a0db1ef134e084bf93a4bf3', // ja
+  '62487a8739eddca4d52e3c5be4aed3915040e49cb0c10a60905e9db4ace5d9e9', // ko
+  'bf1bc35154aabe38048ad356485c451bf55d6964e7ec022c321a3d6a9244306e', // ru
+  '8247a1cb7013a289a578f5e18e037f0d9bd9a38f607ddec838224769b5671aaa', // th
+  '229ca59d6e5c49af637c8b870024de987645f56d02969bacb9d0b66e2267acdb', // vi
+  '9df316e297f4cbac131c42eb79ab2177cd31232cb8f3229f47d9888ca80476a9', // zh-Hans
+  '97cbaec5ee5ad2589a16499385ca61044c6e9f69d17adf435b14d73be6299e85', // zh-Hant
+])
+
+async function sha256Hex(text: string) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
+}
+
+/** The members that every card needs before `newAiriCard` can normalize it. */
+const synchronizedCardSchema = looseObject({ name: string(), version: string() })
+
+/** Every device can load this Display Model, because it is bundled and not stored. */
+const BUILT_IN_DISPLAY_MODEL_ID = 'preset-live2d-1'
+/** Global Stage model choice that versions before PR #2458 stored outside any card. */
+const LEGACY_STAGE_MODEL_STORAGE_KEY = 'settings/stage/model'
+const ACTIVE_CARD_ID_STORAGE_KEY = 'airi-card-active-id'
+const emptyAvatarModels: readonly CharacterAvatarModelReference[] = Object.freeze([])
+const emptyLive2DExpressions: readonly Live2DExpressionControl[] = Object.freeze([])
+const emptyLive2DMotions: readonly Live2DMotionControl[] = Object.freeze([])
+const emptyLive2DModelControls: Live2DModelControls = { expressions: [], motions: [] }
+const emptyCharacterModules: ReadonlyMap<string, CardModuleDefaults> = new Map()
+
+/**
+ * Returns the Display Model ID that a card stored before Avatar Models existed.
+ *
+ * Use it before `newAiriCard` normalizes the card, because normalization deletes
+ * the old `modules.displayModelId` field.
+ */
+function legacyDisplayModelIdOf(card: AiriCard): string | undefined {
+  const extension = card.extensions?.airi
+  if (!extension?.modules || extension.avatarModels?.length)
+    return undefined
+
+  const value: unknown = Reflect.get(extension.modules, 'displayModelId')
+  return typeof value === 'string' && value.length > 0 ? value : undefined
+}
+
+function resolveSystemPrompt(
+  card: AiriCard | undefined,
+  expressions: readonly Live2DExpressionControl[],
+  motions: readonly Live2DMotionControl[],
+): string {
   if (!card)
     return ''
 
@@ -32,30 +146,251 @@ function resolveSystemPrompt(card: AiriCard | undefined): string {
     card.personality,
     card.scenario,
     card.extensions.airi.modules.artistry?.widgetInstruction,
+    formatLive2DActPrompt(expressions, motions),
   ].filter((part): part is string => typeof part === 'string' && part.trim().length > 0)
 
   return systemPromptParts.join('\n\n')
 }
 
-export const useAiriCardStore = defineStore('airi-card', () => {
-  const { t } = useI18n()
+function readPersistedActiveCardId(): string {
+  try {
+    return globalThis.localStorage?.getItem(ACTIVE_CARD_ID_STORAGE_KEY) || 'default'
+  }
+  catch {
+    return 'default'
+  }
+}
 
-  // Pinia synchronization owns cross-window updates. Local storage only loads
-  // and saves this renderer's durable copy; listening to storage events here
-  // would create a second cross-window state channel and echo cloned maps.
+function persistActiveCardId(id: string): boolean {
+  try {
+    globalThis.localStorage?.setItem(ACTIVE_CARD_ID_STORAGE_KEY, id)
+    return true
+  }
+  catch {
+    return false
+  }
+}
+
+function clearPersistedActiveCardId(): boolean {
+  try {
+    globalThis.localStorage?.removeItem(ACTIVE_CARD_ID_STORAGE_KEY)
+    return true
+  }
+  catch {
+    return false
+  }
+}
+
+export const useAiriCardStore = defineStore('airi-card', () => {
+  // A watcher or an await runs outside the setup of this store. The active
+  // Pinia can then be another one, so keep the Pinia that owns this store.
+  const pinia = getActivePinia()
+  const { t } = useI18n()
+  const authStore = useAuthStore()
+  const { userId } = storeToRefs(authStore)
+  const syncPreferences = useSyncPreferencesStore()
+  /** Cloud sync is a device choice, on by default. The sync section of the account settings owns it. */
+  const cloudSyncEnabled = computed(() => syncPreferences.isEnabled('character-cards'))
+  const displayModels = useDisplayModelsStore()
+
   const cards = useLocalStorageManualReset<Map<string, AiriCard>>('airi-cards', new Map(), { listenToStorageChanges: false })
-  const activeCardId = useLocalStorageManualReset<string>('airi-card-active-id', 'default', { listenToStorageChanges: false })
+  const activeCardId = shallowRef(readPersistedActiveCardId())
+  // The active Avatar Model is runtime state. Pinia replicates it between
+  // windows, but the Character configuration remains its only durable owner.
+  const selectedAvatarModelId = shallowRef<string>()
+  const activeLive2DModelControls = shallowRef<Live2DModelControls>(emptyLive2DModelControls)
+  let live2DControlLoadGeneration = 0
   let initialized = false
+  /** True after `initialize` applied the active card. Before that, no card owns the Stage. */
+  const ready = shallowRef(false)
+
+  // Only leader-owned commands change defaults or apply card overrides. Runtime
+  // module stores contain the effective selections, not another source of defaults.
+  // Existing installations seed this snapshot once from their current settings.
+  const moduleDefaults = useLocalStorageManualReset<CardModuleDefaults | null>('airi-card-module-defaults', null, {
+    listenToStorageChanges: false,
+    serializer: StorageSerializers.object,
+  })
+  let appliedModules: AiriExtension['modules'] | undefined
+  let followingInheritedSettings = false
+  const storeScope = getCurrentScope()
+  let pendingAuthenticationSetup: Promise<void> | undefined
 
   const activeCard = computed(() => cards.value.get(activeCardId.value))
+  const activeAvatarModels = computed(() => activeCard.value?.extensions.airi.avatarModels ?? emptyAvatarModels)
+  const selectedAvatarModel = computed(() => activeAvatarModels.value.find(model => model.id === selectedAvatarModelId.value))
+  const enabledLive2DExpressions = computed<readonly Live2DExpressionControl[]>(() => {
+    const avatarModel = selectedAvatarModel.value
+    if (avatarModel?.type !== 'live2d')
+      return emptyLive2DExpressions
+
+    return activeLive2DModelControls.value.expressions.filter(expression => isLive2DControlEnabled(
+      avatarModel.config.controls,
+      { kind: 'expression', id: expression.name },
+    ))
+  })
+  const enabledLive2DMotions = computed<readonly Live2DMotionControl[]>(() => {
+    const avatarModel = selectedAvatarModel.value
+    if (avatarModel?.type !== 'live2d')
+      return emptyLive2DMotions
+
+    return activeLive2DModelControls.value.motions.filter(motion => isLive2DControlEnabled(
+      avatarModel.config.controls,
+      { kind: 'motion', id: motion.fileName },
+    ))
+  })
+
+  function resolveDefaultAvatarModelId(card = activeCard.value) {
+    const defaultAvatarModelId = card?.extensions.airi.defaultAvatarModelId
+    if (!defaultAvatarModelId)
+      return
+
+    return card.extensions.airi.avatarModels.some(model => model.id === defaultAvatarModelId)
+      ? defaultAvatarModelId
+      : undefined
+  }
+
   function useRuntimeModuleStores() {
     return {
-      artistry: useArtistryStore(),
-      consciousness: useConsciousnessStore(),
-      speech: useSpeechStore(),
-      stageModel: useSettingsStageModel(),
-      vision: useVisionStore(),
+      artistry: useArtistryStore(pinia),
+      consciousness: useConsciousnessStore(pinia),
+      speech: useSpeechStore(pinia),
+      vision: useVisionStore(pinia),
     }
+  }
+
+  function readRuntimeModules(): CardModuleDefaults {
+    const { consciousness, vision, speech } = useRuntimeModuleStores()
+    return {
+      consciousness: { provider: consciousness.activeProvider, model: consciousness.activeModel },
+      vision: { provider: vision.activeProvider, model: vision.activeModel },
+      speech: { provider: speech.activeSpeechProvider, model: speech.activeSpeechModel, voice_id: speech.activeSpeechVoiceId },
+    }
+  }
+
+  function rememberInheritedSettings() {
+    const runtime = readRuntimeModules()
+    const defaults = moduleDefaults.value
+    if (!defaults) {
+      moduleDefaults.value = runtime
+      return
+    }
+    if (!appliedModules)
+      return
+
+    // A user can change an inherited setting through a module surface. Retain
+    // those changes, but never promote the previous card's overrides to defaults.
+    const next = structuredClone(toRaw(defaults))
+    for (const module of ['consciousness', 'vision', 'speech'] as const) {
+      const previous = appliedModules[module]
+      if (previous.provider)
+        continue
+      if (next[module].provider !== runtime[module].provider)
+        next[module].model = ''
+      next[module].provider = runtime[module].provider
+      if (!previous.model)
+        next[module].model = runtime[module].model
+    }
+    if (!appliedModules.speech.provider && !appliedModules.speech.model && !appliedModules.speech.voice_id)
+      next.speech.voice_id = runtime.speech.voice_id
+    if (!isEqual(next, toRaw(defaults)))
+      moduleDefaults.value = next
+  }
+
+  /**
+   * Keeps inherited defaults in step with the runtime modules after a card applies.
+   * A module store can change an inherited selection later, for example when the official voice catalog picks a voice.
+   * Replies resolve speech from the card and the defaults, so the defaults must follow.
+   * The watcher starts at the first application, because metadata-only consumers must not create the module stores.
+   */
+  function followInheritedSettings() {
+    if (followingInheritedSettings)
+      return
+    followingInheritedSettings = true
+    // An action runs outside the store scope. Run the watcher in it, so the store disposal stops it.
+    storeScope?.run(() => watch(readRuntimeModules, () => {
+      // An application clears `appliedModules` while the runtime holds a mix of two cards.
+      if (appliedModules)
+        rememberInheritedSettings()
+    }, { deep: true }))
+  }
+
+  /** Applies card speech through the leader command so catalog invalidation precedes its saved voice. */
+  async function writeRuntimeModules(modules: CardModuleDefaults) {
+    const { consciousness, vision, speech } = useRuntimeModuleStores()
+    // Provider changes synchronously clear dependent selections. Assign the
+    // resolved model and voice afterwards, including empty values.
+    consciousness.activeProvider = modules.consciousness.provider
+    consciousness.activeModel = modules.consciousness.model
+    // The vision store keeps a custom model name per selection. It does not clear that name when the provider changes.
+    if (vision.activeProvider !== modules.vision.provider)
+      vision.resetModelSelection()
+    vision.activeProvider = modules.vision.provider
+    vision.activeModel = modules.vision.model
+    await speech.selectProviderModel(modules.speech.provider, modules.speech.model, modules.speech.voice_id)
+  }
+
+  /**
+   * Updates authenticated defaults without changing any card's stored overrides.
+   * The synchronization leader owns provider setup, persistence, and reapplication.
+   */
+  async function configureForAuthentication(authenticated: boolean) {
+    const previous = pendingAuthenticationSetup
+    const operation = (async () => {
+      // A failed setup is reported to its caller. The next auth event must
+      // still run, for example to remove providers after a failed login.
+      if (previous)
+        await previous.catch(() => {})
+      await applyAuthenticationDefaults(authenticated)
+      if (authenticated) {
+        // Voice discovery is owned by the speech action. It must not hold the
+        // authentication queue, card edits, or logout cleanup open on network IO.
+        void loadAuthenticatedSpeechVoices().catch((error) => {
+          console.error('Failed to refresh authenticated speech voices:', errorMessageFrom(error))
+        })
+      }
+    })()
+    pendingAuthenticationSetup = operation
+    try {
+      await operation
+    }
+    finally {
+      if (pendingAuthenticationSetup === operation)
+        pendingAuthenticationSetup = undefined
+    }
+  }
+
+  async function applyAuthenticationDefaults(authenticated: boolean) {
+    rememberInheritedSettings()
+    appliedModules = undefined
+    if (!moduleDefaults.value)
+      return
+    await writeRuntimeModules(moduleDefaults.value)
+    try {
+      if (authenticated)
+        await configureAsDefaultsIfEmpty()
+      else
+        await unconfigureAuthenticationProviders()
+      moduleDefaults.value = readRuntimeModules()
+    }
+    finally {
+      appliedModules = undefined
+      await applyActiveCardSettings()
+    }
+  }
+
+  /** Loads the effective auth-owned voice catalog after card setup finishes. */
+  async function loadAuthenticatedSpeechVoices(): Promise<void> {
+    const { speech } = useRuntimeModuleStores()
+    const provider = useProviderConfigStore(pinia).providers[speech.activeSpeechProvider]
+    if (provider?.configuredBy !== 'authentication')
+      return
+
+    speech.ensureActiveSpeechModel()
+    await speech.loadVoicesForProvider(
+      speech.activeSpeechProvider,
+      speech.activeSpeechModel || undefined,
+    )
   }
 
   /**
@@ -64,14 +399,20 @@ export const useAiriCardStore = defineStore('airi-card', () => {
    * from an existing card (profile switcher). Required so a new call site
    * can't silently degrade creation attribution.
    */
-  const addCard = async (card: AiriCard | Card | ccv3.CharacterCardV3, source: 'scratch' | 'import' | 'duplicate') => {
+  const addCard = async (card: AiriCard | Card | ccv3.CharacterCardV3, source: 'scratch' | 'import' | 'duplicate', displayModelId?: string) => {
     const newCardId = nanoid()
-    cards.value.set(newCardId, newAiriCard(card))
+    const newCard = newAiriCard(toRaw(card))
+    cards.value.set(newCardId, newCard)
+
+    if (displayModelId)
+      await setCharacterDefaultAvatarModelFromDisplayModel(newCardId, displayModelId)
+
     captureAnalyticsEvent('card_created', { card_id: newCardId, source })
     return newCardId
   }
 
   const removeCard = async (id: string) => {
+    await pendingAuthenticationSetup
     // The built-in card is the guaranteed fallback for every runtime profile.
     if (id === 'default')
       return false
@@ -84,15 +425,18 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     // before consumers observe a dangling runtime profile after deletion.
     if (activeCardId.value === id) {
       activeCardId.value = 'default'
-      applyActiveCardSettings()
+      persistActiveCardId(activeCardId.value)
+      selectedAvatarModelId.value = resolveDefaultAvatarModelId()
+      await applyActiveCardSettings()
     }
 
     captureAnalyticsEvent('character_deleted', { character_id: id })
     return true
   }
 
-  const updateCard = async (id: string, updates: AiriCard | Card | ccv3.CharacterCardV3) => {
-    const existingCard = cards.value.get(id)
+  const updateCard = async (id: string, updates: AiriCard | Card | ccv3.CharacterCardV3, displayModelId?: string) => {
+    await pendingAuthenticationSetup
+    const existingCard = toRaw(cards.value.get(id))
     if (!existingCard)
       return false
 
@@ -103,8 +447,15 @@ export const useAiriCardStore = defineStore('airi-card', () => {
 
     const card = newAiriCard(updatedCard)
     cards.value.set(id, card)
-    if (id === activeCardId.value)
-      applyActiveCardSettings(card)
+    let editedAvatarModelId: string | undefined
+    if (displayModelId !== undefined)
+      editedAvatarModelId = await setCharacterDefaultAvatarModelFromDisplayModel(id, displayModelId)
+
+    if (id === activeCardId.value) {
+      if (displayModelId !== undefined)
+        selectedAvatarModelId.value = editedAvatarModelId
+      await applyActiveCardSettings()
+    }
 
     return true
   }
@@ -113,9 +464,108 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return cards.value.get(id)
   }
 
+  async function ensureAvatarModel(characterId: string, displayModelId: string) {
+    const card = toRaw(cards.value.get(characterId))
+    if (!card)
+      return
+
+    const existing = card.extensions.airi.avatarModels.find(model => model.displayModelId === displayModelId)
+    if (existing)
+      return existing.id
+
+    const displayModel = await displayModels.getDisplayModel(displayModelId)
+    if (!displayModel)
+      return
+
+    const avatarModel = createAvatarModelReference(displayModelId, displayModel.format)
+    cards.value.set(characterId, {
+      ...card,
+      extensions: {
+        ...card.extensions,
+        airi: {
+          ...card.extensions.airi,
+          avatarModels: [...card.extensions.airi.avatarModels, avatarModel],
+        },
+      },
+    })
+
+    return avatarModel.id
+  }
+
+  function setCharacterDefaultAvatarModel(characterId: string, avatarModelId: string | undefined) {
+    const card = toRaw(cards.value.get(characterId))
+    if (!card)
+      return false
+
+    const avatarModel = avatarModelId
+      ? card.extensions.airi.avatarModels.find(model => model.id === avatarModelId)
+      : undefined
+    if (avatarModelId && !avatarModel)
+      return false
+
+    cards.value.set(characterId, {
+      ...card,
+      extensions: {
+        ...card.extensions,
+        airi: {
+          ...card.extensions.airi,
+          defaultAvatarModelId: avatarModelId,
+        },
+      },
+    })
+
+    return true
+  }
+
+  async function setCharacterDefaultAvatarModelFromDisplayModel(characterId: string, displayModelId: string) {
+    const avatarModelId = displayModelId
+      ? await ensureAvatarModel(characterId, displayModelId)
+      : undefined
+    if (displayModelId && !avatarModelId)
+      return
+
+    setCharacterDefaultAvatarModel(characterId, avatarModelId)
+    return avatarModelId
+  }
+
+  async function updateLive2DControlPolicy(characterId: string, avatarModelId: string, policy: Live2DControlPolicy) {
+    const card = toRaw(cards.value.get(characterId))
+    if (!card)
+      return false
+
+    const avatarModelIndex = card.extensions.airi.avatarModels.findIndex(model => model.id === avatarModelId)
+    const avatarModel = card.extensions.airi.avatarModels[avatarModelIndex]
+    if (!avatarModel || avatarModel.type !== 'live2d')
+      return false
+
+    const avatarModels = [...card.extensions.airi.avatarModels]
+    avatarModels[avatarModelIndex] = {
+      ...avatarModel,
+      config: {
+        ...avatarModel.config,
+        controls: {
+          disabledExpressions: [...policy.disabledExpressions],
+          disabledMotions: [...policy.disabledMotions],
+        },
+      },
+    }
+    cards.value.set(characterId, {
+      ...card,
+      extensions: {
+        ...card.extensions,
+        airi: {
+          ...card.extensions.airi,
+          avatarModels,
+        },
+      },
+    })
+
+    return true
+  }
+
   function updateActiveCardModules(patch: (extension: AiriExtension) => Partial<AiriExtension['modules']>) {
     const cardId = activeCardId.value
-    const card = cards.value.get(cardId)
+    const card = toRaw(cards.value.get(cardId))
     if (!card)
       return false
 
@@ -137,28 +587,108 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return true
   }
 
-  async function updateActiveCardDisplayModel(displayModelId: string | undefined) {
-    const updated = updateActiveCardModules(() => ({ displayModelId }))
-    if (updated)
-      applyActiveCardSettings()
-    return updated
+  async function setActiveCardDefaultAvatarModel(displayModelId: string | undefined) {
+    await pendingAuthenticationSetup
+    const avatarModelId = await setCharacterDefaultAvatarModelFromDisplayModel(activeCardId.value, displayModelId ?? '')
+    if (displayModelId && !avatarModelId)
+      return false
+
+    return selectAvatarModel(avatarModelId)
   }
 
+  /**
+   * Removes the references to deleted Display Models from every Character and
+   * selects an available default.
+   *
+   * Only the deleted IDs are removed. A synchronized card can reference a
+   * Display Model that only another device stores. That reference must stay,
+   * or the removal syncs to that device and deletes its link to the model.
+   */
+  async function removeDeletedAvatarModels(deletedDisplayModelIds: readonly string[], availableDisplayModelIds: readonly string[]) {
+    const deleted = new Set(deletedDisplayModelIds)
+    for (const [characterId, storedCard] of cards.value) {
+      const card = toRaw(storedCard)
+      const extension = card.extensions.airi
+      const avatarModels = extension.avatarModels.filter(model => !deleted.has(model.displayModelId))
+      if (avatarModels.length === extension.avatarModels.length)
+        continue
+
+      let defaultAvatarModelId = extension.defaultAvatarModelId
+      if (defaultAvatarModelId && !avatarModels.some(model => model.id === defaultAvatarModelId)) {
+        let fallback = avatarModels.find(model => model.displayModelId === BUILT_IN_DISPLAY_MODEL_ID) ?? avatarModels[0]
+        if (!fallback) {
+          for (const displayModelId of availableDisplayModelIds) {
+            const displayModel = await displayModels.getDisplayModel(displayModelId)
+            if (!displayModel)
+              continue
+
+            fallback = createAvatarModelReference(displayModel.id, displayModel.format)
+            avatarModels.push(fallback)
+            break
+          }
+        }
+        defaultAvatarModelId = fallback?.id
+      }
+
+      cards.value.set(characterId, {
+        ...card,
+        extensions: {
+          ...card.extensions,
+          airi: { ...extension, avatarModels, defaultAvatarModelId },
+        },
+      })
+    }
+
+    if (!activeAvatarModels.value.some(model => model.id === selectedAvatarModelId.value)) {
+      selectedAvatarModelId.value = resolveDefaultAvatarModelId()
+      await applyActiveAvatarModel()
+    }
+  }
+
+  // The display model store of each window reports the deletions that the window makes.
+  // Call through the store, so the synchronized action runs in the leader.
+  displayModels.onDisplayModelsDeleted(async (ids) => {
+    await useAiriCardStore(pinia).removeDeletedAvatarModels(ids, displayModels.displayModels.map(model => model.id))
+  })
+
   async function updateActiveCardConsciousness(consciousness: AiriExtension['modules']['consciousness']) {
+    await pendingAuthenticationSetup
     const updated = updateActiveCardModules(() => ({ consciousness }))
     if (updated)
-      applyActiveCardSettings()
+      await applyActiveCardSettings()
     return updated
   }
 
   async function updateActiveCardVision(vision: AiriExtension['modules']['vision']) {
+    await pendingAuthenticationSetup
     const updated = updateActiveCardModules(() => ({ vision }))
     if (updated)
-      applyActiveCardSettings()
+      await applyActiveCardSettings()
     return updated
   }
 
+  /**
+   * Selects a vision provider for the active card with its catalog default.
+   *
+   * Only this explicit selection applies the default, and the card stores it,
+   * so the runtime and the card keep the same model. A provider without a
+   * default keeps an empty model until the user selects one.
+   */
+  async function selectActiveCardVisionProvider(provider: string) {
+    await pendingAuthenticationSetup
+    const vision = useVisionStore(pinia)
+    vision.enabled = true
+    if (vision.activeProvider === provider)
+      return true
+    vision.activeProvider = provider
+    vision.resetModelSelection()
+    await vision.loadModelsForProvider(provider)
+    const model = useProviderStore(pinia).getDefaultModelForProvider(provider) ?? ''
+    return await updateActiveCardVision({ provider, model })
+  }
+
   async function updateActiveCardSpeech(speech: Pick<AiriExtension['modules']['speech'], 'provider' | 'model' | 'voice_id'>) {
+    await pendingAuthenticationSetup
     const updated = updateActiveCardModules(({ modules }) => ({
       speech: {
         ...modules.speech,
@@ -166,67 +696,49 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       },
     }))
     if (updated)
-      applyActiveCardSettings()
+      await applyActiveCardSettings()
     return updated
   }
 
-  /**
-   * Persists the current inference selections in the active card.
-   *
-   * This command snapshots runtime state after a higher-level operation, such
-   * as authenticated default setup. It deliberately does not apply the card
-   * back to the runtime, so one persistence write cannot start another module
-   * transition.
-   */
-  async function persistActiveCardModuleSelections() {
-    const card = cards.value.get(activeCardId.value)
-    if (!card)
-      return false
+  /** Clears matching selections from defaults and every card, then reapplies the active card. */
+  async function clearModuleProviders(modules: readonly CardProviderModule[], shouldClear: (providerId: string) => boolean) {
+    await pendingAuthenticationSetup
+    rememberInheritedSettings()
+    const defaults = moduleDefaults.value
+    if (defaults) {
+      const next = clearModuleSelections(defaults, modules, shouldClear)
+      if (next !== defaults)
+        moduleDefaults.value = next
+    }
+    for (const [id, storedCard] of cards.value) {
+      const card = toRaw(storedCard)
+      const extension = card.extensions.airi
+      const next = clearModuleSelections(extension.modules, modules, shouldClear, defaults ?? undefined)
+      if (next === extension.modules)
+        continue
+      cards.value.set(id, { ...card, extensions: { ...card.extensions, airi: { ...extension, modules: next } } })
+    }
 
-    const {
-      consciousness,
-      speech,
-      vision,
-    } = useRuntimeModuleStores()
-    const modules = card.extensions?.airi?.modules
-    const alreadyPersisted = modules?.consciousness?.provider === consciousness.activeProvider
-      && modules.consciousness.model === consciousness.activeModel
-      && modules?.speech?.provider === speech.activeSpeechProvider
-      && modules.speech.model === speech.activeSpeechModel
-      && modules.speech.voice_id === speech.activeSpeechVoiceId
-      && modules?.vision?.provider === vision.activeProvider
-      && modules.vision.model === vision.activeModel
+    appliedModules = undefined
+    if (activeCard.value)
+      await applyActiveCardSettings()
+    // A reset can run before the cards initialize. The runtime modules still hold the removed providers.
+    else if (moduleDefaults.value)
+      await writeRuntimeModules(moduleDefaults.value)
+  }
 
-    if (alreadyPersisted)
-      return false
+  /** Clears a deleted provider from defaults and every card. */
+  async function clearProviderSelections(providerId: string) {
+    await clearModuleProviders(['consciousness', 'vision', 'speech'], id => id === providerId)
+  }
 
-    return updateActiveCardModules(({ modules }) => ({
-      consciousness: {
-        provider: consciousness.activeProvider,
-        model: consciousness.activeModel,
-      },
-      speech: {
-        ...modules.speech,
-        provider: speech.activeSpeechProvider,
-        model: speech.activeSpeechModel,
-        voice_id: speech.activeSpeechVoiceId,
-      },
-      vision: {
-        provider: vision.activeProvider,
-        model: vision.activeModel,
-      },
-    }))
+  /** Clears vision and speech selections whose provider lost its settings in a reset. Consciousness stays unchanged. */
+  async function clearUnavailableProviderSelections() {
+    const providers = useProviderStore(pinia)
+    await clearModuleProviders(['vision', 'speech'], id => !providers.isProviderAvailableWithoutConfiguration(id))
   }
 
   function resolveAiriExtension(card: Card | ccv3.CharacterCardV3): AiriExtension {
-    const {
-      artistry,
-      consciousness,
-      speech,
-      stageModel,
-      vision,
-    } = useRuntimeModuleStores()
-
     // Get existing extension if available
     const existingExtension = ('data' in card
       ? card.data?.extensions?.airi
@@ -234,28 +746,17 @@ export const useAiriCardStore = defineStore('airi-card', () => {
 
     // Create default modules config
     const defaultModules = {
-      consciousness: {
-        provider: consciousness.activeProvider,
-        model: consciousness.activeModel,
-      },
-      vision: {
-        provider: vision.activeProvider,
-        model: vision.activeModel,
-      },
-      speech: {
-        provider: speech.activeSpeechProvider,
-        model: speech.activeSpeechModel,
-        voice_id: speech.activeSpeechVoiceId,
-      },
-      displayModelId: stageModel.stageModelSelected,
+      consciousness: { provider: '', model: '' },
+      vision: { provider: '', model: '' },
+      speech: { provider: '', model: '', voice_id: '' },
       artistry: {
         enabled: false,
-        provider: artistry.globalProvider,
-        model: artistry.globalModel,
-        promptPrefix: artistry.globalPromptPrefix,
+        provider: '',
+        model: '',
+        promptPrefix: '',
         widgetInstruction: DEFAULT_ARTISTRY_WIDGET_SPAWNING_PROMPT,
         spawnMode: 'bg_widget' as const,
-        options: artistry.globalProviderOptions,
+        options: undefined,
         autonomousEnabled: false,
         autonomousThreshold: 70,
         autonomousTarget: 'assistant' as const,
@@ -265,23 +766,42 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     // Return default if no extension exists
     if (!existingExtension) {
       return {
+        contextWindow: -1,
+        avatarModels: [],
         modules: defaultModules,
         agents: {},
       }
     }
 
-    // Merge existing extension with defaults
+    const avatarModels = existingExtension.avatarModels
+      ? [...existingExtension.avatarModels]
+      : []
+    const defaultAvatarModelId = existingExtension.defaultAvatarModelId
+    const hasDefaultAvatarModel = avatarModels.some(model => model.id === defaultAvatarModelId)
+    const existingModules = { ...existingExtension.modules }
+    Reflect.deleteProperty(existingModules, 'displayModelId')
+
+    // Fill known fields without discarding settings owned by imported extensions.
     return {
+      ...existingExtension,
+      contextWindow: normalizeContextWindow(existingExtension.contextWindow),
+      ...(existingExtension.wakeWords === undefined ? {} : { wakeWords: parse(array(wakeWordSchema), existingExtension.wakeWords) }),
+      avatarModels,
+      defaultAvatarModelId: hasDefaultAvatarModel ? defaultAvatarModelId : undefined,
       modules: {
+        ...existingModules,
         consciousness: {
+          ...existingExtension.modules?.consciousness,
           provider: existingExtension.modules?.consciousness?.provider ?? defaultModules.consciousness.provider,
           model: existingExtension.modules?.consciousness?.model ?? defaultModules.consciousness.model,
         },
         vision: {
+          ...existingExtension.modules?.vision,
           provider: existingExtension.modules?.vision?.provider ?? defaultModules.vision.provider,
           model: existingExtension.modules?.vision?.model ?? defaultModules.vision.model,
         },
         speech: {
+          ...existingExtension.modules?.speech,
           provider: existingExtension.modules?.speech?.provider ?? defaultModules.speech.provider,
           model: existingExtension.modules?.speech?.model ?? defaultModules.speech.model,
           voice_id: existingExtension.modules?.speech?.voice_id ?? defaultModules.speech.voice_id,
@@ -292,9 +812,9 @@ export const useAiriCardStore = defineStore('airi-card', () => {
         },
         vrm: existingExtension.modules?.vrm,
         live2d: existingExtension.modules?.live2d,
-        displayModelId: existingExtension.modules?.displayModelId ?? defaultModules.displayModelId,
         activeBackgroundId: existingExtension.modules?.activeBackgroundId,
         artistry: {
+          ...existingExtension.modules?.artistry,
           enabled: existingExtension.modules?.artistry?.enabled ?? (existingExtension as any).artistry?.enabled ?? defaultModules.artistry.enabled,
           provider: existingExtension.modules?.artistry?.provider ?? (existingExtension as any).artistry?.provider ?? defaultModules.artistry.provider,
           model: existingExtension.modules?.artistry?.model ?? (existingExtension as any).artistry?.model ?? defaultModules.artistry.model,
@@ -345,8 +865,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
           : [],
         tags: ccv3Card.data.tags ?? [],
         extensions: {
-          airi: resolveAiriExtension(ccv3Card),
           ...ccv3Card.data.extensions,
+          airi: resolveAiriExtension(ccv3Card),
         },
       }
     }
@@ -354,36 +874,470 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return {
       ...card,
       extensions: {
-        airi: resolveAiriExtension(card),
         ...card.extensions,
+        airi: resolveAiriExtension(card),
       },
     }
   }
 
+  /**
+   * The `default` card before the user edits it. Each device creates this card
+   * with the same id, so synchronization compares a device's card with it to
+   * find the edits of the user.
+   */
+  const builtInCard = computed(() => newAiriCard({
+    name: 'Iru',
+    version: '1.0.0',
+    description: t('base.prompt.prefix'),
+    extensions: {
+      airi: {
+        // Every device ships the preset model, so this reference is part of the
+        // built-in content. An unedited `default` card then sends no avatar fields.
+        defaultAvatarModelId: 'default-live2d-avatar-model',
+        avatarModels: [{
+          id: 'default-live2d-avatar-model',
+          displayModelId: 'preset-live2d-1',
+          type: 'live2d',
+          config: {
+            controls: {
+              disabledExpressions: [],
+              disabledMotions: [],
+            },
+          },
+        }],
+        modules: {
+          consciousness: { provider: '', model: '' },
+          speech: { provider: '', model: '', voice_id: '' },
+          vision: { provider: '', model: '' },
+        },
+        agents: {},
+      },
+    },
+  }))
+
+  /** The built-in card in every language. Only its parts that differ from all of them are edits. */
+  const builtInVariants = computed(() => {
+    const current = builtInCard.value
+    return [...new Set([current.description, ...builtInDescriptions])].map(description => ({ ...current, description }))
+  })
+
+  // The leader writes these after each run. Every window reads them to show the cloud state of a card.
+  /** The parts that the server accepted, by card id. */
+  const syncedCardFields = ref<Record<string, DocumentFields>>({})
+  /** The cards that the server refused in the last run. */
+  const refusedCardIds = ref<string[]>([])
+
+  /**
+   * The cloud state of each card. It is empty without an account, and empty
+   * while cloud sync is off, because nothing leaves the device then. Before
+   * the first run ends, every card with content to send is `pending`.
+   */
+  const cardSyncStates = computed(() => {
+    const states: Record<string, CardSyncState> = {}
+    if (userId.value === 'local' || !cloudSyncEnabled.value)
+      return states
+
+    for (const [id, card] of cards.value) {
+      if (refusedCardIds.value.includes(id))
+        states[id] = 'refused'
+      else
+        states[id] = isEqual(splitCard(toRaw(card), id === 'default' ? builtInVariants.value : []), syncedCardFields.value[id] ?? {}) ? 'synced' : 'pending'
+    }
+    return states
+  })
+
+  /** The built-in content that `joinCard` lays a card's synchronized fields over. Only the `default` card has one. */
+  function builtInFor(id: string) {
+    return id === 'default' ? builtInCard.value : undefined
+  }
+
+  /** Turns the field list of a snapshot into the keyed shape that `joinCard` reads. */
+  function fieldsOfSnapshot(snapshot: DocumentSnapshot): DocumentFields {
+    return Object.fromEntries(snapshot.fields.map(field => [field.key, field.value]))
+  }
+
+  /**
+   * Applies the card changes of one synchronization run to this renderer.
+   *
+   * The function changes the cards without an `await`. The caller computes the
+   * changes from the same cards in the same task, so a local edit cannot occur
+   * between the comparison and this write. Only the synchronization leader
+   * calls it.
+   *
+   * The built-in card is the only card that synchronization keeps as its edits
+   * alone. The parts that the changes lack come from the built-in card.
+   *
+   * @returns `activeCardChanged` is `true` when the content of the selected card changed, or another device deleted it. The caller must then call `activateCard`. `rejected` lists the cards that this device cannot read, from the server or from the local side of a conflict. A rejected card keeps its local content and gets no conflict copy.
+   */
+  function applySynchronizedCards(changes: LocalDocumentChanges) {
+    const previousActiveCardId = activeCardId.value
+    const rejected = new Set<string>()
+    let activeCardChanged = false
+
+    // A card that this device cannot read must not stop the other cards, and
+    // the run must not treat it as deleted.
+    function readCard(id: string, fields: DocumentFields) {
+      try {
+        return newAiriCard(parse(synchronizedCardSchema, joinCard(fields, builtInFor(id))))
+      }
+      catch (error) {
+        console.warn('[character-card-sync] Ignored a card that this device cannot read:', id, errorMessageFrom(error))
+        rejected.add(id)
+      }
+    }
+
+    // Read every card before the first write. If either side of a conflict
+    // cannot be read, the card keeps its local content and its earlier sync
+    // state. Each round then finds the same conflict, so a rejected card gets
+    // no copy.
+    const upserts = Object.entries(changes.upserts).map(([id, fields]) => ({ id, card: readCard(id, fields) }))
+    const copies = changes.conflictCopies.map(({ documentId, fields }) => ({ id: documentId, card: readCard(documentId, fields) }))
+
+    for (const { id, card } of upserts) {
+      if (!card || rejected.has(id))
+        continue
+      cards.value.set(id, card)
+      activeCardChanged ||= id === previousActiveCardId
+    }
+
+    for (const { id, card } of copies) {
+      if (!card || rejected.has(id))
+        continue
+      cards.value.set(nanoid(), newAiriCard({ ...card, name: t('settings.pages.card.sync.conflict_copy_name', { name: card.name }) }))
+    }
+
+    for (const id of changes.removals) {
+      // The built-in card is the guaranteed fallback for every runtime profile.
+      if (id !== 'default')
+        cards.value.delete(id)
+    }
+
+    if (!cards.value.has(activeCardId.value))
+      activeCardId.value = 'default'
+    persistActiveCardId(activeCardId.value)
+
+    return { activeCardChanged: activeCardChanged || activeCardId.value !== previousActiveCardId, rejected: [...rejected] }
+  }
+
+  let syncClient: DocumentSyncClient | undefined
+  /** The account that `syncedCardFields` belongs to. Only the leader sets it. */
+  let syncedOwnerId: string | undefined
+  const cardSyncRunner = new SyncRunner(() => runCardSynchronization(userId.value), {
+    onError: error => console.error('[character-card-sync] Synchronization failed:', errorMessageFrom(error)),
+  })
+  onScopeDispose(() => cardSyncRunner.dispose())
+
+  /**
+   * Compares the local cards with the server and exchanges the changes. The
+   * selected card is not synchronized, so each device keeps its own selection.
+   *
+   * A failed run sends the same changes again on the next request or retry.
+   * A user without an account never sends a request.
+   *
+   * This synchronized action executes in the leader, one run at a time.
+   */
+  async function synchronizeCards() {
+    await cardSyncRunner.request()
+  }
+
+  async function runCardSynchronization(ownerId: string) {
+    // During a sign-in, `userId` still names the previous account while requests send the new token.
+    // A run in that state can write the cards of one account into another.
+    if (ownerId === 'local' || !cloudSyncEnabled.value || !authStore.isSessionVerified)
+      return
+    const sessionVersion = authStore.sessionVersion
+
+    await migratePreIruCard()
+
+    syncClient ??= createDocumentSyncClient({ serverUrl: SERVER_URL, path: CARDS_PATH, fetch: authedFetch })
+    // The cloud state of the earlier account does not describe this account.
+    if (syncedOwnerId !== ownerId) {
+      syncedOwnerId = ownerId
+      syncedCardFields.value = {}
+      refusedCardIds.value = []
+    }
+
+    const { state, refused } = await synchronize({
+      client: syncClient,
+      state: await documentSyncRepo.getState(SYNC_STATE_NAME, ownerId) ?? { documents: {} },
+      // The new account starts its own run from the `userId` watcher.
+      isCurrent: () => userId.value === ownerId && authStore.sessionVersion === sessionVersion,
+      saveState: state => documentSyncRepo.saveState(SYNC_STATE_NAME, ownerId, state),
+      // Each device creates the built-in card in its own language. Only its edits are synchronized.
+      readLocal: () => Object.fromEntries([...toRaw(cards.value)].map(([id, card]) => [id, splitCard(toRaw(card), id === 'default' ? builtInVariants.value : [])])),
+      async applyLocal(changes) {
+        const { activeCardChanged, rejected } = applySynchronizedCards(changes)
+        if (changes.conflictCopies.length > 0)
+          toast.warning(t('settings.pages.card.sync.conflict_notice'))
+        if (activeCardChanged)
+          await activateCard(activeCardId.value)
+        return { rejected }
+      },
+    })
+
+    if (userId.value !== ownerId)
+      return
+    // A new object changes the store even when its content is equal. The leader
+    // then publishes the whole store, each follower writes a new cards Map, and
+    // the deep cards watcher requests another run. Keep the objects when nothing changed.
+    const syncedFields = syncedValues(state)
+    if (!isEqual(syncedFields, syncedCardFields.value))
+      syncedCardFields.value = syncedFields
+    if (!isEqual(refused, refusedCardIds.value))
+      refusedCardIds.value = refused
+    if (refused.length > 0)
+      console.warn('[character-card-sync] The server refused these cards. They stay on this device:', refused)
+  }
+
+  /**
+   * Replaces a card's content with the content it had at a past revision.
+   *
+   * The restore is an ordinary edit, not a special write. The next
+   * synchronization run uploads it, and a field that another device changed
+   * since the restore can still conflict, the same as any other edit.
+   *
+   * @returns `false` when the account has no cloud history, the card has no
+   * local copy to update, or the server no longer has that revision.
+   */
+  async function restoreCardVersion(id: string, revision: number) {
+    if (userId.value === 'local' || !cloudSyncEnabled.value)
+      return false
+
+    syncClient ??= createDocumentSyncClient({ serverUrl: SERVER_URL, path: CARDS_PATH, fetch: authedFetch })
+    const snapshot = await syncClient.snapshot(id, revision)
+    if (!snapshot)
+      return false
+
+    await pendingAuthenticationSetup
+    if (!cards.value.has(id))
+      return false
+
+    // Every card field synchronizes, so the snapshot is the whole card at that
+    // revision. Replace the card instead of merging it with `updateCard`. A
+    // merge keeps the fields that were added after the revision.
+    const card = newAiriCard(parse(synchronizedCardSchema, joinCard(fieldsOfSnapshot(snapshot), builtInFor(id))))
+    cards.value.set(id, card)
+    if (id === activeCardId.value) {
+      // The past revision can lack the Avatar Model that this device selected.
+      if (!activeAvatarModels.value.some(model => model.id === selectedAvatarModelId.value))
+        selectedAvatarModelId.value = resolveDefaultAvatarModelId()
+      await applyActiveCardSettings(card)
+    }
+    return true
+  }
+
+  /**
+   * Brings back a card that synchronization removed from this device because
+   * another device deleted it. The content comes from the server's record of
+   * the card just before that deletion.
+   *
+   * The device has no synchronized state for this id anymore, so the next
+   * run treats the restored card as new and uploads all of its content.
+   *
+   * @returns `false` when the account has no cloud history, the card is not
+   * deleted on the server, or the content before the deletion is gone.
+   */
+  async function restoreDeletedCard(id: string) {
+    if (userId.value === 'local' || !cloudSyncEnabled.value)
+      return false
+
+    syncClient ??= createDocumentSyncClient({ serverUrl: SERVER_URL, path: CARDS_PATH, fetch: authedFetch })
+    const { documents } = await syncClient.list()
+    const deleted = documents.find(document => document.id === id && document.deletedAt !== null)
+    if (!deleted)
+      return false
+
+    const snapshot = await syncClient.snapshot(id, deleted.revision - 1)
+    if (!snapshot)
+      return false
+
+    const card = parse(synchronizedCardSchema, joinCard(fieldsOfSnapshot(snapshot), builtInFor(id)))
+    cards.value.set(id, newAiriCard(card))
+    if (!cards.value.has(activeCardId.value))
+      activeCardId.value = 'default'
+    persistActiveCardId(activeCardId.value)
+    return true
+  }
+
+  /**
+   * Lists the past revisions of a card, newest first, for a history view.
+   *
+   * This reads only. It does not change a card or its sync state, so every
+   * window can call it directly without going through the leader.
+   *
+   * @returns `null` when the account has no cloud history for this card.
+   */
+  async function cardHistory(id: string, options?: { before?: number, limit?: number }) {
+    if (userId.value === 'local' || !cloudSyncEnabled.value)
+      return null
+
+    syncClient ??= createDocumentSyncClient({ serverUrl: SERVER_URL, path: CARDS_PATH, fetch: authedFetch })
+    return syncClient.history(id, options)
+  }
+
+  /**
+   * Lists the cards that the server has as deleted for this account, each
+   * with the name it had just before the deletion, for a "recently deleted" view.
+   *
+   * This reads only, the same as {@link cardHistory}.
+   */
+  async function deletedCards() {
+    if (userId.value === 'local' || !cloudSyncEnabled.value)
+      return []
+
+    syncClient ??= createDocumentSyncClient({ serverUrl: SERVER_URL, path: CARDS_PATH, fetch: authedFetch })
+    const client = syncClient
+    const { documents } = await client.list()
+    // The panel shows only the most recent deletions, so an account with a long history makes few requests.
+    const deleted = documents.filter(document => document.deletedAt !== null).slice(0, 20)
+
+    return Promise.all(deleted.map(async (document) => {
+      const snapshot = await client.snapshot(document.id, document.revision - 1)
+      const name = snapshot?.fields.find(field => field.key === '/name')?.value
+      return { id: document.id, name: typeof name === 'string' ? name : document.id, deletedAt: document.deletedAt! }
+    }))
+  }
+
+  async function requestCardSynchronization() {
+    if (userId.value === 'local')
+      return
+
+    try {
+      // The store action routes the run to the leader. A call to the local function would run in this window.
+      await useAiriCardStore(pinia).synchronizeCards()
+    }
+    catch (error) {
+      console.error('[character-card-sync] Failed to request synchronization:', errorMessageFrom(error))
+    }
+  }
+
+  // Each renderer observes the synchronized identity and cards. The requests
+  // go to the leader. A run that finds no difference changes nothing, so the
+  // request that follows a remote change ends the sequence. Turning the
+  // experimental flag on is a reason to run, because no other source fired while it was off.
+  watchSyncTriggers(requestCardSynchronization, {
+    sources: [userId, cloudSyncEnabled, () => authStore.isSessionVerified],
+    changes: cards,
+  })
+
+  // NOTICE:
+  // The stored `default` card is a copy of the built-in ReLU card.
+  // Give it the name and the description of Iru, except the parts that the user edited.
+  // Source: https://github.com/moeru-ai/airi/pull/3287
+  // Removal condition: two stable releases after the release in which every locale names Iru.
+  /**
+   * Runs in the leader at the end of `initialize` and before each card sync run.
+   * Sync can run before `initialize`, and an unmigrated card sends `ReLU` as a name edit.
+   * A second call changes nothing.
+   */
+  async function migratePreIruCard() {
+    const description = cards.value.get('default')?.description ?? ''
+    const builtInDescription = preIruBuiltInDescriptionHashes.has(await sha256Hex(description))
+    // A sync run can change the card during the digest. Read it again, so the write keeps that change.
+    const card = toRaw(cards.value.get('default'))
+    if (!card)
+      return
+
+    const renamed = card.name === 'ReLU'
+    const describedBuiltIn = builtInDescription && (card.description ?? '') === description
+    if (!renamed && !describedBuiltIn)
+      return
+
+    cards.value.set('default', {
+      ...card,
+      name: renamed ? builtInCard.value.name : card.name,
+      description: describedBuiltIn ? builtInCard.value.description : card.description,
+    })
+  }
+
+  /** Applies the initial card while preserving setup context when no auth work is pending. */
   async function initialize() {
+    // Awaiting undefined would leave component setup before the first runtime
+    // stores bind i18n. An existing auth operation already owns those stores.
+    if (pendingAuthenticationSetup)
+      await pendingAuthenticationSetup
     // This synchronized action executes in the leader. Each window calls it,
     // but only the first call can apply persisted card settings to the runtime.
     if (initialized)
       return
 
     initialized = true
-    if (!cards.value.has('default')) {
-      cards.value.set('default', newAiriCard({
-        name: 'ReLU',
-        version: '1.0.0',
-        description: SystemPromptV2(
-          t('base.prompt.prefix'),
-          t('base.prompt.suffix'),
-        ).content,
-      }))
-    }
+    // NOTICE:
+    // Cards saved before Avatar Models store their model in `modules.displayModelId`.
+    // Normalization deletes it, so move it into an Avatar Model reference first.
+    // Source: PR #2458 replaced `modules.displayModelId` with `avatarModels`.
+    // Removal condition: one stable release after the first stable release with PR #2458.
+    const legacyDisplayModelIds = new Map<string, string>()
+    for (const [id, card] of cards.value) {
+      const legacyDisplayModelId = legacyDisplayModelIdOf(toRaw(card))
+      // The built-in card keeps its built-in reference for the bundled preset.
+      // The backfill below adds it, so an unedited built-in card syncs no fields.
+      if (legacyDisplayModelId && (id !== 'default' || legacyDisplayModelId !== BUILT_IN_DISPLAY_MODEL_ID))
+        legacyDisplayModelIds.set(id, legacyDisplayModelId)
 
+      const normalizedCard = newAiriCard(toRaw(card))
+      cards.value.set(id, normalizedCard)
+    }
+    // A model that this device does not store gives no reference. The Stage then
+    // asks the user to select a model.
+    for (const [id, displayModelId] of legacyDisplayModelIds)
+      await setCharacterDefaultAvatarModelFromDisplayModel(id, displayModelId)
+
+    if (!cards.value.has('default'))
+      cards.value.set('default', structuredClone(toRaw(builtInCard.value)))
+
+    // Stored speech-noop can mean an intentional mute. Only the editor may
+    // replace it with inheritance; the old placeholder has no provenance marker.
     // The active id and card map are persisted separately. Older versions
     // could delete the selected card without repairing its stored id.
     if (!cards.value.has(activeCardId.value))
       activeCardId.value = 'default'
+    persistActiveCardId(activeCardId.value)
 
-    applyActiveCardSettings()
+    // NOTICE:
+    // The built-in card stored before PR #2458 has no Avatar Model. Give it the
+    // bundled preset when the migration above found no model for it.
+    // Removal condition: the same as the migration above.
+    const defaultCard = toRaw(cards.value.get('default'))
+    if (defaultCard && defaultCard.extensions.airi.avatarModels.length === 0) {
+      cards.value.set('default', {
+        ...defaultCard,
+        extensions: {
+          ...defaultCard.extensions,
+          airi: {
+            ...defaultCard.extensions.airi,
+            defaultAvatarModelId: builtInCard.value.extensions.airi.defaultAvatarModelId,
+            avatarModels: structuredClone(toRaw(builtInCard.value.extensions.airi.avatarModels)),
+          },
+        },
+      })
+    }
+
+    // NOTICE:
+    // Up to v0.12.0-beta.5 the Stage model was also stored in `settings/stage/model`.
+    // PR #2458 stopped reading it, so an upgrade showed the bundled preset.
+    // Move it once, only into a card that shows the bundled preset.
+    // Removal condition: the same as the migration above.
+    const legacyStageModelId = globalThis.localStorage?.getItem(LEGACY_STAGE_MODEL_STORAGE_KEY)
+    if (legacyStageModelId) {
+      const card = toRaw(cards.value.get(activeCardId.value))
+      const cardDefaultAvatarModelId = card?.extensions.airi.defaultAvatarModelId
+      const cardDisplayModelId = card?.extensions.airi.avatarModels.find(model => model.id === cardDefaultAvatarModelId)?.displayModelId
+      if (legacyStageModelId !== BUILT_IN_DISPLAY_MODEL_ID && (!cardDisplayModelId || cardDisplayModelId === BUILT_IN_DISPLAY_MODEL_ID))
+        await setCharacterDefaultAvatarModelFromDisplayModel(activeCardId.value, legacyStageModelId)
+      // A model that this device does not store gives no reference, as above.
+      // Remove the key in all cases, so that the migration runs only once.
+      localStorage.removeItem(LEGACY_STAGE_MODEL_STORAGE_KEY)
+    }
+
+    if (!activeAvatarModels.value.some(model => model.id === selectedAvatarModelId.value))
+      selectedAvatarModelId.value = resolveDefaultAvatarModelId()
+
+    await applyActiveCardSettings()
+
+    await migratePreIruCard()
+
+    ready.value = true
   }
 
   /**
@@ -391,22 +1345,133 @@ export const useAiriCardStore = defineStore('airi-card', () => {
    * leader. Replicated state snapshots never invoke this command.
    */
   async function activateCard(id: string) {
+    await pendingAuthenticationSetup
     if (!cards.value.has(id))
       return false
 
     activeCardId.value = id
-    applyActiveCardSettings()
+    persistActiveCardId(id)
+    selectedAvatarModelId.value = resolveDefaultAvatarModelId()
+    await applyActiveCardSettings()
     return true
   }
 
-  function applyActiveCardSettings(newCard = activeCard.value) {
-    const {
-      artistry,
-      consciousness,
-      speech,
-      stageModel,
-      vision,
-    } = useRuntimeModuleStores()
+  async function selectAvatarModel(id: string | undefined) {
+    if (id && !activeAvatarModels.value.some(model => model.id === id))
+      return false
+
+    selectedAvatarModelId.value = id
+    await applyActiveAvatarModel()
+    return true
+  }
+
+  async function applyActiveAvatarModel() {
+    // The stage model store loads the model, downloads it from the account when needed, and
+    // reports a model that this device cannot load. The card keeps its reference in every case,
+    // so a synchronized card still shows its model on the device that stores it.
+    useSettingsStageModel(pinia).stageModelSelected = selectedAvatarModel.value?.displayModelId ?? ''
+    await loadActiveLive2DModelControls()
+  }
+
+  async function loadActiveLive2DModelControls() {
+    const generation = ++live2DControlLoadGeneration
+    activeLive2DModelControls.value = emptyLive2DModelControls
+
+    const avatarModel = selectedAvatarModel.value
+    if (avatarModel?.type !== 'live2d')
+      return
+
+    try {
+      const displayModel = await displayModels.getDisplayModel(avatarModel.displayModelId)
+      if (!displayModel || generation !== live2DControlLoadGeneration)
+        return
+
+      let archive: Blob
+      if (displayModel.type === 'file') {
+        archive = displayModel.file
+      }
+      else {
+        const response = await fetch(displayModel.url)
+        if (!response.ok)
+          throw new Error(`Failed to load the Live2D archive (${response.status} ${response.statusText}).`)
+        archive = await response.blob()
+      }
+
+      const controls = await inspectLive2DModelControls(archive)
+      if (generation === live2DControlLoadGeneration)
+        activeLive2DModelControls.value = controls
+    }
+    catch (error) {
+      if (generation === live2DControlLoadGeneration)
+        console.warn('[AiriCard] Failed to inspect Live2D controls.', errorMessageFrom(error))
+    }
+  }
+
+  /** Resolve the named character without changing the character selected by any window. */
+  function getModules(characterId: string): CardModuleDefaults {
+    const card = cards.value.get(characterId)
+    if (!card)
+      throw new Error('The session character is unavailable')
+    const defaults = moduleDefaults.value
+    if (!defaults)
+      throw new Error('Character defaults are not initialized')
+    return resolveModules(card.extensions.airi.modules, defaults)
+  }
+
+  function resolveModules(modules: AiriExtension['modules'], defaults: CardModuleDefaults): CardModuleDefaults {
+    const speechSelection = resolveModuleSelection(modules.speech, defaults.speech)
+    const resolved: CardModuleDefaults = {
+      consciousness: resolveModuleSelection(modules.consciousness, defaults.consciousness),
+      vision: resolveModuleSelection(modules.vision, defaults.vision),
+      speech: {
+        ...speechSelection,
+        voice_id: modules.speech.voice_id || (
+          speechSelection.provider === defaults.speech.provider && speechSelection.model === defaults.speech.model
+            ? defaults.speech.voice_id
+            : ''
+        ),
+      },
+    }
+    const providers = useProviderConfigStore(pinia).providers
+    for (const module of ['consciousness', 'vision', 'speech'] as const) {
+      const provider = providers[resolved[module].provider]
+      // Logout disables authenticated providers without deleting card choices.
+      if (provider?.configuredBy === 'authentication' && provider.status === 'unconfigured') {
+        resolved[module].provider = module === 'speech' ? 'speech-noop' : ''
+        resolved[module].model = ''
+        if (module === 'speech')
+          resolved.speech.voice_id = ''
+      }
+    }
+    return resolved
+  }
+
+  /**
+   * The module selections of every character, resolved against the defaults, by character id.
+   * A chat session resolves its own character through `getModules`, so a provider can be in use without the active card.
+   * The settings home reads it to find the providers in use, and the characters that cannot speak.
+   */
+  const characterModules = computed<ReadonlyMap<string, CardModuleDefaults>>(() => {
+    const defaults = moduleDefaults.value
+    if (!defaults)
+      return emptyCharacterModules
+    return new Map([...cards.value].map(([id, card]) => [id, resolveModules(card.extensions.airi.modules, defaults)]))
+  })
+
+  function getSystemPrompt(characterId: string) {
+    // Live2D controls are inspected only for the active Avatar Model. Another
+    // Character gets its prompt without ACT controls until it becomes active.
+    if (characterId === activeCardId.value)
+      return resolveSystemPrompt(cards.value.get(characterId), enabledLive2DExpressions.value, enabledLive2DMotions.value)
+
+    return resolveSystemPrompt(cards.value.get(characterId), emptyLive2DExpressions, emptyLive2DMotions)
+  }
+
+  async function applyActiveCardSettings(newCard = activeCard.value) {
+    rememberInheritedSettings()
+    // The runtime holds a mix of two cards until the write completes. See followInheritedSettings.
+    appliedModules = undefined
+    const artistry = useArtistryStore(pinia)
 
     artistry.resetToGlobal()
 
@@ -418,38 +1483,25 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     if (!extension)
       return
 
-    const consciousnessSettings = extension.modules?.consciousness
-    if (consciousnessSettings?.provider)
-      consciousness.activeProvider = consciousnessSettings.provider
-    if (consciousnessSettings?.model)
-      consciousness.activeModel = consciousnessSettings.model
-
-    const visionSettings = extension.modules?.vision
-    if (visionSettings?.provider)
-      vision.activeProvider = visionSettings.provider
-    if (visionSettings?.model)
-      vision.activeModel = visionSettings.model
-
-    const speechSettings = extension.modules?.speech
-    if (speechSettings?.provider)
-      speech.activeSpeechProvider = speechSettings.provider
-    if (speechSettings?.model)
-      speech.activeSpeechModel = speechSettings.model
-    if (speechSettings?.voice_id)
-      speech.activeSpeechVoiceId = speechSettings.voice_id
-
-    // Apply body model if the card has a display model configured.
-    // NOTICE: must set via store property directly (not storeToRefs .value) so Pinia's
-    // proxy correctly calls the writable computed setter → stageModelSelectedState → updateStageModel().
-    if (extension.modules?.displayModelId) {
-      stageModel.stageModelSelected = extension.modules.displayModelId
-    }
+    const defaults = moduleDefaults.value
+    if (!defaults)
+      return
+    const modules = extension.modules
+    const resolved = resolveModules(modules, defaults)
+    await writeRuntimeModules(resolved)
+    appliedModules = modules
+    followInheritedSettings()
+    await applyActiveAvatarModel()
 
     if (extension.modules?.artistry) {
-      if (extension.modules.artistry.provider)
-        artistry.activeProvider = extension.modules.artistry.provider
-      if (extension.modules.artistry.model)
-        artistry.activeModel = extension.modules.artistry.model
+      const selection = resolveModuleSelection({
+        provider: extension.modules.artistry.provider ?? '',
+        model: extension.modules.artistry.model ?? '',
+      }, { provider: artistry.globalProvider, model: artistry.globalModel })
+      artistry.activeProvider = selection.provider
+      artistry.activeModel = selection.model
+      if (selection.provider !== artistry.globalProvider)
+        artistry.providerOptions = undefined
       if (extension.modules.artistry.promptPrefix)
         artistry.defaultPromptPrefix = extension.modules.artistry.promptPrefix
       if (extension.modules.artistry.options)
@@ -459,32 +1511,62 @@ export const useAiriCardStore = defineStore('airi-card', () => {
 
   function resetState() {
     initialized = false
+    ready.value = false
+    appliedModules = undefined
+    moduleDefaults.reset()
     cards.reset()
-    activeCardId.reset()
+    activeCardId.value = 'default'
+    selectedAvatarModelId.value = undefined
+    clearPersistedActiveCardId()
   }
 
   return {
     cards,
+    moduleDefaults,
+    characterModules,
     activeCard,
     activeCardId,
+    builtInCard,
+    // A setup store replicates only the refs that it returns, so these two must be part of the result.
+    syncedCardFields,
+    refusedCardIds,
+    cardSyncStates,
+    cloudSyncEnabled,
+    applySynchronizedCards,
+    synchronizeCards,
+    ready,
+    selectedAvatarModel,
+    selectedAvatarModelId,
+    activeLive2DModelControls,
     addCard,
     removeCard,
     updateCard,
+    restoreCardVersion,
+    restoreDeletedCard,
+    cardHistory,
+    deletedCards,
     updateActiveCardConsciousness,
-    updateActiveCardDisplayModel,
-    persistActiveCardModuleSelections,
+    setActiveCardDefaultAvatarModel,
+    removeDeletedAvatarModels,
     updateActiveCardSpeech,
     updateActiveCardVision,
+    selectActiveCardVisionProvider,
     getCard,
+    getModules,
+    getSystemPrompt,
     resetState,
+    selectAvatarModel,
+    updateLive2DControlPolicy,
     initialize,
     activateCard,
+    configureForAuthentication,
+    clearProviderSelections,
+    clearUnavailableProviderSelections,
 
     currentModels: computed(() => {
       const {
         consciousness,
         speech,
-        stageModel,
         vision,
       } = useRuntimeModuleStores()
 
@@ -502,11 +1584,14 @@ export const useAiriCardStore = defineStore('airi-card', () => {
           model: speech.activeSpeechModel,
           voice_id: speech.activeSpeechVoiceId,
         },
-        displayModelId: stageModel.stageModelSelected,
         activeBackgroundId: activeCard.value?.extensions?.airi?.modules?.activeBackgroundId,
       } satisfies AiriExtension['modules']
     }),
-    systemPrompt: computed(() => resolveSystemPrompt(activeCard.value)),
+    systemPrompt: computed(() => resolveSystemPrompt(
+      activeCard.value,
+      enabledLive2DExpressions.value,
+      enabledLive2DMotions.value,
+    )),
   }
 }, {
   synced: {
@@ -514,13 +1599,22 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       'activateCard',
       'addCard',
       'initialize',
+      'configureForAuthentication',
+      'clearProviderSelections',
+      'clearUnavailableProviderSelections',
       'removeCard',
-      'persistActiveCardModuleSelections',
+      'selectAvatarModel',
       'updateActiveCardConsciousness',
-      'updateActiveCardDisplayModel',
+      'setActiveCardDefaultAvatarModel',
+      'removeDeletedAvatarModels',
       'updateActiveCardSpeech',
       'updateActiveCardVision',
+      'selectActiveCardVisionProvider',
       'updateCard',
+      'restoreCardVersion',
+      'restoreDeletedCard',
+      'synchronizeCards',
+      'updateLive2DControlPolicy',
     ],
     state: true,
   },

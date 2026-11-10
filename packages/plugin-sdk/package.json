@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/plugin-sdk",
   "type": "module",
-  "version": "0.12.0-beta.1",
+  "version": "0.15.2",
   "private": true,
   "description": "Plugin SDK for Project AIRI",
   "author": {
@@ -34,6 +34,7 @@
     "package.json"
   ],
   "scripts": {
+    "test:run": "vitest run --config vitest.config.ts",
     "build": "tsdown",
     "dev": "pnpm run build",
     "test": "vitest",
@@ -42,11 +43,14 @@
   "dependencies": {
     "@moeru/eventa": "catalog:",
     "@moeru/std": "catalog:",
-    "@proj-airi/plugin-protocol": "workspace:*",
+    "@proj-airi/extension-protocol": "workspace:*",
+    "injeca": "catalog:",
     "nanoid": "catalog:",
+    "semver": "catalog:",
     "valibot": "catalog:"
   },
   "devDependencies": {
+    "@types/semver": "catalog:",
     "es-toolkit": "catalog:"
   }
 }

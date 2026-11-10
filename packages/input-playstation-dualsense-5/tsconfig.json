@@ -1,0 +1,22 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "lib": [
+      "DOM",
+      "DOM.Iterable",
+      "ESNext"
+    ],
+    "types": [
+      "w3c-web-hid"
+    ]
+  },
+  "include": [
+    "src/**/*.ts",
+    "tsdown.config.ts",
+    "vitest.config.ts"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules"
+  ]
+}

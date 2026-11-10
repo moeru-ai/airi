@@ -2,6 +2,7 @@
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
+import { ScrollableArea } from '@proj-airi/ui'
 import { computed, ref, watch } from 'vue'
 
 import { widgetsHideWindow, widgetsRemove } from '../../../../shared/eventa'
@@ -265,35 +266,40 @@ async function handleClose() {
           </button>
         </div>
 
-        <div class="custom-scrollbar flex-1 overflow-y-auto pr-1 text-[11px] space-y-4">
-          <div class="space-y-1">
-            <div class="text-[9px] text-white/30 font-bold uppercase">
-              Generated Prompt
+        <ScrollableArea
+          :class="['min-h-0 flex-1 text-[11px]']"
+          :viewport-class="['pr-1']"
+        >
+          <div :class="['space-y-4']">
+            <div class="space-y-1">
+              <div class="text-[9px] text-white/30 font-bold uppercase">
+                Generated Prompt
+              </div>
+              <div class="border border-white/5 rounded bg-white/5 p-2 text-white/80 leading-relaxed italic">
+                {{ currentImage?.prompt || prompt || 'No prompt available for this frame.' }}
+              </div>
             </div>
-            <div class="border border-white/5 rounded bg-white/5 p-2 text-white/80 leading-relaxed italic">
-              {{ currentImage?.prompt || prompt || 'No prompt available for this frame.' }}
-            </div>
-          </div>
 
-          <div class="grid grid-cols-2 gap-2">
-            <div class="border border-white/5 rounded bg-white/5 p-2">
-              <div class="mb-1 text-[8px] text-white/30 font-bold uppercase">
-                Remix ID
+            <div class="grid grid-cols-2 gap-2">
+              <div class="border border-white/5 rounded bg-white/5 p-2">
+                <div class="mb-1 text-[8px] text-white/30 font-bold uppercase">
+                  Remix ID
+                </div>
+                <div class="text-white/90">
+                  #{{ currentImage?.remixId || remixId || '000000' }}
+                </div>
               </div>
-              <div class="text-white/90">
-                #{{ currentImage?.remixId || remixId || '000000' }}
-              </div>
-            </div>
-            <div class="border border-white/5 rounded bg-white/5 p-2">
-              <div class="mb-1 text-[8px] text-white/30 font-bold uppercase">
-                Time
-              </div>
-              <div class="text-white/90">
-                {{ renderTime || '--.--s' }}
+              <div class="border border-white/5 rounded bg-white/5 p-2">
+                <div class="mb-1 text-[8px] text-white/30 font-bold uppercase">
+                  Time
+                </div>
+                <div class="text-white/90">
+                  {{ renderTime || '--.--s' }}
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        </ScrollableArea>
 
         <div class="mt-auto pt-2 space-y-2">
           <button

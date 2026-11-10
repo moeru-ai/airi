@@ -119,8 +119,8 @@ async function refetch() {
 }
 
 watch([baseUrl, thinkingMode, headers], refetch, { immediate: true, deep: true })
-onMounted(() => {
-  providersStore.initializeProvider(providerId)
+onMounted(async () => {
+  await providersStore.initializeProvider(providerId)
 
   // Initialize refs with current values
   baseUrl.value = providers.value[providerId]?.baseUrl || providerMetadata.value?.defaultConfig.baseUrl || ''

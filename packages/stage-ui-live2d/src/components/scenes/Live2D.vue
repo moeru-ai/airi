@@ -1,29 +1,44 @@
 <script setup lang="ts">
-import type { Live2DEyeFocusSource } from '../../composables/live2d'
+import type { PresenceBubbleState } from '@proj-airi/stage-shared'
 
+import type { Live2DEyeFocusSource, Live2DTouch } from '../../composables/live2d'
+import type { Live2DContext } from '../../contexts/live2d'
+
+import { presenceBubbleIdle } from '@proj-airi/stage-shared'
+import { useScreenAmbientLightEnvironment, useSettingsScreenAmbientLight } from '@proj-airi/stage-shared/stores/screen-ambient-light'
 import { Screen } from '@proj-airi/ui'
+import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { onUnmounted, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 
 import Live2DCanvas from './live2d/Canvas.vue'
 import Live2DModel from './live2d/Model.vue'
+import Live2DPresenceBubble from './live2d/presence-bubble.vue'
 
-import { useLive2DEyeFocusFor, useSettingsLive2d } from '../../composables/live2d'
+import { createLive2DTouchGestureTracker, useLive2DEyeFocusFor, useSettingsLive2d } from '../../composables/live2d'
+import { createLive2D, provideLive2D } from '../../contexts/live2d'
 
 import '../../utils/live2d-zip-loader'
 import '../../utils/live2d-opfs-registration'
 
 const props = withDefaults(defineProps<{
   cursorPosition?: Live2DEyeFocusSource
+  /** Controls of this renderer. The scene owns a new context when this is not set. */
+  context?: Live2DContext
   modelSrc?: string
   modelId?: string
+  /** Scene painted inside the canvas, behind the model. */
+  backgroundUrl?: string | null
 
   paused?: boolean
   mouthOpenSize?: number
   nowSpeaking?: boolean
   themeColorsHue?: number
   themeColorsHueDynamic?: boolean
+  /** Drives the bubble above the character. */
+  presence?: PresenceBubbleState
 }>(), {
+  presence: () => presenceBubbleIdle,
   paused: false,
   mouthOpenSize: 0,
   nowSpeaking: false,
@@ -33,11 +48,16 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   error: [error: Error]
+  /** A pointer tapped the character, or stroked its head. The model already plays its own reaction from the press. */
+  touch: [touch: Live2DTouch]
 }>()
 
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
 const componentStateCanvas = defineModel<'pending' | 'loading' | 'mounted'>('canvasState', { default: 'pending' })
 const componentStateModel = defineModel<'pending' | 'loading' | 'mounted'>('modelState', { default: 'pending' })
+
+const live2d = props.context ?? createLive2D()
+provideLive2D(live2d)
 
 const live2dCanvasRef = ref<InstanceType<typeof Live2DCanvas>>()
 const live2dModelRef = ref<InstanceType<typeof Live2DModel>>()
@@ -45,6 +65,7 @@ const activeCursorPosition = ref<Live2DEyeFocusSource | null>(null)
 let clearCursorFocusTimeout: ReturnType<typeof setTimeout> | undefined
 
 const {
+  live2dMotionDriver,
   live2dEyeTracking,
   live2dIdleAnimationEnabled,
   live2dForceIdleEyeAnimation,
@@ -55,6 +76,41 @@ const {
   live2dRenderScale,
   live2dShadowEnabled,
 } = storeToRefs(useSettingsLive2d())
+const universalMotionEnabled = computed(() => live2dMotionDriver.value === 'universal')
+const magicMotionEnabled = computed(() => live2dMotionDriver.value === 'magic')
+const {
+  screenAmbientLightBacklight,
+  screenAmbientLightBaseCurve,
+  screenAmbientLightColorBoost,
+  screenAmbientLightDarkBase,
+  screenAmbientLightLocalShare,
+  screenAmbientLightEnabled,
+  screenAmbientLightMode,
+  screenAmbientLightSquint,
+  screenAmbientLightStrength,
+  screenAmbientLightTint,
+  screenAmbientLightTranslucentWrap,
+  screenAmbientLightWrapDiffuse,
+  screenAmbientLightWrapIntensity,
+  screenAmbientLightWrapSaturation,
+} = storeToRefs(useSettingsScreenAmbientLight())
+const {
+  active: screenAmbientLightActive,
+  environment: screenAmbientLightEnvironment,
+  subject: screenAmbientLightSubject,
+} = storeToRefs(useScreenAmbientLightEnvironment())
+const screenAmbientLightFilterOptions = computed(() => ({
+  darkBase: screenAmbientLightDarkBase.value,
+  baseCurve: screenAmbientLightBaseCurve.value,
+  localShare: screenAmbientLightLocalShare.value,
+  tint: screenAmbientLightTint.value,
+  colorBoost: screenAmbientLightColorBoost.value,
+  wrapIntensity: screenAmbientLightWrapIntensity.value,
+  wrapSaturation: screenAmbientLightWrapSaturation.value,
+  wrapDiffuse: screenAmbientLightWrapDiffuse.value,
+  backlight: screenAmbientLightBacklight.value,
+  translucentWrap: screenAmbientLightTranslucentWrap.value,
+}))
 const mouseFocus = useLive2DEyeFocusFor({
   canvas: () => live2dCanvasRef.value?.canvasElement(),
   model: () => ({
@@ -64,7 +120,6 @@ const mouseFocus = useLive2DEyeFocusFor({
   }),
   source: activeCursorPosition,
 })
-
 watch(() => props.cursorPosition, (cursorPosition) => {
   activeCursorPosition.value = cursorPosition ? { ...cursorPosition } : null
   if (clearCursorFocusTimeout)
@@ -74,9 +129,97 @@ watch(() => props.cursorPosition, (cursorPosition) => {
   }, 1000)
 })
 
+const touchGestures = createLive2DTouchGestureTracker()
+
+function touchSampleOf(event: PointerEvent) {
+  const rect = live2dCanvasRef.value?.canvasElement()?.getBoundingClientRect()
+  const hit = rect
+    ? live2dModelRef.value?.touchAt({
+        x: (event.clientX - rect.left) * live2dRenderScale.value,
+        y: (event.clientY - rect.top) * live2dRenderScale.value,
+      })
+    : undefined
+  return { x: event.clientX, y: event.clientY, atMs: event.timeStamp, hit }
+}
+
+function emitTouch(touch: Live2DTouch | undefined) {
+  if (touch)
+    emit('touch', touch)
+}
+
+// One gesture at a time. `isPrimary` holds for each pointer type, so a mouse and a touch can both be primary.
+// A new press during a gesture is ignored, and pointer capture makes sure the release of the gesture arrives.
+let gesturePointerId: number | undefined
+/** True when the press of the current gesture landed on the character. */
+let gestureOnCharacter = false
+
+function endGesture() {
+  gesturePointerId = undefined
+  gestureOnCharacter = false
+}
+
+function cancelGesture() {
+  endGesture()
+  touchGestures.cancel()
+}
+
+// A paused stage does not advance the motion clock, so a reaction would wait and then play late.
+watch(() => props.paused, (paused) => {
+  if (paused)
+    cancelGesture()
+})
+
+useEventListener(() => live2dCanvasRef.value?.canvasElement(), 'pointerdown', (event: PointerEvent) => {
+  if (props.paused || gesturePointerId !== undefined || !event.isPrimary || event.button !== 0)
+    return
+  gesturePointerId = event.pointerId
+  try {
+    (event.currentTarget as HTMLCanvasElement).setPointerCapture(event.pointerId)
+  }
+  catch {
+    // A pointer that already ended cannot be captured. Its release does not come, and lostpointercapture ends the gesture.
+  }
+  const sample = touchSampleOf(event)
+  gestureOnCharacter = !!sample.hit
+  touchGestures.down(sample)
+  // A tap is known only on release, about 100 ms later. The reaction starts on the press, so it does not lag.
+  if (sample.hit)
+    live2dModelRef.value?.react({ ...sample.hit, gesture: 'tap' })
+})
+useEventListener(() => live2dCanvasRef.value?.canvasElement(), 'pointermove', (event: PointerEvent) => {
+  // The primary button is held while the pointer strokes.
+  if (event.pointerId !== gesturePointerId || event.buttons % 2 !== 1)
+    return
+  const pat = touchGestures.move(touchSampleOf(event))
+  if (pat)
+    live2dModelRef.value?.react(pat)
+  emitTouch(pat)
+})
+useEventListener(() => live2dCanvasRef.value?.canvasElement(), 'pointerup', (event: PointerEvent) => {
+  if (event.pointerId !== gesturePointerId)
+    return
+  endGesture()
+  const tap = touchGestures.up(touchSampleOf(event))
+  if (tap)
+    live2dModelRef.value?.playTouchMotion(tap.region)
+  emitTouch(tap)
+})
+useEventListener(() => live2dCanvasRef.value?.canvasElement(), ['pointercancel', 'lostpointercapture'], (event: PointerEvent) => {
+  if (event.pointerId === gesturePointerId)
+    cancelGesture()
+})
+// A pan of the page cancels the pointer and ends the pat. Only a touch on the character holds the page.
+// `touch-action: none` would also stop the scroll over the empty canvas. touchstart comes after pointerdown.
+useEventListener(() => live2dCanvasRef.value?.canvasElement(), 'touchstart', (event: TouchEvent) => {
+  if (gestureOnCharacter && event.cancelable)
+    event.preventDefault()
+}, { passive: false })
+
 onUnmounted(() => {
   if (clearCursorFocusTimeout)
     clearTimeout(clearCursorFocusTimeout)
+  if (!props.context)
+    live2d.dispose()
 })
 
 watch([componentStateModel, componentStateCanvas], () => {
@@ -101,11 +244,11 @@ defineExpose({
       ref="live2dCanvasRef"
       v-slot="{ app }"
       v-model:state="componentStateCanvas"
+      :background-url="props.backgroundUrl"
       :width="width"
       :height="height"
       :resolution="live2dRenderScale"
       :max-fps="live2dMaxFps"
-      max-h="100dvh"
       @error="emit('error', $event)"
     >
       <Live2DModel
@@ -120,17 +263,34 @@ defineExpose({
         :height="height"
         :paused="paused"
         :focus-at="mouseFocus"
-        :eye-tracking="live2dEyeTracking"
+        :eye-tracking="universalMotionEnabled && live2dEyeTracking"
         :eye-focus-source-active="!!activeCursorPosition"
+        :focus-bias="magicMotionEnabled && live2dEyeTracking"
         :theme-colors-hue="themeColorsHue"
         :theme-colors-hue-dynamic="themeColorsHueDynamic"
-        :live2d-idle-animation-enabled="live2dIdleAnimationEnabled"
-        :live2d-force-idle-eye-animation="live2dForceIdleEyeAnimation"
+        :live2d-idle-animation-enabled="universalMotionEnabled && live2dIdleAnimationEnabled"
+        :live2d-force-idle-eye-animation="universalMotionEnabled && live2dForceIdleEyeAnimation"
         :live2d-auto-blink-enabled="live2dAutoBlinkEnabled"
         :live2d-force-auto-blink-enabled="live2dForceAutoBlinkEnabled"
         :live2d-expression-enabled="live2dExpressionEnabled"
         :live2d-shadow-enabled="live2dShadowEnabled"
+        :screen-ambient-light-active="screenAmbientLightEnabled && screenAmbientLightActive"
+        :screen-ambient-light-filter-options="screenAmbientLightFilterOptions"
+        :screen-ambient-light-environment="screenAmbientLightEnvironment"
+        :screen-ambient-light-subject="screenAmbientLightSubject"
+        :screen-ambient-light-mode="screenAmbientLightMode"
+        :screen-ambient-light-strength="screenAmbientLightStrength"
+        :screen-ambient-light-squint="screenAmbientLightSquint"
         @error="emit('error', $event)"
+      />
+      <Live2DPresenceBubble
+        v-if="app"
+        :app="app"
+        :head-anchor="() => live2dModelRef?.headAnchor()"
+        :state="props.presence"
+        :width="width"
+        :height="height"
+        :resolution="live2dRenderScale"
       />
     </Live2DCanvas>
   </Screen>

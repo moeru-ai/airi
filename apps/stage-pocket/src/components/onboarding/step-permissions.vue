@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Button } from '@proj-airi/ui'
+import { Button, ScrollableArea } from '@proj-airi/ui'
 import { useI18n } from 'vue-i18n'
 
 import PermissionsPanel from '../permissions/permissions-panel.vue'
@@ -25,17 +25,19 @@ const { t } = useI18n()
       <div h-5 w-5 />
     </div>
 
-    <div flex-1 overflow-y-auto space-y-4>
-      <p class="text-sm text-neutral-600 md:text-base dark:text-neutral-300">
-        {{ t('settings.dialogs.onboarding.permissions.description') }}
-      </p>
+    <ScrollableArea :class="['min-h-0 flex-1']">
+      <div :class="['space-y-4']">
+        <p class="text-sm text-neutral-600 md:text-base dark:text-neutral-300">
+          {{ t('settings.dialogs.onboarding.permissions.description') }}
+        </p>
 
-      <PermissionsPanel />
+        <PermissionsPanel />
 
-      <p :class="['text-xs', 'text-neutral-500 dark:text-neutral-400']">
-        {{ t('settings.dialogs.onboarding.permissions.optionalHint') }}
-      </p>
-    </div>
+        <p :class="['text-xs', 'text-neutral-500 dark:text-neutral-400']">
+          {{ t('settings.dialogs.onboarding.permissions.optionalHint') }}
+        </p>
+      </div>
+    </ScrollableArea>
 
     <Button
       :label="t('settings.dialogs.onboarding.next')"

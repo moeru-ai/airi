@@ -2,8 +2,9 @@ import type { Message } from '@xsai/shared-chat'
 
 import { defineInvoke, defineInvokeEventa } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/renderer'
+import { chatMessagesToTurns, streamFrom } from '@proj-airi/core-agent'
 import { artistryGenerateHeadless } from '@proj-airi/stage-shared'
-import { generateText } from '@xsai/generate-text'
+import { cloneDeep } from 'es-toolkit'
 import { defineStore } from 'pinia'
 import { ref, toRaw } from 'vue'
 import { toast } from 'vue-sonner'
@@ -14,7 +15,6 @@ import { useChatSessionStore } from '../chat/session-store'
 import { useProviderStore } from '../providers/provider'
 import { useAiriCardStore } from './airi-card'
 import { useArtistryStore } from './artistry'
-import { useConsciousnessStore } from './consciousness'
 
 const artistLog = import.meta.env.DEV ? console.info.bind(console, '[AutonomousArtist]') : () => {}
 
@@ -22,7 +22,6 @@ export const useAutonomousArtistryStore = defineStore('artistry-autonomous', () 
   const cardStore = useAiriCardStore()
   const backgroundStore = useBackgroundStore()
   const artistryStore = useArtistryStore()
-  const consciousnessStore = useConsciousnessStore()
   const providersStore = useProviderStore()
   const chatSessionStore = useChatSessionStore()
 
@@ -48,34 +47,41 @@ export const useAutonomousArtistryStore = defineStore('artistry-autonomous', () 
   /**
    * Analyzes the context in parallel and triggers a visual if threshold is met.
    */
-  async function runArtistTask(inputText: string, history: Message[] = [], targetOverride?: 'user' | 'assistant') {
+  async function runArtistTask(inputText: string, history: Message[] = [], targetOverride?: 'user' | 'assistant', targetSessionId = chatSessionStore.activeSessionId) {
     if (isProcessing.value) {
       artistLog('Skipping task: Already processing another task.')
       return
     }
-    const { activeCard } = cardStore
+    const cardId = chatSessionStore.sessionMetas[targetSessionId]?.characterId
+    const activeCard = cardId ? cardStore.getCard(cardId) : undefined
     const artistry = activeCard?.extensions?.airi?.modules?.artistry
     const autonomousEnabled = artistry?.autonomousEnabled ?? false
     const target = targetOverride || artistry?.autonomousTarget || 'user'
 
     artistLog('Triggered runArtistTask. State:', {
-      cardId: cardStore.activeCardId,
+      cardId,
       cardName: activeCard?.name,
       autonomousEnabled,
       target,
     })
 
-    if (!activeCard || !artistry || !autonomousEnabled) {
+    if (!cardId || !activeCard || !artistry || !autonomousEnabled) {
       return
     }
 
     const threshold = artistry.autonomousThreshold ?? 70
-    const cardId = cardStore.activeCardId
 
     isProcessing.value = true
     artistLog('Starting analysis task...', { threshold, cardId, target })
 
     try {
+      const selection = cardStore.getModules(cardId).consciousness
+      const rendering = {
+        model: artistry.model || artistryStore.activeModel,
+        provider: artistry.provider || artistryStore.activeProvider,
+        options: cloneDeep(artistry.options || artistryStore.providerOptions),
+        globals: cloneDeep(artistryStore.artistryGlobals),
+      }
       // 0. Guard: If the text is empty, skip analysis (Director cannot analyze silence)
       if (!inputText || inputText.trim() === '') {
         artistLog('Skipping analysis: Input text is empty.')
@@ -142,8 +148,8 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
         },
       ]
 
-      const modelId = consciousnessStore.activeModel
-      const providerId = consciousnessStore.activeProvider
+      const modelId = selection.model
+      const providerId = selection.provider
 
       artistLog('Sending rolled-up prompt to Director LLM...', {
         model: modelId,
@@ -157,10 +163,7 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
         throw new Error(`Missing LLM configuration (Model: ${modelId}, Provider: ${providerId})`)
       }
 
-      const chatProvider = await providersStore.getProviderInstance(providerId) as any
-      if (!chatProvider) {
-        throw new Error(`Failed to resolve chat provider instance for: ${providerId}`)
-      }
+      const chatProvider = await providersStore.getChatProviderInstance(providerId)
 
       // NOTICE: Artificial 10s delay for USER target to avoid race conditions/429s.
       // Skipped for ASSISTANT target as the main response is already finalized.
@@ -176,14 +179,18 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
         model: modelId,
         reason: target,
       })
-      const chatConfig = chatProvider.chat(modelId)
-      const response = await generateText({
-        ...chatConfig,
-        messages,
-        headers: { 'Accept-Encoding': 'identity' },
+      let responseText = ''
+      await streamFrom({
+        model: modelId,
+        chatProvider,
+        conversation: { turns: chatMessagesToTurns(messages) },
+        options: { onStreamEvent: (event) => {
+          if (event.type === 'text-delta')
+            responseText += event.text
+        } },
       })
 
-      const rawContent = (response.text || '').trim()
+      const rawContent = responseText.trim()
       artistLog('Received raw response from Director LLM:', rawContent)
 
       // 3. Parse and analyze
@@ -223,13 +230,9 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
           return
         }
 
-        const artistryGlobals = artistryStore.artistryGlobals
         const generationPayload = {
+          ...rendering,
           prompt: artistry.promptPrefix ? `${artistry.promptPrefix} ${analysis.prompt}` : analysis.prompt,
-          model: artistry.model || artistryStore.activeModel,
-          provider: artistry.provider || artistryStore.activeProvider,
-          options: artistry.options || artistryStore.providerOptions,
-          globals: artistryGlobals,
         }
 
         artistLog('Triggering Headless Generation with payload:', generationPayload)
@@ -268,27 +271,33 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
           const spawnMode = artistry.spawnMode || 'bg_widget'
           artistLog(`Routing image with mode: ${spawnMode}`)
 
+          // Read current card data after generation to preserve concurrent settings edits.
+          const currentCard = cardStore.getCard(cardId)
+          if (!currentCard)
+            return
+
           switch (spawnMode) {
             case 'bg':
               // Update character's active background
               await cardStore.updateCard(cardId, {
+                ...currentCard,
                 extensions: {
-                  ...activeCard.extensions,
+                  ...currentCard.extensions,
                   airi: {
-                    ...activeCard.extensions.airi,
+                    ...currentCard.extensions.airi,
                     modules: {
-                      ...activeCard.extensions.airi.modules,
+                      ...currentCard.extensions.airi.modules,
                       activeBackgroundId: entryId,
                     },
                   },
                 },
-              } as any)
+              })
               break
 
             case 'inline': {
               const imageUrl = result.imageUrl || result.base64
               const content = `![${analysis.title || 'Generated Image'}](${imageUrl})`
-              chatSessionStore.appendSessionMessage(chatSessionStore.activeSessionId, {
+              chatSessionStore.appendSessionMessage(targetSessionId, {
                 role: 'assistant',
                 content,
                 slices: [{ type: 'text', text: content }],
@@ -323,17 +332,18 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
             default:
               // Both: Update background AND spawn widget
               await cardStore.updateCard(cardId, {
+                ...currentCard,
                 extensions: {
-                  ...activeCard.extensions,
+                  ...currentCard.extensions,
                   airi: {
-                    ...activeCard.extensions.airi,
+                    ...currentCard.extensions.airi,
                     modules: {
-                      ...activeCard.extensions.airi.modules,
+                      ...currentCard.extensions.airi.modules,
                       activeBackgroundId: entryId,
                     },
                   },
                 },
-              } as any)
+              })
 
               try {
                 await invokers.addWidget({

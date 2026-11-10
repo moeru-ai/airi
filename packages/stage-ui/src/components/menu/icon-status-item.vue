@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { ProviderDeployment, ProviderPricing } from '../../libs/providers/attributes'
 
+import { computed } from 'vue'
+
 const props = defineProps<{
   title: string
   description?: string
@@ -9,10 +11,28 @@ const props = defineProps<{
   iconImage?: string
   to: string
   configured?: boolean
+  syncState?: 'synced' | 'pending' | 'not-uploaded'
   pricing?: ProviderPricing
   deployment?: ProviderDeployment
   beginnerRecommended?: boolean
 }>()
+
+const syncIcons = {
+  'synced': {
+    className: 'i-solar:cloud-check-outline',
+    labelKey: 'settings.pages.providers.sync.synced',
+  },
+  'pending': {
+    className: 'i-solar:cloud-upload-outline',
+    labelKey: 'settings.pages.providers.sync.pending',
+  },
+  'not-uploaded': {
+    className: 'i-solar:cloud-cross-outline',
+    labelKey: 'settings.pages.providers.sync.not-uploaded',
+  },
+} as const
+
+const syncIcon = computed(() => props.syncState ? syncIcons[props.syncState] : undefined)
 </script>
 
 <template>
@@ -23,14 +43,14 @@ const props = defineProps<{
     drop-shadow="none hover:[0px_4px_4px_rgba(220,220,220,0.4)] active:[0px_0px_0px_rgba(220,220,220,0.25)] dark:hover:none"
     class="menu-icon-status-item"
     transition="all ease-in-out duration-400"
-    w-full cursor-pointer of-hidden rounded-xl
+    h-full w-full cursor-pointer of-hidden rounded-xl
   >
     <RouterLink
       flex="~ row"
       class="menu-icon-status-item-link"
       bg="white dark:neutral-900"
       transition="all ease-in-out duration-400"
-      relative h-full w-full items-center overflow-hidden rounded-lg p-5 text-left
+      relative w-full flex-1 items-start overflow-hidden rounded-lg p-5 text-left
       :to=" props.to"
     >
       <div z-1 flex-1>
@@ -58,13 +78,19 @@ const props = defineProps<{
           </div>
           <div
             v-if="props.pricing"
-            text="[10px] neutral-600 dark:neutral-300" border="1 neutral-200 dark:neutral-700" rounded-md px-1.5 py-0.5 font-bold tracking-wider uppercase
+            :class="[
+              'rounded-md px-1.5 py-0.5 text-[10px] font-bold tracking-wider uppercase',
+              'bg-neutral-500/10 text-neutral-600 dark:bg-neutral-400/15 dark:text-neutral-300',
+            ]"
           >
             {{ $t(`settings.pages.providers.filters.${props.pricing}`) }}
           </div>
           <div
             v-if="props.deployment"
-            text="[10px] neutral-600 dark:neutral-300" border="1 neutral-200 dark:neutral-700" rounded-md px-1.5 py-0.5 font-bold tracking-wider uppercase
+            :class="[
+              'rounded-md px-1.5 py-0.5 text-[10px] font-bold tracking-wider uppercase',
+              'bg-neutral-500/10 text-neutral-600 dark:bg-neutral-400/15 dark:text-neutral-300',
+            ]"
           >
             {{ $t(`settings.pages.providers.filters.${props.deployment}`) }}
           </div>
@@ -100,6 +126,17 @@ const props = defineProps<{
         >
       </template>
     </RouterLink>
+    <span
+      v-if="syncIcon"
+      role="img"
+      :aria-label="$t(syncIcon.labelKey)"
+      :title="$t(syncIcon.labelKey)"
+      :class="[
+        syncIcon.className,
+        'absolute right-3 top-3 z-2 size-4',
+        'text-neutral-400 dark:text-neutral-500',
+      ]"
+    />
     <div p-2>
       <div v-if="props.configured" size-4 bg="green-500" rounded-full shadow="lg" />
       <div v-else size-4 border="2 neutral-200 dark:neutral-700" rounded-full bg="white dark:neutral-900" />

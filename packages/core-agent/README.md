@@ -1,0 +1,353 @@
+# Core Agent
+
+`@proj-airi/core-agent` owns scheduling, context composition, tool rounds, and generation events. Stage applications provide persistence and UI through its ports. Provider registration and configuration belong to `provider-inference`. Authentication and Flux billing belong to the gateway.
+
+## Conversation and protocol projection
+
+`Conversation` contains ordered `Turn` values. `UserTurn` owns user content. `SystemTurn` owns instructions or application context. Its authority distinguishes system instructions, developer instructions, and context data. Application context does not gain instruction authority merely because the application supplied it.
+
+`AssistantTurn` owns an ordered `rounds` array. One round represents one model invocation and all tool executions it requested, including parallel calls. Its content references tool invocations; each invocation owns its call and result once. The provider call id correlates results within that round. Tool reruns use the AIRI invocation id to distinguish repeated provider call ids. A run id refers to a real scheduler execution, not the number of rounds. Imported history has no model-call metadata when that information is unavailable.
+
+`ProviderContinuation` stores each protocol's own SDK message type: Chat `Message[]` or Responses `ItemParam[]`.
+
+`streamFrom` selects the configured provider capability before request projection. The Chat adapter renders Chat Completions messages. The Responses adapter renders native Items directly from the same context. Chat array compatibility cannot change Responses input. Both projections leave the context snapshot unchanged.
+
+`streamFrom` retries a request up to three times when the provider returns HTTP 408, 429, or 5xx before any stream event reaches the caller. It waits for the `Retry-After` delay when the header is readable, or 3s, 6s, and 12s otherwise. A `Retry-After` longer than 30s fails at once. Other statuses, network failures, and failures after output or tool calls fail at once, so text and tool side effects never repeat. `abortSignal` also cancels a pending wait.
+
+When a caller supplies `resolveStep`, `streamFrom` reads current settings before each model request. It resolves the first request before projecting the conversation. A continuation scope change starts a new SDK stream. Completed rounds and usage remain in one assistant turn. The callback returns the current tools and header overrides for each request.
+
+`prepareConversation` adapts media to the resolved request before the protocol adapter projects the conversation. It runs for each SDK stream, so it also runs after a scope change selects another model. It returns a request copy and keeps stored recordings intact. Stage uses it to send audio only to models that accept audio, and transcripts to other models.
+
+The chat orchestrator forwards a send's `resolveStep`. It appends that send's system prompt supplement, including sticker instructions, to each resolved prompt.
+
+To cap each request's output, set `StreamOptions.maxTokens`. Chat sends `max_tokens`, and Responses sends `max_output_tokens`.
+A `resolveStep` cap overrides the caller's cap. If the step omits its cap, the caller's cap applies.
+If both omit it, the provider's default applies.
+
+The cap applies to each tool continuation, not the whole turn. Providers enforce the value and define how reasoning tokens count.
+This option adds no UI setting.
+
+```ts
+await streamFrom({
+  model: 'selected-model',
+  chatProvider: selectedProvider,
+  conversation: {
+    turns: [{
+      id: 'input-1',
+      type: 'user',
+      content: [{ type: 'text', text: 'Hello' }],
+    }],
+  },
+})
+```
+
+The existing session store uses Chat-shaped UI records. The orchestrator decodes those records at the storage boundary, then composes runtime context as structured segments. Chat sends, vision inputs, and Spark notifications use the same generation contract. Hooks and the plugin bridge receive a separate display projection. That projection is text-only and excludes native continuation data and media payloads. Images, audio, and files become labels, including tool results.
+
+Runtime context keeps one bucket per writer. `replace-self` replaces the writer's entries, and `append-self` adds an event.
+`removeWriter()` removes one writer's entries, for example after its module leaves.
+
+## Turn history
+
+`getContextWindow` limits conversation turns, including the current input's turn. Each turn contains a user group and its assistant replies and tool exchanges.
+Consecutive messages from the same role stay together, including groups joined by manual deletion. System messages do not count toward the limit.
+When the limit is exceeded, the newest `ceil(limit * 0.9)` turns remain. The retained start stays fixed until the limit is exceeded again.
+The runtime scans backward through the needed turns instead of rebuilding an index for all saved history on each send.
+An omitted limit or `-1` keeps all history. `0` sends only the current input and system messages. Saved chat records stay intact.
+
+After all SDK steps settle, `onGeneratedTurn` receives the new `AssistantTurn`. Each round records model usage, its finish reason, tool invocations, and native continuation data. SDK input snapshots define round boundaries; message roles do not define runtime rounds.
+
+The generated turn contains settled rounds and is stored under the existing `generationTranscript` history key. Live deltas still use the existing stream event contract. An interrupted execution does not store a generated turn. If it produced visible output, local Chat history preserves that output with `interrupted: true` so the user can read and retry it.
+
+A stored assistant message has `createdAt` from when it started and `completedAt` from when it stopped receiving output, at its end or at its interruption. Windows that do not run the generation use `completedAt`, for example to time how long a reply shows.
+
+The adapter preserves SDK continuation data without parsing nested provider fields through local schemas. It checks the outer array before replay. Its scope contains provider identity, endpoint, model, and conversation. Credentials and request headers do not change this scope. A protocol or scope change projects round content. Unknown native content records a projection issue without removing the original payload or other readable items. Cross-protocol projection reports that issue instead of silently omitting content. A local tool-result edit invalidates native data for that round and later rounds that used the old result. Cancelled or failed generations do not commit a generated turn. `AssistantTurn.status` is therefore `completed`. Tool executions within that turn can still report failure.
+
+Local history preserves complete turns and visible output from interrupted turns. Interrupted records stay on the device because the cloud wire format cannot preserve their incomplete state. Cloud chat sync currently transfers completed text and does not restore native continuation on another device.
+
+## Responses API
+
+A provider resolves a discriminated `GenerationRequest` before context projection. The adapter owns its wire format and SDK event conversion. The adapter uses `@xsai-ext/responses` with `store: false`. It replays complete Items and executes local function tools for at most ten steps.
+
+The current Responses adapter supports text, images, file data or URLs, refusals, and function calls. It rejects audio input and provider file IDs. It supports provider-executed web search alongside local function tools. Search records remain in native continuation. Citation events and portable text retain source URLs and offsets. Incomplete responses and EOF before a terminal event fail the generation. Session cancellation aborts the active provider request.
+
+Realtime transport is not implemented. A future session adapter can project the same context, but must define continuous input, interruption, and session ownership separately.
+
+## Host send options
+
+`ChatOrchestratorSendOptions` carries what the host decides for one send:
+
+- `scene` marks a reply to an external scene, for example a Discord channel. It never speaks.
+- `background` marks work beside the conversation, for example a recipe task. It never speaks.
+- `notice` sends text that is not owner speech, for example a finished task. History stores it with `notice`, and requests mark it with its source. The reply carries `proactive`.
+- `skills` stores invoked skill steps with the owner's message. Later requests project them after that message.
+
+The stream context carries `speaks`. Only a send that is neither `background` nor `scene` speaks.
+
+## Identity
+
+With `getSystemPrompt`, each run reads the identity of its own session when it starts. Stored system messages are skipped.
+
+## Recipes
+
+A recipe is a skill with `instructions` steps. `usableRecipes` keeps enabled and approved recipes.
+`matchKeywordRecipes` finds recipes whose keyword appears in a message. `isBackgroundRecipe` tells whether a recipe runs in its own session.
+A decision recipe has a `decision` instead of steps. `decisionOptions` numbers its answers, and `judgeDecision` returns the action of the answer that the model picked.
+`isAutoRunRecipe` marks a recipe with an `automation` or `modelTimed`. `MODEL_DECIDES_STEPS` are instructions that let the model decide what each run does from the recipe's purpose.
+
+## Automations
+
+An `Automation` has triggers, conditions, and an optional cooldown. `checkAutomations` returns the recipes whose trigger fired and whose conditions hold.
+Each trigger event counts once. A recipe in its cooldown, or with a run that still runs, spends the event without a run.
+Each trigger keeps its own time, so one trigger that fires never spends the event of another.
+
+## Verify
+
+```sh
+pnpm -F @proj-airi/core-agent typecheck
+pnpm -F @proj-airi/core-agent exec vitest run src/runtime src/messages src/agents/spark-notify
+```
+
+## Type boundaries
+
+Turn types constrain their content. User and system turns cannot contain execution rounds. Only assistant rounds own tool invocations.
+Files have exactly one source. SDK output and restored continuation enter through protocol boundaries.
+The public stream event union has no `any` branch. Protocol adapters translate SDK events into this contract.
+The scheduler commits a generated turn only after transport, local tools, and event consumers complete.
+Source links remain separate from speech text and survive local history persistence.
+
+## Chat stickers
+
+A host can supply `stickers` in the send options. Each entry has an `id` and a model-facing `description`. Hosts include image names and emotion tags in that description.
+The queue copies the catalog when the request is submitted, alongside its provider identity and system prompt supplement.
+Concurrent sessions and queued sends retain their own catalog. The runtime adds its marker instructions to that request's system prompt.
+An absent or empty catalog disables sticker output and adds no prompt instructions.
+
+The existing marker parser accepts `<|STICKER id|>` across stream chunks.
+The runtime stores at most one known ID as a `ChatSlicesSticker` per reply.
+Unknown IDs are ignored. Sticker markers never reach literal speech or special-token hooks.
+Other special markers retain their existing behavior. A reply can contain text, a sticker, or both.
+The host renderer resolves the ID to local artwork. The core has no image assets, URLs, storage, or model dependencies.
+
+## VoiceController
+
+The implemented coordinator is `VoiceController`. It composes audio primitives with transcription, trusted plugins, submission, and named response interruption.
+Use it for conversation lifecycles. Use pipelines-audio directly for an independent recording attachment.
+Browser resources stay in audio adapters. Character selection and persistence stay in application adapters.
+
+```text
+src/voice/
+├── index.ts         # The public voice API. Import from the package root, not from these files.
+├── controller.ts    # VoiceController and its options
+├── interruption.ts  # Interruption receipts and the durable interruption event
+├── turn.ts          # TurnRef and turnKey
+├── input/           # One speech input: admission, capture, transcript, end detection, submission
+├── output/          # VoiceResponse and ordered SpeechStream producers
+├── plugins/         # Trusted plugin types, installation, and per-input watchers and finalization stages
+└── policy/          # Voice events, input revisions, the rule engine, and first-party rules
+```
+
+`input/` and `output/` do not import `controller.ts`. `plugins/` reads input types but never the controller.
+
+```ts
+const voice = new VoiceController({
+  audio,
+  transcriber: ({ inputId, sessionId }) => hearingFor(sessionId, inputId),
+  submit: (input, signal) => saveDraftOrSubmit(input, signal),
+  speech: turn => speechOutputFor(turn),
+  recordInterruption: event => agent.receiveInterruption(event),
+})
+
+const input = voice.beginInput({
+  sessionId,
+  interruptTurns: [currentTurn],
+  start: { kind: 'after-silence' },
+})
+
+// The release control calls end. Provider final output and finalization stages can then finish.
+const result = await input.end()
+```
+
+- `SpeechInputAttempt` exists during playback fade and until the source delivers audio, which includes microphone permission.
+- `SpeechInput` exists after capture admission. It holds the transcript document: raw text, corrected text, and speaker evidence.
+- `end()` completes recording. `cancel(reason)` rejects later publication from the attempt.
+- `interrupt({ turns, cause })` targets named responses and reports silence separately from agent delivery.
+- The notification receiver deduplicates by event ID. Its acknowledgment means durable receipt, without another user message or response.
+- `audio` is a shared `AudioInput`. Attempts and plugins subscribe to it. The controller never closes it.
+- `replaceAudio(input)` cancels active attempts and moves plugin observations to the new input.
+- A transcriber receives continuous PCM. An adapter that needs a file or a MediaStream converts the PCM itself.
+- After `end()`, the provider must close its transcript within `transcriptionTimeoutMs` (30 s by default). Otherwise the input fails at the `transcription` stage.
+
+### Trusted plugins
+
+A plugin gets one `onXxx` hook for each stage of a turn, and the audio of both sides for its whole life:
+
+| API | Runs |
+| --- | --- |
+| `onInput(install)` | Once for each accepted speech input. It gives `watch` and `finalize`. |
+| `onOutput(install)` | Once for each response that speaks. It gives the speech events of that response. |
+| `input.observe(window, run)` | For the life of the plugin, on windows of the microphone. |
+| `output.observe(window, run)` | For the life of the plugin, on windows of the played speech. |
+| `output.connect(node)` | For the life of the plugin, connects a graph node of the platform to the played speech. |
+
+A replaced microphone (`replaceAudio`) or playback (`replacePlayback`) moves the observations and the connections to it.
+
+A speech input has two phases, and a plugin can take part in both.
+
+- While the provider transcribes, the document changes. `watch` runs work for the newest document only, like a language server analysis. A newer key aborts the active run.
+- After the provider ends, the text is complete. `finalize` stages run one after another, in plugin installation order. Each stage sees the corrections of earlier stages. Then the host receives the submission.
+
+Use `watch` for speculative work that a stage reuses, so the stage does not wait for a model after the speaker stops.
+
+```ts
+voice.use({
+  name: 'memory',
+  setup(plugin) {
+    plugin.onInput((input) => {
+      let speculation: { text: string, matches: Promise<Match[]> } | undefined
+
+      input.watch((document, signal) => {
+        const text = document.raw.text
+        speculation = { text, matches: memory.search({ text, signal }) }
+      }, { key: document => document.raw.text, debounceMs: 600 })
+
+      input.finalize(async (ctx) => {
+        const text = ctx.document.corrected.text
+        const matches = speculation?.text === text ? speculation.matches : memory.search({ text, signal: ctx.signal })
+        ctx.attach('matches', await matches)
+      }, { timeoutMs: 3000 })
+    })
+  },
+})
+```
+
+- `watch` takes a `key`. A document with an equal key keeps the active run. For example, a provider that marks a segment final without new text does not restart the work.
+- A stage writes with `ctx.patch(edits)` and `ctx.attach(key, value)`. Writes after the stage ends or times out are rejected.
+- A failed stage is reported through `onError` with the stage `finalize`. The next stage still runs. A timeout skips the stage without an error.
+- Plugin corrections apply only during finalization. During capture, only a user correction through `correctInput` changes the corrected text.
+- `onInput` can be asynchronous. Finalization waits for pending installs.
+- `input.control` gives input commands, such as `end`, to a plugin with the `input-control` grant.
+
+VAD, PTT, wake words, speaker models, turn detection, memory search, and rewrite models remain external policy or adapters.
+Plugins receive source-tagged windows and scoped controls. They do not receive unrestricted controller access.
+Plugins are trusted in-process code. Grants authorize control commands. They are not a sandbox.
+Automatic patches use raw word or sentence coordinates and preserve raw history.
+
+### Events and rules
+
+`VoiceController.events` is an eventa context. It carries input lifecycle events (`inputBegunEvent` to
+`inputSettledEvent`) and signals, which any plugin can define with `defineEventa`. Projections, such as UI state and
+traces, subscribe to it.
+
+Rules decide when an input begins, ends, or is cancelled. A rule is a reducer over voice events. It has no timers and
+no side effects, so a test feeds events and checks the commands. A plugin adds rules with `scope.rule(rule)`, emits
+signals with `scope.emit(eventa, body)`, and reads them with `scope.on(eventa, listener)`.
+
+```ts
+voice.use({
+  name: 'voice-activity',
+  setup(scope) {
+    scope.rule(createSpeechActivityRule({ target: () => ({ sessionId, interruptTurns: [] }) }))
+    scope.input.observe({ windowMs: 32, hopMs: 32, scheduling: 'ordered' }, async ({ window, signal }) => {
+      const score = await vad.score(window, signal)
+      scope.emit(speechActivitySignal, { range: window.range, durationMs: 32, score, discontinuity: window.discontinuity, accepted: true })
+    })
+    return undefined
+  },
+}, { grants: ['input-control', 'cancel-input'] })
+```
+
+- The engine imposes one event order. An event that a rule emits joins the end of the queue.
+- A slow signal returns the input revisions that it read as `readAt`. `context.isCurrent(inputId, readAt)` tells a
+  rule whether the result is still current. A revision counts content changes, so the same text in a new provider
+  revision keeps a judgement current.
+- A rule command runs only with the grant of the plugin that added the rule. For one input, the first `seal` or
+  `cancel` wins.
+- First-party rules: `createSpeechActivityRule` (VAD begin, silence limit, minimum speech), `createPauseRule`
+  (emits `paused`), and `createEndJudgementRule` (seals on a current `complete` judgement).
+
+### Output plugins
+
+`onOutput` runs once for each response that opens. The scope gives the turn, a signal that aborts when the response
+closes, the controls of the plugin grants, and these events in order:
+
+| Event | When |
+| --- | --- |
+| `tts-request` | Synthesis of one text segment starts. It carries `segmentId`, the text, and the chunker `reason`. |
+| `tts-result` | Synthesis ends with `audio`, `no-audio`, `cancelled`, or `failed`. |
+| `playback-start` | The first audio of the segment is scheduled. |
+| `playback-end` | The segment ends, stops, or fails. A stop carries its reason. |
+| `token-special` | Playback reaches a special token, for example an expression marker. |
+
+`segmentId` joins the synthesis and the playback of one segment. A streaming provider has no segments: its stream is
+one `tts-request`, and each audio part plays with its own ID.
+
+```ts
+const voice = new VoiceController<AudioNode>({ playback, speech: turn => speechOutputFor(turn) })
+
+voice.use({
+  name: 'speech-level',
+  setup(scope) {
+    scope.onOutput((output) => {
+      output.on('playback-start', () => startMeter())
+      output.onDispose(() => stopMeter())
+    })
+    return undefined
+  },
+})
+
+// A lip sync worklet hears the played speech after the clip fades and before the user volume.
+const lipSync: VoicePlugin<AudioNode> = { name: 'lip-sync', setup(scope) {
+  scope.output.connect?.(lipSyncNode)
+  return undefined
+} }
+```
+
+`TNode` is the node type of the platform audio graph. A plugin that needs no graph is a `VoicePlugin`, which installs
+on every host. A `VoicePlugin<AudioNode>` installs only on a host whose playback is a Web Audio graph.
+
+### Output without voice input
+
+```ts
+const voice = new VoiceController({ speech: turn => speechOutputFor(turn) })
+const response = voice.openResponse({ sessionId, turnId })
+const acknowledgment = response.openSpeech({ purpose: 'acknowledgment' })
+const answer = response.openSpeech({ purpose: 'answer' })
+
+await acknowledgment.write('Let me check.')
+acknowledgment.end()
+await answer.write(answerText)
+answer.end()
+await response.finish()
+```
+
+Producers can synthesize concurrently. Playback follows their reservation order.
+A producer streams its text to TTS by segments. `MarkdownSegmenter` ends a segment after a sentence or a line, only where no formula, code, link, emphasis, or table is open. Then `toSpeechText` reads the segment and removes markdown that has no sound, for example emphasis delimiters, link URLs, and code blocks.
+So an answer starts to speak after its first sentence, and a formula that later writes complete is still read as one formula.
+Symbols that markdown keeps as text, for example `2 * 3` and `x ~= 3`, stay in the speech text.
+TeX formulas, `\ce{}` chemistry, units, and dollar prices are read as words of the sentence language: Chinese, English, Japanese, or Korean.
+Tokens such as web addresses and file paths are read as words, in prose, inline code, and link text. For example `https://home.example.com` reads as `https home 点 example 点 com` in Chinese, and `./src/index.ts` as `dot slash src slash index dot ts` in English. Other languages use the English words. Each kind of token has a reader. A token that no reader recognizes stays as written. To add a reading, pass `tokenSpeechPreprocessor({ readers: [myReader, ...defaultTokenReaders()] })`.
+Obsidian links read as the text that Obsidian shows. `[[Note|Alias]]` reads `Alias`, `[[Note#Heading]]` reads `Note Heading`, and `![[shot.png]]` reads the word for an image, audio, video, or PDF file. An image without alternative text also reads as an image.
+The rules are in [`@proj-airi/speech-transformer-math`](../speech-transformer-math) and [`@proj-airi/speech-transformer-chem`](../speech-transformer-chem), see [the ADR](../../docs/ai/adr/2026-10-20-speech-text-preprocessor.md).
+`mathSpeech` is the instance that AIRI uses: the built-in locale packs, with chemistry.
+
+`toMathJson(tex)` returns the MathJSON of a formula without reading it, for tools that inspect formulas.
+`options.language` is the BCP 47 code of the voice. The words around a formula or a price select its language first.
+
+`toSpeechText` is a host of preprocessor plugins. The default plugins are `tokenSpeechPreprocessor`, `moneySpeechPreprocessor`, and `mathSpeechPreprocessor`, in that order.
+A plugin can have three hooks: `prepare` rewrites the markdown, `formula` reads one formula, and `prose` rewrites a run of text.
+To add a reading, pass `preprocessors: [myPlugin, ...defaultSpeechPreprocessors()]`.
+
+```ts
+const spoken = toSpeechText(markdown, {
+  preprocessors: [
+    { name: 'brand', prose: text => text.replaceAll('AIRI', 'ai ree') },
+    ...defaultSpeechPreprocessors(),
+  ],
+})
+```
+
+The words of each language are in a locale pack of `@proj-airi/speech-transformer-math`.
+To add a language or change one, call `mathSpeech.register(pack)`. A language without a pack reads in English.
+Special tokens and flushes keep their position relative to the text.
+Cancelling an acknowledgment releases its place without reporting a user interruption.
+Whole-turn interruption aborts generation, synthesis, queued audio, and playback for that response.

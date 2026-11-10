@@ -1,11 +1,11 @@
-import type { ComposerTranslation } from 'vue-i18n'
+import type { ProviderTranslator } from '@proj-airi/provider-inference'
 
-import { describe, expect, it } from 'vitest'
+import type { StageProviderId } from './registry'
+
+import { describe, expect, expectTypeOf, it } from 'vitest'
 import { z } from 'zod'
 
 import { providerAliyunNlsTranscription } from './aliyun-nls'
-import { providerBrowserWebSpeechApi } from './browser-web-speech-api'
-import { providerElevenLabs } from './elevenlabs'
 import {
   providerAppLocalAudioSpeech,
   providerAppLocalAudioTranscription,
@@ -13,13 +13,45 @@ import {
   providerBrowserLocalAudioTranscription,
 } from './local-audio'
 import { getDefinedProvider } from './registry'
-import { providerSpeechNoop } from './speech-noop'
 
 import './index'
 
-const translate = ((key: string) => key) as unknown as ComposerTranslation
+const translate = ((key: string) => key) as ProviderTranslator
+
+function getRequiredProvider(id: string) {
+  const provider = getDefinedProvider(id)
+  if (!provider)
+    throw new Error(`Provider definition "${id}" is not registered.`)
+
+  return provider
+}
 
 describe('migrated provider definitions', () => {
+  // ROOT CAUSE:
+  //
+  // The provider followed the shared browser capability helper, so it showed up
+  // available on a capable browser, while its settings page was still a
+  // placeholder.
+  //
+  // Before, isAvailableBy: isBrowserAndMemoryEnough.
+  //
+  // We fixed this by overriding it with a fixed false for this provider only.
+  // https://github.com/moeru-ai/airi/issues/2297
+  it('hides the browser local transcription provider until its settings page exists (Issue #2297)', async () => {
+    expect(await providerBrowserLocalAudioTranscription.isAvailableBy?.()).toBe(false)
+  })
+
+  it('exposes a closed provider id union to stage-ui consumers', () => {
+    expectTypeOf<'openai'>().toExtend<StageProviderId>()
+    expectTypeOf<'official-provider'>().toExtend<StageProviderId>()
+    expectTypeOf<'apple-vision'>().toExtend<StageProviderId>()
+    expectTypeOf<string>().not.toExtend<StageProviderId>()
+  })
+
+  it('returns no definition for an unknown runtime provider id', () => {
+    expect(getDefinedProvider('unknown-provider')).toBeUndefined()
+  })
+
   it('registers every provider that moved out of the legacy store', () => {
     const providerIds = [
       'speech-noop',
@@ -48,14 +80,17 @@ describe('migrated provider definitions', () => {
       'player2-speech',
       'kokoro-local',
       'google-gemini-audio-speech',
+      'voicevox',
+      'aivis-speech',
     ]
 
     for (const providerId of providerIds)
       expect(getDefinedProvider(providerId), providerId).toBeDefined()
   })
 
-  it('creates the no-op speech provider through ProviderDefinition', () => {
-    const provider = providerSpeechNoop.createProvider({})
+  it('creates the no-op speech provider through ProviderDefinition', async () => {
+    const definition = getRequiredProvider('speech-noop')
+    const provider = await definition.createProvider({})
 
     expect(provider).toHaveProperty('speech')
     expect('speech' in provider && provider.speech('unused')).toMatchObject({
@@ -77,19 +112,19 @@ describe('migrated provider definitions', () => {
     })
   })
 
-  it('uses all Aliyun NLS credentials to require automatic validation', () => {
+  it('uses all Aliyun NLS credentials to require automatic validation', async () => {
     // ROOT CAUSE:
     //
     // The settings composable used a fixed list of common credential fields.
     // This list did not include the three Aliyun NLS credential fields.
     // The provider definition now owns the automatic validation condition.
-    expect(providerAliyunNlsTranscription.validationRequiredWhen?.({
+    expect(await providerAliyunNlsTranscription.validationRequiredWhen?.({
       accessKeyId: 'test-access-key-id',
       accessKeySecret: 'test-access-key-secret',
       appKey: '',
       region: 'cn-shanghai',
     })).toBe(false)
-    expect(providerAliyunNlsTranscription.validationRequiredWhen?.({
+    expect(await providerAliyunNlsTranscription.validationRequiredWhen?.({
       accessKeyId: 'test-access-key-id',
       accessKeySecret: 'test-access-key-secret',
       appKey: 'test-app-key',
@@ -98,7 +133,7 @@ describe('migrated provider definitions', () => {
   })
 
   it('keeps the local audio base URL validation in the definition', async () => {
-    const validator = providerAppLocalAudioSpeech.validators?.validateConfig?.[0]({ t: translate })
+    const validator = await providerAppLocalAudioSpeech.validators?.validateConfig?.[0]({ t: translate })
 
     const missing = await validator?.validator({}, { t: translate })
     const configured = await validator?.validator({ baseUrl: 'http://localhost:1234/v1/' }, { t: translate })
@@ -109,7 +144,8 @@ describe('migrated provider definitions', () => {
   })
 
   it('describes Web Speech API streaming support without runtime state', async () => {
-    const defaults = z.parse(providerBrowserWebSpeechApi.createProviderConfig({ t: translate }), {})
+    const definition = getRequiredProvider('browser-web-speech-api')
+    const defaults = z.parse(await definition.createProviderConfig({ t: translate }), {})
 
     expect(defaults).toEqual({
       language: 'en-US',
@@ -117,18 +153,20 @@ describe('migrated provider definitions', () => {
       interimResults: true,
       maxAlternatives: 1,
     })
-    expect(providerBrowserWebSpeechApi.capabilities?.transcription).toEqual({
+    expect(definition.capabilities?.transcription).toEqual({
       protocol: 'http',
       generateOutput: false,
       streamOutput: true,
       streamInput: true,
     })
-    expect(await providerBrowserWebSpeechApi.isAvailableBy?.()).toBe(false)
+    expect(await definition.isAvailableBy?.()).toBe(false)
   })
 
   it('keeps ElevenLabs configuration and model discovery in the definition', async () => {
-    const defaults = z.parse(providerElevenLabs.createProviderConfig({ t: translate }), { apiKey: 'test' })
-    const models = await providerElevenLabs.extraMethods?.listModels?.(defaults, providerElevenLabs.createProvider(defaults))
+    const definition = getRequiredProvider('elevenlabs')
+    const defaults = z.parse(await definition.createProviderConfig({ t: translate }), { apiKey: 'test' })
+    const provider = await definition.createProvider(defaults)
+    const models = await definition.extraMethods?.listModels?.(defaults, provider)
 
     expect(defaults).toMatchObject({
       baseUrl: 'https://unspeech.hyp3r.link/v1/',

@@ -1,13 +1,18 @@
 import type { ChatSessionsExport } from '../types/chat-session'
 
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
-import { useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
+import { useSettingsScreenAmbientLight } from '@proj-airi/stage-shared/stores/screen-ambient-light'
+import { useSettingsLive2d } from '@proj-airi/stage-ui-live2d/composables/live2d'
+import { useLive2dParams } from '@proj-airi/stage-ui-live2d/stores/model-parameters'
 import { useModelStore } from '@proj-airi/stage-ui-three'
 
+import { useLive2DMotionMagicSettings } from '../features/motions/live2d'
+import { clearSherpawModelAssets } from '../libs/providers/providers/sherpaw/model-assets'
 import { useChatStore } from '../stores/chat'
 import { useChatSessionStore } from '../stores/chat/session-store'
 import { useDisplayModelsStore } from '../stores/display-models'
 import { useMcpStore } from '../stores/mcp'
+import { useMemoryStore } from '../stores/memory'
 import { useAiriCardStore } from '../stores/modules/airi-card'
 import { useConsciousnessStore } from '../stores/modules/consciousness'
 import { useConsciousnessSettingsStore } from '../stores/modules/consciousness-settings'
@@ -15,12 +20,15 @@ import { useDiscordStore } from '../stores/modules/discord'
 import { useFactorioStore } from '../stores/modules/gaming-factorio'
 import { useMinecraftStore } from '../stores/modules/gaming-minecraft'
 import { useHearingStore } from '../stores/modules/hearing'
+import { useHomeAssistantStore } from '../stores/modules/home-assistant'
 import { useSpeechStore } from '../stores/modules/speech'
 import { useTwitterStore } from '../stores/modules/twitter'
 import { useWebSearchStore } from '../stores/modules/web-search'
 import { useOnboardingStore } from '../stores/onboarding'
 import { useProviderStore } from '../stores/providers/provider'
+import { useRecipesStore } from '../stores/recipes'
 import { useSettings, useSettingsAudioDevice } from '../stores/settings'
+import { useVoiceprintStore } from '../stores/voiceprint'
 
 export function useDataMaintenance() {
   const chatStore = useChatSessionStore()
@@ -31,8 +39,11 @@ export function useDataMaintenance() {
   const audioSettingsStore = useSettingsAudioDevice()
   const live2dParamsStore = useLive2dParams()
   const live2dSettingsStore = useSettingsLive2d()
+  const live2dMagicSettingsStore = useLive2DMotionMagicSettings()
+  const screenAmbientLightSettingsStore = useSettingsScreenAmbientLight()
   const threeStore = useModelStore()
   const hearingStore = useHearingStore()
+  const homeAssistantStore = useHomeAssistantStore()
   const speechStore = useSpeechStore()
   const consciousnessStore = useConsciousnessStore()
   const consciousnessSettingsStore = useConsciousnessSettingsStore()
@@ -44,32 +55,48 @@ export function useDataMaintenance() {
   const mcpStore = useMcpStore()
   const onboardingStore = useOnboardingStore()
   const airiCardStore = useAiriCardStore()
+  const memoryStore = useMemoryStore()
+  const recipesStore = useRecipesStore()
+  const voiceprintStore = useVoiceprintStore()
 
   async function deleteAllModels() {
     await displayModelsStore.resetDisplayModels()
-    settingsStore.stageModelSelected = 'preset-live2d-1'
     await settingsStore.updateStageModel()
   }
 
   async function resetProvidersSettings() {
     await providersStore.resetProviderSettings()
+    await airiCardStore.clearUnavailableProviderSelections()
+    await hearingStore.clearUnavailableProviderSelection()
   }
 
+  /** Attempts every independent reset and reports the first failure only after all operations settle. */
   async function resetModulesSettings() {
-    hearingStore.resetState()
-    speechStore.resetState()
-    consciousnessStore.resetState()
-    await consciousnessSettingsStore.resetState()
-    twitterStore.resetState()
-    webSearchStore.resetState()
-    discordStore.resetState()
-    factorioStore.resetState()
-    minecraftStore.resetState()
+    // Schedule each reset separately so both synchronous errors and rejected
+    // leader RPCs leave the other modules free to finish their cleanup.
+    const results = await Promise.allSettled([
+      () => hearingStore.resetState(),
+      () => homeAssistantStore.resetState(),
+      () => speechStore.resetState(),
+      () => consciousnessStore.resetState(),
+      () => consciousnessSettingsStore.resetState(),
+      () => twitterStore.resetState(),
+      () => webSearchStore.resetState(),
+      () => discordStore.resetState(),
+      () => factorioStore.resetState(),
+      () => minecraftStore.resetState(),
+      // Memories and recipes hold what the character learned about the owner.
+      () => memoryStore.resetState(),
+      () => recipesStore.resetState(),
+    ].map(reset => Promise.resolve().then(reset)))
+    const failure = results.find(result => result.status === 'rejected')
+    if (failure)
+      throw failure.reason
   }
 
-  function deleteAllChatSessions() {
-    chatOrchestrator.cancelPendingSends()
-    chatStore.resetAllSessions()
+  async function deleteAllChatSessions() {
+    await chatOrchestrator.cancelPendingSends()
+    await chatStore.resetAllSessions()
   }
 
   async function exportChatSessions() {
@@ -95,18 +122,23 @@ export function useDataMaintenance() {
     audioSettingsStore.resetState()
     live2dParamsStore.resetState()
     live2dSettingsStore.resetState()
+    live2dMagicSettingsStore.resetState()
+    screenAmbientLightSettingsStore.resetState()
     threeStore.resetModelStore()
     mcpStore.resetState()
-    onboardingStore.resetSetupState()
+    await onboardingStore.resetSetupState()
     airiCardStore.resetState()
   }
 
   async function deleteAllData() {
+    // The voiceprint identifies the user. Remove it first, so a failed cleanup step below cannot keep it.
+    voiceprintStore.remove()
     await deleteAllModels()
     await resetProvidersSettings()
     await resetModulesSettings()
-    deleteAllChatSessions()
+    await deleteAllChatSessions()
     await resetSettingsState()
+    await clearSherpawModelAssets()
   }
 
   async function resetDesktopApplicationState() {

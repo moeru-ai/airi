@@ -1,5 +1,10 @@
+import { execFileSync } from 'node:child_process'
 import { join, resolve } from 'node:path'
+import { env } from 'node:process'
 
+import ErgosphereMain from '@ergosphere-it/electron/vite/main'
+import ErgospherePreload from '@ergosphere-it/electron/vite/preload'
+import ErgosphereRenderer from '@ergosphere-it/electron/vite/renderer'
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
 import templateCompilerOptions from '@tresjs/core/template-compiler-options'
 import Vue from '@vitejs/plugin-vue'
@@ -12,26 +17,83 @@ import Layouts from 'vite-plugin-vue-layouts'
 import VueMacros from 'vue-macros/vite'
 import VueRouter from 'vue-router/vite'
 
+import { paraformerBilingualZhEn, xAsrBilingualZhEnInt8, zipformerMultilingual } from '@proj-airi/provider-inference/sherpaw-transcription/models'
+import { createSettingsSearch } from '@proj-airi/stage-pages/vite/settings-search'
+import { sentrySourceMaps } from '@proj-airi/stage-shared/analytics/sentry-vite'
+import { speakerModel } from '@proj-airi/stage-shared/speaker-model'
+import { kwsModel } from '@proj-airi/stage-ui/libs/voice/kws-model-info'
 import { Download } from '@proj-airi/unplugin-fetch'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'
+import { resolveModelEndpoint, Sherpaw } from '@proj-airi/vite-plugin-sherpaw'
 import { defineConfig } from 'electron-vite'
 
 const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
 const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
+const settingsSearch = createSettingsSearch()
+const sherpawModels = [paraformerBilingualZhEn, zipformerMultilingual, xAsrBilingualZhEnInt8]
+/** Main downloads remote Sherpaw models. It must use the endpoint that the renderer plugin uses. */
+const sherpawModelEndpoint = resolveModelEndpoint()
+
+/**
+ * The time that `~build/time` reports.
+ *
+ * Two builds of one commit must give the same bytes in `out/`, so this value is not the wall clock.
+ * A packager can set `SOURCE_DATE_EPOCH` (https://reproducible-builds.org/specs/source-date-epoch/).
+ * Otherwise, the build uses the committer time of `HEAD`.
+ * If git cannot read the commit, `unplugin-info` uses the wall clock and the build is not reproducible.
+ */
+function resolveBuildTime() {
+  const sourceDateEpoch = env.SOURCE_DATE_EPOCH?.trim()
+  if (sourceDateEpoch)
+    return new Date(Number(sourceDateEpoch) * 1000)
+
+  try {
+    const committedAt = execFileSync('git', ['log', '-1', '--format=%ct'], { cwd: import.meta.dirname, encoding: 'utf8' })
+    return new Date(Number(committedAt.trim()) * 1000)
+  }
+  catch {
+    return undefined
+  }
+}
+
+const buildTime = resolveBuildTime()
+
+/** The renderer chunk that holds the `unplugin-info` modules. Its file name has no hash. */
+const buildInfoChunkName = 'build-info'
+
+/** CI release builds set this token. Without it, the Electron builds make no source maps, as before. */
+const sentryAuthToken = env.SENTRY_AUTH_TOKEN
+
+/**
+ * Uploads the source maps of one Electron build, then deletes them, so app.asar does not ship them.
+ * Ergosphere writes each build to `out/bundle/<build>`. The main build also writes the launcher to `out/launcher`.
+ */
+function electronSourceMaps(build: 'main' | 'preload' | 'renderer') {
+  return sentrySourceMaps({
+    project: 'desktop',
+    authToken: sentryAuthToken,
+    filesToDeleteAfterUpload: build === 'main'
+      ? ['out/bundle/main/**/*.map', 'out/launcher/**/*.map']
+      : [`out/bundle/${build}/**/*.map`],
+  })
+}
 
 export default defineConfig({
   main: {
+    define: {
+      'import.meta.env.SHERPAW_MODEL_ENDPOINT': JSON.stringify(sherpawModelEndpoint),
+    },
     build: {
-      externalizeDeps: {
-        include: [
-          // Native modules that have `__dirname` usages. Externalize to avoid bundling
-          // them into ESM and causing issues in runtime.
-          'electron-click-drag-plugin',
-          'uiohook-napi',
-        ],
-      },
+      sourcemap: sentryAuthToken ? 'hidden' : false,
+      // electron-vite externalizes exactly the `dependencies` of package.json.
+      // electron-builder copies only `dependencies` into app.asar.
+      // Keep only native modules there: they use `__dirname` or load `.node` and binary files at runtime.
+      // Put every pure JS package in `devDependencies`, so main bundles it and app.asar does not copy it again.
+      externalizeDeps: true,
     },
     plugins: [
+      ErgosphereMain({ launcher: 'src/launcher/index.ts' }),
+
       {
         // To replace `build.rolldownOptions`, as electron-vite still uses the deprecated
         // `rollupOptions`, using `rollupOptions` and `rolldownOptions` at the same
@@ -66,7 +128,10 @@ export default defineConfig({
           return options
         },
       },
-      Info(),
+      Info({ time: buildTime }),
+      // Main bundles `@proj-airi/i18n/locales`, and its locale sources are YAML files.
+      Yaml(),
+      electronSourceMaps('main'),
     ],
 
     resolve: {
@@ -80,6 +145,7 @@ export default defineConfig({
 
   preload: {
     build: {
+      sourcemap: sentryAuthToken ? 'hidden' : false,
       lib: {
         entry: {
           'index': resolve(join(import.meta.dirname, 'src', 'preload', 'index.ts')),
@@ -88,7 +154,10 @@ export default defineConfig({
       },
     },
 
-    plugins: [],
+    plugins: [
+      ErgospherePreload(),
+      electronSourceMaps('preload'),
+    ],
   },
 
   renderer: {
@@ -96,11 +165,28 @@ export default defineConfig({
     // https://github.com/alex8088/electron-vite/issues/99#issuecomment-1862671727
     base: './',
 
+    experimental: {
+      renderBuiltUrl(filename, { type }) {
+        if (type === 'asset' && /^assets\/preload(?:\.js)?-[\w-]+\.(?:data|metadata)$/.test(filename))
+          return `airi-sherpaw://assets/${filename.slice('assets/'.length)}`
+      },
+    },
+
     build: {
+      sourcemap: sentryAuthToken ? 'hidden' : false,
       rolldownOptions: {
         input: {
           'main': resolve(join(import.meta.dirname, 'src', 'renderer', 'index.html')),
           'beat-sync': resolve(join(import.meta.dirname, 'src', 'renderer', 'beat-sync.html')),
+        },
+        output: {
+          // `~build/git` and `~build/time` change with each commit. An update downloads each file whose hash changed.
+          // The build info goes into a small chunk with a fixed name. Then the names of the chunks that import it
+          // do not change, and a new commit does not rename the other chunks.
+          codeSplitting: {
+            groups: [{ name: buildInfoChunkName, test: /^\0~build\// }],
+          },
+          chunkFileNames: chunk => chunk.name === buildInfoChunkName ? `assets/${buildInfoChunkName}.js` : 'assets/[name]-[hash].js',
         },
       },
     },
@@ -175,7 +261,8 @@ export default defineConfig({
     },
 
     plugins: [
-      Info(),
+      Info({ time: buildTime }),
+      ErgosphereRenderer(),
 
       {
         name: 'proj-airi:defines',
@@ -197,6 +284,8 @@ export default defineConfig({
       Inspect(),
 
       Yaml(),
+
+      settingsSearch.plugin,
 
       VueMacros({
         plugins: {
@@ -221,14 +310,17 @@ export default defineConfig({
               '**/settings/data/index.vue',
               '**/settings/models/index.vue',
               '**/settings/system/general.vue',
+              '**/settings/modules/home-assistant.vue',
               '**/settings/modules/mcp.vue',
               '**/devtools/index.vue',
+              '**/devtools/io-tracer/index.vue',
               '**/settings/index.vue',
             ],
           },
           resolve(import.meta.dirname, 'src', 'renderer', 'pages'),
         ],
         exclude: ['**/components/**'],
+        extendRoute: settingsSearch.extendRoute,
       }),
 
       VitePluginVueDevTools(),
@@ -241,6 +333,19 @@ export default defineConfig({
         ],
         pagesDirs: [resolve(import.meta.dirname, 'src', 'renderer', 'pages')],
       }),
+      {
+        // NOTICE:
+        // Checkouts at different paths must build the same chunks.
+        // The layouts virtual id looks absolute, so its `//#region` comment gets one `../` per parent directory.
+        // Source: MODULE_ID_VIRTUAL in node_modules/vite-plugin-vue-layouts/dist/index.mjs (0.11.0).
+        // Remove when the plugin uses a `\0` virtual id.
+        name: 'proj-airi:layouts-region-comment',
+        apply: 'build',
+        renderChunk(code) {
+          const stable = code.replace(/(\/\/#region )(?:\.\.\/)+(@vite-plugin-vue-layouts\/)/g, '$1$2')
+          return stable === code ? undefined : { code: stable, map: null }
+        },
+      },
 
       UnoCss(),
 
@@ -251,11 +356,22 @@ export default defineConfig({
         fullInstall: true,
       }),
 
+      // Main downloads remote transcription models. Every build bundles the wake word and voiceprint models,
+      // and development serves them from the cache, because main's model asset service does not serve them.
+      // The voiceprint model adds about 28 MB, but users then enroll without a download that can fail.
+      Sherpaw({
+        models: [...sherpawModels, kwsModel, speakerModel],
+        developmentModels: [kwsModel, speakerModel],
+        bundledModels: env.SHERPAW_BUNDLE_MODELS === 'true' ? [xAsrBilingualZhEnInt8, kwsModel, speakerModel] : [kwsModel, speakerModel],
+        cacheDir: sharedCacheDir,
+        endpoint: sherpawModelEndpoint,
+      }),
       DownloadLive2DSDK(),
       Download('https://dist.ayaka.moe/live2d-models/hiyori_free_zh.zip', 'hiyori_free_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
       Download('https://dist.ayaka.moe/live2d-models/hiyori_pro_zh.zip', 'hiyori_pro_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
       Download('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-A/AvatarSample_A.vrm', 'AvatarSample_A.vrm', 'vrm/models/AvatarSample-A', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
       Download('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-B/AvatarSample_B.vrm', 'AvatarSample_B.vrm', 'vrm/models/AvatarSample-B', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
+      electronSourceMaps('renderer'),
     ],
   },
 })

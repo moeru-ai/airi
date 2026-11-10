@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ref, watch } from 'vue'
+import { onUnmounted, ref, watch } from 'vue'
 
 interface AxisConfig {
   min?: number
@@ -18,9 +18,9 @@ const props = defineProps<{
   zConfig?: AxisConfig
 }>()
 
-const x = defineModel('x', { required: false, default: 0 })
-const y = defineModel('y', { required: false, default: 0 })
-const z = defineModel('z', { required: false, default: 0 })
+const x = defineModel<number>('x', { required: false, default: 0 })
+const y = defineModel<number>('y', { required: false, default: 0 })
+const z = defineModel<number>('z', { required: false, default: 0 })
 
 // Dragging state
 const isDragging = ref<'x' | 'y' | 'z' | undefined>()
@@ -126,6 +126,11 @@ function stopDrag() {
   document.removeEventListener('mousemove', onDrag)
   document.removeEventListener('mouseup', stopDrag)
 }
+
+onUnmounted(() => {
+  if (isDragging.value)
+    stopDrag()
+})
 </script>
 
 <template>

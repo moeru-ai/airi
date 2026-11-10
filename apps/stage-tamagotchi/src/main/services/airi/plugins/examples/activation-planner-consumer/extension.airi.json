@@ -1,0 +1,24 @@
+{
+  "manifestVersion": 2,
+  "kind": "manifest.extension.airi.moeru.ai",
+  "id": "activation-planner-consumer",
+  "version": "1.0.0",
+  "engines": {
+    "airi": "*",
+    "runtimes": [
+      "electron"
+    ]
+  },
+  "entrypoints": {
+    "electron": "./activation-planner-consumer.mjs"
+  },
+  "permissions": {},
+  "kits": {
+    "uses": [
+      {
+        "id": "dev.airi.example-activation",
+        "version": "^1.0.0"
+      }
+    ]
+  }
+}

@@ -1,0 +1,176 @@
+import type { AuthRoutesDeps, HonoEnv } from '../routes'
+
+import { Hono } from 'hono'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { createAuthRoutes } from '../routes'
+
+/**
+ * A token in the compact JWS shape: three base64url parts. The verifier is mocked, so the signature is not real.
+ * `jwsCompact` rejects a part whose length base64url never produces, such as the 5 letters of `token`.
+ */
+const SIGNED_JWT = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEifQ.c2lnbmF0dXJl'
+
+const { jwtVerify } = vi.hoisted(() => ({
+  jwtVerify: vi.fn(),
+}))
+
+vi.mock('jose', async (importOriginal) => {
+  const original = await importOriginal<typeof import('jose')>()
+  return {
+    ...original,
+    createLocalJWKSet: vi.fn(() => 'test-jwks'),
+    jwtVerify,
+  }
+})
+
+const testUser = {
+  id: 'user-1',
+  name: 'AIRI User',
+  email: 'user@example.com',
+  emailVerified: true,
+  image: null,
+  banned: false,
+  banReason: null,
+  banExpires: null,
+  lastSeenAt: null,
+  createdAt: new Date('2026-01-01T00:00:00.000Z'),
+  updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+}
+
+async function buildRoutes() {
+  const getSession = vi.fn(async () => null)
+  const getJwks = vi.fn(async () => ({ keys: [{ kty: 'RSA', kid: 'key-1' }] }))
+  const findFirst = vi.fn(async () => testUser)
+  const deps: AuthRoutesDeps = {
+    auth: {
+      handler: vi.fn(async () => new Response('auth-handler')),
+      api: {
+        getSession,
+        getJwks,
+        getOAuthServerConfig: vi.fn(),
+        getOpenIdConfig: vi.fn(),
+      },
+    } as never,
+    db: {
+      query: { user: { findFirst } },
+    } as never,
+    env: {
+      PUBLIC_URL: 'https://api.airi.test',
+      AUTH_UI_URL: 'https://accounts.airi.test/ui',
+      ADDITIONAL_TRUSTED_ORIGINS: [],
+    } as never,
+    rateLimitMetrics: null,
+  }
+
+  const routes = await createAuthRoutes(deps)
+  const app = new Hono<HonoEnv>().route('/', routes)
+  return { app, findFirst, getJwks, getSession }
+}
+
+describe('oidc token auth routes', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    jwtVerify.mockResolvedValue({
+      payload: {
+        sub: testUser.id,
+        jti: 'access-token-1',
+        iat: 1_767_225_600,
+        exp: 1_767_229_200,
+      },
+    })
+  })
+
+  it.each([
+    ['GET', '/api/auth/get-session'],
+    ['GET', '/api/auth/list-sessions'],
+  ])('resolves a JWT on %s %s without asking Better Auth for a session', async (method, path) => {
+    const { app, findFirst, getJwks, getSession } = await buildRoutes()
+
+    // ROOT CAUSE:
+    //
+    // These routes used to ask Better Auth for a session before validating the
+    // access token. The OIDC bridge converted that lookup into a new database
+    // session, so every poll inserted another row.
+    //
+    // We now validate the JWT first and only use Better Auth as the fallback.
+    const response = await app.request(path, {
+      method,
+      headers: { Authorization: `Bearer ${SIGNED_JWT}` },
+    })
+
+    expect(response.status).toBe(200)
+    expect(jwtVerify).toHaveBeenCalledTimes(1)
+    expect(getJwks).toHaveBeenCalledTimes(1)
+    expect(findFirst).toHaveBeenCalledTimes(1)
+    expect(getSession).not.toHaveBeenCalled()
+  })
+
+  it('falls back to Better Auth when JWT verification fails', async () => {
+    jwtVerify.mockRejectedValueOnce(new Error('invalid token'))
+    const { app, getSession } = await buildRoutes()
+
+    const response = await app.request('/api/auth/get-session', {
+      headers: { Authorization: `Bearer ${SIGNED_JWT}` },
+    })
+
+    expect(response.status).toBe(200)
+    expect(getSession).toHaveBeenCalledTimes(1)
+    expect(await response.json()).toBeNull()
+  })
+
+  it('accepts a case-insensitive bearer scheme without asking Better Auth for a session', async () => {
+    const { app, getSession } = await buildRoutes()
+
+    const response = await app.request('/api/auth/get-session', {
+      headers: { Authorization: `bEaReR ${SIGNED_JWT}` },
+    })
+
+    expect(response.status).toBe(200)
+    expect(getSession).not.toHaveBeenCalled()
+  })
+
+  it('returns a Gravatar URL that fails for users without a Gravatar image', async () => {
+    const { app } = await buildRoutes()
+
+    const response = await app.request('/api/auth/get-session', {
+      headers: { Authorization: `Bearer ${SIGNED_JWT}` },
+    })
+
+    // A Gravatar error lets the client render its own generated avatar instead of a Gravatar identicon.
+    const body = await response.json() as { user: { image: string } }
+    const image = new URL(body.user.image)
+    expect(image.origin).toBe('https://www.gravatar.com')
+    expect(image.searchParams.get('d')).toBe('404')
+  })
+
+  it('surfaces a JWKS loader failure instead of treating it as an invalid token', async () => {
+    const { app, getJwks, getSession } = await buildRoutes()
+    getJwks.mockRejectedValueOnce(new Error('database unavailable'))
+
+    const response = await app.request('/api/auth/get-session', {
+      headers: { Authorization: `Bearer ${SIGNED_JWT}` },
+    })
+
+    expect(response.status).toBe(500)
+    expect(getSession).not.toHaveBeenCalled()
+  })
+
+  it('falls back to Better Auth when verified claims do not match the access-token contract', async () => {
+    jwtVerify.mockResolvedValueOnce({
+      payload: {
+        sub: testUser.id,
+        exp: 1_767_229_200,
+      },
+    })
+    const { app, findFirst, getSession } = await buildRoutes()
+
+    const response = await app.request('/api/auth/get-session', {
+      headers: { Authorization: `Bearer ${SIGNED_JWT}` },
+    })
+
+    expect(response.status).toBe(200)
+    expect(findFirst).not.toHaveBeenCalled()
+    expect(getSession).toHaveBeenCalledTimes(1)
+  })
+})

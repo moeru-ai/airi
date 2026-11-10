@@ -1,5 +1,6 @@
-import type { AudioInputObservations } from './types'
+import type { AudioInputObservations, AudioInputSpan } from './types'
 
+import { VoiceNames } from '@proj-airi/trace-kit/voice'
 import { expect as vitestExpect } from 'vitest'
 
 export interface CapturedTranscriptionAudioExpectation {
@@ -120,41 +121,35 @@ export function installAudioInputMatchers(): void {
   })
 }
 
-const transcriptionActions = [
-  { storeId: 'modules:hearing:speech:audio-input-pipeline', actionName: 'transcribeForRecording' },
-  { storeId: 'modules:hearing:speech:audio-input-pipeline', actionName: 'transcribeForMediaStream' },
-]
-
 async function waitForTranscription(
   session: AudioInputObservations,
   timeout: number,
 ): Promise<{ complete: boolean, failed: boolean, summary: string }> {
   const deadline = Date.now() + timeout
-  let result = transcriptionResult(await session.piniaActionEvents())
+  let result = transcriptionResult(await session.completedSpans(VoiceNames.SpeechRecognition))
 
   while (!result.complete && !result.failed && Date.now() < deadline) {
     await new Promise(resolve => setTimeout(resolve, 100))
-    result = transcriptionResult(await session.piniaActionEvents())
+    result = transcriptionResult(await session.completedSpans(VoiceNames.SpeechRecognition))
   }
   return result
 }
 
-function transcriptionResult(
-  events: Awaited<ReturnType<AudioInputObservations['piniaActionEvents']>>,
-): { complete: boolean, failed: boolean, summary: string } {
-  const matchingEvents = events.filter(event => transcriptionActions.some(action => (
-    event.storeId === action.storeId && event.actionName === action.actionName
-  )))
-  const latestTerminalEvent = matchingEvents.findLast(event => event.status !== 'started')
-  if (latestTerminalEvent?.status === 'failed') {
+/**
+ * Reads the latest speech recognition span. The hearing transcriber ends one span per provider request.
+ * An aborted request is neither complete nor failed, because the voice input that owned it was cancelled.
+ */
+function transcriptionResult(spans: AudioInputSpan[]): { complete: boolean, failed: boolean, summary: string } {
+  const latest = spans.findLast(span => span.status !== 'cancelled')
+  if (latest?.status === 'error') {
     return {
       complete: false,
       failed: true,
-      summary: `ASR failed${latestTerminalEvent.errorMessage ? `: ${latestTerminalEvent.errorMessage}` : ''}`,
+      summary: `ASR failed${latest.message ? `: ${latest.message}` : ''}`,
     }
   }
   return {
-    complete: latestTerminalEvent?.status === 'completed',
+    complete: !!latest,
     failed: false,
     summary: 'ASR did not complete',
   }

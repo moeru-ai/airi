@@ -1,0 +1,4 @@
+interface:
+  display_name: "Enforce TypeScript Rules"
+  short_description: "Apply AIRI TypeScript and Vue source standards"
+  default_prompt: "Use $enforce-rules-for-typescript to write or review TypeScript and Vue code under AIRI's source standards."

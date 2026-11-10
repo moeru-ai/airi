@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ChatToolCallShell, createToolResultError, MarkdownRenderer, normalizeToolResultText } from '@proj-airi/stage-ui/components'
+import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useJournalPreviewStore } from '@proj-airi/stage-ui/stores/journal-preview'
 import { ContainerError } from '@proj-airi/ui'
 import { computed } from 'vue'
@@ -25,10 +26,11 @@ interface ImageJournalArgs {
 }
 
 interface ImageJournalResult {
-  imageUrl?: string
+  entryId: string
 }
 
 const { openImagePreview } = useJournalPreviewStore()
+const backgroundStore = useBackgroundStore()
 
 function parseObject<T extends object>(value: unknown): T | null {
   if (typeof value === 'string') {
@@ -95,6 +97,11 @@ const imageJournalResult = computed(() => {
   return parseObject<ImageJournalResult>(props.result)
 })
 
+const generatedImageUrl = computed(() => {
+  const entryId = imageJournalResult.value?.entryId
+  return entryId ? backgroundStore.getBackgroundUrl(entryId) : null
+})
+
 const resultText = computed(() => normalizeToolResultText(props.result))
 const resultError = computed(() => props.state === 'error' ? createToolResultError(props.result) : undefined)
 const formattedArgs = computed(() => {
@@ -119,7 +126,7 @@ const imageStatusBadgeClass = computed(() => {
 function openGeneratedImagePreview() {
   openImagePreview({
     title: parsedArgs.value?.title || 'Generated Image',
-    url: imageJournalResult.value?.imageUrl ?? null,
+    url: generatedImageUrl.value,
   })
 }
 </script>
@@ -174,11 +181,11 @@ function openGeneratedImagePreview() {
       <MarkdownRenderer :content="imageJournalMarkdown" />
 
       <div
-        v-if="imageJournalResult?.imageUrl"
+        v-if="generatedImageUrl"
         class="mt-4 overflow-hidden border border-primary-500/20 rounded-xl shadow-lg"
       >
         <img
-          :src="imageJournalResult.imageUrl"
+          :src="generatedImageUrl"
           class="w-full cursor-pointer object-contain transition-all active:scale-[0.98] hover:ring-2 hover:ring-primary-500/50"
           @click="openGeneratedImagePreview"
         >

@@ -1,5 +1,7 @@
 import type { ClientConnector, ClientEvents } from '@proj-airi/server-sdk'
 
+import { nanoid } from 'nanoid/non-secure'
+
 type HostBridgeCommand
   = | { kind: 'connect', id: string, url: string }
     | { kind: 'send', id: string, data: string }
@@ -56,7 +58,7 @@ function dispatchNativeEvent(payload: string) {
 }
 
 class HostBridgeConnection {
-  readonly id = crypto.randomUUID()
+  readonly id = nanoid()
   private opened = false
   private settled = false
 

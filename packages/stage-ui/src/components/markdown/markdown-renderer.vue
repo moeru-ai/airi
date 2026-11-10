@@ -3,11 +3,14 @@ import DOMPurify from 'dompurify'
 
 import { ref, watch } from 'vue'
 
+import { withoutPendingMath } from '../../composables/chat-math'
 import { useMarkdown } from '../../composables/markdown'
 
 interface Props {
   content: string
   class?: string | string[]
+  /** True while the message streams. A formula that is still open is not rendered, so it does not flash as an error. */
+  streaming?: boolean
 }
 
 const props = defineProps<Props>()
@@ -28,7 +31,7 @@ async function processRichContent(content: string, requestId: number) {
 }
 
 function processContent() {
-  const content = props.content
+  const content = props.streaming ? withoutPendingMath(props.content) : props.content
   const requestId = ++processRequestId
 
   if (!content) {
@@ -45,11 +48,11 @@ function processContent() {
     return
   }
 
-  if (/`{3,}/.test(content))
+  if (/`{3,}|~{3,}/.test(content))
     void processRichContent(content, requestId)
 }
 
-watch(() => props.content, processContent, { immediate: true })
+watch(() => [props.content, props.streaming], processContent, { immediate: true })
 </script>
 
 <template>

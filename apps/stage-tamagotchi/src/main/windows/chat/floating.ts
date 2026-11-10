@@ -1,0 +1,593 @@
+import type { createContext } from '@moeru/eventa/adapters/electron/main'
+import type { ResizeDirection } from '@proj-airi/electron-eventa'
+import type { Point, Rectangle } from 'electron'
+
+import type { ChatFloatingPlacement, ChatFloatingState } from '../../../shared/eventa'
+import type { AttachedChatLayout } from './floating-placement'
+
+import { defineInvokeHandler } from '@moeru/eventa'
+import { isRendererUnavailable } from '@proj-airi/electron-vueuse/main'
+import { animate } from 'animejs'
+import { BrowserWindow, screen } from 'electron'
+import { debounce } from 'es-toolkit'
+import { isMacOS } from 'std-env'
+
+import icon from '../../../../resources/icon.png?asset'
+
+import {
+  electronChatFloatingContentHidden,
+  electronChatFloatingFold,
+  electronChatFloatingGetState,
+  electronChatFloatingMoveTo,
+  electronChatFloatingResizeBy,
+  electronChatFloatingStateChanged,
+} from '../../../shared/eventa'
+import { focusWindow } from '../../libs/electron/focus'
+import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
+import { createWindowContext } from '../../libs/electron/window-context'
+import { createReusableWindow } from '../../libs/electron/window-manager'
+import { showWindowOnAllWorkspaces } from '../shared/app-icon'
+import { protectPrivilegedWindowNavigation, resizeBoundsByDelta, transparentWindowConfig } from '../shared/window'
+import { attachedChatOffset, chooseAttachedChatLayout, keepChatOnDisplay, preferredAttachedChatLayout, wholePixels } from './floating-placement'
+
+type EventaContext = ReturnType<typeof createContext>['context']
+
+/** Smallest floating chat that still shows the composer above one short bubble. */
+const minimumSize = { width: 300, height: 260 }
+
+/** Floating chat bounds that the chat window config persists. */
+interface FloatingChatBounds {
+  width: number
+  height: number
+  /** Position in `free` placement. Attached placement derives it from the main window. */
+  x?: number
+  y?: number
+}
+
+/** The transparent chat window of the `floating` chat mode. */
+interface FloatingChatWindow {
+  /** Shows the chat unfolded and focused, creating the window when needed. */
+  open: () => Promise<void>
+  /** Folds a shown chat, or opens a folded or hidden one. The chat button calls this. */
+  toggle: () => Promise<void>
+  /** Closes the window, including one that is still being created. */
+  close: () => void
+  /** Returns the window without creating one. */
+  getOpenWindow: () => BrowserWindow | undefined
+  /** Moves the window into the persisted placement. */
+  applyPlacement: () => void
+  /**
+   * Applies the persisted pin and message feed without moving the window. An attached chat keeps the pin of the main
+   * window and the layout that it has.
+   */
+  applyPreferences: () => void
+  /** Whether the chat is unfolded, which the chat button shows as pressed. */
+  isUnfolded: () => boolean
+  /** Hides the chat while the main window covers its display, and shows it again after, unless it is folded. */
+  setCovered: (covered: boolean) => void
+}
+
+/** Every edge and corner of a chat that shares none with the main window. */
+const allResizeEdges: ResizeDirection[] = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw']
+
+/**
+ * The edges and the corner of an attached chat that it does not share with
+ * the main window: a bottom anchored chat grows up, a top anchored one down,
+ * and both grow away from the character.
+ */
+function attachedResizeEdges(layout: AttachedChatLayout): ResizeDirection[] {
+  const vertical = layout.anchor === 'bottom' ? 'n' : 's'
+  const horizontal = layout.side === 'left' ? 'w' : 'e'
+  return [vertical, horizontal, `${vertical}${horizontal}`]
+}
+
+/**
+ * Owns the floating chat window: its placement beside the main window, the
+ * fold that the chat button drives, and the resize from its edges.
+ *
+ * State model:
+ * - `folded` is the chat button state. It starts `true` because no chat is
+ *   shown yet. The renderer animates a fold first; the window hides when the
+ *   renderer reports {@link electronChatFloatingContentHidden}.
+ * - `layout` is where attached placement puts the chat against the main
+ *   window. It changes only when the current layout stops fitting, or when the
+ *   preferred one fits again.
+ * - `relocating` is `true` while the chat moves to the other side of the main
+ *   window. The renderer folds the content toward the character, the window
+ *   moves while the content is hidden, and the content unfolds on the new side.
+ * - `slide` animates a change of the vertical anchor, which does not cross
+ *   the character.
+ * - The window itself is created on the first open and destroyed on a switch
+ *   to the legacy mode. Its eventa context disposes with it.
+ */
+export function setupFloatingChatWindow(params: {
+  getMainWindow: () => BrowserWindow | undefined
+  getPlacement: () => ChatFloatingPlacement
+  /** Whether the chat shows as a message feed. */
+  getDanmaku: () => boolean
+  /** Whether a `free` chat stays above other windows. */
+  getPinned: () => boolean
+  getBounds: () => FloatingChatBounds
+  saveBounds: (bounds: FloatingChatBounds) => void
+  /** Registers the services that every chat renderer uses, shared with the legacy window. */
+  setupChatInvokes: (window: BrowserWindow, context: EventaContext) => Promise<void>
+  /** Called when the chat folds or unfolds. */
+  onFoldedChange: () => void
+}): FloatingChatWindow {
+  let context: EventaContext | undefined
+  let folded = true
+  let layout: AttachedChatLayout = { ...preferredAttachedChatLayout }
+  let relocating = false
+  /** The chat window's own always-on-top state, as its `always-on-top-changed` events report it. */
+  let pinned = false
+  /** `true` while the main window covers its display. The chat hides then, and shows again after unless folded. */
+  let covered = false
+  let slide: ReturnType<typeof animate> | undefined
+  let detachFromMain: (() => void) | undefined
+  /**
+   * The size the chat is meant to have. A new window takes the saved size, and
+   * then only a resize from its edges changes it.
+   */
+  let size = { width: minimumSize.width, height: minimumSize.height }
+
+  /** The chat's position with the size it is meant to have. */
+  function boundsOf(target: BrowserWindow): Rectangle {
+    const { x, y } = target.getBounds()
+    return { x, y, ...size }
+  }
+
+  /** Puts the chat at `x`, `y` in the size it is meant to have. */
+  function placeAt(target: BrowserWindow, x: number, y: number) {
+    // NOTICE:
+    // Above 100% scaling on Windows, a non-resizable window changes size a
+    // little on each move. Moves that reuse `getBounds()` or `setPosition` add
+    // these up, so a drag made the chat wide. Moves set `size` instead.
+    // Source: https://github.com/electron/electron/issues/13043
+    // Removal: Electron keeps the size of a moved non-resizable window.
+    const current = target.getBounds()
+    if (current.x !== x || current.y !== y || current.width !== size.width || current.height !== size.height)
+      target.setBounds({ x, y, ...size })
+  }
+
+  function resizeEdges() {
+    return params.getPlacement() === 'attached' ? attachedResizeEdges(layout) : allResizeEdges
+  }
+
+  function currentState(): ChatFloatingState {
+    const placement = params.getPlacement()
+    return {
+      placement,
+      danmaku: params.getDanmaku(),
+      side: placement === 'attached' ? layout.side : 'left',
+      resizeEdges: resizeEdges(),
+      folded,
+      relocating,
+      pinned,
+    }
+  }
+
+  function emitState() {
+    context?.emit(electronChatFloatingStateChanged, currentState())
+  }
+
+  function setFolded(value: boolean) {
+    if (folded === value)
+      return
+    folded = value
+    params.onFoldedChange()
+  }
+
+  function moveToLayout(main: BrowserWindow, target: BrowserWindow) {
+    const mainBounds = main.getBounds()
+    const offset = attachedChatOffset(mainBounds, boundsOf(target), screen.getDisplayMatching(mainBounds).workArea, layout)
+    // A child window has already moved with the main window, so this is
+    // usually a no-op during a drag.
+    placeAt(target, mainBounds.x + offset.x, mainBounds.y + offset.y)
+  }
+
+  function stopSlide() {
+    slide?.pause()
+    slide = undefined
+  }
+
+  /**
+   * Moves the chat to a new vertical anchor over a short animation. Each frame
+   * places the chat from the current main window position, so a drag that
+   * continues during the slide does not leave the chat behind.
+   */
+  function slideToLayout(main: BrowserWindow, target: BrowserWindow) {
+    stopSlide()
+    const mainBounds = main.getBounds()
+    const bounds = boundsOf(target)
+    const offset = { x: bounds.x - mainBounds.x, y: bounds.y - mainBounds.y }
+    const to = attachedChatOffset(mainBounds, bounds, screen.getDisplayMatching(mainBounds).workArea, layout)
+
+    slide = animate(offset, {
+      x: to.x,
+      y: to.y,
+      duration: 220,
+      ease: 'outCubic',
+      onRender: () => {
+        if (target.isDestroyed() || main.isDestroyed())
+          return
+        const current = main.getBounds()
+        placeAt(target, wholePixels(current.x + offset.x), wholePixels(current.y + offset.y))
+      },
+      onComplete: () => {
+        slide = undefined
+      },
+    })
+  }
+
+  function finishRelocation(main: BrowserWindow, target: BrowserWindow) {
+    relocating = false
+    const mainBounds = main.getBounds()
+    // The main window may have moved on while the content folded.
+    layout = chooseAttachedChatLayout(mainBounds, boundsOf(target), screen.getDisplayMatching(mainBounds).workArea, layout)
+    moveToLayout(main, target)
+    emitState()
+  }
+
+  function followMain(main: BrowserWindow, target: BrowserWindow) {
+    if (target.isDestroyed() || relocating)
+      return
+
+    const mainBounds = main.getBounds()
+    const next = chooseAttachedChatLayout(mainBounds, boundsOf(target), screen.getDisplayMatching(mainBounds).workArea, layout)
+    const sideChanged = next.side !== layout.side
+    const anchorChanged = next.anchor !== layout.anchor
+
+    // A hidden chat has nothing to animate.
+    if (!target.isVisible() || folded) {
+      stopSlide()
+      layout = next
+      moveToLayout(main, target)
+      if (sideChanged || anchorChanged)
+        emitState()
+      return
+    }
+
+    if (sideChanged) {
+      // The layout changes in finishRelocation. Until then the renderer folds
+      // toward the character on the old side.
+      stopSlide()
+      relocating = true
+      emitState()
+      // A renderer that cannot animate would never report the content hidden.
+      if (isRendererUnavailable(target))
+        finishRelocation(main, target)
+      return
+    }
+
+    if (anchorChanged) {
+      layout = next
+      slideToLayout(main, target)
+      // The chat resizes from the edges away from the new anchor.
+      emitState()
+      return
+    }
+
+    // A running slide places the chat on every frame.
+    if (!slide)
+      moveToLayout(main, target)
+  }
+
+  /** Keeps the chat's pin equal to the main window's. Returns the function that stops it. */
+  function followMainPin(main: BrowserWindow, target: BrowserWindow) {
+    const follow = (_: Electron.Event, isAlwaysOnTop: boolean) => target.setAlwaysOnTop(isAlwaysOnTop)
+    target.setAlwaysOnTop(main.isAlwaysOnTop())
+    main.on('always-on-top-changed', follow)
+    return () => main.off('always-on-top-changed', follow)
+  }
+
+  /**
+   * Keeps an attached chat beside the main window.
+   *
+   * On macOS, while the chat does not have keyboard focus, it is a child
+   * window of the main window, and the window server moves it with the main
+   * window. The window server drags the main window by itself and reports few
+   * `move` events during the drag, so a chat that only answered them would
+   * trail far behind.
+   *
+   * On macOS, while the chat has keyboard focus, it leaves the main window. A
+   * child takes its parent's window level, and the main window's level covers
+   * the input method candidates of the text typed into the chat.
+   *
+   * The `move` and `resize` handlers run on every platform. They place a chat
+   * that the window manager did not move with the main window, and they
+   * change the layout when the current one stops fitting.
+   */
+  function attachToMain(target: BrowserWindow) {
+    const main = params.getMainWindow()
+    // A covered chat stays apart from the main window. A child window shows again with its parent, and an attached
+    // chat follows the main window over the display.
+    if (!main || main.isDestroyed() || covered)
+      return
+
+    const follow = () => followMain(main, target)
+    const hideWithMain = () => target.hide()
+    const showWithMain = () => {
+      if (!folded && !covered)
+        target.showInactive()
+    }
+    const linkToMain = () => target.setParentWindow(main)
+    // Leaving the parent does not restore the chat's own window level.
+    const unlinkFromMain = () => {
+      target.setParentWindow(null)
+      target.setAlwaysOnTop(main.isAlwaysOnTop())
+    }
+
+    const mainBounds = main.getBounds()
+    layout = chooseAttachedChatLayout(mainBounds, boundsOf(target), screen.getDisplayMatching(mainBounds).workArea, preferredAttachedChatLayout)
+    moveToLayout(main, target)
+    const stopFollowingPin = followMainPin(main, target)
+    // NOTICE:
+    // Only macOS moves a child window with its parent during a drag, so only
+    // macOS links the chat. With this link, the attached chat on Windows
+    // flickered and used much CPU; the unlinked free chat did not.
+    // Removal condition: a Windows build that keeps the link stable.
+    const linksToMain = isMacOS
+    if (linksToMain) {
+      if (!target.isFocused())
+        linkToMain()
+      target.on('focus', unlinkFromMain)
+      target.on('blur', linkToMain)
+    }
+    main.on('move', follow)
+    main.on('resize', follow)
+    // A minimized chat does not follow the main window, so it catches up when
+    // it comes back.
+    target.on('restore', follow)
+    main.on('hide', hideWithMain)
+    main.on('show', showWithMain)
+
+    detachFromMain = () => {
+      stopSlide()
+      main.off('move', follow)
+      main.off('resize', follow)
+      main.off('hide', hideWithMain)
+      main.off('show', showWithMain)
+      stopFollowingPin()
+      if (!target.isDestroyed())
+        target.off('restore', follow)
+      if (linksToMain && !target.isDestroyed()) {
+        target.off('focus', unlinkFromMain)
+        target.off('blur', linkToMain)
+        unlinkFromMain()
+      }
+    }
+  }
+
+  function applyPlacementTo(target: BrowserWindow) {
+    detachFromMain?.()
+    detachFromMain = undefined
+
+    // The chat pins with Electron's default level, never the shared
+    // `setWindowAlwaysOnTop`: that level also covers the input method
+    // candidates, and the chat takes text. An attached chat takes the main
+    // window's pin state.
+    if (params.getPlacement() === 'attached')
+      attachToMain(target)
+    else
+      target.setAlwaysOnTop(params.getPinned())
+
+    emitState()
+  }
+
+  function moveTo(target: BrowserWindow, position: Point) {
+    if (params.getPlacement() === 'attached')
+      return
+
+    const placed = keepChatOnDisplay({ ...position, ...size }, screen.getAllDisplays())
+    placeAt(target, placed.x, placed.y)
+  }
+
+  function persistBounds(target: BrowserWindow) {
+    const bounds = boundsOf(target)
+    // Attached placement derives the position from the main window, so only
+    // the other placements own one worth keeping.
+    const position = params.getPlacement() !== 'attached' ? { x: bounds.x, y: bounds.y } : {}
+    params.saveBounds({ width: bounds.width, height: bounds.height, ...position })
+  }
+
+  function resizeBy(target: BrowserWindow, delta: { deltaX: number, deltaY: number, direction: ResizeDirection }) {
+    const main = params.getMainWindow()
+    const attachedTo = params.getPlacement() === 'attached' && main && !main.isDestroyed() ? main : undefined
+    // An edge that the chat shares with the main window stays in place.
+    if (!resizeEdges().includes(delta.direction))
+      return
+
+    // The layout stays during a resize, so the chat never jumps to the other
+    // side under the cursor.
+    stopSlide()
+    const resized = resizeBoundsByDelta(boundsOf(target), {
+      ...delta,
+      minWidth: minimumSize.width,
+      minHeight: minimumSize.height,
+    })
+    // The chat stops growing at the edges of the work area, so the edge under
+    // the cursor stays in reach.
+    const placed = keepChatOnDisplay(resized, screen.getAllDisplays())
+    size = { width: placed.width, height: placed.height }
+    placeAt(target, placed.x, placed.y)
+    if (attachedTo)
+      moveToLayout(attachedTo, target)
+
+    persistBounds(target)
+  }
+
+  async function createWindow() {
+    const saved = params.getBounds()
+    size = { width: saved.width, height: saved.height }
+    const target = new BrowserWindow({
+      title: 'Chat',
+      width: saved.width,
+      height: saved.height,
+      show: false,
+      icon,
+      // The edges in the renderer own resizing. Transparent windows do not
+      // resize reliably from native edges.
+      resizable: false,
+      webPreferences: {
+        preload: getPreloadPath(),
+        sandbox: false,
+      },
+      ...transparentWindowConfig(),
+    })
+
+    // The saved position may be on a display that is gone or smaller now.
+    if (params.getPlacement() !== 'attached' && saved.x != null && saved.y != null)
+      target.setBounds(keepChatOnDisplay({ x: saved.x, y: saved.y, width: saved.width, height: saved.height }, screen.getAllDisplays()))
+
+    showWindowOnAllWorkspaces(target)
+    if (isMacOS) {
+      target.setFullScreenable(false)
+      target.setWindowButtonVisibility(false)
+    }
+    // The renderer turns click-through off while the cursor is over a bubble
+    // or a control. `forward` keeps mouse moves coming while it is on.
+    target.setIgnoreMouseEvents(true, { forward: true })
+    protectPrivilegedWindowNavigation(target)
+
+    // `onlySameWindow` hears only this window and disposes with it.
+    const { context: targetContext } = createWindowContext(target)
+    context = targetContext
+    // Every platform reports `move`; `moved` is only on macOS and Windows.
+    // Only a chat that is not attached owns its position. An attached one
+    // follows the main window, and a resize saves its size.
+    const persistMove = debounce(() => {
+      if (!target.isDestroyed() && params.getPlacement() !== 'attached')
+        persistBounds(target)
+    }, 300)
+    target.on('move', persistMove)
+    target.on('always-on-top-changed', (_, isAlwaysOnTop) => {
+      pinned = isAlwaysOnTop
+      emitState()
+    })
+    // Registered before any await, so a window that fails during setup
+    // still releases the main window listeners when it is destroyed.
+    target.on('closed', () => {
+      persistMove.cancel()
+      detachFromMain?.()
+      detachFromMain = undefined
+      if (context === targetContext) {
+        context = undefined
+        setFolded(true)
+        relocating = false
+        pinned = false
+      }
+    })
+
+    defineInvokeHandler(targetContext, electronChatFloatingGetState, () => currentState())
+    defineInvokeHandler(targetContext, electronChatFloatingContentHidden, () => {
+      // A fold wins over a relocation: the next open places the chat anyway.
+      // An unfold that overtook the animation leaves the window shown.
+      if (folded) {
+        relocating = false
+        target.hide()
+        return
+      }
+
+      const main = params.getMainWindow()
+      if (relocating && main && !main.isDestroyed())
+        finishRelocation(main, target)
+    })
+    defineInvokeHandler(targetContext, electronChatFloatingFold, () => fold(target))
+    defineInvokeHandler(targetContext, electronChatFloatingResizeBy, (delta) => {
+      if (delta)
+        resizeBy(target, delta)
+    })
+    defineInvokeHandler(targetContext, electronChatFloatingMoveTo, (position) => {
+      if (position)
+        moveTo(target, position)
+    })
+
+    try {
+      await params.setupChatInvokes(target, targetContext)
+      applyPlacementTo(target)
+      await load(target, withHashRoute(baseUrl(getRendererRoot()), '/chat-floating', {
+        query: {
+          'stage-runtime': 'minimal',
+          'synced-leader': 'false',
+        },
+      }))
+    }
+    catch (error) {
+      target.destroy()
+      throw error
+    }
+
+    return target
+  }
+
+  const reusable = createReusableWindow(createWindow)
+
+  async function open() {
+    const target = await reusable.getWindow()
+    setFolded(false)
+    emitState()
+    // The chat shows once the main window stops covering the display.
+    if (covered)
+      return
+
+    if (target.isMinimized())
+      target.restore()
+    if (focusWindow(target))
+      target.moveTop()
+  }
+
+  function fold(target: BrowserWindow) {
+    setFolded(true)
+    // A renderer that cannot animate would never report the fold as settled.
+    if (isRendererUnavailable(target)) {
+      target.hide()
+      return
+    }
+
+    emitState()
+  }
+
+  return {
+    open,
+    async toggle() {
+      const window = reusable.getOpenWindow()
+      // The chat button shows the fold state, so a press always flips it. A
+      // minimized or covered chat folds on this press and opens on the next.
+      if (window && !folded) {
+        fold(window)
+        return
+      }
+
+      await open()
+    },
+    close: reusable.close,
+    getOpenWindow: reusable.getOpenWindow,
+    applyPlacement() {
+      const window = reusable.getOpenWindow()
+      if (window)
+        applyPlacementTo(window)
+    },
+    applyPreferences() {
+      const window = reusable.getOpenWindow()
+      if (!window)
+        return
+      // The pin change reports itself through `always-on-top-changed`. The state below carries the message feed.
+      if (params.getPlacement() !== 'attached')
+        window.setAlwaysOnTop(params.getPinned())
+      emitState()
+    },
+    isUnfolded: () => !folded,
+    setCovered(value: boolean) {
+      covered = value
+      const window = reusable.getOpenWindow()
+      if (!window)
+        return
+      // The placement leaves the main window while it covers the display, and comes back to it after.
+      applyPlacementTo(window)
+      if (value)
+        window.hide()
+      else if (!folded)
+        window.showInactive()
+    },
+  }
+}

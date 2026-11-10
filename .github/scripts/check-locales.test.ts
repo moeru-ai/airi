@@ -1,0 +1,349 @@
+import { execFile } from 'node:child_process'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { promisify } from 'node:util'
+
+import { afterEach, describe, expect, it } from 'vitest'
+
+import { checkLocales } from './check-locales'
+
+const roots: string[] = []
+
+/** The command line the Crowdin workflow runs, so the summary is read as it is written there. */
+const script = fileURLToPath(new URL('check-locales.ts', import.meta.url))
+
+/** Writes `{ 'en/settings.yaml': '...' }` style files into a new locales directory. */
+async function locales(files: Record<string, string>) {
+  const root = await mkdtemp(join(tmpdir(), 'airi-locales-'))
+  roots.push(root)
+  for (const [path, content] of Object.entries(files)) {
+    await mkdir(dirname(join(root, path)), { recursive: true })
+    await writeFile(join(root, path), content)
+  }
+  return root
+}
+
+const english = [
+  'onboarding:',
+  '  notificationsTitle: Notifications',
+  '  selectedFiles: Selected {count} files',
+  'animation:',
+  '  title: Animation',
+  '  blink: Enable blink',
+  '  toggle: Expression system',
+].join('\n')
+
+afterEach(async () => {
+  await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true })))
+})
+
+describe('checkLocales', () => {
+  // https://github.com/moeru-ai/airi/pull/2121
+  it('reports translations that a Crowdin batch moved onto unrelated keys', async () => {
+    // ROOT CAUSE:
+    //
+    // On 2026-07-18 a batch of zh-Hant suggestions in Crowdin landed on the wrong strings,
+    // and the sync exported them unchecked.
+    //
+    //   animation.toggle: 已選取 {count} 個檔案
+    //
+    // We fixed this by checking each export. A moved translation repeats an unrelated key
+    // or has placeholders that its English does not have.
+    const base = await locales({
+      'en/settings.yaml': english,
+      'zh-Hant/settings.yaml': 'onboarding:\n  notificationsTitle: 通知\n  selectedFiles: 已選取 {count} 個檔案\n',
+    })
+    const root = await locales({
+      'en/settings.yaml': english,
+      'zh-Hant/settings.yaml': 'onboarding:\n  notificationsTitle: 通知\n  selectedFiles: 已選取 {count} 個檔案\nanimation:\n  blink: 通知\n  toggle: 已選取 {count} 個檔案\n',
+    })
+
+    const issues = await checkLocales({ root, baseRoot: base })
+
+    expect(issues).toContainEqual(expect.objectContaining({ level: 'error', locale: 'zh-Hant', key: 'animation.toggle' }))
+    expect(issues).toContainEqual(expect.objectContaining({ level: 'warning', locale: 'zh-Hant', key: 'animation.blink' }))
+    expect(issues.filter(issue => issue.key.startsWith('onboarding.'))).toEqual([])
+  })
+
+  it('reports a key that the source locale does not have', async () => {
+    const root = await locales({
+      'en/settings.yaml': english,
+      'ja/settings.yaml': 'animation:\n  title: アニメーション\n  removed: 削除済み\n',
+    })
+
+    const issues = await checkLocales({ root })
+
+    expect(issues).toEqual([expect.objectContaining({ level: 'error', locale: 'ja', key: 'animation.removed' })])
+  })
+
+  it('accepts a key that only the source locale has, because the apps fall back to English', async () => {
+    const root = await locales({
+      'en/settings.yaml': english,
+      'ja/settings.yaml': 'animation:\n  title: アニメーション\n',
+    })
+
+    expect(await checkLocales({ root })).toEqual([])
+  })
+
+  it('reports a translation that drops a placeholder', async () => {
+    const root = await locales({
+      'en/settings.yaml': english,
+      'zh-Hans/settings.yaml': 'onboarding:\n  selectedFiles: 已选择文件\n',
+    })
+
+    const issues = await checkLocales({ root })
+
+    expect(issues).toEqual([expect.objectContaining({ level: 'error', key: 'onboarding.selectedFiles' })])
+  })
+
+  it('treats a problem that the base already has as a warning', async () => {
+    const files = {
+      'en/settings.yaml': english,
+      'zh-Hans/settings.yaml': 'onboarding:\n  selectedFiles: 已选择文件\n',
+    }
+    const base = await locales(files)
+    const root = await locales(files)
+
+    const issues = await checkLocales({ root, baseRoot: base })
+
+    expect(issues).toEqual([expect.objectContaining({ level: 'warning', key: 'onboarding.selectedFiles' })])
+  })
+
+  it('reports an unchanged translation when its English gains a placeholder', async () => {
+    const base = await locales({
+      'en/settings.yaml': english,
+      'ja/settings.yaml': 'animation:\n  title: アニメーション\n',
+    })
+    const root = await locales({
+      'en/settings.yaml': english.replace('title: Animation', 'title: Animation {name}'),
+      'ja/settings.yaml': 'animation:\n  title: アニメーション\n',
+    })
+
+    const issues = await checkLocales({ root, baseRoot: base })
+
+    expect(issues).toEqual([expect.objectContaining({ level: 'error', key: 'animation.title' })])
+  })
+
+  it('reports an unchanged translation when its English key is removed', async () => {
+    const base = await locales({
+      'en/settings.yaml': english,
+      'ja/settings.yaml': 'animation:\n  title: アニメーション\n',
+    })
+    const root = await locales({
+      'en/settings.yaml': english.replace('  title: Animation\n', ''),
+      'ja/settings.yaml': 'animation:\n  title: アニメーション\n',
+    })
+
+    const issues = await checkLocales({ root, baseRoot: base })
+
+    expect(issues).toEqual([expect.objectContaining({ level: 'error', key: 'animation.title' })])
+  })
+
+  it('lets an English change outdate a translation, and lets the next sync clear it', async () => {
+    const outdated = 'animation:\n  title: アニメーション\n'
+    const before = await locales({ 'en/settings.yaml': english, 'ja/settings.yaml': outdated })
+    const englishChange = await locales({
+      'en/settings.yaml': english.replace('title: Animation', 'title: Animation {name}'),
+      'ja/settings.yaml': outdated,
+    })
+    const syncExport = await locales({
+      'en/settings.yaml': english.replace('title: Animation', 'title: Animation {name}'),
+      'ja/settings.yaml': '{}\n',
+    })
+
+    // The pull request that edits English does not have to edit Japanese.
+    const pullRequest = await checkLocales({ root: englishChange, baseRoot: before, sourceChanges: 'warning' })
+    // Crowdin clears the outdated translation, and the sync may drop it from main.
+    const sync = await checkLocales({ root: syncExport, baseRoot: englishChange })
+
+    expect(pullRequest).toEqual([expect.objectContaining({ level: 'warning', key: 'animation.title' })])
+    expect(sync).toEqual([])
+  })
+
+  it('reports a key that English removed as a warning when source changes are warnings', async () => {
+    const base = await locales({
+      'en/settings.yaml': english,
+      'ja/settings.yaml': 'animation:\n  title: アニメーション\n',
+    })
+    const root = await locales({
+      'en/settings.yaml': english.replace('  title: Animation\n', ''),
+      'ja/settings.yaml': 'animation:\n  title: アニメーション\n',
+    })
+
+    const issues = await checkLocales({ root, baseRoot: base, sourceChanges: 'warning' })
+
+    expect(issues).toEqual([expect.objectContaining({ level: 'warning', key: 'animation.title' })])
+  })
+
+  it('keeps reporting a changed translation as an error when source changes are warnings', async () => {
+    const base = await locales({
+      'en/settings.yaml': english,
+      'ja/settings.yaml': 'animation:\n  title: アニメーション\n',
+    })
+    const root = await locales({
+      'en/settings.yaml': english,
+      'ja/settings.yaml': 'animation:\n  title: アニメーション {count}\n',
+    })
+
+    const issues = await checkLocales({ root, baseRoot: base, sourceChanges: 'warning' })
+
+    expect(issues).toEqual([expect.objectContaining({ level: 'error', key: 'animation.title' })])
+  })
+
+  it('reports a translation that an export dropped while its English stayed the same', async () => {
+    const base = await locales({
+      'en/settings.yaml': english,
+      'zh-Hans/settings.yaml': 'animation:\n  title: 动画\n  blink: Enable blink\n',
+    })
+    const root = await locales({
+      'en/settings.yaml': english,
+      'zh-Hans/settings.yaml': 'onboarding:\n  notificationsTitle: 通知\n',
+    })
+
+    const issues = await checkLocales({ root, baseRoot: base })
+
+    // `animation.blink` held the English placeholder, so dropping it is intended.
+    expect(issues).toEqual([expect.objectContaining({ level: 'error', key: 'animation.title' })])
+  })
+
+  it('accepts a dropped translation when its English changed', async () => {
+    const base = await locales({
+      'en/settings.yaml': english,
+      'zh-Hans/settings.yaml': 'animation:\n  title: 动画\n',
+    })
+    const root = await locales({
+      'en/settings.yaml': english.replace('title: Animation', 'title: Motion'),
+      'zh-Hans/settings.yaml': 'onboarding:\n  notificationsTitle: 通知\n',
+    })
+
+    expect(await checkLocales({ root, baseRoot: base })).toEqual([])
+  })
+
+  it('reports a file that does not parse, such as one with a duplicate key', async () => {
+    const root = await locales({
+      'en/settings.yaml': english,
+      'ko/settings.yaml': 'animation:\n  title: 애니메이션\n  title: 모션\n',
+    })
+
+    const issues = await checkLocales({ root })
+
+    expect(issues).toEqual([expect.objectContaining({ level: 'error', locale: 'ko', file: 'settings.yaml', key: '' })])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2904
+  it('reports a choice separator that no count can select (PR #2904)', async () => {
+    // ROOT CAUSE:
+    //
+    // vue-i18n reads `|` as a choice separator and picks a form with the `count`
+    // parameter. The Anthropic provider card was written as `Anthropic | Claude`, which
+    // has no count, so every render returned `Anthropic` and the second name never
+    // appeared.
+    //
+    //   providers.anthropic: Anthropic | Claude
+    //
+    // We fixed this by writing the pipe as {'|'}, and by warning about a separator
+    // that the message itself cannot select.
+    const root = await locales({
+      'en/settings.yaml': 'providers:\n  anthropic: Anthropic | Claude\n',
+    })
+
+    const issues = await checkLocales({ root })
+
+    // A warning, not an error: the call site decides which form a message uses,
+    // and `t(key, plural)` selects one with a bare number.
+    expect(issues).toEqual([expect.objectContaining({ level: 'warning', locale: 'en', file: 'settings.yaml', key: 'providers.anthropic' })])
+  })
+
+  it('accepts a pipe that the message writes as a literal', async () => {
+    const root = await locales({
+      'en/settings.yaml': 'providers:\n  anthropic: Anthropic {\'|\'} Claude\n',
+    })
+
+    expect(await checkLocales({ root })).toEqual([])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2904#discussion_r4241724158
+  // https://github.com/moeru-ai/airi/pull/2904#discussion_r4241821862
+  // https://github.com/moeru-ai/airi/pull/2904#discussion_r4241866639
+  it('reports a separator beside a literal that holds a selector (PR #2904)', async () => {
+    // ROOT CAUSE:
+    //
+    // The check read a `{count}` inside a literal span as a selector, so a message
+    // that explains the token and holds a raw pipe passed.
+    // The pattern also read the body up to the first apostrophe it met.
+    // An escaped apostrophe ended the span early and left the rest of the message bare.
+    //
+    // The spans are removed before the selector is read now. The body follows the
+    // escape grammar of the compiler, and the pattern accepts spaces around the body
+    // as well.
+    const root = await locales({
+      'en/settings.yaml': 'files:\n  hint: Use {\'{count}\'} | total\n  other: Use {\'don\\\'t type {count}\'} | total\n  spaced: Use { \'{count}\' } | total\n',
+    })
+
+    const issues = await checkLocales({ root })
+
+    expect(issues).toEqual([
+      expect.objectContaining({ level: 'warning', key: 'files.hint' }),
+      expect.objectContaining({ level: 'warning', key: 'files.other' }),
+      expect.objectContaining({ level: 'warning', key: 'files.spaced' }),
+    ])
+  })
+
+  it('accepts a separator that a count selects', async () => {
+    const root = await locales({
+      'en/settings.yaml': 'files:\n  count: \'{count} file | {count} files\'\n',
+    })
+
+    expect(await checkLocales({ root })).toEqual([])
+  })
+
+  it('reports the separator in a translation as well', async () => {
+    const root = await locales({
+      'en/settings.yaml': english,
+      'ja/settings.yaml': 'animation:\n  title: アニメーション | モーション\n',
+    })
+
+    const issues = await checkLocales({ root })
+
+    expect(issues).toEqual([expect.objectContaining({ level: 'warning', locale: 'ja', key: 'animation.title' })])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2904#discussion_r4241505158
+  it('escapes a pipe in the summary so the row keeps its five columns (PR #2904)', async () => {
+    // ROOT CAUSE:
+    //
+    // The Crowdin workflow appends this table to the step summary, and the warning
+    // shows a literal pipe. An unescaped pipe in that message ended the cell early, so
+    // the row grew a column.
+    //
+    // We fixed this by escaping every dynamic cell of the table.
+    const root = await locales({
+      'en/settings.yaml': 'providers:\n  anthropic: Anthropic | Claude\n',
+    })
+    const summary = join(root, 'summary.md')
+
+    await promisify(execFile)(process.execPath, [script, '--root', root, '--summary', summary])
+
+    const table = await readFile(summary, 'utf8')
+    const row = table.split('\n').find(line => line.includes('providers.anthropic')) ?? ''
+    expect(row).toContain("{'\\|'}")
+    // Five columns hold six delimiters. An escaped pipe adds none.
+    expect(row.replace(/\\\|/g, '').split('|')).toHaveLength(7)
+  })
+
+  it('accepts a separator that a bare number selects', async () => {
+    // t(key, plural) picks a form with the number itself, so the message needs no
+    // placeholder. This is why the check reports a warning and not an error.
+    const root = await locales({
+      'en/settings.yaml': 'files:\n  car: car | cars\n',
+    })
+
+    const reported = await checkLocales({ root })
+
+    expect(reported).toEqual([
+      expect.objectContaining({ level: 'warning', key: 'files.car' }),
+    ])
+  })
+})

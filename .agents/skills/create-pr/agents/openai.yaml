@@ -1,4 +1,4 @@
 interface:
   display_name: "Create Pull Request"
-  short_description: "Create a PR with complete visual evidence"
+  short_description: "Create a PR with context and visual evidence"
   default_prompt: "Use $create-pr to prepare and create a pull request for my current changes."

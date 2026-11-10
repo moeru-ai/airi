@@ -9,7 +9,7 @@ APP_REMOTE_DEBUG_NO_OPEN=true \
 pnpm dev:tamagotchi
 ```
 
-If using the built app, launch its Electron executable with `apps/stage-tamagotchi/out/main/index.js` and an explicit `--user-data-dir` under a newly created temporary directory.
+If using the built app, launch its Electron executable with the app directory `apps/stage-tamagotchi` (its `main` is the ergosphere-it launcher in `out/launcher`) and an explicit `--user-data-dir` under a newly created temporary directory.
 
 ## Choose the renderer
 

@@ -1,24 +1,34 @@
-import type { ChatProvider } from '@xsai-ext/providers/utils'
-import type { CommonContentPart, Message } from '@xsai/shared-chat'
+import type { Conversation } from '@proj-airi/core-agent'
+import type { GenerationProvider } from '@proj-airi/provider-inference'
 
 import type { VisionWorkloadId } from './use-vision-workloads'
 
+import { errorMessageFrom } from '@moeru/std'
+import { DEFAULT_CONCURRENT_VISION_READS } from '@proj-airi/provider-inference'
 import { storeToRefs } from 'pinia'
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 
 import { useLLM } from '../../stores/ai/chat-llm/llm'
-import { useVisionStore } from '../../stores/modules/vision'
+import { reportActivity, useVisionActivityStore, useVisionStore } from '../../stores/modules/vision'
 import { useProviderStore } from '../../stores/providers/provider'
 import { getVisionWorkload } from './use-vision-workloads'
+import { VisionReadQueue } from './vision-read-queue'
 
 export interface VisionInferenceInput {
   imageDataUrl: string
   workloadId: VisionWorkloadId
   promptOverride?: string
+  /** Cancels this read when its owning chat turn ends. */
+  abortSignal?: AbortSignal
+  /** Background chat supplies its character's vision selection. Other callers use the current module settings. */
+  selection?: { provider: string, model: string }
 }
 
 // TODO: this should be configurable
 const VISION_INFERENCE_TIMEOUT_MS = 60_000
+
+/** The read queue of this window, shared by attachments, tool images, and the screen ticker. */
+const visionReadQueue = new VisionReadQueue()
 
 function parseDataUrl(dataUrl: string) {
   if (!dataUrl.startsWith('data:'))
@@ -38,43 +48,35 @@ export function useVisionInference() {
   const llmStore = useLLM()
   const providersStore = useProviderStore()
   const visionStore = useVisionStore()
+  const activityStore = useVisionActivityStore()
   const { activeProvider, activeModel, ollamaThinkingEnabled } = storeToRefs(visionStore)
 
   const lastText = ref('')
 
-  async function runVisionInference(input: VisionInferenceInput) {
-    if (!activeProvider.value || !activeModel.value)
-      throw new Error('Vision provider/model not configured')
-
-    const provider = await providersStore.getProviderInstance<ChatProvider>(activeProvider.value)
+  /** Reads one image with the given vision provider and returns the trimmed text. */
+  async function describeImage(providerId: string, modelId: string, input: VisionInferenceInput) {
+    const thinking = ollamaThinkingEnabled.value
+    const provider = await providersStore.getChatProviderInstance(providerId)
+    input.abortSignal?.throwIfAborted()
     const workload = getVisionWorkload(input.workloadId)
     const prompt = input.promptOverride ?? workload.prompt
     const { url } = parseDataUrl(input.imageDataUrl)
-    const visionProvider = activeProvider.value === 'vision-ollama'
+    const visionProvider: GenerationProvider = providerId === 'vision-ollama'
       ? {
-        ...provider,
-        chat(model: string) {
-          return {
-            ...provider.chat(model),
-            think: ollamaThinkingEnabled.value,
-          }
-        },
-      } satisfies ChatProvider
+          generation(model) {
+            const request = provider.generation(model)
+            if (request.protocol !== 'chat-completions')
+              return request
+            return { ...request, config: { ...request.config, think: thinking } }
+          },
+        }
       : provider
 
-    const contentParts: CommonContentPart[] = [
-      { type: 'text', text: prompt },
-      {
-        type: 'image_url',
-        image_url: {
-          url,
-        },
-      },
-    ]
-
-    const messages: Message[] = [
-      { role: 'user', content: contentParts },
-    ]
+    const context: Conversation = { turns: [{
+      id: 'vision-input',
+      type: 'user',
+      content: [{ type: 'text', text: prompt }, { type: 'image', url }],
+    }] }
 
     let buffer = ''
     const abortController = new AbortController()
@@ -83,8 +85,11 @@ export function useVisionInference() {
     }, VISION_INFERENCE_TIMEOUT_MS)
 
     try {
-      await llmStore.stream(activeModel.value, visionProvider, messages, {
-        abortSignal: abortController.signal,
+      await llmStore.stream(modelId, visionProvider, context, {
+        // A frame description calls no tools. The chat tool list only costs context,
+        // and a provider without tool calling rejects it.
+        supportsTools: false,
+        abortSignal: input.abortSignal ? AbortSignal.any([input.abortSignal, abortController.signal]) : abortController.signal,
         onStreamEvent: (event) => {
           if (event.type === 'text-delta') {
             buffer += event.text
@@ -104,7 +109,63 @@ export function useVisionInference() {
       clearTimeout(timeoutHandle)
     }
 
-    lastText.value = buffer.trim()
+    return buffer.trim()
+  }
+
+  async function runVisionInference(input: VisionInferenceInput) {
+    if (!visionStore.enabled)
+      throw new DOMException('Vision is disabled', 'AbortError')
+
+    const cancellation = new AbortController()
+    const stop = watch(() => visionStore.enabled, (enabled) => {
+      if (!enabled)
+        cancellation.abort(new DOMException('Vision is disabled', 'AbortError'))
+    }, { flush: 'sync' })
+    const signal = AbortSignal.any([cancellation.signal, ...(input.abortSignal ? [input.abortSignal] : [])])
+    try {
+      return await readImage({ ...input, abortSignal: signal })
+    }
+    finally {
+      stop()
+    }
+  }
+
+  async function readImage(input: VisionInferenceInput) {
+    const providerId = input.selection?.provider ?? activeProvider.value
+    const modelId = input.selection?.model ?? activeModel.value
+    if (!providerId || !modelId)
+      throw new Error('Vision provider/model not configured')
+
+    const concurrentReads = providersStore.findProviderDefinition(providerId)?.capabilities?.vision?.concurrentReads
+    const release = await visionReadQueue.acquire(providerId, concurrentReads ?? DEFAULT_CONCURRENT_VISION_READS, input.abortSignal)
+    const startedAt = Date.now()
+    // Every started read counts, including a failure before the request, such
+    // as a provider that cannot start. A read that its caller cancels does not.
+    function recordInference(result: { text: string } | { error: string }) {
+      reportActivity(activityStore.recordInference({
+        at: Date.now(),
+        provider: providerId,
+        model: modelId,
+        durationMs: Date.now() - startedAt,
+        ...result,
+      }))
+    }
+
+    try {
+      const text = await describeImage(providerId, modelId, input)
+      input.abortSignal?.throwIfAborted()
+      lastText.value = text
+    }
+    catch (error) {
+      if (!input.abortSignal?.aborted)
+        recordInference({ error: errorMessageFrom(error) ?? 'Unknown error' })
+      throw error
+    }
+    finally {
+      release()
+    }
+
+    recordInference({ text: lastText.value })
     return lastText.value
   }
 

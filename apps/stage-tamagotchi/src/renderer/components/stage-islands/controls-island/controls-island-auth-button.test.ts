@@ -5,14 +5,23 @@ import { createApp, h, nextTick, ref } from 'vue'
 
 import ControlsIslandAuthButton from './controls-island-auth-button.vue'
 
+import { electronAuthStartLogin } from '../../../../shared/eventa'
+
+const subscriptions = vi.hoisted(() => ({ on: vi.fn(() => vi.fn()) }))
+const invokes = vi.hoisted(() => ({ startLogin: vi.fn(), openSettings: vi.fn() }))
+
 const authState = {
   isAuthenticated: ref(true),
-  user: ref<{ name: string, image?: string }>({
+  user: ref<{ id?: string, name: string, image?: string }>({
     name: 'Rainbow Bird',
     image: 'https://example.com/broken-avatar.png',
   }),
   needsLogin: ref(false),
   credits: ref(9620),
+  consumeLoginRequest: vi.fn(async () => {
+    authState.needsLogin.value = false
+    return true
+  }),
 }
 
 vi.mock('@proj-airi/stage-ui/stores/auth', () => ({
@@ -21,13 +30,9 @@ vi.mock('@proj-airi/stage-ui/stores/auth', () => ({
 
 vi.mock('@proj-airi/electron-vueuse', () => ({
   useElectronEventaContext: () => ref({
-    on: vi.fn(),
+    on: subscriptions.on,
   }),
-  useElectronEventaInvoke: () => vi.fn(),
-}))
-
-vi.mock('pinia', () => ({
-  storeToRefs: (store: object) => store,
+  useElectronEventaInvoke: (event: unknown) => event === electronAuthStartLogin ? invokes.startLogin : invokes.openSettings,
 }))
 
 vi.mock('vue-i18n', () => ({
@@ -45,19 +50,54 @@ describe('controlsIslandAuthButton', () => {
       host.remove()
     }
     mountedApps.length = 0
+    authState.isAuthenticated.value = true
+    authState.needsLogin.value = false
+    authState.consumeLoginRequest.mockClear()
+    invokes.startLogin.mockReset()
+    invokes.openSettings.mockReset()
     authState.user.value.image = 'https://example.com/broken-avatar.png'
+    authState.user.value.id = undefined
   })
 
-  function mountComponent() {
+  function mountComponent(active = ref(true)) {
     const host = document.createElement('div')
     document.body.appendChild(host)
     const app = createApp({
-      render: () => h(ControlsIslandAuthButton),
+      render: () => h(ControlsIslandAuthButton, { active: active.value }),
     })
     app.mount(host)
     mountedApps.push({ app, host })
     return host
   }
+
+  it('starts a deferred login when the hidden menu becomes active', async () => {
+    authState.isAuthenticated.value = false
+    const active = ref(false)
+    mountComponent(active)
+
+    authState.needsLogin.value = true
+    await nextTick()
+    expect(invokes.startLogin).not.toHaveBeenCalled()
+    expect(authState.needsLogin.value).toBe(true)
+
+    active.value = true
+    await nextTick()
+    expect(authState.consumeLoginRequest).toHaveBeenCalledOnce()
+    expect(invokes.startLogin).toHaveBeenCalledOnce()
+    expect(authState.needsLogin.value).toBe(false)
+  })
+
+  it('disposes both auth subscriptions when the menu unmounts', () => {
+    subscriptions.on.mockClear()
+    mountComponent()
+    expect(subscriptions.on).toHaveBeenCalledTimes(2)
+    const stops = subscriptions.on.mock.results.map(result => result.value)
+    mountedApps[0]!.app.unmount()
+    for (const stop of stops)
+      expect(stop).toHaveBeenCalledOnce()
+    mountedApps[0]!.host.remove()
+    mountedApps.length = 0
+  })
 
   it('renders the shared account fallback when no avatar is available', () => {
     authState.user.value.image = undefined
@@ -66,6 +106,16 @@ describe('controlsIslandAuthButton', () => {
     const fallback = host.querySelector('[data-avatar-fallback]')
     expect(fallback).toBeTruthy()
     expect(fallback?.firstElementChild?.classList.contains('i-solar:user-circle-bold-duotone')).toBe(true)
+  })
+
+  it('renders a beam avatar from the user ID when no avatar image is available', () => {
+    authState.user.value.image = undefined
+    authState.user.value.id = 'user-1'
+    const host = mountComponent()
+
+    const fallback = host.querySelector('[data-avatar-fallback]')
+    expect(fallback?.querySelector('[data-beam-avatar]')).toBeTruthy()
+    expect(fallback?.querySelector('.i-solar\\:user-circle-bold-duotone')).toBeNull()
   })
 
   it('tries the next avatar URL after the authenticated user changes', async () => {

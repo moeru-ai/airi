@@ -1,18 +1,12 @@
-// Some Live2D archives — notably VTube Studio exports from CJK authors — store entry
-// names without the UTF-8 flag, encoded in a legacy codepage (most commonly GBK). JSZip
-// decodes those as UTF-8 by default, turning names like `手姿势切换.exp3.json` into U+FFFD
-// mojibake.
-//
-// JSZip only calls `decodeFileName` for entries *without* the UTF-8 flag, so any name
-// carrying high bytes here is almost certainly legacy-encoded. We must not simply prefer
-// UTF-8 when it happens to be valid: some GBK names are also well-formed UTF-8 yet decode
-// to the wrong characters (e.g. GBK `一` is bytes `D2 BB`, which is valid UTF-8 for `һ`).
-// Pure-ASCII names are identical across encodings, so fast-path those and decode the rest
-// as GBK, falling back to UTF-8 only if a GBK decoder is unavailable in this runtime.
-//
-// Pass this to `JSZip.loadAsync(data, { decodeFileName })`. It must be shared by every
-// code path that opens a model archive (loader and validator alike), otherwise one path
-// sees mojibake names while another sees the decoded ones.
+/**
+ * Decodes a ZIP entry name that may omit its declared filename encoding.
+ *
+ * Valid UTF-8 takes precedence. GBK is used when the bytes are invalid UTF-8.
+ *
+ * @example
+ * decodeZipFileName(new TextEncoder().encode('motions/哭哭.motion3.json'))
+ * // => 'motions/哭哭.motion3.json'
+ */
 export function decodeZipFileName(bytes: string[] | Uint8Array): string {
   // JSZip passes the raw filename bytes as a Uint8Array; the string[] branch only
   // exists to satisfy its option signature and is passed through unchanged.
@@ -23,7 +17,12 @@ export function decodeZipFileName(bytes: string[] | Uint8Array): string {
     return new TextDecoder('utf-8').decode(bytes)
 
   try {
-    return new TextDecoder('gbk').decode(bytes)
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+  }
+  catch {}
+
+  try {
+    return new TextDecoder('gbk', { fatal: true }).decode(bytes)
   }
   catch {
     return new TextDecoder('utf-8').decode(bytes)

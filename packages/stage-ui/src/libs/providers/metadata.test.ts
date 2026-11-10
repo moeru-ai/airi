@@ -18,7 +18,7 @@ const definition = {
   description: 'Test provider description',
   descriptionLocalize: ({ t }) => t('description.key'),
   icon: 'i-test:provider',
-  createProviderConfig: () => z.object({
+  createProviderConfig: async () => z.object({
     apiKey: z.string(),
     baseUrl: z.string().optional().default('https://example.com/v1/'),
   }),
@@ -29,8 +29,8 @@ const definition = {
 } satisfies ProviderDefinition<{ apiKey: string, baseUrl?: string }>
 
 describe('provider metadata selector', () => {
-  it('selects schema defaults and localized display fields', () => {
-    const metadata = selectProviderMetadata(definition, t)
+  it('selects schema defaults from an async Provider schema', async () => {
+    const metadata = await selectProviderMetadata(definition, t)
 
     expect(metadata).toMatchObject({
       id: 'test-provider',
@@ -45,8 +45,8 @@ describe('provider metadata selector', () => {
     })
   })
 
-  it('does not copy executable definition fields', () => {
-    const metadata = selectProviderMetadata(definition, t)
+  it('does not copy executable definition fields', async () => {
+    const metadata = await selectProviderMetadata(definition, t)
 
     expect('createProvider' in metadata).toBe(false)
     expect('createProviderConfig' in metadata).toBe(false)
@@ -55,8 +55,8 @@ describe('provider metadata selector', () => {
     expect(() => structuredClone(metadata)).not.toThrow()
   })
 
-  it('supports serializable view overrides without changing the definition', () => {
-    const metadata = selectProviderMetadata(definition, t, {
+  it('supports serializable view overrides without changing the definition', async () => {
+    const metadata = await selectProviderMetadata(definition, t, {
       id: 'vision-test-provider',
       category: 'vision',
       tasks: ['chat', 'vision'],
@@ -71,5 +71,25 @@ describe('provider metadata selector', () => {
     })
     expect(definition.id).toBe('test-provider')
     expect(definition.tasks).toEqual(['chat'])
+  })
+
+  it('uses the settings route that the definition declares', async () => {
+    const metadata = await selectProviderMetadata({ ...definition, to: '/settings/modules/hearing/transcriber' }, t)
+
+    expect(metadata.to).toBe('/settings/modules/hearing/transcriber')
+  })
+
+  it('prefers the settings route of the view override over the definition route', async () => {
+    const metadata = await selectProviderMetadata({ ...definition, to: '/settings/modules/hearing/transcriber' }, t, {
+      to: '/settings/providers/vision/test-provider',
+    })
+
+    expect(metadata.to).toBe('/settings/providers/vision/test-provider')
+  })
+
+  it('leaves the route empty when neither the definition nor the override declares one', async () => {
+    const metadata = await selectProviderMetadata(definition, t)
+
+    expect('to' in metadata).toBe(false)
   })
 })

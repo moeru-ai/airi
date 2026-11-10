@@ -3,6 +3,7 @@ import type { ServerEvent, ServerEvents } from '@proj-airi/stage-ui/libs/provide
 
 import vadWorkletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 
+import { toPCM16FromFloat32 } from '@proj-airi/audio/encoding'
 import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import { createAliyunNLSProvider } from '@proj-airi/stage-ui/libs/providers/providers/aliyun-nls'
 import { streamTranscription } from '@proj-airi/stage-ui/libs/providers/stream-transcription'
@@ -36,7 +37,7 @@ const workletNode = shallowRef<AudioWorkletNode>()
 const mediaStreamSource = shallowRef<MediaStreamAudioSourceNode>()
 const mediaStream = shallowRef<MediaStream>()
 
-const audioStreamController = shallowRef<ReadableStreamDefaultController<ArrayBuffer>>()
+const audioStreamController = shallowRef<ReadableStreamDefaultController<Uint8Array>>()
 const transcriptionAbortController = shallowRef<AbortController>()
 const transcriptionTextPromise = shallowRef<Promise<string> | null>(null)
 
@@ -83,15 +84,6 @@ function appendLog(message: string, level: 'info' | 'error' = 'info') {
   })
 }
 
-function float32ToInt16(buffer: Float32Array) {
-  const output = new Int16Array(buffer.length)
-  for (let i = 0; i < buffer.length; i++) {
-    const value = Math.max(-1, Math.min(1, buffer[i]))
-    output[i] = value < 0 ? value * 0x8000 : value * 0x7FFF
-  }
-  return output
-}
-
 function resetRecordingCounters() {
   audioChunkCount = 0
   lastChunkLogAt = 0
@@ -116,8 +108,8 @@ async function initializeAudioGraph(stream: MediaStream) {
     if (!buffer || !controller)
       return
 
-    const pcm16 = float32ToInt16(buffer)
-    controller.enqueue(pcm16.buffer.slice(0))
+    const pcm16 = toPCM16FromFloat32(buffer)
+    controller.enqueue(new Uint8Array(pcm16.buffer))
 
     audioChunkCount += 1
     if (audioChunkCount === 1 || audioChunkCount - lastChunkLogAt >= 50) {
@@ -149,7 +141,7 @@ async function startRecording() {
   const abortController = new AbortController()
   transcriptionAbortController.value = abortController
 
-  const audioStream = new ReadableStream<ArrayBuffer>({
+  const audioStream = new ReadableStream<Uint8Array>({
     start(controller) {
       audioStreamController.value = controller
     },

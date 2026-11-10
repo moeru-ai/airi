@@ -85,6 +85,7 @@ const { cameraDistance, cameraFOV, cameraPosition } = useThreeCamera()
 
 const modelRotationY = useLocalStorage('settings/stage-ui-three/modelRotationY', 0)
 const trackingMode = useLocalStorage<TrackingMode>('settings/stage-ui-three/trackingMode', 'none')
+const maxFps = useLocalStorage('settings/stage-ui-three/max-fps', 0)
 
 export const useModelStore = defineStore('modelStore', () => {
   const { post, data } = useBroadcastChannel<BroadcastChannelEvents, BroadcastChannelEvents>({ name: 'airi-stores-stage-ui-three-vrm' })
@@ -138,8 +139,26 @@ export const useModelStore = defineStore('modelStore', () => {
     sceneTransactionDepth.value = 0
   }
 
-  // === Legacy / shared controls ===
-  const lastCommittedModelSrc = useLocalStorage('settings/stage-ui-three/lastModelSrc', '')
+  // === Model identity ===
+  // The display model ID is stable across application restarts. Runtime URLs are not.
+  const lastCommittedModelId = useLocalStorage('settings/stage-ui-three/lastModelId', '')
+  /** The storage key from releases that used runtime URLs as model identity. */
+  const legacyLastCommittedModelSrcStorageKey = 'settings/stage-ui-three/lastModelSrc'
+
+  /**
+   * Clears model identity from releases that stored only a runtime URL.
+   *
+   * A regenerated Blob URL cannot identify the persisted file that owns the saved view.
+   * The first VRM load after this reset establishes the stable model ID for later starts.
+   */
+  function resetLegacyModelIdentity() {
+    const legacyModelSrc = window.localStorage.getItem(legacyLastCommittedModelSrcStorageKey)
+    if (!legacyModelSrc)
+      return
+
+    lastCommittedModelId.value = ''
+    window.localStorage.removeItem(legacyLastCommittedModelSrcStorageKey)
+  }
 
   // === Model lifecycle / bootstrap ===
   // These values are recalculated from the currently bound model instance whenever
@@ -156,7 +175,8 @@ export const useModelStore = defineStore('modelStore', () => {
     scenePhase.value = 'pending'
     sceneTransactionDepth.value = 0
 
-    lastCommittedModelSrc.value = ''
+    lastCommittedModelId.value = ''
+    window.localStorage.removeItem(legacyLastCommittedModelSrcStorageKey)
     modelSize.value = { x: 0, y: 0, z: 0 }
     modelOrigin.value = { x: 0, y: 0, z: 0 }
     modelRotationY.value = 0
@@ -210,7 +230,7 @@ export const useModelStore = defineStore('modelStore', () => {
     sceneTransactionDepth,
     sceneMutationLocked,
 
-    lastCommittedModelSrc,
+    lastCommittedModelId,
 
     modelSize,
     modelOrigin,
@@ -236,6 +256,7 @@ export const useModelStore = defineStore('modelStore', () => {
 
     lookAtTarget,
     trackingMode,
+    maxFps,
     eyeHeight,
     renderScale,
     multisampling,
@@ -250,6 +271,7 @@ export const useModelStore = defineStore('modelStore', () => {
     beginSceneBindingTransaction,
     endSceneBindingTransaction,
     resetSceneBindingTransactions,
+    resetLegacyModelIdentity,
 
     resetModelStore,
   }

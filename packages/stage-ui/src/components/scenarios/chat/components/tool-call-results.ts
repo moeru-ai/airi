@@ -1,38 +1,28 @@
 import type { ChatAssistantMessage, ChatSlices, ChatSlicesToolCallResult } from '../../../../types/chat'
 
 /**
- * Creates a lookup from tool-call id to its latest result slice.
- *
- * Use when:
- * - Rendering assistant messages with separate `tool-call` and `tool-call-result` data
- * - Streaming messages store tool results on `tool_results` instead of inline slices
- *
- * Expects:
- * - Tool call ids use `toolCall.toolCallId`
- * - Tool result ids use `id`
- *
- * Returns:
- * - A map keyed by tool call id, preferring inline result slices over stored results
+ * Pairs each call slice with its result by occurrence within that provider call id.
+ * Inline results take precedence over stored results for the same occurrence.
  */
 export function createToolCallResultLookup(
   slices: ChatSlices[],
   toolResults: ChatAssistantMessage['tool_results'] = [],
-): Map<string, ChatSlicesToolCallResult> {
-  const resultMap = new Map<string, ChatSlicesToolCallResult>()
-
-  for (const result of toolResults) {
-    resultMap.set(result.id, {
-      type: 'tool-call-result',
-      ...result,
-    })
+): Map<number, ChatSlicesToolCallResult> {
+  const resultMap = new Map<number, ChatSlicesToolCallResult>()
+  const occurrences = new Map<string, number>()
+  for (const [index, slice] of slices.entries()) {
+    if (slice.type !== 'tool-call')
+      continue
+    const id = slice.toolCall.toolCallId
+    const occurrence = occurrences.get(id) ?? 0
+    occurrences.set(id, occurrence + 1)
+    const inline = slices.filter((item): item is ChatSlicesToolCallResult => item.type === 'tool-call-result' && item.id === id)[occurrence]
+    const stored = toolResults.filter(item => item.id === id)[occurrence]
+    if (inline)
+      resultMap.set(index, inline)
+    else if (stored)
+      resultMap.set(index, { type: 'tool-call-result', ...stored })
   }
-
-  for (const slice of slices) {
-    if (slice.type === 'tool-call-result') {
-      resultMap.set(slice.id, slice)
-    }
-  }
-
   return resultMap
 }
 

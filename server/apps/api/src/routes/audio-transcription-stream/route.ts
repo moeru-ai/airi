@@ -7,9 +7,10 @@ import type { RouterConfig } from '../../services/domain/llm-router/types'
 import type { ProviderCatalogService } from '../../services/domain/provider-catalog'
 import type { EnvelopeCrypto } from '../../utils/envelope-crypto'
 
+import { createServiceUnavailableError, createUnauthorizedError } from '@proj-airi/http-error-shared'
+
 import { resolveRequestAuth } from '../../libs/request-auth'
 import { createKeyRotator } from '../../services/domain/llm-router/key-rotator'
-import { createServiceUnavailableError, createUnauthorizedError } from '../../utils/error'
 import { createAliyunNlsStreamResponse } from './session'
 
 type AliyunNlsRegion = 'cn-shanghai' | 'cn-shanghai-internal' | 'cn-beijing' | 'cn-beijing-internal' | 'cn-shenzhen' | 'cn-shenzhen-internal'

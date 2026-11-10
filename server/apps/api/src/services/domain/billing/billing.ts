@@ -1,23 +1,96 @@
-export interface UsageInfo {
-  promptTokens?: number
-  completionTokens?: number
+import type { InferOutput } from 'valibot'
+
+import type { UsageInfo } from '../generation-usage'
+
+import { finite, integer, minValue, nonEmpty, number, object, pipe, record, safeParse, string } from 'valibot'
+
+import { MICRO_FLUX_PER_FLUX } from './flux-posting'
+
+const microFluxPerFlux = BigInt(MICRO_FLUX_PER_FLUX)
+
+/** Price snapshot for provider-reported USD costs. There are no default sale prices. */
+export const costPricingSchema = object({
+  fluxPerUsd: pipe(number(), finite(), minValue(Number.MIN_VALUE)),
+  multiplier: pipe(number(), finite(), minValue(Number.MIN_VALUE)),
+})
+export type CostPricing = InferOutput<typeof costPricingSchema>
+
+/** Authorization-time policy remains fixed when a pending request is reconciled. */
+export const billingPolicySchema = object({
+  minimumBalance: pipe(number(), finite(), integer(), minValue(1)),
+  costPricing: record(pipe(string(), nonEmpty()), costPricingSchema),
+})
+export type BillingPolicy = InferOutput<typeof billingPolicySchema>
+
+/** Standard adapter output. Missing cost remains unresolved, including explicit price-table adapters. */
+export interface CostUsage extends UsageInfo {
+  source: 'provider_reported' | 'model_price_table'
+  costUsd?: number
+  pendingReason?: string
 }
 
-export function extractUsageFromBody(body: any): UsageInfo {
-  const usage = body?.usage
-  if (!usage)
-    return {}
-  return {
-    promptTokens: usage.prompt_tokens ?? undefined,
-    completionTokens: usage.completion_tokens ?? undefined,
-  }
+const costSchema = pipe(number(), finite(), minValue(0))
+const generationIdSchema = pipe(string(), nonEmpty())
+
+/** A pending receipt must be reconciled, never priced with the token fallback. */
+export type CostCharge = {
+  pricing: CostPricing
+  costUsd: number
+  costMicroFlux: number
+  pendingReason?: undefined
+} | {
+  pricing: CostPricing
+  costUsd?: number
+  costMicroFlux?: undefined
+  pendingReason: string
 }
 
-export function calculateFluxFromUsage(usage: UsageInfo, fluxPer1kTokens: number, fallbackRate: number): number {
-  const { promptTokens, completionTokens } = usage
-  if (promptTokens != null && completionTokens != null) {
-    const totalTokens = promptTokens + completionTokens
-    return Math.max(1, Math.ceil(totalTokens / 1000 * fluxPer1kTokens))
+// Decimal multiplication prevents values such as 0.07 * 100 from crossing an integer boundary.
+function decimalFraction(value: number): [bigint, bigint] {
+  const [coefficient, exponent = '0'] = value.toString().split('e')
+  const [whole, fraction = ''] = coefficient.split('.')
+  const scale = fraction.length - Number(exponent)
+  const numerator = BigInt(whole + fraction)
+  return scale >= 0 ? [numerator, 10n ** BigInt(scale)] : [numerator * 10n ** BigInt(-scale), 1n]
+}
+
+/** Quotes a micro-Flux fee rounded up per usage event from normalized USD usage, without provider wire knowledge. */
+export function priceLlmCost(usage: Pick<CostUsage, 'costUsd' | 'pendingReason' | 'generationId'>, pricing: CostPricing): CostCharge {
+  if (usage.pendingReason !== undefined)
+    return { pricing, costUsd: usage.costUsd, pendingReason: usage.pendingReason }
+  const cost = safeParse(costSchema, usage.costUsd)
+  if (!cost.success)
+    return { pricing, pendingReason: 'missing_or_invalid_cost' }
+  if (!safeParse(generationIdSchema, usage.generationId).success)
+    return { pricing, pendingReason: 'missing_generation_id' }
+
+  let numerator = microFluxPerFlux
+  let denominator = 1n
+  for (const value of [cost.output, pricing.fluxPerUsd, pricing.multiplier]) {
+    const [factorNumerator, factorDenominator] = decimalFraction(value)
+    numerator *= factorNumerator
+    denominator *= factorDenominator
   }
-  return fallbackRate
+  const costMicroFlux = (numerator + denominator - 1n) / denominator
+  if (costMicroFlux > BigInt(Number.MAX_SAFE_INTEGER))
+    return { pricing, costUsd: cost.output, pendingReason: 'cost_out_of_range' }
+  return { pricing, costUsd: cost.output, costMicroFlux: Number(costMicroFlux) }
+}
+
+/** Snapshot of the character price, fixed before speech dispatch. */
+export const speechPricingSchema = object({
+  fluxPer1kChars: pipe(number(), finite(), minValue(Number.MIN_VALUE)),
+})
+export type SpeechPricing = InferOutput<typeof speechPricingSchema>
+
+/** Prices metered speech characters with decimal arithmetic before integer wallet settlement. */
+export function priceSpeechUsage(units: number, pricing: SpeechPricing): number {
+  if (!Number.isSafeInteger(units) || units < 0)
+    throw new Error('Speech units must be a non-negative safe integer')
+  const [numerator, denominator] = decimalFraction(pricing.fluxPer1kChars)
+  const divisor = denominator * 1000n
+  const fee = (BigInt(units) * numerator * microFluxPerFlux + divisor - 1n) / divisor
+  if (fee > BigInt(Number.MAX_SAFE_INTEGER))
+    throw new Error('Speech cost is out of range')
+  return Number(fee)
 }

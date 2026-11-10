@@ -3,7 +3,6 @@ import type { RemovableRef } from '@vueuse/core'
 import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
 import {
-  Alert,
   ProviderAdvancedSettings,
   ProviderApiKeyInput,
   ProviderBaseUrlInput,
@@ -17,7 +16,8 @@ import { getDefinedProvider } from '@proj-airi/stage-ui/libs'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
-import { FieldCombobox, FieldInput } from '@proj-airi/ui'
+import { Alert, Button, FieldCombobox, FieldInput } from '@proj-airi/ui'
+import { computedAsync } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, watch } from 'vue'
 
@@ -110,12 +110,12 @@ const {
   forceValid,
 } = useProviderValidation(providerId)
 
-const apiKeyPlaceholder = computed(() => {
+const apiKeyPlaceholder = computedAsync(async () => {
   const definition = getDefinedProvider(providerId)
   if (!definition?.createProviderConfig)
     return 'sk-...'
 
-  const schema = definition.createProviderConfig({ t }) as any
+  const schema = await definition.createProviderConfig({ t }) as any
   const shape = typeof schema?.shape === 'function' ? schema.shape() : schema?.shape
   const apiKeySchema = shape?.apiKey
   if (!apiKeySchema)
@@ -123,7 +123,7 @@ const apiKeyPlaceholder = computed(() => {
 
   const meta = typeof apiKeySchema.meta === 'function' ? apiKeySchema.meta() : undefined
   return typeof meta?.placeholderLocalized === 'string' ? meta.placeholderLocalized : 'sk-...'
-})
+}, 'sk-...')
 
 // Expand Advanced section if there's a base URL validation error
 const shouldExpandAdvanced = computed(() => {
@@ -159,7 +159,7 @@ function isValidTranscriptionModel(modelName: string | undefined | null): boolea
 
 // Initialize provider settings on mount
 onMounted(async () => {
-  providersStore.initializeProvider(providerId)
+  await providersStore.initializeProvider(providerId)
   // Initialize baseUrl with default if not set
   if (!providers.value[providerId]?.baseUrl) {
     const defaultBaseUrl = providersStore.getDefaultProviderConfig(providerId).baseUrl as string | undefined
@@ -243,30 +243,17 @@ watch(model, () => {
         </ProviderAdvancedSettings>
 
         <!-- Validation Status -->
-        <Alert v-if="!isValid && isValidating === 0 && validationMessage" type="error">
-          <template #title>
-            <div class="w-full flex items-center justify-between">
-              <span>{{ t('settings.dialogs.onboarding.validationFailed') }}</span>
-              <button
-                type="button"
-                class="ml-2 rounded bg-red-100 px-2 py-0.5 text-xs text-red-600 font-medium transition-colors dark:bg-red-800/30 hover:bg-red-200 dark:text-red-300 dark:hover:bg-red-700/40"
-                @click="forceValid"
-              >
-                {{ t('settings.pages.providers.common.continueAnyway') }}
-              </button>
-            </div>
-          </template>
-          <template v-if="validationMessage" #content>
-            <div class="whitespace-pre-wrap break-all">
-              {{ validationMessage }}
-            </div>
+        <Alert v-if="!isValid && isValidating === 0 && validationMessage" tone="danger" :title="t('settings.dialogs.onboarding.validationFailed')">
+          <div :class="['whitespace-pre-wrap break-all']">
+            {{ validationMessage }}
+          </div>
+          <template #actions>
+            <Button size="sm" color="red" @click="forceValid">
+              {{ t('settings.pages.providers.common.continueAnyway') }}
+            </Button>
           </template>
         </Alert>
-        <Alert v-if="isValid && isValidating === 0" type="success">
-          <template #title>
-            {{ t('settings.dialogs.onboarding.validationSuccess') }}
-          </template>
-        </Alert>
+        <Alert v-if="isValid && isValidating === 0" tone="success" :title="t('settings.dialogs.onboarding.validationSuccess')" />
       </ProviderSettingsContainer>
 
       <!-- Playground section -->

@@ -17,7 +17,8 @@ inner content blur from an external `data-state="open|closed"` lifecycle. The
 lifecycle owner must keep the primitive mounted until the closing animation
 finishes. It can compose with Reka UI content primitives through `as-child`, but
 does not depend on a specific menu, popover, or presence implementation. Visual
-styling remains caller-owned.
+styling remains caller-owned. The content slides 4px from its trigger. With
+`data-side="top"`, which Reka sets on content above its trigger, it slides up.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
@@ -36,6 +37,24 @@ Bidirectional Vue `<Transition>` wrapper with customizable CSS classes.
 | `toClass` | `string?` | — | CSS class for final state |
 
 **Slots**: `default`
+
+### TransitionBud
+
+Buds an element off a neighbor, such as an island off its `Dock`, and merges
+it back under the neighbor when it leaves. The element starts small under the
+neighbor and springs out with a bounce. Put the element after its neighbor in
+the same row or column, and keep the neighbor above it with `z-index`.
+
+The spring is a CSS `linear()` easing. The browser must support it: Chromium
+113, Firefox 112, Safari 17.2, or later.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `from` | `'left' \| 'right' \| 'top' \| 'bottom'` | *(required)* | Side of the element where its neighbor is |
+| `gap` | `number?` | `8` | Space between the neighbor and the element, in pixels |
+| `delay` | `number?` | `0` | Wait before the element buds, in milliseconds |
+
+**Slots**: `default` (one element with `v-if`)
 
 ### TransitionHorizontal
 
@@ -73,11 +92,74 @@ Expandable/collapsible container with trigger button and vertical animation.
 **v-model**: `visible: boolean`
 **Slots**: `trigger({ visible, setVisible })`, `default({ visible, setVisible })`
 
+### LinkGroup
+
+Card that groups `LinkGroupItem` links under a small title, such as the settings search results of one category.
+It has the surface and the dot texture of the settings category cards, and its icon shows large and faded in the bottom-right corner.
+When an item has hover or focus, the icon scales up.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `title` | `string?` | — | Name of the group, shown small in the top-left corner |
+| `icon` | `string?` | — | Iconify class. It shows next to the title, and large in the corner |
+
+**Slots**: `default` (the `LinkGroupItem` links)
+**Exposes**: `naturalWidth()`, the narrowest width at which no item cuts its text. A layout can use it to decide how many groups fit side by side.
+
+### LinkGroupItem
+
+One link in a `LinkGroup`: a name on the left, a short detail on the right, and an arrow.
+On hover, the theme color sweeps in from the left and the dots under the item light up.
+The name keeps its width. The detail shrinks and cuts first.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `as` | `PrimitiveProps['as']?` | `'a'` | Element or component to render, such as `RouterLink`. Other attributes, such as `to`, pass to it |
+| `detail` | `string?` | — | Short note on the right, such as where the link goes |
+
+**Slots**: `default` (the name), `detail` (replaces the `detail` prop)
+
+### ProgressiveBlur
+
+Behavior-only overlay that blurs the backdrop more and more toward one edge. It
+stacks several `backdrop-filter` layers, and a mask shows each layer only in its
+own band. Place it as the first child of a positioned surface that floats over
+the stage. It takes no pointer input. The caller supplies any tint.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `edge` | `'top' \| 'bottom'` | `'bottom'` | Edge with the strongest blur |
+| `strength` | `number` | `24` | Blur radius in pixels at that edge |
+| `layers` | `number` | `5` | Number of blur layers. More layers fade more smoothly and paint more |
+
 ### Screen
 
 Responsive screen component that calculates canvas dimensions based on breakpoints.
 
 **Props**: None | **Slots**: `default({ width, height })`
+
+### SettingsCard
+
+Card container for module settings pages. It owns the width, radius, padding,
+stack gap, and background for both themes. Use it for a new module settings page
+instead of repeating the card classes inline.
+
+**Props**: None | **Slots**: `default`
+
+### ScrollableArea
+
+Reka UI scroll area with shared light-mode and dark-mode scrollbar styles.
+The component forwards HTML attributes to the scroll-area root.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `contentAsChild` | `boolean?` | `false` | Render the viewport content wrapper through the single default slot child |
+| `orientation` | `'vertical' \| 'horizontal' \| 'both'` | `'vertical'` | Scrollbar orientations to render |
+| `type` | `ScrollAreaRootProps['type']?` | `'auto'` | Reka UI scrollbar visibility behavior |
+| `viewportClass` | `string \| string[]?` | — | Classes for the Reka UI viewport |
+
+**Slots**: `default`
+**Exposed**: `viewport` (the native scroll owner. Reka UI hides its native scrollbar and renders the configured custom track.)
 
 ### Skeleton
 
@@ -103,6 +185,31 @@ Line-clamped content container that expands and collapses when the overflowing c
 
 ## Misc
 
+### BottomDrawer
+
+Mobile modal surface built on Vaul Vue. It owns the drag handle, overlay,
+focus boundary, scroll region, and bottom safe area. Dragging
+starts only on the handle, so action buttons and scrolling do not dismiss it.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `title` | `string` | required | Visible and accessible title |
+| `hideTitle` | `boolean` | `false` | Hides the heading visually and preserves the accessible dialog name |
+| `minimumHeight` | `'content' \| 'half'` | `'content'` | Uses content height or at least half of the viewport height |
+
+Dismiss with the handle, overlay, or Escape. There is no close button.
+
+**v-model**: `boolean`, defaults to `false`.
+
+**Slots**: `trigger` (one button), `default` (drawer content).
+
+**Emits**: `afterClose()` after the dismissal animation;
+`closeAutoFocus(event)` to prevent focus restoration when another modal opens.
+`openAutoFocus(event)` lets the consumer set the initial focus target.
+
+Use for mobile action menus and settings panels. Desktop dialogs and panels
+that need snap points use their own surface.
+
 ### Avatar
 
 Shared user-avatar primitive built on Reka UI. It retries when `src` changes and
@@ -116,6 +223,17 @@ renders the fallback when the URL is missing, loading, or fails.
 | `crossOrigin` | `ImgHTMLAttributes['crossorigin']?` | — | Image cross-origin mode |
 
 **Slots**: `fallback` (optional override for the built-in user icon)
+
+### Badge
+
+Small unread marker in the theme `primary` color, so it follows the hue that the user selects. A count badge caps at `max+`, so its width never grows past three characters. A dot badge has a fixed size and no number.
+Put dots on triggers, such as icon buttons, avatars, and menu buttons. Put counts inside menus and panel headers. The badge is `aria-hidden`, so the owning control must name the count.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `count` | `number?` | `0` | Number to show; zero or less renders nothing unless `dot` is set |
+| `max` | `number?` | `99` | Counts above it render as `99+` |
+| `dot` | `boolean?` | `false` | Render a fixed-size dot instead of a number |
 
 ### BasicButton
 
@@ -171,14 +289,131 @@ It directly uses `BasicButton`, removes its padding, and does not add a
 background, outline, shape, or forced square dimensions. Supply an accessible
 `aria-label`. Props: `icon`, `disabled`, and `loading`.
 
+### UtilityButton
+
+Compact icon button for a toolbar. Its `label` shows as a tooltip and is the
+accessible name. Use it inside a Reka UI `TooltipProvider`. Attributes such as
+`class` and `aria-*` go to the button, because the root is the tooltip.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `icon` | `string` | *(required)* | Icon class, for example `i-mingcute:fullscreen-line` |
+| `label` | `string` | *(required)* | Tooltip text and accessible name |
+| `pressed` | `boolean?` | — | State of a toggle. An active toggle has the primary tint. Leave it unset for a plain action |
+| `disabled` | `boolean?` | — | Disables the button |
+| `iconClass` | `string?` | — | Extra classes of the icon, for example a color |
+| `description` | `string?` | — | Longer text under the label in the tooltip |
+
+**Emits**: `click()`
+
+### Dock
+
+A pill that holds icon buttons, such as the dock of the floating chat and the
+fullscreen island. Its `DockButton` and `DockSeparator` children take their
+size, tooltip side, and tooltip surface from it. The buttons sit with no gap,
+so the space between two icons is the padding of their hover backgrounds.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `orientation` | `'horizontal' \| 'vertical'?` | `'horizontal'` | Direction of the buttons |
+| `size` | `'sm' \| 'md'?` | `'sm'` | Button size: 28 px or 36 px |
+| `variant` | `'default' \| 'blurry'?` | `'default'` | Opaque or translucent surface. `blurry` is optional. It lets the background show through, for a dock over the stage |
+| `opacity` | `number?` | `0.8` | Opacity of a `blurry` dock and its tooltips, from 0 to 1. Dark mode uses 0.1 less, as `OverlayButton` does |
+| `blur` | `number?` | `12` | Background blur of a `blurry` dock and its tooltips, in pixels |
+| `tooltipSide` | `TooltipContentProps['side']?` | `'bottom'`, or `'right'` when vertical | Side of the button tooltips. Pick the side that faces into the window |
+| `shadow` | `boolean?` | `true` | Turn it off when a parent draws the shadow, for example around a clipped dock |
+
+**Slots**: `default` (`DockButton`, `DockSeparator`, or custom items in a `Tooltip`).
+
+A custom item, such as a drag handle or a name, takes `dockItemClasses(variant, pressed)`.
+It returns the hover background and the icon color of `DockButton`, so the item matches its neighbors.
+
+### DockButton
+
+Round icon button of a `Dock`. Its `label` is the accessible name and the
+tooltip. A toggle that is on shows only a theme-color icon, with no background.
+A hover shows the same neutral background on every button. On a `blurry`
+dock, icons at rest have the colors of the Controls Island icons. Attributes such as
+`class` and listeners go to the button, so it can be the trigger of a
+`DropdownMenu`. Outside a `Dock`, it uses the `Dock` defaults.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `label` | `string` | *(required)* | Accessible name and tooltip text |
+| `icon` | `string?` | — | Icon class. The default slot replaces the icon |
+| `pressedIcon` | `string?` | `icon` | Icon of a toggle that is on |
+| `pressed` | `boolean?` | — | State of a toggle. Leave it unset for a plain action, which has no `aria-pressed` |
+| `tooltip` | `boolean?` | `true` | Shows the tooltip. Turn it off while a menu of the button covers its place |
+| `tooltipSide` | `TooltipContentProps['side']?` | side of the `Dock` | Side of the tooltip |
+| `disabled` | `boolean?` | `false` | Disables the button |
+| `loading` | `boolean?` | `false` | Shows a spinner and disables the button |
+
+**Emits**: native button events through attributes, for example `click`.
+
+### DockSeparator
+
+A line between groups of buttons in a `Dock`. It runs across the dock.
+
+### Tooltip
+
+A short label beside one control. It opens at once on hover, and only on
+keyboard focus, so it does not come back when a menu returns the focus. The
+slot holds one control. Attributes go to the control, so the trigger of a menu
+can wrap the tooltip.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `label` | `string` | *(required)* | Text of the tooltip. The control keeps its own accessible name |
+| `side` | `TooltipContentProps['side']?` | `'bottom'` | Preferred side before collision handling |
+| `sideOffset` | `number?` | `6` | Space between the control and the tooltip |
+| `variant` | `'default' \| 'blurry'?` | `'default'` | Opaque or translucent surface |
+| `opacity` | `number?` | `0.8` | Opacity of a `blurry` tooltip, from 0 to 1. Dark mode uses 0.1 less |
+| `blur` | `number?` | `12` | Background blur of a `blurry` tooltip, in pixels |
+| `disabled` | `boolean?` | `false` | Closes the tooltip and keeps it closed |
+
+### CopyableLabel
+
+Selectable text with a copy button. The button shows on hover, on keyboard
+focus, and always on a touch screen. Its touch target is 24 px there. It shows a check
+for a moment after a copy. It does not render without a clipboard.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `value` | `string` | *(required)* | Text that the button copies |
+
+**Slots**: `default` (the shown text, which can format the value). The default is `value`.
+
 ### OverlayButton
 
 Translucent, backdrop-blurred action without an outline, intended for floating
 controls such as the Tamagotchi Controls Island. Includes all `BasicButton` props.
 
+### Alert
+
+Status message for a result or a current state: an error, a warning, a success, or an operation that runs. Each tone has a fixed palette and a MingCute icon. The surface is an opaque base with a tint and no border, so it stays readable on translucent panels. For introductions and tips that show no status, use `Callout`.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `tone` | `'info' \| 'success' \| 'warning' \| 'danger'` | `'info'` | Status meaning. `info` follows the theme hue |
+| `title` | `string?` | — | Short summary. Without a title, the body uses the tone color |
+| `icon` | `string?` | — | Iconify class that replaces the tone icon |
+| `loading` | `boolean?` | `false` | Replaces the icon with a spinner |
+| `actionsPlacement` | `'end' \| 'bottom'` | `'bottom'` with a title, `'end'` without | Position of the `actions` slot |
+| `dismissible` | `boolean?` | `false` | Shows a close button that emits `dismiss` |
+| `dismissLabel` | `string?` | `'Dismiss'` | Accessible name of the close button. Pass a translated string |
+| `live` | `'off' \| 'polite' \| 'assertive'` | `'off'` | `polite` sets `role="status"`. `assertive` sets `role="alert"`. Use them only for an alert that appears after an action |
+
+**Slots**: `default` (body), `title`, `icon`, `actions`
+
+**Emits**: `dismiss` (the parent owns the visibility)
+
+- The body styles `a`, `code`, `strong`, paragraphs, and lists. For Markdown content, put `MarkdownRenderer` in the body.
+- Put at most two buttons in `actions`, with `size="sm"`. The main button uses the tone color with `variant="primary"`. The other button uses the neutral color.
+- Do not make errors or required warnings dismissible. They disappear when the user fixes the cause.
+
 ### Callout
 
-Alert/callout box with themed accent bar.
+Box with a themed accent bar for introductions, tips, and background information. It shows no status. For errors, warnings, and results, use `Alert`.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
@@ -189,11 +424,13 @@ Alert/callout box with themed accent bar.
 
 ### ContainerError
 
-Error display with copy/feedback buttons and scrollable stack trace.
+Error panel with a title row and a scrollable details area. The title row shows the error name and the copy and feedback buttons. The details area shows the message, the stack, and the cause.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `error` | `unknown?` | — | Error object |
+| `title` | `string?` | — | Replaces the error name in the title row. The error name then starts the message |
+| `description` | `string?` | — | Short context under the title row |
 | `message` | `string?` | — | Custom message |
 | `stack` | `string?` | — | Stack trace |
 | `includeStack` | `boolean?` | `true` | Show stack |
@@ -202,13 +439,14 @@ Error display with copy/feedback buttons and scrollable stack trace.
 | `copyButtonLabel` | `string?` | `'Copy'` | Copy button text |
 | `copiedButtonLabel` | `string?` | `'Copied'` | Copied state text |
 | `feedbackButtonLabel` | `string?` | `'Feedback'` | Feedback button text |
-| `heightPreset` | `'sm' \| 'md' \| 'lg' \| 'xl' \| 'auto'` | `'md'` | Container height |
+| `heightPreset` | `'sm' \| 'md' \| 'lg' \| 'xl' \| 'auto'` | `'md'` | Maximum height of the details area. Short details keep their natural height |
 
+**Slots**: `actions` (buttons at the end of the panel)
 **Emits**: `copy(content: string)`, `feedback()`
 
 ### ErrorBoundary
 
-Catches synchronous render/setup errors in descendants via `onErrorCaptured` and renders a fallback (built-in `ContainerError` + retry button) instead of letting the error propagate. Use to wrap `<RouterView>` or any subtree where partial failure should not blank the host layout. Async/unhandled rejections are NOT captured — use `app.config.errorHandler` for those.
+Catches synchronous render/setup errors in descendants via `onErrorCaptured` and renders a fallback (built-in `ContainerError` with the title, the failed phase, and a retry `Button` in its `actions` slot) instead of letting the error propagate. Use to wrap `<RouterView>` or any subtree where partial failure should not blank the host layout. Async/unhandled rejections are NOT captured — use `app.config.errorHandler` for those.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
@@ -219,6 +457,55 @@ Catches synchronous render/setup errors in descendants via `onErrorCaptured` and
 **Slots**: `default`, `fallback({ error, info, retry })`
 **Emits**: `error(err, instance, info)`, `retry()`
 **Exposed**: `retry()`, `hasError()`
+
+### DropdownMenu
+
+Shared dropdown-menu surface built on Reka UI. It owns the root, trigger,
+portal, content surface, and `AnimatedContent` lifecycle. Callers own the menu
+items and their business actions.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `align` | `DropdownMenuContentProps['align']?` | `'start'` | Preferred content alignment before collision handling |
+| `contentClass` | `string \| string[]?` | — | Additional classes for the content surface |
+| `disabled` | `boolean?` | `false` | Disables the trigger |
+| `modal` | `boolean?` | `true` | A non-modal menu leaves the rest of the page interactive while it is open |
+| `side` | `DropdownMenuContentProps['side']?` | `'bottom'` | Preferred content side before collision handling |
+| `sideOffset` | `number?` | `6` | Offset between the trigger and content |
+| `variant` | `'blurry' \| 'default'?` | `'default'` | Selects a translucent or opaque content surface |
+
+**Models**: `open` (`boolean`, default `false`). Bind it to open the menu from code, for example after a hover delay.
+**Slots**: `trigger` (one interactive element), `default` (Reka dropdown-menu items).
+
+### Menu items
+
+Styled rows for the content of a `DropdownMenu`. They wrap Reka UI menu parts,
+keep their props and events, and share one row look, so callers do not copy item
+classes.
+
+| Component | Wraps | Description |
+|-----------|-------|-------------|
+| `MenuItem` | `DropdownMenuItem` | An action row. Slot: `default`. Emits `select` |
+| `MenuRadioItem` | `DropdownMenuRadioItem` | A choice inside a Reka `DropdownMenuRadioGroup`, with a check on the selected row. The menu stays open after a choice |
+| `MenuSwitchItem` | `DropdownMenuCheckboxItem` | A setting with a switch. The whole row toggles it, and the menu stays open. Model: `modelValue` (`boolean`). Prop: `disabled` |
+| `MenuLabel` | `DropdownMenuLabel` | A small group heading |
+| `MenuSeparator` | `DropdownMenuSeparator` | A line between groups |
+
+`menuItemClasses` exports the row classes for a Reka part without a wrapper,
+such as `DropdownMenuSubTrigger`.
+
+### LevelBars
+
+Behavior-only audio level indicator. It draws small round bars in the current
+text color, and each bar stretches with the level by its own weight. It
+animates with transforms, so a level that changes on every frame does not lay
+out the page.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `level` | `number` | — | Level from 0 to 1. Values outside the range are clamped |
+| `weights` | `readonly number[]?` | `[0.4, 0.75, 1, 0.7, 0.45]` | The share of the level for each bar. One entry is one bar |
+| `busy` | `boolean?` | `false` | The bars wave by themselves, for work without a level |
 
 ### DoubleCheckButton
 
@@ -319,6 +606,10 @@ Two-column input for key-value pairs.
 ### BasicTextarea
 
 Auto-resizing textarea with submit and paste-file events.
+The native row count defaults to one, so typing does not introduce a second
+row. Content grows when it wraps. Native `rows` attributes can override this minimum.
+When set, `defaultHeight` also provides the baseline for content measurement,
+so flex layouts do not stretch the empty measurement box.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
@@ -445,6 +736,8 @@ Individual option item within `Select`.
 
 ### Combobox
 
+The input shows the selected option label when asynchronous options arrive or the model changes. Search text remains local to the input.
+
 Searchable dropdown/autocomplete using reka-ui with grouping.
 
 | Prop | Type | Default | Description |
@@ -502,7 +795,10 @@ Tab-like selection using radio buttons with animated indicator.
 | `options` | `SelectTabOption[]` | *(required)* | Tab options `{ label, value, description?, icon? }` |
 | `disabled` | `boolean?` | `false` | Disabled |
 | `readonly` | `boolean?` | `false` | Read-only |
-| `size` | `'sm' \| 'md'` | `'md'` | Size |
+| `size` | `'xs' \| 'sm' \| 'md'` | `'md'` | Size |
+| `tabSpace` | `'compact' \| 'spaced'` | `'spaced'` | Item width. `spaced` adds a minimum width to each item. |
+| `radius` | `'lg' \| 'xl' \| 'full'` | `'lg'` | Corner radius of the track, the thumb, and the items |
+| `color` | `'primary' \| 'neutral'` | `'primary'` | Color family of the track, the thumb, and the items |
 
 **v-model**: `modelValue: T`
 
@@ -511,6 +807,23 @@ Tab-like selection using radio buttons with animated indicator.
 ## Form — Field (Labeled wrappers)
 
 All Field components wrap a base input with `label`, `description`, and consistent layout. Common slots: `label`, `description`.
+
+### FieldButton
+
+Displays field information on the left and a compact action button on the right.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `label` | `string` | *(required)* | Field label |
+| `description` | `string?` | — | Helper text |
+| `buttonLabel` | `string` | *(required)* | Action button label |
+| `buttonIcon` | `string?` | — | UnoCSS/Iconify class for the action button |
+| `disabled` | `boolean?` | — | Prevents the action |
+| `loading` | `boolean?` | — | Shows a spinner and prevents the action |
+
+**Slots**: `label`, `description`
+
+**Emits**: `click(event: MouseEvent)`
 
 ### FieldInput
 
@@ -652,3 +965,126 @@ Exported from `packages/ui/src/composables/`:
 
 - **`useDeferredMount()`** — Defers component mounting (useful for heavy components).
 - **`useTheme()`** — Theme management composable.
+
+## SwipeActions
+
+Composable trailing actions built on Reka UI's `Primitive` and `asChild`.
+Each Root owns one Content and up to two Lists, one per logical side. Items register
+automatically and follow DOM order. Values must be unique within their List.
+The container does not own conversation storage, undo, or business callbacks.
+
+| Part | Props | Default | Contract |
+|------|-------|---------|----------|
+| `SwipeActionsRoot` | `open` | `false` | `v-model:open` controls whether the actions stay revealed |
+| Root | `fullSwipe` | `true` | Allows long-swipe selection; false still permits ordinary reveal and Item presses |
+| Root | `side` | `end` | `v-model:side` selects the revealed edge and retains it when closed |
+| Root | `dir` | Reka provider | Maps start/end to physical edges in LTR or RTL |
+| List | `side` | `end` | Logical edge: start is left in LTR and right in RTL |
+| List | `defaultAction` | Last Item in this List | Stable Item value for long swipe; missing or disabled defaults never select a substitute |
+| Root | `disabled` | `false` | Disables gestures and actions, not the content's own controls |
+| `SwipeActionsContent` | — | — | Translates the caller's opaque content and closes an open row before content activation |
+| `SwipeActionsList` | `actionWidth` | `88` | Settled width per Item in CSS pixels |
+| List | `gap` | `8` | Gap between Items; each outer edge reserves half, including during entry. Capped at half `actionWidth` |
+| `SwipeActionsItem` | `value` | Required | Stable string identity emitted for this action |
+| Item | `disabled` | `false` | Disables pointer, keyboard, and long-swipe selection |
+
+All parts accept Reka `as` and `asChild`. Root, Content, and List default to
+`div`; Item defaults to a native `button`. With `asChild`, pass one child that
+forwards attributes and listeners. Items fan out toward their List edge; the last Item is outermost.
+
+Root emits `update:open(boolean)`, `update:side(start|end)`, `interactionStart()`,
+and `action(value, side)`. The side distinguishes equal values in different Lists.
+Item emits a cancelable `select` event before Root's action. Its detail contains
+`value`, `side`, and `source` (`press` or `swipe`). `preventDefault()` cancels the action.
+Handle business operations at Root or Item, not both, to avoid duplicate work.
+
+Root's default slot exposes `open`, `side`, `armed`, `committing`, `close`, and `toggle`.
+Content exposes `open`, `side`, `close`, and `toggle`. Call `toggle('start')` or
+`toggle('end')` to reveal a specific List. With no argument, it toggles the selected side.
+Item exposes its `takeover`, `disabled`, logical `side`, and physical `edge` (`left|right`).
+Pass `takeover` and `edge` to SwipeActionButton to mirror the expanded icon.
+List has a default slot. Root and List expose `data-side="start|end"`.
+Root exposes `data-state="open|closed"`, `data-armed`, `data-committing`, and
+`data-disabled`. Item exposes `data-value`, `data-disabled`, and
+`data-state="idle|expanded"`. Hidden actions are inert. Root also exposes
+`--swipe-progress`, rising from 0 to 1 over the first 32px of reveal, for fading
+a resting action trigger.
+
+Horizontal pointer or trackpad input reveals the actions. The surface stretches
+with resistance and settles with a spring. List is an inline-size query container.
+Items use its container-query units to appear from the outer edge, one at a time,
+as each cell gets space. CSS applies cubic scale and quadratic opacity curves
+to each Item, including its icon and label. Scale stays within the available cell
+to prevent overlap and reserve the configured gap beside Content. Reversing follows the same curves without another animation.
+Items without space stay registered but are inert and hidden from accessibility
+tools; this preserves their order and the long-swipe default.
+Vertical touch gestures and trackpad pinch zoom stay native. Crossing zero during
+a drag reveals the other List if it exists; a missing side stops at zero. Escape, outside clicks, and pointer cancellation never select an
+Item. A keyboard toggle focuses the first enabled action when that action has space to appear.
+Closing a focused action list returns focus to Content before making the List inert.
+A swipe suppresses accidental content clicks. Reduced motion skips springs.
+
+A long swipe expands that List's default Item. Earlier Items move behind Content;
+later Items move past the outer clip. The layout mirrors for the opposite edge.
+Reversal restores the same layout. Selection occurs after release and completion
+of this full-width motion. Keep the combined settled width below the row width.
+Single actions arm at 65% of row width and disarm below 55%, with a 1.6-times
+item-width minimum. Multiple actions also require total width plus 32px to arm
+or plus 8px to disarm. These are prototype parameters, not Apple measurements.
+
+A committed surface stays visible for 500ms while its owner removes the row.
+A retained row then resets. Reordering, removing, disabling, or changing action
+values cancels a pending gesture. The identity captured at release cannot be
+transferred to another Item. The List's DOM observer stops on unmount.
+
+```vue
+<SwipeActionsRoot v-model:open="open" v-model:side="side" @action="handleAction">
+  <SwipeActionsContent>
+    <ConversationRow />
+  </SwipeActionsContent>
+  <SwipeActionsList side="start">
+    <SwipeActionsItem value="archive">Archive</SwipeActionsItem>
+  </SwipeActionsList>
+  <SwipeActionsList side="end" default-action="pin" :action-width="72">
+    <SwipeActionsItem
+      v-for="action in actions" :key="action.id"
+      v-slot="{ takeover, edge }" :value="action.id" as-child
+    >
+      <SwipeActionButton :label="action.label" :icon="action.icon" :takeover="takeover" :edge="edge" />
+    </SwipeActionsItem>
+  </SwipeActionsList>
+</SwipeActionsRoot>
+```
+
+The stage-ui Histoire story **Misc → Swipe Actions** renders one composed row
+with two start actions and three end actions. The Controls panel toggles label visibility.
+
+## SwipeActionButton
+
+Optional presentation for a `SwipeActionsItem`. It owns the surface, icon,
+label layout, and takeover appearance. The gesture container remains unstyled.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `label` | `string` | Required | Visible text and accessible button name |
+| `icon` | `string` | Required | Iconify utility class |
+| `showLabel` | `boolean` | `true` | When false, removes text and fills its area with the action surface |
+| `takeover` | `number` | `0` | Item slot progress from 0 to 1; each Item supplies its own value |
+| `edge` | `left \| right` | `right` | Physical edge from the Item slot; mirrors the expanded icon |
+| `surfaceClass` | `string` | `bg-neutral-500 text-white` | Surface color classes |
+
+Wrap the button with `SwipeActionsItem as-child` and handle Root action or Item select.
+The button disables CSS motion that would otherwise lag behind the gesture.
+Hidden labels retain the accessible name. Icon-only buttons fill the available
+height inside the same vertical padding and keep the icon centered vertically.
+The component provides no slots or custom events; button attributes and listeners
+pass through to the underlying `BasicButton`.
+
+```vue
+<SwipeActionButton
+  :label="action.label"
+  :icon="action.icon"
+  :show-label="false"
+  :takeover="takeover"
+/>
+```

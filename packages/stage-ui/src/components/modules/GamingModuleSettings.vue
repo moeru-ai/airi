@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { StoreGeneric } from 'pinia'
 
-import { Button, FieldCheckbox, FieldInput } from '@proj-airi/ui'
+import { Alert, Button, FieldCheckbox, FieldInput, SettingsCard } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 
@@ -38,7 +38,7 @@ function saveSettings() {
 </script>
 
 <template>
-  <div flex="~ col gap-6">
+  <SettingsCard>
     <FieldCheckbox
       v-model="enabled"
       :label="t(`${i18nKeyPrefix}.enable`)"
@@ -77,8 +77,8 @@ function saveSettings() {
       />
     </div>
 
-    <div v-if="configured" class="mt-4 rounded-lg bg-green-100 p-4 text-green-800">
+    <Alert v-if="configured" tone="success" :class="['mt-4']">
       {{ t(`${i18nKeyPrefix}.configured`) }}
-    </div>
-  </div>
+    </Alert>
+  </SettingsCard>
 </template>

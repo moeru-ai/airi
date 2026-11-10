@@ -23,22 +23,33 @@ on:
 jobs:
   build:
     name: Build iOS
-    runs-on: macos-26
+    # NOTICE:
+    # iPhone Duo shows a build from the iOS 26 SDK at a fixed size, with empty space around it.
+    # Full display needs the iOS 27.1 SDK, and the `macos-26` image has only Xcode 26.x.
+    # Source: https://github.com/actions/runner-images/issues/14404 (Xcode 27 public preview).
+    # Removal condition: a GA macOS image has Xcode 27.1 or later. Then use that image.
+    runs-on: xcode-27
     env:
       PRODUCT_NAME: 'AIRI'
-      VITE_ENABLE_POSTHOG: 'true'
+      VITE_ENABLE_ANALYTICS: 'true'
+      # Uploads source maps to Sentry. The build skips the upload when the secret is absent.
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
       UPLOAD_TESTFLIGHT: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.testflight) }}
       RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
     steps:
       - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v4
+      - name: Select Xcode 27.1
+        run: |
+          sudo xcode-select -s /Applications/Xcode_27.1.app
+          xcodebuild -version
+          xcodebuild -showsdks | grep iphoneos
+
+      - uses: pnpm/setup@v2
         with:
-          run_install: false
-      - uses: actions/setup-node@v6
-        with:
-          node-version: lts/*
-          cache: pnpm
+          runtime: node@^26.12.1
+          cache: true
+          install: false
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build:packages

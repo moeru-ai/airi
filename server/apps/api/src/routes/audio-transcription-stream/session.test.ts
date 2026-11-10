@@ -3,7 +3,7 @@ import type { AddressInfo } from 'node:net'
 import { Buffer } from 'node:buffer'
 import { createServer } from 'node:http'
 
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { WebSocketServer } from 'ws'
 
 import { createAliyunNlsStreamResponse } from './session'
@@ -12,6 +12,7 @@ interface MockAliyunUpstream {
   url: string
   receivedTextFrames: string[]
   receivedBinaryFrames: Buffer[]
+  activeConnections: () => number
   close: () => Promise<void>
 }
 
@@ -59,6 +60,7 @@ async function startMockAliyunUpstream(): Promise<MockAliyunUpstream> {
     url: `ws://127.0.0.1:${port}`,
     receivedTextFrames,
     receivedBinaryFrames,
+    activeConnections: () => wss.clients.size,
     async close() {
       wss.close()
       await new Promise<void>(resolve => httpServer.close(() => resolve()))
@@ -138,5 +140,33 @@ describe('createAliyunNlsStreamResponse', () => {
 
     const stopFrame = JSON.parse(upstream.receivedTextFrames.at(-1)!) as { header: { name: string } }
     expect(stopFrame.header.name).toBe('StopTranscription')
+  })
+
+  // ROOT CAUSE:
+  //
+  // Canceling the browser response did not close the Aliyun socket or the input
+  // reader. A disabled microphone could therefore leave a billed upstream
+  // connection alive until its own timeout.
+  it('releases the upstream socket and audio reader when the client cancels', async () => {
+    upstream = await startMockAliyunUpstream()
+    const cancelInput = vi.fn()
+    const audioStream = new ReadableStream<Uint8Array>({ cancel: cancelInput })
+    const response = createAliyunNlsStreamResponse({
+      audioStream,
+      credentials: {
+        accessKeyId: 'ak',
+        accessKeySecret: 'secret',
+        appKey: 'app',
+        region: 'cn-shanghai',
+      },
+      createToken: async () => ({ token: 'mock-token', expiresAt: Date.now() + 3600_000 }),
+      websocketBaseURL: upstream.url,
+    })
+
+    await vi.waitFor(() => expect(upstream?.receivedTextFrames).toHaveLength(1))
+    await response.body!.getReader().cancel()
+
+    await vi.waitFor(() => expect(upstream?.activeConnections()).toBe(0))
+    expect(cancelInput).toHaveBeenCalledOnce()
   })
 })

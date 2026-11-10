@@ -7,6 +7,19 @@ function mathNodeCount(html: string): number {
 }
 
 describe('useMarkdown', () => {
+  // https://github.com/moeru-ai/airi/issues/2796
+  // ROOT CAUSE:
+  // The processor recognized only backtick fences and skipped highlighting for tilde fences.
+  // We fixed this by accepting both delimiters before language discovery.
+  it.each(['```', '~~~', '~~~~'])('highlights %s code fences for Issue #2796', async (fence) => {
+    const markdown = [`${fence}typescript`, 'const answer = 42', fence].join('\n')
+    const html = await useMarkdown().process(markdown)
+
+    expect(html).toContain('class="shiki')
+    expect(html).toContain('>const</span>')
+    expect(html).toContain('> answer</span>')
+  })
+
   // https://github.com/moeru-ai/airi/discussions/2239
   it('renders each LaTeX fence line as display math for Issue #2239', async () => {
     // ROOT CAUSE:
@@ -367,6 +380,34 @@ describe('useMarkdown', () => {
 
     expect(html).toContain('\\notacommand{x}')
     expect(html).not.toContain('<a href=')
+  })
+
+  it.each([
+    ['**测试。**测试', '<strong>测试。</strong>测试'],
+    ['**中文（带括号）**继续', '<strong>中文（带括号）</strong>继续'],
+    ['这是**“重点”**内容', '这是<strong>“重点”</strong>内容'],
+    ['**テスト。**テスト', '<strong>テスト。</strong>テスト'],
+  ])('renders emphasis next to CJK punctuation in %s', (markdown, expected) => {
+    // ROOT CAUSE:
+    //
+    // CommonMark counts CJK punctuation as Unicode punctuation. A `**` run
+    // after `。` and before a CJK letter is not right-flanking, because CJK
+    // text has no spaces. The delimiters then stayed as literal text.
+    //
+    // **测试。**测试 -> <p>**测试。**测试</p>
+    //
+    // We fixed this by adding remark-cjk-friendly, which relaxes the flanking
+    // rules only next to CJK characters.
+    // **测试。**测试 -> <p><strong>测试。</strong>测试</p>
+    const html = useMarkdown().processSync(markdown)
+
+    expect(html).toBe(`<p>${expected}</p>`)
+  })
+
+  it('keeps CommonMark emphasis rules for text without CJK characters', () => {
+    const html = useMarkdown().processSync('**foo.**bar and **baz**.')
+
+    expect(html).toBe('<p>**foo.**bar and <strong>baz</strong>.</p>')
   })
 
   it('does not create a link for an untrusted KaTeX URL', () => {

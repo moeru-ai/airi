@@ -1,0 +1,48 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+boot_splash/show_image=false
+config/icon="res://icon.svg"
+config/name="AIRI"
+run/main_scene="res://src-godot/main.tscn"
+config/features=PackedStringArray("4.7", "C#", "Forward Plus")
+
+[display]
+
+window/size/borderless=true
+window/size/always_on_top=true
+window/size/transparent=true
+window/size/viewport_height=600
+window/size/viewport_width=450
+window/subwindows/embed_subwindows=false
+window/per_pixel_transparency/allowed=true
+
+[dotnet]
+
+project/assembly_name="StageTamagotchiKirie"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/kirie/plugin.cfg")
+
+[godot_cef]
+
+advanced/custom_command_line_switches="remote-allow-origins=https://chrome-devtools-frontend.appspot.com"
+security/default_permission_policy=2
+
+[rendering]
+
+renderer/rendering_method="forward_plus"
+renderer/rendering_method.mobile="mobile"
+rendering_device/driver.windows="d3d12"
+textures/vram_compression/import_etc2_astc=true
+viewport/transparent_background=true

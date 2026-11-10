@@ -14,7 +14,9 @@
  * policy linked on the sign-in page.
  */
 
-import type { OauthCallbackFailureStage } from '@proj-airi/stage-ui/composables'
+import type { OauthCallbackFailureStage } from '@proj-airi/stage-ui/composables/use-analytics'
+
+import { setErrorReportingUser } from '@proj-airi/stage-ui/libs/product-signals/error-reporting'
 
 /** Login/signup credential kinds shown on the sign-in page. */
 export type AuthMethod = 'email' | 'github' | 'google' | 'steam'
@@ -132,6 +134,7 @@ export function loadAnalyticsAdapter(loader: () => Promise<AnalyticsAdapter>): P
  */
 export function identifyAuthUser(userId: string): void {
   analytics.identify(userId)
+  setErrorReportingUser(userId)
 }
 
 function capture(event: string, properties: Record<string, unknown>, options?: CaptureOptions): void {

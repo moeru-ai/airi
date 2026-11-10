@@ -3,6 +3,11 @@ operations:
   load-models-status:
     loading: Cargando
     ready: Listo
+'resource-island':
+  loading: Preparando recursos...
+  ready: Recursos listos
+  preparing: Preparando archivos del modelo
+  failed: La descarga del modelo falló
 docs:
   theme:
     navbar:
@@ -14,14 +19,18 @@ docs:
     disable: Mostrar siempre
   'open-settings': Abrir configuración
   'open-chat': Abrir Chat
+  'hide-chat': Ocultar chat
   'refresh': Actualizar
-  'center-main-window': Move to screen center
+  'center-main-window': Mover al centro de la pantalla
   'open-hearing-controls': Abrir controles de audición
+  'enable-microphone': Encender micrófono
+  'disable-microphone': Apagar micrófono
   'drag-to-move-window': Arrastra para mover la ventana
-  'stop-speaking': Detener voz
-  'speaker-idle': Altavoz
+  'mute': Silenciar
+  'unmute': Activar sonido
   'switch-to-light-mode': Cambiar a modo claro
   'switch-to-dark-mode': Cambiar a modo oscuro
+  'switch-to-system-mode': Seguir el tema del sistema
   'pin-on-top': Anclar Arriba
   'unpin-from-top': Desanclar de la parte superior
   'switch-profile': Cambiar Perfil
@@ -32,6 +41,22 @@ docs:
   'logging-in': Iniciando sesión...
   'account': Cuenta
   'logout': Cerrar sesión
+'chat-window':
+  style:
+    title: Estilo de ventana de chat
+    legacy: Ventana clásica
+  move: Arrastra para mover el chat
+  fold: Ocultar chat
+  composer:
+    show: Mostrar el cuadro de mensajes
+    hide: Ocultar el cuadro de mensajes
+  danmaku-feed:
+    title: Tiempo de mensajes
+    hide-read: Ocultar mensajes leídos
+    hide-read-description: Los mensajes desaparecen tras leerlos. Las respuestas habladas desaparecen al terminar la voz.
+    reading-speed: Velocidad de lectura
+    reading-speed-value: '{count} caracteres/s'
+    minimum-time: Tiempo mínimo
 widgets:
   close: Cerrar widget
   empty:
@@ -39,6 +64,8 @@ widgets:
     description: Los Widgets aparecerán aquí cuando una herramienta o plugin produzca uno.
   loading: Cargando widget…
   waiting: Esperando los datos del widget "{id}"…
+inlay:
+  dismiss: Cerrar
 notice:
   'fade-on-hover':
     title: Desvanecer al pasar el cursor
@@ -47,7 +74,6 @@ notice:
     toggle: Puedes desactivarlo pasando el cursor por {controls} y tocando de nuevo el {icon}.
     controls-label: Isla de controles
     icon-label: ícono de ojo tachado
-    value: '0'
     targets: Personaje y UI
     confirm: Entendido
     dont-show-again: No volver a mostrar
@@ -63,22 +89,18 @@ about:
     title: Enlaces
     home: Inicio
     documentation: Documentación
-    github: GitHub
   update:
     lane:
-      label: Update lane
+      label: Canal de actualización
       description: Elija la versión del canal a seguir
-      placeholder: Choose update lane
+      placeholder: Elegir canal de actualización
     channels:
       auto: Automático
       stable: Estable
       alpha: Alfa
-      beta: Beta
-      nightly: Nightly
-      canary: Canary
+      nightly: Compilación nocturna
     status:
       downloading: Descargando actualización...
-      error-prefix: Error
       latest: Actualizado (v{version}).
       downloaded:
         windows: Actualización lista para instalar silenciosamente (v{version}).

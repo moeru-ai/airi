@@ -2,10 +2,11 @@
 import type { OAuthProvider } from '../../libs/auth'
 import type { SignInProviderDefinition } from './providers'
 
-import { Button, Callout } from '@proj-airi/ui'
+import { Alert, Button, Callout } from '@proj-airi/ui'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
-import Alert from '../misc/alert.vue'
+import { AIRI_PRIVACY_URL, AIRI_TERMS_URL } from '../../constants/public-links'
 
 const props = withDefaults(defineProps<{
   title?: string
@@ -24,8 +25,7 @@ const emit = defineEmits<{
   select: [provider: OAuthProvider]
 }>()
 
-const termsHref = 'https://airi.moeru.ai/docs/en/about/terms'
-const privacyHref = 'https://airi.moeru.ai/docs/en/about/privacy'
+const { t } = useI18n()
 
 const hasProviders = computed(() => props.providers.length > 0)
 
@@ -73,13 +73,8 @@ function handleSelect(provider: OAuthProvider) {
         </div>
       </div>
 
-      <Alert v-if="error" type="error">
-        <template #title>
-          Sign-in failed
-        </template>
-        <template #content>
-          {{ error }}
-        </template>
+      <Alert v-if="error" tone="danger" :title="t('server.auth.signIn.error.fallback')">
+        {{ error }}
       </Alert>
 
       <div v-if="hasProviders" :class="['flex flex-col gap-3']">
@@ -102,22 +97,17 @@ function handleSelect(provider: OAuthProvider) {
         </Button>
       </div>
 
-      <Alert v-else type="warning">
-        <template #title>
-          No providers available
-        </template>
-        <template #content>
-          The sign-in page is not configured with any providers yet.
-        </template>
+      <Alert v-else tone="warning" :title="t('server.auth.signIn.error.noProviders.title')">
+        {{ t('server.auth.signIn.error.noProviders.description') }}
       </Alert>
 
       <footer :class="['text-xs leading-5 text-neutral-500 dark:text-neutral-400']">
         By continuing, you agree to our
-        <a :href="termsHref" :class="['font-medium text-neutral-700 underline-offset-4 hover:underline dark:text-neutral-200']">
+        <a :href="AIRI_TERMS_URL" :class="['font-medium text-neutral-700 underline-offset-4 hover:underline dark:text-neutral-200']">
           Terms
         </a>
         and
-        <a :href="privacyHref" :class="['font-medium text-neutral-700 underline-offset-4 hover:underline dark:text-neutral-200']">
+        <a :href="AIRI_PRIVACY_URL" :class="['font-medium text-neutral-700 underline-offset-4 hover:underline dark:text-neutral-200']">
           Privacy Policy
         </a>
         .

@@ -46,6 +46,11 @@ export interface ProviderMetadata extends Pick<ProviderDefinition, ProviderMetad
   beginnerRecommended?: boolean
 }
 
+/** The settings page of a provider: its own route, or the page of its category for this provider id. */
+export function providerSettingsRouteOf(metadata: { to?: string, category: string, id: string }) {
+  return metadata.to ?? `/settings/providers/${metadata.category}/${metadata.id}`
+}
+
 /** Classifies a provider from its declared inference tasks. */
 export function getProviderCategory(tasks: string[]): ProviderCategory {
   if (tasks.some(task => ['vision', 'image-understanding', 'image-to-text', 'multimodal'].includes(task.toLowerCase())))
@@ -60,8 +65,8 @@ export function getProviderCategory(tasks: string[]): ProviderCategory {
 }
 
 /** Selects the serializable metadata fields of a provider definition. */
-export function selectProviderMetadata(
-  definition: ProviderDefinition,
+export async function selectProviderMetadata<TConfig>(
+  definition: ProviderDefinition<TConfig>,
   t: ComposerTranslation,
   options: {
     category?: ProviderCategory
@@ -70,17 +75,23 @@ export function selectProviderMetadata(
     tasks?: string[]
     to?: string
   } = {},
-): ProviderMetadata {
+): Promise<ProviderMetadata> {
   const key = (input: string): string => input
   const tasks = options.tasks ?? definition.tasks
   const transcription = definition.capabilities?.transcription
+  const to = options.to ?? definition.to
+
+  const schema = await definition.createProviderConfig({ t })
+  const onboardingFields = definition.onboardingFields
+    ? await definition.onboardingFields({ t })
+    : undefined
 
   return {
     id: options.id ?? definition.id,
     order: definition.order,
     tasks: [...tasks],
     category: options.category ?? getProviderCategory(tasks),
-    ...(options.to ? { to: options.to } : {}),
+    ...(to ? { to } : {}),
     name: definition.name,
     nameKey: definition.nameLocalize({ t: key }),
     localizedName: definition.nameLocalize({ t }),
@@ -88,12 +99,12 @@ export function selectProviderMetadata(
     descriptionKey: definition.descriptionLocalize({ t: key }),
     localizedDescription: definition.descriptionLocalize({ t }),
     configured: options.configured ?? false,
-    defaultConfig: getSchemaDefault(definition.createProviderConfig({ t })) as Record<string, unknown>,
+    defaultConfig: getSchemaDefault(schema) as Record<string, unknown>,
     ...(definition.icon ? { icon: definition.icon } : {}),
     ...(definition.iconColor ? { iconColor: definition.iconColor } : {}),
     ...(definition.iconImage ? { iconImage: definition.iconImage } : {}),
     ...(definition.requiresCredentials !== undefined ? { requiresCredentials: definition.requiresCredentials } : {}),
-    ...(definition.onboardingFields ? { onboardingFields: definition.onboardingFields({ t }) } : {}),
+    ...(onboardingFields ? { onboardingFields } : {}),
     ...(transcription
       ? {
           transcriptionFeatures: {
@@ -108,9 +119,9 @@ export function selectProviderMetadata(
 }
 
 /** Selects serializable metadata for a provider definition list. */
-export function selectProvidersMetadata(definitions: ProviderDefinition[], t: ComposerTranslation) {
-  return Object.fromEntries(definitions.map(definition => [
+export async function selectProvidersMetadata<TConfig>(definitions: ProviderDefinition<TConfig>[], t: ComposerTranslation) {
+  return Object.fromEntries(await Promise.all(definitions.map(async definition => [
     definition.id,
-    selectProviderMetadata(definition, t),
-  ]))
+    await selectProviderMetadata(definition, t),
+  ] as const)))
 }

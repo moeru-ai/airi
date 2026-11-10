@@ -6,20 +6,16 @@ import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/providers/
 
 import vadWorkletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 
+import { toPCM16FromFloat32 } from '@proj-airi/audio/encoding'
 import { errorMessageFromValue } from '@proj-airi/stage-shared'
-import {
-  Alert,
-  ProviderBasicSettings,
-  ProviderSettingsContainer,
-  ProviderSettingsLayout,
-} from '@proj-airi/stage-ui/components'
+import { ProviderBasicSettings, ProviderSettingsContainer, ProviderSettingsLayout } from '@proj-airi/stage-ui/components'
 import { useProviderValidation } from '@proj-airi/stage-ui/composables/use-provider-validation'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
-import { Button, FieldCombobox, FieldInput } from '@proj-airi/ui'
+import { Alert, Button, FieldCombobox, FieldInput } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, onBeforeUnmount, reactive, ref, shallowRef } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef } from 'vue'
 
 const providerId = 'aliyun-nls-transcription'
 const defaultModel = 'aliyun-nls-v1'
@@ -39,7 +35,9 @@ const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
 const { configs: providers } = storeToRefs(providerStore) as { configs: RemovableRef<Record<string, any>> }
 
-providersStore.initializeProvider(providerId)
+onMounted(async () => {
+  await providersStore.initializeProvider(providerId)
+})
 
 const credentials = reactive({
   get accessKeyId() {
@@ -101,7 +99,7 @@ const audioContext = shallowRef<AudioContext>()
 const workletNode = shallowRef<AudioWorkletNode>()
 const mediaStream = shallowRef<MediaStream>()
 const mediaStreamSource = shallowRef<MediaStreamAudioSourceNode>()
-const audioStreamController = shallowRef<ReadableStreamDefaultController<ArrayBuffer>>()
+const audioStreamController = shallowRef<ReadableStreamDefaultController<Uint8Array>>()
 const transcriptionAbortController = shallowRef<AbortController>()
 const activeTranscription = shallowRef<HearingTranscriptionResult | null>(null)
 const transcriptionTextPromise = shallowRef<Promise<string> | null>(null)
@@ -121,15 +119,6 @@ const {
   forceValid,
 } = useProviderValidation(providerId)
 
-function float32ToInt16(buffer: Float32Array) {
-  const output = new Int16Array(buffer.length)
-  for (let i = 0; i < buffer.length; i++) {
-    const value = Math.max(-1, Math.min(1, buffer[i]))
-    output[i] = value < 0 ? value * 0x8000 : value * 0x7FFF
-  }
-  return output
-}
-
 async function initializeAudioGraph(stream: MediaStream) {
   const context = new AudioContext({
     sampleRate: SAMPLE_RATE,
@@ -144,8 +133,8 @@ async function initializeAudioGraph(stream: MediaStream) {
     if (!buffer || !controller)
       return
 
-    const pcm16 = float32ToInt16(buffer)
-    controller.enqueue(pcm16.buffer.slice(0))
+    const pcm16 = toPCM16FromFloat32(buffer)
+    controller.enqueue(new Uint8Array(pcm16.buffer))
   }
 
   const source = context.createMediaStreamSource(stream)
@@ -213,7 +202,7 @@ async function startStreaming() {
   const abortController = new AbortController()
   transcriptionAbortController.value = abortController
 
-  const audioStream = new ReadableStream<ArrayBuffer>({
+  const audioStream = new ReadableStream<Uint8Array>({
     start(controller) {
       audioStreamController.value = controller
     },
@@ -399,31 +388,18 @@ onBeforeUnmount(async () => {
           />
         </ProviderBasicSettings>
 
-        <Alert v-if="!isValid && isValidating === 0 && validationMessage" type="error">
-          <template #title>
-            <div class="w-full flex items-center justify-between">
-              <span>{{ t('settings.dialogs.onboarding.validationFailed') }}</span>
-              <button
-                type="button"
-                class="ml-2 rounded bg-red-100 px-2 py-0.5 text-xs text-red-600 font-medium transition-colors dark:bg-red-800/30 hover:bg-red-200 dark:text-red-300 dark:hover:bg-red-700/40"
-                @click="forceValid"
-              >
-                {{ t('settings.pages.providers.common.continueAnyway') }}
-              </button>
-            </div>
-          </template>
-          <template #content>
-            <div class="whitespace-pre-wrap break-all">
-              {{ validationMessage }}
-            </div>
+        <Alert v-if="!isValid && isValidating === 0 && validationMessage" tone="danger" :title="t('settings.dialogs.onboarding.validationFailed')">
+          <div :class="['whitespace-pre-wrap break-all']">
+            {{ validationMessage }}
+          </div>
+          <template #actions>
+            <Button size="sm" color="red" @click="forceValid">
+              {{ t('settings.pages.providers.common.continueAnyway') }}
+            </Button>
           </template>
         </Alert>
 
-        <Alert v-if="isValid && isValidating === 0" type="success">
-          <template #title>
-            {{ t('settings.dialogs.onboarding.validationSuccess') }}
-          </template>
-        </Alert>
+        <Alert v-if="isValid && isValidating === 0" tone="success" :title="t('settings.dialogs.onboarding.validationSuccess')" />
       </ProviderSettingsContainer>
 
       <div class="w-full flex flex-1 flex-col gap-6">

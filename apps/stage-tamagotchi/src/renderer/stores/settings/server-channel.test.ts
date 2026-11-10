@@ -81,8 +81,34 @@ describe('useServerChannelSettingsStore', async () => {
       expect(store.authToken).toBe('existing-token')
       expect(store.tlsConfig).toBeNull()
       expect(store.lastApplyError).toBe('apply failed')
-      expect(toastError).toHaveBeenCalledWith('apply failed')
+      expect(toastError).toHaveBeenCalledWith('apply failed', { id: 'server-channel-apply-error' })
     })
+  })
+
+  it('applies a rejected change once and does not apply the rollback again', async () => {
+    invokeMocks.applyConfig.mockRejectedValue(new Error('listen EADDRINUSE: address already in use 127.0.0.1:6121'))
+
+    const store = useServerChannelSettingsStore()
+    await vi.waitFor(() => {
+      expect(store.appliedConfig).toBeDefined()
+    })
+
+    store.hostname = '0.0.0.0'
+    await nextTick()
+
+    await vi.waitFor(() => {
+      expect(store.hostname).toBe('127.0.0.1')
+    })
+    await nextTick()
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    // ROOT CAUSE:
+    //
+    // The watcher ran after the rollback reset its guard flag.
+    // It applied the rollback again, failed, and showed a new toast without end.
+    // The watcher now skips values that equal the accepted config.
+    expect(invokeMocks.applyConfig).toHaveBeenCalledTimes(1)
+    expect(toastError).toHaveBeenCalledTimes(1)
   })
 
   it('publishes the applied config only after the main process accepts the change', async () => {

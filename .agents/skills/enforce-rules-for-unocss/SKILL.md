@@ -22,7 +22,7 @@ Apply these rules to every affected UI file in AIRI.
 
 - Do not use long inline class strings such as `class="px-2 py-1 flex items-center bg-white/50 dark:bg-black/50"`.
 - Do not use attributify-style groups such as `px="2" py="1" flex="~ items-center" bg="white/50 dark:black/50"`.
-- When touching legacy utility classes, progressively refactor them into readable grouped arrays.
+- If a component that you change has legacy utility classes, refactor those classes into readable grouped arrays in the same change.
 
 ## Reuse Project Styling Infrastructure
 

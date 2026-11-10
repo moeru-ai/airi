@@ -1,0 +1,27 @@
+name: AgentScan
+
+on:
+  # This event lets the workflow close PRs from forks. Do not check out PR code.
+  pull_request_target:
+    types: [opened, reopened]
+
+permissions: {}
+
+jobs:
+  agentscan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - name: AgentScan
+        uses: MatteoGabriele/agentscan-action@8112fb79b33fafb8506159df20129a34209ac410 # v2.5.0
+        with:
+          trusted-author-associations: owner,member,collaborator
+          mode: full
+          auto-close: true
+          auto-close-classifications: automation
+          label-community-flagged: agent-scan/community-flagged
+          label-mixed: agent-scan/mixed-signals
+          label-automation: agent-scan/automation-likely

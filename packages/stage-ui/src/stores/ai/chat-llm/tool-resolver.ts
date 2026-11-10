@@ -2,11 +2,16 @@ import type { StreamOptions } from '@proj-airi/core-agent'
 import type { WebSocketEvents } from '@proj-airi/server-sdk'
 import type { Tool } from '@xsai/shared-chat'
 
+import type { DescribeToolImage } from './tool-images'
+
+import { createSparkCommandTool } from '@proj-airi/core-agent/agents/spark-command'
 import { uniqBy } from 'es-toolkit'
 
-import { createSparkCommandTool, createWebSearchTools, debug, mcp } from '../../../tools'
+import { createWebSearchTools, debug, mcp } from '../../../tools'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
 import { useWebSearchStore } from '../../modules/web-search'
+import { withCallSummary } from './tool-call-summary'
+import { withDescribedImages } from './tool-images'
 import { useLlmToolsStore } from './tools'
 
 type ToolSource = Tool[] | (() => Promise<Tool[]>)
@@ -39,7 +44,7 @@ export interface ResolveLlmToolsOptions {
   sparkCommandTools?: ToolSource
   /**
    * Web search tools. Supplying this also avoids reading the web-search module
-   * store; by default the tool is included only when a Tavily API key is
+   * store. By default the tool is included only when the selected service's API key is
    * configured (a keyless search can only error).
    *
    * @default gated on useWebSearchStore().configured
@@ -58,6 +63,13 @@ export interface ResolveLlmToolsOptions {
    * @default useLlmToolsStore().activeTools
    */
   activeTools?: Tool[]
+  /**
+   * Reads the images in tool results for a chat model that cannot see them.
+   * Every resolved tool, MCP tools included, returns text in place of images.
+   *
+   * @default images stay in tool results
+   */
+  describeImage?: DescribeToolImage
 }
 
 /**
@@ -98,13 +110,14 @@ async function resolveSparkCommandTools(sparkCommandTools?: ToolSource): Promise
 
   const modsServerChannelStore = useModsServerChannelStore()
   const sendSparkCommand = (command: WebSocketEvents['spark:command']) => {
-    // TODO(@nekomeowww): instruct the LLM to understand what destination is.
-    // Currently without skill like prompt injection, many issues occur.
-    // destination mostly are wrong or hallucinated, we need to find a way to make it more reliable.
+    // TODO(@nekomeowww): instruct the LLM what a destination is. It hallucinates them, so drop
+    // the value and broadcast.
     //
-    // For now, since destinations as array will always broadcast to all connected modules/agents, we can set it to
-    // empty array to avoid wrong routing.
-    command.destinations = []
+    // NOTICE:
+    // An explicit empty `destinations` array reaches no peer since a5d45bdd7 (#1635). Delete the
+    // field to broadcast. Emptying it dropped every spark:command for five months.
+    // Removal: route on real names from `registry:modules:sync`.
+    delete command.destinations
 
     modsServerChannelStore.send({
       type: 'spark:command',
@@ -124,9 +137,8 @@ async function resolveWebSearchTools(webSearchTools?: ToolSource): Promise<Tool[
   if (!webSearchStore.configured)
     return []
 
-  // Trim the key: `configured` is computed on the trimmed value, so a key pasted
-  // with trailing whitespace/newline reads as ready but would 401 if sent raw.
-  return createWebSearchTools({ apiKey: webSearchStore.apiKey.trim() })
+  // Match the trimmed key used by the configuration gate.
+  return createWebSearchTools({ provider: webSearchStore.provider, apiKey: webSearchStore.activeApiKey.trim() })
 }
 
 /**
@@ -135,6 +147,8 @@ async function resolveWebSearchTools(webSearchTools?: ToolSource): Promise<Tool[
  * Runtime tools are placed last before de-duplication. The reverse/uniq/reverse
  * pass preserves the existing stable order while letting later runtime
  * registrations win when names collide with built-in or custom tools.
+ *
+ * Every tool asks the model for a summary of each call. See {@link withCallSummary}.
  */
 export async function resolveLlmTools(options: ResolveLlmToolsOptions = {}): Promise<Tool[]> {
   const activeTools = await resolveActiveTools(options.activeTools)
@@ -152,7 +166,7 @@ export async function resolveLlmTools(options: ResolveLlmToolsOptions = {}): Pro
     resolveCustomTools(options.customTools),
   ])
 
-  return uniqBy(
+  const tools = uniqBy(
     [
       ...builtInTools,
       ...debugTools,
@@ -162,5 +176,8 @@ export async function resolveLlmTools(options: ResolveLlmToolsOptions = {}): Pro
       ...activeTools,
     ].toReversed(),
     tool => toolNameFrom(tool) ?? tool,
-  ).toReversed()
+  ).toReversed().map(withCallSummary)
+
+  const describeImage = options.describeImage
+  return describeImage ? tools.map(tool => withDescribedImages(tool, describeImage)) : tools
 }

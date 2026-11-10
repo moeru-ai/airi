@@ -19,7 +19,7 @@ describe('prepareCapViteLaunch', () => {
       configLoader: 'runner',
       projectRoot: process.cwd(),
       viteArgs: ['--host', '0.0.0.0', '--configLoader', 'runner'],
-      wrapperConfigFile: expect.stringMatching(/packages\/cap-vite\/(src|dist)\/vite-wrapper-config\.(ts|mjs)$/),
+      wrapperConfigFile: expect.stringMatching(/packages[\\/]cap-vite[\\/](src|dist)[\\/]vite-wrapper-config\.(ts|mjs)$/),
     })
   })
 
@@ -31,7 +31,7 @@ describe('prepareCapViteLaunch', () => {
       configLoader: undefined,
       projectRoot: resolve(process.cwd(), 'apps/stage-pocket'),
       viteArgs: ['apps/stage-pocket', '--host', '0.0.0.0'],
-      wrapperConfigFile: expect.stringMatching(/packages\/cap-vite\/(src|dist)\/vite-wrapper-config\.(ts|mjs)$/),
+      wrapperConfigFile: expect.stringMatching(/packages[\\/]cap-vite[\\/](src|dist)[\\/]vite-wrapper-config\.(ts|mjs)$/),
     })
   })
 
@@ -58,7 +58,7 @@ describe('runCapVite', () => {
 
     expect(x).toHaveBeenCalledWith('vite', [
       '--config',
-      expect.stringMatching(/packages\/cap-vite\/(src|dist)\/vite-wrapper-config\.(ts|mjs)$/),
+      expect.stringMatching(/packages[\\/]cap-vite[\\/](src|dist)[\\/]vite-wrapper-config\.(ts|mjs)$/),
       '--host',
       '0.0.0.0',
       '--configLoader=runner',

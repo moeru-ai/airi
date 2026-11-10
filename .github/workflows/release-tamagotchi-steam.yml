@@ -4,6 +4,9 @@ permissions:
   contents: read
   actions: read
 
+env:
+  SHERPAW_BUNDLE_MODELS: 'true'
+
 on:
   release:
     types:
@@ -37,7 +40,7 @@ jobs:
       VITE_DISTRIBUTION: steam
       VITE_DISABLE_CUSTOM_PROVIDERS: 'true'
       VITE_DISABLE_FLUX_PURCHASE: 'true'
-      VITE_ENABLE_POSTHOG: 'false'
+      VITE_ENABLE_ANALYTICS: 'false'
     strategy:
       fail-fast: false
       matrix:
@@ -54,7 +57,8 @@ jobs:
 
           - depot: linux
             os: ubuntu-latest
-            builder-args: --linux --x64
+            # The depot ships `dist/linux-unpacked`, so electron-builder builds no Linux package.
+            builder-args: --linux dir --x64
             arch: x64
 
     steps:
@@ -77,18 +81,15 @@ jobs:
           xcodebuild -version
           actool --version
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/setup@v2
         with:
-          run_install: false
+          runtime: node@^26.12.1
+          cache: true
+          install: false
 
       - name: Install macOS system dependencies for node-canvas
         if: matrix.depot == 'macos'
         run: brew install pkg-config cairo pango jpeg giflib librsvg
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: lts/*
-          cache: pnpm
 
       - run: pnpm install --frozen-lockfile
 

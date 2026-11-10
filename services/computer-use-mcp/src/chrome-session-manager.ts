@@ -375,7 +375,7 @@ export function createChromeSessionManager(
           createdAt: new Date().toISOString(),
         }
 
-        return session
+        return session!
       }
       catch (error) {
         await findAndTerminateChromeByProfile(activeProfileDir, cdpPort)

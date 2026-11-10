@@ -5,6 +5,7 @@ import NProgress from 'nprogress'
 
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
 import { isEnvTruthy } from '@proj-airi/stage-shared'
+import { startErrorReporting } from '@proj-airi/stage-ui/libs/product-signals/error-reporting'
 import { MotionPlugin } from '@vueuse/motion'
 import { createPinia } from 'pinia'
 import { setupLayouts } from 'virtual:generated-layouts'
@@ -24,10 +25,10 @@ import 'vue-sonner/style.css'
 import './styles/main.css'
 import 'uno.css'
 
-if (isEnvTruthy(import.meta.env.VITE_ENABLE_POSTHOG)) {
+if (isEnvTruthy(import.meta.env.VITE_ENABLE_ANALYTICS)) {
   void loadAnalyticsAdapter(async () => {
-    const { createPosthogAdapter } = await import('./modules/analytics-adapters/posthog')
-    return createPosthogAdapter()
+    const { createOpenpanelAdapter } = await import('./modules/analytics-adapters/openpanel')
+    return createOpenpanelAdapter()
   })
 }
 
@@ -51,7 +52,14 @@ router.afterEach(() => {
   NProgress.done()
 })
 
-createApp(App)
+const app = createApp(App)
+// The sign-in pages have no settings. Reports follow their analytics posture: on in every build with analytics.
+startErrorReporting(app, () => true, async (options) => {
+  const { createSentryAdapter } = await import('./modules/sentry')
+  return createSentryAdapter(options)
+})
+
+app
   .use(MotionPlugin)
   // TODO: Fix autoAnimatePlugin type error
   .use(autoAnimatePlugin as unknown as Plugin)

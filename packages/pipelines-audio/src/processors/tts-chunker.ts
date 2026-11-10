@@ -2,18 +2,36 @@ import type { ReaderLike } from 'clustr'
 
 import type { TextSegment, TextToken } from '../types'
 
+import { createPushStream } from '@proj-airi/stream-kit'
 import { readGraphemeClusters } from 'clustr'
-
-import { createPushStream } from '../stream'
 
 export const TTS_FLUSH_INSTRUCTION = '\u200B'
 export const TTS_SPECIAL_TOKEN = '\u2063'
 
 const regexpAnySingleDigit = /\d/
+/** A character that continues a token after a `.`, as in an address or a file path. */
+const regexpTokenContinuation = /[\p{L}\p{N}_~/\\%@-]/u
+const regexpCjk = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u
 
-const keptPunctuations = new Set('?？!！')
+/**
+ * A chunk without a letter, a digit, or an emoji, as a lone closing quote `”`, has no sound and is not a TTS request.
+ * Emoji stay, because some providers read them.
+ */
+const regexpSound = /[\p{L}\p{N}\p{Extended_Pictographic}]/u
 const hardPunctuations = new Set('.。?？!！…⋯～~\n\t\r')
 const softPunctuations = new Set(',，、–—:：;；《》「」')
+const regexpKana = /[\p{Script=Hiragana}\p{Script=Katakana}]/u
+
+/**
+ * Whether a length limit can end a chunk at `punctuation`.
+ *
+ * Chinese `、` separates the items of a list, as in 网络、地址解析, and a voice does not pause at it. Japanese `、` is a
+ * comma, so text with kana can end there. A chunk of twice the word limit can end at `、` too, so a long list does not
+ * make one long TTS request.
+ */
+function canEndAtLimit(punctuation: string | undefined, text: string, words: number, maximumWords: number): boolean {
+  return punctuation !== '、' || regexpKana.test(text) || words > 2 * maximumWords
+}
 
 export interface TtsInputChunk {
   text: string
@@ -22,8 +40,23 @@ export interface TtsInputChunk {
 }
 
 export interface TtsInputChunkOptions {
+  /**
+   * How many opening chunks may end at soft punctuation instead of waiting for a sentence end.
+   *
+   * This lowers the time to the first audio. A boost chunk still has to reach `minimumWords`:
+   * every TTS request carries a fixed cost that does not shrink with the text, so a two-word
+   * fragment delays the audio it was meant to bring forward.
+   *
+   * @default 2
+   */
   boost?: number
+  /**
+   * Word count a chunk must reach before a boost or a length limit may end it.
+   *
+   * @default 4
+   */
   minimumWords?: number
+  /** @default 12 */
   maximumWords?: number
   stripNarrative?: boolean
   keepNarrativeText?: boolean
@@ -69,17 +102,15 @@ export async function* chunkTtsInput(
   while (!current.done) {
     let value = current.value
 
-    if (value.length > 1) {
-      previousValue = value
-      current = await iterator.next()
-      continue
-    }
+    // CRLF is one grapheme cluster. Use LF so Windows line endings match
+    // the hard punctuation set and end the chunk.
+    if (value === '\r\n')
+      value = '\n'
 
     const flush = value === TTS_FLUSH_INSTRUCTION
     const special = value === TTS_SPECIAL_TOKEN
     const hard = hardPunctuations.has(value)
     const soft = softPunctuations.has(value)
-    const kept = keptPunctuations.has(value)
     let next: IteratorResult<string, void> | undefined
     let afterNext: IteratorResult<string, void> | undefined
 
@@ -87,24 +118,24 @@ export async function* chunkTtsInput(
       switch (value) {
         case '.':
         case ',': {
-          if (previousValue !== undefined && regexpAnySingleDigit.test(previousValue)) {
-            next = await iterator.next()
-            if (!next.done && next.value && regexpAnySingleDigit.test(next.value)) {
-              buffer += value
-              current = next
-              next = undefined
-              continue
-            }
+          next = await iterator.next()
+          const following = next.done ? undefined : next.value
+          // `3.14` and `1,000` are numbers. A `.` before a letter, as in `example.com`, `index.ts`, or `U.S`, is inside
+          // a token, so it does not end a sentence either. A `.` before a space, punctuation, CJK text, or the end does.
+          const inNumber = previousValue !== undefined && regexpAnySingleDigit.test(previousValue) && following !== undefined && regexpAnySingleDigit.test(following)
+          const inToken = value === '.' && following !== undefined && regexpTokenContinuation.test(following) && !regexpCjk.test(following)
+          if (inNumber || inToken) {
+            buffer += value
+            current = next
+            next = undefined
+            continue
           }
-          else if (value === '.') {
-            next = await iterator.next()
-            if (!next.done && next.value && next.value === '.') {
-              afterNext = await iterator.next()
-              if (!afterNext.done && afterNext.value && afterNext.value === '.') {
-                value = '…'
-                next = undefined
-                afterNext = undefined
-              }
+          if (value === '.' && following === '.') {
+            afterNext = await iterator.next()
+            if (!afterNext.done && afterNext.value && afterNext.value === '.') {
+              value = '…'
+              next = undefined
+              afterNext = undefined
             }
           }
         }
@@ -128,14 +159,19 @@ export async function* chunkTtsInput(
 
       const words = [...segmenter.segment(buffer)].filter(w => w.isWordLike)
 
-      if (chunkWordsCount > minimumWords && chunkWordsCount + words.length > maximumWords) {
-        const text = kept ? chunk.trim() + value : chunk.trim()
-        yield {
-          text,
-          words: chunkWordsCount,
-          reason: 'limit',
+      if (chunkWordsCount > minimumWords && chunkWordsCount + words.length > maximumWords
+        && canEndAtLimit(chunk.at(-1), chunk, chunkWordsCount + words.length, maximumWords)) {
+        // The punctuation ends the buffer, not the chunk before it, so it stays with the buffer. Adding a `？` here too
+        // read it twice, as 方向、？ and then 移动？.
+        const text = chunk.trim()
+        if (regexpSound.test(text)) {
+          yield {
+            text,
+            words: chunkWordsCount,
+            reason: 'limit',
+          }
+          yieldCount++
         }
-        yieldCount++
         chunk = ''
         chunkWordsCount = 0
       }
@@ -155,14 +191,18 @@ export async function* chunkTtsInput(
         chunk = ''
         chunkWordsCount = 0
       }
-      else if (flush || hard || chunkWordsCount > maximumWords || yieldCount < boost) {
+      // A boost chunk ends early at soft punctuation only once it is long enough to be worth its
+      // own TTS request. A shorter opening clause stays in the chunk and joins the next one.
+      else if (flush || hard || (chunkWordsCount > maximumWords && canEndAtLimit(value, chunk, chunkWordsCount, maximumWords)) || (yieldCount < boost && chunkWordsCount >= minimumWords)) {
         const text = chunk.trim()
-        yield {
-          text,
-          words: chunkWordsCount,
-          reason: flush ? 'flush' : hard ? 'hard' : chunkWordsCount > maximumWords ? 'limit' : 'boost',
+        if (regexpSound.test(text)) {
+          yield {
+            text,
+            words: chunkWordsCount,
+            reason: flush ? 'flush' : hard ? 'hard' : chunkWordsCount > maximumWords ? 'limit' : 'boost',
+          }
+          yieldCount++
         }
-        yieldCount++
         chunk = ''
         chunkWordsCount = 0
       }
@@ -191,7 +231,7 @@ export async function* chunkTtsInput(
     current = next
   }
 
-  if (chunk.length > 0 || buffer.length > 0) {
+  if (regexpSound.test(chunk + buffer)) {
     const text = (chunk + buffer).trim()
     yield {
       text,
