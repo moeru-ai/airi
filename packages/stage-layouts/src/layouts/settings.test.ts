@@ -7,7 +7,7 @@ import { createI18n } from 'vue-i18n'
 
 import SettingsLayout from './settings.vue'
 
-let mockRoute: Partial<RouteLocationNormalizedLoaded> = {
+let mockRoute: Partial<RouteLocationNormalizedLoaded> | undefined = {
   path: '/settings',
   query: {},
   meta: undefined,
@@ -54,6 +54,19 @@ describe('settings layout', () => {
   it('safely falls back when route.meta is undefined (#3220)', () => {
     mockRoute = {
       path: '/settings',
+      query: {},
+      meta: undefined,
+    }
+
+    const wrapper = mountSettingsLayout()
+    const header = wrapper.find('.page-header')
+    expect(header.exists()).toBe(true)
+    expect(header.attributes('data-title')).toBe('')
+    expect(header.attributes('data-subtitle')).toBeUndefined()
+  })
+
+  it('safely falls back when route has no path or meta (#3220)', () => {
+    mockRoute = {
       query: {},
       meta: undefined,
     }
