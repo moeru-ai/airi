@@ -16,9 +16,7 @@ const DWELL_MS = 3_000
 
 // NOTICE:
 // Used only for reports without `navigation`, for example on Bilibili.
-// There the gate cannot know when the title belongs to the new video, so it guesses from time.
-// YouTube changes the URL about 1 to 2 seconds before the title heading. Early reports carry the old title.
-// Source: `findVideoTitle` in `src/content/index.ts`. The delay was measured by hand on YouTube.
+// Such a site does not tell when the title belongs to the new video, so the gate guesses from time.
 // Remove it when every site reports `navigation`.
 /** How long a video title must stay the same before the gate notifies a report without `navigation`. */
 const SETTLE_MS = 3_000

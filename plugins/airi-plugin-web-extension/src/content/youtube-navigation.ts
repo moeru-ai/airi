@@ -10,13 +10,9 @@ export interface YouTubePageState {
 }
 
 // NOTICE:
-// Measured by hand in Zen (Firefox) in November 2026, with `yt-navigate-start` at 0:
-// - Watch page: the URL changes at once. `yt-navigate-finish` comes after about 1.5 s, still with the old heading.
-//   The page title changes with `yt-page-data-updated` at about 1.9 s.
-//   The title heading, the channel and the `video-id` of `ytd-watch-flexy` change together at about 2.6 s.
-// - Shorts: the watch page keeps the previous video (it plays in the mini player).
-//   The page title changes with `yt-page-data-updated`, after 0.1 to 1.9 s.
-// Check these rules again if YouTube changes its page structure.
+// Measured by hand in November 2026. On a watch page, `yt-navigate-finish` comes while the heading is still old.
+// The heading, channel and `ytd-watch-flexy[video-id]` change together, after the page title.
+// On Shorts, the watch page keeps the mini player video. Recheck if YouTube changes.
 /**
  * Tells whether the title source of a YouTube page belongs to the video in the URL.
  *
