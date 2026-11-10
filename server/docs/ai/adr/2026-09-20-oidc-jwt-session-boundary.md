@@ -132,5 +132,7 @@ sequenceDiagram
 - Make sure that the plugin never calls `createSession`.
 - Make sure that an active `sid` supplies the original Session cookie.
 - Make sure that an expired `sid` cannot supply the Session cookie.
+- Make sure that Better Auth session middleware accepts a JWT without an active
+  `sid`. Run `/list-accounts` through Better Auth dispatch to check this.
 - Make sure that banned users do not receive request identity.
 - Run Auth tests, Auth typecheck, repository lint, and CI.

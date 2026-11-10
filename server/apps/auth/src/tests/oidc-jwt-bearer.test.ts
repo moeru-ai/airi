@@ -1,5 +1,6 @@
 import type { AuthSession } from '@proj-airi/auth-shared'
 
+import { dispatchAuthEndpoint, listUserAccounts } from 'better-auth/api'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { oidcJwtBearer } from '../plugins/oidc-jwt-bearer'
@@ -52,12 +53,14 @@ function createContext(session: AuthSession['session'] | null) {
   const createSession = vi.fn()
   const findOne = vi.fn(async (): Promise<unknown> => session)
   const findUserById = vi.fn(async (): Promise<unknown> => user)
+  const findAccounts = vi.fn(async (): Promise<unknown[]> => [])
   const headers = new Headers({ Authorization: `Bearer ${SIGNED_JWT}` })
 
   return {
     createSession,
     findOne,
     findUserById,
+    findAccounts,
     context: {
       request: new Request('https://api.airi.test/api/auth/update-user', { headers }),
       headers,
@@ -72,11 +75,13 @@ function createContext(session: AuthSession['session'] | null) {
         internalAdapter: {
           createSession,
           findUserById,
+          findAccounts,
         },
         secret: 'test-secret',
         authCookies: {
           sessionToken: { name: 'better-auth.session_token' },
         },
+        session: null as AuthSession | null,
       },
     },
   }
@@ -85,14 +90,17 @@ function createContext(session: AuthSession['session'] | null) {
 interface BeforeHookResult {
   context?: {
     headers?: Headers
-    session?: AuthSession
   }
 }
 
-async function runBeforeHook(context: ReturnType<typeof createContext>['context']) {
-  const hook = oidcJwtBearer({
+function createPlugin() {
+  return oidcJwtBearer({
     PUBLIC_URL: 'https://api.airi.test',
-  } as never).hooks?.before?.[0]
+  } as never)
+}
+
+async function runBeforeHook(context: ReturnType<typeof createContext>['context']) {
+  const hook = createPlugin().hooks?.before?.[0]
   if (!hook)
     throw new TypeError('Expected the OIDC JWT plugin to register a before hook')
 
@@ -127,19 +135,51 @@ describe('oidcJwtBearer', () => {
 
     expect(createSession).not.toHaveBeenCalled()
     expect(findOne).toHaveBeenCalledTimes(1)
-    expect(result).toMatchObject({
-      context: {
-        session: {
-          session: {
-            id: 'access-token-1',
-            userId: user.id,
-            createdAt: new Date(0),
-          },
-          user,
-        },
+    expect(result).toBeUndefined()
+    expect(context.context.session).toMatchObject({
+      session: {
+        id: 'access-token-1',
+        userId: user.id,
+        createdAt: new Date(0),
       },
+      user,
     })
-    expect(result?.context).not.toHaveProperty('headers')
+  })
+
+  it('lets session middleware accept a JWT without an active original session', async () => {
+    const { context, findAccounts } = createContext(null)
+    findAccounts.mockResolvedValueOnce([{
+      id: 'account-1',
+      providerId: 'credential',
+      accountId: user.id,
+      userId: user.id,
+      scope: 'openid,profile',
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    }])
+
+    // ROOT CAUSE:
+    //
+    // The plugin returned `{ context: { session } }`. Better Auth merges that
+    // value into the endpoint context, but session middleware reads
+    // `ctx.context.session`. A JWT whose `sid` session had expired therefore
+    // received 401 from `/list-accounts`.
+    //
+    // The plugin now sets the per-request AuthContext session.
+    const result = await dispatchAuthEndpoint(listUserAccounts, {
+      headers: context.headers,
+      context: {
+        ...context.context,
+        options: { plugins: [createPlugin()] },
+        logger: { level: 'error', error: vi.fn() },
+      } as never,
+    })
+
+    expect(findAccounts).toHaveBeenCalledWith(user.id)
+    expect(result).toEqual([expect.objectContaining({
+      id: 'account-1',
+      scopes: ['openid', 'profile'],
+    })])
   })
 
   it('reuses an active original session for sensitive middleware', async () => {
@@ -148,11 +188,7 @@ describe('oidcJwtBearer', () => {
     const result = await runBeforeHook(context)
 
     expect(createSession).not.toHaveBeenCalled()
-    expect(result).toMatchObject({
-      context: {
-        session: { session: persistedSession, user },
-      },
-    })
+    expect(context.context.session).toBeNull()
     expect(result?.context?.headers?.get('cookie')).toContain('better-auth.session_token=')
     expect(result?.context?.headers?.get('cookie')).toContain('persisted-session-token')
   })
@@ -167,8 +203,8 @@ describe('oidcJwtBearer', () => {
     const result = await runBeforeHook(context)
 
     expect(createSession).not.toHaveBeenCalled()
-    expect(result?.context?.headers).toBeUndefined()
-    expect(result?.context?.session?.session).toMatchObject({
+    expect(result).toBeUndefined()
+    expect(context.context.session?.session).toMatchObject({
       id: 'access-token-1',
       createdAt: new Date(0),
     })
@@ -197,8 +233,8 @@ describe('oidcJwtBearer', () => {
 
     const result = await runBeforeHook(context)
 
-    expect(result?.context?.headers).toBeUndefined()
-    expect(result?.context?.session?.session).toMatchObject({
+    expect(result).toBeUndefined()
+    expect(context.context.session?.session).toMatchObject({
       id: 'access-token-1',
       createdAt: new Date(0),
     })
