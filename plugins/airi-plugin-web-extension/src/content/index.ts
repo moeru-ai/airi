@@ -33,7 +33,7 @@ function buildPageContext(site: VideoSite): PageContextPayload {
 }
 
 function buildVideoContext(site: VideoSite, video: HTMLVideoElement, includeProgress = false): VideoContextPayload {
-  const title = normalizeText(findVideoTitle(site))
+  const title = resolveVideoTitle(site)
   const channel = normalizeText(findChannelName(site))
   const url = location.href
   const videoId = extractVideoId(site, url)
@@ -44,7 +44,7 @@ function buildVideoContext(site: VideoSite, video: HTMLVideoElement, includeProg
   return {
     site,
     url,
-    title: title || normalizeText(document.title),
+    title,
     channel: channel || undefined,
     videoId,
     durationSec,
@@ -60,6 +60,11 @@ function buildVideoContext(site: VideoSite, video: HTMLVideoElement, includeProg
 /** A YouTube Shorts page, `/shorts/<video id>`. It has no watch page heading of its own. */
 function isYouTubeShortsPage() {
   return location.pathname.startsWith('/shorts/')
+}
+
+/** The video title, or the page title when the page has no video heading (e.g. Shorts). */
+function resolveVideoTitle(site: VideoSite) {
+  return normalizeText(findVideoTitle(site)) || normalizeText(document.title)
 }
 
 function findVideoTitle(site: VideoSite) {
@@ -131,7 +136,7 @@ function observeTextTracks(site: VideoSite, video: HTMLVideoElement, onSubtitle:
       onSubtitle({
         site,
         url: location.href,
-        title: normalizeText(findVideoTitle(site)) || undefined,
+        title: resolveVideoTitle(site) || undefined,
         videoId: extractVideoId(site, location.href),
         text,
         language: (track.language || track.label || undefined),
@@ -183,7 +188,7 @@ function observeSubtitleDom(site: VideoSite, onSubtitle: (payload: SubtitlePaylo
     onSubtitle({
       site,
       url: location.href,
-      title: normalizeText(findVideoTitle(site)) || undefined,
+      title: resolveVideoTitle(site) || undefined,
       videoId: extractVideoId(site, location.href),
       text,
     })
@@ -221,7 +226,7 @@ function captureVisionFrame(site: VideoSite, video: HTMLVideoElement): VisionFra
       site,
       url: location.href,
       videoId: extractVideoId(site, location.href),
-      title: normalizeText(findVideoTitle(site)) || undefined,
+      title: resolveVideoTitle(site) || undefined,
       capturedAt: Date.now(),
       width,
       height,
