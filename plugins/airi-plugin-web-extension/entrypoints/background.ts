@@ -70,7 +70,8 @@ async function init() {
   emitStatus()
 }
 
-// The gate calls back after a video title settles. Only then does the character get a notification.
+// The gate calls back after a video settles: the user stays on a ready video, or its title stays the same.
+// Only then does the character get a notification.
 // The settled report can be seconds old, so it does not replace the video context.
 const videoNotifyGate = new VideoNotifyGate<VideoContextPayload>(payload => notifyVideo(state, settings, payload))
 

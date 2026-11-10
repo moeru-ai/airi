@@ -6,6 +6,10 @@ function report(videoId: string, title: string, currentTimeSec = 0) {
   return { url: `https://example.com/watch?v=${videoId}`, videoId, title, currentTimeSec }
 }
 
+function navigationReport(videoId: string, title: string, phase: 'changing' | 'ready', currentTimeSec = 0) {
+  return { ...report(videoId, title, currentTimeSec), navigation: { id: videoId, phase } }
+}
+
 describe('video notify gate', () => {
   beforeEach(() => {
     vi.useFakeTimers()
@@ -236,6 +240,98 @@ describe('video notify gate', () => {
 
     expect(onSettle).toHaveBeenCalledTimes(1)
     expect(onSettle).toHaveBeenCalledWith(report('b', 'Short B'))
+  })
+
+  describe('with navigation', () => {
+    it('notifies a ready video after the user stays on it', () => {
+      const onSettle = vi.fn()
+      const gate = new VideoNotifyGate(onSettle)
+
+      gate.report(navigationReport('a', 'Song A', 'ready'), 1)
+      vi.advanceTimersByTime(2_999)
+      expect(onSettle).not.toHaveBeenCalled()
+
+      vi.advanceTimersByTime(1)
+      expect(onSettle).toHaveBeenCalledWith(navigationReport('a', 'Song A', 'ready'))
+    })
+
+    it('does not notify while the navigation is changing', () => {
+      const onSettle = vi.fn()
+      const gate = new VideoNotifyGate(onSettle)
+
+      gate.report(navigationReport('a', 'Song A', 'changing'), 1)
+      vi.advanceTimersByTime(20_000)
+
+      expect(onSettle).not.toHaveBeenCalled()
+    })
+
+    it('waits for ready, not for the old title to change', () => {
+      const onSettle = vi.fn()
+      const gate = new VideoNotifyGate(onSettle)
+      gate.report(navigationReport('a', 'Song A', 'ready'), 1)
+      vi.advanceTimersByTime(3_000)
+      onSettle.mockClear()
+      vi.advanceTimersByTime(30_000)
+
+      gate.report(navigationReport('b', 'Song A', 'changing'), 1)
+      vi.advanceTimersByTime(2_000)
+      gate.report(navigationReport('b', 'Song B', 'ready'), 1)
+      vi.advanceTimersByTime(3_000)
+
+      expect(onSettle).toHaveBeenCalledTimes(1)
+      expect(onSettle).toHaveBeenCalledWith(navigationReport('b', 'Song B', 'ready'))
+    })
+
+    it('does not wait the stale title window when a ready video has the previous title', () => {
+      const onSettle = vi.fn()
+      const gate = new VideoNotifyGate(onSettle)
+      gate.report(navigationReport('a', 'Live', 'ready'), 1)
+      vi.advanceTimersByTime(3_000)
+      onSettle.mockClear()
+      vi.advanceTimersByTime(30_000)
+
+      gate.report(navigationReport('b', 'Live', 'ready'), 1)
+      vi.advanceTimersByTime(3_000)
+
+      expect(onSettle).toHaveBeenCalledWith(navigationReport('b', 'Live', 'ready'))
+    })
+
+    it('keeps the dwell timer when a ready video reports again', () => {
+      const onSettle = vi.fn()
+      const gate = new VideoNotifyGate(onSettle)
+
+      gate.report(navigationReport('a', 'Song A', 'ready', 1), 1)
+      vi.advanceTimersByTime(2_000)
+      gate.report(navigationReport('a', 'Song A', 'ready', 2), 1)
+      vi.advanceTimersByTime(1_000)
+
+      expect(onSettle).toHaveBeenCalledWith(navigationReport('a', 'Song A', 'ready', 2))
+    })
+
+    it('does not notify a ready video that the user left before the dwell time', () => {
+      const onSettle = vi.fn()
+      const gate = new VideoNotifyGate(onSettle)
+
+      gate.report(navigationReport('a', 'Short A', 'ready'), 1)
+      vi.advanceTimersByTime(1_000)
+      gate.report(navigationReport('b', 'Short A', 'changing'), 1)
+      vi.advanceTimersByTime(10_000)
+
+      expect(onSettle).not.toHaveBeenCalled()
+    })
+
+    it('skips a ready video within the cooldown', () => {
+      const onSettle = vi.fn()
+      const gate = new VideoNotifyGate(onSettle)
+      gate.report(navigationReport('a', 'Short A', 'ready'), 1)
+      vi.advanceTimersByTime(3_000)
+      onSettle.mockClear()
+
+      gate.report(navigationReport('b', 'Short B', 'ready'), 1)
+      vi.advanceTimersByTime(3_000)
+
+      expect(onSettle).not.toHaveBeenCalled()
+    })
   })
 
   it('stops pending timers on dispose', () => {
