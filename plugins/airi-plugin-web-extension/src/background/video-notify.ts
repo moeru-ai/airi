@@ -86,7 +86,7 @@ function normalizeVideoTitle(title: string) {
  *   Each tab has at most one waiting video. A new video of the tab replaces it.
  * - `lastNotifiedAt` holds the time of the last notification, for the cooldown.
  *
- * Call `forgetTab` when a tab closes. Call `dispose` to stop all timers.
+ * Call `forgetTab` when a tab closes, so that its waiting videos do not notify. Call `dispose` to stop all timers.
  */
 export class VideoNotifyGate<T extends VideoNotifyReport> {
   private readonly notifiedVideoKeys = new Set<string>()
@@ -121,6 +121,13 @@ export class VideoNotifyGate<T extends VideoNotifyReport> {
 
   forgetTab(tabId: number) {
     this.lastSettledTitles.delete(tabId)
+
+    for (const [key, pending] of this.pendingVideos) {
+      if (pending.tabId === tabId) {
+        clearTimeout(pending.timer)
+        this.pendingVideos.delete(key)
+      }
+    }
   }
 
   dispose() {

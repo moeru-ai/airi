@@ -155,6 +155,31 @@ describe('video notify gate', () => {
     expect(onSettle).toHaveBeenCalledWith(report('b', 'Song'))
   })
 
+  it('does not notify a waiting video of a closed tab', () => {
+    const onSettle = vi.fn()
+    const gate = new VideoNotifyGate(onSettle)
+
+    gate.report(report('a', 'Song A'), 1)
+    gate.report(navigationReport('b', 'Song B', 'ready'), 2)
+    vi.advanceTimersByTime(1_000)
+    gate.forgetTab(1)
+    gate.forgetTab(2)
+    vi.advanceTimersByTime(20_000)
+
+    expect(onSettle).not.toHaveBeenCalled()
+  })
+
+  it('keeps the waiting video of another tab when a tab closes', () => {
+    const onSettle = vi.fn()
+    const gate = new VideoNotifyGate(onSettle)
+
+    gate.report(report('a', 'Song A'), 1)
+    gate.forgetTab(2)
+    vi.advanceTimersByTime(3_000)
+
+    expect(onSettle).toHaveBeenCalledWith(report('a', 'Song A'))
+  })
+
   it('notifies each of two playing tabs once', () => {
     const onSettle = vi.fn()
     const gate = new VideoNotifyGate(onSettle)
