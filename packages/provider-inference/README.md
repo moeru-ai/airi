@@ -79,3 +79,33 @@ Reported search abilities do not select a native tool implementation.
 OpenAI reasoning controls use the exact model entry and effort levels from the pinned catalog.
 Unsupported effort values are omitted. In particular, models without a `none` effort keep their server default when reasoning is disabled.
 Generation validation uses the configured model before consulting the endpoint model list.
+
+## OpenRouter speech
+
+The speech provider merges the dedicated speech catalog with supported chat-audio models and removes duplicate IDs.
+Dedicated speech models use `/audio/speech`. The discovered output modalities and endpoint declarations determine their route.
+The chat adapter supports `openai/gpt-audio` and `openai/gpt-audio-mini` when discovery confirms audio output and a chat endpoint.
+Other audio models, including Lyria music models, need a separate encoding and speech contract before this adapter can support them.
+
+Voice discovery uses the selected model's `supported_voices`.
+As supported policy, the two OpenAI chat-audio models retain their 13 voices when this field is absent or null.
+An explicit empty list remains empty. Dedicated speech models never inherit the OpenAI list.
+For Fish models without listed voices, select the model in Settings → Modules → Speech.
+Enter its voice ID in Voice Name.
+The existing manual control appears when the voice catalog is empty. An empty catalog does not select a provider default.
+The Speech module restores a saved custom voice after discovery confirms an empty catalog for the saved OpenRouter model.
+
+MP3 responses retain their original bytes.
+The documented HeyGen models use mono signed PCM16 LE at 44.1 kHz, and the documented Gemini models use 24 kHz.
+The adapter wraps these raw samples in WAV and preserves responses that already contain a WAV file.
+Unknown raw PCM encodings fail instead of receiving an assumed sample rate.
+The format table follows the [OpenRouter TTS contract](https://openrouter.ai/docs/guides/overview/multimodal/tts),
+[HeyGen encoding contract](https://developers.heygen.com/docs/voices/heygen-voice-speech#output-format),
+and [Gemini encoding contract](https://ai.google.dev/gemini-api/docs/speech-generation#audio-output-formats).
+
+Each provider instance owns its catalog for one API root and key. Model-list requests refresh it.
+Speech segments reuse known models and refresh a missing model, including models found by a temporary dropdown discovery instance.
+Each modality retains its last successful response when only that catalog fails. The adapter logs the failed query and its error.
+Discovery fails when neither catalog succeeds, or partial discovery has no usable models.
+Canceled discovery changes neither catalog.
+The chat adapter accepts the xsAI WAV option and requires the stream's `[DONE]` marker before returning audio.

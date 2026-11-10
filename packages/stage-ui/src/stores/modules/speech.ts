@@ -549,7 +549,7 @@ export const useSpeechStore = defineStore('speech', () => {
     }
   }, { immediate: true, deep: true })
 
-  /** Applies official recommendations and the matching voice object in the leader. */
+  /** Applies recommendations and restores the matching runtime voice in the leader. */
   async function ensureActiveSpeechVoice() {
     if (disposed)
       return
@@ -569,14 +569,18 @@ export const useSpeechStore = defineStore('speech', () => {
     if (!voiceId)
       return
 
+    // The manual control persists only the ID. Rebuild its runtime voice after discovery confirms an empty catalog for this model.
+    const customOpenRouterVoice = providerStore.getProvider(activeSpeechProvider.value)?.definitionId === 'openrouter-audio-speech'
+      && voiceCatalogIdentities.value[activeSpeechProvider.value]?.model === activeSpeechModel.value
+      && voices[activeSpeechProvider.value]?.length === 0
     let nextVoice: VoiceInfo | undefined
-    if (activeSpeechProvider.value === 'openai-compatible-audio-speech') {
+    if (activeSpeechProvider.value === 'openai-compatible-audio-speech' || customOpenRouterVoice) {
       nextVoice = {
         id: voiceId,
         name: voiceId,
         description: voiceId,
         previewURL: '',
-        languages: [{ code: 'en', title: 'English' }],
+        languages: customOpenRouterVoice ? [] : [{ code: 'en', title: 'English' }],
         provider: activeSpeechProvider.value,
         gender: 'neutral',
       }
