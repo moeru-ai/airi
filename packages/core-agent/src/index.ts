@@ -48,6 +48,15 @@ export type {
   CategorizedSegment,
   ResponseCategory,
 } from './runtime/response-categoriser'
+export {
+  estimateHistoryItemTokens,
+  estimateSegmentTokens,
+  estimateTextTokens,
+  estimateToolTokens,
+  estimateTurnTokens,
+  isContextLengthExceededError,
+  truncateToolResultContent,
+} from './runtime/token-estimator'
 export { mergeLoadedSessionMessages } from './session/merge-loaded-session-messages'
 export type {
   ChatAssistantMessage,

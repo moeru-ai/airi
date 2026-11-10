@@ -17,6 +17,12 @@ export interface AiriExtension {
    */
   contextWindow?: number
 
+  /**
+   * Model context window limit in tokens.
+   * When omitted, uses the model catalog's context length or unlimited.
+   */
+  contextWindowTokens?: number
+
   wakeWords?: WakeWord[]
 
   /** Character-owned references to stored display-model resources. */
@@ -93,6 +99,15 @@ export function normalizeContextWindow(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value) && value >= -1
     ? value
     : -1
+}
+
+/**
+ * Normalizes a character card context window token budget.
+ */
+export function normalizeContextWindowTokens(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value) && value > 0
+    ? value
+    : undefined
 }
 
 /** Character card normalized with the AIRI extension required by the runtime. */

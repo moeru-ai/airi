@@ -12,7 +12,7 @@ import { array, literal, object, optional, parse, picklist, record, string, unkn
 
 import { wakeWordSchema } from '../libs/voice/wake-words'
 import { DisplayModelFormat } from '../stores/display-models'
-import { normalizeContextWindow } from '../types/airiCard'
+import { normalizeContextWindow, normalizeContextWindowTokens } from '../types/airiCard'
 import { createAvatarModelReference } from './avatar-model'
 
 const FORMAT = 'airi-character-card'
@@ -253,6 +253,7 @@ function sanitizeAiri(
 
   return {
     contextWindow: normalizeContextWindow(source.contextWindow),
+    ...(normalizeContextWindowTokens(source.contextWindowTokens) !== undefined ? { contextWindowTokens: normalizeContextWindowTokens(source.contextWindowTokens) } : {}),
     ...(source.wakeWords === undefined ? {} : { wakeWords: parse(array(wakeWordSchema), source.wakeWords) }),
     avatarModels: avatarModel ? [avatarModel] : [],
     defaultAvatarModelId: avatarModel?.id,
