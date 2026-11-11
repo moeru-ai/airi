@@ -418,14 +418,10 @@ const shownChatSpeech = computed(() => {
   return cards.getModules(characterId).speech
 })
 // The speech store loads the voice catalog of its own selection only. A reply reads the language of
-// its voice from the catalog of the character's provider, so load that catalog when it is another one.
+// its voice from the catalog of the character's provider, so load that catalog when it is another provider.
 watch([() => shownChatSpeech.value?.provider, () => shownChatSpeech.value?.model], async ([provider, model]) => {
-  if (!provider || provider === 'speech-noop')
-    return
-  if (provider === speechStore.activeSpeechProvider && model === speechStore.activeSpeechModel)
-    return
-
-  await speechStore.loadVoicesForProvider(provider, model || undefined)
+  if (provider)
+    await speechStore.loadVoicesForCharacter(provider, model || undefined)
 }, { immediate: true })
 
 const disconnectVoiceOutput = voice.connectOutput((turn) => {

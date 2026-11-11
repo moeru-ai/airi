@@ -59,7 +59,10 @@ A path that runs for a chat turn resolves the session character. It does not rea
 | Image reading for chat (`use-vision-inference`, `chat.ts`) | Global vision selection | Vision selection of the session character |
 | Tool image reader on a tool rerun | Global chat model | Chat model of the session character |
 | Reasoning default of the provider instance | Global provider and model | Provider and model of the turn |
-| Voice catalog for speech output | Loaded for the global provider only | Loaded for the provider of the session character before the output starts |
+| Voice catalog for speech output | Loaded for the global provider only | Also loaded for the provider of the character of the shown chat, when it is another provider |
+
+The speech store keeps one voice catalog for each provider. A load for another model of the selected provider discards that catalog and clears the selected voice.
+So a character with another model of the default provider reads the catalog of the default model. Step 2 must key the catalogs by provider and model before it removes this limit.
 
 These paths have no session and keep the global default: the voice end judge, the voice rephrase, the screen capture of the vision orchestrator, and the tool card generation.
 
