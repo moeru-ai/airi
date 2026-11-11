@@ -496,6 +496,13 @@
     {
       "path": "packages/i18n/src/locales/en/settings.yaml",
       "code": "unused-key",
+      "key": "settings.pages.flux.audit.typeConsumption",
+      "message": "\"settings.pages.flux.audit.typeConsumption\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
       "key": "settings.pages.flux.audit.typeInitial",
       "message": "\"settings.pages.flux.audit.typeInitial\" is not used.",
       "count": 1
