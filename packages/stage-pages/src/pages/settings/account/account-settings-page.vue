@@ -150,6 +150,7 @@ const {
   error: linkedAccountsError,
   message: linkedAccountsMessage,
   inFlight: linkActionInFlight,
+  needsLogin: linkedAccountsNeedsLogin,
   accountsByProvider: linkedAccountsByProvider,
   hasCredentialAccount,
   unlink: unlinkLinkedProvider,
@@ -165,6 +166,7 @@ const {
     lastAccount: t('settings.pages.account.connections.error.lastAccount'),
     unlinked: provider => t('settings.pages.account.connections.message.unlinked', { provider }),
     linkStarted: provider => t('settings.pages.account.connections.message.linkStarted', { provider }),
+    reauthenticate: t('settings.pages.account.connections.error.reauthenticate'),
   },
   onUnlinked: providerId => trackOauthProviderUnlinked({ provider: providerId }),
   onLinkStarted: providerId => trackOauthProviderLinkStarted({ provider: providerId }),
@@ -386,13 +388,21 @@ watch(() => [authStore.sessionVersion, user.value?.id, userEmail.value], () => {
 }, { flush: 'sync' })
 onScopeDispose(cancelDeletion)
 
-/** Starts the existing platform login flow and requires a new manual deletion confirmation afterward. */
-async function reauthenticateForDeletion() {
+/**
+ * Clears the current login and starts the existing platform login flow.
+ * Account deletion and connected-account changes use it when the server needs a new sign-in.
+ */
+async function signInAgain() {
   const version = authStore.sessionVersion
-  deleteDialogOpen.value = false
   await authStore.clearAllAuthState()
   if (authStore.sessionVersion === version + 1 && !authStore.isAuthenticated)
     emit('login')
+}
+
+/** Starts a new sign-in and requires a new manual deletion confirmation afterward. */
+async function reauthenticateForDeletion() {
+  deleteDialogOpen.value = false
+  await signInAgain()
 }
 
 /** Deletes only the confirmed session's account and ignores results after account changes or cancellation. */
@@ -841,6 +851,13 @@ async function handleConfirmDelete(event: Event) {
             >
               {{ linkedAccountsMessage }}
             </div>
+            <Button
+              v-if="linkedAccountsNeedsLogin && !linkedAccountsRouteErrorKey"
+              type="button"
+              :class="['self-start px-3 py-1 text-xs']"
+              :label="t('settings.pages.account.connections.action.signInAgain')"
+              @click="signInAgain"
+            />
           </section>
 
           <!-- Sync section. It follows Connected accounts because both decide what the account reaches,
