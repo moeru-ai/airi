@@ -1,6 +1,8 @@
 import type { Session, User } from 'better-auth'
 import type {} from 'pinia-plugin-synced'
 
+import type { TokenResponse } from '../libs/auth-oidc'
+
 import { errorMessageFrom } from '@moeru/std'
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useTimeoutFn, whenever } from '@vueuse/core'
@@ -11,8 +13,25 @@ import { client } from '../composables/api'
 import { useBreakpoints } from '../composables/use-breakpoints'
 import { triggerSignIn } from '../libs/auth'
 import { authClient, requestAuthSession } from '../libs/auth-client'
-import { refreshAccessToken } from '../libs/auth-oidc'
+import { refreshAccessToken, TokenRefreshError } from '../libs/auth-oidc'
 import { SERVER_URL } from '../libs/server'
+
+/**
+ * Delays between refresh attempts after a refresh fails for a reason that can pass,
+ * such as a network error, a 5xx, or a 429. Each failure doubles the delay up to the cap.
+ */
+const refreshRetryBackoff = {
+  initialMs: 30_000,
+  maxMs: 5 * 60_000,
+}
+
+/**
+ * Answer of one session request.
+ * - `authenticated`: the server confirmed the token, and identity is committed.
+ * - `unauthenticated`: the server rejected the token. The credentials no longer prove identity.
+ * - `unavailable`: the server did not answer, or the answer is stale. Local state stays as it was.
+ */
+type SessionLookup = 'authenticated' | 'unauthenticated' | 'unavailable'
 
 function createLocalStorageForAuth() {
   const keys = {
@@ -167,9 +186,16 @@ export const useAuthStore = defineStore('auth', () => {
   // must not trigger multiple token exchanges. All share one in-flight promise.
   let inflightRefresh: Promise<string | null> | null = null
 
+  // Failed attempts since the last successful refresh. It is runtime retry
+  // state of the leader, so it stays outside the synced state.
+  let refreshRetryAttempt = 0
+
   /**
    * Refreshes credentials only for the requested session version.
    * Stale or rejected requests return null and never return another account's token.
+   *
+   * A rejected refresh token clears the credentials and requests sign-in. Any other
+   * failure keeps the credentials and schedules a retry with the refresh timer.
    * @param expectedVersion Session version captured by the caller. Defaults to the current version.
    */
   async function refreshTokenNow(expectedVersion = sessionVersion.value): Promise<string | null> {
@@ -184,33 +210,50 @@ export const useAuthStore = defineStore('auth', () => {
     const version = expectedVersion
     let requestToken = token.value
     const refresh = (async () => {
+      let tokens: TokenResponse
       try {
-        const tokens = await refreshAccessToken(oidcClientId.value!, refreshToken.value!)
-        if (version !== sessionVersion.value || requestToken !== token.value)
-          return null
-        token.value = tokens.access_token
-        requestToken = tokens.access_token
-        storage.setAccessToken(tokens.access_token)
-        if (tokens.refresh_token) {
-          refreshToken.value = tokens.refresh_token
-          storage.setRefreshToken(tokens.refresh_token)
-        }
-        if (tokens.expires_in) {
-          tokenExpiry.value = Date.now() + tokens.expires_in * 1000
-          storage.setTokenExpiry(tokenExpiry.value)
-          scheduleTokenRefresh(tokens.expires_in)
-        }
-
-        const authenticated = await fetchSession(tokens.access_token)
-        return authenticated && version === sessionVersion.value ? tokens.access_token : null
+        tokens = await refreshAccessToken(oidcClientId.value!, refreshToken.value!)
       }
       catch (error) {
         if (version !== sessionVersion.value || requestToken !== token.value)
           return null
-        console.error('OIDC token refresh failed', errorMessageFrom(error))
+        if (error instanceof TokenRefreshError && error.rejected) {
+          console.error('OIDC refresh token rejected', errorMessageFrom(error))
+          await expireSession(version)
+          return null
+        }
+        console.warn('OIDC token refresh failed, retrying later', errorMessageFrom(error))
+        scheduleRefreshRetry()
+        return null
+      }
+
+      if (version !== sessionVersion.value || requestToken !== token.value)
+        return null
+      refreshRetryAttempt = 0
+      token.value = tokens.access_token
+      requestToken = tokens.access_token
+      storage.setAccessToken(tokens.access_token)
+      if (tokens.refresh_token) {
+        refreshToken.value = tokens.refresh_token
+        storage.setRefreshToken(tokens.refresh_token)
+      }
+      if (tokens.expires_in) {
+        tokenExpiry.value = Date.now() + tokens.expires_in * 1000
+        storage.setTokenExpiry(tokenExpiry.value)
+        scheduleTokenRefresh(tokens.expires_in)
+      }
+
+      const lookup = await lookupSession(tokens.access_token)
+      if (version !== sessionVersion.value)
+        return null
+      if (lookup === 'unauthenticated') {
         clearAuthState()
         return null
       }
+      // The token endpoint accepted the refresh, so the rotated token is valid
+      // even when the session request did not get an answer. Callers can retry
+      // their request with it.
+      return tokens.access_token
     })().finally(() => {
       if (inflightRefresh === refresh)
         inflightRefresh = null
@@ -238,10 +281,24 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
+   * Reuses the refresh timer for a retry after a failure that can pass.
+   * Sign-out, a new sign-in, and a rejected refresh replace or stop this timer.
+   */
+  function scheduleRefreshRetry(): void {
+    stopRefreshTimer()
+    refreshDelayMs.value = Math.min(refreshRetryBackoff.initialMs * 2 ** refreshRetryAttempt, refreshRetryBackoff.maxMs)
+    refreshRetryAttempt += 1
+    startRefreshTimer()
+  }
+
+  /**
    * Restore refresh scheduling from persisted state after page reload.
    * Returns a promise that resolves after an immediate refresh completes
    * (when the persisted token is already expired) so callers can avoid
    * racing `fetchSession()` against a stale Bearer token.
+   *
+   * Resolves true when a refresh ran. The refresh already requested the
+   * session or scheduled a retry, so the caller must not request it again.
    */
   async function restoreRefreshSchedule(): Promise<boolean> {
     if (!refreshToken.value || !oidcClientId.value)
@@ -256,7 +313,8 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     // Already expired — refresh synchronously so subsequent requests use fresh token
-    return !!(await refreshTokenNow())
+    await refreshTokenNow()
+    return true
   }
 
   async function initialize(): Promise<void> {
@@ -279,14 +337,15 @@ export const useAuthStore = defineStore('auth', () => {
       return
     }
 
-    const refreshed = await restoreRefreshSchedule()
-    if (!refreshed && token.value)
+    const refreshRan = await restoreRefreshSchedule()
+    if (!refreshRan && token.value)
       await fetchSession(token.value)
   }
 
   async function completeSignIn(tokens: AuthTokenSet): Promise<boolean> {
     sessionVersion.value += 1
     inflightRefresh = null
+    refreshRetryAttempt = 0
     signingOut = false
     token.value = tokens.accessToken
     refreshToken.value = tokens.refreshToken ?? null
@@ -302,27 +361,63 @@ export const useAuthStore = defineStore('auth', () => {
     storage.setOidcClientId(oidcClientId.value)
     storage.setTokenExpiry(tokenExpiry.value)
 
-    return await fetchSession(tokens.accessToken)
+    const lookup = await lookupSession(tokens.accessToken)
+    // The server issued this token a moment ago. If it rejects the token now,
+    // a refresh cannot help, so the sign-in fails without a refresh.
+    if (lookup === 'unauthenticated')
+      clearAuthState()
+    return lookup === 'authenticated'
   }
 
+  /**
+   * Requests the session of the current token and commits the identity.
+   *
+   * A rejected token with a refresh token present gets one refresh before the
+   * state clears. A wrong local clock or an early server-side expiry rejects the
+   * access token while the refresh token still works. A session request without
+   * an answer keeps the state and resolves false.
+   */
   async function fetchSession(accessToken: string | null = token.value): Promise<boolean> {
-    if (signingOut || accessToken !== token.value)
-      return false
     const version = sessionVersion.value
-    const data = await requestAuthSession(accessToken)
-    // A refresh can replace the token without changing the user-intent version.
-    // Both must still match before identity or failure state is committed.
-    if (version !== sessionVersion.value || accessToken !== token.value)
-      return false
-    if (data) {
-      user.value = data.user
-      session.value = data.session
-      verifiedSessionVersion.value = version
-      return true
-    }
+    const lookup = await lookupSession(accessToken)
+    if (lookup !== 'unauthenticated')
+      return lookup === 'authenticated'
+
+    if (refreshToken.value && oidcClientId.value)
+      return !!(await refreshTokenNow(version))
 
     clearAuthState()
     return false
+  }
+
+  /**
+   * Requests the session for one token and commits the identity on success.
+   * It never clears state, so the refresh flow and `fetchSession` choose their own
+   * reaction to a rejected token.
+   */
+  async function lookupSession(accessToken: string | null): Promise<SessionLookup> {
+    if (signingOut || accessToken !== token.value)
+      return 'unavailable'
+    const version = sessionVersion.value
+    let data: Awaited<ReturnType<typeof requestAuthSession>>
+    try {
+      data = await requestAuthSession(accessToken)
+    }
+    catch (error) {
+      console.warn('Session request failed', errorMessageFrom(error))
+      return 'unavailable'
+    }
+    // A refresh can replace the token without changing the user-intent version.
+    // Both must still match before identity or failure state is committed.
+    if (version !== sessionVersion.value || accessToken !== token.value)
+      return 'unavailable'
+    if (!data)
+      return 'unauthenticated'
+
+    user.value = data.user
+    session.value = data.session
+    verifiedSessionVersion.value = version
+    return 'authenticated'
   }
 
   async function listSessions() {
@@ -388,6 +483,7 @@ export const useAuthStore = defineStore('auth', () => {
   function clearAuthState(): void {
     signingOut = false
     inflightRefresh = null
+    refreshRetryAttempt = 0
     stopRefreshTimer()
     user.value = null
     session.value = null
