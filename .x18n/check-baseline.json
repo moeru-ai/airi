@@ -24,13 +24,6 @@
     {
       "path": ".",
       "code": "unused-key",
-      "key": "settings.pages.flux.description",
-      "message": "\"settings.pages.flux.description\" is not used.",
-      "count": 1
-    },
-    {
-      "path": ".",
-      "code": "unused-key",
       "key": "settings.pages.system.experimental.features.character_card_sync.description",
       "message": "\"settings.pages.system.experimental.features.character_card_sync.description\" is not used.",
       "count": 1
