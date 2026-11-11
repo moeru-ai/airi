@@ -1,12 +1,19 @@
 import type { BackgroundToContentMessage, ContentToBackgroundMessage, PageContextPayload, SubtitlePayload, VideoContextPayload, VideoSite, VisionFramePayload } from '../shared/types'
 
 import { detectSiteFromUrl, extractVideoId, normalizeText } from '../shared/sites'
+import { getYouTubeNavigation } from './youtube-navigation'
 
 const VIDEO_PROGRESS_INTERVAL = 15000
 const TITLE_POLL_INTERVAL = 2000
 const SUBTITLE_DEDUPE_WINDOW = 2000
 
 const lastPayloadByType = new Map<string, string>()
+
+/**
+ * Whether `yt-page-data-updated` came after the last `yt-navigate-start` on YouTube.
+ * It starts as `true`, because a page that loads from the start has no navigation in progress.
+ */
+let youtubePageDataUpdated = true
 
 function safeSend(message: ContentToBackgroundMessage) {
   const serialized = JSON.stringify(message.payload)
@@ -53,6 +60,13 @@ function buildVideoContext(site: VideoSite, video: HTMLVideoElement, includeProg
     volume: Number.isFinite(video.volume) ? Number(video.volume.toFixed(2)) : undefined,
     playbackRate: Number.isFinite(video.playbackRate) ? Number(video.playbackRate.toFixed(2)) : undefined,
     playerSize: rect.width && rect.height ? { width: Math.round(rect.width), height: Math.round(rect.height) } : undefined,
+    navigation: site === 'youtube'
+      ? getYouTubeNavigation({
+          url,
+          watchVideoId: document.querySelector('ytd-watch-flexy')?.getAttribute('video-id'),
+          pageDataUpdated: youtubePageDataUpdated,
+        })
+      : undefined,
   }
 }
 
@@ -237,6 +251,21 @@ function observeVideo(site: VideoSite) {
 
   const onPlayback = () => sendVideo(true)
 
+  // YouTube navigates without loading a new page. These events tell the navigation phase.
+  // The report goes out at once, so that the phase change does not wait for the title poll.
+  const onYouTubeNavigateStart = () => {
+    youtubePageDataUpdated = false
+    sendVideo(false)
+  }
+  const onYouTubePageDataUpdated = () => {
+    youtubePageDataUpdated = true
+    sendVideo(false)
+  }
+  if (site === 'youtube') {
+    document.addEventListener('yt-navigate-start', onYouTubeNavigateStart)
+    document.addEventListener('yt-page-data-updated', onYouTubePageDataUpdated)
+  }
+
   const attach = () => {
     const found = document.querySelector('video') as HTMLVideoElement | null
     if (!found || found === video)
@@ -277,6 +306,8 @@ function observeVideo(site: VideoSite) {
     window.clearInterval(interval)
     window.clearInterval(progressInterval)
     window.clearInterval(titleInterval)
+    document.removeEventListener('yt-navigate-start', onYouTubeNavigateStart)
+    document.removeEventListener('yt-page-data-updated', onYouTubePageDataUpdated)
     if (video) {
       video.removeEventListener('play', onPlayback)
       video.removeEventListener('pause', onPlayback)

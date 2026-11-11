@@ -13,10 +13,14 @@ import { SERVER_URL } from './server'
  * The reactive 401 path is the safety net.
  *
  * When refresh cannot succeed — missing state (refreshToken/oidcClientId),
- * refresh endpoint errors, or a retried request that still returns 401 —
+ * a rejected refresh token, or a retried request that still returns 401 —
  * clear local auth state and flip `needsLogin` so the user is prompted to
  * sign in immediately, instead of letting the dead session linger until the
  * next fetchSession call on the home page.
+ *
+ * A refresh that fails for a reason that can pass, such as a network error or
+ * a 5xx, keeps the refresh token. This wrapper then returns the 401 and keeps
+ * the credentials, because the auth store already scheduled a retry.
  *
  * Request headers apply unless `init.headers` replaces them. Each attempt clones
  * the Request so its body stays available for the retry.
@@ -58,7 +62,10 @@ export async function authedFetch(
     return response
 
   if (!newToken) {
-    await authStore.expireSession(version)
+    // The store clears the refresh token when the server rejects it. A remaining
+    // refresh token means that the refresh failed for a reason that can pass.
+    if (!authStore.refreshToken)
+      await authStore.expireSession(version)
     return response
   }
 
