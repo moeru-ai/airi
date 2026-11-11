@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, shallowRef, watch } from 'vue'
 
 import { useHearingStore } from './modules/hearing'
+import { useRealtimeCallStore } from './realtime-call'
 import { useSettingsAudioDevice } from './settings/audio-device'
 import { useVoiceStore } from './voice'
 
@@ -12,8 +13,11 @@ import { useVoiceStore } from './voice'
  * - `microphone-off`: the microphone switch closes the microphone for every feature. The user turns it on in Hearing.
  * - `denied`: the microphone permission was refused. The audio device store keeps the reason.
  * - `busy`: the caller's `canStart` refused, for example because a composer recording is open.
+ * - `no-host`: the call goes to another device of the account, and none answers calls now.
+ * - `host-rejected`: the other device is in a call, or it cannot run one.
+ * - `host-failed`: the connection to the other device failed. The realtime call store keeps the reason.
  */
-export type VoiceCallStartFailure = 'unconfigured' | 'microphone-off' | 'denied' | 'busy'
+export type VoiceCallStartFailure = 'unconfigured' | 'microphone-off' | 'denied' | 'busy' | 'no-host' | 'host-rejected' | 'host-failed'
 
 export interface VoiceCallStartOptions {
   /**
@@ -29,23 +33,28 @@ export interface VoiceCallStartOptions {
  *
  * The voice host owns listening, muting, and sending (`callActive`, `callMuted`). This store adds what the call UI
  * needs: when the call started.
+ * When the user chose to call a host, the call runs on another device of the account. This device then only sends
+ * its microphone and plays the answer, and the voice host of this device does not listen.
  * Use it only in the window that owns the voice host, because it calls the voice store directly.
  */
 export const useVoiceCallStore = defineStore('voice-call', () => {
   const voice = useVoiceStore()
   const hearing = useHearingStore()
   const devices = useSettingsAudioDevice()
+  const realtime = useRealtimeCallStore()
 
-  const startedAt = shallowRef<number>()
+  const localStartedAt = shallowRef<number>()
 
-  const active = computed(() => voice.callActive)
-  const muted = computed(() => voice.callMuted)
+  const remote = computed(() => realtime.role === 'endpoint')
+  const active = computed(() => voice.callActive || remote.value)
+  const muted = computed(() => remote.value ? realtime.muted : voice.callMuted)
+  const startedAt = computed(() => remote.value ? realtime.startedAt : localStartedAt.value)
 
   // The host can end a call by itself, for example when its scope is disposed. The UI state follows.
-  watch(active, (value) => {
+  watch(() => voice.callActive, (value) => {
     if (value)
       return
-    startedAt.value = undefined
+    localStartedAt.value = undefined
   })
 
   // Without a transcription provider, or with Hearing off, a call starts no input. Its controls would say that it
@@ -68,8 +77,10 @@ export const useVoiceCallStore = defineStore('voice-call', () => {
    */
   async function start(options: VoiceCallStartOptions = {}): Promise<VoiceCallStartFailure | undefined> {
     const canStart = options.canStart ?? (() => true)
-    if (voice.callActive)
+    if (active.value)
       return undefined
+    if (realtime.callsHost)
+      return startRemote(canStart)
     if (!hearing.configured)
       return 'unconfigured'
     if (devices.off)
@@ -89,17 +100,39 @@ export const useVoiceCallStore = defineStore('voice-call', () => {
     if (!canStart())
       return 'busy'
 
-    startedAt.value = Date.now()
+    localStartedAt.value = Date.now()
     voice.startCall()
     return undefined
   }
 
+  /** The host runs Hearing and owns the microphone rules. This device only needs a free composer and a host. */
+  async function startRemote(canStart: () => boolean): Promise<VoiceCallStartFailure | undefined> {
+    if (!canStart())
+      return 'busy'
+    const host = await realtime.findHost()
+    if (!host)
+      return 'no-host'
+    if (!canStart())
+      return 'busy'
+
+    const failure = await realtime.startCall(host.deviceId)
+    if (failure === 'rejected')
+      return 'host-rejected'
+    return failure === 'failed' ? 'host-failed' : undefined
+  }
+
   function hangUp() {
-    voice.endCall()
+    if (remote.value)
+      realtime.hangUp()
+    else
+      voice.endCall()
   }
 
   function toggleMuted() {
-    voice.setCallMuted(!voice.callMuted)
+    if (remote.value)
+      realtime.toggleMuted()
+    else
+      voice.setCallMuted(!voice.callMuted)
   }
 
   return { active, muted, startedAt, start, hangUp, toggleMuted }

@@ -142,6 +142,9 @@ chat:
     microphone-off: 麦克风已关闭。请在听觉设置中打开麦克风，再开始语音通话。
     busy: 请先结束或取消录音，再开始语音通话。
     configure-description: 请在听觉设置中选择转录服务和模型，才能开始语音通话。
+    no-host: 你的设备中现在没有可以接听通话的。请在运行角色的设备上打开 AIRI，并开启「接听通话」。
+    host-rejected: 对方设备正在通话，或暂时无法开始通话。
+    host-failed: AIRI 无法连接到对方设备。
   notice:
     label: '后台汇报 {name}'
   background-tasks:

@@ -4,12 +4,14 @@ import { errorMessageFrom } from '@moeru/std'
 import { VoiceController } from '@proj-airi/core-agent'
 import { markRaw, onScopeDispose, shallowRef, watch } from 'vue'
 
+import { useRealtimeAudioStore } from '../../stores/realtime-audio'
 import { useSettingsAudioDevice } from '../../stores/settings/audio-device'
 
 /**
  * Binds controller observations to Vue.
  *
- * The controller subscribes to the selected microphone input. A device change moves future inputs and
+ * The controller subscribes to the selected microphone input, or to the endpoint of a realtime call that this
+ * device hosts. A change of the input moves future inputs and
  * plugin observations to the new input, and the old device closes once nothing subscribes to it.
  * The playback of the speech is a Web Audio graph, so output plugins can connect `AudioNode` consumers to it.
  */
@@ -20,8 +22,11 @@ export function useVoiceController(options: Omit<VoiceControllerOptions<AudioNod
   const error = shallowRef<string>()
   let inputId: string | undefined
   let stopState: (() => void) | undefined
-  const controller = markRaw(new VoiceController<AudioNode>({ ...options, audio: devices.input }))
-  watch(() => devices.input, input => controller.replaceAudio(input), { flush: 'sync' })
+  const realtimeAudio = useRealtimeAudioStore()
+  // A realtime call that this device hosts replaces the microphone with the audio of the endpoint.
+  const selectedInput = () => realtimeAudio.input ?? devices.input
+  const controller = markRaw(new VoiceController<AudioNode>({ ...options, audio: selectedInput() }))
+  watch(selectedInput, input => controller.replaceAudio(input), { flush: 'sync' })
 
   controller.onInput((attempt) => {
     inputId = attempt.id

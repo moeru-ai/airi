@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { FieldInput } from '@proj-airi/ui'
+import { FieldCheckbox, FieldInput } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useModsServerChannelStore } from '../../../../stores/mods/api/channel-server'
+import { useRealtimeCallStore } from '../../../../stores/realtime-call'
 
 const props = withDefaults(defineProps<{
   /** Disables the server address field when the runtime owns its value. */
@@ -15,6 +16,7 @@ const props = withDefaults(defineProps<{
 
 const { t } = useI18n()
 const { websocketUrl } = storeToRefs(useModsServerChannelStore())
+const { answersCalls, callsHost } = storeToRefs(useRealtimeCallStore())
 
 const websocketUrlModel = computed({
   get() {
@@ -44,5 +46,15 @@ const websocketUrlModel = computed({
       :disabled="props.serverAddressDisabled"
     />
     <slot name="platform-specific" />
+    <FieldCheckbox
+      v-model="answersCalls"
+      :label="t('settings.pages.connection.realtime.answers-calls.label')"
+      :description="t('settings.pages.connection.realtime.answers-calls.description')"
+    />
+    <FieldCheckbox
+      v-model="callsHost"
+      :label="t('settings.pages.connection.realtime.calls-host.label')"
+      :description="t('settings.pages.connection.realtime.calls-host.description')"
+    />
   </div>
 </template>

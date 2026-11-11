@@ -33,6 +33,7 @@ import { useChatStore } from './chat'
 import { useChatSessionStore } from './chat/session-store'
 import { startsInputOnSpeech, useHearingStore } from './modules/hearing'
 import { useSpeechStore } from './modules/speech'
+import { useRealtimeAudioStore } from './realtime-audio'
 import { useSettingsAudioDevice } from './settings/audio-device'
 import { useSpeakerTrackerStore } from './speaker-tracker'
 import { useVoiceCaptureLeaseStore } from './voice-capture-lease'
@@ -55,6 +56,7 @@ const VOICE_END_SILENCE = { pauseMs: 1200, graceMs: 3000 } as const
 /** Application wiring owns presentation and durable chat adapters. The controller owns voice lifecycles. */
 export const useVoiceStore = defineStore('voice', () => {
   const devices = useSettingsAudioDevice()
+  const realtimeAudio = useRealtimeAudioStore()
   const hearing = useHearingStore()
   const speechSettings = useSpeechStore()
   const chat = useChatStore()
@@ -607,7 +609,8 @@ export const useVoiceStore = defineStore('voice', () => {
       enabled: () => !voiceMessages.isRecording && !captureLease.held && (!callActive.value || !callMuted.value),
       silenceMs: () => hearing.endJudgeEnabled ? VOICE_END_SILENCE.pauseMs + VOICE_END_SILENCE.graceMs : VOICE_END_SILENCE.pauseMs,
       // Automatic barge-in requires platform echo cancellation or an external echo classifier.
-      acceptSpeech: options.acceptSpeech ?? (async () => !speaking.nowSpeaking || devices.source.echoCancellation),
+      // The endpoint of a realtime call cancels the echo before it sends its audio.
+      acceptSpeech: options.acceptSpeech ?? (async () => !speaking.nowSpeaking || !!realtimeAudio.input || devices.source.echoCancellation),
       // Wake word mode returns no target, so VAD alone cannot start an input. A wake supplies its own target.
       // A call starts an input on speech in every input mode.
       target: () => sessions.activeSessionId && hearing.configured && (callActive.value || startsInputOnSpeech(hearing.inputMode))

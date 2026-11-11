@@ -1,6 +1,7 @@
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
+import { useRealtimeCallStore } from '../../../../stores/realtime-call'
 import { useSettingsAudioDevice } from '../../../../stores/settings/audio-device'
 import { useVoiceCallStore } from '../../../../stores/voice-call'
 
@@ -16,6 +17,7 @@ export function useStartVoiceCall(
   const { t } = useI18n()
   const call = useVoiceCallStore()
   const devices = useSettingsAudioDevice()
+  const realtime = useRealtimeCallStore()
 
   return async function startVoiceCall() {
     const failure = await call.start({ canStart })
@@ -33,6 +35,15 @@ export function useStartVoiceCall(
     }
     else if (failure === 'busy') {
       toast(t('stage.chat.call.failed'), { description: t('stage.chat.call.busy') })
+    }
+    else if (failure === 'no-host') {
+      toast(t('stage.chat.call.failed'), { description: t('stage.chat.call.no-host') })
+    }
+    else if (failure === 'host-rejected') {
+      toast(t('stage.chat.call.failed'), { description: t('stage.chat.call.host-rejected') })
+    }
+    else if (failure === 'host-failed') {
+      toast.error(t('stage.chat.call.failed'), { description: realtime.error ?? t('stage.chat.call.host-failed') })
     }
     else if (failure === 'denied') {
       toast.error(t('stage.chat.call.failed'), { description: devices.error ?? t('stage.chat.call.microphone-denied') })

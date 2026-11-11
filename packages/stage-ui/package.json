@@ -104,6 +104,8 @@
     "@proj-airi/model-driver-magic-live2d": "workspace:^",
     "@proj-airi/motion-driver-magic": "workspace:^",
     "@proj-airi/pipelines-audio": "workspace:^",
+    "@proj-airi/realtime-protocol": "workspace:^",
+    "@proj-airi/realtime-transport-livekit": "workspace:^",
     "@proj-airi/provider-inference": "workspace:^",
     "@proj-airi/server-sdk": "workspace:^",
     "@proj-airi/server-sdk-shared": "workspace:^",

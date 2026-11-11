@@ -364,6 +364,7 @@ catalog:
   kokoro-js: ^1.2.1
   kysely: 0.29.5
   less: ^4.9.0
+  livekit-client: ^2.23.0
   libsodium-wrappers: ^0.8.4
   localforage: ^1.10.0
   mediabunny: ^1.55.2

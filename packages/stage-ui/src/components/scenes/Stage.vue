@@ -50,6 +50,8 @@ import { useSettingsPresenceBubble } from '../../stores/presence-bubble'
 import { useSettings } from '../../stores/settings'
 import { useSettingsStageModel } from '../../stores/settings/stage-model'
 import { useSpeechOutputControlStore } from '../../stores/speech-output-control'
+import { useRealtimeAudioStore } from '../../stores/realtime-audio'
+import { useRealtimeCallStore } from '../../stores/realtime-call'
 import { useVoiceStore } from '../../stores/voice'
 
 const props = withDefaults(defineProps<{
@@ -373,6 +375,9 @@ let disconnectLipSync: (() => void) | undefined
 let disconnectAnalyser: (() => void) | undefined
 
 const voice = useVoiceStore()
+const realtimeAudio = useRealtimeAudioStore()
+// A window with a Stage owns the voice host, so it can answer the realtime calls of the account.
+useRealtimeCallStore()
 const avatarTouch = useAvatarTouchStore()
 // A burst of touches on the avatar becomes one notification for the character.
 // The avatar already plays its own reaction, so a skipped notification still shows the touch.
@@ -387,7 +392,11 @@ const avatarTouchAggregator = createAvatarTouchAggregator({
 // Lip sync and the spectrum analyser connect to the playback through voice output plugins.
 // The playback connects them before this volume, so a low volume does not change the mouth or the analyser.
 const speechDestination = audioContext.createGain()
-speechDestination.connect(audioContext.destination)
+// A realtime call that this device hosts sends the speech to the endpoint. The speakers of this device stay silent.
+watch(() => realtimeAudio.speechSink, (sink) => {
+  speechDestination.disconnect()
+  speechDestination.connect(sink ?? audioContext.destination)
+}, { immediate: true, flush: 'sync' })
 /** Connects a renderer node, for example the VRM or MMD lip sync worklet, to the played speech. */
 const connectSpeech = (node: AudioNode) => voice.connectSpeechNode(node)
 // setTargetAtTime smooths slider drags into the gain, so volume changes do not click.
@@ -526,6 +535,29 @@ watch(speechMuted, (muted) => {
     for (const turn of voice.activeTurns)
       voice.getSpeech(turn)?.cancel('Speech muted')
   }
+})
+
+// In a realtime call to a host, the speech arrives as a media track. It plays through the speech volume and moves
+// the mouth of the Live2D model. This device runs no speech synthesis for it, so no playback hook reports speaking.
+watch(() => realtimeAudio.remoteSpeech, async (stream, _previous, onCleanup) => {
+  if (!stream)
+    return
+
+  let stopped = false
+  const source = audioContext.createMediaStreamSource(stream)
+  source.connect(speechDestination)
+  onCleanup(() => {
+    stopped = true
+    source.disconnect()
+    resetSpeakingState()
+  })
+
+  await setupLipSync()
+  if (stopped)
+    return
+  if (live2dLipSync.value)
+    source.connect(live2dLipSync.value.node)
+  nowSpeaking.value = true
 })
 
 // Only a reply that speaks drives speech and expression. Background work and scene replies never speak here.

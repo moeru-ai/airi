@@ -2399,6 +2399,13 @@ pages:
   connection:
     description: Configure WebSocket server connection
     title: Connection
+    realtime:
+      answers-calls:
+        label: Answer calls
+        description: Your other signed-in devices can call the character on this device. This device listens to the caller and sends the reply.
+      calls-host:
+        label: Call through another device
+        description: A voice call uses the character on a signed-in device that answers calls. This device sends the microphone and plays the reply.
     websocket-url:
       description: The address that this app uses to connect to the local server.
       label: Server Address

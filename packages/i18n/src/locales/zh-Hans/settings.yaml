@@ -2198,6 +2198,13 @@ pages:
   connection:
     description: 配置 WebSocket 服务器连接
     title: 连接
+    realtime:
+      answers-calls:
+        label: 接听通话
+        description: 你登录了同一账号的其他设备可以呼叫这台设备上的角色。这台设备聆听来电方的声音并发送回复。
+      calls-host:
+        label: 通过其他设备通话
+        description: 语音通话使用另一台已登录且开启接听的设备上的角色。这台设备只发送麦克风声音并播放回复。
     websocket-url:
       description: 此应用连接本地服务器时使用的地址。
       label: 服务器地址

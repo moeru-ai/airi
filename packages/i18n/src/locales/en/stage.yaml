@@ -135,6 +135,9 @@ chat:
     microphone-off: The microphone is turned off. Turn it on in Hearing to start a voice call.
     busy: Finish or cancel the recording first, then start the voice call.
     configure-description: Select a transcription provider and model in Hearing to start a voice call.
+    no-host: None of your devices answers calls now. Open AIRI on the device that runs your character, and turn on Answer calls.
+    host-rejected: The other device is in a call, or it cannot start one.
+    host-failed: AIRI cannot connect to the other device.
   notice:
     label: 'Background report from {name}'
   background-tasks:
