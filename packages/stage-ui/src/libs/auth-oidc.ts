@@ -137,9 +137,49 @@ export async function refreshAccessToken(
   })
 
   if (!response.ok)
-    throw new Error(`Token refresh failed: ${response.status}`)
+    throw new TokenRefreshError(response.status, await readOAuthErrorCode(response))
 
   return await response.json()
+}
+
+/**
+ * The token endpoint answered a refresh with an error status.
+ *
+ * The auth store reads `rejected` to choose between two outcomes. A rejected
+ * refresh token cannot work again, so the store clears the credentials and asks
+ * the user to sign in. Any other answer, for example a 5xx or a 429, can pass,
+ * so the store keeps the credentials and retries later. A network error never
+ * produces this class, because `fetch` rejects before a status exists.
+ */
+export class TokenRefreshError extends Error {
+  constructor(
+    readonly status: number,
+    /** The OAuth `error` field of the answer, for example `invalid_grant`. Undefined when the body has no such field. */
+    readonly code?: string,
+  ) {
+    super(`Token refresh failed: ${status}${code ? ` ${code}` : ''}`)
+    this.name = 'TokenRefreshError'
+  }
+
+  /**
+   * True when the server refused the grant or the client.
+   * RFC 6749 section 5.2 answers `invalid_grant`, `invalid_client`, and the other OAuth errors with 400 or 401.
+   */
+  get rejected(): boolean {
+    return this.status === 400 || this.status === 401
+  }
+}
+
+async function readOAuthErrorCode(response: Response): Promise<string | undefined> {
+  try {
+    const body: unknown = await response.json()
+    if (typeof body === 'object' && body !== null && 'error' in body && typeof body.error === 'string')
+      return body.error
+  }
+  catch {
+    // A proxy or gateway can answer with HTML or an empty body. The status alone then decides the outcome.
+  }
+  return undefined
 }
 
 // Session storage keys for PKCE flow state (survives page navigation during OAuth)

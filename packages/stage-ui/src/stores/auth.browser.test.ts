@@ -21,7 +21,7 @@ vi.mock('better-auth/vue', async (importOriginal) => {
 
 describe('authentication request ownership', () => {
   let pinia: ReturnType<typeof createPinia>
-  const requests: Array<{ path: string, resolve: (response: Response) => void }> = []
+  const requests: Array<{ path: string, resolve: (response: Response) => void, reject: (error: Error) => void }> = []
 
   beforeEach(() => {
     localStorage.clear()
@@ -32,7 +32,7 @@ describe('authentication request ownership', () => {
       const url = input instanceof Request ? input.url : input.toString()
       if (url.includes('/flux'))
         return Promise.resolve(Response.json({ flux: 0 }))
-      return new Promise(resolve => requests.push({ path: new URL(url).pathname, resolve }))
+      return new Promise((resolve, reject) => requests.push({ path: new URL(url).pathname, resolve, reject }))
     })
   })
 
@@ -46,6 +46,12 @@ describe('authentication request ownership', () => {
     await vi.waitFor(() => expect(requests.map(request => request.path)).toContain(path))
     const index = requests.findIndex(request => request.path === path)
     requests.splice(index, 1)[0]!.resolve(Response.json(body, { status }))
+  }
+
+  async function failNetwork(path: string) {
+    await vi.waitFor(() => expect(requests.map(request => request.path)).toContain(path))
+    const index = requests.findIndex(request => request.path === path)
+    requests.splice(index, 1)[0]!.reject(new TypeError('Failed to fetch'))
   }
 
   function identity(id: string) {
@@ -285,5 +291,63 @@ describe('authentication request ownership', () => {
     expect((await pending).status).toBe(401)
     expect(useAuthStore().user?.id).toBe('second')
     expect(requests).toHaveLength(0)
+  })
+
+  // ROOT CAUSE:
+  //
+  // `requestAuthSession` returned null for every error answer, so a 5xx looked
+  // like a rejected token. `fetchSession` then cleared the complete auth state.
+  //
+  // We fixed this by throwing for every error status except 401. The store keeps its state for a thrown error.
+  it('keeps the session when get-session answers 503', async () => {
+    await signIn('first')
+    const store = useAuthStore()
+    const pending = store.fetchSession()
+    await reply('/api/auth/get-session', { message: 'Service Unavailable' }, 503)
+    expect(await pending).toBe(false)
+    expect(store.token).toBe('first')
+    expect(store.refreshToken).toBe('first-refresh')
+    expect(store.user?.id).toBe('first')
+  })
+
+  it('keeps the session when get-session cannot reach the server', async () => {
+    await signIn('first')
+    const store = useAuthStore()
+    const pending = store.fetchSession()
+    await failNetwork('/api/auth/get-session')
+    expect(await pending).toBe(false)
+    expect(store.token).toBe('first')
+    expect(store.user?.id).toBe('first')
+  })
+
+  it('refreshes once when get-session rejects the current token', async () => {
+    await signIn('first')
+    const store = useAuthStore()
+    const pending = store.fetchSession()
+    await reply('/api/auth/get-session', null)
+    await reply('/api/auth/oauth2/token', { access_token: 'renewed', refresh_token: 'renewed-refresh', expires_in: 3600 })
+    await reply('/api/auth/get-session', identity('first'))
+    expect(await pending).toBe(true)
+    expect(store.token).toBe('renewed')
+    expect(store.user?.id).toBe('first')
+  })
+
+  it('keeps the credentials without a login request when an API refresh hits a 503', async () => {
+    vi.stubEnv('RUNTIME_ENVIRONMENT', 'electron')
+    try {
+      await signIn('first')
+      const store = useAuthStore()
+      const pending = authedFetch('https://api.example.test/action')
+      await reply('/action', {}, 401)
+      await reply('/api/auth/oauth2/token', { error: 'temporarily_unavailable' }, 503)
+      expect((await pending).status).toBe(401)
+      expect(store.needsLogin).toBe(false)
+      expect(store.token).toBe('first')
+      expect(store.refreshToken).toBe('first-refresh')
+      expect(localStorage.getItem('auth/v1/refresh-token')).toBe('first-refresh')
+    }
+    finally {
+      vi.unstubAllEnvs()
+    }
   })
 })
