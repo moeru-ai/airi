@@ -99,7 +99,13 @@ export class VideoNotifyGate<T extends VideoNotifyReport> {
   report(next: T, tabId?: number) {
     const key = next.videoId || next.url
     const title = normalizeVideoTitle(next.title ?? '')
-    if (!key || !title || this.notifiedVideoKeys.has(key))
+    if (!key || !title)
+      return
+
+    // The tab shows this video now, even when the video cannot notify again.
+    // So clean up the tab first, and check for a notified video after it.
+    this.forgetOtherVideosOfTab(key, tabId)
+    if (this.notifiedVideoKeys.has(key))
       return
 
     if (next.navigation) {
@@ -141,12 +147,10 @@ export class VideoNotifyGate<T extends VideoNotifyReport> {
 
     if (navigation.phase === 'changing') {
       // The title can still belong to the previous video. Nothing waits for this video yet.
-      // A video that the tab showed before is left, so it must not notify either.
       if (pending) {
         clearTimeout(pending.timer)
         this.pendingVideos.delete(key)
       }
-      this.forgetOtherVideosOfTab(key, tabId)
       return
     }
 
@@ -168,7 +172,6 @@ export class VideoNotifyGate<T extends VideoNotifyReport> {
       this.pendingVideos.delete(key)
     }
 
-    this.forgetOtherVideosOfTab(key, tabId)
     this.pendingVideos.set(key, { title, report: next, tabId, dwell, timer: setTimeout(() => this.settle(key), delay) })
 
     if (this.pendingVideos.size > PENDING_VIDEO_LIMIT) {

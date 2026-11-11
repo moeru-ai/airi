@@ -357,6 +357,22 @@ describe('video notify gate', () => {
 
       expect(onSettle).not.toHaveBeenCalled()
     })
+
+    it('does not notify a waiting video when the user returns to a notified video', () => {
+      const onSettle = vi.fn()
+      const gate = new VideoNotifyGate(onSettle)
+      gate.report(navigationReport('a', 'Song A', 'ready'), 1)
+      vi.advanceTimersByTime(3_000)
+      onSettle.mockClear()
+      vi.advanceTimersByTime(30_000)
+
+      gate.report(navigationReport('b', 'Song B', 'ready'), 1)
+      vi.advanceTimersByTime(1_000)
+      gate.report(navigationReport('a', 'Song A', 'ready'), 1)
+      vi.advanceTimersByTime(10_000)
+
+      expect(onSettle).not.toHaveBeenCalled()
+    })
   })
 
   it('stops pending timers on dispose', () => {
