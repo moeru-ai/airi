@@ -6,6 +6,7 @@ import { nextTick } from 'vue'
 
 import { triggerSignIn } from '../libs/auth'
 import { requestAuthSession } from '../libs/auth-client'
+import { refreshAccessToken, TokenRefreshError } from '../libs/auth-oidc'
 import { useAuthStore } from './auth'
 
 vi.mock('../libs/auth', () => ({
@@ -19,7 +20,8 @@ vi.mock('../libs/auth-client', () => ({
   requestAuthSession: vi.fn(),
 }))
 
-vi.mock('../libs/auth-oidc', () => ({
+vi.mock('../libs/auth-oidc', async importOriginal => ({
+  ...await importOriginal<typeof import('../libs/auth-oidc')>(),
   refreshAccessToken: vi.fn(),
 }))
 
@@ -183,5 +185,175 @@ describe('auth store sign-in requests', () => {
     await nextTick()
 
     expect(storage.values.size).toBe(0)
+  })
+})
+
+describe('auth store refresh failures', () => {
+  let storage: MemoryStorage
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    storage = new MemoryStorage()
+    vi.stubGlobal('localStorage', storage)
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ flux: 0 })))
+    setActivePinia(createPinia())
+    vi.mocked(triggerSignIn).mockReset()
+    vi.mocked(triggerSignIn).mockResolvedValue()
+    vi.mocked(requestAuthSession).mockReset()
+    vi.mocked(requestAuthSession).mockResolvedValue({ user, session })
+    vi.mocked(refreshAccessToken).mockReset()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+
+  async function signIn() {
+    const authStore = useAuthStore()
+    await authStore.completeSignIn({
+      accessToken: 'access-token',
+      refreshToken: 'refresh-token',
+      idToken: 'id-token',
+      expiresIn: 3600,
+      clientId: 'airi-stage-web',
+    })
+    return authStore
+  }
+
+  function expectCredentialsKept(authStore: ReturnType<typeof useAuthStore>, accessToken = 'access-token', refreshToken = 'refresh-token') {
+    expect(authStore.token).toBe(accessToken)
+    expect(authStore.refreshToken).toBe(refreshToken)
+    expect(authStore.oidcClientId).toBe('airi-stage-web')
+    expect(storage.getItem('auth/v1/token')).toBe(accessToken)
+    expect(storage.getItem('auth/v1/refresh-token')).toBe(refreshToken)
+  }
+
+  // ROOT CAUSE:
+  //
+  // `refreshTokenNow` cleared the auth state for every refresh error.
+  // A network blip or a 5xx deleted the refresh token.
+  //
+  // We fixed this by clearing only on a rejected refresh token (400 or 401).
+  // Other failures keep the credentials and retry with a doubling delay.
+  it('keeps the credentials and retries when a refresh hits a network error', async () => {
+    const authStore = await signIn()
+    vi.mocked(refreshAccessToken).mockRejectedValue(new TypeError('Failed to fetch'))
+
+    expect(await authStore.refreshTokenNow()).toBeNull()
+
+    expectCredentialsKept(authStore)
+    expect(authStore.isAuthenticated).toBe(true)
+    expect(authStore.needsLogin).toBe(false)
+    expect(refreshAccessToken).toHaveBeenCalledTimes(1)
+
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(refreshAccessToken).toHaveBeenCalledTimes(2)
+
+    // The second failure doubles the delay.
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(refreshAccessToken).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(refreshAccessToken).toHaveBeenCalledTimes(3)
+    expectCredentialsKept(authStore)
+  })
+
+  it('keeps the credentials when the token endpoint answers 503', async () => {
+    const authStore = await signIn()
+    vi.mocked(refreshAccessToken).mockRejectedValue(new TokenRefreshError(503))
+
+    expect(await authStore.refreshTokenNow()).toBeNull()
+
+    expectCredentialsKept(authStore)
+    expect(authStore.isAuthenticated).toBe(true)
+    expect(triggerSignIn).not.toHaveBeenCalled()
+  })
+
+  it('clears the credentials and requests sign-in when the refresh token is rejected', async () => {
+    const authStore = await signIn()
+    vi.mocked(refreshAccessToken).mockRejectedValue(new TokenRefreshError(400, 'invalid_grant'))
+
+    expect(await authStore.refreshTokenNow()).toBeNull()
+    await nextTick()
+
+    expect(authStore.token).toBeNull()
+    expect(authStore.refreshToken).toBeNull()
+    expect(authStore.isAuthenticated).toBe(false)
+    expect(storage.values.size).toBe(0)
+    expect(triggerSignIn).toHaveBeenCalledTimes(1)
+
+    // A rejected refresh token stops the retries.
+    await vi.advanceTimersByTimeAsync(10 * 60_000)
+    expect(refreshAccessToken).toHaveBeenCalledTimes(1)
+  })
+
+  // ROOT CAUSE:
+  //
+  // A thrown session request after the rotation reached the refresh catch block.
+  // Its guard matched the new token, so it cleared the new credentials.
+  //
+  // We fixed this by treating a session request without an answer as unavailable.
+  // The rotated tokens stay.
+  it('keeps the rotated tokens when the session request after a refresh fails', async () => {
+    const authStore = await signIn()
+    vi.mocked(refreshAccessToken).mockResolvedValue({
+      access_token: 'rotated-access-token',
+      refresh_token: 'rotated-refresh-token',
+      token_type: 'Bearer',
+      expires_in: 3600,
+    })
+    vi.mocked(requestAuthSession).mockRejectedValue(new TypeError('Failed to fetch'))
+
+    expect(await authStore.refreshTokenNow()).toBe('rotated-access-token')
+
+    expectCredentialsKept(authStore, 'rotated-access-token', 'rotated-refresh-token')
+    expect(authStore.user).toEqual(user)
+  })
+
+  // ROOT CAUSE:
+  //
+  // On startup, a null session for an unexpired token cleared the state.
+  // No refresh and no sign-in request happened.
+  //
+  // We fixed this by refreshing once when the server rejects the access token.
+  // A rejected refresh then clears the state and requests sign-in.
+  it('refreshes once on startup before it clears a rejected session', async () => {
+    storage.values.set('auth/v1/token', 'persisted-access-token')
+    storage.values.set('auth/v1/refresh-token', 'persisted-refresh-token')
+    storage.values.set('auth/v1/oidc-client-id', 'airi-stage-web')
+    storage.values.set('auth/v1/oidc-token-expiry', String(Date.now() + 60_000))
+    vi.mocked(requestAuthSession).mockResolvedValue(null)
+    vi.mocked(refreshAccessToken).mockRejectedValue(new TokenRefreshError(400, 'invalid_grant'))
+    const authStore = useAuthStore()
+
+    await authStore.initialize()
+    await nextTick()
+
+    expect(refreshAccessToken).toHaveBeenCalledExactlyOnceWith('airi-stage-web', 'persisted-refresh-token')
+    expect(authStore.token).toBeNull()
+    expect(storage.values.size).toBe(0)
+    expect(triggerSignIn).toHaveBeenCalledTimes(1)
+  })
+
+  it('restores the session on startup when the refresh after a rejected session succeeds', async () => {
+    storage.values.set('auth/v1/token', 'persisted-access-token')
+    storage.values.set('auth/v1/refresh-token', 'persisted-refresh-token')
+    storage.values.set('auth/v1/oidc-client-id', 'airi-stage-web')
+    storage.values.set('auth/v1/oidc-token-expiry', String(Date.now() + 60_000))
+    vi.mocked(requestAuthSession).mockResolvedValueOnce(null)
+    vi.mocked(refreshAccessToken).mockResolvedValue({
+      access_token: 'rotated-access-token',
+      refresh_token: 'rotated-refresh-token',
+      token_type: 'Bearer',
+      expires_in: 3600,
+    })
+    const authStore = useAuthStore()
+
+    await authStore.initialize()
+
+    expect(refreshAccessToken).toHaveBeenCalledTimes(1)
+    expect(requestAuthSession).toHaveBeenLastCalledWith('rotated-access-token')
+    expect(authStore.token).toBe('rotated-access-token')
+    expect(authStore.isAuthenticated).toBe(true)
   })
 })

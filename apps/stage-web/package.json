@@ -48,6 +48,7 @@
     "@proj-airi/ui": "workspace:^",
     "@proj-airi/ui-loading-screens": "workspace:^",
     "@proj-airi/ui-transitions": "workspace:^",
+    "@sentry/browser": "catalog:",
     "@tresjs/cientos": "catalog:",
     "@tresjs/core": "catalog:",
     "@valibot/to-json-schema": "catalog:",
