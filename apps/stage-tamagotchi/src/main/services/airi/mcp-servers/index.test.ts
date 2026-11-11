@@ -294,6 +294,35 @@ describe('createMcpManager', () => {
     expect(effects).toBe(1)
   })
 
+  // https://github.com/moeru-ai/airi/pull/3473
+  // ROOT CAUSE:
+  //
+  // The manager rejected invalid names and missing sessions before transport dispatch.
+  // The shared MCP tool wrapper treated every rejection as an unknown outcome.
+  // We now return a typed error result before dispatch and reserve rejections for transport failures.
+  it.each([
+    { scenario: 'an invalid tool name', serverNames: ['terminal'], name: 'invalid-name', error: 'invalid qualified tool name: invalid-name' },
+    { scenario: 'an inactive server', serverNames: [], name: 'offline::write', error: 'mcp server is not running: offline' },
+  ])('marks $scenario as failed before dispatch', async ({ serverNames, name, error }) => {
+    const manager = await startServers(...serverNames)
+    const context = createContext<ElectronMainContextExtensions, ElectronMainEmitOptions>()
+    createMcpServersService({ context, manager })
+    const callMcpTool = defineInvoke(context, electronMcpCallTool)
+    const [, callTool] = await Promise.all(createMcpTools({
+      listTools: async () => [],
+      callTool: payload => callMcpTool(payload),
+    }))
+
+    const result = await callTool.execute({ name, arguments: '{}' }, { messages: [], toolCallId: 'failed-before-dispatch' })
+
+    expect(result).toEqual({
+      dispatchOutcome: 'failed_before_dispatch',
+      isError: true,
+      content: [{ type: 'text', text: error }],
+    })
+    expect(clientMocks.callTool).not.toHaveBeenCalled()
+  })
+
   it('does not guess another tool when the requested tool is absent', async () => {
     const manager = await startServers('terminal')
     const error = new Error('Unknown tool: missing::write')

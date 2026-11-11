@@ -73,7 +73,8 @@ export interface McpCallToolResult {
  * - A concrete runtime such as Electron needs to provide MCP access without a singleton bridge
  *
  * Expects:
- * - `listTools` and `callTool` are safe to call multiple times
+ * - `listTools` can be called multiple times
+ * - Each `callTool` call can produce side effects. Do not retry when the outcome is unknown.
  *
  * Returns:
  * - An object that can back `createMcpTools`

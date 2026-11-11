@@ -94,6 +94,14 @@ function parseQualifiedToolName(name: string) {
   }
 }
 
+function failedBeforeDispatchResult(error: unknown): ElectronMcpCallToolResult {
+  return {
+    dispatchOutcome: 'failed_before_dispatch',
+    isError: true,
+    content: [{ type: 'text', text: errorMessageFrom(error) ?? 'Unknown error.' }],
+  }
+}
+
 async function closeSession(session: McpServerSession) {
   try {
     await session.client.close()
@@ -321,11 +329,18 @@ export function createMcpManager(): McpManager {
   }
 
   const callTool = async (payload: ElectronMcpCallToolPayload): Promise<ElectronMcpCallToolResult> => {
-    const { serverName, toolName } = parseQualifiedToolName(payload.name)
-    const session = sessions.get(serverName)
-    if (!session) {
-      throw new Error(`mcp server is not running: ${serverName}`)
+    let qualifiedToolName: ReturnType<typeof parseQualifiedToolName>
+    try {
+      qualifiedToolName = parseQualifiedToolName(payload.name)
     }
+    catch (error) {
+      return failedBeforeDispatchResult(error)
+    }
+
+    const { serverName, toolName } = qualifiedToolName
+    const session = sessions.get(serverName)
+    if (!session)
+      return failedBeforeDispatchResult(new Error(`mcp server is not running: ${serverName}`))
 
     const result = await session.client.callTool({
       name: toolName,
