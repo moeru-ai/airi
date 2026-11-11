@@ -1604,11 +1604,11 @@ pages:
         json-applied: JSON 已经解析完成了，点「保存并重启」就写到磁盘上啦。
         restarted: 重启好啦！启动了 {started} 个，失败 {failed} 个，跳过 {skipped} 个
   flux:
-    balanceHint: 购买的 Flux 不会过期。没有订阅时，聊天和语音会使用它。
-    sections:
+    tabs:
       subscription: 订阅
-    oneTime:
-      unfold: 只想先试试？单次购买 Flux
+      flux: Flux 电量
+      history: 使用记录
+    balanceHint: 购买的 Flux 不会过期。没有订阅时，聊天和语音会使用它。
     title: Flux 电量
     buy: 充值
     currency: 币种

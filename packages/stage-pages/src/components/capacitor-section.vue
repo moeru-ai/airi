@@ -218,9 +218,6 @@ async function handleSubscribe(pkg: CapacitorPackage) {
 
 <template>
   <section data-testid="capacitor-section" :class="['flex flex-col gap-4']">
-    <h2 :class="['text-lg font-semibold']">
-      {{ t('settings.pages.flux.sections.subscription') }}
-    </h2>
 
     <Alert
       v-if="message"

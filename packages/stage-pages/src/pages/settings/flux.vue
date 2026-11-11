@@ -20,7 +20,7 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
-const { credits, isAuthenticated, capacitorPercent } = storeToRefs(authStore)
+const { credits, isAuthenticated } = storeToRefs(authStore)
 const {
   trackCheckoutStarted,
   trackPaywallSeen,
@@ -34,12 +34,26 @@ const fluxPurchaseDisabled = isFluxPurchaseDisabled()
 /** The page leads with the Capacitor subscription when this build can sell it. */
 const subscriptionAvailable = isSubscriptionAvailable()
 const showCapacitor = computed(() => isAuthenticated.value && subscriptionAvailable)
+
+type FluxTab = 'subscription' | 'flux' | 'history'
+
 /**
- * One-time packages are a top-up. A user without a Capacitor sees them folded under the subscription,
- * and can open them. A subscriber, a build without the subscription, and a signed-out visitor see them open.
+ * The page has a tab for the subscription, for the Flux balance and packages, and for the history.
+ * A signed-out visitor sees only the packages, so the page shows no tabs then.
  */
-const packagesOpenedByUser = ref(false)
-const packagesFolded = computed(() => showCapacitor.value && capacitorPercent.value == null && !packagesOpenedByUser.value)
+const tabOptions = computed(() => [
+  ...(showCapacitor.value ? [{ label: t('settings.pages.flux.tabs.subscription'), value: 'subscription' as const }] : []),
+  { label: t('settings.pages.flux.tabs.flux'), value: 'flux' as const },
+  ...(isAuthenticated.value ? [{ label: t('settings.pages.flux.tabs.history'), value: 'history' as const }] : []),
+])
+const chosenTab = ref<FluxTab | null>(null)
+/** The chosen tab while it exists. Otherwise the first tab, which is the subscription when the build sells it. */
+const currentTab = computed<FluxTab>({
+  get: () => tabOptions.value.find(option => option.value === chosenTab.value)?.value ?? tabOptions.value[0].value,
+  set: (tab) => {
+    chosenTab.value = tab
+  },
+})
 
 // On desktop, checkout happens in the external system browser (see handleBuy), so
 // the app never receives the success_url redirect that web/mobile use to refresh.
@@ -311,6 +325,10 @@ onMounted(() => {
   if (!fluxPurchaseDisabled)
     void fetchPackages()
 
+  // A Stripe return is about Flux packages, so it opens the Flux tab.
+  if (route.query.success === 'true' || route.query.canceled === 'true')
+    chosenTab.value = 'flux'
+
   if (route.query.success === 'true') {
     showCheckoutReturnMessage('success', t('settings.pages.flux.checkout.success'))
     router.replace({ query: {} })
@@ -329,9 +347,9 @@ onMounted(() => {
   }
 })
 
-// Funnel step 1 for the packages: it fires when the packages show, so a folded list does not count as a view.
-watch(packagesFolded, (folded) => {
-  if (!fluxPurchaseDisabled && !folded)
+// Funnel step 1 for the packages: it fires when the Flux tab shows, so the subscription tab does not count as a view.
+watch(currentTab, (tab) => {
+  if (!fluxPurchaseDisabled && tab === 'flux')
     trackPricingViewed('settings_flux', 'one_time')
 }, { immediate: true })
 
@@ -406,13 +424,23 @@ async function handleBuy(stripePriceId: string) {
       {{ message.text }}
     </Alert>
 
-    <CapacitorSection v-if="showCapacitor" />
+    <SelectTab
+      v-if="tabOptions.length > 1"
+      v-model="currentTab"
+      data-testid="flux-tabs"
+      :options="tabOptions"
+      size="md"
+      :class="['self-start']"
+    />
 
-    <!-- Flux has no upper bound, so the balance is a plain number. The Capacitor above owns the filled card. -->
-    <section v-if="isAuthenticated" data-testid="flux-balance" :class="['flex flex-col gap-1']">
-      <h2 :class="['text-lg font-semibold']">
+    <!-- v-show keeps the section mounted, so a browser checkout keeps waiting while another tab shows. -->
+    <CapacitorSection v-if="showCapacitor" v-show="currentTab === 'subscription'" />
+
+    <!-- Flux has no upper bound, so the balance is a plain number. The Capacitor owns the filled card. -->
+    <section v-if="isAuthenticated && currentTab === 'flux'" data-testid="flux-balance" :class="['flex flex-col gap-1']">
+      <span :class="['text-sm text-neutral-500 dark:text-neutral-400']">
         {{ t('settings.pages.account.fluxBalance') }}
-      </h2>
+      </span>
       <span :class="['text-3xl font-bold tracking-tight tabular-nums']">
         {{ formatNumber(credits) }}
       </span>
@@ -421,23 +449,7 @@ async function handleBuy(stripePriceId: string) {
       </p>
     </section>
 
-    <button
-      v-if="!fluxPurchaseDisabled && packagesFolded"
-      type="button"
-      data-testid="flux-packages-unfold"
-      :class="[
-        'flex items-center gap-2 rounded-xl px-4 py-3 text-left',
-        'bg-neutral-50 dark:bg-neutral-800/50 hover:bg-neutral-100 dark:hover:bg-neutral-800',
-        'text-sm transition-colors duration-200',
-        'focus-visible:outline-2 focus-visible:outline-primary-500',
-      ]"
-      @click="packagesOpenedByUser = true"
-    >
-      <span :class="['flex-1 text-neutral-600 dark:text-neutral-300']">{{ t('settings.pages.flux.oneTime.unfold') }}</span>
-      <div :class="['i-solar:alt-arrow-down-linear size-4 text-neutral-400']" />
-    </button>
-
-    <div v-if="!fluxPurchaseDisabled && !packagesFolded" data-testid="flux-packages" flex="~ col gap-4">
+    <div v-if="!fluxPurchaseDisabled && currentTab === 'flux'" data-testid="flux-packages" flex="~ col gap-4">
       <!-- Currency selector -->
       <Skeleton v-if="packagesLoading" h-9 w-40 rounded-lg />
       <div v-else-if="currencyOptions.length > 1" flex="~ justify-start sm:justify-end">
@@ -518,7 +530,7 @@ async function handleBuy(stripePriceId: string) {
     </div>
 
     <!-- Audit History -->
-    <div v-if="isAuthenticated" flex="~ col gap-3">
+    <div v-if="isAuthenticated && currentTab === 'history'" data-testid="flux-history" flex="~ col gap-3">
       <div flex="~ col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
         <h3 text-lg font-semibold>
           {{ t('settings.pages.flux.audit.title') }}

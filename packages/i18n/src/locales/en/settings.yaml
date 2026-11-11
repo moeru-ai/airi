@@ -1675,11 +1675,11 @@ pages:
         json-applied: JSON applied to the form. Click "Save and restart" to persist it to disk.
         restarted: All restarted! {started} started, {failed} failed, {skipped} skipped.
   flux:
-    balanceHint: Bought Flux does not expire. Chat and speech use it when you have no Capacitor.
-    sections:
+    tabs:
       subscription: Subscription
-    oneTime:
-      unfold: Just want to try it first? Buy Flux once
+      flux: Flux
+      history: History
+    balanceHint: Bought Flux does not expire. Chat and speech use it when you have no Capacitor.
     title: Flux
     buy: Charge
     currency: Currency

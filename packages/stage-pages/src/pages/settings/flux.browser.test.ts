@@ -63,6 +63,8 @@ describe('public Flux page', () => {
     await expect.element(screen.getByRole('button', { name: 'HOT 2000 Flux $12.00' })).toBeVisible()
     expect(screen.getByText('Current Flux').elements()).toHaveLength(0)
     expect(screen.getByText('Transaction History').elements()).toHaveLength(0)
+    // A signed-out visitor sees only the packages, so there is nothing to switch between.
+    expect(screen.getByTestId('flux-tabs').elements()).toHaveLength(0)
 
     await screen.getByRole('button', { name: '500 Flux $3.00' }).click()
 
@@ -102,9 +104,9 @@ describe('flux page with the Capacitor subscription', () => {
     vi.unstubAllEnvs()
   })
 
-  async function openSignedIn() {
+  async function openSignedIn(path = '/settings/flux') {
     const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/:pathMatch(.*)*', component: { template: '<div />' } }] })
-    await router.push('/settings/flux')
+    await router.push(path)
     const now = new Date()
     useAuthStore(pinia).$patch({
       user: { id: 'owner', name: 'Owner', email: 'owner@example.com', emailVerified: true, createdAt: now, updatedAt: now },
@@ -116,24 +118,31 @@ describe('flux page with the Capacitor subscription', () => {
     })
   }
 
-  it('leads with the subscription and folds the one-time packages for a user without one', async () => {
+  it('opens on the subscription tab and keeps the packages and history on their own tabs', async () => {
     const screen = await openSignedIn()
 
     await expect.element(screen.getByTestId('capacitor-section')).toBeVisible()
     await expect.element(screen.getByRole('button', { name: 'Subscribe in browser', exact: true })).toBeVisible()
     expect(screen.getByTestId('flux-packages').elements()).toHaveLength(0)
+    expect(screen.getByTestId('flux-history').elements()).toHaveLength(0)
 
-    await screen.getByTestId('flux-packages-unfold').click()
+    await screen.getByRole('radio', { name: 'Flux', exact: true }).click()
 
     await expect.element(screen.getByRole('button', { name: '500 Flux $3.00' })).toBeVisible()
+    await expect.element(screen.getByTestId('capacitor-section')).not.toBeVisible()
+
+    await screen.getByRole('radio', { name: 'History', exact: true }).click()
+
+    await expect.element(screen.getByTestId('flux-history')).toBeVisible()
+    expect(screen.getByTestId('flux-packages').elements()).toHaveLength(0)
   })
 
-  it('shows the one-time packages open to a subscriber, who tops up an empty Capacitor with them', async () => {
-    wallet = { capacitorPercent: 0 }
-    const screen = await openSignedIn()
+  it('opens the Flux tab after a Stripe checkout returns', async () => {
+    wallet = { capacitorPercent: 40 }
+    const screen = await openSignedIn('/settings/flux?success=true')
 
-    await expect.element(screen.getByTestId('capacitor-section')).toBeVisible()
     await expect.element(screen.getByRole('button', { name: '500 Flux $3.00' })).toBeVisible()
-    expect(screen.getByTestId('flux-packages-unfold').elements()).toHaveLength(0)
+    await expect.element(screen.getByText('Payment successful! Your Flux has been topped up.')).toBeVisible()
+    await expect.element(screen.getByTestId('capacitor-section')).not.toBeVisible()
   })
 })
