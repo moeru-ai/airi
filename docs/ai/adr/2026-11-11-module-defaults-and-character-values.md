@@ -62,7 +62,7 @@ A path that runs for a chat turn resolves the session character. It does not rea
 | Voice catalog for speech output | Loaded for the global provider only | Also loaded for the provider of the character of the shown chat, when it is another provider |
 
 The speech store keeps one voice catalog for each provider. A load for another model of the selected provider discards that catalog and clears the selected voice.
-So a character with another model of the default provider reads the catalog of the default model. Step 2 must key the catalogs by provider and model before it removes this limit.
+So speech output reads the voice of a character from a second list, by provider and model. `loadVoicesForCharacter` of the speech store fills it. That list does not validate a selection.
 
 These paths have no session and keep the global default: the voice end judge, the voice rephrase, the screen capture of the vision orchestrator, and the tool card generation.
 
@@ -78,6 +78,7 @@ These paths have no session and keep the global default: the voice end judge, th
 - A page writes the defaults through the synchronized leader actions that the module stores already have.
 - A card snapshot must not cause a state proposal from a follower window. The current tests for this rule stay.
 - `getModules` creates the module stores when a caller needs a resolved selection. A consumer that reads only card metadata does not call it and does not create them.
+- `initialize` creates the module stores in the leader. A follower sends its selections and action requests to the leader, and a request for a store that the leader lacks fails.
 
 ## Non-goals
 
@@ -91,12 +92,13 @@ These paths have no session and keep the global default: the voice end judge, th
 
 | Step | Content | Workspaces | State |
 | --- | --- | --- | --- |
-| 1 | Resolve the session character in the turn paths of the table. | `packages/stage-ui`, `packages/stage-layouts`, `apps/stage-tamagotchi` | This change |
-| 2 | Make the module stores the source of the defaults. Migrate `moduleDefaults`. Remove the writes on activation and the watcher. | `packages/stage-ui` | To do |
-| 3 | Change the module settings pages to edit the defaults. Add the notice and the text. | `packages/stage-pages`, `packages/i18n` | To do |
+| 1 | Resolve the session character in the turn paths of the table. | `packages/stage-ui`, `packages/stage-layouts`, `apps/stage-tamagotchi` | Done (#3487) |
+| 2 | Make the module stores the source of the defaults. Migrate `moduleDefaults`. Remove the writes on activation and the watcher. Stop the saves of the module settings pages on the active character. | `packages/stage-ui`, `packages/stage-pages` | This change |
+| 3 | Add the notice and the text on the module settings pages. Link a problem of an inherited selection to the module page. | `packages/stage-pages`, `packages/stage-ui`, `packages/i18n` | To do |
 
 Step 1 goes first. Without it, step 2 stops the send gate, the image reading, and the voice catalog of a character with its own values.
-Steps 2 and 3 go into one pull request, because step 2 alone stops a settings page selection from reaching a chat of a character with its own value.
+Step 2 includes the handlers of the module settings pages. Without that part, a selection on a settings page becomes a value of the active character and a default at the same time.
+Step 3 changes what the pages show, so it is a pull request of its own.
 
 ## Consequences
 
@@ -104,4 +106,4 @@ Steps 2 and 3 go into one pull request, because step 2 alone stops a settings pa
 - Two windows can show chats of two characters, because the activation of a character changes no shared selection.
 - A character that got a value from a settings page before the update keeps it. The user must set the field to "Inherit global settings" in the editor to follow the default.
 - About 20 test assertions that read a module store after an activation change. They must read `getModules(characterId)` instead.
-- `updateActiveCardConsciousness`, `updateActiveCardVision`, `updateActiveCardSpeech`, `selectActiveCardVisionProvider`, and `currentModels` have no caller after step 3 and are removed.
+- `updateActiveCardConsciousness`, `updateActiveCardVision`, `updateActiveCardSpeech`, `selectActiveCardVisionProvider`, and `currentModels` have no caller after step 2 and are removed. The vision store has `selectProvider`, which stores the catalog default model as the default.

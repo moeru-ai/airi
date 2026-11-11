@@ -161,8 +161,8 @@ it.each(['leader-only', 'follower-only'] as const)('clears unavailable module pr
   expect(hearing.autoSendDelay).toBe(1234)
   expect(speech.pitch).toBe(2)
   expect(consciousness.activeProvider).toBe('openai')
-  expect(consciousness.activeModel).toBe('card-chat-model')
-  expect(cards.moduleDefaults?.consciousness).toEqual({ provider: 'openai', model: 'chat-model' })
+  expect(consciousness.activeModel).toBe('chat-model')
+  expect(cards.getModules(activeId).consciousness).toEqual({ provider: 'openai', model: 'card-chat-model' })
   for (const id of [activeId, inactiveId, inheritedId, partialId]) {
     expect(cards.getModules(id)?.vision).toEqual({ provider: '', model: '' })
     expect(cards.getModules(id)?.speech).toEqual({ provider: 'speech-noop', model: '', voice_id: '' })
