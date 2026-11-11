@@ -1675,10 +1675,15 @@ pages:
         json-applied: JSON applied to the form. Click "Save and restart" to persist it to disk.
         restarted: All restarted! {started} started, {failed} failed, {skipped} skipped.
   flux:
-    tabs:
-      subscription: Subscription
-      flux: Flux
-      history: History
+    pageTitle: Subscription & Flux
+    buySection: Buy Flux
+    companion:
+      charged: '{percent} of my energy is left today. I''ll be full again at {time}.'
+      empty: 'I''m out of energy for today. I''ll be full again at {time}. To keep chatting now, turn on the Flux option below.'
+      emptyFallback: 'I''m out of energy for today. I''ll be full again at {time}. Until then, I''m using your Flux balance.'
+      offer: With a subscription, I fill up with energy every day to keep you company!
+      balance: 'You have {balance} Flux for chatting and speech.'
+      soon: soon
     balanceHint: Bought Flux does not expire. Chat and speech use it when you have no Capacitor.
     title: Flux
     buy: Charge
@@ -1725,8 +1730,6 @@ pages:
     statusError: Failed to load your Capacitor. Please try again later.
     packagesError: Failed to load Capacitors. Please try again later.
     preferenceError: Failed to save preference. Please try again later.
-    remaining: '{percent} left'
-    ofQuota: of {quota} Flux
     rechargesAt: Refills {date}
     renewsAt: Renews {date}
     expiresAt: Ends {date}

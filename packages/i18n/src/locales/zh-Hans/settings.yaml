@@ -1604,10 +1604,15 @@ pages:
         json-applied: JSON 已经解析完成了，点「保存并重启」就写到磁盘上啦。
         restarted: 重启好啦！启动了 {started} 个，失败 {failed} 个，跳过 {skipped} 个
   flux:
-    tabs:
-      subscription: 订阅
-      flux: Flux 电量
-      history: 使用记录
+    pageTitle: 订阅与 Flux
+    buySection: 补充 Flux
+    companion:
+      charged: 今天还剩 {percent} 的能量，{time} 我会再充满～
+      empty: 今天的能量用完了……{time} 才会再充满。想现在接着聊，可以打开下面的 Flux 开关。
+      emptyFallback: 今天的能量用完了……{time} 才会再充满，在那之前我先用你的 Flux 余额。
+      offer: 订阅之后，我每天都会把能量充满来陪你！
+      balance: 还有 {balance} Flux 可以用来聊天和说话。
+      soon: 稍后
     balanceHint: 购买的 Flux 不会过期。没有订阅时，聊天和语音会使用它。
     title: Flux 电量
     buy: 充值
@@ -1654,8 +1659,6 @@ pages:
     statusError: 暂时无法获取 Capacitor 的状态，可以之后再试试吗？
     packagesError: 暂时无法获取可用的 Capacitor，可以之后再试试吗？
     preferenceError: 偏好保存失败，请稍后再试。
-    remaining: '剩余 {percent}'
-    ofQuota: 共 {quota} Flux
     rechargesAt: '{date} 充满'
     renewsAt: '{date} 续订'
     expiresAt: '{date} 到期'

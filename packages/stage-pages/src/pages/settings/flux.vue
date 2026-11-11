@@ -15,6 +15,7 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
 import CapacitorSection from '../../components/capacitor-section.vue'
+import FluxCompanion from '../../components/flux-companion.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -34,26 +35,6 @@ const fluxPurchaseDisabled = isFluxPurchaseDisabled()
 /** The page leads with the Capacitor subscription when this build can sell it. */
 const subscriptionAvailable = isSubscriptionAvailable()
 const showCapacitor = computed(() => isAuthenticated.value && subscriptionAvailable)
-
-type FluxTab = 'subscription' | 'flux' | 'history'
-
-/**
- * The page has a tab for the subscription, for the Flux balance and packages, and for the history.
- * A signed-out visitor sees only the packages, so the page shows no tabs then.
- */
-const tabOptions = computed(() => [
-  ...(showCapacitor.value ? [{ label: t('settings.pages.flux.tabs.subscription'), value: 'subscription' as const }] : []),
-  { label: t('settings.pages.flux.tabs.flux'), value: 'flux' as const },
-  ...(isAuthenticated.value ? [{ label: t('settings.pages.flux.tabs.history'), value: 'history' as const }] : []),
-])
-const chosenTab = ref<FluxTab | null>(null)
-/** The chosen tab while it exists. Otherwise the first tab, which is the subscription when the build sells it. */
-const currentTab = computed<FluxTab>({
-  get: () => tabOptions.value.find(option => option.value === chosenTab.value)?.value ?? tabOptions.value[0].value,
-  set: (tab) => {
-    chosenTab.value = tab
-  },
-})
 
 // On desktop, checkout happens in the external system browser (see handleBuy), so
 // the app never receives the success_url redirect that web/mobile use to refresh.
@@ -325,10 +306,6 @@ onMounted(() => {
   if (!fluxPurchaseDisabled)
     void fetchPackages()
 
-  // A Stripe return is about Flux packages, so it opens the Flux tab.
-  if (route.query.success === 'true' || route.query.canceled === 'true')
-    chosenTab.value = 'flux'
-
   if (route.query.success === 'true') {
     showCheckoutReturnMessage('success', t('settings.pages.flux.checkout.success'))
     router.replace({ query: {} })
@@ -344,14 +321,9 @@ onMounted(() => {
       reason: 'manual_topup',
       flux_balance_bucket: fluxBalanceBucket(credits.value),
     })
+    trackPricingViewed('settings_flux', 'one_time')
   }
 })
-
-// Funnel step 1 for the packages: it fires when the Flux tab shows, so the subscription tab does not count as a view.
-watch(currentTab, (tab) => {
-  if (!fluxPurchaseDisabled && tab === 'flux')
-    trackPricingViewed('settings_flux', 'one_time')
-}, { immediate: true })
 
 async function handleBuy(stripePriceId: string) {
   // OpenPanel funnel step 2: user picked a plan. price_minor_unit lives on
@@ -424,32 +396,26 @@ async function handleBuy(stripePriceId: string) {
       {{ message.text }}
     </Alert>
 
-    <SelectTab
-      v-if="tabOptions.length > 1"
-      v-model="currentTab"
-      data-testid="flux-tabs"
-      :options="tabOptions"
-      size="md"
-      :class="['self-start']"
-    />
+    <!-- AIRI holds the Capacitor as her energy, so the page opens on her. -->
+    <FluxCompanion v-if="isAuthenticated" />
 
-    <!-- v-show keeps the section mounted, so a browser checkout keeps waiting while another tab shows. -->
-    <CapacitorSection v-if="showCapacitor" v-show="currentTab === 'subscription'" />
+    <section v-if="showCapacitor" data-testid="flux-subscription" :class="['flex flex-col gap-4']">
+      <h2 :class="['text-xl font-semibold']">
+        {{ t('settings.pages.capacitor.title') }}
+      </h2>
+      <CapacitorSection />
+    </section>
 
-    <!-- Flux has no upper bound, so the balance is a plain number. The Capacitor owns the filled card. -->
-    <section v-if="isAuthenticated && currentTab === 'flux'" data-testid="flux-balance" :class="['flex flex-col gap-1']">
-      <span :class="['text-sm text-neutral-500 dark:text-neutral-400']">
-        {{ t('settings.pages.account.fluxBalance') }}
-      </span>
-      <span :class="['text-3xl font-bold tracking-tight tabular-nums']">
-        {{ formatNumber(credits) }}
-      </span>
+    <section v-if="!fluxPurchaseDisabled" data-testid="flux-purchase" :class="['flex flex-col gap-1']">
+      <h2 :class="['text-xl font-semibold']">
+        {{ t('settings.pages.flux.buySection') }}
+      </h2>
       <p :class="['text-sm text-neutral-500 dark:text-neutral-400']">
         {{ t('settings.pages.flux.balanceHint') }}
       </p>
     </section>
 
-    <div v-if="!fluxPurchaseDisabled && currentTab === 'flux'" data-testid="flux-packages" flex="~ col gap-4">
+    <div v-if="!fluxPurchaseDisabled" data-testid="flux-packages" flex="~ col gap-4">
       <!-- Currency selector -->
       <Skeleton v-if="packagesLoading" h-9 w-40 rounded-lg />
       <div v-else-if="currencyOptions.length > 1" flex="~ justify-start sm:justify-end">
@@ -530,7 +496,7 @@ async function handleBuy(stripePriceId: string) {
     </div>
 
     <!-- Audit History -->
-    <div v-if="isAuthenticated && currentTab === 'history'" data-testid="flux-history" flex="~ col gap-3">
+    <div v-if="isAuthenticated" data-testid="flux-history" flex="~ col gap-3">
       <div flex="~ col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
         <h3 text-lg font-semibold>
           {{ t('settings.pages.flux.audit.title') }}
@@ -779,6 +745,6 @@ async function handleBuy(stripePriceId: string) {
 meta:
   layout: settings
   onboarding: false
-  titleKey: settings.pages.flux.title
-  icon: i-solar:battery-charge-bold-duotone
+  titleKey: settings.pages.flux.pageTitle
+  icon: i-solar:star-bold-duotone
 </route>

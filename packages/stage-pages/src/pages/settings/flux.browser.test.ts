@@ -63,8 +63,9 @@ describe('public Flux page', () => {
     await expect.element(screen.getByRole('button', { name: 'HOT 2000 Flux $12.00' })).toBeVisible()
     expect(screen.getByText('Current Flux').elements()).toHaveLength(0)
     expect(screen.getByText('Transaction History').elements()).toHaveLength(0)
-    // A signed-out visitor sees only the packages, so there is nothing to switch between.
-    expect(screen.getByTestId('flux-tabs').elements()).toHaveLength(0)
+    // AIRI and the subscription belong to an account, so a signed-out visitor sees only the packages.
+    expect(screen.getByTestId('flux-companion').elements()).toHaveLength(0)
+    expect(screen.getByTestId('flux-subscription').elements()).toHaveLength(0)
 
     await screen.getByRole('button', { name: '500 Flux $3.00' }).click()
 
@@ -74,7 +75,7 @@ describe('public Flux page', () => {
 
 describe('flux page with the Capacitor subscription', () => {
   let pinia: ReturnType<typeof createPinia>
-  let wallet: { capacitorPercent: number | null }
+  let wallet: { capacitorPercent: number | null, fallbackToFlux?: boolean }
 
   beforeEach(() => {
     pinia = createPinia()
@@ -118,31 +119,36 @@ describe('flux page with the Capacitor subscription', () => {
     })
   }
 
-  it('opens on the subscription tab and keeps the packages and history on their own tabs', async () => {
+  it('opens on AIRI and the subscription, then the packages and the history', async () => {
     const screen = await openSignedIn()
 
-    await expect.element(screen.getByTestId('capacitor-section')).toBeVisible()
+    await expect.element(screen.getByTestId('flux-companion-line')).toHaveTextContent('With a subscription, I fill up with energy every day')
     await expect.element(screen.getByRole('button', { name: 'Subscribe in browser', exact: true })).toBeVisible()
-    expect(screen.getByTestId('flux-packages').elements()).toHaveLength(0)
-    expect(screen.getByTestId('flux-history').elements()).toHaveLength(0)
-
-    await screen.getByRole('radio', { name: 'Flux', exact: true }).click()
-
     await expect.element(screen.getByRole('button', { name: '500 Flux $3.00' })).toBeVisible()
-    await expect.element(screen.getByTestId('capacitor-section')).not.toBeVisible()
-
-    await screen.getByRole('radio', { name: 'History', exact: true }).click()
-
     await expect.element(screen.getByTestId('flux-history')).toBeVisible()
-    expect(screen.getByTestId('flux-packages').elements()).toHaveLength(0)
+    // The page leads with the subscription: it comes before the one-time packages.
+    const subscription = screen.getByTestId('flux-subscription').element()
+    const packages = screen.getByTestId('flux-packages').element()
+    expect(subscription.compareDocumentPosition(packages) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
-  it('opens the Flux tab after a Stripe checkout returns', async () => {
+  it.each([
+    { capacitorPercent: 40, fallbackToFlux: false, line: '40% of my energy is left today' },
+    // An empty Capacitor stops chat until the user lets the Flux balance pay, so AIRI points at the switch.
+    { capacitorPercent: 0, fallbackToFlux: false, line: 'To keep chatting now, turn on the Flux option below' },
+    { capacitorPercent: 0, fallbackToFlux: true, line: 'Until then, I\'m using your Flux balance' },
+  ])('lets AIRI say how much of the Capacitor is left ($capacitorPercent%, fallback $fallbackToFlux)', async ({ capacitorPercent, fallbackToFlux, line }) => {
+    wallet = { capacitorPercent, fallbackToFlux }
+    const screen = await openSignedIn()
+
+    await expect.element(screen.getByTestId('flux-companion-line')).toHaveTextContent(line)
+  })
+
+  it('shows the result after a Stripe checkout returns', async () => {
     wallet = { capacitorPercent: 40 }
     const screen = await openSignedIn('/settings/flux?success=true')
 
     await expect.element(screen.getByRole('button', { name: '500 Flux $3.00' })).toBeVisible()
     await expect.element(screen.getByText('Payment successful! Your Flux has been topped up.')).toBeVisible()
-    await expect.element(screen.getByTestId('capacitor-section')).not.toBeVisible()
   })
 })

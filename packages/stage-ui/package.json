@@ -25,6 +25,7 @@
     "./components": "./src/components/index.ts",
     "./composables/*": "./src/composables/*.ts",
     "./composables": "./src/composables/index.ts",
+    "./assets/stickers": "./src/assets/stickers/index.ts",
     "./constants/*": "./src/constants/*.ts",
     "./constants": "./src/constants/index.ts",
     "./database/storage": "./src/database/storage.ts",
