@@ -32,6 +32,11 @@ export function userChatBroadcastRedisPattern(): string {
   return redisKeyFrom('user', '*', 'chat', 'broadcast')
 }
 
+/** Pub/Sub channel that carries realtime relay frames of one user between API instances. */
+export function userRealtimeRelayRedisKey(userId: string): string {
+  return redisKeyFrom('user', userId, 'realtime', 'relay')
+}
+
 export function lockRedisKey(domain: string, ...identifiers: RedisKeyPart[]): string {
   return redisKeyFrom('lock', domain, ...identifiers)
 }

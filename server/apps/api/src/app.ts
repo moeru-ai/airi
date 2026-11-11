@@ -20,6 +20,7 @@ import type { PaymentService } from './services/domain/payment'
 import type { ProductEventService } from './services/domain/product-events'
 import type { ProviderCatalogService } from './services/domain/provider-catalog'
 import type { ProviderService } from './services/domain/providers'
+import type { CallAccessService } from './services/domain/realtime-calls'
 import type { RequestLogService } from './services/domain/request-log'
 import type { UserDeletionService } from './services/domain/user-deletion'
 import type { VoicePackService } from './services/domain/voice-packs'
@@ -35,6 +36,7 @@ import { initLogger, LoggerFormat, LoggerLevel, setGlobalHookPostLog, useLogger 
 import { createNodeWebSocket } from '@hono/node-ws'
 import { httpInstrumentationMiddleware } from '@hono/otel'
 import { createErrorHandler, createPayloadTooLargeError } from '@proj-airi/http-error-shared'
+import { RELAY_MAX_FRAME_BYTES } from '@proj-airi/server-sdk-shared/realtime'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
@@ -70,6 +72,9 @@ import { createInternalAuthRoutes } from './routes/internal-auth'
 import { createLlmRequestRoutes } from './routes/llm-requests'
 import { createV1Routes } from './routes/openai/v1'
 import { createProviderRoutes } from './routes/providers'
+import { createRealtimeRoutes } from './routes/realtime'
+import { createRealtimeWsHandlers } from './routes/realtime-ws'
+import { createRealtimeRelay } from './routes/realtime-ws/relay'
 import { createRevenuecatRoutes } from './routes/revenuecat'
 import { createStripeRoutes } from './routes/stripe'
 import { createVoicePackRoutes } from './routes/voice-packs'
@@ -94,6 +99,7 @@ import { createPaymentService } from './services/domain/payment'
 import { createProductEventService } from './services/domain/product-events'
 import { createProviderCatalogService } from './services/domain/provider-catalog'
 import { createProviderService } from './services/domain/providers'
+import { createCallAccessService } from './services/domain/realtime-calls'
 import { createRequestLogService } from './services/domain/request-log'
 import { createUploadSessionService } from './services/domain/upload-sessions'
 import { createUserDeletionService } from './services/domain/user-deletion'
@@ -107,6 +113,7 @@ interface AppDeps {
   characterCardService: CharacterCardService
   characterService: CharacterService
   chatService: ChatService
+  callAccess: CallAccessService | null
   providerService: ProviderService
   fluxService: FluxService
   fluxTransactionService: FluxTransactionService
@@ -193,8 +200,15 @@ export async function buildApp(deps: AppDeps) {
   // WebSocket setup — must be registered BEFORE bodyLimit middleware
   const { injectWebSocket, upgradeWebSocket, wss } = createNodeWebSocket({ app })
   const chatWsPayloadLimit = createChatWsPayloadLimit(MAX_UNAUTHENTICATED_CHAT_WS_FRAME_BYTES)
+  const realtimeWsPayloadLimit = createChatWsPayloadLimit(RELAY_MAX_FRAME_BYTES)
   wss.on('connection', (socket, request) => {
-    if (new URL(request.url ?? '/', 'http://localhost').pathname !== '/ws/v2/chat')
+    const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
+    if (pathname === '/ws/v1/realtime') {
+      // The relay never accepts a larger frame, so this limit stays after authentication.
+      realtimeWsPayloadLimit.restrict(socket)
+      return
+    }
+    if (pathname !== '/ws/v2/chat')
       return
 
     // NOTICE:
@@ -210,18 +224,19 @@ export async function buildApp(deps: AppDeps) {
   // simultaneously-running api instances, not across restarts.
   const instanceId = process.env.SERVER_INSTANCE_ID || nanoid()
   const chatWsRuntime = createChatWsRuntime(deps.redis, instanceId, deps.otel?.engagement ?? null)
+  async function resolveUserId(token: string): Promise<string | null> {
+    const session = await resolveRequestAuth(
+      deps.db,
+      deps.env,
+      new Headers({ Authorization: `Bearer ${token}` }),
+    )
+    return session?.user?.id ?? null
+  }
   const chatWsV2Setup = createChatWsV2Handlers(
     deps.chatService,
     deps.redis,
     instanceId,
-    async (token) => {
-      const session = await resolveRequestAuth(
-        deps.db,
-        deps.env,
-        new Headers({ Authorization: `Bearer ${token}` }),
-      )
-      return session?.user?.id ?? null
-    },
+    resolveUserId,
     deps.otel?.engagement ?? null,
     chatWsRuntime,
     chatWsPayloadLimit.restore,
@@ -248,6 +263,14 @@ export async function buildApp(deps: AppDeps) {
   }))
 
   app.get('/ws/v2/chat', upgradeWebSocket(() => chatWsV2Setup()))
+
+  // Forwards the control events of realtime calls between the devices of one user. The client authenticates
+  // after the connection opens, as on `/ws/v2/chat`.
+  const realtimeWsSetup = createRealtimeWsHandlers({
+    relay: createRealtimeRelay({ redis: deps.redis, instanceId }),
+    resolveUserId,
+  })
+  app.get('/ws/v1/realtime', upgradeWebSocket(() => realtimeWsSetup()))
 
   // Bidirectional streaming TTS proxy. The handler factory builds one ws-to-ws
   // bridge per connection: client ↔ server/apps/api ↔ unspeech ↔ upstream
@@ -414,6 +437,7 @@ export async function buildApp(deps: AppDeps) {
      * Voice Pack routes expose the enabled curated library for binding.
      */
     .route('/api/v1/voice-packs', createVoicePackRoutes(deps.voicePackService))
+    .route('/api/v1/realtime', createRealtimeRoutes(deps.callAccess, deps.otel?.rateLimit ?? null))
 
     /**
      * Chat routes are handled by the chat service.
@@ -660,6 +684,17 @@ export async function createApp() {
     build: ({ dependsOn }) => createChatService(dependsOn.db, dependsOn.otel?.engagement),
   })
 
+  const callAccess = injeca.provide('services:callAccess', {
+    dependsOn: { env: parsedEnv },
+    build: ({ dependsOn }) => {
+      const { LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET } = dependsOn.env
+      // The media server is optional. Without it, the call access route answers 503.
+      return LIVEKIT_URL && LIVEKIT_API_KEY && LIVEKIT_API_SECRET
+        ? createCallAccessService({ url: LIVEKIT_URL, apiKey: LIVEKIT_API_KEY, apiSecret: LIVEKIT_API_SECRET })
+        : null
+    },
+  })
+
   const stripe = injeca.provide('libs:stripe', {
     dependsOn: { env: parsedEnv },
     build: ({ dependsOn }) => {
@@ -813,6 +848,7 @@ export async function createApp() {
     characterCardService,
     characterService,
     chatService,
+    callAccess,
     providerService,
     fluxService,
     fluxTransactionService,
@@ -849,6 +885,7 @@ export async function createApp() {
     characterCardService: resolved.characterCardService,
     characterService: resolved.characterService,
     chatService: resolved.chatService,
+    callAccess: resolved.callAccess,
     providerService: resolved.providerService,
     fluxService: resolved.fluxService,
     fluxTransactionService: resolved.fluxTransactionService,

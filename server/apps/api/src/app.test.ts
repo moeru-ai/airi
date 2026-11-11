@@ -18,6 +18,7 @@ function createTestDeps(webAppUrl = 'https://airi.moeru.ai') {
     characterCardService: {} as never,
     characterService: {} as never,
     chatService: {} as never,
+    callAccess: null,
     providerService: {} as never,
     fluxService: {} as never,
     fluxTransactionService: {} as never,
