@@ -42,6 +42,50 @@ Session. A refreshed token can omit `sid` after that Session expires or is
 deleted. Such a token remains valid for ordinary operations until `exp`, but it
 cannot authorize a sensitive operation.
 
+## Explicit sign-out
+
+Update of 2026-11-11. A refresh token stays valid when its Session expires.
+An explicit sign-out revokes it.
+
+The OAuth Provider keeps a refresh token after `/oauth2/end-session` deletes
+its Session. The refresh grant does not check the Session. Sign-out therefore
+did not stop a copied refresh token.
+
+- The stage client sends the refresh token to `/api/auth/oauth2/revoke`
+  (RFC 7009) with `token_type_hint=refresh_token` and its public `client_id`.
+  It ends the Session at the same time.
+- The client clears local credentials first. Both server requests then run in
+  the background with `keepalive` and a 5-second timeout. The client logs a
+  failed revoke or sign-out response.
+- A plain login sends `prompt=login`, and a provider login authenticates again.
+  A new sign-in therefore cannot reuse the old Session while sign-out runs.
+- If a refresh is in flight, sign-out waits up to 5 seconds for it. A revoke of
+  a rotated token makes the provider delete every refresh token of the user and
+  client.
+- The custom `/api/auth/sign-out` route is gone. It answered success and
+  skipped Better Auth. Better Auth's `/sign-out` now deletes the cookie Session
+  and expires its cookies.
+- A Bearer request to `/sign-out` with an active `sid` deletes that Session.
+  Without an active `sid`, it answers success and deletes nothing.
+
+```mermaid
+sequenceDiagram
+  participant C as Stage client
+  participant P as OAuth Provider
+  participant B as Better Auth
+  C->>C: Wait for an in-flight refresh (up to 5 s)
+  C->>C: Clear local credentials
+  par revoke
+    C->>P: POST /oauth2/revoke (refresh token, client_id, keepalive)
+  and end the Session
+    alt ID token present
+      C->>P: GET /oauth2/end-session (id_token_hint, keepalive)
+    else access token only
+      C->>B: POST /sign-out (Bearer, keepalive)
+    end
+  end
+```
+
 ## Scope
 
 - Auth service OIDC access-token validation
@@ -49,12 +93,14 @@ cannot authorize a sensitive operation.
 - Better Auth request identity
 - Better Auth sensitive-session behavior
 - Account-ban checks for JWT callers
+- Refresh-token revocation on explicit sign-out
 
 ## Non-goals
 
 - Delete historical expired Session rows
 - Change access-token or refresh-token lifetimes
 - Change OAuth Provider database tables
+- Revoke refresh tokens when a Session only expires
 - Replace Better Auth or its OAuth Provider plugin
 - Change resource API authentication
 
@@ -77,6 +123,7 @@ flowchart LR
   BetterAuth --> Plugin[OIDC JWT plugin]
   Plugin --> Verifier
   Verifier --> JWKS[In-process JWKS loader]
+  Client --> Revoke[OAuth Provider revoke endpoint]
   Routes --> User[User store]
   Plugin --> User
   Plugin --> Session[Original Session lookup by sid]
@@ -96,6 +143,11 @@ server/
       routes-oidc-token-auth.test.ts
   docs/ai/adr/
     2026-09-20-oidc-jwt-session-boundary.md
+packages/stage-ui/src/
+  libs/auth-oidc.ts
+  stores/
+    auth.ts
+    auth.browser.test.ts
 ```
 
 ## Request sequence
@@ -135,4 +187,9 @@ sequenceDiagram
 - Make sure that Better Auth session middleware accepts a JWT without an active
   `sid`. Run `/list-accounts` through Better Auth dispatch to check this.
 - Make sure that banned users do not receive request identity.
+- Make sure that `/api/auth/sign-out` reaches Better Auth.
+- Make sure that a Bearer sign-out deletes the active `sid` Session, and
+  answers success without one.
+- Make sure that client sign-out revokes the refresh token before it ends the
+  Session, and clears local credentials when the server rejects both calls.
 - Run Auth tests, Auth typecheck, repository lint, and CI.
