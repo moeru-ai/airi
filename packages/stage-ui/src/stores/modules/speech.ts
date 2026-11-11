@@ -305,22 +305,53 @@ export const useSpeechStore = defineStore('speech', () => {
     cancelCatalogRequests()
   })
 
-  /** Executes a caller's immutable catalog request in the synchronization leader. */
   /**
-   * Loads the voice catalog of a provider that a character uses and this store does not select.
+   * The voices of the speech selections of characters, by provider and model. Speech output reads the metadata of a
+   * character voice from it, for example the language.
    *
-   * The store keeps one catalog for each provider. The catalog of the selected provider belongs to the selection:
-   * a load for another model of that provider discards the catalog and clears the selected voice.
-   * So this function does not load for the selected provider. A character with another model of that provider
-   * reads the catalog of the selected model.
+   * It is apart from `availableVoices`, which holds one catalog for each provider and belongs to the selection of
+   * this store: a load for another model there discards the catalog and clears the selected voice.
+   * Each window keeps its own copy. It is not synchronized, and it does not validate a selection.
    */
-  async function loadVoicesForCharacter(provider: string, model?: string): Promise<void> {
-    if (!provider || provider === 'speech-noop' || provider === activeSpeechProvider.value)
-      return
+  const characterVoices = new Map<string, VoiceInfo[]>()
+  const latestCharacterVoiceLoads = new Map<string, number>()
+  let characterVoiceLoadSequence = 0
 
-    await loadVoicesForProvider(provider, model)
+  function characterVoicesKey(provider: string, model: string | undefined) {
+    return JSON.stringify([provider, model ?? ''])
   }
 
+  /**
+   * Loads the voices of a character's speech selection, so that {@link createOutput} can read the metadata of its voice.
+   *
+   * A selection equal to the selection of this store needs no load, because `availableVoices` already has its catalog.
+   * A failed load keeps the voices of an earlier load. An expired provider session removes them.
+   */
+  async function loadVoicesForCharacter(provider: string, model?: string): Promise<void> {
+    if (!provider || provider === 'speech-noop' || disposed)
+      return
+    if (provider === activeSpeechProvider.value && (model ?? '') === activeSpeechModel.value)
+      return
+
+    const key = characterVoicesKey(provider, model)
+    const sequence = ++characterVoiceLoadSequence
+    latestCharacterVoiceLoads.set(key, sequence)
+    try {
+      const voices = await providersStore.listProviderVoices(provider, model, providersStore.getVoiceCatalogConfiguration(provider))
+      // A newer load for the same selection owns the result.
+      if (latestCharacterVoiceLoads.get(key) !== sequence)
+        return
+      if (voices === undefined)
+        characterVoices.delete(key)
+      else
+        characterVoices.set(key, voices)
+    }
+    catch (error) {
+      console.error('Failed to load the voices of a character:', errorMessageFrom(error) ?? 'Unknown error')
+    }
+  }
+
+  /** Executes a caller's immutable catalog request in the synchronization leader. */
   async function loadVoiceCatalog(provider: string, model: string | undefined, configuration: VoiceCatalogConfiguration, generation = resetGeneration.value): Promise<VoiceInfo[]> {
     // A queued caller request from before reset cannot start new leader work.
     if (!provider || disposed || generation !== resetGeneration.value) {
@@ -652,7 +683,9 @@ export const useSpeechStore = defineStore('speech', () => {
     const synthesisSignal = synthesis.signal
     const providerId = selection.provider
     const config = structuredClone(toRaw(providerStore.getProviderConfig(providerId) ?? {}))
-    const selectedVoice = availableVoices.value[providerId]?.find(voice => voice.id === selection.voice_id)
+    // The voices of the exact selection come first. The catalog of the provider can belong to another model.
+    const selectedVoice = characterVoices.get(characterVoicesKey(providerId, selection.model || undefined))?.find(voice => voice.id === selection.voice_id)
+      ?? availableVoices.value[providerId]?.find(voice => voice.id === selection.voice_id)
     const voice = selectedVoice ? structuredClone(toRaw(selectedVoice)) : undefined
     const { model, voiceId, streaming, streamingModel } = resolveSpeechSelection(selection, config, () => providersStore.getDefaultModelForProvider(providerId))
     const useSSML = ssmlEnabled.value
