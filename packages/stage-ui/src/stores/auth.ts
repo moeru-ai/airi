@@ -13,7 +13,7 @@ import { client } from '../composables/api'
 import { useBreakpoints } from '../composables/use-breakpoints'
 import { triggerSignIn } from '../libs/auth'
 import { authClient, requestAuthSession } from '../libs/auth-client'
-import { refreshAccessToken, TokenRefreshError } from '../libs/auth-oidc'
+import { refreshAccessToken, revokeRefreshToken, TokenRefreshError } from '../libs/auth-oidc'
 import { SERVER_URL } from '../libs/server'
 
 /**
@@ -435,36 +435,65 @@ export const useAuthStore = defineStore('auth', () => {
     const idTokenHint = idToken.value
     const clientId = oidcClientId.value
     const bearerToken = token.value
+    const refreshTokenToRevoke = refreshToken.value
     const version = ++sessionVersion.value
     signingOut = true
     stopRefreshTimer()
     inflightRefresh = null
 
+    // Revoke the refresh token first. Ending the server session does not revoke it,
+    // and the refresh grant does not check the session. Without this step, a copied
+    // refresh token keeps issuing access tokens until it expires.
+    if (refreshTokenToRevoke && clientId) {
+      try {
+        await revokeRefreshToken(clientId, refreshTokenToRevoke)
+      }
+      catch (error) {
+        console.error('Refresh token revocation failed', errorMessageFrom(error))
+      }
+    }
+
     // Delete the server session before local state. A new authorization request
     // can otherwise reuse the server cookie and restore the previous identity.
     try {
-      if (idTokenHint && clientId) {
-        const url = new URL('/api/auth/oauth2/end-session', SERVER_URL)
-        url.searchParams.set('id_token_hint', idTokenHint)
-        url.searchParams.set('client_id', clientId)
-        await fetch(url.toString(), { method: 'GET' })
-      }
-      else if (bearerToken) {
-        const url = new URL('/api/auth/sign-out', SERVER_URL)
-        await fetch(url.toString(), {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${bearerToken}` },
-        })
-      }
+      const response = await endServerSession(idTokenHint, clientId, bearerToken)
+      if (response && !response.ok)
+        throw new Error(`Server sign-out failed: ${response.status}`)
     }
     catch (error) {
-      // A network error cannot preserve local credentials. The server session
+      // A server failure cannot preserve local credentials. The server session
       // expires by its TTL after the local credentials are removed.
       console.error('Server sign-out failed', errorMessageFrom(error))
     }
 
     if (version === sessionVersion.value)
       clearAuthState()
+  }
+
+  /**
+   * Ends the server session of the signed-in user. Returns null when no credential can identify it.
+   *
+   * RP-Initiated Logout finds the session through the `sid` claim of the ID token.
+   * Without an ID token, Better Auth's `/sign-out` deletes the session only when
+   * the access token still carries an active `sid`. Otherwise it answers success and deletes nothing.
+   */
+  async function endServerSession(idTokenHint: string | null, clientId: string | null, bearerToken: string | null): Promise<Response | null> {
+    if (idTokenHint && clientId) {
+      const url = new URL('/api/auth/oauth2/end-session', SERVER_URL)
+      url.searchParams.set('id_token_hint', idTokenHint)
+      url.searchParams.set('client_id', clientId)
+      return await fetch(url.toString(), { method: 'GET' })
+    }
+
+    if (bearerToken) {
+      const url = new URL('/api/auth/sign-out', SERVER_URL)
+      return await fetch(url.toString(), {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${bearerToken}` },
+      })
+    }
+
+    return null
   }
 
   /**

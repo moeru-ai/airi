@@ -21,18 +21,18 @@ vi.mock('better-auth/vue', async (importOriginal) => {
 
 describe('authentication request ownership', () => {
   let pinia: ReturnType<typeof createPinia>
-  const requests: Array<{ path: string, resolve: (response: Response) => void, reject: (error: Error) => void }> = []
+  const requests: Array<{ path: string, body?: BodyInit | null, resolve: (response: Response) => void, reject: (error: Error) => void }> = []
 
   beforeEach(() => {
     localStorage.clear()
     requests.length = 0
     pinia = createPinia()
     setActivePinia(pinia)
-    vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
       const url = input instanceof Request ? input.url : input.toString()
       if (url.includes('/flux'))
         return Promise.resolve(Response.json({ flux: 0 }))
-      return new Promise((resolve, reject) => requests.push({ path: new URL(url).pathname, resolve, reject }))
+      return new Promise((resolve, reject) => requests.push({ path: new URL(url).pathname, body: init?.body, resolve, reject }))
     })
   })
 
@@ -61,8 +61,8 @@ describe('authentication request ownership', () => {
     }
   }
 
-  async function signIn(id: string) {
-    const result = useAuthStore().completeSignIn({ accessToken: id, refreshToken: `${id}-refresh`, clientId: 'test-client', expiresIn: 3600 })
+  async function signIn(id: string, idToken?: string) {
+    const result = useAuthStore().completeSignIn({ accessToken: id, refreshToken: `${id}-refresh`, idToken, clientId: 'test-client', expiresIn: 3600 })
     await reply('/api/auth/get-session', identity(id))
     await result
   }
@@ -202,11 +202,49 @@ describe('authentication request ownership', () => {
     const refresh = store.refreshTokenNow()
     const session = store.fetchSession()
     await nextTick()
-    expect(requests.map(request => request.path)).toEqual(['/api/auth/sign-out'])
+    expect(requests.map(request => request.path)).toEqual(['/api/auth/oauth2/revoke'])
     expect(await refresh).toBeNull()
     expect(await session).toBe(false)
+    await reply('/api/auth/oauth2/revoke', {})
     await reply('/api/auth/sign-out', {})
     await logout
+  })
+
+  // ROOT CAUSE:
+  //
+  // Sign-out only ended the server session. The refresh grant does not check
+  // the session, so a copied refresh token kept issuing access tokens.
+  //
+  // Sign-out now revokes the refresh token (RFC 7009) before it ends the session.
+  it('revokes the refresh token before it ends the server session', async () => {
+    await signIn('first', 'first-id-token')
+    const store = useAuthStore()
+    const logout = store.signOut()
+    await vi.waitFor(() => expect(requests).toHaveLength(1))
+    expect(requests[0]!.path).toBe('/api/auth/oauth2/revoke')
+    const body = new URLSearchParams(String(requests[0]!.body))
+    expect(body.get('token')).toBe('first-refresh')
+    expect(body.get('token_type_hint')).toBe('refresh_token')
+    expect(body.get('client_id')).toBe('test-client')
+    await reply('/api/auth/oauth2/revoke', {})
+    await reply('/api/auth/oauth2/end-session', {})
+    await logout
+    expect(store.token).toBeNull()
+  })
+
+  it('clears local credentials when the server rejects sign-out', async () => {
+    await signIn('first')
+    const store = useAuthStore()
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const logout = store.signOut()
+    await reply('/api/auth/oauth2/revoke', { error: 'invalid_client' }, 401)
+    await reply('/api/auth/sign-out', {}, 500)
+    await logout
+    expect(store.isAuthenticated).toBe(false)
+    expect(store.token).toBeNull()
+    expect(localStorage.getItem('auth/v1/refresh-token')).toBeNull()
+    expect(errors).toHaveBeenCalledWith('Refresh token revocation failed', 'Token revocation failed: 401')
+    expect(errors).toHaveBeenCalledWith('Server sign-out failed', 'Server sign-out failed: 500')
   })
 
   it('does not restore credentials when a refresh completes after logout', async () => {
@@ -249,6 +287,7 @@ describe('authentication request ownership', () => {
     const store = useAuthStore()
     const pending = store.signOut()
     await signIn('second')
+    await reply('/api/auth/oauth2/revoke', {})
     await reply('/api/auth/sign-out', {})
     await pending
     expect(store.user?.id).toBe('second')
