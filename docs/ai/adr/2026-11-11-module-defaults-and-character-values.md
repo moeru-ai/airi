@@ -56,6 +56,7 @@ A path that runs for a chat turn resolves the session character. It does not rea
 | Path | Today | After this change |
 | --- | --- | --- |
 | Send gate (`chatReady`) | Global selection | Selection of the character of the current chat |
+| Send gate of an external input (`context-bridge`) | Global selection | Selection of the character of the target session |
 | Image reading for chat (`use-vision-inference`, `chat.ts`) | Global vision selection | Vision selection of the session character |
 | Tool image reader on a tool rerun | Global chat model | Chat model of the session character |
 | Reasoning default of the provider instance | Global provider and model | Provider and model of the turn |
@@ -64,7 +65,8 @@ A path that runs for a chat turn resolves the session character. It does not rea
 The speech store keeps one voice catalog for each provider. A load for another model of the selected provider discards that catalog and clears the selected voice.
 So speech output reads the voice of a character from a second list, by provider and model. `loadVoicesForCharacter` of the speech store fills it. That list does not validate a selection.
 
-These paths have no session and keep the global default: the voice end judge, the voice rephrase, the screen capture of the vision orchestrator, and the tool card generation.
+These paths have no session and keep the global default: the voice end judge, the voice rephrase, the screen capture of the vision orchestrator, the tool card generation, and the reply to a Spark notification.
+Before step 2, they got the selection of the active character.
 
 ### Data of existing installations
 
