@@ -434,4 +434,3 @@ async function handleSubscribe(pkg: CapacitorPackage) {
     </section>
   </section>
 </template>
-
