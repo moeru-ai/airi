@@ -27,6 +27,7 @@ jobs:
     concurrency:
       group: pr-review-labels
       cancel-in-progress: false
+      queue: max
     steps:
       - uses: actions/github-script@v8
         with:
