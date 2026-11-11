@@ -1675,6 +1675,7 @@ pages:
         json-applied: JSON applied to the form. Click "Save and restart" to persist it to disk.
         restarted: All restarted! {started} started, {failed} failed, {skipped} skipped.
   flux:
+    balanceHint: Bought Flux does not expire. Chat and speech use it when you have no Capacitor.
     sections:
       subscription: Subscription
     oneTime:
@@ -1682,7 +1683,6 @@ pages:
     title: Flux
     buy: Charge
     currency: Currency
-    description: Current Flux
     terms: Terms
     privacy: Privacy Policy
     packagesError: Failed to load packages. Please try again later.

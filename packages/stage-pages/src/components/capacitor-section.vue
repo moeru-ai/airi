@@ -269,93 +269,99 @@ async function handleSubscribe(pkg: CapacitorPackage) {
 
     <!-- Status: how much is left today, when it refills, and when the subscription renews -->
     <Skeleton v-if="statusLoading" :class="['h-40 rounded-xl']" />
-    <SettingsCard v-else-if="hasCapacitor">
-      <div :class="['flex items-center justify-between gap-3']">
-        <h2 :class="['min-w-0 flex items-center gap-2', 'text-base font-semibold']">
-          <div :class="['i-solar:star-bold-duotone size-5 shrink-0', 'text-primary-500']" />
-          <span :class="['truncate']">{{ currentPackage?.name ?? t('settings.pages.capacitor.title') }}</span>
-        </h2>
-        <a
-          v-if="subscription.managementUrl.value"
-          :href="subscription.managementUrl.value"
-          target="_blank"
-          rel="noopener"
-          :class="[
-            'shrink-0 inline-flex items-center gap-1 rounded-md',
-            'text-sm text-primary-600 font-medium dark:text-primary-400',
-            'hover:underline hover:underline-offset-2',
-            'focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2',
-          ]"
-        >
-          {{ t('settings.pages.capacitor.manageSubscription') }}
-          <div :class="['i-solar:arrow-right-up-linear size-4']" />
-        </a>
-      </div>
-
-      <div v-if="capacitorPercent != null" :class="['flex flex-col gap-2']">
-        <div :class="['flex flex-wrap items-baseline gap-x-2']">
-          <i18n-t
-            keypath="settings.pages.capacitor.remaining"
-            tag="span"
-            scope="global"
-            :class="['text-sm text-neutral-500 dark:text-neutral-400']"
-          >
-            <template #percent>
-              <span :class="['text-3xl text-neutral-900 font-bold tracking-tight tabular-nums', 'dark:text-neutral-50']">
-                {{ formatPercent(capacitorPercent) }}
-              </span>
-            </template>
-          </i18n-t>
-          <span v-if="currentPackage" :class="['text-sm text-neutral-500 dark:text-neutral-400']">
-            {{ t('settings.pages.capacitor.ofQuota', { quota: numberFormat.format(currentPackage.quota) }) }}
-          </span>
-        </div>
+    <template v-else-if="hasCapacitor">
+      <!-- The Capacitor is the only bounded amount on the page, so it gets the large filled card. -->
+      <div
+        data-testid="capacitor-meter-card"
+        :class="['relative overflow-hidden rounded-2xl p-6 sm:p-8', 'bg-neutral-100 dark:bg-neutral-800']"
+      >
         <div
+          v-if="capacitorPercent != null"
           role="meter"
           aria-valuemin="0"
           aria-valuemax="100"
           :aria-valuenow="capacitorPercent"
           :aria-label="t('settings.pages.capacitor.title')"
-          :class="['h-2 overflow-hidden rounded-full', 'bg-neutral-200 dark:bg-neutral-700']"
+          :class="['absolute inset-0']"
         >
           <div
             :class="[
-              'h-full rounded-full',
-              'bg-primary-500 dark:bg-primary-400',
+              'h-full',
+              'bg-primary-500/20 dark:bg-primary-400/20',
               'transition-width duration-500 ease-in-out motion-reduce:transition-none',
             ]"
             :style="{ width: `${capacitorPercent}%` }"
           />
         </div>
-      </div>
 
-      <div
-        v-if="capacitorRechargesAt || currentCapacitor?.expiresAt"
-        :class="['flex flex-wrap gap-x-5 gap-y-1', 'text-xs text-neutral-500 dark:text-neutral-400']"
-      >
-        <span v-if="capacitorRechargesAt" :class="['inline-flex items-center gap-1']">
-          <div :class="['i-solar:restart-linear size-3.5']" />
-          {{ t('settings.pages.capacitor.rechargesAt', { date: formatDate(capacitorRechargesAt, { dateStyle: 'medium', timeStyle: 'short' }) }) }}
-        </span>
-        <span v-if="currentCapacitor?.expiresAt" :class="['inline-flex items-center gap-1']">
-          <div :class="['i-solar:calendar-linear size-3.5']" />
-          {{ t(currentCapacitor.willRenew ? 'settings.pages.capacitor.renewsAt' : 'settings.pages.capacitor.expiresAt', { date: formatDate(currentCapacitor.expiresAt, { dateStyle: 'medium' }) }) }}
-        </span>
+        <div :class="['relative z-1 flex flex-col gap-3']">
+          <div :class="['flex items-center justify-between gap-3']">
+            <h3 :class="['min-w-0 flex items-center gap-2', 'text-base font-semibold']">
+              <div :class="['i-solar:star-bold-duotone size-5 shrink-0', 'text-primary-500']" />
+              <span :class="['truncate']">{{ currentPackage?.name ?? t('settings.pages.capacitor.title') }}</span>
+            </h3>
+            <a
+              v-if="subscription.managementUrl.value"
+              :href="subscription.managementUrl.value"
+              target="_blank"
+              rel="noopener"
+              :class="[
+                'shrink-0 inline-flex items-center gap-1 rounded-md',
+                'text-sm text-primary-600 font-medium dark:text-primary-400',
+                'hover:underline hover:underline-offset-2',
+                'focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2',
+              ]"
+            >
+              {{ t('settings.pages.capacitor.manageSubscription') }}
+              <div :class="['i-solar:arrow-right-up-linear size-4']" />
+            </a>
+          </div>
+
+          <div v-if="capacitorPercent != null" :class="['flex flex-wrap items-baseline gap-x-2']">
+            <i18n-t
+              keypath="settings.pages.capacitor.remaining"
+              tag="span"
+              scope="global"
+              :class="['text-sm text-neutral-500 dark:text-neutral-400']"
+            >
+              <template #percent>
+                <span :class="['text-4xl text-neutral-900 font-bold tracking-tight tabular-nums', 'dark:text-neutral-50']">
+                  {{ formatPercent(capacitorPercent) }}
+                </span>
+              </template>
+            </i18n-t>
+            <span v-if="currentPackage" :class="['text-sm text-neutral-500 dark:text-neutral-400']">
+              {{ t('settings.pages.capacitor.ofQuota', { quota: numberFormat.format(currentPackage.quota) }) }}
+            </span>
+          </div>
+
+          <div
+            v-if="capacitorRechargesAt || currentCapacitor?.expiresAt"
+            :class="['flex flex-wrap gap-x-5 gap-y-1', 'text-xs text-neutral-500 dark:text-neutral-400']"
+          >
+            <span v-if="capacitorRechargesAt" :class="['inline-flex items-center gap-1']">
+              <div :class="['i-solar:restart-linear size-3.5']" />
+              {{ t('settings.pages.capacitor.rechargesAt', { date: formatDate(capacitorRechargesAt, { dateStyle: 'medium', timeStyle: 'short' }) }) }}
+            </span>
+            <span v-if="currentCapacitor?.expiresAt" :class="['inline-flex items-center gap-1']">
+              <div :class="['i-solar:calendar-linear size-3.5']" />
+              {{ t(currentCapacitor.willRenew ? 'settings.pages.capacitor.renewsAt' : 'settings.pages.capacitor.expiresAt', { date: formatDate(currentCapacitor.expiresAt, { dateStyle: 'medium' }) }) }}
+            </span>
+          </div>
+        </div>
       </div>
 
       <Alert v-if="capacitorEmpty" tone="warning">
         {{ t('settings.pages.capacitor.empty') }}
       </Alert>
 
-      <div :class="['pt-4', 'border-t border-neutral-200 dark:border-neutral-700']">
-        <FieldCheckbox
-          v-model="fallbackChoice"
-          :disabled="preferenceSaving"
-          :label="t('settings.pages.capacitor.fallbackToFlux')"
-          :description="t('settings.pages.capacitor.fallbackToFluxHint')"
-        />
-      </div>
-    </SettingsCard>
+      <FieldCheckbox
+        v-model="fallbackChoice"
+        :disabled="preferenceSaving"
+        :label="t('settings.pages.capacitor.fallbackToFlux')"
+        :description="t('settings.pages.capacitor.fallbackToFluxHint')"
+      />
+    </template>
 
     <!-- Packages: what each Capacitor holds, how often it refills, and what it costs -->
     <section

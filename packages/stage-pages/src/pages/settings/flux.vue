@@ -143,12 +143,6 @@ const AUDIT_PAGE_SIZE = 20
 
 const capacity = ref(0)
 
-const fluxPercentage = computed(() => {
-  if (capacity.value <= 0)
-    return credits.value > 0 ? 100 : 0
-  return Math.min(100, Math.round((credits.value / capacity.value) * 100))
-})
-
 async function fetchStats() {
   try {
     const res = await client.api.v1.flux.stats.$get()
@@ -414,30 +408,18 @@ async function handleBuy(stripePriceId: string) {
 
     <CapacitorSection v-if="showCapacitor" />
 
-    <h2 v-if="showCapacitor" :class="['text-lg font-semibold']">
-      {{ t('settings.pages.account.fluxBalance') }}
-    </h2>
-
-    <!-- Battery Card -->
-    <div v-if="isAuthenticated" relative overflow-hidden rounded-2xl bg="neutral-100 dark:neutral-800" p-6 sm:p-8>
-      <!-- Background Progress -->
-      <div
-        class="flux-progress-bar absolute inset-y-0 left-0 bg-primary-500/20 dark:bg-primary-400/20"
-      />
-
-      <!-- Content -->
-      <div relative z-1 flex="~ items-center justify-start sm:col sm:justify-center gap-4 sm:gap-2" text-left sm:text-center>
-        <div i-solar:battery-charge-bold-duotone size-12 shrink-0 text-primary-500 sm:mx-auto sm:size-14 />
-        <div flex="~ col gap-1">
-          <h2 text-3xl font-bold tracking-tight sm:text-4xl>
-            {{ formatNumber(credits) }}
-          </h2>
-          <p text="sm neutral-500">
-            {{ t(fluxPurchaseDisabled ? 'settings.pages.account.fluxBalance' : 'settings.pages.flux.description') }}
-          </p>
-        </div>
-      </div>
-    </div>
+    <!-- Flux has no upper bound, so the balance is a plain number. The Capacitor above owns the filled card. -->
+    <section v-if="isAuthenticated" data-testid="flux-balance" :class="['flex flex-col gap-1']">
+      <h2 :class="['text-lg font-semibold']">
+        {{ t('settings.pages.account.fluxBalance') }}
+      </h2>
+      <span :class="['text-3xl font-bold tracking-tight tabular-nums']">
+        {{ formatNumber(credits) }}
+      </span>
+      <p :class="['text-sm text-neutral-500 dark:text-neutral-400']">
+        {{ t('settings.pages.flux.balanceHint') }}
+      </p>
+    </section>
 
     <button
       v-if="!fluxPurchaseDisabled && packagesFolded"
@@ -780,24 +762,6 @@ async function handleBuy(stripePriceId: string) {
     </div>
   </div>
 </template>
-
-<style scoped>
-.flux-progress-bar {
-  width: 100%;
-  animation: flux-progress-bar-grow 1s cubic-bezier(0.4, 0, 0.2, 1) 0.5s forwards;
-}
-
-@keyframes flux-progress-bar-grow {
-  0% {
-    width: 100%;
-    opacity: 0.5;
-  }
-  100% {
-    width: v-bind('`${fluxPercentage}%`');
-    opacity: 1;
-  }
-}
-</style>
 
 <route lang="yaml">
 meta:

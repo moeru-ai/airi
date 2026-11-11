@@ -1604,6 +1604,7 @@ pages:
         json-applied: JSON 已经解析完成了，点「保存并重启」就写到磁盘上啦。
         restarted: 重启好啦！启动了 {started} 个，失败 {failed} 个，跳过 {skipped} 个
   flux:
+    balanceHint: 购买的 Flux 不会过期。没有订阅时，聊天和语音会使用它。
     sections:
       subscription: 订阅
     oneTime:
@@ -1611,7 +1612,6 @@ pages:
     title: Flux 电量
     buy: 充值
     currency: 币种
-    description: 充值 Flux
     terms: 使用条款
     privacy: 隐私政策
     packagesError: 暂时无法获取可用的 Flux 电量包。可以之后再试试吗？
