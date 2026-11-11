@@ -9,7 +9,7 @@ import { useElectronAutoUpdater, useElectronEventaInvoke } from '@proj-airi/elec
 import { AboutContent, BugReportDialog, createBugReportPageContext, MarkdownRenderer } from '@proj-airi/stage-ui/components'
 import { useAnalytics, useBuildInfo } from '@proj-airi/stage-ui/composables'
 import { formatBytes } from '@proj-airi/stage-ui/libs/inference/format-bytes'
-import { Alert, Button, ContainerError, DoubleCheckButton, FieldCheckbox, FieldSelect, GhostButton, Progress, ScrollableArea } from '@proj-airi/ui'
+import { Alert, Button, ContainerError, DoubleCheckButton, FieldCheckbox, FieldSelect, GhostButton, Progress, ScrollableArea, Tooltip } from '@proj-airi/ui'
 import { useClipboard, useNow } from '@vueuse/core'
 import { intervalToDuration, intlFormat, intlFormatDistance } from 'date-fns'
 import { DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
@@ -364,6 +364,22 @@ const releaseNotesContent = computed(() => {
   return typeof notes === 'string' ? notes : ''
 })
 
+/**
+ * Where the version change of an update leads. A release opens its notes. A dev or nightly build has no notes, so it
+ * opens the page that compares its commits.
+ */
+const changesTarget = computed(() => {
+  if (releaseNotesContent.value)
+    return { kind: 'notes' as const, label: t('tamagotchi.stage.about.update.actions.whats-new') }
+  if (updateState.value.changesUrl)
+    return { kind: 'link' as const, url: updateState.value.changesUrl, label: t('tamagotchi.stage.about.update.actions.view-changes') }
+  return undefined
+})
+
+function openChangelog() {
+  showChangelog.value = true
+}
+
 onMounted(() => {
   void refreshAppVersion()
   void refreshUpdaterPreferences()
@@ -429,15 +445,35 @@ onMounted(() => {
           <!-- The update status: what the app updates to, the action for it, and the download progress -->
           <div :class="['flex flex-col gap-4 rounded-xl p-4', 'bg-neutral-200/80 dark:bg-neutral-800', 'backdrop-blur-sm']">
             <!-- The state on the left and the versions on the right. A long dev version moves under the state. -->
-            <div :class="['flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1']">
+            <div :class="['flex flex-wrap items-center justify-between gap-x-4 gap-y-1']">
               <div :class="['flex items-center gap-1.5', 'text-sm font-medium']">
-                <div v-if="isLatestVersion" :class="['i-mingcute:check-circle-line self-center text-base text-emerald-600 dark:text-emerald-400']" />
+                <div v-if="isLatestVersion" :class="['i-mingcute:check-circle-line text-base text-emerald-600 dark:text-emerald-400']" />
                 {{ updateStatusLabel }}
               </div>
-              <div v-if="hasVersionChange" :class="['flex flex-wrap justify-end gap-x-1.5', 'font-mono text-xs text-neutral-500 dark:text-neutral-400']">
+              <!-- The version change opens what changed: the release notes, or the commits of a dev or nightly build. -->
+              <Tooltip v-if="hasVersionChange && changesTarget" :label="changesTarget.label" side="top">
+                <component
+                  :is="changesTarget.kind === 'notes' ? 'button' : 'a'"
+                  v-bind="changesTarget.kind === 'notes'
+                    ? { type: 'button', onClick: openChangelog }
+                    : { href: changesTarget.url, target: '_blank', rel: 'noopener noreferrer' }"
+                  :class="[
+                    'inline-flex flex-wrap items-center justify-end gap-x-1.5 rounded-md',
+                    'font-mono text-xs text-neutral-500 dark:text-neutral-400',
+                    'hover:underline hover:underline-offset-2',
+                    'focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2',
+                  ]"
+                >
+                  <span :class="['whitespace-nowrap']">v{{ appVersion }} →</span>
+                  <span :class="['whitespace-nowrap text-pink-600 dark:text-pink-400']">v{{ updateState.info?.version }}</span>
+                  <span :class="[changesTarget.kind === 'notes' ? 'i-mingcute:document-line' : 'i-mingcute:external-link-line', 'size-3.5 shrink-0']" />
+                </component>
+              </Tooltip>
+              <div v-else-if="hasVersionChange" :class="['flex flex-wrap justify-end gap-x-1.5', 'font-mono text-xs text-neutral-500 dark:text-neutral-400']">
                 <span :class="['whitespace-nowrap']">v{{ appVersion }} →</span>
                 <span :class="['whitespace-nowrap text-pink-600 dark:text-pink-400']">v{{ updateState.info?.version }}</span>
               </div>
+              <span v-else-if="isLatestVersion" :class="['font-mono text-xs text-neutral-500 dark:text-neutral-400']">v{{ appVersion }}</span>
             </div>
             <div v-if="updateState.status === 'manual-install-required'" :class="['-mt-3 break-words text-xs text-amber-700 dark:text-amber-200']">
               {{ t('tamagotchi.stage.about.update.status.manual-install-required', { version: updateState.info?.version }) }}
@@ -446,84 +482,64 @@ onMounted(() => {
               {{ t('tamagotchi.stage.about.update.actions.managed-by-store') }}
             </div>
 
-            <Progress v-if="updateState.status === 'downloading'" :progress="updateState.progress?.percent ?? 0" />
-
-            <!-- The download progress on the left and the actions on the right, so no action stands on a row of its own. -->
-            <div v-if="!isDisabled" :class="['flex flex-wrap items-center justify-between gap-2']">
-              <span v-if="updateState.status === 'downloading'" :class="['text-xs text-neutral-500 tabular-nums dark:text-neutral-400']">
-                {{ (updateState.progress?.percent ?? 0).toFixed(1) }}% · {{ downloadProgressText }}
-              </span>
-              <div :class="['ml-auto flex flex-wrap items-center justify-end gap-2']">
-                <!-- A release has notes. A dev or nightly build has only a page that compares its commits. -->
-                <template v-if="hasVersionChange">
-                  <GhostButton
-                    v-if="releaseNotesContent"
-                    icon="i-solar:document-text-outline"
-                    :label="t('tamagotchi.stage.about.update.actions.whats-new')"
-                    @click="showChangelog = true"
-                  />
-                  <a
-                    v-else-if="updateState.changesUrl"
-                    :href="updateState.changesUrl"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <GhostButton
-                      icon="i-solar:code-square-outline"
-                      :label="t('tamagotchi.stage.about.update.actions.view-changes')"
-                    />
-                  </a>
-                </template>
-
-                <Button
-                  v-if="updateState.status === 'available'"
-                  :loading="isBusy"
-                  color="primary"
-                  variant="primary"
-                  icon="i-solar:download-minimalistic-outline"
-                  :label="t('tamagotchi.stage.about.update.actions.download-short')"
-                  @click="handleDownloadClick()"
-                />
-                <a
-                  v-else-if="updateState.status === 'manual-install-required'"
-                  href="https://github.com/moeru-ai/airi/releases"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Button
-                    icon="i-solar:download-minimalistic-outline"
-                    :label="t('tamagotchi.stage.about.update.actions.open-download-page')"
-                  />
-                </a>
-                <DoubleCheckButton
-                  v-else-if="updateState.status === 'downloaded'"
-                  color="primary"
-                  variant="primary"
-                  @confirm="handleQuitAndInstall()"
-                >
-                  {{ restartButtonLabel }}
-                  <template #confirm>
-                    {{ t('tamagotchi.stage.about.update.actions.confirm-restart') }}
-                  </template>
-                  <template #cancel>
-                    {{ t('tamagotchi.stage.about.common.cancel') }}
-                  </template>
-                </DoubleCheckButton>
-                <Button
-                  v-else-if="updateState.status !== 'downloading' && !isDisabled"
-                  v-track-button="{ name: 'update_check_clicked', channel: selectedUpdateChannel }"
-                  :color="isError ? 'orange' : 'neutral'"
-                  :variant="isError ? 'primary' : 'secondary'"
-                  :loading="isBusy"
-                  icon="i-solar:refresh-outline"
-                  :label="isBusy
-                    ? t('tamagotchi.stage.about.update.actions.checking')
-                    : isError
-                      ? t('tamagotchi.stage.about.update.actions.retry-check')
-                      : t('tamagotchi.stage.about.update.actions.check-for-updates')"
-                  @click="checkForUpdates()"
-                />
+            <!-- The caption of the bar says only how the download goes. -->
+            <div v-if="updateState.status === 'downloading'" :class="['flex flex-col gap-2']">
+              <Progress :progress="updateState.progress?.percent ?? 0" />
+              <div :class="['flex justify-between gap-2', 'text-xs text-neutral-500 tabular-nums dark:text-neutral-400']">
+                <span>{{ (updateState.progress?.percent ?? 0).toFixed(1) }}%</span>
+                <span>{{ downloadProgressText }}</span>
               </div>
+            </div>
+
+            <div v-if="!isDisabled && updateState.status !== 'downloading'" :class="['flex flex-wrap items-center justify-end gap-2']">
+              <Button
+                v-if="updateState.status === 'available'"
+                :loading="isBusy"
+                color="primary"
+                variant="primary"
+                icon="i-solar:download-minimalistic-outline"
+                :label="t('tamagotchi.stage.about.update.actions.download-short')"
+                @click="handleDownloadClick()"
+              />
+              <a
+                v-else-if="updateState.status === 'manual-install-required'"
+                href="https://github.com/moeru-ai/airi/releases"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Button
+                  icon="i-solar:download-minimalistic-outline"
+                  :label="t('tamagotchi.stage.about.update.actions.open-download-page')"
+                />
+              </a>
+              <DoubleCheckButton
+                v-else-if="updateState.status === 'downloaded'"
+                color="primary"
+                variant="primary"
+                @confirm="handleQuitAndInstall()"
+              >
+                {{ restartButtonLabel }}
+                <template #confirm>
+                  {{ t('tamagotchi.stage.about.update.actions.confirm-restart') }}
+                </template>
+                <template #cancel>
+                  {{ t('tamagotchi.stage.about.common.cancel') }}
+                </template>
+              </DoubleCheckButton>
+              <Button
+                v-else
+                v-track-button="{ name: 'update_check_clicked', channel: selectedUpdateChannel }"
+                :color="isError ? 'orange' : 'neutral'"
+                :variant="isError ? 'primary' : 'secondary'"
+                :loading="isBusy"
+                icon="i-solar:refresh-outline"
+                :label="isBusy
+                  ? t('tamagotchi.stage.about.update.actions.checking')
+                  : isError
+                    ? t('tamagotchi.stage.about.update.actions.retry-check')
+                    : t('tamagotchi.stage.about.update.actions.check-for-updates')"
+                @click="checkForUpdates()"
+              />
             </div>
 
             <Alert

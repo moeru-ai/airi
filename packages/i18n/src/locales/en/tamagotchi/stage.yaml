@@ -154,7 +154,7 @@ about:
       ready: Ready to install
       manual-install-required: Version v{version} needs a new install. Download it and install it by hand.
       downloading: Downloading update...
-      download-remaining: '{duration} left ({speed})'
+      download-remaining: '{duration} left · {speed}'
       error-prefix: Error
       latest: Up to date (v{version}).
       downloaded:

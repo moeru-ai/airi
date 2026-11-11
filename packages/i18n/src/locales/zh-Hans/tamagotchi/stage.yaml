@@ -146,7 +146,7 @@ about:
       ready: 已准备好安装
       manual-install-required: 新版本 v{version} 需要重新安装。请下载后手动安装。
       downloading: 正在下载更新......
-      download-remaining: 剩余 {duration}（{speed}）
+      download-remaining: 剩余 {duration} · {speed}
       error-prefix: 错误
       latest: 已是最新版（v{version}）
       downloaded:
