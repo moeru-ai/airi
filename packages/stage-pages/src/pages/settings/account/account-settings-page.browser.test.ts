@@ -36,6 +36,8 @@ beforeAll(() => {
 
 let pinia: ReturnType<typeof createPinia>
 let deletion: ReturnType<typeof vi.fn<() => Promise<Response>>>
+let accountChange: ReturnType<typeof vi.fn<(path: string) => Promise<Response>>>
+let linkedAccounts: object[]
 let requests: RequestInit[]
 
 beforeEach(() => {
@@ -45,6 +47,8 @@ beforeEach(() => {
   capture.mockClear()
   requests = []
   deletion = vi.fn(async () => Response.json({ success: true, message: 'User deleted' }))
+  accountChange = vi.fn(async () => Response.json({ status: true, redirect: false }))
+  linkedAccounts = []
   network.fetch.mockImplementation(async (input, init) => {
     const url = new URL(input instanceof Request ? input.url : input)
     if (url.pathname.endsWith('/delete-account')) {
@@ -52,7 +56,9 @@ beforeEach(() => {
       return deletion()
     }
     if (url.pathname.endsWith('/list-accounts'))
-      return Response.json([])
+      return Response.json(linkedAccounts)
+    if (url.pathname.endsWith('/link-social') || url.pathname.endsWith('/unlink-account'))
+      return accountChange(url.pathname)
     return Response.json({ flux: 150, capacitorPercent: null, capacitorRechargesAt: null, fallbackToFlux: false })
   })
 })
@@ -200,5 +206,50 @@ describe('unified account deletion', () => {
     await expect.element(screen.getByRole('dialog')).not.toBeInTheDocument()
     expect(store.user.id).toBe('other')
     expect(store.isAuthenticated).toBe(true)
+  })
+})
+
+describe('connected accounts', () => {
+  it('offers a new sign-in when the server needs an active session to link an account', async () => {
+    accountChange.mockResolvedValue(Response.json({ code: 'SESSION_REQUIRED', message: 'Sign in again before you link an account.' }, { status: 403 }))
+    const { screen, store, onLogin } = await renderSignedIn()
+    const github = screen.getByRole('listitem').filter({ hasText: 'GitHub' })
+
+    await github.getByRole('button', { name: 'Link', exact: true }).click()
+
+    await expect.element(screen.getByRole('alert')).toHaveTextContent('Sign in again before you link or unlink an account.')
+    expect(accountChange).toHaveBeenCalledWith(expect.stringMatching(/\/link-social$/))
+    expect(store.isAuthenticated).toBe(true)
+    await screen.getByRole('button', { name: 'Sign in again', exact: true }).click()
+    await expect.poll(() => onLogin.mock.calls.length).toBe(1)
+    expect(store.isAuthenticated).toBe(false)
+  })
+
+  it('offers a new sign-in when the server needs a fresh session to unlink an account', async () => {
+    const createdAt = new Date().toISOString()
+    linkedAccounts = [
+      { id: 'account-1', accountId: 'github-1', providerId: 'github', createdAt, scopes: [] },
+      { id: 'account-2', accountId: 'owner', providerId: 'credential', createdAt, scopes: [] },
+    ]
+    accountChange.mockResolvedValue(Response.json({ code: 'SESSION_NOT_FRESH', message: 'Session is not fresh' }, { status: 403 }))
+    const { screen, onLogin } = await renderSignedIn()
+    const github = screen.getByRole('listitem').filter({ hasText: 'GitHub' })
+
+    await github.getByRole('button', { name: 'Unlink', exact: true }).click()
+
+    await expect.element(screen.getByRole('alert')).toHaveTextContent('Sign in again before you link or unlink an account.')
+    await screen.getByRole('button', { name: 'Sign in again', exact: true }).click()
+    await expect.poll(() => onLogin.mock.calls.length).toBe(1)
+  })
+
+  it('shows no sign-in action for other link failures', async () => {
+    accountChange.mockResolvedValue(Response.json({ code: 'PROVIDER_NOT_FOUND', message: 'Provider not found' }, { status: 404 }))
+    const { screen } = await renderSignedIn()
+    const github = screen.getByRole('listitem').filter({ hasText: 'GitHub' })
+
+    await github.getByRole('button', { name: 'Link', exact: true }).click()
+
+    await expect.element(screen.getByRole('alert')).toHaveTextContent('Provider not found')
+    expect(screen.getByRole('button', { name: 'Sign in again', exact: true }).elements()).toHaveLength(0)
   })
 })
