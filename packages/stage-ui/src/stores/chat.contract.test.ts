@@ -30,6 +30,7 @@ import { composeDrawCardPrompt } from '../tools/draw-card'
 import { composeMemoryPrompt } from '../tools/memory'
 import { useChatStore } from './chat'
 import { CHAT_FORMAT_RULES } from './chat/prompt-recipe'
+import { characterMembersOfMeta } from './chat/session-members'
 import { useContextObservabilityStore } from './devtools/context-observability'
 import { useMemoryStore } from './memory'
 import { useConsciousnessSettingsStore } from './modules/consciousness-settings'
@@ -151,6 +152,7 @@ vi.mock('./chat/session-store', () => ({
     activeSessionId: activeSessionIdRef,
     sessionMessages,
     sessionMetas,
+    characterMembersOf: (sessionId: string) => characterMembersOfMeta(sessionMetas[sessionId]),
     storeMessage: async (sessionId: string, message: ChatHistoryItem & { id: string }) => {
       const messages = sessionMessages[sessionId] ?? []
       const index = messages.findIndex(item => item.id === message.id)

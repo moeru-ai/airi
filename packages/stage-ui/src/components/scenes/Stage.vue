@@ -435,7 +435,7 @@ const disconnectVoiceOutput = voice.connectOutput((turn) => {
   if (speechMuted.value)
     return { ...output, synthesize: async () => null }
   try {
-    const characterId = chatSession.sessionMetas[turn.sessionId]?.characterId
+    const [characterId] = chatSession.characterMembersOf(turn.sessionId)
     if (!characterId)
       throw new Error('The response session has no character')
     return speechStore.createOutput(turn, cards.getModules(characterId).speech, output, audioContext)
