@@ -335,7 +335,7 @@ export function createMcpManager(): McpManager {
       maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
     })
 
-    const normalized: ElectronMcpCallToolResult = {}
+    const normalized: ElectronMcpCallToolResult = { dispatchOutcome: 'response_received' }
     if ('content' in result && Array.isArray(result.content)) {
       normalized.content = result.content as Array<Record<string, unknown>>
     }

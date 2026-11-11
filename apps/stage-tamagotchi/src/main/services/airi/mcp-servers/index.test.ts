@@ -250,7 +250,7 @@ describe('createMcpManager', () => {
     },
   )
 
-  it('preserves an MCP error result without dispatching again', async () => {
+  it('marks an MCP error result as response received without dispatching again', async () => {
     const manager = await startServers('terminal')
     const denial = { isError: true, content: [{ type: 'text', text: 'Action denied.' }] } satisfies CallToolResult
     let effects = 0
@@ -260,9 +260,38 @@ describe('createMcpManager', () => {
       return denial
     })
 
-    expect(await manager.callTool({ name: 'terminal::stdio::write' })).toEqual(denial)
+    expect(await manager.callTool({ name: 'terminal::stdio::write' })).toEqual({
+      ...denial,
+      dispatchOutcome: 'response_received',
+    })
     expect(clientMocks.callTool).toHaveBeenCalledOnce()
     expect(effects).toBe(0)
+  })
+
+  it('passes unknown call outcomes through Eventa and createMcpTools without redispatching', async () => {
+    const manager = await startServers('terminal')
+    let effects = 0
+    clientMocks.callTool.mockImplementation(async () => {
+      effects += 1
+      throw new Error('MCP connection closed.')
+    })
+    const context = createContext<ElectronMainContextExtensions, ElectronMainEmitOptions>()
+    createMcpServersService({ context, manager })
+    const callMcpTool = defineInvoke(context, electronMcpCallTool)
+    const [, callTool] = await Promise.all(createMcpTools({
+      listTools: async () => [],
+      callTool: payload => callMcpTool(payload),
+    }))
+
+    const result = await callTool.execute({ name: 'terminal::stdio::write', arguments: '{}' }, { messages: [], toolCallId: 'unknown-outcome' })
+
+    expect(result).toEqual({
+      dispatchOutcome: 'outcome_unknown',
+      isError: true,
+      content: [{ type: 'text', text: 'MCP connection closed.' }],
+    })
+    expect(clientMocks.callTool).toHaveBeenCalledOnce()
+    expect(effects).toBe(1)
   })
 
   it('does not guess another tool when the requested tool is absent', async () => {
