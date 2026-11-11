@@ -51,6 +51,7 @@ Commit dates identify new work. A commit created before a request and pushed aft
 Maintainers decide whether the update resolves the feedback. The workflow identifies an update for another review.
 
 Review labels update after PR events and review events. An hourly run reconciles all open PRs.
+Label jobs run serially and queue up to 100 pending jobs, so new events do not replace pending updates within that limit.
 Completion of the attestation app's `Human Attestation` check also updates labels for open PRs whose current head matches the checked commit.
 The trusted app's check details URL identifies the PR, including forks with no event association. Other apps and check names do not start this job.
 GitHub can suppress check events associated with Actions. The existing hourly run remains a fallback.
