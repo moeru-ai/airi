@@ -423,4 +423,17 @@ describe('authentication request ownership', () => {
       vi.unstubAllEnvs()
     }
   })
+
+  // The refresh flow requests the session while it holds the single-flight refresh.
+  // A 401 refresh on that request waits on the same refresh and never settles.
+  it('does not refresh again when get-session answers 401 during a refresh', async () => {
+    await signIn('first')
+    const store = useAuthStore()
+    const pending = store.refreshTokenNow()
+    await reply('/api/auth/oauth2/token', { access_token: 'renewed', refresh_token: 'renewed-refresh', expires_in: 3600 })
+    await reply('/api/auth/get-session', { message: 'Unauthorized' }, 401)
+    expect(await pending).toBeNull()
+    expect(store.token).toBeNull()
+    expect(requests).toHaveLength(0)
+  })
 })

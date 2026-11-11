@@ -18,12 +18,17 @@ import { refreshAccessToken, revokeRefreshToken, TokenRefreshError } from '../li
 import { SERVER_URL } from '../libs/server'
 
 /**
- * Delays between refresh attempts after a refresh fails for a reason that can pass,
- * such as a network error, a 5xx, or a 429. Each failure doubles the delay up to the cap.
+ * Delays between attempts after a refresh or a session request fails for a reason that
+ * can pass, such as a network error, a 5xx, or a 429. Each failure doubles the delay up to the cap.
+ * The refresh retry and the session retry count their failures separately.
  */
-const refreshRetryBackoff = {
+const retryBackoff = {
   initialMs: 30_000,
   maxMs: 5 * 60_000,
+}
+
+function retryDelayMs(failedAttempts: number): number {
+  return Math.min(retryBackoff.initialMs * 2 ** failedAttempts, retryBackoff.maxMs)
 }
 
 /** Upper bound for each server step of sign-out. Local state clears regardless of the outcome. */
@@ -289,9 +294,48 @@ export const useAuthStore = defineStore('auth', () => {
    */
   function scheduleRefreshRetry(): void {
     stopRefreshTimer()
-    refreshDelayMs.value = Math.min(refreshRetryBackoff.initialMs * 2 ** refreshRetryAttempt, refreshRetryBackoff.maxMs)
+    refreshDelayMs.value = retryDelayMs(refreshRetryAttempt)
     refreshRetryAttempt += 1
     startRefreshTimer()
+  }
+
+  // --- Session retry scheduling ---
+  // A session request without an answer leaves `user` unloaded while the token stays valid.
+  // Without a retry, identity loads only at the next refresh or a reload.
+  // Like the refresh timer, this leader timer stays outside the synced state.
+
+  const sessionRetryDelayMs = ref(0)
+  let sessionRetryAttempt = 0
+  // The session version that the pending retry belongs to.
+  let sessionRetryVersion = 0
+
+  const { start: startSessionRetryTimer, stop: stopSessionRetryTimer } = useTimeoutFn(
+    () => {
+      const authStore = useAuthStore(pinia)
+      // Each version change stops this timer. The check also keeps a retry of an
+      // older sign-in from requesting the session of a newer one.
+      if (sessionRetryVersion === authStore.sessionVersion)
+        void authStore.fetchSession()
+    },
+    sessionRetryDelayMs,
+    { immediate: false },
+  )
+
+  /**
+   * Requests the session again after a failure that can pass.
+   * A definitive session answer, sign-out, a new sign-in, and clearing stop the retry.
+   */
+  function scheduleSessionRetry(): void {
+    stopSessionRetryTimer()
+    sessionRetryVersion = sessionVersion.value
+    sessionRetryDelayMs.value = retryDelayMs(sessionRetryAttempt)
+    sessionRetryAttempt += 1
+    startSessionRetryTimer()
+  }
+
+  function stopSessionRetry(): void {
+    stopSessionRetryTimer()
+    sessionRetryAttempt = 0
   }
 
   /**
@@ -349,6 +393,7 @@ export const useAuthStore = defineStore('auth', () => {
     sessionVersion.value += 1
     inflightRefresh = null
     refreshRetryAttempt = 0
+    stopSessionRetry()
     token.value = tokens.accessToken
     refreshToken.value = tokens.refreshToken ?? null
     idToken.value = tokens.idToken ?? null
@@ -396,6 +441,9 @@ export const useAuthStore = defineStore('auth', () => {
    * Requests the session for one token and commits the identity on success.
    * It never clears state, so the refresh flow and `fetchSession` choose their own
    * reaction to a rejected token.
+   *
+   * A request without an answer schedules a session retry. A stale request does not,
+   * because the newer sign-in, refresh, or sign-out owns the session state.
    */
   async function lookupSession(accessToken: string | null): Promise<SessionLookup> {
     if (accessToken !== token.value)
@@ -407,12 +455,15 @@ export const useAuthStore = defineStore('auth', () => {
     }
     catch (error) {
       console.warn('Session request failed', errorMessageFrom(error))
+      if (version === sessionVersion.value && accessToken === token.value)
+        scheduleSessionRetry()
       return 'unavailable'
     }
     // A refresh can replace the token without changing the user-intent version.
     // Both must still match before identity or failure state is committed.
     if (version !== sessionVersion.value || accessToken !== token.value)
       return 'unavailable'
+    stopSessionRetry()
     if (!data)
       return 'unauthenticated'
 
@@ -518,6 +569,7 @@ export const useAuthStore = defineStore('auth', () => {
     inflightRefresh = null
     refreshRetryAttempt = 0
     stopRefreshTimer()
+    stopSessionRetry()
     user.value = null
     session.value = null
     token.value = null

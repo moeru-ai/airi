@@ -38,7 +38,11 @@ let pinia: ReturnType<typeof createPinia>
 let deletion: ReturnType<typeof vi.fn<() => Promise<Response>>>
 let accountChange: ReturnType<typeof vi.fn<(path: string) => Promise<Response>>>
 let linkedAccounts: object[]
+let listAccounts: ReturnType<typeof vi.fn<() => Promise<Response>>>
+let tokenRefresh: ReturnType<typeof vi.fn<() => Promise<Response>>>
 let requests: RequestInit[]
+/** Path and `Authorization` header of every auth request, in send order. */
+let authRequests: Array<{ path: string, authorization: string | null }>
 
 beforeEach(() => {
   pinia = createPinia()
@@ -46,19 +50,28 @@ beforeEach(() => {
   vi.stubEnv('VITE_ENABLE_ANALYTICS', 'true')
   capture.mockClear()
   requests = []
+  authRequests = []
   deletion = vi.fn(async () => Response.json({ success: true, message: 'User deleted' }))
-  accountChange = vi.fn(async () => Response.json({ status: true, redirect: false }))
   linkedAccounts = []
+  accountChange = vi.fn(async () => Response.json({ status: true, redirect: false }))
+  listAccounts = vi.fn(async () => Response.json(linkedAccounts))
+  tokenRefresh = vi.fn(async () => Response.json({ access_token: 'renewed-token', refresh_token: 'renewed-refresh', token_type: 'Bearer', expires_in: 3600 }))
   network.fetch.mockImplementation(async (input, init) => {
     const url = new URL(input instanceof Request ? input.url : input)
+    if (url.pathname.startsWith('/api/auth/'))
+      authRequests.push({ path: url.pathname, authorization: new Headers(init?.headers).get('authorization') })
     if (url.pathname.endsWith('/delete-account')) {
       requests.push(init ?? {})
       return deletion()
     }
     if (url.pathname.endsWith('/list-accounts'))
-      return Response.json(linkedAccounts)
+      return listAccounts()
     if (url.pathname.endsWith('/link-social') || url.pathname.endsWith('/unlink-account'))
       return accountChange(url.pathname)
+    if (url.pathname.endsWith('/oauth2/token'))
+      return tokenRefresh()
+    if (url.pathname.endsWith('/get-session'))
+      return Response.json({ user: { id: 'owner', name: 'Owner', email: 'person@example.com', emailVerified: true, createdAt: new Date(), updatedAt: new Date() }, session: { id: 'session-owner', userId: 'owner', token: 'renewed-token', createdAt: new Date(), updatedAt: new Date(), expiresAt: new Date(Date.now() + 60_000) } })
     return Response.json({ flux: 150, capacitorPercent: null, capacitorRechargesAt: null, fallbackToFlux: false })
   })
 })
@@ -84,6 +97,8 @@ async function renderSignedIn(email = 'person@example.com') {
     user: { id: 'owner', name: 'Owner', email, emailVerified: true, createdAt: now, updatedAt: now },
     session: { id: 'session-owner', userId: 'owner', token: 'owner-token', createdAt: now, updatedAt: now, expiresAt: new Date(Date.now() + 60_000) },
     token: 'owner-token',
+    refreshToken: 'owner-refresh',
+    oidcClientId: 'test-client',
   })
   const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/:pathMatch(.*)*', component: { template: '<div />' } }] })
   await router.push('/')
@@ -251,5 +266,54 @@ describe('connected accounts', () => {
 
     await expect.element(screen.getByRole('alert')).toHaveTextContent('Provider not found')
     expect(screen.getByRole('button', { name: 'Sign in again', exact: true }).elements()).toHaveLength(0)
+  })
+})
+
+describe('account requests after an expired access token', () => {
+  // ROOT CAUSE:
+  //
+  // Better Auth client calls used the plain fetch. A 401 on an account call
+  // failed without a token refresh, until the next scheduled refresh.
+  //
+  // We fixed this by passing `authedFetch` to the account calls whose 401 means an expired token.
+  it('refreshes the token once and retries the account list with the new token', async () => {
+    listAccounts.mockResolvedValueOnce(Response.json({ message: 'Unauthorized' }, { status: 401 }))
+    const { store } = await renderSignedIn()
+
+    await expect.poll(() => listAccounts.mock.calls.length).toBe(2)
+    expect(tokenRefresh).toHaveBeenCalledTimes(1)
+    expect(authRequests.filter(request => request.path.endsWith('/list-accounts')).map(request => request.authorization)).toEqual(['Bearer owner-token', 'Bearer renewed-token'])
+    await expect.poll(() => store.token).toBe('renewed-token')
+    expect(store.isAuthenticated).toBe(true)
+  })
+
+  it('expires the session when the refresh after an account 401 is rejected', async () => {
+    // A desktop runtime keeps the login request in the store instead of leaving the test page.
+    vi.stubEnv('RUNTIME_ENVIRONMENT', 'electron')
+    listAccounts.mockResolvedValue(Response.json({ message: 'Unauthorized' }, { status: 401 }))
+    tokenRefresh.mockResolvedValue(Response.json({ error: 'invalid_grant' }, { status: 400 }))
+    const { store } = await renderSignedIn()
+
+    await expect.poll(() => store.needsLogin).toBe(true)
+    expect(tokenRefresh).toHaveBeenCalledTimes(1)
+    expect(listAccounts).toHaveBeenCalledTimes(1)
+    expect(store.token).toBeNull()
+    expect(store.isAuthenticated).toBe(false)
+  })
+
+  // `/delete-account` uses Better Auth's `sensitiveSessionMiddleware`. It answers 401 for a valid
+  // token without an active session. A refresh cannot fix that, and its second 401 signs the user out.
+  it('keeps the session without a refresh when deletion answers 401', async () => {
+    deletion.mockResolvedValue(Response.json({ code: 'UNAUTHORIZED' }, { status: 401 }))
+    const { screen, store } = await openDeletion()
+    await screen.getByRole('dialog').getByRole('textbox').fill('person@example.com')
+    await screen.getByRole('button', { name: 'Delete permanently' }).click()
+
+    await expect.element(screen.getByRole('alert')).toHaveTextContent('Sign in again')
+    expect(requests).toHaveLength(1)
+    expect(tokenRefresh).not.toHaveBeenCalled()
+    expect(store.token).toBe('owner-token')
+    expect(store.isAuthenticated).toBe(true)
+    expect(store.needsLogin).toBe(false)
   })
 })
