@@ -205,26 +205,27 @@ export function oidcJwtBearer(env: AuthEnv): BetterAuthPlugin {
               ? persistedSession
               : null
 
-            // A request-only identity must never look fresh. Endpoints guarded
-            // by freshSessionMiddleware will reject this epoch timestamp when
-            // the JWT has no active original session.
-            const requestSession: AuthSession['session'] = activeSession ?? {
-              id: tokenId ?? `jwt:${userId}`,
-              token,
-              userId,
-              createdAt: new Date(0),
-              updatedAt: new Date(0),
-              expiresAt: accessTokenExpiresAt,
-              ipAddress: null,
-              userAgent: null,
-            }
-
             if (!activeSession) {
-              return {
-                context: {
-                  session: { session: requestSession, user: resolvedUser },
-                },
+              // A request-only identity must never look fresh. Endpoints guarded
+              // by freshSessionMiddleware will reject this epoch timestamp.
+              const requestSession: AuthSession['session'] = {
+                id: tokenId ?? `jwt:${userId}`,
+                token,
+                userId,
+                createdAt: new Date(0),
+                updatedAt: new Date(0),
+                expiresAt: accessTokenExpiresAt,
+                ipAddress: null,
+                userAgent: null,
               }
+
+              // Session middleware reads `ctx.context.session`, the per-request
+              // AuthContext copy that dispatch creates. A returned
+              // `context.session` lands on the endpoint context, which session
+              // middleware never reads.
+              // Source: better-auth/dist/api/routes/session.mjs, getSessionFromCtx.
+              c.context.session = { session: requestSession, user: resolvedUser }
+              return
             }
 
             // NOTICE:
@@ -247,10 +248,12 @@ export function oidcJwtBearer(env: AuthEnv): BetterAuthPlugin {
               existingCookie ? `${existingCookie}; ${newCookieEntry}` : newCookieEntry,
             )
 
+            // Better Auth resolves the active session from this cookie. It also
+            // refreshes the session row there, so the plugin does not set
+            // `c.context.session` on this path.
             return {
               context: {
                 headers: newHeaders,
-                session: { session: requestSession, user: resolvedUser },
               },
             }
           }),
