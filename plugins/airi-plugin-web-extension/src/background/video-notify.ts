@@ -193,6 +193,7 @@ export class VideoNotifyGate<T extends VideoNotifyReport> {
       if (other.tabId === tabId && otherKey !== key) {
         clearTimeout(other.timer)
         this.pendingVideos.delete(otherKey)
+        return
       }
     }
   }
