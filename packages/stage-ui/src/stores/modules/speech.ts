@@ -317,6 +317,12 @@ export const useSpeechStore = defineStore('speech', () => {
   const latestCharacterVoiceLoads = new Map<string, number>()
   let characterVoiceLoadSequence = 0
 
+  // A reset replaces the provider sessions and settings. The voices of characters go with them.
+  watch(resetGeneration, () => {
+    characterVoices.clear()
+    latestCharacterVoiceLoads.clear()
+  }, { flush: 'sync' })
+
   function characterVoicesKey(provider: string, model: string | undefined) {
     return JSON.stringify([provider, model ?? ''])
   }
@@ -683,9 +689,13 @@ export const useSpeechStore = defineStore('speech', () => {
     const synthesisSignal = synthesis.signal
     const providerId = selection.provider
     const config = structuredClone(toRaw(providerStore.getProviderConfig(providerId) ?? {}))
-    // The voices of the exact selection come first. The catalog of the provider can belong to another model.
-    const selectedVoice = characterVoices.get(characterVoicesKey(providerId, selection.model || undefined))?.find(voice => voice.id === selection.voice_id)
-      ?? availableVoices.value[providerId]?.find(voice => voice.id === selection.voice_id)
+    // The catalog of the store is the current one for the selection of the store. For another selection, the voices
+    // of that exact selection come first, because the catalog of the provider can belong to another model.
+    const isStoreSelection = providerId === activeSpeechProvider.value && (selection.model || '') === activeSpeechModel.value
+    const characterVoice = isStoreSelection
+      ? undefined
+      : characterVoices.get(characterVoicesKey(providerId, selection.model || undefined))?.find(voice => voice.id === selection.voice_id)
+    const selectedVoice = characterVoice ?? availableVoices.value[providerId]?.find(voice => voice.id === selection.voice_id)
     const voice = selectedVoice ? structuredClone(toRaw(selectedVoice)) : undefined
     const { model, voiceId, streaming, streamingModel } = resolveSpeechSelection(selection, config, () => providersStore.getDefaultModelForProvider(providerId))
     const useSSML = ssmlEnabled.value

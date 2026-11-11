@@ -649,6 +649,24 @@ describe('vOICEVOX provider defaults', () => {
     expect(output.language).toBe('ja-JP')
   })
 
+  // https://github.com/moeru-ai/airi/pull/3491#discussion_r4538636428
+  // ROOT CAUSE: The voices that a character load stored stayed first after the same provider and model became the
+  // selection of the store. A later catalog of the store, for example after a settings change, did not replace them.
+  it('reads the catalog of the store when the selection of a character becomes the selection of the store', async () => {
+    const providers = useProviderStore()
+    const loads = vi.spyOn(providers, 'listProviderVoices').mockResolvedValue([{ id: 'voice', name: 'Voice', languages: [{ code: 'ja-JP', title: 'Japanese' }], provider: 'microsoft-speech' }])
+    vi.spyOn(providers, 'getProviderInstance').mockResolvedValue({} as unknown as Awaited<ReturnType<typeof providers.getProviderInstance>>)
+    const speech = useSpeechStore()
+    await speech.loadVoicesForCharacter('microsoft-speech', 'model-b')
+    loads.mockResolvedValue([{ id: 'voice', name: 'Voice', languages: [{ code: 'en-US', title: 'English' }], provider: 'microsoft-speech' }])
+
+    await speech.selectProviderModel('microsoft-speech', 'model-b', 'voice')
+    await vi.waitFor(() => expect(speech.availableVoices['microsoft-speech']?.[0]?.languages[0]?.code).toBe('en-US'))
+
+    const output = speech.createOutput({ sessionId: 'session-1', turnId: 'turn-1' }, { provider: 'microsoft-speech', model: 'model-b', voice_id: 'voice' }, { playback: {} as never }, {} as AudioContext)
+    expect(output.language).toBe('en-US')
+  })
+
   it('does not load for a character whose speech selection is the selection of the store', async () => {
     const loads = vi.spyOn(useProviderStore(), 'listProviderVoices').mockResolvedValue([])
     const speech = useSpeechStore()
