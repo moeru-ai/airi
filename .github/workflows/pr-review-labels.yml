@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: read
+  checks: read
   pull-requests: write
   issues: write
 
@@ -27,6 +28,9 @@ jobs:
         with:
           script: |
             const managed = ['pr-review/waiting-maintainer', 'pr-review/waiting-on-author'];
+            // Only the installed human-attestation GitHub App can attest non-exempt authors.
+            const attestationAppId = 5607869;
+            const attestationName = 'Human Attestation';
             const repo = context.repo;
             const repositoryLabels = await github.paginate(github.rest.issues.listLabelsForRepo, { ...repo, per_page: 100 });
             for (const name of managed) {
@@ -48,6 +52,7 @@ jobs:
                     repository(owner: $owner, name: $repo) {
                       pullRequest(number: $number) {
                         state isDraft headRefOid
+                        author { __typename login }
                         latestOpinionatedReviews(first: 100, after: $cursor, writersOnly: true) {
                           nodes { state submittedAt commit { oid } }
                           pageInfo { hasNextPage endCursor }
@@ -63,10 +68,31 @@ jobs:
               } while (cursor);
               let desired;
               if (current.state === 'OPEN' && !current.isDraft) {
-                desired = 'pr-review/waiting-maintainer';
+                let attestationSatisfied = false;
+                // Match the attestation bot's exemption for human authors, independently of check creation timing.
+                if (current.author?.__typename === 'User') {
+                  try {
+                    const { data } = await github.rest.repos.getCollaboratorPermissionLevel({ ...repo, username: current.author.login });
+                    attestationSatisfied = ['write', 'maintain', 'admin'].includes(data.permission);
+                  } catch (error) {
+                    // An absent collaborator has no exemption. Other API errors must stop label changes.
+                    if (error.status !== 404) throw error;
+                  }
+                }
+                if (!attestationSatisfied) {
+                  const checks = await github.paginate(github.rest.checks.listForRef, {
+                    ...repo, ref: current.headRefOid, check_name: attestationName, app_id: attestationAppId, filter: 'latest', per_page: 100,
+                  });
+                  // Old checks cannot authorize a newer run or commit.
+                  const attestation = checks.filter(check =>
+                    check.name === attestationName && check.app?.id === attestationAppId && check.head_sha === current.headRefOid
+                  ).sort((a, b) => b.id - a.id)[0];
+                  attestationSatisfied = attestation?.status === 'completed' && attestation.conclusion === 'success';
+                }
+                desired = attestationSatisfied ? 'pr-review/waiting-maintainer' : 'pr-review/waiting-on-author';
                 // The latest active request starts a new author response cycle, even if older requests remain.
                 const request = requests.sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))[0];
-                if (request) {
+                if (attestationSatisfied && request) {
                   desired = 'pr-review/waiting-on-author';
                   if (!request.commit) {
                     console.warn(`PR #${pull.number} has no reviewed commit. Leaving labels unchanged.`);

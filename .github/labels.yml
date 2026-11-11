@@ -156,11 +156,11 @@
   color: 'ffffff'
 
 - name: 'pr-review/waiting-maintainer'
-  description: 'The pull request is waiting for maintainer review'
+  description: 'Human attestation passed or the author is exempt. The pull request is waiting for maintainer review.'
   color: 'c2e0e0'
 
 - name: 'pr-review/waiting-on-author'
-  description: 'A maintainer requested changes from the author'
+  description: 'The author must complete human attestation or respond to requested changes.'
   color: 'e0c5c2'
 - name: 'pr-review/needs-testing'
   description: 'The pull request needs additional testing'

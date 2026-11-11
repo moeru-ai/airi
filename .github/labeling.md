@@ -21,6 +21,7 @@ PR review labels identify who must act next:
 | State | Label |
 | --- | --- |
 | Draft PR | No automatic waiting label |
+| Open PR without human attestation or an author exemption | `pr-review/waiting-on-author` |
 | New open PR ready for review | `pr-review/waiting-maintainer` |
 | A maintainer requests changes | `pr-review/waiting-on-author` |
 | A new PR commit changes files after the request | `pr-review/waiting-maintainer` |
@@ -29,6 +30,10 @@ PR review labels identify who must act next:
 
 Draft status takes precedence over the review state. Converting a PR to draft removes both automatic waiting labels.
 Marking a draft ready reevaluates active change requests and subsequent file changes. Category and human labels remain unchanged.
+
+Human authors with `write`, `maintain`, or `admin` permission bypass attestation. Bot accounts are not exempt.
+Other authors need the latest `Human Attestation` check from app `5607869` to succeed on the current PR head.
+This prerequisite takes precedence over review progress.
 
 A maintainer has repository write access, as defined by GitHub's `latestOpinionatedReviews(writersOnly: true)` filter.
 Reviews from other users do not change the waiting labels.
