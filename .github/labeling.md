@@ -51,6 +51,9 @@ Commit dates identify new work. A commit created before a request and pushed aft
 Maintainers decide whether the update resolves the feedback. The workflow identifies an update for another review.
 
 Review labels update after PR events and review events. An hourly run reconciles all open PRs.
+Completion of the attestation app's `Human Attestation` check also updates labels for open PRs whose current head matches the checked commit.
+The trusted app's check details URL identifies the PR, including forks with no event association. Other apps and check names do not start this job.
+GitHub can suppress check events associated with Actions. The existing hourly run remains a fallback.
 The review event workflow has no permissions. Its completion triggers the label workflow, including for fork PRs.
 The label workflow reads current GitHub API data. It never checks out PR code or reads review workflow artifacts.
 Fork workflow approval requirements can delay review events. The hourly run also handles these PRs.

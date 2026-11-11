@@ -6,6 +6,8 @@ on:
   workflow_run:
     workflows: [PR Review Event]
     types: [completed]
+  check_run:
+    types: [completed]
   schedule:
     - cron: '17 * * * *'
   workflow_dispatch:
@@ -16,13 +18,15 @@ permissions:
   pull-requests: write
   issues: write
 
-concurrency:
-  group: pr-review-labels
-  cancel-in-progress: false
-
 jobs:
   label:
+    if: >-
+      github.event_name != 'check_run' ||
+      (github.event.check_run.app.id == 5607869 && github.event.check_run.name == 'Human Attestation')
     runs-on: ubuntu-latest
+    concurrency:
+      group: pr-review-labels
+      cancel-in-progress: false
     steps:
       - uses: actions/github-script@v8
         with:
@@ -38,10 +42,20 @@ jobs:
                 await github.rest.issues.createLabel({ ...repo, name, color: 'c2e0e0' });
               }
             }
-            // Review event jobs have no write token on forks. Read current API data after their completion.
-            const pulls = context.payload.pull_request
-              ? [context.payload.pull_request]
-              : await github.paginate(github.rest.pulls.list, { ...repo, state: 'open', per_page: 100 });
+            let pulls;
+            if (context.payload.pull_request) {
+              pulls = [context.payload.pull_request];
+            } else if (context.payload.check_run) {
+              // The trusted app links each check to /attest/{owner}/{repo}/{number}, including fork PRs with no event association.
+              const pathname = new URL(context.payload.check_run.details_url).pathname;
+              const prefix = `/attest/${repo.owner}/${repo.repo}/`;
+              const number = pathname.startsWith(prefix) ? pathname.slice(prefix.length) : '';
+              if (!/^[1-9]\d*$/.test(number)) throw new Error('Unexpected attestation check details URL');
+              pulls = [{ number: Number(number) }];
+            } else {
+              // Review event jobs have no write token on forks. Read current API data after their completion.
+              pulls = await github.paginate(github.rest.pulls.list, { ...repo, state: 'open', per_page: 100 });
+            }
             for (const pull of pulls) {
               let current;
               let cursor = null;
@@ -66,6 +80,7 @@ jobs:
                 requests.push(...reviews.nodes.filter(review => review.state === 'CHANGES_REQUESTED'));
                 cursor = reviews.pageInfo.hasNextPage ? reviews.pageInfo.endCursor : null;
               } while (cursor);
+              if (context.payload.check_run && current.headRefOid !== context.payload.check_run.head_sha) continue;
               let desired;
               if (current.state === 'OPEN' && !current.isDraft) {
                 let attestationSatisfied = false;

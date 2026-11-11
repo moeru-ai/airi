@@ -119,9 +119,13 @@ describe('pR review handoff labels', () => {
     expect(github.rest.repos.compareCommitsWithBasehead).not.toHaveBeenCalled()
   })
 
-  it('returns the PR to maintainers when reconciliation finds successful attestation', async () => {
+  it.each([{}, { check_run: { ...attestation, details_url: 'https://example.com/attest/moeru-ai/airi/42', pull_requests: [] } }])('returns the PR to maintainers after successful attestation: %j', async (payload) => {
     const github = api({ labels: ['pr-review/waiting-on-author'] })
-    await run(github, { ...context, payload: {} })
+    await run(github, { ...context, payload })
+    if ('check_run' in payload) {
+      expect(github.paginate).not.toHaveBeenCalledWith(github.rest.pulls.list, expect.anything())
+      expect(github.graphql).toHaveBeenCalledTimes(1)
+    }
     expect(github.paginate).toHaveBeenCalledWith(github.rest.checks.listForRef, {
       ...context.repo,
       ref: 'head',
@@ -132,6 +136,14 @@ describe('pR review handoff labels', () => {
     })
     expect(github.rest.issues.addLabels).toHaveBeenCalledExactlyOnceWith({ ...context.repo, issue_number: 42, labels: ['pr-review/waiting-maintainer'] })
     expect(github.rest.issues.removeLabel).toHaveBeenCalledExactlyOnceWith({ ...context.repo, issue_number: 42, name: 'pr-review/waiting-on-author' })
+  })
+
+  it.each(['other/repo/42', 'moeru-ai/airi/invalid'])('rejects an attestation link outside the PR route: %s', async (path) => {
+    const github = api()
+    await expect(run(github, { ...context, payload: { check_run: { ...attestation, details_url: `https://example.com/attest/${path}` } } })).rejects.toThrow('Unexpected attestation check details URL')
+    expect(github.graphql).not.toHaveBeenCalled()
+    expect(github.rest.issues.addLabels).not.toHaveBeenCalled()
+    expect(github.rest.issues.removeLabel).not.toHaveBeenCalled()
   })
 
   it.each(['permissions', 'checks'])('preserves labels when the %s API fails', async (boundary) => {
