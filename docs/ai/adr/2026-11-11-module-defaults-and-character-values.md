@@ -1,0 +1,104 @@
+# Module settings are global defaults, and a character holds its own values
+
+Status: proposed
+
+## Context
+
+`docs/ai/adr/2026-10-09-character-as-chat-member.md` decided that the activation of a character stops the writes into the global runtime stores.
+Step 3 of that document does this work. This document gives the design of step 3.
+
+The modules are consciousness (chat model), vision, and speech. The code on `main` works as follows:
+
+- A character holds an optional provider, model, and voice for each module. An empty field inherits the global default.
+- `moduleDefaults` in `stores/modules/airi-card.ts` holds the global defaults. It is a snapshot in `localStorage`.
+- The module stores (`consciousness`, `vision`, `speech`) hold the resolved selection of the active character. They do not hold the defaults.
+- `activateCard` resolves the character against `moduleDefaults` and writes the result into the module stores (`writeRuntimeModules`).
+- A watcher copies changes of the module stores back into `moduleDefaults`, but only for the fields that the active character inherits (`followInheritedSettings`).
+- The module settings pages write the module stores. Then they save the same value on the active character (`updateActiveCardConsciousness`, `updateActiveCardVision`, `updateActiveCardSpeech`).
+- A chat turn and its speech output resolve the session character with `getModules(characterId)`.
+
+This design has these problems:
+
+- A user cannot change a global default from a module settings page. Each selection becomes a value of the active character.
+- The pages do not tell the user that the selection belongs to one character.
+- The module stores have one value for all windows. Two windows cannot show chats of two characters with different models.
+- Two copies of the defaults exist. The watcher and three other code paths keep them the same.
+- Some paths read the module stores during a turn. They get the selection of the active character, not of the session character.
+
+## Decision
+
+### One source for the defaults
+
+- The module stores hold the global defaults. They hold nothing else.
+- `moduleDefaults` and its `localStorage` key are removed. `getModules(characterId)` resolves a character against the module stores.
+- `rememberInheritedSettings`, `followInheritedSettings`, and `writeRuntimeModules` are removed.
+- The activation of a character does not write the module stores. `applyActiveCardSettings` keeps the display model and the artistry steps until a later change moves them.
+- Automatic selections write the default directly. Examples are the voice that the official catalog selects and the defaults of a login.
+
+### Order of the sources
+
+The order does not change: the value of the character, then the global default.
+
+- A model is inherited only when the provider of the character is empty or equal to the default provider.
+- A voice is inherited only when the provider and the model are equal to the defaults.
+
+### Settings pages
+
+- The module settings pages edit the global defaults. They do not save a value on a character.
+- Each page says that the selection is the default for all characters.
+- If the character of the current chat has its own value for the module, the page shows a notice. The notice has a link to the editor of that character.
+- The character editor edits the values of one character. It keeps the option "Inherit global settings" for each field.
+
+### Readers during a turn
+
+A path that runs for a chat turn resolves the session character. It does not read the module stores directly.
+
+| Path | Today | After this change |
+| --- | --- | --- |
+| Send gate (`chatReady`) | Global selection | Selection of the character of the current chat |
+| Image reading for chat (`use-vision-inference`, `chat.ts`) | Global vision selection | Vision selection of the session character |
+| Tool image reader on a tool rerun | Global chat model | Chat model of the session character |
+| Reasoning default of the provider instance | Global provider and model | Provider and model of the turn |
+| Voice catalog for speech output | Loaded for the global provider only | Loaded for the provider of the session character before the output starts |
+
+These paths have no session and keep the global default: the voice end judge, the voice rephrase, the screen capture of the vision orchestrator, and the tool card generation.
+
+### Data of existing installations
+
+- At the first start after the update, the module stores hold the resolved selection of the active character. `initialize` writes `moduleDefaults` into the module stores one time and then removes the key.
+- A selection that a user made on a module settings page is a value of the character that was active at that time. It stays a value of that character.
+- The data does not tell a deliberate value of a character from a selection on a settings page. Thus no automatic rule can remove these values safely.
+- The notice on the settings pages tells the user when the character of the current chat does not follow the default.
+
+### Windows
+
+- A page writes the defaults through the synchronized leader actions that the module stores already have.
+- A card snapshot must not cause a state proposal from a follower window. The current tests for this rule stay.
+- `getModules` creates the module stores when a caller needs a resolved selection. A consumer that reads only card metadata does not call it and does not create them.
+
+## Non-goals
+
+- Temperature and top P for each character. A character has no such field.
+- Speech recognition for each character. It belongs to the user and the device, and it stays global.
+- Tools and MCP servers for each character.
+- The display model that follows the chat. Step 3 of the roadmap ("the chat selects the stage") does this work.
+- The removal of the active character. It stays as the selector of the chat and of the display model until that step.
+
+## Steps
+
+| Step | Content | Workspaces | State |
+| --- | --- | --- | --- |
+| 1 | Resolve the session character in the turn paths of the table. | `packages/stage-ui`, `packages/stage-layouts`, `apps/stage-tamagotchi` | This change |
+| 2 | Make the module stores the source of the defaults. Migrate `moduleDefaults`. Remove the writes on activation and the watcher. | `packages/stage-ui` | To do |
+| 3 | Change the module settings pages to edit the defaults. Add the notice and the text. | `packages/stage-pages`, `packages/i18n` | To do |
+
+Step 1 goes first. Without it, step 2 stops the send gate, the image reading, and the voice catalog of a character with its own values.
+Steps 2 and 3 go into one pull request, because step 2 alone stops a settings page selection from reaching a chat of a character with its own value.
+
+## Consequences
+
+- A user can change a model for all characters from one page.
+- Two windows can show chats of two characters, because the activation of a character changes no shared selection.
+- A character that got a value from a settings page before the update keeps it. The user must set the field to "Inherit global settings" in the editor to follow the default.
+- About 20 test assertions that read a module store after an activation change. They must read `getModules(characterId)` instead.
+- `updateActiveCardConsciousness`, `updateActiveCardVision`, `updateActiveCardSpeech`, `selectActiveCardVisionProvider`, and `currentModels` have no caller after step 3 and are removed.
