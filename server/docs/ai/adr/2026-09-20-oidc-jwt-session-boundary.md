@@ -53,9 +53,15 @@ did not stop a copied refresh token.
 
 - The stage client sends the refresh token to `/api/auth/oauth2/revoke`
   (RFC 7009) with `token_type_hint=refresh_token` and its public `client_id`.
-  Then it ends the Session as before.
-- The client logs a failed revoke or sign-out response. It clears local
-  credentials in all cases.
+  It ends the Session at the same time.
+- The client clears local credentials first. Both server requests then run in
+  the background with `keepalive` and a 5-second timeout. The client logs a
+  failed revoke or sign-out response.
+- A plain login sends `prompt=login`, and a provider login authenticates again.
+  A new sign-in therefore cannot reuse the old Session while sign-out runs.
+- If a refresh is in flight, sign-out waits up to 5 seconds for it. A revoke of
+  a rotated token makes the provider delete every refresh token of the user and
+  client.
 - The custom `/api/auth/sign-out` route is gone. It answered success and
   skipped Better Auth. Better Auth's `/sign-out` now deletes the cookie Session
   and expires its cookies.
@@ -67,14 +73,17 @@ sequenceDiagram
   participant C as Stage client
   participant P as OAuth Provider
   participant B as Better Auth
-  C->>P: POST /oauth2/revoke (refresh token, client_id)
-  P-->>C: 200
-  alt ID token present
-    C->>P: GET /oauth2/end-session (id_token_hint)
-  else access token only
-    C->>B: POST /sign-out (Bearer)
-  end
+  C->>C: Wait for an in-flight refresh (up to 5 s)
   C->>C: Clear local credentials
+  par revoke
+    C->>P: POST /oauth2/revoke (refresh token, client_id, keepalive)
+  and end the Session
+    alt ID token present
+      C->>P: GET /oauth2/end-session (id_token_hint, keepalive)
+    else access token only
+      C->>B: POST /sign-out (Bearer, keepalive)
+    end
+  end
 ```
 
 ## Scope

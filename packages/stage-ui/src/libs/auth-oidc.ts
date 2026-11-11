@@ -9,8 +9,9 @@ const OIDC_TOKEN_PATH = '/api/auth/oauth2/token'
 const OIDC_REVOKE_PATH = '/api/auth/oauth2/revoke'
 
 /** Sends one form-encoded request to an OAuth endpoint of the server, as RFC 6749 and RFC 7009 require. */
-async function postOAuthForm(path: string, params: Record<string, string>): Promise<Response> {
+async function postOAuthForm(path: string, params: Record<string, string>, init?: RequestInit): Promise<Response> {
   return await fetch(new URL(path, SERVER_URL), {
+    ...init,
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams(params),
@@ -187,12 +188,12 @@ async function readOAuthErrorCode(response: Response): Promise<string | undefine
  * First-party clients are public, so `client_id` alone identifies the client.
  * The server answers 200 for an unknown token. Any other status throws.
  */
-export async function revokeRefreshToken(clientId: string, refreshToken: string): Promise<void> {
+export async function revokeRefreshToken(clientId: string, refreshToken: string, init?: RequestInit): Promise<void> {
   const response = await postOAuthForm(OIDC_REVOKE_PATH, {
     token: refreshToken,
     token_type_hint: 'refresh_token',
     client_id: clientId,
-  })
+  }, init)
 
   if (!response.ok)
     throw new Error(`Token revocation failed: ${response.status}`)
