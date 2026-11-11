@@ -1,0 +1,347 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Eventa;
+using GdKirie.EventaAdapter;
+
+internal sealed record EmptyPayload;
+internal sealed record OpenSettingsPayload(string? Route);
+internal sealed record SettingsNavigatePayload(string Route);
+internal sealed record OpenDevtoolsWindowPayload(
+    string Key,
+    string? Route,
+    int? Width,
+    int? Height,
+    int? X,
+    int? Y);
+internal sealed record NoticeOpenPayload(
+    string? Id,
+    string Route,
+    string? Type,
+    Dictionary<string, JsonElement>? Payload);
+internal sealed record NoticePagePayload(string? Id);
+internal sealed record NoticePendingPayload(
+    string Id,
+    string? Type,
+    Dictionary<string, JsonElement>? Payload);
+internal sealed record NoticeActionPayload(string Id, string Action);
+internal sealed record AuthTokensPayload(
+    string AccessToken,
+    string? RefreshToken,
+    string? IdToken,
+    int ExpiresIn);
+internal sealed record AuthErrorPayload(string Error);
+internal sealed record AuthConfigurationPayload(string ClientId, string ServerUrl);
+internal sealed record DesktopDisplayBoundsPayload(int X, int Y, int Width, int Height);
+internal sealed record DesktopDisplaySnapshotPayload(
+    DesktopDisplayBoundsPayload Bounds,
+    DesktopDisplayBoundsPayload WorkArea,
+    float Scale);
+internal sealed record MicrophonePermissionStatePayload(string Permission, string State);
+internal sealed record MicrophonePermissionPromptPayload(string Permission, string PromptId);
+internal sealed record MicrophonePermissionPromptSnapshotPayload(string Permission, string? PromptId);
+internal sealed record MicrophonePermissionDecisionPayload(string PromptId, string Decision);
+internal sealed record MicrophonePermissionPromptDismissedPayload(string PromptId);
+internal sealed record SpotlightAcceleratorPayload(string Key, string[] Modifiers);
+internal sealed record SpotlightShortcutSetPayload(SpotlightAcceleratorPayload? Accelerator);
+internal sealed record SpotlightShortcutRegistrationResultPayload(
+    string Id,
+    bool Ok,
+    string? Reason,
+    SpotlightAcceleratorPayload? ActualAccelerator);
+
+/// <summary>
+/// Localized tray menu labels. The main renderer owns AIRI translations and sends them to Godot.
+/// </summary>
+internal sealed record TrayLabelsPayload(
+    string Show,
+    string AdjustSizes,
+    string RecommendedSize,
+    string FullHeight,
+    string HalfHeight,
+    string FullScreen,
+    string AlignTo,
+    string Center,
+    string TopLeft,
+    string TopRight,
+    string BottomLeft,
+    string BottomRight,
+    string Settings,
+    string About,
+    string OpenInlay,
+    string OpenWidgets,
+    string OpenCaption,
+    string CaptionOverlay,
+    string FollowWindow,
+    string ResetPosition,
+    string Devtools,
+    string TroubleshootBeatSync,
+    string Quit);
+
+internal static class AiriDesktopEvents
+{
+    public static readonly InvokeEventDefinition<EmptyPayload, EmptyPayload> OpenOnboarding =
+        new("eventa:invoke:airi:windows:onboarding:open");
+
+    public static readonly InvokeEventDefinition<EmptyPayload, EmptyPayload> CloseOnboarding =
+        new("eventa:invoke:airi:windows:onboarding:close");
+
+    public static readonly InvokeEventDefinition<EmptyPayload, OpenSettingsPayload> OpenSettings =
+        new("eventa:invoke:airi:windows:settings:open");
+
+    public static readonly EventDefinition<SettingsNavigatePayload> SettingsNavigate =
+        new("eventa:event:airi:windows:settings:navigate");
+
+    public static readonly EventDefinition<EmptyPayload> SettingsReady =
+        new("eventa:event:airi:windows:settings:ready");
+
+    public static readonly InvokeEventDefinition<EmptyPayload, EmptyPayload> OpenChat =
+        new("eventa:invoke:airi:windows:chat:open");
+
+    public static readonly InvokeEventDefinition<EmptyPayload, EmptyPayload> OpenMainDevtools =
+        new("eventa:invoke:airi:windows:main:devtools:open");
+
+    public static readonly InvokeEventDefinition<EmptyPayload, OpenDevtoolsWindowPayload> OpenDevtoolsWindow =
+        new("eventa:invoke:airi:windows:devtools:open");
+
+    public static readonly EventDefinition<EmptyPayload> ChatReady =
+        new("eventa:event:airi:windows:chat:ready");
+
+    public static readonly InvokeEventDefinition<EmptyPayload, EmptyPayload> QuitApp =
+        new("eventa:invoke:airi:app:quit");
+
+    public static readonly InvokeEventDefinition<bool, NoticeOpenPayload> OpenNotice =
+        new("eventa:invoke:open:airi:windows:notice");
+
+    public static readonly InvokeEventDefinition<EmptyPayload, NoticeActionPayload> NoticeAction =
+        new("eventa:invoke:action:airi:windows:notice");
+
+    public static readonly InvokeEventDefinition<NoticePendingPayload?, NoticePagePayload> NoticePageMounted =
+        new("eventa:invoke:page-mounted:airi:windows:notice");
+
+    public static readonly InvokeEventDefinition<EmptyPayload, NoticePagePayload> NoticePageUnmounted =
+        new("eventa:invoke:page-unmounted:airi:windows:notice");
+
+    public static readonly InvokeEventDefinition<EmptyPayload, EmptyPayload> AuthStartLogin =
+        new("eventa:invoke:airi:auth:start-login");
+
+    public static readonly EventDefinition<AuthTokensPayload> AuthCallback =
+        new("eventa:event:airi:auth:callback");
+
+    public static readonly EventDefinition<AuthErrorPayload> AuthCallbackError =
+        new("eventa:event:airi:auth:callback-error");
+
+    public static readonly InvokeEventDefinition<EmptyPayload, EmptyPayload> AuthLogout =
+        new("eventa:invoke:airi:auth:logout");
+
+    public static readonly InvokeEventDefinition<EmptyPayload, AuthConfigurationPayload> AuthConfigure =
+        new("eventa:invoke:airi:auth:configure");
+
+    public static readonly InvokeEventDefinition<DesktopDisplaySnapshotPayload, EmptyPayload> GetCurrentDisplaySnapshot =
+        new("eventa:invoke:airi:desktop:current-display:get");
+
+    public static readonly InvokeEventDefinition<MicrophonePermissionStatePayload, EmptyPayload>
+        GetMicrophonePermissionState =
+            new("eventa:invoke:airi:permissions:microphone:get-state");
+
+    public static readonly InvokeEventDefinition<MicrophonePermissionPromptSnapshotPayload, EmptyPayload>
+        GetMicrophonePermissionPrompt =
+            new("eventa:invoke:airi:permissions:microphone:get-prompt");
+
+    public static readonly InvokeEventDefinition<MicrophonePermissionStatePayload, EmptyPayload>
+        ResetMicrophonePermission =
+            new("eventa:invoke:airi:permissions:microphone:reset");
+
+    public static readonly InvokeEventDefinition<EmptyPayload, MicrophonePermissionDecisionPayload>
+        ResolveMicrophonePermissionPrompt =
+            new("eventa:invoke:airi:permissions:microphone:resolve-prompt");
+
+    public static readonly EventDefinition<MicrophonePermissionStatePayload>
+        MicrophonePermissionStateChanged =
+            new("eventa:event:airi:permissions:microphone:state-changed");
+
+    public static readonly EventDefinition<MicrophonePermissionPromptPayload>
+        MicrophonePermissionPromptRequested =
+            new("eventa:event:airi:permissions:microphone:prompt-requested");
+
+    public static readonly EventDefinition<MicrophonePermissionPromptDismissedPayload>
+        MicrophonePermissionPromptDismissed =
+            new("eventa:event:airi:permissions:microphone:prompt-dismissed");
+
+    public static readonly InvokeEventDefinition<EmptyPayload, EmptyPayload> OpenSpotlight =
+        new("eventa:invoke:airi:windows:spotlight:open");
+
+    public static readonly InvokeEventDefinition<EmptyPayload, EmptyPayload> HideSpotlight =
+        new("eventa:invoke:airi:windows:spotlight:hide");
+
+    public static readonly InvokeEventDefinition<SpotlightAcceleratorPayload, EmptyPayload>
+        GetSpotlightShortcut =
+            new("eventa:invoke:airi:windows:spotlight:shortcut:get");
+
+    public static readonly InvokeEventDefinition<
+        SpotlightShortcutRegistrationResultPayload,
+        SpotlightShortcutSetPayload> SetSpotlightShortcut =
+            new("eventa:invoke:airi:windows:spotlight:shortcut:set");
+
+    public static readonly EventDefinition<SpotlightAcceleratorPayload> SpotlightShortcutChanged =
+        new("eventa:event:airi:windows:spotlight:shortcut-changed");
+
+    public static readonly InvokeEventDefinition<EmptyPayload, TrayLabelsPayload> SetTrayLabels =
+        new("eventa:invoke:airi:tray:labels:set");
+}
+
+internal static class AiriDesktopContracts
+{
+    public static KirieEventaJsonRegistry Register(KirieEventaJsonRegistry registry)
+    {
+        return registry
+            .RegisterInvoke(
+                AiriDesktopEvents.OpenOnboarding,
+                AiriDesktopJsonContext.Default.EmptyPayload,
+                AiriDesktopJsonContext.Default.EmptyPayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.CloseOnboarding,
+                AiriDesktopJsonContext.Default.EmptyPayload,
+                AiriDesktopJsonContext.Default.EmptyPayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.OpenSettings,
+                AiriDesktopJsonContext.Default.EmptyPayload,
+                AiriDesktopJsonContext.Default.OpenSettingsPayload)
+            .RegisterEvent(
+                AiriDesktopEvents.SettingsNavigate,
+                AiriDesktopJsonContext.Default.SettingsNavigatePayload)
+            .RegisterEvent(
+                AiriDesktopEvents.SettingsReady,
+                AiriDesktopJsonContext.Default.EmptyPayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.OpenChat,
+                AiriDesktopJsonContext.Default.EmptyPayload,
+                AiriDesktopJsonContext.Default.EmptyPayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.OpenMainDevtools,
+                AiriDesktopJsonContext.Default.EmptyPayload,
+                AiriDesktopJsonContext.Default.EmptyPayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.OpenDevtoolsWindow,
+                AiriDesktopJsonContext.Default.EmptyPayload,
+                AiriDesktopJsonContext.Default.OpenDevtoolsWindowPayload)
+            .RegisterEvent(
+                AiriDesktopEvents.ChatReady,
+                AiriDesktopJsonContext.Default.EmptyPayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.QuitApp,
+                AiriDesktopJsonContext.Default.EmptyPayload,
+                AiriDesktopJsonContext.Default.EmptyPayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.OpenNotice,
+                AiriDesktopJsonContext.Default.Boolean,
+                AiriDesktopJsonContext.Default.NoticeOpenPayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.NoticeAction,
+                AiriDesktopJsonContext.Default.EmptyPayload,
+                AiriDesktopJsonContext.Default.NoticeActionPayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.NoticePageMounted,
+                AiriDesktopJsonContext.Default.NoticePendingPayload,
+                AiriDesktopJsonContext.Default.NoticePagePayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.NoticePageUnmounted,
+                AiriDesktopJsonContext.Default.EmptyPayload,
+                AiriDesktopJsonContext.Default.NoticePagePayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.AuthStartLogin,
+                AiriDesktopJsonContext.Default.EmptyPayload,
+                AiriDesktopJsonContext.Default.EmptyPayload)
+            .RegisterEvent(
+                AiriDesktopEvents.AuthCallback,
+                AiriDesktopJsonContext.Default.AuthTokensPayload)
+            .RegisterEvent(
+                AiriDesktopEvents.AuthCallbackError,
+                AiriDesktopJsonContext.Default.AuthErrorPayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.AuthLogout,
+                AiriDesktopJsonContext.Default.EmptyPayload,
+                AiriDesktopJsonContext.Default.EmptyPayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.AuthConfigure,
+                AiriDesktopJsonContext.Default.EmptyPayload,
+                AiriDesktopJsonContext.Default.AuthConfigurationPayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.GetCurrentDisplaySnapshot,
+                AiriDesktopJsonContext.Default.DesktopDisplaySnapshotPayload,
+                AiriDesktopJsonContext.Default.EmptyPayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.GetMicrophonePermissionState,
+                AiriDesktopJsonContext.Default.MicrophonePermissionStatePayload,
+                AiriDesktopJsonContext.Default.EmptyPayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.GetMicrophonePermissionPrompt,
+                AiriDesktopJsonContext.Default.MicrophonePermissionPromptSnapshotPayload,
+                AiriDesktopJsonContext.Default.EmptyPayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.ResetMicrophonePermission,
+                AiriDesktopJsonContext.Default.MicrophonePermissionStatePayload,
+                AiriDesktopJsonContext.Default.EmptyPayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.ResolveMicrophonePermissionPrompt,
+                AiriDesktopJsonContext.Default.EmptyPayload,
+                AiriDesktopJsonContext.Default.MicrophonePermissionDecisionPayload)
+            .RegisterEvent(
+                AiriDesktopEvents.MicrophonePermissionStateChanged,
+                AiriDesktopJsonContext.Default.MicrophonePermissionStatePayload)
+            .RegisterEvent(
+                AiriDesktopEvents.MicrophonePermissionPromptRequested,
+                AiriDesktopJsonContext.Default.MicrophonePermissionPromptPayload)
+            .RegisterEvent(
+                AiriDesktopEvents.MicrophonePermissionPromptDismissed,
+                AiriDesktopJsonContext.Default.MicrophonePermissionPromptDismissedPayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.OpenSpotlight,
+                AiriDesktopJsonContext.Default.EmptyPayload,
+                AiriDesktopJsonContext.Default.EmptyPayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.HideSpotlight,
+                AiriDesktopJsonContext.Default.EmptyPayload,
+                AiriDesktopJsonContext.Default.EmptyPayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.GetSpotlightShortcut,
+                AiriDesktopJsonContext.Default.SpotlightAcceleratorPayload,
+                AiriDesktopJsonContext.Default.EmptyPayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.SetSpotlightShortcut,
+                AiriDesktopJsonContext.Default.SpotlightShortcutRegistrationResultPayload,
+                AiriDesktopJsonContext.Default.SpotlightShortcutSetPayload)
+            .RegisterEvent(
+                AiriDesktopEvents.SpotlightShortcutChanged,
+                AiriDesktopJsonContext.Default.SpotlightAcceleratorPayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.SetTrayLabels,
+                AiriDesktopJsonContext.Default.EmptyPayload,
+                AiriDesktopJsonContext.Default.TrayLabelsPayload);
+    }
+}
+
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
+[JsonSerializable(typeof(EmptyPayload))]
+[JsonSerializable(typeof(OpenSettingsPayload))]
+[JsonSerializable(typeof(SettingsNavigatePayload))]
+[JsonSerializable(typeof(OpenDevtoolsWindowPayload))]
+[JsonSerializable(typeof(bool))]
+[JsonSerializable(typeof(NoticeOpenPayload))]
+[JsonSerializable(typeof(NoticePagePayload))]
+[JsonSerializable(typeof(NoticePendingPayload))]
+[JsonSerializable(typeof(NoticeActionPayload))]
+[JsonSerializable(typeof(AuthTokensPayload))]
+[JsonSerializable(typeof(AuthErrorPayload))]
+[JsonSerializable(typeof(AuthConfigurationPayload))]
+[JsonSerializable(typeof(DesktopDisplayBoundsPayload))]
+[JsonSerializable(typeof(DesktopDisplaySnapshotPayload))]
+[JsonSerializable(typeof(MicrophonePermissionStatePayload))]
+[JsonSerializable(typeof(MicrophonePermissionPromptPayload))]
+[JsonSerializable(typeof(MicrophonePermissionPromptSnapshotPayload))]
+[JsonSerializable(typeof(MicrophonePermissionDecisionPayload))]
+[JsonSerializable(typeof(MicrophonePermissionPromptDismissedPayload))]
+[JsonSerializable(typeof(SpotlightAcceleratorPayload))]
+[JsonSerializable(typeof(SpotlightShortcutSetPayload))]
+[JsonSerializable(typeof(SpotlightShortcutRegistrationResultPayload))]
+[JsonSerializable(typeof(TrayLabelsPayload))]
+internal sealed partial class AiriDesktopJsonContext : JsonSerializerContext;

@@ -14,21 +14,26 @@
 | AIRI Godot services | Application windows, the tray menu, authentication, microphone policy, and service attachments |
 
 The renderer has one Eventa transport owner. Capability clients borrow its context.
-[Platform](https://github.com/gd-kirie/gd-kirie/blob/v0.14.2/packages/platform/README.md) and [Notifications](https://github.com/gd-kirie/kirie-plugins/blob/main/packages/notifications/README.md) document the upstream capability APIs.
+[Platform](https://github.com/gd-kirie/gd-kirie/blob/v0.16.0/packages/platform/README.md) and [Notifications](https://github.com/gd-kirie/kirie-plugins/blob/main/packages/notifications/README.md) document the upstream capability APIs.
 
 Kirie-local adapters always use Kirie.
-Shared UI retains `RUNTIME_ENVIRONMENT='electron'` and Electron-named Eventa IDs as existing selectors and contracts.
-Those names do not select an Electron transport.
-The Electron application and `engines/stage-tamagotchi-godot/` remain separate supported paths.
+Kirie builds set `RUNTIME_ENVIRONMENT='kirie'`. `isStageTamagotchi()` is true for the Electron and Kirie builds, so both show the desktop UI.
+Shared code selects the Electron transport with `isElectronWindow(window)`, not with `isStageTamagotchi()`.
+Kirie Eventa IDs use the `airi` segment, for example `eventa:invoke:airi:windows:settings:open`.
+A test compares the C# IDs with the renderer IDs, because no compiler checks the strings.
+The Electron application remains a separate supported path.
 
 ## Source map
 
 | Path | Responsibility |
 | --- | --- |
-| [src-web/src/renderer](../src-web/src/renderer) | Renderer entry points, routes, and host adapters |
-| [src-web/src/shared](../src-web/src/shared) | AIRI Eventa contracts |
-| [src-godot/scripts](../src-godot/scripts) | C# services, window managers, permissions, and authentication |
-| [src-godot](../src-godot) | Native scenes |
+| [src-web/src](../src-web/src) | Renderer entry points, routes, and host adapters |
+| [src-web/src/host-context](../src-web/src/host-context) | Renderer adapters for host capabilities |
+| [src-web/src/shared](../src-web/src/shared) | AIRI Eventa contracts and host-independent geometry |
+| [src-godot/app](../src-godot/app) | Main scene, service composition, and renderer URLs |
+| [src-godot/contracts](../src-godot/contracts) | C# Eventa contracts that match `src-web/src/shared/eventa` |
+| [src-godot/windows](../src-godot/windows) | One folder for each native window, with its scene, scene script, and manager |
+| [src-godot/auth](../src-godot/auth), [src-godot/permissions](../src-godot/permissions), [src-godot/tray](../src-godot/tray) | Authentication, permission policy, and the system tray |
 | [kirie.config.ts](../kirie.config.ts) | Web build, aliases, routes, and enabled capability plugins |
 | [tests/StageTamagotchiKirie.Tests](../tests/StageTamagotchiKirie.Tests) | C# contract checks |
 

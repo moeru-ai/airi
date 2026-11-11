@@ -1,4 +1,3 @@
-import type { Locale } from '@intlify/core'
 import type {
   GameletIframeRequestPayload as GameletIframeInvokePayload,
   GameletIframeResponsePayload,
@@ -6,15 +5,8 @@ import type {
 import type { ServerOptions } from '@proj-airi/server-runtime/server'
 import type {
   ShortcutAccelerator,
-  ShortcutBinding,
   ShortcutRegistrationResult,
 } from '@proj-airi/stage-shared/global-shortcut'
-import type {
-  StageViewErrorPayload,
-  StageViewPatch,
-  StageViewRequestAckPayload,
-  StageViewSnapshotPayload,
-} from '@proj-airi/stage-shared/godot-stage'
 import type { ServerChannelQrPayload } from '@proj-airi/stage-shared/server-channel-qr'
 import type {
   ThreeHitTestReadTracePayload,
@@ -27,7 +19,6 @@ import type {
   VrmUpdateFrameTracePayload,
 } from '@proj-airi/stage-ui-three/trace'
 import type { ChatHistoryReplyPayload } from '@proj-airi/stage-ui/components/scenarios/chat'
-import type { Rectangle } from 'electron'
 
 import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
 
@@ -107,16 +98,12 @@ export interface AiriTrayLabels {
 
 export const airiTraySetLabels = defineInvokeEventa<void, AiriTrayLabels>('eventa:invoke:airi:tray:labels:set')
 
-export const electronStartTrackMousePosition = defineInvokeEventa('eventa:invoke:electron:start-tracking-mouse-position')
-export const electronStartDraggingWindow = defineInvokeEventa('eventa:invoke:electron:start-dragging-window')
-
-export const electronOpenMainDevtools = defineInvokeEventa<void, Record<string, never>>('eventa:invoke:electron:windows:main:devtools:open')
-export const electronCenterMainWindow = defineInvokeEventa<Rectangle>('eventa:invoke:electron:windows:main:center')
-export const electronOpenSettings = defineInvokeEventa<void, { route?: string }>('eventa:invoke:electron:windows:settings:open')
-export const electronSettingsNavigate = defineEventa<{ route: string }>('eventa:event:electron:windows:settings:navigate')
-export const electronSettingsReady = defineEventa<Record<string, never>>('eventa:event:electron:windows:settings:ready')
-export const electronOpenChat = defineInvokeEventa('eventa:invoke:electron:windows:chat:open')
-export const electronChatReady = defineEventa<Record<string, never>>('eventa:event:electron:windows:chat:ready')
+export const airiOpenMainDevtools = defineInvokeEventa<void, Record<string, never>>('eventa:invoke:airi:windows:main:devtools:open')
+export const airiOpenSettings = defineInvokeEventa<void, { route?: string }>('eventa:invoke:airi:windows:settings:open')
+export const airiSettingsNavigate = defineEventa<{ route: string }>('eventa:event:airi:windows:settings:navigate')
+export const airiSettingsReady = defineEventa<Record<string, never>>('eventa:event:airi:windows:settings:ready')
+export const airiOpenChat = defineInvokeEventa('eventa:invoke:airi:windows:chat:open')
+export const airiChatReady = defineEventa<Record<string, never>>('eventa:event:airi:windows:chat:ready')
 
 /**
  * Where the Controls Island chat button opens the chat.
@@ -168,14 +155,14 @@ export interface ChatFloatingState {
   resizeEdges: ChatFloatingResizeEdge[]
   /**
    * `true` after the chat button folds the chat. The renderer plays the fold
-   * and then calls {@link electronChatFloatingContentHidden}, so the host
+   * and then calls {@link airiChatFloatingContentHidden}, so the host
    * hides the window.
    */
   folded: boolean
   /**
    * `true` while an attached chat moves to the other side of the main window.
    * The renderer hides the content and calls
-   * {@link electronChatFloatingContentHidden}. The host then moves the window
+   * {@link airiChatFloatingContentHidden}. The host then moves the window
    * and sets this back to `false`.
    */
   relocating: boolean
@@ -201,27 +188,27 @@ export interface ChatFloatingDelta {
 }
 
 // The Godot host answers requests without a body only when they carry `{}`.
-export const electronGetChatButtonState = defineInvokeEventa<ChatButtonState, Record<string, never>>('eventa:invoke:electron:windows:chat:get-button-state')
-export const electronChatButtonStateChanged = defineEventa<ChatButtonState>('eventa:event:electron:windows:chat:button-state-changed')
+export const airiGetChatButtonState = defineInvokeEventa<ChatButtonState, Record<string, never>>('eventa:invoke:airi:windows:chat:get-button-state')
+export const airiChatButtonStateChanged = defineEventa<ChatButtonState>('eventa:event:airi:windows:chat:button-state-changed')
 /** Reads the saved placement, message feed, and pin, with the mode of the chat that asks. */
-export const electronChatWindowGetPreferences = defineInvokeEventa<ChatWindowPreferences, Record<string, never>>('eventa:invoke:electron:windows:chat:get-preferences')
+export const airiChatWindowGetPreferences = defineInvokeEventa<ChatWindowPreferences, Record<string, never>>('eventa:invoke:airi:windows:chat:get-preferences')
 /**
  * Saves the preferences that a control changes. A mode that differs from the
  * mode of the chat that asks moves the chat to the window of that mode. The
  * move carries the unsent draft over, and it rejects without closing the chat
  * that asked when the draft cannot be carried.
  */
-export const electronChatWindowSetPreferences = defineInvokeEventa<void, Partial<ChatWindowPreferences>>('eventa:invoke:electron:windows:chat:set-preferences')
-export const electronChatFloatingGetState = defineInvokeEventa<ChatFloatingState, Record<string, never>>('eventa:invoke:electron:windows:chat-floating:get-state')
-export const electronChatFloatingStateChanged = defineEventa<ChatFloatingState>('eventa:event:electron:windows:chat-floating:state-changed')
+export const airiChatWindowSetPreferences = defineInvokeEventa<void, Partial<ChatWindowPreferences>>('eventa:invoke:airi:windows:chat:set-preferences')
+export const airiChatFloatingGetState = defineInvokeEventa<ChatFloatingState, Record<string, never>>('eventa:invoke:airi:windows:chat-floating:get-state')
+export const airiChatFloatingStateChanged = defineEventa<ChatFloatingState>('eventa:event:airi:windows:chat-floating:state-changed')
 /** Reports that the content finished its fold, so the host can hide or move the window. */
-export const electronChatFloatingContentHidden = defineInvokeEventa<void, Record<string, never>>('eventa:invoke:electron:windows:chat-floating:content-hidden')
+export const airiChatFloatingContentHidden = defineInvokeEventa<void, Record<string, never>>('eventa:invoke:airi:windows:chat-floating:content-hidden')
 /** Folds the chat, as the chat button does. */
-export const electronChatFloatingFold = defineInvokeEventa<void, Record<string, never>>('eventa:invoke:electron:windows:chat-floating:fold')
+export const airiChatFloatingFold = defineInvokeEventa<void, Record<string, never>>('eventa:invoke:airi:windows:chat-floating:fold')
 /** Moves a `free` chat from the keyboard. The pointer moves it with the native window gesture. */
-export const electronChatFloatingMoveBy = defineInvokeEventa<void, ChatFloatingDelta>('eventa:invoke:electron:windows:chat-floating:move-by')
+export const airiChatFloatingMoveBy = defineInvokeEventa<void, ChatFloatingDelta>('eventa:invoke:airi:windows:chat-floating:move-by')
 /** Resizes the chat from the keyboard. The pointer resizes it with the native window gesture. */
-export const electronChatFloatingResizeBy = defineInvokeEventa<void, ChatFloatingDelta & { direction: ChatFloatingResizeEdge }>('eventa:invoke:electron:windows:chat-floating:resize-by')
+export const airiChatFloatingResizeBy = defineInvokeEventa<void, ChatFloatingDelta & { direction: ChatFloatingResizeEdge }>('eventa:invoke:airi:windows:chat-floating:resize-by')
 
 /**
  * The conversation and the unsent composer content that a chat mode switch
@@ -250,29 +237,28 @@ export interface ChatDraftHandoverReply {
  * draft. The host invokes it and the chat renderer answers, after any image it
  * is still reading has entered the draft.
  */
-export const electronChatWindowCollectDraft = defineInvokeEventa<ChatDraftHandoverReply, Record<string, never>>('eventa:invoke:electron:windows:chat:collect-draft')
+export const airiChatWindowCollectDraft = defineInvokeEventa<ChatDraftHandoverReply, Record<string, never>>('eventa:invoke:airi:windows:chat:collect-draft')
 /**
  * Returns the draft that a mode switch carries into the calling chat window.
  * A chat renderer calls it once it has mounted.
  */
-export const electronChatWindowTakeDraft = defineInvokeEventa<ChatDraftHandoverReply, Record<string, never>>('eventa:invoke:electron:windows:chat:take-draft')
+export const airiChatWindowTakeDraft = defineInvokeEventa<ChatDraftHandoverReply, Record<string, never>>('eventa:invoke:airi:windows:chat:take-draft')
 /**
  * Tells a chat window that is already open that a mode switch carries a draft
  * to it. The page takes the draft again, as it did when it mounted.
  */
-export const electronChatWindowDraftOffered = defineEventa<Record<string, never>>('eventa:event:electron:windows:chat:draft-offered')
+export const airiChatWindowDraftOffered = defineEventa<Record<string, never>>('eventa:event:airi:windows:chat:draft-offered')
 /**
  * Reports what happened to the taken draft. The mode switch closes the
  * previous window only after `restored: true`. With `false` it closes the new
  * window instead, and the draft stays where it was. A window with no draft to
  * take reports `true`, which also tells the switch that the page has mounted.
  */
-export const electronChatWindowDraftSettled = defineInvokeEventa<void, { restored: boolean }>('eventa:invoke:electron:windows:chat:draft-settled')
-export const electronSpotlightOpen = defineInvokeEventa<void>('eventa:invoke:electron:windows:spotlight:open')
-export const electronSpotlightHide = defineInvokeEventa<void>('eventa:invoke:electron:windows:spotlight:hide')
-export const electronSpotlightShowResultNotification = defineInvokeEventa<void, { body: string }>('eventa:invoke:electron:windows:spotlight:show-result-notification')
-export const electronSpotlightShortcutGet = defineInvokeEventa<ShortcutAccelerator>('eventa:invoke:electron:windows:spotlight:shortcut:get')
-export const electronSpotlightShortcutSet = defineInvokeEventa<ShortcutRegistrationResult, { accelerator: ShortcutAccelerator | null }>('eventa:invoke:electron:windows:spotlight:shortcut:set')
+export const airiChatWindowDraftSettled = defineInvokeEventa<void, { restored: boolean }>('eventa:invoke:airi:windows:chat:draft-settled')
+export const airiSpotlightOpen = defineInvokeEventa<void>('eventa:invoke:airi:windows:spotlight:open')
+export const airiSpotlightHide = defineInvokeEventa<void>('eventa:invoke:airi:windows:spotlight:hide')
+export const airiSpotlightShortcutGet = defineInvokeEventa<ShortcutAccelerator>('eventa:invoke:airi:windows:spotlight:shortcut:get')
+export const airiSpotlightShortcutSet = defineInvokeEventa<ShortcutRegistrationResult, { accelerator: ShortcutAccelerator | null }>('eventa:invoke:airi:windows:spotlight:shortcut:set')
 export const airiSpotlightShortcutChanged = defineEventa<ShortcutAccelerator>('eventa:event:airi:windows:spotlight:shortcut-changed')
 export interface OpenDevtoolsWindowPayload {
   key: string
@@ -282,60 +268,40 @@ export interface OpenDevtoolsWindowPayload {
   x?: number
   y?: number
 }
-export const electronOpenDevtoolsWindow = defineInvokeEventa<void, OpenDevtoolsWindowPayload>('eventa:invoke:electron:windows:devtools:open')
+export const airiOpenDevtoolsWindow = defineInvokeEventa<void, OpenDevtoolsWindowPayload>('eventa:invoke:airi:windows:devtools:open')
 
-export interface ElectronServerChannelConfig {
+export interface AiriServerChannelConfig {
   tlsConfig?: ServerOptions['tlsConfig'] | null
   authToken: string
   hostname: string
 }
-export const electronGetServerChannelConfig = defineInvokeEventa<ElectronServerChannelConfig>('eventa:invoke:electron:server-channel:get-config')
-export const electronApplyServerChannelConfig = defineInvokeEventa<ElectronServerChannelConfig, Partial<ElectronServerChannelConfig>>('eventa:invoke:electron:server-channel:apply-config')
-export const electronGetServerChannelQrPayload = defineInvokeEventa<ServerChannelQrPayload>('eventa:invoke:electron:server-channel:get-qr-payload')
-
-export type ElectronUpdaterChannel = 'latest' | 'stable' | 'alpha' | 'beta' | 'nightly' | 'canary'
-
-export interface ElectronUpdaterPreferences {
-  channel?: ElectronUpdaterChannel
-}
-
-export const electronGetUpdaterPreferences = defineInvokeEventa<ElectronUpdaterPreferences>('eventa:invoke:electron:auto-updater:get-preferences')
-export const electronSetUpdaterPreferences = defineInvokeEventa<ElectronUpdaterPreferences, ElectronUpdaterPreferences>('eventa:invoke:electron:auto-updater:set-preferences')
+export const airiGetServerChannelConfig = defineInvokeEventa<AiriServerChannelConfig>('eventa:invoke:airi:server-channel:get-config')
+export const airiApplyServerChannelConfig = defineInvokeEventa<AiriServerChannelConfig, Partial<AiriServerChannelConfig>>('eventa:invoke:airi:server-channel:apply-config')
+export const airiGetServerChannelQrPayload = defineInvokeEventa<ServerChannelQrPayload>('eventa:invoke:airi:server-channel:get-qr-payload')
 
 export * from './plugin/assets'
-export * from './plugin/capabilities'
 export * from './plugin/host'
 export * from './plugin/tools'
-
-export interface DesktopOverlayReadiness {
-  state: 'booting' | 'ready' | 'degraded'
-  error?: string
-}
-
-export const getDesktopOverlayReadinessContract = defineInvokeEventa<DesktopOverlayReadiness>('eventa:invoke:electron:windows:desktop-overlay:get-readiness')
-
-export const captionIsFollowingWindowChanged = defineEventa<boolean>('eventa:event:electron:windows:caption-overlay:is-following-window-changed')
-export const captionGetIsFollowingWindow = defineInvokeEventa<boolean>('eventa:invoke:electron:windows:caption-overlay:get-is-following-window')
 
 export interface NoticeOpenPayload {
   id?: string
   route: string
   type?: string
-  payload?: Record<string, any>
+  payload?: Record<string, unknown>
 }
 export interface NoticePendingPayload {
   id: string
   type?: string
-  payload?: Record<string, any>
+  payload?: Record<string, unknown>
 }
 
 // Notice window contract. The Godot host mirrors these ids and payload shapes
-// in AiriDesktopEvents (src-godot/scripts/AiriDesktopContracts.cs).
+// in AiriDesktopEvents (src-godot/contracts/AiriDesktopContracts.cs).
 export const noticeWindowEventa = {
-  openWindow: defineInvokeEventa<boolean, NoticeOpenPayload>('eventa:invoke:open:electron:windows:notice'),
-  windowAction: defineInvokeEventa<void, { id: string, action: 'confirm' | 'cancel' | 'close' }>('eventa:invoke:action:electron:windows:notice'),
-  pageMounted: defineInvokeEventa<NoticePendingPayload | undefined, { id?: string }>('eventa:invoke:page-mounted:electron:windows:notice'),
-  pageUnmounted: defineInvokeEventa<void, { id?: string }>('eventa:invoke:page-unmounted:electron:windows:notice'),
+  openWindow: defineInvokeEventa<boolean, NoticeOpenPayload>('eventa:invoke:open:airi:windows:notice'),
+  windowAction: defineInvokeEventa<void, { id: string, action: 'confirm' | 'cancel' | 'close' }>('eventa:invoke:action:airi:windows:notice'),
+  pageMounted: defineInvokeEventa<NoticePendingPayload | undefined, { id?: string }>('eventa:invoke:page-mounted:airi:windows:notice'),
+  pageUnmounted: defineInvokeEventa<void, { id?: string }>('eventa:invoke:page-unmounted:airi:windows:notice'),
 }
 
 // Widgets / Adhoc window events
@@ -383,7 +349,7 @@ export interface WidgetSnapshot {
 }
 
 /**
- * Request relayed from Electron main to one mounted widget iframe through the widgets renderer.
+ * Request relayed from the host to one mounted widget iframe through the widgets renderer.
  */
 export interface WidgetsIframeRequestPayload {
   /** Widget id that identifies the mounted iframe target. */
@@ -427,13 +393,13 @@ export interface WidgetsIframeRequestFailurePayload extends WidgetsIframeRequest
 }
 
 /**
- * Result relayed from the widgets renderer back to Electron main for one iframe request.
+ * Result relayed from the widgets renderer back to the host for one iframe request.
  */
 export type WidgetsIframeRequestResultPayload
   = | WidgetsIframeRequestSuccessPayload
     | WidgetsIframeRequestFailurePayload
 
-export interface ElectronMcpStdioServerConfig {
+export interface AiriMcpStdioServerConfig {
   command: string
   args?: string[]
   env?: Record<string, string>
@@ -451,7 +417,7 @@ export interface ElectronMcpStdioServerConfig {
  * - `url` is an absolute `http` or `https` endpoint
  * - `headers` carries whatever the server expects, usually an `Authorization` entry
  */
-export interface ElectronMcpHttpServerConfig {
+export interface AiriMcpHttpServerConfig {
   url: string
   headers?: Record<string, string>
   enabled?: boolean
@@ -463,13 +429,13 @@ export interface ElectronMcpHttpServerConfig {
  * The transport follows from the fields that are present: `command` starts a
  * child process over stdio, `url` reaches a remote server over streamable HTTP.
  */
-export type ElectronMcpServerConfig = ElectronMcpStdioServerConfig | ElectronMcpHttpServerConfig
+export type AiriMcpServerConfig = AiriMcpStdioServerConfig | AiriMcpHttpServerConfig
 
-export interface ElectronMcpConfigFile {
-  mcpServers: Record<string, ElectronMcpServerConfig>
+export interface AiriMcpConfigFile {
+  mcpServers: Record<string, AiriMcpServerConfig>
 }
 
-export interface ElectronMcpApplyResult {
+export interface AiriMcpApplyResult {
   path: string
   started: Array<{ name: string }>
   failed: Array<{ name: string, error: string }>
@@ -482,7 +448,7 @@ export interface ElectronMcpApplyResult {
  * A stdio server reports the process it spawned. An HTTP server reports the
  * endpoint it talks to and has no process to report.
  */
-export type ElectronMcpServerRuntimeStatus
+export type AiriMcpServerRuntimeStatus
   = | {
     name: string
     state: 'running' | 'stopped' | 'error'
@@ -500,13 +466,13 @@ export type ElectronMcpServerRuntimeStatus
     lastError?: string
   }
 
-export interface ElectronMcpRuntimeStatus {
+export interface AiriMcpRuntimeStatus {
   path: string
-  servers: ElectronMcpServerRuntimeStatus[]
+  servers: AiriMcpServerRuntimeStatus[]
   updatedAt: number
 }
 
-export interface ElectronMcpToolDescriptor {
+export interface AiriMcpToolDescriptor {
   serverName: string
   name: string
   toolName: string
@@ -514,58 +480,58 @@ export interface ElectronMcpToolDescriptor {
   inputSchema: Record<string, unknown>
 }
 
-export interface ElectronMcpCallToolPayload {
+export interface AiriMcpCallToolPayload {
   name: string
   arguments?: Record<string, unknown>
 }
 
-export interface ElectronMcpCallToolResult {
+export interface AiriMcpCallToolResult {
   content?: Array<Record<string, unknown>>
   structuredContent?: Record<string, unknown>
   toolResult?: unknown
   isError?: boolean
 }
 
-export interface ElectronMcpConfigText {
+export interface AiriMcpConfigText {
   path: string
   text: string
 }
 
-export interface ElectronMcpTestResult {
+export interface AiriMcpTestResult {
   ok: boolean
   error?: string
   tools?: string[]
   durationMs: number
 }
 
-export interface ElectronMcpTestPayload {
+export interface AiriMcpTestPayload {
   name: string
-  config: ElectronMcpServerConfig
+  config: AiriMcpServerConfig
 }
 
-export const electronMcpOpenConfigFile = defineInvokeEventa<{ path: string }>('eventa:invoke:electron:mcp:open-config-file')
-export const electronMcpApplyAndRestart = defineInvokeEventa<ElectronMcpApplyResult>('eventa:invoke:electron:mcp:apply-and-restart')
-export const electronMcpGetRuntimeStatus = defineInvokeEventa<ElectronMcpRuntimeStatus>('eventa:invoke:electron:mcp:get-runtime-status')
-export const electronMcpListTools = defineInvokeEventa<ElectronMcpToolDescriptor[]>('eventa:invoke:electron:mcp:list-tools')
-export const electronMcpCallTool = defineInvokeEventa<ElectronMcpCallToolResult, ElectronMcpCallToolPayload>('eventa:invoke:electron:mcp:call-tool')
-export const electronMcpReadConfigText = defineInvokeEventa<ElectronMcpConfigText>('eventa:invoke:electron:mcp:read-config-text')
-export const electronMcpWriteConfigText = defineInvokeEventa<ElectronMcpConfigText, { text: string }>('eventa:invoke:electron:mcp:write-config-text')
-export const electronMcpTestServer = defineInvokeEventa<ElectronMcpTestResult, ElectronMcpTestPayload>('eventa:invoke:electron:mcp:test-server')
+export const airiMcpOpenConfigFile = defineInvokeEventa<{ path: string }>('eventa:invoke:airi:mcp:open-config-file')
+export const airiMcpApplyAndRestart = defineInvokeEventa<AiriMcpApplyResult>('eventa:invoke:airi:mcp:apply-and-restart')
+export const airiMcpGetRuntimeStatus = defineInvokeEventa<AiriMcpRuntimeStatus>('eventa:invoke:airi:mcp:get-runtime-status')
+export const airiMcpListTools = defineInvokeEventa<AiriMcpToolDescriptor[]>('eventa:invoke:airi:mcp:list-tools')
+export const airiMcpCallTool = defineInvokeEventa<AiriMcpCallToolResult, AiriMcpCallToolPayload>('eventa:invoke:airi:mcp:call-tool')
+export const airiMcpReadConfigText = defineInvokeEventa<AiriMcpConfigText>('eventa:invoke:airi:mcp:read-config-text')
+export const airiMcpWriteConfigText = defineInvokeEventa<AiriMcpConfigText, { text: string }>('eventa:invoke:airi:mcp:write-config-text')
+export const airiMcpTestServer = defineInvokeEventa<AiriMcpTestResult, AiriMcpTestPayload>('eventa:invoke:airi:mcp:test-server')
 
 /** The widget requests its own close without waiting for a reply from the transport it closes. */
 export const widgetsCloseRequested = defineEventa<{ id: string }>('eventa:event:airi:widgets:close-requested')
 
-export const widgetsOpenWindow = defineInvokeEventa<void, { id?: string }>('eventa:invoke:electron:windows:widgets:open')
-export const widgetsHideWindow = defineInvokeEventa<void, { id?: string }>('eventa:invoke:electron:windows:widgets:hide')
-export const widgetsAdd = defineInvokeEventa<string | undefined, WidgetsAddPayload>('eventa:invoke:electron:windows:widgets:add')
-export const widgetsRemove = defineInvokeEventa<void, { id: string }>('eventa:invoke:electron:windows:widgets:remove')
-export const widgetsClear = defineInvokeEventa<void, Record<string, never>>('eventa:invoke:electron:windows:widgets:clear')
-export const widgetsUpdate = defineInvokeEventa<void, WidgetsUpdatePayload>('eventa:invoke:electron:windows:widgets:update')
-export const widgetsFetch = defineInvokeEventa<WidgetSnapshot | void, { id: string }>('eventa:invoke:electron:windows:widgets:fetch')
-export const widgetsPrepareWindow = defineInvokeEventa<string | undefined, { id?: string }>('eventa:invoke:electron:windows:widgets:prepare')
-export const widgetsIframePublish = defineInvokeEventa<void, { id: string, event: Record<string, unknown> }>('eventa:invoke:electron:windows:widgets:iframe-publish')
+export const widgetsOpenWindow = defineInvokeEventa<void, { id?: string }>('eventa:invoke:airi:windows:widgets:open')
+export const widgetsHideWindow = defineInvokeEventa<void, { id?: string }>('eventa:invoke:airi:windows:widgets:hide')
+export const widgetsAdd = defineInvokeEventa<string | undefined, WidgetsAddPayload>('eventa:invoke:airi:windows:widgets:add')
+export const widgetsRemove = defineInvokeEventa<void, { id: string }>('eventa:invoke:airi:windows:widgets:remove')
+export const widgetsClear = defineInvokeEventa<void, Record<string, never>>('eventa:invoke:airi:windows:widgets:clear')
+export const widgetsUpdate = defineInvokeEventa<void, WidgetsUpdatePayload>('eventa:invoke:airi:windows:widgets:update')
+export const widgetsFetch = defineInvokeEventa<WidgetSnapshot | void, { id: string }>('eventa:invoke:airi:windows:widgets:fetch')
+export const widgetsPrepareWindow = defineInvokeEventa<string | undefined, { id?: string }>('eventa:invoke:airi:windows:widgets:prepare')
+export const widgetsIframePublish = defineInvokeEventa<void, { id: string, event: Record<string, unknown> }>('eventa:invoke:airi:windows:widgets:iframe-publish')
 
-export type ElectronWindowLifecycleReason
+export type AiriWindowLifecycleReason
   = | 'initial'
     | 'snapshot'
     | 'show'
@@ -575,74 +541,15 @@ export type ElectronWindowLifecycleReason
     | 'focus'
     | 'blur'
 
-export interface ElectronWindowLifecycleState {
+export interface AiriWindowLifecycleState {
   focused: boolean
   minimized: boolean
-  reason: ElectronWindowLifecycleReason
+  reason: AiriWindowLifecycleReason
   updatedAt: number
   visible: boolean
 }
 
-export const electronWindowLifecycleChanged = defineEventa<ElectronWindowLifecycleState>('eventa:event:electron:window:lifecycle-changed')
-export const electronGetWindowLifecycleState = defineInvokeEventa<ElectronWindowLifecycleState>('eventa:invoke:electron:window:get-lifecycle-state')
-export const electronWindowSetAlwaysOnTop = defineInvokeEventa<void, boolean>('eventa:invoke:electron:window:set-always-on-top')
-export const electronAppOpenUserDataFolder = defineInvokeEventa<{ path: string }>('eventa:invoke:electron:app:open-user-data-folder')
-export const electronAppQuit = defineInvokeEventa<void>('eventa:invoke:electron:app:quit')
-
-export type ElectronGodotStageState = 'stopped' | 'starting' | 'running' | 'stopping' | 'error'
-
-/**
- * Snapshot of the Godot sidecar lifecycle owned by Electron main.
- *
- * Use when:
- * - Renderer windows need to reflect whether the external Godot window is available
- * - Settings or stage pages need lifecycle feedback after start/stop actions
- *
- * Expects:
- * - `pid` is only set while the Godot child process exists
- * - `lastError` is present for the most recent lifecycle or scene-apply failure
- *
- * Returns:
- * - N/A
- */
-export interface ElectronGodotStageStatus {
-  state: ElectronGodotStageState
-  pid: number | null
-  lastError?: string
-  updatedAt: number
-}
-
-/**
- * Serialized scene input payload forwarded from renderer to Electron main.
- *
- * Use when:
- * - The selected model should be materialized to disk and applied to the Godot scene
- *
- * Expects:
- * - `data` contains the full model file bytes
- * - `fileName` matches the original model asset name when available
- *
- * Returns:
- * - N/A
- */
-export interface ElectronGodotStageSceneInputPayload {
-  modelId: string
-  format: 'vrm'
-  name: string
-  fileName: string
-  data: Uint8Array
-}
-
-export const electronGodotStageStart = defineInvokeEventa<ElectronGodotStageStatus>('eventa:invoke:electron:godot-stage:start')
-export const electronGodotStageStop = defineInvokeEventa<ElectronGodotStageStatus>('eventa:invoke:electron:godot-stage:stop')
-export const electronGodotStageGetStatus = defineInvokeEventa<ElectronGodotStageStatus>('eventa:invoke:electron:godot-stage:get-status')
-export const electronGodotStageApplySceneInput = defineInvokeEventa<void, ElectronGodotStageSceneInputPayload>('eventa:invoke:electron:godot-stage:apply-scene-input')
-export const electronGodotStageGetViewSnapshot = defineInvokeEventa<StageViewSnapshotPayload | null>('eventa:invoke:electron:godot-stage:view-snapshot:get')
-export const electronGodotStageApplyViewPatch = defineInvokeEventa<StageViewRequestAckPayload, StageViewPatch>('eventa:invoke:electron:godot-stage:view-state:apply-patch')
-export const electronGodotStageRequestViewSnapshot = defineInvokeEventa<StageViewRequestAckPayload>('eventa:invoke:electron:godot-stage:view-state:request-snapshot')
-export const electronGodotStageStatusChanged = defineEventa<ElectronGodotStageStatus>('eventa:event:electron:godot-stage:status-changed')
-export const electronGodotStageViewSnapshotChanged = defineEventa<StageViewSnapshotPayload>('eventa:event:electron:godot-stage:view-snapshot-changed')
-export const electronGodotStageViewStateError = defineEventa<StageViewErrorPayload>('eventa:event:electron:godot-stage:view-state-error')
+export const airiAppQuit = defineInvokeEventa<void>('eventa:invoke:airi:app:quit')
 
 // Global shortcut ->
 
@@ -653,22 +560,16 @@ export const electronGodotStageViewStateError = defineEventa<StageViewErrorPaylo
  * - `up`   — key combination released; only emitted by drivers that
  *            accepted a binding with `receiveKeyUps: true`
  */
-export type ElectronShortcutTriggerPhase = 'down' | 'up'
+export type AiriShortcutTriggerPhase = 'down' | 'up'
 
 /**
  * Payload broadcast to all subscribed windows when a registered shortcut
  * fires. Renderer composables filter by `id` to dispatch local handlers.
  */
-export interface ElectronShortcutTriggerPayload {
+export interface AiriShortcutTriggerPayload {
   id: string
-  phase: ElectronShortcutTriggerPhase
+  phase: AiriShortcutTriggerPhase
 }
-
-export const electronShortcutRegister = defineInvokeEventa<ShortcutRegistrationResult, ShortcutBinding>('eventa:invoke:electron:shortcut:register')
-export const electronShortcutUnregister = defineInvokeEventa<void, { id: string }>('eventa:invoke:electron:shortcut:unregister')
-export const electronShortcutUnregisterAll = defineInvokeEventa<void>('eventa:invoke:electron:shortcut:unregister-all')
-export const electronShortcutList = defineInvokeEventa<ShortcutBinding[]>('eventa:invoke:electron:shortcut:list')
-export const electronShortcutTriggered = defineEventa<ElectronShortcutTriggerPayload>('eventa:event:electron:shortcut:triggered')
 
 // <- Global shortcut
 
@@ -696,34 +597,28 @@ export const stageThreeRuntimeTraceRemoteEnableEvent = defineEventa<StageThreeRu
 export const stageThreeRuntimeTraceRemoteDisableEvent = defineEventa<StageThreeRuntimeTraceRemoteControlPayload>('eventa:event:stage-three-runtime-trace:remote-disable')
 
 // Internal event from main -> widgets renderer when a widget should render
-export const widgetsRenderEvent = defineEventa<WidgetSnapshot>('eventa:event:electron:windows:widgets:render')
-export const widgetsRemoveEvent = defineEventa<{ id: string }>('eventa:event:electron:windows:widgets:remove')
-export const widgetsClearEvent = defineEventa('eventa:event:electron:windows:widgets:clear')
-export const widgetsUpdateEvent = defineEventa<WidgetsUpdatePayload>('eventa:event:electron:windows:widgets:update')
+export const widgetsRenderEvent = defineEventa<WidgetSnapshot>('eventa:event:airi:windows:widgets:render')
+export const widgetsRemoveEvent = defineEventa<{ id: string }>('eventa:event:airi:windows:widgets:remove')
+export const widgetsClearEvent = defineEventa('eventa:event:airi:windows:widgets:clear')
+export const widgetsUpdateEvent = defineEventa<WidgetsUpdatePayload>('eventa:event:airi:windows:widgets:update')
 /** Main-to-renderer event requesting work from a mounted widget iframe. */
-export const widgetsIframeRequestEvent = defineEventa<WidgetsIframeRequestPayload>('eventa:event:electron:windows:widgets:iframe-request')
+export const widgetsIframeRequestEvent = defineEventa<WidgetsIframeRequestPayload>('eventa:event:airi:windows:widgets:iframe-request')
 /** Renderer-to-main event carrying the correlated result for a widget iframe request. */
-export const widgetsIframeRequestResultEvent = defineEventa<WidgetsIframeRequestResultPayload>('eventa:event:electron:windows:widgets:iframe-request-result')
+export const widgetsIframeRequestResultEvent = defineEventa<WidgetsIframeRequestResultPayload>('eventa:event:airi:windows:widgets:iframe-request-result')
 
 // Onboarding window events
-export const electronOnboardingClose = defineInvokeEventa('eventa:invoke:electron:windows:onboarding:close')
-export const electronOpenOnboarding = defineInvokeEventa('eventa:invoke:electron:windows:onboarding:open')
+export const airiOnboardingClose = defineInvokeEventa('eventa:invoke:airi:windows:onboarding:close')
+export const airiOpenOnboarding = defineInvokeEventa('eventa:invoke:airi:windows:onboarding:open')
 
 // Auth — OIDC Authorization Code + PKCE flow via system browser
-export interface ElectronAuthTokens {
+export interface AiriAuthTokens {
   accessToken: string
   refreshToken?: string
   idToken?: string
   expiresIn: number
 }
-export const electronAuthStartLogin = defineInvokeEventa<void>('eventa:invoke:electron:auth:start-login')
-export const electronAuthCallback = defineEventa<ElectronAuthTokens>('eventa:event:electron:auth:callback')
-export const electronAuthCallbackError = defineEventa<{ error: string }>('eventa:event:electron:auth:callback-error')
-export const electronAuthLogout = defineInvokeEventa<void>('eventa:invoke:electron:auth:logout')
+export const airiAuthStartLogin = defineInvokeEventa<void>('eventa:invoke:airi:auth:start-login')
+export const airiAuthCallback = defineEventa<AiriAuthTokens>('eventa:event:airi:auth:callback')
+export const airiAuthCallbackError = defineEventa<{ error: string }>('eventa:event:airi:auth:callback-error')
+export const airiAuthLogout = defineInvokeEventa<void>('eventa:invoke:airi:auth:logout')
 export const airiAuthConfigure = defineInvokeEventa<void, { clientId: string, serverUrl: string }>('eventa:invoke:airi:auth:configure')
-
-export const i18nSetLocale = defineInvokeEventa<void, Locale>('eventa:invoke:electron:i18n:set-locale')
-export const i18nGetLocale = defineInvokeEventa<string | undefined>('eventa:invoke:electron:i18n:get-locale')
-
-export { electron } from '@proj-airi/electron-eventa'
-export * from '@proj-airi/electron-eventa/electron-updater'
