@@ -124,6 +124,8 @@ jobs:
       VITE_ENABLE_ANALYTICS: ${{ github.event_name == 'workflow_dispatch' && inputs.build_only && 'false' || 'true' }}
       # Uploads source maps to Sentry. The build skips the upload when the secret is absent.
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      # Desktop sells the Capacitor through a RevenueCat Web Purchase Link in the system browser.
+      VITE_REVENUECAT_PURCHASE_LINK: ${{ vars.VITE_REVENUECAT_PURCHASE_LINK }}
       ERGOSPHERE_IT_RELEASE_ID: ${{ needs.updates.outputs.bundle-release-id }}
       ERGOSPHERE_IT_INSTALLER_RELEASE_ID: ${{ needs.updates.outputs.installer-release-id }}
       ERGOSPHERE_IT_VERSION: ${{ needs.updates.outputs.version }}
@@ -758,6 +760,8 @@ jobs:
       VITE_ENABLE_ANALYTICS: ${{ github.event_name == 'workflow_dispatch' && inputs.build_only && 'false' || 'true' }}
       # Uploads source maps to Sentry. The build skips the upload when the secret is absent.
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      # Desktop sells the Capacitor through a RevenueCat Web Purchase Link in the system browser.
+      VITE_REVENUECAT_PURCHASE_LINK: ${{ vars.VITE_REVENUECAT_PURCHASE_LINK }}
       ERGOSPHERE_IT_RELEASE_ID: ${{ needs.updates.outputs.bundle-release-id }}
       ERGOSPHERE_IT_INSTALLER_RELEASE_ID: ${{ needs.updates.outputs.installer-release-id }}
       ERGOSPHERE_IT_VERSION: ${{ needs.updates.outputs.version }}

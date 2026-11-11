@@ -1,6 +1,6 @@
 import type { CustomerInfo, Package } from '@revenuecat/purchases-js'
 
-import { getRevenuecatWebKey, isCapacitorAvailable } from '@proj-airi/stage-shared'
+import { getRevenuecatPurchaseLink, getRevenuecatWebKey, isCapacitorAvailable } from '@proj-airi/stage-shared'
 import { ErrorCode, Purchases, PurchasesError } from '@revenuecat/purchases-js'
 import { object, optional, pipe, record, safeParse, string, trim } from 'valibot'
 import { onScopeDispose, ref, watch } from 'vue'
@@ -153,6 +153,7 @@ export function useSubscription(options: {
 }) {
   const { t, locale } = useI18n()
   const enabled = isCapacitorAvailable()
+  const purchaseLink = enabled ? null : getRevenuecatPurchaseLink()
 
   const currentCapacitor = ref<CurrentCapacitor | null>(null)
   const packages = ref<CapacitorPackage[]>([])
@@ -214,7 +215,7 @@ export function useSubscription(options: {
       return
     // The SDK already reported the capacitor. A sync that cannot reach the server must not hide it,
     // so the balance read still runs.
-    if (enabled)
+    if (enabled || purchaseLink)
       await syncWallet().catch(() => undefined)
     if (identity.isCurrent())
       await options.onChanged()
@@ -297,6 +298,15 @@ export function useSubscription(options: {
     }
   }
 
+  /**
+   * The browser checkout URL for the current user, or null when this build uses the web SDK or has no link.
+   * RevenueCat reads the app user id from the last path segment.
+   */
+  function browserCheckoutUrl(): string | null {
+    const userId = options.getUserId()
+    return purchaseLink && userId ? `${purchaseLink}/${encodeURIComponent(userId)}` : null
+  }
+
   async function setFallbackToFlux(fallbackToFlux: boolean): Promise<void> {
     const res = await client.api.v1.flux.fallback.$put({ json: { fallbackToFlux } })
     if (!res.ok)
@@ -313,6 +323,7 @@ export function useSubscription(options: {
     fetchStatus,
     fetchPackages,
     purchaseCapacitor,
+    browserCheckoutUrl,
     setFallbackToFlux,
   }
 }

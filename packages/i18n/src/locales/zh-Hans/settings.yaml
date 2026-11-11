@@ -263,11 +263,8 @@ pages:
     notLoggedIn: 登录以查看您的帐户并访问所有功能
     login: 登录
     logout: 登出
-    fluxBalance: Flux 余额
-    viewFluxDetails: 查看详情
-    capacitorEntry: 订阅
-    viewCapacitor: 查看
-    signedInAs: 登录 为
+    fluxBalance: Flux 电量
+    signedInAs: 当前账号
     profile:
       tab: 个人资料
       title: 个人资料
@@ -360,7 +357,7 @@ pages:
         action: 删除帐户
         modal:
           title: 删除账户？
-          warning: 此操作无法撤销。现存的 Flux 余额会被清除。如有生效中的订阅，请先取消。
+          warning: 此操作无法撤销。现存的 Flux 电量会被清除。如有生效中的订阅，请先取消。
           confirmEmail:
             label: 请再次输入电子邮箱以确认删除
             mismatch: 邮箱不匹配。
@@ -1607,6 +1604,10 @@ pages:
         json-applied: JSON 已经解析完成了，点「保存并重启」就写到磁盘上啦。
         restarted: 重启好啦！启动了 {started} 个，失败 {failed} 个，跳过 {skipped} 个
   flux:
+    sections:
+      subscription: 订阅
+    oneTime:
+      unfold: 只想先试试？单次购买 Flux
     title: Flux 电量
     buy: 充值
     currency: 币种
@@ -1615,7 +1616,7 @@ pages:
     privacy: 隐私政策
     packagesError: 暂时无法获取可用的 Flux 电量包。可以之后再试试吗？
     checkout:
-      success: 谢谢你！你的 Flux 通量已经更新好啦～
+      success: 谢谢你！你的 Flux 电量已经更新好啦～
       canceled: 支付被取消
       error: 哎呀，出错了，请稍后再试
     audit:
@@ -1639,6 +1640,17 @@ pages:
       description: 可以选择购入的 Flux 电池包
   capacitor:
     title: 订阅
+    intro:
+      title: Capacitor 是什么？
+      body: 订阅后你会得到一个 Capacitor。它按方案自动充满 Flux，对话和语音先用 Capacitor 里的 Flux。
+    empty: Capacitor 已用完。想现在继续聊天，可以打开下方的选项，使用 Flux 电量。
+    browser:
+      title: 在浏览器中订阅
+      body: 桌面版会在浏览器里打开付款页面。付款完成后回到 AIRI，这个页面会自动更新。
+      action: 在浏览器中订阅
+      reopen: 重新打开付款页面
+      waiting: 正在等待浏览器中的付款完成。
+      refresh: 我已付款，刷新
     statusError: 暂时无法获取 Capacitor 的状态，可以之后再试试吗？
     packagesError: 暂时无法获取可用的 Capacitor，可以之后再试试吗？
     preferenceError: 偏好保存失败，请稍后再试。
@@ -1658,7 +1670,7 @@ pages:
     upgrade: 升级
     downgrade: 降级
     manageSubscription: 管理订阅
-    fallbackToFlux: Capacitor 用完后使用 Flux 余额
+    fallbackToFlux: Capacitor 用完后使用 Flux 电量
     fallbackToFluxHint: 关闭后，对话和语音会暂停，直到 Capacitor 充满。
     checkout:
       success: 订阅成功，Capacitor 已充满。

@@ -2,9 +2,11 @@
 import type { CapacitorPackage } from '@proj-airi/stage-ui/composables/use-subscription'
 
 import { isFluxPurchaseDisabled } from '@proj-airi/stage-shared'
+import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useSubscription } from '@proj-airi/stage-ui/composables/use-subscription'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
-import { Alert, Button, FieldCheckbox, SettingsCard, Skeleton } from '@proj-airi/ui'
+import { Alert, Button, Callout, FieldCheckbox, SettingsCard, Skeleton } from '@proj-airi/ui'
+import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onScopeDispose, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -12,6 +14,10 @@ import { useI18n } from 'vue-i18n'
 const { t, locale } = useI18n()
 const authStore = useAuthStore()
 const { capacitorPercent, capacitorRechargesAt, fallbackToFlux } = storeToRefs(authStore)
+const { trackCheckoutStarted, trackPlanSelected, trackPricingViewed } = useAnalytics()
+
+/** The funnel names this surface. The Flux page owns both the Capacitor and the Flux packages. */
+const ENTRY_SURFACE = 'settings_flux'
 
 const fluxPurchaseDisabled = isFluxPurchaseDisabled()
 
@@ -62,6 +68,13 @@ const fallbackChoice = computed({
 
 const hasCapacitor = computed(() => currentCapacitor.value !== null || capacitorPercent.value != null)
 
+/** Desktop builds sell the Capacitor in the system browser, because they do not load the web SDK. */
+const browserCheckoutAvailable = computed(() => subscription.browserCheckoutUrl() != null)
+const waitingForBrowser = ref(false)
+
+/** An empty Capacitor stops chat and speech unless purchased Flux can pay. */
+const capacitorEmpty = computed(() => capacitorPercent.value === 0 && !fallbackToFlux.value)
+
 function formatPercent(percent: number): string {
   return new Intl.NumberFormat(locale.value, { style: 'percent' }).format(percent / 100)
 }
@@ -78,6 +91,7 @@ onScopeDispose(() => identityVersion += 1)
 watch(() => authStore.user?.id, async (userId, _previous, onCleanup) => {
   identityVersion += 1
   message.value = null
+  waitingForBrowser.value = false
   preferenceSaving.value = false
   statusLoading.value = Boolean(userId)
   packagesLoading.value = Boolean(userId) && !fluxPurchaseDisabled
@@ -101,9 +115,40 @@ watch(() => authStore.user?.id, async (userId, _previous, onCleanup) => {
     if (active)
       message.value = { type: 'error', text: t('settings.pages.capacitor.packagesError') }
   })
-  if (active)
-    packagesLoading.value = false
+  if (!active)
+    return
+  packagesLoading.value = false
+  // Funnel step 1 for the subscription: the user sees the monthly plans.
+  if (subscription.packages.value.length > 0 || browserCheckoutAvailable.value)
+    trackPricingViewed(ENTRY_SURFACE, 'monthly')
 }, { immediate: true, flush: 'sync' })
+
+function openBrowserCheckout() {
+  const url = subscription.browserCheckoutUrl()
+  if (!url)
+    return
+  message.value = null
+  waitingForBrowser.value = true
+  // The browser checkout shows every plan, so the app does not know which one the user picks.
+  trackCheckoutStarted('capacitor', { entry_surface: ENTRY_SURFACE })
+  // The Electron window open handler sends this URL to the system browser.
+  window.open(url, '_blank', 'noopener')
+}
+
+/** Reads the wallet again after the user comes back from the browser checkout. */
+async function refreshAfterBrowserCheckout() {
+  const version = identityVersion
+  await subscription.fetchStatus().catch(() => undefined)
+  if (version !== identityVersion || capacitorPercent.value == null)
+    return
+  waitingForBrowser.value = false
+  message.value = { type: 'success', text: t('settings.pages.capacitor.checkout.success') }
+}
+
+useEventListener(window, 'focus', () => {
+  if (waitingForBrowser.value)
+    void refreshAfterBrowserCheckout()
+})
 
 async function savePreference(value: boolean) {
   const version = identityVersion
@@ -133,7 +178,8 @@ function handleCapacitor(pkg: CapacitorPackage) {
   if (action === 'current')
     return
   if (action === 'buy') {
-    void handleSubscribe(pkg.packageId)
+    trackPlanSelected(pkg.productId, { entry_surface: ENTRY_SURFACE })
+    void handleSubscribe(pkg)
     return
   }
   const url = subscription.managementUrl.value
@@ -141,11 +187,13 @@ function handleCapacitor(pkg: CapacitorPackage) {
     window.open(url, '_blank', 'noopener')
 }
 
-async function handleSubscribe(packageId: string) {
+async function handleSubscribe(pkg: CapacitorPackage) {
   const version = identityVersion
   message.value = null
+  // The RevenueCat web checkout opens in the page. The webhook confirms the payment on the server.
+  trackCheckoutStarted(pkg.productId, { entry_surface: ENTRY_SURFACE })
   try {
-    const outcome = await subscription.purchaseCapacitor(packageId)
+    const outcome = await subscription.purchaseCapacitor(pkg.packageId)
     if (version !== identityVersion)
       return
     if (outcome === 'cancelled') {
@@ -169,7 +217,11 @@ async function handleSubscribe(packageId: string) {
 </script>
 
 <template>
-  <div :class="['flex flex-col gap-6', 'p-4']">
+  <section data-testid="capacitor-section" :class="['flex flex-col gap-4']">
+    <h2 :class="['text-lg font-semibold']">
+      {{ t('settings.pages.flux.sections.subscription') }}
+    </h2>
+
     <Alert
       v-if="message"
       :tone="message.type === 'success' ? 'success' : 'danger'"
@@ -177,6 +229,43 @@ async function handleSubscribe(packageId: string) {
     >
       {{ message.text }}
     </Alert>
+
+    <!-- Without a subscription, explain what the subscription gives before the packages -->
+    <Callout
+      v-if="!statusLoading && !hasCapacitor"
+      :label="t('settings.pages.capacitor.intro.title')"
+    >
+      {{ t('settings.pages.capacitor.intro.body') }}
+    </Callout>
+
+    <!-- Desktop: the checkout runs in the system browser, and the page refreshes when the window gets focus again -->
+    <SettingsCard v-if="!statusLoading && !hasCapacitor && browserCheckoutAvailable">
+      <div :class="['flex flex-col gap-1']">
+        <h2 :class="['text-base font-semibold']">
+          {{ t('settings.pages.capacitor.browser.title') }}
+        </h2>
+        <p :class="['text-sm text-neutral-500 dark:text-neutral-400']">
+          {{ t('settings.pages.capacitor.browser.body') }}
+        </p>
+      </div>
+      <Alert v-if="waitingForBrowser" loading live="polite">
+        {{ t('settings.pages.capacitor.browser.waiting') }}
+      </Alert>
+      <div :class="['flex flex-wrap gap-2']">
+        <Button
+          variant="primary"
+          color="primary"
+          icon="i-solar:arrow-right-up-linear"
+          :label="t(waitingForBrowser ? 'settings.pages.capacitor.browser.reopen' : 'settings.pages.capacitor.browser.action')"
+          @click="openBrowserCheckout"
+        />
+        <Button
+          v-if="waitingForBrowser"
+          :label="t('settings.pages.capacitor.browser.refresh')"
+          @click="refreshAfterBrowserCheckout"
+        />
+      </div>
+    </SettingsCard>
 
     <!-- Status: how much is left today, when it refills, and when the subscription renews -->
     <Skeleton v-if="statusLoading" :class="['h-40 rounded-xl']" />
@@ -253,6 +342,10 @@ async function handleSubscribe(packageId: string) {
           {{ t(currentCapacitor.willRenew ? 'settings.pages.capacitor.renewsAt' : 'settings.pages.capacitor.expiresAt', { date: formatDate(currentCapacitor.expiresAt, { dateStyle: 'medium' }) }) }}
         </span>
       </div>
+
+      <Alert v-if="capacitorEmpty" tone="warning">
+        {{ t('settings.pages.capacitor.empty') }}
+      </Alert>
 
       <div :class="['pt-4', 'border-t border-neutral-200 dark:border-neutral-700']">
         <FieldCheckbox
@@ -339,12 +432,6 @@ async function handleSubscribe(packageId: string) {
         </template>
       </div>
     </section>
-  </div>
+  </section>
 </template>
 
-<route lang="yaml">
-meta:
-  layout: settings
-  titleKey: settings.pages.capacitor.title
-  icon: i-solar:star-bold-duotone
-</route>

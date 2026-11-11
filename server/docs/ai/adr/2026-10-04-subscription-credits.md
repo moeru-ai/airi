@@ -44,7 +44,7 @@ The server does not select a rule from the webhook event type.
 A webhook only tells the server that a customer changed.
 The server reads the customer's entitlements and calls `BillingService.syncCapacitor`.
 `POST /api/v1/revenuecat/sync` runs the same reconciliation for the signed-in user.
-The client calls it after a purchase and when the Capacitor page opens.
+The client calls it after a purchase and when the Flux page opens.
 Thus a late webhook does not reject the first requests of a new subscriber, and a lost webhook is repaired on the next page visit.
 The route allows 10 calls for each user in one minute, because each call reads RevenueCat.
 The latest purchase wins when two mapped Capacitors are active.
@@ -250,7 +250,7 @@ server/apps/api/
   src/routes/revenuecat/operations/webhook.ts
 packages/stage-ui/src/stores/auth.ts
 packages/stage-ui/src/composables/use-subscription.ts
-packages/stage-pages/src/pages/settings/capacitor.vue
+packages/stage-pages/src/components/capacitor-section.vue
 ```
 
 ## Test plan

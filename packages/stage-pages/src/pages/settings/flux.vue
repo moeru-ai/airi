@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { FluxBalanceBucket } from '@proj-airi/stage-ui/composables/use-analytics'
 
-import { isFluxPurchaseDisabled, isStageTamagotchi } from '@proj-airi/stage-shared'
+import { isFluxPurchaseDisabled, isStageTamagotchi, isSubscriptionAvailable } from '@proj-airi/stage-shared'
 import { client } from '@proj-airi/stage-ui/composables/api'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { AIRI_PRIVACY_URL, AIRI_TERMS_URL } from '@proj-airi/stage-ui/constants/public-links'
@@ -14,11 +14,13 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
+import CapacitorSection from '../../components/capacitor-section.vue'
+
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
-const { credits, isAuthenticated } = storeToRefs(authStore)
+const { credits, isAuthenticated, capacitorPercent } = storeToRefs(authStore)
 const {
   trackCheckoutStarted,
   trackPaywallSeen,
@@ -29,6 +31,15 @@ const {
 } = useAnalytics()
 
 const fluxPurchaseDisabled = isFluxPurchaseDisabled()
+/** The page leads with the Capacitor subscription when this build can sell it. */
+const subscriptionAvailable = isSubscriptionAvailable()
+const showCapacitor = computed(() => isAuthenticated.value && subscriptionAvailable)
+/**
+ * One-time packages are a top-up. A user without a Capacitor sees them folded under the subscription,
+ * and can open them. A subscriber, a build without the subscription, and a signed-out visitor see them open.
+ */
+const packagesOpenedByUser = ref(false)
+const packagesFolded = computed(() => showCapacitor.value && capacitorPercent.value == null && !packagesOpenedByUser.value)
 
 // On desktop, checkout happens in the external system browser (see handleBuy), so
 // the app never receives the success_url redirect that web/mobile use to refresh.
@@ -321,9 +332,14 @@ onMounted(() => {
       reason: 'manual_topup',
       flux_balance_bucket: fluxBalanceBucket(credits.value),
     })
-    trackPricingViewed('settings_flux', 'one_time')
   }
 })
+
+// Funnel step 1 for the packages: it fires when the packages show, so a folded list does not count as a view.
+watch(packagesFolded, (folded) => {
+  if (!fluxPurchaseDisabled && !folded)
+    trackPricingViewed('settings_flux', 'one_time')
+}, { immediate: true })
 
 async function handleBuy(stripePriceId: string) {
   // OpenPanel funnel step 2: user picked a plan. price_minor_unit lives on
@@ -396,6 +412,12 @@ async function handleBuy(stripePriceId: string) {
       {{ message.text }}
     </Alert>
 
+    <CapacitorSection v-if="showCapacitor" />
+
+    <h2 v-if="showCapacitor" :class="['text-lg font-semibold']">
+      {{ t('settings.pages.account.fluxBalance') }}
+    </h2>
+
     <!-- Battery Card -->
     <div v-if="isAuthenticated" relative overflow-hidden rounded-2xl bg="neutral-100 dark:neutral-800" p-6 sm:p-8>
       <!-- Background Progress -->
@@ -417,7 +439,23 @@ async function handleBuy(stripePriceId: string) {
       </div>
     </div>
 
-    <div v-if="!fluxPurchaseDisabled" flex="~ col gap-4">
+    <button
+      v-if="!fluxPurchaseDisabled && packagesFolded"
+      type="button"
+      data-testid="flux-packages-unfold"
+      :class="[
+        'flex items-center gap-2 rounded-xl px-4 py-3 text-left',
+        'bg-neutral-50 dark:bg-neutral-800/50 hover:bg-neutral-100 dark:hover:bg-neutral-800',
+        'text-sm transition-colors duration-200',
+        'focus-visible:outline-2 focus-visible:outline-primary-500',
+      ]"
+      @click="packagesOpenedByUser = true"
+    >
+      <span :class="['flex-1 text-neutral-600 dark:text-neutral-300']">{{ t('settings.pages.flux.oneTime.unfold') }}</span>
+      <div :class="['i-solar:alt-arrow-down-linear size-4 text-neutral-400']" />
+    </button>
+
+    <div v-if="!fluxPurchaseDisabled && !packagesFolded" data-testid="flux-packages" flex="~ col gap-4">
       <!-- Currency selector -->
       <Skeleton v-if="packagesLoading" h-9 w-40 rounded-lg />
       <div v-else-if="currencyOptions.length > 1" flex="~ justify-start sm:justify-end">
