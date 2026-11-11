@@ -1,4 +1,3 @@
-import { isSubscriptionAvailable } from '@proj-airi/stage-shared'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -15,8 +14,6 @@ export function useFluxStatus() {
   const authStore = useAuthStore()
   const { isAuthenticated, credits, capacitorPercent, capacitorRechargesAt } = storeToRefs(authStore)
 
-  /** False in builds that cannot sell a subscription, for example Steam. */
-  const subscriptionAvailable = isSubscriptionAvailable()
   const visible = computed(() => isAuthenticated.value)
   /** The wallet reports a percent only while a Capacitor is active. */
   const subscribed = computed(() => capacitorPercent.value != null)
@@ -35,7 +32,6 @@ export function useFluxStatus() {
   const icon = computed(() => subscribed.value ? 'i-solar:star-bold-duotone' : 'i-solar:battery-charge-bold-duotone')
 
   return {
-    subscriptionAvailable,
     visible,
     subscribed,
     low,

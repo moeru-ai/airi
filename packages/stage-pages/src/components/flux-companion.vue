@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { isSubscriptionAvailable } from '@proj-airi/stage-shared'
+import { isCapacitorAvailable } from '@proj-airi/stage-shared'
 import { chatStickers } from '@proj-airi/stage-ui/assets/stickers'
 import { useFluxStatus } from '@proj-airi/stage-ui/composables/use-flux-status'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
@@ -10,7 +10,7 @@ const { t, locale } = useI18n()
 const authStore = useAuthStore()
 const { subscribed, percent, percentLabel, balanceLabel, icon } = useFluxStatus()
 
-const subscriptionAvailable = isSubscriptionAvailable()
+const subscriptionAvailable = isCapacitorAvailable()
 const empty = computed(() => percent.value === 0)
 
 // AIRI looks the way her energy is: full of it, out of it, or hoping for a subscription.

@@ -1720,13 +1720,6 @@ pages:
       title: What is a Capacitor?
       body: A subscription gives you a Capacitor. It refills with Flux on schedule. Chat and speech use the Flux in the Capacitor first.
     empty: Your Capacitor is empty. To keep chatting now, turn on the option below to use your Flux balance.
-    browser:
-      title: Subscribe in your browser
-      body: The desktop app opens the checkout in your browser. When you come back after the payment, this page updates.
-      action: Subscribe in browser
-      reopen: Open the checkout again
-      waiting: Waiting for the payment in your browser.
-      refresh: I paid, refresh
     statusError: Failed to load your Capacitor. Please try again later.
     packagesError: Failed to load Capacitors. Please try again later.
     preferenceError: Failed to save preference. Please try again later.

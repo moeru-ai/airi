@@ -11,6 +11,17 @@ import FluxPage from './flux.vue'
 
 import 'virtual:uno.css'
 
+vi.mock(import('@proj-airi/stage-ui/composables/use-subscription'), async (importOriginal) => {
+  const { useSubscription } = await importOriginal()
+  return {
+    useSubscription: options => ({
+      ...useSubscription(options),
+      fetchStatus: async () => { await options.onChanged() },
+      fetchPackages: vi.fn().mockResolvedValue(undefined),
+    }),
+  }
+})
+
 describe('public Flux page', () => {
   let pinia: ReturnType<typeof createPinia>
 
@@ -79,9 +90,7 @@ describe('flux page with the Capacitor subscription', () => {
 
   beforeEach(() => {
     pinia = createPinia()
-    // A desktop build sells the Capacitor through a browser purchase link, so the test needs no RevenueCat SDK.
-    vi.stubEnv('VITE_REVENUECAT_WEB_KEY', '')
-    vi.stubEnv('VITE_REVENUECAT_PURCHASE_LINK', 'https://pay.example.com/link')
+    vi.stubEnv('VITE_REVENUECAT_WEB_KEY', 'public-test-key')
     vi.stubEnv('VITE_DISABLE_FLUX_PURCHASE', 'false')
     wallet = { capacitorPercent: null }
     vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
@@ -123,7 +132,7 @@ describe('flux page with the Capacitor subscription', () => {
     const screen = await openSignedIn()
 
     await expect.element(screen.getByTestId('flux-companion-line')).toHaveTextContent('With a subscription, I fill up with energy every day')
-    await expect.element(screen.getByRole('button', { name: 'Subscribe in browser', exact: true })).toBeVisible()
+    await expect.element(screen.getByText('What is a Capacitor?')).toBeVisible()
     await expect.element(screen.getByRole('button', { name: '500 Flux $3.00' })).toBeVisible()
     await expect.element(screen.getByTestId('flux-history')).toBeVisible()
     // The page leads with the subscription: it comes before the one-time packages.

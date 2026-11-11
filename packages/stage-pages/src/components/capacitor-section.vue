@@ -6,7 +6,6 @@ import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useSubscription } from '@proj-airi/stage-ui/composables/use-subscription'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { Alert, Button, Callout, FieldCheckbox, SettingsCard, Skeleton } from '@proj-airi/ui'
-import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onScopeDispose, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -68,10 +67,6 @@ const fallbackChoice = computed({
 
 const hasCapacitor = computed(() => currentCapacitor.value !== null || capacitorPercent.value != null)
 
-/** Desktop builds sell the Capacitor in the system browser, because they do not load the web SDK. */
-const browserCheckoutAvailable = computed(() => subscription.browserCheckoutUrl() != null)
-const waitingForBrowser = ref(false)
-
 /** An empty Capacitor stops chat and speech unless purchased Flux can pay. */
 const capacitorEmpty = computed(() => capacitorPercent.value === 0 && !fallbackToFlux.value)
 
@@ -87,7 +82,6 @@ onScopeDispose(() => identityVersion += 1)
 watch(() => authStore.user?.id, async (userId, _previous, onCleanup) => {
   identityVersion += 1
   message.value = null
-  waitingForBrowser.value = false
   preferenceSaving.value = false
   statusLoading.value = Boolean(userId)
   packagesLoading.value = Boolean(userId) && !fluxPurchaseDisabled
@@ -115,36 +109,9 @@ watch(() => authStore.user?.id, async (userId, _previous, onCleanup) => {
     return
   packagesLoading.value = false
   // Funnel step 1 for the subscription: the user sees the monthly plans.
-  if (subscription.packages.value.length > 0 || browserCheckoutAvailable.value)
+  if (subscription.packages.value.length > 0)
     trackPricingViewed(ENTRY_SURFACE, 'monthly')
 }, { immediate: true, flush: 'sync' })
-
-function openBrowserCheckout() {
-  const url = subscription.browserCheckoutUrl()
-  if (!url)
-    return
-  message.value = null
-  waitingForBrowser.value = true
-  // The browser checkout shows every plan, so the app does not know which one the user picks.
-  trackCheckoutStarted('capacitor', { entry_surface: ENTRY_SURFACE })
-  // The Electron window open handler sends this URL to the system browser.
-  window.open(url, '_blank', 'noopener')
-}
-
-/** Reads the wallet again after the user comes back from the browser checkout. */
-async function refreshAfterBrowserCheckout() {
-  const version = identityVersion
-  await subscription.fetchStatus().catch(() => undefined)
-  if (version !== identityVersion || capacitorPercent.value == null)
-    return
-  waitingForBrowser.value = false
-  message.value = { type: 'success', text: t('settings.pages.capacitor.checkout.success') }
-}
-
-useEventListener(window, 'focus', () => {
-  if (waitingForBrowser.value)
-    void refreshAfterBrowserCheckout()
-})
 
 async function savePreference(value: boolean) {
   const version = identityVersion
@@ -229,35 +196,6 @@ async function handleSubscribe(pkg: CapacitorPackage) {
     >
       {{ t('settings.pages.capacitor.intro.body') }}
     </Callout>
-
-    <!-- Desktop: the checkout runs in the system browser, and the page refreshes when the window gets focus again -->
-    <SettingsCard v-if="!statusLoading && !hasCapacitor && browserCheckoutAvailable">
-      <div :class="['flex flex-col gap-1']">
-        <h2 :class="['text-base font-semibold']">
-          {{ t('settings.pages.capacitor.browser.title') }}
-        </h2>
-        <p :class="['text-sm text-neutral-500 dark:text-neutral-400']">
-          {{ t('settings.pages.capacitor.browser.body') }}
-        </p>
-      </div>
-      <Alert v-if="waitingForBrowser" loading live="polite">
-        {{ t('settings.pages.capacitor.browser.waiting') }}
-      </Alert>
-      <div :class="['flex flex-wrap gap-2']">
-        <Button
-          variant="primary"
-          color="primary"
-          icon="i-solar:arrow-right-up-linear"
-          :label="t(waitingForBrowser ? 'settings.pages.capacitor.browser.reopen' : 'settings.pages.capacitor.browser.action')"
-          @click="openBrowserCheckout"
-        />
-        <Button
-          v-if="waitingForBrowser"
-          :label="t('settings.pages.capacitor.browser.refresh')"
-          @click="refreshAfterBrowserCheckout"
-        />
-      </div>
-    </SettingsCard>
 
     <!-- Status: how much is left today, when it refills, and when the subscription renews -->
     <Skeleton v-if="statusLoading" :class="['h-40 rounded-xl']" />

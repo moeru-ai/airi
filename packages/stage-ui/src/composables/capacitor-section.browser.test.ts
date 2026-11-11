@@ -210,28 +210,6 @@ describe('capacitor quota display and purchase actions', () => {
     expect(screen.getByText(/Your Capacitor is empty/).elements()).toHaveLength(warnings)
   })
 
-  it('opens the browser checkout for this user when the build has a purchase link instead of the web SDK', async () => {
-    vi.stubEnv('VITE_REVENUECAT_WEB_KEY', '')
-    vi.stubEnv('VITE_REVENUECAT_PURCHASE_LINK', 'https://pay.example.com/link/')
-    wallet = { capacitorPercent: null, fallbackToFlux: false }
-    const open = vi.spyOn(window, 'open').mockReturnValue(null)
-    const screen = await openPage()
-
-    await screen.getByRole('button', { name: 'Subscribe in browser', exact: true }).click()
-
-    expect(open).toHaveBeenCalledWith('https://pay.example.com/link/owner', '_blank', 'noopener')
-    expect(sdk.getCustomerInfo).not.toHaveBeenCalled()
-    // The browser checkout lists every plan, so the funnel records the Capacitor, not one plan.
-    expect(funnel().at(-1)).toEqual(expect.objectContaining({ name: 'checkout_started', plan_id: 'capacitor' }))
-    await expect.element(screen.getByText('Waiting for the payment in your browser.')).toBeVisible()
-
-    // The wallet reports the Capacitor after the payment, and focus on the window reads it again.
-    wallet = { capacitorPercent: 100, fallbackToFlux: false }
-    window.dispatchEvent(new Event('focus'))
-    await expect.element(screen.getByRole('status')).toHaveTextContent('You are subscribed. Your Capacitor is full.')
-    expect(requests).toContain('/api/v1/revenuecat/sync')
-  })
-
   it('waits for the customer before it exposes package actions', async () => {
     let resolveCustomer: (info: CustomerInfo) => void = () => {
       throw new Error('Expected a pending customer read')

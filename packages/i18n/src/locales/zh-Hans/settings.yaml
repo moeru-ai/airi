@@ -1649,13 +1649,6 @@ pages:
       title: Capacitor 是什么？
       body: 订阅后你会得到一个 Capacitor。它按方案自动充满 Flux，对话和语音先用 Capacitor 里的 Flux。
     empty: Capacitor 已用完。想现在继续聊天，可以打开下方的选项，使用 Flux 电量。
-    browser:
-      title: 在浏览器中订阅
-      body: 桌面版会在浏览器里打开付款页面。付款完成后回到 AIRI，这个页面会自动更新。
-      action: 在浏览器中订阅
-      reopen: 重新打开付款页面
-      waiting: 正在等待浏览器中的付款完成。
-      refresh: 我已付款，刷新
     statusError: 暂时无法获取 Capacitor 的状态，可以之后再试试吗？
     packagesError: 暂时无法获取可用的 Capacitor，可以之后再试试吗？
     preferenceError: 偏好保存失败，请稍后再试。

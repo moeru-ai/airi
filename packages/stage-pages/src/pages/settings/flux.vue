@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { FluxBalanceBucket } from '@proj-airi/stage-ui/composables/use-analytics'
 
-import { isFluxPurchaseDisabled, isStageTamagotchi, isSubscriptionAvailable } from '@proj-airi/stage-shared'
+import { isCapacitorAvailable, isFluxPurchaseDisabled, isStageTamagotchi } from '@proj-airi/stage-shared'
 import { client } from '@proj-airi/stage-ui/composables/api'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { AIRI_PRIVACY_URL, AIRI_TERMS_URL } from '@proj-airi/stage-ui/constants/public-links'
@@ -33,7 +33,7 @@ const {
 
 const fluxPurchaseDisabled = isFluxPurchaseDisabled()
 /** The page leads with the Capacitor subscription when this build can sell it. */
-const subscriptionAvailable = isSubscriptionAvailable()
+const subscriptionAvailable = isCapacitorAvailable()
 const showCapacitor = computed(() => isAuthenticated.value && subscriptionAvailable)
 
 // On desktop, checkout happens in the external system browser (see handleBuy), so
