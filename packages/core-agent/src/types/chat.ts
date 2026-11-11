@@ -1,3 +1,4 @@
+import type { BilingualTurnSnapshot } from '@proj-airi/pipelines-audio'
 import type { ContextUpdate, MetadataEventSource, WebSocketEventInputs } from '@proj-airi/server-shared/types'
 import type { AssistantMessage, CommonContentPart, CompletionToolCall, Message, SystemMessage, ToolMessage, UserMessage } from '@xsai/shared-chat'
 
@@ -75,6 +76,11 @@ export interface ChatAssistantMessage extends AssistantMessage {
   providerTranscript?: Message[]
   /** Portable turn history and adapter-owned continuation data. */
   generationTranscript?: AssistantTurn
+  /**
+   * True when this reply was generated with bilingual subtitles. Its stored
+   * transcript can carry UST brackets, so only such replies are projected.
+   */
+  bilingual?: true
   categorization?: {
     speech: string
     reasoning: string
@@ -152,6 +158,32 @@ export interface ChatStreamEventContext {
   input?: WebSocketEventInputs
   /** Whether the reply speaks on the host. Scene replies and background tasks stay silent. */
   speaks?: boolean
+  /**
+   * Bilingual settings captured for this send. Hooks must read this value
+   * instead of reading settings storage again, so one turn cannot mix modes.
+   */
+  bilingual?: BilingualTurnSnapshot
+}
+
+/**
+ * One translated fragment split from a bilingual response.
+ *
+ * The splitter emits these on the subtitle track only. TTS never receives
+ * this text. Fragments with one pair id belong to one spoken sentence.
+ */
+export interface TokenTranslationPayload {
+  /** ISO 639-1 code of the translation language, for example `zh`. */
+  language: string
+  /** Spoken-sentence pair this fragment translates. Ids increase in turn order. */
+  pairId: number
+  /**
+   * Offset of this pair's spoken sentence in the whole spoken text, counted
+   * in non-whitespace characters. Captions reveal the pair once cumulative
+   * played clip text reaches this offset.
+   */
+  spokenStart: number
+  /** Raw fragment text, including surrounding whitespace from the model. */
+  text: string
 }
 
 export type ChatStreamEvent
@@ -160,6 +192,7 @@ export type ChatStreamEvent
     | { type: 'before-send', message: string, sessionId: string, context: ChatStreamEventContext }
     | { type: 'after-send', message: string, sessionId: string, context: ChatStreamEventContext }
     | { type: 'token-literal', literal: string, sessionId: string, context: ChatStreamEventContext }
+    | { type: 'token-translation', translation: TokenTranslationPayload, sessionId: string, context: ChatStreamEventContext }
     | { type: 'token-special', special: string, sessionId: string, context: ChatStreamEventContext }
     | { type: 'stream-end', sessionId: string, context: ChatStreamEventContext }
     | { type: 'assistant-end', message: string, sessionId: string, context: ChatStreamEventContext }

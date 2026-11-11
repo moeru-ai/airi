@@ -1,4 +1,4 @@
-import type { AudioPlayback, IntentHandle, PcmBlock, PlaybackGroup, PlaybackItem, PlaybackReceipt, SpeechPipelineEvents, SpeechPipelineOptions, TtsRequest } from '@proj-airi/pipelines-audio'
+import type { AudioPlayback, IntentHandle, PcmBlock, PlaybackGroup, PlaybackItem, PlaybackReceipt, SentenceBoundaryMode, SpeechPipelineEvents, SpeechPipelineOptions, TtsRequest } from '@proj-airi/pipelines-audio'
 import type { Outcome } from '@proj-airi/stream-kit'
 
 import type { TurnRef } from '../turn'
@@ -20,13 +20,14 @@ export interface SpeechAudio {
   readonly text?: string
 }
 
-/**
- * One scheduled audio part. Pipeline synthesis reuses the TTS request segment ID.
+/** One scheduled audio part. Pipeline synthesis reuses the TTS request segment ID.
  * Tracing can therefore join synthesis and playback of the same text.
  */
 export interface SpeechClip {
   readonly id: string
   readonly text: string
+  /** Bilingual pair that owns this clip, starting at 0. */
+  readonly pairIndex?: number
 }
 
 /** A stopped or failed clip carries the producer or response abort reason when one exists. */
@@ -47,6 +48,11 @@ export type SpeechOutput = {
   readonly language?: string
 } & ({
   readonly synthesize: SpeechPipelineOptions<Blob>['tts']
+  /**
+   * Flush-only sentence boundaries. Bilingual turns set this so the chunker
+   * synthesizes exactly one clip per translation pair.
+   */
+  readonly boundaryMode?: SentenceBoundaryMode
 } | {
   /** The provider consumes text and emits audio parts concurrently. Its adapter owns decoding and source coordinates. */
   readonly stream: (text: ReadableStream<string>, signal: AbortSignal) => Promise<ReadableStream<SpeechAudio>>
@@ -189,7 +195,7 @@ export class SpeechStream {
       playback: {
         schedule: (item) => {
           pending.add(item)
-          const clip = { id: item.segmentId, text: item.text }
+          const clip = { id: item.segmentId, text: item.text, ...(item.pairIndex !== undefined ? { pairIndex: item.pairIndex } : {}) }
           let started = false
           void Promise.race([previous, this.done])
             .then(async () => {
@@ -256,7 +262,11 @@ export class SpeechStream {
     })
     pipeline.on('onIntentEnd', () => this.settle({ status: 'finished', value: undefined }))
 
-    this.intent = pipeline.openIntent({ turnId: response.turn.turnId, ownerId: response.turn.sessionId })
+    this.intent = pipeline.openIntent({
+      turnId: response.turn.turnId,
+      ownerId: response.turn.sessionId,
+      ...(output.boundaryMode ? { boundaryMode: output.boundaryMode } : {}),
+    })
   }
 
   /** Triggering workflow: VoiceController response → provider text stream → reserved playback slot → producer completion. */
@@ -420,7 +430,8 @@ export class SpeechStream {
   /** The chunker orders special tokens with the audio. Streaming providers handle them outside their text transport. */
   private deliverControl(control: SpeechControl) {
     if (control.type === 'flush') {
-      this.intent?.writeFlush()
+      // A bilingual pair boundary, not a segment-end flush.
+      this.intent?.writeFlush(true)
     }
     else if (this.intent) {
       this.intent.writeSpecial(control.value)

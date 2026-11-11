@@ -40,6 +40,7 @@ const afterComposeHooks: HookCallback[] = []
 const beforeSendHooks: HookCallback[] = []
 const afterSendHooks: HookCallback[] = []
 const tokenLiteralHooks: HookCallback[] = []
+const tokenTranslationHooks: HookCallback[] = []
 const tokenSpecialHooks: HookCallback[] = []
 const streamEndHooks: HookCallback[] = []
 const assistantEndHooks: HookCallback[] = []
@@ -187,6 +188,7 @@ const chatOrchestratorMock = {
   onBeforeSend: (callback: HookCallback) => registerHook(beforeSendHooks, callback),
   onAfterSend: (callback: HookCallback) => registerHook(afterSendHooks, callback),
   onTokenLiteral: (callback: HookCallback) => registerHook(tokenLiteralHooks, callback),
+  onTokenTranslation: (callback: HookCallback) => registerHook(tokenTranslationHooks, callback),
   onTokenSpecial: (callback: HookCallback) => registerHook(tokenSpecialHooks, callback),
   onStreamEnd: (callback: HookCallback) => registerHook(streamEndHooks, callback),
   onAssistantResponseEnd: (callback: HookCallback) => registerHook(assistantEndHooks, callback),
@@ -198,6 +200,7 @@ const chatOrchestratorMock = {
   emitBeforeSendHooks: (...args: unknown[]) => emitHooks(beforeSendHooks, ...args),
   emitAfterSendHooks: (...args: unknown[]) => emitHooks(afterSendHooks, ...args),
   emitTokenLiteralHooks: (...args: unknown[]) => emitHooks(tokenLiteralHooks, ...args),
+  emitTokenTranslationHooks: (...args: unknown[]) => emitHooks(tokenTranslationHooks, ...args),
   emitTokenSpecialHooks: (...args: unknown[]) => emitHooks(tokenSpecialHooks, ...args),
   emitStreamEndHooks: (...args: unknown[]) => emitHooks(streamEndHooks, ...args),
   emitAssistantResponseEndHooks: (...args: unknown[]) => emitHooks(assistantEndHooks, ...args),
@@ -325,6 +328,7 @@ describe('context bridge contract', () => {
     beforeSendHooks.length = 0
     afterSendHooks.length = 0
     tokenLiteralHooks.length = 0
+    tokenTranslationHooks.length = 0
     tokenSpecialHooks.length = 0
     streamEndHooks.length = 0
     assistantEndHooks.length = 0
@@ -1206,6 +1210,121 @@ describe('context bridge contract', () => {
     expect(chatOrchestratorMock.sending).toBe(false)
     expect(store.isReceivingRemoteStream).toBe(false)
 
+    await store.dispose()
+  })
+
+  it('broadcasts a translation under the session that owns the send', async () => {
+    const outgoingStreamMessages = collectChannelMessages<{ sessionId: string, type: string }>(CHAT_STREAM_CHANNEL_NAME)
+    const store = useContextBridgeStore()
+    await store.initialize()
+    const context = {
+      sessionId: 'session-a',
+      turnId: 'turn-1',
+      message: { role: 'user', content: 'ping' },
+      contexts: {},
+      composedMessage: [],
+    } satisfies ChatStreamEventContext
+
+    // The active session and the orchestrator's send session both differ, so a
+    // borrowed owner would send the translation to the wrong window.
+    chatOrchestratorMock.activeSendSessionId = 'session-c'
+    activeSessionIdRef.value = 'session-b'
+    await chatOrchestratorMock.emitTokenTranslationHooks(
+      { language: 'zh', pairId: 0, spokenStart: 0, text: '你好' },
+      context,
+    )
+    await vi.waitFor(() => expect(outgoingStreamMessages).toHaveLength(1))
+
+    expect(outgoingStreamMessages[0]).toMatchObject({ type: 'token-translation', sessionId: 'session-a' })
+    await store.dispose()
+  })
+
+  it('delivers a remote translation to the current turn hooks', async () => {
+    const translations: unknown[] = []
+    chatOrchestratorMock.onTokenTranslation(async (translation) => {
+      translations.push(translation)
+    })
+    const store = useContextBridgeStore()
+    await store.initialize()
+    const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
+    const context = {
+      sessionId: 'session-1',
+      turnId: 'turn-1',
+      message: { role: 'user', content: 'ping' },
+      contexts: {},
+      composedMessage: [],
+    } satisfies ChatStreamEventContext
+
+    streamSender.postMessage({ type: 'before-send', message: 'ping', sessionId: 'session-1', context })
+    await vi.waitFor(() => expect(store.isReceivingRemoteStream).toBe(true))
+    streamSender.postMessage({
+      type: 'token-translation',
+      translation: { language: 'zh', pairId: 0, spokenStart: 0, text: '你好' },
+      sessionId: 'session-1',
+      context,
+    })
+    await vi.waitFor(() => expect(translations).toHaveLength(1))
+
+    await store.dispose()
+  })
+
+  it('ignores a translation for a turn that already ended', async () => {
+    const translations: unknown[] = []
+    chatOrchestratorMock.onTokenTranslation(async (translation) => {
+      translations.push(translation)
+    })
+    const store = useContextBridgeStore()
+    await store.initialize()
+    const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
+    const context = {
+      sessionId: 'session-1',
+      turnId: 'turn-1',
+      message: { role: 'user', content: 'ping' },
+      contexts: {},
+      composedMessage: [],
+    } satisfies ChatStreamEventContext
+
+    streamSender.postMessage({ type: 'before-send', message: 'ping', sessionId: 'session-1', context })
+    await vi.waitFor(() => expect(store.isReceivingRemoteStream).toBe(true))
+    streamSender.postMessage({ type: 'assistant-end', message: 'done', sessionId: 'session-1', context })
+    await vi.waitFor(() => expect(store.isReceivingRemoteStream).toBe(false))
+    streamSender.postMessage({
+      type: 'token-translation',
+      translation: { language: 'zh', pairId: 0, spokenStart: 0, text: '迟到的译文' },
+      sessionId: 'session-1',
+      context,
+    })
+    await waitForBroadcastDelivery()
+
+    expect(translations).toHaveLength(0)
+    await store.dispose()
+  })
+
+  it('ignores a translation for a session without an active remote turn', async () => {
+    const translations: unknown[] = []
+    chatOrchestratorMock.onTokenTranslation(async (translation) => {
+      translations.push(translation)
+    })
+    const store = useContextBridgeStore()
+    await store.initialize()
+    const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
+    const context = {
+      sessionId: 'session-2',
+      turnId: 'turn-2',
+      message: { role: 'user', content: 'background ping' },
+      contexts: {},
+      composedMessage: [],
+    } satisfies ChatStreamEventContext
+
+    streamSender.postMessage({
+      type: 'token-translation',
+      translation: { language: 'zh', pairId: 0, spokenStart: 0, text: '外部会话的译文' },
+      sessionId: 'session-2',
+      context,
+    })
+    await waitForBroadcastDelivery()
+
+    expect(translations).toHaveLength(0)
     await store.dispose()
   })
 })

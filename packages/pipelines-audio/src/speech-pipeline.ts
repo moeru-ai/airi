@@ -6,6 +6,7 @@ import type {
   IntentOptions,
   LoggerLike,
   PlaybackItem,
+  SentenceBoundaryMode,
   SpeechPipelineEvents,
   TextSegment,
   TextToken,
@@ -41,7 +42,7 @@ export interface SpeechPipelineOptions<TAudio> {
   }
   logger?: LoggerLike
   priority?: ReturnType<typeof createPriorityResolver>
-  segmenter?: (tokens: ReadableStream<TextToken>, meta: { streamId: string, intentId: string, turnId?: string }) => ReadableStream<TextSegment>
+  segmenter?: (tokens: ReadableStream<TextToken>, meta: { streamId: string, intentId: string, turnId?: string, flushBoundaries?: boolean }) => ReadableStream<TextSegment>
 }
 
 interface IntentState {
@@ -51,6 +52,7 @@ interface IntentState {
   priority: number
   ownerId?: string
   behavior: 'queue' | 'interrupt' | 'replace'
+  boundaryMode: SentenceBoundaryMode
   createdAt: number
   controller: AbortController
   stream: ReadableStream<TextToken>
@@ -130,7 +132,12 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
       context.emit(speechPipelineEventMap.onTurnStart, intent.turnId)
 
     const tokenStream = intent.stream
-    const segmentStream = segmenter(tokenStream, { streamId: intent.streamId, intentId: intent.intentId, turnId: intent.turnId })
+    const segmentStream = segmenter(tokenStream, {
+      streamId: intent.streamId,
+      intentId: intent.intentId,
+      turnId: intent.turnId,
+      flushBoundaries: intent.boundaryMode === 'flush',
+    })
     const completedRequests = new Map<number, TtsResult<TAudio> | null>()
     const inFlightTasks = new Set<Promise<void>>()
     let nextRequestSequence = 0
@@ -196,6 +203,7 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
             text: completedRequest.text,
             special: completedRequest.special,
             audio: completedRequest.audio,
+            ...(completedRequest.pairIndex !== undefined ? { pairIndex: completedRequest.pairIndex } : {}),
             createdAt: Date.now(),
           })
         }
@@ -237,6 +245,7 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
           text: request.text,
           special: request.special,
           audio,
+          ...(request.pairIndex !== undefined ? { pairIndex: request.pairIndex } : {}),
           createdAt: Date.now(),
         }
 
@@ -286,6 +295,7 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
           text: value.text,
           special: value.special,
           reason: value.reason,
+          ...(value.pairIndex !== undefined ? { pairIndex: value.pairIndex } : {}),
           priority: intent.priority,
           createdAt: Date.now(),
         }
@@ -332,6 +342,7 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
     const streamId = optionsInput?.streamId ?? createId('stream')
     const priority = priorityResolver.resolve(optionsInput?.priority)
     const behavior = optionsInput?.behavior ?? 'queue'
+    const boundaryMode = optionsInput?.boundaryMode ?? 'punctuation'
     const ownerId = optionsInput?.ownerId
 
     const controller = new AbortController()
@@ -345,6 +356,7 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
       priority,
       ownerId,
       behavior,
+      boundaryMode,
       createdAt: Date.now(),
       controller,
       stream,
@@ -387,11 +399,12 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
           createdAt: Date.now(),
         })
       },
-      writeFlush() {
+      writeFlush(pair?: boolean) {
         if (intent.canceled)
           return
         write({
           type: 'flush',
+          ...(pair ? { pair: true } : {}),
           turnId,
           streamId,
           intentId,

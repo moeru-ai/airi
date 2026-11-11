@@ -7,6 +7,8 @@ export interface PriorityResolver {
 export interface TextToken {
   type: 'literal' | 'special' | 'flush'
   value?: string
+  /** True when a flush ends a bilingual translation pair, not only a segment. */
+  pair?: boolean
   turnId?: string
   streamId: string
   intentId: string
@@ -22,6 +24,8 @@ export interface TextSegment {
   text: string
   special: string | null
   reason: 'boost' | 'limit' | 'hard' | 'flush' | 'special'
+  /** Bilingual pair that owns this segment, starting at 0. */
+  pairIndex?: number
   createdAt: number
 }
 
@@ -35,6 +39,8 @@ export interface TtsRequest {
   special: string | null
   /** Chunker boundary that produced this text. Tracing uses it to explain synthesis latency. */
   reason: TextSegment['reason']
+  /** Bilingual pair that owns this request, starting at 0. */
+  pairIndex?: number
   priority: number
   createdAt: number
 }
@@ -48,6 +54,8 @@ export interface TtsResult<TAudio> {
   text: string
   special: string | null
   audio: TAudio
+  /** Bilingual pair that owns this result, starting at 0. */
+  pairIndex?: number
   createdAt: number
 }
 
@@ -63,6 +71,8 @@ export interface PlaybackItem<TAudio> {
   text: string
   special: string | null
   audio: TAudio
+  /** Bilingual pair that owns this item, starting at 0. */
+  pairIndex?: number
   createdAt: number
 }
 
@@ -90,6 +100,17 @@ export interface PlaybackRejectEvent<TAudio> {
 
 export type IntentBehavior = 'queue' | 'interrupt' | 'replace'
 
+/**
+ * Controls which TTS segments count as sentence boundaries.
+ *
+ * - `punctuation` (default): hard punctuation and flush markers both end a
+ *   sentence. Correct for ordinary TTS.
+ * - `flush`: only explicit flush markers end sentences. Bilingual turns use
+ *   this so the boundary count matches the translation-pair count exactly,
+ *   regardless of abbreviation periods or line breaks.
+ */
+export type SentenceBoundaryMode = 'punctuation' | 'flush'
+
 export interface IntentOptions {
   turnId?: string
   intentId?: string
@@ -97,6 +118,8 @@ export interface IntentOptions {
   priority?: PriorityLevel | number
   ownerId?: string
   behavior?: IntentBehavior
+  /** See {@link SentenceBoundaryMode}. Defaults to `punctuation`. */
+  boundaryMode?: SentenceBoundaryMode
 }
 
 export interface IntentHandle {
@@ -107,7 +130,7 @@ export interface IntentHandle {
   ownerId?: string
   writeLiteral: (text: string) => void
   writeSpecial: (special: string) => void
-  writeFlush: () => void
+  writeFlush: (pair?: boolean) => void
   end: () => void
   cancel: (reason?: string) => void
   stream: ReadableStream<TextToken>

@@ -534,6 +534,13 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
             if (options.emitHooks && current && !guard.completed)
               await chatOrchestrator.emitTokenLiteralHooks(event.literal, event.context)
             break
+          case 'token-translation':
+            // Subtitle-only event: it never touches the chat stream. Gate
+            // it like token-special, so a stale mirrored turn cannot
+            // populate captions in a window showing another session.
+            if (options.emitHooks && current && !guard.completed)
+              await chatOrchestrator.emitTokenTranslationHooks(event.translation, event.context)
+            break
           case 'token-special':
             if (options.emitHooks && current && !guard.completed)
               await chatOrchestrator.emitTokenSpecialHooks(event.special, event.context)
@@ -1006,6 +1013,12 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
             return
 
           await contextChannel?.emitStream({ type: 'token-literal', literal, sessionId: context.sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+        }),
+        chatOrchestrator.onTokenTranslation(async (translation, context) => {
+          if (remoteContexts.has(context))
+            return
+
+          await contextChannel?.emitStream({ type: 'token-translation', translation, sessionId: context.sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onTokenSpecial(async (special, context) => {
           if (remoteContexts.has(context))

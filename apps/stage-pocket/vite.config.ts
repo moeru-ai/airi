@@ -163,6 +163,8 @@ export default defineConfig({
             ...base,
             '**/settings/connection/index.vue',
             '**/settings/modules/beat-sync.vue',
+            // Mobile has no caption overlay; bilingual subtitles run on desktop and web.
+            '**/settings/modules/bilingual-subtitles.vue',
           ],
         },
       ],

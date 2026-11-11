@@ -1,6 +1,8 @@
 import type { ToolMessage } from '@xsai/shared-chat'
 
-import type { ChatStreamEventContext, StreamingAssistantMessage } from '../types/chat'
+import type { ChatStreamEventContext, StreamingAssistantMessage, TokenTranslationPayload } from '../types/chat'
+
+export type { TokenTranslationPayload } from '../types/chat'
 
 export interface ChatHookRegistry {
   onBeforeMessageComposed: (cb: (message: string, context: Omit<ChatStreamEventContext, 'composedMessage'>) => Promise<void>) => () => void
@@ -8,6 +10,7 @@ export interface ChatHookRegistry {
   onBeforeSend: (cb: (message: string, context: ChatStreamEventContext) => Promise<void>) => () => void
   onAfterSend: (cb: (message: string, context: ChatStreamEventContext) => Promise<void>) => () => void
   onTokenLiteral: (cb: (literal: string, context: ChatStreamEventContext) => Promise<void>) => () => void
+  onTokenTranslation: (cb: (translation: TokenTranslationPayload, context: ChatStreamEventContext) => Promise<void>) => () => void
   onTokenSpecial: (cb: (special: string, context: ChatStreamEventContext) => Promise<void>) => () => void
   onStreamEnd: (cb: (context: ChatStreamEventContext) => Promise<void>) => () => void
   onAssistantResponseEnd: (cb: (message: string, context: ChatStreamEventContext) => Promise<void>) => () => void
@@ -18,6 +21,7 @@ export interface ChatHookRegistry {
   emitBeforeSendHooks: (message: string, context: ChatStreamEventContext) => Promise<void>
   emitAfterSendHooks: (message: string, context: ChatStreamEventContext) => Promise<void>
   emitTokenLiteralHooks: (literal: string, context: ChatStreamEventContext) => Promise<void>
+  emitTokenTranslationHooks: (translation: TokenTranslationPayload, context: ChatStreamEventContext) => Promise<void>
   emitTokenSpecialHooks: (special: string, context: ChatStreamEventContext) => Promise<void>
   emitStreamEndHooks: (context: ChatStreamEventContext) => Promise<void>
   emitAssistantResponseEndHooks: (message: string, context: ChatStreamEventContext) => Promise<void>

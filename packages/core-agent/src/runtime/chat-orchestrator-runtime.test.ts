@@ -1,7 +1,8 @@
+import type { BilingualTurnSnapshot } from '@proj-airi/pipelines-audio'
 import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { Message } from '@xsai/shared-chat'
 
-import type { Conversation } from '../messages/types'
+import type { AssistantTurn, Conversation } from '../messages/types'
 import type { ChatHistoryItem, ContextMessage, StreamingAssistantMessage } from '../types/chat'
 import type { StreamEvent, StreamOptions } from '../types/llm'
 import type { ChatOrchestratorSessionPort } from './chat-orchestrator-runtime'
@@ -17,7 +18,7 @@ const provider: GenerationProvider = {
   generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.com/' } }),
 }
 
-function createHarness(getActiveProvider = () => 'mock-provider') {
+function createHarness(getActiveProvider = () => 'mock-provider', options?: { bilingual?: BilingualTurnSnapshot }) {
   const sessionMessages: Record<string, ChatHistoryItem[]> = {
     'session-1': [
       {
@@ -83,6 +84,7 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
     },
     context: {
       ingest: vi.fn(),
+      remove: vi.fn(),
       snapshot: () => structuredClone(contextSnapshot),
     },
     foregroundStream: {
@@ -95,6 +97,18 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
     getActiveSessionId: () => 'session-1',
     getActiveProvider,
     getSystemPromptSupplement: () => systemPromptSupplement,
+    getBilingualSnapshot: () => options?.bilingual,
+    getBilingualInstructionContext: snapshot => snapshot
+      ? {
+          id: 'bilingual-context',
+          contextId: 'system:bilingual-subtitles',
+          strategy: ContextUpdateStrategy.ReplaceSelf,
+          metadata: { source: { id: 'system:bilingual-subtitles' } },
+          text: 'bilingual',
+          createdAt: 0,
+        }
+      : undefined,
+    bilingualContextKey: 'system:bilingual-subtitles',
     getContextWindow: () => contextWindow,
     now: () => nowValue,
     monotonicNow: () => monotonicNowValues.shift() ?? 1000,
@@ -2213,5 +2227,55 @@ it('isolates sticker catalogs, providers, and supplements across concurrent and 
   expect(harness.sessionMessages['session-2']!.at(-1)).toMatchObject({
     slices: [{ type: 'text', text: 'Reply ' }, { type: 'sticker', stickerId: 'dog' }],
     categorization: { speech: 'Reply ' },
+  })
+})
+
+describe('bilingual history projection', () => {
+  it('stores a bilingual reply without translations and projects raw history before the next send', async () => {
+    const harness = createHarness(undefined, { bilingual: { spokenLanguage: 'en', translationLanguage: 'zh' } })
+    const [generatedTurn] = chatMessagesToTurns([{ role: 'assistant', content: 'Hello! [你好！] How are you? [你好吗？]' }])
+    if (generatedTurn.type !== 'assistant')
+      throw new Error('Expected assistant turn')
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'Hello! [你好！] How are you? [你好吗？]' })
+      await options?.onGeneratedTurn?.(generatedTurn)
+      await options?.onStreamEvent?.({ type: 'finish' })
+    })
+
+    await harness.runtime.ingest('greet me', { model: 'gpt-test', chatProvider: provider })
+
+    const saved = harness.sessionMessages['session-1'].findLast(message => message.role === 'assistant')
+    if (!saved || saved.role !== 'assistant')
+      throw new Error('missing assistant reply')
+    expect(saved.content).toBe('Hello!  How are you? ')
+    expect(saved.bilingual).toBe(true)
+    expect(JSON.stringify(saved.generationTranscript)).not.toContain('你好')
+
+    // A store written before the projection fix can still hold the raw
+    // transcript. buildContext must project it before the next request.
+    const raw = JSON.parse(JSON.stringify(saved.generationTranscript)) as AssistantTurn
+    raw.rounds[0]!.content = [{ type: 'text', text: 'Hello! [你好！] How are you? [你好吗？]' }]
+    saved.generationTranscript = raw
+
+    await harness.runtime.ingest('again', { model: 'gpt-test', chatProvider: provider })
+
+    expect(JSON.stringify(harness.stream.mock.calls[1]![2])).not.toContain('你好')
+  })
+
+  it('leaves brackets in replies that were not generated with bilingual subtitles', async () => {
+    const harness = createHarness()
+    const [generatedTurn] = chatMessagesToTurns([{ role: 'assistant', content: 'See [Figure 1].' }])
+    if (generatedTurn.type !== 'assistant')
+      throw new Error('Expected assistant turn')
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'See [Figure 1].' })
+      await options?.onGeneratedTurn?.(generatedTurn)
+      await options?.onStreamEvent?.({ type: 'finish' })
+    })
+
+    await harness.runtime.ingest('show the figure', { model: 'gpt-test', chatProvider: provider })
+    await harness.runtime.ingest('next', { model: 'gpt-test', chatProvider: provider })
+
+    expect(JSON.stringify(harness.stream.mock.calls[1]![2])).toContain('[Figure 1]')
   })
 })
