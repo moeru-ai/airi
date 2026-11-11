@@ -49,6 +49,7 @@ import {
   providerVolcengineSpeech,
 } from './cloud/unspeech'
 import { providerVolcengineCodingPlan } from './cloud/volcengine-coding-plan'
+import { providerWiroAI } from './cloud/wiro-ai'
 import { providerXAI } from './cloud/xai'
 import { providerZai } from './cloud/zai'
 import { providerBrowserWebSpeechApi } from './local/browser-web-speech-api'
@@ -135,6 +136,7 @@ export const portableProviderDefinitions = eraseProviderDefinitions(
   providerMicrosoftSpeech,
   providerVolcengineSpeech,
   providerVolcengineCodingPlan,
+  providerWiroAI,
   providerXAI,
   providerZai,
   providerBrowserWebSpeechApi,

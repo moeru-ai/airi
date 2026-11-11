@@ -104,6 +104,7 @@ const providerAttributesById = {
   'voicevox': freeLocal,
   'volcengine': paidCloud,
   'volcengine-coding-plan': paidCloud,
+  'wiro-ai': paidCloud,
   'xai': paidCloud,
   'zai': paidCloud,
 } satisfies Record<string, ProviderAttributes | false>
