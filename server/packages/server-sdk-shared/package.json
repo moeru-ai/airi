@@ -3,7 +3,7 @@
   "type": "module",
   "version": "0.15.2",
   "private": true,
-  "description": "Eventa contracts for the hosted chat WebSocket",
+  "description": "Eventa and HTTP contracts for the hosted chat and realtime endpoints",
   "author": {
     "name": "Moeru AI Project AIRI Team",
     "email": "airi@moeru.ai",
@@ -23,6 +23,10 @@
     "./v2": {
       "types": "./dist/v2.d.mts",
       "default": "./dist/v2.mjs"
+    },
+    "./realtime": {
+      "types": "./dist/realtime.d.mts",
+      "default": "./dist/realtime.mjs"
     }
   },
   "main": "./dist/index.mjs",
