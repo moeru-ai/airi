@@ -288,7 +288,8 @@ export const useChatStore = defineStore('chat', () => {
 
   /** The persona of a session. A session without one uses the selected card. */
   function personaOf(sessionId: string) {
-    return chatSession.sessionMetas[sessionId]?.characterId || cardStore.activeCardId || 'default'
+    const [characterId] = chatSession.characterMembersOf(sessionId)
+    return characterId || cardStore.activeCardId || 'default'
   }
 
   /**
@@ -981,7 +982,7 @@ export const useChatStore = defineStore('chat', () => {
     if (owned)
       return owned
 
-    const characterId = chatSession.sessionMetas[turn.sessionId]?.characterId
+    const [characterId] = chatSession.characterMembersOf(turn.sessionId)
     const span = beginSpan(getTraceSink(), {
       track: trackPath(AgentTracks.Turn, { agent: LOCAL_AGENT_ACTOR }),
       name: AgentNames.ChatTurn,
@@ -1013,7 +1014,7 @@ export const useChatStore = defineStore('chat', () => {
 
   /** The character that owns a session. A queued turn keeps it when another window selects a different card. */
   function sessionCard(sessionId: string) {
-    const characterId = chatSession.sessionMetas[sessionId]?.characterId
+    const [characterId] = chatSession.characterMembersOf(sessionId)
     return characterId ? cardStore.getCard(characterId) : undefined
   }
 
@@ -1292,7 +1293,7 @@ export const useChatStore = defineStore('chat', () => {
 
     // Typed and voice turns use the character that owns the session, not the selected card.
     // Selecting another card while this turn waits in the queue cannot redirect it.
-    const characterId = chatSession.sessionMetas[payload.sessionId]?.characterId
+    const [characterId] = chatSession.characterMembersOf(payload.sessionId)
     if (!characterId)
       throw new Error('The target session has no character')
 
