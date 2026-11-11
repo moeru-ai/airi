@@ -26,6 +26,7 @@ docs:
   'fade-on-hover':
     enable: Auto hide
     disable: Always show
+    title: Hide on hover
   'open-settings': Open settings
   'open-chat': Open Chat
   'hide-chat': Hide Chat
@@ -50,6 +51,15 @@ docs:
   'logging-in': Signing in...
   'account': Account
   'logout': Sign out
+  'more': More
+  'character': Character
+  'manage-characters': Manage characters…
+  'character-voice': Character voice
+  'microphone-settings': Microphone settings…
+  'keep-on-top': Keep on top
+  'settings': Settings…
+  'quit': Quit AIRI
+  'sign-in': Sign in…
 
 'chat-window':
   style:
