@@ -1,6 +1,9 @@
 import type { AuthSession } from '@proj-airi/auth-shared'
 
+import { betterAuth } from 'better-auth'
+import { memoryAdapter } from 'better-auth/adapters/memory'
 import { dispatchAuthEndpoint, listUserAccounts } from 'better-auth/api'
+import { bearer, jwt } from 'better-auth/plugins'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { oidcJwtBearer } from '../plugins/oidc-jwt-bearer'
@@ -105,6 +108,30 @@ async function runBeforeHook(context: ReturnType<typeof createContext>['context'
     throw new TypeError('Expected the OIDC JWT plugin to register a before hook')
 
   return await hook.handler(context as never) as BeforeHookResult | undefined
+}
+
+/** Runs sign-out through a real Better Auth instance, with the plugin order of `createAuth`. */
+async function signOutWithJwt(sessions: AuthSession['session'][]) {
+  const db: Record<string, Record<string, unknown>[]> = {
+    user: [user],
+    session: sessions,
+    account: [],
+    verification: [],
+    jwks: [{ id: 'key-1', publicKey: JSON.stringify({ kty: 'RSA' }), privateKey: 'unused', createdAt: user.createdAt }],
+  }
+  const auth = betterAuth({
+    baseURL: 'https://api.airi.test',
+    secret: 'test-secret-test-secret-test-secret',
+    database: memoryAdapter(db),
+    plugins: [bearer(), jwt(), createPlugin()],
+    logger: { disabled: true },
+  })
+
+  const response = await auth.handler(new Request('https://api.airi.test/api/auth/sign-out', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${SIGNED_JWT}` },
+  }))
+  return { db, response }
 }
 
 describe('oidcJwtBearer', () => {
@@ -238,5 +265,28 @@ describe('oidcJwtBearer', () => {
       id: 'access-token-1',
       createdAt: new Date(0),
     })
+  })
+
+  it('lets Better Auth sign-out delete the active original session of a JWT', async () => {
+    const otherSession = { ...persistedSession, id: 'session-2', token: 'other-session-token' }
+
+    const { db, response } = await signOutWithJwt([{ ...persistedSession }, otherSession])
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ success: true })
+    expect(db.session).toEqual([otherSession])
+    expect(response.headers.get('set-cookie')).toMatch(/session_token=;[^,]*Max-Age=0/)
+  })
+
+  it('answers sign-out with success when the JWT has no active original session', async () => {
+    const expiredSession = { ...persistedSession, expiresAt: new Date('2025-01-01T00:00:00.000Z') }
+
+    // The stage client calls `/sign-out` with only a Bearer token when it has no ID token.
+    // A token whose `sid` session is gone must not make that call fail.
+    const { db, response } = await signOutWithJwt([expiredSession])
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ success: true })
+    expect(db.session).toEqual([expiredSession])
   })
 })

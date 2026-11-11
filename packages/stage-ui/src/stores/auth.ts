@@ -6,6 +6,7 @@ import type { TokenResponse } from '../libs/auth-oidc'
 import { errorMessageFrom } from '@moeru/std'
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useTimeoutFn, whenever } from '@vueuse/core'
+import { delay } from 'es-toolkit'
 import { defineStore, getActivePinia } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
@@ -13,7 +14,7 @@ import { client } from '../composables/api'
 import { useBreakpoints } from '../composables/use-breakpoints'
 import { triggerSignIn } from '../libs/auth'
 import { authClient, requestAuthSession } from '../libs/auth-client'
-import { refreshAccessToken, TokenRefreshError } from '../libs/auth-oidc'
+import { refreshAccessToken, revokeRefreshToken, TokenRefreshError } from '../libs/auth-oidc'
 import { SERVER_URL } from '../libs/server'
 
 /**
@@ -24,6 +25,9 @@ const refreshRetryBackoff = {
   initialMs: 30_000,
   maxMs: 5 * 60_000,
 }
+
+/** Upper bound for each server step of sign-out. Local state clears regardless of the outcome. */
+const SIGN_OUT_REQUEST_TIMEOUT_MS = 5_000
 
 /**
  * Answer of one session request.
@@ -120,7 +124,6 @@ export const useAuthStore = defineStore('auth', () => {
   const verifiedSessionVersion = ref(0)
   /** False while the token can belong to another account than `user`. Requests that move private data must wait. */
   const isSessionVerified = computed(() => verifiedSessionVersion.value === sessionVersion.value)
-  let signingOut = false
 
   const credits = ref(0)
   /** Whole percent of the capacitor Flux left. Null without an active capacitor. */
@@ -199,7 +202,7 @@ export const useAuthStore = defineStore('auth', () => {
    * @param expectedVersion Session version captured by the caller. Defaults to the current version.
    */
   async function refreshTokenNow(expectedVersion = sessionVersion.value): Promise<string | null> {
-    if (expectedVersion !== sessionVersion.value || signingOut)
+    if (expectedVersion !== sessionVersion.value)
       return null
     if (inflightRefresh)
       return inflightRefresh
@@ -346,7 +349,6 @@ export const useAuthStore = defineStore('auth', () => {
     sessionVersion.value += 1
     inflightRefresh = null
     refreshRetryAttempt = 0
-    signingOut = false
     token.value = tokens.accessToken
     refreshToken.value = tokens.refreshToken ?? null
     idToken.value = tokens.idToken ?? null
@@ -396,7 +398,7 @@ export const useAuthStore = defineStore('auth', () => {
    * reaction to a rejected token.
    */
   async function lookupSession(accessToken: string | null): Promise<SessionLookup> {
-    if (signingOut || accessToken !== token.value)
+    if (accessToken !== token.value)
       return 'unavailable'
     const version = sessionVersion.value
     let data: Awaited<ReturnType<typeof requestAuthSession>>
@@ -431,40 +433,72 @@ export const useAuthStore = defineStore('auth', () => {
     })
   }
 
+  /**
+   * Signs out locally at once and ends the server session in the background.
+   *
+   * Local state clears before any server answer, so a slow or unreachable server
+   * cannot keep the user signed in. A later sign-in cannot reuse the old server
+   * session, because a plain login sends `prompt=login` and a provider login authenticates again.
+   */
   async function signOut(): Promise<void> {
+    // A refresh in flight can rotate the refresh token on the server first. A revoke
+    // of the rotated token deletes every refresh token of this user and client, which
+    // signs out other devices. Wait for the refresh, then revoke the current token.
+    // Source: @better-auth/oauth-provider dist/index.mjs, revokeRefreshToken and invalidateRefreshFamily.
+    if (inflightRefresh)
+      await Promise.race([inflightRefresh, delay(SIGN_OUT_REQUEST_TIMEOUT_MS)])
+
     const idTokenHint = idToken.value
     const clientId = oidcClientId.value
     const bearerToken = token.value
-    const version = ++sessionVersion.value
-    signingOut = true
-    stopRefreshTimer()
-    inflightRefresh = null
+    const refreshTokenToRevoke = refreshToken.value
+    sessionVersion.value += 1
+    clearAuthState()
 
-    // Delete the server session before local state. A new authorization request
-    // can otherwise reuse the server cookie and restore the previous identity.
-    try {
-      if (idTokenHint && clientId) {
-        const url = new URL('/api/auth/oauth2/end-session', SERVER_URL)
-        url.searchParams.set('id_token_hint', idTokenHint)
-        url.searchParams.set('client_id', clientId)
-        await fetch(url.toString(), { method: 'GET' })
-      }
-      else if (bearerToken) {
-        const url = new URL('/api/auth/sign-out', SERVER_URL)
-        await fetch(url.toString(), {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${bearerToken}` },
+    // `keepalive` lets both requests finish when sign-out navigates away or closes the window.
+    const init = { keepalive: true, signal: AbortSignal.timeout(SIGN_OUT_REQUEST_TIMEOUT_MS) }
+    void Promise.allSettled([
+      // Ending the server session does not revoke the refresh token, and the
+      // refresh grant does not check the session. Without this revoke, a copied
+      // refresh token keeps issuing access tokens until it expires.
+      refreshTokenToRevoke && clientId
+        ? revokeRefreshToken(clientId, refreshTokenToRevoke, init)
+            .catch(error => console.error('Refresh token revocation failed', errorMessageFrom(error)))
+        : undefined,
+      endServerSession(idTokenHint, clientId, bearerToken, init)
+        .then((response) => {
+          if (response && !response.ok)
+            throw new Error(`Server sign-out failed: ${response.status}`)
         })
-      }
-    }
-    catch (error) {
-      // A network error cannot preserve local credentials. The server session
-      // expires by its TTL after the local credentials are removed.
-      console.error('Server sign-out failed', errorMessageFrom(error))
+        .catch(error => console.error('Server sign-out failed', errorMessageFrom(error))),
+    ])
+  }
+
+  /**
+   * Ends the server session of the signed-in user. Returns null when no credential can identify it.
+   *
+   * RP-Initiated Logout finds the session through the `sid` claim of the ID token.
+   * Without an ID token, Better Auth's `/sign-out` deletes the session only when
+   * the access token still carries an active `sid`. Otherwise it answers success and deletes nothing.
+   */
+  async function endServerSession(idTokenHint: string | null, clientId: string | null, bearerToken: string | null, init: RequestInit): Promise<Response | null> {
+    if (idTokenHint && clientId) {
+      const url = new URL('/api/auth/oauth2/end-session', SERVER_URL)
+      url.searchParams.set('id_token_hint', idTokenHint)
+      url.searchParams.set('client_id', clientId)
+      return await fetch(url.toString(), { ...init, method: 'GET' })
     }
 
-    if (version === sessionVersion.value)
-      clearAuthState()
+    if (bearerToken) {
+      const url = new URL('/api/auth/sign-out', SERVER_URL)
+      return await fetch(url.toString(), {
+        ...init,
+        method: 'POST',
+        headers: { Authorization: `Bearer ${bearerToken}` },
+      })
+    }
+
+    return null
   }
 
   /**
@@ -481,7 +515,6 @@ export const useAuthStore = defineStore('auth', () => {
    * loop silently until the user lands on a page that calls fetchSession.
    */
   function clearAuthState(): void {
-    signingOut = false
     inflightRefresh = null
     refreshRetryAttempt = 0
     stopRefreshTimer()
@@ -517,7 +550,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   /** Requests sign-in only if the failed request still belongs to this session. */
   async function expireSession(expectedVersion: number): Promise<void> {
-    if (expectedVersion !== sessionVersion.value || signingOut)
+    if (expectedVersion !== sessionVersion.value)
       return
     sessionVersion.value += 1
     clearAuthState()
