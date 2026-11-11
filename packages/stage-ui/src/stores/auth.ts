@@ -432,6 +432,13 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function signOut(): Promise<void> {
+    // A refresh in flight can rotate the refresh token on the server first. A revoke
+    // of the rotated token deletes every refresh token of this user and client, which
+    // signs out other devices. Wait for the refresh, then revoke the current token.
+    // Source: @better-auth/oauth-provider dist/index.mjs, revokeRefreshToken and invalidateRefreshFamily.
+    if (inflightRefresh)
+      await inflightRefresh
+
     const idTokenHint = idToken.value
     const clientId = oidcClientId.value
     const bearerToken = token.value

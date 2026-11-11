@@ -232,6 +232,28 @@ describe('authentication request ownership', () => {
     expect(store.token).toBeNull()
   })
 
+  it('revokes the rotated refresh token when sign-out starts during a refresh', async () => {
+    await signIn('first', 'first-id-token')
+    const store = useAuthStore()
+    const refresh = store.refreshTokenNow()
+    await vi.waitFor(() => expect(requests.map(request => request.path)).toEqual(['/api/auth/oauth2/token']))
+
+    // The provider deletes every refresh token of the user and client when a
+    // revoked token is revoked again. Sign-out must not send the rotated-out token.
+    const logout = store.signOut()
+    await reply('/api/auth/oauth2/token', { access_token: 'renewed', refresh_token: 'renewed-refresh', expires_in: 3600 })
+    await reply('/api/auth/get-session', identity('first'))
+    await refresh
+
+    await vi.waitFor(() => expect(requests.map(request => request.path)).toContain('/api/auth/oauth2/revoke'))
+    const revoke = requests.find(request => request.path === '/api/auth/oauth2/revoke')!
+    expect(new URLSearchParams(String(revoke.body)).get('token')).toBe('renewed-refresh')
+    await reply('/api/auth/oauth2/revoke', {})
+    await reply('/api/auth/oauth2/end-session', {})
+    await logout
+    expect(store.token).toBeNull()
+  })
+
   it('clears local credentials when the server rejects sign-out', async () => {
     await signIn('first')
     const store = useAuthStore()
