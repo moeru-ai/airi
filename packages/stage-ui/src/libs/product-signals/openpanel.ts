@@ -4,6 +4,8 @@ import { OpenPanel } from '@openpanel/web'
 import { isStageCapacitor, isStageTamagotchi } from '@proj-airi/stage-shared'
 import { OPENPANEL_CONFIG } from '@proj-airi/stage-shared/analytics/openpanel'
 
+import { reportedLocation } from './utils/reported-location'
+
 const deviceStorageKey = 'airi:openpanel-device-id'
 
 function loadDeviceId(): string {
@@ -46,7 +48,7 @@ export function createOpenpanelAdapter(options: AnalyticsAdapterOptions): Analyt
         for (const key of ['__path', '__referrer']) {
           const value = payload.payload.properties[key]
           if (typeof value === 'string')
-            payload.payload.properties[key] = value.split(/[?#]/, 1)[0]
+            payload.payload.properties[key] = reportedLocation(value)
         }
       }
       return true

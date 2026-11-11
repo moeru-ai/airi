@@ -11,7 +11,18 @@ Use `VITE_ENABLE_ANALYTICS` as the build switch for app analytics. Existing user
 Client builds use the public API URL and write client id from `packages/stage-shared/src/analytics/openpanel.ts`.
 The stage apps and auth UI share this configuration. CI variables and Docker build arguments are not required for these values.
 
-Never put a client secret in a Vite variable. Allow only the intended application origins on the public OpenPanel client.
+Never put a client secret in a Vite variable.
+
+OpenPanel accepts a client request only when it has an `Origin` header that the project allows. The installed apps do not have a web origin:
+
+| Surface | `Origin` header |
+| --- | --- |
+| Web, auth UI, docs | The site origin |
+| Android app | `https://localhost` |
+| iOS app | `capacitor://localhost` |
+| Desktop app | `null`. Electron sends no `Origin` from a `file://` page, so the main process adds it in `apps/stage-tamagotchi/src/main/services/electron/analytics-origin.ts`. |
+
+The project allows all origins (`*`), because a domain list cannot match `null`. If you replace `*` with a list, the desktop events stop with 401 `Ingestion: Invalid cors or secret`. The SDK does not report this error.
 
 ## Server configuration
 
@@ -34,6 +45,8 @@ Stage clients keep a device id in session storage. A reload in the same tab keep
 Logged-in events use the stable AIRI user id. Checkout sends the device id to the API, which stores it in Stripe metadata. The webhook supplies that device id to OpenPanel.
 
 Query strings and fragments are removed from automatic page URLs and referrers. This prevents OAuth codes from entering those fields.
+
+The desktop app and the iOS app report only the route as the page, for example `/settings/providers`. Their page URLs are not `http` URLs, and a `file://` URL holds a directory of the user's computer.
 
 Per-generation analytics events are removed. Completed `message_round` events retain model, token usage, duration, and round identifiers.
 `message_sent` retains provider selection. `message_round_failed` retains the failure stage and error code.
