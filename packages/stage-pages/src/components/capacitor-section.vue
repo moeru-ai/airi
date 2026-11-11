@@ -218,7 +218,6 @@ async function handleSubscribe(pkg: CapacitorPackage) {
 
 <template>
   <section data-testid="capacitor-section" :class="['flex flex-col gap-4']">
-
     <Alert
       v-if="message"
       :tone="message.type === 'success' ? 'success' : 'danger'"
