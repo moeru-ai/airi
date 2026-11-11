@@ -12,7 +12,7 @@ const invokes = vi.hoisted(() => ({ startLogin: vi.fn(), openSettings: vi.fn() }
 
 const authState = {
   isAuthenticated: ref(true),
-  user: ref<{ name: string, image?: string }>({
+  user: ref<{ id?: string, name: string, image?: string }>({
     name: 'Rainbow Bird',
     image: 'https://example.com/broken-avatar.png',
   }),
@@ -56,6 +56,7 @@ describe('controlsIslandAuthButton', () => {
     invokes.startLogin.mockReset()
     invokes.openSettings.mockReset()
     authState.user.value.image = 'https://example.com/broken-avatar.png'
+    authState.user.value.id = undefined
   })
 
   function mountComponent(active = ref(true)) {
@@ -105,6 +106,16 @@ describe('controlsIslandAuthButton', () => {
     const fallback = host.querySelector('[data-avatar-fallback]')
     expect(fallback).toBeTruthy()
     expect(fallback?.firstElementChild?.classList.contains('i-solar:user-circle-bold-duotone')).toBe(true)
+  })
+
+  it('renders a beam avatar from the user ID when no avatar image is available', () => {
+    authState.user.value.image = undefined
+    authState.user.value.id = 'user-1'
+    const host = mountComponent()
+
+    const fallback = host.querySelector('[data-avatar-fallback]')
+    expect(fallback?.querySelector('[data-beam-avatar]')).toBeTruthy()
+    expect(fallback?.querySelector('.i-solar\\:user-circle-bold-duotone')).toBeNull()
   })
 
   it('tries the next avatar URL after the authenticated user changes', async () => {

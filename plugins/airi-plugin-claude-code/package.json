@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/airi-plugin-claude-code",
   "type": "module",
-  "version": "0.14.1",
+  "version": "0.15.2",
   "private": true,
   "description": "manifest.json description",
   "bin": {
@@ -16,7 +16,6 @@
     "@guiiai/logg": "catalog:",
     "@proj-airi/server-sdk": "workspace:*",
     "cac": "catalog:",
-    "debug": "catalog:",
     "destr": "catalog:",
     "vue": "catalog:"
   },

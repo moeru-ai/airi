@@ -14,7 +14,9 @@ import { computed, onScopeDispose, reactive, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
-type SectionId = 'usage' | 'profile' | 'security' | 'connections' | 'danger'
+import SyncSection from './components/sync-section.vue'
+
+type SectionId = 'usage' | 'profile' | 'security' | 'connections' | 'sync' | 'danger'
 
 const emit = defineEmits<{
   login: []
@@ -116,6 +118,7 @@ const usageSectionRef = ref<HTMLElement | null>(null)
 const profileSectionRef = ref<HTMLElement | null>(null)
 const securitySectionRef = ref<HTMLElement | null>(null)
 const connectionsSectionRef = ref<HTMLElement | null>(null)
+const syncSectionRef = ref<HTMLElement | null>(null)
 const dangerSectionRef = ref<HTMLElement | null>(null)
 const linkedAccountsRouteErrorKey = shallowRef<string | null>(null)
 
@@ -130,6 +133,7 @@ function scrollToSection(id: SectionId) {
     profile: profileSectionRef.value,
     security: securitySectionRef.value,
     connections: connectionsSectionRef.value,
+    sync: syncSectionRef.value,
     danger: dangerSectionRef.value,
   }
   targets[id]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -460,7 +464,7 @@ async function handleConfirmDelete(event: Event) {
              section like Profile / Security / Danger. -->
         <aside :class="['hidden md:flex flex-col gap-1 md:sticky md:top-2']">
           <button
-            v-for="section in ['usage', 'profile', 'security', 'connections', 'danger'] as SectionId[]"
+            v-for="section in ['usage', 'profile', 'security', 'connections', 'sync', 'danger'] as SectionId[]"
             :key="section"
             type="button"
             :class="[
@@ -503,6 +507,7 @@ async function handleConfirmDelete(event: Event) {
             <div :class="['flex items-center gap-4 py-2']">
               <Avatar
                 :src="userAvatar"
+                :seed="user?.id"
                 :class="['size-16 sm:size-20 rounded-full flex-shrink-0', 'bg-neutral-100 dark:bg-neutral-800', 'flex items-center justify-center']"
               />
               <div :class="['flex flex-col gap-0.5 min-w-0']">
@@ -843,6 +848,15 @@ async function handleConfirmDelete(event: Event) {
             >
               {{ linkedAccountsMessage }}
             </div>
+          </section>
+
+          <!-- Sync section. It follows Connected accounts because both decide what the account reaches,
+               and it stays out of Danger because a switch only pauses a sync and deletes no data. -->
+          <section
+            ref="syncSectionRef"
+            :class="['py-8 border-b border-neutral-200/70 dark:border-neutral-800/60']"
+          >
+            <SyncSection />
           </section>
 
           <!-- Danger zone. Same divider-based section style as Profile /

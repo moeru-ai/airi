@@ -103,15 +103,15 @@ analytics:
   notice:
     title: Usage analytics
     description: >-
-      AIRI collects anonymous usage analytics to help us understand how the app
-      is used and improve stability. No personal data is collected.
+      AIRI collects anonymous usage analytics and error reports to help us
+      understand how the app is used and fix crashes. No personal data is collected.
     privacyPrefix: Read the
     privacyLink: privacy policy
-    onboardingHint: You can turn analytics off later in Settings > System > General.
-    settingsHint: You can turn analytics off at any time.
+    onboardingHint: You can turn analytics and error reports off later in Settings > System > General.
+    settingsHint: You can turn analytics and error reports off at any time.
   toggle:
-    title: Enable usage analytics
-    description: Turn this off to opt out of analytics collection.
+    title: Enable usage analytics and error reports
+    description: Turn this off to stop sending usage analytics and error reports.
   disabled:
     title: Analytics disabled for this development build
 model-select:
@@ -133,6 +133,7 @@ model-select:
     sync:
       upload: Upload to cloud
       delete-cloud: Delete from cloud
+      upload-progress: 'Uploading {percent}%'
       status:
         local-only: This device only
         queued: Waiting to upload
@@ -305,7 +306,7 @@ pages:
     viewFluxDetails: View details
     usage:
       tab: Usage
-    capacitorEntry: Capacitor
+    capacitorEntry: Subscription
     viewCapacitor: View
     signedInAs: Signed in as
     profile:
@@ -347,6 +348,24 @@ pages:
         accountAlreadyLinkedToDifferentUser: This OAuth account is already linked to another AIRI account. Choose a different provider account, or unlink it from the other AIRI account first.
         oauthCallbackFailed: We could not connect this OAuth account. Try again or choose another provider account.
         lastAccount: This is your only sign-in method. Set a password first before unlinking it.
+    sync:
+      tab: Sync
+      title: Sync
+      description: Choose the data that this device syncs to your account. Your choices apply only to this device.
+      off_note: When you turn off a sync, your data stays on this device and in your account. Changes from this device sync when you turn it on again.
+      items:
+        chats:
+          title: Chats
+          description: The text of your chats and their titles. Images and stickers stay on this device.
+        providers:
+          title: Providers
+          description: Your provider settings, with their API keys. The server keeps them encrypted.
+        character_cards:
+          title: Character cards
+          description: Your character cards. A card that you delete stays restorable for 30 days.
+        display_models:
+          title: Models
+          description: The Live2D and VRM models that you import. Large files use your account storage and network data.
     security:
       tab: Security
       title: Security
@@ -398,7 +417,7 @@ pages:
         error:
           reauthenticate: Sign in again, then return here to confirm deletion. No email is sent.
           fallback: Could not start deletion. Try again later.
-          subscriptionActive: Your subscription is still active. Cancel it on the Capacitor page first, then delete your account.
+          subscriptionActive: Your subscription is still active. Cancel it on the Subscription page first, then delete your account.
   card:
     wake-word-conflicts:
       title: 'One shared wake word pronunciation needs a character | {count} shared wake word pronunciations need a character'
@@ -406,8 +425,6 @@ pages:
       action: Choose who answers
     sync:
       notice: Character cards sync to your account. A deleted card stays restorable for 30 days.
-      off_notice: You are signed in, but character card sync is off.
-      off_notice_link: Turn it on in Experimental Features.
       state:
         synced: Synced to your account
         pending: Waiting to upload
@@ -489,7 +506,7 @@ pages:
     delete: Delete
     delete_card: Delete Card
     delete_confirmation: Are you sure you want to delete this card?
-    description: Use AIRI character card presets
+    description: Manage AIRI character cards
     description_label: Description
     drop_here: Drop to upload
     create_card: Create a new Card
@@ -545,7 +562,7 @@ pages:
         greetings: How your character should say "hello" ?
         systemprompt: Explain here to the AI LLM how it should answer when prompted.
         posthistoryinstructions: Place here anything the AI LLM should read after the messages history.
-        context_window: 'Message limit, including your current message. Leave empty for All. Use 0 to send only your current message. When exceeded, older turns are removed in blocks. Saved chats stay intact.'
+        context_window: 'Turn limit, including the current turn. Each turn contains your message and the assistant reply, including tool calls. Consecutive messages from the same role stay together. Leave empty for All. Use 0 to send only your current message. When exceeded, the newest 90% of the limit is retained, rounded up to whole turns. Saved chats stay intact.'
         version: >-
           Card version, you should increase this if you are making changes from
           a previous card.
@@ -570,7 +587,7 @@ pages:
     no_results: No matching cards found
     personality: Personality
     posthistoryinstructions: Post-History Instructions
-    context_window: Messages to remember
+    context_window: Turns to remember
     context_window_all: All
     recent: Recently Added
     scenario: Scenario
@@ -846,7 +863,7 @@ pages:
       gaming: Gaming
       artistry: Artistry
     consciousness:
-      description: Personality, desired model, etc.
+      description: Language model selection and settings
       sections:
         section:
           provider-model-selection:
@@ -1238,7 +1255,7 @@ pages:
       title: Speech
     title: Modules
     vision:
-      description: Vision
+      description: Image understanding and screen capture settings
       title: Vision
       tool-images:
         label: Use the vision model for tool images
@@ -1720,7 +1737,7 @@ pages:
       buy: Charge
       description: Flux packages to choose from.
   capacitor:
-    title: Capacitor
+    title: Subscription
     statusError: Failed to load your Capacitor. Please try again later.
     packagesError: Failed to load Capacitors. Please try again later.
     preferenceError: Failed to save preference. Please try again later.
@@ -1729,21 +1746,21 @@ pages:
     rechargesAt: Refills {date}
     renewsAt: Renews {date}
     expiresAt: Ends {date}
-    change: Change Capacitor
+    change: Change subscription
     quota:
       day: '{quota} Flux every day'
       week: '{quota} Flux every week'
       month: '{quota} Flux every month'
     perMonth: / month
     currentPackage: Current
-    install: Install
+    install: Subscribe
     upgrade: Upgrade
     downgrade: Downgrade
     manageSubscription: Manage subscription
-    fallbackToFlux: Use Flux when the Capacitor is empty
+    fallbackToFlux: Use your Flux balance when the Capacitor is empty
     fallbackToFluxHint: When off, chat and speech stop until the Capacitor refills.
     checkout:
-      success: Your Capacitor is installed and charged.
+      success: You are subscribed. Your Capacitor is full.
       pending: Payment received. Your Capacitor charges shortly.
       canceled: Purchase was canceled.
       error: Something went wrong. Please try again later.
@@ -2405,7 +2422,7 @@ pages:
           title: Transcription Playground
       aihubmix:
         title: AIHubMix
-        description: https://aihubmix.com (10% off)
+        description: aihubmix.com (10% off)
     title: Providers
   connection:
     description: Configure WebSocket server connection
@@ -2464,12 +2481,6 @@ pages:
         global: Available to signed-in accounts
         account: Available to your account
       features:
-        character_card_sync:
-          title: Character card cloud sync
-          description: Sync your character cards to your account when you are signed in, so they reach your other devices. Off by default. A card you delete stays in your account history for 30 days.
-        display_model_sync:
-          title: Model cloud sync
-          description: Upload imported Live2D and VRM models to your account when you are signed in, so you can use them on other devices. Off by default.
         fullscreen_workspace:
           title: Fullscreen workspace
           description: Open settings and the chat in a workspace that covers the screen, with the character on the left. Off by default.
@@ -2593,6 +2604,8 @@ pages:
                   no-permissions: No permissions declared.
                   no-kits: No Kits declared.
                   imported: 'Imported Extension {extensionId}.'
+                session:
+                  waiting-for-kits: 'Waits for Kits: {kitIds}'
               use-magic-keys:
                 title: useMagicKeys Tool
                 description: Test shortcuts

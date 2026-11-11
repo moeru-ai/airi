@@ -19,6 +19,7 @@ import {
   registerAnalyticsBuildInfo,
   resetAnalyticsIdentity,
 } from './client'
+import { setErrorReportingEnabled, setErrorReportingUser } from './error-reporting'
 import {
   analyticsSettingChangedEvent,
   appLoadedEvent,
@@ -27,6 +28,7 @@ import {
 } from './events/app'
 
 export * from './client'
+export * from './error-reporting'
 export * from './events'
 export * from './privacy-policy'
 export type { AnalyticsEvent, InferAnalyticsEventPayload } from './utils/dsl'
@@ -70,6 +72,8 @@ class Analytics implements AnalyticsRecorder {
     const settingsAnalytics = useSettingsAnalytics()
     const authStore = useAuthStore()
     this.appStartTime = Date.now()
+    // Error reports follow the same switch and the same AIRI user as product events.
+    setErrorReportingEnabled(settingsAnalytics.analyticsEnabled)
 
     if (settingsAnalytics.analyticsEnabled && enableAnalytics()) {
       registerAnalyticsBuildInfo(buildInfo)
@@ -79,18 +83,24 @@ class Analytics implements AnalyticsRecorder {
       })
     }
 
+    const identify = (userId: string) => {
+      identifyAnalyticsUser(userId)
+      setErrorReportingUser(userId)
+    }
     if (authStore.isAuthenticated && authStore.user?.id)
-      identifyAnalyticsUser(authStore.user.id)
+      identify(authStore.user.id)
 
     authStore.onAuthenticated(() => {
       if (authStore.user?.id)
-        identifyAnalyticsUser(authStore.user.id)
+        identify(authStore.user.id)
     })
     authStore.onLogout(() => {
       resetAnalyticsIdentity()
+      setErrorReportingUser(null)
     })
 
     watch(() => settingsAnalytics.analyticsEnabled, (enabled, previousEnabled) => {
+      setErrorReportingEnabled(enabled)
       if (previousEnabled && !enabled) {
         this.emit(analyticsSettingChangedEvent, {
           setting_name: 'analytics_enabled',

@@ -167,6 +167,12 @@ jobs:
         if: needs.changes.outputs.docs_only != 'true'
         run: pnpm exec eslint --cache --cache-strategy content --concurrency auto .
 
+      # Checks that the code uses only keys that the English locale defines.
+      # `.x18n/check-baseline.json` holds the known diagnostics, so only a new one shows or fails.
+      - name: Check i18n keys
+        if: needs.changes.outputs.docs_only != 'true'
+        run: pnpm exec x18n check --reporter github --reporter pretty
+
       - name: Save ESLint cache
         if: ${{ !cancelled() && needs.changes.outputs.docs_only != 'true' }}
         uses: actions/cache/save@v5

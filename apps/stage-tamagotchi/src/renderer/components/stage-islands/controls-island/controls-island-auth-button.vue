@@ -109,6 +109,7 @@ watch(isAuthenticated, (val) => {
     >
       <Avatar
         :src="userAvatar"
+        :seed="user?.id"
         :class="[
           'size-8 shrink-0 overflow-hidden rounded-full',
           'bg-primary-100 dark:bg-primary-900/40',

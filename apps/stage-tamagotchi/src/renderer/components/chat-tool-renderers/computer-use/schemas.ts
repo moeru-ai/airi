@@ -22,7 +22,7 @@ export const InputActionSchema = looseObject({
 })
 
 export const TextMatchSchema = looseObject({ text: string(), confidence: number(), bounds: RectSchema })
-// `screen.findText` lists its matches directly. The window commands and the click commands nest them one level deeper.
+// `display.findText` lists its matches directly. The window commands and the click commands nest them one level deeper.
 export const TextMatchesSchema = union([array(TextMatchSchema), looseObject({ matches: array(TextMatchSchema) })])
 
 export const WindowSchema = looseObject({

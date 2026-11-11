@@ -2,6 +2,7 @@
 import type { ChatComposerController, ChatImageAttachment } from '@proj-airi/stage-ui/components/scenarios/chat'
 
 import { ChatComposerAddMenu, ChatComposerVoiceInput, ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSendButton, useChatImages, useStartVoiceCall, VoicePresence } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
@@ -47,6 +48,7 @@ const lastEnterTime = ref(0)
 
 const { themeColorsHueDynamic } = storeToRefs(useSettings())
 const { chatReady } = storeToRefs(useConsciousnessStore())
+const authStore = useAuthStore()
 
 const replyTarget = props.composer.replyTarget
 const { t } = useI18n()
@@ -166,18 +168,21 @@ watch(replyTarget, async (target) => {
   <div
     v-if="!chatReady"
     :class="[
-      'mb-1 px-4',
+      'mb-1 px-2',
       // The callout takes the panel width. Its content must not widen the panel.
       'w-0 min-w-full',
     ]"
   >
-    <ChatProviderSetupCallout @configure="router.push('/settings/providers')" />
+    <ChatProviderSetupCallout @configure="router.push('/settings/providers')" @sign-in="authStore.requestLogin()" />
   </div>
-  <!-- The composer keeps a 1rem inset from the panel edges, like the stage-tamagotchi composer. -->
-  <div ref="composer" :class="['flex gap-2 px-4 pb-4 <md:h-full', 'ph-no-capture']">
+  <!--
+    The composer keeps a 0.5rem inset from the panel edges, like the chat history above it.
+    The corner radius is the `rounded-xl` of ChatContainer minus this inset, so the two corners stay concentric.
+  -->
+  <div ref="composer" :class="['flex gap-2 px-2 pb-2 <md:h-full', 'ph-no-capture']">
     <div
       :class="[
-        'relative w-full overflow-hidden rounded-xl',
+        'relative w-full overflow-hidden rounded',
         'border-t-2 border-solid border-primary-200/20 bg-primary-100/50 backdrop-blur-md',
         'dark:border-primary-400/20 dark:bg-primary-900/70',
       ]"
