@@ -1,11 +1,11 @@
+import type { AnalyticsSurface } from '../libs/product-signals'
 import type { ControlsIslandAction } from '../libs/product-signals/events/controls-island'
 import type { SpeechOutputStopReason } from '../stores/speech-output-control'
 
-import { isStageCapacitor, isStageTamagotchi } from '@proj-airi/stage-shared'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { captureAnalyticsEvent, enableAnalytics, getAnalytics, getAnalyticsPrivacyPolicyUrl, isAnalyticsAvailableInBuild } from '../libs/product-signals'
+import { analyticsSurface, captureAnalyticsEvent, enableAnalytics, getAnalytics, getAnalyticsPrivacyPolicyUrl, isAnalyticsAvailableInBuild } from '../libs/product-signals'
 import { captureTrackButtonEvent } from '../libs/product-signals/events/interaction'
 import { useSettingsAnalytics } from '../stores/settings/analytics'
 import { useSettingsGeneral } from '../stores/settings/general'
@@ -13,7 +13,7 @@ import { useSettingsGeneral } from '../stores/settings/general'
 /**
  * User-facing chat surfaces that can emit product analytics.
  */
-export type ConversationAnalyticsSurface = 'web' | 'mobile' | 'electron'
+export type ConversationAnalyticsSurface = AnalyticsSurface
 
 /**
  * Low-cardinality source names for conversation action events.
@@ -102,13 +102,7 @@ interface ConversationBaseProperties {
 }
 
 export function getConversationAnalyticsSurface(): ConversationAnalyticsSurface {
-  if (isStageTamagotchi())
-    return 'electron'
-
-  if (isStageCapacitor())
-    return 'mobile'
-
-  return 'web'
+  return analyticsSurface()
 }
 
 export function useAnalytics() {

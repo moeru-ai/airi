@@ -1,3 +1,5 @@
+import type { StageEnvironment } from '../environment'
+
 /** Public write configuration shared by AIRI client surfaces. Never add a client secret here. */
 export const OPENPANEL_CONFIG = {
   apiUrl: 'https://analytics.airi.build/api',
@@ -5,12 +7,13 @@ export const OPENPANEL_CONFIG = {
 } as const
 
 /**
- * Origins that the installed apps report as the site of their pages.
+ * Origins that the installed apps report as the site of their pages, by stage environment.
  *
  * The page of an installed app has no web address. OpenPanel groups pages by origin and path, so each app gets an
- * origin of its own. These hosts are names only. No server answers them.
+ * origin of its own. These hosts are names only. No server answers them. The web app has no entry, because it reports
+ * its real origin.
  */
-export const OPENPANEL_APP_ORIGINS = {
-  electron: 'https://desktop.airi.moeru.ai',
-  mobile: 'https://pocket.airi.moeru.ai',
-} as const
+export const OPENPANEL_APP_ORIGINS: Partial<Record<`${StageEnvironment}`, string>> = {
+  tamagotchi: 'https://desktop.airi.moeru.ai',
+  capacitor: 'https://pocket.airi.moeru.ai',
+}

@@ -1,7 +1,9 @@
+import type { AnalyticsPlatform, AnalyticsSurface } from '../../../surface'
+
 import { defineEvent } from '../../../utils/dsl'
 
 export const appLoadedEvent = defineEvent<{
-  platform: 'web' | 'desktop' | 'mobile'
+  platform: AnalyticsPlatform
   version: string
 }>('app_loaded')
 
@@ -10,7 +12,7 @@ export const analyticsSettingChangedEvent = defineEvent<{
   previous_value: boolean
   new_value: boolean
   source: 'settings'
-  app_surface: 'web' | 'desktop' | 'mobile'
+  app_surface: AnalyticsSurface
 }>('settings_changed')
 
 export const firstMessageSentEvent = defineEvent<{
