@@ -12,8 +12,6 @@ import { watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
-import ModuleDefaultNotice from './components/module-default-notice.vue'
-
 import { moduleModelSearchKey, moduleProviderSearchKey } from './module-model-search'
 
 const providersStore = useProviderStore()
@@ -90,7 +88,6 @@ async function updateTopPEnabled(value: boolean) {
             <span>{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.description') }}</span>
           </div>
         </div>
-        <ModuleDefaultNotice module="consciousness" />
         <div max-w-full>
           <!--
           fieldset has min-width set to --webkit-min-container, in order to use over flow scroll,

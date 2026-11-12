@@ -870,7 +870,7 @@ pages:
             collapse: Collapse
             custom_model_placeholder: Enter custom model name...
             current_model_label: 'Current model:'
-            description: Select the suitable LLM provider for consciousness
+            description: Select the default LLM provider. A character uses it unless it has its own.
             error: Error loading models
             health_check_failed: Health check failed
             no_providers_configured_title: No Providers Configured
@@ -905,14 +905,6 @@ pages:
               required-description: This model requires Thinking.
               provider-default-description: AIRI has no reasoning settings for this model. OpenRouter applies its default.
       title: Consciousness
-    default-notice:
-      description: This selection is the default for all characters.
-      own-value:
-        title: '{name} uses its own selection'
-        description: >-
-          {name} has its own setting for this module, so a selection on this page does not change it.
-          To use the default, set its fields to Inherit global settings in the character editor.
-        edit: Edit {name}
     description: Thinking, vision, speech synthesis, gaming, etc.
     gaming-factorio:
       description: Playing Factorio!
@@ -1233,7 +1225,7 @@ pages:
             load_error: Cannot load voices
             custom_model_placeholder: Enter custom model name...
             custom_voice_placeholder: Enter custom voice ID...
-            description: Select the suitable speech provider
+            description: Select the default speech provider. A character uses it unless it has its own.
             no_models: No models available
             no_models_description: No models were found for this provider
             no_voices: No voices available

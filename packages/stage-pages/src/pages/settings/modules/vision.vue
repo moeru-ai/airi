@@ -11,8 +11,6 @@ import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
-import ModuleDefaultNotice from './components/module-default-notice.vue'
-
 import { moduleModelSearchKey, moduleProviderSearchKey } from './module-model-search'
 
 const providersStore = useProviderStore()
@@ -133,7 +131,6 @@ function formatRelativeTime(timestamp: number | null) {
             <span>{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.description') }}</span>
           </div>
         </div>
-        <ModuleDefaultNotice module="vision" />
         <div :class="['max-w-full']">
           <fieldset
             :class="['flex', 'min-w-0', 'flex-row', 'gap-4', 'overflow-x-auto', 'scroll-smooth']"

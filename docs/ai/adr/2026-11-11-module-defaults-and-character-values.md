@@ -45,9 +45,8 @@ The order does not change: the value of the character, then the global default.
 ### Settings pages
 
 - The module settings pages edit the global defaults. They do not save a value on a character.
-- Each page says that the selection is the default for all characters.
-- If the active character has its own value for the module, the page shows a notice. The notice has a link to the editor of that character.
-- The notice reads the active character, because a settings window shows no chat. When the chat selects the character, the notice reads the character of the shown chat.
+- The description of each page says that the selection is the default, and that a character uses it unless it has its own value.
+- The pages show no notice about one character. An earlier draft had such a notice, and it was removed: the pages edit defaults, and the text says so.
 - The character editor edits the values of one character. It keeps the option "Inherit global settings" for each field.
 
 ### Readers during a turn
@@ -74,7 +73,7 @@ Before step 2, they got the selection of the active character.
 - At the first start after the update, the module stores hold the resolved selection of the active character. `initialize` writes `moduleDefaults` into the module stores one time and then removes the key.
 - A selection that a user made on a module settings page is a value of the character that was active at that time. It stays a value of that character.
 - The data does not tell a deliberate value of a character from a selection on a settings page. Thus no automatic rule can remove these values safely.
-- The notice on the settings pages tells the user when the character of the current chat does not follow the default.
+- The text of the settings pages tells the user that a character can have its own value. The character editor shows the values of a character.
 
 ### Windows
 
@@ -97,7 +96,7 @@ Before step 2, they got the selection of the active character.
 | --- | --- | --- | --- |
 | 1 | Resolve the session character in the turn paths of the table. | `packages/stage-ui`, `packages/stage-layouts`, `apps/stage-tamagotchi` | Done (#3487) |
 | 2 | Make the module stores the source of the defaults. Migrate `moduleDefaults`. Remove the writes on activation and the watcher. Stop the saves of the module settings pages on the active character. | `packages/stage-ui`, `packages/stage-pages` | Done (#3492) |
-| 3 | Add the notice and the text on the module settings pages. | `packages/stage-pages`, `packages/i18n` | This change |
+| 3 | Change the text of the module settings pages to say that they edit the default. | `packages/i18n` | This change |
 | 4 | Link a problem of an inherited selection to the module page. | `packages/stage-ui` | To do |
 
 Step 1 goes first. Without it, step 2 stops the send gate, the image reading, and the voice catalog of a character with its own values.
