@@ -433,6 +433,27 @@
     {
       "path": "packages/i18n/src/locales/en/settings.yaml",
       "code": "unused-key",
+      "key": "settings.pages.capacitor.offer.day",
+      "message": "\"settings.pages.capacitor.offer.day\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.capacitor.offer.month",
+      "message": "\"settings.pages.capacitor.offer.month\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.capacitor.offer.week",
+      "message": "\"settings.pages.capacitor.offer.week\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
       "key": "settings.pages.capacitor.quota.day",
       "message": "\"settings.pages.capacitor.quota.day\" is not used.",
       "count": 1
@@ -547,20 +568,6 @@
       "code": "unused-key",
       "key": "settings.pages.flux.packages.buy",
       "message": "\"settings.pages.flux.packages.buy\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/settings.yaml",
-      "code": "unused-key",
-      "key": "settings.pages.flux.packages.description",
-      "message": "\"settings.pages.flux.packages.description\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/settings.yaml",
-      "code": "unused-key",
-      "key": "settings.pages.flux.packages.title",
-      "message": "\"settings.pages.flux.packages.title\" is not used.",
       "count": 1
     },
     {
