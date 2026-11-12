@@ -183,13 +183,13 @@ const subMenuClasses = [
 ]
 
 // The open menus float over the stage, and the desktop shows through the transparent window around the character.
-// `DropdownMenu` does not expose its content, so an element in the slot finds the content root that paints the fill.
+// The menu content roots are not exposed. An element in each slot mounts with its menu and finds the root that paints the fill.
 const menuSurfaceAnchor = useTemplateRef<HTMLElement>('menuSurfaceAnchor')
 useBackdropSurface(() => menuSurfaceAnchor.value?.closest<HTMLElement>('[role="menu"]'))
-const notificationsSurface = useTemplateRef<InstanceType<typeof DropdownMenuSubContent>>('notificationsSurface')
-useBackdropSurface(() => notificationsSurface.value?.$el as HTMLElement | undefined)
-const characterSurface = useTemplateRef<InstanceType<typeof DropdownMenuSubContent>>('characterSurface')
-useBackdropSurface(() => characterSurface.value?.$el as HTMLElement | undefined)
+const notificationsSurfaceAnchor = useTemplateRef<HTMLElement>('notificationsSurfaceAnchor')
+useBackdropSurface(() => notificationsSurfaceAnchor.value?.closest<HTMLElement>('[role="menu"]'))
+const characterSurfaceAnchor = useTemplateRef<HTMLElement>('characterSurfaceAnchor')
+useBackdropSurface(() => characterSurfaceAnchor.value?.closest<HTMLElement>('[role="menu"]'))
 </script>
 
 <template>
@@ -246,7 +246,8 @@ useBackdropSurface(() => characterSurface.value?.$el as HTMLElement | undefined)
         <span aria-hidden="true" :class="['i-solar:alt-arrow-right-linear size-4 shrink-0 opacity-60']" />
       </DropdownMenuSubTrigger>
       <DropdownMenuPortal>
-        <DropdownMenuSubContent ref="notificationsSurface" :side-offset="6" :collision-padding="8" :class="[subMenuClasses, 'w-80']">
+        <DropdownMenuSubContent :side-offset="6" :collision-padding="8" :class="[subMenuClasses, 'w-80']">
+          <span ref="notificationsSurfaceAnchor" aria-hidden="true" :class="['hidden']" />
           <InboxPanel
             data-testid="controls-island-notifications-view"
             :messages="messages" :now="now" :unread="unread"
@@ -267,7 +268,8 @@ useBackdropSurface(() => characterSurface.value?.$el as HTMLElement | undefined)
         <span aria-hidden="true" :class="['i-solar:alt-arrow-right-linear size-4 shrink-0 opacity-60']" />
       </DropdownMenuSubTrigger>
       <DropdownMenuPortal>
-        <DropdownMenuSubContent ref="characterSurface" :side-offset="6" :collision-padding="8" :class="subMenuClasses">
+        <DropdownMenuSubContent :side-offset="6" :collision-padding="8" :class="subMenuClasses">
+          <span ref="characterSurfaceAnchor" aria-hidden="true" :class="['hidden']" />
           <DropdownMenuRadioGroup v-model="selectedCardId">
             <MenuRadioItem v-for="card in cardList" :key="card.id" :value="card.id">
               <span :class="['truncate']">{{ card.name }}</span>
