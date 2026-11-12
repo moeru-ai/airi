@@ -3,6 +3,27 @@
     {
       "path": ".",
       "code": "unused-key",
+      "key": "settings.pages.capacitor.ofQuota",
+      "message": "\"settings.pages.capacitor.ofQuota\" is not used.",
+      "count": 1
+    },
+    {
+      "path": ".",
+      "code": "unused-key",
+      "key": "settings.pages.capacitor.remaining",
+      "message": "\"settings.pages.capacitor.remaining\" is not used.",
+      "count": 1
+    },
+    {
+      "path": ".",
+      "code": "unused-key",
+      "key": "settings.pages.flux.description",
+      "message": "\"settings.pages.flux.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": ".",
+      "code": "unused-key",
       "key": "settings.pages.system.experimental.features.character_card_sync.description",
       "message": "\"settings.pages.system.experimental.features.character_card_sync.description\" is not used.",
       "count": 1
@@ -412,6 +433,27 @@
     {
       "path": "packages/i18n/src/locales/en/settings.yaml",
       "code": "unused-key",
+      "key": "settings.pages.capacitor.offer.day",
+      "message": "\"settings.pages.capacitor.offer.day\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.capacitor.offer.month",
+      "message": "\"settings.pages.capacitor.offer.month\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.capacitor.offer.week",
+      "message": "\"settings.pages.capacitor.offer.week\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
       "key": "settings.pages.capacitor.quota.day",
       "message": "\"settings.pages.capacitor.quota.day\" is not used.",
       "count": 1
@@ -531,15 +573,8 @@
     {
       "path": "packages/i18n/src/locales/en/settings.yaml",
       "code": "unused-key",
-      "key": "settings.pages.flux.packages.description",
-      "message": "\"settings.pages.flux.packages.description\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/settings.yaml",
-      "code": "unused-key",
-      "key": "settings.pages.flux.packages.title",
-      "message": "\"settings.pages.flux.packages.title\" is not used.",
+      "key": "settings.pages.flux.pageTitle",
+      "message": "\"settings.pages.flux.pageTitle\" is not used.",
       "count": 1
     },
     {
