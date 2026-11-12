@@ -131,17 +131,17 @@ describe('useAnalytics conversation product events', () => {
     })
 
     expect(analyticsMocks.captureMock).toHaveBeenNthCalledWith(1, 'chat_message_deleted', {
-      app_surface: 'electron',
+      app_surface: 'desktop',
       source: 'history',
       message_role: 'assistant',
     })
     expect(analyticsMocks.captureMock).toHaveBeenNthCalledWith(2, 'chat_messages_cleared', {
-      app_surface: 'electron',
+      app_surface: 'desktop',
       source: 'chat_controls',
       message_count: 3,
     })
     expect(analyticsMocks.captureMock).toHaveBeenNthCalledWith(3, 'chat_message_retried', {
-      app_surface: 'electron',
+      app_surface: 'desktop',
       source: 'history',
     })
   })
