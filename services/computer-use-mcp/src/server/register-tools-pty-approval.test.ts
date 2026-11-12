@@ -4,8 +4,10 @@ import type { ComputerUseServerRuntime } from './runtime'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { createDryRunExecutor } from '../executors/dry-run'
 import { RunStateManager } from '../state'
 import { createPtySession, isPtyAvailable } from '../terminal/pty-runner'
+import { createLocalShellRunner } from '../terminal/runner'
 import { createTestConfig } from '../test-fixtures'
 import { registerComputerUseTools } from './register-tools'
 
@@ -49,8 +51,9 @@ describe('registerComputerUseTools: PTY approval bridge', () => {
 
   beforeEach(() => {
     pendingActions = new Map()
+    const config = createTestConfig({ approvalMode: 'actions' })
     runtime = {
-      config: createTestConfig({ approvalMode: 'actions' }),
+      config,
       stateManager: new RunStateManager(),
       session: {
         createPendingAction: vi.fn(),
@@ -63,9 +66,11 @@ describe('registerComputerUseTools: PTY approval bridge', () => {
         getLastScreenshot: vi.fn(() => undefined),
       },
       executor: {
+        ...createDryRunExecutor(config),
         getPermissionInfo: vi.fn().mockResolvedValue({}),
       },
       terminalRunner: {
+        ...createLocalShellRunner(config),
         getState: vi.fn(() => ({ effectiveCwd: '/tmp' })),
       },
       browserDomBridge: {
