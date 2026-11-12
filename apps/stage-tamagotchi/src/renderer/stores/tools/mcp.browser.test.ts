@@ -15,6 +15,7 @@ const invokeMocks = vi.hoisted(() => ({
     content: [{ type: 'text', text: 'ok' }],
     isError: false,
   })),
+  getRuntimeStatus: vi.fn(async () => ({ servers: [{ name: 'filesystem', state: 'running' }] })),
   listMcpTools: vi.fn(async () => [{
     serverName: 'filesystem',
     name: 'filesystem::search',
@@ -38,6 +39,8 @@ vi.mock('@proj-airi/electron-vueuse', async () => {
         return invokeMocks.listMcpTools
       if (event?.receiveEvent?.id === 'eventa:invoke:electron:mcp:call-tool-receive')
         return invokeMocks.callMcpTool
+      if (event?.receiveEvent?.id === 'eventa:invoke:electron:mcp:get-runtime-status-receive')
+        return invokeMocks.getRuntimeStatus
       if (event?.receiveEvent?.id?.startsWith('eventa:invoke:chat-request:'))
         return vi.fn(async () => ({}))
 
@@ -86,7 +89,7 @@ describe('useTamagotchiMcpToolsStore', () => {
       }),
     ])
     expect(JSON.stringify(llmToolsStore.$state)).not.toContain('execute')
-    expect(listTools?.function.description).toContain('"name":"filesystem"')
+    expect(listTools?.function.description).toContain('Servers at registration: ["filesystem"]')
     expect(listTools?.function.description).not.toContain('filesystem::search')
     expect(invokeMocks.callMcpTool).not.toHaveBeenCalled()
 
@@ -97,6 +100,8 @@ describe('useTamagotchiMcpToolsStore', () => {
     }, toolOptions)
 
     expect(invokeMocks.listMcpTools).toHaveBeenCalledTimes(2)
+    expect(invokeMocks.listMcpTools).toHaveBeenNthCalledWith(1, { name: 'airi-terminal::terminal_exec' })
+    expect(invokeMocks.listMcpTools).toHaveBeenNthCalledWith(2, undefined)
     expect(invokeMocks.callMcpTool).toHaveBeenCalledWith({
       name: 'filesystem::search',
       arguments: { query: 'hello', limit: 10 },

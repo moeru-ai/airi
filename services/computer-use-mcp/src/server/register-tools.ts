@@ -209,7 +209,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
             : runtime.config.executor === 'linux-x11'
               ? 'remote X11 runner'
               : runtime.config.executor === 'auv'
-                ? 'auv runner.windows (read-only window observation)'
+                ? 'AUV unavailable without a trusted observation scope'
                 : 'dry-run',
           supportedAppsForOpenFocus: runtime.config.executor === 'auv'
             ? []

@@ -4,8 +4,8 @@ Scope: terminal lane work in `services/computer-use-mcp/**`.
 
 ## Native observation admission: 2026-11-09
 
-The production AUV runtime rejects native window observation and reports foreground and display metadata unavailable.
-No trusted Host observation scope or lifecycle-bound AUV target contract exists.
+The MCP AUV configuration reports native observation, foreground and display metadata unavailable.
+The MCP service has no native AUV SDK dependency. The Electron Main observation gate remains in effect.
 Terminal registration, approval, and execution remain independent. This restriction does not authorize GUI or Browser input.
 
 ## Executor discovery contract: 2026-11-08
@@ -22,18 +22,20 @@ These information changes grant no execution authority. Main approvals and GUI w
 MCP Desktop observation descriptions also name their configured executor before a call.
 The dry-run executor reports empty native window observations.
 Windows and Linux screenshots are placeholders. macOS attempts native capture and returns a placeholder on failure.
-The separate AIRI `computer_use` tool names its native AUV backend.
+The Chat composer omits unavailable native AUV tools. Existing history keeps its tool names.
 These descriptions distinguish the backends. They do not establish reliable model tool selection.
 
 ## Windows Beta lifecycle: 2026-11-08
 
 The bundled stdio service closes on input EOF, transport close, SIGINT and SIGTERM.
-Shutdown stops Terminal admission and drains owned direct Shell processes.
+Shutdown stops Terminal admission and waits for bounded direct shell shutdown and output drain.
 The private prepared request passes protocol cancellation to the runner.
 Cancellation after dispatch requests process termination. It does not reverse effects or prove zero dispatch.
-Result readiness and direct Shell close remain separate. A timeout result does not release ownership.
+Result readiness and direct shell closure remain separate. A drain deadline reports an unconfirmed lifecycle.
 Windows termination still covers the direct Shell only. Descendant cleanup remains unverified at this boundary.
-The Main shared queue retains its existing unknown-result and descendant-risk protection.
+Main latches its existing descendant-risk guard after an unconfirmed lifecycle and retains known timeout facts.
+Waiting approvals can expire or cancel while another execution owns the queue.
+The Host discards those prepared records. The guard blocks subsequent mutations until shutdown.
 
 Tests: `pnpm -F @proj-airi/computer-use-mcp exec vitest run src/server-lifecycle.test.ts src/terminal/runner-lifecycle.test.ts src/server/terminal-approval.test.ts`.
 These controlled tests use mock processes and the real MCP protocol. They do not establish human production authorization.

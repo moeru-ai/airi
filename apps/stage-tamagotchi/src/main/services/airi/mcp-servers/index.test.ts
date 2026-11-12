@@ -226,7 +226,7 @@ describe('createMcpManager', () => {
     const listMcpTools = defineInvoke(context, electronMcpListTools)
     const callMcpTool = defineInvoke(context, electronMcpCallTool)
     const [listTools] = await createMcpTools({
-      listTools: () => listMcpTools(),
+      listTools: name => listMcpTools(name === undefined ? undefined : { name }),
       callTool: payload => callMcpTool(payload),
     })
     clientMocks.listTools.mockRejectedValueOnce(new Error('MCP request timed out.'))
@@ -244,6 +244,24 @@ describe('createMcpManager', () => {
 
     expect(await manager.listTools()).toEqual([])
     expect(clientMocks.listTools).not.toHaveBeenCalled()
+  })
+
+  it('queries only the named server for an exact schema through Eventa', async () => {
+    const manager = await startServers('external', 'terminal')
+    const context = createContext<ElectronMainContextExtensions, ElectronMainEmitOptions>()
+    createMcpServersService({ context, manager })
+    const listMcpTools = defineInvoke(context, electronMcpListTools)
+    clientMocks.listTools.mockImplementation(async function (this: Pick<Client, 'onclose' | 'onerror'>) {
+      if (this === clientMocks.instances[0])
+        throw new Error('Unrelated service unavailable.')
+      return { tools: [{ name: 'scope::exec', inputSchema: { type: 'object' } }, { name: 'other', inputSchema: { type: 'object' } }] }
+    })
+
+    await expect(listMcpTools({ name: 'terminal::scope::exec' })).resolves.toEqual([
+      expect.objectContaining({ name: 'terminal::scope::exec', toolName: 'scope::exec' }),
+    ])
+    expect(clientMocks.listTools).toHaveBeenCalledOnce()
+    expect(clientMocks.callTool).not.toHaveBeenCalled()
   })
 
   it('does not trust an external server to mark itself direct', async () => {
@@ -295,9 +313,9 @@ describe('createMcpManager', () => {
     const attribution = { sessionId: 'session-a', turnId: 'turn-a' }
     const request = actions.registerRequest({ ...attribution, text: 'Run the fixture.' }, 71)
     const tools = await resolveLlmTools({ builtInTools: [], debugTools: [], sparkCommandTools: [], webSearchTools: [], activeTools: await createMcpTools({
-      listTools: () => manager.listTools(),
+      listTools: manager.listTools,
       callTool: (payload, options) => manager.callTool({ ...payload, requestId: request.id, attribution: options?.attribution }, 71, options?.abortSignal),
-    }), attribution })
+    }, { direct: await manager.listTools('airi-terminal::terminal_exec') }), attribution })
     clientMocks.callTool.mockResolvedValue({ isError: true, content: [{ type: 'text', text: 'Fixture policy rejected preparation.' }] })
     const terminal = tools.find(tool => tool.function.name === 'terminal_exec')!
     const result = await terminal.execute({ command: 'fixture', call_summary: 'Run fixture', call_icon: [] }, { messages: [], toolCallId: 'direct-call' })

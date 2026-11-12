@@ -80,21 +80,13 @@ describe('resolveComputerUseConfig', () => {
     expect(config.browserDomBridge.requestTimeoutMs).toBe(4500)
   })
 
-  it('parses auv executor settings from env', () => {
+  it('keeps the AUV configuration closed to native operations', () => {
     process.env.COMPUTER_USE_EXECUTOR = 'auv'
-    process.env.COMPUTER_USE_AUV_BINARY_PATH = '/custom/bin/auv.exe'
-    process.env.COMPUTER_USE_AUV_STORE_ROOT = '/custom/store'
-    process.env.COMPUTER_USE_AUV_STARTUP_TIMEOUT_MS = '12000'
-    process.env.COMPUTER_USE_AUV_SHUTDOWN_TIMEOUT_MS = '6000'
 
     const config = resolveComputerUseConfig()
 
     expect(config.executor).toBe('auv')
     expect(config.openableApps).toEqual([])
-    expect(config.permissionChainHint).toContain('auv daemon -> auv.runner')
-    expect(config.auv.binaryPath).toBe('/custom/bin/auv.exe')
-    expect(config.auv.storeRoot).toBe('/custom/store')
-    expect(config.auv.startupTimeoutMs).toBe(12000)
-    expect(config.auv.shutdownTimeoutMs).toBe(6000)
+    expect(config.permissionChainHint).toContain('AUV observation unavailable')
   })
 })

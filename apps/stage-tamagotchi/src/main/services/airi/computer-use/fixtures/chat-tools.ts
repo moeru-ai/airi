@@ -1,19 +1,21 @@
+import type { createContext } from '@moeru/eventa/adapters/electron/renderer'
 import type { Tool, ToolExecuteOptions } from '@xsai/shared-chat'
 
-import type { ComputerUseResult, InvocationAttributionPayload } from '../../../../shared/eventa/computer-use'
+import type { ComputerUseResult, InvocationAttributionPayload } from '../../../../../shared/eventa/computer-use'
 
 import { defineInvoke } from '@moeru/eventa'
-import { createContext } from '@moeru/eventa/adapters/electron/renderer'
 import { errorMessageFrom } from '@moeru/std'
 import { rawTool } from '@xsai/tool'
 
 import {
+  COMPUTER_USE_READ_IMAGE_TOOL_NAME,
+  COMPUTER_USE_TOOL_NAME,
   computerUseCancel,
   ComputerUseExecutionError,
   computerUseReadImage,
   computerUseRun,
   extractErrorDetails,
-} from '../../../../shared/eventa/computer-use'
+} from '../../../../../shared/eventa/computer-use'
 
 /** Application-owned execution options. Model arguments cannot supply approval IDs or correlation. */
 export interface ComputerUseToolExecuteOptions extends ToolExecuteOptions {
@@ -21,40 +23,19 @@ export interface ComputerUseToolExecuteOptions extends ToolExecuteOptions {
   actionId?: string
 }
 
-export interface ComputerUseToolsOptions {
-  context?: ReturnType<typeof createContext>['context']
-  ipcRenderer?: Parameters<typeof createContext>[0]
-}
-
-/** The name of the tool that runs AUV commands. The chat shows its result as a command card. */
-export const COMPUTER_USE_TOOL_NAME = 'computer_use'
-
-/** The name of the tool that reads a screenshot. The chat shows its result as the image. */
-export const COMPUTER_USE_READ_IMAGE_TOOL_NAME = 'computer_use_read_image'
-
-/** Creates desktop-only tools. IPC clients are local to the elected renderer executor. */
-export async function computerUseTools(options?: ComputerUseToolsOptions): Promise<Tool[]> {
-  let invokers: ReturnType<typeof createInvokers> | undefined
+/** Exercises the native IPC contract from a controlled renderer context. */
+export async function computerUseTools({ context }: { context: ReturnType<typeof createContext>['context'] }): Promise<Tool[]> {
+  const run = defineInvoke(context, computerUseRun)
+  const readImage = defineInvoke(context, computerUseReadImage)
+  const cancelInvocation = defineInvoke(context, computerUseCancel)
   const cancellations = new WeakMap<AbortSignal, Set<string>>()
-  function createInvokers() {
-    const context = options?.context ?? createContext(options?.ipcRenderer ?? window.electron.ipcRenderer).context
-    return {
-      run: defineInvoke(context, computerUseRun),
-      readImage: defineInvoke(context, computerUseReadImage),
-      cancel: defineInvoke(context, computerUseCancel),
-    }
-  }
-  function client() {
-    invokers ??= createInvokers()
-    return invokers
-  }
 
   async function bindCancellation(execution: ComputerUseToolExecuteOptions) {
     const attribution = execution.attribution
     const signal = execution.abortSignal
     if (signal && attribution?.turnId) {
       const request = { ...attribution }
-      const cancel = () => client().cancel({ attribution: request, reason: 'Turn was aborted' })
+      const cancel = () => cancelInvocation({ attribution: request, reason: 'Turn was aborted' })
       if (signal.aborted) {
         await cancel()
         const rawMessage = errorMessageFrom(signal.reason) ?? 'This operation was aborted'
@@ -107,7 +88,7 @@ export async function computerUseTools(options?: ComputerUseToolsOptions): Promi
         const rawInput = input as { argv: string[] }
         let result: ComputerUseResult
         try {
-          result = await client().run(
+          result = await run(
             { argv: rawInput.argv, actionId: execution.actionId, attribution },
             { signal: execution.abortSignal },
           )
@@ -161,7 +142,7 @@ export async function computerUseTools(options?: ComputerUseToolsOptions): Promi
         return [{
           type: 'image_url',
           image_url: {
-            url: await client().readImage({
+            url: await readImage({
               path: rawInput.path,
               attribution,
             }, { signal: execution.abortSignal }),

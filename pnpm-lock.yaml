@@ -6820,12 +6820,6 @@ importers:
 
   services/computer-use-mcp:
     dependencies:
-      '@auv-js/cli':
-        specifier: 'catalog:'
-        version: 0.0.43
-      '@auv-js/sdk':
-        specifier: 'catalog:'
-        version: 0.0.43
       '@modelcontextprotocol/sdk':
         specifier: 'catalog:'
         version: 1.30.0(supports-color@10.2.2)(zod@4.4.3)

@@ -215,7 +215,7 @@ export function resolveComputerUseConfig(): ComputerUseConfig {
         : executor === 'macos-local'
           ? `${launchHostProcess} -> swift/quartz + open`
           : executor === 'auv'
-            ? `${launchHostProcess} -> auv daemon -> auv.runner`
+            ? `${launchHostProcess} -> AUV observation unavailable`
             : `${launchHostProcess} -> local dry-run`),
     requireSessionTagForMutatingActions,
     requireAllowedBoundsForMutatingActions,
@@ -237,12 +237,6 @@ export function resolveComputerUseConfig(): ComputerUseConfig {
       host: env.COMPUTER_USE_BROWSER_DOM_BRIDGE_HOST?.trim() || '127.0.0.1',
       port: parseInteger(env.COMPUTER_USE_BROWSER_DOM_BRIDGE_PORT, 8765),
       requestTimeoutMs: parseInteger(env.COMPUTER_USE_BROWSER_DOM_BRIDGE_TIMEOUT_MS, 10_000),
-    },
-    auv: {
-      binaryPath: env.COMPUTER_USE_AUV_BINARY_PATH?.trim() || undefined,
-      storeRoot: env.COMPUTER_USE_AUV_STORE_ROOT?.trim() || join(sessionRoot, 'auv'),
-      startupTimeoutMs: parseInteger(env.COMPUTER_USE_AUV_STARTUP_TIMEOUT_MS, 10_000),
-      shutdownTimeoutMs: parseInteger(env.COMPUTER_USE_AUV_SHUTDOWN_TIMEOUT_MS, 5_000),
     },
     binaries: {
       swift: env.COMPUTER_USE_SWIFT_BINARY?.trim() || 'swift',

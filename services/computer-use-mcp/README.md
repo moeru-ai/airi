@@ -167,7 +167,7 @@ The current macOS v1 boundary is intentionally narrow and explicit:
 
 `never` is an explicit operator configuration. It disables action approval, including for arbitrary shell commands.
 The desktop executor does not sandbox Terminal, PTY, or CDP. `dry-run` only describes desktop input.
-The AUV executor remains an observation-only desktop surface, even in `never` mode.
+The AUV desktop surface stays unavailable until a trusted observation scope exists. Terminal uses its own runner.
 
 In `actions` and `all`, MCP callers cannot approve their own pending actions or claim approved workflow continuation.
 Workflow `autoApprove` cannot weaken the server configuration.

@@ -43,23 +43,24 @@ describe('tools mcp schema', () => {
 describe('mcp discovery', () => {
   it('exposes only a Host-marked Terminal directly and preserves its runtime execution context', async () => {
     const runtime = createRuntime()
-    vi.mocked(runtime.listTools).mockResolvedValue([
+    const descriptors = [
       { serverName: 'owned', name: 'owned::terminal_exec', toolName: 'terminal_exec', exposure: 'direct', description: 'Configured Shell.', inputSchema: { type: 'object', properties: { command: { type: 'string' } }, required: ['command'], additionalProperties: false } },
       { serverName: 'owned', name: 'owned::terminal_history', toolName: 'terminal_history', exposure: 'router-only', inputSchema: { type: 'object', properties: {} } },
       { serverName: 'owned', name: 'owned::desktop_capture', toolName: 'desktop_capture', exposure: 'disabled', inputSchema: { type: 'object', properties: {} } },
-    ])
-    const tools = await createMcpTools(runtime)
+    ] satisfies Awaited<ReturnType<McpToolRuntime['listTools']>>
+    vi.mocked(runtime.listTools).mockResolvedValue(descriptors)
+    const tools = await createMcpTools(runtime, { direct: descriptors })
     const terminal = tools.find(tool => tool.function.name === 'terminal_exec')!
     expect(terminal.function.strict).toBe(false)
-    expect(terminal.function.parameters).toEqual((await runtime.listTools())[0].inputSchema)
+    expect(terminal.function.parameters).toEqual(descriptors[0].inputSchema)
+    expect(runtime.listTools).not.toHaveBeenCalled()
     const options = { messages: [], toolCallId: 'direct-call', attribution: { sessionId: 's', turnId: 't' }, abortSignal: new AbortController().signal }
 
     expect(tools.map(tool => tool.function.name)).toEqual(['builtIn_mcpListTools', 'builtIn_mcpCallTool', 'terminal_exec'])
     await terminal.execute({ command: 'fixture' }, options)
     expect(runtime.callTool).toHaveBeenCalledExactlyOnceWith({ name: 'owned::terminal_exec', arguments: { command: 'fixture' } }, options)
-    const [list, call] = tools
+    const [list] = tools
     expect(await list.execute({}, { messages: [], toolCallId: 'list' })).not.toEqual(expect.arrayContaining([expect.objectContaining({ exposure: 'disabled' })]))
-    await expect(call.execute({ name: 'owned::desktop_capture', arguments: '{}' }, { messages: [], toolCallId: 'disabled' })).resolves.toMatchObject({ isError: true })
     expect(runtime.callTool).toHaveBeenCalledTimes(1)
   })
 
@@ -72,19 +73,21 @@ describe('mcp discovery', () => {
     vi.mocked(runtime.listTools).mockResolvedValue(descriptors)
     const [list] = await createMcpTools(runtime)
     expect(await list.execute({ name: 'fixture::a' }, { messages: [], toolCallId: 'exact' })).toEqual([descriptors[0]])
+    expect(runtime.listTools).toHaveBeenCalledExactlyOnceWith('fixture::a')
     expect(await list.execute({ name: 'fixture::missing' }, { messages: [], toolCallId: 'missing' })).toMatchObject({ isError: true })
     expect(runtime.callTool).not.toHaveBeenCalled()
   })
 
   it('accepts a null catalog selector and does not retry a direct call after a lost response', async () => {
     const runtime = createRuntime()
-    vi.mocked(runtime.listTools).mockResolvedValue([{ serverName: 'fixture', name: 'fixture::terminal_exec', toolName: 'terminal_exec', exposure: 'direct', inputSchema: { type: 'object', properties: {} } }])
+    const direct = [{ serverName: 'fixture', name: 'fixture::terminal_exec', toolName: 'terminal_exec', exposure: 'direct', inputSchema: { type: 'object', properties: {} } }] as const
+    vi.mocked(runtime.listTools).mockResolvedValue([...direct])
     let effects = 0
     vi.mocked(runtime.callTool).mockImplementation(async () => {
       effects++
       throw new Error('Effect occurred, response lost.')
     })
-    const [list, , terminal] = await createMcpTools(runtime)
+    const [list, , terminal] = await createMcpTools(runtime, { direct })
     expect(await list.validate!({ name: null })).toEqual({ value: { name: null } })
     expect(await list.execute({ name: null }, { messages: [], toolCallId: 'catalog' })).toEqual(await runtime.listTools())
     expect(await terminal.execute({}, { messages: [], toolCallId: 'once' })).toMatchObject({ isError: true, content: [{ text: 'Effect occurred, response lost.' }] })
@@ -92,29 +95,16 @@ describe('mcp discovery', () => {
     expect(effects).toBe(1)
   })
 
-  it('registers live discovery when the optional index does not respond', async () => {
-    vi.useFakeTimers()
-    try {
-      const runtime = createRuntime()
-      vi.mocked(runtime.listTools).mockReturnValueOnce(new Promise(() => {}))
-      let registered = false
-      const registration = createMcpTools(runtime).then((tools) => {
-        registered = true
-        return tools
-      })
+  it('registers direct and discovery tools without starting the catalog request', async () => {
+    const runtime = createRuntime()
+    vi.mocked(runtime.listTools).mockReturnValue(new Promise(() => {}))
+    const direct = [{ serverName: 'fixture', name: 'fixture::terminal_exec', toolName: 'terminal_exec', exposure: 'direct', inputSchema: { type: 'object', properties: {} } }] as const
 
-      await vi.advanceTimersByTimeAsync(1000)
+    const tools = await createMcpTools(runtime, { direct })
 
-      expect(registered).toBe(true)
-      const [listTools] = await registration
-      expect(listTools.function.description).toContain('index is unavailable')
-      expect(runtime.callTool).not.toHaveBeenCalled()
-      expect(await listTools.execute({}, { messages: [], toolCallId: 'list-after-index-deadline' }))
-        .toBe('No MCP tools are available. Do not retry discovery during this assistant turn.')
-    }
-    finally {
-      vi.useRealTimers()
-    }
+    expect(tools.map(tool => tool.function.name)).toEqual(['builtIn_mcpListTools', 'builtIn_mcpCallTool', 'terminal_exec'])
+    expect(runtime.listTools).not.toHaveBeenCalled()
+    expect(runtime.callTool).not.toHaveBeenCalled()
   })
 
   it('advertises the connected tool index before the first model choice without dispatching an operation', async () => {
@@ -126,32 +116,19 @@ describe('mcp discovery', () => {
       inputSchema: { type: 'object', properties: {} },
     }])
 
-    const [listTools] = await createMcpTools(runtime)
+    const [listTools] = await createMcpTools(runtime, { servers: ['fixture'] })
 
-    expect(listTools.function.description).toContain('"name":"fixture"')
+    expect(listTools.function.description).toContain('Servers at registration: ["fixture"]')
     expect(listTools.function.description).not.toContain('fixture::terminal_exec')
-    expect(runtime.listTools).toHaveBeenCalledTimes(1)
+    expect(runtime.listTools).not.toHaveBeenCalled()
     expect(runtime.callTool).not.toHaveBeenCalled()
 
     vi.mocked(runtime.listTools).mockResolvedValue([])
     const result = await listTools.execute({}, { messages: [], toolCallId: 'list-current' })
 
     expect(result).toBe('No MCP tools are available. Do not retry discovery during this assistant turn.')
-    expect(runtime.listTools).toHaveBeenCalledTimes(2)
+    expect(runtime.listTools).toHaveBeenCalledOnce()
     expect(runtime.callTool).not.toHaveBeenCalled()
-  })
-
-  it('keeps live discovery available when the registration index fails', async () => {
-    const runtime = createRuntime()
-    vi.mocked(runtime.listTools).mockRejectedValueOnce(new Error('Catalog transport unavailable.'))
-    const [listTools] = await createMcpTools(runtime)
-
-    expect(listTools.function.description).toContain('index is unavailable')
-    expect(runtime.callTool).not.toHaveBeenCalled()
-
-    vi.mocked(runtime.listTools).mockResolvedValue([])
-    expect(await listTools.execute({}, { messages: [], toolCallId: 'list-recovered' }))
-      .toBe('No MCP tools are available. Do not retry discovery during this assistant turn.')
   })
 
   // https://github.com/moeru-ai/airi/issues/2779
@@ -175,7 +152,7 @@ describe('mcp discovery', () => {
     const result = await listTools.execute({}, { messages: [], toolCallId: 'list-empty' })
 
     expect(result).toBe('No MCP tools are available. Do not retry discovery during this assistant turn.')
-    expect(runtime.listTools).toHaveBeenCalledTimes(2)
+    expect(runtime.listTools).toHaveBeenCalledOnce()
   })
 
   // https://github.com/moeru-ai/airi/issues/2779
@@ -194,7 +171,7 @@ describe('mcp discovery', () => {
       isError: true,
       content: [{ type: 'text', text: 'MCP tool discovery failed: MCP connection closed.' }],
     })
-    expect(runtime.listTools).toHaveBeenCalledTimes(2)
+    expect(runtime.listTools).toHaveBeenCalledOnce()
   })
 
   it('retains available tool descriptors and proxies invocation', async () => {

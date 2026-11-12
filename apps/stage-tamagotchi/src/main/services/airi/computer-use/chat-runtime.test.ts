@@ -23,10 +23,10 @@ import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
-import { COMPUTER_USE_READ_IMAGE_TOOL_NAME, COMPUTER_USE_TOOL_NAME, computerUseTools } from '../../../../renderer/stores/tools/builtin/computer-use'
-import { computerUseCancel, computerUsePreviewImage, computerUseReadImage, computerUseRun } from '../../../../shared/eventa/computer-use'
+import { COMPUTER_USE_READ_IMAGE_TOOL_NAME, COMPUTER_USE_TOOL_NAME, computerUseCancel, computerUsePreviewImage, computerUseReadImage, computerUseRun } from '../../../../shared/eventa/computer-use'
 import { emitAppBeforeQuit } from '../../../libs/bootkit/lifecycle'
 import { createWindowIpc } from '../../../libs/electron/testing/window-ipc'
+import { computerUseTools } from './fixtures/chat-tools'
 import { setupComputerUse } from './index'
 
 interface CliResult {

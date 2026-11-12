@@ -71,7 +71,7 @@ describe('catalog history projection', () => {
       debugTools: [],
       sparkCommandTools: [],
       webSearchTools: [],
-      activeTools: await createMcpTools({ listTools: async () => descriptors, callTool }),
+      activeTools: await createMcpTools({ listTools: async () => descriptors, callTool }, { direct: descriptors }),
       attribution: { sessionId: 'fixture-session', turnId: 'fixture-turn' },
     })
     const fetch: typeof globalThis.fetch = async (_url, init) => {

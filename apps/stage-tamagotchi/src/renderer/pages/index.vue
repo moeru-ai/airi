@@ -51,7 +51,7 @@ import { stageOpaqueAttribute } from '../composables/use-stage-painted-mask'
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useFullscreenStore } from '../stores/fullscreen'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
-import { useToolSelectionStore } from '../stores/tools'
+import { artistryToolReferences } from '../stores/tools'
 import { resolveFadeOnHoverInteraction } from '../utils/fade-on-hover'
 import { shouldSampleStageTransparency } from '../utils/stage-three-transparency'
 
@@ -647,9 +647,7 @@ useModelSettingsRuntimeOwner({
 })
 
 const voice = useVoiceStore()
-const toolSelection = useToolSelectionStore()
-// Spoken turns start in this window. They use the tools that the chat window composer grants.
-onScopeDispose(voice.connectTools(() => toolSelection.requestTools))
+onScopeDispose(voice.connectTools(() => artistryToolReferences))
 const openInlay = useElectronEventaInvoke(electronOpenInlay)
 useVoiceListening()
 usePushToTalkShortcut()

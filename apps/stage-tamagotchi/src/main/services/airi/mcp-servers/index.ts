@@ -26,7 +26,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
-import { terminalControlEnabledEnv, terminalControlNonceEnv, terminalOriginMetaKey } from '@proj-airi/stage-shared/terminal-approval'
+import { bundledTerminalServerName, terminalControlEnabledEnv, terminalControlNonceEnv, terminalOriginMetaKey } from '@proj-airi/stage-shared/terminal-approval'
 import { app, shell } from 'electron'
 
 import {
@@ -59,8 +59,8 @@ export interface McpManager {
   ensureConfigFile: () => Promise<{ path: string }>
   openConfigFile: () => Promise<{ path: string }>
   applyAndRestart: () => Promise<ElectronMcpApplyResult>
-  /** Returns the complete active-server catalog. Any discovery failure rejects with server names and reasons. */
-  listTools: () => Promise<ElectronMcpToolDescriptor[]>
+  /** Returns the current catalog, or a descriptor from only the named server for an exact tool name. */
+  listTools: (name?: string) => Promise<ElectronMcpToolDescriptor[]>
   /** Dispatches the exact tool name once. A failed reply does not prove the absence of effects. */
   callTool: (payload: ElectronMcpCallToolPayload, senderWebContentsId?: number, signal?: AbortSignal) => Promise<ElectronMcpCallToolResult>
   stopAll: () => Promise<void>
@@ -70,7 +70,6 @@ export interface McpManager {
   testServer: (payload: ElectronMcpTestPayload) => Promise<ElectronMcpTestResult>
 }
 
-const bundledTerminalName = 'airi-terminal'
 const toolNameSeparator = '::'
 const mcpRequestTimeoutMsec = 10_000
 const mcpRequestMaxTotalTimeoutMsec = 15_000
@@ -274,9 +273,9 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
     const config = await readConfigFile(path)
     const servers = { ...config.mcpServers }
     if (config.terminalEnabled) {
-      if (bundledTerminalName in servers)
-        throw new Error(`The server name "${bundledTerminalName}" is reserved for the bundled Terminal. Rename the external server or disable the bundled Terminal.`)
-      servers[bundledTerminalName] = {
+      if (bundledTerminalServerName in servers)
+        throw new Error(`The server name "${bundledTerminalServerName}" is reserved for the bundled Terminal. Rename the external server or disable the bundled Terminal.`)
+      servers[bundledTerminalServerName] = {
         command: execPath,
         args: [join(app.getAppPath(), 'out', 'bundle', 'main', 'terminal.mjs')],
         cwd: app.getPath('userData'),
@@ -328,21 +327,24 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
   // Only the bundled, nonce-bound server supplies a direct Terminal entry.
   // Its desktop placeholders cannot become an alternative observation or input surface.
   const exposureOf = (serverName: string, session: McpServerSession, toolName: string): ElectronMcpToolDescriptor['exposure'] => {
-    if (serverName !== bundledTerminalName || !session.terminalNonce)
+    if (serverName !== bundledTerminalServerName || !session.terminalNonce)
       return 'router-only'
     if (toolName.startsWith('desktop_'))
       return 'disabled'
     return toolName === 'terminal_exec' ? 'direct' : 'router-only'
   }
 
-  const listTools = async (): Promise<ElectronMcpToolDescriptor[]> => {
-    const entries = [...sessions.entries()].sort(([left], [right]) => left.localeCompare(right))
+  const listTools = async (name?: string): Promise<ElectronMcpToolDescriptor[]> => {
+    const target = name === undefined ? undefined : parseQualifiedToolName(name)
+    const entries = [...sessions.entries()]
+      .filter(([serverName]) => !target || target.serverName === serverName)
+      .sort(([left], [right]) => left.localeCompare(right))
     const listResult = await Promise.allSettled(entries.map(async ([serverName, session]) => {
       const response = await session.client.listTools(undefined, {
         timeout: mcpRequestTimeoutMsec,
         maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
       })
-      return response.tools.map<ElectronMcpToolDescriptor>(item => ({
+      return response.tools.filter(item => !target || item.name === target.toolName).map<ElectronMcpToolDescriptor>(item => ({
         serverName,
         name: `${serverName}${toolNameSeparator}${item.name}`,
         toolName: item.name,
@@ -563,8 +565,8 @@ export function createMcpServersService(params: { context: ReturnType<typeof cre
     return params.manager.getRuntimeStatus()
   })
 
-  defineInvokeHandler(params.context, electronMcpListTools, async () => {
-    return params.manager.listTools()
+  defineInvokeHandler(params.context, electronMcpListTools, async (payload) => {
+    return params.manager.listTools(payload?.name)
   })
 
   defineInvokeHandler(params.context, electronMcpCallTool, async (payload, options) => {

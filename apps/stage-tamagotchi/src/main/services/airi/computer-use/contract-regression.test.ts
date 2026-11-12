@@ -1,8 +1,8 @@
 import type { ExecFileOptions } from 'node:child_process'
 
-import type { ComputerUseToolExecuteOptions } from '../../../../renderer/stores/tools/builtin/computer-use'
 import type { ComputerUseRunInput } from '../../../../shared/eventa/computer-use'
 import type { InvocationAttribution } from './attribution'
+import type { ComputerUseToolExecuteOptions } from './fixtures/chat-tools'
 
 import { EventEmitter } from 'node:events'
 import { mkdir, mkdtemp, rm } from 'node:fs/promises'
@@ -14,10 +14,10 @@ import { defineInvoke } from '@moeru/eventa'
 import { createContext as createMainContext } from '@moeru/eventa/adapters/electron/main'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { computerUseTools } from '../../../../renderer/stores/tools/builtin/computer-use'
 import { ComputerUseExecutionError, computerUseRun } from '../../../../shared/eventa/computer-use'
 import { emitAppBeforeQuit } from '../../../libs/bootkit/lifecycle'
 import { createWindowIpc } from '../../../libs/electron/testing/window-ipc'
+import { computerUseTools } from './fixtures/chat-tools'
 import { setupComputerUse } from './index'
 
 interface CliResult {

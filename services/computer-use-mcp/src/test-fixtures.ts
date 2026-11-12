@@ -52,11 +52,6 @@ export function createTestConfig(overrides: Partial<ComputerUseConfig> = {}): Co
       port: 8765,
       requestTimeoutMs: 10_000,
     },
-    auv: {
-      storeRoot: join(sessionRoot, 'auv'),
-      startupTimeoutMs: 10_000,
-      shutdownTimeoutMs: 5_000,
-    },
     binaries: {
       swift: 'swift',
       osascript: 'osascript',
@@ -75,11 +70,6 @@ export function createTestConfig(overrides: Partial<ComputerUseConfig> = {}): Co
     remoteDisplaySize: {
       width: overrides.remoteDisplaySize?.width ?? baseConfig.remoteDisplaySize.width,
       height: overrides.remoteDisplaySize?.height ?? baseConfig.remoteDisplaySize.height,
-    },
-    auv: {
-      storeRoot: overrides.auv?.storeRoot ?? join(sessionRoot, 'auv'),
-      startupTimeoutMs: overrides.auv?.startupTimeoutMs ?? baseConfig.auv.startupTimeoutMs,
-      shutdownTimeoutMs: overrides.auv?.shutdownTimeoutMs ?? baseConfig.auv.shutdownTimeoutMs,
     },
     binaries: {
       swift: overrides.binaries?.swift ?? baseConfig.binaries.swift,

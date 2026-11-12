@@ -591,17 +591,6 @@ export interface BrowserDomFrameResult<T = unknown> {
   result: T
 }
 
-export interface AuvExecutorConfig {
-  /** Path of the `auv` executable. Defaults to the `@auv-js/cli`-resolved platform binary. */
-  binaryPath?: string
-  /** Root for daemon state and recorded runs. Defaults to `<sessionRoot>/auv`. */
-  storeRoot?: string
-  /** Maximum time to wait for the daemon's listeners to become healthy. */
-  startupTimeoutMs?: number
-  /** Maximum time to wait for graceful daemon shutdown before killing it. */
-  shutdownTimeoutMs?: number
-}
-
 export interface ComputerUseConfig {
   sessionRoot: string
   screenshotsDir: string
@@ -634,7 +623,6 @@ export interface ComputerUseConfig {
   remoteObservationServePort?: number
   remoteObservationToken?: string
   browserDomBridge: BrowserDomBridgeConfig
-  auv: AuvExecutorConfig
   binaries: {
     swift: string
     osascript: string

@@ -1,5 +1,9 @@
 import { defineInvokeEventa } from '@moeru/eventa'
 
+/** Tool names used by existing computer-use chat history. */
+export const COMPUTER_USE_TOOL_NAME = 'computer_use'
+export const COMPUTER_USE_READ_IMAGE_TOOL_NAME = 'computer_use_read_image'
+
 /** Request correlation supplied by application code, never by model arguments. It does not authenticate a renderer. */
 export interface InvocationAttributionPayload {
   sessionId: string

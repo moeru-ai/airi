@@ -1060,7 +1060,7 @@ describe('createExecuteAction', () => {
     expect(runtime.terminalRunner.execute).not.toHaveBeenCalled()
   })
 
-  it('allows terminal_exec under auv even when auv executor is in read-only observation mode', async () => {
+  it('allows terminal_exec with the AUV desktop surface unavailable', async () => {
     const { runtime, executor } = createRuntimeForActionTest({
       executor: 'auv',
       approvalMode: 'never',

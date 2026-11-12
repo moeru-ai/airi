@@ -101,7 +101,7 @@ export function getRuntimePreflight(params: {
   }
 
   if (params.config.executor === 'auv') {
-    mutationReadinessIssues.push('auv executor is in read-only observation mode; mutating actions are not supported')
+    mutationReadinessIssues.push('The AUV desktop surface is unavailable without a trusted observation scope')
   }
 
   return {

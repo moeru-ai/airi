@@ -2,7 +2,7 @@ import type { ExecutableTool } from '@proj-airi/stage-ui/stores/ai/chat-llm/tool
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { terminalNoticeSchema } from '@proj-airi/stage-shared/terminal-approval'
+import { bundledTerminalServerName, terminalNoticeSchema } from '@proj-airi/stage-shared/terminal-approval'
 import { getSpeechBusContext, voiceGenerationEnded } from '@proj-airi/stage-ui/services/speech/bus'
 import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/ai/chat-llm/tools'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -13,14 +13,14 @@ import { onScopeDispose } from 'vue'
 
 import * as v from 'valibot'
 
-import { electronMcpCallTool, electronMcpListTools } from '../../../shared/eventa'
+import { electronMcpCallTool, electronMcpGetRuntimeStatus, electronMcpListTools } from '../../../shared/eventa'
 import { chatRequestCancel, chatRequestFinish, chatRequestRegister, terminalOutcomeNotice } from '../../../shared/eventa/terminal-approval'
-import { useToolSelectionStore } from './selection'
+import { artistryToolReferences } from './built-in'
 
 export const useTamagotchiMcpToolsStore = defineStore('tamagotchi-mcp-tools', () => {
   const llmToolsStore = useLlmToolsStore()
-  const toolSelection = useToolSelectionStore()
   const listMcpTools = useElectronEventaInvoke(electronMcpListTools)
+  const getRuntimeStatus = useElectronEventaInvoke(electronMcpGetRuntimeStatus)
   const callMcpTool = useElectronEventaInvoke(electronMcpCallTool)
   const registerRequest = useElectronEventaInvoke(chatRequestRegister)
   const finishRequest = useElectronEventaInvoke(chatRequestFinish)
@@ -42,7 +42,7 @@ export const useTamagotchiMcpToolsStore = defineStore('tamagotchi-mcp-tools', ()
     }, {
       waitForCompletion: false,
       signal: options?.abortController?.signal,
-      continueFrom: { turnId: notice.turnId, tools: toolSelection.requestTools },
+      continueFrom: { turnId: notice.turnId, tools: artistryToolReferences },
     })
     if (!receipt)
       throw new Error('The original Terminal conversation cannot accept this notice.')
@@ -82,8 +82,12 @@ export const useTamagotchiMcpToolsStore = defineStore('tamagotchi-mcp-tools', ()
   }
 
   async function refresh() {
+    const [status, direct] = await Promise.all([
+      getRuntimeStatus().catch(() => undefined),
+      listMcpTools({ name: `${bundledTerminalServerName}::terminal_exec` }).catch(() => undefined),
+    ])
     const tools = await createMcpTools({
-      listTools: () => listMcpTools(),
+      listTools: name => listMcpTools(name === undefined ? undefined : { name }),
       callTool: async (payload, options) => {
         const attribution = options?.attribution
         const requestId = attribution ? requests.get(keyOf(attribution.sessionId, attribution.turnId)) : undefined
@@ -107,7 +111,7 @@ export const useTamagotchiMcpToolsStore = defineStore('tamagotchi-mcp-tools', ()
         }
         return callMcpTool({ ...payload, requestId, attribution }, { signal })
       },
-    })
+    }, { servers: status?.servers.filter(server => server.state === 'running').map(server => server.name), direct })
 
     llmToolsStore.removeToolsByIds(...registeredToolIds())
     llmToolsStore.addTools(...tools.map(tool => ({

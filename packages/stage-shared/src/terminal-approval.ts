@@ -1,5 +1,8 @@
 import * as v from 'valibot'
 
+/** Server name reserved by Electron Main for the bundled Terminal. */
+export const bundledTerminalServerName = 'airi-terminal'
+
 /** Private requests on a Main-managed stdio connection. These methods are never registered in the model tool catalog. */
 export const terminalExecuteMethod = 'airi/terminal/execute-prepared'
 export const terminalDiscardMethod = 'airi/terminal/discard-prepared'

@@ -28,9 +28,9 @@ import JournalToolCallBlock from './chat-tool-renderers/journal-tool-call-block.
 import ChatViewportLayout from './chat-viewport-layout.vue'
 
 import { electronAuthStartLogin, electronOpenSettings } from '../../shared/eventa'
+import { COMPUTER_USE_READ_IMAGE_TOOL_NAME, COMPUTER_USE_TOOL_NAME } from '../../shared/eventa/computer-use'
 import { useHearingInputChannel } from '../composables/use-hearing-input-channel'
-import { computerUseToolReferences, useToolSelectionStore, widgetToolReferences } from '../stores/tools'
-import { COMPUTER_USE_READ_IMAGE_TOOL_NAME, COMPUTER_USE_TOOL_NAME } from '../stores/tools/builtin/computer-use'
+import { artistryToolReferences, widgetToolReferences } from '../stores/tools'
 import { WEATHER_TOOL_NAME } from '../stores/tools/builtin/weather'
 import { computerUseReadImageToolCallWidget } from './chat-tool-renderers/computer-use-read-image-tool-call-widget'
 import { computerUseToolCallWidget } from './chat-tool-renderers/computer-use/widget'
@@ -104,9 +104,6 @@ const voicePending = shallowRef(false)
 /** A recording is open. Dictation writes into the text, so the text stays read-only and send waits until it closes. */
 const voiceActive = shallowRef(false)
 const lastEnterTime = ref(0)
-// Each request captures this selection, including retries and tool reruns. Spoken turns read the same store.
-const toolSelection = useToolSelectionStore()
-const { computerUseEnabled, requestTools } = storeToRefs(toolSelection)
 
 const chatStore = useChatStore()
 const chatSession = useChatSessionStore()
@@ -134,7 +131,7 @@ const composer = useChatComposer<ChatImageAttachment>({
       data: attachment.data,
       mimeType: attachment.mimeType,
     })),
-    tools: requestTools.value,
+    tools: artistryToolReferences,
   }),
 })
 const {
@@ -292,7 +289,7 @@ async function handleRetryMessage(index: number) {
   await chatStore.retry({
     sessionId: chatSession.activeSessionId,
     index,
-    tools: computerUseEnabled.value ? [...widgetToolReferences, ...computerUseToolReferences] : widgetToolReferences,
+    tools: widgetToolReferences,
   })
   trackChatMessageRetried({
     source: 'history',
@@ -312,7 +309,6 @@ async function handleToolCallRerun(payload: ChatToolCallRerunEvent) {
     invocationId: payload.invocationId,
     toolName: payload.toolName,
     args: payload.args,
-    tools: computerUseEnabled.value ? computerUseToolReferences : [],
   })
 }
 
@@ -576,19 +572,6 @@ defineExpose({
           >
             <span :class="['i-solar:paperclip-bold-duotone h-5 w-5']" />
           </GhostButton>
-          <GhostButton
-            data-testid="computer-use-toggle"
-            size="unset"
-            :class="['size-9']"
-            :aria-label="t('stage.computer-use.label')"
-            :title="t('stage.computer-use.description')"
-            :active="computerUseEnabled"
-            :aria-pressed="computerUseEnabled"
-            :disabled="isActiveSessionSending"
-            @click="computerUseEnabled = !computerUseEnabled"
-          >
-            <span :class="['i-solar:monitor-bold-duotone h-5 w-5 shrink-0']" />
-          </GhostButton>
 
           <!-- The voice control shows its recording status here, so the composer keeps its height. -->
           <div ref="voice-status" :class="['min-w-0 flex flex-1 items-center px-1']" />
@@ -600,7 +583,7 @@ defineExpose({
               :attachment-element="voiceAttachment"
               :session-id="activeSessionId"
               :reply-to-message-id="replyTarget?.message.id"
-              :tools="requestTools"
+              :tools="artistryToolReferences"
               @recording-change="voiceActive = $event"
               @pending-change="voicePending = $event"
               @sent="composer.clearReply()"

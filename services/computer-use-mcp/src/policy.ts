@@ -153,7 +153,7 @@ export function evaluateActionPolicy(params: {
   }
 
   if (params.config.executor === 'auv' && isMutatingAction(params.action) && params.action.kind !== 'terminal_exec' && params.action.kind !== 'terminal_reset') {
-    reasons.push('auv executor is in read-only observation mode; mutating actions are not supported')
+    reasons.push('The AUV desktop surface is unavailable without a trusted observation scope')
     allowed = false
   }
 
