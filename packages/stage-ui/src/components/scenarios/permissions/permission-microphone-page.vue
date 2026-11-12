@@ -13,6 +13,11 @@ import { useMicrophoneSpectrum } from '../../../composables/permissions/use-micr
 const props = defineProps<{
   /** True while the system allows the microphone. The page listens only then. */
   granted: boolean
+  /**
+   * Tells the user where to allow a denied microphone, when the host cannot open that place.
+   * The page shows it while the microphone is denied.
+   */
+  deniedHint?: string
 }>()
 
 /** True after the microphone heard speech. The flow continues only then. */
@@ -50,6 +55,9 @@ const status = computed(() => {
       </div>
       <MicrophoneDeviceButton :level="check.level.value" />
     </div>
+    <PermissionStatusLine v-else-if="deniedHint" tone="info">
+      {{ deniedHint }}
+    </PermissionStatusLine>
 
     <template #stage>
       <MicrophoneVoiceVisual

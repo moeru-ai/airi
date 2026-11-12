@@ -54,6 +54,11 @@ function isWaiting(permission: DevicePermission) {
   return requested.value.has(permission.id) && !isGranted(permission) && !!permission.settingsLocationKey
 }
 
+/** The text that tells the user where to allow a denied permission, when the host cannot open that place. */
+function deniedHintOf(permission: DevicePermission) {
+  return statuses.value[permission.id] === 'denied' && permission.deniedHintKey ? t(permission.deniedHintKey) : undefined
+}
+
 function stateLabelOf(permission: DevicePermission) {
   if (isGranted(permission))
     return t(`${flowKey}.state.granted`)
@@ -93,7 +98,10 @@ const primaryLabel = computed(() => {
     return t(`${flowKey}.continue`)
   if (permission.requestLabelKey)
     return t(permission.requestLabelKey)
-  if (statuses.value[permission.id] === 'denied' || permission.settingsLocationKey)
+  const denied = statuses.value[permission.id] === 'denied'
+  if (denied && permission.deniedHintKey)
+    return t(`${flowKey}.tryAgain`)
+  if (denied || permission.settingsLocationKey)
     return t('settings.dialogs.onboarding.permissions.openSettingsAction')
   if (permission.kind === 'microphone')
     return t(`${flowKey}.microphone.allow`)
@@ -160,6 +168,7 @@ async function primary() {
         :key="current.id"
         v-model:heard="microphoneHeard"
         :granted="isGranted(current)"
+        :denied-hint="deniedHintOf(current)"
       />
       <PermissionShortcutPage
         v-else-if="current?.kind === 'accessibility' || current?.kind === 'push-to-talk'"

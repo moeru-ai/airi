@@ -81,6 +81,7 @@ dialogs:
         continue: 继续
         skip: 跳过
         done: 完成
+        tryAgain: 再试一次
         state:
           granted: 已允许
           skipped: 已跳过

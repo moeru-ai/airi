@@ -10,7 +10,8 @@ const PREVIEW_WIDTH = 960
 /**
  * Returns the permissions that the web can set up in the onboarding.
  *
- * - Microphone: the permission of the site. A denial changes only in the site settings of the browser.
+ * - Microphone: the permission of the site. A denial changes only in the site settings of the browser, and a page
+ *   cannot open them. So the page tells the user where to allow it, and the request asks again.
  * - Push to Talk: the Space key, while the tab is in front. It needs no permission. Only a device with a fine pointer
  *   and a keyboard has the key, see `pushToTalkTriggerKey` in `main.ts`.
  * - Screen sharing: the browser asks which screen or window to share each time, so no permission lasts. The share
@@ -76,6 +77,7 @@ export function useDevicePermissions(): DevicePermission[] {
       kind: 'microphone',
       titleKey: 'settings.dialogs.onboarding.permissions.microphoneTitle',
       descriptionKey: 'settings.dialogs.onboarding.permissions.microphoneDescription',
+      deniedHintKey: 'settings.pages.modules.hearing.sections.section.input-device.blocked-description',
       check: microphoneStatus,
       request: async () => {
         await audioDevice.askPermission()

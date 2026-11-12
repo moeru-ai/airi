@@ -1,7 +1,7 @@
 import type { LeadershipMode, SyncedPiniaRuntime } from 'pinia-plugin-synced'
 import type { App } from 'vue'
 
-import type { DevicePermissionStatus } from '../../../../stores/device-permissions'
+import type { DevicePermission, DevicePermissionStatus } from '../../../../stores/device-permissions'
 import type { OnboardingStepLaterHandler, OnboardingStepNextHandler } from './types'
 
 import en from '@proj-airi/i18n/locales/en'
@@ -325,17 +325,17 @@ it('goes on to the permissions step after sign-in', async () => {
 })
 
 /**
- * Renders the flow for a user who finished provider setup, on a host with one notifications permission.
- * `request` grants it, as a user who allows the system prompt.
+ * Renders the flow for a user who finished provider setup, on a host with one permission. Without `permission`, it is
+ * a notifications permission. Its `request` grants it, as a user who allows the system prompt.
  */
-async function renderPermissionsFlow() {
+async function renderPermissionsFlow(permission?: DevicePermission) {
   localStorage.setItem('onboarding/steps', JSON.stringify(Object.fromEntries(
     sharedOnboardingSteps.filter(step => step.scope === 'provider-setup').map(step => [step.id, { version: step.version, outcome: 'done', at: 0 }]),
   )))
   const context = createSyncedContext(`onboarding-permissions:${crypto.randomUUID()}`, 'leader-only')
   await expect.poll(() => context.runtime.isLeader()).toBe(true)
   let status: DevicePermissionStatus = 'not-determined'
-  useDevicePermissionsStore(context.pinia).register([{
+  useDevicePermissionsStore(context.pinia).register([permission ?? {
     id: 'notifications',
     kind: 'notifications',
     titleKey: 'settings.dialogs.onboarding.permissions.notificationsTitle',
@@ -406,4 +406,26 @@ it('opens a skipped permission again from the summary', async () => {
   await screen.getByRole('button', { name: 'Set up Notifications' }).click()
 
   await expect.element(screen.getByRole('heading', { name: 'Get reminders from your character' })).toBeInTheDocument()
+})
+
+// https://github.com/moeru-ai/airi/pull/3383#discussion_r4466446388
+// ROOT CAUSE:
+//
+// A denied web microphone offered "Open System Settings". A page cannot open the site settings,
+// and the browser does not ask again, so the button did nothing.
+//
+// We fixed this with `deniedHintKey`. The page shows where to allow it, and the button says "Try again".
+it('tells the user where to allow a denied permission when the host cannot open its settings', async () => {
+  const { screen } = await renderPermissionsFlow({
+    id: 'microphone',
+    kind: 'microphone',
+    titleKey: 'settings.dialogs.onboarding.permissions.microphoneTitle',
+    descriptionKey: 'settings.dialogs.onboarding.permissions.microphoneDescription',
+    deniedHintKey: 'settings.pages.modules.hearing.sections.section.input-device.blocked-description',
+    check: async () => 'denied',
+    request: async () => {},
+  })
+
+  await expect.element(screen.getByText('Allow the microphone for this site in the browser site settings, then try again.')).toBeVisible()
+  await expect.element(screen.getByRole('button', { name: 'Try again' })).toBeVisible()
 })

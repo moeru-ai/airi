@@ -4,7 +4,8 @@ import { shallowRef } from 'vue'
 /**
  * - `granted`: the system allows the access.
  * - `not-determined`: the system has not asked yet. `request` shows the system prompt.
- * - `denied`: the system does not ask again. `request` opens the system settings.
+ * - `denied`: the system does not ask again. `request` opens the system settings. A host that cannot open them gives
+ *   `deniedHintKey`, and its `request` asks again.
  */
 export type DevicePermissionStatus = 'granted' | 'denied' | 'not-determined'
 
@@ -40,12 +41,21 @@ export interface DevicePermission {
   /** i18n key of the reason that AIRI needs the permission. */
   descriptionKey: string
   check: () => Promise<DevicePermissionStatus>
-  /** Shows the system prompt, or opens the system settings when the system does not ask again. */
+  /**
+   * Shows the system prompt, or opens the system settings when the system does not ask again.
+   * A host that cannot open them asks again, see `deniedHintKey`.
+   */
   request: () => Promise<void>
   /** i18n key of the label of the request button, for example "Share a screen". Without it, the flow picks a label. */
   requestLabelKey?: string
   /** i18n key of the place in the system settings where the user turns the permission on. */
   settingsLocationKey?: string
+  /**
+   * i18n key of the text that tells the user where to allow a denied permission, for a host that cannot open that place.
+   * For example, a web page cannot open the site settings of the browser. With it, the request button asks again.
+   * Only `microphone` uses it.
+   */
+  deniedHintKey?: string
   /** The keys of the shortcut that the permission enables, for example `['Ctrl', 'Shift', 'Space']`. Only `accessibility` uses it. */
   shortcutKeys?: () => readonly string[]
   /**
