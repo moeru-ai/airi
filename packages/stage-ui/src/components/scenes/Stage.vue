@@ -409,6 +409,21 @@ watch(() => voice.activeTurns, (turns) => {
 })
 
 const cards = useAiriCardStore()
+/** The speech provider and model of the character of the chat that this window shows. */
+const shownChatSpeech = computed(() => {
+  const [characterId] = chatSession.characterMembersOf(chatSession.activeSessionId)
+  if (!cards.ready || !characterId || !cards.getCard(characterId))
+    return undefined
+
+  return cards.getModules(characterId).speech
+})
+// The speech store loads the voice catalog of its own selection only. A reply reads the language of
+// its voice from the catalog of the character's provider, so load that catalog when it is another provider.
+watch([() => shownChatSpeech.value?.provider, () => shownChatSpeech.value?.model], async ([provider, model]) => {
+  if (provider)
+    await speechStore.loadVoicesForCharacter(provider, model || undefined)
+}, { immediate: true })
+
 const disconnectVoiceOutput = voice.connectOutput((turn) => {
   const output = {
     playback,
@@ -435,7 +450,7 @@ const disconnectVoiceOutput = voice.connectOutput((turn) => {
   if (speechMuted.value)
     return { ...output, synthesize: async () => null }
   try {
-    const characterId = chatSession.sessionMetas[turn.sessionId]?.characterId
+    const [characterId] = chatSession.characterMembersOf(turn.sessionId)
     if (!characterId)
       throw new Error('The response session has no character')
     return speechStore.createOutput(turn, cards.getModules(characterId).speech, output, audioContext)

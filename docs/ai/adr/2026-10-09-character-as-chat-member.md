@@ -1,6 +1,6 @@
 # A character is a member of a chat
 
-Status: proposed
+Status: accepted
 
 ## Context
 
@@ -53,7 +53,7 @@ erDiagram
 ### Chat members
 
 - Chat synchronization sends and receives the members of each chat. See `server/docs/ai/adr/2026-10-09-chat-list-members.md`.
-- One function answers "which characters are members of this session". New code calls this function. Step 2 adds it.
+- One function answers "which characters are members of this session". New code calls this function. It is `characterMembersOf(sessionId)` of the chat session store. Its body is in `packages/stage-ui/src/stores/chat/session-members.ts`.
 - New code does not read `meta.characterId` or the character groups of the local index.
 - The local storage shape stays. A later change for group chats replaces the body of that one function.
 
@@ -97,8 +97,8 @@ erDiagram
 
 | Step | Content | Workspaces | State |
 | --- | --- | --- | --- |
-| 1 | Synchronize chat members. Repair old sessions. | `server/apps/api`, `packages/stage-ui` | This change |
-| 2 | Add the function for the members of a session. | `packages/stage-ui` | To do |
+| 1 | Synchronize chat members. Repair old sessions. | `server/apps/api`, `packages/stage-ui` | Done (#2874) |
+| 2 | Add the function for the members of a session. | `packages/stage-ui` | Done. See `stores/chat/session-members.ts`. |
 | 3 | Stop the writes into the global runtime stores when a card becomes active. | `packages/stage-ui`, settings pages | To do |
 | 4 | Build the contact list for the mobile layout. | `packages/stage-ui`, `packages/stage-layouts` | To do |
 

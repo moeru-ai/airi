@@ -653,6 +653,12 @@ export interface ElectronWindowControlsState {
 }
 
 export const electronGetWindowControlsState = defineInvokeEventa<ElectronWindowControlsState>('eventa:invoke:electron:window:get-controls-state')
+/**
+ * Centers the macOS traffic lights on a title bar that is not 44px high, for example the tab bar of a workbench.
+ * Without `centerY`, the traffic lights go back to the position that the window was created with.
+ * Other platforms ignore it.
+ */
+export const electronWindowCenterSystemControls = defineInvokeEventa<void, { centerY?: number }>('eventa:invoke:electron:window:center-system-controls')
 export const electronWindowControlsStateChanged = defineEventa<ElectronWindowControlsState>('eventa:event:electron:window:controls-state-changed')
 
 export type ElectronWindowLifecycleReason
@@ -694,6 +700,11 @@ export const electronAppIsWayland = defineInvokeEventa<boolean>('eventa:invoke:e
 export const electronMainPageMounted = defineInvokeEventa<void>('eventa:invoke:electron:main-window:page-mounted')
 export const electronAppIconGet = defineInvokeEventa<boolean>('eventa:invoke:electron:app-icon:get')
 export const electronAppIconSet = defineInvokeEventa<boolean, boolean>('eventa:invoke:electron:app-icon:set')
+/**
+ * The renderer sends the analytics switch to main. Main saves it and applies it to error reports from main, from the
+ * renderers, and from native crashes, also on the next start before a renderer loads.
+ */
+export const electronErrorReportingSet = defineInvokeEventa<void, boolean>('eventa:invoke:electron:error-reporting:set')
 
 export type ElectronGodotStageState = 'stopped' | 'starting' | 'running' | 'stopping' | 'error'
 

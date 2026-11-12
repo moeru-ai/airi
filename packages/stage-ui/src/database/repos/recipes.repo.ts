@@ -1,6 +1,8 @@
 import type { Recipe } from '@proj-airi/core-agent'
 
-import localforage from 'localforage'
+import { prefixStorage } from 'unstorage'
+
+import { listRawItems, storage } from '../storage'
 
 /** One recipe, its place in the list, and when it was added and last changed. */
 export interface RecipeRecord {
@@ -21,7 +23,7 @@ interface RecipeTombstone {
 
 type StoredRecipe = RecipeRecord | RecipeTombstone
 
-const records = localforage.createInstance({ name: 'airi-recipes', storeName: 'recipes' })
+const records = prefixStorage(storage, 'recipes')
 
 /**
  * Runs one write. Every write of every window takes this lock, so a write that reads the stored records sees every
@@ -37,11 +39,7 @@ function plain<T>(value: T): T {
 }
 
 async function storedRecipes() {
-  const stored: StoredRecipe[] = []
-  await records.iterate<StoredRecipe, void>((record) => {
-    stored.push(record)
-  })
-  return stored
+  return (await listRawItems<StoredRecipe>(records, '')).map(([, record]) => record)
 }
 
 /** The recipes on this device, one record for each recipe, keyed by the recipe id. */
@@ -56,7 +54,7 @@ export const recipesRepo = {
   async add(recipes: Recipe[], createdAt: number) {
     await write(async () => {
       const last = (await storedRecipes()).reduce((max, record) => 'deleted' in record ? max : Math.max(max, record.order), 0)
-      await Promise.all(recipes.map((recipe, index) => records.setItem<RecipeRecord>(recipe.id, plain({
+      await Promise.all(recipes.map((recipe, index) => records.setItemRaw<RecipeRecord>(recipe.id, plain({
         id: recipe.id,
         recipe,
         order: last + 1 + index,
@@ -72,16 +70,16 @@ export const recipesRepo = {
    */
   async change(id: string, fields: Partial<Recipe>, updatedAt: number) {
     return write(async () => {
-      const stored = await records.getItem<StoredRecipe>(id)
+      const stored = await records.getItemRaw<StoredRecipe>(id)
       if (!stored || 'deleted' in stored)
         return false
-      await records.setItem<RecipeRecord>(id, plain({ ...stored, recipe: { ...stored.recipe, ...fields }, updatedAt }))
+      await records.setItemRaw<RecipeRecord>(id, plain({ ...stored, recipe: { ...stored.recipe, ...fields }, updatedAt }))
       return true
     })
   },
   /** Replaces each recipe with a tombstone. */
   async remove(ids: string[], updatedAt: number) {
-    await write(() => Promise.all(ids.map(id => records.setItem<RecipeTombstone>(id, { id, updatedAt, deleted: true }))))
+    await write(() => Promise.all(ids.map(id => records.setItemRaw<RecipeTombstone>(id, { id, updatedAt, deleted: true }))))
   },
   /** Deletes every record, tombstones too. Only deleting all data uses it. */
   async clear() {

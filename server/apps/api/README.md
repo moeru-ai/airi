@@ -61,7 +61,7 @@ Each change stays in one domain module, plus wiring in `app.ts`:
 
 - To add a stream or an event, edit the `defineStream` call of the domain module.
 - To add a producer, provide `createStreamPublisher` through `injeca`.
-- To add a consumer, provide `createStreamConsumer` through `injeca`, and register `start()` and `stop()` with `lifecycle.appHooks`.
+- To add a consumer, provide `createStreamConsumer` through `injeca`. In its `build`, register `start()` with `on('start')` and `stop()` with `on('stop')`.
 
 The account events stream (`src/services/adapters/account-events.ts`) is the first user. Cloud (`proj-airi/backend`) reads it and writes user notifications.
 
@@ -203,6 +203,7 @@ and `REVENUECAT_PROJECT_ID`, and calls
 A known period keeps its spent Flux and takes the reported end time.
 No active Capacitor expires the bucket now.
 Product-to-Capacitor mapping lives in ConfigKV `REVENUECAT_CAPACITORS`.
+A promotional subscription, which an operator grants in RevenueCat, has no product. It uses the one quota of the products of its entitlement.
 The server grants only the subscriptions of `REVENUECAT_ENVIRONMENT`, which is `production` by default.
 `REVENUECAT_SANDBOX_USER_IDS` lists the test accounts whose sandbox subscriptions production also grants.
 A missed webhook delays the grant until the next webhook for that

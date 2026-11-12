@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { InboxDrawer } from '@proj-airi/stage-ui/components'
+import { useFluxStatus } from '@proj-airi/stage-ui/composables/use-flux-status'
+import { AIRI_FLUX_URL } from '@proj-airi/stage-ui/constants/public-links'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useInboxStore } from '@proj-airi/stage-ui/stores/inbox'
 import { useSpeechOutputControlStore } from '@proj-airi/stage-ui/stores/speech-output-control'
@@ -33,6 +35,8 @@ const settingsOpen = shallowRef(false)
 const aboutOpen = shallowRef(false)
 const keyboardNavigation = shallowRef(false)
 const { unread } = storeToRefs(useInboxStore())
+// The phone stage keeps its top row for the stage. Flux stays one level down, under the account.
+const { visible: fluxVisible, valueLabel: fluxValue, icon: fluxIcon } = useFluxStatus()
 const notificationsOpen = shallowRef(false)
 /** The Notifications drawer asked to return here. The menu reopens after that drawer closes. */
 const returnToMenu = shallowRef(false)
@@ -154,12 +158,13 @@ const characterVoiceIcon = computed(() => {
         >
           <Avatar
             :src="isAuthenticated ? user?.image : null"
+            :seed="isAuthenticated ? user?.id : null"
             :class="[
               'size-12 shrink-0 rounded-full',
               isAuthenticated ? 'bg-neutral-200 text-neutral-500 dark:bg-neutral-700' : 'bg-primary-500/10 text-primary-500',
             ]"
           >
-            <template #fallback>
+            <template v-if="!isAuthenticated" #fallback>
               <span :class="['i-solar:user-rounded-outline size-6']" />
             </template>
           </Avatar>
@@ -183,6 +188,23 @@ const characterVoiceIcon = computed(() => {
             <Badge :count="unread" />
             <span aria-hidden="true" :class="['i-solar:alt-arrow-right-outline size-4 text-neutral-400']" />
           </GhostButton>
+        </template>
+        <template v-if="fluxVisible">
+          <div :class="['mx-4 border-t border-neutral-100 dark:border-neutral-700/50']" />
+          <RouterLink
+            :to="AIRI_FLUX_URL"
+            data-testid="mobile-flux-row"
+            :class="[
+              'min-h-13 flex items-center gap-3 px-4 py-3 text-sm',
+              'mobile-tool-row hover:bg-primary-500/10 focus-visible:outline-2 focus-visible:outline-primary-500',
+            ]"
+            @click="settingsOpen = false"
+          >
+            <span aria-hidden="true" :class="[fluxIcon, 'size-5 shrink-0 text-neutral-400']" />
+            <span :class="['flex-1']">{{ t('settings.pages.flux.title') }}</span>
+            <span :class="['text-sm text-primary-600 font-medium tabular-nums dark:text-primary-400']">{{ fluxValue }}</span>
+            <span aria-hidden="true" :class="['i-solar:alt-arrow-right-outline size-4 text-neutral-400']" />
+          </RouterLink>
         </template>
       </div>
       <section :class="['mb-4']">

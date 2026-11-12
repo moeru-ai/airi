@@ -183,15 +183,15 @@ analytics:
   notice:
     title: Usage analytics
     description: >-
-      AIRI collects anonymous usage analytics to help us understand how the app
-      is used and improve stability. No personal data is collected.
+      AIRI collects anonymous usage analytics and error reports to help us
+      understand how the app is used and fix crashes. No personal data is collected.
     privacyPrefix: Read the
     privacyLink: privacy policy
-    onboardingHint: You can turn analytics off later in Settings > System > General.
-    settingsHint: You can turn analytics off at any time.
+    onboardingHint: You can turn analytics and error reports off later in Settings > System > General.
+    settingsHint: You can turn analytics and error reports off at any time.
   toggle:
-    title: Enable usage analytics
-    description: Turn this off to opt out of analytics collection.
+    title: Enable usage analytics and error reports
+    description: Turn this off to stop sending usage analytics and error reports.
   disabled:
     title: Analytics disabled for this development build
 model-select:
@@ -213,6 +213,7 @@ model-select:
     sync:
       upload: Upload to cloud
       delete-cloud: Delete from cloud
+      upload-progress: 'Uploading {percent}%'
       status:
         local-only: This device only
         queued: Waiting to upload
@@ -382,9 +383,6 @@ pages:
     login: Sign in
     logout: Sign out
     fluxBalance: Flux Balance
-    viewFluxDetails: View details
-    capacitorEntry: Capacitor
-    viewCapacitor: View
     signedInAs: Signed in as
     profile:
       tab: Profile
@@ -413,6 +411,7 @@ pages:
       action:
         link: Link
         unlink: Unlink
+        signInAgain: Sign in again
       message:
         loading: Loading connected accounts...
         unlinked: '{provider} disconnected.'
@@ -425,6 +424,7 @@ pages:
         accountAlreadyLinkedToDifferentUser: This OAuth account is already linked to another AIRI account. Choose a different provider account, or unlink it from the other AIRI account first.
         oauthCallbackFailed: We could not connect this OAuth account. Try again or choose another provider account.
         lastAccount: This is your only sign-in method. Set a password first before unlinking it.
+        reauthenticate: Sign in again before you link or unlink an account.
     sync:
       tab: Sync
       title: Sync
@@ -494,7 +494,7 @@ pages:
         error:
           reauthenticate: Sign in again, then return here to confirm deletion. No email is sent.
           fallback: Could not start deletion. Try again later.
-          subscriptionActive: Your subscription is still active. Cancel it on the Capacitor page first, then delete your account.
+          subscriptionActive: Your subscription is still active. Cancel it on the Subscription page first, then delete your account.
   card:
     wake-word-conflicts:
       title: 'One shared wake word pronunciation needs a character | {count} shared wake word pronunciations need a character'
@@ -583,7 +583,7 @@ pages:
     delete: Delete
     delete_card: Delete Card
     delete_confirmation: Are you sure you want to delete this card?
-    description: Use AIRI character card presets
+    description: Manage AIRI character cards
     description_label: Description
     drop_here: Drop to upload
     create_card: Create a new Card
@@ -639,7 +639,7 @@ pages:
         greetings: How your character should say "hello" ?
         systemprompt: Explain here to the AI LLM how it should answer when prompted.
         posthistoryinstructions: Place here anything the AI LLM should read after the messages history.
-        context_window: 'Message limit, including your current message. Leave empty for All. Use 0 to send only your current message. When exceeded, older turns are removed in blocks. Saved chats stay intact.'
+        context_window: 'Turn limit, including the current turn. Each turn contains your message and the assistant reply, including tool calls. Consecutive messages from the same role stay together. Leave empty for All. Use 0 to send only your current message. When exceeded, the newest 90% of the limit is retained, rounded up to whole turns. Saved chats stay intact.'
         version: >-
           Card version, you should increase this if you are making changes from
           a previous card.
@@ -664,7 +664,7 @@ pages:
     no_results: No matching cards found
     personality: Personality
     posthistoryinstructions: Post-History Instructions
-    context_window: Messages to remember
+    context_window: Turns to remember
     context_window_all: All
     recent: Recently Added
     scenario: Scenario
@@ -940,7 +940,7 @@ pages:
       gaming: Gaming
       artistry: Artistry
     consciousness:
-      description: Personality, desired model, etc.
+      description: Language model selection and settings
       sections:
         section:
           provider-model-selection:
@@ -1332,7 +1332,7 @@ pages:
       title: Speech
     title: Modules
     vision:
-      description: Vision
+      description: Image understanding and screen capture settings
       title: Vision
       tool-images:
         label: Use the vision model for tool images
@@ -1757,10 +1757,11 @@ pages:
         json-applied: JSON applied to the form. Click "Save and restart" to persist it to disk.
         restarted: All restarted! {started} started, {failed} failed, {skipped} skipped.
   flux:
-    title: Flux
+    pageTitle: Subscription
+    balance: Balance {balance} Flux
+    title: Subscription
     buy: Charge
     currency: Currency
-    description: Current Flux
     terms: Terms
     privacy: Privacy Policy
     packagesError: Failed to load packages. Please try again later.
@@ -1784,34 +1785,45 @@ pages:
       delayHint: Usage records may be delayed by up to 1 minute
       ttsRequests: requests
     packages:
-      title: Flux Packages
+      title: Flux top-up packs
       buy: Charge
-      description: Flux packages to choose from.
+      description: One-time purchase. It does not expire.
   capacitor:
-    title: Capacitor
+    name: Capacitor
+    left: 'Capacitor: {percent} left'
+    offer:
+      none: No Capacitor yet
+      day: Subscribe to a Capacitor. It refills with Flux every day.
+      week: Subscribe to a Capacitor. It refills with Flux every week.
+      month: Subscribe to a Capacitor. It refills with Flux every month.
+      hint: Chat and speech use the Flux in the Capacitor first.
+    forecast:
+      left: At this pace, about {percent} is left at {time}.
+      empty: At this pace, the Capacitor is empty at about {time}.
+    empty: Your Capacitor is empty. To keep chatting now, turn on the option below to use your Flux balance.
     statusError: Failed to load your Capacitor. Please try again later.
     packagesError: Failed to load Capacitors. Please try again later.
     preferenceError: Failed to save preference. Please try again later.
-    remaining: '{percent} left'
-    ofQuota: of {quota} Flux
     rechargesAt: Refills {date}
     renewsAt: Renews {date}
     expiresAt: Ends {date}
-    change: Change Capacitor
+    choose: Choose a Capacitor
+    change: Change your Capacitor
+    packagesHint: A larger Capacitor lets you chat longer. Unused Flux does not carry over.
     quota:
-      day: '{quota} Flux every day'
-      week: '{quota} Flux every week'
-      month: '{quota} Flux every month'
+      day: '{quota} Flux / day'
+      week: '{quota} Flux / week'
+      month: '{quota} Flux / month'
     perMonth: / month
-    currentPackage: Current
-    install: Install
-    upgrade: Upgrade
-    downgrade: Downgrade
+    currentPackage: In use
+    install: Subscribe
+    upgrade: Upgrade to {name}
+    downgrade: Downgrade to {name}
     manageSubscription: Manage subscription
-    fallbackToFlux: Use Flux when the Capacitor is empty
+    fallbackToFlux: Use your Flux balance when the Capacitor is empty
     fallbackToFluxHint: When off, chat and speech stop until the Capacitor refills.
     checkout:
-      success: Your Capacitor is installed and charged.
+      success: You are subscribed. Your Capacitor is full.
       pending: Payment received. Your Capacitor charges shortly.
       canceled: Purchase was canceled.
       error: Something went wrong. Please try again later.
@@ -2473,7 +2485,7 @@ pages:
           title: Transcription Playground
       aihubmix:
         title: AIHubMix
-        description: https://aihubmix.com (10% off)
+        description: aihubmix.com (10% off)
     title: Providers
   connection:
     description: Configure WebSocket server connection
@@ -2655,6 +2667,8 @@ pages:
                   no-permissions: No permissions declared.
                   no-kits: No Kits declared.
                   imported: 'Imported Extension {extensionId}.'
+                session:
+                  waiting-for-kits: 'Waits for Kits: {kitIds}'
               use-magic-keys:
                 title: useMagicKeys Tool
                 description: Test shortcuts

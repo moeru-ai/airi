@@ -47,7 +47,7 @@ The loop runs these steps:
 | Unknown type, unknown version, or no handler | Log a warning, then `XACK`. A producer can deploy first. |
 | Other handler error | No ack. The entry stays pending, and a later claim retries it. |
 
-`stop()` interrupts a blocking read, lets the current batch finish, and closes the read connection. Register `start()` and `stop()` with `lifecycle.appHooks`.
+`stop()` interrupts a blocking read, lets the current batch finish, and closes the read connection. In the injeca `build` of the consumer, register `start()` with `on('start')` and `stop()` with `on('stop')`.
 
 The API does not wire a consumer now. The API has no background loops (see `server/apps/api/AGENTS.md`), so the first consumer needs its own ADR.
 
@@ -69,7 +69,7 @@ The infrastructure does not change. Edit only the domain module that owns the st
 2. To add an event, add a `type` with `version: 1` and its payload schema to the `defineStream` call.
 3. To change a payload in a breaking way, increase its `version`. Deploy the consumer handler for the new version first.
 4. To add a producer, provide `createStreamPublisher(redis, definition)` through `injeca` in `app.ts`. Let each publish failure fail the request.
-5. To add a consumer, write idempotent handlers for `id` in the domain module. Provide `createStreamConsumer(...)` through `injeca`, and register `start()` and `stop()` with `lifecycle.appHooks`.
+5. To add a consumer, write idempotent handlers for `id` in the domain module. Provide `createStreamConsumer(...)` through `injeca`. In its `build`, register `start()` with `on('start')` and `stop()` with `on('stop')`.
 
 ### Account events
 

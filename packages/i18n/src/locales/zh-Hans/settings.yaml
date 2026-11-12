@@ -201,6 +201,7 @@ model-select:
     sync:
       upload: 上传到云端
       delete-cloud: 从云端删除
+      upload-progress: '上传中 {percent}%'
       status:
         local-only: 仅在本设备
         queued: 等待上传
@@ -342,10 +343,8 @@ pages:
     notLoggedIn: 登录以查看您的帐户并访问所有功能
     login: 登录
     logout: 登出
-    fluxBalance: 剩余通量
-    viewFluxDetails: 查看详情
-    viewCapacitor: 查看
-    signedInAs: 登录 为
+    fluxBalance: Flux 电量
+    signedInAs: 当前账号
     profile:
       tab: 个人资料
       title: 个人资料
@@ -354,7 +353,7 @@ pages:
         label: 昵称
         placeholder: 别人如何看到你
       avatar:
-        gravatarNotice: Gravatar头像。
+        gravatarNotice: Gravatar 头像。
         gravatarLink: 在 gravatar.com 上管理
       action:
         save: 保存更改
@@ -373,6 +372,7 @@ pages:
       action:
         link: 关联
         unlink: 取消关联
+        signInAgain: 重新登录
       message:
         loading: 正在加载已关联的帐户...
         unlinked: '解除了 {provider} 的关联'
@@ -385,6 +385,7 @@ pages:
         accountAlreadyLinkedToDifferentUser: 这个 OAuth 帐户已经关联到另一个 AIRI 帐户了。请选择另一个第三方帐户，或者先在另一个 AIRI 帐户中解除关联。
         oauthCallbackFailed: 暂时无法关联这个 OAuth 帐户。请重试，或选择另一个第三方帐户。
         lastAccount: 这是你当前唯一的登录方式，请务必先设置密码再解除关联哦
+        reauthenticate: 请先重新登录，再关联或解除关联帐户。
     sync:
       tab: 同步
       title: 同步
@@ -438,7 +439,7 @@ pages:
         action: 删除帐户
         modal:
           title: 删除账户？
-          warning: 此操作无法撤销。现存的 Flux 余额会被清除。如有生效中的订阅，请先取消。
+          warning: 此操作无法撤销。现存的 Flux 电量会被清除。如有生效中的订阅，请先取消。
           confirmEmail:
             label: 请再次输入电子邮箱以确认删除
             mismatch: 邮箱不匹配。
@@ -453,7 +454,7 @@ pages:
         error:
           reauthenticate: 请重新登录，再回到此处确认删除。无需接收邮件。
           fallback: 无法开始删除操作，请稍后重试。
-          subscriptionActive: 您的订阅仍在生效。请先在 Capacitor 页面取消订阅，再删除帐户。
+          subscriptionActive: 您的订阅仍在生效。请先在订阅页面取消订阅，再删除帐户。
   card:
     wake-word-conflicts:
       title: '{count} 个共享的唤醒词发音需要选择角色'
@@ -542,11 +543,11 @@ pages:
     delete: 删除
     delete_card: 删除角色卡
     delete_confirmation: 确定要删除这张角色卡吗？
-    description: 使用 AIRI 角色卡预设
+    description: 管理 AIRI 角色卡
     description_label: 描述
-    drop_here: 放开以上传文件
+    drop_here: 松手以上传文件
     create_card: 创建新角色卡
-    edit_card: 卡片编辑
+    edit_card: 编辑卡片
     saved: 角色卡已保存
     unsaved:
       badge: 未保存
@@ -594,7 +595,7 @@ pages:
         greetings: 您的角色应该如何说“你好”？
         systemprompt: 在这里向 AI LLM 解释当被提示时应该如何回应。
         posthistoryinstructions: 在消息历史之后，放入 AI LLM 应该阅读的内容。
-        context_window: '消息数量上限，包含当前输入。留空表示全部，0 表示仅发送当前输入。超出上限时，按完整轮次分批移除较早消息。已保存的聊天记录不受影响。'
+        context_window: '对话轮数上限，包含当前轮次。每轮包含用户消息和助手回复（含工具调用），连续的同角色消息视为一个整体。留空表示全部，0 表示仅发送当前输入。超出上限时，保留最新的若干轮，轮数为上限的 90% 向上取整。已保存的聊天记录不受影响。'
         version: >-
           卡片版本，如果您从之前的卡片做了更改，应当增加此版本号。
         consciousness_model: 为这个角色选择 AI 模型。
@@ -618,7 +619,7 @@ pages:
     no_results: 没有找到匹配的角色卡
     personality: 性格
     posthistoryinstructions: 历史提示指令
-    context_window: 记住的消息数量
+    context_window: 记住的对话轮数
     context_window_all: 全部
     recent: 最近添加
     scenario: 场景
@@ -647,11 +648,11 @@ pages:
     title: AIRI 角色卡
     try_different_search: 尝试使用其他关键词搜索
     export: 导出
-    exported: 卡片包已导出
-    export_failed: 导出卡片包失败
-    imported: 卡片包已导入
-    import_missing_file: 卡片包缺少必需文件
-    import_invalid_file: 卡片包文件无效
+    exported: 角色卡已导出
+    export_failed: 导出角色卡失败
+    imported: 角色卡已导入
+    import_missing_file: 角色卡缺少必需文件
+    import_invalid_file: 角色卡文件无效
     upload: 上传
     upload_desc: 点击或拖动 AIRI 角色卡包以导入
   memory:
@@ -887,7 +888,7 @@ pages:
       gaming: 游戏
       artistry: 绘图
     consciousness:
-      description: 人格设定、使用的模型等配置
+      description: 选择并配置语言模型
       sections:
         section:
           provider-model-selection:
@@ -1265,7 +1266,7 @@ pages:
       title: 发声
     title: 机体模块
     vision:
-      description: 视觉
+      description: 图像识别和截图设置
       title: 视觉
       tool-images:
         label: 使用视觉模型理解工具图片
@@ -1685,15 +1686,16 @@ pages:
         json-applied: JSON 已经解析完成了，点「保存并重启」就写到磁盘上啦。
         restarted: 重启好啦！启动了 {started} 个，失败 {failed} 个，跳过 {skipped} 个
   flux:
-    title: Flux 电量
+    pageTitle: 订阅
+    balance: 余额 {balance} Flux
+    title: 订阅
     buy: 充值
     currency: 币种
-    description: 充值 Flux
     terms: 使用条款
     privacy: 隐私政策
     packagesError: 暂时无法获取可用的 Flux 电量包。可以之后再试试吗？
     checkout:
-      success: 谢谢你！你的 Flux 通量已经更新好啦～
+      success: 谢谢你！你的 Flux 电量已经更新好啦～
       canceled: 支付被取消
       error: 哎呀，出错了，请稍后再试
     audit:
@@ -1712,33 +1714,45 @@ pages:
       delayHint: Flux 电量历史记录是缓慢更新的，可能有延迟
       ttsRequests: 请求
     packages:
-      title: Flux 电池包
+      title: 电量补充包
       buy: 充值
-      description: 可以选择购入的 Flux 电池包
+      description: 单次购买，不会过期。
   capacitor:
+    name: Capacitor
+    left: Capacitor 还剩 {percent}
+    offer:
+      none: 还没有 Capacitor
+      day: 订阅一个 Capacitor，它每天自动充满 Flux
+      week: 订阅一个 Capacitor，它每周自动充满 Flux
+      month: 订阅一个 Capacitor，它每月自动充满 Flux
+      hint: 对话和语音先用 Capacitor 里的 Flux。
+    forecast:
+      left: 照现在的用法，到 {time} 大约还剩 {percent}
+      empty: 照现在的用法，大约 {time} 用完
+    empty: Capacitor 已用完。想现在继续聊天，可以打开下方的选项，改用 Flux 余额。
     statusError: 暂时无法获取 Capacitor 的状态，可以之后再试试吗？
     packagesError: 暂时无法获取可用的 Capacitor，可以之后再试试吗？
     preferenceError: 偏好保存失败，请稍后再试。
-    remaining: '剩余 {percent}'
-    ofQuota: 共 {quota} Flux
     rechargesAt: '{date} 充满'
     renewsAt: '{date} 续订'
     expiresAt: '{date} 到期'
-    change: 更换 Capacitor
+    choose: 选一个 Capacitor
+    change: 换一个 Capacitor
+    packagesHint: Capacitor 越大，能聊得越久。没用完的 Flux 不会累积。
     quota:
-      day: '每天 {quota} Flux'
-      week: '每周 {quota} Flux'
-      month: '每月 {quota} Flux'
+      day: '{quota} Flux / 天'
+      week: '{quota} Flux / 周'
+      month: '{quota} Flux / 月'
     perMonth: / 月
-    currentPackage: 当前
-    install: 装配
-    upgrade: 升级
-    downgrade: 降级
+    currentPackage: 使用中
+    install: 订阅这个
+    upgrade: 换成 {name}
+    downgrade: 换成 {name}
     manageSubscription: 管理订阅
-    fallbackToFlux: Capacitor 放空后使用 Flux
-    fallbackToFluxHint: 关闭后，对话和语音会暂停，直到 Capacitor 充满。
+    fallbackToFlux: Capacitor 用完后，改用 Flux 余额
+    fallbackToFluxHint: 关闭后，对话和语音会暂停，直到 Capacitor 再次充满。
     checkout:
-      success: Capacitor 已装配并充满。
+      success: 订阅成功，Capacitor 已充满。
       pending: 已收到付款，Capacitor 稍后充满。
       canceled: 购买被取消
       error: 哎呀，出错了，请稍后再试
@@ -2270,7 +2284,7 @@ pages:
         playground:
           title: 实验平台
       aihubmix:
-        description: https://aihubmix.com (九折优惠)
+        description: aihubmix.com (九折优惠)
     title: 服务来源
   connection:
     description: 配置 WebSocket 服务器连接

@@ -116,14 +116,17 @@ about:
   build-origin: "{time}构建，基于 {branch}{'@'}{commit}"
   common:
     cancel: 取消
+    close: 关闭
   links:
     title: 网址
     home: 首页
     documentation: 文档
   update:
+    settings:
+      title: 更新设置
     auto-download:
       label: 自动下载更新
-      description: 关闭后，只有点击「下载更新」时才会下载更新。
+      description: 关闭后，只有点击「下载」时才会下载更新。
     lane:
       label: 更新频道
       description: 选择更新频道
@@ -137,8 +140,13 @@ about:
       nightly: 每日更新版
       dev: 开发版
     status:
+      title: 应用更新
+      up-to-date: 已是最新版
+      available: 有可用的更新
+      ready: 已准备好安装
       manual-install-required: 新版本 v{version} 需要重新安装。请下载后手动安装。
       downloading: 正在下载更新......
+      download-remaining: 剩余 {duration} · {speed}
       error-prefix: 错误
       latest: 已是最新版（v{version}）
       downloaded:
@@ -158,10 +166,15 @@ about:
       restart-silent: 重新启动以静默更新
       restart-install: 重启并安装更新
       confirm-restart: 确认重新启动
+      whats-new: 更新内容
+      view-changes: 查看代码变更
     dialog:
+      version-available: v{version} 现已可用
+      released-on: 发布于 {date}
       title: 有可用的更新
       description: 有新的 v{version} 版本可用
       no-release-notes-markdown: _无发布日志_
+      view-on-github: 在 GitHub 上查看
     notices:
       admin-required:
         title: 需要管理员权限

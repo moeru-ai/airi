@@ -1,3 +1,21 @@
+background-picker:
+  title: Choose a background
+  add-custom: Add custom background
+  custom: Custom background
+  preview: Preview
+  no-preview: No preview
+  select: Select a background
+  blur: Blur
+  remove: Remove background
+  sampling: Sampling colors…
+  apply: Use this background
+  presets:
+    colorful-wave:
+      label: Colorful Wave
+      description: Animated waves over a cross grid
+    transparent:
+      label: Transparent
+      description: Show the background behind the app view
 character-switcher:
   title: Switch character
   manage: Manage characters
@@ -251,6 +269,12 @@ chat:
     rename-placeholder: Enter a conversation name
     save-rename: Save conversation name
     cancel-rename: Cancel renaming
+    select: Select conversations
+    select-all: Select all
+    clear-selection: Clear selection
+    done-selecting: Done
+    delete-selected: Delete {count}
+    confirm-delete-selected: Confirm delete {count}
 avatar-model-missing:
   title: No model selected
   unavailable-title: This model is not on this device
