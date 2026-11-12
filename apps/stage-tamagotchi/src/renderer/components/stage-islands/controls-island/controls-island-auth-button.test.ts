@@ -5,10 +5,8 @@ import { createApp, h, nextTick, ref } from 'vue'
 
 import ControlsIslandAuthButton from './controls-island-auth-button.vue'
 
-import { electronAuthStartLogin } from '../../../../shared/eventa'
-
 const subscriptions = vi.hoisted(() => ({ on: vi.fn(() => vi.fn()) }))
-const invokes = vi.hoisted(() => ({ startLogin: vi.fn(), openSettings: vi.fn() }))
+const invokes = vi.hoisted(() => ({ startLogin: vi.fn() }))
 
 const authState = {
   isAuthenticated: ref(true),
@@ -35,7 +33,7 @@ vi.mock('@proj-airi/electron-vueuse', () => ({
   useElectronEventaContext: () => ref({
     on: subscriptions.on,
   }),
-  useElectronEventaInvoke: (event: unknown) => event === electronAuthStartLogin ? invokes.startLogin : invokes.openSettings,
+  useElectronEventaInvoke: () => invokes.startLogin,
 }))
 
 vi.mock('vue-i18n', () => ({
@@ -48,6 +46,7 @@ vi.mock('vue-i18n', () => ({
 
 describe('controlsIslandAuthButton', () => {
   const mountedApps: Array<{ app: ReturnType<typeof createApp>, host: HTMLElement }> = []
+  const openSettings = vi.fn()
 
   afterEach(() => {
     for (const { app, host } of mountedApps) {
@@ -59,7 +58,7 @@ describe('controlsIslandAuthButton', () => {
     authState.needsLogin.value = false
     authState.consumeLoginRequest.mockClear()
     invokes.startLogin.mockReset()
-    invokes.openSettings.mockReset()
+    openSettings.mockReset()
     authState.user.value.image = 'https://example.com/broken-avatar.png'
     authState.user.value.id = undefined
     authState.capacitorPercent.value = null
@@ -69,7 +68,7 @@ describe('controlsIslandAuthButton', () => {
     const host = document.createElement('div')
     document.body.appendChild(host)
     const app = createApp({
-      render: () => h(ControlsIslandAuthButton, { active: active.value }),
+      render: () => h(ControlsIslandAuthButton, { active: active.value, onOpenSettings: openSettings }),
     })
     app.mount(host)
     mountedApps.push({ app, host })
@@ -117,7 +116,7 @@ describe('controlsIslandAuthButton', () => {
     const row = host.querySelector<HTMLButtonElement>('[data-testid="controls-island-flux"]')
     expect(row?.textContent).toContain(value)
     row?.click()
-    expect(invokes.openSettings).toHaveBeenCalledWith({ route })
+    expect(openSettings).toHaveBeenCalledWith(route)
   })
 
   it('hides the Flux entry from a signed-out user', () => {

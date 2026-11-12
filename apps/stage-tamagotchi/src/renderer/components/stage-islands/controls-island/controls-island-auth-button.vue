@@ -8,11 +8,12 @@ import { storeToRefs } from 'pinia'
 import { computed, onScopeDispose, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import ControlMenuRow from './control-menu-row.vue'
+
 import {
   electronAuthCallback,
   electronAuthCallbackError,
   electronAuthStartLogin,
-  electronOpenSettings,
 } from '../../../../shared/eventa'
 
 const props = defineProps<{
@@ -21,28 +22,20 @@ const props = defineProps<{
   iconClass?: string
 }>()
 
+const emit = defineEmits<{
+  openSettings: [route: string]
+}>()
+
 const { t } = useI18n()
 const authStore = useAuthStore()
 const { isAuthenticated, user, needsLogin } = storeToRefs(authStore)
 const context = useElectronEventaContext()
 
 const startSigningIn = useElectronEventaInvoke(electronAuthStartLogin)
-const openSettings = useElectronEventaInvoke(electronOpenSettings)
-const { subscribed, low, valueLabel: fluxValue, icon: fluxIcon } = useFluxStatus()
+const { subscribed, low, valueLabel: fluxValue } = useFluxStatus()
+const fluxIcon = computed(() => subscribed.value ? 'i-solar:star-outline' : 'i-solar:battery-charge-outline')
 
 const signingIn = ref(false)
-
-const userName = computed(() => user.value?.name)
-const userAvatar = computed(() => user.value?.image)
-
-function handleClick() {
-  if (isAuthenticated.value) {
-    openSettings({ route: '/settings/account' })
-  }
-  else {
-    doSigningIn()
-  }
-}
 
 function doSigningIn() {
   signingIn.value = true
@@ -76,11 +69,9 @@ watch(isAuthenticated, (val) => {
 
 <template>
   <!-- Signing in state -->
-  <div v-if="signingIn && !isAuthenticated" flex="~ col gap-1.5" mb-1.5>
+  <div v-if="signingIn && !isAuthenticated">
     <div
-      flex="~ items-center gap-3"
-      rounded-xl px-3 py-2.5
-      bg="black/5 dark:white/5"
+      :class="['flex items-center gap-3 rounded-xl bg-black/5 px-3 py-2.5 dark:bg-white/5']"
     >
       <div
         :class="[
@@ -89,77 +80,51 @@ watch(isAuthenticated, (val) => {
           'text-primary-500 dark:text-primary-400',
         ]"
       />
-      <span text="sm neutral-500 dark:neutral-400" truncate>
+      <span :class="['truncate text-sm text-neutral-500 dark:text-neutral-400']">
         {{ t('tamagotchi.stage.controls-island.logging-in') }}
       </span>
     </div>
   </div>
 
   <!-- Authenticated state -->
-  <div v-else-if="isAuthenticated" flex="~ col gap-1.5" mb-1.5>
-    <button
-      type="button"
-      :class="[
-        'flex min-w-0 items-center gap-2.5',
-        'rounded-xl px-2.5 py-2',
-        'bg-transparent hover:bg-black/5 dark:hover:bg-white/5',
-        'transition-colors duration-200',
-        'cursor-pointer border-none outline-none',
-        'w-full text-left',
-        props.buttonStyle,
-      ]"
-      @click="handleClick"
+  <div v-else-if="isAuthenticated" :class="['flex flex-col gap-1.5']">
+    <ControlMenuRow
+      data-testid="controls-island-account"
+      :label="user?.name || t('settings.pages.account.title')"
+      @click="emit('openSettings', '/settings/account')"
     >
-      <Avatar
-        :src="userAvatar"
-        :seed="user?.id"
-        :class="[
-          'size-8 shrink-0 overflow-hidden rounded-full',
-          'bg-primary-100 dark:bg-primary-900/40',
-          'flex items-center justify-center',
-        ]"
-      />
-      <div class="min-w-0 flex flex-1 flex-col items-start gap-0.5">
-        <span
+      <template #leading>
+        <Avatar
+          :src="user?.image"
+          :seed="user?.id"
           :class="[
-            'w-full truncate',
-            'text-sm font-semibold',
-            'text-neutral-800 dark:text-neutral-200',
+            'size-8 flex items-center justify-center rounded-full',
+            'bg-primary-100 dark:bg-primary-900/40',
           ]"
-        >
-          {{ userName }}
-        </span>
-      </div>
-    </button>
+        />
+      </template>
+    </ControlMenuRow>
 
-    <!-- Flux is a first-level entry: the Capacitor for a subscriber, otherwise the Flux balance. -->
-    <button
-      type="button"
+    <ControlMenuRow
       data-testid="controls-island-flux"
-      :class="[
-        'flex items-center gap-2.5 rounded-xl px-3 py-2',
-        'bg-black/4 hover:bg-black/8 dark:bg-white/4 dark:hover:bg-white/8',
-        'text-sm text-neutral-800 dark:text-neutral-200',
-        'cursor-pointer border-none outline-none transition-colors duration-200',
-        'focus-visible:outline-2 focus-visible:outline-primary-500',
-      ]"
-      @click="openSettings({ route: AIRI_FLUX_URL })"
+      :label="t('settings.pages.flux.title')"
+      :icon="fluxIcon"
+      :icon-class="props.iconClass"
+      @click="emit('openSettings', AIRI_FLUX_URL)"
     >
-      <span aria-hidden="true" :class="[fluxIcon, 'size-5 shrink-0 text-primary-500']" />
-      <span :class="['flex-1 text-left']">{{ t('settings.pages.flux.title') }}</span>
       <span
         :class="[
-          'text-xs font-semibold tabular-nums',
-          subscribed && low ? 'text-orange-600 dark:text-orange-300' : 'text-primary-600 dark:text-primary-400',
+          'shrink-0 text-xs font-semibold tabular-nums',
+          subscribed && low ? 'text-orange-600 dark:text-orange-300' : 'text-neutral-600 dark:text-neutral-300',
         ]"
       >
         {{ fluxValue }}
       </span>
-    </button>
+    </ControlMenuRow>
   </div>
 
   <!-- Not authenticated state -->
-  <div v-else mb-1.5>
+  <div v-else>
     <button
       type="button"
       :class="[
@@ -172,16 +137,16 @@ watch(isAuthenticated, (val) => {
         'text-left',
         props.buttonStyle,
       ]"
-      @click="handleClick"
+      @click="doSigningIn"
     >
       <div
-        i-solar:login-3-bold-duotone
         :class="[
+          'i-solar:login-3-bold-duotone',
           props.iconClass ?? 'size-4.5',
           'shrink-0 text-primary-500 dark:text-primary-400',
         ]"
       />
-      <span text="sm primary-600 dark:primary-400" font-medium>
+      <span :class="['text-sm text-primary-600 font-medium dark:text-primary-400']">
         {{ t('tamagotchi.stage.controls-island.login') }}
       </span>
     </button>
