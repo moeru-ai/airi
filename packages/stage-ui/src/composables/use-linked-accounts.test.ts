@@ -202,6 +202,52 @@ describe('useLinkedAccounts pending state', () => {
   })
 })
 
+describe('useLinkedAccounts new sign-in prompt', () => {
+  it.each(['google', 'steam'])('asks for a new sign-in when the %s link answers SESSION_REQUIRED', async (providerId) => {
+    const rejected = vi.fn(async () => ({ data: null, error: { code: 'SESSION_REQUIRED', message: 'Sign in again', status: 403 } }))
+    const holder = await mountLinkedAccounts(fakeLinkedAccountsClient({ linkSocial: rejected, linkSteam: rejected }))
+
+    await holder.link(providerId, providerId)
+
+    expect(rejected).toHaveBeenCalledTimes(1)
+    expect(holder.needsLogin.value).toBe(true)
+    expect(holder.error.value).toBe('sign in again')
+    expect(holder.message.value).toBeNull()
+  })
+
+  it('asks for a new sign-in when unlink answers SESSION_NOT_FRESH', async () => {
+    const holder = await mountLinkedAccounts(fakeLinkedAccountsClient({
+      // Two rows so `isLastSignInMethod` does not stop the unlink.
+      listAccounts: vi.fn(async () => ({
+        data: [
+          { id: '1', accountId: 'a-1', providerId: 'github', createdAt: '2026-01-01T00:00:00Z', scopes: [] },
+          { id: '2', accountId: 'a-2', providerId: 'credential', createdAt: '2026-01-01T00:00:00Z', scopes: [] },
+        ],
+        error: null,
+      })),
+      unlinkAccount: vi.fn(async () => ({ data: null, error: { code: 'SESSION_NOT_FRESH', status: 403 } })),
+    }))
+    await holder.refresh()
+
+    await holder.unlink('github', 'GitHub')
+
+    expect(holder.needsLogin.value).toBe(true)
+    expect(holder.error.value).toBe('sign in again')
+  })
+
+  it('clears the prompt when the next link fails for another reason', async () => {
+    const linkSocial = vi.fn(async () => ({ data: null, error: { code: 'SESSION_REQUIRED', status: 403 } }))
+    const holder = await mountLinkedAccounts(fakeLinkedAccountsClient({ linkSocial }))
+    await holder.link('google', 'Google')
+    linkSocial.mockResolvedValueOnce({ data: null, error: { code: 'PROVIDER_NOT_FOUND', status: 404 } })
+
+    await holder.link('google', 'Google')
+
+    expect(holder.needsLogin.value).toBe(false)
+    expect(holder.error.value).toBe('link failed')
+  })
+})
+
 async function mountLinkedAccounts(client: LinkedAccountsClient) {
   const holder: {
     linkedAccounts?: ReturnType<typeof useLinkedAccounts>
@@ -220,6 +266,7 @@ async function mountLinkedAccounts(client: LinkedAccountsClient) {
           lastAccount: 'last account',
           unlinked: provider => `${provider} unlinked`,
           linkStarted: provider => `${provider} link started`,
+          reauthenticate: 'sign in again',
         },
       })
 

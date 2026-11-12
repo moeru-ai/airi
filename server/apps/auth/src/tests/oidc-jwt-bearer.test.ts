@@ -2,11 +2,12 @@ import type { AuthSession } from '@proj-airi/auth-shared'
 
 import { betterAuth } from 'better-auth'
 import { memoryAdapter } from 'better-auth/adapters/memory'
-import { dispatchAuthEndpoint, listUserAccounts } from 'better-auth/api'
+import { dispatchAuthEndpoint, linkSocialAccount, listUserAccounts } from 'better-auth/api'
 import { bearer, jwt } from 'better-auth/plugins'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { oidcJwtBearer } from '../plugins/oidc-jwt-bearer'
+import { steam } from '../plugins/steam'
 
 /**
  * A token in the compact JWS shape: three base64url parts. The verifier is mocked, so the signature is not real.
@@ -102,7 +103,30 @@ function createPlugin() {
   } as never)
 }
 
-async function runBeforeHook(context: ReturnType<typeof createContext>['context']) {
+/**
+ * Runs one endpoint through Better Auth dispatch with only this plugin, so the
+ * hook receives the same `path` that the HTTP router gives it.
+ */
+async function dispatchWithPlugin(
+  endpoint: Parameters<typeof dispatchAuthEndpoint>[0],
+  context: ReturnType<typeof createContext>['context'],
+  body: Record<string, unknown>,
+) {
+  const logger = { level: 'error', error: vi.fn(), warn: vi.fn() }
+  const result = dispatchAuthEndpoint(endpoint, {
+    body,
+    headers: context.headers,
+    context: {
+      ...context.context,
+      options: { plugins: [createPlugin()] },
+      socialProviders: [],
+      logger,
+    } as never,
+  })
+  return { logger, result }
+}
+
+async function runBeforeHook(context: ReturnType<typeof createContext>['context'] & { path?: string }) {
   const hook = createPlugin().hooks?.before?.[0]
   if (!hook)
     throw new TypeError('Expected the OIDC JWT plugin to register a before hook')
@@ -288,5 +312,50 @@ describe('oidcJwtBearer', () => {
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ success: true })
     expect(db.session).toEqual([expiredSession])
+  })
+
+  it('rejects /link-social for a JWT without an active original session', async () => {
+    const { context } = createContext(null)
+
+    // ROOT CAUSE:
+    //
+    // The request-only identity passed `sessionMiddleware`. A JWT whose
+    // original session had ended was able to link a new sign-in method.
+    //
+    // The plugin now rejects the link paths before the endpoint runs.
+    const { logger, result } = await dispatchWithPlugin(linkSocialAccount, context, {
+      provider: 'github',
+      callbackURL: '/settings/account',
+    })
+
+    await expect(result).rejects.toMatchObject({
+      statusCode: 403,
+      body: { code: 'SESSION_REQUIRED' },
+    })
+    // The endpoint logs a missing provider. No log proves that it did not run.
+    expect(logger.error).not.toHaveBeenCalled()
+  })
+
+  it('rejects /link/steam for a JWT without an active original session', async () => {
+    const { context } = createContext(null)
+    const linkSteam = steam({ webApiKey: '' }).endpoints.linkSteam
+
+    const { logger, result } = await dispatchWithPlugin(linkSteam, context, {
+      callbackURL: '/settings/account',
+    })
+
+    await expect(result).rejects.toMatchObject({
+      statusCode: 403,
+      body: { code: 'SESSION_REQUIRED' },
+    })
+    expect(logger.error).not.toHaveBeenCalled()
+  })
+
+  it.each(['/link-social', '/link/steam'])('lets an active original session reach %s', async (path) => {
+    const { context } = createContext(persistedSession)
+
+    const result = await runBeforeHook({ ...context, path })
+
+    expect(result?.context?.headers?.get('cookie')).toContain('persisted-session-token')
   })
 })
