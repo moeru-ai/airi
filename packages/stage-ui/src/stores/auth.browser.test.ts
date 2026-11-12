@@ -21,18 +21,18 @@ vi.mock('better-auth/vue', async (importOriginal) => {
 
 describe('authentication request ownership', () => {
   let pinia: ReturnType<typeof createPinia>
-  const requests: Array<{ path: string, resolve: (response: Response) => void, reject: (error: Error) => void }> = []
+  const requests: Array<{ path: string, body?: BodyInit | null, resolve: (response: Response) => void, reject: (error: Error) => void }> = []
 
   beforeEach(() => {
     localStorage.clear()
     requests.length = 0
     pinia = createPinia()
     setActivePinia(pinia)
-    vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
       const url = input instanceof Request ? input.url : input.toString()
       if (url.includes('/flux'))
         return Promise.resolve(Response.json({ flux: 0 }))
-      return new Promise((resolve, reject) => requests.push({ path: new URL(url).pathname, resolve, reject }))
+      return new Promise((resolve, reject) => requests.push({ path: new URL(url).pathname, body: init?.body, resolve, reject }))
     })
   })
 
@@ -61,8 +61,8 @@ describe('authentication request ownership', () => {
     }
   }
 
-  async function signIn(id: string) {
-    const result = useAuthStore().completeSignIn({ accessToken: id, refreshToken: `${id}-refresh`, clientId: 'test-client', expiresIn: 3600 })
+  async function signIn(id: string, idToken?: string) {
+    const result = useAuthStore().completeSignIn({ accessToken: id, refreshToken: `${id}-refresh`, idToken, clientId: 'test-client', expiresIn: 3600 })
     await reply('/api/auth/get-session', identity(id))
     await result
   }
@@ -194,19 +194,90 @@ describe('authentication request ownership', () => {
     expect(store.token).toBe('renewed')
   })
 
-  it('does not start credential requests while remote logout is pending', async () => {
+  function fetchInit(path: string): RequestInit | undefined {
+    return vi.mocked(globalThis.fetch).mock.calls.find(([input]) => new URL(input instanceof Request ? input.url : input.toString()).pathname === path)?.[1]
+  }
+
+  // ROOT CAUSE:
+  //
+  // Sign-out waited for every server step before it cleared local state, and no
+  // request had a timeout. A slow or unreachable server kept the user signed in.
+  //
+  // Sign-out now clears local state first and ends the server session in the background.
+  it('clears local state before the server answers sign-out', async () => {
     await signIn('first')
     const store = useAuthStore()
-    const logout = store.signOut()
-    await vi.waitFor(() => expect(requests).toHaveLength(1))
-    const refresh = store.refreshTokenNow()
-    const session = store.fetchSession()
-    await nextTick()
-    expect(requests.map(request => request.path)).toEqual(['/api/auth/sign-out'])
-    expect(await refresh).toBeNull()
-    expect(await session).toBe(false)
+    await store.signOut()
+    expect(store.isAuthenticated).toBe(false)
+    expect(store.token).toBeNull()
+    expect(localStorage.getItem('auth/v1/refresh-token')).toBeNull()
+    expect(requests.map(request => request.path).sort()).toEqual(['/api/auth/oauth2/revoke', '/api/auth/sign-out'])
+    expect(await store.refreshTokenNow()).toBeNull()
+    expect(await store.fetchSession()).toBe(false)
+    expect(requests).toHaveLength(2)
+    await reply('/api/auth/oauth2/revoke', {})
     await reply('/api/auth/sign-out', {})
+  })
+
+  // ROOT CAUSE:
+  //
+  // Sign-out only ended the server session. The refresh grant does not check
+  // the session, so a copied refresh token kept issuing access tokens.
+  //
+  // Sign-out now revokes the refresh token (RFC 7009) and ends the session.
+  it('revokes the refresh token and ends the server session with keepalive requests', async () => {
+    await signIn('first', 'first-id-token')
+    const store = useAuthStore()
+    await store.signOut()
+    expect(requests.map(request => request.path).sort()).toEqual(['/api/auth/oauth2/end-session', '/api/auth/oauth2/revoke'])
+    const revoke = requests.find(request => request.path === '/api/auth/oauth2/revoke')!
+    const body = new URLSearchParams(String(revoke.body))
+    expect(body.get('token')).toBe('first-refresh')
+    expect(body.get('token_type_hint')).toBe('refresh_token')
+    expect(body.get('client_id')).toBe('test-client')
+    // A navigation right after sign-out must not cancel the server steps.
+    expect(fetchInit('/api/auth/oauth2/revoke')?.keepalive).toBe(true)
+    expect(fetchInit('/api/auth/oauth2/end-session')?.keepalive).toBe(true)
+    expect(fetchInit('/api/auth/oauth2/end-session')?.signal).toBeInstanceOf(AbortSignal)
+    await reply('/api/auth/oauth2/revoke', {})
+    await reply('/api/auth/oauth2/end-session', {})
+  })
+
+  it('revokes the rotated refresh token when sign-out starts during a refresh', async () => {
+    await signIn('first', 'first-id-token')
+    const store = useAuthStore()
+    const refresh = store.refreshTokenNow()
+    await vi.waitFor(() => expect(requests.map(request => request.path)).toEqual(['/api/auth/oauth2/token']))
+
+    // The provider deletes every refresh token of the user and client when a
+    // revoked token is revoked again. Sign-out must not send the rotated-out token.
+    const logout = store.signOut()
+    await reply('/api/auth/oauth2/token', { access_token: 'renewed', refresh_token: 'renewed-refresh', expires_in: 3600 })
+    await reply('/api/auth/get-session', identity('first'))
+    await refresh
     await logout
+
+    expect(store.token).toBeNull()
+    const revoke = requests.find(request => request.path === '/api/auth/oauth2/revoke')!
+    expect(new URLSearchParams(String(revoke.body)).get('token')).toBe('renewed-refresh')
+    await reply('/api/auth/oauth2/revoke', {})
+    await reply('/api/auth/oauth2/end-session', {})
+  })
+
+  it('logs server sign-out failures after local state is cleared', async () => {
+    await signIn('first')
+    const store = useAuthStore()
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    await store.signOut()
+    expect(store.isAuthenticated).toBe(false)
+    expect(store.token).toBeNull()
+    expect(localStorage.getItem('auth/v1/refresh-token')).toBeNull()
+    await reply('/api/auth/oauth2/revoke', { error: 'invalid_client' }, 401)
+    await reply('/api/auth/sign-out', {}, 500)
+    await vi.waitFor(() => {
+      expect(errors).toHaveBeenCalledWith('Refresh token revocation failed', 'Token revocation failed: 401')
+      expect(errors).toHaveBeenCalledWith('Server sign-out failed', 'Server sign-out failed: 500')
+    })
   })
 
   it('does not restore credentials when a refresh completes after logout', async () => {
@@ -247,11 +318,13 @@ describe('authentication request ownership', () => {
   it('does not clear a new sign-in when an earlier logout finishes', async () => {
     await signIn('first')
     const store = useAuthStore()
-    const pending = store.signOut()
+    await store.signOut()
     await signIn('second')
+    await reply('/api/auth/oauth2/revoke', {})
     await reply('/api/auth/sign-out', {})
-    await pending
+    await nextTick()
     expect(store.user?.id).toBe('second')
+    expect(store.token).toBe('second')
   })
 
   it('does not prompt for login when an API refresh finishes after logout', async () => {
@@ -349,5 +422,18 @@ describe('authentication request ownership', () => {
     finally {
       vi.unstubAllEnvs()
     }
+  })
+
+  // The refresh flow requests the session while it holds the single-flight refresh.
+  // A 401 refresh on that request waits on the same refresh and never settles.
+  it('does not refresh again when get-session answers 401 during a refresh', async () => {
+    await signIn('first')
+    const store = useAuthStore()
+    const pending = store.refreshTokenNow()
+    await reply('/api/auth/oauth2/token', { access_token: 'renewed', refresh_token: 'renewed-refresh', expires_in: 3600 })
+    await reply('/api/auth/get-session', { message: 'Unauthorized' }, 401)
+    expect(await pending).toBeNull()
+    expect(store.token).toBeNull()
+    expect(requests).toHaveLength(0)
   })
 })

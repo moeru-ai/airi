@@ -3,6 +3,7 @@ import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/el
 import { useStopSpeakingButton } from '@proj-airi/stage-layouts/composables/useStopSpeakingButton'
 import { InboxPanel } from '@proj-airi/stage-ui/components'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
+import { useFluxStatus } from '@proj-airi/stage-ui/composables/use-flux-status'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useInboxStore } from '@proj-airi/stage-ui/stores/inbox'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
@@ -50,7 +51,9 @@ const requestNotice = useElectronEventaInvoke(noticeWindowEventa.openWindow)
 
 // Account: one row at the top, as an app menu shows who is signed in.
 const authStore = useAuthStore()
-const { isAuthenticated, user, needsLogin, credits } = storeToRefs(authStore)
+const { isAuthenticated, user, needsLogin } = storeToRefs(authStore)
+// The Flux line follows the shared rule: the Capacitor percent for a subscriber, otherwise the Flux balance.
+const { subscribed, low, valueLabel: fluxValue, icon: fluxIcon } = useFluxStatus()
 const signingIn = ref(false)
 
 function signIn() {
@@ -207,8 +210,15 @@ const subMenuClasses = [
       />
       <span :class="['min-w-0 flex flex-1 flex-col gap-1']">
         <span :class="['truncate font-semibold']">{{ user?.name }}</span>
-        <span data-testid="controls-island-flux" :class="['text-xs tabular-nums text-neutral-500 dark:text-neutral-400']">
-          {{ credits }} Flux
+        <span
+          data-testid="controls-island-flux"
+          :class="[
+            'flex items-center gap-1 text-xs tabular-nums',
+            subscribed && low ? 'text-orange-600 dark:text-orange-300' : 'text-neutral-500 dark:text-neutral-400',
+          ]"
+        >
+          <span aria-hidden="true" :class="[fluxIcon, 'size-3.5 shrink-0']" />
+          {{ subscribed ? fluxValue : `${fluxValue} Flux` }}
         </span>
       </span>
     </MenuItem>

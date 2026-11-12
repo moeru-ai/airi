@@ -303,9 +303,6 @@ pages:
     login: Sign in
     logout: Sign out
     fluxBalance: Flux Balance
-    viewFluxDetails: View details
-    capacitorEntry: Subscription
-    viewCapacitor: View
     signedInAs: Signed in as
     profile:
       tab: Profile
@@ -334,6 +331,7 @@ pages:
       action:
         link: Link
         unlink: Unlink
+        signInAgain: Sign in again
       message:
         loading: Loading connected accounts...
         unlinked: '{provider} disconnected.'
@@ -346,6 +344,7 @@ pages:
         accountAlreadyLinkedToDifferentUser: This OAuth account is already linked to another AIRI account. Choose a different provider account, or unlink it from the other AIRI account first.
         oauthCallbackFailed: We could not connect this OAuth account. Try again or choose another provider account.
         lastAccount: This is your only sign-in method. Set a password first before unlinking it.
+        reauthenticate: Sign in again before you link or unlink an account.
     sync:
       tab: Sync
       title: Sync
@@ -1678,10 +1677,11 @@ pages:
         json-applied: JSON applied to the form. Click "Save and restart" to persist it to disk.
         restarted: All restarted! {started} started, {failed} failed, {skipped} skipped.
   flux:
-    title: Flux
+    pageTitle: Subscription
+    balance: Balance {balance} Flux
+    title: Subscription
     buy: Charge
     currency: Currency
-    description: Current Flux
     terms: Terms
     privacy: Privacy Policy
     packagesError: Failed to load packages. Please try again later.
@@ -1705,29 +1705,40 @@ pages:
       delayHint: Usage records may be delayed by up to 1 minute
       ttsRequests: requests
     packages:
-      title: Flux Packages
+      title: Flux top-up packs
       buy: Charge
-      description: Flux packages to choose from.
+      description: One-time purchase. It does not expire.
   capacitor:
-    title: Subscription
+    name: Capacitor
+    left: 'Capacitor: {percent} left'
+    offer:
+      none: No Capacitor yet
+      day: Subscribe to a Capacitor. It refills with Flux every day.
+      week: Subscribe to a Capacitor. It refills with Flux every week.
+      month: Subscribe to a Capacitor. It refills with Flux every month.
+      hint: Chat and speech use the Flux in the Capacitor first.
+    forecast:
+      left: At this pace, about {percent} is left at {time}.
+      empty: At this pace, the Capacitor is empty at about {time}.
+    empty: Your Capacitor is empty. To keep chatting now, turn on the option below to use your Flux balance.
     statusError: Failed to load your Capacitor. Please try again later.
     packagesError: Failed to load Capacitors. Please try again later.
     preferenceError: Failed to save preference. Please try again later.
-    remaining: '{percent} left'
-    ofQuota: of {quota} Flux
     rechargesAt: Refills {date}
     renewsAt: Renews {date}
     expiresAt: Ends {date}
-    change: Change subscription
+    choose: Choose a Capacitor
+    change: Change your Capacitor
+    packagesHint: A larger Capacitor lets you chat longer. Unused Flux does not carry over.
     quota:
-      day: '{quota} Flux every day'
-      week: '{quota} Flux every week'
-      month: '{quota} Flux every month'
+      day: '{quota} Flux / day'
+      week: '{quota} Flux / week'
+      month: '{quota} Flux / month'
     perMonth: / month
-    currentPackage: Current
+    currentPackage: In use
     install: Subscribe
-    upgrade: Upgrade
-    downgrade: Downgrade
+    upgrade: Upgrade to {name}
+    downgrade: Downgrade to {name}
     manageSubscription: Manage subscription
     fallbackToFlux: Use your Flux balance when the Capacitor is empty
     fallbackToFluxHint: When off, chat and speech stop until the Capacitor refills.

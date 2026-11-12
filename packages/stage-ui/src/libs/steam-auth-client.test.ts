@@ -57,4 +57,21 @@ describe('steamClient', () => {
     expect(JSON.parse(String((init as RequestInit).body))).toEqual({ callbackURL: '/profile' })
     expect(result.data?.url).toBe('https://steamcommunity.com/openid/login?...')
   })
+
+  it('sends linkSteam through the fetch of one call when the caller passes it', async () => {
+    const clientFetch = vi.fn<typeof fetch>(async () => jsonResponse({}))
+    const callFetch = vi.fn<typeof fetch>(async () => jsonResponse({ url: 'https://steamcommunity.com/openid/login?...' }))
+    const client = createAuthClient({
+      baseURL: 'https://api.airi.test',
+      plugins: [steamClient()],
+      fetchOptions: { customFetchImpl: clientFetch },
+    })
+
+    const result = await client.linkSteam({ callbackURL: '/profile' }, { customFetchImpl: callFetch })
+
+    expect(clientFetch).not.toHaveBeenCalled()
+    expect(callFetch).toHaveBeenCalledTimes(1)
+    expect(JSON.parse(String((callFetch.mock.calls[0]?.[1] as RequestInit).body))).toEqual({ callbackURL: '/profile' })
+    expect(result.data?.url).toBe('https://steamcommunity.com/openid/login?...')
+  })
 })

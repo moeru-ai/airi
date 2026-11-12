@@ -26,6 +26,9 @@ const invokes = vi.hoisted(() => ({
 
 const authState = vi.hoisted(() => ({
   credits: { value: 0 },
+  // The Flux line reads the Capacitor state. Null means no active Capacitor.
+  capacitorPercent: { value: null as number | null },
+  capacitorRechargesAt: { value: null as string | null },
   isAuthenticated: { value: false },
   needsLogin: { value: false },
   sessionVersion: { value: 0 },
@@ -63,6 +66,8 @@ vi.mock('@moeru/eventa', async importOriginal => ({
 vi.mock('@proj-airi/stage-ui/stores/auth', async () => {
   const { reactive, ref } = await import('vue')
   authState.credits = ref(0)
+  authState.capacitorPercent = ref(null)
+  authState.capacitorRechargesAt = ref(null)
   authState.isAuthenticated = ref(false)
   authState.needsLogin = ref(false)
   authState.sessionVersion = ref(0)
@@ -167,6 +172,7 @@ afterEach(() => {
   authState.token.value = null
   authState.user.value = null
   authState.credits.value = 0
+  authState.capacitorPercent.value = null
   localStorage.clear()
 })
 
@@ -266,13 +272,24 @@ describe('controls Island menu account', () => {
     await screen.getByTestId('controls-island-more').click()
     const account = menuItem('controls-island-account')
     await expect.element(account).toHaveTextContent('Airi User')
-    await expect.element(menuItem('controls-island-flux')).toHaveTextContent('1200 Flux')
+    await expect.element(menuItem('controls-island-flux')).toHaveTextContent('1,200 Flux')
     // An account without a picture shows a beam avatar made from its ID.
     expect(account.element().querySelector('[data-beam-avatar]')).not.toBeNull()
 
     await account.click()
 
     expect(invokes.openSettings).toHaveBeenCalledWith({ route: '/settings/account' })
+  })
+
+  it('shows the Capacitor percent instead of the Flux balance for a subscriber', async () => {
+    signIn()
+    authState.capacitorPercent.value = 40
+    const { screen } = mountIsland()
+
+    await screen.getByTestId('controls-island-more').click()
+    const flux = menuItem('controls-island-flux')
+    await expect.element(flux).toHaveTextContent('40%')
+    await expect.element(flux).not.toHaveTextContent('Flux')
   })
 
   it('shows a dot on the more button, a capped count, and the list in a submenu', async () => {
