@@ -10,12 +10,12 @@ import { useSubscription } from '@proj-airi/stage-ui/composables/use-subscriptio
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { Alert, Button, FieldCheckbox, Skeleton } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, onScopeDispose, ref, watch } from 'vue'
+import { computed, onScopeDispose, ref, useId, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import capacitorIcon from '../assets/capacitor.png'
 
-import { capacitorCurve } from './capacitor-usage'
+import { capacitorCurve, CURVE_FULL_Y, CURVE_HEIGHT, CURVE_WIDTH } from './capacitor-usage'
 
 const { t, locale } = useI18n()
 const authStore = useAuthStore()
@@ -117,6 +117,44 @@ const axisLabels = computed(() => {
     : { month: 'short', day: 'numeric' }
   const middle = new Date((startedAt.getTime() + endsAt.getTime()) / 2)
   return [startedAt, middle, endsAt].map(date => formatDate(date, options))
+})
+
+/** The product name and the tier of the current Capacitor. The card draws the tier as a chip. */
+const capacitorTitle = computed(() => {
+  const product = t('settings.pages.capacitor.name')
+  const name = currentPackage.value?.name
+  if (!name)
+    return { product, tier: null }
+  return name.startsWith(`${product} `)
+    ? { product, tier: name.slice(product.length + 1) }
+    : { product: name, tier: null }
+})
+
+const fullLabel = computed(() => new Intl.NumberFormat(locale.value, { style: 'percent' }).format(1))
+
+const gradientId = useId()
+
+type ForecastPlacement = 'aboveRight' | 'aboveLeft' | 'belowLeft'
+
+/** The offset of the forecast from the dot, and the corner that points at the dot. */
+const FORECAST_PLACEMENT: Record<ForecastPlacement, { transform: string, corner: string }> = {
+  aboveRight: { transform: 'translate(14px, calc(-100% - 10px))', corner: 'rounded-bl-sm' },
+  aboveLeft: { transform: 'translate(calc(-100% - 14px), calc(-100% - 10px))', corner: 'rounded-br-sm' },
+  belowLeft: { transform: 'translate(calc(-100% - 14px), 12px)', corner: 'rounded-tr-sm' },
+}
+
+/** The forecast is at most 36% of the card wide. Right of the dot, it fits until the dot passes this part of the width. */
+const FORECAST_RIGHT_LIMIT = 0.6
+
+/**
+ * The forecast follows the dot. It stays on the side of the dot that has room.
+ * On the left, it goes under the line, or over it when the dot is low.
+ */
+const forecastPlacement = computed(() => {
+  const now = curve.value?.now ?? { x: 0, y: 0 }
+  if (now.x <= CURVE_WIDTH * FORECAST_RIGHT_LIMIT)
+    return FORECAST_PLACEMENT.aboveRight
+  return now.y > CURVE_HEIGHT * 0.6 ? FORECAST_PLACEMENT.aboveLeft : FORECAST_PLACEMENT.belowLeft
 })
 
 const forecastLabel = computed(() => {
@@ -274,53 +312,90 @@ async function handleSubscribe(pkg: CapacitorPackage) {
         ]"
       >
         <template v-if="curve">
+          <!-- The level of a full Capacitor. The space above it keeps the line off the top edge of the card. -->
+          <div
+            aria-hidden="true"
+            :style="{ top: `${CURVE_FULL_Y}%` }"
+            :class="['absolute inset-x-0 border-0 border-t border-dashed', 'border-neutral-300 dark:border-neutral-600']"
+          />
+          <span
+            aria-hidden="true"
+            :style="{ top: `calc(${CURVE_FULL_Y}% - 1.375rem)` }"
+            :class="['absolute right-6 text-xs tabular-nums', 'text-neutral-400 dark:text-neutral-500']"
+          >
+            {{ fullLabel }}
+          </span>
           <svg
             data-testid="capacitor-curve"
-            viewBox="0 0 1000 100"
+            :viewBox="`0 0 ${CURVE_WIDTH} ${CURVE_HEIGHT}`"
             preserveAspectRatio="none"
             aria-hidden="true"
-            :class="['absolute inset-0 size-full']"
+            :class="['capacitor-reveal absolute inset-0 size-full', 'text-primary-500 dark:text-primary-400']"
           >
-            <path :d="curve.area" :class="['fill-primary-500/20 dark:fill-primary-400/20']" />
+            <defs>
+              <linearGradient :id="`${gradientId}-fill`" gradientUnits="userSpaceOnUse" x1="0" :y1="CURVE_FULL_Y" x2="0" :y2="CURVE_HEIGHT">
+                <stop offset="0" stop-color="currentColor" stop-opacity="0.34" />
+                <stop offset="1" stop-color="currentColor" stop-opacity="0.05" />
+              </linearGradient>
+              <linearGradient :id="`${gradientId}-line`" gradientUnits="userSpaceOnUse" x1="0" y1="0" :x2="Math.max(curve.now.x, 1)" y2="0">
+                <stop offset="0" stop-color="currentColor" stop-opacity="0.45" />
+                <stop offset="1" stop-color="currentColor" />
+              </linearGradient>
+            </defs>
+            <path :d="curve.area" :fill="`url(#${gradientId}-fill)`" />
             <path
               v-if="curve.projection"
               :d="curve.projection"
               fill="none"
+              stroke="currentColor"
               stroke-width="1.5"
-              stroke-dasharray="4 5"
+              stroke-dasharray="4 6"
               stroke-linecap="round"
+              stroke-opacity="0.8"
               vector-effect="non-scaling-stroke"
-              :class="['stroke-primary-400 dark:stroke-primary-500']"
             />
             <path
               :d="curve.line"
               fill="none"
-              stroke-width="2"
+              :stroke="`url(#${gradientId}-line)`"
+              stroke-width="2.5"
               stroke-linecap="round"
               stroke-linejoin="round"
               vector-effect="non-scaling-stroke"
-              :class="['stroke-primary-500 dark:stroke-primary-400']"
             />
           </svg>
+          <!-- The dot of the current percent, with a ring that pulses. -->
           <span
             aria-hidden="true"
             :style="{ left: `${curve.now.x / 10}%`, top: `${curve.now.y}%` }"
-            :class="[
-              'absolute size-2.5 rounded-full -translate-x-1/2 -translate-y-1/2',
-              'bg-white ring-2 ring-primary-500 dark:bg-neutral-900 dark:ring-primary-400',
-            ]"
-          />
-          <p
-            v-if="forecastLabel"
-            data-testid="capacitor-forecast"
-            :class="[
-              // A narrow card has no room for the forecast beside the curve.
-              'absolute right-6 top-4 hidden max-w-[60%] text-right text-sm sm:block',
-              'text-neutral-600 dark:text-neutral-300',
-            ]"
+            :class="['absolute size-0']"
           >
-            {{ forecastLabel }}
-          </p>
+            <span :class="['capacitor-pulse absolute size-4.5 rounded-full -left-2.25 -top-2.25', 'bg-primary-500 dark:bg-primary-400']" />
+            <span :class="['capacitor-fade absolute size-6.5 rounded-full -left-3.25 -top-3.25', 'bg-primary-400/25']" />
+            <span
+              :class="[
+                'capacitor-pop absolute size-3.25 rounded-full -left-1.625 -top-1.625',
+                'border-2.5 border-solid border-primary-500 bg-white dark:border-primary-400 dark:bg-neutral-900',
+              ]"
+            />
+          </span>
+          <!-- A narrow card has no room for the forecast beside the dot. -->
+          <div
+            v-if="forecastLabel"
+            :style="{ left: `${curve.now.x / 10}%`, top: `${curve.now.y}%`, transform: forecastPlacement.transform }"
+            :class="['absolute z-1 hidden max-w-[36%] sm:block']"
+          >
+            <p
+              data-testid="capacitor-forecast"
+              :class="[
+                'capacitor-rise rounded-xl px-3 py-1.75 text-[13px] leading-snug',
+                forecastPlacement.corner,
+                'bg-white text-neutral-700 shadow-lg shadow-primary-600/15 dark:bg-neutral-900 dark:text-neutral-200',
+              ]"
+            >
+              {{ forecastLabel }}
+            </p>
+          </div>
           <div
             aria-hidden="true"
             :class="[
@@ -343,9 +418,17 @@ async function handleSubscribe(pkg: CapacitorPackage) {
         />
 
         <div :class="[curve ? 'absolute bottom-10 left-7 right-7' : 'relative p-7', 'flex flex-col items-start']">
-          <img :src="capacitorIcon" alt="" :class="['mb-3.5 size-14']">
-          <div :class="['max-w-full truncate text-xs tracking-widest font-mono uppercase', 'text-neutral-500 dark:text-neutral-400']">
-            {{ currentPackage?.name ?? t('settings.pages.capacitor.name') }}
+          <!-- On a narrow card the text wraps to more lines. With the curve, the icon then has no room under the line of a full Capacitor. -->
+          <img :src="capacitorIcon" alt="" :class="['mb-2.5 size-11', curve ? 'hidden sm:block' : '']">
+          <div :class="['max-w-full flex items-center gap-2 text-xs tracking-widest font-mono uppercase', 'text-neutral-500 dark:text-neutral-400']">
+            <span :class="['truncate']">{{ capacitorTitle.product }}</span>
+            <span
+              v-if="capacitorTitle.tier"
+              data-testid="capacitor-tier"
+              :class="['shrink-0 rounded-md px-1.75 py-0.25 text-[11px] text-white', 'bg-primary-500 dark:bg-primary-600']"
+            >
+              {{ capacitorTitle.tier }}
+            </span>
           </div>
           <div
             data-testid="capacitor-percent"
@@ -508,3 +591,81 @@ async function handleSubscribe(pkg: CapacitorPackage) {
     </section>
   </section>
 </template>
+
+<style scoped>
+/* The curve draws from the start of the window to now. Then the dot and the forecast appear. */
+.capacitor-reveal {
+  animation: capacitor-reveal 1.2s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.capacitor-pop {
+  animation: capacitor-pop 0.45s 1s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+
+.capacitor-fade {
+  animation: capacitor-fade 0.4s 1s both;
+}
+
+.capacitor-pulse {
+  animation: capacitor-pulse 2.4s 1.4s ease-out infinite both;
+}
+
+.capacitor-rise {
+  animation: capacitor-rise 0.5s 1.3s both;
+}
+
+@keyframes capacitor-reveal {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes capacitor-pop {
+  from {
+    transform: scale(0);
+  }
+}
+
+@keyframes capacitor-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes capacitor-pulse {
+  0% {
+    opacity: 0.45;
+    transform: scale(0.6);
+  }
+
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(2.6);
+  }
+}
+
+@keyframes capacitor-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .capacitor-reveal,
+  .capacitor-pop,
+  .capacitor-fade,
+  .capacitor-rise {
+    animation: none;
+  }
+
+  .capacitor-pulse {
+    display: none;
+  }
+}
+</style>

@@ -5,7 +5,7 @@ import { capacitorCurve } from './capacitor-usage'
 const day = { startedAt: '2026-03-27T00:00:00.000Z', endsAt: '2026-03-28T00:00:00.000Z' }
 
 describe('capacitorCurve', () => {
-  it('draws each debit as a step and ends at the current percent', () => {
+  it('draws each debit as a smooth drop and ends at the current percent', () => {
     const curve = capacitorCurve({
       ...day,
       records: [
@@ -14,9 +14,9 @@ describe('capacitorCurve', () => {
       ],
     }, 62, new Date('2026-03-27T12:00:00.000Z'))
 
-    expect(curve?.line).toBe('M0 0 H250 V20 H375 V30 H500 V38')
-    expect(curve?.area).toBe('M0 0 H250 V20 H375 V30 H500 V38 V100 H0 Z')
-    expect(curve?.now).toEqual({ x: 500, y: 38 })
+    expect(curve?.line).toBe('M0 24 H220 C235 24 235 39.2 250 39.2 H345 C360 39.2 360 46.8 375 46.8 H470 C485 46.8 485 52.9 500 52.9')
+    expect(curve?.area).toBe('M0 24 H220 C235 24 235 39.2 250 39.2 H345 C360 39.2 360 46.8 375 46.8 H470 C485 46.8 485 52.9 500 52.9 V100 H0 Z')
+    expect(curve?.now).toEqual({ x: 500, y: 52.9 })
   })
 
   it('forecasts the percent that is left at the end of the window', () => {
@@ -24,7 +24,7 @@ describe('capacitorCurve', () => {
 
     // Half of the window used 38 percent, so the other half uses 38 percent more.
     expect(curve?.forecast).toEqual({ kind: 'left', percent: 24 })
-    expect(curve?.projection).toBe('M500 38 L1000 76')
+    expect(curve?.projection).toBe('M500 52.9 L1000 81.8')
   })
 
   it('forecasts the time at which the Capacitor runs out', () => {
@@ -32,7 +32,7 @@ describe('capacitorCurve', () => {
 
     // 60 percent in 6 hours is 10 percent each hour, so 40 percent lasts 4 hours more.
     expect(curve?.forecast).toEqual({ kind: 'empty', at: new Date('2026-03-27T10:00:00.000Z') })
-    expect(curve?.projection).toBe('M250 60 L416.7 100')
+    expect(curve?.projection).toBe('M250 69.6 L416.7 100')
   })
 
   it.each([
@@ -56,7 +56,16 @@ describe('capacitorCurve', () => {
       ],
     }, 80, new Date('2026-03-27T12:00:00.000Z'))
 
-    expect(curve?.line).toBe('M0 0 H250 V20 H500 V20')
+    expect(curve?.line).toBe('M0 24 H220 C235 24 235 39.2 250 39.2 H500')
+  })
+
+  it('drops straight down when a debit has no hold before it', () => {
+    const curve = capacitorCurve({
+      ...day,
+      records: [{ at: '2026-03-27T00:00:00.000Z', percent: 80 }],
+    }, 80, new Date('2026-03-27T12:00:00.000Z'))
+
+    expect(curve?.line).toBe('M0 24 V39.2 H500')
   })
 
   it.each([
