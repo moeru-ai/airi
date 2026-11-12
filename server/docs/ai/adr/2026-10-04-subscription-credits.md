@@ -44,7 +44,7 @@ The server does not select a rule from the webhook event type.
 A webhook only tells the server that a customer changed.
 The server reads the customer's entitlements and calls `BillingService.syncCapacitor`.
 `POST /api/v1/revenuecat/sync` runs the same reconciliation for the signed-in user.
-The client calls it after a purchase and when the Capacitor page opens.
+The client calls it after a purchase and when the Flux page opens.
 Thus a late webhook does not reject the first requests of a new subscriber, and a lost webhook is repaired on the next page visit.
 The route allows 10 calls for each user in one minute, because each call reads RevenueCat.
 The latest purchase wins when two mapped Capacitors are active.
@@ -120,6 +120,12 @@ Windows count from each user's period start, so the client shows this time.
 The percent is `capacitor_flux / capacitor_quota`. It is null without an active Capacitor.
 The cached balance can show the amount before a reset for 60 seconds.
 The response omits Capacitor Flux counts.
+`GET /api/v1/flux/capacitor/usage` returns `startedAt`, `endsAt`, and `records` for the current refill window.
+Each record has `at` and `percent`: the Capacitor percent after one debit. The records are in time order.
+`startedAt` is the last refill. `endsAt` is the next recharge, or the expiry without a reset interval.
+The read lists the latest 500 debits of the window. A due refill that is not written yet gives no records.
+Without an active Capacitor, both times are null and `records` is empty.
+The subscription page draws these records as the curve of the window.
 `PUT /api/v1/flux/fallback` saves `fallbackToFlux`.
 `GET /api/v1/revenuecat/capacitors` returns the configured product ids. This remains a supported read contract.
 `GET /api/v1/revenuecat/catalog` returns each product with its quota, and `CAPACITOR_RESET_INTERVAL`.
@@ -134,6 +140,7 @@ The balance columns of a row describe the bucket in `pool`.
 A refill is a `credit` row in the Capacitor pool. Its `balanceBefore` is the forfeited Capacitor Flux.
 A settlement that uses both buckets writes one `debit` row for each pool.
 Purchased Flux capacity and `GET /flux/history` read only the wallet pool.
+`GET /flux/capacitor/usage` reads only the `debit` rows of the Capacitor pool.
 
 The web purchase SDK cannot replace a subscription in the app.
 A subscriber opens the management URL to change Capacitors.
@@ -199,6 +206,7 @@ flowchart LR
   Client[Client SDK] --> RC
   FluxRoute["GET and PUT /flux"] --> Billing
   FluxRoute --> FluxService[flux.ts]
+  UsageRoute["GET /flux/capacitor/usage"] --> FluxService
 ```
 
 ## Sequence
@@ -216,6 +224,9 @@ sequenceDiagram
   Client->>API: GET /flux
   API->>DB: Read user_flux
   API-->>Client: Balance and capacitor percent
+  Client->>API: GET /flux/capacitor/usage
+  API->>DB: Read user_flux and the Capacitor debits of the window
+  API-->>Client: Window times and percent records
   Client->>API: GET /revenuecat/catalog
   API->>DB: Read ConfigKV catalog and reset interval
   API-->>Client: Products with quotas and reset interval
@@ -245,12 +256,15 @@ server/apps/api/
   src/services/adapters/revenuecat-subscriptions.ts
   src/services/adapters/revenuecat-subscriptions.test.ts
   src/routes/flux/index.ts
+  src/routes/flux/route.test.ts
+  src/services/domain/flux.test.ts
   src/routes/revenuecat/index.ts
   src/routes/revenuecat/route.test.ts
   src/routes/revenuecat/operations/webhook.ts
 packages/stage-ui/src/stores/auth.ts
 packages/stage-ui/src/composables/use-subscription.ts
-packages/stage-pages/src/pages/settings/capacitor.vue
+packages/stage-pages/src/components/capacitor-section.vue
+packages/stage-pages/src/components/capacitor-usage.ts
 ```
 
 ## Test plan
@@ -262,6 +276,8 @@ Run the RevenueCat subscriber client tests for the join of subscription, entitle
 Run the RevenueCat subscription sync tests for Capacitor selection.
 Run the webhook tests for a repeated event, `PRODUCT_CHANGE`, `EXPIRATION`, `TRANSFER`, and a failed read.
 Run the flux route tests for the Capacitor percent and the fallback choice.
+Run the flux route and service tests for the Capacitor usage of a window, a due refill, and no Capacitor.
+Run the client tests for the usage curve and its forecast.
 Run the client test that maps `customerInfo` to the current Capacitor.
 Run the admission test for a due refill with an outstanding fee.
 Run the route tests for the sync of a signed-in user, an anonymous sync, and the product list.

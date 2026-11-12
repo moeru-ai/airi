@@ -18,6 +18,9 @@ const authState = {
   }),
   needsLogin: ref(false),
   credits: ref(9620),
+  // The Flux row reads the Capacitor state. Null means no active Capacitor.
+  capacitorPercent: ref<number | null>(null),
+  capacitorRechargesAt: ref<string | null>(null),
   consumeLoginRequest: vi.fn(async () => {
     authState.needsLogin.value = false
     return true
@@ -38,6 +41,8 @@ vi.mock('@proj-airi/electron-vueuse', () => ({
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
     t: (key: string) => key,
+    // The Flux row formats the balance and the Capacitor percent for this locale.
+    locale: ref('en'),
   }),
 }))
 
@@ -57,6 +62,7 @@ describe('controlsIslandAuthButton', () => {
     invokes.openSettings.mockReset()
     authState.user.value.image = 'https://example.com/broken-avatar.png'
     authState.user.value.id = undefined
+    authState.capacitorPercent.value = null
   })
 
   function mountComponent(active = ref(true)) {
@@ -97,6 +103,28 @@ describe('controlsIslandAuthButton', () => {
       expect(stop).toHaveBeenCalledOnce()
     mountedApps[0]!.host.remove()
     mountedApps.length = 0
+  })
+
+  it.each([
+    { capacitorPercent: null, value: '9,620', route: '/settings/flux' },
+    // The Flux page leads with the Capacitor, so a subscriber opens the same page.
+    { capacitorPercent: 40, value: '40%', route: '/settings/flux' },
+  ])('shows and opens the Flux entry of the current state (Capacitor $capacitorPercent)', async ({ capacitorPercent, value, route }) => {
+    authState.capacitorPercent.value = capacitorPercent
+    const host = mountComponent()
+    await nextTick()
+
+    const row = host.querySelector<HTMLButtonElement>('[data-testid="controls-island-flux"]')
+    expect(row?.textContent).toContain(value)
+    row?.click()
+    expect(invokes.openSettings).toHaveBeenCalledWith({ route })
+  })
+
+  it('hides the Flux entry from a signed-out user', () => {
+    authState.isAuthenticated.value = false
+    const host = mountComponent()
+
+    expect(host.querySelector('[data-testid="controls-island-flux"]')).toBeNull()
   })
 
   it('renders the shared account fallback when no avatar is available', () => {

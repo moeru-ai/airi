@@ -31,6 +31,9 @@ const isOutside = ref(false)
 const openSettings = vi.fn().mockResolvedValue(undefined)
 const authState = vi.hoisted(() => ({
   credits: { value: 0 },
+  // The Flux row reads the Capacitor state. Null means no active Capacitor.
+  capacitorPercent: { value: null as number | null },
+  capacitorRechargesAt: { value: null as string | null },
   isAuthenticated: { value: false },
   needsLogin: { value: false },
   user: { value: null as { createdAt: Date, email: string, emailVerified: boolean, id: string, name: string, updatedAt: Date } | null },
@@ -55,6 +58,8 @@ vi.mock('@moeru/eventa', async importOriginal => ({
 vi.mock('@proj-airi/stage-ui/stores/auth', async () => {
   const { ref } = await import('vue')
   authState.credits = ref(0)
+  authState.capacitorPercent = ref(null)
+  authState.capacitorRechargesAt = ref(null)
   authState.isAuthenticated = ref(false)
   authState.needsLogin = ref(false)
   authState.user = ref(null)
