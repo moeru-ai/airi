@@ -1,5 +1,5 @@
-import type { AnalyticsSurface } from '../libs/product-signals/surface'
 import type { ControlsIslandAction } from '../libs/product-signals/events/controls-island'
+import type { AnalyticsSurface } from '../libs/product-signals/surface'
 import type { SpeechOutputStopReason } from '../stores/speech-output-control'
 
 import { computed } from 'vue'
