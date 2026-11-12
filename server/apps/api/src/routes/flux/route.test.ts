@@ -12,6 +12,11 @@ import { createFluxRoutes } from '.'
 function createMockFluxService(): FluxService {
   return {
     getFlux: vi.fn(async (userId: string) => ({ userId, flux: 42, unsettledMicroFlux: 150_000, fallbackToFlux: false, capacitorPercent: 90, capacitorRechargesAt: null })),
+    getCapacitorUsage: vi.fn(async () => ({
+      startedAt: '2026-03-27T00:00:00.000Z',
+      endsAt: '2026-03-28T00:00:00.000Z',
+      records: [{ at: '2026-03-27T10:00:00.000Z', percent: 62 }],
+    })),
     deleteAllForUser: vi.fn(async () => undefined),
   }
 }
@@ -70,6 +75,27 @@ describe('fluxRoutes', () => {
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ userId: 'user-1', flux: 42, unsettledMicroFlux: 150_000, fallbackToFlux: false, capacitorPercent: 90, capacitorRechargesAt: null })
     expect(flux.getFlux).toHaveBeenCalledWith('user-1')
+  })
+
+  it('returns the capacitor usage of the authenticated wallet', async () => {
+    const flux = createMockFluxService()
+    const app = createTestApp(flux, createMockFluxTransactionService())
+    const response = await app.request('/api/v1/flux/capacitor/usage')
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({
+      startedAt: '2026-03-27T00:00:00.000Z',
+      endsAt: '2026-03-28T00:00:00.000Z',
+      records: [{ at: '2026-03-27T10:00:00.000Z', percent: 62 }],
+    })
+    expect(flux.getCapacitorUsage).toHaveBeenCalledWith('user-1')
+  })
+
+  it('rejects an unauthenticated capacitor usage request', async () => {
+    const flux = createMockFluxService()
+    const app = createTestApp(flux, createMockFluxTransactionService(), false)
+    const response = await app.request('/api/v1/flux/capacitor/usage')
+    expect(response.status).toBe(401)
+    expect(flux.getCapacitorUsage).not.toHaveBeenCalled()
   })
 
   it('clamps integer history pagination', async () => {

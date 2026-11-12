@@ -37,17 +37,20 @@ afterEach(async () => {
   vi.restoreAllMocks()
 })
 
-// U7 made two global OCR calls and one region read. These OS mocks never access a desktop.
+// Check the U7 calls and their names in AUV 0.0.43 before the daemon starts.
 it.each([
-  ['invoke', 'screen.findText', 'first-fixture-marker', '--json', '--detail'],
-  ['invoke', 'screen.findText', 'second-fixture-marker', '--json', '--detail'],
-  ['invoke', 'screen.captureRegion', '--x', '340', '--y', '440', '--width', '320', '--height', '30', '--label', 'challenge-token', '--json'],
-])('u7 refuses unscoped observation %j before daemon startup', async (...argv) => {
+  { argv: ['invoke', 'screen.findText', 'first-fixture-marker', '--json', '--detail'], reason: 'Unrecognized AUV command' },
+  { argv: ['invoke', 'screen.findText', 'second-fixture-marker', '--json', '--detail'], reason: 'Unrecognized AUV command' },
+  { argv: ['invoke', 'screen.captureRegion', '--x', '340', '--y', '440', '--width', '320', '--height', '30', '--label', 'challenge-token', '--json'], reason: 'Unrecognized AUV command' },
+  { argv: ['invoke', 'display.findText', 'first-fixture-marker', '--json', '--detail'], reason: 'trusted observation scope' },
+  { argv: ['invoke', 'display.findText', 'second-fixture-marker', '--json', '--detail'], reason: 'trusted observation scope' },
+  { argv: ['invoke', 'display.captureRegion', '--x', '340', '--y', '440', '--width', '320', '--height', '30', '--json'], reason: 'trusted observation scope' },
+])('refuses unscoped observation $argv before daemon startup', async ({ argv, reason }) => {
   const error = await defineInvoke(renderer.context, computerUseRun)({ argv, attribution }).then(() => undefined, error => error)
   console.info(JSON.stringify({ argv, daemonStarts: external.start.mock.calls.length, dispatches: external.execute.mock.calls.length, error: String(error) }))
   expect(external.start).not.toHaveBeenCalled()
   expect(external.execute).not.toHaveBeenCalled()
-  expect(String(error)).toContain('trusted observation scope')
+  expect(String(error)).toContain(reason)
 })
 
 it.each([...READ_ONLY_COMMANDS])('does not interpret a model target as a grant for %s', async (command) => {

@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import { useFluxStatus } from '@proj-airi/stage-ui/composables/use-flux-status'
+import { AIRI_FLUX_URL } from '@proj-airi/stage-ui/constants/public-links'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { Avatar } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
@@ -21,11 +23,12 @@ const props = defineProps<{
 
 const { t } = useI18n()
 const authStore = useAuthStore()
-const { isAuthenticated, user, needsLogin, credits } = storeToRefs(authStore)
+const { isAuthenticated, user, needsLogin } = storeToRefs(authStore)
 const context = useElectronEventaContext()
 
 const startSigningIn = useElectronEventaInvoke(electronAuthStartLogin)
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
+const { subscribed, low, valueLabel: fluxValue, icon: fluxIcon } = useFluxStatus()
 
 const signingIn = ref(false)
 
@@ -109,6 +112,7 @@ watch(isAuthenticated, (val) => {
     >
       <Avatar
         :src="userAvatar"
+        :seed="user?.id"
         :class="[
           'size-8 shrink-0 overflow-hidden rounded-full',
           'bg-primary-100 dark:bg-primary-900/40',
@@ -125,26 +129,32 @@ watch(isAuthenticated, (val) => {
         >
           {{ userName }}
         </span>
-
-        <!-- Flux balance: horizontal pill -->
-        <div
-          :class="[
-            'flex items-center gap-1',
-            'rounded-md px-1.5 py-0.5',
-            'bg-primary-500/12 dark:bg-primary-400/12',
-            'text-[10px] font-semibold',
-            'text-primary-600 dark:text-primary-400',
-          ]"
-        >
-          <div
-            :class="[
-              'i-solar:battery-charge-bold-duotone',
-              'size-3 shrink-0',
-            ]"
-          />
-          <span class="whitespace-nowrap leading-tight">{{ credits }} Flux</span>
-        </div>
       </div>
+    </button>
+
+    <!-- Flux is a first-level entry: the Capacitor for a subscriber, otherwise the Flux balance. -->
+    <button
+      type="button"
+      data-testid="controls-island-flux"
+      :class="[
+        'flex items-center gap-2.5 rounded-xl px-3 py-2',
+        'bg-black/4 hover:bg-black/8 dark:bg-white/4 dark:hover:bg-white/8',
+        'text-sm text-neutral-800 dark:text-neutral-200',
+        'cursor-pointer border-none outline-none transition-colors duration-200',
+        'focus-visible:outline-2 focus-visible:outline-primary-500',
+      ]"
+      @click="openSettings({ route: AIRI_FLUX_URL })"
+    >
+      <span aria-hidden="true" :class="[fluxIcon, 'size-5 shrink-0 text-primary-500']" />
+      <span :class="['flex-1 text-left']">{{ t('settings.pages.flux.title') }}</span>
+      <span
+        :class="[
+          'text-xs font-semibold tabular-nums',
+          subscribed && low ? 'text-orange-600 dark:text-orange-300' : 'text-primary-600 dark:text-primary-400',
+        ]"
+      >
+        {{ fluxValue }}
+      </span>
     </button>
   </div>
 

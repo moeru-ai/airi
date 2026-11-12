@@ -309,7 +309,7 @@ export function useSettingsNeedsAttention() {
 
   /**
    * The row that selects the provider of a module selection. A character keeps its own selection, and its editor shows
-   * and changes it, also for the active character. The module pages show the selection of the running modules instead.
+   * and changes it, also for the active character. The module pages show the global defaults instead.
    */
   function providerRowOf(characterId: string | undefined, module: Module) {
     return characterId === undefined

@@ -105,9 +105,8 @@ const recordings = new Map<string, Promise<ReturnType<typeof startRecording> | u
 let listening: VoicePluginHandle | undefined
 let monitoringStartup: AbortController | undefined
 const { controller, state: inputState, snapshot, error: transcriptionPipelineError } = useVoiceController({
-  transcriber: () => {
+  transcriber: ({ inputId: id }) => {
     const transcriber = hearingStore.createTranscriber()
-    const id = controller.activeInput!.id
     return { transcribe: (request) => {
       const [audio, preview] = request.audio.tee()
       recordings.set(id, encodeWav(preview, { sampleRate: 16000, channels: 1 }, request.signal).then(startRecording, () => undefined))

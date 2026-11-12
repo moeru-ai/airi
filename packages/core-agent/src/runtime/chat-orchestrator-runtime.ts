@@ -331,7 +331,10 @@ export interface ChatOrchestratorRuntimeDeps {
    * With it, history carries no identity. Stored system messages are skipped, so a persona edit or switch reaches the next send of its own sessions only.
    */
   getSystemPrompt?: (sessionId: string) => string | undefined
-  /** Returns the message limit, including current input. `-1` keeps all history. `0` sends only current input. System messages are exempt. */
+  /**
+   * Returns the conversation turn limit, including the current input's turn. A turn contains a user group and its assistant/tool group.
+   * `-1` keeps all history. `0` sends only current input. System messages are exempt.
+   */
   getContextWindow?: (sessionId: string) => number | undefined
   /** Runtime context providers ingested immediately before prompt composition. */
   runtimeContextProviders?: Array<() => ContextMessage | null | undefined>
@@ -653,28 +656,48 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     }
 
     const systemMessages = history.filter(message => message.role === 'system')
-    const messages = history.filter(message => message.role !== 'system')
-    const previous = historyCuts.get(sessionId)
-    let start = previous?.limit === contextWindow && previous.generation === generation
-      ? messages.findIndex(message => previous.start.id ? message.id === previous.start.id : message === previous.start)
-      : 0
-    start = Math.max(0, start)
-
-    if (messages.length - start > contextWindow) {
-      // Leave room for new messages before the next trim. Current input is retained even when the limit is zero.
-      const retainedLength = Math.max(1, Math.floor(contextWindow * 0.9))
-      start = Math.max(0, messages.length - retainedLength)
+    if (contextWindow === 0) {
+      historyCuts.delete(sessionId)
+      const currentInput = history.findLast(message => message.role === 'user')
+      return currentInput ? [...systemMessages, currentInput] : systemMessages
     }
-    // A user boundary excludes orphaned assistant replies and tool results from the beginning of the request.
-    while (start < messages.length && messages[start]?.role !== 'user')
-      start++
 
-    const anchor = messages[start]
-    if (anchor)
-      historyCuts.set(sessionId, { limit: contextWindow, generation, start: anchor })
+    const previous = historyCuts.get(sessionId)
+    const anchor = previous?.limit === contextWindow && previous.generation === generation ? previous.start : undefined
+    const turnStarts: number[] = []
+    let userStart: number | undefined
+    let reachedAnchor = false
+
+    // Scan newest turns only, up to the cached boundary or one turn beyond the limit.
+    // Deletions can join role groups across that boundary, so finish the whole user group before stopping.
+    for (let index = history.length - 1; index >= 0; index--) {
+      const message = history[index]!
+      if (message.role === 'user') {
+        userStart = index
+        if (anchor && (anchor.id ? message.id === anchor.id : message === anchor))
+          reachedAnchor = true
+      }
+      else if ((message.role === 'assistant' || message.role === 'tool') && userStart !== undefined) {
+        turnStarts.push(userStart)
+        userStart = undefined
+        if (reachedAnchor || turnStarts.length > contextWindow)
+          break
+      }
+    }
+    if (userStart !== undefined)
+      turnStarts.push(userStart)
+
+    // Round up to keep small windows full. Only complete turns leave the retained prefix.
+    const retainedTurns = Math.ceil(contextWindow * 0.9)
+    const start = turnStarts.length > contextWindow
+      ? turnStarts[retainedTurns - 1]!
+      : turnStarts.at(-1) ?? history.length
+    const nextAnchor = history[start]
+    if (nextAnchor)
+      historyCuts.set(sessionId, { limit: contextWindow, generation, start: nextAnchor })
     else
       historyCuts.delete(sessionId)
-    return [...systemMessages, ...messages.slice(start)]
+    return [...systemMessages, ...history.slice(start).filter(message => message.role !== 'system')]
   }
 
   async function performSend(

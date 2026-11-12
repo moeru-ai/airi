@@ -31,6 +31,7 @@ import { composeDrawCardPrompt } from '../tools/draw-card'
 import { composeMemoryPrompt } from '../tools/memory'
 import { useChatStore } from './chat'
 import { CHAT_FORMAT_RULES } from './chat/prompt-recipe'
+import { characterMembersOfMeta } from './chat/session-members'
 import { useContextObservabilityStore } from './devtools/context-observability'
 import { useMemoryStore } from './memory'
 import { useConsciousnessSettingsStore } from './modules/consciousness-settings'
@@ -69,7 +70,7 @@ const persistSessionMessagesMock = vi.fn()
 const forkSessionMock = vi.fn()
 const createSessionMock = vi.fn()
 const loadSessionMock = vi.fn()
-const deleteSessionMock = vi.fn()
+const deleteSessionsMock = vi.fn()
 const initializeSessionMock = vi.fn()
 const disposeSessionMock = vi.fn()
 const ensureCurrentSessionMock = vi.fn()
@@ -132,6 +133,9 @@ vi.mock('./modules/vision', () => ({
     get configured() {
       return visionMocks.configured
     },
+    get enabled() {
+      return visionMocks.configured
+    },
     activeProvider: 'apple-vision',
     get activeModel() {
       return visionMocks.model
@@ -152,6 +156,7 @@ vi.mock('./chat/session-store', () => ({
     activeSessionId: activeSessionIdRef,
     sessionMessages,
     sessionMetas,
+    characterMembersOf: (sessionId: string) => characterMembersOfMeta(sessionMetas[sessionId]),
     storeMessage: async (sessionId: string, message: ChatHistoryItem & { id: string }) => {
       const messages = sessionMessages[sessionId] ?? []
       const index = messages.findIndex(item => item.id === message.id)
@@ -177,7 +182,7 @@ vi.mock('./chat/session-store', () => ({
     getSessionMessages: (sessionId: string) => sessionMessages[sessionId] ?? [],
     getSessionMessagesIfLoaded: (sessionId: string) => sessionMessages[sessionId],
     loadSession: loadSessionMock,
-    deleteSession: deleteSessionMock,
+    deleteSessions: deleteSessionsMock,
     initialize: initializeSessionMock,
     dispose: disposeSessionMock,
     ensureCurrentSession: ensureCurrentSessionMock,
@@ -225,6 +230,12 @@ vi.mock('./ai/chat-llm/toolset-prompts', () => ({
   }),
 }))
 
+// The chat vision decision reads the catalog of the chat provider of the session character.
+vi.mock('./providers/provider', async (importOriginal) => {
+  const original = await importOriginal<typeof import('./providers/provider')>()
+  return { ...original, useProviderStore: () => ({ getModelsForProvider: () => consciousnessModels.value }) }
+})
+
 vi.mock('./modules/consciousness', () => ({
   useConsciousnessStore: defineStore('consciousness', () => ({
     activeModel: activeModelRef,
@@ -245,10 +256,10 @@ vi.mock('./modules/airi-card', () => ({
     activeCard: undefined,
     activeCardId: 'default',
     getSystemPrompt: () => cardPrompt.value,
-    getCard: () => undefined,
+    getCard: () => ({ extensions: { airi: {} } }),
     getModules: (id: string) => ({
       consciousness: cardSelections.get(id) ?? { provider: activeProviderRef.value, model: activeModelRef.value },
-      vision: { provider: visionMocks.configured ? 'vision-provider' : '', model: visionMocks.configured ? 'vision-model' : '' },
+      vision: { provider: visionMocks.configured ? 'vision-provider' : '', model: visionMocks.configured ? visionMocks.model : '' },
     }),
   }),
 }))
@@ -365,7 +376,7 @@ describe('chat store contract', () => {
       sessionMessages[sessionId] = []
       return sessionId
     })
-    deleteSessionMock.mockReset().mockResolvedValue(undefined)
+    deleteSessionsMock.mockReset().mockResolvedValue(undefined)
     initializeSessionMock.mockReset().mockResolvedValue(undefined)
     disposeSessionMock.mockReset()
     ensureCurrentSessionMock.mockReset().mockResolvedValue('session-1')
@@ -638,6 +649,44 @@ describe('chat store contract', () => {
     ]))
     expect(requests[1]?.turns.findLast(turn => turn.type === 'user')?.content).toEqual(expect.arrayContaining([
       { type: 'text', text: 'spoken words' },
+    ]))
+    expect(requests[1]?.turns.findLast(turn => turn.type === 'user')?.content).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'audio' }),
+    ]))
+  })
+
+  it('sends audio over Responses only to an endpoint that accepts it', async () => {
+    cardSelections.set('alice', { provider: 'mock-provider', model: 'audio-model' })
+    consciousnessModels.value = [{ id: 'audio-model', inputModalities: ['text', 'audio'], metadata: {} }]
+    const requests: Conversation[] = []
+    llmStreamMock.mockImplementation(async (model: string, chatProvider: GenerationProvider, context: Conversation, options: LlmStreamOptions) => {
+      requests.push(await options.prepareConversation!(context, {
+        model,
+        providerId: options.providerId,
+        request: chatProvider.generation(model),
+        scope: model,
+        measureContextBytes: value => new TextEncoder().encode(JSON.stringify(conversationToChatMessages(value))).byteLength,
+      }))
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    const store = useChatStore()
+    for (const baseURL of ['https://openrouter.ai/api/v1', 'https://api.openai.com/v1']) {
+      getChatProviderInstanceMock.mockResolvedValueOnce({
+        generation: (model: string) => ({ protocol: 'responses', webSearch: false, config: { model, baseURL } }),
+      } satisfies GenerationProvider)
+      await store.send({
+        sessionId: 'session-1',
+        text: '',
+        attachments: [{ type: 'audio', mimeType: 'audio/wav', data: 'UklGRg==', transcript: 'spoken words' }],
+      })
+    }
+
+    expect(requests).toHaveLength(2)
+    expect(requests[0]?.turns.findLast(turn => turn.type === 'user')?.content).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'audio' }),
+    ]))
+    expect(requests[1]?.turns.findLast(turn => turn.type === 'user')?.content).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'text', text: expect.stringContaining('spoken words') }),
     ]))
     expect(requests[1]?.turns.findLast(turn => turn.type === 'user')?.content).not.toEqual(expect.arrayContaining([
       expect.objectContaining({ type: 'audio' }),
@@ -1012,6 +1061,8 @@ describe('chat store contract', () => {
     // stayed a proxy, and `structuredClone` rejected the send result.
     expect(() => structuredClone(result)).not.toThrow()
     expect(visionMocks.runInference).toHaveBeenCalledOnce()
+    // The read uses the vision selection of the session character, not the selection of the vision store.
+    expect(visionMocks.runInference).toHaveBeenCalledWith(expect.objectContaining({ selection: { provider: 'vision-provider', model: visionMocks.model } }))
     expect(sessionMessages['session-1'].find(message => message.role === 'user' && Array.isArray(message.content))?.imageDescriptions).toEqual([
       {
         description: 'A red square.',
@@ -1127,7 +1178,7 @@ describe('chat store contract', () => {
     await store.send({ sessionId: 'session-1', text: 'Look at my screen' })
 
     expect(await toolImageReaders[0]?.('data:image/png;base64,aW1hZ2U=')).toBe('A settings window.')
-    expect(visionMocks.runInference).toHaveBeenCalledWith(expect.objectContaining({ workloadId: 'tool:image' }))
+    expect(visionMocks.runInference).toHaveBeenCalledWith(expect.objectContaining({ workloadId: 'tool:image', selection: { provider: 'vision-provider', model: visionMocks.model } }))
   })
 
   it('stores the description of an image that a rerun tool returns', async () => {
@@ -2060,7 +2111,7 @@ describe('chat store contract', () => {
         releaseFirstSend = resolve
       })
     })
-    deleteSessionMock.mockImplementationOnce(async () => {
+    deleteSessionsMock.mockImplementationOnce(async () => {
       currentGeneration += 1
       delete sessionMessages['session-1']
     })
@@ -2091,7 +2142,7 @@ describe('chat store contract', () => {
     })
     await store.deleteSession('session-1')
 
-    expect(deleteSessionMock).toHaveBeenCalledWith('session-1')
+    expect(deleteSessionsMock).toHaveBeenCalledWith(['session-1'])
     expect(await queuedOutcome).toBe('Chat session was reset before send could start')
     expect(sessionMessages['session-1']).toBeUndefined()
 

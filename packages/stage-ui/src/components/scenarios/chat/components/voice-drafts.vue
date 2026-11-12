@@ -64,7 +64,7 @@ const draft = computed(() => {
 })
 
 function nameOf(sessionId: string) {
-  const characterId = sessions.sessionMetas[sessionId]?.characterId
+  const [characterId] = sessions.characterMembersOf(sessionId)
   return (characterId ? cards.getCard(characterId)?.name : undefined) ?? sessions.sessionMetas[sessionId]?.title
 }
 

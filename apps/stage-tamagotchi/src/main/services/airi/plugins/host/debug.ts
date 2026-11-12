@@ -79,6 +79,7 @@ export function buildPluginHostDebugSnapshot(options: {
       id: session.id,
       extensionId: session.manifest.id,
       phase: session.phase,
+      missingKitIds: [...session.missingKitIds],
       runtime: session.runtime ?? 'electron',
       moduleId: session.extension.id,
     })),

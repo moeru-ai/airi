@@ -55,7 +55,7 @@ export function setupComputerUse(
   defineInvokeHandler(context, computerUseRun, (input, ctx) => {
     const sender = caller(ctx)
     const command = classifyAuvCommand(input.argv)
-    // No trusted grant exists yet. AUV 0.0.40 cannot bind capture to an expected window lifecycle.
+    // A trusted grant needs a capture contract that binds the expected window lifetime.
     // Reject every native observation before the queue or daemon. Help never observes a window.
     if (command.category === 'read_only' && !command.isHelp)
       throw new ComputerUseExecutionError('A trusted observation scope is required. Native observation is unavailable until window lifecycle binding is supported.', { executionState: 'not_executed', argv: input.argv })

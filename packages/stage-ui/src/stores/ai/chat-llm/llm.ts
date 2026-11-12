@@ -31,7 +31,6 @@ export const useLLM = defineStore('llm', () => {
 
   async function stream(model: string, chatProvider: GenerationProvider, context: Conversation, options?: LlmStreamOptions) {
     // Compatibility belongs to the model that received the failing request.
-    // `prepareConversation` runs for every resolved request, so the key follows a step that changes the model.
     let key = modelKey(model, chatProvider.generation(model))
     let toolExecutionStarted = false
     const { tools: customTools, describeToolImage, taskTools, ...streamOptions } = options ?? {}
@@ -59,7 +58,14 @@ export const useLLM = defineStore('llm', () => {
         ...(taskTools ? { providerTools: false } : {}),
         // Core uses only the tools of a resolved step, so each step carries the complete tool list.
         resolveStep: resolveStep
-          ? async () => ({ ...await resolveStep(), tools: await resolveTools() })
+          ? async () => {
+            const step = await resolveStep()
+            const tools = await resolveTools()
+            const request = step.chatProvider.generation(step.model)
+            // SDK setup can fail before the request projection runs.
+            key = modelKey(step.model, request)
+            return { ...step, chatProvider: { generation: () => request }, tools }
+          }
           : undefined,
         prepareConversation: async (conversation, target) => {
           key = modelKey(target.model, target.request)

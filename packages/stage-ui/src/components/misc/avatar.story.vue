@@ -18,5 +18,10 @@ const logoUrl = `${import.meta.env.BASE_URL}logo.svg`
         </Avatar>
       </div>
     </Variant>
+    <Variant id="beam" title="Generated beam fallback">
+      <div :class="['flex items-center gap-4 p-4']">
+        <Avatar v-for="seed in ['user-1', 'user-2', 'user-3', 'user-4']" :key="seed" :seed="seed" :alt="seed" :class="['size-16 rounded-full']" />
+      </div>
+    </Variant>
   </Story>
 </template>

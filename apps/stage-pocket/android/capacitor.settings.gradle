@@ -11,5 +11,8 @@ project(':capacitor-barcode-scanner').projectDir = new File('../../../node_modul
 include ':capacitor-local-notifications'
 project(':capacitor-local-notifications').projectDir = new File('../../../node_modules/.pnpm/@capacitor+local-notifications@8.0.2_@capacitor+core@8.3.1/node_modules/@capacitor/local-notifications/android')
 
+include ':sentry-capacitor'
+project(':sentry-capacitor').projectDir = new File('../../../node_modules/.pnpm/@sentry+capacitor@4.5.0_@capacitor+core@8.6.0/node_modules/@sentry/capacitor/android')
+
 include ':capacitor-native-settings'
 project(':capacitor-native-settings').projectDir = new File('../../../node_modules/.pnpm/capacitor-native-settings@8.1.0_@capacitor+core@8.3.1/node_modules/capacitor-native-settings/android')

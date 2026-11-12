@@ -39,24 +39,24 @@ The selected request receives `computer_use` and `computer_use_read_image`.
 The first tool accepts AUV arguments for command help.
 Use `["invoke", "--help"]` and command-specific help to discover supported operations.
 Native observation, screenshot reads, and history previews are currently denied without trusted observation scope and capture provenance.
-AUV 0.0.40 cannot bind capture to the approved window lifecycle. Window titles and model-supplied targets do not grant access.
+Trusted window capture requires lifecycle binding at dispatch. Window titles and model-supplied targets do not grant access.
 The MCP AUV observation adapter is also disabled. Terminal approval and execution remain independent.
 This containment does not establish admission for visual tasks. See `docs/ai/adr/2026-11-09-native-observation-admission.md`.
-With **Use the vision model for tool images** on, the vision model reads the screenshot first for a chat model whose provider does not report image input.
-The chat model then gets a text description. It has the visible text and layout, but no pixel positions.
-Use AUV commands such as `screen.findText` to get coordinates.
 
-Electron starts the matching AUV SDK and CLI 0.0.16 on demand, over a private Unix socket or Windows named pipe.
+Electron starts a private AUV daemon with the matching AUV SDK and CLI 0.0.43 on demand, over a private Unix socket or Windows named pipe.
+Each CLI call runs its command on that daemon. The CLI and the daemon both write their traces and artifacts to the same store.
 It serializes commands across windows, stores artifacts under the app's user-data directory, and stops the daemon during app shutdown.
 The CLI runs without a shell. Model arguments cannot change the device, endpoint, run, or storage root.
 Nonzero exits retain AUV output and failure details as tool errors. A zero exit code does not prove that the intended UI change occurred.
 
-On macOS, grant Accessibility and Screen Recording permissions to the launching app when the OS requests them.
-Some application actions also need Automation permission. If `app.probePermissions` reports missing screen-recording permission, a capture can contain only the desktop background despite exit code zero. Available commands depend on the OS and AUV backend.
+On macOS, grant Accessibility and Screen Recording permissions to AIRI when the OS requests them.
+The packaged app is its own TCC responsible process, also when a terminal or Steam starts it.
+A development run uses the permissions of the terminal that starts it.
+Some application actions also need Automation permission. Available commands depend on the OS and AUV backend.
 Use this feature for local native applications. It does not expose a remote-device gateway or replace the separate `services/computer-use-mcp` service.
 
 The desktop package includes the platform CLI as an optional dependency and unpacks its executable from ASAR.
-Do not omit optional dependencies when building an installer. Windows ARM64 and Linux musl do not have a matching CLI in this version.
+Do not omit optional dependencies when building an installer. Linux musl does not have a matching CLI in this version.
 
 ## Fullscreen workspace
 

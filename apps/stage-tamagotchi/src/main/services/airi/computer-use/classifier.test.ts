@@ -72,9 +72,9 @@ describe('classifyAuvCommand', () => {
 
   describe('prefix discrimination (no naive prefix matching)', () => {
     it('discriminates screen.* commands', () => {
-      expect(classifyAuvCommand(['invoke', 'screen.findText']).category).toBe('read_only')
-      expect(classifyAuvCommand(['invoke', 'screen.waitForText']).category).toBe('read_only')
-      expect(classifyAuvCommand(['invoke', 'screen.captureRegion']).category).toBe('read_only')
+      expect(classifyAuvCommand(['invoke', 'display.findText']).category).toBe('read_only')
+      expect(classifyAuvCommand(['invoke', 'display.waitForText']).category).toBe('read_only')
+      expect(classifyAuvCommand(['invoke', 'display.captureRegion']).category).toBe('read_only')
       expect(classifyAuvCommand(['invoke', 'screen.clickText']).category).toBe('mutating')
     })
 
@@ -94,12 +94,12 @@ describe('classifyAuvCommand', () => {
     })
 
     it('discriminates app.* commands', () => {
-      expect(classifyAuvCommand(['invoke', 'app.probePermissions']).category).toBe('read_only')
+      expect(classifyAuvCommand(['invoke', 'permission.probe']).category).toBe('read_only')
       expect(classifyAuvCommand(['invoke', 'app.activate']).category).toBe('mutating')
     })
 
     it('discriminates mediaControl.* commands', () => {
-      expect(classifyAuvCommand(['invoke', 'mediaControl.nowPlaying']).category).toBe('read_only')
+      expect(classifyAuvCommand(['invoke', 'media.getNowPlaying']).category).toBe('read_only')
       expect(classifyAuvCommand(['invoke', 'mediaControl.play']).category).toBe('mutating')
       expect(classifyAuvCommand(['invoke', 'mediaControl.pause']).category).toBe('mutating')
     })

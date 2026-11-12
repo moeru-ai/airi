@@ -60,14 +60,10 @@ async function selectProvider(provider: string) {
     visionStore.enabled = false
     return
   }
-  await airiCardStore.selectActiveCardVisionProvider(provider)
+  await visionStore.selectProvider(provider)
 }
 
 const selectedProvider = computed(() => visionStore.enabled ? activeProvider.value : '')
-
-async function persistSelection() {
-  await airiCardStore.updateActiveCardVision({ provider: activeProvider.value, model: activeModel.value })
-}
 
 function updateCustomModelName(value: string) {
   customModelName.value = value
@@ -310,7 +306,6 @@ function formatRelativeTime(timestamp: number | null) {
             :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
             :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
             expanded-class="mb-12"
-            @update:model-value="persistSelection"
             @update:custom-value="updateCustomModelName"
           />
         </template>
@@ -351,7 +346,6 @@ function formatRelativeTime(timestamp: number | null) {
               'dark:bg-neutral-900',
             ]"
             :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
-            @input="persistSelection"
           >
         </div>
       </div>

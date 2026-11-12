@@ -73,6 +73,12 @@ Runtime context keeps one bucket per writer. `replace-self` replaces the writer'
 
 ## Turn history
 
+`getContextWindow` limits conversation turns, including the current input's turn. Each turn contains a user group and its assistant replies and tool exchanges.
+Consecutive messages from the same role stay together, including groups joined by manual deletion. System messages do not count toward the limit.
+When the limit is exceeded, the newest `ceil(limit * 0.9)` turns remain. The retained start stays fixed until the limit is exceeded again.
+The runtime scans backward through the needed turns instead of rebuilding an index for all saved history on each send.
+An omitted limit or `-1` keeps all history. `0` sends only the current input and system messages. Saved chat records stay intact.
+
 After all SDK steps settle, `onGeneratedTurn` receives the new `AssistantTurn`. Each round records model usage, its finish reason, tool invocations, and native continuation data. SDK input snapshots define round boundaries; message roles do not define runtime rounds.
 
 The generated turn contains settled rounds and is stored under the existing `generationTranscript` history key. Live deltas still use the existing stream event contract. An interrupted execution does not store a generated turn. If it produced visible output, local Chat history preserves that output with `interrupted: true` so the user can read and retry it.
@@ -170,7 +176,7 @@ src/voice/
 ```ts
 const voice = new VoiceController({
   audio,
-  transcriber: sessionId => hearingFor(sessionId),
+  transcriber: ({ inputId, sessionId }) => hearingFor(sessionId, inputId),
   submit: (input, signal) => saveDraftOrSubmit(input, signal),
   speech: turn => speechOutputFor(turn),
   recordInterruption: event => agent.receiveInterruption(event),
@@ -194,6 +200,7 @@ const result = await input.end()
 - `audio` is a shared `AudioInput`. Attempts and plugins subscribe to it. The controller never closes it.
 - `replaceAudio(input)` cancels active attempts and moves plugin observations to the new input.
 - A transcriber receives continuous PCM. An adapter that needs a file or a MediaStream converts the PCM itself.
+- After `end()`, the provider must close its transcript within `transcriptionTimeoutMs` (30 s by default). Otherwise the input fails at the `transcription` stage.
 
 ### Trusted plugins
 

@@ -20,28 +20,29 @@ interface OfficialSpeechOptions {
 }
 
 describe('official chat provider', () => {
-  it('defaults new and existing empty configurations to Chat Completions', async () => {
+  it('defaults a new configuration to Responses with native Web Search', async () => {
     const schema = await providerOfficialChat.createProviderConfig({ t: key => key })
-    expect(z.parse(schema, {})).toEqual({ api: 'chat-completions' })
+    expect(z.parse(schema, {})).toEqual({ api: 'responses' })
 
     const provider = await providerOfficialChat.createProvider({})
     if (!isGenerationProvider(provider))
       throw new Error('Expected generation')
 
     expect(provider.generation('auto')).toMatchObject({
-      protocol: 'chat-completions',
+      protocol: 'responses',
+      webSearch: true,
       config: { model: 'auto' },
     })
   })
 
-  it('enables native Web Search when the user selects Responses', async () => {
-    const provider = await providerOfficialChat.createProvider({ api: 'responses' })
+  // A device that used the provider before keeps the protocol in its saved configuration, so the new default does not change it.
+  it('keeps Chat Completions for a configuration that saved it', async () => {
+    const provider = await providerOfficialChat.createProvider({ api: 'chat-completions' })
     if (!isGenerationProvider(provider))
       throw new Error('Expected generation')
 
     expect(provider.generation('auto')).toMatchObject({
-      protocol: 'responses',
-      webSearch: true,
+      protocol: 'chat-completions',
       config: { model: 'auto' },
     })
   })
@@ -54,8 +55,8 @@ describe('official chat provider', () => {
     expect(schema.shape.api.meta()).toMatchObject({
       type: 'select',
       options: [
-        { label: 'Chat Completions', value: 'chat-completions' },
         { label: 'Responses API', value: 'responses' },
+        { label: 'Chat Completions', value: 'chat-completions' },
       ],
     })
   })

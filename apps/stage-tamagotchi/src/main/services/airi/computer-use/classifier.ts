@@ -22,17 +22,17 @@ export interface AuvCommandClassification {
  */
 export const READ_ONLY_COMMANDS = new Set<string>([
   'display.capture',
+  'display.captureRegion',
+  'display.findText',
   'display.list',
-  'screen.captureRegion',
-  'screen.findText',
-  'screen.waitForText',
+  'display.waitForText',
   'window.list',
   'window.capture',
   'window.findText',
   'window.waitForText',
   'input.pointerPosition',
-  'app.probePermissions',
-  'mediaControl.nowPlaying',
+  'permission.probe',
+  'media.getNowPlaying',
 ])
 
 /**

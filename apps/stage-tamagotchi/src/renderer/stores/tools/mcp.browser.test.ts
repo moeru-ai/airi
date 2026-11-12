@@ -86,7 +86,8 @@ describe('useTamagotchiMcpToolsStore', () => {
       }),
     ])
     expect(JSON.stringify(llmToolsStore.$state)).not.toContain('execute')
-    expect(listTools?.function.description).toContain('filesystem::search')
+    expect(listTools?.function.description).toContain('"name":"filesystem"')
+    expect(listTools?.function.description).not.toContain('filesystem::search')
     expect(invokeMocks.callMcpTool).not.toHaveBeenCalled()
 
     const listResult = await listTools?.execute({}, toolOptions)

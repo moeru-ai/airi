@@ -122,7 +122,7 @@ watch(shown, value => emit('shownChange', value), { flush: 'post' })
 
 const characterName = computed(() => {
   const sessionId = liveInput.value?.sessionId
-  const characterId = sessionId ? sessions.sessionMetas[sessionId]?.characterId : undefined
+  const characterId = sessionId ? sessions.characterMembersOf(sessionId)[0] : undefined
   return characterId ? cards.getCard(characterId)?.name : undefined
 })
 

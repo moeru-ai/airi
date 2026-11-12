@@ -1,0 +1,4326 @@
+{
+  "diagnostics": [
+    {
+      "path": ".",
+      "code": "unused-key",
+      "key": "settings.pages.capacitor.ofQuota",
+      "message": "\"settings.pages.capacitor.ofQuota\" is not used.",
+      "count": 1
+    },
+    {
+      "path": ".",
+      "code": "unused-key",
+      "key": "settings.pages.capacitor.remaining",
+      "message": "\"settings.pages.capacitor.remaining\" is not used.",
+      "count": 1
+    },
+    {
+      "path": ".",
+      "code": "unused-key",
+      "key": "settings.pages.flux.description",
+      "message": "\"settings.pages.flux.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": ".",
+      "code": "unused-key",
+      "key": "settings.pages.system.experimental.features.character_card_sync.description",
+      "message": "\"settings.pages.system.experimental.features.character_card_sync.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": ".",
+      "code": "unused-key",
+      "key": "settings.pages.system.experimental.features.character_card_sync.title",
+      "message": "\"settings.pages.system.experimental.features.character_card_sync.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": ".",
+      "code": "unused-key",
+      "key": "settings.pages.system.experimental.features.display_model_sync.description",
+      "message": "\"settings.pages.system.experimental.features.display_model_sync.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": ".",
+      "code": "unused-key",
+      "key": "settings.pages.system.experimental.features.display_model_sync.title",
+      "message": "\"settings.pages.system.experimental.features.display_model_sync.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": ".",
+      "code": "unused-key",
+      "key": "stage.chat.call.expand",
+      "message": "\"stage.chat.call.expand\" is not used.",
+      "count": 1
+    },
+    {
+      "path": ".",
+      "code": "unused-key",
+      "key": "stage.chat.call.hearing",
+      "message": "\"stage.chat.call.hearing\" is not used.",
+      "count": 1
+    },
+    {
+      "path": ".",
+      "code": "unused-key",
+      "key": "stage.chat.call.listening",
+      "message": "\"stage.chat.call.listening\" is not used.",
+      "count": 1
+    },
+    {
+      "path": ".",
+      "code": "unused-key",
+      "key": "stage.chat.call.minimize",
+      "message": "\"stage.chat.call.minimize\" is not used.",
+      "count": 1
+    },
+    {
+      "path": ".",
+      "code": "unused-key",
+      "key": "stage.chat.call.muted",
+      "message": "\"stage.chat.call.muted\" is not used.",
+      "count": 1
+    },
+    {
+      "path": ".",
+      "code": "unused-key",
+      "key": "stage.chat.call.speaking",
+      "message": "\"stage.chat.call.speaking\" is not used.",
+      "count": 1
+    },
+    {
+      "path": ".",
+      "code": "unused-key",
+      "key": "stage.chat.call.title",
+      "message": "\"stage.chat.call.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "apps/stage-tamagotchi/src/renderer/pages/spotlight.vue",
+      "code": "missing-key",
+      "key": "tamagotchi.spotlight.errors.prefix",
+      "locale": "en",
+      "message": "\"tamagotchi.spotlight.errors.prefix\" is not defined in en.",
+      "count": 1
+    },
+    {
+      "path": "apps/stage-tamagotchi/src/renderer/pages/spotlight.vue",
+      "code": "missing-key",
+      "key": "tamagotchi.spotlight.errors.unknown",
+      "locale": "en",
+      "message": "\"tamagotchi.spotlight.errors.unknown\" is not defined in en.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/server/auth.yaml",
+      "code": "unused-key",
+      "key": "server.auth.electronCallback.hint.closeTabManually",
+      "message": "\"server.auth.electronCallback.hint.closeTabManually\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/server/auth.yaml",
+      "code": "unused-key",
+      "key": "server.auth.electronCallback.label.signIn",
+      "message": "\"server.auth.electronCallback.label.signIn\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/server/auth.yaml",
+      "code": "unused-key",
+      "key": "server.auth.electronCallback.label.whyStillHere",
+      "message": "\"server.auth.electronCallback.label.whyStillHere\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/server/auth.yaml",
+      "code": "unused-key",
+      "key": "server.auth.profile.linkedAccounts.status.linked",
+      "message": "\"server.auth.profile.linkedAccounts.status.linked\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/server/auth.yaml",
+      "code": "unused-key",
+      "key": "server.auth.profile.section.avatar",
+      "message": "\"server.auth.profile.section.avatar\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/server/auth.yaml",
+      "code": "unused-key",
+      "key": "server.auth.signIn.error.invalidEmail",
+      "message": "\"server.auth.signIn.error.invalidEmail\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/server/auth.yaml",
+      "code": "unused-key",
+      "key": "server.auth.signIn.error.unknown",
+      "message": "\"server.auth.signIn.error.unknown\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/server/auth.yaml",
+      "code": "unused-key",
+      "key": "server.auth.signIn.title",
+      "message": "\"server.auth.signIn.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/server/auth.yaml",
+      "code": "unused-key",
+      "key": "server.auth.webCallback.title.signIn",
+      "message": "\"server.auth.webCallback.title.signIn\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "empty-translation",
+      "key": "settings.pages.account.danger.deleteAccount.modal.confirmEmail.placeholder",
+      "locale": "en",
+      "message": "\"settings.pages.account.danger.deleteAccount.modal.confirmEmail.placeholder\" is empty in en.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.analytics.toggle.description",
+      "message": "\"settings.analytics.toggle.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.animations.stage-transitions.title",
+      "message": "\"settings.animations.stage-transitions.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.animations.use-page-specific-transitions.description",
+      "message": "\"settings.animations.use-page-specific-transitions.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.animations.use-page-specific-transitions.title",
+      "message": "\"settings.animations.use-page-specific-transitions.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.dialogs.onboarding.accountId",
+      "message": "\"settings.dialogs.onboarding.accountId\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.dialogs.onboarding.apiKey",
+      "message": "\"settings.dialogs.onboarding.apiKey\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.dialogs.onboarding.apiKeyHelp",
+      "message": "\"settings.dialogs.onboarding.apiKeyHelp\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.dialogs.onboarding.baseUrl",
+      "message": "\"settings.dialogs.onboarding.baseUrl\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.dialogs.onboarding.baseUrlHelp",
+      "message": "\"settings.dialogs.onboarding.baseUrlHelp\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.dialogs.onboarding.skipForNow",
+      "message": "\"settings.dialogs.onboarding.skipForNow\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.dialogs.onboarding.start",
+      "message": "\"settings.dialogs.onboarding.start\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.live2d.animation.motion-driver.magic.profile.options.idle-calm.description",
+      "message": "\"settings.live2d.animation.motion-driver.magic.profile.options.idle-calm.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.live2d.animation.motion-driver.magic.profile.options.idle-calm.title",
+      "message": "\"settings.live2d.animation.motion-driver.magic.profile.options.idle-calm.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.live2d.animation.motion-driver.magic.profile.options.speaking-excited.description",
+      "message": "\"settings.live2d.animation.motion-driver.magic.profile.options.speaking-excited.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.live2d.animation.motion-driver.magic.profile.options.speaking-excited.title",
+      "message": "\"settings.live2d.animation.motion-driver.magic.profile.options.speaking-excited.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.live2d.change-model.from-file",
+      "message": "\"settings.live2d.change-model.from-file\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.live2d.change-model.from-file-select",
+      "message": "\"settings.live2d.change-model.from-file-select\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.live2d.change-model.from-url",
+      "message": "\"settings.live2d.change-model.from-url\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.live2d.change-model.from-url-confirm",
+      "message": "\"settings.live2d.change-model.from-url-confirm\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.live2d.change-model.from-url-placeholder",
+      "message": "\"settings.live2d.change-model.from-url-placeholder\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.live2d.change-model.title",
+      "message": "\"settings.live2d.change-model.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.live2d.edit-motion-map.title",
+      "message": "\"settings.live2d.edit-motion-map.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.live2d.map-motions.play",
+      "message": "\"settings.live2d.map-motions.play\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.live2d.map-motions.title",
+      "message": "\"settings.live2d.map-motions.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.live2d.switch-to-vrm.change-to-vrm",
+      "message": "\"settings.live2d.switch-to-vrm.change-to-vrm\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.live2d.switch-to-vrm.title",
+      "message": "\"settings.live2d.switch-to-vrm.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.live2d.title",
+      "message": "\"settings.live2d.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.microphone",
+      "message": "\"settings.microphone\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.mmd.gaze.title",
+      "message": "\"settings.mmd.gaze.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.mmd.scale-and-position.title",
+      "message": "\"settings.mmd.scale-and-position.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.mmd.theme-color-from-model.title",
+      "message": "\"settings.mmd.theme-color-from-model.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.mmd.title",
+      "message": "\"settings.mmd.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.models",
+      "message": "\"settings.models\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.capacitor.downgrade",
+      "message": "\"settings.pages.capacitor.downgrade\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.capacitor.install",
+      "message": "\"settings.pages.capacitor.install\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.capacitor.offer.day",
+      "message": "\"settings.pages.capacitor.offer.day\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.capacitor.offer.month",
+      "message": "\"settings.pages.capacitor.offer.month\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.capacitor.offer.week",
+      "message": "\"settings.pages.capacitor.offer.week\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.capacitor.quota.day",
+      "message": "\"settings.pages.capacitor.quota.day\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.capacitor.quota.month",
+      "message": "\"settings.pages.capacitor.quota.month\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.capacitor.quota.week",
+      "message": "\"settings.pages.capacitor.quota.week\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.capacitor.upgrade",
+      "message": "\"settings.pages.capacitor.upgrade\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.connection.description",
+      "message": "\"settings.pages.connection.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.connection.title",
+      "message": "\"settings.pages.connection.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.credits.buy",
+      "message": "\"settings.pages.credits.buy\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.data.confirmations.tooltip",
+      "message": "\"settings.pages.data.confirmations.tooltip\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.data.description",
+      "message": "\"settings.pages.data.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.data.sections.model-downloads.wake-word-model",
+      "message": "\"settings.pages.data.sections.model-downloads.wake-word-model\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.data.title",
+      "message": "\"settings.pages.data.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.flux.audit.typeAddition",
+      "message": "\"settings.pages.flux.audit.typeAddition\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.flux.audit.typeInitial",
+      "message": "\"settings.pages.flux.audit.typeInitial\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.flux.audit.typePromo",
+      "message": "\"settings.pages.flux.audit.typePromo\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.flux.buy",
+      "message": "\"settings.pages.flux.buy\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.flux.currency",
+      "message": "\"settings.pages.flux.currency\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.flux.packages.buy",
+      "message": "\"settings.pages.flux.packages.buy\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.flux.pageTitle",
+      "message": "\"settings.pages.flux.pageTitle\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.memory.description",
+      "message": "\"settings.pages.memory.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.memory.title",
+      "message": "\"settings.pages.memory.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.models.description",
+      "message": "\"settings.pages.models.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.models.sections.section.live2d.description",
+      "message": "\"settings.pages.models.sections.section.live2d.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.models.sections.section.live2d.title",
+      "message": "\"settings.pages.models.sections.section.live2d.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.models.sections.section.vrm.description",
+      "message": "\"settings.pages.models.sections.section.vrm.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.models.sections.section.vrm.title",
+      "message": "\"settings.pages.models.sections.section.vrm.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.models.title",
+      "message": "\"settings.pages.models.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.page.developers.open-devtools.title",
+      "message": "\"settings.pages.page.developers.open-devtools.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.providers.catalog.edit.config.common.fields.field.download-model.description",
+      "message": "\"settings.pages.providers.catalog.edit.config.common.fields.field.download-model.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.providers.description",
+      "message": "\"settings.pages.providers.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.providers.explained.Speech",
+      "message": "\"settings.pages.providers.explained.Speech\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.providers.explained.Transcription",
+      "message": "\"settings.pages.providers.explained.Transcription\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.providers.explained.chat",
+      "message": "\"settings.pages.providers.explained.chat\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.providers.sync.not-uploaded",
+      "message": "\"settings.pages.providers.sync.not-uploaded\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.providers.sync.pending",
+      "message": "\"settings.pages.providers.sync.pending\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.providers.sync.synced",
+      "message": "\"settings.pages.providers.sync.synced\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.scene.background_image.change",
+      "message": "\"settings.pages.scene.background_image.change\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.scene.background_image.no_background",
+      "message": "\"settings.pages.scene.background_image.no_background\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.scene.description",
+      "message": "\"settings.pages.scene.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.scene.gallery.delete",
+      "message": "\"settings.pages.scene.gallery.delete\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.scene.gallery.global_badge",
+      "message": "\"settings.pages.scene.gallery.global_badge\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.scene.gallery.set_as_global",
+      "message": "\"settings.pages.scene.gallery.set_as_global\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.scene.gallery.title",
+      "message": "\"settings.pages.scene.gallery.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.scene.title",
+      "message": "\"settings.pages.scene.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.description",
+      "message": "\"settings.pages.system.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.experimental.empty-title",
+      "message": "\"settings.pages.system.experimental.empty-title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.experimental.features.fullscreen_workspace.description",
+      "message": "\"settings.pages.system.experimental.features.fullscreen_workspace.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.experimental.features.fullscreen_workspace.title",
+      "message": "\"settings.pages.system.experimental.features.fullscreen_workspace.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.experimental.features.fullscreen_workspace.window_mode.description",
+      "message": "\"settings.pages.system.experimental.features.fullscreen_workspace.window_mode.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.experimental.features.fullscreen_workspace.window_mode.multi_window",
+      "message": "\"settings.pages.system.experimental.features.fullscreen_workspace.window_mode.multi_window\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.experimental.features.fullscreen_workspace.window_mode.single_window",
+      "message": "\"settings.pages.system.experimental.features.fullscreen_workspace.window_mode.single_window\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.experimental.features.fullscreen_workspace.window_mode.title",
+      "message": "\"settings.pages.system.experimental.features.fullscreen_workspace.window_mode.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.experimental.load-error",
+      "message": "\"settings.pages.system.experimental.load-error\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.experimental.notice",
+      "message": "\"settings.pages.system.experimental.notice\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.experimental.refresh",
+      "message": "\"settings.pages.system.experimental.refresh\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.experimental.reset",
+      "message": "\"settings.pages.system.experimental.reset\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.experimental.retry",
+      "message": "\"settings.pages.system.experimental.retry\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.experimental.sources.account",
+      "message": "\"settings.pages.system.experimental.sources.account\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.experimental.sources.default",
+      "message": "\"settings.pages.system.experimental.sources.default\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.experimental.sources.global",
+      "message": "\"settings.pages.system.experimental.sources.global\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.experimental.sources.local",
+      "message": "\"settings.pages.system.experimental.sources.local\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.audio-record.description",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.audio-record.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.audio-record.title",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.audio-record.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.background-gradient-blending.description",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.background-gradient-blending.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.background-gradient-blending.title",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.background-gradient-blending.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.background-removal.description",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.background-removal.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.background-removal.title",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.background-removal.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.chat.description",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.chat.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.chat.title",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.chat.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.context-flow.description",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.context-flow.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.gesture-circle.description",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.gesture-circle.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.gesture-circle.title",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.gesture-circle.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.image.description",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.image.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.image.title",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.image.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.check-all",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.check-all\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.checked-ago",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.checked-ago\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.dismissed",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.dismissed\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.empty",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.empty\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.every",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.every\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.items-empty",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.items-empty\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.items-title",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.items-title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.kinds.chat",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.kinds.chat\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.kinds.other",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.kinds.other\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.kinds.speech",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.kinds.speech\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.kinds.transcription",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.kinds.transcription\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.kinds.vision",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.kinds.vision\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.measured",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.measured\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.not-checked",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.not-checked\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.restore-all",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.restore-all\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.restore-one",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.restore-one\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.selection-awaiting-check",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.selection-awaiting-check\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.selection-provider-item",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.selection-provider-item\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.selection-unusable",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.selection-unusable\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.selection-usable",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.selection-usable\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.selections-title",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.selections-title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.simulate",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.simulate\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.simulate-speech",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.simulate-speech\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.simulate-unusable",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.simulate-unusable\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.simulate-voice-input",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.simulate-voice-input\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.speech-missing-model",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.speech-missing-model\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.speech-missing-model-voice",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.speech-missing-model-voice\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.speech-missing-voice",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.speech-missing-voice\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.speech-off",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.speech-off\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.speech-pending",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.speech-pending\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.speech-provider-unusable",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.speech-provider-unusable\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.speech-ready",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.speech-ready\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.speech-title",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.speech-title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.status.bypassed",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.status.bypassed\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.status.configured",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.status.configured\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.status.invalid",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.status.invalid\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.status.unconfigured",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.status.unconfigured\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.status.validating",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.status.validating\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.timing-label",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.timing-label\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.timing-periodic",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.timing-periodic\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.timing-signed-in",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.timing-signed-in\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.timing-signed-out",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.timing-signed-out\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.voice-input-mic-off",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.voice-input-mic-off\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.voice-input-mic-on",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.voice-input-mic-on\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.voice-input-not-ready",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.voice-input-not-ready\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.voice-input-ready",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.voice-input-ready\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.needs-attention.voice-input-title",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.needs-attention.voice-input-title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.performance-playground.description",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.performance-playground.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.performance-playground.title",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.performance-playground.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.polaroid.description",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.polaroid.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.polaroid.title",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.polaroid.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.providers-transcription-realtime-aliyun-nls.description",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.providers-transcription-realtime-aliyun-nls.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.providers-transcription-realtime-aliyun-nls.title",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.providers-transcription-realtime-aliyun-nls.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.tool-payloads-as-json.description",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.tool-payloads-as-json.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.tool-payloads-as-json.title",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.tool-payloads-as-json.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.vibrant.description",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.vibrant.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.vibrant.title",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.vibrant.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.websocket-inspector.description",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.websocket-inspector.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.sections.section.websocket-inspector.title",
+      "message": "\"settings.pages.system.sections.section.developer.sections.section.websocket-inspector.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.developer.title",
+      "message": "\"settings.pages.system.sections.section.developer.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.chinese.colors.color-1",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.chinese.colors.color-1\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.chinese.colors.color-2",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.chinese.colors.color-2\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.chinese.colors.color-3",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.chinese.colors.color-3\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.chinese.colors.color-4",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.chinese.colors.color-4\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.chinese.colors.color-5",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.chinese.colors.color-5\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.chinese.colors.color-6",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.chinese.colors.color-6\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.chinese.colors.color-7",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.chinese.colors.color-7\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.chinese.colors.color-8",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.chinese.colors.color-8\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.chinese.description",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.chinese.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.chinese.title",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.chinese.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.default.colors.color-1",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.default.colors.color-1\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.default.description",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.default.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.default.title",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.default.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.japanese.colors.color-1",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.japanese.colors.color-1\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.japanese.colors.color-2",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.japanese.colors.color-2\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.japanese.colors.color-3",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.japanese.colors.color-3\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.japanese.colors.color-4",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.japanese.colors.color-4\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.japanese.colors.color-5",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.japanese.colors.color-5\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.japanese.colors.color-6",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.japanese.colors.color-6\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.japanese.colors.color-7",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.japanese.colors.color-7\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.japanese.colors.color-8",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.japanese.colors.color-8\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.japanese.description",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.japanese.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.japanese.title",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.japanese.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.monet.colors.color-1",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.monet.colors.color-1\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.monet.colors.color-2",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.monet.colors.color-2\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.monet.colors.color-3",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.monet.colors.color-3\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.monet.colors.color-4",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.monet.colors.color-4\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.monet.colors.color-5",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.monet.colors.color-5\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.monet.colors.color-6",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.monet.colors.color-6\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.monet.colors.color-7",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.monet.colors.color-7\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.monet.colors.color-8",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.monet.colors.color-8\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.monet.description",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.monet.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.monet.title",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.monet.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.morandi.colors.color-1",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.morandi.colors.color-1\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.morandi.colors.color-2",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.morandi.colors.color-2\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.morandi.colors.color-3",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.morandi.colors.color-3\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.morandi.colors.color-4",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.morandi.colors.color-4\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.morandi.colors.color-5",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.morandi.colors.color-5\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.morandi.colors.color-6",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.morandi.colors.color-6\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.morandi.colors.color-7",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.morandi.colors.color-7\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.morandi.colors.color-8",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.morandi.colors.color-8\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.morandi.description",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.morandi.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.morandi.title",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.morandi.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.nordic.colors.color-1",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.nordic.colors.color-1\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.nordic.colors.color-2",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.nordic.colors.color-2\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.nordic.colors.color-3",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.nordic.colors.color-3\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.nordic.colors.color-4",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.nordic.colors.color-4\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.nordic.colors.color-5",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.nordic.colors.color-5\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.nordic.colors.color-6",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.nordic.colors.color-6\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.nordic.colors.color-7",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.nordic.colors.color-7\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.nordic.colors.color-8",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.nordic.colors.color-8\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.nordic.description",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.nordic.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.sections.section.theme-presets.presets.nordic.title",
+      "message": "\"settings.pages.system.sections.section.theme-presets.presets.nordic.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.title",
+      "message": "\"settings.pages.system.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.sections.section.general.title",
+      "message": "\"settings.sections.section.general.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.spine.skin.current-skin",
+      "message": "\"settings.spine.skin.current-skin\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.spine.title",
+      "message": "\"settings.spine.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.spine.variant.current-variant",
+      "message": "\"settings.spine.variant.current-variant\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.tachie.title",
+      "message": "\"settings.tachie.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.voices",
+      "message": "\"settings.voices\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.vrm.change-model.from-file",
+      "message": "\"settings.vrm.change-model.from-file\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.vrm.change-model.from-file-select",
+      "message": "\"settings.vrm.change-model.from-file-select\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.vrm.change-model.from-url",
+      "message": "\"settings.vrm.change-model.from-url\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.vrm.change-model.from-url-confirm",
+      "message": "\"settings.vrm.change-model.from-url-confirm\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.vrm.change-model.from-url-placeholder",
+      "message": "\"settings.vrm.change-model.from-url-placeholder\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.vrm.scale-and-position.scale",
+      "message": "\"settings.vrm.scale-and-position.scale\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.vrm.scale-and-position.x",
+      "message": "\"settings.vrm.scale-and-position.x\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.vrm.scale-and-position.y",
+      "message": "\"settings.vrm.scale-and-position.y\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.vrm.scale-and-position.z",
+      "message": "\"settings.vrm.scale-and-position.z\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.vrm.skybox.skybox-specular-mix",
+      "message": "\"settings.vrm.skybox.skybox-specular-mix\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.vrm.switch-to-vrm.change-to-vrm",
+      "message": "\"settings.vrm.switch-to-vrm.change-to-vrm\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.vrm.switch-to-vrm.title",
+      "message": "\"settings.vrm.switch-to-vrm.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.vrm.title",
+      "message": "\"settings.vrm.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.invoked-skill.background",
+      "message": "\"stage.chat.invoked-skill.background\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.invoked-skill.decision",
+      "message": "\"stage.chat.invoked-skill.decision\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.invoked-skill.no",
+      "message": "\"stage.chat.invoked-skill.no\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.invoked-skill.question",
+      "message": "\"stage.chat.invoked-skill.question\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.invoked-skill.steps",
+      "message": "\"stage.chat.invoked-skill.steps\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.invoked-skill.yes",
+      "message": "\"stage.chat.invoked-skill.yes\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.judgment-tool-call.answer",
+      "message": "\"stage.chat.judgment-tool-call.answer\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.judgment-tool-call.hint",
+      "message": "\"stage.chat.judgment-tool-call.hint\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.judgment-tool-call.next",
+      "message": "\"stage.chat.judgment-tool-call.next\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.judgment-tool-call.recipe-background",
+      "message": "\"stage.chat.judgment-tool-call.recipe-background\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.judgment-tool-call.recipe-decision",
+      "message": "\"stage.chat.judgment-tool-call.recipe-decision\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.judgment-tool-call.recipe-steps",
+      "message": "\"stage.chat.judgment-tool-call.recipe-steps\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.judgment-tool-call.reply",
+      "message": "\"stage.chat.judgment-tool-call.reply\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.judgment-tool-call.stay-quiet",
+      "message": "\"stage.chat.judgment-tool-call.stay-quiet\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.judgment.invalid",
+      "message": "\"stage.chat.judgment.invalid\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.judgment.judged",
+      "message": "\"stage.chat.judgment.judged\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.judgment.running",
+      "message": "\"stage.chat.judgment.running\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.reasoning",
+      "message": "\"stage.chat.reasoning\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.recipe-tool-call.disabled",
+      "message": "\"stage.chat.recipe-tool-call.disabled\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.recipe-tool-call.pending",
+      "message": "\"stage.chat.recipe-tool-call.pending\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.recipe-tool-call.refused",
+      "message": "\"stage.chat.recipe-tool-call.refused\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.recipe-tool-call.task",
+      "message": "\"stage.chat.recipe-tool-call.task\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.recipe-tool-call.unknown",
+      "message": "\"stage.chat.recipe-tool-call.unknown\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.recipe-tool-call.usable",
+      "message": "\"stage.chat.recipe-tool-call.usable\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.recipe.disabled",
+      "message": "\"stage.chat.recipe.disabled\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.recipe.failed",
+      "message": "\"stage.chat.recipe.failed\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.recipe.loaded",
+      "message": "\"stage.chat.recipe.loaded\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.recipe.pending",
+      "message": "\"stage.chat.recipe.pending\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.recipe.refused",
+      "message": "\"stage.chat.recipe.refused\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.recipe.started",
+      "message": "\"stage.chat.recipe.started\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.recipe.unknown",
+      "message": "\"stage.chat.recipe.unknown\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.recipe.using",
+      "message": "\"stage.chat.recipe.using\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.reply-card.card",
+      "message": "\"stage.chat.reply-card.card\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.reply-card.raw",
+      "message": "\"stage.chat.reply-card.raw\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.sessions.cancel",
+      "message": "\"stage.chat.sessions.cancel\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.sessions.confirm-delete",
+      "message": "\"stage.chat.sessions.confirm-delete\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.tool-calls.arguments",
+      "message": "\"stage.chat.tool-calls.arguments\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.tool-calls.card-failed",
+      "message": "\"stage.chat.tool-calls.card-failed\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.tool-calls.card-making",
+      "message": "\"stage.chat.tool-calls.card-making\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.tool-calls.card-regenerate",
+      "message": "\"stage.chat.tool-calls.card-regenerate\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.tool-calls.card-remaking",
+      "message": "\"stage.chat.tool-calls.card-remaking\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.tool-calls.card-retry",
+      "message": "\"stage.chat.tool-calls.card-retry\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.tool-calls.combo",
+      "message": "\"stage.chat.tool-calls.combo\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.tool-calls.combo-failed",
+      "message": "\"stage.chat.tool-calls.combo-failed\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.tool-calls.combo-running",
+      "message": "\"stage.chat.tool-calls.combo-running\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.tool-calls.failed-one",
+      "message": "\"stage.chat.tool-calls.failed-one\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.tool-calls.other",
+      "message": "\"stage.chat.tool-calls.other\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.tool-calls.raw",
+      "message": "\"stage.chat.tool-calls.raw\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.tool-calls.rerun",
+      "message": "\"stage.chat.tool-calls.rerun\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.tool-calls.result",
+      "message": "\"stage.chat.tool-calls.result\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.tool-calls.running-one",
+      "message": "\"stage.chat.tool-calls.running-one\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.tool-calls.state.done",
+      "message": "\"stage.chat.tool-calls.state.done\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.tool-calls.state.error",
+      "message": "\"stage.chat.tool-calls.state.error\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.tool-calls.state.executing",
+      "message": "\"stage.chat.tool-calls.state.executing\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.tool-calls.widget",
+      "message": "\"stage.chat.tool-calls.widget\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.chat.voice-input",
+      "message": "\"stage.chat.voice-input\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.mobile-tools.more",
+      "message": "\"stage.mobile-tools.more\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.operations.load-models",
+      "message": "\"stage.operations.load-models\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.operations.load-models-status.ready",
+      "message": "\"stage.operations.load-models-status.ready\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.promo-banner.items.build.cta",
+      "message": "\"stage.promo-banner.items.build.cta\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.promo-banner.items.build.date",
+      "message": "\"stage.promo-banner.items.build.date\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.promo-banner.items.build.eventName",
+      "message": "\"stage.promo-banner.items.build.eventName\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.promo-banner.items.build.fallbackLabel",
+      "message": "\"stage.promo-banner.items.build.fallbackLabel\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.promo-banner.items.build.reward",
+      "message": "\"stage.promo-banner.items.build.reward\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.promo-banner.items.build.title",
+      "message": "\"stage.promo-banner.items.build.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.promo-banner.items.build.watermark",
+      "message": "\"stage.promo-banner.items.build.watermark\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.promo-banner.items.coupon.cta",
+      "message": "\"stage.promo-banner.items.coupon.cta\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.promo-banner.items.coupon.date",
+      "message": "\"stage.promo-banner.items.coupon.date\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.promo-banner.items.coupon.eventName",
+      "message": "\"stage.promo-banner.items.coupon.eventName\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.promo-banner.items.coupon.fallbackLabel",
+      "message": "\"stage.promo-banner.items.coupon.fallbackLabel\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.promo-banner.items.coupon.reward",
+      "message": "\"stage.promo-banner.items.coupon.reward\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.promo-banner.items.coupon.title",
+      "message": "\"stage.promo-banner.items.coupon.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.promo-banner.items.coupon.watermark",
+      "message": "\"stage.promo-banner.items.coupon.watermark\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.promo-banner.items.home.cta",
+      "message": "\"stage.promo-banner.items.home.cta\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.promo-banner.items.home.date",
+      "message": "\"stage.promo-banner.items.home.date\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.promo-banner.items.home.eventName",
+      "message": "\"stage.promo-banner.items.home.eventName\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.promo-banner.items.home.fallbackLabel",
+      "message": "\"stage.promo-banner.items.home.fallbackLabel\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.promo-banner.items.home.reward",
+      "message": "\"stage.promo-banner.items.home.reward\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.promo-banner.items.home.title",
+      "message": "\"stage.promo-banner.items.home.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.promo-banner.items.home.watermark",
+      "message": "\"stage.promo-banner.items.home.watermark\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.promo-banner.items.signin.cta",
+      "message": "\"stage.promo-banner.items.signin.cta\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.promo-banner.items.signin.date",
+      "message": "\"stage.promo-banner.items.signin.date\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.promo-banner.items.signin.eventName",
+      "message": "\"stage.promo-banner.items.signin.eventName\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.promo-banner.items.signin.fallbackLabel",
+      "message": "\"stage.promo-banner.items.signin.fallbackLabel\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.promo-banner.items.signin.reward",
+      "message": "\"stage.promo-banner.items.signin.reward\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.promo-banner.items.signin.title",
+      "message": "\"stage.promo-banner.items.signin.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.promo-banner.items.signin.watermark",
+      "message": "\"stage.promo-banner.items.signin.watermark\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.promo-banner.items.spring.cta",
+      "message": "\"stage.promo-banner.items.spring.cta\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.promo-banner.items.spring.date",
+      "message": "\"stage.promo-banner.items.spring.date\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.promo-banner.items.spring.eventName",
+      "message": "\"stage.promo-banner.items.spring.eventName\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.promo-banner.items.spring.fallbackLabel",
+      "message": "\"stage.promo-banner.items.spring.fallbackLabel\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.promo-banner.items.spring.reward",
+      "message": "\"stage.promo-banner.items.spring.reward\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.promo-banner.items.spring.title",
+      "message": "\"stage.promo-banner.items.spring.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.promo-banner.items.spring.watermark",
+      "message": "\"stage.promo-banner.items.spring.watermark\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.select-a-audio-input",
+      "message": "\"stage.select-a-audio-input\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.select-a-model",
+      "message": "\"stage.select-a-model\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.select-a-voice",
+      "message": "\"stage.select-a-voice\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.status.paused",
+      "message": "\"stage.status.paused\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.viewers.debug-menu.emotions",
+      "message": "\"stage.viewers.debug-menu.emotions\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.viewers.debug-menu.emotions-btn.angry",
+      "message": "\"stage.viewers.debug-menu.emotions-btn.angry\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.viewers.debug-menu.emotions-btn.awkward",
+      "message": "\"stage.viewers.debug-menu.emotions-btn.awkward\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.viewers.debug-menu.emotions-btn.happy",
+      "message": "\"stage.viewers.debug-menu.emotions-btn.happy\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.viewers.debug-menu.emotions-btn.neutral",
+      "message": "\"stage.viewers.debug-menu.emotions-btn.neutral\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.viewers.debug-menu.emotions-btn.question",
+      "message": "\"stage.viewers.debug-menu.emotions-btn.question\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.viewers.debug-menu.emotions-btn.sad",
+      "message": "\"stage.viewers.debug-menu.emotions-btn.sad\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.viewers.debug-menu.emotions-btn.surprised",
+      "message": "\"stage.viewers.debug-menu.emotions-btn.surprised\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.viewers.debug-menu.emotions-btn.think",
+      "message": "\"stage.viewers.debug-menu.emotions-btn.think\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.viewers.debug-menu.vrm.camera",
+      "message": "\"stage.viewers.debug-menu.vrm.camera\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.viewers.debug-menu.vrm.model.title",
+      "message": "\"stage.viewers.debug-menu.vrm.model.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
+      "key": "stage.waiting",
+      "message": "\"stage.waiting\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.electron.tray.menu.labels.label.about",
+      "message": "\"tamagotchi.electron.tray.menu.labels.label.about\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.electron.tray.menu.labels.label.adjust_sizes",
+      "message": "\"tamagotchi.electron.tray.menu.labels.label.adjust_sizes\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.electron.tray.menu.labels.label.align_to",
+      "message": "\"tamagotchi.electron.tray.menu.labels.label.align_to\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.electron.tray.menu.labels.label.bottom_left",
+      "message": "\"tamagotchi.electron.tray.menu.labels.label.bottom_left\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.electron.tray.menu.labels.label.bottom_right",
+      "message": "\"tamagotchi.electron.tray.menu.labels.label.bottom_right\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.electron.tray.menu.labels.label.caption_overlay",
+      "message": "\"tamagotchi.electron.tray.menu.labels.label.caption_overlay\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.electron.tray.menu.labels.label.center",
+      "message": "\"tamagotchi.electron.tray.menu.labels.label.center\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.electron.tray.menu.labels.label.close_caption",
+      "message": "\"tamagotchi.electron.tray.menu.labels.label.close_caption\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.electron.tray.menu.labels.label.devtools",
+      "message": "\"tamagotchi.electron.tray.menu.labels.label.devtools\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.electron.tray.menu.labels.label.follow_window",
+      "message": "\"tamagotchi.electron.tray.menu.labels.label.follow_window\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.electron.tray.menu.labels.label.full_height",
+      "message": "\"tamagotchi.electron.tray.menu.labels.label.full_height\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.electron.tray.menu.labels.label.full_screen",
+      "message": "\"tamagotchi.electron.tray.menu.labels.label.full_screen\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.electron.tray.menu.labels.label.half_height",
+      "message": "\"tamagotchi.electron.tray.menu.labels.label.half_height\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.electron.tray.menu.labels.label.open_caption",
+      "message": "\"tamagotchi.electron.tray.menu.labels.label.open_caption\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.electron.tray.menu.labels.label.open_inlay",
+      "message": "\"tamagotchi.electron.tray.menu.labels.label.open_inlay\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.electron.tray.menu.labels.label.open_widgets",
+      "message": "\"tamagotchi.electron.tray.menu.labels.label.open_widgets\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.electron.tray.menu.labels.label.quit",
+      "message": "\"tamagotchi.electron.tray.menu.labels.label.quit\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.electron.tray.menu.labels.label.recommended_size",
+      "message": "\"tamagotchi.electron.tray.menu.labels.label.recommended_size\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.electron.tray.menu.labels.label.reset_position",
+      "message": "\"tamagotchi.electron.tray.menu.labels.label.reset_position\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.electron.tray.menu.labels.label.settings",
+      "message": "\"tamagotchi.electron.tray.menu.labels.label.settings\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.electron.tray.menu.labels.label.show",
+      "message": "\"tamagotchi.electron.tray.menu.labels.label.show\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.electron.tray.menu.labels.label.top_left",
+      "message": "\"tamagotchi.electron.tray.menu.labels.label.top_left\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.electron.tray.menu.labels.label.top_right",
+      "message": "\"tamagotchi.electron.tray.menu.labels.label.top_right\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/electron/tray.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.electron.tray.menu.labels.label.troubleshoot_beatsync",
+      "message": "\"tamagotchi.electron.tray.menu.labels.label.troubleshoot_beatsync\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.allow-visible-on-all-workspaces.description",
+      "message": "\"tamagotchi.settings.allow-visible-on-all-workspaces.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.allow-visible-on-all-workspaces.title",
+      "message": "\"tamagotchi.settings.allow-visible-on-all-workspaces.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.io-tracer.actions.clear-cursor",
+      "message": "\"tamagotchi.settings.devtools.pages.io-tracer.actions.clear-cursor\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.io-tracer.actions.export",
+      "message": "\"tamagotchi.settings.devtools.pages.io-tracer.actions.export\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.io-tracer.actions.fit",
+      "message": "\"tamagotchi.settings.devtools.pages.io-tracer.actions.fit\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.io-tracer.actions.pause",
+      "message": "\"tamagotchi.settings.devtools.pages.io-tracer.actions.pause\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.io-tracer.actions.record",
+      "message": "\"tamagotchi.settings.devtools.pages.io-tracer.actions.record\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.io-tracer.actions.start-from-now",
+      "message": "\"tamagotchi.settings.devtools.pages.io-tracer.actions.start-from-now\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.io-tracer.actions.start-from-now-description",
+      "message": "\"tamagotchi.settings.devtools.pages.io-tracer.actions.start-from-now-description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.io-tracer.collection.description",
+      "message": "\"tamagotchi.settings.devtools.pages.io-tracer.collection.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.io-tracer.collection.title",
+      "message": "\"tamagotchi.settings.devtools.pages.io-tracer.collection.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.io-tracer.description",
+      "message": "\"tamagotchi.settings.devtools.pages.io-tracer.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.io-tracer.recording.description",
+      "message": "\"tamagotchi.settings.devtools.pages.io-tracer.recording.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.io-tracer.recording.title",
+      "message": "\"tamagotchi.settings.devtools.pages.io-tracer.recording.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.io-tracer.toggles.follow",
+      "message": "\"tamagotchi.settings.devtools.pages.io-tracer.toggles.follow\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.actions.fit",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.actions.fit\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.actions.generate",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.actions.generate\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.actions.new-seed",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.actions.new-seed\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.actions.refit",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.actions.refit\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.actions.stop",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.actions.stop\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.description",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.diagnostics.fit",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.diagnostics.fit\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.diagnostics.model",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.diagnostics.model\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.diagnostics.run",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.diagnostics.run\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.diagnostics.source",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.diagnostics.source\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.diagnostics.states",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.diagnostics.states\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.status.fit-failed",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.status.fit-failed\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.status.no-source",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.status.no-source\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.status.source-ready",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.status.source-ready\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.values.fit",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.values.fit\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.values.frames",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.values.frames\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.values.model",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.values.model\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.values.run",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.values.run\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.values.states",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.ar-hmm.values.states\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.instructions",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.instructions\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.parameter-note",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.parameter-note\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.recording.actions.export",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.recording.actions.export\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.recording.actions.import",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.recording.actions.import\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.recording.actions.play",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.recording.actions.play\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.recording.actions.stop-playback",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.recording.actions.stop-playback\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.recording.import-error",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.recording.import-error\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.recording.status.empty",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.recording.status.empty\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.recording.status.playing",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.recording.status.playing\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.recording.status.ready",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.recording.status.ready\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.recording.status.recording",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.recording.status.recording\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.var.actions.fit",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.var.actions.fit\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.var.actions.generate",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.var.actions.generate\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.var.actions.new-seed",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.var.actions.new-seed\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.var.actions.refit",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.var.actions.refit\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.var.actions.stop",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.var.actions.stop\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.var.description",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.var.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.var.diagnostics.fit",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.var.diagnostics.fit\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.var.diagnostics.model",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.var.diagnostics.model\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.var.diagnostics.run",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.var.diagnostics.run\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.var.diagnostics.source",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.var.diagnostics.source\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.var.status.fit-failed",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.var.status.fit-failed\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.var.status.no-source",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.var.status.no-source\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.var.status.source-ready",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.var.status.source-ready\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.var.values.fit",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.var.values.fit\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.var.values.frames",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.var.values.frames\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.var.values.model",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.var.values.model\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.live2d-motion.var.values.run",
+      "message": "\"tamagotchi.settings.devtools.pages.live2d-motion.var.values.run\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.markdown-stress.description",
+      "message": "\"tamagotchi.settings.devtools.pages.markdown-stress.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.performance-visualizer.metrics.fps.description",
+      "message": "\"tamagotchi.settings.devtools.pages.performance-visualizer.metrics.fps.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.performance-visualizer.metrics.frame-duration.description",
+      "message": "\"tamagotchi.settings.devtools.pages.performance-visualizer.metrics.frame-duration.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.performance-visualizer.metrics.long-task.description",
+      "message": "\"tamagotchi.settings.devtools.pages.performance-visualizer.metrics.long-task.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.performance-visualizer.metrics.long-task.unsupported",
+      "message": "\"tamagotchi.settings.devtools.pages.performance-visualizer.metrics.long-task.unsupported\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.performance-visualizer.metrics.memory.description",
+      "message": "\"tamagotchi.settings.devtools.pages.performance-visualizer.metrics.memory.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.performance-visualizer.metrics.memory.unsupported",
+      "message": "\"tamagotchi.settings.devtools.pages.performance-visualizer.metrics.memory.unsupported\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.performance-visualizer.title",
+      "message": "\"tamagotchi.settings.devtools.pages.performance-visualizer.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.pages.widgets-calling.title",
+      "message": "\"tamagotchi.settings.devtools.pages.widgets-calling.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.devtools.title",
+      "message": "\"tamagotchi.settings.devtools.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.pages.modules.mcp-server.description",
+      "message": "\"tamagotchi.settings.pages.modules.mcp-server.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.pages.modules.mcp-server.title",
+      "message": "\"tamagotchi.settings.pages.modules.mcp-server.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.pages.system.sections.section.window-shortcuts.title",
+      "message": "\"tamagotchi.settings.pages.system.sections.section.window-shortcuts.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.about.links.documentation",
+      "message": "\"tamagotchi.stage.about.links.documentation\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.about.links.github",
+      "message": "\"tamagotchi.stage.about.links.github\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.about.links.home",
+      "message": "\"tamagotchi.stage.about.links.home\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.about.links.title",
+      "message": "\"tamagotchi.stage.about.links.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.about.update.status.error-prefix",
+      "message": "\"tamagotchi.stage.about.update.status.error-prefix\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-read-image-tool-call.description",
+      "message": "\"tamagotchi.stage.computer-use-read-image-tool-call.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-read-image-tool-call.failed",
+      "message": "\"tamagotchi.stage.computer-use-read-image-tool-call.failed\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.activated",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.activated\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.app",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.app\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.ax-path",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.ax-path\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.backend",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.backend\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.built-in",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.built-in\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.buttons.left",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.buttons.left\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.buttons.middle",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.buttons.middle\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.buttons.right",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.buttons.right\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.click-count",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.click-count\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.clicked",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.clicked\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.clicked-text",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.clicked-text\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.clicks.double",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.clicks.double\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.clicks.single",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.clicks.single\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.control",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.control\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.delivery.attempt",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.delivery.attempt\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.delivery.attempt-failed",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.delivery.attempt-failed\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.delivery.attempt-succeeded",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.delivery.attempt-succeeded\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.delivery.clipboard",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.delivery.clipboard\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.delivery.disturbance",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.delivery.disturbance\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.delivery.focus",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.delivery.focus\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.delivery.mouse",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.delivery.mouse\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.delivery.not-verified",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.delivery.not-verified\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.delivery.path",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.delivery.path\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.delivery.verified",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.delivery.verified\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.display",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.display\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.displays",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.displays\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.disturbances.foreground",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.disturbances.foreground\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.disturbances.none",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.disturbances.none\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.disturbances.temporary",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.disturbances.temporary\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.disturbances.unknown",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.disturbances.unknown\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.dragged",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.dragged\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.duration",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.duration\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.end",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.end\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.fallback",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.fallback\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.file",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.file\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.final",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.final\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.focused",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.focused\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.found",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.found\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.front-is",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.front-is\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.front-unknown",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.front-unknown\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.help",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.help\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.hidden",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.hidden\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.hold",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.hold\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.in-front",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.in-front\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.interval",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.interval\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.logical-size",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.logical-size\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.main",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.main\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.matches",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.matches\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.media.commands.next",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.media.commands.next\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.media.commands.pause",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.media.commands.pause\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.media.commands.play",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.media.commands.play\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.media.commands.previous",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.media.commands.previous\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.media.commands.toggle",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.media.commands.toggle\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.media.liked",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.media.liked\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.media.not-verified",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.media.not-verified\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.media.nothing",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.media.nothing\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.media.paused",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.media.paused\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.media.playing",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.media.playing\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.media.rate",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.media.rate\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.media.verified",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.media.verified\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.moved",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.moved\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.normalized",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.normalized\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.not-found",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.not-found\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.on-screen",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.on-screen\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.options",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.options\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.pasted",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.pasted\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.paths.ax_focus",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.paths.ax_focus\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.paths.foreground_system_events",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.paths.foreground_system_events\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.paths.window_targeted_keyboard",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.paths.window_targeted_keyboard\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.permissions.names.accessibility",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.permissions.names.accessibility\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.permissions.names.automation_to_system_events",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.permissions.names.automation_to_system_events\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.permissions.names.screen_capture_kit",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.permissions.names.screen_capture_kit\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.permissions.names.screen_recording",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.permissions.names.screen_recording\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.permissions.states.denied",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.permissions.states.denied\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.permissions.states.granted",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.permissions.states.granted\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.permissions.states.missing",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.permissions.states.missing\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.permissions.states.unknown",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.permissions.states.unknown\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.permissions.title",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.permissions.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.pixel-size",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.pixel-size\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.pressed",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.pressed\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.primary",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.primary\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.process",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.process\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.region",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.region\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.relative.display",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.relative.display\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.relative.screen",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.relative.screen\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.relative.window",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.relative.window\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.repeat",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.repeat\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.requested",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.requested\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.start",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.start\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.status.completed",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.status.completed\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.status.failed",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.status.failed\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.steps",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.steps\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.title",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.typed",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.typed\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.value",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.value\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.window",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.window\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.computer-use-tool-call.windows",
+      "message": "\"tamagotchi.stage.computer-use-tool-call.windows\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.controls-island.account",
+      "message": "\"tamagotchi.stage.controls-island.account\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.controls-island.logout",
+      "message": "\"tamagotchi.stage.controls-island.logout\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.docs.theme.navbar.appearance.title",
+      "message": "\"tamagotchi.stage.docs.theme.navbar.appearance.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.fullscreen-island.chat",
+      "message": "\"tamagotchi.stage.fullscreen-island.chat\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.fullscreen-island.exit",
+      "message": "\"tamagotchi.stage.fullscreen-island.exit\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.fullscreen-island.settings",
+      "message": "\"tamagotchi.stage.fullscreen-island.settings\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.fullscreen-island.switch-to-dark-mode",
+      "message": "\"tamagotchi.stage.fullscreen-island.switch-to-dark-mode\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.fullscreen-island.switch-to-light-mode",
+      "message": "\"tamagotchi.stage.fullscreen-island.switch-to-light-mode\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.fullscreen-island.switch-to-system-mode",
+      "message": "\"tamagotchi.stage.fullscreen-island.switch-to-system-mode\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.notice.fade-on-hover.preparing",
+      "message": "\"tamagotchi.stage.notice.fade-on-hover.preparing\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.notice.fade-on-hover.preview-title",
+      "message": "\"tamagotchi.stage.notice.fade-on-hover.preview-title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.notice.fade-on-hover.read-more",
+      "message": "\"tamagotchi.stage.notice.fade-on-hover.read-more\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.operations.load-models",
+      "message": "\"tamagotchi.stage.operations.load-models\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.operations.load-models-status.loading",
+      "message": "\"tamagotchi.stage.operations.load-models-status.loading\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.operations.load-models-status.ready",
+      "message": "\"tamagotchi.stage.operations.load-models-status.ready\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.weather-tool-call.conditions.clear-day",
+      "message": "\"tamagotchi.stage.weather-tool-call.conditions.clear-day\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.weather-tool-call.conditions.clear-night",
+      "message": "\"tamagotchi.stage.weather-tool-call.conditions.clear-night\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.weather-tool-call.conditions.drizzle",
+      "message": "\"tamagotchi.stage.weather-tool-call.conditions.drizzle\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.weather-tool-call.conditions.extreme-rain",
+      "message": "\"tamagotchi.stage.weather-tool-call.conditions.extreme-rain\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.weather-tool-call.conditions.extreme-snow",
+      "message": "\"tamagotchi.stage.weather-tool-call.conditions.extreme-snow\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.weather-tool-call.conditions.fog",
+      "message": "\"tamagotchi.stage.weather-tool-call.conditions.fog\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.weather-tool-call.conditions.overcast",
+      "message": "\"tamagotchi.stage.weather-tool-call.conditions.overcast\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.weather-tool-call.conditions.partly-cloudy-day",
+      "message": "\"tamagotchi.stage.weather-tool-call.conditions.partly-cloudy-day\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.weather-tool-call.conditions.partly-cloudy-night",
+      "message": "\"tamagotchi.stage.weather-tool-call.conditions.partly-cloudy-night\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.weather-tool-call.conditions.rain",
+      "message": "\"tamagotchi.stage.weather-tool-call.conditions.rain\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.weather-tool-call.conditions.sleet",
+      "message": "\"tamagotchi.stage.weather-tool-call.conditions.sleet\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.weather-tool-call.conditions.snow",
+      "message": "\"tamagotchi.stage.weather-tool-call.conditions.snow\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.weather-tool-call.conditions.thunderstorm",
+      "message": "\"tamagotchi.stage.weather-tool-call.conditions.thunderstorm\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.weather-tool-call.feels-like",
+      "message": "\"tamagotchi.stage.weather-tool-call.feels-like\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.weather-tool-call.high",
+      "message": "\"tamagotchi.stage.weather-tool-call.high\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.weather-tool-call.humidity",
+      "message": "\"tamagotchi.stage.weather-tool-call.humidity\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.weather-tool-call.low",
+      "message": "\"tamagotchi.stage.weather-tool-call.low\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.weather-tool-call.precipitation",
+      "message": "\"tamagotchi.stage.weather-tool-call.precipitation\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.weather-tool-call.wind",
+      "message": "\"tamagotchi.stage.weather-tool-call.wind\" is not used.",
+      "count": 1
+    }
+  ]
+}

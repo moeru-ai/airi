@@ -28,10 +28,11 @@ describe('computer use runtime', () => {
 
   it('rejects shell commands, route overrides, and invalid input before starting AUV', async () => {
     await expect(runtime.run({ argv: ['serve', '--help'] })).rejects.toThrow('Use invoke')
-    await expect(runtime.run({ argv: ['invoke', 'app.activate', '--device=other'] })).rejects.toThrow('managed by AIRI')
+    await expect(runtime.run({ argv: ['invoke', 'application.activate', '--device=other'] })).rejects.toThrow('managed by AIRI')
     await expect(runtime.run({ argv: ['invoke', 'window.list', '--store-root', 'elsewhere'] })).rejects.toThrow('managed by AIRI')
     await expect(runtime.run({ argv: ['invoke', 'window.list', '--credential-stdin'] })).rejects.toThrow('managed by AIRI')
     await expect(runtime.run({ argv: ['invoke', 'scan.frame'] })).rejects.toThrow('Use invoke')
+    await expect(runtime.run({ argv: ['invoke', 'screen.findText', 'OK'] })).rejects.toThrow('Use invoke')
     await expect(runtime.run({ argv: ['invoke', 5] })).rejects.toThrow()
   })
 

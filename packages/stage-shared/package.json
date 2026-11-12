@@ -18,6 +18,8 @@
     ".": "./src/index.ts",
     "./auth": "./src/auth/index.ts",
     "./analytics/openpanel": "./src/analytics/openpanel.ts",
+    "./analytics/sentry": "./src/analytics/sentry.ts",
+    "./analytics/sentry-vite": "./src/analytics/sentry-vite.ts",
     "./beat-sync": "./src/beat-sync/index.ts",
     "./chat-request": "./src/chat-request.ts",
     "./global-shortcut": "./src/global-shortcut/index.ts",
@@ -54,6 +56,7 @@
     "@moeru/eventa": "catalog:",
     "@nekopaw/tempora": "catalog:",
     "@proj-airi/electron-screen-capture": "workspace:^",
+    "@sentry/bundler-plugins": "catalog:",
     "@types/audioworklet": "catalog:"
   }
 }
