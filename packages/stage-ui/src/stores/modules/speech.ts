@@ -306,6 +306,21 @@ export const useSpeechStore = defineStore('speech', () => {
   })
 
   /** Executes a caller's immutable catalog request in the synchronization leader. */
+  /**
+   * Loads the voice catalog of a provider that a character uses and this store does not select.
+   *
+   * The store keeps one catalog for each provider. The catalog of the selected provider belongs to the selection:
+   * a load for another model of that provider discards the catalog and clears the selected voice.
+   * So this function does not load for the selected provider. A character with another model of that provider
+   * reads the catalog of the selected model.
+   */
+  async function loadVoicesForCharacter(provider: string, model?: string): Promise<void> {
+    if (!provider || provider === 'speech-noop' || provider === activeSpeechProvider.value)
+      return
+
+    await loadVoicesForProvider(provider, model)
+  }
+
   async function loadVoiceCatalog(provider: string, model: string | undefined, configuration: VoiceCatalogConfiguration, generation = resetGeneration.value): Promise<VoiceInfo[]> {
     // A queued caller request from before reset cannot start new leader work.
     if (!provider || disposed || generation !== resetGeneration.value) {
@@ -834,6 +849,7 @@ export const useSpeechStore = defineStore('speech', () => {
     // Actions
     speech,
     loadVoicesForProvider,
+    loadVoicesForCharacter,
     loadVoiceCatalog,
     invalidateVoiceCatalogs,
     selectProviderModel,

@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import type { LinkedAccountsClient } from '@proj-airi/stage-ui/composables'
+
 import { errorMessageFrom } from '@moeru/std'
 import { isCapacitorAvailable } from '@proj-airi/stage-shared'
 import { defaultSignInProviders } from '@proj-airi/stage-ui/components/auth/providers'
 import { resolveLinkedAccountOAuthErrorMessageKey, useAnalytics, useLinkedAccounts } from '@proj-airi/stage-ui/composables'
 import { authClient } from '@proj-airi/stage-ui/libs/auth'
+import { authedFetch } from '@proj-airi/stage-ui/libs/auth-fetch'
 import { SERVER_URL } from '@proj-airi/stage-ui/libs/server'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { Avatar, Button, FieldInput, GhostButton } from '@proj-airi/ui'
@@ -136,6 +139,23 @@ function scrollToSection(id: SectionId) {
   targets[id]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
+/**
+ * Fetch options for account calls whose 401 means an expired access token.
+ * They refresh the token once and retry. A second 401 signs the user out.
+ */
+const refreshOn401 = { customFetchImpl: authedFetch }
+
+// Better Auth's `sensitiveSessionMiddleware` answers 401 for a valid token without an
+// active session, and a refresh cannot fix that. `changePassword` and `/delete-account`
+// use it, so they keep the direct fetch.
+// Source: better-auth/dist/api/routes/session.mjs, sensitiveSessionMiddleware.
+const linkedAccountsClient: LinkedAccountsClient = {
+  listAccounts: () => authClient.listAccounts({ fetchOptions: refreshOn401 }),
+  unlinkAccount: args => authClient.unlinkAccount({ ...args, fetchOptions: refreshOn401 }),
+  linkSocial: args => authClient.linkSocial({ ...args, fetchOptions: refreshOn401 }),
+  linkSteam: args => authClient.linkSteam(args, refreshOn401),
+}
+
 // Connected accounts: state + handlers come from the shared composable
 // in stage-ui so this page and apps/ui-server-auth's profile page stay
 // in lockstep. The composable handles list/unlink/link, the last-sign-in-
@@ -150,12 +170,13 @@ const {
   error: linkedAccountsError,
   message: linkedAccountsMessage,
   inFlight: linkActionInFlight,
+  needsLogin: linkedAccountsNeedsLogin,
   accountsByProvider: linkedAccountsByProvider,
   hasCredentialAccount,
   unlink: unlinkLinkedProvider,
   link: linkLinkedProvider,
 } = useLinkedAccounts({
-  client: authClient,
+  client: linkedAccountsClient,
   isAuthenticated,
   describeError: error => errorMessageFrom(error) ?? '',
   messages: {
@@ -165,6 +186,7 @@ const {
     lastAccount: t('settings.pages.account.connections.error.lastAccount'),
     unlinked: provider => t('settings.pages.account.connections.message.unlinked', { provider }),
     linkStarted: provider => t('settings.pages.account.connections.message.linkStarted', { provider }),
+    reauthenticate: t('settings.pages.account.connections.error.reauthenticate'),
   },
   onUnlinked: providerId => trackOauthProviderUnlinked({ provider: providerId }),
   onLinkStarted: providerId => trackOauthProviderLinkStarted({ provider: providerId }),
@@ -238,6 +260,7 @@ async function handleSaveProfile(event: Event) {
   try {
     const { error } = await authClient.updateUser({
       name: trimmedName,
+      fetchOptions: refreshOn401,
     })
     if (error)
       throw new Error(error.message ?? 'updateUser failed')
@@ -386,13 +409,21 @@ watch(() => [authStore.sessionVersion, user.value?.id, userEmail.value], () => {
 }, { flush: 'sync' })
 onScopeDispose(cancelDeletion)
 
-/** Starts the existing platform login flow and requires a new manual deletion confirmation afterward. */
-async function reauthenticateForDeletion() {
+/**
+ * Clears the current login and starts the existing platform login flow.
+ * Account deletion and connected-account changes use it when the server needs a new sign-in.
+ */
+async function signInAgain() {
   const version = authStore.sessionVersion
-  deleteDialogOpen.value = false
   await authStore.clearAllAuthState()
   if (authStore.sessionVersion === version + 1 && !authStore.isAuthenticated)
     emit('login')
+}
+
+/** Starts a new sign-in and requires a new manual deletion confirmation afterward. */
+async function reauthenticateForDeletion() {
+  deleteDialogOpen.value = false
+  await signInAgain()
 }
 
 /** Deletes only the confirmed session's account and ignores results after account changes or cancellation. */
@@ -504,6 +535,7 @@ async function handleConfirmDelete(event: Event) {
             <div :class="['flex items-center gap-4 py-2']">
               <Avatar
                 :src="userAvatar"
+                :seed="user?.id"
                 :class="['size-16 sm:size-20 rounded-full flex-shrink-0', 'bg-neutral-100 dark:bg-neutral-800', 'flex items-center justify-center']"
               />
               <div :class="['flex flex-col gap-0.5 min-w-0']">
@@ -840,6 +872,13 @@ async function handleConfirmDelete(event: Event) {
             >
               {{ linkedAccountsMessage }}
             </div>
+            <Button
+              v-if="linkedAccountsNeedsLogin && !linkedAccountsRouteErrorKey"
+              type="button"
+              :class="['self-start px-3 py-1 text-xs']"
+              :label="t('settings.pages.account.connections.action.signInAgain')"
+              @click="signInAgain"
+            />
           </section>
 
           <!-- Sync section. It follows Connected accounts because both decide what the account reaches,

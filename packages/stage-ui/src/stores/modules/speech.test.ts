@@ -624,6 +624,44 @@ describe('vOICEVOX provider defaults', () => {
     expect(speech.availableVoices['microsoft-speech']).toEqual([])
   })
 
+  // https://github.com/moeru-ai/airi/pull/3487#discussion_r4537737568
+  // ROOT CAUSE: The store keeps one catalog for each provider. A load for the selected provider with the model of
+  // a character discarded that catalog and cleared the selected voice.
+  it('keeps the selected voice when a character uses another model of the selected provider', async () => {
+    const voices = [{ id: 'selected', name: 'Selected', languages: [], provider: 'microsoft-speech' }]
+    const loads = vi.spyOn(useProviderStore(), 'listProviderVoices').mockResolvedValue(voices)
+    const speech = useSpeechStore()
+    await speech.selectProviderModel('microsoft-speech', 'model-a')
+    await vi.waitFor(() => expect(speech.isLoadingSpeechProviderVoices).toBe(false))
+    speech.activeSpeechVoiceId = 'selected'
+    await speech.ensureActiveSpeechVoice()
+    loads.mockClear()
+
+    await speech.loadVoicesForCharacter('microsoft-speech', 'model-b')
+
+    expect(loads).not.toHaveBeenCalled()
+    expect(speech.activeSpeechVoiceId).toBe('selected')
+    expect(speech.availableVoices['microsoft-speech']).toEqual(voices)
+  })
+
+  it('loads the catalog of a provider that only a character uses and keeps the selected voice', async () => {
+    const voices = [{ id: 'selected', name: 'Selected', languages: [], provider: 'microsoft-speech' }]
+    const loads = vi.spyOn(useProviderStore(), 'listProviderVoices').mockResolvedValue(voices)
+    const speech = useSpeechStore()
+    await speech.selectProviderModel('microsoft-speech', 'model-a')
+    await vi.waitFor(() => expect(speech.isLoadingSpeechProviderVoices).toBe(false))
+    speech.activeSpeechVoiceId = 'selected'
+    await speech.ensureActiveSpeechVoice()
+    const characterVoices = [{ id: 'character', name: 'Character', languages: [], provider: 'elevenlabs' }]
+    loads.mockResolvedValue(characterVoices)
+
+    await speech.loadVoicesForCharacter('elevenlabs', 'model-c')
+
+    expect(loads).toHaveBeenCalledWith('elevenlabs', 'model-c', expect.anything())
+    expect(speech.availableVoices.elevenlabs).toEqual(characterVoices)
+    expect(speech.activeSpeechVoiceId).toBe('selected')
+  })
+
   // https://github.com/moeru-ai/airi/pull/2490#discussion_r3966034981
   // ROOT CAUSE: Synthesis settings changed the catalog fingerprint and cleared
   // a valid selection. Each adapter must identify its discovery inputs.

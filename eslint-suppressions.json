@@ -369,11 +369,6 @@
       "count": 2
     }
   },
-  "packages/model-driver-mediapipe/src/three/apply-pose-to-vrm.ts": {
-    "ts/no-explicit-any": {
-      "count": 4
-    }
-  },
   "packages/plugin-sdk/src/channels/index.ts": {
     "ts/no-explicit-any": {
       "count": 6
@@ -589,16 +584,6 @@
       "count": 2
     }
   },
-  "packages/stage-ui-spine/src/components/scenes/spine/Model.vue": {
-    "ts/no-explicit-any": {
-      "count": 2
-    }
-  },
-  "packages/stage-ui-spine/src/utils/spine-preview.ts": {
-    "ts/no-explicit-any": {
-      "count": 1
-    }
-  },
   "packages/stage-ui-three/src/components/Model/VRMModel.vue": {
     "ts/no-explicit-any": {
       "count": 4
@@ -657,11 +642,6 @@
   "packages/stage-ui/src/components/misc/steppers/steppers.vue": {
     "ts/no-explicit-any": {
       "count": 1
-    }
-  },
-  "packages/stage-ui/src/components/scenarios/dialogs/background-picker/background-picker.vue": {
-    "ts/no-explicit-any": {
-      "count": 6
     }
   },
   "packages/stage-ui/src/components/scenarios/dialogs/onboarding/step-provider-configuration.vue": {
@@ -769,11 +749,6 @@
       "count": 2
     }
   },
-  "packages/stage-ui/src/utils/tts.ts": {
-    "ts/no-explicit-any": {
-      "count": 2
-    }
-  },
   "packages/stage-ui/src/workers/background-removal/worker.ts": {
     "ts/no-explicit-any": {
       "count": 2
@@ -787,21 +762,6 @@
   "packages/stage-ui/src/workers/vad/vad.ts": {
     "ts/no-explicit-any": {
       "count": 3
-    }
-  },
-  "packages/stream-kit/src/queue.ts": {
-    "ts/no-explicit-any": {
-      "count": 9
-    }
-  },
-  "packages/ui/src/components/animations/transition-horizontal.vue": {
-    "ts/no-explicit-any": {
-      "count": 5
-    }
-  },
-  "packages/ui/src/utils/shim/local-storage.ts": {
-    "ts/no-explicit-any": {
-      "count": 1
     }
   },
   "services/computer-use-mcp/src/bin/e2e-airi-chat-observable.ts": {

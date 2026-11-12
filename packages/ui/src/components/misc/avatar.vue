@@ -3,6 +3,8 @@ import type { ImgHTMLAttributes } from 'vue'
 
 import { AvatarFallback, AvatarImage, AvatarRoot } from 'reka-ui'
 
+import BeamAvatar from './beam-avatar.vue'
+
 interface AvatarProps {
   /**
    * Image URL. Missing or failed images render the fallback.
@@ -17,6 +19,14 @@ interface AvatarProps {
    * @default null
    */
   alt?: string | null
+  /**
+   * Stable identity, for example a user ID. When set, the default fallback is a
+   * generated beam avatar for this identity instead of a generic user icon.
+   * A `fallback` slot still replaces both.
+   *
+   * @default null
+   */
+  seed?: string | null
   /** Referrer policy forwarded to the underlying image request. */
   referrerPolicy?: ImgHTMLAttributes['referrerpolicy']
   /** Cross-origin mode forwarded to the underlying image request. */
@@ -26,6 +36,7 @@ interface AvatarProps {
 const props = withDefaults(defineProps<AvatarProps>(), {
   src: null,
   alt: null,
+  seed: null,
 })
 </script>
 
@@ -51,7 +62,8 @@ const props = withDefaults(defineProps<AvatarProps>(), {
       :class="['size-full flex items-center justify-center']"
     >
       <slot name="fallback">
-        <div :class="['i-solar:user-circle-bold-duotone', 'size-1/2 text-neutral-400']" />
+        <BeamAvatar v-if="props.seed" :seed="props.seed" />
+        <div v-else :class="['i-solar:user-circle-bold-duotone', 'size-1/2 text-neutral-400']" />
       </slot>
     </AvatarFallback>
   </AvatarRoot>

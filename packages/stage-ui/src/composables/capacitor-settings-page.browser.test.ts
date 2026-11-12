@@ -148,11 +148,11 @@ describe('capacitor quota display and purchase actions', () => {
     sdk.purchase.mockResolvedValue({ customerInfo: customer('monthly') })
     const screen = openPage()
 
-    await screen.getByRole('button', { name: 'Install', exact: true }).click()
+    await screen.getByRole('button', { name: 'Subscribe', exact: true }).click()
 
     await vi.waitFor(() => expect(sdk.purchase).toHaveBeenCalledWith({ rcPackage: expect.objectContaining({ identifier: '$rc_monthly' }) }))
     expect(requests).not.toContain('/api/v1/revenuecat/product-change')
-    await expect.element(screen.getByRole('status')).toHaveTextContent('Your Capacitor is installed and charged.')
+    await expect.element(screen.getByRole('status')).toHaveTextContent('You are subscribed. Your Capacitor is full.')
     expect(screen.getByText('Callout', { exact: true }).elements()).toHaveLength(0)
   })
 
@@ -165,7 +165,7 @@ describe('capacitor quota display and purchase actions', () => {
 
     await vi.waitFor(() => expect(sdk.getCustomerInfo).toHaveBeenCalledOnce())
     expect(sdk.getOfferings).not.toHaveBeenCalled()
-    expect(screen.getByRole('button', { name: 'Install', exact: true }).elements()).toHaveLength(0)
+    expect(screen.getByRole('button', { name: 'Subscribe', exact: true }).elements()).toHaveLength(0)
     resolveCustomer(customer('monthly'))
     await expect.element(screen.getByRole('button', { name: 'Upgrade', exact: true })).toBeVisible()
   })

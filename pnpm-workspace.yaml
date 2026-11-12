@@ -17,6 +17,7 @@ minimumReleaseAgeExclude:
   - '@auv-js/*'
   - '@gd-kirie/*'
   - '@moeru/*'
+  - '@node-macos-disclaim/*'
   - '@proj-airi/*'
   - '@sherpaw/*'
   - '@vishot/*'
@@ -27,10 +28,12 @@ minimumReleaseAgeExclude:
   - '@xsai-ext/*'
   - '@xsai-transformers/*'
   - kirie
+  - node-macos-disclaim
   - pinia-plugin-synced
   - xsschema
   - vieval
   - '@ergosphere-it/*'
+  - injeca
 
 shellEmulator: true
 packages:
@@ -127,7 +130,7 @@ catalog:
   '@grammyjs/files': ^1.2.0
   '@guiiai/logg': ^1.2.12
   '@histoire/plugin-vue': 1.0.0-beta.1
-  '@hono/node-server': ^2.1.5
+  '@hono/node-server': ^2.1.1
   '@hono/node-ws': ^1.3.1
   '@hono/otel': ^1.1.2
   '@huggingface/transformers': 3.8.1
@@ -152,7 +155,7 @@ catalog:
   '@laplace.live/event-types': ^2.0.21
   '@lemonneko/crop-empty-pixels': 0.1.1
   '@mediapipe/tasks-vision': ^1.0.1
-  '@modelcontextprotocol/sdk': ^1.32.2
+  '@modelcontextprotocol/sdk': ^1.30.0
   '@moeru/eslint-config': 0.1.0-beta.19
   '@moeru/eventa': 1.0.2
   '@moeru/std': 0.1.0-beta.17
@@ -160,6 +163,8 @@ catalog:
   '@moeru/three-mmd-physics-ammo': 0.2.0-beta.2
   '@napi-rs/image': ^1.14.0
   '@nekopaw/tempora': 0.4.0-alpha.1
+  '@node-macos-disclaim/darwin-arm64': ^0.0.1
+  '@node-macos-disclaim/darwin-x64': ^0.0.1
   '@openpanel/sdk': 1.3.1
   '@openpanel/web': 1.4.1
   '@opentelemetry/api': ^1.9.1
@@ -202,6 +207,10 @@ catalog:
   '@pnpm/find-workspace-dir': ^1000.1.5
   '@proj-airi/chromatic': ^2.0.1
   '@proj-airi/drizzle-duckdb-wasm': ^0.6.0
+  '@proj-airi/font-chillroundm': ^0.17.0
+  '@proj-airi/font-cjkfonts-allseto': ^0.17.0
+  '@proj-airi/font-departure-mono': ^0.17.0
+  '@proj-airi/font-xiaolai': ^0.17.0
   '@proj-airi/iconify-meteocons': ^0.1.5
   '@proj-airi/lobe-icons': ^1.0.19
   '@proj-airi/unocss-preset-chromatic': ^2.0.1
@@ -209,6 +218,10 @@ catalog:
   '@proj-airi/unplugin-live2d-sdk': ^0.1.7
   '@revenuecat/purchases-js': ^1.15.0
   '@rive-app/canvas-lite': ^2.40.1
+  '@sentry/browser': ^11.11.0
+  '@sentry/bundler-plugins': ^11.11.0
+  '@sentry/capacitor': 4.5.0
+  '@sentry/electron': 8.3.0
   '@sherpaw/asr': 0.3.0
   '@sherpaw/kws': 0.3.0
   '@sherpaw/speaker-diarization': 0.3.0
@@ -306,7 +319,7 @@ catalog:
   destr: ^2.0.5
   discord.js: ^14.27.0
   dockview-vue: ^8.2.0
-  dompurify: ^3.4.17
+  dompurify: ^3.4.14
   driver.js: ^1.8.0
   drizzle-kit: ^0.31.10
   drizzle-orm: ^0.45.2
@@ -338,7 +351,7 @@ catalog:
   hono-rate-limiter: ^0.5.3
   html2canvas: ^1.4.1
   idb-keyval: ^6.3.0
-  injeca: ^0.2.0
+  injeca: ^0.5.2
   ioredis: ^6.0.0
   ioredis-mock: ^8.13.1
   is-network-error: ^1.3.2
@@ -368,6 +381,7 @@ catalog:
   model-bank: 1.0.20260904203849
   nano-staged: ^1.0.2
   nanoid: ^6.0.1
+  node-macos-disclaim: ^0.0.1
   node-pty: npm:@lydell/node-pty@^1.2.0-beta.15
   node-vibrant: ^4.0.4
   nprogress: ^0.2.0
@@ -410,7 +424,6 @@ catalog:
   speech-rule-engine: 5.0.0-rc.4
   splitpanes: ^4.1.2
   sponsorkit: 17.1.0
-  sponsors-svg: ^0.3.0
   srvx: ^0.12.7
   std-env: ^4.2.0
   stockfish: ^18.0.8
@@ -456,7 +469,7 @@ catalog:
   vite-plugin-vue-layouts: ^0.11.0
   vitest-browser-vue: ^2.1.0
   vscode-ext-gen: ^1.6.0
-  vue: ^3.5.44
+  vue: ^3.5.41
   vue-demi: ^0.14.10
   vue-i18n: ^11.4.9
   vue-json-pretty: ^2.6.0
@@ -483,9 +496,9 @@ catalog:
   zod-to-json-schema: ^3.25.2
 catalogs:
   vitest:
-    '@vitest/browser-playwright': ^4.1.12
-    '@vitest/coverage-v8': ^4.1.12
-    vitest: ^4.1.12
+    '@vitest/browser-playwright': ^4.1.11
+    '@vitest/coverage-v8': ^4.1.11
+    vitest: ^4.1.11
   xsai:
     unspeech: ^0.1.16
 
@@ -502,6 +515,7 @@ allowBuilds:
   '@openuidev/lang-core': false # Its postinstall only sends install telemetry.
   '@parcel/watcher': true
   '@prisma/client': false
+  '@sentry/capacitor': false # Its postinstall only checks the versions of the other Sentry packages.
   better-sqlite3: false
   bufferutil: true
   canvas: true

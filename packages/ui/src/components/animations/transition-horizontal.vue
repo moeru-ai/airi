@@ -1,5 +1,20 @@
 <script setup lang="ts">
-function enter(el: any, done: any) {
+/**
+ * Elements with inline styles. HTML, SVG, and MathML elements implement
+ * {@link ElementCSSInlineStyle}.
+ */
+type TransitionHorizontalElement = Element & Pick<ElementCSSInlineStyle, 'style'>
+
+function isTransitionHorizontalElement(el: Element): el is TransitionHorizontalElement {
+  return 'style' in el
+}
+
+function enter(el: Element, done: () => void) {
+  if (!isTransitionHorizontalElement(el)) {
+    done()
+    return
+  }
+
   el.style.transition = 'all 0.5s'
   const width = el.scrollWidth
   el.style.width = '0'
@@ -9,13 +24,21 @@ function enter(el: any, done: any) {
   el.addEventListener('transitionend', done)
 }
 
-function beforeLeave(el: any) {
+function beforeLeave(el: Element) {
+  if (!isTransitionHorizontalElement(el))
+    return
+
   el.style.transition = 'all 0.5s'
   el.style.width = '0'
   el.style.opacity = '0'
 }
 
-function leave(el: any, done: any) {
+function leave(el: Element, done: () => void) {
+  if (!isTransitionHorizontalElement(el)) {
+    done()
+    return
+  }
+
   el.style.transition = 'all 0.5s'
   el.style.width = '0'
   el.style.opacity = '0'

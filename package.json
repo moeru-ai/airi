@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/root",
   "type": "module",
-  "version": "0.15.1",
+  "version": "0.15.2",
   "private": true,
   "packageManager": "pnpm@11.24.0",
   "description": "LLM powered virtual character",
@@ -82,7 +82,6 @@
     "rollup": "catalog:",
     "simple-git-hooks": "catalog:",
     "sponsorkit": "catalog:",
-    "sponsors-svg": "catalog:",
     "taze": "catalog:",
     "tinyexec": "catalog:",
     "tsdown": "catalog:",

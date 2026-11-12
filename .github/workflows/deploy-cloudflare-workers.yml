@@ -100,6 +100,8 @@ jobs:
           S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
           S3_REGION: ${{ secrets.S3_REGION }}
           VITE_ENABLE_ANALYTICS: 'true'
+          # Uploads source maps to Sentry. The build skips the upload when the secret is absent.
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           VITE_SERVER_URL: 'https://api.airi.build'
           VITE_REVENUECAT_WEB_KEY: ${{ vars.VITE_REVENUECAT_WEB_KEY }}
           WARP_DRIVE_PUBLIC_BASE: ${{ secrets.WARP_DRIVE_PUBLIC_BASE }}
