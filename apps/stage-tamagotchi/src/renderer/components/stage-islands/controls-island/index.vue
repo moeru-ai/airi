@@ -2,13 +2,13 @@
 import { defineInvoke } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
 import { IS_DEV } from '@proj-airi/stage-shared'
-import { HearingConfigDialog } from '@proj-airi/stage-ui/components'
+import { HearingConfigDialog, InboxPanel } from '@proj-airi/stage-ui/components'
 import { useInboxStore } from '@proj-airi/stage-ui/stores/inbox'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { Badge, ScrollableArea, useTheme } from '@proj-airi/ui'
-import { refDebounced, useFocusWithin, useIntervalFn, useMouseInElement, useMousePressed } from '@vueuse/core'
+import { Badge, IconButton, ScrollableArea, useTheme } from '@proj-airi/ui'
+import { refDebounced, useFocusWithin, useIntervalFn, useMouseInElement, useMousePressed, useNow } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, reactive, ref, useId, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, reactive, ref, useId, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import StatusIsland from '../status-island/index.vue'
@@ -84,13 +84,21 @@ const centerMainWindow = useElectronEventaInvoke(electronCenterMainWindow)
 
 const expanded = ref(false)
 // The store also polls the unread count, so the collapse button can show a dot while the menu is closed.
+const inbox = useInboxStore()
 const {
   unread: notificationsUnread,
+  messages: notificationMessages,
+  loading: notificationsLoading,
+  error: notificationsError,
+  hasMore: notificationsHasMore,
   signedIn: notificationsSignedIn,
-} = storeToRefs(useInboxStore())
+} = storeToRefs(inbox)
+const now = useNow({ interval: 60_000 })
 const notificationsLabel = computed(() => notificationsUnread.value > 0
   ? t('stage.notifications.open-unread', { count: notificationsUnread.value })
   : t('stage.notifications.open'))
+/** The menu card shows the controls or, after the Notifications row, the Notifications list. */
+const menuView = ref<'controls' | 'notifications'>('controls')
 // Closing disables interaction immediately. Keep layout until the exit
 // animation ends, then isolate the same menu for natural-size measurement.
 const panelPresent = ref(false)
@@ -218,6 +226,7 @@ watch(expanded, (isExpanded) => {
     if (menuContent.value?.contains(document.activeElement) || blockingOverlays.size > 0)
       mainControlsElement.value?.querySelector<HTMLButtonElement>('[aria-controls]')?.focus()
     profileOpen.value = false
+    menuView.value = 'controls'
     blockingOverlays.clear()
   }
 })
@@ -240,6 +249,25 @@ watch(alwaysOnTop, (val) => {
 function toggleAlwaysOnTop() {
   alwaysOnTop.value = !alwaysOnTop.value
 }
+
+async function showNotifications() {
+  menuView.value = 'notifications'
+  void inbox.loadFirstPage()
+  await nextTick()
+  menuContent.value?.querySelector<HTMLButtonElement>('[data-testid="controls-island-notifications-back"]')?.focus()
+}
+
+async function showControls() {
+  menuView.value = 'controls'
+  await nextTick()
+  menuContent.value?.querySelector<HTMLButtonElement>('[data-testid="controls-island-notifications"]')?.focus()
+}
+
+// A sign-out removes the Notifications row, so the list must not stay without a way back to it.
+watch(notificationsSignedIn, (signedIn) => {
+  if (!signedIn)
+    menuView.value = 'controls'
+})
 
 function openMenuPage(route: string) {
   expanded.value = false
@@ -382,7 +410,36 @@ function resetMainWindowPosition() {
                   'bg-neutral-100/80 shadow-2xl shadow-black/20 backdrop-blur-xl dark:bg-neutral-900/80',
                 ]"
               >
-                <div :class="['flex flex-col gap-1']">
+                <!--
+                  The Notifications row switches this card to the Notifications list in place.
+                  The list stays inside the island, so the stage hit test already covers it.
+                -->
+                <div v-if="menuView === 'notifications'" data-testid="controls-island-notifications-view" :class="['w-80']">
+                  <InboxPanel
+                    :messages="notificationMessages" :now="now" :unread="notificationsUnread"
+                    :loading="notificationsLoading" :error="notificationsError" :has-more="notificationsHasMore"
+                    surface="drawer"
+                    @open="inbox.markRead" @read-all="inbox.markAllRead" @retry="inbox.loadFirstPage" @load-more="inbox.loadMore"
+                  >
+                    <template #leading>
+                      <IconButton
+                        data-testid="controls-island-notifications-back"
+                        :aria-label="t('stage.notifications.back')" :title="t('stage.notifications.back')"
+                        :class="[
+                          'size-8 rounded-full outline-none',
+                          'text-neutral-600 hover:bg-black/5 hover:text-neutral-900',
+                          'dark:text-neutral-300 dark:hover:bg-white/5 dark:hover:text-white',
+                          'focus-visible:outline-2 focus-visible:outline-primary-400',
+                        ]"
+                        @click="showControls"
+                      >
+                        <span aria-hidden="true" :class="['i-solar:alt-arrow-left-linear size-5']" />
+                      </IconButton>
+                    </template>
+                  </InboxPanel>
+                </div>
+                <!-- v-show keeps dialogs and listeners of the controls mounted while the list shows. -->
+                <div v-show="menuView === 'controls'" :class="['flex flex-col gap-1']">
                   <div :class="['mb-1.5 flex flex-col gap-1.5']">
                     <ControlsIslandAuthButton
                       :active="expanded"
@@ -398,7 +455,7 @@ function resetMainWindowPosition() {
                       :label="t('stage.notifications.title')"
                       icon="i-solar:bell-outline"
                       :icon-class="adjustStyleClasses.icon"
-                      @click="openMenuPage('/settings/notifications')"
+                      @click="showNotifications"
                     >
                       <Badge :count="notificationsUnread" data-testid="controls-island-notifications-count" />
                     </ControlMenuRow>
