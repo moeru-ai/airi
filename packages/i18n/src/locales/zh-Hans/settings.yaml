@@ -852,6 +852,13 @@ pages:
               required-description: 此模型必须启用思考。
               provider-default-description: AIRI 未提供此模型的推理设置，将使用 OpenRouter 的默认设置。
       title: 意识
+    default-notice:
+      description: 这里的选择是所有角色的默认值。
+      own-value:
+        title: '{name} 使用自己的选择'
+        description: >-
+          {name} 在这个模块有自己的设置，所以这里的选择不会改变它。如果要让它使用默认值，请在角色编辑器里把对应字段设为“继承全局设置”。
+        edit: 编辑 {name}
     description: 思维，视觉，言语综合，游戏等
     gaming-factorio:
       description: 一起玩 Factorio！

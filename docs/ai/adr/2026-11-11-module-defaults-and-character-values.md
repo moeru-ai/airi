@@ -46,7 +46,8 @@ The order does not change: the value of the character, then the global default.
 
 - The module settings pages edit the global defaults. They do not save a value on a character.
 - Each page says that the selection is the default for all characters.
-- If the character of the current chat has its own value for the module, the page shows a notice. The notice has a link to the editor of that character.
+- If the active character has its own value for the module, the page shows a notice. The notice has a link to the editor of that character.
+- The notice reads the active character, because a settings window shows no chat. When the chat selects the character, the notice reads the character of the shown chat.
 - The character editor edits the values of one character. It keeps the option "Inherit global settings" for each field.
 
 ### Readers during a turn
@@ -95,8 +96,9 @@ Before step 2, they got the selection of the active character.
 | Step | Content | Workspaces | State |
 | --- | --- | --- | --- |
 | 1 | Resolve the session character in the turn paths of the table. | `packages/stage-ui`, `packages/stage-layouts`, `apps/stage-tamagotchi` | Done (#3487) |
-| 2 | Make the module stores the source of the defaults. Migrate `moduleDefaults`. Remove the writes on activation and the watcher. Stop the saves of the module settings pages on the active character. | `packages/stage-ui`, `packages/stage-pages` | This change |
-| 3 | Add the notice and the text on the module settings pages. Link a problem of an inherited selection to the module page. | `packages/stage-pages`, `packages/stage-ui`, `packages/i18n` | To do |
+| 2 | Make the module stores the source of the defaults. Migrate `moduleDefaults`. Remove the writes on activation and the watcher. Stop the saves of the module settings pages on the active character. | `packages/stage-ui`, `packages/stage-pages` | Done (#3492) |
+| 3 | Add the notice and the text on the module settings pages. | `packages/stage-pages`, `packages/i18n` | This change |
+| 4 | Link a problem of an inherited selection to the module page. | `packages/stage-ui` | To do |
 
 Step 1 goes first. Without it, step 2 stops the send gate, the image reading, and the voice catalog of a character with its own values.
 Step 2 includes the handlers of the module settings pages. Without that part, a selection on a settings page becomes a value of the active character and a default at the same time.

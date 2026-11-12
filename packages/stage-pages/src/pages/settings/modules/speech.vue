@@ -30,6 +30,8 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
+import ModuleDefaultNotice from './components/module-default-notice.vue'
+
 import { moduleModelSearchKey, moduleProviderSearchKey, speechVoiceSearchKey } from './module-model-search'
 
 const { t } = useI18n()
@@ -637,6 +639,7 @@ async function handleDeleteProvider(providerId: string) {
             <span>{{ t('settings.pages.modules.speech.sections.section.provider-voice-selection.description') }}</span>
           </div>
         </div>
+        <ModuleDefaultNotice module="speech" />
         <div max-w-full>
           <fieldset
             v-if="selectableSpeechSources.length > 0" flex="~ row gap-4"
