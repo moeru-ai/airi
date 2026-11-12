@@ -17,11 +17,10 @@ import { errorMessageFrom } from '@moeru/std'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { inspectLive2DModelControls } from '@proj-airi/stage-ui-live2d/controls/manifest'
 import { isLive2DControlEnabled } from '@proj-airi/stage-ui-live2d/controls/policy'
-import { StorageSerializers } from '@vueuse/core'
 import { isEqual } from 'es-toolkit'
 import { nanoid } from 'nanoid'
 import { defineStore, getActivePinia, storeToRefs } from 'pinia'
-import { array, looseObject, object, parse, safeParse, string } from 'valibot'
+import { array, looseObject, object, parse, parseJson, pipe, safeParse, string } from 'valibot'
 import { computed, onScopeDispose, ref, shallowRef, toRaw } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
@@ -105,11 +104,11 @@ async function sha256Hex(text: string) {
 const synchronizedCardSchema = looseObject({ name: string(), version: string() })
 
 const legacyModuleSelectionSchema = object({ provider: string(), model: string() })
-const legacyModuleDefaultsSchema = object({
+const legacyModuleDefaultsJsonSchema = pipe(string(), parseJson(), object({
   consciousness: legacyModuleSelectionSchema,
   vision: legacyModuleSelectionSchema,
   speech: object({ provider: string(), model: string(), voice_id: string() }),
-})
+}))
 
 /** Every device can load this Display Model, because it is bundled and not stored. */
 const BUILT_IN_DISPLAY_MODEL_ID = 'preset-live2d-1'
@@ -212,11 +211,6 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   /** True after `initialize` applied the active card. Before that, no card owns the Stage. */
   const ready = shallowRef(false)
 
-  // The store does not return this ref, so it is not synchronized. Only {@link migrateLegacyModuleDefaults} reads it.
-  const legacyModuleDefaults = useLocalStorageManualReset<unknown>(LEGACY_MODULE_DEFAULTS_STORAGE_KEY, null, {
-    listenToStorageChanges: false,
-    serializer: StorageSerializers.object,
-  })
   let pendingAuthenticationSetup: Promise<void> | undefined
 
   const activeCard = computed(() => cards.value.get(activeCardId.value))
@@ -334,14 +328,20 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     // Without this step, the value of the active character becomes the default of every character.
     // See docs/ai/adr/2026-11-11-module-defaults-and-character-values.md, "Data of existing installations".
     // Remove this function when no supported version writes `airi-card-module-defaults`.
-    if (legacyModuleDefaults.value === null)
+    //
+    // Read the key at each call and keep no copy. Another window can complete the migration and remove the key.
+    // A window with a copy from its start repeats the migration when it becomes the leader, and replaces
+    // the defaults that the user changed after the first migration.
+    // A runtime without `localStorage` has no data of an earlier version.
+    const stored = globalThis.localStorage?.getItem(LEGACY_MODULE_DEFAULTS_STORAGE_KEY)
+    if (stored == null)
       return
-    const defaults = safeParse(legacyModuleDefaultsSchema, legacyModuleDefaults.value)
+    // Remove the key before the write yields, so a second call in this window finds nothing.
+    globalThis.localStorage.removeItem(LEGACY_MODULE_DEFAULTS_STORAGE_KEY)
+    const defaults = safeParse(legacyModuleDefaultsJsonSchema, stored)
     // An unreadable snapshot gives no defaults to move. The module stores keep their values.
     if (defaults.success)
       await writeModuleDefaults(defaults.output)
-    // A null value removes the key, so the migration runs only one time.
-    legacyModuleDefaults.value = null
   }
 
   async function applyAuthenticationDefaults(authenticated: boolean) {
@@ -1416,7 +1416,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   function resetState() {
     initialized = false
     ready.value = false
-    legacyModuleDefaults.reset()
+    globalThis.localStorage?.removeItem(LEGACY_MODULE_DEFAULTS_STORAGE_KEY)
     cards.reset()
     activeCardId.value = 'default'
     selectedAvatarModelId.value = undefined

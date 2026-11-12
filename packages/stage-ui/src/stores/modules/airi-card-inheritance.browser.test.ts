@@ -70,6 +70,40 @@ describe('persisted and replicated card defaults', () => {
     expect(localStorage.getItem('airi-card-module-defaults')).toBeNull()
   })
 
+  // https://github.com/moeru-ai/airi/pull/3492#discussion_r4548192952
+  // ROOT CAUSE:
+  // Each window kept a copy of the snapshot from its start. The first leader moved the snapshot and removed the key.
+  // A window that became the leader later moved its copy again and replaced the defaults that the user changed.
+  it('does not move the saved defaults again in a window that started before the migration', async () => {
+    localStorage.setItem('airi-card-module-defaults', JSON.stringify({
+      consciousness: { provider: 'ollama', model: 'global-model' },
+      vision: { provider: '', model: '' },
+      speech: { provider: 'speech-noop', model: '', voice_id: '' },
+    }))
+    const first = createContext()
+    const later = createContext()
+    await first.cards.initialize()
+    expect(first.consciousness.activeModel).toBe('global-model')
+    later.consciousness.activeProvider = 'ollama'
+    later.consciousness.activeModel = 'model-that-the-user-selected-later'
+
+    await later.cards.initialize()
+
+    expect(later.consciousness.activeModel).toBe('model-that-the-user-selected-later')
+  })
+
+  it('removes an unreadable snapshot of saved defaults and keeps the module stores', async () => {
+    localStorage.setItem('settings/consciousness/active-provider', 'ollama')
+    localStorage.setItem('settings/consciousness/active-model', 'stored-model')
+    localStorage.setItem('airi-card-module-defaults', '{"consciousness":')
+    const { cards, consciousness } = createContext()
+
+    await cards.initialize()
+
+    expect(consciousness.activeModel).toBe('stored-model')
+    expect(localStorage.getItem('airi-card-module-defaults')).toBeNull()
+  })
+
   it('stores the catalog default when a follower selects a vision provider', async () => {
     // ROOT CAUSE:
     //
