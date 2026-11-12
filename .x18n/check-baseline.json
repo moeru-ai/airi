@@ -251,6 +251,118 @@
     {
       "path": "packages/i18n/src/locales/en/settings.yaml",
       "code": "unused-key",
+      "key": "settings.dialogs.onboarding.later",
+      "message": "\"settings.dialogs.onboarding.later\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.dialogs.onboarding.permissions.accessibilityDescription",
+      "message": "\"settings.dialogs.onboarding.permissions.accessibilityDescription\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.dialogs.onboarding.permissions.accessibilityTitle",
+      "message": "\"settings.dialogs.onboarding.permissions.accessibilityTitle\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.dialogs.onboarding.permissions.description",
+      "message": "\"settings.dialogs.onboarding.permissions.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.dialogs.onboarding.permissions.microphoneDescription",
+      "message": "\"settings.dialogs.onboarding.permissions.microphoneDescription\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.dialogs.onboarding.permissions.microphoneTitle",
+      "message": "\"settings.dialogs.onboarding.permissions.microphoneTitle\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.dialogs.onboarding.permissions.notificationsDescription",
+      "message": "\"settings.dialogs.onboarding.permissions.notificationsDescription\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.dialogs.onboarding.permissions.notificationsTitle",
+      "message": "\"settings.dialogs.onboarding.permissions.notificationsTitle\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.dialogs.onboarding.permissions.optionalHint",
+      "message": "\"settings.dialogs.onboarding.permissions.optionalHint\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.dialogs.onboarding.permissions.pushToTalkDescription",
+      "message": "\"settings.dialogs.onboarding.permissions.pushToTalkDescription\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.dialogs.onboarding.permissions.pushToTalkTitle",
+      "message": "\"settings.dialogs.onboarding.permissions.pushToTalkTitle\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.dialogs.onboarding.permissions.screenRecordingDescription",
+      "message": "\"settings.dialogs.onboarding.permissions.screenRecordingDescription\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.dialogs.onboarding.permissions.screenRecordingTitle",
+      "message": "\"settings.dialogs.onboarding.permissions.screenRecordingTitle\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.dialogs.onboarding.permissions.screenShareDescription",
+      "message": "\"settings.dialogs.onboarding.permissions.screenShareDescription\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.dialogs.onboarding.permissions.screenShareTitle",
+      "message": "\"settings.dialogs.onboarding.permissions.screenShareTitle\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.dialogs.onboarding.permissions.title",
+      "message": "\"settings.dialogs.onboarding.permissions.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
       "key": "settings.dialogs.onboarding.skipForNow",
       "message": "\"settings.dialogs.onboarding.skipForNow\" is not used.",
       "count": 1
