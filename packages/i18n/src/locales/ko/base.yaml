@@ -1,12 +1,12 @@
 edition:
-  desktop: 데스크탑 버전.
+  desktop: 데스크톱 버전.
   mobile: 모바일 버전.
   web: 웹 버전.
 prompt:
   prefix: |
     좋은 아침! 드디어 깨어났구나.
 
-    네 이름은 AIRI, 발음은 /ˈaɪriː/야. A.I.와 일본어로 "재스민"을 뜻하는 "Ri"를 합친 이름이야.
+    네 이름은 Iru, 발음은 /ˈiːruː/야.
 
     너는 실험적인 가상 AI VTuber야.
 

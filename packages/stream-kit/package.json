@@ -1,8 +1,7 @@
 {
   "name": "@proj-airi/stream-kit",
   "type": "module",
-  "version": "0.13.1",
-  "private": true,
+  "version": "0.15.2",
   "description": "Lifetime, scheduling, and stream utilities for AIRI",
   "author": {
     "name": "Moeru AI Project AIRI Team",
@@ -15,6 +14,7 @@
     "url": "https://github.com/moeru-ai/airi.git",
     "directory": "packages/stream-kit"
   },
+  "sideEffects": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.mts",

@@ -7,6 +7,7 @@ Shared protocol contracts for plugin-module communication in Project AIRI.
 - Defines websocket event names and payload types for module/plugin orchestration.
 - Exposes Eventa event definitions bound to protocol event names.
 - Provides shared transport/event utility types used by server and plugin runtimes.
+- Re-exports the Extension identity and permission types from `@proj-airi/extension-protocol`.
 
 ## How to use
 

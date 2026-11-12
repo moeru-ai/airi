@@ -95,13 +95,13 @@ describe('hearing overview', () => {
 })
 
 describe('hearing input mode', () => {
-  it('lists the input modes as rows on a narrow screen and disables Push to Talk without a trigger', async () => {
+  // A narrow web screen listens only during a voice call, so the input mode and the microphone switch change nothing there.
+  it('explains on a narrow web screen that only a voice call listens', async () => {
     const screen = await renderHearing(undefined, 390)
 
-    const pushToTalk = screen.getByTestId('hearing-input-mode').getByRole('radio', { name: /Push to Talk/ })
-    await expect.element(pushToTalk).toBeVisible()
-    await expect.element(pushToTalk).toHaveAttribute('data-disabled')
-    await expect.element(screen.getByTestId('hearing-input-mode').getByRole('radio', { name: /Always on/ })).toHaveAttribute('data-state', 'checked')
+    await expect.element(screen.getByTestId('hearing-call-only')).toBeVisible()
+    expect(screen.getByTestId('hearing-input-mode').query()).toBeNull()
+    expect(screen.getByTestId('hearing-microphone-switch').query()).toBeNull()
   })
 
   // Review: https://github.com/moeru-ai/airi/pull/2729#discussion_r4237157722

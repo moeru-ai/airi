@@ -20,7 +20,8 @@ export interface ConversationContext {
 
 /** External operations that one speech input uses. The controller supplies them from its options. */
 export interface SpeechInputPorts {
-  readonly transcriber?: (sessionId: string) => StreamingTranscriber
+  /** Creates the provider request of one input. The input ID lets the host attribute that request, for example in a trace. */
+  readonly transcriber?: (input: { readonly inputId: string, readonly sessionId: string }) => StreamingTranscriber
   readonly submit?: (submission: SpeechSubmission, signal: AbortSignal) => Promise<{ status: 'committed', messageId: string } | { status: 'drafted', draftId: string }>
   readonly conversationContext?: (sessionId: string) => ConversationContext
 }

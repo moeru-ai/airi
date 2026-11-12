@@ -46,18 +46,13 @@ watch(activeProvider, async (provider) => {
   await consciousnessStore.loadModelsForProvider(provider)
 }, { immediate: true })
 
-async function persistSelection() {
-  await airiCardStore.updateActiveCardConsciousness({ provider: activeProvider.value, model: activeModel.value })
-}
-
 function updateCustomModelName(value: string) {
   customModelName.value = value
 }
 
-async function selectModel(modelId: string) {
+function selectModel(modelId: string) {
   const previousModelId = activeModel.value
   activeModel.value = modelId
-  await persistSelection()
 
   if (previousModelId !== modelId)
     trackModelSwitched(previousModelId || 'none', modelId)
@@ -115,7 +110,6 @@ async function updateTopPEnabled(value: boolean) {
               :value="metadata.id"
               :title="metadata.localizedName || 'Unknown'"
               :description="metadata.localizedDescription"
-              @update:model-value="persistSelection"
               @click="trackProviderClick(metadata.id, 'consciousness')"
             >
               <template v-if="!metadata.id.startsWith('official-provider')" #topRight>
@@ -136,11 +130,12 @@ async function updateTopPEnabled(value: boolean) {
             </RadioCardSimple>
             <RouterLink
               to="/settings/providers"
-              border="2px solid"
-              class="border-neutral-100 bg-white dark:border-neutral-900 hover:border-primary-500/30 dark:bg-neutral-900/20 dark:hover:border-primary-400/30"
-              flex="~ col items-center justify-center"
-              transition="all duration-200 ease-in-out"
-              relative min-w-50 w-fit rounded-xl p-4
+              :class="[
+                'relative min-w-50 w-fit flex flex-col items-center justify-center rounded-xl p-4',
+                'border-2 border-solid border-neutral-100 bg-white dark:border-neutral-900 dark:bg-neutral-900/20',
+                'hover:bg-neutral-50 dark:hover:bg-neutral-900/50',
+                'transition-all duration-200 ease-in-out',
+              ]"
             >
               <div i-solar:add-circle-line-duotone class="text-2xl text-neutral-500 dark:text-neutral-500" />
               <div
@@ -153,7 +148,6 @@ async function updateTopPEnabled(value: boolean) {
           <div v-else>
             <RouterLink
               class="flex items-center gap-3 rounded-lg p-4"
-              border="2 dashed neutral-200 dark:neutral-800"
               bg="neutral-50 dark:neutral-800"
               transition="colors duration-200 ease-in-out"
               to="/settings/providers"
@@ -205,7 +199,6 @@ async function updateTopPEnabled(value: boolean) {
               v-model="activeModel" type="text"
               class="w-full border border-neutral-300 rounded bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
               :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
-              @input="persistSelection"
             >
           </div>
         </template>
@@ -285,7 +278,6 @@ async function updateTopPEnabled(value: boolean) {
             v-model="activeModel" type="text"
             class="w-full border border-neutral-300 rounded bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
             :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
-            @input="persistSelection"
           >
         </div>
       </div>

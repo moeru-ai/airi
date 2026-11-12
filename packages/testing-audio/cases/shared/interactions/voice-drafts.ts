@@ -1,6 +1,6 @@
 import type { AudioInputSession } from '../../../src/types'
 
-import { IOAttributes, IOSpanNames } from '@proj-airi/stage-shared/perf/io-trace'
+import { VoiceAttributes, VoiceNames } from '@proj-airi/trace-kit/voice'
 
 /**
  * Waits until the voice host keeps a spoken input as a draft.
@@ -13,12 +13,12 @@ import { IOAttributes, IOSpanNames } from '@proj-airi/stage-shared/perf/io-trace
 export async function waitForVoiceDraft(runtime: AudioInputSession, options: { timeout?: number } = {}): Promise<void> {
   const deadline = Date.now() + (options.timeout ?? 30_000)
   while (Date.now() < deadline) {
-    const inputs = await runtime.completedSpans(IOSpanNames.VoiceInput)
-    if (inputs.some(span => span.attributes[IOAttributes.VoiceInputOutcome] === 'drafted'))
+    const inputs = await runtime.completedSpans(VoiceNames.VoiceInput)
+    if (inputs.some(span => span.attrs[VoiceAttributes.InputOutcome] === 'drafted'))
       return
     await new Promise(resolve => setTimeout(resolve, 100))
   }
 
-  const outcomes = (await runtime.completedSpans(IOSpanNames.VoiceInput)).map(span => String(span.attributes[IOAttributes.VoiceInputOutcome]))
+  const outcomes = (await runtime.completedSpans(VoiceNames.VoiceInput)).map(span => String(span.attrs[VoiceAttributes.InputOutcome]))
   throw new Error(`Timed out waiting for a drafted voice input. Voice input outcomes: ${outcomes.join(', ') || 'none'}`)
 }

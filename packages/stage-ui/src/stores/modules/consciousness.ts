@@ -126,14 +126,18 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     return []
   }
 
-  /** Resolves a provider with the reasoning mode shared by every Consciousness input path. */
-  async function getChatProviderInstance(provider: string) {
-    const selectedModel = providerModels.value.find(model => model.id === activeModel.value)
-    const useProviderReasoningDefault = provider === activeProvider.value
-      && isOpenRouterProvider(provider)
-      && (activeModelUsesProviderReasoningDefault.value || selectedModel?.reasoning?.mandatory === true)
+  /**
+   * Resolves a provider with the reasoning mode shared by every Consciousness input path.
+   *
+   * `model` is the model of the request. A chat turn passes the model of the session character,
+   * which can differ from the selection of this store.
+   */
+  async function getChatProviderInstance(provider: string, model: string) {
+    const requestModel = providersStore.getModelsForProvider(provider).find(candidate => candidate.id === model)
+    const useProviderReasoningDefault = isOpenRouterProvider(provider)
+      && (!requestModel || requestModel.reasoning?.mandatory === true)
 
-    // OpenRouter applies the model default when reasoning is mandatory or unknown.
+    // OpenRouter applies the model default when reasoning is mandatory or the catalog does not list the model.
     if (useProviderReasoningDefault) {
       return providersStore.getChatProviderInstance(provider)
     }

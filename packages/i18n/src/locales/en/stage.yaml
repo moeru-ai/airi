@@ -1,3 +1,21 @@
+background-picker:
+  title: Choose a background
+  add-custom: Add custom background
+  custom: Custom background
+  preview: Preview
+  no-preview: No preview
+  select: Select a background
+  blur: Blur
+  remove: Remove background
+  sampling: Sampling colors…
+  apply: Use this background
+  presets:
+    colorful-wave:
+      label: Colorful Wave
+      description: Animated waves over a cross grid
+    transparent:
+      label: Transparent
+      description: Show the background behind the app view
 character-switcher:
   title: Switch character
   manage: Manage characters
@@ -27,6 +45,10 @@ chat:
     title: Chat provider isn't configured
     description: Choose and validate a provider in Settings before sending a message.
     action: Open provider settings
+    sign-in-title: Sign in to start chatting
+    sign-in-description: Sign in to use the official AIRI provider, or set up your own provider in Settings.
+    sign-in-description-official-only: Sign in to use the official AIRI provider.
+    sign-in-action: Sign in
   voice-message:
     recording: Recording
     starting: Starting microphone
@@ -35,17 +57,19 @@ chat:
     position: Playback position
     no-speech: No speech was recognized, so the voice message was not sent.
   voice-composer:
+    unavailable: The microphone is not available. Check that it is turned on in Hearing.
     audio: Voice message
     transcription: Dictation
-    hold-hint: Hold to record. Click to switch between voice message and dictation. Press Enter to record without holding.
+    walkie: Walkie-talkie
+    mode-hint: Long-press or right-click to choose the voice input
+    hold-to-talk: Hold to talk
+    release-to-send: Release to send
+    release-to-insert: Release to insert the text
+    release-to-cancel: Release to cancel
+    keyboard: Use the keyboard
     listening: Listening…
-    lock: Slide up to lock
-    cancel-hint: Slide left to cancel
     processing: Finishing…
     cancel: Cancel
-    send: Send voice message
-    insert: Insert text
-    retry: Send voice message again
     discard: Discard voice message
     failed: Voice input failed
     configure-title: Set up Hearing
@@ -91,7 +115,26 @@ chat:
     listening: Listening
     finalizing: Finishing…
     sent: Sent
+    dismiss: Dismiss
+    issues:
+      show: Show {count} problem | Show {count} problems
+      voice: Voice input
+      microphone: Microphone
+      wake-words: Wake words
   voice-input: Voice input
+  composer:
+    add: Add
+    images: Images
+    call: Voice call
+  call:
+    mute: Mute the microphone
+    unmute: Unmute the microphone
+    hang-up: Hang up
+    failed: Could not start the voice call
+    microphone-denied: AIRI cannot use the microphone.
+    microphone-off: The microphone is turned off. Turn it on in Hearing to start a voice call.
+    busy: Finish or cancel the recording first, then start the voice call.
+    configure-description: Select a transcription provider and model in Hearing to start a voice call.
   notice:
     label: 'Background report from {name}'
   background-tasks:
@@ -221,6 +264,17 @@ chat:
     cloud-badge: Synced to cloud
     new-chat-fallback: New chat
     delete: Delete conversation
+    rename: Rename conversation
+    rename-input: Conversation name
+    rename-placeholder: Enter a conversation name
+    save-rename: Save conversation name
+    cancel-rename: Cancel renaming
+    select: Select conversations
+    select-all: Select all
+    clear-selection: Clear selection
+    done-selecting: Done
+    delete-selected: Delete {count}
+    confirm-delete-selected: Confirm delete {count}
 avatar-model-missing:
   title: No model selected
   unavailable-title: This model is not on this device
@@ -367,6 +421,14 @@ status:
   sign-in-unconfirmed: Could not confirm your session. Please sign in again.
   dismiss: Dismiss
   configure-hearing: Select and configure a Hearing provider in Settings.
+
+model-assets:
+  retry: Retry
+  errors:
+    network: Could not connect to {host}. Check your network or proxy settings.
+    server: '{host} returned an error (HTTP {status}).'
+    incomplete: The download from {host} stopped before it finished.
+    unknown: 'The download stopped with an error: {error}'
 
 notifications:
   title: Notifications

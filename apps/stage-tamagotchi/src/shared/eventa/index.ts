@@ -17,7 +17,7 @@ import type {
   StageViewSnapshotPayload,
 } from '@proj-airi/stage-shared/godot-stage'
 import type { ServerChannelQrPayload } from '@proj-airi/stage-shared/server-channel-qr'
-import type { IOTraceHubState, IOTraceRecordingState, SerializedIOSpan } from '@proj-airi/stage-shared/types/io-trace'
+import type { IOTraceHubState, IOTraceRecordingState } from '@proj-airi/stage-shared/types/io-trace'
 import type {
   ThreeHitTestReadTracePayload,
   ThreeSceneRenderInfoTracePayload,
@@ -29,6 +29,7 @@ import type {
   VrmUpdateFrameTracePayload,
 } from '@proj-airi/stage-ui-three/trace'
 import type { ChatHistoryReplyPayload } from '@proj-airi/stage-ui/components/scenarios/chat'
+import type { TraceFeedMessage } from '@proj-airi/trace-kit'
 import type { Rectangle } from 'electron'
 
 import type { UpdateChannel } from '../update-channels'
@@ -147,14 +148,31 @@ export const ioTraceRecordingChanged = defineEventa<IOTraceRecordingState>('even
 export const ioTraceRecordingGet = defineInvokeEventa<IOTraceRecordingState>('eventa:invoke:electron:io-trace-recording:get')
 export const ioTraceRecordingSetEnabled = defineInvokeEventa<IOTraceRecordingState, { enabled: boolean }>('eventa:invoke:electron:io-trace-recording:set-enabled')
 
-/** Sends an ended IO span of this window to the IO trace hub in the main process. */
-export const ioTraceHubPublish = defineInvokeEventa<void, SerializedIOSpan>('eventa:invoke:electron:io-trace-hub:publish')
+/**
+ * Sends a batch of trace records of this window to the trace hub in the main process.
+ * The hub validates each record, so a bad record of one window cannot break the views of the others.
+ */
+export const ioTraceHubEmit = defineInvokeEventa<void, { records: unknown[] }>('eventa:invoke:electron:io-trace-hub:emit')
+/** Returns the value of the hub clock now. A window pairs it with its own clock in a clock snapshot. */
+export const ioTraceHubPing = defineInvokeEventa<number>('eventa:invoke:electron:io-trace-hub:ping')
 export const ioTraceHubGet = defineInvokeEventa<IOTraceHubState>('eventa:invoke:electron:io-trace-hub:get')
 export const ioTraceHubSetCollecting = defineInvokeEventa<IOTraceHubState, { collecting: boolean }>('eventa:invoke:electron:io-trace-hub:set-collecting')
-/** Returns the spans that the hub keeps, and sends each later span to this window as `ioTraceHubSpan`. */
-export const ioTraceHubSubscribe = defineInvokeEventa<SerializedIOSpan[]>('eventa:invoke:electron:io-trace-hub:subscribe')
+/**
+ * Returns the backlog of the hub feed, and sends each later feed message to this window as `ioTraceHubFeed`.
+ * `tracks` are the track paths that the view of this window shows.
+ */
+export const ioTraceHubSubscribe = defineInvokeEventa<{ messages: TraceFeedMessage[], traceClock: string }, { tracks: string[] | '*' }>('eventa:invoke:electron:io-trace-hub:subscribe')
+export const ioTraceHubSetTracks = defineInvokeEventa<void, { tracks: string[] | '*' }>('eventa:invoke:electron:io-trace-hub:set-tracks')
 export const ioTraceHubUnsubscribe = defineInvokeEventa<void>('eventa:invoke:electron:io-trace-hub:unsubscribe')
-export const ioTraceHubSpan = defineEventa<SerializedIOSpan>('eventa:event:electron:io-trace-hub:span')
+/** Later feed messages for a subscribed window, in feed order. */
+export const ioTraceHubFeed = defineEventa<TraceFeedMessage[]>('eventa:event:electron:io-trace-hub:feed')
+/** The tracks that viewers show now. Each window skips costly series of other tracks. */
+export const ioTraceHubWanted = defineEventa<{ tracks: string[] | '*' }>('eventa:event:electron:io-trace-hub:wanted')
+/**
+ * The system resumed from sleep. Monotonic clocks can stop or continue through sleep, so each window writes a clock
+ * discontinuity and measures its clock again.
+ */
+export const ioTraceHubResync = defineEventa<void>('eventa:event:electron:io-trace-hub:resync')
 
 /**
  * Where the Controls Island chat button opens the chat.
@@ -613,6 +631,36 @@ export const widgetsPrepareWindow = defineInvokeEventa<string | undefined, { id?
 export const widgetsIframePublish = defineInvokeEventa<void, { id: string, event: Record<string, unknown> }>('eventa:invoke:electron:windows:widgets:iframe-publish')
 
 export const electronWindowClose = defineInvokeEventa<void>('eventa:invoke:electron:window:close')
+export const electronWindowMinimize = defineInvokeEventa<void>('eventa:invoke:electron:window:minimize')
+export const electronWindowToggleMaximize = defineInvokeEventa<void>('eventa:invoke:electron:window:toggle-maximize')
+
+/**
+ * What the self-drawn title bar shows for its window. The main process owns these values.
+ */
+export interface ElectronWindowControlsState {
+  /** The system draws the window buttons, so the title bar draws none and leaves room for them. Only true on macOS. */
+  systemControls: boolean
+  /** On macOS, the traffic lights hide in fullscreen, so the title bar stops leaving room for them. */
+  fullscreen: boolean
+  /** Selects the restore or the maximize button. */
+  maximized: boolean
+  /** Hides the minimize button when false. Linux always reports true. */
+  minimizable: boolean
+  /** Hides the maximize button when false. Linux always reports true. */
+  maximizable: boolean
+  /** Hides the close button when false. */
+  closable: boolean
+}
+
+export const electronGetWindowControlsState = defineInvokeEventa<ElectronWindowControlsState>('eventa:invoke:electron:window:get-controls-state')
+/**
+ * Centers the macOS traffic lights on a title bar that is not 44px high, for example the tab bar of a workbench.
+ * Without `centerY`, the traffic lights go back to the position that the window was created with.
+ * Other platforms ignore it.
+ */
+export const electronWindowCenterSystemControls = defineInvokeEventa<void, { centerY?: number }>('eventa:invoke:electron:window:center-system-controls')
+export const electronWindowControlsStateChanged = defineEventa<ElectronWindowControlsState>('eventa:event:electron:window:controls-state-changed')
+
 export type ElectronWindowLifecycleReason
   = | 'initial'
     | 'snapshot'
@@ -652,6 +700,11 @@ export const electronAppIsWayland = defineInvokeEventa<boolean>('eventa:invoke:e
 export const electronMainPageMounted = defineInvokeEventa<void>('eventa:invoke:electron:main-window:page-mounted')
 export const electronAppIconGet = defineInvokeEventa<boolean>('eventa:invoke:electron:app-icon:get')
 export const electronAppIconSet = defineInvokeEventa<boolean, boolean>('eventa:invoke:electron:app-icon:set')
+/**
+ * The renderer sends the analytics switch to main. Main saves it and applies it to error reports from main, from the
+ * renderers, and from native crashes, also on the next start before a renderer loads.
+ */
+export const electronErrorReportingSet = defineInvokeEventa<void, boolean>('eventa:invoke:electron:error-reporting:set')
 
 export type ElectronGodotStageState = 'stopped' | 'starting' | 'running' | 'stopping' | 'error'
 

@@ -1,3 +1,5 @@
+import type { Entity } from 'prismarine-entity'
+
 import type { Mineflayer } from '../libs/mineflayer'
 
 import { ActionError } from '../utils/errors'
@@ -210,7 +212,7 @@ async function dropItemsAndWaitForCollection(
       finishReject(new ActionError('INTERRUPTED', `Failed to give ${itemType} to ${username}, it was never received`, { item: itemType }))
     }, 3000)
 
-    const onCollect = (collector: any, _collected: any) => {
+    const onCollect = (collector: Entity) => {
       if (collector.username === username) {
         log(mineflayer, `${username} received ${itemType}.`)
         clearTimeout(timeout)
@@ -223,7 +225,7 @@ async function dropItemsAndWaitForCollection(
       finishReject(new ActionError('INTERRUPTED', `Failed to give ${itemType} to ${username}, action was cancelled`, { item: itemType }))
     }
 
-    mineflayer.bot.once('playerCollect', onCollect)
+    mineflayer.bot.on('playerCollect', onCollect)
     mineflayer.once('interrupt', onInterrupt)
   })
 }

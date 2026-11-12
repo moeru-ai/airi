@@ -578,6 +578,17 @@
       status: preferred
       context: Enroll your voice to turn on speaker recognition.
 
+- id: voice-call
+  subject: sound
+  translatable: true
+  definition: A mode in which AIRI listens all the time and sends each spoken message at once, like a phone call with the character.
+  note: Call means a phone call, not to summon or to name. No telephone network is used.
+  terms:
+    - text: Voice call
+      part-of-speech: noun
+      status: preferred
+      context: Start a voice call from the add menu.
+
 - id: voice-pack
   subject: sound
   translatable: true

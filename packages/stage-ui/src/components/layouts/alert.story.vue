@@ -144,6 +144,20 @@ const showInfo = ref(true)
       </div>
     </Variant>
 
+    <Variant id="translucent-surface" title="On a translucent surface">
+      <!-- A floating chat window: a translucent, blurred panel over the desktop. Alerts must keep their own colors here. -->
+      <div :class="['p-4 bg-gradient-to-br from-neutral-900 via-sky-950 to-neutral-800']">
+        <div :class="['flex flex-col gap-3 rounded-3xl p-4', 'bg-neutral-400/45 backdrop-blur-xl']">
+          <Alert v-for="tone in tones" :key="tone" :tone="tone" :title="`Title for ${tone}`">
+            Choose and validate a provider in Settings before sending a message.
+          </Alert>
+          <div :class="['rounded-2xl bg-white p-4 text-neutral-400 dark:bg-neutral-900']">
+            Say something...
+          </div>
+        </div>
+      </div>
+    </Variant>
+
     <Variant id="real-cases" title="Real cases">
       <div :class="['flex flex-col gap-3 p-4']">
         <Alert tone="warning" title="AIRI is installed in a protected Windows folder">

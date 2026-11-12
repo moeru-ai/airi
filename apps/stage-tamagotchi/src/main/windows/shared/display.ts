@@ -5,6 +5,7 @@ import type { DisplayArea } from '../../../shared/utils/electron/display'
 import { screen } from 'electron'
 
 import { findDominantDisplayArea } from '../../../shared/utils/electron/display'
+import { showWindow } from '../../libs/electron/focus'
 
 export function currentDisplayBounds(window: BrowserWindow) {
   const bounds = window.getBounds()
@@ -55,7 +56,7 @@ export function computeCenteredWindowBounds(options: {
  * Returns:
  * - The centered bounds applied to the window
  */
-export function centerWindowOnDisplay(window: Pick<BrowserWindow, 'getBounds' | 'isDestroyed' | 'setBounds' | 'show'> | undefined): Rectangle {
+export function centerWindowOnDisplay(window: Pick<BrowserWindow, 'getBounds' | 'isDestroyed' | 'setBounds' | 'show' | 'showInactive'> | undefined): Rectangle {
   if (!window || window.isDestroyed())
     throw new Error('Main AIRI window is not available.')
 
@@ -64,7 +65,7 @@ export function centerWindowOnDisplay(window: Pick<BrowserWindow, 'getBounds' | 
   const centeredBounds = computeCenteredWindowBounds({ displayWorkArea, windowBounds })
 
   window.setBounds(centeredBounds)
-  window.show()
+  showWindow(window)
 
   return centeredBounds
 }

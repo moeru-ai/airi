@@ -11,6 +11,7 @@
 		A1B2C3D42F10000100AA0003 /* URLSessionHostWebSocketSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F10000100AA0004 /* URLSessionHostWebSocketSession.swift */; };
 		A1B2C3D42F10000100AA0005 /* WeakScriptMessageHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F10000100AA0006 /* WeakScriptMessageHandler.swift */; };
 		A1B2C3D42F10000100AA0007 /* WebAuthenticationPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F10000100AA0008 /* WebAuthenticationPlugin.swift */; };
+		A1B2C3D42F10000100AA0009 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F10000100AA000A /* SceneDelegate.swift */; };
 		0DF9DE312F0E0A42008AB01F /* AppIcon_LiquidGlass.icon in Resources */ = {isa = PBXBuildFile; fileRef = 0DF9DE302F0E0A42008AB01F /* AppIcon_LiquidGlass.icon */; };
 		29ABB4BA2F03F2B400285F7F /* DevBridgeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29ABB4B92F03F2B400285F7F /* DevBridgeViewController.swift */; };
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
@@ -28,6 +29,7 @@
 		A1B2C3D42F10000100AA0004 /* URLSessionHostWebSocketSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = URLSessionHostWebSocketSession.swift; sourceTree = "<group>"; };
 		A1B2C3D42F10000100AA0006 /* WeakScriptMessageHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeakScriptMessageHandler.swift; sourceTree = "<group>"; };
 		A1B2C3D42F10000100AA0008 /* WebAuthenticationPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebAuthenticationPlugin.swift; sourceTree = "<group>"; };
+		A1B2C3D42F10000100AA000A /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		0DF9DE302F0E0A42008AB01F /* AppIcon_LiquidGlass.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIcon_LiquidGlass.icon; sourceTree = "<group>"; };
 		29ABB4B92F03F2B400285F7F /* DevBridgeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevBridgeViewController.swift; sourceTree = "<group>"; };
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
@@ -81,6 +83,7 @@
 				A1B2C3D42F10000100AA0008 /* WebAuthenticationPlugin.swift */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
+				A1B2C3D42F10000100AA000A /* SceneDelegate.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
 				0DF9DE302F0E0A42008AB01F /* AppIcon_LiquidGlass.icon */,
@@ -174,6 +177,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
+				A1B2C3D42F10000100AA0009 /* SceneDelegate.swift in Sources */,
 				29ABB4BA2F03F2B400285F7F /* DevBridgeViewController.swift in Sources */,
 				A1B2C3D42F10000100AA0001 /* HostWebSocketBridge.swift in Sources */,
 				A1B2C3D42F10000100AA0003 /* URLSessionHostWebSocketSession.swift in Sources */,
@@ -321,7 +325,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 29;
+				CURRENT_PROJECT_VERSION = 34;
 				DEVELOPMENT_TEAM = 433DLLA855;
 				INFOPLIST_FILE = App/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = AIRI;
@@ -331,7 +335,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.13.1;
+				MARKETING_VERSION = 0.15.2;
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" \"-DDEBUG\"";
 				PRODUCT_BUNDLE_IDENTIFIER = "ai.moeru.airi-pocket";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -349,7 +353,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_IDENTITY = "Apple Distribution";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 29;
+				CURRENT_PROJECT_VERSION = 34;
 				DEVELOPMENT_TEAM = 433DLLA855;
 				INFOPLIST_FILE = App/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = AIRI;
@@ -359,7 +363,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 0.13.1;
+				MARKETING_VERSION = 0.15.2;
 				PRODUCT_BUNDLE_IDENTIFIER = "ai.moeru.airi-pocket";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "AIRI CI";

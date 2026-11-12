@@ -8,10 +8,14 @@ export function recipeSearchKey(id: string) {
   return settingsSearchItemKey('recipe', id)
 }
 
-/** The recipes page, with the recipes by name. */
+/** The recipes page, with the recipes by name. The recipes load from IndexedDB first. */
 export default {
   routes: [{
     path: '/settings/modules/memory-long-term-recipes',
-    items: () => useRecipesStore().recipes.map(recipe => ({ title: recipe.name, key: recipeSearchKey(recipe.id) })),
+    items: async () => {
+      const recipes = useRecipesStore()
+      await recipes.ready()
+      return recipes.recipes.map(recipe => ({ title: recipe.name, key: recipeSearchKey(recipe.id) }))
+    },
   }],
 } satisfies SettingsSearchModule

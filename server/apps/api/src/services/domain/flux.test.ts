@@ -194,6 +194,71 @@ describe('fluxService (DB-backed)', () => {
     }
   })
 
+  it('lists the capacitor percent after each debit of the current window', async () => {
+    const hour = 3_600_000
+    const filledAt = new Date(Date.now() - 2 * hour)
+    const capacitorExpiresAt = new Date(Date.now() + 30 * 24 * hour)
+    await db.insert(schema.userFlux).values({
+      userId: testUser.id,
+      flux: 42,
+      capacitorFlux: 60,
+      capacitorQuota: 100,
+      capacitorExpiresAt,
+      capacitorPeriodStart: filledAt,
+      capacitorFilledAt: filledAt,
+    })
+    const debit = { userId: testUser.id, type: 'debit', description: 'usage_settlement' }
+    await db.insert(schema.fluxTransaction).values([
+      // A debit of the window before the refill, a refill, and a wallet debit stay out of the list.
+      { ...debit, pool: 'capacitor', amount: 50, balanceBefore: 90, balanceAfter: 40, createdAt: new Date(filledAt.getTime() - hour) },
+      { ...debit, pool: 'capacitor', type: 'credit', amount: 100, balanceBefore: 40, balanceAfter: 100, createdAt: filledAt },
+      { ...debit, pool: 'wallet', amount: 5, balanceBefore: 47, balanceAfter: 42, createdAt: new Date(filledAt.getTime() + hour) },
+      { ...debit, pool: 'capacitor', amount: 25, balanceBefore: 85, balanceAfter: 60, createdAt: new Date(filledAt.getTime() + hour) },
+      { ...debit, pool: 'capacitor', amount: 15, balanceBefore: 100, balanceAfter: 85, createdAt: new Date(filledAt.getTime() + hour / 2) },
+    ])
+
+    expect(await service.getCapacitorUsage(testUser.id)).toEqual({
+      startedAt: filledAt.toISOString(),
+      endsAt: capacitorExpiresAt.toISOString(),
+      records: [
+        { at: new Date(filledAt.getTime() + hour / 2).toISOString(), percent: 85 },
+        { at: new Date(filledAt.getTime() + hour).toISOString(), percent: 60 },
+      ],
+    })
+
+    const daily = createFluxService(db, redis, createMockConfigKV({ CAPACITOR_RESET_INTERVAL: 'day' }))
+    expect(await daily.getCapacitorUsage(testUser.id)).toMatchObject({
+      endsAt: new Date(filledAt.getTime() + 24 * hour).toISOString(),
+    })
+  })
+
+  it('starts an empty usage window when a capacitor refill is due', async () => {
+    const hour = 3_600_000
+    const periodStart = new Date(Date.now() - 60_000)
+    await db.insert(schema.userFlux).values({
+      userId: testUser.id,
+      flux: 42,
+      capacitorFlux: 25,
+      capacitorQuota: 100,
+      capacitorExpiresAt: new Date(Date.now() + hour),
+      capacitorPeriodStart: periodStart,
+      capacitorFilledAt: new Date(Date.now() - 2 * hour),
+    })
+    await db.insert(schema.fluxTransaction).values({ userId: testUser.id, type: 'debit', pool: 'capacitor', amount: 75, balanceBefore: 100, balanceAfter: 25, description: 'usage_settlement', createdAt: new Date(Date.now() - 30_000) })
+
+    const usage = await service.getCapacitorUsage(testUser.id)
+    expect(usage.records).toEqual([])
+    expect(usage.startedAt).not.toBeNull()
+  })
+
+  it('reports no usage window without an active capacitor', async () => {
+    const none = { startedAt: null, endsAt: null, records: [] }
+    expect(await service.getCapacitorUsage(testUser.id)).toEqual(none)
+
+    await db.insert(schema.userFlux).values({ userId: testUser.id, flux: 42, capacitorFlux: 25, capacitorQuota: 100, capacitorExpiresAt: new Date(Date.now() - 60_000) })
+    expect(await service.getCapacitorUsage(testUser.id)).toEqual(none)
+  })
+
   it('reloads malformed cached balances instead of accepting partial numbers', async () => {
     await db.insert(schema.userFlux).values({ userId: testUser.id, flux: 42 })
     for (const value of ['12broken', 'NaN', '-1', '1.5', '9007199254740992']) {

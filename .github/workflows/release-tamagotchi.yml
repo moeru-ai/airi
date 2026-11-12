@@ -121,7 +121,9 @@ jobs:
     if: ${{ needs.updates.outputs.build-installers == 'true' }}
     continue-on-error: ${{ matrix.skip }} # WORKAROUND: Skipping subsequent steps without failing the whole workflow
     env:
-      VITE_ENABLE_ANALYTICS: ${{ ((github.event_name == 'release') || (github.event_name == 'workflow_dispatch' && !inputs.build_only)) && 'true' || 'false' }}
+      VITE_ENABLE_ANALYTICS: ${{ github.event_name == 'workflow_dispatch' && inputs.build_only && 'false' || 'true' }}
+      # Uploads source maps to Sentry. The build skips the upload when the secret is absent.
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
       ERGOSPHERE_IT_RELEASE_ID: ${{ needs.updates.outputs.bundle-release-id }}
       ERGOSPHERE_IT_INSTALLER_RELEASE_ID: ${{ needs.updates.outputs.installer-release-id }}
       ERGOSPHERE_IT_VERSION: ${{ needs.updates.outputs.version }}
@@ -753,7 +755,9 @@ jobs:
     environment: Release
     env:
       # The same build as the installers of this run, so the channel serves the bundle that they ship.
-      VITE_ENABLE_ANALYTICS: ${{ ((github.event_name == 'release') || (github.event_name == 'workflow_dispatch' && !inputs.build_only)) && 'true' || 'false' }}
+      VITE_ENABLE_ANALYTICS: ${{ github.event_name == 'workflow_dispatch' && inputs.build_only && 'false' || 'true' }}
+      # Uploads source maps to Sentry. The build skips the upload when the secret is absent.
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
       ERGOSPHERE_IT_RELEASE_ID: ${{ needs.updates.outputs.bundle-release-id }}
       ERGOSPHERE_IT_INSTALLER_RELEASE_ID: ${{ needs.updates.outputs.installer-release-id }}
       ERGOSPHERE_IT_VERSION: ${{ needs.updates.outputs.version }}

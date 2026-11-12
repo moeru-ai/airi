@@ -22,6 +22,17 @@ const generator = model.toGenerator({ seed: 1 })
 const frame = generator.next({ noiseScale: 1 })
 ```
 
+## Change the motion profile
+
+`crossfade(from, to, { frameCount })` returns a generator that blends the frames of `from` into the frames of `to`.
+Both generators advance during the blend. After the blend, the result returns the frames of `to` only.
+
+```ts
+import { crossfade } from '@proj-airi/motion-driver-magic'
+
+const next = crossfade(idleGenerator, speakingModel.toGenerator({ seed: 2 }), { frameCount: 30 })
+```
+
 ## When to use it
 
 Use this package for model fitting and seeded procedural motion generation.

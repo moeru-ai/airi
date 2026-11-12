@@ -500,7 +500,7 @@ const proseClasses = [
               v-if="journalEntries.length === 0"
               :class="[
                 'flex flex-col items-center justify-center rounded-xl py-10',
-                'border border-dashed border-neutral-200 dark:border-neutral-700',
+                'bg-neutral-100/70 dark:bg-neutral-800/40',
                 'text-neutral-500 dark:text-neutral-400',
               ]"
             >
@@ -515,8 +515,9 @@ const proseClasses = [
                 :key="entry.id"
                 :class="[
                   'group relative aspect-[4/3] overflow-hidden rounded-xl',
-                  'border border-neutral-200 bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-900',
-                  activeBackgroundId === entry.id ? 'ring-2 ring-primary-500 border-primary-500' : '',
+                  'bg-neutral-100 dark:bg-neutral-900',
+                  // Only the active background draws an outline. A ring does not change the thumbnail size.
+                  activeBackgroundId === entry.id ? 'ring-2 ring-primary-500' : '',
                 ]"
               >
                 <img

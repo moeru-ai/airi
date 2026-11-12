@@ -182,8 +182,6 @@ live2d:
           description: Génère des mouvements à partir du jeu de données MAGIC fourni.
       magic:
         profile:
-          title: Profil MAGIC
-          description: Sélectionnez le jeu de données de mouvement fourni pour le pilote MAGIC.
           options:
             idle-calm:
               title: Repos / calme
@@ -425,7 +423,7 @@ pages:
     delete: Supprimer
     delete_card: Supprimer la carte
     delete_confirmation: Êtes-vous sûr de vouloir supprimer cette carte ?
-    description: Utiliser les préréglages des cartes d'AIRI
+    description: Gérer les cartes de personnage AIRI
     drop_here: Déposer pour téléverser
     create_card: Créer une nouvelle carte
     edit_card: Modifier la carte
@@ -699,7 +697,7 @@ pages:
       gaming: Jeux
       artistry: Création d’images
     consciousness:
-      description: Personnalité, modèle désiré, etc.
+      description: Sélection et configuration du modèle de langage
       sections:
         section:
           provider-model-selection:
@@ -811,7 +809,6 @@ pages:
           provider-selection:
             description: Sélectionnez le fournisseur de reconnaissance vocale approprié
           microphone:
-            description: Activez le microphone pour l’audition. Le mode d’entrée détermine quand AIRI écoute.
             error: Le microphone est indisponible
           input-device:
             label: Périphérique d’entrée
@@ -1833,7 +1830,7 @@ pages:
         playground:
           title: Terrain de test de transcription
       aihubmix:
-        description: https://aihubmix.com (10 % de réduction)
+        description: aihubmix.com (10 % de réduction)
     title: Fournisseurs
   connection:
     description: Configurer la connexion au serveur WebSocket

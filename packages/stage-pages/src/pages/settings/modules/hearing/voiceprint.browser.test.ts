@@ -1,6 +1,9 @@
 import en from '@proj-airi/i18n/locales/en'
 
+import { speakerModel } from '@proj-airi/stage-shared/speaker-model'
+import { updateModelAssetStatus } from '@proj-airi/stage-ui/composables/use-model-asset-status'
 import { CAPTURE_LEASE_RENEW_MS } from '@proj-airi/stage-ui/libs/voice/capture-lease'
+import { computeVoiceprint } from '@proj-airi/stage-ui/libs/voice/speaker-model'
 import { toStoredVoiceprint } from '@proj-airi/stage-ui/libs/voice/voiceprint'
 import { getSpeechBusContext, voiceCaptureLease } from '@proj-airi/stage-ui/services/speech/bus'
 import { createPinia, disposePinia } from 'pinia'
@@ -116,6 +119,27 @@ describe('voiceprint settings', () => {
     await expect.element(screen.getByTestId('voiceprint-result')).toHaveTextContent('Your voiceprint is saved.')
     await expect.element(screen.getByTestId('voiceprint-status')).toHaveAttribute('data-state', 'enrolled')
     expect(leases.held()).toBe(false)
+  })
+
+  it('explains a failed voiceprint model download instead of the raw error', async () => {
+    // The model asset repository records the failure, and then the model load rejects with its raw message.
+    vi.mocked(computeVoiceprint).mockImplementationOnce(async () => {
+      updateModelAssetStatus({
+        id: speakerModel.id,
+        revision: speakerModel.revision,
+        state: 'error',
+        error: { reason: 'network', host: 'huggingface.co', message: 'Model asset download failed. Could not connect to huggingface.co: fetch failed.' },
+      })
+      throw new Error('Model asset download failed. Could not connect to huggingface.co: fetch failed.')
+    })
+    const screen = renderPage()
+
+    await screen.getByRole('button', { name: 'Start recording' }).click()
+    await expect.element(screen.getByRole('button', { name: 'Finish' }), { timeout: 10_000 }).toBeEnabled()
+    await screen.getByRole('button', { name: 'Finish' }).click()
+
+    await expect.element(screen.getByText('Enrollment failed: Could not connect to huggingface.co. Check your network or proxy settings.')).toBeVisible()
+    expect(screen.container.textContent).not.toContain('fetch failed')
   })
 
   it('releases the capture lease and saves nothing when the user cancels', async () => {

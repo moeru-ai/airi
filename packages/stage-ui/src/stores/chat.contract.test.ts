@@ -1,5 +1,6 @@
 import type { ChatOrchestratorSessionPort, Conversation, StreamOptions, Turn } from '@proj-airi/core-agent'
 import type { GenerationProvider } from '@proj-airi/provider-inference'
+import type { TraceRecord, TraceSpanBegin, TraceSpanEnd } from '@proj-airi/trace-kit'
 import type { Tool } from '@xsai/shared-chat'
 import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
@@ -8,13 +9,17 @@ import type { ChatSessionMeta } from '../types/chat-session'
 import type { LlmStreamOptions } from './ai/chat-llm/llm'
 
 import { errorMessageFrom } from '@moeru/std'
-import { SpanStatusCode } from '@opentelemetry/api'
-import { IOAttributes, IOSpanNames } from '@proj-airi/stage-shared'
+import { ATTR_GEN_AI_CONVERSATION_ID, ATTR_GEN_AI_OPERATION_NAME, ATTR_GEN_AI_TOOL_NAME } from '@proj-airi/trace-kit'
+import { AgentAttributes, AgentIdKeys, AgentNames } from '@proj-airi/trace-kit/agent'
+import { VoiceIdKeys } from '@proj-airi/trace-kit/voice'
 import { createPinia, defineStore, disposePinia, setActivePinia } from 'pinia'
 import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { computed, createApp, nextTick, reactive, ref, toRaw } from 'vue'
 
+import { configureTraceTransport } from '../composables/use-trace'
+import { memoryRepo } from '../database/repos/memory.repo'
+import { recipesRepo } from '../database/repos/recipes.repo'
 import { getAnalytics } from '../libs/product-signals'
 import {
   AIRI_CHAT_APP_SURFACE_HEADER,
@@ -25,43 +30,22 @@ import { composeDrawCardPrompt } from '../tools/draw-card'
 import { composeMemoryPrompt } from '../tools/memory'
 import { useChatStore } from './chat'
 import { CHAT_FORMAT_RULES } from './chat/prompt-recipe'
+import { characterMembersOfMeta } from './chat/session-members'
 import { useContextObservabilityStore } from './devtools/context-observability'
 import { useMemoryStore } from './memory'
 import { useConsciousnessSettingsStore } from './modules/consciousness-settings'
 import { useRecipesStore } from './recipes'
 
-const ioTracerMocks = vi.hoisted(() => {
-  /** The registered turn spans, by turn ID, like the tracer registry. */
-  const turnSpans = new Map<string, unknown>()
-  const spans: any[] = []
-  const startSpanMock = vi.fn((name: string, _parent?: unknown, _attributes?: Record<string, unknown>) => {
-    const context = { traceId: `trace-${spans.length}`, spanId: `span-${spans.length}` }
-    const span = {
-      name,
-      addEvent: vi.fn(),
-      end: vi.fn(),
-      setAttribute: vi.fn(),
-      setStatus: vi.fn(),
-      spanContext: () => context,
-    }
-    spans.push(span)
-    return span
-  })
+const traceRecords: TraceRecord[] = []
+let stopTraceTransport: (() => void) | undefined
 
-  return {
-    turnSpans,
-    registerTurnSpan: vi.fn((turnId: string, span: unknown) => {
-      turnSpans.set(turnId, span)
-      return () => turnSpans.delete(turnId)
-    }),
-    spans,
-    startSpanMock,
-    /** Voice input spans by turn ID. A typed turn has none. */
-    takeVoiceTurnParent: vi.fn((_turnId: string): unknown => undefined),
-    /** The composer dictation span of a session. */
-    takeComposerVoiceParent: vi.fn((_sessionId: string): unknown => undefined),
-  }
-})
+function spanBegins(name: string) {
+  return traceRecords.filter((record): record is TraceSpanBegin => record.type === 'span.begin' && record.name === name)
+}
+
+function spanEnds(spanId: string) {
+  return traceRecords.filter((record): record is TraceSpanEnd => record.type === 'span.end' && record.spanId === spanId)
+}
 
 const llmStreamMock = vi.fn()
 const trackFirstMessageMock = vi.fn()
@@ -85,7 +69,7 @@ const persistSessionMessagesMock = vi.fn()
 const forkSessionMock = vi.fn()
 const createSessionMock = vi.fn()
 const loadSessionMock = vi.fn()
-const deleteSessionMock = vi.fn()
+const deleteSessionsMock = vi.fn()
 const initializeSessionMock = vi.fn()
 const disposeSessionMock = vi.fn()
 const ensureCurrentSessionMock = vi.fn()
@@ -111,13 +95,6 @@ vi.mock('../composables', () => ({
   getConversationAnalyticsSurface: () => 'web',
 }))
 
-vi.mock('../composables/use-io-tracer', () => ({
-  registerTurnSpan: ioTracerMocks.registerTurnSpan,
-  startSpan: ioTracerMocks.startSpanMock,
-  takeVoiceTurnParent: ioTracerMocks.takeVoiceTurnParent,
-  takeComposerVoiceParent: ioTracerMocks.takeComposerVoiceParent,
-}))
-
 vi.mock('./chat/context-providers', () => ({
   createMinecraftContext: () => createMinecraftContextMock(),
   createRuntimePromptContext: (prompt: string) => createRuntimePromptContextMock(prompt),
@@ -141,8 +118,10 @@ vi.mock('./chat/context-store', () => ({
   }),
 }))
 
-// IndexedDB is a browser boundary. Browser tests exercise the real sticker repository.
+// IndexedDB is a browser boundary. Browser tests exercise the real sticker and recipe repositories.
 vi.mock('../database/repos/chat-assets.repo')
+vi.mock('../database/repos/memory.repo')
+vi.mock('../database/repos/recipes.repo')
 
 vi.mock('../database/repos/stickers.repo', () => ({
   stickersRepo: { read: async () => ({ records: [], images: [] }) },
@@ -151,6 +130,9 @@ vi.mock('../database/repos/stickers.repo', () => ({
 vi.mock('./modules/vision', () => ({
   useVisionStore: () => ({
     get configured() {
+      return visionMocks.configured
+    },
+    get enabled() {
       return visionMocks.configured
     },
     activeProvider: 'apple-vision',
@@ -173,6 +155,7 @@ vi.mock('./chat/session-store', () => ({
     activeSessionId: activeSessionIdRef,
     sessionMessages,
     sessionMetas,
+    characterMembersOf: (sessionId: string) => characterMembersOfMeta(sessionMetas[sessionId]),
     storeMessage: async (sessionId: string, message: ChatHistoryItem & { id: string }) => {
       const messages = sessionMessages[sessionId] ?? []
       const index = messages.findIndex(item => item.id === message.id)
@@ -198,7 +181,7 @@ vi.mock('./chat/session-store', () => ({
     getSessionMessages: (sessionId: string) => sessionMessages[sessionId] ?? [],
     getSessionMessagesIfLoaded: (sessionId: string) => sessionMessages[sessionId],
     loadSession: loadSessionMock,
-    deleteSession: deleteSessionMock,
+    deleteSessions: deleteSessionsMock,
     initialize: initializeSessionMock,
     dispose: disposeSessionMock,
     ensureCurrentSession: ensureCurrentSessionMock,
@@ -246,6 +229,12 @@ vi.mock('./ai/chat-llm/toolset-prompts', () => ({
   }),
 }))
 
+// The chat vision decision reads the catalog of the chat provider of the session character.
+vi.mock('./providers/provider', async (importOriginal) => {
+  const original = await importOriginal<typeof import('./providers/provider')>()
+  return { ...original, useProviderStore: () => ({ getModelsForProvider: () => consciousnessModels.value }) }
+})
+
 vi.mock('./modules/consciousness', () => ({
   useConsciousnessStore: defineStore('consciousness', () => ({
     activeModel: activeModelRef,
@@ -266,10 +255,10 @@ vi.mock('./modules/airi-card', () => ({
     activeCard: undefined,
     activeCardId: 'default',
     getSystemPrompt: () => cardPrompt.value,
-    getCard: () => undefined,
+    getCard: () => ({ extensions: { airi: {} } }),
     getModules: (id: string) => ({
       consciousness: cardSelections.get(id) ?? { provider: activeProviderRef.value, model: activeModelRef.value },
-      vision: { provider: visionMocks.configured ? 'vision-provider' : '', model: visionMocks.configured ? 'vision-model' : '' },
+      vision: { provider: visionMocks.configured ? 'vision-provider' : '', model: visionMocks.configured ? visionMocks.model : '' },
     }),
   }),
 }))
@@ -315,7 +304,9 @@ function storedToolImageMessage(): ChatHistoryItem {
 }
 
 describe('chat store contract', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await memoryRepo.clear()
+    await recipesRepo.clear()
     cardPrompt.value = 'system prompt'
     setActivePinia(createPinia())
     vi.spyOn(getAnalytics(), 'emit').mockImplementation((event, properties) => {
@@ -360,7 +351,7 @@ describe('chat store contract', () => {
       sessionMessages[sessionId] = []
       return sessionId
     })
-    deleteSessionMock.mockReset().mockResolvedValue(undefined)
+    deleteSessionsMock.mockReset().mockResolvedValue(undefined)
     initializeSessionMock.mockReset().mockResolvedValue(undefined)
     disposeSessionMock.mockReset()
     ensureCurrentSessionMock.mockReset().mockResolvedValue('session-1')
@@ -378,11 +369,9 @@ describe('chat store contract', () => {
     visionMocks.useForToolImages = true
     visionMocks.runInference.mockReset()
     consciousnessModels.value = [{ id: 'gpt-test', metadata: { abilities: { vision: false } } }]
-    ioTracerMocks.turnSpans.clear()
-    ioTracerMocks.spans.length = 0
-    ioTracerMocks.startSpanMock.mockClear()
-    ioTracerMocks.takeVoiceTurnParent.mockReset()
-    ioTracerMocks.takeComposerVoiceParent.mockReset()
+    stopTraceTransport?.()
+    traceRecords.length = 0
+    stopTraceTransport = configureTraceTransport({ source: 'test', clock: 'mono:test', runtime: 'test', send: record => traceRecords.push(record) })
     activeSessionIdRef.value = 'session-1'
     activeProviderRef.value = 'mock-provider'
     cardSelections.clear()
@@ -570,6 +559,38 @@ describe('chat store contract', () => {
     ]))
   })
 
+  it('sends audio over Responses only to an endpoint that accepts it', async () => {
+    cardSelections.set('alice', { provider: 'mock-provider', model: 'audio-model' })
+    consciousnessModels.value = [{ id: 'audio-model', inputModalities: ['text', 'audio'], metadata: {} }]
+    const requests: Conversation[] = []
+    llmStreamMock.mockImplementation(async (model: string, chatProvider: GenerationProvider, context: Conversation, options: LlmStreamOptions) => {
+      requests.push(await options.prepareConversation!(context, { model, providerId: options.providerId, request: chatProvider.generation(model) }))
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    const store = useChatStore()
+    for (const baseURL of ['https://openrouter.ai/api/v1', 'https://api.openai.com/v1']) {
+      getChatProviderInstanceMock.mockResolvedValueOnce({
+        generation: (model: string) => ({ protocol: 'responses', webSearch: false, config: { model, baseURL } }),
+      } satisfies GenerationProvider)
+      await store.send({
+        sessionId: 'session-1',
+        text: '',
+        attachments: [{ type: 'audio', mimeType: 'audio/wav', data: 'UklGRg==', transcript: 'spoken words' }],
+      })
+    }
+
+    expect(requests).toHaveLength(2)
+    expect(requests[0]?.turns.findLast(turn => turn.type === 'user')?.content).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'audio' }),
+    ]))
+    expect(requests[1]?.turns.findLast(turn => turn.type === 'user')?.content).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'text', text: expect.stringContaining('spoken words') }),
+    ]))
+    expect(requests[1]?.turns.findLast(turn => turn.type === 'user')?.content).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'audio' }),
+    ]))
+  })
+
   it('uses the target character settings for a voice submission', async () => {
     cardSelections.set('bob', { provider: 'bob-provider', model: 'bob-model' })
     llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _messages: Conversation, options: StreamOptions) => {
@@ -637,7 +658,7 @@ describe('chat store contract', () => {
       prompts.push(JSON.stringify(context))
       await options.onStreamEvent?.({ type: 'finish' })
     })
-    useRecipesStore().add({
+    await useRecipesStore().add({
       name: 'i-have-adhd',
       description: 'ADHD-friendly answers.',
       instructions: 'Start with the next step.',
@@ -667,25 +688,25 @@ describe('chat store contract', () => {
       await options.onStreamEvent({ type: 'finish' })
     })
     const memory = useMemoryStore()
-    memory.write({ name: 'nickname', description: 'What the owner likes to be called.', body: 'Yumeka.' }, 'default')
-    memory.makeGeneral({ name: 'nickname', persona: 'default' })
-    memory.write({ name: 'channel-rules', description: 'Rules of this channel.', body: 'No spoilers.' }, 'discord-host')
-    memory.write({ name: 'focus-steps', description: 'How the focus card answers.', body: 'Next step first.' }, 'focus')
+    const nickname = (await memory.write({ description: 'What the owner likes to be called.', body: 'Yumeka.' }, 'default'))!
+    await memory.makeGeneral(nickname)
+    const rules = (await memory.write({ description: 'Rules of this channel.', body: 'No spoilers.' }, 'discord-host'))!
+    await memory.write({ description: 'How the focus card answers.', body: 'Next step first.' }, 'focus')
 
     await useChatStore().send({ sessionId: 'scene-session', text: 'save a recipe for me' })
 
     expect(toolNames[0]).not.toContain('builtIn_proposeRecipe')
     expect(toolNames[0]).toContain('builtIn_writeMemory')
-    expect(prompt).toContain('- channel-rules: Rules of this channel.')
-    expect(prompt).toContain('- nickname: What the owner likes to be called.')
-    expect(prompt).not.toContain('focus-steps')
+    expect(prompt).toContain(`- ${rules.id}: Rules of this channel.`)
+    expect(prompt).toContain(`- ${nickname.id}: What the owner likes to be called.`)
+    expect(prompt).not.toContain('How the focus card answers.')
 
     // With long-term memory off, no memory tool or index reaches the run.
     memory.enabled = false
     await useChatStore().send({ sessionId: 'scene-session', text: 'hello again' })
 
     expect(toolNames[1]).not.toContain('builtIn_writeMemory')
-    expect(prompt).not.toContain('channel-rules')
+    expect(prompt).not.toContain('Rules of this channel.')
   })
 
   it('preserves image attachments when retrying a failed turn', async () => {
@@ -865,19 +886,48 @@ describe('chat store contract', () => {
     })
     await vi.waitFor(() => expect(visionMocks.runInference).toHaveBeenCalledOnce())
 
-    expect(ioTracerMocks.spans.some(span => span.name === IOSpanNames.LLMInference)).toBe(false)
+    expect(spanBegins(AgentNames.ModelRequest)).toHaveLength(0)
     expect(llmStreamMock).not.toHaveBeenCalled()
 
     resolveVision('A red square.')
     await sending
 
-    expect(ioTracerMocks.spans.some(span => span.name === IOSpanNames.LLMInference)).toBe(true)
+    expect(spanBegins(AgentNames.ModelRequest)).toHaveLength(1)
     expect(useContextObservabilityStore().lastPromptProjection?.composedMessage).toEqual(expect.arrayContaining([
       expect.objectContaining({
         role: 'user',
         content: expect.stringContaining('A red square.'),
       }),
     ]))
+  })
+
+  it('traces each tool call of a model request as a span on the tools track', async () => {
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'tool-call-start', toolCallId: 'call-1', toolName: 'home_assistant_list_entities' })
+      await options.onStreamEvent?.({ type: 'tool-call', toolCallId: 'call-1', toolCallType: 'function', toolName: 'home_assistant_list_entities', args: '{"domain":"light"}' })
+      await options.onStreamEvent?.({ type: 'tool-error', toolCallId: 'call-1', result: 'Could not reach Home Assistant: fetch failed', isError: true })
+      await options.onStreamEvent?.({ type: 'tool-call', toolCallId: 'call-2', toolCallType: 'function', toolName: 'web_search', args: '{}' })
+      await options.onStreamEvent?.({ type: 'tool-result', toolCallId: 'call-2', result: 'ok' })
+      await options.onStreamEvent?.({ type: 'tool-call', toolCallId: 'call-3', toolCallType: 'function', toolName: 'web_search', args: '{}' })
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    await useChatStore().send({ sessionId: 'session-1', text: 'Turn on the lights' })
+
+    const [llm] = spanBegins(AgentNames.ModelRequest)
+    const [failed] = spanBegins('home_assistant_list_entities')
+    const [succeeded, unanswered] = spanBegins('web_search')
+    expect(failed).toMatchObject({
+      track: 'agents/agent/tools',
+      parentSpanId: llm.spanId,
+      ids: { [AgentIdKeys.ToolCall]: 'call-1' },
+      attrs: { [ATTR_GEN_AI_OPERATION_NAME]: AgentNames.ToolCall, [ATTR_GEN_AI_TOOL_NAME]: 'home_assistant_list_entities' },
+    })
+    expect(spanEnds(failed.spanId)).toEqual([expect.objectContaining({ status: 'error', message: 'Could not reach Home Assistant: fetch failed' })])
+    expect(spanEnds(succeeded.spanId)).toEqual([expect.objectContaining({ status: 'ok' })])
+    expect(spanEnds(unanswered.spanId)).toEqual([expect.objectContaining({ status: 'cancelled' })])
+    // The first tool call is the first output of the model, so it ends the time to first token.
+    expect(spanEnds(llm.spanId)[0]?.attrs?.[AgentAttributes.LLMTtftMs]).toEqual(expect.any(Number))
   })
 
   it('reuses a persisted image description on later turns', async () => {
@@ -909,6 +959,8 @@ describe('chat store contract', () => {
     // stayed a proxy, and `structuredClone` rejected the send result.
     expect(() => structuredClone(result)).not.toThrow()
     expect(visionMocks.runInference).toHaveBeenCalledOnce()
+    // The read uses the vision selection of the session character, not the selection of the vision store.
+    expect(visionMocks.runInference).toHaveBeenCalledWith(expect.objectContaining({ selection: { provider: 'vision-provider', model: visionMocks.model } }))
     expect(sessionMessages['session-1'].find(message => message.role === 'user' && Array.isArray(message.content))?.imageDescriptions).toEqual([
       {
         description: 'A red square.',
@@ -1024,7 +1076,7 @@ describe('chat store contract', () => {
     await store.send({ sessionId: 'session-1', text: 'Look at my screen' })
 
     expect(await toolImageReaders[0]?.('data:image/png;base64,aW1hZ2U=')).toBe('A settings window.')
-    expect(visionMocks.runInference).toHaveBeenCalledWith(expect.objectContaining({ workloadId: 'tool:image' }))
+    expect(visionMocks.runInference).toHaveBeenCalledWith(expect.objectContaining({ workloadId: 'tool:image', selection: { provider: 'vision-provider', model: visionMocks.model } }))
   })
 
   it('stores the description of an image that a rerun tool returns', async () => {
@@ -1619,20 +1671,16 @@ describe('chat store contract', () => {
     expect(composedMessages).toHaveLength(2)
     expect(composedMessages[0]).toMatchObject({ type: 'system' })
     expect(composedMessages[1]).toMatchObject({ type: 'user' })
-    expect(ioTracerMocks.startSpanMock).toHaveBeenCalledWith(
-      IOSpanNames.LLMInference,
-      expect.anything(),
-      expect.objectContaining({
-        [IOAttributes.LLMInputMessageCount]: 2,
-        [IOAttributes.LLMInputUserMessageCount]: 1,
-        [IOAttributes.TurnId]: expect.any(String),
-      }),
-    )
-    const llmSpan = ioTracerMocks.spans.find(span => span.name === IOSpanNames.LLMInference)
-    expect(llmSpan.setAttribute).toHaveBeenCalledWith(IOAttributes.LLMInputMessageRoles, ['system', 'user'])
-    expect(llmSpan.setAttribute).toHaveBeenCalledWith(IOAttributes.LLMOutputChunkCount, 1)
-    expect(llmSpan.setAttribute).toHaveBeenCalledWith(IOAttributes.LLMOutputChunkLengths, [5])
-    expect(llmSpan.setAttribute).toHaveBeenCalledWith(IOAttributes.LLMTextLength, 5)
+    const [llmBegin] = spanBegins(AgentNames.ModelRequest)
+    expect(llmBegin?.parentSpanId).toEqual(expect.any(String))
+    expect(llmBegin?.ids?.[VoiceIdKeys.Turn]).toEqual(expect.any(String))
+    expect(llmBegin?.attrs?.[AgentAttributes.LLMInputMessageCount]).toBe(2)
+    expect(llmBegin?.attrs?.[AgentAttributes.LLMInputUserMessageCount]).toBe(1)
+    expect(llmBegin?.attrs?.[AgentAttributes.LLMInputMessageRoles]).toEqual(['system', 'user'])
+    const [llmEnd] = spanEnds(llmBegin!.spanId)
+    expect(llmEnd?.attrs?.[AgentAttributes.LLMOutputChunkCount]).toBe(1)
+    expect(llmEnd?.attrs?.[AgentAttributes.LLMOutputChunkLengths]).toEqual([5])
+    expect(llmEnd?.attrs?.[AgentAttributes.LLMTextLength]).toBe(5)
 
     // Identity comes from the session's persona at request time, after the format rules.
     // Per-message time prefixes keep the static card prompt cacheable across day boundaries.
@@ -1700,38 +1748,27 @@ describe('chat store contract', () => {
     expect(store.$state).not.toHaveProperty('activeStreamingMessage')
   })
 
-  it('continues the trace of the voice input that submitted the turn', async () => {
-    const voiceInput = { name: IOSpanNames.VoiceInput }
-    ioTracerMocks.takeVoiceTurnParent.mockReturnValueOnce(voiceInput)
-
+  it('links the turn to the voice input that has its turn ID', async () => {
     const store = useChatStore()
     await store.ingest('spoken text', { model: 'gpt-test', chatProvider: provider })
 
-    const [turnId] = ioTracerMocks.takeVoiceTurnParent.mock.calls[0]!
+    const [turn] = spanBegins(AgentNames.ChatTurn)
+    const turnId = turn?.ids?.[VoiceIdKeys.Turn]
     expect(turnId).toEqual(expect.any(String))
     expect(turnId).not.toBe('')
-    expect(ioTracerMocks.startSpanMock).toHaveBeenCalledWith(IOSpanNames.InteractionTurn, voiceInput, expect.any(Object))
+    expect(turn?.links).toContainEqual({ rel: 'caused-by', to: { key: VoiceIdKeys.Input, id: turnId } })
   })
 
-  it('reuses the interaction turn span that the speech output opened before the stream', async () => {
-    const voiceInput = { name: IOSpanNames.VoiceInput }
-    ioTracerMocks.takeVoiceTurnParent.mockReturnValueOnce(voiceInput)
-    let llmParent: unknown
-    llmStreamMock.mockImplementationOnce(async () => {
-      // The LLM span starts synchronously before the stream call, so it is the latest span.
-      llmParent = ioTracerMocks.startSpanMock.mock.calls.at(-1)![1]
-    })
-
+  it('reuses the chat turn span that the speech output opened before the stream', async () => {
     const store = useChatStore()
     const speechParent = store.openTurnSpan({ sessionId: 'session-1', turnId: 'spoken-turn' })
     await store.send({ sessionId: 'session-1', messageId: 'spoken-turn', text: 'Spoken' })
 
-    const turnSpans = ioTracerMocks.spans.filter(span => span.name === IOSpanNames.InteractionTurn)
-    expect(turnSpans).toHaveLength(1)
-    expect(turnSpans[0]).toBe(speechParent)
-    expect(llmParent).toBe(speechParent)
-    expect(ioTracerMocks.startSpanMock).toHaveBeenCalledWith(IOSpanNames.InteractionTurn, voiceInput, expect.any(Object))
-    expect(speechParent.end).toHaveBeenCalledOnce()
+    const turns = spanBegins(AgentNames.ChatTurn)
+    expect(turns).toHaveLength(1)
+    expect(turns[0]?.spanId).toBe(speechParent.spanId)
+    expect(spanBegins(AgentNames.ModelRequest)[0]?.parentSpanId).toBe(speechParent.spanId)
+    expect(spanEnds(speechParent.spanId)).toHaveLength(1)
   })
 
   it('records the IDs and the final status of a turn on its span', async () => {
@@ -1746,27 +1783,15 @@ describe('chat store contract', () => {
     await store.send({ sessionId: 'session-1', text: 'Succeed' })
     await store.send({ sessionId: 'session-1', text: 'Fail' }).catch(() => {})
 
-    const turnCalls = ioTracerMocks.startSpanMock.mock.calls.filter(([name]) => name === IOSpanNames.InteractionTurn)
-    const turnSpans = ioTracerMocks.spans.filter(span => span.name === IOSpanNames.InteractionTurn)
-    expect(turnCalls).toHaveLength(2)
-    expect(turnCalls[0]![2]).toEqual({ [IOAttributes.TurnId]: expect.any(String), [IOAttributes.GenAIConversationId]: 'session-1' })
-    expect(turnSpans[0].setStatus).not.toHaveBeenCalled()
-    expect(turnSpans[1].setStatus).toHaveBeenCalledWith({ code: SpanStatusCode.ERROR })
-    expect(ioTracerMocks.turnSpans.size).toBe(0)
+    const turns = spanBegins(AgentNames.ChatTurn)
+    expect(turns).toHaveLength(2)
+    expect(turns[0]?.ids).toEqual({ [VoiceIdKeys.Conversation]: 'session-1', [VoiceIdKeys.Turn]: expect.any(String) })
+    expect(turns[0]?.attrs?.[ATTR_GEN_AI_CONVERSATION_ID]).toBe('session-1')
+    expect(spanEnds(turns[0]!.spanId)[0]?.status).toBe('ok')
+    expect(spanEnds(turns[1]!.spanId)[0]?.status).toBe('error')
   })
 
-  it('continues a composer dictation trace when the turn has no voice input of its own', async () => {
-    const dictation = { name: IOSpanNames.VoiceInput }
-    ioTracerMocks.takeComposerVoiceParent.mockReturnValueOnce(dictation)
-
-    const store = useChatStore()
-    await store.ingest('dictated text', { model: 'gpt-test', chatProvider: provider })
-
-    expect(ioTracerMocks.takeComposerVoiceParent).toHaveBeenCalledOnce()
-    expect(ioTracerMocks.startSpanMock).toHaveBeenCalledWith(IOSpanNames.InteractionTurn, dictation, expect.any(Object))
-  })
-
-  it('does not end the owned IO turn span when external sending mirror is cleared mid-send', async () => {
+  it('does not end the owned turn span when external sending mirror is cleared mid-send', async () => {
     let releaseStream: (() => void) | undefined
     llmStreamMock.mockImplementationOnce(async () => {
       await new Promise<void>((resolve) => {
@@ -1784,32 +1809,29 @@ describe('chat store contract', () => {
       expect(store.sending).toBe(true)
     })
     await vi.waitFor(() => {
-      expect(ioTracerMocks.spans.some(span => span.name === IOSpanNames.InteractionTurn)).toBe(true)
+      expect(spanBegins(AgentNames.ChatTurn)).toHaveLength(1)
     })
 
-    const turnSpan = ioTracerMocks.spans.find(span => span.name === IOSpanNames.InteractionTurn)
-    if (!turnSpan)
-      throw new Error('Expected the chat facade to create an interaction turn span')
+    const turnSpanId = spanBegins(AgentNames.ChatTurn)[0]!.spanId
 
     store.sending = false
     await nextTick()
 
-    expect(turnSpan.end).not.toHaveBeenCalled()
+    expect(spanEnds(turnSpanId)).toHaveLength(0)
 
     releaseStream?.()
     await send
 
-    expect(turnSpan.end).toHaveBeenCalledTimes(1)
-    expect(ioTracerMocks.turnSpans.size).toBe(0)
+    expect(spanEnds(turnSpanId)).toHaveLength(1)
   })
 
-  it('keeps a separate interaction turn span for each concurrent session', async () => {
+  it('keeps a separate chat turn span for each concurrent session', async () => {
     const releases = new Map<string, () => void>()
-    const llmParents = new Map<string, { name: string, end: ReturnType<typeof vi.fn> }>()
+    const llmParents = new Map<string, string | undefined>()
     llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _messages: Conversation, options: StreamOptions) => {
       const sessionId = options.requestCorrelation!.conversationId
-      // The LLM span starts synchronously before the stream call, so it is the latest span.
-      llmParents.set(sessionId, ioTracerMocks.startSpanMock.mock.calls.at(-1)![1] as { name: string, end: ReturnType<typeof vi.fn> })
+      // The model request span starts synchronously before the stream call, so it is the latest one.
+      llmParents.set(sessionId, spanBegins(AgentNames.ModelRequest).at(-1)?.parentSpanId)
       await new Promise<void>(resolve => releases.set(sessionId, resolve))
       await options.onStreamEvent?.({ type: 'finish' })
     })
@@ -1818,24 +1840,23 @@ describe('chat store contract', () => {
     const bob = store.send({ sessionId: 'session-2', text: 'For Bob' })
     await vi.waitFor(() => expect(releases.size).toBe(2))
 
-    const aliceTurn = llmParents.get('session-1')
-    const bobTurn = llmParents.get('session-2')
-    expect(aliceTurn?.name).toBe(IOSpanNames.InteractionTurn)
-    expect(bobTurn?.name).toBe(IOSpanNames.InteractionTurn)
+    const aliceTurn = llmParents.get('session-1')!
+    const bobTurn = llmParents.get('session-2')!
+    const turnIds = spanBegins(AgentNames.ChatTurn).map(record => record.spanId)
+    expect(turnIds).toContain(aliceTurn)
+    expect(turnIds).toContain(bobTurn)
     expect(aliceTurn).not.toBe(bobTurn)
 
     releases.get('session-2')!()
     await bob
 
-    expect(bobTurn?.end).toHaveBeenCalledOnce()
-    expect(aliceTurn?.end).not.toHaveBeenCalled()
-    expect([...ioTracerMocks.turnSpans.values()]).toEqual([aliceTurn])
+    expect(spanEnds(bobTurn)).toHaveLength(1)
+    expect(spanEnds(aliceTurn)).toHaveLength(0)
 
     releases.get('session-1')!()
     await alice
 
-    expect(aliceTurn?.end).toHaveBeenCalledOnce()
-    expect(ioTracerMocks.turnSpans.size).toBe(0)
+    expect(spanEnds(aliceTurn)).toHaveLength(1)
   })
 
   it('ingests the runtime prompt before composing prompt snapshots', async () => {
@@ -1988,7 +2009,7 @@ describe('chat store contract', () => {
         releaseFirstSend = resolve
       })
     })
-    deleteSessionMock.mockImplementationOnce(async () => {
+    deleteSessionsMock.mockImplementationOnce(async () => {
       currentGeneration += 1
       delete sessionMessages['session-1']
     })
@@ -2019,7 +2040,7 @@ describe('chat store contract', () => {
     })
     await store.deleteSession('session-1')
 
-    expect(deleteSessionMock).toHaveBeenCalledWith('session-1')
+    expect(deleteSessionsMock).toHaveBeenCalledWith(['session-1'])
     expect(await queuedOutcome).toBe('Chat session was reset before send could start')
     expect(sessionMessages['session-1']).toBeUndefined()
 

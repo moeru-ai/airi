@@ -34,7 +34,7 @@ export async function enableChatMicrophone(
 
   if (runtime.target === 'web') {
     // The startup screen covers the page until its exit animation ends.
-    // A click before that point lands on the startup screen and does not open the hearing popover.
+    // A click before that point lands on the startup screen and does not open the microphone menu.
     await runtime.page.locator('.startup-screen').waitFor({ state: 'detached', timeout: 60_000 })
   }
 
@@ -61,16 +61,23 @@ export async function enableChatMicrophone(
     return
   }
 
-  const microphoneTrigger = page.getByRole('button', { name: 'Hearing' }).first()
-  await microphoneTrigger.click({ force: true })
+  // The Web composer has no listening switch. Its microphone menu opens the Hearing settings, which hold the Listen switch.
+  // The router keeps the document, so the browser probe and the transcription capture stay on the page.
+  await page.getByRole('button', { name: /^(?:Dictation|Walkie-talkie|Voice message)$/ }).click({ button: 'right' })
+  await page.getByRole('menuitem', { name: 'More Hearing settings…' }).click()
 
-  const enableButton = page.locator('button[aria-label="Enable microphone input"]')
-  await enableButton.waitFor({ state: 'visible' })
+  const listenSwitch = page.getByRole('switch', { name: /^Listen/ })
+  await listenSwitch.waitFor({ state: 'visible', timeout: 15_000 })
   const inputReady = options.readiness === 'streaming-transcription'
     ? runtime.waitForStreamingTranscriptionReady()
     : undefined
-  await enableButton.click()
-  await page.locator('button[aria-label="Disable microphone input"]').waitFor({ state: 'visible' })
+  if (!await listenSwitch.isChecked())
+    await listenSwitch.click()
+  await page.getByRole('switch', { name: /^Listen/, checked: true }).waitFor({ state: 'visible', timeout: 15_000 })
+
+  // The stage page owns the voice host, so listening starts after the user returns to it.
+  await page.goBack()
+  await page.locator('textarea').first().waitFor({ state: 'visible', timeout: 60_000 })
   await inputReady
 }
 

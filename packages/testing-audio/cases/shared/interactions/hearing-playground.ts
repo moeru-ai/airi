@@ -17,11 +17,13 @@ export async function openHearingPlayground(runtime: AudioInputSession): Promise
   }
 
   await settingsButton.click({ force: true })
-  const settingsPage = await waitForElectronPage(app, page => page.url().includes('index.html#/settings'))
-  await settingsPage.evaluate(() => {
-    window.location.hash = '/settings/modules/hearing/transcriber'
-  })
-  await settingsPage.waitForURL(/#\/settings\/modules\/hearing/)
+  // The main window also routes to settings for its fullscreen mode, but it does not show the page outside that mode.
+  const settingsPage = await waitForElectronPage(app, page => page !== runtime.runtimePage && new URL(page.url()).hash.startsWith('#/settings'))
+  // The main process routes a new settings window to the requested page after it loads. That route can replace a URL
+  // change, so the case opens the page through the links, as a user does.
+  await settingsPage.getByRole('link', { name: /^Modules/ }).click()
+  await settingsPage.getByRole('link', { name: /^Hearing/ }).click()
+  await settingsPage.getByRole('link', { name: /^Speech recognition/ }).click()
   await settingsPage.getByTestId('hearing-playground-monitor-toggle').waitFor({ state: 'visible', timeout: 60_000 })
   return settingsPage
 }
@@ -64,5 +66,5 @@ async function waitForElectronPage(
     }
     await new Promise(resolveWait => setTimeout(resolveWait, 100))
   }
-  throw new Error('Timed out while waiting for the Electron renderer')
+  throw new Error(`Timed out while waiting for the Electron renderer. Open pages: ${app.windows().map(page => page.url()).join(', ')}`)
 }

@@ -17,7 +17,8 @@ inner content blur from an external `data-state="open|closed"` lifecycle. The
 lifecycle owner must keep the primitive mounted until the closing animation
 finishes. It can compose with Reka UI content primitives through `as-child`, but
 does not depend on a specific menu, popover, or presence implementation. Visual
-styling remains caller-owned.
+styling remains caller-owned. The content slides 4px from its trigger. With
+`data-side="top"`, which Reka sets on content above its trigger, it slides up.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
@@ -36,6 +37,24 @@ Bidirectional Vue `<Transition>` wrapper with customizable CSS classes.
 | `toClass` | `string?` | — | CSS class for final state |
 
 **Slots**: `default`
+
+### TransitionBud
+
+Buds an element off a neighbor, such as an island off its `Dock`, and merges
+it back under the neighbor when it leaves. The element starts small under the
+neighbor and springs out with a bounce. Put the element after its neighbor in
+the same row or column, and keep the neighbor above it with `z-index`.
+
+The spring is a CSS `linear()` easing. The browser must support it: Chromium
+113, Firefox 112, Safari 17.2, or later.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `from` | `'left' \| 'right' \| 'top' \| 'bottom'` | *(required)* | Side of the element where its neighbor is |
+| `gap` | `number?` | `8` | Space between the neighbor and the element, in pixels |
+| `delay` | `number?` | `0` | Wait before the element buds, in milliseconds |
+
+**Slots**: `default` (one element with `v-if`)
 
 ### TransitionHorizontal
 
@@ -99,6 +118,19 @@ The name keeps its width. The detail shrinks and cuts first.
 | `detail` | `string?` | — | Short note on the right, such as where the link goes |
 
 **Slots**: `default` (the name), `detail` (replaces the `detail` prop)
+
+### ProgressiveBlur
+
+Behavior-only overlay that blurs the backdrop more and more toward one edge. It
+stacks several `backdrop-filter` layers, and a mask shows each layer only in its
+own band. Place it as the first child of a positioned surface that floats over
+the stage. It takes no pointer input. The caller supplies any tint.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `edge` | `'top' \| 'bottom'` | `'bottom'` | Edge with the strongest blur |
+| `strength` | `number` | `24` | Blur radius in pixels at that edge |
+| `layers` | `number` | `5` | Number of blur layers. More layers fade more smoothly and paint more |
 
 ### Screen
 
@@ -257,6 +289,100 @@ It directly uses `BasicButton`, removes its padding, and does not add a
 background, outline, shape, or forced square dimensions. Supply an accessible
 `aria-label`. Props: `icon`, `disabled`, and `loading`.
 
+### UtilityButton
+
+Compact icon button for a toolbar. Its `label` shows as a tooltip and is the
+accessible name. Use it inside a Reka UI `TooltipProvider`. Attributes such as
+`class` and `aria-*` go to the button, because the root is the tooltip.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `icon` | `string` | *(required)* | Icon class, for example `i-mingcute:fullscreen-line` |
+| `label` | `string` | *(required)* | Tooltip text and accessible name |
+| `pressed` | `boolean?` | — | State of a toggle. An active toggle has the primary tint. Leave it unset for a plain action |
+| `disabled` | `boolean?` | — | Disables the button |
+| `iconClass` | `string?` | — | Extra classes of the icon, for example a color |
+| `description` | `string?` | — | Longer text under the label in the tooltip |
+
+**Emits**: `click()`
+
+### Dock
+
+A pill that holds icon buttons, such as the dock of the floating chat and the
+fullscreen island. Its `DockButton` and `DockSeparator` children take their
+size, tooltip side, and tooltip surface from it. The buttons sit with no gap,
+so the space between two icons is the padding of their hover backgrounds.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `orientation` | `'horizontal' \| 'vertical'?` | `'horizontal'` | Direction of the buttons |
+| `size` | `'sm' \| 'md'?` | `'sm'` | Button size: 28 px or 36 px |
+| `variant` | `'default' \| 'blurry'?` | `'default'` | Opaque or translucent surface. `blurry` is optional. It lets the background show through, for a dock over the stage |
+| `opacity` | `number?` | `0.8` | Opacity of a `blurry` dock and its tooltips, from 0 to 1. Dark mode uses 0.1 less, as `OverlayButton` does |
+| `blur` | `number?` | `12` | Background blur of a `blurry` dock and its tooltips, in pixels |
+| `tooltipSide` | `TooltipContentProps['side']?` | `'bottom'`, or `'right'` when vertical | Side of the button tooltips. Pick the side that faces into the window |
+| `shadow` | `boolean?` | `true` | Turn it off when a parent draws the shadow, for example around a clipped dock |
+
+**Slots**: `default` (`DockButton`, `DockSeparator`, or custom items in a `Tooltip`).
+
+A custom item, such as a drag handle or a name, takes `dockItemClasses(variant, pressed)`.
+It returns the hover background and the icon color of `DockButton`, so the item matches its neighbors.
+
+### DockButton
+
+Round icon button of a `Dock`. Its `label` is the accessible name and the
+tooltip. A toggle that is on shows only a theme-color icon, with no background.
+A hover shows the same neutral background on every button. On a `blurry`
+dock, icons at rest have the colors of the Controls Island icons. Attributes such as
+`class` and listeners go to the button, so it can be the trigger of a
+`DropdownMenu`. Outside a `Dock`, it uses the `Dock` defaults.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `label` | `string` | *(required)* | Accessible name and tooltip text |
+| `icon` | `string?` | — | Icon class. The default slot replaces the icon |
+| `pressedIcon` | `string?` | `icon` | Icon of a toggle that is on |
+| `pressed` | `boolean?` | — | State of a toggle. Leave it unset for a plain action, which has no `aria-pressed` |
+| `tooltip` | `boolean?` | `true` | Shows the tooltip. Turn it off while a menu of the button covers its place |
+| `tooltipSide` | `TooltipContentProps['side']?` | side of the `Dock` | Side of the tooltip |
+| `disabled` | `boolean?` | `false` | Disables the button |
+| `loading` | `boolean?` | `false` | Shows a spinner and disables the button |
+
+**Emits**: native button events through attributes, for example `click`.
+
+### DockSeparator
+
+A line between groups of buttons in a `Dock`. It runs across the dock.
+
+### Tooltip
+
+A short label beside one control. It opens at once on hover, and only on
+keyboard focus, so it does not come back when a menu returns the focus. The
+slot holds one control. Attributes go to the control, so the trigger of a menu
+can wrap the tooltip.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `label` | `string` | *(required)* | Text of the tooltip. The control keeps its own accessible name |
+| `side` | `TooltipContentProps['side']?` | `'bottom'` | Preferred side before collision handling |
+| `sideOffset` | `number?` | `6` | Space between the control and the tooltip |
+| `variant` | `'default' \| 'blurry'?` | `'default'` | Opaque or translucent surface |
+| `opacity` | `number?` | `0.8` | Opacity of a `blurry` tooltip, from 0 to 1. Dark mode uses 0.1 less |
+| `blur` | `number?` | `12` | Background blur of a `blurry` tooltip, in pixels |
+| `disabled` | `boolean?` | `false` | Closes the tooltip and keeps it closed |
+
+### CopyableLabel
+
+Selectable text with a copy button. The button shows on hover, on keyboard
+focus, and always on a touch screen. Its touch target is 24 px there. It shows a check
+for a moment after a copy. It does not render without a clipboard.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `value` | `string` | *(required)* | Text that the button copies |
+
+**Slots**: `default` (the shown text, which can format the value). The default is `value`.
+
 ### OverlayButton
 
 Translucent, backdrop-blurred action without an outline, intended for floating
@@ -264,7 +390,7 @@ controls such as the Tamagotchi Controls Island. Includes all `BasicButton` prop
 
 ### Alert
 
-Status message for a result or a current state: an error, a warning, a success, or an operation that runs. Each tone has a fixed palette and a MingCute icon. The surface has a tint and no border. For introductions and tips that show no status, use `Callout`.
+Status message for a result or a current state: an error, a warning, a success, or an operation that runs. Each tone has a fixed palette and a MingCute icon. The surface is an opaque base with a tint and no border, so it stays readable on translucent panels. For introductions and tips that show no status, use `Callout`.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
@@ -350,6 +476,36 @@ items and their business actions.
 
 **Models**: `open` (`boolean`, default `false`). Bind it to open the menu from code, for example after a hover delay.
 **Slots**: `trigger` (one interactive element), `default` (Reka dropdown-menu items).
+
+### Menu items
+
+Styled rows for the content of a `DropdownMenu`. They wrap Reka UI menu parts,
+keep their props and events, and share one row look, so callers do not copy item
+classes.
+
+| Component | Wraps | Description |
+|-----------|-------|-------------|
+| `MenuItem` | `DropdownMenuItem` | An action row. Slot: `default`. Emits `select` |
+| `MenuRadioItem` | `DropdownMenuRadioItem` | A choice inside a Reka `DropdownMenuRadioGroup`, with a check on the selected row. The menu stays open after a choice |
+| `MenuSwitchItem` | `DropdownMenuCheckboxItem` | A setting with a switch. The whole row toggles it, and the menu stays open. Model: `modelValue` (`boolean`). Prop: `disabled` |
+| `MenuLabel` | `DropdownMenuLabel` | A small group heading |
+| `MenuSeparator` | `DropdownMenuSeparator` | A line between groups |
+
+`menuItemClasses` exports the row classes for a Reka part without a wrapper,
+such as `DropdownMenuSubTrigger`.
+
+### LevelBars
+
+Behavior-only audio level indicator. It draws small round bars in the current
+text color, and each bar stretches with the level by its own weight. It
+animates with transforms, so a level that changes on every frame does not lay
+out the page.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `level` | `number` | — | Level from 0 to 1. Values outside the range are clamped |
+| `weights` | `readonly number[]?` | `[0.4, 0.75, 1, 0.7, 0.45]` | The share of the level for each bar. One entry is one bar |
+| `busy` | `boolean?` | `false` | The bars wave by themselves, for work without a level |
 
 ### DoubleCheckButton
 
@@ -639,7 +795,10 @@ Tab-like selection using radio buttons with animated indicator.
 | `options` | `SelectTabOption[]` | *(required)* | Tab options `{ label, value, description?, icon? }` |
 | `disabled` | `boolean?` | `false` | Disabled |
 | `readonly` | `boolean?` | `false` | Read-only |
-| `size` | `'sm' \| 'md'` | `'md'` | Size |
+| `size` | `'xs' \| 'sm' \| 'md'` | `'md'` | Size |
+| `tabSpace` | `'compact' \| 'spaced'` | `'spaced'` | Item width. `spaced` adds a minimum width to each item. |
+| `radius` | `'lg' \| 'xl' \| 'full'` | `'lg'` | Corner radius of the track, the thumb, and the items |
+| `color` | `'primary' \| 'neutral'` | `'primary'` | Color family of the track, the thumb, and the items |
 
 **v-model**: `modelValue: T`
 

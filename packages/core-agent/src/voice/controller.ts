@@ -1,4 +1,4 @@
-import type { AudioInput, AudioRange, PlaybackReceipt } from '@proj-airi/pipelines-audio'
+import type { AudioInput, AudioPlayback, AudioRange, PlaybackReceipt } from '@proj-airi/pipelines-audio'
 
 import type { SpeechInputAttemptOwner } from './input/attempt'
 import type { SpeechInputPorts } from './input/ports'
@@ -22,16 +22,33 @@ import { VoicePolicy } from './policy/engine'
 import { inputBegunEvent, inputCapturingEvent, inputFinalizingEvent, inputSettledEvent, inputTranscriptEvent } from './policy/events'
 import { turnKey } from './turn'
 
-/** Only external source, provider, and persistence boundaries are injected. */
-export interface VoiceControllerOptions extends SpeechInputPorts {
+/**
+ * Only external source, provider, and persistence boundaries are injected.
+ *
+ * `TNode` is the node type of the platform audio graph of `playback`, for example `AudioNode` in a browser.
+ */
+export interface VoiceControllerOptions<TNode = never> extends SpeechInputPorts {
   readonly onError?: (event: { stage: string, error: Error }) => void
   /** Shared input. Attempts and plugins subscribe to it. The controller never closes it. */
   readonly audio?: AudioInput
+  /**
+   * The playback of the speech. Output plugins observe it and connect graph nodes to it. The controller never closes it.
+   * Responses still play through the playback of their `speech` output.
+   */
+  readonly playback?: AudioPlayback<TNode>
   readonly speech?: (turn: TurnRef) => SpeechOutput
   /** Persistence retries must reuse eventId. This is an agent control event, not a chat message. */
   readonly recordInterruption?: (event: VoiceInterruptionEvent) => Promise<{ status: 'acknowledged' | 'queued' | 'failed' }>
   /** @default 100. Playback uses its audio clock to apply this fade. */
   readonly fadeMs?: number
+  /**
+   * After an input ends, its provider must close the transcript within this time. Otherwise the input fails at the
+   * `transcription` stage and submits nothing. A provider that transcribes only after the audio ends, for example a
+   * file upload, uses this time for the whole request.
+   *
+   * @default 30_000
+   */
+  readonly transcriptionTimeoutMs?: number
 }
 
 interface TurnInterruption {
@@ -43,7 +60,7 @@ interface TurnInterruption {
 }
 
 /** Coordinates input admission and downstream completion without owning browser or provider APIs. */
-export class VoiceController {
+export class VoiceController<TNode = never> {
   /**
    * Voice events: input lifecycle and plugin signals. Projections, such as UI state and traces, subscribe here.
    * Rules decide from the same events. A host can link this context to another process or a server.
@@ -55,9 +72,10 @@ export class VoiceController {
     onError: error => this.reportError('policy', error),
   })
 
-  private readonly plugins = new VoicePlugins({
+  private readonly plugins = new VoicePlugins<TNode>({
     activeInput: () => this.current,
     audio: () => this.audioInput,
+    playback: () => this.currentPlayback,
     beginInput: options => this.beginInput(options),
     cancelInput: (id, reason) => this.cancelInput(id, reason),
     interrupt: options => this.interrupt(options),
@@ -70,6 +88,7 @@ export class VoiceController {
   private current: SpeechInputAttempt | undefined
   private readonly attempts = new Map<string, SpeechInputAttempt>()
   private audioInput: AudioInput | undefined
+  private currentPlayback: AudioPlayback<TNode> | undefined
   private closing: Promise<void> | undefined
   private readonly responses = new Map<string, VoiceResponse>()
   /**
@@ -82,10 +101,14 @@ export class VoiceController {
   /** Every attempt receives the same narrow view of this controller. */
   private readonly inputOwner: SpeechInputAttemptOwner
 
-  constructor(private readonly options: VoiceControllerOptions) {
+  constructor(private readonly options: VoiceControllerOptions<TNode>) {
+    if (options.transcriptionTimeoutMs !== undefined && (!Number.isFinite(options.transcriptionTimeoutMs) || options.transcriptionTimeoutMs < 0))
+      throw new Error('Transcription timeout must be finite and nonnegative')
     this.audioInput = options.audio
+    this.currentPlayback = options.playback
     this.inputOwner = {
       options,
+      transcriptionTimeoutMs: options.transcriptionTimeoutMs ?? 30_000,
       audio: () => this.audioInput,
       interrupt: request => this.interrupt(request),
       createPlugins: (attempt, input) => this.plugins.input(attempt, input),
@@ -116,7 +139,11 @@ export class VoiceController {
     return this.current
   }
 
-  use(plugin: VoicePlugin, settings?: VoicePluginSettings): VoicePluginHandle {
+  get playback(): AudioPlayback<TNode> | undefined {
+    return this.currentPlayback
+  }
+
+  use(plugin: VoicePlugin<TNode>, settings?: VoicePluginSettings): VoicePluginHandle {
     if (this.closing)
       throw new Error('Voice controller is closed')
     return this.plugins.use(plugin, settings)
@@ -237,6 +264,7 @@ export class VoiceController {
     const response = new VoiceResponse(turn, this.options.speech(turn), () => this.responses.delete(key))
     this.usedTurns.add(key)
     this.responses.set(key, response)
+    this.plugins.output(response)
     return response
   }
 
@@ -319,6 +347,20 @@ export class VoiceController {
       attempt.cancel('Audio input replaced')
     this.audioInput = audio
     this.plugins.replaceAudio()
+  }
+
+  /**
+   * Switches plugin output observations and graph connections to another playback, for example after the stage remounts.
+   * Open responses keep the playback that they started with.
+   */
+  replacePlayback(playback: AudioPlayback<TNode> | undefined) {
+    if (this.closing)
+      throw new Error('Voice controller is closed')
+    if (playback === this.currentPlayback)
+      return
+
+    this.currentPlayback = playback
+    this.plugins.replacePlayback()
   }
 
   private sealInput(attempt: SpeechInputAttempt) {

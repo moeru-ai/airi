@@ -295,8 +295,7 @@ function withManualPreviewAnalytics<TProviderConfig extends Record<string, unkno
 /**
  * Tracks explicit voice selection from catalog or custom input controls.
  */
-async function selectSpeechVoice(voiceId: string | undefined) {
-  await persistSelection()
+function selectSpeechVoice(voiceId: string | undefined) {
   if (!voiceId)
     return
 
@@ -308,7 +307,6 @@ async function selectSpeechVoice(voiceId: string | undefined) {
   })
 }
 
-/** Persists the selection only after the leader commits its provider and model. */
 async function selectSpeechSource(sourceId: string) {
   const selection = await speechStore.selectSource(sourceId)
   if (!selection) {
@@ -324,8 +322,6 @@ async function selectSpeechSource(sourceId: string) {
     tts_model_id: selection.model || 'unknown',
     source: 'settings',
   })
-  // A follower can receive the action receipt before its state snapshot. Persist the committed selection.
-  await airiCardStore.updateActiveCardSpeech(selection)
 }
 
 /** Resolves the displayed model option before committing it in the leader. */
@@ -339,7 +335,6 @@ async function selectSpeechModel(modelOptionId: string) {
   const nextModel = streamingModelId ?? modelOptionId
 
   await speechStore.selectProviderModel(nextProvider, nextModel)
-  await persistSelection()
 }
 
 /**
@@ -416,14 +411,6 @@ watch(activeSpeechModel, () => {
 
   trackOfficialTtsExposure(activeSpeechProvider.value, currentTtsModelId())
 })
-
-async function persistSelection() {
-  await airiCardStore.updateActiveCardSpeech({
-    provider: activeSpeechProvider.value,
-    model: activeSpeechModel.value,
-    voice_id: activeSpeechVoiceId.value,
-  })
-}
 
 // Function to generate speech
 async function generateTestSpeech() {
@@ -618,7 +605,6 @@ async function updateCustomModelName(value: string | undefined) {
   errorMessage.value = ''
   try {
     await speechStore.selectProviderModel(activeSpeechProvider.value, value || '')
-    await persistSelection()
   }
   catch (error) {
     errorMessage.value = errorMessageFrom(error) ?? 'An unknown error occurred'
@@ -681,11 +667,12 @@ async function handleDeleteProvider(providerId: string) {
             </RadioCardSimple>
             <RouterLink
               to="/settings/providers#speech"
-              border="2px solid"
-              class="border-neutral-100 bg-white dark:border-neutral-900 hover:border-primary-500/30 dark:bg-neutral-900/20 dark:hover:border-primary-400/30"
-              flex="~ col items-center justify-center"
-              transition="all duration-200 ease-in-out"
-              relative min-w-50 w-fit rounded-xl p-4
+              :class="[
+                'relative min-w-50 w-fit flex flex-col items-center justify-center rounded-xl p-4',
+                'border-2 border-solid border-neutral-100 bg-white dark:border-neutral-900 dark:bg-neutral-900/20',
+                'hover:bg-neutral-50 dark:hover:bg-neutral-900/50',
+                'transition-all duration-200 ease-in-out',
+              ]"
             >
               <div i-solar:add-circle-line-duotone class="text-2xl text-neutral-500 dark:text-neutral-500" />
               <div
@@ -697,7 +684,7 @@ async function handleDeleteProvider(providerId: string) {
           </fieldset>
           <div v-else>
             <RouterLink
-              class="flex items-center gap-3 rounded-lg p-4" border="2 dashed neutral-200 dark:neutral-800"
+              class="flex items-center gap-3 rounded-lg p-4"
               bg="neutral-50 dark:neutral-800" transition="colors duration-200 ease-in-out" to="/settings/providers"
             >
               <div i-solar:warning-circle-line-duotone class="text-2xl text-amber-500 dark:text-amber-400" />
@@ -983,23 +970,26 @@ async function handleDeleteProvider(providerId: string) {
 
           <div flex="~ row" gap-4>
             <button
-              border="neutral-800 dark:neutral-200 solid 2" transition="border duration-250 ease-in-out"
-              rounded-lg px-4 text="neutral-100 dark:neutral-900" py-2 text-sm
               :disabled="!speechStore.enabled || isGenerating || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || !activeSpeechVoice"
-              :class="{ 'opacity-50 cursor-not-allowed': !speechStore.enabled || isGenerating || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || !activeSpeechVoice }"
-              bg="neutral-700 dark:neutral-300" @click="generateTestSpeech"
+              :class="[
+                'rounded-lg px-4 py-2 text-sm transition-colors duration-250 ease-in-out',
+                'bg-neutral-700 text-neutral-100 dark:bg-neutral-300 dark:text-neutral-900',
+                { 'opacity-50 cursor-not-allowed': !speechStore.enabled || isGenerating || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || !activeSpeechVoice },
+              ]"
+              @click="generateTestSpeech"
             >
-              <div flex="~ row" items-center gap-2>
-                <div i-solar:play-circle-bold-duotone />
+              <div :class="['flex flex-row items-center gap-2']">
+                <div :class="['i-solar:play-circle-bold-duotone']" />
                 <span>{{ isGenerating ? t('settings.pages.providers.provider.elevenlabs.playground.buttons.button.test-voice.generating') : t('settings.pages.providers.provider.elevenlabs.playground.buttons.button.test-voice.label') }}</span>
               </div>
             </button>
             <button
-              v-if="audioUrl" border="primary-300 dark:primary-800 solid 2"
-              transition="border duration-250 ease-in-out" rounded-lg px-4 py-2 text-sm @click="stopTestAudio"
+              v-if="audioUrl"
+              :class="['rounded-lg px-4 py-2 text-sm transition-colors duration-250 ease-in-out', 'bg-primary-100 dark:bg-primary-900/50']"
+              @click="stopTestAudio"
             >
-              <div flex="~ row" items-center gap-2>
-                <div i-solar:stop-circle-bold-duotone />
+              <div :class="['flex flex-row items-center gap-2']">
+                <div :class="['i-solar:stop-circle-bold-duotone']" />
                 <span>Stop</span>
               </div>
             </button>

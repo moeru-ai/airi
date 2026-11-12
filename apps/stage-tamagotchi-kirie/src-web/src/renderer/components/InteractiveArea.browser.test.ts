@@ -212,11 +212,12 @@ describe('interactive area synchronized state', () => {
     }
   })
 
-  it('places the mobile attachment control beside the input bubble', async () => {
+  // Images are attached from the add menu, so its button takes the place of the attachment control.
+  it('places the mobile add control beside the input bubble', async () => {
     await page.viewport(390, 844)
     const { screen } = await renderArea(MobileInteractiveArea)
     const bubble = screen.getByTestId('mobile-input-bubble').element()
-    const attach = screen.getByRole('button', { name: 'stage.chat.images.attach' }).element()
+    const attach = screen.getByRole('button', { name: 'stage.chat.composer.add' }).element()
     expect(bubble.contains(attach)).toBe(false)
     expect(attach.getBoundingClientRect().right).toBeLessThan(bubble.getBoundingClientRect().left)
     expect(attach.getBoundingClientRect().bottom).toBe(bubble.getBoundingClientRect().bottom)
@@ -307,23 +308,23 @@ describe('interactive area synchronized state', () => {
     await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.title' })).not.toBeInTheDocument()
     await expect.element(screen.getByTestId('mobile-message-composer')).not.toBeVisible()
     await expect.element(screen.getByTestId('conversation-selector-button')).not.toBeInTheDocument()
-    await expect.element(screen.getByRole('button', { name: 'X', exact: true })).toBeVisible()
-    await expect.element(screen.getByRole('button', { name: 'Y', exact: true })).toBeVisible()
-    await expect.element(screen.getByRole('button', { name: 'Scale', exact: true })).toBeVisible()
+    await expect.element(screen.getByRole('button', { name: 'settings.pages.models.editor.tools.size', exact: true })).toBeVisible()
+    await expect.element(screen.getByRole('button', { name: 'settings.pages.models.editor.tools.position', exact: true })).toBeVisible()
+    await expect.element(screen.getByRole('slider', { name: 'settings.pages.models.editor.tools.size', exact: true })).toBeVisible()
 
     const close = screen.getByTestId('view-controls-close-button').element()
     await expect.element(screen.getByTestId('view-controls-close-button')).toHaveFocus()
     expect(close.getBoundingClientRect().right).toBe(378)
     expect(close.getBoundingClientRect().top).toBe(12)
     const toolbar = screen.getByTestId('view-controls-toolbar').element()
-    expect(toolbar.classList).toContain('pl-[max(0.75rem,env(safe-area-inset-left))]')
-    expect(toolbar.classList).toContain('pr-[max(0.75rem,env(safe-area-inset-right))]')
+    expect(toolbar.classList).toContain('pl-[env(safe-area-inset-left)]')
+    expect(toolbar.classList).toContain('pr-[env(safe-area-inset-right)]')
 
     await screen.getByRole('button', { name: 'stage.mobile-tools.close-view', exact: true }).click()
 
     await expect.element(screen.getByTestId('mobile-message-composer')).toBeVisible()
     await expect.element(screen.getByTestId('conversation-selector-button')).toBeVisible()
-    await expect.element(screen.getByRole('button', { name: 'X', exact: true })).not.toBeInTheDocument()
+    await expect.element(screen.getByRole('button', { name: 'settings.pages.models.editor.tools.size', exact: true })).not.toBeInTheDocument()
     await expect.element(screen.getByTestId('mobile-settings-button')).toHaveFocus()
     expect(viewControl.viewControlsEnabled.value).toBe(false)
   })
@@ -417,14 +418,14 @@ describe('interactive area synchronized state', () => {
     }
   })
 
-  it('closes hearing and restores focus to the mobile voice button', async () => {
+  // Hearing details moved from the composer drawer into settings. The composer keeps only the voice input mode.
+  it('opens Hearing settings from the mobile settings drawer', async () => {
     const { screen } = await renderArea(MobileInteractiveArea)
-    const voiceButton = screen.getByTestId('mobile-voice-button')
-    await voiceButton.click()
-    await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.hearing' })).toBeVisible()
-    await userEvent.keyboard('{Escape}')
-    await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.hearing' })).not.toBeInTheDocument()
-    await expect.element(voiceButton).toHaveFocus()
+    expect(screen.container.querySelector('[data-testid="mobile-voice-button"]')).toBeNull()
+    await screen.getByTestId('mobile-settings-button').click()
+    const hearing = screen.getByTestId('mobile-hearing-settings')
+    await expect.element(hearing).toBeVisible()
+    await expect.element(hearing).toHaveAttribute('href', '/settings/modules/hearing')
   })
 
   it('expands the Electron input bubble around a reply preview', async () => {

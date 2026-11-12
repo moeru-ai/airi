@@ -96,14 +96,15 @@ function finishClose() {
           :aria-label="entry.name"
           :disabled="switching"
           :class="[
-            'relative min-w-0 rounded-2xl border border-solid p-2',
+            'relative min-w-0 rounded-2xl p-2',
             '[&_.basic-button-content]:w-full [&_.basic-button-content]:min-w-0 [&_.basic-button-content]:flex-col',
             'focus-visible:outline-2 focus-visible:outline-primary-500',
-            entry.id === activeCardId ? 'border-primary-500 bg-primary-50 dark:bg-primary-950' : 'border-neutral-200 dark:border-neutral-700',
+            entry.id === activeCardId ? 'bg-primary-50 dark:bg-primary-950' : 'bg-neutral-100/70 dark:bg-neutral-800/50',
           ]"
           @click="selectCharacter(entry.id)"
         >
-          <Avatar :src="entry.preview" :class="['aspect-[4/3] w-full rounded-xl bg-neutral-100 text-neutral-400 dark:bg-neutral-800']">
+          <!-- Display model previews are portrait. Align them to the top so the 4:3 crop keeps the head. -->
+          <Avatar :src="entry.preview" :class="['aspect-[4/3] w-full rounded-xl bg-neutral-100 text-neutral-400 dark:bg-neutral-800', '[&_[data-avatar-image]]:object-top']">
             <template #fallback>
               <span aria-hidden="true" :class="['i-solar:user-rounded-outline size-10']" />
             </template>

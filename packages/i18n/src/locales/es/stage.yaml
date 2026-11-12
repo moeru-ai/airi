@@ -1,3 +1,21 @@
+background-picker:
+  title: Elegir un fondo
+  add-custom: Añadir fondo personalizado
+  custom: Fondo personalizado
+  preview: Vista previa
+  no-preview: Sin vista previa
+  select: Selecciona un fondo
+  blur: Desenfocar
+  remove: Eliminar fondo
+  sampling: Extrayendo colores…
+  apply: Usar este fondo
+  presets:
+    colorful-wave:
+      label: Olas de colores
+      description: Olas animadas sobre una cuadrícula de cruces
+    transparent:
+      label: Transparente
+      description: Mostrar el fondo bajo la interfaz de la aplicación
 character-switcher:
   title: Cambiar de Personaje
   manage: Gestionar personajes
@@ -33,15 +51,9 @@ chat:
   voice-composer:
     audio: Mensaje de voz
     transcription: Dictado
-    hold-hint: Mantén pulsado para grabar. Haz clic para cambiar entre mensaje de voz y dictado. Pulsa Enter para grabar sin mantener pulsado.
     listening: Escuchando…
-    lock: Desliza hacia arriba para bloquear
-    cancel-hint: Desliza hacia la izquierda para cancelar
     processing: Finalizando…
     cancel: Cancelar
-    send: Enviar mensaje de voz
-    insert: Insertar texto
-    retry: Volver a enviar el mensaje de voz
     discard: Descartar mensaje de voz
     failed: La entrada de voz falló
     configure-title: Configurar Audición

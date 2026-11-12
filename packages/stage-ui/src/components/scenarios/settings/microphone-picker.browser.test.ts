@@ -74,6 +74,45 @@ describe('microphone picker', () => {
     expect(requestAccess).toHaveBeenCalledOnce()
   })
 
+  // Android WebView reports `prompt` after the system granted the microphone, so the mobile app showed Allow on each
+  // visit. The mobile app now requests access when the picker opens.
+  it('requests access without a click in the mobile app', async () => {
+    vi.stubEnv('RUNTIME_ENVIRONMENT', 'capacitor')
+    const requestAccess = vi.fn(async () => true)
+    try {
+      await renderPicker({ requestAccess })
+    }
+    finally {
+      vi.unstubAllEnvs()
+    }
+
+    expect(requestAccess).toHaveBeenCalledOnce()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/3259#discussion_r4421959777
+  // The permission query had not settled when the picker opened. A capture then ran although the query found access.
+  it('waits for the permission query in the mobile app', async () => {
+    vi.stubEnv('RUNTIME_ENVIRONMENT', 'capacitor')
+    const requestAccess = vi.fn(async () => true)
+    try {
+      const screen = await renderPicker({ permission: 'unknown', requestAccess })
+      expect(requestAccess).not.toHaveBeenCalled()
+
+      await screen.rerender({ permission: 'granted' })
+      expect(requestAccess).not.toHaveBeenCalled()
+    }
+    finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
+  it('waits for a click in a browser', async () => {
+    const requestAccess = vi.fn(async () => true)
+    await renderPicker({ requestAccess })
+
+    expect(requestAccess).not.toHaveBeenCalled()
+  })
+
   it('explains a denied request in place', async () => {
     const screen = await renderPicker({ requestAccess: async () => false })
 
