@@ -2,6 +2,7 @@ import type { WebFontMeta } from '@unocss/preset-web-fonts'
 import type { Preset, PresetOrFactoryAwaitable } from 'unocss'
 
 import { setDefaultAutoSelectFamilyAttemptTimeout } from 'node:net'
+import { env } from 'node:process'
 
 import { createExternalPackageIconLoader } from '@iconify/utils/lib/loader/external-pkg'
 import { presetChromatic } from '@proj-airi/unocss-preset-chromatic'
@@ -139,6 +140,14 @@ export function presetWebFontsFonts(provider: 'fontsource' | 'none'): Record<str
 }
 
 export function sharedUnoConfig() {
+  // NOTICE:
+  // Production builds need to load the installed Iconify collections.
+  // UnoCSS treats an inherited VSCODE_CWD as an editor process and skips its Node loader.
+  // https://github.com/unocss/unocss/blob/v66.7.5/packages-presets/preset-icons/src/index.ts#L16-L26
+  // Remove this when UnoCSS loads local collections in builds that inherit VSCODE_CWD.
+  if (env.NODE_ENV === 'production')
+    delete env.VSCODE_CWD
+
   return defineConfig({
     presets: [
       presetWind3(),
