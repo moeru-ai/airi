@@ -4,11 +4,13 @@ import type { Preset, PresetOrFactoryAwaitable } from 'unocss'
 import { setDefaultAutoSelectFamilyAttemptTimeout } from 'node:net'
 import { env } from 'node:process'
 
+import { loadIcon } from '@iconify/utils'
 import { createExternalPackageIconLoader } from '@iconify/utils/lib/loader/external-pkg'
 import { presetChromatic } from '@proj-airi/unocss-preset-chromatic'
 import { colorToString } from '@unocss/preset-mini/utils'
 import { defineConfig, mergeConfigs, presetAttributify, presetIcons, presetTypography, presetWind3, transformerDirectives, transformerVariantGroup } from 'unocss'
 import { presetScrollbar } from 'unocss-preset-scrollbar'
+import { createNodeLoader, createPresetIcons } from 'unocss/preset-icons'
 import { parseColor } from 'unocss/preset-mini'
 
 // On Netlify, building will result in when fetching metadata and fonts from @unocss/preset-web-fonts plugin:
@@ -141,18 +143,20 @@ export function presetWebFontsFonts(provider: 'fontsource' | 'none'): Record<str
 
 export function sharedUnoConfig() {
   // NOTICE:
-  // If VSCODE_CWD is set, UnoCSS skips its Node icon loader and omits CSS for installed @iconify-json icons.
-  // Clear VSCODE_CWD so UnoCSS loads the icons and generates their CSS.
+  // If VSCODE_CWD is set, icons from installed collections can lose their CSS.
+  // UnoCSS skips its Node loader in this case. Select the loader directly to generate the icon CSS.
   // https://github.com/unocss/unocss/blob/v66.7.5/packages-presets/preset-icons/src/index.ts#L16-L26
-  // Remove this when UnoCSS loads installed collections with VSCODE_CWD set.
-  delete env.VSCODE_CWD
+  // Remove this when the default preset loads installed icons with VSCODE_CWD set.
+  const iconsPreset = env.VSCODE_CWD && !env.ESLINT
+    ? createPresetIcons(async () => await createNodeLoader() ?? loadIcon)
+    : presetIcons
 
   return defineConfig({
     presets: [
       presetWind3(),
       presetAttributify(),
       presetTypography(),
-      presetIcons({
+      iconsPreset({
         scale: 1.2,
         collections: {
           ...createExternalPackageIconLoader('@proj-airi/lobe-icons'),
