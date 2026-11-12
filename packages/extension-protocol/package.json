@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/extension-protocol",
   "type": "module",
-  "version": "0.15.3",
+  "version": "0.15.4",
   "description": "Extension identity and permission types for Project AIRI",
   "author": {
     "name": "Moeru AI Project AIRI Team",

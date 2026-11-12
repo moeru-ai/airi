@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/timeline-canvas",
   "type": "module",
-  "version": "0.15.3",
+  "version": "0.15.4",
   "description": "Canvas 2D timeline lanes for very many intervals, points, and sample series",
   "author": {
     "name": "Moeru AI Project AIRI Team",
