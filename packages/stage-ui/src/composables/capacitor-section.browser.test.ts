@@ -121,6 +121,8 @@ describe('capacitor quota display and purchase actions', () => {
       requests.push(pathname)
       if (pathname.endsWith('/catalog'))
         return Response.json({ capacitors: [{ productId: 'monthly', quota: 100 }, { productId: 'plus', quota: 300 }], resetInterval: 'day' })
+      if (pathname.endsWith('/capacitor/usage'))
+        return Response.json({ startedAt: null, endsAt: null, records: [] })
       if (pathname.endsWith('/sync'))
         return Response.json({ synced: true })
       return Response.json({ flux: 150, capacitorRechargesAt: null, ...wallet })
@@ -160,8 +162,8 @@ describe('capacitor quota display and purchase actions', () => {
     const open = vi.spyOn(window, 'open').mockReturnValue(null)
     const screen = await openPage()
 
-    await expect.element(screen.getByText('100 Flux every day')).toBeVisible()
-    await expect.element(screen.getByText('300 Flux every day')).toBeVisible()
+    await expect.element(screen.getByText('100 Flux / day')).toBeVisible()
+    await expect.element(screen.getByText('300 Flux / day')).toBeVisible()
     await screen.getByRole('button', { name: action, exact: true }).click()
 
     expect(open).toHaveBeenCalledWith('https://example.com/manage', '_blank', 'noopener')
@@ -194,7 +196,9 @@ describe('capacitor quota display and purchase actions', () => {
     wallet = { capacitorPercent: null, fallbackToFlux: false }
     const screen = await openPage()
 
-    await expect.element(screen.getByText('What is a Capacitor?')).toBeVisible()
+    await expect.element(screen.getByText('No Capacitor yet')).toBeVisible()
+    await expect.element(screen.getByText('Subscribe to a Capacitor. It refills with Flux every day.')).toBeVisible()
+    await expect.element(screen.getByRole('heading', { name: 'Choose a Capacitor' })).toBeVisible()
     await expect.element(screen.getByRole('button', { name: 'Subscribe', exact: true }).first()).toBeVisible()
   })
 
@@ -206,7 +210,8 @@ describe('capacitor quota display and purchase actions', () => {
     const screen = await openPage()
 
     await expect.element(screen.getByText('Use your Flux balance when the Capacitor is empty')).toBeVisible()
-    expect(screen.getByText('What is a Capacitor?').elements()).toHaveLength(0)
+    expect(screen.getByText('No Capacitor yet').elements()).toHaveLength(0)
+    await expect.element(screen.getByRole('heading', { name: 'Change your Capacitor' })).toBeVisible()
     expect(screen.getByText(/Your Capacitor is empty/).elements()).toHaveLength(warnings)
   })
 

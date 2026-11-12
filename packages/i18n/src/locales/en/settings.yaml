@@ -1675,17 +1675,9 @@ pages:
         json-applied: JSON applied to the form. Click "Save and restart" to persist it to disk.
         restarted: All restarted! {started} started, {failed} failed, {skipped} skipped.
   flux:
-    pageTitle: Subscription & Flux
-    buySection: Buy Flux
-    companion:
-      charged: '{percent} of my energy is left today. I''ll be full again at {time}.'
-      empty: 'I''m out of energy for today. I''ll be full again at {time}. To keep chatting now, turn on the Flux option below.'
-      emptyFallback: 'I''m out of energy for today. I''ll be full again at {time}. Until then, I''m using your Flux balance.'
-      offer: With a subscription, I fill up with energy every day to keep you company!
-      balance: 'You have {balance} Flux for chatting and speech.'
-      soon: soon
-    balanceHint: Bought Flux does not expire. Chat and speech use it when you have no Capacitor.
-    title: Flux
+    pageTitle: Subscription
+    balance: Balance {balance} Flux
+    title: Subscription
     buy: Charge
     currency: Currency
     terms: Terms
@@ -1711,14 +1703,21 @@ pages:
       delayHint: Usage records may be delayed by up to 1 minute
       ttsRequests: requests
     packages:
-      title: Flux Packages
+      title: Flux top-up packs
       buy: Charge
-      description: Flux packages to choose from.
+      description: One-time purchase. It does not expire.
   capacitor:
-    title: Subscription
-    intro:
-      title: What is a Capacitor?
-      body: A subscription gives you a Capacitor. It refills with Flux on schedule. Chat and speech use the Flux in the Capacitor first.
+    name: Capacitor
+    left: 'Capacitor: {percent} left'
+    offer:
+      none: No Capacitor yet
+      day: Subscribe to a Capacitor. It refills with Flux every day.
+      week: Subscribe to a Capacitor. It refills with Flux every week.
+      month: Subscribe to a Capacitor. It refills with Flux every month.
+      hint: Chat and speech use the Flux in the Capacitor first.
+    forecast:
+      left: At this pace, about {percent} is left at {time}.
+      empty: At this pace, the Capacitor is empty at about {time}.
     empty: Your Capacitor is empty. To keep chatting now, turn on the option below to use your Flux balance.
     statusError: Failed to load your Capacitor. Please try again later.
     packagesError: Failed to load Capacitors. Please try again later.
@@ -1726,13 +1725,15 @@ pages:
     rechargesAt: Refills {date}
     renewsAt: Renews {date}
     expiresAt: Ends {date}
-    change: Change subscription
+    choose: Choose a Capacitor
+    change: Change your Capacitor
+    packagesHint: A larger Capacitor lets you chat longer. Unused Flux does not carry over.
     quota:
-      day: '{quota} Flux every day'
-      week: '{quota} Flux every week'
-      month: '{quota} Flux every month'
+      day: '{quota} Flux / day'
+      week: '{quota} Flux / week'
+      month: '{quota} Flux / month'
     perMonth: / month
-    currentPackage: Current
+    currentPackage: In use
     install: Subscribe
     upgrade: Upgrade
     downgrade: Downgrade

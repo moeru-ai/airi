@@ -1604,17 +1604,9 @@ pages:
         json-applied: JSON 已经解析完成了，点「保存并重启」就写到磁盘上啦。
         restarted: 重启好啦！启动了 {started} 个，失败 {failed} 个，跳过 {skipped} 个
   flux:
-    pageTitle: 订阅与 Flux
-    buySection: 补充 Flux
-    companion:
-      charged: 今天还剩 {percent} 的能量，{time} 我会再充满～
-      empty: 今天的能量用完了……{time} 才会再充满。想现在接着聊，可以打开下面的 Flux 开关。
-      emptyFallback: 今天的能量用完了……{time} 才会再充满，在那之前我先用你的 Flux 余额。
-      offer: 订阅之后，我每天都会把能量充满来陪你！
-      balance: 还有 {balance} Flux 可以用来聊天和说话。
-      soon: 稍后
-    balanceHint: 购买的 Flux 不会过期。没有订阅时，聊天和语音会使用它。
-    title: Flux 电量
+    pageTitle: 订阅
+    balance: 余额 {balance} Flux
+    title: 订阅
     buy: 充值
     currency: 币种
     terms: 使用条款
@@ -1640,34 +1632,43 @@ pages:
       delayHint: Flux 电量历史记录是缓慢更新的，可能有延迟
       ttsRequests: 请求
     packages:
-      title: Flux 电池包
+      title: 电量补充包
       buy: 充值
-      description: 可以选择购入的 Flux 电池包
+      description: 单次购买，不会过期。
   capacitor:
-    title: 订阅
-    intro:
-      title: Capacitor 是什么？
-      body: 订阅后你会得到一个 Capacitor。它按方案自动充满 Flux，对话和语音先用 Capacitor 里的 Flux。
-    empty: Capacitor 已用完。想现在继续聊天，可以打开下方的选项，使用 Flux 电量。
+    name: Capacitor
+    left: Capacitor 还剩 {percent}
+    offer:
+      none: 还没有 Capacitor
+      day: 订阅一个 Capacitor，它每天自动充满 Flux
+      week: 订阅一个 Capacitor，它每周自动充满 Flux
+      month: 订阅一个 Capacitor，它每月自动充满 Flux
+      hint: 对话和语音先用 Capacitor 里的 Flux。
+    forecast:
+      left: 照现在的用法，到 {time} 大约还剩 {percent}
+      empty: 照现在的用法，大约 {time} 用完
+    empty: Capacitor 已用完。想现在继续聊天，可以打开下方的选项，改用 Flux 余额。
     statusError: 暂时无法获取 Capacitor 的状态，可以之后再试试吗？
     packagesError: 暂时无法获取可用的 Capacitor，可以之后再试试吗？
     preferenceError: 偏好保存失败，请稍后再试。
     rechargesAt: '{date} 充满'
     renewsAt: '{date} 续订'
     expiresAt: '{date} 到期'
-    change: 更换订阅
+    choose: 选一个 Capacitor
+    change: 换一个 Capacitor
+    packagesHint: Capacitor 越大，能聊得越久。没用完的 Flux 不会累积。
     quota:
-      day: '每天 {quota} Flux'
-      week: '每周 {quota} Flux'
-      month: '每月 {quota} Flux'
+      day: '{quota} Flux / 天'
+      week: '{quota} Flux / 周'
+      month: '{quota} Flux / 月'
     perMonth: / 月
-    currentPackage: 当前
-    install: 订阅
-    upgrade: 升级
-    downgrade: 降级
+    currentPackage: 使用中
+    install: 订阅这个
+    upgrade: 换成 {name}
+    downgrade: 换成 {name}
     manageSubscription: 管理订阅
-    fallbackToFlux: Capacitor 用完后使用 Flux 电量
-    fallbackToFluxHint: 关闭后，对话和语音会暂停，直到 Capacitor 充满。
+    fallbackToFlux: Capacitor 用完后，改用 Flux 余额
+    fallbackToFluxHint: 关闭后，对话和语音会暂停，直到 Capacitor 再次充满。
     checkout:
       success: 订阅成功，Capacitor 已充满。
       pending: 已收到付款，Capacitor 稍后充满。

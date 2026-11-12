@@ -74,9 +74,9 @@ describe('public Flux page', () => {
     await expect.element(screen.getByRole('button', { name: 'HOT 2000 Flux $12.00' })).toBeVisible()
     expect(screen.getByText('Current Flux').elements()).toHaveLength(0)
     expect(screen.getByText('Transaction History').elements()).toHaveLength(0)
-    // AIRI and the subscription belong to an account, so a signed-out visitor sees only the packages.
-    expect(screen.getByTestId('flux-companion').elements()).toHaveLength(0)
+    // The subscription and the balance belong to an account, so a signed-out visitor sees only the packs.
     expect(screen.getByTestId('flux-subscription').elements()).toHaveLength(0)
+    expect(screen.getByTestId('flux-balance').elements()).toHaveLength(0)
 
     await screen.getByRole('button', { name: '500 Flux $3.00' }).click()
 
@@ -87,12 +87,14 @@ describe('public Flux page', () => {
 describe('flux page with the Capacitor subscription', () => {
   let pinia: ReturnType<typeof createPinia>
   let wallet: { capacitorPercent: number | null, fallbackToFlux?: boolean }
+  let usage: { startedAt: string | null, endsAt: string | null, records: { at: string, percent: number }[] } | null
 
   beforeEach(() => {
     pinia = createPinia()
     vi.stubEnv('VITE_REVENUECAT_WEB_KEY', 'public-test-key')
     vi.stubEnv('VITE_DISABLE_FLUX_PURCHASE', 'false')
     wallet = { capacitorPercent: null }
+    usage = { startedAt: null, endsAt: null, records: [] }
     vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
       const { pathname } = new URL(input instanceof Request ? input.url : input.toString())
       if (pathname.endsWith('/stripe/packages'))
@@ -101,6 +103,8 @@ describe('flux page with the Capacitor subscription', () => {
         return Response.json({ records: [], hasMore: false })
       if (pathname.endsWith('/flux/stats'))
         return Response.json({ capacity: 0 })
+      if (pathname.endsWith('/flux/capacitor/usage'))
+        return usage ? Response.json(usage) : new Response(null, { status: 500 })
       if (pathname.endsWith('/revenuecat/sync'))
         return Response.json({ synced: true })
       return Response.json({ flux: 1200, capacitorRechargesAt: null, fallbackToFlux: false, ...wallet })
@@ -128,29 +132,46 @@ describe('flux page with the Capacitor subscription', () => {
     })
   }
 
-  it('opens on AIRI and the subscription, then the packages and the history', async () => {
+  it('opens on the subscription offer, then the packs with the balance, then the history', async () => {
     const screen = await openSignedIn()
 
-    await expect.element(screen.getByTestId('flux-companion-line')).toHaveTextContent('With a subscription, I fill up with energy every day')
-    await expect.element(screen.getByText('What is a Capacitor?')).toBeVisible()
+    await expect.element(screen.getByTestId('capacitor-offer')).toHaveTextContent('No Capacitor yet')
+    expect(screen.getByTestId('capacitor-hero').elements()).toHaveLength(0)
     await expect.element(screen.getByRole('button', { name: '500 Flux $3.00' })).toBeVisible()
+    await expect.element(screen.getByTestId('flux-balance')).toHaveTextContent('Balance 1,200 Flux')
     await expect.element(screen.getByTestId('flux-history')).toBeVisible()
-    // The page leads with the subscription: it comes before the one-time packages.
+    // The page leads with the subscription: it comes before the one-time packs.
     const subscription = screen.getByTestId('flux-subscription').element()
     const packages = screen.getByTestId('flux-packages').element()
     expect(subscription.compareDocumentPosition(packages) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
-  it.each([
-    { capacitorPercent: 40, fallbackToFlux: false, line: '40% of my energy is left today' },
-    // An empty Capacitor stops chat until the user lets the Flux balance pay, so AIRI points at the switch.
-    { capacitorPercent: 0, fallbackToFlux: false, line: 'To keep chatting now, turn on the Flux option below' },
-    { capacitorPercent: 0, fallbackToFlux: true, line: 'Until then, I\'m using your Flux balance' },
-  ])('lets AIRI say how much of the Capacitor is left ($capacitorPercent%, fallback $fallbackToFlux)', async ({ capacitorPercent, fallbackToFlux, line }) => {
-    wallet = { capacitorPercent, fallbackToFlux }
+  it('draws the usage of the window as the fill of the Capacitor card', async () => {
+    const hour = 3_600_000
+    const startedAt = new Date(Date.now() - 12 * hour)
+    wallet = { capacitorPercent: 62 }
+    usage = {
+      startedAt: startedAt.toISOString(),
+      endsAt: new Date(startedAt.getTime() + 24 * hour).toISOString(),
+      records: [{ at: new Date(startedAt.getTime() + 6 * hour).toISOString(), percent: 80 }],
+    }
     const screen = await openSignedIn()
 
-    await expect.element(screen.getByTestId('flux-companion-line')).toHaveTextContent(line)
+    await expect.element(screen.getByTestId('capacitor-percent')).toHaveAccessibleName('Capacitor: 62% left')
+    await expect.element(screen.getByTestId('capacitor-curve')).toBeInTheDocument()
+    // Half of the window used 38 percent, so the forecast leaves 24 percent.
+    await expect.element(screen.getByTestId('capacitor-forecast')).toHaveTextContent('about 24% is left')
+    expect(screen.getByTestId('capacitor-offer').elements()).toHaveLength(0)
+  })
+
+  it('keeps the percent as a plain fill when the usage read fails', async () => {
+    wallet = { capacitorPercent: 40 }
+    usage = null
+    const screen = await openSignedIn()
+
+    await expect.element(screen.getByTestId('capacitor-percent')).toHaveAccessibleName('Capacitor: 40% left')
+    expect(screen.getByTestId('capacitor-curve').elements()).toHaveLength(0)
+    expect(screen.getByTestId('capacitor-forecast').elements()).toHaveLength(0)
   })
 
   it('shows the result after a Stripe checkout returns', async () => {
