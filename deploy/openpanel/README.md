@@ -6,7 +6,9 @@ Use this setup for product events, user profiles, and conversion funnels. It doe
 
 ## Client configuration
 
-Use `VITE_ENABLE_ANALYTICS` as the build switch for app analytics. Existing user opt-out behavior remains active. The production docs site records page views separately.
+Use `VITE_ENABLE_ANALYTICS` as the build switch for app analytics. Existing user opt-out behavior remains active.
+
+The docs site ([`moeru-ai/airi-docs`](https://github.com/moeru-ai/airi-docs)) sends page views to its own OpenPanel project. Its public client accepts only the docs origin and keeps the origin check. Earlier docs events stay in the AIRI project with `app_surface: 'docs'`. Exclude them when you read app totals.
 
 Client builds use the public API URL and write client id from `packages/stage-shared/src/analytics/openpanel.ts`.
 The stage apps and auth UI share this configuration. CI variables and Docker build arguments are not required for these values.
