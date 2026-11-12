@@ -141,8 +141,8 @@ export function presetWebFontsFonts(provider: 'fontsource' | 'none'): Record<str
 
 export function sharedUnoConfig() {
   // NOTICE:
-  // Editor tools can pass VSCODE_CWD to AIRI.
-  // UnoCSS skips its Node icon loader when this variable is set.
+  // If VSCODE_CWD is set, UnoCSS skips its Node icon loader and omits CSS for installed @iconify-json icons.
+  // Clear VSCODE_CWD so UnoCSS loads the icons and generates their CSS.
   // https://github.com/unocss/unocss/blob/v66.7.5/packages-presets/preset-icons/src/index.ts#L16-L26
   // Remove this when UnoCSS loads installed collections with VSCODE_CWD set.
   delete env.VSCODE_CWD
