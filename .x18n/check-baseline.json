@@ -769,6 +769,48 @@
     {
       "path": "packages/i18n/src/locales/en/settings.yaml",
       "code": "unused-key",
+      "key": "settings.pages.system.experimental.features.conversation_compact.description",
+      "message": "\"settings.pages.system.experimental.features.conversation_compact.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.experimental.features.conversation_compact.mode.background",
+      "message": "\"settings.pages.system.experimental.features.conversation_compact.mode.background\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.experimental.features.conversation_compact.mode.description",
+      "message": "\"settings.pages.system.experimental.features.conversation_compact.mode.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.experimental.features.conversation_compact.mode.synchronous",
+      "message": "\"settings.pages.system.experimental.features.conversation_compact.mode.synchronous\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.experimental.features.conversation_compact.mode.title",
+      "message": "\"settings.pages.system.experimental.features.conversation_compact.mode.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.experimental.features.conversation_compact.title",
+      "message": "\"settings.pages.system.experimental.features.conversation_compact.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
       "key": "settings.pages.system.experimental.features.fullscreen_workspace.description",
       "message": "\"settings.pages.system.experimental.features.fullscreen_workspace.description\" is not used.",
       "count": 1
