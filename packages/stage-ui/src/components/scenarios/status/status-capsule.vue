@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { BasicButton } from '@proj-airi/ui'
-import { computed, ref } from 'vue'
+import { computed, ref, useTemplateRef } from 'vue'
+
+import { useBackdropSurface } from '../../../composables/backdrop-surface'
 
 const props = withDefaults(defineProps<{
   tone?: 'neutral' | 'error'
@@ -18,6 +20,9 @@ const props = withDefaults(defineProps<{
 
 const expanded = ref(false)
 const showDetails = computed(() => expanded.value || props.reveal)
+// The capsule and its details float over the stage, so a desktop host can draw native glass behind their fills.
+useBackdropSurface(useTemplateRef<HTMLElement>('pill-surface'))
+useBackdropSurface(useTemplateRef<HTMLElement>('details-surface'))
 </script>
 
 <template>
@@ -35,7 +40,7 @@ const showDetails = computed(() => expanded.value || props.reveal)
       @click="expanded = !expanded"
       @keydown.esc="expanded = false"
     >
-      <span :class="['min-h-7 min-w-16 flex items-center justify-center rounded-full bg-neutral-50/75 px-3 backdrop-blur-md dark:bg-neutral-900/65']">
+      <span ref="pill-surface" :class="['min-h-7 min-w-16 flex items-center justify-center rounded-full bg-neutral-50/75 px-3 backdrop-blur-md dark:bg-neutral-900/65']">
         <slot name="indicator" />
         <span aria-hidden="true" :class="['status-label overflow-hidden whitespace-nowrap text-xs', reveal ? 'ml-1.5 max-w-48 opacity-100' : 'max-w-0 opacity-0']">{{ label }}</span>
       </span>
@@ -44,6 +49,7 @@ const showDetails = computed(() => expanded.value || props.reveal)
     <Transition name="status-details">
       <slot v-if="showDetails && !reveal" name="details">
         <div
+          ref="details-surface"
           :class="[
             'z-50 max-h-48 w-64 max-w-[calc(100vw-2rem)] overflow-auto break-words rounded-2xl bg-neutral-50/95 p-3 text-sm text-neutral-700 backdrop-blur-md dark:bg-neutral-900/95 dark:text-neutral-200',
             placement === 'above' ? 'mb-1 origin-bottom' : 'mt-1 origin-top',
