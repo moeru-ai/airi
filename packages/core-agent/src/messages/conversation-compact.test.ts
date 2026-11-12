@@ -91,6 +91,22 @@ describe('conversationCompact', () => {
     await expect(compact.prepare(source, { ...request, contextBudgetLimits: { softLimitBytes: 500, hardLimitBytes: 1000 } })).resolves.toEqual(source)
   })
 
+  it('keeps an admissible vision request when a summary would exceed its text ceiling', async () => {
+    const observation = round(0)
+    observation.content = [{ type: 'tool', invocationId: 'tool-0' }]
+    const source: Conversation = { turns: [
+      { type: 'assistant', id: 'observation', status: 'completed', rounds: [observation] },
+      { type: 'user', id: 'goal', content: [{ type: 'text', text: 'x'.repeat(1600) }] },
+      { type: 'assistant', id: 'latest', status: 'completed', rounds: [{ ...round(1), content: [], toolInvocations: [] }] },
+    ] }
+    const compact = new ConversationCompact({ softLimitBytes: 1800, hardLimitBytes: 3200, retainRounds: 1 })
+    compact.setMode('synchronous')
+    const summarize = vi.fn(async () => 's'.repeat(1600))
+
+    await expect(compact.prepare(source, { ...target, supportsVisionInput: true, measureContextBudget, summarize })).resolves.toEqual(source)
+    expect(summarize).toHaveBeenCalledOnce()
+  })
+
   it('waits at the soft budget only in Synchronous mode and uses the shared projection', async () => {
     const gate = barrier<string>()
     const started = barrier<void>()

@@ -72,13 +72,16 @@ describe.each(['chat-completions', 'responses'] as const)('%s request context', 
   it.each(['unknown-model', 'small-model'])('refreshes metadata when switching to %s without replaying a tool', async (nextModel) => {
     let requests = 0
     let effects = 0
-    const targets: { model: string, supportsVisionInput?: boolean, hardLimitBytes?: number }[] = []
+    const targets: { model: string, supportsVisionInput?: boolean, softLimitBytes?: number }[] = []
     const fetch: typeof globalThis.fetch = async () => {
       requests++
       const item = { type: 'function_call', call_id: 'once', name: 'fixture', arguments: '{}' }
+      const output = requests === 1 ? item : { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'Done.' }] }
       const events = protocol === 'responses'
-        ? [{ type: 'response.output_item.done', item }, { type: 'response.completed', response: { output: [item] } }]
-        : [{ choices: [{ index: 0, delta: { tool_calls: [{ index: 0, id: 'once', type: 'function', function: { name: 'fixture', arguments: '{}' } }] }, finish_reason: 'tool_calls' }] }]
+        ? [{ type: 'response.output_item.done', item: output }, { type: 'response.completed', response: { output: [output] } }]
+        : [{ choices: [{ index: 0, delta: requests === 1
+            ? { tool_calls: [{ index: 0, id: 'once', type: 'function', function: { name: 'fixture', arguments: '{}' } }] }
+            : { content: 'Done.' }, finish_reason: requests === 1 ? 'tool_calls' : 'stop' }] }]
       return new Response(events.map(event => `data: ${JSON.stringify(event)}\n\n`).join(''), { headers: { 'content-type': 'text/event-stream' } })
     }
     const chatProvider: GenerationProvider = { generation: model => protocol === 'responses'
@@ -89,7 +92,7 @@ describe.each(['chat-completions', 'responses'] as const)('%s request context', 
       return [{ type: 'text', text: 'Fixture receipt. '.repeat(500) }, { type: 'image_url', image_url: { url: `data:image/png;base64,${'A'.repeat(768 * 1024)}` } }]
     } }]
     const compact = new ConversationCompact({ softLimitBytes: 256 * 1024, hardLimitBytes: 512 * 1024, retainRounds: 1 })
-    await expect(streamFrom({ model: 'vision-model', chatProvider, conversation: { turns: [{
+    const stream = streamFrom({ model: 'vision-model', chatProvider, conversation: { turns: [{
       type: 'user',
       id: 'goal',
       content: [{ type: 'text', text: 'Observe once.' }],
@@ -107,15 +110,19 @@ describe.each(['chat-completions', 'responses'] as const)('%s request context', 
         maxTokens: 2_000,
       }),
       prepareConversation: (context, target) => {
-        targets.push({ model: target.model, supportsVisionInput: target.supportsVisionInput, hardLimitBytes: target.contextBudgetLimits?.hardLimitBytes })
+        targets.push({ model: target.model, supportsVisionInput: target.supportsVisionInput, softLimitBytes: target.contextBudgetLimits?.softLimitBytes })
         return compact.prepare(context, { ...target, summarize: async () => 'Never requested' })
       },
-    } })).rejects.toThrow('context exceeds')
-    expect(requests).toBe(1)
+    } })
+    if (nextModel === 'unknown-model')
+      await expect(stream).rejects.toThrow('context exceeds')
+    else
+      await stream
+    expect(requests).toBe(nextModel === 'unknown-model' ? 1 : 2)
     expect(effects).toBe(1)
     expect(targets).toEqual([
-      { model: 'vision-model', supportsVisionInput: true, hardLimitBytes: 58_800 },
-      { model: nextModel, supportsVisionInput: nextModel !== 'unknown-model', hardLimitBytes: nextModel === 'unknown-model' ? undefined : 5_600 },
+      { model: 'vision-model', supportsVisionInput: true, softLimitBytes: 44_100 },
+      { model: nextModel, supportsVisionInput: nextModel !== 'unknown-model', softLimitBytes: nextModel === 'unknown-model' ? undefined : 4_200 },
     ])
     console.info(JSON.stringify({ boundary: 'Real model-switch path, controlled provider and executor', protocol, requests, effects, targets }))
   })

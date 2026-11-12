@@ -188,14 +188,18 @@ export class ConversationCompact {
     return target.contextBudgetLimits ?? this.options
   }
 
-  private apply(source: Turn[], measure: (value: Conversation) => number) {
+  private apply(source: Turn[], target: CompactRequest, hardLimitBytes: number) {
     const job = this.job
     if (!job || !job.ready)
       return
+    const previous = this.project(source)
     const next = this.project(source, job.checkpoint)
-    const bytes = measure(next)
-    if (bytes >= measure(this.project(source))) {
-      this.failure = { prefix: job.checkpoint.prefix, error: new Error('Conversation summary does not reduce the request context') }
+    const bytes = target.measureContextBytes(next)
+    const gatedBytes = this.gateBytes(next, target)
+    // A smaller image payload cannot justify a summary that makes text admission worse.
+    const worsensAdmission = gatedBytes >= hardLimitBytes && gatedBytes >= this.gateBytes(previous, target)
+    if (worsensAdmission || bytes >= target.measureContextBytes(previous)) {
+      this.failure = { prefix: job.checkpoint.prefix, error: new Error('Conversation summary does not reduce admissible request context') }
       this.options.onEvent?.({ type: 'failed', rounds: job.checkpoint.rounds.size, bytes })
     }
     else {
@@ -225,10 +229,16 @@ export class ConversationCompact {
   /** Off enforces the hard byte gate. Synchronous waits at the soft limit. Background waits only at the hard limit. */
   async prepare(conversation: Conversation, target: CompactRequest, signal?: AbortSignal): Promise<Conversation> {
     signal?.throwIfAborted()
+    const { softLimitBytes, hardLimitBytes } = this.limits(target)
+    if (this.mode === 'off') {
+      if (this.gateBytes(conversation, target) < hardLimitBytes)
+        return conversation
+      this.options.onEvent?.({ type: 'blocked', rounds: 0, bytes: target.measureContextBytes(conversation) })
+      throw new Error('Conversation context exceeds the request byte budget')
+    }
     const source = units(structuredClone(conversation))
     const measure = target.measureContextBytes
     const gate = (value: Conversation) => this.gateBytes(value, target)
-    const { softLimitBytes, hardLimitBytes } = this.limits(target)
     if (this.scope !== target.scope || (this.committed && !matches(this.committed.prefix, source))) {
       this.reset()
       this.scope = target.scope
@@ -238,14 +248,14 @@ export class ConversationCompact {
       this.job.controller.abort(new Error('Conversation prefix changed'))
       this.job = undefined
     }
-    this.apply(source, measure)
+    this.apply(source, target, hardLimitBytes)
     if (this.job?.error) {
       this.failure = { prefix: this.job.checkpoint.prefix, error: this.job.error }
       this.options.onEvent?.({ type: 'failed', rounds: this.job.checkpoint.rounds.size, bytes: measure(this.project(source)) })
       this.job = undefined
     }
     let projected = this.project(source)
-    if (this.mode !== 'off' && gate(projected) >= softLimitBytes && !this.job)
+    if (gate(projected) >= softLimitBytes && !this.job)
       this.start(source, target, signal)
     if (gate(projected) < hardLimitBytes && (this.mode !== 'synchronous' || !this.job))
       return projected
@@ -266,7 +276,7 @@ export class ConversationCompact {
         throw new Error('Conversation changed while waiting for its summary')
       if (job.error)
         this.failure = { prefix: job.checkpoint.prefix, error: job.error }
-      this.apply(source, measure)
+      this.apply(source, target, hardLimitBytes)
       projected = this.project(source)
     }
     if (this.gateBytes(projected, target) >= hardLimitBytes) {

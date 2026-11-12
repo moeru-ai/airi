@@ -18,13 +18,13 @@ export interface ContextBudgetLimitInput {
   modelMaxOutputTokens?: number
 }
 
-/** Application byte limits used when model window metadata is unavailable. */
+/** Application byte limits. Model metadata can refine the soft threshold. */
 export interface ContextBudgetFallback {
   softLimitBytes: number
   hardLimitBytes: number
 }
 
-/** Request byte limits derived from a policy estimate, not measured token usage. */
+/** Application hard ceiling and estimated soft threshold. */
 export interface ContextBudgetLimits extends ContextBudgetFallback {
   /** The model metadata source for the token window, when known. */
   contextWindowTokens?: number
@@ -78,13 +78,9 @@ export function measureContextBudget(value: unknown): ContextBudget {
 }
 
 /**
- * Derives byte ceilings from model context metadata without presenting bytes as measured tokens.
- * The token window comes from provider/model metadata. Output uses the request cap when present,
- * otherwise reserves up to 4,096 tokens from the declared model maximum. Five percent (at least
- * 256 tokens, capped at one quarter of small windows) stays available for provider framing and
- * estimation uncertainty. One UTF-8 byte per remaining token defines a conservative text-byte policy.
- * This ratio does not prove a tokenizer bound and excludes image token costs.
- * Without model metadata, the bounded byte fallback applies. The provider enforces its actual context limit.
+ * Uses model metadata to schedule Compact earlier. The estimated byte ratio cannot reject a
+ * request below the application ceiling. An explicit output cap that fills the model window
+ * leaves zero input capacity. The provider enforces its actual context limit.
  */
 export function resolveContextBudgetLimits(
   input: ContextBudgetLimitInput,
@@ -110,13 +106,13 @@ export function resolveContextBudgetLimits(
   const modelMaxOutputTokens = Number.isSafeInteger(input.modelMaxOutputTokens) && (input.modelMaxOutputTokens ?? 0) > 0
     ? input.modelMaxOutputTokens
     : undefined
-  // Keep the actual output reservation. An exhausted window blocks before provider dispatch.
   const outputReserveTokens = requestedOutputTokens
-    ?? Math.min(modelMaxOutputTokens ?? DEFAULT_OUTPUT_RESERVE_TOKENS, DEFAULT_OUTPUT_RESERVE_TOKENS)
-  const hardLimitBytes = Math.max(0, contextWindowTokens - outputReserveTokens - safetyMarginTokens)
+    ?? Math.min(modelMaxOutputTokens ?? DEFAULT_OUTPUT_RESERVE_TOKENS, DEFAULT_OUTPUT_RESERVE_TOKENS, Math.floor(contextWindowTokens / 4))
+  const hardLimitBytes = requestedOutputTokens !== undefined && requestedOutputTokens >= contextWindowTokens ? 0 : fallback.hardLimitBytes
+  const estimatedInputTokens = contextWindowTokens - outputReserveTokens - safetyMarginTokens
 
   return {
-    softLimitBytes: Math.min(fallback.softLimitBytes, Math.floor(hardLimitBytes * 0.75)),
+    softLimitBytes: hardLimitBytes === 0 ? 0 : Math.min(fallback.softLimitBytes, Math.max(1, Math.floor(estimatedInputTokens * 0.75))),
     hardLimitBytes,
     contextWindowTokens,
     outputReserveTokens,

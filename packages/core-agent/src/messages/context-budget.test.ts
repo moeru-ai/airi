@@ -45,7 +45,7 @@ describe('measureContextBudget', () => {
       outputReserveTokens: 8_000,
       safetyMarginTokens: 5_000,
       softLimitBytes: 65_250,
-      hardLimitBytes: 87_000,
+      hardLimitBytes: DEFAULT_CONTEXT_HARD_LIMIT_BYTES,
       source: 'provider-model-metadata',
     })
   })
@@ -64,6 +64,14 @@ describe('measureContextBudget', () => {
     expect(limits.outputReserveTokens).toBe(4096)
     expect(limits.hardLimitBytes).toBe(0)
     expect(limits.softLimitBytes).toBe(0)
+  })
+
+  it('keeps the application hard ceiling when the output cap is unspecified for a small model', () => {
+    const limits = resolveContextBudgetLimits({ contextWindowTokens: 4096 })
+
+    expect(limits.hardLimitBytes).toBe(DEFAULT_CONTEXT_HARD_LIMIT_BYTES)
+    expect(limits.softLimitBytes).toBeGreaterThan(0)
+    expect(limits.softLimitBytes).toBeLessThan(DEFAULT_CONTEXT_SOFT_LIMIT_BYTES)
   })
 
   it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY, 1.5])('uses bounded fallback for invalid window metadata %s', (contextWindowTokens) => {
