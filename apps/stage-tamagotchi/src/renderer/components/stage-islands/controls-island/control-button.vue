@@ -5,14 +5,14 @@ import { computed, useTemplateRef } from 'vue'
 
 const props = defineProps<{ buttonStyle?: string }>()
 
-const button = useTemplateRef<InstanceType<typeof OverlayButton>>('button')
+const button = useTemplateRef<InstanceType<typeof OverlayButton>>('overlay-button')
 // The button floats over the stage, and the desktop shows through the transparent window around the character.
 useBackdropSurface(computed(() => button.value?.$el as HTMLElement | undefined))
 </script>
 
 <template>
   <OverlayButton
-    ref="button"
+    ref="overlay-button"
     size="sm"
     :class="[
       'p-2!',
