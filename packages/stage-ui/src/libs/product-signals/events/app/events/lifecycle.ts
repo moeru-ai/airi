@@ -1,9 +1,9 @@
-import type { AnalyticsPlatform, AnalyticsSurface } from '../../../surface'
+import type { AnalyticsSurface } from '../../../surface'
 
 import { defineEvent } from '../../../utils/dsl'
 
 export const appLoadedEvent = defineEvent<{
-  platform: AnalyticsPlatform
+  platform: AnalyticsSurface
   version: string
 }>('app_loaded')
 

@@ -25,7 +25,7 @@ import {
   characterSwitchedEvent,
   firstMessageSentEvent,
 } from './events/app'
-import { analyticsPlatform, analyticsSurface } from './surface'
+import { analyticsSurface } from './surface'
 
 export * from './client'
 export * from './error-reporting'
@@ -71,7 +71,7 @@ class Analytics implements AnalyticsRecorder {
     if (settingsAnalytics.analyticsEnabled && enableAnalytics()) {
       registerAnalyticsBuildInfo(buildInfo)
       this.emit(appLoadedEvent, {
-        platform: analyticsPlatform(),
+        platform: analyticsSurface(),
         version: buildInfo.version,
       })
     }

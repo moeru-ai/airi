@@ -1,12 +1,13 @@
-import type { AnalyticsSurface } from '../libs/product-signals'
+import type { AnalyticsSurface } from '../libs/product-signals/surface'
 import type { ControlsIslandAction } from '../libs/product-signals/events/controls-island'
 import type { SpeechOutputStopReason } from '../stores/speech-output-control'
 
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { analyticsSurface, captureAnalyticsEvent, enableAnalytics, getAnalytics, getAnalyticsPrivacyPolicyUrl, isAnalyticsAvailableInBuild } from '../libs/product-signals'
+import { captureAnalyticsEvent, enableAnalytics, getAnalytics, getAnalyticsPrivacyPolicyUrl, isAnalyticsAvailableInBuild } from '../libs/product-signals'
 import { captureTrackButtonEvent } from '../libs/product-signals/events/interaction'
+import { analyticsSurface } from '../libs/product-signals/surface'
 import { useSettingsAnalytics } from '../stores/settings/analytics'
 import { useSettingsGeneral } from '../stores/settings/general'
 

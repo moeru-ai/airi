@@ -48,6 +48,8 @@ The installed apps report a page address that stands for the app, because OpenPa
 
 No server answers these hosts. To compare one page across surfaces, break down `screen_view` by `path` and by `app_surface`. Versions before this change report the real page URL.
 
+The `app_surface` property is `web`, `mobile`, or `desktop`. Desktop versions before this change report `electron`. In a report, read `electron` and `desktop` as the same app.
+
 Per-generation analytics events are removed. Completed `message_round` events retain model, token usage, duration, and round identifiers.
 `message_sent` retains provider selection. `message_round_failed` retains the failure stage and error code.
 Official model tracing, operational metrics, request logs, and billing remain in their existing services.
