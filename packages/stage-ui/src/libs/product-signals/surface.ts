@@ -17,7 +17,7 @@ type App = typeof apps[keyof typeof apps]
 export type AnalyticsSurface = App['surface']
 
 /** Client app that sends a product event: the `app_client` property. Add a value for each new client app. */
-export type AnalyticsClient = App['client']
+export type AnalyticsAppName = App['client']
 
 /**
  * Gets the surface of the running stage app for product events.
@@ -29,6 +29,6 @@ export function analyticsSurface(): AnalyticsSurface {
 }
 
 /** Gets the client app name of the running stage app for product events. */
-export function analyticsClient(): AnalyticsClient {
+export function analyticsAppName(): AnalyticsAppName {
   return apps[getStage()].client
 }
