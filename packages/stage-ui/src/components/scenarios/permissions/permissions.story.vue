@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import type { DevicePermission, DevicePermissionKind, DevicePermissionStatus, ShortcutTryEvent } from '../../../stores/device-permissions'
+import type { PermissionSummaryItem } from './permission-summary.vue'
 
 import { useIntervalFn } from '@vueuse/core'
 import { computed, defineComponent, h, reactive, shallowRef, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import StepPermissions from '../dialogs/onboarding/step-permissions.vue'
+import BlockedPage from './blocked-page.vue'
 import MicrophoneVoiceVisual from './microphone-voice-visual.vue'
 import PermissionBasicPage from './permission-basic-page.vue'
 import PermissionMicrophonePage from './permission-microphone-page.vue'
@@ -13,6 +16,9 @@ import PermissionShortcutPage from './permission-shortcut-page.vue'
 import PermissionSummary from './permission-summary.vue'
 
 import { useDevicePermissionsStore } from '../../../stores/device-permissions'
+import { permissionIcons } from './permission-icons'
+
+const { t } = useI18n()
 
 const statusOptions = [
   { label: 'Not determined', value: 'not-determined' },
@@ -100,7 +106,12 @@ useIntervalFn(() => {
 
 // --- Summary.
 
-const summary = reactive({ microphone: 'granted', accessibility: 'not-determined', screen: 'granted', skipAccessibility: true })
+const summary = reactive({ microphone: 'granted', accessibility: 'not-determined', screen: 'granted', skipAccessibility: true, voiceprint: 'done' })
+const voiceprintOptions = [
+  { label: 'Saved', value: 'done' },
+  { label: 'Skipped', value: 'skipped' },
+  { label: 'Needs the microphone', value: 'blocked' },
+]
 // A plain list, because Histoire writes the state of a story back, and a computed value is read-only.
 const summaryPermissions = [
   fakePermission('microphone', () => 'granted', () => {}),
@@ -113,6 +124,38 @@ const summaryStatuses = computed<Record<string, DevicePermissionStatus>>(() => (
   'screen-recording': summary.screen as DevicePermissionStatus,
 }))
 const summarySkipped = computed(() => new Set(summary.skipAccessibility ? ['accessibility'] : []))
+/** The rows as the flow builds them. The flow also adds feature pages, so the voiceprint row comes after the microphone. */
+const summaryItems = computed<PermissionSummaryItem[]>(() => {
+  const rows: PermissionSummaryItem[] = summaryPermissions.map((permission) => {
+    const done = summaryStatuses.value[permission.id] === 'granted'
+    const consequence = t(`settings.dialogs.onboarding.permissions.flow.${permission.kind}.off`)
+    return {
+      id: permission.id,
+      name: t(permission.titleKey),
+      icon: permissionIcons[permission.kind],
+      done,
+      doneLabel: t('settings.dialogs.onboarding.permissions.stateGranted'),
+      detail: done
+        ? t(`settings.dialogs.onboarding.permissions.flow.${permission.kind}.on`)
+        : summarySkipped.value.has(permission.id) ? t('settings.dialogs.onboarding.permissions.flow.summary.skipped', { consequence }) : consequence,
+    }
+  })
+  const consequence = t('settings.dialogs.onboarding.voiceprint.off')
+  const details: Record<string, string> = {
+    done: t('settings.dialogs.onboarding.voiceprint.on'),
+    skipped: t('settings.dialogs.onboarding.permissions.flow.summary.skipped', { consequence }),
+    blocked: t('settings.dialogs.onboarding.permissions.flow.summary.blocked', { requirement: t('settings.dialogs.onboarding.permissions.microphoneTitle'), consequence }),
+  }
+  rows.splice(1, 0, {
+    id: 'voiceprint',
+    name: t('settings.pages.modules.hearing.voiceprint.title'),
+    icon: 'i-mingcute:voice-line',
+    done: summary.voiceprint === 'done',
+    doneLabel: t('settings.dialogs.onboarding.permissions.flow.state.done'),
+    detail: details[summary.voiceprint],
+  })
+  return rows
+})
 
 // --- The whole flow, with a host that has the permissions of macOS.
 
@@ -219,9 +262,20 @@ const notificationsPermission = fakePermission('notifications', () => notificati
         <HstSelect v-model="summary.accessibility" title="Accessibility" :options="statusOptions" />
         <HstSelect v-model="summary.screen" title="Screen Recording" :options="statusOptions" />
         <HstCheckbox v-model="summary.skipAccessibility" title="Accessibility was skipped" />
+        <HstSelect v-model="summary.voiceprint" title="Voiceprint" :options="voiceprintOptions" />
       </template>
       <div :class="['h-screen max-h-[560px] w-full max-w-[1000px] flex flex-col bg-white p-4 md:p-8 dark:bg-[#121212]']">
-        <PermissionSummary :permissions="summaryPermissions" :statuses="summaryStatuses" :skipped="summarySkipped" />
+        <PermissionSummary :items="summaryItems" />
+      </div>
+    </Variant>
+
+    <Variant id="blocked" title="Page that needs another page">
+      <div :class="['h-screen max-h-[560px] w-full max-w-[1000px] flex flex-col bg-white p-4 md:p-8 dark:bg-[#121212]']">
+        <BlockedPage
+          :page="t('settings.pages.modules.hearing.voiceprint.title')"
+          :requirement="t('settings.dialogs.onboarding.permissions.microphoneTitle')"
+          icon="i-mingcute:voice-line"
+        />
       </div>
     </Variant>
   </Story>

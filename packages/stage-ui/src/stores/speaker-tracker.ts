@@ -1,25 +1,24 @@
 import type { AudioWindow } from '@proj-airi/pipelines-audio'
 import type { SpeakerTracker } from '@sherpaw/speaker-diarization'
 
+import type { SpeakerCandidate } from '../libs/voice/speaker-evidence-plugin'
 import type { SpeakerTrackerPreparation } from '../libs/voice/speaker-tracker'
 
 import { defineStore } from 'pinia'
 import { shallowRef, watch } from 'vue'
 
 import { toMonoSamples } from '../libs/voice/mono-samples'
+import { NO_SPEAKER_CANDIDATES } from '../libs/voice/speaker-evidence-plugin'
 import { loadSpeakerTracker } from '../libs/voice/speaker-model'
 import { SpeakerTrackerRuntime } from '../libs/voice/speaker-tracker'
 import { useVoiceprintStore } from './voiceprint'
-
-/** The tracker enrolls only the saved voiceprint, so the owner is speaker 0. */
-const OWNER_SPEAKER = 0
 
 /**
  * Owns the voice host's speaker tracker Worker and exposes its preparation for UI.
  *
  * The CAM++ model downloads and the Worker starts only when a feature calls `acquire`.
- * The tracker enrolls the saved voiceprint as speaker 0, and follows each change of it.
- * `release` terminates the Worker. The next `acquire` enrolls the voiceprint again.
+ * The tracker enrolls the enabled voiceprints as speakers 0, 1, ... in their saved order, and follows each change of them.
+ * `release` terminates the Worker. The next `acquire` enrolls the voiceprints again.
  */
 export const useSpeakerTrackerStore = defineStore('speaker-tracker', () => {
   const preparation = shallowRef<SpeakerTrackerPreparation>('idle')
@@ -33,10 +32,19 @@ export const useSpeakerTrackerStore = defineStore('speaker-tracker', () => {
     },
   })
 
+  /** The voiceprint id of each enrolled speaker number. It changes together with the voiceprints that the runtime enrolls. */
+  let enrolledIds: readonly string[] = []
   // A failed enrollment releases the tracker and reports `error` through `onPreparationChange`.
-  watch(() => voiceprints.voiceprint, voiceprint => runtime.setVoiceprints(voiceprint ? [voiceprint] : []).catch(() => {}), { immediate: true })
+  // A voiceprint id never gets another embedding, so the same ids need no new enrollment, for example after a rename.
+  watch(() => voiceprints.matching, (matching) => {
+    const ids = matching.map(item => item.record.id)
+    if (ids.length === enrolledIds.length && ids.every((id, index) => id === enrolledIds[index]))
+      return
+    enrolledIds = ids
+    runtime.setVoiceprints(matching.map(item => item.voiceprint)).catch(() => {})
+  }, { immediate: true })
 
-  /** Resolves to the shared tracker after it has enrolled the current voiceprint. */
+  /** Resolves to the shared tracker after it has enrolled the current voiceprints. */
   function acquire(): Promise<SpeakerTracker> {
     return runtime.acquire()
   }
@@ -50,32 +58,38 @@ export const useSpeakerTrackerStore = defineStore('speaker-tracker', () => {
   }
 
   /**
-   * The cosine between the saved voiceprint and the audio window, compared as one window.
-   * NaN when the window has no embedding, for example digital silence.
+   * The cosine between each enabled voiceprint and the audio window, compared as one window, in the saved order.
+   * A score is NaN when the window has no embedding, for example digital silence.
    * The comparison uses the window as mono PCM clamped to [-1, 1], because the tracker rejects other samples.
-   * Uses only a ready tracker, so a comparison never loads a released tracker again. Before `ready`, the result is NaN.
-   * While the tracker enrolls a replaced voiceprint, the comparison waits. A comparison that `release` ends is NaN.
-   * Rejects when no voiceprint is enrolled.
+   * Uses only a ready tracker, so a comparison never loads a released tracker again. Before `ready`, the result is empty.
+   * While the tracker enrolls changed voiceprints, the comparison waits. A comparison that `release` ends is empty.
+   * Each voiceprint is one more embedding of the window, because Sherpaw `similarity` compares with one speaker.
    */
-  async function compareOwner(window: Pick<AudioWindow, 'channels' | 'sampleRate'>): Promise<number> {
+  async function compare(window: Pick<AudioWindow, 'channels' | 'sampleRate'>): Promise<readonly SpeakerCandidate[]> {
     if (preparation.value !== 'ready')
-      return Number.NaN
+      return NO_SPEAKER_CANDIDATES
     const released = releases
     try {
       const tracker = await runtime.acquire()
+      // The runtime enrolled these ids when `acquire` resolved.
+      const ids = enrolledIds
       const samples = toMonoSamples(window)
       const seconds = samples.length / window.sampleRate
-      const [cosine] = await tracker.similarity(samples, window.sampleRate, OWNER_SPEAKER, { windowSeconds: seconds, stepSeconds: seconds })
-      // One window gives one value. An empty result compared nothing, so it has no score.
-      return cosine ?? Number.NaN
+      const candidates: SpeakerCandidate[] = []
+      for (const [speaker, speakerId] of ids.entries()) {
+        const [cosine] = await tracker.similarity(samples, window.sampleRate, speaker, { windowSeconds: seconds, stepSeconds: seconds })
+        // One window gives one value. An empty result compared nothing, so it has no score.
+        candidates.push({ speakerId, score: cosine ?? Number.NaN })
+      }
+      return candidates
     }
     catch (error) {
       // `dispose` of the tracker rejects the calls that still run. A release, for example when listening stops, is not a failure.
       if (releases !== released)
-        return Number.NaN
+        return NO_SPEAKER_CANDIDATES
       throw error
     }
   }
 
-  return { preparation, error, acquire, release, compareOwner }
+  return { preparation, error, acquire, release, compare }
 })

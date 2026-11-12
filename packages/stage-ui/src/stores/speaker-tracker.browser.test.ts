@@ -2,6 +2,7 @@ import type { SpeakerTracker } from '@sherpaw/speaker-diarization'
 
 import { createPinia, disposePinia, setActivePinia } from 'pinia'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 
 import { useSpeakerTrackerStore } from './speaker-tracker'
 import { useVoiceprintStore } from './voiceprint'
@@ -45,61 +46,87 @@ function createStores() {
 }
 
 describe('speaker tracker store', () => {
-  it('compares the window with the owner as one window', async () => {
+  it('compares the window with each enabled voiceprint as one window, in the saved order', async () => {
     const { trackers, voiceprints, dispose } = createStores()
-    voiceprints.save({ embedding: new Float32Array([1, 0]), seconds: 8 }, Date.now() + 1)
+    const first = voiceprints.add({ embedding: new Float32Array([1, 0]), seconds: 8 }, Date.now() + 1)!
+    const second = voiceprints.add({ embedding: new Float32Array([0, 1]), seconds: 8 }, Date.now() + 1)!
+    const third = voiceprints.add({ embedding: new Float32Array([0.6, 0.8]), seconds: 8 }, Date.now() + 1)!
+    voiceprints.setEnabled(second, false)
+    // The store follows voiceprint changes in a watcher, so let it see them before the tracker loads.
+    await nextTick()
     await trackers.acquire()
+    tracker.similarity.mockResolvedValueOnce(new Float32Array([0.42])).mockResolvedValueOnce(new Float32Array([0.71]))
 
-    expect(await trackers.compareOwner(audioWindow(new Float32Array(16000)))).toBeCloseTo(0.42)
+    expect(await trackers.compare(audioWindow(new Float32Array(16000)))).toEqual([
+      { speakerId: first, score: expect.closeTo(0.42) },
+      { speakerId: third, score: expect.closeTo(0.71) },
+    ])
 
-    expect(tracker.similarity).toHaveBeenCalledWith(new Float32Array(16000), 16000, 0, { windowSeconds: 1, stepSeconds: 1 })
+    expect(tracker.enrollVoiceprint).toHaveBeenCalledTimes(2)
+    expect(tracker.similarity).toHaveBeenNthCalledWith(1, new Float32Array(16000), 16000, 0, { windowSeconds: 1, stepSeconds: 1 })
+    expect(tracker.similarity).toHaveBeenNthCalledWith(2, new Float32Array(16000), 16000, 1, { windowSeconds: 1, stepSeconds: 1 })
+    dispose()
+  })
+
+  it('does not enroll the voiceprints again when only a label changes', async () => {
+    const { trackers, voiceprints, dispose } = createStores()
+    const id = voiceprints.add({ embedding: new Float32Array([1, 0]), seconds: 8 }, Date.now() + 1)!
+    await nextTick()
+    await trackers.acquire()
+    tracker.reset.mockClear()
+
+    voiceprints.rename(id, 'English')
+    // A new enrollment starts only after some promise steps, so the check waits until they are done.
+    await new Promise(resolve => setTimeout(resolve))
+
+    expect(tracker.reset).not.toHaveBeenCalled()
     dispose()
   })
 
   it('clamps the samples, because the tracker rejects samples outside [-1, 1]', async () => {
     const { trackers, voiceprints, dispose } = createStores()
-    voiceprints.save({ embedding: new Float32Array([1, 0]), seconds: 8 }, Date.now() + 1)
+    voiceprints.add({ embedding: new Float32Array([1, 0]), seconds: 8 }, Date.now() + 1)
     await trackers.acquire()
     const channel = new Float32Array(16000)
     channel.set([1.5, -1.5, Number.NaN, 0.25])
 
-    await trackers.compareOwner(audioWindow(channel))
+    await trackers.compare(audioWindow(channel))
 
     expect(tracker.similarity.mock.calls[0]![0].slice(0, 4)).toEqual(new Float32Array([1, -1, 0, 0.25]))
     dispose()
   })
 
-  it('returns NaN for a comparison that a release ends', async () => {
+  it('compares nothing in a comparison that a release ends', async () => {
     const { trackers, voiceprints, dispose } = createStores()
-    voiceprints.save({ embedding: new Float32Array([1, 0]), seconds: 8 }, Date.now() + 1)
+    voiceprints.add({ embedding: new Float32Array([1, 0]), seconds: 8 }, Date.now() + 1)
     await trackers.acquire()
     const comparing = Promise.withResolvers<Float32Array<ArrayBuffer>>()
     tracker.similarity.mockImplementationOnce(async () => comparing.promise)
 
-    const result = trackers.compareOwner(audioWindow(new Float32Array(16000)))
+    const result = trackers.compare(audioWindow(new Float32Array(16000)))
     await vi.waitFor(() => expect(tracker.similarity).toHaveBeenCalledOnce())
     trackers.release()
     // Sherpaw rejects the calls that still run when the tracker is disposed.
     comparing.reject(new Error('Speaker tracker has been disposed'))
 
-    expect(await result).toBeNaN()
+    expect(await result).toEqual([])
     dispose()
   })
 
   it('rejects a comparison that fails without a release', async () => {
     const { trackers, voiceprints, dispose } = createStores()
-    voiceprints.save({ embedding: new Float32Array([1, 0]), seconds: 8 }, Date.now() + 1)
+    voiceprints.add({ embedding: new Float32Array([1, 0]), seconds: 8 }, Date.now() + 1)
     await trackers.acquire()
     tracker.similarity.mockRejectedValueOnce(new Error('Speaker 0 has no voice to compare with yet'))
 
-    await expect(trackers.compareOwner(audioWindow(new Float32Array(16000)))).rejects.toThrow('Speaker 0 has no voice to compare with yet')
+    await expect(trackers.compare(audioWindow(new Float32Array(16000)))).rejects.toThrow('Speaker 0 has no voice to compare with yet')
     dispose()
   })
 
-  it('returns NaN without loading a tracker that is not ready', async () => {
+  it('compares nothing without loading a tracker that is not ready', async () => {
     const { trackers, dispose } = createStores()
 
-    expect(await trackers.compareOwner(audioWindow(new Float32Array(16000)))).toBeNaN()
+    expect(await trackers.compare(audioWindow(new Float32Array(16000)))).toEqual([])
 
     expect(loadSpeakerTracker).not.toHaveBeenCalled()
     expect(trackers.preparation).toBe('idle')
@@ -111,7 +138,7 @@ describe('speaker tracker store', () => {
     await trackers.acquire()
     trackers.release()
 
-    expect(await trackers.compareOwner(audioWindow(new Float32Array(16000)))).toBeNaN()
+    expect(await trackers.compare(audioWindow(new Float32Array(16000)))).toEqual([])
 
     expect(loadSpeakerTracker).toHaveBeenCalledOnce()
     expect(trackers.preparation).toBe('idle')
