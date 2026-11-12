@@ -86,6 +86,32 @@ sequenceDiagram
   end
 ```
 
+## Linking a sign-in method
+
+Update of 2026-11-11. Linking a sign-in method needs an active original Session.
+
+Better Auth guards `/link-social` with ordinary `sessionMiddleware`. The Steam
+plugin guards `/link/steam` the same way. A JWT without an active `sid` was
+therefore able to add a sign-in method to the account.
+
+A linked sign-in method signs in to the account after the JWT expires. Its
+effect lasts longer than the JWT, so it is a security-relevant operation.
+
+The plugin now rejects these two paths when the JWT has no active `sid`. It
+throws `403` with the code `SESSION_REQUIRED` before the endpoint runs. A JWT
+with an active `sid` keeps the Session cookie path, and Better Auth decides.
+
+The status is `403`, like `SESSION_NOT_FRESH`, because the JWT stays valid.
+The stage clients refresh the token on `401`, and a second `401` clears the
+login. Source: `packages/stage-ui/src/libs/auth-fetch.ts`.
+
+The account settings page shows a sign-in action for `SESSION_REQUIRED`. It
+also shows it for `SESSION_NOT_FRESH` from `/unlink-account`. It reuses the
+sign-in action of account deletion.
+
+Other ordinary routes, for example `/list-accounts` and `/update-user`, keep
+the request-only identity.
+
 ## Scope
 
 - Auth service OIDC access-token validation
@@ -94,6 +120,8 @@ sequenceDiagram
 - Better Auth sensitive-session behavior
 - Account-ban checks for JWT callers
 - Refresh-token revocation on explicit sign-out
+- Active-Session requirement for `/link-social` and `/link/steam`
+- Sign-in prompt for these errors on the stage account settings page
 
 ## Non-goals
 
@@ -127,11 +155,25 @@ flowchart LR
   Routes --> User[User store]
   Plugin --> User
   Plugin --> Session[Original Session lookup by sid]
+  Plugin --> LinkPaths[Session-required link paths]
+  Client --> Settings[Account settings page]
+  Settings --> Linked[Linked accounts composable]
+  Linked --> BetterAuth
 ```
 
 ## Affected files
 
 ```text
+packages/
+  i18n/src/locales/
+    en/settings.yaml
+    zh-Hans/settings.yaml
+  stage-pages/src/pages/settings/account/
+    account-settings-page.vue
+    account-settings-page.browser.test.ts
+  stage-ui/src/composables/
+    use-linked-accounts.ts
+    use-linked-accounts.test.ts
 server/
   apps/auth/src/
     auth.ts
@@ -163,7 +205,9 @@ sequenceDiagram
   A->>V: Verify signature and claims
   V->>D: Load JWKS on cache miss
   A->>D: Load current user
-  alt ordinary operation
+  alt link operation without active sid
+    A-->>C: 403 SESSION_REQUIRED
+  else ordinary operation
     A->>B: Request-scoped identity
     B-->>C: Response
   else sensitive operation with active sid
@@ -186,6 +230,12 @@ sequenceDiagram
 - Make sure that an expired `sid` cannot supply the Session cookie.
 - Make sure that Better Auth session middleware accepts a JWT without an active
   `sid`. Run `/list-accounts` through Better Auth dispatch to check this.
+- Make sure that `/link-social` and `/link/steam` reject a JWT without an
+  active `sid` with `SESSION_REQUIRED`, and that the endpoint does not run.
+- Make sure that an active `sid` keeps the Session cookie path on both link
+  paths.
+- Make sure that the account settings page offers a new sign-in for
+  `SESSION_REQUIRED` and `SESSION_NOT_FRESH`, and not for other errors.
 - Make sure that banned users do not receive request identity.
 - Make sure that `/api/auth/sign-out` reaches Better Auth.
 - Make sure that a Bearer sign-out deletes the active `sid` Session, and

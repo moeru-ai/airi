@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/ui-trace",
   "type": "module",
-  "private": true,
+  "version": "0.15.2",
   "description": "Trace UI for AIRI: the trace timeline, the panels, the toolbar, and the row models of entity lanes and tracks",
   "author": {
     "name": "Moeru AI Project AIRI Team",
@@ -18,6 +18,10 @@
     ".": "./src/index.ts",
     "./stories": "./src/stories/index.ts"
   },
+  "files": [
+    "README.md",
+    "src"
+  ],
   "scripts": {
     "test:run": "vitest run",
     "typecheck": "vue-tsc --noEmit"

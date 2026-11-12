@@ -2,7 +2,6 @@
   "name": "@proj-airi/trace-kit",
   "type": "module",
   "version": "0.15.2",
-  "private": true,
   "description": "Trace records, clocks, collection, and projections for AIRI agent and pipeline activity",
   "author": {
     "name": "Moeru AI Project AIRI Team",

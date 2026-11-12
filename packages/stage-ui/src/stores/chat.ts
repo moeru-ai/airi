@@ -1603,24 +1603,28 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   /**
-   * Whether the chat that this window shows can send.
+   * Whether a session can send.
    *
    * It reads the chat model of the session character, the same source as the turn.
    * Before the cards are ready, and for a session without a character, it reads the selection of the consciousness store.
    */
-  const activeChatReady = computed(() => {
-    const [characterId] = chatSession.characterMembersOf(activeSessionId.value)
+  function chatReadyFor(sessionId: string) {
+    const [characterId] = chatSession.characterMembersOf(sessionId)
     if (!cardStore.ready || !characterId || !cardStore.getCard(characterId))
       return consciousnessStore.chatReady
 
     const { provider, model } = cardStore.getModules(characterId).consciousness
     return isChatSelectionReady(provider, model)
-  })
+  }
+
+  /** Whether the chat that this window shows can send. */
+  const activeChatReady = computed(() => chatReadyFor(activeSessionId.value))
 
   return {
     sending,
     activeTurns,
     activeChatReady,
+    chatReadyFor,
     activeSendSessionId,
     activeStreamingMessage,
     backgroundTasks,

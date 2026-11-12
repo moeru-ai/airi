@@ -73,6 +73,22 @@ export const useVisionStore = defineStore('vision', () => {
     return []
   }
 
+  /**
+   * Selects the default vision provider and enables vision.
+   *
+   * Only this explicit selection applies the catalog default of the provider as the model.
+   * A provider without a catalog default keeps an empty model until the user selects one.
+   */
+  async function selectProvider(provider: string) {
+    enabled.value = true
+    if (activeProvider.value === provider)
+      return
+    activeProvider.value = provider
+    resetModelSelection()
+    await loadModelsForProvider(provider)
+    activeModel.value = providersStore.getDefaultModelForProvider(provider) ?? ''
+  }
+
   function resetState() {
     enabled.reset()
     useForChat.reset()
@@ -98,12 +114,14 @@ export const useVisionStore = defineStore('vision', () => {
     configured,
 
     resetModelSelection,
+    selectProvider,
     loadModelsForProvider,
     getModelsForProvider,
     resetState,
   }
 }, {
   synced: {
+    actions: ['selectProvider'],
     state: true,
   },
 })

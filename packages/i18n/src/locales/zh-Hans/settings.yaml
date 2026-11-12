@@ -292,6 +292,7 @@ pages:
       action:
         link: 关联
         unlink: 取消关联
+        signInAgain: 重新登录
       message:
         loading: 正在加载已关联的帐户...
         unlinked: '解除了 {provider} 的关联'
@@ -304,6 +305,7 @@ pages:
         accountAlreadyLinkedToDifferentUser: 这个 OAuth 帐户已经关联到另一个 AIRI 帐户了。请选择另一个第三方帐户，或者先在另一个 AIRI 帐户中解除关联。
         oauthCallbackFailed: 暂时无法关联这个 OAuth 帐户。请重试，或选择另一个第三方帐户。
         lastAccount: 这是你当前唯一的登录方式，请务必先设置密码再解除关联哦
+        reauthenticate: 请先重新登录，再关联或解除关联帐户。
     sync:
       tab: 同步
       title: 同步
