@@ -1706,6 +1706,8 @@ pages:
       loadMore: Load More
       delayHint: Usage records may be delayed by up to 1 minute
       ttsRequests: requests
+      viewOrder: View order
+      orderError: Failed to open the order. Try again.
     packages:
       title: Flux Packages
       buy: Charge

@@ -14,6 +14,8 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
+import PaymentReceiptButton from './components/payment-receipt-button.vue'
+
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
@@ -76,6 +78,7 @@ interface AuditRecord {
   description: string
   metadata: Record<string, unknown> | null
   createdAt: string
+  paymentOrderId: string | null
 }
 
 function formatNumber(num: number): string {
@@ -533,6 +536,9 @@ async function handleBuy(stripePriceId: string) {
               <th px-4 py-3 text-right font-medium>
                 {{ t('settings.pages.flux.audit.amount') }}
               </th>
+              <th :class="['w-10']">
+                <span :class="['sr-only']">{{ t('settings.pages.flux.audit.viewOrder') }}</span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -540,6 +546,7 @@ async function handleBuy(stripePriceId: string) {
               <!-- Single record -->
               <tr
                 v-if="row.type === 'single'"
+                :class="['relative']"
                 border="b neutral-100 dark:neutral-800/50 last:none"
               >
                 <td whitespace-nowrap px-4 py-3 text="neutral-500">
@@ -574,6 +581,13 @@ async function handleBuy(stripePriceId: string) {
                   <span :class="isPositive(row.record) ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'">
                     {{ displayAmount(row.record) }}
                   </span>
+                </td>
+                <td :class="['py-2 pr-2 text-right']">
+                  <PaymentReceiptButton
+                    v-if="row.record.paymentOrderId"
+                    :order-id="row.record.paymentOrderId"
+                    @error="message = { type: 'error', text: t('settings.pages.flux.audit.orderError') }"
+                  />
                 </td>
               </tr>
 
@@ -612,6 +626,7 @@ async function handleBuy(stripePriceId: string) {
                     -{{ row.totalAmount }}
                   </span>
                 </td>
+                <td />
               </tr>
 
               <!-- Expanded group children -->
@@ -630,6 +645,7 @@ async function handleBuy(stripePriceId: string) {
                 <td px-4 py-2 text-right font-mono text="xs orange-500 dark:orange-400">
                   -{{ child.amount }}
                 </td>
+                <td />
               </tr>
             </template>
           </tbody>
@@ -642,6 +658,7 @@ async function handleBuy(stripePriceId: string) {
           <!-- Single record card -->
           <div
             v-if="row.type === 'single'"
+            :class="['relative']"
             border="1 neutral-200 dark:neutral-800" flex="~ col gap-1.5" rounded-lg px-3 py-2.5
           >
             <div flex="~ items-center justify-between">
@@ -672,9 +689,14 @@ async function handleBuy(stripePriceId: string) {
                 ({{ row.record.metadata.model }})
               </span>
             </div>
-            <div text="xs neutral-400">
+            <div :class="[row.record.paymentOrderId && 'pr-20']" text="xs neutral-400">
               {{ formatDate(row.record.createdAt) }}
             </div>
+            <PaymentReceiptButton
+              v-if="row.record.paymentOrderId"
+              :order-id="row.record.paymentOrderId"
+              @error="message = { type: 'error', text: t('settings.pages.flux.audit.orderError') }"
+            />
           </div>
 
           <!-- Grouped TTS card -->
