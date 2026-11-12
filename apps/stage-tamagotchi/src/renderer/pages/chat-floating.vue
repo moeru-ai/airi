@@ -185,6 +185,10 @@ const conversationsLabel = computed(() => {
 
 const dockInstance = useTemplateRef<InstanceType<typeof Dock>>('dock')
 const dockElement = computed<HTMLElement | undefined>(() => dockInstance.value?.$el)
+const feedDockInstance = useTemplateRef<InstanceType<typeof Dock>>('feed-dock')
+// The danmaku feed has no panel glass, so its docks float over the desktop with glass of their own.
+useBackdropSurface(dockElement, { enabled: danmaku })
+useBackdropSurface(computed(() => feedDockInstance.value?.$el as HTMLElement | undefined), { enabled: danmaku })
 
 /** The padding of the zone along a dock that stands up, in pixels. It matches the `py-4` of the zone. */
 const DOCK_ZONE_PADDING = 16
@@ -606,6 +610,7 @@ function moveByKeyboard(delta: WindowDelta) {
           <TransitionBud :from="verticalDock ? 'top' : characterOnLeft ? 'right' : 'left'" :delay="verticalDock ? 160 : 0">
             <Dock
               v-if="danmaku && dockOpen"
+              ref="feed-dock"
               variant="blurry"
               :tooltip-side="dockTooltipSide"
               :class="['pointer-events-auto relative z-0 shrink-0']"

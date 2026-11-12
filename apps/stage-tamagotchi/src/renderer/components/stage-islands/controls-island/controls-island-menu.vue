@@ -2,6 +2,7 @@
 import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useStopSpeakingButton } from '@proj-airi/stage-layouts/composables/useStopSpeakingButton'
 import { InboxPanel } from '@proj-airi/stage-ui/components'
+import { useBackdropSurface } from '@proj-airi/stage-ui/composables/backdrop-surface'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useFluxStatus } from '@proj-airi/stage-ui/composables/use-flux-status'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
@@ -12,7 +13,7 @@ import { Avatar, Badge, DropdownMenu, MenuItem, menuItemClasses, MenuRadioItem, 
 import { useNow } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuPortal, DropdownMenuRadioGroup, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger } from 'reka-ui'
-import { computed, onScopeDispose, ref, watch } from 'vue'
+import { computed, onScopeDispose, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import {
@@ -180,6 +181,15 @@ const subMenuClasses = [
   'border-neutral-100/80 bg-neutral-100/90 text-neutral-700 dark:border-neutral-800/60 dark:bg-neutral-800/90 dark:text-neutral-100',
   'max-h-[var(--reka-dropdown-menu-content-available-height)] overflow-y-auto',
 ]
+
+// The open menus float over the stage, and the desktop shows through the transparent window around the character.
+// `DropdownMenu` does not expose its content, so an element in the slot finds the content root that paints the fill.
+const menuSurfaceAnchor = useTemplateRef<HTMLElement>('menuSurfaceAnchor')
+useBackdropSurface(() => menuSurfaceAnchor.value?.closest<HTMLElement>('[role="menu"]'))
+const notificationsSurface = useTemplateRef<InstanceType<typeof DropdownMenuSubContent>>('notificationsSurface')
+useBackdropSurface(() => notificationsSurface.value?.$el as HTMLElement | undefined)
+const characterSurface = useTemplateRef<InstanceType<typeof DropdownMenuSubContent>>('characterSurface')
+useBackdropSurface(() => characterSurface.value?.$el as HTMLElement | undefined)
 </script>
 
 <template>
@@ -195,6 +205,8 @@ const subMenuClasses = [
     <template #trigger>
       <slot name="trigger" :unread="unread" />
     </template>
+
+    <span ref="menuSurfaceAnchor" aria-hidden="true" :class="['hidden']" />
 
     <!-- Account -->
     <MenuItem
@@ -234,7 +246,7 @@ const subMenuClasses = [
         <span aria-hidden="true" :class="['i-solar:alt-arrow-right-linear size-4 shrink-0 opacity-60']" />
       </DropdownMenuSubTrigger>
       <DropdownMenuPortal>
-        <DropdownMenuSubContent :side-offset="6" :collision-padding="8" :class="[subMenuClasses, 'w-80']">
+        <DropdownMenuSubContent ref="notificationsSurface" :side-offset="6" :collision-padding="8" :class="[subMenuClasses, 'w-80']">
           <InboxPanel
             data-testid="controls-island-notifications-view"
             :messages="messages" :now="now" :unread="unread"
@@ -255,7 +267,7 @@ const subMenuClasses = [
         <span aria-hidden="true" :class="['i-solar:alt-arrow-right-linear size-4 shrink-0 opacity-60']" />
       </DropdownMenuSubTrigger>
       <DropdownMenuPortal>
-        <DropdownMenuSubContent :side-offset="6" :collision-padding="8" :class="subMenuClasses">
+        <DropdownMenuSubContent ref="characterSurface" :side-offset="6" :collision-padding="8" :class="subMenuClasses">
           <DropdownMenuRadioGroup v-model="selectedCardId">
             <MenuRadioItem v-for="card in cardList" :key="card.id" :value="card.id">
               <span :class="['truncate']">{{ card.name }}</span>

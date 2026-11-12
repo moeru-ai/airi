@@ -1,7 +1,9 @@
+import type { BackdropSurfaceHost } from '@proj-airi/stage-ui/composables/backdrop-surface'
 import type { AiriCard } from '@proj-airi/stage-ui/stores/modules/airi-card'
 
 import en from '@proj-airi/i18n/locales/en'
 
+import { backdropSurfaceHostKey } from '@proj-airi/stage-ui/composables/backdrop-surface'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useSpeechOutputControlStore } from '@proj-airi/stage-ui/stores/speech-output-control'
@@ -104,7 +106,7 @@ function card(name: string): AiriCard {
 /** The stage page holds the Island through a template ref and calls what it exposes. */
 interface IslandExposed { openMenu: () => void, overlayActive: boolean }
 
-function mountIsland() {
+function mountIsland(provide: Record<symbol, unknown> = {}) {
   const pinia = createPinia()
   const island = ref<IslandExposed>()
   const Host = defineComponent({
@@ -120,6 +122,7 @@ function mountIsland() {
           isLeft: computed(() => false),
           motionPhase: ref('idle'),
         },
+        ...provide,
       },
       plugins: [pinia, i18n],
       directives: { 'track-button': {} },
@@ -312,6 +315,31 @@ describe('controls Island menu account', () => {
 })
 
 describe('controls Island menu controls', () => {
+  it('declares the open menu and its submenus as glass surfaces', async () => {
+    // The desktop host draws native glass only behind declared surfaces, and the menu floats over the stage.
+    const registered = new Set<HTMLElement>()
+    const host: BackdropSurfaceHost = {
+      register(element) {
+        registered.add(element)
+        return () => registered.delete(element)
+      },
+    }
+    const { screen, pinia } = mountIsland({ [backdropSurfaceHostKey as symbol]: host })
+    useAiriCardStore(pinia).cards.set('iru', card('Iru'))
+    const menus = () => [...registered].filter(element => element.getAttribute('role') === 'menu')
+
+    await screen.getByTestId('controls-island-more').click()
+    await expect.poll(() => menus().length).toBe(1)
+    expect(menus()[0].contains(document.querySelector('[data-testid="controls-island-settings"]'))).toBe(true)
+
+    await menuItem('controls-island-character').click()
+    await expect.element(page.getByRole('menuitemradio', { name: 'Iru' })).toBeVisible()
+    await expect.poll(() => menus().length).toBe(2)
+
+    window.dispatchEvent(new Event('blur'))
+    await expect.poll(() => menus().length).toBe(0)
+  })
+
   it('switches the character from the Character submenu', async () => {
     const { screen, pinia } = mountIsland()
     const cards = useAiriCardStore(pinia)

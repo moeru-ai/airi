@@ -2,6 +2,7 @@
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
+import { useBackdropSurface } from '@proj-airi/stage-ui/composables/backdrop-surface'
 import { extractMessageText } from '@proj-airi/stage-ui/libs/chat-sync/wire-message'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
@@ -19,6 +20,8 @@ const messageInput = shallowRef('')
 const isComposing = shallowRef(false)
 const sending = shallowRef(false)
 const inputRef = useTemplateRef<HTMLInputElement>('inputRef')
+// The card floats over the desktop in a transparent window, so the host can draw native glass behind its fill.
+useBackdropSurface(useTemplateRef<HTMLElement>('card'))
 
 const chatStore = useChatStore()
 const chatSession = useChatSessionStore()
@@ -99,6 +102,7 @@ function handleKeydown(event: KeyboardEvent) {
     ]"
   >
     <div
+      ref="card"
       :class="[
         'spotlight-card relative overflow-hidden',
         'min-h-14 w-full',
