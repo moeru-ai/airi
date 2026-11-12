@@ -4,7 +4,7 @@ import { OpenPanel } from '@openpanel/web'
 import { getStage } from '@proj-airi/stage-shared'
 import { OPENPANEL_APP_ORIGINS, OPENPANEL_CONFIG } from '@proj-airi/stage-shared/analytics/openpanel'
 
-import { analyticsSurface } from './surface'
+import { analyticsClient, analyticsSurface } from './surface'
 import { reportedLocation } from './utils/reported-location'
 
 const deviceStorageKey = 'airi:openpanel-device-id'
@@ -61,6 +61,7 @@ export function createOpenpanelAdapter(options: AnalyticsAdapterOptions): Analyt
     trackAttributes: false,
   })
   panel.setGlobalProperties({
+    app_client: analyticsClient(),
     app_surface: analyticsSurface(),
     __deviceId: deviceId,
   })
