@@ -334,6 +334,7 @@ pages:
       action:
         link: Link
         unlink: Unlink
+        signInAgain: Sign in again
       message:
         loading: Loading connected accounts...
         unlinked: '{provider} disconnected.'
@@ -346,6 +347,7 @@ pages:
         accountAlreadyLinkedToDifferentUser: This OAuth account is already linked to another AIRI account. Choose a different provider account, or unlink it from the other AIRI account first.
         oauthCallbackFailed: We could not connect this OAuth account. Try again or choose another provider account.
         lastAccount: This is your only sign-in method. Set a password first before unlinking it.
+        reauthenticate: Sign in again before you link or unlink an account.
     sync:
       tab: Sync
       title: Sync
