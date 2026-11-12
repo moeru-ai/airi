@@ -50,7 +50,7 @@ async function fixture(desktopDryRun = false) {
     getState: () => ({ effectiveCwd: root }),
     resetState: () => ({ effectiveCwd: root }),
     prepare: input => ({ command: input.command, shell: 'fixture-shell', argv: ['--command', input.command], effectiveCwd: input.cwd || root, requestedCwd: input.cwd, cwdSource: input.cwd ? 'argument' : 'runner-state', timeoutMs: input.timeoutMs ?? 1000, executorPid: pid, executorPlatform: platform, executorCwd: cwd(), detached: false, windowsHide: true }),
-    startPrepared: vi.fn(input => ({ result: Promise.resolve(complete(input)), closed: Promise.resolve() })),
+    startPrepared: vi.fn(input => ({ result: Promise.resolve(complete(input)), closed: Promise.resolve('closed' as const) })),
     execute: vi.fn(async () => {
       throw new Error('This test must not reach the ordinary unprepared executor.')
     }),
@@ -123,6 +123,24 @@ function barrier() {
 }
 
 describe('main-only Terminal execution protocol', () => {
+  it('removes an approval record when preparation fails before returning its ID', async () => {
+    const h = await fixture()
+    vi.spyOn(h.terminal, 'prepare').mockImplementationOnce(() => {
+      throw new Error('Controlled preparation failure.')
+    })
+    const result = CallToolResultSchema.parse(await h.client.callTool({
+      name: 'terminal_exec',
+      arguments: { command: 'fixture-command' },
+      _meta: { [terminalOriginMetaKey]: { nonce, requestId: 'req-fixture', toolCallId: 'call-fixture' } },
+    }))
+
+    expect(result.isError).toBe(true)
+    expect(h.runtime.session.listPendingActions()).toEqual([])
+    expect(h.oracle).toEqual({ dispatches: 0, effects: 0 })
+    const prepared = await h.prepare()
+    expect(h.runtime.session.getPendingAction(prepared.preparedId)).toBeDefined()
+  })
+
   it('rejects caller termination claims without executing or consuming the prepared operation', async () => {
     const h = await fixture()
     const prepared = await h.prepare()
@@ -183,7 +201,7 @@ describe('main-only Terminal execution protocol', () => {
         stopped.release()
       }, { once: true })
       started.release()
-      return { result: closed.promise.then(() => ({ command: input.command, effectiveCwd: input.effectiveCwd, stdout: 'Side effect recorded independently.', stderr: '', exitCode: 1, timedOut: false, durationMs: 1 })), closed: closed.promise }
+      return { result: closed.promise.then(() => ({ command: input.command, effectiveCwd: input.effectiveCwd, stdout: 'Side effect recorded independently.', stderr: '', exitCode: 1, timedOut: false, durationMs: 1 })), closed: closed.promise.then(() => 'closed' as const) }
     })
     const prepared = await h.prepare()
     const result = h.commit(prepared).catch(error => error)
@@ -221,7 +239,7 @@ describe('main-only Terminal execution protocol', () => {
     vi.mocked(h.terminal.startPrepared!).mockImplementationOnce(() => {
       h.oracle.dispatches++
       h.oracle.effects++
-      return { result: Promise.reject(new Error('Controlled Terminal response failure.')), closed: Promise.resolve() }
+      return { result: Promise.reject(new Error('Controlled Terminal response failure.')), closed: Promise.resolve('closed' as const) }
     })
     const prepared = await h.prepare()
     const result = await h.commit(prepared)
@@ -320,7 +338,7 @@ describe('main-only Terminal execution protocol', () => {
       started()
       return {
         result: barrier.then(() => ({ command: input.command, effectiveCwd: input.effectiveCwd, exitCode: 0, stdout: '', stderr: '', timedOut: false, durationMs: 0 })),
-        closed: barrier,
+        closed: barrier.then(() => 'closed' as const),
       }
     })
     const original = h.commit(prepared)
@@ -416,7 +434,7 @@ describe('main-only Terminal execution protocol', () => {
     }
   })
 
-  it('keeps a timeout result pending until the direct executor lifecycle actually closes', async () => {
+  it.each(['closed', 'unknown'] as const)('preserves a timeout when the bounded lifecycle ends as %s', async (lifecycle) => {
     const h = await fixture()
     const prepared = await h.prepare()
     const started = barrier()
@@ -428,7 +446,7 @@ describe('main-only Terminal execution protocol', () => {
       h.oracle.dispatches++
       h.oracle.effects++
       started.release()
-      return { result: Promise.resolve({ command: input.command, effectiveCwd: input.effectiveCwd, exitCode: 124, timedOut: true, stdout: 'Controlled effect occurred.', stderr: 'timeout', durationMs: 1000 }), closed: closed.promise }
+      return { result: Promise.resolve({ command: input.command, effectiveCwd: input.effectiveCwd, exitCode: 124, timedOut: true, stdout: 'Controlled effect occurred.', stderr: 'timeout', durationMs: 1000 }), closed: closed.promise.then(() => lifecycle) }
     })
     let replied = false
     const result = h.commit(prepared).then((value) => {
@@ -445,6 +463,6 @@ describe('main-only Terminal execution protocol', () => {
     expect(beforeClose.oracle).toEqual({ dispatches: 1, effects: 1 })
     expect(updateResult).toHaveBeenCalledOnce()
     evidence.push({ case: 'timeout-before-close', privateHostResult: reply, oracle: { ...h.oracle } })
-    expect(reply.structuredContent).toMatchObject({ terminalLifecycle: 'closed', backendResult: { exitCode: 124, timedOut: true } })
+    expect(reply.structuredContent).toMatchObject({ terminalLifecycle: lifecycle, backendResult: { exitCode: 124, timedOut: true } })
   })
 })

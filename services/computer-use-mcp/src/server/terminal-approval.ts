@@ -40,7 +40,7 @@ export function registerTerminalApproval(server: McpServer, runtime: ComputerUse
       throw refused('The Terminal executor has no prepared execution capability.')
 
     let executorInvoked = false
-    let closed = false
+    let lifecycle: 'closed' | 'unknown' = 'unknown'
     let retired = false
     const result = await executeAction(pending.action, pending.toolName, {
       skipApprovalQueue: true,
@@ -53,7 +53,10 @@ export function registerTerminalApproval(server: McpServer, runtime: ComputerUse
         const execution = startPrepared(snapshot, extra.signal)
         return {
           result: execution.result,
-          closed: execution.closed.then(() => { closed = true }),
+          closed: execution.closed.then((status) => {
+            lifecycle = status
+            return status
+          }),
         }
       },
     })
@@ -70,7 +73,7 @@ export function registerTerminalApproval(server: McpServer, runtime: ComputerUse
         requestId: snapshot.requestId,
         executorInvoked,
         noNewDispatch: !executorInvoked,
-        terminalLifecycle: closed || retired ? 'closed' : 'unknown',
+        terminalLifecycle: retired ? 'closed' : lifecycle,
       },
     }
   })

@@ -15,6 +15,7 @@ function fixture() {
     stderr: new PassThrough(),
     pid: undefined,
     kill: vi.fn(() => true),
+    unref: vi.fn(),
   })
   io.spawn.mockReturnValue(child)
   const runner = createLocalShellRunner(createTestConfig())
@@ -25,6 +26,29 @@ function fixture() {
 beforeEach(() => vi.clearAllMocks())
 
 describe('direct Shell lifecycle', () => {
+  it('bounds output drain when a timed-out shell exits with pipes still open', async () => {
+    vi.useFakeTimers()
+    try {
+      const { child, runner, input } = fixture()
+      const execution = runner.startPrepared!({ ...input, timeoutMs: 100 })
+      const lifecycle = vi.fn()
+      void execution.closed.then(lifecycle)
+      await vi.advanceTimersByTimeAsync(100)
+      expect(await execution.result).toMatchObject({ timedOut: true, exitCode: 124 })
+
+      child.emit('exit', 1)
+      await vi.advanceTimersByTimeAsync(1000)
+      expect(io.spawn).toHaveBeenCalledOnce()
+      expect(lifecycle).toHaveBeenCalledExactlyOnceWith('unknown')
+      expect(child.stdout.destroyed).toBe(true)
+      expect(child.stderr.destroyed).toBe(true)
+      await runner.close!()
+    }
+    finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('ends ownership when spawn rejects synchronously before creating a native process', async () => {
     const { runner, input } = fixture()
     io.spawn.mockImplementationOnce(() => {

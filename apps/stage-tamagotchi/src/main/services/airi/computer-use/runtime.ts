@@ -46,7 +46,7 @@ const readImageSchema = v.object({
 })
 
 export interface ComputerUseRuntimeOptions {
-  binaryPath: string
+  binaryPath: string | (() => string)
   storeRoot: string
   /** Main-owned PendingAction store enforcing single-use approval consumption */
   actionManager?: PendingActionManager
@@ -65,13 +65,13 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
   let queue: Promise<unknown> = Promise.resolve()
   const abort = new AbortController()
 
-  async function connect() {
+  async function connect(binaryPath: string) {
     if (daemon)
       return daemon
 
     // The SDK creates a private socket or pipe and requires its launcher token from every local caller.
     const started = await startAuv({
-      binaryPath: options.binaryPath,
+      binaryPath,
       storeRoot: options.storeRoot,
       noRegister: true,
       signal: abort.signal,
@@ -85,16 +85,22 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
   }
 
   function enqueue<T>(operation: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+    if (signal?.aborted)
+      return Promise.reject(signal.reason)
+    const result = Promise.withResolvers<T>()
+    const onAbort = () => result.reject(signal?.reason)
+    signal?.addEventListener('abort', onAbort, { once: true })
     const next = queue.then(() => {
+      // Once admitted, only the operation decides how cancellation affects its settlement.
+      signal?.removeEventListener('abort', onAbort)
       if (disposed)
         throw new ComputerUseExecutionError('Computer use has stopped.', { executionState: 'not_executed' })
-      // Eventa owns request cancellation. Work that has not started must not outlive its Chat turn.
       signal?.throwIfAborted()
       return operation()
     })
-    // A failed command must not prevent later commands from running.
-    queue = next.then(() => undefined, () => undefined)
-    return next
+    // Caller cancellation can settle a queue wait without advancing the actual execution queue.
+    queue = next.then(result.resolve, result.reject)
+    return result.promise
   }
 
   async function run(input: unknown, callerWebContentsId?: number, signal?: AbortSignal): Promise<ComputerUseResult> {
@@ -184,7 +190,8 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
         if (classification.category === 'mutating' && options.actionManager && parsed.actionId && attribution) {
           options.actionManager.validate(parsed.actionId, { argv: validatedArgv, attribution })
         }
-        const active = await connect()
+        const binaryPath = typeof options.binaryPath === 'function' ? options.binaryPath() : options.binaryPath
+        const active = await connect(binaryPath)
         if (disposed)
           throw new ComputerUseExecutionError('Computer use has stopped.', { executionState: 'not_executed', argv: validatedArgv })
         signal?.throwIfAborted()
@@ -210,7 +217,7 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
         const executionSignal = signal ? AbortSignal.any([abort.signal, signal]) : abort.signal
         dispatched = true
         // Send the launcher token on stdin. Other processes of the same user can read argv and the environment.
-        const pending = execFileAsync(options.binaryPath, args, {
+        const pending = execFileAsync(binaryPath, args, {
           // connectionOptions.endpoint is a bare socket path. The CLI needs the URI form from endpoints.
           env: environment,
           encoding: 'utf8',
@@ -472,13 +479,19 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
     await daemon?.stop()
   }
 
-  /** Shares desktop mutation admission and the Host shutdown signal. Approval waiting stays outside this execution slot. */
-  function executeInSlot<T>(operation: (lifetime: AbortSignal) => Promise<T>) {
-    return enqueue(() => {
+  /** Serializes mutations. A lost lifecycle blocks new writes while the queue still settles its waiting callers. */
+  async function executeInSlot<T>(operation: (lifetime: AbortSignal, retainMutationRisk: () => void) => Promise<T>, signal?: AbortSignal) {
+    const execute = () => {
       if (hasLingeringMutationRisk)
         throw new ComputerUseExecutionError('Terminal dispatch is blocked by an earlier desktop operation with unconfirmed background processes.', { executionState: 'not_executed' })
-      return operation(abort.signal)
-    })
+      return operation(abort.signal, () => {
+        hasLingeringMutationRisk = true
+      })
+    }
+    // A known block must reject even while unrelated observations occupy the queue.
+    if (hasLingeringMutationRisk)
+      return execute()
+    return enqueue(execute, signal)
   }
   return { run, readImage, previewImage, executeInSlot, dispose }
 }

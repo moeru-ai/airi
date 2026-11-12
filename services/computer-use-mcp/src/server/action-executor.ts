@@ -392,40 +392,46 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         context,
         policy: decision,
       })
-      if (normalizedAction.kind === 'terminal_exec' && options.terminalOrigin) {
-        if (options.terminalOrigin.nonce !== runtime.terminalControlNonce || !runtime.terminalRunner.prepare)
-          throw new Error('The executor cannot prepare this Host Terminal operation.')
-        const snapshot = v.parse(terminalSnapshotSchema, {
-          protocol: 'airi-terminal-approval/1' as const,
-          preparedId: pending.id,
-          requestId: options.terminalOrigin.requestId,
-          toolCallId: options.terminalOrigin.toolCallId,
-          ...runtime.terminalRunner.prepare(normalizedAction.input),
+      try {
+        if (normalizedAction.kind === 'terminal_exec' && options.terminalOrigin) {
+          if (options.terminalOrigin.nonce !== runtime.terminalControlNonce || !runtime.terminalRunner.prepare)
+            throw new Error('The executor cannot prepare this Host Terminal operation.')
+          const snapshot = v.parse(terminalSnapshotSchema, {
+            protocol: 'airi-terminal-approval/1' as const,
+            preparedId: pending.id,
+            requestId: options.terminalOrigin.requestId,
+            toolCallId: options.terminalOrigin.toolCallId,
+            ...runtime.terminalRunner.prepare(normalizedAction.input),
+          })
+          Object.freeze(snapshot.argv)
+          pending.preparedTerminal = Object.freeze(snapshot)
+        }
+        runtime.stateManager.setPendingApprovalCount(runtime.session.listPendingActions().length)
+
+        await runtime.session.record({
+          event: 'approval_required',
+          toolName,
+          action: normalizedAction,
+          context,
+          policy: decision,
+          result: {
+            executionTarget,
+            pendingActionId: pending.id,
+          },
         })
-        Object.freeze(snapshot.argv)
-        pending.preparedTerminal = Object.freeze(snapshot)
+
+        return buildApprovalResponse(pending, decision, context, {
+          intent,
+          approvalReason: explainApprovalReason(normalizedAction, decision, context),
+          advisorySummary,
+        })
       }
-      runtime.stateManager.setPendingApprovalCount(runtime.session.listPendingActions().length)
-
-      await runtime.session.record({
-        event: 'approval_required',
-        toolName,
-        action: normalizedAction,
-        context,
-        policy: decision,
-        result: {
-          executionTarget,
-          pendingActionId: pending.id,
-        },
-      })
-
-      // Transparency: explain why approval is needed.
-      const approvalExplanation = explainApprovalReason(normalizedAction, decision, context)
-      return buildApprovalResponse(pending, decision, context, {
-        intent,
-        approvalReason: approvalExplanation,
-        advisorySummary,
-      })
+      catch (error) {
+        // No approval result was sent. The caller has no prepared ID to discard.
+        runtime.session.removePendingAction(pending.id)
+        runtime.stateManager.setPendingApprovalCount(runtime.session.listPendingActions().length)
+        throw error
+      }
     }
 
     try {

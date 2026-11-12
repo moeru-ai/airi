@@ -7,12 +7,13 @@ import type {
   ComputerUseConfig,
   TerminalCommandResult,
   TerminalExecActionInput,
+  TerminalExecution,
   TerminalRunner,
   TerminalState,
 } from '../types'
 
 import { spawn } from 'node:child_process'
-import { basename, resolve } from 'node:path'
+import { resolve, win32 } from 'node:path'
 import { env, kill as killProcess, pid, platform, cwd as processCwd } from 'node:process'
 
 export const TERMINAL_OUTPUT_MAX_CHARS = 16_384
@@ -35,7 +36,7 @@ export const POWERSHELL_EXIT_CODE_SUFFIX
   = '\n$ok = $?; if ($ok) { exit 0 } elseif ($LASTEXITCODE -is [int] -and $LASTEXITCODE -ne 0) { exit $LASTEXITCODE } else { exit 1 }'
 
 export function isPowershellShell(shell: string): boolean {
-  return POWERSHELL_SHELL_NAME_RE.test(basename(shell.trim()))
+  return POWERSHELL_SHELL_NAME_RE.test(win32.basename(shell.trim()))
 }
 
 export interface ShellInvocation {
@@ -55,9 +56,14 @@ export function resolveShellInvocation(
 ): ShellInvocation {
   const isWin = hostPlatform === 'win32'
   if (isPowershellShell(shell)) {
-    const prefix = isWin ? WINDOWS_POWERSHELL_OUTPUT_PREFIX : ''
+    const source = command + POWERSHELL_EXIT_CODE_SUFFIX
+    // Encoding setup runs outside the submitted script so using and param still lead its scope.
+    // PowerShell treats typographic single quotes as delimiters too.
+    const script = isWin
+      ? `${WINDOWS_POWERSHELL_OUTPUT_PREFIX}& ([scriptblock]::Create('${source.replace(/['\u2018\u2019\u201A\u201B]/g, '$&$&')}'))`
+      : source
     return {
-      args: ['-NoProfile', '-NonInteractive', '-Command', `${prefix}${command}${POWERSHELL_EXIT_CODE_SUFFIX}`],
+      args: ['-NoProfile', '-NonInteractive', '-Command', script],
       detached: !isWin,
       windowsHide: isWin,
     }
@@ -80,6 +86,8 @@ export function resolveShellInvocation(
  * by the stage-tamagotchi desktop-overlay smoke harness.
  */
 const PROCESS_GROUP_KILL_GRACE_MS = 5_000
+// An inherited pipe can outlive the shell. Bound the drain without certifying a forced close.
+const OUTPUT_DRAIN_MS = 1_000
 
 /**
  * Signals the process group on POSIX systems.
@@ -154,7 +162,7 @@ function summarizeCommand(command: string) {
 }
 
 export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunner {
-  const active = new Set<{ stop: () => void, closed: Promise<void> }>()
+  const active = new Set<{ stop: () => void, closed: TerminalExecution['closed'] }>()
   let closing: Promise<void> | undefined
   const state: TerminalState = {
     effectiveCwd: processCwd(),
@@ -179,15 +187,12 @@ export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunne
     }
   }
 
-  function startPrepared(input: TerminalSpawnInput, signal?: AbortSignal) {
+  function startPrepared(input: TerminalSpawnInput, signal?: AbortSignal): TerminalExecution {
     if (closing)
       throw new Error('The Terminal runner is closed.')
     signal?.throwIfAborted()
     const { effectiveCwd, timeoutMs } = input
-    let confirmClose!: () => void
-    const closed = new Promise<void>((resolve) => {
-      confirmClose = resolve
-    })
+    const { promise: closed, resolve: confirmClose } = Promise.withResolvers<'closed' | 'unknown'>()
     const startedAt = Date.now()
     const execution = new Promise<TerminalCommandResult>((resolve, reject) => {
       let child: ReturnType<typeof spawn>
@@ -202,7 +207,7 @@ export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunne
       }
       catch (error) {
         // Node rejected the spawn before it returned a process. No close event can follow this synchronous failure.
-        confirmClose()
+        confirmClose('closed')
         reject(error)
         return
       }
@@ -211,13 +216,26 @@ export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunne
       const stderr = createOutputCapture()
       let finished = false
       let timedOut = false
-      let shellClosed = false
+      let lifecycleEnded = false
       let escalationTimer: ReturnType<typeof setTimeout> | undefined
+      let drainTimer: ReturnType<typeof setTimeout> | undefined
+      function boundOutputDrain(code: number | null) {
+        drainTimer ??= setTimeout(() => {
+          endLifecycle('unknown', code ?? child.exitCode)
+          child.stdout?.destroy()
+          child.stderr?.destroy()
+          child.unref()
+        }, OUTPUT_DRAIN_MS)
+      }
       const stop = () => {
-        if (shellClosed || escalationTimer)
+        if (lifecycleEnded || escalationTimer)
           return
         signalProcessGroup(child, 'SIGTERM')
-        escalationTimer = setTimeout(signalProcessGroup, PROCESS_GROUP_KILL_GRACE_MS, child, 'SIGKILL')
+        escalationTimer = setTimeout(() => {
+          signalProcessGroup(child, 'SIGKILL')
+          if (!lifecycleEnded)
+            boundOutputDrain(child.exitCode)
+        }, PROCESS_GROUP_KILL_GRACE_MS)
         escalationTimer.unref()
       }
       const owned = { stop, closed }
@@ -249,29 +267,37 @@ export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunne
         })
       }, timeoutMs)
 
-      const cleanup = () => {
-        clearTimeout(stopTimer)
-        if (escalationTimer != null)
-          clearTimeout(escalationTimer)
-      }
       child.stdout?.on('data', chunk => appendOutput(stdout, chunk.toString('utf-8')))
       child.stderr?.on('data', chunk => appendOutput(stderr, chunk.toString('utf-8')))
       child.on('error', (error) => {
         if (finished)
           return
         finished = true
-        cleanup()
+        clearTimeout(stopTimer)
         reject(error)
       })
-      child.on('close', (code) => {
-        shellClosed = true
+      child.once('exit', boundOutputDrain)
+      child.once('close', code => endLifecycle('closed', code))
+
+      function endLifecycle(status: 'closed' | 'unknown', code: number | null) {
+        if (lifecycleEnded)
+          return
+        lifecycleEnded = true
         active.delete(owned)
         signal?.removeEventListener('abort', stop)
-        cleanup()
-        confirmClose()
+        clearTimeout(stopTimer)
+        clearTimeout(drainTimer)
+        // Forced drain does not cancel a pending POSIX process-group termination.
+        if (status === 'closed' || platform === 'win32')
+          clearTimeout(escalationTimer)
+        confirmClose(status)
         if (finished)
           return
         finished = true
+        if (status === 'unknown' && typeof code !== 'number') {
+          reject(new Error('The terminal process did not return a confirmed exit status.'))
+          return
+        }
         resolve({
           command: input.command,
           stdout: stdout.value,
@@ -285,7 +311,7 @@ export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunne
           durationMs: Date.now() - startedAt,
           timedOut,
         })
-      })
+      }
     })
     const result = execution.then((result) => {
       state.effectiveCwd = result.effectiveCwd

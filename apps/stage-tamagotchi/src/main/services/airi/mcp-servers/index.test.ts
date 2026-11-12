@@ -276,7 +276,7 @@ describe('createMcpManager', () => {
     const manager = createMcpManager({
       actions,
       present: vi.fn(async () => false),
-      executeInSlot: async operation => operation(new AbortController().signal),
+      executeInSlot: async operation => operation(new AbortController().signal, () => {}),
       notify: async notice => ({ status: 'stored', sessionId: notice.sessionId, messageId: 'fixture' }),
     })
     managers.push(manager)

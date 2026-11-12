@@ -31,9 +31,9 @@ Refused, expired, cancelled or consumed records cannot grant a later operation.
 The original model Tool Result reports preparation only. It does not confirm execution or business success.
 Main sends actual outcomes through a separate notice turn. A command exit of zero still needs a business Oracle.
 An ambiguous failed reply cannot restore approval or cause an alias retry.
-Without a lifecycle receipt, the active queue slot stays held until Host shutdown.
+Without a lifecycle receipt, the Host blocks subsequent desktop writes until shutdown. Queue waiters can still settle.
 
-The private executor waits for direct shell closure, including after its result timeout.
+The private executor reports its result after bounded shell shutdown and output drain.
 On Windows, this does not establish descendant termination or containment of applications started by the shell.
 The adapter is not a shell sandbox. It grants no native GUI input or workflow-wide approval.
 
@@ -52,8 +52,9 @@ The deadline is checked at that same boundary. No wait separates the final check
 
 Pending and approved actions remain cancellable until Main commits its private RPC.
 After consumption, Chat cancellation does not abort that RPC or invent a rollback.
-Known late results keep their real settlement. A lost result leaves a consumed, unsettled action and holds the desktop slot.
-Host shutdown rejects later queue entries before releasing an unknown hold.
+Known late results keep their real settlement. A lost result leaves a consumed, unsettled action and latches the shared mutation guard.
+An approved action can expire or cancel while another operation still runs. The Host discards its uncommitted executor record.
+The executor can report timeout facts with an unconfirmed lifecycle when inherited output pipes exceed the drain deadline.
 
 Controlled tests cover request and transport cancellation, expiry after readiness, post-dispatch cancellation, timeout closure, replay and interleaved Sessions.
 Counterfactual test transforms that remove the unknown hold or direct-close wait make the corresponding safety assertion fail.
@@ -90,7 +91,7 @@ Read-only desktop observation keeps its existing path.
 A private refusal proves no execution only with matching prepared and request identities and a closed lifecycle.
 Normal replies must also report `executorInvoked=false` and `noNewDispatch=true`.
 Missing identity, conflicting fields, or an unknown lifecycle cannot establish zero execution.
-Unconfirmed Terminal refusals retain the consumed approval and shared execution slot until Host shutdown.
+Unconfirmed Terminal refusals retain the consumed approval and block further shared desktop mutations until Host shutdown.
 
 A closed reply without an exit code retains an unknown execution result.
 A nonzero exit or timeout retains evidence of execution and possible effects.

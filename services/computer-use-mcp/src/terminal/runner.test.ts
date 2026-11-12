@@ -94,12 +94,9 @@ describe('resolveShellInvocation', () => {
 
   it('configures PowerShell on Windows with UTF-8 prefix, no detachment, and hidden window', () => {
     const invocation = resolveShellInvocation('powershell.exe', 'echo ok', 'win32')
-    expect(invocation.args).toEqual([
-      '-NoProfile',
-      '-NonInteractive',
-      '-Command',
-      `${WINDOWS_POWERSHELL_OUTPUT_PREFIX}echo ok${POWERSHELL_EXIT_CODE_SUFFIX}`,
-    ])
+    expect(invocation.args.slice(0, 3)).toEqual(['-NoProfile', '-NonInteractive', '-Command'])
+    expect(invocation.args[3]).toContain(WINDOWS_POWERSHELL_OUTPUT_PREFIX)
+    expect(invocation.args[3]).toContain('[scriptblock]::Create(\'echo ok')
     expect(invocation.detached).toBe(false)
     expect(invocation.windowsHide).toBe(true)
   })
@@ -221,6 +218,18 @@ describe('createLocalShellRunner', () => {
   })
 
   describe.skipIf(!isWindows)('createLocalShellRunner on Windows PowerShell', () => {
+    it.each([
+      `using namespace System\nWrite-Output 'script-start'`,
+      `param([string]$Message = 'script-start')\nWrite-Output $Message`,
+    ])('preserves script-level declarations', async (command) => {
+      const runner = createLocalShellRunner(createTestConfig({ terminalShell: 'powershell.exe' }))
+      const result = await runner.execute({ command })
+
+      expect(result.exitCode).toBe(0)
+      expect(result.stdout.trim()).toBe('script-start')
+      expect(result.stderr).toBe('')
+    }, 15_000)
+
     it('executes a command and captures its output', async () => {
       const runner = createLocalShellRunner(createTestConfig({ terminalShell: 'powershell.exe' }))
 

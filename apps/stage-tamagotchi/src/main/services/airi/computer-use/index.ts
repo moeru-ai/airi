@@ -41,10 +41,12 @@ export function setupComputerUse(
     if (stopped)
       throw new Error('Computer use has stopped.')
     if (!runtime) {
-      const executable = binaryPath()
       runtime = createComputerUseRuntime({
-        // Native executables cannot run inside Electron's archive.
-        binaryPath: options?.binaryPath ?? (app.isPackaged ? executable.replace(`${sep}app.asar${sep}`, `${sep}app.asar.unpacked${sep}`) : executable),
+        binaryPath: options?.binaryPath ?? (() => {
+          // Terminal shares the queue without resolving an AUV executable.
+          const executable = binaryPath()
+          return app.isPackaged ? executable.replace(`${sep}app.asar${sep}`, `${sep}app.asar.unpacked${sep}`) : executable
+        }),
         storeRoot: options?.storeRoot ?? join(app.getPath('userData'), 'computer-use'),
         actionManager,
         requireAttribution: options?.requireAttribution ?? true,

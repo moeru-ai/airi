@@ -352,7 +352,7 @@ app.whenReady().then(async () => {
       actions: dependsOn.pendingActions,
       present: dependsOn.terminalApproval.present,
       onDispatch: dependsOn.terminalApproval.dispatched,
-      executeInSlot: operation => dependsOn.computerUse.getRuntime().executeInSlot(operation),
+      executeInSlot: (operation, signal) => dependsOn.computerUse.getRuntime().executeInSlot(operation, signal),
       notify: (notice) => {
         dependsOn.terminalApproval.report(notice)
         return deliverTerminalNotice(dependsOn.pendingActions, notice)
