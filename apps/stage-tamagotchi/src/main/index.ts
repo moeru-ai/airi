@@ -56,7 +56,6 @@ import { setupMcpManager } from './services/airi/mcp-servers'
 import { setupExtensionHost } from './services/airi/plugins'
 import { createBuiltInExtensionKits } from './services/airi/plugins/kits'
 import { setupArtistryBridge } from './services/airi/widgets/artistry-bridge'
-import { setupAnalyticsRequestOrigin } from './services/electron/analytics-origin'
 import { isExternallyUpdatedInstall, setupAutoUpdater } from './services/electron/auto-updater'
 import { setupSherpawModelAssetsProtocol } from './services/electron/bundled-sherpaw-assets'
 import { setupGlobalShortcutService } from './services/electron/global-shortcut'
@@ -267,7 +266,6 @@ app.whenReady().then(async () => {
   setupSherpawModelAssets(createContext(ipcMain).context)
   defineInvokeHandler(createContext(ipcMain).context, electronErrorReportingSet, enabled => errorReporting.setEnabled(Boolean(enabled)))
   setupPermissionHandlers(session.defaultSession, hasSelectedScreenCaptureSource)
-  setupAnalyticsRequestOrigin(session.defaultSession)
 
   // Initialize file logger and register the hook
   fileLogger = await setupFileLogger()

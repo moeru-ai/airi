@@ -13,16 +13,9 @@ The stage apps and auth UI share this configuration. CI variables and Docker bui
 
 Never put a client secret in a Vite variable.
 
-OpenPanel accepts a client request only when it has an `Origin` header that the project allows. The installed apps do not have a web origin:
+OpenPanel accepts a client request when its `Origin` header is in the allowed origins of the project. The desktop app cannot pass this check: Electron sends no `Origin` header from a `file://` page. OpenPanel answers 401 `Ingestion: Invalid cors or secret`, and the SDK does not report this error.
 
-| Surface | `Origin` header |
-| --- | --- |
-| Web, auth UI, docs | The site origin |
-| Android app | `https://localhost` |
-| iOS app | `capacitor://localhost` |
-| Desktop app | `null`. Electron sends no `Origin` from a `file://` page, so the main process adds it in `apps/stage-tamagotchi/src/main/services/electron/analytics-origin.ts`. |
-
-The project allows all origins (`*`), because a domain list cannot match `null`. If you replace `*` with a list, the desktop events stop with 401 `Ingestion: Invalid cors or secret`. The SDK does not report this error.
+Thus the public write client has `"ignoreCorsAndSecret" = true` in the `clients` table of the OpenPanel PostgreSQL database. OpenPanel then skips the origin check and the secret check for this client. No dashboard page and no API sets this column. Set it with SQL, and wait five minutes for the client cache. Revenue events still need the client secret.
 
 ## Server configuration
 
@@ -46,7 +39,14 @@ Logged-in events use the stable AIRI user id. Checkout sends the device id to th
 
 Query strings and fragments are removed from automatic page URLs and referrers. This prevents OAuth codes from entering those fields.
 
-The desktop app and the iOS app report only the route as the page, for example `/settings/providers`. Their page URLs are not `http` URLs, and a `file://` URL holds a directory of the user's computer.
+The installed apps report a page address that stands for the app, because OpenPanel groups pages by origin and path:
+
+| Surface | Reported page | Real page URL |
+| --- | --- | --- |
+| Desktop app | `https://desktop.airi.moeru.ai/<route>` | `file://` and a hash route. It holds a directory of the user's computer. |
+| Mobile app | `https://pocket.airi.moeru.ai/<route>` | `https://localhost` on Android, `capacitor://localhost` on iOS |
+
+No server answers these hosts. To compare one page across surfaces, break down `screen_view` by `path` and by `app_surface`. Versions before this change report the real page URL.
 
 Per-generation analytics events are removed. Completed `message_round` events retain model, token usage, duration, and round identifiers.
 `message_sent` retains provider selection. `message_round_failed` retains the failure stage and error code.

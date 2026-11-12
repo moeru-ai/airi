@@ -2,7 +2,7 @@ import type { AnalyticsAdapter, AnalyticsAdapterOptions } from './client'
 
 import { OpenPanel } from '@openpanel/web'
 import { isStageCapacitor, isStageTamagotchi } from '@proj-airi/stage-shared'
-import { OPENPANEL_CONFIG } from '@proj-airi/stage-shared/analytics/openpanel'
+import { OPENPANEL_APP_ORIGINS, OPENPANEL_CONFIG } from '@proj-airi/stage-shared/analytics/openpanel'
 
 import { reportedLocation } from './utils/reported-location'
 
@@ -34,6 +34,8 @@ function rotateDeviceId(): string {
 /** Sends product events to OpenPanel under the current consent and identity state. */
 export function createOpenpanelAdapter(options: AnalyticsAdapterOptions): AnalyticsAdapter {
   let enabled = options.enabled
+  const surface = isStageTamagotchi() ? 'electron' : isStageCapacitor() ? 'mobile' : 'web'
+  const appOrigin = surface === 'web' ? undefined : OPENPANEL_APP_ORIGINS[surface]
   // Rotate the device on logout. Clearing SDK fields alone reuses its
   // server-derived fingerprint and can link two accounts in one browser.
   let deviceId = enabled ? loadDeviceId() : undefined
@@ -45,11 +47,12 @@ export function createOpenpanelAdapter(options: AnalyticsAdapterOptions): Analyt
         return false
       // OAuth codes and other query values must not enter analytics.
       if (payload.type === 'track' && payload.payload.properties) {
-        for (const key of ['__path', '__referrer']) {
-          const value = payload.payload.properties[key]
-          if (typeof value === 'string')
-            payload.payload.properties[key] = reportedLocation(value)
-        }
+        const { __path: path, __referrer: referrer } = payload.payload.properties
+        if (typeof path === 'string')
+          payload.payload.properties.__path = reportedLocation(path, appOrigin)
+        // The referrer of an installed app is another page of the same app.
+        if (typeof referrer === 'string')
+          payload.payload.properties.__referrer = appOrigin ? '' : reportedLocation(referrer)
       }
       return true
     },
@@ -58,7 +61,7 @@ export function createOpenpanelAdapter(options: AnalyticsAdapterOptions): Analyt
     trackAttributes: false,
   })
   panel.setGlobalProperties({
-    app_surface: isStageTamagotchi() ? 'electron' : isStageCapacitor() ? 'mobile' : 'web',
+    app_surface: surface,
     __deviceId: deviceId,
   })
 
