@@ -141,12 +141,11 @@ export function presetWebFontsFonts(provider: 'fontsource' | 'none'): Record<str
 
 export function sharedUnoConfig() {
   // NOTICE:
-  // Production builds need to load the installed Iconify collections.
-  // UnoCSS treats an inherited VSCODE_CWD as an editor process and skips its Node loader.
+  // Editor tools can pass VSCODE_CWD to AIRI.
+  // UnoCSS skips its Node icon loader when this variable is set.
   // https://github.com/unocss/unocss/blob/v66.7.5/packages-presets/preset-icons/src/index.ts#L16-L26
-  // Remove this when UnoCSS loads local collections in builds that inherit VSCODE_CWD.
-  if (env.NODE_ENV === 'production')
-    delete env.VSCODE_CWD
+  // Remove this when UnoCSS loads installed collections with VSCODE_CWD set.
+  delete env.VSCODE_CWD
 
   return defineConfig({
     presets: [
