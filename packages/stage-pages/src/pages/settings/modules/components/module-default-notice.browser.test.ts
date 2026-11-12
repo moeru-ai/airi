@@ -6,6 +6,7 @@ import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { createPinia, disposePinia } from 'pinia'
 import { expect, it, onTestFinished } from 'vitest'
 import { render } from 'vitest-browser-vue'
+import { defineComponent, h } from 'vue'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
@@ -37,8 +38,15 @@ async function mountNotice(module: 'consciousness' | 'vision' | 'speech', card: 
   const pinia = createPinia()
   const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/:path(.*)*', component: { template: '<div />' } }] })
   await router.push('/settings/modules/consciousness')
-  const view = render(ModuleDefaultNotice, {
-    props: { module },
+  let initialized: Promise<void> | undefined
+  // The card store starts the speech store, and the speech store needs a component setup to start.
+  const host = defineComponent({
+    setup() {
+      initialized = useAiriCardStore().initialize()
+      return () => h(ModuleDefaultNotice, { module })
+    },
+  })
+  const view = render(host, {
     global: { plugins: [pinia, router, createI18n({ legacy: false, locale: 'en', messages: { en } })] },
   })
   onTestFinished(() => {
@@ -47,7 +55,7 @@ async function mountNotice(module: 'consciousness' | 'vision' | 'speech', card: 
     localStorage.clear()
   })
   const cards = useAiriCardStore(pinia)
-  await cards.initialize()
+  await initialized
   const id = await cards.addCard(card, 'import')
   await cards.activateCard(id)
   return { view, id }
