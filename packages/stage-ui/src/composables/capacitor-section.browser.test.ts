@@ -155,8 +155,8 @@ describe('capacitor quota display and purchase actions', () => {
   }
 
   it.each([
-    { productId: 'monthly', action: 'Upgrade' },
-    { productId: 'plus', action: 'Downgrade' },
+    { productId: 'monthly', action: 'Upgrade to Plus' },
+    { productId: 'plus', action: 'Downgrade to Go' },
   ])('keeps $action in the subscription management page', async ({ productId, action }) => {
     sdk.getCustomerInfo.mockResolvedValue(customer(productId))
     const open = vi.spyOn(window, 'open').mockReturnValue(null)
@@ -226,6 +226,6 @@ describe('capacitor quota display and purchase actions', () => {
     expect(sdk.getOfferings).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'Subscribe', exact: true }).elements()).toHaveLength(0)
     resolveCustomer(customer('monthly'))
-    await expect.element(screen.getByRole('button', { name: 'Upgrade', exact: true })).toBeVisible()
+    await expect.element(screen.getByRole('button', { name: 'Upgrade to Plus', exact: true })).toBeVisible()
   })
 })

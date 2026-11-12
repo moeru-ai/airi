@@ -1735,8 +1735,8 @@ pages:
     perMonth: / month
     currentPackage: In use
     install: Subscribe
-    upgrade: Upgrade
-    downgrade: Downgrade
+    upgrade: Upgrade to {name}
+    downgrade: Downgrade to {name}
     manageSubscription: Manage subscription
     fallbackToFlux: Use your Flux balance when the Capacitor is empty
     fallbackToFluxHint: When off, chat and speech stop until the Capacitor refills.
