@@ -5,6 +5,7 @@ import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
 import { initializeAnalytics, isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/libs/product-signals'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
+import { useDevicePermissionsStore } from '@proj-airi/stage-ui/stores/device-permissions'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
@@ -26,8 +27,7 @@ import { useI18n } from 'vue-i18n'
 import { RouterView, useRouter } from 'vue-router'
 import { toast, Toaster } from 'vue-sonner'
 
-import OnboardingPermissionsStep from './components/onboarding/step-permissions.vue'
-
+import { useDevicePermissions } from './composables/device-permissions'
 import { getHostWebSocketConnector } from './modules/websocket-bridge'
 
 const contextBridgeStore = useContextBridgeStore()
@@ -38,6 +38,8 @@ const displayModelsStore = useDisplayModelsStore()
 const settingsStore = useSettings()
 const settings = storeToRefs(settingsStore)
 const onboardingStore = useOnboardingStore()
+// The shared onboarding permissions step and the permissions settings page read this list.
+useDevicePermissionsStore().register(useDevicePermissions())
 const syncedPinia = usePiniaSynced()
 const serverChannelStore = useModsServerChannelStore()
 const characterOrchestratorStore = useCharacterOrchestratorStore()
@@ -162,17 +164,9 @@ function openOnboardingAfterStartup() {
   }
 }
 
-const extraSteps = computed(() => [
-  ...(
-    isAnalyticsAvailableInBuild()
-      ? [{ id: 'analytics-notice', component: OnboardingStepAnalyticsNotice }]
-      : []
-  ),
-  {
-    id: 'step-permissions',
-    component: OnboardingPermissionsStep,
-  },
-])
+const extraSteps = computed(() => isAnalyticsAvailableInBuild()
+  ? [{ id: 'analytics-notice', component: OnboardingStepAnalyticsNotice }]
+  : [])
 </script>
 
 <template>

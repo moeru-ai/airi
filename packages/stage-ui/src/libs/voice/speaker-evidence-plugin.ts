@@ -1,8 +1,11 @@
 import type { SpeakerEvidence, SpeechInputAttempt, VoicePlugin } from '@proj-airi/core-agent'
 import type { AudioRange, AudioWindow } from '@proj-airi/pipelines-audio'
 
-/** The speaker ID of the device owner in speaker evidence. Only the owner can enroll a voiceprint. */
-export const OWNER_SPEAKER_ID = 'owner'
+/** The cosine between one enabled voiceprint and an audio window. `speakerId` is the id of the voiceprint. */
+export type SpeakerCandidate = SpeakerEvidence['candidates'][number]
+
+/** The result of a comparison that compared nothing. It is frozen, so each caller returns the same empty list. */
+export const NO_SPEAKER_CANDIDATES: readonly SpeakerCandidate[] = Object.freeze([])
 
 /**
  * Each comparison covers 1 s of audio, and a new one starts every 250 ms.
@@ -27,17 +30,23 @@ export interface SpeakerEvidenceUpdate {
   readonly inputId: string
   /** From the start of the first counted comparison to the end of the last one. */
   readonly range: AudioRange
-  /** The owner with the mean cosine of the counted comparisons, and the speech in `range`. */
+  /**
+   * Each compared voiceprint with the mean of its scores in the counted comparisons, the highest first, and the speech
+   * in `range`. A voiceprint that the user enabled during the input has scores only from the later comparisons.
+   */
   readonly value: Omit<SpeakerEvidence, 'revision'>
-  /** The cosine of each counted comparison, in time order. */
+  /** The score of the first candidate in each counted comparison that has one, in time order. */
   readonly scores: readonly number[]
 }
 
 export interface SpeakerEvidenceOptions {
   /** The plugin compares audio only while this returns true. */
   readonly enabled: () => boolean
-  /** The cosine between the owner's voiceprint and one window. NaN when the window has no embedding, for example digital silence. */
-  readonly compare: (window: AudioWindow, signal: AbortSignal) => Promise<number>
+  /**
+   * The cosine between each enabled voiceprint and one window. A score is NaN when the window has no embedding, for
+   * example digital silence. An empty result, for example while the tracker loads, compares nothing.
+   */
+  readonly compare: (window: AudioWindow, signal: AbortSignal) => Promise<readonly SpeakerCandidate[]>
   /** The input that receives the evidence, usually the active input of the controller. */
   readonly input: () => Pick<SpeechInputAttempt, 'id' | 'acceptsEvidence'> | undefined
   /** Receives each update that adds a counted comparison. */
@@ -52,7 +61,7 @@ export interface SpeakerEvidencePlugin extends VoicePlugin {
 
 interface Comparison {
   readonly range: AudioRange
-  readonly score: number
+  readonly candidates: readonly SpeakerCandidate[]
 }
 
 /**
@@ -85,7 +94,8 @@ class InputEvidence {
     let added = false
     while (this.pending.length > 0 && this.pending[0].range.endFrame <= coveredTo) {
       const comparison = this.pending.shift()!
-      if (Number.isFinite(comparison.score) && this.speechFrames(comparison.range) >= (comparison.range.endFrame - comparison.range.startFrame) * MIN_SPEECH_SHARE) {
+      const scored = comparison.candidates.some(candidate => Number.isFinite(candidate.score))
+      if (scored && this.speechFrames(comparison.range) >= (comparison.range.endFrame - comparison.range.startFrame) * MIN_SPEECH_SHARE) {
         this.counted.push(comparison)
         added = true
       }
@@ -101,13 +111,26 @@ class InputEvidence {
       return undefined
 
     const range = { sourceId: first.range.sourceId, startFrame: first.range.startFrame, endFrame: last.range.endFrame }
-    const scores = this.counted.map(comparison => comparison.score)
-    const score = scores.reduce((sum, value) => sum + value, 0) / scores.length
+    const totals = new Map<string, { sum: number, count: number }>()
+    for (const comparison of this.counted) {
+      for (const { speakerId, score } of comparison.candidates) {
+        if (!Number.isFinite(score))
+          continue
+        const total = totals.get(speakerId) ?? { sum: 0, count: 0 }
+        totals.set(speakerId, { sum: total.sum + score, count: total.count + 1 })
+      }
+    }
+    const candidates = [...totals].map(([speakerId, total]) => ({ speakerId, score: total.sum / total.count })).sort((a, b) => b.score - a.score)
+    const best = candidates[0].speakerId
+    const scores = this.counted.flatMap((comparison) => {
+      const score = comparison.candidates.find(candidate => candidate.speakerId === best)?.score
+      return score !== undefined && Number.isFinite(score) ? [score] : []
+    })
     // Counted comparisons overlap by 750 ms, so the speech comes from the VAD windows inside the range, not from the comparisons.
     const voicedMs = this.activity
       .filter(item => item.speech && item.range.sourceId === range.sourceId && item.range.startFrame >= range.startFrame && item.range.endFrame <= range.endFrame)
       .reduce((sum, item) => sum + item.durationMs, 0)
-    return { inputId: this.inputId, range, value: { candidates: [{ speakerId: OWNER_SPEAKER_ID, score }], voicedMs }, scores }
+    return { inputId: this.inputId, range, value: { candidates, voicedMs }, scores }
   }
 
   /** The frames of the range that the VAD marked as speech. */
@@ -123,7 +146,7 @@ class InputEvidence {
 }
 
 /**
- * Compares the speech of each input with the owner's voiceprint and reports the result as speaker evidence.
+ * Compares the speech of each input with the enabled voiceprints and reports the result as speaker evidence.
  *
  * The plugin only measures. It never begins, ends, or cancels an input. The host decides what the evidence changes.
  * It compares only audio inside the input, as `acceptsEvidence` of the input decides, and counts only comparisons
@@ -171,10 +194,10 @@ export function createSpeakerEvidencePlugin(options: SpeakerEvidenceOptions): Sp
         if (!input?.acceptsEvidence(ctx.window.range))
           return
 
-        const score = await options.compare(ctx.window, ctx.signal)
+        const candidates = await options.compare(ctx.window, ctx.signal)
         ctx.signal.throwIfAborted()
         const evidence = evidenceOf(input.id)
-        evidence.addComparison({ range: ctx.window.range, score })
+        evidence.addComparison({ range: ctx.window.range, candidates })
         publish(evidence)
       })
       return undefined

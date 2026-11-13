@@ -1,14 +1,14 @@
 import type { SpeechSubmission, TranscriptionEvent } from '@proj-airi/core-agent'
 import type { AudioWindow, PcmBlock } from '@proj-airi/pipelines-audio'
 
-import type { SpeakerEvidenceUpdate } from './speaker-evidence-plugin'
+import type { SpeakerCandidate, SpeakerEvidenceUpdate } from './speaker-evidence-plugin'
 
 import { VoiceController } from '@proj-airi/core-agent'
 import { AudioInput } from '@proj-airi/pipelines-audio'
 import { createPushStream } from '@proj-airi/stream-kit'
 import { expect, it, vi } from 'vitest'
 
-import { createSpeakerEvidencePlugin, OWNER_SPEAKER_ID } from './speaker-evidence-plugin'
+import { createSpeakerEvidencePlugin } from './speaker-evidence-plugin'
 import { createVoiceActivityPlugin } from './voice-activity-plugin'
 
 /**
@@ -18,7 +18,7 @@ import { createVoiceActivityPlugin } from './voice-activity-plugin'
  * The test writes 250 ms blocks and waits until the speaker plugin reads each new window, because `latest`
  * scheduling skips a window that arrives while another one waits.
  */
-async function runInput(options: { speechEnd: number, totalFrames: number, compare: (window: AudioWindow) => Promise<number>, enabled?: () => boolean }) {
+async function runInput(options: { speechEnd: number, totalFrames: number, compare: (window: AudioWindow) => Promise<readonly SpeakerCandidate[]>, enabled?: () => boolean }) {
   const source = createPushStream<PcmBlock>()
   const audio = new AudioInput({ live: true, open: () => source.stream }, { historyMs: 360 })
   const submit = vi.fn(async (_submission: SpeechSubmission) => ({ status: 'committed' as const, messageId: 'message' }))
@@ -67,9 +67,9 @@ async function runInput(options: { speechEnd: number, totalFrames: number, compa
   return { submission: submit.mock.calls[0][0], updates, results }
 }
 
-it('scores the speech of an input against the owner and writes it as speaker evidence', async () => {
+it('scores the speech of an input against a voiceprint and writes it as speaker evidence', async () => {
   // Each window scores its start time in tenths of a millisecond, so the counted windows are visible in the scores.
-  const { submission, updates, results } = await runInput({ speechEnd: 1700, totalFrames: 3000, compare: async window => window.range.startFrame / 10000 })
+  const { submission, updates, results } = await runInput({ speechEnd: 1700, totalFrames: 3000, compare: async window => [{ speakerId: 'english', score: window.range.startFrame / 10000 }] })
 
   // The VAD marks 54 windows of 32 ms as speech, up to 1728 ms. 1200 ms of silence then ends the input at 2944 ms.
   // The windows that start from 0 ms to 1000 ms are at least half speech. The window from 1250 ms has 478 ms of speech.
@@ -80,9 +80,26 @@ it('scores the speech of an input against the owner and writes it as speaker evi
   expect(results).toEqual(Array.from({ length: 5 }).fill('applied'))
 
   expect(submission.speakers?.candidates).toHaveLength(1)
-  expect(submission.speakers?.candidates[0].speakerId).toBe(OWNER_SPEAKER_ID)
+  expect(submission.speakers?.candidates[0].speakerId).toBe('english')
   expect(submission.speakers?.candidates[0].score).toBeCloseTo(0.05)
   expect(submission.speakers?.voicedMs).toBe(1728)
+})
+
+it('ranks the voiceprints by their mean score, and traces the scores of the best one', async () => {
+  const { submission, updates } = await runInput({
+    speechEnd: 1700,
+    totalFrames: 3000,
+    compare: async window => [
+      { speakerId: 'english', score: 0.3 },
+      { speakerId: 'chinese', score: window.range.startFrame === 0 ? Number.NaN : 0.6 },
+    ],
+  })
+
+  expect(submission.speakers?.candidates.map(candidate => candidate.speakerId)).toEqual(['chinese', 'english'])
+  expect(submission.speakers?.candidates[0].score).toBeCloseTo(0.6)
+  expect(submission.speakers?.candidates[1].score).toBeCloseTo(0.3)
+  // The window from 0 ms has no score for the Chinese voiceprint, so its scores start at the second window.
+  expect(updates.at(-1)!.scores).toEqual([0.6, 0.6, 0.6, 0.6])
 })
 
 it('does not count a window without an embedding', async () => {
@@ -90,14 +107,14 @@ it('does not count a window without an embedding', async () => {
     speechEnd: 1700,
     totalFrames: 3000,
     // Digital silence has no embedding. Sherpaw then returns NaN for the window.
-    compare: async window => window.range.startFrame === 250 ? Number.NaN : 0.5,
+    compare: async window => [{ speakerId: 'english', score: window.range.startFrame === 250 ? Number.NaN : 0.5 }],
   })
 
   expect(updates.at(-1)!.scores).toEqual([0.5, 0.5, 0.5, 0.5])
 })
 
 it('compares nothing while speaker recognition is off', async () => {
-  const compare = vi.fn(async () => 0.5)
+  const compare = vi.fn(async (): Promise<readonly SpeakerCandidate[]> => [{ speakerId: 'english', score: 0.5 }])
   const { submission, updates } = await runInput({ speechEnd: 1700, totalFrames: 3000, compare, enabled: () => false })
 
   expect(compare).not.toHaveBeenCalled()

@@ -18,7 +18,9 @@ const route = useRoute()
 // of this app. `vite-plugin-vue-layouts` lets the last directory in `layoutsDirs` win, and `electron.vite.config.ts`
 // lists the shared directory last. The shared layout also serves stage-web, so the desktop title bar stays here.
 // Removal condition: this app owns its settings layout.
-const framed = computed(() => props.enabled && route.meta.layout === 'settings')
+// Some settings pages draw their whole page in the `plain` layout, for example the character card detail and editor.
+// They still open in the settings window, so every route under `/settings` gets the title bar too.
+const framed = computed(() => props.enabled && (route.meta.layout === 'settings' || route.path.startsWith('/settings/')))
 </script>
 
 <template>
