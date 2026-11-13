@@ -492,6 +492,32 @@ describe('chat session synchronization', () => {
     expect(followerStore.activeSessionId).toBe(selectedSessionId)
   })
 
+  // https://github.com/moeru-ai/airi/pull/3514#discussion_r4565498350
+  // ROOT CAUSE:
+  //
+  // A selection activated its character after the session loaded. A user who selected a second session during
+  // the load got the character of the first one, and every window then moved to the index session of that character.
+  it('does not activate the character of a session that the user left during its load', async () => {
+    const context = createSyncedContext(`chat-session:${crypto.randomUUID()}`, 'leader-only')
+    await vi.waitFor(() => expect(context.runtime.isLeader()).toBe(true))
+    setActivePinia(context.pinia)
+    const store = useChatSessionStore()
+    await store.initialize()
+    const cards = useAiriCardStore(context.pinia)
+    const leftSessionId = await store.ensureCharacterSession('background-character')
+    const keptSessionId = await store.createSession('default', { setActive: false })
+    const slowLoad = Promise.withResolvers<boolean>()
+    vi.spyOn(store, 'loadSession').mockImplementationOnce(() => slowLoad.promise)
+
+    const left = store.setActiveSession(leftSessionId)
+    await store.setActiveSession(keptSessionId)
+    slowLoad.resolve(true)
+    await left
+
+    expect(store.activeSessionId).toBe(keptSessionId)
+    expect(cards.activeCardId).toBe('default')
+  })
+
   it('keeps the active character when a window selects another session of that character', async () => {
     const context = createSyncedContext(`chat-session:${crypto.randomUUID()}`, 'leader-only')
     await vi.waitFor(() => expect(context.runtime.isLeader()).toBe(true))

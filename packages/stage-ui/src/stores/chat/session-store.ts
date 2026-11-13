@@ -1684,6 +1684,11 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     }
 
     await useChatSessionStore(pinia).loadSession(sessionId)
+    // The load can take time, and the user can select another session during it. Only the newest selection activates
+    // its character. An older one would move every window to the index session of its character.
+    if (activeSessionId.value !== sessionId)
+      return
+
     const [characterId] = characterMembersOf(sessionId)
     // A session of a character that this device does not have keeps the active character.
     if (!characterId || characterId === getCurrentCharacterId() || !cards.getCard(characterId))
