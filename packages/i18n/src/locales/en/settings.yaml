@@ -33,6 +33,8 @@ dialogs:
     skipForNow: Skip for now
     saveAndContinue: Save and Continue
     next: Next
+    back: Back
+    later: Later
     retry: Retry
     credentialsSafeLabel: Keep your API keys and credentials safe!
     credentialsSafeLocal: >-
@@ -66,10 +68,88 @@ dialogs:
       notificationsDescription: Allow reminders and important status updates.
       microphoneTitle: Microphone
       microphoneDescription: Allow AIRI to use your microphone for voice input and transcription.
+      accessibilityTitle: Accessibility
+      accessibilityDescription: Lets the Push to Talk shortcut work while another app is in front.
+      screenRecordingTitle: Screen Recording
+      screenRecordingDescription: Lets AIRI see your screen when you ask it to look.
+      pushToTalkTitle: Push to Talk
+      pushToTalkDescription: Hold a key to talk while AIRI is in front.
+      screenShareTitle: Screen sharing
+      screenShareDescription: Lets AIRI see a screen or window that you share.
       requestAction: Request access
+      openSettingsAction: Open System Settings
       optionalHint: You can continue even if these permissions are not granted.
       stateGranted: Granted
       stateNotGranted: Not granted
+      flow:
+        steps: Permissions
+        setUpLater: Set up later
+        allow: Allow
+        continue: Continue
+        skip: Skip
+        done: Done
+        tryAgain: Try again
+        state:
+          granted: Allowed
+          skipped: Skipped
+          todo: Not set up
+          review: Review
+        microphone:
+          title: Let your character hear you
+          body: Voice chat and wake words use it.
+          allow: Allow microphone
+          device: 'Input device: {device}'
+          testing: Say something, like "Hello".
+          quiet: Nothing yet? Check mute, or pick another input.
+          heard: We can hear you.
+          level: Microphone input level
+          on: Voice chat and wake words are on.
+          off: Voice chat stays off. You can still type.
+        accessibility:
+          title: Talk while you use other apps
+          body: Hold the shortcut, speak, and let go. macOS calls this permission Accessibility.
+          with: With Accessibility
+          withBody: The shortcut works in every app.
+          without: Without it
+          withoutBody: It works only while AIRI is in front.
+          try: Hold the keys to try.
+          listening: Listening
+          worksEverywhere: It works. Try it in another app too.
+          worksHere: It works here. Other apps need Accessibility.
+          location: Turn on AIRI in Privacy & Security › Accessibility.
+          on: The shortcut works in every app.
+          off: The shortcut works only while AIRI is in front.
+        push-to-talk:
+          title: Hold a key to talk
+          body: Hold the key while AIRI is in front, speak, and let go.
+          try: Hold the key to try.
+          works: It works. Hold it whenever AIRI is in front.
+          on: Hold the key while AIRI is in front to talk.
+          off: You can still talk with the microphone button.
+        screen-recording:
+          title: Let your character see your screen
+          share: Share a screen
+          body: Only when you ask, for example "What is on my screen?"
+          visible: This is what your character sees.
+          hidden: Hidden from your character
+          display: Display
+          previewOf: 'Preview of {screen}'
+          location: Turn on AIRI in Privacy & Security › Screen Recording.
+          on: Your character sees your screen when you ask.
+          off: Your character cannot see your screen.
+        notifications:
+          title: Get reminders from your character
+          body: Reminders and status updates.
+          on: Notifications are on.
+          off: You do not get reminders.
+        summary:
+          name: Summary
+          title: You're all set
+          almost: Almost there
+          body: You can change these in Settings at any time.
+          skipped: 'Skipped. {consequence}'
+          setUp: Set up
+          setUpOne: 'Set up {permission}'
   bug-report:
     title: Bug report (´;ω;`)ヾ(･∀･`)
     subtitle: Oops, sorry we made something wrong. Would you mind telling us what
