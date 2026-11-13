@@ -6,6 +6,17 @@ import { SERVER_URL } from './server'
 
 const OIDC_AUTHORIZE_PATH = '/api/auth/oauth2/authorize'
 const OIDC_TOKEN_PATH = '/api/auth/oauth2/token'
+const OIDC_REVOKE_PATH = '/api/auth/oauth2/revoke'
+
+/** Sends one form-encoded request to an OAuth endpoint of the server, as RFC 6749 and RFC 7009 require. */
+async function postOAuthForm(path: string, params: Record<string, string>, init?: RequestInit): Promise<Response> {
+  return await fetch(new URL(path, SERVER_URL), {
+    ...init,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams(params),
+  })
+}
 
 export interface OIDCFlowParams {
   clientId: string
@@ -93,13 +104,7 @@ export async function exchangeCodeForTokens(
   if (params.clientSecret)
     bodyParams.client_secret = params.clientSecret
 
-  const body = new URLSearchParams(bodyParams)
-
-  const response = await fetch(new URL(OIDC_TOKEN_PATH, SERVER_URL), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body,
-  })
+  const response = await postOAuthForm(OIDC_TOKEN_PATH, bodyParams)
 
   if (!response.ok) {
     const error = await response.text()
@@ -128,18 +133,70 @@ export async function refreshAccessToken(
   if (clientSecret)
     params.client_secret = clientSecret
 
-  const body = new URLSearchParams(params)
-
-  const response = await fetch(new URL(OIDC_TOKEN_PATH, SERVER_URL), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body,
-  })
+  const response = await postOAuthForm(OIDC_TOKEN_PATH, params)
 
   if (!response.ok)
-    throw new Error(`Token refresh failed: ${response.status}`)
+    throw new TokenRefreshError(response.status, await readOAuthErrorCode(response))
 
   return await response.json()
+}
+
+/**
+ * The token endpoint answered a refresh with an error status.
+ *
+ * The auth store reads `rejected` to choose between two outcomes. A rejected
+ * refresh token cannot work again, so the store clears the credentials and asks
+ * the user to sign in. Any other answer, for example a 5xx or a 429, can pass,
+ * so the store keeps the credentials and retries later. A network error never
+ * produces this class, because `fetch` rejects before a status exists.
+ */
+export class TokenRefreshError extends Error {
+  constructor(
+    readonly status: number,
+    /** The OAuth `error` field of the answer, for example `invalid_grant`. Undefined when the body has no such field. */
+    readonly code?: string,
+  ) {
+    super(`Token refresh failed: ${status}${code ? ` ${code}` : ''}`)
+    this.name = 'TokenRefreshError'
+  }
+
+  /**
+   * True when the server refused the grant or the client.
+   * RFC 6749 section 5.2 answers `invalid_grant`, `invalid_client`, and the other OAuth errors with 400 or 401.
+   */
+  get rejected(): boolean {
+    return this.status === 400 || this.status === 401
+  }
+}
+
+async function readOAuthErrorCode(response: Response): Promise<string | undefined> {
+  try {
+    const body: unknown = await response.json()
+    if (typeof body === 'object' && body !== null && 'error' in body && typeof body.error === 'string')
+      return body.error
+  }
+  catch {
+    // A proxy or gateway can answer with HTML or an empty body. The status alone then decides the outcome.
+  }
+  return undefined
+}
+
+/**
+ * Revoke a refresh token at the server (RFC 7009).
+ *
+ * The server marks the token as revoked, so a later refresh grant with it fails.
+ * First-party clients are public, so `client_id` alone identifies the client.
+ * The server answers 200 for an unknown token. Any other status throws.
+ */
+export async function revokeRefreshToken(clientId: string, refreshToken: string, init?: RequestInit): Promise<void> {
+  const response = await postOAuthForm(OIDC_REVOKE_PATH, {
+    token: refreshToken,
+    token_type_hint: 'refresh_token',
+    client_id: clientId,
+  }, init)
+
+  if (!response.ok)
+    throw new Error(`Token revocation failed: ${response.status}`)
 }
 
 // Session storage keys for PKCE flow state (survives page navigation during OAuth)

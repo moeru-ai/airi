@@ -2,13 +2,15 @@ import type { CustomerInfo, EntitlementInfo } from '@revenuecat/purchases-js'
 
 import en from '@proj-airi/i18n/locales/en'
 
+import { configureAnalyticsAdapter } from '@proj-airi/stage-ui/libs/product-signals'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { createPinia, disposePinia, setActivePinia } from 'pinia'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render } from 'vitest-browser-vue'
 import { createI18n } from 'vue-i18n'
+import { createMemoryHistory, createRouter } from 'vue-router'
 
-import CapacitorPage from '../../../stage-pages/src/pages/settings/capacitor.vue'
+import CapacitorSection from '../../../stage-pages/src/components/capacitor-section.vue'
 
 import 'virtual:uno.css'
 
@@ -29,6 +31,25 @@ vi.mock('@revenuecat/purchases-js', async (importOriginal) => {
     },
   }
 })
+
+const capture = vi.fn((_name: string, _properties: object) => true)
+beforeAll(() => {
+  configureAnalyticsAdapter(async () => ({
+    capture,
+    getIdentitySnapshot: () => null,
+    identify: () => {},
+    registerBuildInfo: () => {},
+    resetIdentity: () => {},
+    setCaptureEnabled: () => true,
+  }))
+})
+
+/** The subscription funnel events, in order, with their plan and surface. */
+function funnel() {
+  return capture.mock.calls
+    .filter(([name]) => ['pricing_page_viewed', 'plan_selected', 'checkout_started'].includes(name))
+    .map(([name, properties]) => ({ name, ...properties as Record<string, unknown> }))
+}
 
 function customer(productId: string | null): CustomerInfo {
   const entitlement: EntitlementInfo = {
@@ -77,12 +98,15 @@ function monthlyPackage(productId: string, amountMicros: number) {
 describe('capacitor quota display and purchase actions', () => {
   let pinia: ReturnType<typeof createPinia>
   let requests: string[]
+  let wallet: { capacitorPercent: number | null, fallbackToFlux: boolean }
 
   beforeEach(() => {
     pinia = createPinia()
     setActivePinia(pinia)
     vi.stubEnv('VITE_REVENUECAT_WEB_KEY', 'public-test-key')
     vi.stubEnv('VITE_DISABLE_FLUX_PURCHASE', 'false')
+    vi.stubEnv('VITE_ENABLE_ANALYTICS', 'true')
+    capture.mockClear()
     sdk.getCustomerInfo.mockResolvedValue(customer('monthly'))
     sdk.getOfferings.mockResolvedValue({
       current: {
@@ -91,14 +115,17 @@ describe('capacitor quota display and purchase actions', () => {
       },
     })
     requests = []
+    wallet = { capacitorPercent: 50, fallbackToFlux: false }
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
       const { pathname } = new URL(input instanceof Request ? input.url : input)
       requests.push(pathname)
       if (pathname.endsWith('/catalog'))
         return Response.json({ capacitors: [{ productId: 'monthly', quota: 100 }, { productId: 'plus', quota: 300 }], resetInterval: 'day' })
+      if (pathname.endsWith('/capacitor/usage'))
+        return Response.json({ startedAt: null, endsAt: null, records: [] })
       if (pathname.endsWith('/sync'))
         return Response.json({ synced: true })
-      return Response.json({ flux: 150, capacitorPercent: 50, capacitorRechargesAt: null, fallbackToFlux: false })
+      return Response.json({ flux: 150, capacitorRechargesAt: null, ...wallet })
     })
   })
 
@@ -111,7 +138,7 @@ describe('capacitor quota display and purchase actions', () => {
     vi.unstubAllEnvs()
   })
 
-  function openPage() {
+  async function openPage() {
     const store = useAuthStore()
     const now = new Date()
     store.$patch({
@@ -119,21 +146,24 @@ describe('capacitor quota display and purchase actions', () => {
       session: { id: 'session-owner', userId: 'owner', token: 'owner-token', createdAt: now, updatedAt: now, expiresAt: new Date(Date.now() + 60_000) },
       token: 'owner-token',
     })
-    return render(CapacitorPage, {
-      global: { plugins: [pinia, createI18n({ legacy: false, locale: 'en', messages: { en }, missingWarn: false, fallbackWarn: false })] },
+    // The section renders inside the Flux page, which runs under a router.
+    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/:pathMatch(.*)*', component: { template: '<div />' } }] })
+    await router.push('/settings/flux')
+    return render(CapacitorSection, {
+      global: { plugins: [pinia, router, createI18n({ legacy: false, locale: 'en', messages: { en }, missingWarn: false, fallbackWarn: false })] },
     })
   }
 
   it.each([
-    { productId: 'monthly', action: 'Upgrade' },
-    { productId: 'plus', action: 'Downgrade' },
+    { productId: 'monthly', action: 'Upgrade to Plus' },
+    { productId: 'plus', action: 'Downgrade to Go' },
   ])('keeps $action in the subscription management page', async ({ productId, action }) => {
     sdk.getCustomerInfo.mockResolvedValue(customer(productId))
     const open = vi.spyOn(window, 'open').mockReturnValue(null)
-    const screen = openPage()
+    const screen = await openPage()
 
-    await expect.element(screen.getByText('100 Flux every day')).toBeVisible()
-    await expect.element(screen.getByText('300 Flux every day')).toBeVisible()
+    await expect.element(screen.getByText('100 Flux / day')).toBeVisible()
+    await expect.element(screen.getByText('300 Flux / day')).toBeVisible()
     await screen.getByRole('button', { name: action, exact: true }).click()
 
     expect(open).toHaveBeenCalledWith('https://example.com/manage', '_blank', 'noopener')
@@ -146,7 +176,7 @@ describe('capacitor quota display and purchase actions', () => {
       current: { metadata: null, availablePackages: [monthlyPackage('monthly', 5_000_000)] },
     })
     sdk.purchase.mockResolvedValue({ customerInfo: customer('monthly') })
-    const screen = openPage()
+    const screen = await openPage()
 
     await screen.getByRole('button', { name: 'Subscribe', exact: true }).click()
 
@@ -154,6 +184,35 @@ describe('capacitor quota display and purchase actions', () => {
     expect(requests).not.toContain('/api/v1/revenuecat/product-change')
     await expect.element(screen.getByRole('status')).toHaveTextContent('You are subscribed. Your Capacitor is full.')
     expect(screen.getByText('Callout', { exact: true }).elements()).toHaveLength(0)
+    expect(funnel()).toEqual([
+      expect.objectContaining({ name: 'pricing_page_viewed', entry_surface: 'settings_flux', plan_period: 'monthly' }),
+      expect.objectContaining({ name: 'plan_selected', entry_surface: 'settings_flux', plan_id: 'monthly' }),
+      expect.objectContaining({ name: 'checkout_started', entry_surface: 'settings_flux', plan_id: 'monthly' }),
+    ])
+  })
+
+  it('explains the Capacitor to a user without a subscription', async () => {
+    sdk.getCustomerInfo.mockResolvedValue(customer(null))
+    wallet = { capacitorPercent: null, fallbackToFlux: false }
+    const screen = await openPage()
+
+    await expect.element(screen.getByText('No Capacitor yet')).toBeVisible()
+    await expect.element(screen.getByText('Subscribe to a Capacitor. It refills with Flux every day.')).toBeVisible()
+    await expect.element(screen.getByRole('heading', { name: 'Choose a Capacitor' })).toBeVisible()
+    await expect.element(screen.getByRole('button', { name: 'Subscribe', exact: true }).first()).toBeVisible()
+  })
+
+  it.each([
+    { fallbackToFlux: false, warnings: 1 },
+    { fallbackToFlux: true, warnings: 0 },
+  ])('warns about an empty Capacitor only when Flux cannot pay (fallback $fallbackToFlux)', async ({ fallbackToFlux, warnings }) => {
+    wallet = { capacitorPercent: 0, fallbackToFlux }
+    const screen = await openPage()
+
+    await expect.element(screen.getByText('Use your Flux balance when the Capacitor is empty')).toBeVisible()
+    expect(screen.getByText('No Capacitor yet').elements()).toHaveLength(0)
+    await expect.element(screen.getByRole('heading', { name: 'Change your Capacitor' })).toBeVisible()
+    expect(screen.getByText(/Your Capacitor is empty/).elements()).toHaveLength(warnings)
   })
 
   it('waits for the customer before it exposes package actions', async () => {
@@ -161,12 +220,12 @@ describe('capacitor quota display and purchase actions', () => {
       throw new Error('Expected a pending customer read')
     }
     sdk.getCustomerInfo.mockReturnValueOnce(new Promise(resolve => resolveCustomer = resolve))
-    const screen = openPage()
+    const screen = await openPage()
 
     await vi.waitFor(() => expect(sdk.getCustomerInfo).toHaveBeenCalledOnce())
     expect(sdk.getOfferings).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: 'Subscribe', exact: true }).elements()).toHaveLength(0)
     resolveCustomer(customer('monthly'))
-    await expect.element(screen.getByRole('button', { name: 'Upgrade', exact: true })).toBeVisible()
+    await expect.element(screen.getByRole('button', { name: 'Upgrade to Plus', exact: true })).toBeVisible()
   })
 })

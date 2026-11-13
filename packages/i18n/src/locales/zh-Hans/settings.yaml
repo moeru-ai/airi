@@ -263,13 +263,10 @@ pages:
     notLoggedIn: 登录以查看您的帐户并访问所有功能
     login: 登录
     logout: 登出
-    fluxBalance: Flux 余额
-    viewFluxDetails: 查看详情
+    fluxBalance: Flux 电量
     usage:
       tab: 用量
-    capacitorEntry: 订阅
-    viewCapacitor: 查看
-    signedInAs: 登录 为
+    signedInAs: 当前账号
     profile:
       tab: 个人资料
       title: 个人资料
@@ -297,6 +294,7 @@ pages:
       action:
         link: 关联
         unlink: 取消关联
+        signInAgain: 重新登录
       message:
         loading: 正在加载已关联的帐户...
         unlinked: '解除了 {provider} 的关联'
@@ -309,6 +307,7 @@ pages:
         accountAlreadyLinkedToDifferentUser: 这个 OAuth 帐户已经关联到另一个 AIRI 帐户了。请选择另一个第三方帐户，或者先在另一个 AIRI 帐户中解除关联。
         oauthCallbackFailed: 暂时无法关联这个 OAuth 帐户。请重试，或选择另一个第三方帐户。
         lastAccount: 这是你当前唯一的登录方式，请务必先设置密码再解除关联哦
+        reauthenticate: 请先重新登录，再关联或解除关联帐户。
     sync:
       tab: 同步
       title: 同步
@@ -362,7 +361,7 @@ pages:
         action: 删除帐户
         modal:
           title: 删除账户？
-          warning: 此操作无法撤销。现存的 Flux 余额会被清除。如有生效中的订阅，请先取消。
+          warning: 此操作无法撤销。现存的 Flux 电量会被清除。如有生效中的订阅，请先取消。
           confirmEmail:
             label: 请再次输入电子邮箱以确认删除
             mismatch: 邮箱不匹配。
@@ -487,6 +486,7 @@ pages:
       greetings: 问候语（每行一个）
       settings: 设置
       version: 版本
+      model: 角色模型
       create: 创建
       defaults:
         name: 名字
@@ -509,6 +509,7 @@ pages:
           您可以在这里填写有关您正在创建的角色的一些详细信息，解释他的背景和情境，以及应该如何回应您的互动。
         name: 是该角色的正式名称。
         nickname: 您也可以提供一个昵称，它将被优先使用。
+        body_model: 在舞台上显示这个角色的模型。
         description: 该角色的描述。
         notes: 如果您想添加一些个人备注。
         personality: >-
@@ -1609,15 +1610,16 @@ pages:
         json-applied: JSON 已经解析完成了，点「保存并重启」就写到磁盘上啦。
         restarted: 重启好啦！启动了 {started} 个，失败 {failed} 个，跳过 {skipped} 个
   flux:
-    title: Flux 电量
+    pageTitle: 订阅
+    balance: 余额 {balance} Flux
+    title: 订阅
     buy: 充值
     currency: 币种
-    description: 充值 Flux
     terms: 使用条款
     privacy: 隐私政策
     packagesError: 暂时无法获取可用的 Flux 电量包。可以之后再试试吗？
     checkout:
-      success: 谢谢你！你的 Flux 通量已经更新好啦～
+      success: 谢谢你！你的 Flux 电量已经更新好啦～
       canceled: 支付被取消
       error: 哎呀，出错了，请稍后再试
     audit:
@@ -1662,32 +1664,43 @@ pages:
         longestStreak: 最长连续
         currentStreak: 当前连续
     packages:
-      title: Flux 电池包
+      title: 电量补充包
       buy: 充值
-      description: 可以选择购入的 Flux 电池包
+      description: 单次购买，不会过期。
   capacitor:
-    title: 订阅
+    name: Capacitor
+    left: Capacitor 还剩 {percent}
+    offer:
+      none: 还没有 Capacitor
+      day: 订阅一个 Capacitor，它每天自动充满 Flux
+      week: 订阅一个 Capacitor，它每周自动充满 Flux
+      month: 订阅一个 Capacitor，它每月自动充满 Flux
+      hint: 对话和语音先用 Capacitor 里的 Flux。
+    forecast:
+      left: 照现在的用法，到 {time} 大约还剩 {percent}
+      empty: 照现在的用法，大约 {time} 用完
+    empty: Capacitor 已用完。想现在继续聊天，可以打开下方的选项，改用 Flux 余额。
     statusError: 暂时无法获取 Capacitor 的状态，可以之后再试试吗？
     packagesError: 暂时无法获取可用的 Capacitor，可以之后再试试吗？
     preferenceError: 偏好保存失败，请稍后再试。
-    remaining: '剩余 {percent}'
-    ofQuota: 共 {quota} Flux
     rechargesAt: '{date} 充满'
     renewsAt: '{date} 续订'
     expiresAt: '{date} 到期'
-    change: 更换订阅
+    choose: 选一个 Capacitor
+    change: 换一个 Capacitor
+    packagesHint: Capacitor 越大，能聊得越久。没用完的 Flux 不会累积。
     quota:
-      day: '每天 {quota} Flux'
-      week: '每周 {quota} Flux'
-      month: '每月 {quota} Flux'
+      day: '{quota} Flux / 天'
+      week: '{quota} Flux / 周'
+      month: '{quota} Flux / 月'
     perMonth: / 月
-    currentPackage: 当前
-    install: 订阅
-    upgrade: 升级
-    downgrade: 降级
+    currentPackage: 使用中
+    install: 订阅这个
+    upgrade: 换成 {name}
+    downgrade: 换成 {name}
     manageSubscription: 管理订阅
-    fallbackToFlux: Capacitor 用完后使用 Flux 余额
-    fallbackToFluxHint: 关闭后，对话和语音会暂停，直到 Capacitor 充满。
+    fallbackToFlux: Capacitor 用完后，改用 Flux 余额
+    fallbackToFluxHint: 关闭后，对话和语音会暂停，直到 Capacitor 再次充满。
     checkout:
       success: 订阅成功，Capacitor 已充满。
       pending: 已收到付款，Capacitor 稍后充满。

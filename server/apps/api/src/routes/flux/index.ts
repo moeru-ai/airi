@@ -50,6 +50,10 @@ export function createFluxRoutes(
       await billingService.setFallbackToFlux(user.id, body.output.fallbackToFlux)
       return c.json({ fallbackToFlux: body.output.fallbackToFlux })
     })
+    .get('/capacitor/usage', async (c) => {
+      const user = c.get('user')!
+      return c.json(await fluxService.getCapacitorUsage(user.id))
+    })
     .get('/usage/daily', async (c) => {
       const user = c.get('user')!
       const query = safeParse(TimeZoneQuerySchema, { timeZone: c.req.query('timeZone') })

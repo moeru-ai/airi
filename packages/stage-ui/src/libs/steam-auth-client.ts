@@ -39,7 +39,10 @@ export function steamClient() {
   return {
     id: 'steam-client',
     getActions: $fetch => ({
-      linkSteam: (args: SteamOAuthStartArgs) => $fetch<SteamOAuthStartResult>('/link/steam', {
+      // Plugin actions do not get the per-call `fetchOptions` of the client proxy.
+      // The second argument carries them, for example a `customFetchImpl` for one call.
+      linkSteam: (args: SteamOAuthStartArgs, fetchOptions?: Omit<NonNullable<Parameters<typeof $fetch>[1]>, 'method' | 'body'>) => $fetch<SteamOAuthStartResult>('/link/steam', {
+        ...fetchOptions,
         method: 'POST',
         body: args,
       }),

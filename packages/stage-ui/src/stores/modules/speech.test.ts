@@ -624,6 +624,71 @@ describe('vOICEVOX provider defaults', () => {
     expect(speech.availableVoices['microsoft-speech']).toEqual([])
   })
 
+  // https://github.com/moeru-ai/airi/pull/3487#discussion_r4537737568
+  // ROOT CAUSE: The store keeps one catalog for each provider. A load for the selected provider with the model of
+  // a character discarded that catalog and cleared the selected voice.
+  it('reads the voice of a character with another model of the selected provider and keeps the selected voice', async () => {
+    const providers = useProviderStore()
+    const voices = [{ id: 'selected', name: 'Selected', languages: [{ code: 'en-US', title: 'English' }], provider: 'microsoft-speech' }]
+    const loads = vi.spyOn(providers, 'listProviderVoices').mockResolvedValue(voices)
+    // The output resolves its client only when it synthesizes. This test reads the language and never synthesizes.
+    vi.spyOn(providers, 'getProviderInstance').mockResolvedValue({} as unknown as Awaited<ReturnType<typeof providers.getProviderInstance>>)
+    const speech = useSpeechStore()
+    await speech.selectProviderModel('microsoft-speech', 'model-a')
+    await vi.waitFor(() => expect(speech.isLoadingSpeechProviderVoices).toBe(false))
+    speech.activeSpeechVoiceId = 'selected'
+    await speech.ensureActiveSpeechVoice()
+    loads.mockResolvedValue([{ id: 'character', name: 'Character', languages: [{ code: 'ja-JP', title: 'Japanese' }], provider: 'microsoft-speech' }])
+
+    await speech.loadVoicesForCharacter('microsoft-speech', 'model-b')
+
+    expect(loads).toHaveBeenLastCalledWith('microsoft-speech', 'model-b', expect.anything())
+    expect(speech.activeSpeechVoiceId).toBe('selected')
+    expect(speech.availableVoices['microsoft-speech']).toEqual(voices)
+    const output = speech.createOutput({ sessionId: 'session-1', turnId: 'turn-1' }, { provider: 'microsoft-speech', model: 'model-b', voice_id: 'character' }, { playback: {} as never }, {} as AudioContext)
+    expect(output.language).toBe('ja-JP')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/3491#discussion_r4538636428
+  // ROOT CAUSE: The voices that a character load stored stayed first after the same provider and model became the
+  // selection of the store. A later catalog of the store, for example after a settings change, did not replace them.
+  it('reads the catalog of the store when the selection of a character becomes the selection of the store', async () => {
+    const providers = useProviderStore()
+    const loads = vi.spyOn(providers, 'listProviderVoices').mockResolvedValue([{ id: 'voice', name: 'Voice', languages: [{ code: 'ja-JP', title: 'Japanese' }], provider: 'microsoft-speech' }])
+    vi.spyOn(providers, 'getProviderInstance').mockResolvedValue({} as unknown as Awaited<ReturnType<typeof providers.getProviderInstance>>)
+    const speech = useSpeechStore()
+    await speech.loadVoicesForCharacter('microsoft-speech', 'model-b')
+    loads.mockResolvedValue([{ id: 'voice', name: 'Voice', languages: [{ code: 'en-US', title: 'English' }], provider: 'microsoft-speech' }])
+
+    await speech.selectProviderModel('microsoft-speech', 'model-b', 'voice')
+    await vi.waitFor(() => expect(speech.availableVoices['microsoft-speech']?.[0]?.languages[0]?.code).toBe('en-US'))
+
+    const output = speech.createOutput({ sessionId: 'session-1', turnId: 'turn-1' }, { provider: 'microsoft-speech', model: 'model-b', voice_id: 'voice' }, { playback: {} as never }, {} as AudioContext)
+    expect(output.language).toBe('en-US')
+  })
+
+  it('does not load for a character whose speech selection is the selection of the store', async () => {
+    const loads = vi.spyOn(useProviderStore(), 'listProviderVoices').mockResolvedValue([])
+    const speech = useSpeechStore()
+    await speech.selectProviderModel('microsoft-speech', 'model-a')
+    await vi.waitFor(() => expect(speech.isLoadingSpeechProviderVoices).toBe(false))
+    loads.mockClear()
+
+    await speech.loadVoicesForCharacter('microsoft-speech', 'model-a')
+
+    expect(loads).not.toHaveBeenCalled()
+  })
+
+  it('keeps the catalog of a provider apart from the voices of a character that uses it', async () => {
+    const loads = vi.spyOn(useProviderStore(), 'listProviderVoices').mockResolvedValue([{ id: 'character', name: 'Character', languages: [], provider: 'elevenlabs' }])
+    const speech = useSpeechStore()
+
+    await speech.loadVoicesForCharacter('elevenlabs', 'model-c')
+
+    expect(loads).toHaveBeenCalledWith('elevenlabs', 'model-c', expect.anything())
+    expect(speech.availableVoices.elevenlabs ?? []).toEqual([])
+  })
+
   // https://github.com/moeru-ai/airi/pull/2490#discussion_r3966034981
   // ROOT CAUSE: Synthesis settings changed the catalog fingerprint and cleared
   // a valid selection. Each adapter must identify its discovery inputs.

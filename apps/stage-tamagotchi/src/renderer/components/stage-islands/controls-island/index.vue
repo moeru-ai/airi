@@ -3,6 +3,7 @@ import { defineInvoke } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
 import { IS_DEV } from '@proj-airi/stage-shared'
 import { HearingConfigDialog, InboxPanel } from '@proj-airi/stage-ui/components'
+import { useBackdropSurface } from '@proj-airi/stage-ui/composables/backdrop-surface'
 import { useInboxStore } from '@proj-airi/stage-ui/stores/inbox'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { Badge, IconButton, ScrollableArea, useTheme } from '@proj-airi/ui'
@@ -109,6 +110,8 @@ const islandContent = useTemplateRef<HTMLElement>('islandContent')
 const mainControlsElement = useTemplateRef<HTMLElement>('mainControls')
 const menuContent = useTemplateRef<HTMLElement>('menuContent')
 const menuScrollArea = useTemplateRef<InstanceType<typeof ScrollableArea>>('menuScrollArea')
+// The open menu floats over the stage, and the desktop shows through the transparent window around the character.
+useBackdropSurface(useTemplateRef<HTMLElement>('menuSurface'))
 const menuViewport = computed(() => menuScrollArea.value?.viewport)
 const availableSpaceElement = useTemplateRef<HTMLElement>('availableSpace')
 const gapElement = useTemplateRef<HTMLElement>('gap')
@@ -399,6 +402,7 @@ function resetMainWindowPosition() {
               @animationend.self="panelPresent = expanded"
             >
               <div
+                ref="menuSurface"
                 :class="[
                   'w-max flex flex-col gap-1 rounded-2xl border border-neutral-200 p-2 dark:border-neutral-800',
                   'bg-neutral-100/80 shadow-2xl shadow-black/20 backdrop-blur-xl dark:bg-neutral-900/80',
