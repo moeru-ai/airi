@@ -161,8 +161,8 @@ it.each(['leader-only', 'follower-only'] as const)('clears unavailable module pr
   expect(hearing.autoSendDelay).toBe(1234)
   expect(speech.pitch).toBe(2)
   expect(consciousness.activeProvider).toBe('openai')
-  expect(consciousness.activeModel).toBe('card-chat-model')
-  expect(cards.moduleDefaults?.consciousness).toEqual({ provider: 'openai', model: 'chat-model' })
+  expect(consciousness.activeModel).toBe('chat-model')
+  expect(cards.getModules(activeId).consciousness).toEqual({ provider: 'openai', model: 'card-chat-model' })
   for (const id of [activeId, inactiveId, inheritedId, partialId]) {
     expect(cards.getModules(id)?.vision).toEqual({ provider: '', model: '' })
     expect(cards.getModules(id)?.speech).toEqual({ provider: 'speech-noop', model: '', voice_id: '' })
@@ -349,27 +349,27 @@ it('removes downloaded speech models when all data is deleted', async () => {
   await expect(origin.getDirectoryHandle('airi-model-assets')).rejects.toThrow()
 })
 
-it('removes the voiceprint when all data is deleted', async () => {
+it('removes the voiceprints when all data is deleted', async () => {
   vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [] })))
-  localStorage.setItem('settings/voice/voiceprint', JSON.stringify(toStoredVoiceprint({ embedding: new Float32Array([1, 0]), seconds: 8 }, Date.now())))
+  localStorage.setItem('settings/voice/voiceprints', JSON.stringify([toStoredVoiceprint({ embedding: new Float32Array([1, 0]), seconds: 8 }, { id: 'voiceprint-1', label: '', createdAt: Date.now() })]))
   const { pinia, runtime, maintenance } = mountMaintenance(`maintenance:${crypto.randomUUID()}`, 'leader-only')
   await vi.waitFor(() => expect(runtime.isLeader()).toBe(true))
-  expect(useVoiceprintStore(pinia).record).toBeDefined()
+  expect(useVoiceprintStore(pinia).records).toHaveLength(1)
 
   await maintenance.deleteAllData()
 
-  expect(useVoiceprintStore(pinia).record).toBeUndefined()
-  expect(localStorage.getItem('settings/voice/voiceprint')).toBeNull()
+  expect(useVoiceprintStore(pinia).records).toEqual([])
+  expect(JSON.parse(localStorage.getItem('settings/voice/voiceprints') ?? '[]')).toEqual([])
 })
 
-it('removes the voiceprint when an earlier cleanup fails', async () => {
+it('removes the voiceprints when an earlier cleanup fails', async () => {
   vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [] })))
-  localStorage.setItem('settings/voice/voiceprint', JSON.stringify(toStoredVoiceprint({ embedding: new Float32Array([1, 0]), seconds: 8 }, Date.now())))
+  localStorage.setItem('settings/voice/voiceprints', JSON.stringify([toStoredVoiceprint({ embedding: new Float32Array([1, 0]), seconds: 8 }, { id: 'voiceprint-1', label: '', createdAt: Date.now() })]))
   const { pinia, runtime, maintenance } = mountMaintenance(`maintenance:${crypto.randomUUID()}`, 'leader-only')
   await vi.waitFor(() => expect(runtime.isLeader()).toBe(true))
   vi.spyOn(useDisplayModelsStore(pinia), 'resetDisplayModels').mockRejectedValue(new Error('Model storage unavailable'))
 
   await expect(maintenance.deleteAllData()).rejects.toThrow('Model storage unavailable')
 
-  expect(localStorage.getItem('settings/voice/voiceprint')).toBeNull()
+  expect(JSON.parse(localStorage.getItem('settings/voice/voiceprints') ?? '[]')).toEqual([])
 })

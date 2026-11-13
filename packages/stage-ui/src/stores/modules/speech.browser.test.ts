@@ -85,9 +85,9 @@ async function createSyncedPair() {
 
 describe('speech synchronization', () => {
   // https://github.com/moeru-ai/airi/pull/2490#discussion_r3967949219
-  // ROOT CAUSE: Catalog invalidation erased the voice just applied by a card.
-  // The selection command must discard the old catalog before setting the override.
-  it.each(['microsoft-speech', 'official-provider-speech'])('preserves a card voice while its new %s model catalog loads', async (provider) => {
+  // ROOT CAUSE: Catalog invalidation erased the voice that a selection command just applied.
+  // The selection command must discard the old catalog before it sets the voice.
+  it.each(['microsoft-speech', 'official-provider-speech'])('preserves a selected voice while its new %s model catalog loads', async (provider) => {
     const deferred = Promise.withResolvers<Response>()
     let pause = false
     stubCatalogFetch(vi.fn<typeof fetch>(async () => pause
@@ -111,17 +111,11 @@ describe('speech synchronization', () => {
     await leader.speechStore.selectProviderModel(provider, 'model-a', 'old')
     await vi.waitFor(() => expect(leader.speechStore.availableVoices[provider]?.[0]?.id).toBe('old'))
     await vi.waitFor(() => expect(follower.speechStore.activeSpeechVoice?.id).toBe('old'))
-    const cards = useAiriCardStore(leader.pinia)
-    await cards.initialize()
-    const id = await cards.addCard({
-      name: 'Saved voice',
-      version: '1.0',
-      description: '',
-      extensions: { airi: { modules: { speech: { provider, model: 'model-b', voice_id: 'saved' } } } },
-    }, 'scratch')
+    // The card store configures the providers of a login. Wait for it, so that it does not run during the selection.
+    await useAiriCardStore(leader.pinia).initialize()
     pause = true
     try {
-      await cards.activateCard(id)
+      await leader.speechStore.selectProviderModel(provider, 'model-b', 'saved')
       await vi.waitFor(() => expect(leader.speechStore.availableVoices[provider]).toEqual([]))
       expect(leader.speechStore.activeSpeechVoiceId).toBe('saved')
       deferred.resolve(Response.json({
@@ -130,12 +124,6 @@ describe('speech synchronization', () => {
       }))
       await vi.waitFor(() => expect(follower.speechStore.activeSpeechVoice?.id).toBe('saved'))
       expect(follower.speechStore.activeSpeechModel).toBe('model-b')
-      // Consecutive commands must not capture the first card's override as
-      // an inherited default while its leader action yields.
-      await cards.activateCard('default')
-      await Promise.all([cards.activateCard(id), cards.activateCard('default')])
-      expect(leader.speechStore.activeSpeechModel).toBe('model-a')
-      expect(cards.moduleDefaults?.speech.model).toBe('model-a')
     }
     finally {
       deferred.resolve(Response.json({ voices: [] }))
