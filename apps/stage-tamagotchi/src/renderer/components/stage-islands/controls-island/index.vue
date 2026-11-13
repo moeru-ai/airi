@@ -3,6 +3,7 @@ import { defineInvoke } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
 import { IS_DEV } from '@proj-airi/stage-shared'
 import { HearingConfigDialog } from '@proj-airi/stage-ui/components'
+import { useBackdropSurface } from '@proj-airi/stage-ui/composables/backdrop-surface'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { Badge } from '@proj-airi/ui'
 import { useEventListener, useFocusWithin, useMouseInElement, useMousePressed } from '@vueuse/core'
@@ -54,6 +55,8 @@ const isLinux = useElectronEventaInvoke(electron.app.isLinux)
 const setAlwaysOnTop = useElectronEventaInvoke(electronWindowSetAlwaysOnTop)
 
 const islandElement = useTemplateRef<HTMLElement>('island')
+// The capsule is the only surface of the Island. Its buttons have no fill, so the native glass is behind the capsule only.
+useBackdropSurface(useTemplateRef<HTMLElement>('capsule'))
 
 /** The one app menu. The more button opens it, and so does a right-click on the character. */
 const menuOpen = ref(false)
@@ -166,7 +169,7 @@ watch(alwaysOnTop, (val) => {
 }, { immediate: true })
 
 const iconClass = computed(() => controlsIslandIconSize.value === 'small' ? 'size-3' : 'size-5')
-const buttonStyle = computed(() => controlsIslandIconSize.value === 'small' ? 'border-0 p-0.5' : 'border-2 p-2')
+const buttonStyle = computed(() => controlsIslandIconSize.value === 'small' ? 'size-7' : 'size-10')
 
 const islandPositionClasses = computed(() => [
   isTop.value ? 'top-2' : 'bottom-2',
@@ -209,10 +212,12 @@ const startDraggingWindow = !isLinux() ? defineInvoke(context.value, electronSta
     ]"
   >
     <div
+      ref="capsule"
       data-testid="main-controls"
       :class="[
-        'flex items-center gap-1 rounded-full p-1',
-        'bg-neutral-50/60 shadow-sm backdrop-blur-md dark:bg-neutral-900/50',
+        'flex items-center gap-0.5 rounded-full p-1',
+        'bg-neutral-50/80 dark:bg-neutral-800/70',
+        'shadow-md ring-1 ring-neutral-900/8 backdrop-blur-md dark:ring-white/10',
         isTop ? 'flex-col-reverse' : 'flex-col',
       ]"
     >
@@ -245,11 +250,12 @@ const startDraggingWindow = !isLinux() ? defineInvoke(context.value, electronSta
           :aria-pressed="listening"
           :aria-busy="microphonePending"
           :disabled="microphonePending"
-          :class="['rounded-full!']"
+          :class="[listening ? 'bg-primary-500! hover:bg-primary-600! dark:bg-primary-400! dark:hover:bg-primary-300!' : '']"
           @click="toggleMicrophone"
         >
+          <!-- While AIRI listens, the button is filled with the theme color, so the state reads at a glance. -->
           <Transition name="fade" mode="out-in">
-            <IndicatorMicVolume v-if="listening" :class="iconClass" />
+            <IndicatorMicVolume v-if="listening" color-class="text-white dark:text-primary-950" :class="iconClass" />
             <div v-else :class="['i-ph:microphone-slash text-neutral-800 dark:text-neutral-300', iconClass]" />
           </Transition>
         </ControlButton>
@@ -258,7 +264,7 @@ const startDraggingWindow = !isLinux() ? defineInvoke(context.value, electronSta
         </template>
       </ControlButtonTooltip>
 
-      <ControlsIslandChatButton :button-style="`${buttonStyle} rounded-full!`" :icon-class="iconClass" />
+      <ControlsIslandChatButton :button-style="buttonStyle" :icon-class="iconClass" />
 
       <ControlsIslandMenu
         v-model:open="menuOpen"
@@ -270,9 +276,10 @@ const startDraggingWindow = !isLinux() ? defineInvoke(context.value, electronSta
           <ControlButton
             data-testid="controls-island-more"
             :button-style="buttonStyle"
+            :on="menuOpen"
             :aria-label="t('tamagotchi.stage.controls-island.more')"
             :title="t('tamagotchi.stage.controls-island.more')"
-            :class="['relative rounded-full!']"
+            :class="['relative']"
           >
             <div :class="['i-solar:menu-dots-bold text-neutral-800 dark:text-neutral-300', iconClass]" />
             <!-- Unread Notifications are in the menu. The dot tells the user to open it. -->
@@ -280,7 +287,7 @@ const startDraggingWindow = !isLinux() ? defineInvoke(context.value, electronSta
               v-if="unread > 0"
               dot
               data-testid="controls-island-notifications-dot"
-              :class="['pointer-events-none absolute right-1 top-1 ring-2 ring-neutral-100 dark:ring-neutral-900']"
+              :class="['pointer-events-none absolute right-1 top-1 ring-2 ring-neutral-50 dark:ring-neutral-800']"
             />
           </ControlButton>
         </template>
