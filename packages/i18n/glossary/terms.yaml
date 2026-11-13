@@ -550,7 +550,7 @@
     - text: Character Card
       part-of-speech: noun
       status: preferred
-      context: Click or drag an AIRI card package to import
+      context: Import a character card to make a character from it.
 
 - id: system-prompt
   subject: character
