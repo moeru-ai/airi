@@ -352,7 +352,9 @@ describe('controls Island menu controls', () => {
     await menuItem('controls-island-character').click()
     await page.getByRole('menuitemradio', { name: 'ReLU' }).click()
 
-    expect(cards.activeCardId).toBe('relu')
+    await expect.poll(() => cards.activeCardId).toBe('relu')
+    // The switch goes through `activateCard`, so the choice survives a restart.
+    expect(localStorage.getItem('airi-card-active-id')).toBe('relu')
   })
 
   it('mutes and unmutes the character voice', async () => {

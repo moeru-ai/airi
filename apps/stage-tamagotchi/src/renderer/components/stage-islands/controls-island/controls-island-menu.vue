@@ -99,11 +99,22 @@ const cardStore = useAiriCardStore()
 const { cards, activeCardId } = storeToRefs(cardStore)
 const cardList = computed(() => Array.from(cards.value.entries()).map(([id, card]) => ({ id, name: card.name })))
 const activeCardName = computed(() => cards.value.get(activeCardId.value)?.name)
+// `activateCard` also saves the choice, selects the default avatar of the character, and applies its module settings.
+async function switchCharacter(id: string) {
+  if (id === activeCardId.value)
+    return
+  try {
+    if (await cardStore.activateCard(id))
+      trackControlsIslandAction({ action: 'switch_profile' })
+  }
+  catch (error) {
+    console.error('Failed to switch the character:', error)
+  }
+}
 const selectedCardId = computed({
   get: () => activeCardId.value,
   set: (id: string) => {
-    activeCardId.value = id
-    trackControlsIslandAction({ action: 'switch_profile' })
+    void switchCharacter(id)
   },
 })
 
