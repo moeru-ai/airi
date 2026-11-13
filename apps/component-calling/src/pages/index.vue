@@ -7,13 +7,14 @@ import { useLocalStorage } from '@vueuse/core'
 import { streamText } from '@xsai/stream-text'
 import { ref, toRaw } from 'vue'
 
+import { parseComponentProps } from '../plugins/plugin-component-calling'
 import { registerWidgets } from '../plugins/plugin-component-calling-weather'
 // import { mockStreamText } from '../utils/xsai-testing'
 
 interface ComponentCall {
   component: {
     name: string
-    props: Record<string, any>
+    props: Record<string, unknown>
     propsLoading: boolean
   }
   index: number
@@ -60,7 +61,7 @@ const capabilities = [
     ${c.name}
   </component_name>
   <component_props>
-    ${JSON.stringify(await c.schema)}
+    ${JSON.stringify(await c.jsonSchema)}
   </component_props>`))).join('\n')}
 </component>` },
 ]
@@ -105,6 +106,29 @@ function createParser(events?: ParserEvents): XMLParser {
   const componentCalls: ComponentCall[] = []
   let currentComponentIndex = -1
 
+  function loadComponentProps(value: string): void {
+    const componentCall = componentCalls[currentComponentIndex]
+    if (!componentCall) {
+      return
+    }
+
+    try {
+      const componentDefinition = widgets.components.find(({ name }) => name === componentCall.component.name)
+      if (!componentDefinition) {
+        throw new Error(`Unknown component: ${componentCall.component.name}`)
+      }
+
+      componentCall.component.props = parseComponentProps(componentDefinition.schema, value)
+    }
+    catch (error) {
+      console.error('Failed to parse or validate component props:', error)
+    }
+    finally {
+      componentCall.component.propsLoading = false
+      events?.onComponentPropsLoaded?.(componentCall, currentComponentIndex)
+    }
+  }
+
   // Buffer for tracking sequential characters for code block detection
   let sequentialBackticks = 0
 
@@ -148,28 +172,12 @@ function createParser(events?: ParserEvents): XMLParser {
           currentNode.children.push({
             type: 'text',
             value: readBuffer,
-          } as any)
+          })
         }
 
         // If we're collecting component props, try to parse as JSON
         if (parserSeekTag === 'props' && inCodeBlock) {
-          try {
-            const props = JSON.parse(readBuffer.trim())
-
-            // Update the component with the loaded props
-            if (currentComponentIndex >= 0 && currentComponentIndex < componentCalls.length) {
-              componentCalls[currentComponentIndex].component.props = props
-              componentCalls[currentComponentIndex].component.propsLoading = false
-
-              // Emit event for props loaded
-              if (events?.onComponentPropsLoaded) {
-                events.onComponentPropsLoaded(componentCalls[currentComponentIndex], currentComponentIndex)
-              }
-            }
-          }
-          catch (e) {
-            console.error('Failed to parse component props:', e)
-          }
+          loadComponentProps(readBuffer)
         }
         else if (parserSeekTag === 'name') {
           const componentName = readBuffer.trim()
@@ -288,23 +296,11 @@ function createParser(events?: ParserEvents): XMLParser {
       currentNode.children.push({
         type: 'text',
         value: readBuffer,
-      } as any)
+      })
 
       // Try to parse any remaining props
-      if (parserSeekTag === 'props' && inCodeBlock && currentComponentIndex >= 0) {
-        try {
-          const props = JSON.parse(readBuffer.trim())
-          componentCalls[currentComponentIndex].component.props = props
-          componentCalls[currentComponentIndex].component.propsLoading = false
-
-          // Emit event for props loaded
-          if (events?.onComponentPropsLoaded) {
-            events.onComponentPropsLoaded(componentCalls[currentComponentIndex], currentComponentIndex)
-          }
-        }
-        catch (e) {
-          console.error('Failed to parse component props:', e)
-        }
+      if (parserSeekTag === 'props' && inCodeBlock) {
+        loadComponentProps(readBuffer)
       }
     }
 
