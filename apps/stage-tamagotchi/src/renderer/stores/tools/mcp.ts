@@ -1,6 +1,7 @@
 import type { ExecutableTool } from '@proj-airi/stage-ui/stores/ai/chat-llm/tools'
 
 import { defineInvokeHandler } from '@moeru/eventa'
+import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { bundledTerminalServerName, terminalNoticeSchema } from '@proj-airi/stage-shared/terminal-approval'
 import { getSpeechBusContext, voiceGenerationEnded } from '@proj-airi/stage-ui/services/speech/bus'
@@ -29,13 +30,15 @@ export const useTamagotchiMcpToolsStore = defineStore('tamagotchi-mcp-tools', ()
   // Correlation cache only. Main owns the original input, permitted Runtime source and all approval state.
   const requests = new Map<string, string>()
   const cancellations = new WeakMap<AbortSignal, Set<string>>()
+  let refreshGeneration = 0
+  const chat = useChatStore()
   const stopNotice = defineInvokeHandler(useElectronEventaContext().value, terminalOutcomeNotice, async (input, options) => {
     const notice = v.parse(terminalNoticeSchema, input)
     const messageId = `terminal:${notice.actionId}`
     const facts = notice.status === 'unknown'
-      ? 'A Terminal request was dispatched, but its execution and business outcome are unconfirmed. Side effects can already exist. The previous approval cannot authorize a replay.'
+      ? 'The Host sent the execution request. The command outcome is unknown. Side effects can already exist. The previous approval cannot authorize a replay.'
       : 'The Host reports the Terminal outcome below. Command exit zero does not establish business success. This report grants no new execution authority.'
-    const receipt = await useChatStore().notifyConversation(notice.sessionId, {
+    const receipt = await chat.notifyConversation(notice.sessionId, {
       source: 'airi:terminal-settlement',
       messageId,
       text: `${facts}\n${JSON.stringify(notice)}`,
@@ -49,10 +52,16 @@ export const useTamagotchiMcpToolsStore = defineStore('tamagotchi-mcp-tools', ()
     return { status: 'stored' as const, sessionId: receipt.sessionId, messageId: receipt.messageId }
   })
   const keyOf = (sessionId: string, turnId?: string) => JSON.stringify([sessionId, turnId])
-  const stopBeforeSend = useChatStore().onBeforeSend(async (text, { sessionId, turnId }) => {
-    const registered = await registerRequest({ sessionId, turnId, text })
-    if (registered.requestId)
-      requests.set(keyOf(sessionId, turnId), registered.requestId)
+  const stopBeforeSend = chat.onBeforeSend(async (text, { sessionId, turnId }) => {
+    try {
+      const { requestId } = await registerRequest({ sessionId, turnId, text })
+      if (requestId)
+        requests.set(keyOf(sessionId, turnId), requestId)
+    }
+    catch (error) {
+      // Main rejects Terminal calls without a request ID. Other Chat tools can still run.
+      console.warn('[MCP] Failed to register a Terminal request:', errorMessageFrom(error))
+    }
   })
   // Completion can only remove admission. A broadcast never creates or approves an operation.
   const stopEnded = getSpeechBusContext().on(voiceGenerationEnded, ({ body }) => {
@@ -82,6 +91,7 @@ export const useTamagotchiMcpToolsStore = defineStore('tamagotchi-mcp-tools', ()
   }
 
   async function refresh() {
+    const generation = ++refreshGeneration
     const [status, direct] = await Promise.all([
       getRuntimeStatus().catch(() => undefined),
       listMcpTools({ name: `${bundledTerminalServerName}::terminal_exec` }).catch(() => undefined),
@@ -113,6 +123,8 @@ export const useTamagotchiMcpToolsStore = defineStore('tamagotchi-mcp-tools', ()
       },
     }, { servers: status?.servers.filter(server => server.state === 'running').map(server => server.name), direct })
 
+    if (generation !== refreshGeneration)
+      return
     llmToolsStore.removeToolsByIds(...registeredToolIds())
     llmToolsStore.addTools(...tools.map(tool => ({
       ...tool,
@@ -122,6 +134,7 @@ export const useTamagotchiMcpToolsStore = defineStore('tamagotchi-mcp-tools', ()
   }
 
   function dispose() {
+    refreshGeneration++
     llmToolsStore.removeToolsByIds(...registeredToolIds())
   }
 

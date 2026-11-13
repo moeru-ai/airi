@@ -27,6 +27,7 @@ import {
   electronMcpWriteConfigText,
 } from '../../../../shared/eventa'
 import { parseElectronMcpConfigText } from '../../../../shared/mcp-config'
+import { useTamagotchiMcpToolsStore } from '../../../stores/tools/mcp'
 import {
   buildConfigFile,
   buildServerConfig,
@@ -41,6 +42,7 @@ import { mcpServerSearchKey } from './mcp.search'
 
 const { t } = useI18n()
 const { trackMcpServerRemoved, trackMcpConnectionTestRun } = useAnalytics()
+const mcpTools = useTamagotchiMcpToolsStore()
 const tn = (key: string, params?: Record<string, unknown>) => t(`settings.pages.modules.mcp-server.${key}`, params ?? {})
 
 const invokeOpenConfigFile = useElectronEventaInvoke(electronMcpOpenConfigFile)
@@ -233,60 +235,32 @@ function removeServer(rowId: string) {
     testRowId.value = servers.value[0]?.rowId ?? ''
 }
 
-async function saveAndRestart() {
-  isBusy.value = true
-  errorMessage.value = ''
-  infoMessage.value = ''
-  try {
-    const text = `${JSON.stringify(buildConfig(), null, 2)}\n`
-    const written = await invokeWriteConfigText({ text })
-    const parsed = parseElectronMcpConfigText(written.text)
-    applyLoadedConfig(parsed)
-    savedSig.value = JSON.stringify(parsed)
-    const result = await invokeApplyAndRestart()
-    await refreshRuntime()
-    infoMessage.value = tn('messages.restarted', {
-      started: result.started.length,
-      failed: result.failed.length,
-      skipped: result.skipped.length,
-    })
-  }
-  catch (e) {
-    errorMessage.value = errorMessageFrom(e) ?? 'Unknown error'
-  }
-  finally {
-    isBusy.value = false
-  }
-}
-
-async function restartServers() {
-  isBusy.value = true
-  errorMessage.value = ''
-  infoMessage.value = ''
-  try {
-    const result = await invokeApplyAndRestart()
-    await refreshRuntime()
-    infoMessage.value = tn('messages.restarted', {
-      started: result.started.length,
-      failed: result.failed.length,
-      skipped: result.skipped.length,
-    })
-  }
-  catch (e) {
-    errorMessage.value = errorMessageFrom(e) ?? 'Unknown error'
-  }
-  finally {
-    isBusy.value = false
-  }
-}
-
 async function applyRestartAction() {
-  if (isDirty.value) {
-    await saveAndRestart()
-    return
+  isBusy.value = true
+  errorMessage.value = ''
+  infoMessage.value = ''
+  try {
+    if (isDirty.value) {
+      const text = `${JSON.stringify(buildConfig(), null, 2)}\n`
+      const written = await invokeWriteConfigText({ text })
+      const parsed = parseElectronMcpConfigText(written.text)
+      applyLoadedConfig(parsed)
+      savedSig.value = JSON.stringify(parsed)
+    }
+    const result = await invokeApplyAndRestart()
+    await Promise.all([refreshRuntime(), mcpTools.refresh()])
+    infoMessage.value = tn('messages.restarted', {
+      started: result.started.length,
+      failed: result.failed.length,
+      skipped: result.skipped.length,
+    })
   }
-
-  await restartServers()
+  catch (e) {
+    errorMessage.value = errorMessageFrom(e) ?? 'Unknown error'
+  }
+  finally {
+    isBusy.value = false
+  }
 }
 
 async function openConfigInSystem() {

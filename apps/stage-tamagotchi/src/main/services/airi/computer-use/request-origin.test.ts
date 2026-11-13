@@ -40,12 +40,24 @@ describe('main request origin', () => {
     expect(() => manager.validateRequest('req_invented', attribution)).toThrow(/Unknown Host request/)
   })
 
-  it('closes tool admission when the model run finishes without treating pending approval as cancellation', () => {
+  // https://github.com/moeru-ai/airi/pull/3496
+  // ROOT CAUSE:
+  // Ended requests occupied the active quota until expiry.
+  // Main now keeps only ended requests that a Terminal action still references.
+  it.each(['finishRequest', 'cancelRequest'] as const)('reclaims requests without a Terminal action after %s', (end) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(1000)
     const manager = new PendingActionManager()
-    const request = manager.registerRequest(input, source)
-    manager.finishRequest(request.id, source)
-    expect(() => manager.validateRequest(request.id, attribution)).toThrow(/closed/)
-    expect(manager.validateRequest(request.id, attribution, { allowClosed: true }).cancelled).toBe(false)
+    for (let index = 0; index < 1024; index++) {
+      const request = manager.registerRequest({ ...input, turnId: `finished-${index}` }, source)
+      manager[end](request.id, source)
+    }
+
+    const old = manager.registerRequest(input, source)
+    manager[end](old.id, source)
+    expect(() => manager.validateRequest(old.id, attribution, { allowClosed: true })).toThrow(/Unknown Host request/)
+    const active = manager.registerRequest(input, source)
+    expect(manager.validateRequest(active.id, attribution)).toMatchObject({ closed: false, cancelled: false })
   })
 
   it('rejects cancellation from another source and then invalidates the correct request', () => {
@@ -53,7 +65,7 @@ describe('main request origin', () => {
     const request = manager.registerRequest(input, source)
     expect(() => manager.cancelRequest(request.id, 72)).toThrow()
     manager.cancelRequest(request.id, source)
-    expect(() => manager.validateRequest(request.id, attribution, { allowClosed: true })).toThrow(/cancelled/)
+    expect(() => manager.validateRequest(request.id, attribution, { allowClosed: true })).toThrow(/Unknown Host request/)
   })
 
   it('rejects expired requests with a controlled clock', () => {

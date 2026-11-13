@@ -108,9 +108,17 @@ export function bindTerminalApproval(params: {
         return
       }
       const backend = result.structuredContent.backendResult
-      const terminal = v.safeParse(v.object({ exitCode: v.number(), timedOut: v.boolean() }), backend)
-      const succeeded = !result.isError && terminal.success && terminal.output.exitCode === 0 && !terminal.output.timedOut
-      options.actions.settle(actionId, { outcome: succeeded ? 'success' : 'failed', executionState: terminal.success ? 'executed' : 'unknown', exitCode: terminal.success ? terminal.output.exitCode : undefined, error: succeeded ? undefined : JSON.stringify(result.content) })
+      const terminal = v.safeParse(v.object({ exitCode: v.pipe(v.number(), v.integer()), timedOut: v.boolean() }), backend)
+      if (!terminal.success) {
+        const error = 'The shell closed without a complete command result.'
+        options.actions.settle(actionId, { outcome: 'failed', executionState: 'unknown', error })
+        trace('settled', { result })
+        notify('unknown', result, error)
+        return
+      }
+      const { exitCode, timedOut } = terminal.output
+      const succeeded = !result.isError && exitCode === 0 && !timedOut
+      options.actions.settle(actionId, { outcome: succeeded ? 'success' : 'failed', executionState: 'executed', exitCode, error: succeeded ? undefined : JSON.stringify(result.content) })
       trace('settled', { result })
       notify(succeeded ? 'executed' : 'failed', result)
     }

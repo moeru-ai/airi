@@ -208,10 +208,22 @@ export class PendingActionManager {
 
   /** Ends new-tool admission without cancelling actions that already wait for an independent approval. */
   finishRequest(id: string, senderWebContentsId: number): void {
-    const request = this.requests.get(id)?.record
-    if (!request || request.senderWebContentsId !== senderWebContentsId)
+    const entry = this.requests.get(id)
+    if (!entry || entry.record.senderWebContentsId !== senderWebContentsId)
       throw new Error('Host request source does not match.')
-    request.closed = true
+    // Terminal actions keep the source for approval and Notice delivery until expiry.
+    if (this.hasTerminalAction(id))
+      entry.record.closed = true
+    else
+      this.requests.delete(id)
+  }
+
+  private hasTerminalAction(requestId: string) {
+    for (const action of this.actions.values()) {
+      if (action.terminal?.snapshot.requestId === requestId)
+        return true
+    }
+    return false
   }
 
   /** Invalidates an original request. Existing dispatches keep their real settlement. */
@@ -219,8 +231,10 @@ export class PendingActionManager {
     const request = this.requests.get(id)?.record
     if (!request || request.senderWebContentsId !== senderWebContentsId)
       throw new Error('Host request source does not match.')
-    request.cancelled = true
-    return this.cancelInvocation({ sessionId: request.sessionId, turnId: request.turnId, senderWebContentsId })
+    const cancelled = this.cancelInvocation({ sessionId: request.sessionId, turnId: request.turnId, senderWebContentsId })
+    if (!this.hasTerminalAction(id))
+      this.requests.delete(id)
+    return cancelled
   }
 
   /** Cancels a queued notice through the existing request owner, without revoking a committed executor operation. */

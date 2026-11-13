@@ -137,7 +137,11 @@ describe('main Terminal approval controller', () => {
     expect(await competing).toBe('stopped')
   })
 
-  it('retains unknown execution after a closed reply omits the exit code despite a controlled effect', async () => {
+  // https://github.com/moeru-ai/airi/pull/3496
+  // ROOT CAUSE:
+  // Main marked an incomplete result unknown but sent failed in the Notice.
+  // The Notice now keeps the unknown result and the closed lifecycle receipt.
+  it('reports unknown in the Notice when a closed reply lacks an exit code', async () => {
     const h = fixture()
     const originalRpc = h.rpc.getMockImplementation()!
     h.rpc.mockImplementation(async (input) => {
@@ -153,7 +157,10 @@ describe('main Terminal approval controller', () => {
     expect(h.oracle).toMatchObject({ dispatches: 1, effects: 1 })
     expect(h.actions.get(id)?.settlement).toMatchObject({ outcome: 'failed', executionState: 'unknown' })
     expect(h.actions.get(id)?.settlement?.exitCode).toBeUndefined()
-    expect(h.notices).toMatchObject([{ status: 'failed' }])
+    expect(h.notices).toMatchObject([{ status: 'unknown', result: { structuredContent: { terminalLifecycle: 'closed', backendResult: { timedOut: false } } } }])
+    const next = vi.fn(async () => {})
+    await h.runtime.executeInSlot(next)
+    expect(next).toHaveBeenCalledOnce()
   })
 
   it('returns preparation, waits outside the slot, then consumes exactly once before dispatch', async () => {

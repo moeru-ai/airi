@@ -7,6 +7,8 @@ Phase 5.1 extends the existing Main PendingAction owner. It does not add a secon
 Before provider startup, the normal Chat hook registers submitted text with Main.
 Main verifies its designated Runtime main frame, issues a request ID and captures the original routing labels.
 Session and Turn labels identify routing. They are not authenticated accounts.
+When a turn ends without a Terminal action, Main releases its request record.
+If registration fails, Chat can continue. Main still requires a registered request for Terminal.
 
 An operator can enable `AIRI_TRUSTED_TERMINAL=1` for a Main-managed direct stdio MCP server.
 Main gives that connection a private random credential. The server removes it from the child-process environment.
@@ -93,7 +95,8 @@ Normal replies must also report `executorInvoked=false` and `noNewDispatch=true`
 Missing identity, conflicting fields, or an unknown lifecycle cannot establish zero execution.
 Unconfirmed Terminal refusals retain the consumed approval and block further shared desktop mutations until Host shutdown.
 
-A closed reply without an exit code retains an unknown execution result.
+A closed reply without an exit code reports an unknown execution result in Main and in the notice.
+The notice keeps the closed lifecycle receipt.
 A nonzero exit or timeout retains evidence of execution and possible effects.
 Neither case restores approval or verifies the business outcome.
 Missing serialized execution facts also remain unknown.

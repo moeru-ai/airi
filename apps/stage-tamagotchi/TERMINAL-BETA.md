@@ -24,6 +24,7 @@ Open Settings → Modules → MCP servers. **Bundled Terminal** connects through
 It does not require a global Node or pnpm installation. Windows PowerShell must be available.
 Connection state updates while this page is open. Connected describes the transport, not a guarantee about a future command.
 Use **Save and restart** after changing the connection setting.
+When the restart finishes, Chat refreshes its Terminal tool list.
 
 The equivalent configuration is:
 
