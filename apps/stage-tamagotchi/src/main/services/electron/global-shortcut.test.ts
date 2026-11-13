@@ -453,6 +453,29 @@ describe('setupGlobalShortcutService', () => {
     expect(result.ok).toBe(true)
   })
 
+  // https://github.com/moeru-ai/airi/pull/3383#discussion_r4553727561
+  // ROOT CAUSE:
+  //
+  // The uiohook driver loads at its first use. A window that closed during the load released nothing,
+  // because its binding had no owner yet. The binding stayed, so the reopened window got `duplicate-id`.
+  //
+  // We fixed this by releasing a registration that finishes after its window closed.
+  it('releases a registration that finishes after its window closed', async () => {
+    const m = await setupMocks()
+    const service = m.setupGlobalShortcutService()
+    const ctx = createMockContext()
+    const win = registerMockWindow(service, ctx)
+
+    const pending = ctx.invokeHandlers.get('eventa:invoke:electron:shortcut:register')!({ ...exampleBinding('ptt'), receiveKeyUps: true })
+    win.close()
+    await pending
+
+    const reopened = createMockContext()
+    registerMockWindow(service, reopened)
+    const result = await reopened.invokeHandlers.get('eventa:invoke:electron:shortcut:register')!({ ...exampleBinding('ptt'), receiveKeyUps: true })
+    expect(result).toEqual({ id: 'ptt', ok: true })
+  })
+
   it('hooks dispose into onAppBeforeQuit and clears state on call', async () => {
     const m = await setupMocks()
     const service = m.setupGlobalShortcutService()

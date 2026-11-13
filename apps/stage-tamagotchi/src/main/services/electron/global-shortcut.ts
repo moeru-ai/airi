@@ -210,8 +210,15 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
     })
 
     function recordOwner(result: ShortcutRegistrationResult) {
-      if (result.ok)
-        owners.set(result.id, context)
+      if (!result.ok)
+        return result
+      // The uiohook driver loads at its first use, so a registration can finish after its window closed. The closed
+      // window released nothing, because the binding had no owner yet. No window reads the result.
+      if (!contexts.has(context)) {
+        unregisterById(result.id)
+        return result
+      }
+      owners.set(result.id, context)
       return result
     }
 
