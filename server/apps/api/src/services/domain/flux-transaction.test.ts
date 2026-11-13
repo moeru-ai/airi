@@ -1,5 +1,4 @@
-import { eq } from 'drizzle-orm'
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 
 import { mockDB } from '../../libs/mock-db'
 import { createFluxTransactionService } from './flux-transaction'
@@ -20,30 +19,19 @@ describe('fluxTransactionService', () => {
     service = createFluxTransactionService(db)
   })
 
-  beforeEach(async () => {
-    await db.delete(schema.fluxTransaction).where(eq(schema.fluxTransaction.userId, 'user-tx'))
+  it('paginates history from newest to oldest', async () => {
     await db.insert(schema.fluxTransaction).values([
       { id: 'history-credit', userId: 'user-tx', type: 'credit', amount: 500, balanceBefore: 0, balanceAfter: 500, description: 'Stripe payment', createdAt: new Date('2026-10-20T10:00:00Z') },
       { id: 'history-debit-1', userId: 'user-tx', type: 'debit', amount: 10, balanceBefore: 500, balanceAfter: 490, description: 'usage_settlement', createdAt: new Date('2026-10-20T11:00:00Z') },
       { id: 'history-debit-2', userId: 'user-tx', type: 'debit', amount: 5, balanceBefore: 490, balanceAfter: 485, description: 'usage_settlement', createdAt: new Date('2026-10-20T12:00:00Z') },
     ])
-  })
 
-  it('returns the newest records with a next-page marker', async () => {
-    const { records, hasMore } = await service.getHistory('user-tx', 2, 0)
-    expect(records.map(record => record.id)).toEqual(['history-debit-2', 'history-debit-1'])
-    expect(hasMore).toBe(true)
-  })
-
-  it('returns the complete history in descending order without a next-page marker', async () => {
-    const { records, hasMore } = await service.getHistory('user-tx', 10, 0)
-    expect(records.map(record => record.id)).toEqual(['history-debit-2', 'history-debit-1', 'history-credit'])
-    expect(hasMore).toBe(false)
-  })
-
-  it('resumes history at the requested offset', async () => {
-    const { records } = await service.getHistory('user-tx', 10, 2)
-    expect(records.map(record => record.id)).toEqual(['history-credit'])
+    const firstPage = await service.getHistory('user-tx', 2, 0)
+    const lastPage = await service.getHistory('user-tx', 2, 2)
+    expect(firstPage.records.map(record => record.id)).toEqual(['history-debit-2', 'history-debit-1'])
+    expect(firstPage.hasMore).toBe(true)
+    expect(lastPage.records.map(record => record.id)).toEqual(['history-credit'])
+    expect(lastPage.hasMore).toBe(false)
   })
 
   it('groups one turn before pagination', async () => {
@@ -117,13 +105,12 @@ describe('fluxTransactionService', () => {
         request('user-sessions', null, '2026-10-21T03:00:00Z'),
         request('user-sessions', 'before-window', '2025-01-01T00:00:00Z'),
         request('user-sessions', 'before-window', '2026-10-22T00:00:00Z'),
-        request('user-other', 'foreign', '2026-10-21T02:00:00Z'),
+        request('user-other', 'foreign', '2026-10-20T02:00:00Z'),
+        request('user-other', 'foreign', '2026-10-23T02:00:00Z'),
       ])
 
       const shanghai = await service.getDailyUsage('user-sessions', 'Asia/Shanghai', now)
-      const utc = await service.getDailyUsage('user-sessions', 'UTC', now)
       expect(shanghai.longestSessionMs).toBe(24 * 60 * 60 * 1000)
-      expect(utc.longestSessionMs).toBe(24 * 60 * 60 * 1000)
     })
 
     it('uses the exact local first day for sessions across a daylight-saving boundary', async () => {

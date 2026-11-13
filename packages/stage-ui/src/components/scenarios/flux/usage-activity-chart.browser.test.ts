@@ -14,7 +14,7 @@ import 'virtual:uno.css'
 function createDays(): DailyUsage[] {
   const days = Array.from({ length: 365 }, (_, index) => ({
     date: new Date(Date.UTC(2026, 9, 25) - (364 - index) * 86_400_000).toISOString().slice(0, 10),
-    microFlux: index >= 362 ? (index - 361) * 1_000_000 : 0,
+    microFlux: index >= 362 ? (index - 361) * 1_000_000 + 250_000 : 0,
   }))
   days[357]!.microFlux = 10_000_000
   return days
@@ -35,21 +35,21 @@ describe('flux activity chart', () => {
     const screen = await renderChart()
     const targets = screen.getByRole('img', { name: 'Daily Flux usage' }).element().querySelectorAll('rect.fill-transparent')
     await userEvent.hover(page.elementLocator(targets[targets.length - 1]!))
-    await expect.element(screen.getByRole('status')).toHaveTextContent('3 Flux')
+    await expect.element(screen.getByRole('status')).toHaveTextContent('3.25 Flux')
     const chart = screen.getByRole('group', { name: 'Flux activity for the last 365 days' }).element() as HTMLElement
     chart.focus()
     await userEvent.keyboard('{ArrowLeft}')
-    await expect.element(screen.getByRole('status')).toHaveTextContent('2 Flux')
+    await expect.element(screen.getByRole('status')).toHaveTextContent('2.25 Flux')
 
     await screen.getByRole('button', { name: 'Weekly', exact: true }).click()
     expect(screen.getByRole('status').elements()).toHaveLength(0)
     await expect.element(screen.getByRole('button', { name: 'Weekly', exact: true })).toHaveAttribute('aria-pressed', 'true')
     chart.focus()
-    await expect.element(screen.getByRole('status')).toHaveTextContent('6 Flux')
+    await expect.element(screen.getByRole('status')).toHaveTextContent('6.75 Flux')
 
     await screen.getByRole('button', { name: 'Cumulative', exact: true }).click()
     chart.focus()
-    await expect.element(screen.getByRole('status')).toHaveTextContent('16 Flux')
+    await expect.element(screen.getByRole('status')).toHaveTextContent('16.75 Flux')
     await userEvent.keyboard('{Escape}')
     expect(screen.getByRole('status').elements()).toHaveLength(0)
   })
