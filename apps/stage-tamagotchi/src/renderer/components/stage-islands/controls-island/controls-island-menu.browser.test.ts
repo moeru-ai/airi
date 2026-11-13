@@ -249,13 +249,14 @@ describe('controls Island', () => {
 })
 
 describe('controls Island menu account', () => {
-  it('offers sign-in without Subscription or Notifications while signed out', async () => {
+  it('offers sign-in without Flux or Notifications while signed out', async () => {
     const { screen } = mountIsland()
 
     await screen.getByTestId('controls-island-more').click()
     await menuItem('controls-island-sign-in').click()
 
     expect(invokes.startLogin).toHaveBeenCalledOnce()
+    expect(document.querySelector('[data-testid="controls-island-flux"]')).toBeNull()
     expect(document.querySelector('[data-testid="controls-island-subscription"]')).toBeNull()
     expect(document.querySelector('[data-testid="controls-island-notifications"]')).toBeNull()
     expect(document.querySelector('[data-testid="controls-island-notifications-dot"]')).toBeNull()
@@ -268,15 +269,14 @@ describe('controls Island menu account', () => {
     await vi.waitFor(() => expect(invokes.startLogin).toHaveBeenCalledOnce())
   })
 
-  it('shows the account and opens the account page', async () => {
+  it('shows the account with its Flux balance and opens the account page', async () => {
     signIn()
     const { screen } = mountIsland()
 
     await screen.getByTestId('controls-island-more').click()
     const account = menuItem('controls-island-account')
     await expect.element(account).toHaveTextContent('Airi User')
-    // The Flux balance is on the Subscription row, not on the account row.
-    await expect.element(account).not.toHaveTextContent('Flux')
+    await expect.element(menuItem('controls-island-flux')).toHaveTextContent('1,200 Flux')
     // An account without a picture shows a beam avatar made from its ID.
     expect(account.element().querySelector('[data-beam-avatar]')).not.toBeNull()
 
@@ -285,14 +285,13 @@ describe('controls Island menu account', () => {
     expect(invokes.openSettings).toHaveBeenCalledWith({ route: '/settings/account' })
   })
 
-  it('shows the Flux balance on the Subscription row and opens the Subscription page', async () => {
+  it('opens the Subscription page from its row', async () => {
     signIn()
     const { screen } = mountIsland()
 
     await screen.getByTestId('controls-island-more').click()
     const subscription = menuItem('controls-island-subscription')
     await expect.element(subscription).toHaveTextContent('Subscription')
-    await expect.element(menuItem('controls-island-flux')).toHaveTextContent('1,200 Flux')
 
     await subscription.click()
 

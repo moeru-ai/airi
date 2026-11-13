@@ -54,8 +54,8 @@ const requestNotice = useElectronEventaInvoke(noticeWindowEventa.openWindow)
 // Account: one row at the top, as an app menu shows who is signed in.
 const authStore = useAuthStore()
 const { isAuthenticated, user, needsLogin } = storeToRefs(authStore)
-// The Subscription row follows the shared rule: the Capacitor percent for a subscriber, otherwise the Flux balance.
-const { visible: fluxVisible, subscribed, low, valueLabel: fluxValue, icon: fluxIcon } = useFluxStatus()
+// The Flux line follows the shared rule: the Capacitor percent for a subscriber, otherwise the Flux balance.
+const { subscribed, low, valueLabel: fluxValue, icon: fluxIcon } = useFluxStatus()
 const signingIn = ref(false)
 
 function signIn() {
@@ -221,25 +221,27 @@ useBackdropSurface(() => characterSurfaceAnchor.value?.closest<HTMLElement>('[ro
         :seed="user?.id"
         :class="['size-8 shrink-0 overflow-hidden rounded-full bg-primary-100 text-primary-600 dark:bg-primary-900/50 dark:text-primary-200']"
       />
-      <span :class="['min-w-0 flex-1 truncate font-semibold']">{{ user?.name }}</span>
+      <span :class="['min-w-0 flex flex-1 flex-col gap-1']">
+        <span :class="['truncate font-semibold']">{{ user?.name }}</span>
+        <span
+          data-testid="controls-island-flux"
+          :class="[
+            'flex items-center gap-1 text-xs tabular-nums',
+            subscribed && low ? 'text-orange-600 dark:text-orange-300' : 'text-neutral-500 dark:text-neutral-400',
+          ]"
+        >
+          <span aria-hidden="true" :class="[fluxIcon, 'size-3.5 shrink-0']" />
+          {{ subscribed ? fluxValue : `${fluxValue} Flux` }}
+        </span>
+      </span>
     </MenuItem>
-    <!-- One click to the Subscription page, as the header of the web app and the phone menu give. -->
+    <!-- The way to the Subscription page. The account row above already shows the Flux value. -->
     <MenuItem
-      v-if="fluxVisible"
+      v-if="isAuthenticated"
       data-testid="controls-island-subscription"
       @select="openSettingsAt(AIRI_FLUX_URL, 'open_subscription')"
     >
-      <span aria-hidden="true" :class="[fluxIcon, 'size-4 shrink-0 opacity-60']" />
-      <span :class="['flex-1']">{{ t('settings.pages.flux.title') }}</span>
-      <span
-        data-testid="controls-island-flux"
-        :class="[
-          'text-xs font-medium tabular-nums',
-          subscribed && low ? 'text-orange-600 dark:text-orange-300' : 'text-primary-600 dark:text-primary-300',
-        ]"
-      >
-        {{ subscribed ? fluxValue : `${fluxValue} Flux` }}
-      </span>
+      {{ t('settings.pages.flux.title') }}
     </MenuItem>
     <MenuItem v-else data-testid="controls-island-sign-in" :disabled="signingIn" @select="signIn">
       <span v-if="signingIn" aria-hidden="true" :class="['i-svg-spinners:ring-resize size-4 shrink-0 text-primary-500']" />
