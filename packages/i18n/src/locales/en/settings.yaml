@@ -438,8 +438,8 @@ pages:
           title: Providers
           description: Your provider settings, with their API keys. The server keeps them encrypted.
         character_cards:
-          title: Character cards
-          description: Your character cards. A card that you delete stays restorable for 30 days.
+          title: Characters
+          description: Your characters. A character that you delete stays restorable for 30 days.
         display_models:
           title: Models
           description: The Live2D and VRM models that you import. Large files use your account storage and network data.
@@ -498,21 +498,21 @@ pages:
   card:
     wake-word-conflicts:
       title: 'One shared wake word pronunciation needs a character | {count} shared wake word pronunciations need a character'
-      description: Two cards use the same pronunciation. No character answers it until you choose one.
+      description: Two characters use the same pronunciation. No character answers it until you choose one.
       action: Choose who answers
     sync:
-      notice: Character cards sync to your account. A deleted card stays restorable for 30 days.
+      notice: Characters sync to your account. A deleted character stays restorable for 30 days.
       state:
         synced: Synced to your account
         pending: Waiting to upload
-        refused: Not uploaded. Your account has no room for more cards, so this card stays on this device.
+        refused: Not uploaded. Your account has no room for more characters, so this character stays on this device.
       conflict_copy_name: '{name} (conflict copy)'
       conflict_notice: Another device changed the same character. AIRI kept the version from this device as a copy.
       history:
         tab: History
-        empty: No history yet for this card.
+        empty: No history yet for this character.
         loading: Loading history…
-        load_failed: Could not load the history of this card.
+        load_failed: Could not load the history of this character.
         current: Current
         changed_label: Changed
         removed_label: Removed
@@ -559,7 +559,7 @@ pages:
         days_left: '{days} days left to restore'
         restore: Restore
         restore_success: Restored {name}.
-        restore_failed: Could not restore this card. The server may no longer have its content.
+        restore_failed: Could not restore this character. The server may no longer have its content.
     activate: Activate
     active: Active
     active_badge: Currently Active
@@ -567,7 +567,7 @@ pages:
     cancel: Cancel action
     save: Save changes
     save_and_activate: Save and activate
-    card_not_found: Card not found
+    card_not_found: Character not found
     back: Back
     character: Character
     close: Close
@@ -581,14 +581,14 @@ pages:
     created_by: created by
     creator_notes: Creator Notes
     delete: Delete
-    delete_card: Delete Card
-    delete_confirmation: Are you sure you want to delete this card?
-    description: Manage AIRI character cards
+    delete_card: Delete character
+    delete_confirmation: Are you sure you want to delete this character?
+    description: Manage your characters
     description_label: Description
     drop_here: Drop to upload
-    create_card: Create a new Card
-    edit_card: Edit Card
-    saved: Card saved
+    create_card: Create a new character
+    edit_card: Edit character
+    saved: Character saved
     unsaved:
       badge: Unsaved
       title: Discard changes?
@@ -613,7 +613,7 @@ pages:
         systemprompt: You will receive messages, answer to them like a real human.
         posthistoryinstructions: Remember to imitate an human.
       modules_info: >-
-        Configure modules for this character card. Empty chat, vision, and speech fields inherit global settings. No Body Model disables the renderer.
+        Configure modules for this character. Empty chat, vision, and speech fields inherit global settings. No Body Model disables the renderer.
       sections:
         chat: Chat
         vision: Vision
@@ -651,7 +651,7 @@ pages:
         model_required: Select a model for each explicit provider. Models cannot be inherited from a different provider.
         name: Name should be valid or non-empty.
         version: 'Error: Invalid version number !'
-        description: 'Error: You must provide a description for this card.'
+        description: 'Error: You must provide a description for this character.'
         personality: 'Error: A personality must be provided for this character.'
         scenario: 'Error: A scenario is required.'
         systemprompt: 'Error: Please, provide a system prompt.'
@@ -662,18 +662,18 @@ pages:
     modules: Modules
     name_asc: Name (A-Z)
     name_desc: Name (Z-A)
-    no_cards: No cards yet. Click the button above to upload one!
-    no_results: No matching cards found
+    no_cards: No characters yet. Click the button above to import one!
+    no_results: No matching characters found
     personality: Personality
     posthistoryinstructions: Post-History Instructions
     context_window: Turns to remember
     context_window_all: All
     recent: Recently Added
     scenario: Scenario
-    search: Search cards...
+    search: Search characters...
     sort_by: Sort by
     body-model: Body / Display Model
-    view-card: View card
+    view-card: View character
     model_not_bound: No model selected
     gallery: Gallery
     pinned_background: Pinned background
@@ -692,7 +692,7 @@ pages:
       model: Speech / Model
       voice: Speech / Voice
     systemprompt: System Prompt
-    title: AIRI Card
+    title: Characters
     try_different_search: Try a different search term
     export: Export
     exported: Card package exported
@@ -882,7 +882,7 @@ pages:
       description: Image generation, scene background and drawing.
       page:
         title: Artistry Provider Configuration
-        description: Select the active backend provider for image generation. Characters can override this in their Card settings.
+        description: Select the active backend provider for image generation. Characters can override this in their own settings.
       providers:
         none:
           name: None
@@ -1043,7 +1043,7 @@ pages:
       wake-words:
         title: Wake words
         description: See the wake words of each character, and choose who answers a shared pronunciation.
-        intro: Each character keeps its wake words on its card. To change the words, ask the character in chat.
+        intro: Each character keeps its own wake words. To change the words, ask the character in chat.
         empty: This character has no wake words.
         state:
           active: Active
@@ -1052,7 +1052,7 @@ pages:
           unsupported: Not available with the current wake word model
         conflicts:
           title: Shared pronunciations
-          description: Two or more characters use the same pronunciation. Choose the character that answers it on this device. Each card keeps its words.
+          description: Two or more characters use the same pronunciation. Choose the character that answers it on this device. Each character keeps its words.
           choose-label: Character that answers
           choose: '{name} ("{word}")'
           answered-by: '{name} answers'
@@ -2178,7 +2178,7 @@ pages:
             remove: Remove
             config_snippet: Artistry Config Snippet
             copy_json: Copy JSON
-            paste_hint: Paste this into your AIRI Card artistry config to override these nodes.
+            paste_hint: Paste this into the artistry config of your character to override these nodes.
           upload:
             prompt: Drop or select a workflow_api.json file
             invalid_json: Invalid JSON
@@ -2200,7 +2200,7 @@ pages:
             placeholder: r8_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
           default_model:
             label: Default Model
-            description: Fallback owner/model string to use if the character card doesn't specify one
+            description: Fallback owner/model string to use if the character doesn't specify one
             placeholder: black-forest-labs/flux-schnell
           aspect_ratio:
             label: Aspect Ratio
@@ -2795,7 +2795,7 @@ pages:
     title: Scenes
     description: Customize the virtual environment for your characters.
     beta_label: Scenes System
-    beta_description: Each character card specifies its own preferred background
+    beta_description: Each character specifies its own preferred background
       from this gallery. Setting it here will set it as the default for the
       currently active character.
     background_image:
