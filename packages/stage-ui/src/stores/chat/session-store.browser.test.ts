@@ -436,6 +436,34 @@ describe('chat session synchronization', () => {
     expect(Object.keys(leaderChatStore.index?.characters.default?.sessions ?? {})).toHaveLength(1)
   })
 
+  // ROOT CAUSE:
+  //
+  // The session action that resolves the canonical session runs in the leader, and it wrote the selection of the
+  // leader window. A follower that initialized moved the leader window back to the index session of the character.
+  // The action now returns the id only, and the window that asked selects it.
+  it('keeps the session that the leader window shows when a follower initializes', async () => {
+    const namespace = `chat-session:${crypto.randomUUID()}`
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+
+    setActivePinia(leaderContext.pinia)
+    const leaderChatStore = useChatSessionStore()
+    await leaderChatStore.initialize()
+    const indexSessionId = leaderChatStore.activeSessionId
+    const shownSessionId = await leaderChatStore.createSession('default', { setActive: false })
+    await leaderChatStore.setActiveSession(shownSessionId)
+
+    const followerContext = createSyncedContext(namespace, 'follower-only')
+    setActivePinia(followerContext.pinia)
+    const followerChatStore = useChatSessionStore()
+    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+
+    await followerChatStore.initialize()
+
+    expect(followerChatStore.activeSessionId).toBe(indexSessionId)
+    expect(leaderChatStore.activeSessionId).toBe(shownSessionId)
+  })
+
   // https://github.com/moeru-ai/airi/issues/2595
   it('keeps a new conversation selected after its first synchronized message for Issue #2595', async () => {
     // ROOT CAUSE:
