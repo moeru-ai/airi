@@ -5,6 +5,7 @@ import { InboxPanel } from '@proj-airi/stage-ui/components'
 import { useBackdropSurface } from '@proj-airi/stage-ui/composables/backdrop-surface'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useFluxStatus } from '@proj-airi/stage-ui/composables/use-flux-status'
+import { AIRI_FLUX_URL } from '@proj-airi/stage-ui/constants/public-links'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useInboxStore } from '@proj-airi/stage-ui/stores/inbox'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
@@ -53,8 +54,8 @@ const requestNotice = useElectronEventaInvoke(noticeWindowEventa.openWindow)
 // Account: one row at the top, as an app menu shows who is signed in.
 const authStore = useAuthStore()
 const { isAuthenticated, user, needsLogin } = storeToRefs(authStore)
-// The Flux line follows the shared rule: the Capacitor percent for a subscriber, otherwise the Flux balance.
-const { subscribed, low, valueLabel: fluxValue, icon: fluxIcon } = useFluxStatus()
+// The Subscription row follows the shared rule: the Capacitor percent for a subscriber, otherwise the Flux balance.
+const { visible: fluxVisible, subscribed, low, valueLabel: fluxValue, icon: fluxIcon } = useFluxStatus()
 const signingIn = ref(false)
 
 function signIn() {
@@ -154,7 +155,7 @@ async function setFadeOnHover(on: boolean) {
   trackControlsIslandAction({ action: on ? 'enable_fade_on_hover' : 'disable_fade_on_hover' })
 }
 
-function openSettingsAt(route: string, action: 'toggle_settings' | 'open_account' | 'manage_profiles') {
+function openSettingsAt(route: string, action: 'toggle_settings' | 'open_account' | 'open_subscription' | 'manage_profiles') {
   trackControlsIslandAction({ action })
   openSettings({ route })
 }
@@ -220,18 +221,24 @@ useBackdropSurface(() => characterSurfaceAnchor.value?.closest<HTMLElement>('[ro
         :seed="user?.id"
         :class="['size-8 shrink-0 overflow-hidden rounded-full bg-primary-100 text-primary-600 dark:bg-primary-900/50 dark:text-primary-200']"
       />
-      <span :class="['min-w-0 flex flex-1 flex-col gap-1']">
-        <span :class="['truncate font-semibold']">{{ user?.name }}</span>
-        <span
-          data-testid="controls-island-flux"
-          :class="[
-            'flex items-center gap-1 text-xs tabular-nums',
-            subscribed && low ? 'text-orange-600 dark:text-orange-300' : 'text-neutral-500 dark:text-neutral-400',
-          ]"
-        >
-          <span aria-hidden="true" :class="[fluxIcon, 'size-3.5 shrink-0']" />
-          {{ subscribed ? fluxValue : `${fluxValue} Flux` }}
-        </span>
+      <span :class="['min-w-0 flex-1 truncate font-semibold']">{{ user?.name }}</span>
+    </MenuItem>
+    <!-- One click to the Subscription page, as the header of the web app and the phone menu give. -->
+    <MenuItem
+      v-if="fluxVisible"
+      data-testid="controls-island-subscription"
+      @select="openSettingsAt(AIRI_FLUX_URL, 'open_subscription')"
+    >
+      <span aria-hidden="true" :class="[fluxIcon, 'size-4 shrink-0 opacity-60']" />
+      <span :class="['flex-1']">{{ t('settings.pages.flux.title') }}</span>
+      <span
+        data-testid="controls-island-flux"
+        :class="[
+          'text-xs font-medium tabular-nums',
+          subscribed && low ? 'text-orange-600 dark:text-orange-300' : 'text-primary-600 dark:text-primary-300',
+        ]"
+      >
+        {{ subscribed ? fluxValue : `${fluxValue} Flux` }}
       </span>
     </MenuItem>
     <MenuItem v-else data-testid="controls-island-sign-in" :disabled="signingIn" @select="signIn">
