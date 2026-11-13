@@ -74,6 +74,8 @@ No old provider stream is resumed. The notice grants no permission to another co
 
 `stored` acknowledges the message receipt. It does not confirm generation completion or business success.
 Explicit cancellation suppresses a replacement notice. A queued notice also follows the original request cancellation signal until storage.
+Main keeps completed actions until the request expires and Notice delivery is acknowledged or suppressed.
+Main retains unsettled actions and actions without a Notice receipt.
 After storage, it is a distinct turn with its own Chat cancellation. Delivery-context cleanup cannot cancel that new generation.
 The default facade behavior still waits for completion. Only the Host adapter opts into the storage receipt.
 

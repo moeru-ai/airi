@@ -2,6 +2,9 @@
 
 Scope: terminal lane work in `services/computer-use-mcp/**`.
 
+Terminal exec and reset skip CDP discovery in the shared action pipeline.
+Linux X11 still checks the remote target, display bounds, and screenshot binding before execution.
+
 ## Native observation admission: 2026-11-09
 
 The MCP AUV configuration reports native observation, foreground and display metadata unavailable.

@@ -1060,8 +1060,12 @@ describe('createExecuteAction', () => {
     expect(runtime.terminalRunner.execute).not.toHaveBeenCalled()
   })
 
-  it('allows terminal_exec with the AUV desktop surface unavailable', async () => {
-    const { runtime, executor } = createRuntimeForActionTest({
+  // https://github.com/moeru-ai/airi/pull/3496
+  // ROOT CAUSE:
+  // Terminal waited for a CDP probe in the shared run state refresh.
+  // Terminal now refreshes the facts its policy checks use without probing CDP.
+  it('executes Terminal without probing CDP when the AUV desktop surface is unavailable (PR #3496)', async () => {
+    const { runtime, executor, cdpBridgeManager } = createRuntimeForActionTest({
       executor: 'auv',
       approvalMode: 'never',
     })
@@ -1084,5 +1088,6 @@ describe('createExecuteAction', () => {
     const structured = result.structuredContent as Record<string, any>
     expect(structured.status).toBe('executed')
     expect(runtime.terminalRunner.execute).toHaveBeenCalledTimes(1)
+    expect(cdpBridgeManager.probeAvailability).not.toHaveBeenCalled()
   })
 })

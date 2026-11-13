@@ -1,3 +1,4 @@
+import type { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
 
 import type {
@@ -21,7 +22,6 @@ import { join } from 'node:path'
 import { env, execPath } from 'node:process'
 
 import { useLogg } from '@guiiai/logg'
-import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { defineInvokeHandler } from '@moeru/eventa'
@@ -43,6 +43,7 @@ import { isHttpServerConfig, parseElectronMcpConfigText } from '../../../../shar
 import { onAppBeforeQuit } from '../../../libs/bootkit/lifecycle'
 import { requireMainFrameSender } from '../../../libs/electron/window-context'
 import { validateAttribution } from '../computer-use/attribution'
+import { McpClient } from './client'
 import { bindTerminalApproval } from './terminal-approval'
 
 /** A transport that the MCP client can drive. Both kinds expose `close`. */
@@ -231,7 +232,7 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
     const terminalNonce = !isHttpServerConfig(config) && config.env?.[terminalControlEnabledEnv] === '1' && terminalApproval ? randomBytes(32).toString('hex') : undefined
     const controlledConfig = terminalNonce && !isHttpServerConfig(config) ? { ...config, env: { ...config.env, [terminalControlNonceEnv]: terminalNonce } } : config
     const transport = createTransport(controlledConfig)
-    const client = new Client({
+    const client = new McpClient({
       name: `proj-airi:stage-tamagotchi:mcp:${name}`,
       version: app.getVersion(),
     })
@@ -390,17 +391,19 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
     }
     if (exposureOf(serverName, session, toolName) === 'disabled')
       throw new Error(`MCP tool is disabled by the Host: ${payload.name}`)
-    const attribution = payload.requestId && terminalApproval ? validateAttribution(payload.attribution, senderWebContentsId) : undefined
-    if (payload.requestId && terminalApproval && attribution)
-      terminalApproval.actions.validateRequest(payload.requestId, attribution)
-    const controlledTerminal = !!session.terminalNonce && toolName === 'terminal_exec'
-    if (controlledTerminal && (!attribution?.toolCallId || !payload.requestId))
-      throw new Error('Terminal execution requires a normal Chat request registered by the Host.')
+    const nonce = toolName === 'terminal_exec' ? session.terminalNonce : undefined
+    const requestId = payload.requestId
+    const attribution = nonce && requestId ? validateAttribution(payload.attribution, senderWebContentsId) : undefined
+    if (nonce) {
+      if (!terminalApproval || !requestId || !attribution?.toolCallId)
+        throw new Error('Terminal execution requires a normal Chat request registered by the Host.')
+      terminalApproval.actions.validateRequest(requestId, attribution)
+    }
 
     const result = await session.client.callTool({
       name: toolName,
       arguments: payload.arguments ?? {},
-      ...(controlledTerminal ? { _meta: { [terminalOriginMetaKey]: { nonce: session.terminalNonce, requestId: payload.requestId, toolCallId: attribution?.toolCallId } } } : {}),
+      ...(nonce ? { _meta: { [terminalOriginMetaKey]: { nonce, requestId, toolCallId: attribution?.toolCallId } } } : {}),
     }, undefined, {
       timeout: mcpRequestTimeoutMsec,
       maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
@@ -421,8 +424,8 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
       normalized.toolResult = result.toolResult
     }
 
-    if (controlledTerminal && attribution && terminalApproval && session.terminalNonce && normalized.structuredContent?.status === 'approval_required') {
-      return bindTerminalApproval({ options: terminalApproval, connection: { client: session.client, serverName, nonce: session.terminalNonce, pid: session.transport instanceof StdioClientTransport ? session.transport.pid : null, isCurrent: () => sessions.get(serverName) === session }, payload, attribution, result: normalized })
+    if (nonce && attribution && terminalApproval && normalized.structuredContent?.status === 'approval_required') {
+      return bindTerminalApproval({ options: terminalApproval, connection: { client: session.client, serverName, nonce, pid: session.transport instanceof StdioClientTransport ? session.transport.pid : null, isCurrent: () => sessions.get(serverName) === session }, payload, attribution, result: normalized })
     }
     return normalized
   }
@@ -468,7 +471,7 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
 
     try {
       transport = createTransport(payload.config)
-      client = new Client({
+      client = new McpClient({
         name: `proj-airi:stage-tamagotchi:mcp:test:${payload.name}`,
         version: app.getVersion(),
       })

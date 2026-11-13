@@ -245,8 +245,9 @@ function getPolicyEvaluationContext(params: {
 export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteAction {
   return async (action, toolName, options = {}) => {
     const normalizedAction = normalizeConfiguredAppAction(action, runtime.config.openableApps)
-    const { executionTarget, context: actualContext, displayInfo } = await refreshRuntimeRunState(runtime)
-    const terminalBackend = normalizedAction.kind.startsWith('terminal_') ? runtime.terminalRunner.describe().kind : undefined
+    const isTerminal = normalizedAction.kind === 'terminal_exec' || normalizedAction.kind === 'terminal_reset'
+    const { executionTarget, context: actualContext, displayInfo } = await refreshRuntimeRunState(runtime, { probeBrowser: !isTerminal })
+    const terminalBackend = isTerminal ? runtime.terminalRunner.describe().kind : undefined
     const context = getPolicyEvaluationContext({
       action: normalizedAction,
       actualContext,

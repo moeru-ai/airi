@@ -54,20 +54,26 @@ vi.mock('../../../libs/bootkit/lifecycle', () => ({
   onAppBeforeQuit: vi.fn(),
 }))
 
-vi.mock('@modelcontextprotocol/sdk/client/index.js', () => ({
-  Client: class {
-    onclose?: Client['onclose']
-    onerror?: Client['onerror']
-    constructor() {
-      clientMocks.instances.push(this)
-    }
+vi.mock('@modelcontextprotocol/sdk/client/index.js', async (importOriginal) => {
+  const { Client } = await importOriginal<typeof import('@modelcontextprotocol/sdk/client/index.js')>()
+  return {
+    Client: class extends Client {
+      constructor(...args: ConstructorParameters<typeof Client>) {
+        super(...args)
+        clientMocks.instances.push(this)
+      }
 
-    callTool = clientMocks.callTool
-    close = clientMocks.close
-    connect = clientMocks.connect
-    listTools = clientMocks.listTools
-  },
-}))
+      callTool = clientMocks.callTool
+      close = clientMocks.close
+      connect = clientMocks.connect
+
+      override async request(...[request, , options]: Parameters<Client['request']>) {
+        expect(request.method).toBe('tools/list')
+        return clientMocks.listTools.call(this, request.params, options)
+      }
+    },
+  }
+})
 
 vi.mock('@modelcontextprotocol/sdk/client/stdio.js', async () => {
   const { PassThrough } = await import('node:stream')
@@ -270,11 +276,71 @@ describe('createMcpManager', () => {
     expect((await manager.listTools())[0].exposure).toBe('router-only')
   })
 
+  // https://github.com/moeru-ai/airi/pull/3496
+  // ROOT CAUSE:
+  // The SDK returns one page per request and replaces its metadata after each list call.
+  // The client collects all pages before the SDK installs the catalog.
+  it('returns later MCP pages through exact and full discovery (PR #3496)', async () => {
+    const manager = await startServers('fixture')
+    const tools = ['first', 'inspect', 'last'].map(name => ({ name, inputSchema: { type: 'object' } }))
+    const page = (index: number) => ({
+      tools: [tools[index]],
+      nextCursor: index < tools.length - 1 ? String(index + 1) : undefined,
+    })
+    clientMocks.listTools.mockImplementation(async params => page(Number(params?.cursor ?? 0)))
+    const [list] = await createMcpTools({ listTools: manager.listTools, callTool: payload => manager.callTool(payload) })
+    const result = await list.execute({ name: 'fixture::inspect' }, { messages: [], toolCallId: 'discovery' })
+
+    expect(result).toMatchObject([{ name: 'fixture::inspect', inputSchema: tools[1].inputSchema }])
+    expect(clientMocks.listTools.mock.calls.map(([params]) => params?.cursor)).toEqual([undefined, '1', '2'])
+    expect((await manager.listTools()).map(tool => tool.toolName)).toEqual(['first', 'inspect', 'last'])
+    expect(clientMocks.callTool).not.toHaveBeenCalled()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/3496
+  // ROOT CAUSE:
+  // Main checked the Terminal request lifetime for calls to any MCP server.
+  // Only the bundled Terminal execution path checks that lifetime.
+  it('keeps external MCP calls independent of the Terminal request TTL (PR #3496)', async () => {
+    const actions = new PendingActionManager()
+    const manager = createMcpManager({
+      actions,
+      present: vi.fn(async () => false),
+      executeInSlot: async operation => operation(new AbortController().signal, () => {}),
+      notify: async notice => ({ status: 'stored', sessionId: notice.sessionId, messageId: `terminal:${notice.actionId}` }),
+    })
+    managers.push(manager)
+    await manager.writeConfigText(JSON.stringify({ terminalEnabled: false, mcpServers: { fixture: { command: 'test-mcp-server' } } }))
+    await manager.applyAndRestart()
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(1_000)
+      const origin = { sessionId: 'session-a', turnId: 'turn-a' }
+      const request = actions.registerRequest({ ...origin, text: 'Read fixture metadata.' }, 71)
+      const attribution = { ...origin, toolCallId: 'read-a' }
+      const result = { content: [{ type: 'text', text: 'Fixture metadata.' }] } satisfies CallToolResult
+      clientMocks.callTool.mockResolvedValue(result)
+      const payload = { name: 'fixture::read', requestId: request.id, attribution }
+      await expect(manager.callTool(payload, 71)).resolves.toEqual(result)
+      vi.setSystemTime(request.expiresAt)
+      await expect(manager.callTool(payload, 71)).resolves.toEqual(result)
+      expect(clientMocks.callTool).toHaveBeenCalledTimes(2)
+      expect(clientMocks.callTool).toHaveBeenLastCalledWith(
+        { name: 'read', arguments: {} },
+        undefined,
+        expect.any(Object),
+      )
+    }
+    finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('treats successful discovery with no tools as an empty catalog', async () => {
     const manager = await startServers('memory')
 
     expect(await manager.listTools()).toEqual([])
-    expect(clientMocks.listTools).toHaveBeenCalledWith(undefined, { timeout: 10_000, maxTotalTimeout: 15_000 })
+    expect(clientMocks.listTools).toHaveBeenCalledWith(undefined, expect.objectContaining({ timeout: 10_000, maxTotalTimeout: 15_000, signal: expect.any(AbortSignal) }))
   })
 
   it('returns every descriptor in server name order when all queries succeed', async () => {

@@ -83,6 +83,39 @@ function fixture(shared: { actions?: PendingActionManager, runtime?: ReturnType<
 }
 
 describe('main Terminal approval controller', () => {
+  // https://github.com/moeru-ai/airi/pull/3496
+  // ROOT CAUSE:
+  // Expiring a request left its completed Action in the manager forever.
+  // Main releases the Action after the request expires and Notice handling finishes.
+  it.each(['before', 'after'] as const)('retires a rejected action when its Notice is acknowledged %s request expiry (PR #3496)', async (order) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(1_000)
+    const h = fixture()
+    const receipt = barrier<Awaited<ReturnType<TerminalApprovalOptions['notify']>>>()
+    h.options.notify = vi.fn(() => receipt.promise)
+    const id = String(h.bind().structuredContent?.hostActionId)
+    h.decision.release(false)
+    await vi.waitFor(() => expect(h.options.notify).toHaveBeenCalledOnce())
+    h.actions.finishRequest(h.request.id, h.attribution.senderWebContentsId)
+    const stored = { status: 'stored' as const, sessionId: h.request.sessionId, messageId: `terminal:${id}` }
+    if (order === 'before') {
+      receipt.release(stored)
+      await vi.waitFor(() => expect(h.actions.get(id)?.terminal?.noticeHandled).toBe(true))
+      expect(h.actions.get(id)?.status).toBe('rejected')
+    }
+    vi.setSystemTime(h.request.expiresAt)
+    h.actions.registerRequest({ sessionId: 'session-a', turnId: 'later', text: 'Read another fixture.' }, 71)
+    if (order === 'after') {
+      expect(h.actions.get(id)?.status).toBe('rejected')
+      receipt.release(stored)
+    }
+    expect(h.oracle.dispatches).toBe(0)
+    expect(h.oracle.effects).toBe(0)
+
+    await vi.waitFor(() => expect(h.actions.get(id)).toBeUndefined())
+    expect(h.oracle.discarded).toBe(1)
+  })
+
   it.each(['result', 'error'] as const)('settles a bound closed pre-dispatch %s as not_executed without restoring approval', async (channel) => {
     const h = fixture()
     const proof = { preparedId: h.snapshot.preparedId, requestId: h.request.id, noNewDispatch: true, terminalLifecycle: 'closed' }
@@ -326,6 +359,7 @@ describe('main Terminal approval controller', () => {
   })
 
   it('ends the slot but blocks future mutations when a response is lost after a controlled effect', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
     const h = fixture()
     const started = barrier<void>()
     h.rpc.mockImplementation(async () => {
@@ -348,6 +382,9 @@ describe('main Terminal approval controller', () => {
     expect(competingDispatches).toBe(0)
     expect(h.actions.get(id)).toMatchObject({ status: 'consumed' })
     expect(h.actions.get(id)?.settlement).toBeUndefined()
+    vi.setSystemTime(h.request.expiresAt)
+    h.actions.registerRequest({ sessionId: 'session-a', turnId: 'later', text: 'Read another fixture.' }, 71)
+    expect(h.actions.get(id)?.status).toBe('consumed')
     await h.ended.promise
     expect(await competing).toBe('stopped')
     expect(competingDispatches).toBe(0)

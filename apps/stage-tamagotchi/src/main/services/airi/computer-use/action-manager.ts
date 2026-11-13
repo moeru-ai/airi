@@ -55,7 +55,7 @@ export interface PendingAction {
   expiresAt: number
   settlement?: PendingActionSettlement
   /** Present only for an exact prepared Terminal operation. Native AUV approvals cannot acquire this authority. */
-  terminal?: { serverName: string, snapshot: TerminalSnapshot }
+  terminal?: { serverName: string, snapshot: TerminalSnapshot, noticeHandled?: true }
 }
 
 /** Main-issued origin of a submitted Runtime request. Session and turn remain captured routing labels, not authenticated accounts. */
@@ -167,10 +167,18 @@ export class PendingActionManager {
       throw new Error('A Host request requires a verified Runtime source.')
     const submitted = v.parse(chatRequestSchema, input)
     const now = Date.now()
+    let removedExpiredRequest = false
     for (const { record: request } of this.requests.values()) {
       if (now >= request.expiresAt) {
         this.cancelRequest(request.id, request.senderWebContentsId)
         this.requests.delete(request.id)
+        removedExpiredRequest = true
+      }
+    }
+    if (removedExpiredRequest) {
+      for (const [id, action] of this.actions) {
+        if (action.terminal?.noticeHandled && !this.requests.has(action.terminal.snapshot.requestId))
+          this.actions.delete(id)
       }
     }
     if (this.requests.size >= 1024)
@@ -204,6 +212,17 @@ export class PendingActionManager {
     if (request.closed && !options.allowClosed)
       throw new Error('Host request is closed to new tool calls.')
     return structuredClone(request)
+  }
+
+  /** Releases completed Terminal records after Notice handling and the request's replay protection end. */
+  finishTerminalAction(id: string): void {
+    const action = this.actions.get(id)
+    if (!action?.terminal || (!action.settlement && action.status !== 'expired'))
+      return
+    if (this.requests.has(action.terminal.snapshot.requestId))
+      action.terminal.noticeHandled = true
+    else
+      this.actions.delete(id)
   }
 
   /** Ends new-tool admission without cancelling actions that already wait for an independent approval. */

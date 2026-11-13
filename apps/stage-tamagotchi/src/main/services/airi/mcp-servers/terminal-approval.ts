@@ -55,10 +55,17 @@ export function bindTerminalApproval(params: {
   }
   trace('prepared', { snapshot })
 
+  let noticeHandled: Promise<boolean> | undefined
   function notify(status: TerminalNotice['status'], result?: Record<string, unknown>, error?: string) {
     const notice: TerminalNotice = { actionId, requestId: snapshot.requestId, sessionId: attribution.sessionId, turnId: attribution.turnId!, toolCallId: snapshot.toolCallId, status, command: snapshot.command, effectiveCwd: snapshot.effectiveCwd, result, error }
     trace('outcome_notice', { notice })
-    void options.notify(notice).then(receipt => trace('notice_receipt', { receipt })).catch(failure => trace('notice_unavailable', { error: errorMessageFrom(failure) }))
+    noticeHandled = options.notify(notice).then((receipt) => {
+      trace('notice_receipt', { receipt })
+      return true
+    }).catch((failure) => {
+      trace('notice_unavailable', { error: errorMessageFrom(failure) })
+      return false
+    })
   }
 
   async function discard() {
@@ -180,7 +187,10 @@ export function bindTerminalApproval(params: {
         await discard()
     }
   }
-  void execute().catch(error => trace('prepared_discard_failed', { error: errorMessageFrom(error) }))
+  void execute().catch(error => trace('prepared_discard_failed', { error: errorMessageFrom(error) })).then(async () => {
+    if (await noticeHandled)
+      options.actions.finishTerminalAction(actionId)
+  })
   return {
     ...params.result,
     content: [...(params.result.content ?? []), {
