@@ -162,3 +162,7 @@ apps/*/src/renderer/public/sherpaw/
 
 # Vieval caches and report artifacts
 .vieval
+
+# Model-specific lighting stays in local bundles, never in the application.
+/packages/stage-ui-live2d/src/assets/lighting/
+/packages/stage-ui-live2d/src/filters/nose-attachment.fixture.json
