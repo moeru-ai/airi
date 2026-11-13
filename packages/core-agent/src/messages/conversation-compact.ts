@@ -58,6 +58,15 @@ function freeze(value: unknown) {
 }
 
 function canCompact(round: GenerationRound) {
+  // Providers can require native reasoning on later tool requests, even after a user turn.
+  const continuation = round.continuation
+  if (continuation?.protocol === 'chat-completions' && continuation.data.some(message => message.role === 'assistant'
+    && (message.reasoning !== undefined || message.reasoning_content !== undefined))) {
+    return false
+  }
+  if (continuation?.protocol === 'responses' && continuation.data.some(item => item.type === 'reasoning' || item.type === 'compaction' || item.type === 'web_search_call'))
+    return false
+
   return !round.projectionIssues.length
     && round.toolInvocations.every(call => call.execution.status === 'succeeded')
     && (round.content.some(part => part.type !== 'tool' && (!('text' in part) || part.text.trim().length > 0))

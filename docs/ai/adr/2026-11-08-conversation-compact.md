@@ -21,6 +21,7 @@ The summary request also checks its context budget. Its output cap is 2048 token
 
 A ready summary replaces only old images and assistant narratives. Original owner messages, system content and Host notices remain intact.
 Every tool call retains its exact identity, arguments, execution status and text receipts. Failed, pending and opaque rounds remain intact.
+Rounds with native reasoning or other provider state required for continuation also stay intact across user turns.
 The two newest rounds keep their full content. Full images and native continuation remain in stored generation transcripts.
 The summary has context authority. It cannot select tools, approve an action, settle execution or claim a new owner message.
 

@@ -2,6 +2,7 @@ import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { Tool } from '@xsai/shared-chat'
 
 import type { AssistantTurn, Conversation } from '../messages/types'
+import type { StreamOptions } from '../types/llm'
 
 import { describe, expect, it, vi } from 'vitest'
 
@@ -9,6 +10,81 @@ import { ConversationCompact } from '../messages/conversation-compact'
 import { streamFrom } from './llm-service'
 
 describe.each(['chat-completions', 'responses'] as const)('%s request context', (protocol) => {
+  // https://github.com/moeru-ai/airi/pull/3496
+  // ROOT CAUSE:
+  // Compact could rebuild a tool round from its portable output and drop its native reasoning.
+  // The request now preserves the round when it carries native reasoning.
+  it.each(['synchronous', 'background'] as const)('keeps native reasoning through %s Compact and the next user turn', async (mode) => {
+    const requests: string[] = []
+    const generations: AssistantTurn[] = []
+    const compact = new ConversationCompact({ softLimitBytes: 4_000, hardLimitBytes: 60_000, retainRounds: 2 })
+    compact.setMode(mode)
+    const fetch: typeof globalThis.fetch = async (_url, init) => {
+      requests.push(String(init?.body))
+      const index = requests.length
+      const callId = `call-${index}`
+      const state = `native-state-${index}`
+      const callsTool = index <= 4
+      const output = callsTool
+        ? [
+            { type: 'reasoning', id: `reasoning-${index}`, summary: [], encrypted_content: state },
+            { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'Checking the fixture.' }] },
+            { type: 'function_call', call_id: callId, name: 'fixture', arguments: '{}' },
+          ]
+        : [{ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'Done.' }] }]
+      const events = protocol === 'responses'
+        ? [...output.map(item => ({ type: 'response.output_item.done', item })), { type: 'response.completed', response: { output } }]
+        : [{ choices: [{ index: 0, delta: callsTool
+            ? { content: 'Checking the fixture.', reasoning_content: state, tool_calls: [{ index: 0, id: callId, type: 'function', function: { name: 'fixture', arguments: '{}' } }] }
+            : { content: 'Done.' }, finish_reason: callsTool ? 'tool_calls' : 'stop' }] }]
+      return new Response(events.map(event => `data: ${JSON.stringify(event)}\n\n`).join(''), { headers: { 'content-type': 'text/event-stream' } })
+    }
+    const chatProvider: GenerationProvider = { generation: model => protocol === 'responses'
+      ? { protocol, webSearch: false, config: { model, baseURL: 'https://example.com/v1/', fetch } }
+      : { protocol, config: { model, baseURL: 'https://example.com/v1/', fetch } } }
+    const oldNotes = 'Earlier portable notes. '.repeat(350)
+    const conversation: Conversation = { turns: [
+      { type: 'user', id: 'earlier', content: [{ type: 'text', text: 'Observe the fixture.' }] },
+      { type: 'assistant', id: 'earlier-answer', status: 'completed', rounds: [{
+        id: 'earlier-answer/0',
+        content: [{ type: 'text', text: oldNotes }],
+        toolInvocations: [],
+        projectionIssues: [],
+      }] },
+      { type: 'user', id: 'goal', content: [{ type: 'text', text: 'Continue the fixture task.' }] },
+    ] }
+    let effects = 0
+    const options: StreamOptions = {
+      tools: [{
+        type: 'function',
+        function: { name: 'fixture', parameters: { type: 'object', properties: {} } },
+        execute: () => [
+          { type: 'text', text: `fixture-receipt-${++effects}` },
+          { type: 'image_url', image_url: { url: `data:image/png;base64,${'A'.repeat(6000)}` } },
+        ],
+      }],
+      prepareConversation: (context, target) => compact.prepare(context, { ...target, summarize: async () => 'Earlier fixture notes summarized.' }),
+      onGeneratedTurn: (turn) => { generations.push(turn) },
+    }
+    await streamFrom({ model: 'test', chatProvider, conversation, options })
+    expect(requests).toHaveLength(5)
+    expect(requests[4]).toContain('Earlier fixture notes summarized.')
+    expect(requests[4]).not.toContain(oldNotes)
+    expect(requests[4]).toContain('call-1')
+    expect(requests[4]).toContain('fixture-receipt-1')
+
+    await streamFrom({ model: 'test', chatProvider, options, conversation: { turns: [
+      ...conversation.turns,
+      generations[0],
+      { type: 'user', id: 'follow-up', content: [{ type: 'text', text: 'Check your result.' }] },
+    ] } })
+    expect(requests).toHaveLength(6)
+    expect(effects).toBe(4)
+    expect(requests[4]).toContain('native-state-1')
+    expect(requests[5]).toContain('native-state-1')
+    expect(requests[5]).toContain('fixture-receipt-1')
+  })
+
   it.each([true, false, undefined])('gates a large tool image with explicit vision support %s', async (supportsVisionInput) => {
     const requests: Record<string, unknown>[] = []
     const budgets: { textBytes: number, imageBytes: number, totalBytes: number }[] = []
