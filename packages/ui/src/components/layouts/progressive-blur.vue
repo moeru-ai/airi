@@ -6,7 +6,7 @@ const props = withDefaults(defineProps<{
    * The edge where the blur is strongest. The blur fades to nothing toward the opposite edge.
    * @default 'bottom'
    */
-  edge?: 'top' | 'bottom'
+  edge?: 'top' | 'bottom' | 'left' | 'right'
   /**
    * The blur radius in pixels at the strongest edge.
    * @default 24
@@ -26,10 +26,10 @@ const props = withDefaults(defineProps<{
  */
 const bands = computed(() => {
   const count = Math.max(1, Math.round(props.layers))
-  const direction = props.edge === 'bottom' ? 'to bottom' : 'to top'
+  const direction = `to ${props.edge}`
   return Array.from({ length: count }, (_, index) => {
     const blur = props.strength / 2 ** (count - 1 - index)
-    // Band edges in percent of the element height, measured from the edge with no blur.
+    // Band edges in percent of the element size along `direction`, measured from the edge with no blur.
     const start = (index / count) * 100
     const full = ((index + 1) / count) * 100
     const end = Math.min(100, ((index + 2) / count) * 100)

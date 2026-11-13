@@ -15,6 +15,7 @@ class DevBridgeViewController: CAPBridgeViewController {
     override func capacitorDidLoad() {
         super.capacitorDidLoad()
         bridge?.registerPluginInstance(WebAuthenticationPlugin())
+        bridge?.registerPluginInstance(MicrophonePermissionPlugin())
         configureTransparentBackground()
         webView?.allowsBackForwardNavigationGestures = true
         installWebSocketBridge()

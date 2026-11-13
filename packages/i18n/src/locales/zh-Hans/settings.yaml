@@ -32,6 +32,8 @@ dialogs:
     skipForNow: 暂时跳过
     saveAndContinue: 保存并继续
     next: 下一步
+    back: 返回
+    later: 稍后
     retry: 重试
     credentialsSafeLabel: 保证您的 API 密钥和凭据的安全！
     credentialsSafeLocal: >-
@@ -59,10 +61,88 @@ dialogs:
       notificationsDescription: 允许提醒以及重要的状态更新。
       microphoneTitle: 麦克风
       microphoneDescription: 允许 AIRI 使用麦克风进行语音输入和转写。
+      accessibilityTitle: 辅助功能
+      accessibilityDescription: 让「按住说话」快捷键在其他应用处于前台时也能使用。
+      screenRecordingTitle: 屏幕录制
+      screenRecordingDescription: 在你让 AIRI 看屏幕时，允许它看到你的屏幕。
+      pushToTalkTitle: 按住说话
+      pushToTalkDescription: AIRI 在前台时，按住一个键说话。
+      screenShareTitle: 屏幕共享
+      screenShareDescription: 让 AIRI 看到你共享的屏幕或窗口。
       requestAction: 请求获取
+      openSettingsAction: 打开系统设置
       optionalHint: 即使没有授予这些权限，您也可以继续。
       stateGranted: 已授权
       stateNotGranted: 未授权
+      flow:
+        steps: 权限
+        setUpLater: 稍后设置
+        allow: 允许
+        continue: 继续
+        skip: 跳过
+        done: 完成
+        tryAgain: 再试一次
+        state:
+          granted: 已允许
+          skipped: 已跳过
+          todo: 未设置
+          review: 查看
+        microphone:
+          title: 让角色听见你
+          body: 语音聊天和唤醒词需要它。
+          allow: 允许使用麦克风
+          device: 输入设备：{device}
+          testing: 说点什么，比如「你好」。
+          quiet: 还没有声音？检查是否静音，或换一个输入设备。
+          heard: 听到你了。
+          level: 麦克风输入音量
+          on: 语音聊天和唤醒词已开启。
+          off: 语音聊天保持关闭，你仍然可以打字。
+        accessibility:
+          title: 在其他应用里也能说话
+          body: 按住快捷键，说话，然后松开。macOS 把这个权限叫作「辅助功能」。
+          with: 有辅助功能权限
+          withBody: 快捷键在所有应用里都能用。
+          without: 没有这个权限
+          withoutBody: 只有 AIRI 在前台时才能用。
+          try: 按住这些键试试。
+          listening: 正在聆听
+          worksEverywhere: 可以用了。也去其他应用里试试吧。
+          worksHere: 在这里可以用。其他应用需要辅助功能权限。
+          location: 在「隐私与安全性 › 辅助功能」中打开 AIRI。
+          on: 快捷键在所有应用里都能用。
+          off: 快捷键只在 AIRI 处于前台时可用。
+        push-to-talk:
+          title: 按住一个键说话
+          body: AIRI 在前台时按住这个键，说话，然后松开。
+          try: 按住这个键试试。
+          works: 可以用了。AIRI 在前台时随时按住它说话。
+          on: AIRI 在前台时按住这个键说话。
+          off: 你仍然可以用麦克风按钮说话。
+        screen-recording:
+          title: 让角色看到你的屏幕
+          share: 共享屏幕
+          body: 只在你要求时，比如问「我的屏幕上有什么？」
+          visible: 这就是角色能看到的画面。
+          hidden: 角色看不到
+          display: 显示器
+          previewOf: '{screen} 的预览'
+          location: 在「隐私与安全性 › 录屏与系统录音」中打开 AIRI。
+          on: 你要求时，角色可以看到你的屏幕。
+          off: 角色看不到你的屏幕。
+        notifications:
+          title: 接收角色的提醒
+          body: 提醒和状态更新。
+          on: 通知已开启。
+          off: 你不会收到提醒。
+        summary:
+          name: 总结
+          title: 都设置好了
+          almost: 就差一点了
+          body: 之后可以随时在设置里修改。
+          skipped: 已跳过。{consequence}
+          setUp: 去设置
+          setUpOne: 设置{permission}
   bug-report:
     title: Bug 汇报 (´;ω;`)ヾ(･∀･`)
     subtitle: 坏哦，看起来我们不小心搞砸了一些东西。可以分享一下遇到了什么问题吗？
@@ -484,6 +564,7 @@ pages:
       greetings: 问候语（每行一个）
       settings: 设置
       version: 版本
+      model: 角色模型
       create: 创建
       defaults:
         name: 名字
@@ -506,6 +587,7 @@ pages:
           您可以在这里填写有关您正在创建的角色的一些详细信息，解释他的背景和情境，以及应该如何回应您的互动。
         name: 是该角色的正式名称。
         nickname: 您也可以提供一个昵称，它将被优先使用。
+        body_model: 在舞台上显示这个角色的模型。
         description: 该角色的描述。
         notes: 如果您想添加一些个人备注。
         personality: >-

@@ -153,8 +153,8 @@ describe('controls Island microphone', () => {
   it('opens Hearing controls from the menu without asking for permission', async () => {
     const { screen, askPermission } = mountControlsIsland()
 
-    await screen.getByLabelText('Expand').click()
-    await screen.getByTestId('controls-island-hearing-controls').click()
+    await screen.getByTestId('controls-island-more').click()
+    await page.getByTestId('controls-island-hearing-controls').click()
 
     await expect.element(screen.getByTestId('hearing-config-dialog')).toBeVisible()
     expect(askPermission).not.toHaveBeenCalled()
