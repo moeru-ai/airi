@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/ui-trace",
   "type": "module",
-  "version": "0.15.2",
+  "version": "0.15.4",
   "description": "Trace UI for AIRI: the trace timeline, the panels, the toolbar, and the row models of entity lanes and tracks",
   "author": {
     "name": "Moeru AI Project AIRI Team",

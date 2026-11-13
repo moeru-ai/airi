@@ -337,6 +337,8 @@ const moduleSectionHeaderClasses = [
 const moduleFieldLabelClasses = [
   'text-xs font-medium text-neutral-500 dark:text-neutral-400',
 ]
+// A field fills its grid cell. Its heading stays at the top and its input moves to the bottom of the cell.
+const fieldCellClasses = ['h-full', '[&>label]:h-full [&>label]:justify-between']
 const editorTextareaClass = 'min-h-40 md:min-h-[clamp(12rem,30dvh,24rem)]'
 const editorLongTextareaClass = 'min-h-48 md:min-h-[clamp(14rem,34dvh,28rem)]'
 
@@ -896,24 +898,30 @@ function handleBack() {
                 'lg:grid-cols-[minmax(0,1fr)_36%]',
               ]"
             >
-              <div :class="['flex flex-col justify-center gap-6 p-5 sm:p-7 lg:p-8']">
-                <div :class="['grid grid-cols-1 gap-5', 'sm:grid-cols-2']">
-                  <FieldInput v-model="cardName" :label="t('settings.pages.card.creation.name')" :description="t('settings.pages.card.creation.fields_info.name')" :required="true" />
-                  <FieldInput v-model="cardNickname" :label="t('settings.pages.card.creation.nickname')" :description="t('settings.pages.card.creation.fields_info.nickname')" />
-                </div>
-                <div :class="['grid grid-cols-1 gap-5', 'sm:grid-cols-2']">
-                  <div :class="['flex flex-col gap-1.5']">
-                    <label :class="moduleFieldLabelClasses">
-                      {{ t('settings.pages.card.body-model') }}
-                    </label>
+              <div :class="['flex flex-col justify-center p-5 sm:p-7 lg:p-8']">
+                <!-- One grid for all fields. Each field fills its row with the heading at the top and the input at the bottom, -->
+                <!-- so headings and inputs line up when one description wraps. -->
+                <div :class="['grid grid-cols-1 gap-x-5 gap-y-6', 'sm:grid-cols-2']">
+                  <FieldInput v-model="cardName" :class="fieldCellClasses" :label="t('settings.pages.card.creation.name')" :description="t('settings.pages.card.creation.fields_info.name')" :required="true" />
+                  <FieldInput v-model="cardNickname" :class="fieldCellClasses" :label="t('settings.pages.card.creation.nickname')" :description="t('settings.pages.card.creation.fields_info.nickname')" />
+                  <!-- The same heading and description as the FieldInput fields beside it. -->
+                  <label :class="['flex h-full flex-col justify-between gap-4']">
+                    <div>
+                      <div :class="['text-sm font-medium']">
+                        {{ t('settings.pages.card.creation.model') }}
+                      </div>
+                      <div :class="['text-xs text-neutral-500 dark:text-neutral-400']">
+                        {{ t('settings.pages.card.creation.fields_info.body_model') }}
+                      </div>
+                    </div>
                     <ComboboxSelect
                       v-model="displayModelSelection"
                       :options="displayModelOptions"
                       :placeholder="t('settings.pages.card.creation.no_model')"
                       class="w-full"
                     />
-                  </div>
-                  <FieldInput v-model="cardVersion" :label="t('settings.pages.card.creation.version')" :required="true" :description="t('settings.pages.card.creation.fields_info.version')" />
+                  </label>
+                  <FieldInput v-model="cardVersion" :class="fieldCellClasses" :label="t('settings.pages.card.creation.version')" :required="true" :description="t('settings.pages.card.creation.fields_info.version')" />
                 </div>
               </div>
               <CardModelPreview
