@@ -257,6 +257,7 @@ describe('controls Island menu account', () => {
 
     expect(invokes.startLogin).toHaveBeenCalledOnce()
     expect(document.querySelector('[data-testid="controls-island-flux"]')).toBeNull()
+    expect(document.querySelector('[data-testid="controls-island-subscription"]')).toBeNull()
     expect(document.querySelector('[data-testid="controls-island-notifications"]')).toBeNull()
     expect(document.querySelector('[data-testid="controls-island-notifications-dot"]')).toBeNull()
   })
@@ -282,6 +283,19 @@ describe('controls Island menu account', () => {
     await account.click()
 
     expect(invokes.openSettings).toHaveBeenCalledWith({ route: '/settings/account' })
+  })
+
+  it('opens the Subscription page from its row', async () => {
+    signIn()
+    const { screen } = mountIsland()
+
+    await screen.getByTestId('controls-island-more').click()
+    const subscription = menuItem('controls-island-subscription')
+    await expect.element(subscription).toHaveTextContent('Subscription')
+
+    await subscription.click()
+
+    expect(invokes.openSettings).toHaveBeenCalledWith({ route: '/settings/flux' })
   })
 
   it('shows the Capacitor percent instead of the Flux balance for a subscriber', async () => {
@@ -338,6 +352,22 @@ describe('controls Island menu controls', () => {
 
     window.dispatchEvent(new Event('blur'))
     await expect.poll(() => menus().length).toBe(0)
+  })
+
+  it('declares only the capsule of the Island as a glass surface', async () => {
+    // The Island is one layer. A button with its own glass draws a second layer inside the capsule.
+    const registered = new Set<HTMLElement>()
+    const host: BackdropSurfaceHost = {
+      register(element) {
+        registered.add(element)
+        return () => registered.delete(element)
+      },
+    }
+    const { screen } = mountIsland({ [backdropSurfaceHostKey as symbol]: host })
+    const capsule = screen.getByTestId('main-controls').element()
+
+    await expect.poll(() => registered.has(capsule as HTMLElement)).toBe(true)
+    expect([...registered].filter(element => element.tagName === 'BUTTON')).toEqual([])
   })
 
   it('switches the character from the Character submenu', async () => {

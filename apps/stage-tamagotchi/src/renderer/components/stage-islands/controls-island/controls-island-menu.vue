@@ -5,6 +5,7 @@ import { InboxPanel } from '@proj-airi/stage-ui/components'
 import { useBackdropSurface } from '@proj-airi/stage-ui/composables/backdrop-surface'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useFluxStatus } from '@proj-airi/stage-ui/composables/use-flux-status'
+import { AIRI_FLUX_URL } from '@proj-airi/stage-ui/constants/public-links'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useInboxStore } from '@proj-airi/stage-ui/stores/inbox'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
@@ -165,7 +166,7 @@ async function setFadeOnHover(on: boolean) {
   trackControlsIslandAction({ action: on ? 'enable_fade_on_hover' : 'disable_fade_on_hover' })
 }
 
-function openSettingsAt(route: string, action: 'toggle_settings' | 'open_account' | 'manage_profiles') {
+function openSettingsAt(route: string, action: 'toggle_settings' | 'open_account' | 'open_subscription' | 'manage_profiles') {
   trackControlsIslandAction({ action })
   openSettings({ route })
 }
@@ -244,6 +245,14 @@ useBackdropSurface(() => characterSurfaceAnchor.value?.closest<HTMLElement>('[ro
           {{ subscribed ? fluxValue : `${fluxValue} Flux` }}
         </span>
       </span>
+    </MenuItem>
+    <!-- The way to the Subscription page. The account row above already shows the Flux value. -->
+    <MenuItem
+      v-if="isAuthenticated"
+      data-testid="controls-island-subscription"
+      @select="openSettingsAt(AIRI_FLUX_URL, 'open_subscription')"
+    >
+      {{ t('settings.pages.flux.title') }}
     </MenuItem>
     <MenuItem v-else data-testid="controls-island-sign-in" :disabled="signingIn" @select="signIn">
       <span v-if="signingIn" aria-hidden="true" :class="['i-svg-spinners:ring-resize size-4 shrink-0 text-primary-500']" />

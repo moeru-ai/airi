@@ -21,6 +21,7 @@ export type ControlsIslandAction
     | 'close_app'
     | 'open_menu'
     | 'open_account'
+    | 'open_subscription'
     | 'sign_in'
     | 'open_notifications'
     | 'switch_profile'
