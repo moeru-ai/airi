@@ -35,6 +35,8 @@ export interface VoiceInputTracerOptions {
   sink?: () => TraceSink
   /** The VAD probability that begins speech. Each input span records it, so the viewer can draw it. */
   speechThreshold?: number
+  /** The label of a voiceprint by its id. The input span records the label of the voiceprint with the highest score. */
+  speakerLabel?: (speakerId: string) => string | undefined
 }
 
 interface TracedInput {
@@ -59,8 +61,8 @@ function roundScore(value: number) {
  * VAD results become speech spans, one for each speech segment. Each detector window adds a VAD probability and a
  * microphone level sample.
  *
- * With speaker recognition on, the input span also gets the speaker score of its speech. With `speechThreshold`, the input
- * span also records the VAD threshold.
+ * With speaker recognition on, the input span also gets the voiceprint with the highest score for its speech, and that
+ * score. With `speechThreshold`, the input span also records the VAD threshold.
  *
  * State: `inputs` holds the open inputs by ID. The input outcome ends the input span and its open segment.
  */
@@ -169,7 +171,13 @@ export function createVoiceInputTracer(options: VoiceInputTracerOptions = {}) {
     const attrs: TraceAttributes = { [VoiceAttributes.InputOutcome]: outcome.status }
     if (input.speaker) {
       const { update, rejected } = input.speaker
-      attrs[VoiceAttributes.SpeakerScore] = roundScore(update.value.candidates[0].score)
+      const [best] = update.value.candidates
+      attrs[VoiceAttributes.SpeakerId] = best.speakerId
+      const label = options.speakerLabel?.(best.speakerId)
+      // A voiceprint that the user deleted during the input has no label any more. Its id stays in the trace.
+      if (label !== undefined)
+        attrs[VoiceAttributes.SpeakerLabel] = label
+      attrs[VoiceAttributes.SpeakerScore] = roundScore(best.score)
       attrs[VoiceAttributes.SpeakerScores] = update.scores.map(roundScore)
       attrs[VoiceAttributes.SpeakerVoicedMs] = Math.round(update.value.voicedMs)
       attrs[VoiceAttributes.SpeakerRejectedCount] = rejected
