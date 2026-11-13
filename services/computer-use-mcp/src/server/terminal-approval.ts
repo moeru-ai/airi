@@ -53,7 +53,7 @@ export function registerTerminalApproval(server: McpServer, runtime: ComputerUse
         const execution = startPrepared(snapshot, extra.signal)
         return {
           result: execution.result,
-          closed: execution.closed.then((status) => {
+          lifecycle: execution.lifecycle.then((status) => {
             lifecycle = status
             return status
           }),

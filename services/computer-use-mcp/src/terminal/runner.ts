@@ -162,7 +162,7 @@ function summarizeCommand(command: string) {
 }
 
 export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunner {
-  const active = new Set<{ stop: () => void, closed: TerminalExecution['closed'] }>()
+  const active = new Set<{ stop: () => void, lifecycle: TerminalExecution['lifecycle'] }>()
   let closing: Promise<void> | undefined
   const state: TerminalState = {
     effectiveCwd: processCwd(),
@@ -192,7 +192,7 @@ export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunne
       throw new Error('The Terminal runner is closed.')
     signal?.throwIfAborted()
     const { effectiveCwd, timeoutMs } = input
-    const { promise: closed, resolve: confirmClose } = Promise.withResolvers<'closed' | 'unknown'>()
+    const { promise: lifecycle, resolve: settleLifecycle } = Promise.withResolvers<'closed' | 'unknown'>()
     const startedAt = Date.now()
     const execution = new Promise<TerminalCommandResult>((resolve, reject) => {
       let child: ReturnType<typeof spawn>
@@ -207,7 +207,7 @@ export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunne
       }
       catch (error) {
         // Node rejected the spawn before it returned a process. No close event can follow this synchronous failure.
-        confirmClose('closed')
+        settleLifecycle('closed')
         reject(error)
         return
       }
@@ -231,14 +231,10 @@ export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunne
         if (lifecycleEnded || escalationTimer)
           return
         signalProcessGroup(child, 'SIGTERM')
-        escalationTimer = setTimeout(() => {
-          signalProcessGroup(child, 'SIGKILL')
-          if (!lifecycleEnded)
-            boundOutputDrain(child.exitCode)
-        }, PROCESS_GROUP_KILL_GRACE_MS)
+        escalationTimer = setTimeout(signalProcessGroup, PROCESS_GROUP_KILL_GRACE_MS, child, 'SIGKILL')
         escalationTimer.unref()
       }
-      const owned = { stop, closed }
+      const owned = { stop, lifecycle }
       active.add(owned)
       signal?.addEventListener('abort', stop, { once: true })
       if (signal?.aborted)
@@ -290,7 +286,7 @@ export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunne
         // Forced drain does not cancel a pending POSIX process-group termination.
         if (status === 'closed' || platform === 'win32')
           clearTimeout(escalationTimer)
-        confirmClose(status)
+        settleLifecycle(status)
         if (finished)
           return
         finished = true
@@ -319,7 +315,7 @@ export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunne
       state.lastCommandSummary = summarizeCommand(result.command)
       return result
     })
-    return { result, closed }
+    return { result, lifecycle }
   }
 
   return {
@@ -327,12 +323,12 @@ export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunne
     startPrepared,
     close: () => {
       if (!closing) {
-        // Install the latch before signalling children. A result does not remove ownership before close.
+        // Install the latch before signalling children. A timeout result does not end ownership.
         closing = Promise.resolve().then(async () => {
           const executions = [...active]
           for (const execution of executions)
             execution.stop()
-          await Promise.all(executions.map(execution => execution.closed))
+          await Promise.all(executions.map(execution => execution.lifecycle))
         })
       }
       return closing

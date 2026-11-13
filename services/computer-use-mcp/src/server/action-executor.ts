@@ -650,7 +650,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
               result = await execution.result
             }
             finally {
-              await execution.closed
+              await execution.lifecycle
             }
           }
           else {

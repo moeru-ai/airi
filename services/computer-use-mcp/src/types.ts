@@ -672,7 +672,7 @@ export interface TerminalRunner {
   prepare?: (input: TerminalExecActionInput) => TerminalSpawnInput
   /** Starts synchronously. Result readiness and direct shell close are separate lifecycle facts. */
   startPrepared?: (input: TerminalSpawnInput, signal?: AbortSignal) => TerminalExecution
-  /** Stops admission and waits for bounded direct shell lifecycle handling. */
+  /** Stops admission and waits for direct shell exit and bounded output drain. */
   close?: () => Promise<void>
 }
 
@@ -680,5 +680,5 @@ export interface TerminalRunner {
 export interface TerminalExecution {
   result: Promise<TerminalCommandResult>
   /** A bounded output drain can end without a confirmed close. Neither result proves descendant termination. */
-  closed: Promise<'closed' | 'unknown'>
+  lifecycle: Promise<'closed' | 'unknown'>
 }

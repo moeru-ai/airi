@@ -28,7 +28,7 @@ These descriptions distinguish the backends. They do not establish reliable mode
 ## Windows Beta lifecycle: 2026-11-08
 
 The bundled stdio service closes on input EOF, transport close, SIGINT and SIGTERM.
-Shutdown stops Terminal admission and waits for bounded direct shell shutdown and output drain.
+Shutdown stops Terminal admission and waits for direct shell exit. Output drain after exit has a deadline.
 The private prepared request passes protocol cancellation to the runner.
 Cancellation after dispatch requests process termination. It does not reverse effects or prove zero dispatch.
 Result readiness and direct shell closure remain separate. A drain deadline reports an unconfirmed lifecycle.

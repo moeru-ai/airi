@@ -33,7 +33,7 @@ Main sends actual outcomes through a separate notice turn. A command exit of zer
 An ambiguous failed reply cannot restore approval or cause an alias retry.
 Without a lifecycle receipt, the Host blocks subsequent desktop writes until shutdown. Queue waiters can still settle.
 
-The private executor reports its result after bounded shell shutdown and output drain.
+The private executor reports its result after direct shell exit and bounded output drain.
 On Windows, this does not establish descendant termination or containment of applications started by the shell.
 The adapter is not a shell sandbox. It grants no native GUI input or workflow-wide approval.
 

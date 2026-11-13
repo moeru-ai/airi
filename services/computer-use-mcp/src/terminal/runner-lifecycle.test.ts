@@ -32,7 +32,7 @@ describe('direct Shell lifecycle', () => {
       const { child, runner, input } = fixture()
       const execution = runner.startPrepared!({ ...input, timeoutMs: 100 })
       const lifecycle = vi.fn()
-      void execution.closed.then(lifecycle)
+      void execution.lifecycle.then(lifecycle)
       await vi.advanceTimersByTimeAsync(100)
       expect(await execution.result).toMatchObject({ timedOut: true, exitCode: 124 })
 
@@ -56,7 +56,7 @@ describe('direct Shell lifecycle', () => {
     })
     const execution = runner.startPrepared!(input)
     let closed = false
-    void execution.closed.then(() => {
+    void execution.lifecycle.then(() => {
       closed = true
     })
     await expect(execution.result).rejects.toThrow('Controlled NUL argument rejection')
@@ -79,7 +79,7 @@ describe('direct Shell lifecycle', () => {
     const execution = runner.startPrepared!(input, abort.signal)
     let closed = false
     let settled = false
-    void execution.closed.then(() => {
+    void execution.lifecycle.then(() => {
       closed = true
     })
     void execution.result.then(() => {
@@ -93,7 +93,7 @@ describe('direct Shell lifecycle', () => {
     expect({ closed, settled }).toEqual({ closed: false, settled: false })
     child.emit('close', 7)
     const result = await execution.result
-    await execution.closed
+    await execution.lifecycle
     expect(result).toMatchObject({ exitCode: 7, timedOut: false, stdout: 'effect already occurred' })
     console.info(JSON.stringify({ dispatches: io.spawn.mock.calls.length, stopRequests: child.kill.mock.calls.length, result, directShellClosed: closed, descendantCleanup: 'Not Verified' }))
   })
@@ -127,7 +127,8 @@ describe('direct Shell lifecycle', () => {
       const closing = runner.close!().then(() => {
         closed = true
       })
-      await Promise.resolve()
+      await vi.advanceTimersByTimeAsync(6000)
+      expect(child.kill).toHaveBeenCalledWith('SIGKILL')
       expect(closed).toBe(false)
       child.emit('close', 1)
       await closing
