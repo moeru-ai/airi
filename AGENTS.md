@@ -164,19 +164,6 @@ Use pnpm workspace filters to limit a command to one workspace. Replace `<packag
 - Rebase when you pull.
 - To create, open, publish, or prepare a pull request, use the [`create-pr`](.agents/skills/create-pr/SKILL.md) skill. It also covers visual evidence and review follow-up.
 
-## Code Review Rules
-
-Codex reads this section when it reviews a pull request on GitHub. Other reviewers also obey it.
-
-### Commits from autofix.ci
-
-The autofix.ci workflow, `.github/workflows/autofix.yaml`, pushes commits to pull requests. The author of these commits is `autofix-ci[bot]`.
-The commits fix lint and format errors, run `pnpm dedupe`, and update `.x18n/check-baseline.json`.
-
-- Do not report a change that an autofix.ci commit made.
-- A rule that forbids an edit applies to contributors and agents, not to autofix.ci. For example, `packages/i18n/AGENTS.md` forbids edits to the i18n baseline, because autofix.ci updates it.
-- To find the commit that changed a file, run `git log --format='%h %an %s' <base>..HEAD -- <path>`. `<base>` is the merge base with the target branch.
-
 ## Task Routing
 
 Skills are in `.agents/skills/<name>/SKILL.md`. Read the listed file before you start the task.
