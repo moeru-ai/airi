@@ -464,6 +464,50 @@ describe('chat session synchronization', () => {
     expect(leaderChatStore.activeSessionId).toBe(shownSessionId)
   })
 
+  it('makes the character of a selected session the active character and keeps the window on that session', async () => {
+    const namespace = `chat-session:${crypto.randomUUID()}`
+    const leader = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+    setActivePinia(leader.pinia)
+    const leaderStore = useChatSessionStore()
+    await leaderStore.initialize()
+    const follower = createSyncedContext(namespace, 'follower-only')
+    setActivePinia(follower.pinia)
+    const followerStore = useChatSessionStore()
+    await vi.waitFor(() => expect(follower.runtime.getLeaderId()).toBe(leader.runtime.participantId))
+    await followerStore.initialize()
+    // The index records the first session of the other character. The follower selects a second one.
+    const indexSessionId = await followerStore.ensureCharacterSession('background-character')
+    const selectedSessionId = await followerStore.createSession('background-character', { setActive: false })
+    // The follower reads the character of the session from its replicated copy.
+    await vi.waitFor(() => expect(followerStore.sessionMetas[selectedSessionId]).toBeDefined())
+
+    await followerStore.setActiveSession(selectedSessionId)
+
+    await vi.waitFor(() => expect(useAiriCardStore(leader.pinia).activeCardId).toBe('background-character'))
+    await vi.waitFor(() => expect(useAiriCardStore(follower.pinia).activeCardId).toBe('background-character'))
+    // The other window follows the active character to its index session.
+    await vi.waitFor(() => expect(leaderStore.activeSessionId).toBe(indexSessionId))
+    // The window that selected keeps its session.
+    expect(followerStore.activeSessionId).toBe(selectedSessionId)
+  })
+
+  it('keeps the active character when a window selects another session of that character', async () => {
+    const context = createSyncedContext(`chat-session:${crypto.randomUUID()}`, 'leader-only')
+    await vi.waitFor(() => expect(context.runtime.isLeader()).toBe(true))
+    setActivePinia(context.pinia)
+    const store = useChatSessionStore()
+    await store.initialize()
+    const cards = useAiriCardStore(context.pinia)
+    const activation = vi.spyOn(cards, 'activateCard')
+    const sessionId = await store.createSession('default', { setActive: false })
+
+    await store.setActiveSession(sessionId)
+
+    expect(store.activeSessionId).toBe(sessionId)
+    expect(activation).not.toHaveBeenCalled()
+  })
+
   // https://github.com/moeru-ai/airi/issues/2595
   it('keeps a new conversation selected after its first synchronized message for Issue #2595', async () => {
     // ROOT CAUSE:

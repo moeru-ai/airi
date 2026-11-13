@@ -1667,14 +1667,35 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     },
   })
 
-  /** Selects and hydrates one conversation only in the current window. */
+  /**
+   * Selects and hydrates one conversation only in the current window.
+   *
+   * The chat selects the character: the character of the selected session becomes the active character.
+   * The stage, the prompt controls, the background, and the settings pages read the active character, so they follow the chat.
+   * See `docs/ai/adr/2026-11-13-chat-selects-character.md`.
+   */
   async function setActiveSession(sessionId: string) {
     activeSessionId.value = sessionId
 
-    if (ready.value)
-      await useChatSessionStore(pinia).loadSession(sessionId)
-    else if (!hasKnownSession(sessionId))
-      ensureSession(sessionId)
+    if (!ready.value) {
+      if (!hasKnownSession(sessionId))
+        ensureSession(sessionId)
+      return
+    }
+
+    await useChatSessionStore(pinia).loadSession(sessionId)
+    const [characterId] = characterMembersOf(sessionId)
+    // A session of a character that this device does not have keeps the active character.
+    if (!characterId || characterId === getCurrentCharacterId() || !cards.getCard(characterId))
+      return
+
+    try {
+      await cards.activateCard(characterId)
+    }
+    catch (error) {
+      // The window keeps the selected session. Only the stage and the settings stay on the earlier character.
+      console.error('[chat-session] Failed to activate the character of the selected session:', error)
+    }
   }
 
   function applyRemoteSnapshot(snapshot: {
@@ -1969,6 +1990,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
   watch(activeCardId, async () => {
     if (!ready.value)
+      return
+    // This window already shows a chat of the new active character. Its user selected that chat, and the selection
+    // activated the character. Keep the chat. Every other window moves to the index session of the character.
+    if (characterMembersOf(activeSessionId.value).includes(getCurrentCharacterId()))
       return
 
     try {
