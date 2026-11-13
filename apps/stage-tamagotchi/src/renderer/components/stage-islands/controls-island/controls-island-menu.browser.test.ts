@@ -354,6 +354,22 @@ describe('controls Island menu controls', () => {
     await expect.poll(() => menus().length).toBe(0)
   })
 
+  it('declares only the capsule of the Island as a glass surface', async () => {
+    // The Island is one layer. A button with its own glass draws a second layer inside the capsule.
+    const registered = new Set<HTMLElement>()
+    const host: BackdropSurfaceHost = {
+      register(element) {
+        registered.add(element)
+        return () => registered.delete(element)
+      },
+    }
+    const { screen } = mountIsland({ [backdropSurfaceHostKey as symbol]: host })
+    const capsule = screen.getByTestId('main-controls').element()
+
+    await expect.poll(() => registered.has(capsule as HTMLElement)).toBe(true)
+    expect([...registered].filter(element => element.tagName === 'BUTTON')).toEqual([])
+  })
+
   it('switches the character from the Character submenu', async () => {
     const { screen, pinia } = mountIsland()
     const cards = useAiriCardStore(pinia)
