@@ -7,9 +7,13 @@ import { nextTick } from 'vue'
 import { useSpeakerTrackerStore } from './speaker-tracker'
 import { useVoiceprintStore } from './voiceprint'
 
-/** A tracker Worker that scores every comparison 0.42. Calls that the store must not make reject. */
+/**
+ * A tracker Worker that scores every comparison with an enrolled speaker 0.42. Calls that the store must not make reject.
+ * Like Sherpaw, it rejects a comparison with a speaker number that it has not enrolled.
+ */
 const tracker = vi.hoisted(() => {
   const unused = () => Promise.reject(new Error('The store must not call this'))
+  let speakers = 0
   return {
     segmentation: false,
     track: unused,
@@ -18,9 +22,15 @@ const tracker = vi.hoisted(() => {
     voiceprint: unused,
     inspect: unused,
     speech: unused,
-    similarity: vi.fn(async (_samples: Float32Array, _sampleRate: number, _speaker: number) => new Float32Array([0.42])),
-    reset: vi.fn(async () => {}),
-    enrollVoiceprint: vi.fn(async () => 0),
+    similarity: vi.fn(async (_samples: Float32Array, _sampleRate: number, speaker: number) => {
+      if (speaker >= speakers)
+        throw new Error(`Speaker ${speaker} has no voice to compare with yet`)
+      return new Float32Array([0.42])
+    }),
+    reset: vi.fn(async () => {
+      speakers = 0
+    }),
+    enrollVoiceprint: vi.fn(async () => speakers++),
     dispose: vi.fn(),
   }
 })
@@ -110,6 +120,33 @@ describe('speaker tracker store', () => {
     comparing.reject(new Error('Speaker tracker has been disposed'))
 
     expect(await result).toEqual([])
+    dispose()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/3500#discussion_r4565143488
+  // ROOT CAUSE:
+  //
+  // A voiceprint change enrolls the speakers again with new numbers.
+  // A running comparison kept the old numbers, so `similarity` rejected a removed number and the voice store released the tracker.
+  //
+  // We fixed this by counting voiceprint changes. An overlapped comparison is empty and does not throw.
+  it('discards a comparison while a voiceprint change enrolls the speakers again', async () => {
+    const { trackers, voiceprints, dispose } = createStores()
+    const first = voiceprints.add({ embedding: new Float32Array([1, 0]), seconds: 8 }, Date.now() + 1)!
+    voiceprints.add({ embedding: new Float32Array([0, 1]), seconds: 8 }, Date.now() + 1)
+    await nextTick()
+    await trackers.acquire()
+    const comparing = Promise.withResolvers<Float32Array<ArrayBuffer>>()
+    tracker.similarity.mockImplementationOnce(async () => comparing.promise)
+
+    const result = trackers.compare(audioWindow(new Float32Array(16000)))
+    await vi.waitFor(() => expect(tracker.similarity).toHaveBeenCalledOnce())
+    voiceprints.remove(first)
+    await vi.waitFor(() => expect(tracker.reset).toHaveBeenCalledTimes(2))
+    comparing.resolve(new Float32Array([0.42]))
+
+    expect(await result).toEqual([])
+    expect(trackers.preparation).toBe('ready')
     dispose()
   })
 

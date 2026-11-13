@@ -649,7 +649,7 @@ export const useVoiceStore = defineStore('voice', () => {
   /**
    * Compares one window with the enabled voiceprints for speaker recognition.
    * A failed comparison reports the error and releases the tracker, so a broken Worker does not fail every window.
-   * The window then has no score. Turning speaker recognition on again, or a voiceprint change, loads the tracker again.
+   * The window then has no score. Turning speaker recognition off and on, or listening again, loads the tracker again.
    */
   async function compareVoiceprints(window: AudioWindow): Promise<readonly SpeakerCandidate[]> {
     try {
