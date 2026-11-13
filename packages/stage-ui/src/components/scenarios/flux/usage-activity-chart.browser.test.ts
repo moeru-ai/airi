@@ -4,7 +4,7 @@ import en from '@proj-airi/i18n/locales/en'
 
 import { afterEach, describe, expect, it } from 'vitest'
 import { cleanup, render } from 'vitest-browser-vue'
-import { userEvent } from 'vitest/browser'
+import { page, userEvent } from 'vitest/browser'
 import { createI18n } from 'vue-i18n'
 
 import UsageActivityChart from './usage-activity-chart.vue'
@@ -31,9 +31,10 @@ afterEach(cleanup)
 
 describe('flux activity chart', () => {
   it('shows daily, weekly, and cumulative amounts through pointer and keyboard input', async () => {
+    await page.viewport(1100, 700)
     const screen = await renderChart()
-    const target = screen.getByRole('img', { name: 'Daily Flux usage' }).element().querySelectorAll('rect.fill-transparent')
-    target[target.length - 1]!.dispatchEvent(new PointerEvent('pointerenter', { bubbles: true }))
+    const targets = screen.getByRole('img', { name: 'Daily Flux usage' }).element().querySelectorAll('rect.fill-transparent')
+    await userEvent.hover(page.elementLocator(targets[targets.length - 1]!))
     await expect.element(screen.getByRole('status')).toHaveTextContent('3 Flux')
     const chart = screen.getByRole('group', { name: 'Flux activity for the last 365 days' }).element() as HTMLElement
     chart.focus()
