@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/ui-timeline",
   "type": "module",
-  "version": "0.15.2",
+  "version": "0.15.4",
   "description": "Timeline UI for Vue: headless parts for view, zoom, cursor, and keyboard, and the AIRI-styled timeline",
   "author": {
     "name": "Moeru AI Project AIRI Team",

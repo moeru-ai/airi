@@ -32,6 +32,8 @@ dialogs:
     skipForNow: 暂时跳过
     saveAndContinue: 保存并继续
     next: 下一步
+    back: 返回
+    later: 稍后
     retry: 重试
     credentialsSafeLabel: 保证您的 API 密钥和凭据的安全！
     credentialsSafeLocal: >-
@@ -59,10 +61,112 @@ dialogs:
       notificationsDescription: 允许提醒以及重要的状态更新。
       microphoneTitle: 麦克风
       microphoneDescription: 允许 AIRI 使用麦克风进行语音输入和转写。
+      accessibilityTitle: 辅助功能
+      accessibilityDescription: 让「按住说话」快捷键在其他应用处于前台时也能使用。
+      screenRecordingTitle: 屏幕录制
+      screenRecordingDescription: 在你让 AIRI 看屏幕时，允许它看到你的屏幕。
+      pushToTalkTitle: 按住说话
+      pushToTalkDescription: AIRI 在前台时，按住一个键说话。
+      screenShareTitle: 屏幕共享
+      screenShareDescription: 让 AIRI 看到你共享的屏幕或窗口。
       requestAction: 请求获取
+      openSettingsAction: 打开系统设置
       optionalHint: 即使没有授予这些权限，您也可以继续。
       stateGranted: 已授权
       stateNotGranted: 未授权
+      flow:
+        steps: 权限
+        setUpLater: 稍后设置
+        allow: 允许
+        continue: 继续
+        skip: 跳过
+        done: 完成
+        tryAgain: 再试一次
+        state:
+          granted: 已允许
+          skipped: 已跳过
+          todo: 未设置
+          review: 查看
+          done: 已完成
+          blocked: '需要{requirement}'
+        blocked:
+          title: '{page}需要{requirement}'
+          body: '请先设置{requirement}，或者跳过这一页。'
+          action: '设置{requirement}'
+        microphone:
+          title: 让角色听见你
+          body: 语音聊天和唤醒词需要它。
+          allow: 允许使用麦克风
+          device: 输入设备：{device}
+          testing: 说点什么，比如「你好」。
+          quiet: 还没有声音？检查是否静音，或换一个输入设备。
+          heard: 听到你了。
+          level: 麦克风输入音量
+          on: 语音聊天和唤醒词已开启。
+          off: 语音聊天保持关闭，你仍然可以打字。
+        accessibility:
+          title: 在其他应用里也能说话
+          body: 按住快捷键，说话，然后松开。macOS 把这个权限叫作「辅助功能」。
+          with: 有辅助功能权限
+          withBody: 快捷键在所有应用里都能用。
+          without: 没有这个权限
+          withoutBody: 只有 AIRI 在前台时才能用。
+          try: 按住这些键试试。
+          listening: 正在聆听
+          worksEverywhere: 可以用了。也去其他应用里试试吧。
+          worksHere: 在这里可以用。其他应用需要辅助功能权限。
+          location: 在「隐私与安全性 › 辅助功能」中打开 AIRI。
+          on: 快捷键在所有应用里都能用。
+          off: 快捷键只在 AIRI 处于前台时可用。
+        push-to-talk:
+          title: 按住一个键说话
+          body: AIRI 在前台时按住这个键，说话，然后松开。
+          try: 按住这个键试试。
+          works: 可以用了。AIRI 在前台时随时按住它说话。
+          on: AIRI 在前台时按住这个键说话。
+          off: 你仍然可以用麦克风按钮说话。
+        screen-recording:
+          title: 让角色看到你的屏幕
+          share: 共享屏幕
+          body: 只在你要求时，比如问「我的屏幕上有什么？」
+          visible: 这就是角色能看到的画面。
+          hidden: 角色看不到
+          display: 显示器
+          previewOf: '{screen} 的预览'
+          location: 在「隐私与安全性 › 录屏与系统录音」中打开 AIRI。
+          on: 你要求时，角色可以看到你的屏幕。
+          off: 角色看不到你的屏幕。
+        notifications:
+          title: 接收角色的提醒
+          body: 提醒和状态更新。
+          on: 通知已开启。
+          off: 你不会收到提醒。
+        summary:
+          name: 总结
+          title: 都设置好了
+          almost: 就差一点了
+          body: 之后可以随时在设置里修改。
+          skipped: 已跳过。{consequence}
+          blocked: '需要先设置{requirement}。{consequence}'
+          setUp: 去设置
+          setUpOne: 设置{permission}
+    voiceprint:
+      title: 让角色记住你的声音
+      body: 在安静的地方说大约 {seconds} 秒。AIRI 只在这台设备上保存声纹，不保存录音。
+      count: '{seconds} / {target} 秒'
+      cue:
+        start: 开始说吧
+        speaking: 很好，继续说
+        more: 再多说一点
+        almost: 快好了
+      progress: '声纹登记：已录到 {seconds} / {target} 秒语音'
+      languages: 声纹对登记时的语言最准。如果你还说其他语言，可以再登记一个声纹。
+      delete: '删除声纹 {index}'
+      label: '声纹 {index} 的标签'
+      more: 稍后可在 {path} 登记更多声纹。
+      on: 你的声纹已保存在这台设备上。
+      off: AIRI 无法识别你的声音。
+      speakerRecognition: AIRI 会检查输入的声音像不像你。其他人仍然可以和 AIRI 说话。
   bug-report:
     title: Bug 汇报 (´;ω;`)ヾ(･∀･`)
     subtitle: 坏哦，看起来我们不小心搞砸了一些东西。可以分享一下遇到了什么问题吗？
@@ -484,6 +588,7 @@ pages:
       greetings: 问候语（每行一个）
       settings: 设置
       version: 版本
+      model: 角色模型
       create: 创建
       defaults:
         name: 名字
@@ -506,6 +611,7 @@ pages:
           您可以在这里填写有关您正在创建的角色的一些详细信息，解释他的背景和情境，以及应该如何回应您的互动。
         name: 是该角色的正式名称。
         nickname: 您也可以提供一个昵称，它将被优先使用。
+        body_model: 在舞台上显示这个角色的模型。
         description: 该角色的描述。
         notes: 如果您想添加一些个人备注。
         personality: >-
@@ -815,7 +921,7 @@ pages:
             collapse: 折叠
             custom_model_placeholder: 输入自订模型名称
             current_model_label: '当前模型：'
-            description: 为意识选择合适的 LLM 服务来源
+            description: 选择默认的 LLM 服务来源。角色没有单独设置时使用它。
             error: 获取出错啦
             health_check_failed: 健康检查失败
             no_providers_configured_title: 没有配置服务来源
@@ -921,32 +1027,41 @@ pages:
       voiceprint:
         title: 声纹
         description: 登记你的声音，让 AIRI 能认出你。
-        intro: 声纹是声纹模型从你的语音中算出的一组数字。它不包含音频，但能识别出你。
-        privacy: AIRI 只把你的声纹保存在这台设备上。导出角色卡不会带上它，AIRI 也不会上传它。要删除它，可以使用本页的「删除声纹」，或数据设置中的「删除所有数据」。
+        intro: 声纹是声纹模型从语音中算出的一组数字。它不包含音频，但能识别出说话的人。
+        languages: 声纹对登记时所说语言的语音最准。如果你说多种语言，可以每种语言各登记一个声纹。标签可以帮你区分它们，例如语言、麦克风或说话的人。
+        privacy: AIRI 不保存登记时的录音，只把声纹保存在这台设备上。导出角色卡不会带上它们，AIRI 也不会上传它们。要删除某个声纹，使用本页的「删除」。要全部删除，使用数据设置中的「删除所有数据」。
         download: 第一次登记时会下载声纹模型，约 28 MB。
+        saved: 已保存的声纹
+        label: 标签
+        label-placeholder: 标签，例如中文
+        enabled: 用于说话人识别
         speaker-recognition:
           label: 说话人识别
-          description: 把由说话或唤醒词开始的每次语音输入和你的声纹比对，并把分数记录在这次输入的 IO trace 中。「按住说话」的输入没有分数。任何人的声音仍然可以开始输入，聊天模型也收不到这个分数。AIRI 聆听期间，声纹模型会一直留在内存中。
-          needs-voiceprint: 登记声纹后才能开启说话人识别。
+          description: 把由说话或唤醒词开始的每次语音输入，和每个开启了「用于说话人识别」的声纹比对。这次输入的 IO trace 会记录最高的分数和对应的声纹。「按住说话」的输入没有分数。任何人的声音仍然可以开始输入，聊天模型也收不到这个分数。AIRI 聆听期间，声纹模型会一直留在内存中。
+          needs-voiceprint: 要使用说话人识别，请先登记声纹，并为它开启「用于说话人识别」。
         status:
           none: 你还没有声纹。
           enrolled: '{date} 登记，使用了 {seconds} 秒语音。'
-          outdated: 声纹模型已更新。请重新登记，才能使用你的声纹。
-        instructions: 请一个人待在麦克风旁边。点击「开始录音」，然后用平时的声音读出下面的句子。
-        sentence-1: 今天我想看看天气，读一下消息，再安排好接下来要做的事情。
-        sentence-2: 我一般在晚上和 AIRI 聊天，那时候房间很安静，我也有空。
-        sentence-3: 请记住我的声音，这样你就能知道是我在说话。
+          outdated: 声纹模型已更新。请重新登记，才能使用这个声纹。
+        instructions: 请一个人待在麦克风旁边。点击「开始录音」，然后用平时的声音说话。
+        sample-prompt: 不知道说什么？可以读这段：
+        sample: 今天我想看看天气，读一下消息，再安排好接下来要做的事情。我一般在晚上和 AIRI 聊天，那时候房间很安静，我也有空。请记住我的声音，这样你就能知道是我在说话。
         progress: '已录到 {seconds} 秒语音。登记至少需要 {min} 秒。'
         start: 开始录音
-        again: 重新登记
+        again: 再登记一个声纹
         finish: 完成
         cancel: 取消
-        delete: 删除声纹
-        enrolling: 正在计算你的声纹……
+        delete: 删除
+        enrolling: 正在生成你的声纹……
+        review:
+          title: 这个声音和已保存的声纹不太像
+          body: 换了人、语言或麦克风，都可能出现这种情况。
+          keep: 保留声纹
+          discard: 放弃
         result:
           enrolled: 你的声纹已保存。
-          cancelled: 已取消登记。
-          too-short: '这次录音只有 {seconds} 秒语音，登记至少需要 {min} 秒。请重新录音。'
+          cancelled: 已取消登记，没有保存任何内容。
+          too-short: '只录到 {seconds} 秒语音。登记至少需要 {min} 秒，请重新录音。'
           error: '登记失败：{error}'
       sections:
         section:
@@ -1159,7 +1274,7 @@ pages:
             load_error: 无法加载音色
             custom_model_placeholder: 输入指定模型名称...
             custom_voice_placeholder: 输入指定声线 ID...
-            description: 选择合适的语音服务来源
+            description: 选择默认的语音服务来源。角色没有单独设置时使用它。
             no_models: 没有任何可用的模型
             no_models_description: 该服务来源的模型列表没有返回任何的数据
             no_voices: 没有任何可用的声线

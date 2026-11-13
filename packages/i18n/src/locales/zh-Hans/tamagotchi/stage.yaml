@@ -26,6 +26,7 @@ docs:
   'fade-on-hover':
     enable: 悬停时隐藏
     disable: 总是显示
+    title: 悬停时隐藏
   'open-settings': 打开设置
   'open-chat': 打开聊天
   'hide-chat': 收起聊天
@@ -50,6 +51,15 @@ docs:
   'logging-in': 登录中...
   'account': 账号
   'logout': 退出登录
+  'more': 更多
+  'character': 角色
+  'manage-characters': 管理角色…
+  'character-voice': 角色声音
+  'microphone-settings': 麦克风设置…
+  'keep-on-top': 置顶窗口
+  'settings': 设置…
+  'quit': 退出 AIRI
+  'sign-in': 登录…
 'chat-window':
   style:
     title: 聊天窗口样式

@@ -81,7 +81,9 @@ export class AudioOutput implements PlayingAudio {
       const entry = this.nodes.get(source)
       if (!entry)
         return
-      const rendered = Math.max(0, Math.min(entry.duration, (this.stoppedAt ?? this.context.currentTime) - entry.start))
+      // A node that no fade stopped played its whole buffer. Do not measure it with `currentTime`, because Chromium can
+      // fire `ended` before `currentTime` passes the end.
+      const rendered = Math.max(0, Math.min(entry.duration, (this.stoppedAt ?? entry.start + entry.duration) - entry.start))
       this.throughMs += rendered * 1000
       // A node that a fade stopped before its start rendered nothing and must not extend the interval.
       if (rendered > 0)
