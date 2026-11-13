@@ -484,6 +484,7 @@ pages:
       greetings: 问候语（每行一个）
       settings: 设置
       version: 版本
+      model: 角色模型
       create: 创建
       defaults:
         name: 名字
@@ -506,6 +507,7 @@ pages:
           您可以在这里填写有关您正在创建的角色的一些详细信息，解释他的背景和情境，以及应该如何回应您的互动。
         name: 是该角色的正式名称。
         nickname: 您也可以提供一个昵称，它将被优先使用。
+        body_model: 在舞台上显示这个角色的模型。
         description: 该角色的描述。
         notes: 如果您想添加一些个人备注。
         personality: >-

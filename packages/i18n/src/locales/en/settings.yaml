@@ -524,6 +524,7 @@ pages:
       greetings: Greetings (one per line)
       settings: Settings
       version: Version
+      model: Character model
       create: Create
       defaults:
         name: Name
@@ -549,6 +550,7 @@ pages:
           answered.
         name: Is the formal name of this character.
         nickname: You can also give a nickname that will be used in priority.
+        body_model: The model that shows this character on the Stage.
         description: Description of this character.
         notes: If you want to add some personal notes.
         personality: >-
