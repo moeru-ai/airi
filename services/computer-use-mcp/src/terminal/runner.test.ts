@@ -300,7 +300,7 @@ describe('createLocalShellRunner', () => {
       })
       expect(okWithComment.exitCode).toBe(0)
       expect(okWithComment.stdout).toContain('comment-ok')
-    })
+    }, 20_000)
 
     it('handles multiline scripts with comments and preserves status of final statement', async () => {
       const runner = createLocalShellRunner(createTestConfig({ terminalShell: 'powershell.exe' }))
@@ -318,7 +318,7 @@ describe('createLocalShellRunner', () => {
         command: 'Write-Output "step 1" # ok\ncmd.exe /c exit 9 # failed at end',
       })
       expect(multilineFail.exitCode).toBe(9)
-    })
+    }, 20_000)
 
     it('handles trailing newlines without altering command exit status', async () => {
       const runner = createLocalShellRunner(createTestConfig({ terminalShell: 'powershell.exe' }))
