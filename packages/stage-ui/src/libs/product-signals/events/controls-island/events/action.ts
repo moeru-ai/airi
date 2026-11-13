@@ -19,6 +19,12 @@ export type ControlsIslandAction
     | 'enable_fade_on_hover'
     | 'disable_fade_on_hover'
     | 'close_app'
+    | 'open_menu'
+    | 'open_account'
+    | 'sign_in'
+    | 'open_notifications'
+    | 'switch_profile'
+    | 'manage_profiles'
 
 export const controlsIslandActionEvent = defineEvent<{
   action: ControlsIslandAction
