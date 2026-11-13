@@ -921,7 +921,7 @@ pages:
             collapse: 折叠
             custom_model_placeholder: 输入自订模型名称
             current_model_label: '当前模型：'
-            description: 为意识选择合适的 LLM 服务来源
+            description: 选择默认的 LLM 服务来源。角色没有单独设置时使用它。
             error: 获取出错啦
             health_check_failed: 健康检查失败
             no_providers_configured_title: 没有配置服务来源
@@ -1274,7 +1274,7 @@ pages:
             load_error: 无法加载音色
             custom_model_placeholder: 输入指定模型名称...
             custom_voice_placeholder: 输入指定声线 ID...
-            description: 选择合适的语音服务来源
+            description: 选择默认的语音服务来源。角色没有单独设置时使用它。
             no_models: 没有任何可用的模型
             no_models_description: 该服务来源的模型列表没有返回任何的数据
             no_voices: 没有任何可用的声线
