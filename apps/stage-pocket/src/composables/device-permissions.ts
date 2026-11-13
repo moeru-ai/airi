@@ -11,19 +11,19 @@ import { MicrophonePermission } from '../modules/microphone-permission'
 /**
  * Returns the notification and microphone permissions of Pocket.
  *
- * Capacitor reports a denied notification permission. The microphone has no reliable denial state on
- * iOS, so the first request records that it asked. A later request opens the app settings instead,
- * because the system does not ask again.
+ * Capacitor reports a denied notification permission. The native microphone check tells only if the
+ * system allows the microphone, so the first request records that it asked. A later request opens the
+ * app settings instead, because the system does not ask again.
  */
 export function useDevicePermissions(): DevicePermission[] {
   const audioDeviceStore = useSettingsAudioDevice()
   const isNativePlatform = Capacitor.isNativePlatform()
-  const isAndroid = Capacitor.getPlatform() === 'android'
   const microphoneRequested = useLocalStorage('permissions/microphone/requested', false)
 
   async function microphoneGranted() {
-    // The Android plugin reads the platform state without a prompt.
-    if (isAndroid)
+    // The native plugin reads the system permission without a prompt. The store flag below resets at each launch,
+    // so the native app must not use it. The fallback is for the web, where the page has no native plugin.
+    if (isNativePlatform)
       return (await MicrophonePermission.checkPermission()).granted
 
     const permission = await navigator.permissions?.query({ name: 'microphone' }).catch(() => undefined)
