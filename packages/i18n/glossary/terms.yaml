@@ -425,7 +425,7 @@
     - text: Consciousness
       part-of-speech: noun
       status: preferred
-      context: Select the suitable LLM provider for consciousness
+      context: The default uses the chat model of the Consciousness module.
 
 - id: hearing
   subject: modules
