@@ -11,15 +11,6 @@ export interface ActivityGroup {
   row: number
 }
 
-/** Stable tile identities let CSS move the same nodes between all three views. */
-export interface ActivityCell {
-  id: number
-  column: number
-  row: number
-  level: number
-  visible: boolean
-}
-
 function weekdayOf(date: string): number {
   return (new Date(`${date}T00:00:00Z`).getUTCDay() + 6) % 7
 }
@@ -86,23 +77,28 @@ export function buildActivity(days: readonly DailyUsage[], view: ActivityView) {
         return { ...week, microFlux: view === 'cumulative' ? cumulative : week.microFlux }
       })
 
+  if (view === 'daily') {
+    const usedTotals = groups.map(group => group.microFlux).filter(total => total > 0).sort((left, right) => left - right)
+    const thresholds = [0.25, 0.5, 0.75].map(fraction => usedTotals[Math.floor(fraction * (usedTotals.length - 1))] ?? 0)
+    const cells = groups.map(({ column, row, microFlux }, id) => ({
+      id,
+      column,
+      row,
+      level: microFlux > 0 ? 1 + thresholds.filter(threshold => microFlux > threshold).length : 0,
+    }))
+    return { cells, groups, weekCount, monthLabels }
+  }
+
   const max = Math.max(...groups.map(group => group.microFlux))
-  const usedTotals = days.map(day => day.microFlux).filter(total => total > 0).sort((left, right) => left - right)
-  const thresholds = [0.25, 0.5, 0.75].map(fraction => usedTotals[Math.floor(fraction * (usedTotals.length - 1))] ?? 0)
-
-  const cells = Array.from({ length: weekCount * 7 }, (_, id): ActivityCell => {
-    const column = Math.floor(id / 7)
-    const slot = id % 7
-    if (view === 'daily') {
-      const day = days[id - offset]
-      const value = day?.microFlux ?? 0
-      return { id, column, row: slot, visible: !!day, level: value > 0 ? 1 + thresholds.filter(threshold => value > threshold).length : 0 }
-    }
-
-    const value = groups[column]!.microFlux
+  const cells = groups.flatMap(({ column, microFlux }) => {
     // Keep nonzero weeks visible even when their share is less than one tile.
-    const height = max > 0 && value > 0 ? Math.max(1, Math.round(value / max * 7)) : 0
-    return { id, column, row: slot < height ? 6 - slot : 6, visible: slot < height, level: 4 }
+    const height = microFlux > 0 ? Math.max(1, Math.round(microFlux / max * 7)) : 0
+    return Array.from({ length: 7 }, (_, row) => ({
+      id: column * 7 + row,
+      column,
+      row,
+      level: row >= 7 - height ? 4 : 0,
+    }))
   })
 
   return { cells, groups, weekCount, monthLabels }

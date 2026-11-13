@@ -164,16 +164,16 @@ onMounted(() => {
           :viewBox="`0 0 ${drawingWidth} 98`"
           :class="['block w-full overflow-visible']"
         >
-          <rect
-            v-for="cell in layout.cells" :key="cell.id"
-            width="11" height="11" rx="3"
-            :class="['activity-tile', levelClasses[cell.level]]"
-            :style="{
-              transform: `translate(${cell.column * 14}px, ${cell.row * 14}px)`,
-              opacity: cell.visible ? 1 : 0,
-              transitionDelay: `${cell.column * 3}ms`,
-            }"
-          />
+          <Transition enter-active-class="activity-reveal" @leave="(_, done) => done()">
+            <g :key="view" pointer-events="none">
+              <rect
+                v-for="cell in layout.cells" :key="cell.id"
+                :x="cell.column * 14" :y="cell.row * 14"
+                width="11" height="11" rx="3"
+                :class="levelClasses[cell.level]"
+              />
+            </g>
+          </Transition>
           <rect
             v-for="(group, index) in layout.groups" :key="group.date"
             :x="group.column * 14"
@@ -219,16 +219,17 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.activity-tile {
-  transition:
-    transform 600ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 350ms ease,
-    fill 350ms ease;
-}
+@media (prefers-reduced-motion: no-preference) {
+  .activity-reveal {
+    mask-image: linear-gradient(115deg, #000 44%, transparent 56%);
+    mask-size: 300% 100%;
+    mask-repeat: no-repeat;
+    animation: activity-reveal 600ms ease-out both;
+  }
 
-@media (prefers-reduced-motion: reduce) {
-  .activity-tile {
-    transition: none;
+  @keyframes activity-reveal {
+    from { mask-position: 100% 0; }
+    to { mask-position: 0 0; }
   }
 }
 </style>
