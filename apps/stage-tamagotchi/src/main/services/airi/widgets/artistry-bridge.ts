@@ -15,6 +15,8 @@ import { errorMessageFrom } from '@moeru/std'
 import { artistryGenerateHeadless, artistrySyncConfig, artistryTestComfyUIConnection, errorMessageFromValue } from '@proj-airi/stage-shared'
 import { injeca } from 'injeca'
 
+import * as v from 'valibot'
+
 import { ComfyUIProvider } from './providers/comfyui'
 import { NanoBananaProvider } from './providers/nanobanana'
 import { ReplicateProvider } from './providers/replicate'
@@ -488,13 +490,25 @@ export async function setupArtistryBridge(params: {
       cardDefaults.globals = payload.globals
     })
 
+    const testComfyUIConnectionPayloadSchema = v.object({
+      url: v.pipe(v.string(), v.trim(), v.nonEmpty()),
+    })
+
     defineInvokeHandler(params.context, artistryTestComfyUIConnection, async (payload) => {
-      log.log(`🔌 Testing ComfyUI connection at: ${payload.url}`)
+      const parsed = v.safeParse(testComfyUIConnectionPayloadSchema, payload)
+      if (!parsed.success) {
+        return {
+          ok: false,
+        }
+      }
+
+      const url = parsed.output.url
+      log.log(`🔌 Testing ComfyUI connection at: ${url}`)
       try {
-        const url = payload.url.replace(/\/+$/, '')
+        const normalizedUrl = url.replace(/\/+$/, '')
         const controller = new AbortController()
         const id = setTimeout(() => controller.abort(), 10000)
-        const resp = await fetch(`${url}/system_stats`, { signal: controller.signal })
+        const resp = await fetch(`${normalizedUrl}/system_stats`, { signal: controller.signal })
         clearTimeout(id)
 
         if (!resp.ok)
