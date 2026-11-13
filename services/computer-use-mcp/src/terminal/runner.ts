@@ -3,7 +3,6 @@ import type { ChildProcess } from 'node:child_process'
 import type { TerminalSpawnInput } from '@proj-airi/stage-shared/terminal-approval'
 
 import type {
-  ApprovalGrantScope,
   ComputerUseConfig,
   TerminalCommandResult,
   TerminalExecActionInput,
@@ -352,13 +351,5 @@ export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunne
       return { ...state }
     },
     execute: async input => startPrepared(prepare(input)).result,
-  }
-}
-
-export function withApprovalGrant(state: TerminalState, granted: boolean, scope: ApprovalGrantScope = 'terminal_and_apps'): TerminalState {
-  return {
-    ...state,
-    approvalSessionActive: granted,
-    approvalGrantedScope: granted ? scope : undefined,
   }
 }

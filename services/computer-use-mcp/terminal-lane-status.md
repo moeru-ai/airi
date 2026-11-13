@@ -144,7 +144,6 @@ The main implementation lives in:
 1. The current `taskId + stepId` already has a bound PTY session.
 2. The step explicitly declares `interaction: 'persistent'`.
 3. The command matches `KNOWN_INTERACTIVE_COMMAND_PATTERNS`.
-4. A failed/timed-out exec attempt surfaces one of `INTERACTIVE_OUTPUT_MARKERS`.
 
 This rule set is covered by:
 
@@ -156,7 +155,6 @@ This rule set is covered by:
 The engine already contains the v2 shape:
 
 - `AcquirePtyForStep`
-- `StepTerminalProgress`
 - suspension point `before_pty_acquire`
 - PTY step family support:
   - `pty_send_input`

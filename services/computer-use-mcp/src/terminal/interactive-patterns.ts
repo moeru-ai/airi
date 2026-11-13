@@ -1,5 +1,5 @@
 /**
- * Fixed interactive command/output pattern sets for terminal surface resolution.
+ * Fixed interactive command patterns for terminal surface resolution.
  *
  * `auto` mode ONLY recognises these patterns — no additional heuristics.
  * To extend, add entries here and bump the test assertions.
@@ -31,31 +31,4 @@ export const KNOWN_INTERACTIVE_COMMAND_PATTERNS: RegExp[] = [
 export function isKnownInteractiveCommand(command: string): boolean {
   const trimmed = command.trim()
   return KNOWN_INTERACTIVE_COMMAND_PATTERNS.some(re => re.test(trimmed))
-}
-
-// ---------------------------------------------------------------------------
-// Interactive output markers
-// ---------------------------------------------------------------------------
-
-/**
- * Fixed set of output strings that indicate the process is waiting for
- * interactive input. Checked case-insensitively against stdout + stderr
- * after an exec attempt fails or times out.
- */
-export const INTERACTIVE_OUTPUT_MARKERS: string[] = [
-  'READY>',
-  'Password:',
-  'Press any key',
-  'Select an option',
-  'Enter your choice',
-  '[y/N]',
-  '[Y/n]',
-]
-
-/**
- * Returns true when `output` contains one of the fixed interactive markers.
- */
-export function hasInteractiveOutputMarkers(output: string): boolean {
-  const lower = output.toLowerCase()
-  return INTERACTIVE_OUTPUT_MARKERS.some(marker => lower.includes(marker.toLowerCase()))
 }

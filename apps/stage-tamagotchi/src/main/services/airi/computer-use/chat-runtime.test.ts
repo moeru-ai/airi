@@ -176,7 +176,6 @@ describe('chat to computer use integration with simulated network and OS boundar
       { name: COMPUTER_USE_READ_IMAGE_TOOL_NAME, input: { path: screenshot } },
     ])
     const run = vi.spyOn(host.getRuntime(), 'run')
-    const read = vi.spyOn(host.getRuntime(), 'readImage')
     const send = harness.chat.submit('Observe the desktop.', { model: 'test', chatProvider: model.provider, tools: harness.tools })
     const accepted = await send.accepted
     harness.activeSession.value = 'session-c'
@@ -187,7 +186,6 @@ describe('chat to computer use integration with simulated network and OS boundar
       renderer.window.webContents.id,
       expect.any(AbortSignal),
     ])
-    expect(read).not.toHaveBeenCalled()
     expect(model.requests[2]).toMatchObject({ messages: expect.arrayContaining([expect.objectContaining({ role: 'tool', tool_call_id: 'call-1', content: expect.stringContaining('trusted observation scope') })]) })
     expect(model.requests[3]).toMatchObject({ messages: expect.arrayContaining([expect.objectContaining({ role: 'tool', tool_call_id: 'call-2', content: expect.stringContaining('capture provenance') })]) })
     expect(external.execute).toHaveBeenCalledOnce()

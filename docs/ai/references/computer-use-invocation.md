@@ -66,14 +66,8 @@ Approval UI and target-bound input are separate follow-up slices.
 
 ## Screenshot reads
 
-Model observations and `computerUseReadImage` require a session, turn, and tool-call ID by default.
-`computerUsePreviewImage` belongs to local history rendering and requires an Electron source without inventing a session.
-The preview endpoint is not exposed as a model tool.
-
-Both endpoints use the same real-path confinement, file-size limit, format checks, and WebP conversion.
-They read only screenshots within AIRI's private computer-use artifact store.
-Local history previews follow a shared-store policy. They do not implement per-session artifact access control.
-Changing that policy requires artifact ownership records, not additional correlation strings.
+Main denies model image reads and local history previews until it can verify trusted observation scope and capture provenance.
+Historical tool messages retain their names and metadata.
 
 ## Verification scope
 

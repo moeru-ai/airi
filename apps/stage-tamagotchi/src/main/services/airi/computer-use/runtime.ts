@@ -7,13 +7,10 @@ import type { InvocationAttribution } from './attribution'
 import process from 'node:process'
 
 import { execFile } from 'node:child_process'
-import { readFile, realpath, stat } from 'node:fs/promises'
-import { isAbsolute, relative, sep } from 'node:path'
 import { promisify } from 'node:util'
 
 import { startAuv } from '@auv-js/sdk/node'
 import { errorMessageFrom } from '@moeru/std'
-import { fileTypeFromBuffer } from 'file-type'
 
 import * as v from 'valibot'
 
@@ -22,7 +19,6 @@ import { validateAttribution } from './attribution'
 import { classifyAuvCommand, MANAGED_FLAGS } from './classifier'
 
 const execFileAsync = promisify(execFile)
-const MAX_IMAGE_BYTES = 8 * 1024 * 1024
 
 const attributionSchema = v.object({
   sessionId: v.pipe(v.string(), v.minLength(1), v.check(value => !value.includes('\0'))),
@@ -37,11 +33,6 @@ const inputSchema = v.object({
     v.maxLength(128),
   ),
   actionId: v.optional(v.string()),
-  attribution: v.optional(attributionSchema),
-})
-
-const readImageSchema = v.object({
-  path: v.string(),
   attribution: v.optional(attributionSchema),
 })
 
@@ -420,56 +411,6 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
     })
   }
 
-  async function readImage(input: unknown, callerWebContentsId?: number, signal?: AbortSignal): Promise<string> {
-    const { path, attribution: rawAttribution } = v.parse(readImageSchema, input)
-
-    if (rawAttribution) {
-      const attribution = validateAttribution(rawAttribution, callerWebContentsId)
-      if (options.requireAttribution !== false && (!attribution.turnId || !attribution.toolCallId))
-        throw new Error('Invocation attribution requires the original turn ID and tool-call ID.')
-    }
-    else if (options.requireAttribution !== false) {
-      throw new Error('Invocation attribution is required (missing sessionId).')
-    }
-
-    return readScreenshot(path, signal)
-  }
-
-  /** Reads history previews for an Electron caller under the shared local artifact policy, without fabricating a session. */
-  async function previewImage(input: unknown, callerWebContentsId?: number): Promise<string> {
-    if (typeof callerWebContentsId !== 'number' || !Number.isSafeInteger(callerWebContentsId) || callerWebContentsId <= 0)
-      throw new Error('Screenshot previews require a verified Electron sender.')
-    const { path } = v.parse(v.object({ path: v.string() }), input)
-    return readScreenshot(path)
-  }
-
-  function readScreenshot(path: string, signal?: AbortSignal): Promise<string> {
-    return enqueue(async () => {
-      const root = await realpath(options.storeRoot)
-      const target = await realpath(path)
-      const within = relative(root, target)
-      if (!within || isAbsolute(within) || within === '..' || within.startsWith(`..${sep}`))
-        throw new Error('Only screenshots from this AIRI computer-use store can be read.')
-      const info = await stat(target)
-      if (!info.isFile() || info.size > MAX_IMAGE_BYTES)
-        throw new Error('Screenshot must be a file smaller than 8 MiB.')
-      const data = await readFile(target)
-      const type = await fileTypeFromBuffer(data)
-      if (type?.mime === 'image/png' || type?.mime === 'image/jpeg')
-        return `data:${type.mime};base64,${data.toString('base64')}`
-      if (type?.mime !== 'image/webp')
-        throw new Error('Screenshot must be PNG, JPEG, or WebP.')
-
-      // AUV's Windows backend writes WebP. Convert it to PNG for providers that require PNG or JPEG.
-      // Only that backend needs the native codec, so load it on first use, not at app start.
-      const { Transformer } = await import('@napi-rs/image')
-      const converted = await new Transformer(data).png(null, abort.signal)
-      if (converted.length > MAX_IMAGE_BYTES)
-        throw new Error('Screenshot must be smaller than 8 MiB after converting from WebP to PNG.')
-      return `data:image/png;base64,${converted.toString('base64')}`
-    }, signal)
-  }
-
   /** Rejects queued calls, aborts active work, and waits for the owned daemon to exit. */
   async function dispose() {
     disposed = true
@@ -493,5 +434,5 @@ export function createComputerUseRuntime(options: ComputerUseRuntimeOptions) {
       return execute()
     return enqueue(execute, signal)
   }
-  return { run, readImage, previewImage, executeInSlot, dispose }
+  return { run, executeInSlot, dispose }
 }

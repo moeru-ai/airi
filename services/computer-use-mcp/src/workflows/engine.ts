@@ -46,21 +46,6 @@ export interface WorkflowSuspension {
   overrides?: Record<string, unknown>
   stepResults: WorkflowStepResult[]
   task: ActiveTask
-  /**
-   * Tracks the terminal acquisition progress of the paused step so that
-   * on resume we don't replay already-completed work.
-   */
-  stepProgress?: StepTerminalProgress
-}
-
-/** Terminal acquisition state for a single workflow step. */
-export interface StepTerminalProgress {
-  /** Where in the terminal acquisition lifecycle we are. */
-  terminalPhase: 'not_started' | 'acquiring' | 'acquired' | 'executing'
-  /** Pre-PTY preparations that completed before the pause. */
-  completedPreparations: string[]
-  /** Bound PTY session id (if already acquired before the pause). */
-  ptySessionId?: string
 }
 
 export type WorkflowStatus = 'completed' | 'failed' | 'paused' | 'reroute_required'
@@ -389,11 +374,6 @@ export async function executeWorkflow(params: {
                 overrides,
                 stepResults: [...stepResults],
                 task: { ...task },
-                stepProgress: {
-                  terminalPhase: 'acquiring',
-                  completedPreparations: [],
-                  ptySessionId: undefined,
-                },
               }
 
               return {
