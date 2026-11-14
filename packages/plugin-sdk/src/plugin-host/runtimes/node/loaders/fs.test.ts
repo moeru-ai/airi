@@ -3,11 +3,11 @@ import type { ExtensionManifestV2 } from '../../../shared/types'
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { FileSystemLoader } from './fs'
+import { FileSystemLoader, toEntrypointImportUrl } from './fs'
 
 const created: string[] = []
 
@@ -30,7 +30,6 @@ function manifestFor(entrypoints: ExtensionManifestV2['entrypoints']): Extension
     id: 'test-extension',
     version: '0.0.1',
     engines: { airi: '*', runtimes: ['electron'] },
-    // Every permission area is optional, so an empty declaration is valid.
     permissions: {},
     entrypoints,
   }
@@ -40,8 +39,7 @@ function manifestFor(entrypoints: ExtensionManifestV2['entrypoints']): Extension
  * Runs `loadExtensionFor` in a real Node process.
  *
  * Vitest rewrites `import()` into its own resolver, which accepts Windows paths,
- * so a plain unit test passes even where the shipped loader breaks. Node's ESM
- * loader is what ships, and it requires a file:// URL for absolute paths.
+ * so a plain unit test passes even where the shipped loader breaks.
  */
 function loadThroughNodeEsm(extensionPath: string): { ok: boolean, output: string } {
   const dir = workdir()
@@ -60,8 +58,7 @@ function loadThroughNodeEsm(extensionPath: string): { ok: boolean, output: strin
     '}',
   ].join('\n'), 'utf8')
 
-  // Node strips TypeScript types natively (default since 22.18), which keeps this
-  // test free of any extra loader dependency.
+  // Node strips TypeScript types natively, so the probe needs no extra loader.
   const output = execFileSync(
     process.execPath,
     [probe, extensionPath],
@@ -75,10 +72,46 @@ afterEach(() => {
 })
 
 describe('fileSystemLoader', () => {
-  it('loads an entrypoint given as an absolute filesystem path', () => {
-    // Windows: `C:\Users\...\extension.mjs`. Node's ESM loader resolves the
-    // specifier as a URL and reads `C:` as a protocol, so a bare path is
-    // rejected with ERR_UNSUPPORTED_ESM_URL_SCHEME. Real Node is required here.
+  // https://github.com/moeru-ai/airi/issues/3359
+  //
+  // ROOT CAUSE:
+  //
+  // On Windows the entrypoint is an absolute path. `import()` reads the drive
+  // letter as a URL scheme and rejects it.
+  //
+  // Before: await import(entrypoint)
+  // After:  await import(toEntrypointImportUrl(entrypoint))
+  it('converts an entrypoint path to a file URL (Issue #3359)', () => {
+    const entrypoint = resolve(tmpdir(), 'airi-extension.mjs')
+
+    const url = new URL(toEntrypointImportUrl(entrypoint))
+
+    expect(url.protocol).toBe('file:')
+    expect(url.pathname.endsWith('/airi-extension.mjs')).toBe(true)
+  })
+
+  // https://github.com/moeru-ai/airi/issues/3359
+  //
+  // ROOT CAUSE:
+  //
+  // The plugin host reloads an extension with a cache-bust query on the
+  // entrypoint. Converting the whole string as a path encodes `?` as `%3F`.
+  it('keeps a cache-bust query as a URL query (Issue #3359)', () => {
+    const entrypoint = `${resolve(tmpdir(), 'airi-extension.mjs')}?cacheBust=42`
+
+    const url = new URL(toEntrypointImportUrl(entrypoint))
+
+    expect(url.search).toBe('?cacheBust=42')
+    expect(url.pathname.endsWith('/airi-extension.mjs')).toBe(true)
+  })
+
+  // https://github.com/moeru-ai/airi/issues/3359
+  //
+  // ROOT CAUSE:
+  //
+  // Vitest rewrites `import()` into its own resolver, so a unit test passes where
+  // the shipped loader fails. Real Node is required to reproduce the rejection.
+  it('imports an absolute entrypoint in real Node (Issue #3359)', () => {
     const file = writeExtension(workdir())
 
     const result = loadThroughNodeEsm(file)
@@ -89,11 +122,11 @@ describe('fileSystemLoader', () => {
 
   it('resolves absolute and relative entrypoints before importing', () => {
     const loader = new FileSystemLoader()
-    const absolute = manifestFor({ electron: '/somewhere/extension.mjs', default: '/fallback/extension.mjs' })
+    const absolutePath = resolve(tmpdir(), 'extension.mjs')
 
-    expect(loader.resolveEntrypointFor(absolute)).toBe('/somewhere/extension.mjs')
-    expect(loader.resolveEntrypointFor(manifestFor({ default: 'extension.mjs' }), { cwd: '/root' }))
-      .toBe(join('/root', 'extension.mjs'))
+    expect(loader.resolveEntrypointFor(manifestFor({ electron: absolutePath }))).toBe(absolutePath)
+    expect(loader.resolveEntrypointFor(manifestFor({ default: 'extension.mjs' }), { cwd: tmpdir() }))
+      .toBe(join(tmpdir(), 'extension.mjs'))
   })
 
   it('reads a relative entrypoint against the provided root', async () => {

@@ -5,6 +5,23 @@ import { isAbsolute, join } from 'node:path'
 import { cwd } from 'node:process'
 import { pathToFileURL } from 'node:url'
 
+/**
+ * Converts a resolved entrypoint into an importable URL.
+ *
+ * `import()` reads a Windows drive letter as a URL scheme, so a raw absolute path
+ * fails with ERR_UNSUPPORTED_ESM_URL_SCHEME. A caller can append a cache-bust
+ * query to force a module reload. That query must stay a URL query, not part of
+ * the file name.
+ */
+export function toEntrypointImportUrl(entrypoint: string): string {
+  const queryIndex = entrypoint.indexOf('?')
+  const filePath = queryIndex === -1 ? entrypoint : entrypoint.slice(0, queryIndex)
+  const url = pathToFileURL(filePath)
+  if (queryIndex !== -1)
+    url.search = entrypoint.slice(queryIndex)
+  return url.href
+}
+
 function isExtensionDefinition(value: unknown): value is Extension {
   return typeof value === 'object'
     && value !== null
@@ -73,11 +90,7 @@ export class FileSystemLoader {
 
   async loadExtensionFor(manifest: ExtensionManifestV2, options?: ExtensionLoadOptions) {
     const entrypoint = this.resolveEntrypointFor(manifest, options)
-    // `import()` resolves its argument as a URL, so a Windows absolute path such as
-    // `C:/extensions/foo/extension.mjs` is read as the `c:` protocol and rejected
-    // with ERR_UNSUPPORTED_ESM_URL_SCHEME. Convert the filesystem path to a file://
-    // URL first so absolute paths work on every platform.
-    const extensionModule = await import(pathToFileURL(entrypoint).href)
+    const extensionModule = await import(toEntrypointImportUrl(entrypoint))
     return coerceExtensionFromModule(extensionModule)
   }
 }
