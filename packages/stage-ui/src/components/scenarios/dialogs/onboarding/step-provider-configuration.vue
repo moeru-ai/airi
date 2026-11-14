@@ -205,6 +205,7 @@ function getApiKeyPlaceholder(providerId: string): string {
     'google-generative-ai': 'AI...',
     'openrouter-ai': 'sk-or-...',
     'deepseek': 'sk-...',
+    'demonroute': 'dr-...',
     'xai': 'xai-...',
     'together-ai': 'togetherapi-...',
     'mistral-ai': 'mis-...',

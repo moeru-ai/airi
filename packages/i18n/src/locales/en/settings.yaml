@@ -2442,6 +2442,9 @@ pages:
       featherless:
         description: featherless.ai
         title: Featherless AI
+      demonroute:
+        description: demonroute.com
+        title: DemonRoute
       lm-studio:
         description: lmstudio.ai
         title: LM Studio
