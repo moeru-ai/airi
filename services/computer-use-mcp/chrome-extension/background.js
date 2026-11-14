@@ -20,7 +20,9 @@
 
 /* global chrome */
 
-const AIRI_BRIDGE_URL = 'ws://127.0.0.1:8765'
+// eslint-disable-next-line no-restricted-syntax -- Chrome MV3 service workers require file extensions for ESM imports.
+import { DEFAULT_BRIDGE_URL, resolveBridgeUrl } from './bridge-config.js'
+
 const AIRI_BRIDGE_HELLO = {
   type: 'hello',
   source: 'airi-chrome-extension',
@@ -32,6 +34,14 @@ const SEND_CU_ACTION_TIMEOUT_MS = 8_000
 const WAIT_FOR_ELEMENT_POLL_INTERVAL_MS = 500
 
 let bridgeSocket = null
+let bridgeUrl = DEFAULT_BRIDGE_URL
+let bridgeConfigRevision = 0
+// A socket accepts commands only after the latest storage read applies.
+let bridgeSocketRevision = 0
+// Module startup, onStartup, and onInstalled share one initialization read.
+let bridgeInitializationPromise = null
+// WebSocket commands wait for the latest settings read before they execute.
+let bridgeConfigRefreshPromise = null
 let bridgeReconnectDelayMs = BRIDGE_RECONNECT_MIN_MS
 let bridgeReconnectTimer = null
 
@@ -90,27 +100,40 @@ function clearBridgeReconnectTimer() {
   bridgeReconnectTimer = null
 }
 
-function scheduleBridgeReconnect() {
-  if (bridgeReconnectTimer)
+function scheduleBridgeReconnect(revision = bridgeSocketRevision) {
+  if (revision !== bridgeConfigRevision || bridgeReconnectTimer)
     return
 
   const delay = bridgeReconnectDelayMs
   bridgeReconnectDelayMs = Math.min(bridgeReconnectDelayMs * 2, BRIDGE_RECONNECT_MAX_MS)
   bridgeReconnectTimer = setTimeout(() => {
     bridgeReconnectTimer = null
-    ensureBridgeConnected().catch(() => {})
+    ensureBridgeConnected(revision).catch(() => {})
   }, delay)
 }
 
-function sendBridgePayload(payload) {
-  if (!bridgeSocket || bridgeSocket.readyState !== WebSocket.OPEN)
+function sendBridgePayload(payload, socket) {
+  if (!socket || socket !== bridgeSocket || socket.readyState !== WebSocket.OPEN)
     return false
 
-  bridgeSocket.send(JSON.stringify(payload))
+  socket.send(JSON.stringify(payload))
   return true
 }
 
-async function handleBridgeSocketMessage(raw) {
+async function waitForBridgeConfigRefresh() {
+  let pendingRefresh
+  do {
+    pendingRefresh = bridgeConfigRefreshPromise
+    // Refresh callers log failures and keep the existing endpoint active.
+    if (pendingRefresh)
+      await pendingRefresh.catch(() => {})
+  } while (pendingRefresh)
+}
+
+async function handleBridgeSocketMessage(raw, socket) {
+  if (socket !== bridgeSocket)
+    return
+
   let data
   try {
     data = JSON.parse(String(raw))
@@ -122,38 +145,60 @@ async function handleBridgeSocketMessage(raw) {
   if (!data || typeof data !== 'object' || typeof data.id !== 'string')
     return
 
+  await waitForBridgeConfigRefresh()
+  if (socket !== bridgeSocket || socket.readyState !== WebSocket.OPEN)
+    return
+
   const response = await handleCommand(data)
-  sendBridgePayload(response)
+  if (socket !== bridgeSocket)
+    return
+
+  sendBridgePayload(response, socket)
 }
 
-async function ensureBridgeConnected() {
+async function ensureBridgeConnected(revision = bridgeConfigRevision) {
+  if (revision !== bridgeConfigRevision)
+    return
+
   if (bridgeSocket && (bridgeSocket.readyState === WebSocket.OPEN || bridgeSocket.readyState === WebSocket.CONNECTING)) {
+    bridgeSocketRevision = revision
     return
   }
 
   clearBridgeReconnectTimer()
 
   try {
-    const socket = new WebSocket(AIRI_BRIDGE_URL)
+    const socket = new WebSocket(bridgeUrl)
     bridgeSocket = socket
+    bridgeSocketRevision = revision
 
     socket.addEventListener('open', () => {
+      if (bridgeSocket !== socket)
+        return
+
       bridgeReconnectDelayMs = BRIDGE_RECONNECT_MIN_MS
-      sendBridgePayload(AIRI_BRIDGE_HELLO)
+      sendBridgePayload(AIRI_BRIDGE_HELLO, socket)
     })
 
     socket.addEventListener('message', (event) => {
-      handleBridgeSocketMessage(event.data).catch(() => {})
+      if (bridgeSocket !== socket)
+        return
+
+      handleBridgeSocketMessage(event.data, socket).catch(() => {})
     })
 
     socket.addEventListener('close', () => {
-      if (bridgeSocket === socket) {
-        bridgeSocket = null
-      }
-      scheduleBridgeReconnect()
+      if (bridgeSocket !== socket)
+        return
+
+      bridgeSocket = null
+      scheduleBridgeReconnect(bridgeSocketRevision)
     })
 
     socket.addEventListener('error', () => {
+      if (bridgeSocket !== socket)
+        return
+
       try {
         socket.close()
       }
@@ -163,8 +208,77 @@ async function ensureBridgeConnected() {
     })
   }
   catch {
-    scheduleBridgeReconnect()
+    scheduleBridgeReconnect(revision)
   }
+}
+
+function refreshBridgeConfig() {
+  const revision = ++bridgeConfigRevision
+  const refreshPromise = Promise.resolve()
+    .then(() => chrome.storage.local.get([
+      'browserDomBridgeHost',
+      'browserDomBridgePort',
+    ]))
+    .then((settings) => {
+      if (revision !== bridgeConfigRevision)
+        return null
+
+      const nextBridgeUrl = resolveBridgeUrl(settings)
+      bridgeSocketRevision = revision
+      clearBridgeReconnectTimer()
+
+      if (nextBridgeUrl === bridgeUrl)
+        return revision
+
+      bridgeUrl = nextBridgeUrl
+      bridgeReconnectDelayMs = BRIDGE_RECONNECT_MIN_MS
+
+      const previousSocket = bridgeSocket
+      bridgeSocket = null
+      if (previousSocket && previousSocket.readyState < WebSocket.CLOSING) {
+        try {
+          previousSocket.close()
+        }
+        catch {
+          // Ignore close failures; the new endpoint should still be attempted.
+        }
+      }
+
+      return revision
+    })
+  const trackedRefreshPromise = refreshPromise.finally(() => {
+    if (bridgeConfigRevision === revision)
+      bridgeConfigRefreshPromise = null
+  })
+
+  bridgeConfigRefreshPromise = trackedRefreshPromise
+  return trackedRefreshPromise
+}
+
+function initializeBridge() {
+  if (bridgeInitializationPromise)
+    return bridgeInitializationPromise
+
+  const revision = bridgeConfigRevision + 1
+  const initialization = refreshBridgeConfig()
+    .then((appliedRevision) => {
+      if (appliedRevision !== null)
+        ensureBridgeConnected(appliedRevision)
+    })
+    .catch((error) => {
+      console.warn('Failed to load browser DOM bridge settings; using the default endpoint.', error)
+      if (revision === bridgeConfigRevision) {
+        bridgeSocketRevision = revision
+        ensureBridgeConnected(revision)
+      }
+    })
+    .finally(() => {
+      if (bridgeInitializationPromise === initialization)
+        bridgeInitializationPromise = null
+    })
+
+  bridgeInitializationPromise = initialization
+  return initialization
 }
 
 // ---- Tab / Frame utilities ----
@@ -591,12 +705,34 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   return false
 })
 
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName !== 'local')
+    return
+
+  if (!('browserDomBridgeHost' in changes) && !('browserDomBridgePort' in changes))
+    return
+
+  const revision = bridgeConfigRevision + 1
+  refreshBridgeConfig()
+    .then((appliedRevision) => {
+      if (appliedRevision !== null)
+        ensureBridgeConnected(appliedRevision)
+    })
+    .catch((error) => {
+      console.warn('Failed to apply browser DOM bridge settings.', error)
+      if (revision === bridgeConfigRevision) {
+        bridgeSocketRevision = revision
+        ensureBridgeConnected(revision)
+      }
+    })
+})
+
 chrome.runtime.onStartup?.addListener(() => {
-  ensureBridgeConnected().catch(() => {})
+  initializeBridge()
 })
 
 chrome.runtime.onInstalled?.addListener(() => {
-  ensureBridgeConnected().catch(() => {})
+  initializeBridge()
 })
 
-ensureBridgeConnected().catch(() => {})
+initializeBridge()
