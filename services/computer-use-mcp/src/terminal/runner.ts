@@ -27,12 +27,12 @@ export const WINDOWS_POWERSHELL_OUTPUT_PREFIX = '[Console]::OutputEncoding = [Sy
 
 /**
  * Normalizes PowerShell exit codes across cmdlets and native executables.
- * Begins with a newline so trailing comments in user scripts cannot comment
- * out this wrapper. Tests $? ($ok) before $LASTEXITCODE to avoid stale exit
- * codes after subsequent successful statements.
+ * The leading newline keeps this code outside a trailing comment.
+ * A successful final statement takes precedence over a stale native exit code.
+ * SetShouldExit lets the console finish formatting buffered output before it exits.
  */
 export const POWERSHELL_EXIT_CODE_SUFFIX
-  = '\n$ok = $?; if ($ok) { exit 0 } elseif ($LASTEXITCODE -is [int] -and $LASTEXITCODE -ne 0) { exit $LASTEXITCODE } else { exit 1 }'
+  = '\n$ok = $?; if ($ok) { $Host.SetShouldExit(0) } elseif ($LASTEXITCODE -is [int] -and $LASTEXITCODE -ne 0) { $Host.SetShouldExit($LASTEXITCODE) } else { $Host.SetShouldExit(1) }'
 
 export function isPowershellShell(shell: string): boolean {
   return POWERSHELL_SHELL_NAME_RE.test(win32.basename(shell.trim()))

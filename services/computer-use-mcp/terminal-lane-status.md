@@ -7,6 +7,9 @@ Main approves bundled Terminal commands through the existing Terminal action and
 Turning Turbo off cancels queued automatic approvals. Chat receives the result after either approval mode.
 The MCP audit retains desktop metadata.
 
+PowerShell receives the normalized exit code without interrupting output formatting.
+The runner returns formatted stdout together with the shell exit code.
+
 Terminal exec and reset skip CDP discovery in the shared action pipeline.
 Linux X11 still checks the remote target, display bounds, and screenshot binding before execution.
 

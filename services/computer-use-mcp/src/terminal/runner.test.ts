@@ -243,6 +243,22 @@ describe('createLocalShellRunner', () => {
       expect(runner.getState().lastExitCode).toBe(0)
     })
 
+    it.each([
+      { exitCode: 0, lastCommand: '' },
+      { exitCode: 8, lastCommand: '\ncmd.exe /c exit 8' },
+    ])('returns formatted PowerShell object output with exit code $exitCode', async ({ exitCode, lastCommand }) => {
+      const runner = createLocalShellRunner(createTestConfig({ terminalShell: 'powershell.exe' }))
+
+      const result = await runner.execute({
+        command: `'record-01.txt', 'record-02.txt' | ForEach-Object { [pscustomobject]@{ FullName = $_ } } | Select-Object FullName${lastCommand}`,
+      })
+
+      expect(result.exitCode).toBe(exitCode)
+      expect(result.stderr).toBe('')
+      expect(result.stdout).toContain('record-01.txt')
+      expect(result.stdout).toContain('record-02.txt')
+    }, 15_000)
+
     it('rejects execution when configured with an unsupported shell on Windows', async () => {
       const runner = createLocalShellRunner(createTestConfig({ terminalShell: 'cmd.exe' }))
 
