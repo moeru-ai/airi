@@ -105,7 +105,6 @@ Use pnpm workspace filters to limit a command to one workspace. Replace `<packag
 - Prefer classes for runtime or browser APIs. Also prefer classes for substantial business modules that own state, lifecycle, or a stable domain boundary.
 - Prefer functions for pure transformations and local helpers.
 - Use Valibot for schema validation. Keep each schema near its consumers.
-- Use `errorMessageFrom(error)` from `@moeru/std` to get an error message. Add `?? 'fallback'` when you need a default. For other error handling, prefer the `@moeru/std` patterns.
 - Mark every workaround with a `// NOTICE:` comment in this format:
 
   ```ts
@@ -123,6 +122,19 @@ Use pnpm workspace filters to limit a command to one workspace. Replace `<packag
 - If a compatibility fallback must stay for a limited time, mark it with `// NOTICE:` and give its removal condition.
 - If a compatibility fallback is permanent, document it as supported policy. Do not call it legacy.
 - A nested `AGENTS.md` can override this rule for a public contract. It must name the root rule that it overrides.
+
+### Errors, Dates, and Units
+
+These rules name the standard implementation for common helpers. The [`enforce-rules-for-typescript`](.agents/skills/enforce-rules-for-typescript/SKILL.md) skill gives the details.
+
+- Use `errorMessageFrom(error)` from `@moeru/std` to get an error message. Add `?? 'fallback'` when you need a default. For other error handling, prefer the `@moeru/std` patterns.
+- Use `date-fns` for date and time code: parsing, formatting, arithmetic, comparison, relative time, and durations.
+- Use `@date-fns/utc` for UTC values and `@date-fns/tz` for named time zones. Add them through the pnpm catalog.
+- If `date-fns` cannot do a task, ask the user before you research or add another date library.
+- In each function that you change, replace hand-written date code with `date-fns`. Refactor the rest progressively.
+- Render-loop clocks and `performance.now()` durations are not date code. The `enforce-rules-for-render-loops` skill covers them.
+- You can write a local helper for unit conversion or unit formatting, for example bytes, durations, or percentages.
+- Before you write such a helper, search for an existing one. When the same helper exists two or more times, move it to `packages/stage-shared` or to the `utils` directory of the owning package.
 
 ### Dependencies
 
@@ -171,7 +183,7 @@ Skills are in `.agents/skills/<name>/SKILL.md`. Read the listed file before you 
 | Task | Read |
 | --- | --- |
 | Design, change, or review UI appearance and interaction | [AIRI Design Guide](DESIGN.md) |
-| Write, refactor, or review TypeScript or Vue code | [`enforce-rules-for-typescript`](.agents/skills/enforce-rules-for-typescript/SKILL.md) |
+| Write, refactor, or review TypeScript or Vue code, including date, time, and unit helpers | [`enforce-rules-for-typescript`](.agents/skills/enforce-rules-for-typescript/SKILL.md) |
 | Write or debug tests, reproduce a bug, add mocks, or fix test import boundaries | [`enforce-rules-for-vitest`](.agents/skills/enforce-rules-for-vitest/SKILL.md) |
 | Change UnoCSS, Vue styles, UI components, animations, icons, or color mode | [`enforce-rules-for-unocss`](.agents/skills/enforce-rules-for-unocss/SKILL.md) |
 | Set or change a font, or add `font-family`, `@font-face`, or a font package | [`enforce-rules-for-fonts`](.agents/skills/enforce-rules-for-fonts/SKILL.md) |
