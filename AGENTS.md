@@ -71,7 +71,7 @@ Use pnpm workspace filters to limit a command to one workspace. Replace `<packag
 - If a refactor is small, do it step by step.
 - After a task, run the typecheck and the related tests for each workspace that you changed.
 - Before you create a PR or push to one, run the tests of the branch changes. CI runs every project, including the browser projects.
-- If a change alters UI structure, layout, or interaction, review the related browser and end-to-end tests.
+- If a change alters UI structure, layout, or interaction, review the related browser and end-to-end tests. Verify UI with stories, Vishot captures, and `agent-browser`, as `enforce-rules-for-ui-tests` describes.
 - If intended behavior changes, update the affected assertions. Keep valid regression checks. Do not delete an assertion only to make a test pass.
 - After the final UI change, run the related tests on the final commit.
 - Before you report a CI success, make sure that CI tested the current PR head.
@@ -173,6 +173,7 @@ Skills are in `.agents/skills/<name>/SKILL.md`. Read the listed file before you 
 | Design, change, or review UI appearance and interaction | [AIRI Design Guide](DESIGN.md) |
 | Write, refactor, or review TypeScript or Vue code | [`enforce-rules-for-typescript`](.agents/skills/enforce-rules-for-typescript/SKILL.md) |
 | Write or debug tests, reproduce a bug, add mocks, or fix test import boundaries | [`enforce-rules-for-vitest`](.agents/skills/enforce-rules-for-vitest/SKILL.md) |
+| Add, change, or plan tests or verification for a Vue page, component, or UI flow | [`enforce-rules-for-ui-tests`](.agents/skills/enforce-rules-for-ui-tests/SKILL.md) |
 | Change UnoCSS, Vue styles, UI components, animations, icons, or color mode | [`enforce-rules-for-unocss`](.agents/skills/enforce-rules-for-unocss/SKILL.md) |
 | Add `synced` to a Pinia store, or change a synced store | [`enforce-rules-for-pinia-synced`](.agents/skills/enforce-rules-for-pinia-synced/SKILL.md) |
 | Write or change a string that users see, or a glossary term | [`packages/i18n/AGENTS.md`](packages/i18n/AGENTS.md) |
