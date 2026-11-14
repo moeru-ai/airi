@@ -7,12 +7,12 @@ import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { AIRI_PRIVACY_URL, AIRI_TERMS_URL } from '@proj-airi/stage-ui/constants/public-links'
 import { isSigningIn } from '@proj-airi/stage-ui/libs/auth'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
-import { Alert, Button, SelectTab, Skeleton } from '@proj-airi/ui'
+import { Alert, SelectTab, Skeleton } from '@proj-airi/ui'
 import { until, useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import CapacitorSection from '../../components/capacitor-section.vue'
 
@@ -21,6 +21,7 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const { credits, isAuthenticated } = storeToRefs(authStore)
+const formattedCredits = computed(() => new Intl.NumberFormat().format(credits.value))
 const {
   trackCheckoutStarted,
   trackPaywallSeen,
@@ -71,22 +72,6 @@ const currencyOptions = computed(() => {
     .map(c => ({ label: c.toUpperCase(), value: c }))
 })
 
-// NOTICE: Manual interface instead of hono InferResponseType because hono client
-// type instantiation hits TS recursion limits ("excessively deep and possibly infinite").
-// Keep this manual shape aligned with the API response.
-interface AuditRecord {
-  id: string
-  type: string
-  amount: number
-  description: string
-  metadata: Record<string, unknown> | null
-  createdAt: string
-}
-
-function formatNumber(num: number): string {
-  return new Intl.NumberFormat().format(num)
-}
-
 /**
  * Buckets Flux balances so monetization analytics never expose exact balances.
  */
@@ -104,37 +89,6 @@ function fluxBalanceBucket(balance: number | undefined): FluxBalanceBucket {
   return '10000_plus'
 }
 
-/** Display amount with sign: debit is negative, credit/initial are positive */
-function displayAmount(record: AuditRecord): string {
-  const signed = record.type === 'debit' ? -record.amount : record.amount
-  const formatted = formatNumber(Math.abs(signed))
-  return signed >= 0 ? `+${formatted}` : `-${formatted}`
-}
-
-function isPositive(record: AuditRecord): boolean {
-  return record.type !== 'debit'
-}
-
-// Lookup table avoids a chained ternary in the template (banned by CLAUDE.md
-// naming/style rules). Unknown types fall back to typeInitial so older
-// records without an explicit mapping still render something.
-const TYPE_LABEL_KEY: Record<string, string> = {
-  debit: 'settings.pages.flux.audit.typeConsumption',
-  credit: 'settings.pages.flux.audit.typeAddition',
-  initial: 'settings.pages.flux.audit.typeInitial',
-  promo: 'settings.pages.flux.audit.typePromo',
-}
-
-function typeLabel(type: string): string {
-  return t(TYPE_LABEL_KEY[type] ?? TYPE_LABEL_KEY.initial)
-}
-
-const auditRecords = ref<AuditRecord[]>([])
-const auditLoading = ref(false)
-const auditHasMore = ref(false)
-const auditOffset = ref(0)
-const AUDIT_PAGE_SIZE = 20
-
 const capacity = ref(0)
 
 async function fetchStats() {
@@ -145,109 +99,8 @@ async function fetchStats() {
       capacity.value = data.capacity
     }
   }
-  catch {
-    // silently fail
-  }
+  catch {}
 }
-
-async function fetchAuditHistory(loadMore = false) {
-  auditLoading.value = true
-  try {
-    const offset = loadMore ? auditOffset.value : 0
-    const res = await client.api.v1.flux.history.$get({
-      query: { limit: String(AUDIT_PAGE_SIZE), offset: String(offset) },
-    })
-    if (res.ok) {
-      const data = await res.json() as { records: AuditRecord[], hasMore: boolean }
-      if (loadMore) {
-        auditRecords.value.push(...data.records)
-      }
-      else {
-        auditRecords.value = data.records
-      }
-      auditHasMore.value = data.hasMore
-      auditOffset.value = offset + data.records.length
-    }
-  }
-  catch {
-    // silently fail
-  }
-  finally {
-    auditLoading.value = false
-  }
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleString()
-}
-
-// Group consecutive TTS debit records into collapsible rows
-type GroupedRow = {
-  type: 'single'
-  record: AuditRecord
-} | {
-  type: 'group'
-  key: string
-  description: string
-  model: string
-  count: number
-  totalAmount: number
-  firstTime: string
-  lastTime: string
-  records: AuditRecord[]
-}
-
-const expandedGroups = ref<Set<string>>(new Set())
-
-function toggleGroup(key: string) {
-  if (expandedGroups.value.has(key))
-    expandedGroups.value.delete(key)
-  else
-    expandedGroups.value.add(key)
-}
-
-const groupedRows = computed<GroupedRow[]>(() => {
-  const rows: GroupedRow[] = []
-  let i = 0
-  const records = auditRecords.value
-
-  while (i < records.length) {
-    const record = records[i]
-    if (record.type === 'debit' && record.description?.startsWith('tts:')) {
-      // Collect consecutive TTS records with the same description
-      const group: AuditRecord[] = [record]
-      while (i + 1 < records.length
-        && records[i + 1].type === 'debit'
-        && records[i + 1].description === record.description) {
-        i++
-        group.push(records[i])
-      }
-
-      if (group.length > 1) {
-        rows.push({
-          type: 'group',
-          key: `tts-group-${record.id}`,
-          description: record.description,
-          model: (record.metadata?.model as string) || '',
-          count: group.length,
-          totalAmount: group.reduce((sum, r) => sum + r.amount, 0),
-          firstTime: group.at(-1)!.createdAt,
-          lastTime: group[0].createdAt,
-          records: group,
-        })
-      }
-      else {
-        rows.push({ type: 'single', record })
-      }
-    }
-    else {
-      rows.push({ type: 'single', record })
-    }
-    i++
-  }
-
-  return rows
-})
 
 async function fetchPackages() {
   try {
@@ -279,16 +132,12 @@ function showCheckoutReturnMessage(type: 'success' | 'error', text: string) {
 watch(isAuthenticated, async (authenticated) => {
   if (!authenticated) {
     capacity.value = 0
-    auditRecords.value = []
-    auditHasMore.value = false
-    auditOffset.value = 0
     return
   }
 
   await Promise.allSettled([
     authStore.updateCredits(),
     fetchStats(),
-    fetchAuditHistory(),
   ])
 
   if (!fluxPurchaseDisabled && credits.value <= 0) {
@@ -385,7 +234,7 @@ async function handleBuy(stripePriceId: string) {
 </script>
 
 <template>
-  <div flex="~ col gap-6" min-h-full p-4>
+  <div :class="['flex flex-col gap-6 min-h-full p-4']">
     <!-- Message banner -->
     <Alert
       v-if="message"
@@ -422,7 +271,7 @@ async function handleBuy(stripePriceId: string) {
           :class="['shrink-0 text-[13px]', 'text-neutral-500 dark:text-neutral-400']"
         >
           <template #balance>
-            <span :class="['text-lg tabular-nums', 'text-neutral-900 dark:text-neutral-50']">{{ formatNumber(credits) }}</span>
+            <span :class="['text-lg tabular-nums', 'text-neutral-900 dark:text-neutral-50']">{{ formattedCredits }}</span>
           </template>
         </i18n-t>
       </div>
@@ -487,246 +336,33 @@ async function handleBuy(stripePriceId: string) {
       </div>
     </section>
 
-    <!-- Audit History -->
-    <div v-if="isAuthenticated" data-testid="flux-history" flex="~ col gap-3">
-      <div flex="~ col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
-        <h3 text-lg font-semibold>
-          {{ t('settings.pages.flux.audit.title') }}
-        </h3>
-        <span text="xs neutral-400">
-          {{ t('settings.pages.flux.audit.delayHint') }}
-        </span>
-      </div>
+    <RouterLink
+      v-if="isAuthenticated"
+      to="/settings/usage"
+      :class="[
+        '-mx-2 flex min-h-10 items-center gap-2 rounded-md px-2 py-1.5',
+        'text-sm text-inherit no-underline',
+        'transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-800/40',
+        'focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2',
+      ]"
+    >
+      <span :class="['text-neutral-500 dark:text-neutral-400']">
+        {{ t('settings.pages.flux.audit.title') }}
+      </span>
+      <span :class="['ml-auto flex items-center gap-1 text-primary-600 dark:text-primary-400']">
+        {{ t('settings.pages.flux.usage.details') }}
+        <span aria-hidden="true" :class="['i-solar:alt-arrow-right-linear size-4']" />
+      </span>
+    </RouterLink>
 
-      <div v-if="auditLoading && auditRecords.length === 0" text="sm neutral-500" py-4 text-center>
-        {{ t('settings.pages.flux.audit.loading') }}
-      </div>
-
-      <div v-else-if="auditRecords.length === 0" text="sm neutral-500" py-4 text-center>
-        {{ t('settings.pages.flux.audit.empty') }}
-      </div>
-
-      <!-- Desktop: table -->
-      <div v-else border="1 neutral-200 dark:neutral-800" overflow-x-auto rounded-xl hidden sm:block>
-        <table w-full text-sm>
-          <thead border="b neutral-200 dark:neutral-800">
-            <tr>
-              <th px-4 py-3 text-left font-medium>
-                {{ t('settings.pages.flux.audit.time') }}
-              </th>
-              <th px-4 py-3 text-left font-medium>
-                {{ t('settings.pages.flux.audit.type') }}
-              </th>
-              <th px-4 py-3 text-left font-medium>
-                {{ t('settings.pages.flux.audit.detail') }}
-              </th>
-              <th px-4 py-3 text-right font-medium>
-                {{ t('settings.pages.flux.audit.amount') }}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <template v-for="row in groupedRows" :key="row.type === 'single' ? row.record.id : row.key">
-              <!-- Single record -->
-              <tr
-                v-if="row.type === 'single'"
-                border="b neutral-100 dark:neutral-800/50 last:none"
-              >
-                <td whitespace-nowrap px-4 py-3 text="neutral-500">
-                  {{ formatDate(row.record.createdAt) }}
-                </td>
-                <td px-4 py-3>
-                  <span
-                    inline-block rounded-full px-2 py-0.5 text-xs font-medium
-                    :class="row.record.type === 'debit'
-                      ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
-                      : 'bg-green-500/10 text-green-600 dark:text-green-400'"
-                  >
-                    {{ typeLabel(row.record.type) }}
-                  </span>
-                </td>
-                <td px-4 py-3>
-                  <span>{{ row.record.description }}</span>
-                  <span
-                    v-if="row.record.metadata?.promptTokens != null"
-                    ml-1 text="xs neutral-400"
-                  >
-                    ({{ row.record.metadata.promptTokens }}+{{ row.record.metadata.completionTokens }} tokens)
-                  </span>
-                  <span
-                    v-else-if="row.record.description?.startsWith('tts:') && row.record.metadata?.model"
-                    ml-1 text="xs neutral-400"
-                  >
-                    ({{ row.record.metadata.model }})
-                  </span>
-                </td>
-                <td px-4 py-3 text-right font-mono>
-                  <span :class="isPositive(row.record) ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'">
-                    {{ displayAmount(row.record) }}
-                  </span>
-                </td>
-              </tr>
-
-              <!-- Grouped TTS records -->
-              <tr
-                v-else
-                :class="['cursor-pointer', 'hover:bg-neutral-50', 'dark:hover:bg-neutral-800/30']"
-                border="b neutral-100 dark:neutral-800/50"
-                @click="toggleGroup(row.key)"
-              >
-                <td whitespace-nowrap px-4 py-3 text="neutral-500">
-                  {{ formatDate(row.lastTime) }}
-                </td>
-                <td px-4 py-3>
-                  <span
-                    :class="['inline-block', 'rounded-full', 'px-2', 'py-0.5', 'text-xs', 'font-medium',
-                             'bg-orange-500/10', 'text-orange-600', 'dark:text-orange-400']"
-                  >
-                    {{ t('settings.pages.flux.audit.typeConsumption') }}
-                  </span>
-                </td>
-                <td px-4 py-3>
-                  <span flex="~ items-center gap-1">
-                    <span
-                      :class="expandedGroups.has(row.key) ? 'i-solar:alt-arrow-down-line-duotone' : 'i-solar:alt-arrow-right-line-duotone'"
-                      inline-block size-4 text="neutral-400"
-                    />
-                    {{ row.description }}
-                    <span ml-1 text="xs neutral-400">
-                      ({{ row.count }} {{ t('settings.pages.flux.audit.ttsRequests') }})
-                    </span>
-                  </span>
-                </td>
-                <td px-4 py-3 text-right font-mono>
-                  <span text="orange-600 dark:orange-400">
-                    -{{ row.totalAmount }}
-                  </span>
-                </td>
-              </tr>
-
-              <!-- Expanded group children -->
-              <tr
-                v-for="child in (row.type === 'group' && expandedGroups.has(row.key) ? row.records : [])"
-                :key="child.id"
-                border="b neutral-100 dark:neutral-800/50 last:none" bg="neutral-50/50 dark:neutral-800/20"
-              >
-                <td whitespace-nowrap px-4 py-2 pl-8 text="xs neutral-400">
-                  {{ formatDate(child.createdAt) }}
-                </td>
-                <td px-4 py-2 />
-                <td px-4 py-2 text="xs neutral-400">
-                  {{ child.description }}
-                </td>
-                <td px-4 py-2 text-right font-mono text="xs orange-500 dark:orange-400">
-                  -{{ child.amount }}
-                </td>
-              </tr>
-            </template>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Mobile: card list -->
-      <div v-if="auditRecords.length > 0" flex="~ col gap-2" sm:hidden>
-        <template v-for="row in groupedRows" :key="row.type === 'single' ? row.record.id : row.key">
-          <!-- Single record card -->
-          <div
-            v-if="row.type === 'single'"
-            border="1 neutral-200 dark:neutral-800" flex="~ col gap-1.5" rounded-lg px-3 py-2.5
-          >
-            <div flex="~ items-center justify-between">
-              <span
-                inline-block rounded-full px-2 py-0.5 text-xs font-medium
-                :class="row.record.type === 'debit'
-                  ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
-                  : 'bg-green-500/10 text-green-600 dark:text-green-400'"
-              >
-                {{ typeLabel(row.record.type) }}
-              </span>
-              <span text-sm font-semibold font-mono :class="isPositive(row.record) ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'">
-                {{ displayAmount(row.record) }}
-              </span>
-            </div>
-            <div text="sm neutral-600 dark:neutral-300" truncate>
-              {{ row.record.description }}
-              <span
-                v-if="row.record.metadata?.promptTokens != null"
-                ml-1 text="xs neutral-400"
-              >
-                ({{ row.record.metadata.promptTokens }}+{{ row.record.metadata.completionTokens }} tokens)
-              </span>
-              <span
-                v-else-if="row.record.description?.startsWith('tts:') && row.record.metadata?.model"
-                ml-1 text="xs neutral-400"
-              >
-                ({{ row.record.metadata.model }})
-              </span>
-            </div>
-            <div text="xs neutral-400">
-              {{ formatDate(row.record.createdAt) }}
-            </div>
-          </div>
-
-          <!-- Grouped TTS card -->
-          <div
-            v-else
-            border="1 neutral-200 dark:neutral-800" flex="~ col gap-1.5" cursor-pointer rounded-lg px-3 py-2.5
-            @click="toggleGroup(row.key)"
-          >
-            <div flex="~ items-center justify-between">
-              <span
-                :class="['inline-block', 'rounded-full', 'px-2', 'py-0.5', 'text-xs', 'font-medium',
-                         'bg-orange-500/10', 'text-orange-600', 'dark:text-orange-400']"
-              >
-                {{ t('settings.pages.flux.audit.typeConsumption') }}
-              </span>
-              <span text-sm font-semibold font-mono text="orange-600 dark:orange-400">
-                -{{ row.totalAmount }}
-              </span>
-            </div>
-            <div flex="~ items-center gap-1" text="sm neutral-600 dark:neutral-300">
-              <span
-                :class="expandedGroups.has(row.key) ? 'i-solar:alt-arrow-down-line-duotone' : 'i-solar:alt-arrow-right-line-duotone'"
-                inline-block size-4 text="neutral-400"
-              />
-              {{ row.description }}
-              <span text="xs neutral-400">({{ row.count }} {{ t('settings.pages.flux.audit.ttsRequests') }})</span>
-            </div>
-            <div text="xs neutral-400">
-              {{ formatDate(row.lastTime) }}
-            </div>
-
-            <!-- Expanded children -->
-            <div v-if="row.type === 'group' && expandedGroups.has(row.key)" flex="~ col gap-1" mt-1 border="t neutral-200 dark:neutral-700" pt-2>
-              <div
-                v-for="child in row.records" :key="child.id"
-                flex="~ items-center justify-between" text="xs neutral-400"
-              >
-                <span>{{ formatDate(child.createdAt) }}</span>
-                <span font-mono>-{{ child.amount }}</span>
-              </div>
-            </div>
-          </div>
-        </template>
-      </div>
-
-      <div v-if="auditHasMore" text-center>
-        <Button
-          :label="t('settings.pages.flux.audit.loadMore')"
-          :loading="auditLoading"
-          @click="fetchAuditHistory(true)"
-        />
-      </div>
-    </div>
-
-    <div v-if="!isAuthenticated" flex="~ wrap items-center justify-center gap-x-5 gap-y-2" mt-auto pb-2 pt-6 text="xs neutral-500">
-      <a :href="AIRI_TERMS_URL" target="_blank" rel="noreferrer" hover:text-primary-500>
+    <div v-if="!isAuthenticated" :class="['flex flex-wrap items-center justify-center gap-x-5 gap-y-2 mt-auto pb-2 pt-6 text-xs text-neutral-500']">
+      <a :class="['hover:text-primary-500']" :href="AIRI_TERMS_URL" target="_blank" rel="noreferrer">
         {{ t('settings.pages.flux.terms') }}
       </a>
-      <a :href="AIRI_PRIVACY_URL" target="_blank" rel="noreferrer" hover:text-primary-500>
+      <a :class="['hover:text-primary-500']" :href="AIRI_PRIVACY_URL" target="_blank" rel="noreferrer">
         {{ t('settings.pages.flux.privacy') }}
       </a>
-      <a href="mailto:airi@moeru.ai" hover:text-primary-500>
+      <a :class="['hover:text-primary-500']" href="mailto:airi@moeru.ai">
         airi@moeru.ai
       </a>
     </div>

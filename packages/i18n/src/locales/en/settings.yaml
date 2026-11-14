@@ -407,6 +407,8 @@ pages:
     login: Sign in
     logout: Sign out
     fluxBalance: Flux Balance
+    usage:
+      tab: Usage
     signedInAs: Signed in as
     profile:
       tab: Profile
@@ -1819,6 +1821,32 @@ pages:
       loadMore: Load More
       delayHint: Usage records may be delayed by up to 1 minute
       ttsRequests: requests
+    usage:
+      title: Flux activity
+      details: View detailed usage
+      loadError: Failed to load usage data. Try again.
+      retry: Retry
+      signIn: Sign in to view your usage records
+      empty: No usage yet.
+      fluxAmount: '{amount} Flux'
+      viewLabel: Activity view
+      chartLabel: Flux activity for the last 365 days
+      keyboardHint: Use the arrow keys to explore usage. Home and End select the first and last period. Escape hides the details.
+      throughDate: 'Through {date}'
+      views:
+        daily: Daily
+        weekly: Weekly
+        cumulative: Cumulative
+      labels:
+        daily: Daily Flux usage
+        weekly: Weekly Flux usage
+        cumulative: Cumulative Flux usage
+      summary:
+        longestSession: Longest session
+        peakFlux: Peak daily Flux
+        flux: Flux used
+        longestStreak: Longest streak
+        currentStreak: Current streak
     packages:
       title: Flux top-up packs
       buy: Charge

@@ -5,12 +5,28 @@ import type { HonoEnv } from '../../types/hono'
 
 import { createBadRequestError } from '@proj-airi/http-error-shared'
 import { Hono } from 'hono'
-import { boolean, object, parse, safeParse } from 'valibot'
+import { boolean, check, object, parse, pipe, safeParse, string } from 'valibot'
 
 import { authGuard } from '../../middlewares/auth'
+import { DailyUsageSummarySchema, FluxHistoryResponseSchema } from '../../types/flux-usage'
 import { LimitOffsetPaginationQuerySchema } from '../../utils/http-query'
 
 const FallbackBodySchema = object({ fallbackToFlux: boolean() })
+
+// Intl accepts a fixed offset such as `+08:00`. PostgreSQL reads the sign of that offset the other way.
+function isKnownTimeZone(timeZone: string): boolean {
+  try {
+    const resolved = new Intl.DateTimeFormat('en-CA', { timeZone }).resolvedOptions().timeZone
+    return !/^[+-]/.test(resolved)
+  }
+  catch {
+    return false
+  }
+}
+
+const TimeZoneQuerySchema = object({
+  timeZone: pipe(string(), check(isKnownTimeZone)),
+})
 
 export function createFluxRoutes(
   fluxService: FluxService,
@@ -38,20 +54,12 @@ export function createFluxRoutes(
       const user = c.get('user')!
       return c.json(await fluxService.getCapacitorUsage(user.id))
     })
-    .get('/usage', async (c) => {
+    .get('/usage/daily', async (c) => {
       const user = c.get('user')!
-      const { limit, offset } = parse(LimitOffsetPaginationQuerySchema, {
-        limit: c.req.query('limit'),
-        offset: c.req.query('offset'),
-      })
-      const result = await fluxTransactionService.getUsageHistory(user.id, limit, offset)
-      return c.json({
-        records: result.records.map(record => ({
-          ...record,
-          createdAt: record.createdAt.toISOString(),
-        })),
-        hasMore: result.hasMore,
-      })
+      const query = safeParse(TimeZoneQuerySchema, { timeZone: c.req.query('timeZone') })
+      if (!query.success)
+        throw createBadRequestError('Invalid time zone', 'INVALID_TIME_ZONE', query.issues)
+      return c.json(parse(DailyUsageSummarySchema, await fluxTransactionService.getDailyUsage(user.id, query.output.timeZone)))
     })
     .get('/stats', async (c) => {
       const user = c.get('user')!
@@ -67,7 +75,7 @@ export function createFluxRoutes(
 
       const { records, hasMore } = await fluxTransactionService.getHistory(user.id, limit, offset)
 
-      return c.json({
+      return c.json(parse(FluxHistoryResponseSchema, {
         records: records.map(r => ({
           id: r.id,
           type: r.type,
@@ -77,6 +85,6 @@ export function createFluxRoutes(
           createdAt: r.createdAt.toISOString(),
         })),
         hasMore,
-      })
+      }))
     })
 }

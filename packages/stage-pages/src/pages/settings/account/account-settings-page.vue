@@ -3,6 +3,7 @@ import type { LinkedAccountsClient } from '@proj-airi/stage-ui/composables'
 
 import { errorMessageFrom } from '@moeru/std'
 import { defaultSignInProviders } from '@proj-airi/stage-ui/components/auth/providers'
+import { FluxUsagePanel } from '@proj-airi/stage-ui/components/scenarios/flux'
 import { resolveLinkedAccountOAuthErrorMessageKey, useAnalytics, useLinkedAccounts } from '@proj-airi/stage-ui/composables'
 import { authClient } from '@proj-airi/stage-ui/libs/auth'
 import { authedFetch } from '@proj-airi/stage-ui/libs/auth-fetch'
@@ -17,7 +18,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import SyncSection from './components/sync-section.vue'
 
-type SectionId = 'profile' | 'security' | 'connections' | 'sync' | 'danger'
+type SectionId = 'usage' | 'profile' | 'security' | 'connections' | 'sync' | 'danger'
 
 const emit = defineEmits<{
   login: []
@@ -104,7 +105,8 @@ const setPasswordSuccess = shallowRef<string | null>(null)
 // Sidebar active section. Click jumps + highlights; we don't observe scroll
 // position because the page is short enough that simple click → scroll is
 // sufficient and easier to reason about.
-const activeSection = ref<SectionId>('profile')
+const activeSection = ref<SectionId>('usage')
+const usageSectionRef = ref<HTMLElement | null>(null)
 const profileSectionRef = ref<HTMLElement | null>(null)
 const securitySectionRef = ref<HTMLElement | null>(null)
 const connectionsSectionRef = ref<HTMLElement | null>(null)
@@ -119,6 +121,7 @@ function scrollToSection(id: SectionId) {
   // for both window-scroll pages and our inner-scroll layout without a special
   // case here.
   const targets: Record<SectionId, HTMLElement | null> = {
+    usage: usageSectionRef.value,
     profile: profileSectionRef.value,
     security: securitySectionRef.value,
     connections: connectionsSectionRef.value,
@@ -481,7 +484,7 @@ async function handleConfirmDelete(event: Event) {
              section like Profile / Security / Danger. -->
         <aside :class="['hidden md:flex flex-col gap-1 md:sticky md:top-2']">
           <button
-            v-for="section in ['profile', 'security', 'connections', 'sync', 'danger'] as SectionId[]"
+            v-for="section in ['usage', 'profile', 'security', 'connections', 'sync', 'danger'] as SectionId[]"
             :key="section"
             type="button"
             :class="[
@@ -557,6 +560,10 @@ async function handleConfirmDelete(event: Event) {
                 </p>
               </div>
             </div>
+          </section>
+
+          <section ref="usageSectionRef" :class="['py-6']">
+            <FluxUsagePanel />
           </section>
 
           <!-- Profile section. No card outline — sections are separated by a

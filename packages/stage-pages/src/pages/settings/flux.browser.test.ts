@@ -99,8 +99,6 @@ describe('flux page with the Capacitor subscription', () => {
       const { pathname } = new URL(input instanceof Request ? input.url : input.toString())
       if (pathname.endsWith('/stripe/packages'))
         return Response.json([{ stripePriceId: 'price_flux_500', label: '500 Flux', defaultCurrency: 'usd', currencies: { usd: '$3.00' } }])
-      if (pathname.endsWith('/flux/history'))
-        return Response.json({ records: [], hasMore: false })
       if (pathname.endsWith('/flux/stats'))
         return Response.json({ capacity: 0 })
       if (pathname.endsWith('/flux/capacitor/usage'))
@@ -132,18 +130,19 @@ describe('flux page with the Capacitor subscription', () => {
     })
   }
 
-  it('opens on the subscription offer, then the packs with the balance, then the history', async () => {
+  it('shows the subscription offer, the packs with the balance, and the history link', async () => {
     const screen = await openSignedIn()
 
     await expect.element(screen.getByTestId('capacitor-offer')).toHaveTextContent('No Capacitor yet')
     expect(screen.getByTestId('capacitor-hero').elements()).toHaveLength(0)
     await expect.element(screen.getByRole('button', { name: '500 Flux $3.00' })).toBeVisible()
     await expect.element(screen.getByTestId('flux-balance')).toHaveTextContent('Balance 1,200 Flux')
-    await expect.element(screen.getByTestId('flux-history')).toBeVisible()
-    // The page leads with the subscription: it comes before the one-time packs.
+    const historyLink = screen.getByRole('link', { name: 'Transaction History View detailed usage', exact: true })
+    await expect.element(historyLink).toHaveAttribute('href', '/settings/usage')
     const subscription = screen.getByTestId('flux-subscription').element()
     const packages = screen.getByTestId('flux-packages').element()
     expect(subscription.compareDocumentPosition(packages) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(packages.compareDocumentPosition(historyLink.element()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('draws the usage of the window as the fill of the Capacitor card', async () => {

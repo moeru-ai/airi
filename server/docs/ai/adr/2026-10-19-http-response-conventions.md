@@ -26,7 +26,7 @@ These rules apply to each new HTTP route in `server/apps/api` and `server/apps/a
 - A paginated list reads `limit` and `offset` with `LimitOffsetPaginationQuerySchema` and returns `{ records, hasMore }`.
 - An object key keeps a later pagination change additive. A bare array cannot get `hasMore` without a breaking change.
 
-`records` and `hasMore` are the shape that `GET /api/v1/flux/history`, `GET /api/v1/flux/usage`, and `GET /api/v1/llm-requests` already return.
+`records` and `hasMore` are the shape that `GET /api/v1/flux/history` and `GET /api/v1/llm-requests` already return.
 
 ### Errors
 

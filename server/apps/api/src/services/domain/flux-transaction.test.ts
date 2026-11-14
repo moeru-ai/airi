@@ -6,7 +6,7 @@ import { createFluxTransactionService } from './flux-transaction'
 import * as schema from '../../schemas'
 
 describe('fluxTransactionService', () => {
-  let db: any
+  let db: Awaited<ReturnType<typeof mockDB>>
   let service: ReturnType<typeof createFluxTransactionService>
 
   beforeAll(async () => {
@@ -19,62 +19,19 @@ describe('fluxTransactionService', () => {
     service = createFluxTransactionService(db)
   })
 
-  it('log should insert a single transaction entry', async () => {
-    await service.log({
-      userId: 'user-tx',
-      type: 'credit',
-      amount: 500,
-      balanceBefore: 0,
-      balanceAfter: 500,
-      description: 'Stripe payment',
-      metadata: { stripeSessionId: 'sess_123' },
-    })
-
-    const { records } = await service.getHistory('user-tx', 10, 0)
-    expect(records).toHaveLength(1)
-    expect(records[0].type).toBe('credit')
-    expect(records[0].amount).toBe(500)
-  })
-
-  it('logBatch should insert multiple entries', async () => {
-    await service.logBatch([
-      { userId: 'user-tx', type: 'debit', amount: 10, balanceBefore: 500, balanceAfter: 490, description: 'gpt-4o' },
-      { userId: 'user-tx', type: 'debit', amount: 5, balanceBefore: 490, balanceAfter: 485, description: 'gpt-4o-mini' },
+  it('paginates history from newest to oldest', async () => {
+    await db.insert(schema.fluxTransaction).values([
+      { id: 'history-credit', userId: 'user-tx', type: 'credit', amount: 500, balanceBefore: 0, balanceAfter: 500, description: 'Stripe payment', createdAt: new Date('2026-10-20T10:00:00Z') },
+      { id: 'history-debit-1', userId: 'user-tx', type: 'debit', amount: 10, balanceBefore: 500, balanceAfter: 490, description: 'usage_settlement', createdAt: new Date('2026-10-20T11:00:00Z') },
+      { id: 'history-debit-2', userId: 'user-tx', type: 'debit', amount: 5, balanceBefore: 490, balanceAfter: 485, description: 'usage_settlement', createdAt: new Date('2026-10-20T12:00:00Z') },
     ])
 
-    const { records } = await service.getHistory('user-tx', 10, 0)
-    expect(records).toHaveLength(3) // 1 from previous test + 2 batch
-  })
-
-  it('logBatch with empty array should be a no-op', async () => {
-    await service.logBatch([])
-    const { records } = await service.getHistory('user-tx', 10, 0)
-    expect(records).toHaveLength(3)
-  })
-
-  it('getHistory should paginate correctly with hasMore', async () => {
-    const { records, hasMore } = await service.getHistory('user-tx', 2, 0)
-    expect(records).toHaveLength(2)
-    expect(hasMore).toBe(true)
-  })
-
-  it('getHistory should return hasMore=false on last page', async () => {
-    const { records, hasMore } = await service.getHistory('user-tx', 10, 0)
-    expect(records).toHaveLength(3)
-    expect(hasMore).toBe(false)
-  })
-
-  it('getHistory should respect offset', async () => {
-    const { records } = await service.getHistory('user-tx', 10, 2)
-    expect(records).toHaveLength(1)
-  })
-
-  it('getHistory should return records ordered by createdAt desc', async () => {
-    const { records } = await service.getHistory('user-tx', 10, 0)
-    for (let i = 1; i < records.length; i++) {
-      expect(new Date(records[i - 1].createdAt).getTime())
-        .toBeGreaterThanOrEqual(new Date(records[i].createdAt).getTime())
-    }
+    const firstPage = await service.getHistory('user-tx', 2, 0)
+    const lastPage = await service.getHistory('user-tx', 2, 2)
+    expect(firstPage.records.map(record => record.id)).toEqual(['history-debit-2', 'history-debit-1'])
+    expect(firstPage.hasMore).toBe(true)
+    expect(lastPage.records.map(record => record.id)).toEqual(['history-credit'])
+    expect(lastPage.hasMore).toBe(false)
   })
 
   it('groups one turn before pagination', async () => {
@@ -91,5 +48,82 @@ describe('fluxTransactionService', () => {
     expect(firstPage.hasMore).toBe(true)
     expect(secondPage.records).toEqual([expect.objectContaining({ id: 'round-1-b', amount: 2 })])
     expect(secondPage.hasMore).toBe(false)
+  })
+
+  describe('getDailyUsage', () => {
+    const now = new Date('2026-10-25T12:00:00Z')
+
+    function usage(userId: string, sourceType: string, sourceId: string, amountMicroFlux: number, createdAt: string) {
+      return { userId, sourceType, sourceId, amountMicroFlux, createdAt: new Date(createdAt) }
+    }
+
+    function request(userId: string, sessionId: string | null, createdAt: string) {
+      return { userId, sessionId, model: 'chat-model', status: 200, durationMs: 10, createdAt: new Date(createdAt) }
+    }
+
+    it('returns 365 zero-filled local days and puts fees on the day of the caller time zone', async () => {
+      await db.insert(schema.fluxUsage).values([
+        usage('user-daily', 'llm', 'llm-1', 2_000_000, '2026-10-24T17:00:00Z'),
+        usage('user-daily', 'llm', 'llm-2', 1_000_000, '2026-10-24T10:00:00Z'),
+        usage('user-daily', 'tts', 'tts-1', 500_000, '2026-10-25T02:00:00Z'),
+      ])
+
+      const shanghai = await service.getDailyUsage('user-daily', 'Asia/Shanghai', now)
+      const utc = await service.getDailyUsage('user-daily', 'UTC', now)
+      const dayOf = (result: typeof shanghai, date: string) => result.days.find(day => day.date === date)
+
+      expect(shanghai.days).toHaveLength(365)
+      expect(shanghai.days[0]!.date).toBe('2025-10-26')
+      expect(shanghai.days.at(-1)!.date).toBe('2026-10-25')
+      expect(dayOf(shanghai, '2026-10-24')).toEqual({ date: '2026-10-24', microFlux: 1_000_000 })
+      expect(dayOf(shanghai, '2026-10-25')).toEqual({ date: '2026-10-25', microFlux: 2_500_000 })
+      expect(dayOf(shanghai, '2026-10-23')).toEqual({ date: '2026-10-23', microFlux: 0 })
+      expect(dayOf(utc, '2026-10-24')).toMatchObject({ microFlux: 3_000_000 })
+      expect(dayOf(utc, '2026-10-25')).toMatchObject({ microFlux: 500_000 })
+      expect(shanghai.longestSessionMs).toBe(0)
+    })
+
+    it('ignores other users, other source types, and fees before the window', async () => {
+      await db.insert(schema.fluxUsage).values([
+        usage('user-daily-scope', 'llm', 'in-window', 1_000_000, '2026-10-20T01:00:00Z'),
+        usage('user-daily-scope', 'llm', 'too-old', 9_000_000, '2025-10-01T01:00:00Z'),
+        usage('user-daily-scope', 'image', 'other-type', 9_000_000, '2026-10-20T01:00:00Z'),
+        usage('user-daily-other', 'llm', 'other-user', 9_000_000, '2026-10-20T01:00:00Z'),
+        usage('user-daily-scope', 'llm', 'future', 9_000_000, '2026-10-26T01:00:00Z'),
+      ])
+
+      const { days } = await service.getDailyUsage('user-daily-scope', 'UTC', now)
+
+      expect(days.reduce((total, day) => total + day.microFlux, 0)).toBe(1_000_000)
+    })
+
+    it('measures sessions in the window and ignores older sessions and other users', async () => {
+      await db.insert(schema.llmRequestLog).values([
+        request('user-sessions', 'long', '2026-10-20T16:30:00Z'),
+        request('user-sessions', 'long', '2026-10-21T16:30:00Z'),
+        request('user-sessions', 'single', '2026-10-21T02:00:00Z'),
+        request('user-sessions', null, '2026-10-21T03:00:00Z'),
+        request('user-sessions', 'before-window', '2025-01-01T00:00:00Z'),
+        request('user-sessions', 'before-window', '2026-10-22T00:00:00Z'),
+        request('user-other', 'foreign', '2026-10-20T02:00:00Z'),
+        request('user-other', 'foreign', '2026-10-23T02:00:00Z'),
+      ])
+
+      const shanghai = await service.getDailyUsage('user-sessions', 'Asia/Shanghai', now)
+      expect(shanghai.longestSessionMs).toBe(24 * 60 * 60 * 1000)
+    })
+
+    it('uses the exact local first day for sessions across a daylight-saving boundary', async () => {
+      await db.insert(schema.llmRequestLog).values([
+        request('user-window', 'boundary', '2025-10-26T03:30:00Z'),
+        request('user-window', 'boundary', '2025-10-26T05:30:00Z'),
+      ])
+
+      const utc = await service.getDailyUsage('user-window', 'UTC', now)
+      const newYork = await service.getDailyUsage('user-window', 'America/New_York', now)
+
+      expect(utc.longestSessionMs).toBe(2 * 3_600_000)
+      expect(newYork.longestSessionMs).toBe(0)
+    })
   })
 })

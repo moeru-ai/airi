@@ -2,6 +2,11 @@
 
 Shared core for stage
 
+## Account usage
+
+`FluxUsagePanel` loads and displays account summaries and activity. Its details link opens the separate usage page.
+`FluxUsageHistory` displays ledger entries and owns pagination. Both components cancel pending requests and discard data when the session changes.
+
 ## Optional modules
 
 Provider lists expose `None` for optional features. Switches control module activation.
