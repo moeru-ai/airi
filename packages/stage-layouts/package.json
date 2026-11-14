@@ -28,6 +28,8 @@
     "./stores/*": "./src/stores/*.ts"
   },
   "scripts": {
+    "test": "vitest",
+    "test:run": "vitest run",
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {
@@ -64,6 +66,7 @@
     "@types/audioworklet": "catalog:",
     "@types/culori": "catalog:",
     "@types/three": "catalog:",
+    "@vitejs/plugin-vue": "catalog:",
     "@vue/test-utils": "catalog:",
     "jsdom": "catalog:",
     "unplugin-info": "catalog:",

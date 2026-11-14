@@ -4872,6 +4872,9 @@ importers:
       '@types/three':
         specifier: 'catalog:'
         version: 0.185.4
+      '@vitejs/plugin-vue':
+        specifier: 'catalog:'
+        version: 6.0.8(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))(vue@3.5.41(typescript@6.0.3))
       '@vue/test-utils':
         specifier: 'catalog:'
         version: 2.4.11(@vue/compiler-dom@3.5.44)(@vue/server-renderer@3.5.41)(vue@3.5.41(typescript@6.0.3))
