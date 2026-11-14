@@ -58,6 +58,7 @@ import { createBuiltInExtensionKits } from './services/airi/plugins/kits'
 import { setupArtistryBridge } from './services/airi/widgets/artistry-bridge'
 import { isExternallyUpdatedInstall, setupAutoUpdater } from './services/electron/auto-updater'
 import { setupSherpawModelAssetsProtocol } from './services/electron/bundled-sherpaw-assets'
+import { createFetchService } from './services/electron/fetch'
 import { setupGlobalShortcutService } from './services/electron/global-shortcut'
 import { setupPermissionHandlers } from './services/electron/media-permissions'
 import { setupSherpawModelAssets } from './services/electron/sherpaw-model-assets'
@@ -276,6 +277,8 @@ app.whenReady().then(async () => {
       return
     void fileLogger.appendLog(formatted)
   })
+
+  createFetchService()
 
   injeca.setLogger(createLoggLogger(useLogg('injeca').useGlobalConfig()))
   injeca.getContainer().logging = true
