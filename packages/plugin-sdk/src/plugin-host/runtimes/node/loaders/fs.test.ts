@@ -7,7 +7,7 @@ import { join, resolve } from 'node:path'
 
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { FileSystemLoader, toEntrypointImportUrl } from './fs'
+import { FileSystemLoader } from './fs'
 
 const created: string[] = []
 
@@ -77,46 +77,33 @@ describe('fileSystemLoader', () => {
   // ROOT CAUSE:
   //
   // On Windows the entrypoint is an absolute path. `import()` reads the drive
-  // letter as a URL scheme and rejects it.
+  // letter as a URL scheme and rejects it. Vitest rewrites `import()` and accepts
+  // the path, so this check needs real Node.
   //
   // Before: await import(entrypoint)
-  // After:  await import(toEntrypointImportUrl(entrypoint))
-  it('converts an entrypoint path to a file URL (Issue #3359)', () => {
-    const entrypoint = resolve(tmpdir(), 'airi-extension.mjs')
-
-    const url = new URL(toEntrypointImportUrl(entrypoint))
-
-    expect(url.protocol).toBe('file:')
-    expect(url.pathname.endsWith('/airi-extension.mjs')).toBe(true)
-  })
-
-  // https://github.com/moeru-ai/airi/issues/3359
-  //
-  // ROOT CAUSE:
-  //
-  // The plugin host reloads an extension with a cache-bust query on the
-  // entrypoint. Converting the whole string as a path encodes `?` as `%3F`.
-  it('keeps a cache-bust query as a URL query (Issue #3359)', () => {
-    const entrypoint = `${resolve(tmpdir(), 'airi-extension.mjs')}?cacheBust=42`
-
-    const url = new URL(toEntrypointImportUrl(entrypoint))
-
-    expect(url.search).toBe('?cacheBust=42')
-    expect(url.pathname.endsWith('/airi-extension.mjs')).toBe(true)
-  })
-
-  // https://github.com/moeru-ai/airi/issues/3359
-  //
-  // ROOT CAUSE:
-  //
-  // Vitest rewrites `import()` into its own resolver, so a unit test passes where
-  // the shipped loader fails. Real Node is required to reproduce the rejection.
+  // After:  await import(fileUrlOf(entrypoint))
   it('imports an absolute entrypoint in real Node (Issue #3359)', () => {
     const file = writeExtension(workdir())
 
     const result = loadThroughNodeEsm(file)
 
     expect(result.output, 'expected the extension to load under Node ESM').toMatch(/LOAD_OK test-extension/)
+    expect(result.ok).toBe(true)
+  })
+
+  // https://github.com/moeru-ai/airi/issues/3359
+  //
+  // ROOT CAUSE:
+  //
+  // The plugin host reloads an extension with a `?cacheBust=` query on the
+  // entrypoint. Converting the whole string as a path encodes `?` as `%3F`, and
+  // the import looks for a file that does not exist.
+  it('imports an entrypoint with a cache-bust query (Issue #3359)', () => {
+    const file = writeExtension(workdir())
+
+    const result = loadThroughNodeEsm(`${file}?cacheBust=42`)
+
+    expect(result.output, 'expected the cache-bust query to survive').toMatch(/LOAD_OK test-extension/)
     expect(result.ok).toBe(true)
   })
 

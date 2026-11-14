@@ -13,7 +13,7 @@ import { pathToFileURL } from 'node:url'
  * query to force a module reload. That query must stay a URL query, not part of
  * the file name.
  */
-export function toEntrypointImportUrl(entrypoint: string): string {
+function toEntrypointImportUrl(entrypoint: string): string {
   const queryIndex = entrypoint.indexOf('?')
   const filePath = queryIndex === -1 ? entrypoint : entrypoint.slice(0, queryIndex)
   const url = pathToFileURL(filePath)
