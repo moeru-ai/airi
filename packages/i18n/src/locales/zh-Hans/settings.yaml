@@ -572,6 +572,7 @@ pages:
     drop_here: 松手以上传文件
     create_card: 创建新角色
     edit_card: 编辑角色
+    edit_model: 编辑模型
     saved: 角色已保存
     unsaved:
       badge: 未保存

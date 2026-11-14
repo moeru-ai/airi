@@ -32,6 +32,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   back: []
   edit: [cardId: string]
+  /** The user asked for the display model editor of this character. The character is active when this fires. */
+  model: [cardId: string]
 }>()
 
 const { t, te, locale } = useI18n()
@@ -77,6 +79,27 @@ async function handleActivate() {
   finally {
     isActivating.value = false
   }
+}
+
+/**
+ * Opens the display model editor for this character.
+ *
+ * The editor and its preview show the model of the active character, so this character becomes active first.
+ */
+async function handleEditModel() {
+  if (isActivating.value)
+    return
+  if (!isActive.value) {
+    isActivating.value = true
+    try {
+      if (!await cardStore.activateCard(props.cardId))
+        return
+    }
+    finally {
+      isActivating.value = false
+    }
+  }
+  emit('model', props.cardId)
 }
 
 async function handleExportCard() {
@@ -409,6 +432,12 @@ const proseClasses = [
               icon="i-solar:pen-2-linear"
               :label="t('settings.pages.card.edit_card')"
               @click="emit('edit', cardId)"
+            />
+            <Button
+              icon="i-solar:people-nearby-linear"
+              :label="t('settings.pages.card.edit_model')"
+              :disabled="isActivating"
+              @click="handleEditModel"
             />
             <Button
               icon="i-solar:download-minimalistic-linear"

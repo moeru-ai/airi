@@ -66,6 +66,7 @@ erDiagram
 ### Display models
 
 - A character holds `avatarModels` and `defaultAvatarModelId` (#2458).
+- The settings have one entry for the concept, "Characters". The display model editor is a page of a character. The detail page of a character opens it and activates the character first, because the editor and its preview show the model of the active character.
 - Many characters can refer to one display model.
 
 ### Local-first rules

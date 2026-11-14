@@ -612,6 +612,7 @@ pages:
     drop_here: Drop to upload
     create_card: Create a new character
     edit_card: Edit character
+    edit_model: Edit model
     saved: Character saved
     unsaved:
       badge: Unsaved
