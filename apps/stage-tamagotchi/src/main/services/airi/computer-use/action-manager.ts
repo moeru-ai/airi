@@ -66,6 +66,7 @@ export interface ChatRequest extends ChatRequestInput {
   expiresAt: number
   closed: boolean
   cancelled: boolean
+  terminalTurbo: boolean
 }
 
 interface ActionExecution {
@@ -162,17 +163,24 @@ export class PendingActionManager {
   }
 
   /** Captures a normal Chat submission before provider startup. The IPC boundary must supply the independently verified Runtime source. */
-  registerRequest(input: ChatRequestInput, senderWebContentsId: number): ChatRequest {
+  registerRequest(input: ChatRequestInput, senderWebContentsId: number, terminalTurbo = false): ChatRequest {
     if (!Number.isSafeInteger(senderWebContentsId) || senderWebContentsId <= 0)
       throw new Error('A Host request requires a verified Runtime source.')
     const submitted = v.parse(chatRequestSchema, input)
     const now = Date.now()
+    let confirmedRequest: ChatRequest | undefined
     let removedExpiredRequest = false
     for (const { record: request } of this.requests.values()) {
       if (now >= request.expiresAt) {
         this.cancelRequest(request.id, request.senderWebContentsId)
         this.requests.delete(request.id)
         removedExpiredRequest = true
+      }
+      else if (request.terminalTurbo && !request.closed && !request.cancelled
+        && request.senderWebContentsId === senderWebContentsId
+        && request.sessionId === submitted.sessionId && request.turnId === submitted.turnId
+        && request.text === submitted.text) {
+        confirmedRequest = request
       }
     }
     if (removedExpiredRequest) {
@@ -181,6 +189,9 @@ export class PendingActionManager {
           this.actions.delete(id)
       }
     }
+    // The normal Runtime registers the exact message already confirmed in the composer.
+    if (confirmedRequest)
+      return structuredClone(confirmedRequest)
     if (this.requests.size >= 1024)
       throw new Error('Too many active Host requests.')
     const request: ChatRequest = {
@@ -191,6 +202,7 @@ export class PendingActionManager {
       expiresAt: now + 15 * 60_000,
       closed: false,
       cancelled: false,
+      terminalTurbo,
     }
     this.requests.set(request.id, { record: request, cancel: new AbortController() })
     return structuredClone(request)

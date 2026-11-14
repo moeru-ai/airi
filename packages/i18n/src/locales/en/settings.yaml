@@ -1695,7 +1695,7 @@ pages:
       title: MCP servers
       terminal:
         title: Bundled Terminal
-        description: Connect the bundled Terminal tools. Each command needs separate approval. Native GUI and Browser writes remain disabled. Save and restart to apply.
+        description: Connect the bundled Terminal tools. Commands need approval by default. The chat composer offers Terminal Turbo for fixed Windows queries. Save and restart to apply.
         restore: Show Terminal requests
         approval: Terminal command and outcome
         approve: Approve once

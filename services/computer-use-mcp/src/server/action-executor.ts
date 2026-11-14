@@ -315,7 +315,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         },
       })
 
-      return buildDeniedResponse(deniedDecision, context, executionTarget)
+      return buildDeniedResponse(deniedDecision, context, executionTarget, terminalBackend)
     }
 
     const isMutationBlockedByPreflight = isMutatingAction(normalizedAction)
@@ -341,7 +341,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         },
       })
 
-      return buildDeniedResponse(deniedDecision, context, executionTarget)
+      return buildDeniedResponse(deniedDecision, context, executionTarget, terminalBackend)
     }
 
     if (!decision.allowed) {
@@ -356,7 +356,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         },
       })
 
-      return buildDeniedResponse(decision, context, executionTarget)
+      return buildDeniedResponse(decision, context, executionTarget, terminalBackend)
     }
 
     const actionDisplayPoint = resolveActionDisplayPoint(normalizedAction, displayInfo)

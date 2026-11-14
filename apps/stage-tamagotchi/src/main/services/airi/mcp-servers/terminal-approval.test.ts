@@ -5,7 +5,7 @@ import type { TerminalApprovalOptions } from './terminal-approval'
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js'
-import { terminalDiscardMethod, terminalExecuteMethod } from '@proj-airi/stage-shared/terminal-approval'
+import { terminalDiscardMethod, terminalExecuteMethod, terminalTurboCommands, terminalTurboTimeoutMs } from '@proj-airi/stage-shared/terminal-approval'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { PendingActionManager } from '../computer-use/action-manager'
@@ -33,11 +33,11 @@ afterEach(async () => {
     console.info(JSON.stringify({ boundary: 'Mock Main UI decision and controlled executor. No real approval or spawn.', ...record }))
 })
 
-function fixture(shared: { actions?: PendingActionManager, runtime?: ReturnType<typeof createComputerUseRuntime>, sessionId?: string } = {}) {
+function fixture(shared: { actions?: PendingActionManager, runtime?: ReturnType<typeof createComputerUseRuntime>, sessionId?: string, turbo?: boolean, snapshot?: Partial<TerminalSnapshot> } = {}) {
   const actions = shared.actions ?? new PendingActionManager()
   const attribution = { sessionId: shared.sessionId ?? 'session-a', turnId: 'turn-a', toolCallId: `call-${shared.sessionId ?? 'a'}`, senderWebContentsId: 71 }
-  const request = actions.registerRequest({ sessionId: attribution.sessionId, turnId: attribution.turnId, text: 'Run the isolated fixture.' }, attribution.senderWebContentsId)
-  const snapshot: TerminalSnapshot = { protocol: 'airi-terminal-approval/1', preparedId: 'prepared-a', requestId: request.id, toolCallId: attribution.toolCallId, command: 'fixture-command', shell: 'fixture-shell', argv: ['--command', 'fixture-command'], effectiveCwd: '/fixture', cwdSource: 'runner-state', executorPid: 101, executorPlatform: 'fixture', executorCwd: '/fixture', timeoutMs: 1000, detached: false, windowsHide: true }
+  const request = actions.registerRequest({ sessionId: attribution.sessionId, turnId: attribution.turnId, text: 'Run the isolated fixture.' }, attribution.senderWebContentsId, shared.turbo)
+  const snapshot: TerminalSnapshot = { protocol: 'airi-terminal-approval/1', preparedId: 'prepared-a', requestId: request.id, toolCallId: attribution.toolCallId, command: 'fixture-command', shell: 'fixture-shell', argv: ['--command', 'fixture-command'], effectiveCwd: '/fixture', cwdSource: 'runner-state', executorPid: 101, executorPlatform: 'fixture', executorCwd: '/fixture', timeoutMs: 1000, detached: false, windowsHide: true, ...shared.snapshot }
   const decision = barrier<boolean>()
   const ready = barrier<void>()
   const queued = barrier<void>()
@@ -61,7 +61,7 @@ function fixture(shared: { actions?: PendingActionManager, runtime?: ReturnType<
   })
   const client = new Client({ name: 'mock-main', version: '1.0.0' })
   client.request = rpc as Client['request']
-  const connection = { client, serverName: 'fixture', nonce: 'c'.repeat(64), pid: 101, isCurrent: () => true }
+  const connection = { client, serverName: 'fixture', nonce: 'c'.repeat(64), pid: 101, isCurrent: () => true, bundledShell: undefined as string | undefined }
   const options: TerminalApprovalOptions = { actions, present: vi.fn(() => decision.promise), notify: vi.fn(async (notice: TerminalNotice) => {
     notices.push(structuredClone(notice))
     return { status: 'stored' as const, sessionId: notice.sessionId, messageId: `terminal:${notice.actionId}` }
@@ -75,7 +75,8 @@ function fixture(shared: { actions?: PendingActionManager, runtime?: ReturnType<
       ended.release()
     }
   }, signal) }
-  const bind = () => bindTerminalApproval({ options, connection, attribution, payload: { name: 'fixture::terminal_exec', arguments: { command: 'fixture-command' }, requestId: request.id, attribution }, result: { content: [{ type: 'text', text: 'Approval required.' }], structuredContent: { status: 'approval_required', preparedTerminal: snapshot } } })
+  const arguments_ = { command: snapshot.command, cwd: snapshot.requestedCwd }
+  const bind = () => bindTerminalApproval({ options, connection, attribution, payload: { name: 'fixture::terminal_exec', arguments: arguments_, requestId: request.id, attribution }, result: { content: [{ type: 'text', text: 'Approval required.' }], structuredContent: { status: 'approval_required', preparedTerminal: snapshot } } })
   function record(actionId: string) {
     evidence.push({ oracle: { ...oracle }, action: actions.get(actionId), notices: structuredClone(notices), rpcMethods: rpc.mock.calls.map(([input]) => input.method) })
   }
@@ -83,6 +84,62 @@ function fixture(shared: { actions?: PendingActionManager, runtime?: ReturnType<
 }
 
 describe('main Terminal approval controller', () => {
+  const bundledShell = 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe'
+  const query = { command: terminalTurboCommands[0], shell: bundledShell, executorPlatform: 'win32' }
+
+  it('runs a confirmed Turbo query through the shared slot with one settlement and no approval window', async () => {
+    const h = fixture({ turbo: true, snapshot: query })
+    h.connection.bundledShell = bundledShell
+    const result = h.bind()
+    const id = String(result.structuredContent?.hostActionId)
+    expect(result.structuredContent).toMatchObject({ approval: 'turbo', status: 'prepared' })
+    expect(result.content?.[0]?.text).toContain('preparation only')
+    expect(h.options.present).not.toHaveBeenCalled()
+    await h.queued.promise
+    expect(h.bind().structuredContent?.hostActionId).toBe(id)
+    expect(h.oracle.dispatches).toBe(0)
+    h.ready.release()
+    await h.ended.promise
+    expect(h.oracle).toMatchObject({ dispatches: 1, effects: 1 })
+    expect(h.actions.get(id)?.settlement).toMatchObject({ executionState: 'executed', exitCode: 0 })
+    expect(h.notices).toMatchObject([{ actionId: id, status: 'executed', sessionId: h.attribution.sessionId }])
+    h.record(id)
+  })
+
+  it.each([
+    { name: 'unconfirmed chat', turbo: false },
+    { name: 'another MCP server', external: true },
+    { name: 'an expression with more instructions', snapshot: { command: `${query.command}; Write-Output "extra"` } },
+    { name: 'a different shell', snapshot: { shell: 'pwsh.exe' } },
+    { name: 'an explicit cwd', snapshot: { requestedCwd: '/elsewhere', cwdSource: 'argument' } },
+    { name: 'a changed runner cwd', snapshot: { effectiveCwd: '/elsewhere' } },
+    { name: 'a longer timeout', snapshot: { timeoutMs: terminalTurboTimeoutMs + 1 } },
+  ] satisfies Array<{ name: string, turbo?: boolean, external?: boolean, snapshot?: Partial<TerminalSnapshot> }>)('uses normal approval for $name', async ({ turbo, external, snapshot }) => {
+    const h = fixture({ turbo: turbo ?? true, snapshot: { ...query, ...snapshot } })
+    if (!external)
+      h.connection.bundledShell = bundledShell
+    const result = h.bind()
+    expect(result.structuredContent).toMatchObject({ approval: 'manual', status: 'approval_required' })
+    expect(h.options.present).toHaveBeenCalledOnce()
+    h.decision.release(false)
+    await vi.waitFor(() => expect(h.oracle.discarded).toBe(1))
+    expect(h.oracle).toMatchObject({ dispatches: 0, effects: 0 })
+  })
+
+  it('cancels a Turbo approval before the shared execution slot opens', async () => {
+    const h = fixture({ turbo: true, snapshot: query })
+    h.connection.bundledShell = bundledShell
+    const id = String(h.bind().structuredContent?.hostActionId)
+    await h.queued.promise
+    h.actions.cancelRequest(h.request.id, h.attribution.senderWebContentsId)
+    h.ready.release()
+    await h.ended.promise
+    expect(h.actions.get(id)).toMatchObject({ status: 'cancelled', settlement: { executionState: 'not_executed' } })
+    expect(h.oracle).toMatchObject({ dispatches: 0, effects: 0 })
+    expect(h.options.present).not.toHaveBeenCalled()
+    h.record(id)
+  })
+
   // https://github.com/moeru-ai/airi/pull/3496
   // ROOT CAUSE:
   // Expiring a request left its completed Action in the manager forever.

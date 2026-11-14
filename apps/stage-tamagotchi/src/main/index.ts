@@ -3,6 +3,7 @@ import type { BrowserWindow } from 'electron'
 import type { FullscreenMode, FullscreenSurfaceId } from '../shared/eventa'
 import type { FileLoggerHandle } from './app/file-logger'
 import type { AutoUpdater } from './services/electron/auto-updater'
+import type { ChatWindowManager } from './windows/chat'
 import type { SettingsWindowManager } from './windows/settings'
 import type { FullscreenPlace } from './windows/shared/fullscreen'
 import type { WorkspaceWindowManager } from './windows/workspace'
@@ -182,6 +183,7 @@ electronApp.setAppUserModelId('ai.moeru.airi')
 // Track the real user-facing AIRI window because the process also owns hidden utility windows.
 // The second-instance handler should restore the main UI instead of accidentally surfacing internals.
 let userFacingMainWindow: BrowserWindow | undefined
+let chatWindowManager: ChatWindowManager | undefined
 let settingsWindowManager: SettingsWindowManager | undefined
 let workspaceWindowManager: WorkspaceWindowManager | undefined
 /** The fullscreen mode that the user chose, as the main window page reports it. */
@@ -334,11 +336,15 @@ app.whenReady().then(async () => {
 
   const pendingActions = injeca.provide('services:pending-actions', () => new PendingActionManager())
   const computerUse = injeca.provide('services:computer-use', {
-    dependsOn: { pendingActions },
+    dependsOn: { pendingActions, i18n },
     build: ({ dependsOn }) => {
       const { context } = createContext(ipcMain)
       const host = setupComputerUse(context, { actionManager: dependsOn.pendingActions })
-      setupChatRequests(context, dependsOn.pendingActions, sender => sender === userFacingMainWindow?.webContents)
+      setupChatRequests(context, dependsOn.pendingActions, {
+        getRuntime: () => userFacingMainWindow?.webContents,
+        isChatWindow: window => chatWindowManager?.owns(window) === true,
+        i18n: dependsOn.i18n,
+      })
       return host
     },
   })
@@ -460,7 +466,7 @@ app.whenReady().then(async () => {
 
   const chatWindow = injeca.provide('windows:chat', {
     dependsOn: { widgetsManager, serverChannel, mcpManager, i18n },
-    build: ({ dependsOn }) => setupChatWindowManager({
+    build: ({ dependsOn }) => chatWindowManager = setupChatWindowManager({
       ...dependsOn,
       getMainWindow: () => userFacingMainWindow,
       // NOTICE:

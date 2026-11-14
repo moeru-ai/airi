@@ -6,19 +6,21 @@ import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import type { ChatDraftHandover } from '../../shared/eventa'
 
+import { electron } from '@proj-airi/electron-eventa'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useChatInterruption } from '@proj-airi/stage-layouts/composables/use-chat-interruption'
 import { ChatBackgroundTasks, ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
 import { ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSendButton, useChatComposer, useChatImages, VoiceInputButton } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
+import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/ai/chat-llm/tools'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
 import { useJournalPreviewStore } from '@proj-airi/stage-ui/stores/journal-preview'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { BasicTextarea, GhostButton } from '@proj-airi/ui'
-import { until, useLocalStorage } from '@vueuse/core'
+import { BasicTextarea, DropdownMenu, GhostButton, MenuSwitchItem } from '@proj-airi/ui'
+import { until, useAsyncState, useLocalStorage } from '@vueuse/core'
 import { nanoid } from 'nanoid/non-secure'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, ref, shallowRef, toRaw, useTemplateRef, watch } from 'vue'
@@ -29,6 +31,7 @@ import ChatViewportLayout from './chat-viewport-layout.vue'
 
 import { electronAuthStartLogin, electronOpenSettings } from '../../shared/eventa'
 import { COMPUTER_USE_READ_IMAGE_TOOL_NAME, COMPUTER_USE_TOOL_NAME } from '../../shared/eventa/computer-use'
+import { terminalTurboConfirm } from '../../shared/eventa/terminal-approval'
 import { useHearingInputChannel } from '../composables/use-hearing-input-channel'
 import { artistryToolReferences, widgetToolReferences } from '../stores/tools'
 import { WEATHER_TOOL_NAME } from '../stores/tools/builtin/weather'
@@ -119,20 +122,39 @@ const { activeCard, activeCardId } = storeToRefs(airiCardStore)
 const { activeChatReady: chatReady } = storeToRefs(chatStore)
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const startLogin = useElectronEventaInvoke(electronAuthStartLogin)
+const isWindows = useElectronEventaInvoke(electron.app.isWindows)
+const confirmTurbo = useElectronEventaInvoke(terminalTurboConfirm)
+const { state: windows } = useAsyncState(() => isWindows(), false)
+const tools = useLlmToolsStore()
+const terminalAvailable = computed(() => tools.tools.some(tool => tool.id === 'mcp:terminal_exec'))
+const turboSession = ref<string>()
+const turboArmed = computed(() => turboSession.value === activeSessionId.value && terminalAvailable.value)
+watch([activeSessionId, terminalAvailable], () => {
+  turboSession.value = undefined
+})
 
 const composer = useChatComposer<ChatImageAttachment>({
   activeSessionId,
-  send: submission => chatStore.send({
-    sessionId: submission.sessionId,
-    text: submission.text,
-    replyToMessageId: submission.replyToMessageId,
-    attachments: submission.attachments.map(attachment => ({
-      type: attachment.type,
-      data: attachment.data,
-      mimeType: attachment.mimeType,
-    })),
-    tools: artistryToolReferences,
-  }),
+  send: async (submission) => {
+    const messageId = nanoid()
+    if (turboSession.value === submission.sessionId && terminalAvailable.value) {
+      turboSession.value = undefined
+      if (!await confirmTurbo({ sessionId: submission.sessionId, turnId: messageId, text: submission.text }))
+        throw new Error('Turbo was not confirmed. The message was not sent.')
+    }
+    return chatStore.send({
+      messageId,
+      sessionId: submission.sessionId,
+      text: submission.text,
+      replyToMessageId: submission.replyToMessageId,
+      attachments: submission.attachments.map(attachment => ({
+        type: attachment.type,
+        data: attachment.data,
+        mimeType: attachment.mimeType,
+      })),
+      tools: artistryToolReferences,
+    })
+  },
 })
 const {
   attachments,
@@ -572,6 +594,33 @@ defineExpose({
           >
             <span :class="['i-solar:paperclip-bold-duotone h-5 w-5']" />
           </GhostButton>
+          <DropdownMenu side="top" :content-class="['w-64']">
+            <template #trigger>
+              <GhostButton
+                size="unset"
+                :class="['size-9']"
+                :active="turboArmed"
+                :aria-label="turboArmed ? t('tamagotchi.stage.chat-window.computer-tools.turbo-next') : t('tamagotchi.stage.chat-window.computer-tools.label')"
+                :title="turboArmed ? t('tamagotchi.stage.chat-window.computer-tools.turbo-next') : t('tamagotchi.stage.chat-window.computer-tools.label')"
+              >
+                <span :class="['i-solar:monitor-bold-duotone size-5 shrink-0']" />
+              </GhostButton>
+            </template>
+            <p :class="['px-2 py-1.5 text-xs text-neutral-500 dark:text-neutral-400']">
+              {{ t('tamagotchi.stage.chat-window.computer-tools.desktop-unavailable') }}
+            </p>
+            <template v-if="windows && terminalAvailable">
+              <MenuSwitchItem
+                :model-value="turboArmed"
+                @update:model-value="turboSession = $event ? activeSessionId : undefined"
+              >
+                {{ t('tamagotchi.stage.chat-window.computer-tools.turbo-next') }}
+              </MenuSwitchItem>
+              <p :class="['px-2 py-1.5 text-xs text-neutral-500 dark:text-neutral-400']">
+                {{ t('tamagotchi.stage.chat-window.computer-tools.turbo-description') }}
+              </p>
+            </template>
+          </DropdownMenu>
 
           <!-- The voice control shows its recording status here, so the composer keeps its height. -->
           <div ref="voice-status" :class="['min-w-0 flex flex-1 items-center px-1']" />

@@ -9,7 +9,7 @@ import type { createComputerUseRuntime } from '../computer-use/runtime'
 import { useLogg } from '@guiiai/logg'
 import { CallToolResultSchema, McpError } from '@modelcontextprotocol/sdk/types.js'
 import { errorMessageFrom } from '@moeru/std'
-import { terminalDiscardMethod, terminalExecuteMethod, terminalSnapshotSchema } from '@proj-airi/stage-shared/terminal-approval'
+import { terminalDiscardMethod, terminalExecuteMethod, terminalSnapshotSchema, terminalTurboCommands, terminalTurboTimeoutMs } from '@proj-airi/stage-shared/terminal-approval'
 import { z } from 'zod'
 
 import * as v from 'valibot'
@@ -27,6 +27,8 @@ interface TerminalConnection {
   serverName: string
   nonce: string
   pid: number | null
+  /** System PowerShell path from the config of the bundled stdio child. */
+  bundledShell?: string
   isCurrent: () => boolean
 }
 
@@ -49,6 +51,13 @@ export function bindTerminalApproval(params: {
     throw new Error('Terminal approval requires the original Host request.')
   const action = options.actions.createTerminalAction({ requestId: payload.requestId, attribution, serverName: connection.serverName, snapshot, arguments: payload.arguments ?? {} })
   const actionId = action.id
+  const turbo = snapshot.executorPlatform === 'win32'
+    && snapshot.shell === connection.bundledShell
+    && snapshot.requestedCwd === undefined
+    && snapshot.effectiveCwd === snapshot.executorCwd
+    && snapshot.timeoutMs <= terminalTurboTimeoutMs
+    && terminalTurboCommands.includes(snapshot.command)
+    && options.actions.validateRequest(payload.requestId, attribution).terminalTurbo
   const log = useLogg('main/terminal-approval').useGlobalConfig()
   const trace = (event: string, detail: Record<string, unknown> = {}) => {
     log.withFields({ event, actionId, requestId: snapshot.requestId, sessionId: attribution.sessionId, turnId: attribution.turnId, toolCallId: attribution.toolCallId, senderWebContentsId: attribution.senderWebContentsId, ...detail }).log('Terminal approval')
@@ -145,7 +154,7 @@ export function bindTerminalApproval(params: {
   async function execute() {
     let expiryTimer: ReturnType<typeof setTimeout> | undefined
     try {
-      const approved = await options.present(actionId)
+      const approved = turbo || await options.present(actionId)
       const current = options.actions.get(actionId)
       if (!current)
         return
@@ -161,7 +170,7 @@ export function bindTerminalApproval(params: {
         return
       }
       options.actions.approve(actionId)
-      trace('approved')
+      trace('approved', { source: turbo ? 'turbo' : 'approval-window' })
       const requestSignal = options.actions.requestSignal(snapshot.requestId, attribution)
       const expiry = new AbortController()
       expiryTimer = setTimeout(() => expiry.abort(new Error('The Terminal approval expired while waiting for dispatch.')), Math.max(0, action.expiresAt - Date.now()))
@@ -191,12 +200,13 @@ export function bindTerminalApproval(params: {
     if (await noticeHandled)
       options.actions.finishTerminalAction(actionId)
   })
+  const approval = turbo ? 'turbo' : 'manual'
   return {
-    ...params.result,
-    content: [...(params.result.content ?? []), {
+    isError: params.result.isError,
+    content: [{
       type: 'text',
-      text: 'This response confirms preparation only. AIRI manages approval. It does not confirm execution or business success. Execution outcomes arrive through a Host notice in a new turn of this conversation. If approval is pending, finish this turn and wait for that notice. An empty MCP pending list does not prove that the command did not execute.',
+      text: `${turbo ? 'Turbo approved this Terminal query.' : 'Terminal is waiting for approval in the AIRI approval window.'} This response confirms preparation only. Finish this turn and wait for the Host notice in a new turn of this conversation. An empty MCP pending list does not prove that the command did not execute.`,
     }],
-    structuredContent: { ...params.result.structuredContent, hostActionId: actionId },
+    structuredContent: { status: turbo ? 'prepared' : 'approval_required', approval, hostActionId: actionId },
   }
 }

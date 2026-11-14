@@ -80,6 +80,15 @@ docs:
   composer:
     show: 展开输入框
     hide: 收起输入框
+  computer-tools:
+    label: 桌面工具
+    desktop-unavailable: 当前版本无法截图或控制桌面。
+    turbo-next: 为下一条消息启用 Terminal Turbo
+    turbo-description: 确认一次即可自动批准固定的 Windows 时间、工作目录和进程名称查询。
+    turbo-confirm: 为这条消息启用 Terminal Turbo？
+    turbo-scope: 仅允许下列本地查询。查询输出会发送给聊天模型。其他命令仍需审批。
+    turbo-allow: 允许这些查询
+    cancel: 取消
   danmaku-feed:
     title: 消息停留时间
     hide-read: 自动隐藏已读消息

@@ -1626,7 +1626,7 @@ pages:
       title: MCP 集成
       terminal:
         title: 随包 Terminal
-        description: 连接应用随附的 Terminal 工具。每条命令仍需单独批准，GUI 和 Browser 写入保持关闭。保存并重启后生效。
+        description: 连接应用随附的 Terminal 工具。命令默认需要批准。可在聊天输入框为固定的 Windows 查询启用 Terminal Turbo。保存并重启后生效。
         restore: 显示 Terminal 请求
         approval: Terminal 命令与结果
         approve: 单次批准

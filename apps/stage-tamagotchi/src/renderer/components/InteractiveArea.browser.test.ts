@@ -9,6 +9,7 @@ import { PiniaColada } from '@pinia/colada'
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
 import { browserAuthorizationHandler, registerAuthorizationHandler } from '@proj-airi/stage-ui/libs/auth'
 import { trackPendingActions } from '@proj-airi/stage-ui/libs/pinia/pending-actions'
+import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/ai/chat-llm/tools'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
@@ -27,15 +28,27 @@ import InteractiveArea from './InteractiveArea.vue'
 import '@unocss/reset/tailwind.css'
 import 'virtual:uno.css'
 
-const openSettings = vi.hoisted(() => vi.fn())
+const { openSettings, isWindows, confirmTurbo } = vi.hoisted(() => ({
+  openSettings: vi.fn(),
+  isWindows: vi.fn(async () => true),
+  confirmTurbo: vi.fn(),
+}))
 
 vi.mock('@proj-airi/electron-vueuse', async () => {
   const { createContext } = await import('@moeru/eventa')
+  const { electron } = await import('@proj-airi/electron-eventa')
   const { shallowRef } = await import('vue')
+  const { terminalTurboConfirm } = await import('../../shared/eventa/terminal-approval')
   const context = shallowRef(createContext())
   return {
     useElectronEventaContext: () => context,
-    useElectronEventaInvoke: () => openSettings,
+    useElectronEventaInvoke: (event: unknown) => {
+      if (event === electron.app.isWindows)
+        return isWindows
+      if (event === terminalTurboConfirm)
+        return confirmTurbo
+      return openSettings
+    },
   }
 })
 
@@ -116,6 +129,7 @@ async function renderArea(component: Component = InteractiveArea, options: { pro
     chat: useChatStore(pinia),
     chatSession: useChatSessionStore(pinia),
     chatStream: useChatStreamStore(pinia),
+    tools: useLlmToolsStore(pinia),
     stageModel: useSettingsStageModel(pinia),
     router,
     screen,
@@ -209,6 +223,27 @@ async function expectElectronReplyBubble(screen: Awaited<ReturnType<typeof rende
 describe('interactive area synchronized state', () => {
   beforeEach(async () => {
     await page.viewport(1280, 720)
+  })
+
+  it('offers one-message Turbo beside attachments and clears it before the next send', async () => {
+    const { chat, screen, tools } = await renderArea()
+    const send = vi.spyOn(chat, 'send').mockResolvedValue({ sessionId: 'session-b', messages: [] })
+    tools.addTools({ id: 'mcp:terminal_exec', type: 'function', function: { name: 'terminal_exec', parameters: { type: 'object' } }, execute: async () => '' })
+    confirmTurbo.mockReset().mockResolvedValueOnce(true)
+
+    await screen.getByRole('button', { name: 'tamagotchi.stage.chat-window.computer-tools.label' }).click()
+    await expect.element(screen.getByText('tamagotchi.stage.chat-window.computer-tools.desktop-unavailable')).toBeVisible()
+    const turbo = screen.getByRole('menuitemcheckbox', { name: 'tamagotchi.stage.chat-window.computer-tools.turbo-next' })
+    await expect.element(turbo).toHaveAttribute('data-state', 'unchecked')
+    await turbo.click()
+    await userEvent.keyboard('{Escape}')
+    await submitDraft(screen, 'Read the local time')
+    await expect.poll(() => send.mock.calls.length).toBe(1)
+    expect(confirmTurbo).toHaveBeenCalledExactlyOnceWith({ sessionId: 'session-b', turnId: send.mock.calls[0][0].messageId, text: 'Read the local time' })
+    await expect.element(screen.getByRole('button', { name: 'tamagotchi.stage.chat-window.computer-tools.label' })).toBeVisible()
+    await submitDraft(screen, 'Read the local time again')
+    await expect.poll(() => send.mock.calls.length).toBe(2)
+    expect(confirmTurbo).toHaveBeenCalledOnce()
   })
 
   it('centers the mobile textarea when no reply preview is visible', async () => {

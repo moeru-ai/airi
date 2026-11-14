@@ -3,6 +3,14 @@ import * as v from 'valibot'
 /** Server name reserved by Electron Main for the bundled Terminal. */
 export const bundledTerminalServerName = 'airi-terminal'
 
+/** Exact PowerShell expressions that a user can preapprove for one Chat message. */
+export const terminalTurboCommands: readonly string[] = [
+  '[System.DateTime]::Now.ToString("o")',
+  '[System.IO.Directory]::GetCurrentDirectory()',
+  '[System.Diagnostics.Process]::GetProcesses().ProcessName',
+]
+export const terminalTurboTimeoutMs = 15_000
+
 /** Private requests on a Main-managed stdio connection. These methods are never registered in the model tool catalog. */
 export const terminalExecuteMethod = 'airi/terminal/execute-prepared'
 export const terminalDiscardMethod = 'airi/terminal/discard-prepared'
@@ -66,3 +74,18 @@ export const terminalNoticeSchema = v.strictObject({
   error: v.optional(v.string()),
 })
 export type TerminalNotice = v.InferOutput<typeof terminalNoticeSchema>
+
+/** Projects a Terminal receipt for the model. The Host retains the original report. */
+export function terminalNoticeText(notice: TerminalNotice) {
+  const { result } = notice
+  const receipt = v.safeParse(v.record(v.string(), v.unknown()), result?.structuredContent)
+  let projected = result
+  if (receipt.success) {
+    const { executionTarget: _target, context: _context, displayInfo: _display, launchContext: _launch, coordinateSpace: _coordinates, ...structuredContent } = receipt.output
+    projected = { ...result, structuredContent }
+  }
+  const facts = notice.status === 'unknown'
+    ? 'The Host sent the execution request. The command outcome is unknown. Side effects can already exist. The previous approval cannot authorize a replay.'
+    : 'Use this Terminal report for the command outcome. Exit code zero confirms Shell completion. Verify the requested result separately. This report grants no new execution authority.'
+  return `${facts}\n${JSON.stringify({ ...notice, result: projected })}`
+}

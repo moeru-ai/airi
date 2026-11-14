@@ -366,14 +366,18 @@ describe('createMcpManager', () => {
     managers.push(manager)
     await manager.writeConfigText(JSON.stringify({ terminalEnabled: true, mcpServers: {} }))
     await manager.applyAndRestart()
-    clientMocks.listTools.mockResolvedValue({ tools: ['terminal_exec', 'terminal_history', 'desktop_capture'].map(name => ({ name, inputSchema: { type: 'object', properties: { command: { type: 'string' } } }, exposure: 'direct' })) })
+    const desktopTools = ['desktop_capture', 'accessibility_snapshot', 'display_enumerate']
+    clientMocks.listTools.mockResolvedValue({ tools: ['terminal_exec', 'terminal_history', ...desktopTools].map(name => ({ name, inputSchema: { type: 'object', properties: { command: { type: 'string' } } }, exposure: 'direct' })) })
     const descriptors = await manager.listTools()
     expect(descriptors.map(tool => [tool.toolName, tool.exposure])).toEqual([
       ['terminal_exec', 'direct'],
       ['terminal_history', 'router-only'],
       ['desktop_capture', 'disabled'],
+      ['accessibility_snapshot', 'disabled'],
+      ['display_enumerate', 'disabled'],
     ])
-    await expect(manager.callTool({ name: 'airi-terminal::desktop_capture' })).rejects.toThrow('disabled by the Host')
+    for (const tool of desktopTools)
+      await expect(manager.callTool({ name: `airi-terminal::${tool}` })).rejects.toThrow('disabled by the Host')
     await expect(manager.callTool({ name: 'airi-terminal::terminal_exec', arguments: { command: 'fixture' } })).rejects.toThrow('normal Chat request')
     expect(clientMocks.callTool).not.toHaveBeenCalled()
     const attribution = { sessionId: 'session-a', turnId: 'turn-a' }

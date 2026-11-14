@@ -4,6 +4,7 @@ import type { TerminalNotice, TerminalSnapshot } from '@proj-airi/stage-shared/t
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createChatOrchestratorRuntime, streamFrom } from '@proj-airi/core-agent'
+import { terminalNoticeText } from '@proj-airi/stage-shared/terminal-approval'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { terminalOutcomeNotice } from '../../../../shared/eventa/terminal-approval'
@@ -109,7 +110,7 @@ async function connect(status: TerminalNotice['status'] = 'executed', projectToP
   const received = Promise.withResolvers<void>()
   defineInvokeHandler(owner.context, terminalOutcomeNotice, async (input, options) => {
     const messageId = `terminal:${input.actionId}`
-    const turn = activeCore.submit(JSON.stringify(input), { model: 'mock-notice', chatProvider: provider, messageId, signal: options?.abortController?.signal, notice: { source: 'airi:terminal-settlement' } }, input.sessionId)
+    const turn = activeCore.submit(terminalNoticeText(input), { model: 'mock-notice', chatProvider: provider, messageId, signal: options?.abortController?.signal, notice: { source: 'airi:terminal-settlement' } }, input.sessionId)
     completions.push(turn.done.catch(() => {}))
     received.resolve()
     const receipt = await turn.accepted
@@ -126,15 +127,18 @@ describe('host Terminal notice routing', () => {
   it.each([{ exitCode: 0, timedOut: false }, { exitCode: 1, timedOut: false }, { exitCode: 124, timedOut: true }])('preserves scoped Terminal facts %j in the actual next provider request', async (backend) => {
     const h = await connect(backend.exitCode === 0 ? 'executed' : 'failed', true, backend.exitCode)
     h.notice.result = {
-      content: [{ type: 'text', text: 'Terminal backend: local-shell-runner. executionTarget and context describe the desktop backend.' }],
-      structuredContent: { terminalBackend: 'local-shell-runner', executionTarget: { mode: 'dry-run' }, context: { available: false }, backendResult: { ...backend, effectiveCwd: '/fixture' } },
+      content: [{ type: 'text', text: 'Terminal backend: local-shell-runner.' }],
+      structuredContent: { terminalBackend: 'local-shell-runner', executionTarget: { mode: 'dry-run' }, context: { available: false }, executorInvoked: true, terminalLifecycle: 'closed', backendResult: { ...backend, effectiveCwd: '/fixture' } },
     }
     await h.deliver()
     await Promise.all(h.completions)
     console.info(JSON.stringify({ boundary: 'Controlled Terminal notice and Electron IPC. Real Core, SDK and provider request projection. No native execution.', backend, providerRequests: h.providerRequests, action: h.actions.get(h.notice.actionId) }))
 
     expect(h.providerRequests).toHaveLength(1)
-    expect(h.providerRequests[0]).toMatchObject({ messages: expect.arrayContaining([expect.objectContaining({ role: 'user', content: expect.stringContaining(JSON.stringify(h.notice)) })]) })
+    const projected = { ...h.notice, result: { ...h.notice.result, structuredContent: { terminalBackend: 'local-shell-runner', executorInvoked: true, terminalLifecycle: 'closed', backendResult: { ...backend, effectiveCwd: '/fixture' } } } }
+    expect(h.providerRequests[0]).toMatchObject({ messages: expect.arrayContaining([expect.objectContaining({ role: 'user', content: expect.stringContaining(JSON.stringify(projected)) })]) })
+    expect(JSON.stringify(h.providerRequests[0])).not.toContain('dry-run')
+    expect(h.notice.result.structuredContent).toMatchObject({ executionTarget: { mode: 'dry-run' } })
     expect(JSON.stringify(h.providerRequests[0])).toContain('Notice from airi:terminal-settlement, not a message from the owner.')
     expect(h.actions.get(h.notice.actionId)?.settlement).toMatchObject({ executionState: 'executed', exitCode: backend.exitCode })
     expect(h.messages['session-b']).toEqual([])

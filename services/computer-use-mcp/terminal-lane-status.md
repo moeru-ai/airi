@@ -2,6 +2,12 @@
 
 Scope: terminal lane work in `services/computer-use-mcp/**`.
 
+The AIRI composer can request Turbo for one Chat message on Windows.
+Electron Main confirms the scope with a native dialog.
+Main can approve the listed queries through the existing Terminal action and shared execution queue.
+Other commands still use the approval window. Turbo ends with the original turn's admission.
+Chat receives a Terminal receipt with execution facts. The MCP audit retains desktop metadata.
+
 Terminal exec and reset skip CDP discovery in the shared action pipeline.
 Linux X11 still checks the remote target, display bounds, and screenshot binding before execution.
 
@@ -45,7 +51,8 @@ These controlled tests use mock processes and the real MCP protocol. They do not
 
 ## Terminal environment scope: 2026-11-07
 
-Terminal responses retain the existing desktop `executionTarget` and `context` fields.
+MCP execution reports retain desktop `executionTarget` and `context` fields for audit.
+AIRI omits those fields from Terminal notices sent to Chat.
 The `terminalBackend` field comes from the actual Terminal runner, independently of the desktop executor.
 Desktop dry-run does not establish whether a Shell command executed.
 Command results retain their actual exit code, timeout and possible side effects.

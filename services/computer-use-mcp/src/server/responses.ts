@@ -49,7 +49,15 @@ export function buildApprovalResponse(
   }
 }
 
-export function buildDeniedResponse(decision: PolicyDecision, context: { available: boolean, appName?: string, windowTitle?: string }, executionTarget: ExecutionTarget): CallToolResult {
+export function buildDeniedResponse(decision: PolicyDecision, context: { available: boolean, appName?: string, windowTitle?: string }, executionTarget: ExecutionTarget, terminalBackend?: string): CallToolResult {
+  if (terminalBackend) {
+    const reasons = decision.reasons.join(', ') || 'policy denied the request'
+    return {
+      isError: true,
+      content: [textContent(`Terminal request denied before Shell dispatch. ${reasons}. ${describeTerminalBackend(terminalBackend)}`)],
+      structuredContent: { status: 'denied', policy: decision, terminalBackend },
+    }
+  }
   return {
     isError: true,
     content: [

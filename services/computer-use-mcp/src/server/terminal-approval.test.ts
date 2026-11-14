@@ -230,7 +230,7 @@ describe('main-only Terminal execution protocol', () => {
 
     expect(h.oracle).toEqual({ dispatches: 1, effects: 1 })
     expect(result.structuredContent).toMatchObject({ terminalBackend: 'local-shell-runner', executionTarget: { mode: 'dry-run' }, context: { available: false }, backendResult: { ...backend, effectiveCwd: prepared.effectiveCwd }, executorInvoked: true, terminalLifecycle: 'closed' })
-    expect(JSON.stringify(result.content)).toContain('executionTarget and context describe the desktop backend')
+    expect(JSON.stringify(result.content)).not.toContain('dry-run')
     expect(JSON.stringify(result.content)).toContain('backendResult.effectiveCwd is the directory used to spawn this command')
   })
 
@@ -249,7 +249,22 @@ describe('main-only Terminal execution protocol', () => {
     expect(result.isError).toBe(true)
     expect(result.structuredContent).toMatchObject({ terminalBackend: 'local-shell-runner', executionTarget: { mode: 'dry-run' }, executorInvoked: true, terminalLifecycle: 'closed' })
     expect(JSON.stringify(result.content)).not.toContain('failed on local dry-run')
-    expect(JSON.stringify(result.content)).toContain('executionTarget and context describe the desktop backend')
+    expect(JSON.stringify(result.content)).toContain('Terminal backend: local-shell-runner')
+  })
+
+  it('returns a Terminal policy denial without desktop metadata or a Shell invocation', async () => {
+    const h = await fixture(true)
+    h.runtime.config.maxOperations = 0
+    const result = await h.client.callTool({
+      name: 'terminal_exec',
+      arguments: { command: 'fixture-command' },
+      _meta: { [terminalOriginMetaKey]: { nonce, requestId: 'req-fixture', toolCallId: 'call-fixture' } },
+    })
+
+    expect(result).toMatchObject({ isError: true, structuredContent: { status: 'denied', terminalBackend: 'local-shell-runner' } })
+    expect(JSON.stringify(result)).not.toContain('dry-run')
+    expect(h.oracle).toEqual({ dispatches: 0, effects: 0 })
+    expect(h.terminal.execute).not.toHaveBeenCalled()
   })
 
   it('prepares without effects and dispatches the exact snapshot once from the private Host request', async () => {

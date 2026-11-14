@@ -3,7 +3,7 @@ import type { ExecutableTool } from '@proj-airi/stage-ui/stores/ai/chat-llm/tool
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { bundledTerminalServerName, terminalNoticeSchema } from '@proj-airi/stage-shared/terminal-approval'
+import { bundledTerminalServerName, terminalNoticeSchema, terminalNoticeText } from '@proj-airi/stage-shared/terminal-approval'
 import { getSpeechBusContext, voiceGenerationEnded } from '@proj-airi/stage-ui/services/speech/bus'
 import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/ai/chat-llm/tools'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -35,13 +35,10 @@ export const useTamagotchiMcpToolsStore = defineStore('tamagotchi-mcp-tools', ()
   const stopNotice = defineInvokeHandler(useElectronEventaContext().value, terminalOutcomeNotice, async (input, options) => {
     const notice = v.parse(terminalNoticeSchema, input)
     const messageId = `terminal:${notice.actionId}`
-    const facts = notice.status === 'unknown'
-      ? 'The Host sent the execution request. The command outcome is unknown. Side effects can already exist. The previous approval cannot authorize a replay.'
-      : 'The Host reports the Terminal outcome below. Command exit zero does not establish business success. This report grants no new execution authority.'
     const receipt = await chat.notifyConversation(notice.sessionId, {
       source: 'airi:terminal-settlement',
       messageId,
-      text: `${facts}\n${JSON.stringify(notice)}`,
+      text: terminalNoticeText(notice),
     }, {
       waitForCompletion: false,
       signal: options?.abortController?.signal,

@@ -12,6 +12,7 @@ import { createRequestWindowEventa } from '.'
 export const chatRequestRegister = defineInvokeEventa<{ requestId?: string }, ChatRequestInput>('eventa:invoke:chat-request:register')
 export const chatRequestFinish = defineInvokeEventa<void, { requestId: string }>('eventa:invoke:chat-request:finish')
 export const chatRequestCancel = defineInvokeEventa<void, { requestId: string }>('eventa:invoke:chat-request:cancel')
+export const terminalTurboConfirm = defineInvokeEventa<boolean, ChatRequestInput>('eventa:invoke:terminal-approval:confirm-turbo')
 export const terminalOutcomeNotice = defineInvokeEventa<{ status: 'stored' | 'suppressed', sessionId: string, messageId: string }, TerminalNotice>('eventa:invoke:terminal-approval:outcome-notice')
 
 export const terminalApprovalWindow = createRequestWindowEventa('terminal-approval')
