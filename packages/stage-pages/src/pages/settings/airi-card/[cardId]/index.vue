@@ -19,6 +19,11 @@ function handleBack() {
 function handleEdit(id: string) {
   void router.push(`/settings/airi-card/${encodeURIComponent(id)}/edit`)
 }
+
+/** The display model editor shows the model of the active character. The detail page activates the character first. */
+function handleModel() {
+  void router.push('/settings/models')
+}
 </script>
 
 <template>
@@ -27,6 +32,7 @@ function handleEdit(id: string) {
     :initial-tab="initialTab"
     @back="handleBack"
     @edit="handleEdit"
+    @model="handleModel"
   />
 </template>
 

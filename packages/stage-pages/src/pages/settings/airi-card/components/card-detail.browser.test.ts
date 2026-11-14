@@ -56,6 +56,18 @@ describe('card detail history', () => {
     return { screen, cardId }
   }
 
+  it('activates the character and then asks for its model editor', async () => {
+    const { screen, cardId } = await renderDetail()
+    const cards = useAiriCardStore(pinia)
+    expect(cards.activeCardId).not.toBe(cardId)
+
+    await screen.getByRole('button', { name: 'Edit model' }).click()
+
+    // The editor shows the model of the active character, so the activation comes first.
+    await expect.poll(() => cards.activeCardId).toBe(cardId)
+    await expect.poll(() => screen.emitted('model')).toEqual([[cardId]])
+  })
+
   it('does not offer history for a user who is not signed in', async () => {
     const { screen } = await renderDetail()
 
