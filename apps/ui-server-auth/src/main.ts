@@ -27,8 +27,8 @@ import 'uno.css'
 
 if (isEnvTruthy(import.meta.env.VITE_ENABLE_ANALYTICS)) {
   void loadAnalyticsAdapter(async () => {
-    const { createOpenpanelAdapter } = await import('./modules/analytics-adapters/openpanel')
-    return createOpenpanelAdapter()
+    const { loadAnalyticsProviders } = await import('./modules/analytics-adapters')
+    return loadAnalyticsProviders()
   })
 }
 

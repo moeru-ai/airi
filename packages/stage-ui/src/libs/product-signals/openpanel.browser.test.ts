@@ -18,9 +18,9 @@ describe('openPanel browser adapter', () => {
     })
     const adapter = createOpenpanelAdapter({ enabled: false })
     expect(adapter.capture('disabled_event', {})).toBe(false)
-    expect(adapter.getIdentitySnapshot()).toBeNull()
+    expect(adapter.getIdentityHeaders()).toBeNull()
     expect(adapter.setCaptureEnabled(true)).toBe(true)
-    const firstDevice = adapter.getIdentitySnapshot()?.distinctId
+    const firstDevice = adapter.getIdentityHeaders()?.['x-openpanel-device-id']
     expect(firstDevice).toBeTruthy()
     adapter.identify('alice')
     adapter.capture('checkout_started', {}, { beforeNavigation: true })
@@ -43,7 +43,7 @@ describe('openPanel browser adapter', () => {
     expect(requests.some(request => String(request.body).includes('code=private'))).toBe(false)
 
     adapter.resetIdentity()
-    expect(adapter.getIdentitySnapshot()?.distinctId).not.toBe(firstDevice)
+    expect(adapter.getIdentityHeaders()?.['x-openpanel-device-id']).not.toBe(firstDevice)
     adapter.identify('bob')
     adapter.capture('new_account', {})
     await vi.waitFor(() => expect(requests.some(request => String(request.body).includes('new_account'))).toBe(true))

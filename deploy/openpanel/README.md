@@ -2,6 +2,8 @@
 
 AIRI sends product events to a self-hosted OpenPanel project. Langfuse handles AI tracing through the existing server integration.
 
+The clients and the API also send each product event to PostHog in parallel, while the two data sets are compared. See `server/docs/ai/adr/2026-11-09-product-analytics-posthog.md`.
+
 Use this setup for product events, user profiles, and conversion funnels. It does not migrate historical events, HogQL queries, or saved PostHog dashboards.
 
 ## Client configuration

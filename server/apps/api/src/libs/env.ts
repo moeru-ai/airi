@@ -138,6 +138,9 @@ const EnvSchema = intersect([S3EnvironmentSchema, object({
   OPENPANEL_API_URL: optional(string()),
   OPENPANEL_CLIENT_ID: optional(string()),
   OPENPANEL_CLIENT_SECRET: optional(string()),
+  POSTHOG_API_HOST: optional(string(), 'https://t.airi.build'),
+  // Server product events. Absent disables forwarding to PostHog.
+  POSTHOG_PROJECT_KEY: optional(string()),
   REDIS_URL: pipe(string(), nonEmpty('REDIS_URL is required')),
   STRIPE_SECRET_KEY: optional(string()),
 

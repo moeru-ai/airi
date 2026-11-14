@@ -7,7 +7,7 @@ import { AnalyticsClient } from './client'
 function createAdapter(): AnalyticsAdapter {
   return {
     capture: vi.fn(() => true),
-    getIdentitySnapshot: vi.fn(() => ({ distinctId: 'distinct-1', sessionId: 'session-1' })),
+    getIdentityHeaders: vi.fn(() => ({ 'x-openpanel-device-id': 'device-1' })),
     identify: vi.fn(),
     registerBuildInfo: vi.fn(),
     resetIdentity: vi.fn(),
@@ -45,6 +45,6 @@ describe('analytics client', () => {
     await vi.waitFor(() => {
       expect(client.capture('first_message_sent', {})).toBe(false)
     })
-    expect(client.getIdentitySnapshot()).toBeNull()
+    expect(client.getIdentityHeaders()).toBeNull()
   })
 })

@@ -400,6 +400,8 @@ catalog:
   playwright: ^1.62.1
   popmotion: ^11.0.5
   postgres: ^3.4.9
+  posthog-js: ^1.440.0
+  posthog-node: ^5.60.0
   postprocessing: ^6.39.4
   prismarine-block: ^1.23.0
   prismarine-entity: ^2.6.0

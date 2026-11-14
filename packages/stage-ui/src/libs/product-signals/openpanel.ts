@@ -75,12 +75,12 @@ export function createOpenpanelAdapter(options: AnalyticsAdapterOptions): Analyt
       void panel.track(name, { ...properties, __deviceId: deviceId }).catch(() => console.warn('[analytics] Product event delivery failed'))
       return true
     },
-    getIdentitySnapshot() {
+    getIdentityHeaders() {
       if (!enabled)
         return null
       if (!deviceId)
         return null
-      return { distinctId: deviceId }
+      return { 'x-openpanel-device-id': deviceId }
     },
     identify(userId) {
       if (!enabled)
