@@ -16,6 +16,22 @@ describe('createChatActionMenuItems', () => {
     expect(items[2]?.label).toBe('Retry')
   })
 
+  it('orders replay before reply when replay is available', () => {
+    const items = createChatActionMenuItems({
+      canReplay: true,
+      canReply: true,
+      canCopy: true,
+      canRetry: false,
+      canDelete: true,
+      replyLabel: 'Reply',
+      replayLabel: 'Replay',
+    })
+
+    expect(items.map(item => item.action)).toEqual(['replay', 'reply', 'copy', 'delete'])
+    expect(items[0]?.label).toBe('Replay')
+    expect(items[0]?.icon).toBe('i-solar:restart-bold')
+  })
+
   it('omits retry when retry is unavailable', () => {
     const items = createChatActionMenuItems({
       canReply: false,

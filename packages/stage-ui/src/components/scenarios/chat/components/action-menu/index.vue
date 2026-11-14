@@ -32,6 +32,7 @@ const props = withDefaults(defineProps<{
   canReply?: boolean
   canRetry?: boolean
   canDelete?: boolean
+  canReplay?: boolean
   copyText?: string
   menuLabel?: string
   placement?: 'left' | 'right'
@@ -42,6 +43,7 @@ const props = withDefaults(defineProps<{
   canReply: false,
   canRetry: false,
   canDelete: true,
+  canReplay: false,
   copyText: '',
   menuLabel: 'Message actions',
   placement: 'right',
@@ -54,6 +56,7 @@ const emit = defineEmits<{
   (e: 'reply'): void
   (e: 'retry'): void
   (e: 'delete'): void
+  (e: 'replay'): void
 }>()
 defineSlots<{
   default: (props: { setMeasuredElement: (element: Element | ComponentPublicInstance | null) => void }) => unknown
@@ -98,8 +101,10 @@ const menuItems = computed(() => createChatActionMenuItems({
   canCopy: props.canCopy && props.copyText.trim().length > 0,
   canRetry: props.canRetry,
   canDelete: props.canDelete,
+  canReplay: props.canReplay,
   retryLabel: t('stage.chat.actions.retry'),
   replyLabel: t('stage.chat.actions.reply'),
+  replayLabel: t('stage.chat.actions.replay'),
 }))
 const triggerState = computed(() => createChatActionMenuTriggerState({
   copyFeedbackActive: copyFeedbackActive.value,
@@ -246,6 +251,11 @@ const { trigger: triggerCopyFeedbackReset, clear: clearCopyFeedbackReset } = use
 }, { delay: 1000 })
 
 async function handleAction(action: ChatActionMenuAction) {
+  if (action === 'replay') {
+    emit('replay')
+    return
+  }
+
   if (action === 'reply') {
     emit('reply')
     return
