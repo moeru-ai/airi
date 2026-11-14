@@ -2130,6 +2130,26 @@ pages:
           inference_steps:
             label: 推理步数
             description: 扩散过程的步数（越低越快，越高质量越好）
+      openai-image:
+        title: OpenAI GPT Image
+        description: 使用 OpenAI 原生 Images API 生成和编辑图片。
+        api-key:
+          label: 绘图 API 密钥
+          description: 此密钥仅用于绘图，与聊天模型的密钥分别配置。
+          placeholder: 输入绘图 API 密钥
+        base-url:
+          label: 绘图 API 基础地址
+          description: 输入包含 /v1 的 API 前缀。支持自定义网关路径，末尾斜杠可省略。
+        model:
+          label: 绘图模型
+          description: 默认使用 gpt-image-2.6-sunburst，也可填写服务端支持的其他 GPT Image 模型。
+        dimensions:
+          width: 默认宽度（像素）
+          height: 默认高度（像素）
+          description: 宽高须同时填写为 16 的正整数倍，或同时留空以由上游决定。点击“保存尺寸”后生效。单次请求指定的尺寸会覆盖此默认值。
+          placeholder: 由上游服务决定
+          invalid: 请同时填写宽度和高度，且均为 16 的正整数倍；或将两项同时留空。不合规的修改不会保存。
+          save: 保存尺寸
       nanobanana:
         settings:
           heading: Nano Banana（Google AI Studio）

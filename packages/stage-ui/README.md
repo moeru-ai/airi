@@ -14,6 +14,31 @@ Hearing cancels active transcription and rejects results from its previous enabl
 The voice host also stops listening and dictation. Text chat can continue without transcribing stored recordings.
 Disabling Speech stops its producers and playback. Text generation and tool work continue until the chat turn ends.
 
+## OpenAI image generation
+
+In Settings > Modules > Artistry, select OpenAI GPT Image and enter its separate image API key.
+The default model is `gpt-image-2.6-sunburst`. The model and API base URL are editable.
+The base URL includes the API prefix, for example `https://api.openai.com/v1/` or `https://example.com/openai/v1/`.
+Both trailing-slash forms preserve the full gateway path.
+Click a provider card to select it. Use its configuration button to open settings without changing the selection.
+Default width and height are optional. Enter both as positive multiples of 16, or leave both blank.
+Click **Save dimensions** to apply the pair. Invalid edits stay in the form and do not change the saved configuration.
+The `image_journal` tool accepts `width` and `height` together to override defaults for one request, including a retry.
+Blank dimensions omit `size` from generation and editing requests, so the upstream service chooses the size.
+Dimensions in an individual request override the complete default size.
+Character cards can select this provider and override the model through their Artistry settings.
+
+The desktop Artistry runtime uses `POST images/generations` for text prompts and `POST images/edits` for source images.
+Generation sends JSON. Editing sends multipart form data with a PNG, JPEG, or WebP image.
+Requests select PNG output and read `data[].b64_json`. They omit the unsupported `response_format` parameter.
+Existing image journals and Artistry widgets display the results.
+The existing Artistry bridge polls for results every two seconds.
+This provider uses the desktop Artistry bridge. It does not add a browser image-generation runtime.
+
+API contracts: [generation](https://developers.openai.com/api/reference/resources/images/methods/generate),
+[editing](https://developers.openai.com/api/reference/resources/images/methods/edit),
+and [default model](https://developers.openai.com/api/docs/models/gpt-image-2.6-sunburst).
+
 ## Experimental features
 
 Register flags in `libs/feature-flags.ts`. Read their state through `useFeatureFlagsStore().isEnabled(key)`.

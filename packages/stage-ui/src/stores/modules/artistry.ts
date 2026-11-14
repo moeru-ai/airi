@@ -1,5 +1,6 @@
 import type {} from 'pinia-plugin-synced'
 
+import { OPENAI_IMAGE_DEFAULTS } from '@proj-airi/stage-shared'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
 import { computed, isRef, ref, watch } from 'vue'
@@ -8,8 +9,8 @@ export interface ResolvedArtistryConfig {
   provider?: string
   model?: string
   promptPrefix?: string
-  options?: Record<string, any>
-  globals: Record<string, any>
+  options?: Record<string, unknown>
+  globals: Record<string, unknown>
 }
 
 export interface ComfyUIWorkflowTemplate {
@@ -29,7 +30,7 @@ export const useArtistryStore = defineStore('artistry', () => {
   const globalProvider = useLocalStorageManualReset<string>('artistry-provider', 'none', persistenceOptions)
   const globalModel = useLocalStorageManualReset<string>('artistry-model', '', persistenceOptions)
   const globalPromptPrefix = useLocalStorageManualReset<string>('artistry-prompt-prefix', '', persistenceOptions)
-  const globalProviderOptions = useLocalStorageManualReset<Record<string, any> | undefined>('artistry-provider-options', undefined, persistenceOptions)
+  const globalProviderOptions = useLocalStorageManualReset<Record<string, unknown> | undefined>('artistry-provider-options', undefined, persistenceOptions)
 
   // --- Active settings (transient, can be overridden by cards) ---
   const activeProvider = ref(globalProvider.value)
@@ -85,6 +86,12 @@ export const useArtistryStore = defineStore('artistry', () => {
     persistenceOptions,
   )
 
+  const openaiImageApiKey = useLocalStorageManualReset('artistry-openai-image-api-key', '', persistenceOptions)
+  const openaiImageBaseUrl = useLocalStorageManualReset<string>('artistry-openai-image-base-url', OPENAI_IMAGE_DEFAULTS.baseUrl, persistenceOptions)
+  const openaiImageModel = useLocalStorageManualReset<string>('artistry-openai-image-model', OPENAI_IMAGE_DEFAULTS.model, persistenceOptions)
+  const openaiImageWidth = useLocalStorageManualReset('artistry-openai-image-width', '', persistenceOptions)
+  const openaiImageHeight = useLocalStorageManualReset('artistry-openai-image-height', '', persistenceOptions)
+
   /**
    * Resets active settings to match current global user preferences.
    * This is typically called when switching to a card with no overrides.
@@ -116,6 +123,11 @@ export const useArtistryStore = defineStore('artistry', () => {
     nanobananaApiKey.reset()
     nanobananaModel.reset()
     nanobananaResolution.reset()
+    openaiImageApiKey.reset()
+    openaiImageBaseUrl.reset()
+    openaiImageModel.reset()
+    openaiImageWidth.reset()
+    openaiImageHeight.reset()
 
     // Sync active state
     resetToGlobal()
@@ -148,6 +160,10 @@ export const useArtistryStore = defineStore('artistry', () => {
       return !!nanobananaApiKey.value
     }
 
+    if (activeProvider.value === 'openai-image') {
+      return !!openaiImageApiKey.value.trim() && !!openaiImageBaseUrl.value.trim() && !!openaiImageModel.value.trim()
+    }
+
     return true
   })
 
@@ -162,6 +178,11 @@ export const useArtistryStore = defineStore('artistry', () => {
     nanobananaApiKey: nanobananaApiKey.value,
     nanobananaModel: nanobananaModel.value,
     nanobananaResolution: nanobananaResolution.value,
+    openaiImageApiKey: openaiImageApiKey.value,
+    openaiImageBaseUrl: openaiImageBaseUrl.value,
+    openaiImageModel: openaiImageModel.value,
+    openaiImageWidth: openaiImageWidth.value,
+    openaiImageHeight: openaiImageHeight.value,
   }))
 
   return {
@@ -194,6 +215,11 @@ export const useArtistryStore = defineStore('artistry', () => {
     nanobananaApiKey,
     nanobananaModel,
     nanobananaResolution,
+    openaiImageApiKey,
+    openaiImageBaseUrl,
+    openaiImageModel,
+    openaiImageWidth,
+    openaiImageHeight,
 
     resetToGlobal,
     resetState,
@@ -210,17 +236,30 @@ export const useArtistryStore = defineStore('artistry', () => {
  * This utility handles the divergence between Vue components (where Pinia state is auto-unwrapped)
  * and headless service/tool contexts (where state properties remain as Refs).
  *
- * @param store - The artistry store instance (from useArtistryStore())
+ * @example
+ * resolveArtistryConfigFromStore(useArtistryStore()).provider
+ * // => 'none'
  */
-export function resolveArtistryConfigFromStore(store: any): ResolvedArtistryConfig {
-  const unwrap = (val: any) => {
-    if (isRef(val))
+export function resolveArtistryConfigFromStore(store: {
+  activeProvider: string | { value: string }
+  activeModel: string | { value: string }
+  defaultPromptPrefix: string | { value: string }
+  providerOptions: Record<string, unknown> | { value: Record<string, unknown> | undefined } | undefined
+} & Partial<Record<
+  | 'comfyuiServerUrl' | 'comfyuiSavedWorkflows' | 'comfyuiActiveWorkflow'
+  | 'replicateApiKey' | 'replicateDefaultModel' | 'replicateAspectRatio' | 'replicateInferenceSteps'
+  | 'nanobananaApiKey' | 'nanobananaModel' | 'nanobananaResolution'
+  | 'openaiImageApiKey' | 'openaiImageBaseUrl' | 'openaiImageModel' | 'openaiImageWidth' | 'openaiImageHeight',
+  unknown
+>>): ResolvedArtistryConfig {
+  const unwrap = <T>(val: T | { value: T }): T => {
+    if (isRef<T>(val))
       return val.value
 
     if (val && typeof val === 'object' && 'value' in val && Object.keys(val).length === 1)
-      return val.value
+      return val.value as T
 
-    return val
+    return val as T
   }
 
   return {
@@ -239,6 +278,11 @@ export function resolveArtistryConfigFromStore(store: any): ResolvedArtistryConf
       nanobananaApiKey: unwrap(store.nanobananaApiKey),
       nanobananaModel: unwrap(store.nanobananaModel),
       nanobananaResolution: unwrap(store.nanobananaResolution),
+      openaiImageApiKey: unwrap(store.openaiImageApiKey),
+      openaiImageBaseUrl: unwrap(store.openaiImageBaseUrl),
+      openaiImageModel: unwrap(store.openaiImageModel),
+      openaiImageWidth: unwrap(store.openaiImageWidth),
+      openaiImageHeight: unwrap(store.openaiImageHeight),
     },
   }
 }

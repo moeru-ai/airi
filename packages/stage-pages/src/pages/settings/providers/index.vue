@@ -79,6 +79,20 @@ const allArtistryProvidersMetadata = computed<ProviderSourceCard[]>((): Provider
       ? []
       : ([
           {
+            id: 'openai-image',
+            category: 'artistry',
+            icon: 'i-solar:gallery-bold-duotone',
+            name: t('settings.pages.providers.provider.openai-image.title'),
+            localizedName: t('settings.pages.providers.provider.openai-image.title'),
+            description: t('settings.pages.providers.provider.openai-image.description'),
+            localizedDescription: t('settings.pages.providers.provider.openai-image.description'),
+            configured: !!artistryStore.openaiImageApiKey.trim(),
+            to: '/settings/providers/artistry/openai-image',
+            pricing: 'paid',
+            deployment: 'cloud',
+            iconImage: undefined,
+          },
+          {
             id: 'replicate',
             category: 'artistry',
             icon: 'i-lobe-icons:replicate',
