@@ -48,6 +48,7 @@ import {
   providerMicrosoftSpeech,
   providerVolcengineSpeech,
 } from './cloud/unspeech'
+import { providerVolcengineAgentPlan } from './cloud/volcengine-agent-plan'
 import { providerVolcengineCodingPlan } from './cloud/volcengine-coding-plan'
 import { providerXAI } from './cloud/xai'
 import { providerZai } from './cloud/zai'
@@ -134,6 +135,7 @@ export const portableProviderDefinitions = eraseProviderDefinitions(
   providerDeepgramTts,
   providerMicrosoftSpeech,
   providerVolcengineSpeech,
+  providerVolcengineAgentPlan,
   providerVolcengineCodingPlan,
   providerXAI,
   providerZai,

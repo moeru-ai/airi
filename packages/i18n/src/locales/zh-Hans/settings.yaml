@@ -2274,6 +2274,9 @@ pages:
               description: 可在控制台获取的 App ID
               label: 应用 ID
         title: 火山引擎
+      volcengine-agent-plan:
+        description: 火山引擎 Agent Plan
+        title: 火山引擎 Agent Plan
       volcengine-coding-plan:
         description: 火山引擎 Coding Plan
         models:

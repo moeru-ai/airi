@@ -2456,6 +2456,9 @@ pages:
               description: App ID of the project where you can obtain in Console
               label: App ID
         title: Volcano Engine
+      volcengine-agent-plan:
+        description: Volcengine Agent Plan
+        title: Volcengine Agent Plan
       volcengine-coding-plan:
         description: Volcengine Coding Plan
         models:

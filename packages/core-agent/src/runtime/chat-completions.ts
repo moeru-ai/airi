@@ -79,7 +79,7 @@ export function streamChatCompletions(input: {
           tools: toolsSupported && next.tools?.length ? next.tools : undefined,
           toolChoice: undefined,
         })
-        generation.prepareStep({ input: current, model: next.model })
+        generation.prepareStep({ input: current, model: nextRequest.config.model })
         const contentArraySupported = supportsContentArray(next.model, nextRequest, input.options)
         scopes.push(nextScope)
         if (!contentArraySupported) {
@@ -99,7 +99,7 @@ export function streamChatCompletions(input: {
         else if (next.systemPrompt)
           current.unshift({ role: 'system', content: next.systemPrompt })
 
-        return { input: current, model: next.model, toolChoice: toolsSupported ? callerToolChoice(steps) : undefined }
+        return { input: current, model: nextRequest.config.model, toolChoice: toolsSupported ? callerToolChoice(steps) : undefined }
       })()
     },
     abortSignal: input.options?.abortSignal,
