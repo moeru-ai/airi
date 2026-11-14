@@ -271,8 +271,18 @@ export class AdaptiveInput extends EventTarget {
     if (!this.area.contains(event.target) || !isTextEntry(event.target))
       return
 
+    const previousFocusPhase = this.focusPhase
     this.focusPhase = 'focused'
-    this.referenceLayoutHeight = readLayoutHeight(this.targetWindow)
+
+    // WORKAROUND:
+    // NOTICE:
+    // Why: Preserve the idle layout height when moving focus between inputs while the keyboard stays open.
+    // Root cause: Mobile browsers shrink the layout viewport when the virtual keyboard opens.
+    // Source: https://github.com/moeru-ai/airi/issues/3502
+    // Removal condition: Mobile browsers provide keyboard-independent layout viewport metrics.
+    if (previousFocusPhase === 'idle' && !this.layoutValue.keyboardVisible)
+      this.referenceLayoutHeight = readLayoutHeight(this.targetWindow)
+
     this.requestMeasurement()
   }
 
