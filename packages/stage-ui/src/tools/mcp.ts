@@ -42,6 +42,9 @@ export interface McpCallToolPayload {
   arguments?: Record<string, unknown>
 }
 
+/** Describes whether the MCP transport returned a response for one call. */
+export type McpDispatchOutcome = 'response_received' | 'failed_before_dispatch' | 'outcome_unknown'
+
 /**
  * Result returned from an MCP tool invocation.
  *
@@ -59,6 +62,8 @@ export interface McpCallToolResult {
   structuredContent?: Record<string, unknown>
   toolResult?: unknown
   isError?: boolean
+  /** `outcome_unknown` means that the call can have produced an external side effect. */
+  dispatchOutcome?: McpDispatchOutcome
 }
 
 /**
@@ -68,7 +73,8 @@ export interface McpCallToolResult {
  * - A concrete runtime such as Electron needs to provide MCP access without a singleton bridge
  *
  * Expects:
- * - `listTools` and `callTool` are safe to call multiple times
+ * - `listTools` can be called multiple times
+ * - Each `callTool` call can produce side effects. Do not retry when the outcome is unknown.
  *
  * Returns:
  * - An object that can back `createMcpTools`
@@ -76,6 +82,18 @@ export interface McpCallToolResult {
 export interface McpToolRuntime {
   listTools: () => Promise<McpToolDescriptor[]>
   callTool: (payload: McpCallToolPayload) => Promise<McpCallToolResult>
+}
+
+function isJsonObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function errorResult(dispatchOutcome: McpDispatchOutcome, error: unknown): McpCallToolResult {
+  return {
+    dispatchOutcome,
+    isError: true,
+    content: [{ type: 'text', text: errorMessageFrom(error) ?? 'Unknown error.' }],
+  }
 }
 
 /** The proxy tool that calls an MCP tool. Each call names the MCP tool in its `name` argument, as `server::tool`. */
@@ -113,15 +131,22 @@ export function createMcpTools(runtime: McpToolRuntime): Array<Promise<Tool>> {
       name: MCP_CALL_TOOL_NAME,
       description: 'Call an MCP tool by name. Use builtIn_mcpListTools first to get available tool names.',
       execute: async ({ name, arguments: argsJson }) => {
+        let args: Record<string, unknown> = {}
         try {
-          const args = argsJson ? JSON.parse(argsJson) : {}
+          const parsed = argsJson ? JSON.parse(argsJson) : {}
+          if (!isJsonObject(parsed))
+            return errorResult('failed_before_dispatch', new Error('MCP tool arguments must be a JSON object.'))
+          args = parsed
+        }
+        catch (error) {
+          return errorResult('failed_before_dispatch', error)
+        }
+
+        try {
           return await runtime.callTool({ name, arguments: args })
         }
         catch (error) {
-          return {
-            isError: true,
-            content: [{ type: 'text', text: errorMessageFrom(error) ?? 'Unknown error.' }],
-          }
+          return errorResult('outcome_unknown', error)
         }
       },
       // NOTICE:
