@@ -45,5 +45,7 @@ export type {
   ProviderValidationResult,
   ProviderValidationStatus,
   ProviderValidatorSchedule,
+  VoiceDesignInput,
+  VoiceDesignResult,
   VoiceInfo,
 } from '@proj-airi/provider-inference'

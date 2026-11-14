@@ -1,4 +1,4 @@
-import type { VoiceInfo } from '../../../types'
+import type { ProviderInstance, VoiceDesignInput, VoiceDesignResult, VoiceInfo } from '../../../types'
 
 import { EventSourceParserStream } from '@xsai/shared-stream'
 import { z } from 'zod'
@@ -91,6 +91,10 @@ interface MinimaxBaseResponse {
   }
 }
 
+interface MinimaxVoiceDesignResponse extends MinimaxBaseResponse {
+  voice_id?: unknown
+}
+
 /** The only status code MiniMax uses for a successful call. */
 const MINIMAX_STATUS_OK = 0
 
@@ -126,6 +130,52 @@ async function readMinimaxRefusal(response: Response, fallbackMessage: string): 
   }
 
   return minimaxRefusal(payload, fallbackMessage) || fallbackMessage
+}
+
+async function designMinimaxVoice(
+  config: MinimaxSpeechConfig,
+  _provider: ProviderInstance,
+  input: VoiceDesignInput,
+): Promise<VoiceDesignResult> {
+  const apiKey = config.apiKey?.trim()
+  if (!apiKey)
+    throw new Error('MiniMax voice design requires an API key.')
+
+  const prompt = input.prompt.trim()
+  const voiceId = input.voiceId.trim()
+  if (!prompt)
+    throw new Error('MiniMax voice design requires a prompt.')
+  if (!voiceId)
+    throw new Error('MiniMax voice design requires a voice ID.')
+
+  const baseUrl = (config.baseUrl || 'https://api.minimax.io').replace(/\/$/, '')
+  const response = await fetch(`${baseUrl}/v1/voice_design`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({ prompt, voice_id: voiceId }),
+  })
+
+  let payload: MinimaxVoiceDesignResponse
+  try {
+    payload = await response.json() as MinimaxVoiceDesignResponse
+  }
+  catch {
+    throw new Error(`MiniMax voice design request failed: ${response.status} ${response.statusText}`)
+  }
+
+  const fallbackMessage = `MiniMax voice design request failed: ${response.status} ${response.statusText}`
+  const refusal = minimaxRefusal(payload, fallbackMessage)
+  if (!response.ok || refusal)
+    throw new Error(refusal || fallbackMessage)
+
+  const createdVoiceId = typeof payload.voice_id === 'string' ? payload.voice_id.trim() : ''
+  if (!createdVoiceId)
+    throw new Error('MiniMax voice design response is missing voice_id.')
+
+  return { voiceId: createdVoiceId }
 }
 
 /**
@@ -369,6 +419,7 @@ export const providerMinimaxSpeech = defineProvider<MinimaxSpeechConfig, 'minima
       { id: 'speech-2.8-turbo', name: 'Speech 2.8 Turbo', provider: 'minimax-speech', description: 'Fast TTS model for low-latency scenarios', deprecated: false },
     ],
     voiceCatalogConfig: () => ({}),
+    designVoice: designMinimaxVoice,
     listVoices: async (config) => {
       const outcome = await requestMinimaxVoices(config)
 
