@@ -74,6 +74,8 @@ export interface PluginHostSessionSummary {
   id: string
   extensionId: string
   phase: string
+  /** Required Kits that a `pending` session waits for. */
+  missingKitIds: string[]
   runtime: 'electron' | 'node' | 'web'
   moduleId: string
 }

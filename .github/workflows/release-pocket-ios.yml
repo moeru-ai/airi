@@ -32,6 +32,8 @@ jobs:
     env:
       PRODUCT_NAME: 'AIRI'
       VITE_ENABLE_ANALYTICS: 'true'
+      # Uploads source maps to Sentry. The build skips the upload when the secret is absent.
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
       UPLOAD_TESTFLIGHT: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.testflight) }}
       RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
     steps:

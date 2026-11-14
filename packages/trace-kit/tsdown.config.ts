@@ -3,6 +3,7 @@ import { defineConfig } from 'tsdown'
 export default defineConfig({
   entry: {
     'index': 'src/index.ts',
+    'semconv': 'src/conventions/semconv.ts',
     'collector/index': 'src/collector/index.ts',
     'projections/index': 'src/projections/index.ts',
     'profiles/voice': 'src/profiles/voice.ts',

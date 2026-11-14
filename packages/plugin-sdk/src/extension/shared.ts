@@ -3,7 +3,7 @@ import type {
   ExtensionModuleIdentity,
   ModulePermissionDeclaration,
   ModulePermissionGrant,
-} from '@proj-airi/plugin-protocol/types'
+} from '@proj-airi/extension-protocol'
 
 import type { KitAvailability, KitContract, KitProvider, KitProviderHandle, KitRef, KitUseResult } from '../kit'
 import type { Disposable, DisposableStore } from './disposable'

@@ -1,5 +1,27 @@
 import type { SpineVersion } from './spine-version'
 
+type SpineRuntime = typeof import('@esotericsoftware/spine-webgl-4-0')
+  | typeof import('@esotericsoftware/spine-webgl-4-1')
+  | typeof import('@esotericsoftware/spine-webgl')
+
+/**
+ * Updates a skeleton with its matching runtime. Spine 4.2 requires a physics mode.
+ * Rejects a skeleton from another runtime before it can change world transforms.
+ */
+export function updateSpineWorldTransform(runtime: SpineRuntime, skeleton: InstanceType<SpineRuntime['Skeleton']>): void {
+  if ('Physics' in runtime && skeleton instanceof runtime.Skeleton) {
+    skeleton.updateWorldTransform(runtime.Physics.update)
+    return
+  }
+
+  if (!('Physics' in runtime) && skeleton instanceof runtime.Skeleton) {
+    skeleton.updateWorldTransform()
+    return
+  }
+
+  throw new Error('The skeleton does not belong to the selected Spine runtime.')
+}
+
 /**
  * Lazily loads the spine-webgl runtime for the given Spine version.
  *

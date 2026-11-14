@@ -30,6 +30,8 @@ jobs:
       PRODUCT_NAME: 'AIRI'
       # Every current trigger path produces an installable APK artifact, so ship the analytics-enabled build consistently.
       VITE_ENABLE_ANALYTICS: 'true'
+      # Uploads source maps to Sentry. The build skips the upload when the secret is absent.
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
     steps:
       - uses: actions/checkout@v6
 

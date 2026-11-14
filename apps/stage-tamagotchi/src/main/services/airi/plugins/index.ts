@@ -30,7 +30,6 @@ import {
   electronPluginListXsaiTools,
   electronPluginToolsChanged,
 } from '../../../../shared/eventa/plugin/tools'
-import { onAppBeforeQuit } from '../../../libs/bootkit/lifecycle'
 import { setupExtensionHostServiceInternal } from './host'
 
 interface ElectronInvokeOptions {
@@ -254,10 +253,9 @@ export async function setupExtensionHost(options: SetupExtensionHostOptions): Pr
     }
   })
 
-  onAppBeforeQuit(() => hostService.dispose())
-
   return {
     host: hostService.host,
     manifests: hostService.manifests,
+    dispose: hostService.dispose,
   }
 }

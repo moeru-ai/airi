@@ -131,8 +131,8 @@ export function useDataMaintenance() {
   }
 
   async function deleteAllData() {
-    // The voiceprint identifies the user. Remove it first, so a failed cleanup step below cannot keep it.
-    voiceprintStore.remove()
+    // The voiceprints identify people. Remove them first, so a failed cleanup step below cannot keep them.
+    voiceprintStore.removeAll()
     await deleteAllModels()
     await resetProvidersSettings()
     await resetModulesSettings()
