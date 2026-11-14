@@ -174,7 +174,9 @@ These rules name the standard implementation for common helpers. The [`enforce-r
 - Use Conventional Commits, for example `feat(<package name>): add runner reconnect backoff`. Do not use gitmoji.
 - Name branches `username/feat/short-name`.
 - Rebase when you pull.
-- To create, open, publish, or prepare a pull request, use the [`create-pr`](.agents/skills/create-pr/SKILL.md) skill. It also covers visual evidence and review follow-up.
+- Do not write `Co-authored-by` for an agent or a model. Add an `Assisted-by: <harness>:<model>` trailer to the commit body. Keep `Co-authored-by` for real people.
+- In a PR or an issue that an agent writes, give the request of the user, the scenario, and the harness and model. The `create-pr` skill gives the format.
+- To create, open, publish, or prepare a pull request, use the [`create-pr`](.agents/skills/create-pr/SKILL.md) skill. It also covers request context, agent attribution, visual evidence, and review follow-up.
 
 ## Task Routing
 
@@ -195,7 +197,7 @@ Skills are in `.agents/skills/<name>/SKILL.md`. Read the listed file before you 
 | Work under `server/` | [`server/AGENTS.md`](server/AGENTS.md). For `server/apps/api`, also read [`server/apps/api/AGENTS.md`](server/apps/api/AGENTS.md). |
 | Write documentation, code comments, commit messages, or PR and issue text | [`simple-english`](.agents/skills/simple-english/SKILL.md) |
 | Analyze why a chat, speech, or audio turn was slow or failed, using saved IO traces | [`analyze-io-traces`](.agents/skills/analyze-io-traces/SKILL.md) |
-| Create or prepare a pull request | [`create-pr`](.agents/skills/create-pr/SKILL.md) |
+| Create or prepare a pull request or an issue, or write commit messages for one | [`create-pr`](.agents/skills/create-pr/SKILL.md) |
 | Cut a release with `bumpp`, a release tag, or a GitHub release. Also, write release notes. | [`release-note-writer`](.agents/skills/release-note-writer/SKILL.md). Draft the notes before you create the GitHub release. |
 | Upload a local file through a file input or a file chooser in a web or Electron app | [`use-agent-browser-with-input-file`](.agents/skills/use-agent-browser-with-input-file/SKILL.md) and [`agent-browser`](.agents/skills/agent-browser/SKILL.md). For Electron, also read [`agent-browser-electron`](.agents/skills/agent-browser-electron/SKILL.md). |
 | Write or review motion, reactions, animations, or springs that a Pixi, TresJS, or Three render loop samples | [`enforce-rules-for-render-loops`](.agents/skills/enforce-rules-for-render-loops/SKILL.md) |
