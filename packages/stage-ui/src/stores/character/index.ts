@@ -88,9 +88,9 @@ export const useCharacterStore = defineStore('character', () => {
         },
       })
 
-      // The speech client and its parser are not UI state. A deep reactive wrapper
-      // proxies them, and the speech bus cannot structured-clone a proxied `turn`,
-      // so `end`/`finish` would fail with DataCloneError and the line would stay silent.
+      // The speech client and parser are transport objects, not UI state. A deep
+      // reactive wrapper proxies them, and the speech bus cannot structured-clone
+      // a proxied `turn`, so `end`/`finish` throws DataCloneError and stays silent.
       streamingReactions.value.set(sparkEventId, { reaction: newReaction, speech: markRaw(speech), parser: markRaw(parser) })
     }
 
