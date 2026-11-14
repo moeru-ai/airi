@@ -52,7 +52,10 @@ export const providerGoogleGenerativeAI = defineProvider<GoogleGenerativeConfig,
         if (!options?.reasoning)
           return request
 
-        return { ...request, reasoningEffort: options.reasoning === 'enabled' ? 'medium' : 'none' }
+        // Gemini 2.5 Pro and Gemini 3 reject `none`; `minimal` is their lowest valid effort.
+        const modelId = model.toLowerCase()
+        const disabledEffort = modelId.includes('gemini-2.5-pro') || modelId.includes('gemini-3') ? 'minimal' : 'none'
+        return { ...request, reasoningEffort: options.reasoning === 'enabled' ? 'medium' : disabledEffort }
       },
     }
   },
