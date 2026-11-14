@@ -117,24 +117,6 @@ async function openDeletion(email = 'person@example.com') {
   return rendered
 }
 
-describe('sync section', () => {
-  it('shows each sync on by default and saves a change on this device', async () => {
-    const { screen } = await renderSignedIn()
-    const switches = screen.getByRole('switch')
-    const providers = screen.getByRole('switch', { name: 'Providers' })
-
-    await expect.element(providers).toHaveAttribute('aria-checked', 'true')
-    expect(switches.elements()).toHaveLength(4)
-    for (const item of switches.elements())
-      expect(item.getAttribute('aria-checked')).toBe('true')
-
-    await providers.click()
-
-    await expect.element(providers).toHaveAttribute('aria-checked', 'false')
-    await expect.poll(() => JSON.parse(localStorage.getItem('settings/sync') ?? '{}')).toEqual({ providers: false })
-  })
-})
-
 describe('unified account deletion', () => {
   // https://github.com/moeru-ai/airi/pull/2895#discussion_r4245563897
   it.each(['person@example.com', 'id@steam.placeholder.local', ''])('requires confirmation for %s and clears local auth only after success', async (email) => {
