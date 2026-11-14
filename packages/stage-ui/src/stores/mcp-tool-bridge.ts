@@ -6,13 +6,9 @@
  * and retrieved by overlay pages that need to invoke computer-use MCP tools.
  */
 
-export interface McpToolDescriptor {
-  serverName: string
-  name: string
-  toolName: string
-  description?: string
-  inputSchema: Record<string, unknown>
-}
+import type { McpToolDescriptor } from '../types/mcp'
+
+export type { McpToolDescriptor } from '../types/mcp'
 
 export interface McpCallToolPayload {
   name: string

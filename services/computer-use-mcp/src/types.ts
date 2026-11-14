@@ -1,5 +1,7 @@
+import type { TerminalSnapshot, TerminalSpawnInput } from '@proj-airi/stage-shared/terminal-approval'
+
 export type ApprovalMode = 'never' | 'actions' | 'all'
-export type ExecutorKind = 'dry-run' | 'macos-local' | 'linux-x11'
+export type ExecutorKind = 'auv' | 'dry-run' | 'macos-local' | 'linux-x11'
 export type ExecutionMode = 'dry-run' | 'local-windowed' | 'remote'
 export type ExecutionTransport = 'local' | 'ssh-stdio'
 export type RiskLevel = 'low' | 'medium' | 'high'
@@ -167,6 +169,10 @@ export interface WindowObservation {
   frontmostWindowTitle?: string
   windows: WindowInfo[]
   observedAt: string
+  provenance?: {
+    backend: string
+    [key: string]: unknown
+  }
 }
 
 export interface ScreenshotArtifact {
@@ -412,6 +418,7 @@ export interface PendingActionRecord {
   action: PendingExecutableAction
   policy: PolicyDecision
   context: ForegroundContext
+  preparedTerminal?: TerminalSnapshot
 }
 
 export interface LaunchContext {
@@ -661,4 +668,17 @@ export interface TerminalRunner {
   execute: (input: TerminalExecActionInput) => Promise<TerminalCommandResult>
   getState: () => TerminalState
   resetState: (reason?: string) => TerminalState
+  /** Local executors can freeze spawn inputs before an independent Host decision. Missing capability fails closed. */
+  prepare?: (input: TerminalExecActionInput) => TerminalSpawnInput
+  /** Starts synchronously. Result readiness and direct shell close are separate lifecycle facts. */
+  startPrepared?: (input: TerminalSpawnInput, signal?: AbortSignal) => TerminalExecution
+  /** Stops admission and waits for direct shell exit and bounded output drain. */
+  close?: () => Promise<void>
+}
+
+/** Result readiness does not confirm that the direct shell process has closed. */
+export interface TerminalExecution {
+  result: Promise<TerminalCommandResult>
+  /** A bounded output drain can end without a confirmed close. Neither result proves descendant termination. */
+  lifecycle: Promise<'closed' | 'unknown'>
 }

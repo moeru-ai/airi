@@ -79,4 +79,14 @@ describe('resolveComputerUseConfig', () => {
     expect(config.browserDomBridge.port).toBe(8876)
     expect(config.browserDomBridge.requestTimeoutMs).toBe(4500)
   })
+
+  it('keeps the AUV configuration closed to native operations', () => {
+    process.env.COMPUTER_USE_EXECUTOR = 'auv'
+
+    const config = resolveComputerUseConfig()
+
+    expect(config.executor).toBe('auv')
+    expect(config.openableApps).toEqual([])
+    expect(config.permissionChainHint).toContain('AUV observation unavailable')
+  })
 })

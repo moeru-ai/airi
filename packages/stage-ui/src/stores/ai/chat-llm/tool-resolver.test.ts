@@ -234,4 +234,47 @@ describe('resolveLlmTools', () => {
       expect(result).toContain('broadcast')
     })
   })
+
+  it('binds request-level attribution to tool execution closure and captures toolCallId', async () => {
+    let receivedOptions: unknown
+    const mockTool: Tool = {
+      type: 'function',
+      function: {
+        name: 'sample_attributed_tool',
+        description: 'Sample attributed tool',
+        parameters: { type: 'object', properties: {} },
+      },
+      execute: vi.fn(async (_input, options) => {
+        receivedOptions = options
+        return 'success'
+      }),
+    }
+
+    const tools = await resolveLlmTools({
+      builtInTools: [],
+      debugTools: [],
+      sparkCommandTools: [],
+      webSearchTools: [],
+      customTools: [mockTool],
+      activeTools: [],
+      attribution: {
+        sessionId: 'session-alpha-123',
+        turnId: 'round-turn-456',
+      },
+    })
+
+    const tool = tools.find(candidate => candidate.function.name === 'sample_attributed_tool')
+    expect(tool).toBeDefined()
+
+    await tool!.execute({}, { messages: [], toolCallId: 'call_model_789' } as never)
+
+    expect(receivedOptions).toMatchObject({
+      toolCallId: 'call_model_789',
+      attribution: {
+        sessionId: 'session-alpha-123',
+        turnId: 'round-turn-456',
+        toolCallId: 'call_model_789',
+      },
+    })
+  })
 })

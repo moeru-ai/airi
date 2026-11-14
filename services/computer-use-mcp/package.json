@@ -52,7 +52,9 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "catalog:",
     "@moeru/std": "catalog:",
+    "@proj-airi/stage-shared": "workspace:^",
     "node-pty": "catalog:",
+    "valibot": "catalog:",
     "ws": "catalog:",
     "zod": "catalog:"
   },

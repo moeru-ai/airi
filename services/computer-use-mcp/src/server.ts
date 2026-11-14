@@ -17,6 +17,7 @@ import { registerTaskMemoryTools } from './server/register-task-memory'
 import { registerComputerUseTools } from './server/register-tools'
 import { registerVscodeTools } from './server/register-vscode'
 import { createRuntime } from './server/runtime'
+import { registerTerminalApproval } from './server/terminal-approval'
 
 const packageVersion = '0.1.0'
 const enableTestTools = ['1', 'true', 'yes', 'on'].includes((env.COMPUTER_USE_ENABLE_TEST_TOOLS || '').trim().toLowerCase())
@@ -37,6 +38,7 @@ export async function createComputerUseMcpServer(config = resolveComputerUseConf
     executeAction,
     enableTestTools,
   })
+  registerTerminalApproval(server, runtime, executeAction)
 
   registerTaskMemoryTools(server, runtime)
 
@@ -66,20 +68,41 @@ export async function startComputerUseMcpServer(config = resolveComputerUseConfi
   const transport = new StdioServerTransport()
   await server.connect(transport)
 
-  const shutdown = async () => {
-    destroyAllPtySessions()
-    await cdpCleanup.close().catch(() => {})
-    await runtime.cdpBridgeManager.close().catch(() => {})
-    await runtime.browserDomBridge.close().catch(() => {})
-    await runtime.executor.close?.().catch(() => {})
+  let shuttingDown: Promise<void> | undefined
+  const shutdown = () => {
+    // Defer work until the latch exists: server.close can synchronously invoke onclose.
+    shuttingDown ??= Promise.resolve().then(async () => {
+      process.stdin.off('end', onInputEnd)
+      process.stdin.off('close', onInputEnd)
+      process.off('SIGINT', onSignal)
+      process.off('SIGTERM', onSignal)
+      const cleanup = [
+        () => runtime.terminalRunner.close?.(),
+        () => server.close(),
+        () => destroyAllPtySessions(),
+        () => cdpCleanup.close(),
+        () => runtime.cdpBridgeManager.close(),
+        () => runtime.browserDomBridge.close(),
+        () => runtime.executor.close?.(),
+      ]
+      const results = await Promise.allSettled(cleanup.map(close => Promise.resolve().then(close)))
+      const failures = results.filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+      if (failures.length)
+        throw new AggregateError(failures.map(result => result.reason), 'MCP resources did not all close successfully.')
+    })
+    return shuttingDown
   }
+  function onInputEnd() {
+    void shutdown().catch(error => console.error('MCP shutdown failed:', error))
+  }
+  function onSignal() {
+    onInputEnd()
+  }
+  server.server.onclose = onInputEnd
+  process.stdin.once('end', onInputEnd)
+  process.stdin.once('close', onInputEnd)
+  process.once('SIGINT', onSignal)
+  process.once('SIGTERM', onSignal)
 
-  process.once('SIGINT', () => {
-    void shutdown()
-  })
-  process.once('SIGTERM', () => {
-    void shutdown()
-  })
-
-  return { server, transport, runtime }
+  return { server, transport, runtime, shutdown }
 }

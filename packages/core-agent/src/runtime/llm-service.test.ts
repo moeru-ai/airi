@@ -174,7 +174,7 @@ function createMockStreamResult(
   const completedSteps: CompletionStep[] = []
   let settledMessages: Promise<Message[]> | undefined
   return {
-    get steps() { return steps.then(original => completedSteps.length ? completedSteps : original) },
+    get steps() { return this.messages.then(() => steps).then(original => completedSteps.length ? completedSteps : original) },
     get messages() {
       return settledMessages ??= messages.then(async (output) => {
         const options = streamTextMock.mock.lastCall?.[0]
@@ -183,10 +183,10 @@ function createMockStreamResult(
         const input: Message[] = structuredClone(options.messages)
         const generated = output.slice(input.length)
         let step: Message[] = []
-        function finishStep() {
+        async function finishStep() {
           if (!step.length)
             return
-          options.prepareStep?.({ input, model: options.model, stepNumber: 0, steps: [] })
+          await options.prepareStep?.({ input, model: options.model, stepNumber: completedSteps.length, steps: [...completedSteps] })
           input.push(...step)
           const completion: CompletionStep = { finishReason: 'stop', toolCalls: [], toolResults: [] }
           completedSteps.push(completion)
@@ -194,10 +194,10 @@ function createMockStreamResult(
         }
         for (const entry of generated) {
           if (entry.role === 'assistant')
-            finishStep()
+            await finishStep()
           step.push(entry)
         }
-        finishStep()
+        await finishStep()
         return output
       })
     },
@@ -324,7 +324,7 @@ describe('streamFrom tool errors', () => {
 
     streamTextMock.mockImplementationOnce((options: { onEvent: (event: unknown) => Promise<void> }) => {
       onEvent = options.onEvent
-      return createMockStreamResult(Promise.resolve([]), Promise.resolve(undefined), messages)
+      return { steps: Promise.resolve([]), messages, usage: Promise.resolve(undefined), totalUsage: Promise.resolve(undefined) }
     })
 
     // ROOT CAUSE:

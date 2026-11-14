@@ -1,7 +1,7 @@
 import type { ContextUpdate, MetadataEventSource, WebSocketEventInputs } from '@proj-airi/server-shared/types'
 import type { AssistantMessage, CommonContentPart, CompletionToolCall, Message, SystemMessage, ToolMessage, UserMessage } from '@xsai/shared-chat'
 
-import type { AssistantTurn } from '../messages/types'
+import type { AssistantTurn, UserTurn } from '../messages/types'
 import type { DecisionQuestion } from '../runtime/recipe'
 
 export interface ChatSlicesText {
@@ -128,7 +128,7 @@ export type ChatHistoryItem = (ChatMessage | ErrorMessage) & {
    * Set on a stored notice: text for the conversation that the owner did not write, for example a finished background task.
    * Requests mark it as a notice, so the model never reads it as owner speech.
    */
-  notice?: { source: string }
+  notice?: UserTurn['notice']
 }
 
 /**

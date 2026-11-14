@@ -16,7 +16,32 @@
 
 When a caller supplies `resolveStep`, `streamFrom` reads current settings before each model request. It resolves the first request before projecting the conversation. A continuation scope change starts a new SDK stream. Completed rounds and usage remain in one assistant turn. The callback returns the current tools and header overrides for each request.
 
-`prepareConversation` adapts media to the resolved request before the protocol adapter projects the conversation. It runs for each SDK stream, so it also runs after a scope change selects another model. It returns a request copy and keeps stored recordings intact. Stage uses it to send audio only to models that accept audio, and transcripts to other models.
+`prepareConversation` runs before every provider request, including tool continuations. It receives the original context plus every settled generation round.
+Its target includes the resolved request, native continuation scope, and `measureContextBytes` for context and current tool schemas.
+The byte measurement uses the protocol projection and current system prompt. It is not a provider token count.
+The callback returns a request copy. Stored history and complete generation records stay unchanged.
+Stage also uses this callback for audio projection and conversation Compact.
+
+Stage defaults Compact to Off. Every mode retains a request budget gate.
+Each resolved model supplies its catalog context window and output limit, when available.
+The byte policy subtracts the request output cap and a safety margin from that window.
+Without an explicit output cap, the policy reserves up to 4,096 tokens from the declared model output maximum.
+The safety margin is 5%, at least 256 tokens, capped at one quarter of small windows.
+Each remaining token allows one text byte. This estimate is not a tokenizer bound or measured usage.
+Without window metadata, the fallback uses 256 KiB soft and 512 KiB hard byte limits.
+Explicit vision support separates inline image bytes from text and tool-schema bytes.
+Missing vision metadata keeps the full byte gate. PDF and ordinary text remain in that gate.
+Images still consume provider context. The provider enforces image and actual token limits.
+Provider context errors after tool execution stop the run without automatically replaying settled tools.
+Synchronous and Background scheduling use the same request limits and projection.
+Both modes share snapshots, summary generation, delta merging, and stale-result checks.
+Changing modes invalidates only summary work. It does not cancel tool execution.
+The background model receives a frozen prefix with no tools. New rounds continue below the hard budget.
+A matching prefix can merge its summary with later content. Changed prefixes, cancellation, session clear and provider changes discard stale work.
+Owner messages, Host notices, tool identities, arguments and text receipts remain exact. Old images and assistant narratives become context-level summaries.
+Pending, failed and opaque rounds stay intact. Text-heavy receipts can fill the budget, in which case the next request stops.
+An ineffective summary suppresses its exact prefix. Newly eligible observations can start a different snapshot without retrying the failed job.
+These are application byte limits. They do not certify the provider's token window or the factual accuracy of a model summary.
 
 The chat orchestrator forwards a send's `resolveStep`. It appends that send's system prompt supplement, including sticker instructions, to each resolved prompt.
 
@@ -66,7 +91,7 @@ Local history preserves complete turns and visible output from interrupted turns
 
 ## Responses API
 
-A provider resolves a discriminated `GenerationRequest` before context projection. The adapter owns its wire format and SDK event conversion. The adapter uses `@xsai-ext/responses` with `store: false`. It replays complete Items and executes local function tools for at most ten steps.
+A provider resolves a discriminated `GenerationRequest` before context projection. The adapter owns its wire format and SDK event conversion. The adapter uses `@xsai-ext/responses` with `store: false`. Its tool loop stops when the model answers without a tool call.
 
 The current Responses adapter supports text, images, file data or URLs, refusals, and function calls. It rejects audio input and provider file IDs. It supports provider-executed web search alongside local function tools. Search records remain in native continuation. Citation events and portable text retain source URLs and offsets. Incomplete responses and EOF before a terminal event fail the generation. Session cancellation aborts the active provider request.
 

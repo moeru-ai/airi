@@ -14,7 +14,10 @@ import type { ExecuteAction } from './action-executor'
 import type { ComputerUseServerRuntime } from './runtime'
 
 import { errorMessageFrom } from '@moeru/std'
+import { terminalOriginMetaKey, terminalOriginSchema } from '@proj-airi/stage-shared/terminal-approval'
 import { z } from 'zod'
+
+import * as v from 'valibot'
 
 import { diagnoseBrowserActionError } from '../browser-dom/browser-repair-contract'
 import { getUnsupportedBrowserDomActions, isBrowserDomActionSupported } from '../browser-dom/capabilities'
@@ -140,6 +143,8 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
   const server = createToolLaneHygieneServer(params.server, runtime.stateManager)
   const executePrepTool = createWorkflowPrepToolExecutor(runtime)
   const acquirePty = createAcquirePtyCallback(runtime)
+  const desktopBackend = runtime.executor.describe()
+  const desktopDescription = `MCP Desktop backend: ${desktopBackend.kind}. ${desktopBackend.notes.join(' ')}`
 
   async function refreshWorkflowRunState() {
     await refreshRuntimeRunState(runtime)
@@ -203,8 +208,12 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
             ? 'NSWorkspace + CGWindowList + Quartz'
             : runtime.config.executor === 'linux-x11'
               ? 'remote X11 runner'
-              : 'dry-run',
-          supportedAppsForOpenFocus: runtime.config.openableApps,
+              : runtime.config.executor === 'auv'
+                ? 'AUV unavailable without a trusted observation scope'
+                : 'dry-run',
+          supportedAppsForOpenFocus: runtime.config.executor === 'auv'
+            ? []
+            : runtime.config.openableApps,
           approvalUx: 'electron-dialog',
           coordScope: 'global-screen',
           appPolicy: 'deny-only',
@@ -242,6 +251,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
 
   server.tool(
     'desktop_observe_windows',
+    `List windows observed by this MCP Desktop executor. ${desktopDescription}`,
     {
       limit: z.number().int().min(1).max(32).optional().describe('Maximum number of visible windows to return'),
       app: z.string().optional().describe('Optional app-name substring filter'),
@@ -251,6 +261,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
 
   server.tool(
     'desktop_screenshot',
+    `Capture an image from this MCP Desktop executor. ${desktopDescription}`,
     {
       label: z.string().optional().describe('Optional label for the saved screenshot file'),
     },
@@ -329,16 +340,23 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
 
   server.tool(
     'terminal_exec',
+    `Run command text inside the configured local Shell. terminal_exec is an MCP tool, not a Shell command. ${runtime.terminalRunner.describe().notes.join(' ')}`,
     {
-      command: z.string().min(1).describe('Shell command to execute in the local background runner'),
-      cwd: z.string().optional().describe('Optional working directory override'),
+      command: z.string().min(1).describe('Command text interpreted by the configured Shell'),
+      cwd: z.string().optional().describe('Optional spawn directory. Omit to use the previous spawn directory. Relative paths resolve against the executor process directory.'),
       timeoutMs: z.number().int().min(1).max(120_000).optional().describe('Optional timeout override in milliseconds'),
     },
-    async (input: TerminalExecActionInput) => executeAction({ kind: 'terminal_exec', input }, 'terminal_exec'),
+    async (input: TerminalExecActionInput, extra) => {
+      const origin = v.safeParse(terminalOriginSchema, extra._meta?.[terminalOriginMetaKey])
+      return executeAction({ kind: 'terminal_exec', input }, 'terminal_exec', {
+        terminalOrigin: origin.success && origin.output.nonce === runtime.terminalControlNonce ? origin.output : undefined,
+      })
+    },
   )
 
   server.tool(
     'terminal_get_state',
+    'Read the Terminal executor contract and default spawn directory without executing a command. This is not a live interactive Shell directory.',
     {},
     async () => {
       const terminalState = runtime.session.getTerminalState()
@@ -349,6 +367,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         structuredContent: {
           status: 'ok',
           terminalState,
+          terminalBackend: runtime.terminalRunner.describe(),
         },
       }
     },
@@ -433,6 +452,13 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       timeoutMs: z.number().int().min(1_000).max(900_000).optional().describe('End-to-end timeout for the delegated browser task (default: 180000).'),
     },
     async ({ instruction, agent, cdpUrl, maxTurns, timeoutMs }) => {
+      if (runtime.config.approvalMode !== 'never') {
+        return {
+          isError: true,
+          content: [textContent('Delegated browser execution is disabled while the server requires approval.')],
+          structuredContent: { status: 'denied', reason: 'trusted_approval_required' },
+        }
+      }
       const launchContext = getBrowserAgentLaunchContext({ cdpUrl })
 
       if (!launchContext.rootExists) {
@@ -1007,6 +1033,14 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       id: z.string().min(1).describe('Pending action id returned by another desktop tool'),
     },
     async ({ id }) => {
+      // An agent-callable MCP tool cannot establish independent human consent.
+      if (runtime.config.approvalMode !== 'never') {
+        return {
+          isError: true,
+          content: [textContent('This operation requires trusted Host approval. MCP callers cannot approve their own requests.')],
+          structuredContent: { status: 'denied', reason: 'trusted_approval_required' },
+        }
+      }
       const pending = runtime.session.getPendingAction(id)
       if (!pending) {
         return {
@@ -1192,7 +1226,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       projectPath: z.string().min(1).describe('Absolute path to the project directory'),
       ideApp: z.string().optional().describe('IDE application to open the workspace with (default: Cursor)'),
       fileManagerApp: z.string().optional().describe('File manager to reveal the workspace in (default: Finder)'),
-      autoApprove: z.boolean().optional().describe('Skip per-step approval for workflow actions (default: true)'),
+      autoApprove: z.boolean().optional().describe('Skip approval only when server approvalMode is never (default: true)'),
     },
     async ({ projectPath, ideApp, fileManagerApp, autoApprove }) => {
       const workflow = createDevOpenWorkspaceWorkflow({ projectPath, ideApp, fileManagerApp })
@@ -1204,7 +1238,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         stateManager: runtime.stateManager,
         refreshState: refreshWorkflowRunState,
         overrides: { projectPath },
-        autoApproveSteps: autoApprove ?? true,
+        autoApproveSteps: runtime.config.approvalMode === 'never' && (autoApprove ?? true),
       })
 
       suspendedWorkflow = result.suspension
@@ -1221,7 +1255,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       fileManagerApp: z.string().optional().describe('File manager to reveal the workspace in (default: Finder)'),
       changesCommand: z.string().optional().describe('Command to inspect local changes (default: git diff --stat)'),
       checkCommand: z.string().optional().describe('Validation command to run from the workspace root (default: pnpm typecheck)'),
-      autoApprove: z.boolean().optional().describe('Skip per-step approval for workflow actions (default: true)'),
+      autoApprove: z.boolean().optional().describe('Skip approval only when server approvalMode is never (default: true)'),
     },
     async ({ projectPath, ideApp, fileManagerApp, changesCommand, checkCommand, autoApprove }) => {
       const workflow = createDevValidateWorkspaceWorkflow({
@@ -1239,7 +1273,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         stateManager: runtime.stateManager,
         refreshState: refreshWorkflowRunState,
         overrides: { projectPath },
-        autoApproveSteps: autoApprove ?? true,
+        autoApproveSteps: runtime.config.approvalMode === 'never' && (autoApprove ?? true),
       })
 
       suspendedWorkflow = result.suspension
@@ -1253,7 +1287,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
     {
       projectPath: z.string().min(1).describe('Absolute path to the project directory'),
       testCommand: z.string().optional().describe('Shell command to run tests (default: pnpm test:run)'),
-      autoApprove: z.boolean().optional().describe('Skip per-step approval for workflow actions (default: true)'),
+      autoApprove: z.boolean().optional().describe('Skip approval only when server approvalMode is never (default: true)'),
     },
     async ({ projectPath, testCommand, autoApprove }) => {
       const workflow = createDevRunTestsWorkflow({ projectPath, testCommand })
@@ -1265,7 +1299,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         stateManager: runtime.stateManager,
         refreshState: refreshWorkflowRunState,
         overrides: { projectPath },
-        autoApproveSteps: autoApprove ?? true,
+        autoApproveSteps: runtime.config.approvalMode === 'never' && (autoApprove ?? true),
       })
 
       // Store suspension for resume capability.
@@ -1280,7 +1314,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
     {
       ideApp: z.string().optional().describe('IDE application to focus (default: Cursor)'),
       diagnosticCommand: z.string().optional().describe('Optional command to re-run for fresh error output'),
-      autoApprove: z.boolean().optional().describe('Skip per-step approval for workflow actions (default: true)'),
+      autoApprove: z.boolean().optional().describe('Skip approval only when server approvalMode is never (default: true)'),
     },
     async ({ ideApp, diagnosticCommand, autoApprove }) => {
       const workflow = createDevInspectFailureWorkflow({ ideApp, diagnosticCommand })
@@ -1291,7 +1325,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         acquirePty,
         stateManager: runtime.stateManager,
         refreshState: refreshWorkflowRunState,
-        autoApproveSteps: autoApprove ?? true,
+        autoApproveSteps: runtime.config.approvalMode === 'never' && (autoApprove ?? true),
       })
 
       suspendedWorkflow = result.suspension
@@ -1306,7 +1340,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       app: z.string().optional().describe('Application to open (default: Google Chrome)'),
       goal: z.string().optional().describe('Short description of what to accomplish'),
       url: z.string().optional().describe('Optional URL to navigate to in the browser'),
-      autoApprove: z.boolean().optional().describe('Skip per-step approval for workflow actions (default: true)'),
+      autoApprove: z.boolean().optional().describe('Skip approval only when server approvalMode is never (default: true)'),
     },
     async ({ app, goal, url, autoApprove }) => {
       const workflow = createAppBrowseAndActWorkflow({ app, goal, url })
@@ -1317,7 +1351,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         acquirePty,
         stateManager: runtime.stateManager,
         refreshState: refreshWorkflowRunState,
-        autoApproveSteps: autoApprove ?? true,
+        autoApproveSteps: runtime.config.approvalMode === 'never' && (autoApprove ?? true),
       })
 
       suspendedWorkflow = result.suspension
@@ -1330,9 +1364,17 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
     'workflow_resume',
     {
       approved: z.boolean().optional().describe('Whether the pending step was approved (default: true)'),
-      autoApprove: z.boolean().optional().describe('Skip per-step approval for remaining steps (default: true)'),
+      autoApprove: z.boolean().optional().describe('Skip remaining approval only when server approvalMode is never (default: true)'),
     },
     async ({ approved, autoApprove }) => {
+      // Resume cannot claim that a queued action was approved and executed.
+      if (approved !== false && runtime.config.approvalMode !== 'never') {
+        return {
+          isError: true,
+          content: [textContent('Workflow continuation requires trusted approval and execution settlement.')],
+          structuredContent: { status: 'denied', reason: 'trusted_approval_required' },
+        }
+      }
       if (!suspendedWorkflow) {
         return {
           isError: true,
@@ -1352,7 +1394,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         stateManager: runtime.stateManager,
         refreshState: refreshWorkflowRunState,
         approved: approved ?? true,
-        autoApproveSteps: autoApprove ?? true,
+        autoApproveSteps: runtime.config.approvalMode === 'never' && (autoApprove ?? true),
       })
 
       // Store new suspension if workflow pauses again.

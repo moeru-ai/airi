@@ -161,9 +161,18 @@ The current macOS v1 boundary is intentionally narrow and explicit:
 - `denyApps` still blocks sensitive foreground apps
 - `COMPUTER_USE_OPENABLE_APPS` only gates `desktop_open_app` and `desktop_focus_app`
 - AIRI itself is in the default deny list to avoid self-operation
-- terminal commands always require approval
-- app open/focus always require approval
+- terminal commands require approval in `actions` and `all` modes
+- app open/focus requires approval in `actions` and `all` modes
 - click/type/press/scroll still use per-action approval
+
+`never` is an explicit operator configuration. It disables action approval, including for arbitrary shell commands.
+The desktop executor does not sandbox Terminal, PTY, or CDP. `dry-run` only describes desktop input.
+The AUV desktop surface stays unavailable until a trusted observation scope exists. Terminal uses its own runner.
+
+In `actions` and `all`, MCP callers cannot approve their own pending actions or claim approved workflow continuation.
+Workflow `autoApprove` cannot weaken the server configuration.
+Unrestricted CDP evaluation, navigation, and delegated browser execution stay disabled while the server requires approval.
+These restrictions do not implement a trusted human approval interface.
 
 ## Environment Variables
 
@@ -257,13 +266,12 @@ Example local macOS entry:
 }
 ```
 
-On the AIRI desktop side, approvals are handled like this:
-
-1. model calls a `computer_use::*` tool
-2. MCP returns `approval_required`
-3. Electron shows a native approval dialog
-4. AIRI automatically calls `desktop_approve_pending_action` or `desktop_reject_pending_action`
-5. terminal/app approvals can be reused for the current run only
+The current AIRI desktop attachment forwards the MCP tool catalog and calls.
+This baseline has no trusted native approval adapter for the independent MCP service.
+In `actions` and `all`, actions can return `approval_required`, but the model cannot provide the missing human decision.
+The public `desktop_approve_pending_action` tool returns `denied` in those modes.
+Pending records have no expiry or Chat-session ownership contract. Workflow cancellation does not remove every pending record.
+Keep approved writes closed until a trusted host adapter binds identity, target, cancellation, and actual execution settlement.
 
 For browser DOM automation, `computer-use-mcp` also exposes a local WebSocket bridge that matches the user's Chrome extension bridge pattern:
 

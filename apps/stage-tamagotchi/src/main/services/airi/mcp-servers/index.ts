@@ -1,3 +1,4 @@
+import type { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
 
 import type {
@@ -13,16 +14,19 @@ import type {
   ElectronMcpTestResult,
   ElectronMcpToolDescriptor,
 } from '../../../../shared/eventa'
+import type { TerminalApprovalOptions } from './terminal-approval'
 
+import { randomBytes } from 'node:crypto'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { env, execPath } from 'node:process'
 
 import { useLogg } from '@guiiai/logg'
-import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
+import { bundledTerminalServerName, terminalControlEnabledEnv, terminalControlNonceEnv, terminalOriginMetaKey } from '@proj-airi/stage-shared/terminal-approval'
 import { app, shell } from 'electron'
 
 import {
@@ -37,6 +41,10 @@ import {
 } from '../../../../shared/eventa'
 import { isHttpServerConfig, parseElectronMcpConfigText } from '../../../../shared/mcp-config'
 import { onAppBeforeQuit } from '../../../libs/bootkit/lifecycle'
+import { requireMainFrameSender } from '../../../libs/electron/window-context'
+import { validateAttribution } from '../computer-use/attribution'
+import { McpClient } from './client'
+import { bindTerminalApproval } from './terminal-approval'
 
 /** A transport that the MCP client can drive. Both kinds expose `close`. */
 type McpTransport = StdioClientTransport | StreamableHTTPClientTransport
@@ -45,15 +53,17 @@ interface McpServerSession {
   client: Client
   transport: McpTransport
   config: ElectronMcpServerConfig
+  terminalNonce?: string
 }
 
 export interface McpManager {
   ensureConfigFile: () => Promise<{ path: string }>
   openConfigFile: () => Promise<{ path: string }>
   applyAndRestart: () => Promise<ElectronMcpApplyResult>
-  /** Returns the complete active-server catalog. Any discovery failure rejects with server names and reasons. */
-  listTools: () => Promise<ElectronMcpToolDescriptor[]>
-  callTool: (payload: ElectronMcpCallToolPayload) => Promise<ElectronMcpCallToolResult>
+  /** Returns the current catalog, or a descriptor from only the named server for an exact tool name. */
+  listTools: (name?: string) => Promise<ElectronMcpToolDescriptor[]>
+  /** Dispatches the exact tool name once. A failed reply does not prove the absence of effects. */
+  callTool: (payload: ElectronMcpCallToolPayload, senderWebContentsId?: number, signal?: AbortSignal) => Promise<ElectronMcpCallToolResult>
   stopAll: () => Promise<void>
   getRuntimeStatus: () => ElectronMcpRuntimeStatus
   readConfigText: () => Promise<ElectronMcpConfigText>
@@ -61,9 +71,6 @@ export interface McpManager {
   testServer: (payload: ElectronMcpTestPayload) => Promise<ElectronMcpTestResult>
 }
 
-const defaultMcpConfig: ElectronMcpConfigFile = {
-  mcpServers: {},
-}
 const toolNameSeparator = '::'
 const mcpRequestTimeoutMsec = 10_000
 const mcpRequestMaxTotalTimeoutMsec = 15_000
@@ -91,22 +98,6 @@ function parseQualifiedToolName(name: string) {
     serverName: name.slice(0, separatorIndex),
     toolName: name.slice(separatorIndex + toolNameSeparator.length),
   }
-}
-
-function resolveFallbackToolName(toolName: string): string | undefined {
-  const normalizedTransportPrefix = toolName
-    .replace(/^\.(?:stdio|stdo)::/, '')
-    .replace(/^(?:stdio|stdo)::/, '')
-  if (normalizedTransportPrefix !== toolName) {
-    return normalizedTransportPrefix
-  }
-
-  const lastSeparatorIndex = toolName.lastIndexOf(toolNameSeparator)
-  if (lastSeparatorIndex <= 0 || lastSeparatorIndex === toolName.length - toolNameSeparator.length) {
-    return undefined
-  }
-
-  return toolName.slice(lastSeparatorIndex + toolNameSeparator.length)
 }
 
 async function closeSession(session: McpServerSession) {
@@ -188,7 +179,7 @@ function describeRuntime(
  * `applyAndRestart` replaces the sessions from disk. `stopAll` closes them.
  * Discovery returns a complete catalog or rejects with all server failures.
  */
-export function createMcpManager(): McpManager {
+export function createMcpManager(terminalApproval?: TerminalApprovalOptions): McpManager {
   const log = useLogg('main/mcp').useGlobalConfig()
   const sessions = new Map<string, McpServerSession>()
   const runtimeStatuses = new Map<string, ElectronMcpServerRuntimeStatus>()
@@ -207,6 +198,10 @@ export function createMcpManager(): McpManager {
       await readFile(path, 'utf-8')
     }
     catch {
+      const defaultMcpConfig: ElectronMcpConfigFile = {
+        ...(app.isPackaged && env.AIRI_DISTRIBUTION === 'terminal-beta' ? { terminalEnabled: true } : {}),
+        mcpServers: {},
+      }
       await writeFile(path, `${JSON.stringify(defaultMcpConfig, null, 2)}\n`)
     }
 
@@ -234,8 +229,10 @@ export function createMcpManager(): McpManager {
   }
 
   const startServer = async (name: string, config: ElectronMcpServerConfig) => {
-    const transport = createTransport(config)
-    const client = new Client({
+    const terminalNonce = !isHttpServerConfig(config) && config.env?.[terminalControlEnabledEnv] === '1' && terminalApproval ? randomBytes(32).toString('hex') : undefined
+    const controlledConfig = terminalNonce && !isHttpServerConfig(config) ? { ...config, env: { ...config.env, [terminalControlNonceEnv]: terminalNonce } } : config
+    const transport = createTransport(controlledConfig)
+    const client = new McpClient({
       name: `proj-airi:stage-tamagotchi:mcp:${name}`,
       version: app.getVersion(),
     })
@@ -250,7 +247,18 @@ export function createMcpManager(): McpManager {
           }
         })
       }
-      sessions.set(name, { client, transport, config })
+      const session: McpServerSession = { client, transport, config, terminalNonce }
+      sessions.set(name, session)
+      client.onclose = () => {
+        if (sessions.get(name) !== session)
+          return
+        sessions.delete(name)
+        setRuntimeStatus(describeRuntime(name, config, 'stopped'))
+      }
+      client.onerror = (error) => {
+        if (sessions.get(name) === session)
+          setRuntimeStatus(describeRuntime(name, config, 'error', { lastError: stringifyError(error) }))
+      }
       setRuntimeStatus(describeRuntime(name, config, 'running', {
         pid: transport instanceof StdioClientTransport ? transport.pid : null,
       }))
@@ -264,6 +272,25 @@ export function createMcpManager(): McpManager {
   const applyAndRestart = async (): Promise<ElectronMcpApplyResult> => {
     const { path } = await ensureConfigFile()
     const config = await readConfigFile(path)
+    const servers = { ...config.mcpServers }
+    if (config.terminalEnabled) {
+      if (bundledTerminalServerName in servers)
+        throw new Error(`The server name "${bundledTerminalServerName}" is reserved for the bundled Terminal. Rename the external server or disable the bundled Terminal.`)
+      servers[bundledTerminalServerName] = {
+        command: execPath,
+        args: [join(app.getAppPath(), 'out', 'bundle', 'main', 'terminal.mjs')],
+        cwd: app.getPath('userData'),
+        env: {
+          ELECTRON_RUN_AS_NODE: '1',
+          [terminalControlEnabledEnv]: '1',
+          COMPUTER_USE_APPROVAL_MODE: 'actions',
+          COMPUTER_USE_EXECUTOR: 'dry-run',
+          COMPUTER_USE_BROWSER_DOM_BRIDGE_ENABLED: 'false',
+          COMPUTER_USE_DEFAULT_CAPTURE_AFTER: 'false',
+          COMPUTER_USE_SESSION_ROOT: join(app.getPath('userData'), 'terminal-sessions'),
+        },
+      }
+    }
 
     await stopAll()
     runtimeStatuses.clear()
@@ -275,7 +302,7 @@ export function createMcpManager(): McpManager {
       skipped: [],
     }
 
-    for (const [name, server] of Object.entries(config.mcpServers)) {
+    for (const [name, server] of Object.entries(servers)) {
       if (server.enabled === false) {
         result.skipped.push({ name, reason: 'disabled' })
         setRuntimeStatus(describeRuntime(name, server, 'stopped'))
@@ -298,19 +325,33 @@ export function createMcpManager(): McpManager {
     return result
   }
 
-  const listTools = async (): Promise<ElectronMcpToolDescriptor[]> => {
-    const entries = [...sessions.entries()].sort(([left], [right]) => left.localeCompare(right))
+  // Only the bundled, nonce-bound server supplies a direct Terminal entry.
+  // Its desktop placeholders cannot become an alternative observation or input surface.
+  const exposureOf = (serverName: string, session: McpServerSession, toolName: string): ElectronMcpToolDescriptor['exposure'] => {
+    if (serverName !== bundledTerminalServerName || !session.terminalNonce)
+      return 'router-only'
+    if (toolName.startsWith('desktop_'))
+      return 'disabled'
+    return toolName === 'terminal_exec' ? 'direct' : 'router-only'
+  }
+
+  const listTools = async (name?: string): Promise<ElectronMcpToolDescriptor[]> => {
+    const target = name === undefined ? undefined : parseQualifiedToolName(name)
+    const entries = [...sessions.entries()]
+      .filter(([serverName]) => !target || target.serverName === serverName)
+      .sort(([left], [right]) => left.localeCompare(right))
     const listResult = await Promise.allSettled(entries.map(async ([serverName, session]) => {
       const response = await session.client.listTools(undefined, {
         timeout: mcpRequestTimeoutMsec,
         maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
       })
-      return response.tools.map<ElectronMcpToolDescriptor>(item => ({
+      return response.tools.filter(item => !target || item.name === target.toolName).map<ElectronMcpToolDescriptor>(item => ({
         serverName,
         name: `${serverName}${toolNameSeparator}${item.name}`,
         toolName: item.name,
         description: item.description,
         inputSchema: item.inputSchema,
+        exposure: exposureOf(serverName, session, item.name),
       }))
     }))
     const tools: ElectronMcpToolDescriptor[] = []
@@ -319,12 +360,19 @@ export function createMcpManager(): McpManager {
     // Each result matches the sorted session snapshot. A partial catalog must
     // not report successful discovery while a server's tools remain unknown.
     for (const [index, result] of listResult.entries()) {
+      const [serverName, session] = entries[index]
       if (result.status === 'fulfilled') {
+        if (sessions.get(serverName) === session) {
+          setRuntimeStatus(describeRuntime(serverName, session.config, 'running', {
+            pid: session.transport instanceof StdioClientTransport ? session.transport.pid : null,
+          }))
+        }
         tools.push(...result.value)
         continue
       }
 
-      const [serverName] = entries[index]
+      if (sessions.get(serverName) === session)
+        setRuntimeStatus(describeRuntime(serverName, session.config, 'error', { lastError: stringifyError(result.reason) }))
       log.withFields({ serverName }).withError(result.reason).warn('failed to list tools from mcp server')
       failures.push(new Error(`MCP server "${serverName}": ${errorMessageFrom(result.reason) ?? 'Unknown error.'}`, { cause: result.reason }))
     }
@@ -335,43 +383,32 @@ export function createMcpManager(): McpManager {
     return tools
   }
 
-  const callTool = async (payload: ElectronMcpCallToolPayload): Promise<ElectronMcpCallToolResult> => {
+  const callTool = async (payload: ElectronMcpCallToolPayload, senderWebContentsId?: number, signal?: AbortSignal): Promise<ElectronMcpCallToolResult> => {
     const { serverName, toolName } = parseQualifiedToolName(payload.name)
     const session = sessions.get(serverName)
     if (!session) {
       throw new Error(`mcp server is not running: ${serverName}`)
     }
-
-    let result
-    try {
-      result = await session.client.callTool({
-        name: toolName,
-        arguments: payload.arguments ?? {},
-      }, undefined, {
-        timeout: mcpRequestTimeoutMsec,
-        maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
-      })
+    if (exposureOf(serverName, session, toolName) === 'disabled')
+      throw new Error(`MCP tool is disabled by the Host: ${payload.name}`)
+    const nonce = toolName === 'terminal_exec' ? session.terminalNonce : undefined
+    const requestId = payload.requestId
+    const attribution = nonce && requestId ? validateAttribution(payload.attribution, senderWebContentsId) : undefined
+    if (nonce) {
+      if (!terminalApproval || !requestId || !attribution?.toolCallId)
+        throw new Error('Terminal execution requires a normal Chat request registered by the Host.')
+      terminalApproval.actions.validateRequest(requestId, attribution)
     }
-    catch (error) {
-      const fallbackToolName = resolveFallbackToolName(toolName)
-      if (!fallbackToolName || fallbackToolName === toolName) {
-        throw error
-      }
 
-      log.withFields({
-        serverName,
-        requestedToolName: toolName,
-        fallbackToolName,
-      }).warn('retrying mcp tool call with normalized tool name')
-
-      result = await session.client.callTool({
-        name: fallbackToolName,
-        arguments: payload.arguments ?? {},
-      }, undefined, {
-        timeout: mcpRequestTimeoutMsec,
-        maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
-      })
-    }
+    const result = await session.client.callTool({
+      name: toolName,
+      arguments: payload.arguments ?? {},
+      ...(nonce ? { _meta: { [terminalOriginMetaKey]: { nonce, requestId, toolCallId: attribution?.toolCallId } } } : {}),
+    }, undefined, {
+      timeout: mcpRequestTimeoutMsec,
+      maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
+      ...(signal ? { signal } : {}),
+    })
 
     const normalized: ElectronMcpCallToolResult = {}
     if ('content' in result && Array.isArray(result.content)) {
@@ -387,6 +424,9 @@ export function createMcpManager(): McpManager {
       normalized.toolResult = result.toolResult
     }
 
+    if (nonce && attribution && terminalApproval && normalized.structuredContent?.status === 'approval_required') {
+      return bindTerminalApproval({ options: terminalApproval, connection: { client: session.client, serverName, nonce, pid: session.transport instanceof StdioClientTransport ? session.transport.pid : null, isCurrent: () => sessions.get(serverName) === session }, payload, attribution, result: normalized })
+    }
     return normalized
   }
 
@@ -431,7 +471,7 @@ export function createMcpManager(): McpManager {
 
     try {
       transport = createTransport(payload.config)
-      client = new Client({
+      client = new McpClient({
         name: `proj-airi:stage-tamagotchi:mcp:test:${payload.name}`,
         version: app.getVersion(),
       })
@@ -495,9 +535,9 @@ export function createMcpManager(): McpManager {
   }
 }
 
-export async function setupMcpManager() {
+export async function setupMcpManager(terminalApproval?: TerminalApprovalOptions) {
   const log = useLogg('main/mcp').useGlobalConfig()
-  const manager = createMcpManager()
+  const manager = createMcpManager(terminalApproval)
 
   onAppBeforeQuit(async () => {
     await manager.stopAll()
@@ -528,12 +568,12 @@ export function createMcpServersService(params: { context: ReturnType<typeof cre
     return params.manager.getRuntimeStatus()
   })
 
-  defineInvokeHandler(params.context, electronMcpListTools, async () => {
-    return params.manager.listTools()
+  defineInvokeHandler(params.context, electronMcpListTools, async (payload) => {
+    return params.manager.listTools(payload?.name)
   })
 
-  defineInvokeHandler(params.context, electronMcpCallTool, async (payload) => {
-    return params.manager.callTool(payload)
+  defineInvokeHandler(params.context, electronMcpCallTool, async (payload, options) => {
+    return params.manager.callTool(payload, requireMainFrameSender(options).id, options?.abortController?.signal)
   })
 
   defineInvokeHandler(params.context, electronMcpReadConfigText, async () => {

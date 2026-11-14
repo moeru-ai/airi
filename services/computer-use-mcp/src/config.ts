@@ -27,6 +27,10 @@ function normalizeHomePathToken(value: string) {
 }
 
 function resolveDefaultOpenableApps(executor: ExecutorKind, hostPlatform: NodeJS.Platform) {
+  if (executor === 'auv') {
+    return []
+  }
+
   if (executor === 'linux-x11') {
     return ['Terminal', 'Visual Studio Code', 'Google Chrome']
   }
@@ -106,7 +110,7 @@ function parseBounds(value: string | undefined): Bounds | undefined {
 }
 
 function parseExecutor(value: string | undefined): ExecutorKind {
-  if (value === 'linux-x11' || value === 'macos-local')
+  if (value === 'auv' || value === 'linux-x11' || value === 'macos-local')
     return value
   return 'dry-run'
 }
@@ -210,11 +214,16 @@ export function resolveComputerUseConfig(): ComputerUseConfig {
         ? `${launchHostProcess} -> ssh -> remote desktop-runner`
         : executor === 'macos-local'
           ? `${launchHostProcess} -> swift/quartz + open`
-          : `${launchHostProcess} -> local dry-run`),
+          : executor === 'auv'
+            ? `${launchHostProcess} -> AUV observation unavailable`
+            : `${launchHostProcess} -> local dry-run`),
     requireSessionTagForMutatingActions,
     requireAllowedBoundsForMutatingActions,
     requireCoordinateAlignmentForMutatingActions,
-    terminalShell: env.COMPUTER_USE_TERMINAL_SHELL?.trim() || env.SHELL?.trim() || resolveDefaultTerminalShell(hostPlatform),
+    terminalShell: env.COMPUTER_USE_TERMINAL_SHELL?.trim()
+      || (hostPlatform === 'win32'
+        ? resolveDefaultTerminalShell(hostPlatform)
+        : (env.SHELL?.trim() || resolveDefaultTerminalShell(hostPlatform))),
     remoteSshHost,
     remoteSshUser,
     remoteSshPort: parseInteger(env.COMPUTER_USE_REMOTE_SSH_PORT, 22),

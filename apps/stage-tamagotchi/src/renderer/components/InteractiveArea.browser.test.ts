@@ -29,9 +29,15 @@ import 'virtual:uno.css'
 
 const openSettings = vi.hoisted(() => vi.fn())
 
-vi.mock('@proj-airi/electron-vueuse', () => ({
-  useElectronEventaInvoke: () => openSettings,
-}))
+vi.mock('@proj-airi/electron-vueuse', async () => {
+  const { createContext } = await import('@moeru/eventa')
+  const { shallowRef } = await import('vue')
+  const context = shallowRef(createContext())
+  return {
+    useElectronEventaContext: () => context,
+    useElectronEventaInvoke: () => openSettings,
+  }
+})
 
 function createTestI18n() {
   return createI18n({

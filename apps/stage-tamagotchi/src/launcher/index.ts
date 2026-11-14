@@ -1,5 +1,8 @@
 import process from 'node:process'
 
+import { mkdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
 import config from 'virtual:ergosphere-it/config'
 
 import { startLauncher } from '@ergosphere-it/electron/launcher'
@@ -37,11 +40,26 @@ function becomeOwnResponsibleProcess() {
  * `src/main/services/electron/auto-updater.ts`.
  */
 function isUpdatedByPackageManager() {
-  return !!process.env.FLATPAK_ID || process.env.AIRI_DISTRIBUTION === 'nix'
+  return !!process.env.FLATPAK_ID || ['nix', 'terminal-beta'].includes(process.env.AIRI_DISTRIBUTION || '')
 }
 
 // Re-exec before the launcher loads a bundle, so that no update work runs twice.
 becomeOwnResponsibleProcess()
+
+// The launcher claims the instance lock before loading main. Select its profile before that claim.
+if (app.isPackaged) {
+  const metadata = JSON.parse(readFileSync(join(app.getAppPath(), 'package.json'), 'utf8')) as { airiDistribution?: string }
+  if (metadata.airiDistribution === 'terminal-beta') {
+    process.env.AIRI_DISTRIBUTION = 'terminal-beta'
+    process.env.SERVER_CHANNEL_PORT ||= '6131'
+  }
+}
+const appUserDataPath = process.env.APP_USER_DATA_PATH?.trim()
+  || (process.env.AIRI_DISTRIBUTION === 'terminal-beta' ? join(app.getPath('appData'), 'AIRI Terminal Beta') : undefined)
+if (appUserDataPath) {
+  mkdirSync(appUserDataPath, { recursive: true })
+  app.setPath('userData', appUserDataPath)
+}
 
 // NOTICE: Electron emits `ready` only after the top-level await of its entry, so the bundle main starts before ready.
 // See the custom launcher section of the @ergosphere-it/electron API reference.

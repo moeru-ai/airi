@@ -9,7 +9,7 @@ import type {
 } from '../types'
 
 import { imageContent, textContent } from './content'
-import { describeExecutionTarget, describeForegroundContext, describePolicy } from './formatters'
+import { describeExecutionTarget, describeForegroundContext, describePolicy, describeTerminalBackend } from './formatters'
 
 export function buildApprovalResponse(
   pending: PendingActionRecord,
@@ -33,6 +33,7 @@ export function buildApprovalResponse(
     structuredContent: {
       status: 'approval_required',
       pendingActionId: pending.id,
+      preparedTerminal: pending.preparedTerminal,
       toolName: pending.toolName,
       action: pending.action,
       policy: decision,
@@ -70,13 +71,16 @@ export function buildExecutionErrorResponse(params: {
   action: ActionInvocation
   context: { available: boolean, appName?: string, windowTitle?: string }
   executionTarget: ExecutionTarget
+  terminalBackend?: string
   policy: PolicyDecision
 }): CallToolResult {
   return {
     isError: true,
     content: [
       textContent(
-        `Action ${params.action.kind} failed on ${describeExecutionTarget(params.executionTarget)}: ${params.errorMessage}`,
+        params.terminalBackend
+          ? `Action ${params.action.kind} failed: ${params.errorMessage} ${describeTerminalBackend(params.terminalBackend)}`
+          : `Action ${params.action.kind} failed on ${describeExecutionTarget(params.executionTarget)}: ${params.errorMessage}`,
       ),
     ],
     structuredContent: {
@@ -84,6 +88,7 @@ export function buildExecutionErrorResponse(params: {
       action: params.action.kind,
       context: params.context,
       executionTarget: params.executionTarget,
+      terminalBackend: params.terminalBackend,
       policy: params.policy,
       error: params.errorMessage,
     },

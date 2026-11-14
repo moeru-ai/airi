@@ -152,9 +152,18 @@ export function evaluateActionPolicy(params: {
     requiresApproval = params.config.approvalMode !== 'never'
   }
 
+  if (params.config.executor === 'auv' && isMutatingAction(params.action) && params.action.kind !== 'terminal_exec' && params.action.kind !== 'terminal_reset') {
+    reasons.push('The AUV desktop surface is unavailable without a trusted observation scope')
+    allowed = false
+  }
+
   if (params.action.kind === 'open_app' || params.action.kind === 'focus_app') {
     if (params.config.executor === 'linux-x11') {
       reasons.push('linux-x11 executor does not support app open/focus actions in this legacy path')
+      allowed = false
+    }
+    if (params.config.executor === 'auv') {
+      reasons.push('auv executor does not support app open/focus actions in this read-only observation slice')
       allowed = false
     }
 

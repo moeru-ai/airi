@@ -130,6 +130,9 @@ export interface ChatOrchestratorSendOptions {
   /** Model capabilities captured before the request enters its session queue. */
   supportsAudioInput?: boolean
   supportsVisionInput?: boolean
+  /** Context and output limits reported by the initial model catalog entry. */
+  contextWindowTokens?: number
+  modelMaxOutputTokens?: number
   /** Request-owned character instructions, captured before waiting in the session queue. */
   systemPromptSupplement?: string
   /** Eligible catalog for this request. Omission disables stickers. The queue copies entries before waiting. */
@@ -631,6 +634,10 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         ? prependTextToContent(unwrapMessage(message), `${formatTimePrefix(getStablePromptTimestamp(message, nowTs))}${noticePrefix}${formatReplyPromptPrefix(message.replyToMessageId, messagesById)}`)
         : unwrapMessage(message)
       const turns = chatMessagesToTurns(source.role === 'assistant' && source.providerTranscript?.length ? source.providerTranscript : [source], message.id ?? `history-${historyIndex}`)
+      const notice = message.role === 'user' ? message.notice : undefined
+      const noticeTurn = notice ? turns.find(turn => turn.type === 'user') : undefined
+      if (notice && noticeTurn?.type === 'user')
+        noticeTurn.notice = { ...notice }
       // An invoked skill joins its message as the owner's own instruction, like a slash command.
       if (message.role === 'user' && message.skills?.length) {
         const userTurn = turns.find(turn => turn.type === 'user')
@@ -1116,6 +1123,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           : undefined,
         supportsAudioInput: options.supportsAudioInput,
         supportsVisionInput: options.supportsVisionInput,
+        contextWindowTokens: options.contextWindowTokens,
+        modelMaxOutputTokens: options.modelMaxOutputTokens,
         abortSignal,
         onGeneratedTurn: (turn) => { generatedTurn = structuredClone(turn) },
         requestCorrelation: {

@@ -10,6 +10,7 @@ import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { Alert, Button, Checkbox, GhostButton, SettingsCard, TransitionVertical } from '@proj-airi/ui'
+import { useIntervalFn } from '@vueuse/core'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -26,6 +27,7 @@ import {
   electronMcpWriteConfigText,
 } from '../../../../shared/eventa'
 import { parseElectronMcpConfigText } from '../../../../shared/mcp-config'
+import { useTamagotchiMcpToolsStore } from '../../../stores/tools/mcp'
 import {
   buildConfigFile,
   buildServerConfig,
@@ -40,6 +42,7 @@ import { mcpServerSearchKey } from './mcp.search'
 
 const { t } = useI18n()
 const { trackMcpServerRemoved, trackMcpConnectionTestRun } = useAnalytics()
+const mcpTools = useTamagotchiMcpToolsStore()
 const tn = (key: string, params?: Record<string, unknown>) => t(`settings.pages.modules.mcp-server.${key}`, params ?? {})
 
 const invokeOpenConfigFile = useElectronEventaInvoke(electronMcpOpenConfigFile)
@@ -50,6 +53,7 @@ const invokeWriteConfigText = useElectronEventaInvoke(electronMcpWriteConfigText
 const invokeTestServer = useElectronEventaInvoke(electronMcpTestServer)
 
 const servers = ref<ServerForm[]>([])
+const terminalEnabled = ref<boolean>()
 const runtime = ref<ElectronMcpRuntimeStatus>()
 const infoMessage = ref('')
 const errorMessage = ref('')
@@ -69,12 +73,13 @@ const testRunning = ref(false)
 const testResult = ref<ElectronMcpTestResult>()
 
 function buildConfig() {
-  return buildConfigFile(servers.value, tn)
+  return { ...(terminalEnabled.value === undefined ? {} : { terminalEnabled: terminalEnabled.value }), ...buildConfigFile(servers.value, tn) }
 }
 
 function applyLoadedConfig(config: ElectronMcpConfigFile) {
   const selectedIdentifier = findServerIdentifierByRowId(servers.value, testRowId.value)
   const loaded = loadServerForms(config, { selectedIdentifier })
+  terminalEnabled.value = config.terminalEnabled
   servers.value = loaded.servers
   savedIds.value = loaded.savedIds
   expandedIds.value = new Set()
@@ -172,6 +177,8 @@ function syncJsonDraft() {
     error => errorMessageFrom(error) ?? 'Unknown error',
   )
   jsonDraft.value = result.draft
+  if (!result.error)
+    jsonDraft.value = `${JSON.stringify(buildConfig(), null, 2)}\n`
   jsonError.value = result.error
 }
 
@@ -228,60 +235,32 @@ function removeServer(rowId: string) {
     testRowId.value = servers.value[0]?.rowId ?? ''
 }
 
-async function saveAndRestart() {
-  isBusy.value = true
-  errorMessage.value = ''
-  infoMessage.value = ''
-  try {
-    const text = `${JSON.stringify(buildConfig(), null, 2)}\n`
-    const written = await invokeWriteConfigText({ text })
-    const parsed = parseElectronMcpConfigText(written.text)
-    applyLoadedConfig(parsed)
-    savedSig.value = JSON.stringify(parsed)
-    const result = await invokeApplyAndRestart()
-    await refreshRuntime()
-    infoMessage.value = tn('messages.restarted', {
-      started: result.started.length,
-      failed: result.failed.length,
-      skipped: result.skipped.length,
-    })
-  }
-  catch (e) {
-    errorMessage.value = errorMessageFrom(e) ?? 'Unknown error'
-  }
-  finally {
-    isBusy.value = false
-  }
-}
-
-async function restartServers() {
-  isBusy.value = true
-  errorMessage.value = ''
-  infoMessage.value = ''
-  try {
-    const result = await invokeApplyAndRestart()
-    await refreshRuntime()
-    infoMessage.value = tn('messages.restarted', {
-      started: result.started.length,
-      failed: result.failed.length,
-      skipped: result.skipped.length,
-    })
-  }
-  catch (e) {
-    errorMessage.value = errorMessageFrom(e) ?? 'Unknown error'
-  }
-  finally {
-    isBusy.value = false
-  }
-}
-
 async function applyRestartAction() {
-  if (isDirty.value) {
-    await saveAndRestart()
-    return
+  isBusy.value = true
+  errorMessage.value = ''
+  infoMessage.value = ''
+  try {
+    if (isDirty.value) {
+      const text = `${JSON.stringify(buildConfig(), null, 2)}\n`
+      const written = await invokeWriteConfigText({ text })
+      const parsed = parseElectronMcpConfigText(written.text)
+      applyLoadedConfig(parsed)
+      savedSig.value = JSON.stringify(parsed)
+    }
+    const result = await invokeApplyAndRestart()
+    await Promise.all([refreshRuntime(), mcpTools.refresh()])
+    infoMessage.value = tn('messages.restarted', {
+      started: result.started.length,
+      failed: result.failed.length,
+      skipped: result.skipped.length,
+    })
   }
-
-  await restartServers()
+  catch (e) {
+    errorMessage.value = errorMessageFrom(e) ?? 'Unknown error'
+  }
+  finally {
+    isBusy.value = false
+  }
 }
 
 async function openConfigInSystem() {
@@ -337,6 +316,12 @@ onMounted(async () => {
   if (!testRowId.value && servers.value[0])
     testRowId.value = servers.value[0].rowId
 })
+
+useIntervalFn(() => {
+  void refreshRuntime().catch((error) => {
+    errorMessage.value = errorMessageFrom(error) ?? 'Connection status unavailable.'
+  })
+}, 2000)
 </script>
 
 <template>
@@ -363,6 +348,19 @@ onMounted(async () => {
           @click="toggleJsonPanel"
         />
       </div>
+    </SettingsCard>
+
+    <SettingsCard>
+      <Checkbox :model-value="terminalEnabled ?? false" :label="tn('terminal.title')" @update:model-value="terminalEnabled = $event" />
+      <p :class="['text-sm', 'text-neutral-500 dark:text-neutral-400']">
+        {{ tn('terminal.description') }}
+      </p>
+      <p :class="['text-xs', badgeClass(runtimeStateOf('airi-terminal'))]" data-testid="terminal-connection-status">
+        {{ tn(`status.${runtimeStateOf('airi-terminal') ?? 'unknown'}`) }}
+      </p>
+      <p v-if="runtime?.servers.find(server => server.name === 'airi-terminal')?.lastError" :class="['text-xs', 'text-red-600']" role="alert">
+        {{ runtime?.servers.find(server => server.name === 'airi-terminal')?.lastError }}
+      </p>
     </SettingsCard>
 
     <TransitionVertical>

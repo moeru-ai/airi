@@ -7,11 +7,15 @@ import type {
   TerminalState,
 } from './types'
 
+import { join } from 'node:path'
+import { platform } from 'node:process'
+
 export function createTestConfig(overrides: Partial<ComputerUseConfig> = {}): ComputerUseConfig {
+  const sessionRoot = overrides.sessionRoot || '/tmp/computer-use-mcp'
   const baseConfig: ComputerUseConfig = {
-    sessionRoot: '/tmp/computer-use-mcp',
-    screenshotsDir: '/tmp/computer-use-mcp/screenshots',
-    auditLogPath: '/tmp/computer-use-mcp/audit.jsonl',
+    sessionRoot,
+    screenshotsDir: join(sessionRoot, 'screenshots'),
+    auditLogPath: join(sessionRoot, 'audit.jsonl'),
     executor: 'linux-x11',
     approvalMode: 'actions',
     defaultCaptureAfter: true,
@@ -30,7 +34,7 @@ export function createTestConfig(overrides: Partial<ComputerUseConfig> = {}): Co
     requireSessionTagForMutatingActions: true,
     requireAllowedBoundsForMutatingActions: true,
     requireCoordinateAlignmentForMutatingActions: true,
-    terminalShell: '/bin/zsh',
+    terminalShell: platform === 'win32' ? 'powershell.exe' : '/bin/zsh',
     remoteSshHost: '20.196.212.37',
     remoteSshUser: 'airi',
     remoteSshPort: 22,

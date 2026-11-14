@@ -205,6 +205,7 @@ export function isExternallyUpdatedInstall() {
   return import.meta.env.VITE_DISTRIBUTION === 'steam'
     || !!process.env.FLATPAK_ID
     || process.env.AIRI_DISTRIBUTION === 'nix'
+    || process.env.AIRI_DISTRIBUTION === 'terminal-beta'
 }
 
 /**

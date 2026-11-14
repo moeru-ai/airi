@@ -2,7 +2,103 @@
 
 Scope: terminal lane work in `services/computer-use-mcp/**`.
 
+Terminal exec and reset skip CDP discovery in the shared action pipeline.
+Linux X11 still checks the remote target, display bounds, and screenshot binding before execution.
+
+## Native observation admission: 2026-11-09
+
+The MCP AUV configuration reports native observation, foreground and display metadata unavailable.
+The MCP service has no native AUV SDK dependency. The Electron Main observation gate remains in effect.
+Terminal registration, approval, and execution remain independent. This restriction does not authorize GUI or Browser input.
+
+## Executor discovery contract: 2026-11-08
+
+MCP discovery includes the Terminal runner's configured Shell and platform before command preparation.
+The local runner describes fresh Shell processes, default spawn directories, and relative cwd resolution.
+`terminal_get_state` returns that contract with the current default directory without executing a command.
+The tool name is an MCP method. It is not a command installed inside PowerShell.
+The executor still accepts command text. Its syntax and effects require independent inspection.
+Shell version is not probed or inferred from the executable name.
+Approval still freezes argv and spawn cwd. Referenced scripts and their dependencies are not frozen.
+These information changes grant no execution authority. Main approvals and GUI write restrictions remain unchanged.
+
+MCP Desktop observation descriptions also name their configured executor before a call.
+The dry-run executor reports empty native window observations.
+Windows and Linux screenshots are placeholders. macOS attempts native capture and returns a placeholder on failure.
+The Chat composer omits unavailable native AUV tools. Existing history keeps its tool names.
+These descriptions distinguish the backends. They do not establish reliable model tool selection.
+
+## Windows Beta lifecycle: 2026-11-08
+
+The bundled stdio service closes on input EOF, transport close, SIGINT and SIGTERM.
+Shutdown stops Terminal admission and waits for direct shell exit. Output drain after exit has a deadline.
+The private prepared request passes protocol cancellation to the runner.
+Cancellation after dispatch requests process termination. It does not reverse effects or prove zero dispatch.
+Result readiness and direct shell closure remain separate. A drain deadline reports an unconfirmed lifecycle.
+Windows termination still covers the direct Shell only. Descendant cleanup remains unverified at this boundary.
+Main latches its existing descendant-risk guard after an unconfirmed lifecycle and retains known timeout facts.
+Waiting approvals can expire or cancel while another execution owns the queue.
+The Host discards those prepared records. The guard blocks subsequent mutations until shutdown.
+
+Tests: `pnpm -F @proj-airi/computer-use-mcp exec vitest run src/server-lifecycle.test.ts src/terminal/runner-lifecycle.test.ts src/server/terminal-approval.test.ts`.
+These controlled tests use mock processes and the real MCP protocol. They do not establish human production authorization.
+
+## Terminal environment scope: 2026-11-07
+
+Terminal responses retain the existing desktop `executionTarget` and `context` fields.
+The `terminalBackend` field comes from the actual Terminal runner, independently of the desktop executor.
+Desktop dry-run does not establish whether a Shell command executed.
+Command results retain their actual exit code, timeout and possible side effects.
+
+`backendResult.effectiveCwd` is the directory used for that command's spawn.
+`terminalState.effectiveCwd` is the runner default for a later command.
+Neither field tracks the current directory of an interactive Shell.
+Controlled MCP and provider projection tests cover this information contract.
+Native execution and business effects require their separate Host and Fixture evidence.
+
+## Convergence authorization correction: 2026-11-05
+
+The accepted integration baseline had three independent approval bypasses.
+Agent-callable approval, workflow auto-approval/resume, and direct CDP mutations crossed the configured human-consent boundary.
+Real MCP protocol tests reproduced them with mock executors before the correction.
+
+- In `actions` and `all`, public pending-action approval now returns `denied`.
+- Workflow automatic approval is derived from trusted `approvalMode=never`, rather than model arguments alone.
+- A caller cannot claim approved workflow continuation while the server requires approval.
+- Raw CDP evaluation, navigation, and optional delegated browser execution remain closed in those modes.
+- Explicit `never` retains its broad operator-configured scope. The desktop executor does not sandbox shell commands.
+
+Phase 5.1 adds an opt-in trusted Terminal approval adapter in Electron Main.
+The adapter requires a Main-managed direct stdio connection and a registered Chat request.
+A separate Main-created window presents the frozen command, shell arguments, executor identity and cwd source.
+Only its actual main frame can return a decision. Model-facing approval remains denied.
+Main consumes its existing PendingAction once inside the shared desktop execution queue.
+The private executor protocol freezes spawn arguments before approval and waits for direct shell closure.
+
+This slice has controlled tests and delegated UI operator evidence with a mock provider.
+It does not establish real-model continuation or real-human production authorization.
+Phase 5.2 verifies bounded cancellation and direct-process lifecycle cases with controlled barriers.
+The final private dispatch boundary rechecks the MCP request signal and deadline.
+Windows direct shell closure does not prove descendant termination. Terminal commands are not sandboxed.
+B0-style notice delivery now uses the original Host request and existing Core FIFO and persistent message identity.
+Controlled and delegated UI tests use a mock provider. Real-model acceptance remains a separate gate.
+Native GUI writes remain closed.
+The historical run-grant claims below do not establish current product support.
+See `docs/ai/convergence/execution-authorization-boundary.md` from the repository root for evidence and remaining limits.
+
 This file is the handoff record for terminal lane work. It moved here from `AGENTS.md` without content changes.
+
+## Workflow result correction: 2026-11-06
+
+Workflow exec steps now treat a reported nonzero exit code or timeout as failure.
+The existing formatter forwards the exit code, timeout flag, and bounded error output in the step explanation.
+The explanation preserves dispatch and possible side effects. Recovery requires inspecting the result before another decision.
+Command exit zero does not verify an independent business outcome.
+
+- PTY self-acquire routing and PTY completion semantics are unchanged.
+- This correction uses controlled executor and provider boundaries. No new real AIRI Chat E2E ran.
+- Public self-approval remains denied in approval modes. The Phase 5.1 adapter does not grant workflow auto-approval.
+- Support-matrix labels are unchanged. Real GUI writes remain outside admission.
 
 ## Current Status Snapshot
 
@@ -48,7 +144,6 @@ The main implementation lives in:
 1. The current `taskId + stepId` already has a bound PTY session.
 2. The step explicitly declares `interaction: 'persistent'`.
 3. The command matches `KNOWN_INTERACTIVE_COMMAND_PATTERNS`.
-4. A failed/timed-out exec attempt surfaces one of `INTERACTIVE_OUTPUT_MARKERS`.
 
 This rule set is covered by:
 
@@ -60,7 +155,6 @@ This rule set is covered by:
 The engine already contains the v2 shape:
 
 - `AcquirePtyForStep`
-- `StepTerminalProgress`
 - suspension point `before_pty_acquire`
 - PTY step family support:
   - `pty_send_input`

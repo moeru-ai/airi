@@ -4,11 +4,15 @@ export type { AgentLLMPort } from './contracts/llm-port'
 export type { AgentSessionPort } from './contracts/session-port'
 export type { AgentForegroundStreamPort } from './contracts/stream-port'
 export { chatContentToInputSegments, chatMessagesToTurns, conversationToChatMessages } from './messages/chat-completions'
+export type { ContextBudget, ContextBudgetLimits } from './messages/context-budget'
+export { DEFAULT_CONTEXT_HARD_LIMIT_BYTES, DEFAULT_CONTEXT_SOFT_LIMIT_BYTES, measureContextBudget, resolveContextBudgetLimits } from './messages/context-budget'
 export {
   buildContextPromptMessage,
   formatContextPromptText,
 } from './messages/context-prompt'
 export type { ContextSnapshot } from './messages/context-prompt'
+export type { CompactMode, CompactOptions, CompactRequest } from './messages/conversation-compact'
+export { ConversationCompact } from './messages/conversation-compact'
 
 export { formatTimePrefix } from './messages/datetime-prefix'
 export { renderConversationPreview } from './messages/preview'

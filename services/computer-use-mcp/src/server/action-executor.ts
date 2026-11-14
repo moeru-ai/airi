@@ -1,4 +1,5 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
+import type { TerminalOrigin } from '@proj-airi/stage-shared/terminal-approval'
 
 import type { DisplayPointResolution, MultiDisplaySnapshot } from '../display'
 import type {
@@ -10,9 +11,14 @@ import type {
   PolicyDecision,
   ScreenshotArtifact,
   TerminalCommandResult,
+  TerminalExecution,
   TerminalState,
 } from '../types'
 import type { ComputerUseServerRuntime } from './runtime'
+
+import { terminalSnapshotSchema } from '@proj-airi/stage-shared/terminal-approval'
+
+import * as v from 'valibot'
 
 import { normalizeConfiguredAppAction } from '../app-aliases'
 import { decideBrowserTypeAction } from '../browser-action-router'
@@ -39,7 +45,7 @@ import {
 } from '../utils/env-file'
 import { errorMessageFromValue } from '../utils/error-message'
 import { executeDesktopClickTarget } from './desktop-grounding-actions'
-import { describeExecutionTarget } from './formatters'
+import { describeExecutionTarget, describeTerminalBackend } from './formatters'
 import { refreshRuntimeRunState } from './refresh-run-state'
 import {
   buildApprovalResponse,
@@ -50,6 +56,9 @@ import {
 
 export interface ExecuteActionOptions {
   skipApprovalQueue?: boolean
+  terminalOrigin?: TerminalOrigin
+  /** The private Host handler supplies the final check and synchronous executor start. Public tools cannot supply callbacks. */
+  terminalExecution?: () => TerminalExecution
 }
 
 export type ExecuteAction = (action: ActionInvocation, toolName: string, options?: ExecuteActionOptions) => Promise<CallToolResult>
@@ -236,7 +245,9 @@ function getPolicyEvaluationContext(params: {
 export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteAction {
   return async (action, toolName, options = {}) => {
     const normalizedAction = normalizeConfiguredAppAction(action, runtime.config.openableApps)
-    const { executionTarget, context: actualContext, displayInfo } = await refreshRuntimeRunState(runtime)
+    const isTerminal = normalizedAction.kind === 'terminal_exec' || normalizedAction.kind === 'terminal_reset'
+    const { executionTarget, context: actualContext, displayInfo } = await refreshRuntimeRunState(runtime, { probeBrowser: !isTerminal })
+    const terminalBackend = isTerminal ? runtime.terminalRunner.describe().kind : undefined
     const context = getPolicyEvaluationContext({
       action: normalizedAction,
       actualContext,
@@ -307,7 +318,11 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
       return buildDeniedResponse(deniedDecision, context, executionTarget)
     }
 
-    if (isMutatingAction(normalizedAction) && preflight.mutationReadinessIssues.length > 0) {
+    const isMutationBlockedByPreflight = isMutatingAction(normalizedAction)
+      && (runtime.config.executor !== 'auv' || normalizedAction.kind !== 'terminal_exec')
+      && preflight.mutationReadinessIssues.length > 0
+
+    if (isMutationBlockedByPreflight) {
       const deniedDecision = buildDeniedDecision({
         decision,
         issues: preflight.mutationReadinessIssues,
@@ -378,31 +393,51 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         context,
         policy: decision,
       })
-      runtime.stateManager.setPendingApprovalCount(runtime.session.listPendingActions().length)
+      try {
+        if (normalizedAction.kind === 'terminal_exec' && options.terminalOrigin) {
+          if (options.terminalOrigin.nonce !== runtime.terminalControlNonce || !runtime.terminalRunner.prepare)
+            throw new Error('The executor cannot prepare this Host Terminal operation.')
+          const snapshot = v.parse(terminalSnapshotSchema, {
+            protocol: 'airi-terminal-approval/1' as const,
+            preparedId: pending.id,
+            requestId: options.terminalOrigin.requestId,
+            toolCallId: options.terminalOrigin.toolCallId,
+            ...runtime.terminalRunner.prepare(normalizedAction.input),
+          })
+          Object.freeze(snapshot.argv)
+          pending.preparedTerminal = Object.freeze(snapshot)
+        }
+        runtime.stateManager.setPendingApprovalCount(runtime.session.listPendingActions().length)
 
-      await runtime.session.record({
-        event: 'approval_required',
-        toolName,
-        action: normalizedAction,
-        context,
-        policy: decision,
-        result: {
-          executionTarget,
-          pendingActionId: pending.id,
-        },
-      })
+        await runtime.session.record({
+          event: 'approval_required',
+          toolName,
+          action: normalizedAction,
+          context,
+          policy: decision,
+          result: {
+            executionTarget,
+            pendingActionId: pending.id,
+          },
+        })
 
-      // Transparency: explain why approval is needed.
-      const approvalExplanation = explainApprovalReason(normalizedAction, decision, context)
-      return buildApprovalResponse(pending, decision, context, {
-        intent,
-        approvalReason: approvalExplanation,
-        advisorySummary,
-      })
+        return buildApprovalResponse(pending, decision, context, {
+          intent,
+          approvalReason: explainApprovalReason(normalizedAction, decision, context),
+          advisorySummary,
+        })
+      }
+      catch (error) {
+        // No approval result was sent. The caller has no prepared ID to discard.
+        runtime.session.removePendingAction(pending.id)
+        runtime.stateManager.setPendingApprovalCount(runtime.session.listPendingActions().length)
+        throw error
+      }
     }
 
     try {
       let backendResult: Record<string, unknown> = {}
+      let terminalResult: TerminalCommandResult | undefined
       let clipboardStructuredContent: Record<string, unknown> | undefined
       let secretStructuredContent: Record<string, unknown> | undefined
       let summaryOverride: string | undefined
@@ -609,7 +644,20 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           break
         }
         case 'terminal_exec': {
-          const result = await runtime.terminalRunner.execute(normalizedAction.input)
+          let result: TerminalCommandResult
+          if (options.terminalExecution) {
+            const execution = options.terminalExecution()
+            try {
+              result = await execution.result
+            }
+            finally {
+              await execution.lifecycle
+            }
+          }
+          else {
+            result = await runtime.terminalRunner.execute(normalizedAction.input)
+          }
+          terminalResult = result
           runtime.session.setTerminalState(runtime.terminalRunner.getState())
           runtime.stateManager.updateTerminalResult(result)
           backendResult = {
@@ -702,12 +750,14 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
       }
 
       // Transparency: explain what just happened.
-      const outcome = explainActionOutcome({
+      let outcome = explainActionOutcome({
         action: normalizedAction,
         succeeded: true,
-        terminalResult: normalizedAction.kind === 'terminal_exec' ? (backendResult as unknown as TerminalCommandResult) : undefined,
+        terminalResult,
         context,
       })
+      if (terminalBackend)
+        outcome += ` ${describeTerminalBackend(terminalBackend)}`
 
       await runtime.session.record({
         event: 'executed',
@@ -718,6 +768,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         result: {
           ...backendResult,
           executionTarget,
+          terminalBackend,
           screenshotPath: screenshot?.path,
           displayInfo,
         },
@@ -733,6 +784,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           policy: decision,
           launchContext: preflight.launchContext,
           executionTarget,
+          terminalBackend,
           displayInfo,
           coordinateSpace: buildCoordinateSpaceInfo({
             config: runtime.config,
@@ -779,6 +831,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         policy: decision,
         result: {
           executionTarget,
+          terminalBackend,
           error: errorMessage,
         },
       })
@@ -788,6 +841,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         action: normalizedAction,
         context,
         executionTarget,
+        terminalBackend,
         policy: decision,
       })
     }

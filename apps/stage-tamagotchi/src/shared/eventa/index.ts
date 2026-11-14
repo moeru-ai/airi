@@ -534,6 +534,7 @@ export interface ElectronMcpHttpServerConfig {
 export type ElectronMcpServerConfig = ElectronMcpStdioServerConfig | ElectronMcpHttpServerConfig
 
 export interface ElectronMcpConfigFile {
+  terminalEnabled?: boolean
   mcpServers: Record<string, ElectronMcpServerConfig>
 }
 
@@ -574,17 +575,13 @@ export interface ElectronMcpRuntimeStatus {
   updatedAt: number
 }
 
-export interface ElectronMcpToolDescriptor {
-  serverName: string
-  name: string
-  toolName: string
-  description?: string
-  inputSchema: Record<string, unknown>
-}
+export type ElectronMcpToolDescriptor = import('@proj-airi/stage-ui/types/mcp').McpToolDescriptor
 
 export interface ElectronMcpCallToolPayload {
   name: string
   arguments?: Record<string, unknown>
+  requestId?: string
+  attribution?: import('./computer-use').InvocationAttributionPayload
 }
 
 export interface ElectronMcpCallToolResult {
@@ -614,7 +611,7 @@ export interface ElectronMcpTestPayload {
 export const electronMcpOpenConfigFile = defineInvokeEventa<{ path: string }>('eventa:invoke:electron:mcp:open-config-file')
 export const electronMcpApplyAndRestart = defineInvokeEventa<ElectronMcpApplyResult>('eventa:invoke:electron:mcp:apply-and-restart')
 export const electronMcpGetRuntimeStatus = defineInvokeEventa<ElectronMcpRuntimeStatus>('eventa:invoke:electron:mcp:get-runtime-status')
-export const electronMcpListTools = defineInvokeEventa<ElectronMcpToolDescriptor[]>('eventa:invoke:electron:mcp:list-tools')
+export const electronMcpListTools = defineInvokeEventa<ElectronMcpToolDescriptor[], { name?: string } | undefined>('eventa:invoke:electron:mcp:list-tools')
 export const electronMcpCallTool = defineInvokeEventa<ElectronMcpCallToolResult, ElectronMcpCallToolPayload>('eventa:invoke:electron:mcp:call-tool')
 export const electronMcpReadConfigText = defineInvokeEventa<ElectronMcpConfigText>('eventa:invoke:electron:mcp:read-config-text')
 export const electronMcpWriteConfigText = defineInvokeEventa<ElectronMcpConfigText, { text: string }>('eventa:invoke:electron:mcp:write-config-text')

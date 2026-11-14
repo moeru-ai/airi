@@ -3,7 +3,10 @@ import type { DesktopSessionController } from '../desktop-session'
 import type { ComputerUseConfig, DesktopExecutor, TerminalRunner } from '../types'
 import type { CdpBridgeManager } from './cdp-manager'
 
-import { platform } from 'node:process'
+import { hostname } from 'node:os'
+import { env, platform } from 'node:process'
+
+import { terminalControlEnabledEnv, terminalControlNonceEnv } from '@proj-airi/stage-shared/terminal-approval'
 
 import { BrowserDomExtensionBridge } from '../browser-dom/extension-bridge'
 import { createChromeSessionManager } from '../chrome-session-manager'
@@ -21,6 +24,8 @@ import { createCdpBridgeManager } from './cdp-manager'
 export interface ComputerUseServerOptions {
   executorFactory?: (config: ComputerUseConfig) => DesktopExecutor
   terminalRunnerFactory?: (config: ComputerUseConfig) => TerminalRunner
+  /** Only the controlling Host or a mock Host supplies this private-connection credential. It never comes from tool arguments. */
+  terminalControlNonce?: string
 }
 
 export interface ComputerUseServerRuntime {
@@ -28,6 +33,7 @@ export interface ComputerUseServerRuntime {
   session: ComputerUseSession
   executor: DesktopExecutor
   terminalRunner: TerminalRunner
+  terminalControlNonce?: string
   browserDomBridge: BrowserDomExtensionBridge
   cdpBridgeManager: CdpBridgeManager
   /** Unified run-level state manager. */
@@ -48,6 +54,39 @@ function createExecutor(config: ComputerUseConfig, options: ComputerUseServerOpt
     throw new Error(`macos-local executor requires a darwin host, current platform is ${platform}`)
   }
 
+  if (config.executor === 'auv') {
+    if (platform !== 'win32') {
+      throw new Error(`auv executor requires a win32 host, current platform is ${platform}`)
+    }
+    const reason = 'A trusted observation scope is required. Native AUV observation is unavailable.'
+    const unavailable = async () => {
+      throw new Error(reason)
+    }
+    const unsupportedPermission = (target: string) => ({ status: 'unsupported' as const, target, note: reason })
+    // Keep the configured surface closed while Terminal uses its independent runner.
+    return {
+      kind: 'auv',
+      describe: () => ({ kind: 'auv', notes: [reason] }),
+      getExecutionTarget: async () => ({ mode: 'local-windowed', transport: 'local', hostName: hostname(), sessionTag: config.sessionTag, isolated: false, tainted: false, note: reason }),
+      getForegroundContext: async () => ({ available: false, platform, unavailableReason: reason }),
+      getDisplayInfo: async () => ({ available: false, platform, capturedAt: new Date().toISOString(), note: reason }),
+      getPermissionInfo: async () => ({
+        screenRecording: unsupportedPermission('screen recording'),
+        accessibility: unsupportedPermission('accessibility'),
+        automationToSystemEvents: unsupportedPermission('automation to system events'),
+      }),
+      observeWindows: unavailable,
+      takeScreenshot: unavailable,
+      openApp: unavailable,
+      focusApp: unavailable,
+      click: unavailable,
+      typeText: unavailable,
+      pressKeys: unavailable,
+      scroll: unavailable,
+      wait: unavailable,
+    }
+  }
+
   if (config.executor === 'linux-x11')
     return createLinuxX11Executor(config)
   if (config.executor === 'macos-local')
@@ -64,6 +103,14 @@ function createTerminal(config: ComputerUseConfig, options: ComputerUseServerOpt
 }
 
 export async function createRuntime(config = resolveComputerUseConfig(), options: ComputerUseServerOptions = {}) {
+  const terminalControlNonce = options.terminalControlNonce
+    ?? (env[terminalControlEnabledEnv] === '1' ? env[terminalControlNonceEnv] : undefined)
+  if (terminalControlNonce !== undefined && !/^[a-f0-9]{64}$/.test(terminalControlNonce))
+    throw new Error('Host Terminal control requires a valid private connection credential.')
+  if (terminalControlNonce && config.approvalMode === 'never')
+    throw new Error('Host-controlled Terminal requires server approval mode actions or all.')
+  // Capture once so no executor or browser child inherits this private connection credential.
+  delete env[terminalControlNonceEnv]
   const session = new ComputerUseSession(config)
   await session.init()
   const executor = createExecutor(config, options)
@@ -81,6 +128,7 @@ export async function createRuntime(config = resolveComputerUseConfig(), options
     session,
     executor,
     terminalRunner,
+    terminalControlNonce,
     browserDomBridge,
     cdpBridgeManager,
     stateManager,

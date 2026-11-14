@@ -4,7 +4,9 @@ import type { ComputerUseServerRuntime } from './runtime'
 
 import { describe, expect, it, vi } from 'vitest'
 
+import { createDryRunExecutor } from '../executors/dry-run'
 import { RunStateManager } from '../state'
+import { createLocalShellRunner } from '../terminal/runner'
 import { createTestConfig } from '../test-fixtures'
 import { registerComputerUseTools } from './register-tools'
 
@@ -30,12 +32,13 @@ function createMockServer() {
 }
 
 function createRegistrationRuntime() {
+  const config = createTestConfig()
   return {
-    config: createTestConfig(),
+    config,
     stateManager: new RunStateManager(),
     session: {},
-    executor: {},
-    terminalRunner: {},
+    executor: createDryRunExecutor(config),
+    terminalRunner: createLocalShellRunner(config),
     browserDomBridge: {},
     cdpBridgeManager: {},
     chromeSessionManager: {},

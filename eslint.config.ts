@@ -1,9 +1,12 @@
+import oxlint from 'eslint-plugin-oxlint'
 import slop from 'eslint-plugin-slop'
 
 import { defineConfig } from '@moeru/eslint-config'
 
 export default defineConfig({
   masknet: false,
+  // Load the root Oxlint plugin below. Package auto-detection depends on the virtual store location.
+  oxlint: false,
   perfectionist: false,
   preferArrow: false,
   sonarjs: false,
@@ -11,7 +14,7 @@ export default defineConfig({
   typescript: true,
   unocss: true,
   vue: true,
-}, {
+}, oxlint.configs['flat/recommended'], {
   ignores: [
     'eslint-suppressions.json',
     'cspell.config.yaml',

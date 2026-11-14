@@ -1693,6 +1693,24 @@ pages:
       configured: Web search is ready to use!
     mcp-server:
       title: MCP servers
+      terminal:
+        title: Bundled Terminal
+        description: Connect the bundled Terminal tools. Each command needs separate approval. Native GUI and Browser writes remain disabled. Save and restart to apply.
+        restore: Show Terminal requests
+        approval: Terminal command and outcome
+        approve: Approve once
+        reject: Reject
+        details: Full executor report
+        pending: Waiting for your approval. This command has not been authorized.
+        authorized: Approved once. Waiting for the shared execution slot. No completion has been confirmed.
+        dispatched: Dispatched to the executor. Waiting for its result and direct Shell close confirmation.
+        result:
+          executed: Command exited with code 0. Business success still needs independent verification.
+          failed: Command failed. Earlier effects can remain. Check the executor report before another request.
+          unknown: Result unknown. Side effects can already exist. This approval cannot authorize a replay.
+          rejected: Rejected. This request did not dispatch a new command.
+          cancelled: Cancelled before dispatch. This request did not execute.
+          expired: Approval expired before dispatch. This request did not execute.
       description: Configure MCP servers and bring their tools into AIRI.
       config-path: Config file
       runtime-title: Runtime status
@@ -1709,6 +1727,9 @@ pages:
         pending-badge: Unsaved
       status:
         unknown: not loaded
+        running: connected
+        stopped: disconnected
+        error: unavailable
       actions:
         open-config: Reveal in file manager
         apply-and-restart: Save and restart
@@ -2579,6 +2600,14 @@ pages:
         global: Available to signed-in accounts
         account: Available to your account
       features:
+        conversation_compact:
+          title: Conversation Compact
+          description: Off by default. Summarize older observations while retaining exact tool receipts. Limits measure bytes, not the model token window.
+          mode:
+            title: Scheduling
+            description: Turning this experiment off discards pending summaries. The hard request byte limit stays active.
+            synchronous: 'Synchronous: wait before the next request'
+            background: 'Background: continue below the hard byte limit'
         fullscreen_workspace:
           title: Fullscreen workspace
           description: Open settings and the chat in a workspace that covers the screen, with the character on the left. Off by default.

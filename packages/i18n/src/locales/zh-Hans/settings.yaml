@@ -1624,6 +1624,24 @@ pages:
       configured: 网络搜索已就绪！
     mcp-server:
       title: MCP 集成
+      terminal:
+        title: 随包 Terminal
+        description: 连接应用随附的 Terminal 工具。每条命令仍需单独批准，GUI 和 Browser 写入保持关闭。保存并重启后生效。
+        restore: 显示 Terminal 请求
+        approval: Terminal 命令与结果
+        approve: 单次批准
+        reject: 拒绝
+        details: 完整执行器报告
+        pending: 等待批准。此命令尚未获得授权。
+        authorized: 已单次批准，正在等待共享执行队列；尚未确认完成。
+        dispatched: 已向执行器派发，等待结果及直接 Shell 关闭确认。
+        result:
+          executed: 命令以退出码 0 结束。业务目标仍需独立验证。
+          failed: 命令失败，之前可能已产生副作用。再次申请前请检查执行报告。
+          unknown: 结果未知，可能已产生副作用。原批准不能授权重放。
+          rejected: 已拒绝，此请求未派发新的命令。
+          cancelled: 已在派发前取消，此请求未执行。
+          expired: 授权在派发前过期，此请求未执行。
       description: 配置其他 MCP 服务器并将能力拓展至 AIRI
       config-path: 配置文件
       runtime-title: 运行状态
@@ -1640,6 +1658,9 @@ pages:
         pending-badge: 未保存
       status:
         unknown: 未加载
+        running: 已连接
+        stopped: 已断开
+        error: 暂不可用
       actions:
         open-config: 在文件管理器中查看
         apply-and-restart: 保存并重启
@@ -2374,6 +2395,14 @@ pages:
         global: 已向登录账户开放
         account: 已向你的账户开放
       features:
+        conversation_compact:
+          title: 会话 Compact
+          description: 默认关闭。摘要压缩较早的观察，保留完整工具回执。限制按字节计算，不代表模型 Token 窗口。
+          mode:
+            title: 调度方式
+            description: 关闭实验会丢弃待应用摘要，请求硬字节限制仍然有效。
+            synchronous: '同步：等待摘要后再发起请求'
+            background: '后台：低于硬字节限制时继续运行'
         fullscreen_workspace:
           title: 全屏工作区
           description: 在铺满屏幕的工作区里打开设置和聊天，角色在左边。默认关闭。
