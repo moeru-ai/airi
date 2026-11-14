@@ -65,7 +65,7 @@ async function buildRoutes() {
 
   const routes = await createAuthRoutes(deps)
   const app = new Hono<HonoEnv>().route('/', routes)
-  return { app, findFirst, getJwks, getSession }
+  return { app, findFirst, getJwks, getSession, handler: deps.auth.handler }
 }
 
 describe('oidc token auth routes', () => {
@@ -130,6 +130,20 @@ describe('oidc token auth routes', () => {
     expect(getSession).not.toHaveBeenCalled()
   })
 
+  it('returns a Gravatar URL that fails for users without a Gravatar image', async () => {
+    const { app } = await buildRoutes()
+
+    const response = await app.request('/api/auth/get-session', {
+      headers: { Authorization: `Bearer ${SIGNED_JWT}` },
+    })
+
+    // A Gravatar error lets the client render its own generated avatar instead of a Gravatar identicon.
+    const body = await response.json() as { user: { image: string } }
+    const image = new URL(body.user.image)
+    expect(image.origin).toBe('https://www.gravatar.com')
+    expect(image.searchParams.get('d')).toBe('404')
+  })
+
   it('surfaces a JWKS loader failure instead of treating it as an invalid token', async () => {
     const { app, getJwks, getSession } = await buildRoutes()
     getJwks.mockRejectedValueOnce(new Error('database unavailable'))
@@ -158,5 +172,28 @@ describe('oidc token auth routes', () => {
     expect(response.status).toBe(200)
     expect(findFirst).not.toHaveBeenCalled()
     expect(getSession).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['a session cookie', { Cookie: 'better-auth.session_token=signed-session-token' }],
+    ['a JWT access token', { Authorization: `Bearer ${SIGNED_JWT}` }],
+  ])('passes sign-out with %s to Better Auth', async (_credential, headers) => {
+    const { app, handler } = await buildRoutes()
+
+    // ROOT CAUSE:
+    //
+    // A custom `/sign-out` route answered `{ success: true }` before the Better
+    // Auth catch-all. Better Auth never deleted the session or expired its
+    // cookie, so a signed-out browser kept its server session.
+    //
+    // The custom route is gone, and Better Auth's sign-out handles the request.
+    const response = await app.request('/api/auth/sign-out', {
+      method: 'POST',
+      headers,
+    })
+
+    expect(await response.text()).toBe('auth-handler')
+    expect(handler).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(handler).mock.calls[0]?.[0].url).toBe('http://localhost/api/auth/sign-out')
   })
 })

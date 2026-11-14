@@ -369,11 +369,6 @@
       "count": 2
     }
   },
-  "packages/model-driver-mediapipe/src/three/apply-pose-to-vrm.ts": {
-    "ts/no-explicit-any": {
-      "count": 4
-    }
-  },
   "packages/plugin-sdk/src/channels/index.ts": {
     "ts/no-explicit-any": {
       "count": 6
@@ -587,16 +582,6 @@
   "packages/stage-ui-live2d/src/utils/live2d-structure-report.ts": {
     "ts/no-explicit-any": {
       "count": 2
-    }
-  },
-  "packages/stage-ui-spine/src/components/scenes/spine/Model.vue": {
-    "ts/no-explicit-any": {
-      "count": 2
-    }
-  },
-  "packages/stage-ui-spine/src/utils/spine-preview.ts": {
-    "ts/no-explicit-any": {
-      "count": 1
     }
   },
   "packages/stage-ui-three/src/components/Model/VRMModel.vue": {

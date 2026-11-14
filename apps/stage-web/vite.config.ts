@@ -21,6 +21,7 @@ import { tryCatch } from '@moeru/std'
 import { localeRemap, serializeStartupFallbackLocales } from '@proj-airi/i18n'
 import { paraformerBilingualZhEn, xAsrBilingualZhEnInt8, zipformerMultilingual } from '@proj-airi/provider-inference/sherpaw-transcription/models'
 import { createSettingsSearch } from '@proj-airi/stage-pages/vite/settings-search'
+import { sentrySourceMaps } from '@proj-airi/stage-shared/analytics/sentry-vite'
 import { speakerModel } from '@proj-airi/stage-shared/speaker-model'
 import { kwsModel } from '@proj-airi/stage-ui/libs/voice/kws-model-info'
 import { Download } from '@proj-airi/unplugin-fetch/vite'
@@ -71,6 +72,15 @@ export default defineConfig({
       '@framework/type/csmmap',
       '@framework/utils/cubismdebug',
       '@framework/model/cubismmoc',
+    ],
+    // NOTICE:
+    // Only workers import these packages, and the dependency scanner does not follow `new Worker(new URL(...))`.
+    // Vite then optimizes them when a worker first loads and reloads the page, which stops a voice enrollment.
+    // Source: Vite's `vite:dep-scan` plugin.
+    // Remove when the scanner follows worker entries.
+    include: [
+      '@huggingface/transformers',
+      '@moeru/eventa/adapters/webworkers/worker',
     ],
   },
   resolve: {
@@ -361,5 +371,6 @@ export default defineConfig({
             }),
           }),
         ]),
+    sentrySourceMaps({ project: 'web', authToken: env.SENTRY_AUTH_TOKEN }),
   ],
 })

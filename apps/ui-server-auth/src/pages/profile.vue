@@ -323,13 +323,14 @@ function formatLinkedSince(iso: string): string {
     </div>
 
     <template v-else-if="user">
-      <!-- Avatar block: prefer user.image, fall back to Gravatar so the user
-           always has a personalised picture even before they upload one. -->
+      <!-- Avatar block: prefer user.image, then Gravatar. If the email has no
+           Gravatar, the image fails and Avatar draws a beam avatar from user.id. -->
       <section
         :class="['max-w-sm w-full flex flex-col items-center gap-2 mb-6']"
       >
         <Avatar
           :src="avatarUrl"
+          :seed="user.id"
           :alt="t('server.auth.profile.avatar.altText')"
           referrer-policy="no-referrer"
           :class="[

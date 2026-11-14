@@ -53,8 +53,11 @@ type Subscription = InferOutput<typeof subscriptionSchema>
 export interface SubscriberEntitlement {
   /** The entitlement lookup key, for example `airi_go`. */
   entitlementId: string
-  /** The store product identifier of the subscription that grants it. */
-  productId: string
+  /**
+   * The store product identifier of the subscription that grants it.
+   * Null for a promotional subscription, which an operator grants for one entitlement without a product.
+   */
+  productId: string | null
   /** Start of the current billing period. */
   purchasedAt: Date
   /** The end of access, grace period included. Null means no expiry. */
@@ -189,18 +192,22 @@ export function createRevenuecatSubscriberClient(input: {
     const seen = new Set<string>()
     for (const subscription of granting) {
       const granted = subscription.entitlements.items.filter(item => accessUntil.has(item.id) && !seen.has(item.id))
-      // A promotional subscription has no product. No Capacitor is mapped to it, so it grants none.
-      if (granted.length === 0 || subscription.product_id === null)
+      if (granted.length === 0)
         continue
-      const product = safeParse(productSchema, await read(projectUrl(`/products/${encodeURIComponent(subscription.product_id)}`)))
-      if (!product.success)
-        throw createBadGatewayError('RevenueCat subscriber response is invalid')
+      // A promotional subscription has no product. The entitlement alone names the Capacitor.
+      let productId: string | null = null
+      if (subscription.product_id !== null) {
+        const product = safeParse(productSchema, await read(projectUrl(`/products/${encodeURIComponent(subscription.product_id)}`)))
+        if (!product.success)
+          throw createBadGatewayError('RevenueCat subscriber response is invalid')
+        productId = product.output.store_identifier
+      }
       for (const item of granted) {
         seen.add(item.id)
         const expiresAt = sharedWithExcluded.has(item.id) ? subscription.current_period_ends_at : accessUntil.get(item.id)!
         entitlements.push({
           entitlementId: item.lookup_key,
-          productId: product.output.store_identifier,
+          productId,
           purchasedAt: new Date(subscription.current_period_starts_at),
           accessUntil: expiresAt === null ? null : new Date(expiresAt),
         })

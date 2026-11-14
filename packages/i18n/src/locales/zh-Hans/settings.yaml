@@ -32,6 +32,8 @@ dialogs:
     skipForNow: 暂时跳过
     saveAndContinue: 保存并继续
     next: 下一步
+    back: 返回
+    later: 稍后
     retry: 重试
     credentialsSafeLabel: 保证您的 API 密钥和凭据的安全！
     credentialsSafeLocal: >-
@@ -59,10 +61,112 @@ dialogs:
       notificationsDescription: 允许提醒以及重要的状态更新。
       microphoneTitle: 麦克风
       microphoneDescription: 允许 AIRI 使用麦克风进行语音输入和转写。
+      accessibilityTitle: 辅助功能
+      accessibilityDescription: 让「按住说话」快捷键在其他应用处于前台时也能使用。
+      screenRecordingTitle: 屏幕录制
+      screenRecordingDescription: 在你让 AIRI 看屏幕时，允许它看到你的屏幕。
+      pushToTalkTitle: 按住说话
+      pushToTalkDescription: AIRI 在前台时，按住一个键说话。
+      screenShareTitle: 屏幕共享
+      screenShareDescription: 让 AIRI 看到你共享的屏幕或窗口。
       requestAction: 请求获取
+      openSettingsAction: 打开系统设置
       optionalHint: 即使没有授予这些权限，您也可以继续。
       stateGranted: 已授权
       stateNotGranted: 未授权
+      flow:
+        steps: 权限
+        setUpLater: 稍后设置
+        allow: 允许
+        continue: 继续
+        skip: 跳过
+        done: 完成
+        tryAgain: 再试一次
+        state:
+          granted: 已允许
+          skipped: 已跳过
+          todo: 未设置
+          review: 查看
+          done: 已完成
+          blocked: '需要{requirement}'
+        blocked:
+          title: '{page}需要{requirement}'
+          body: '请先设置{requirement}，或者跳过这一页。'
+          action: '设置{requirement}'
+        microphone:
+          title: 让角色听见你
+          body: 语音聊天和唤醒词需要它。
+          allow: 允许使用麦克风
+          device: 输入设备：{device}
+          testing: 说点什么，比如「你好」。
+          quiet: 还没有声音？检查是否静音，或换一个输入设备。
+          heard: 听到你了。
+          level: 麦克风输入音量
+          on: 语音聊天和唤醒词已开启。
+          off: 语音聊天保持关闭，你仍然可以打字。
+        accessibility:
+          title: 在其他应用里也能说话
+          body: 按住快捷键，说话，然后松开。macOS 把这个权限叫作「辅助功能」。
+          with: 有辅助功能权限
+          withBody: 快捷键在所有应用里都能用。
+          without: 没有这个权限
+          withoutBody: 只有 AIRI 在前台时才能用。
+          try: 按住这些键试试。
+          listening: 正在聆听
+          worksEverywhere: 可以用了。也去其他应用里试试吧。
+          worksHere: 在这里可以用。其他应用需要辅助功能权限。
+          location: 在「隐私与安全性 › 辅助功能」中打开 AIRI。
+          on: 快捷键在所有应用里都能用。
+          off: 快捷键只在 AIRI 处于前台时可用。
+        push-to-talk:
+          title: 按住一个键说话
+          body: AIRI 在前台时按住这个键，说话，然后松开。
+          try: 按住这个键试试。
+          works: 可以用了。AIRI 在前台时随时按住它说话。
+          on: AIRI 在前台时按住这个键说话。
+          off: 你仍然可以用麦克风按钮说话。
+        screen-recording:
+          title: 让角色看到你的屏幕
+          share: 共享屏幕
+          body: 只在你要求时，比如问「我的屏幕上有什么？」
+          visible: 这就是角色能看到的画面。
+          hidden: 角色看不到
+          display: 显示器
+          previewOf: '{screen} 的预览'
+          location: 在「隐私与安全性 › 录屏与系统录音」中打开 AIRI。
+          on: 你要求时，角色可以看到你的屏幕。
+          off: 角色看不到你的屏幕。
+        notifications:
+          title: 接收角色的提醒
+          body: 提醒和状态更新。
+          on: 通知已开启。
+          off: 你不会收到提醒。
+        summary:
+          name: 总结
+          title: 都设置好了
+          almost: 就差一点了
+          body: 之后可以随时在设置里修改。
+          skipped: 已跳过。{consequence}
+          blocked: '需要先设置{requirement}。{consequence}'
+          setUp: 去设置
+          setUpOne: 设置{permission}
+    voiceprint:
+      title: 让角色记住你的声音
+      body: 在安静的地方说大约 {seconds} 秒。AIRI 只在这台设备上保存声纹，不保存录音。
+      count: '{seconds} / {target} 秒'
+      cue:
+        start: 开始说吧
+        speaking: 很好，继续说
+        more: 再多说一点
+        almost: 快好了
+      progress: '声纹登记：已录到 {seconds} / {target} 秒语音'
+      languages: 声纹对登记时的语言最准。如果你还说其他语言，可以再登记一个声纹。
+      delete: '删除声纹 {index}'
+      label: '声纹 {index} 的标签'
+      more: 稍后可在 {path} 登记更多声纹。
+      on: 你的声纹已保存在这台设备上。
+      off: AIRI 无法识别你的声音。
+      speakerRecognition: AIRI 会检查输入的声音像不像你。其他人仍然可以和 AIRI 说话。
   bug-report:
     title: Bug 汇报 (´;ω;`)ヾ(･∀･`)
     subtitle: 坏哦，看起来我们不小心搞砸了一些东西。可以分享一下遇到了什么问题吗？
@@ -121,6 +225,7 @@ model-select:
     sync:
       upload: 上传到云端
       delete-cloud: 从云端删除
+      upload-progress: '上传中 {percent}%'
       status:
         local-only: 仅在本设备
         queued: 等待上传
@@ -266,7 +371,7 @@ pages:
     viewFluxDetails: 查看详情
     capacitorEntry: 订阅
     viewCapacitor: 查看
-    signedInAs: 当前登录账号
+    signedInAs: 当前账号
     profile:
       tab: 个人资料
       title: 个人资料
@@ -294,6 +399,7 @@ pages:
       action:
         link: 关联
         unlink: 取消关联
+        signInAgain: 重新登录
       message:
         loading: 正在加载已关联的帐户...
         unlinked: '解除了 {provider} 的关联'
@@ -306,6 +412,7 @@ pages:
         accountAlreadyLinkedToDifferentUser: 这个 OAuth 帐户已经关联到另一个 AIRI 帐户了。请选择另一个第三方帐户，或者先在另一个 AIRI 帐户中解除关联。
         oauthCallbackFailed: 暂时无法关联这个 OAuth 帐户。请重试，或选择另一个第三方帐户。
         lastAccount: 这是你当前唯一的登录方式，请务必先设置密码再解除关联哦
+        reauthenticate: 请先重新登录，再关联或解除关联帐户。
     sync:
       tab: 同步
       title: 同步
@@ -359,7 +466,7 @@ pages:
         action: 删除帐户
         modal:
           title: 删除账户？
-          warning: 此操作无法撤销。现存的 Flux 余额会被清除。如有生效中的订阅，请先取消。
+          warning: 此操作无法撤销。现存的 Flux 电量会被清除。如有生效中的订阅，请先取消。
           confirmEmail:
             label: 请再次输入电子邮箱以确认删除
             mismatch: 邮箱不匹配。
@@ -484,6 +591,7 @@ pages:
       greetings: 问候语（每行一个）
       settings: 设置
       version: 版本
+      model: 角色模型
       create: 创建
       defaults:
         name: 名字
@@ -506,6 +614,7 @@ pages:
           填写角色的背景、所处情境，以及角色与你互动时的回应方式。
         name: 该角色的正式名称。
         nickname: 设置后优先使用昵称。
+        body_model: 在舞台上显示这个角色的模型。
         description: 该角色的描述。
         notes: 可填写个人备注。
         personality: >-
@@ -815,7 +924,7 @@ pages:
             collapse: 折叠
             custom_model_placeholder: 输入自定义模型名称
             current_model_label: '当前模型：'
-            description: 为意识选择合适的大语言模型服务来源
+            description: 为角色的意识模块选择合适的大语言模型服务来源
             error: 获取出错啦
             health_check_failed: 健康检查失败
             no_providers_configured_title: 没有配置服务来源
@@ -921,32 +1030,41 @@ pages:
       voiceprint:
         title: 声纹
         description: 登记你的声音，让 AIRI 能认出你。
-        intro: 声纹是声纹模型从你的语音中算出的一组数字。它不包含音频，但能识别出你。
-        privacy: AIRI 只把你的声纹保存在这台设备上。导出角色卡不会带上它，AIRI 也不会上传它。要删除它，可以使用本页的「删除声纹」，或数据设置中的「删除所有数据」。
+        intro: 声纹是声纹模型从语音中算出的一组数字。它不包含音频，但能识别出说话的人。
+        languages: 声纹对登记时所说语言的语音最准。如果你说多种语言，可以每种语言各登记一个声纹。标签可以帮你区分它们，例如语言、麦克风或说话的人。
+        privacy: AIRI 不保存登记时的录音，只把声纹保存在这台设备上。导出角色卡不会带上它们，AIRI 也不会上传它们。要删除某个声纹，使用本页的「删除」。要全部删除，使用数据设置中的「删除所有数据」。
         download: 第一次登记时会下载声纹模型，约 28 MB。
+        saved: 已保存的声纹
+        label: 标签
+        label-placeholder: 标签，例如中文
+        enabled: 用于说话人识别
         speaker-recognition:
           label: 说话人识别
-          description: 把由说话或唤醒词开始的每次语音输入和你的声纹比对，并把分数记录在这次输入的 IO trace 中。「按住说话」的输入没有分数。任何人的声音仍然可以开始输入，聊天模型也收不到这个分数。AIRI 聆听期间，声纹模型会一直留在内存中。
-          needs-voiceprint: 登记声纹后才能开启说话人识别。
+          description: 把由说话或唤醒词开始的每次语音输入，和每个开启了「用于说话人识别」的声纹比对。这次输入的 IO trace 会记录最高的分数和对应的声纹。「按住说话」的输入没有分数。任何人的声音仍然可以开始输入，聊天模型也收不到这个分数。AIRI 聆听期间，声纹模型会一直留在内存中。
+          needs-voiceprint: 要使用说话人识别，请先登记声纹，并为它开启「用于说话人识别」。
         status:
           none: 你还没有声纹。
           enrolled: '{date} 登记，使用了 {seconds} 秒语音。'
-          outdated: 声纹模型已更新。请重新登记，才能使用你的声纹。
-        instructions: 请一个人待在麦克风旁边。点击「开始录音」，然后用平时的声音读出下面的句子。
-        sentence-1: 今天我想看看天气，读一下消息，再安排好接下来要做的事情。
-        sentence-2: 我一般在晚上和 AIRI 聊天，那时候房间很安静，我也有空。
-        sentence-3: 请记住我的声音，这样你就能知道是我在说话。
+          outdated: 声纹模型已更新。请重新登记，才能使用这个声纹。
+        instructions: 请一个人待在麦克风旁边。点击「开始录音」，然后用平时的声音说话。
+        sample-prompt: 不知道说什么？可以读这段：
+        sample: 今天我想看看天气，读一下消息，再安排好接下来要做的事情。我一般在晚上和 AIRI 聊天，那时候房间很安静，我也有空。请记住我的声音，这样你就能知道是我在说话。
         progress: '已录到 {seconds} 秒语音。登记至少需要 {min} 秒。'
         start: 开始录音
-        again: 重新登记
+        again: 再登记一个声纹
         finish: 完成
         cancel: 取消
-        delete: 删除声纹
-        enrolling: 正在计算你的声纹……
+        delete: 删除
+        enrolling: 正在生成你的声纹……
+        review:
+          title: 这个声音和已保存的声纹不太像
+          body: 换了人、语言或麦克风，都可能出现这种情况。
+          keep: 保留声纹
+          discard: 放弃
         result:
           enrolled: 你的声纹已保存。
-          cancelled: 已取消登记。
-          too-short: '这次录音只有 {seconds} 秒语音，登记至少需要 {min} 秒。请重新录音。'
+          cancelled: 已取消登记，没有保存任何内容。
+          too-short: '只录到 {seconds} 秒语音。登记至少需要 {min} 秒，请重新录音。'
           error: '登记失败：{error}'
       sections:
         section:
@@ -1159,7 +1277,7 @@ pages:
             load_error: 无法加载音色
             custom_model_placeholder: 输入指定模型名称...
             custom_voice_placeholder: 输入指定声线 ID...
-            description: 选择合适的语音服务来源
+            description: 选择默认的语音服务来源。角色没有单独设置时使用它。
             no_models: 没有任何可用的模型
             no_models_description: 该服务来源的模型列表没有返回任何的数据
             no_voices: 没有任何可用的声线
@@ -1606,15 +1724,16 @@ pages:
         json-applied: JSON 已经解析完成了，点「保存并重启」就写到磁盘上啦。
         restarted: 重启好啦！启动了 {started} 个，失败 {failed} 个，跳过 {skipped} 个
   flux:
-    title: Flux 电量
+    pageTitle: 订阅
+    balance: 余额 {balance} Flux
+    title: 订阅
     buy: 充值
     currency: 币种
-    description: 充值 Flux
     terms: 使用条款
     privacy: 隐私政策
     packagesError: 暂时无法获取可用的 Flux 电量包。可以之后再试试吗？
     checkout:
-      success: 谢谢你！你的 Flux 余额已经更新好啦～
+      success: 谢谢你！你的 Flux 电量已经更新好啦～
       canceled: 支付被取消
       error: 哎呀，出错了，请稍后再试
     audit:
@@ -1633,32 +1752,43 @@ pages:
       delayHint: Flux 电量历史记录是缓慢更新的，可能有延迟
       ttsRequests: 请求
     packages:
-      title: Flux 电池包
+      title: 电量补充包
       buy: 充值
-      description: 可以选择购入的 Flux 电池包
+      description: 单次购买，不会过期。
   capacitor:
-    title: 订阅
+    name: Capacitor
+    left: Capacitor 还剩 {percent}
+    offer:
+      none: 还没有 Capacitor
+      day: 订阅一个 Capacitor，它每天自动充满 Flux
+      week: 订阅一个 Capacitor，它每周自动充满 Flux
+      month: 订阅一个 Capacitor，它每月自动充满 Flux
+      hint: 对话和语音先用 Capacitor 里的 Flux。
+    forecast:
+      left: 照现在的用法，到 {time} 大约还剩 {percent}
+      empty: 照现在的用法，大约 {time} 用完
+    empty: Capacitor 已用完。想现在继续聊天，可以打开下方的选项，改用 Flux 余额。
     statusError: 暂时无法获取 Capacitor 的状态，可以之后再试试吗？
     packagesError: 暂时无法获取可用的 Capacitor，可以之后再试试吗？
     preferenceError: 偏好保存失败，请稍后再试。
-    remaining: '剩余 {percent}'
-    ofQuota: 共 {quota} Flux
     rechargesAt: '{date} 充满'
     renewsAt: '{date} 续订'
     expiresAt: '{date} 到期'
-    change: 更换订阅
+    choose: 选一个 Capacitor
+    change: 换一个 Capacitor
+    packagesHint: Capacitor 越大，能聊得越久。没用完的 Flux 不会累积。
     quota:
-      day: '每天 {quota} Flux'
-      week: '每周 {quota} Flux'
-      month: '每月 {quota} Flux'
+      day: '{quota} Flux / 天'
+      week: '{quota} Flux / 周'
+      month: '{quota} Flux / 月'
     perMonth: / 月
-    currentPackage: 当前
-    install: 订阅
-    upgrade: 升级
-    downgrade: 降级
+    currentPackage: 使用中
+    install: 订阅这个
+    upgrade: 换成 {name}
+    downgrade: 换成 {name}
     manageSubscription: 管理订阅
-    fallbackToFlux: Capacitor 用完后使用 Flux 余额
-    fallbackToFluxHint: 关闭后，对话和语音会暂停，直到 Capacitor 充满。
+    fallbackToFlux: Capacitor 用完后，改用 Flux 余额
+    fallbackToFluxHint: 关闭后，对话和语音会暂停，直到 Capacitor 再次充满。
     checkout:
       success: 订阅成功，Capacitor 已充满。
       pending: 已收到付款，Capacitor 稍后充满。

@@ -19,15 +19,19 @@
     "./types": "./src/types.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "postinstall": "tsx ./tasks/prepare-tasks.ts"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "catalog:",
+    "@moeru/std": "catalog:",
     "@pixiv/three-vrm": "catalog:",
     "es-toolkit": "catalog:",
     "three": "catalog:"
   },
   "devDependencies": {
-    "@types/three": "catalog:"
+    "@types/three": "catalog:",
+    "ofetch": "catalog:",
+    "tsx": "catalog:"
   }
 }

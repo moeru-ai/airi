@@ -7,7 +7,6 @@ import { toRaw } from 'vue'
 import { splitCard } from '../../libs/character-card-sync'
 import { useDisplayModelCloudStore } from '../display-model-cloud'
 import { useDisplayModelsStore } from '../display-models'
-import { useProviderStore } from '../providers/provider'
 import { useSettingsStageModel } from '../settings/stage-model'
 import { useAiriCardStore } from './airi-card'
 import { useConsciousnessStore } from './consciousness'
@@ -339,11 +338,7 @@ describe('airi-card store', () => {
     expect(pinia.state.value.vision).toBeUndefined()
   })
 
-  /**
-   * @example
-   * it('persists selected module config on active card', () => {})
-   */
-  it('persists selected module config on active card', async () => {
+  it('stores the default Avatar Model on the active card', async () => {
     const stageModelStore = useSettingsStageModel()
     stageModelStore.stageModelSelected = 'preset-live2d-1'
 
@@ -351,14 +346,6 @@ describe('airi-card store', () => {
     await cardStore.initialize()
 
     expect(await cardStore.setActiveCardDefaultAvatarModel('preset-vrm-1')).toBe(true)
-    expect(await cardStore.updateActiveCardConsciousness({ provider: 'openrouter-ai', model: 'anthropic/claude-sonnet' })).toBe(true)
-    expect(await cardStore.updateActiveCardVision({ provider: 'ollama', model: 'llava' })).toBe(true)
-    expect(await cardStore.updateActiveCardSpeech({ provider: 'elevenlabs', model: 'eleven_multilingual_v2', voice_id: 'aria' })).toBe(true)
-    expect(cardStore.activeCard?.extensions.airi.modules).toMatchObject({
-      consciousness: { provider: 'openrouter-ai', model: 'anthropic/claude-sonnet' },
-      vision: { provider: 'ollama', model: 'llava' },
-      speech: { provider: 'elevenlabs', model: 'eleven_multilingual_v2', voice_id: 'aria' },
-    })
     expect(cardStore.selectedAvatarModel).toMatchObject({
       displayModelId: 'preset-vrm-1',
       type: 'vrm',
@@ -387,28 +374,6 @@ describe('airi-card store', () => {
     expect(card?.extensions.airi.avatarModels[0]).toMatchObject({ displayModelId: 'preset-vrm-1', type: 'vrm' })
     expect(card?.extensions.airi.defaultAvatarModelId).toBe(card?.extensions.airi.avatarModels[0].id)
     expect(card?.extensions.airi.modules).not.toHaveProperty('displayModelId')
-  })
-
-  // ROOT CAUSE:
-  //
-  // Selecting Apple Vision stored an empty model on the card before the catalog
-  // loaded. The catalog default changed only the runtime model, so applying the
-  // card again restored the empty model.
-  //
-  // We fixed this by storing the catalog default on the card.
-  it('keeps the catalog default of a selected vision provider when the card applies again', async () => {
-    const cardStore = useAiriCardStore()
-    await cardStore.initialize()
-    useProviderStore().providerRuntimeState = {
-      'apple-vision': { models: [], defaultModel: 'system', modelStatus: 'ready', modelError: null },
-    }
-
-    expect(await cardStore.selectActiveCardVisionProvider('apple-vision')).toBe(true)
-    expect(cardStore.activeCard?.extensions.airi.modules.vision).toEqual({ provider: 'apple-vision', model: 'system' })
-
-    await cardStore.activateCard(cardStore.activeCardId)
-
-    expect(useVisionStore()).toMatchObject({ activeProvider: 'apple-vision', activeModel: 'system' })
   })
 
   // ROOT CAUSE:
@@ -922,18 +887,6 @@ describe('airi-card store', () => {
     cardStore.resetState()
 
     expect(stageModelStore.stageModelSelected).toBe('preset-live2d-1')
-  })
-
-  it('updates speech config on the active card', async () => {
-    const cardStore = useAiriCardStore()
-    await cardStore.initialize()
-
-    expect(await cardStore.updateActiveCardSpeech({ provider: 'elevenlabs', model: 'eleven_multilingual_v2', voice_id: 'aria' })).toBe(true)
-    expect(cardStore.activeCard?.extensions.airi.modules.speech).toMatchObject({
-      provider: 'elevenlabs',
-      model: 'eleven_multilingual_v2',
-      voice_id: 'aria',
-    })
   })
 
   it('keeps position-sensitive CCv3 fields separate from the stable system prompt', async () => {

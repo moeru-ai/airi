@@ -8,6 +8,18 @@ export interface PageContextPayload {
   language?: string
 }
 
+/**
+ * Where a video page is in a navigation between two videos.
+ *
+ * - `changing`: the URL shows the new video, but the title or channel can still belong to the previous video.
+ * - `ready`: the title and channel belong to the video in the URL.
+ */
+export interface VideoNavigation {
+  /** The video that the navigation leads to. */
+  id: string
+  phase: 'changing' | 'ready'
+}
+
 export interface VideoContextPayload {
   site: VideoSite
   url: string
@@ -22,6 +34,8 @@ export interface VideoContextPayload {
   playbackRate?: number
   isLive?: boolean
   playerSize?: { width: number, height: number }
+  /** Set only on sites that tell when a navigation is done. Others leave it out. */
+  navigation?: VideoNavigation
 }
 
 export interface SubtitlePayload {

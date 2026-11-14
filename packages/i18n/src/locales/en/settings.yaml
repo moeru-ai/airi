@@ -33,6 +33,8 @@ dialogs:
     skipForNow: Skip for now
     saveAndContinue: Save and Continue
     next: Next
+    back: Back
+    later: Later
     retry: Retry
     credentialsSafeLabel: Keep your API keys and credentials safe!
     credentialsSafeLocal: >-
@@ -66,10 +68,112 @@ dialogs:
       notificationsDescription: Allow reminders and important status updates.
       microphoneTitle: Microphone
       microphoneDescription: Allow AIRI to use your microphone for voice input and transcription.
+      accessibilityTitle: Accessibility
+      accessibilityDescription: Lets the Push to Talk shortcut work while another app is in front.
+      screenRecordingTitle: Screen Recording
+      screenRecordingDescription: Lets AIRI see your screen when you ask it to look.
+      pushToTalkTitle: Push to Talk
+      pushToTalkDescription: Hold a key to talk while AIRI is in front.
+      screenShareTitle: Screen sharing
+      screenShareDescription: Lets AIRI see a screen or window that you share.
       requestAction: Request access
+      openSettingsAction: Open System Settings
       optionalHint: You can continue even if these permissions are not granted.
       stateGranted: Granted
       stateNotGranted: Not granted
+      flow:
+        steps: Permissions
+        setUpLater: Set up later
+        allow: Allow
+        continue: Continue
+        skip: Skip
+        done: Done
+        tryAgain: Try again
+        state:
+          granted: Allowed
+          skipped: Skipped
+          todo: Not set up
+          review: Review
+          done: Done
+          blocked: 'Needs {requirement}'
+        blocked:
+          title: '{page} needs {requirement}'
+          body: 'Set up {requirement} first, or skip this page.'
+          action: 'Set up {requirement}'
+        microphone:
+          title: Let your character hear you
+          body: Voice chat and wake words use it.
+          allow: Allow microphone
+          device: 'Input device: {device}'
+          testing: Say something, like "Hello".
+          quiet: Nothing yet? Check mute, or pick another input.
+          heard: We can hear you.
+          level: Microphone input level
+          on: Voice chat and wake words are on.
+          off: Voice chat stays off. You can still type.
+        accessibility:
+          title: Talk while you use other apps
+          body: Hold the shortcut, speak, and let go. macOS calls this permission Accessibility.
+          with: With Accessibility
+          withBody: The shortcut works in every app.
+          without: Without it
+          withoutBody: It works only while AIRI is in front.
+          try: Hold the keys to try.
+          listening: Listening
+          worksEverywhere: It works. Try it in another app too.
+          worksHere: It works here. Other apps need Accessibility.
+          location: Turn on AIRI in Privacy & Security › Accessibility.
+          on: The shortcut works in every app.
+          off: The shortcut works only while AIRI is in front.
+        push-to-talk:
+          title: Hold a key to talk
+          body: Hold the key while AIRI is in front, speak, and let go.
+          try: Hold the key to try.
+          works: It works. Hold it whenever AIRI is in front.
+          on: Hold the key while AIRI is in front to talk.
+          off: You can still talk with the microphone button.
+        screen-recording:
+          title: Let your character see your screen
+          share: Share a screen
+          body: Only when you ask, for example "What is on my screen?"
+          visible: This is what your character sees.
+          hidden: Hidden from your character
+          display: Display
+          previewOf: 'Preview of {screen}'
+          location: Turn on AIRI in Privacy & Security › Screen Recording.
+          on: Your character sees your screen when you ask.
+          off: Your character cannot see your screen.
+        notifications:
+          title: Get reminders from your character
+          body: Reminders and status updates.
+          on: Notifications are on.
+          off: You do not get reminders.
+        summary:
+          name: Summary
+          title: You're all set
+          almost: Almost there
+          body: You can change these in Settings at any time.
+          skipped: 'Skipped. {consequence}'
+          blocked: 'Needs {requirement} first. {consequence}'
+          setUp: Set up
+          setUpOne: 'Set up {permission}'
+    voiceprint:
+      title: Let your character know your voice
+      body: Talk for about {seconds} seconds in a quiet place. AIRI keeps only your voiceprint on this device, not the recording.
+      count: '{seconds} of {target} s'
+      cue:
+        start: Start talking
+        speaking: Sounds good, keep going
+        more: Say a little more
+        almost: Almost there
+      progress: 'Voiceprint enrollment: {seconds} of {target} seconds of speech'
+      languages: A voiceprint works best in the language you enrolled it in. If you speak other languages, enroll another voiceprint.
+      delete: 'Delete voiceprint {index}'
+      label: 'Label of voiceprint {index}'
+      more: 'You can enroll more voiceprints later in {path}.'
+      on: Your voiceprint is saved on this device.
+      off: AIRI cannot recognize your voice.
+      speakerRecognition: AIRI checks if a voice input sounds like you. Other people can still talk to AIRI.
   bug-report:
     title: Bug report (´;ω;`)ヾ(･∀･`)
     subtitle: Oops, sorry we made something wrong. Would you mind telling us what
@@ -103,15 +207,15 @@ analytics:
   notice:
     title: Usage analytics
     description: >-
-      AIRI collects anonymous usage analytics to help us understand how the app
-      is used and improve stability. No personal data is collected.
+      AIRI collects anonymous usage analytics and error reports to help us
+      understand how the app is used and fix crashes. No personal data is collected.
     privacyPrefix: Read the
     privacyLink: privacy policy
-    onboardingHint: You can turn analytics off later in Settings > System > General.
-    settingsHint: You can turn analytics off at any time.
+    onboardingHint: You can turn analytics and error reports off later in Settings > System > General.
+    settingsHint: You can turn analytics and error reports off at any time.
   toggle:
-    title: Enable usage analytics
-    description: Turn this off to opt out of analytics collection.
+    title: Enable usage analytics and error reports
+    description: Turn this off to stop sending usage analytics and error reports.
   disabled:
     title: Analytics disabled for this development build
 model-select:
@@ -133,6 +237,7 @@ model-select:
     sync:
       upload: Upload to cloud
       delete-cloud: Delete from cloud
+      upload-progress: 'Uploading {percent}%'
       status:
         local-only: This device only
         queued: Waiting to upload
@@ -302,9 +407,6 @@ pages:
     login: Sign in
     logout: Sign out
     fluxBalance: Flux Balance
-    viewFluxDetails: View details
-    capacitorEntry: Subscription
-    viewCapacitor: View
     signedInAs: Signed in as
     profile:
       tab: Profile
@@ -333,6 +435,7 @@ pages:
       action:
         link: Link
         unlink: Unlink
+        signInAgain: Sign in again
       message:
         loading: Loading connected accounts...
         unlinked: '{provider} disconnected.'
@@ -345,6 +448,7 @@ pages:
         accountAlreadyLinkedToDifferentUser: This OAuth account is already linked to another AIRI account. Choose a different provider account, or unlink it from the other AIRI account first.
         oauthCallbackFailed: We could not connect this OAuth account. Try again or choose another provider account.
         lastAccount: This is your only sign-in method. Set a password first before unlinking it.
+        reauthenticate: Sign in again before you link or unlink an account.
     sync:
       tab: Sync
       title: Sync
@@ -524,6 +628,7 @@ pages:
       greetings: Greetings (one per line)
       settings: Settings
       version: Version
+      model: Character model
       create: Create
       defaults:
         name: Name
@@ -549,6 +654,7 @@ pages:
           answered.
         name: Is the formal name of this character.
         nickname: You can also give a nickname that will be used in priority.
+        body_model: The model that shows this character on the Stage.
         description: Description of this character.
         notes: If you want to add some personal notes.
         personality: >-
@@ -867,7 +973,7 @@ pages:
             collapse: Collapse
             custom_model_placeholder: Enter custom model name...
             current_model_label: 'Current model:'
-            description: Select the suitable LLM provider for consciousness
+            description: Select the default LLM provider. A character uses it unless it has its own.
             error: Error loading models
             health_check_failed: Health check failed
             no_providers_configured_title: No Providers Configured
@@ -978,32 +1084,41 @@ pages:
       voiceprint:
         title: Voiceprint
         description: Enroll your voice, so that AIRI can recognize it.
-        intro: A voiceprint is a list of numbers that the voiceprint model computes from your speech. It contains no audio, but it can identify you.
-        privacy: AIRI keeps your voiceprint only on this device. Card export does not include it, and AIRI does not upload it. To delete it, use Delete voiceprint on this page, or Delete all data in Data settings.
+        intro: A voiceprint is a list of numbers that the voiceprint model computes from speech. It contains no audio, but it can identify the person who spoke.
+        languages: A voiceprint matches speech in the language of its enrollment best. If you speak several languages, enroll one voiceprint for each. A label helps you tell them apart, for example a language, a microphone, or a person.
+        privacy: AIRI does not keep the recordings of an enrollment. It keeps voiceprints only on this device. Card export does not include them, and AIRI does not upload them. To delete one, use Delete on this page. To delete all of them, use Delete all data in Data settings.
         download: The first enrollment downloads the voiceprint model, about 28 MB.
+        saved: Saved voiceprints
+        label: Label
+        label-placeholder: Label, for example English
+        enabled: Use for speaker recognition
         speaker-recognition:
           label: Speaker recognition
-          description: Compares each voice input that speech or a wake word starts with your voiceprint, and records the score in the IO trace of the input. Push to Talk inputs get no score. Every voice can still start an input, and the chat model does not receive the score. While AIRI listens, the voiceprint model stays in memory.
-          needs-voiceprint: Enroll your voice to turn on speaker recognition.
+          description: Compares each voice input that speech or a wake word starts with each voiceprint that has Use for speaker recognition on. The IO trace of the input records the highest score and its voiceprint. Push to Talk inputs get no score. Every voice can still start an input, and the chat model does not receive the score. While AIRI listens, the voiceprint model stays in memory.
+          needs-voiceprint: To use speaker recognition, enroll a voiceprint and turn on Use for speaker recognition for it.
         status:
           none: You have no voiceprint.
           enrolled: 'Enrolled on {date}, from {seconds} s of speech.'
-          outdated: The voiceprint model changed. Enroll again to use your voiceprint.
-        instructions: Stay alone near the microphone. Click Start recording, then read these sentences aloud in your usual voice.
-        sentence-1: Today I want to check the weather, read my messages, and plan the rest of my day.
-        sentence-2: I usually talk to AIRI in the evening, when the room is quiet and I have some free time.
-        sentence-3: Please remember my voice, so that you can tell when I am the one who speaks.
+          outdated: The voiceprint model changed. Enroll again to use this voiceprint.
+        instructions: Stay alone near the microphone. Click Start recording, then talk in your usual voice.
+        sample-prompt: 'Not sure what to say? Read this:'
+        sample: Today I want to check the weather, read my messages, and plan the rest of my day. I usually talk to AIRI in the evening, when the room is quiet and I have some free time. Please remember my voice, so that you can tell when I am the one who speaks.
         progress: '{seconds} s of speech. Enrollment needs at least {min} s.'
         start: Start recording
-        again: Enroll again
+        again: Enroll another voiceprint
         finish: Finish
         cancel: Cancel
-        delete: Delete voiceprint
-        enrolling: Computing your voiceprint...
+        delete: Delete
+        enrolling: Creating your voiceprint...
+        review:
+          title: This voice is not like your saved voiceprints
+          body: A different person, language, or microphone can cause this.
+          keep: Keep voiceprint
+          discard: Discard
         result:
           enrolled: Your voiceprint is saved.
-          cancelled: Enrollment cancelled.
-          too-short: 'The recording had {seconds} s of speech. Enrollment needs at least {min} s. Record again.'
+          cancelled: Enrollment cancelled. Nothing was saved.
+          too-short: 'Only {seconds} seconds of speech. Enrollment needs at least {min} seconds. Record again.'
           error: 'Enrollment failed: {error}'
       sections:
         section:
@@ -1222,7 +1337,7 @@ pages:
             load_error: Cannot load voices
             custom_model_placeholder: Enter custom model name...
             custom_voice_placeholder: Enter custom voice ID...
-            description: Select the suitable speech provider
+            description: Select the default speech provider. A character uses it unless it has its own.
             no_models: No models available
             no_models_description: No models were found for this provider
             no_voices: No voices available
@@ -1677,10 +1792,11 @@ pages:
         json-applied: JSON applied to the form. Click "Save and restart" to persist it to disk.
         restarted: All restarted! {started} started, {failed} failed, {skipped} skipped.
   flux:
-    title: Flux
+    pageTitle: Subscription
+    balance: Balance {balance} Flux
+    title: Subscription
     buy: Charge
     currency: Currency
-    description: Current Flux
     terms: Terms
     privacy: Privacy Policy
     packagesError: Failed to load packages. Please try again later.
@@ -1704,29 +1820,40 @@ pages:
       delayHint: Usage records may be delayed by up to 1 minute
       ttsRequests: requests
     packages:
-      title: Flux Packages
+      title: Flux top-up packs
       buy: Charge
-      description: Flux packages to choose from.
+      description: One-time purchase. It does not expire.
   capacitor:
-    title: Subscription
+    name: Capacitor
+    left: 'Capacitor: {percent} left'
+    offer:
+      none: No Capacitor yet
+      day: Subscribe to a Capacitor. It refills with Flux every day.
+      week: Subscribe to a Capacitor. It refills with Flux every week.
+      month: Subscribe to a Capacitor. It refills with Flux every month.
+      hint: Chat and speech use the Flux in the Capacitor first.
+    forecast:
+      left: At this pace, about {percent} is left at {time}.
+      empty: At this pace, the Capacitor is empty at about {time}.
+    empty: Your Capacitor is empty. To keep chatting now, turn on the option below to use your Flux balance.
     statusError: Failed to load your Capacitor. Please try again later.
     packagesError: Failed to load Capacitors. Please try again later.
     preferenceError: Failed to save preference. Please try again later.
-    remaining: '{percent} left'
-    ofQuota: of {quota} Flux
     rechargesAt: Refills {date}
     renewsAt: Renews {date}
     expiresAt: Ends {date}
-    change: Change subscription
+    choose: Choose a Capacitor
+    change: Change your Capacitor
+    packagesHint: A larger Capacitor lets you chat longer. Unused Flux does not carry over.
     quota:
-      day: '{quota} Flux every day'
-      week: '{quota} Flux every week'
-      month: '{quota} Flux every month'
+      day: '{quota} Flux / day'
+      week: '{quota} Flux / week'
+      month: '{quota} Flux / month'
     perMonth: / month
-    currentPackage: Current
+    currentPackage: In use
     install: Subscribe
-    upgrade: Upgrade
-    downgrade: Downgrade
+    upgrade: Upgrade to {name}
+    downgrade: Downgrade to {name}
     manageSubscription: Manage subscription
     fallbackToFlux: Use your Flux balance when the Capacitor is empty
     fallbackToFluxHint: When off, chat and speech stop until the Capacitor refills.

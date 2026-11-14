@@ -113,3 +113,8 @@ async function handleTryAgain() {
     </div>
   </main>
 </template>
+
+<route lang="yaml">
+meta:
+  onboarding: false
+</route>

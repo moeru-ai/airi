@@ -31,6 +31,7 @@ import { useAuthStore } from '../auth'
 import { useAiriCardStore } from '../modules/airi-card'
 import { useSyncPreferencesStore } from '../sync-preferences'
 import { staysLocal } from './session-locality'
+import { characterMembersOfMeta } from './session-members'
 import { mergeLoadedSessionMessages } from './session-message-merge'
 
 /**
@@ -139,6 +140,11 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
   function getCurrentCharacterId() {
     return activeCardId.value || 'default'
+  }
+
+  /** The ids of the characters that are members of a session. See {@link characterMembersOfMeta}. */
+  function characterMembersOf(sessionId: string) {
+    return characterMembersOfMeta(sessionMetas.value[sessionId])
   }
 
   function getCloudMapper(): CloudChatMapper {
@@ -544,9 +550,16 @@ export const useChatSessionStore = defineStore('chat-session', () => {
    * Returns:
    * - The new session id. When `setActive` is not `false` the session is
    *   also made the active one.
+   *
+   * `setActive` writes two things: the session that the index records for the character, and the selection of the
+   * window that runs this action. The synchronization leader runs this action for every window, so that window is
+   * the leader. A caller that resolves a session for another window passes `selectInWindow: false` and selects the
+   * returned id itself.
    */
   async function createSession(characterId: string, options?: {
     setActive?: boolean
+    /** @default the value of `setActive` */
+    selectInWindow?: boolean
     messages?: ChatHistoryItem[]
     title?: string
     bindings?: string[]
@@ -596,7 +609,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     await enqueuePersist(() => chatSessionsRepo.saveSession(sessionId, record))
     await persistIndex()
 
-    if (options?.setActive !== false)
+    if (options?.selectInWindow ?? options?.setActive !== false)
       activeSessionId.value = sessionId
 
     captureAnalyticsEvent('conversation_created', {
@@ -822,14 +835,15 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       if (isStaleEpoch())
         return ''
 
+      // This function resolves the session for the window that asked, and that window selects the returned id.
+      // It runs in the leader, so it must not write the selection here: the leader window can show another session.
       const characterIndex = getCharacterIndex(characterId)
       if (!characterIndex)
-        return createSession(characterId)
+        return createSession(characterId, { selectInWindow: false })
 
       if (!characterIndex.activeSessionId)
-        return createSession(characterId)
+        return createSession(characterId, { selectInWindow: false })
 
-      activeSessionId.value = characterIndex.activeSessionId
       // Use the public action so follower hydration is routed to the elected
       // leader instead of becoming a stale full-state proposal.
       await useChatSessionStore(pinia).loadSession(characterIndex.activeSessionId)
@@ -1307,14 +1321,16 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   /**
    * Replaces session state after the synchronized auth identity changes.
    * The synchronization plugin routes this action to the elected renderer.
+   *
+   * Returns the session of the current character for the new identity. The window that called selects it.
    */
-  async function activateCurrentUser() {
+  async function activateCurrentUser(): Promise<string> {
     if (!sessionStateMatchesCurrentUser()) {
       teardownCloudWsClient()
       clearInMemoryState()
     }
 
-    await ensureCurrentSession()
+    return ensureCurrentSession()
   }
 
   /**
@@ -1651,14 +1667,40 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     },
   })
 
-  /** Selects and hydrates one conversation only in the current window. */
+  /**
+   * Selects and hydrates one conversation only in the current window.
+   *
+   * The chat selects the character: the character of the selected session becomes the active character.
+   * The stage, the prompt controls, the background, and the settings pages read the active character, so they follow the chat.
+   * See `docs/ai/adr/2026-11-13-chat-selects-character.md`.
+   */
   async function setActiveSession(sessionId: string) {
     activeSessionId.value = sessionId
 
-    if (ready.value)
-      await useChatSessionStore(pinia).loadSession(sessionId)
-    else if (!hasKnownSession(sessionId))
-      ensureSession(sessionId)
+    if (!ready.value) {
+      if (!hasKnownSession(sessionId))
+        ensureSession(sessionId)
+      return
+    }
+
+    await useChatSessionStore(pinia).loadSession(sessionId)
+    // The load can take time, and the user can select another session during it. Only the newest selection activates
+    // its character. An older one would move every window to the index session of its character.
+    if (activeSessionId.value !== sessionId)
+      return
+
+    const [characterId] = characterMembersOf(sessionId)
+    // A session of a character that this device does not have keeps the active character.
+    if (!characterId || characterId === getCurrentCharacterId() || !cards.getCard(characterId))
+      return
+
+    try {
+      await cards.activateCard(characterId)
+    }
+    catch (error) {
+      // The window keeps the selected session. Only the stage and the settings stay on the earlier character.
+      console.error('[chat-session] Failed to activate the character of the selected session:', error)
+    }
   }
 
   function applyRemoteSnapshot(snapshot: {
@@ -1912,7 +1954,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       }))
     }
 
-    await ensureActiveSessionForCharacter()
+    // An import replaces every session, so the window that runs it shows the session of the current character.
+    const sessionId = await ensureActiveSessionForCharacter()
+    if (sessionId)
+      activeSessionId.value = sessionId
   }
 
   let lastActiveSessionMeta: ChatSessionMeta | undefined
@@ -1951,6 +1996,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   watch(activeCardId, async () => {
     if (!ready.value)
       return
+    // This window already shows a chat of the new active character. Its user selected that chat, and the selection
+    // activated the character. Keep the chat. Every other window moves to the index session of the character.
+    if (characterMembersOf(activeSessionId.value).includes(getCurrentCharacterId()))
+      return
 
     try {
       const sessionId = await useChatSessionStore(pinia).ensureCurrentSession()
@@ -1975,7 +2024,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   // the leader so followers never write synchronized chat state directly.
   watch(userId, async () => {
     try {
-      await useChatSessionStore(pinia).activateCurrentUser()
+      const sessionId = await useChatSessionStore(pinia).activateCurrentUser()
+      if (sessionId)
+        activeSessionId.value = sessionId
     }
     catch (error) {
       console.error('[chat-session] Failed to activate the current user:', error)
@@ -2012,6 +2063,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     getSessionMessagesIfLoaded,
     sessionMessages,
     sessionMetas,
+    characterMembersOf,
     getSessionGeneration,
     bumpSessionGeneration,
     getSessionGenerationValue,
