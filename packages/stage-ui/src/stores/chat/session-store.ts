@@ -710,10 +710,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
       // Snapshot count before the in-memory wipe below zeroes it out.
       const messageCount = (sessionMessages.value[sessionId] ?? []).length
-      captureAnalyticsEvent('chat_session_deleted', {
-        session_id: sessionId,
-        message_count: messageCount,
-      })
       captureAnalyticsEvent('conversation_deleted', {
         conversation_id: sessionId,
         message_count: messageCount,
