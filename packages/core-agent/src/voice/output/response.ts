@@ -2,13 +2,15 @@ import type { AudioPlayback, IntentHandle, PcmBlock, PlaybackGroup, PlaybackItem
 import type { Outcome } from '@proj-airi/stream-kit'
 
 import type { TurnRef } from '../turn'
+import type { Emoticon } from './speech-transformation/emoticon'
 
-import { createSpeechPipeline } from '@proj-airi/pipelines-audio'
+import { createSpeechPipeline, formatAct, normalizeActPayload, tokenAct } from '@proj-airi/pipelines-audio'
 import { createPushStream } from '@proj-airi/stream-kit'
 import { nanoid } from 'nanoid/non-secure'
 
 import { errorFromCause, errorMessageFromValue } from '../../utils/error'
 import { toSpeechText } from './speech-transformation'
+import { findEmoticons } from './speech-transformation/emoticon'
 import { MarkdownSegmenter } from './speech-transformation/segmenter'
 
 /** Each synthesized part carries optional display text. Audio ownership transfers to playback. */
@@ -105,6 +107,78 @@ export type SpeechOutputEvent
   }
 
 type SpeechControl = { readonly type: 'special', readonly value: string } | { readonly type: 'flush' }
+
+/** True for an ACT token that selects an emotion. Its emotion has priority over the emoticons of the same segment. */
+function selectsEmotion(control: SpeechControl): boolean {
+  if (control.type !== 'special')
+    return false
+  const act = tokenAct().parse(control.value)
+  return act !== undefined && normalizeActPayload(act.payload).emotion !== undefined
+}
+
+/**
+ * Returns where the sentence that contains `index` starts its words, after line breaks and block markers such as a
+ * list bullet. A control marker before a block marker would make the block parse as text.
+ */
+function sentenceStart(source: string, index: number): number {
+  let start = 0
+  for (const end of source.slice(0, index).matchAll(/[.!?]\s|[。！？\n]/g))
+    start = end.index + end[0].length
+  return start + /^(?:\s|[-*+>]\s|#{1,6}\s|\d+[.)]\s)*/.exec(source.slice(start, index))![0].length
+}
+
+/**
+ * Removes the emoticons of one segment, so TTS does not read their symbols, and sends their emotion as an ACT token,
+ * so the avatar shows it as for a model token.
+ *
+ * The token goes before the first word of the sentence. A control in a sentence splits it into two TTS requests, and
+ * the avatar then shows the emotion while the sentence plays. A sentence with several emoticons sends the strongest.
+ * The model can also select an emotion with an ACT token. That token is the deliberate choice, so a segment with one
+ * keeps it, and its emoticons only leave the text.
+ */
+function withEmoticonControls(source: string, controls: SpeechControl[]): { segment: string, controls: SpeechControl[] } {
+  const emoticons = findEmoticons(source)
+  if (emoticons.length === 0)
+    return { segment: source, controls }
+
+  // TODO: Send the emotion to the TTS request when the voice model supports emotion or style markup.
+  // Mark the support on each model in its provider definition, because models of one provider differ.
+  const emotions = new Map<number, Emoticon>()
+  if (!controls.some(selectsEmotion)) {
+    for (const emoticon of emoticons) {
+      const start = sentenceStart(source, emoticon.start)
+      const strongest = emotions.get(start)
+      if (!strongest || emoticon.intensity > strongest.intensity)
+        emotions.set(start, emoticon)
+    }
+  }
+
+  const merged: SpeechControl[] = []
+  let segment = ''
+  let index = 0
+  while (index < source.length) {
+    const emotion = emotions.get(index)
+    if (emotion) {
+      segment += controlMarker
+      merged.push({ type: 'special', value: formatAct({ emotion: { name: emotion.emotion, intensity: emotion.intensity } }) })
+      emotions.delete(index)
+    }
+    const emoticon = emoticons.find(found => found.start === index)
+    if (emoticon) {
+      index = emoticon.end
+      // `Aww :( okay` reads as `Aww okay`, with one space.
+      if (/\s$/.test(segment) && source[index] === ' ')
+        index++
+      continue
+    }
+    // The controls of the source keep their order. Each marker takes the next one.
+    if (source[index] === controlMarker)
+      merged.push(controls.shift()!)
+    segment += source[index]
+    index++
+  }
+  return { segment, controls: [...merged, ...controls] }
+}
 
 // REVIEW: this doesn't look like the native Speech Stream, i'd rather to believe this is
 // naive wrapper and design for speech without much abstraction
@@ -382,9 +456,9 @@ export class SpeechStream {
     if (this.response.signal.aborted)
       return
 
-    for (const segment of segments) {
-      const count = segment.split(controlMarker).length - 1
-      const controls = this.controls.splice(0, count)
+    for (const source of segments) {
+      const count = source.split(controlMarker).length - 1
+      const { segment, controls } = withEmoticonControls(source, this.controls.splice(0, count))
       const parts = toSpeechText(segment, { marker: controlMarker, language: this.output.language, before: this.spoken }).split(controlMarker)
       // Segments end inside a paragraph or between blocks. The space or the line break between them stays for TTS.
       const separator = /\n\s*$/.test(segment) ? '\n' : /[ \t]$/.test(segment) ? ' ' : ''
