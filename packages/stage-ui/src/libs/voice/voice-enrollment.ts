@@ -8,6 +8,12 @@ import { toMonoSamples } from './mono-samples'
 /** Sherpaw enrolls a speaker only from this much speech or more. */
 export const MIN_ENROLLMENT_SPEECH_SECONDS = 5
 
+/**
+ * A guided enrollment asks for this much speech, and ends the recording when it has it.
+ * The minimum works, but more speech gives a steadier voiceprint. The Sherpaw sandbox records the same amount.
+ */
+export const TARGET_ENROLLMENT_SPEECH_SECONDS = 8
+
 /** Recording stops after this much audio, speech or not. The Sherpaw sandbox uses the same limit. */
 const MAX_RECORDING_SECONDS = 30
 

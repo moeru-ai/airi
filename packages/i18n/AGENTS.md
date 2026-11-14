@@ -39,3 +39,10 @@ the pull request.
 **Write a definition in one sentence.** Describe the thing, not the word, and put a negative rule in
 the `note`. Keep each sentence short and active: translators read them, and most do not read English
 as a first language.
+
+## Code Review Rules
+
+- Do not report a change to `.x18n/check-baseline.json` that a commit by `autofix-ci[bot]` made.
+  The rule in [Keys](#keys) forbids the edit for contributors and agents. Only the autofix.ci workflow updates the baseline.
+- To find the commit that changed the baseline, run `git log --format='%h %an %s' <base>..HEAD -- .x18n/check-baseline.json`.
+  `<base>` is the merge base with the target branch.

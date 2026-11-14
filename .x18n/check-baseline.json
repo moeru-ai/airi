@@ -286,13 +286,6 @@
     {
       "path": "packages/i18n/src/locales/en/settings.yaml",
       "code": "unused-key",
-      "key": "settings.dialogs.onboarding.permissions.microphoneTitle",
-      "message": "\"settings.dialogs.onboarding.permissions.microphoneTitle\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/settings.yaml",
-      "code": "unused-key",
       "key": "settings.dialogs.onboarding.permissions.notificationsDescription",
       "message": "\"settings.dialogs.onboarding.permissions.notificationsDescription\" is not used.",
       "count": 1
