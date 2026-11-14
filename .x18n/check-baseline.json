@@ -99,6 +99,20 @@
       "count": 1
     },
     {
+      "path": ".",
+      "code": "unused-key",
+      "key": "stage.computer-use.description",
+      "message": "\"stage.computer-use.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": ".",
+      "code": "unused-key",
+      "key": "stage.computer-use.label",
+      "message": "\"stage.computer-use.label\" is not used.",
+      "count": 1
+    },
+    {
       "path": "apps/stage-tamagotchi/src/renderer/pages/spotlight.vue",
       "code": "missing-key",
       "key": "tamagotchi.spotlight.errors.prefix",
@@ -869,6 +883,48 @@
       "code": "unused-key",
       "key": "settings.pages.system.experimental.empty-title",
       "message": "\"settings.pages.system.experimental.empty-title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.experimental.features.conversation_compact.description",
+      "message": "\"settings.pages.system.experimental.features.conversation_compact.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.experimental.features.conversation_compact.mode.background",
+      "message": "\"settings.pages.system.experimental.features.conversation_compact.mode.background\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.experimental.features.conversation_compact.mode.description",
+      "message": "\"settings.pages.system.experimental.features.conversation_compact.mode.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.experimental.features.conversation_compact.mode.synchronous",
+      "message": "\"settings.pages.system.experimental.features.conversation_compact.mode.synchronous\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.experimental.features.conversation_compact.mode.title",
+      "message": "\"settings.pages.system.experimental.features.conversation_compact.mode.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.system.experimental.features.conversation_compact.title",
+      "message": "\"settings.pages.system.experimental.features.conversation_compact.title\" is not used.",
       "count": 1
     },
     {
