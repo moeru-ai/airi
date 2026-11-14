@@ -28,25 +28,21 @@ import InteractiveArea from './InteractiveArea.vue'
 import '@unocss/reset/tailwind.css'
 import 'virtual:uno.css'
 
-const { openSettings, isWindows, confirmTurbo } = vi.hoisted(() => ({
+const { openSettings, turboMode } = vi.hoisted(() => ({
   openSettings: vi.fn(),
-  isWindows: vi.fn(async () => true),
-  confirmTurbo: vi.fn(),
+  turboMode: vi.fn(),
 }))
 
 vi.mock('@proj-airi/electron-vueuse', async () => {
   const { createContext } = await import('@moeru/eventa')
-  const { electron } = await import('@proj-airi/electron-eventa')
   const { shallowRef } = await import('vue')
-  const { terminalTurboConfirm } = await import('../../shared/eventa/terminal-approval')
+  const { terminalTurboMode } = await import('../../shared/eventa/terminal-approval')
   const context = shallowRef(createContext())
   return {
     useElectronEventaContext: () => context,
     useElectronEventaInvoke: (event: unknown) => {
-      if (event === electron.app.isWindows)
-        return isWindows
-      if (event === terminalTurboConfirm)
-        return confirmTurbo
+      if (event === terminalTurboMode)
+        return turboMode
       return openSettings
     },
   }
@@ -225,25 +221,41 @@ describe('interactive area synchronized state', () => {
     await page.viewport(1280, 720)
   })
 
-  it('offers one-message Turbo beside attachments and clears it before the next send', async () => {
-    const { chat, screen, tools } = await renderArea()
+  it('keeps the confirmed Turbo switch for the selected conversation across messages', async () => {
+    const { chat, chatSession, screen, tools } = await renderArea()
     const send = vi.spyOn(chat, 'send').mockResolvedValue({ sessionId: 'session-b', messages: [] })
+    const modes = new Map<string, boolean>()
+    turboMode.mockReset().mockImplementation(async ({ sessionId, enabled }: { sessionId: string, enabled?: boolean }) => {
+      if (enabled !== undefined)
+        modes.set(sessionId, enabled)
+      return modes.get(sessionId) ?? false
+    })
     tools.addTools({ id: 'mcp:terminal_exec', type: 'function', function: { name: 'terminal_exec', parameters: { type: 'object' } }, execute: async () => '' })
-    confirmTurbo.mockReset().mockResolvedValueOnce(true)
 
-    await screen.getByRole('button', { name: 'tamagotchi.stage.chat-window.computer-tools.label' }).click()
+    const toolButton = screen.getByRole('button', { name: 'tamagotchi.stage.chat-window.computer-tools.label' })
+    const activeButton = screen.getByRole('button', { name: 'tamagotchi.stage.chat-window.computer-tools.turbo-active' })
+    await toolButton.click()
     await expect.element(screen.getByText('tamagotchi.stage.chat-window.computer-tools.desktop-unavailable')).toBeVisible()
-    const turbo = screen.getByRole('menuitemcheckbox', { name: 'tamagotchi.stage.chat-window.computer-tools.turbo-next' })
+    const turbo = screen.getByRole('menuitemcheckbox', { name: 'tamagotchi.stage.chat-window.computer-tools.turbo-label' })
     await expect.element(turbo).toHaveAttribute('data-state', 'unchecked')
     await turbo.click()
+    await expect.element(turbo).toHaveAttribute('data-state', 'checked')
     await userEvent.keyboard('{Escape}')
     await submitDraft(screen, 'Read the local time')
-    await expect.poll(() => send.mock.calls.length).toBe(1)
-    expect(confirmTurbo).toHaveBeenCalledExactlyOnceWith({ sessionId: 'session-b', turnId: send.mock.calls[0][0].messageId, text: 'Read the local time' })
-    await expect.element(screen.getByRole('button', { name: 'tamagotchi.stage.chat-window.computer-tools.label' })).toBeVisible()
+    await expect.element(activeButton).toBeVisible()
     await submitDraft(screen, 'Read the local time again')
     await expect.poll(() => send.mock.calls.length).toBe(2)
-    expect(confirmTurbo).toHaveBeenCalledOnce()
+    const changes = () => turboMode.mock.calls.map(([input]) => input).filter(input => input.enabled !== undefined)
+    expect(changes()).toEqual([{ sessionId: 'session-b', enabled: true }])
+    chatSession.activeSessionId = 'session-a'
+    await expect.element(toolButton).toBeVisible()
+    chatSession.activeSessionId = 'session-b'
+    await expect.element(activeButton).toBeVisible()
+    await activeButton.click()
+    await expect.element(turbo).toHaveAttribute('data-state', 'checked')
+    await turbo.click()
+    await expect.element(turbo).toHaveAttribute('data-state', 'unchecked')
+    expect(changes()).toEqual([{ sessionId: 'session-b', enabled: true }, { sessionId: 'session-b', enabled: false }])
   })
 
   it('centers the mobile textarea when no reply preview is visible', async () => {

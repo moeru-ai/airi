@@ -84,11 +84,13 @@ docs:
   computer-tools:
     label: Computer tools
     desktop-unavailable: Desktop capture and input are unavailable in this build.
-    turbo-next: Terminal Turbo for the next message
-    turbo-description: Confirm once to allow fixed Windows queries for time, the working directory, and process names.
-    turbo-confirm: Enable Terminal Turbo for this message?
-    turbo-scope: This allows only the listed local queries. Their output goes to the chat model. Other commands still require approval.
-    turbo-allow: Allow these queries
+    turbo-label: Terminal Turbo
+    turbo-active: Terminal Turbo is on for this conversation
+    turbo-description: Allow commands in this conversation to run with your system privileges. Turn it off here at any time.
+    turbo-confirm: Allow full Terminal access for this conversation?
+    turbo-scope: AIRI can run local Shell commands with your system privileges without asking again. It can read and change files or start applications.
+    turbo-allow: Allow Terminal access
+    turbo-error: Could not change Terminal Turbo.
     cancel: Cancel
   danmaku-feed:
     title: Message timing

@@ -22,6 +22,12 @@ Main verifies the original request and model arguments, then creates its existin
 A separate Main-created window displays that saved operation. Its decision path accepts only the actual window main frame and matching action.
 The page supplies neither executable arguments nor approval state.
 Public MCP approval tools cannot approve this operation.
+Main closes the approval window after it accepts a decision. The original Chat shows the outcome.
+
+Terminal Turbo is off by default. The user can confirm full Terminal access for one conversation in a native dialog.
+Main stores the grant in memory. It applies to the bundled Terminal in that conversation, including new Notice turns.
+Turning it off cancels queued Turbo approvals. Already dispatched operations keep their settlement.
+Closing or reloading the Runtime clears its grants. Pending requests still use the normal authority and execution checks.
 
 After approval, Main enters the existing desktop queue. It checks expiry, cancellation, source, arguments and connection before consumption.
 Consumption and one private RPC occur without an intervening await.
@@ -30,7 +36,7 @@ Refused, expired, cancelled or consumed records cannot grant a later operation.
 
 ## Results and limits
 
-The original model Tool Result reports preparation only. It does not confirm execution or business success.
+The original model Tool Result reports preparation and the approval mode. Main verifies execution separately.
 Main sends actual outcomes through a separate notice turn. A command exit of zero still needs a business Oracle.
 An ambiguous failed reply cannot restore approval or cause an alias retry.
 Without a lifecycle receipt, the Host blocks subsequent desktop writes until shutdown. Queue waiters can still settle.

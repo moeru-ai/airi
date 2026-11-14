@@ -9,7 +9,7 @@ import type { createComputerUseRuntime } from '../computer-use/runtime'
 import { useLogg } from '@guiiai/logg'
 import { CallToolResultSchema, McpError } from '@modelcontextprotocol/sdk/types.js'
 import { errorMessageFrom } from '@moeru/std'
-import { terminalDiscardMethod, terminalExecuteMethod, terminalSnapshotSchema, terminalTurboCommands, terminalTurboTimeoutMs } from '@proj-airi/stage-shared/terminal-approval'
+import { terminalDiscardMethod, terminalExecuteMethod, terminalSnapshotSchema } from '@proj-airi/stage-shared/terminal-approval'
 import { z } from 'zod'
 
 import * as v from 'valibot'
@@ -17,7 +17,6 @@ import * as v from 'valibot'
 export interface TerminalApprovalOptions {
   actions: PendingActionManager
   present: (actionId: string) => Promise<boolean>
-  onDispatch?: (actionId: string) => void
   executeInSlot: ReturnType<typeof createComputerUseRuntime>['executeInSlot']
   notify: (notice: TerminalNotice) => Promise<{ status: 'stored' | 'suppressed', sessionId: string, messageId: string }>
 }
@@ -27,8 +26,7 @@ interface TerminalConnection {
   serverName: string
   nonce: string
   pid: number | null
-  /** System PowerShell path from the config of the bundled stdio child. */
-  bundledShell?: string
+  bundledTerminal: boolean
   isCurrent: () => boolean
 }
 
@@ -51,13 +49,9 @@ export function bindTerminalApproval(params: {
     throw new Error('Terminal approval requires the original Host request.')
   const action = options.actions.createTerminalAction({ requestId: payload.requestId, attribution, serverName: connection.serverName, snapshot, arguments: payload.arguments ?? {} })
   const actionId = action.id
-  const turbo = snapshot.executorPlatform === 'win32'
-    && snapshot.shell === connection.bundledShell
-    && snapshot.requestedCwd === undefined
-    && snapshot.effectiveCwd === snapshot.executorCwd
-    && snapshot.timeoutMs <= terminalTurboTimeoutMs
-    && terminalTurboCommands.includes(snapshot.command)
-    && options.actions.validateRequest(payload.requestId, attribution).terminalTurbo
+  const turbo = connection.bundledTerminal
+    ? options.actions.terminalTurboSignal(attribution.sessionId, attribution.senderWebContentsId)
+    : undefined
   const log = useLogg('main/terminal-approval').useGlobalConfig()
   const trace = (event: string, detail: Record<string, unknown> = {}) => {
     log.withFields({ event, actionId, requestId: snapshot.requestId, sessionId: attribution.sessionId, turnId: attribution.turnId, toolCallId: attribution.toolCallId, senderWebContentsId: attribution.senderWebContentsId, ...detail }).log('Terminal approval')
@@ -84,6 +78,7 @@ export function bindTerminalApproval(params: {
 
   async function commit(lifetime: AbortSignal, retainMutationRisk: () => void) {
     lifetime.throwIfAborted()
+    turbo?.throwIfAborted()
     if (!connection.isCurrent())
       throw new Error('The approved Terminal connection was replaced before dispatch.')
     const approved = options.actions.get(actionId)
@@ -106,7 +101,6 @@ export function bindTerminalApproval(params: {
     }
     trace('consumed', { expiresAt: consumed.expiresAt })
     try {
-      options.onDispatch?.(actionId)
       const result = await connection.client.request({ method: terminalExecuteMethod, params: { nonce: connection.nonce, snapshot: committed, expiresAt: consumed.expiresAt } }, CallToolResultSchema, { signal: lifetime, timeout: committed.timeoutMs + 30_000, maxTotalTimeout: committed.timeoutMs + 30_000 })
       if (result.structuredContent?.noNewDispatch === true) {
         const refusal = v.safeParse(v.object({ ...refusalFields, executorInvoked: v.literal(false) }), result.structuredContent)
@@ -154,7 +148,7 @@ export function bindTerminalApproval(params: {
   async function execute() {
     let expiryTimer: ReturnType<typeof setTimeout> | undefined
     try {
-      const approved = turbo || await options.present(actionId)
+      const approved = !!turbo || await options.present(actionId)
       const current = options.actions.get(actionId)
       if (!current)
         return
@@ -178,7 +172,7 @@ export function bindTerminalApproval(params: {
         // Cancellation and expiry only own admission. An invoked operation keeps its settlement.
         clearTimeout(expiryTimer)
         return commit(lifetime, retainMutationRisk)
-      }, AbortSignal.any([requestSignal, expiry.signal]))
+      }, AbortSignal.any(turbo ? [requestSignal, expiry.signal, turbo] : [requestSignal, expiry.signal]))
     }
     catch (error) {
       const current = options.actions.get(actionId)
@@ -205,7 +199,7 @@ export function bindTerminalApproval(params: {
     isError: params.result.isError,
     content: [{
       type: 'text',
-      text: `${turbo ? 'Turbo approved this Terminal query.' : 'Terminal is waiting for approval in the AIRI approval window.'} This response confirms preparation only. Finish this turn and wait for the Host notice in a new turn of this conversation. An empty MCP pending list does not prove that the command did not execute.`,
+      text: `${turbo ? 'Terminal Turbo authorized this command.' : 'The Terminal command is awaiting approval in AIRI.'} This response confirms preparation only. Finish this turn and wait for the Host notice in a new turn of this conversation. An empty MCP pending list does not prove that the command did not execute.`,
     }],
     structuredContent: { status: turbo ? 'prepared' : 'approval_required', approval, hostActionId: actionId },
   }

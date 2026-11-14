@@ -1,13 +1,12 @@
 import type { ElectronMainEmitOptions } from '@moeru/eventa/adapters/electron/main'
 
 import { EventEmitter } from 'node:events'
-import { platform } from 'node:process'
 
 import { defineInvoke } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { describe, expect, it, vi } from 'vitest'
 
-import { chatRequestCancel, chatRequestFinish, chatRequestRegister, terminalTurboConfirm } from '../../../../shared/eventa/terminal-approval'
+import { chatRequestCancel, chatRequestFinish, chatRequestRegister, terminalTurboMode } from '../../../../shared/eventa/terminal-approval'
 import { createWindowIpc } from '../../../libs/electron/testing/window-ipc'
 import { requireMainFrameSender } from '../../../libs/electron/window-context'
 import { createI18n } from '../../../libs/i18n'
@@ -36,9 +35,9 @@ function fixture() {
   })
   const input = { sessionId: 'session-a', turnId: 'turn-a', text: 'Read the local time.' }
   const register = defineInvoke(runtime.context, chatRequestRegister)
-  const confirm = defineInvoke(chat.context, terminalTurboConfirm)
+  const turboMode = defineInvoke(chat.context, terminalTurboMode)
   const attribution = { ...input, senderWebContentsId: runtime.window.webContents.id }
-  return { main, runtime, chat, other, actions, input, attribution, register, confirm }
+  return { main, runtime, chat, other, actions, input, attribution, register, turboMode }
 }
 
 describe('main Chat request IPC', () => {
@@ -48,7 +47,7 @@ describe('main Chat request IPC', () => {
     expect(refused).toEqual({})
     const admitted = await register(input)
     expect(admitted.requestId).toBeTypeOf('string')
-    expect(actions.validateRequest(admitted.requestId!, attribution)).toMatchObject({ text: input.text, terminalTurbo: false })
+    expect(actions.validateRequest(admitted.requestId!, attribution).text).toBe(input.text)
     await expect(defineInvoke(other.context, chatRequestCancel)({ requestId: admitted.requestId! })).rejects.toThrow(/source/)
     runtime.window.webContents.emit('destroyed')
     expect(() => actions.validateRequest(admitted.requestId!, attribution)).toThrow(/cancelled/)
@@ -63,40 +62,46 @@ describe('main Chat request IPC', () => {
     await main.dispose()
   })
 
-  it.runIf(platform === 'win32')('binds native Turbo confirmation to the exact chat submission', async () => {
-    const { main, runtime, chat, other, actions, input, attribution, register, confirm } = fixture()
-    await expect(defineInvoke(other.context, terminalTurboConfirm)(input)).resolves.toBe(false)
+  it('confines native Turbo confirmation to its conversation across multiple turns', async () => {
+    const { main, runtime, chat, other, actions, input, attribution, register, turboMode } = fixture()
+    const { sessionId } = input
+    await expect(defineInvoke(other.context, terminalTurboMode)({ sessionId, enabled: true })).resolves.toBe(false)
+    await expect(turboMode({ sessionId })).resolves.toBe(false)
     expect(electron.showMessageBox).not.toHaveBeenCalled()
     electron.showMessageBox.mockResolvedValueOnce({ response: 0 })
-    await expect(confirm(input)).resolves.toBe(false)
-    const manual = await register(input)
-    expect(actions.validateRequest(manual.requestId!, attribution).terminalTurbo).toBe(false)
+    await expect(turboMode({ sessionId, enabled: true })).resolves.toBe(false)
+    expect(actions.terminalTurboSignal(sessionId, attribution.senderWebContentsId)).toBeUndefined()
     electron.showMessageBox.mockResolvedValueOnce({ response: 1 })
-    await expect(confirm(input)).resolves.toBe(true)
+    await expect(turboMode({ sessionId, enabled: true })).resolves.toBe(true)
     expect(electron.showMessageBox).toHaveBeenLastCalledWith(chat.window, expect.objectContaining({ defaultId: 0, cancelId: 0 }))
-    for (const changed of [{ ...input, sessionId: 'session-b' }, { ...input, turnId: 'turn-b' }, { ...input, text: 'Different text' }]) {
-      const { requestId } = await register(changed)
-      expect(actions.validateRequest(requestId!, { ...changed, senderWebContentsId: attribution.senderWebContentsId }).terminalTurbo).toBe(false)
-    }
-    const confirmed = await register(input)
-    expect(actions.validateRequest(confirmed.requestId!, attribution).terminalTurbo).toBe(true)
-    await defineInvoke(runtime.context, chatRequestFinish)({ requestId: confirmed.requestId! })
-    const repeated = await register(input)
-    expect(actions.validateRequest(repeated.requestId!, attribution).terminalTurbo).toBe(false)
+    const signal = actions.terminalTurboSignal(sessionId, attribution.senderWebContentsId)
+    expect(signal?.aborted).toBe(false)
+    expect(actions.terminalTurboSignal(sessionId, other.window.webContents.id)).toBeUndefined()
+    await expect(turboMode({ sessionId: 'session-b' })).resolves.toBe(false)
+    const first = await register(input)
+    await defineInvoke(runtime.context, chatRequestFinish)({ requestId: first.requestId! })
+    const next = await register({ ...input, turnId: 'turn-b' })
+    expect(next.requestId).not.toBe(first.requestId)
+    expect(actions.terminalTurboSignal(sessionId, attribution.senderWebContentsId)).toBe(signal)
+    await expect(turboMode({ sessionId, enabled: false })).resolves.toBe(false)
+    expect(signal?.aborted).toBe(true)
+    expect(actions.terminalTurboSignal(sessionId, attribution.senderWebContentsId)).toBeUndefined()
     await main.dispose()
   })
 
-  it.runIf(platform === 'win32')('drops Turbo when the runtime navigates while the native dialog is open', async () => {
-    const { main, runtime, actions, input, attribution, register, confirm } = fixture()
+  it.each(['navigate', 'turn Turbo off'] as const)('discards a late Turbo confirmation when the user chooses to %s', async (action) => {
+    const { main, runtime, actions, input, attribution, turboMode } = fixture()
     const decision = Promise.withResolvers<{ response: number }>()
     electron.showMessageBox.mockReturnValueOnce(decision.promise)
-    const confirmed = confirm(input)
+    const confirmed = turboMode({ sessionId: input.sessionId, enabled: true })
     await vi.waitFor(() => expect(electron.showMessageBox).toHaveBeenCalledOnce())
-    runtime.window.webContents.emit('did-start-navigation', { isMainFrame: true, isSameDocument: false })
+    if (action === 'navigate')
+      runtime.window.webContents.emit('did-start-navigation', { isMainFrame: true, isSameDocument: false })
+    else
+      await expect(turboMode({ sessionId: input.sessionId, enabled: false })).resolves.toBe(false)
     decision.resolve({ response: 1 })
     await expect(confirmed).resolves.toBe(false)
-    const { requestId } = await register(input)
-    expect(actions.validateRequest(requestId!, attribution).terminalTurbo).toBe(false)
+    expect(actions.terminalTurboSignal(input.sessionId, attribution.senderWebContentsId)).toBeUndefined()
     await main.dispose()
   })
 

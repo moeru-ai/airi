@@ -381,6 +381,10 @@ describe('createMcpManager', () => {
     await expect(manager.callTool({ name: 'airi-terminal::terminal_exec', arguments: { command: 'fixture' } })).rejects.toThrow('normal Chat request')
     expect(clientMocks.callTool).not.toHaveBeenCalled()
     const attribution = { sessionId: 'session-a', turnId: 'turn-a' }
+    actions.setTerminalTurbo(attribution.sessionId, 71, true)
+    for (const tool of desktopTools)
+      await expect(manager.callTool({ name: `airi-terminal::${tool}`, attribution }, 71)).rejects.toThrow('disabled by the Host')
+    expect(clientMocks.callTool).not.toHaveBeenCalled()
     const request = actions.registerRequest({ ...attribution, text: 'Run the fixture.' }, 71)
     const tools = await resolveLlmTools({ builtInTools: [], debugTools: [], sparkCommandTools: [], webSearchTools: [], activeTools: await createMcpTools({
       listTools: manager.listTools,

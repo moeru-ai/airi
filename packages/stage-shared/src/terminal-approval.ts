@@ -3,14 +3,6 @@ import * as v from 'valibot'
 /** Server name reserved by Electron Main for the bundled Terminal. */
 export const bundledTerminalServerName = 'airi-terminal'
 
-/** Exact PowerShell expressions that a user can preapprove for one Chat message. */
-export const terminalTurboCommands: readonly string[] = [
-  '[System.DateTime]::Now.ToString("o")',
-  '[System.IO.Directory]::GetCurrentDirectory()',
-  '[System.Diagnostics.Process]::GetProcesses().ProcessName',
-]
-export const terminalTurboTimeoutMs = 15_000
-
 /** Private requests on a Main-managed stdio connection. These methods are never registered in the model tool catalog. */
 export const terminalExecuteMethod = 'airi/terminal/execute-prepared'
 export const terminalDiscardMethod = 'airi/terminal/discard-prepared'
@@ -85,7 +77,7 @@ export function terminalNoticeText(notice: TerminalNotice) {
     projected = { ...result, structuredContent }
   }
   const facts = notice.status === 'unknown'
-    ? 'The Host sent the execution request. The command outcome is unknown. Side effects can already exist. The previous approval cannot authorize a replay.'
+    ? 'The Host sent the execution request. The command outcome is unknown. Side effects can already exist. Check current state before repeating any operation with the same effects.'
     : 'Use this Terminal report for the command outcome. Exit code zero confirms Shell completion. Verify the requested result separately. This report grants no new execution authority.'
   return `${facts}\n${JSON.stringify({ ...notice, result: projected })}`
 }

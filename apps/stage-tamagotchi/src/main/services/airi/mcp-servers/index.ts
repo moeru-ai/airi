@@ -18,15 +18,15 @@ import type { TerminalApprovalOptions } from './terminal-approval'
 
 import { randomBytes } from 'node:crypto'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
-import { isAbsolute, join } from 'node:path'
-import { env, execPath, platform } from 'node:process'
+import { join } from 'node:path'
+import { env, execPath } from 'node:process'
 
 import { useLogg } from '@guiiai/logg'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
-import { bundledTerminalServerName, terminalControlEnabledEnv, terminalControlNonceEnv, terminalOriginMetaKey, terminalTurboCommands, terminalTurboTimeoutMs } from '@proj-airi/stage-shared/terminal-approval'
+import { bundledTerminalServerName, terminalControlEnabledEnv, terminalControlNonceEnv, terminalOriginMetaKey } from '@proj-airi/stage-shared/terminal-approval'
 import { app, shell } from 'electron'
 
 import {
@@ -76,11 +76,6 @@ const toolNameSeparator = '::'
 const mcpRequestTimeoutMsec = 10_000
 const mcpRequestMaxTotalTimeoutMsec = 15_000
 const mcpTestStderrMaxChars = 16_000
-
-function bundledWindowsShell(session: McpServerSession) {
-  if (session.bundledTerminal && !isHttpServerConfig(session.config))
-    return session.config.env?.COMPUTER_USE_TERMINAL_SHELL
-}
 
 function stringifyError(error: unknown) {
   if (error instanceof Error) {
@@ -279,9 +274,6 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
     const { path } = await ensureConfigFile()
     const config = await readConfigFile(path)
     const servers = { ...config.mcpServers }
-    const windowsPowerShell = platform === 'win32' && env.SystemRoot && isAbsolute(env.SystemRoot)
-      ? join(env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
-      : undefined
     if (config.terminalEnabled) {
       if (bundledTerminalServerName in servers)
         throw new Error(`The server name "${bundledTerminalServerName}" is reserved for the bundled Terminal. Rename the external server or disable the bundled Terminal.`)
@@ -297,7 +289,6 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
           COMPUTER_USE_BROWSER_DOM_BRIDGE_ENABLED: 'false',
           COMPUTER_USE_DEFAULT_CAPTURE_AFTER: 'false',
           COMPUTER_USE_SESSION_ROOT: join(app.getPath('userData'), 'terminal-sessions'),
-          ...(windowsPowerShell ? { COMPUTER_USE_TERMINAL_SHELL: windowsPowerShell } : {}),
         },
       }
     }
@@ -355,15 +346,12 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
         timeout: mcpRequestTimeoutMsec,
         maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
       })
-      const turbo = bundledWindowsShell(session)
-        ? ` Turbo can preapprove these exact queries for one message: ${terminalTurboCommands.join(', ')}. Use them only when relevant. Omit cwd and use a timeout of ${terminalTurboTimeoutMs} ms or less.`
-        : ''
       return response.tools.filter(item => !target || item.name === target.toolName).map<ElectronMcpToolDescriptor>(item => ({
         serverName,
         name: `${serverName}${toolNameSeparator}${item.name}`,
         toolName: item.name,
         description: session.bundledTerminal && item.name === 'terminal_exec'
-          ? `${item.description ?? 'Run a command in a local Shell.'} The bundled service offers no desktop capture or input. Run applicable Shell steps and wait for the Host outcome before reporting execution.${turbo}`
+          ? `${item.description ?? 'Run a command in a local Shell.'} The bundled service offers no desktop capture or input. Submit the command through this tool. AIRI handles approval. Wait for the Host result before reporting completion or starting work that depends on it.`
           : item.description,
         inputSchema: item.inputSchema,
         exposure: exposureOf(serverName, session, item.name),
@@ -440,7 +428,7 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
     }
 
     if (nonce && attribution && terminalApproval && normalized.structuredContent?.status === 'approval_required') {
-      return bindTerminalApproval({ options: terminalApproval, connection: { client: session.client, serverName, nonce, pid: session.transport instanceof StdioClientTransport ? session.transport.pid : null, bundledShell: bundledWindowsShell(session), isCurrent: () => sessions.get(serverName) === session }, payload, attribution, result: normalized })
+      return bindTerminalApproval({ options: terminalApproval, connection: { client: session.client, serverName, nonce, pid: session.transport instanceof StdioClientTransport ? session.transport.pid : null, bundledTerminal: session.bundledTerminal, isCurrent: () => sessions.get(serverName) === session }, payload, attribution, result: normalized })
     }
     return normalized
   }

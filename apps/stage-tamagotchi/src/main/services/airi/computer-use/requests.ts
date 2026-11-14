@@ -4,17 +4,16 @@ import type { WebContents } from 'electron'
 import type { I18n } from '../../../libs/i18n'
 import type { PendingActionManager } from './action-manager'
 
-import { platform } from 'node:process'
-
 import { defineInvokeHandler } from '@moeru/eventa'
 import { chatRequestSchema } from '@proj-airi/stage-shared/chat-request'
-import { terminalTurboCommands } from '@proj-airi/stage-shared/terminal-approval'
 import { BrowserWindow, dialog } from 'electron'
 
 import * as v from 'valibot'
 
-import { chatRequestCancel, chatRequestFinish, chatRequestRegister, terminalTurboConfirm } from '../../../../shared/eventa/terminal-approval'
+import { chatRequestCancel, chatRequestFinish, chatRequestRegister, terminalTurboMode } from '../../../../shared/eventa/terminal-approval'
 import { requireMainFrameSender } from '../../../libs/electron/window-context'
+
+const turboModeSchema = v.strictObject({ sessionId: chatRequestSchema.entries.sessionId, enabled: v.optional(v.boolean()) })
 
 /** Captures normal pre-provider submissions from the Main-designated Runtime. Closing a source invalidates only its waiting actions. */
 export function setupChatRequests(context: ReturnType<typeof createContext>['context'], actions: PendingActionManager, sources: {
@@ -23,6 +22,7 @@ export function setupChatRequests(context: ReturnType<typeof createContext>['con
   i18n: I18n
 }) {
   const documents = new WeakMap<WebContents, AbortController>()
+  const turboDialogs = new Map<string, AbortController>()
 
   function documentSignal(sender: WebContents) {
     const observed = documents.get(sender)
@@ -52,31 +52,50 @@ export function setupChatRequests(context: ReturnType<typeof createContext>['con
     documentSignal(sender)
     return { requestId: actions.registerRequest(input, sender.id).id }
   })
-  defineInvokeHandler(context, terminalTurboConfirm, async (input, options) => {
+  defineInvokeHandler(context, terminalTurboMode, async (input, options) => {
     const sender = requireMainFrameSender(options)
     const window = BrowserWindow.fromWebContents(sender)
     const runtime = sources.getRuntime()
-    if (platform !== 'win32' || !runtime || runtime.isDestroyed() || !window || !sources.isChatWindow(window))
+    if (!runtime || runtime.isDestroyed() || !window || !sources.isChatWindow(window))
       return false
-    const submitted = v.parse(chatRequestSchema, input)
-    const signal = AbortSignal.any([documentSignal(sender), documentSignal(runtime), ...(options?.abortController ? [options.abortController.signal] : [])])
+    const { sessionId, enabled } = v.parse(turboModeSchema, input)
+    const key = `${runtime.id}:${sessionId}`
+    if (enabled === false) {
+      turboDialogs.get(key)?.abort()
+      actions.setTerminalTurbo(sessionId, runtime.id, false)
+      return false
+    }
+    const active = !!actions.terminalTurboSignal(sessionId, runtime.id)
+    if (enabled === undefined || active)
+      return active
+
+    turboDialogs.get(key)?.abort()
+    const confirmation = new AbortController()
+    turboDialogs.set(key, confirmation)
+    const signal = AbortSignal.any([documentSignal(sender), documentSignal(runtime), confirmation.signal, ...(options?.abortController ? [options.abortController.signal] : [])])
     const { t } = sources.i18n
-    const response = await dialog.showMessageBox(window, {
-      type: 'question',
-      message: t('tamagotchi.stage.chat-window.computer-tools.turbo-confirm'),
-      detail: `${t('tamagotchi.stage.chat-window.computer-tools.turbo-scope')}\n\n${terminalTurboCommands.join('\n')}`,
-      buttons: [
-        t('tamagotchi.stage.chat-window.computer-tools.cancel'),
-        t('tamagotchi.stage.chat-window.computer-tools.turbo-allow'),
-      ],
-      defaultId: 0,
-      cancelId: 0,
-      signal,
-    })
-    if (response.response !== 1 || signal.aborted || runtime !== sources.getRuntime() || !sources.isChatWindow(window))
-      return false
-    actions.registerRequest(submitted, runtime.id, true)
-    return true
+    try {
+      const response = await dialog.showMessageBox(window, {
+        type: 'question',
+        message: t('tamagotchi.stage.chat-window.computer-tools.turbo-confirm'),
+        detail: t('tamagotchi.stage.chat-window.computer-tools.turbo-scope'),
+        buttons: [
+          t('tamagotchi.stage.chat-window.computer-tools.cancel'),
+          t('tamagotchi.stage.chat-window.computer-tools.turbo-allow'),
+        ],
+        defaultId: 0,
+        cancelId: 0,
+        signal,
+      })
+      if (response.response !== 1 || signal.aborted || runtime !== sources.getRuntime() || !sources.isChatWindow(window))
+        return false
+      actions.setTerminalTurbo(sessionId, runtime.id, true)
+      return true
+    }
+    finally {
+      if (turboDialogs.get(key) === confirmation)
+        turboDialogs.delete(key)
+    }
   })
   defineInvokeHandler(context, chatRequestFinish, (input, options) => {
     actions.finishRequest(input.requestId, requireMainFrameSender(options).id)

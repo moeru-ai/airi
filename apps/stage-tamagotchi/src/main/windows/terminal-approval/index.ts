@@ -1,5 +1,3 @@
-import type { TerminalNotice } from '@proj-airi/stage-shared/terminal-approval'
-
 import type { TerminalApprovalView } from '../../../shared/eventa/terminal-approval'
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
@@ -21,7 +19,7 @@ import { customTitleBarWindowConfig, protectPrivilegedWindowNavigation } from '.
 /** Presents a saved action in a separate Main-owned source. The page owns no approval state or executable arguments. */
 export function setupTerminalApprovalWindow(params: { actions: PendingActionManager, i18n: I18n, serverChannel: ServerChannel }) {
   // Presentation only. The existing action manager retains all authority and settlement state.
-  const presentations = new Map<string, { view: TerminalApprovalView, window: BrowserWindow }>()
+  const presentations = new Set<BrowserWindow>()
   const windows = createReferencedWindowManager({
     eventa: terminalApprovalWindow,
     i18n: params.i18n,
@@ -60,8 +58,8 @@ export function setupTerminalApprovalWindow(params: { actions: PendingActionMana
       type: 'terminal-approval',
       payload: view,
     })
-    presentations.set(actionId, { view, window: handle.window })
-    handle.window.once('closed', () => presentations.delete(actionId))
+    presentations.add(handle.window)
+    handle.window.once('closed', () => presentations.delete(handle.window))
     return new Promise<boolean>((resolve) => {
       let finished = false
       let timer: ReturnType<typeof setInterval> | undefined
@@ -70,10 +68,9 @@ export function setupTerminalApprovalWindow(params: { actions: PendingActionMana
           return
         finished = true
         clearInterval(timer)
-        view.authorized = approved
         resolve(approved)
-        if (!approved)
-          safeClose(handle.window)
+        // Let the decision IPC reply before closing its sender.
+        setImmediate(() => safeClose(handle.window))
       }
       defineInvokeHandler(handle.context, terminalApprovalWindow.windowAction, (decision, options) => {
         if (requireMainFrameSender(options) !== handle.window.webContents || decision.id !== actionId)
@@ -90,18 +87,8 @@ export function setupTerminalApprovalWindow(params: { actions: PendingActionMana
   }
   return {
     present,
-    dispatched: (actionId: string) => {
-      const presentation = presentations.get(actionId)
-      if (presentation)
-        presentation.view.dispatched = true
-    },
-    report: (notice: TerminalNotice) => {
-      const presentation = presentations.get(notice.actionId)
-      if (presentation)
-        presentation.view.outcome = notice
-    },
     restore: () => {
-      for (const { window } of presentations.values()) {
+      for (const window of presentations) {
         if (window.isMinimized())
           window.restore()
         showWindow(window)

@@ -66,7 +66,6 @@ export interface ChatRequest extends ChatRequestInput {
   expiresAt: number
   closed: boolean
   cancelled: boolean
-  terminalTurbo: boolean
 }
 
 interface ActionExecution {
@@ -154,6 +153,7 @@ export function verifyExecutionPreconditions(command: string, argv: readonly str
 export class PendingActionManager {
   private actions = new Map<string, PendingAction>()
   private requests = new Map<string, { record: ChatRequest, cancel: AbortController }>()
+  private turboSessions = new Map<number, Map<string, AbortController>>()
   private defaultTtlMs = 60_000 // 60 seconds
 
   constructor(options?: { defaultTtlMs?: number }) {
@@ -163,24 +163,17 @@ export class PendingActionManager {
   }
 
   /** Captures a normal Chat submission before provider startup. The IPC boundary must supply the independently verified Runtime source. */
-  registerRequest(input: ChatRequestInput, senderWebContentsId: number, terminalTurbo = false): ChatRequest {
+  registerRequest(input: ChatRequestInput, senderWebContentsId: number): ChatRequest {
     if (!Number.isSafeInteger(senderWebContentsId) || senderWebContentsId <= 0)
       throw new Error('A Host request requires a verified Runtime source.')
     const submitted = v.parse(chatRequestSchema, input)
     const now = Date.now()
-    let confirmedRequest: ChatRequest | undefined
     let removedExpiredRequest = false
     for (const { record: request } of this.requests.values()) {
       if (now >= request.expiresAt) {
         this.cancelRequest(request.id, request.senderWebContentsId)
         this.requests.delete(request.id)
         removedExpiredRequest = true
-      }
-      else if (request.terminalTurbo && !request.closed && !request.cancelled
-        && request.senderWebContentsId === senderWebContentsId
-        && request.sessionId === submitted.sessionId && request.turnId === submitted.turnId
-        && request.text === submitted.text) {
-        confirmedRequest = request
       }
     }
     if (removedExpiredRequest) {
@@ -189,9 +182,6 @@ export class PendingActionManager {
           this.actions.delete(id)
       }
     }
-    // The normal Runtime registers the exact message already confirmed in the composer.
-    if (confirmedRequest)
-      return structuredClone(confirmedRequest)
     if (this.requests.size >= 1024)
       throw new Error('Too many active Host requests.')
     const request: ChatRequest = {
@@ -202,10 +192,31 @@ export class PendingActionManager {
       expiresAt: now + 15 * 60_000,
       closed: false,
       cancelled: false,
-      terminalTurbo,
     }
     this.requests.set(request.id, { record: request, cancel: new AbortController() })
     return structuredClone(request)
+  }
+
+  /** A grant belongs to one verified Runtime and conversation. Revocation aborts only queued Turbo approvals. */
+  terminalTurboSignal(sessionId: string, senderWebContentsId: number | undefined): AbortSignal | undefined {
+    if (senderWebContentsId !== undefined)
+      return this.turboSessions.get(senderWebContentsId)?.get(sessionId)?.signal
+  }
+
+  /** Only Main calls this after a user decision in the native confirmation dialog. */
+  setTerminalTurbo(sessionId: string, senderWebContentsId: number, enabled: boolean): void {
+    const sessions = this.turboSessions.get(senderWebContentsId)
+    if (enabled) {
+      if (!sessions)
+        this.turboSessions.set(senderWebContentsId, new Map([[sessionId, new AbortController()]]))
+      else if (!sessions.has(sessionId))
+        sessions.set(sessionId, new AbortController())
+      return
+    }
+    sessions?.get(sessionId)?.abort(new Error('Terminal Turbo was turned off before dispatch.'))
+    sessions?.delete(sessionId)
+    if (!sessions?.size)
+      this.turboSessions.delete(senderWebContentsId)
   }
 
   /** Resolves the Host record and rejects replacement labels or execution sources. Closed runs admit no new tools. */
@@ -586,6 +597,8 @@ export class PendingActionManager {
 
   /** Invalidates waiting approvals when their renderer is destroyed. In-flight work retains its real settlement. */
   cancelBySender(senderWebContentsId: number): void {
+    for (const sessionId of this.turboSessions.get(senderWebContentsId)?.keys() ?? [])
+      this.setTerminalTurbo(sessionId, senderWebContentsId, false)
     for (const { record: request, cancel } of this.requests.values()) {
       if (request.senderWebContentsId === senderWebContentsId) {
         request.cancelled = true
@@ -603,6 +616,10 @@ export class PendingActionManager {
    */
   invalidateAll(): void {
     const now = Date.now()
+    for (const [sender, sessions] of this.turboSessions) {
+      for (const sessionId of sessions.keys())
+        this.setTerminalTurbo(sessionId, sender, false)
+    }
     for (const { record: request, cancel } of this.requests.values()) {
       request.cancelled = true
       cancel.abort(new Error('The Host stopped.'))

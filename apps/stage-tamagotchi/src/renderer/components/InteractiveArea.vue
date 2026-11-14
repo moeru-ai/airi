@@ -6,7 +6,7 @@ import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import type { ChatDraftHandover } from '../../shared/eventa'
 
-import { electron } from '@proj-airi/electron-eventa'
+import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useChatInterruption } from '@proj-airi/stage-layouts/composables/use-chat-interruption'
 import { ChatBackgroundTasks, ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
@@ -31,7 +31,7 @@ import ChatViewportLayout from './chat-viewport-layout.vue'
 
 import { electronAuthStartLogin, electronOpenSettings } from '../../shared/eventa'
 import { COMPUTER_USE_READ_IMAGE_TOOL_NAME, COMPUTER_USE_TOOL_NAME } from '../../shared/eventa/computer-use'
-import { terminalTurboConfirm } from '../../shared/eventa/terminal-approval'
+import { terminalTurboMode } from '../../shared/eventa/terminal-approval'
 import { useHearingInputChannel } from '../composables/use-hearing-input-channel'
 import { artistryToolReferences, widgetToolReferences } from '../stores/tools'
 import { WEATHER_TOOL_NAME } from '../stores/tools/builtin/weather'
@@ -120,41 +120,55 @@ const { streamingMessage } = storeToRefs(chatStream)
 const { activeTurns, backgroundTasks } = storeToRefs(chatStore)
 const { activeCard, activeCardId } = storeToRefs(airiCardStore)
 const { activeChatReady: chatReady } = storeToRefs(chatStore)
+const { t } = useI18n()
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const startLogin = useElectronEventaInvoke(electronAuthStartLogin)
-const isWindows = useElectronEventaInvoke(electron.app.isWindows)
-const confirmTurbo = useElectronEventaInvoke(terminalTurboConfirm)
-const { state: windows } = useAsyncState(() => isWindows(), false)
+const setTurboMode = useElectronEventaInvoke(terminalTurboMode)
 const tools = useLlmToolsStore()
 const terminalAvailable = computed(() => tools.tools.some(tool => tool.id === 'mcp:terminal_exec'))
-const turboSession = ref<string>()
-const turboArmed = computed(() => turboSession.value === activeSessionId.value && terminalAvailable.value)
-watch([activeSessionId, terminalAvailable], () => {
-  turboSession.value = undefined
-})
+const { state: turboEnabled, executeImmediate: refreshTurbo, isLoading: loadingTurbo } = useAsyncState(
+  (sessionId: string) => terminalAvailable.value && sessionId ? setTurboMode({ sessionId }) : Promise.resolve(false),
+  false,
+  { immediate: false },
+)
+const changingTurbo = ref(false)
+const turboError = ref('')
+watch([activeSessionId, terminalAvailable], ([sessionId]) => {
+  turboError.value = ''
+  void refreshTurbo(sessionId)
+}, { immediate: true })
+
+async function changeTurbo(enabled: boolean) {
+  const sessionId = activeSessionId.value
+  if (!sessionId || changingTurbo.value || loadingTurbo.value)
+    return
+  changingTurbo.value = true
+  turboError.value = ''
+  try {
+    await setTurboMode({ sessionId, enabled })
+  }
+  catch (error) {
+    turboError.value = errorMessageFrom(error) ?? t('tamagotchi.stage.chat-window.computer-tools.turbo-error')
+  }
+  finally {
+    changingTurbo.value = false
+    await refreshTurbo(activeSessionId.value)
+  }
+}
 
 const composer = useChatComposer<ChatImageAttachment>({
   activeSessionId,
-  send: async (submission) => {
-    const messageId = nanoid()
-    if (turboSession.value === submission.sessionId && terminalAvailable.value) {
-      turboSession.value = undefined
-      if (!await confirmTurbo({ sessionId: submission.sessionId, turnId: messageId, text: submission.text }))
-        throw new Error('Turbo was not confirmed. The message was not sent.')
-    }
-    return chatStore.send({
-      messageId,
-      sessionId: submission.sessionId,
-      text: submission.text,
-      replyToMessageId: submission.replyToMessageId,
-      attachments: submission.attachments.map(attachment => ({
-        type: attachment.type,
-        data: attachment.data,
-        mimeType: attachment.mimeType,
-      })),
-      tools: artistryToolReferences,
-    })
-  },
+  send: submission => chatStore.send({
+    sessionId: submission.sessionId,
+    text: submission.text,
+    replyToMessageId: submission.replyToMessageId,
+    attachments: submission.attachments.map(attachment => ({
+      type: attachment.type,
+      data: attachment.data,
+      mimeType: attachment.mimeType,
+    })),
+    tools: artistryToolReferences,
+  }),
 })
 const {
   attachments,
@@ -167,7 +181,6 @@ const {
 } = composer
 const { addFiles: handleFilePaste, selectFiles: handleFileSelect, error: imageError, pending: pendingImages } = useChatImages(composer, () => activeSessionId.value)
 useHearingInputChannel(messageInput)
-const { t } = useI18n()
 const { openImagePreview } = journalPreviewStore
 const DOUBLE_ENTER_INTERVAL_MS = 300
 const TRAILING_NEWLINES_REGEX = /[\r\n]+$/
@@ -594,14 +607,14 @@ defineExpose({
           >
             <span :class="['i-solar:paperclip-bold-duotone h-5 w-5']" />
           </GhostButton>
-          <DropdownMenu side="top" :content-class="['w-64']">
+          <DropdownMenu side="top" :content-class="['w-64']" @update:open="$event && refreshTurbo(activeSessionId)">
             <template #trigger>
               <GhostButton
                 size="unset"
                 :class="['size-9']"
-                :active="turboArmed"
-                :aria-label="turboArmed ? t('tamagotchi.stage.chat-window.computer-tools.turbo-next') : t('tamagotchi.stage.chat-window.computer-tools.label')"
-                :title="turboArmed ? t('tamagotchi.stage.chat-window.computer-tools.turbo-next') : t('tamagotchi.stage.chat-window.computer-tools.label')"
+                :active="turboEnabled"
+                :aria-label="turboEnabled ? t('tamagotchi.stage.chat-window.computer-tools.turbo-active') : t('tamagotchi.stage.chat-window.computer-tools.label')"
+                :title="turboEnabled ? t('tamagotchi.stage.chat-window.computer-tools.turbo-active') : t('tamagotchi.stage.chat-window.computer-tools.label')"
               >
                 <span :class="['i-solar:monitor-bold-duotone size-5 shrink-0']" />
               </GhostButton>
@@ -609,15 +622,19 @@ defineExpose({
             <p :class="['px-2 py-1.5 text-xs text-neutral-500 dark:text-neutral-400']">
               {{ t('tamagotchi.stage.chat-window.computer-tools.desktop-unavailable') }}
             </p>
-            <template v-if="windows && terminalAvailable">
+            <template v-if="terminalAvailable">
               <MenuSwitchItem
-                :model-value="turboArmed"
-                @update:model-value="turboSession = $event ? activeSessionId : undefined"
+                :model-value="turboEnabled"
+                :disabled="changingTurbo || loadingTurbo"
+                @update:model-value="changeTurbo"
               >
-                {{ t('tamagotchi.stage.chat-window.computer-tools.turbo-next') }}
+                {{ t('tamagotchi.stage.chat-window.computer-tools.turbo-label') }}
               </MenuSwitchItem>
               <p :class="['px-2 py-1.5 text-xs text-neutral-500 dark:text-neutral-400']">
                 {{ t('tamagotchi.stage.chat-window.computer-tools.turbo-description') }}
+              </p>
+              <p v-if="turboError" :class="['px-2 py-1.5 break-words text-xs text-red-600 dark:text-red-400']" role="alert">
+                {{ turboError }}
               </p>
             </template>
           </DropdownMenu>

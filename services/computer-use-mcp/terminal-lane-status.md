@@ -2,11 +2,10 @@
 
 Scope: terminal lane work in `services/computer-use-mcp/**`.
 
-The AIRI composer can request Turbo for one Chat message on Windows.
-Electron Main confirms the scope with a native dialog.
-Main can approve the listed queries through the existing Terminal action and shared execution queue.
-Other commands still use the approval window. Turbo ends with the original turn's admission.
-Chat receives a Terminal receipt with execution facts. The MCP audit retains desktop metadata.
+The AIRI composer can enable Terminal Turbo for one conversation after a native confirmation.
+Main approves bundled Terminal commands through the existing Terminal action and shared execution queue.
+Turning Turbo off cancels queued automatic approvals. Chat receives the result after either approval mode.
+The MCP audit retains desktop metadata.
 
 Terminal exec and reset skip CDP discovery in the shared action pipeline.
 Linux X11 still checks the remote target, display bounds, and screenshot binding before execution.

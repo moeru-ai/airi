@@ -357,12 +357,8 @@ app.whenReady().then(async () => {
     build: async ({ dependsOn }) => setupMcpManager({
       actions: dependsOn.pendingActions,
       present: dependsOn.terminalApproval.present,
-      onDispatch: dependsOn.terminalApproval.dispatched,
       executeInSlot: (operation, signal) => dependsOn.computerUse.getRuntime().executeInSlot(operation, signal),
-      notify: (notice) => {
-        dependsOn.terminalApproval.report(notice)
-        return deliverTerminalNotice(dependsOn.pendingActions, notice)
-      },
+      notify: notice => deliverTerminalNotice(dependsOn.pendingActions, notice),
     }),
   })
 

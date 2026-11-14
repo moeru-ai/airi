@@ -5,7 +5,7 @@ import type { TerminalApprovalOptions } from './terminal-approval'
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js'
-import { terminalDiscardMethod, terminalExecuteMethod, terminalTurboCommands, terminalTurboTimeoutMs } from '@proj-airi/stage-shared/terminal-approval'
+import { terminalDiscardMethod, terminalExecuteMethod } from '@proj-airi/stage-shared/terminal-approval'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { PendingActionManager } from '../computer-use/action-manager'
@@ -33,10 +33,12 @@ afterEach(async () => {
     console.info(JSON.stringify({ boundary: 'Mock Main UI decision and controlled executor. No real approval or spawn.', ...record }))
 })
 
-function fixture(shared: { actions?: PendingActionManager, runtime?: ReturnType<typeof createComputerUseRuntime>, sessionId?: string, turbo?: boolean, snapshot?: Partial<TerminalSnapshot> } = {}) {
+function fixture(shared: { actions?: PendingActionManager, runtime?: ReturnType<typeof createComputerUseRuntime>, sessionId?: string, turnId?: string, turbo?: boolean, snapshot?: Partial<TerminalSnapshot> } = {}) {
   const actions = shared.actions ?? new PendingActionManager()
-  const attribution = { sessionId: shared.sessionId ?? 'session-a', turnId: 'turn-a', toolCallId: `call-${shared.sessionId ?? 'a'}`, senderWebContentsId: 71 }
-  const request = actions.registerRequest({ sessionId: attribution.sessionId, turnId: attribution.turnId, text: 'Run the isolated fixture.' }, attribution.senderWebContentsId, shared.turbo)
+  const attribution = { sessionId: shared.sessionId ?? 'session-a', turnId: shared.turnId ?? 'turn-a', toolCallId: `call-${shared.sessionId ?? 'a'}`, senderWebContentsId: 71 }
+  const request = actions.registerRequest({ sessionId: attribution.sessionId, turnId: attribution.turnId, text: 'Run the isolated fixture.' }, attribution.senderWebContentsId)
+  if (shared.turbo)
+    actions.setTerminalTurbo(attribution.sessionId, attribution.senderWebContentsId, true)
   const snapshot: TerminalSnapshot = { protocol: 'airi-terminal-approval/1', preparedId: 'prepared-a', requestId: request.id, toolCallId: attribution.toolCallId, command: 'fixture-command', shell: 'fixture-shell', argv: ['--command', 'fixture-command'], effectiveCwd: '/fixture', cwdSource: 'runner-state', executorPid: 101, executorPlatform: 'fixture', executorCwd: '/fixture', timeoutMs: 1000, detached: false, windowsHide: true, ...shared.snapshot }
   const decision = barrier<boolean>()
   const ready = barrier<void>()
@@ -61,7 +63,7 @@ function fixture(shared: { actions?: PendingActionManager, runtime?: ReturnType<
   })
   const client = new Client({ name: 'mock-main', version: '1.0.0' })
   client.request = rpc as Client['request']
-  const connection = { client, serverName: 'fixture', nonce: 'c'.repeat(64), pid: 101, isCurrent: () => true, bundledShell: undefined as string | undefined }
+  const connection = { client, serverName: 'fixture', nonce: 'c'.repeat(64), pid: 101, isCurrent: () => true, bundledTerminal: !!shared.turbo }
   const options: TerminalApprovalOptions = { actions, present: vi.fn(() => decision.promise), notify: vi.fn(async (notice: TerminalNotice) => {
     notices.push(structuredClone(notice))
     return { status: 'stored' as const, sessionId: notice.sessionId, messageId: `terminal:${notice.actionId}` }
@@ -75,7 +77,7 @@ function fixture(shared: { actions?: PendingActionManager, runtime?: ReturnType<
       ended.release()
     }
   }, signal) }
-  const arguments_ = { command: snapshot.command, cwd: snapshot.requestedCwd }
+  const arguments_ = { command: snapshot.command, cwd: snapshot.requestedCwd, timeoutMs: snapshot.timeoutMs }
   const bind = () => bindTerminalApproval({ options, connection, attribution, payload: { name: 'fixture::terminal_exec', arguments: arguments_, requestId: request.id, attribution }, result: { content: [{ type: 'text', text: 'Approval required.' }], structuredContent: { status: 'approval_required', preparedTerminal: snapshot } } })
   function record(actionId: string) {
     evidence.push({ oracle: { ...oracle }, action: actions.get(actionId), notices: structuredClone(notices), rpcMethods: rpc.mock.calls.map(([input]) => input.method) })
@@ -84,12 +86,8 @@ function fixture(shared: { actions?: PendingActionManager, runtime?: ReturnType<
 }
 
 describe('main Terminal approval controller', () => {
-  const bundledShell = 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe'
-  const query = { command: terminalTurboCommands[0], shell: bundledShell, executorPlatform: 'win32' }
-
-  it('runs a confirmed Turbo query through the shared slot with one settlement and no approval window', async () => {
-    const h = fixture({ turbo: true, snapshot: query })
-    h.connection.bundledShell = bundledShell
+  it('runs a confirmed Turbo command with explicit cwd and timeout through the shared slot once', async () => {
+    const h = fixture({ turbo: true, snapshot: { command: 'Set-Content -LiteralPath state.txt -Value READY', requestedCwd: '/fixture', cwdSource: 'argument', timeoutMs: 20_000 } })
     const result = h.bind()
     const id = String(result.structuredContent?.hostActionId)
     expect(result.structuredContent).toMatchObject({ approval: 'turbo', status: 'prepared' })
@@ -103,21 +101,23 @@ describe('main Terminal approval controller', () => {
     expect(h.oracle).toMatchObject({ dispatches: 1, effects: 1 })
     expect(h.actions.get(id)?.settlement).toMatchObject({ executionState: 'executed', exitCode: 0 })
     expect(h.notices).toMatchObject([{ actionId: id, status: 'executed', sessionId: h.attribution.sessionId }])
+    h.actions.finishRequest(h.request.id, h.attribution.senderWebContentsId)
+    const next = fixture({ actions: h.actions, turnId: 'notice-turn' })
+    next.connection.bundledTerminal = true
+    expect(next.bind().structuredContent?.approval).toBe('turbo')
+    await next.queued.promise
+    next.ready.release()
+    await next.ended.promise
+    expect(next.options.present).not.toHaveBeenCalled()
+    expect(next.oracle).toMatchObject({ dispatches: 1, effects: 1 })
     h.record(id)
   })
 
-  it.each([
-    { name: 'unconfirmed chat', turbo: false },
-    { name: 'another MCP server', external: true },
-    { name: 'an expression with more instructions', snapshot: { command: `${query.command}; Write-Output "extra"` } },
-    { name: 'a different shell', snapshot: { shell: 'pwsh.exe' } },
-    { name: 'an explicit cwd', snapshot: { requestedCwd: '/elsewhere', cwdSource: 'argument' } },
-    { name: 'a changed runner cwd', snapshot: { effectiveCwd: '/elsewhere' } },
-    { name: 'a longer timeout', snapshot: { timeoutMs: terminalTurboTimeoutMs + 1 } },
-  ] satisfies Array<{ name: string, turbo?: boolean, external?: boolean, snapshot?: Partial<TerminalSnapshot> }>)('uses normal approval for $name', async ({ turbo, external, snapshot }) => {
-    const h = fixture({ turbo: turbo ?? true, snapshot: { ...query, ...snapshot } })
-    if (!external)
-      h.connection.bundledShell = bundledShell
+  it.each(['another conversation', 'another MCP server'] as const)('uses the manual approval window for %s', async (source) => {
+    const h = fixture()
+    h.connection.bundledTerminal = source !== 'another MCP server'
+    const sessionId = h.connection.bundledTerminal ? 'session-b' : h.attribution.sessionId
+    h.actions.setTerminalTurbo(sessionId, h.attribution.senderWebContentsId, true)
     const result = h.bind()
     expect(result.structuredContent).toMatchObject({ approval: 'manual', status: 'approval_required' })
     expect(h.options.present).toHaveBeenCalledOnce()
@@ -126,14 +126,20 @@ describe('main Terminal approval controller', () => {
     expect(h.oracle).toMatchObject({ dispatches: 0, effects: 0 })
   })
 
-  it('cancels a Turbo approval before the shared execution slot opens', async () => {
-    const h = fixture({ turbo: true, snapshot: query })
-    h.connection.bundledShell = bundledShell
+  it.each(['cancel chat', 'turn Turbo off and on'] as const)('keeps zero dispatch while queued when the user chooses to %s', async (input) => {
+    const h = fixture({ turbo: true })
     const id = String(h.bind().structuredContent?.hostActionId)
     await h.queued.promise
-    h.actions.cancelRequest(h.request.id, h.attribution.senderWebContentsId)
+    if (input === 'cancel chat') {
+      h.actions.cancelRequest(h.request.id, h.attribution.senderWebContentsId)
+    }
+    else {
+      h.actions.setTerminalTurbo(h.attribution.sessionId, h.attribution.senderWebContentsId, false)
+      h.actions.setTerminalTurbo(h.attribution.sessionId, h.attribution.senderWebContentsId, true)
+    }
     h.ready.release()
     await h.ended.promise
+    await vi.waitFor(() => expect(h.oracle.discarded).toBe(1))
     expect(h.actions.get(id)).toMatchObject({ status: 'cancelled', settlement: { executionState: 'not_executed' } })
     expect(h.oracle).toMatchObject({ dispatches: 0, effects: 0 })
     expect(h.options.present).not.toHaveBeenCalled()
@@ -369,8 +375,8 @@ describe('main Terminal approval controller', () => {
     h.record(id)
   })
 
-  it('retains the actual settlement after user cancellation or Renderer destruction follows dispatch', async () => {
-    const h = fixture()
+  it.each(['request cancellation', 'Turbo revocation'] as const)('retains the actual settlement when %s follows dispatch', async (reason) => {
+    const h = fixture({ turbo: reason === 'Turbo revocation' })
     const started = barrier<void>()
     const reply = barrier<void>()
     const originalRpc = h.rpc.getMockImplementation()!
@@ -384,8 +390,13 @@ describe('main Terminal approval controller', () => {
     h.decision.release(true)
     h.ready.release()
     await started.promise
-    h.actions.cancelRequest(h.request.id, h.attribution.senderWebContentsId)
-    h.actions.cancelBySender(h.attribution.senderWebContentsId)
+    if (reason === 'Turbo revocation') {
+      h.actions.setTerminalTurbo(h.attribution.sessionId, h.attribution.senderWebContentsId, false)
+    }
+    else {
+      h.actions.cancelRequest(h.request.id, h.attribution.senderWebContentsId)
+      h.actions.cancelBySender(h.attribution.senderWebContentsId)
+    }
     expect(h.actions.get(id)?.status).toBe('consumed')
     expect(h.actions.get(id)?.settlement).toBeUndefined()
     reply.release()
