@@ -95,13 +95,6 @@ interface OnboardingProviderProperties {
   selected_use_case?: string
 }
 
-interface ConversationBaseProperties {
-  conversation_id: string
-  provider_type: ProviderMode
-  provider_name: string
-  model: string
-}
-
 export function getConversationAnalyticsSurface(): ConversationAnalyticsSurface {
   return analyticsSurface()
 }
@@ -123,16 +116,18 @@ export function useAnalytics() {
     return enableAnalytics()
   }
 
-  function trackProviderClick(providerId: string, module: string) {
+  /**
+   * Records the first successful settings check of a provider: the end of the provider setup funnel.
+   * A card click is not a setup step, so no event records it.
+   */
+  function trackProviderConfigured(properties: ProviderConnectionTestProperties) {
     if (!canCapture())
       return
 
-    captureAnalyticsEvent('provider_card_clicked', {
-      provider_id: providerId,
-      module,
+    captureAnalyticsEvent('provider_configured', {
+      ...properties,
       app_surface: getConversationAnalyticsSurface(),
-      trigger_method: 'provider_card',
-      trigger_type: 'user_action',
+      trigger_type: 'user_flow_result',
     })
   }
 
@@ -373,25 +368,6 @@ export function useAnalytics() {
     })
   }
 
-  function trackMessageSent(properties: ConversationBaseProperties & {
-    round_id: string
-    turn_index: number
-    message_id?: string
-    message_index?: number
-    message_length?: number
-    has_attachment: boolean
-    mode: MessageInputMode
-  }) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('message_sent', {
-      ...properties,
-      app_surface: getConversationAnalyticsSurface(),
-      trigger_method: properties.mode === 'voice' ? 'voice' : 'text_input',
-      trigger_type: 'user_action',
-    })
-  }
-
   function trackProviderConnectionTestStarted(properties: ProviderConnectionTestProperties) {
     if (!canCapture())
       return
@@ -530,27 +506,10 @@ export function useAnalytics() {
 
   // ─── STT events ──────────────────────────────────────────────────────
 
-  function trackSttSucceeded(properties: { provider: string, latency_ms: number, char_count: number, stream: boolean }) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('stt_succeeded', properties)
-  }
-
   function trackSttFailed(properties: { provider: string, error_code?: string }) {
     if (!canCapture())
       return
     captureAnalyticsEvent('stt_failed', properties)
-  }
-
-  function trackVoiceInputStarted(properties: VoiceInputBaseProperties) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('voice_input_started', {
-      ...properties,
-      app_surface: getConversationAnalyticsSurface(),
-      trigger_method: 'voice',
-      trigger_type: 'user_action',
-    })
   }
 
   function trackMicrophonePermissionDenied(properties: VoiceInputBaseProperties & { error_code?: 'permission_denied' | string }) {
@@ -821,12 +780,6 @@ export function useAnalytics() {
     captureAnalyticsEvent('character_switched', properties)
   }
 
-  function trackChatSessionDeleted(properties: { session_id: string, message_count: number }) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('chat_session_deleted', properties)
-  }
-
   function trackOnboardingStepCompleted(step: string) {
     if (!canCapture())
       return
@@ -983,7 +936,7 @@ export function useAnalytics() {
 
   return {
     privacyPolicyUrl,
-    trackProviderClick,
+    trackProviderConfigured,
     trackFirstMessage,
     trackPricingViewed,
     trackPlanSelected,
@@ -1005,7 +958,6 @@ export function useAnalytics() {
 
     trackMessageRound,
     trackMessageRoundFailed,
-    trackMessageSent,
     trackProviderConnectionTestStarted,
     trackProviderConnectionTestCompleted,
     trackTtsStopClicked,
@@ -1019,9 +971,7 @@ export function useAnalytics() {
     trackConversationShared,
     trackConversationDeleted,
 
-    trackSttSucceeded,
     trackSttFailed,
-    trackVoiceInputStarted,
     trackMicrophonePermissionDenied,
     trackVoiceInputCancelled,
     trackBugReportSubmitted,
@@ -1051,7 +1001,6 @@ export function useAnalytics() {
     trackCharacterUpdated,
     trackCharacterDeleted,
     trackCharacterSwitched,
-    trackChatSessionDeleted,
     trackOnboardingStepCompleted,
     trackOnboardingSkipped,
 

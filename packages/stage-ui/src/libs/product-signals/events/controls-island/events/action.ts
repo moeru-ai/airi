@@ -4,9 +4,7 @@ import { defineEvent } from '../../../utils/dsl'
 
 /** Stable, low-cardinality actions emitted by the Electron controls island. */
 export type ControlsIslandAction
-  = | 'expand_controls'
-    | 'collapse_controls'
-    | 'toggle_settings'
+  = | 'toggle_settings'
     | 'toggle_profile_picker'
     | 'toggle_chat'
     | 'refresh_window'

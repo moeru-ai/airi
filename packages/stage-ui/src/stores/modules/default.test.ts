@@ -16,8 +16,6 @@ vi.mock('../../composables/use-analytics', () => ({
     trackMicrophonePermissionDenied: vi.fn(),
     trackSttFailed: vi.fn(),
     trackSttStarted: vi.fn(),
-    trackSttSucceeded: vi.fn(),
-    trackVoiceInputStarted: vi.fn(),
   }),
 }))
 

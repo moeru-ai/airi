@@ -28,3 +28,49 @@ export function reportedLocation(location: string, appOrigin?: string): string {
 
   return `${appOrigin}${url.protocol === 'file:' ? '/' : url.pathname}`
 }
+
+// Only SDK properties start with `$`. A product property such as `base_url` keeps its value.
+const urlPropertyPattern = /^\$.*(?:url|referrer)$/i
+const pathnamePropertyPattern = /^\$.*pathname$/i
+const hostPropertyPattern = /^\$.*host$/i
+
+/**
+ * Rewrites the page properties of one event of an installed app, so the reported pages never hold a local directory.
+ *
+ * PostHog reads the page from `window.location`. On the desktop app that is a `file:` URL, and `$pathname` is the
+ * path of the file on the user's computer. Each URL property becomes {@link reportedLocation} under `appOrigin`. Each
+ * pathname property takes the path of its rewritten URL property, or `/` when it has none. Each host property becomes
+ * the host of `appOrigin`. The object is changed in place.
+ *
+ * @example
+ * const properties = { $current_url: 'file:///home/user/app/index.html#/settings', $pathname: '/home/user/app/index.html', $host: '' }
+ * reportAppLocation(properties, 'https://desktop.example.com')
+ * // properties => { $current_url: 'https://desktop.example.com/settings', $pathname: '/settings', $host: 'desktop.example.com' }
+ */
+export function reportAppLocation(properties: Record<string, unknown> | undefined, appOrigin: string): void {
+  if (!properties)
+    return
+
+  for (const [key, value] of Object.entries(properties)) {
+    if (typeof value === 'string' && value && value !== '$direct' && urlPropertyPattern.test(key))
+      properties[key] = reportedLocation(value, appOrigin)
+  }
+
+  for (const [key, value] of Object.entries(properties)) {
+    if (typeof value !== 'string')
+      continue
+    if (hostPropertyPattern.test(key)) {
+      properties[key] = new URL(appOrigin).host
+      continue
+    }
+    if (!pathnamePropertyPattern.test(key))
+      continue
+
+    // `$pathname` pairs with `$current_url`. Other pairs share a prefix, for example `$session_entry_url`.
+    const prefix = key.slice(0, -'pathname'.length)
+    const pairedUrl = [`${prefix}current_url`, `${prefix}url`]
+      .map(name => properties[name])
+      .find(url => typeof url === 'string' && url.startsWith(appOrigin))
+    properties[key] = typeof pairedUrl === 'string' ? new URL(pairedUrl).pathname : '/'
+  }
+}

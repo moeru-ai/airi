@@ -5,7 +5,7 @@ import { useAuthStore } from '../stores/auth'
 import { authedFetch } from './auth-fetch'
 
 vi.mock('./product-signals', () => ({
-  getAnalyticsIdentitySnapshot: () => null,
+  getAnalyticsIdentityHeaders: () => null,
 }))
 
 describe('authedFetch Request inputs', () => {

@@ -12,7 +12,7 @@ import {
   configureAnalyticsAdapter,
   disableAnalyticsCapture,
   enableAnalyticsCapture,
-  getAnalyticsIdentitySnapshot,
+  getAnalyticsIdentityHeaders,
   identifyAnalyticsUser,
   isAnalyticsAvailableInBuild,
   registerAnalyticsBuildInfo,
@@ -191,4 +191,4 @@ export function initializeAnalytics(): void {
   analytics.initialize()
 }
 
-export { configureAnalyticsAdapter, getAnalyticsIdentitySnapshot, isAnalyticsAvailableInBuild }
+export { configureAnalyticsAdapter, getAnalyticsIdentityHeaders, isAnalyticsAvailableInBuild }
