@@ -1,6 +1,6 @@
 import type { ExtensionManifestV2, ModulePermissionDeclaration } from './shared/types'
 
-import { join } from 'node:path'
+import { join, win32 as pathWin32 } from 'node:path'
 
 import { safeParse } from 'valibot'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
@@ -8,6 +8,7 @@ import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import { ExtensionHost, extensionManifestV2Schema, FileSystemLoader } from '.'
 import { defineExtension } from '../extension'
 import { defineKit, defineKitContract, defineKitMethod } from '../kit'
+import { toImportUrl } from './runtimes/node/loaders/to-import-url'
 
 describe('extension manifest schema', () => {
   it('accepts extension.airi.json v2 manifests', () => {
@@ -2314,6 +2315,17 @@ describe('for FileSystemLoader', () => {
     expect(extension).toBeDefined()
     expect(extension.id).toBe('test-define-extension-entrypoint')
     expect(typeof extension.setup).toBe('function')
+  })
+
+  // https://github.com/moeru-ai/airi/issues/3359
+  // ROOT CAUSE:
+  //
+  // `import()` reads Windows paths as URL schemes, and `#` starts a URL fragment.
+  // `pathToFileURL` with Windows path parsing creates the correct file URL.
+  it('converts Windows entrypoint paths to file URLs (Issue #3359)', () => {
+    const entrypoint = ['C:', 'extensions', 'test#entrypoint.mjs'].join(pathWin32.sep)
+
+    expect(toImportUrl(entrypoint, true)).toBe('file:///C:/extensions/test%23entrypoint.mjs')
   })
 
   it('should reject entrypoints that do not export defineExtension', async () => {

@@ -4,6 +4,8 @@ import type { ExtensionLoadOptions, ExtensionManifestV2 } from '../../../shared/
 import { isAbsolute, join } from 'node:path'
 import { cwd } from 'node:process'
 
+import { toImportUrl } from './to-import-url'
+
 function isExtensionDefinition(value: unknown): value is Extension {
   return typeof value === 'object'
     && value !== null
@@ -72,7 +74,7 @@ export class FileSystemLoader {
 
   async loadExtensionFor(manifest: ExtensionManifestV2, options?: ExtensionLoadOptions) {
     const entrypoint = this.resolveEntrypointFor(manifest, options)
-    const extensionModule = await import(entrypoint)
+    const extensionModule = await import(toImportUrl(entrypoint))
     return coerceExtensionFromModule(extensionModule)
   }
 }
