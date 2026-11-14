@@ -181,6 +181,9 @@ export function streamResponses(input: {
   tools?: Tool[]
   initialStep?: ResolvedStep
   onEvent: (event: StreamEvent) => Promise<void>
+  onStepBoundary: () => Promise<void>
+  onNativeToolCall: () => void
+  onToolsResolved: (tools?: Tool[]) => void
 }) {
   const items = renderConversation(input.conversation, input.scope)
   const scopes: string[] = []
@@ -204,7 +207,7 @@ export function streamResponses(input: {
       if (!resolveStep) {
         scopes.push(input.scope)
         generation.prepareStep({ input: current })
-        return { toolChoice: toolChoice(callerToolChoice(steps)) }
+        return { toolChoice: input.tools || input.webSearch ? toolChoice(callerToolChoice(steps)) : undefined }
       }
       return (async () => {
         const firstStep = scopes.length === 0 && input.initialStep
@@ -225,6 +228,7 @@ export function streamResponses(input: {
         // Source: @xsai-ext/responses 0.5 createReader and @xsai/shared-chat resolvePrepareStep.
         // Remove this mutation when xsAI supports typed provider options for each step.
         const toolsSupported = supportsTools(next.model, nextRequest, input.options)
+        input.onToolsResolved(toolsSupported ? next.tools : undefined)
         providerConfigKeys = replaceProviderConfig(requestOptions, providerConfigKeys, nextRequest.config)
         Object.assign(requestOptions, {
           apiKey: nextRequest.config.apiKey,
@@ -263,6 +267,12 @@ export function streamResponses(input: {
     // The tool loop has no step limit. It stops when the model answers without a tool call.
     stopWhen: not(hasToolCall()),
     onEvent: async (event) => {
+      if (event.type === 'tool-call.start' || event.type === 'tool-call.delta' || event.type === 'tool-call.done' || event.type === 'tool-result.done')
+        input.onNativeToolCall()
+      if (event.type === 'step.start' || event.type === 'step.done') {
+        await input.onStepBoundary()
+        return
+      }
       const mapped = toAiriStreamEvent(event)
       if (mapped)
         await input.onEvent(mapped)
@@ -271,8 +281,10 @@ export function streamResponses(input: {
       if (event.type !== 'response.output_item.done' && event.type !== 'response.output_item.added')
         return
       const item = event.item
-      if (item?.type === 'web_search_call')
+      if (item?.type === 'web_search_call') {
+        input.onNativeToolCall()
         await input.onEvent({ type: 'search', id: item.id, status: item.status })
+      }
       if (event.type === 'response.output_item.done' && item?.type === 'message' && item.role === 'assistant') {
         for (const part of item.content) {
           if (part.type !== 'output_text')
