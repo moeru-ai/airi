@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { defineProvider } from '../../registry'
 
 const DEFAULT_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/'
-const DEFAULT_MODEL = 'gemini-2.5-flash-preview-tts'
+const DEFAULT_MODEL = 'gemini-3.8-flash-tts'
 
 const googleGeminiSpeechConfigSchema = z.object({
   apiKey: z.string(),
@@ -15,9 +15,8 @@ const googleGeminiSpeechConfigSchema = z.object({
 type GoogleGeminiSpeechConfig = z.input<typeof googleGeminiSpeechConfigSchema>
 
 const googleGeminiTtsModels = [
-  'gemini-2.5-flash-preview-tts',
-  'gemini-2.5-pro-preview-tts',
-  'gemini-3.1-flash-tts-preview',
+  'gemini-3.8-flash-tts',
+  'gemini-3.8-flash-lite-tts',
 ] as const
 
 const googleGeminiTtsVoices: Array<[string, string]> = [
@@ -88,6 +87,7 @@ function createAudioFetch(apiKey: string, baseUrl: string) {
     if (!body.model)
       throw new Error('Missing model for Gemini TTS')
 
+    const isGemini38 = body.model.startsWith('gemini-3.8')
     const response = await client.models.generateContent({
       model: body.model,
       contents: [{ parts: [{ text: body.input }] }],
@@ -96,7 +96,7 @@ function createAudioFetch(apiKey: string, baseUrl: string) {
         speechConfig: {
           voiceConfig: { prebuiltVoiceConfig: { voiceName: body.voice || 'Kore' } },
         },
-        ...(body.temperature !== undefined ? { temperature: body.temperature } : {}),
+        ...(!isGemini38 && body.temperature !== undefined ? { temperature: body.temperature } : {}),
       },
     })
 
@@ -104,7 +104,11 @@ function createAudioFetch(apiKey: string, baseUrl: string) {
     if (!audio)
       throw new Error('Gemini TTS response missing audio data')
 
-    return new Response(toWavFromPCM16(decodeBase64(audio), 24000), {
+    const decoded = decodeBase64(audio)
+    const isWav = decoded.length >= 4 && decoded[0] === 0x52 && decoded[1] === 0x49 && decoded[2] === 0x46 && decoded[3] === 0x46
+    const wavBytes = isWav ? decoded : toWavFromPCM16(decoded, 24000)
+
+    return new Response(wavBytes, {
       status: 200,
       headers: { 'Content-Type': 'audio/wav' },
     })
