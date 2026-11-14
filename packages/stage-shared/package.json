@@ -34,6 +34,7 @@
     "./types/pinia-action-event": "./src/types/pinia-action-event.ts",
     "./electron-renderer": "./src/electron-renderer.d.ts",
     "./composables": "./src/composables/index.ts",
+    "./screen-capture": "./src/screen-capture/index.ts",
     "./webgpu": "./src/webgpu/index.ts"
   },
   "scripts": {
