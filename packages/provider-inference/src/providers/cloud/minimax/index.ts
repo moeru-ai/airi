@@ -1,9 +1,24 @@
 import { createMinimax, createMinimaxCn } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
+import { listModelCatalog } from '../../../model-catalog'
 import { ProviderValidationCheck } from '../../../types'
 import { createOpenAICompatibleValidators } from '../../../validators'
 import { defineProvider } from '../../registry'
+import { selectMinimaxChatModels } from './models'
+
+async function listChatModels(config: { apiKey: string, baseUrl?: string }, providerId: string, baseURL: string) {
+  const catalog = await listModelCatalog(
+    { apiKey: config.apiKey, baseURL: config.baseUrl ?? baseURL },
+    { models: [], providerId, baseURL },
+  )
+  const endpoint = new URL(config.baseUrl ?? baseURL)
+  const official = new URL(baseURL)
+  // Custom endpoints own their model identifiers and catalog order.
+  if (endpoint.origin !== official.origin || endpoint.pathname.replace(/\/$/, '') !== official.pathname.replace(/\/$/, ''))
+    return catalog.models
+  return selectMinimaxChatModels(catalog.models, 'direct')
+}
 
 const minimaxCnConfigSchema = z.object({
   apiKey: z
@@ -53,6 +68,9 @@ export const providerMinimax = defineProvider<MinimaxCnConfig, 'minimax'>({
   createProvider(config) {
     return createMinimaxCn(config.apiKey, config.baseUrl)
   },
+  extraMethods: {
+    listModels: config => listChatModels(config, 'minimax', 'https://api.minimaxi.com/v1/'),
+  },
 
   validationRequiredWhen(config) {
     return !!config.apiKey?.trim()
@@ -89,6 +107,9 @@ export const providerMinimaxGlobal = defineProvider<MinimaxGlobalConfig, 'minima
   }),
   createProvider(config) {
     return createMinimax(config.apiKey, config.baseUrl)
+  },
+  extraMethods: {
+    listModels: config => listChatModels(config, 'minimax-global', 'https://api.minimax.io/v1/'),
   },
 
   validationRequiredWhen(config) {
