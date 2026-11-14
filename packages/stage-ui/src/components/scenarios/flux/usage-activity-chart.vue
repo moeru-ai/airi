@@ -164,7 +164,14 @@ onMounted(() => {
           :viewBox="`0 0 ${drawingWidth} 98`"
           :class="['block w-full overflow-visible']"
         >
-          <Transition enter-active-class="activity-reveal" @leave="(_, done) => done()">
+          <Transition
+            :enter-active-class="[
+              'motion-safe:animate-[flux-usage-reveal_800ms_ease-in-out_both]',
+              'motion-safe:[mask-image:linear-gradient(115deg,#000_44%,transparent_56%)]',
+              'motion-safe:[mask-size:300%_100%] motion-safe:[mask-repeat:no-repeat]',
+            ].join(' ')"
+            @leave="(_, done) => done()"
+          >
             <g :key="view" pointer-events="none">
               <rect
                 v-for="cell in layout.cells" :key="cell.id"
@@ -218,18 +225,9 @@ onMounted(() => {
   </section>
 </template>
 
-<style scoped>
-@media (prefers-reduced-motion: no-preference) {
-  .activity-reveal {
-    mask-image: linear-gradient(115deg, #000 44%, transparent 56%);
-    mask-size: 300% 100%;
-    mask-repeat: no-repeat;
-    animation: activity-reveal 600ms ease-out both;
-  }
-
-  @keyframes activity-reveal {
-    from { mask-position: 100% 0; }
-    to { mask-position: 0 0; }
-  }
+<style>
+@keyframes flux-usage-reveal {
+  from { mask-position: 100% 0; }
+  to { mask-position: 0 0; }
 }
 </style>
