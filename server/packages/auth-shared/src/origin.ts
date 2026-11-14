@@ -2,6 +2,26 @@
 const WORKERS_HOST_SUFFIX = '.moeru-ai.workers.dev'
 
 /**
+ * The first-party origins that a redirect can go to.
+ *
+ * This is the one redirect allowlist of the TypeScript services. Auth reads it for OIDC
+ * redirect URIs and Better Auth `trustedOrigins`. The API reads it for the Stripe return base.
+ * Each consumer adds `ADDITIONAL_TRUSTED_ORIGINS` and {@link matchesTrustedOriginRule}.
+ * It does not decide CORS. See `server/docs/ai/adr/2026-11-07-cross-origin-boundary.md`.
+ *
+ * The list also has native schemes. A consumer that accepts only web origins filters them out.
+ */
+export const TRUSTED_ORIGINS: readonly string[] = Object.freeze([
+  'https://airi.moeru.ai', // Production web app
+  'capacitor://localhost', // Capacitor mobile (iOS)
+  'ai.moeru.airi-pocket://links', // Android deep link
+  'https://accounts.airi.build', // Standalone auth UI
+  'https://server-dev.airi-server-auth.pages.dev', // Server-dev standalone auth UI
+  'https://admin.airi.build', // Standalone admin UI
+  'https://server-dev.airi-server-admin.pages.dev', // Server-dev standalone admin UI
+])
+
+/**
  * Checks whether an origin matches a built-in trust rule, so the API and the Auth service trust the same hosts.
  *
  * The rules are:

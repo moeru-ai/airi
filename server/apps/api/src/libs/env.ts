@@ -66,8 +66,8 @@ function optionalNumberFromString(defaultValue: number, envKey: string, minimum:
 }
 
 const EnvSchema = intersect([S3EnvironmentSchema, object({
-  // Comma-separated exact origins (e.g. Capacitor dev server `https://10.x:5273`).
-  // Prefer this over broad private-IP regex heuristics in production-like configs.
+  // Comma-separated exact origins that the Stripe return base also trusts, for example
+  // a LAN dev server `https://10.x:5273`. They do not affect CORS.
   ADDITIONAL_TRUSTED_ORIGINS: optional(
     AdditionalTrustedOriginsSchema,
     '',
