@@ -59,8 +59,20 @@ Two properties on each stage app event tell where the event comes from:
 
 For a new client app, add an `app_client` value and keep the three `app_surface` values. Desktop versions before this change report the surface `electron` and no `app_client`. In a report, read `electron` and `desktop` as the same surface.
 
-Per-generation analytics events are removed. Completed `message_round` events retain model, token usage, duration, and round identifiers.
-`message_sent` retains provider selection. `message_round_failed` retains the failure stage and error code.
+Per-generation analytics events are removed. Completed `message_round` events retain model, provider class and name, token usage, duration, and round identifiers.
+`message_round_failed` retains the failure stage and error code. One sent message is one `message_round` or one `message_round_failed`, so no separate send event exists.
+
+These high-volume events are removed, because they add no product decision:
+
+| Event | Replacement |
+| --- | --- |
+| `message_sent` | `message_round` and `message_round_failed` |
+| `voice_input_started`, `stt_succeeded` | `message_round` with `trigger_method: voice`. `stt_failed` stays. |
+| `provider_card_clicked` | `provider_configured`, sent once when a provider first passes its settings check |
+| `chat_session_deleted` | `conversation_deleted` |
+| `controls_island_action` with `expand_controls` or `collapse_controls` | None. The other controls island actions stay. |
+
+`provider_configured` counts provider setups. The manual connection test keeps its own pair: `provider_connection_test_started` and `provider_connection_test_completed`.
 Official model tracing, operational metrics, request logs, and billing remain in their existing services.
 No client sends prompts or model responses to OpenPanel.
 

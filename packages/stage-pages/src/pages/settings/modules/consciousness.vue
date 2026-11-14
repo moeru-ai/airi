@@ -38,7 +38,7 @@ const {
 } = storeToRefs(consciousnessStore)
 
 const { t } = useI18n()
-const { trackModelSwitched, trackProviderClick } = useAnalytics()
+const { trackModelSwitched } = useAnalytics()
 watch(activeProvider, async (provider) => {
   if (!provider)
     return
@@ -110,7 +110,6 @@ async function updateTopPEnabled(value: boolean) {
               :value="metadata.id"
               :title="metadata.localizedName || 'Unknown'"
               :description="metadata.localizedDescription"
-              @click="trackProviderClick(metadata.id, 'consciousness')"
             >
               <template v-if="!metadata.id.startsWith('official-provider')" #topRight>
                 <button

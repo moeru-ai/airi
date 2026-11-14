@@ -5,9 +5,7 @@ const analyticsMock = vi.hoisted(() => ({
   allowComposableCall: true,
   trackMicrophonePermissionDenied: vi.fn(),
   trackSttFailed: vi.fn(),
-  trackSttSucceeded: vi.fn(),
   trackVoiceInputCancelled: vi.fn(),
-  trackVoiceInputStarted: vi.fn(),
 }))
 
 const transcriptionMock = vi.hoisted(() => ({
@@ -22,9 +20,7 @@ vi.mock('../../composables/use-analytics', () => ({
     return {
       trackMicrophonePermissionDenied: analyticsMock.trackMicrophonePermissionDenied,
       trackSttFailed: analyticsMock.trackSttFailed,
-      trackSttSucceeded: analyticsMock.trackSttSucceeded,
       trackVoiceInputCancelled: analyticsMock.trackVoiceInputCancelled,
-      trackVoiceInputStarted: analyticsMock.trackVoiceInputStarted,
     }
   },
 }))
@@ -46,9 +42,7 @@ describe('useHearingStore analytics lifecycle', () => {
     analyticsMock.allowComposableCall = true
     analyticsMock.trackMicrophonePermissionDenied.mockReset()
     analyticsMock.trackSttFailed.mockReset()
-    analyticsMock.trackSttSucceeded.mockReset()
     analyticsMock.trackVoiceInputCancelled.mockReset()
-    analyticsMock.trackVoiceInputStarted.mockReset()
     transcriptionMock.generateTranscription.mockReset()
     transcriptionMock.generateTranscription.mockResolvedValue({ text: 'hello' })
   })
@@ -72,15 +66,8 @@ describe('useHearingStore analytics lifecycle', () => {
     )
 
     expect(result.text).toBe('hello')
-    expect(analyticsMock.trackVoiceInputStarted).toHaveBeenCalledWith({
-      stt_provider_id: 'openai-compatible-audio-transcription',
-    })
-    expect(analyticsMock.trackSttSucceeded).toHaveBeenCalledWith({
-      provider: 'openai-compatible-audio-transcription',
-      latency_ms: expect.any(Number),
-      char_count: 5,
-      stream: false,
-    })
+    // A successful transcription is counted by its message round, so it sends no event of its own.
+    expect(analyticsMock.trackSttFailed).not.toHaveBeenCalled()
   }, 10000)
 
   /**

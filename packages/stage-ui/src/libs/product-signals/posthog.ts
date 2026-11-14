@@ -1,10 +1,29 @@
+import type { BeforeSendFn } from 'posthog-js'
+
 import type { AnalyticsAdapter, AnalyticsAdapterOptions } from './client'
 
 import posthog from 'posthog-js'
 
-import { DEFAULT_POSTHOG_CONFIG, POSTHOG_PROJECT_KEY } from '@proj-airi/stage-shared/analytics/posthog'
+import { getStage, isStageTamagotchi } from '@proj-airi/stage-shared'
+import { ANALYTICS_APP_ORIGINS } from '@proj-airi/stage-shared/analytics/app-origins'
+import { DEFAULT_POSTHOG_CONFIG, POSTHOG_PROJECT_KEY, stripPosthogUrlQueries } from '@proj-airi/stage-shared/analytics/posthog'
 
 import { analyticsAppName, analyticsSurface } from './surface'
+import { reportAppLocation } from './utils/reported-location'
+
+/** Gives the `before_send` chain of the running app. An installed app also hides the local page location. */
+function beforeSend(): BeforeSendFn | BeforeSendFn[] {
+  const appOrigin = ANALYTICS_APP_ORIGINS[getStage()]
+  if (!appOrigin)
+    return stripPosthogUrlQueries
+
+  return [stripPosthogUrlQueries, (event) => {
+    reportAppLocation(event.properties, appOrigin)
+    reportAppLocation(event.$set, appOrigin)
+    reportAppLocation(event.$set_once, appOrigin)
+    return event
+  }]
+}
 
 /** Sends product events to PostHog under the current consent and identity state. */
 export function createPosthogAdapter(options: AnalyticsAdapterOptions): AnalyticsAdapter {
@@ -23,6 +42,9 @@ export function createPosthogAdapter(options: AnalyticsAdapterOptions): Analytic
 
   posthog.init(POSTHOG_PROJECT_KEY, {
     ...DEFAULT_POSTHOG_CONFIG,
+    before_send: beforeSend(),
+    // The desktop app uses hash routes. A route change keeps `location.pathname`, so it needs the hash as well.
+    ...(isStageTamagotchi() && { capture_pageview: { path: true, hash: true } }),
     opt_out_capturing_by_default: !options.enabled,
   })
   // A stored consent can disagree with the app setting. The app setting wins.

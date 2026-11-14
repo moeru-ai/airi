@@ -410,6 +410,7 @@ export interface ChatOrchestratorRuntimeDeps {
     durationMs: number
     hasVoice: boolean
     model: string
+    provider: string
     inputTokens?: number
     outputTokens?: number
     totalTokens?: number
@@ -1335,6 +1336,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         durationMs,
         hasVoice,
         model: options.model,
+        provider: activeProvider,
         inputTokens: generationUsage.inputTokens,
         outputTokens: generationUsage.outputTokens,
         totalTokens: generationUsage.totalTokens,

@@ -1339,6 +1339,7 @@ describe('createChatOrchestratorRuntime', () => {
       inputTokens: 12,
       model: 'gpt-test',
       outputTokens: 8,
+      provider: 'mock-provider',
       totalTokens: 20,
       turnIndex: 1,
       usageSource: 'reported',

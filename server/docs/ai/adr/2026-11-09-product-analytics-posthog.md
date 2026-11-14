@@ -37,10 +37,27 @@ The PostHog project settings decide which PostHog capture products run, for exam
 | `api_host` | `https://t.airi.build` | The proxy host. Content blockers block the PostHog host names. |
 | `defaults` | `2025-05-24` | Route views use `history_change`. |
 | `person_profiles` | `identified_only` | Anonymous events cost less than identified events. |
+| `capture_pageleave` | `false` | No report reads page leaves. No project setting controls them, so this is the one capture switch in the client. |
 | `session_recording` | `maskAllInputs`, `maskTextSelector: '*'` | Chat messages are page text. A replay never records text, even when the project turns replay on. |
 | `before_send` | `stripPosthogUrlQueries` | Removes query strings and fragments from URL properties, so OAuth codes never enter PostHog. |
 
 A project setting cannot turn off the two privacy rules, because client options win over the remote config.
+
+The stage adapter adds two options for the installed apps:
+
+- `before_send` also runs `reportAppLocation` on the desktop and mobile apps. A desktop page is a `file:` URL, and `$pathname` is a directory of the user's computer. Every `$` URL, pathname, and host property is reported under the app origin of `stage-shared/analytics/app-origins.ts`, the same origin that OpenPanel uses.
+- The desktop app uses hash routes, so `capture_pageview` also follows the hash there.
+
+On 2026-11-15 the project settings turned off exception capture, web vitals, performance capture, and heatmaps. Autocapture and session replay were already off. Sentry receives the error reports.
+
+### Product events
+
+Each sent message is one `message_round` or one `message_round_failed`. `message_round` now carries `provider_type` and `provider_name`, so `message_sent` is removed. These events are also removed, because they add volume and no product decision:
+
+- `voice_input_started` and `stt_succeeded`. A voice round is a `message_round` with `trigger_method: voice`. `stt_failed` stays.
+- `provider_card_clicked`. `provider_configured` replaces it. It is sent once, when a provider first passes its settings check.
+- `chat_session_deleted`. It duplicated `conversation_deleted`.
+- The `expand_controls` and `collapse_controls` controls island actions.
 
 The stage PostHog adapter keeps the behavior of the OpenPanel adapter:
 
@@ -103,6 +120,13 @@ flowchart LR
 
 ```text
 packages/stage-shared/src/analytics/posthog.ts                   (new)
+packages/stage-shared/src/analytics/app-origins.ts               (moved from openpanel.ts)
+packages/stage-ui/src/libs/product-signals/utils/reported-location.ts
+packages/stage-ui/src/libs/product-signals/events/chat/            (message_sent removed)
+packages/stage-ui/src/composables/{use-analytics,use-provider-validation}.ts
+packages/stage-ui/src/stores/{chat,chat/session-store,modules/hearing}.ts
+packages/core-agent/src/runtime/chat-orchestrator-runtime.ts      (provider on onMessageRound)
+packages/stage-pages/src/pages/settings/{modules,providers}/       (card click events removed)
 packages/stage-ui/src/libs/product-signals/posthog.ts             (new)
 packages/stage-ui/src/libs/product-signals/providers.ts           (new, client fan-out)
 packages/stage-ui/src/libs/product-signals/client.ts              (identity headers)
@@ -157,6 +181,8 @@ sequenceDiagram
 
 - `packages/stage-shared/src/analytics/posthog.test.ts`: URL properties and person properties lose their queries and fragments.
 - `packages/stage-ui/src/libs/product-signals/posthog.browser.test.ts`: with the real SDK, consent drops events, logout gives a new device id, super properties stay after a reset, and no `$opt_in` event is sent.
+- `packages/stage-ui/src/libs/product-signals/utils/reported-location.test.ts`: no app page property keeps a local directory, and product properties do not change.
+- `packages/stage-ui/src/libs/product-signals/events/chat/runtime.test.ts`, `stores/chat.contract.test.ts`: `message_round` carries the provider and the round correlation, and no `message_sent` hook exists.
 - `packages/stage-ui/src/libs/product-signals/providers.browser.test.ts`: one event reaches both SDKs, the identity headers of both providers are joined, and consent off stops both.
 - `server/apps/api/src/services/adapters/product-analytics.test.ts`: the fan-out reaches every provider, and one failure does not stop the others.
 - `server/apps/api/src/services/adapters/posthog.test.ts`: `$identify` comes before the fact, replays have the same uuid, and a rejected request has one attempt and does not throw.

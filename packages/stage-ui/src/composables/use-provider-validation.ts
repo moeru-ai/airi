@@ -33,6 +33,7 @@ export function useProviderValidation(providerId: string) {
   const providersStore = useProviderStore()
   const providerStore = useProviderConfigStore()
   const {
+    trackProviderConfigured,
     trackProviderConnectionTestCompleted,
     trackProviderConnectionTestStarted,
   } = useAnalytics()
@@ -134,6 +135,9 @@ export function useProviderValidation(providerId: string) {
 
       // A successful settings check makes providers with default configs selectable too, such as LM Studio.
       if (isValid.value) {
+        // The check runs again on every edit. Only the change from not added to added is a setup result.
+        if (!providerStore.addedProviders[providerId])
+          trackProviderConfigured(providerConnectionTestAnalyticsBase())
         providerStore.markProviderAdded(providerId)
       }
     }

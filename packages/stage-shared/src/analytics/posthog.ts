@@ -32,11 +32,14 @@ export const stripPosthogUrlQueries: BeforeSendFn = (event) => {
  *
  * These options keep only the privacy rules that a project setting must not
  * turn off: URL queries are removed, and session replay masks all text.
+ * Page leaves are the one capture switch here, because no project setting controls them.
  */
 export const DEFAULT_POSTHOG_CONFIG = {
   api_host: 'https://t.airi.build',
   defaults: '2025-05-24',
   person_profiles: 'identified_only',
+  // No report reads page leaves, and they double the page view volume.
+  capture_pageleave: false,
   // Chat messages are page text. A replay must never record them.
   session_recording: {
     maskAllInputs: true,

@@ -2,7 +2,8 @@ import type { AnalyticsAdapter, AnalyticsAdapterOptions } from './client'
 
 import { OpenPanel } from '@openpanel/web'
 import { getStage } from '@proj-airi/stage-shared'
-import { OPENPANEL_APP_ORIGINS, OPENPANEL_CONFIG } from '@proj-airi/stage-shared/analytics/openpanel'
+import { ANALYTICS_APP_ORIGINS } from '@proj-airi/stage-shared/analytics/app-origins'
+import { OPENPANEL_CONFIG } from '@proj-airi/stage-shared/analytics/openpanel'
 
 import { analyticsAppName, analyticsSurface } from './surface'
 import { reportedLocation } from './utils/reported-location'
@@ -35,7 +36,7 @@ function rotateDeviceId(): string {
 /** Sends product events to OpenPanel under the current consent and identity state. */
 export function createOpenpanelAdapter(options: AnalyticsAdapterOptions): AnalyticsAdapter {
   let enabled = options.enabled
-  const appOrigin = OPENPANEL_APP_ORIGINS[getStage()]
+  const appOrigin = ANALYTICS_APP_ORIGINS[getStage()]
   // Rotate the device on logout. Clearing SDK fields alone reuses its
   // server-derived fingerprint and can link two accounts in one browser.
   let deviceId = enabled ? loadDeviceId() : undefined
