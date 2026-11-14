@@ -101,6 +101,7 @@ describe('main Terminal approval controller', () => {
     expect(h.oracle).toMatchObject({ dispatches: 1, effects: 1 })
     expect(h.actions.get(id)?.settlement).toMatchObject({ executionState: 'executed', exitCode: 0 })
     expect(h.notices).toMatchObject([{ actionId: id, status: 'executed', sessionId: h.attribution.sessionId }])
+    expect(result.content?.[0]?.text).toContain('Wait for the Host notice before repeating this operation')
     h.actions.finishRequest(h.request.id, h.attribution.senderWebContentsId)
     const next = fixture({ actions: h.actions, turnId: 'notice-turn' })
     next.connection.bundledTerminal = true

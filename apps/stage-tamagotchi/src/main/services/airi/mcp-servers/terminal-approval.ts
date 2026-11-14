@@ -199,7 +199,14 @@ export function bindTerminalApproval(params: {
     isError: params.result.isError,
     content: [{
       type: 'text',
-      text: `${turbo ? 'Terminal Turbo authorized this command.' : 'The Terminal command is awaiting approval in AIRI.'} This response confirms preparation only. Finish this turn and wait for the Host notice in a new turn of this conversation. An empty MCP pending list does not prove that the command did not execute.`,
+      text: [
+        turbo ? 'Terminal Turbo authorized this command.' : 'The Terminal command is awaiting approval in AIRI.',
+        'This response confirms preparation only.',
+        'Wait for the Host notice before repeating this operation or acting on its result.',
+        'The notice arrives in a new turn of this conversation.',
+        'If all remaining work depends on this result, finish the current reply.',
+        'An empty MCP pending list does not prove that the command did not execute.',
+      ].join(' '),
     }],
     structuredContent: { status: turbo ? 'prepared' : 'approval_required', approval, hostActionId: actionId },
   }

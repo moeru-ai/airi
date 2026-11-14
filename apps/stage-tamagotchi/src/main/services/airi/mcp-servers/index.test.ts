@@ -367,7 +367,7 @@ describe('createMcpManager', () => {
     await manager.writeConfigText(JSON.stringify({ terminalEnabled: true, mcpServers: {} }))
     await manager.applyAndRestart()
     const desktopTools = ['desktop_capture', 'accessibility_snapshot', 'display_enumerate']
-    clientMocks.listTools.mockResolvedValue({ tools: ['terminal_exec', 'terminal_history', ...desktopTools].map(name => ({ name, inputSchema: { type: 'object', properties: { command: { type: 'string' } } }, exposure: 'direct' })) })
+    clientMocks.listTools.mockResolvedValue({ tools: ['terminal_exec', 'terminal_history', ...desktopTools].map(name => ({ name, description: 'Configured Shell executable: fixture-shell.', inputSchema: { type: 'object', properties: { command: { type: 'string' } } }, exposure: 'direct' })) })
     const descriptors = await manager.listTools()
     expect(descriptors.map(tool => [tool.toolName, tool.exposure])).toEqual([
       ['terminal_exec', 'direct'],
@@ -392,6 +392,11 @@ describe('createMcpManager', () => {
     }, { direct: await manager.listTools('airi-terminal::terminal_exec') }), attribution })
     clientMocks.callTool.mockResolvedValue({ isError: true, content: [{ type: 'text', text: 'Fixture policy rejected preparation.' }] })
     const terminal = tools.find(tool => tool.function.name === 'terminal_exec')!
+    expect(terminal.function.description).toContain('Configured Shell executable: fixture-shell.')
+    expect(terminal.function.description).toContain('Use confirmed facts to work toward the user’s goal.')
+    expect(terminal.function.description).toContain('choose an observation that can resolve the gap')
+    expect(terminal.function.description).toContain('Verify the requested outcome before reporting completion.')
+    expect(descriptors.find(descriptor => descriptor.toolName === 'terminal_history')?.description).toBe('Configured Shell executable: fixture-shell.')
     const result = await terminal.execute({ command: 'fixture', call_summary: 'Run fixture', call_icon: [] }, { messages: [], toolCallId: 'direct-call' })
     expect(result).toMatchObject({ isError: true })
     expect(clientMocks.callTool).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ name: 'terminal_exec', arguments: { command: 'fixture' }, _meta: expect.any(Object) }), undefined, expect.any(Object))

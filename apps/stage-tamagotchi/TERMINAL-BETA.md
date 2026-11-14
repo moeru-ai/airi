@@ -45,6 +45,9 @@ The outcome window and Chat notice distinguish command completion, failure and a
 Exit code 0 describes the command. Inspect the resulting file or application state to establish business success.
 A failure or timeout does not undo earlier effects. An unknown result does not authorize replay.
 
+The bundled Computer Use MCP tool tells the model to use confirmed facts and collect the evidence it still needs.
+The preparation reply tells the model to wait for the Host notice before it repeats the operation or uses its result.
+
 ## Data, lifetime and recovery
 
 The default profile is `%APPDATA%\AIRI Terminal Beta`.

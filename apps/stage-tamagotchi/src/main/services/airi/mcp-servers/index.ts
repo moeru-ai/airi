@@ -351,7 +351,13 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
         name: `${serverName}${toolNameSeparator}${item.name}`,
         toolName: item.name,
         description: session.bundledTerminal && item.name === 'terminal_exec'
-          ? `${item.description ?? 'Run a command in a local Shell.'} The bundled service offers no desktop capture or input. Submit the command through this tool. AIRI handles approval. Wait for the Host result before reporting completion or starting work that depends on it.`
+          ? [
+              item.description ?? 'Run a command in a local Shell.',
+              'The bundled service offers no desktop capture or input. AIRI handles approval.',
+              'Use confirmed facts to work toward the user’s goal.',
+              'If evidence is incomplete, choose an observation that can resolve the gap.',
+              'Verify the requested outcome before reporting completion.',
+            ].join(' ')
           : item.description,
         inputSchema: item.inputSchema,
         exposure: exposureOf(serverName, session, item.name),
