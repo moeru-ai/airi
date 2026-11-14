@@ -14,7 +14,6 @@ background-picker:
       label: Vagues colorées
       description: Vagues animées sur une grille de croix
     transparent:
-      label: Transparent
       description: Afficher l’arrière-plan sous l’interface de l’application
 character-switcher:
   title: Changer de personnage

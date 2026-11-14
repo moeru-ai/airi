@@ -97,7 +97,7 @@ dialogs:
           title: 让角色听见你
           body: 语音聊天和唤醒词需要它。
           allow: 允许使用麦克风
-          device: 输入设备：{device}
+          device: '输入设备：{device}'
           testing: 说点什么，比如「你好」。
           quiet: 还没有声音？检查是否静音，或换一个输入设备。
           heard: 听到你了。
@@ -146,10 +146,10 @@ dialogs:
           title: 都设置好了
           almost: 就差一点了
           body: 之后可以随时在设置里修改。
-          skipped: 已跳过。{consequence}
+          skipped: '已跳过。{consequence}'
           blocked: '需要先设置{requirement}。{consequence}'
           setUp: 去设置
-          setUpOne: 设置{permission}
+          setUpOne: '设置{permission}'
     voiceprint:
       title: 让角色记住你的声音
       body: 在安静的地方说大约 {seconds} 秒。AIRI 只在这台设备上保存声纹，不保存录音。
@@ -163,7 +163,7 @@ dialogs:
       languages: 声纹对登记时的语言最准。如果你还说其他语言，可以再登记一个声纹。
       delete: '删除声纹 {index}'
       label: '声纹 {index} 的标签'
-      more: 稍后可在 {path} 登记更多声纹。
+      more: '稍后可在 {path} 登记更多声纹。'
       on: 你的声纹已保存在这台设备上。
       off: AIRI 无法识别你的声音。
       speakerRecognition: AIRI 会检查输入的声音像不像你。其他人仍然可以和 AIRI 说话。
@@ -1044,7 +1044,7 @@ pages:
           enrolled: '{date} 登记，使用了 {seconds} 秒语音。'
           outdated: 声纹模型已更新。请重新登记，才能使用这个声纹。
         instructions: 请一个人待在麦克风旁边。点击「开始录音」，然后用平时的声音说话。
-        sample-prompt: 不知道说什么？可以读这段：
+        sample-prompt: '不知道说什么？可以读这段：'
         sample: 今天我想看看天气，读一下消息，再安排好接下来要做的事情。我一般在晚上和 AIRI 聊天，那时候房间很安静，我也有空。请记住我的声音，这样你就能知道是我在说话。
         progress: '已录到 {seconds} 秒语音。登记至少需要 {min} 秒。'
         start: 开始录音
@@ -1753,8 +1753,7 @@ pages:
       buy: 充值
       description: 单次购买，不会过期。
   capacitor:
-    name: Capacitor
-    left: Capacitor 还剩 {percent}
+    left: 'Capacitor 还剩 {percent}'
     offer:
       none: 还没有 Capacitor
       day: 订阅一个 Capacitor，它每天自动充满 Flux

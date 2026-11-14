@@ -244,8 +244,6 @@ pages:
     login: Se connecter
     logout: Se déconnecter
     fluxBalance: Solde de Flux
-    viewFluxDetails: Voir les détails
-    viewCapacitor: Afficher
     signedInAs: Connecté en tant que
     profile:
       tab: Profil
@@ -344,8 +342,6 @@ pages:
       action: Choisir qui répond
     sync:
       notice: Les fiches de personnage se synchronisent avec votre compte. Une fiche supprimée reste récupérable pendant 30 jours.
-      off_notice: Vous êtes connecté, mais la synchronisation des fiches de personnage est désactivée.
-      off_notice_link: Activez-la dans les fonctionnalités expérimentales.
       state:
         synced: Synchronisé avec votre compte
         pending: En attente d’envoi
@@ -1323,7 +1319,6 @@ pages:
   flux:
     buy: Recharger
     currency: Devise
-    description: Flux actuel
     terms: Conditions Générales d'Utilisation
     privacy: Politique de Confidentialité
     packagesError: Échec du chargement des offres. Veuillez réessayer plus tard.
@@ -1353,7 +1348,6 @@ pages:
     statusError: Impossible de charger votre Capacitor. Réessayez plus tard.
     packagesError: Impossible de charger les Capacitor. Réessayez plus tard.
     preferenceError: Impossible d’enregistrer la préférence. Réessayez plus tard.
-    remaining: '{percent} restant'
     rechargesAt: Recharge le {date}
     renewsAt: Renouvellement le {date}
     expiresAt: Expiration le {date}
@@ -1884,10 +1878,6 @@ pages:
         local: Votre choix sur cet appareil
         global: Disponible pour les comptes connectés
         account: Disponible pour votre compte
-      features:
-        character_card_sync:
-          title: Synchronisation cloud des fiches de personnage
-          description: Synchronise vos fiches de personnage avec votre compte après connexion, pour les retrouver sur vos autres appareils. Désactivé par défaut. Les fiches supprimées restent dans l’historique pendant 30 jours.
     color-scheme:
       description: Modifier le schéma de couleurs de la scène.
       title: Schéma de couleurs

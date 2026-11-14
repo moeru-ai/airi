@@ -272,8 +272,6 @@ pages:
     login: 로그인
     logout: 로그아웃
     fluxBalance: Flux 잔액
-    viewFluxDetails: 자세히 보기
-    viewCapacitor: 보기
     signedInAs: 로그인한 계정
     profile:
       tab: 프로필
@@ -372,8 +370,6 @@ pages:
       action: 응답할 캐릭터 선택
     sync:
       notice: 캐릭터 카드는 계정과 동기화됩니다. 삭제된 카드는 30일 동안 복원할 수 있습니다.
-      off_notice: 로그인되어 있지만 캐릭터 카드 동기화가 꺼져 있습니다.
-      off_notice_link: 실험적 기능에서 켜세요.
       state:
         synced: 계정과 동기화됨
         pending: 업로드 대기 중
@@ -875,9 +871,6 @@ pages:
           enrolled: '{date}에 등록했습니다. 말한 시간은 {seconds}초입니다.'
           outdated: 음성 지문 모델이 바뀌었습니다. 음성 지문을 사용하려면 다시 등록하세요.
         instructions: 마이크 가까이에 혼자 계세요. 녹음 시작을 누른 다음 평소 목소리로 다음 문장을 소리 내어 읽으세요.
-        sentence-1: 오늘은 날씨를 확인하고, 메시지를 읽고, 남은 하루를 계획하려고 해요.
-        sentence-2: 저는 보통 방이 조용하고 시간이 나는 저녁에 AIRI와 이야기해요.
-        sentence-3: 제 목소리를 기억해 주세요. 그래야 말하는 사람이 저인지 알 수 있어요.
         progress: '말한 시간 {seconds}초. 등록하려면 최소 {min}초가 필요합니다.'
         start: 녹음 시작
         again: 다시 등록
@@ -1541,7 +1534,6 @@ pages:
   flux:
     buy: 충전
     currency: 통화
-    description: 현재 Flux
     terms: 약관
     privacy: 개인정보 처리방침
     packagesError: 패키지를 불러오지 못했습니다. 나중에 다시 시도하세요.
@@ -1572,8 +1564,6 @@ pages:
     statusError: Capacitor를 불러오지 못했습니다. 나중에 다시 시도하세요.
     packagesError: Capacitor 목록을 불러오지 못했습니다. 나중에 다시 시도하세요.
     preferenceError: 환경설정을 저장하지 못했습니다. 나중에 다시 시도하세요.
-    remaining: '{percent} 남음'
-    ofQuota: 총 {quota} Flux
     rechargesAt: '{date}에 충전'
     renewsAt: '{date}에 갱신'
     expiresAt: '{date}에 만료'
@@ -2126,12 +2116,6 @@ pages:
         global: 로그인한 계정에서 사용 가능
         account: 내 계정에서 사용 가능
       features:
-        character_card_sync:
-          title: 캐릭터 카드 클라우드 동기화
-          description: 로그인한 동안 캐릭터 카드를 계정과 동기화하여 다른 기기에서도 사용할 수 있게 합니다. 기본적으로 꺼져 있습니다. 삭제한 카드는 계정 기록에 30일 동안 남습니다.
-        display_model_sync:
-          title: 모델 클라우드 동기화
-          description: 가져온 Live2D, VRM 모델을 로그인한 동안 계정에 업로드하여 다른 기기에서도 사용할 수 있게 합니다. 기본적으로 꺼져 있습니다.
         fullscreen_workspace:
           title: 전체 화면 작업 공간
           description: 설정과 채팅을 화면 전체를 덮는 작업 공간에서 열고, 캐릭터를 왼쪽에 둡니다. 기본적으로 꺼져 있습니다.
