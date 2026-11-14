@@ -73,6 +73,15 @@ export default defineConfig({
       '@framework/utils/cubismdebug',
       '@framework/model/cubismmoc',
     ],
+    // NOTICE:
+    // Only workers import these packages, and the dependency scanner does not follow `new Worker(new URL(...))`.
+    // Vite then optimizes them when a worker first loads and reloads the page, which stops a voice enrollment.
+    // Source: Vite's `vite:dep-scan` plugin.
+    // Remove when the scanner follows worker entries.
+    include: [
+      '@huggingface/transformers',
+      '@moeru/eventa/adapters/webworkers/worker',
+    ],
   },
   resolve: {
     alias: {

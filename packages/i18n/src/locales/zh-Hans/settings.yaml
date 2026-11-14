@@ -87,6 +87,12 @@ dialogs:
           skipped: 已跳过
           todo: 未设置
           review: 查看
+          done: 已完成
+          blocked: '需要{requirement}'
+        blocked:
+          title: '{page}需要{requirement}'
+          body: '请先设置{requirement}，或者跳过这一页。'
+          action: '设置{requirement}'
         microphone:
           title: 让角色听见你
           body: 语音聊天和唤醒词需要它。
@@ -141,8 +147,26 @@ dialogs:
           almost: 就差一点了
           body: 之后可以随时在设置里修改。
           skipped: 已跳过。{consequence}
+          blocked: '需要先设置{requirement}。{consequence}'
           setUp: 去设置
           setUpOne: 设置{permission}
+    voiceprint:
+      title: 让角色记住你的声音
+      body: 在安静的地方说大约 {seconds} 秒。AIRI 只在这台设备上保存声纹，不保存录音。
+      count: '{seconds} / {target} 秒'
+      cue:
+        start: 开始说吧
+        speaking: 很好，继续说
+        more: 再多说一点
+        almost: 快好了
+      progress: '声纹登记：已录到 {seconds} / {target} 秒语音'
+      languages: 声纹对登记时的语言最准。如果你还说其他语言，可以再登记一个声纹。
+      delete: '删除声纹 {index}'
+      label: '声纹 {index} 的标签'
+      more: 稍后可在 {path} 登记更多声纹。
+      on: 你的声纹已保存在这台设备上。
+      off: AIRI 无法识别你的声音。
+      speakerRecognition: AIRI 会检查输入的声音像不像你。其他人仍然可以和 AIRI 说话。
   bug-report:
     title: Bug 汇报 (´;ω;`)ヾ(･∀･`)
     subtitle: 坏哦，看起来我们不小心搞砸了一些东西。可以分享一下遇到了什么问题吗？
@@ -1003,32 +1027,41 @@ pages:
       voiceprint:
         title: 声纹
         description: 登记你的声音，让 AIRI 能认出你。
-        intro: 声纹是声纹模型从你的语音中算出的一组数字。它不包含音频，但能识别出你。
-        privacy: AIRI 只把你的声纹保存在这台设备上。导出角色卡不会带上它，AIRI 也不会上传它。要删除它，可以使用本页的「删除声纹」，或数据设置中的「删除所有数据」。
+        intro: 声纹是声纹模型从语音中算出的一组数字。它不包含音频，但能识别出说话的人。
+        languages: 声纹对登记时所说语言的语音最准。如果你说多种语言，可以每种语言各登记一个声纹。标签可以帮你区分它们，例如语言、麦克风或说话的人。
+        privacy: AIRI 不保存登记时的录音，只把声纹保存在这台设备上。导出角色卡不会带上它们，AIRI 也不会上传它们。要删除某个声纹，使用本页的「删除」。要全部删除，使用数据设置中的「删除所有数据」。
         download: 第一次登记时会下载声纹模型，约 28 MB。
+        saved: 已保存的声纹
+        label: 标签
+        label-placeholder: 标签，例如中文
+        enabled: 用于说话人识别
         speaker-recognition:
           label: 说话人识别
-          description: 把由说话或唤醒词开始的每次语音输入和你的声纹比对，并把分数记录在这次输入的 IO trace 中。「按住说话」的输入没有分数。任何人的声音仍然可以开始输入，聊天模型也收不到这个分数。AIRI 聆听期间，声纹模型会一直留在内存中。
-          needs-voiceprint: 登记声纹后才能开启说话人识别。
+          description: 把由说话或唤醒词开始的每次语音输入，和每个开启了「用于说话人识别」的声纹比对。这次输入的 IO trace 会记录最高的分数和对应的声纹。「按住说话」的输入没有分数。任何人的声音仍然可以开始输入，聊天模型也收不到这个分数。AIRI 聆听期间，声纹模型会一直留在内存中。
+          needs-voiceprint: 要使用说话人识别，请先登记声纹，并为它开启「用于说话人识别」。
         status:
           none: 你还没有声纹。
           enrolled: '{date} 登记，使用了 {seconds} 秒语音。'
-          outdated: 声纹模型已更新。请重新登记，才能使用你的声纹。
-        instructions: 请一个人待在麦克风旁边。点击「开始录音」，然后用平时的声音读出下面的句子。
-        sentence-1: 今天我想看看天气，读一下消息，再安排好接下来要做的事情。
-        sentence-2: 我一般在晚上和 AIRI 聊天，那时候房间很安静，我也有空。
-        sentence-3: 请记住我的声音，这样你就能知道是我在说话。
+          outdated: 声纹模型已更新。请重新登记，才能使用这个声纹。
+        instructions: 请一个人待在麦克风旁边。点击「开始录音」，然后用平时的声音说话。
+        sample-prompt: 不知道说什么？可以读这段：
+        sample: 今天我想看看天气，读一下消息，再安排好接下来要做的事情。我一般在晚上和 AIRI 聊天，那时候房间很安静，我也有空。请记住我的声音，这样你就能知道是我在说话。
         progress: '已录到 {seconds} 秒语音。登记至少需要 {min} 秒。'
         start: 开始录音
-        again: 重新登记
+        again: 再登记一个声纹
         finish: 完成
         cancel: 取消
-        delete: 删除声纹
-        enrolling: 正在计算你的声纹……
+        delete: 删除
+        enrolling: 正在生成你的声纹……
+        review:
+          title: 这个声音和已保存的声纹不太像
+          body: 换了人、语言或麦克风，都可能出现这种情况。
+          keep: 保留声纹
+          discard: 放弃
         result:
           enrolled: 你的声纹已保存。
-          cancelled: 已取消登记。
-          too-short: '这次录音只有 {seconds} 秒语音，登记至少需要 {min} 秒。请重新录音。'
+          cancelled: 已取消登记，没有保存任何内容。
+          too-short: '只录到 {seconds} 秒语音。登记至少需要 {min} 秒，请重新录音。'
           error: '登记失败：{error}'
       sections:
         section:

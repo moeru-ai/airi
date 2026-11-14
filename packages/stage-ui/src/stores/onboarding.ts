@@ -1,12 +1,18 @@
 import type {} from 'pinia-plugin-synced'
 
+import type { DeviceSetupFeature } from '../libs/onboarding/device-setup-pages'
+
+import { speakerModel } from '@proj-airi/stage-shared/speaker-model'
 import { defineStore } from 'pinia'
 import { number, object, picklist, record, safeParse, string } from 'valibot'
 import { computed, ref, watch } from 'vue'
 
+import { orderDeviceSetupPages } from '../libs/onboarding/device-setup-pages'
+import { isSherpawModelBundled } from '../libs/providers/providers/sherpaw/model-assets'
 import { useAuthStore } from './auth'
 import { useDevicePermissionsStore } from './device-permissions'
 import { useProviderConfigStore } from './providers/config'
+import { useVoiceprintStore } from './voiceprint'
 
 const essentialProviderIds = ['openai', 'azure-openai', 'anthropic', 'google-generative-ai', 'openrouter-ai', 'ollama', 'deepseek', 'openai-compatible', 'official-provider'] as const
 const credentialBasedEssentialProviderIds = ['openai', 'azure-openai', 'anthropic', 'google-generative-ai', 'openrouter-ai', 'deepseek'] as const
@@ -159,6 +165,7 @@ export const useOnboardingStore = defineStore('onboarding', () => {
   const authStore = useAuthStore()
   const onboardingStateStore = useOnboardingStateStore()
   const devicePermissionsStore = useDevicePermissionsStore()
+  const voiceprintStore = useVoiceprintStore()
   const closeRequestId = computed(() => onboardingStateStore.closeRequestId)
   const stepRecords = computed(() => onboardingStateStore.stepRecords)
 
@@ -190,6 +197,24 @@ export const useOnboardingStore = defineStore('onboarding', () => {
     })
   })
 
+  // The voiceprint page needs the bundled voiceprint model, so onboarding starts no 28 MB download. Only desktop bundles it.
+  // Like the provider snapshot, this is not reactive. The page saves a voiceprint, and a reactive check then removes the page.
+  const deviceSetupFeatures: readonly DeviceSetupFeature[] = isSherpawModelBundled(speakerModel.id) && voiceprintStore.usable.length === 0
+    ? [{
+        key: 'voiceprint',
+        // The enrollment records from the microphone.
+        requires: ['microphone'],
+        titleKey: 'settings.pages.modules.hearing.voiceprint.title',
+        icon: 'i-mingcute:voice-line',
+        onKey: 'settings.dialogs.onboarding.voiceprint.on',
+        offKey: 'settings.dialogs.onboarding.voiceprint.off',
+        done: () => voiceprintStore.usable.length > 0,
+      }]
+    : []
+
+  /** The pages of the `permissions` step: the permissions of the host, and the features that need them. */
+  const deviceSetupPages = computed(() => orderDeviceSetupPages(devicePermissionsStore.permissions, deviceSetupFeatures))
+
   const needsProviderSetup = computed(() =>
     !authStore.isAuthenticated
     && !authStore.token
@@ -200,10 +225,10 @@ export const useOnboardingStore = defineStore('onboarding', () => {
   function isApplicable(step: SharedOnboardingStep) {
     if (step.scope === 'provider-setup')
       return needsProviderSetup.value
-    // A device step needs something to set up on this device. The permissions step needs the
-    // permissions that the host registered. The web and Linux desktop register none.
+    // A device step needs something to set up on this device. The permissions step needs a page, for example a
+    // permission that the host registered, or the voiceprint on a desktop that needs no microphone permission.
     if (step.id === 'permissions')
-      return devicePermissionsStore.permissions.length > 0
+      return deviceSetupPages.value.length > 0
     return true
   }
 
@@ -254,6 +279,7 @@ export const useOnboardingStore = defineStore('onboarding', () => {
     closeRequestId,
     stepRecords,
     pendingSharedSteps,
+    deviceSetupPages,
     hasEssentialProviderConfigured,
     hasEssentialProviderCredentialConfigured,
     needsOnboarding,

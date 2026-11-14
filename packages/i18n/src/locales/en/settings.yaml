@@ -94,6 +94,12 @@ dialogs:
           skipped: Skipped
           todo: Not set up
           review: Review
+          done: Done
+          blocked: 'Needs {requirement}'
+        blocked:
+          title: '{page} needs {requirement}'
+          body: 'Set up {requirement} first, or skip this page.'
+          action: 'Set up {requirement}'
         microphone:
           title: Let your character hear you
           body: Voice chat and wake words use it.
@@ -148,8 +154,26 @@ dialogs:
           almost: Almost there
           body: You can change these in Settings at any time.
           skipped: 'Skipped. {consequence}'
+          blocked: 'Needs {requirement} first. {consequence}'
           setUp: Set up
           setUpOne: 'Set up {permission}'
+    voiceprint:
+      title: Let your character know your voice
+      body: Talk for about {seconds} seconds in a quiet place. AIRI keeps only your voiceprint on this device, not the recording.
+      count: '{seconds} of {target} s'
+      cue:
+        start: Start talking
+        speaking: Sounds good, keep going
+        more: Say a little more
+        almost: Almost there
+      progress: 'Voiceprint enrollment: {seconds} of {target} seconds of speech'
+      languages: A voiceprint works best in the language you enrolled it in. If you speak other languages, enroll another voiceprint.
+      delete: 'Delete voiceprint {index}'
+      label: 'Label of voiceprint {index}'
+      more: 'You can enroll more voiceprints later in {path}.'
+      on: Your voiceprint is saved on this device.
+      off: AIRI cannot recognize your voice.
+      speakerRecognition: AIRI checks if a voice input sounds like you. Other people can still talk to AIRI.
   bug-report:
     title: Bug report (´;ω;`)ヾ(･∀･`)
     subtitle: Oops, sorry we made something wrong. Would you mind telling us what
@@ -1060,32 +1084,41 @@ pages:
       voiceprint:
         title: Voiceprint
         description: Enroll your voice, so that AIRI can recognize it.
-        intro: A voiceprint is a list of numbers that the voiceprint model computes from your speech. It contains no audio, but it can identify you.
-        privacy: AIRI keeps your voiceprint only on this device. Card export does not include it, and AIRI does not upload it. To delete it, use Delete voiceprint on this page, or Delete all data in Data settings.
+        intro: A voiceprint is a list of numbers that the voiceprint model computes from speech. It contains no audio, but it can identify the person who spoke.
+        languages: A voiceprint matches speech in the language of its enrollment best. If you speak several languages, enroll one voiceprint for each. A label helps you tell them apart, for example a language, a microphone, or a person.
+        privacy: AIRI does not keep the recordings of an enrollment. It keeps voiceprints only on this device. Card export does not include them, and AIRI does not upload them. To delete one, use Delete on this page. To delete all of them, use Delete all data in Data settings.
         download: The first enrollment downloads the voiceprint model, about 28 MB.
+        saved: Saved voiceprints
+        label: Label
+        label-placeholder: Label, for example English
+        enabled: Use for speaker recognition
         speaker-recognition:
           label: Speaker recognition
-          description: Compares each voice input that speech or a wake word starts with your voiceprint, and records the score in the IO trace of the input. Push to Talk inputs get no score. Every voice can still start an input, and the chat model does not receive the score. While AIRI listens, the voiceprint model stays in memory.
-          needs-voiceprint: Enroll your voice to turn on speaker recognition.
+          description: Compares each voice input that speech or a wake word starts with each voiceprint that has Use for speaker recognition on. The IO trace of the input records the highest score and its voiceprint. Push to Talk inputs get no score. Every voice can still start an input, and the chat model does not receive the score. While AIRI listens, the voiceprint model stays in memory.
+          needs-voiceprint: To use speaker recognition, enroll a voiceprint and turn on Use for speaker recognition for it.
         status:
           none: You have no voiceprint.
           enrolled: 'Enrolled on {date}, from {seconds} s of speech.'
-          outdated: The voiceprint model changed. Enroll again to use your voiceprint.
-        instructions: Stay alone near the microphone. Click Start recording, then read these sentences aloud in your usual voice.
-        sentence-1: Today I want to check the weather, read my messages, and plan the rest of my day.
-        sentence-2: I usually talk to AIRI in the evening, when the room is quiet and I have some free time.
-        sentence-3: Please remember my voice, so that you can tell when I am the one who speaks.
+          outdated: The voiceprint model changed. Enroll again to use this voiceprint.
+        instructions: Stay alone near the microphone. Click Start recording, then talk in your usual voice.
+        sample-prompt: 'Not sure what to say? Read this:'
+        sample: Today I want to check the weather, read my messages, and plan the rest of my day. I usually talk to AIRI in the evening, when the room is quiet and I have some free time. Please remember my voice, so that you can tell when I am the one who speaks.
         progress: '{seconds} s of speech. Enrollment needs at least {min} s.'
         start: Start recording
-        again: Enroll again
+        again: Enroll another voiceprint
         finish: Finish
         cancel: Cancel
-        delete: Delete voiceprint
-        enrolling: Computing your voiceprint...
+        delete: Delete
+        enrolling: Creating your voiceprint...
+        review:
+          title: This voice is not like your saved voiceprints
+          body: A different person, language, or microphone can cause this.
+          keep: Keep voiceprint
+          discard: Discard
         result:
           enrolled: Your voiceprint is saved.
-          cancelled: Enrollment cancelled.
-          too-short: 'The recording had {seconds} s of speech. Enrollment needs at least {min} s. Record again.'
+          cancelled: Enrollment cancelled. Nothing was saved.
+          too-short: 'Only {seconds} seconds of speech. Enrollment needs at least {min} seconds. Record again.'
           error: 'Enrollment failed: {error}'
       sections:
         section:
