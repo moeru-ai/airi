@@ -334,11 +334,6 @@
       "count": 1
     }
   },
-  "integrations/satori-bot/src/adapter/satori/schema.ts": {
-    "ts/no-explicit-any": {
-      "count": 3
-    }
-  },
   "integrations/telegram-bot/src/bots/telegram/index.ts": {
     "ts/no-explicit-any": {
       "count": 1
