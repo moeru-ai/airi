@@ -6,6 +6,7 @@ import type {
 
 import { isPlainObject } from 'es-toolkit'
 
+import { isReservedRoutineWidget } from '../../../../shared/routine-widgets'
 import { normalizeWidgetWindowSize } from '../../../../shared/utils/electron/windows/window-size'
 
 function normalizeWidgetId(value?: string): string | undefined {
@@ -69,6 +70,9 @@ export function validateWidgetsAddPayload(payload?: WidgetsAddPayload): WidgetsA
   if (!componentName)
     throw new Error('componentName is required to spawn a widget.')
 
+  if (isReservedRoutineWidget(payload.id, 'componentName' in payload && typeof payload.componentName === 'string' ? payload.componentName : undefined))
+    throw new Error('reserved-routine-widget')
+
   const normalizedWindowSize = payload.windowSize === undefined
     ? undefined
     : normalizeWidgetWindowSize(payload.windowSize)
@@ -108,6 +112,9 @@ export function validateWidgetsUpdatePayload(payload?: WidgetsUpdatePayload): Wi
   const id = normalizeWidgetId(payload.id)
   if (!id)
     throw new Error('id is required to update a widget.')
+
+  if (isReservedRoutineWidget(payload.id, 'componentName' in payload && typeof payload.componentName === 'string' ? payload.componentName : undefined))
+    throw new Error('reserved-routine-widget')
 
   const normalizedWindowSize = payload.windowSize === undefined
     ? undefined

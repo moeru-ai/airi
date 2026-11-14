@@ -29,7 +29,7 @@ import ChatViewportLayout from './chat-viewport-layout.vue'
 
 import { electronAuthStartLogin, electronOpenSettings } from '../../shared/eventa'
 import { useHearingInputChannel } from '../composables/use-hearing-input-channel'
-import { computerUseToolReferences, useToolSelectionStore, widgetToolReferences } from '../stores/tools'
+import { computerUseToolReferences, routineToolReferences, useToolSelectionStore, widgetToolReferences } from '../stores/tools'
 import { COMPUTER_USE_READ_IMAGE_TOOL_NAME, COMPUTER_USE_TOOL_NAME } from '../stores/tools/builtin/computer-use'
 import { WEATHER_TOOL_NAME } from '../stores/tools/builtin/weather'
 import { computerUseReadImageToolCallWidget } from './chat-tool-renderers/computer-use-read-image-tool-call-widget'
@@ -292,7 +292,7 @@ async function handleRetryMessage(index: number) {
   await chatStore.retry({
     sessionId: chatSession.activeSessionId,
     index,
-    tools: computerUseEnabled.value ? [...widgetToolReferences, ...computerUseToolReferences] : widgetToolReferences,
+    tools: [...widgetToolReferences, ...routineToolReferences, ...(computerUseEnabled.value ? computerUseToolReferences : [])],
   })
   trackChatMessageRetried({
     source: 'history',
@@ -312,7 +312,7 @@ async function handleToolCallRerun(payload: ChatToolCallRerunEvent) {
     invocationId: payload.invocationId,
     toolName: payload.toolName,
     args: payload.args,
-    tools: computerUseEnabled.value ? computerUseToolReferences : [],
+    tools: [...routineToolReferences, ...(computerUseEnabled.value ? computerUseToolReferences : [])],
   })
 }
 

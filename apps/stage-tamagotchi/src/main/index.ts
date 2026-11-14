@@ -61,6 +61,7 @@ import { setupSherpawModelAssetsProtocol } from './services/electron/bundled-she
 import { setupGlobalShortcutService } from './services/electron/global-shortcut'
 import { setupPermissionHandlers } from './services/electron/media-permissions'
 import { setupSherpawModelAssets } from './services/electron/sherpaw-model-assets'
+import { setupRoutines } from './services/routines'
 import { setupTray } from './tray'
 import { setupAboutWindowReusable } from './windows/about'
 import { setupBeatSync } from './windows/beat-sync'
@@ -540,11 +541,12 @@ app.whenReady().then(async () => {
   }
 
   injeca.invoke({
-    dependsOn: { mainWindow, tray, serverChannel, airiHttpServer, godotStageManager, pluginHost, mcpManager, onboardingWindow: onboardingWindowManager, widgetsWindow: widgetsManager, spotlightWindow, artistryConfig },
+    dependsOn: { mainWindow, tray, serverChannel, airiHttpServer, godotStageManager, pluginHost, mcpManager, onboardingWindow: onboardingWindowManager, widgetsWindow: widgetsManager, spotlightWindow, artistryConfig, i18n, appConfig },
     callback: async (deps) => {
       const { context } = createContext(ipcMain)
       setupComputerUse(context)
       setupHomeAssistant(context)
+      setupRoutines(context, key => deps.i18n.t(key), deps.widgetsWindow, () => deps.appConfig.get()?.language ?? 'en')
       await setupArtistryBridge({
         widgetsManager: deps.widgetsWindow,
         context,

@@ -1,0 +1,112 @@
+heading: Daily routine
+description: Import a Maru Ichinichi link, review the plan, and manage your daily activities.
+processOnly: Reminders work only while AIRI Desktop runs. No background service is installed.
+import: Import routine
+url: Maru URL
+timeZone: Time zone (IANA)
+preview: Preview
+create: Create routine
+shortSleep: Short sleep requires explicit review before activation.
+sleepDuration: 'Minimum planned sleep on a selected start day: {hours}h {minutes}m.'
+sleepReview: Check the sleep category, weekdays, and overnight times. This warning does not approve the imported schedule.
+inactiveImport: This preview has not been saved or activated. Saving it leaves the routine and reminders disabled.
+title: Routine title
+subtitle: Description
+activity: Activity
+newActivity: New activity
+start: Start
+end: End
+color: Color
+sleep: Sleep activity
+weekdays: Weekdays
+overnight: Ends on the next day.
+removeActivity: Remove from draft
+addActivity: Add activity
+save: Save inactive draft
+cancel: Cancel
+active: Active
+inactive: Inactive
+paused: Paused until
+muted: Reminders are disabled for today in this routine's time zone.
+current: Current activity
+next: Next activity
+today: Today's plan
+none: None
+planned: Planned
+completed: Completed
+review: I reviewed the activities, weekdays, and time zone.
+acknowledgeSleep: I reviewed the short sleep warning and explicitly accept this schedule.
+enable: Activate reviewed routine
+enableReminders: Enable desktop reminders
+advance: Advance notice in minutes (0–120)
+applySettings: Apply reviewed settings
+edit: Edit plan
+pauseHour: Pause for one hour
+resume: Resume
+delete: Delete routine
+pending: Changes awaiting your confirmation
+expires: Expires at
+confirm: Review and confirm change
+failed: The operation did not complete. Reload the saved plan before trying again.
+confirmTitle: Confirm routine change
+confirmDetail: Review this change. Confirming can replace activities, record completion, or enable reminders.
+confirmAction: Confirm
+cancelAction: Cancel
+notificationUnsupported: Desktop notifications are unavailable.
+storageError: Storage durability is uncertain. Writes are blocked. Restart AIRI and verify the saved plan before continuing.
+stale: The saved revision changed. Reload before applying settings. Unsaved edits require a fresh review.
+reload: Reload saved settings
+postpone: Postpone activity for today
+complete: Mark activity as completed
+mute-today: Disable reminders today
+replacement: This replaces the saved plan and requires a new review.
+conversation: Chat can query your saved routine and propose changes. Changes require your confirmation.
+widgets:
+  next: Next activity
+  agenda: Daily agenda
+  unavailable: Routine card unavailable. Ask AIRI to query your routine again.
+  empty: No routine saved. Import or create one in Daily routine settings.
+  inactive: Inactive
+  paused: Paused
+  startsIn: 'Starts in {minutes} min'
+  noNext: No upcoming activity in the next week.
+  afterwards: Afterwards
+  now: Current activity
+  ongoing: In progress
+  planned: Planned
+  completed: Completed
+  sleep: Sleep
+  other: Activity
+  modified: Changed for this date
+  overnight: Next day
+  list: List
+  clock: Clock
+  clockLabel: '24-hour agenda ring with hour, minute, and second hands. Activity names and times are listed below.'
+  dayHand: 24 hours
+  minuteHand: Minutes
+  secondHand: Seconds
+  noEvents: No activities for this date.
+  snapshot: 'Read-only snapshot at {time}. Ask again to refresh.'
+sourceLabel: Original activity name
+displayLabel: Displayed translation
+displayLabelHelp: This translation applies only to the selected interface language. Saving requires confirmation and preserves the original name.
+sourceLabelHelp: Imported names remain unchanged unless you explicitly edit the original name.
+recognizedLabel: Recognized activity name
+unknownLabel: No automatic translation. Keep the original name or enter a displayed translation.
+yes: 'Yes'
+no: 'No'
+labels:
+  sleep: Sleep
+  work: Work
+  meal: Meal
+  hobby: Hobby
+  bathing: Bathing
+  travel: Travel
+errors:
+  cancelled: The change was cancelled. Nothing was saved.
+  expired: This proposal expired. Ask for a new proposal.
+  invalid: The input is invalid. Review the link, times, and activity names.
+  conflict: The activity overlaps another activity. Choose another time.
+  later: Choose a time later than the current planned start.
+  future: A future activity cannot be marked as completed.
+  required: Save a routine before performing this operation.

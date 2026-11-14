@@ -8,6 +8,8 @@ import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 
 import { widgetsClearEvent, widgetsFetch, widgetsIframeRequestEvent, widgetsIframeRequestResultEvent, widgetsRemoveEvent, widgetsRenderEvent, widgetsUpdate, widgetsUpdateEvent } from '../../shared/eventa'
+import { isReservedRoutineWidget } from '../../shared/routine-widgets'
+import { routineWidgetComponents } from '../widgets/routines'
 
 const { t } = useI18n()
 
@@ -161,6 +163,7 @@ onBeforeUnmount(() => {
 })
 
 const Registry: Record<string, ReturnType<typeof defineAsyncComponent>> = {
+  ...routineWidgetComponents,
   'extension-ui': defineAsyncComponent(async () => (await import('../widgets/extension-ui')).ExtensionUi),
   'map': defineAsyncComponent(async () => (await import('../widgets/map')).Map),
   'weather': defineAsyncComponent(async () => (await import('../widgets/weather')).Weather),
@@ -240,7 +243,7 @@ function handleIframeRequestResult(result: WidgetsIframeRequestResultPayload) {
   <div :class="['relative h-full w-full']">
     <div :class="['absolute right-2 top-2 z-10 flex items-center gap-1']">
       <button
-        v-if="widget"
+        v-if="widget && !isReservedRoutineWidget(widget.id, widget.componentName)"
         :class="[
           'size-8 flex items-center justify-center rounded-full text-white transition',
           widget.alwaysOnTop ? 'bg-primary-500/70 hover:bg-primary-500/85' : 'bg-black/40 hover:bg-black/60',
