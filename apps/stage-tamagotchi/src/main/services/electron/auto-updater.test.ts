@@ -2,6 +2,7 @@ import type { LauncherEvent, Updater, UpdaterStatus } from '@ergosphere-it/elect
 
 import { defineInvoke } from '@moeru/eventa'
 import { autoUpdater as autoUpdaterEventa } from '@proj-airi/electron-eventa/electron-updater'
+import { injeca } from 'injeca'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createWindowIpc } from '../../libs/electron/testing/window-ipc'
@@ -481,5 +482,20 @@ describe('setupAutoUpdater', () => {
     const { isExternallyUpdatedInstall } = await import('./auto-updater')
 
     expect(isExternallyUpdatedInstall()).toBe(externallyUpdated)
+  })
+
+  it('triggers cleanup of redundant pending installers when the application reports healthy', async () => {
+    const fake = createFakeUpdater({ status: 'up-to-date' })
+    const cleanupSpy = vi.fn().mockResolvedValue({ cleaned: ['old-installer.exe', 'update-info.json'] })
+    injeca.provide('services:auto-updater:cleanup', () => cleanupSpy)
+    const { setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater({ updater: fake.updater })
+
+    service.markMainReady()
+    expect(cleanupSpy).not.toHaveBeenCalled()
+
+    service.markMainPageMounted()
+    expect(fake.updater.markBundleHealthy).toHaveBeenCalledTimes(1)
+    await vi.waitFor(() => expect(cleanupSpy).toHaveBeenCalledTimes(1))
   })
 })
