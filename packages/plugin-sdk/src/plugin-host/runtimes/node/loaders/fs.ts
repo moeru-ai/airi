@@ -3,6 +3,7 @@ import type { ExtensionLoadOptions, ExtensionManifestV2 } from '../../../shared/
 
 import { isAbsolute, join } from 'node:path'
 import { cwd } from 'node:process'
+import { pathToFileURL } from 'node:url'
 
 function isExtensionDefinition(value: unknown): value is Extension {
   return typeof value === 'object'
@@ -72,7 +73,11 @@ export class FileSystemLoader {
 
   async loadExtensionFor(manifest: ExtensionManifestV2, options?: ExtensionLoadOptions) {
     const entrypoint = this.resolveEntrypointFor(manifest, options)
-    const extensionModule = await import(entrypoint)
+    // `import()` resolves its argument as a URL, so a Windows absolute path such as
+    // `C:/extensions/foo/extension.mjs` is read as the `c:` protocol and rejected
+    // with ERR_UNSUPPORTED_ESM_URL_SCHEME. Convert the filesystem path to a file://
+    // URL first so absolute paths work on every platform.
+    const extensionModule = await import(pathToFileURL(entrypoint).href)
     return coerceExtensionFromModule(extensionModule)
   }
 }
