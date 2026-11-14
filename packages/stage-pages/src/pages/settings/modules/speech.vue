@@ -56,7 +56,6 @@ const {
 } = storeToRefs(speechStore)
 
 const {
-  trackProviderClick,
   trackOfficialTtsExposed,
   trackOfficialTtsPreviewStarted,
   trackOfficialTtsPreviewSucceeded,
@@ -652,7 +651,6 @@ async function handleDeleteProvider(providerId: string) {
               :value="source.id"
               :title="source.title"
               :description="source.description"
-              @click="trackProviderClick(source.providerId || source.id, 'speech')"
             >
               <template #topRight>
                 <button
