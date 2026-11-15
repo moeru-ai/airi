@@ -12,7 +12,7 @@ This file is the project-level handoff for the AIRI Agent, Computer Use, Termina
 - Runtime integration checkpoint: `9947d7508`
 - Working branch: `codex/feat/pr3496-current`
 - The PR source branch is `3361559784/feat/computer-use-mcp-terminal-and-compact`.
-- The source repository is the `origin` remote for the publication worktree. The `upstream` remote is `https://github.com/moeru-ai/airi.git`.
+- The PR source repository is `moeru-ai/airi`. The publication worktree's `origin` points to `3361559784/airi`, so verify the PR API before publishing.
 - The publication worktree was clean when this checkpoint was written. Verify it before every edit, commit, and push.
 
 The exact local worktree path is intentionally kept out of this repository. Find it from the active Codex workspace or `git worktree list`.
@@ -24,9 +24,9 @@ The exact local worktree path is intentionally kept out of this repository. Find
 3. Computer Use has its own Host control credential. It never depends on Terminal being enabled or on Terminal Turbo being available.
 4. Chat mode and Agent mode use the same Main-owned action, approval, settlement, and trace path.
 5. Browser DOM writes, desktop input, Terminal actions, and workflow actions remain visible in one execution trace. A returned exit code does not prove the requested business outcome.
-6. A settlement wakes the original Agent task through the existing conversation notification path. The task must not require a second user message and must not replay an already dispatched effect.
+6. Computer Use approval returns settlement through the original pending MCP call. The same Chat or Agent turn continues without another user message or replay. Use `notifyConversation` only after the original call has ended.
 7. Reuse AIRI's existing approval window manager, request queue, action manager, and IPC contracts. Do not add a parallel bridge or a second approval state machine.
-8. Do not emit the fixed sentence `命令以退出码 0 结束。业务目标仍需独立验证。` in product output. Keep independent result verification as behavior and evidence.
+8. Do not emit a boilerplate exit-status and business-result reminder. Let the Agent inspect application state and report the evidence it observed.
 
 ## Handoff lanes
 
@@ -44,9 +44,9 @@ Workers are read-only unless the main controller explicitly assigns a writer sli
 
 - Computer Use now has independent Host control constants and environment wiring. The bundled server enables both lanes, while external servers opt into each lane separately.
 - The Computer Use Turbo state and event names still use Terminal-specific names. Rename only the shared execution concept that must be public. Keep Terminal commit protocol names local to Terminal.
-- Browser DOM mutation tools now build `ActionInvocation` values and use `executeAction`. They enter the shared policy, pending action, approval, trace, and settlement path. The approval result still needs a dedicated notice wake when the original tool call cannot remain open.
+- Browser DOM mutation tools now build `ActionInvocation` values and use `executeAction`. They enter the shared policy, pending action, approval, trace, and settlement path. The Main approval flow holds the original MCP call open until settlement, so the Agent continues in the same turn.
+- The packaged Computer Use server still uses `COMPUTER_USE_EXECUTOR=dry-run` and disables its Browser DOM bridge. It cannot control a native game or browser page. Keep this explicit until AIRI connects a real Windows execution adapter.
 - Generic confirmation views now use a stable window-manager identity while retaining unique action IDs. Presentations still need explicit serialized queue behavior for concurrent prompts.
-- The B0-style settlement wake path exists in the local AUV work and must be ported as a minimal slice. It must notify the original conversation and then let the next Agent turn read the actual execution trace.
 
 ## Change order
 
@@ -55,7 +55,7 @@ Workers are read-only unless the main controller explicitly assigns a writer sli
 3. Extend the existing `ActionKind`, invocation preparation, policy, execution switch, pending action record, and settlement record for Browser DOM writes. Use the existing browser bridge as the executor. **Done in working tree.**
 4. Route DOM writes through the same `approval_required` response used by desktop actions. Host approval must be the only approval authority. **Done in working tree.**
 5. Make the approval presentation reuse a stable AIRI window and serialize pending prompts through the existing manager. Preserve action IDs for action identity, but do not use them as window-instance identity. **Window identity done. Queue remains.**
-6. Port settlement wake and trace polling through the existing `notifyConversation` and Guard Approval Cards path. Add an idempotency check before notifying or continuing. **Open.**
+6. Verify that Host approval resolves the original MCP call and that the Agent reads its result before continuing. Use `notifyConversation` only for a detached call. **Verification remains open.**
 7. Remove or rewrite the fixed exit-code wording in the English source locale only. Do not edit Crowdin-managed locales unless the task explicitly requires it.
 8. Add focused regression tests before broad checks. Update this handoff with the exact command and result after each gate.
 
@@ -143,4 +143,4 @@ Never infer completion from a clean worktree, a zero exit code, or a successful 
 - Reused a stable approval-window manager identity for generic confirmation prompts.
 - Added focused policy, action-executor, registration, MCP manager, and background-task regression coverage. Current validation is recorded in the active task log. Publication remains pending.
 - Validation passed: Computer Use typecheck, Stage UI and Stage Tamagotchi typechecks, Computer Use action and approval tests, MCP Main routing tests, background-task browser tests, i18n check, and full lint with existing warnings only.
-- PR source ref was replaced through the GitHub refs API after verifying the previous head `12f29ba28ded65938330a5df730702b9df731a55`. The first replacement commit was `3e3bb7de3954a8ab51aee80892597f4dbc2acf26`.
+- PR source ref was replaced through the GitHub refs API after verifying the previous head `12f29ba28ded65938330a5df730702b9df731a55`. Verify the live head through the PR API before resuming.
