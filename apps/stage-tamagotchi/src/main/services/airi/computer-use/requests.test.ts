@@ -30,7 +30,7 @@ function fixture() {
   const actions = new PendingActionManager()
   const chatRequests = setupChatRequests(main.context, actions, {
     getRuntime: () => runtime.window.webContents,
-    isChatWindow: window => window === chat.window || window === runtime.window,
+    isChatWindow: window => window === chat.window,
     i18n: createI18n({ locale: 'en', messages: { en: {} } }),
   })
   const input = { sessionId: 'session-a', turnId: 'turn-a', text: 'Read the local time.' }

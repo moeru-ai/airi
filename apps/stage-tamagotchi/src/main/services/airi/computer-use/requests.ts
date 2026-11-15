@@ -122,7 +122,7 @@ export function setupChatRequests(context: ReturnType<typeof createContext>['con
   async function presentComputerUse(request: ComputerUseApprovalRequest, signal?: AbortSignal) {
     const runtime = sources.getRuntime()
     const window = runtime ? BrowserWindow.fromWebContents(runtime) : undefined
-    if (!runtime || runtime.isDestroyed() || !window || window.isDestroyed() || !sources.isChatWindow(window)
+    if (!runtime || runtime.isDestroyed() || !window || window.isDestroyed()
       || request.attribution.senderWebContentsId !== runtime.id) {
       return false
     }
@@ -151,7 +151,7 @@ export function setupChatRequests(context: ReturnType<typeof createContext>['con
       throw error
     }
 
-    return approved && runtime === sources.getRuntime() && sources.isChatWindow(window)
+    return approved && runtime === sources.getRuntime() && !window.isDestroyed()
   }
   defineInvokeHandler(context, chatRequestFinish, (input, options) => {
     actions.finishRequest(input.requestId, requireMainFrameSender(options).id)
