@@ -29,6 +29,7 @@ const shellMock = vi.hoisted(() => ({
 const clientMocks = vi.hoisted(() => ({
   instances: [] as Array<Pick<Client, 'onclose' | 'onerror'>>,
   callTool: vi.fn<Client['callTool']>(),
+  privateRequest: vi.fn(),
   close: vi.fn(),
   connect: vi.fn(),
   listTools: vi.fn(),
@@ -45,7 +46,7 @@ vi.mock('@guiiai/logg', () => ({
       debug: vi.fn(),
       warn: vi.fn(),
       withError: vi.fn(() => ({ warn: vi.fn() })),
-      withFields: vi.fn(() => ({ debug: vi.fn(), warn: vi.fn(), withError: vi.fn(() => ({ warn: vi.fn() })) })),
+      withFields: vi.fn(() => ({ debug: vi.fn(), log: vi.fn(), warn: vi.fn(), withError: vi.fn(() => ({ warn: vi.fn() })) })),
     }),
   })),
 }))
@@ -67,9 +68,10 @@ vi.mock('@modelcontextprotocol/sdk/client/index.js', async (importOriginal) => {
       close = clientMocks.close
       connect = clientMocks.connect
 
-      override async request(...[request, , options]: Parameters<Client['request']>) {
-        expect(request.method).toBe('tools/list')
-        return clientMocks.listTools.call(this, request.params, options)
+      override async request(...[request, schema, options]: Parameters<Client['request']>) {
+        if (request.method === 'tools/list')
+          return clientMocks.listTools.call(this, request.params, options)
+        return clientMocks.privateRequest.call(this, request, schema, options)
       }
     },
   }
@@ -81,6 +83,7 @@ vi.mock('@modelcontextprotocol/sdk/client/stdio.js', async () => {
   return {
     StdioClientTransport: class {
       stderr = new PassThrough()
+      pid = 101
 
       constructor(readonly server: unknown) {}
 
@@ -123,6 +126,7 @@ describe('createMcpManager', () => {
     clientMocks.connect.mockResolvedValue(undefined)
     clientMocks.listTools.mockResolvedValue({ tools: [] })
     clientMocks.callTool.mockReset()
+    clientMocks.privateRequest.mockReset()
   })
 
   afterEach(async () => {
@@ -141,6 +145,197 @@ describe('createMcpManager', () => {
     expect((await manager.applyAndRestart()).failed).toEqual([])
     return manager
   }
+
+  it('returns the completed Turbo result inside the same Terminal tool call', async () => {
+    const actions = new PendingActionManager()
+    const attribution = { sessionId: 'session-a', turnId: 'turn-a', toolCallId: 'call-a' }
+    const request = actions.registerRequest({ sessionId: attribution.sessionId, turnId: attribution.turnId, text: 'Read the requested fixture.' }, 71)
+    actions.setTerminalTurbo(attribution.sessionId, 71, true)
+    const notify = vi.fn(async notice => ({ status: 'stored' as const, sessionId: notice.sessionId, messageId: `terminal:${notice.actionId}` }))
+    const manager = createMcpManager({
+      actions,
+      present: vi.fn(async () => false),
+      presentComputerUse: vi.fn(async () => false),
+      executeInSlot: operation => operation(new AbortController().signal, () => {}),
+      notify,
+    })
+    managers.push(manager)
+    await manager.writeConfigText(JSON.stringify({ terminalEnabled: true, mcpServers: {} }))
+    await manager.applyAndRestart()
+    clientMocks.listTools.mockResolvedValue({ tools: [{ name: 'terminal_exec', inputSchema: { type: 'object' } }] })
+    const makeSnapshot = (preparedId: string, toolCallId: string, command: string) => ({
+      protocol: 'airi-terminal-approval/1',
+      preparedId,
+      requestId: request.id,
+      toolCallId,
+      command,
+      shell: 'fixture-shell',
+      argv: ['--command', command],
+      effectiveCwd: '/fixture',
+      cwdSource: 'runner-state',
+      timeoutMs: 1_000,
+      executorPid: 101,
+      executorPlatform: 'fixture',
+      executorCwd: '/fixture',
+      detached: false,
+      windowsHide: true,
+    })
+    const firstSnapshot = makeSnapshot('prepared-a', attribution.toolCallId, 'Write-Output completed')
+    const secondAttribution = { ...attribution, toolCallId: 'call-b' }
+    const secondSnapshot = makeSnapshot('prepared-b', secondAttribution.toolCallId, 'Write-Output next')
+    clientMocks.callTool
+      .mockResolvedValueOnce({ content: [], structuredContent: { status: 'approval_required', preparedTerminal: firstSnapshot } })
+      .mockResolvedValueOnce({ content: [], structuredContent: { status: 'approval_required', preparedTerminal: secondSnapshot } })
+    const requestStarted = Promise.withResolvers<void>()
+    const releaseExecution = Promise.withResolvers<void>()
+    let executionCount = 0
+    clientMocks.privateRequest.mockImplementation(async () => {
+      executionCount++
+      if (executionCount === 1) {
+        requestStarted.resolve()
+        await releaseExecution.promise
+      }
+      return { content: [{ type: 'text', text: `fixture command ${executionCount} completed` }], structuredContent: { terminalLifecycle: 'closed', backendResult: { exitCode: 0, timedOut: false } } }
+    })
+
+    let callSettled = false
+    const pending = manager.callTool({
+      name: 'airi-terminal::terminal_exec',
+      arguments: { command: firstSnapshot.command },
+      requestId: request.id,
+      attribution,
+    }, 71).then((result) => {
+      callSettled = true
+      return result
+    })
+    await requestStarted.promise
+    await Promise.resolve()
+
+    expect(callSettled).toBe(false)
+    expect(clientMocks.privateRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ method: 'airi/terminal/execute-prepared' }),
+      expect.anything(),
+      expect.objectContaining({ timeout: 31_000, maxTotalTimeout: 31_000 }),
+    )
+
+    releaseExecution.resolve()
+    const result = await pending
+
+    expect(result.structuredContent).toMatchObject({ status: 'executed', approval: 'turbo' })
+    expect(result.content?.[0]?.text).toContain('fixture command 1 completed')
+    expect(result.content?.[0]?.text).not.toContain('Exit code zero confirms Shell completion')
+    expect(result.content?.[0]?.text).not.toContain('executionTarget')
+    expect(actions.get(String(result.structuredContent?.hostActionId))?.settlement).toMatchObject({ outcome: 'success', exitCode: 0 })
+
+    const next = await manager.callTool({
+      name: 'airi-terminal::terminal_exec',
+      arguments: { command: secondSnapshot.command },
+      requestId: request.id,
+      attribution: secondAttribution,
+    }, 71)
+
+    expect(next.structuredContent).toMatchObject({ status: 'executed', approval: 'turbo' })
+    expect(next.content?.[0]?.text).toContain('fixture command 2 completed')
+    expect(clientMocks.privateRequest).toHaveBeenCalledTimes(2)
+    expect(notify).not.toHaveBeenCalled()
+  })
+
+  it('routes a Computer Use mutation through the shared Host approval dialog', async () => {
+    const actions = new PendingActionManager()
+    const attribution = { sessionId: 'session-computer', turnId: 'turn-computer', toolCallId: 'call-computer' }
+    const request = actions.registerRequest({ sessionId: attribution.sessionId, turnId: attribution.turnId, text: 'Change the desktop.' }, 71)
+    const presentComputerUse = vi.fn(async () => true)
+    const manager = createMcpManager({
+      actions,
+      present: vi.fn(async () => false),
+      presentComputerUse,
+      executeInSlot: async operation => operation(new AbortController().signal, () => {}),
+      notify: async notice => ({ status: 'stored', sessionId: notice.sessionId, messageId: 'fixture' }),
+    })
+    managers.push(manager)
+    await manager.writeConfigText(JSON.stringify({ terminalEnabled: true, mcpServers: {} }))
+    await manager.applyAndRestart()
+    clientMocks.listTools.mockResolvedValue({ tools: [{ name: 'desktop_click', inputSchema: { type: 'object' } }] })
+    expect((await manager.listTools()).find(tool => tool.toolName === 'desktop_click')?.exposure).toBe('router-only')
+    clientMocks.callTool.mockResolvedValue({
+      content: [{ type: 'text', text: 'Approval required.' }],
+      structuredContent: { status: 'approval_required', pendingActionId: 'pending-computer', toolName: 'desktop_click', action: { kind: 'click', input: { x: 10, y: 20 } }, transparency: { intent: 'Click the requested point.' } },
+    })
+    clientMocks.privateRequest.mockResolvedValue({ content: [{ type: 'text', text: 'Clicked.' }], structuredContent: { status: 'executed', action: 'click' } })
+
+    const result = await manager.callTool({ name: 'airi-terminal::desktop_click', arguments: { x: 10, y: 20 }, requestId: request.id, attribution }, 71)
+
+    expect(presentComputerUse).toHaveBeenCalledWith(expect.objectContaining({ actionId: 'pending-computer', requestId: request.id, toolName: 'desktop_click', summary: 'Click the requested point.' }), expect.anything())
+    expect(clientMocks.privateRequest).toHaveBeenCalledWith(expect.objectContaining({ method: 'airi/computer-use/execute-prepared' }), expect.anything(), expect.objectContaining({ timeout: 15_000, maxTotalTimeout: 15_000 }))
+    expect(result.structuredContent).toMatchObject({ status: 'executed', action: 'click' })
+  })
+
+  it('skips the Computer Use approval dialog while Turbo is active', async () => {
+    const actions = new PendingActionManager()
+    const attribution = { sessionId: 'session-turbo-computer', turnId: 'turn-turbo-computer', toolCallId: 'call-turbo-computer' }
+    const request = actions.registerRequest({ sessionId: attribution.sessionId, turnId: attribution.turnId, text: 'Change the desktop.' }, 71)
+    actions.setTerminalTurbo(attribution.sessionId, 71, true)
+    const presentComputerUse = vi.fn(async () => false)
+    const manager = createMcpManager({
+      actions,
+      present: vi.fn(async () => false),
+      presentComputerUse,
+      executeInSlot: async operation => operation(new AbortController().signal, () => {}),
+      notify: async notice => ({ status: 'stored', sessionId: notice.sessionId, messageId: 'fixture' }),
+    })
+    managers.push(manager)
+    await manager.writeConfigText(JSON.stringify({ terminalEnabled: true, mcpServers: {} }))
+    await manager.applyAndRestart()
+    clientMocks.listTools.mockResolvedValue({ tools: [{ name: 'desktop_click', inputSchema: { type: 'object' } }] })
+    clientMocks.callTool.mockResolvedValue({ content: [], structuredContent: { status: 'approval_required', pendingActionId: 'pending-turbo-computer', toolName: 'desktop_click', action: { kind: 'click', input: { x: 10, y: 20 } } } })
+    clientMocks.privateRequest.mockResolvedValue({ content: [{ type: 'text', text: 'Clicked.' }], structuredContent: { status: 'executed', action: 'click' } })
+
+    const result = await manager.callTool({ name: 'airi-terminal::desktop_click', arguments: { x: 10, y: 20 }, requestId: request.id, attribution }, 71)
+
+    expect(presentComputerUse).not.toHaveBeenCalled()
+    expect(clientMocks.privateRequest).toHaveBeenCalledWith(expect.objectContaining({ method: 'airi/computer-use/execute-prepared' }), expect.anything(), expect.objectContaining({ signal: expect.any(AbortSignal) }))
+    expect(result.structuredContent).toMatchObject({ status: 'executed', action: 'click' })
+  })
+
+  it('cancels a queued Computer Use dispatch when Turbo is turned off', async () => {
+    const actions = new PendingActionManager()
+    const attribution = { sessionId: 'session-revoked-turbo', turnId: 'turn-revoked-turbo', toolCallId: 'call-revoked-turbo' }
+    const request = actions.registerRequest({ sessionId: attribution.sessionId, turnId: attribution.turnId, text: 'Change the desktop.' }, 71)
+    actions.setTerminalTurbo(attribution.sessionId, 71, true)
+    const presentComputerUse = vi.fn(async () => false)
+    const manager = createMcpManager({
+      actions,
+      present: vi.fn(async () => false),
+      presentComputerUse,
+      executeInSlot: async operation => operation(new AbortController().signal, () => {}),
+      notify: async notice => ({ status: 'stored', sessionId: notice.sessionId, messageId: 'fixture' }),
+    })
+    managers.push(manager)
+    await manager.writeConfigText(JSON.stringify({ terminalEnabled: true, mcpServers: {} }))
+    await manager.applyAndRestart()
+    clientMocks.listTools.mockResolvedValue({ tools: [{ name: 'desktop_click', inputSchema: { type: 'object' } }] })
+    clientMocks.callTool.mockResolvedValue({ content: [], structuredContent: { status: 'approval_required', pendingActionId: 'pending-revoked-turbo', toolName: 'desktop_click', action: { kind: 'click', input: { x: 10, y: 20 } } } })
+    const executionStarted = Promise.withResolvers<AbortSignal>()
+    clientMocks.privateRequest.mockImplementation(async (_request, _schema, options) => {
+      const signal = options?.signal
+      if (!signal)
+        throw new Error('Turbo execution must carry its revocation signal.')
+      executionStarted.resolve(signal)
+      return await new Promise<never>((_resolve, reject) => {
+        signal.addEventListener('abort', () => reject(signal.reason), { once: true })
+      })
+    })
+
+    const pending = manager.callTool({ name: 'airi-terminal::desktop_click', arguments: { x: 10, y: 20 }, requestId: request.id, attribution }, 71)
+    const signal = await executionStarted.promise
+    expect(signal.aborted).toBe(false)
+    actions.setTerminalTurbo(attribution.sessionId, 71, false)
+
+    await expect(pending).resolves.toMatchObject({ isError: true, structuredContent: { status: 'cancelled', pendingActionId: 'pending-revoked-turbo' } })
+    expect(signal.aborted).toBe(true)
+    expect(presentComputerUse).not.toHaveBeenCalled()
+    expect(clientMocks.privateRequest).toHaveBeenCalledOnce()
+  })
 
   it('starts the bundled Terminal in a new packaged Beta profile without external Node or a persisted install path', async () => {
     appMock.isPackaged = true
@@ -306,6 +501,7 @@ describe('createMcpManager', () => {
     const manager = createMcpManager({
       actions,
       present: vi.fn(async () => false),
+      presentComputerUse: vi.fn(async () => false),
       executeInSlot: async operation => operation(new AbortController().signal, () => {}),
       notify: async notice => ({ status: 'stored', sessionId: notice.sessionId, messageId: `terminal:${notice.actionId}` }),
     })
@@ -355,11 +551,12 @@ describe('createMcpManager', () => {
     ])
   })
 
-  it('keeps direct Terminal behind Main request ownership and rejects disabled desktop calls before MCP dispatch', async () => {
+  it('keeps direct Terminal behind Main request ownership and exposes desktop calls through the router', async () => {
     const actions = new PendingActionManager()
     const manager = createMcpManager({
       actions,
       present: vi.fn(async () => false),
+      presentComputerUse: vi.fn(async () => false),
       executeInSlot: async operation => operation(new AbortController().signal, () => {}),
       notify: async notice => ({ status: 'stored', sessionId: notice.sessionId, messageId: 'fixture' }),
     })
@@ -372,18 +569,18 @@ describe('createMcpManager', () => {
     expect(descriptors.map(tool => [tool.toolName, tool.exposure])).toEqual([
       ['terminal_exec', 'direct'],
       ['terminal_history', 'router-only'],
-      ['desktop_capture', 'disabled'],
-      ['accessibility_snapshot', 'disabled'],
-      ['display_enumerate', 'disabled'],
+      ['desktop_capture', 'router-only'],
+      ['accessibility_snapshot', 'router-only'],
+      ['display_enumerate', 'router-only'],
     ])
     for (const tool of desktopTools)
-      await expect(manager.callTool({ name: `airi-terminal::${tool}` })).rejects.toThrow('disabled by the Host')
+      await expect(manager.callTool({ name: `airi-terminal::${tool}` })).rejects.toThrow('normal Chat request')
     await expect(manager.callTool({ name: 'airi-terminal::terminal_exec', arguments: { command: 'fixture' } })).rejects.toThrow('normal Chat request')
     expect(clientMocks.callTool).not.toHaveBeenCalled()
     const attribution = { sessionId: 'session-a', turnId: 'turn-a' }
     actions.setTerminalTurbo(attribution.sessionId, 71, true)
     for (const tool of desktopTools)
-      await expect(manager.callTool({ name: `airi-terminal::${tool}`, attribution }, 71)).rejects.toThrow('disabled by the Host')
+      await expect(manager.callTool({ name: `airi-terminal::${tool}`, attribution }, 71)).rejects.toThrow('normal Chat request')
     expect(clientMocks.callTool).not.toHaveBeenCalled()
     const request = actions.registerRequest({ ...attribution, text: 'Run the fixture.' }, 71)
     const tools = await resolveLlmTools({ builtInTools: [], debugTools: [], sparkCommandTools: [], webSearchTools: [], activeTools: await createMcpTools({
@@ -426,7 +623,7 @@ describe('createMcpManager', () => {
       expect(clientMocks.callTool).toHaveBeenCalledWith(
         { name: toolName, arguments: { command: 'fixture-operation' } },
         undefined,
-        { timeout: 10_000, maxTotalTimeout: 15_000 },
+        expect.objectContaining({ timeout: 10_000, maxTotalTimeout: 15_000, signal: expect.any(AbortSignal) }),
       )
       expect(effects).toBe(1)
     },

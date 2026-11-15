@@ -15,6 +15,7 @@ import { registerDisplayTools } from './server/register-display'
 import { destroyAllPtySessions, registerPtyTools } from './server/register-pty'
 import { registerTaskMemoryTools } from './server/register-task-memory'
 import { registerComputerUseTools } from './server/register-tools'
+import { registerComputerUseApproval } from './server/computer-use-approval'
 import { registerVscodeTools } from './server/register-vscode'
 import { createRuntime } from './server/runtime'
 import { registerTerminalApproval } from './server/terminal-approval'
@@ -38,6 +39,7 @@ export async function createComputerUseMcpServer(config = resolveComputerUseConf
     executeAction,
     enableTestTools,
   })
+  registerComputerUseApproval(server, runtime, executeAction)
   registerTerminalApproval(server, runtime, executeAction)
 
   registerTaskMemoryTools(server, runtime)

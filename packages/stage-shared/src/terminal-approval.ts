@@ -6,6 +6,9 @@ export const bundledTerminalServerName = 'airi-terminal'
 /** Private requests on a Main-managed stdio connection. These methods are never registered in the model tool catalog. */
 export const terminalExecuteMethod = 'airi/terminal/execute-prepared'
 export const terminalDiscardMethod = 'airi/terminal/discard-prepared'
+/** Private Main-owned Computer Use approval methods. Public MCP callers cannot reach them. */
+export const computerUseApprovalExecuteMethod = 'airi/computer-use/execute-prepared'
+export const computerUseApprovalRejectMethod = 'airi/computer-use/reject-prepared'
 export const terminalControlNonceEnv = 'AIRI_HOST_TERMINAL_NONCE'
 export const terminalControlEnabledEnv = 'AIRI_TRUSTED_TERMINAL'
 
@@ -52,6 +55,13 @@ export const terminalDiscardSchema = v.strictObject({
   requestId: v.string(),
 })
 
+export const computerUseApprovalRequestSchema = v.strictObject({
+  nonce: v.pipe(v.string(), v.minLength(32)),
+  pendingActionId: v.pipe(v.string(), v.minLength(1)),
+  toolName: v.pipe(v.string(), v.minLength(1)),
+  actionKind: v.pipe(v.string(), v.minLength(1)),
+})
+
 /** A Terminal-specific Host observation. It carries no approval or permission for another operation. */
 export const terminalNoticeSchema = v.strictObject({
   actionId: v.string(),
@@ -67,8 +77,12 @@ export const terminalNoticeSchema = v.strictObject({
 })
 export type TerminalNotice = v.InferOutput<typeof terminalNoticeSchema>
 
-/** Projects a Terminal receipt for the model. The Host retains the original report. */
-export function terminalNoticeText(notice: TerminalNotice) {
+/**
+ * Projects a Terminal receipt for the model. The Host retains the original report.
+ *
+ * @param options.includeOutcomeGuidance Defaults to `true`. Set to `false` when the report returns inside an active tool call.
+ */
+export function terminalNoticeText(notice: TerminalNotice, options: { includeOutcomeGuidance?: boolean } = {}) {
   const { result } = notice
   const receipt = v.safeParse(v.record(v.string(), v.unknown()), result?.structuredContent)
   let projected = result
@@ -79,5 +93,6 @@ export function terminalNoticeText(notice: TerminalNotice) {
   const facts = notice.status === 'unknown'
     ? 'The Host sent the execution request. The command outcome is unknown. Side effects can already exist. Check current state before repeating any operation with the same effects.'
     : 'Use this Terminal report for the command outcome. Exit code zero confirms Shell completion. Verify the requested result separately. This report grants no new execution authority.'
-  return `${facts}\n${JSON.stringify({ ...notice, result: projected })}`
+  const report = JSON.stringify({ ...notice, result: projected })
+  return options.includeOutcomeGuidance === false ? report : `${facts}\n${report}`
 }

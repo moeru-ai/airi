@@ -28,16 +28,16 @@ function fixture() {
   electron.showMessageBox.mockReset()
   electron.fromWebContents.mockImplementation(sender => [runtime, chat, other].find(window => window.window.webContents === sender)?.window)
   const actions = new PendingActionManager()
-  setupChatRequests(main.context, actions, {
+  const chatRequests = setupChatRequests(main.context, actions, {
     getRuntime: () => runtime.window.webContents,
-    isChatWindow: window => window === chat.window,
+    isChatWindow: window => window === chat.window || window === runtime.window,
     i18n: createI18n({ locale: 'en', messages: { en: {} } }),
   })
   const input = { sessionId: 'session-a', turnId: 'turn-a', text: 'Read the local time.' }
   const register = defineInvoke(runtime.context, chatRequestRegister)
   const turboMode = defineInvoke(chat.context, terminalTurboMode)
   const attribution = { ...input, senderWebContentsId: runtime.window.webContents.id }
-  return { main, runtime, chat, other, actions, input, attribution, register, turboMode }
+  return { main, runtime, chat, other, actions, input, attribution, register, turboMode, presentComputerUse: chatRequests.presentComputerUse }
 }
 
 describe('main Chat request IPC', () => {
@@ -86,6 +86,27 @@ describe('main Chat request IPC', () => {
     await expect(turboMode({ sessionId, enabled: false })).resolves.toBe(false)
     expect(signal?.aborted).toBe(true)
     expect(actions.terminalTurboSignal(sessionId, attribution.senderWebContentsId)).toBeUndefined()
+    await main.dispose()
+  })
+
+  it('uses the same native dialog for a Computer Use change when Turbo is off', async () => {
+    const { main, input, attribution, register, presentComputerUse } = fixture()
+    const request = await register(input)
+    electron.showMessageBox.mockResolvedValueOnce({ response: 1 })
+
+    await expect(presentComputerUse({
+      actionId: 'pending-computer',
+      requestId: request.requestId!,
+      attribution: { ...attribution, toolCallId: 'computer-call' },
+      serverName: 'airi-terminal',
+      toolName: 'desktop_click',
+      summary: 'Click the requested point.',
+    })).resolves.toBe(true)
+    expect(electron.showMessageBox).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      defaultId: 0,
+      cancelId: 0,
+      buttons: expect.arrayContaining(['tamagotchi.stage.chat-window.computer-tools.computer-use-allow']),
+    }))
     await main.dispose()
   })
 

@@ -11,7 +11,7 @@ import { cwd, pid, platform } from 'node:process'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
 import { CallToolResultSchema, McpError } from '@modelcontextprotocol/sdk/types.js'
-import { terminalDiscardMethod, terminalExecuteMethod, terminalOriginMetaKey, terminalSnapshotSchema } from '@proj-airi/stage-shared/terminal-approval'
+import { computerUseApprovalExecuteMethod, computerUseApprovalRejectMethod, terminalDiscardMethod, terminalExecuteMethod, terminalOriginMetaKey, terminalSnapshotSchema } from '@proj-airi/stage-shared/terminal-approval'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 
@@ -70,15 +70,15 @@ async function fixture(desktopDryRun = false) {
     remoteSshHost: '192.0.2.1',
     browserDomBridge: { enabled: false, host: '127.0.0.1', port: 0, requestTimeoutMs: 1000 },
   })
+  const desktop = createDryRunExecutor(config)
   const options: ComputerUseServerOptions & { terminalControlNonce: string } = {
     terminalControlNonce: nonce,
     terminalRunnerFactory: () => terminal,
     executorFactory: (config) => {
-      const executor = createDryRunExecutor(config)
       return {
-        ...executor,
-        getForegroundContext: desktopDryRun ? executor.getForegroundContext : async () => ({ available: true, appName: 'Fixture', windowTitle: 'Fixture', platform }),
-        getExecutionTarget: desktopDryRun ? executor.getExecutionTarget : async () => createLocalExecutionTarget({ hostName: 'fixture-host' }),
+        ...desktop,
+        getForegroundContext: desktopDryRun ? desktop.getForegroundContext : async () => ({ available: true, appName: 'Fixture', windowTitle: 'Fixture', platform }),
+        getExecutionTarget: desktopDryRun ? desktop.getExecutionTarget : async () => createLocalExecutionTarget({ hostName: 'fixture-host' }),
         getDisplayInfo: async () => createDisplayInfo(),
         getPermissionInfo: async () => createPermissionInfo(),
       }
@@ -111,7 +111,15 @@ async function fixture(desktopDryRun = false) {
   function commit(snapshot: TerminalSnapshot, overrides: Record<string, unknown> = {}, signal?: AbortSignal) {
     return client.request({ method: terminalExecuteMethod, params: { nonce, snapshot, expiresAt: Date.now() + 10_000, ...overrides } }, CallToolResultSchema, { signal })
   }
-  return { client, terminal, oracle, prepare, commit, runtime, serverTransport }
+  async function prepareComputerUse() {
+    const result = CallToolResultSchema.parse(await client.callTool({
+      name: 'desktop_click',
+      arguments: { x: 20, y: 20 },
+    }))
+    expect(result.structuredContent).toMatchObject({ status: 'approval_required', toolName: 'desktop_click', action: { kind: 'click' } })
+    return result
+  }
+  return { client, terminal, desktop, oracle, prepare, prepareComputerUse, commit, runtime, serverTransport }
 }
 
 function barrier() {
@@ -123,6 +131,73 @@ function barrier() {
 }
 
 describe('main-only Terminal execution protocol', () => {
+  it('keeps Computer Use approval private to the Host nonce', async () => {
+    const h = await fixture()
+    const click = vi.spyOn(h.runtime.executor, 'click')
+    const prepared = await h.prepareComputerUse()
+    const pendingActionId = String(prepared.structuredContent?.pendingActionId)
+    await expect(h.client.request({
+      method: computerUseApprovalExecuteMethod,
+      params: { nonce: 'd'.repeat(64), pendingActionId, toolName: 'desktop_click', actionKind: 'click' },
+    }, CallToolResultSchema)).rejects.toThrow()
+    expect(click).not.toHaveBeenCalled()
+  })
+
+  it('executes one prepared Computer Use mutation after Host approval', async () => {
+    const h = await fixture()
+    const click = vi.spyOn(h.runtime.executor, 'click')
+    const prepared = await h.prepareComputerUse()
+    const pendingActionId = String(prepared.structuredContent?.pendingActionId)
+    const result = await h.client.request({
+      method: computerUseApprovalExecuteMethod,
+      params: { nonce, pendingActionId, toolName: 'desktop_click', actionKind: 'click' },
+    }, CallToolResultSchema)
+
+    expect(result.structuredContent).toMatchObject({ status: 'executed', pendingActionId, approval: 'host' })
+    expect(click).toHaveBeenCalledTimes(1)
+    expect(h.runtime.session.listPendingActions()).toEqual([])
+  })
+
+  it('rejects one prepared Computer Use mutation without dispatch', async () => {
+    const h = await fixture()
+    const click = vi.spyOn(h.runtime.executor, 'click')
+    const prepared = await h.prepareComputerUse()
+    const pendingActionId = String(prepared.structuredContent?.pendingActionId)
+    const result = await h.client.request({
+      method: computerUseApprovalRejectMethod,
+      params: { nonce, pendingActionId, toolName: 'desktop_click', actionKind: 'click' },
+    }, CallToolResultSchema)
+
+    expect(result.structuredContent).toMatchObject({ status: 'rejected', pendingActionId })
+    expect(click).not.toHaveBeenCalled()
+    expect(h.runtime.session.listPendingActions()).toEqual([])
+  })
+
+  it('does not dispatch a prepared Computer Use mutation when Turbo is revoked during admission', async () => {
+    const h = await fixture()
+    const click = vi.spyOn(h.runtime.executor, 'click')
+    const prepared = await h.prepareComputerUse()
+    const pendingActionId = String(prepared.structuredContent?.pendingActionId)
+    const entered = Promise.withResolvers<void>()
+    const release = Promise.withResolvers<void>()
+    vi.spyOn(h.runtime.executor, 'getExecutionTarget').mockImplementation(async () => {
+      entered.resolve()
+      await release.promise
+      return { mode: 'local-windowed', transport: 'local', hostName: 'fixture-host', isolated: false, tainted: false }
+    })
+    const controller = new AbortController()
+    const pending = h.client.request({
+      method: computerUseApprovalExecuteMethod,
+      params: { nonce, pendingActionId, toolName: 'desktop_click', actionKind: 'click' },
+    }, CallToolResultSchema, { signal: controller.signal })
+    await entered.promise
+    controller.abort()
+    release.resolve()
+
+    await expect(pending).rejects.toThrow()
+    expect(click).not.toHaveBeenCalled()
+  })
+
   it('removes an approval record when preparation fails before returning its ID', async () => {
     const h = await fixture()
     vi.spyOn(h.terminal, 'prepare').mockImplementationOnce(() => {

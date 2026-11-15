@@ -64,7 +64,7 @@ function fixture(shared: { actions?: PendingActionManager, runtime?: ReturnType<
   const client = new Client({ name: 'mock-main', version: '1.0.0' })
   client.request = rpc as Client['request']
   const connection = { client, serverName: 'fixture', nonce: 'c'.repeat(64), pid: 101, isCurrent: () => true, bundledTerminal: !!shared.turbo }
-  const options: TerminalApprovalOptions = { actions, present: vi.fn(() => decision.promise), notify: vi.fn(async (notice: TerminalNotice) => {
+  const options: TerminalApprovalOptions = { actions, present: vi.fn(() => decision.promise), presentComputerUse: vi.fn(async () => false), notify: vi.fn(async (notice: TerminalNotice) => {
     notices.push(structuredClone(notice))
     return { status: 'stored' as const, sessionId: notice.sessionId, messageId: `terminal:${notice.actionId}` }
   }), executeInSlot: (operation, signal) => runtime.executeInSlot(async (lifetime, retainMutationRisk) => {
@@ -88,30 +88,76 @@ function fixture(shared: { actions?: PendingActionManager, runtime?: ReturnType<
 describe('main Terminal approval controller', () => {
   it('runs a confirmed Turbo command with explicit cwd and timeout through the shared slot once', async () => {
     const h = fixture({ turbo: true, snapshot: { command: 'Set-Content -LiteralPath state.txt -Value READY', requestedCwd: '/fixture', cwdSource: 'argument', timeoutMs: 20_000 } })
-    const result = h.bind()
-    const id = String(result.structuredContent?.hostActionId)
-    expect(result.structuredContent).toMatchObject({ approval: 'turbo', status: 'prepared' })
-    expect(result.content?.[0]?.text).toContain('preparation only')
+    const resultPromise = h.bind()
     expect(h.options.present).not.toHaveBeenCalled()
     await h.queued.promise
-    expect(h.bind().structuredContent?.hostActionId).toBe(id)
     expect(h.oracle.dispatches).toBe(0)
     h.ready.release()
+    const result = await resultPromise
+    const id = String(result.structuredContent?.hostActionId)
     await h.ended.promise
+    expect(result.structuredContent).toMatchObject({ status: 'executed', approval: 'turbo', hostActionId: id })
+    expect(result.content?.[0]?.text).toContain('Executor returned')
+    expect(result.content?.[0]?.text).not.toContain('Exit code zero confirms')
+    expect(result.content?.[0]?.text).not.toContain('executionTarget')
+    expect(h.notices).toEqual([])
     expect(h.oracle).toMatchObject({ dispatches: 1, effects: 1 })
-    expect(h.actions.get(id)?.settlement).toMatchObject({ executionState: 'executed', exitCode: 0 })
-    expect(h.notices).toMatchObject([{ actionId: id, status: 'executed', sessionId: h.attribution.sessionId }])
-    expect(result.content?.[0]?.text).toContain('Wait for the Host notice before repeating this operation')
     h.actions.finishRequest(h.request.id, h.attribution.senderWebContentsId)
     const next = fixture({ actions: h.actions, turnId: 'notice-turn' })
     next.connection.bundledTerminal = true
-    expect(next.bind().structuredContent?.approval).toBe('turbo')
+    const nextResult = next.bind()
     await next.queued.promise
     next.ready.release()
+    await nextResult
     await next.ended.promise
     expect(next.options.present).not.toHaveBeenCalled()
     expect(next.oracle).toMatchObject({ dispatches: 1, effects: 1 })
     h.record(id)
+  })
+
+  it('returns Turbo failures to the current tool call without a settlement turn', async () => {
+    const h = fixture({ turbo: true })
+    const originalRpc = h.rpc.getMockImplementation()!
+    h.rpc.mockImplementation(async (input) => {
+      const result = await originalRpc(input)
+      if (!('structuredContent' in result) || !result.structuredContent)
+        return result
+      return { ...result, isError: true, content: [{ type: 'text', text: 'Command failed after a possible effect.' }], structuredContent: { ...result.structuredContent, backendResult: { exitCode: 1, timedOut: false } } }
+    })
+
+    const resultPromise = h.bind()
+    await h.queued.promise
+    h.ready.release()
+    const result = await resultPromise
+    await h.ended.promise
+
+    expect(result.isError).toBe(true)
+    expect(result.structuredContent).toMatchObject({ status: 'failed', approval: 'turbo' })
+    expect(result.content?.[0]?.text).toContain('Command failed after a possible effect.')
+    expect(result.content?.[0]?.text).toContain('"exitCode":1')
+    expect(h.notices).toEqual([])
+    expect(h.oracle).toMatchObject({ dispatches: 1, effects: 1 })
+  })
+
+  it('returns uncertain Turbo outcomes without starting another conversation turn', async () => {
+    const h = fixture({ turbo: true })
+    h.rpc.mockImplementation(async () => {
+      h.oracle.dispatches++
+      h.oracle.effects++
+      return { content: [{ type: 'text', text: 'The result was lost after the fixture effect.' }], structuredContent: { executorInvoked: true, terminalLifecycle: 'unknown' } }
+    })
+
+    const resultPromise = h.bind()
+    await h.queued.promise
+    h.ready.release()
+    const result = await resultPromise
+    await h.ended.promise
+
+    expect(result.isError).toBe(true)
+    expect(result.structuredContent).toMatchObject({ status: 'unknown', approval: 'turbo' })
+    expect(result.content?.map(item => item.text).join('\n')).toContain('The Terminal result is unknown.')
+    expect(h.notices).toEqual([])
+    expect(h.oracle).toMatchObject({ dispatches: 1, effects: 1 })
   })
 
   it.each(['another conversation', 'another MCP server'] as const)('uses the manual approval window for %s', async (source) => {
@@ -119,7 +165,7 @@ describe('main Terminal approval controller', () => {
     h.connection.bundledTerminal = source !== 'another MCP server'
     const sessionId = h.connection.bundledTerminal ? 'session-b' : h.attribution.sessionId
     h.actions.setTerminalTurbo(sessionId, h.attribution.senderWebContentsId, true)
-    const result = h.bind()
+    const result = await h.bind()
     expect(result.structuredContent).toMatchObject({ approval: 'manual', status: 'approval_required' })
     expect(h.options.present).toHaveBeenCalledOnce()
     h.decision.release(false)
@@ -129,7 +175,7 @@ describe('main Terminal approval controller', () => {
 
   it.each(['cancel chat', 'turn Turbo off and on'] as const)('keeps zero dispatch while queued when the user chooses to %s', async (input) => {
     const h = fixture({ turbo: true })
-    const id = String(h.bind().structuredContent?.hostActionId)
+    const result = h.bind()
     await h.queued.promise
     if (input === 'cancel chat') {
       h.actions.cancelRequest(h.request.id, h.attribution.senderWebContentsId)
@@ -140,8 +186,10 @@ describe('main Terminal approval controller', () => {
     }
     h.ready.release()
     await h.ended.promise
+    const cancelled = await result
+    const id = String(cancelled.structuredContent?.hostActionId)
+    expect(cancelled.structuredContent).toMatchObject({ status: 'cancelled', approval: 'turbo' })
     await vi.waitFor(() => expect(h.oracle.discarded).toBe(1))
-    expect(h.actions.get(id)).toMatchObject({ status: 'cancelled', settlement: { executionState: 'not_executed' } })
     expect(h.oracle).toMatchObject({ dispatches: 0, effects: 0 })
     expect(h.options.present).not.toHaveBeenCalled()
     h.record(id)
@@ -157,7 +205,7 @@ describe('main Terminal approval controller', () => {
     const h = fixture()
     const receipt = barrier<Awaited<ReturnType<TerminalApprovalOptions['notify']>>>()
     h.options.notify = vi.fn(() => receipt.promise)
-    const id = String(h.bind().structuredContent?.hostActionId)
+    const id = String((await h.bind()).structuredContent?.hostActionId)
     h.decision.release(false)
     await vi.waitFor(() => expect(h.options.notify).toHaveBeenCalledOnce())
     h.actions.finishRequest(h.request.id, h.attribution.senderWebContentsId)
@@ -188,7 +236,7 @@ describe('main Terminal approval controller', () => {
         throw new McpError(ErrorCode.InvalidParams, 'Authorization expired before native dispatch.', proof)
       return { content: [{ type: 'text', text: 'Policy denied before native dispatch.' }], isError: true, structuredContent: { ...proof, executorInvoked: false } }
     })
-    const id = String(h.bind().structuredContent?.hostActionId)
+    const id = String((await h.bind()).structuredContent?.hostActionId)
     h.decision.release(true)
     h.ready.release()
     await h.ended.promise
@@ -216,7 +264,7 @@ describe('main Terminal approval controller', () => {
         throw Object.assign(new Error('Unconfirmed refusal.'), { data })
       return { content: [{ type: 'text', text: 'Unconfirmed refusal.' }], isError: true, structuredContent: data }
     })
-    const id = String(h.bind().structuredContent?.hostActionId)
+    const id = String((await h.bind()).structuredContent?.hostActionId)
     h.decision.release(true)
     h.ready.release()
     await vi.waitFor(() => expect(h.notices).toHaveLength(1))
@@ -245,7 +293,7 @@ describe('main Terminal approval controller', () => {
       await originalRpc(input)
       return { content: [{ type: 'text', text: 'The direct lifecycle ended, but its result is incomplete.' }], structuredContent: { terminalLifecycle: 'closed', backendResult: { timedOut: false } } }
     })
-    const id = String(h.bind().structuredContent?.hostActionId)
+    const id = String((await h.bind()).structuredContent?.hostActionId)
     h.decision.release(true)
     h.ready.release()
     await h.ended.promise
@@ -262,7 +310,7 @@ describe('main Terminal approval controller', () => {
 
   it('returns preparation, waits outside the slot, then consumes exactly once before dispatch', async () => {
     const h = fixture()
-    const modelResult = h.bind()
+    const modelResult = await h.bind()
     const id = String(modelResult.structuredContent?.hostActionId)
     evidence.push({ preparationResult: modelResult, oracle: { ...h.oracle }, action: h.actions.get(id) })
     expect(modelResult.content?.at(-1)?.text).toContain('preparation only')
@@ -287,7 +335,7 @@ describe('main Terminal approval controller', () => {
 
   it('rejects through the UI decision without an executor invocation', async () => {
     const h = fixture()
-    const id = String(h.bind().structuredContent?.hostActionId)
+    const id = String((await h.bind()).structuredContent?.hostActionId)
     h.decision.release(false)
     await vi.waitFor(() => expect(h.oracle.discarded).toBe(1))
     expect(h.actions.get(id)?.status).toBe('rejected')
@@ -298,7 +346,7 @@ describe('main Terminal approval controller', () => {
 
   it('keeps a cancelled operation closed even if the late presentation returns approval', async () => {
     const h = fixture()
-    const id = String(h.bind().structuredContent?.hostActionId)
+    const id = String((await h.bind()).structuredContent?.hostActionId)
     h.actions.cancelRequest(h.request.id, h.attribution.senderWebContentsId)
     h.decision.release(true)
     await vi.waitFor(() => expect(h.oracle.discarded).toBe(1))
@@ -312,7 +360,7 @@ describe('main Terminal approval controller', () => {
     vi.useFakeTimers()
     vi.setSystemTime(1000)
     const h = fixture()
-    const id = String(h.bind().structuredContent?.hostActionId)
+    const id = String((await h.bind()).structuredContent?.hostActionId)
     h.decision.release(true)
     await h.queued.promise
     vi.setSystemTime(h.actions.get(id)!.expiresAt)
@@ -329,7 +377,7 @@ describe('main Terminal approval controller', () => {
     const h = fixture()
     const held = barrier<void>()
     const blocker = h.runtime.executeInSlot(() => held.promise)
-    const id = String(h.bind().structuredContent?.hostActionId)
+    const id = String((await h.bind()).structuredContent?.hostActionId)
     try {
       h.decision.release(true)
       await vi.advanceTimersByTimeAsync(0)
@@ -348,11 +396,11 @@ describe('main Terminal approval controller', () => {
     }
   })
 
-  it.each(['executorPid', 'requestId', 'toolCallId', 'command'] as const)('refuses replaced %s before opening a decision', (field) => {
+  it.each(['executorPid', 'requestId', 'toolCallId', 'command'] as const)('refuses replaced %s before opening a decision', async (field) => {
     const h = fixture()
     const original = { ...h.snapshot }
     Object.assign(h.snapshot, { [field]: field === 'executorPid' ? 102 : 'replacement' })
-    expect(() => h.bind()).toThrow()
+    await expect(h.bind()).rejects.toThrow()
     expect(h.options.present).not.toHaveBeenCalled()
     expect(h.oracle).toMatchObject({ dispatches: 0, effects: 0 })
     evidence.push({ rejectedField: field, original, oracle: h.oracle })
@@ -360,7 +408,7 @@ describe('main Terminal approval controller', () => {
 
   it.each(['request', 'renderer', 'host'] as const)('starts no executor when %s invalidates an approved operation still waiting for its slot', async (kind) => {
     const h = fixture()
-    const id = String(h.bind().structuredContent?.hostActionId)
+    const id = String((await h.bind()).structuredContent?.hostActionId)
     h.decision.release(true)
     await h.queued.promise
     if (kind === 'request')
@@ -387,7 +435,7 @@ describe('main Terminal approval controller', () => {
       await reply.promise
       return result
     })
-    const id = String(h.bind().structuredContent?.hostActionId)
+    const result = h.bind()
     h.decision.release(true)
     h.ready.release()
     await started.promise
@@ -398,10 +446,14 @@ describe('main Terminal approval controller', () => {
       h.actions.cancelRequest(h.request.id, h.attribution.senderWebContentsId)
       h.actions.cancelBySender(h.attribution.senderWebContentsId)
     }
-    expect(h.actions.get(id)?.status).toBe('consumed')
-    expect(h.actions.get(id)?.settlement).toBeUndefined()
     reply.release()
     await h.ended.promise
+    const settled = await result
+    const id = String(settled.structuredContent?.hostActionId)
+    if (reason === 'Turbo revocation') {
+      expect(settled.structuredContent).toMatchObject({ status: 'executed', approval: 'turbo' })
+      expect(settled.content?.[0]?.text).toContain('"exitCode":0')
+    }
     expect(h.actions.get(id)?.settlement).toMatchObject({ outcome: 'success', exitCode: 0 })
     expect(h.oracle).toMatchObject({ dispatches: 1, effects: 1 })
     h.record(id)
@@ -416,7 +468,7 @@ describe('main Terminal approval controller', () => {
         return result
       return { ...result, content: [{ type: 'text', text: 'Controlled failure after a possible effect.' }], structuredContent: { terminalLifecycle: 'closed', backendResult: backend } }
     })
-    const id = String(h.bind().structuredContent?.hostActionId)
+    const id = String((await h.bind()).structuredContent?.hostActionId)
     h.decision.release(true)
     h.ready.release()
     await h.ended.promise
@@ -437,7 +489,7 @@ describe('main Terminal approval controller', () => {
       started.release()
       throw new Error('Response lost after the controlled business effect.')
     })
-    const id = String(h.bind().structuredContent?.hostActionId)
+    const id = String((await h.bind()).structuredContent?.hostActionId)
     h.decision.release(true)
     h.ready.release()
     await started.promise
@@ -475,7 +527,7 @@ describe('main Terminal approval controller', () => {
         backendResult,
       } }
     })
-    const id = String(h.bind().structuredContent?.hostActionId)
+    const id = String((await h.bind()).structuredContent?.hostActionId)
     h.decision.release(true)
     h.ready.release()
     await h.ended.promise
@@ -492,14 +544,14 @@ describe('main Terminal approval controller', () => {
   it('preserves two Session owners while sharing one actual execution queue', async () => {
     const a = fixture()
     const b = fixture({ actions: a.actions, runtime: a.runtime, sessionId: 'session-b' })
-    const actionA = String(a.bind().structuredContent?.hostActionId)
+    const actionA = String((await a.bind()).structuredContent?.hostActionId)
     let observations = 0
     await a.runtime.executeInSlot(async () => {
       observations++
     })
     expect(observations).toBe(1)
     expect(a.actions.get(actionA)?.status).toBe('pending')
-    const actionB = String(b.bind().structuredContent?.hostActionId)
+    const actionB = String((await b.bind()).structuredContent?.hostActionId)
     a.decision.release(true)
     await a.queued.promise
     b.decision.release(true)

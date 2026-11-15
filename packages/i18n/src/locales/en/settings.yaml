@@ -1702,6 +1702,19 @@ pages:
         reject: Reject
         details: Full executor report
         pending: Waiting for your approval. This command has not been authorized.
+        scope: This command can change files, start applications, and affect the desktop. Approval applies once to this exact operation.
+        session: Session
+        command: Command
+        working-directory: Working directory
+        directory-source: '{source} in the Terminal executor'
+        shell: Shell
+        executor: Executor
+        expires: Expires
+        arguments-identity: Full arguments and request identity
+        turn-call: 'Turn {turn} · Call {call}'
+        request-action: 'Request {request} · Action {action}'
+        unavailable: This approval request is unavailable.
+        decision-error: The approval decision could not be sent.
         result:
           executed: Command exited with code 0. Business success still needs independent verification.
           failed: Command failed. Earlier effects can remain. Check the executor report before running another command.

@@ -230,7 +230,7 @@ describe('interactive area synchronized state', () => {
         modes.set(sessionId, enabled)
       return modes.get(sessionId) ?? false
     })
-    tools.addTools({ id: 'mcp:terminal_exec', type: 'function', function: { name: 'terminal_exec', parameters: { type: 'object' } }, execute: async () => '' })
+    tools.addTools({ id: 'mcp:builtIn_mcpCallTool', type: 'function', function: { name: 'terminal_exec', parameters: { type: 'object' } }, execute: async () => '' })
 
     const toolButton = screen.getByRole('button', { name: 'tamagotchi.stage.chat-window.computer-tools.label' })
     const activeButton = screen.getByRole('button', { name: 'tamagotchi.stage.chat-window.computer-tools.turbo-active' })

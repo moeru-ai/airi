@@ -14,6 +14,7 @@ import type {
   ElectronMcpTestResult,
   ElectronMcpToolDescriptor,
 } from '../../../../shared/eventa'
+import type { InvocationAttribution } from '../computer-use/attribution'
 import type { TerminalApprovalOptions } from './terminal-approval'
 
 import { randomBytes } from 'node:crypto'
@@ -24,9 +25,10 @@ import { env, execPath } from 'node:process'
 import { useLogg } from '@guiiai/logg'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
+import { CallToolResultSchema } from '@modelcontextprotocol/sdk/types.js'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
-import { bundledTerminalServerName, terminalControlEnabledEnv, terminalControlNonceEnv, terminalOriginMetaKey } from '@proj-airi/stage-shared/terminal-approval'
+import { bundledTerminalServerName, computerUseApprovalExecuteMethod, computerUseApprovalRejectMethod, terminalControlEnabledEnv, terminalControlNonceEnv, terminalOriginMetaKey } from '@proj-airi/stage-shared/terminal-approval'
 import { app, shell } from 'electron'
 
 import {
@@ -52,9 +54,19 @@ type McpTransport = StdioClientTransport | StreamableHTTPClientTransport
 interface McpServerSession {
   client: Client
   transport: McpTransport
+  lifetime: AbortController
   config: ElectronMcpServerConfig
   terminalNonce?: string
+  computerUseNonce?: string
   bundledTerminal: boolean
+}
+
+interface ComputerUseApprovalOwner {
+  session: McpServerSession
+  requestId: string
+  attribution: InvocationAttribution
+  toolName: string
+  actionKind: string
 }
 
 export interface McpManager {
@@ -83,6 +95,28 @@ function stringifyError(error: unknown) {
   }
 
   return String(error)
+}
+
+function combineSignals(...signals: Array<AbortSignal | undefined>) {
+  const active = signals.filter((signal): signal is AbortSignal => signal !== undefined)
+  if (active.length === 0)
+    return undefined
+  if (active.length === 1)
+    return active[0]
+  return AbortSignal.any(active)
+}
+
+function normalizeCallToolResult(result: { content?: unknown, structuredContent?: unknown, toolResult?: unknown, isError?: unknown }): ElectronMcpCallToolResult {
+  const normalized: ElectronMcpCallToolResult = {}
+  if (Array.isArray(result.content))
+    normalized.content = result.content as Array<Record<string, unknown>>
+  if (result.structuredContent && typeof result.structuredContent === 'object' && !Array.isArray(result.structuredContent))
+    normalized.structuredContent = result.structuredContent as Record<string, unknown>
+  if (typeof result.isError === 'boolean')
+    normalized.isError = result.isError
+  if ('toolResult' in result)
+    normalized.toolResult = result.toolResult
+  return normalized
 }
 
 function getConfigPath() {
@@ -183,6 +217,7 @@ function describeRuntime(
 export function createMcpManager(terminalApproval?: TerminalApprovalOptions): McpManager {
   const log = useLogg('main/mcp').useGlobalConfig()
   const sessions = new Map<string, McpServerSession>()
+  const computerUseApprovals = new Map<string, ComputerUseApprovalOwner>()
   const runtimeStatuses = new Map<string, ElectronMcpServerRuntimeStatus>()
   let updatedAt = Date.now()
 
@@ -223,6 +258,11 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
   const stopAll = async () => {
     const entries = [...sessions.entries()]
     for (const [name, session] of entries) {
+      session.lifetime.abort(new Error('The MCP connection was replaced.'))
+      for (const [actionId, owner] of computerUseApprovals) {
+        if (owner.session === session)
+          computerUseApprovals.delete(actionId)
+      }
       await closeSession(session)
       setRuntimeStatus(describeRuntime(name, session.config, 'stopped'))
       sessions.delete(name)
@@ -231,12 +271,14 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
 
   const startServer = async (name: string, config: ElectronMcpServerConfig, bundledTerminal: boolean) => {
     const terminalNonce = !isHttpServerConfig(config) && config.env?.[terminalControlEnabledEnv] === '1' && terminalApproval ? randomBytes(32).toString('hex') : undefined
+    const computerUseNonce = terminalNonce
     const controlledConfig = terminalNonce && !isHttpServerConfig(config) ? { ...config, env: { ...config.env, [terminalControlNonceEnv]: terminalNonce } } : config
     const transport = createTransport(controlledConfig)
     const client = new McpClient({
       name: `proj-airi:stage-tamagotchi:mcp:${name}`,
       version: app.getVersion(),
     })
+    const lifetime = new AbortController()
 
     try {
       await client.connect(transport)
@@ -248,11 +290,16 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
           }
         })
       }
-      const session: McpServerSession = { client, transport, config, terminalNonce, bundledTerminal }
+      const session: McpServerSession = { client, transport, lifetime, config, terminalNonce, computerUseNonce, bundledTerminal }
       sessions.set(name, session)
       client.onclose = () => {
         if (sessions.get(name) !== session)
           return
+        lifetime.abort(new Error('The MCP connection closed.'))
+        for (const [actionId, owner] of computerUseApprovals) {
+          if (owner.session === session)
+            computerUseApprovals.delete(actionId)
+        }
         sessions.delete(name)
         setRuntimeStatus(describeRuntime(name, config, 'stopped'))
       }
@@ -332,7 +379,7 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
     if (serverName !== bundledTerminalServerName || !session.terminalNonce)
       return 'router-only'
     if (toolName.startsWith('desktop_') || toolName.startsWith('accessibility_') || toolName.startsWith('display_'))
-      return 'disabled'
+      return 'router-only'
     return session.bundledTerminal && toolName === 'terminal_exec' ? 'direct' : 'router-only'
   }
 
@@ -400,41 +447,121 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
     }
     if (exposureOf(serverName, session, toolName) === 'disabled')
       throw new Error(`MCP tool is disabled by the Host: ${payload.name}`)
-    const nonce = toolName === 'terminal_exec' ? session.terminalNonce : undefined
+    const terminalNonce = toolName === 'terminal_exec' ? session.terminalNonce : undefined
+    const computerUseNonce = session.computerUseNonce
     const requestId = payload.requestId
-    const attribution = nonce && requestId ? validateAttribution(payload.attribution, senderWebContentsId) : undefined
-    if (nonce) {
+    const hostControlled = terminalNonce || computerUseNonce
+    const attribution = hostControlled && requestId ? validateAttribution(payload.attribution, senderWebContentsId) : undefined
+    const requestSignal = hostControlled && requestId && attribution && terminalApproval
+      ? terminalApproval.actions.requestSignal(requestId, attribution)
+      : undefined
+    const callSignal = combineSignals(signal, requestSignal, session.lifetime.signal)
+    if (hostControlled) {
       if (!terminalApproval || !requestId || !attribution?.toolCallId)
-        throw new Error('Terminal execution requires a normal Chat request registered by the Host.')
+        throw new Error('Host-controlled MCP actions require a normal Chat request registered by the Host.')
       terminalApproval.actions.validateRequest(requestId, attribution)
     }
 
     const result = await session.client.callTool({
       name: toolName,
       arguments: payload.arguments ?? {},
-      ...(nonce ? { _meta: { [terminalOriginMetaKey]: { nonce, requestId, toolCallId: attribution?.toolCallId } } } : {}),
+      ...(terminalNonce ? { _meta: { [terminalOriginMetaKey]: { nonce: terminalNonce, requestId, toolCallId: attribution?.toolCallId } } } : {}),
     }, undefined, {
       timeout: mcpRequestTimeoutMsec,
       maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
-      ...(signal ? { signal } : {}),
+      ...(callSignal ? { signal: callSignal } : {}),
     })
 
-    const normalized: ElectronMcpCallToolResult = {}
-    if ('content' in result && Array.isArray(result.content)) {
-      normalized.content = result.content as Array<Record<string, unknown>>
-    }
-    if ('structuredContent' in result && result.structuredContent && typeof result.structuredContent === 'object' && !Array.isArray(result.structuredContent)) {
-      normalized.structuredContent = result.structuredContent as Record<string, unknown>
-    }
-    if ('isError' in result && typeof result.isError === 'boolean') {
-      normalized.isError = result.isError
-    }
-    if ('toolResult' in result) {
-      normalized.toolResult = result.toolResult
-    }
+    const normalized = normalizeCallToolResult(result)
 
-    if (nonce && attribution && terminalApproval && normalized.structuredContent?.status === 'approval_required') {
-      return bindTerminalApproval({ options: terminalApproval, connection: { client: session.client, serverName, nonce, pid: session.transport instanceof StdioClientTransport ? session.transport.pid : null, bundledTerminal: session.bundledTerminal, isCurrent: () => sessions.get(serverName) === session }, payload, attribution, result: normalized })
+    if (terminalNonce && attribution && terminalApproval && normalized.structuredContent?.status === 'approval_required') {
+      return bindTerminalApproval({ options: terminalApproval, connection: { client: session.client, serverName, nonce: terminalNonce, pid: session.transport instanceof StdioClientTransport ? session.transport.pid : null, bundledTerminal: session.bundledTerminal, isCurrent: () => sessions.get(serverName) === session }, payload, attribution, result: normalized })
+    }
+    if (computerUseNonce && attribution && terminalApproval && normalized.structuredContent?.status === 'approval_required') {
+      const pendingActionId = normalized.structuredContent.pendingActionId
+      if (typeof pendingActionId !== 'string' || !pendingActionId)
+        throw new Error('The Computer Use server did not return a pending action ID.')
+      const declaredToolName = normalized.structuredContent.toolName
+      if (declaredToolName !== toolName)
+        throw new Error('The Computer Use approval does not match the requested tool.')
+      const declaredAction = normalized.structuredContent.action
+      const actionKind = declaredAction && typeof declaredAction === 'object' && !Array.isArray(declaredAction) && typeof (declaredAction as Record<string, unknown>).kind === 'string'
+        ? (declaredAction as Record<string, unknown>).kind as string
+        : undefined
+      if (!actionKind)
+        throw new Error('The Computer Use server did not return the prepared action kind.')
+      const owner: ComputerUseApprovalOwner = { session, requestId: requestId!, attribution, toolName, actionKind }
+      if (computerUseApprovals.has(pendingActionId))
+        throw new Error('The Computer Use approval is already bound to another Chat request.')
+      computerUseApprovals.set(pendingActionId, owner)
+      const turboSignal = terminalApproval.actions.terminalTurboSignal(attribution.sessionId, senderWebContentsId)
+      const authorizationSignal = combineSignals(callSignal, turboSignal)
+      let privateRequestSent = false
+      const reject = async () => {
+        if (privateRequestSent)
+          return undefined
+        privateRequestSent = true
+        return await session.client.request({ method: computerUseApprovalRejectMethod, params: { nonce: computerUseNonce, pendingActionId, toolName, actionKind } }, CallToolResultSchema, {
+          timeout: mcpRequestTimeoutMsec,
+          maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
+        })
+      }
+      try {
+        if (!turboSignal) {
+          const transparency = normalized.structuredContent.transparency
+          const summary = transparency && typeof transparency === 'object' && !Array.isArray(transparency)
+            ? Object.values(transparency as Record<string, unknown>).filter((value): value is string => typeof value === 'string' && value.trim().length > 0).join('\n')
+            : `Computer Use requested a change through ${toolName}.`
+          const approved = await terminalApproval.presentComputerUse({
+            actionId: pendingActionId,
+            requestId: requestId!,
+            attribution,
+            serverName,
+            toolName,
+            summary,
+          }, authorizationSignal)
+          if (!approved) {
+            const rejected = await reject()
+            if (!rejected)
+              throw new Error('The Computer Use approval was already dispatched.')
+            return normalizeCallToolResult(rejected)
+          }
+        }
+        if (computerUseApprovals.get(pendingActionId) !== owner || sessions.get(serverName) !== session)
+          throw new Error('The Computer Use approval connection or Chat request was replaced.')
+        terminalApproval.actions.validateRequest(requestId!, attribution, { allowClosed: true })
+        if (authorizationSignal?.aborted) {
+          await reject()
+          return {
+            isError: true,
+            content: [{ type: 'text', text: 'Computer Use action was cancelled before dispatch.' }],
+            structuredContent: { status: 'cancelled', pendingActionId },
+          }
+        }
+        privateRequestSent = true
+        const executed = await session.client.request({ method: computerUseApprovalExecuteMethod, params: { nonce: computerUseNonce, pendingActionId, toolName, actionKind } }, CallToolResultSchema, {
+          ...(authorizationSignal ? { signal: authorizationSignal } : {}),
+          timeout: mcpRequestMaxTotalTimeoutMsec,
+          maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
+        })
+        return normalizeCallToolResult(executed)
+      }
+      catch (error) {
+        if (!privateRequestSent && sessions.get(serverName) === session)
+          await reject().catch(() => {})
+        if (authorizationSignal?.aborted) {
+          return {
+            isError: true,
+            content: [{ type: 'text', text: 'Computer Use action was cancelled before dispatch.' }],
+            structuredContent: { status: 'cancelled', pendingActionId },
+          }
+        }
+        throw error
+      }
+      finally {
+        if (computerUseApprovals.get(pendingActionId) === owner)
+          computerUseApprovals.delete(pendingActionId)
+      }
     }
     return normalized
   }

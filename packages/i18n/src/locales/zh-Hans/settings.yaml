@@ -1633,6 +1633,19 @@ pages:
         reject: 拒绝
         details: 完整执行器报告
         pending: 等待批准。此命令尚未获得授权。
+        scope: 此命令可以修改文件、启动应用并影响桌面。批准仅适用于这一次具体操作。
+        session: 会话
+        command: 命令
+        working-directory: 工作目录
+        directory-source: Terminal 执行器中的 {source}
+        shell: Shell
+        executor: 执行器
+        expires: 过期时间
+        arguments-identity: 完整参数和请求身份
+        turn-call: '轮次 {turn} · 调用 {call}'
+        request-action: '请求 {request} · 操作 {action}'
+        unavailable: 此审批请求不可用。
+        decision-error: 无法发送审批决定。
         result:
           executed: 命令以退出码 0 结束。业务目标仍需独立验证。
           failed: 命令失败，之前可能已产生副作用。再次执行前请检查执行报告。

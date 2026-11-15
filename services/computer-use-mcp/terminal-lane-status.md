@@ -6,6 +6,7 @@ The AIRI composer can enable Terminal Turbo for one conversation after a native 
 Main approves bundled Terminal commands through the existing Terminal action and shared execution queue.
 Turning Turbo off cancels queued automatic approvals. Chat receives the result after either approval mode.
 The MCP audit retains desktop metadata.
+Bundled Computer Use mutations use the same Main-owned native approval surface. Turbo off requests one approval for each prepared action, while Turbo on commits the action through the private Host request.
 
 PowerShell receives the normalized exit code without interrupting output formatting.
 The runner returns formatted stdout together with the shell exit code.

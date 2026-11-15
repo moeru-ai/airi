@@ -84,13 +84,16 @@ docs:
   computer-tools:
     label: Computer tools
     desktop-unavailable: Desktop capture and input are unavailable in this build.
-    turbo-label: Terminal Turbo
-    turbo-active: Terminal Turbo is on for this conversation
-    turbo-description: Allow commands in this conversation to run with your system privileges. Turn it off here at any time.
-    turbo-confirm: Allow full Terminal access for this conversation?
-    turbo-scope: AIRI can run local Shell commands with your system privileges without asking again. It can read and change files or start applications.
-    turbo-allow: Allow Terminal access
-    turbo-error: Could not change Terminal Turbo.
+    turbo-label: Turbo
+    turbo-active: Turbo is on for this conversation
+    turbo-description: Allow Terminal commands and Computer Use changes in this conversation without asking each time. Turn it off here at any time.
+    turbo-confirm: Allow Terminal and Computer Use without asking in this conversation?
+    turbo-scope: AIRI can run local Shell commands with your system privileges and change the desktop, apps, and input through Computer Use. These changes ask again after you turn Turbo off.
+    turbo-allow: Allow Turbo
+    computer-use-confirm: Allow Computer Use to change this device?
+    computer-use-scope: AIRI will perform the requested desktop, app, or input action. Each change is shown here before it runs.
+    computer-use-allow: Allow this change
+    turbo-error: Could not change Turbo.
     cancel: Cancel
   danmaku-feed:
     title: Message timing

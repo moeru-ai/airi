@@ -4,12 +4,13 @@ import type { TerminalNotice } from '@proj-airi/stage-shared/terminal-approval'
 import type { ElectronMcpCallToolPayload, ElectronMcpCallToolResult } from '../../../../shared/eventa'
 import type { PendingActionManager } from '../computer-use/action-manager'
 import type { InvocationAttribution } from '../computer-use/attribution'
+import type { ComputerUseApprovalRequest } from '../computer-use/requests'
 import type { createComputerUseRuntime } from '../computer-use/runtime'
 
 import { useLogg } from '@guiiai/logg'
 import { CallToolResultSchema, McpError } from '@modelcontextprotocol/sdk/types.js'
 import { errorMessageFrom } from '@moeru/std'
-import { terminalDiscardMethod, terminalExecuteMethod, terminalSnapshotSchema } from '@proj-airi/stage-shared/terminal-approval'
+import { terminalDiscardMethod, terminalExecuteMethod, terminalNoticeText, terminalSnapshotSchema } from '@proj-airi/stage-shared/terminal-approval'
 import { z } from 'zod'
 
 import * as v from 'valibot'
@@ -19,6 +20,7 @@ export interface TerminalApprovalOptions {
   present: (actionId: string) => Promise<boolean>
   executeInSlot: ReturnType<typeof createComputerUseRuntime>['executeInSlot']
   notify: (notice: TerminalNotice) => Promise<{ status: 'stored' | 'suppressed', sessionId: string, messageId: string }>
+  presentComputerUse: (request: ComputerUseApprovalRequest, signal?: AbortSignal) => Promise<boolean>
 }
 
 interface TerminalConnection {
@@ -32,15 +34,15 @@ interface TerminalConnection {
 
 /**
  * Connects a prepared response to the existing Main action owner and private approval UI.
- * The original tool call returns preparation only. Main consumes once before one private commit on the captured connection.
+ * Manual approval returns preparation only. Terminal Turbo waits for the private commit and returns its result in the same tool call.
  */
-export function bindTerminalApproval(params: {
+export async function bindTerminalApproval(params: {
   options: TerminalApprovalOptions
   connection: TerminalConnection
   payload: ElectronMcpCallToolPayload
   attribution: InvocationAttribution
   result: ElectronMcpCallToolResult
-}): ElectronMcpCallToolResult {
+}): Promise<ElectronMcpCallToolResult> {
   const { options, connection, payload, attribution } = params
   const snapshot = v.parse(terminalSnapshotSchema, params.result.structuredContent?.preparedTerminal)
   if (!connection.pid || connection.pid !== snapshot.executorPid || !connection.isCurrent())
@@ -59,8 +61,37 @@ export function bindTerminalApproval(params: {
   trace('prepared', { snapshot })
 
   let noticeHandled: Promise<boolean> | undefined
+  function resultForNotice(result: ElectronMcpCallToolResult | undefined): Record<string, unknown> | undefined {
+    if (!result)
+      return undefined
+    return { content: result.content, structuredContent: result.structuredContent, isError: result.isError }
+  }
+  function createNotice(status: TerminalNotice['status'], result?: Record<string, unknown>, error?: string): TerminalNotice {
+    return { actionId, requestId: snapshot.requestId, sessionId: attribution.sessionId, turnId: attribution.turnId!, toolCallId: snapshot.toolCallId, status, command: snapshot.command, effectiveCwd: snapshot.effectiveCwd, result, error }
+  }
+  function turboResult(status: TerminalNotice['status'], result?: ElectronMcpCallToolResult, error?: string): ElectronMcpCallToolResult {
+    const notice = createNotice(status, resultForNotice(result), error)
+    const notDispatched = result?.structuredContent?.executorInvoked === false || result?.structuredContent?.noNewDispatch === true
+    const guidance = status === 'unknown'
+      ? 'The Terminal result is unknown. Check current state before repeating any operation with the same effects.'
+      : status === 'failed' && notDispatched
+        ? 'The Terminal command was refused before dispatch. No command ran.'
+        : status === 'failed'
+          ? 'The Terminal command failed. Earlier effects can remain. Check current state before retrying.'
+          : status === 'cancelled' || status === 'expired'
+            ? 'The Terminal command did not run.'
+            : undefined
+    return {
+      isError: status !== 'executed' || result?.isError,
+      content: [{ type: 'text', text: [guidance, terminalNoticeText(notice, { includeOutcomeGuidance: false })].filter(Boolean).join('\n') }],
+      structuredContent: { status, approval: 'turbo', hostActionId: actionId },
+    }
+  }
   function notify(status: TerminalNotice['status'], result?: Record<string, unknown>, error?: string) {
-    const notice: TerminalNotice = { actionId, requestId: snapshot.requestId, sessionId: attribution.sessionId, turnId: attribution.turnId!, toolCallId: snapshot.toolCallId, status, command: snapshot.command, effectiveCwd: snapshot.effectiveCwd, result, error }
+    // Turbo returns the settlement through the active tool call, so a second notice turn would interrupt the same task.
+    if (turbo)
+      return
+    const notice = createNotice(status, result, error)
     trace('outcome_notice', { notice })
     noticeHandled = options.notify(notice).then((receipt) => {
       trace('notice_receipt', { receipt })
@@ -70,13 +101,16 @@ export function bindTerminalApproval(params: {
       return false
     })
   }
+  function notifyResult(status: TerminalNotice['status'], result: ElectronMcpCallToolResult | undefined, error?: string) {
+    notify(status, resultForNotice(result), error)
+  }
 
   async function discard() {
     if (connection.isCurrent())
       await connection.client.request({ method: terminalDiscardMethod, params: { nonce: connection.nonce, preparedId: snapshot.preparedId, requestId: snapshot.requestId } }, z.object({ discarded: z.boolean() }))
   }
 
-  async function commit(lifetime: AbortSignal, retainMutationRisk: () => void) {
+  async function commit(lifetime: AbortSignal, retainMutationRisk: () => void): Promise<ElectronMcpCallToolResult | undefined> {
     lifetime.throwIfAborted()
     turbo?.throwIfAborted()
     if (!connection.isCurrent())
@@ -94,10 +128,15 @@ export function bindTerminalApproval(params: {
       preparedId: v.literal(committed.preparedId),
       requestId: v.literal(committed.requestId),
     }
-    function reportUnknown(error: string, result?: Record<string, unknown>) {
+    function reportUnknown(error: string, result?: ElectronMcpCallToolResult): ElectronMcpCallToolResult {
       retainMutationRisk()
       trace('unknown', { error, result })
-      notify('unknown', result, error)
+      notifyResult('unknown', result, error)
+      if (turbo)
+        return turboResult('unknown', result, error)
+      if (result)
+        return result
+      return { isError: true, content: [{ type: 'text', text: error }], structuredContent: { executorInvoked: true, terminalLifecycle: 'unknown' } }
     }
     trace('consumed', { expiresAt: consumed.expiresAt })
     try {
@@ -108,14 +147,13 @@ export function bindTerminalApproval(params: {
           throw new Error('The executor refusal does not prove that this prepared operation closed without dispatch.')
         options.actions.settle(actionId, { outcome: 'failed', executionState: 'not_executed', error: JSON.stringify(result.content) })
         trace('settled_without_executor_dispatch', { result })
-        notify('failed', result)
-        return
+        notifyResult('failed', result)
+        return turbo ? turboResult('failed', { ...result, isError: true }) : result
       }
       if (result.structuredContent?.terminalLifecycle !== 'closed') {
         const details = result.structuredContent
         const bound = details?.preparedId === committed.preparedId && details?.requestId === committed.requestId && details?.executorInvoked === true
-        reportUnknown('The executor did not confirm the end of its shell lifecycle.', bound ? result : undefined)
-        return
+        return reportUnknown('The executor did not confirm the end of its shell lifecycle.', bound ? result : undefined)
       }
       const backend = result.structuredContent.backendResult
       const terminal = v.safeParse(v.object({ exitCode: v.pipe(v.number(), v.integer()), timedOut: v.boolean() }), backend)
@@ -123,14 +161,15 @@ export function bindTerminalApproval(params: {
         const error = 'The shell closed without a complete command result.'
         options.actions.settle(actionId, { outcome: 'failed', executionState: 'unknown', error })
         trace('settled', { result })
-        notify('unknown', result, error)
-        return
+        notifyResult('unknown', result, error)
+        return turbo ? turboResult('unknown', result, error) : result
       }
       const { exitCode, timedOut } = terminal.output
       const succeeded = !result.isError && exitCode === 0 && !timedOut
       options.actions.settle(actionId, { outcome: succeeded ? 'success' : 'failed', executionState: 'executed', exitCode, error: succeeded ? undefined : JSON.stringify(result.content) })
       trace('settled', { result })
-      notify(succeeded ? 'executed' : 'failed', result)
+      notifyResult(succeeded ? 'executed' : 'failed', result)
+      return turbo ? turboResult(succeeded ? 'executed' : 'failed', result) : result
     }
     catch (error) {
       // Only this bound private-connection proof retires a prepared operation without starting its executor.
@@ -139,23 +178,32 @@ export function bindTerminalApproval(params: {
         options.actions.settle(actionId, { outcome: 'failed', executionState: 'not_executed', error: errorMessageFrom(error) ?? 'Executor refused before dispatch.' })
         trace('settled_without_executor_dispatch', { error: errorMessageFrom(error) })
         notify('failed', refusal.output, errorMessageFrom(error) ?? 'Executor refused before dispatch. No executor invocation was started by this request.')
+        if (turbo) {
+          return turboResult('failed', {
+            isError: true,
+            content: [{ type: 'text', text: errorMessageFrom(error) ?? 'The Terminal command was refused before dispatch.' }],
+            structuredContent: { ...refusal.output, executorInvoked: false },
+          }, errorMessageFrom(error))
+        }
         return
       }
-      reportUnknown(errorMessageFrom(error) ?? 'The dispatched operation has no confirmed result.')
+      return reportUnknown(errorMessageFrom(error) ?? 'The dispatched operation has no confirmed result.')
     }
   }
 
-  async function execute() {
+  async function execute(): Promise<ElectronMcpCallToolResult | undefined> {
     let expiryTimer: ReturnType<typeof setTimeout> | undefined
     try {
       const approved = !!turbo || await options.present(actionId)
       const current = options.actions.get(actionId)
       if (!current)
-        return
+        return turbo ? turboResult('cancelled', undefined, 'The Terminal action closed before dispatch.') : undefined
       if (current.status !== 'pending') {
         if (current.status === 'cancelled' || current.status === 'rejected' || current.status === 'expired')
           notify(current.status)
-        return
+        return turbo && (current.status === 'cancelled' || current.status === 'expired')
+          ? turboResult(current.status, undefined, 'The Terminal action stopped before dispatch.')
+          : undefined
       }
       if (!approved) {
         options.actions.reject(actionId)
@@ -168,7 +216,7 @@ export function bindTerminalApproval(params: {
       const requestSignal = options.actions.requestSignal(snapshot.requestId, attribution)
       const expiry = new AbortController()
       expiryTimer = setTimeout(() => expiry.abort(new Error('The Terminal approval expired while waiting for dispatch.')), Math.max(0, action.expiresAt - Date.now()))
-      await options.executeInSlot((lifetime, retainMutationRisk) => {
+      return await options.executeInSlot((lifetime, retainMutationRisk) => {
         // Cancellation and expiry only own admission. An invoked operation keeps its settlement.
         clearTimeout(expiryTimer)
         return commit(lifetime, retainMutationRisk)
@@ -182,6 +230,8 @@ export function bindTerminalApproval(params: {
       if (stopped?.status === 'cancelled' || stopped?.status === 'expired')
         notify(stopped.status, undefined, errorMessageFrom(error))
       trace('approval_or_dispatch_stopped', { error: errorMessageFrom(error) })
+      if (turbo)
+        return turboResult(stopped?.status === 'expired' ? 'expired' : 'cancelled', undefined, errorMessageFrom(error))
     }
     finally {
       clearTimeout(expiryTimer)
@@ -190,17 +240,21 @@ export function bindTerminalApproval(params: {
         await discard()
     }
   }
-  void execute().catch(error => trace('prepared_discard_failed', { error: errorMessageFrom(error) })).then(async () => {
-    if (await noticeHandled)
+  if (turbo) {
+    return execute().catch((error) => {
+      trace('turbo_result_unavailable', { error: errorMessageFrom(error) })
+      return turboResult('unknown', undefined, errorMessageFrom(error))
+    }).then((result) => {
       options.actions.finishTerminalAction(actionId)
-  })
-  const approval = turbo ? 'turbo' : 'manual'
-  return {
+      return result ?? turboResult('unknown', undefined, 'Terminal Turbo did not return a command result.')
+    })
+  }
+  const prepared = {
     isError: params.result.isError,
     content: [{
       type: 'text',
       text: [
-        turbo ? 'Terminal Turbo authorized this command.' : 'The Terminal command is awaiting approval in AIRI.',
+        'The Terminal command is awaiting approval in AIRI.',
         'This response confirms preparation only.',
         'Wait for the Host notice before repeating this operation or acting on its result.',
         'The notice arrives in a new turn of this conversation.',
@@ -208,6 +262,11 @@ export function bindTerminalApproval(params: {
         'An empty MCP pending list does not prove that the command did not execute.',
       ].join(' '),
     }],
-    structuredContent: { status: turbo ? 'prepared' : 'approval_required', approval, hostActionId: actionId },
+    structuredContent: { status: 'approval_required', approval: 'manual', hostActionId: actionId },
   }
+  void execute().catch(error => trace('prepared_discard_failed', { error: errorMessageFrom(error) })).then(async () => {
+    if (await noticeHandled)
+      options.actions.finishTerminalAction(actionId)
+  })
+  return prepared
 }

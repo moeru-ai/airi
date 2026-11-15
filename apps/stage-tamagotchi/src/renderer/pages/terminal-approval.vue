@@ -28,11 +28,11 @@ onMounted(async () => {
     const id = typeof route.query.id === 'string' ? route.query.id : undefined
     const pending = await mounted({ id })
     if (pending?.id !== id || pending?.type !== 'terminal-approval')
-      throw new Error('This approval request is no longer available.')
+      throw new Error(tn('unavailable'))
     view.value = v.parse(terminalApprovalViewSchema, pending.payload)
   }
   catch (failure) {
-    error.value = errorMessageFrom(failure) ?? 'This approval request is unavailable.'
+    error.value = errorMessageFrom(failure) ?? tn('unavailable')
   }
 })
 
@@ -44,7 +44,7 @@ async function respond(action: 'confirm' | 'cancel') {
     await decide({ id: view.value.actionId, action })
   }
   catch (failure) {
-    error.value = errorMessageFrom(failure) ?? 'The approval decision could not be sent.'
+    error.value = errorMessageFrom(failure) ?? tn('decision-error')
     sending.value = false
   }
 }
@@ -61,35 +61,35 @@ async function respond(action: 'confirm' | 'cancel') {
         {{ tn('pending') }}
       </Alert>
       <p class="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-        This command can change files, start applications, and affect the desktop. Approval applies once to this exact operation.
+        {{ tn('scope') }}
       </p>
       <p class="mt-3 text-xs">
-        Session <span data-testid="approval-session">{{ view.submission.sessionId }}</span>
+        {{ tn('session') }} <span data-testid="approval-session">{{ view.submission.sessionId }}</span>
       </p>
       <pre :class="['mt-2 whitespace-pre-wrap break-words text-sm']" data-testid="approval-request">{{ view.submission.text }}</pre>
       <h2 class="mt-4 text-sm font-semibold">
-        Command
+        {{ tn('command') }}
       </h2>
       <pre :class="['mt-2 whitespace-pre-wrap break-words rounded-lg bg-neutral-100 p-3 text-xs dark:bg-neutral-900']" data-testid="approval-command">{{ view.snapshot.command }}</pre>
       <dl class="grid grid-cols-[auto_1fr] mt-4 gap-x-3 gap-y-2 text-xs">
-        <dt>Working directory</dt><dd class="break-all" data-testid="approval-cwd">
+        <dt>{{ tn('working-directory') }}</dt><dd class="break-all" data-testid="approval-cwd">
           {{ view.snapshot.effectiveCwd }}
         </dd>
-        <dt>Directory source</dt><dd>{{ view.snapshot.cwdSource }} in the Terminal executor</dd>
-        <dt>Shell</dt><dd class="break-all" data-testid="approval-shell">
+        <dt>{{ tn('directory-source') }}</dt><dd>{{ t('settings.pages.modules.mcp-server.terminal.directory-source', { source: view.snapshot.cwdSource }) }}</dd>
+        <dt>{{ tn('shell') }}</dt><dd class="break-all" data-testid="approval-shell">
           {{ view.snapshot.shell }}
         </dd>
-        <dt>Executor</dt><dd>{{ view.serverName }} · {{ view.snapshot.executorPlatform }} · PID {{ view.snapshot.executorPid }}</dd>
-        <dt>Expires</dt><dd>{{ new Date(view.expiresAt).toLocaleString() }}</dd>
+        <dt>{{ tn('executor') }}</dt><dd>{{ view.serverName }} · {{ view.snapshot.executorPlatform }} · PID {{ view.snapshot.executorPid }}</dd>
+        <dt>{{ tn('expires') }}</dt><dd>{{ new Date(view.expiresAt).toLocaleString() }}</dd>
       </dl>
       <details class="mt-4 text-xs">
-        <summary>Full arguments and request identity</summary>
+        <summary>{{ tn('arguments-identity') }}</summary>
         <pre :class="['mt-2 whitespace-pre-wrap break-words']" data-testid="approval-argv">{{ JSON.stringify(view.snapshot.argv, null, 2) }}</pre>
         <p class="mt-2 break-all">
-          Turn {{ view.submission.turnId }} · Call {{ view.snapshot.toolCallId }}
+          {{ t('settings.pages.modules.mcp-server.terminal.turn-call', { turn: view.submission.turnId, call: view.snapshot.toolCallId }) }}
         </p>
         <p class="break-all">
-          Request {{ view.snapshot.requestId }} · Action {{ view.actionId }}
+          {{ t('settings.pages.modules.mcp-server.terminal.request-action', { request: view.snapshot.requestId, action: view.actionId }) }}
         </p>
       </details>
     </div>

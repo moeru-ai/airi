@@ -125,15 +125,15 @@ const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const startLogin = useElectronEventaInvoke(electronAuthStartLogin)
 const setTurboMode = useElectronEventaInvoke(terminalTurboMode)
 const tools = useLlmToolsStore()
-const terminalAvailable = computed(() => tools.tools.some(tool => tool.id === 'mcp:terminal_exec'))
+const turboAvailable = computed(() => tools.tools.some(tool => tool.id === 'mcp:terminal_exec' || tool.id === 'mcp:builtIn_mcpCallTool'))
 const { state: turboEnabled, executeImmediate: refreshTurbo, isLoading: loadingTurbo } = useAsyncState(
-  (sessionId: string) => terminalAvailable.value && sessionId ? setTurboMode({ sessionId }) : Promise.resolve(false),
+  (sessionId: string) => turboAvailable.value && sessionId ? setTurboMode({ sessionId }) : Promise.resolve(false),
   false,
   { immediate: false },
 )
 const changingTurbo = ref(false)
 const turboError = ref('')
-watch([activeSessionId, terminalAvailable], ([sessionId]) => {
+watch([activeSessionId, turboAvailable], ([sessionId]) => {
   turboError.value = ''
   void refreshTurbo(sessionId)
 }, { immediate: true })
@@ -622,7 +622,7 @@ defineExpose({
             <p :class="['px-2 py-1.5 text-xs text-neutral-500 dark:text-neutral-400']">
               {{ t('tamagotchi.stage.chat-window.computer-tools.desktop-unavailable') }}
             </p>
-            <template v-if="terminalAvailable">
+            <template v-if="turboAvailable">
               <MenuSwitchItem
                 :model-value="turboEnabled"
                 :disabled="changingTurbo || loadingTurbo"

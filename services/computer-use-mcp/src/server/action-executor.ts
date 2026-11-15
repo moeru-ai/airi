@@ -56,6 +56,7 @@ import {
 
 export interface ExecuteActionOptions {
   skipApprovalQueue?: boolean
+  executionSignal?: AbortSignal
   terminalOrigin?: TerminalOrigin
   /** The private Host handler supplies the final check and synchronous executor start. Public tools cannot supply callbacks. */
   terminalExecution?: () => TerminalExecution
@@ -243,10 +244,12 @@ function getPolicyEvaluationContext(params: {
 }
 
 export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteAction {
-  return async (action, toolName, options = {}) => {
+  const executeAction: ExecuteAction = async (action, toolName, options = {}) => {
+    options.executionSignal?.throwIfAborted()
     const normalizedAction = normalizeConfiguredAppAction(action, runtime.config.openableApps)
     const isTerminal = normalizedAction.kind === 'terminal_exec' || normalizedAction.kind === 'terminal_reset'
     const { executionTarget, context: actualContext, displayInfo } = await refreshRuntimeRunState(runtime, { probeBrowser: !isTerminal })
+    options.executionSignal?.throwIfAborted()
     const terminalBackend = isTerminal ? runtime.terminalRunner.describe().kind : undefined
     const context = getPolicyEvaluationContext({
       action: normalizedAction,
@@ -436,6 +439,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
     }
 
     try {
+      options.executionSignal?.throwIfAborted()
       let backendResult: Record<string, unknown> = {}
       let terminalResult: TerminalCommandResult | undefined
       let clipboardStructuredContent: Record<string, unknown> | undefined
@@ -585,6 +589,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
                 && isBrowserDomActionSupported(runtime.browserDomBridge, 'setInputValue')
               ) {
                 try {
+                  options.executionSignal?.throwIfAborted()
                   await runtime.browserDomBridge!.setInputValue({
                     selector: typeDecision.selector,
                     value: normalizedAction.input.text,
@@ -601,7 +606,9 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
                     reason: typeDecision.reason,
                   }
                 }
-                catch {
+                catch (error) {
+                  if (options.executionSignal?.aborted)
+                    throw error
                   // Fallback to OS typeText below
                 }
               }
@@ -609,6 +616,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           }
 
           if (!usedBrowserDom) {
+            options.executionSignal?.throwIfAborted()
             const result = await runtime.executor.typeText(normalizedAction.input)
             backendResult = {
               ...backendResult,
@@ -618,6 +626,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
 
           // Handle pressEnter even when browser-dom was used
           if (usedBrowserDom && normalizedAction.input.pressEnter) {
+            options.executionSignal?.throwIfAborted()
             await runtime.executor.pressKeys({ keys: ['Return'] })
           }
           break
@@ -846,4 +855,5 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
       })
     }
   }
+  return executeAction
 }

@@ -1,10 +1,13 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 
 import type {
+  ActionInvocation,
   BrowserDomFrameResult,
   ClickActionInput,
   FocusAppActionInput,
   OpenAppActionInput,
+  PendingActionRecord,
   SecretReadEnvValueActionInput,
   TerminalExecActionInput,
   TypeTextActionInput,
@@ -51,6 +54,93 @@ export interface RegisterComputerUseToolsOptions {
   runtime: ComputerUseServerRuntime
   executeAction: ExecuteAction
   enableTestTools: boolean
+}
+
+export async function resolvePendingAction(params: {
+  runtime: ComputerUseServerRuntime
+  executeAction: ExecuteAction
+  id: string
+  decision: { type: 'approve', source: string, signal?: AbortSignal } | { type: 'reject', source: string, reason?: string }
+}): Promise<CallToolResult> {
+  const { runtime, executeAction, id, decision } = params
+  const pending = runtime.session.getPendingAction(id)
+  if (!pending)
+    throw new Error('Pending action not found: ' + id)
+
+  if (decision.type === 'approve' && pending.action.kind === 'terminal_exec')
+    throw new Error('Terminal actions use the Terminal approval protocol.')
+  if (decision.type === 'approve' && decision.signal?.aborted)
+    return recordComputerUseRejection(runtime, pending, id, decision.source, 'Host approval was cancelled before dispatch')
+
+  runtime.session.removePendingAction(id)
+  runtime.stateManager.setPendingApprovalCount(runtime.session.listPendingActions().length)
+  if (decision.type === 'reject') {
+    runtime.stateManager.recordApprovalOutcome(true, decision.reason)
+    await runtime.session.record({
+      event: 'rejected',
+      toolName: decision.source,
+      action: pending.action,
+      context: pending.context,
+      policy: pending.policy,
+      result: { pendingActionId: id, reason: decision.reason, source: decision.source },
+    })
+    return {
+      content: [textContent('Pending action rejected: ' + id + (decision.reason ? ' (' + decision.reason + ')' : '') + '. The strategy layer will suggest an alternative approach.')],
+      structuredContent: { status: 'rejected', pendingActionId: id, reason: decision.reason },
+    }
+  }
+
+  runtime.stateManager.recordApprovalOutcome(false)
+  await runtime.session.record({
+    event: 'approved',
+    toolName: decision.source,
+    action: pending.action,
+    context: pending.context,
+    policy: pending.policy,
+    result: { pendingActionId: id, source: decision.source },
+  })
+  if (decision.signal?.aborted)
+    return recordComputerUseRejection(runtime, pending, id, decision.source, 'Host approval was cancelled before dispatch')
+
+  let result: CallToolResult
+  if (pending.action.kind === 'pty_create') {
+    result = await executeApprovedPtyCreate(runtime, pending.action.input, decision.signal)
+  }
+  else if (pending.action.kind === 'desktop_ensure_chrome') {
+    decision.signal?.throwIfAborted()
+    result = await executeChromeEnsure(runtime, pending.action.input, pending.policy.estimatedOperationUnits)
+  }
+  else {
+    result = await executeAction(pending.action as ActionInvocation, pending.toolName, { skipApprovalQueue: true, executionSignal: decision.signal })
+  }
+  await runtime.session.record({
+    event: result.isError === true ? 'failed' : 'executed',
+    toolName: pending.toolName,
+    action: pending.action,
+    context: pending.context,
+    policy: pending.policy,
+    result: { pendingActionId: id, ...(typeof result.structuredContent === 'object' && result.structuredContent !== null ? result.structuredContent as Record<string, unknown> : {}) },
+  })
+  return result
+}
+
+async function recordComputerUseRejection(runtime: ComputerUseServerRuntime, pending: PendingActionRecord, id: string, source: string, reason: string): Promise<CallToolResult> {
+  runtime.session.removePendingAction(id)
+  runtime.stateManager.recordApprovalOutcome(true, reason)
+  runtime.stateManager.setPendingApprovalCount(runtime.session.listPendingActions().length)
+  await runtime.session.record({
+    event: 'rejected',
+    toolName: pending.toolName,
+    action: pending.action,
+    context: pending.context,
+    policy: pending.policy,
+    result: { pendingActionId: id, source, reason },
+  })
+  return {
+    isError: true,
+    content: [textContent('Computer Use action was cancelled before dispatch.')],
+    structuredContent: { status: 'cancelled', pendingActionId: id },
+  }
 }
 
 const optionalTabIdSchema = z.number().int().min(0).optional().describe('Optional browser tab id override; defaults to the active tab')
@@ -1041,77 +1131,12 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
           structuredContent: { status: 'denied', reason: 'trusted_approval_required' },
         }
       }
-      const pending = runtime.session.getPendingAction(id)
-      if (!pending) {
-        return {
-          isError: true,
-          content: [
-            textContent(`Pending action not found: ${id}`),
-          ],
-        }
+      try {
+        return await resolvePendingAction({ runtime, executeAction, id, decision: { type: 'approve', source: 'desktop_approve_pending_action' } })
       }
-
-      runtime.session.removePendingAction(id)
-      runtime.stateManager.recordApprovalOutcome(false)
-      runtime.stateManager.setPendingApprovalCount(runtime.session.listPendingActions().length)
-      await runtime.session.record({
-        event: 'approved',
-        toolName: 'desktop_approve_pending_action',
-        action: pending.action,
-        context: pending.context,
-        policy: pending.policy,
-        result: {
-          pendingActionId: id,
-        },
-      })
-
-      if (pending.action.kind === 'pty_create') {
-        const result = await executeApprovedPtyCreate(runtime, pending.action.input)
-
-        await runtime.session.record({
-          event: result.isError === true ? 'failed' : 'executed',
-          toolName: pending.toolName,
-          action: pending.action,
-          context: pending.context,
-          policy: pending.policy,
-          result: {
-            pendingActionId: id,
-            ...(typeof result.structuredContent === 'object' && result.structuredContent !== null
-              ? result.structuredContent as Record<string, unknown>
-              : {}),
-          },
-        })
-
-        return result
+      catch (error) {
+        return { isError: true, content: [textContent(errorMessageFrom(error) ?? 'Pending action not found.')] }
       }
-
-      if (pending.action.kind === 'desktop_ensure_chrome') {
-        const result = await executeChromeEnsure(
-          runtime,
-          pending.action.input,
-          pending.policy.estimatedOperationUnits,
-        )
-
-        await runtime.session.record({
-          event: result.isError === true ? 'failed' : 'executed',
-          toolName: pending.toolName,
-          action: pending.action,
-          context: pending.context,
-          policy: pending.policy,
-          result: {
-            pendingActionId: id,
-            ...(typeof result.structuredContent === 'object' && result.structuredContent !== null
-              ? result.structuredContent as Record<string, unknown>
-              : {}),
-          },
-        })
-
-        return result
-      }
-
-      return await executeAction(pending.action, pending.toolName, {
-        skipApprovalQueue: true,
-      })
     },
   )
 
@@ -1122,40 +1147,11 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       reason: z.string().optional().describe('Optional rejection note for the audit log'),
     },
     async ({ id, reason }) => {
-      const pending = runtime.session.getPendingAction(id)
-      if (!pending) {
-        return {
-          isError: true,
-          content: [
-            textContent(`Pending action not found: ${id}`),
-          ],
-        }
+      try {
+        return await resolvePendingAction({ runtime, executeAction, id, decision: { type: 'reject', source: 'desktop_reject_pending_action', reason } })
       }
-
-      runtime.session.removePendingAction(id)
-      runtime.stateManager.recordApprovalOutcome(true, reason)
-      runtime.stateManager.setPendingApprovalCount(runtime.session.listPendingActions().length)
-      await runtime.session.record({
-        event: 'rejected',
-        toolName: 'desktop_reject_pending_action',
-        action: pending.action,
-        context: pending.context,
-        policy: pending.policy,
-        result: {
-          pendingActionId: id,
-          reason,
-        },
-      })
-
-      return {
-        content: [
-          textContent(`Pending action rejected: ${id}${reason ? ` (${reason})` : ''}. The strategy layer will suggest an alternative approach.`),
-        ],
-        structuredContent: {
-          status: 'rejected',
-          pendingActionId: id,
-          reason,
-        },
+      catch (error) {
+        return { isError: true, content: [textContent(errorMessageFrom(error) ?? 'Pending action not found.')] }
       }
     },
   )
