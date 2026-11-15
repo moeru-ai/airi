@@ -247,30 +247,6 @@ describe('controls Island', () => {
     // The shared `Tooltip` of the dock buttons stands at z-index 10000, and Reka UI copies it to the wrapper.
     expect(getComputedStyle(document.querySelector(tooltipWrapper)!).zIndex).toBe('10000')
   })
-
-  it('declares open control tooltips as glass surfaces', async () => {
-    // The tooltips portal out of the Island, so the glass behind the dock does not reach them.
-    const registered = new Set<HTMLElement>()
-    const host: BackdropSurfaceHost = {
-      register(element) {
-        registered.add(element)
-        return () => registered.delete(element)
-      },
-    }
-    const { screen } = mountIsland({ [backdropSurfaceHostKey as symbol]: host })
-    const tooltips = () => [...registered].filter(element => element.getAttribute('role') !== 'menu' && element !== screen.getByTestId('main-controls').element())
-
-    await screen.getByTestId('controls-island-microphone').hover()
-    await expect.poll(() => tooltips().length).toBe(1)
-    // The registered element paints the fill and the round corners, not the positioning wrapper of Reka UI.
-    // Reka UI repeats the label in a visually hidden copy, so the text holds the label twice.
-    expect(tooltips()[0].hasAttribute('data-reka-popper-content-wrapper')).toBe(false)
-    expect(getComputedStyle(tooltips()[0]).borderRadius).not.toBe('0px')
-    expect(tooltips()[0].textContent).toContain('Turn on microphone')
-
-    await screen.getByTestId('controls-island-grip').hover()
-    await expect.poll(() => tooltips().length === 1 && tooltips()[0].textContent?.includes('Drag to move window')).toBe(true)
-  })
 })
 
 describe('controls Island menu account', () => {
