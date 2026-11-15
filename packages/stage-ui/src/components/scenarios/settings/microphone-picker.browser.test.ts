@@ -137,5 +137,4 @@ describe('microphone picker', () => {
     await expect.element(screen.getByRole('radio', { name: 'Default - Built-in Microphone' })).toHaveAttribute('data-state', 'checked')
     await expect.element(screen.getByRole('radio', { name: 'USB Microphone' })).toBeVisible()
   })
-
 })

@@ -65,5 +65,4 @@ describe('v2 providers catalog availability (Issue #2559)', () => {
     await expect.poll(async () => (await menu.getByText('OpenAI', { exact: true }).all()).length, { timeout: 8000 }).toBeGreaterThan(0)
     expect((await menu.getByText('NVIDIA NIM', { exact: true }).all())).toHaveLength(0)
   })
-
 })

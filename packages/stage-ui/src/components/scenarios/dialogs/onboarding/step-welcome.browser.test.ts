@@ -10,7 +10,6 @@ import { createI18n } from 'vue-i18n'
 
 import StepWelcome from './step-welcome.vue'
 
-import { AIRI_FLUX_URL, AIRI_TERMS_URL } from '../../../../constants/public-links'
 import { useAuthStore } from '../../../../stores/auth'
 import { useAiriCardStore } from '../../../../stores/modules/airi-card'
 
@@ -99,9 +98,6 @@ describe('desktop onboarding sign-in', () => {
 
     await expect.poll(() => useAuthStore(pinia).needsLogin).toBe(true)
   })
-})
-
-describe('onboarding public links', () => {
 })
 
 describe('onboarding language choice', () => {

@@ -28,5 +28,4 @@ describe('stage avatar model missing', () => {
 
     expect(onSelect).toHaveBeenCalledOnce()
   })
-
 })

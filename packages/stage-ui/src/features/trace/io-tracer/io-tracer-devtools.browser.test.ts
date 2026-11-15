@@ -5,7 +5,6 @@ import { createPinia, disposePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { cleanup, render } from 'vitest-browser-vue'
 import { page } from 'vitest/browser'
-import { h } from 'vue'
 import { createI18n } from 'vue-i18n'
 
 import IOTracerDevtools from './io-tracer-devtools.vue'
