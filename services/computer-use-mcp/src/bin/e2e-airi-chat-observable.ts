@@ -98,6 +98,7 @@ const promptText = `${promptBaseText} [${promptMarker}]`
 const reportDir = resolve(packageDir, '.computer-use-mcp', 'reports', `airi-chat-observable-${runId}`)
 const reportPath = resolve(reportDir, 'report.json')
 const stageLogPath = resolve(reportDir, 'stage-tamagotchi.log')
+const stageUserDataDir = resolve(reportDir, 'stage-user-data')
 const mcpSessionRoot = resolve(reportDir, 'computer-use-session')
 const rootEnvPath = resolve(repoDir, '.env')
 
@@ -207,8 +208,45 @@ async function terminateExistingStageTamagotchiInstances() {
     resolve(repoDir, 'node_modules', '.pnpm', 'electron@'),
   ]
 
-  for (const pattern of patterns) {
-    await execFileAsync('pkill', ['-f', pattern]).catch(() => {})
+  if (platform === 'win32') {
+    // `pkill` is unavailable on Windows. Query only this checkout's Stage
+    // process command lines, then terminate each matching process tree.
+    const appPath = resolve(repoDir, 'apps', 'stage-tamagotchi').replaceAll('/', '\\')
+    const escapedAppPath = appPath.replaceAll("'", "''")
+    const query = [
+      `$appPath = '${escapedAppPath}'`,
+      '$matches = Get-CimInstance Win32_Process | Where-Object {',
+      '  $commandLine = [string]$_.CommandLine',
+      '  $commandLine -and $commandLine.IndexOf($appPath, [System.StringComparison]::OrdinalIgnoreCase) -ge 0',
+      '}',
+      '$matches | Select-Object -ExpandProperty ProcessId',
+    ].join('; ')
+
+    try {
+      const { stdout } = await execFileAsync('powershell.exe', [
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        query,
+      ])
+      const pids = Array.from(new Set(stdout
+        .split(/\r?\n/u)
+        .map(value => Number(value.trim()))
+        .filter(value => Number.isInteger(value) && value > 0)))
+
+      await Promise.all(pids.map(async pid => {
+        await execFileAsync('taskkill.exe', ['/PID', String(pid), '/T', '/F']).catch(() => {})
+      }))
+    }
+    catch {
+      // Cleanup is best-effort; the subsequent debug-target probe reports any
+      // remaining instance without broadening the kill scope.
+    }
+  }
+  else {
+    for (const pattern of patterns) {
+      await execFileAsync('pkill', ['-f', pattern]).catch(() => {})
+    }
   }
 
   await sleep(1_500)
@@ -486,9 +524,10 @@ async function main() {
 
   try {
     await mkdir(reportDir, { recursive: true })
+    await mkdir(stageUserDataDir, { recursive: true })
     await mkdir(mcpSessionRoot, { recursive: true })
 
-    addTimeline('bootstrap', { reportDir, debugPort })
+    addTimeline('bootstrap', { reportDir, debugPort, stageUserDataDir })
     await terminateExistingStageTamagotchiInstances()
     addTimeline('terminated-stale-stage-tamagotchi-instances')
 
@@ -506,6 +545,7 @@ async function main() {
         APP_REMOTE_DEBUG: 'true',
         APP_REMOTE_DEBUG_PORT: String(debugPort),
         APP_REMOTE_DEBUG_NO_OPEN: 'true',
+        APP_USER_DATA_PATH: stageUserDataDir,
       },
       stdio: 'pipe',
     })
