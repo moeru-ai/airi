@@ -73,6 +73,20 @@ export interface McpToolRuntime {
 export const MCP_CALL_TOOL_NAME = 'builtIn_mcpCallTool'
 export const MCP_LIST_TOOL_NAME = 'builtIn_mcpListTools'
 
+/** Shared execution contract for Chat, background recipes, and Agent runs. */
+export const MCP_AGENT_EXECUTION_PROMPT = [
+  'When the user asks you to operate an application, game, browser, or desktop, act as an Agent.',
+  'Use the available MCP tools to inspect the current state and perform the task.',
+  'For games and GUI tasks, keep an observe, act, verify loop until the requested goal is complete or a concrete blocker remains.',
+  'Do not answer that you cannot act because this is a chat when a suitable tool is available.',
+  'Work in small steps. Read each result before the next action.',
+  'If an action requires Host approval, wait for the approval result and continue the same task after settlement.',
+  'Apply these rules in Chat, background recipes, and Agent runs.',
+  'Verify the requested outcome with an observation or a task-specific check before you report success.',
+  'Do not repeat an action after a lost or unclear result. Inspect the current state first.',
+  'If the required tool or permission is unavailable, report the concrete blocker after you inspect available tools.',
+].join('\n')
+
 /**
  * Creates MCP proxy tools backed by a runtime-provided transport.
  *
@@ -99,7 +113,7 @@ export async function createMcpTools(runtime: McpToolRuntime, registration?: { s
   return Promise.all([
     tool({
       name: MCP_LIST_TOOL_NAME,
-      description: `List tools from connected MCP servers. Call this before builtIn_mcpCallTool to get current names and input schemas. For processes, CLI, files, and system interfaces, prefer Terminal, but do not call Terminal as a preflight. Reserve AUV for on-screen visual state or GUI interaction when the Host permits it. Prefer background application launches that avoid unrelated window changes. Never inject keyboard or mouse input through Shell to bypass AUV authorization.${index}`,
+      description: `List tools from connected MCP servers. Call this before builtIn_mcpCallTool to get current names and input schemas. Use Computer Use tools for games, browsers, and GUI tasks. Use Terminal for processes, CLI, and files. Do not call Terminal as a preflight. Never inject keyboard or mouse input through Shell to bypass Host authorization.${index}`,
       execute: async ({ name }) => {
         try {
           const tools = (await runtime.listTools(name || undefined)).filter(tool => tool.exposure !== 'disabled')

@@ -6,7 +6,7 @@ import type { CdpBridgeManager } from './cdp-manager'
 import { hostname } from 'node:os'
 import { env, platform } from 'node:process'
 
-import { terminalControlEnabledEnv, terminalControlNonceEnv } from '@proj-airi/stage-shared/terminal-approval'
+import { computerUseControlEnabledEnv, computerUseControlNonceEnv, terminalControlEnabledEnv, terminalControlNonceEnv } from '@proj-airi/stage-shared/terminal-approval'
 
 import { BrowserDomExtensionBridge } from '../browser-dom/extension-bridge'
 import { createChromeSessionManager } from '../chrome-session-manager'
@@ -26,6 +26,8 @@ export interface ComputerUseServerOptions {
   terminalRunnerFactory?: (config: ComputerUseConfig) => TerminalRunner
   /** Only the controlling Host or a mock Host supplies this private-connection credential. It never comes from tool arguments. */
   terminalControlNonce?: string
+  /** Computer Use uses its own Host credential, so it never depends on Terminal enablement. */
+  computerUseControlNonce?: string
 }
 
 export interface ComputerUseServerRuntime {
@@ -34,6 +36,7 @@ export interface ComputerUseServerRuntime {
   executor: DesktopExecutor
   terminalRunner: TerminalRunner
   terminalControlNonce?: string
+  computerUseControlNonce?: string
   browserDomBridge: BrowserDomExtensionBridge
   cdpBridgeManager: CdpBridgeManager
   /** Unified run-level state manager. */
@@ -105,12 +108,19 @@ function createTerminal(config: ComputerUseConfig, options: ComputerUseServerOpt
 export async function createRuntime(config = resolveComputerUseConfig(), options: ComputerUseServerOptions = {}) {
   const terminalControlNonce = options.terminalControlNonce
     ?? (env[terminalControlEnabledEnv] === '1' ? env[terminalControlNonceEnv] : undefined)
+  const computerUseControlNonce = options.computerUseControlNonce
+    ?? (env[computerUseControlEnabledEnv] === '1' ? env[computerUseControlNonceEnv] : undefined)
   if (terminalControlNonce !== undefined && !/^[a-f0-9]{64}$/.test(terminalControlNonce))
     throw new Error('Host Terminal control requires a valid private connection credential.')
+  if (computerUseControlNonce !== undefined && !/^[a-f0-9]{64}$/.test(computerUseControlNonce))
+    throw new Error('Host Computer Use control requires a valid private connection credential.')
   if (terminalControlNonce && config.approvalMode === 'never')
     throw new Error('Host-controlled Terminal requires server approval mode actions or all.')
+  if (computerUseControlNonce && config.approvalMode === 'never')
+    throw new Error('Host-controlled Computer Use requires server approval mode actions or all.')
   // Capture once so no executor or browser child inherits this private connection credential.
   delete env[terminalControlNonceEnv]
+  delete env[computerUseControlNonceEnv]
   const session = new ComputerUseSession(config)
   await session.init()
   const executor = createExecutor(config, options)
@@ -129,6 +139,7 @@ export async function createRuntime(config = resolveComputerUseConfig(), options
     executor,
     terminalRunner,
     terminalControlNonce,
+    computerUseControlNonce,
     browserDomBridge,
     cdpBridgeManager,
     stateManager,

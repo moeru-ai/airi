@@ -240,6 +240,26 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
     await refreshRuntimeRunState(runtime)
   }
 
+  async function executeBrowserDomAction(action: ActionInvocation & { input: { selector: string } }, toolName: string) {
+    try {
+      const result = await executeAction(action, toolName)
+      if (!result?.isError)
+        return result
+      const error = result.structuredContent?.error
+        ?? result.content?.map(item => item.type === 'text' ? item.text : '').filter(Boolean).join('\n')
+        ?? 'Browser DOM action failed.'
+      return buildBrowserDomActionErrorResponse({ runtime, error, selector: action.input.selector, actionKind: action.kind })
+    }
+    catch (error) {
+      return buildBrowserDomActionErrorResponse({
+        runtime,
+        error,
+        selector: action.input.selector,
+        actionKind: action.kind,
+      })
+    }
+  }
+
   // Workflow suspension state — stored in this closure so that
   // workflow_resume and the approve handler can access it.
   let suspendedWorkflow: WorkflowSuspension | undefined
@@ -715,57 +735,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       const requiredActions = ['getClickTarget', 'clickAt']
       if (!isBrowserDomActionSupported(runtime.browserDomBridge, ...requiredActions))
         return buildBrowserDomUnavailableResponse(runtime, getUnsupportedBrowserDomActions(runtime.browserDomBridge, ...requiredActions))
-
-      let result: Awaited<ReturnType<typeof runtime.browserDomBridge.clickSelector>>
-      try {
-        result = await runtime.browserDomBridge.clickSelector({
-          selector,
-          tabId,
-          frameIds,
-        })
-      }
-      catch (error) {
-        return buildBrowserDomActionErrorResponse({
-          runtime,
-          error,
-          selector,
-          actionKind: 'browser_dom_click',
-        })
-      }
-
-      // NOTICE: clickSelector resolves even when the clickAt step misses
-      // (e.g. reflow between target lookup and click dispatch). Inspect
-      // per-frame results before reporting success.
-      const clickFrames = result?.clickResults
-      const anyClickSucceeded = Array.isArray(clickFrames) && clickFrames.some(
-        fr => (fr.result as Record<string, unknown>)?.success === true,
-      )
-      if (!anyClickSucceeded) {
-        return {
-          isError: true,
-          content: [
-            textContent(`browser_dom_click: clicked at (${result.targetPoint.x}, ${result.targetPoint.y}) in frame ${result.targetFrameId} but no frame reported a successful DOM click for "${selector}".`),
-          ],
-          structuredContent: {
-            status: 'click_miss',
-            selector,
-            ...result,
-            bridge: runtime.browserDomBridge.getStatus(),
-          },
-        }
-      }
-
-      return {
-        content: [
-          textContent(`Clicked selector "${selector}" in frame ${result.targetFrameId} at (${result.targetPoint.x}, ${result.targetPoint.y}).`),
-        ],
-        structuredContent: {
-          status: 'ok',
-          selector,
-          ...result,
-          bridge: runtime.browserDomBridge.getStatus(),
-        },
-      }
+      return executeBrowserDomAction({ kind: 'browser_dom_click', input: { selector, tabId, frameIds } }, 'browser_dom_click')
     },
   )
 
@@ -818,27 +788,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       const requiredActions = ['setInputValue']
       if (!isBrowserDomActionSupported(runtime.browserDomBridge, ...requiredActions))
         return buildBrowserDomUnavailableResponse(runtime, getUnsupportedBrowserDomActions(runtime.browserDomBridge, ...requiredActions))
-
-      const results = await runtime.browserDomBridge.setInputValue({
-        selector,
-        value,
-        simulateKeystrokes,
-        blur,
-        tabId,
-        frameIds,
-      })
-      return {
-        content: [
-          textContent(summarizeBrowserDomFrameResults(`set_input_value for "${selector}"`, results)),
-        ],
-        structuredContent: {
-          status: 'ok',
-          selector,
-          valueLength: value.length,
-          results,
-          bridge: runtime.browserDomBridge.getStatus(),
-        },
-      }
+      return executeBrowserDomAction({ kind: 'browser_dom_set_input_value', input: { selector, value, simulateKeystrokes, blur, tabId, frameIds } }, 'browser_dom_set_input_value')
     },
   )
 
@@ -856,25 +806,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       const requiredActions = ['checkCheckbox']
       if (!isBrowserDomActionSupported(runtime.browserDomBridge, ...requiredActions))
         return buildBrowserDomUnavailableResponse(runtime, getUnsupportedBrowserDomActions(runtime.browserDomBridge, ...requiredActions))
-
-      const results = await runtime.browserDomBridge.checkCheckbox({
-        selector,
-        checked,
-        tabId,
-        frameIds,
-      })
-      return {
-        content: [
-          textContent(summarizeBrowserDomFrameResults(`check_checkbox for "${selector}"`, results)),
-        ],
-        structuredContent: {
-          status: 'ok',
-          selector,
-          checked,
-          results,
-          bridge: runtime.browserDomBridge.getStatus(),
-        },
-      }
+      return executeBrowserDomAction({ kind: 'browser_dom_check_checkbox', input: { selector, checked, tabId, frameIds } }, 'browser_dom_check_checkbox')
     },
   )
 
@@ -892,25 +824,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       const requiredActions = ['selectOption']
       if (!isBrowserDomActionSupported(runtime.browserDomBridge, ...requiredActions))
         return buildBrowserDomUnavailableResponse(runtime, getUnsupportedBrowserDomActions(runtime.browserDomBridge, ...requiredActions))
-
-      const results = await runtime.browserDomBridge.selectOption({
-        selector,
-        value,
-        tabId,
-        frameIds,
-      })
-      return {
-        content: [
-          textContent(summarizeBrowserDomFrameResults(`select_option for "${selector}"`, results)),
-        ],
-        structuredContent: {
-          status: 'ok',
-          selector,
-          value,
-          results,
-          bridge: runtime.browserDomBridge.getStatus(),
-        },
-      }
+      return executeBrowserDomAction({ kind: 'browser_dom_select_option', input: { selector, value, tabId, frameIds } }, 'browser_dom_select_option')
     },
   )
 
@@ -1074,28 +988,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         }
         opts = record
       }
-
-      const results = await runtime.browserDomBridge.triggerEvent({
-        selector,
-        eventName,
-        eventType,
-        opts,
-        tabId,
-        frameIds,
-      })
-      return {
-        content: [
-          textContent(summarizeBrowserDomFrameResults(`trigger_event ${eventName} for "${selector}"`, results)),
-        ],
-        structuredContent: {
-          status: 'ok',
-          selector,
-          eventName,
-          eventType,
-          results,
-          bridge: runtime.browserDomBridge.getStatus(),
-        },
-      }
+      return executeBrowserDomAction({ kind: 'browser_dom_trigger_event', input: { selector, eventName, eventType, opts, tabId, frameIds } }, 'browser_dom_trigger_event')
     },
   )
 

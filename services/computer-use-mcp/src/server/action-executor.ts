@@ -22,6 +22,7 @@ import * as v from 'valibot'
 
 import { normalizeConfiguredAppAction } from '../app-aliases'
 import { decideBrowserTypeAction } from '../browser-action-router'
+import { diagnoseBrowserActionError } from '../browser-dom/browser-repair-contract'
 import { isBrowserDomActionSupported } from '../browser-dom/capabilities'
 import { resolveDisplayPoint } from '../display'
 import { evaluateActionPolicy } from '../policy'
@@ -178,6 +179,19 @@ function getCoordinateMutationTarget(action: ActionInvocation): { x: number, y: 
   }
 }
 
+function getBrowserDomSelector(action: ActionInvocation): string | undefined {
+  switch (action.kind) {
+    case 'browser_dom_click':
+    case 'browser_dom_set_input_value':
+    case 'browser_dom_check_checkbox':
+    case 'browser_dom_select_option':
+    case 'browser_dom_trigger_event':
+      return action.input.selector
+    default:
+      return undefined
+  }
+}
+
 function toStructuredDisplayPoint(resolution: DisplayPointResolution) {
   return {
     coordinateSpace: 'global-logical',
@@ -248,6 +262,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
     options.executionSignal?.throwIfAborted()
     const normalizedAction = normalizeConfiguredAppAction(action, runtime.config.openableApps)
     const isTerminal = normalizedAction.kind === 'terminal_exec' || normalizedAction.kind === 'terminal_reset'
+    const isBrowserDomAction = normalizedAction.kind.startsWith('browser_dom_')
     const { executionTarget, context: actualContext, displayInfo } = await refreshRuntimeRunState(runtime, { probeBrowser: !isTerminal })
     options.executionSignal?.throwIfAborted()
     const terminalBackend = isTerminal ? runtime.terminalRunner.describe().kind : undefined
@@ -299,7 +314,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
       },
     })
 
-    if (preflight.blockingIssues.length > 0) {
+    if (!isBrowserDomAction && preflight.blockingIssues.length > 0) {
       const deniedDecision = buildDeniedDecision({
         decision,
         issues: preflight.blockingIssues,
@@ -321,7 +336,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
       return buildDeniedResponse(deniedDecision, context, executionTarget, terminalBackend)
     }
 
-    const isMutationBlockedByPreflight = isMutatingAction(normalizedAction)
+    const isMutationBlockedByPreflight = !isBrowserDomAction && isMutatingAction(normalizedAction)
       && (runtime.config.executor !== 'auv' || normalizedAction.kind !== 'terminal_exec')
       && preflight.mutationReadinessIssues.length > 0
 
@@ -683,6 +698,56 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           }
           break
         }
+        case 'browser_dom_click': {
+          const result = await runtime.browserDomBridge.clickSelector(normalizedAction.input)
+          const clickSucceeded = result.clickResults.some(frame => (frame.result as Record<string, unknown>)?.success === true)
+          if (!clickSucceeded)
+            throw new Error(`No browser DOM click succeeded for selector "${normalizedAction.input.selector}".`)
+          backendResult = {
+            targetFrameId: result.targetFrameId,
+            targetPoint: result.targetPoint,
+            targetElement: result.targetElement,
+            clickResults: result.clickResults,
+          }
+          break
+        }
+        case 'browser_dom_set_input_value': {
+          const results = await runtime.browserDomBridge.setInputValue(normalizedAction.input)
+          backendResult = {
+            selector: normalizedAction.input.selector,
+            valueLength: normalizedAction.input.value.length,
+            results,
+          }
+          break
+        }
+        case 'browser_dom_check_checkbox': {
+          const results = await runtime.browserDomBridge.checkCheckbox(normalizedAction.input)
+          backendResult = {
+            selector: normalizedAction.input.selector,
+            checked: normalizedAction.input.checked,
+            results,
+          }
+          break
+        }
+        case 'browser_dom_select_option': {
+          const results = await runtime.browserDomBridge.selectOption(normalizedAction.input)
+          backendResult = {
+            selector: normalizedAction.input.selector,
+            value: normalizedAction.input.value,
+            results,
+          }
+          break
+        }
+        case 'browser_dom_trigger_event': {
+          const results = await runtime.browserDomBridge.triggerEvent(normalizedAction.input)
+          backendResult = {
+            selector: normalizedAction.input.selector,
+            eventName: normalizedAction.input.eventName,
+            eventType: normalizedAction.input.eventType,
+            results,
+          }
+          break
+        }
         case 'secret_read_env_value': {
           const result = await readEnvValue(normalizedAction.input)
           backendResult = {
@@ -852,6 +917,11 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         executionTarget,
         terminalBackend,
         policy: decision,
+        repairSuggestion: (() => {
+          const selector = getBrowserDomSelector(normalizedAction)
+          const suggestion = selector ? diagnoseBrowserActionError(error, selector, normalizedAction.kind) : null
+          return suggestion ? { ...suggestion } : undefined
+        })(),
       })
     }
   }

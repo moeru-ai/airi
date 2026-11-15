@@ -14,8 +14,10 @@ import { createI18n } from 'vue-i18n'
 
 import { recipesRepo } from '../database/repos/recipes.repo'
 import { CONVERSATION_COMPACT_FLAG } from '../libs/feature-flags'
+import { MCP_AGENT_EXECUTION_PROMPT } from '../tools/mcp'
 import { useLLM } from './ai/chat-llm/llm'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
+import { useLlmToolsetPromptsStore } from './ai/chat-llm/toolset-prompts'
 import { useChatStore } from './chat'
 import { useChatSessionStore } from './chat/session-store'
 import { useFeatureFlagsStore } from './feature-flags'
@@ -314,6 +316,8 @@ it('runs a keyword-triggered background recipe and keeps its result as a notice'
 // The owner approved the recipe, so every recipe run uses every registered tool.
 it('runs a recipe with every registered tool', async () => {
   const { pinia, chat, sessions, recipes } = await setupChat(async () => 'done')
+  const toolsetPrompts = useLlmToolsetPromptsStore(pinia)
+  toolsetPrompts.registerToolsetPrompts('mcp-tools', [{ id: 'agent-execution', content: MCP_AGENT_EXECUTION_PROMPT }])
   useLlmToolsStore(pinia).addTools({
     id: 'computer-use',
     type: 'function',
@@ -329,6 +333,7 @@ it('runs a recipe with every registered tool', async () => {
 
   const task = () => Object.values(sessions.sessionMetas).find(meta => meta.recipeId === tidy.id)
   await expect.poll(() => task() && sessions.getSessionMessages(task()!.sessionId).find(message => message.role === 'user')?.tools).toContainEqual({ name: 'computer_use' })
+  expect(toolsetPrompts.activeToolsetPrompt).toContain(MCP_AGENT_EXECUTION_PROMPT)
   await waitForNotices(chat, sessions, parent, 1)
 })
 

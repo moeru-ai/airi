@@ -79,7 +79,10 @@ function createRuntimeForActionTest(configOverrides: Partial<ComputerUseConfig> 
     }),
     supportsAction: vi.fn().mockReturnValue(true),
     clickSelector: vi.fn().mockResolvedValue(undefined),
+    setInputValue: vi.fn().mockResolvedValue([]),
     checkCheckbox: vi.fn().mockResolvedValue(undefined),
+    selectOption: vi.fn().mockResolvedValue([]),
+    triggerEvent: vi.fn().mockResolvedValue([]),
   }
   const cdpBridgeManager = {
     probeAvailability: vi.fn().mockResolvedValue({
@@ -1058,6 +1061,41 @@ describe('createExecuteAction', () => {
     const structured = result.structuredContent as Record<string, any>
     expect(structured.status).toBe('denied')
     expect(runtime.terminalRunner.execute).not.toHaveBeenCalled()
+  })
+
+  it('routes browser DOM mutations through approval and avoids desktop preflight', async () => {
+    const { runtime, session } = createRuntimeForActionTest({ approvalMode: 'actions', executor: 'auv' })
+    session.createPendingAction.mockReturnValue({
+      id: 'browser-pending',
+      createdAt: new Date().toISOString(),
+      toolName: 'browser_dom_set_input_value',
+      action: { kind: 'browser_dom_set_input_value', input: { selector: '#name', value: 'AIRI' } },
+      context: { available: false, platform: 'win32' },
+      policy: { allowed: true, requiresApproval: true, reasons: [], riskLevel: 'medium', estimatedOperationUnits: 2 },
+    })
+
+    const executeAction = createExecuteAction(runtime)
+    const result = await executeAction({ kind: 'browser_dom_set_input_value', input: { selector: '#name', value: 'AIRI' } }, 'browser_dom_set_input_value')
+
+    expect(result.structuredContent).toMatchObject({ status: 'approval_required', pendingActionId: 'browser-pending' })
+    expect(runtime.browserDomBridge.setInputValue).not.toHaveBeenCalled()
+    expect(session.record).toHaveBeenCalledWith(expect.objectContaining({ event: 'approval_required', toolName: 'browser_dom_set_input_value' }))
+  })
+
+  it('fails a browser DOM click when the bridge reports no successful frame', async () => {
+    const { runtime, session } = createRuntimeForActionTest({ approvalMode: 'never', executor: 'auv' })
+    ;(runtime.browserDomBridge.clickSelector as any).mockResolvedValue({
+      targetFrameId: 0,
+      targetPoint: { x: 10, y: 20 },
+      clickResults: [{ frameId: 0, result: { success: false } }],
+    })
+
+    const executeAction = createExecuteAction(runtime)
+    const result = await executeAction({ kind: 'browser_dom_click', input: { selector: '#submit' } }, 'browser_dom_click')
+
+    expect(result.isError).toBe(true)
+    expect(result.structuredContent).toMatchObject({ status: 'failed', action: 'browser_dom_click' })
+    expect(session.record).toHaveBeenCalledWith(expect.objectContaining({ event: 'failed', toolName: 'browser_dom_click' }))
   })
 
   // https://github.com/moeru-ai/airi/pull/3496

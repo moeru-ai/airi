@@ -32,30 +32,30 @@ The exact local worktree path is intentionally kept out of this repository. Find
 
 | Lane | Owner | Responsibility | State |
 | --- | --- | --- | --- |
-| Boundary and nonce | Main controller | Split Computer Use Host control from Terminal control and preserve Host attribution | Open |
-| Browser actions | `browser-actions` worker | Route Browser DOM writes through the existing action preparation, approval, execution, and settlement path | Open |
+| Boundary and nonce | Main controller | Split Computer Use Host control from Terminal control and preserve Host attribution | Done in working tree |
+| Browser actions | `browser-actions` worker | Route Browser DOM writes through the existing action preparation, approval, execution, and settlement path | Done in working tree |
 | Agent continuation | `agent-trace-review` worker | Confirm settlement wake, trace polling, and no-replay behavior for the original Agent request | Open |
-| Approval reuse | `approval-boundary-review` worker | Keep one AIRI approval surface with stable reuse and a serialized pending-request queue | Open |
+| Approval reuse | `approval-boundary-review` worker | Keep one AIRI approval surface with stable reuse and a serialized pending-request queue | Window identity fixed. Queue follow-up remains |
 | Verification and publication | Main controller | Run focused tests, typechecks, lint, diff/privacy review, then replace the PR source ref with lease protection | Open |
 
 Workers are read-only unless the main controller explicitly assigns a writer slice. Every worker result must name concrete files, tests, and unresolved risks. Verify worker findings against the current source before editing.
 
 ## Known gaps at this checkpoint
 
-- `apps/stage-tamagotchi/src/main/services/airi/mcp-servers/index.ts` assigns `computerUseNonce = terminalNonce`. This makes Computer Use availability depend on Terminal control setup.
+- Computer Use now has independent Host control constants and environment wiring. The bundled server enables both lanes, while external servers opt into each lane separately.
 - The Computer Use Turbo state and event names still use Terminal-specific names. Rename only the shared execution concept that must be public. Keep Terminal commit protocol names local to Terminal.
-- Browser DOM mutation tools in `services/computer-use-mcp/src/server/register-tools.ts` call the browser bridge directly. They do not yet create a pending action or enter the Host approval and settlement path.
-- `apps/stage-tamagotchi/src/main/windows/terminal-approval/index.ts` creates a fresh UUID for generic confirmation views. The existing AIRI window manager is reused, but the approval presentation is not yet a stable single-window queue.
+- Browser DOM mutation tools now build `ActionInvocation` values and use `executeAction`. They enter the shared policy, pending action, approval, trace, and settlement path. The approval result still needs a dedicated notice wake when the original tool call cannot remain open.
+- Generic confirmation views now use a stable window-manager identity while retaining unique action IDs. Presentations still need explicit serialized queue behavior for concurrent prompts.
 - The B0-style settlement wake path exists in the local AUV work and must be ported as a minimal slice. It must notify the original conversation and then let the next Agent turn read the actual execution trace.
 
 ## Change order
 
 1. Inspect the current PR head and all nested `AGENTS.md` files before editing.
-2. Add independent Computer Use control constants and environment wiring. Keep Terminal nonce and Terminal metadata limited to `terminal_exec`.
-3. Extend the existing `ActionKind`, invocation preparation, policy, execution switch, pending action record, and settlement record for Browser DOM writes. Use the existing browser bridge as the executor.
-4. Route DOM writes through the same `approval_required` response used by desktop actions. Host approval must be the only approval authority.
-5. Make the approval presentation reuse a stable AIRI window and serialize pending prompts through the existing manager. Preserve action IDs for action identity, but do not use them as window-instance identity.
-6. Port settlement wake and trace polling through the existing `notifyConversation` and Guard Approval Cards path. Add an idempotency check before notifying or continuing.
+2. Add independent Computer Use control constants and environment wiring. Keep Terminal nonce and Terminal metadata limited to `terminal_exec`. **Done in working tree.**
+3. Extend the existing `ActionKind`, invocation preparation, policy, execution switch, pending action record, and settlement record for Browser DOM writes. Use the existing browser bridge as the executor. **Done in working tree.**
+4. Route DOM writes through the same `approval_required` response used by desktop actions. Host approval must be the only approval authority. **Done in working tree.**
+5. Make the approval presentation reuse a stable AIRI window and serialize pending prompts through the existing manager. Preserve action IDs for action identity, but do not use them as window-instance identity. **Window identity done. Queue remains.**
+6. Port settlement wake and trace polling through the existing `notifyConversation` and Guard Approval Cards path. Add an idempotency check before notifying or continuing. **Open.**
 7. Remove or rewrite the fixed exit-code wording in the English source locale only. Do not edit Crowdin-managed locales unless the task explicitly requires it.
 8. Add focused regression tests before broad checks. Update this handoff with the exact command and result after each gate.
 
@@ -71,6 +71,8 @@ Workers are read-only unless the main controller explicitly assigns a writer sli
 - Computer Use approval protocol: `services/computer-use-mcp/src/server/terminal-approval.ts`, `services/computer-use-mcp/src/server/responses.ts`
 - Agent trace and settlement: `services/computer-use-mcp/src/workflows/engine.ts` and the existing Main settlement/notice modules
 - Existing lane handoff source: `services/computer-use-mcp/terminal-lane-status.md`
+- Shared Agent execution prompt: `packages/stage-ui/src/tools/mcp.ts`
+- Shared MCP prompt registration: `apps/stage-tamagotchi/src/renderer/stores/tools/mcp.ts`
 
 ## Validation gates
 
@@ -135,4 +137,8 @@ Never infer completion from a clean worktree, a zero exit code, or a successful 
 
 - Created the project-level multi-handoff for PR #3496 replacement and ongoing AIRI Agent execution maintenance.
 - Recorded the independent Computer Use nonce gap, Browser DOM approval gap, approval-window reuse gap, and Agent settlement wake requirement.
-- No runtime code was changed by this documentation checkpoint.
+- Added the shared Agent execution prompt to MCP registration so Chat, background recipes, and Agent runs receive the same observe, act, approval, and verification contract.
+- Added Browser DOM mutation action kinds and routed click, input, checkbox, select, and event writes through `executeAction`.
+- Added independent Computer Use Host nonce constants and wiring. Terminal Turbo remains the session approval grant, but Computer Use no longer reuses the Terminal nonce.
+- Reused a stable approval-window manager identity for generic confirmation prompts.
+- Added focused policy, action-executor, registration, MCP manager, and background-task regression coverage. Current validation is recorded in the active task log. Publication remains pending.

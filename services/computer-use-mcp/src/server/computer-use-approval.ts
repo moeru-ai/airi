@@ -18,7 +18,7 @@ import { resolvePendingAction } from './register-tools'
 export function registerComputerUseApproval(server: McpServer, runtime: ComputerUseServerRuntime, executeAction: ExecuteAction) {
   const handle = async (request: { params: unknown }, extra: { signal: AbortSignal }, approve: boolean) => {
     const params = v.parse(computerUseApprovalRequestSchema, request.params)
-    if (!runtime.terminalControlNonce || params.nonce !== runtime.terminalControlNonce)
+    if (!runtime.computerUseControlNonce || params.nonce !== runtime.computerUseControlNonce)
       throw new McpError(ErrorCode.InvalidParams, 'Computer Use Host approval does not match this connection.')
 
     const pending = runtime.session.getPendingAction(params.pendingActionId)

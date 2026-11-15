@@ -48,11 +48,11 @@ export function setupTerminalApprovalWindow(params: { actions: PendingActionMana
     },
   })
 
-  async function presentView(actionId: string, view: TerminalApprovalView, isPending: () => boolean, signal?: AbortSignal): Promise<boolean> {
+  async function presentView(windowId: string, actionId: string, view: TerminalApprovalView, isPending: () => boolean, signal?: AbortSignal): Promise<boolean> {
     if (signal?.aborted)
       return false
     const handle = await windows.open({
-      id: actionId,
+      id: windowId,
       route: '/terminal-approval',
       type: 'terminal-approval',
       payload: view,
@@ -99,7 +99,7 @@ export function setupTerminalApprovalWindow(params: { actions: PendingActionMana
       return false
     const request = params.actions.validateRequest(action.terminal.snapshot.requestId, action.attribution, { allowClosed: true })
     const view: TerminalApprovalView = { kind: 'terminal', actionId, expiresAt: action.expiresAt, serverName: action.terminal.serverName, snapshot: action.terminal.snapshot, submission: { sessionId: request.sessionId, turnId: request.turnId, text: request.text, senderWebContentsId: request.senderWebContentsId } }
-    return await presentView(actionId, view, () => params.actions.get(actionId)?.status === 'pending')
+    return await presentView(actionId, actionId, view, () => params.actions.get(actionId)?.status === 'pending')
   }
 
   async function confirm(request: ApprovalPrompt, signal?: AbortSignal): Promise<boolean> {
@@ -110,7 +110,7 @@ export function setupTerminalApprovalWindow(params: { actions: PendingActionMana
       expiresAt: Date.now() + 5 * 60_000,
       ...request,
     }
-    return await presentView(actionId, view, () => Date.now() < view.expiresAt, signal)
+    return await presentView('terminal-approval-confirmation', actionId, view, () => Date.now() < view.expiresAt, signal)
   }
   return {
     present,

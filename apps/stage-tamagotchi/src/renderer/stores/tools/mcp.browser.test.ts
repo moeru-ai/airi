@@ -5,7 +5,9 @@ import type { ElectronMcpConfigText, ElectronMcpToolDescriptor } from '../../../
 import { PiniaColada } from '@pinia/colada'
 import { setupSynced, usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia/setup-synced'
 import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/ai/chat-llm/tools'
+import { useLlmToolsetPromptsStore } from '@proj-airi/stage-ui/stores/ai/chat-llm/toolset-prompts'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
+import { MCP_AGENT_EXECUTION_PROMPT } from '@proj-airi/stage-ui/tools/mcp'
 import { createPinia, disposePinia } from 'pinia'
 import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
@@ -108,6 +110,7 @@ describe('useTamagotchiMcpToolsStore', () => {
     await store.refresh()
 
     const mcpDefinitions = llmToolsStore.tools.filter(tool => tool.id.startsWith('mcp:'))
+    const toolsetPrompts = useLlmToolsetPromptsStore(pinia)
     const listTools = llmToolsStore.activeTools.find(tool => tool.function.name === 'builtIn_mcpListTools')
     const callTool = llmToolsStore.activeTools.find(tool => tool.function.name === 'builtIn_mcpCallTool')
 
@@ -121,6 +124,7 @@ describe('useTamagotchiMcpToolsStore', () => {
         function: expect.objectContaining({ name: 'builtIn_mcpCallTool' }),
       }),
     ])
+    expect(toolsetPrompts.activeToolsetPrompt).toContain(MCP_AGENT_EXECUTION_PROMPT)
     expect(JSON.stringify(llmToolsStore.$state)).not.toContain('execute')
     expect(listTools?.function.description).toContain('Servers at registration: ["filesystem"]')
     expect(listTools?.function.description).not.toContain('filesystem::search')
@@ -159,6 +163,7 @@ describe('useTamagotchiMcpToolsStore', () => {
     store.dispose()
 
     expect(llmToolsStore.tools.filter(tool => tool.id.startsWith('mcp:'))).toEqual([])
+    expect(toolsetPrompts.activeToolsetPrompt).not.toContain(MCP_AGENT_EXECUTION_PROMPT)
   })
 
   // https://github.com/moeru-ai/airi/pull/3496

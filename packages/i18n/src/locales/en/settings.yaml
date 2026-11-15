@@ -1737,7 +1737,7 @@ pages:
         unavailable: This approval request is unavailable.
         decision-error: The approval decision could not be sent.
         result:
-          executed: Command exited with code 0. Business success still needs independent verification.
+          executed: Command finished. Review the requested result before continuing.
           failed: Command failed. Earlier effects can remain. Check the executor report before running another command.
           unknown: Result unknown. Earlier effects can remain. Check current state before repeating the command.
           rejected: Rejected. This request did not dispatch a new command.

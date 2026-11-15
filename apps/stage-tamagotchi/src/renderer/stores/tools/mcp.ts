@@ -6,9 +6,10 @@ import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/el
 import { bundledTerminalServerName, terminalNoticeSchema, terminalNoticeText } from '@proj-airi/stage-shared/terminal-approval'
 import { getSpeechBusContext, voiceGenerationEnded } from '@proj-airi/stage-ui/services/speech/bus'
 import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/ai/chat-llm/tools'
+import { useLlmToolsetPromptsStore } from '@proj-airi/stage-ui/stores/ai/chat-llm/toolset-prompts'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { TOOL_ICONS } from '@proj-airi/stage-ui/tools/icons'
-import { createMcpTools } from '@proj-airi/stage-ui/tools/mcp'
+import { createMcpTools, MCP_AGENT_EXECUTION_PROMPT } from '@proj-airi/stage-ui/tools/mcp'
 import { defineStore } from 'pinia'
 import { onScopeDispose } from 'vue'
 
@@ -20,6 +21,7 @@ import { artistryToolReferences } from './built-in'
 
 export const useTamagotchiMcpToolsStore = defineStore('tamagotchi-mcp-tools', () => {
   const llmToolsStore = useLlmToolsStore()
+  const llmToolsetPromptsStore = useLlmToolsetPromptsStore()
   const listMcpTools = useElectronEventaInvoke(electronMcpListTools)
   const getRuntimeStatus = useElectronEventaInvoke(electronMcpGetRuntimeStatus)
   const callMcpTool = useElectronEventaInvoke(electronMcpCallTool)
@@ -122,6 +124,19 @@ export const useTamagotchiMcpToolsStore = defineStore('tamagotchi-mcp-tools', ()
 
     if (generation !== refreshGeneration)
       return
+
+    const hasRunningMcp = Boolean(status?.servers.some(server => server.state === 'running') || direct?.length)
+    if (hasRunningMcp) {
+      llmToolsetPromptsStore.registerToolsetPrompts('mcp-tools', [{
+        id: 'agent-execution',
+        title: 'Agent execution',
+        content: MCP_AGENT_EXECUTION_PROMPT,
+      }])
+    }
+    else {
+      llmToolsetPromptsStore.clearToolsetPrompts('mcp-tools')
+    }
+
     llmToolsStore.removeToolsByIds(...registeredToolIds())
     llmToolsStore.addTools(...tools.map(tool => ({
       ...tool,
@@ -133,6 +148,7 @@ export const useTamagotchiMcpToolsStore = defineStore('tamagotchi-mcp-tools', ()
   function dispose() {
     refreshGeneration++
     llmToolsStore.removeToolsByIds(...registeredToolIds())
+    llmToolsetPromptsStore.clearToolsetPrompts('mcp-tools')
   }
 
   return {

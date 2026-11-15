@@ -190,6 +190,13 @@ Core:
 - `COMPUTER_USE_MAX_OPERATION_UNITS`
 - `COMPUTER_USE_MAX_PENDING_ACTIONS`
 
+Host control:
+
+- `AIRI_TRUSTED_TERMINAL` and `AIRI_HOST_TERMINAL_NONCE`
+  - private Terminal approval connection. It only authorizes `terminal_exec`.
+- `AIRI_TRUSTED_COMPUTER_USE` and `AIRI_HOST_COMPUTER_USE_NONCE`
+  - private Computer Use approval connection. It authorizes approved desktop and browser mutations without requiring Terminal control.
+
 macOS orchestration:
 
 - `COMPUTER_USE_OPENABLE_APPS`
@@ -267,10 +274,9 @@ Example local macOS entry:
 ```
 
 The current AIRI desktop attachment forwards the MCP tool catalog and calls.
-This baseline has no trusted native approval adapter for the independent MCP service.
-In `actions` and `all`, actions can return `approval_required`, but the model cannot provide the missing human decision.
+Bundled AIRI sessions bind the private Computer Use nonce to the existing Host approval window.
+External MCP clients still need their own trusted adapter before `actions` or `all` can dispatch approved mutations.
 The public `desktop_approve_pending_action` tool returns `denied` in those modes.
-Pending records have no expiry or Chat-session ownership contract. Workflow cancellation does not remove every pending record.
 Keep approved writes closed until a trusted host adapter binds identity, target, cancellation, and actual execution settlement.
 
 For browser DOM automation, `computer-use-mcp` also exposes a local WebSocket bridge that matches the user's Chrome extension bridge pattern:

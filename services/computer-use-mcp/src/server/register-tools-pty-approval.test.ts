@@ -141,10 +141,11 @@ describe('registerComputerUseTools: PTY approval bridge', () => {
     })
 
     const { server, invoke } = createMockServer()
+    const executeAction = vi.fn()
     registerComputerUseTools({
       server,
       runtime,
-      executeAction: vi.fn(),
+      executeAction,
       enableTestTools: false,
     })
 
@@ -286,15 +287,14 @@ describe('registerComputerUseTools: PTY approval bridge', () => {
       connected: true,
       pendingRequests: 0,
     })
-    ;(runtime.browserDomBridge.clickSelector as any).mockRejectedValue(
+    const { server, invoke } = createMockServer()
+    const executeAction = vi.fn().mockRejectedValue(
       new Error('selector "#submit" did not match any element'),
     )
-
-    const { server, invoke } = createMockServer()
     registerComputerUseTools({
       server,
       runtime,
-      executeAction: vi.fn(),
+      executeAction,
       enableTestTools: false,
     })
 
@@ -313,6 +313,8 @@ describe('registerComputerUseTools: PTY approval bridge', () => {
         suggestedTool: 'browser_dom_read_page',
       },
     })
+    expect(executeAction).toHaveBeenCalledWith({ kind: 'browser_dom_click', input: { selector: '#submit', tabId: undefined, frameIds: undefined } }, 'browser_dom_click')
+    expect((runtime.browserDomBridge.clickSelector as any)).not.toHaveBeenCalled()
   })
 
   it('returns a browser repair suggestion when browser_dom_wait_for_element times out', async () => {

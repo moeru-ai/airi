@@ -11,6 +11,8 @@ export const computerUseApprovalExecuteMethod = 'airi/computer-use/execute-prepa
 export const computerUseApprovalRejectMethod = 'airi/computer-use/reject-prepared'
 export const terminalControlNonceEnv = 'AIRI_HOST_TERMINAL_NONCE'
 export const terminalControlEnabledEnv = 'AIRI_TRUSTED_TERMINAL'
+export const computerUseControlNonceEnv = 'AIRI_HOST_COMPUTER_USE_NONCE'
+export const computerUseControlEnabledEnv = 'AIRI_TRUSTED_COMPUTER_USE'
 
 /** The executor freezes every spawn input before Main asks for a decision. No permission is carried in this snapshot. */
 export const terminalSnapshotSchema = v.strictObject({

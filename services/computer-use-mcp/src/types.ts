@@ -23,6 +23,11 @@ export type ActionKind
     | 'wait'
     | 'terminal_exec'
     | 'terminal_reset'
+    | 'browser_dom_click'
+    | 'browser_dom_set_input_value'
+    | 'browser_dom_check_checkbox'
+    | 'browser_dom_select_option'
+    | 'browser_dom_trigger_event'
 export type ApprovalGrantScope = 'terminal_and_apps' | 'pty_session'
 
 // ---------------------------------------------------------------------------
@@ -295,6 +300,44 @@ export interface TerminalResetActionInput {
   reason?: string
 }
 
+export interface BrowserDomClickActionInput {
+  selector: string
+  tabId?: number
+  frameIds?: number[]
+}
+
+export interface BrowserDomSetInputValueActionInput {
+  selector: string
+  value: string
+  simulateKeystrokes?: boolean
+  blur?: boolean
+  tabId?: number
+  frameIds?: number[]
+}
+
+export interface BrowserDomCheckCheckboxActionInput {
+  selector: string
+  checked?: boolean
+  tabId?: number
+  frameIds?: number[]
+}
+
+export interface BrowserDomSelectOptionActionInput {
+  selector: string
+  value: string
+  tabId?: number
+  frameIds?: number[]
+}
+
+export interface BrowserDomTriggerEventActionInput {
+  selector: string
+  eventName: string
+  eventType?: string
+  opts?: Record<string, unknown>
+  tabId?: number
+  frameIds?: number[]
+}
+
 export interface PtyCreateApprovalInput {
   rows?: number
   cols?: number
@@ -385,6 +428,11 @@ export type ActionInvocation
     | { kind: 'wait', input: WaitActionInput }
     | { kind: 'terminal_exec', input: TerminalExecActionInput }
     | { kind: 'terminal_reset', input: TerminalResetActionInput }
+    | { kind: 'browser_dom_click', input: BrowserDomClickActionInput }
+    | { kind: 'browser_dom_set_input_value', input: BrowserDomSetInputValueActionInput }
+    | { kind: 'browser_dom_check_checkbox', input: BrowserDomCheckCheckboxActionInput }
+    | { kind: 'browser_dom_select_option', input: BrowserDomSelectOptionActionInput }
+    | { kind: 'browser_dom_trigger_event', input: BrowserDomTriggerEventActionInput }
 
 export type PendingExecutableAction
   = | ActionInvocation

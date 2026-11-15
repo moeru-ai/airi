@@ -66,6 +66,13 @@ function estimateOperationUnits(action: ActionInvocation) {
       return Math.max(4, Math.ceil(action.input.command.length / 48))
     case 'terminal_reset':
       return 1
+    case 'browser_dom_click':
+    case 'browser_dom_check_checkbox':
+    case 'browser_dom_select_option':
+    case 'browser_dom_trigger_event':
+      return 1
+    case 'browser_dom_set_input_value':
+      return Math.max(2, Math.ceil(action.input.value.length / 48))
   }
 }
 
@@ -152,7 +159,8 @@ export function evaluateActionPolicy(params: {
     requiresApproval = params.config.approvalMode !== 'never'
   }
 
-  if (params.config.executor === 'auv' && isMutatingAction(params.action) && params.action.kind !== 'terminal_exec' && params.action.kind !== 'terminal_reset') {
+  const isBrowserDomAction = params.action.kind.startsWith('browser_dom_')
+  if (params.config.executor === 'auv' && isMutatingAction(params.action) && !isBrowserDomAction && params.action.kind !== 'terminal_exec' && params.action.kind !== 'terminal_reset') {
     reasons.push('The AUV desktop surface is unavailable without a trusted observation scope')
     allowed = false
   }
@@ -211,6 +219,9 @@ export function evaluateActionPolicy(params: {
   if (params.action.kind === 'type_text') {
     riskLevel = 'high'
   }
+
+  if (isBrowserDomAction)
+    riskLevel = params.action.kind === 'browser_dom_set_input_value' && params.action.input.value.length > 160 ? 'high' : 'medium'
 
   if (params.config.approvalMode === 'never') {
     // NOTICE: 'never' mode overrides all per-action approval flags.

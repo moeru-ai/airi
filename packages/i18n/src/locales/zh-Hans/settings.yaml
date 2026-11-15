@@ -1651,7 +1651,7 @@ pages:
         unavailable: 此审批请求不可用。
         decision-error: 无法发送审批决定。
         result:
-          executed: 命令以退出码 0 结束。业务目标仍需独立验证。
+          executed: 命令已完成，请继续核对目标结果。
           failed: 命令失败，之前可能已产生副作用。再次执行前请检查执行报告。
           unknown: 结果未知，命令可能已产生副作用。再次执行前请核对当前状态。
           rejected: 已拒绝，此请求未派发新的命令。

@@ -28,7 +28,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { CallToolResultSchema } from '@modelcontextprotocol/sdk/types.js'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
-import { bundledTerminalServerName, computerUseApprovalExecuteMethod, computerUseApprovalRejectMethod, terminalControlEnabledEnv, terminalControlNonceEnv, terminalOriginMetaKey } from '@proj-airi/stage-shared/terminal-approval'
+import { bundledTerminalServerName, computerUseApprovalExecuteMethod, computerUseApprovalRejectMethod, computerUseControlEnabledEnv, computerUseControlNonceEnv, terminalControlEnabledEnv, terminalControlNonceEnv, terminalOriginMetaKey } from '@proj-airi/stage-shared/terminal-approval'
 import { app, shell } from 'electron'
 
 import {
@@ -271,8 +271,10 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
 
   const startServer = async (name: string, config: ElectronMcpServerConfig, bundledTerminal: boolean) => {
     const terminalNonce = !isHttpServerConfig(config) && config.env?.[terminalControlEnabledEnv] === '1' && terminalApproval ? randomBytes(32).toString('hex') : undefined
-    const computerUseNonce = terminalNonce
-    const controlledConfig = terminalNonce && !isHttpServerConfig(config) ? { ...config, env: { ...config.env, [terminalControlNonceEnv]: terminalNonce } } : config
+    const computerUseNonce = !isHttpServerConfig(config) && config.env?.[computerUseControlEnabledEnv] === '1' && terminalApproval ? randomBytes(32).toString('hex') : undefined
+    const controlledConfig = !isHttpServerConfig(config) && (terminalNonce || computerUseNonce)
+      ? { ...config, env: { ...config.env, ...(terminalNonce ? { [terminalControlNonceEnv]: terminalNonce } : {}), ...(computerUseNonce ? { [computerUseControlNonceEnv]: computerUseNonce } : {}) } }
+      : config
     const transport = createTransport(controlledConfig)
     const client = new McpClient({
       name: `proj-airi:stage-tamagotchi:mcp:${name}`,
@@ -331,6 +333,7 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
         env: {
           ELECTRON_RUN_AS_NODE: '1',
           [terminalControlEnabledEnv]: '1',
+          [computerUseControlEnabledEnv]: '1',
           COMPUTER_USE_APPROVAL_MODE: 'actions',
           COMPUTER_USE_EXECUTOR: 'dry-run',
           COMPUTER_USE_BROWSER_DOM_BRIDGE_ENABLED: 'false',

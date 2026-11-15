@@ -81,14 +81,18 @@ export function buildExecutionErrorResponse(params: {
   executionTarget: ExecutionTarget
   terminalBackend?: string
   policy: PolicyDecision
+  repairSuggestion?: Record<string, unknown>
 }): CallToolResult {
+  const repairText = typeof params.repairSuggestion?.reactionText === 'string'
+    ? ` ${params.repairSuggestion.reactionText}`
+    : ''
   return {
     isError: true,
     content: [
       textContent(
         params.terminalBackend
           ? `Action ${params.action.kind} failed: ${params.errorMessage} ${describeTerminalBackend(params.terminalBackend)}`
-          : `Action ${params.action.kind} failed on ${describeExecutionTarget(params.executionTarget)}: ${params.errorMessage}`,
+          : `Action ${params.action.kind} failed on ${describeExecutionTarget(params.executionTarget)}: ${params.errorMessage}${repairText}`,
       ),
     ],
     structuredContent: {
@@ -99,6 +103,7 @@ export function buildExecutionErrorResponse(params: {
       terminalBackend: params.terminalBackend,
       policy: params.policy,
       error: params.errorMessage,
+      repairSuggestion: params.repairSuggestion,
     },
   }
 }
