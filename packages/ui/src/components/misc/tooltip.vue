@@ -109,8 +109,9 @@ const surfaceStyle = computed(() => props.variant === 'blurry'
                 : 'bg-white dark:bg-neutral-900',
             ]"
           >
+            <!-- The label has its own element, so no whitespace text joins it to the anchor. -->
             <span v-if="props.registerSurface" ref="surfaceAnchor" aria-hidden="true" :class="['hidden']" />
-            {{ props.label }}
+            <span>{{ props.label }}</span>
           </TooltipContent>
         </Transition>
       </TooltipPortal>
