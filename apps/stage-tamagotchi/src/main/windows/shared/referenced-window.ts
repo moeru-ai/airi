@@ -6,7 +6,7 @@ import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 
 import { defineInvokeHandler } from '@moeru/eventa'
-import { safeClose } from '@proj-airi/electron-vueuse/main'
+import { onWindowClosed, safeClose } from '@proj-airi/electron-vueuse/main'
 import { ipcMain } from 'electron'
 
 import { focusWindow } from '../../libs/electron/focus'
@@ -60,7 +60,7 @@ export function createReferencedWindowManager<Payload extends RequestWindowPaylo
 
     await setupBaseWindowElectronInvokes({ context, window: win, i18n: params.i18n, serverChannel: params.serverChannel })
 
-    win.on('closed', () => windows.delete(id))
+    onWindowClosed(win, () => windows.delete(id))
 
     return { window: win, context }
   }

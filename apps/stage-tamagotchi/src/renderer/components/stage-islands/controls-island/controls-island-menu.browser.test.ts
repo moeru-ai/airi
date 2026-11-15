@@ -244,7 +244,8 @@ describe('controls Island', () => {
 
     const tooltipWrapper = '[data-reka-popper-content-wrapper]'
     await expect.poll(() => document.querySelector(tooltipWrapper)).not.toBeNull()
-    expect(getComputedStyle(document.querySelector(tooltipWrapper)!).zIndex).toBe('1000')
+    // The shared `Tooltip` of the dock buttons stands at z-index 10000, and Reka UI copies it to the wrapper.
+    expect(getComputedStyle(document.querySelector(tooltipWrapper)!).zIndex).toBe('10000')
   })
 })
 

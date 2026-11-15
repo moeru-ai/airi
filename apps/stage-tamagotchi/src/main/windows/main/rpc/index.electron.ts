@@ -15,6 +15,7 @@ import type { SettingsWindowManager } from '../../settings'
 import type { WidgetsWindowManager } from '../../widgets'
 
 import { defineInvokeHandler } from '@moeru/eventa'
+import { onWindowClosed } from '@proj-airi/electron-vueuse/main'
 import { ipcMain } from 'electron'
 
 import {
@@ -78,7 +79,7 @@ export async function setupMainWindowElectronInvokes(params: {
   createOnboardingService({ context, onboardingWindowManager: params.onboardingWindowManager, mainWindow: params.window })
   createAuthService({ context, window: params.window })
   const stopIOTraceRecording = registerIOTraceRecording(context, params.ioTraceRecording)
-  params.window.once('closed', stopIOTraceRecording)
+  onWindowClosed(params.window, stopIOTraceRecording)
 
   defineInvokeHandler(context, electronCenterMainWindow, () => params.center())
   defineInvokeHandler(context, electronOpenMainDevtools, () => params.window.webContents.openDevTools({ mode: 'detach' }))
@@ -93,6 +94,6 @@ export async function setupMainWindowElectronInvokes(params: {
   defineInvokeHandler(context, electronOpenChat, () => params.chatWindow.toggle())
   defineInvokeHandler(context, electronGetChatButtonState, () => params.chatWindow.getButtonState())
   const stopChatButtonState = params.chatWindow.onButtonStateChange(state => context.emit(electronChatButtonStateChanged, state))
-  params.window.once('closed', stopChatButtonState)
+  onWindowClosed(params.window, stopChatButtonState)
   defineInvokeHandler(context, noticeWindowEventa.openWindow, payload => params.noticeWindow.open(payload))
 }

@@ -53,29 +53,22 @@ onUnmounted(() => teardown())
 
 <template>
   <div :class="['flex items-center justify-center', props.colorClass]">
-    <!-- The level fills the mic from the bottom. The part above the level stays faint, so a quiet mic still shows. -->
+    <!-- The outline is the MingCute `mic-line` icon. The level fills its capsule from the bottom. -->
     <!-- The SVG fills the icon size class of the root. A fixed size moves the button baseline, and the button shifts. -->
-    <svg class="size-full" viewBox="0 0 256 256" aria-hidden="true">
+    <svg class="size-full" viewBox="0 0 24 24" aria-hidden="true">
       <defs>
         <linearGradient id="micLevel" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stop-color="currentColor" stop-opacity="0.4" />
-          <stop :offset="`${100 - Math.round(normalized * 100)}%`" stop-color="currentColor" stop-opacity="0.4" />
+          <stop :offset="`${100 - Math.round(normalized * 100)}%`" stop-color="currentColor" stop-opacity="0" />
           <stop :offset="`${100 - Math.round(normalized * 100)}%`" stop-color="currentColor" stop-opacity="0.95" />
-          <stop offset="100%" stop-color="currentColor" stop-opacity="0.95" />
         </linearGradient>
       </defs>
-      <!-- Fill with level gradient -->
-      <path
-        fill="url(#micLevel)"
-        d="M128 176a48.05 48.05 0 0 0 48-48V64a48 48 0 0 0-96 0v64a48.05 48.05 0 0 0 48 48M96 64a32 32 0 0 1 64 0v64a32 32 0 0 1-64 0Zm40 143.6V240a8 8 0 0 1-16 0v-32.4A80.11 80.11 0 0 1 48 128a8 8 0 0 1 16 0a64 64 0 0 0 128 0a8 8 0 0 1 16 0a80.11 80.11 0 0 1-72 79.6"
-      />
-      <!-- Outline -->
+      <path fill="url(#micLevel)" d="M12 16a4 4 0 0 1-4-4V7a4 4 0 1 1 8 0v5a4 4 0 0 1-4 4Z" />
       <path
         fill="none"
         stroke="currentColor"
-        stroke-opacity="1"
+        stroke-linecap="round"
         stroke-width="2"
-        d="M128 176a48.05 48.05 0 0 0 48-48V64a48 48 0 0 0-96 0v64a48.05 48.05 0 0 0 48 48M96 64a32 32 0 0 1 64 0v64a32 32 0 0 1-64 0Zm40 143.6V240a8 8 0 0 1-16 0v-32.4A80.11 80.11 0 0 1 48 128a8 8 0 0 1 16 0a64 64 0 0 0 128 0a8 8 0 0 1 16 0a80.11 80.11 0 0 1-72 79.6"
+        d="M12 19v2m0-2a7 7 0 0 1-6.93-6M12 19a7 7 0 0 0 6.929-6M12 16a4 4 0 0 1-4-4V7a4 4 0 1 1 8 0v5a4 4 0 0 1-4 4Z"
       />
     </svg>
   </div>
