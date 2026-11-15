@@ -63,9 +63,9 @@ sync_gitcode_tag() {
   return 1
 }
 
-# Selects the current stable release and refuses to link a homepage to incomplete mirror assets.
+# Verifies stable assets and hashes downloads only when digest metadata is absent.
 prepare_gitcode_readme_release() {
-  local stable_tag request_config
+  local stable_tag request_config filename expected_digest actual_digest
   gh api "repos/${GITHUB_REPOSITORY_NAME}/releases/latest" > "${WORK_DIR}/readme-release.json"
   stable_tag="$(jq -er 'select(.prerelease == false and .draft == false) | .tag_name' "${WORK_DIR}/readme-release.json")"
   request_config="${WORK_DIR}/readme-release.curlrc"
@@ -75,11 +75,25 @@ prepare_gitcode_readme_release() {
     .assets as $mirrored |
     [$source[0].assets[] | select(.name | test("^(AIRI-.*|latest-.*\\.yml)$"))] as $expected |
     ($expected | length) > 0 and all($expected[];
-      . as $asset | any($mirrored[]; .name == $asset.name and .size == $asset.size and .digest == $asset.digest))
+      . as $asset | any($mirrored[]; .name == $asset.name and .size == $asset.size and
+        ((.digest // "") == "" or .digest == $asset.digest)))
   ' "${WORK_DIR}/readme-mirror.json" > /dev/null; then
     echo "::error::The stable mirror is incomplete. The homepage was not updated."
     return 1
   fi
+
+  while IFS=$'\t' read -r filename expected_digest; do
+    # The homepage can target a different tag from the release that triggered this run.
+    if ! actual_digest="$(RELEASE_TAG="${stable_tag}" read_gitcode_asset_digest "${filename}")" || \
+      [[ "${actual_digest}" != "${expected_digest}" ]]; then
+      echo "::error::The stable mirror asset digest differs from GitHub: ${filename}."
+      return 1
+    fi
+  done < <(jq -r --slurpfile source "${WORK_DIR}/readme-release.json" '
+    .assets[] | select((.digest // "") == "") | .name as $name |
+    $source[0].assets[] | select(.name == $name and (.name | test("^(AIRI-.*|latest-.*\\.yml)$"))) |
+    [.name, .digest] | @tsv
+  ' "${WORK_DIR}/readme-mirror.json")
 }
 
 # Preserves mirror history and retries fast-forward pushes after concurrent mobile or desktop runs.
