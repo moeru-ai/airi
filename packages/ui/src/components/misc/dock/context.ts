@@ -23,6 +23,8 @@ export interface DockContext {
   opacity: Readonly<Ref<number>>
   blur: Readonly<Ref<number>>
   tooltipSide: Readonly<Ref<NonNullable<TooltipContentProps['side']>>>
+  /** Declares the open tooltips of the buttons as translucent surfaces. */
+  registerSurface: Readonly<Ref<((element: HTMLElement) => () => void) | undefined>>
 }
 
 export const [injectDockContext, provideDockContext] = createContext<DockContext>('Dock')

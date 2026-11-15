@@ -40,7 +40,7 @@ const label = computed(() => pressed.value
     the click of the button bubbles to it.
   -->
   <span v-track-button="{ name: 'controls_island_action', action: 'toggle_chat' }" :class="['contents']">
-    <DockButton :label="label" :pressed="pressed" @click="() => openChat()">
+    <DockButton data-testid="controls-island-chat" :label="label" :pressed="pressed" @click="() => openChat()">
       <span :class="['i-mingcute:chat-2-line', iconClass]" />
     </DockButton>
   </span>

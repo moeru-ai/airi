@@ -3,12 +3,12 @@ import { defineInvoke } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
 import { IS_DEV, isElectronWindow } from '@proj-airi/stage-shared'
 import { HearingConfigDialog } from '@proj-airi/stage-ui/components'
-import { useBackdropSurface } from '@proj-airi/stage-ui/composables/backdrop-surface'
+import { backdropSurfaceHostKey, useBackdropSurface } from '@proj-airi/stage-ui/composables/backdrop-surface'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { Badge, Dock, DockButton, dockEdgeItemClasses, dockItemClasses, Tooltip } from '@proj-airi/ui'
 import { useEventListener, useFocusWithin, useMouseInElement, useMousePressed } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, reactive, ref, useTemplateRef, watch } from 'vue'
+import { computed, inject, reactive, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import StatusIsland from '../status-island/index.vue'
@@ -54,6 +54,8 @@ const islandElement = useTemplateRef<HTMLElement>('island')
 // The dock is the only surface of the Island. Its buttons have no fill, so the native glass is behind the dock only.
 const dockInstance = useTemplateRef<InstanceType<typeof Dock>>('dock')
 useBackdropSurface(computed(() => dockInstance.value?.$el as HTMLElement | undefined))
+// The tooltips portal out of the Island, so each open tooltip declares its own surface.
+const registerTooltipSurface = inject(backdropSurfaceHostKey, undefined)?.register
 
 /** The one app menu. The more button opens it, and so does a right-click on the character. */
 const menuOpen = ref(false)
@@ -229,13 +231,19 @@ const startDraggingWindow = linuxWindow ? undefined : defineInvoke(context.value
       variant="blurry"
       :size="dockSize"
       :tooltip-side="tooltipSide"
+      :register-surface="registerTooltipSurface"
       :class="[isTop ? 'flex-col-reverse!' : '']"
     >
       <!--
         The grip moves the window. It has the hover background of the dock buttons. Its dots are one step quieter than
         the icons of the buttons: lighter in light mode, and darker in dark mode.
       -->
-      <Tooltip :label="t('tamagotchi.stage.controls-island.drag-to-move-window')" :side="tooltipSide" variant="blurry">
+      <Tooltip
+        :label="t('tamagotchi.stage.controls-island.drag-to-move-window')"
+        :side="tooltipSide"
+        variant="blurry"
+        :register-surface="registerTooltipSurface"
+      >
         <div
           data-testid="controls-island-grip"
           :aria-label="t('tamagotchi.stage.controls-island.drag-to-move-window')"
