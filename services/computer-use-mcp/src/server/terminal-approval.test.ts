@@ -74,7 +74,7 @@ async function fixture(desktopDryRun = false) {
   const options: ComputerUseServerOptions & { terminalControlNonce: string } = {
     terminalControlNonce: nonce,
     terminalRunnerFactory: () => terminal,
-    executorFactory: (config) => {
+    executorFactory: () => {
       return {
         ...desktop,
         getForegroundContext: desktopDryRun ? desktop.getForegroundContext : async () => ({ available: true, appName: 'Fixture', windowTitle: 'Fixture', platform }),

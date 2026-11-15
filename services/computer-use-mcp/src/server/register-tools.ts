@@ -65,7 +65,7 @@ export async function resolvePendingAction(params: {
   const { runtime, executeAction, id, decision } = params
   const pending = runtime.session.getPendingAction(id)
   if (!pending)
-    throw new Error('Pending action not found: ' + id)
+    throw new Error(`Pending action not found: ${id}`)
 
   if (decision.type === 'approve' && pending.action.kind === 'terminal_exec')
     throw new Error('Terminal actions use the Terminal approval protocol.')
@@ -85,7 +85,7 @@ export async function resolvePendingAction(params: {
       result: { pendingActionId: id, reason: decision.reason, source: decision.source },
     })
     return {
-      content: [textContent('Pending action rejected: ' + id + (decision.reason ? ' (' + decision.reason + ')' : '') + '. The strategy layer will suggest an alternative approach.')],
+      content: [textContent(`Pending action rejected: ${id}${decision.reason ? ` (${decision.reason})` : ''}. The strategy layer will suggest an alternative approach.`)],
       structuredContent: { status: 'rejected', pendingActionId: id, reason: decision.reason },
     }
   }

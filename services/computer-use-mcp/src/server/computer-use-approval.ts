@@ -1,7 +1,7 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 
-import type { ComputerUseServerRuntime } from './runtime'
 import type { ExecuteAction } from './action-executor'
+import type { ComputerUseServerRuntime } from './runtime'
 
 import { ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js'
 import { computerUseApprovalExecuteMethod, computerUseApprovalRejectMethod, computerUseApprovalRequestSchema } from '@proj-airi/stage-shared/terminal-approval'
