@@ -6,7 +6,7 @@ export interface ArtistrySyncPayload {
   // Card-level defaults to ensure widget triggers respect character settings
   model?: string
   promptPrefix?: string
-  options?: Record<string, any>
+  options?: Record<string, unknown>
 }
 export const ARTISTRY_SYNC_CONFIG_ADDRESS = 'eventa:invoke:electron:artistry:sync-config'
 export const ARTISTRY_TEST_COMFYUI_CONNECTION_ADDRESS = 'eventa:invoke:electron:artistry:test-comfyui-connection'
@@ -20,7 +20,7 @@ export interface ArtistryTestComfyUIResult {
 }
 export const artistryTestComfyUIConnection = defineInvokeEventa<ArtistryTestComfyUIResult, { url: string }>(ARTISTRY_TEST_COMFYUI_CONNECTION_ADDRESS)
 
-export const artistryGenerateHeadless = defineInvokeEventa<{ imageUrl?: string, base64?: string, error?: string }, { prompt: string, model?: string, provider?: string, options?: Record<string, any>, globals?: Record<string, any> }>('eventa:invoke:electron:artistry:generate-headless')
+export const artistryGenerateHeadless = defineInvokeEventa<{ imageUrl?: string, base64?: string, error?: string }, { prompt: string, model?: string, provider?: string, options?: Record<string, unknown>, globals?: Record<string, unknown> }>('eventa:invoke:electron:artistry:generate-headless')
 
 export const REPLICATE_IMAGEGEN_PRESETS = [
   {
