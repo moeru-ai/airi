@@ -6756,7 +6756,7 @@ importers:
         version: 0.5.3(hono@4.13.3)(unstorage@1.17.5(idb-keyval@6.3.0)(ioredis@6.0.0(supports-color@10.2.2)))
       injeca:
         specifier: 'catalog:'
-        version: 0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.2)
       ioredis:
         specifier: 'catalog:'
         version: 6.0.0(supports-color@10.2.2)
@@ -9658,26 +9658,6 @@ packages:
 
   '@moeru/eventa@1.0.1':
     resolution: {integrity: sha512-dDQcB/acJBhMiOFrleXMuCSTtbAGsIZWNSNkoEB31wWBIrg4VwDtaX/XtMq8dAjmD3ixPnjSPtb2/rMbwZBseQ==}
-    peerDependencies:
-      '@tauri-apps/api': '>=2'
-      electron: '>=39'
-      h3: '>=2.0.1-rc.22'
-      hono: '>=4.12.25'
-      web-worker: ^1.5.0
-    peerDependenciesMeta:
-      '@tauri-apps/api':
-        optional: true
-      electron:
-        optional: true
-      h3:
-        optional: true
-      hono:
-        optional: true
-      web-worker:
-        optional: true
-
-  '@moeru/eventa@1.0.2':
-    resolution: {integrity: sha512-GlgLTPxVN9A/1lxlAktB/zyjPZc4i6YFYbd6YHY+0dsoOPAjofzV+hzqtKCAzIEZ90waZ5OgiVFlkqcA0lzdkg==}
     peerDependencies:
       '@tauri-apps/api': '>=2'
       electron: '>=39'
@@ -25160,20 +25140,10 @@ snapshots:
 
   '@moeru/eventa@1.0.1(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)':
     dependencies:
-      nanoid: 6.0.1
+      nanoid: 6.0.2
       picomatch: 4.0.7
     optionalDependencies:
       electron: 43.8.4(supports-color@10.2.2)
-      hono: 4.13.3
-      web-worker: 1.5.0
-
-  '@moeru/eventa@1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)':
-    dependencies:
-      nanoid: 6.0.1
-      picomatch: 4.0.7
-    optionalDependencies:
-      electron: 43.8.4(supports-color@10.2.2)
-      h3: 2.0.8(crossws@0.4.17(srvx@1.0.8))
       hono: 4.13.3
       web-worker: 1.5.0
 
@@ -33144,6 +33114,15 @@ snapshots:
     optionalDependencies:
       '@guiiai/logg': 1.2.12
 
+  injeca@0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.2):
+    dependencies:
+      alien-signals: 3.2.1
+      error-stack-parser: 2.1.4
+      es-toolkit: 1.53.1
+      nanoid: 6.0.2
+    optionalDependencies:
+      '@guiiai/logg': 1.2.12
+
   internmap@2.0.3: {}
 
   ioredis-mock@8.13.1(@types/ioredis-mock@8.2.8(ioredis@6.0.0(supports-color@10.2.2)))(ioredis@6.0.0(supports-color@10.2.2)):
@@ -37525,7 +37504,7 @@ snapshots:
   vieval@0.10.3(@types/node@26.2.0)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(chokidar@5.0.0)(dotenv@17.4.2)(electron@43.8.4(supports-color@10.2.2))(esbuild@0.28.2)(giget@3.3.1)(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0)(canvas@3.2.3))(less@4.9.0(supports-color@10.2.2))(magicast@0.5.4)(terser@5.50.0)(tsx@4.23.12)(typescript@6.0.3)(web-worker@1.5.0)(yaml@2.9.1):
     dependencies:
       '@henrygd/queue': 1.2.0
-      '@moeru/eventa': 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
+      '@moeru/eventa': 1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std': 0.1.0-beta.17
       '@opentelemetry/api': 1.9.1
       '@vitest/expect': 4.1.11
