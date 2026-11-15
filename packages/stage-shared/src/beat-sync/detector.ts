@@ -55,14 +55,17 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
   let inputAnalyserNode: AnalyserNode | undefined
   let inputAnalyserBuffer: Uint8Array<ArrayBuffer> | undefined
 
-  const listeners: { [K in keyof BeatSyncDetectorEventMap]: Array<(...args: any) => void> } = {
+  const listeners: { [K in keyof BeatSyncDetectorEventMap]: Array<BeatSyncDetectorEventMap[K]> } = {
     stateChange: [],
     beat: [],
   }
 
-  const emit = <E extends keyof BeatSyncDetectorEventMap>(event: E, ...args: Parameters<BeatSyncDetectorEventMap[E]>) => {
-    listeners[event].forEach(listener => listener(...args))
+  const createEmitter = <Events extends { [K in keyof Events]: (...args: never[]) => void }>(
+    eventListeners: { [K in keyof Events]: Array<Events[K]> },
+  ) => <E extends keyof Events>(event: E, ...args: Parameters<Events[E]>) => {
+    eventListeners[event].forEach(listener => listener(...args))
   }
+  const emit = createEmitter(listeners)
 
   const stop = () => {
     if (!state.isActive)

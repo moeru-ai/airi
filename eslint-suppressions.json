@@ -549,11 +549,6 @@
       "count": 1
     }
   },
-  "packages/stage-shared/src/beat-sync/detector.ts": {
-    "ts/no-explicit-any": {
-      "count": 1
-    }
-  },
   "packages/stage-ui-live2d/src/components/scenes/live2d/Model.vue": {
     "ts/no-explicit-any": {
       "count": 9
