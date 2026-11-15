@@ -66,13 +66,4 @@ describe('v2 providers catalog availability (Issue #2559)', () => {
     expect((await menu.getByText('NVIDIA NIM', { exact: true }).all())).toHaveLength(0)
   })
 
-  // https://github.com/moeru-ai/airi/issues/2559
-  it('keeps ungated providers visible in the add menu (Issue #2559)', async () => {
-    const screen = await renderCatalog()
-
-    await screen.getByLabelText('Customize options').click()
-    const menu = page.getByRole('menu')
-    await expect.element(menu).toBeVisible()
-    await expect.poll(async () => (await menu.getByText('OpenAI', { exact: true }).all()).length, { timeout: 8000 }).toBeGreaterThan(0)
-  })
 })

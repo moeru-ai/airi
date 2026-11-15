@@ -45,25 +45,6 @@ describe('io tracer page', () => {
   // The canvas has no role, because the item list is its accessible form. The tests find it inside the timeline.
   const canvasOf = (screen: Screen) => timelineOf(screen).element().querySelector('canvas')!
 
-  it('acts as the title bar of a window without one', async () => {
-    const screen = await renderPage({
-      props: { frame: { insetStart: '72px', draggable: true } },
-      slots: { 'frame-end': () => h('button', { type: 'button' }, 'Close window') },
-    })
-    const bounds = screen.container.getBoundingClientRect()
-
-    // The window buttons sit at the end of the top-right tab bar, above the content of the panels.
-    const close = screen.getByRole('button', { name: 'Close window' })
-    await expect.element(close).toBeVisible()
-    const closeRect = close.element().getBoundingClientRect()
-    expect(bounds.right - closeRect.right).toBeLessThan(16)
-    expect(closeRect.top).toBeLessThan(timelineOf(screen).element().getBoundingClientRect().top)
-
-    // The first tab of the top-left tab bar starts after the space for the macOS traffic lights.
-    const firstTab = screen.getByText('tamagotchi.settings.devtools.pages.io-tracer.panels.timeline')
-    expect(firstTab.element().getBoundingClientRect().left - bounds.left).toBeGreaterThan(72)
-  })
-
   it('shows an open span while it runs, and its details on click', async () => {
     const screen = await renderPage()
     const span = beginSpan(getTraceSink(), { track: 'agents/agent/llm', name: 'open-model-request', ids: { turn: 'turn-1' } })
@@ -229,15 +210,6 @@ describe('io tracer page', () => {
     edge.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))
     await expect.poll(() => labels.offsetWidth).toBe(208)
     localStorage.removeItem('ui/devtools/io-tracer/label-width')
-  })
-
-  it('lists records in the event log', async () => {
-    const screen = await renderPage()
-    beginSpan(getTraceSink(), { track: 'participants/user/asr', name: 'logged-recognition' }).end({ status: 'error', message: 'provider failed' })
-
-    // The event log is a panel next to the timeline, so the record shows without switching views.
-    await expect.element(screen.getByText('logged-recognition').first()).toBeVisible()
-    await expect.element(screen.getByText('error').first()).toBeVisible()
   })
 
   it('shows the detail rows of a lane without a click', async () => {

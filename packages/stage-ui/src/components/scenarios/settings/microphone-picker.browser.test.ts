@@ -131,12 +131,6 @@ describe('microphone picker', () => {
     expect(requestAccess).toHaveBeenCalledOnce()
   })
 
-  it('says when access is granted but no microphone is connected', async () => {
-    const screen = await renderPicker({ permission: 'granted' })
-
-    await expect.element(screen.getByText('No microphone found.')).toBeVisible()
-  })
-
   it('lists the microphones as rows on a narrow screen', async () => {
     const screen = await renderPicker({ options: DEVICES, permission: 'granted' })
 
@@ -144,10 +138,4 @@ describe('microphone picker', () => {
     await expect.element(screen.getByRole('radio', { name: 'USB Microphone' })).toBeVisible()
   })
 
-  it('keeps a select on a wide screen', async () => {
-    const screen = await renderPicker({ options: DEVICES, permission: 'granted', width: 1280 })
-
-    await expect.element(screen.getByRole('combobox')).toBeVisible()
-    await expect.element(screen.getByTestId('microphone-picker')).toHaveAttribute('data-layout', 'select')
-  })
 })

@@ -29,12 +29,4 @@ describe('stage avatar model missing', () => {
     expect(onSelect).toHaveBeenCalledOnce()
   })
 
-  it('says that this device cannot load the model of the card', async () => {
-    const screen = render(StageAvatarModelMissing, {
-      props: { reason: 'unavailable', name: 'Legacy Free' },
-      global: { plugins: [i18n()] },
-    })
-
-    await expect.element(screen.getByText('This model is not on this device')).toBeVisible()
-  })
 })

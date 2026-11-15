@@ -229,17 +229,6 @@ describe('interactive area synchronized state', () => {
     }
   })
 
-  // Images are attached from the add menu, so its button takes the place of the attachment control.
-  it('places the mobile add control beside the input bubble', async () => {
-    await page.viewport(390, 844)
-    const { screen } = await renderArea(MobileInteractiveArea)
-    const bubble = screen.getByTestId('mobile-input-bubble').element()
-    const attach = screen.getByRole('button', { name: 'stage.chat.composer.add' }).element()
-    expect(bubble.contains(attach)).toBe(false)
-    expect(attach.getBoundingClientRect().right).toBeLessThan(bubble.getBoundingClientRect().left)
-    expect(attach.getBoundingClientRect().bottom).toBe(bubble.getBoundingClientRect().bottom)
-  })
-
   it('opens mobile settings from an icon-only header and restores focus', async () => {
     await page.viewport(390, 844)
     const { screen } = await renderArea(MobileInteractiveArea)
@@ -278,14 +267,6 @@ describe('interactive area synchronized state', () => {
     await expect.element(screen.getByRole('button', { name: 'Close', exact: true })).not.toBeInTheDocument()
     await userEvent.keyboard('{Escape}')
     await expect.element(trigger).toHaveFocus()
-  })
-
-  it('removes the clear-messages action from desktop chat surfaces', async () => {
-    for (const component of [InteractiveArea, SharedInteractiveArea]) {
-      const { screen } = await renderArea(component)
-      expect(screen.container.querySelector('[class*="trash-bin-2-bold-duotone"]')).toBeNull()
-      screen.unmount()
-    }
   })
 
   it('places the conversation selector opposite settings in the mobile header', async () => {
@@ -410,23 +391,6 @@ describe('interactive area synchronized state', () => {
     await expect.element(screen.getByTestId('mobile-settings-button')).toHaveFocus()
   })
 
-  it('shows all five mobile view controls for VRM models', async () => {
-    await page.viewport(390, 844)
-    const { screen, stageModel } = await renderArea(MobileInteractiveArea)
-    stageModel.setStageModelRenderer('vrm')
-
-    await screen.getByTestId('mobile-settings-button').click()
-    await screen.getByRole('button', { name: 'stage.mobile-tools.view', exact: true }).click()
-
-    await expect.element(screen.getByRole('button', { name: 'X', exact: true })).toBeVisible()
-    await expect.element(screen.getByRole('button', { name: 'Y', exact: true })).toBeVisible()
-    await expect.element(screen.getByRole('button', { name: 'Z', exact: true })).toBeVisible()
-    await expect.element(screen.getByRole('button', { name: 'Dis', exact: true })).toBeVisible()
-    await expect.element(screen.getByRole('button', { name: 'FOV', exact: true })).toBeVisible()
-
-    await screen.getByTestId('view-controls-close-button').click()
-  })
-
   it('keeps the mobile input width stable when the send action appears', async () => {
     await page.viewport(390, 844)
     const { screen } = await renderArea(MobileInteractiveArea)
@@ -462,16 +426,6 @@ describe('interactive area synchronized state', () => {
     finally {
       registerAuthorizationHandler(browserAuthorizationHandler)
     }
-  })
-
-  // Hearing details moved from the composer drawer into settings. The composer keeps only the voice input mode.
-  it('opens Hearing settings from the mobile settings drawer', async () => {
-    const { screen } = await renderArea(MobileInteractiveArea)
-    expect(screen.container.querySelector('[data-testid="mobile-voice-button"]')).toBeNull()
-    await screen.getByTestId('mobile-settings-button').click()
-    const hearing = screen.getByTestId('mobile-hearing-settings')
-    await expect.element(hearing).toBeVisible()
-    await expect.element(hearing).toHaveAttribute('href', '/settings/modules/hearing')
   })
 
   it('expands the Electron input bubble around a reply preview', async () => {

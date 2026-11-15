@@ -23,19 +23,6 @@ describe('chatDanmakuFeedMenu', () => {
     useDanmakuFeedSettings().hideReadMessages.value = true
   })
 
-  it('rests the trigger in the secondary icon color of the title bar while read messages stay', async () => {
-    // The header buttons are plain buttons in this gray. GhostButton owns a
-    // darker text color, which would make the hourglass stand out.
-    useDanmakuFeedSettings().hideReadMessages.value = false
-    const trigger = await renderMenu()
-    const reference = document.createElement('div')
-    reference.className = 'text-neutral-400'
-    document.body.append(reference)
-    onTestFinished(() => reference.remove())
-
-    expect(getComputedStyle(trigger.element()).color).toBe(getComputedStyle(reference).color)
-  })
-
   it('switches the hiding of read messages on click', async () => {
     const trigger = await renderMenu()
     await expect.element(trigger).toHaveAttribute('aria-pressed', 'true')

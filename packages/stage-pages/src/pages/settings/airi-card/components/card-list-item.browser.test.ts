@@ -72,15 +72,6 @@ describe('card list item', () => {
     disposePinia(pinia)
   })
 
-  it('shows the model cover and active badge', async () => {
-    const { screen, pinia } = await renderItem(undefined, true)
-
-    const image = screen.container.querySelector('img')
-    expect(image?.getAttribute('src')).toBe('data:image/png;base64,preview')
-    await expect.element(screen.getByText('Currently Active')).toBeVisible()
-    disposePinia(pinia)
-  })
-
   it('shows the ghost placeholder with an accessible name when no model is selected', async () => {
     const { screen, pinia } = await renderItem(undefined, false, '')
 

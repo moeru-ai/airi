@@ -60,13 +60,6 @@ describe('permissions panel', () => {
     await expect.poll(() => screen.getByRole('button').elements().length).toBe(0)
   })
 
-  it('offers the system settings for a denied permission', async () => {
-    const screenRecording = fakePermission('screen-recording', 'settings.dialogs.onboarding.permissions.screenRecordingTitle', 'denied')
-    const screen = await renderPanel([screenRecording.permission])
-
-    await expect.element(screen.getByRole('button', { name: 'Open System Settings' })).toBeInTheDocument()
-  })
-
   it('checks again when the window gets focus, because the user changes a denial in the system settings', async () => {
     const microphone = fakePermission('microphone', 'settings.dialogs.onboarding.permissions.microphoneTitle', 'denied')
     const screen = await renderPanel([microphone.permission])

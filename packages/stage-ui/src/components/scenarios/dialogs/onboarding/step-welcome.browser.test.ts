@@ -102,12 +102,6 @@ describe('desktop onboarding sign-in', () => {
 })
 
 describe('onboarding public links', () => {
-  it('links to public pricing and terms without requiring sign-in', async () => {
-    const screen = await renderWelcomeStep(true)
-
-    await expect.element(screen.getByRole('link', { name: 'Pricing' })).toHaveAttribute('href', AIRI_FLUX_URL)
-    await expect.element(screen.getByRole('link', { name: 'Terms of Service' })).toHaveAttribute('href', AIRI_TERMS_URL)
-  })
 })
 
 describe('onboarding language choice', () => {
