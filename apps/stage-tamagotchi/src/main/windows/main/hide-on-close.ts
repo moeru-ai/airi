@@ -1,5 +1,6 @@
 import type { BrowserWindow } from 'electron'
 
+import { onWindowClosed } from '@proj-airi/electron-vueuse/main'
 import { autoUpdater } from 'electron'
 
 import { onAppBeforeQuit } from '../../libs/bootkit/lifecycle'
@@ -30,7 +31,7 @@ export function hideOnClose(window: BrowserWindow) {
     window.hide()
   })
 
-  window.once('closed', () => {
+  onWindowClosed(window, () => {
     offBeforeQuit()
     autoUpdater.off('before-quit-for-update', allowClose)
   })

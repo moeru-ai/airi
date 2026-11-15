@@ -12,7 +12,7 @@ import type { PluginModuleWidgetPayload } from '../../../shared/eventa/plugin/ho
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 
-import { safeClose } from '@proj-airi/electron-vueuse/main'
+import { onWindowClosed, safeClose } from '@proj-airi/electron-vueuse/main'
 import { BrowserWindow as ElectronBrowserWindow, ipcMain, screen } from 'electron'
 import { clamp } from 'es-toolkit/math'
 import { isMacOS } from 'std-env'
@@ -471,7 +471,7 @@ export function setupWidgetsWindowManager(params: {
         destroyWidget(windowContext.widgetId)
     }
 
-    window.on('closed', handleWindowClosed)
+    onWindowClosed(window, handleWindowClosed)
     applyStoredOrDefaultBounds(window)
 
     const persist = () => {

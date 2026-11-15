@@ -8,6 +8,7 @@ import type { ServerChannel } from '../../services/airi/channel-server'
 import { createHash } from 'node:crypto'
 
 import { defineInvokeHandler } from '@moeru/eventa'
+import { onWindowClosed } from '@proj-airi/electron-vueuse/main'
 import { animate, utils } from 'animejs'
 import { BrowserWindow as ElectronBrowserWindow, ipcMain, screen } from 'electron'
 import { debounce, throttle } from 'es-toolkit'
@@ -356,7 +357,7 @@ export function setupCaptionWindowManager(params: {
       followMainWindow(window)
     }
 
-    window.on('closed', () => {
+    onWindowClosed(window, () => {
       detachFromMain()
       try {
         cleanupGetAttached()
