@@ -76,7 +76,7 @@
   },
   "apps/stage-tamagotchi/src/main/services/airi/widgets/artistry-bridge.ts": {
     "ts/no-explicit-any": {
-      "count": 11
+      "count": 10
     }
   },
   "apps/stage-tamagotchi/src/main/services/airi/widgets/providers/base.ts": {
@@ -549,11 +549,6 @@
       "count": 1
     }
   },
-  "packages/stage-shared/src/artistry.ts": {
-    "ts/no-explicit-any": {
-      "count": 1
-    }
-  },
   "packages/stage-shared/src/beat-sync/detector.ts": {
     "ts/no-explicit-any": {
       "count": 1
@@ -726,7 +721,7 @@
   },
   "packages/stage-ui/src/stores/modules/artistry.ts": {
     "ts/no-explicit-any": {
-      "count": 6
+      "count": 4
     }
   },
   "packages/stage-ui/src/stores/modules/gaming-minecraft.ts": {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ComfyUIWorkflowTemplate } from '@proj-airi/stage-ui/stores/modules/artistry'
+import type { ComfyUIWorkflowTemplate } from '@proj-airi/stage-shared'
 
 import { defineInvoke } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/renderer'
@@ -225,11 +225,21 @@ function generateExampleJson(wf: ComfyUIWorkflowTemplate) {
   const example: Record<string, any> = {
     template: wf.id,
   }
+  // NOTICE:
+  // ComfyUI nodes use provider-defined fields, and this view reads only their title and inputs.
+  // `packages/stage-shared/src/artistry.ts` validates the workflow map but not node fields.
+  // Remove this assertion when that schema validates the fields this view reads.
+  const workflow = wf.workflow as Record<string, {
+    _meta?: { title?: string }
+    class_type?: string
+    inputs: Record<string, unknown>
+  }>
+
   for (const [nodeTitle, fields] of Object.entries(wf.exposedFields)) {
     example[nodeTitle] = {}
     for (const field of fields) {
-      const nodeId = Object.keys(wf.workflow).find(id => (wf.workflow[id]._meta?.title || wf.workflow[id].class_type) === nodeTitle)
-      const val = nodeId ? wf.workflow[nodeId].inputs[field] : '...'
+      const nodeId = Object.keys(workflow).find(id => (workflow[id]._meta?.title || workflow[id].class_type) === nodeTitle)
+      const val = nodeId ? workflow[nodeId].inputs[field] : '...'
       example[nodeTitle][field] = val
     }
   }
