@@ -1,0 +1,37 @@
+name: Sync GitCode
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: GitHub release tag to synchronize
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gitcode-release-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.repository == 'moeru-ai/airi'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - name: Synchronize release and repository
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITCODE_TOKEN: ${{ secrets.GITCODE_TOKEN }}
+          GITCODE_OWNER: ${{ secrets.GITCODE_OWNER }}
+          GITCODE_REPO: ${{ secrets.GITCODE_REPO }}
+          GITCODE_RELEASE_TAG: ${{ inputs.tag }}
+        run: bash .github/scripts/publish-gitcode-release.sh
