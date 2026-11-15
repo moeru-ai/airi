@@ -137,8 +137,8 @@ describe('useTamagotchiMcpToolsStore', () => {
     }, toolOptions)
 
     expect(invokeMocks.listMcpTools).toHaveBeenCalledTimes(2)
-    expect(invokeMocks.listMcpTools).toHaveBeenNthCalledWith(1, { name: 'airi-terminal::terminal_exec' })
-    expect(invokeMocks.listMcpTools).toHaveBeenNthCalledWith(2, undefined)
+    expect(invokeMocks.listMcpTools.mock.calls[0]).toEqual([{}])
+    expect(invokeMocks.listMcpTools.mock.calls[1]).toEqual([undefined])
     expect(invokeMocks.callMcpTool).toHaveBeenCalledWith({
       name: 'filesystem::search',
       arguments: { query: 'hello', limit: 10 },
@@ -229,7 +229,7 @@ describe('useTamagotchiMcpToolsStore', () => {
     })
     invokeMocks.getRuntimeStatus.mockImplementation(async () => ({ servers: running ? [{ name: 'airi-terminal', state: 'running' }] : [] }))
     const originalList = invokeMocks.listMcpTools.getMockImplementation()!
-    invokeMocks.listMcpTools.mockImplementation(async payload => running && payload?.name === directTerminal.name ? [directTerminal] : [])
+    invokeMocks.listMcpTools.mockImplementation(async payload => running && (!payload?.name || payload.name === directTerminal.name) ? [directTerminal] : [])
     onTestFinished(() => {
       invokeMocks.listMcpTools.mockImplementation(originalList)
       invokeMocks.getRuntimeStatus.mockResolvedValue({ servers: [{ name: 'filesystem', state: 'running' }] })
@@ -263,6 +263,35 @@ describe('useTamagotchiMcpToolsStore', () => {
     await expect.element(settings.getByTestId('terminal-connection-status')).toHaveTextContent('status.unknown')
     await expect.poll(terminalIsVisible).toBe(false)
     expect(invokeMocks.callMcpTool).not.toHaveBeenCalled()
+  })
+
+  it('registers bundled Computer Use descriptors as direct Agent tools', async () => {
+    const pinia = createPinia()
+    const view = render(defineComponent({ setup() {
+      useTamagotchiMcpToolsStore()
+      return () => h('div')
+    } }), { global: { plugins: rendererPlugins(pinia) } })
+    onTestFinished(() => {
+      view.unmount()
+      disposePinia(pinia)
+    })
+
+    const directComputerUse: ElectronMcpToolDescriptor = {
+      serverName: 'airi-terminal',
+      name: 'airi-terminal::desktop_get_capabilities',
+      toolName: 'desktop_get_capabilities',
+      exposure: 'direct',
+      inputSchema: { type: 'object', properties: {} },
+    }
+    invokeMocks.getRuntimeStatus.mockResolvedValue({ servers: [{ name: 'airi-terminal', state: 'running' }] })
+    invokeMocks.listMcpTools.mockImplementation(async payload => payload?.name === undefined ? [directComputerUse] : [directComputerUse])
+
+    await useTamagotchiMcpToolsStore(pinia).refresh()
+
+    const tool = useLlmToolsStore(pinia).activeTools.find(item => item.function.name === 'desktop_get_capabilities')
+    expect(tool).toBeDefined()
+    await tool?.execute({}, { messages: [], toolCallId: 'capabilities' })
+    expect(invokeMocks.callMcpTool).toHaveBeenCalledWith(expect.objectContaining({ name: directComputerUse.name, arguments: {} }), expect.any(Object))
   })
 
   // https://github.com/moeru-ai/airi/pull/3496

@@ -3,7 +3,7 @@ import type { ExecutableTool } from '@proj-airi/stage-ui/stores/ai/chat-llm/tool
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { bundledTerminalServerName, terminalNoticeSchema, terminalNoticeText } from '@proj-airi/stage-shared/terminal-approval'
+import { terminalNoticeSchema, terminalNoticeText } from '@proj-airi/stage-shared/terminal-approval'
 import { getSpeechBusContext, voiceGenerationEnded } from '@proj-airi/stage-ui/services/speech/bus'
 import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/ai/chat-llm/tools'
 import { useLlmToolsetPromptsStore } from '@proj-airi/stage-ui/stores/ai/chat-llm/toolset-prompts'
@@ -93,7 +93,7 @@ export const useTamagotchiMcpToolsStore = defineStore('tamagotchi-mcp-tools', ()
     const generation = ++refreshGeneration
     const [status, direct] = await Promise.all([
       getRuntimeStatus().catch(() => undefined),
-      listMcpTools({ name: `${bundledTerminalServerName}::terminal_exec` }).catch(() => undefined),
+      listMcpTools({}).catch(() => undefined),
     ])
     const tools = await createMcpTools({
       listTools: name => listMcpTools(name === undefined ? undefined : { name }),

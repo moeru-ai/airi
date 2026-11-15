@@ -45,6 +45,7 @@ Workers are read-only unless the main controller explicitly assigns a writer sli
 - Computer Use now has independent Host control constants and environment wiring. The bundled server enables both lanes, while external servers opt into each lane separately.
 - The Computer Use Turbo state and event names still use Terminal-specific names. Rename only the shared execution concept that must be public. Keep Terminal commit protocol names local to Terminal.
 - Browser DOM mutation tools now build `ActionInvocation` values and use `executeAction`. They enter the shared policy, pending action, approval, trace, and settlement path. The Main approval flow holds the original MCP call open until settlement, so the Agent continues in the same turn.
+- Bundled Computer Use descriptors now enter the shared direct tool catalog. The Agent can call `desktop_*`, `browser_*`, and related tools directly while Main still binds the original request and approval.
 - The packaged Computer Use server still uses `COMPUTER_USE_EXECUTOR=dry-run` and disables its Browser DOM bridge. It cannot control a native game or browser page. Keep this explicit until AIRI connects a real Windows execution adapter.
 - Generic confirmation views now use a stable window-manager identity while retaining unique action IDs. Presentations still need explicit serialized queue behavior for concurrent prompts.
 
@@ -140,7 +141,9 @@ Never infer completion from a clean worktree, a zero exit code, or a successful 
 - Added the shared Agent execution prompt to MCP registration so Chat, background recipes, and Agent runs receive the same observe, act, approval, and verification contract.
 - Added Browser DOM mutation action kinds and routed click, input, checkbox, select, and event writes through `executeAction`.
 - Added independent Computer Use Host nonce constants and wiring. Terminal Turbo remains the session approval grant, but Computer Use no longer reuses the Terminal nonce.
+- Added direct Computer Use descriptor routing so the model does not need a proxy discovery call before its first capability or observation tool.
 - Reused a stable approval-window manager identity for generic confirmation prompts.
 - Added focused policy, action-executor, registration, MCP manager, and background-task regression coverage. Current validation is recorded in the active task log. Publication remains pending.
 - Validation passed: Computer Use typecheck, Stage UI and Stage Tamagotchi typechecks, Computer Use action and approval tests, MCP Main routing tests, background-task browser tests, i18n check, and full lint with existing warnings only.
+- The Windows real-model E2E reached Electron startup but timed out while locating the AIRI debug target. The harness now uses `pnpm.cmd` through `cmd.exe` on Windows and accepts `AIRI_E2E_EXECUTOR` and `AIRI_E2E_APPROVAL_MODE`; a follow-up must fix target discovery before calling this a model-run result.
 - PR source ref was replaced through the GitHub refs API after verifying the previous head `12f29ba28ded65938330a5df730702b9df731a55`. Verify the live head through the PR API before resuming.

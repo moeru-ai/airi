@@ -33,10 +33,10 @@ describe('tools mcp schema', () => {
     expect((props.arguments as JsonSchema).type).toBe('string')
   })
 
-  it('describes optional Terminal routing and Host-gated AUV use', async () => {
+  it('describes Computer Use routing and Host-gated GUI use', async () => {
     const [listTools] = await createMcpTools(createRuntime())
-    expect(listTools.function.description).toContain('do not call Terminal as a preflight')
-    expect(listTools.function.description).toContain('Reserve AUV for on-screen visual state or GUI interaction when the Host permits it')
+    expect(listTools.function.description).toContain('Do not call Terminal as a preflight')
+    expect(listTools.function.description).toContain('Use Computer Use tools for games, browsers, and GUI tasks')
   })
 })
 

@@ -7,7 +7,7 @@ import { createWriteStream } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import { dirname, resolve } from 'node:path'
-import { env, exit } from 'node:process'
+import { env, exit, platform } from 'node:process'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 
@@ -495,7 +495,11 @@ async function main() {
     const stageLogStream = createWriteStream(stageLogPath, { flags: 'a' })
     addTimeline('start-stage-tamagotchi')
 
-    stageProcess = spawn('pnpm', ['-F', '@proj-airi/stage-tamagotchi', 'dev'], {
+    const stageCommand = platform === 'win32' ? (env.ComSpec || 'cmd.exe') : 'pnpm'
+    const stageArgs = platform === 'win32'
+      ? ['/d', '/s', '/c', 'pnpm -F @proj-airi/stage-tamagotchi dev']
+      : ['-F', '@proj-airi/stage-tamagotchi', 'dev']
+    stageProcess = spawn(stageCommand, stageArgs, {
       cwd: repoDir,
       env: {
         ...env,
@@ -559,8 +563,8 @@ async function main() {
       cwd,
       env: {
         ...env,
-        COMPUTER_USE_EXECUTOR: 'macos-local',
-        COMPUTER_USE_APPROVAL_MODE: 'never',
+        COMPUTER_USE_EXECUTOR: env.AIRI_E2E_EXECUTOR?.trim() || 'macos-local',
+        COMPUTER_USE_APPROVAL_MODE: env.AIRI_E2E_APPROVAL_MODE?.trim() || 'never',
         COMPUTER_USE_OPENABLE_APPS: 'Terminal,Cursor,Google Chrome,Electron',
         COMPUTER_USE_DENY_APPS: '1Password,Keychain,System Settings,Activity Monitor',
         COMPUTER_USE_SESSION_TAG: `airi-e2e-${runId}`,

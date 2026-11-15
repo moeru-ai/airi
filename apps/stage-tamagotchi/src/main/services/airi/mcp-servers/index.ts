@@ -376,14 +376,28 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
     return result
   }
 
-  // Only the bundled, nonce-bound server supplies a direct Terminal entry.
-  // Its desktop placeholders cannot become an alternative observation or input surface.
+  const isComputerUseTool = (toolName: string) => [
+    'desktop_',
+    'browser_',
+    'accessibility_',
+    'display_',
+    'cdp_',
+    'workflow_',
+    'pty_',
+    'vscode_',
+    'task_',
+    'clipboard_',
+    'secret_',
+  ].some(prefix => toolName.startsWith(prefix))
+
   const exposureOf = (serverName: string, session: McpServerSession, toolName: string): ElectronMcpToolDescriptor['exposure'] => {
-    if (serverName !== bundledTerminalServerName || !session.terminalNonce)
+    if (serverName !== bundledTerminalServerName)
       return 'router-only'
-    if (toolName.startsWith('desktop_') || toolName.startsWith('accessibility_') || toolName.startsWith('display_'))
-      return 'router-only'
-    return session.bundledTerminal && toolName === 'terminal_exec' ? 'direct' : 'router-only'
+    if (session.bundledTerminal && session.terminalNonce && toolName === 'terminal_exec')
+      return 'direct'
+    if (session.computerUseNonce && isComputerUseTool(toolName))
+      return 'direct'
+    return 'router-only'
   }
 
   const listTools = async (name?: string): Promise<ElectronMcpToolDescriptor[]> => {

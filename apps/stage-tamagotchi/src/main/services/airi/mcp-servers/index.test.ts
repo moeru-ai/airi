@@ -256,7 +256,7 @@ describe('createMcpManager', () => {
     await manager.writeConfigText(JSON.stringify({ terminalEnabled: true, mcpServers: {} }))
     await manager.applyAndRestart()
     clientMocks.listTools.mockResolvedValue({ tools: [{ name: 'desktop_click', inputSchema: { type: 'object' } }] })
-    expect((await manager.listTools()).find(tool => tool.toolName === 'desktop_click')?.exposure).toBe('router-only')
+    expect((await manager.listTools()).find(tool => tool.toolName === 'desktop_click')?.exposure).toBe('direct')
     clientMocks.callTool.mockResolvedValue({
       content: [{ type: 'text', text: 'Approval required.' }],
       structuredContent: { status: 'approval_required', pendingActionId: 'pending-computer', toolName: 'desktop_click', action: { kind: 'click', input: { x: 10, y: 20 } }, transparency: { intent: 'Click the requested point.' } },
@@ -551,7 +551,7 @@ describe('createMcpManager', () => {
     ])
   })
 
-  it('keeps direct Terminal behind Main request ownership and exposes desktop calls through the router', async () => {
+  it('keeps direct Terminal and Computer Use behind Main request ownership', async () => {
     const actions = new PendingActionManager()
     const manager = createMcpManager({
       actions,
@@ -569,9 +569,9 @@ describe('createMcpManager', () => {
     expect(descriptors.map(tool => [tool.toolName, tool.exposure])).toEqual([
       ['terminal_exec', 'direct'],
       ['terminal_history', 'router-only'],
-      ['desktop_capture', 'router-only'],
-      ['accessibility_snapshot', 'router-only'],
-      ['display_enumerate', 'router-only'],
+      ['desktop_capture', 'direct'],
+      ['accessibility_snapshot', 'direct'],
+      ['display_enumerate', 'direct'],
     ])
     for (const tool of desktopTools)
       await expect(manager.callTool({ name: `airi-terminal::${tool}` })).rejects.toThrow('normal Chat request')
@@ -586,9 +586,10 @@ describe('createMcpManager', () => {
     const tools = await resolveLlmTools({ builtInTools: [], debugTools: [], sparkCommandTools: [], webSearchTools: [], activeTools: await createMcpTools({
       listTools: manager.listTools,
       callTool: (payload, options) => manager.callTool({ ...payload, requestId: request.id, attribution: options?.attribution }, 71, options?.abortSignal),
-    }, { direct: await manager.listTools('airi-terminal::terminal_exec') }), attribution })
+    }, { direct: await manager.listTools() }), attribution })
     clientMocks.callTool.mockResolvedValue({ isError: true, content: [{ type: 'text', text: 'Fixture policy rejected preparation.' }] })
     const terminal = tools.find(tool => tool.function.name === 'terminal_exec')!
+    expect(tools.some(tool => tool.function.name === 'desktop_capture')).toBe(true)
     expect(terminal.function.description).toContain('Configured Shell executable: fixture-shell.')
     expect(terminal.function.description).toContain('Use confirmed facts to work toward the user’s goal.')
     expect(terminal.function.description).toContain('choose an observation that can resolve the gap')
