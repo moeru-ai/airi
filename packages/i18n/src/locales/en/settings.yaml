@@ -1704,6 +1704,10 @@ pages:
         pending: Waiting for your approval. This command has not been authorized.
         scope: This command can change files, start applications, and affect the desktop. Approval applies once to this exact operation.
         session: Session
+        server: Server
+        tool: Tool
+        turn: Turn
+        call: Call
         command: Command
         working-directory: Working directory
         directory-source: '{source} in the Terminal executor'

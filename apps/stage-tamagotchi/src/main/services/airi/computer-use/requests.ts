@@ -1,13 +1,14 @@
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { WebContents } from 'electron'
 
+import type { ApprovalPrompt } from '../../../../shared/eventa/terminal-approval'
 import type { I18n } from '../../../libs/i18n'
 import type { PendingActionManager } from './action-manager'
 import type { InvocationAttribution } from './attribution'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { chatRequestSchema } from '@proj-airi/stage-shared/chat-request'
-import { BrowserWindow, dialog } from 'electron'
+import { BrowserWindow } from 'electron'
 
 import * as v from 'valibot'
 
@@ -15,22 +16,6 @@ import { chatRequestCancel, chatRequestFinish, chatRequestRegister, terminalTurb
 import { requireMainFrameSender } from '../../../libs/electron/window-context'
 
 const turboModeSchema = v.strictObject({ sessionId: chatRequestSchema.entries.sessionId, enabled: v.optional(v.boolean()) })
-
-async function confirmAction(params: { window: BrowserWindow, message: string, detail: string, cancelLabel: string, allowLabel: string, signal: AbortSignal }) {
-  const response = await dialog.showMessageBox(params.window, {
-    type: 'question',
-    message: params.message,
-    detail: params.detail,
-    buttons: [
-      params.cancelLabel,
-      params.allowLabel,
-    ],
-    defaultId: 0,
-    cancelId: 0,
-    signal: params.signal,
-  })
-  return response.response === 1 && !params.signal.aborted
-}
 
 export interface ComputerUseApprovalRequest {
   actionId: string
@@ -46,6 +31,7 @@ export function setupChatRequests(context: ReturnType<typeof createContext>['con
   getRuntime: () => WebContents | undefined
   isChatWindow: (window: BrowserWindow) => boolean
   i18n: I18n
+  presentConfirmation: (request: ApprovalPrompt, signal?: AbortSignal) => Promise<boolean>
 }) {
   const documents = new WeakMap<WebContents, AbortController>()
   const turboDialogs = new Map<string, AbortController>()
@@ -101,15 +87,14 @@ export function setupChatRequests(context: ReturnType<typeof createContext>['con
     const signal = AbortSignal.any([documentSignal(sender), documentSignal(runtime), confirmation.signal, ...(options?.abortController ? [options.abortController.signal] : [])])
     const { t } = sources.i18n
     try {
-      const approved = await confirmAction({
-        window,
-        message: t('tamagotchi.stage.chat-window.computer-tools.turbo-confirm'),
+      const approved = await sources.presentConfirmation({
+        title: t('tamagotchi.stage.chat-window.computer-tools.turbo-confirm'),
         detail: t('tamagotchi.stage.chat-window.computer-tools.turbo-scope'),
         cancelLabel: t('tamagotchi.stage.chat-window.computer-tools.cancel'),
         allowLabel: t('tamagotchi.stage.chat-window.computer-tools.turbo-allow'),
-        signal,
-      })
-      if (!approved || runtime !== sources.getRuntime() || !sources.isChatWindow(window))
+        sessionId,
+      }, signal)
+      if (!approved || signal.aborted || runtime !== sources.getRuntime() || !sources.isChatWindow(window))
         return false
       actions.setTerminalTurbo(sessionId, runtime.id, true)
       return true
@@ -133,17 +118,20 @@ export function setupChatRequests(context: ReturnType<typeof createContext>['con
     const { t } = sources.i18n
     let approved: boolean
     try {
-      approved = await confirmAction({
-        window,
-        message: t('tamagotchi.stage.chat-window.computer-tools.computer-use-confirm'),
+      approved = await sources.presentConfirmation({
+        title: t('tamagotchi.stage.chat-window.computer-tools.computer-use-confirm'),
         detail: [
           t('tamagotchi.stage.chat-window.computer-tools.computer-use-scope'),
           request.summary,
         ].filter(Boolean).join('\n\n'),
         cancelLabel: t('tamagotchi.stage.chat-window.computer-tools.cancel'),
         allowLabel: t('tamagotchi.stage.chat-window.computer-tools.computer-use-allow'),
-        signal: approvalSignal,
-      })
+        sessionId: request.attribution.sessionId,
+        turnId: request.attribution.turnId,
+        toolCallId: request.attribution.toolCallId,
+        serverName: request.serverName,
+        toolName: request.toolName,
+      }, approvalSignal)
     }
     catch (error) {
       if (approvalSignal.aborted)
@@ -151,7 +139,7 @@ export function setupChatRequests(context: ReturnType<typeof createContext>['con
       throw error
     }
 
-    return approved && runtime === sources.getRuntime() && !window.isDestroyed()
+    return approved && !approvalSignal.aborted && runtime === sources.getRuntime() && !window.isDestroyed()
   }
   defineInvokeHandler(context, chatRequestFinish, (input, options) => {
     actions.finishRequest(input.requestId, requireMainFrameSender(options).id)

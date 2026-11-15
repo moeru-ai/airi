@@ -16,11 +16,30 @@ export const terminalTurboMode = defineInvokeEventa<boolean, { sessionId: string
 export const terminalOutcomeNotice = defineInvokeEventa<{ status: 'stored' | 'suppressed', sessionId: string, messageId: string }, TerminalNotice>('eventa:invoke:terminal-approval:outcome-notice')
 
 export const terminalApprovalWindow = createRequestWindowEventa('terminal-approval')
-export const terminalApprovalViewSchema = v.strictObject({
+const approvalSubmissionSchema = v.strictObject({ ...chatRequestSchema.entries, senderWebContentsId: v.number() })
+const terminalCommandApprovalViewSchema = v.strictObject({
+  kind: v.literal('terminal'),
   actionId: v.string(),
   expiresAt: v.number(),
   serverName: v.string(),
-  submission: v.strictObject({ ...chatRequestSchema.entries, senderWebContentsId: v.number() }),
+  submission: approvalSubmissionSchema,
   snapshot: terminalSnapshotSchema,
 })
+const confirmationApprovalViewSchema = v.strictObject({
+  kind: v.literal('confirmation'),
+  actionId: v.string(),
+  expiresAt: v.number(),
+  title: v.string(),
+  detail: v.string(),
+  cancelLabel: v.string(),
+  allowLabel: v.string(),
+  sessionId: v.string(),
+  turnId: v.optional(v.string()),
+  toolCallId: v.optional(v.string()),
+  serverName: v.optional(v.string()),
+  toolName: v.optional(v.string()),
+})
+
+export const terminalApprovalViewSchema = v.union([terminalCommandApprovalViewSchema, confirmationApprovalViewSchema])
 export type TerminalApprovalView = v.InferOutput<typeof terminalApprovalViewSchema>
+export type ApprovalPrompt = Omit<v.InferOutput<typeof confirmationApprovalViewSchema>, 'kind' | 'actionId' | 'expiresAt'>

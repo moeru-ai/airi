@@ -1,7 +1,9 @@
-import type { TerminalApprovalView } from '../../../shared/eventa/terminal-approval'
+import type { ApprovalPrompt, TerminalApprovalView } from '../../../shared/eventa/terminal-approval'
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { PendingActionManager } from '../../services/airi/computer-use/action-manager'
+
+import { randomUUID } from 'node:crypto'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { safeClose } from '@proj-airi/electron-vueuse/main'
@@ -16,7 +18,7 @@ import { requireMainFrameSender } from '../../libs/electron/window-context'
 import { createReferencedWindowManager } from '../shared/referenced-window'
 import { customTitleBarWindowConfig, protectPrivilegedWindowNavigation } from '../shared/window'
 
-/** Presents a saved action in a separate Main-owned source. The page owns no approval state or executable arguments. */
+/** Reuses AIRI's Main-owned approval window for prepared commands and other gated actions. */
 export function setupTerminalApprovalWindow(params: { actions: PendingActionManager, i18n: I18n, serverChannel: ServerChannel }) {
   // Presentation only. The existing action manager retains all authority and settlement state.
   const presentations = new Set<BrowserWindow>()
@@ -26,7 +28,7 @@ export function setupTerminalApprovalWindow(params: { actions: PendingActionMana
     serverChannel: params.serverChannel,
     createWindow: () => {
       const window = new BrowserWindow({
-        title: 'Terminal approval',
+        title: 'AIRI approval',
         width: 560,
         height: 500,
         minWidth: 420,
@@ -46,12 +48,9 @@ export function setupTerminalApprovalWindow(params: { actions: PendingActionMana
     },
   })
 
-  async function present(actionId: string): Promise<boolean> {
-    const action = params.actions.get(actionId)
-    if (!action?.terminal || action.status !== 'pending')
+  async function presentView(actionId: string, view: TerminalApprovalView, isPending: () => boolean, signal?: AbortSignal): Promise<boolean> {
+    if (signal?.aborted)
       return false
-    const request = params.actions.validateRequest(action.terminal.snapshot.requestId, action.attribution, { allowClosed: true })
-    const view: TerminalApprovalView = { actionId, expiresAt: action.expiresAt, serverName: action.terminal.serverName, snapshot: action.terminal.snapshot, submission: { sessionId: request.sessionId, turnId: request.turnId, text: request.text, senderWebContentsId: request.senderWebContentsId } }
     const handle = await windows.open({
       id: actionId,
       route: '/terminal-approval',
@@ -60,33 +59,62 @@ export function setupTerminalApprovalWindow(params: { actions: PendingActionMana
     })
     presentations.add(handle.window)
     handle.window.once('closed', () => presentations.delete(handle.window))
-    return new Promise<boolean>((resolve) => {
+    return await new Promise<boolean>((resolve) => {
       let finished = false
       let timer: ReturnType<typeof setInterval> | undefined
+      let abort = () => {}
       const finish = (approved: boolean) => {
         if (finished)
           return
         finished = true
         clearInterval(timer)
+        signal?.removeEventListener('abort', abort)
         resolve(approved)
         // Let the decision IPC reply before closing its sender.
         setImmediate(() => safeClose(handle.window))
       }
+      abort = () => finish(false)
+      if (signal?.aborted) {
+        finish(false)
+        return
+      }
+      signal?.addEventListener('abort', abort, { once: true })
       defineInvokeHandler(handle.context, terminalApprovalWindow.windowAction, (decision, options) => {
         if (requireMainFrameSender(options) !== handle.window.webContents || decision.id !== actionId)
           throw new Error('This approval decision does not belong to its Main-owned window.')
-        finish(params.actions.get(actionId)?.status === 'pending' && decision.action === 'confirm')
+        finish(isPending() && decision.action === 'confirm')
       })
       handle.window.once('closed', () => finish(false))
-      // This timer only closes stale presentation. Main revalidates TTL and cancellation at the execution boundary.
+      // This timer only closes stale presentation. Main revalidates action state at the execution boundary.
       timer = setInterval(() => {
-        if (params.actions.get(actionId)?.status !== 'pending')
+        if (!isPending() || Date.now() >= view.expiresAt)
           finish(false)
       }, 100)
     })
   }
+
+  async function present(actionId: string): Promise<boolean> {
+    const action = params.actions.get(actionId)
+    if (!action?.terminal || action.status !== 'pending')
+      return false
+    const request = params.actions.validateRequest(action.terminal.snapshot.requestId, action.attribution, { allowClosed: true })
+    const view: TerminalApprovalView = { kind: 'terminal', actionId, expiresAt: action.expiresAt, serverName: action.terminal.serverName, snapshot: action.terminal.snapshot, submission: { sessionId: request.sessionId, turnId: request.turnId, text: request.text, senderWebContentsId: request.senderWebContentsId } }
+    return await presentView(actionId, view, () => params.actions.get(actionId)?.status === 'pending')
+  }
+
+  async function confirm(request: ApprovalPrompt, signal?: AbortSignal): Promise<boolean> {
+    const actionId = randomUUID()
+    const view: TerminalApprovalView = {
+      kind: 'confirmation',
+      actionId,
+      expiresAt: Date.now() + 5 * 60_000,
+      ...request,
+    }
+    return await presentView(actionId, view, () => Date.now() < view.expiresAt, signal)
+  }
   return {
     present,
+    confirm,
     restore: () => {
       for (const window of presentations) {
         if (window.isMinimized())

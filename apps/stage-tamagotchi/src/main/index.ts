@@ -335,8 +335,12 @@ app.whenReady().then(async () => {
   })
 
   const pendingActions = injeca.provide('services:pending-actions', () => new PendingActionManager())
+  const terminalApproval = injeca.provide('windows:terminal-approval', {
+    dependsOn: { actions: pendingActions, i18n, serverChannel },
+    build: ({ dependsOn }) => setupTerminalApprovalWindow(dependsOn),
+  })
   const computerUse = injeca.provide('services:computer-use', {
-    dependsOn: { pendingActions, i18n },
+    dependsOn: { pendingActions, i18n, terminalApproval },
     build: ({ dependsOn }) => {
       const { context } = createContext(ipcMain)
       const host = setupComputerUse(context, { actionManager: dependsOn.pendingActions })
@@ -344,13 +348,10 @@ app.whenReady().then(async () => {
         getRuntime: () => userFacingMainWindow?.webContents,
         isChatWindow: window => chatWindowManager?.owns(window) === true,
         i18n: dependsOn.i18n,
+        presentConfirmation: dependsOn.terminalApproval.confirm,
       })
       return { ...host, ...chatRequests }
     },
-  })
-  const terminalApproval = injeca.provide('windows:terminal-approval', {
-    dependsOn: { actions: pendingActions, i18n, serverChannel },
-    build: ({ dependsOn }) => setupTerminalApprovalWindow(dependsOn),
   })
   const mcpManager = injeca.provide('modules:mcp-manager', {
     dependsOn: { pendingActions, computerUse, terminalApproval },

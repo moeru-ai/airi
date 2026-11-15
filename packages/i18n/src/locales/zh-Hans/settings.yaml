@@ -1635,6 +1635,10 @@ pages:
         pending: 等待批准。此命令尚未获得授权。
         scope: 此命令可以修改文件、启动应用并影响桌面。批准仅适用于这一次具体操作。
         session: 会话
+        server: 服务器
+        tool: 工具
+        turn: 轮次
+        call: 调用
         command: 命令
         working-directory: 工作目录
         directory-source: Terminal 执行器中的 {source}
