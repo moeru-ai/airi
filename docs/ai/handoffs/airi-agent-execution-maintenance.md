@@ -142,3 +142,5 @@ Never infer completion from a clean worktree, a zero exit code, or a successful 
 - Added independent Computer Use Host nonce constants and wiring. Terminal Turbo remains the session approval grant, but Computer Use no longer reuses the Terminal nonce.
 - Reused a stable approval-window manager identity for generic confirmation prompts.
 - Added focused policy, action-executor, registration, MCP manager, and background-task regression coverage. Current validation is recorded in the active task log. Publication remains pending.
+- Validation passed: Computer Use typecheck, Stage UI and Stage Tamagotchi typechecks, Computer Use action and approval tests, MCP Main routing tests, background-task browser tests, i18n check, and full lint with existing warnings only.
+- PR source ref was replaced through the GitHub refs API after verifying the previous head `12f29ba28ded65938330a5df730702b9df731a55`. Current PR head: `3e3bb7de3954a8ab51aee80892597f4dbc2acf26`.
