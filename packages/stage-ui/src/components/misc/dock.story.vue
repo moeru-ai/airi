@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { DockSize, DockVariant } from '@proj-airi/ui'
 
-import { Dock, DockButton, dockItemClasses, DockSeparator, DropdownMenu, MenuItem, Tooltip, TransitionBud } from '@proj-airi/ui'
+import { Dock, DockButton, dockEdgeItemClasses, dockItemClasses, DockSeparator, DropdownMenu, MenuItem, Tooltip, TransitionBud } from '@proj-airi/ui'
 import { computed, reactive, shallowRef } from 'vue'
 
 import sceneUrl from '../../assets/backgrounds/cute-streaming-room-with-pastel-decor.avif'
@@ -182,6 +182,26 @@ const states = [
               <DockButton icon="i-mingcute:fullscreen-exit-line" label="Exit fullscreen" />
             </Dock>
           </div>
+        </div>
+        <div :class="['flex flex-col gap-3']">
+          <span :class="['text-sm font-medium']">Controls Island: vertical, medium, blurry, with a grip</span>
+          <Dock orientation="vertical" size="md" variant="blurry">
+            <!-- An item that is not round and sits at an end takes `dockEdgeItemClasses`, so its hover follows the end. -->
+            <Tooltip label="Drag to move the window" side="right" variant="blurry">
+              <div
+                :class="[
+                  'h-6 w-9 flex cursor-move items-center justify-center transition-colors',
+                  dockItemClasses('blurry'),
+                  dockEdgeItemClasses('md', 'vertical', 'start'),
+                ]"
+              >
+                <span :class="['i-mingcute:dots-vertical-fill size-4 text-neutral-400/70 dark:text-neutral-400']" />
+              </div>
+            </Tooltip>
+            <DockButton icon="i-mingcute:mic-off-line" label="Turn on the microphone" />
+            <DockButton icon="i-mingcute:chat-2-line" label="Open chat" />
+            <DockButton icon="i-mingcute:more-1-line" label="More" />
+          </Dock>
         </div>
       </div>
     </Variant>
