@@ -931,8 +931,8 @@ catalogs:
       specifier: ^1.0.2
       version: 1.0.2
     nanoid:
-      specifier: ^6.0.1
-      version: 6.0.1
+      specifier: ^6.0.2
+      version: 6.0.2
     node-macos-disclaim:
       specifier: ^0.0.1
       version: 0.0.1
@@ -1705,7 +1705,7 @@ importers:
         version: 1.55.2
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       node-vibrant:
         specifier: 'catalog:'
         version: 4.0.4
@@ -2334,7 +2334,7 @@ importers:
         version: 2.0.1-rc.29(crossws@0.4.12(srvx@1.0.8))
       injeca:
         specifier: 'catalog:'
-        version: 0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.2)
       jszip:
         specifier: 'catalog:'
         version: 3.10.1
@@ -2349,7 +2349,7 @@ importers:
         version: 3.2.0
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       node-vibrant:
         specifier: 'catalog:'
         version: 4.0.4
@@ -2731,7 +2731,7 @@ importers:
         version: 1.51.0
       injeca:
         specifier: 'catalog:'
-        version: 0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.2)
       jszip:
         specifier: 'catalog:'
         version: 3.10.1
@@ -2740,7 +2740,7 @@ importers:
         version: 1.55.2
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       node-vibrant:
         specifier: 'catalog:'
         version: 4.0.4
@@ -3441,7 +3441,7 @@ importers:
         version: 4.4.0
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       nprogress:
         specifier: 'catalog:'
         version: 0.2.0
@@ -3750,7 +3750,7 @@ importers:
         version: 5.0.4
       injeca:
         specifier: 'catalog:'
-        version: 0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.2)
       isolated-vm:
         specifier: 'catalog:'
         version: 7.0.1
@@ -3780,7 +3780,7 @@ importers:
         version: 1.2.0(supports-color@10.2.2)
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       prismarine-block:
         specifier: 'catalog:'
         version: 1.23.0(supports-color@10.2.2)
@@ -3856,7 +3856,7 @@ importers:
         version: 1.51.0
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       valibot:
         specifier: 'catalog:'
         version: 1.5.0(typescript@6.0.3)
@@ -3956,7 +3956,7 @@ importers:
         version: 1.45.1(supports-color@10.2.2)
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       p-limit:
         specifier: 'catalog:'
         version: 7.3.1
@@ -4032,10 +4032,10 @@ importers:
         version: 1.51.0
       injeca:
         specifier: 'catalog:'
-        version: 0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.2)
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       tinyexec:
         specifier: 'catalog:'
         version: 1.3.0
@@ -4081,7 +4081,7 @@ importers:
         version: 1.55.2
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
     devDependencies:
       '@types/audioworklet':
         specifier: 'catalog:'
@@ -4205,7 +4205,7 @@ importers:
         version: 0.5.1(@valibot/to-json-schema@1.8.0(valibot@1.5.0(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       rehype-parse:
         specifier: 'catalog:'
         version: 9.0.1
@@ -4318,7 +4318,7 @@ importers:
         version: 0.5.0
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       vite:
         specifier: 'catalog:'
         version: 8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1)
@@ -4488,7 +4488,7 @@ importers:
         version: 4.0.4
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
 
   packages/plugin-protocol:
     dependencies:
@@ -4515,10 +4515,10 @@ importers:
         version: link:../extension-protocol
       injeca:
         specifier: 'catalog:'
-        version: 0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.2)
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       semver:
         specifier: 'catalog:'
         version: 7.8.5
@@ -4543,7 +4543,7 @@ importers:
         version: link:../plugin-sdk
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       valibot:
         specifier: 'catalog:'
         version: 1.5.0(typescript@6.0.3)
@@ -4728,7 +4728,7 @@ importers:
         version: 2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7))
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       srvx:
         specifier: 'catalog:'
         version: 0.12.7
@@ -4837,7 +4837,7 @@ importers:
         version: 3.4.14
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       node-vibrant:
         specifier: 'catalog:'
         version: 4.0.4
@@ -4973,7 +4973,7 @@ importers:
         version: 1.51.0
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       node-vibrant:
         specifier: 'catalog:'
         version: 4.0.4
@@ -5368,7 +5368,7 @@ importers:
         version: 1.55.2
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       node-vibrant:
         specifier: 'catalog:'
         version: 4.0.4
@@ -5772,7 +5772,7 @@ importers:
         version: 3.10.1
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       pinia:
         specifier: 'catalog:'
         version: 4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3))
@@ -6479,7 +6479,7 @@ importers:
         version: 1.0.3(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))(vue@3.5.41(typescript@6.0.3))(wxt@0.21.4(canvas@3.2.3)(esbuild@0.28.2)(eslint@10.9.0(jiti@2.7.0)(supports-color@10.2.2))(oxc-parser@0.155.0)(rolldown@1.2.14)(rollup@4.62.5)(typescript@6.0.3)(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1)))
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       vue:
         specifier: 'catalog:'
         version: 3.5.41(typescript@6.0.3)
@@ -6614,7 +6614,7 @@ importers:
         version: 0.5.3(hono@4.13.3)(unstorage@1.17.5(idb-keyval@6.3.0)(ioredis@6.0.0(supports-color@10.2.2)))
       injeca:
         specifier: 'catalog:'
-        version: 0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.2)
       ioredis:
         specifier: 'catalog:'
         version: 6.0.0(supports-color@10.2.2)
@@ -6626,7 +6626,7 @@ importers:
         version: 1.0.20260904203849(zod@4.4.3)
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       ofetch:
         specifier: 'catalog:'
         version: 1.5.1
@@ -18389,11 +18389,6 @@ packages:
   nanoid@5.1.16:
     resolution: {integrity: sha512-kVrnsrJqMR8+oLJnGEmSWw9BivK5mt7H3FZatVRjrc5wGqFYuBxX1yG7+A7Gi5AefkX6t/oCkizcQgpu0cY1dQ==}
     engines: {node: ^18 || >=20}
-    hasBin: true
-
-  nanoid@6.0.1:
-    resolution: {integrity: sha512-3wVS3i51pE2pi1k5FFL/95BGfVS0kSsvDVuGXHOtxox/TywUmtgq+3qiTOTbs9J7KfHaXPiN171k/A6dBnaXFw==}
-    engines: {node: ^22 || ^24 || >=26}
     hasBin: true
 
   nanoid@6.0.2:
@@ -33105,15 +33100,6 @@ snapshots:
 
   ini@7.0.0: {}
 
-  injeca@0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1):
-    dependencies:
-      alien-signals: 3.2.1
-      error-stack-parser: 2.1.4
-      es-toolkit: 1.53.1
-      nanoid: 6.0.1
-    optionalDependencies:
-      '@guiiai/logg': 1.2.12
-
   injeca@0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.2):
     dependencies:
       alien-signals: 3.2.1
@@ -34480,8 +34466,6 @@ snapshots:
   nanoid@3.3.20: {}
 
   nanoid@5.1.16: {}
-
-  nanoid@6.0.1: {}
 
   nanoid@6.0.2: {}
 
