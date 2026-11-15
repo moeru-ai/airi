@@ -3,7 +3,7 @@ import type { FeatureFlag } from './feature-flags'
 import { parse } from 'valibot'
 import { describe, expect, it } from 'vitest'
 
-import { CHARACTER_CARD_SYNC_FLAG, featureFlagResponseSchema, featureFlags, FULLSCREEN_WORKSPACE_FLAG, offeredFeatureFlags, resolveFeatureFlag, resolveFeatureVariant } from './feature-flags'
+import { featureFlagResponseSchema, featureFlags, FULLSCREEN_WORKSPACE_FLAG, offeredFeatureFlags, resolveFeatureFlag, resolveFeatureVariant } from './feature-flags'
 
 const feature: FeatureFlag = { key: 'test-feature', titleKey: 'test.title', descriptionKey: 'test.description', defaultEnabled: false, availability: 'local' }
 
@@ -55,13 +55,6 @@ describe('feature flag decisions', () => {
     expect(() => parse(featureFlagResponseSchema, { flags: [{ key: feature.key, mode: 'local', source: 'account' }] })).toThrow()
   })
 
-  it('registers character card sync as a local, off-by-default choice', () => {
-    expect(featureFlags).toContain(CHARACTER_CARD_SYNC_FLAG)
-    expect(CHARACTER_CARD_SYNC_FLAG.availability).toBe('local')
-    expect(CHARACTER_CARD_SYNC_FLAG.defaultEnabled).toBe(false)
-    expect(resolveFeatureFlag(CHARACTER_CARD_SYNC_FLAG, undefined, undefined, true)).toEqual({ enabled: false, source: 'default', selectable: true })
-  })
-
   // The standalone settings window stays the default, so a user opts in to the fullscreen mode.
   it('registers the main window fullscreen mode as a local, off-by-default choice', () => {
     expect(featureFlags).toContain(FULLSCREEN_WORKSPACE_FLAG)
@@ -72,7 +65,6 @@ describe('feature flag decisions', () => {
   it('offers desktop-only experiments only in the desktop app', () => {
     expect(offeredFeatureFlags(true)).toContain(FULLSCREEN_WORKSPACE_FLAG)
     expect(offeredFeatureFlags(false)).not.toContain(FULLSCREEN_WORKSPACE_FLAG)
-    expect(offeredFeatureFlags(false)).toContain(CHARACTER_CARD_SYNC_FLAG)
   })
 
   // A device can keep a choice that a later version no longer offers. The feature then runs its first variant.
@@ -80,6 +72,6 @@ describe('feature flag decisions', () => {
     expect(resolveFeatureVariant(FULLSCREEN_WORKSPACE_FLAG, 'multi-window')).toBe('multi-window')
     expect(resolveFeatureVariant(FULLSCREEN_WORKSPACE_FLAG, undefined)).toBe('single-window')
     expect(resolveFeatureVariant(FULLSCREEN_WORKSPACE_FLAG, 'removed-mode')).toBe('single-window')
-    expect(resolveFeatureVariant(CHARACTER_CARD_SYNC_FLAG, 'multi-window')).toBeUndefined()
+    expect(resolveFeatureVariant(feature, 'multi-window')).toBeUndefined()
   })
 })

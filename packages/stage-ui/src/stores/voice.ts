@@ -1,14 +1,16 @@
 import type { BeginSpeechInput, SpeechInputAttempt, SpeechOutput, SpeechStream, TurnRef, VoicePluginHandle, VoiceResponse } from '@proj-airi/core-agent'
 import type { AudioPlayback, AudioWindow } from '@proj-airi/pipelines-audio'
 
+import type { SpeakerCandidate } from '../libs/voice/speaker-evidence-plugin'
 import type { VoiceActivityOptions } from '../libs/voice/voice-activity-plugin'
 import type { VoiceHostSnapshot } from '../services/speech/bus'
 import type { ChatToolReference } from '../types/chat'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
-import { turnKey } from '@proj-airi/core-agent'
+import { DEFAULT_SPEECH_THRESHOLD, turnKey } from '@proj-airi/core-agent'
 import { observeLevel } from '@proj-airi/pipelines-audio'
+import { VoiceIdKeys } from '@proj-airi/trace-kit/voice'
 import { defineStore, storeToRefs } from 'pinia'
 import { onScopeDispose, shallowRef, watch } from 'vue'
 
@@ -19,7 +21,7 @@ import { useVoiceDrafts } from '../composables/voice-drafts'
 import { useVoiceEndJudge } from '../composables/voice-end-judge'
 import { createVoiceInputTracer } from '../composables/voice-input-trace'
 import { useVoiceRephrase } from '../composables/voice-rephrase'
-import { createSpeakerEvidencePlugin } from '../libs/voice/speaker-evidence-plugin'
+import { createSpeakerEvidencePlugin, NO_SPEAKER_CANDIDATES } from '../libs/voice/speaker-evidence-plugin'
 import { createSpeechOutputLevelPlugin } from '../libs/voice/speech-output-level-plugin'
 import { createVoiceActivityPlugin } from '../libs/voice/voice-activity-plugin'
 import { createVoiceEndJudgePlugin } from '../libs/voice/voice-end-judge-plugin'
@@ -107,9 +109,13 @@ export const useVoiceStore = defineStore('voice', () => {
   const composerInputs = new Map<string, string | undefined>()
   let presentedInput: { requestId: string, attempt: SpeechInputAttempt } | undefined
 
-  const inputTracer = createVoiceInputTracer()
+  const inputTracer = createVoiceInputTracer({
+    speechThreshold: DEFAULT_SPEECH_THRESHOLD,
+    speakerLabel: speakerId => voiceprints.records.find(record => record.id === speakerId)?.label,
+  })
   const { controller, state, snapshot: transcript, error } = useVoiceController({
-    transcriber: () => hearing.createTranscriber(),
+    // The recognition span belongs to its input, which can still finalize after the next input began.
+    transcriber: ({ inputId, sessionId }) => hearing.createTranscriber(undefined, { ids: { [VoiceIdKeys.Input]: inputId, [VoiceIdKeys.Conversation]: sessionId } }),
     speech: (turn) => {
       if (!output)
         throw new Error('Voice output host is not connected')
@@ -579,7 +585,7 @@ export const useVoiceStore = defineStore('voice', () => {
     // Speaker recognition only measures. It reads the VAD results, so it counts only the speech of each input.
     const speakerEvidence = createSpeakerEvidencePlugin({
       enabled: () => hearing.speakerRecognitionEnabled && speakerTracker.preparation === 'ready',
-      compare: compareOwnerVoice,
+      compare: compareVoiceprints,
       input: () => controller.activeInput,
       update: (update) => {
         const result = controller.updateSpeakerEvidence(update.inputId, { range: update.range, value: update.value })
@@ -587,6 +593,8 @@ export const useVoiceStore = defineStore('voice', () => {
       },
     })
     const plugin = createVoiceActivityPlugin({
+      // The input tracer records the same threshold, so the trace draws the score that begins speech.
+      threshold: DEFAULT_SPEECH_THRESHOLD,
       detect: async (window, signal) => {
         const probability = await model.score(window, signal)
         inputTracer.window(window.channels, probability)
@@ -623,7 +631,7 @@ export const useVoiceStore = defineStore('voice', () => {
       controller.use({ ...speakerEvidence, setup(scope) {
         speakerEvidence.setup(scope)
         // The tracker Worker holds the voiceprint model, so it runs only while the host listens with speaker recognition on.
-        const stopTracker = watch(() => hearing.speakerRecognitionEnabled && !!voiceprints.voiceprint, (active) => {
+        const stopTracker = watch(() => hearing.speakerRecognitionEnabled && voiceprints.matching.length > 0, (active) => {
           if (active)
             void speakerTracker.acquire().catch(report)
           else
@@ -639,18 +647,18 @@ export const useVoiceStore = defineStore('voice', () => {
   }
 
   /**
-   * Compares one window with the owner's voiceprint for speaker recognition.
+   * Compares one window with the enabled voiceprints for speaker recognition.
    * A failed comparison reports the error and releases the tracker, so a broken Worker does not fail every window.
-   * The window then has no score. Turning speaker recognition on again, or a new voiceprint, loads the tracker again.
+   * The window then has no score. Turning speaker recognition off and on, or listening again, loads the tracker again.
    */
-  async function compareOwnerVoice(window: AudioWindow) {
+  async function compareVoiceprints(window: AudioWindow): Promise<readonly SpeakerCandidate[]> {
     try {
-      return await speakerTracker.compareOwner(window)
+      return await speakerTracker.compare(window)
     }
     catch (cause) {
       report(cause)
       speakerTracker.release()
-      return Number.NaN
+      return NO_SPEAKER_CANDIDATES
     }
   }
 

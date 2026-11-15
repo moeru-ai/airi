@@ -112,6 +112,8 @@ useResizeObserver(list, () => placeIndicator({ stretch: false }))
 
 // The selected model can be far down the list. Start with it in view.
 onMounted(() => {
+  // Another device can have added a model since the last synchronization.
+  void displayModelStore.refreshCloudModels()
   placeIndicator({ stretch: false })
   list.value?.querySelector('[aria-checked="true"]')?.scrollIntoView({ block: 'nearest', inline: 'center' })
 })

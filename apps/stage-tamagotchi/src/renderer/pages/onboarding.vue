@@ -17,7 +17,7 @@ import { useAuthStatusStore } from '../stores/auth-status'
 const authStore = useAuthStore()
 const { needsLogin, isAuthenticated } = storeToRefs(authStore)
 const onboardingStore = useOnboardingStore()
-const { closeRequestId } = storeToRefs(onboardingStore)
+const { closeRequestId, needsOnboarding } = storeToRefs(onboardingStore)
 const { isDark } = useTheme()
 const startLogin = useElectronEventaInvoke(electronAuthStartLogin)
 const closeWindow = useElectronEventaInvoke(electronOnboardingClose)
@@ -26,6 +26,7 @@ const { closeOnboardingWindow } = useOnboardingAuthentication({
   consumeLoginRequest: () => authStore.consumeLoginRequest(),
   closeRequestId,
   closeWindow,
+  hasPendingSteps: needsOnboarding,
   isAuthenticated,
   isConfirming: computed(() => authStatus.status?.state === 'confirming'),
   needsLogin,

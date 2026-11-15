@@ -1,7 +1,9 @@
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
+import type { GlobalShortcutService } from '../../services/electron/global-shortcut'
 
 import { defineInvokeHandler } from '@moeru/eventa'
+import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
 import { safeClose } from '@proj-airi/electron-vueuse/main'
 import { BrowserWindow, ipcMain } from 'electron'
 
@@ -25,6 +27,8 @@ export interface OnboardingWindowManager {
 export function setupOnboardingWindowManager(params: {
   serverChannel: ServerChannel
   i18n: I18n
+  /** The permissions step tries the Push to Talk shortcut in this window. */
+  globalShortcut: GlobalShortcutService
 }): OnboardingWindowManager {
   const closeCallbacks = new Set<() => void>()
 
@@ -70,6 +74,9 @@ export function setupOnboardingWindowManager(params: {
 
     await setupBaseWindowElectronInvokes({ context, window: newWindow, i18n: params.i18n, serverChannel: params.serverChannel })
     createAuthService({ context, window: newWindow })
+    params.globalShortcut.registerWindow({ context, window: newWindow })
+    // The permissions step previews the screen after the user allows Screen Recording.
+    initScreenCaptureForWindow(newWindow)
 
     await load(newWindow, withHashRoute(baseUrl(getRendererRoot()), '/onboarding', {
       query: { 'synced-leader': 'false' },

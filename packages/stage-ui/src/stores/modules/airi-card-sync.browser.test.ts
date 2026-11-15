@@ -7,9 +7,8 @@ import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp } from 'vue'
 
-import { CHARACTER_CARD_SYNC_FLAG } from '../../libs/feature-flags'
 import { useAuthStore } from '../auth'
-import { useFeatureFlagsStore } from '../feature-flags'
+import { useSyncPreferencesStore } from '../sync-preferences'
 import { useAiriCardStore } from './airi-card'
 
 vi.mock('vue-i18n', () => ({
@@ -28,7 +27,7 @@ function createContext(runtime: SyncedPiniaRuntime) {
   piniaInstances.push(pinia)
   // Cloud sync is off by default. Most of these tests exercise the sync
   // itself, so turn it on for this window the same way a user would.
-  useFeatureFlagsStore(pinia).setPreference(CHARACTER_CARD_SYNC_FLAG.key, true)
+  useSyncPreferencesStore(pinia).setEnabled('character-cards', true)
   return { pinia, auth: useAuthStore(pinia), cards: useAiriCardStore(pinia) }
 }
 
@@ -221,6 +220,29 @@ describe('card synchronization across windows', () => {
 
     return { leader, follower, onError }
   }
+
+  // `completeSignIn` replaces the token first. `userId` still names the previous account until the session request answers.
+  it('sends nothing while a new sign-in has no verified user', async () => {
+    const { leader, onError } = await createWindows()
+    signIn(leader.auth, accountId())
+    await expect.poll(() => server.requests.list).toBeGreaterThan(0)
+    await leader.cards.synchronizeCards()
+    stubServerFetch((input, init) => {
+      const url = input instanceof Request ? input.url : String(input)
+      return url.includes('/get-session') ? new Promise<Response>(() => {}) : server.fetchCards(input, init)
+    })
+    const pushesBefore = server.requests.push
+
+    // The session answer never arrives, so the runtime rejects this call during teardown.
+    void leader.auth.completeSignIn({ accessToken: 'token-b', refreshToken: 'refresh-b', idToken: 'id-b', clientId: 'client', expiresIn: 3600 }).catch(() => {})
+    await expect.poll(() => leader.auth.isSessionVerified).toBe(false)
+    const cardId = await leader.cards.addCard({ name: 'Luna', version: '1.0.0', description: 'Calm' }, 'scratch')
+    await leader.cards.synchronizeCards()
+
+    expect(server.requests.push).toBe(pushesBefore)
+    expect(server.documents.has(cardId)).toBe(false)
+    expect(onError).not.toHaveBeenCalled()
+  })
 
   it('sends a card that a follower added to the server', async () => {
     const { leader, follower, onError } = await createWindows()
@@ -464,7 +486,7 @@ describe('card synchronization across windows', () => {
 
   it('sends nothing while cloud sync is off, the default, even for a signed-in user', async () => {
     const { leader, onError } = await createWindows()
-    useFeatureFlagsStore(leader.pinia).setPreference(CHARACTER_CARD_SYNC_FLAG.key, false)
+    useSyncPreferencesStore(leader.pinia).setEnabled('character-cards', false)
     signIn(leader.auth, accountId())
     await leader.cards.addCard({ name: 'Luna', version: '1.0.0' }, 'scratch')
 
@@ -477,12 +499,12 @@ describe('card synchronization across windows', () => {
 
   it('starts a run as soon as a signed-in user turns cloud sync on', async () => {
     const { leader, onError } = await createWindows()
-    useFeatureFlagsStore(leader.pinia).setPreference(CHARACTER_CARD_SYNC_FLAG.key, false)
+    useSyncPreferencesStore(leader.pinia).setEnabled('character-cards', false)
     signIn(leader.auth, accountId())
     const cardId = await leader.cards.addCard({ name: 'Luna', version: '1.0.0' }, 'scratch')
     expect(cardRequestsOf(server.fetchCards)).toEqual([])
 
-    useFeatureFlagsStore(leader.pinia).setPreference(CHARACTER_CARD_SYNC_FLAG.key, true)
+    useSyncPreferencesStore(leader.pinia).setEnabled('character-cards', true)
 
     await expect.poll(() => server.documents.get(cardId)?.fields.get('/name')?.value).toBe('Luna')
     expect(onError).not.toHaveBeenCalled()

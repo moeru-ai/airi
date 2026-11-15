@@ -1,3 +1,5 @@
+import type { Container } from 'injeca'
+
 import type {
   Extension,
   ExtensionKitConsumer,
@@ -27,6 +29,9 @@ import type {
 
 import semver from 'semver'
 
+import { errorMessageFrom } from '@moeru/std'
+import { createContainer, dispose, effect, watch } from 'injeca'
+
 import { DisposableStore } from '../extension/disposable'
 import { kitUseFailure } from '../kit'
 import {
@@ -51,6 +56,19 @@ import {
 
 /** Stable empty declaration set for Manifests that do not provide Kits. */
 const emptyProvidedKitDeclarations: readonly ExtensionProvidedKitDeclaration[] = Object.freeze([])
+
+/**
+ * How long a session stop waits for its cleanup callbacks. After this time, the stop continues and the callbacks keep running.
+ * A cleanup that awaits the stop of its own session settles only after this time.
+ */
+const sessionStopTimeoutMs = 10_000
+
+interface SessionLifecycle {
+  readonly container: Container
+  readonly transaction: ExtensionProviderTransaction
+  /** Set by the setup commit. Stop disposes it before the container. */
+  lease?: ExtensionRegistrationLease
+}
 
 /**
  * Extension host lifecycle overview.
@@ -102,8 +120,10 @@ export interface ExtensionSession {
   runtime?: PluginRuntime
   /** Loaded extension definition. */
   entrypoint: Extension
-  /** Current extension setup phase. */
-  phase: 'setting-up' | 'ready' | 'failed' | 'stopped'
+  /** Current extension setup phase. A `pending` session waits for the Kits in `missingKitIds`, and its setup has not run. */
+  phase: 'pending' | 'setting-up' | 'ready' | 'failed' | 'stopped'
+  /** Required Kits without a ready Provider of a compatible version. It is empty after the session leaves `pending`. */
+  missingKitIds: string[]
   /** Modules registered by this extension setup. */
   modules: Map<string, ExtensionModuleContext>
   /** Requested and granted permissions for the extension session. */
@@ -115,16 +135,6 @@ export interface ExtensionSession {
   /** Extension-session cleanup callbacks. */
   subscriptions: DisposableStore
 }
-
-/**
- * Host-private ownership for one session's Provider registrations.
- * Stop releases pending reservations or the committed lease before cleanup starts.
- * Released sessions retain one cleanup promise so concurrent callers share its outcome.
- */
-type SessionRegistration
-  = | { phase: 'pending', transaction: ExtensionProviderTransaction }
-    | { phase: 'ready', lease: ExtensionRegistrationLease }
-    | { phase: 'released', cleanup: Promise<void> }
 
 /**
  * Filters the binding list returned by `ExtensionHost.listBindings(...)`.
@@ -227,9 +237,10 @@ export class ExtensionHost {
   private readonly extensionSessionService = new ExtensionSessionService<ExtensionSession>()
   private readonly runtime: PluginRuntime
   private readonly dependencies = new DependencyService()
-  private readonly providers = new KitProviderRegistry()
-  private readonly sessionRegistrations = new WeakMap<ExtensionSession, SessionRegistration>()
-  private cleanupContext?: Promise<typeof import('./runtimes/node/cleanup-context')>
+  private readonly container = createContainer({ owner: { kind: 'host' }, timeouts: { stop: sessionStopTimeoutMs } })
+  private readonly providers = new KitProviderRegistry(this.container)
+  /** The lifecycle of each session. Container disposal runs the session cleanup effect. */
+  private readonly sessionContainers = new WeakMap<ExtensionSession, SessionLifecycle>()
   private readonly kitApiWatchers = new Map<string, Set<() => Promise<void>>>()
   private readonly modules = new KitApiBindingRegistryService()
   private readonly extensionModuleResources = new Map<string, ExtensionModuleResourceTracker>()
@@ -269,10 +280,24 @@ export class ExtensionHost {
     }
   }
 
+  /** Lists the required Kits of a Manifest without a ready Provider whose version satisfies the requested range. */
+  private findMissingKitIds(manifest: ExtensionManifestV2): string[] {
+    return (manifest.kits?.uses ?? []).filter((declaration) => {
+      if (declaration.optional) {
+        return false
+      }
+      const provider = this.providers.getReady(declaration.id)
+      return !provider || !semver.satisfies(provider.version, declaration.version)
+    }).map(declaration => declaration.id)
+  }
+
   /**
-   * Runs setup and publishes its declared Providers only while the session remains pending.
+   * Runs setup and publishes its declared Providers only while the session remains in setup.
    * Stop releases reservations immediately but does not abort Extension code.
    * If stop interrupts setup, this promise rejects when setup settles.
+   *
+   * A session with a missing required Kit resolves at once in `pending`. Its setup runs when a compatible Provider is ready.
+   * A failure of that later setup goes to the container logger, and the session stops.
    */
   async startExtension(
     extension: Extension,
@@ -298,10 +323,12 @@ export class ExtensionHost {
       requested: options.manifest.permissions,
       persisted: persistedGrant,
     }) ?? options.manifest.permissions
+    const owner = { kind: 'extension' as const, extensionId: extension.id, sessionId: sessionIdentity.sessionId }
+    const container = createContainer({ parent: this.container, owner })
     const providerTransaction = this.providers.beginExtensionSession({
-      owner: { kind: 'extension', extensionId: extension.id, sessionId: sessionIdentity.sessionId },
+      owner,
       declarations: options.manifest.kits?.provides ?? emptyProvidedKitDeclarations,
-    })
+    }, container)
     let permissionSnapshot: ReturnType<PermissionService['initialize']>
     try {
       permissionSnapshot = this.permissions.initialize(sessionIdentity.sessionId, options.manifest.permissions, {
@@ -323,6 +350,7 @@ export class ExtensionHost {
       runtime,
       entrypoint: extension,
       phase: 'setting-up',
+      missingKitIds: this.findMissingKitIds(options.manifest),
       modules: new Map(),
       permissions: {
         requested: permissionSnapshot.requested,
@@ -332,7 +360,13 @@ export class ExtensionHost {
       subscriptions,
     }
 
-    this.sessionRegistrations.set(session, { phase: 'pending', transaction: providerTransaction })
+    const owned: SessionLifecycle = { container, transaction: providerTransaction }
+    this.sessionContainers.set(session, owned)
+    // Effects dispose in reverse order. So the session leaves the list after its resources, also when their cleanup passes the stop timeout.
+    effect(container, () => () => {
+      this.extensionSessionService.remove(session.id)
+    })
+    effect(container, () => () => this.disposeSessionResources(session))
     this.extensionSessionService.register(session)
 
     const ctx: ExtensionSetupContext = {
@@ -341,7 +375,7 @@ export class ExtensionHost {
       subscriptions,
       modules: {
         register: async (input: RegisterExtensionModuleInput) => {
-          if (this.sessionRegistrations.get(session)?.phase === 'released') {
+          if (session.phase === 'stopped') {
             throw new Error(`Extension session ${session.id} is stopped and cannot register modules.`)
           }
           if (session.modules.has(input.id)) {
@@ -382,19 +416,48 @@ export class ExtensionHost {
       },
     }
 
+    if (session.missingKitIds.length === 0) {
+      return await this.setupExtensionSession(session, ctx, providerTransaction)
+    }
+
+    session.phase = 'pending'
+    for (const declaration of options.manifest.kits?.uses ?? []) {
+      if (declaration.optional) {
+        continue
+      }
+      // A Provider change of a required Kit checks all required Kits again. The container disposal ends the subscription.
+      watch(container, declaration.id, () => {
+        if (session.phase !== 'pending') {
+          return
+        }
+        session.missingKitIds = this.findMissingKitIds(options.manifest)
+        if (session.missingKitIds.length === 0) {
+          session.phase = 'setting-up'
+          this.setupExtensionSession(session, ctx, providerTransaction).catch((error: unknown) => {
+            this.container.logger.warn(`The setup of Extension \`${extension.id}\` failed after its Kits became ready: ${errorMessageFrom(error)}`)
+          })
+        }
+      })
+    }
+    return session
+  }
+
+  private async setupExtensionSession(session: ExtensionSession, ctx: ExtensionSetupContext, providerTransaction: ExtensionProviderTransaction) {
+    const extension = session.entrypoint
     try {
       await extension.setup(ctx)
-      const registration = this.sessionRegistrations.get(session)
-      if (registration?.phase !== 'pending') {
+      if (session.phase === 'stopped') {
         throw new Error(`Extension session ${session.id} stopped before setup completed.`)
       }
-      const committed = registration.transaction.commit()
-      this.sessionRegistrations.set(session, { phase: 'ready', lease: committed.lease })
+      const lease = providerTransaction.commit().lease
+      const owned = this.sessionContainers.get(session)
+      if (owned)
+        owned.lease = lease
       session.phase = 'ready'
       return session
     }
     catch (error) {
-      if (this.sessionRegistrations.get(session)?.phase !== 'released') {
+      if (session.phase !== 'stopped') {
         session.phase = 'failed'
       }
       try {
@@ -651,63 +714,37 @@ export class ExtensionHost {
     contribution.install(this.installContext)
   }
 
+  /**
+   * Releases the session at once, then disposes its container. Late setup cannot publish, and cleanup callbacks cannot observe a ready Provider.
+   * Every caller shares one outcome. A call from the synchronous part of the session cleanup resolves at once.
+   */
   private cleanupExtensionSession(session: ExtensionSession): Promise<void> {
-    const registration = this.sessionRegistrations.get(session)
-    if (!registration) {
+    const owned = this.sessionContainers.get(session)
+    if (!owned) {
       throw new Error(`Unknown registration lifecycle for Extension session ${session.id}.`)
     }
-    if (registration.phase === 'released') {
-      return this.waitForSessionCleanup(session, registration.cleanup)
+    if (session.phase !== 'stopped') {
+      session.phase = 'stopped'
+      owned.transaction.rollback()
+      // The Providers leave the Kit catalog in this turn, before the container disposal runs the session cleanups.
+      owned.lease?.dispose()
     }
-    if (this.runtime !== 'web') {
-      // Keep Node async hooks behind the runtime boundary. Web cleanup retains the shared outcome without self-wait detection.
-      this.cleanupContext ??= import('./runtimes/node/cleanup-context')
-    }
-
-    // Store the shared outcome before any cleanup callback can call stop again.
-    const cleanup = Promise.resolve().then(async () => {
-      const resources = new DisposableStore()
-      resources.add(session.subscriptions)
-      resources.add({ dispose: () => this.cleanupExtensionSessionModules(session) })
-      // Reverse disposal preserves binding, module, then root cleanup order without stopping at the first failure.
-      resources.add({ dispose: () => {
-        for (const module of this.modules.listByOwner(session.id)) {
-          this.modules.withdraw(session.id, session.extension.id, module.moduleId)
-          this.modules.unbind(session.id, session.extension.id, module.moduleId)
-        }
-      } })
-      try {
-        const context = await this.cleanupContext
-        if (context) {
-          await context.runCleanup(session, () => resources.dispose())
-        }
-        else {
-          await resources.dispose()
-        }
-      }
-      finally {
-        this.extensionSessionService.remove(session.id)
-      }
-    })
-    this.sessionRegistrations.set(session, { phase: 'released', cleanup })
-    session.phase = 'stopped'
-    // Release ownership synchronously. Late setup cannot publish, and cleanup callbacks cannot observe a ready Provider.
-    if (registration.phase === 'pending') {
-      registration.transaction.rollback()
-    }
-    else {
-      registration.lease.dispose()
-    }
-    return cleanup
+    return dispose(owned.container)
   }
 
-  private async waitForSessionCleanup(session: ExtensionSession, cleanup: Promise<void>): Promise<void> {
-    const context = await this.cleanupContext
-    if (context?.isCleanupActive(session)) {
-      // Joining an ancestor waits for the callback that made this call. External callers have no matching cleanup frame.
-      throw new Error(`Cannot await Extension session ${session.id} from its own cleanup or a descendant cleanup.`)
-    }
-    await cleanup
+  /** The cleanup effect of a session container. It runs after the disposal withdrew the session Providers. */
+  private disposeSessionResources(session: ExtensionSession): Promise<void> {
+    const resources = new DisposableStore()
+    resources.add(session.subscriptions)
+    resources.add({ dispose: () => this.cleanupExtensionSessionModules(session) })
+    // Reverse disposal preserves binding, module, then root cleanup order without stopping at the first failure.
+    resources.add({ dispose: () => {
+      for (const module of this.modules.listByOwner(session.id)) {
+        this.modules.withdraw(session.id, session.extension.id, module.moduleId)
+        this.modules.unbind(session.id, session.extension.id, module.moduleId)
+      }
+    } })
+    return resources.dispose()
   }
 
   private getModuleOrThrow(moduleId: string) {
@@ -992,8 +1029,8 @@ export class ExtensionHost {
   }
 
   /**
-   * Releases the session and awaits every cleanup attempt. Concurrent external callers share the completed outcome.
-   * Node/Electron cleanup cannot stop or reload an active cleanup ancestor, including its own session.
+   * Releases the session and awaits every cleanup attempt, up to the session stop timeout. Concurrent callers share the outcome.
+   * A cleanup that awaits the stop of its own session or of a cleanup ancestor waits until that timeout.
    */
   async stop(sessionId: string): Promise<ExtensionSession | undefined> {
     const extensionSession = this.extensionSessionService.get(sessionId)
@@ -1005,7 +1042,7 @@ export class ExtensionHost {
     return extensionSession
   }
 
-  /** Starts a fresh session only after cleanup succeeds. Node/Electron cleanup cannot reload an active cleanup ancestor. */
+  /** Starts a fresh session only after cleanup succeeds. A cleanup that reloads its own session waits until the stop timeout. */
   async reload(sessionId: string, options: ExtensionStartOptions = {}): Promise<ExtensionSession> {
     // Reload preserves manifest/runtime intent, then performs stop + fresh start.
     // This intentionally creates a new session identity for deterministic re-bootstrap.

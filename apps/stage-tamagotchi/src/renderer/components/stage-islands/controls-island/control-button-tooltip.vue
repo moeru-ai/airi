@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import type { TooltipContentProps } from 'reka-ui'
 
+import { useBackdropSurface } from '@proj-airi/stage-ui/composables/backdrop-surface'
 import { TooltipContent, TooltipPortal, TooltipProvider, TooltipRoot, TooltipTrigger } from 'reka-ui'
-import { computed } from 'vue'
+import { computed, useTemplateRef } from 'vue'
 
 import { useControlsIslandPlacement } from './use-controls-island-placement'
 
@@ -16,6 +17,9 @@ const props = withDefaults(defineProps<{
 })
 
 const { isLeft } = useControlsIslandPlacement()
+// The tooltip floats over the stage, and the desktop shows through the transparent window around the character.
+// The fill is on an inner element, because the root of `TooltipContent` is the positioning wrapper of reka-ui.
+useBackdropSurface(useTemplateRef<HTMLElement>('surface'))
 const resolvedSide = computed<NonNullable<TooltipContentProps['side']>>(() => {
   if (props.side === 'inward') {
     return isLeft.value ? 'right' : 'left'
@@ -37,18 +41,22 @@ const resolvedSide = computed<NonNullable<TooltipContentProps['side']>>(() => {
       <TooltipPortal>
         <Transition name="fade">
           <TooltipContent
-            :class="[
-              'controls-island-tooltip',
-              'border-1 border-solid border-neutral-200/60 dark:border-neutral-800/10',
-              'bg-neutral-50/80 dark:bg-neutral-800/70',
-              'w-fit flex items-center self-end justify-center px-1.5 py-1',
-              'rounded-lg backdrop-blur-md',
-              'max-w-[min(18rem,calc(100vw-1rem))] break-words text-center text-xs leading-4 whitespace-normal',
-            ]"
+            :class="['controls-island-tooltip']"
             :side="resolvedSide"
             :side-offset="4"
           >
-            <slot name="tooltip" />
+            <div
+              ref="surface"
+              :class="[
+                'border-1 border-solid border-neutral-200/60 dark:border-neutral-800/10',
+                'bg-neutral-50/80 dark:bg-neutral-800/70',
+                'w-fit flex items-center self-end justify-center px-1.5 py-1',
+                'rounded-lg backdrop-blur-md',
+                'max-w-[min(18rem,calc(100vw-1rem))] break-words text-center text-xs leading-4 whitespace-normal',
+              ]"
+            >
+              <slot name="tooltip" />
+            </div>
           </TooltipContent>
         </Transition>
       </TooltipPortal>

@@ -8,14 +8,14 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { createVoiceRephrasePlugin } from './voice-rephrase-plugin'
 
-function createHarness(rephrase: (segments: readonly string[], signal: AbortSignal) => Promise<readonly string[]>, enabled = true, speculateAfterMs = 600) {
+function createHarness(rephrase: (segments: readonly string[], signal: AbortSignal) => Promise<readonly string[]>, enabled = true, speculateAfterMs = 600, timeoutMs = 1000) {
   const source = createPushStream<PcmBlock>()
   const audio = new AudioInput({ live: true, open: () => source.stream })
   const output = createPushStream<TranscriptionEvent>()
   const submit = vi.fn(async () => ({ status: 'drafted' as const, draftId: 'draft' }))
   const controller = new VoiceController({ audio, submit, transcriber: () => ({ transcribe: () => output.stream }) })
   const onError = vi.fn()
-  controller.use(createVoiceRephrasePlugin({ enabled: () => enabled, rephrase, timeoutMs: 1000, speculateAfterMs }), { onError })
+  controller.use(createVoiceRephrasePlugin({ enabled: () => enabled, rephrase, timeoutMs, speculateAfterMs }), { onError })
 
   async function speak(updates: readonly { text: string, final: boolean }[][]): Promise<SpeechInputAttempt> {
     const attempt = controller.beginInput({ sessionId: 'alice', interruptTurns: [], start: { kind: 'after-silence' } })
@@ -66,7 +66,8 @@ describe('createVoiceRephrasePlugin', () => {
     ])
 
     expect(rephrase).toHaveBeenCalledOnce()
-    expect(rephrase).toHaveBeenCalledWith(['um check the weather. ', 'Shanghai tomorrow'], expect.any(AbortSignal))
+    // The rewrite names its own input, because it can finish after the next input began.
+    expect(rephrase).toHaveBeenCalledWith(['um check the weather. ', 'Shanghai tomorrow'], expect.any(AbortSignal), { inputId: attempt.id, sessionId: 'alice' })
     expect(submit).toHaveBeenCalledWith(expect.objectContaining({ text: 'Check the weather. Shanghai, tomorrow.' }), expect.any(AbortSignal))
     expect(attempt.input?.transcript.raw.text).toBe('um check the weather. Shanghai tomorrow')
     // Segment-level evidence, such as a speaker label, stays on the segment that it describes.
@@ -152,8 +153,30 @@ describe('createVoiceRephrasePlugin', () => {
 
     await expect.poll(() => signals[0]?.aborted).toBe(true)
     expect((await input.end()).status).toBe('drafted')
-    expect(rephrase).toHaveBeenLastCalledWith(['turn on the light'], expect.any(AbortSignal))
+    expect(rephrase).toHaveBeenLastCalledWith(['turn on the light'], expect.any(AbortSignal), { inputId: input.attempt.id, sessionId: 'alice' })
     expect(submit).toHaveBeenCalledWith(expect.objectContaining({ text: 'Turn on the light.' }), expect.any(AbortSignal))
+    await controller.close()
+  })
+
+  it('aborts a stalled speculative rewrite after the timeout while the speaker keeps the same text', async () => {
+    const signals: AbortSignal[] = []
+    const rephrase = vi.fn(async (segments: readonly string[], signal: AbortSignal) => {
+      signals.push(signal)
+      // The first request stalls until its signal aborts, as a model request does.
+      if (signals.length === 1)
+        return new Promise<readonly string[]>((_, reject) => signal.addEventListener('abort', () => reject(signal.reason), { once: true }))
+      return ['Hello there.']
+    })
+    const { controller, submit, open } = createHarness(rephrase, true, 10, 50)
+    const input = await open()
+    input.update('hello there')
+
+    await expect.poll(() => signals[0]?.aborted).toBe(true)
+    expect(input.attempt.state.phase).toBe('capturing')
+    input.update('hello there', true)
+    expect((await input.end()).status).toBe('drafted')
+    expect(rephrase).toHaveBeenCalledTimes(2)
+    expect(submit).toHaveBeenCalledWith(expect.objectContaining({ text: 'Hello there.' }), expect.any(AbortSignal))
     await controller.close()
   })
 

@@ -30,6 +30,15 @@ const SEGMENT_PAUSE_MS = 300
 /** Chunk length of the window series. Ten records each second keep the live waveform smooth and cost little. */
 const LIVE_CHUNK_MS = 100
 
+export interface VoiceInputTracerOptions {
+  /** @default getTraceSink */
+  sink?: () => TraceSink
+  /** The VAD probability that begins speech. Each input span records it, so the viewer can draw it. */
+  speechThreshold?: number
+  /** The label of a voiceprint by its id. The input span records the label of the voiceprint with the highest score. */
+  speakerLabel?: (speakerId: string) => string | undefined
+}
+
 interface TracedInput {
   readonly span: TraceSpan
   segment?: { span: TraceSpan, speechMs: number, silenceMs: number, lastSpeechAt: number }
@@ -52,17 +61,19 @@ function roundScore(value: number) {
  * VAD results become speech spans, one for each speech segment. Each detector window adds a VAD probability and a
  * microphone level sample.
  *
- * With speaker recognition on, the input span also gets the speaker score of its speech.
+ * With speaker recognition on, the input span also gets the voiceprint with the highest score for its speech, and that
+ * score. With `speechThreshold`, the input span also records the VAD threshold.
  *
  * State: `inputs` holds the open inputs by ID. The input outcome ends the input span and its open segment.
  */
-export function createVoiceInputTracer(sink: () => TraceSink = getTraceSink) {
+export function createVoiceInputTracer(options: VoiceInputTracerOptions = {}) {
+  const sink = options.sink ?? getTraceSink
   const inputs = new Map<string, TracedInput>()
   const actorIds = { [VoiceIdKeys.Actor]: LOCAL_USER_ACTOR }
   const inputTrack = trackPath(VoiceTracks.Input, { actor: LOCAL_USER_ACTOR })
   // The level and the VAD probability of each detector window. The viewer draws the level as the input waveform, and
-  // the probability as the opacity of its bars. Short chunks let the live waveform grow smoothly. The
-  // writer drops its samples while no viewer shows the input track.
+  // the probability as a curve over it. Short chunks let the live waveform grow smoothly. The writer drops its samples
+  // while no viewer shows the input track.
   const windowSeries = new SeriesWriter(sink, { track: inputTrack, ids: actorIds, chunkMs: LIVE_CHUNK_MS })
 
   /** Records the speech probability and the level of one detector window. */
@@ -79,7 +90,10 @@ export function createVoiceInputTracer(sink: () => TraceSink = getTraceSink) {
       track: inputTrack,
       name: VoiceNames.VoiceInput,
       ids: { ...actorIds, [VoiceIdKeys.Input]: attempt.id, [VoiceIdKeys.Conversation]: attempt.sessionId },
-      attrs: { [VoiceAttributes.InputTrigger]: trigger },
+      attrs: {
+        [VoiceAttributes.InputTrigger]: trigger,
+        ...(options.speechThreshold === undefined ? {} : { [VoiceAttributes.VADThreshold]: options.speechThreshold }),
+      },
       ...(wakeSpanId ? { links: [{ rel: TraceLinkRelations.CausedBy, to: { spanId: wakeSpanId } }] } : {}),
     })
     inputs.set(attempt.id, { span })
@@ -157,7 +171,13 @@ export function createVoiceInputTracer(sink: () => TraceSink = getTraceSink) {
     const attrs: TraceAttributes = { [VoiceAttributes.InputOutcome]: outcome.status }
     if (input.speaker) {
       const { update, rejected } = input.speaker
-      attrs[VoiceAttributes.SpeakerScore] = roundScore(update.value.candidates[0].score)
+      const [best] = update.value.candidates
+      attrs[VoiceAttributes.SpeakerId] = best.speakerId
+      const label = options.speakerLabel?.(best.speakerId)
+      // A voiceprint that the user deleted during the input has no label any more. Its id stays in the trace.
+      if (label !== undefined)
+        attrs[VoiceAttributes.SpeakerLabel] = label
+      attrs[VoiceAttributes.SpeakerScore] = roundScore(best.score)
       attrs[VoiceAttributes.SpeakerScores] = update.scores.map(roundScore)
       attrs[VoiceAttributes.SpeakerVoicedMs] = Math.round(update.value.voicedMs)
       attrs[VoiceAttributes.SpeakerRejectedCount] = rejected

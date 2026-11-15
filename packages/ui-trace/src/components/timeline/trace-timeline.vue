@@ -14,7 +14,7 @@ import { pixelsPerMs, ROW_GEOMETRY, timeToX, WAVEFORM_BAR_PITCH_PX, WAVEFORM_REV
 import { ATTR_GEN_AI_REQUEST_MODEL } from '@proj-airi/trace-kit'
 import { provisionalFrom } from '@proj-airi/trace-kit/projections'
 import { findItem, relatedSpanKeys, spanTokens, trackSummary } from '@proj-airi/trace-kit/views'
-import { VoiceSeries } from '@proj-airi/trace-kit/voice'
+import { VoiceAttributes, VoiceSeries } from '@proj-airi/trace-kit/voice'
 import { useTheme } from '@proj-airi/ui'
 import { Timeline } from '@proj-airi/ui-timeline'
 import { useLocalStorage } from '@vueuse/core'
@@ -184,8 +184,9 @@ const rowModel = computed(() => {
 const seriesCache = new SeriesCache()
 
 /**
- * The series of a track, shown inside its spans. A `level` series draws as a waveform, and the VAD probability of the
- * same windows sets the opacity of its bars. Any other series draws as a chart. Only the first row of a track has them.
+ * The series of a track, shown inside its spans. A `level` series draws as a waveform. The VAD probability of the same
+ * windows draws as a curve over it, with the threshold of the newest input that recorded one, and sets the opacity of
+ * its bars. Any other series draws as a chart. Only the first row of a track has them.
  */
 function capsuleContentOf(entry: TraceRowEntry, view: TimelineView): CapsuleContent | undefined {
   if (entry.kind !== 'detail' || !entry.row.primary || entry.row.hidden)
@@ -194,8 +195,16 @@ function capsuleContentOf(entry: TraceRowEntry, view: TimelineView): CapsuleCont
   if (track.series[VoiceSeries.Level]) {
     // The reveal edge moves toward the newest window on each frame, so a live waveform grows smoothly.
     const revealX = timeToX(view, seriesCache.reveal(track, VoiceSeries.Level, (WAVEFORM_REVEAL_PX + WAVEFORM_BAR_PITCH_PX) / pixelsPerMs(view)))
-    const intensity = track.series[VoiceSeries.Probability] ? seriesCache.get(track, VoiceSeries.Probability) : undefined
-    return { kind: 'waveform', level: seriesCache.get(track, VoiceSeries.Level), intensity, revealX }
+    const probability = track.series[VoiceSeries.Probability] ? seriesCache.get(track, VoiceSeries.Probability) : undefined
+    const threshold = track.spans.findLast(span => typeof span.attrs[VoiceAttributes.VADThreshold] === 'number')?.attrs[VoiceAttributes.VADThreshold]
+    return {
+      kind: 'waveform',
+      level: seriesCache.get(track, VoiceSeries.Level),
+      intensity: probability,
+      curve: probability,
+      curveThreshold: typeof threshold === 'number' ? threshold : undefined,
+      revealX,
+    }
   }
   const key = Object.keys(track.series)[0]
   return key === undefined ? undefined : { kind: 'chart', series: seriesCache.get(track, key) }

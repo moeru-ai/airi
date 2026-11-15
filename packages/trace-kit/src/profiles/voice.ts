@@ -91,6 +91,12 @@ export const VoiceAttributes = {
   WakeTokens: 'voice.wake.tokens',
   SpeechDurationMs: 'voice.speech.duration_ms',
   VADAborted: 'voice.vad.aborted',
+  /** The VAD probability that begins speech, on the input span. The viewer draws it as a dashed line over the probability. */
+  VADThreshold: 'voice.vad.threshold',
+  /** The id of the voiceprint with the highest score. Speaker recognition compares the speech with each enabled voiceprint. */
+  SpeakerId: 'voice.speaker.id',
+  /** The label of that voiceprint when the input ended. The user writes it, and it can be empty. */
+  SpeakerLabel: 'voice.speaker.label',
   SpeakerScore: 'voice.speaker.score',
   SpeakerScores: 'voice.speaker.scores',
   SpeakerVoicedMs: 'voice.speaker.voiced_ms',

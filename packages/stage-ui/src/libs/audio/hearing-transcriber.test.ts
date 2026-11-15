@@ -9,7 +9,7 @@ import { createPushStream } from '@proj-airi/stream-kit'
 import { VoiceIdKeys, VoiceNames } from '@proj-airi/trace-kit/voice'
 import { expect, it, vi } from 'vitest'
 
-import { activeVoiceInput, configureTraceTransport } from '../../composables/use-trace'
+import { configureTraceTransport } from '../../composables/use-trace'
 import { createHearingTranscriber } from './hearing-transcriber'
 
 it('streams provider updates before capture ends and preserves the final response after normal finish', async () => {
@@ -117,10 +117,9 @@ it('aborts all provider outputs when standalone transcription fails', async () =
   expect(releasedEvents).toHaveBeenCalledOnce()
 })
 
-it('records speech recognition with the IDs that the caller names, before the voice input that runs now', async () => {
+it('records speech recognition with the IDs that the caller names', async () => {
   const recorded: TraceRecord[] = []
   const stopTransport = configureTraceTransport({ source: 'test', clock: 'mono:test', runtime: 'test', send: record => recorded.push(record) })
-  activeVoiceInput.value = { inputId: 'other-input', sessionId: 'alice' }
   try {
     const transcriber = createHearingTranscriber(async () => {
       throw new Error('provider failed')
@@ -129,7 +128,6 @@ it('records speech recognition with the IDs that the caller names, before the vo
     await expect(reader.read()).rejects.toThrow('provider failed')
   }
   finally {
-    activeVoiceInput.value = undefined
     stopTransport()
   }
 

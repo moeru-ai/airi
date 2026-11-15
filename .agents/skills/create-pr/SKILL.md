@@ -1,11 +1,13 @@
 ---
 name: create-pr
-description: Prepare and create an AIRI pull request with verifiable change context, architecture evidence, and required visual evidence. Use when Codex must open, create, publish, or prepare a PR from the current branch.
+description: Prepare and create an AIRI pull request or issue with the request context, agent attribution, verifiable change context, architecture evidence, and required visual evidence. Use when an agent must open, create, publish, or prepare a PR from the current branch, file an issue, or write commit messages for a PR.
 ---
 
 # Create Pull Request
 
 Create a reviewable PR from the exact commits intended for publication. The PR body must explain the changed system, not only list changed files.
+
+The [Request Context](#request-context) and [Agent Attribution](#agent-attribution) sections also apply to issues and commit messages.
 
 ## Workflow
 
@@ -16,7 +18,7 @@ Create a reviewable PR from the exact commits intended for publication. The PR b
 5. Classify the PR as a feature, fix, refactor, maintenance change, or a combination. Select context evidence that helps reviewers understand this change.
 6. Run checks that match the changed surfaces. Run the tests of the branch changes, as `AGENTS.md` describes. Satisfy the repository's required final checks.
 7. If the diff changes user-visible UI, follow the visual-evidence workflow below.
-8. Read [the PR body template](references/pr-body.md). Compose the body from verified code and runtime evidence.
+8. Read [the PR body template](references/pr-body.md). Compose the body from verified code and runtime evidence. Include the request context and the agent attribution.
 9. Publish the intended commits through the available GitHub or `gh` workflow.
 10. Create the PR. Then open it and verify the title, base, head, body, diagrams, tables, and image Markdown.
 11. Get the PR review threads, comments, and check status. Fix each confirmed error and run focused checks.
@@ -33,11 +35,73 @@ Build a small context brief before you write the PR body. Keep the analysis read
 - Support architecture claims with file paths or symbols. Mark an unproven business intent as an assumption or an open question.
 - Do not expose tokens, secrets, full user records, or webhook payloads.
 
+## Request Context
+
+Maintainers review a change against the need that caused it. Give them that need, not only the diff.
+
+In each PR and issue that an agent writes, add a `## Context` section. Put it after `## Summary` in a PR. Put it first in an issue.
+
+- Give the request of the user. Write it as a short paraphrase in English. Keep the decisions and the constraints that the user gave.
+- Give the scenario: what the user did, on which app or platform, and what they saw or expected.
+- Give the scope limits: what the user asked you not to change, and the work that you left for a later PR.
+- If the request came from an issue, a review, or a discussion, link it.
+- If you inferred the need, label it as an assumption.
+
+Obey the private-data rules of `AGENTS.md`. Do not paste the chat, logs, or screenshots of the user. Remove names, paths, host names, account data, and tokens. Generalize a private scenario, for example "a self-hosted provider on a local network".
+
+Keep the section short. Three to six lines are usually enough.
+
+## Agent Attribution
+
+Reviewers need to know which agent and which model wrote a change. They use it to calibrate the review and to find repeated agent failures.
+
+### In the PR or issue body
+
+End the body with a `## Agent` section:
+
+```markdown
+## Agent
+
+- Harness: Claude Code
+- Model: claude-opus-5-5
+```
+
+- Harness is the agent product or framework that ran the work, for example Claude Code, Codex CLI, Cursor, Devin, Jules, or GitHub Copilot.
+- Model is the exact model ID that the runtime reports to you. Do not write a marketing name when you know the ID.
+- If several harnesses or models did meaningful parts of the work, list each one.
+- If the runtime does not tell you a value, write `Unknown`. Do not guess.
+- Keep the harness footer that your runtime requires, for example "Generated with Claude Code". Put it after the `## Agent` section.
+
+### In commit messages
+
+Add one `Assisted-by` trailer for each agent in the commit message body. Use the format of the [Linux kernel coding-assistants guide](https://docs.kernel.org/7.1/process/coding-assistants.html#attribution):
+
+```text
+feat(stage-ui): add provider retry badge
+
+Show a retry badge when a provider request fails and a retry is pending.
+
+Assisted-by: claude-code:claude-opus-5-5
+```
+
+- The format is `Assisted-by: <harness>:<model> [tool ...]`.
+- Write `<harness>` in kebab-case without spaces, for example `claude-code`, `codex-cli`, `cursor`, or `devin`.
+- Write `<model>` as the model ID that the runtime reports. Use `unknown` when you do not know it.
+- Optional tools are analysis tools that did part of the work. Do not list git, pnpm, editors, or the test runner.
+- Put the trailer in the last paragraph of the message, after one blank line. Git and GitHub read trailers only there.
+
+Do not use `Co-authored-by` for an agent or a model. GitHub treats `Co-authored-by` as a human co-author. It links the address to an account and lists it as a contributor. Agent entries in that trailer pollute the contributor list and the commit history.
+
+- Keep `Co-authored-by` for real people only.
+- Do not invent other agent trailers, such as `Co-authored-by-agent` or `Authored-by-agent`. Old commits use them. New commits use `Assisted-by`.
+- Do not add `Signed-off-by` for an agent. Only a human can sign off.
+- Some harnesses add a `Co-authored-by` trailer for themselves by default. Replace it with `Assisted-by`. If a harness instruction requires that trailer, the repository rule takes precedence.
+
 ## PR Body Contract
 
 Use the structure in [the PR body template](references/pr-body.md) as a decision guide. Match the detail to the scope, risk, and review cost.
 
-- Every PR needs a concise `## Summary` and `## Verification` section.
+- Every PR needs a concise `## Summary`, `## Context`, `## Verification`, and `## Agent` section. A PR that a human writes without an agent can omit `## Agent`.
 - Add `## Change map` when the diff changes several modules, responsibilities, or ownership boundaries.
 - Add `## Architecture and behavior` when a diagram explains the change faster or more accurately than prose.
 - Add `## Boundaries and risks` when the change has meaningful failure modes, invariants, migrations, or external effects.

@@ -48,6 +48,8 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
 
   const contexts = new Set<EventaContext>()
   const active = new Map<string, ActiveBinding>()
+  /** The window context that registered each renderer binding. A closed window releases its bindings. */
+  const owners = new Map<string, EventaContext>()
 
   function broadcastTriggered(id: string, phase: 'down' | 'up') {
     for (const context of contexts) {
@@ -164,6 +166,7 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
       uiohookDriver?.unregisterById(id)
     }
     active.delete(id)
+    owners.delete(id)
   }
 
   function tryRegister(binding: ShortcutBinding): ShortcutRegistrationResult | Promise<ShortcutRegistrationResult> {
@@ -199,13 +202,32 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
     contexts.add(context)
     window.on('closed', () => {
       contexts.delete(context)
+      // A binding of a closed window has no listener left. It would also block its key combination for other windows.
+      for (const [id, owner] of owners) {
+        if (owner === context)
+          unregisterById(id)
+      }
     })
+
+    function recordOwner(result: ShortcutRegistrationResult) {
+      if (!result.ok)
+        return result
+      // The uiohook driver loads at its first use, so a registration can finish after its window closed. The closed
+      // window released nothing, because the binding had no owner yet. No window reads the result.
+      if (!contexts.has(context)) {
+        unregisterById(result.id)
+        return result
+      }
+      owners.set(result.id, context)
+      return result
+    }
 
     defineInvokeHandler(context, electronShortcutRegister, (binding) => {
       if (!binding.id) {
         throw new TypeError('electronShortcutRegister called with invalid binding payload')
       }
-      return tryRegister(binding)
+      const result = tryRegister(binding)
+      return result instanceof Promise ? result.then(recordOwner) : recordOwner(result)
     })
 
     defineInvokeHandler(context, electronShortcutUnregister, (payload) => {

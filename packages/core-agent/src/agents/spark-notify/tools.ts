@@ -5,7 +5,7 @@ import type { SparkNotifyRuntimeEvent } from './types'
 
 import { errorMessageFrom } from '@moeru/std'
 import { rawTool } from '@xsai/tool'
-import { toJsonSchema, validate } from 'xsschema'
+import { toJsonSchema } from 'xsschema'
 import { z } from 'zod'
 
 import { normalizeNullableAnyOf, sparkNotifyCommandSchema } from './schema'
@@ -137,7 +137,7 @@ export async function createSparkNotifyTools(options: CreateSparkNotifyToolsOpti
     tools.push(rawTool({
       name: 'builtIn_sparkNoResponse',
       description: 'Indicate that no response or action is needed for the current spark:notify event.',
-      parameters: normalizeNullableAnyOf(await toJsonSchema(z.object({}).strict()) as any),
+      parameters: normalizeNullableAnyOf(await toJsonSchema(z.object({}).strict())),
       execute: async (_rawPayload, context) => {
         options.onEvent?.({ type: 'model-output-tool-call', payload: { toolName: name, toolCallId: context?.toolCallId } })
         options.onNoResponse()
@@ -154,13 +154,12 @@ export async function createSparkNotifyTools(options: CreateSparkNotifyToolsOpti
     tools.push(rawTool({
       name,
       description: 'Issue a spark:command to sub-agents. You can call this tool multiple times.',
-      parameters: normalizeNullableAnyOf(await toJsonSchema(sparkNotifyCommandSchema) as any),
+      parameters: normalizeNullableAnyOf(await toJsonSchema(sparkNotifyCommandSchema)),
       execute: async (rawPayload, context) => {
         options.onEvent?.({ type: 'model-output-tool-call', payload: { toolName: name, toolCallId: context?.toolCallId, rawPayload } })
 
         try {
-          const payload = rawPayload as z.infer<typeof sparkNotifyCommandSchema>
-          const validated = await validate(sparkNotifyCommandSchema, payload)
+          const validated = sparkNotifyCommandSchema.parse(rawPayload)
 
           options.onCommands(validated.commands.map(normalizeSparkNotifyCommand))
           options.onEvent?.({ type: 'tool-execution', payload: { toolName: name, toolCallId: context?.toolCallId, commandCount: validated.commands.length } })

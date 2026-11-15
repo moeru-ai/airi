@@ -25,6 +25,7 @@ import {
   electronSetUpdaterPreferences,
 } from '../../../shared/eventa'
 import { channelOfVersion, updateChannels } from '../../../shared/update-channels'
+import { changesUrlOf, fetchGitHubReleaseNotes, hasGitHubRelease } from './release-notes'
 
 const UPDATE_CHANNEL_ENV_KEY = 'AIRI_UPDATE_CHANNEL'
 
@@ -179,7 +180,15 @@ export interface AutoUpdaterOptions {
   setStoredUpdateLane?: (lane: UpdateLane | undefined) => void
   /** The updater of `@ergosphere-it/electron/main`. Tests pass their own. */
   updater?: Updater
+  /** Reads the release notes of a version. Tests pass their own. */
+  fetchReleaseNotes?: (version: string) => Promise<string | undefined>
 }
+
+/** After a failed request for release notes, the service asks again only after this time. */
+const RELEASE_NOTES_RETRY_MS = 10 * 60 * 1000
+
+/** The statuses that show an update to the user, so the renderer shows its changes. */
+const statusesWithChanges: ReadonlyArray<AutoUpdaterState['status']> = ['available', 'manual-install-required', 'downloading', 'downloaded']
 
 /**
  * Returns whether a store or a package manager updates this installation, so AIRI must not run its own updater.
@@ -272,11 +281,56 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
     },
   })
 
-  let state: AutoUpdaterState = withDiagnostics(stateFromStatus(updater.status))
+  const fetchReleaseNotes = options.fetchReleaseNotes ?? fetchGitHubReleaseNotes
+  /** The notes of each version that has a release. `undefined` notes with a time mark a failed request. */
+  const releaseNotes = new Map<string, { notes?: string, failedAt?: number }>()
+  /** The last state before `withChanges`, so the notes can arrive later. */
+  let latest: AutoUpdaterState = stateFromStatus(updater.status)
+
+  /**
+   * Adds the changes of the update to `next`: the page that lists them, and the release notes after they arrive.
+   * The first state of a version starts the request, and its result broadcasts the state again.
+   */
+  function withChanges(next: AutoUpdaterState): AutoUpdaterState {
+    const version = next.info?.version
+    if (!next.info || !version || !statusesWithChanges.includes(next.status))
+      return next
+
+    if (hasGitHubRelease(version))
+      loadReleaseNotes(version)
+
+    return {
+      ...next,
+      info: { ...next.info, releaseNotes: releaseNotes.get(version)?.notes },
+      changesUrl: changesUrlOf(activeBundle.version, version),
+    }
+  }
+
+  function loadReleaseNotes(version: string) {
+    const entry = releaseNotes.get(version)
+    if (entry && (entry.failedAt === undefined || Date.now() - entry.failedAt < RELEASE_NOTES_RETRY_MS))
+      return
+
+    // An entry without a time marks a running request.
+    releaseNotes.set(version, {})
+    fetchReleaseNotes(version)
+      .then((notes) => {
+        releaseNotes.set(version, { notes })
+        if (notes && latest.info?.version === version)
+          broadcast(latest)
+      })
+      .catch((error) => {
+        releaseNotes.set(version, { failedAt: Date.now() })
+        log.withError(error).warn(`[auto-updater] cannot read the release notes of v${version}`)
+      })
+  }
+
+  let state: AutoUpdaterState = withDiagnostics(withChanges(latest))
   const hooks = new Set<(state: AutoUpdaterState) => void>()
 
   function broadcast(next: AutoUpdaterState) {
-    state = withDiagnostics(next)
+    latest = next
+    state = withDiagnostics(withChanges(next))
 
     for (const listener of hooks) {
       try {

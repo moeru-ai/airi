@@ -414,6 +414,15 @@ describe('responses generation', () => {
     await streamFrom({ model: 'test', chatProvider: provider(fetch), conversation: { turns: readTurns([{ id: 'user', role: 'user', segments: [{ type: 'image', url: 'data:image/png;base64,AA==', detail: 'low' }] }]) }, options: { toolChoice: { type: 'function', function: { name: 'inspect' } } } })
   })
 
+  it('maps audio input to an input_audio part', async () => {
+    const fetch: typeof globalThis.fetch = async (_url, init) => {
+      const request = JSON.parse(String(init?.body))
+      expect(request.input).toEqual([{ type: 'message', role: 'user', content: [{ type: 'input_audio', input_audio: { data: 'UklGRg==', format: 'wav' } }] }])
+      return sse(completed([]))
+    }
+    await streamFrom({ model: 'test', chatProvider: provider(fetch), conversation: { turns: readTurns([{ id: 'user', role: 'user', segments: [{ type: 'audio', data: 'UklGRg==', format: 'wav' }] }]) } })
+  })
+
   it('does not persist a failed response', async () => {
     const onGeneratedTurn = vi.fn()
     await expect(streamFrom({
