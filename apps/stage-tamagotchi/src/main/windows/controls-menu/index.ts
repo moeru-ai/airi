@@ -85,6 +85,9 @@ export function setupControlsMenuWindowManager(params: {
         preload: getPreloadPath(),
         sandbox: false,
       },
+      // As the main window, a panel shows above the fullscreen Space of another app, so the menu opens beside the
+      // character there instead of moving the user to another Space.
+      type: isMacOS ? 'panel' : undefined,
     })
 
     if (isMacOS) {
@@ -187,6 +190,8 @@ export function setupControlsMenuWindowManager(params: {
     const placement = placeControlsMenu({
       content: mainWindow.getContentBounds(),
       anchor: request.anchor,
+      mainZoom: mainWindow.webContents.getZoomFactor(),
+      menuZoom: window.webContents.getZoomFactor(),
       workAreaOf: rectangle => screen.getDisplayMatching(rectangle).workArea,
     })
     window.setBounds(placement.bounds)

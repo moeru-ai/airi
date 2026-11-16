@@ -13,6 +13,8 @@ describe('placeControlsMenu', () => {
     const placement = placeControlsMenu({
       content: { x: 1304, y: 738, width: 332, height: 309 },
       anchor: { x: 286, y: 257, width: 36, height: 36 },
+      mainZoom: 1,
+      menuZoom: 1,
       workAreaOf: (rectangle) => {
         asked.push(rectangle)
         return workArea
@@ -30,6 +32,8 @@ describe('placeControlsMenu', () => {
     placeControlsMenu({
       content: { x: 100, y: 200, width: 332, height: 309 },
       anchor: { x: 286.4, y: 257.6, width: 36.2, height: 35.8 },
+      mainZoom: 1,
+      menuZoom: 1,
       workAreaOf: (rectangle) => {
         asked.push(rectangle)
         return { x: 0, y: 0, width: 1920, height: 1080 }
@@ -45,10 +49,31 @@ describe('placeControlsMenu', () => {
     const placement = placeControlsMenu({
       content: { x: -600, y: 700, width: 332, height: 309 },
       anchor: { x: 286, y: 257, width: 36, height: 36 },
+      mainZoom: 1,
+      menuZoom: 1,
       workAreaOf: () => workArea,
     })
 
     expect(placement.bounds).toEqual(workArea)
     expect(placement.anchor).toEqual({ x: 2246, y: 1157, width: 36, height: 36 })
+  })
+
+  it('measures the button through the zoom of each page', () => {
+    // View > Zoom In makes one CSS pixel 1.25 DIPs in both pages.
+    const asked: Rectangle[] = []
+
+    const placement = placeControlsMenu({
+      content: { x: 100, y: 200, width: 332, height: 309 },
+      anchor: { x: 200, y: 100, width: 36, height: 36 },
+      mainZoom: 1.25,
+      menuZoom: 1.25,
+      workAreaOf: (rectangle) => {
+        asked.push(rectangle)
+        return { x: 0, y: 0, width: 1920, height: 1080 }
+      },
+    })
+
+    expect(asked).toEqual([{ x: 350, y: 325, width: 45, height: 45 }])
+    expect(placement.anchor).toEqual({ x: 280, y: 260, width: 36, height: 36 })
   })
 })

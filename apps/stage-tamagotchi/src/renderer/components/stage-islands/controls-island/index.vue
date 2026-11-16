@@ -26,6 +26,7 @@ import {
   electronStartDraggingWindow,
   electronWindowSetAlwaysOnTop,
 } from '../../../../shared/eventa'
+import { isControlsIslandConcealed } from './controls-island-visibility'
 import { useControlsIslandPlacement } from './use-controls-island-placement'
 import { useControlsIslandSignIn } from './use-controls-island-sign-in'
 
@@ -199,7 +200,12 @@ const isOutside = computed(() => isOutsideByCursor.value && isOutsideByDom.value
 // A user who works in the menu, in a dialog, or with the keyboard keeps the
 // Island after the cursor leaves the window.
 const { focused: islandFocused } = useFocusWithin(islandElement)
-const concealed = computed(() => props.cursorAway && !isBlocked.value && !islandFocused.value)
+const concealed = computed(() => isControlsIslandConcealed({
+  cursorAway: props.cursorAway,
+  overlayOpen: blockingOverlays.size > 0,
+  pressed: pressed.value,
+  focused: islandFocused.value,
+}))
 
 // The stage page observes this element for cursor hit testing.
 defineExpose({
