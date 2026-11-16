@@ -19,6 +19,7 @@ import { Format, LogLevel, setGlobalFormat, setGlobalHookPostLog, setGlobalLogLe
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { hasSelectedScreenCaptureSource, initScreenCaptureForMain } from '@proj-airi/electron-screen-capture/main'
+import { onWindowClosed } from '@proj-airi/electron-vueuse/main'
 import { ExtensionHost } from '@proj-airi/plugin-sdk/plugin-host'
 import { isEnvTruthy } from '@proj-airi/stage-shared'
 import { app, ipcMain, protocol, session } from 'electron'
@@ -243,7 +244,7 @@ async function openFullscreenChat() {
 function trackExtensionManagementWindow(window: BrowserWindow) {
   const webContentsId = window.webContents.id
   extensionManagementWebContentsId = webContentsId
-  window.once('closed', () => {
+  onWindowClosed(window, () => {
     if (extensionManagementWebContentsId === webContentsId)
       extensionManagementWebContentsId = undefined
   })
@@ -412,7 +413,7 @@ app.whenReady().then(async () => {
   const devtoolsMarkdownStressWindow = injeca.provide('windows:devtools:markdown-stress', () => setupDevtoolsWindow())
 
   const onboardingWindowManager = injeca.provide('windows:onboarding', {
-    dependsOn: { serverChannel, i18n },
+    dependsOn: { serverChannel, i18n, globalShortcut },
     build: ({ dependsOn }) => setupOnboardingWindowManager(dependsOn),
   })
 

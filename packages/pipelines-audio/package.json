@@ -39,7 +39,7 @@
     "@moeru/std": "catalog:",
     "@proj-airi/stream-kit": "workspace:^",
     "clustr": "catalog:",
+    "fft.js": "catalog:",
     "nanoid": "catalog:"
-  },
-  "devDependencies": {}
+  }
 }

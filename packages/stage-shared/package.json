@@ -17,7 +17,9 @@
   "exports": {
     ".": "./src/index.ts",
     "./auth": "./src/auth/index.ts",
+    "./analytics/app-origins": "./src/analytics/app-origins.ts",
     "./analytics/openpanel": "./src/analytics/openpanel.ts",
+    "./analytics/posthog": "./src/analytics/posthog.ts",
     "./analytics/sentry": "./src/analytics/sentry.ts",
     "./analytics/sentry-vite": "./src/analytics/sentry-vite.ts",
     "./beat-sync": "./src/beat-sync/index.ts",
@@ -46,6 +48,7 @@
     "gpuu": "catalog:",
     "ofetch": "catalog:",
     "pinia": "catalog:",
+    "posthog-js": "catalog:",
     "valibot": "catalog:",
     "vue": "catalog:"
   },

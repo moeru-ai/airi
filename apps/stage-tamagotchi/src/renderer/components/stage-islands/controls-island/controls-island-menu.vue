@@ -263,7 +263,7 @@ useBackdropSurface(() => characterSurfaceAnchor.value?.closest<HTMLElement>('[ro
       <DropdownMenuSubTrigger data-testid="controls-island-notifications" :class="menuItemClasses">
         <span :class="['flex-1']">{{ t('stage.notifications.title') }}</span>
         <Badge :count="unread" data-testid="controls-island-notifications-count" />
-        <span aria-hidden="true" :class="['i-solar:alt-arrow-right-linear size-4 shrink-0 opacity-60']" />
+        <span aria-hidden="true" :class="['i-mingcute:right-line size-4 shrink-0 opacity-60']" />
       </DropdownMenuSubTrigger>
       <DropdownMenuPortal>
         <DropdownMenuSubContent :side-offset="6" :collision-padding="8" :class="[subMenuClasses, 'w-80']">
@@ -285,7 +285,7 @@ useBackdropSurface(() => characterSurfaceAnchor.value?.closest<HTMLElement>('[ro
       <DropdownMenuSubTrigger data-testid="controls-island-character" :class="menuItemClasses">
         <span :class="['flex-1']">{{ t('tamagotchi.stage.controls-island.character') }}</span>
         <span :class="['max-w-24 truncate text-xs opacity-60']">{{ activeCardName }}</span>
-        <span aria-hidden="true" :class="['i-solar:alt-arrow-right-linear size-4 shrink-0 opacity-60']" />
+        <span aria-hidden="true" :class="['i-mingcute:right-line size-4 shrink-0 opacity-60']" />
       </DropdownMenuSubTrigger>
       <DropdownMenuPortal>
         <DropdownMenuSubContent :side-offset="6" :collision-padding="8" :class="subMenuClasses">

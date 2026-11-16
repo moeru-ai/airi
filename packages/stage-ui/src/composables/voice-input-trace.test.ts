@@ -154,9 +154,9 @@ describe('createVoiceInputTracer', () => {
     const range = { sourceId: 'mic', startFrame: 0, endFrame: 16000 }
 
     tracer.start(input, 'speech')
-    tracer.speakerEvidence({ inputId: 'input-6', range, value: { candidates: [{ speakerId: 'owner', score: 0.61234 }], voicedMs: 900.4 }, scores: [0.61234] }, { status: 'applied' })
+    tracer.speakerEvidence({ inputId: 'input-6', range, value: { candidates: [{ speakerId: 'voiceprint-1', score: 0.61234 }], voicedMs: 900.4 }, scores: [0.61234] }, { status: 'applied' })
     // The transcription has ended, so the input rejects the update. The trace still shows the complete score.
-    tracer.speakerEvidence({ inputId: 'input-6', range, value: { candidates: [{ speakerId: 'owner', score: 0.55 }], voicedMs: 1500 }, scores: [0.61234, 0.48766] }, { status: 'rejected', reason: 'closed' })
+    tracer.speakerEvidence({ inputId: 'input-6', range, value: { candidates: [{ speakerId: 'voiceprint-1', score: 0.55 }], voicedMs: 1500 }, scores: [0.61234, 0.48766] }, { status: 'rejected', reason: 'closed' })
     input.settle({ status: 'committed', messageId: 'input-6' })
 
     await vi.waitFor(() => expect(endedInputs()).toHaveLength(1))
@@ -165,6 +165,24 @@ describe('createVoiceInputTracer', () => {
     expect(span.attrs[VoiceAttributes.SpeakerScores]).toEqual([0.612, 0.488])
     expect(span.attrs[VoiceAttributes.SpeakerVoicedMs]).toBe(1500)
     expect(span.attrs[VoiceAttributes.SpeakerRejectedCount]).toBe(1)
+  })
+
+  it('records the voiceprint with the highest score, and its label', async () => {
+    const labels = new Map([['voiceprint-1', 'English'], ['voiceprint-2', 'Chinese']])
+    const tracer = createVoiceInputTracer({ speakerLabel: speakerId => labels.get(speakerId) })
+    const input = attempt('input-8')
+    const range = { sourceId: 'mic', startFrame: 0, endFrame: 16000 }
+    const candidates = [{ speakerId: 'voiceprint-2', score: 0.66 }, { speakerId: 'voiceprint-1', score: 0.31 }]
+
+    tracer.start(input, 'speech')
+    tracer.speakerEvidence({ inputId: 'input-8', range, value: { candidates, voicedMs: 900 }, scores: [0.66] }, { status: 'applied' })
+    input.settle({ status: 'committed', messageId: 'input-8' })
+
+    await vi.waitFor(() => expect(endedInputs()).toHaveLength(1))
+    const span = endedInputs()[0]!
+    expect(span.attrs[VoiceAttributes.SpeakerId]).toBe('voiceprint-2')
+    expect(span.attrs[VoiceAttributes.SpeakerLabel]).toBe('Chinese')
+    expect(span.attrs[VoiceAttributes.SpeakerScore]).toBe(0.66)
   })
 
   it('adds no speaker attributes to an input without speaker evidence', async () => {
