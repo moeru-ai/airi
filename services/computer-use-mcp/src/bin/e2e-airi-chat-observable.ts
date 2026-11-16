@@ -212,7 +212,7 @@ async function terminateExistingStageTamagotchiInstances() {
     // `pkill` is unavailable on Windows. Query only this checkout's Stage
     // process command lines, then terminate each matching process tree.
     const appPath = resolve(repoDir, 'apps', 'stage-tamagotchi').replaceAll('/', '\\')
-    const escapedAppPath = appPath.replaceAll("'", "''")
+    const escapedAppPath = appPath.replaceAll('\'', '\'\'')
     const query = [
       `$appPath = '${escapedAppPath}'`,
       '$matches = Get-CimInstance Win32_Process | Where-Object {',
@@ -234,7 +234,7 @@ async function terminateExistingStageTamagotchiInstances() {
         .map(value => Number(value.trim()))
         .filter(value => Number.isInteger(value) && value > 0)))
 
-      await Promise.all(pids.map(async pid => {
+      await Promise.all(pids.map(async (pid) => {
         await execFileAsync('taskkill.exe', ['/PID', String(pid), '/T', '/F']).catch(() => {})
       }))
     }
