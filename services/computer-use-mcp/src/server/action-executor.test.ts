@@ -202,7 +202,7 @@ describe('createExecuteAction', () => {
       button: 'left',
       clickCount: 1,
       pointerTrace: [{ x: 140, y: 215, delayMs: 0 }],
-    }))
+    }), expect.objectContaining({ signal: undefined }))
     expect(session.consumeOperation).toHaveBeenCalledWith(1)
     expect(session.setPointerPosition).toHaveBeenCalledWith({ x: 140, y: 215 })
     expect(session.record).toHaveBeenCalledWith(expect.objectContaining({
@@ -485,7 +485,7 @@ describe('createExecuteAction', () => {
 
     expect(result.isError).not.toBe(true)
     expect(desktopSessionController.ensureControlledAppInForeground).not.toHaveBeenCalled()
-    expect(executor.focusApp).toHaveBeenCalledWith({ app: 'Google Chrome' })
+    expect(executor.focusApp).toHaveBeenCalledWith({ app: 'Google Chrome' }, expect.objectContaining({ signal: undefined }))
     expect(executor.click).toHaveBeenCalledOnce()
     expect(result.structuredContent).toMatchObject({
       status: 'executed',
@@ -933,7 +933,7 @@ describe('createExecuteAction', () => {
       pointerTrace: expect.arrayContaining([
         expect.objectContaining({ x: 100, y: 50 }),
       ]),
-    }))
+    }), expect.objectContaining({ signal: undefined }))
 
     const structured = result.structuredContent as Record<string, any>
     expect(structured.backendResult.displayPoint).toMatchObject({
@@ -960,7 +960,7 @@ describe('createExecuteAction', () => {
       pointerTrace: expect.arrayContaining([
         expect.objectContaining({ x: -100, y: -500 }),
       ]),
-    }))
+    }), expect.objectContaining({ signal: undefined }))
 
     const structured = result.structuredContent as Record<string, any>
     expect(structured.backendResult.displayPoint).toMatchObject({
@@ -1003,7 +1003,7 @@ describe('createExecuteAction', () => {
     expect(executor.click).toHaveBeenCalledWith(expect.objectContaining({
       x: -100,
       y: -500,
-    }))
+    }), expect.objectContaining({ signal: undefined }))
     expect(executor.typeText).toHaveBeenCalledTimes(1)
 
     const structured = result.structuredContent as Record<string, any>
@@ -1126,6 +1126,33 @@ describe('createExecuteAction', () => {
     const structured = result.structuredContent as Record<string, any>
     expect(structured.status).toBe('executed')
     expect(runtime.terminalRunner.execute).toHaveBeenCalledTimes(1)
+    expect(cdpBridgeManager.probeAvailability).not.toHaveBeenCalled()
+  })
+
+  it('keeps Terminal usable when a real AUV probe fails before it starts', async () => {
+    const { runtime, executor, cdpBridgeManager } = createRuntimeForActionTest({
+      executor: 'auv',
+      approvalMode: 'never',
+    })
+    executor.getExecutionTarget.mockRejectedValue(new Error('AUV daemon unavailable'))
+    executor.getForegroundContext.mockRejectedValue(new Error('AUV daemon unavailable'))
+    executor.getDisplayInfo.mockRejectedValue(new Error('AUV daemon unavailable'))
+    runtime.terminalRunner.execute = vi.fn().mockResolvedValue({
+      command: 'Write-Output "terminal-survives-auv"',
+      exitCode: 0,
+      stdout: 'terminal-survives-auv',
+      stderr: '',
+      durationMs: 3,
+      timedOut: false,
+    })
+
+    const result = await createExecuteAction(runtime)(
+      { kind: 'terminal_exec', input: { command: 'Write-Output "terminal-survives-auv"' } },
+      'terminal_exec',
+    )
+
+    expect(result.structuredContent).toMatchObject({ status: 'executed' })
+    expect(runtime.terminalRunner.execute).toHaveBeenCalledOnce()
     expect(cdpBridgeManager.probeAvailability).not.toHaveBeenCalled()
   })
 })

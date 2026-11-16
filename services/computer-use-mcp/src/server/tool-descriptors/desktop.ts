@@ -91,7 +91,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
   {
     canonicalName: 'desktop_open_app',
     displayName: 'Desktop Open App',
-    summary: 'Open an application. Requires the app to be in COMPUTER_USE_OPENABLE_APPS configuration.',
+    summary: 'Open or activate an application. On AUV, this activates an existing window; launch a missing app through the approved Terminal lane. Requires the app to be in COMPUTER_USE_OPENABLE_APPS configuration.',
     lane: 'desktop',
     kind: 'control',
     readOnly: false,
@@ -104,7 +104,7 @@ export const desktopDescriptors: ToolDescriptor[] = [
   {
     canonicalName: 'desktop_focus_app',
     displayName: 'Desktop Focus App',
-    summary: 'Focus an application window. Requires the app to be in COMPUTER_USE_OPENABLE_APPS configuration.',
+    summary: 'Focus an existing application window. On AUV, this activates a running application; it does not launch processes. Requires the app to be in COMPUTER_USE_OPENABLE_APPS configuration.',
     lane: 'desktop',
     kind: 'control',
     readOnly: false,

@@ -69,6 +69,7 @@ export class ComputerUseSession {
       executionTargetMode: screenshot.executionTargetMode,
       sourceHostName: screenshot.sourceHostName,
       sourceDisplayId: screenshot.sourceDisplayId,
+      sourceWindowId: screenshot.sourceWindowId,
       sourceSessionTag: screenshot.sourceSessionTag,
     }
   }

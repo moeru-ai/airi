@@ -100,11 +100,18 @@ export function registerDesktopGroundingTools(params: {
             height: snapshot.screenshot.height,
             capturedAt: snapshot.screenshot.capturedAt,
             placeholder: false,
+            sourceHostName: snapshot.screenshot.sourceHostName,
+            sourceDisplayId: snapshot.screenshot.sourceDisplayId,
+            sourceWindowId: snapshot.screenshot.sourceWindowId,
+            sourceSessionTag: snapshot.screenshot.sourceSessionTag,
+            executionTargetMode: snapshot.screenshot.executionTargetMode,
           })
         }
 
         // Update foreground context from the observation
         if (snapshot.foregroundApp && snapshot.foregroundApp !== 'unknown') {
+          const foregroundWindow = snapshot.windows.find(window => window.id === snapshot.screenshot.sourceWindowId)
+            ?? snapshot.windows.find(window => window.appName === snapshot.foregroundApp)
           const chromeSession = runtime.chromeSessionManager.getSessionInfo()
           const isAgentOwned = chromeSession
             ? snapshot.foregroundApp === 'Google Chrome'
@@ -113,6 +120,10 @@ export function registerDesktopGroundingTools(params: {
           runtime.stateManager.updateForegroundContext({
             available: true,
             appName: snapshot.foregroundApp,
+            windowTitle: foregroundWindow?.title,
+            windowId: foregroundWindow?.id ?? snapshot.screenshot.sourceWindowId,
+            ownerPid: foregroundWindow?.ownerPid,
+            windowBounds: foregroundWindow?.bounds,
             platform: process.platform,
             agentOwned: isAgentOwned,
             agentWindowPid: isAgentOwned ? chromeSession?.pid : undefined,

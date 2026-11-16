@@ -125,6 +125,8 @@ export interface ForegroundContext {
   available: boolean
   appName?: string
   windowTitle?: string
+  windowId?: string
+  ownerPid?: number
   windowBounds?: Bounds
   platform: NodeJS.Platform
   unavailableReason?: string
@@ -194,6 +196,7 @@ export interface ScreenshotArtifact {
   executionTargetMode?: ExecutionMode
   sourceHostName?: string
   sourceDisplayId?: string
+  sourceWindowId?: string
   sourceSessionTag?: string
 }
 
@@ -530,6 +533,7 @@ export interface LastScreenshotInfo {
   executionTargetMode?: ExecutionMode
   sourceHostName?: string
   sourceDisplayId?: string
+  sourceWindowId?: string
   sourceSessionTag?: string
 }
 
@@ -670,6 +674,12 @@ export interface ComputerUseConfig {
   remoteObservationBaseUrl?: string
   remoteObservationServePort?: number
   remoteObservationToken?: string
+  auv: {
+    binaryPath?: string
+    storeRoot: string
+    startupTimeoutMs: number
+    shutdownTimeoutMs: number
+  }
   browserDomBridge: BrowserDomBridgeConfig
   binaries: {
     swift: string
@@ -691,6 +701,13 @@ export interface ExecutorActionResult {
   executionTarget?: ExecutionTarget
 }
 
+export interface ExecutorCallOptions {
+  signal?: AbortSignal
+  /** Pins an action to the window that was visible when Host approval was requested. */
+  targetWindowId?: string
+  targetWindowContext?: ForegroundContext
+}
+
 export interface DesktopExecutor {
   kind: ExecutorKind
   describe: () => { kind: ExecutorKind, notes: string[] }
@@ -698,15 +715,15 @@ export interface DesktopExecutor {
   getForegroundContext: () => Promise<ForegroundContext>
   getDisplayInfo: () => Promise<DisplayInfo>
   getPermissionInfo: () => Promise<PermissionInfo>
-  observeWindows: (request: ObserveWindowsRequest) => Promise<WindowObservation>
-  takeScreenshot: (request: ScreenshotRequest) => Promise<ScreenshotArtifact>
-  openApp: (input: OpenAppActionInput) => Promise<ExecutorActionResult>
-  focusApp: (input: FocusAppActionInput) => Promise<ExecutorActionResult>
-  click: (input: ClickActionInput & { pointerTrace: PointerTracePoint[] }) => Promise<ExecutorActionResult>
-  typeText: (input: TypeTextActionInput) => Promise<ExecutorActionResult>
-  pressKeys: (input: PressKeysActionInput) => Promise<ExecutorActionResult>
-  scroll: (input: ScrollActionInput) => Promise<ExecutorActionResult>
-  wait: (input: WaitActionInput) => Promise<ExecutorActionResult>
+  observeWindows: (request: ObserveWindowsRequest, options?: ExecutorCallOptions) => Promise<WindowObservation>
+  takeScreenshot: (request: ScreenshotRequest, options?: ExecutorCallOptions) => Promise<ScreenshotArtifact>
+  openApp: (input: OpenAppActionInput, options?: ExecutorCallOptions) => Promise<ExecutorActionResult>
+  focusApp: (input: FocusAppActionInput, options?: ExecutorCallOptions) => Promise<ExecutorActionResult>
+  click: (input: ClickActionInput & { pointerTrace: PointerTracePoint[] }, options?: ExecutorCallOptions) => Promise<ExecutorActionResult>
+  typeText: (input: TypeTextActionInput, options?: ExecutorCallOptions) => Promise<ExecutorActionResult>
+  pressKeys: (input: PressKeysActionInput, options?: ExecutorCallOptions) => Promise<ExecutorActionResult>
+  scroll: (input: ScrollActionInput, options?: ExecutorCallOptions) => Promise<ExecutorActionResult>
+  wait: (input: WaitActionInput, options?: ExecutorCallOptions) => Promise<ExecutorActionResult>
   openTestTarget?: () => Promise<TestTargetLaunchResult>
   close?: () => Promise<void>
 }

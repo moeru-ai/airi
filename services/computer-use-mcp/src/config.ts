@@ -215,7 +215,7 @@ export function resolveComputerUseConfig(): ComputerUseConfig {
         : executor === 'macos-local'
           ? `${launchHostProcess} -> swift/quartz + open`
           : executor === 'auv'
-            ? `${launchHostProcess} -> AUV observation unavailable`
+            ? `${launchHostProcess} -> AUV daemon -> local Windows Runner`
             : `${launchHostProcess} -> local dry-run`),
     requireSessionTagForMutatingActions,
     requireAllowedBoundsForMutatingActions,
@@ -232,6 +232,12 @@ export function resolveComputerUseConfig(): ComputerUseConfig {
     remoteObservationBaseUrl,
     remoteObservationServePort,
     remoteObservationToken: env.COMPUTER_USE_REMOTE_OBSERVATION_TOKEN?.trim() || undefined,
+    auv: {
+      binaryPath: env.COMPUTER_USE_AUV_BINARY_PATH?.trim() || undefined,
+      storeRoot: env.COMPUTER_USE_AUV_STORE_ROOT?.trim() || join(sessionRoot, 'auv'),
+      startupTimeoutMs: parseInteger(env.COMPUTER_USE_AUV_STARTUP_TIMEOUT_MS, 10_000),
+      shutdownTimeoutMs: parseInteger(env.COMPUTER_USE_AUV_SHUTDOWN_TIMEOUT_MS, 5_000),
+    },
     browserDomBridge: {
       enabled: parseBoolean(env.COMPUTER_USE_BROWSER_DOM_BRIDGE_ENABLED, true),
       host: env.COMPUTER_USE_BROWSER_DOM_BRIDGE_HOST?.trim() || '127.0.0.1',

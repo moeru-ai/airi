@@ -1,6 +1,6 @@
 # computer-use-mcp
 
-AIRI-specific macOS desktop orchestration MCP service.
+AIRI-specific desktop orchestration MCP service. Windows uses the AUV Runner for native observation and input; Terminal remains the process-launch lane.
 
 ## Why This Exists
 
@@ -37,11 +37,11 @@ The current v1 shape is:
   - audit log
   - trace history
   - screenshot persistence
-- `computer-use-mcp` provides a local macOS execution layer:
+- `computer-use-mcp` provides a local desktop execution layer:
   - window observation
   - screenshots
-  - app open/focus
-  - mouse/keyboard injection
+  - app activation and focus
+  - AUV-backed mouse/keyboard injection on Windows
   - background terminal command execution
 - AIRI desktop adds a native approval adapter:
   - `approval_required` still comes from MCP
@@ -76,8 +76,13 @@ capabilities into one observable, controllable task system.
   - default
   - never injects input
   - still captures best-effort local screenshots for debugging
+- `auv`
+  - current Windows primary backend
+  - window observation through the local AUV daemon
+  - display capture and window-bound click/type/key/scroll operations
+  - each mutation keeps the Host approval gate and a fresh target-window binding
 - `macos-local`
-  - current primary backend
+  - legacy local backend
   - window observation via `NSWorkspace + CGWindowList`
   - input injection via Swift + Quartz `CGEvent`
   - app open/focus via `open -a` and `activate`
@@ -154,7 +159,7 @@ Workflow orchestration:
 
 ## Policy Model
 
-The current macOS v1 boundary is intentionally narrow and explicit:
+The desktop policy boundary is intentionally narrow and explicit:
 
 - global screen coordinates are allowed for UI actions
 - `allowApps` is not used as a hard gate for click/type/scroll
@@ -167,7 +172,7 @@ The current macOS v1 boundary is intentionally narrow and explicit:
 
 `never` is an explicit operator configuration. It disables action approval, including for arbitrary shell commands.
 The desktop executor does not sandbox Terminal, PTY, or CDP. `dry-run` only describes desktop input.
-The AUV desktop surface stays unavailable until a trusted observation scope exists. Terminal uses its own runner.
+The AUV backend executes through the app-owned daemon and refuses stale, placeholder, or cross-window mutation attempts. Terminal uses its own runner and is still the route for launching a process that has no existing window.
 
 In `actions` and `all`, MCP callers cannot approve their own pending actions or claim approved workflow continuation.
 Workflow `autoApprove` cannot weaken the server configuration.
@@ -179,7 +184,13 @@ These restrictions do not implement a trusted human approval interface.
 Core:
 
 - `COMPUTER_USE_EXECUTOR`
-  - `dry-run`, `macos-local`, or `linux-x11`
+  - `dry-run`, `auv`, `macos-local`, or `linux-x11`
+- `COMPUTER_USE_AUV_BINARY_PATH`
+  - optional path override for the Windows AUV executable
+- `COMPUTER_USE_AUV_STORE_ROOT`
+  - defaults to `<COMPUTER_USE_SESSION_ROOT>/auv`
+- `COMPUTER_USE_AUV_STARTUP_TIMEOUT_MS`, `COMPUTER_USE_AUV_SHUTDOWN_TIMEOUT_MS`
+  - daemon lifecycle deadlines; defaults are 10000 ms and 5000 ms
 - `COMPUTER_USE_APPROVAL_MODE`
   - `actions` (default), `all`, `never`
 - `COMPUTER_USE_SESSION_ROOT`
@@ -197,7 +208,7 @@ Host control:
 - `AIRI_TRUSTED_COMPUTER_USE` and `AIRI_HOST_COMPUTER_USE_NONCE`
   - private Computer Use approval connection. It authorizes approved desktop and browser mutations without requiring Terminal control.
 
-macOS orchestration:
+Desktop orchestration:
 
 - `COMPUTER_USE_OPENABLE_APPS`
   - default `Terminal,Cursor,Google Chrome`
@@ -250,7 +261,7 @@ Binary overrides:
 ## AIRI Integration
 
 AIRI still connects through `mcp.json`.
-Example local macOS entry:
+Example Windows AUV entry:
 
 ```json
 {
@@ -264,7 +275,7 @@ Example local macOS entry:
       ],
       "cwd": "/path/to/your/airi/repo",
       "env": {
-        "COMPUTER_USE_EXECUTOR": "macos-local",
+        "COMPUTER_USE_EXECUTOR": "auv",
         "COMPUTER_USE_APPROVAL_MODE": "actions",
         "COMPUTER_USE_OPENABLE_APPS": "Terminal,Cursor,Google Chrome"
       }

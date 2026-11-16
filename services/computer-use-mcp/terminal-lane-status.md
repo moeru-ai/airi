@@ -14,11 +14,14 @@ The runner returns formatted stdout together with the shell exit code.
 Terminal exec and reset skip CDP discovery in the shared action pipeline.
 Linux X11 still checks the remote target, display bounds, and screenshot binding before execution.
 
-## Native observation admission: 2026-11-09
+## Native AUV admission: 2026-11-16
 
-The MCP AUV configuration reports native observation, foreground and display metadata unavailable.
-The MCP service has no native AUV SDK dependency. The Electron Main observation gate remains in effect.
-Terminal registration, approval, and execution remain independent. This restriction does not authorize GUI or Browser input.
+The Windows MCP service uses `@auv-js/sdk` 0.0.43 and an app-owned AUV daemon.
+Runtime smoke verified real 2560x1440 PNG pixels, window metadata, and the AUV executor.
+Click, type, key, and scroll calls use the approved window and report delivery evidence only.
+Host approval remains the final input gate. Turbo skips the dialog only after the Host enables it for the session.
+Terminal remains independent and launches processes that do not have an existing window.
+Compact remains an Agent conversation concern. It does not grant input authority or replay an uncertain action.
 
 ## Executor discovery contract: 2026-11-08
 
@@ -33,8 +36,9 @@ These information changes grant no execution authority. Main approvals and GUI w
 
 MCP Desktop observation descriptions also name their configured executor before a call.
 The dry-run executor reports empty native window observations.
-Windows and Linux screenshots are placeholders. macOS attempts native capture and returns a placeholder on failure.
-The Chat composer omits unavailable native AUV tools. Existing history keeps its tool names.
+Windows AUV screenshots contain real pixels after daemon startup. Linux screenshots remain remote-runner outputs.
+The bundled Agent receives the selected AUV desktop, Terminal, and PTY tools directly.
+The other service tools stay behind on-demand MCP discovery. Compact runs in Core Agent and Stage UI.
 These descriptions distinguish the backends. They do not establish reliable model tool selection.
 
 ## Windows Beta lifecycle: 2026-11-08
@@ -108,20 +112,38 @@ Command exit zero does not verify an independent business outcome.
 - PTY self-acquire routing and PTY completion semantics are unchanged.
 - This correction uses controlled executor and provider boundaries. No new real AIRI Chat E2E ran.
 - Public self-approval remains denied in approval modes. The Phase 5.1 adapter does not grant workflow auto-approval.
-- Support-matrix labels are unchanged. Real GUI writes remain outside admission.
+- Support-matrix labels are unchanged. AUV GUI writes pass through Host approval and fresh window binding.
 
 ## Current Status Snapshot
 
-Updated for the current terminal-lane-v2 workstream.
+Updated for the current AUV and terminal-lane-v2 workstream.
 
 The important truth is:
 
 - `exec` is already a real mainline surface.
+- Windows AUV observation and input are real mainline surfaces behind Host approval.
 - `PTY` is no longer just a loose tool set; the workflow engine now has self-acquire support.
 - Service-layer terminal E2Es for the current lane are present and treated as the terminal proof line.
 - The AIRI chat terminal demo is now aligned with terminal lane v2 and no longer pre-creates PTY.
-- The desktop shell now distinguishes `pty_session` from `terminal_and_apps`.
+- PTY acquisition records a `pty_session` grant. Desktop AUV approval uses the separate Host Computer Use request.
 - AIRI chat self-acquire is now part of the strict release gate set, so PTY mainline support is no longer intentionally held back.
+
+## Current lane handoff: 2026-11-16
+
+The workflow self-acquires PTY for interactive steps. The workflow does not need a pre-created PTY.
+The AIRI Chat self-acquire E2E uses the same service path. It remains the Chat integration proof.
+`terminal_exec` uses the Terminal approval protocol. AUV desktop actions use the Host Computer Use approval request.
+The MCP client cannot approve its own AUV actions. Turbo uses the Host action request and its cancellation signal.
+`pty_create` returns a service grant scoped to `approvalSessionId` and `ptySessionId`. Host UI does not persist a `pty_session` grant.
+
+Current `src/support-matrix.ts` status:
+
+- `terminal_exec`, `terminal_pty`, and `terminal_pty_self_acquire` are `product-supported`.
+- `terminal_exec_to_pty_reroute`, `terminal_auto_surface_resolution`, and `terminal_pty_step_family` are `covered`.
+- PTY Open Grant, PTY audit, and the VS Code controller are `covered`.
+
+The bundled Agent catalog exposes selected AUV desktop, Terminal, and PTY tools directly.
+Browser, workflow, accessibility, memory, and other service tools remain available through on-demand MCP discovery.
 
 Do not rely on compressed chat summaries to resume this work. Use this file as the handoff source of truth and update it when terminal-lane behavior changes materially.
 

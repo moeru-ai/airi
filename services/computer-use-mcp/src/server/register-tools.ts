@@ -111,7 +111,11 @@ export async function resolvePendingAction(params: {
     result = await executeChromeEnsure(runtime, pending.action.input, pending.policy.estimatedOperationUnits)
   }
   else {
-    result = await executeAction(pending.action as ActionInvocation, pending.toolName, { skipApprovalQueue: true, executionSignal: decision.signal })
+    result = await executeAction(pending.action as ActionInvocation, pending.toolName, {
+      skipApprovalQueue: true,
+      executionSignal: decision.signal,
+      approvedContext: pending.context,
+    })
   }
   await runtime.session.record({
     event: result.isError === true ? 'failed' : 'executed',
@@ -278,6 +282,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         lastScreenshot: runtime.session.getLastScreenshot(),
         displayInfo,
         executionTarget,
+        foregroundContext: context,
       })
 
       return {
@@ -319,11 +324,9 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
             : runtime.config.executor === 'linux-x11'
               ? 'remote X11 runner'
               : runtime.config.executor === 'auv'
-                ? 'AUV unavailable without a trusted observation scope'
+                ? 'AUV Windows Runner (window observation, display capture, targeted input)'
                 : 'dry-run',
-          supportedAppsForOpenFocus: runtime.config.executor === 'auv'
-            ? []
-            : runtime.config.openableApps,
+          supportedAppsForOpenFocus: runtime.config.openableApps,
           approvalUx: 'electron-dialog',
           coordScope: 'global-screen',
           appPolicy: 'deny-only',

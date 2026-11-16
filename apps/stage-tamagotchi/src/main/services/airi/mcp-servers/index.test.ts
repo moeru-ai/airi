@@ -551,7 +551,7 @@ describe('createMcpManager', () => {
     ])
   })
 
-  it('keeps direct Terminal and Computer Use behind Main request ownership', async () => {
+  it('keeps AUV, Terminal, and PTY tools direct behind Main request ownership', async () => {
     const actions = new PendingActionManager()
     const manager = createMcpManager({
       actions,
@@ -563,15 +563,39 @@ describe('createMcpManager', () => {
     managers.push(manager)
     await manager.writeConfigText(JSON.stringify({ terminalEnabled: true, mcpServers: {} }))
     await manager.applyAndRestart()
-    const desktopTools = ['desktop_capture', 'accessibility_snapshot', 'display_enumerate']
+    const desktopTools = [
+      'desktop_screenshot',
+      'desktop_click',
+      'desktop_ensure_chrome',
+      'desktop_approve_pending_action',
+      'accessibility_snapshot',
+      'display_enumerate',
+      'browser_dom_click',
+      'workflow_run_tests',
+      'pty_create',
+      'pty_send_input',
+      'pty_write',
+      'terminal_get_state',
+      'terminal_reset_state',
+    ]
     clientMocks.listTools.mockResolvedValue({ tools: ['terminal_exec', 'terminal_history', ...desktopTools].map(name => ({ name, description: 'Configured Shell executable: fixture-shell.', inputSchema: { type: 'object', properties: { command: { type: 'string' } } }, exposure: 'direct' })) })
     const descriptors = await manager.listTools()
     expect(descriptors.map(tool => [tool.toolName, tool.exposure])).toEqual([
       ['terminal_exec', 'direct'],
       ['terminal_history', 'router-only'],
-      ['desktop_capture', 'direct'],
-      ['accessibility_snapshot', 'direct'],
-      ['display_enumerate', 'direct'],
+      ['desktop_screenshot', 'direct'],
+      ['desktop_click', 'direct'],
+      ['desktop_ensure_chrome', 'router-only'],
+      ['desktop_approve_pending_action', 'router-only'],
+      ['accessibility_snapshot', 'router-only'],
+      ['display_enumerate', 'router-only'],
+      ['browser_dom_click', 'router-only'],
+      ['workflow_run_tests', 'router-only'],
+      ['pty_create', 'direct'],
+      ['pty_send_input', 'direct'],
+      ['pty_write', 'router-only'],
+      ['terminal_get_state', 'direct'],
+      ['terminal_reset_state', 'direct'],
     ])
     for (const tool of desktopTools)
       await expect(manager.callTool({ name: `airi-terminal::${tool}` })).rejects.toThrow('normal Chat request')
@@ -589,8 +613,10 @@ describe('createMcpManager', () => {
     }, { direct: await manager.listTools() }), attribution })
     clientMocks.callTool.mockResolvedValue({ isError: true, content: [{ type: 'text', text: 'Fixture policy rejected preparation.' }] })
     const terminal = tools.find(tool => tool.function.name === 'terminal_exec')!
-    expect(tools.some(tool => tool.function.name === 'desktop_capture')).toBe(true)
+    expect(tools.some(tool => tool.function.name === 'desktop_screenshot')).toBe(true)
     expect(terminal.function.description).toContain('Configured Shell executable: fixture-shell.')
+    expect(terminal.function.description).toContain('The bundled MCP includes AUV desktop observation and input.')
+    expect(terminal.function.description).not.toContain('offers no desktop capture or input')
     expect(terminal.function.description).toContain('Use confirmed facts to work toward the user’s goal.')
     expect(terminal.function.description).toContain('choose an observation that can resolve the gap')
     expect(terminal.function.description).toContain('Verify the requested outcome before reporting completion.')

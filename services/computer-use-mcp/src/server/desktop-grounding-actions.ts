@@ -1,4 +1,4 @@
-import type { ExecutorActionResult } from '../types'
+import type { ExecutorActionResult, ExecutorCallOptions } from '../types'
 import type { ComputerUseServerRuntime } from './runtime'
 
 import { errorMessageFrom } from '@moeru/std'
@@ -24,6 +24,7 @@ export async function executeDesktopClickTarget(
     clickCount?: number
     button?: 'left' | 'right' | 'middle'
   },
+  executorOptions: ExecutorCallOptions = {},
 ): Promise<DesktopClickTargetExecution> {
   const { candidateId, clickCount, button } = input
   const state = runtime.stateManager.getState()
@@ -79,7 +80,7 @@ export async function executeDesktopClickTarget(
       button: button || 'left',
       clickCount: clickCount ?? 1,
       pointerTrace: intent.path,
-    })
+    }, executorOptions)
     runtime.session.setPointerPosition({ x: snap.snappedPoint.x, y: snap.snappedPoint.y })
     return result
   }
@@ -99,7 +100,7 @@ export async function executeDesktopClickTarget(
         return
       }
 
-      await runtime.executor.focusApp({ app: candidateApp })
+      await runtime.executor.focusApp({ app: candidateApp }, executorOptions)
       fallbackForegroundApp = candidateApp
       await sleep(200)
       return
@@ -114,7 +115,7 @@ export async function executeDesktopClickTarget(
       currentForeground,
       chromeSessionManager: runtime.chromeSessionManager,
       activateApp: async (appName) => {
-        await runtime.executor.focusApp({ app: appName })
+        await runtime.executor.focusApp({ app: appName }, executorOptions)
       },
     })
     fallbackForegroundApp = activeSession.controlledApp

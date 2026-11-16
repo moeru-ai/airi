@@ -88,6 +88,32 @@ const toolNameSeparator = '::'
 const mcpRequestTimeoutMsec = 10_000
 const mcpRequestMaxTotalTimeoutMsec = 15_000
 const mcpTestStderrMaxChars = 16_000
+const directAgentTools = new Set([
+  'desktop_get_capabilities',
+  'desktop_observe_windows',
+  'desktop_screenshot',
+  'desktop_open_app',
+  'desktop_focus_app',
+  'desktop_click',
+  'desktop_type_text',
+  'desktop_press_keys',
+  'desktop_scroll',
+  'desktop_wait',
+  'desktop_list_pending_actions',
+  'desktop_get_session_trace',
+  'desktop_get_state',
+  'desktop_observe',
+  'desktop_click_target',
+  'terminal_exec',
+  'terminal_get_state',
+  'terminal_reset_state',
+  'pty_get_status',
+  'pty_create',
+  'pty_send_input',
+  'pty_read_screen',
+  'pty_resize',
+  'pty_destroy',
+])
 
 function stringifyError(error: unknown) {
   if (error instanceof Error) {
@@ -335,9 +361,9 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
           [terminalControlEnabledEnv]: '1',
           [computerUseControlEnabledEnv]: '1',
           COMPUTER_USE_APPROVAL_MODE: 'actions',
-          COMPUTER_USE_EXECUTOR: 'dry-run',
+          COMPUTER_USE_EXECUTOR: 'auv',
           COMPUTER_USE_BROWSER_DOM_BRIDGE_ENABLED: 'false',
-          COMPUTER_USE_DEFAULT_CAPTURE_AFTER: 'false',
+          COMPUTER_USE_DEFAULT_CAPTURE_AFTER: 'true',
           COMPUTER_USE_SESSION_ROOT: join(app.getPath('userData'), 'terminal-sessions'),
         },
       }
@@ -376,26 +402,16 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
     return result
   }
 
-  const isComputerUseTool = (toolName: string) => [
-    'desktop_',
-    'browser_',
-    'accessibility_',
-    'display_',
-    'cdp_',
-    'workflow_',
-    'pty_',
-    'vscode_',
-    'task_',
-    'clipboard_',
-    'secret_',
-  ].some(prefix => toolName.startsWith(prefix))
+  const isDirectAgentTool = (toolName: string) => {
+    return directAgentTools.has(toolName)
+  }
 
   const exposureOf = (serverName: string, session: McpServerSession, toolName: string): ElectronMcpToolDescriptor['exposure'] => {
     if (serverName !== bundledTerminalServerName)
       return 'router-only'
     if (session.bundledTerminal && session.terminalNonce && toolName === 'terminal_exec')
       return 'direct'
-    if (session.computerUseNonce && isComputerUseTool(toolName))
+    if (session.computerUseNonce && isDirectAgentTool(toolName))
       return 'direct'
     return 'router-only'
   }
@@ -417,7 +433,7 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
         description: session.bundledTerminal && item.name === 'terminal_exec'
           ? [
               item.description ?? 'Run a command in a local Shell.',
-              'The bundled service offers no desktop capture or input. AIRI handles approval.',
+              'The bundled MCP includes AUV desktop observation and input. Use it for visual work. AIRI approves changes with Turbo off. Turbo authorizes this session.',
               'Use confirmed facts to work toward the user’s goal.',
               'If evidence is incomplete, choose an observation that can resolve the gap.',
               'Verify the requested outcome before reporting completion.',

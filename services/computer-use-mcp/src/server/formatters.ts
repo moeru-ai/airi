@@ -15,6 +15,8 @@ export function describePolicy(decision: PolicyDecision) {
 export function describeExecutionTarget(target: ExecutionTarget) {
   if (target.mode === 'dry-run')
     return `local dry-run on ${target.hostName}`
+  if (target.mode === 'local-windowed' && target.note?.startsWith('auv daemon'))
+    return `local Windows AUV execution on ${target.hostName}`
   if (target.mode === 'local-windowed')
     return `local macOS windowed execution on ${target.hostName}`
 

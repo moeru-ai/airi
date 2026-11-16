@@ -46,6 +46,12 @@ export function createTestConfig(overrides: Partial<ComputerUseConfig> = {}): Co
     remoteObservationBaseUrl: undefined,
     remoteObservationServePort: undefined,
     remoteObservationToken: undefined,
+    auv: {
+      binaryPath: undefined,
+      storeRoot: join(sessionRoot, 'auv'),
+      startupTimeoutMs: 10_000,
+      shutdownTimeoutMs: 5_000,
+    },
     browserDomBridge: {
       enabled: true,
       host: '127.0.0.1',

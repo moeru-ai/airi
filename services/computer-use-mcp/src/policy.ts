@@ -159,22 +159,11 @@ export function evaluateActionPolicy(params: {
     requiresApproval = params.config.approvalMode !== 'never'
   }
 
-  const isBrowserDomAction = params.action.kind.startsWith('browser_dom_')
-  if (params.config.executor === 'auv' && isMutatingAction(params.action) && !isBrowserDomAction && params.action.kind !== 'terminal_exec' && params.action.kind !== 'terminal_reset') {
-    reasons.push('The AUV desktop surface is unavailable without a trusted observation scope')
-    allowed = false
-  }
-
   if (params.action.kind === 'open_app' || params.action.kind === 'focus_app') {
     if (params.config.executor === 'linux-x11') {
       reasons.push('linux-x11 executor does not support app open/focus actions in this legacy path')
       allowed = false
     }
-    if (params.config.executor === 'auv') {
-      reasons.push('auv executor does not support app open/focus actions in this read-only observation slice')
-      allowed = false
-    }
-
     const resolvedApp = resolveConfiguredOpenableApp(params.action.input.app, params.config.openableApps)
     if (!resolvedApp) {
       reasons.push(`app is not in COMPUTER_USE_OPENABLE_APPS: ${params.action.input.app}`)
@@ -220,6 +209,7 @@ export function evaluateActionPolicy(params: {
     riskLevel = 'high'
   }
 
+  const isBrowserDomAction = params.action.kind.startsWith('browser_dom_')
   if (isBrowserDomAction)
     riskLevel = params.action.kind === 'browser_dom_set_input_value' && params.action.input.value.length > 160 ? 'high' : 'medium'
 

@@ -12,8 +12,10 @@ import { CdpBridge } from '../browser-dom/cdp-bridge'
 import { createComputerUseMcpServer } from '../server'
 import { createPtySession, getPtyAvailabilityInfo } from '../terminal/pty-runner'
 import { createDisplayInfo, createLocalExecutionTarget, createPermissionInfo, createTestConfig } from '../test-fixtures'
+import { createExecuteAction } from './action-executor'
 import { runBrowserAgentTask } from './browser-agent'
 import { createAcquirePtyCallback } from './register-pty'
+import { resolvePendingAction } from './register-tools'
 
 vi.mock('../terminal/pty-runner', () => ({
   createPtySession: vi.fn().mockRejectedValue(new Error('Native PTY is disabled in this audit.')),
@@ -94,6 +96,45 @@ async function createHarness(approvalMode: ComputerUseConfig['approvalMode'], ex
     executorFactory: () => desktop,
     terminalRunnerFactory: () => terminal,
   })
+  if (executor === 'auv') {
+    desktop.getExecutionTarget.mockResolvedValue(createLocalExecutionTarget({ hostName: 'fixture-host' }))
+    desktop.getForegroundContext.mockResolvedValue({
+      available: true,
+      appName: 'Fixture App',
+      windowTitle: 'Fixture Window',
+      windowId: 'fixture-window',
+      ownerPid: 4242,
+      platform: 'win32',
+    })
+    desktop.getDisplayInfo.mockResolvedValue(createDisplayInfo({
+      platform: 'win32',
+      displays: [{
+        displayId: 1,
+        isMain: true,
+        isBuiltIn: false,
+        bounds: { x: 0, y: 0, width: 1280, height: 720 },
+        visibleBounds: { x: 0, y: 0, width: 1280, height: 720 },
+        scaleFactor: 1,
+        pixelWidth: 1280,
+        pixelHeight: 720,
+      }],
+      combinedBounds: { x: 0, y: 0, width: 1280, height: 720 },
+    }))
+    runtime.session.setLastScreenshot({
+      dataBase64: 'fixture',
+      mimeType: 'image/png',
+      path: join(root, 'fixture.png'),
+      capturedAt: new Date().toISOString(),
+      placeholder: false,
+      width: 1280,
+      height: 720,
+      executionTargetMode: 'local-windowed',
+      sourceHostName: 'fixture-host',
+      sourceDisplayId: '1',
+      sourceWindowId: 'fixture-window',
+      sourceSessionTag: config.sessionTag,
+    })
+  }
   vi.spyOn(runtime.cdpBridgeManager, 'probeAvailability').mockResolvedValue({ endpoint: 'http://127.0.0.1:1', connected: false, connectable: false })
   const bridge = new CdpBridge({ cdpUrl: 'http://127.0.0.1:1', requestTimeoutMs: 1000 })
   const evaluate = vi.spyOn(bridge, 'evaluate').mockResolvedValue('mock page effect')
@@ -117,15 +158,110 @@ function auditResult(label: string, calls: number) {
 
 for (const mode of ['actions', 'all'] as const) {
   describe(`MCP authorization boundary: ${mode}`, () => {
-    it('keeps Terminal approval after a GUI request is denied', async () => {
+    it('denies AUV input when screenshot pixels do not align with live display geometry', async () => {
       const h = await createHarness(mode, 'auv')
-      await h.client.callTool({ name: 'desktop_click', arguments: { x: 20, y: 20 } })
-      await h.client.callTool({ name: 'desktop_type_text', arguments: { text: 'fixture' } })
+      h.desktop.getDisplayInfo.mockResolvedValue(createDisplayInfo({
+        platform: 'win32',
+        displays: [{
+          displayId: 1,
+          isMain: true,
+          isBuiltIn: false,
+          bounds: { x: 0, y: 0, width: 2560, height: 1440 },
+          visibleBounds: { x: 0, y: 0, width: 2560, height: 1440 },
+          scaleFactor: 1,
+          pixelWidth: 2560,
+          pixelHeight: 1440,
+        }],
+        combinedBounds: { x: 0, y: 0, width: 2560, height: 1440 },
+      }))
+
+      const result = await h.client.callTool({ name: 'desktop_click', arguments: { x: 20, y: 20 } })
+
+      expect(result.structuredContent).toMatchObject({ status: 'denied' })
+      expect(JSON.stringify(result.structuredContent)).toContain('does not match logical display 2560x1440')
+      expect(h.desktop.click).not.toHaveBeenCalled()
+    })
+
+    it('queues GUI AUV changes for Host approval and keeps Terminal approval independent', async () => {
+      const h = await createHarness(mode, 'auv')
+      const click = await h.client.callTool({ name: 'desktop_click', arguments: { x: 20, y: 20 } })
+      const typeText = await h.client.callTool({ name: 'desktop_type_text', arguments: { text: 'fixture' } })
       const terminal = await h.client.callTool({ name: 'terminal_exec', arguments: { command: 'fixture-command', cwd: h.root } })
       expect(h.desktop.click).not.toHaveBeenCalled()
       expect(h.desktop.typeText).not.toHaveBeenCalled()
+      expect(click.structuredContent).toMatchObject({ status: 'approval_required' })
+      expect(typeText.structuredContent).toMatchObject({ status: 'approval_required' })
       expect(terminal.structuredContent).toMatchObject({ status: 'approval_required' })
       expect(h.terminal.execute).not.toHaveBeenCalled()
+    })
+
+    it('propagates Host or Turbo revocation into one in-flight AUV input', async () => {
+      const h = await createHarness(mode, 'auv')
+      const requested = await h.client.callTool({ name: 'desktop_click', arguments: { x: 20, y: 20 } })
+      const pending = h.runtime.session.listPendingActions()[0]
+      expect(requested.structuredContent).toMatchObject({ status: 'approval_required' })
+      expect(pending).toBeDefined()
+
+      let markStarted!: () => void
+      const started = new Promise<void>((resolve) => {
+        markStarted = resolve
+      })
+      h.desktop.click.mockImplementation((_input, options) => new Promise((_resolve, reject) => {
+        markStarted()
+        if (options?.signal?.aborted) {
+          reject(options.signal.reason)
+          return
+        }
+        options?.signal?.addEventListener('abort', () => reject(options.signal?.reason), { once: true })
+      }))
+      const controller = new AbortController()
+      const executeAction = createExecuteAction(h.runtime)
+      const running = resolvePendingAction({
+        runtime: h.runtime,
+        executeAction,
+        id: pending!.id,
+        decision: { type: 'approve', source: 'host-approval-window', signal: controller.signal },
+      })
+
+      await started
+      expect(h.desktop.click).toHaveBeenCalledWith(
+        expect.objectContaining({ x: 20, y: 20 }),
+        expect.objectContaining({ signal: controller.signal, targetWindowId: 'fixture-window' }),
+      )
+      controller.abort(new Error('Turbo revoked'))
+      await expect(running).resolves.toMatchObject({ isError: true })
+      expect(h.desktop.click).toHaveBeenCalledOnce()
+    })
+
+    it('keeps the approved target window when the Host dialog changes foreground focus', async () => {
+      const h = await createHarness(mode, 'auv')
+      const requested = await h.client.callTool({ name: 'desktop_click', arguments: { x: 20, y: 20 } })
+      const pending = h.runtime.session.listPendingActions()[0]
+      expect(requested.structuredContent).toMatchObject({ status: 'approval_required' })
+      expect(pending?.context).toMatchObject({ windowId: 'fixture-window', ownerPid: 4242 })
+
+      h.desktop.getForegroundContext.mockResolvedValue({
+        available: true,
+        appName: 'AIRI approval window',
+        windowId: 'approval-window',
+        platform: 'win32',
+      })
+      const executeAction = createExecuteAction(h.runtime)
+      const result = await resolvePendingAction({
+        runtime: h.runtime,
+        executeAction,
+        id: pending!.id,
+        decision: { type: 'approve', source: 'host-approval-window' },
+      })
+
+      expect(result.structuredContent).toMatchObject({ status: 'executed' })
+      expect(h.desktop.click).toHaveBeenCalledWith(
+        expect.objectContaining({ x: 20, y: 20 }),
+        expect.objectContaining({
+          targetWindowId: 'fixture-window',
+          targetWindowContext: expect.objectContaining({ windowId: 'fixture-window', ownerPid: 4242 }),
+        }),
+      )
     })
 
     it('does not accept the requesting agent as its own approver', async () => {

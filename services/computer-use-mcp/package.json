@@ -3,7 +3,7 @@
   "type": "module",
   "version": "0.15.4",
   "private": true,
-  "description": "AIRI-specific macOS desktop orchestration MCP service",
+  "description": "AIRI-specific desktop orchestration MCP service with a Windows AUV executor",
   "author": {
     "name": "Moeru AI Project AIRI Team",
     "email": "airi@moeru.ai",
@@ -50,9 +50,12 @@
     "test": "vitest run --config ./vitest.config.ts"
   },
   "dependencies": {
+    "@auv-js/cli": "catalog:",
+    "@auv-js/sdk": "catalog:",
     "@modelcontextprotocol/sdk": "catalog:",
     "@moeru/std": "catalog:",
     "@proj-airi/stage-shared": "workspace:^",
+    "date-fns": "catalog:",
     "node-pty": "catalog:",
     "valibot": "catalog:",
     "ws": "catalog:",

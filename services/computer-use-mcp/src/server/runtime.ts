@@ -3,7 +3,6 @@ import type { DesktopSessionController } from '../desktop-session'
 import type { ComputerUseConfig, DesktopExecutor, TerminalRunner } from '../types'
 import type { CdpBridgeManager } from './cdp-manager'
 
-import { hostname } from 'node:os'
 import { env, platform } from 'node:process'
 
 import { computerUseControlEnabledEnv, computerUseControlNonceEnv, terminalControlEnabledEnv, terminalControlNonceEnv } from '@proj-airi/stage-shared/terminal-approval'
@@ -12,6 +11,7 @@ import { BrowserDomExtensionBridge } from '../browser-dom/extension-bridge'
 import { createChromeSessionManager } from '../chrome-session-manager'
 import { resolveComputerUseConfig } from '../config'
 import { createDesktopSessionController } from '../desktop-session'
+import { createAuvExecutor } from '../executors/auv'
 import { createDryRunExecutor } from '../executors/dry-run'
 import { createLinuxX11Executor } from '../executors/linux-x11'
 import { createMacOSLocalExecutor } from '../executors/macos-local'
@@ -61,33 +61,7 @@ function createExecutor(config: ComputerUseConfig, options: ComputerUseServerOpt
     if (platform !== 'win32') {
       throw new Error(`auv executor requires a win32 host, current platform is ${platform}`)
     }
-    const reason = 'A trusted observation scope is required. Native AUV observation is unavailable.'
-    const unavailable = async () => {
-      throw new Error(reason)
-    }
-    const unsupportedPermission = (target: string) => ({ status: 'unsupported' as const, target, note: reason })
-    // Keep the configured surface closed while Terminal uses its independent runner.
-    return {
-      kind: 'auv',
-      describe: () => ({ kind: 'auv', notes: [reason] }),
-      getExecutionTarget: async () => ({ mode: 'local-windowed', transport: 'local', hostName: hostname(), sessionTag: config.sessionTag, isolated: false, tainted: false, note: reason }),
-      getForegroundContext: async () => ({ available: false, platform, unavailableReason: reason }),
-      getDisplayInfo: async () => ({ available: false, platform, capturedAt: new Date().toISOString(), note: reason }),
-      getPermissionInfo: async () => ({
-        screenRecording: unsupportedPermission('screen recording'),
-        accessibility: unsupportedPermission('accessibility'),
-        automationToSystemEvents: unsupportedPermission('automation to system events'),
-      }),
-      observeWindows: unavailable,
-      takeScreenshot: unavailable,
-      openApp: unavailable,
-      focusApp: unavailable,
-      click: unavailable,
-      typeText: unavailable,
-      pressKeys: unavailable,
-      scroll: unavailable,
-      wait: unavailable,
-    }
+    return createAuvExecutor(config)
   }
 
   if (config.executor === 'linux-x11')

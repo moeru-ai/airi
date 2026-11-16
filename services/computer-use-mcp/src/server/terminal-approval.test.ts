@@ -73,6 +73,7 @@ async function fixture(desktopDryRun = false) {
   const desktop = createDryRunExecutor(config)
   const options: ComputerUseServerOptions & { terminalControlNonce: string } = {
     terminalControlNonce: nonce,
+    computerUseControlNonce: nonce,
     terminalRunnerFactory: () => terminal,
     executorFactory: () => {
       return {
@@ -180,10 +181,10 @@ describe('main-only Terminal execution protocol', () => {
     const pendingActionId = String(prepared.structuredContent?.pendingActionId)
     const entered = Promise.withResolvers<void>()
     const release = Promise.withResolvers<void>()
-    vi.spyOn(h.runtime.executor, 'getExecutionTarget').mockImplementation(async () => {
+    vi.spyOn(h.runtime.executor, 'getForegroundContext').mockImplementation(async () => {
       entered.resolve()
       await release.promise
-      return { mode: 'local-windowed', transport: 'local', hostName: 'fixture-host', isolated: false, tainted: false }
+      return { available: true, appName: 'Fixture', windowTitle: 'Fixture', platform }
     })
     const controller = new AbortController()
     const pending = h.client.request({
