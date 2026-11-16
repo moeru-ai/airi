@@ -26,7 +26,7 @@ Failed results and other tools never enter this projection. Compact receives the
 ## Account usage
 
 `FluxUsagePanel` loads and displays account summaries and activity. Its details link opens the separate usage page.
-`FluxUsageHistory` displays ledger entries and owns pagination. Both components cancel pending requests and discard data when the session changes.
+`FluxUsageHistory` displays ledger entries and owns pagination. Both components cancel pending requests when they unmount.
 
 ## Optional modules
 

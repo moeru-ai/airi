@@ -28,9 +28,12 @@ function createMockFluxTransactionService(): FluxTransactionService {
       records: [{ id: 'tx-1', type: 'credit', amount: 5, description: 'Top up', metadata: { source: 'test' }, createdAt: new Date('2026-03-27T10:00:00.000Z') }],
       hasMore: limit === 100 && offset === 0,
     })),
+    getUsageHistory: vi.fn(async () => ({
+      records: [{ id: 'fee-1', sourceType: 'llm', sourceId: 'req-1', amountMicroFlux: 0, createdAt: new Date('2026-03-27T10:00:00Z') }],
+      hasMore: true,
+    })),
     getDailyUsage: vi.fn(async () => ({
       days: [{ date: '2026-03-27', microFlux: 1_550_000 }],
-      longestSessionMs: 60_000,
     })),
   }
 }
@@ -115,10 +118,16 @@ describe('fluxRoutes', () => {
     })
   })
 
-  it('does not expose the removed per-request fee listing', async () => {
-    const app = createTestApp(createMockFluxService(), createMockFluxTransactionService())
+  it('keeps the deployed paginated fee listing available', async () => {
+    const transactions = createMockFluxTransactionService()
+    const app = createTestApp(createMockFluxService(), transactions)
     const response = await app.request('/api/v1/flux/usage?limit=20&offset=5')
-    expect(response.status).toBe(404)
+    expect(response.status).toBe(200)
+    expect(transactions.getUsageHistory).toHaveBeenCalledWith('user-1', 20, 5)
+    expect(await response.json()).toEqual({
+      records: [{ id: 'fee-1', sourceType: 'llm', sourceId: 'req-1', amountMicroFlux: 0, createdAt: '2026-03-27T10:00:00.000Z' }],
+      hasMore: true,
+    })
   })
 
   it('returns the daily usage of the authenticated wallet in the requested time zone', async () => {
@@ -129,14 +138,12 @@ describe('fluxRoutes', () => {
     expect(transactions.getDailyUsage).toHaveBeenCalledWith('user-1', 'Asia/Shanghai')
     expect(await response.json()).toEqual({
       days: [{ date: '2026-03-27', microFlux: 1_550_000 }],
-      longestSessionMs: 60_000,
     })
   })
 
   it.each([
     ['a missing name', ''],
-    ['an unknown name', '?timeZone=Mars/Olympus'],
-    ['an offset', '?timeZone=%2B08:00'],
+    ['an empty name', '?timeZone='],
   ])('rejects %s as the time zone', async (_label, query) => {
     const transactions = createMockFluxTransactionService()
     const app = createTestApp(createMockFluxService(), transactions)

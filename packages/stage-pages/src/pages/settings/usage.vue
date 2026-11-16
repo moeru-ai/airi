@@ -10,7 +10,10 @@ const authStore = useAuthStore()
 
 <template>
   <div :class="['flex min-h-full flex-col gap-4 p-4']">
-    <FluxUsageHistory v-if="authStore.isAuthenticated" />
+    <FluxUsageHistory v-if="authStore.isAuthenticated && authStore.isSessionVerified" />
+    <p v-else-if="authStore.isAuthenticated" role="status" :class="['py-4 text-sm text-neutral-500']">
+      {{ t('settings.pages.flux.audit.loading') }}
+    </p>
     <RouterLink
       v-else
       to="/settings/account"

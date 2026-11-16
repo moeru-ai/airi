@@ -1787,6 +1787,7 @@ pages:
       loadMore: 更多信息
       delayHint: Flux 电量历史记录是缓慢更新的，可能有延迟
       ttsRequests: 请求
+      tokenCount: '{prompt}+{completion} 个 token'
     usage:
       title: Flux 用量
       details: 查看详细数据
@@ -1808,7 +1809,6 @@ pages:
         weekly: 每周 Flux 用量
         cumulative: 累计 Flux 用量
       summary:
-        longestSession: 最长会话
         peakFlux: 单日最高 Flux
         flux: 消耗 Flux
         longestStreak: 最长连续

@@ -1,54 +1,49 @@
 <script setup lang="ts">
-import type { FluxHistoryResponse } from '@proj-airi/api-server/types/flux-usage'
+import type { InferResponseType } from 'hono/client'
+
+import type { StageApiClient } from '../../../composables/api'
 
 import { Alert, Button, GhostButton } from '@proj-airi/ui'
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, onScopeDispose, ref, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { client } from '../../../composables/api'
-import { useAuthStore } from '../../../stores/auth'
 
-type AuditRecord = FluxHistoryResponse['records'][number]
+type AuditRecord = InferResponseType<StageApiClient['api']['v1']['flux']['history']['$get']>['records'][number]
 
-const { t } = useI18n()
-const authStore = useAuthStore()
-const owner = computed(() => authStore.isAuthenticated && authStore.isSessionVerified
-  ? `${authStore.userId}:${authStore.sessionVersion}`
-  : null)
+const { t, locale } = useI18n()
 const loadError = ref(false)
-let activeRequest: AbortController | undefined
+const request = new AbortController()
+onScopeDispose(() => request.abort())
 
-function displayAmount(record: AuditRecord): string {
-  const signed = record.type === 'debit' ? -record.amount : record.amount
-  const formatted = new Intl.NumberFormat().format(Math.abs(signed))
+function displayAmount(record: AuditRecord, amount = record.amount): string {
+  const signed = record.type === 'debit' ? -amount : amount
+  const formatted = new Intl.NumberFormat(locale.value).format(Math.abs(signed))
   return signed >= 0 ? `+${formatted}` : `-${formatted}`
 }
 
-const TYPE_LABEL_KEY: Record<string, string> = {
-  debit: 'settings.pages.flux.audit.typeConsumption',
-  credit: 'settings.pages.flux.audit.typeAddition',
-  initial: 'settings.pages.flux.audit.typeInitial',
-  promo: 'settings.pages.flux.audit.typePromo',
-}
-
 function typeLabel(type: string): string {
-  return t(TYPE_LABEL_KEY[type] ?? TYPE_LABEL_KEY.initial)
+  switch (type) {
+    case 'debit': return t('settings.pages.flux.audit.typeConsumption')
+    case 'credit': return t('settings.pages.flux.audit.typeAddition')
+    case 'initial': return t('settings.pages.flux.audit.typeInitial')
+    case 'promo': return t('settings.pages.flux.audit.typePromo')
+    default: return type
+  }
 }
 
-const auditRecords = ref<AuditRecord[]>([])
+const auditRecords = shallowRef<AuditRecord[]>([])
 const auditLoading = ref(false)
 const auditHasMore = ref(false)
-const auditOffset = ref(0)
 const AUDIT_PAGE_SIZE = 20
 
 async function fetchAuditHistory(loadMore = false) {
-  const request = activeRequest
-  if (!request || request.signal.aborted || auditLoading.value)
+  if (request.signal.aborted || auditLoading.value)
     return
   auditLoading.value = true
   loadError.value = false
   try {
-    const offset = loadMore ? auditOffset.value : 0
+    const offset = loadMore ? auditRecords.value.length : 0
     const response = await client.api.v1.flux.history.$get({
       query: { limit: String(AUDIT_PAGE_SIZE), offset: String(offset) },
     }, { init: { signal: request.signal } })
@@ -59,7 +54,6 @@ async function fetchAuditHistory(loadMore = false) {
       return
     auditRecords.value = loadMore ? [...auditRecords.value, ...data.records] : data.records
     auditHasMore.value = data.hasMore
-    auditOffset.value = offset + data.records.length
   }
   catch {
     if (!request.signal.aborted)
@@ -71,14 +65,22 @@ async function fetchAuditHistory(loadMore = false) {
   }
 }
 
-// Transaction metadata can hold any JSON value. Only structured token counts and speech model names add display details.
+function isSpeechDebit(record: AuditRecord): boolean {
+  // NOTICE:
+  // The wallet history uses the description prefix to show details for older speech debits.
+  // Those rows have no structured field that identifies speech.
+  // Source: packages/stage-pages/src/pages/settings/flux.vue at 26b691f57.
+  // Remove this check when history no longer contains rows without a structured speech marker.
+  return record.type === 'debit' && record.description?.startsWith('tts:') === true
+}
+
 function describeMetadata(record: AuditRecord): string {
   const metadata = record.metadata
   if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata))
     return ''
   if ('promptTokens' in metadata && 'completionTokens' in metadata && typeof metadata.promptTokens === 'number' && typeof metadata.completionTokens === 'number')
-    return `${metadata.promptTokens}+${metadata.completionTokens} tokens`
-  if (record.description?.startsWith('tts:') && 'model' in metadata && typeof metadata.model === 'string')
+    return t('settings.pages.flux.audit.tokenCount', { prompt: metadata.promptTokens, completion: metadata.completionTokens })
+  if (isSpeechDebit(record) && 'model' in metadata && typeof metadata.model === 'string')
     return metadata.model
   return ''
 }
@@ -107,7 +109,7 @@ const groupedRows = computed<GroupedRow[]>(() => {
   const rows: GroupedRow[] = []
   for (const record of auditRecords.value) {
     const previous = rows.at(-1)
-    if (record.type === 'debit' && record.description?.startsWith('tts:')
+    if (isSpeechDebit(record)
       && previous?.record.type === 'debit' && previous.record.description === record.description) {
       previous.records.push(record)
       previous.totalAmount += record.amount
@@ -119,24 +121,9 @@ const groupedRows = computed<GroupedRow[]>(() => {
   return rows
 })
 
-// Each session owns its requests and expanded rows. Teardown and account changes abort the old session before loading another.
-watch(owner, (value, _previous, onCleanup) => {
-  auditRecords.value = []
-  auditOffset.value = 0
-  auditHasMore.value = false
-  auditLoading.value = false
-  loadError.value = false
-  expandedGroups.value.clear()
-  if (!value)
-    return
-  const request = new AbortController()
-  activeRequest = request
-  onCleanup(() => {
-    request.abort()
-    activeRequest = undefined
-  })
+onMounted(() => {
   void fetchAuditHistory()
-}, { immediate: true })
+})
 </script>
 
 <template>
@@ -216,7 +203,7 @@ watch(owner, (value, _previous, onCleanup) => {
               </td>
               <td :class="['px-4 py-3 text-right font-mono']">
                 <span :class="row.record.type === 'debit' ? 'text-orange-600 dark:text-orange-400' : 'text-green-600 dark:text-green-400'">
-                  {{ row.records.length > 1 ? `-${row.totalAmount}` : displayAmount(row.record) }}
+                  {{ displayAmount(row.record, row.totalAmount) }}
                 </span>
               </td>
             </tr>
@@ -234,7 +221,7 @@ watch(owner, (value, _previous, onCleanup) => {
                 {{ child.description }}
               </td>
               <td :class="['px-4 py-2 text-right font-mono text-xs text-orange-500 dark:text-orange-400']">
-                -{{ child.amount }}
+                {{ displayAmount(child) }}
               </td>
             </tr>
           </template>
@@ -256,11 +243,11 @@ watch(owner, (value, _previous, onCleanup) => {
             {{ typeLabel(row.record.type) }}
           </span>
           <span :class="['text-sm font-semibold font-mono', row.record.type === 'debit' ? 'text-orange-600 dark:text-orange-400' : 'text-green-600 dark:text-green-400']">
-            {{ row.records.length > 1 ? `-${row.totalAmount}` : displayAmount(row.record) }}
+            {{ displayAmount(row.record, row.totalAmount) }}
           </span>
         </div>
         <GhostButton
-          v-if="row.records.length > 1" size="unset" :class="['justify-start! text-sm']"
+          v-if="row.records.length > 1" size="unset" :class="['self-start text-sm']"
           :aria-expanded="expandedGroups.has(row.record.id)" @click="toggleGroup(row.record.id)"
         >
           <span
@@ -284,7 +271,7 @@ watch(owner, (value, _previous, onCleanup) => {
             :class="['flex items-center justify-between text-xs text-neutral-400']"
           >
             <span>{{ formatDate(child.createdAt) }}</span>
-            <span :class="['font-mono']">-{{ child.amount }}</span>
+            <span :class="['font-mono']">{{ displayAmount(child) }}</span>
           </div>
         </div>
       </div>

@@ -57,10 +57,6 @@ describe('fluxTransactionService', () => {
       return { userId, sourceType, sourceId, amountMicroFlux, createdAt: new Date(createdAt) }
     }
 
-    function request(userId: string, sessionId: string | null, createdAt: string) {
-      return { userId, sessionId, model: 'chat-model', status: 200, durationMs: 10, createdAt: new Date(createdAt) }
-    }
-
     it('returns 365 zero-filled local days and puts fees on the day of the caller time zone', async () => {
       await db.insert(schema.fluxUsage).values([
         usage('user-daily', 'llm', 'llm-1', 2_000_000, '2026-10-24T17:00:00Z'),
@@ -80,7 +76,6 @@ describe('fluxTransactionService', () => {
       expect(dayOf(shanghai, '2026-10-23')).toEqual({ date: '2026-10-23', microFlux: 0 })
       expect(dayOf(utc, '2026-10-24')).toMatchObject({ microFlux: 3_000_000 })
       expect(dayOf(utc, '2026-10-25')).toMatchObject({ microFlux: 500_000 })
-      expect(shanghai.longestSessionMs).toBe(0)
     })
 
     it('ignores other users, other source types, and fees before the window', async () => {
@@ -97,33 +92,24 @@ describe('fluxTransactionService', () => {
       expect(days.reduce((total, day) => total + day.microFlux, 0)).toBe(1_000_000)
     })
 
-    it('measures sessions in the window and ignores older sessions and other users', async () => {
-      await db.insert(schema.llmRequestLog).values([
-        request('user-sessions', 'long', '2026-10-20T16:30:00Z'),
-        request('user-sessions', 'long', '2026-10-21T16:30:00Z'),
-        request('user-sessions', 'single', '2026-10-21T02:00:00Z'),
-        request('user-sessions', null, '2026-10-21T03:00:00Z'),
-        request('user-sessions', 'before-window', '2025-01-01T00:00:00Z'),
-        request('user-sessions', 'before-window', '2026-10-22T00:00:00Z'),
-        request('user-other', 'foreign', '2026-10-20T02:00:00Z'),
-        request('user-other', 'foreign', '2026-10-23T02:00:00Z'),
-      ])
-
-      const shanghai = await service.getDailyUsage('user-sessions', 'Asia/Shanghai', now)
-      expect(shanghai.longestSessionMs).toBe(24 * 60 * 60 * 1000)
+    it.each(['Mars/Olympus', '+08:00'])('rejects %s when PostgreSQL has no matching zone', async (timeZone) => {
+      await expect(service.getDailyUsage('user-window', timeZone, now)).rejects.toMatchObject({
+        statusCode: 400,
+        errorCode: 'INVALID_TIME_ZONE',
+      })
     })
 
-    it('uses the exact local first day for sessions across a daylight-saving boundary', async () => {
-      await db.insert(schema.llmRequestLog).values([
-        request('user-window', 'boundary', '2025-10-26T03:30:00Z'),
-        request('user-window', 'boundary', '2025-10-26T05:30:00Z'),
+    it('uses the first local day of the window in a daylight-saving zone', async () => {
+      await db.insert(schema.fluxUsage).values([
+        usage('user-window', 'llm', 'outside', 1_000_000, '2025-10-26T03:30:00Z'),
+        usage('user-window', 'llm', 'inside', 2_000_000, '2025-10-26T05:30:00Z'),
       ])
 
       const utc = await service.getDailyUsage('user-window', 'UTC', now)
       const newYork = await service.getDailyUsage('user-window', 'America/New_York', now)
 
-      expect(utc.longestSessionMs).toBe(2 * 3_600_000)
-      expect(newYork.longestSessionMs).toBe(0)
+      expect(utc.days[0]).toEqual({ date: '2025-10-26', microFlux: 3_000_000 })
+      expect(newYork.days[0]).toEqual({ date: '2025-10-26', microFlux: 2_000_000 })
     })
   })
 })

@@ -1,4 +1,8 @@
-import type { DailyUsage } from '@proj-airi/api-server/types/flux-usage'
+import type { InferResponseType } from 'hono/client'
+
+import type { StageApiClient } from '../../../composables/api'
+
+export type DailyUsage = InferResponseType<StageApiClient['api']['v1']['flux']['usage']['daily']['$get']>['days'][number]
 
 export type ActivityView = 'daily' | 'weekly' | 'cumulative'
 
@@ -40,7 +44,7 @@ export function computeStreaks(days: readonly DailyUsage[]): { longest: number, 
 export function buildActivity(days: readonly DailyUsage[], view: ActivityView) {
   const firstDay = days[0]
   if (!firstDay)
-    return { cells: [], groups: [], weekCount: 0, monthLabels: [] }
+    return { groups: [], weekCount: 0, monthLabels: [] }
 
   const offset = weekdayOf(firstDay.date)
   const weekCount = Math.ceil((offset + days.length) / 7)
@@ -80,57 +84,27 @@ export function buildActivity(days: readonly DailyUsage[], view: ActivityView) {
   if (view === 'daily') {
     const usedTotals = groups.map(group => group.microFlux).filter(total => total > 0).sort((left, right) => left - right)
     const thresholds = [0.25, 0.5, 0.75].map(fraction => usedTotals[Math.floor(fraction * (usedTotals.length - 1))] ?? 0)
-    const cells = groups.map(({ column, row, microFlux }, id) => ({
-      id,
-      column,
-      row,
-      level: microFlux > 0 ? 1 + thresholds.filter(threshold => microFlux > threshold).length : 0,
+    const daysWithLevels = groups.map(group => ({
+      ...group,
+      levels: [group.microFlux > 0 ? 1 + thresholds.filter(threshold => group.microFlux > threshold).length : 0],
     }))
-    return { cells, groups, weekCount, monthLabels }
+    return { groups: daysWithLevels, weekCount, monthLabels }
   }
 
   const max = Math.max(...groups.map(group => group.microFlux))
-  const cells = groups.flatMap(({ column, microFlux }) => {
+  const weeksWithLevels = groups.map((group) => {
     // Keep nonzero weeks visible even when their share is less than one tile.
-    const height = microFlux > 0 ? Math.max(1, Math.round(microFlux / max * 7)) : 0
-    return Array.from({ length: 7 }, (_, row) => ({
-      id: column * 7 + row,
-      column,
-      row,
-      level: row >= 7 - height ? 4 : 0,
-    }))
+    const height = group.microFlux > 0 ? Math.max(1, Math.round(group.microFlux / max * 7)) : 0
+    return {
+      ...group,
+      levels: Array.from({ length: 7 }, (_, row) => row >= 7 - height ? 4 : 0),
+    }
   })
 
-  return { cells, groups, weekCount, monthLabels }
-}
-
-/** The input is already a local day. UTC formatting preserves that calendar date. */
-export function formatDay(date: string, locale: string): string {
-  return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${date}T00:00:00Z`))
+  return { groups: weeksWithLevels, weekCount, monthLabels }
 }
 
 export function formatFlux(microFlux: number, locale: string): string {
   const flux = microFlux / 1_000_000
   return new Intl.NumberFormat(locale, { maximumFractionDigits: flux >= 100 ? 0 : 2 }).format(flux)
-}
-
-/** Uses whole minutes, then hours or days with one decimal as the duration increases. */
-export function formatDuration(milliseconds: number, locale: string): string {
-  let unit: 'minute' | 'hour' | 'day' = 'minute'
-  let value = milliseconds / 60_000
-  if (milliseconds >= 86_400_000) {
-    unit = 'day'
-    value = milliseconds / 86_400_000
-  }
-  else if (milliseconds >= 3_600_000) {
-    unit = 'hour'
-    value = milliseconds / 3_600_000
-  }
-
-  return new Intl.NumberFormat(locale, {
-    style: 'unit',
-    unit,
-    unitDisplay: 'narrow',
-    maximumFractionDigits: unit === 'minute' ? 0 : 1,
-  }).format(value)
 }

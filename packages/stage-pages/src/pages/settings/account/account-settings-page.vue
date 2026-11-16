@@ -37,7 +37,7 @@ const {
   trackPasswordResetRequested,
 } = useAnalytics()
 const authStore = useAuthStore()
-const { isAuthenticated, user } = storeToRefs(authStore)
+const { isAuthenticated, isSessionVerified, user } = storeToRefs(authStore)
 
 const userName = computed(() => user.value?.name ?? '')
 const userEmail = computed(() => user.value?.email ?? null)
@@ -563,7 +563,7 @@ async function handleConfirmDelete(event: Event) {
           </section>
 
           <section ref="usageSectionRef" :class="['py-6']">
-            <FluxUsagePanel />
+            <FluxUsagePanel v-if="isSessionVerified" />
           </section>
 
           <!-- Profile section. No card outline — sections are separated by a

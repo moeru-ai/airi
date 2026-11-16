@@ -4,27 +4,31 @@ Status: accepted
 
 ## Decision
 
-`GET /api/v1/flux/usage/daily` returns `{ days, longestSessionMs }` for the last 365 local days of the signed-in user.
-`timeZone` is an IANA name. A missing or invalid name returns 400 `INVALID_TIME_ZONE`.
+`GET /api/v1/flux/usage/daily` returns `{ days }` for the last 365 local days of the signed-in user.
+`timeZone` is an IANA name. PostgreSQL validates the name and uses it to group fees.
+A missing or invalid name returns 400 `INVALID_TIME_ZONE`.
 Each day has `date` (`YYYY-MM-DD`) and `microFlux`, the sum of confirmed LLM and speech fees. Empty days contain zero.
 The client derives daily, weekly, and cumulative views from these days. Switching views sends no request.
-The five summaries show Flux used, peak daily Flux, longest session, longest streak, and current streak within this window.
-`longestSessionMs` uses sessions whose first request falls within this window. SQL returns the maximum duration without transferring individual sessions.
-Valibot defines the response contract in `src/types/flux-usage.ts`. The client imports its inferred types through the API package export.
-Remove `GET /api/v1/flux/usage` and `getUsageHistory`. No repository client calls this paginated fee listing.
+The summaries show Flux used, peak daily Flux, longest streak, and current streak within this window.
+The client infers response types from the Hono routes. Valibot validates request data.
+The deployed `GET /api/v1/flux/usage` fee listing remains available to the iOS client.
 The activity chart reads `/usage/daily`. The balance card reads `/stats`, and transaction history reads `/history`.
 The account page owns the usage overview. Its details link opens the separate `/settings/usage` history page.
 The charging page at `/settings/flux` reads neither usage endpoint. Its details link also opens `/settings/usage`.
-Valibot also owns the existing history response. Its metadata remains opaque JSON.
+Wallet history metadata remains opaque JSON.
 The history client retains collapsible groups for consecutive TTS debits, request details, token counts, and model labels.
 The existing server query also groups TTS transactions by turn.
 `BillingService` owns ledger writes. The Flux transaction service exposes reads only.
-Account changes and navigation cancel client requests and discard results from the previous session.
+The usage components mount after session verification. Navigation and sign-out unmount them and cancel their requests.
 
 ## Scope
 
 Replace the three charts with one animated activity chart. Keep authentication, the IANA time zone, and the 365-day window.
+
+## Non-goals
+
 This change adds no persistence, cache, background task, or lifetime metric.
+Session duration needs a definition that separates visits to the same conversation.
 
 ## Modules
 
@@ -38,9 +42,7 @@ flowchart LR
   History --> Route
   Route --> Service[Flux transaction service]
   Service --> Usage[(flux_usage)]
-  Service --> Requests[(llm_request_log)]
-  Route --> Contract[Valibot usage contract]
-  Panel -. types .-> Contract
+  Panel -. inferred response .-> Route
 ```
 
 ```text
@@ -54,7 +56,6 @@ packages/stage-ui/src/components/scenarios/flux/
   usage-activity-chart.vue
   usage-stats.ts
 server/apps/api/src/
-  types/flux-usage.ts
   routes/flux/index.ts
   routes/flux/route.test.ts
   services/domain/flux-transaction.ts
@@ -68,32 +69,30 @@ sequenceDiagram
   participant Service as Transaction service
   participant DB
   Page->>API: GET /usage/daily?timeZone=IANA
-  API->>API: Validate zone and authenticated user
+  API->>API: Check authentication and query shape
   API->>Service: getDailyUsage(userId, timeZone)
+  Service->>DB: Find the time zone and current local day
   Service->>DB: Sum fees by local day
-  Service->>DB: Maximum session duration in window
-  Service-->>API: 365 days and longestSessionMs
-  API-->>Page: Validated response
+  Service-->>API: 365 days
+  API-->>Page: Daily fee totals
   Page->>Page: Derive and animate daily, weekly, cumulative layouts
   Page->>Page: Open /settings/usage after details click
   Page->>API: GET /history?limit=20&offset=0
   API->>Service: getHistory(userId, limit, offset)
   Service->>DB: Read purchased Flux transactions
-  API-->>Page: Validated records and hasMore
+  API-->>Page: Records and hasMore
 ```
 
 ## Test plan
 
-Verify local-day boundaries, user isolation, empty days, and session cutoffs against PostgreSQL through PGlite.
+Verify local-day boundaries, user isolation, empty days, and time zone validation through PGlite.
 Verify streaks, weekly sums, cumulative totals, partial weeks, and year boundaries with unit tests.
 Verify view changes, tooltip amounts, pointer and keyboard input, and narrow layouts in browser tests.
-Verify that the removed fee listing returns 404 without calling the daily usage service.
+Verify that the deployed fee listing keeps its paginated response.
 
 ## Known limits
 
-Speech writes no `llm_request_log` row and stores no `sessionId`. Speech fees affect Flux usage, but not longest session.
-`llm_request_log` writes are best-effort. A failed write can shorten the measured session.
-`flux_usage` is a confirmed fee, not a wallet debit. Daily Flux can differ from the wallet history while fees wait in the pool.
+`flux_usage` stores confirmed fees. Daily Flux can differ from wallet history while fees wait in the pool.
 
 `created_at` is `timestamp` without time zone. Drizzle reads and writes it as UTC.
 The query reads that value as UTC, then converts it to the caller time zone.

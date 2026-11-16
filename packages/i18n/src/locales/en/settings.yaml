@@ -1875,6 +1875,7 @@ pages:
       loadMore: Load More
       delayHint: Usage records may be delayed by up to 1 minute
       ttsRequests: requests
+      tokenCount: '{prompt}+{completion} tokens'
     usage:
       title: Flux activity
       details: View detailed usage
@@ -1896,7 +1897,6 @@ pages:
         weekly: Weekly Flux usage
         cumulative: Cumulative Flux usage
       summary:
-        longestSession: Longest session
         peakFlux: Peak daily Flux
         flux: Flux used
         longestStreak: Longest streak

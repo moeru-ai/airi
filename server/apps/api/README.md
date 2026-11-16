@@ -95,9 +95,9 @@ A fee that no bucket can pay stays outstanding. A new Capacitor grant or a credi
 `flux_transaction.pool` is `wallet` or `capacitor`. Its balance columns describe that bucket.
 `BillingService.syncCapacitor` stores a period, `setFallbackToFlux` saves the choice, and `GET /api/v1/flux` returns `capacitorPercent`.
 
-`GET /api/v1/flux/usage/daily?timeZone=<IANA>` returns 365 local daily fee totals and the longest session duration.
+`GET /api/v1/flux/usage/daily?timeZone=<IANA>` returns 365 local daily fee totals.
 The activity chart derives daily, weekly, and cumulative views from this response.
-Wallet history returns integer balance changes. The unused per-request fee listing at `GET /api/v1/flux/usage` is removed.
+Wallet history returns integer balance changes. `GET /api/v1/flux/usage` lists confirmed fees by request.
 The transaction service reads activity, history, and capacity. `BillingService` owns ledger writes.
 See [the activity ADR](../../docs/ai/adr/2026-10-25-flux-usage-charts.md) for the response contract.
 

@@ -2,7 +2,7 @@ import en from '@proj-airi/i18n/locales/en'
 
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { createPinia, disposePinia, setActivePinia } from 'pinia'
-import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render } from 'vitest-browser-vue'
 import { page } from 'vitest/browser'
 import { createI18n } from 'vue-i18n'
@@ -13,14 +13,6 @@ import UsagePage from '../usage.vue'
 import AccountSettingsPage from './account-settings-page.vue'
 
 import 'virtual:uno.css'
-
-// Better Auth captures fetch during module initialization. Keep its requests on the same mocked network boundary.
-const network = vi.hoisted(() => {
-  const original = globalThis.fetch
-  const fetch = vi.fn<typeof original>((...args) => original(...args))
-  globalThis.fetch = fetch
-  return { original, fetch }
-})
 
 const now = '2026-11-03T04:00:00.000Z'
 const days = Array.from({ length: 365 }, (_, index) => ({
@@ -42,8 +34,8 @@ const history = Array.from({ length: 20 }, (_, index) => {
 let pinia: ReturnType<typeof createPinia>
 let requests: URL[]
 let failNextPage: boolean
-let dailyResponse: (token: string) => Promise<Response>
-let historyResponse: (offset: number, token: string) => Promise<Response>
+let dailyResponse: () => Promise<Response>
+let historyResponse: (offset: number) => Promise<Response>
 
 beforeEach(async () => {
   await page.viewport(1100, 900)
@@ -52,7 +44,7 @@ beforeEach(async () => {
   setActivePinia(pinia)
   requests = []
   failNextPage = false
-  dailyResponse = async () => Response.json({ days, longestSessionMs: 90 * 60_000 })
+  dailyResponse = async () => Response.json({ days })
   historyResponse = async (offset) => {
     if (offset === 0)
       return Response.json({ records: history, hasMore: true })
@@ -65,16 +57,15 @@ beforeEach(async () => {
       hasMore: false,
     })
   }
-  network.fetch.mockImplementation(async (input, init) => {
+  const fetch: typeof globalThis.fetch = async (input) => {
     const url = new URL(input instanceof Request ? input.url : input)
-    const token = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined)).get('authorization') ?? ''
     requests.push(url)
     if (url.pathname.endsWith('/list-accounts'))
       return Response.json([])
     if (url.pathname.endsWith('/flux/usage/daily'))
-      return dailyResponse(token)
+      return dailyResponse()
     if (url.pathname.endsWith('/flux/history'))
-      return historyResponse(Number(url.searchParams.get('offset')), token)
+      return historyResponse(Number(url.searchParams.get('offset')))
     if (url.pathname.endsWith('/flux/stats'))
       return Response.json({ capacity: 500 })
     if (url.pathname.endsWith('/stripe/packages'))
@@ -82,23 +73,20 @@ beforeEach(async () => {
     if (url.pathname.endsWith('/flux'))
       return Response.json({ flux: 150, capacitorPercent: null, capacitorRechargesAt: null, fallbackToFlux: false })
     throw new Error(`Unexpected request: ${url.pathname}`)
-  })
+  }
+  vi.stubGlobal('fetch', fetch)
 })
 
 afterEach(() => {
   cleanup()
   disposePinia(pinia)
   localStorage.clear()
-  network.fetch.mockImplementation((...args) => network.original(...args))
-  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
 })
 
-afterAll(() => {
-  globalThis.fetch = network.original
-})
-
-function setAccount(id = 'owner') {
+function seedSession(verified: boolean) {
   const auth = useAuthStore(pinia)
+  const id = 'owner'
   const date = new Date(now)
   const version = auth.sessionVersion + 1
   auth.$patch({
@@ -106,13 +94,13 @@ function setAccount(id = 'owner') {
     session: { id: `session-${id}`, userId: id, token: `${id}-token`, createdAt: date, updatedAt: date, expiresAt: new Date(Date.now() + 60_000) },
     token: `${id}-token`,
     sessionVersion: version,
-    verifiedSessionVersion: version,
+    verifiedSessionVersion: verified ? version : 0,
   })
   return auth
 }
 
-async function openPage(path = '/settings/account') {
-  const auth = setAccount()
+async function openPage(path = '/settings/account', verified = true) {
+  const auth = seedSession(verified)
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
@@ -131,8 +119,7 @@ async function openPage(path = '/settings/account') {
 describe('account usage navigation', () => {
   it('opens separate history from the account overview and preserves records across pagination and retry', async () => {
     const { screen, router } = await openPage()
-    await expect.element(screen.getByRole('img', { name: 'Daily Flux usage' })).toBeVisible()
-    await expect.element(screen.getByText('1.5h', { exact: true })).toBeVisible()
+    await expect.element(screen.getByRole('listbox', { name: 'Daily Flux usage' })).toBeVisible()
     expect(requests.some(url => url.pathname.endsWith('/flux/history'))).toBe(false)
     expect(requests.some(url => url.pathname.endsWith('/stripe/packages'))).toBe(false)
 
@@ -162,51 +149,19 @@ describe('account usage navigation', () => {
     expect(requests.some(url => url.pathname.endsWith('/flux/usage/daily'))).toBe(false)
   })
 
-  it('keeps the history link available when no usage or session has been recorded', async () => {
-    dailyResponse = async () => Response.json({ days: days.map(day => ({ ...day, microFlux: 0 })), longestSessionMs: 0 })
+  it('keeps the history link available when no fees have been recorded', async () => {
+    dailyResponse = async () => Response.json({ days: days.map(day => ({ ...day, microFlux: 0 })) })
     const { screen } = await openPage()
     await expect.element(screen.getByText('No usage yet.')).toBeVisible()
     await expect.element(screen.getByRole('link', { name: 'View detailed usage' })).toBeVisible()
   })
 
-  it('shows a recorded session even when requests incurred no fee', async () => {
-    dailyResponse = async () => Response.json({ days: days.map(day => ({ ...day, microFlux: 0 })), longestSessionMs: 60_000 })
-    const { screen } = await openPage()
-    await expect.element(screen.getByText('1m', { exact: true })).toBeVisible()
-    await expect.element(screen.getByRole('img', { name: 'Daily Flux usage' })).toBeVisible()
-    expect(screen.getByText('No usage yet.').elements()).toHaveLength(0)
-  })
-
-  it('discards a pending overview when the account changes', async () => {
-    const pending = Promise.withResolvers<Response>()
-    dailyResponse = async token => token.includes('owner-token')
-      ? pending.promise
-      : Response.json({ days, longestSessionMs: 60_000 })
-    const { screen } = await openPage()
-    await expect.poll(() => requests.some(url => url.pathname.endsWith('/flux/usage/daily'))).toBe(true)
-    setAccount('other')
-    await expect.element(screen.getByRole('img', { name: 'Daily Flux usage' })).toBeVisible()
-    pending.resolve(Response.json({ days: days.map(day => ({ ...day, microFlux: 999_000_000 })), longestSessionMs: 999 * 60_000 }))
-    await screen.getByRole('button', { name: 'Weekly', exact: true }).click()
-    await expect.element(screen.getByText('1m', { exact: true })).toBeVisible()
-  })
-
-  it('isolates pending history across account changes and sign-out', async () => {
-    const pending = Promise.withResolvers<Response>()
-    const otherHistory = [{ ...history[0], id: 'other-credit', type: 'credit', amount: 500, description: 'Other account top up', metadata: { source: 'payment' } }]
-    historyResponse = async (_offset, token) => token.includes('owner-token')
-      ? pending.promise
-      : Response.json({ records: otherHistory, hasMore: false })
-    const { screen, auth } = await openPage('/settings/usage')
-    await expect.poll(() => requests.some(url => url.pathname.endsWith('/flux/history'))).toBe(true)
-    setAccount('other')
-    const otherRecord = screen.getByRole('cell', { name: 'Other account top up', exact: true })
-    await expect.element(otherRecord).toBeVisible()
-    pending.resolve(Response.json({ records: history, hasMore: true }))
-    await otherRecord.click()
-    await expect.element(otherRecord).toBeVisible()
-    expect(screen.getByRole('cell', { name: '-2', exact: true }).elements()).toHaveLength(0)
-    expect(screen.getByRole('button', { name: 'Load More' }).elements()).toHaveLength(0)
+  it('shows loading until verification, then unmounts history on sign-out', async () => {
+    const { screen, auth } = await openPage('/settings/usage', false)
+    await expect.element(screen.getByRole('status')).toHaveTextContent('Loading history')
+    expect(requests.some(url => url.pathname.endsWith('/flux/history'))).toBe(false)
+    auth.$patch({ verifiedSessionVersion: auth.sessionVersion })
+    await expect.element(screen.getByRole('table')).toBeVisible()
     await auth.clearAllAuthState()
     await expect.element(screen.getByRole('link', { name: 'Sign in to view your usage records' })).toBeVisible()
     expect(screen.getByRole('table').elements()).toHaveLength(0)

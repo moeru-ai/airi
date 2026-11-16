@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { FluxBalanceBucket } from '@proj-airi/stage-ui/composables/use-analytics'
 
+import { errorMessageFrom } from '@moeru/std'
 import { isCapacitorAvailable, isFluxPurchaseDisabled, isStageTamagotchi } from '@proj-airi/stage-shared'
 import { client } from '@proj-airi/stage-ui/composables/api'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
@@ -94,12 +95,14 @@ const capacity = ref(0)
 async function fetchStats() {
   try {
     const res = await client.api.v1.flux.stats.$get()
-    if (res.ok) {
-      const data = await res.json()
-      capacity.value = data.capacity
-    }
+    if (!res.ok)
+      throw new Error(`Flux stats request failed with status ${res.status}`)
+    const data = await res.json()
+    capacity.value = data.capacity
   }
-  catch {}
+  catch (error) {
+    console.error(errorMessageFrom(error) ?? 'Failed to load Flux stats')
+  }
 }
 
 async function fetchPackages() {

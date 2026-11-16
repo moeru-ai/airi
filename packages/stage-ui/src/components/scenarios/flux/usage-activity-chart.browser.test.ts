@@ -1,4 +1,4 @@
-import type { DailyUsage } from '@proj-airi/api-server/types/flux-usage'
+import type { DailyUsage } from './usage-stats'
 
 import en from '@proj-airi/i18n/locales/en'
 
@@ -33,22 +33,31 @@ describe('flux activity chart', () => {
   it('shows daily, weekly, and cumulative amounts through pointer and keyboard input', async () => {
     await page.viewport(1100, 700)
     const screen = await renderChart()
-    const targets = screen.getByRole('img', { name: 'Daily Flux usage' }).element().querySelectorAll('rect.fill-transparent')
-    await userEvent.hover(page.elementLocator(targets[targets.length - 1]!))
-    await expect.element(screen.getByRole('status')).toHaveTextContent('3.25 Flux')
-    const chart = screen.getByRole('group', { name: 'Flux activity for the last 365 days' }).element() as HTMLElement
-    chart.focus()
-    await userEvent.keyboard('{ArrowLeft}')
+    const daily = screen.getByRole('listbox', { name: 'Daily Flux usage' })
+    const saturday = daily.getByRole('option', { name: 'Oct 24, 2026' })
+    // https://github.com/moeru-ai/airi/pull/3173#discussion_r4574976396
+    // Pointer focus previously replaced the selected day with the last day.
+    await saturday.click()
     await expect.element(screen.getByRole('status')).toHaveTextContent('2.25 Flux')
+    await daily.getByRole('option', { name: 'Oct 25, 2026' }).hover()
+    await expect.element(screen.getByRole('status')).toHaveTextContent('3.25 Flux')
+    await userEvent.keyboard('{ArrowUp}')
+    await expect.element(saturday).toHaveAttribute('aria-selected', 'true')
+    await expect.element(screen.getByRole('status')).toHaveTextContent('2.25 Flux')
+    await userEvent.keyboard('{ArrowLeft}')
+    await expect.element(daily.getByRole('option', { name: 'Oct 17, 2026' })).toHaveAttribute('aria-selected', 'true')
+    await userEvent.keyboard('{ArrowDown}')
+    await expect.element(screen.getByRole('status')).toHaveTextContent('10 Flux')
 
     await screen.getByRole('button', { name: 'Weekly', exact: true }).click()
     expect(screen.getByRole('status').elements()).toHaveLength(0)
     await expect.element(screen.getByRole('button', { name: 'Weekly', exact: true })).toHaveAttribute('aria-pressed', 'true')
-    chart.focus()
+    await userEvent.tab()
+    await userEvent.tab()
     await expect.element(screen.getByRole('status')).toHaveTextContent('6.75 Flux')
 
     await screen.getByRole('button', { name: 'Cumulative', exact: true }).click()
-    chart.focus()
+    await userEvent.tab()
     await expect.element(screen.getByRole('status')).toHaveTextContent('16.75 Flux')
     await userEvent.keyboard('{Escape}')
     expect(screen.getByRole('status').elements()).toHaveLength(0)
@@ -58,7 +67,7 @@ describe('flux activity chart', () => {
     const screen = await renderChart()
     const root = screen.container.firstElementChild as HTMLElement
     root.style.width = '390px'
-    const chart = screen.getByRole('group', { name: 'Flux activity for the last 365 days' }).element() as HTMLElement
+    const chart = screen.getByRole('group', { name: 'Flux activity for the last 365 days' }).element()
     const scroller = chart.parentElement!
     await expect.poll(() => scroller.scrollWidth > scroller.clientWidth).toBe(true)
     expect(root.scrollWidth).toBeLessThanOrEqual(390)
