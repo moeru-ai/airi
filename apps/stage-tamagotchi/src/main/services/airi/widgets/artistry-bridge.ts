@@ -15,7 +15,7 @@ import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
 import { artistryGenerateHeadless, artistrySyncConfig, artistrySyncConfigPayloadSchema, artistryTestComfyUIConnection, errorMessageFromValue } from '@proj-airi/stage-shared'
 import { injeca } from 'injeca'
-import { safeParse } from 'valibot'
+import { getDotPath, safeParse } from 'valibot'
 
 import { ComfyUIProvider } from './providers/comfyui'
 import { NanoBananaProvider } from './providers/nanobanana'
@@ -467,7 +467,9 @@ export async function setupArtistryBridge(params: {
     defineInvokeHandler(params.context, artistrySyncConfig, (payload) => {
       const parsedPayload = safeParse(artistrySyncConfigPayloadSchema, payload)
       if (!parsedPayload.success) {
-        log.warn('Ignored invalid Artistry settings sync payload.')
+        // Log only the field paths. The values can contain API keys.
+        const invalidFields = parsedPayload.issues.map(issue => getDotPath(issue) ?? '(root)').join(', ')
+        log.warn(`Artistry settings were not applied because these fields are invalid: ${invalidFields}`)
         return
       }
 
