@@ -4,7 +4,6 @@ import type { ComputerUseConfig } from '../types'
 
 import { existsSync } from 'node:fs'
 import { sep } from 'node:path'
-import { env } from 'node:process'
 
 import { binaryPath as resolvePlatformBinaryPath } from '@auv-js/cli/binary'
 import { createAuv, startAuv } from '@auv-js/sdk/node'
@@ -37,7 +36,7 @@ export interface AuvRuntimeHooks {
 
 function defaultBinaryPath(): string {
   try {
-    return resolveAuvBinaryForExecution(resolvePlatformBinaryPath(), env.ELECTRON_RUN_AS_NODE === '1')
+    return resolveAuvBinaryForExecution(resolvePlatformBinaryPath())
   }
   catch (error) {
     throw new AuvExecutorError(
@@ -48,10 +47,7 @@ function defaultBinaryPath(): string {
   }
 }
 
-export function resolveAuvBinaryForExecution(resolvedPath: string, electronRunAsNode: boolean) {
-  if (!electronRunAsNode)
-    return resolvedPath
-
+export function resolveAuvBinaryForExecution(resolvedPath: string) {
   const packedSegment = `${sep}app.asar${sep}`
   if (!resolvedPath.includes(packedSegment))
     return resolvedPath

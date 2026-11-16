@@ -10,7 +10,7 @@ import { createTestConfig } from '../test-fixtures'
 import { createAuvExecutorRuntime, resolveAuvBinaryForExecution } from './auv-runtime'
 
 describe('resolveAuvBinaryForExecution', () => {
-  it('moves Electron RUN_AS_NODE package paths to app.asar.unpacked', () => {
+  it('moves packaged Electron paths to app.asar.unpacked', () => {
     const root = join(tmpdir(), `airi-auv-binary-${process.pid}-${Date.now()}`)
     const packedDirectory = join(root, 'resources', 'app.asar', 'node_modules', '@auv-js', 'cli-win32-x64-msvc', 'bin')
     const unpackedDirectory = join(root, 'resources', 'app.asar.unpacked', 'node_modules', '@auv-js', 'cli-win32-x64-msvc', 'bin')
@@ -19,11 +19,12 @@ describe('resolveAuvBinaryForExecution', () => {
     const unpacked = join(unpackedDirectory, 'auv.exe')
     try {
       writeFileSync(unpacked, 'binary fixture')
-      expect(resolveAuvBinaryForExecution(resolved, true)).toBe(unpacked)
-      expect(resolveAuvBinaryForExecution(resolved, false)).toBe(resolved)
+      expect(resolveAuvBinaryForExecution(resolved)).toBe(unpacked)
+      expect(resolveAuvBinaryForExecution('C:/tools/auv.exe')).toBe('C:/tools/auv.exe')
+      expect(resolveAuvBinaryForExecution(unpacked)).toBe(unpacked)
       expect(existsSync(unpacked)).toBe(true)
       rmSync(root, { recursive: true, force: true })
-      expect(() => resolveAuvBinaryForExecution(resolved, true)).toThrow('was not unpacked')
+      expect(() => resolveAuvBinaryForExecution(resolved)).toThrow('was not unpacked')
     }
     finally {
       rmSync(root, { recursive: true, force: true })
