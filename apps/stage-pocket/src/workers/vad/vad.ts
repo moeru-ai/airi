@@ -21,7 +21,7 @@ export class VAD implements BaseVAD {
   private postSpeechSamples: number = 0
   private prevBuffers: Float32Array[] = []
   private inferenceChain: Promise<unknown> = Promise.resolve()
-  private eventListeners: Partial<Record<keyof VADEvents, VADEventCallback<any>[]>> = {}
+  private eventListeners: { [K in keyof VADEvents]?: VADEventCallback<K>[] } = {}
   private isReady: boolean = false
 
   constructor(userConfig: Partial<BaseVADConfig> = {}) {
@@ -72,16 +72,20 @@ export class VAD implements BaseVAD {
     if (!this.eventListeners[event]) {
       this.eventListeners[event] = []
     }
-    this.eventListeners[event]!.push(callback as any)
+    this.eventListeners[event]!.push(callback)
   }
 
   /**
    * Remove event listener
    */
   public off<K extends keyof VADEvents>(event: K, callback: VADEventCallback<K>): void {
-    if (!this.eventListeners[event])
+    const listeners = this.eventListeners[event]
+    if (!listeners)
       return
-    this.eventListeners[event] = this.eventListeners[event]!.filter(cb => cb !== callback)
+    for (let i = listeners.length - 1; i >= 0; i--) {
+      if (listeners[i] === callback)
+        listeners.splice(i, 1)
+    }
   }
 
   /**
@@ -90,7 +94,7 @@ export class VAD implements BaseVAD {
   private emit<K extends keyof VADEvents>(event: K, data: VADEvents[K]): void {
     if (!this.eventListeners[event])
       return
-    for (const callback of this.eventListeners[event]!) {
+    for (const callback of [...this.eventListeners[event]!]) {
       callback(data)
     }
   }
