@@ -13,7 +13,7 @@ This file tracks current AIRI Agent, Computer Use, Terminal approval, and execut
 - Working tree was clean before this documentation update.
 - GitHub API query on 2026-11-16 confirmed PR head `8f01472d05d87a8058205f3a4387f55f72447609` and base `c66da5bcb2710cdacdf4b2d43b3969ca6e7a3767`.
 - Checks for this head completed successfully. The Godot build and Wayland render jobs were skipped by their workflow conditions.
-- The local branch now contains maintenance documentation after this runtime checkpoint. Those commits have not reached the PR yet.
+- The local branch contains maintenance documentation after this runtime checkpoint. The handoff updates now sit on the PR source ref.
 
 The local SHA is a checkpoint, not proof of the current PR head. Query GitHub before any push or publication.
 
@@ -25,7 +25,7 @@ The local SHA is a checkpoint, not proof of the current PR head. Query GitHub be
 | Host approval and settlement | Electron Main | Integrated in source | Verify same-turn Agent continuation in a real-model run |
 | Agent behavior | Core Agent and Stage UI | Open | Run the complete DeepSeek Agent task and inspect every step |
 | Compact continuity | Core Agent | Open for behavior acceptance | Verify that compaction preserves pending actions and prevents replay |
-| PR publication | Main controller | Runtime checkpoint verified | Verify the source ref, publish the reviewed documentation commits, and check the new PR head |
+| PR publication | Main controller | Maintenance docs published | Read the current PR checks before further publication |
 
 ## Current implementation record
 
@@ -69,7 +69,7 @@ Do not turn these risks into code changes until the real-model trace reproduces 
 
 ### 3. Recheck publication state
 
-The runtime checkpoint matches the current PR head and its required checks pass. The local documentation commits are newer. Verify the source ref before you publish them with lease protection.
+The runtime code checkpoint passed PR checks before the handoff updates. The handoff and route now sit on the PR source ref. Read their CI status live before further publication.
 
 ## Validation record
 
@@ -100,3 +100,4 @@ Never infer completion from a clean tree, a zero exit code, a successful API req
 - Separated stable project memory from the active task checkpoint.
 - Kept the real-model Agent run open because its isolated profile did not finish initialization.
 - Verified the live PR head and completed checks through the GitHub REST API.
+- Published the handoff and project memory to the PR source ref with lease protection.
