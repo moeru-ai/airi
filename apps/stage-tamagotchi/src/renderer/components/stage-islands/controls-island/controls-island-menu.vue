@@ -169,12 +169,13 @@ function quit() {
   quitApp()
 }
 
+// The menu window mounts the menu with its first request, so the menu can mount already open.
 watch(open, (opened) => {
   if (opened)
     trackControlsIslandAction({ action: 'open_menu' })
   else
     notificationsOpen.value = false
-})
+}, { immediate: true })
 
 const subMenuClasses = [
   'z-[10001] min-w-48 rounded-xl border p-1 shadow-lg outline-none backdrop-blur-md',
