@@ -19,6 +19,7 @@ import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '.
 import { createWindowContext } from '../../libs/electron/window-context'
 import { createReusableWindow } from '../../libs/electron/window-manager/reusable'
 import { protectPrivilegedWindowNavigation, setWindowAlwaysOnTop, transparentWindowConfig } from '../shared/window'
+import { placeControlsMenu } from './placement'
 import { setupControlsMenuWindowInvokes } from './rpc/index.electron'
 
 /** The app menu of the controls island, in a window of its own. */
@@ -195,22 +196,14 @@ export function setupControlsMenuWindowManager(params: {
     if (window.isDestroyed() || params.mainWindow.isDestroyed())
       throw new Error('A window closed before the menu opened')
 
-    // Both pages use CSS pixels that equal DIPs, because no window zooms. Electron takes whole numbers for a display
-    // match, so the anchor is rounded to whole DIPs.
-    const content = params.mainWindow.getContentBounds()
-    const anchor: Rectangle = {
-      x: Math.round(content.x + request.anchor.x),
-      y: Math.round(content.y + request.anchor.y),
-      width: Math.round(request.anchor.width),
-      height: Math.round(request.anchor.height),
-    }
-    const { workArea } = screen.getDisplayMatching(anchor)
-    window.setBounds(workArea)
-
-    await windowPage.show({
-      ...request,
-      anchor: { ...anchor, x: anchor.x - workArea.x, y: anchor.y - workArea.y },
+    const placement = placeControlsMenu({
+      content: params.mainWindow.getContentBounds(),
+      anchor: request.anchor,
+      workAreaOf: rectangle => screen.getDisplayMatching(rectangle).workArea,
     })
+    window.setBounds(placement.bounds)
+
+    await windowPage.show({ ...request, anchor: placement.anchor })
     shown = true
     focusWindow(window)
   }
