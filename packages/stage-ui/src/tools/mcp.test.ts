@@ -4,7 +4,7 @@ import type { McpToolRuntime } from './mcp'
 
 import { describe, expect, it, vi } from 'vitest'
 
-import { createMcpTools, mcp } from './mcp'
+import { createMcpTools, MCP_AGENT_EXECUTION_PROMPT, mcp } from './mcp'
 
 function createRuntime(): McpToolRuntime {
   return {
@@ -12,6 +12,19 @@ function createRuntime(): McpToolRuntime {
     callTool: vi.fn(async () => ({ content: [{ type: 'text', text: 'ok' }] })),
   }
 }
+
+describe('MCP Agent execution prompt', () => {
+  it('keeps scoped app lists and dry-run evidence from ending an available task early', () => {
+    expect(MCP_AGENT_EXECUTION_PROMPT).toContain('A supported-app list names apps accepted by desktop open and focus tools.')
+    expect(MCP_AGENT_EXECUTION_PROMPT).toContain('Inspect running processes and known install paths with available Terminal or process tools.')
+    expect(MCP_AGENT_EXECUTION_PROMPT).toContain('Use paths from the user and prior observations before default install paths.')
+    expect(MCP_AGENT_EXECUTION_PROMPT).toContain('inspect registered app paths, Start Menu shortcuts, and known library roots')
+    expect(MCP_AGENT_EXECUTION_PROMPT).toContain('Never use it to emulate mouse or keyboard input or bypass Host approval.')
+    expect(MCP_AGENT_EXECUTION_PROMPT).toContain('Continue with non-GUI discovery and approved launch steps.')
+    expect(MCP_AGENT_EXECUTION_PROMPT).toContain('Complete safe, authorized steps and verify their effects before you report a blocker for later gameplay.')
+    expect(MCP_AGENT_EXECUTION_PROMPT).toContain('Do not claim that a requested app is unavailable or a game cannot be played based only on a supported-app list.')
+  })
+})
 
 describe('tools mcp schema', () => {
   it('emits strict parameter objects', async () => {
