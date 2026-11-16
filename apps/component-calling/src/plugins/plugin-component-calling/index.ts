@@ -1,13 +1,13 @@
-import type { GenericSchema, InferOutput } from 'valibot'
+import type { ErrorMessage, GenericSchema, InferOutput, ObjectEntries, ObjectIssue, ObjectSchema } from 'valibot'
 import type { Component } from 'vue'
 
-import { intersect, record, safeParse, string, unknown } from 'valibot'
+import { looseObject, safeParse } from 'valibot'
 import { markRaw } from 'vue'
 import { toJsonSchema } from 'xsschema'
 
 /** Creates a component definition with a runtime validator and JSON Schema. */
-export function defineCallingComponent<T extends GenericSchema>(name: string, component: Component, schema: T, exampleProps?: InferOutput<T>) {
-  const componentSchema = intersect([schema, record(string(), unknown())])
+export function defineCallingComponent<T extends ObjectSchema<ObjectEntries, ErrorMessage<ObjectIssue> | undefined>>(name: string, component: Component, schema: T, exampleProps?: InferOutput<T>) {
+  const componentSchema = looseObject(schema.entries)
 
   return {
     name,

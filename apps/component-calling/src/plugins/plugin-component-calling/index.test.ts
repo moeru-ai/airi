@@ -1,4 +1,4 @@
-import { object, parse, pipe, safeParse, string, transform } from 'valibot'
+import { looseObject, object, parse, pipe, safeParse, string, transform } from 'valibot'
 import { describe, expect, it } from 'vitest'
 import { defineComponent } from 'vue'
 
@@ -11,7 +11,8 @@ describe('defineCallingComponent', () => {
     object({ city: string() }),
   )
 
-  it('combines the component schema with record validation', () => {
+  it('uses a loose object schema for component props', () => {
+    expect(component.schema.type).toBe('loose_object')
     expect(safeParse(component.schema, { city: 'Tokyo' }).success).toBe(true)
   })
 
@@ -38,9 +39,10 @@ describe('defineCallingComponent', () => {
     expect(() => parseComponentProps(component.schema, 'not JSON')).toThrow(SyntaxError)
   })
 
-  it('returns transformed schema output', () => {
-    const schema = object({ city: pipe(string(), transform(value => value.trim())) })
+  // Reproduces https://github.com/moeru-ai/airi/pull/3511#discussion_r4563517699: registered props must keep schema output.
+  it('returns transformed output from a loose object schema', () => {
+    const schema = looseObject({ city: pipe(string(), transform(value => value.trim())) })
 
-    expect(parseComponentProps(schema, '{"city":" Tokyo "}')).toEqual({ city: 'Tokyo' })
+    expect(parseComponentProps(schema, '{"city":" Tokyo ","extra":true}')).toEqual({ city: 'Tokyo', extra: true })
   })
 })
