@@ -1,14 +1,4 @@
 {
-  "apps/component-calling/src/pages/index.vue": {
-    "ts/no-explicit-any": {
-      "count": 3
-    }
-  },
-  "apps/component-calling/src/plugins/plugin-component-calling/index.ts": {
-    "ts/no-explicit-any": {
-      "count": 1
-    }
-  },
   "apps/stage-pocket/src/pages/devtools/performance-playground.vue": {
     "ts/no-explicit-any": {
       "count": 2

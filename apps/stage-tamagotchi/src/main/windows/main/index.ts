@@ -22,7 +22,7 @@ import type { WidgetsWindowManager } from '../widgets'
 import { useLogg } from '@guiiai/logg'
 import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
-import { isRendererUnavailable } from '@proj-airi/electron-vueuse/main'
+import { isRendererUnavailable, onWindowClosed } from '@proj-airi/electron-vueuse/main'
 import { animate, cubicBezier, utils } from 'animejs'
 import { defu } from 'defu'
 import { BrowserWindow, ipcMain, screen } from 'electron'
@@ -289,7 +289,7 @@ export async function setupMainWindow(params: {
     const { context } = createWindowContext(window)
     const cleanUpWindowDraggingInvokeHandler = defineInvokeHandler(context, electronStartDraggingWindow, handleStartDraggingWindow)
 
-    window.on('closed', () => {
+    onWindowClosed(window, () => {
       cleanUpWindowDraggingInvokeHandler()
     })
   }
@@ -460,7 +460,7 @@ export async function setupMainWindow(params: {
       stopFullscreenGlide()
   })
   window.webContents.on('render-process-gone', (_, details) => leaveFullscreen(`the renderer stopped (${details.reason})`))
-  window.on('closed', () => stopFullscreenGlide())
+  onWindowClosed(window, () => stopFullscreenGlide())
 
   initScreenCaptureForWindow(window)
 

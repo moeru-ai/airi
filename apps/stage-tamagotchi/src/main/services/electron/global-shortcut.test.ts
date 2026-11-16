@@ -20,7 +20,7 @@ interface MockContext {
 }
 
 interface MockWindow {
-  on: ReturnType<typeof vi.fn>
+  once: ReturnType<typeof vi.fn>
   /** Manually trigger the registered `closed` handler. */
   close: () => void
 }
@@ -39,7 +39,7 @@ function createMockContext(): MockContext {
 function createMockWindow(): MockWindow {
   let closedHandler: (() => void) | undefined
   return {
-    on: vi.fn((event: string, handler: () => void) => {
+    once: vi.fn((event: string, handler: () => void) => {
       if (event === 'closed')
         closedHandler = handler
     }),

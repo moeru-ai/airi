@@ -8,6 +8,7 @@ import process from 'node:process'
 
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
+import { onWindowClosed } from '@proj-airi/electron-vueuse/main'
 import { formatElectronAccelerator, isSameKeyCombination, ShortcutFailureReasons } from '@proj-airi/stage-shared/global-shortcut'
 import { globalShortcut } from 'electron'
 
@@ -200,7 +201,7 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
 
   const registerWindow: GlobalShortcutService['registerWindow'] = ({ context, window }) => {
     contexts.add(context)
-    window.on('closed', () => {
+    onWindowClosed(window, () => {
       contexts.delete(context)
       // A binding of a closed window has no listener left. It would also block its key combination for other windows.
       for (const [id, owner] of owners) {
