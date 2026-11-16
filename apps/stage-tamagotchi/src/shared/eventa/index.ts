@@ -143,8 +143,8 @@ export const electronOpenInlay = defineInvokeEventa<void>('eventa:invoke:electro
 export const electronInlayReturnHome = defineInvokeEventa<void>('eventa:invoke:electron:windows:inlay:return-home')
 
 /**
- * Where the app menu of the controls island opens. The menu opens on `side` of the anchor, aligned to its `align` edge,
- * away from the screen corner that the island docks to.
+ * Where the app menu of the controls island opens, and the state of the main window that the menu shows. The menu opens
+ * on `side` of the anchor, aligned to its `align` edge, away from the screen corner that the island docks to.
  */
 export interface ControlsMenuRequest {
   /**
@@ -154,12 +154,23 @@ export interface ControlsMenuRequest {
   anchor: Rectangle
   side: 'left' | 'right'
   align: 'start' | 'end'
+  /** The main window started a sign-in that has not ended. The sign-in row shows it and takes no selection. */
+  signingIn: boolean
 }
 /**
- * Opens the app menu in a window of its own, so the menu can extend past the main window. Resolves when the menu shows.
- * The main window sends it.
+ * What the main window does after the menu closes. The menu window cannot do these itself.
+ *
+ * - `sign-in`: starts a sign-in. The main window owns sign-in, and the token callback returns to it.
+ * - `open-hearing`: opens Hearing controls, which the microphone button opens too.
+ * - `center-main-window`: moves the main window to the center of its display.
  */
-export const electronControlsMenuOpen = defineInvokeEventa<void, ControlsMenuRequest>('eventa:invoke:electron:windows:controls-menu:open')
+export type ControlsMenuAction = 'sign-in' | 'open-hearing' | 'center-main-window'
+/**
+ * Opens the app menu in a window of its own, so the menu can extend past the main window. The main window sends it.
+ * Resolves when the menu closes, with the action that the user chose, or `undefined`. Rejects when the menu window
+ * closes or cannot show.
+ */
+export const electronControlsMenuOpen = defineInvokeEventa<ControlsMenuAction | undefined, ControlsMenuRequest>('eventa:invoke:electron:windows:controls-menu:open')
 /**
  * Asks the menu page to open the menu at the anchor. The main process shows the window after the page answers, so the
  * first frame holds the open menu.
@@ -167,14 +178,11 @@ export const electronControlsMenuOpen = defineInvokeEventa<void, ControlsMenuReq
 export const electronControlsMenuShow = defineInvokeEventa<void, ControlsMenuRequest>('eventa:invoke:electron:windows:controls-menu:show')
 /** Tells the main process that the menu page can take requests. The first request waits for it. */
 export const electronControlsMenuPageMounted = defineInvokeEventa<void>('eventa:invoke:electron:windows:controls-menu:page-mounted')
-/** Hides the menu window. The menu page sends it after the menu closed and its exit animation ended. */
-export const electronControlsMenuHide = defineInvokeEventa<void>('eventa:invoke:electron:windows:controls-menu:hide')
-/** Tells the main window page that the app menu closed. */
-export const electronControlsMenuClosed = defineEventa('eventa:event:electron:windows:controls-menu:closed')
-/** Asks for Hearing controls. The menu page sends it, and the main process passes it to the main window. */
-export const electronControlsMenuOpenHearing = defineInvokeEventa<void>('eventa:invoke:electron:windows:controls-menu:open-hearing')
-/** Opens Hearing controls in the main window, which owns them because the microphone button opens them too. */
-export const electronMainWindowOpenHearing = defineEventa('eventa:event:electron:windows:main:open-hearing')
+/**
+ * Tells the main process that the menu closed and its exit animation ended, with the action that the user chose. The
+ * main process hides the window and answers the open request.
+ */
+export const electronControlsMenuClosed = defineInvokeEventa<void, ControlsMenuAction | undefined>('eventa:invoke:electron:windows:controls-menu:closed')
 /**
  * Tells the main process that a read of Notifications in the menu reached the server or rolled back. The main process
  * passes it to the main window.

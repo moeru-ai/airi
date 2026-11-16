@@ -378,10 +378,6 @@ const fullStageRuntime = windowContext.stageRuntime === 'full'
 const chatStreamView = !fullStageRuntime && (initialRoutePath === '/chat' || isFloatingChatWindow)
   ? useContextBridgeStore()
   : null
-// The app menu window starts sign-in with a minimal runtime. The callback returns only to the window that started
-// sign-in, so this window listens for it too.
-if (!fullStageRuntime && isControlsMenuWindow)
-  initializeElectronAuthCallbackBridge()
 
 const { restore: restoreLocale } = useLanguage(language, getMainLocale, setLocale)
 

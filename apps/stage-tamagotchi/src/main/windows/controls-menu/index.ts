@@ -1,6 +1,4 @@
-import type { Rectangle } from 'electron'
-
-import type { ControlsMenuRequest } from '../../../shared/eventa'
+import type { ControlsMenuAction, ControlsMenuRequest } from '../../../shared/eventa'
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { NoticeWindowManager } from '../notice'
@@ -26,15 +24,12 @@ import { setupControlsMenuWindowInvokes } from './rpc/index.electron'
 export interface ControlsMenuWindowManager {
   /**
    * Shows the menu beside the more button. `request.anchor` is in the page coordinates of the main window.
-   * Resolves when the window shows.
+   * Resolves when the menu closes, with the action that the user chose for the main window, or `undefined`.
+   * Rejects when the window cannot show or closes while the menu shows.
    */
-  open: (request: ControlsMenuRequest) => Promise<void>
+  open: (request: ControlsMenuRequest) => Promise<ControlsMenuAction | undefined>
   /** Loads the menu page without showing it. */
   prepare: () => Promise<void>
-  /** Calls `listener` each time the menu closes. Returns the function that stops it. */
-  onClosed: (listener: () => void) => () => void
-  /** Calls `listener` each time the menu asks for Hearing controls. Returns the function that stops it. */
-  onOpenHearing: (listener: () => void) => () => void
   /**
    * Calls `listener` each time a read of Notifications in the menu reached the server or rolled back. Returns the
    * function that stops it.
@@ -54,35 +49,26 @@ interface MenuPage {
  *
  * The window is transparent and covers the work area of the display under the more button. While the menu shows, the
  * window takes every click, so a click beside the menu closes it, as a native menu does. The page closes the menu on
- * Escape, on a selection, on an outside click, and when the window loses focus. After the exit animation, the page asks
- * the window to hide.
+ * Escape, on a selection, on an outside click, and when the window loses focus. After the exit animation, the page
+ * reports the close, and the window hides.
  *
- * The window loads once and stays loaded while hidden. So the menu opens without a page load, and the menu can start a
- * sign-in that another surface asks for.
+ * The menu window does what it can do by itself: settings, the notice of the fade switch, and quit. An action that
+ * belongs to the main window goes back to it as the answer of the open request.
+ *
+ * The window loads once and stays loaded while hidden, so the menu opens without a page load.
  */
 export function setupControlsMenuWindowManager(params: {
-  mainWindow: BrowserWindow
   serverChannel: ServerChannel
   i18n: I18n
   settingsWindow: SettingsWindowManager
   noticeWindow: NoticeWindowManager
-  /** Centers the main window, for the item of the menu that does it. */
-  centerMainWindow: () => Rectangle
+  /** Returns the main window, whose more button anchors the menu. */
+  getMainWindow: () => BrowserWindow | undefined
 }): ControlsMenuWindowManager {
-  const closedListeners = new Set<() => void>()
-  const hearingListeners = new Set<() => void>()
   const readListeners = new Set<() => void>()
   let page: MenuPage | undefined
-  /** Only a shown menu reports a close. A window that closes while it is hidden reports nothing. */
-  let shown = false
-
-  function reportClosed() {
-    if (!shown)
-      return
-    shown = false
-    for (const listener of closedListeners)
-      listener()
-  }
+  /** The open request of the menu that shows. The close of the menu answers it. */
+  let answer: PromiseWithResolvers<ControlsMenuAction | undefined> | undefined
 
   const menuWindow = createReusableWindow(async () => {
     const window = new BrowserWindow({
@@ -122,9 +108,10 @@ export function setupControlsMenuWindowManager(params: {
     onWindowClosed(window, () => {
       if (page === windowPage)
         page = undefined
-      // A request that waits for this page fails, so the more button of the island stops showing an open menu.
+      // The requests that wait fail, so the more button of the island stops showing an open menu.
       windowPage.mounted.reject(new Error('The menu window closed before its page mounted'))
-      reportClosed()
+      answer?.reject(new Error('The menu window closed'))
+      answer = undefined
     })
 
     // The guards below do not depend on the page. A page that stopped or failed cannot close the menu, and the window
@@ -137,7 +124,11 @@ export function setupControlsMenuWindowManager(params: {
     })
     // A page that did not load never mounts, so the window closes, and the request that waits for the page fails.
     window.webContents.on('did-fail-load', (_event, errorCode, _description, _url, isMainFrame) => {
-      // ERR_ABORTED (-3) is a false alarm of hash routes. See `load` in `libs/electron/location.ts`.
+      // NOTICE:
+      // Electron reports ERR_ABORTED (-3) for a hash route that loads correctly.
+      // The URL of the load and the URL of the navigation differ only in the `/` before the hash.
+      // Source: `load` in apps/stage-tamagotchi/src/main/libs/electron/location.ts ignores the same false alarm.
+      // Removal: when Electron stops reporting ERR_ABORTED for hash routes, and `load` drops its check.
       if (!isMainFrame || errorCode === -3 || window.isDestroyed())
         return
       window.close()
@@ -156,14 +147,9 @@ export function setupControlsMenuWindowManager(params: {
       i18n: params.i18n,
       settingsWindow: params.settingsWindow,
       noticeWindow: params.noticeWindow,
-      centerMainWindow: params.centerMainWindow,
       onPageMounted: () => windowPage.mounted.resolve(),
-      hide,
-      openHearing: () => {
-        for (const listener of hearingListeners)
-          listener()
-      },
-      notificationsRead: () => {
+      onClosed: close,
+      onNotificationsRead: () => {
         for (const listener of readListeners)
           listener()
       },
@@ -176,50 +162,49 @@ export function setupControlsMenuWindowManager(params: {
     return window
   })
 
-  onWindowClosed(params.mainWindow, () => menuWindow.close())
-
-  function hide() {
+  function close(action: ControlsMenuAction | undefined) {
     const window = menuWindow.getOpenWindow()
     if (window?.isVisible())
       window.hide()
-    reportClosed()
+    answer?.resolve(action)
+    answer = undefined
   }
 
   async function open(request: ControlsMenuRequest) {
     // Each failure throws, so the island that asked stops showing an open menu.
+    const mainWindow = params.getMainWindow()
+    if (!mainWindow || mainWindow.isDestroyed())
+      throw new Error('The main window is not open')
     const window = await menuWindow.getWindow()
     const windowPage = page
     // The window closed during its setup, for example because its page did not load.
     if (!windowPage)
       throw new Error('The menu window closed before its page mounted')
     await windowPage.mounted.promise
-    if (window.isDestroyed() || params.mainWindow.isDestroyed())
+    if (window.isDestroyed() || mainWindow.isDestroyed())
       throw new Error('A window closed before the menu opened')
 
     const placement = placeControlsMenu({
-      content: params.mainWindow.getContentBounds(),
+      content: mainWindow.getContentBounds(),
       anchor: request.anchor,
       workAreaOf: rectangle => screen.getDisplayMatching(rectangle).workArea,
     })
     window.setBounds(placement.bounds)
-
     await windowPage.show({ ...request, anchor: placement.anchor })
-    shown = true
+
+    // A request while a menu shows replaces it. The earlier request ends without an action.
+    answer?.resolve(undefined)
+    // The window shows only below, so no close can come before the answer exists.
+    const next = Promise.withResolvers<ControlsMenuAction | undefined>()
+    answer = next
     focusWindow(window)
+    return next.promise
   }
 
   return {
     open,
     prepare: async () => {
       await menuWindow.getWindow()
-    },
-    onClosed: (listener) => {
-      closedListeners.add(listener)
-      return () => closedListeners.delete(listener)
-    },
-    onOpenHearing: (listener) => {
-      hearingListeners.add(listener)
-      return () => hearingListeners.delete(listener)
     },
     onNotificationsRead: (listener) => {
       readListeners.add(listener)

@@ -20,11 +20,17 @@ import 'virtual:uno.css'
 // The app menu opens in a window of its own. The scenario `controls-menu-window` in
 // `packages/scenarios-stage-tamagotchi-electron` checks the menu and the handoff between the windows.
 
-vi.mock('@proj-airi/electron-vueuse', () => ({
-  useElectronEventaContext: () => ref({ on: vi.fn(() => vi.fn()), emit: vi.fn() }),
-  useElectronEventaInvoke: () => vi.fn().mockResolvedValue(false),
-  useElectronMouseInElement: () => ({ isOutside: ref(false) }),
-}))
+vi.mock('@proj-airi/electron-vueuse', async () => {
+  const { electronControlsMenuOpen } = await import('../../../../shared/eventa')
+  return {
+    useElectronEventaContext: () => ref({ on: vi.fn(() => vi.fn()), emit: vi.fn() }),
+    // The open request answers when the menu closes. Here the menu stays open.
+    useElectronEventaInvoke: (event: unknown) => event === electronControlsMenuOpen
+      ? vi.fn(() => new Promise(() => {}))
+      : vi.fn().mockResolvedValue(false),
+    useElectronMouseInElement: () => ({ isOutside: ref(false) }),
+  }
+})
 
 vi.mock('@moeru/eventa', async importOriginal => ({
   ...await importOriginal<typeof import('@moeru/eventa')>(),

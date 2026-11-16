@@ -10,6 +10,7 @@ import type { McpManager } from '../../services/airi/mcp-servers'
 import type { AutoUpdater } from '../../services/electron/auto-updater'
 import type { GlobalShortcutService } from '../../services/electron/global-shortcut'
 import type { ChatWindowManager } from '../chat'
+import type { ControlsMenuWindowManager } from '../controls-menu'
 import type { DevtoolsWindowManager } from '../devtools'
 import type { EditorWindowManager } from '../editor'
 import type { NoticeWindowManager } from '../notice'
@@ -38,7 +39,6 @@ import { isWindowFocusIgnored, showWindow } from '../../libs/electron/focus'
 import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { createWindowContext } from '../../libs/electron/window-context'
-import { setupControlsMenuWindowManager } from '../controls-menu'
 import { setupSettingsPageInvokes } from '../settings/rpc/index.electron'
 import { protectPrivilegedWindowNavigation, setWindowAlwaysOnTop, transparentWindowConfig } from '../shared'
 import { centerWindowOnDisplay, computeCenteredWindowBounds } from '../shared/display'
@@ -59,6 +59,8 @@ const appConfigSchema = object({
 type AppConfig = InferOutput<typeof appConfigSchema>
 
 export async function setupMainWindow(params: {
+  /** The app menu of the controls island, which opens in a window of its own. */
+  controlsMenuWindow: ControlsMenuWindowManager
   editorWindow: EditorWindowManager
   settingsWindow: SettingsWindowManager
   chatWindow: ChatWindowManager
@@ -230,18 +232,9 @@ export async function setupMainWindow(params: {
   window.on('ready-to-show', () => showWindow(window!))
   protectPrivilegedWindowNavigation(window)
 
-  const controlsMenu = setupControlsMenuWindowManager({
-    mainWindow: window,
-    serverChannel: params.serverChannel,
-    i18n: params.i18n,
-    settingsWindow: params.settingsWindow,
-    noticeWindow: params.noticeWindow,
-    centerMainWindow: centerWindow,
-  })
-
   await setupMainWindowElectronInvokes({
     window,
-    controlsMenu,
+    controlsMenu: params.controlsMenuWindow,
     editorWindow: params.editorWindow,
     settingsWindow: params.settingsWindow,
     chatWindow: params.chatWindow,
@@ -272,7 +265,7 @@ export async function setupMainWindow(params: {
       inlay.showInactive()
   }).catch(error => console.error('Failed to prepare the inlay window', error))
   // The app menu loads once and stays hidden until the user opens it, so the menu opens without a page load.
-  void controlsMenu.prepare().catch(error => console.error('Failed to prepare the controls menu window', error))
+  void params.controlsMenuWindow.prepare().catch(error => console.error('Failed to prepare the controls menu window', error))
 
   /**
    * This is a know issue (or expected behavior maybe) to Electron.

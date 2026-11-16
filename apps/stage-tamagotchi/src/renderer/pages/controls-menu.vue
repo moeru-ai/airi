@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ControlsMenuRequest } from '../../shared/eventa'
+import type { ControlsMenuAction, ControlsMenuRequest } from '../../shared/eventa'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { electron } from '@proj-airi/electron-eventa'
@@ -10,24 +10,22 @@ import { computed, nextTick, onMounted, onScopeDispose, ref, shallowRef, watch }
 import ControlsIslandMenu from '../components/stage-islands/controls-island/controls-island-menu.vue'
 
 import {
-  electronControlsMenuHide,
+  electronControlsMenuClosed,
   electronControlsMenuNotificationsRead,
-  electronControlsMenuOpenHearing,
   electronControlsMenuPageMounted,
   electronControlsMenuShow,
 } from '../../shared/eventa'
 
 const open = ref(false)
-/**
- * The last request of the main window, with the anchor in the coordinates of this window.
- *
- * The menu mounts with the page, because it also starts a sign-in that another surface asks for. It stays closed until
- * the first request, so nothing uses this first anchor.
- */
-const request = shallowRef<ControlsMenuRequest>({ anchor: { x: 0, y: 0, width: 0, height: 0 }, side: 'left', align: 'end' })
+/** The last request of the main window. The anchor is in the coordinates of this window. */
+const request = shallowRef<ControlsMenuRequest>()
+/** The item that the main window carries out after the menu closes. Each request clears it. */
+let action: ControlsMenuAction | undefined
+function chooseAction(next: ControlsMenuAction) {
+  action = next
+}
 
-const hide = useElectronEventaInvoke(electronControlsMenuHide)
-const openHearing = useElectronEventaInvoke(electronControlsMenuOpenHearing)
+const reportClosed = useElectronEventaInvoke(electronControlsMenuClosed)
 const reportNotificationsRead = useElectronEventaInvoke(electronControlsMenuNotificationsRead)
 const reportMounted = useElectronEventaInvoke(electronControlsMenuPageMounted)
 const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMouseEvents)
@@ -35,6 +33,7 @@ const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMo
 // The main process shows the window after this resolves, so the first frame already holds the open menu.
 onScopeDispose(defineInvokeHandler(getElectronEventaContext(), electronControlsMenuShow, async (next) => {
   request.value = next
+  action = undefined
   open.value = true
   await setIgnoreMouseEvents([false, { forward: false }])
   await nextTick()
@@ -54,19 +53,23 @@ watch(open, (opened) => {
 
 // The trigger stands where the more button of the main window is, so a click on the button closes the menu.
 const anchorStyle = computed(() => {
-  const { x, y, width, height } = request.value.anchor
-  return { left: `${x}px`, top: `${y}px`, width: `${width}px`, height: `${height}px` }
+  const anchor = request.value?.anchor
+  if (!anchor)
+    return undefined
+  return { left: `${anchor.x}px`, top: `${anchor.y}px`, width: `${anchor.width}px`, height: `${anchor.height}px` }
 })
 </script>
 
 <template>
   <ControlsIslandMenu
+    v-if="request"
     v-model:open="open"
     :side="request.side"
     :align="request.align"
-    @open-hearing="openHearing"
+    :signing-in="request.signingIn"
+    @action="chooseAction"
     @notifications-read="reportNotificationsRead"
-    @closed="hide"
+    @closed="reportClosed(action)"
   >
     <template #trigger>
       <span aria-hidden="true" data-testid="controls-menu-anchor" :class="['fixed']" :style="anchorStyle" />

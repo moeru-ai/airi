@@ -22,11 +22,9 @@ import { ipcMain } from 'electron'
 import {
   electronCenterMainWindow,
   electronChatButtonStateChanged,
-  electronControlsMenuClosed,
   electronControlsMenuOpen,
   electronGetChatButtonState,
   electronMainPageMounted,
-  electronMainWindowOpenHearing,
   electronMainWindowRefreshUnread,
   electronOpenChat,
   electronOpenEditor,
@@ -104,12 +102,6 @@ export async function setupMainWindowElectronInvokes(params: {
   onWindowClosed(params.window, stopChatButtonState)
   defineInvokeHandler(context, noticeWindowEventa.openWindow, payload => params.noticeWindow.open(payload))
   defineInvokeHandler(context, electronControlsMenuOpen, request => params.controlsMenu.open(request))
-  const stopControlsMenuClosed = params.controlsMenu.onClosed(() => context.emit(electronControlsMenuClosed, undefined))
-  const stopControlsMenuHearing = params.controlsMenu.onOpenHearing(() => context.emit(electronMainWindowOpenHearing, undefined))
   const stopControlsMenuRead = params.controlsMenu.onNotificationsRead(() => context.emit(electronMainWindowRefreshUnread, undefined))
-  onWindowClosed(params.window, () => {
-    stopControlsMenuClosed()
-    stopControlsMenuHearing()
-    stopControlsMenuRead()
-  })
+  onWindowClosed(params.window, stopControlsMenuRead)
 }

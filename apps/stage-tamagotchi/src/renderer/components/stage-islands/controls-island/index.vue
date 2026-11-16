@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { ControlsMenuAction } from '../../../../shared/eventa'
+
 import { defineInvoke } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
@@ -18,14 +20,14 @@ import ControlsIslandChatButton from './controls-island-chat-button.vue'
 import IndicatorMicVolume from './indicator-mic-volume.vue'
 
 import {
-  electronControlsMenuClosed,
+  electronCenterMainWindow,
   electronControlsMenuOpen,
-  electronMainWindowOpenHearing,
   electronMainWindowRefreshUnread,
   electronStartDraggingWindow,
   electronWindowSetAlwaysOnTop,
 } from '../../../../shared/eventa'
 import { useControlsIslandPlacement } from './use-controls-island-placement'
+import { useControlsIslandSignIn } from './use-controls-island-sign-in'
 
 interface Emits {
   /** Reports whether an active interaction must delay placement changes. */
@@ -69,6 +71,8 @@ const registerTooltipSurface = inject(backdropSurfaceHostKey, undefined)?.regist
  */
 const menuOpen = ref(false)
 const openMenuWindow = useElectronEventaInvoke(electronControlsMenuOpen)
+const centerMainWindow = useElectronEventaInvoke(electronCenterMainWindow)
+const { signingIn, signIn } = useControlsIslandSignIn()
 
 // Unread Notifications are in the menu. The dot on the more button tells the user to open it.
 const inbox = useInboxStore()
@@ -81,30 +85,39 @@ async function openAppMenu() {
 
   const { x, y, width, height } = button.getBoundingClientRect()
   menuOpen.value = true
+  // The request answers when the menu closes, with the item that this window carries out.
+  let action: ControlsMenuAction | undefined
   try {
-    await openMenuWindow({
+    action = await openMenuWindow({
       anchor: { x, y, width, height },
       side: isLeft.value ? 'right' : 'left',
       align: isTop.value ? 'start' : 'end',
+      signingIn: signingIn.value,
     })
   }
   catch (error) {
-    menuOpen.value = false
     console.error('Failed to open the app menu:', errorMessageFrom(error) ?? 'unknown')
+  }
+  finally {
+    menuOpen.value = false
+  }
+
+  switch (action) {
+    case 'sign-in':
+      signIn()
+      break
+    case 'open-hearing':
+      openHearing()
+      break
+    case 'center-main-window':
+      centerMainWindow().catch(console.error)
+      break
   }
 }
 
-const stopMenuClosed = context.value.on(electronControlsMenuClosed, () => {
-  menuOpen.value = false
-})
-const stopHearingRequest = context.value.on(electronMainWindowOpenHearing, () => openHearing())
 // The menu window keeps its own Notifications state. After a read there settles, the server count is final.
 const stopUnreadRequest = context.value.on(electronMainWindowRefreshUnread, () => void inbox.refreshUnread())
-onScopeDispose(() => {
-  stopMenuClosed()
-  stopHearingRequest()
-  stopUnreadRequest()
-})
+onScopeDispose(stopUnreadRequest)
 
 // Tracks the open menu and dialogs of the Island, for example 'menu' and 'hearing'.
 // The stage keeps the whole window interactive while one is open, and the Island stays in view.
@@ -164,7 +177,6 @@ async function toggleMicrophone() {
 }
 
 function openHearing() {
-  menuOpen.value = false
   setOverlay('hearing', true)
 }
 
