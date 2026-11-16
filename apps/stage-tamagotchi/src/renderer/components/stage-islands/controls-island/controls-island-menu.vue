@@ -40,6 +40,8 @@ const emit = defineEmits<{
   openHearing: []
   /** The menu content left the page, after its exit animation. */
   closed: []
+  /** A read of Notifications reached the server or rolled back. */
+  notificationsRead: []
 }>()
 
 /** The open state. The menu window opens it on each request of the main window. */
@@ -97,6 +99,17 @@ watch(notificationsOpen, (opened) => {
     void inbox.loadFirstPage()
   }
 })
+
+// Each read resolves after it reached the server or rolled back. The dot on the more button reads its own count, so it
+// reads again only then.
+async function markRead(id: string) {
+  await inbox.markRead(id)
+  emit('notificationsRead')
+}
+async function markAllRead() {
+  await inbox.markAllRead()
+  emit('notificationsRead')
+}
 
 // Character
 const cardStore = useAiriCardStore()
@@ -284,7 +297,7 @@ useBackdropSurface(() => characterSurfaceAnchor.value?.closest<HTMLElement>('[ro
             :messages="messages" :now="now" :unread="unread"
             :loading="loading" :error="error" :has-more="hasMore"
             surface="drawer"
-            @open="inbox.markRead" @read-all="inbox.markAllRead" @retry="inbox.loadFirstPage" @load-more="inbox.loadMore"
+            @open="markRead" @read-all="markAllRead" @retry="inbox.loadFirstPage" @load-more="inbox.loadMore"
           />
         </DropdownMenuSubContent>
       </DropdownMenuPortal>

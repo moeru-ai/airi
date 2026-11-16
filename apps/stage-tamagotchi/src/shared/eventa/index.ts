@@ -175,6 +175,16 @@ export const electronControlsMenuClosed = defineEventa('eventa:event:electron:wi
 export const electronControlsMenuOpenHearing = defineInvokeEventa<void>('eventa:invoke:electron:windows:controls-menu:open-hearing')
 /** Opens Hearing controls in the main window, which owns them because the microphone button opens them too. */
 export const electronMainWindowOpenHearing = defineEventa('eventa:event:electron:windows:main:open-hearing')
+/**
+ * Tells the main process that a read of Notifications in the menu reached the server or rolled back. The main process
+ * passes it to the main window.
+ */
+export const electronControlsMenuNotificationsRead = defineInvokeEventa<void>('eventa:invoke:electron:windows:controls-menu:notifications-read')
+/**
+ * Asks the main window to read the unread count of Notifications again. The menu window marks Notifications read in its
+ * own store, and the dot of the more button reads another one.
+ */
+export const electronMainWindowRefreshUnread = defineEventa('eventa:event:electron:windows:main:refresh-unread')
 
 export const electronSettingsNavigate = defineEventa<{ route: string }>('eventa:event:electron:windows:settings:navigate')
 export const electronOpenChat = defineInvokeEventa('eventa:invoke:electron:windows:chat:open')

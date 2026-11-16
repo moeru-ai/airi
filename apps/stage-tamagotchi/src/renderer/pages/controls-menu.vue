@@ -11,6 +11,7 @@ import ControlsIslandMenu from '../components/stage-islands/controls-island/cont
 
 import {
   electronControlsMenuHide,
+  electronControlsMenuNotificationsRead,
   electronControlsMenuOpenHearing,
   electronControlsMenuPageMounted,
   electronControlsMenuShow,
@@ -27,6 +28,7 @@ const request = shallowRef<ControlsMenuRequest>({ anchor: { x: 0, y: 0, width: 0
 
 const hide = useElectronEventaInvoke(electronControlsMenuHide)
 const openHearing = useElectronEventaInvoke(electronControlsMenuOpenHearing)
+const reportNotificationsRead = useElectronEventaInvoke(electronControlsMenuNotificationsRead)
 const reportMounted = useElectronEventaInvoke(electronControlsMenuPageMounted)
 const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMouseEvents)
 
@@ -63,6 +65,7 @@ const anchorStyle = computed(() => {
     :side="request.side"
     :align="request.align"
     @open-hearing="openHearing"
+    @notifications-read="reportNotificationsRead"
     @closed="hide"
   >
     <template #trigger>

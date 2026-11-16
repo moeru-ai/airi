@@ -21,6 +21,7 @@ import {
   electronControlsMenuClosed,
   electronControlsMenuOpen,
   electronMainWindowOpenHearing,
+  electronMainWindowRefreshUnread,
   electronStartDraggingWindow,
   electronWindowSetAlwaysOnTop,
 } from '../../../../shared/eventa'
@@ -95,13 +96,14 @@ async function openAppMenu() {
 
 const stopMenuClosed = context.value.on(electronControlsMenuClosed, () => {
   menuOpen.value = false
-  // The menu window keeps its own Notifications state, and a read there changes the server count.
-  void inbox.refreshUnread()
 })
 const stopHearingRequest = context.value.on(electronMainWindowOpenHearing, () => openHearing())
+// The menu window keeps its own Notifications state. After a read there settles, the server count is final.
+const stopUnreadRequest = context.value.on(electronMainWindowRefreshUnread, () => void inbox.refreshUnread())
 onScopeDispose(() => {
   stopMenuClosed()
   stopHearingRequest()
+  stopUnreadRequest()
 })
 
 // Tracks the open menu and dialogs of the Island, for example 'menu' and 'hearing'.

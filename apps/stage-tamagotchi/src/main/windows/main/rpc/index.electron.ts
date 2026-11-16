@@ -27,6 +27,7 @@ import {
   electronGetChatButtonState,
   electronMainPageMounted,
   electronMainWindowOpenHearing,
+  electronMainWindowRefreshUnread,
   electronOpenChat,
   electronOpenEditor,
   electronOpenInlay,
@@ -105,8 +106,10 @@ export async function setupMainWindowElectronInvokes(params: {
   defineInvokeHandler(context, electronControlsMenuOpen, request => params.controlsMenu.open(request))
   const stopControlsMenuClosed = params.controlsMenu.onClosed(() => context.emit(electronControlsMenuClosed, undefined))
   const stopControlsMenuHearing = params.controlsMenu.onOpenHearing(() => context.emit(electronMainWindowOpenHearing, undefined))
+  const stopControlsMenuRead = params.controlsMenu.onNotificationsRead(() => context.emit(electronMainWindowRefreshUnread, undefined))
   onWindowClosed(params.window, () => {
     stopControlsMenuClosed()
     stopControlsMenuHearing()
+    stopControlsMenuRead()
   })
 }

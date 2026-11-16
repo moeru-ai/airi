@@ -12,6 +12,7 @@ import { ipcMain } from 'electron'
 import {
   electronCenterMainWindow,
   electronControlsMenuHide,
+  electronControlsMenuNotificationsRead,
   electronControlsMenuOpenHearing,
   electronControlsMenuPageMounted,
   electronOpenSettings,
@@ -32,6 +33,7 @@ export async function setupControlsMenuWindowInvokes(params: {
   onPageMounted: () => void
   hide: () => void
   openHearing: () => void
+  notificationsRead: () => void
 }) {
   // TODO: once we refactored eventa to support window-namespaced contexts,
   // we can remove the setMaxListeners call below since eventa will be able to dispatch and
@@ -53,6 +55,7 @@ export async function setupControlsMenuWindowInvokes(params: {
   defineInvokeHandler(context, electronControlsMenuPageMounted, () => params.onPageMounted())
   defineInvokeHandler(context, electronControlsMenuHide, () => params.hide())
   defineInvokeHandler(context, electronControlsMenuOpenHearing, () => params.openHearing())
+  defineInvokeHandler(context, electronControlsMenuNotificationsRead, () => params.notificationsRead())
   defineInvokeHandler(context, electronOpenSettings, payload => params.settingsWindow.openWindow(payload?.route))
   defineInvokeHandler(context, noticeWindowEventa.openWindow, payload => params.noticeWindow.open(payload))
   defineInvokeHandler(context, electronCenterMainWindow, () => params.centerMainWindow())

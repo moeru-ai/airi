@@ -34,6 +34,11 @@ export interface ControlsMenuWindowManager {
   onClosed: (listener: () => void) => () => void
   /** Calls `listener` each time the menu asks for Hearing controls. Returns the function that stops it. */
   onOpenHearing: (listener: () => void) => () => void
+  /**
+   * Calls `listener` each time a read of Notifications in the menu reached the server or rolled back. Returns the
+   * function that stops it.
+   */
+  onNotificationsRead: (listener: () => void) => () => void
 }
 
 /** The menu page of one window. A new window, after a crash for example, gets a new page. */
@@ -65,6 +70,7 @@ export function setupControlsMenuWindowManager(params: {
 }): ControlsMenuWindowManager {
   const closedListeners = new Set<() => void>()
   const hearingListeners = new Set<() => void>()
+  const readListeners = new Set<() => void>()
   let page: MenuPage | undefined
   /** Only a shown menu reports a close. A window that closes while it is hidden reports nothing. */
   let shown = false
@@ -156,6 +162,10 @@ export function setupControlsMenuWindowManager(params: {
         for (const listener of hearingListeners)
           listener()
       },
+      notificationsRead: () => {
+        for (const listener of readListeners)
+          listener()
+      },
     })
 
     await load(window, withHashRoute(baseUrl(getRendererRoot()), '/controls-menu', {
@@ -217,6 +227,10 @@ export function setupControlsMenuWindowManager(params: {
     onOpenHearing: (listener) => {
       hearingListeners.add(listener)
       return () => hearingListeners.delete(listener)
+    },
+    onNotificationsRead: (listener) => {
+      readListeners.add(listener)
+      return () => readListeners.delete(listener)
     },
   }
 }
