@@ -10,6 +10,7 @@ import type { McpManager } from '../../services/airi/mcp-servers'
 import type { AutoUpdater } from '../../services/electron/auto-updater'
 import type { GlobalShortcutService } from '../../services/electron/global-shortcut'
 import type { ChatWindowManager } from '../chat'
+import type { ControlsMenuWindowManager } from '../controls-menu'
 import type { DevtoolsWindowManager } from '../devtools'
 import type { EditorWindowManager } from '../editor'
 import type { NoticeWindowManager } from '../notice'
@@ -58,6 +59,8 @@ const appConfigSchema = object({
 type AppConfig = InferOutput<typeof appConfigSchema>
 
 export async function setupMainWindow(params: {
+  /** The app menu of the controls island, which opens in a window of its own. */
+  controlsMenuWindow: ControlsMenuWindowManager
   editorWindow: EditorWindowManager
   settingsWindow: SettingsWindowManager
   chatWindow: ChatWindowManager
@@ -231,6 +234,7 @@ export async function setupMainWindow(params: {
 
   await setupMainWindowElectronInvokes({
     window,
+    controlsMenu: params.controlsMenuWindow,
     editorWindow: params.editorWindow,
     settingsWindow: params.settingsWindow,
     chatWindow: params.chatWindow,
@@ -260,6 +264,8 @@ export async function setupMainWindow(params: {
     if (!inlay.isDestroyed())
       inlay.showInactive()
   }).catch(error => console.error('Failed to prepare the inlay window', error))
+  // The app menu loads once and stays hidden until the user opens it, so the menu opens without a page load.
+  void params.controlsMenuWindow.prepare().catch(error => console.error('Failed to prepare the controls menu window', error))
 
   /**
    * This is a know issue (or expected behavior maybe) to Electron.
