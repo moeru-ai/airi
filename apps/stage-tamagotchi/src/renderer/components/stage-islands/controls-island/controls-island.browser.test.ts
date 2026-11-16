@@ -22,7 +22,7 @@ import 'virtual:uno.css'
 
 vi.mock('@proj-airi/electron-vueuse', () => ({
   useElectronEventaContext: () => ref({ on: vi.fn(() => vi.fn()), emit: vi.fn() }),
-  useElectronEventaInvoke: () => vi.fn().mockResolvedValue(undefined),
+  useElectronEventaInvoke: () => vi.fn().mockResolvedValue(false),
   useElectronMouseInElement: () => ({ isOutside: ref(false) }),
 }))
 

@@ -10,13 +10,23 @@ import { createI18n } from 'vue-i18n'
 
 import ControlsIsland from './index.vue'
 
+import { electronMainWindowOpenHearing } from '../../../../shared/eventa'
 import { controlsIslandPlacementKey } from './use-controls-island-placement'
 
 import '@unocss/reset/tailwind.css'
 import 'virtual:uno.css'
 
+/** What the Island listens for on the Eventa context, by event. A test plays the main process with them. */
+const listeners = vi.hoisted(() => new Map<unknown, () => void>())
+
 vi.mock('@proj-airi/electron-vueuse', () => ({
-  useElectronEventaContext: () => ref({ on: vi.fn(() => vi.fn()), emit: vi.fn() }),
+  useElectronEventaContext: () => ref({
+    on: (event: unknown, listener: () => void) => {
+      listeners.set(event, listener)
+      return () => listeners.delete(event)
+    },
+    emit: vi.fn(),
+  }),
   useElectronEventaInvoke: () => vi.fn().mockResolvedValue(false),
   useElectronMouseInElement: () => ({ isOutside: ref(false) }),
 }))
@@ -75,6 +85,7 @@ beforeEach(async () => {
 afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
+  listeners.clear()
   localStorage.clear()
   document.documentElement.style.lineHeight = ''
 })
@@ -153,8 +164,8 @@ describe('controls Island microphone', () => {
   it('opens Hearing controls from the menu without asking for permission', async () => {
     const { screen, askPermission } = mountControlsIsland()
 
-    await screen.getByTestId('controls-island-more').click()
-    await page.getByTestId('controls-island-hearing-controls').click()
+    // The menu opens in its own window. Its Microphone settings item reaches the Island through the main process.
+    listeners.get(electronMainWindowOpenHearing)!()
 
     await expect.element(screen.getByTestId('hearing-config-dialog')).toBeVisible()
     expect(askPermission).not.toHaveBeenCalled()
