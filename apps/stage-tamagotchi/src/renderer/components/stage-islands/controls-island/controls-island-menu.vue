@@ -26,6 +26,7 @@ import {
   electronOpenSettings,
   noticeWindowEventa,
 } from '../../../../shared/eventa'
+import { createPlaybackSpeakingReader } from '../../../composables/playback-speaking-reader'
 import { useControlsIslandStore } from '../../../stores/controls-island'
 
 const props = defineProps<{
@@ -37,9 +38,11 @@ const props = defineProps<{
 const emit = defineEmits<{
   /** Opens Hearing controls, which the Island owns because the microphone button also opens them. */
   openHearing: []
+  /** The menu content left the page, after its exit animation. */
+  closed: []
 }>()
 
-/** The open state. The stage page also opens it when the user right-clicks the character. */
+/** The open state. The menu window opens it on each request of the main window. */
 const open = defineModel<boolean>('open', { default: false })
 
 const { t } = useI18n()
@@ -120,7 +123,10 @@ const selectedCardId = computed({
 })
 
 // Muting also publishes a stop request, so it clears the queued and the playing speech on its way.
-const { speechMuted, toggleSpeechMuted } = useStopSpeakingButton()
+// The main window plays the speech, so this window asks it whether the character speaks.
+const { speechMuted, toggleSpeechMuted } = useStopSpeakingButton({
+  resolveSpeakingState: createPlaybackSpeakingReader(),
+})
 const characterVoice = computed({
   get: () => !speechMuted.value,
   set: (on: boolean) => {
@@ -194,10 +200,15 @@ const subMenuClasses = [
   'max-h-[var(--reka-dropdown-menu-content-available-height)] overflow-y-auto',
 ]
 
-// The open menus float over the stage, and the desktop shows through the transparent window around the character.
+// The open menus float in a transparent window, and the desktop shows through it.
 // The menu content roots are not exposed. An element in each slot mounts with its menu and finds the root that paints the fill.
 const menuSurfaceAnchor = useTemplateRef<HTMLElement>('menuSurfaceAnchor')
 useBackdropSurface(() => menuSurfaceAnchor.value?.closest<HTMLElement>('[role="menu"]'))
+// The anchor unmounts with the menu content, which stays until its exit animation ends.
+watch(menuSurfaceAnchor, (element, previous) => {
+  if (!element && previous)
+    emit('closed')
+}, { flush: 'post' })
 const notificationsSurfaceAnchor = useTemplateRef<HTMLElement>('notificationsSurfaceAnchor')
 useBackdropSurface(() => notificationsSurfaceAnchor.value?.closest<HTMLElement>('[role="menu"]'))
 const characterSurfaceAnchor = useTemplateRef<HTMLElement>('characterSurfaceAnchor')
@@ -215,7 +226,7 @@ useBackdropSurface(() => characterSurfaceAnchor.value?.closest<HTMLElement>('[ro
     :content-class="['w-64 max-h-[var(--reka-dropdown-menu-content-available-height)] overflow-y-auto']"
   >
     <template #trigger>
-      <slot name="trigger" :unread="unread" />
+      <slot name="trigger" />
     </template>
 
     <span ref="menuSurfaceAnchor" aria-hidden="true" :class="['hidden']" />

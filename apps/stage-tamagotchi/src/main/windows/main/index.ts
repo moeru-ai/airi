@@ -38,6 +38,7 @@ import { isWindowFocusIgnored, showWindow } from '../../libs/electron/focus'
 import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { createWindowContext } from '../../libs/electron/window-context'
+import { setupControlsMenuWindowManager } from '../controls-menu'
 import { setupSettingsPageInvokes } from '../settings/rpc/index.electron'
 import { protectPrivilegedWindowNavigation, setWindowAlwaysOnTop, transparentWindowConfig } from '../shared'
 import { centerWindowOnDisplay, computeCenteredWindowBounds } from '../shared/display'
@@ -229,8 +230,18 @@ export async function setupMainWindow(params: {
   window.on('ready-to-show', () => showWindow(window!))
   protectPrivilegedWindowNavigation(window)
 
+  const controlsMenu = setupControlsMenuWindowManager({
+    mainWindow: window,
+    serverChannel: params.serverChannel,
+    i18n: params.i18n,
+    settingsWindow: params.settingsWindow,
+    noticeWindow: params.noticeWindow,
+    centerMainWindow: centerWindow,
+  })
+
   await setupMainWindowElectronInvokes({
     window,
+    controlsMenu,
     editorWindow: params.editorWindow,
     settingsWindow: params.settingsWindow,
     chatWindow: params.chatWindow,
@@ -260,6 +271,8 @@ export async function setupMainWindow(params: {
     if (!inlay.isDestroyed())
       inlay.showInactive()
   }).catch(error => console.error('Failed to prepare the inlay window', error))
+  // The app menu loads once and stays hidden until the user opens it, so the menu opens without a page load.
+  void controlsMenu.prepare().catch(error => console.error('Failed to prepare the controls menu window', error))
 
   /**
    * This is a know issue (or expected behavior maybe) to Electron.

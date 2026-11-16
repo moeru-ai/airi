@@ -8,6 +8,7 @@ import type { McpManager } from '../../../services/airi/mcp-servers'
 import type { AutoUpdater } from '../../../services/electron/auto-updater'
 import type { GlobalShortcutService } from '../../../services/electron/global-shortcut'
 import type { ChatWindowManager } from '../../chat'
+import type { ControlsMenuWindowManager } from '../../controls-menu'
 import type { EditorWindowManager } from '../../editor'
 import type { NoticeWindowManager } from '../../notice'
 import type { OnboardingWindowManager } from '../../onboarding'
@@ -21,8 +22,11 @@ import { ipcMain } from 'electron'
 import {
   electronCenterMainWindow,
   electronChatButtonStateChanged,
+  electronControlsMenuClosed,
+  electronControlsMenuOpen,
   electronGetChatButtonState,
   electronMainPageMounted,
+  electronMainWindowOpenHearing,
   electronOpenChat,
   electronOpenEditor,
   electronOpenInlay,
@@ -42,6 +46,8 @@ import { setupBaseWindowElectronInvokes } from '../../shared/window'
 
 export async function setupMainWindowElectronInvokes(params: {
   window: BrowserWindow
+  /** The app menu of the controls island. It opens in its own window, so it can extend past this one. */
+  controlsMenu: ControlsMenuWindowManager
   editorWindow: EditorWindowManager
   settingsWindow: SettingsWindowManager
   chatWindow: ChatWindowManager
@@ -96,4 +102,11 @@ export async function setupMainWindowElectronInvokes(params: {
   const stopChatButtonState = params.chatWindow.onButtonStateChange(state => context.emit(electronChatButtonStateChanged, state))
   onWindowClosed(params.window, stopChatButtonState)
   defineInvokeHandler(context, noticeWindowEventa.openWindow, payload => params.noticeWindow.open(payload))
+  defineInvokeHandler(context, electronControlsMenuOpen, request => params.controlsMenu.open(request))
+  const stopControlsMenuClosed = params.controlsMenu.onClosed(() => context.emit(electronControlsMenuClosed, undefined))
+  const stopControlsMenuHearing = params.controlsMenu.onOpenHearing(() => context.emit(electronMainWindowOpenHearing, undefined))
+  onWindowClosed(params.window, () => {
+    stopControlsMenuClosed()
+    stopControlsMenuHearing()
+  })
 }

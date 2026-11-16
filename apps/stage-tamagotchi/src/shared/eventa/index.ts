@@ -141,6 +141,41 @@ export const electronFullscreenRequestClose = defineInvokeEventa<boolean>('event
 export const electronOpenInlay = defineInvokeEventa<void>('eventa:invoke:electron:windows:inlay:open')
 /** Moves a dragged inlay back to the bottom center of the primary display. The inlay calls it when it has been idle. */
 export const electronInlayReturnHome = defineInvokeEventa<void>('eventa:invoke:electron:windows:inlay:return-home')
+
+/**
+ * Where the app menu of the controls island opens. The menu opens on `side` of the anchor, aligned to its `align` edge,
+ * away from the screen corner that the island docks to.
+ */
+export interface ControlsMenuRequest {
+  /**
+   * The more button of the island, in CSS pixels. The island sends it in the page coordinates of the main window. The
+   * main process passes it on in the page coordinates of the menu window.
+   */
+  anchor: Rectangle
+  side: 'left' | 'right'
+  align: 'start' | 'end'
+}
+/**
+ * Opens the app menu in a window of its own, so the menu can extend past the main window. Resolves when the menu shows.
+ * The main window sends it.
+ */
+export const electronControlsMenuOpen = defineInvokeEventa<void, ControlsMenuRequest>('eventa:invoke:electron:windows:controls-menu:open')
+/**
+ * Asks the menu page to open the menu at the anchor. The main process shows the window after the page answers, so the
+ * first frame holds the open menu.
+ */
+export const electronControlsMenuShow = defineInvokeEventa<void, ControlsMenuRequest>('eventa:invoke:electron:windows:controls-menu:show')
+/** Tells the main process that the menu page can take requests. The first request waits for it. */
+export const electronControlsMenuPageMounted = defineInvokeEventa<void>('eventa:invoke:electron:windows:controls-menu:page-mounted')
+/** Hides the menu window. The menu page sends it after the menu closed and its exit animation ended. */
+export const electronControlsMenuHide = defineInvokeEventa<void>('eventa:invoke:electron:windows:controls-menu:hide')
+/** Tells the main window page that the app menu closed. */
+export const electronControlsMenuClosed = defineEventa('eventa:event:electron:windows:controls-menu:closed')
+/** Asks for Hearing controls. The menu page sends it, and the main process passes it to the main window. */
+export const electronControlsMenuOpenHearing = defineInvokeEventa<void>('eventa:invoke:electron:windows:controls-menu:open-hearing')
+/** Opens Hearing controls in the main window, which owns them because the microphone button opens them too. */
+export const electronMainWindowOpenHearing = defineEventa('eventa:event:electron:windows:main:open-hearing')
+
 export const electronSettingsNavigate = defineEventa<{ route: string }>('eventa:event:electron:windows:settings:navigate')
 export const electronOpenChat = defineInvokeEventa('eventa:invoke:electron:windows:chat:open')
 
