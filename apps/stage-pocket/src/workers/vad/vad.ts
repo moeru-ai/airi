@@ -2,9 +2,13 @@ import type { PreTrainedModel } from '@huggingface/transformers'
 import type { BaseVAD, BaseVADConfig, VADEventCallback, VADEvents } from '@proj-airi/stage-ui/libs/audio/vad'
 
 import { AutoModel, PretrainedConfig, Tensor } from '@huggingface/transformers'
+import { sileroVadOutputSchema } from '@proj-airi/stage-ui/libs/audio/silero-vad-output'
+import { parse } from 'valibot'
 
 /**
  * Voice Activity Detection processor
+ *
+ * @deprecated Nothing in stage-pocket uses this class. Use `VAD` from `@proj-airi/stage-ui/workers/vad`.
  */
 export class VAD implements BaseVAD {
   private config: BaseVADConfig
@@ -16,7 +20,7 @@ export class VAD implements BaseVAD {
   private isRecording: boolean = false
   private postSpeechSamples: number = 0
   private prevBuffers: Float32Array[] = []
-  private inferenceChain: Promise<any> = Promise.resolve()
+  private inferenceChain: Promise<unknown> = Promise.resolve()
   private eventListeners: Partial<Record<keyof VADEvents, VADEventCallback<any>[]>> = {}
   private isReady: boolean = false
 
@@ -176,13 +180,14 @@ export class VAD implements BaseVAD {
   private async detectSpeech(buffer: Float32Array): Promise<boolean> {
     const input = new Tensor('float32', buffer, [1, buffer.length])
 
-    const { stateN, output } = await (this.inferenceChain = this.inferenceChain.then(() =>
+    const result = await (this.inferenceChain = this.inferenceChain.then(() =>
       this.model?.({
         input,
         sr: this.sampleRateTensor,
         state: this.state,
       }),
     ))
+    const { stateN, output } = parse(sileroVadOutputSchema, result)
 
     // Update the state
     this.state = stateN
@@ -269,6 +274,8 @@ export class VAD implements BaseVAD {
 
 /**
  * Create a VAD processor with the given configuration
+ *
+ * @deprecated Nothing in stage-pocket uses this function. Use `createVAD` from `@proj-airi/stage-ui/workers/vad`.
  */
 export async function createVAD(config?: Partial<BaseVADConfig>): Promise<VAD> {
   const vad = new VAD(config)
