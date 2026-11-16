@@ -1,7 +1,7 @@
 import type { PreTrainedModel } from '@huggingface/transformers'
 import type { BaseVAD, BaseVADConfig, VADEventCallback, VADEvents } from '@proj-airi/stage-ui/libs/audio/vad'
 
-import { AutoModel, Tensor } from '@huggingface/transformers'
+import { AutoModel, PretrainedConfig, Tensor } from '@huggingface/transformers'
 
 /**
  * Voice Activity Detection processor
@@ -48,7 +48,7 @@ export class VAD implements BaseVAD {
       this.emit('status', { type: 'info', message: 'Loading VAD model...' })
 
       this.model = await AutoModel.from_pretrained('onnx-community/silero-vad', {
-        config: { model_type: 'custom' } as any,
+        config: new PretrainedConfig({ model_type: 'custom' }),
         dtype: 'fp32', // Full-precision
       })
 

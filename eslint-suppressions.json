@@ -1,7 +1,7 @@
 {
   "apps/stage-pocket/src/workers/vad/vad.ts": {
     "ts/no-explicit-any": {
-      "count": 4
+      "count": 3
     }
   },
   "apps/stage-tamagotchi-kirie/src-web/src/renderer/stores/tools/builtin/image-journal.ts": {
