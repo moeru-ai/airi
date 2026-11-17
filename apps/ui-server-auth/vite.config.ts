@@ -65,7 +65,7 @@ const config = defineConfig({
         chunkFileNames: (chunkInfo) => {
           const containsAnalyticsModule = chunkInfo.moduleIds.some((moduleId) => {
             const normalizedModuleId = moduleId.replaceAll('\\', '/').toLowerCase()
-            return normalizedModuleId.includes('analytics') || normalizedModuleId.includes('openpanel')
+            return ['analytics', 'openpanel', 'posthog'].some(name => normalizedModuleId.includes(name))
           })
 
           // Keep analytics as the source-domain name, but explicitly map its

@@ -1,5 +1,5 @@
 import { useAuthStore } from '../stores/auth'
-import { getAnalyticsIdentitySnapshot } from './product-signals'
+import { getAnalyticsIdentityHeaders } from './product-signals'
 import { SERVER_URL } from './server'
 
 /**
@@ -36,11 +36,11 @@ export async function authedFetch(
     const headers = new Headers(init?.headers ?? request?.headers)
     if (token)
       headers.set('Authorization', `Bearer ${token}`)
-    const openpanelIdentity = shouldAttachOpenpanelIdentity(input) ? getAnalyticsIdentitySnapshot() : null
-    if (openpanelIdentity) {
-      headers.set('x-openpanel-device-id', openpanelIdentity.distinctId)
-      if (openpanelIdentity.sessionId)
-        headers.set('x-openpanel-session-id', openpanelIdentity.sessionId)
+    // Only the API receives the analytics identity. Other origins never see the ids.
+    const identityHeaders = isApiRequest(input) ? getAnalyticsIdentityHeaders() : null
+    if (identityHeaders) {
+      for (const [name, value] of Object.entries(identityHeaders))
+        headers.set(name, value)
     }
     return fetch(request ? request.clone() : input, { ...init, headers, credentials: 'omit' })
   }
@@ -75,7 +75,7 @@ export async function authedFetch(
   return retried
 }
 
-function shouldAttachOpenpanelIdentity(input: RequestInfo | URL): boolean {
+function isApiRequest(input: RequestInfo | URL): boolean {
   const url = typeof input === 'string'
     ? input
     : input instanceof URL ? input.toString() : input.url

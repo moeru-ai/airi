@@ -16,12 +16,7 @@ export function isTimeoutLikeError(error: unknown): boolean {
 
 export async function ensureControlsIslandExpanded(runtime: ManualRuntime) {
   const { mainWindow, context } = runtime
-  const chatButton = mainWindow.page
-    .locator('button')
-    .filter({
-      has: mainWindow.page.locator('[i-solar\\:chat-line-line-duotone]'),
-    })
-    .first()
+  const chatButton = mainWindow.page.getByTestId('controls-island-chat')
 
   const chatButtonVisible = await chatButton.isVisible().catch(() => false)
 
