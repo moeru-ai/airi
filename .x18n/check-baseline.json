@@ -3534,6 +3534,48 @@
     {
       "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
       "code": "unused-key",
+      "key": "tamagotchi.settings.pages.modules.mcp-server.tools.description",
+      "message": "\"tamagotchi.settings.pages.modules.mcp-server.tools.description\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.pages.modules.mcp-server.tools.empty",
+      "message": "\"tamagotchi.settings.pages.modules.mcp-server.tools.empty\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.pages.modules.mcp-server.tools.enabled",
+      "message": "\"tamagotchi.settings.pages.modules.mcp-server.tools.enabled\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.pages.modules.mcp-server.tools.router-only",
+      "message": "\"tamagotchi.settings.pages.modules.mcp-server.tools.router-only\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.pages.modules.mcp-server.tools.search",
+      "message": "\"tamagotchi.settings.pages.modules.mcp-server.tools.search\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.settings.pages.modules.mcp-server.tools.title",
+      "message": "\"tamagotchi.settings.pages.modules.mcp-server.tools.title\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
       "key": "tamagotchi.settings.pages.system.sections.section.window-shortcuts.title",
       "message": "\"tamagotchi.settings.pages.system.sections.section.window-shortcuts.title\" is not used.",
       "count": 1
