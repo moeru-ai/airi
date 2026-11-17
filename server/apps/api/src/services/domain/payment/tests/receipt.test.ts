@@ -10,7 +10,7 @@ import { createPaymentReceiptService } from '../receipt'
 
 describe('payment receipts', () => {
   let db: Database
-  const stripe = new Stripe('sk_test_receipts')
+  const stripe = new Stripe('test-key')
   const retrieve = vi.spyOn(stripe.checkout.sessions, 'retrieve')
 
   beforeAll(async () => {
@@ -32,25 +32,25 @@ describe('payment receipts', () => {
   it('prefers the original invoice and retrieves a fresh URL on each request', async () => {
     retrieve.mockImplementation(vi.fn()
       .mockResolvedValueOnce({
-        invoice: { hosted_invoice_url: 'https://invoice.stripe.com/original' },
-        payment_intent: { latest_charge: { receipt_url: 'https://pay.stripe.com/receipt' } },
+        invoice: { hosted_invoice_url: 'https://example.com/invoice/original' },
+        payment_intent: { latest_charge: { receipt_url: 'https://example.com/receipt' } },
       })
-      .mockResolvedValueOnce({ invoice: { hosted_invoice_url: 'https://invoice.stripe.com/updated' }, payment_intent: null }))
+      .mockResolvedValueOnce({ invoice: { hosted_invoice_url: 'https://example.com/invoice/updated' }, payment_intent: null }))
     const receipts = createPaymentReceiptService(db, stripe)
 
-    expect(await receipts.getReceipt('buyer', 'order-1')).toEqual({ url: 'https://invoice.stripe.com/original' })
-    expect(await receipts.getReceipt('buyer', 'order-1')).toEqual({ url: 'https://invoice.stripe.com/updated' })
+    expect(await receipts.getReceipt('buyer', 'order-1')).toEqual({ url: 'https://example.com/invoice/original' })
+    expect(await receipts.getReceipt('buyer', 'order-1')).toEqual({ url: 'https://example.com/invoice/updated' })
     expect(retrieve).toHaveBeenCalledWith('cs_original', { expand: ['invoice', 'payment_intent.latest_charge'] })
   })
 
   it.each([null, { hosted_invoice_url: null }])('uses the charge receipt without a hosted invoice (%j)', async (invoice) => {
     retrieve.mockImplementation(vi.fn().mockResolvedValue({
       invoice,
-      payment_intent: { latest_charge: { receipt_url: 'https://pay.stripe.com/receipt' } },
+      payment_intent: { latest_charge: { receipt_url: 'https://example.com/receipt' } },
     }))
 
     expect(await createPaymentReceiptService(db, stripe).getReceipt('buyer', 'order-1'))
-      .toEqual({ url: 'https://pay.stripe.com/receipt' })
+      .toEqual({ url: 'https://example.com/receipt' })
   })
 
   it.each([

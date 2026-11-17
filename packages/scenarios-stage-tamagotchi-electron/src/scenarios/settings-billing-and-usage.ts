@@ -2,7 +2,6 @@ import type { Page } from 'playwright'
 
 import { defineStageTamagotchiScenario } from '../context'
 
-/** Fixed external resources for the real shared billing and usage routes. */
 export async function installBillingFixtures(page: Page) {
   const requests: string[] = []
   const state = { authenticated: true, mode: 'ready', requests, receiptFails: true }
@@ -72,7 +71,6 @@ export async function installBillingFixtures(page: Page) {
   return state
 }
 
-/** Exercises the shared pages through the application router, including cache reuse and lazy receipt resolution. */
 export async function checkBillingAndUsage(
   page: Page,
   navigate: (path: string) => Promise<unknown>,
@@ -84,7 +82,7 @@ export async function checkBillingAndUsage(
   const history = page.getByTestId('payment-history')
   await history.getByText('USD 60.00').filter({ visible: true }).first().waitFor()
   await page.evaluate(() => document.fonts.ready)
-  if (state.requests.some(path => path.includes('/receipt') || path.includes('/flux/history') || path.includes('/flux/stats') || path.includes('/flux/usage')))
+  if (state.requests.some(path => path.includes('/receipt') || path.includes('/flux/history') || path.includes('/flux/usage')))
     throw new Error('Billing fetched an unrelated resource before a receipt click')
   await capture('billing-ready', page)
 

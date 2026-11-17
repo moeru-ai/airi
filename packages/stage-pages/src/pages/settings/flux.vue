@@ -107,28 +107,40 @@ watch(packagesError, (error) => {
     message.value = { type: 'error', text: t('settings.pages.flux.packagesError') }
 })
 
-/**
- * Shows a Stripe return banner that background package refreshes must not replace.
- */
 function showCheckoutReturnMessage(type: 'success' | 'error', text: string) {
   checkoutReturnMessageActive.value = true
   message.value = { type, text }
 }
 
-function trackEmptyBalance() {
-  if (!fluxPurchaseDisabled && isAuthenticated.value && credits.value <= 0) {
-    trackQuotaLimitReached({ limit_type: 'flux', current_usage: credits.value, entry: 'pricing' })
-  }
+const capacity = ref(0)
+
+async function fetchStats() {
+  const response = await client.api.v1.flux.stats.$get()
+  if (!response.ok)
+    return
+  const stats = await response.json()
+  capacity.value = stats.capacity
 }
 
-watch(() => authStore.user?.id, async (userId, _previous, onCleanup) => {
-  if (!userId || subscriptionAvailable)
+watch(isAuthenticated, async (authenticated) => {
+  if (!authenticated) {
+    capacity.value = 0
     return
-  let active = true
-  onCleanup(() => active = false)
-  await authStore.updateCredits()
-  if (active)
-    trackEmptyBalance()
+  }
+
+  await Promise.allSettled([
+    authStore.updateCredits(),
+    fetchStats(),
+  ])
+
+  if (!fluxPurchaseDisabled && credits.value <= 0) {
+    trackQuotaLimitReached({
+      limit_type: 'flux',
+      current_usage: credits.value,
+      limit_value: capacity.value > 0 ? capacity.value : undefined,
+      entry: 'pricing',
+    })
+  }
 }, { immediate: true })
 
 onMounted(() => {
@@ -223,7 +235,7 @@ async function handleBuy(stripePriceId: string) {
     </Alert>
 
     <!-- The subscription leads the page. The section opens on the Capacitor card. -->
-    <CapacitorSection v-if="showCapacitor" data-testid="flux-subscription" @ready="trackEmptyBalance" />
+    <CapacitorSection v-if="showCapacitor" data-testid="flux-subscription" />
 
     <!-- One-time Flux packs. A signed-in user also sees the balance of purchased Flux. -->
     <section

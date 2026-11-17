@@ -16,7 +16,6 @@ const checkoutReceiptSchema = object({
   })),
 })
 
-/** Reads paid orders and resolves their receipts from the original payment processor. */
 export function createPaymentReceiptService(db: Database, stripe: Stripe | null) {
   return {
     async listOrders(userId: string, limit: number, offset: number) {
@@ -64,7 +63,6 @@ export function createPaymentReceiptService(db: Database, stripe: Stripe | null)
             expand: ['invoice', 'payment_intent.latest_charge'],
           }))
 
-          // One-time Checkout payments can have a charge receipt without an invoice.
           const receiptUrl = session.invoice?.hosted_invoice_url ?? session.payment_intent?.latest_charge?.receipt_url
           if (!receiptUrl)
             throw new ApiError(404, 'PAYMENT_RECEIPT_UNAVAILABLE', 'Payment receipt is unavailable')
@@ -72,7 +70,6 @@ export function createPaymentReceiptService(db: Database, stripe: Stripe | null)
           return { url: receiptUrl }
         }
         case 'apple_iap':
-          // Apple exposes account purchase history without a documented URL for an individual transaction.
           return { url: 'https://reportaproblem.apple.com/' }
         default:
           throw new ApiError(404, 'PAYMENT_RECEIPT_UNAVAILABLE', 'Payment receipt is unavailable')

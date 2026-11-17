@@ -1,6 +1,6 @@
 # Separate Flux usage from billing and receipts
 
-Status: accepted. The requester selected two independent pages that preserve the current settings structure.
+Status: proposed. Separate Usage and Billing & Invoices pages are confirmed. The placement of grants and balance adjustments remains open.
 
 ## Decision
 
@@ -20,8 +20,7 @@ Wallet history remains independent of payment orders.
 Each page loads only its own list. Account-scoped query caches reuse recent reads and deduplicate concurrent reads.
 The public package catalog stays fresh for five minutes. Private lists stay fresh for one minute.
 Refresh and pagination load on request. Lists do not poll or refetch on window focus.
-Billing reuses the balance refresh performed by the Capacitor section instead of starting another initial refresh.
-The unused capacity read is removed from page entry.
+The existing Capacitor loading, balance refresh, and quota analytics remain unchanged.
 
 `GET /api/v1/payments/:id/receipt` checks account ownership before resolving the original processor.
 Stripe retrieves the Checkout Session with its invoice and latest charge expanded.
@@ -30,6 +29,24 @@ Apple purchases open Apple's purchase history at `https://reportaproblem.apple.c
 Apple does not expose a documented web link for an individual transaction.
 Resolve links only after the user clicks View receipt. Do not persist expiring receipt links.
 Processor selection stays in the existing receipt service. Current sales channels do not select historical receipt destinations.
+
+## Open decision: grants and balance adjustments
+
+The current draft lists confirmed consumption and paid orders. These lists do not expose initial grants, promotional grants, or administrative adjustments.
+Those records remain in `flux_transaction` and `GET /api/v1/flux/history`. They need an explicit display location before this design is complete.
+
+Options keep Usage limited to service consumption:
+
+- Add a grants and adjustments section to Billing & Invoices.
+- Open the existing complete wallet history from the balance as a separate detail panel.
+- Add a separate wallet-history page.
+
+A positive balance change does not prove a purchase. An absent receipt does not prove a free grant.
+Payment settlement records `payment_order.id` in the wallet transaction's `requestId`.
+Receipt actions require an owned, paid, live order. Initial and promotional grants remain Flux records without payment actions.
+Administrative balance settings can increase or decrease the balance. Their direction comes from the stored balance change.
+
+The balance endpoint, existing wallet-history response, and settlement behavior remain unchanged.
 
 ## Scope and non-goals
 

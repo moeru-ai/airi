@@ -13,7 +13,10 @@ export function createPaymentRoutes(receipts: PaymentReceiptService) {
   return new Hono<HonoEnv>()
     .use('*', authGuard)
     .get('/', async (c) => {
-      const { limit, offset } = parse(LimitOffsetPaginationQuerySchema, c.req.query())
+      const { limit, offset } = parse(LimitOffsetPaginationQuerySchema, {
+        limit: c.req.query('limit'),
+        offset: c.req.query('offset'),
+      })
       c.header('Cache-Control', 'no-store')
       const { records, hasMore } = await receipts.listOrders(c.get('user')!.id, limit, offset)
       return c.json({

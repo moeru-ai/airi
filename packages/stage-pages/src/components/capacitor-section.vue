@@ -17,8 +17,6 @@ import capacitorIcon from '../assets/capacitor.png'
 
 import { capacitorCurve, CURVE_FULL_Y, CURVE_HEIGHT, CURVE_WIDTH } from './capacitor-usage'
 
-const emit = defineEmits<{ ready: [] }>()
-
 const { t, locale } = useI18n()
 const authStore = useAuthStore()
 const { capacitorPercent, capacitorRechargesAt, fallbackToFlux } = storeToRefs(authStore)
@@ -202,16 +200,12 @@ watch(() => authStore.user?.id, async (userId, _previous, onCleanup) => {
     await subscription.fetchStatus()
   }
   catch {
-    if (active) {
+    if (active)
       message.value = { type: 'error', text: t('settings.pages.capacitor.statusError') }
-      // A failed subscription read still needs the purchased Flux balance.
-      await authStore.updateCredits().catch(() => undefined)
-    }
   }
   if (!active)
     return
   statusLoading.value = false
-  emit('ready')
   void fetchUsage(() => active)
   if (fluxPurchaseDisabled)
     return

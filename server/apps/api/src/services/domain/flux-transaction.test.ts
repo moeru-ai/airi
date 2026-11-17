@@ -1,5 +1,3 @@
-import type { Database } from '../../libs/db'
-
 import { beforeAll, describe, expect, it } from 'vitest'
 
 import { mockDB } from '../../libs/mock-db'
@@ -8,7 +6,7 @@ import { createFluxTransactionService } from './flux-transaction'
 import * as schema from '../../schemas'
 
 describe('fluxTransactionService', () => {
-  let db: Database
+  let db: any
   let service: ReturnType<typeof createFluxTransactionService>
 
   beforeAll(async () => {

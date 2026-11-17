@@ -10,7 +10,6 @@ const emit = defineEmits<{ error: [], start: [] }>()
 
 const { t } = useI18n()
 const loading = shallowRef(false)
-// Leaving the record cancels its lookup and prevents a late response from opening a receipt.
 const controller = new AbortController()
 onScopeDispose(() => controller.abort())
 
