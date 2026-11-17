@@ -67,9 +67,9 @@ function describeMetadata(record: AuditRecord): string {
   const metadata = record.metadata
   if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata))
     return ''
-  if ('promptTokens' in metadata && 'completionTokens' in metadata && typeof metadata.promptTokens === 'number' && typeof metadata.completionTokens === 'number')
+  if (typeof metadata.promptTokens === 'number' && typeof metadata.completionTokens === 'number')
     return t('settings.pages.flux.audit.tokenCount', { prompt: metadata.promptTokens, completion: metadata.completionTokens })
-  if (isSpeechDebit(record) && 'model' in metadata && typeof metadata.model === 'string')
+  if (isSpeechDebit(record) && typeof metadata.model === 'string')
     return metadata.model
   return ''
 }
