@@ -423,10 +423,10 @@ onUnmounted(() => {
 meta:
   layout: settings
   titleKey: settings.pages.models.title
-  subtitleKey: settings.pages.card.title
+  subtitleKey: settings.title
   descriptionKey: settings.pages.models.description
   icon: i-solar:people-nearby-bold-duotone
-  settingsEntry: false
+  settingsEntry: true
   order: 4
   stageTransition:
     name: slide
