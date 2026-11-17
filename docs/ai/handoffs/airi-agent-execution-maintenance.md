@@ -10,10 +10,10 @@ This file tracks current AIRI Agent, Computer Use, Terminal approval, and execut
 - Pull request: [#3496](https://github.com/moeru-ai/airi/pull/3496)
 - Local branch: `codex/feat/pr3496-current`
 - Runtime validation checkpoint: `8f01472d05d87a8058205f3a4387f55f72447609`
-- Current PR source head after mainline merge: `1ab2e32c5322f8f6ba197e8fe0445011424ef276`
+- Current PR source head after mainline merge and MCP test fix: `433c656e674e22dbe8609de00b06d829541276be`
 - Working tree was clean before this documentation update.
-- GitHub API query on 2026-11-17 confirmed PR head `1ab2e32c5322f8f6ba197e8fe0445011424ef276` and base `27ff2f65bfb56b82540e2a12c06925ec02049efe`.
-- Checks for the new merged head are in progress. The Godot build and Wayland render jobs are skipped by their workflow conditions.
+- GitHub API query on 2026-11-17 confirmed the merged PR base `27ff2f65bfb56b82540e2a12c06925ec02049efe`. The current head includes the MCP browser regression fix.
+- Checks for the current head are in progress. The Godot build and Wayland render jobs are skipped by their workflow conditions.
 - The local branch and PR source ref contain the maintenance documentation and contract separation changes.
 
 The local SHA is a checkpoint, not proof of the current PR head. Query GitHub before any push or publication.
@@ -123,4 +123,4 @@ Validation for this contract slice:
 - Computer Use, Core Agent, Stage UI, and Electron typechecks passed.
 - Full lint: 0 errors and 695 existing warnings.
 - The full Stage UI suite remains environment-blocked. Its Node tests lack `localStorage`, and one browser VAD test lacks its Worker event. The focused MCP test passed.
-- The PR source ref was rebased by merging upstream mainline before the contract changes were pushed. The new head is `1ab2e32c5`.
+- The PR source ref was rebased by merging upstream mainline before the contract changes were pushed. The current head includes the switch-selector regression fix.
