@@ -1,4 +1,4 @@
-import type { BetterFetch } from '@better-fetch/fetch'
+import type { BetterAuthClientPlugin } from 'better-auth/client'
 
 /**
  * Request body for starting a Steam OpenID sign-in or account link.
@@ -38,8 +38,11 @@ export interface SteamOAuthStartResult {
 export function steamClient() {
   return {
     id: 'steam-client',
-    getActions: ($fetch: BetterFetch) => ({
-      linkSteam: (args: SteamOAuthStartArgs) => $fetch<SteamOAuthStartResult>('/link/steam', {
+    getActions: $fetch => ({
+      // Plugin actions do not get the per-call `fetchOptions` of the client proxy.
+      // The second argument carries them, for example a `customFetchImpl` for one call.
+      linkSteam: (args: SteamOAuthStartArgs, fetchOptions?: Omit<NonNullable<Parameters<typeof $fetch>[1]>, 'method' | 'body'>) => $fetch<SteamOAuthStartResult>('/link/steam', {
+        ...fetchOptions,
         method: 'POST',
         body: args,
       }),
@@ -50,5 +53,5 @@ export function steamClient() {
         }),
       },
     }),
-  }
+  } satisfies BetterAuthClientPlugin
 }

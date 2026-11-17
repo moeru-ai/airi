@@ -181,6 +181,7 @@ watch(showDialog, async (open) => {
     @new-session="startNewSession"
     @select-session="selectSession"
     @delete-session="chat.deleteSession"
+    @delete-sessions="chat.deleteSessions"
     @rename-session="renameSession"
   >
     <template #trigger>

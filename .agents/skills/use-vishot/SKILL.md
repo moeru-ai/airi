@@ -11,7 +11,7 @@ Use Vishot as the common screenshot interface and delegate runtime-specific beha
 
 1. Identify every requested surface and state: route or window, viewport, theme, locale, fixture data, and any interaction needed to reach it.
 2. Reuse product-owned Vishot scenarios, stories, routes, and stable selectors before creating temporary automation.
-3. If the existing scenarios do not expose a valid reusable helper for the requested state, write the smallest disposable scenario or helper needed to reach it. Keep this automation outside tracked scenario directories unless the user separately asks to productize it. Run the complete startup, state preparation, capture, and artifact-inspection flow; do not stop after documenting that a helper is missing.
+3. If the existing scenarios do not expose a valid reusable helper for the requested state, write the smallest disposable scenario or helper needed to reach it. Keep one-off automation outside tracked scenario directories. When the state will be checked again during UI iteration, add it as a reusable scenario in the matching `packages/scenarios-*` package, as `enforce-rules-for-ui-tests` describes. Run the complete startup, state preparation, capture, and artifact-inspection flow; do not stop after documenting that a helper is missing.
 4. Select the runtime variant:
    - Invoke `$use-vishot-with-electron` for Electron windows.
    - Invoke `$use-vishot-with-web` for browser routes.

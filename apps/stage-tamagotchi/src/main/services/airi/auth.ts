@@ -6,6 +6,7 @@ import type { ElectronAuthStatus } from '../../../shared/eventa'
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
+import { onWindowClosed } from '@proj-airi/electron-vueuse/main'
 import {
   generateCodeChallenge,
   generateCodeVerifier,
@@ -75,7 +76,7 @@ export function createAuthService(params: {
   window: BrowserWindow
 }): void {
   authContexts.add(params.context)
-  params.window.once('closed', () => {
+  onWindowClosed(params.window, () => {
     authContexts.delete(params.context)
     const attempt = activeAttempt
     if (attempt?.window !== params.window)

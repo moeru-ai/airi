@@ -434,7 +434,7 @@ pages:
     delete: Xóa
     delete_card: Xóa thẻ
     delete_confirmation: Bạn có chắc muốn xóa thẻ này?
-    description: Dùng preset thẻ nhân vật AIRI
+    description: Quản lý thẻ nhân vật AIRI
     description_label: Mô tả
     drop_here: Kéo vào đây để tải lên
     create_card: Tạo thẻ mới
@@ -714,7 +714,7 @@ pages:
       gaming: Chơi game
       artistry: Nghệ thuật
     consciousness:
-      description: Tính cách, mô hình mong muốn, v.v.
+      description: Lựa chọn và cấu hình mô hình ngôn ngữ
       sections:
         section:
           provider-model-selection:
@@ -958,7 +958,7 @@ pages:
       title: Giọng nói
     title: Module
     vision:
-      description: Thị giác
+      description: Cài đặt hiểu hình ảnh và chụp màn hình
       title: Thị giác
       tool-images:
         label: Dùng mô hình thị giác cho ảnh từ công cụ
@@ -1886,7 +1886,7 @@ pages:
         playground:
           title: Thử nghiệm chuyển văn bản
       aihubmix:
-        description: https://aihubmix.com (Giảm giá 10%)
+        description: aihubmix.com (Giảm giá 10%)
     title: Nhà cung cấp
   connection:
     description: Cấu hình kết nối máy chủ WebSocket

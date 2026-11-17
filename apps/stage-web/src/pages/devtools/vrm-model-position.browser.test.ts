@@ -1,27 +1,98 @@
 import { ThreeScene, useModelStore } from '@proj-airi/stage-ui-three'
-import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { createPinia } from 'pinia'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { createApp, defineComponent, h, nextTick, shallowRef } from 'vue'
 
 import 'virtual:uno.css'
 
+/** Parent node, name, and translation of each node of the minimal humanoid. */
+const humanoidNodes = [
+  [undefined, 'hips', [0, 0.9, 0]],
+  [0, 'spine', [0, 0.1, 0]],
+  [1, 'head', [0, 0.5, 0]],
+  [1, 'leftUpperArm', [0.2, 0.4, 0]],
+  [3, 'leftLowerArm', [0.25, 0, 0]],
+  [4, 'leftHand', [0.25, 0, 0]],
+  [1, 'rightUpperArm', [-0.2, 0.4, 0]],
+  [6, 'rightLowerArm', [-0.25, 0, 0]],
+  [7, 'rightHand', [-0.25, 0, 0]],
+  [0, 'leftUpperLeg', [0.1, -0.05, 0]],
+  [9, 'leftLowerLeg', [0, -0.4, 0]],
+  [10, 'leftFoot', [0, -0.4, 0]],
+  [0, 'rightUpperLeg', [-0.1, -0.05, 0]],
+  [12, 'rightLowerLeg', [0, -0.4, 0]],
+  [13, 'rightFoot', [0, -0.4, 0]],
+] as const
+
+/**
+ * Builds a VRM 1.0 file with the required humanoid bones and one triangle.
+ *
+ * The view settings do not depend on the model content. A small model keeps each of the
+ * repeated loads below to a fraction of the time that a preset avatar needs.
+ */
+function createMinimalVrm(): Blob {
+  // The triangle spans a human-sized bounding box, so the camera frames it like an avatar.
+  const positions = new Float32Array([-0.2, 0, -0.1, 0.2, 1.6, 0.1, 0.2, 0, 0.1])
+  const binary = new Uint8Array(positions.buffer)
+
+  const boneOffset = 1
+  const nodes = [
+    { name: 'body', mesh: 0 },
+    ...humanoidNodes.map(([, name, translation], index) => {
+      const children = humanoidNodes.flatMap(([parent], child) => parent === index ? [child + boneOffset] : [])
+      return children.length > 0 ? { name, translation, children } : { name, translation }
+    }),
+  ]
+
+  const json = {
+    asset: { version: '2.0', generator: 'AIRI browser test' },
+    extensionsUsed: ['VRMC_vrm'],
+    scene: 0,
+    scenes: [{ nodes: [0, boneOffset] }],
+    nodes,
+    meshes: [{ primitives: [{ attributes: { POSITION: 0 }, material: 0 }] }],
+    materials: [{ name: 'body' }],
+    buffers: [{ byteLength: binary.byteLength }],
+    bufferViews: [{ buffer: 0, byteOffset: 0, byteLength: binary.byteLength, target: 34962 }],
+    accessors: [{ bufferView: 0, componentType: 5126, count: 3, type: 'VEC3', min: [-0.2, 0, -0.1], max: [0.2, 1.6, 0.1] }],
+    extensions: {
+      VRMC_vrm: {
+        specVersion: '1.0',
+        meta: { name: 'Minimal test humanoid', authors: ['Project AIRI'], licenseUrl: 'https://vrm.dev/licenses/1.0/' },
+        humanoid: {
+          humanBones: Object.fromEntries(humanoidNodes.map(([, name], index) => [name, { node: index + boneOffset }])),
+        },
+      },
+    },
+  }
+
+  // A GLB chunk length must be a multiple of 4. JSON pads with spaces and binary data pads with zeros.
+  const pad = (length: number) => Math.ceil(length / 4) * 4
+  const jsonBytes = new TextEncoder().encode(JSON.stringify(json))
+  const jsonLength = pad(jsonBytes.byteLength)
+  const binaryLength = pad(binary.byteLength)
+  const glb = new Uint8Array(12 + 8 + jsonLength + 8 + binaryLength)
+  const view = new DataView(glb.buffer)
+  view.setUint32(0, 0x46546C67, true)
+  view.setUint32(4, 2, true)
+  view.setUint32(8, glb.byteLength, true)
+  view.setUint32(12, jsonLength, true)
+  view.setUint32(16, 0x4E4F534A, true)
+  glb.fill(0x20, 20, 20 + jsonLength)
+  glb.set(jsonBytes, 20)
+  view.setUint32(20 + jsonLength, binaryLength, true)
+  view.setUint32(24 + jsonLength, 0x004E4942, true)
+  glb.set(binary, 28 + jsonLength)
+
+  return new Blob([glb], { type: 'model/gltf-binary' })
+}
+
 let vrmModel: Blob
 let vrmModelUrl: string
 
-beforeAll(async () => {
-  const pinia = createPinia()
-  const displayModels = useDisplayModelsStore(pinia)
-  const preset = await displayModels.getDisplayModel('preset-vrm-1')
-  if (preset?.type !== 'url')
-    throw new Error('The VRM test preset is unavailable.')
-
-  vrmModelUrl = preset.url
-  const response = await fetch(preset.url)
-  if (!response.ok)
-    throw new Error(`Failed to load the VRM test preset: ${response.status}`)
-
-  vrmModel = await response.blob()
+beforeAll(() => {
+  vrmModel = createMinimalVrm()
+  vrmModelUrl = URL.createObjectURL(vrmModel)
 })
 
 describe('imported VRM view settings', () => {

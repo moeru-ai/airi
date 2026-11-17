@@ -83,6 +83,8 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
   const pendingDownloads = new Map<string, { promise: Promise<DisplayModelFile>, controller: AbortController }>()
   const downloadErrors = ref<Record<string, string>>({})
   const syncErrors = computed(() => ({ ...cloud.errors, ...downloadErrors.value }))
+  /** Whole percent of each running upload. A model has no entry until its bytes start to send. */
+  const uploadProgress = computed(() => cloud.uploadProgress)
   // Reports IDs that no longer exist on this device or in the account. Removing only the
   // local copy of a model that the account keeps does not report it, because the model can
   // download again. The card store removes the references to reported IDs.
@@ -495,6 +497,7 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     cloudOnlyModels,
     syncStatuses,
     syncErrors,
+    uploadProgress,
 
     initialize,
     loadDisplayModelsFromIndexedDB,

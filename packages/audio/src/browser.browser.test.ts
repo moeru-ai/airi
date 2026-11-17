@@ -132,6 +132,13 @@ it('connects a graph node to the played audio until it disconnects', async () =>
   await context.close()
 })
 
+// https://github.com/moeru-ai/airi/actions/runs/43420891596/job/131870346892
+// ROOT CAUSE:
+//
+// Chromium can fire `ended` before `currentTime` passes the end of the clip.
+// `onended` measured with `currentTime`, so the clip reported 98.96 ms, not 100 ms.
+//
+// We fixed this by giving a node that no fade stopped its whole duration.
 it('starts a clip at a later time on the audio clock and reports its rendered interval', async () => {
   const context = new AudioContext()
   await context.resume()

@@ -1,3 +1,21 @@
+background-picker:
+  title: เลือกพื้นหลัง
+  add-custom: เพิ่มพื้นหลังที่กำหนดเอง
+  custom: พื้นหลังที่กำหนดเอง
+  preview: ดูตัวอย่าง
+  no-preview: ไม่มีตัวอย่าง
+  select: เลือกพื้นหลัง
+  blur: เบลอ
+  remove: ลบพื้นหลัง
+  sampling: กำลังดึงสี…
+  apply: ใช้พื้นหลังนี้
+  presets:
+    colorful-wave:
+      label: คลื่นหลากสี
+      description: คลื่นเคลื่อนไหวบนตารางกากบาท
+    transparent:
+      label: โปร่งใส
+      description: แสดงพื้นหลังที่อยู่ด้านหลังหน้าจอแอป
 character-switcher:
   title: สลับตัวละคร
   manage: จัดการตัวละคร

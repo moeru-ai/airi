@@ -1,3 +1,21 @@
+background-picker:
+  title: 選擇背景
+  add-custom: 新增自訂背景
+  custom: 自訂背景
+  preview: 預覽
+  no-preview: 暫無預覽
+  select: 請選擇背景
+  blur: 模糊
+  remove: 移除背景
+  sampling: 正在擷取顏色…
+  apply: 使用此背景
+  presets:
+    colorful-wave:
+      label: 彩色波浪
+      description: 十字網格上的動態波浪
+    transparent:
+      label: 透明背景
+      description: 透出應用程式的底層背景
 character-switcher:
   title: 切換角色
   manage: 管理角色

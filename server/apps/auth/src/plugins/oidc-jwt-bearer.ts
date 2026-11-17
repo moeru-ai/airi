@@ -57,10 +57,27 @@ const PersistedSessionSchema = object({
 })
 
 /**
+ * Better Auth endpoint paths that add a sign-in method to the current user.
+ *
+ * A linked sign-in method can sign in to the account after the JWT expires.
+ * A JWT whose original session ended must not create one, so these paths need
+ * an active `sid`. The values match `endpoint.path`, which Better Auth dispatch
+ * copies to the hook context as `path`, without the `/api/auth` base path.
+ * Source: better-auth/dist/api/dispatch.mjs, dispatchAuthEndpoint.
+ */
+const SESSION_REQUIRED_PATHS: ReadonlySet<string> = new Set([
+  // better-auth/dist/api/routes/account.mjs, linkSocialAccount.
+  '/link-social',
+  // ./steam.ts, linkSteam.
+  '/link/steam',
+])
+
+/**
  * Resolves locally issued RS256 access tokens as request-scoped Better Auth
  * identity. An active original `sid` preserves authoritative checks for
  * sensitive operations. Without one, the token only authorizes ordinary
- * session middleware. HMAC bearer tokens keep their stock path.
+ * session middleware, and the plugin rejects {@link SESSION_REQUIRED_PATHS}.
+ * HMAC bearer tokens keep their stock path.
  */
 export function oidcJwtBearer(env: AuthEnv): BetterAuthPlugin {
   const verifyAccessToken = createOidcAccessTokenVerifier(env.PUBLIC_URL)
@@ -205,26 +222,37 @@ export function oidcJwtBearer(env: AuthEnv): BetterAuthPlugin {
               ? persistedSession
               : null
 
-            // A request-only identity must never look fresh. Endpoints guarded
-            // by freshSessionMiddleware will reject this epoch timestamp when
-            // the JWT has no active original session.
-            const requestSession: AuthSession['session'] = activeSession ?? {
-              id: tokenId ?? `jwt:${userId}`,
-              token,
-              userId,
-              createdAt: new Date(0),
-              updatedAt: new Date(0),
-              expiresAt: accessTokenExpiresAt,
-              ipAddress: null,
-              userAgent: null,
-            }
-
             if (!activeSession) {
-              return {
-                context: {
-                  session: { session: requestSession, user: resolvedUser },
-                },
+              // The JWT stays valid, so this answer is 403 like SESSION_NOT_FRESH.
+              // On 401 the stage clients refresh the token, and a second 401
+              // clears the login. Source: packages/stage-ui/src/libs/auth-fetch.ts.
+              if (SESSION_REQUIRED_PATHS.has(c.path)) {
+                throw APIError.from('FORBIDDEN', {
+                  code: 'SESSION_REQUIRED',
+                  message: 'Sign in again before you link an account.',
+                })
               }
+
+              // A request-only identity must never look fresh. Endpoints guarded
+              // by freshSessionMiddleware will reject this epoch timestamp.
+              const requestSession: AuthSession['session'] = {
+                id: tokenId ?? `jwt:${userId}`,
+                token,
+                userId,
+                createdAt: new Date(0),
+                updatedAt: new Date(0),
+                expiresAt: accessTokenExpiresAt,
+                ipAddress: null,
+                userAgent: null,
+              }
+
+              // Session middleware reads `ctx.context.session`, the per-request
+              // AuthContext copy that dispatch creates. A returned
+              // `context.session` lands on the endpoint context, which session
+              // middleware never reads.
+              // Source: better-auth/dist/api/routes/session.mjs, getSessionFromCtx.
+              c.context.session = { session: requestSession, user: resolvedUser }
+              return
             }
 
             // NOTICE:
@@ -247,10 +275,12 @@ export function oidcJwtBearer(env: AuthEnv): BetterAuthPlugin {
               existingCookie ? `${existingCookie}; ${newCookieEntry}` : newCookieEntry,
             )
 
+            // Better Auth resolves the active session from this cookie. It also
+            // refreshes the session row there, so the plugin does not set
+            // `c.context.session` on this path.
             return {
               context: {
                 headers: newHeaders,
-                session: { session: requestSession, user: resolvedUser },
               },
             }
           }),

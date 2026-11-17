@@ -7,3 +7,4 @@ export {
   shouldStopForRendererError,
   stopLoopWhenRendererIsGone,
 } from './renderer-loop'
+export { onWindowClosed } from './window-closed'

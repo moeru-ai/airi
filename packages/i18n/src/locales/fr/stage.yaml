@@ -1,3 +1,21 @@
+background-picker:
+  title: Choisir un arrière-plan
+  add-custom: Ajouter un arrière-plan personnalisé
+  custom: Arrière-plan personnalisé
+  preview: Aperçu
+  no-preview: Aucun aperçu
+  select: Sélectionnez un arrière-plan
+  blur: Flou
+  remove: Supprimer l’arrière-plan
+  sampling: Extraction des couleurs…
+  apply: Utiliser cet arrière-plan
+  presets:
+    colorful-wave:
+      label: Vagues colorées
+      description: Vagues animées sur une grille de croix
+    transparent:
+      label: Transparent
+      description: Afficher l’arrière-plan sous l’interface de l’application
 character-switcher:
   title: Changer de personnage
   manage: Gérer les personnages

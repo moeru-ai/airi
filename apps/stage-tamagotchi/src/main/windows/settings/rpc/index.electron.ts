@@ -14,6 +14,7 @@ import type { SpotlightWindowManager } from '../../spotlight'
 import type { WidgetsWindowManager } from '../../widgets'
 
 import { defineInvokeHandler } from '@moeru/eventa'
+import { onWindowClosed } from '@proj-airi/electron-vueuse/main'
 import { ipcMain } from 'electron'
 
 import {
@@ -91,7 +92,7 @@ export async function setupSettingsWindowInvokes(params: {
   createGodotStageService({ context, manager: params.godotStageManager, window: params.settingsWindow })
   createAuthService({ context, window: params.settingsWindow })
   const stopIOTraceRecording = registerIOTraceRecording(context, params.ioTraceRecording)
-  params.settingsWindow.once('closed', stopIOTraceRecording)
+  onWindowClosed(params.settingsWindow, stopIOTraceRecording)
 
   // Register the global shortcut service for the settings window.
   params.globalShortcut.registerWindow({ context, window: params.settingsWindow })
