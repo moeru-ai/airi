@@ -259,6 +259,40 @@ describe('display models store', () => {
       expect(store.syncErrors).toEqual({})
     })
 
+    it('reports the sent percent of a running upload and drops it when the upload ends', async () => {
+      const store = await startWithModel({ file: new File(['0123456789'], 'x.vrm') })
+      vi.mocked(reserveDisplayModelUpload).mockResolvedValue(target('upload-progress'))
+      let finishPut!: () => void
+      vi.mocked(putToTarget).mockImplementation((_blob, _uploadTarget, options) => new Promise((resolve) => {
+        options?.onProgress?.(3)
+        finishPut = resolve
+      }))
+      vi.mocked(completeDisplayModelUpload).mockResolvedValue(directoryEntry())
+
+      await store.uploadDisplayModel(modelId)
+      await vi.waitFor(() => expect(store.uploadProgress[modelId]).toBe(30))
+      expect(store.syncStatuses[modelId]).toBe('uploading')
+
+      vi.mocked(listCloudDisplayModels).mockResolvedValue([directoryEntry()])
+      finishPut()
+      await vi.waitFor(() => expect(store.syncStatuses[modelId]).toBe('synced'))
+      expect(store.uploadProgress).toEqual({})
+    })
+
+    it('drops the percent of a failed upload', async () => {
+      const store = await startWithModel({ file: new File(['0123456789'], 'x.vrm') })
+      vi.mocked(reserveDisplayModelUpload).mockResolvedValue(target('upload-fails'))
+      vi.mocked(putToTarget).mockImplementation(async (_blob, _uploadTarget, options) => {
+        options?.onProgress?.(5)
+        throw new Error('Upload failed with status 500')
+      })
+
+      await store.uploadDisplayModel(modelId)
+      await vi.waitFor(() => expect(store.syncStatuses[modelId]).toBe('failed'))
+
+      expect(store.uploadProgress).toEqual({})
+    })
+
     it('runs a failed upload again on the next synchronization, except after a permanent refusal', async () => {
       const store = await startWithModel()
       vi.mocked(reserveDisplayModelUpload).mockRejectedValueOnce(new Error('network')).mockResolvedValue(null)
