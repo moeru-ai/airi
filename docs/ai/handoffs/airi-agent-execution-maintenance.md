@@ -34,7 +34,7 @@ The local SHA is a checkpoint, not proof of the current PR head. Query GitHub be
 - Computer Use uses the real Windows AUV executor through `@auv-js/sdk` and an app-owned daemon. It is not configured as dry-run in the bundled Windows path.
 - Commit `8f01472d0` fixes packaged AUV executable resolution when Electron clears `ELECTRON_RUN_AS_NODE` for the child process.
 - The packaged runtime smoke returned real 2560x1440 PNG pixels, window metadata, and the AUV executor. The service lane record contains this evidence.
-- AUV, Terminal, and PTY are direct tools in the bundled Agent catalog. Compact runs in Core Agent.
+- `computer_observe`, `computer_act`, `computer_verify`, and `terminal_exec` are the only direct tools in the bundled Agent catalog. PTY, management, and other service tools stay behind Host-selected MCP routing. Compact runs in Core Agent.
 - Host approval owns Computer Use mutations. Terminal permission does not grant Computer Use authority.
 - Action responses and session trace entries now separate `modelDecision`, `authorization`, `execution`, and `businessVerification`. Core Agent exposes a separate `ContextCompactionContract`.
 - `computer_act` returns delivery evidence with a replay guard. `computer_verify` returns application-state evidence and can link it with `executionId`.
@@ -64,7 +64,7 @@ Track these design risks against observed behavior:
 
 - An `executed` result can mean that AUV accepted input. The Agent needs a separate application-state verification before it reports task success.
 - A lost response after dispatch leaves the outcome unknown. The execution layer must prevent replay until a fresh observation resolves the state.
-- Direct tools and on-demand MCP discovery create two tool routes. Verify that the Agent selects the right route without repeated discovery calls.
+- The default Agent catalog now contains only the four stable `computer_*`/`terminal_exec` entrypoints. Secondary MCP discovery remains Host-selected through explicitly selected proxy tools. Verify that the Agent does not invent proxy calls or repeat discovery when those proxies are absent.
 - Read-only observation and state-changing input share Host attribution rules. Verify that approval policy does not block safe observation.
 - Task memory is session-local. Verify that Compact retains the goal, verified facts, pending work, and blockers.
 - No unified step or time budget is recorded here. Inspect actual loop limits before treating this as a defect.
@@ -113,6 +113,7 @@ Never infer completion from a clean tree, a zero exit code, a successful API req
 - Persisted the four action contracts in Computer Use MCP responses and session trace entries.
 - Added `computer_verify.executionId` linking without merging verification into execution.
 - Added structured compaction state with retained tool-call ids and explicit preservation flags.
+- Changed shared MCP registration so generic list/call proxies are disabled by default. The Electron and Kirie Hosts register them as explicit-selection tools while keeping the four stable Agent entrypoints active.
 
 Validation for this contract slice:
 

@@ -24,7 +24,7 @@ When a capability is missing, the Agent must name the observed boundary and keep
 
 AIRI owns planning, product policy, and approval UX. AUV owns operating system input and observation. Do not add a second desktop driver or approval state machine in AIRI.
 
-The bundled Agent currently receives selected AUV, Terminal, and PTY tools directly. Other service tools remain available through on-demand MCP discovery. Verify this catalog before each release because it can change.
+The bundled Agent currently receives only `computer_observe`, `computer_act`, `computer_verify`, and `terminal_exec` directly. Other service tools remain available through a Host-selected MCP discovery route: the generic list/call proxies are registered explicitly but excluded from the default tool catalog. Verify this catalog before each release because it can change.
 
 ## Execution invariants
 

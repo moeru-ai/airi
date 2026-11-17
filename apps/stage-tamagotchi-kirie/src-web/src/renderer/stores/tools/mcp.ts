@@ -24,7 +24,7 @@ export const useTamagotchiMcpToolsStore = defineStore('tamagotchi-mcp-tools', ()
     const tools = await createMcpTools({
       listTools: () => listMcpTools(),
       callTool: payload => callMcpTool(payload),
-    })
+    }, { proxy: 'explicit' })
 
     llmToolsStore.removeToolsByIds(...registeredToolIds())
     llmToolsStore.addTools(...tools.map(tool => ({

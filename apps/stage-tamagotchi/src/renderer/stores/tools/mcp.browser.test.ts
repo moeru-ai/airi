@@ -111,19 +111,24 @@ describe('useTamagotchiMcpToolsStore', () => {
 
     const mcpDefinitions = llmToolsStore.tools.filter(tool => tool.id.startsWith('mcp:'))
     const toolsetPrompts = useLlmToolsetPromptsStore(pinia)
-    const listTools = llmToolsStore.activeTools.find(tool => tool.function.name === 'builtIn_mcpListTools')
-    const callTool = llmToolsStore.activeTools.find(tool => tool.function.name === 'builtIn_mcpCallTool')
+    const listTools = llmToolsStore.getToolsByNames('builtIn_mcpListTools')[0]
+    const callTool = llmToolsStore.getToolsByNames('builtIn_mcpCallTool')[0]
 
     expect(mcpDefinitions).toEqual([
       expect.objectContaining({
         id: 'mcp:builtIn_mcpListTools',
         function: expect.objectContaining({ name: 'builtIn_mcpListTools' }),
+        defaultActive: false,
+        requiresExplicitSelection: true,
       }),
       expect.objectContaining({
         id: 'mcp:builtIn_mcpCallTool',
         function: expect.objectContaining({ name: 'builtIn_mcpCallTool' }),
+        defaultActive: false,
+        requiresExplicitSelection: true,
       }),
     ])
+    expect(llmToolsStore.activeTools.map(tool => tool.function.name)).not.toEqual(expect.arrayContaining(['builtIn_mcpListTools', 'builtIn_mcpCallTool']))
     expect(toolsetPrompts.activeToolsetPrompt).toContain(MCP_AGENT_EXECUTION_PROMPT)
     expect(JSON.stringify(llmToolsStore.$state)).not.toContain('execute')
     expect(listTools?.function.description).toContain('Servers at registration: ["filesystem"]')
@@ -193,7 +198,7 @@ describe('useTamagotchiMcpToolsStore', () => {
     expect(invokeMocks.registerRequest).toHaveBeenCalledWith({ sessionId: 'session-a', turnId: 'turn-a', text })
     expect(nextHook).toHaveBeenCalledOnce()
 
-    const list = useLlmToolsStore(pinia).activeTools.find(tool => tool.function.name === 'builtIn_mcpListTools')!
+    const list = useLlmToolsStore(pinia).getToolsByNames('builtIn_mcpListTools')[0]!
     await expect(list.execute({}, {} as Parameters<Tool['execute']>[1])).resolves.toEqual([expect.objectContaining({ name: 'filesystem::search' })])
   })
 

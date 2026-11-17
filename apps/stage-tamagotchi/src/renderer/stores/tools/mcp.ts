@@ -120,7 +120,13 @@ export const useTamagotchiMcpToolsStore = defineStore('tamagotchi-mcp-tools', ()
         }
         return callMcpTool({ ...payload, requestId, attribution }, { signal })
       },
-    }, { servers: status?.servers.filter(server => server.state === 'running').map(server => server.name), direct })
+    }, {
+      servers: status?.servers.filter(server => server.state === 'running').map(server => server.name),
+      direct,
+      // Secondary MCP stays available to a Host-selected request, but does not
+      // compete with the four stable Agent entrypoints in the default catalog.
+      proxy: 'explicit',
+    })
 
     if (generation !== refreshGeneration)
       return

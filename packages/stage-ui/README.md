@@ -4,11 +4,14 @@ Shared core for stage
 
 ## MCP tool exposure
 
-The Desktop Host marks its bundled Terminal execution tool as Direct. It keeps extensions behind the existing MCP discovery and call tools.
+The Desktop Host exposes the four stable Agent entrypoints (`computer_observe`, `computer_act`, `computer_verify`, and `terminal_exec`) as Direct. It keeps extensions behind the existing MCP discovery and call tools.
 Direct calls use the same Main request binding, approval, cancellation, execution slot and settlement path.
 Exposure metadata grants no execution permission. External server metadata cannot opt into the Desktop Host's Direct policy.
 The Host rejects disabled bundled Desktop tools even when a caller invokes them through MCP directly.
 Unadmitted native AUV tools are absent from normal Chat registration. Their Main observation gates remain closed.
+
+The generic `builtIn_mcpListTools` and `builtIn_mcpCallTool` proxies are disabled by default. A Host that needs secondary MCP work registers them with `proxy: 'explicit'`.
+This keeps them out of the default Agent catalog and permits only a request that explicitly selects those tool names. `proxy: 'active'` is reserved for an intentional model-visible route.
 
 `builtIn_mcpListTools` returns the live catalog. Supply an exact `name` for one current schema, or null for the full catalog.
 Registration descriptions contain server counts instead of every tool name. A discovery timeout leaves live discovery available.

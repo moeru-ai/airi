@@ -69,6 +69,30 @@ export interface McpToolRuntime {
   callTool: (payload: McpCallToolPayload, options?: McpExecutionOptions) => Promise<McpCallToolResult>
 }
 
+/**
+ * Controls whether the generic MCP router is put in the model's default tool
+ * catalog. Direct descriptors are independent from this setting.
+ *
+ * - `none`: do not register the generic list/call proxies.
+ * - `explicit`: register them for Host-selected requests only.
+ * - `active`: register them as ordinary model tools.
+ */
+export type McpProxyExposure = 'none' | 'explicit' | 'active'
+
+/** Host-owned registration options for the shared MCP tool set. */
+export interface McpToolRegistration {
+  servers?: readonly string[]
+  direct?: readonly McpToolDescriptor[]
+  /** @default 'none' */
+  proxy?: McpProxyExposure
+}
+
+/** Tool metadata consumed by the shared LLM tool store. */
+export interface McpRuntimeTool extends Tool {
+  defaultActive?: boolean
+  requiresExplicitSelection?: boolean
+}
+
 /** The proxy tool that calls an MCP tool. Each call names the MCP tool in its `name` argument, as `server::tool`. */
 export const MCP_CALL_TOOL_NAME = 'builtIn_mcpCallTool'
 export const MCP_LIST_TOOL_NAME = 'builtIn_mcpListTools'
@@ -80,7 +104,8 @@ export const MCP_AGENT_EXECUTION_PROMPT = [
   'For games and GUI tasks, keep an observe, act, verify loop until the requested goal is complete or a concrete blocker remains.',
   'computer_act reports input delivery only. Pass its execution.executionId to computer_verify, and treat businessVerification.status as the only application-state result.',
   'The Agent runtime compacts conversation context. The bundled Computer Use path provides AUV desktop observation and input plus Terminal process control.',
-  'Use stable computer_* and terminal_exec tools first. Use MCP discovery for secondary tools only when the task needs them.',
+  'Use stable computer_* and terminal_exec tools first. Secondary MCP tools are Host-selected and can be injected on demand.',
+  'Do not invent proxy calls when they are absent from the current catalog.',
   'Treat earlier assistant claims about capabilities as unverified. Read the current tool catalog and runtime capabilities before deciding what you can do.',
   'For a game task, check the Computer Use capabilities and take a small observable action before exploring mod frameworks or switching to a strategy-only reply.',
   'Treat capability lists as scoped facts. A supported-app list names apps accepted by desktop open and focus tools. It does not prove that an app is absent or cannot be launched.',
@@ -106,8 +131,11 @@ export const MCP_AGENT_EXECUTION_PROMPT = [
  * error result. Runtime owners register these tools in the shared LLM tool store.
  * The host can supply connected server names and direct descriptors at registration.
  * Live discovery supplies current schemas and never grants execution authority.
+ * Generic list/call proxies are disabled by default. A Host that needs the
+ * secondary route must opt into `proxy: 'explicit'` (Host-selected calls) or
+ * `proxy: 'active'` (an intentionally model-visible route).
  */
-export async function createMcpTools(runtime: McpToolRuntime, registration?: { servers?: readonly string[], direct?: readonly McpToolDescriptor[] }): Promise<Tool[]> {
+export async function createMcpTools(runtime: McpToolRuntime, registration: McpToolRegistration = {}): Promise<McpRuntimeTool[]> {
   const index = registration?.servers?.length
     ? ` Servers at registration: ${JSON.stringify(registration.servers)}. Discovery returns the live catalog.`
     : ''
@@ -122,67 +150,79 @@ export async function createMcpTools(runtime: McpToolRuntime, registration?: { s
     }
   }
 
-  return Promise.all([
-    tool({
-      name: MCP_LIST_TOOL_NAME,
-      description: `List tools from connected MCP servers. Call this when the current direct tool catalog is insufficient. Use Computer Use tools for games, browsers, and GUI tasks. Use Terminal for processes, CLI, and files. Do not call Terminal as a preflight. Never inject keyboard or mouse input through Shell to bypass Host authorization.${index}`,
-      execute: async ({ name }) => {
-        try {
-          const tools = (await runtime.listTools(name || undefined)).filter(tool => tool.exposure !== 'disabled')
-          if (name) {
-            const selected = tools.find(tool => tool.name === name)
-            return selected ? [selected] : { isError: true, content: [{ type: 'text', text: `MCP tool is unavailable or disabled: ${name}` }] }
-          }
-          if (tools.length === 0)
-            return 'No MCP tools are available. Do not retry discovery during this assistant turn.'
+  const proxies: McpRuntimeTool[] = registration.proxy && registration.proxy !== 'none'
+    ? (await Promise.all([
+        tool({
+          name: MCP_LIST_TOOL_NAME,
+          description: `List tools from connected MCP servers. Call this when the current direct tool catalog is insufficient. Use Computer Use tools for games, browsers, and GUI tasks. Use Terminal for processes, CLI, and files. Do not call Terminal as a preflight. Never inject keyboard or mouse input through Shell to bypass Host authorization.${index}`,
+          execute: async ({ name }) => {
+            try {
+              const tools = (await runtime.listTools(name || undefined)).filter(tool => tool.exposure !== 'disabled')
+              if (name) {
+                const selected = tools.find(tool => tool.name === name)
+                return selected ? [selected] : { isError: true, content: [{ type: 'text', text: `MCP tool is unavailable or disabled: ${name}` }] }
+              }
+              if (tools.length === 0)
+                return 'No MCP tools are available. Do not retry discovery during this assistant turn.'
 
-          return tools
-        }
-        catch (error) {
-          return {
-            isError: true,
-            content: [{ type: 'text', text: `MCP tool discovery failed: ${errorMessageFrom(error) ?? 'Unknown error.'}` }],
-          }
-        }
-      },
-      parameters: z.object({ name: z.string().nullish().describe('Exact server::tool name for one current schema. Use null for the current catalog.') }).strict(),
-    }),
-    tool({
-      name: MCP_CALL_TOOL_NAME,
-      description: 'Call an MCP tool by name. Use builtIn_mcpListTools first to get available tool names.',
-      execute: async ({ name, arguments: argsJson }, options?: McpExecutionOptions) => {
-        try {
-          options?.abortSignal?.throwIfAborted()
-          const args = argsJson ? JSON.parse(argsJson) : {}
-          return await execute({ name, arguments: args }, options)
-        }
-        catch (error) {
-          return {
-            isError: true,
-            content: [{ type: 'text', text: errorMessageFrom(error) ?? 'Unknown error.' }],
-          }
-        }
-      },
-      // NOTICE:
-      // OpenAI rejects the schemas that z.unknown() and z.record() produce here.
-      // They omit `type` or include `propertyNames`, so arguments use a JSON string.
-      // Source/context: @xsai/tool schema conversion and ./mcp.test.ts.
-      // Removal condition: The schema conversion produces an object schema that OpenAI accepts.
-      parameters: z.object({
-        name: z.string().describe('Tool name in "<serverName>::<toolName>" format'),
-        arguments: z.string().describe('JSON object of tool arguments, for example {"query":"hello","limit":10}'),
-      }).strict(),
-    }),
-    ...(registration?.direct ?? []).filter(descriptor => descriptor.exposure === 'direct').map(descriptor => rawTool({
-      name: descriptor.toolName,
-      description: descriptor.description ?? `Call ${descriptor.name} through the Host.`,
-      parameters: descriptor.inputSchema,
-      // MCP schemas retain their optional fields. Strict conversion can make them
-      // required and nullable, although the server rejects null instead of omission.
-      strict: false,
-      execute: (arguments_, options?: McpExecutionOptions) => execute({ name: descriptor.name, arguments: arguments_ as Record<string, unknown> }, options),
-    })),
-  ])
+              return tools
+            }
+            catch (error) {
+              return {
+                isError: true,
+                content: [{ type: 'text', text: `MCP tool discovery failed: ${errorMessageFrom(error) ?? 'Unknown error.'}` }],
+              }
+            }
+          },
+          parameters: z.object({ name: z.string().nullish().describe('Exact server::tool name for one current schema. Use null for the current catalog.') }).strict(),
+        }),
+        tool({
+          name: MCP_CALL_TOOL_NAME,
+          description: 'Call an MCP tool by name. Use builtIn_mcpListTools first to get available tool names.',
+          execute: async ({ name, arguments: argsJson }, options?: McpExecutionOptions) => {
+            try {
+              options?.abortSignal?.throwIfAborted()
+              const args = argsJson ? JSON.parse(argsJson) : {}
+              return await execute({ name, arguments: args }, options)
+            }
+            catch (error) {
+              return {
+                isError: true,
+                content: [{ type: 'text', text: errorMessageFrom(error) ?? 'Unknown error.' }],
+              }
+            }
+          },
+          // NOTICE:
+          // OpenAI rejects the schemas that z.unknown() and z.record() produce here.
+          // They omit `type` or include `propertyNames`, so arguments use a JSON string.
+          // Source/context: @xsai/tool schema conversion and ./mcp.test.ts.
+          // Removal condition: The schema conversion produces an object schema that OpenAI accepts.
+          parameters: z.object({
+            name: z.string().describe('Tool name in "<serverName>::<toolName>" format'),
+            arguments: z.string().describe('JSON object of tool arguments, for example {"query":"hello","limit":10}'),
+          }).strict(),
+        }),
+      ])).map((proxy) => {
+        if (registration.proxy !== 'explicit')
+          return proxy
+        return { ...proxy, defaultActive: false, requiresExplicitSelection: true }
+      })
+    : []
+
+  const directTools = await Promise.all((registration.direct ?? []).filter(descriptor => descriptor.exposure === 'direct').map(descriptor => rawTool({
+    name: descriptor.toolName,
+    description: descriptor.description ?? `Call ${descriptor.name} through the Host.`,
+    parameters: descriptor.inputSchema,
+    // MCP schemas retain their optional fields. Strict conversion can make them
+    // required and nullable, although the server rejects null instead of omission.
+    strict: false,
+    execute: (arguments_, options?: McpExecutionOptions) => execute({ name: descriptor.name, arguments: arguments_ as Record<string, unknown> }, options),
+  })))
+
+  return [
+    ...proxies,
+    ...directTools,
+  ]
 }
 
 /**

@@ -125,7 +125,7 @@ const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const startLogin = useElectronEventaInvoke(electronAuthStartLogin)
 const setTurboMode = useElectronEventaInvoke(terminalTurboMode)
 const tools = useLlmToolsStore()
-const turboAvailable = computed(() => tools.tools.some(tool => tool.id === 'mcp:terminal_exec' || tool.id === 'mcp:builtIn_mcpCallTool'))
+const turboAvailable = computed(() => tools.tools.some(tool => ['mcp:terminal_exec', 'mcp:computer_act'].includes(tool.id)))
 const { state: turboEnabled, executeImmediate: refreshTurbo, isLoading: loadingTurbo } = useAsyncState(
   (sessionId: string) => turboAvailable.value && sessionId ? setTurboMode({ sessionId }) : Promise.resolve(false),
   false,

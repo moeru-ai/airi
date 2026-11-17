@@ -429,7 +429,7 @@ describe('createMcpManager', () => {
     const [listTools] = await createMcpTools({
       listTools: name => listMcpTools(name === undefined ? undefined : { name }),
       callTool: payload => callMcpTool(payload),
-    })
+    }, { proxy: 'active' })
     clientMocks.listTools.mockRejectedValueOnce(new Error('MCP request timed out.'))
 
     const result = await listTools.execute({}, { messages: [], toolCallId: 'failed-discovery' })
@@ -520,7 +520,7 @@ describe('createMcpManager', () => {
       nextCursor: index < tools.length - 1 ? String(index + 1) : undefined,
     })
     clientMocks.listTools.mockImplementation(async params => page(Number(params?.cursor ?? 0)))
-    const [list] = await createMcpTools({ listTools: manager.listTools, callTool: payload => manager.callTool(payload) })
+    const [list] = await createMcpTools({ listTools: manager.listTools, callTool: payload => manager.callTool(payload) }, { proxy: 'active' })
     const result = await list.execute({ name: 'fixture::inspect' }, { messages: [], toolCallId: 'discovery' })
 
     expect(result).toMatchObject([{ name: 'fixture::inspect', inputSchema: tools[1].inputSchema }])

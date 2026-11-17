@@ -23,14 +23,30 @@ describe('mcp Agent execution prompt', () => {
     expect(MCP_AGENT_EXECUTION_PROMPT).toContain('inspect registered app paths, Start Menu shortcuts, and known library roots')
     expect(MCP_AGENT_EXECUTION_PROMPT).toContain('Never use it to emulate mouse or keyboard input or bypass Host approval.')
     expect(MCP_AGENT_EXECUTION_PROMPT).toContain('Continue with non-GUI discovery and approved launch steps.')
+    expect(MCP_AGENT_EXECUTION_PROMPT).toContain('Secondary MCP tools are Host-selected and can be injected on demand.')
     expect(MCP_AGENT_EXECUTION_PROMPT).toContain('Complete safe, authorized steps and verify their effects before you report a blocker for later gameplay.')
     expect(MCP_AGENT_EXECUTION_PROMPT).toContain('Do not claim that a requested app is unavailable or a game cannot be played based only on a supported-app list.')
   })
 })
 
 describe('tools mcp schema', () => {
+  it('keeps generic MCP routing out of the default Agent catalog', async () => {
+    const direct = [{ serverName: 'fixture', name: 'fixture::terminal_exec', toolName: 'terminal_exec', exposure: 'direct', inputSchema: { type: 'object', properties: {} } }] as const
+
+    expect((await createMcpTools(createRuntime(), { direct })).map(tool => tool.function.name)).toEqual(['terminal_exec'])
+  })
+
+  it('registers the secondary route only when the Host opts in', async () => {
+    const tools = await createMcpTools(createRuntime(), { proxy: 'explicit' })
+    const list = tools.find(tool => tool.function.name === 'builtIn_mcpListTools')
+    const call = tools.find(tool => tool.function.name === 'builtIn_mcpCallTool')
+
+    expect(list).toMatchObject({ defaultActive: false, requiresExplicitSelection: true })
+    expect(call).toMatchObject({ defaultActive: false, requiresExplicitSelection: true })
+  })
+
   it('emits strict parameter objects', async () => {
-    const tools = await createMcpTools(createRuntime())
+    const tools = await createMcpTools(createRuntime(), { proxy: 'active' })
     for (const name of ['builtIn_mcpListTools', 'builtIn_mcpCallTool']) {
       const t = tools.find(entry => entry.function.name === name)
       expect(t, `missing tool: ${name}`).toBeDefined()
@@ -39,7 +55,7 @@ describe('tools mcp schema', () => {
   })
 
   it('builtIn_mcpCallTool uses flat name+arguments schema', async () => {
-    const tools = await createMcpTools(createRuntime())
+    const tools = await createMcpTools(createRuntime(), { proxy: 'active' })
     const callTool = tools.find(entry => entry.function.name === 'builtIn_mcpCallTool')
     expect(callTool).toBeDefined()
 
@@ -49,7 +65,7 @@ describe('tools mcp schema', () => {
   })
 
   it('describes Computer Use routing and Host-gated GUI use', async () => {
-    const [listTools] = await createMcpTools(createRuntime())
+    const [listTools] = await createMcpTools(createRuntime(), { proxy: 'active' })
     expect(listTools.function.description).toContain('Do not call Terminal as a preflight')
     expect(listTools.function.description).toContain('Use Computer Use tools for games, browsers, and GUI tasks')
   })
@@ -64,7 +80,7 @@ describe('mcp discovery', () => {
       { serverName: 'owned', name: 'owned::desktop_capture', toolName: 'desktop_capture', exposure: 'disabled', inputSchema: { type: 'object', properties: {} } },
     ] satisfies Awaited<ReturnType<McpToolRuntime['listTools']>>
     vi.mocked(runtime.listTools).mockResolvedValue(descriptors)
-    const tools = await createMcpTools(runtime, { direct: descriptors })
+    const tools = await createMcpTools(runtime, { direct: descriptors, proxy: 'active' })
     const terminal = tools.find(tool => tool.function.name === 'terminal_exec')!
     expect(terminal.function.strict).toBe(false)
     expect(terminal.function.parameters).toEqual(descriptors[0].inputSchema)
@@ -86,7 +102,7 @@ describe('mcp discovery', () => {
       { serverName: 'fixture', name: 'fixture::b', toolName: 'b', inputSchema: { type: 'object', properties: {} } },
     ]
     vi.mocked(runtime.listTools).mockResolvedValue(descriptors)
-    const [list] = await createMcpTools(runtime)
+    const [list] = await createMcpTools(runtime, { proxy: 'active' })
     expect(await list.execute({ name: 'fixture::a' }, { messages: [], toolCallId: 'exact' })).toEqual([descriptors[0]])
     expect(runtime.listTools).toHaveBeenCalledExactlyOnceWith('fixture::a')
     expect(await list.execute({ name: 'fixture::missing' }, { messages: [], toolCallId: 'missing' })).toMatchObject({ isError: true })
@@ -102,7 +118,7 @@ describe('mcp discovery', () => {
       effects++
       throw new Error('Effect occurred, response lost.')
     })
-    const [list, , terminal] = await createMcpTools(runtime, { direct })
+    const [list, , terminal] = await createMcpTools(runtime, { direct, proxy: 'active' })
     expect(await list.validate!({ name: null })).toEqual({ value: { name: null } })
     expect(await list.execute({ name: null }, { messages: [], toolCallId: 'catalog' })).toEqual(await runtime.listTools())
     expect(await terminal.execute({}, { messages: [], toolCallId: 'once' })).toMatchObject({ isError: true, content: [{ text: 'Effect occurred, response lost.' }] })
@@ -115,7 +131,7 @@ describe('mcp discovery', () => {
     vi.mocked(runtime.listTools).mockReturnValue(new Promise(() => {}))
     const direct = [{ serverName: 'fixture', name: 'fixture::terminal_exec', toolName: 'terminal_exec', exposure: 'direct', inputSchema: { type: 'object', properties: {} } }] as const
 
-    const tools = await createMcpTools(runtime, { direct })
+    const tools = await createMcpTools(runtime, { direct, proxy: 'active' })
 
     expect(tools.map(tool => tool.function.name)).toEqual(['builtIn_mcpListTools', 'builtIn_mcpCallTool', 'terminal_exec'])
     expect(runtime.listTools).not.toHaveBeenCalled()
@@ -131,7 +147,7 @@ describe('mcp discovery', () => {
       inputSchema: { type: 'object', properties: {} },
     }])
 
-    const [listTools] = await createMcpTools(runtime, { servers: ['fixture'] })
+    const [listTools] = await createMcpTools(runtime, { servers: ['fixture'], proxy: 'active' })
 
     expect(listTools.function.description).toContain('Servers at registration: ["fixture"]')
     expect(listTools.function.description).not.toContain('fixture::terminal_exec')
@@ -162,7 +178,7 @@ describe('mcp discovery', () => {
   // We fixed this with an explicit message that asks the model to stop discovery.
   it('reports an empty catalog explicitly (Issue #2779)', async () => {
     const runtime = createRuntime()
-    const [listTools] = await createMcpTools(runtime)
+    const [listTools] = await createMcpTools(runtime, { proxy: 'active' })
 
     const result = await listTools.execute({}, { messages: [], toolCallId: 'list-empty' })
 
@@ -178,7 +194,7 @@ describe('mcp discovery', () => {
   it('returns the discovery failure to the model (Issue #2779)', async () => {
     const runtime = createRuntime()
     vi.mocked(runtime.listTools).mockRejectedValue(new Error('MCP connection closed.'))
-    const [listTools] = await createMcpTools(runtime)
+    const [listTools] = await createMcpTools(runtime, { proxy: 'active' })
 
     const result = await listTools.execute({}, { messages: [], toolCallId: 'list-failed' })
 
@@ -199,7 +215,7 @@ describe('mcp discovery', () => {
       inputSchema: { type: 'object', properties: {} },
     }]
     vi.mocked(runtime.listTools).mockResolvedValue(descriptors)
-    const [listTools, callTool] = await createMcpTools(runtime)
+    const [listTools, callTool] = await createMcpTools(runtime, { proxy: 'active' })
 
     expect(await listTools.execute({}, { messages: [], toolCallId: 'list-success' })).toEqual(descriptors)
     expect(await callTool.execute({ name: 'memory::read_graph', arguments: '{}' }, { messages: [], toolCallId: 'call-success' }))
@@ -211,7 +227,7 @@ describe('mcp discovery', () => {
     const runtime = createRuntime()
     vi.mocked(runtime.listTools).mockResolvedValue([{ serverName: 'memory', name: 'memory::missing', toolName: 'missing', inputSchema: { type: 'object', properties: {} } }])
     vi.mocked(runtime.callTool).mockRejectedValue(new Error('Unknown tool.'))
-    const [, callTool] = await createMcpTools(runtime)
+    const [, callTool] = await createMcpTools(runtime, { proxy: 'active' })
 
     const result = await callTool.execute({ name: 'memory::missing', arguments: '{}' }, { messages: [], toolCallId: 'call-failed' })
 
