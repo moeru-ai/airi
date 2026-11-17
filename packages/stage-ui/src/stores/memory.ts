@@ -130,6 +130,13 @@ export const useMemoryStore = defineStore('memory', () => {
     await publish([])
   }
 
+  async function restoreState(state: { enabled: boolean, entries: MemoryEntry[] }) {
+    await ready()
+    enabled.value = state.enabled
+    await memoryRepo.replace(state.entries)
+    await publish(state.entries.map(entry => entry.id))
+  }
+
   function reload() {
     void load().catch(error => console.warn('[memory] Failed to read the entries:', errorMessageFrom(error)))
   }
@@ -147,5 +154,6 @@ export const useMemoryStore = defineStore('memory', () => {
     forget,
     remove,
     resetState,
+    restoreState,
   }
 })

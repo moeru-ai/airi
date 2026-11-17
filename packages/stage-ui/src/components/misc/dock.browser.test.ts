@@ -148,4 +148,30 @@ describe('dock', () => {
     expect(style.backdropFilter).toContain('blur(20px)')
     expect(style.backgroundColor).toMatch(/0\.5\)$/)
   })
+
+  it('declares an open button tooltip as a surface, and releases it when the tooltip closes', async () => {
+    const registered = new Set<HTMLElement>()
+    function registerSurface(element: HTMLElement) {
+      registered.add(element)
+      return () => registered.delete(element)
+    }
+    const tooltip = ref(true)
+    const screen = render(defineComponent({
+      components: { Dock, DockButton },
+      setup: () => ({ registerSurface, tooltip }),
+      template: `<div style="padding: 80px"><Dock :register-surface="registerSurface"><DockButton icon="i-lucide:minimize-2" label="Hide chat" :tooltip="tooltip" /></Dock></div>`,
+    }))
+    await userEvent.hover(screen.getByRole('button', { name: 'Hide chat' }))
+    await expect.poll(() => registered.size).toBe(1)
+
+    // A host draws the material from the fill and the corners, so the surface is the content, not the positioning wrapper.
+    const [surface] = registered
+    expect(surface).not.toBe(tooltipWrapper())
+    expect(surface.parentElement).toBe(tooltipWrapper())
+    expect(getComputedStyle(surface).borderRadius).not.toBe('0px')
+
+    tooltip.value = false
+
+    await expect.poll(() => registered.size).toBe(0)
+  })
 })
