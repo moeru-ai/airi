@@ -10,10 +10,11 @@ This file tracks current AIRI Agent, Computer Use, Terminal approval, and execut
 - Pull request: [#3496](https://github.com/moeru-ai/airi/pull/3496)
 - Local branch: `codex/feat/pr3496-current`
 - Runtime validation checkpoint: `8f01472d05d87a8058205f3a4387f55f72447609`
+- Current PR source head after mainline merge: `1ab2e32c5322f8f6ba197e8fe0445011424ef276`
 - Working tree was clean before this documentation update.
-- GitHub API query on 2026-11-16 confirmed PR head `8f01472d05d87a8058205f3a4387f55f72447609` and base `c66da5bcb2710cdacdf4b2d43b3969ca6e7a3767`.
-- Checks for this head completed successfully. The Godot build and Wayland render jobs were skipped by their workflow conditions.
-- The local branch contains maintenance documentation after this runtime checkpoint. The handoff updates now sit on the PR source ref.
+- GitHub API query on 2026-11-17 confirmed PR head `1ab2e32c5322f8f6ba197e8fe0445011424ef276` and base `27ff2f65bfb56b82540e2a12c06925ec02049efe`.
+- Checks for the new merged head are in progress. The Godot build and Wayland render jobs are skipped by their workflow conditions.
+- The local branch and PR source ref contain the maintenance documentation and contract separation changes.
 
 The local SHA is a checkpoint, not proof of the current PR head. Query GitHub before any push or publication.
 
@@ -26,7 +27,7 @@ The local SHA is a checkpoint, not proof of the current PR head. Query GitHub be
 | Contract separation | Computer Use service and Core Agent | Implemented in source | Exercise all five records in a real-model trace |
 | Agent behavior | Core Agent and Stage UI | Open | Run the complete DeepSeek Agent task and inspect every step |
 | Compact continuity | Core Agent | Open for behavior acceptance | Verify that compaction preserves pending actions and prevents replay |
-| PR publication | Main controller | Maintenance docs published | Read the current PR checks before further publication |
+| PR publication | Main controller | Source ref updated | Read the current PR checks before further publication |
 
 ## Current implementation record
 
@@ -122,3 +123,4 @@ Validation for this contract slice:
 - Computer Use, Core Agent, Stage UI, and Electron typechecks passed.
 - Full lint: 0 errors and 695 existing warnings.
 - The full Stage UI suite remains environment-blocked. Its Node tests lack `localStorage`, and one browser VAD test lacks its Worker event. The focused MCP test passed.
+- The PR source ref was rebased by merging upstream mainline before the contract changes were pushed. The new head is `1ab2e32c5`.
