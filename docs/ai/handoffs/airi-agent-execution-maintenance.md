@@ -10,7 +10,7 @@ This file tracks current AIRI Agent, Computer Use, Terminal approval, and execut
 - Pull request: [#3496](https://github.com/moeru-ai/airi/pull/3496)
 - Local branch: `codex/feat/pr3496-current`
 - Runtime validation checkpoint: `8f01472d05d87a8058205f3a4387f55f72447609`
-- Current PR source head after mainline merge and MCP test fix: `433c656e674e22dbe8609de00b06d829541276be`
+- Current PR source head after the secondary MCP routing fix: `1edcb821aba7e4ca773001d919ad02896829e80e`
 - Working tree was clean before this documentation update.
 - GitHub API query on 2026-11-17 confirmed the merged PR base `27ff2f65bfb56b82540e2a12c06925ec02049efe`. The current head includes the MCP browser regression fix.
 - Checks for the current head are in progress. The Godot build and Wayland render jobs are skipped by their workflow conditions.
@@ -125,3 +125,12 @@ Validation for this contract slice:
 - Full lint: 0 errors and 695 existing warnings.
 - The full Stage UI suite remains environment-blocked. Its Node tests lack `localStorage`, and one browser VAD test lacks its Worker event. The focused MCP test passed.
 - The PR source ref was rebased by merging upstream mainline before the contract changes were pushed. The current head includes the switch-selector regression fix.
+
+Validation for the secondary MCP routing slice:
+
+- Stage UI MCP and catalog projection tests: 36 passed.
+- Stage Tamagotchi MCP, Computer Use UI, and Main MCP manager tests: 79 browser tests passed and 32 Main tests passed.
+- Stage Tamagotchi Kirie Node tests: 52 passed and 1 skipped.
+- Root typecheck: 66 tasks passed.
+- Root lint: 0 errors and 694 existing warnings.
+- The source ref was pushed with `--force-with-lease` and verified at `1edcb821aba7e4ca773001d919ad02896829e80e`.
