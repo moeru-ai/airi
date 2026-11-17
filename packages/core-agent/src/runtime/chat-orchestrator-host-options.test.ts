@@ -45,6 +45,14 @@ function createHarness(options: Partial<Pick<ChatOrchestratorRuntimeDeps, 'getSy
 }
 
 describe('chat orchestrator host options', () => {
+  it('forwards the decision-step budget to the Core Agent stream', async () => {
+    const harness = createHarness()
+
+    await harness.runtime.ingest('Continue the task.', { model: 'test', chatProvider: provider, maxSteps: 12 })
+
+    expect(harness.stream.mock.calls[0]?.[3]?.maxSteps).toBe(12)
+  })
+
   // A notice tells the conversation about earlier work. History keeps it marked as a notice, never as owner speech.
   it('stores a notice with its source, marks it in every prompt, and marks the reply as proactive', async () => {
     const harness = createHarness()

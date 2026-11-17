@@ -108,6 +108,26 @@ export function projectRound(round: GenerationRound): ProjectionEntry[] {
   return entries
 }
 
+/** Adds the stored decision-budget result to provider context without treating it as business verification. */
+export function projectStopReason(turn: AssistantTurn): ProjectionEntry | undefined {
+  if (turn.stopReason?.type !== 'step-limit')
+    return undefined
+
+  return {
+    id: `${turn.id}/stop-reason`,
+    role: 'context',
+    segments: [{
+      type: 'domain-event',
+      eventType: 'agent-decision-step-limit',
+      payload: {
+        maxSteps: turn.stopReason.maxSteps,
+        completedSteps: turn.stopReason.completedSteps,
+        goalState: 'not-verified',
+      },
+    }],
+  }
+}
+
 /** Application context becomes user-level data; trusted instructions retain their declared authority. */
 export function projectInput(turn: Exclude<Turn, AssistantTurn>): ProjectionEntry {
   if (turn.type === 'user')

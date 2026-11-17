@@ -44,7 +44,11 @@ export interface CompactRequest {
 
 function units(conversation: Conversation): Turn[] {
   return conversation.turns.flatMap<Turn>(turn => turn.type === 'assistant'
-    ? turn.rounds.map(round => ({ ...turn, rounds: [round] }))
+    ? turn.rounds.map((round, index) => ({
+        ...turn,
+        ...(turn.stopReason && index < turn.rounds.length - 1 ? { stopReason: undefined } : {}),
+        rounds: [round],
+      }))
     : [turn])
 }
 

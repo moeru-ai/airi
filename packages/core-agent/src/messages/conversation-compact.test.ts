@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { measureContextBudget } from './context-budget'
 import { ConversationCompact } from './conversation-compact'
+import { renderConversationPreview } from './preview'
 
 function barrier<T>() {
   let release: (value: T) => void = () => {}
@@ -39,6 +40,44 @@ const target = { scope: 'session/model', measureContextBytes: measure }
 const limits = { softLimitBytes: 6000, hardLimitBytes: 23000, retainRounds: 1 }
 
 describe('conversationCompact', () => {
+  it('keeps a step-limit checkpoint on the final round and in the projected context', async () => {
+    const stopReason = { type: 'step-limit' as const, maxSteps: 2, completedSteps: 2 }
+    const source: Conversation = { turns: [
+      { type: 'user', id: 'goal', content: [{ type: 'text', text: 'Finish the task.' }] },
+      { type: 'assistant', id: 'limited-run', status: 'completed', stopReason, rounds: [round(0), round(1)] },
+    ] }
+    const compact = new ConversationCompact({ softLimitBytes: 100_000, hardLimitBytes: 200_000, retainRounds: 1 })
+    compact.setMode('background')
+
+    const projected = await compact.prepare(source, { ...target, summarize: vi.fn(async () => 'unused') })
+    const assistantTurns = projected.turns.filter(turn => turn.type === 'assistant')
+
+    expect(assistantTurns.map(turn => turn.type === 'assistant' ? turn.stopReason : undefined)).toEqual([undefined, stopReason])
+    expect(renderConversationPreview(projected).at(-1)?.content).toContain('agent-decision-step-limit')
+    expect(renderConversationPreview(projected).at(-1)?.content).toContain('not-verified')
+  })
+
+  it('includes a step-limit checkpoint in the summary snapshot', async () => {
+    const started = barrier<Conversation>()
+    const source: Conversation = { turns: [
+      { type: 'user', id: 'goal', content: [{ type: 'text', text: 'Finish the task.' }] },
+      { type: 'assistant', id: 'limited-run', status: 'completed', stopReason: { type: 'step-limit', maxSteps: 2, completedSteps: 2 }, rounds: [round(0), round(1)] },
+      { type: 'user', id: 'continue', content: [{ type: 'text', text: 'Continue.' }] },
+      { type: 'assistant', id: 'later-run', status: 'completed', rounds: [round(2), round(3)] },
+    ] }
+    const compact = new ConversationCompact(limits)
+    compact.setMode('background')
+    const summarize = vi.fn(async (snapshot: Conversation) => {
+      started.release(snapshot)
+      return 'The previous run reached its decision budget.'
+    })
+
+    await compact.prepare(source, { ...target, summarize })
+    const snapshot = await started.promise
+    expect(renderConversationPreview(snapshot).map(message => message.content).join('')).toContain('not-verified')
+    compact.reset()
+  })
+
   it('defaults to Off without summary dispatch and retains the hard request gate', async () => {
     const summarize = vi.fn(async () => 'Not requested')
     const compact = new ConversationCompact(limits)

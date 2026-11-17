@@ -67,7 +67,7 @@ Track these design risks against observed behavior:
 - The default Agent catalog now contains only the four stable `computer_*`/`terminal_exec` entrypoints. Secondary MCP discovery remains Host-selected through explicitly selected proxy tools. Verify that the Agent does not invent proxy calls or repeat discovery when those proxies are absent.
 - Read-only observation and state-changing input share Host attribution rules. Verify that approval policy does not block safe observation.
 - Task memory is session-local. Verify that Compact retains the goal, verified facts, pending work, and blockers.
-- No unified step or time budget is recorded here. Inspect actual loop limits before treating this as a defect.
+- Core Agent now limits model decision rounds with `StreamOptions.maxSteps`, default 30. One round can contain any number of tool calls. The final round settles all calls before it emits `step-limit` and stores a resumable `AssistantTurn.stopReason`. This marker is not business verification.
 - The contract types have focused unit coverage. Real-model behavior still must prove that the Agent reads each field and does not treat delivery as business success.
 
 Do not turn these risks into code changes until the real-model trace reproduces them. Add one focused regression for each confirmed behavior defect.
@@ -124,6 +124,7 @@ Validation for this contract slice:
 - Computer Use, Core Agent, Stage UI, and Electron typechecks passed.
 - Full lint: 0 errors and 695 existing warnings.
 - The full Stage UI suite remains environment-blocked. Its Node tests lack `localStorage`, and one browser VAD test lacks its Worker event. The focused MCP test passed.
+
 - The PR source ref was rebased by merging upstream mainline before the contract changes were pushed. The current head includes the switch-selector regression fix.
 
 Validation for the secondary MCP routing slice:
@@ -134,3 +135,22 @@ Validation for the secondary MCP routing slice:
 - Root typecheck: 66 tasks passed.
 - Root lint: 0 errors and 694 existing warnings.
 - The code ref was pushed with `--force-with-lease` and verified at `1edcb821aba7e4ca773001d919ad02896829e80e`. The handoff updates are included in the current source ref.
+
+### 2026-11-18
+
+- Added a default 30 model decision-step budget to Core Agent. `StreamOptions.maxSteps` and the chat orchestrator can override it.
+- Each decision step can contain any number of tool calls. The runtime settles the full final batch before it stores a `step-limit` checkpoint.
+- The checkpoint records `AssistantTurn.stopReason` and projects `goalState: 'not-verified'` into later requests and Compact summaries.
+- Provider switches keep the same decision-step budget. A tool-count limit does not implement this policy.
+- The changes are on `codex/feat/pr3496-current` and are not published. GitHub checks failed because the Git and GitHub MCP connections reset. Do not push until the PR source head is readable again.
+
+Validation:
+
+- `pnpm --filter @proj-airi/core-agent test:run`: 44 files, 517 passed.
+- `pnpm --filter @proj-airi/core-agent typecheck`: passed.
+- `pnpm typecheck`: 66 tasks passed.
+- `pnpm lint`: exit code 0, 0 errors, and 693 warnings.
+- `git diff --check`: passed.
+- `git -c http.proxy= -c https.proxy= ls-remote upstream refs/heads/3361559784/feat/computer-use-mcp-terminal-and-compact`: connection reset.
+- GitHub MCP lookup for PR 3496: transport connection failed.
+- Full real-model Agent acceptance remains open. The isolated profile still needs its window and chat initialization repaired.

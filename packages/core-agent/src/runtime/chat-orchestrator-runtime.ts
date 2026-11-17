@@ -152,6 +152,11 @@ export interface ChatOrchestratorSendOptions {
   /** Tool definitions passed through to the LLM stream port. */
   tools?: StreamOptions['tools']
   /**
+   * Maximum model decision steps. Each step can contain any number of tool calls.
+   * @default 30
+   */
+  maxSteps?: StreamOptions['maxSteps']
+  /**
    * Reads the current settings of the request owner before each model request.
    * The runtime appends this request's system prompt supplement to the returned prompt.
    * Omission keeps `model`, `chatProvider`, and the composed system prompt for every step.
@@ -1133,6 +1138,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           turnId: correlation.roundId,
         },
         tools: options.tools,
+        maxSteps: options.maxSteps,
         temperature: options.temperature,
         topP: options.topP,
         waitForTools: true,
@@ -1259,6 +1265,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
               break
             }
             case 'finish':
+              break
+            case 'step-limit':
               break
             case 'error':
               throw event.error ?? new Error('Stream error')

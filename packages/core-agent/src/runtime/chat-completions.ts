@@ -11,6 +11,7 @@ import { streamText } from '@xsai/stream-text'
 
 import { chatMessagesToProjectionEntries, conversationToChatMessages } from '../messages/chat-completions'
 import { measureContextBudget, resolveContextBudgetLimits } from '../messages/context-budget'
+import { DecisionStepLimitReached } from './decision-budget'
 import { createGeneration } from './generation'
 import { createContinuationScope, mergeRequestHeaders, replaceProviderConfig, supportsContentArray, supportsTools } from './request-context'
 import { RequestSwitch } from './request-switch'
@@ -38,7 +39,7 @@ export function streamChatCompletions(input: {
     project: item => chatMessagesToProjectionEntries([item]),
   })
   // The caller's tool choice applies to the first model request of the generation. A choice that forces a tool
-  // call on every request leaves the model no way to answer, and the tool loop has no step limit.
+  // call on every request leaves the model no way to answer. A configured step budget is handled after tool settlement.
   const callerToolChoice = (steps: readonly CompletionStep[]) =>
     steps.length === 0 && !input.options?.generationRoundOffset ? input.options?.toolChoice : undefined
   let providerConfigKeys = Object.keys(input.config)
@@ -47,6 +48,12 @@ export function streamChatCompletions(input: {
     prepareStep: async ({ input: current, steps }: { input: Message[], steps: CompletionStep[] }) => {
       const sdkInput = current
       const completed = generation.snapshot(current, steps)
+      input.options?.abortSignal?.throwIfAborted()
+      const completedSteps = (input.options?.generationRoundOffset ?? 0) + steps.length
+      if (input.options?.maxSteps !== undefined && completedSteps >= input.options.maxSteps) {
+        const partialTurn = await generation.complete(Promise.resolve(current), Promise.resolve(steps))
+        throw new DecisionStepLimitReached(partialTurn, input.options.maxSteps, completedSteps)
+      }
       const resolveStep = input.options?.resolveStep
       let next: ResolvedStep | undefined
       let request: GenerationRequest = { protocol: 'chat-completions', config: input.config }
@@ -135,7 +142,7 @@ export function streamChatCompletions(input: {
     messages,
     headers: mergeRequestHeaders(input.config.headers, input.options?.headers),
     streamOptions: { includeUsage: true },
-    // The tool loop has no step limit. It stops when the model answers without a tool call.
+    // A configured budget stops only after the current model step settles all tool calls.
     stopWhen: not(hasToolCall()),
     tools: input.tools,
     onEvent: async (event) => {

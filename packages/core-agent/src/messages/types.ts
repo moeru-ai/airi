@@ -54,6 +54,8 @@ export interface AssistantTurn {
   runId?: string
   /** Failed or cancelled generations reject before the caller receives a turn. */
   status: 'completed'
+  /** A saved turn can stop at its decision-step budget without certifying the user's task as complete. */
+  stopReason?: { type: 'step-limit', maxSteps: number, completedSteps: number }
   rounds: GenerationRound[]
 }
 

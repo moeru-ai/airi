@@ -12,7 +12,8 @@ import { hasToolCall, not } from '@xsai/shared-chat'
 
 import { measureContextBudget, resolveContextBudgetLimits } from '../messages/context-budget'
 import { renderSegmentText } from '../messages/render-context'
-import { projectInput, projectRound } from '../messages/turns'
+import { projectInput, projectRound, projectStopReason } from '../messages/turns'
+import { DecisionStepLimitReached } from './decision-budget'
 import { createGeneration } from './generation'
 import { createContinuationScope, mergeRequestHeaders, replaceProviderConfig, supportsTools } from './request-context'
 import { RequestSwitch } from './request-switch'
@@ -89,7 +90,7 @@ function renderConversation(conversation: Conversation, scope: string): ItemPara
   return conversation.turns.flatMap((turn) => {
     if (turn.type !== 'assistant')
       return renderMessage(projectInput(turn))
-    return turn.rounds.flatMap((round) => {
+    const items = turn.rounds.flatMap((round) => {
       const continuation = round.continuation
       if (continuation?.protocol === 'responses' && continuation.scope === scope) {
         if (!Array.isArray(continuation.data))
@@ -98,6 +99,8 @@ function renderConversation(conversation: Conversation, scope: string): ItemPara
       }
       return projectRound(round).flatMap(renderMessage)
     })
+    const stopReason = projectStopReason(turn)
+    return stopReason ? [...items, ...renderMessage(stopReason)] : items
   })
 }
 
@@ -195,7 +198,7 @@ export function streamResponses(input: {
     project: item => readOutput([item]),
   })
   // The caller's tool choice applies to the first model request of the generation. A choice that forces a tool
-  // call on every request leaves the model no way to answer, and the tool loop has no step limit.
+  // call on every request leaves the model no way to answer. A configured step budget is handled after tool settlement.
   const callerToolChoice = (steps: readonly CompletionStep[]) =>
     steps.length === 0 && !input.options?.generationRoundOffset ? input.options?.toolChoice : undefined
   let providerConfigKeys = Object.keys(input.config)
@@ -204,6 +207,12 @@ export function streamResponses(input: {
     prepareStep: async ({ input: current, steps }: { input: ItemParam[], steps: CompletionStep[] }) => {
       const sdkInput = current
       const completed = generation.snapshot(current, steps)
+      input.options?.abortSignal?.throwIfAborted()
+      const completedSteps = (input.options?.generationRoundOffset ?? 0) + steps.length
+      if (input.options?.maxSteps !== undefined && completedSteps >= input.options.maxSteps) {
+        const partialTurn = await generation.complete(Promise.resolve(current), Promise.resolve(steps))
+        throw new DecisionStepLimitReached(partialTurn, input.options.maxSteps, completedSteps)
+      }
       const resolveStep = input.options?.resolveStep
       let next: ResolvedStep | undefined
       let request: GenerationRequest = { protocol: 'responses', config: input.config, webSearch: input.webSearch ?? false }
@@ -293,7 +302,7 @@ export function streamResponses(input: {
     maxOutputTokens: input.options?.maxTokens,
     headers: mergeRequestHeaders(input.config.headers, input.options?.headers),
     tools: input.webSearch ? [...(input.tools ?? []), { type: 'web_search' }] : input.tools,
-    // The tool loop has no step limit. It stops when the model answers without a tool call.
+    // A configured budget stops only after the current model step settles all tool calls.
     stopWhen: not(hasToolCall()),
     onEvent: async (event) => {
       const mapped = toAiriStreamEvent(event)

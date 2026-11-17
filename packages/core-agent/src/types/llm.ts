@@ -24,12 +24,20 @@ export type StreamEvent
     | ({ type: 'tool-call' } & CompletionToolCall)
     | { type: 'tool-error', toolCallId: string, result?: string | CommonContentPart[], isError: true }
     | { type: 'tool-result', toolCallId: string, result?: string | CommonContentPart[] }
+    | { type: 'step-limit', maxSteps: number, completedSteps: number }
     | { type: 'citations', citations: import('../messages/types').Citation[] }
     | { type: 'search', id: string, status: 'in_progress' | 'searching' | 'completed' | 'failed' }
     | { type: 'error', error: unknown }
 
 /** Options shared by generation adapters. SDK payloads stay inside each adapter. */
 export interface StreamOptions {
+  /**
+   * Maximum model decision steps in one generated turn.
+   * Each step can contain any number of tool calls.
+   * The runtime settles every call in the final step before it stores a checkpoint.
+   * @default 30
+   */
+  maxSteps?: number
   /**
    * Adapts the conversation to the provider request that the runtime resolved.
    *
