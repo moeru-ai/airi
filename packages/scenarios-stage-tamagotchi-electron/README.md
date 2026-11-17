@@ -157,7 +157,8 @@ ln -sfn "/absolute/path/to/airi-plugin-game-chess/dist" "$HOME/Library/Applicati
 ### Check billing and usage
 
 `settings-billing-and-usage` opens the real shared settings pages with fixed HTTP fixtures.
-It captures ready and receipt error states, activates receipts with Enter and Space, and checks pagination and list cache reuse.
+It captures ready and receipt error states, activates receipts with Enter and Space, and checks pagination and receipt cache reuse.
+Usage fixtures retain credits, debits, grants, balance adjustments, and expandable speech groups from the existing wallet history.
 It replaces the Flux page DOM checks. The Capacitor calculation tests remain in `packages/stage-pages/src/components/capacitor-usage.browser.test.ts`.
 Payment API tests cover ownership, payment status, processor destinations, and nullable fields. Formatter tests cover currency units.
 

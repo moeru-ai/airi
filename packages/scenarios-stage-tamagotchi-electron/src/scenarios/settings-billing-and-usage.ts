@@ -36,10 +36,19 @@ export async function installBillingFixtures(page: Page) {
     if (url.pathname.endsWith('/revenuecat/sync'))
       return send({ synced: true })
     if (url.pathname.endsWith('/flux/history')) {
-      return send({ records: [
-        { id: 'wallet-credit', type: 'credit', amount: 2000, description: 'Flux top-up', metadata: null, createdAt },
-        { id: 'wallet-debit', type: 'debit', amount: 1, description: 'Usage', metadata: null, createdAt },
-      ], hasMore: false })
+      if (state.mode === 'empty')
+        return send({ records: [], hasMore: false })
+      const offset = Number(url.searchParams.get('offset') ?? 0)
+      return send({ records: offset
+        ? [{ id: 'wallet-credit', type: 'credit', amount: 2000, description: 'Flux top-up', metadata: null, createdAt }]
+        : [
+            { id: 'wallet-debit', type: 'debit', amount: 1, description: 'Usage', metadata: null, createdAt },
+            { id: 'wallet-initial', type: 'initial', amount: 100, description: 'Initial grant', metadata: null, createdAt },
+            { id: 'wallet-promo', type: 'promo', amount: 50, description: 'Promotional grant', metadata: null, createdAt },
+            { id: 'wallet-adjustment', type: 'admin_set', amount: 10, description: 'Balance adjustment', metadata: { direction: 'debit' }, createdAt },
+            { id: 'wallet-tts-1', type: 'debit', amount: 2, description: 'tts: speech', metadata: null, createdAt },
+            { id: 'wallet-tts-2', type: 'debit', amount: 3, description: 'tts: speech', metadata: null, createdAt },
+          ], hasMore: offset === 0 })
     }
     if (url.pathname.endsWith('/flux/stats'))
       return send({ capacity: 2000 })
@@ -47,20 +56,14 @@ export async function installBillingFixtures(page: Page) {
       return send({ flux: 1200, capacitorPercent: 62, capacitorRechargesAt: '2026-11-22T00:00:00Z', fallbackToFlux: false })
     if (url.pathname.endsWith('/flux/capacitor/usage'))
       return send({ startedAt: '2026-11-15T00:00:00Z', endsAt: '2026-11-22T00:00:00Z', records: [{ at: '2026-11-16T00:00:00Z', percent: 80 }] })
-    if (url.pathname.endsWith('/payments') || url.pathname.endsWith('/flux/usage')) {
+    if (url.pathname.endsWith('/payments')) {
       if (state.mode === 'error')
         return send({ error: 'FIXTURE_UNAVAILABLE' }, 503)
       if (state.mode === 'empty')
         return send({ records: [], hasMore: false })
       const offset = Number(url.searchParams.get('offset') ?? 0)
-      if (url.pathname.endsWith('/payments')) {
-        return send({
-          records: [{ id: `order-${offset}`, processor: offset ? 'apple_iap' : 'stripe', status: 'paid', amount: offset ? 4990 : 6000, currency: 'usd', fluxAmount: 2000, creditedAt: null, createdAt }],
-          hasMore: offset === 0,
-        })
-      }
       return send({
-        records: [{ id: `usage-${offset}`, sourceType: offset ? 'tts' : 'llm', sourceId: `request-${offset}`, amountMicroFlux: offset ? 0 : 123456, createdAt }],
+        records: [{ id: `order-${offset}`, processor: offset ? 'apple_iap' : 'stripe', status: 'paid', amount: offset ? 4990 : 6000, currency: 'usd', fluxAmount: 2000, creditedAt: null, createdAt }],
         hasMore: offset === 0,
       })
     }
@@ -100,22 +103,31 @@ export async function checkBillingAndUsage(
   await history.getByRole('button', { name: 'Load more' }).click()
   await history.getByText('USD 4.99').filter({ visible: true }).first().waitFor()
   await navigate('/settings/usage')
-  await page.getByTestId('flux-usage').getByText(/0\.123456/).filter({ visible: true }).first().waitFor()
+  const usage = page.getByTestId('flux-history')
+  await usage.getByText('Initial grant', { exact: true }).filter({ visible: true }).first().waitFor()
+  await usage.getByText('Promotional grant', { exact: true }).filter({ visible: true }).first().waitFor()
+  await usage.getByText('Balance adjustment', { exact: true }).filter({ visible: true }).first().waitFor()
+  const speechGroup = usage.getByText('tts: speech').filter({ visible: true }).first()
+  await speechGroup.click()
+  await capture('usage-expanded', page)
+  await speechGroup.click()
   await capture('usage-ready', page)
-  await page.getByRole('button', { name: 'Load more' }).click()
-  await page.getByTestId('flux-usage').getByText('Speech', { exact: true }).filter({ visible: true }).first().waitFor()
-  const listReads = state.requests.filter(path => path.includes('/payments?') || path.includes('/flux/usage?')).length
+  await usage.getByRole('button', { name: 'Load More' }).click()
+  await usage.getByText('Flux top-up', { exact: true }).filter({ visible: true }).first().waitFor()
+  await capture('usage-paginated', page)
+  const paymentReads = state.requests.filter(path => path.includes('/payments?')).length
   await page.getByRole('link', { name: 'Billing & Invoices', exact: true }).click()
   await page.getByTestId('payment-history').getByText('USD 4.99').filter({ visible: true }).first().waitFor()
   await page.getByRole('link', { name: /Usage/ }).click()
-  await page.getByTestId('flux-usage').getByText('Speech', { exact: true }).filter({ visible: true }).first().waitFor()
-  if (state.requests.filter(path => path.includes('/payments?') || path.includes('/flux/usage?')).length !== listReads)
-    throw new Error('Fresh cached lists were fetched again during navigation')
-  await capture('usage-paginated', page)
+  await usage.getByText('Initial grant', { exact: true }).filter({ visible: true }).first().waitFor()
+  if (state.requests.filter(path => path.includes('/payments?')).length !== paymentReads)
+    throw new Error('Fresh cached receipts were fetched again during navigation')
+  if (state.requests.some(path => path.includes('/flux/usage')))
+    throw new Error('Usage did not preserve the wallet history endpoint')
 
   state.mode = 'empty'
   await page.reload()
-  await page.getByText('No usage records yet.').waitFor()
+  await page.getByText('No transaction records yet.').waitFor()
   await capture('usage-empty', page)
   await navigate('/settings/flux')
   await page.getByText('No receipts yet.').waitFor()

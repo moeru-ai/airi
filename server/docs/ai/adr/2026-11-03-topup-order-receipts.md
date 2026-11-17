@@ -1,12 +1,12 @@
 # Separate Flux usage from billing and receipts
 
-Status: proposed. Separate Usage and Billing & Invoices pages are confirmed. The placement of grants and balance adjustments remains open.
+Status: accepted.
 
 ## Decision
 
-Usage lists confirmed Flux fees from `flux_usage`, including fees paid by the Capacitor and zero fees.
-It shows the time, service, and Flux consumed. It does not show models, tokens, grants, or purchases.
-The page uses the existing `GET /api/v1/flux/usage` pagination contract.
+Usage moves the existing Flux transaction history to `/settings/usage`.
+Its fields, record types, amount formatting, speech grouping, pagination, and loading behavior remain unchanged.
+It keeps the existing `GET /api/v1/flux/history` contract, including credits and debits.
 
 Billing & Invoices keeps the current Capacitor subscription and Flux purchase controls at `/settings/flux`.
 A separate receipt table reads `GET /api/v1/payments?limit=20&offset=0`.
@@ -17,9 +17,9 @@ The display date uses `creditedAt`, or `createdAt` for an order without a credit
 Ordering uses that same date, then the order ID, descending. Listing never calls a payment processor.
 Wallet history remains independent of payment orders.
 
-Each page loads only its own list. Account-scoped query caches reuse recent reads and deduplicate concurrent reads.
-The public package catalog stays fresh for five minutes. Private lists stay fresh for one minute.
-Refresh and pagination load on request. Lists do not poll or refetch on window focus.
+Each page loads only its own list. The receipt query cache scopes reads to the account and session.
+The public package catalog stays fresh for five minutes. The receipt list stays fresh for one minute.
+Receipt refresh and pagination load on request. The receipt list does not poll or refetch on window focus.
 The existing Capacitor loading, balance refresh, and quota analytics remain unchanged.
 
 `GET /api/v1/payments/:id/receipt` checks account ownership before resolving the original processor.
@@ -30,29 +30,13 @@ Apple does not expose a documented web link for an individual transaction.
 Resolve links only after the user clicks View receipt. Do not persist expiring receipt links.
 Processor selection stays in the existing receipt service. Current sales channels do not select historical receipt destinations.
 
-## Open decision: grants and balance adjustments
-
-The current draft lists confirmed consumption and paid orders. These lists do not expose initial grants, promotional grants, or administrative adjustments.
-Those records remain in `flux_transaction` and `GET /api/v1/flux/history`. They need an explicit display location before this design is complete.
-
-Options keep Usage limited to service consumption:
-
-- Add a grants and adjustments section to Billing & Invoices.
-- Open the existing complete wallet history from the balance as a separate detail panel.
-- Add a separate wallet-history page.
-
-A positive balance change does not prove a purchase. An absent receipt does not prove a free grant.
-Payment settlement records `payment_order.id` in the wallet transaction's `requestId`.
-Receipt actions require an owned, paid, live order. Initial and promotional grants remain Flux records without payment actions.
-Administrative balance settings can increase or decrease the balance. Their direction comes from the stored balance change.
-
-The balance endpoint, existing wallet-history response, and settlement behavior remain unchanged.
-
 ## Scope and non-goals
 
 This change adds an authenticated order list, separate settings entries, and independent usage and receipt tables.
 It requires no migration, settlement change, invoice creation, refund flow, or subscription billing integration.
-Subscription controls remain in their existing section. The receipt list covers recorded Flux purchases.
+Subscription controls and their management link remain in their existing section.
+RevenueCat Billing's customer portal lists subscription payments and provides downloadable receipts and invoices.
+The added receipt list covers recorded Flux purchases. It does not import subscription invoices into payment orders.
 Missing, deleted, unpaid, and foreign orders return the same not-found error for receipt lookup.
 Unsupported processors and unavailable receipts return an explicit error. The action remains available for retry.
 
@@ -60,9 +44,9 @@ Unsupported processors and unavailable receipts return an explicit error. The ac
 
 ```mermaid
 flowchart LR
-  Usage[Usage page] --> UsageRoute[Flux usage route]
-  UsageRoute --> Fees[Flux transaction service]
-  Fees --> FeeDB[(Confirmed Flux fees)]
+  Usage[Usage page] --> HistoryRoute[Existing Flux history route]
+  HistoryRoute --> History[Flux transaction service]
+  History --> Wallet[(Wallet transactions)]
   Billing[Billing page] --> Payments[Payment routes]
   Payments --> Receipts[Payment receipt service]
   Receipts --> Orders[(Payment orders)]
@@ -75,12 +59,9 @@ flowchart LR
 packages/
   stage-pages/src/pages/settings/{flux.vue,usage.vue}
   stage-pages/src/pages/settings/components/{payment-history.vue,payment-receipt-button.vue}
-  stage-pages/src/components/capacitor-section.vue
   i18n/src/locales/{en,zh-Hans}/settings.yaml
 server/apps/api/src/
-  routes/flux/{index.ts,route.test.ts}
   routes/payments/{index.ts,route.test.ts}
-  services/domain/flux-transaction{.ts,.test.ts}
   services/domain/payment/{receipt.ts,tests/receipt.test.ts}
 ```
 
@@ -95,9 +76,9 @@ sequenceDiagram
   participant DB
   participant Stripe
   User->>Usage: Open Usage
-  Usage->>API: GET flux/usage
-  API->>DB: Read confirmed fees for account
-  API-->>Usage: Paginated Flux usage
+  Usage->>API: GET flux/history
+  API->>DB: Read existing wallet history for account
+  API-->>Usage: Paginated credits and debits
   User->>Billing: Open Billing & Invoices
   Billing->>API: GET payments
   API->>DB: Read paid, live orders for account
@@ -118,7 +99,8 @@ sequenceDiagram
 - Check authentication, invoice precedence, charge receipts, missing receipts, and processor failures.
 - Check Apple orders with purchases disabled and rejection before provider access for inaccessible orders.
 - Check desktop and mobile pages, public packs, subscription states, receipt retries, and keyboard activation with browser scenarios.
-- Check request counts, list cache reuse, pagination, and account changes.
+- Check original usage fields, credit and debit records, speech grouping, and pagination after moving the entry.
+- Check request counts, receipt cache reuse, pagination, and account changes.
 - Run affected tests, workspace and root typechecks, locale checks, and repository lint.
 
 ## Sources
@@ -130,3 +112,4 @@ sequenceDiagram
 
 - [Apple transaction price](https://developer.apple.com/documentation/appstoreserverapi/price)
 - [Stripe currency units](https://docs.stripe.com/currencies#special-cases)
+- [RevenueCat Billing customer portal](https://www.revenuecat.com/docs/web/web-billing/customer-portal)

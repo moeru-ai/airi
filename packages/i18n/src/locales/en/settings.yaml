@@ -1821,6 +1821,21 @@ pages:
       success: Payment successful! Your Flux has been topped up.
       canceled: Payment was canceled.
       error: Something went wrong. Please try again later.
+    audit:
+      title: Transaction History
+      time: Time
+      type: Type
+      detail: Detail
+      amount: Amount
+      typeAddition: Top-up
+      typeConsumption: Usage
+      typeInitial: Initial Grant
+      typePromo: Promo Grant
+      loading: Loading history...
+      empty: No transaction records yet.
+      loadMore: Load More
+      delayHint: Usage records may be delayed by up to 1 minute
+      ttsRequests: requests
     packages:
       title: Flux top-up packs
       buy: Charge
@@ -1848,16 +1863,7 @@ pages:
     loadMore: Load more
   usage:
     title: Usage
-    description: View your Flux consumption
-    hint: Confirmed usage from your Capacitor and Flux balance. Records can take a minute to appear.
-    date: Time
-    service: Service
-    flux: Flux
-    chat: Chat
-    speech: Speech
-    other: Other usage
-    empty: No usage records yet.
-    loadError: Failed to load usage.
+    description: View your Flux transaction history
     signIn: Sign in to view your Flux usage.
     signInAction: Sign in
     viewDetails: View details
