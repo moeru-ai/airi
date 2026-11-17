@@ -251,7 +251,7 @@ describe('useTamagotchiMcpToolsStore', () => {
     })
     await vi.waitFor(() => expect(followerRuntime.getLeaderId()).toBe(leaderRuntime.participantId))
     await expect.element(settings.getByTestId('terminal-connection-status')).toHaveTextContent('status.unknown')
-    const terminalSwitch = settings.getByRole('switch')
+    const terminalSwitch = settings.getByTestId('terminal-enabled-switch')
     const apply = settings.getByRole('button', { name: 'settings.pages.modules.mcp-server.actions.apply-and-restart' })
     await terminalSwitch.click()
     await apply.click()

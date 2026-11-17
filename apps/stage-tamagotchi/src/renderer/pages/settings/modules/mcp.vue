@@ -425,7 +425,7 @@ useIntervalFn(() => {
     </SettingsCard>
 
     <SettingsCard>
-      <Checkbox :model-value="terminalEnabled ?? false" :label="tn('terminal.title')" @update:model-value="terminalEnabled = $event" />
+      <Checkbox data-testid="terminal-enabled-switch" :model-value="terminalEnabled ?? false" :label="tn('terminal.title')" @update:model-value="terminalEnabled = $event" />
       <p :class="['text-sm', 'text-neutral-500 dark:text-neutral-400']">
         {{ tn('terminal.description') }}
       </p>
