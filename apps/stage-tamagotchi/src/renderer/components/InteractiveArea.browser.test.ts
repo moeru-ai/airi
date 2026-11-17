@@ -230,12 +230,17 @@ describe('interactive area synchronized state', () => {
         modes.set(sessionId, enabled)
       return modes.get(sessionId) ?? false
     })
-    tools.addTools({ id: 'mcp:computer_act', type: 'function', function: { name: 'computer_act', parameters: { type: 'object' } }, execute: async () => '' })
-
     const toolButton = screen.getByRole('button', { name: 'tamagotchi.stage.chat-window.computer-tools.label' })
     const activeButton = screen.getByRole('button', { name: 'tamagotchi.stage.chat-window.computer-tools.turbo-active' })
     await toolButton.click()
     await expect.element(screen.getByText('tamagotchi.stage.chat-window.computer-tools.desktop-unavailable')).toBeVisible()
+    await userEvent.keyboard('{Escape}')
+    tools.addTools(
+      { id: 'mcp:computer_act', type: 'function', function: { name: 'computer_act', parameters: { type: 'object' } }, execute: async () => '' },
+      { id: 'mcp:computer_observe', type: 'function', function: { name: 'computer_observe', parameters: { type: 'object' } }, execute: async () => '' },
+    )
+    await toolButton.click()
+    await expect.element(screen.getByText('tamagotchi.stage.chat-window.computer-tools.desktop-unavailable')).not.toBeInTheDocument()
     const turbo = screen.getByRole('menuitemcheckbox', { name: 'tamagotchi.stage.chat-window.computer-tools.turbo-label' })
     await expect.element(turbo).toHaveAttribute('data-state', 'unchecked')
     await turbo.click()

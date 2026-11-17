@@ -125,6 +125,10 @@ const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const startLogin = useElectronEventaInvoke(electronAuthStartLogin)
 const setTurboMode = useElectronEventaInvoke(terminalTurboMode)
 const tools = useLlmToolsStore()
+const desktopAvailable = computed(() => {
+  const toolIds = new Set(tools.tools.map(tool => tool.id))
+  return toolIds.has('mcp:computer_observe') && toolIds.has('mcp:computer_act')
+})
 const turboAvailable = computed(() => tools.tools.some(tool => ['mcp:terminal_exec', 'mcp:computer_act'].includes(tool.id)))
 const { state: turboEnabled, executeImmediate: refreshTurbo, isLoading: loadingTurbo } = useAsyncState(
   (sessionId: string) => turboAvailable.value && sessionId ? setTurboMode({ sessionId }) : Promise.resolve(false),
@@ -619,7 +623,7 @@ defineExpose({
                 <span :class="['i-solar:monitor-bold-duotone size-5 shrink-0']" />
               </GhostButton>
             </template>
-            <p :class="['px-2 py-1.5 text-xs text-neutral-500 dark:text-neutral-400']">
+            <p v-if="!desktopAvailable" :class="['px-2 py-1.5 text-xs text-neutral-500 dark:text-neutral-400']">
               {{ t('tamagotchi.stage.chat-window.computer-tools.desktop-unavailable') }}
             </p>
             <template v-if="turboAvailable">

@@ -156,3 +156,13 @@ Validation:
 - PR metadata API: open, base `main`, head `3361559784/feat/computer-use-mcp-terminal-and-compact`, code SHA `ad0c9b2047cc9d68cb01be0187b9f2c71f0b099b`.
 - Code commit checks: running when inspected. Several jobs had started, with no failures reported.
 - Full real-model Agent acceptance remains open. The isolated profile still needs its window and chat initialization repaired.
+
+### 2026-11-18 Experience smoke follow-up
+
+- Made the Computer Use menu show the desktop-unavailable notice only when the current catalog lacks either `computer_observe` or `computer_act`.
+- The shared screenshot showed a model request error, `Failed to fetch`. The available Electron log has no matching model request details, so its provider-side cause remains unverified.
+- The live profile attaches a user-configured Computer Use server from a different checkout. Do not count this run as acceptance of the current branch's tool catalog.
+- Recheck the current tool catalog and provider request trace during the next real-model smoke. Keep the user's API key and profile configuration out of repository records.
+- `pnpm --filter @proj-airi/stage-tamagotchi exec vitest run src/renderer/components/InteractiveArea.browser.test.ts`: 42 tests passed.
+- `pnpm --filter @proj-airi/stage-tamagotchi typecheck`: passed.
+- Targeted ESLint: 0 errors and 2 existing comment-length warnings.
