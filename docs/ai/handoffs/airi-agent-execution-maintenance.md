@@ -142,7 +142,9 @@ Validation for the secondary MCP routing slice:
 - Each decision step can contain any number of tool calls. The runtime settles the full final batch before it stores a `step-limit` checkpoint.
 - The checkpoint records `AssistantTurn.stopReason` and projects `goalState: 'not-verified'` into later requests and Compact summaries.
 - Provider switches keep the same decision-step budget. A tool-count limit does not implement this policy.
-- The changes are on `codex/feat/pr3496-current` and are not published. GitHub checks failed because the Git and GitHub MCP connections reset. Do not push until the PR source head is readable again.
+- Code commit `ad0c9b2047cc9d68cb01be0187b9f2c71f0b099b` was pushed to the PR source branch and verified with `git ls-remote`.
+- PR 3496 is open against `main`. Its head was `ad0c9b2047cc9d68cb01be0187b9f2c71f0b099b` when checked. GitHub checks had started, with no failures reported at that time.
+- This handoff update adds a documentation-only commit. Recheck CI against the resulting PR head before treating checks as complete.
 
 Validation:
 
@@ -151,6 +153,6 @@ Validation:
 - `pnpm typecheck`: 66 tasks passed.
 - `pnpm lint`: exit code 0, 0 errors, and 693 warnings.
 - `git diff --check`: passed.
-- `git -c http.proxy= -c https.proxy= ls-remote upstream refs/heads/3361559784/feat/computer-use-mcp-terminal-and-compact`: connection reset.
-- GitHub MCP lookup for PR 3496: transport connection failed.
+- PR metadata API: open, base `main`, head `3361559784/feat/computer-use-mcp-terminal-and-compact`, code SHA `ad0c9b2047cc9d68cb01be0187b9f2c71f0b099b`.
+- Code commit checks: running when inspected. Several jobs had started, with no failures reported.
 - Full real-model Agent acceptance remains open. The isolated profile still needs its window and chat initialization repaired.
