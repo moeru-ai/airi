@@ -82,7 +82,7 @@ Generation validation uses the configured model before consulting the endpoint m
 
 ## OpenRouter speech
 
-The speech provider merges the dedicated speech catalog with supported chat-audio models and removes duplicate IDs.
+The speech provider discovers dedicated speech and supported chat-audio models with one request to `models?output_modalities=speech,audio`.
 Dedicated speech models use `/audio/speech`. The discovered output modalities and endpoint declarations determine their route.
 The chat adapter supports `openai/gpt-audio` and `openai/gpt-audio-mini` when discovery confirms audio output and a chat endpoint.
 Other audio models, including Lyria music models, need a separate encoding and speech contract before this adapter can support them.
@@ -105,7 +105,6 @@ and [Gemini encoding contract](https://ai.google.dev/gemini-api/docs/speech-gene
 
 Each provider instance owns its catalog for one API root and key. Model-list requests refresh it.
 Speech segments reuse known models and refresh a missing model, including models found by a temporary dropdown discovery instance.
-Each modality retains its last successful response when only that catalog fails. The adapter logs the failed query and its error.
-Discovery fails when neither catalog succeeds, or partial discovery has no usable models.
-Canceled discovery changes neither catalog.
+A successful, validated response replaces the entire catalog, including when it contains no models.
+Failed or canceled discovery leaves the last successful catalog unchanged and reports the error to the caller.
 The chat adapter accepts the xsAI WAV option and requires the stream's `[DONE]` marker before returning audio.

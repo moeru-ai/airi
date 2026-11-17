@@ -1,4 +1,3 @@
-import { errorMessageFrom } from '@moeru/std'
 import { toWavFromPCM16 } from '@proj-airi/audio/encoding'
 import { EventSourceParserStream } from '@xsai/shared-stream'
 import { z } from 'zod'
@@ -156,11 +155,10 @@ function wavResponse(bytes: Uint8Array, sampleRate: number) {
 /**
  * Owns discovery for one configured API root and key. Explicit model-list requests refresh the catalog.
  * Synthesis refreshes a missing model because dropdown discovery uses separate temporary instances.
- * Each modality retains its last successful response during a partial failure. Canceled discovery never changes either catalog.
+ * Failed or canceled discovery leaves the last successful catalog unchanged.
  */
 class OpenRouterSpeech {
   private models?: Map<string, DiscoveredModel>
-  private catalogs = new Map<string, CatalogModel[]>()
 
   constructor(private readonly apiKey: string, private readonly baseUrl: string) {}
 
@@ -174,39 +172,14 @@ class OpenRouterSpeech {
 
   async discover(signal?: AbortSignal | null) {
     signal?.throwIfAborted()
-    const queries = ['output_modalities=speech', 'output_modality=audio']
-    const results = await Promise.allSettled(queries.map(async (query) => {
-      const response = await globalThis.fetch(new URL(`models?${query}`, this.baseUrl), {
-        headers: this.headers(),
-        signal,
-      })
-      if (!response.ok)
-        throw new Error(`OpenRouter model discovery failed: ${response.status} ${await response.text()}`)
-      return v.parse(modelsSchema, await response.json()).data
-    }))
-    signal?.throwIfAborted()
+    const response = await globalThis.fetch(new URL('models?output_modalities=speech,audio', this.baseUrl), {
+      headers: this.headers(),
+      signal,
+    })
+    if (!response.ok)
+      throw new Error(`OpenRouter model discovery failed: ${response.status} ${await response.text()}`)
+    const entries = v.parse(modelsSchema, await response.json()).data
 
-    const catalogs = new Map(this.catalogs)
-    const failures: Array<{ query: string, message: string }> = []
-    for (const [index, result] of results.entries()) {
-      const query = queries[index]!
-      if (result.status === 'fulfilled') {
-        catalogs.set(query, result.value)
-      }
-      else {
-        const reason: unknown = result.reason
-        if ((reason instanceof Error || reason instanceof DOMException) && reason.name === 'AbortError')
-          throw reason
-        failures.push({ query, message: errorMessageFrom(reason) ?? 'Unknown discovery error' })
-      }
-    }
-
-    const entries: CatalogModel[] = []
-    for (const query of queries) {
-      const catalog = catalogs.get(query)
-      if (catalog)
-        entries.push(...catalog)
-    }
     const models = new Map<string, DiscoveredModel>()
     for (const entry of entries) {
       const modalities = entry.architecture.output_modalities
@@ -216,28 +189,9 @@ class OpenRouterSpeech {
       if (!speech && !chatAudio)
         continue
 
-      const previous = models.get(entry.id)
-      // Speech metadata takes precedence. Duplicate entries contribute their endpoint capabilities and voices.
-      if (previous) {
-        previous.speech ||= speech
-        previous.chatAudio ||= chatAudio
-        if (entry.supported_voices) {
-          previous.supported_voices = previous.supported_voices
-            ? [...new Set([...previous.supported_voices, ...entry.supported_voices])]
-            : entry.supported_voices
-        }
-      }
-      else {
-        models.set(entry.id, { ...entry, speech, chatAudio })
-      }
+      models.set(entry.id, { ...entry, speech, chatAudio })
     }
-    if (failures.length === queries.length || (failures.length && !models.size))
-      throw new Error(`OpenRouter model discovery failed:\n${failures.map(({ query, message }) => `${query}: ${message}`).join('\n')}`)
-
-    // Each catalog is independent. Report degraded discovery while retaining usable current or previously discovered capabilities.
-    for (const { query, message } of failures)
-      console.warn(`OpenRouter model catalog ${query} unavailable:`, message)
-    this.catalogs = catalogs
+    signal?.throwIfAborted()
     this.models = models
     return models
   }

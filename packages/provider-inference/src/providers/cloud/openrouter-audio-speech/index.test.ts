@@ -32,10 +32,8 @@ function mockCatalog(synthesize: typeof fetch, models = [
 ]) {
   const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
     const url = new URL(String(input))
-    if (url.pathname.endsWith('/models')) {
-      const modality = url.searchParams.get('output_modalities') === 'speech' ? 'speech' : 'audio'
-      return jsonResponse(models.filter(entry => entry.architecture.output_modalities.includes(modality)))
-    }
+    if (url.pathname.endsWith('/models'))
+      return jsonResponse(models)
     return synthesize(input, init)
   })
   vi.stubGlobal('fetch', fetchMock)
@@ -65,16 +63,15 @@ describe('openRouter speech model catalog', () => {
   // https://github.com/moeru-ai/airi/issues/3456
   // ROOT CAUSE:
   //
-  // The audio-only query excluded dedicated speech models. We merge both discovered catalogs.
+  // The audio-only query excluded dedicated speech models. One combined query discovers both output modalities.
   it('regression for Issue #3456: lists speech models and keeps chat-audio models', async () => {
     const fetchMock = vi.fn<typeof fetch>(async (input) => {
       const url = new URL(String(input))
-      if (url.searchParams.get('output_modalities') === 'speech') {
-        return jsonResponse([model('heygen/heygen-voice-1-turbo', 'HeyGen Voice Turbo')])
-      }
-
-      if (url.searchParams.get('output_modality') === 'audio') {
-        return jsonResponse([model('openai/gpt-audio-mini', 'GPT Audio Mini', 'audio')])
+      if (url.searchParams.get('output_modalities') === 'speech,audio') {
+        return jsonResponse([
+          model('heygen/heygen-voice-1-turbo', 'HeyGen Voice Turbo'),
+          model('openai/gpt-audio-mini', 'GPT Audio Mini', 'audio'),
+        ])
       }
 
       return new Response('Unexpected models request', { status: 400 })
@@ -92,9 +89,9 @@ describe('openRouter speech model catalog', () => {
       'heygen/heygen-voice-1-turbo',
       'openai/gpt-audio-mini',
     ])
-    expect(fetchMock).toHaveBeenCalledTimes(2)
-    expect(fetchMock.mock.calls.map(([input]) => new URL(String(input)).search)).toContain('?output_modalities=speech')
-    expect(fetchMock.mock.calls.map(([input]) => new URL(String(input)).search)).toContain('?output_modality=audio')
+    expect(fetchMock).toHaveBeenCalledOnce()
+    expect(String(fetchMock.mock.lastCall?.[0])).toBe(`${config.baseUrl}models?output_modalities=speech,audio`)
+    expect(fetchMock.mock.lastCall?.[1]?.method ?? 'GET').toBe('GET')
   })
 })
 
@@ -255,20 +252,21 @@ async function synthesize(modelId: string, options: Partial<Parameters<typeof ge
 }
 
 describe('openRouter discovered capabilities', () => {
-  it('merges duplicate endpoint capabilities and voices without duplicate model IDs', async () => {
-    const fetchMock = vi.fn<typeof fetch>(async input => jsonResponse(
-      new URL(String(input)).searchParams.has('output_modalities')
-        ? [{ ...model('openai/gpt-audio-mini', 'Speech entry'), supported_voices: ['voice-a'] }]
-        : [{ ...model('openai/gpt-audio-mini', 'Chat entry', 'audio'), supported_voices: ['voice-a', 'voice-b'] }],
-    ))
+  it('uses one model entry for voices and prefers its speech endpoint', async () => {
+    const fetchMock = vi.fn<typeof fetch>(async () => jsonResponse([{
+      ...model('openai/gpt-audio-mini', 'Speech and chat entry'),
+      architecture: { output_modalities: ['speech', 'audio'] },
+      endpoints: ['/api/v1/audio/speech', '/api/v1/chat/completions'],
+      supported_voices: ['voice-a'],
+    }]))
     vi.stubGlobal('fetch', fetchMock)
     const provider = await providerOpenRouterAudioSpeech.createProvider(config)
     const models = await listModels(config, provider)
     const voices = await listVoices(config, provider, 'openai/gpt-audio-mini')
 
     expect(models.map(entry => entry.id)).toEqual(['openai/gpt-audio-mini'])
-    expect(models[0]?.name).toBe('Speech entry')
-    expect(voices.map(entry => entry.id)).toEqual(['voice-a', 'voice-b'])
+    expect(models[0]?.name).toBe('Speech and chat entry')
+    expect(voices.map(entry => entry.id)).toEqual(['voice-a'])
 
     fetchMock.mockImplementation(async () => new Response('audio', { headers: { 'Content-Type': 'audio/mpeg' } }))
     await generateSpeech({ ...getSpeechOptions(provider, 'openai/gpt-audio-mini'), input: 'Hello.', voice: 'voice-a' })
@@ -587,7 +585,7 @@ describe('openRouter cancellation and catalog ownership', () => {
 
     requests.mockImplementation(async () => jsonResponse([{ ...model('heygen/heygen-voice-1-turbo'), supported_voices: ['fresh-voice'] }]))
     expect((await listVoices(config, provider, 'heygen/heygen-voice-1-turbo')).map(voice => voice.id)).toEqual(['fresh-voice'])
-    expect(requests).toHaveBeenCalledTimes(4)
+    expect(requests).toHaveBeenCalledTimes(2)
   })
 
   it('reuses discovery for speech segments and refreshes an explicit model-list request', async () => {
@@ -597,9 +595,9 @@ describe('openRouter cancellation and catalog ownership', () => {
     const options = { ...getSpeechOptions(provider, 'minimax/speech-2.8-hd'), input: 'Hello.', voice: 'test-voice' }
     await generateSpeech(options)
     await generateSpeech(options)
-    expect(requests).toHaveBeenCalledTimes(4)
+    expect(requests).toHaveBeenCalledTimes(3)
     await listModels(config, provider)
-    expect(requests).toHaveBeenCalledTimes(6)
+    expect(requests).toHaveBeenCalledTimes(4)
   })
 
   it('isolates catalogs by provider instance, API root, and key', async () => {
@@ -619,7 +617,7 @@ describe('openRouter cancellation and catalog ownership', () => {
     expect((await listVoices(otherRoot, changedRoot, 'example/speech'))[0]?.id).toBe('other-voice')
     expect((await listVoices(otherKey, changedKey, 'example/speech'))[0]?.id).toBe('new-key-voice')
     expect((await listVoices(config, original, 'example/speech'))[0]?.id).toBe('original-voice')
-    expect(requests).toHaveBeenCalledTimes(6)
+    expect(requests).toHaveBeenCalledTimes(3)
     expect(providerOpenRouterAudioSpeech.extraMethods!.voiceCatalogConfig!(config)).not.toEqual(
       providerOpenRouterAudioSpeech.extraMethods!.voiceCatalogConfig!(otherRoot),
     )
@@ -659,67 +657,77 @@ describe('openRouter review regressions for Issue #3456', () => {
     expect(JSON.parse(String(upstream.mock.lastCall?.[1]?.body)).model).toBe('fish-audio/s2.1-pro-free:free')
   })
 
-  // https://github.com/moeru-ai/airi/issues/3456
-  // ROOT CAUSE:
-  // Requiring both catalogs disabled an independent working route. Partial discovery now retains usable capabilities and reports the failed query.
   it.each([
-    ['output_modalities', 'openai/gpt-audio-mini'],
-    ['output_modality', 'minimax/speech-2.8-hd'],
-  ])('keeps usable discovery and synthesis when %s fails', async (failedQuery, id) => {
-    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const upstream = vi.fn<typeof fetch>(async () => id.startsWith('openai/')
+    ['HTTP error', () => new Response('Catalog unavailable', { status: 503 }), '503 Catalog unavailable'],
+    ['network error', () => { throw new Error('Network unavailable') }, 'Network unavailable'],
+    ['invalid JSON', () => new Response('invalid-json'), 'JSON'],
+    ['invalid schema', () => jsonResponse([
+      { ...model('minimax/speech-2.8-hd'), supported_voices: ['new-voice'] },
+      { ...model('openai/gpt-audio-mini', 'Chat', 'audio'), architecture: { output_modalities: 'audio' } },
+    ]), 'Invalid type'],
+  ] as const)('retains known voices and routes after a refresh fails with %s', async (_name, response, error) => {
+    const upstream = vi.fn<typeof fetch>(async input => new URL(String(input)).pathname.endsWith('/chat/completions')
       ? chatResponse()
       : new Response('audio', { headers: { 'Content-Type': 'audio/mpeg' } }))
-    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input, init) => {
-      const url = new URL(String(input))
-      if (!url.pathname.endsWith('/models'))
-        return upstream(input, init)
-      if (url.searchParams.has(failedQuery))
-        return new Response('Catalog unavailable', { status: 503 })
-      return jsonResponse([model(id, id, id.startsWith('openai/') ? 'audio' : 'speech')])
-    }))
-    const provider = await providerOpenRouterAudioSpeech.createProvider(config)
-    expect((await listModels(config, provider)).map(entry => entry.id)).toEqual([id])
-    const audio = await generateSpeech({ ...getSpeechOptions(provider, id), input: 'Hello.', voice: 'test-voice' })
-    expect(audio.byteLength).toBeGreaterThan(0)
-    expect(upstream).toHaveBeenCalledOnce()
-    expect(warning).toHaveBeenCalledWith(expect.stringContaining(failedQuery), expect.stringContaining('503 Catalog unavailable'))
-  })
-
-  it('retains the last successful capability catalog when only its refresh fails', async () => {
-    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    let speechUnavailable = false
-    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input) => {
-      const speech = new URL(String(input)).searchParams.has('output_modalities')
-      if (speech && speechUnavailable)
-        return new Response('Speech catalog unavailable', { status: 503 })
-      return jsonResponse([speech ? model('minimax/speech-2.8-hd') : model('openai/gpt-audio-mini', 'Chat', 'audio')])
-    }))
+    const entries = [
+      { ...model('minimax/speech-2.8-hd'), supported_voices: ['speech-voice'] },
+      { ...model('openai/gpt-audio-mini', 'Chat', 'audio'), supported_voices: ['chat-voice'] },
+    ]
+    const requests = mockCatalog(upstream, entries)
     const provider = await providerOpenRouterAudioSpeech.createProvider(config)
     await listModels(config, provider)
-    speechUnavailable = true
-    expect((await listModels(config, provider)).map(entry => entry.id)).toEqual(['minimax/speech-2.8-hd', 'openai/gpt-audio-mini'])
-    expect(warning).toHaveBeenCalledOnce()
+
+    requests.mockImplementationOnce(async () => response())
+    await expect(listModels(config, provider)).rejects.toThrow(error)
+    expect((await listVoices(config, provider, 'minimax/speech-2.8-hd')).map(voice => voice.id)).toEqual(['speech-voice'])
+    expect((await listVoices(config, provider, 'openai/gpt-audio-mini')).map(voice => voice.id)).toEqual(['chat-voice'])
+    await generateSpeech({ ...getSpeechOptions(provider, 'minimax/speech-2.8-hd'), input: 'Hello.', voice: 'speech-voice' })
+    await generateSpeech({ ...getSpeechOptions(provider, 'openai/gpt-audio-mini'), input: 'Hello.', voice: 'chat-voice' })
+    expect(upstream.mock.calls.map(([input]) => new URL(String(input)).pathname)).toEqual(['/v1/audio/speech', '/v1/chat/completions'])
+    expect(requests).toHaveBeenCalledTimes(4)
   })
 
-  it('restores speech metadata precedence when a failed catalog recovers', async () => {
-    vi.spyOn(console, 'warn').mockImplementation(() => {})
-    let unavailable = true
-    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input) => {
-      if (new URL(String(input)).searchParams.has('output_modalities')) {
-        return unavailable
-          ? new Response('Unavailable', { status: 503 })
-          : jsonResponse([model('openai/gpt-audio-mini', 'Speech entry')])
-      }
-      return jsonResponse([model('openai/gpt-audio-mini', 'Chat entry', 'audio')])
-    }))
+  it('replaces models, voices, and routes after a successful refresh', async () => {
+    let entries = [
+      { ...model('minimax/speech-2.8-hd'), supported_voices: ['speech-voice'] },
+      { ...model('openai/gpt-audio-mini', 'Chat entry', 'audio'), supported_voices: ['chat-voice'] },
+    ]
+    const upstream = vi.fn<typeof fetch>(async input => new URL(String(input)).pathname.endsWith('/chat/completions')
+      ? chatResponse()
+      : new Response('audio', { headers: { 'Content-Type': 'audio/mpeg' } }))
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input, init) => new URL(String(input)).pathname.endsWith('/models')
+      ? jsonResponse(entries)
+      : upstream(input, init)))
     const provider = await providerOpenRouterAudioSpeech.createProvider(config)
-    expect((await listModels(config, provider))[0]?.name).toBe('Chat entry')
-    unavailable = false
-    expect((await listModels(config, provider))[0]?.name).toBe('Speech entry')
+    await listModels(config, provider)
+    await generateSpeech({ ...getSpeechOptions(provider, 'openai/gpt-audio-mini'), input: 'Hello.', voice: 'chat-voice' })
+
+    entries = [
+      { ...model('openai/gpt-audio-mini', 'Speech entry'), supported_voices: [] },
+      { ...model('example/new-speech'), supported_voices: ['new-voice'] },
+    ]
+    const models = await listModels(config, provider)
+    expect(models.map(entry => entry.id)).toEqual(['openai/gpt-audio-mini', 'example/new-speech'])
+    expect(models[0]?.name).toBe('Speech entry')
+    expect(await listVoices(config, provider, 'openai/gpt-audio-mini')).toEqual([])
+    expect((await listVoices(config, provider, 'example/new-speech')).map(voice => voice.id)).toEqual(['new-voice'])
+    await generateSpeech({ ...getSpeechOptions(provider, 'openai/gpt-audio-mini'), input: 'Hello.', voice: 'custom-voice' })
+    expect(upstream.mock.calls.map(([input]) => new URL(String(input)).pathname)).toEqual(['/v1/chat/completions', '/v1/audio/speech'])
+    await expect(listVoices(config, provider, 'minimax/speech-2.8-hd')).rejects.toThrow('does not advertise')
   })
 
-  it('cancels a model-miss refresh without replacing the synthesis catalog', async () => {
+  it('replaces a previous catalog with an empty successful response', async () => {
+    const requests = mockCatalog(vi.fn(), [model('example/speech')])
+    const provider = await providerOpenRouterAudioSpeech.createProvider(config)
+    await listModels(config, provider)
+
+    requests.mockImplementation(async () => jsonResponse([]))
+    expect(await listModels(config, provider)).toEqual([])
+    await expect(listVoices(config, provider, 'example/speech')).rejects.toThrow('does not advertise')
+    expect(requests).toHaveBeenCalledTimes(3)
+  })
+
+  it('cancels a successful model-miss response without replacing the synthesis catalog', async () => {
     mockCatalog(async () => new Response('audio', { headers: { 'Content-Type': 'audio/mpeg' } }))
     const provider = await providerOpenRouterAudioSpeech.createProvider(config)
     const options = { ...getSpeechOptions(provider, 'minimax/speech-2.8-hd'), input: 'Hello.', voice: 'test-voice' }
@@ -728,7 +736,7 @@ describe('openRouter review regressions for Issue #3456', () => {
     vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (_input, init) => {
       expect(init?.signal).toBe(controller.signal)
       controller.abort()
-      throw controller.signal.reason
+      return jsonResponse([model('example/new-model')])
     }))
     await expect(generateSpeech({
       ...getSpeechOptions(provider, 'example/new-model'),
@@ -741,31 +749,6 @@ describe('openRouter review regressions for Issue #3456', () => {
     await generateSpeech(options)
     expect(upstream).toHaveBeenCalledOnce()
     expect(String(upstream.mock.lastCall?.[0])).toBe(`${config.baseUrl}audio/speech`)
-  })
-
-  it('rejects partial discovery with no usable models instead of claiming an empty catalog', async () => {
-    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async input => new URL(String(input)).searchParams.has('output_modalities')
-      ? new Response('Speech catalog unavailable', { status: 503 })
-      : jsonResponse([])))
-    const provider = await providerOpenRouterAudioSpeech.createProvider(config)
-    await expect(listModels(config, provider)).rejects.toThrow('503 Speech catalog unavailable')
-  })
-
-  it('does not commit partial discovery after cancellation', async () => {
-    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const controller = new AbortController()
-    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input, init) => {
-      expect(init?.signal).toBe(controller.signal)
-      if (new URL(String(input)).searchParams.has('output_modalities'))
-        return jsonResponse([model('minimax/speech-2.8-hd')])
-      controller.abort()
-      throw controller.signal.reason
-    }))
-    const provider = await providerOpenRouterAudioSpeech.createProvider(config)
-    await expect(listVoices(config, provider, 'minimax/speech-2.8-hd', controller.signal)).rejects.toMatchObject({ name: 'AbortError' })
-    expect(warning).not.toHaveBeenCalled()
-    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => jsonResponse([])))
-    await expect(listVoices(config, provider, 'minimax/speech-2.8-hd')).rejects.toThrow('does not advertise')
   })
 
   // https://github.com/moeru-ai/airi/issues/3456
