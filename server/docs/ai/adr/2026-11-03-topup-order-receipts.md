@@ -8,7 +8,7 @@ Usage moves the existing Flux transaction history to `/settings/usage`.
 Its fields, record types, amount formatting, speech grouping, pagination, and loading behavior remain unchanged.
 It keeps the existing `GET /api/v1/flux/history` contract, including credits and debits.
 
-Billing & Invoices keeps the current Capacitor subscription and Flux purchase controls at `/settings/flux`.
+The Subscription page keeps the current Capacitor subscription and Flux purchase controls at `/settings/flux`.
 A separate receipt table reads `GET /api/v1/payments?limit=20&offset=0`.
 The response contains `{ records, hasMore }` for paid, live orders owned by the signed-in account.
 Each record contains `id`, `processor`, `status`, `amount`, `currency`, `fluxAmount`, `creditedAt`, and `createdAt`.
@@ -79,7 +79,7 @@ sequenceDiagram
   Usage->>API: GET flux/history
   API->>DB: Read existing wallet history for account
   API-->>Usage: Paginated credits and debits
-  User->>Billing: Open Billing & Invoices
+  User->>Billing: Open Subscription
   Billing->>API: GET payments
   API->>DB: Read paid, live orders for account
   API-->>Billing: Paginated payment records

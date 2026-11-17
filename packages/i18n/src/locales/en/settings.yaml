@@ -1809,9 +1809,9 @@ pages:
         json-applied: JSON applied to the form. Click "Save and restart" to persist it to disk.
         restarted: All restarted! {started} started, {failed} failed, {skipped} skipped.
   flux:
-    pageTitle: Billing & Invoices
+    pageTitle: Subscription
     balance: Balance {balance} Flux
-    title: Billing & Invoices
+    title: Subscription
     buy: Charge
     currency: Currency
     terms: Terms
