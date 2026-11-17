@@ -71,6 +71,7 @@ import { setupAboutWindowReusable } from './windows/about'
 import { setupBeatSync } from './windows/beat-sync'
 import { setupCaptionWindowManager } from './windows/caption'
 import { setupChatWindowManager } from './windows/chat'
+import { setupControlsMenuWindowManager } from './windows/controls-menu'
 import { isDesktopOverlayEnabled, setupDesktopOverlayWindow } from './windows/desktop-overlay'
 import { setupDevtoolsWindow } from './windows/devtools'
 import { setupEditorWindowManager } from './windows/editor'
@@ -517,8 +518,21 @@ app.whenReady().then(async () => {
     },
   })
 
+  const controlsMenuWindow = injeca.provide('windows:controls-menu', {
+    dependsOn: { serverChannel, i18n, settingsWindow, noticeWindow },
+    build: ({ dependsOn }) => setupControlsMenuWindowManager({
+      ...dependsOn,
+      // NOTICE:
+      // The main window depends on the menu through injeca, so the menu cannot
+      // depend on the main window. The main window exists before it can ask for
+      // the menu, so the menu resolves it lazily.
+      // Removal condition: the main window no longer depends on the menu.
+      getMainWindow: () => userFacingMainWindow,
+    }),
+  })
+
   const mainWindow = injeca.provide('windows:main', {
-    dependsOn: { editorWindow, settingsWindow, workspaceWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, godotStageManager, mcpManager, i18n, onboardingWindowManager, inlayWindow, appleSpeechTranscription, appleVision, ioTraceRecording, globalShortcut, spotlightWindow, devtoolsWindow: devtoolsMarkdownStressWindow },
+    dependsOn: { controlsMenuWindow, editorWindow, settingsWindow, workspaceWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, godotStageManager, mcpManager, i18n, onboardingWindowManager, inlayWindow, appleSpeechTranscription, appleVision, ioTraceRecording, globalShortcut, spotlightWindow, devtoolsWindow: devtoolsMarkdownStressWindow },
     build: async ({ dependsOn }) => setupMainWindow({
       ...dependsOn,
       onWindowCreated: (window) => {
