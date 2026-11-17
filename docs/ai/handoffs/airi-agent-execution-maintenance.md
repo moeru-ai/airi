@@ -161,7 +161,8 @@ Validation:
 
 - Made the Computer Use menu show the desktop-unavailable notice only when the current catalog lacks either `computer_observe` or `computer_act`.
 - The shared screenshot showed a model request error, `Failed to fetch`. The available Electron log has no matching model request details, so its provider-side cause remains unverified.
-- The live profile attaches a user-configured Computer Use server from a different checkout. Do not count this run as acceptance of the current branch's tool catalog.
+- The screenshot came from a running app that had loaded a Computer Use server from a different checkout. Its older tool catalog does not prove the current branch's tool catalog works.
+- The profile configuration is backed up and now points at this branch's AUV service with action approval, Steam in the openable list, and an isolated session directory. The running app still uses its loaded MCP child until it reapplies the configuration or restarts.
 - Recheck the current tool catalog and provider request trace during the next real-model smoke. Keep the user's API key and profile configuration out of repository records.
 - `pnpm --filter @proj-airi/stage-tamagotchi exec vitest run src/renderer/components/InteractiveArea.browser.test.ts`: 42 tests passed.
 - `pnpm --filter @proj-airi/stage-tamagotchi typecheck`: passed.
