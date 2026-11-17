@@ -4,6 +4,8 @@ import type { InferResponseType } from 'hono/client'
 import type { StageApiClient } from '../../../composables/api'
 
 import { Alert, Button, GhostButton } from '@proj-airi/ui'
+import { useAsyncState } from '@vueuse/core'
+import { noop } from 'es-toolkit'
 import { computed, onMounted, onScopeDispose, ref, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -12,7 +14,6 @@ import { client } from '../../../composables/api'
 type AuditRecord = InferResponseType<StageApiClient['api']['v1']['flux']['history']['$get']>['records'][number]
 
 const { t, locale } = useI18n()
-const loadError = ref(false)
 const request = new AbortController()
 onScopeDispose(() => request.abort())
 
@@ -33,36 +34,24 @@ function typeLabel(type: string): string {
 }
 
 const auditRecords = shallowRef<AuditRecord[]>([])
-const auditLoading = ref(false)
 const auditHasMore = ref(false)
 const AUDIT_PAGE_SIZE = 20
-
-async function fetchAuditHistory(loadMore = false) {
-  if (request.signal.aborted || auditLoading.value)
+const { isLoading: auditLoading, error: loadError, execute } = useAsyncState(async () => {
+  const response = await client.api.v1.flux.history.$get({
+    query: { limit: String(AUDIT_PAGE_SIZE), offset: String(auditRecords.value.length) },
+  }, { init: { signal: request.signal } })
+  if (!response.ok)
+    throw new Error('History request failed')
+  const data = await response.json()
+  if (request.signal.aborted)
     return
-  auditLoading.value = true
-  loadError.value = false
-  try {
-    const offset = loadMore ? auditRecords.value.length : 0
-    const response = await client.api.v1.flux.history.$get({
-      query: { limit: String(AUDIT_PAGE_SIZE), offset: String(offset) },
-    }, { init: { signal: request.signal } })
-    if (!response.ok)
-      throw new Error('History request failed')
-    const data = await response.json()
-    if (request.signal.aborted)
-      return
-    auditRecords.value = loadMore ? [...auditRecords.value, ...data.records] : data.records
-    auditHasMore.value = data.hasMore
-  }
-  catch {
-    if (!request.signal.aborted)
-      loadError.value = true
-  }
-  finally {
-    if (!request.signal.aborted)
-      auditLoading.value = false
-  }
+  auditRecords.value = [...auditRecords.value, ...data.records]
+  auditHasMore.value = data.hasMore
+}, undefined, { immediate: false, onError: noop })
+
+function fetchAuditHistory() {
+  if (!request.signal.aborted && !auditLoading.value)
+    void execute()
 }
 
 function isSpeechDebit(record: AuditRecord): boolean {
@@ -121,9 +110,7 @@ const groupedRows = computed<GroupedRow[]>(() => {
   return rows
 })
 
-onMounted(() => {
-  void fetchAuditHistory()
-})
+onMounted(fetchAuditHistory)
 </script>
 
 <template>
@@ -134,7 +121,7 @@ onMounted(() => {
     <Alert v-if="loadError" tone="danger">
       {{ t('settings.pages.flux.usage.loadError') }}
       <template #actions>
-        <Button :label="t('settings.pages.flux.usage.retry')" @click="fetchAuditHistory(auditRecords.length > 0)" />
+        <Button :label="t('settings.pages.flux.usage.retry')" @click="fetchAuditHistory" />
       </template>
     </Alert>
 
@@ -281,7 +268,7 @@ onMounted(() => {
       <Button
         :label="t('settings.pages.flux.audit.loadMore')"
         :loading="auditLoading"
-        @click="fetchAuditHistory(true)"
+        @click="fetchAuditHistory"
       />
     </div>
   </section>
