@@ -8,6 +8,7 @@ import { Capacitor } from '@capacitor/core'
 import { Keyboard } from '@capacitor/keyboard'
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
 import { errorMessageFrom } from '@moeru/std'
+import { PiniaColada } from '@pinia/colada'
 import { settingsSearchModules } from '@proj-airi/stage-pages/settings-search'
 import { isEnvTruthy } from '@proj-airi/stage-shared'
 import { trackButtonPlugin } from '@proj-airi/stage-ui/directives/track-button'
@@ -109,6 +110,7 @@ app
   .use(autoAnimatePlugin as unknown as Plugin)
   .use(router)
   .use(pinia)
+  .use(PiniaColada)
   .use(i18n)
   .use(Tres)
   .use(trackButtonPlugin)

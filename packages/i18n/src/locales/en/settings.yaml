@@ -1809,9 +1809,9 @@ pages:
         json-applied: JSON applied to the form. Click "Save and restart" to persist it to disk.
         restarted: All restarted! {started} started, {failed} failed, {skipped} skipped.
   flux:
-    pageTitle: Subscription
+    pageTitle: Billing & Invoices
     balance: Balance {balance} Flux
-    title: Subscription
+    title: Billing & Invoices
     buy: Charge
     currency: Currency
     terms: Terms
@@ -1821,27 +1821,46 @@ pages:
       success: Payment successful! Your Flux has been topped up.
       canceled: Payment was canceled.
       error: Something went wrong. Please try again later.
-    audit:
-      title: Transaction History
-      time: Time
-      type: Type
-      detail: Detail
-      amount: Amount
-      typeAddition: Top-up
-      typeConsumption: Usage
-      typeInitial: Initial Grant
-      typePromo: Promo Grant
-      loading: Loading history...
-      empty: No transaction records yet.
-      loadMore: Load More
-      delayHint: Usage records may be delayed by up to 1 minute
-      ttsRequests: requests
-      viewOrder: View order
-      orderError: Failed to open the order. Try again.
     packages:
       title: Flux top-up packs
       buy: Charge
       description: One-time purchase. It does not expire.
+  billing:
+    refresh: Refresh
+    title: Billing & Invoices
+    description: Manage subscriptions, Flux purchases, and receipts
+    receipts: Invoices & receipts
+    receiptsHint: Receipts for Flux purchases. Manage subscription billing in the subscription section above.
+    date: Date
+    descriptionColumn: Description
+    status: Status
+    amount: Amount
+    receipt: Receipt
+    paid: Paid
+    topUp: Flux top-up
+    fluxTopUp: '{amount} Flux top-up'
+    viewReceipt: View receipt
+    receiptError: Failed to open the receipt. Try again.
+    loadError: Failed to load receipts.
+    empty: No receipts yet.
+    unavailable: Unavailable
+    retry: Retry
+    loadMore: Load more
+  usage:
+    title: Usage
+    description: View your Flux consumption
+    hint: Confirmed usage from your Capacitor and Flux balance. Records can take a minute to appear.
+    date: Time
+    service: Service
+    flux: Flux
+    chat: Chat
+    speech: Speech
+    other: Other usage
+    empty: No usage records yet.
+    loadError: Failed to load usage.
+    signIn: Sign in to view your Flux usage.
+    signInAction: Sign in
+    viewDetails: View details
   capacitor:
     name: Capacitor
     left: 'Capacitor: {percent} left'

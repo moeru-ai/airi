@@ -1721,9 +1721,9 @@ pages:
         json-applied: JSON 已经解析完成了，点「保存并重启」就写到磁盘上啦。
         restarted: 重启好啦！启动了 {started} 个，失败 {failed} 个，跳过 {skipped} 个
   flux:
-    pageTitle: 订阅
+    pageTitle: 账单与收据
     balance: 余额 {balance} Flux
-    title: 订阅
+    title: 账单与收据
     buy: 充值
     currency: 币种
     terms: 使用条款
@@ -1733,27 +1733,46 @@ pages:
       success: 谢谢你！你的 Flux 电量已经更新好啦～
       canceled: 支付被取消
       error: 哎呀，出错了，请稍后再试
-    audit:
-      title: 使用记录
-      time: 时间
-      type: 类型
-      detail: 明细
-      amount: 金额
-      typeAddition: 充电
-      typeConsumption: 用量
-      typeInitial: 初始额度
-      typePromo: 活动赠送
-      loading: 加载历史...
-      empty: 暂无消耗记录
-      loadMore: 更多信息
-      delayHint: Flux 电量历史记录是缓慢更新的，可能有延迟
-      ttsRequests: 请求
-      viewOrder: 查看订单
-      orderError: 无法打开订单，请重试。
     packages:
       title: 电量补充包
       buy: 充值
       description: 单次购买，不会过期。
+  billing:
+    refresh: 刷新
+    title: 账单与收据
+    description: 管理订阅、Flux 购买和收据
+    receipts: 账单与收据
+    receiptsHint: 此处显示 Flux 购买收据。订阅账单请在上方订阅区域管理。
+    date: 日期
+    descriptionColumn: 购买内容
+    status: 状态
+    amount: 金额
+    receipt: 收据
+    paid: 已付款
+    topUp: Flux 充值
+    fluxTopUp: '{amount} Flux 充值'
+    viewReceipt: 查看收据
+    receiptError: 无法打开收据，请重试。
+    loadError: 无法加载收据。
+    empty: 暂无收据
+    unavailable: 暂无金额
+    retry: 重试
+    loadMore: 加载更多
+  usage:
+    title: 使用记录
+    description: 查看 Flux 消耗记录
+    hint: 显示 Capacitor 和 Flux 余额的已确认消耗，记录可能稍有延迟。
+    date: 时间
+    service: 服务
+    flux: Flux
+    chat: 对话
+    speech: 语音
+    other: 其他用量
+    empty: 暂无消耗记录
+    loadError: 无法加载使用记录。
+    signIn: 登录后查看 Flux 使用记录。
+    signInAction: 登录
+    viewDetails: 查看详细数据
   capacitor:
     name: Capacitor
     left: Capacitor 还剩 {percent}

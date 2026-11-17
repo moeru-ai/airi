@@ -1562,6 +1562,9 @@ importers:
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
+      '@pinia/colada':
+        specifier: 'catalog:'
+        version: 1.4.2(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3))
       '@proj-airi/audio':
         specifier: workspace:^
         version: link:../../packages/audio
@@ -4905,6 +4908,9 @@ importers:
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
+      '@pinia/colada':
+        specifier: 'catalog:'
+        version: 1.4.2(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3))
       '@proj-airi/audio':
         specifier: workspace:^
         version: link:../audio
@@ -4965,6 +4971,9 @@ importers:
       d3:
         specifier: 'catalog:'
         version: 7.9.0
+      date-fns:
+        specifier: 'catalog:'
+        version: 4.4.0
       dompurify:
         specifier: 'catalog:'
         version: 3.4.14
@@ -5014,9 +5023,6 @@ importers:
       '@nekopaw/tempora':
         specifier: 'catalog:'
         version: 0.4.0-alpha.1
-      '@pinia/colada':
-        specifier: 'catalog:'
-        version: 1.4.2(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3))
       '@proj-airi/stage-shared':
         specifier: workspace:^
         version: link:../stage-shared

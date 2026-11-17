@@ -74,7 +74,6 @@ export function createFluxRoutes(
           amount: r.amount,
           description: r.description,
           metadata: r.metadata,
-          paymentOrderId: r.paymentOrderId,
           createdAt: r.createdAt.toISOString(),
         })),
         hasMore,

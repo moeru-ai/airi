@@ -1,58 +1,66 @@
-# View payment records for Flux purchases
+# Separate Flux usage from billing and receipts
 
-Status: proposed. The requester authorized a small action on each paid recharge record, selected by the original payment processor.
+Status: accepted. The requester selected two independent pages that preserve the current settings structure.
 
 ## Decision
 
-Join wallet credits to paid, live payment orders through the existing request ID and account ID.
-Add a nullable `paymentOrderId` to each Flux history record.
-The shared Flux page makes each recharge row or card clickable with one native button across the record.
-Desktop rows use AIRI's trailing arrow, theme-color hover fill, and keyboard focus outline.
-Mobile cards show a quiet View order label beside the date. Touch uses a brief neutral press fill, without a persistent highlight.
-Hover feedback applies only to devices that support hover. Keyboard focus remains visible on every device.
-Enter and Space activate the record. Other transactions remain unchanged.
+Usage lists confirmed Flux fees from `flux_usage`, including fees paid by the Capacitor and zero fees.
+It shows the time, service, and Flux consumed. It does not show models, tokens, grants, or purchases.
+The page uses the existing `GET /api/v1/flux/usage` pagination contract.
 
-`GET /api/v1/payments/:id/receipt` checks the signed-in account before it resolves the original processor.
+Billing & Invoices keeps the current Capacitor subscription and Flux purchase controls at `/settings/flux`.
+A separate receipt table reads `GET /api/v1/payments?limit=20&offset=0`.
+The response contains `{ records, hasMore }` for paid, live orders owned by the signed-in account.
+Each record contains `id`, `processor`, `status`, `amount`, `currency`, `fluxAmount`, `creditedAt`, and `createdAt`.
+Amounts retain their stored processor units. Apple uses milliunits. Stripe uses currency minor units, including its ISK and UGX exceptions. Missing amounts remain unavailable rather than becoming zero.
+The display date uses `creditedAt`, or `createdAt` for an order without a credit timestamp.
+Ordering uses that same date, then the order ID, descending. Listing never calls a payment processor.
+Wallet history remains independent of payment orders.
+
+Each page loads only its own list. Account-scoped query caches reuse recent reads and deduplicate concurrent reads.
+The public package catalog stays fresh for five minutes. Private lists stay fresh for one minute.
+Refresh and pagination load on request. Lists do not poll or refetch on window focus.
+Billing reuses the balance refresh performed by the Capacitor section instead of starting another initial refresh.
+The unused capacity read is removed from page entry.
+
+`GET /api/v1/payments/:id/receipt` checks account ownership before resolving the original processor.
 Stripe retrieves the Checkout Session with its invoice and latest charge expanded.
 Prefer the hosted invoice URL. Without an invoice URL, use the charge receipt URL.
 Apple purchases open Apple's purchase history at `https://reportaproblem.apple.com/`.
 Apple does not expose a documented web link for an individual transaction.
-
-Processor selection stays in one payment receipt service. A new processor adds one branch without changing the page or HTTP contract.
-Current sales channels, package configuration, client platform, and purchase restrictions do not select the receipt destination.
-Resolve Stripe URLs on demand so the application does not persist expiring receipt links.
+Resolve links only after the user clicks View receipt. Do not persist expiring receipt links.
+Processor selection stays in the existing receipt service. Current sales channels do not select historical receipt destinations.
 
 ## Scope and non-goals
 
-This change adds an authenticated read endpoint, one history field, and an action across each recharge record.
-It requires no migration, payment settlement change, invoice creation, subscription change, or page redesign.
-Missing, deleted, unpaid, and foreign orders return the same not-found error.
-Unsupported processors and unavailable receipts return an explicit error. The existing page alert reports the error, and the record remains available for retry.
+This change adds an authenticated order list, separate settings entries, and independent usage and receipt tables.
+It requires no migration, settlement change, invoice creation, refund flow, or subscription billing integration.
+Subscription controls remain in their existing section. The receipt list covers recorded Flux purchases.
+Missing, deleted, unpaid, and foreign orders return the same not-found error for receipt lookup.
+Unsupported processors and unavailable receipts return an explicit error. The action remains available for retry.
 
 ## Module dependencies
 
 ```mermaid
 flowchart LR
-  Page[Shared Flux page] --> History[Flux history route]
-  History --> Ledger[Flux transaction service]
-  Ledger --> DB[(Ledger and payment orders)]
-  Page --> Route[Payment receipt route]
-  Route --> Receipt[Payment receipt service]
-  Receipt --> DB
-  Receipt --> Stripe[Stripe Checkout API]
-  Receipt --> Apple[Apple purchase history URL]
+  Usage[Usage page] --> UsageRoute[Flux usage route]
+  UsageRoute --> Fees[Flux transaction service]
+  Fees --> FeeDB[(Confirmed Flux fees)]
+  Billing[Billing page] --> Payments[Payment routes]
+  Payments --> Receipts[Payment receipt service]
+  Receipts --> Orders[(Payment orders)]
+  Receipts --> Stripe[Stripe Checkout API]
 ```
 
 ## Affected files
 
 ```text
 packages/
-  stage-pages/src/pages/settings/flux.vue
-  stage-pages/src/pages/settings/flux.browser.test.ts
-  stage-pages/src/pages/settings/components/payment-receipt-button.vue
+  stage-pages/src/pages/settings/{flux.vue,usage.vue}
+  stage-pages/src/pages/settings/components/{payment-history.vue,payment-receipt-button.vue}
+  stage-pages/src/components/capacitor-section.vue
   i18n/src/locales/{en,zh-Hans}/settings.yaml
 server/apps/api/src/
-  app.ts
   routes/flux/{index.ts,route.test.ts}
   routes/payments/{index.ts,route.test.ts}
   services/domain/flux-transaction{.ts,.test.ts}
@@ -64,31 +72,37 @@ server/apps/api/src/
 ```mermaid
 sequenceDiagram
   participant User
-  participant Page as Flux page
+  participant Usage
+  participant Billing
   participant API
   participant DB
   participant Stripe
-  User->>Page: Click View order
-  Page->>API: GET payments/:id/receipt with authentication
-  API->>DB: Find paid, live order for the signed-in account
-  alt Stripe order
-    API->>Stripe: Retrieve original session with expanded invoice and charge
-    Stripe-->>API: Hosted invoice or receipt URL
-  else Apple order
-    Note over API: Select Apple purchase history
+  User->>Usage: Open Usage
+  Usage->>API: GET flux/usage
+  API->>DB: Read confirmed fees for account
+  API-->>Usage: Paginated Flux usage
+  User->>Billing: Open Billing & Invoices
+  Billing->>API: GET payments
+  API->>DB: Read paid, live orders for account
+  API-->>Billing: Paginated payment records
+  User->>Billing: Click View receipt
+  Billing->>API: GET payments/:id/receipt
+  API->>DB: Check owned, paid, live order
+  opt Stripe order
+    API->>Stripe: Retrieve expanded Checkout Session
+    Stripe-->>API: Invoice or receipt URL
   end
-  API-->>Page: URL
-  Page->>Page: Open external page
+  API-->>Billing: Original processor destination
 ```
 
 ## Test plan
 
-- Check history association, pagination, account isolation, and unrelated grants.
-- Check invoice precedence, charge receipts, missing receipts, and provider failures.
-- Check Apple orders with Stripe unavailable and unsupported processors.
-- Check authentication and rejection before provider access for foreign, deleted, and unpaid orders.
-- Check the complete row and card hit areas, keyboard activation, absent purchase packages, and error recovery.
-- Run API and shared page tests, workspace typechecks, root typecheck, and repository lint.
+- Check order pagination, stable ordering, nullable amounts, and account isolation without wallet rows.
+- Check authentication, invoice precedence, charge receipts, missing receipts, and processor failures.
+- Check Apple orders with purchases disabled and rejection before provider access for inaccessible orders.
+- Check desktop and mobile pages, public packs, subscription states, receipt retries, and keyboard activation with browser scenarios.
+- Check request counts, list cache reuse, pagination, and account changes.
+- Run affected tests, workspace and root typechecks, locale checks, and repository lint.
 
 ## Sources
 
@@ -96,3 +110,6 @@ sequenceDiagram
 - [Stripe hosted invoice URL](https://docs.stripe.com/api/invoices/object#invoice_object-hosted_invoice_url)
 - [Stripe charge receipt URL](https://docs.stripe.com/api/charges/object#charge_object-receipt_url)
 - [Apple purchase history](https://support.apple.com/en-us/118212)
+
+- [Apple transaction price](https://developer.apple.com/documentation/appstoreserverapi/price)
+- [Stripe currency units](https://docs.stripe.com/currencies#special-cases)

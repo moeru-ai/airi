@@ -3,7 +3,7 @@ import type Stripe from 'stripe'
 import type { Database } from '../../../libs/db'
 
 import { ApiError, createNotFoundError, createServiceUnavailableError } from '@proj-airi/http-error-shared'
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, desc, eq, isNull, sql } from 'drizzle-orm'
 import { nullable, object, parse, pipe, startsWith, string, url } from 'valibot'
 
 import { paymentOrder } from '../../../schemas/payment'
@@ -16,9 +16,29 @@ const checkoutReceiptSchema = object({
   })),
 })
 
-/** Resolves fresh receipt links from each paid order's original processor, regardless of current sales channels. */
+/** Reads paid orders and resolves their receipts from the original payment processor. */
 export function createPaymentReceiptService(db: Database, stripe: Stripe | null) {
   return {
+    async listOrders(userId: string, limit: number, offset: number) {
+      const orderDate = sql`coalesce(${paymentOrder.creditedAt}, ${paymentOrder.createdAt})`
+      const records = await db.select({
+        id: paymentOrder.id,
+        processor: paymentOrder.processor,
+        status: paymentOrder.status,
+        amount: paymentOrder.amount,
+        currency: paymentOrder.currency,
+        fluxAmount: paymentOrder.fluxAmount,
+        creditedAt: paymentOrder.creditedAt,
+        createdAt: paymentOrder.createdAt,
+      }).from(paymentOrder).where(and(
+        eq(paymentOrder.userId, userId),
+        eq(paymentOrder.status, 'paid'),
+        isNull(paymentOrder.deletedAt),
+      )).orderBy(desc(orderDate), desc(paymentOrder.id)).limit(limit + 1).offset(offset)
+
+      return { records: records.slice(0, limit), hasMore: records.length > limit }
+    },
+
     async getReceipt(userId: string, orderId: string) {
       const [order] = await db.select({
         processor: paymentOrder.processor,

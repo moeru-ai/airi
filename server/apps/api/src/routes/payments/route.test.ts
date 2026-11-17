@@ -11,12 +11,19 @@ import { mockDB } from '../../libs/mock-db'
 import { paymentOrder } from '../../schemas/payment'
 import { createPaymentReceiptService } from '../../services/domain/payment/receipt'
 
-describe('payment receipt route', () => {
+describe('payment routes', () => {
   let db: Database
 
   beforeAll(async () => {
     db = await mockDB({ paymentOrder })
-    await db.insert(paymentOrder).values({ id: 'apple-order', userId: 'buyer', processor: 'apple_iap', status: 'paid' })
+    await db.insert(paymentOrder).values([
+      { id: 'apple-order', userId: 'buyer', processor: 'apple_iap', status: 'paid', createdAt: new Date('2026-11-01T00:00:00Z') },
+      { id: 'stripe-order', userId: 'buyer', processor: 'stripe', status: 'paid', amount: 6000, currency: 'usd', fluxAmount: 2000, createdAt: new Date('2026-10-01T00:00:00Z'), creditedAt: new Date('2026-11-02T00:00:00Z') },
+      { id: 'same-date-order', userId: 'buyer', processor: 'apple_iap', status: 'paid', amount: 0, currency: 'jpy', createdAt: new Date('2026-11-02T00:00:00Z') },
+      { id: 'foreign-order', userId: 'another-buyer', processor: 'stripe', status: 'paid' },
+      { id: 'pending-order', userId: 'buyer', processor: 'stripe', status: 'pending' },
+      { id: 'deleted-order', userId: 'buyer', processor: 'stripe', status: 'paid', deletedAt: new Date() },
+    ])
   })
 
   function createApp(userId: string | null) {
@@ -45,6 +52,39 @@ describe('payment receipt route', () => {
     expect(response.status).toBe(200)
     expect(response.headers.get('cache-control')).toBe('no-store')
     expect(await response.json()).toEqual({ url: 'https://reportaproblem.apple.com/' })
+  })
+
+  it('lists paid orders independently of wallet rows, with stable pagination', async () => {
+    const app = createApp('buyer')
+    const first = await app.request('/api/v1/payments?limit=1&offset=0')
+    expect(first.status).toBe(200)
+    expect(first.headers.get('cache-control')).toBe('no-store')
+    expect(await first.json()).toEqual({
+      records: [{ id: 'stripe-order', processor: 'stripe', status: 'paid', amount: 6000, currency: 'usd', fluxAmount: 2000, createdAt: '2026-10-01T00:00:00.000Z', creditedAt: '2026-11-02T00:00:00.000Z' }],
+      hasMore: true,
+    })
+    const second = await app.request('/api/v1/payments?limit=1&offset=1')
+    expect(await second.json()).toEqual({
+      records: [{ id: 'same-date-order', processor: 'apple_iap', status: 'paid', amount: 0, currency: 'jpy', fluxAmount: null, createdAt: '2026-11-02T00:00:00.000Z', creditedAt: null }],
+      hasMore: true,
+    })
+    const last = await app.request('/api/v1/payments?limit=10&offset=2')
+    expect(await last.json()).toEqual({
+      records: [{ id: 'apple-order', processor: 'apple_iap', status: 'paid', amount: null, currency: null, fluxAmount: null, createdAt: '2026-11-01T00:00:00.000Z', creditedAt: null }],
+      hasMore: false,
+    })
+    expect(await (await app.request('/api/v1/payments?offset=3')).json()).toEqual({ records: [], hasMore: false })
+    expect(await (await createApp('empty-buyer').request('/api/v1/payments')).json()).toEqual({ records: [], hasMore: false })
+  })
+
+  it('uses the shared pagination bounds', async () => {
+    const response = await createApp('buyer').request('/api/v1/payments?limit=0&offset=-1')
+    const data = await response.json()
+    expect(data).toMatchObject({ records: [{ id: 'stripe-order' }], hasMore: true })
+  })
+
+  it('requires authentication for the order list', async () => {
+    expect((await createApp(null).request('/api/v1/payments')).status).toBe(401)
   })
 
   it('requires authentication', async () => {
