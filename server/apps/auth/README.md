@@ -90,6 +90,32 @@ run shared database migrations from Auth. See
 [`server/README.md`](../../README.md#railway-deployment) for the complete
 service contract.
 
+### Rotate `BETTER_AUTH_SECRET`
+
+Better Auth uses the secret in two ways:
+
+- It signs session cookies, bearer session tokens, OAuth state, and email verification tokens with the current secret only.
+- It encrypts the JWKS private keys in `jwks.private_key`. OIDC access tokens are signed with these keys.
+
+A rotation signs out every cookie and bearer session, and it invalidates unused verification links. OIDC refresh tokens stay valid.
+
+Do not only replace `BETTER_AUTH_SECRET`. Then Better Auth cannot decrypt the JWKS private keys, and OIDC sign-in fails. Use `BETTER_AUTH_SECRETS` instead. It holds `<version>:<secret>` pairs, and the first pair is the current secret.
+
+Steps:
+
+1. Generate a secret: `openssl rand -base64 32`.
+2. Set `BETTER_AUTH_SECRETS=2:<new secret>`. Keep the old value in `BETTER_AUTH_SECRET`. Better Auth uses it to read the keys from before versioning. Deploy once.
+3. In the auth container, run the script without `--apply`. Exit code 2 means some keys still need the old secret.
+4. Run the script with `--apply`. It re-encrypts the keys under the current version and checks again.
+5. When the script exits 0, set `BETTER_AUTH_SECRET` to the new secret and deploy again.
+
+```sh
+pnpm -F @proj-airi/auth-server exec tsx src/scripts/rotate-better-auth-secret/index.ts
+pnpm -F @proj-airi/auth-server exec tsx src/scripts/rotate-better-auth-secret/index.ts --apply
+```
+
+Keep `BETTER_AUTH_SECRETS` after the rotation. Without it, Better Auth cannot read the versioned keys. For the next rotation, put the new pair first, for example `3:<newer secret>,2:<new secret>`. Remove the old pair after the script exits 0.
+
 ## Do not use it for
 
 - Product APIs, billing, model routing, chat, or WebSocket business state.

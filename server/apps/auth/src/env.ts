@@ -3,7 +3,7 @@ import type { InferOutput } from 'valibot'
 import { exit } from 'node:process'
 
 import { useLogger } from '@guiiai/logg'
-import { array, integer, minValue, nonEmpty, object, optional, parse, picklist, pipe, string, transform, url } from 'valibot'
+import { array, check, integer, minValue, nonEmpty, number, object, optional, parse, picklist, pipe, string, transform, url } from 'valibot'
 
 import { GoogleNativeClientIdsSchema } from './google-client-ids'
 
@@ -31,6 +31,25 @@ const AdditionalTrustedOriginsSchema = pipe(
   transform(origins => [...new Set(origins)]),
 )
 
+/**
+ * Versioned Better Auth secrets, written as `<version>:<secret>` pairs joined by commas.
+ * The first pair is the current secret. Later pairs only decrypt older values.
+ */
+const BetterAuthSecretsSchema = pipe(
+  string(),
+  transform(raw => raw.split(',').map((entry) => {
+    const separator = entry.indexOf(':')
+    if (separator < 0)
+      return { version: Number.NaN, value: '' }
+    return { version: Number(entry.slice(0, separator).trim()), value: entry.slice(separator + 1).trim() }
+  })),
+  array(object({
+    version: pipe(number(), integer('BETTER_AUTH_SECRETS versions must be integers'), minValue(0, 'BETTER_AUTH_SECRETS versions must be at least 0')),
+    value: pipe(string(), nonEmpty('BETTER_AUTH_SECRETS entries must have a secret')),
+  })),
+  check(secrets => new Set(secrets.map(secret => secret.version)).size === secrets.length, 'BETTER_AUTH_SECRETS versions must be unique'),
+)
+
 const AuthEnvSchema = object({
   HOST: optional(string(), '0.0.0.0'),
   PORT: optionalIntegerFromString(3000, 'PORT', 1),
@@ -42,6 +61,8 @@ const AuthEnvSchema = object({
   DATABASE_URL: pipe(string(), nonEmpty('DATABASE_URL is required')),
   REDIS_URL: pipe(string(), nonEmpty('REDIS_URL is required')),
   BETTER_AUTH_SECRET: pipe(string(), nonEmpty('BETTER_AUTH_SECRET is required')),
+  // Set during and after a secret rotation. Then BETTER_AUTH_SECRET only opens values from before versioning.
+  BETTER_AUTH_SECRETS: optional(BetterAuthSecretsSchema),
   AUTH_GOOGLE_CLIENT_ID: pipe(string(), nonEmpty('AUTH_GOOGLE_CLIENT_ID is required')),
   AUTH_GOOGLE_NATIVE_CLIENT_IDS: optional(GoogleNativeClientIdsSchema),
   AUTH_GOOGLE_CLIENT_SECRET: pipe(string(), nonEmpty('AUTH_GOOGLE_CLIENT_SECRET is required')),

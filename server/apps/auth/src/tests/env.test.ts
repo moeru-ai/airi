@@ -29,6 +29,22 @@ describe('parseAuthEnv', () => {
     expect('TEST_AUTH_TOKEN' in env).toBe(false)
   })
 
+  it('parses versioned Better Auth secrets with the current secret first', () => {
+    const env = parseAuthEnv({
+      ...baseAuthEnv(),
+      BETTER_AUTH_SECRETS: '2:new-secret-at-least-32-characters-long, 1:old-secret:with-colon',
+    })
+
+    expect(env.BETTER_AUTH_SECRETS).toEqual([
+      { version: 2, value: 'new-secret-at-least-32-characters-long' },
+      { version: 1, value: 'old-secret:with-colon' },
+    ])
+  })
+
+  it('leaves versioned Better Auth secrets unset by default', () => {
+    expect(parseAuthEnv(baseAuthEnv()).BETTER_AUTH_SECRETS).toBeUndefined()
+  })
+
   it('normalizes Apple audiences and escaped private-key newlines', () => {
     const env = parseAuthEnv({
       ...baseAuthEnv(),

@@ -443,6 +443,7 @@ export function createAuth(
 ): AuthInstance {
   const auth = betterAuth({
     secret: env.BETTER_AUTH_SECRET,
+    secrets: env.BETTER_AUTH_SECRETS,
 
     database: drizzleAdapter(db, {
       provider: 'pg',
