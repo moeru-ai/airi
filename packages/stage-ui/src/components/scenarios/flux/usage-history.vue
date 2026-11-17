@@ -18,9 +18,8 @@ const request = new AbortController()
 onScopeDispose(() => request.abort())
 
 function displayAmount(record: AuditRecord, amount = record.amount): string {
-  const signed = record.type === 'debit' ? -amount : amount
-  const formatted = new Intl.NumberFormat(locale.value).format(Math.abs(signed))
-  return signed >= 0 ? `+${formatted}` : `-${formatted}`
+  const signed = record.type === 'debit' && amount > 0 ? -amount : amount
+  return new Intl.NumberFormat(locale.value, { signDisplay: 'always' }).format(signed)
 }
 
 function typeLabel(type: string): string {
