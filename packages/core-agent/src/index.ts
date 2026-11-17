@@ -4,6 +4,7 @@ export type { AgentLLMPort } from './contracts/llm-port'
 export type { AgentSessionPort } from './contracts/session-port'
 export type { AgentForegroundStreamPort } from './contracts/stream-port'
 export { chatContentToInputSegments, chatMessagesToTurns, conversationToChatMessages } from './messages/chat-completions'
+export type { ContextCompactionContract } from './messages/compaction-contract'
 export type { ContextBudget, ContextBudgetLimits } from './messages/context-budget'
 export { DEFAULT_CONTEXT_HARD_LIMIT_BYTES, DEFAULT_CONTEXT_SOFT_LIMIT_BYTES, measureContextBudget, resolveContextBudgetLimits } from './messages/context-budget'
 export {
@@ -16,7 +17,7 @@ export { ConversationCompact } from './messages/conversation-compact'
 
 export { formatTimePrefix } from './messages/datetime-prefix'
 export { renderConversationPreview } from './messages/preview'
-export type { AssistantTurn, Citation, ContentSegment, Conversation, GenerationRound, ProviderContinuation, SystemTurn, ToolExecution, ToolInvocation, Turn, UserTurn } from './messages/types'
+export type { AssistantTurn, Citation, ContentSegment, Conversation, GenerationRound, ModelDecisionRecord, ProviderContinuation, SystemTurn, ToolExecution, ToolInvocation, Turn, UserTurn } from './messages/types'
 export { createChatHooks } from './runtime/agent-hooks'
 export type {
   ChatAttachment,

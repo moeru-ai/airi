@@ -23,6 +23,7 @@ The local SHA is a checkpoint, not proof of the current PR head. Query GitHub be
 | --- | --- | --- | --- |
 | Windows AUV runtime | Computer Use service and Electron Main | Integrated | Keep packaged runtime and approval tests current |
 | Host approval and settlement | Electron Main | Integrated in source | Verify same-turn Agent continuation in a real-model run |
+| Contract separation | Computer Use service and Core Agent | Implemented in source | Exercise all five records in a real-model trace |
 | Agent behavior | Core Agent and Stage UI | Open | Run the complete DeepSeek Agent task and inspect every step |
 | Compact continuity | Core Agent | Open for behavior acceptance | Verify that compaction preserves pending actions and prevents replay |
 | PR publication | Main controller | Maintenance docs published | Read the current PR checks before further publication |
@@ -34,6 +35,8 @@ The local SHA is a checkpoint, not proof of the current PR head. Query GitHub be
 - The packaged runtime smoke returned real 2560x1440 PNG pixels, window metadata, and the AUV executor. The service lane record contains this evidence.
 - AUV, Terminal, and PTY are direct tools in the bundled Agent catalog. Compact runs in Core Agent.
 - Host approval owns Computer Use mutations. Terminal permission does not grant Computer Use authority.
+- Action responses and session trace entries now separate `modelDecision`, `authorization`, `execution`, and `businessVerification`. Core Agent exposes a separate `ContextCompactionContract`.
+- `computer_act` returns delivery evidence with a replay guard. `computer_verify` returns application-state evidence and can link it with `executionId`.
 - A Beta package was rebuilt and installed for local experience. This does not prove that a real-model Agent task completed.
 - DeepSeek-compatible API access returned HTTP 200 in a direct check. This does not prove that the Agent selected or completed a tool workflow.
 - The most recent Computer Use suite record reports 749 passed and 1 skipped. Typecheck passed. These checks were not rerun during this documentation update.
@@ -64,6 +67,7 @@ Track these design risks against observed behavior:
 - Read-only observation and state-changing input share Host attribution rules. Verify that approval policy does not block safe observation.
 - Task memory is session-local. Verify that Compact retains the goal, verified facts, pending work, and blockers.
 - No unified step or time budget is recorded here. Inspect actual loop limits before treating this as a defect.
+- The contract types have focused unit coverage. Real-model behavior still must prove that the Agent reads each field and does not treat delivery as business success.
 
 Do not turn these risks into code changes until the real-model trace reproduces them. Add one focused regression for each confirmed behavior defect.
 
@@ -101,3 +105,20 @@ Never infer completion from a clean tree, a zero exit code, a successful API req
 - Kept the real-model Agent run open because its isolated profile did not finish initialization.
 - Verified the live PR head and completed checks through the GitHub REST API.
 - Published the handoff and project memory to the PR source ref with lease protection.
+
+### 2026-11-17
+
+- Added separate model-decision, authorization, execution, business-verification, and context-compaction contracts.
+- Persisted the four action contracts in Computer Use MCP responses and session trace entries.
+- Added `computer_verify.executionId` linking without merging verification into execution.
+- Added structured compaction state with retained tool-call ids and explicit preservation flags.
+
+Validation for this contract slice:
+
+- Computer Use package: 61 test files, 756 passed, 1 skipped.
+- Core Agent package: 43 test files, 508 passed.
+- Electron MCP exposure tests: 35 passed.
+- Stage UI MCP prompt test: 14 passed.
+- Computer Use, Core Agent, Stage UI, and Electron typechecks passed.
+- Full lint: 0 errors and 695 existing warnings.
+- The full Stage UI suite remains environment-blocked. Its Node tests lack `localStorage`, and one browser VAD test lacks its Worker event. The focused MCP test passed.

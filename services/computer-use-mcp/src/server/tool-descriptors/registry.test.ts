@@ -180,6 +180,9 @@ describe('toolDescriptorRegistry', () => {
       }
 
       expect(Array.from(toolNames).sort()).toEqual([
+        'computer_act',
+        'computer_observe',
+        'computer_verify',
         'desktop_click_target',
         'desktop_observe',
       ])
@@ -308,10 +311,13 @@ describe('toolDescriptorRegistry', () => {
   })
 
   describe('desktop grounding tool enablement', () => {
-    // These 3 core desktop grounding tools must be eagerly enabled (defaultDeferred: false)
-    // so the overlay can poll desktop_get_state, and agents can call desktop_observe / desktop_click_target
+    // Core desktop tools must be eagerly enabled (defaultDeferred: false)
+    // so agents can observe, act, and verify without a discovery round.
     // without needing an explicit enable step.
     const eagerlyEnabledTools = [
+      'computer_observe',
+      'computer_act',
+      'computer_verify',
       'desktop_get_state',
       'desktop_observe',
       'desktop_click_target',

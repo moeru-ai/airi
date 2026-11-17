@@ -47,6 +47,7 @@ import { requireMainFrameSender } from '../../../libs/electron/window-context'
 import { validateAttribution } from '../computer-use/attribution'
 import { McpClient } from './client'
 import { bindTerminalApproval } from './terminal-approval'
+import { defaultBundledToolExposure } from './tool-exposure'
 
 /** A transport that the MCP client can drive. Both kinds expose `close`. */
 type McpTransport = StdioClientTransport | StreamableHTTPClientTransport
@@ -88,33 +89,6 @@ const toolNameSeparator = '::'
 const mcpRequestTimeoutMsec = 10_000
 const mcpRequestMaxTotalTimeoutMsec = 15_000
 const mcpTestStderrMaxChars = 16_000
-const directAgentTools = new Set([
-  'desktop_get_capabilities',
-  'desktop_observe_windows',
-  'desktop_screenshot',
-  'desktop_open_app',
-  'desktop_focus_app',
-  'desktop_click',
-  'desktop_type_text',
-  'desktop_press_keys',
-  'desktop_scroll',
-  'desktop_wait',
-  'desktop_list_pending_actions',
-  'desktop_get_session_trace',
-  'desktop_get_state',
-  'desktop_observe',
-  'desktop_click_target',
-  'terminal_exec',
-  'terminal_get_state',
-  'terminal_reset_state',
-  'pty_get_status',
-  'pty_create',
-  'pty_send_input',
-  'pty_read_screen',
-  'pty_resize',
-  'pty_destroy',
-])
-
 function stringifyError(error: unknown) {
   if (error instanceof Error) {
     return error.message
@@ -244,6 +218,7 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
   const log = useLogg('main/mcp').useGlobalConfig()
   const sessions = new Map<string, McpServerSession>()
   const computerUseApprovals = new Map<string, ComputerUseApprovalOwner>()
+  let toolExposureOverrides: Record<string, NonNullable<ElectronMcpToolDescriptor['exposure']>> = {}
   const runtimeStatuses = new Map<string, ElectronMcpServerRuntimeStatus>()
   let updatedAt = Date.now()
 
@@ -348,6 +323,7 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
   const applyAndRestart = async (): Promise<ElectronMcpApplyResult> => {
     const { path } = await ensureConfigFile()
     const config = await readConfigFile(path)
+    toolExposureOverrides = { ...config.toolExposure }
     const servers = { ...config.mcpServers }
     if (config.terminalEnabled) {
       if (bundledTerminalServerName in servers)
@@ -402,16 +378,16 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
     return result
   }
 
-  const isDirectAgentTool = (toolName: string) => {
-    return directAgentTools.has(toolName)
-  }
-
   const exposureOf = (serverName: string, session: McpServerSession, toolName: string): ElectronMcpToolDescriptor['exposure'] => {
+    const qualifiedName = `${serverName}${toolNameSeparator}${toolName}`
+    const defaultPolicy = serverName === bundledTerminalServerName ? defaultBundledToolExposure(toolName) : 'router-only'
+    const configured = toolExposureOverrides[qualifiedName]
+    const policy = defaultPolicy === 'disabled' ? 'disabled' : (serverName === bundledTerminalServerName ? (configured ?? defaultPolicy) : (configured === 'disabled' ? 'disabled' : 'router-only'))
+    if (policy !== 'direct')
+      return policy
     if (serverName !== bundledTerminalServerName)
-      return 'router-only'
-    if (session.bundledTerminal && session.terminalNonce && toolName === 'terminal_exec')
       return 'direct'
-    if (session.computerUseNonce && isDirectAgentTool(toolName))
+    if ((toolName === 'terminal_exec' && session.terminalNonce) || session.computerUseNonce)
       return 'direct'
     return 'router-only'
   }

@@ -1,6 +1,7 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import type { TerminalOrigin } from '@proj-airi/stage-shared/terminal-approval'
 
+import type { ModelDecisionContract } from '../contracts/agent-execution'
 import type { DisplayPointResolution, MultiDisplaySnapshot } from '../display'
 import type {
   ActionInvocation,
@@ -27,6 +28,7 @@ import { normalizeConfiguredAppAction } from '../app-aliases'
 import { decideBrowserTypeAction } from '../browser-action-router'
 import { diagnoseBrowserActionError } from '../browser-dom/browser-repair-contract'
 import { isBrowserDomActionSupported } from '../browser-dom/capabilities'
+import { attachAgentExecutionContracts, buildAgentExecutionContracts, createModelDecision } from '../contracts/agent-execution'
 import { resolveDisplayPoint } from '../display'
 import { evaluateActionPolicy } from '../policy'
 import { getRuntimePreflight } from '../preflight'
@@ -60,6 +62,9 @@ import {
 
 export interface ExecuteActionOptions {
   skipApprovalQueue?: boolean
+  modelDecision?: ModelDecisionContract
+  /** Identifies the authority that allowed a previously pending action. */
+  authorizationSource?: 'policy' | 'host'
   executionSignal?: AbortSignal
   /** Foreground context captured when the Host approval was requested. */
   approvedContext?: ForegroundContext
@@ -272,6 +277,11 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
   const executeAction: ExecuteAction = async (action, toolName, options = {}) => {
     options.executionSignal?.throwIfAborted()
     const normalizedAction = normalizeConfiguredAppAction(action, runtime.config.openableApps)
+    const modelDecision = options.modelDecision ?? createModelDecision(toolName, normalizedAction)
+    const finalize = (result: CallToolResult, authorizationSource?: 'policy' | 'host') => attachAgentExecutionContracts(
+      result,
+      buildAgentExecutionContracts({ result, modelDecision, authorizationSource }),
+    )
     const isTerminal = normalizedAction.kind === 'terminal_exec' || normalizedAction.kind === 'terminal_reset'
     const isBrowserDomAction = normalizedAction.kind.startsWith('browser_dom_')
     const { executionTarget, context: actualContext, displayInfo } = isTerminal && runtime.config.executor === 'auv'
@@ -354,7 +364,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         },
       })
 
-      return buildDeniedResponse(deniedDecision, context, executionTarget, terminalBackend)
+      return finalize(buildDeniedResponse(deniedDecision, context, executionTarget, terminalBackend), options.authorizationSource)
     }
 
     const isMutationBlockedByPreflight = !isBrowserDomAction && isMutatingAction(normalizedAction)
@@ -380,7 +390,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         },
       })
 
-      return buildDeniedResponse(deniedDecision, context, executionTarget, terminalBackend)
+      return finalize(buildDeniedResponse(deniedDecision, context, executionTarget, terminalBackend), options.authorizationSource)
     }
 
     if (!decision.allowed) {
@@ -395,7 +405,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         },
       })
 
-      return buildDeniedResponse(decision, context, executionTarget, terminalBackend)
+      return finalize(buildDeniedResponse(decision, context, executionTarget, terminalBackend), options.authorizationSource)
     }
 
     const actionDisplayPoint = resolveActionDisplayPoint(normalizedAction, displayInfo)
@@ -419,7 +429,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         },
       })
 
-      return buildDeniedResponse(deniedDecision, context, executionTarget)
+      return finalize(buildDeniedResponse(deniedDecision, context, executionTarget), options.authorizationSource)
     }
     const structuredDisplayPoint = actionDisplayPoint?.status === 'ok'
       ? actionDisplayPoint.structured
@@ -431,6 +441,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         action: normalizedAction,
         context,
         policy: decision,
+        modelDecision,
       })
       try {
         if (normalizedAction.kind === 'terminal_exec' && options.terminalOrigin) {
@@ -460,11 +471,11 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           },
         })
 
-        return buildApprovalResponse(pending, decision, context, {
+        return finalize(buildApprovalResponse(pending, decision, context, {
           intent,
           approvalReason: explainApprovalReason(normalizedAction, decision, context),
           advisorySummary,
-        })
+        }), 'host')
       }
       catch (error) {
         // No approval result was sent. The caller has no prepared ID to discard.
@@ -519,7 +530,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
             },
           })
 
-          return buildSuccessResponse({
+          return finalize(buildSuccessResponse({
             summary: `Screenshot captured (${screenshot.width || '?'}x${screenshot.height || '?'}) on ${describeExecutionTarget(executionTarget)}.`,
             screenshot,
             structuredContent: {
@@ -537,7 +548,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
               }),
               screenshot: toScreenshotContent(screenshot),
             },
-          })
+          }), options.authorizationSource)
         }
         case 'observe_windows': {
           const observation = await runtime.executor.observeWindows(normalizedAction.input, { signal: options.executionSignal })
@@ -920,7 +931,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         },
       })
 
-      return buildSuccessResponse({
+      return finalize(buildSuccessResponse({
         summary: summaryOverride ?? `${intent} ${outcome}${advisorySummary ? ` Strategy: ${advisorySummary}` : ''}`,
         screenshot,
         structuredContent: {
@@ -951,7 +962,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
             advisories: advisories.map(a => ({ kind: a.kind, reason: a.reason })),
           },
         },
-      })
+      }), options.authorizationSource)
     }
     catch (error) {
       const errorMessage = errorMessageFromValue(error)
@@ -982,7 +993,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
         },
       })
 
-      return buildExecutionErrorResponse({
+      return finalize(buildExecutionErrorResponse({
         errorMessage: `${failureExplanation}${advisorySummary ? ` Strategy: ${advisorySummary}` : ''}`,
         action: normalizedAction,
         context,
@@ -994,7 +1005,7 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           const suggestion = selector ? diagnoseBrowserActionError(error, selector, normalizedAction.kind) : null
           return suggestion ? { ...suggestion } : undefined
         })(),
-      })
+      }), options.authorizationSource)
     }
   }
   return executeAction

@@ -535,6 +535,8 @@ export type ElectronMcpServerConfig = ElectronMcpStdioServerConfig | ElectronMcp
 
 export interface ElectronMcpConfigFile {
   terminalEnabled?: boolean
+  /** Host-owned overrides keyed by the qualified server::tool name. */
+  toolExposure?: Record<string, import('@proj-airi/stage-ui/types/mcp').McpToolExposureMode>
   mcpServers: Record<string, ElectronMcpServerConfig>
 }
 

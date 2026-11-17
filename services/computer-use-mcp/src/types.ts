@@ -1,5 +1,7 @@
 import type { TerminalSnapshot, TerminalSpawnInput } from '@proj-airi/stage-shared/terminal-approval'
 
+import type { AgentExecutionContracts } from './contracts/agent-execution'
+
 export type ApprovalMode = 'never' | 'actions' | 'all'
 export type ExecutorKind = 'auv' | 'dry-run' | 'macos-local' | 'linux-x11'
 export type ExecutionMode = 'dry-run' | 'local-windowed' | 'remote'
@@ -460,6 +462,8 @@ export interface SessionTraceEntry {
   context: ForegroundContext
   policy: PolicyDecision
   result?: Record<string, unknown>
+  /** Separate model, authorization, execution, and verification records. */
+  contracts?: AgentExecutionContracts
 }
 
 export interface PendingActionRecord {
@@ -470,6 +474,8 @@ export interface PendingActionRecord {
   policy: PolicyDecision
   context: ForegroundContext
   preparedTerminal?: TerminalSnapshot
+  /** Stable model decision retained until Host settlement. */
+  modelDecision?: import('./contracts/agent-execution').ModelDecisionContract
 }
 
 export interface LaunchContext {

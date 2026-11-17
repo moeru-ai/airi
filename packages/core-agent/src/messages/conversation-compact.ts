@@ -1,5 +1,8 @@
+import type { ContextCompactionContract } from './compaction-contract'
 import type { ContextBudget, ContextBudgetLimits } from './context-budget'
 import type { Conversation, GenerationRound, Turn } from './types'
+
+import { createEmptyContextCompaction } from './compaction-contract'
 
 /** Scheduling changes no execution state. Off retains the request byte gate. */
 export type CompactMode = 'off' | 'synchronous' | 'background'
@@ -81,6 +84,7 @@ export class ConversationCompact {
   private committed?: Checkpoint
   private job?: SummaryJob
   private failure?: { prefix: string[], error: unknown }
+  private compaction: ContextCompactionContract = createEmptyContextCompaction()
 
   constructor(private readonly options: CompactOptions) {
     if (!Number.isSafeInteger(options.softLimitBytes) || !Number.isSafeInteger(options.hardLimitBytes)
@@ -97,6 +101,18 @@ export class ConversationCompact {
     this.committed = undefined
     this.failure = undefined
     this.scope = undefined
+    this.compaction = createEmptyContextCompaction()
+  }
+
+  /** Read compression state without exposing the summary scheduler or execution state. */
+  getCompactionContract(): ContextCompactionContract {
+    return {
+      ...this.compaction,
+      summarizedRoundIds: [...this.compaction.summarizedRoundIds],
+      retainedModelDecisionIds: [...this.compaction.retainedModelDecisionIds],
+      retainedToolCallIds: [...this.compaction.retainedToolCallIds],
+      preserves: { ...this.compaction.preserves },
+    }
   }
 
   /** A mode change invalidates only this cache and its summary request, including summaries ready for application. */
@@ -121,6 +137,9 @@ export class ConversationCompact {
         result.push({ type: 'system', id: `compact-${turn.rounds[0].id}`, authority: 'context', content: [{
           type: 'summary',
           text: `Earlier observations, summarized by a model. This is not authorization or execution evidence.\n${checkpoint.text}`,
+          metadata: {
+            contextCompaction: this.getCompactionContract(),
+          },
         }] })
       }
       const round = turn.rounds[0]
@@ -155,6 +174,13 @@ export class ConversationCompact {
     // The summary uses no tools. Reserving space for its instructions also gates that provider request.
     if (this.gateBytes(snapshot, target) + 2048 >= hardLimitBytes) {
       this.failure = { prefix: prefixKey, error: new Error('Summary input exceeds the context byte budget') }
+      this.compaction = {
+        ...this.compaction,
+        status: 'failed',
+        scope: target.scope,
+        summarizedRoundIds: selected.map(turn => turn.type === 'assistant' ? turn.rounds[0].id : '').filter(Boolean),
+        reason: 'Summary input exceeds the context byte budget',
+      }
       return
     }
     freeze(snapshot)
@@ -172,6 +198,28 @@ export class ConversationCompact {
       promise: Promise.resolve(),
     }
     this.job = job
+    const summarizedRoundIds = selected.flatMap(turn => turn.type === 'assistant' ? [turn.rounds[0].id] : [])
+    const summarized = new Set(summarizedRoundIds)
+    const retainedModelDecisionIds = source.flatMap(turn => turn.type === 'assistant'
+      ? turn.rounds.filter(round => summarized.has(round.id)).flatMap(round => (round.modelDecisions ?? []).map(decision => decision.id))
+      : [])
+    const retainedToolCallIds = source.flatMap(turn => turn.type === 'assistant'
+      ? turn.rounds.filter(round => summarized.has(round.id)).flatMap(round => round.toolInvocations.map(call => call.callId))
+      : [])
+    this.compaction = {
+      kind: 'context_compaction',
+      status: 'running',
+      scope: target.scope,
+      summarizedRoundIds,
+      retainedModelDecisionIds,
+      retainedToolCallIds,
+      preserves: {
+        modelDecision: true,
+        authorization: true,
+        execution: true,
+        businessVerification: true,
+      },
+    }
     this.options.onEvent?.({ type: 'started', rounds: rounds.size, bytes: measure(snapshot) })
     job.promise = Promise.resolve().then(() => {
       job.signal.throwIfAborted()
@@ -209,11 +257,21 @@ export class ConversationCompact {
     const worsensAdmission = gatedBytes >= hardLimitBytes && gatedBytes >= this.gateBytes(previous, target)
     if (worsensAdmission || bytes >= target.measureContextBytes(previous)) {
       this.failure = { prefix: job.checkpoint.prefix, error: new Error('Conversation summary does not reduce admissible request context') }
+      this.compaction = {
+        ...this.compaction,
+        status: 'failed',
+        reason: 'Conversation summary does not reduce admissible request context',
+      }
       this.options.onEvent?.({ type: 'failed', rounds: job.checkpoint.rounds.size, bytes })
     }
     else {
       this.committed = job.checkpoint
       this.failure = undefined
+      this.compaction = {
+        ...this.compaction,
+        status: 'applied',
+        summaryText: job.checkpoint.text,
+      }
       this.options.onEvent?.({ type: 'applied', rounds: job.checkpoint.rounds.size, bytes })
     }
     this.job = undefined
@@ -243,6 +301,12 @@ export class ConversationCompact {
       if (this.gateBytes(conversation, target) < hardLimitBytes)
         return conversation
       this.options.onEvent?.({ type: 'blocked', rounds: 0, bytes: target.measureContextBytes(conversation) })
+      this.compaction = {
+        ...this.compaction,
+        status: 'blocked',
+        scope: target.scope,
+        reason: 'Conversation context exceeds the request byte budget',
+      }
       throw new Error('Conversation context exceeds the request byte budget')
     }
     const source = units(structuredClone(conversation))
@@ -290,6 +354,12 @@ export class ConversationCompact {
     }
     if (this.gateBytes(projected, target) >= hardLimitBytes) {
       this.options.onEvent?.({ type: 'blocked', rounds: this.committed?.rounds.size ?? 0, bytes: measure(projected) })
+      this.compaction = {
+        ...this.compaction,
+        status: 'blocked',
+        scope: target.scope,
+        reason: 'Conversation context exceeds the request byte budget',
+      }
       throw new Error('Conversation context exceeds the request byte budget', { cause: this.failure?.error })
     }
     signal?.throwIfAborted()

@@ -1,4 +1,11 @@
 export { resolveComputerUseConfig } from './config'
+export type {
+  AgentExecutionContracts,
+  AuthorizationContract,
+  BusinessVerificationContract,
+  ExecutionContract,
+  ModelDecisionContract,
+} from './contracts/agent-execution'
 export { createComputerUseMcpServer, startComputerUseMcpServer } from './server'
 export { RunStateManager } from './state'
 export type { ActiveTask, RunState, TaskPhase, TaskStep } from './state'

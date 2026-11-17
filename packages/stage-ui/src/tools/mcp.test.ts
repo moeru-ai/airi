@@ -16,7 +16,7 @@ function createRuntime(): McpToolRuntime {
 describe('mcp Agent execution prompt', () => {
   it('keeps scoped app lists and dry-run evidence from ending an available task early', () => {
     expect(MCP_AGENT_EXECUTION_PROMPT).toContain('The Agent runtime compacts conversation context. The bundled Computer Use path provides AUV desktop observation and input plus Terminal process control.')
-    expect(MCP_AGENT_EXECUTION_PROMPT).toContain('Use the direct AUV and Terminal tools first.')
+    expect(MCP_AGENT_EXECUTION_PROMPT).toContain('Use stable computer_* and terminal_exec tools first.')
     expect(MCP_AGENT_EXECUTION_PROMPT).toContain('A supported-app list names apps accepted by desktop open and focus tools.')
     expect(MCP_AGENT_EXECUTION_PROMPT).toContain('Inspect running processes and known install paths with available Terminal or process tools.')
     expect(MCP_AGENT_EXECUTION_PROMPT).toContain('Use paths from the user and prior observations before default install paths.')

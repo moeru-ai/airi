@@ -1,4 +1,4 @@
-import type { AssistantTurn, ContextSegment, GenerationRound, InputSegment, SegmentRefusal, SegmentText, SegmentToolCall, SegmentToolResult, Turn } from './types'
+import type { AssistantTurn, ContextSegment, GenerationRound, InputSegment, ModelDecisionRecord, SegmentRefusal, SegmentText, SegmentToolCall, SegmentToolResult, Turn } from './types'
 
 /** Adapter-local content records used while decoding and encoding protocol messages. Not stored in Conversation. */
 export type ProjectionEntry = { id: string, source?: string, metadata?: Record<string, unknown> } & (
@@ -10,7 +10,7 @@ export type ProjectionEntry = { id: string, source?: string, metadata?: Record<s
 
 /** Decodes one known model step. Tool results correlate only with calls in this round. */
 export function readRound(id: string, entries: ProjectionEntry[]): GenerationRound {
-  const round: GenerationRound = { id, content: [], toolInvocations: [], projectionIssues: [] }
+  const round: GenerationRound = { id, content: [], modelDecisions: [], toolInvocations: [], projectionIssues: [] }
   for (const entry of entries) {
     for (const segment of entry.segments) {
       if (segment.type === 'tool-call') {
@@ -19,7 +19,15 @@ export function readRound(id: string, entries: ProjectionEntry[]): GenerationRou
           continue
         }
         const invocationId = `${id}/${segment.callId}`
+        const decision: ModelDecisionRecord = {
+          id: invocationId,
+          callId: segment.callId,
+          name: segment.name,
+          arguments: segment.arguments,
+          decidedAt: new Date().toISOString(),
+        }
         round.content.push({ type: 'tool', invocationId })
+        round.modelDecisions!.push(decision)
         round.toolInvocations.push({ id: invocationId, callId: segment.callId, name: segment.name, arguments: segment.arguments, execution: { status: 'pending' } })
       }
       else if (segment.type === 'tool-result') {
@@ -88,7 +96,8 @@ export function projectRound(round: GenerationRound): ProjectionEntry[] {
     const invocation = round.toolInvocations.find(call => call.id === part.invocationId)
     if (!invocation)
       throw new Error(`Missing tool invocation ${part.invocationId}`)
-    segments.push({ type: 'tool-call', callId: invocation.callId, name: invocation.name, arguments: invocation.arguments })
+    const decision = round.modelDecisions?.find(item => item.id === invocation.id)
+    segments.push({ type: 'tool-call', callId: decision?.callId ?? invocation.callId, name: decision?.name ?? invocation.name, arguments: decision?.arguments ?? invocation.arguments })
   }
   if (segments.length)
     entries.push({ id: round.id, role: 'assistant', segments })

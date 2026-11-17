@@ -7,6 +7,45 @@
 import type { ToolDescriptor } from './types'
 
 export const desktopDescriptors: ToolDescriptor[] = [
+  {
+    canonicalName: 'computer_observe',
+    displayName: 'Computer Observe',
+    summary: 'Observe the current desktop through the existing AUV grounding pipeline. Returns a fresh screenshot, windows, accessibility data, and ranked targets when available.',
+    lane: 'desktop',
+    kind: 'read',
+    readOnly: true,
+    destructive: false,
+    concurrencySafe: true,
+    requiresApprovalByDefault: false,
+    public: true,
+    defaultDeferred: false,
+  },
+  {
+    canonicalName: 'computer_act',
+    displayName: 'Computer Act',
+    summary: 'Perform one approved desktop action through the existing AUV action executor. Use computer_observe first and computer_verify after mutations.',
+    lane: 'desktop',
+    kind: 'write',
+    readOnly: false,
+    destructive: false,
+    concurrencySafe: false,
+    requiresApprovalByDefault: false,
+    public: true,
+    defaultDeferred: false,
+  },
+  {
+    canonicalName: 'computer_verify',
+    displayName: 'Computer Verify',
+    summary: 'Verify a requested app, window, or observed target against the current Host-owned desktop state without dispatching input.',
+    lane: 'desktop',
+    kind: 'read',
+    readOnly: true,
+    destructive: false,
+    concurrencySafe: true,
+    requiresApprovalByDefault: false,
+    public: true,
+    defaultDeferred: false,
+  },
   // Desktop observation tools
   {
     canonicalName: 'desktop_get_capabilities',

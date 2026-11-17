@@ -115,6 +115,8 @@ export async function resolvePendingAction(params: {
       skipApprovalQueue: true,
       executionSignal: decision.signal,
       approvedContext: pending.context,
+      authorizationSource: 'host',
+      modelDecision: pending.modelDecision,
     })
   }
   await runtime.session.record({

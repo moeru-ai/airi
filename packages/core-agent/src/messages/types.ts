@@ -66,11 +66,22 @@ export interface GenerationRound {
   /** Absent for imported history whose original model invocation is not known. */
   modelCall?: { model: string, finishReason: CompletionStep['finishReason'], usage?: CompletionStep['usage'] }
   content: RoundContent[]
+  /** Model decisions are stored separately from their later execution results. */
+  modelDecisions?: ModelDecisionRecord[]
   toolInvocations: ToolInvocation[]
   /** Provider data belongs to this round and cannot cross the recorded scope. */
   continuation?: ProviderContinuation
   /** Unknown native content is saved, but cannot silently disappear on a protocol change. */
   projectionIssues: string[]
+}
+
+/** One model-selected tool call. It contains no authorization or execution state. */
+export interface ModelDecisionRecord {
+  id: string
+  callId: string
+  name: string
+  arguments: string
+  decidedAt?: string
 }
 
 /** A tool call and its execution result have one owner inside a round. */

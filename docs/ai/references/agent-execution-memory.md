@@ -38,6 +38,20 @@ If a dispatched action loses its response, its outcome is unknown. The Agent mus
 
 The Agent must reason about capability and risk from available tools and observed state. It must remain proactive within that scope and state a specific blocker when progress stops.
 
+## Contract boundaries
+
+The execution trace keeps five contracts as separate records:
+
+- `modelDecision` records the tool and arguments selected by the model.
+- `authorization` records policy or Host permission.
+- `execution` records dispatch evidence and the replay guard.
+- `businessVerification` records application-state evidence.
+- `contextCompaction` records the compressed context and retained call ids.
+
+`execution.status=delivered` never sets `businessVerification.status=verified`. A failed execution with unknown dispatch sets `doNotReplay=true` until a fresh observation resolves the state.
+
+`computer_act` returns the first four records. Pass its `execution.executionId` to `computer_verify` when the verifier can link the observation to the action. Core Agent compression exposes `ContextCompactionContract` and retains exact tool call identities while it summarizes older content.
+
 ## Evidence rules
 
 - A typecheck, unit test, MCP handshake, API response, or screenshot proves only its own boundary.

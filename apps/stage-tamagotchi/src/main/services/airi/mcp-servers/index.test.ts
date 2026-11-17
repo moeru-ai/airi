@@ -256,7 +256,7 @@ describe('createMcpManager', () => {
     await manager.writeConfigText(JSON.stringify({ terminalEnabled: true, mcpServers: {} }))
     await manager.applyAndRestart()
     clientMocks.listTools.mockResolvedValue({ tools: [{ name: 'desktop_click', inputSchema: { type: 'object' } }] })
-    expect((await manager.listTools()).find(tool => tool.toolName === 'desktop_click')?.exposure).toBe('direct')
+    expect((await manager.listTools()).find(tool => tool.toolName === 'desktop_click')?.exposure).toBe('router-only')
     clientMocks.callTool.mockResolvedValue({
       content: [{ type: 'text', text: 'Approval required.' }],
       structuredContent: { status: 'approval_required', pendingActionId: 'pending-computer', toolName: 'desktop_click', action: { kind: 'click', input: { x: 10, y: 20 } }, transparency: { intent: 'Click the requested point.' } },
@@ -471,6 +471,43 @@ describe('createMcpManager', () => {
     expect((await manager.listTools())[0].exposure).toBe('router-only')
   })
 
+  it('applies Host exposure overrides consistently to discovery and calls', async () => {
+    const actions = new PendingActionManager()
+    const manager = createMcpManager({
+      actions,
+      present: vi.fn(async () => false),
+      presentComputerUse: vi.fn(async () => false),
+      executeInSlot: async operation => operation(new AbortController().signal, () => {}),
+      notify: async notice => ({ status: 'stored', sessionId: notice.sessionId, messageId: `fixture:${notice.actionId}` }),
+    })
+    managers.push(manager)
+    await manager.writeConfigText(JSON.stringify({
+      terminalEnabled: true,
+      toolExposure: {
+        'airi-terminal::desktop_click': 'direct',
+        'airi-terminal::desktop_get_state': 'router-only',
+        'airi-terminal::desktop_get_session_trace': 'direct',
+      },
+      mcpServers: {},
+    }))
+    await manager.applyAndRestart()
+    clientMocks.listTools.mockResolvedValue({ tools: [
+      { name: 'desktop_click', inputSchema: { type: 'object' } },
+      { name: 'desktop_get_state', inputSchema: { type: 'object' } },
+      { name: 'desktop_get_session_trace', inputSchema: { type: 'object' } },
+    ] })
+
+    const descriptors = await manager.listTools()
+    expect(descriptors.map(tool => [tool.toolName, tool.exposure])).toEqual([
+      ['desktop_click', 'direct'],
+      ['desktop_get_state', 'disabled'],
+      ['desktop_get_session_trace', 'disabled'],
+    ])
+    await expect(manager.callTool({ name: 'airi-terminal::desktop_get_session_trace' })).rejects.toThrow('disabled by the Host')
+    await expect(manager.callTool({ name: 'airi-terminal::desktop_get_state' })).rejects.toThrow('disabled by the Host')
+    expect(clientMocks.callTool).not.toHaveBeenCalled()
+  })
+
   // https://github.com/moeru-ai/airi/pull/3496
   // ROOT CAUSE:
   // The SDK returns one page per request and replaces its metadata after each list call.
@@ -551,7 +588,7 @@ describe('createMcpManager', () => {
     ])
   })
 
-  it('keeps AUV, Terminal, and PTY tools direct behind Main request ownership', async () => {
+  it('keeps only stable Agent tools direct behind Main request ownership', async () => {
     const actions = new PendingActionManager()
     const manager = createMcpManager({
       actions,
@@ -583,28 +620,30 @@ describe('createMcpManager', () => {
     expect(descriptors.map(tool => [tool.toolName, tool.exposure])).toEqual([
       ['terminal_exec', 'direct'],
       ['terminal_history', 'router-only'],
-      ['desktop_screenshot', 'direct'],
-      ['desktop_click', 'direct'],
+      ['desktop_screenshot', 'router-only'],
+      ['desktop_click', 'router-only'],
       ['desktop_ensure_chrome', 'router-only'],
       ['desktop_approve_pending_action', 'router-only'],
       ['accessibility_snapshot', 'router-only'],
       ['display_enumerate', 'router-only'],
       ['browser_dom_click', 'router-only'],
       ['workflow_run_tests', 'router-only'],
-      ['pty_create', 'direct'],
-      ['pty_send_input', 'direct'],
+      ['pty_create', 'router-only'],
+      ['pty_send_input', 'router-only'],
       ['pty_write', 'router-only'],
-      ['terminal_get_state', 'direct'],
-      ['terminal_reset_state', 'direct'],
+      ['terminal_get_state', 'disabled'],
+      ['terminal_reset_state', 'router-only'],
     ])
-    for (const tool of desktopTools)
+    for (const tool of desktopTools.filter(tool => tool !== 'terminal_get_state'))
       await expect(manager.callTool({ name: `airi-terminal::${tool}` })).rejects.toThrow('normal Chat request')
+    await expect(manager.callTool({ name: 'airi-terminal::terminal_get_state' })).rejects.toThrow('disabled by the Host')
     await expect(manager.callTool({ name: 'airi-terminal::terminal_exec', arguments: { command: 'fixture' } })).rejects.toThrow('normal Chat request')
     expect(clientMocks.callTool).not.toHaveBeenCalled()
     const attribution = { sessionId: 'session-a', turnId: 'turn-a' }
     actions.setTerminalTurbo(attribution.sessionId, 71, true)
-    for (const tool of desktopTools)
+    for (const tool of desktopTools.filter(tool => tool !== 'terminal_get_state'))
       await expect(manager.callTool({ name: `airi-terminal::${tool}`, attribution }, 71)).rejects.toThrow('normal Chat request')
+    await expect(manager.callTool({ name: 'airi-terminal::terminal_get_state', attribution }, 71)).rejects.toThrow('disabled by the Host')
     expect(clientMocks.callTool).not.toHaveBeenCalled()
     const request = actions.registerRequest({ ...attribution, text: 'Run the fixture.' }, 71)
     const tools = await resolveLlmTools({ builtInTools: [], debugTools: [], sparkCommandTools: [], webSearchTools: [], activeTools: await createMcpTools({
@@ -613,7 +652,7 @@ describe('createMcpManager', () => {
     }, { direct: await manager.listTools() }), attribution })
     clientMocks.callTool.mockResolvedValue({ isError: true, content: [{ type: 'text', text: 'Fixture policy rejected preparation.' }] })
     const terminal = tools.find(tool => tool.function.name === 'terminal_exec')!
-    expect(tools.some(tool => tool.function.name === 'desktop_screenshot')).toBe(true)
+    expect(tools.some(tool => tool.function.name === 'desktop_screenshot')).toBe(false)
     expect(terminal.function.description).toContain('Configured Shell executable: fixture-shell.')
     expect(terminal.function.description).toContain('The bundled MCP includes AUV desktop observation and input.')
     expect(terminal.function.description).not.toContain('offers no desktop capture or input')
