@@ -77,6 +77,16 @@ async function classifyWindow(page: Page): Promise<StageWindowSnapshot | null> {
     return null
   }
 
+  // The app menu window holds the menu text that the checks below look for. `waitForControlsMenuPage` finds it.
+  if (route.startsWith('/controls-menu')) {
+    return null
+  }
+
+  // The main process loads only the main window with this query.
+  if (url.includes('fullscreen-host=main-window')) {
+    return { name: 'main', page, title, route }
+  }
+
   const mainControlsVisible = await page.locator(mainWindowReadyIconSelector).first().isVisible().catch(() => false)
 
   if ((route === '/' || title === 'AIRI') && mainControlsVisible) {

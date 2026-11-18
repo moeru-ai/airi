@@ -5,7 +5,7 @@ import type { ElectronWindowControlsState, ElectronWindowLifecycleState } from '
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { bounds, startLoopGetBounds } from '@proj-airi/electron-eventa'
-import { createRendererLoop, safeClose } from '@proj-airi/electron-vueuse/main'
+import { createRendererLoop, onWindowClosed, safeClose } from '@proj-airi/electron-vueuse/main'
 import { isMacOS, isWindows } from 'std-env'
 
 import {
@@ -73,7 +73,7 @@ export function createWindowService(params: {
   // The loop stops with its window; these cover the app closing first.
   const offAllClosed = onAppWindowAllClosed(() => stop())
   const offBeforeQuit = onAppBeforeQuit(() => stop())
-  params.window.once('closed', () => {
+  onWindowClosed(params.window, () => {
     offAllClosed()
     offBeforeQuit()
   })

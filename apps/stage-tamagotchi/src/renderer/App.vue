@@ -7,6 +7,7 @@ import { themeColorFromValue, useThemeColor } from '@proj-airi/stage-layouts/com
 import { artistrySyncConfig } from '@proj-airi/stage-shared'
 import { ToasterRoot } from '@proj-airi/stage-ui/components'
 import { updateModelAssetStatus, useInferencePreload } from '@proj-airi/stage-ui/composables'
+import { copyArrayBuffer } from '@proj-airi/stage-ui/libs/data-transfer'
 import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
 import { initializeAnalytics } from '@proj-airi/stage-ui/libs/product-signals'
 import { isSherpawModelBundled, setSherpawModelAssetHost } from '@proj-airi/stage-ui/libs/providers/providers/sherpaw/model-assets'
@@ -47,7 +48,7 @@ import {
   i18nGetLocale,
   i18nSetLocale,
 } from '../shared/eventa'
-import { electronModelAssetCancel, electronModelAssetEnsure, electronModelAssetRemove, electronModelAssetsClear, electronModelAssetsList, electronModelAssetStatusChanged } from '../shared/eventa/model-assets'
+import { electronModelAssetCancel, electronModelAssetEnsure, electronModelAssetRemove, electronModelAssetRestore, electronModelAssetsClear, electronModelAssetsList, electronModelAssetStatusChanged } from '../shared/eventa/model-assets'
 import {
   electronPluginUpdateCapability,
   pluginProtocolListProviders,
@@ -95,6 +96,7 @@ const listModelAssets = useElectronEventaInvoke(electronModelAssetsList)
 const ensureModelAsset = useElectronEventaInvoke(electronModelAssetEnsure)
 const cancelModelAsset = useElectronEventaInvoke(electronModelAssetCancel)
 const removeModelAsset = useElectronEventaInvoke(electronModelAssetRemove)
+const restoreModelAsset = useElectronEventaInvoke(electronModelAssetRestore)
 const clearModelAssets = useElectronEventaInvoke(electronModelAssetsClear)
 const stopModelAssetStatus = context.value.on(electronModelAssetStatusChanged, (event) => {
   if (event.body && !isSherpawModelBundled(event.body.id))
@@ -109,6 +111,11 @@ setSherpawModelAssetHost({
   ensure: ensureModelAsset,
   cancel: cancelModelAsset,
   remove: removeModelAsset,
+  restore: (id, revision, files) => restoreModelAsset({
+    id,
+    revision,
+    files: Object.fromEntries(Object.entries(files).map(([name, bytes]) => [name, copyArrayBuffer(bytes)] as const)),
+  }),
   clear: clearModelAssets,
 })
 const getMainLocale = useElectronEventaInvoke(i18nGetLocale)
@@ -124,6 +131,8 @@ const syncedPinia = usePiniaSynced()
 const isSpotlightWindow = initialRoutePath === '/spotlight'
 // The floating chat resizes from its own edges, which keep the edges beside the character in place.
 const isFloatingChatWindow = initialRoutePath === '/chat-floating'
+// The app menu window covers the work area, so its edges are the edges of the screen.
+const isControlsMenuWindow = initialRoutePath === '/controls-menu'
 // The fullscreen mode places the main window itself, so its edges offer no resize.
 const { active: mainWindowFullscreen } = storeToRefs(useFullscreenStore())
 // A window that hosts the fullscreen mode can load on a settings route, after a reload for example. So the windows
@@ -434,7 +443,7 @@ onUnmounted(() => {
   <ToasterRoot @close="id => toast.dismiss(id)">
     <Toaster />
   </ToasterRoot>
-  <ResizeHandler v-if="!isSpotlightWindow && !isFloatingChatWindow && !mainWindowFullscreen" />
+  <ResizeHandler v-if="!isSpotlightWindow && !isFloatingChatWindow && !isControlsMenuWindow && !mainWindowFullscreen" />
   <SettingsWindowFrame :enabled="!windowContext.fullscreenHost">
     <RouterView />
   </SettingsWindowFrame>
