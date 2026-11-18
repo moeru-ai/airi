@@ -101,20 +101,20 @@ A rotation signs out every cookie and bearer session, and it invalidates unused 
 
 Do not only replace `BETTER_AUTH_SECRET`. Then Better Auth cannot decrypt the JWKS private keys, and OIDC sign-in fails. Use `BETTER_AUTH_SECRETS` instead. It holds `<version>:<secret>` pairs, and the first pair is the current secret.
 
+Better Auth reads `BETTER_AUTH_SECRETS` from the environment itself, so a rotation needs no code.
+
 Steps:
 
 1. Generate a secret: `openssl rand -base64 32`.
-2. Set `BETTER_AUTH_SECRETS=2:<new secret>`. Keep the old value in `BETTER_AUTH_SECRET`. Better Auth uses it to read the keys from before versioning. Deploy once.
-3. In the auth container, run the script without `--apply`. Exit code 2 means some keys still need the old secret.
-4. Run the script with `--apply`. It re-encrypts the keys under the current version and checks again.
-5. When the script exits 0, set `BETTER_AUTH_SECRET` to the new secret and deploy again.
+2. Set `BETTER_AUTH_SECRETS=2:<new secret>`. Keep the old value in `BETTER_AUTH_SECRET`, so Better Auth can still read the current JWKS keys. Deploy.
+3. Expire the current JWKS keys: `UPDATE jwks SET expires_at = now() WHERE expires_at IS NULL OR expires_at > now();`
+4. Sign in once. The jwt plugin signs with the newest key only. The newest key is expired, so the plugin creates a key under the new secret.
+5. Set `BETTER_AUTH_SECRET` to the new secret and deploy. No stored value needs the old secret now.
+6. After one hour, delete the expired keys. Access tokens live one hour, so no valid token uses them.
 
-```sh
-pnpm -F @proj-airi/auth-server exec tsx src/scripts/rotate-better-auth-secret/index.ts
-pnpm -F @proj-airi/auth-server exec tsx src/scripts/rotate-better-auth-secret/index.ts --apply
-```
+The JWKS endpoint keeps expired keys for 30 days. Until step 6, someone with the old secret and database access can still read the old private keys.
 
-Keep `BETTER_AUTH_SECRETS` after the rotation. Without it, Better Auth cannot read the versioned keys. For the next rotation, put the new pair first, for example `3:<newer secret>,2:<new secret>`. Remove the old pair after the script exits 0.
+Keep `BETTER_AUTH_SECRETS` after the rotation. New keys use its versioned format, and Better Auth reads that format only when `BETTER_AUTH_SECRETS` is set. For the next rotation, put the new pair first, for example `3:<newer secret>,2:<new secret>`.
 
 ## Do not use it for
 
