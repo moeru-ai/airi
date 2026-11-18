@@ -12,7 +12,9 @@ The Subscription page keeps the current Capacitor subscription and Flux purchase
 A separate receipt table reads `GET /api/v1/payments?limit=20&offset=0`.
 The response contains `{ records, hasMore }` for paid, live orders owned by the signed-in account.
 Each record contains `id`, `processor`, `status`, `amount`, `currency`, `fluxAmount`, `creditedAt`, and `createdAt`.
-Amounts retain their stored processor units. Apple uses milliunits. Stripe uses currency minor units, including its ISK and UGX exceptions. Missing amounts remain unavailable rather than becoming zero.
+The API returns amounts in major currency units and uses uppercase currency codes.
+Each receipt adapter converts amounts from its channel's units.
+Unavailable amounts use null. The page formats the amount for the selected language.
 The display date uses `creditedAt`, or `createdAt` for an order without a credit timestamp.
 Ordering uses that same date, then the order ID, descending. Listing never calls a payment processor.
 Wallet history remains independent of payment orders.
@@ -24,11 +26,13 @@ The existing Capacitor loading, balance refresh, and quota analytics remain unch
 
 `GET /api/v1/payments/:id/receipt` checks account ownership before resolving the original processor.
 Stripe retrieves the Checkout Session with its invoice and latest charge expanded.
-Prefer the hosted invoice URL. Without an invoice URL, use the charge receipt URL.
+Prefer a valid HTTPS hosted invoice URL. If one is unavailable, use a valid HTTPS charge receipt URL.
 Apple purchases open Apple's purchase history at `https://reportaproblem.apple.com/`.
 Apple does not expose a documented web link for an individual transaction.
 Resolve links only after the user clicks View receipt. Do not persist expiring receipt links.
-Processor selection stays in the existing receipt service. Current sales channels do not select historical receipt destinations.
+The API entry point supplies the adapters to the receipt service.
+The service selects a supplied adapter by the processor on the original order.
+Each adapter owns that channel's amount conversion and receipt destination.
 
 ## Scope and non-goals
 
@@ -49,8 +53,11 @@ flowchart LR
   History --> Wallet[(Wallet transactions)]
   Billing[Billing page] --> Payments[Payment routes]
   Payments --> Receipts[Payment receipt service]
+  App[API entry point] -->|Supplies adapters| Receipts
   Receipts --> Orders[(Payment orders)]
-  Receipts --> Stripe[Stripe Checkout API]
+  Receipts --> StripeReceipt[Stripe receipt adapter]
+  Receipts --> AppleReceipt[Apple receipt adapter]
+  StripeReceipt --> Stripe[Stripe Checkout API]
 ```
 
 ## Affected files
@@ -61,7 +68,9 @@ packages/
   stage-pages/src/pages/settings/components/{payment-history.vue,payment-receipt-button.vue}
   i18n/src/locales/{en,zh-Hans}/settings.yaml
 server/apps/api/src/
+  app.ts
   routes/payments/{index.ts,route.test.ts}
+  services/adapters/payment/{index.ts,apple-iap.ts,stripe.ts,types.ts}
   services/domain/payment/{receipt.ts,tests/receipt.test.ts}
 ```
 
@@ -74,6 +83,8 @@ sequenceDiagram
   participant Billing
   participant API
   participant DB
+  participant StripeAdapter
+  participant AppleAdapter
   participant Stripe
   User->>Usage: Open Usage
   Usage->>API: GET flux/history
@@ -86,9 +97,14 @@ sequenceDiagram
   User->>Billing: Click View receipt
   Billing->>API: GET payments/:id/receipt
   API->>DB: Check owned, paid, live order
-  opt Stripe order
-    API->>Stripe: Retrieve expanded Checkout Session
-    Stripe-->>API: Invoice or receipt URL
+  alt Stripe order
+    API->>StripeAdapter: Resolve checkout receipt
+    StripeAdapter->>Stripe: Retrieve expanded Checkout Session
+    Stripe-->>StripeAdapter: Invoice or receipt URL
+    StripeAdapter-->>API: Validated destination
+  else Apple order
+    API->>AppleAdapter: Resolve purchase history
+    AppleAdapter-->>API: Purchase history URL
   end
   API-->>Billing: Original processor destination
 ```

@@ -4,15 +4,14 @@ import { defineStageTamagotchiScenario } from '../context'
 
 export async function installBillingFixtures(page: Page) {
   const requests: string[] = []
-  const state = { authenticated: true, mode: 'ready', requests, receiptFails: true }
+  const state = { authenticated: true, mode: 'ready', requests }
   await page.context().addInitScript(() => {
     localStorage.setItem('auth/v1/token', 'billing-scenario-token')
     localStorage.setItem('settings/language', 'en')
     localStorage.setItem('settings/analytics/enabled', 'false')
   })
   await page.route('**/api/**', async (route) => {
-    const request = route.request()
-    const url = new URL(request.url())
+    const url = new URL(route.request().url())
     if (!url.pathname.startsWith('/api/'))
       return route.continue()
     state.requests.push(url.pathname + url.search)
@@ -63,12 +62,12 @@ export async function installBillingFixtures(page: Page) {
         return send({ records: [], hasMore: false })
       const offset = Number(url.searchParams.get('offset') ?? 0)
       return send({
-        records: [{ id: `order-${offset}`, processor: offset ? 'apple_iap' : 'stripe', status: 'paid', amount: offset ? 4990 : 6000, currency: 'usd', fluxAmount: 2000, creditedAt: null, createdAt }],
+        records: [{ id: `order-${offset}`, processor: offset ? 'apple_iap' : 'stripe', status: 'paid', amount: offset ? 4.99 : 60, currency: 'USD', fluxAmount: 2000, creditedAt: null, createdAt }],
         hasMore: offset === 0,
       })
     }
     if (url.pathname.endsWith('/receipt'))
-      return state.receiptFails ? send({ error: 'PAYMENT_RECEIPT_UNAVAILABLE' }, 503) : send({ url: 'https://example.com/receipt' })
+      return send({ error: 'PAYMENT_RECEIPT_UNAVAILABLE' }, 503)
     return send({ records: [], hasMore: false })
   })
   return state
@@ -85,7 +84,7 @@ export async function checkBillingAndUsage(
   const history = page.getByTestId('payment-history')
   await history.getByText('USD 60.00').filter({ visible: true }).first().waitFor()
   await page.evaluate(() => document.fonts.ready)
-  if (state.requests.some(path => path.includes('/receipt') || path.includes('/flux/history') || path.includes('/flux/usage')))
+  if (state.requests.some(path => path.endsWith('/receipt') || path.startsWith('/api/v1/flux/history?')))
     throw new Error('Billing fetched an unrelated resource before a receipt click')
   await capture('billing-ready', page)
 
@@ -98,7 +97,7 @@ export async function checkBillingAndUsage(
   await page.keyboard.press('Space')
   await viewReceipt.and(page.locator(':enabled')).waitFor()
   if (state.requests.filter(path => path.endsWith('/receipt')).length !== 2)
-    throw new Error('Receipt retry did not request a fresh destination')
+    throw new Error('Receipt retry did not make another request')
 
   await history.getByRole('button', { name: 'Load more' }).click()
   await history.getByText('USD 4.99').filter({ visible: true }).first().waitFor()
@@ -122,7 +121,7 @@ export async function checkBillingAndUsage(
   await usage.getByText('Initial grant', { exact: true }).filter({ visible: true }).first().waitFor()
   if (state.requests.filter(path => path.includes('/payments?')).length !== paymentReads)
     throw new Error('Fresh cached receipts were fetched again during navigation')
-  if (state.requests.some(path => path.includes('/flux/usage')))
+  if (!state.requests.some(path => path.startsWith('/api/v1/flux/history?')))
     throw new Error('Usage did not preserve the wallet history endpoint')
 
   state.mode = 'empty'

@@ -79,6 +79,7 @@ import { createConfigKVService } from './services/adapters/config-kv'
 import { createConfigKVStore } from './services/adapters/config-kv/store'
 import { createS3ObjectStore } from './services/adapters/object-store'
 import { createOpenpanelSink } from './services/adapters/openpanel'
+import { createPaymentReceiptAdapters } from './services/adapters/payment'
 import { createPosthogSink } from './services/adapters/posthog'
 import { createFanoutSink } from './services/adapters/product-analytics'
 import { createRevenuecatSubscriberClient } from './services/adapters/revenuecat-subscriber'
@@ -155,6 +156,7 @@ export async function buildApp(deps: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
   const webAppUrl = deps.env.WEB_APP_URL
   const docsUrl = new URL('/docs', webAppUrl).toString()
+  const paymentReceipts = createPaymentReceiptService(deps.db, createPaymentReceiptAdapters(deps.stripe))
 
   const app = new Hono<HonoEnv>()
     .use('*', async (c, next) => {
@@ -437,7 +439,7 @@ export async function buildApp(deps: AppDeps) {
      * Flux routes.
      */
     .route('/api/v1/flux', createFluxRoutes(deps.fluxService, deps.fluxTransactionService, deps.billingService))
-    .route('/api/v1/payments', createPaymentRoutes(createPaymentReceiptService(deps.db, deps.stripe)))
+    .route('/api/v1/payments', createPaymentRoutes(paymentReceipts))
     .route('/api/v1/llm-requests', createLlmRequestRoutes(deps.requestLogService))
 
     /**

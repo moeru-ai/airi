@@ -1,4 +1,5 @@
 import type { Database } from '../../../../libs/db'
+import type { PaymentReceiptService } from '../receipt'
 
 import Stripe from 'stripe'
 
@@ -6,15 +7,20 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { mockDB } from '../../../../libs/mock-db'
 import { paymentOrder } from '../../../../schemas/payment'
+import { createPaymentReceiptAdapters } from '../../../adapters/payment'
 import { createPaymentReceiptService } from '../receipt'
 
 describe('payment receipts', () => {
   let db: Database
+  let receipts: PaymentReceiptService
+  let receiptsWithoutStripe: PaymentReceiptService
   const stripe = new Stripe('test-key')
   const retrieve = vi.spyOn(stripe.checkout.sessions, 'retrieve')
 
   beforeAll(async () => {
     db = await mockDB({ paymentOrder })
+    receipts = createPaymentReceiptService(db, createPaymentReceiptAdapters(stripe))
+    receiptsWithoutStripe = createPaymentReceiptService(db, createPaymentReceiptAdapters(null))
   })
 
   beforeEach(async () => {
@@ -35,21 +41,23 @@ describe('payment receipts', () => {
         invoice: { hosted_invoice_url: 'https://example.com/invoice/original' },
         payment_intent: { latest_charge: { receipt_url: 'https://example.com/receipt' } },
       })
-      .mockResolvedValueOnce({ invoice: { hosted_invoice_url: 'https://example.com/invoice/updated' }, payment_intent: null }))
-    const receipts = createPaymentReceiptService(db, stripe)
+      .mockResolvedValueOnce({
+        invoice: { hosted_invoice_url: 'https://example.com/invoice/updated' },
+        payment_intent: { latest_charge: { receipt_url: 'unavailable' } },
+      }))
 
     expect(await receipts.getReceipt('buyer', 'order-1')).toEqual({ url: 'https://example.com/invoice/original' })
     expect(await receipts.getReceipt('buyer', 'order-1')).toEqual({ url: 'https://example.com/invoice/updated' })
     expect(retrieve).toHaveBeenCalledWith('cs_original', { expand: ['invoice', 'payment_intent.latest_charge'] })
   })
 
-  it.each([null, { hosted_invoice_url: null }])('uses the charge receipt without a hosted invoice (%j)', async (invoice) => {
+  it.each([null, { hosted_invoice_url: null }, { hosted_invoice_url: 'unavailable' }])('uses the charge receipt without a valid hosted invoice (%j)', async (invoice) => {
     retrieve.mockImplementation(vi.fn().mockResolvedValue({
       invoice,
       payment_intent: { latest_charge: { receipt_url: 'https://example.com/receipt' } },
     }))
 
-    expect(await createPaymentReceiptService(db, stripe).getReceipt('buyer', 'order-1'))
+    expect(await receipts.getReceipt('buyer', 'order-1'))
       .toEqual({ url: 'https://example.com/receipt' })
   })
 
@@ -60,7 +68,7 @@ describe('payment receipts', () => {
   ])('reports an unavailable receipt (%j)', async (session) => {
     retrieve.mockImplementation(vi.fn().mockResolvedValue(session))
 
-    await expect(createPaymentReceiptService(db, stripe).getReceipt('buyer', 'order-1'))
+    await expect(receipts.getReceipt('buyer', 'order-1'))
       .rejects
       .toMatchObject({ statusCode: 404, errorCode: 'PAYMENT_RECEIPT_UNAVAILABLE' })
   })
@@ -69,7 +77,7 @@ describe('payment receipts', () => {
     ['other-buyer', 'order-1'],
     ['buyer', 'missing'],
   ])('rejects an inaccessible order before contacting Stripe (%s, %s)', async (userId, orderId) => {
-    await expect(createPaymentReceiptService(db, stripe).getReceipt(userId, orderId))
+    await expect(receipts.getReceipt(userId, orderId))
       .rejects
       .toMatchObject({ statusCode: 404 })
     expect(retrieve).not.toHaveBeenCalled()
@@ -83,7 +91,7 @@ describe('payment receipts', () => {
   ])('rejects an unpaid or deleted order before contacting Stripe (%j)', async (changes) => {
     await db.update(paymentOrder).set(changes)
 
-    await expect(createPaymentReceiptService(db, stripe).getReceipt('buyer', 'order-1'))
+    await expect(receipts.getReceipt('buyer', 'order-1'))
       .rejects
       .toMatchObject({ statusCode: 404 })
     expect(retrieve).not.toHaveBeenCalled()
@@ -92,7 +100,7 @@ describe('payment receipts', () => {
   it('opens Apple purchase history with Stripe unavailable', async () => {
     await db.update(paymentOrder).set({ processor: 'apple_iap', processorOrderId: 'apple-original' })
 
-    expect(await createPaymentReceiptService(db, null).getReceipt('buyer', 'order-1'))
+    expect(await receiptsWithoutStripe.getReceipt('buyer', 'order-1'))
       .toEqual({ url: 'https://reportaproblem.apple.com/' })
     expect(retrieve).not.toHaveBeenCalled()
   })
@@ -100,14 +108,14 @@ describe('payment receipts', () => {
   it('does not send an unsupported processor to Stripe', async () => {
     await db.update(paymentOrder).set({ processor: 'other-store' })
 
-    await expect(createPaymentReceiptService(db, stripe).getReceipt('buyer', 'order-1'))
+    await expect(receipts.getReceipt('buyer', 'order-1'))
       .rejects
       .toMatchObject({ errorCode: 'PAYMENT_RECEIPT_UNAVAILABLE' })
     expect(retrieve).not.toHaveBeenCalled()
   })
 
   it('reports missing Stripe credentials independently of package configuration', async () => {
-    await expect(createPaymentReceiptService(db, null).getReceipt('buyer', 'order-1'))
+    await expect(receiptsWithoutStripe.getReceipt('buyer', 'order-1'))
       .rejects
       .toMatchObject({ statusCode: 503, errorCode: 'STRIPE_NOT_CONFIGURED' })
   })
@@ -115,7 +123,7 @@ describe('payment receipts', () => {
   it('reports a missing processor reference without contacting Stripe', async () => {
     await db.update(paymentOrder).set({ processorOrderId: null })
 
-    await expect(createPaymentReceiptService(db, stripe).getReceipt('buyer', 'order-1'))
+    await expect(receipts.getReceipt('buyer', 'order-1'))
       .rejects
       .toMatchObject({ errorCode: 'PAYMENT_RECEIPT_UNAVAILABLE' })
     expect(retrieve).not.toHaveBeenCalled()
@@ -127,6 +135,8 @@ describe('payment receipts', () => {
       payment_intent: null,
     }))
 
-    await expect(createPaymentReceiptService(db, stripe).getReceipt('buyer', 'order-1')).rejects.toThrow()
+    await expect(receipts.getReceipt('buyer', 'order-1'))
+      .rejects
+      .toMatchObject({ statusCode: 404, errorCode: 'PAYMENT_RECEIPT_UNAVAILABLE' })
   })
 })
