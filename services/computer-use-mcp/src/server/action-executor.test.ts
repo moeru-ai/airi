@@ -610,7 +610,7 @@ describe('createExecuteAction', () => {
     const result = await executeAction({ kind: 'desktop_click_target', input: { candidateId: 't_missing' } }, 'desktop_click_target')
 
     expect(result.isError).toBe(true)
-    expect(result.content.find(item => item.type === 'text')?.text).toContain('No desktop_observe snapshot available')
+    expect(result.content.find(item => item.type === 'text')?.text).toContain('No computer_observe snapshot available')
     expect(executor.click).not.toHaveBeenCalled()
     expect(session.consumeOperation).not.toHaveBeenCalled()
     expect(session.record).toHaveBeenCalledWith(expect.objectContaining({

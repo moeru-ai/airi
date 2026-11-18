@@ -44,7 +44,7 @@ describe('context compaction contract', () => {
   })
 
   it('records compression separately and retains tool call identity', async () => {
-    const compact = new ConversationCompact({ softLimitBytes: 1_000, hardLimitBytes: 20_000, retainRounds: 1 })
+    const compact = new ConversationCompact({ softLimitBytes: 1_000, retainRounds: 1 })
     compact.setMode('synchronous')
     const source = requestConversation()
     const measure = (value: Conversation) => new TextEncoder().encode(JSON.stringify(value)).byteLength

@@ -83,6 +83,8 @@ export type McpProxyExposure = 'none' | 'explicit' | 'active'
 export interface McpToolRegistration {
   servers?: readonly string[]
   direct?: readonly McpToolDescriptor[]
+  /** Limits secondary routing to the server names selected by the Host. */
+  proxyServers?: readonly string[]
   /** @default 'none' */
   proxy?: McpProxyExposure
 }
@@ -97,6 +99,18 @@ export interface McpRuntimeTool extends Tool {
 export const MCP_CALL_TOOL_NAME = 'builtIn_mcpCallTool'
 export const MCP_LIST_TOOL_NAME = 'builtIn_mcpListTools'
 
+function namespacedDirectToolName(serverName: string, toolName: string) {
+  const name = `mcp__${serverName}__${toolName}`.replace(/[^\w-]/g, '_')
+  if (name.length <= 64)
+    return name
+
+  let hash = 2166136261
+  for (const character of `${serverName}::${toolName}`)
+    hash = Math.imul(hash ^ character.charCodeAt(0), 16777619)
+  const suffix = `_${(hash >>> 0).toString(36)}`
+  return `${name.slice(0, 64 - suffix.length)}${suffix}`
+}
+
 /** Shared execution contract for Chat, background recipes, and Agent runs. */
 export const MCP_AGENT_EXECUTION_PROMPT = [
   'When the user asks you to operate an application, game, browser, or desktop, act as an Agent.',
@@ -104,7 +118,7 @@ export const MCP_AGENT_EXECUTION_PROMPT = [
   'For games and GUI tasks, keep an observe, act, verify loop until the requested goal is complete or a concrete blocker remains.',
   'computer_act reports input delivery only. Pass its execution.executionId to computer_verify, and treat businessVerification.status as the only application-state result.',
   'The Agent runtime compacts conversation context. The bundled Computer Use path provides AUV desktop observation and input plus Terminal process control.',
-  'Use stable computer_* and terminal_exec tools first. Secondary MCP tools are Host-selected and can be injected on demand.',
+  'Use stable computer_* and terminal_exec tools first. External MCP tools are Host-selected and can be injected on demand.',
   'Do not invent proxy calls when they are absent from the current catalog.',
   'Treat earlier assistant claims about capabilities as unverified. Read the current tool catalog and runtime capabilities before deciding what you can do.',
   'For a game task, check the Computer Use capabilities and take a small observable action before exploring mod frameworks or switching to a strategy-only reply.',
@@ -130,6 +144,7 @@ export const MCP_AGENT_EXECUTION_PROMPT = [
  * Discovery returns descriptors, an explicit empty-catalog message, or an MCP
  * error result. Runtime owners register these tools in the shared LLM tool store.
  * The host can supply connected server names and direct descriptors at registration.
+ * The host can limit generic routing to external servers with `proxyServers`.
  * Live discovery supplies current schemas and never grants execution authority.
  * Generic list/call proxies are disabled by default. A Host that needs the
  * secondary route must opt into `proxy: 'explicit'` (Host-selected calls) or
@@ -139,6 +154,17 @@ export async function createMcpTools(runtime: McpToolRuntime, registration: McpT
   const index = registration?.servers?.length
     ? ` Servers at registration: ${JSON.stringify(registration.servers)}. Discovery returns the live catalog.`
     : ''
+  const proxyServers = registration.proxyServers === undefined
+    ? undefined
+    : new Set(registration.proxyServers)
+
+  function isProxyTarget(name: string) {
+    if (!proxyServers)
+      return true
+
+    const separatorIndex = name.indexOf('::')
+    return separatorIndex > 0 && proxyServers.has(name.slice(0, separatorIndex))
+  }
 
   async function execute(payload: McpCallToolPayload, options?: McpExecutionOptions) {
     try {
@@ -157,7 +183,12 @@ export async function createMcpTools(runtime: McpToolRuntime, registration: McpT
           description: `List tools from connected MCP servers. Call this when the current direct tool catalog is insufficient. Use Computer Use tools for games, browsers, and GUI tasks. Use Terminal for processes, CLI, and files. Do not call Terminal as a preflight. Never inject keyboard or mouse input through Shell to bypass Host authorization.${index}`,
           execute: async ({ name }) => {
             try {
-              const tools = (await runtime.listTools(name || undefined)).filter(tool => tool.exposure !== 'disabled')
+              if (name && !isProxyTarget(name))
+                return { isError: true, content: [{ type: 'text', text: `MCP tool is unavailable or disabled: ${name}` }] }
+
+              const tools = (await runtime.listTools(name || undefined))
+                .filter(tool => tool.exposure !== 'disabled')
+                .filter(tool => isProxyTarget(tool.name))
               if (name) {
                 const selected = tools.find(tool => tool.name === name)
                 return selected ? [selected] : { isError: true, content: [{ type: 'text', text: `MCP tool is unavailable or disabled: ${name}` }] }
@@ -182,6 +213,12 @@ export async function createMcpTools(runtime: McpToolRuntime, registration: McpT
           execute: async ({ name, arguments: argsJson }, options?: McpExecutionOptions) => {
             try {
               options?.abortSignal?.throwIfAborted()
+              if (!isProxyTarget(name)) {
+                return {
+                  isError: true,
+                  content: [{ type: 'text', text: `MCP server is not available through secondary routing: ${name}` }],
+                }
+              }
               const args = argsJson ? JSON.parse(argsJson) : {}
               return await execute({ name, arguments: args }, options)
             }
@@ -209,8 +246,30 @@ export async function createMcpTools(runtime: McpToolRuntime, registration: McpT
       })
     : []
 
-  const directTools = await Promise.all((registration.direct ?? []).filter(descriptor => descriptor.exposure === 'direct').map(descriptor => rawTool({
-    name: descriptor.toolName,
+  const directDescriptors = (registration.direct ?? []).filter(descriptor => descriptor.exposure === 'direct')
+  const directNameCounts = new Map<string, number>()
+  for (const descriptor of directDescriptors)
+    directNameCounts.set(descriptor.toolName, (directNameCounts.get(descriptor.toolName) ?? 0) + 1)
+
+  const directNames = new Map<McpToolDescriptor, string>()
+  const usedDirectNames = new Set<string>()
+  for (const descriptor of directDescriptors) {
+    const baseName = directNameCounts.get(descriptor.toolName) === 1 && /^[\w-]{1,64}$/.test(descriptor.toolName)
+      ? descriptor.toolName
+      : namespacedDirectToolName(descriptor.serverName, descriptor.toolName)
+    let directName = baseName
+    let suffixIndex = 2
+    while (usedDirectNames.has(directName)) {
+      const suffix = `_${suffixIndex++}`
+      directName = `${baseName.slice(0, 64 - suffix.length)}${suffix}`
+    }
+    usedDirectNames.add(directName)
+    directNames.set(descriptor, directName)
+  }
+
+  const directTools = await Promise.all(directDescriptors.map(descriptor => rawTool({
+    // Keep short names when unique. Use a provider-safe server-qualified name for collisions.
+    name: directNames.get(descriptor)!,
     description: descriptor.description ?? `Call ${descriptor.name} through the Host.`,
     parameters: descriptor.inputSchema,
     // MCP schemas retain their optional fields. Strict conversion can make them

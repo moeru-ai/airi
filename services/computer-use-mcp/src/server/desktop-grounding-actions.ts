@@ -30,18 +30,18 @@ export async function executeDesktopClickTarget(
   const state = runtime.stateManager.getState()
 
   if (!state.lastGroundingSnapshot) {
-    throw new Error('No desktop_observe snapshot available. Call desktop_observe first to get a list of target candidates.')
+    throw new Error('No computer_observe snapshot available. Call computer_observe first to get a list of target candidates.')
   }
 
   const snapshot = state.lastGroundingSnapshot
 
   if (state.lastClickedCandidateId === candidateId) {
-    throw new Error(`You already clicked candidate "${candidateId}" without calling desktop_observe again. Call desktop_observe to refresh the state before clicking the same target.`)
+    throw new Error(`You already clicked candidate "${candidateId}" without calling computer_observe again. Call computer_observe to refresh the state before clicking the same target.`)
   }
 
   const snapshotAge = Date.now() - new Date(snapshot.capturedAt).getTime()
   if (snapshotAge > DESKTOP_CLICK_SNAPSHOT_MAX_AGE_MS) {
-    throw new Error(`Grounding snapshot "${snapshot.snapshotId}" is ${Math.round(snapshotAge / 1000)}s old. Call desktop_observe to get a fresh snapshot before clicking.`)
+    throw new Error(`Grounding snapshot "${snapshot.snapshotId}" is ${Math.round(snapshotAge / 1000)}s old. Call computer_observe to get a fresh snapshot before clicking.`)
   }
 
   const snap = resolveSnapByCandidate(candidateId, snapshot)
@@ -70,7 +70,7 @@ export async function executeDesktopClickTarget(
   let routeReason = 'candidate not found'
   let osInputResult: ExecutorActionResult | undefined
   let executionMode: 'background' | 'browser_surface' | 'foreground' = 'foreground'
-  let executionModeReason = 'desktop_click_target uses native input and needs foreground access'
+  let executionModeReason = 'A grounded target click uses native input and needs foreground access'
   let fallbackForegroundApp: string | undefined
 
   const executeOsClick = async () => {
@@ -91,7 +91,7 @@ export async function executeDesktopClickTarget(
     if (!activeSession?.controlledApp) {
       const candidateApp = candidate?.appName?.trim()
       if (!candidateApp || candidateApp === 'unknown') {
-        throw new Error('desktop_click_target cannot fall back to OS input without a controlled app session or a concrete target app.')
+        throw new Error('A grounded target click cannot fall back to OS input without a controlled app session or a concrete target app.')
       }
 
       const currentForeground = await runtime.executor.getForegroundContext()
@@ -218,7 +218,7 @@ export async function executeDesktopClickTarget(
     }
 
     if (snap.reason.includes('stale')) {
-      lines.push('  ⚠ WARNING: Target source is stale. Consider calling desktop_observe again.')
+      lines.push('  ⚠ WARNING: Target source is stale. Consider calling computer_observe again.')
     }
 
     return {

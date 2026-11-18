@@ -317,6 +317,40 @@ describe('registerComputerUseTools: PTY approval bridge', () => {
     expect((runtime.browserDomBridge.clickSelector as any)).not.toHaveBeenCalled()
   })
 
+  it('preserves execution replay safeguards when adding a browser repair suggestion', async () => {
+    ;(runtime.browserDomBridge.getStatus as any).mockReturnValue({
+      enabled: true,
+      connected: true,
+      pendingRequests: 0,
+    })
+    const execution = { status: 'unknown', doNotReplay: true }
+    const { server, invoke } = createMockServer()
+    registerComputerUseTools({
+      server,
+      runtime,
+      executeAction: vi.fn().mockResolvedValue({
+        isError: true,
+        content: [{ type: 'text', text: 'selector "#submit" did not match any element' }],
+        structuredContent: {
+          error: 'selector "#submit" did not match any element',
+          execution,
+        },
+      }),
+      enableTestTools: false,
+    })
+
+    const result = await invoke('browser_dom_click', { selector: '#submit' })
+
+    expect(result.isError).toBe(true)
+    expect(result.structuredContent).toMatchObject({
+      execution,
+      repairSuggestion: {
+        pattern: 'element_not_found',
+        suggestedTool: 'browser_dom_read_page',
+      },
+    })
+  })
+
   it('returns a browser repair suggestion when browser_dom_wait_for_element times out', async () => {
     ;(runtime.browserDomBridge.getStatus as any).mockReturnValue({
       enabled: true,

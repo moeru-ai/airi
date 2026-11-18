@@ -6,7 +6,7 @@ export type { AgentForegroundStreamPort } from './contracts/stream-port'
 export { chatContentToInputSegments, chatMessagesToTurns, conversationToChatMessages } from './messages/chat-completions'
 export type { ContextCompactionContract } from './messages/compaction-contract'
 export type { ContextBudget, ContextBudgetLimits } from './messages/context-budget'
-export { DEFAULT_CONTEXT_HARD_LIMIT_BYTES, DEFAULT_CONTEXT_SOFT_LIMIT_BYTES, measureContextBudget, resolveContextBudgetLimits } from './messages/context-budget'
+export { DEFAULT_CONTEXT_SOFT_LIMIT_BYTES, measureContextBudget, resolveContextBudgetLimits } from './messages/context-budget'
 export {
   buildContextPromptMessage,
   formatContextPromptText,

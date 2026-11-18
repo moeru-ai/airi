@@ -183,8 +183,6 @@ describe('toolDescriptorRegistry', () => {
         'computer_act',
         'computer_observe',
         'computer_verify',
-        'desktop_click_target',
-        'desktop_observe',
       ])
 
       const result = validateToolsHaveDescriptors(Array.from(toolNames))
@@ -319,8 +317,6 @@ describe('toolDescriptorRegistry', () => {
       'computer_act',
       'computer_verify',
       'desktop_get_state',
-      'desktop_observe',
-      'desktop_click_target',
     ]
 
     for (const toolName of eagerlyEnabledTools) {
@@ -331,6 +327,13 @@ describe('toolDescriptorRegistry', () => {
         expect(desc.defaultDeferred, `${toolName} must NOT be deferred — it is a core grounding tool`).toBeFalsy()
       })
     }
+
+    it('keeps legacy grounding action kinds out of the public registry', () => {
+      const registry = createPopulatedRegistry()
+
+      expect(registry.get('desktop_observe').public).toBe(false)
+      expect(registry.get('desktop_click_target').public).toBe(false)
+    })
 
     // Other desktop interaction tools must remain deferred to avoid exposing
     // the full desktop surface without explicit enablement.

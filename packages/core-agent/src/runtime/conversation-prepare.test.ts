@@ -17,7 +17,7 @@ describe.each(['chat-completions', 'responses'] as const)('%s request context', 
   it.each(['synchronous', 'background'] as const)('keeps native reasoning through %s Compact and the next user turn', async (mode) => {
     const requests: string[] = []
     const generations: AssistantTurn[] = []
-    const compact = new ConversationCompact({ softLimitBytes: 4_000, hardLimitBytes: 60_000, retainRounds: 2 })
+    const compact = new ConversationCompact({ softLimitBytes: 4_000, retainRounds: 2 })
     compact.setMode(mode)
     const fetch: typeof globalThis.fetch = async (_url, init) => {
       requests.push(String(init?.body))
@@ -85,7 +85,7 @@ describe.each(['chat-completions', 'responses'] as const)('%s request context', 
     expect(requests[5]).toContain('fixture-receipt-1')
   })
 
-  it.each([true, false, undefined])('gates a large tool image with explicit vision support %s', async (supportsVisionInput) => {
+  it.each([true, false, undefined])('sends a large tool image to the provider with vision support %s', async (supportsVisionInput) => {
     const requests: Record<string, unknown>[] = []
     const budgets: { textBytes: number, imageBytes: number, totalBytes: number }[] = []
     const image = `data:image/png;base64,${'A'.repeat(768 * 1024)}`
@@ -107,7 +107,7 @@ describe.each(['chat-completions', 'responses'] as const)('%s request context', 
     const chatProvider: GenerationProvider = { generation: model => protocol === 'responses'
       ? { protocol, webSearch: false, config: { model, baseURL: 'https://example.com/v1/', fetch } }
       : { protocol, config: { model, baseURL: 'https://example.com/v1/', fetch } } }
-    const compact = new ConversationCompact({ softLimitBytes: 256 * 1024, hardLimitBytes: 512 * 1024, retainRounds: 1 })
+    const compact = new ConversationCompact({ softLimitBytes: 256 * 1024, retainRounds: 1 })
     const summarize = vi.fn(async () => 'Never requested in Off mode')
     const pending = streamFrom({ model: 'test', chatProvider, conversation: { turns: [{
       type: 'user',
@@ -128,12 +128,9 @@ describe.each(['chat-completions', 'responses'] as const)('%s request context', 
         return compact.prepare(context, { ...target, summarize })
       },
     } })
-    if (supportsVisionInput)
-      await pending
-    else
-      await expect(pending).rejects.toThrow('context exceeds')
+    await pending
 
-    expect(requests).toHaveLength(supportsVisionInput ? 2 : 1)
+    expect(requests).toHaveLength(2)
     expect(dispatches).toBe(1)
     expect(effects).toBe(1)
     expect(summarize).not.toHaveBeenCalled()
@@ -167,7 +164,7 @@ describe.each(['chat-completions', 'responses'] as const)('%s request context', 
       effects++
       return [{ type: 'text', text: 'Fixture receipt. '.repeat(500) }, { type: 'image_url', image_url: { url: `data:image/png;base64,${'A'.repeat(768 * 1024)}` } }]
     } }]
-    const compact = new ConversationCompact({ softLimitBytes: 256 * 1024, hardLimitBytes: 512 * 1024, retainRounds: 1 })
+    const compact = new ConversationCompact({ softLimitBytes: 256 * 1024, retainRounds: 1 })
     const stream = streamFrom({ model: 'vision-model', chatProvider, conversation: { turns: [{
       type: 'user',
       id: 'goal',
@@ -190,11 +187,8 @@ describe.each(['chat-completions', 'responses'] as const)('%s request context', 
         return compact.prepare(context, { ...target, summarize: async () => 'Never requested' })
       },
     } })
-    if (nextModel === 'unknown-model')
-      await expect(stream).rejects.toThrow('context exceeds')
-    else
-      await stream
-    expect(requests).toBe(nextModel === 'unknown-model' ? 1 : 2)
+    await stream
+    expect(requests).toBe(2)
     expect(effects).toBe(1)
     expect(targets).toEqual([
       { model: 'vision-model', supportsVisionInput: true, softLimitBytes: 44_100 },
@@ -203,7 +197,7 @@ describe.each(['chat-completions', 'responses'] as const)('%s request context', 
     console.info(JSON.stringify({ boundary: 'Real model-switch path, controlled provider and executor', protocol, requests, effects, targets }))
   })
 
-  it.each(['summary', 'failure', 'cancel'] as const)('gates the actual next provider request on a %s barrier', async (mode) => {
+  it.each(['summary', 'failure', 'cancel'] as const)('waits only for synchronous compaction and continues after %s', async (mode) => {
     const requests: Record<string, unknown>[] = []
     let dispatches = 0
     let effects = 0
@@ -215,8 +209,8 @@ describe.each(['chat-completions', 'responses'] as const)('%s request context', 
     const summaryStarted = new Promise<void>((resolve) => {
       started = resolve
     })
-    const compact = new ConversationCompact({ softLimitBytes: 6000, hardLimitBytes: 14000, retainRounds: 1 })
-    compact.setMode('background')
+    const compact = new ConversationCompact({ softLimitBytes: 6000, retainRounds: 1 })
+    compact.setMode('synchronous')
     const controller = new AbortController()
     const fetch: typeof globalThis.fetch = async (_url, init) => {
       requests.push(JSON.parse(String(init?.body)))
@@ -262,16 +256,18 @@ describe.each(['chat-completions', 'responses'] as const)('%s request context', 
     release('Earlier visual observation.')
     const [settled] = await settlement
     console.info(JSON.stringify({ boundary: 'Real Core adapters and SDK. Controlled provider and executor.', protocol, mode, dispatches, effects, settlement: settled.status, requests, generatedTurn: result }))
-    expect(settled.status).toBe(mode === 'summary' ? 'fulfilled' : 'rejected')
-    expect(requests).toHaveLength(mode === 'summary' ? 3 : 2)
+    expect(settled.status).toBe(mode === 'cancel' ? 'rejected' : 'fulfilled')
+    expect(requests).toHaveLength(mode === 'cancel' ? 2 : 3)
     expect(dispatches).toBe(2)
     expect(effects).toBe(2)
     expect(source).toEqual(original)
-    if (mode === 'summary') {
-      expect(JSON.stringify(requests[2])).toContain('Earlier visual observation.')
+    if (mode !== 'cancel') {
       expect(JSON.stringify(requests[2])).toContain('Original goal.')
       expect(JSON.stringify(requests[2])).toContain('Exact Host Notice:')
       expect(JSON.stringify(requests[2])).toContain('noNewDispatch\\":false')
+    }
+    if (mode === 'summary') {
+      expect(JSON.stringify(requests[2])).toContain('Earlier visual observation.')
       expect(result?.rounds.map(round => round.toolInvocations[0]?.callId)).toEqual(['call-1', 'call-2', undefined])
       expect(result?.rounds[0].toolInvocations[0].execution).toMatchObject({ status: 'succeeded', output: [{ type: 'text', text: receipt }, { type: 'image' }] })
     }

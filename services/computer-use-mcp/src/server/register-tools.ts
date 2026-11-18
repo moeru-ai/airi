@@ -209,8 +209,9 @@ function buildBrowserDomActionErrorResponse(params: {
   error: unknown
   selector: string
   actionKind: string
+  structuredContent?: CallToolResult['structuredContent']
 }) {
-  const { runtime, error, selector, actionKind } = params
+  const { runtime, error, selector, actionKind, structuredContent } = params
   const message = errorMessageFrom(error) ?? 'unknown error'
   const repairSuggestion = diagnoseBrowserActionError(error, selector, actionKind)
 
@@ -224,6 +225,7 @@ function buildBrowserDomActionErrorResponse(params: {
       ),
     ],
     structuredContent: {
+      ...structuredContent,
       status: 'error',
       selector,
       actionKind,
@@ -254,7 +256,13 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       const error = result.structuredContent?.error
         ?? result.content?.map(item => item.type === 'text' ? item.text : '').filter(Boolean).join('\n')
         ?? 'Browser DOM action failed.'
-      return buildBrowserDomActionErrorResponse({ runtime, error, selector: action.input.selector, actionKind: action.kind })
+      return buildBrowserDomActionErrorResponse({
+        runtime,
+        error,
+        selector: action.input.selector,
+        actionKind: action.kind,
+        structuredContent: result.structuredContent,
+      })
     }
     catch (error) {
       return buildBrowserDomActionErrorResponse({

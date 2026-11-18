@@ -270,7 +270,7 @@ describe('useTamagotchiMcpToolsStore', () => {
     expect(invokeMocks.callMcpTool).not.toHaveBeenCalled()
   })
 
-  it('registers bundled Computer Use descriptors as direct Agent tools', async () => {
+  it('keeps bundled Computer Use on stable direct tools without generic MCP proxies', async () => {
     const pinia = createPinia()
     const view = render(defineComponent({ setup() {
       useTamagotchiMcpToolsStore()
@@ -283,8 +283,8 @@ describe('useTamagotchiMcpToolsStore', () => {
 
     const directComputerUse: ElectronMcpToolDescriptor = {
       serverName: 'airi-terminal',
-      name: 'airi-terminal::desktop_get_capabilities',
-      toolName: 'desktop_get_capabilities',
+      name: 'airi-terminal::computer_observe',
+      toolName: 'computer_observe',
       exposure: 'direct',
       inputSchema: { type: 'object', properties: {} },
     }
@@ -293,7 +293,10 @@ describe('useTamagotchiMcpToolsStore', () => {
 
     await useTamagotchiMcpToolsStore(pinia).refresh()
 
-    const tool = useLlmToolsStore(pinia).activeTools.find(item => item.function.name === 'desktop_get_capabilities')
+    const registered = useLlmToolsStore(pinia).tools.filter(item => item.id.startsWith('mcp:'))
+    expect(registered.map(item => item.function.name)).toEqual(['computer_observe'])
+
+    const tool = useLlmToolsStore(pinia).activeTools.find(item => item.function.name === 'computer_observe')
     expect(tool).toBeDefined()
     await tool?.execute({}, { messages: [], toolCallId: 'capabilities' })
     expect(invokeMocks.callMcpTool).toHaveBeenCalledWith(expect.objectContaining({ name: directComputerUse.name, arguments: {} }), expect.any(Object))

@@ -27,6 +27,8 @@ export interface DescriptorToolOptions<TSchema extends ZodRawShape> {
    */
   descriptor: ToolDescriptor
 
+  description?: string
+
   /**
    * Zod schema for input validation.
    */
@@ -46,7 +48,7 @@ export function registerToolWithDescriptor<TSchema extends ZodRawShape>(
   server: McpServer,
   options: DescriptorToolOptions<TSchema>,
 ): RegisteredTool {
-  const { descriptor, schema, handler } = options
+  const { descriptor, description = descriptor.summary, schema, handler } = options
 
   // Validate descriptor is in registry (fail-closed)
   if (!globalRegistry.has(descriptor.canonicalName)) {
@@ -61,7 +63,7 @@ export function registerToolWithDescriptor<TSchema extends ZodRawShape>(
   // NOTE: cast required due MCP SDK overload shape not expressing generic descriptor schema here.
   const registeredTool = (server.tool as any)(
     descriptor.canonicalName,
-    descriptor.summary,
+    description,
     schema,
     handler,
   ) as RegisteredTool

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { DEFAULT_CONTEXT_HARD_LIMIT_BYTES, DEFAULT_CONTEXT_SOFT_LIMIT_BYTES, measureContextBudget, resolveContextBudgetLimits } from './context-budget'
+import { DEFAULT_CONTEXT_SOFT_LIMIT_BYTES, measureContextBudget, resolveContextBudgetLimits } from './context-budget'
 
 describe('measureContextBudget', () => {
   it('reports text and inline image bytes separately without token conversion', () => {
@@ -45,7 +45,6 @@ describe('measureContextBudget', () => {
       outputReserveTokens: 8_000,
       safetyMarginTokens: 5_000,
       softLimitBytes: 65_250,
-      hardLimitBytes: DEFAULT_CONTEXT_HARD_LIMIT_BYTES,
       source: 'provider-model-metadata',
     })
   })
@@ -53,23 +52,20 @@ describe('measureContextBudget', () => {
   it('uses explicit bounded byte limits when the model context is unknown', () => {
     expect(resolveContextBudgetLimits({})).toMatchObject({
       softLimitBytes: DEFAULT_CONTEXT_SOFT_LIMIT_BYTES,
-      hardLimitBytes: DEFAULT_CONTEXT_HARD_LIMIT_BYTES,
       source: 'bounded-byte-fallback',
     })
   })
 
-  it('does not shrink the actual output reservation to invent remaining input capacity', () => {
+  it('schedules compaction immediately when the output cap fills the declared context', () => {
     const limits = resolveContextBudgetLimits({ contextWindowTokens: 4096, requestedOutputTokens: 4096 })
 
     expect(limits.outputReserveTokens).toBe(4096)
-    expect(limits.hardLimitBytes).toBe(0)
     expect(limits.softLimitBytes).toBe(0)
   })
 
-  it('keeps the application hard ceiling when the output cap is unspecified for a small model', () => {
+  it('uses small-model metadata only to schedule earlier compaction', () => {
     const limits = resolveContextBudgetLimits({ contextWindowTokens: 4096 })
 
-    expect(limits.hardLimitBytes).toBe(DEFAULT_CONTEXT_HARD_LIMIT_BYTES)
     expect(limits.softLimitBytes).toBeGreaterThan(0)
     expect(limits.softLimitBytes).toBeLessThan(DEFAULT_CONTEXT_SOFT_LIMIT_BYTES)
   })

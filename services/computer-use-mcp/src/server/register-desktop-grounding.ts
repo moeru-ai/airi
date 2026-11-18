@@ -1,16 +1,4 @@
-/**
- * MCP tool registration for desktop grounding tools:
- * - `desktop_observe` — unified observation (screenshot + AX + Chrome semantic)
- * - `desktop_click_target` — snap-resolved click by candidate id
- *
- * These tools work together: the agent first calls `desktop_observe` to get
- * a list of interactable target candidates, then uses `desktop_click_target`
- * to click on a specific candidate by its id.
- *
- * State is managed through `runtime.stateManager` (RunStateManager), not
- * a private closure. This ensures `desktop_get_state` and the overlay can
- * read the latest grounding/pointer data.
- */
+/** Registers the stable desktop observation, action, and verification tools. */
 
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 
@@ -185,9 +173,11 @@ export function registerDesktopGroundingTools(params: {
   executeAction: ExecuteAction
 }) {
   const { server, runtime, executeAction } = params
+  const desktopBackend = runtime.executor.describe()
+  const desktopDescription = `MCP Desktop backend: ${desktopBackend.kind}. ${desktopBackend.notes.join(' ')}`
 
   // -----------------------------------------------------------------------
-  // desktop_observe
+  // computer_observe
   // -----------------------------------------------------------------------
 
   const observeHandler = async ({ includeChrome }: { includeChrome?: boolean }) => {
@@ -284,25 +274,15 @@ export function registerDesktopGroundingTools(params: {
     catch (error) {
       const message = errorMessageFromValue(error)
       return {
-        content: [textContent(`desktop_observe failed: ${message}`)],
+        content: [textContent(`computer_observe failed: ${message}`)],
         isError: true,
       }
     }
   }
 
   registerToolWithDescriptor(server, {
-    descriptor: {
-      ...requireDescriptor('desktop_observe'),
-      summary: `${requireDescriptor('desktop_observe').summary} MCP Desktop backend: ${runtime.executor.kind}. ${runtime.executor.describe().notes.join(' ')}`,
-    },
-    schema: {
-      includeChrome: z.boolean().optional().describe('Whether to include Chrome semantic data. Default: best-effort when browser surfaces are available.'),
-    },
-    handler: observeHandler,
-  })
-
-  registerToolWithDescriptor(server, {
     descriptor: requireDescriptor('computer_observe'),
+    description: `${requireDescriptor('computer_observe').summary} ${desktopDescription}`,
     schema: {
       includeChrome: z.boolean().optional().describe('Whether to include Chrome semantic data. Default: best-effort when browser surfaces are available.'),
     },
@@ -311,6 +291,7 @@ export function registerDesktopGroundingTools(params: {
 
   registerToolWithDescriptor(server, {
     descriptor: requireDescriptor('computer_act'),
+    description: `${requireDescriptor('computer_act').summary} ${desktopDescription}`,
     schema: {
       action: z.enum(['click', 'type', 'key', 'scroll', 'open', 'focus', 'wait']).describe('Single desktop action to perform.'),
       targetId: z.string().optional().describe('Target id from computer_observe for a grounded click.'),
@@ -405,22 +386,5 @@ export function registerDesktopGroundingTools(params: {
         })
       }
     },
-  })
-
-  // -----------------------------------------------------------------------
-  // desktop_click_target
-  // -----------------------------------------------------------------------
-
-  registerToolWithDescriptor(server, {
-    descriptor: requireDescriptor('desktop_click_target'),
-
-    schema: {
-      candidateId: z.string().describe('Target candidate id from the last desktop_observe snapshot (e.g. "t_0")'),
-      clickCount: z.number().int().min(1).max(3).optional().describe('Number of clicks (default: 1, 2 = double-click)'),
-      button: z.enum(['left', 'right', 'middle']).optional().describe('Mouse button (default: left)'),
-    },
-
-    handler: async (input: DesktopClickTargetInput) =>
-      executeAction({ kind: 'desktop_click_target', input }, 'desktop_click_target'),
   })
 }

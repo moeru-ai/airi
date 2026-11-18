@@ -3,7 +3,7 @@ import type { ExecutableTool } from '@proj-airi/stage-ui/stores/ai/chat-llm/tool
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { terminalNoticeSchema, terminalNoticeText } from '@proj-airi/stage-shared/terminal-approval'
+import { bundledTerminalServerName, terminalNoticeSchema, terminalNoticeText } from '@proj-airi/stage-shared/terminal-approval'
 import { getSpeechBusContext, voiceGenerationEnded } from '@proj-airi/stage-ui/services/speech/bus'
 import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/ai/chat-llm/tools'
 import { useLlmToolsetPromptsStore } from '@proj-airi/stage-ui/stores/ai/chat-llm/toolset-prompts'
@@ -91,10 +91,14 @@ export const useTamagotchiMcpToolsStore = defineStore('tamagotchi-mcp-tools', ()
 
   async function refresh() {
     const generation = ++refreshGeneration
-    const [status, direct] = await Promise.all([
+    const [status, catalog] = await Promise.all([
       getRuntimeStatus().catch(() => undefined),
       listMcpTools({}).catch(() => undefined),
     ])
+    const proxyServers = [...new Set([
+      ...(status?.servers.filter(server => server.state === 'running').map(server => server.name) ?? []),
+      ...(catalog?.map(tool => tool.serverName) ?? []),
+    ])].filter(serverName => serverName !== bundledTerminalServerName)
     const tools = await createMcpTools({
       listTools: name => listMcpTools(name === undefined ? undefined : { name }),
       callTool: async (payload, options) => {
@@ -122,16 +126,15 @@ export const useTamagotchiMcpToolsStore = defineStore('tamagotchi-mcp-tools', ()
       },
     }, {
       servers: status?.servers.filter(server => server.state === 'running').map(server => server.name),
-      direct,
-      // Secondary MCP stays available to a Host-selected request, but does not
-      // compete with the four stable Agent entrypoints in the default catalog.
-      proxy: 'explicit',
+      direct: catalog,
+      proxyServers,
+      proxy: proxyServers.length ? 'explicit' : 'none',
     })
 
     if (generation !== refreshGeneration)
       return
 
-    const hasRunningMcp = Boolean(status?.servers.some(server => server.state === 'running') || direct?.length)
+    const hasRunningMcp = Boolean(status?.servers.some(server => server.state === 'running') || catalog?.length)
     if (hasRunningMcp) {
       llmToolsetPromptsStore.registerToolsetPrompts('mcp-tools', [{
         id: 'agent-execution',

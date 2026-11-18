@@ -12,7 +12,7 @@ import type { ToolCallRerunPayload } from './tool-call-rerun'
 import { errorMessageFrom } from '@moeru/std'
 import { decodeBase64 } from '@moeru/std/base64'
 import { fileSource } from '@proj-airi/audio/encoding'
-import { ConversationCompact, createChatOrchestratorRuntime, DEFAULT_CONTEXT_HARD_LIMIT_BYTES, DEFAULT_CONTEXT_SOFT_LIMIT_BYTES, isBackgroundRecipe, matchKeywordRecipes, renderConversationPreview } from '@proj-airi/core-agent'
+import { ConversationCompact, createChatOrchestratorRuntime, DEFAULT_CONTEXT_SOFT_LIMIT_BYTES, isBackgroundRecipe, matchKeywordRecipes, renderConversationPreview } from '@proj-airi/core-agent'
 import { supportsResponsesAudioInputEndpoint } from '@proj-airi/provider-inference'
 import { ATTR_GEN_AI_AGENT_ID, ATTR_GEN_AI_CONVERSATION_ID, ATTR_GEN_AI_OPERATION_NAME, ATTR_GEN_AI_PROVIDER_NAME, ATTR_GEN_AI_REQUEST_MODEL, ATTR_GEN_AI_TOOL_CALL_ARGUMENTS, ATTR_GEN_AI_TOOL_CALL_ID, ATTR_GEN_AI_TOOL_CALL_RESULT, ATTR_GEN_AI_TOOL_NAME, beginSpan, TraceLinkRelations, trackPath } from '@proj-airi/trace-kit'
 import { AgentAttributes, AgentIdKeys, AgentNames, AgentTracks } from '@proj-airi/trace-kit/agent'
@@ -346,8 +346,8 @@ export const useChatStore = defineStore('chat', () => {
   const ownedTurnSpans = new Map<string, TraceSpan>()
   let stopLeadershipListener: (() => void) | undefined
   const analyticsHooks = createChatAnalyticsHooks()
-  // These application limits measure context bytes, not the provider's token window.
-  const compactBudget = { softLimitBytes: DEFAULT_CONTEXT_SOFT_LIMIT_BYTES, hardLimitBytes: DEFAULT_CONTEXT_HARD_LIMIT_BYTES, retainRounds: 2 }
+  // This byte threshold estimates request pressure for compaction; the provider enforces its own context limits.
+  const compactBudget = { softLimitBytes: DEFAULT_CONTEXT_SOFT_LIMIT_BYTES, retainRounds: 2 }
   const conversationCompacts = new Map<string, ConversationCompact>()
   const featureFlags = useFeatureFlagsStore()
   const compactMode = computed<CompactMode>(() => {
@@ -938,14 +938,8 @@ export const useChatStore = defineStore('chat', () => {
           if (projected !== conversation && options?.requestCorrelation?.conversationId)
             contextObservability.captureProviderPromptProjection(options.requestCorrelation.conversationId, renderConversationPreview(projected))
           const sessionId = options?.requestCorrelation?.conversationId
-          if (!sessionId) {
-            const requestBytes = target.supportsVisionInput && target.measureContextBudget
-              ? target.measureContextBudget(projected).textBytes
-              : target.measureContextBytes(projected)
-            if (requestBytes >= (target.contextBudgetLimits?.hardLimitBytes ?? compactBudget.hardLimitBytes))
-              throw new Error('Conversation context exceeds the request byte budget')
+          if (!sessionId)
             return projected
-          }
           let compact = conversationCompacts.get(sessionId)
           if (!compact) {
             compact = new ConversationCompact({ ...compactBudget, onEvent: event => console.info('[chat:compact]', JSON.stringify({ sessionId, ...event })) })
@@ -971,14 +965,7 @@ export const useChatStore = defineStore('chat', () => {
               maxTokens: 2048,
               temperature: 0,
               headers: requestHeaders(target.providerId),
-              prepareConversation: async (context, summaryTarget) => {
-                const requestBytes = summaryTarget.supportsVisionInput && summaryTarget.measureContextBudget
-                  ? summaryTarget.measureContextBudget(context).textBytes
-                  : summaryTarget.measureContextBytes(context)
-                if (requestBytes >= (summaryTarget.contextBudgetLimits?.hardLimitBytes ?? compactBudget.hardLimitBytes))
-                  throw new Error('Summary context exceeds the request byte budget')
-                return context
-              },
+              prepareConversation: async context => context,
               onStreamEvent: (event) => {
                 if (event.type === 'tool-call-start' || event.type === 'tool-call') {
                   controller.abort(new Error('A conversation summary cannot call tools'))

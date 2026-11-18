@@ -44,7 +44,7 @@ describe('catalog history projection', () => {
     assistant.rounds.push(...[1, 2, 3].map(index => ({ id: `run/${index}`, content: [{ type: 'text' as const, text: 'Earlier observation. '.repeat(100) }], toolInvocations: [], projectionIssues: [] })))
     conversation.turns.push({ type: 'user', id: 'notice', notice: { source: 'host' }, content: [{ type: 'text', text: 'status=unknown; noNewDispatch=false' }] })
     const original = structuredClone(conversation)
-    const compact = new ConversationCompact({ softLimitBytes: 5000, hardLimitBytes: 25000, retainRounds: 1 })
+    const compact = new ConversationCompact({ softLimitBytes: 5000, retainRounds: 1 })
     compact.setMode(mode)
     const summarize = vi.fn(async (snapshot: Conversation) => {
       expect(JSON.stringify(snapshot)).not.toContain('Fixture schema.')

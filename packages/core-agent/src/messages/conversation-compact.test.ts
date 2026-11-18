@@ -37,7 +37,7 @@ function conversation(): Conversation {
 
 const measure = (value: Conversation) => new TextEncoder().encode(JSON.stringify(value)).byteLength
 const target = { scope: 'session/model', measureContextBytes: measure }
-const limits = { softLimitBytes: 6000, hardLimitBytes: 23000, retainRounds: 1 }
+const limits = { softLimitBytes: 6000, retainRounds: 1 }
 
 describe('conversationCompact', () => {
   it('keeps a step-limit checkpoint on the final round and in the projected context', async () => {
@@ -46,7 +46,7 @@ describe('conversationCompact', () => {
       { type: 'user', id: 'goal', content: [{ type: 'text', text: 'Finish the task.' }] },
       { type: 'assistant', id: 'limited-run', status: 'completed', stopReason, rounds: [round(0), round(1)] },
     ] }
-    const compact = new ConversationCompact({ softLimitBytes: 100_000, hardLimitBytes: 200_000, retainRounds: 1 })
+    const compact = new ConversationCompact({ softLimitBytes: 100_000, retainRounds: 1 })
     compact.setMode('background')
 
     const projected = await compact.prepare(source, { ...target, summarize: vi.fn(async () => 'unused') })
@@ -78,7 +78,7 @@ describe('conversationCompact', () => {
     compact.reset()
   })
 
-  it('defaults to Off without summary dispatch and retains the hard request gate', async () => {
+  it('defaults to Off without summary dispatch and still returns oversized context to the provider', async () => {
     const summarize = vi.fn(async () => 'Not requested')
     const compact = new ConversationCompact(limits)
     const source = conversation()
@@ -86,16 +86,16 @@ describe('conversationCompact', () => {
     expect(summarize).not.toHaveBeenCalled()
     source.turns.push({ type: 'user', id: 'oversized', content: [{ type: 'text', text: 'D'.repeat(25000) }] })
     let providerDispatches = 0
-    await expect(compact.prepare(source, { ...target, summarize }).then(() => {
+    await compact.prepare(source, { ...target, summarize }).then(() => {
       providerDispatches++
-    })).rejects.toThrow('context exceeds')
-    expect(providerDispatches).toBe(0)
+    })
+    expect(providerDispatches).toBe(1)
     expect(summarize).not.toHaveBeenCalled()
     console.info(JSON.stringify({ mode: 'off', summaryDispatches: summarize.mock.calls.length, providerDispatches }))
   })
 
   it('keeps a vision request eligible when inline image bytes exceed the text gate', async () => {
-    const compact = new ConversationCompact({ softLimitBytes: 100, hardLimitBytes: 1000, retainRounds: 1 })
+    const compact = new ConversationCompact({ softLimitBytes: 100, retainRounds: 1 })
     const source: Conversation = { turns: [{ type: 'user', id: 'image', content: [
       { type: 'text', text: 'Describe this image.' },
       { type: 'image', url: `data:image/png;base64,${'A'.repeat(5000)}` },
@@ -112,22 +112,22 @@ describe('conversationCompact', () => {
     expect(request.summarize).not.toHaveBeenCalled()
     expect(measureContextBudget(source).imageBytes).toBeGreaterThan(1000)
 
-    const textOnly = new ConversationCompact({ softLimitBytes: 100, hardLimitBytes: 1000, retainRounds: 1 })
-    await expect(textOnly.prepare(source, { ...request, supportsVisionInput: false })).rejects.toThrow('context exceeds')
+    const textOnly = new ConversationCompact({ softLimitBytes: 100, retainRounds: 1 })
+    await expect(textOnly.prepare(source, { ...request, supportsVisionInput: false })).resolves.toEqual(source)
   })
 
   it('uses the context budget of each resolved model request', async () => {
-    const compact = new ConversationCompact({ softLimitBytes: 500, hardLimitBytes: 1000, retainRounds: 1 })
+    const compact = new ConversationCompact({ softLimitBytes: 500, retainRounds: 1 })
     const source: Conversation = { turns: [{ type: 'user', id: 'model-budget', content: [{ type: 'text', text: 'x'.repeat(300) }] }] }
     const request = {
       scope: 'model-budget/model',
       measureContextBytes: measure,
-      contextBudgetLimits: { softLimitBytes: 100, hardLimitBytes: 200 },
+      contextBudgetLimits: { softLimitBytes: 100 },
       summarize: vi.fn(async () => 'unused'),
     }
 
-    await expect(compact.prepare(source, request)).rejects.toThrow('context exceeds')
-    await expect(compact.prepare(source, { ...request, contextBudgetLimits: { softLimitBytes: 500, hardLimitBytes: 1000 } })).resolves.toEqual(source)
+    await expect(compact.prepare(source, request)).resolves.toEqual(source)
+    await expect(compact.prepare(source, { ...request, contextBudgetLimits: { softLimitBytes: 500 } })).resolves.toEqual(source)
   })
 
   it('keeps an admissible vision request when a summary would exceed its text ceiling', async () => {
@@ -138,7 +138,7 @@ describe('conversationCompact', () => {
       { type: 'user', id: 'goal', content: [{ type: 'text', text: 'x'.repeat(1600) }] },
       { type: 'assistant', id: 'latest', status: 'completed', rounds: [{ ...round(1), content: [], toolInvocations: [] }] },
     ] }
-    const compact = new ConversationCompact({ softLimitBytes: 1800, hardLimitBytes: 3200, retainRounds: 1 })
+    const compact = new ConversationCompact({ softLimitBytes: 1800, retainRounds: 1 })
     compact.setMode('synchronous')
     const summarize = vi.fn(async () => 's'.repeat(1600))
 
@@ -208,11 +208,11 @@ describe('conversationCompact', () => {
     } })
     await started.promise
     compact.setMode(mode)
-    expect(measure(await pending)).toBeLessThan(limits.hardLimitBytes)
+    expect(JSON.stringify(await pending)).not.toContain('STALE')
     compact.reset()
   })
 
-  it('does not bypass the hard gate when Off interrupts a pending wait', async () => {
+  it('switching Off cancels a summary wait but still permits the provider request', async () => {
     const started = barrier<void>()
     const compact = new ConversationCompact(limits)
     compact.setMode('synchronous')
@@ -223,30 +223,31 @@ describe('conversationCompact', () => {
       started.release()
       return new Promise<string>(() => {})
     } }).then(() => { dispatches++ })
-    const rejected = expect(pending).rejects.toThrow('context exceeds')
     await started.promise
     compact.setMode('off')
-    await rejected
-    expect(dispatches).toBe(0)
+    await pending
+    expect(dispatches).toBe(1)
   })
 
   it('does not retry a failed prefix but admits one new summary when later images become eligible', async () => {
-    const compact = new ConversationCompact({ softLimitBytes: 6000, hardLimitBytes: 14000, retainRounds: 2 })
+    const compact = new ConversationCompact({ softLimitBytes: 6000, retainRounds: 2 })
     compact.setMode('background')
     const summarize = vi.fn(async () => summarize.mock.calls.length === 1 ? 'ineffective '.repeat(6000) : 'Visual observations retained.')
     const request = { ...target, summarize }
     const source = conversation()
-    await expect(compact.prepare(source, request)).rejects.toThrow('context exceeds')
-    await expect(compact.prepare(source, request)).rejects.toThrow('context exceeds')
+    await expect(compact.prepare(source, request)).resolves.toBeDefined()
+    await expect(compact.prepare(source, request)).resolves.toBeDefined()
     expect(summarize).toHaveBeenCalledOnce()
     const next = structuredClone(source)
     const assistant = next.turns[2]
     if (assistant.type !== 'assistant')
       throw new Error('Missing fixture assistant')
     assistant.rounds.push(round(4))
+    await compact.prepare(next, request)
+    await Promise.resolve()
+    await Promise.resolve()
     const projected = await compact.prepare(next, request)
     expect(summarize).toHaveBeenCalledTimes(2)
-    expect(measure(projected)).toBeLessThan(14000)
     expect(projected.turns.flatMap(turn => turn.type === 'assistant' ? turn.rounds.flatMap(item => item.toolInvocations.map(call => call.callId)) : [])).toEqual(['call-0', 'call-1', 'call-2', 'call-3', 'call-4'])
     expect(JSON.stringify(projected)).toContain('"noNewDispatch\\":false')
     expect(source.turns[2]).toMatchObject({ rounds: expect.any(Array) })
@@ -308,7 +309,7 @@ describe('conversationCompact', () => {
     expect(summarize).toHaveBeenCalledOnce()
   })
 
-  it('holds a hard-budget request at a barrier, then releases only the compacted view', async () => {
+  it('does not wait for Background compaction before returning a large request', async () => {
     const gate = barrier<string>()
     const started = barrier<void>()
     const compact = new ConversationCompact(limits)
@@ -326,13 +327,17 @@ describe('conversationCompact', () => {
       dispatched++
       return value
     })
-    await Promise.resolve()
-    expect(dispatched).toBe(0)
-    gate.release('Visual observations retained.')
-    const result = await pending
+    const uncompressed = await pending
     expect(dispatched).toBe(1)
-    expect(measure(result)).toBeLessThan(limits.hardLimitBytes)
-    expect(result.turns.find(turn => turn.id === 'large-delta')).toEqual(delta.turns.at(-1))
+    expect(measure(uncompressed)).toBeGreaterThan(limits.softLimitBytes)
+    expect(uncompressed.turns.find(turn => turn.id === 'large-delta')).toEqual(delta.turns.at(-1))
+    gate.release('Visual observations retained.')
+    await gate.promise
+    await Promise.resolve()
+    await Promise.resolve()
+    const compacted = await compact.prepare(delta, request)
+    expect(measure(compacted)).toBeLessThan(measure(delta))
+    expect(compacted.turns.find(turn => turn.id === 'large-delta')).toEqual(delta.turns.at(-1))
   })
 
   it.each(['edit', 'scope', 'reset', 'cancel'] as const)('discards a stale summary after %s', async (change) => {
@@ -366,30 +371,24 @@ describe('conversationCompact', () => {
     compact.reset()
   })
 
-  it('cancels a hard-budget wait even when the summarizer ignores cancellation', async () => {
+  it('cancels a synchronous summary wait even when the summarizer ignores cancellation', async () => {
     const started = barrier<void>()
     const compact = new ConversationCompact(limits)
-    compact.setMode('background')
+    compact.setMode('synchronous')
     const request = { ...target, summarize: async () => {
       started.release()
       return new Promise<string>(() => {})
     } }
-    await compact.prepare(conversation(), request)
-    await started.promise
-    const source = conversation()
-    source.turns.push({ type: 'user', id: 'delta', content: [{ type: 'text', text: 'D'.repeat(10000) }] })
-    let dispatches = 0
     const controller = new AbortController()
-    const pending = compact.prepare(source, request, controller.signal).then(() => {
-      dispatches++
-    })
+    const source = conversation()
+    const pending = compact.prepare(source, request, controller.signal)
+    await started.promise
     controller.abort(new Error('User cancelled'))
     await expect(pending).rejects.toThrow('User cancelled')
-    expect(dispatches).toBe(0)
     compact.reset()
   })
 
-  it.each(['synchronous', 'background'] as const)('stops rather than retrying failed or ineffective %s summaries at the hard budget', async (mode) => {
+  it.each(['synchronous', 'background'] as const)('stops rather than retrying failed or ineffective %s summaries and returns the request', async (mode) => {
     for (const summarize of [vi.fn(async () => {
       throw new Error('Provider unavailable')
     }), vi.fn(async () => 'large '.repeat(6000))]) {
@@ -401,13 +400,13 @@ describe('conversationCompact', () => {
       await Promise.resolve()
       await Promise.resolve()
       const delta: Conversation = { turns: [...source.turns, { type: 'user', id: 'delta', content: [{ type: 'text', text: 'D'.repeat(10000) }] }] }
-      await expect(compact.prepare(delta, request)).rejects.toThrow('context exceeds')
-      await expect(compact.prepare(delta, request)).rejects.toThrow('context exceeds')
+      await expect(compact.prepare(delta, request)).resolves.toBeDefined()
+      await expect(compact.prepare(delta, request)).resolves.toBeDefined()
       expect(summarize).toHaveBeenCalledOnce()
     }
   })
 
-  it('keeps pending, failed and opaque rounds intact and refuses oversized pinned context', async () => {
+  it('keeps pending, failed and opaque rounds intact while returning oversized pinned context', async () => {
     const source = conversation()
     const assistant = source.turns[2]
     if (assistant.type !== 'assistant')
@@ -421,7 +420,7 @@ describe('conversationCompact', () => {
     const request = { ...target, summarize }
     expect(await compact.prepare(source, request)).toEqual({ turns: [source.turns[0], source.turns[1], ...assistant.rounds.map(item => ({ ...assistant, rounds: [item] })), source.turns[3]] })
     source.turns.push({ type: 'user', id: 'large-goal', content: [{ type: 'text', text: 'P'.repeat(25000) }] })
-    await expect(compact.prepare(source, request)).rejects.toThrow('context exceeds')
+    await expect(compact.prepare(source, request)).resolves.toMatchObject({ turns: expect.arrayContaining([expect.objectContaining({ id: 'large-goal' })]) })
     expect(summarize).not.toHaveBeenCalled()
   })
 })

@@ -1,7 +1,7 @@
 /** Structured state for context compression. It contains no authorization or execution state. */
 export interface ContextCompactionContract {
   kind: 'context_compaction'
-  status: 'not_compacted' | 'scheduled' | 'running' | 'applied' | 'failed' | 'blocked'
+  status: 'not_compacted' | 'scheduled' | 'running' | 'applied' | 'failed'
   scope?: string
   summarizedRoundIds: string[]
   retainedModelDecisionIds: string[]

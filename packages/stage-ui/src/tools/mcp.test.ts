@@ -4,7 +4,7 @@ import type { McpToolRuntime } from './mcp'
 
 import { describe, expect, it, vi } from 'vitest'
 
-import { createMcpTools, mcp, MCP_AGENT_EXECUTION_PROMPT } from './mcp'
+import { createMcpTools, mcp, MCP_AGENT_EXECUTION_PROMPT, MCP_CALL_TOOL_NAME, MCP_LIST_TOOL_NAME } from './mcp'
 
 function createRuntime(): McpToolRuntime {
   return {
@@ -23,7 +23,7 @@ describe('mcp Agent execution prompt', () => {
     expect(MCP_AGENT_EXECUTION_PROMPT).toContain('inspect registered app paths, Start Menu shortcuts, and known library roots')
     expect(MCP_AGENT_EXECUTION_PROMPT).toContain('Never use it to emulate mouse or keyboard input or bypass Host approval.')
     expect(MCP_AGENT_EXECUTION_PROMPT).toContain('Continue with non-GUI discovery and approved launch steps.')
-    expect(MCP_AGENT_EXECUTION_PROMPT).toContain('Secondary MCP tools are Host-selected and can be injected on demand.')
+    expect(MCP_AGENT_EXECUTION_PROMPT).toContain('External MCP tools are Host-selected and can be injected on demand.')
     expect(MCP_AGENT_EXECUTION_PROMPT).toContain('Complete safe, authorized steps and verify their effects before you report a blocker for later gameplay.')
     expect(MCP_AGENT_EXECUTION_PROMPT).toContain('Do not claim that a requested app is unavailable or a game cannot be played based only on a supported-app list.')
   })
@@ -43,6 +43,94 @@ describe('tools mcp schema', () => {
 
     expect(list).toMatchObject({ defaultActive: false, requiresExplicitSelection: true })
     expect(call).toMatchObject({ defaultActive: false, requiresExplicitSelection: true })
+  })
+
+  it('limits secondary MCP routing to Host-selected servers while preserving direct tools', async () => {
+    const runtime = createRuntime()
+    const bundledComputerAct = {
+      serverName: 'airi-terminal',
+      name: 'airi-terminal::computer_act',
+      toolName: 'computer_act',
+      exposure: 'direct',
+      inputSchema: { type: 'object', properties: {} },
+    } as const
+    const bundledDesktopClick = {
+      serverName: 'airi-terminal',
+      name: 'airi-terminal::desktop_click',
+      toolName: 'desktop_click',
+      exposure: 'router-only',
+      inputSchema: { type: 'object', properties: {} },
+    } as const
+    const externalSearch = {
+      serverName: 'filesystem',
+      name: 'filesystem::search',
+      toolName: 'search',
+      exposure: 'router-only',
+      inputSchema: { type: 'object', properties: {} },
+    } as const
+    vi.mocked(runtime.listTools).mockResolvedValue([bundledDesktopClick, externalSearch])
+
+    const tools = await createMcpTools(runtime, {
+      direct: [bundledComputerAct],
+      proxy: 'explicit',
+      proxyServers: ['filesystem'],
+    })
+    const list = tools.find(tool => tool.function.name === MCP_LIST_TOOL_NAME)!
+    const call = tools.find(tool => tool.function.name === MCP_CALL_TOOL_NAME)!
+    const computerAct = tools.find(tool => tool.function.name === 'computer_act')!
+
+    expect(await list.execute({ name: null }, { messages: [], toolCallId: 'list' })).toEqual([externalSearch])
+    expect(await call.execute({ name: bundledDesktopClick.name, arguments: '{}' }, { messages: [], toolCallId: 'blocked' }))
+      .toMatchObject({ isError: true })
+    expect(runtime.callTool).not.toHaveBeenCalled()
+
+    await computerAct.execute({}, { messages: [], toolCallId: 'direct' })
+
+    expect(runtime.callTool).toHaveBeenCalledExactlyOnceWith(
+      { name: bundledComputerAct.name, arguments: {} },
+      expect.objectContaining({ toolCallId: 'direct' }),
+    )
+  })
+
+  it('namespaces colliding direct tool names without changing unique entrypoints', async () => {
+    const runtime = createRuntime()
+    const tools = await createMcpTools(runtime, {
+      direct: [
+        {
+          serverName: 'airi-terminal',
+          name: 'airi-terminal::computer_observe',
+          toolName: 'computer_observe',
+          exposure: 'direct',
+          inputSchema: { type: 'object', properties: {} },
+        },
+        {
+          serverName: 'first',
+          name: 'first::search',
+          toolName: 'search',
+          exposure: 'direct',
+          inputSchema: { type: 'object', properties: {} },
+        },
+        {
+          serverName: 'second',
+          name: 'second::search',
+          toolName: 'search',
+          exposure: 'direct',
+          inputSchema: { type: 'object', properties: {} },
+        },
+      ],
+    })
+
+    expect(tools.map(tool => tool.function.name)).toEqual([
+      'computer_observe',
+      'mcp__first__search',
+      'mcp__second__search',
+    ])
+
+    await tools.find(tool => tool.function.name === 'mcp__second__search')?.execute({}, { messages: [], toolCallId: 'collision' })
+    expect(runtime.callTool).toHaveBeenCalledWith(
+      { name: 'second::search', arguments: {} },
+      expect.objectContaining({ toolCallId: 'collision' }),
+    )
   })
 
   it('emits strict parameter objects', async () => {

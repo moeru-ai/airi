@@ -4,7 +4,7 @@ import type { Conversation, GenerationRound, Turn } from './types'
 
 import { createEmptyContextCompaction } from './compaction-contract'
 
-/** Scheduling changes no execution state. Off retains the request byte gate. */
+/** Scheduling changes no execution state. Off skips summaries and never gates the provider request. */
 export type CompactMode = 'off' | 'synchronous' | 'background'
 
 interface Checkpoint {
@@ -25,9 +25,8 @@ interface SummaryJob {
 /** Request projections retain exact tool text, owner messages and notices. Only old images and assistant text become summaries. */
 export interface CompactOptions {
   softLimitBytes: number
-  hardLimitBytes: number
   retainRounds: number
-  onEvent?: (event: { type: 'started' | 'applied' | 'failed' | 'discarded' | 'blocked', rounds: number, bytes: number }) => void
+  onEvent?: (event: { type: 'started' | 'applied' | 'failed' | 'discarded', rounds: number, bytes: number }) => void
 }
 
 /** One resolved request supplies both its byte measurement and its isolated background summarizer. */
@@ -38,7 +37,7 @@ export interface CompactRequest {
   measureContextBudget?: (value: Conversation) => ContextBudget
   supportsVisionInput?: boolean
   /** Limits derived from the model and output cap of this exact provider request. */
-  contextBudgetLimits?: Pick<ContextBudgetLimits, 'softLimitBytes' | 'hardLimitBytes'>
+  contextBudgetLimits?: Pick<ContextBudgetLimits, 'softLimitBytes'>
   summarize: (snapshot: Conversation, signal: AbortSignal) => Promise<string>
 }
 
@@ -91,8 +90,8 @@ export class ConversationCompact {
   private compaction: ContextCompactionContract = createEmptyContextCompaction()
 
   constructor(private readonly options: CompactOptions) {
-    if (!Number.isSafeInteger(options.softLimitBytes) || !Number.isSafeInteger(options.hardLimitBytes)
-      || options.softLimitBytes <= 0 || options.hardLimitBytes <= options.softLimitBytes
+    if (!Number.isSafeInteger(options.softLimitBytes)
+      || options.softLimitBytes <= 0
       || !Number.isSafeInteger(options.retainRounds) || options.retainRounds < 1) {
       throw new Error('Invalid conversation context budget')
     }
@@ -162,7 +161,6 @@ export class ConversationCompact {
 
   private start(source: Turn[], target: CompactRequest, signal?: AbortSignal) {
     const { measureContextBytes: measure, summarize } = target
-    const { hardLimitBytes } = this.limits(target)
     const roundUnits = source.filter(turn => turn.type === 'assistant')
     const older = roundUnits.slice(0, -this.options.retainRounds)
     const selected = older.filter(turn => turn.type === 'assistant' && !this.committed?.rounds.has(turn.rounds[0].id) && canCompact(turn.rounds[0]))
@@ -175,18 +173,6 @@ export class ConversationCompact {
     if (this.failure?.prefix.length === prefixKey.length && this.failure.prefix.every((value, index) => value === prefixKey[index]))
       return
     const snapshot = structuredClone(this.project(prefix))
-    // The summary uses no tools. Reserving space for its instructions also gates that provider request.
-    if (this.gateBytes(snapshot, target) + 2048 >= hardLimitBytes) {
-      this.failure = { prefix: prefixKey, error: new Error('Summary input exceeds the context byte budget') }
-      this.compaction = {
-        ...this.compaction,
-        status: 'failed',
-        scope: target.scope,
-        summarizedRoundIds: selected.map(turn => turn.type === 'assistant' ? turn.rounds[0].id : '').filter(Boolean),
-        reason: 'Summary input exceeds the context byte budget',
-      }
-      return
-    }
     freeze(snapshot)
     const rounds = new Set(this.committed?.rounds)
     for (const turn of selected) {
@@ -237,9 +223,9 @@ export class ConversationCompact {
     }).catch((error: unknown) => { job.error = error })
   }
 
-  private gateBytes(conversation: Conversation, target: CompactRequest) {
+  private pressureBytes(conversation: Conversation, target: CompactRequest) {
     // Provider-specific vision tokenization is unknown here. Keep image transport bytes separate;
-    // the Provider remains authoritative about image/context limits after this conservative text gate.
+    // the provider remains authoritative about image/context limits after this conservative pressure estimate.
     if (target.supportsVisionInput && target.measureContextBudget)
       return target.measureContextBudget(conversation).textBytes
     return target.measureContextBytes(conversation)
@@ -249,22 +235,19 @@ export class ConversationCompact {
     return target.contextBudgetLimits ?? this.options
   }
 
-  private apply(source: Turn[], target: CompactRequest, hardLimitBytes: number) {
+  private apply(source: Turn[], target: CompactRequest) {
     const job = this.job
     if (!job || !job.ready)
       return
     const previous = this.project(source)
     const next = this.project(source, job.checkpoint)
     const bytes = target.measureContextBytes(next)
-    const gatedBytes = this.gateBytes(next, target)
-    // A smaller image payload cannot justify a summary that makes text admission worse.
-    const worsensAdmission = gatedBytes >= hardLimitBytes && gatedBytes >= this.gateBytes(previous, target)
-    if (worsensAdmission || bytes >= target.measureContextBytes(previous)) {
-      this.failure = { prefix: job.checkpoint.prefix, error: new Error('Conversation summary does not reduce admissible request context') }
+    if (bytes >= target.measureContextBytes(previous)) {
+      this.failure = { prefix: job.checkpoint.prefix, error: new Error('Conversation summary does not reduce request size') }
       this.compaction = {
         ...this.compaction,
         status: 'failed',
-        reason: 'Conversation summary does not reduce admissible request context',
+        reason: 'Conversation summary does not reduce request size',
       }
       this.options.onEvent?.({ type: 'failed', rounds: job.checkpoint.rounds.size, bytes })
     }
@@ -297,25 +280,15 @@ export class ConversationCompact {
     }
   }
 
-  /** Off enforces the hard byte gate. Synchronous waits at the soft limit. Background waits only at the hard limit. */
+  /** The soft threshold schedules best-effort compaction; only Synchronous waits for its summary. */
   async prepare(conversation: Conversation, target: CompactRequest, signal?: AbortSignal): Promise<Conversation> {
     signal?.throwIfAborted()
-    const { softLimitBytes, hardLimitBytes } = this.limits(target)
-    if (this.mode === 'off') {
-      if (this.gateBytes(conversation, target) < hardLimitBytes)
-        return conversation
-      this.options.onEvent?.({ type: 'blocked', rounds: 0, bytes: target.measureContextBytes(conversation) })
-      this.compaction = {
-        ...this.compaction,
-        status: 'blocked',
-        scope: target.scope,
-        reason: 'Conversation context exceeds the request byte budget',
-      }
-      throw new Error('Conversation context exceeds the request byte budget')
-    }
+    const { softLimitBytes } = this.limits(target)
+    if (this.mode === 'off')
+      return conversation
     const source = units(structuredClone(conversation))
     const measure = target.measureContextBytes
-    const gate = (value: Conversation) => this.gateBytes(value, target)
+    const pressure = (value: Conversation) => this.pressureBytes(value, target)
     if (this.scope !== target.scope || (this.committed && !matches(this.committed.prefix, source))) {
       this.reset()
       this.scope = target.scope
@@ -325,16 +298,16 @@ export class ConversationCompact {
       this.job.controller.abort(new Error('Conversation prefix changed'))
       this.job = undefined
     }
-    this.apply(source, target, hardLimitBytes)
+    this.apply(source, target)
     if (this.job?.error) {
       this.failure = { prefix: this.job.checkpoint.prefix, error: this.job.error }
       this.options.onEvent?.({ type: 'failed', rounds: this.job.checkpoint.rounds.size, bytes: measure(this.project(source)) })
       this.job = undefined
     }
     let projected = this.project(source)
-    if (gate(projected) >= softLimitBytes && !this.job)
+    if (pressure(projected) >= softLimitBytes && !this.job)
       this.start(source, target, signal)
-    if (gate(projected) < hardLimitBytes && (this.mode !== 'synchronous' || !this.job))
+    if (this.mode !== 'synchronous' || !this.job)
       return projected
     const job = this.job
     if (job) {
@@ -344,27 +317,22 @@ export class ConversationCompact {
       }
       catch (error) {
         signal?.throwIfAborted()
-        // A scheduling change invalidates the summary, not the foreground request. Recheck its current byte gate.
+        // A scheduling change invalidates the summary, not the foreground request. Recheck with the current mode.
         if (modeVersion !== this.modeVersion)
           return this.prepare(conversation, target, signal)
         throw error
       }
       if (this.job !== job || this.scope !== target.scope)
         throw new Error('Conversation changed while waiting for its summary')
-      if (job.error)
+      if (job.error) {
         this.failure = { prefix: job.checkpoint.prefix, error: job.error }
-      this.apply(source, target, hardLimitBytes)
-      projected = this.project(source)
-    }
-    if (this.gateBytes(projected, target) >= hardLimitBytes) {
-      this.options.onEvent?.({ type: 'blocked', rounds: this.committed?.rounds.size ?? 0, bytes: measure(projected) })
-      this.compaction = {
-        ...this.compaction,
-        status: 'blocked',
-        scope: target.scope,
-        reason: 'Conversation context exceeds the request byte budget',
+        this.options.onEvent?.({ type: 'failed', rounds: job.checkpoint.rounds.size, bytes: measure(this.project(source)) })
+        this.job = undefined
       }
-      throw new Error('Conversation context exceeds the request byte budget', { cause: this.failure?.error })
+      else {
+        this.apply(source, target)
+      }
+      projected = this.project(source)
     }
     signal?.throwIfAborted()
     return projected

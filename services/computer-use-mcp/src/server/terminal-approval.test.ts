@@ -233,7 +233,7 @@ describe('main-only Terminal execution protocol', () => {
     const capture = vi.spyOn(h.runtime.executor, 'takeScreenshot')
     const observe = vi.spyOn(h.runtime.executor, 'observeWindows')
     const tools = await h.client.listTools()
-    for (const name of ['desktop_screenshot', 'desktop_observe_windows', 'desktop_observe']) {
+    for (const name of ['desktop_screenshot', 'desktop_observe_windows', 'computer_observe']) {
       const tool = tools.tools.find(tool => tool.name === name)
       expect(tool?.description).toContain('MCP Desktop backend: dry-run')
       if (platform !== 'darwin')
@@ -243,7 +243,7 @@ describe('main-only Terminal execution protocol', () => {
     expect(h.oracle.effects).toBe(0)
     expect(capture).not.toHaveBeenCalled()
     expect(observe).not.toHaveBeenCalled()
-    evidence.push({ phase: 'desktop-discovery-before-dispatch', tools: tools.tools.filter(tool => ['desktop_screenshot', 'desktop_observe_windows', 'desktop_observe'].includes(tool.name)), oracle: { ...h.oracle }, captures: capture.mock.calls.length, observations: observe.mock.calls.length })
+    evidence.push({ phase: 'desktop-discovery-before-dispatch', tools: tools.tools.filter(tool => ['desktop_screenshot', 'desktop_observe_windows', 'computer_observe'].includes(tool.name)), oracle: { ...h.oracle }, captures: capture.mock.calls.length, observations: observe.mock.calls.length })
   })
 
   it('exposes the executor contract through discovery and state before any dispatch', async () => {

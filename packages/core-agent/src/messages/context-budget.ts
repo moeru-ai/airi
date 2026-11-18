@@ -18,13 +18,12 @@ export interface ContextBudgetLimitInput {
   modelMaxOutputTokens?: number
 }
 
-/** Application byte limits. Model metadata can refine the soft threshold. */
+/** Default byte threshold for scheduling compaction. Model metadata can refine it. */
 export interface ContextBudgetFallback {
   softLimitBytes: number
-  hardLimitBytes: number
 }
 
-/** Application hard ceiling and estimated soft threshold. */
+/** Estimated threshold for scheduling context compaction. It never rejects a provider request. */
 export interface ContextBudgetLimits extends ContextBudgetFallback {
   /** The model metadata source for the token window, when known. */
   contextWindowTokens?: number
@@ -36,7 +35,6 @@ export interface ContextBudgetLimits extends ContextBudgetFallback {
 }
 
 export const DEFAULT_CONTEXT_SOFT_LIMIT_BYTES = 256 * 1024
-export const DEFAULT_CONTEXT_HARD_LIMIT_BYTES = 512 * 1024
 const DEFAULT_OUTPUT_RESERVE_TOKENS = 4096
 
 const SAFETY_MARGIN_FRACTION = 0.05
@@ -78,15 +76,14 @@ export function measureContextBudget(value: unknown): ContextBudget {
 }
 
 /**
- * Uses model metadata to schedule Compact earlier. The estimated byte ratio cannot reject a
- * request below the application ceiling. An explicit output cap that fills the model window
- * leaves zero input capacity. The provider enforces its actual context limit.
+ * Uses model metadata only to schedule Compact. The byte estimate never rejects a request.
+ * An explicit output cap that fills the model window sets the soft threshold to zero, so
+ * compaction can start immediately. The provider enforces its actual context limit.
  */
 export function resolveContextBudgetLimits(
   input: ContextBudgetLimitInput,
   fallback: ContextBudgetFallback = {
     softLimitBytes: DEFAULT_CONTEXT_SOFT_LIMIT_BYTES,
-    hardLimitBytes: DEFAULT_CONTEXT_HARD_LIMIT_BYTES,
   },
 ): ContextBudgetLimits {
   const contextWindowTokens = Number.isSafeInteger(input.contextWindowTokens) && (input.contextWindowTokens ?? 0) > 0
@@ -108,12 +105,10 @@ export function resolveContextBudgetLimits(
     : undefined
   const outputReserveTokens = requestedOutputTokens
     ?? Math.min(modelMaxOutputTokens ?? DEFAULT_OUTPUT_RESERVE_TOKENS, DEFAULT_OUTPUT_RESERVE_TOKENS, Math.floor(contextWindowTokens / 4))
-  const hardLimitBytes = requestedOutputTokens !== undefined && requestedOutputTokens >= contextWindowTokens ? 0 : fallback.hardLimitBytes
   const estimatedInputTokens = contextWindowTokens - outputReserveTokens - safetyMarginTokens
 
   return {
-    softLimitBytes: hardLimitBytes === 0 ? 0 : Math.min(fallback.softLimitBytes, Math.max(1, Math.floor(estimatedInputTokens * 0.75))),
-    hardLimitBytes,
+    softLimitBytes: Math.min(fallback.softLimitBytes, Math.max(0, Math.floor(estimatedInputTokens * 0.75))),
     contextWindowTokens,
     outputReserveTokens,
     safetyMarginTokens,

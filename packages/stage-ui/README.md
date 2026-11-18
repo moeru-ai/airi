@@ -10,8 +10,8 @@ Exposure metadata grants no execution permission. External server metadata canno
 The Host rejects disabled bundled Desktop tools even when a caller invokes them through MCP directly.
 Unadmitted native AUV tools are absent from normal Chat registration. Their Main observation gates remain closed.
 
-The generic `builtIn_mcpListTools` and `builtIn_mcpCallTool` proxies are disabled by default. A Host that needs secondary MCP work registers them with `proxy: 'explicit'`.
-This keeps them out of the default Agent catalog and permits only a request that explicitly selects those tool names. `proxy: 'active'` is reserved for an intentional model-visible route.
+The generic `builtIn_mcpListTools` and `builtIn_mcpCallTool` proxies are disabled by default. A Host that needs secondary MCP work registers them with `proxy: 'explicit'` and passes the allowed external names in `proxyServers`.
+This keeps them out of the default Agent catalog and blocks generic routing to the bundled Computer Use server. `proxy: 'active'` is reserved for an intentional model-visible route.
 
 `builtIn_mcpListTools` returns the live catalog. Supply an exact `name` for one current schema, or null for the full catalog.
 Registration descriptions contain server counts instead of every tool name. A discovery timeout leaves live discovery available.
@@ -38,8 +38,8 @@ Disabling Speech stops its producers and playback. Text generation and tool work
 ## Experimental features
 
 Conversation Compact starts Off. Enable its local experiment and select Synchronous or Background to summarize older observations.
-All modes retain the hard request byte limit. Disabling Compact invalidates summaries without cancelling tool execution.
-These byte limits do not measure the model token window.
+The soft byte estimate only schedules compaction. Off mode and failed summaries still send the request to the provider, which decides whether it fits.
+Background compaction never pauses a request; Synchronous waits only for a summary started at the soft threshold. Disabling Compact invalidates summaries without cancelling tool execution.
 
 Register flags in `libs/feature-flags.ts`. Read their state through `useFeatureFlagsStore().isEnabled(key)`.
 Set `availability` to `local` or `cloud`. Local flags expose device switches without Cloud access.

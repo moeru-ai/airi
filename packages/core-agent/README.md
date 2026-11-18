@@ -24,26 +24,26 @@ The byte measurement uses the protocol projection and current system prompt. It 
 The callback returns a request copy. Stored history and complete generation records stay unchanged.
 Stage also uses this callback for audio projection and conversation Compact.
 
-Stage defaults Compact to Off. Every mode retains a request budget gate.
+Stage defaults Compact to Off. Byte measurements only schedule best-effort compaction; they never reject provider requests.
 Each resolved model supplies its catalog context window and output limit, when available.
-The byte policy subtracts the request output cap and a safety margin from that window.
+The estimated soft threshold subtracts the request output cap and a safety margin from that window.
 Without an explicit output cap, the policy reserves up to 4,096 tokens from the declared model output maximum.
 The safety margin is 5%, at least 256 tokens, capped at one quarter of small windows.
 Each remaining token allows one text byte. This estimate is not a tokenizer bound or measured usage.
-Without window metadata, the fallback uses 256 KiB soft and 512 KiB hard byte limits.
+Without window metadata, the fallback schedules compaction at 256 KiB.
 Explicit vision support separates inline image bytes from text and tool-schema bytes.
-Missing vision metadata keeps the full byte gate. PDF and ordinary text remain in that gate.
-Images still consume provider context. The provider enforces image and actual token limits.
+Missing vision metadata counts image bytes toward the soft threshold. PDF and ordinary text remain in it.
+Images still consume provider context. The provider is authoritative about image and actual token limits.
 Provider context errors after tool execution stop the run without automatically replaying settled tools.
-Synchronous and Background scheduling use the same request limits and projection.
+Synchronous and Background scheduling use the same soft threshold and projection.
 Both modes share snapshots, summary generation, delta merging, and stale-result checks.
 Changing modes invalidates only summary work. It does not cancel tool execution.
-The background model receives a frozen prefix with no tools. New rounds continue below the hard budget.
+The background model receives a frozen prefix with no tools. New rounds continue while its summary runs.
 A matching prefix can merge its summary with later content. Changed prefixes, cancellation, session clear and provider changes discard stale work.
 Owner messages, Host notices, tool identities, arguments and text receipts remain exact. Old images and assistant narratives become context-level summaries.
-Pending, failed and opaque rounds stay intact. Text-heavy receipts can fill the budget, in which case the next request stops.
+Pending, failed and opaque rounds stay intact. If context cannot be compacted, the provider still receives the request and decides whether it fits.
 An ineffective summary suppresses its exact prefix. Newly eligible observations can start a different snapshot without retrying the failed job.
-These are application byte limits. They do not certify the provider's token window or the factual accuracy of a model summary.
+The estimate does not certify the provider's token window or the factual accuracy of a model summary.
 
 The chat orchestrator forwards a send's `resolveStep`. It appends that send's system prompt supplement, including sticker instructions, to each resolved prompt.
 
