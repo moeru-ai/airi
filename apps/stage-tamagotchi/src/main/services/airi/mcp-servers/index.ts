@@ -20,7 +20,7 @@ import type { TerminalApprovalOptions } from './terminal-approval'
 import { randomBytes } from 'node:crypto'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { env, execPath } from 'node:process'
+import { env, execPath, platform } from 'node:process'
 
 import { useLogg } from '@guiiai/logg'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
@@ -51,6 +51,27 @@ import { defaultBundledToolExposure } from './tool-exposure'
 
 /** A transport that the MCP client can drive. Both kinds expose `close`. */
 type McpTransport = StdioClientTransport | StreamableHTTPClientTransport
+
+/**
+ * Picks the Computer Use executor that the current host can actually construct.
+ *
+ * NOTICE:
+ * The bundled Terminal carries Computer Use in the same process, and the server
+ * refuses to start when the configured executor does not accept the host
+ * platform. Hardcoding the Windows executor therefore removed Terminal on every
+ * other platform. Unknown hosts fall back to `dry-run`, which reports
+ * `performed: false` instead of pretending the input reached the desktop.
+ */
+function bundledComputerUseExecutor() {
+  switch (platform) {
+    case 'win32':
+      return 'auv'
+    case 'darwin':
+      return 'macos-local'
+    default:
+      return 'dry-run'
+  }
+}
 
 interface McpServerSession {
   client: Client
@@ -337,7 +358,7 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
           [terminalControlEnabledEnv]: '1',
           [computerUseControlEnabledEnv]: '1',
           COMPUTER_USE_APPROVAL_MODE: 'actions',
-          COMPUTER_USE_EXECUTOR: 'auv',
+          COMPUTER_USE_EXECUTOR: bundledComputerUseExecutor(),
           COMPUTER_USE_BROWSER_DOM_BRIDGE_ENABLED: 'false',
           COMPUTER_USE_DEFAULT_CAPTURE_AFTER: 'true',
           COMPUTER_USE_SESSION_ROOT: join(app.getPath('userData'), 'terminal-sessions'),
@@ -378,9 +399,17 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
     return result
   }
 
+  /**
+   * The Host policy that applies when the user has not overridden the tool.
+   * Reporting it separately lets the settings page tell a Host-owned `disabled`
+   * (final) from a `disabled` the user chose (reversible).
+   */
+  const defaultExposureOf = (serverName: string, toolName: string): NonNullable<ElectronMcpToolDescriptor['exposure']> =>
+    serverName === bundledTerminalServerName ? defaultBundledToolExposure(toolName) : 'router-only'
+
   const exposureOf = (serverName: string, session: McpServerSession, toolName: string): ElectronMcpToolDescriptor['exposure'] => {
     const qualifiedName = `${serverName}${toolNameSeparator}${toolName}`
-    const defaultPolicy = serverName === bundledTerminalServerName ? defaultBundledToolExposure(toolName) : 'router-only'
+    const defaultPolicy = defaultExposureOf(serverName, toolName)
     const configured = toolExposureOverrides[qualifiedName]
     const policy = defaultPolicy === 'disabled' ? 'disabled' : (serverName === bundledTerminalServerName ? (configured ?? defaultPolicy) : (configured === 'disabled' ? 'disabled' : 'router-only'))
     if (policy !== 'direct')
@@ -417,6 +446,7 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
           : item.description,
         inputSchema: item.inputSchema,
         exposure: exposureOf(serverName, session, item.name),
+        defaultExposure: defaultExposureOf(serverName, item.name),
       }))
     }))
     const tools: ElectronMcpToolDescriptor[] = []
@@ -506,6 +536,9 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
       const turboSignal = terminalApproval.actions.terminalTurboSignal(attribution.sessionId, senderWebContentsId)
       const authorizationSignal = combineSignals(callSignal, turboSignal)
       let privateRequestSent = false
+      // Rejection and execution share `privateRequestSent`, but only execution can
+      // reach the desktop. A cancellation after it started leaves the outcome open.
+      let dispatched = false
       const reject = async () => {
         if (privateRequestSent)
           return undefined
@@ -548,6 +581,7 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
           }
         }
         privateRequestSent = true
+        dispatched = true
         const executed = await session.client.request({ method: computerUseApprovalExecuteMethod, params: { nonce: computerUseNonce, pendingActionId, toolName, actionKind } }, CallToolResultSchema, {
           ...(authorizationSignal ? { signal: authorizationSignal } : {}),
           timeout: mcpRequestMaxTotalTimeoutMsec,
@@ -559,6 +593,13 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
         if (!privateRequestSent && sessions.get(serverName) === session)
           await reject().catch(() => {})
         if (authorizationSignal?.aborted) {
+          if (dispatched) {
+            return {
+              isError: true,
+              content: [{ type: 'text', text: 'The Computer Use action was dispatched before the cancellation. Its outcome is unknown. Check the current state before repeating it.' }],
+              structuredContent: { status: 'unknown', doNotReplay: true, pendingActionId },
+            }
+          }
           return {
             isError: true,
             content: [{ type: 'text', text: 'Computer Use action was cancelled before dispatch.' }],

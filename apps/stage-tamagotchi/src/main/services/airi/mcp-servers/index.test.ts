@@ -583,8 +583,8 @@ describe('createMcpManager', () => {
       .mockResolvedValueOnce({ tools: [{ name: 'search', description: 'Search files.', inputSchema: { type: 'object' } }] })
 
     expect(await manager.listTools()).toEqual([
-      { serverName: 'alpha', name: 'alpha::read', toolName: 'read', description: 'Read memory.', inputSchema: { type: 'object' }, exposure: 'router-only' },
-      { serverName: 'zeta', name: 'zeta::search', toolName: 'search', description: 'Search files.', inputSchema: { type: 'object' }, exposure: 'router-only' },
+      { serverName: 'alpha', name: 'alpha::read', toolName: 'read', description: 'Read memory.', inputSchema: { type: 'object' }, exposure: 'router-only', defaultExposure: 'router-only' },
+      { serverName: 'zeta', name: 'zeta::search', toolName: 'search', description: 'Search files.', inputSchema: { type: 'object' }, exposure: 'router-only', defaultExposure: 'router-only' },
     ])
   })
 

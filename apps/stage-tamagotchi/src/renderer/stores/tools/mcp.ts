@@ -62,6 +62,30 @@ export const useTamagotchiMcpToolsStore = defineStore('tamagotchi-mcp-tools', ()
       console.warn('[MCP] Failed to register a Terminal request:', errorMessageFrom(error))
     }
   })
+  // A rerun executes tools without a submission of its own. The chat store announces the rerun with its own turn
+  // label, so the controlled tools of that execution get an admission that matches their attribution.
+  const stopToolCallRerun = chat.onToolCallRerun(async ({ sessionId, turnId, toolName }) => {
+    // Only an MCP tool can be Host-controlled. Every other rerun stays local, and the Host needs no record of it.
+    if (!llmToolsStore.tools.some(tool => tool.id === `${toolIdPrefix}${toolName}`))
+      return
+    try {
+      const { requestId } = await registerRequest({ sessionId, turnId, text: '' })
+      if (requestId)
+        requests.set(keyOf(sessionId, turnId), requestId)
+    }
+    catch (error) {
+      console.warn('[MCP] Failed to register a rerun request:', errorMessageFrom(error))
+    }
+  })
+  // Admission ends with the rerun, even when the tool threw or the history write failed.
+  const stopToolCallRerunEnd = chat.onToolCallRerunEnd(async ({ sessionId, turnId }) => {
+    const key = keyOf(sessionId, turnId)
+    const requestId = requests.get(key)
+    if (!requestId)
+      return
+    requests.delete(key)
+    await finishRequest({ requestId }).catch(error => console.warn('[MCP] Failed to close a rerun request:', error))
+  })
   // Completion can only remove admission. A broadcast never creates or approves an operation.
   const stopEnded = getSpeechBusContext().on(voiceGenerationEnded, ({ body }) => {
     if (!body)
@@ -77,6 +101,8 @@ export const useTamagotchiMcpToolsStore = defineStore('tamagotchi-mcp-tools', ()
   onScopeDispose(() => {
     stopNotice()
     stopBeforeSend()
+    stopToolCallRerun()
+    stopToolCallRerunEnd()
     stopEnded()
     for (const requestId of requests.values())
       void cancelRequest({ requestId }).catch(() => {})

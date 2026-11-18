@@ -162,7 +162,7 @@ async function refreshToolCatalog() {
 }
 
 function toolExposure(tool: ElectronMcpToolDescriptor): McpToolExposureMode {
-  if (tool.exposure === 'disabled')
+  if (isHostDisabled(tool))
     return 'disabled'
   const configured = toolExposureOverrides.value[tool.name]
   if (configured === 'disabled')
@@ -178,18 +178,31 @@ function setToolExposure(tool: ElectronMcpToolDescriptor, exposure: McpToolExpos
   toolExposureOverrides.value = { ...toolExposureOverrides.value, [tool.name]: exposure }
 }
 
+/**
+ * Whether the Host owns this `disabled` and the settings page must not undo it.
+ * A tool the user disabled still reports `disabled`, but its default is not, so
+ * that one stays reversible.
+ */
+function isHostDisabled(tool: ElectronMcpToolDescriptor) {
+  return tool.defaultExposure === 'disabled'
+}
+
 function setToolEnabled(tool: ElectronMcpToolDescriptor, enabled: boolean) {
-  if (tool.exposure === 'disabled')
+  if (isHostDisabled(tool))
     return
   if (!enabled) {
     setToolExposure(tool, 'disabled')
     return
   }
-  setToolExposure(tool, toolExposure(tool) === 'router-only' ? 'router-only' : 'direct')
+  // Re-enabling returns the tool to its Host policy instead of guessing the
+  // exposure it had before: the disabled descriptor no longer carries it.
+  const next = { ...toolExposureOverrides.value }
+  delete next[tool.name]
+  toolExposureOverrides.value = next
 }
 
 function setToolRouterOnly(tool: ElectronMcpToolDescriptor, routerOnly: boolean) {
-  if (tool.exposure === 'disabled')
+  if (isHostDisabled(tool))
     return
   if (toolExposure(tool) === 'disabled')
     return setToolExposure(tool, routerOnly ? 'router-only' : (tool.serverName === bundledTerminalServerName ? 'direct' : 'router-only'))
@@ -393,7 +406,7 @@ onMounted(async () => {
 
 useIntervalFn(() => {
   void refreshRuntime().catch((error) => {
-    errorMessage.value = errorMessageFrom(error) ?? 'Connection status unavailable.'
+    errorMessage.value = errorMessageFrom(error) ?? tn('status-refresh-error')
   })
 }, 2000)
 </script>
@@ -475,11 +488,11 @@ useIntervalFn(() => {
             </div>
             <div class="flex shrink-0 items-center gap-3 text-xs text-neutral-600 dark:text-neutral-300">
               <label class="flex items-center gap-1.5">
-                <Checkbox :model-value="toolExposure(tool) !== 'disabled'" :disabled="tool.exposure === 'disabled'" @update:model-value="setToolEnabled(tool, $event)" />
+                <Checkbox :model-value="toolExposure(tool) !== 'disabled'" :disabled="isHostDisabled(tool)" @update:model-value="setToolEnabled(tool, $event)" />
                 <span>{{ tn('tools.enabled') }}</span>
               </label>
               <label class="flex items-center gap-1.5">
-                <Checkbox :model-value="toolExposure(tool) === 'router-only'" :disabled="tool.exposure === 'disabled'" @update:model-value="setToolRouterOnly(tool, $event)" />
+                <Checkbox :model-value="toolExposure(tool) === 'router-only'" :disabled="isHostDisabled(tool)" @update:model-value="setToolRouterOnly(tool, $event)" />
                 <span>{{ tn('tools.router-only') }}</span>
               </label>
             </div>

@@ -113,7 +113,11 @@ export function setupTerminalApprovalWindow(params: { actions: PendingActionMana
       expiresAt: CONFIRMATION_EXPIRES_AT,
       ...request,
     }
-    return await presentView('terminal-approval-confirmation', actionId, view, () => Date.now() < view.expiresAt, signal)
+    // NOTICE:
+    // Each confirmation owns its window. A shared id made the second prompt reuse
+    // the first window and replace its payload, so the first decision could never
+    // match its action id and that approval waited until the window closed.
+    return await presentView(`terminal-approval-confirmation-${actionId}`, actionId, view, () => Date.now() < view.expiresAt, signal)
   }
   return {
     present,
