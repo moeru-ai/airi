@@ -57,12 +57,19 @@ export interface StreamOptions {
     contextWindowTokens?: number
     /** Model output cap reported by the resolved model catalog, when available. */
     modelMaxOutputTokens?: number
+    /** Output cap sent with this request, when that cap is a number. */
+    requestedOutputTokens?: number
     /** Request-specific text budget; inline image bytes remain a separate measurement. */
     contextBudgetLimits?: ContextBudgetLimits
     /** UTF-8 bytes of the projected context and current tool schemas. This is not a token count. */
     measureContextBytes: (conversation: Conversation) => number
     /** Separates text and inline media bytes when the resolved model accepts vision input. */
     measureContextBudget?: (conversation: Conversation) => ContextBudget
+    /**
+     * The value `measureContextBudget` measures for this request, including tool schemas.
+     * Inspectors classify this object. It is not a token count.
+     */
+    readProjectedRequest?: (conversation: Conversation) => unknown
     /** True only when the resolved model accepts image content in this request. */
     supportsVisionInput?: boolean
   }) => Promise<Conversation>

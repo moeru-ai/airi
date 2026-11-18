@@ -18,6 +18,9 @@ import { requireMainFrameSender } from '../../libs/electron/window-context'
 import { createReferencedWindowManager } from '../shared/referenced-window'
 import { customTitleBarWindowConfig, protectPrivilegedWindowNavigation } from '../shared/window'
 
+/** Confirmation prompts wait for a decision. They do not time out on their own. */
+const CONFIRMATION_EXPIRES_AT = Number.MAX_SAFE_INTEGER
+
 /** Reuses AIRI's Main-owned approval window for prepared commands and other gated actions. */
 export function setupTerminalApprovalWindow(params: { actions: PendingActionManager, i18n: I18n, serverChannel: ServerChannel }) {
   // Presentation only. The existing action manager retains all authority and settlement state.
@@ -107,7 +110,7 @@ export function setupTerminalApprovalWindow(params: { actions: PendingActionMana
     const view: TerminalApprovalView = {
       kind: 'confirmation',
       actionId,
-      expiresAt: Date.now() + 5 * 60_000,
+      expiresAt: CONFIRMATION_EXPIRES_AT,
       ...request,
     }
     return await presentView('terminal-approval-confirmation', actionId, view, () => Date.now() < view.expiresAt, signal)

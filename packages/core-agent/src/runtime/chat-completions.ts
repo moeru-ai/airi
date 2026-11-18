@@ -106,11 +106,13 @@ export function streamChatCompletions(input: {
       if (input.options?.prepareConversation || input.options?.prepareStringContent || next) {
         const contextWindowTokens = next ? next.contextWindowTokens : input.options?.contextWindowTokens
         const modelMaxOutputTokens = next ? next.modelMaxOutputTokens : input.options?.modelMaxOutputTokens
+        const requestedOutputTokens = typeof requestOptions.maxTokens === 'number' ? requestOptions.maxTokens : undefined
         const contextBudgetLimits = resolveContextBudgetLimits({
           contextWindowTokens,
-          requestedOutputTokens: typeof requestOptions.maxTokens === 'number' ? requestOptions.maxTokens : undefined,
+          requestedOutputTokens,
           modelMaxOutputTokens,
         })
+        const projectedRequest = (source: Conversation) => ({ messages: project(source), tools: requestOptions.tools })
         let conversation: Conversation = completed.rounds.length
           ? { turns: [...input.conversation.turns, completed] }
           : input.conversation
@@ -121,9 +123,11 @@ export function streamChatCompletions(input: {
           scope: input.scope,
           contextWindowTokens,
           modelMaxOutputTokens,
+          requestedOutputTokens,
           contextBudgetLimits: contextBudgetLimits.source === 'provider-model-metadata' ? contextBudgetLimits : undefined,
-          measureContextBytes: source => new TextEncoder().encode(JSON.stringify({ messages: project(source), tools: requestOptions.tools })).byteLength,
-          measureContextBudget: source => measureContextBudget({ messages: project(source), tools: requestOptions.tools }),
+          measureContextBytes: source => new TextEncoder().encode(JSON.stringify(projectedRequest(source))).byteLength,
+          measureContextBudget: source => measureContextBudget(projectedRequest(source)),
+          readProjectedRequest: projectedRequest,
           supportsVisionInput: next ? next.supportsVisionInput === true : input.options?.supportsVisionInput === true,
         }) ?? conversation
         input.options?.abortSignal?.throwIfAborted()

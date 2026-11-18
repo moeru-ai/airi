@@ -999,6 +999,43 @@ describe('chat store contract', () => {
     ]))
   })
 
+  it('records serialized projection bytes separately from reported tokens', async () => {
+    const image = `data:image/png;base64,${'A'.repeat(80)}`
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.prepareConversation?.({
+        turns: [{ type: 'user', id: 'user-1', content: [{ type: 'text', text: 'Look' }] }],
+      }, {
+        model: 'gpt-test',
+        scope: 'test-scope',
+        request: { protocol: 'chat-completions', config: { model: 'gpt-test', apiKey: 'test', baseURL: 'https://example.test/v1/' } },
+        measureContextBytes: () => 1,
+        readProjectedRequest: () => ({
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'text', text: 'Look' },
+              { type: 'image_url', image_url: { url: image } },
+            ],
+          }],
+          tools: [{ type: 'function', function: { name: 'observe', parameters: { type: 'object' } } }],
+        }),
+      })
+      await options.onUsage?.({ inputTokens: 12, outputTokens: 3, totalTokens: 15, source: 'reported' })
+      await options.onUsage?.({ inputTokens: 99, source: 'estimated' })
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    await useChatStore().send({ sessionId: 'session-1', text: 'Look' })
+
+    const projection = useContextObservabilityStore().lastPromptProjection
+    expect(projection?.request?.model).toBe('gpt-test')
+    expect(projection?.request?.contextWindowTokens).toBeUndefined()
+    expect(projection?.breakdown?.imageBytes).toBeGreaterThan(0)
+    expect(projection?.breakdown?.sections.some(section => section.kind === 'tool-schema' && section.title === 'observe')).toBe(true)
+    expect(JSON.stringify(projection?.breakdown)).not.toContain('AAAA')
+    expect(projection?.reportedUsage).toMatchObject({ source: 'reported', inputTokens: 12, outputTokens: 3, totalTokens: 15 })
+  })
+
   it('traces each tool call of a model request as a span on the tools track', async () => {
     llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
       await options.onStreamEvent?.({ type: 'tool-call-start', toolCallId: 'call-1', toolName: 'home_assistant_list_entities' })

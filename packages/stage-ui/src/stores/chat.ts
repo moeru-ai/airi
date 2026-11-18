@@ -882,8 +882,16 @@ export const useChatStore = defineStore('chat', () => {
     const isInitialTarget = (target: { model: string, providerId?: string }) => target.model === model && target.providerId === options?.providerId
 
     const providerMessages = renderConversationPreview(initialProjection)
-    if (options?.requestCorrelation?.conversationId)
-      contextObservability.captureProviderPromptProjection(options.requestCorrelation.conversationId, providerMessages)
+    const sessionId = options?.requestCorrelation?.conversationId
+    if (sessionId) {
+      contextObservability.captureProviderPromptProjection(sessionId, providerMessages, {
+        model,
+        providerId: options?.providerId,
+        contextWindowTokens: options?.contextWindowTokens,
+        modelMaxOutputTokens: options?.modelMaxOutputTokens,
+        requestedOutputTokens: options?.maxTokens,
+      })
+    }
 
     const resolveStep = options?.resolveStep
 
@@ -935,9 +943,6 @@ export const useChatStore = defineStore('chat', () => {
               ? conversation
               : await prepareTextOnlyAudioContext(conversation)
           const projected = projectMcpCatalogHistory(mediaProjected)
-          if (projected !== conversation && options?.requestCorrelation?.conversationId)
-            contextObservability.captureProviderPromptProjection(options.requestCorrelation.conversationId, renderConversationPreview(projected))
-          const sessionId = options?.requestCorrelation?.conversationId
           if (!sessionId)
             return projected
           let compact = conversationCompacts.get(sessionId)
@@ -947,7 +952,7 @@ export const useChatStore = defineStore('chat', () => {
             conversationCompacts.set(sessionId, compact)
           }
           const request = target.request
-          return compact.prepare(projected, { ...target, summarize: async (snapshot, signal) => {
+          const prepared = await compact.prepare(projected, { ...target, summarize: async (snapshot, signal) => {
             const controller = new AbortController()
             let summary = ''
             await llmStore.stream(target.model, { generation: () => request }, { turns: [
@@ -977,8 +982,23 @@ export const useChatStore = defineStore('chat', () => {
             })
             return summary
           } }, options?.abortSignal)
+          contextObservability.captureProviderPromptProjection(sessionId, renderConversationPreview(prepared), {
+            model: target.model,
+            providerId: target.providerId,
+            contextWindowTokens: target.contextWindowTokens,
+            modelMaxOutputTokens: target.modelMaxOutputTokens,
+            requestedOutputTokens: target.requestedOutputTokens,
+            budgetLimits: target.contextBudgetLimits,
+            serializedProjection: target.readProjectedRequest?.(prepared),
+          })
+          return prepared
         },
         describeToolImage,
+        onUsage: async (usage) => {
+          if (sessionId)
+            contextObservability.recordReportedUsage(sessionId, usage)
+          await options?.onUsage?.(usage)
+        },
         onStreamEvent: async (event: StreamEvent) => {
           if (isTextDelta(event)) {
             llmOutputChunkCount += 1

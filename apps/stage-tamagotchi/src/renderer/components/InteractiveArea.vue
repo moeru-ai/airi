@@ -28,6 +28,7 @@ import { useI18n } from 'vue-i18n'
 
 import JournalToolCallBlock from './chat-tool-renderers/journal-tool-call-block.vue'
 import ChatViewportLayout from './chat-viewport-layout.vue'
+import ContextInspector from './context-inspector.vue'
 
 import { electronAuthStartLogin, electronOpenSettings } from '../../shared/eventa'
 import { COMPUTER_USE_READ_IMAGE_TOOL_NAME, COMPUTER_USE_TOOL_NAME } from '../../shared/eventa/computer-use'
@@ -602,6 +603,7 @@ defineExpose({
           />
         </div>
         <div data-testid="chat-composer-actions" :class="['flex shrink-0 items-center gap-1 pt-1']">
+          <ContextInspector />
           <GhostButton
             size="unset"
             :class="['size-9 transition-colors duration-200 motion-reduce:transition-none']"

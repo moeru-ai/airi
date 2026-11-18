@@ -1731,6 +1731,7 @@ pages:
         shell: Shell
         executor: Executor
         expires: Expires
+        expires-unlimited: No limit
         arguments-identity: Full arguments and request identity
         turn-call: 'Turn {turn} · Call {call}'
         request-action: 'Request {request} · Action {action}'

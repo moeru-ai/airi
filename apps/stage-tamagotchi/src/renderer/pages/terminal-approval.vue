@@ -48,6 +48,12 @@ async function respond(action: 'confirm' | 'cancel') {
     sending.value = false
   }
 }
+
+function formatExpires(expiresAt: number) {
+  if (expiresAt >= Number.MAX_SAFE_INTEGER)
+    return tn('expires-unlimited')
+  return new Date(expiresAt).toLocaleString()
+}
 </script>
 
 <template>
@@ -81,7 +87,7 @@ async function respond(action: 'confirm' | 'cancel') {
             {{ view.snapshot.shell }}
           </dd>
           <dt>{{ tn('executor') }}</dt><dd>{{ view.serverName }} · {{ view.snapshot.executorPlatform }} · PID {{ view.snapshot.executorPid }}</dd>
-          <dt>{{ tn('expires') }}</dt><dd>{{ new Date(view.expiresAt).toLocaleString() }}</dd>
+          <dt>{{ tn('expires') }}</dt><dd>{{ formatExpires(view.expiresAt) }}</dd>
         </dl>
         <details class="mt-4 text-xs">
           <summary>{{ tn('arguments-identity') }}</summary>
@@ -125,7 +131,7 @@ async function respond(action: 'confirm' | 'cancel') {
               {{ view.toolCallId }}
             </dd>
           </template>
-          <dt>{{ tn('expires') }}</dt><dd>{{ new Date(view.expiresAt).toLocaleString() }}</dd>
+          <dt>{{ tn('expires') }}</dt><dd>{{ formatExpires(view.expiresAt) }}</dd>
         </dl>
       </template>
     </div>

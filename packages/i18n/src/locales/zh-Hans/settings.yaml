@@ -1645,6 +1645,7 @@ pages:
         shell: Shell
         executor: 执行器
         expires: 过期时间
+        expires-unlimited: 无限制
         arguments-identity: 完整参数和请求身份
         turn-call: '轮次 {turn} · 调用 {call}'
         request-action: '请求 {request} · 操作 {action}'

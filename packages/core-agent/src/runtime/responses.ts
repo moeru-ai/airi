@@ -266,10 +266,17 @@ export function streamResponses(input: {
       if (input.options?.prepareConversation || next) {
         const contextWindowTokens = next ? next.contextWindowTokens : input.options?.contextWindowTokens
         const modelMaxOutputTokens = next ? next.modelMaxOutputTokens : input.options?.modelMaxOutputTokens
+        const requestedOutputTokens = typeof requestOptions.maxOutputTokens === 'number' ? requestOptions.maxOutputTokens : undefined
         const contextBudgetLimits = resolveContextBudgetLimits({
           contextWindowTokens,
-          requestedOutputTokens: typeof requestOptions.maxOutputTokens === 'number' ? requestOptions.maxOutputTokens : undefined,
+          requestedOutputTokens,
           modelMaxOutputTokens,
+        })
+        const projectedRequest = (source: Conversation) => ({
+          input: project(source),
+          tools: requestOptions.tools?.map(tool => tool.type === 'function'
+            ? { type: 'function' as const, description: tool.function.description ?? null, name: tool.function.name, parameters: tool.function.parameters, strict: tool.function.strict ?? true }
+            : tool),
         })
         const conversation = await input.options?.prepareConversation?.(completed.rounds.length
           ? { turns: [...input.conversation.turns, completed] }
@@ -280,9 +287,11 @@ export function streamResponses(input: {
           scope: input.scope,
           contextWindowTokens,
           modelMaxOutputTokens,
+          requestedOutputTokens,
           contextBudgetLimits: contextBudgetLimits.source === 'provider-model-metadata' ? contextBudgetLimits : undefined,
-          measureContextBytes: source => new TextEncoder().encode(JSON.stringify({ input: project(source), tools: requestOptions.tools?.map(tool => tool.type === 'function' ? { type: 'function', description: tool.function.description ?? null, name: tool.function.name, parameters: tool.function.parameters, strict: tool.function.strict ?? true } : tool) })).byteLength,
-          measureContextBudget: source => measureContextBudget({ input: project(source), tools: requestOptions.tools?.map(tool => tool.type === 'function' ? { type: 'function', description: tool.function.description ?? null, name: tool.function.name, parameters: tool.function.parameters, strict: tool.function.strict ?? true } : tool) }),
+          measureContextBytes: source => new TextEncoder().encode(JSON.stringify(projectedRequest(source))).byteLength,
+          measureContextBudget: source => measureContextBudget(projectedRequest(source)),
+          readProjectedRequest: projectedRequest,
           supportsVisionInput: next ? next.supportsVisionInput === true : input.options?.supportsVisionInput === true,
         }) ?? { turns: [...input.conversation.turns, ...(completed.rounds.length ? [completed] : [])] }
         input.options?.abortSignal?.throwIfAborted()
