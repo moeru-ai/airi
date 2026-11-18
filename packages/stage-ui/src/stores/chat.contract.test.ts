@@ -1,9 +1,10 @@
 import type { ChatOrchestratorSessionPort, Conversation, StreamOptions, Turn } from '@proj-airi/core-agent'
 import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { TraceRecord, TraceSpanBegin, TraceSpanEnd } from '@proj-airi/trace-kit'
-import type { Tool } from '@xsai/shared-chat'
+import type { Tool, ToolExecuteOptions } from '@xsai/shared-chat'
 import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
+import type { McpExecutionOptions } from '../tools/mcp'
 import type { ChatHistoryItem, StreamingAssistantMessage } from '../types/chat'
 import type { ChatSessionMeta } from '../types/chat-session'
 import type { LlmStreamOptions } from './ai/chat-llm/llm'
@@ -1262,8 +1263,8 @@ describe('chat store contract', () => {
     getToolsByNamesMock.mockImplementation(() => [{
       type: 'function',
       function: { name: 'computer_use', parameters: {} },
-      execute: async (_input: unknown, options: { attribution?: { sessionId?: string, turnId?: string } }) => {
-        attribution = options?.attribution
+      execute: async (_input: unknown, options: ToolExecuteOptions) => {
+        attribution = (options as McpExecutionOptions).attribution
         return 'done'
       },
     }])

@@ -49,8 +49,9 @@ packages:
   - '!**/dist/**'
 
 overrides:
-  # @huggingface/transformers 3.8.1 pins an onnxruntime-web dev build. Use the catalog version, which @sherpaw needs.
-  # Remove when @huggingface/transformers declares the catalog version.
+  # @huggingface/transformers 3.8.1 pins onnxruntime builds below the catalog. Use the catalog versions @sherpaw needs.
+  # Remove when @huggingface/transformers declares the catalog versions.
+  '@huggingface/transformers>onnxruntime-node': ^1.27.0
   '@huggingface/transformers>onnxruntime-web': 'catalog:'
   array-flatten: npm:@nolyfill/array-flatten@^1.0.44
   axios: npm:feaxios@^0.0.23
