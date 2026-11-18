@@ -17,12 +17,8 @@ const stripeChargeSchema = object({
 
 export function createStripeReceiptAdapter(stripe: Stripe | null): PaymentReceiptAdapter {
   return {
-    toMajorUnits(amount, currency) {
-      const decimalPlaces = currency === 'ISK' || currency === 'UGX'
-        ? 2
-        : new Intl.NumberFormat('en', { style: 'currency', currency }).resolvedOptions().maximumFractionDigits ?? 0
-      return amount / 10 ** decimalPlaces
-    },
+    // NOTICE: The Stripe Flux price catalog only includes USD and CNY.
+    toMajorUnits: amount => amount / 100,
 
     async resolveReceiptUrl(sessionId) {
       if (!stripe)

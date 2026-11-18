@@ -53,7 +53,7 @@ export function createPaymentReceiptService(db: Database, stripe: Stripe | null)
             return { ...record, amount: null, currency: null }
 
           const { amount, currency } = storedAmount.output
-          return { ...record, currency, amount: adapter.toMajorUnits(amount, currency) }
+          return { ...record, currency, amount: adapter.toMajorUnits(amount) }
         }),
         hasMore: records.length > limit,
       }

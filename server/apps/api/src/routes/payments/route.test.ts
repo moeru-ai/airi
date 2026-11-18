@@ -79,10 +79,7 @@ describe('payment routes', () => {
 
   it.each([
     { processor: 'apple_iap', currency: 'usd', amount: 4990, expected: { amount: 4.99, currency: 'USD' } },
-    { processor: 'stripe', currency: 'isk', amount: 6000, expected: { amount: 60, currency: 'ISK' } },
-    { processor: 'stripe', currency: 'ugx', amount: 6000, expected: { amount: 60, currency: 'UGX' } },
-    { processor: 'stripe', currency: 'jpy', amount: 6000, expected: { amount: 6000, currency: 'JPY' } },
-    { processor: 'stripe', currency: 'kwd', amount: 6000, expected: { amount: 6, currency: 'KWD' } },
+    { processor: 'stripe', currency: 'cny', amount: 6099, expected: { amount: 60.99, currency: 'CNY' } },
     { processor: 'stripe', currency: null, amount: 6000, expected: { amount: null, currency: null } },
     { processor: 'other-store', currency: 'usd', amount: 6000, expected: { amount: null, currency: null } },
   ])('returns normal currency units for $processor $currency', async ({ processor, currency, amount, expected }) => {
