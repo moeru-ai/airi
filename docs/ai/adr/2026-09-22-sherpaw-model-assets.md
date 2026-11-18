@@ -19,6 +19,18 @@ Vite rewrites bundled model URLs to `airi-sherpaw://assets/` in Electron builds.
 The main process serves bundled model files through this protocol.
 Renderer `fetch()` cannot read the same files through `file://`.
 
+The plugin also exposes the keyword spotting pack `kwsModel` from `stage-ui/src/libs/voice/kws-model-info.ts`. The plugin needs only the pack ID, repository, revision, and artifact directory.
+Electron and Pocket bundle this pack in every build and read it from the repository cache in development. It is about 13 MB.
+The Electron main process does not download this pack, because every desktop build contains it.
+Web exposes its pinned remote URL. The renderer model asset repository installs it in OPFS when wake word detection first prepares.
+Its status, cancellation, Data settings entry, and `clear()` follow the transcription models.
+
+The plugin also exposes the CAM++ speaker embedding pack `speakerModel` from `stage-shared/src/speaker-model.ts`. Speaker tracking reads it. It is about 28 MB.
+The pack lives in `stage-shared`. Application Vite configs and `stage-ui` import it, so the module has no runtime imports.
+Electron bundles this pack in every build and reads it from the repository cache in development. The Electron main process does not download it.
+Desktop bundles it because a failed download blocked voiceprint enrollment, and 28 MB is a small part of the desktop package.
+Web and Pocket install it in OPFS. The download starts when a feature first acquires the speaker tracker. Its status, cancellation, Data settings entry, and `clear()` follow the transcription models.
+
 The UI derives its model options from the assets exposed by the host. It renders localized language names from `supportedLanguages`. It must not duplicate language lists in translation files or offer a model that the host did not expose.
 
 ## Runtime lifecycle
@@ -70,7 +82,17 @@ Startup does not wait for remote model downloads. A download starts when recogni
 | Desktop release | Paraformer and multilingual Zipformer | X-ASR in the application package |
 | Unit tests | Fixture metadata only | None |
 
-CI jobs that do not package a desktop release do not download production model artifacts.
+The profile table describes transcription models. The keyword spotting pack follows this table:
+
+| Host | Development | Production |
+| --- | --- | --- |
+| Web | OPFS install from the pinned remote URL | OPFS install from the pinned remote URL |
+| Desktop | Repository cache through Vite | Application package |
+| Pocket | Repository cache through Vite | Application package |
+
+The speaker embedding pack is remote in every host and profile.
+
+CI jobs that do not package a desktop release do not download production transcription models. Desktop and Pocket builds download the keyword spotting pack.
 Downloads use the model ID and pinned revision as the storage key.
 
 ## Failure behavior

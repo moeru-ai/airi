@@ -7,7 +7,6 @@ import { defineInvokeHandler } from '@moeru/eventa'
 import {
   ioTraceRecordingChanged,
   ioTraceRecordingGet,
-  ioTraceRecordingRecordSpan,
   ioTraceRecordingSetEnabled,
 } from '../../../../shared/eventa'
 
@@ -18,7 +17,6 @@ export function registerIOTraceRecording(
   const disposers = [
     defineInvokeHandler(context, ioTraceRecordingGet, () => service.getState()),
     defineInvokeHandler(context, ioTraceRecordingSetEnabled, ({ enabled }) => service.setEnabled(enabled)),
-    defineInvokeHandler(context, ioTraceRecordingRecordSpan, span => service.recordSpan(span)),
     service.onStateChange((state) => {
       void context.emit(ioTraceRecordingChanged, state)
     }),

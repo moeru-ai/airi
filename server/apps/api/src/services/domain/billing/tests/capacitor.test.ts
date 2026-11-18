@@ -15,8 +15,11 @@ import { availableMicroFlux, capacitorPercent, nextCapacitorRecharge, refillCapa
 import * as schema from '../../../../schemas'
 
 const hour = 3_600_000
-const periodStart = new Date('2026-10-01T00:00:00.000Z')
-const nextPeriodStart = new Date('2026-11-01T00:00:00.000Z')
+const day = 24 * hour
+// The periods follow the real clock. Fixed dates broke after 2026-11-01, because the first refill was then
+// later than the next period start. The half day keeps the start off the daily and weekly reset windows.
+const periodStart = new Date(Date.now() - 14.5 * day)
+const nextPeriodStart = new Date(Date.now() + 17 * day)
 
 function activeCapacitor(quota: number, start = periodStart) {
   return { quota, periodStart: start, expiresAt: new Date(Date.now() + 24 * hour) }
@@ -230,6 +233,33 @@ describe('capacitor Flux bucket', () => {
       await spend('b', 1_000_000)
 
       expect(await wallet()).toMatchObject({ capacitorFlux: 70, flux: 9 })
+    })
+
+    // https://github.com/moeru-ai/airi/pull/2813#discussion_r4238519379
+    // ROOT CAUSE:
+    //
+    // `getWallet` counted a due refill but did not write it, and a rejected request never settled.
+    // Admission then subtracted the same outstanding fee from every later refill.
+    //
+    // `getWallet` now writes the refill and settles the fee under the wallet row lock.
+    it('writes a due refill at admission and pays the outstanding fee one time', async () => {
+      await billing.syncCapacitor('wallet', async () => activeCapacitor(10, lastMonth))
+      await db.update(userFlux)
+        .set({ capacitorFlux: 0, unsettledMicroFlux: 9_000_000, capacitorFilledAt: lastMonth })
+        .where(eq(userFlux.userId, 'wallet'))
+      config.CAPACITOR_RESET_INTERVAL = 'day'
+
+      const admitted = await billing.getWallet('wallet')
+      expect(admitted).toMatchObject({ capacitorFlux: 1, unsettledMicroFlux: 0 })
+
+      const stored = await wallet()
+      expect(stored).toMatchObject({ capacitorFlux: 1, unsettledMicroFlux: 0, flux: 10 })
+      expect(stored.capacitorFilledAt!.getTime()).toBeGreaterThan(lastMonth.getTime())
+
+      // The first refill row is the grant of `syncCapacitor`. A second read adds no row.
+      await billing.getWallet('wallet')
+      const refills = await db.select().from(fluxTransaction).where(eq(fluxTransaction.description, 'capacitor_refill'))
+      expect(refills).toHaveLength(2)
     })
   })
 

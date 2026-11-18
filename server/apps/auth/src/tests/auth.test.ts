@@ -327,6 +327,9 @@ describe('createAuth', () => {
       undefined,
       undefined,
       {
+        async checkUserDeletion() {
+          calls.push('deletion-check')
+        },
         async softDeleteUserData() {
           calls.push('resource-data')
         },
@@ -353,7 +356,7 @@ describe('createAuth', () => {
       updatedAt: new Date(),
     }, new Request('http://localhost:3000/api/auth/delete-user'))
 
-    expect(calls).toEqual(['external-authorizations', 'resource-data'])
+    expect(calls).toEqual(['deletion-check', 'external-authorizations', 'resource-data'])
   })
 
   it('uses the Caddy public API origin as the Better Auth base URL', () => {

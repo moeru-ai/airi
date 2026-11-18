@@ -3,12 +3,11 @@ import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { HomeAssistantStoredConfig } from './request'
 
 import { defineInvokeHandler } from '@moeru/eventa'
-import { errorMessageFrom } from '@moeru/std'
 import { object, string } from 'valibot'
 
 import { homeAssistantGetConfig, homeAssistantRequest, homeAssistantSetConfig } from '../../../../shared/eventa/home-assistant'
 import { createConfig } from '../../../libs/electron/persistence'
-import { readBody, requestTimeoutMs, resolveConfigUpdate, resolveRequestUrl, toRequestError, toTokenPreview } from './request'
+import { readBody, requestTimeoutMs, resolveConfigUpdate, resolveRequestUrl, toNetworkError, toRequestError, toTokenPreview } from './request'
 
 const configSchema = object({
   baseUrl: string(),
@@ -72,6 +71,12 @@ export function setupHomeAssistant(context: ReturnType<typeof createContext>['co
     if (!current.token)
       throw new Error('Home Assistant has no access token yet. Ask the user to add one in settings.')
 
+    // A caller that read the target of a call sends the address it read. This
+    // refuses the call when the address moved after that read, so a check cannot
+    // land on one instance and the call on another.
+    if (input.expectBaseUrl !== undefined && input.expectBaseUrl !== current.baseUrl)
+      throw new Error(`The Home Assistant address changed from "${input.expectBaseUrl}" to "${current.baseUrl}". Ask the user, then read the device again before you change it.`)
+
     // The renderer picks the path, so this call is the boundary that decides
     // what leaves the application.
     const target = resolveRequestUrl(current.baseUrl, input.method, input.path)
@@ -90,7 +95,7 @@ export function setupHomeAssistant(context: ReturnType<typeof createContext>['co
       })
     }
     catch (error) {
-      throw new Error(`Could not reach Home Assistant at ${current.baseUrl}: ${errorMessageFrom(error) ?? 'unknown network error'}`)
+      throw toNetworkError(current.baseUrl, error)
     }
 
     if (!response.ok)

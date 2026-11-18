@@ -1,6 +1,7 @@
 import en from '@proj-airi/i18n/locales/en'
 
 import { updateModelAssetStatus } from '@proj-airi/stage-ui/composables/use-model-asset-status'
+import { kwsModel } from '@proj-airi/stage-ui/libs/voice/kws-model-info'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { createI18n } from 'vue-i18n'
@@ -9,16 +10,22 @@ import DownloadedModelsSection from './downloaded-models-section.vue'
 
 import 'virtual:uno.css'
 
-const { list, remove, cancel } = vi.hoisted(() => ({
+const { list, remove, cancel, exportAssets, restoreAssets, validateAssets } = vi.hoisted(() => ({
   list: vi.fn(async () => []),
   remove: vi.fn(async (_id: string) => {}),
   cancel: vi.fn(async (_id: string) => {}),
+  exportAssets: vi.fn(),
+  restoreAssets: vi.fn(),
+  validateAssets: vi.fn(),
 }))
 
 vi.mock('@proj-airi/stage-ui/libs/providers/providers/sherpaw/model-assets', () => ({
   listSherpawModelAssets: list,
   removeSherpawModelAssets: remove,
   cancelSherpawModelAssets: cancel,
+  exportSherpawModelAssets: exportAssets,
+  restoreSherpawModelAssets: restoreAssets,
+  validateSherpawModelAssetBundle: validateAssets,
   isSherpawModelBundled: () => false,
 }))
 
@@ -48,7 +55,11 @@ describe('downloaded speech models in Data settings', () => {
     })
     const screen = await renderSection()
 
-    await expect.element(screen.getByText('Zipformer')).toBeVisible()
+    await expect.element(screen.getByText('Zipformer', { exact: true })).toBeVisible()
+    const exportButton = screen.getByRole('button', { name: 'Export Zipformer' }).element()
+    const removeButton = screen.getByRole('button', { name: 'Remove download' }).element()
+    expect(exportButton.getBoundingClientRect().left).toBeLessThan(removeButton.getBoundingClientRect().left)
+    expect(exportButton.getBoundingClientRect().height).toBe(removeButton.getBoundingClientRect().height)
     await screen.getByRole('button', { name: 'Remove download' }).click()
     await screen.getByRole('button', { name: 'Yes' }).click()
 
@@ -68,5 +79,13 @@ describe('downloaded speech models in Data settings', () => {
 
     await expect.poll(() => cancel).toHaveBeenCalledWith(model.id)
     await expect.element(screen.getByText('No speech models are downloaded.')).toBeVisible()
+  })
+  it('lists a downloaded wake word model by its purpose', async () => {
+    const wakeWordModel = { id: kwsModel.id, revision: kwsModel.revision }
+    updateModelAssetStatus({ ...wakeWordModel, state: 'installed' })
+    const screen = await renderSection()
+
+    await expect.element(screen.getByText('Wake word model', { exact: true })).toBeVisible()
+    updateModelAssetStatus({ ...wakeWordModel, state: 'missing' })
   })
 })

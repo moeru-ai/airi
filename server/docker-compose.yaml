@@ -30,6 +30,42 @@ services:
       timeout: 5s
       retries: 10
 
+  # Local S3 for private objects. `s3.localhost` resolves to this container inside the
+  # network and to the published port in a browser, so signed URLs work in both places.
+  rustfs:
+    image: rustfs/rustfs:latest
+    command: ['/data']
+    environment:
+      RUSTFS_ACCESS_KEY: airi-local
+      RUSTFS_ADDRESS: ':6113'
+      RUSTFS_SECRET_KEY: example-PAssw0rd-xHjDYR.b7N
+    networks:
+      default:
+        aliases:
+          - s3.localhost
+    ports:
+      - '127.0.0.1:6113:6113'
+    volumes:
+      - rustfs_data:/data
+
+  rustfs-init:
+    image: amazon/aws-cli:latest
+    depends_on:
+      - rustfs
+    environment:
+      AWS_ACCESS_KEY_ID: airi-local
+      AWS_SECRET_ACCESS_KEY: example-PAssw0rd-xHjDYR.b7N
+      AWS_DEFAULT_REGION: us-east-1
+    volumes:
+      - ./dev/s3/cors.json:/cors.json:ro
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - |
+        until aws --endpoint-url http://s3.localhost:6113 s3api list-buckets >/dev/null 2>&1; do sleep 1; done
+        aws --endpoint-url http://s3.localhost:6113 s3api head-bucket --bucket airi-private 2>/dev/null \
+          || aws --endpoint-url http://s3.localhost:6113 s3api create-bucket --bucket airi-private
+        aws --endpoint-url http://s3.localhost:6113 s3api put-bucket-cors --bucket airi-private --cors-configuration file:///cors.json
+
   api:
     build:
       context: ..
@@ -40,6 +76,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      rustfs-init:
+        condition: service_completed_successfully
     env_file:
       - path: ./apps/api/.env
         required: false
@@ -49,8 +87,14 @@ services:
       API_SERVER_URL: http://localhost:6112
       AUTH_SERVER_INTERNAL_URL: http://auth:3000
       AUTH_SERVER_URL: http://localhost:6112
+      AWS_ACCESS_KEY_ID: airi-local
+      AWS_SECRET_ACCESS_KEY: example-PAssw0rd-xHjDYR.b7N
       DATABASE_URL: postgres://postgres:example-PAssw0rd-xHjDYR.b7N@db:5432/postgres
       REDIS_URL: redis://redis:6379
+      S3_BUCKET: airi-private
+      S3_ENDPOINT: http://s3.localhost:6113
+      S3_FORCE_PATH_STYLE: 'true'
+      S3_REGION: us-east-1
     healthcheck:
       test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/readyz >/dev/null']
       interval: 10s
@@ -96,3 +140,4 @@ services:
 volumes:
   db_data:
   redis_data:
+  rustfs_data:

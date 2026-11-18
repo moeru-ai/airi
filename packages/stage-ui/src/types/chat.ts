@@ -3,6 +3,7 @@ export type {
   ChatHistoryItem,
   ChatMessage,
   ChatSlices,
+  ChatSlicesCard,
   ChatSlicesSticker,
   ChatSlicesText,
   ChatSlicesToolCall,

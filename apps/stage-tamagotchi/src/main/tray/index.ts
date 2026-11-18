@@ -10,9 +10,6 @@ import type { setupCaptionWindowManager } from '../windows/caption'
 import type { SettingsWindowManager } from '../windows/settings'
 import type { WidgetsWindowManager } from '../windows/widgets'
 
-import { env } from 'node:process'
-
-import { is } from '@electron-toolkit/utils'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { isRendererUnavailable } from '@proj-airi/electron-vueuse/main'
@@ -27,6 +24,8 @@ import macOSTrayIcon from '../../../resources/tray-icon-macos.png?asset'
 import { electronAppIconGet, electronAppIconSet } from '../../shared/eventa'
 import { findDominantDisplayArea } from '../../shared/utils/electron/display'
 import { onAppBeforeQuit } from '../libs/bootkit/lifecycle'
+import { shouldOpenDevTools } from '../libs/electron/devtools'
+import { showWindow } from '../libs/electron/focus'
 import { Animator } from '../windows/shared/animator'
 import { AppIconVisibility } from '../windows/shared/app-icon'
 import { computeResizedBoundsAnchoredToDominantDisplay } from '../windows/shared/display'
@@ -57,7 +56,7 @@ function applyWindowSize(window: BrowserWindow, width: number, height: number, x
       })
 
   window.setBounds(bounds)
-  window.show()
+  showWindow(window)
 }
 
 function resolveAlignedWindowBounds(
@@ -122,7 +121,7 @@ const setupTrayOnce = once((params: SetupTrayParams): void => {
   function animateMainWindowTo(workArea: Rectangle, position: Parameters<typeof resolveAlignedWindowBounds>[2]) {
     const bounds = resolveAlignedWindowBounds(params.mainWindow, workArea, position)
     mainWindowAnimator.windowBoundsAnimateTo(bounds)
-    params.mainWindow.show()
+    showWindow(params.mainWindow)
   }
 
   function applyMainWindowSize(width: number, height: number, x?: number, y?: number) {
@@ -241,7 +240,7 @@ const setupTrayOnce = once((params: SetupTrayParams): void => {
         ]),
       },
       { type: 'separator' },
-      ...is.dev || env.MAIN_APP_DEBUG || env.APP_DEBUG
+      ...shouldOpenDevTools()
         ? [
             { type: 'header', label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.devtools') },
             { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.troubleshoot_beatsync'), click: () => params.beatSyncBgWindow.webContents.openDevTools({ mode: 'detach' }) },

@@ -18,14 +18,12 @@ export const useServerChannelSettingsStore = defineStore('tamagotchi-server-chan
   const hostname = useLocalStorage<string>('settings/server-channel/hostname', '127.0.0.1')
   const authToken = useLocalStorage<string>('settings/server-channel/auth-token', '')
   const lastApplyError = shallowRef<string | null>(null)
-  const syncingWithServer = shallowRef(false)
   const appliedConfig = shallowRef<ElectronServerChannelConfig>()
 
   const getServerChannelConfig = useHostEventaInvoke(electronGetServerChannelConfig)
   const applyServerChannelConfig = useHostEventaInvoke(electronApplyServerChannelConfig)
 
   function syncConfigFromServer(config: ElectronServerChannelConfig) {
-    syncingWithServer.value = true
     tlsConfig.value = config.tlsConfig ?? null
     if (config.hostname !== undefined) {
       hostname.value = config.hostname
@@ -36,7 +34,17 @@ export const useServerChannelSettingsStore = defineStore('tamagotchi-server-chan
     // This snapshot changes only after the main process accepts the config.
     // Consumers that read runtime state must not react to the optimistic fields above.
     appliedConfig.value = config
-    syncingWithServer.value = false
+  }
+
+  // The watcher callback runs after the synchronous writes in `syncConfigFromServer` and in the rollback.
+  // A flag that these writes set and reset is already cleared when the callback runs.
+  // Compare with the accepted config instead, so that these writes do not start another apply.
+  function matchesAppliedConfig(nextTls: typeof tlsConfig.value, nextHost: string, nextAuth: string) {
+    const applied = appliedConfig.value
+    return applied !== undefined
+      && Boolean(nextTls) === Boolean(applied.tlsConfig)
+      && nextHost === applied.hostname
+      && nextAuth === applied.authToken
   }
 
   async function refreshServerChannelConfig() {
@@ -46,7 +54,7 @@ export const useServerChannelSettingsStore = defineStore('tamagotchi-server-chan
   }
 
   watch([tlsConfig, hostname, authToken], async ([newTls, newHost, newAuth], [oldTls, oldHost, oldAuth]) => {
-    if (syncingWithServer.value || (JSON.stringify(newTls) === JSON.stringify(oldTls) && newHost === oldHost && newAuth === oldAuth)) {
+    if (matchesAppliedConfig(newTls, newHost, newAuth) || (JSON.stringify(newTls) === JSON.stringify(oldTls) && newHost === oldHost && newAuth === oldAuth)) {
       return
     }
 
@@ -64,13 +72,13 @@ export const useServerChannelSettingsStore = defineStore('tamagotchi-server-chan
       const message = errorMessageFrom(error) ?? 'Failed to apply WebSocket security setting'
       lastApplyError.value = message
 
-      syncingWithServer.value = true
-      tlsConfig.value = oldTls
-      hostname.value = oldHost
-      authToken.value = oldAuth
-      syncingWithServer.value = false
+      const rollback = appliedConfig.value
+      tlsConfig.value = rollback ? rollback.tlsConfig ?? null : oldTls
+      hostname.value = rollback?.hostname ?? oldHost
+      authToken.value = rollback?.authToken ?? oldAuth
 
-      toast.error(message)
+      // One id keeps one toast for this setting. A new failure replaces the earlier toast.
+      toast.error(message, { id: 'server-channel-apply-error' })
     }
   })
 

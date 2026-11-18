@@ -65,6 +65,58 @@ migrations. After either service deploys, Railway must receive `200` from that
 service's `/readyz`; deployment success alone is not sufficient evidence that
 the service can reach its required dependencies.
 
+## Dev environment
+
+The Railway `dev` environment is one shared slot. It has fixed public URLs, so
+OAuth callbacks and payment webhooks stay registered when the code changes.
+
+Work on your own branch in this repository. Do not merge into a shared test
+branch. The `server-dev` branch is no longer a deploy source.
+
+To test a branch, run the `Deploy to server-dev` workflow:
+
+```sh
+gh workflow run deploy-server-dev.yml -f branch=<branch> -f reset_database=true
+```
+
+The workflow does these steps in order:
+
+1. It resets the dev Neon branch to its parent branch, `production`. The dev
+   database then holds a copy of the production schema and data.
+2. It sets the source branch of the Railway `ts-api` and `auth-server` services
+   and deploys them. The API applies its migrations on startup.
+3. It starts the `Cloudflare Workers (server-dev)` workflow on the same branch.
+
+Railway deploys each later push to the branch. The frontend does not follow
+pushes. Run the workflow again with `reset_database=false` to build it again.
+
+The branch must be in this repository. Railway cannot deploy a branch of a
+fork.
+
+The reset removes all data that the previous branch wrote. This includes dev
+accounts that are not in production. Set
+`reset_database=false` only when the database already has the migrations of
+the branch and no others. The Drizzle migrator applies only migrations that are
+newer than the last applied migration. If the database already has a newer
+migration from a different branch, the migrator skips the older migrations of
+the new branch and reports no error.
+
+The reset does not clear Redis. Cached values from the previous branch can stay
+until they expire.
+
+The workflow needs this repository configuration:
+
+| Name | Kind | Value |
+| --- | --- | --- |
+| `RAILWAY_DEV_TOKEN` | Secret | Railway project token for the `dev` environment |
+| `NEON_API_KEY` | Secret | Neon API key for the project that holds the dev database |
+| `NEON_PROJECT_ID` | Variable | Neon project ID |
+| `NEON_SERVER_DEV_BRANCH` | Variable | Name of the Neon branch that the dev `DATABASE_URL` points to |
+
+The dev Neon branch is `serverlize-dev`. Its parent is `production`, so the
+Neon API key can also read the production branch. Keep the key in the secret
+only.
+
 ## Package boundaries
 
 Frontend applications remain under `apps/`. Hosted-backend packages that

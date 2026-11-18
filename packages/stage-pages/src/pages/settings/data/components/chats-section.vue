@@ -5,6 +5,8 @@ import type { DataSettingsStatusEmits } from '../status'
 
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useDataMaintenance } from '@proj-airi/stage-ui/composables/use-data-maintenance'
+import { exportData, importData } from '@proj-airi/stage-ui/libs/data-transfer'
+import { createChatSessionsExportAdapter, createChatSessionsImportAdapter } from '@proj-airi/stage-ui/services/data-transfer/chat-sessions'
 import { Button, DoubleCheckButton } from '@proj-airi/ui'
 import { shallowRef, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -24,10 +26,8 @@ const importFileInput = useTemplateRef<HTMLInputElement>('importFileInput')
 const importError = shallowRef('')
 const {
   deleteAllChatSessions,
-  exportChatSessions,
-  importChatSessions,
 } = useDataMaintenance()
-const { emitStatus, handleActionError } = createDataSettingsStatusHelpers(emit)
+const { emitStatus, handleActionError } = createDataSettingsStatusHelpers(emit, t('settings.pages.data.status.action_error'))
 
 function triggerImportPicker() {
   importFileInput.value?.click()
@@ -35,7 +35,7 @@ function triggerImportPicker() {
 
 async function triggerExport() {
   try {
-    const blob = await exportChatSessions()
+    const { blob } = await exportData(createChatSessionsExportAdapter())
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement('a')
     anchor.href = url
@@ -68,17 +68,14 @@ async function handleImport(event: Event) {
     return
 
   try {
-    const raw = await file.text()
-    const parsed = JSON.parse(raw) as Record<string, unknown>
-    const imported = await importChatSessions(parsed)
-    await props.syncImportedChats?.(imported)
+    await importData(createChatSessionsImportAdapter(async payload => await props.syncImportedChats?.(payload)), file)
     importError.value = ''
     trackDataAction({ action: 'chats_imported' })
     emitStatus(t('settings.pages.data.status.imported'))
   }
   catch (error) {
     importError.value = t('settings.pages.data.status.import_error')
-    handleActionError(error)
+    handleActionError(error, importError.value)
   }
   finally {
     target.value = ''

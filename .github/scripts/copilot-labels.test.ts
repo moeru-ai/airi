@@ -7,13 +7,15 @@ import { parse } from 'yaml'
 
 const workflow = parse(readFileSync(new URL('../workflows/copilot-labels.yml', import.meta.url), 'utf8'))
 const steps = workflow.jobs.label.steps
-const policyMatch = steps[0].with.script.match(/const allowed = (\[[\s\S]*?\]);/)
+const prepareScript = steps.find((step: { name?: string }) => step.name === 'Prepare classification input').with.script
+const applyScript = steps.find((step: { name?: string }) => step.name === 'Validate and apply category labels').with.script
+const policyMatch = prepareScript.match(/const allowed = (\[[\s\S]*?\]);/)
 if (!policyMatch)
   throw new Error('Missing label policy')
 const allowed: string[] = JSON.parse(policyMatch[1])
 const AsyncFunction = Object.getPrototypeOf(async () => {}).constructor
-const apply = new AsyncFunction('github', 'context', 'core', 'require', 'process', steps[3].with.script)
-const prepare = new AsyncFunction('github', 'context', 'require', 'process', steps[0].with.script)
+const apply = new AsyncFunction('github', 'context', 'core', 'require', 'process', applyScript)
+const prepare = new AsyncFunction('github', 'context', 'require', 'process', prepareScript)
 const context = { repo: { owner: 'moeru-ai', repo: 'airi' } }
 
 function run(output: string, labels = ['bug', 'priority/urgent', 'question', 'feature-request/needs-more-info', 'pr-review/waiting-on-author']) {
@@ -117,7 +119,7 @@ describe('copilot category labels', () => {
   })
 
   it('keeps the Copilot request isolated from GitHub write credentials and tools', () => {
-    const classify = steps[2]
+    const classify = steps.find((step: { name?: string }) => step.name === 'Classify with Copilot')
     expect(classify.run).toContain('--disable-builtin-mcps')
     expect(classify.run).toContain('--available-tools=\'\'')
     expect(Object.keys(classify.env)).toEqual(['COPILOT_GITHUB_TOKEN', 'COPILOT_AUTO_UPDATE'])

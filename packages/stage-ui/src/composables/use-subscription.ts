@@ -50,7 +50,12 @@ export interface CapacitorPackage {
   benefit: string | null
   formattedPrice: string
   amountMicros: number
+  /** The Flux that the Capacitor holds after each refill. */
+  quota: number
 }
+
+/** How often a full Capacitor refills. Null means once at each renewal. */
+export type CapacitorResetInterval = 'day' | 'week' | null
 
 export interface CapacitorCatalogCopy {
   name: string | null
@@ -118,9 +123,12 @@ export function isOneMonthPeriod(period: { number: number, unit: string } | null
   return period?.unit === 'month' && period.number === 1
 }
 
-/** Capacitors are sold by the month only. Packages with another billing period are not listed. */
-function toCapacitorPackage(pkg: Package, metadata: unknown, locale: string): CapacitorPackage | null {
-  if (!isOneMonthPeriod(pkg.webBillingProduct.period))
+/**
+ * Capacitors are sold by the month only. Packages with another billing period are not listed.
+ * An unmapped product takes the payment and grants no Flux, so it is not listed.
+ */
+function toCapacitorPackage(pkg: Package, metadata: unknown, locale: string, quota: number | undefined): CapacitorPackage | null {
+  if (!isOneMonthPeriod(pkg.webBillingProduct.period) || quota === undefined)
     return null
   const price = pkg.webBillingProduct.price
   const copy = capacitorCatalogCopy(metadata, pkg.webBillingProduct.identifier, locale)
@@ -131,10 +139,14 @@ function toCapacitorPackage(pkg: Package, metadata: unknown, locale: string): Ca
     benefit: copy.benefit,
     formattedPrice: price.formattedPrice,
     amountMicros: price.amountMicros,
+    quota,
   }
 }
 
-/** Capacitor subscriptions through RevenueCat Web Billing. The SDK reports the capacitor. The webhook grants capacitor Flux. */
+/**
+ * Capacitor subscriptions through RevenueCat Web Billing. The SDK reports the capacitor.
+ * The server grants capacitor Flux on a webhook, and on the sync that this composable requests.
+ */
 export function useSubscription(options: {
   getUserId: () => string
   onChanged: () => Promise<unknown>
@@ -144,6 +156,7 @@ export function useSubscription(options: {
 
   const currentCapacitor = ref<CurrentCapacitor | null>(null)
   const packages = ref<CapacitorPackage[]>([])
+  const resetInterval = ref<CapacitorResetInterval>(null)
   const purchasingPackageId = ref<string | null>(null)
   const managementUrl = ref<string | null>(null)
 
@@ -154,6 +167,7 @@ export function useSubscription(options: {
     currentCapacitor.value = null
     managementUrl.value = null
     packages.value = []
+    resetInterval.value = null
     purchasingPackageId.value = null
   }
 
@@ -183,12 +197,39 @@ export function useSubscription(options: {
       applyCustomerInfo(info)
   }
 
-  /** Reads the capacitor from the SDK, then refreshes the balance, which carries the capacitor percent. */
+  /**
+   * Asks the server to read the capacitor from RevenueCat now.
+   * A webhook can be late or lost. This call grants the capacitor Flux without it.
+   * A rejected sync is not an error here. The webhook stays the usual path, and the balance read still runs.
+   */
+  async function syncWallet(): Promise<void> {
+    await client.api.v1.revenuecat.sync.$post()
+  }
+
+  /** Reads the capacitor from the SDK, syncs the wallet, then refreshes the balance, which carries the capacitor percent. */
   async function fetchStatus(): Promise<void> {
     const identity = captureIdentity()
     await refreshCustomer()
-    if (identity.userId && identity.isCurrent())
+    if (!identity.userId || !identity.isCurrent())
+      return
+    // The SDK already reported the capacitor. A sync that cannot reach the server must not hide it,
+    // so the balance read still runs.
+    if (enabled)
+      await syncWallet().catch(() => undefined)
+    if (identity.isCurrent())
       await options.onChanged()
+  }
+
+  /** The Capacitors that the server grants, with the quota and refill interval that each card shows. */
+  async function fetchCatalog() {
+    const res = await client.api.v1.revenuecat.catalog.$get()
+    if (!res.ok)
+      throw new Error(t('settings.pages.capacitor.packagesError'))
+    const catalog = await res.json()
+    return {
+      quotas: new Map(catalog.capacitors.map(capacitor => [capacitor.productId, capacitor.quota])),
+      resetInterval: catalog.resetInterval,
+    }
   }
 
   async function fetchPackages(): Promise<void> {
@@ -199,14 +240,17 @@ export function useSubscription(options: {
     const purchases = await ensurePurchases(identity.userId)
     if (!identity.isCurrent())
       return
-    const offerings = await purchases.getOfferings()
+    const [offerings, catalog] = await Promise.all([purchases.getOfferings(), fetchCatalog()])
     const current = offerings.current
     if (!identity.isCurrent() || !current)
       return
-    packages.value = current.availablePackages.flatMap((pkg) => {
-      const capacitorPackage = toCapacitorPackage(pkg, current.metadata, locale.value)
-      return capacitorPackage ? [capacitorPackage] : []
-    })
+    resetInterval.value = catalog.resetInterval
+    packages.value = current.availablePackages
+      .flatMap((pkg) => {
+        const capacitorPackage = toCapacitorPackage(pkg, current.metadata, locale.value, catalog.quotas.get(pkg.webBillingProduct.identifier))
+        return capacitorPackage ? [capacitorPackage] : []
+      })
+      .sort((left, right) => left.amountMicros - right.amountMicros)
   }
 
   async function purchaseCapacitor(packageId: string): Promise<'activated' | 'pending' | 'cancelled'> {
@@ -218,11 +262,12 @@ export function useSubscription(options: {
       const purchases = await ensurePurchases(identity.userId)
       if (!identity.isCurrent())
         return 'cancelled'
-      const offerings = await purchases.getOfferings()
+      // The mapping can change after the page listed the packages, so the checkout reads it again.
+      const [offerings, catalog] = await Promise.all([purchases.getOfferings(), fetchCatalog()])
       if (!identity.isCurrent())
         return 'cancelled'
       const rcPackage = offerings.current?.availablePackages.find(pkg => pkg.identifier === packageId)
-      if (!rcPackage)
+      if (!rcPackage || !catalog.quotas.has(rcPackage.webBillingProduct.identifier))
         throw new Error(t('settings.pages.capacitor.checkout.error'))
 
       let customerInfo: CustomerInfo
@@ -238,6 +283,9 @@ export function useSubscription(options: {
       if (!identity.isCurrent())
         return 'cancelled'
       applyCustomerInfo(customerInfo)
+      // The purchase is complete. A failed sync leaves the grant to the webhook,
+      // and the page then reports the charge as pending.
+      await syncWallet().catch(() => undefined)
       await options.onChanged().catch(() => undefined)
       if (!identity.isCurrent())
         return 'cancelled'
@@ -260,6 +308,7 @@ export function useSubscription(options: {
     managementUrl,
     currentCapacitor,
     packages,
+    resetInterval,
     purchasingPackageId,
     fetchStatus,
     fetchPackages,

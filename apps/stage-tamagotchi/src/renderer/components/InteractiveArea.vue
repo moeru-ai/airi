@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ChatToolCallRendererRegistry } from '@proj-airi/stage-ui/components'
+import type { ChatToolCallRendererRegistry, ChatToolCallWidgetRegistry } from '@proj-airi/stage-ui/components'
 import type { ChatHistoryReplyPayload, ChatImageAttachment } from '@proj-airi/stage-ui/components/scenarios/chat'
 import type { ChatToolCallRerunEvent } from '@proj-airi/stage-ui/stores/tool-call-rerun'
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
@@ -8,7 +8,7 @@ import type { ChatDraftHandover } from '../../shared/eventa'
 
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useChatInterruption } from '@proj-airi/stage-layouts/composables/use-chat-interruption'
-import { ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
+import { ChatBackgroundTasks, ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
 import { ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSendButton, useChatComposer, useChatImages, VoiceInputButton } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
@@ -17,7 +17,6 @@ import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-sto
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
 import { useJournalPreviewStore } from '@proj-airi/stage-ui/stores/journal-preview'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { BasicTextarea, GhostButton } from '@proj-airi/ui'
 import { until, useLocalStorage } from '@vueuse/core'
 import { nanoid } from 'nanoid/non-secure'
@@ -28,19 +27,30 @@ import { useI18n } from 'vue-i18n'
 import JournalToolCallBlock from './chat-tool-renderers/journal-tool-call-block.vue'
 import ChatViewportLayout from './chat-viewport-layout.vue'
 
-import { electronOpenSettings } from '../../shared/eventa'
+import { electronAuthStartLogin, electronOpenSettings } from '../../shared/eventa'
 import { useHearingInputChannel } from '../composables/use-hearing-input-channel'
-import { artistryToolReferences, computerUseToolReferences, widgetToolReferences } from '../stores/tools'
+import { computerUseToolReferences, useToolSelectionStore, widgetToolReferences } from '../stores/tools'
+import { COMPUTER_USE_READ_IMAGE_TOOL_NAME, COMPUTER_USE_TOOL_NAME } from '../stores/tools/builtin/computer-use'
+import { WEATHER_TOOL_NAME } from '../stores/tools/builtin/weather'
+import { computerUseReadImageToolCallWidget } from './chat-tool-renderers/computer-use-read-image-tool-call-widget'
+import { computerUseToolCallWidget } from './chat-tool-renderers/computer-use/widget'
+import { weatherToolCallWidget } from './chat-tool-renderers/weather-tool-call-widget'
 
 const props = withDefaults(defineProps<{
   /**
    * `true` in the transparent floating chat window, which draws nothing
-   * behind the chat. Bubbles, the composer and the welcome card then paint
-   * solid backgrounds that keep their contrast over any desktop, and the
-   * history scrollbar shows on hover, because the wheel over the empty
-   * history reaches the app below instead.
+   * behind the chat. The history scrollbar shows on hover, because the wheel
+   * over the empty history reaches the app below instead. Without
+   * `glassBackdrop`, bubbles, the composer and the welcome card paint solid
+   * backgrounds that keep their contrast over any desktop.
    */
   floating?: boolean
+  /**
+   * `true` when the window draws native glass behind the floating chat, such
+   * as the floating panel on macOS. The chat then looks the same as in the
+   * chat window.
+   */
+  glassBackdrop?: boolean
   /**
    * `true` adds a tab at the bottom edge that folds the composer away, so
    * the history reaches the bottom. The folded composer stays mounted, so an
@@ -59,12 +69,27 @@ const props = withDefaults(defineProps<{
    * Hidden messages stay in the session.
    */
   expiredBefore?: number
+  /**
+   * The side where an open dock stands over the history, such as the dock of the attached floating feed while the
+   * cursor is near it. The messages slide aside to keep a lane free for it. The composer and the welcome card keep
+   * their place.
+   */
+  dockSide?: 'left' | 'right'
+  /**
+   * The width in pixels of a band along the right edge of the window that resizes it, such as the outer edge of an
+   * attached floating chat. The history keeps clear of the band, so its scrollbar ends where the band starts.
+   */
+  rightResizeBand?: number
 }>(), {
   floating: false,
+  glassBackdrop: false,
   composerFoldable: false,
   passive: false,
   expiredBefore: 0,
 })
+
+// A translucent fill over the bare desktop loses its contrast, so a floating chat without glass paints solid surfaces.
+const solidSurfaces = computed(() => props.floating && !props.glassBackdrop)
 
 /** Whether a foldable composer is folded away. */
 const composerFolded = defineModel<boolean>('composerFolded', { default: false })
@@ -79,8 +104,9 @@ const voicePending = shallowRef(false)
 /** A recording is open. Dictation writes into the text, so the text stays read-only and send waits until it closes. */
 const voiceActive = shallowRef(false)
 const lastEnterTime = ref(0)
-// Each request captures this composer selection, including retries and tool reruns.
-const computerUseEnabled = ref(true)
+// Each request captures this selection, including retries and tool reruns. Spoken turns read the same store.
+const toolSelection = useToolSelectionStore()
+const { computerUseEnabled, requestTools } = storeToRefs(toolSelection)
 
 const chatStore = useChatStore()
 const chatSession = useChatSessionStore()
@@ -91,10 +117,11 @@ const airiCardStore = useAiriCardStore()
 
 const { activeSessionId, messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
-const { activeTurns } = storeToRefs(chatStore)
+const { activeTurns, backgroundTasks } = storeToRefs(chatStore)
 const { activeCard, activeCardId } = storeToRefs(airiCardStore)
-const { chatReady } = storeToRefs(useConsciousnessStore())
+const { activeChatReady: chatReady } = storeToRefs(chatStore)
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
+const startLogin = useElectronEventaInvoke(electronAuthStartLogin)
 
 const composer = useChatComposer<ChatImageAttachment>({
   activeSessionId,
@@ -107,7 +134,7 @@ const composer = useChatComposer<ChatImageAttachment>({
       data: attachment.data,
       mimeType: attachment.mimeType,
     })),
-    tools: computerUseEnabled.value ? [...artistryToolReferences, ...computerUseToolReferences] : artistryToolReferences,
+    tools: requestTools.value,
   }),
 })
 const {
@@ -131,6 +158,11 @@ const toolCallRenderers = {
   image_journal: JournalToolCallBlock,
   text_journal: JournalToolCallBlock,
 } satisfies ChatToolCallRendererRegistry
+const toolCallWidgets = {
+  [WEATHER_TOOL_NAME]: weatherToolCallWidget,
+  [COMPUTER_USE_TOOL_NAME]: computerUseToolCallWidget,
+  [COMPUTER_USE_READ_IMAGE_TOOL_NAME]: computerUseReadImageToolCallWidget,
+} satisfies ChatToolCallWidgetRegistry
 const {
   trackChatMessageDeleted,
   trackChatMessageRetried,
@@ -163,7 +195,8 @@ async function handleSend() {
   const voice = await voiceButton.value?.sendPending(messageInput.value)
   if (voice === 'sent')
     messageInput.value = ''
-  if (voice === 'sent' || voice === 'failed')
+  // A failed send keeps the text for a retry. A send that still runs, for example after a double Enter, clears it itself.
+  if (voice && voice !== 'none')
     return
 
   await submitInterruptingResponse()
@@ -367,16 +400,20 @@ defineExpose({
         The welcome card centers in the space above the composer, which covers
         the bottom of the history. The container query below drops the icon,
         then the description, when that space is too short for them.
+        The history scroller fills the layer and comes later, so the container
+        sits above it and passes the pointer through. The floating card paints
+        its own surface, so it takes the pointer, and the hit test of the
+        transparent window finds it.
       -->
       <div
         v-if="!historyMessages.some(message => message.role !== 'system') && !isActiveSessionSending"
-        :class="['chat-empty-state pointer-events-none absolute inset-x-0 top-0 flex items-center justify-center overflow-hidden px-6']"
+        :class="['chat-empty-state pointer-events-none absolute inset-x-0 top-0 z-1 flex items-center justify-center overflow-hidden px-6']"
         :style="{ bottom: `calc(${tailInset}px + 1rem)` }"
       >
         <div
           :class="[
             'flex flex-col items-center gap-3 text-center',
-            props.floating ? 'rounded-2xl bg-white px-6 py-6 shadow-md dark:bg-neutral-900' : '',
+            solidSurfaces ? 'pointer-events-auto rounded-2xl bg-white px-6 py-6 shadow-md dark:bg-neutral-900' : '',
           ]"
         >
           <div :class="['chat-empty-state-icon size-14 flex items-center justify-center rounded-2xl bg-primary-100/60 text-primary-500 dark:bg-primary-900/30']">
@@ -395,9 +432,12 @@ defineExpose({
         :streaming-message="visibleStreamingMessage"
         :tail-inset="tailInset"
         :tool-call-renderers="toolCallRenderers"
-        :surface="props.floating ? 'opaque' : 'translucent'"
+        :tool-call-widgets="toolCallWidgets"
+        :surface="solidSurfaces ? 'opaque' : 'translucent'"
         :scrollbar="props.floating ? 'hover' : 'scroll'"
         :passive="props.passive"
+        :class="['transition-[padding] duration-300 ease-out motion-reduce:transition-none', props.dockSide && { left: 'pl-12', right: 'pr-12' }[props.dockSide]]"
+        :style="props.rightResizeBand ? { width: `calc(100% - ${props.rightResizeBand}px)` } : undefined"
         :expired-before="props.expiredBefore"
         @delete-message="handleDeleteMessage"
         @reply-message="handleReplyMessage"
@@ -426,6 +466,7 @@ defineExpose({
         v-if="!chatReady"
         :class="['mx-2 mb-1']"
         @configure="openSettings({ route: '/settings/providers' })"
+        @sign-in="startLogin()"
       />
       <div
         ref="message-composer"
@@ -436,7 +477,7 @@ defineExpose({
           props.composerFoldable && composerFolded ? 'chat-composer-folded' : '',
           // The composer layer clips overflow, which would cut a ring or a
           // shadow; a border stays inside the box.
-          props.floating
+          solidSurfaces
             ? 'border border-neutral-200 bg-white p-2 dark:border-neutral-800 dark:bg-neutral-900'
             : [
               'bg-neutral-100/70 p-2 backdrop-blur-xl dark:bg-neutral-900/65',
@@ -450,6 +491,7 @@ defineExpose({
             'min-h-0 overflow-y-auto scrollbar-none',
           ]"
         >
+          <ChatBackgroundTasks :tasks="backgroundTasks" @stop="task => chatStore.stopBackgroundTask(task.sessionId)" @dismiss="task => chatStore.dismissBackgroundTask(task.sessionId)" />
           <div ref="voice-attachment" :class="['px-2 pt-1 empty:hidden']" />
           <!-- Journal Preview Chips -->
           <div v-if="latestImageEntries.length > 0" class="flex gap-2 overflow-x-auto px-2 py-1 scrollbar-none">
@@ -514,7 +556,7 @@ defineExpose({
             :class="[
               'ph-no-capture w-full resize-none overflow-y-auto border-0 bg-transparent px-2 font-medium outline-none [scrollbar-gutter:stable]',
               'max-h-[10lh]',
-              props.floating ? 'min-h-[2lh] py-2' : 'min-h-[1lh] py-1',
+              solidSurfaces ? 'min-h-[2lh] py-2' : 'min-h-[1lh] py-1',
               'text-neutral-700 placeholder:text-neutral-400 dark:text-neutral-200 dark:placeholder:text-neutral-500',
               'transition-colors duration-200 ease-out motion-reduce:transition-none',
             ]"
@@ -558,12 +600,12 @@ defineExpose({
               :attachment-element="voiceAttachment"
               :session-id="activeSessionId"
               :reply-to-message-id="replyTarget?.message.id"
-              :tools="computerUseEnabled ? [...artistryToolReferences, ...computerUseToolReferences] : artistryToolReferences"
+              :tools="requestTools"
               @recording-change="voiceActive = $event"
               @pending-change="voicePending = $event"
               @sent="composer.clearReply()"
               @submit="handleSend"
-              @configure="openSettings({ route: '/settings/modules/hearing' })"
+              @configure="route => openSettings({ route })"
             />
             <GhostButton
               v-if="showStopAction"

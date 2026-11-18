@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import PermissionsPanel from '../../../components/permissions/permissions-panel.vue'
+import { PermissionsPanel } from '@proj-airi/stage-ui/components'
 </script>
 
 <template>

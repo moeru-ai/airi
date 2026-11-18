@@ -16,14 +16,6 @@ vi.mock('@xsai/stream-text', () => ({
   streamText: streamTextMock,
 }))
 
-vi.mock('@xsai/shared-chat', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@xsai/shared-chat')>()
-  return {
-    ...actual,
-    stepCountAtLeast: vi.fn(),
-  }
-})
-
 const provider: GenerationProvider = {
   generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.com/' } }),
 }

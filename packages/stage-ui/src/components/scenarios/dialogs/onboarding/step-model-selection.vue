@@ -1,11 +1,9 @@
 <script setup lang="ts">
 import type { OnboardingStepNextHandler, OnboardingStepPrevHandler } from './types'
 
-import { Button } from '@proj-airi/ui'
+import { Alert, Button } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
-
-import Alert from '../../../misc/alert.vue'
 
 import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
 import { RadioCardManySelect } from '../../../menu'
@@ -46,16 +44,12 @@ const {
     <div class="min-h-0 flex flex-1 flex-col gap-4 overflow-hidden">
       <Alert
         v-if="providerModels.length === 0 && !isLoadingActiveProviderModels"
-        type="error"
+        tone="danger"
+        :title="t('settings.dialogs.onboarding.no-models')"
       >
-        <template #title>
-          {{ t('settings.dialogs.onboarding.no-models') }}
-        </template>
-        <template #content>
-          <div class="whitespace-pre-wrap break-all">
-            {{ t('settings.dialogs.onboarding.no-models-help') }}
-          </div>
-        </template>
+        <div :class="['whitespace-pre-wrap break-all']">
+          {{ t('settings.dialogs.onboarding.no-models-help') }}
+        </div>
       </Alert>
 
       <RadioCardManySelect
@@ -75,15 +69,10 @@ const {
         :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
       />
 
-      <Alert v-if="activeProviderModelError" type="error">
-        <template #title>
-          {{ t('settings.dialogs.onboarding.validationFailed') }}
-        </template>
-        <template #content>
-          <div class="whitespace-pre-wrap break-all">
-            {{ activeProviderModelError }}
-          </div>
-        </template>
+      <Alert v-if="activeProviderModelError" tone="danger" :title="t('settings.dialogs.onboarding.validationFailed')">
+        <div :class="['whitespace-pre-wrap break-all']">
+          {{ activeProviderModelError }}
+        </div>
       </Alert>
     </div>
 

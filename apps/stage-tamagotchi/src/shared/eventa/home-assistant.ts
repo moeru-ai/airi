@@ -1,7 +1,7 @@
 import { defineInvokeEventa } from '@moeru/eventa'
 
 /**
- * The Home Assistant settings the renderer may read back.
+ * The Home Assistant settings the renderer can read back.
  *
  * The access token never travels to the renderer. The settings page needs only
  * to know whether one is stored.
@@ -50,6 +50,15 @@ export interface HomeAssistantRequestInput {
   method: 'GET' | 'POST'
   /** JSON body for a POST request. */
   body?: unknown
+  /**
+   * The address the caller checked its request against.
+   *
+   * A caller that reads the target of a call and then makes the call sends the
+   * address it read. The main process refuses the request when the stored
+   * address moved in between, so a check cannot land on one instance and the
+   * request on another.
+   */
+  expectBaseUrl?: string
 }
 
 export const homeAssistantGetConfig = defineInvokeEventa<HomeAssistantPublicConfig>('eventa:invoke:home-assistant:get-config')

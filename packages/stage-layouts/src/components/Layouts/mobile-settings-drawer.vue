@@ -1,9 +1,14 @@
 <script setup lang="ts">
+import { InboxDrawer } from '@proj-airi/stage-ui/components'
+import { useFluxStatus } from '@proj-airi/stage-ui/composables/use-flux-status'
+import { AIRI_FLUX_URL } from '@proj-airi/stage-ui/constants/public-links'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
-import { Avatar, BasicButton, BottomDrawer, Checkbox, GhostButton, SelectTab, useTheme } from '@proj-airi/ui'
+import { useInboxStore } from '@proj-airi/stage-ui/stores/inbox'
+import { useSpeechOutputControlStore } from '@proj-airi/stage-ui/stores/speech-output-control'
+import { Avatar, Badge, BasicButton, BottomDrawer, GhostButton, RoundRange, SelectTab, useTheme } from '@proj-airi/ui'
 import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { shallowRef } from 'vue'
+import { computed, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
 
@@ -23,10 +28,21 @@ const { themeMode } = useTheme()
 const authStore = useAuthStore()
 const { isAuthenticated, user } = storeToRefs(authStore)
 const router = useRouter()
+const speechOutputControl = useSpeechOutputControlStore()
+const { speechVolume } = storeToRefs(speechOutputControl)
 const backgroundDialogOpen = shallowRef(false)
 const settingsOpen = shallowRef(false)
 const aboutOpen = shallowRef(false)
 const keyboardNavigation = shallowRef(false)
+const { unread } = storeToRefs(useInboxStore())
+// The phone stage keeps its top row for the stage. Flux stays one level down, under the account.
+const { visible: fluxVisible, valueLabel: fluxValue, icon: fluxIcon } = useFluxStatus()
+const notificationsOpen = shallowRef(false)
+/** The Notifications drawer asked to return here. The menu reopens after that drawer closes. */
+const returnToMenu = shallowRef(false)
+const menuLabel = computed(() => isAuthenticated.value && unread.value > 0
+  ? t('stage.mobile-tools.menu-unread', { count: unread.value })
+  : t('stage.mobile-tools.menu'))
 
 useEventListener('keydown', (event) => {
   if (event.key === 'Tab')
@@ -37,9 +53,9 @@ useEventListener('pointerdown', () => {
 }, { capture: true })
 
 // Finish closing settings before opening a sibling modal, so focus and scroll locks have one owner.
-const nextPanel = shallowRef<'background' | 'about' | 'account' | 'view'>()
+const nextPanel = shallowRef<'background' | 'about' | 'account' | 'view' | 'notifications'>()
 
-function openPanel(panel: 'background' | 'about' | 'account' | 'view') {
+function openPanel(panel: 'background' | 'about' | 'account' | 'view' | 'notifications') {
   nextPanel.value = panel
   settingsOpen.value = false
 }
@@ -66,8 +82,37 @@ function finishSettingsClose() {
   else if (nextPanel.value === 'view') {
     emit('openViewControls')
   }
+  else if (nextPanel.value === 'notifications') {
+    notificationsOpen.value = true
+  }
   nextPanel.value = undefined
 }
+
+function backToMenu() {
+  returnToMenu.value = true
+  notificationsOpen.value = false
+}
+
+function finishNotificationsClose() {
+  if (!returnToMenu.value)
+    return
+  returnToMenu.value = false
+  settingsOpen.value = true
+}
+
+const characterVoiceVolume = computed({
+  get: () => Math.round(speechVolume.value * 100),
+  // The store couples zero volume with mute and restores the voice above 0.
+  set: percent => speechOutputControl.setSpeechVolume(percent / 100),
+})
+
+const characterVoiceIcon = computed(() => {
+  if (!characterVoiceEnabled.value || speechVolume.value === 0)
+    return 'i-solar:volume-cross-outline'
+  if (speechVolume.value < 0.5)
+    return 'i-solar:volume-small-outline'
+  return 'i-solar:volume-loud-outline'
+})
 </script>
 
 <template>
@@ -82,12 +127,23 @@ function finishSettingsClose() {
     <template #trigger>
       <BasicButton
         size="unset"
-        :aria-label="t('stage.mobile-tools.title')"
-        :title="t('stage.mobile-tools.title')"
+        :aria-label="menuLabel"
+        :title="t('stage.mobile-tools.menu')"
         data-testid="mobile-settings-button"
-        :class="['pointer-events-auto size-11 rounded-full bg-neutral-50/70 text-neutral-600 backdrop-blur-md dark:bg-neutral-900/70 dark:text-neutral-300', 'focus-visible:outline-2 focus-visible:outline-primary-500']"
+        :class="[
+          'pointer-events-auto relative size-11 rounded-full backdrop-blur-md',
+          'bg-neutral-50/70 text-neutral-600 dark:bg-neutral-900/70 dark:text-neutral-300',
+          'focus-visible:outline-2 focus-visible:outline-primary-500',
+        ]"
       >
-        <span aria-hidden="true" :class="['i-solar:settings-outline size-6']" />
+        <span aria-hidden="true" :class="['i-solar:hamburger-menu-outline size-6']" />
+        <!-- Unread Notifications are in this menu. A fixed-size dot keeps the button stable. -->
+        <Badge
+          v-if="isAuthenticated && unread > 0"
+          dot
+          data-testid="mobile-menu-notifications-dot"
+          :class="['pointer-events-none absolute right-1.5 top-1.5 ring-2 ring-neutral-50 dark:ring-neutral-900']"
+        />
       </BasicButton>
     </template>
     <div :class="['mobile-settings-actions select-none', keyboardNavigation && 'keyboard-navigation']">
@@ -102,12 +158,13 @@ function finishSettingsClose() {
         >
           <Avatar
             :src="isAuthenticated ? user?.image : null"
+            :seed="isAuthenticated ? user?.id : null"
             :class="[
               'size-12 shrink-0 rounded-full',
               isAuthenticated ? 'bg-neutral-200 text-neutral-500 dark:bg-neutral-700' : 'bg-primary-500/10 text-primary-500',
             ]"
           >
-            <template #fallback>
+            <template v-if="!isAuthenticated" #fallback>
               <span :class="['i-solar:user-rounded-outline size-6']" />
             </template>
           </Avatar>
@@ -117,6 +174,38 @@ function finishSettingsClose() {
           </span>
           <span aria-hidden="true" :class="['i-solar:alt-arrow-right-outline size-4 shrink-0 text-neutral-400']" />
         </GhostButton>
+        <template v-if="isAuthenticated">
+          <div :class="['mx-4 border-t border-neutral-100 dark:border-neutral-700/50']" />
+          <GhostButton
+            block size="unset"
+            data-testid="mobile-notifications-row"
+            :aria-label="unread > 0 ? t('stage.notifications.open-unread', { count: unread }) : t('stage.notifications.open')"
+            :class="['mobile-tool-row min-h-13 rounded-none px-4 py-3']"
+            @click="openPanel('notifications')"
+          >
+            <span aria-hidden="true" :class="['i-solar:bell-outline size-5 shrink-0 text-neutral-400']" />
+            <span :class="['flex-1 text-left text-sm']">{{ t('stage.notifications.title') }}</span>
+            <Badge :count="unread" />
+            <span aria-hidden="true" :class="['i-solar:alt-arrow-right-outline size-4 text-neutral-400']" />
+          </GhostButton>
+        </template>
+        <template v-if="fluxVisible">
+          <div :class="['mx-4 border-t border-neutral-100 dark:border-neutral-700/50']" />
+          <RouterLink
+            :to="AIRI_FLUX_URL"
+            data-testid="mobile-flux-row"
+            :class="[
+              'min-h-13 flex items-center gap-3 px-4 py-3 text-sm',
+              'mobile-tool-row hover:bg-primary-500/10 focus-visible:outline-2 focus-visible:outline-primary-500',
+            ]"
+            @click="settingsOpen = false"
+          >
+            <span aria-hidden="true" :class="[fluxIcon, 'size-5 shrink-0 text-neutral-400']" />
+            <span :class="['flex-1']">{{ t('settings.pages.flux.title') }}</span>
+            <span :class="['text-sm text-primary-600 font-medium tabular-nums dark:text-primary-400']">{{ fluxValue }}</span>
+            <span aria-hidden="true" :class="['i-solar:alt-arrow-right-outline size-4 text-neutral-400']" />
+          </RouterLink>
+        </template>
       </div>
       <section :class="['mb-4']">
         <h3 :class="['mb-2 px-1 text-xs font-semibold text-neutral-500 dark:text-neutral-400']">
@@ -171,11 +260,48 @@ function finishSettingsClose() {
           {{ t('stage.mobile-tools.sound') }}
         </h3>
         <div :class="['overflow-hidden rounded-2xl bg-white dark:bg-neutral-800/60']">
-          <label :class="['min-h-13 flex cursor-pointer items-center gap-3 px-4 py-3']">
-            <span aria-hidden="true" :class="['i-solar:volume-loud-outline size-5 shrink-0 text-neutral-400']" />
-            <span :class="['flex-1 text-sm']">{{ t('stage.mobile-tools.character-voice') }}</span>
-            <Checkbox v-model="characterVoiceEnabled" :aria-label="t('stage.mobile-tools.character-voice')" />
-          </label>
+          <div :class="['min-h-13 flex items-center gap-3 px-4 py-3']">
+            <BasicButton
+              size="unset"
+              :aria-label="characterVoiceEnabled ? t('stage.speech-output.mute') : t('stage.speech-output.unmute')"
+              :class="[
+                'size-9 shrink-0 rounded-full',
+                'text-neutral-500 dark:text-neutral-400',
+                characterVoiceEnabled ? '' : 'text-neutral-400 dark:text-neutral-500',
+              ]"
+              @click="characterVoiceEnabled = !characterVoiceEnabled"
+            >
+              <span aria-hidden="true" :class="[characterVoiceIcon, 'size-5']" />
+            </BasicButton>
+            <!--
+              NOTICE:
+              On iOS, a touch drag on this range does not move the value.
+              The modal drawer locks body scroll. The lock adds a document `touchmove` listener that cancels moves outside a scrollable element.
+              Source: reka-ui `dist/shared/useBodyScrollLock.js`, `preventDefault` and `checkOverflowScroll`.
+              Remove `@touchmove.stop` when reka-ui stops cancelling `touchmove` on range inputs.
+            -->
+            <RoundRange
+              v-model="characterVoiceVolume"
+              :aria-label="t('stage.mobile-tools.character-voice')"
+              :class="['w-full flex-1', !characterVoiceEnabled && 'opacity-50']"
+              @touchmove.stop
+            />
+          </div>
+          <div :class="['mx-4 border-t border-neutral-100 dark:border-neutral-700/50']" />
+          <!-- Hearing details live in settings, so the composer keeps only the voice input mode. -->
+          <RouterLink
+            to="/settings/modules/hearing"
+            data-testid="mobile-hearing-settings"
+            :class="[
+              'min-h-13 flex items-center gap-3 px-4 py-3 text-sm',
+              'mobile-tool-row hover:bg-primary-500/10 focus-visible:outline-2 focus-visible:outline-primary-500',
+            ]"
+            @click="settingsOpen = false"
+          >
+            <span aria-hidden="true" :class="['i-mingcute:ear-line size-5 shrink-0 text-neutral-400']" />
+            <span :class="['flex-1']">{{ t('stage.mobile-tools.hearing') }}</span>
+            <span aria-hidden="true" :class="['i-solar:alt-arrow-right-outline size-4 text-neutral-400']" />
+          </RouterLink>
         </div>
       </section>
       <section :class="['mb-4']">
@@ -211,6 +337,7 @@ function finishSettingsClose() {
   </BottomDrawer>
   <BackgroundDialogPicker v-model="backgroundDialogOpen" class="pointer-events-auto" />
   <ActionAbout v-model="aboutOpen" hide-trigger />
+  <InboxDrawer v-model:open="notificationsOpen" @back="backToMenu" @after-close="finishNotificationsClose" />
 </template>
 
 <style scoped>
@@ -226,7 +353,8 @@ function finishSettingsClose() {
 }
 
 .mobile-settings-actions.keyboard-navigation :deep(button:focus-visible),
-.mobile-settings-actions.keyboard-navigation :deep(a:focus-visible) {
+.mobile-settings-actions.keyboard-navigation :deep(a:focus-visible),
+.mobile-settings-actions.keyboard-navigation :deep(input[type='range']:focus-visible) {
   @apply rounded-lg outline outline-2 outline-neutral-500;
   outline-offset: -4px;
 }

@@ -14,11 +14,12 @@ const card: AiriCard = {
     'depth/prompt': { depth: 4 },
     'airi': {
       wakeWords: [],
+      avatarModels: [{ id: 'avatar-model-1', displayModelId: 'display-model-1', type: 'vrm', config: {} }],
+      defaultAvatarModelId: 'avatar-model-1',
       modules: {
         consciousness: { provider: 'openai', model: 'gpt' },
         vision: { provider: '', model: '' },
         speech: { provider: 'azure', model: 'neural', voice_id: 'aria', pitch: undefined },
-        displayModelId: 'display-model-1',
       },
       agents: {},
     },
@@ -35,11 +36,12 @@ describe('splitCard', () => {
       '/greetings': ['Hello'],
       '/extensions/depth~1prompt': { depth: 4 },
       '/extensions/airi/wakeWords': [],
+      '/extensions/airi/avatarModels': [{ id: 'avatar-model-1', displayModelId: 'display-model-1', type: 'vrm', config: {} }],
+      '/extensions/airi/defaultAvatarModelId': 'avatar-model-1',
       '/extensions/airi/agents': {},
       '/extensions/airi/modules/consciousness': { provider: 'openai', model: 'gpt' },
       '/extensions/airi/modules/vision': { provider: '', model: '' },
       '/extensions/airi/modules/speech': { provider: 'azure', model: 'neural', voice_id: 'aria' },
-      '/extensions/airi/modules/displayModelId': 'display-model-1',
     })
   })
 })
@@ -68,10 +70,10 @@ describe('joinCard', () => {
 
 describe('the built-in card', () => {
   const builtIn: AiriCard = {
-    name: 'ReLU',
+    name: 'Iru',
     version: '1.0.0',
     description: 'Built-in description',
-    extensions: { airi: { modules: { consciousness: { provider: '', model: '' }, speech: { provider: '', model: '', voice_id: '' }, vision: { provider: '', model: '' } }, agents: {} } },
+    extensions: { airi: { avatarModels: [], modules: { consciousness: { provider: '', model: '' }, speech: { provider: '', model: '', voice_id: '' }, vision: { provider: '', model: '' } }, agents: {} } },
   }
 
   it('leaves out the parts that equal the built-in card', () => {
@@ -94,7 +96,7 @@ describe('the built-in card', () => {
   it('takes the parts that the fields lack from the built-in card', () => {
     const joined = joinCard({ '/systemPrompt': 'Be kind' }, builtIn)
 
-    expect(joined).toMatchObject({ name: 'ReLU', description: 'Built-in description', systemPrompt: 'Be kind' })
+    expect(joined).toMatchObject({ name: 'Iru', description: 'Built-in description', systemPrompt: 'Be kind' })
     expect(joinCard(splitCard({ ...builtIn, name: 'Mine' }, [builtIn]), builtIn)).toEqual(JSON.parse(JSON.stringify({ ...builtIn, name: 'Mine' })))
   })
 })

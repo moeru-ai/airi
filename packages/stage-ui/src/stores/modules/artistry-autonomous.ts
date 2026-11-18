@@ -52,7 +52,7 @@ export const useAutonomousArtistryStore = defineStore('artistry-autonomous', () 
       artistLog('Skipping task: Already processing another task.')
       return
     }
-    const cardId = chatSessionStore.sessionMetas[targetSessionId]?.characterId
+    const [cardId] = chatSessionStore.characterMembersOf(targetSessionId)
     const activeCard = cardId ? cardStore.getCard(cardId) : undefined
     const artistry = activeCard?.extensions?.airi?.modules?.artistry
     const autonomousEnabled = artistry?.autonomousEnabled ?? false

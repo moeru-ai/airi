@@ -2,14 +2,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createWebSearchTools } from './web-search'
 
-interface TavilyResult {
-  title?: string
-  url?: string
-  content?: string
-  score?: number
-  published_date?: string
-}
-
 /** Minimal shape of the emitted tool JSON Schema this suite asserts against. */
 interface ToolParametersSchema {
   required?: string[]
@@ -19,7 +11,7 @@ interface ToolParametersSchema {
   }>
 }
 
-function stubTavily(payload: { results?: TavilyResult[] } | string, ok = true, status = 200) {
+function stubTavily(payload: unknown, ok = true, status = 200) {
   const fetchMock = vi.fn().mockResolvedValue({
     ok,
     status,
@@ -51,7 +43,7 @@ describe('createWebSearchTools', () => {
       ],
     })
 
-    const [tool] = await createWebSearchTools({ apiKey: 'tvly-key' })
+    const [tool] = await createWebSearchTools({ provider: 'tavily', apiKey: 'tvly-key' })
     const result = await tool.execute({ query: 'tokyo weather', max_results: 5 }, ctx) as string
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
@@ -83,7 +75,7 @@ describe('createWebSearchTools', () => {
       ],
     })
 
-    const [tool] = await createWebSearchTools({ apiKey: 'key' })
+    const [tool] = await createWebSearchTools({ provider: 'tavily', apiKey: 'key' })
     const result = await tool.execute({ query: 'injection', max_results: 1 }, ctx) as string
 
     // The genuine text survives verbatim as data...
@@ -107,7 +99,7 @@ describe('createWebSearchTools', () => {
       ],
     })
 
-    const [tool] = await createWebSearchTools({ apiKey: 'key' })
+    const [tool] = await createWebSearchTools({ provider: 'tavily', apiKey: 'key' })
     const result = await tool.execute({ query: 'q', max_results: 1 }, ctx) as string
 
     const citationLine = result.split('\n').find(line => line.startsWith('[1]'))
@@ -118,7 +110,7 @@ describe('createWebSearchTools', () => {
   it('passes time_range and domain filters through to the Tavily request body', async () => {
     const fetchMock = stubTavily({ results: [] })
 
-    const [tool] = await createWebSearchTools({ apiKey: 'key' })
+    const [tool] = await createWebSearchTools({ provider: 'tavily', apiKey: 'key' })
     await tool.execute({ query: 'q', max_results: 3, time_range: 'week', include_domains: ['a.com'], exclude_domains: ['b.com'] }, ctx)
 
     expect(bodyOfCall(fetchMock)).toMatchObject({
@@ -134,7 +126,7 @@ describe('createWebSearchTools', () => {
   it('omits null filters and defaults max_results to 5', async () => {
     const fetchMock = stubTavily({ results: [] })
 
-    const [tool] = await createWebSearchTools({ apiKey: 'key' })
+    const [tool] = await createWebSearchTools({ provider: 'tavily', apiKey: 'key' })
     await tool.execute({ query: 'q', max_results: null, time_range: null, include_domains: null, exclude_domains: null }, ctx)
 
     const body = bodyOfCall(fetchMock)
@@ -148,7 +140,7 @@ describe('createWebSearchTools', () => {
   it('clamps out-of-range max_results at runtime', async () => {
     const fetchMock = stubTavily({ results: [] })
 
-    const [tool] = await createWebSearchTools({ apiKey: 'key' })
+    const [tool] = await createWebSearchTools({ provider: 'tavily', apiKey: 'key' })
     await tool.execute({ query: 'q', max_results: 999 }, ctx)
     await tool.execute({ query: 'q', max_results: 0 }, ctx)
     await tool.execute({ query: 'q', max_results: 4 }, ctx)
@@ -161,16 +153,16 @@ describe('createWebSearchTools', () => {
   it('returns a no-results message for an empty result set', async () => {
     stubTavily({ results: [] })
 
-    const [tool] = await createWebSearchTools({ apiKey: 'key' })
+    const [tool] = await createWebSearchTools({ provider: 'tavily', apiKey: 'key' })
     const result = await tool.execute({ query: 'nothing here', max_results: 5 }, ctx) as string
 
     expect(result).toBe('No web results found for "nothing here".')
   })
 
   it('treats a 2xx body with a non-array results field as no results', async () => {
-    stubTavily({ results: 'oops' } as unknown as { results?: TavilyResult[] })
+    stubTavily({ results: 'oops' })
 
-    const [tool] = await createWebSearchTools({ apiKey: 'key' })
+    const [tool] = await createWebSearchTools({ provider: 'tavily', apiKey: 'key' })
     const result = await tool.execute({ query: 'weird', max_results: 1 }, ctx) as string
 
     expect(result).toBe('No web results found for "weird".')
@@ -179,7 +171,7 @@ describe('createWebSearchTools', () => {
   it('throws a taxonomy error with a sliced detail on a non-2xx provider response', async () => {
     stubTavily('Unauthorized: bad key', false, 401)
 
-    const [tool] = await createWebSearchTools({ apiKey: 'bad' })
+    const [tool] = await createWebSearchTools({ provider: 'tavily', apiKey: 'bad' })
     await expect(tool.execute({ query: 'bad request', max_results: 1 }, ctx))
       .rejects
       .toThrow('web search failed: tavily 401: Unauthorized: bad key')
@@ -188,7 +180,7 @@ describe('createWebSearchTools', () => {
   it('caps the appended error detail at 200 characters', async () => {
     stubTavily('x'.repeat(500), false, 500)
 
-    const [tool] = await createWebSearchTools({ apiKey: 'bad' })
+    const [tool] = await createWebSearchTools({ provider: 'tavily', apiKey: 'bad' })
     await expect(tool.execute({ query: 'q', max_results: 1 }, ctx))
       .rejects
       .toThrow(`web search failed: tavily 500: ${'x'.repeat(200)}`)
@@ -204,14 +196,14 @@ describe('createWebSearchTools', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    const [tool] = await createWebSearchTools({ apiKey: 'key' })
+    const [tool] = await createWebSearchTools({ provider: 'tavily', apiKey: 'key' })
     await expect(tool.execute({ query: 'q', max_results: 1 }, ctx))
       .rejects
       .toThrow('web search failed: tavily returned a non-JSON response')
   })
 
   it('emits a provider-neutral schema with every field required', async () => {
-    const [tool] = await createWebSearchTools({ apiKey: 'key' })
+    const [tool] = await createWebSearchTools({ provider: 'tavily', apiKey: 'key' })
     const parameters = (tool as { function?: { parameters?: ToolParametersSchema } }).function?.parameters
 
     expect(parameters?.required).toEqual(expect.arrayContaining(['query', 'max_results', 'time_range', 'include_domains', 'exclude_domains']))

@@ -16,6 +16,12 @@ The `model-assets` entrypoint owns model file manifests, download status, and
 the storage adapter contract. Use a platform adapter to store and open files.
 It does not own a recognizer or Worker.
 
+The `speaker-model` entrypoint pins the CAM++ speaker embedding pack. The renderer and the Electron main process both read it:
+
+```ts
+import { speakerModel } from '@proj-airi/stage-shared/speaker-model'
+```
+
 ## Do not use this package
 
 Keep Electron IPC definitions in the Electron application. Keep UI state and actions in `@proj-airi/stage-ui`. Keep Extension runtime and manifest behavior in `@proj-airi/plugin-sdk`.

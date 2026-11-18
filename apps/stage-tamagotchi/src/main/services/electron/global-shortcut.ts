@@ -4,9 +4,12 @@ import type { BrowserWindow } from 'electron'
 
 import type { UiohookDriver } from './global-shortcut-uiohook'
 
+import process from 'node:process'
+
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
-import { formatElectronAccelerator, ShortcutFailureReasons } from '@proj-airi/stage-shared/global-shortcut'
+import { onWindowClosed } from '@proj-airi/electron-vueuse/main'
+import { formatElectronAccelerator, isSameKeyCombination, ShortcutFailureReasons } from '@proj-airi/stage-shared/global-shortcut'
 import { globalShortcut } from 'electron'
 
 import {
@@ -46,6 +49,8 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
 
   const contexts = new Set<EventaContext>()
   const active = new Map<string, ActiveBinding>()
+  /** The window context that registered each renderer binding. A closed window releases its bindings. */
+  const owners = new Map<string, EventaContext>()
 
   function broadcastTriggered(id: string, phase: 'down' | 'up') {
     for (const context of contexts) {
@@ -59,6 +64,22 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
   }
 
   let uiohookDriver: UiohookDriver | undefined
+
+  /**
+   * Tells if another binding already uses the key combination of `binding`.
+   *
+   * Electron `globalShortcut` rejects a second registration of one accelerator, but the uiohook driver does not
+   * register with the OS and does not consume key events. So a uiohook binding and an Electron binding with one
+   * combination would both fire on one press. This check covers both drivers. A binding with the same ID is the
+   * binding that a caller rebinds, so it is not a conflict.
+   */
+  function usedByAnotherBinding(binding: ShortcutBinding): boolean {
+    for (const [id, entry] of active) {
+      if (id !== binding.id && isSameKeyCombination(entry.binding.accelerator, binding.accelerator, { isMacOS: process.platform === 'darwin' }))
+        return true
+    }
+    return false
+  }
 
   function tryRegisterElectron(binding: ShortcutBinding): ShortcutRegistrationResult {
     const electronAccelerator = formatElectronAccelerator(binding.accelerator)
@@ -105,6 +126,8 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
     const existing = active.get(binding.id)
     if (existing && existing.owner !== 'main')
       return { id: binding.id, ok: false, reason: ShortcutFailureReasons.DuplicateId }
+    if (usedByAnotherBinding(binding))
+      return { id: binding.id, ok: false, reason: ShortcutFailureReasons.Conflict }
 
     const electronAccelerator = formatElectronAccelerator(binding.accelerator)
     const nextEntry: ActiveBinding = { binding, owner: 'main', driver: 'electron', electronAccelerator, onTriggered }
@@ -144,12 +167,15 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
       uiohookDriver?.unregisterById(id)
     }
     active.delete(id)
+    owners.delete(id)
   }
 
   function tryRegister(binding: ShortcutBinding): ShortcutRegistrationResult | Promise<ShortcutRegistrationResult> {
     if (active.has(binding.id)) {
       return { id: binding.id, ok: false, reason: ShortcutFailureReasons.DuplicateId }
     }
+    if (usedByAnotherBinding(binding))
+      return { id: binding.id, ok: false, reason: ShortcutFailureReasons.Conflict }
 
     return binding.receiveKeyUps
       ? tryRegisterUiohook(binding)
@@ -175,15 +201,34 @@ export function setupGlobalShortcutService(): GlobalShortcutService {
 
   const registerWindow: GlobalShortcutService['registerWindow'] = ({ context, window }) => {
     contexts.add(context)
-    window.on('closed', () => {
+    onWindowClosed(window, () => {
       contexts.delete(context)
+      // A binding of a closed window has no listener left. It would also block its key combination for other windows.
+      for (const [id, owner] of owners) {
+        if (owner === context)
+          unregisterById(id)
+      }
     })
+
+    function recordOwner(result: ShortcutRegistrationResult) {
+      if (!result.ok)
+        return result
+      // The uiohook driver loads at its first use, so a registration can finish after its window closed. The closed
+      // window released nothing, because the binding had no owner yet. No window reads the result.
+      if (!contexts.has(context)) {
+        unregisterById(result.id)
+        return result
+      }
+      owners.set(result.id, context)
+      return result
+    }
 
     defineInvokeHandler(context, electronShortcutRegister, (binding) => {
       if (!binding.id) {
         throw new TypeError('electronShortcutRegister called with invalid binding payload')
       }
-      return tryRegister(binding)
+      const result = tryRegister(binding)
+      return result instanceof Promise ? result.then(recordOwner) : recordOwner(result)
     })
 
     defineInvokeHandler(context, electronShortcutUnregister, (payload) => {

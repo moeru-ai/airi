@@ -1,4 +1,4 @@
-import type { PluginHostModuleSummary } from '../../../shared/eventa/plugin/host'
+import type { PluginHostModuleSummary } from '@proj-airi/stage-shared/plugin-host'
 
 const extensionUiDispatchReservedPropKeys = new Set([
   'modelValue',

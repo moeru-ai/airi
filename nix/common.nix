@@ -1,4 +1,5 @@
 {
+  pkgs,
   lib,
   stdenvNoCC,
   fetchPnpmDeps,
@@ -6,18 +7,29 @@
   cacert,
   gitMinimal,
   nodejs,
-  pnpm_11,
   pnpmConfigHook,
-}:
 
-let
-  pnpm = pnpm_11;
-in
+  # Use project version
+  version ? lib.pipe ../package.json [
+    builtins.readFile
+    (builtins.match ''.*"version": "([^[:space:]]+)".*'')
+    builtins.head
+  ],
+  # Pin pnpm version
+  pnpm' ? lib.pipe ../package.json [
+    builtins.readFile
+    (builtins.match ''.*"packageManager": "pnpm@([[:digit:]]+).*'')
+    builtins.head
+    (major: pkgs."pnpm_${major}")
+  ],
+}:
 
 stdenvNoCC.mkDerivation (final: {
   pname = "airi";
-  version = (builtins.fromJSON (builtins.readFile ../package.json)).version;
+  inherit version;
 
+  # NOTICE: Clean some editor files that cause build to fail
+  # https://github.com/moeru-ai/airi/issues/1438
   src = lib.cleanSourceWith {
     src = ../.;
     filter =
@@ -31,7 +43,7 @@ stdenvNoCC.mkDerivation (final: {
 
   pnpmDeps = fetchPnpmDeps {
     inherit (final) pname version src;
-    inherit pnpm;
+    pnpm = pnpm';
     fetcherVersion = 4;
     hash = builtins.readFile ./pnpm-deps-hash.txt;
   };
@@ -45,14 +57,16 @@ stdenvNoCC.mkDerivation (final: {
       cacert # For network request
       gitMinimal # For unplugin-info
       nodejs
-      pnpm
+      pnpm'
       pnpmConfigHook
     ];
 
     buildPhase = ''
       runHook preBuild
 
-      pnpm -F @proj-airi/stage-web... run build
+      # Build Tamagotchi since it has all assets of web + embedded models.
+      # If another stage gets unique assets, this must be updated.
+      pnpm -F @proj-airi/stage-tamagotchi... run build
 
       runHook postBuild
     '';
@@ -61,8 +75,8 @@ stdenvNoCC.mkDerivation (final: {
       runHook preInstall
 
       mkdir -p "$out"
-      cp -r .cache/* "$out"
-      cp -r apps/stage-web/.cache/assets/* "$out"
+      cp -vr .cache/* "$out"
+      cp -vr apps/stage-tamagotchi/src/renderer/.cache/assets/* "$out"
 
       runHook postInstall
     '';
@@ -71,6 +85,9 @@ stdenvNoCC.mkDerivation (final: {
     outputHashAlgo = "sha256";
     outputHash = builtins.readFile ./assets-hash.txt;
   };
+
+  # To be pinned by dev shells
+  passthru.pnpm = pnpm';
 
   meta = {
     description = "Self-hostable AI waifu / companion / VTuber";

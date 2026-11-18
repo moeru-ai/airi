@@ -1,47 +1,60 @@
 <script setup lang="ts">
+import type { VoicePresenceView } from '@proj-airi/stage-ui/components/scenarios/chat'
+
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { VoiceDrafts } from '@proj-airi/stage-ui/components/scenarios/chat'
-import { useEventListener, useTimeoutFn } from '@vueuse/core'
+import { VoicePresence } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { useTimeoutFn } from '@vueuse/core'
+import { nextTick, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { electronInlayHide } from '../../../shared/eventa'
+import { electronInlayReturnHome } from '../../../shared/eventa'
+import { useChatFloatingClickThrough } from '../../composables/use-chat-floating-click-through'
+import { useGlobalEscape } from '../../composables/use-global-escape'
 
 /**
- * How long an emptied inlay stays visible before it hides.
- * Continuous speech often sends one draft and starts the next within this time, so the window does not flicker.
+ * Time without content before a dragged inlay returns to its home position.
+ * The window paints nothing then, so the move is invisible, and the next capsule appears at home.
  */
-const EMPTY_HIDE_DELAY_MS = 1200
+const RETURN_HOME_DELAY_MS = 5000
 
 const { t } = useI18n()
-const hideInlay = useElectronEventaInvoke(electronInlayHide)
-const emptyHide = useTimeoutFn(() => void hideInlay(), EMPTY_HIDE_DELAY_MS, { immediate: false })
-let shown = false
+const presence = useTemplateRef<InstanceType<typeof VoicePresence>>('presence')
+const returnHome = useElectronEventaInvoke(electronInlayReturnHome)
+// The window stays above other apps, so only what the page paints takes the pointer.
+const { hitTest } = useChatFloatingClickThrough({ pinned: true })
 
-/**
- * Hides the window after its content goes away, for example after a send or a discard.
- * An inlay that opens empty, such as from the tray menu, stays open.
- */
-function handlePresence(visible: boolean) {
-  if (visible)
-    emptyHide.stop()
-  else if (shown)
-    emptyHide.start()
-  shown = visible
-}
+/** The view that `VoicePresence` paints. The window owns hit testing and its home position around it. */
+const shown = shallowRef<VoicePresenceView>('hidden')
 
-useEventListener(window, 'keydown', (event: KeyboardEvent) => {
-  // An IME can use Escape to cancel its candidate list.
-  if (event.key !== 'Escape' || event.isComposing)
-    return
-  event.preventDefault()
-  void hideInlay()
-})
+// Content that appears or moves under a still cursor changes what the cursor is over.
+// The hit test treats zero opacity as unpainted, and a transition starts or ends at zero opacity.
+// So `after-enter` runs it again once a card is visible, and `after-leave` once the card is gone.
+watch(shown, () => nextTick(() => hitTest()), { flush: 'post' })
+
+// Speech or a draft keeps the inlay where the user dragged it. Only an idle inlay returns home.
+const homeTimer = useTimeoutFn(() => void returnHome(), RETURN_HOME_DELAY_MS, { immediate: false })
+watch(shown, (value) => {
+  if (value === 'hidden')
+    homeTimer.start()
+  else
+    homeTimer.stop()
+}, { immediate: true })
+
+// Speech often starts while another app has focus, so Escape works from any app while the inlay shows speech.
+// The focused inlay also handles Escape in `VoicePresence`. The second call for one press finds nothing to dismiss.
+useGlobalEscape('voice-inlay-dismiss', () => shown.value === 'capsule' || shown.value === 'card', () => presence.value?.dismiss())
 </script>
 
 <template>
-  <!-- macOS vibrancy and Windows acrylic draw the window surface. The page stays transparent and drags the window. -->
-  <main :class="['drag-region h-full w-full flex flex-col bg-transparent text-neutral-900 dark:text-neutral-100']">
-    <VoiceDrafts variant="composer" @presence="handlePresence">
+  <!-- The page anchors the inlay to the bottom edge. The space above it is room for the send animation. -->
+  <main :class="['h-full w-full flex flex-col items-center justify-end px-4 pb-4', 'bg-transparent text-neutral-900 dark:text-neutral-100']">
+    <VoicePresence
+      ref="presence"
+      data-testid="voice-inlay"
+      @shown-change="shown = $event"
+      @after-enter="hitTest()"
+      @after-leave="hitTest({ removed: true })"
+    >
       <template #hint>
         <kbd
           :class="[
@@ -50,8 +63,8 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
             'dark:border-white/15 dark:bg-white/8 dark:text-neutral-300',
           ]"
         >esc</kbd>
-        <span>{{ t('tamagotchi.stage.inlay.hide') }}</span>
+        <span>{{ t('tamagotchi.stage.inlay.dismiss') }}</span>
       </template>
-    </VoiceDrafts>
+    </VoicePresence>
   </main>
 </template>

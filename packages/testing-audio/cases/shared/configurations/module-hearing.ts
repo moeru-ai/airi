@@ -16,6 +16,11 @@ export interface HearingModuleConfiguration {
    * @default false
    */
   autoSend?: boolean
+  /**
+   * Lets an LLM clean up each transcript before it is sent. When unset, the case keeps the application setting.
+   * @default undefined
+   */
+  rephrase?: boolean
   provider: ProviderConfiguration
 }
 
@@ -35,6 +40,8 @@ export function configureModuleHearing(resolve: HearingModuleResolver): AudioInp
       'settings/audio/input/enabled': String(configuration.microphoneEnabled ?? false),
       'settings/hearing/auto-send-enabled': String(configuration.autoSend ?? false),
     }
+    if (configuration.rephrase !== undefined)
+      settings['settings/hearing/rephrase-enabled'] = String(configuration.rephrase)
 
     const microphoneInput = await context.runtime.runtimePage.evaluate(async () => {
       const devices = await navigator.mediaDevices.enumerateDevices()

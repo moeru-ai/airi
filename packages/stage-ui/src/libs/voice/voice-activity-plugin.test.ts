@@ -2,9 +2,11 @@ import type { SpeechInputAttempt, TranscriptionEvent } from '@proj-airi/core-age
 import type { PcmBlock } from '@proj-airi/pipelines-audio'
 
 import { VoiceController } from '@proj-airi/core-agent'
-import { AudioInput, createPushStream, Playback } from '@proj-airi/pipelines-audio'
+import { AudioInput, Playback } from '@proj-airi/pipelines-audio'
+import { createPushStream } from '@proj-airi/stream-kit'
 import { expect, it, vi } from 'vitest'
 
+import { listensContinuously, startsInputOnSpeech } from '../../stores/modules/hearing'
 import { createVoiceActivityPlugin } from './voice-activity-plugin'
 
 it('uses ordered VAD signals to capture, stream transcription, and submit to the accepted session', async () => {
@@ -14,6 +16,7 @@ it('uses ordered VAD signals to capture, stream transcription, and submit to the
   const submit = vi.fn(async () => ({ status: 'committed' as const, messageId: 'accepted' }))
   let sessionId = 'alice'
   let attempt: SpeechInputAttempt | undefined
+  const activity = vi.fn()
   const controller = new VoiceController({ audio, submit, transcriber: () => ({
     transcribe: (request) => {
       const media = request.audio
@@ -26,10 +29,13 @@ it('uses ordered VAD signals to capture, stream transcription, and submit to the
       } })
     },
   }) })
+  controller.onInput((next) => {
+    attempt = next
+  })
   controller.use(createVoiceActivityPlugin({
     detect: async window => window.channels[0][0],
     target: () => ({ sessionId, interruptTurns: [] }),
-    onInput: () => { attempt = controller.activeInput },
+    onActivity: activity,
     minSpeechMs: 32,
     silenceMs: 64,
   }), { grants: ['input-control', 'cancel-input'] })
@@ -41,6 +47,13 @@ it('uses ordered VAD signals to capture, stream transcription, and submit to the
   expect(await attempt!.done).toEqual({ status: 'committed', messageId: 'accepted' })
   expect(received).toHaveLength(96)
   expect(submit).toHaveBeenCalledWith(expect.objectContaining({ sessionId: 'alice', text: 'Hello' }), expect.any(AbortSignal))
+  // Each noted window reaches the host trace in order.
+  expect(activity.mock.calls.map(([event]) => [event.inputId, event.speech, event.durationMs])).toEqual([
+    [attempt!.id, true, 32],
+    [attempt!.id, false, 32],
+    [attempt!.id, false, 32],
+  ])
+  expect(attempt!.cause).toBe('speech')
   await controller.close()
 })
 
@@ -91,11 +104,13 @@ it('rejects playback echo and opens the matched character input only after playb
   push(0, 1)
   await expect.poll(() => gate).toHaveBeenCalledOnce()
   expect(controller.activeInput).toBeUndefined()
+  // Codex review on PR #2939: a wake that echo rejection dropped must not begin a wake-word input.
   expect(fade).not.toHaveBeenCalled()
   accepted = true
   push(32, 1)
   await expect.poll(() => fade).toHaveBeenCalledOnce()
   const attempt = controller.activeInput!
+  expect(attempt.cause).toBe('wake-word')
   expect(attempt.state).toEqual({ phase: 'pending', waitingFor: 'silence' })
   push(64, 1)
   await expect.poll(() => detected).toHaveBeenCalledTimes(3)
@@ -110,5 +125,45 @@ it('rejects playback echo and opens the matched character input only after playb
   expect(received).toHaveLength(64)
   expect(submit).toHaveBeenCalledWith(expect.objectContaining({ sessionId: 'alice', text: 'Question' }), expect.any(AbortSignal))
   await expect.poll(() => interrupted).toHaveBeenCalledOnce()
+  await controller.close()
+})
+
+it('starts an input in wake word mode only after a wake word', async () => {
+  const frames = createPushStream<PcmBlock>()
+  const audio = new AudioInput({ live: true, open: () => frames.stream })
+  const submit = vi.fn(async () => ({ status: 'committed' as const, messageId: 'wake-message' }))
+  const controller = new VoiceController({ audio, submit, transcriber: () => ({ transcribe: request => new ReadableStream<TranscriptionEvent>({ async start(output) {
+    // The test needs only the transcript, so the captured audio is drained and dropped.
+    await request.audio.pipeTo(new WritableStream())
+    output.enqueue({ type: 'update', revision: 1, segments: [{ id: 'text', revision: 1, text: 'Hello', final: true, tokens: [] }] })
+    output.enqueue({ type: 'complete', revision: 1 })
+    output.close()
+  } }) }) })
+  let wake = false
+  const target = vi.fn(() => startsInputOnSpeech('wake-word') ? { sessionId: 'active', interruptTurns: [] } : undefined)
+  controller.use(createVoiceActivityPlugin({
+    detect: async window => window.channels[0][0],
+    detectWakeWord: async () => wake ? { sessionId: 'alice', interruptTurns: [] } : undefined,
+    target,
+    minSpeechMs: 32,
+    silenceMs: 64,
+  }), { grants: ['input-control', 'cancel-input'] })
+  await Promise.resolve()
+  function push(startFrame: number, value: number) {
+    frames.write({ range: { sourceId: 'mic', startFrame, endFrame: startFrame + 32 }, sampleRate: 1000, channels: [new Float32Array(32).fill(value)] })
+  }
+
+  // Speech without a wake word asks for a target, gets none, and starts no input.
+  push(0, 1)
+  push(32, 1)
+  await expect.poll(() => target).toHaveBeenCalledTimes(2)
+  expect(controller.activeInput).toBeUndefined()
+
+  wake = true
+  push(64, 1)
+  await expect.poll(() => controller.activeInput?.sessionId).toBe('alice')
+  expect(startsInputOnSpeech('always-on')).toBe(true)
+  expect(startsInputOnSpeech('push-to-talk')).toBe(false)
+  expect(listensContinuously('wake-word')).toBe(true)
   await controller.close()
 })

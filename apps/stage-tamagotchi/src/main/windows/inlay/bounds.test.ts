@@ -30,6 +30,15 @@ describe('inlayWindowBounds', () => {
     expect(bounds.y + bounds.height).toBe(-200 + 1415 - 142)
   })
 
+  it('keeps the inlay narrow on a wide display', () => {
+    const workArea = { x: 0, y: 25, width: 2560, height: 1415 }
+
+    const bounds = inlayWindowBounds(workArea)
+
+    expect(bounds.width).toBe(520)
+    expect(bounds.x).toBe(1020)
+  })
+
   it('keeps at least 56px below the inlay on a short work area', () => {
     const workArea = { x: 0, y: 0, width: 1280, height: 400 }
 
