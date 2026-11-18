@@ -8,6 +8,13 @@ const serverSdkMocks = vi.hoisted(() => {
 
     readonly listeners = new Map<string, Set<(event: any) => void | Promise<void>>>()
     readonly sent: any[] = []
+    // Mirrors better-ws: `module:authenticated` arrives while `preparing`, and
+    // `send()` refuses with `false` until the transport reaches `ready`.
+    status: 'preparing' | 'ready' | 'closed' = 'preparing'
+
+    get isReady() {
+      return this.status === 'ready'
+    }
 
     constructor(public readonly options: Record<string, any>) {
       MockClient.instances.push(this)
@@ -45,11 +52,15 @@ const serverSdkMocks = vi.hoisted(() => {
     }
 
     send(event: any) {
+      if (!this.isReady)
+        return false
+
       this.sent.push(event)
       return true
     }
 
     close(code?: number, reason?: string) {
+      this.status = 'closed'
       this.options.onClose?.(code, reason)
     }
 
@@ -65,14 +76,17 @@ const serverSdkMocks = vi.hoisted(() => {
     }
 
     simulateTransientDisconnect() {
+      this.status = 'closed'
       this.options.onClose?.(1005, '')
     }
 
     simulateClose(code?: number, reason?: string) {
+      this.status = 'closed'
       this.options.onClose?.(code, reason)
     }
 
-    simulateReconnectReady() {
+    simulateReady() {
+      this.status = 'ready'
       this.options.onReady?.()
     }
 
@@ -144,7 +158,14 @@ describe('channel-server store reconnect', () => {
     client.simulateAuthenticated()
     await initializePromise
 
+    // Authenticated lands in the prepare phase: the transport refuses sends, so
+    // the queued event must survive until ready (#2305).
     expect(store.connected).toBe(true)
+    expect(store.pendingSendCount).toBe(1)
+    expect(client.sent).toEqual([])
+
+    client.simulateReady()
+
     expect(store.pendingSendCount).toBe(0)
     expect(client.sent).toEqual(expect.arrayContaining([
       expect.objectContaining({
@@ -164,7 +185,7 @@ describe('channel-server store reconnect', () => {
 
     expect(store.pendingSendCount).toBe(1)
 
-    client.simulateReconnectReady()
+    client.simulateReady()
 
     expect(store.connected).toBe(true)
     expect(store.pendingSendCount).toBe(0)
@@ -191,61 +212,83 @@ describe('channel-server store reconnect', () => {
     })
   })
 
-  it('notifies onReconnected callbacks when the websocket becomes ready again', async () => {
+  it('issue #2305: runs onReady callbacks on the first ready, not at authenticated, and on every reconnect', async () => {
     const store = useModsServerChannelStore()
-    const onReconnected = vi.fn()
-    store.onReconnected(onReconnected)
+    const onReady = vi.fn()
+    store.onReady(onReady)
 
     const initializePromise = store.initialize({ token: 'secret' })
     const client = serverSdkMocks.MockClient.instances[0]
 
     client.simulateAuthenticated()
     await initializePromise
+    expect(onReady).toHaveBeenCalledTimes(0)
+
+    client.simulateReady()
+    expect(onReady).toHaveBeenCalledTimes(1)
 
     client.simulateTransientDisconnect()
-    client.simulateReconnectReady()
-    client.simulateReconnectReady()
-
-    expect(onReconnected).toHaveBeenCalledTimes(1)
+    client.simulateReady()
+    expect(onReady).toHaveBeenCalledTimes(2)
   })
 
-  it('does not notify onReconnected on first authenticated->ready flow and only on subsequent ready events', async () => {
+  it('runs an onReady callback immediately when subscribed on a ready transport, and stops after unsubscribe', async () => {
     const store = useModsServerChannelStore()
-    const onReconnected = vi.fn()
-    store.onReconnected(onReconnected)
 
     const initializePromise = store.initialize({ token: 'secret' })
     const client = serverSdkMocks.MockClient.instances[0]
-
     client.simulateAuthenticated()
-    client.simulateReconnectReady()
-    expect(onReconnected).toHaveBeenCalledTimes(0)
-
-    client.simulateReconnectReady()
-    expect(onReconnected).toHaveBeenCalledTimes(1)
-
     await initializePromise
+    client.simulateReady()
+
+    const onReady = vi.fn()
+    const stop = store.onReady(onReady)
+    expect(onReady).toHaveBeenCalledTimes(1)
+
+    stop()
+    client.simulateTransientDisconnect()
+    client.simulateReady()
+    expect(onReady).toHaveBeenCalledTimes(1)
   })
 
-  it('continues invoking remaining onReconnected callbacks when one throws', async () => {
+  it('runs onReady callbacks for a connection replaced after the auth token changes', async () => {
+    const store = useModsServerChannelStore()
+    const onReady = vi.fn()
+    store.onReady(onReady)
+
+    const initializePromise = store.initialize({ token: 'secret' })
+    const firstClient = serverSdkMocks.MockClient.instances[0]
+    firstClient.simulateAuthenticated()
+    await initializePromise
+    firstClient.simulateReady()
+    expect(onReady).toHaveBeenCalledTimes(1)
+
+    store.websocketAuthToken = 'rotated'
+    await nextTick()
+
+    const replacementClient = serverSdkMocks.MockClient.instances.at(-1)!
+    expect(replacementClient).not.toBe(firstClient)
+    replacementClient.simulateAuthenticated()
+    replacementClient.simulateReady()
+    expect(onReady).toHaveBeenCalledTimes(2)
+  })
+
+  it('continues invoking remaining onReady callbacks when one throws', async () => {
     const store = useModsServerChannelStore()
     const successfulCallback = vi.fn()
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
-    store.onReconnected(() => {
+    store.onReady(() => {
       throw new Error('boom')
     })
-    store.onReconnected(successfulCallback)
+    store.onReady(successfulCallback)
 
     const initializePromise = store.initialize({ token: 'secret' })
     const client = serverSdkMocks.MockClient.instances[0]
 
     client.simulateAuthenticated()
     await initializePromise
-
-    client.simulateTransientDisconnect()
-    client.simulateReconnectReady()
-    client.simulateReconnectReady()
+    client.simulateReady()
 
     expect(successfulCallback).toHaveBeenCalledTimes(1)
     expect(consoleErrorSpy).toHaveBeenCalledTimes(1)
@@ -349,7 +392,7 @@ describe('channel-server store reconnect', () => {
 
     client.simulateAuthenticated()
     await initializePromise
-    client.simulateReconnectReady()
+    client.simulateReady()
 
     client.simulateTransientDisconnect()
 
@@ -365,7 +408,7 @@ describe('channel-server store reconnect', () => {
     expect(store.connected).toBe(false)
     expect(store.pendingSendCount).toBe(1)
 
-    client.simulateReconnectReady()
+    client.simulateReady()
 
     expect(store.connected).toBe(true)
     expect(store.pendingSendCount).toBe(0)
@@ -377,7 +420,7 @@ describe('channel-server store reconnect', () => {
     ]))
   })
 
-  it('issue #2305: ensureReady only resolves once the transport reports ready, not at authenticated', async () => {
+  it('issue #2305: queues a send the preparing transport refuses and delivers it on ready', async () => {
     const store = useModsServerChannelStore()
 
     const initializePromise = store.initialize({ token: 'secret' })
@@ -386,19 +429,23 @@ describe('channel-server store reconnect', () => {
     client.simulateAuthenticated()
     await initializePromise
 
-    // The store is connected from the store's perspective, but the transport
-    // has not reached ready yet: ensureReady must still be pending.
-    let resolved = false
-    const readyPromise = store.ensureReady().then(() => {
-      resolved = true
-    })
+    store.send({
+      type: 'module:consumer:register',
+      data: { event: 'input:text', mode: 'consumer-group', group: 'chat-ingestion' },
+    } as any)
 
-    await Promise.resolve()
-    expect(resolved).toBe(false)
+    expect(client.sent).toEqual([])
+    expect(store.pendingSendCount).toBe(1)
 
-    client.simulateReconnectReady()
-    await readyPromise
-    expect(resolved).toBe(true)
+    client.simulateReady()
+
+    expect(store.pendingSendCount).toBe(0)
+    expect(client.sent).toEqual([
+      expect.objectContaining({
+        type: 'module:consumer:register',
+        data: expect.objectContaining({ event: 'input:text' }),
+      }),
+    ])
   })
 
   it('issue #2305: flush keeps messages the transport refused instead of dropping them', async () => {
@@ -409,7 +456,7 @@ describe('channel-server store reconnect', () => {
 
     client.simulateAuthenticated()
     await initializePromise
-    client.simulateReconnectReady()
+    client.simulateReady()
 
     store.send({
       type: 'module:consumer:register',
@@ -430,12 +477,12 @@ describe('channel-server store reconnect', () => {
     // Refuse one send round: the ready-flush must keep the message queued...
     const originalSend = client.send.bind(client)
     client.send = () => false
-    client.simulateReconnectReady()
+    client.simulateReady()
     expect(store.pendingSendCount).toBe(1)
     client.send = originalSend
 
     // ...and the next ready-flush delivers it exactly once.
-    client.simulateReconnectReady()
+    client.simulateReady()
     expect(store.pendingSendCount).toBe(0)
     const registrations = client.sent.filter((event: any) => event?.type === 'module:consumer:register')
     expect(registrations).toEqual([
@@ -450,29 +497,6 @@ describe('channel-server store reconnect', () => {
         data: expect.objectContaining({ event: 'input:voice' }),
       }),
     ])
-  })
-
-  it('issue #2313 review: ensureReady resolves false when the connection is disposed while waiting', async () => {
-    const store = useModsServerChannelStore()
-
-    const initializePromise = store.initialize({ token: 'secret' })
-    const client = serverSdkMocks.MockClient.instances[0]
-
-    client.simulateAuthenticated()
-    await initializePromise
-
-    let result: boolean | undefined
-    const readyPromise = store.ensureReady().then((ready) => {
-      result = ready
-    })
-
-    await Promise.resolve()
-    expect(result).toBeUndefined()
-
-    // The app unmounts between authenticated and ready.
-    store.dispose()
-    await readyPromise
-    expect(result).toBe(false)
   })
 
   it('does not reconnect while the url scheme is not valid', async () => {

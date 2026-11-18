@@ -67,7 +67,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   const hasEverConnected = ref(false)
   const pendingSend = ref<Array<WebSocketEvent>>([])
   const pendingSendCount = computed(() => pendingSend.value.length)
-  const reconnectedCallbacks = new Set<() => void>()
+  const readyCallbacks = new Set<() => void>()
 
   const defaultWebSocketUrl = import.meta.env.VITE_AIRI_WS_URL || 'ws://localhost:6121/ws'
   const websocketUrl = useLocalStorage('settings/connection/websocket-url', defaultWebSocketUrl)
@@ -192,7 +192,6 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
             // SDK entered terminal state (auth terminal / retries exhausted / autoReconnect disabled).
             connected.value = false
             initializing.value = null
-            resolveReadyWaiters()
             console.warn('WebSocket server connection failed')
           }
         },
@@ -206,17 +205,9 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
           connected.value = true
           flush()
           initializeListeners()
-          resolveReadyWaiters(true)
 
-          if (isReconnect) {
-            for (const callback of reconnectedCallbacks) {
-              try {
-                callback()
-              }
-              catch (error) {
-                console.error('Error in reconnected callback:', error)
-              }
-            }
+          for (const callback of readyCallbacks) {
+            invokeReadyCallback(callback)
           }
           if (isReconnect && import.meta.env.DEV) {
             // eslint-disable-next-line no-console
@@ -252,35 +243,6 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     if (!connected.value) {
       return await initialize()
     }
-  }
-
-  // #2305: `module:authenticated` is delivered during the transport's prepare
-  // phase, so `ensureConnected()` resolving there is NOT a guarantee that
-  // `Client.send()` will accept anything — better-ws requires state `ready`.
-  // Callers whose messages must not be silently dropped (the consumer-group
-  // registration is the load-bearing one: losing it makes the runtime drop
-  // every `input:*` until the next reconnect) await this instead.
-  const readyWaiters = new Set<(ready: boolean) => void>()
-
-  function resolveReadyWaiters(ready: boolean) {
-    const waiters = [...readyWaiters]
-    readyWaiters.clear()
-    for (const waiter of waiters) {
-      waiter(ready)
-    }
-  }
-
-  // Resolves true once the transport is ready. Resolves false when the
-  // connection is disposed or enters a terminal failure first, so callers
-  // holding the initialize mutex do not hang across an unmount (#2313
-  // review) and can simply skip the work they were waiting to do.
-  function ensureReady(): Promise<boolean> {
-    if (client.value?.isReady) {
-      return Promise.resolve(true)
-    }
-    return new Promise<boolean>((resolve) => {
-      readyWaiters.add(resolve)
-    })
   }
 
   function clearListeners() {
@@ -338,12 +300,12 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     if (!client.value && !initializing.value)
       void initialize()
 
-    if (client.value && connected.value) {
-      client.value.send(data as WebSocketEvent)
-    }
-    else {
+    // `connected` turns true at `module:authenticated`, which better-ws delivers
+    // while the transport is still `preparing`; `Client.send()` refuses (returns
+    // false) until `ready`. Queue the refused event so the ready-flush delivers it
+    // instead of dropping it silently (#2305).
+    if (!client.value || !connected.value || !client.value.send(data as WebSocketEvent))
       pendingSend.value.push(data as WebSocketEvent)
-    }
   }
 
   function flush() {
@@ -373,11 +335,31 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     return registerListener(type, callback)
   }
 
-  function onReconnected(callback: () => void) {
-    reconnectedCallbacks.add(callback)
+  function invokeReadyCallback(callback: () => void) {
+    try {
+      callback()
+    }
+    catch (error) {
+      console.error('Error in ready callback:', error)
+    }
+  }
+
+  /**
+   * Runs `callback` every time the transport reaches `ready`: first connect,
+   * reconnects, and connections replaced after a URL/token change. Runs it
+   * immediately when the transport is already ready.
+   *
+   * Use this for per-connection server state (e.g. consumer registration)
+   * rather than `ensureConnected()`, which resolves at `module:authenticated`
+   * while sends are still refused (#2305).
+   */
+  function onReady(callback: () => void) {
+    readyCallbacks.add(callback)
+    if (client.value?.isReady)
+      invokeReadyCallback(callback)
 
     return () => {
-      reconnectedCallbacks.delete(callback)
+      readyCallbacks.delete(callback)
     }
   }
 
@@ -392,7 +374,6 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   function dispose() {
     connectionAttempt += 1
     connectionIdentity = null
-    resolveReadyWaiters(false)
     flush()
     hasEverConnected.value = false
     connected.value = false
@@ -425,14 +406,13 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     websocketAuthToken,
     websocketUrl,
     ensureConnected,
-    ensureReady,
 
     initialize,
     send,
     sendContextUpdate,
     onContextUpdate,
     onEvent,
-    onReconnected,
+    onReady,
     getPendingSendSnapshot: () => [...pendingSend.value],
     dispose,
   }

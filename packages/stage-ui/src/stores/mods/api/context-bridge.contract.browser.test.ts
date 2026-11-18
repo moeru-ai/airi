@@ -26,8 +26,13 @@ const resetStreamMock = vi.fn()
 const refreshSessionMock = vi.fn()
 const serverSendMock = vi.fn()
 const ensureConnectedMock = vi.fn().mockResolvedValue(undefined)
-const ensureReadyMock = vi.fn().mockResolvedValue(true)
-const onReconnectedMock = vi.fn(() => () => {})
+const readyCallbacks = new Set<() => void>()
+const onReadyMock = vi.fn((callback: () => void) => {
+  readyCallbacks.add(callback)
+  return () => {
+    readyCallbacks.delete(callback)
+  }
+})
 const onContextUpdateMock = vi.fn((callback: HookCallback) => registerHook(contextUpdateHooks, callback))
 const onEventMock = vi.fn((eventName: string, callback: HookCallback) => registerServerEventHook(eventName, callback))
 const getProviderInstanceMock = vi.fn()
@@ -283,8 +288,7 @@ vi.mock('../../providers/provider', () => ({
 vi.mock('./channel-server', () => ({
   useModsServerChannelStore: () => ({
     ensureConnected: ensureConnectedMock,
-    ensureReady: ensureReadyMock,
-    onReconnected: onReconnectedMock,
+    onReady: onReadyMock,
     onContextUpdate: onContextUpdateMock,
     onEvent: onEventMock,
     send: serverSendMock,
@@ -307,9 +311,8 @@ describe('context bridge contract', () => {
     serverSendMock.mockReset()
     ensureConnectedMock.mockClear()
     ensureConnectedMock.mockResolvedValue(undefined)
-    ensureReadyMock.mockClear()
-    ensureReadyMock.mockResolvedValue(true)
-    onReconnectedMock.mockClear()
+    onReadyMock.mockClear()
+    readyCallbacks.clear()
     onContextUpdateMock.mockClear()
     onEventMock.mockClear()
     getProviderInstanceMock.mockReset()
@@ -350,25 +353,22 @@ describe('context bridge contract', () => {
     localStorage.clear()
   })
 
-  it('skips consumer registration when the ready wait reports the connection went away (#2313)', async () => {
-    ensureReadyMock.mockResolvedValue(false)
+  it('registers chat-ingestion consumers on every transport ready, not when initialize resolves (#2305)', async () => {
+    const registrations = () => serverSendMock.mock.calls
+      .filter(([event]) => event.type === 'module:consumer:register')
+      .map(([event]) => event.data.event)
+
     await useContextBridgeStore().initialize()
-    await Promise.resolve()
+    // ensureConnected() resolves at `module:authenticated`, while the transport
+    // still refuses sends; nothing may be registered before ready.
+    expect(registrations()).toEqual([])
 
-    const registrations = serverSendMock.mock.calls.filter(
-      call => call[0]?.type === 'module:consumer:register',
-    )
-    expect(registrations).toEqual([])
-  })
+    for (const callback of readyCallbacks) callback()
+    expect(registrations()).toEqual(['input:text', 'input:text:voice', 'input:voice'])
 
-  it('registers consumers once the ready wait reports the transport is ready (#2313)', async () => {
-    await useContextBridgeStore().initialize()
-    await Promise.resolve()
-
-    const registrations = serverSendMock.mock.calls.filter(
-      call => call[0]?.type === 'module:consumer:register',
-    )
-    expect(registrations.length).toBe(3)
+    // Reconnect or replaced connection: the runtime lost the registry entry.
+    for (const callback of readyCallbacks) callback()
+    expect(registrations()).toHaveLength(6)
   })
 
   it('lists the images and recordings of the turn in the chat message event', async () => {
