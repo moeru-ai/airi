@@ -1638,21 +1638,36 @@ export const useChatStore = defineStore('chat', () => {
     if (!await chatSession.loadSession(payload.sessionId))
       throw new Error('Failed to load the target chat session')
 
-    const nextMessages = await executeToolCallRerun({
-      messages: chatSession.getSessionMessages(payload.sessionId),
-      payload,
-      // A rerun stores its result in history, so it reads images like a send.
-      resolveTools: () => resolveLlmTools({
-        customTools: llmToolsStore.getToolsByNames(payload.toolName),
-        describeImage: chatVision.toolImageReader(chatVision.selectionOf(payload.sessionId)),
-        attribution: {
-          sessionId: payload.sessionId,
-          turnId: payload.turnId ?? payload.messageId,
-        },
-      }),
-    })
-    // Raw messages, because a reactive proxy cannot leave this context.
-    await chatSession.replaceSessionHistory(payload.sessionId, nextMessages.map(message => toRaw(message)))
+    // NOTICE:
+    // A rerun has no submission, so a Host cannot admit its tools by an earlier
+    // turn. Give it its own turn label and announce it, so a listener can open
+    // one request for the rerun and close it when the execution settles.
+    const rerunContext = {
+      sessionId: payload.sessionId,
+      turnId: `${payload.turnId ?? payload.messageId ?? payload.toolCallId}:rerun:${nanoid()}`,
+      toolName: payload.toolName,
+    }
+    try {
+      await runtime.hooks.emitToolCallRerunHooks(rerunContext)
+      const nextMessages = await executeToolCallRerun({
+        messages: chatSession.getSessionMessages(payload.sessionId),
+        payload,
+        // A rerun stores its result in history, so it reads images like a send.
+        resolveTools: () => resolveLlmTools({
+          customTools: llmToolsStore.getToolsByNames(payload.toolName),
+          describeImage: chatVision.toolImageReader(chatVision.selectionOf(payload.sessionId)),
+          attribution: {
+            sessionId: payload.sessionId,
+            turnId: rerunContext.turnId,
+          },
+        }),
+      })
+      // Raw messages, because a reactive proxy cannot leave this context.
+      await chatSession.replaceSessionHistory(payload.sessionId, nextMessages.map(message => toRaw(message)))
+    }
+    finally {
+      await runtime.hooks.emitToolCallRerunEndHooks(rerunContext)
+    }
   }
 
   /** Clears one session and stops runtime work that still belongs to it. */
@@ -1764,6 +1779,8 @@ export const useChatStore = defineStore('chat', () => {
 
     clearHooks: runtime.hooks.clearHooks,
 
+    emitToolCallRerunHooks: runtime.hooks.emitToolCallRerunHooks,
+    emitToolCallRerunEndHooks: runtime.hooks.emitToolCallRerunEndHooks,
     emitBeforeMessageComposedHooks: runtime.hooks.emitBeforeMessageComposedHooks,
     emitAfterMessageComposedHooks: runtime.hooks.emitAfterMessageComposedHooks,
     emitBeforeSendHooks: runtime.hooks.emitBeforeSendHooks,
@@ -1777,6 +1794,8 @@ export const useChatStore = defineStore('chat', () => {
 
     onBeforeMessageComposed: runtime.hooks.onBeforeMessageComposed,
     onAfterMessageComposed: runtime.hooks.onAfterMessageComposed,
+    onToolCallRerun: runtime.hooks.onToolCallRerun,
+    onToolCallRerunEnd: runtime.hooks.onToolCallRerunEnd,
     onBeforeSend: runtime.hooks.onBeforeSend,
     onAfterSend: runtime.hooks.onAfterSend,
     onTokenLiteral: runtime.hooks.onTokenLiteral,

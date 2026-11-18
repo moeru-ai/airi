@@ -1252,6 +1252,58 @@ describe('chat store contract', () => {
     expect(stored).toContain('A settings window.')
   })
 
+  it('announces a rerun under its own turn label so a Host can admit its tools', async () => {
+    // ROOT CAUSE:
+    //
+    // A rerun never reached `onBeforeSend`, so a Host-side listener never opened
+    // an admission for it. Every controlled tool of that rerun failed for a
+    // missing request id, and its attribution reused an earlier turn's label.
+    let attribution: { sessionId?: string, turnId?: string } | undefined
+    getToolsByNamesMock.mockImplementation(() => [{
+      type: 'function',
+      function: { name: 'computer_use', parameters: {} },
+      execute: async (_input: unknown, options: { attribution?: { sessionId?: string, turnId?: string } }) => {
+        attribution = options?.attribution
+        return 'done'
+      },
+    }])
+    sessionMessages['session-1'] = [
+      { role: 'system', content: 'system prompt', createdAt: 1, id: 'system' },
+      {
+        role: 'assistant',
+        id: 'assistant-1',
+        content: '',
+        createdAt: 2,
+        slices: [{ type: 'tool-call', toolCall: { toolCallId: 'call-1', toolCallType: 'function', toolName: 'computer_use', args: '{}' } }],
+        tool_results: [],
+      },
+    ]
+
+    const store = useChatStore()
+    const started: string[] = []
+    const ended: string[] = []
+    store.onToolCallRerun(async ({ turnId }) => {
+      started.push(turnId)
+    })
+    store.onToolCallRerunEnd(async ({ turnId }) => {
+      ended.push(turnId)
+    })
+
+    await store.rerunToolCall({
+      sessionId: 'session-1',
+      messageId: 'assistant-1',
+      toolCallId: 'call-1',
+      toolName: 'computer_use',
+      args: '{}',
+      tools: [{ name: 'computer_use' }],
+    })
+
+    expect(started).toHaveLength(1)
+    expect(ended).toEqual(started)
+    expect(started[0]).toMatch(/^assistant-1:rerun:/)
+    expect(attribution).toMatchObject({ sessionId: 'session-1', turnId: started[0] })
+  })
+
   it('sends a note in place of a stored tool image while the vision model reads tool images', async () => {
     visionMocks.configured = true
     llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
