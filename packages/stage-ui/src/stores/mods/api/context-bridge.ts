@@ -1,5 +1,5 @@
 import type { LlmStreamingControlCallManifest } from '@proj-airi/pipelines-audio'
-import type { WebSocketEventOf } from '@proj-airi/server-sdk'
+import type { WebSocketBaseEvent, WebSocketEventOf, WebSocketEvents } from '@proj-airi/server-sdk'
 import type { UserMessage } from '@xsai/shared-chat'
 
 import type { ChatStreamEventContext, ContextMessage, StreamingAssistantMessage } from '../../../types/chat'
@@ -41,6 +41,10 @@ export function normalizeContextSnapshot<C extends Pick<ChatStreamEventContext, 
     ),
   }
 }
+
+type TextInputEvent
+  = | WebSocketBaseEvent<'input:text', WebSocketEvents['input:text']>
+    | WebSocketBaseEvent<'input:text:voice', WebSocketEvents['input:text:voice']>
 
 export const useContextBridgeStore = defineStore('mods:api:context-bridge', () => {
   const consumerRegistrationEvents = [
@@ -832,13 +836,15 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         })
       }))
 
-      disposeHookFns.value.push(serverChannelStore.onEvent('input:text', async (event) => {
+      // `input:text:voice` carries the transcript of speech that a module recognized, for example in a Discord voice
+      // channel. It follows the path of `input:text`, and the turn keeps the event type, so the turn is a voice turn.
+      async function ingestTextInput(event: TextInputEvent) {
         const {
-          text,
           textRaw,
           overrides,
           contextUpdates,
         } = event.data
+        const text = event.type === 'input:text:voice' ? event.data.transcription : event.data.text
 
         const normalizedContextUpdates = contextUpdates?.map((update) => {
           const id = update.id ?? nanoid()
@@ -951,23 +957,36 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
               text: messageText,
               temperature: activeTemperature.value,
               topP: activeTopP.value,
-              input: {
-                type: 'input:text',
-                data: {
-                  ...event.data,
-                  text,
-                  textRaw,
-                  overrides,
-                  contextUpdates: acceptedContextUpdates,
-                },
-              },
+              input: event.type === 'input:text:voice'
+                ? {
+                    type: 'input:text:voice',
+                    data: {
+                      ...event.data,
+                      contextUpdates: acceptedContextUpdates,
+                    },
+                  }
+                : {
+                    type: 'input:text',
+                    data: {
+                      ...event.data,
+                      text,
+                      textRaw,
+                      overrides,
+                      contextUpdates: acceptedContextUpdates,
+                    },
+                  },
             })
           }
           catch (err) {
             console.error('Error ingesting text input via context bridge:', err)
           }
         })
-      }))
+      }
+
+      disposeHookFns.value.push(
+        serverChannelStore.onEvent('input:text', ingestTextInput),
+        serverChannelStore.onEvent('input:text:voice', ingestTextInput),
+      )
 
       disposeHookFns.value.push(
         chatOrchestrator.onBeforeMessageComposed(async (message, context) => {
