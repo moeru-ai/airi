@@ -24518,7 +24518,7 @@ snapshots:
       onnxruntime-web: 1.27.0
       sharp: 0.34.5
     optionalDependencies:
-      onnxruntime-common: 1.27.0
+      onnxruntime-common: 1.31.1
 
   '@humanfs/core@0.19.2':
     dependencies:
@@ -29632,7 +29632,7 @@ snapshots:
       '@moeru/std': 0.1.0-beta.20
       '@xsai-ext/shared-providers': 0.4.0-beta.12
       '@xsai/shared': 0.4.4
-      onnxruntime-common: 1.27.0
+      onnxruntime-common: 1.31.1
     transitivePeerDependencies:
       - electron
       - h3

@@ -3527,6 +3527,13 @@
     {
       "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
       "code": "unused-key",
+      "key": "tamagotchi.settings.pages.modules.mcp-server.status-refresh-error",
+      "message": "\"tamagotchi.settings.pages.modules.mcp-server.status-refresh-error\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/settings.yaml",
+      "code": "unused-key",
       "key": "tamagotchi.settings.pages.modules.mcp-server.title",
       "message": "\"tamagotchi.settings.pages.modules.mcp-server.title\" is not used.",
       "count": 1
@@ -3613,6 +3620,118 @@
       "code": "unused-key",
       "key": "tamagotchi.stage.about.update.status.error-prefix",
       "message": "\"tamagotchi.stage.about.update.status.error-prefix\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.chat-window.context-inspector.budget",
+      "message": "\"tamagotchi.stage.chat-window.context-inspector.budget\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.chat-window.context-inspector.budget-note",
+      "message": "\"tamagotchi.stage.chat-window.context-inspector.budget-note\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.chat-window.context-inspector.bytes",
+      "message": "\"tamagotchi.stage.chat-window.context-inspector.bytes\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.chat-window.context-inspector.close",
+      "message": "\"tamagotchi.stage.chat-window.context-inspector.close\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.chat-window.context-inspector.collapse",
+      "message": "\"tamagotchi.stage.chat-window.context-inspector.collapse\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.chat-window.context-inspector.expand",
+      "message": "\"tamagotchi.stage.chat-window.context-inspector.expand\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.chat-window.context-inspector.input",
+      "message": "\"tamagotchi.stage.chat-window.context-inspector.input\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.chat-window.context-inspector.model",
+      "message": "\"tamagotchi.stage.chat-window.context-inspector.model\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.chat-window.context-inspector.output",
+      "message": "\"tamagotchi.stage.chat-window.context-inspector.output\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.chat-window.context-inspector.provider",
+      "message": "\"tamagotchi.stage.chat-window.context-inspector.provider\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.chat-window.context-inspector.reported-note",
+      "message": "\"tamagotchi.stage.chat-window.context-inspector.reported-note\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.chat-window.context-inspector.reported-usage",
+      "message": "\"tamagotchi.stage.chat-window.context-inspector.reported-usage\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.chat-window.context-inspector.total",
+      "message": "\"tamagotchi.stage.chat-window.context-inspector.total\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.chat-window.context-inspector.window",
+      "message": "\"tamagotchi.stage.chat-window.context-inspector.window\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.chat-window.context-inspector.window-usage",
+      "message": "\"tamagotchi.stage.chat-window.context-inspector.window-usage\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.chat-window.context-inspector.window-value",
+      "message": "\"tamagotchi.stage.chat-window.context-inspector.window-value\" is not used.",
       "count": 1
     },
     {
