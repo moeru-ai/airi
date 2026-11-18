@@ -371,6 +371,17 @@ describe('context bridge contract', () => {
     expect(registrations()).toHaveLength(6)
   })
 
+  it('stops registering chat-ingestion consumers after dispose', async () => {
+    const store = useContextBridgeStore()
+    await store.initialize()
+    await store.dispose()
+    serverSendMock.mockClear()
+
+    for (const callback of readyCallbacks) callback()
+
+    expect(serverSendMock).not.toHaveBeenCalled()
+  })
+
   it('lists the images and recordings of the turn in the chat message event', async () => {
     storedSessionMessages['session-1'] = [{
       id: 'turn-1',
