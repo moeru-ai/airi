@@ -31,20 +31,31 @@ export interface SerializedProjectionBreakdown {
   textBytes: number
   imageBytes: number
   totalBytes: number
-  /** JSON structure that is not assigned to a section. */
+  /**
+   * Bytes in the whole serialization that no section claims.
+   * Includes JSON keys, separators, and string quoting or escape overhead
+   * when a section measures a raw string instead of its JSON form.
+   */
   framingBytes: number
   sections: ContextProjectionSection[]
 }
 
 const CONTEXT_MARKER = '\n[Context]\n'
 const MAX_PREVIEW = 8_000
+const MAX_PREVIEW_STRING = 2_000
+const MAX_PREVIEW_DEPTH = 6
+const MAX_PREVIEW_ARRAY = 50
+/** Skip pretty preview when a slice is larger than this many UTF-8 bytes. */
+const MAX_PREVIEW_SLICE_BYTES = 1_048_576
 
 /** Ring fill from the latest reported input tokens and the model context window. */
 export interface ReportedWindowUsage {
-  /** Percent with one decimal place. */
+  /** Percent with one decimal place. Values above 100 mean reported input exceeds the window. */
   label: string
   /** Fill percent, clamped from 0 to 100. */
   bar: number
+  /** True when reported input tokens exceed the context window. */
+  over: boolean
 }
 
 /**
@@ -55,12 +66,14 @@ export function reportedWindowUsage(
   windowTokens: number | undefined,
   inputTokens: number | null | undefined,
 ): ReportedWindowUsage | undefined {
-  if (!windowTokens || inputTokens == null)
+  const window = positiveTokenCount(windowTokens)
+  if (!window || inputTokens == null || !Number.isFinite(inputTokens) || inputTokens < 0)
     return undefined
-  const percent = (inputTokens / windowTokens) * 100
+  const percent = (inputTokens / window) * 100
   return {
     label: percent.toFixed(1),
     bar: Math.min(100, Math.max(0, percent)),
+    over: percent > 100,
   }
 }
 
@@ -97,8 +110,6 @@ export function groupProjectionSections(breakdown: SerializedProjectionBreakdown
     const list = buckets.get(section.kind)
     if (list)
       list.push(section)
-    else
-      buckets.set(section.kind, [section])
   }
 
   const groups: ContextProjectionGroup[] = []
@@ -106,11 +117,13 @@ export function groupProjectionSections(breakdown: SerializedProjectionBreakdown
     const sections = buckets.get(kind) ?? []
     if (sections.length === 0)
       continue
+    const textBytes = sections.reduce((total, section) => total + section.textBytes, 0)
+    const imageBytes = sections.reduce((total, section) => total + section.imageBytes, 0)
     groups.push({
       kind,
-      textBytes: sections.reduce((total, section) => total + section.textBytes, 0),
-      imageBytes: sections.reduce((total, section) => total + section.imageBytes, 0),
-      totalBytes: sections.reduce((total, section) => total + section.totalBytes, 0),
+      textBytes,
+      imageBytes,
+      totalBytes: textBytes + imageBytes,
       sections,
     })
   }
@@ -165,11 +178,39 @@ function redactInlineImages(value: unknown, imageObject = false): unknown {
   }))
 }
 
-function previewOf(value: unknown) {
-  const text = typeof value === 'string'
-    ? value
-    : JSON.stringify(redactInlineImages(value), null, 2) ?? ''
-  return text.length <= MAX_PREVIEW ? text : `${text.slice(0, MAX_PREVIEW)}…`
+function truncatePreview(text: string) {
+  if (text.length <= MAX_PREVIEW)
+    return text
+  let end = MAX_PREVIEW
+  const unit = text.charCodeAt(end - 1)
+  // Avoid splitting a UTF-16 surrogate pair at the cut point.
+  if (unit >= 0xD800 && unit <= 0xDBFF)
+    end -= 1
+  return `${text.slice(0, end)}…`
+}
+
+/** Bounds a value before pretty-print so large tool results do not allocate a huge string. */
+function shrinkForPreview(value: unknown, depth = 0): unknown {
+  if (typeof value === 'string')
+    return value.length > MAX_PREVIEW_STRING ? `${value.slice(0, MAX_PREVIEW_STRING)}…` : value
+  if (value == null || typeof value !== 'object')
+    return value
+  if (depth > MAX_PREVIEW_DEPTH)
+    return '[…]'
+  if (Array.isArray(value))
+    return value.slice(0, MAX_PREVIEW_ARRAY).map(item => shrinkForPreview(item, depth + 1))
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([key, child]) => [key, shrinkForPreview(child, depth + 1)]),
+  )
+}
+
+function previewOf(value: unknown, totalBytes: number) {
+  if (typeof value === 'string')
+    return truncatePreview(value)
+  if (totalBytes > MAX_PREVIEW_SLICE_BYTES)
+    return `[preview omitted: ${totalBytes} bytes]`
+  const text = JSON.stringify(shrinkForPreview(redactInlineImages(value)), null, 2) ?? ''
+  return truncatePreview(text)
 }
 
 function toolTitle(tool: unknown) {
@@ -201,6 +242,35 @@ function readList(value: unknown, key: string): unknown[] | undefined {
 }
 
 /**
+ * Conversation items from a provider request shape.
+ * Responses API allows `input` as a string or as an item array.
+ */
+function readConversationItems(value: unknown): unknown[] | undefined {
+  if (Array.isArray(value))
+    return value
+  const messages = readList(value, 'messages')
+  if (messages)
+    return messages
+  const inputItems = readList(value, 'input')
+  if (inputItems)
+    return inputItems
+  if (isRecord(value) && typeof value.input === 'string')
+    return value.input === '' ? [] : [{ role: 'user', content: value.input }]
+  return undefined
+}
+
+/** True when the value looks like a provider request, not a bare message. */
+function isProviderRequestShape(value: unknown): value is Record<string, unknown> {
+  return isRecord(value) && (
+    'messages' in value
+    || 'input' in value
+    || 'tools' in value
+    || 'system' in value
+    || 'instructions' in value
+  )
+}
+
+/**
  * Splits one provider projection into serialized UTF-8 byte sections.
  * Image bytes follow `measureContextBudget`: only inline image data URLs count.
  * The result has no token fields.
@@ -224,7 +294,7 @@ export function classifySerializedProjection(value: unknown): SerializedProjecti
       textBytes: budget.textBytes,
       imageBytes: budget.imageBytes,
       totalBytes: budget.totalBytes,
-      preview: previewOf(slice),
+      preview: previewOf(slice, budget.totalBytes),
     })
   }
 
@@ -244,6 +314,14 @@ export function classifySerializedProjection(value: unknown): SerializedProjecti
     }
     if (isRecord(content) && kind === 'conversation' && typeof content.text === 'string' && content.text.includes(CONTEXT_MARKER)) {
       classifyContent(kind, content.text)
+      return
+    }
+    if (isRecord(content) && content.type === 'tool_use') {
+      push('tool-call', callTitle(content), content)
+      return
+    }
+    if (isRecord(content) && content.type === 'tool_result') {
+      classifyContent('tool-result', content.content !== undefined ? content.content : content)
       return
     }
     if (isImagePart(content)) {
@@ -300,14 +378,20 @@ export function classifySerializedProjection(value: unknown): SerializedProjecti
     }
   }
 
-  const messages = Array.isArray(value)
-    ? value
-    : readList(value, 'messages') ?? readList(value, 'input')
-  if (messages) {
-    for (const message of messages)
+  // Anthropic Messages uses top-level `system`. OpenAI Responses uses `instructions`.
+  const topSystem = isRecord(value)
+    ? (value.system ?? value.instructions)
+    : undefined
+  if (topSystem !== undefined)
+    classifyContent('system-context', topSystem)
+
+  const conversationItems = readConversationItems(value)
+  if (conversationItems) {
+    for (const message of conversationItems)
       classifyMessage(message)
   }
-  else {
+  else if (!isProviderRequestShape(value)) {
+    // Bare message or non-request value.
     classifyMessage(value)
   }
 
@@ -316,6 +400,12 @@ export function classifySerializedProjection(value: unknown): SerializedProjecti
 
   const whole = measureContextBudget(value)
   const assigned = sections.reduce((total, section) => total + section.totalBytes, 0)
+  if (import.meta.env.DEV && assigned > whole.totalBytes + 64) {
+    console.warn('[context-projection] assigned exceeds whole', {
+      assigned,
+      whole: whole.totalBytes,
+    })
+  }
   return {
     textBytes: whole.textBytes,
     imageBytes: whole.imageBytes,

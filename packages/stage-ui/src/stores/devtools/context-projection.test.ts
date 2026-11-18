@@ -26,11 +26,14 @@ describe('reportedWindowUsage', () => {
   it('uses reported input tokens over the model window and skips a missing window', () => {
     expect(reportedWindowUsage(undefined, 25_000)).toBeUndefined()
     expect(reportedWindowUsage(Number.NaN, 25_000)).toBeUndefined()
+    expect(reportedWindowUsage(-100_000, 25_000)).toBeUndefined()
     expect(reportedWindowUsage(100_000, null)).toBeUndefined()
     expect(reportedWindowUsage(100_000, undefined)).toBeUndefined()
-    expect(reportedWindowUsage(100_000, 25_000)).toEqual({ label: '25.0', bar: 25 })
-    expect(reportedWindowUsage(100_000, 0)).toEqual({ label: '0.0', bar: 0 })
-    expect(reportedWindowUsage(100_000, 250_000)).toEqual({ label: '250.0', bar: 100 })
+    expect(reportedWindowUsage(100_000, Number.NaN)).toBeUndefined()
+    expect(reportedWindowUsage(100_000, -1)).toBeUndefined()
+    expect(reportedWindowUsage(100_000, 25_000)).toEqual({ label: '25.0', bar: 25, over: false })
+    expect(reportedWindowUsage(100_000, 0)).toEqual({ label: '0.0', bar: 0, over: false })
+    expect(reportedWindowUsage(100_000, 250_000)).toEqual({ label: '250.0', bar: 100, over: true })
   })
 })
 
@@ -154,6 +157,101 @@ describe('classifySerializedProjection', () => {
     expect(breakdown.sections.map(section => section.kind)).toEqual(['conversation', 'tool-call', 'tool-result'])
     expect(breakdown.sections.find(section => section.kind === 'tool-call')?.title).toBe('observe')
     expect(breakdown.imageBytes).toBe(0)
+  })
+
+  it('wraps a string Responses input and does not double-count tools', () => {
+    const payload = {
+      input: 'Look at the settings window',
+      tools: [{ type: 'function', name: 'observe', parameters: { type: 'object' } }],
+    }
+
+    const breakdown = expectBytesReconcile(payload)
+    const assigned = breakdown.sections.reduce((total, section) => total + section.totalBytes, 0)
+
+    expect(breakdown.sections.map(section => [section.kind, section.title])).toEqual([
+      ['conversation', 'Message'],
+      ['tool-schema', 'observe'],
+    ])
+    expect(assigned).toBeLessThanOrEqual(breakdown.totalBytes)
+    expect(breakdown.sections.find(section => section.kind === 'conversation')?.preview).toBe('Look at the settings window')
+  })
+
+  it('classifies Anthropic tool_use and tool_result content blocks', () => {
+    const payload = {
+      messages: [{
+        role: 'assistant',
+        content: [
+          { type: 'text', text: 'Checking.' },
+          { type: 'tool_use', id: 'toolu_1', name: 'observe', input: { target: 'settings' } },
+        ],
+      }, {
+        role: 'user',
+        content: [
+          { type: 'tool_result', tool_use_id: 'toolu_1', content: 'settings window' },
+        ],
+      }],
+    }
+
+    const breakdown = expectBytesReconcile(payload)
+
+    expect(breakdown.sections.map(section => [section.kind, section.title])).toEqual([
+      ['conversation', 'Text'],
+      ['tool-call', 'observe'],
+      ['tool-result', 'Tool result'],
+    ])
+  })
+
+  it('classifies a tools-only request without treating the whole object as conversation', () => {
+    const payload = {
+      tools: [{ type: 'function', name: 'observe', parameters: { type: 'object' } }],
+    }
+
+    const breakdown = expectBytesReconcile(payload)
+
+    expect(breakdown.sections.map(section => section.kind)).toEqual(['tool-schema'])
+    expect(breakdown.sections[0]?.title).toBe('observe')
+  })
+
+  it('classifies top-level system and instructions before messages', () => {
+    const anthropic = expectBytesReconcile({
+      system: [{ type: 'text', text: 'You are AIRI.' }],
+      messages: [{ role: 'user', content: 'Hi' }],
+    })
+    const responses = expectBytesReconcile({
+      instructions: 'You are AIRI.',
+      input: [{ type: 'message', role: 'user', content: 'Hi' }],
+    })
+    const instructionsOnly = expectBytesReconcile({
+      instructions: 'You are AIRI.',
+    })
+
+    expect(anthropic.sections.map(section => [section.kind, section.title])).toEqual([
+      ['system-context', 'Text'],
+      ['conversation', 'Message'],
+    ])
+    expect(responses.sections.map(section => [section.kind, section.title])).toEqual([
+      ['system-context', 'System'],
+      ['conversation', 'Message'],
+    ])
+    expect(instructionsOnly.sections.map(section => section.kind)).toEqual(['system-context'])
+    expect(anthropic.sections[0]?.preview).toContain('You are AIRI.')
+    expect(responses.sections[0]?.preview).toBe('You are AIRI.')
+  })
+
+  it('bounds large object previews instead of pretty-printing the full tree', () => {
+    const payload = {
+      messages: [{
+        role: 'tool',
+        content: { blob: 'x'.repeat(12_000), nested: { deep: true } },
+      }],
+    }
+
+    const breakdown = expectBytesReconcile(payload)
+    const preview = breakdown.sections[0]?.preview ?? ''
+
+    expect(preview.length).toBeLessThanOrEqual(8_001)
+    expect(preview).toContain('…')
+    expect(preview).not.toContain('x'.repeat(3_000))
   })
 })
 

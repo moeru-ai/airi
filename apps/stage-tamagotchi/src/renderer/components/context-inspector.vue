@@ -106,11 +106,20 @@ function toggleSection(id: string) {
         <span
           v-if="windowUsage"
           aria-hidden="true"
-          :class="['context-ring size-4 shrink-0 text-primary-500']"
+          :class="[
+            'context-ring size-4 shrink-0',
+            windowUsage.over ? 'text-amber-600 dark:text-amber-400' : 'text-primary-500',
+          ]"
           :style="{ '--context-fill': `${windowUsage.bar}%` }"
         />
         <span v-else :class="['i-solar:pie-chart-2-bold-duotone size-5 shrink-0']" />
-        <span v-if="windowUsage" :class="['text-xs tabular-nums']">{{ windowUsage.label }}%</span>
+        <span
+          v-if="windowUsage"
+          :class="[
+            'text-xs tabular-nums',
+            windowUsage.over ? 'text-amber-600 dark:text-amber-400' : '',
+          ]"
+        >{{ windowUsage.label }}%</span>
       </GhostButton>
     </template>
 
@@ -140,9 +149,18 @@ function toggleSection(id: string) {
               v-if="windowUsage"
               data-testid="context-window-usage"
               :data-percent="windowUsage.label"
-              :class="['text-sm font-medium tabular-nums']"
+              :data-over="windowUsage.over ? 'true' : undefined"
+              :class="[
+                'text-sm font-medium tabular-nums',
+                windowUsage.over ? 'text-amber-600 dark:text-amber-400' : '',
+              ]"
             >
-              {{ t('tamagotchi.stage.chat-window.context-inspector.window-full', { percent: windowUsage.label }) }}
+              {{ t(
+                windowUsage.over
+                  ? 'tamagotchi.stage.chat-window.context-inspector.window-over'
+                  : 'tamagotchi.stage.chat-window.context-inspector.window-full',
+                { percent: windowUsage.label },
+              ) }}
             </p>
             <p
               v-else

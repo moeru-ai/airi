@@ -109,6 +109,7 @@ docs:
     window: 上下文窗口
     window-value: '{count} tokens'
     window-full: '{percent}% 已用'
+    window-over: '已用窗口的 {percent}%（超出）'
     window-usage: 上下文窗口的 {percent}%，来自提供方回报的输入 token
     tokens: tokens
     reported-usage: 最近一次请求的回报用量

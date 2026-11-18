@@ -110,6 +110,7 @@ docs:
     window: Context window
     window-value: '{count} tokens'
     window-full: '{percent}% full'
+    window-over: '{percent}% of window (over)'
     window-usage: '{percent}% of the context window, from reported input tokens'
     tokens: tokens
     reported-usage: Latest request, reported by the provider
