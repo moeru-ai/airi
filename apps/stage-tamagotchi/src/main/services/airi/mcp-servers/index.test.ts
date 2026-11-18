@@ -255,17 +255,17 @@ describe('createMcpManager', () => {
     managers.push(manager)
     await manager.writeConfigText(JSON.stringify({ terminalEnabled: true, mcpServers: {} }))
     await manager.applyAndRestart()
-    clientMocks.listTools.mockResolvedValue({ tools: [{ name: 'desktop_click', inputSchema: { type: 'object' } }] })
-    expect((await manager.listTools()).find(tool => tool.toolName === 'desktop_click')?.exposure).toBe('router-only')
+    clientMocks.listTools.mockResolvedValue({ tools: [{ name: 'computer_act', inputSchema: { type: 'object' } }] })
+    expect((await manager.listTools()).find(tool => tool.toolName === 'computer_act')?.exposure).toBe('direct')
     clientMocks.callTool.mockResolvedValue({
       content: [{ type: 'text', text: 'Approval required.' }],
-      structuredContent: { status: 'approval_required', pendingActionId: 'pending-computer', toolName: 'desktop_click', action: { kind: 'click', input: { x: 10, y: 20 } }, transparency: { intent: 'Click the requested point.' } },
+      structuredContent: { status: 'approval_required', pendingActionId: 'pending-computer', toolName: 'computer_act', action: { kind: 'click', input: { x: 10, y: 20 } }, transparency: { intent: 'Click the requested point.' } },
     })
     clientMocks.privateRequest.mockResolvedValue({ content: [{ type: 'text', text: 'Clicked.' }], structuredContent: { status: 'executed', action: 'click' } })
 
-    const result = await manager.callTool({ name: 'airi-terminal::desktop_click', arguments: { x: 10, y: 20 }, requestId: request.id, attribution }, 71)
+    const result = await manager.callTool({ name: 'airi-terminal::computer_act', arguments: { x: 10, y: 20 }, requestId: request.id, attribution }, 71)
 
-    expect(presentComputerUse).toHaveBeenCalledWith(expect.objectContaining({ actionId: 'pending-computer', requestId: request.id, toolName: 'desktop_click', summary: 'Click the requested point.' }), expect.anything())
+    expect(presentComputerUse).toHaveBeenCalledWith(expect.objectContaining({ actionId: 'pending-computer', requestId: request.id, toolName: 'computer_act', summary: 'Click the requested point.' }), expect.anything())
     expect(clientMocks.privateRequest).toHaveBeenCalledWith(expect.objectContaining({ method: 'airi/computer-use/execute-prepared' }), expect.anything(), expect.objectContaining({ timeout: 15_000, maxTotalTimeout: 15_000 }))
     expect(result.structuredContent).toMatchObject({ status: 'executed', action: 'click' })
   })
@@ -286,11 +286,11 @@ describe('createMcpManager', () => {
     managers.push(manager)
     await manager.writeConfigText(JSON.stringify({ terminalEnabled: true, mcpServers: {} }))
     await manager.applyAndRestart()
-    clientMocks.listTools.mockResolvedValue({ tools: [{ name: 'desktop_click', inputSchema: { type: 'object' } }] })
-    clientMocks.callTool.mockResolvedValue({ content: [], structuredContent: { status: 'approval_required', pendingActionId: 'pending-turbo-computer', toolName: 'desktop_click', action: { kind: 'click', input: { x: 10, y: 20 } } } })
+    clientMocks.listTools.mockResolvedValue({ tools: [{ name: 'computer_act', inputSchema: { type: 'object' } }] })
+    clientMocks.callTool.mockResolvedValue({ content: [], structuredContent: { status: 'approval_required', pendingActionId: 'pending-turbo-computer', toolName: 'computer_act', action: { kind: 'click', input: { x: 10, y: 20 } } } })
     clientMocks.privateRequest.mockResolvedValue({ content: [{ type: 'text', text: 'Clicked.' }], structuredContent: { status: 'executed', action: 'click' } })
 
-    const result = await manager.callTool({ name: 'airi-terminal::desktop_click', arguments: { x: 10, y: 20 }, requestId: request.id, attribution }, 71)
+    const result = await manager.callTool({ name: 'airi-terminal::computer_act', arguments: { x: 10, y: 20 }, requestId: request.id, attribution }, 71)
 
     expect(presentComputerUse).not.toHaveBeenCalled()
     expect(clientMocks.privateRequest).toHaveBeenCalledWith(expect.objectContaining({ method: 'airi/computer-use/execute-prepared' }), expect.anything(), expect.objectContaining({ signal: expect.any(AbortSignal) }))
@@ -313,8 +313,8 @@ describe('createMcpManager', () => {
     managers.push(manager)
     await manager.writeConfigText(JSON.stringify({ terminalEnabled: true, mcpServers: {} }))
     await manager.applyAndRestart()
-    clientMocks.listTools.mockResolvedValue({ tools: [{ name: 'desktop_click', inputSchema: { type: 'object' } }] })
-    clientMocks.callTool.mockResolvedValue({ content: [], structuredContent: { status: 'approval_required', pendingActionId: 'pending-revoked-turbo', toolName: 'desktop_click', action: { kind: 'click', input: { x: 10, y: 20 } } } })
+    clientMocks.listTools.mockResolvedValue({ tools: [{ name: 'computer_act', inputSchema: { type: 'object' } }] })
+    clientMocks.callTool.mockResolvedValue({ content: [], structuredContent: { status: 'approval_required', pendingActionId: 'pending-revoked-turbo', toolName: 'computer_act', action: { kind: 'click', input: { x: 10, y: 20 } } } })
     const executionStarted = Promise.withResolvers<AbortSignal>()
     clientMocks.privateRequest.mockImplementation(async (_request, _schema, options) => {
       const signal = options?.signal
@@ -326,12 +326,12 @@ describe('createMcpManager', () => {
       })
     })
 
-    const pending = manager.callTool({ name: 'airi-terminal::desktop_click', arguments: { x: 10, y: 20 }, requestId: request.id, attribution }, 71)
+    const pending = manager.callTool({ name: 'airi-terminal::computer_act', arguments: { x: 10, y: 20 }, requestId: request.id, attribution }, 71)
     const signal = await executionStarted.promise
     expect(signal.aborted).toBe(false)
     actions.setTerminalTurbo(attribution.sessionId, 71, false)
 
-    await expect(pending).resolves.toMatchObject({ isError: true, structuredContent: { status: 'cancelled', pendingActionId: 'pending-revoked-turbo' } })
+    await expect(pending).resolves.toMatchObject({ isError: true, structuredContent: { status: 'unknown', doNotReplay: true, pendingActionId: 'pending-revoked-turbo' } })
     expect(signal.aborted).toBe(true)
     expect(presentComputerUse).not.toHaveBeenCalled()
     expect(clientMocks.privateRequest).toHaveBeenCalledOnce()
@@ -487,6 +487,8 @@ describe('createMcpManager', () => {
         'airi-terminal::desktop_click': 'direct',
         'airi-terminal::desktop_get_state': 'router-only',
         'airi-terminal::desktop_get_session_trace': 'direct',
+        'airi-terminal::computer_act': 'router-only',
+        'airi-terminal::terminal_exec': 'disabled',
       },
       mcpServers: {},
     }))
@@ -495,16 +497,22 @@ describe('createMcpManager', () => {
       { name: 'desktop_click', inputSchema: { type: 'object' } },
       { name: 'desktop_get_state', inputSchema: { type: 'object' } },
       { name: 'desktop_get_session_trace', inputSchema: { type: 'object' } },
+      { name: 'computer_act', inputSchema: { type: 'object' } },
+      { name: 'terminal_exec', inputSchema: { type: 'object' } },
     ] })
 
     const descriptors = await manager.listTools()
     expect(descriptors.map(tool => [tool.toolName, tool.exposure])).toEqual([
-      ['desktop_click', 'direct'],
+      ['desktop_click', 'disabled'],
       ['desktop_get_state', 'disabled'],
       ['desktop_get_session_trace', 'disabled'],
+      ['computer_act', 'router-only'],
+      ['terminal_exec', 'disabled'],
     ])
     await expect(manager.callTool({ name: 'airi-terminal::desktop_get_session_trace' })).rejects.toThrow('disabled by the Host')
     await expect(manager.callTool({ name: 'airi-terminal::desktop_get_state' })).rejects.toThrow('disabled by the Host')
+    await expect(manager.callTool({ name: 'airi-terminal::desktop_click' })).rejects.toThrow('disabled by the Host')
+    await expect(manager.callTool({ name: 'airi-terminal::terminal_exec' })).rejects.toThrow('disabled by the Host')
     expect(clientMocks.callTool).not.toHaveBeenCalled()
   })
 
@@ -619,31 +627,31 @@ describe('createMcpManager', () => {
     const descriptors = await manager.listTools()
     expect(descriptors.map(tool => [tool.toolName, tool.exposure])).toEqual([
       ['terminal_exec', 'direct'],
-      ['terminal_history', 'router-only'],
-      ['desktop_screenshot', 'router-only'],
-      ['desktop_click', 'router-only'],
-      ['desktop_ensure_chrome', 'router-only'],
-      ['desktop_approve_pending_action', 'router-only'],
-      ['accessibility_snapshot', 'router-only'],
-      ['display_enumerate', 'router-only'],
-      ['browser_dom_click', 'router-only'],
-      ['workflow_run_tests', 'router-only'],
-      ['pty_create', 'router-only'],
-      ['pty_send_input', 'router-only'],
-      ['pty_write', 'router-only'],
+      ['terminal_history', 'disabled'],
+      ['desktop_screenshot', 'disabled'],
+      ['desktop_click', 'disabled'],
+      ['desktop_ensure_chrome', 'disabled'],
+      ['desktop_approve_pending_action', 'disabled'],
+      ['accessibility_snapshot', 'disabled'],
+      ['display_enumerate', 'disabled'],
+      ['browser_dom_click', 'disabled'],
+      ['workflow_run_tests', 'disabled'],
+      ['pty_create', 'disabled'],
+      ['pty_send_input', 'disabled'],
+      ['pty_write', 'disabled'],
       ['terminal_get_state', 'disabled'],
-      ['terminal_reset_state', 'router-only'],
+      ['terminal_reset_state', 'disabled'],
     ])
-    for (const tool of desktopTools.filter(tool => tool !== 'terminal_get_state'))
-      await expect(manager.callTool({ name: `airi-terminal::${tool}` })).rejects.toThrow('normal Chat request')
-    await expect(manager.callTool({ name: 'airi-terminal::terminal_get_state' })).rejects.toThrow('disabled by the Host')
+    for (const tool of desktopTools)
+      await expect(manager.callTool({ name: `airi-terminal::${tool}` })).rejects.toThrow('disabled by the Host')
+    await expect(manager.callTool({ name: 'airi-terminal::terminal_history' })).rejects.toThrow('disabled by the Host')
     await expect(manager.callTool({ name: 'airi-terminal::terminal_exec', arguments: { command: 'fixture' } })).rejects.toThrow('normal Chat request')
     expect(clientMocks.callTool).not.toHaveBeenCalled()
     const attribution = { sessionId: 'session-a', turnId: 'turn-a' }
     actions.setTerminalTurbo(attribution.sessionId, 71, true)
-    for (const tool of desktopTools.filter(tool => tool !== 'terminal_get_state'))
-      await expect(manager.callTool({ name: `airi-terminal::${tool}`, attribution }, 71)).rejects.toThrow('normal Chat request')
-    await expect(manager.callTool({ name: 'airi-terminal::terminal_get_state', attribution }, 71)).rejects.toThrow('disabled by the Host')
+    for (const tool of desktopTools)
+      await expect(manager.callTool({ name: `airi-terminal::${tool}`, attribution }, 71)).rejects.toThrow('disabled by the Host')
+    await expect(manager.callTool({ name: 'airi-terminal::terminal_history', attribution }, 71)).rejects.toThrow('disabled by the Host')
     expect(clientMocks.callTool).not.toHaveBeenCalled()
     const request = actions.registerRequest({ ...attribution, text: 'Run the fixture.' }, 71)
     const tools = await resolveLlmTools({ builtInTools: [], debugTools: [], sparkCommandTools: [], webSearchTools: [], activeTools: await createMcpTools({
