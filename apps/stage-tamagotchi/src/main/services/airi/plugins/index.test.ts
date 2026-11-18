@@ -36,6 +36,7 @@ import {
 } from '../../../../shared/eventa/plugin/host'
 import { electronPluginToolsChanged } from '../../../../shared/eventa/plugin/tools'
 import { setupExtensionHostServiceInternal } from './host'
+import { ManagedExtensionSessions } from './host/managed-sessions'
 import { loadManifestsFrom } from './host/registry'
 import { setupExtensionHost as setupExtensionHostService } from './index'
 import { createBuiltInExtensionKits } from './kits'
@@ -2066,21 +2067,33 @@ describe('setupExtensionHost', () => {
     ]))
   })
 
-  it('reloads a loaded plugin when auto-reload is enabled and entrypoint changes', async () => {
-    const pluginDir = join(pluginsDir, 'test-auto-reload-reload')
+  // https://github.com/moeru-ai/airi/issues/3359
+  // ROOT CAUSE:
+  //
+  // The Host put cache queries in manifest paths. URL conversion then treated queries as filename characters.
+  // We fixed this by passing a fresh cache key as a load option and keeping the original manifest.
+  it('auto-reload executes changed code and preserves manifest paths (Issue #3359)', async () => {
+    const extensionId = 'test-auto-reload-reload'
+    const pluginDir = join(pluginsDir, extensionId)
     await mkdir(pluginDir, { recursive: true })
+    const source = (revision: string) => [
+      'export default {',
+      `  id: '${extensionId}',`,
+      '  async setup(ctx) {',
+      `    await ctx.modules.register({ id: '${revision}' })`,
+      '  },',
+      '}',
+    ].join('\n')
     const entrypointPath = await writeEntrypoint({
       dir: pluginDir,
-      name: 'test-auto-reload-reload.ts',
-      contents: createEmptyExtensionEntrypoint('test-auto-reload-reload'),
+      name: 'entry.mjs',
+      contents: source('revision-a'),
     })
-    await writeManifest({
-      dir: pluginDir,
-      name: 'test-auto-reload-reload',
-      entrypoint: './test-auto-reload-reload.ts',
-    })
-
-    await setupExtensionHost()
+    const manifestPath = await writeManifest({ dir: pluginDir, name: extensionId, entrypoint: './entry.mjs' })
+    const originalManifest: unknown = JSON.parse(await readFile(manifestPath, 'utf-8'))
+    const start = vi.spyOn(ExtensionHost.prototype, 'start')
+    const registerLoaded = vi.spyOn(ManagedExtensionSessions.prototype, 'registerLoaded')
+    const service = await setupExtensionHost()
 
     expect(contextState.lastContext).toBeDefined()
     const invokeSetEnabled = defineInvoke(contextState.lastContext!, electronPluginSetEnabled)
@@ -2089,49 +2102,49 @@ describe('setupExtensionHost', () => {
     const invokeInspect = defineInvoke(contextState.lastContext!, electronPluginInspect)
     const invokeUnload = defineInvoke(contextState.lastContext!, electronPluginUnload)
 
-    await invokeSetEnabled({ extensionId: 'test-auto-reload-reload', enabled: true })
+    await invokeSetEnabled({ extensionId, enabled: true })
     await invokeLoadEnabled()
-    await invokeSetAutoReload({ extensionId: 'test-auto-reload-reload', enabled: true })
+    await invokeSetAutoReload({ extensionId, enabled: true })
+    expect(service.host.listModules().map(module => module.id)).toEqual(['revision-a'])
+    const beforeSessionId = service.host.listSessions()[0]?.id
 
-    const before = await invokeInspect()
-    const beforeSession = before.sessions.find(session => session.extensionId === 'test-auto-reload-reload')
-    expect(beforeSession).toBeDefined()
-
-    const pluginSdkUrl = pathToFileURL(resolve(repoRoot, 'packages/plugin-sdk/src/index.ts')).href
-    await writeFile(entrypointPath, [
-      `import { defineExtension } from ${JSON.stringify(pluginSdkUrl)}`,
-      '',
-      'export default defineExtension({',
-      '  id: \'test-auto-reload-reload\',',
-      '  setup() {',
-      '    return \'changed\'',
-      '  },',
-      '})',
-    ].join('\n'))
-
-    const deadline = Date.now() + 3000
-    let afterSessionId = beforeSession?.id
-    while (Date.now() < deadline && afterSessionId === beforeSession?.id) {
-      await new Promise(resolve => setTimeout(resolve, 100))
-      const snapshot = await invokeInspect()
-      const currentSessionId = snapshot.sessions.find(session => session.extensionId === 'test-auto-reload-reload')?.id
-
-      // ROOT CAUSE:
-      //
-      // Reload stops the old session before starting the replacement, so an inspect call can
-      // observe the intentional short-lived gap with no session. Treat that state as pending
-      // instead of ending the poll before the replacement session is available.
-      if (currentSessionId && currentSessionId !== beforeSession?.id) {
-        afterSessionId = currentSessionId
-      }
+    for (const revision of ['revision-b', 'revision-c']) {
+      await writeFile(entrypointPath, source(revision))
+      await vi.waitFor(async () => {
+        // Inspect shares the activation mutex and waits for each complete reload transition.
+        const snapshot = await invokeInspect()
+        expect(snapshot.sessions).toEqual([
+          expect.objectContaining({ extensionId, phase: 'ready' }),
+        ])
+        expect(service.host.listModules().map(module => module.id)).toEqual([revision])
+      }, { timeout: 5000, interval: 100 })
     }
 
-    expect(afterSessionId).toBeDefined()
-    expect(afterSessionId).not.toEqual(beforeSession?.id)
+    const calls = start.mock.calls.filter(([manifest]) => manifest.id === extensionId)
+    expect(calls).toHaveLength(3)
+    expect(calls[0]?.[1]?.cacheBustKey).toBeUndefined()
+    const keys = calls.slice(1).map(([, options]) => options?.cacheBustKey)
+    expect(keys[0]).toMatch(/^auto-reload-[\da-f-]{36}$/)
+    expect(keys[1]).toMatch(/^auto-reload-[\da-f-]{36}$/)
+    expect(keys[0]).not.toBe(keys[1])
+    for (const [manifest, options] of calls) {
+      expect(manifest).toEqual(originalManifest)
+      expect(options?.cwd).toBe(pluginDir)
+    }
+    const registrations = registerLoaded.mock.calls.filter(([input]) => input.extensionId === extensionId)
+    expect(registrations).toHaveLength(3)
+    for (const [index, [input]] of registrations.entries()) {
+      expect(input.manifest).toBe(calls[index]?.[0])
+      expect(input.manifest).toEqual(originalManifest)
+    }
+    expect(service.host.listSessions()[0]?.manifest).toBe(calls[2]?.[0])
+    expect(service.host.listSessions()[0]?.id).not.toBe(beforeSessionId)
+    expect(service.manifests).toContainEqual(originalManifest)
+    expect(JSON.parse(await readFile(manifestPath, 'utf-8'))).toEqual(originalManifest)
 
-    await invokeSetAutoReload({ extensionId: 'test-auto-reload-reload', enabled: false })
-    await invokeSetEnabled({ extensionId: 'test-auto-reload-reload', enabled: false })
-    await invokeUnload({ extensionId: 'test-auto-reload-reload' })
+    await invokeSetAutoReload({ extensionId, enabled: false })
+    await invokeSetEnabled({ extensionId, enabled: false })
+    await invokeUnload({ extensionId })
   })
 
   it('reloads a Provider and keeps its started Consumer', async () => {

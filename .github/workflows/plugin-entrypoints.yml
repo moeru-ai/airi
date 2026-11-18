@@ -1,0 +1,44 @@
+name: Plugin Entrypoints
+
+on:
+  pull_request:
+    paths:
+      - packages/plugin-sdk/**
+      - packages/extension-protocol/**
+      - .github/actions/setup-workspace/**
+      - .github/workflows/plugin-entrypoints.yml
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - package.json
+  push:
+    branches: [main]
+    paths:
+      - packages/plugin-sdk/**
+      - packages/extension-protocol/**
+      - .github/actions/setup-workspace/**
+      - .github/workflows/plugin-entrypoints.yml
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - package.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-esm:
+    name: Native ESM (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      pnpm_config_registry: https://registry.npmjs.org/
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-workspace
+        with:
+          install-args: --frozen-lockfile --ignore-scripts
+      - run: pnpm -F @proj-airi/plugin-sdk... build
+      - run: pnpm -F @proj-airi/plugin-sdk exec vitest run src/plugin-host/runtimes/node/loaders/fs.test.ts

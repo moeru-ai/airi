@@ -13,6 +13,7 @@ import type { TamagotchiToolRegistry } from '../kits/tool/registry'
 import type { ExtensionHostService, SetupExtensionHostOptions } from '../types'
 import type { SessionCleanupReport } from './managed-sessions'
 
+import { randomUUID } from 'node:crypto'
 import { dirname, join } from 'node:path'
 
 import { useLogg } from '@guiiai/logg'
@@ -30,7 +31,6 @@ import { ManagedExtensionSessions } from './managed-sessions'
 import {
   buildPluginRegistrySnapshot,
   createExtensionHostRegistry,
-  createManifestForLoad,
   manifestIdOf,
   resolvePluginRuntimeEntrypointPath,
 } from './registry'
@@ -412,12 +412,14 @@ export async function setupExtensionHostServiceInternal(
       throw new Error(`Extension manifest not found: ${extensionId}`)
     }
 
-    const manifestForLoad = createManifestForLoad(entry, loadOptions)
-    const session = await host.start(manifestForLoad, { cwd: dirname(entry.path) })
+    const session = await host.start(entry.manifest, {
+      cwd: dirname(entry.path),
+      cacheBustKey: loadOptions.cacheBustKey,
+    })
     managedSessions.registerLoaded({
       extensionId,
       sessionId: session.id,
-      manifest: manifestForLoad,
+      manifest: entry.manifest,
     })
     log.withFields({ extensionId, sessionId: session.id }).log('extension loaded')
     return { ok: true }
@@ -576,7 +578,7 @@ export async function setupExtensionHostServiceInternal(
           throw new Error(`Extension "${extensionId}" cannot restart because it is not loaded.`)
         }
         checkActivation(getLoadedExtensionIds())
-        await executeActivation({ unload: [extensionId], load: [extensionId] }, { cacheBustKey: `auto-reload-${Date.now()}` })
+        await executeActivation({ unload: [extensionId], load: [extensionId] }, { cacheBustKey: `auto-reload-${randomUUID()}` })
         autoReloadFeature.sync()
       })
     },
