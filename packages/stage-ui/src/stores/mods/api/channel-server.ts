@@ -222,12 +222,11 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
 
         if (event.data.authenticated) {
           if (!hasEverConnected.value) {
-            // First connection can flush immediately after authentication.
+            // Authenticated arrives while the transport is still `preparing`.
+            // Sends stay queued until the flush in `onReady` (#2305).
             connected.value = true
-            flush()
             initializeListeners()
           }
-          // On reconnect, wait for onReady (after announce) before flushing business events.
           resolve()
 
           return
@@ -300,19 +299,17 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     if (!client.value && !initializing.value)
       void initialize()
 
-    // `connected` turns true at `module:authenticated`, which better-ws delivers
-    // while the transport is still `preparing`; `Client.send()` refuses (returns
-    // false) until `ready`. Queue the refused event so the ready-flush delivers it
-    // instead of dropping it silently (#2305).
+    // `connected` turns true at `module:authenticated`. The transport is still
+    // `preparing` then, and `Client.send()` returns false until `ready`. Queue a
+    // refused event so that the flush in `onReady` sends it (#2305).
     if (!client.value || !connected.value || !client.value.send(data as WebSocketEvent))
       pendingSend.value.push(data as WebSocketEvent)
   }
 
   function flush() {
     if (client.value && connected.value) {
-      // Keep whatever the transport refused (it returns false outside the
-      // `ready` state) so a later flush — e.g. the one `onReady` runs —
-      // retries it instead of the message being dropped (#2305).
+      // Keep the events that the transport refused, so that a later flush sends
+      // them. For example, the flush in `onReady` (#2305).
       const unsent: WebSocketEvent[] = []
       for (const update of pendingSend.value) {
         if (!client.value.send(update)) {
@@ -349,7 +346,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
    * reconnects, and connections replaced after a URL/token change. Runs it
    * immediately when the transport is already ready.
    *
-   * Use this for per-connection server state (e.g. consumer registration)
+   * Use this for per-connection server state (for example, consumer registration)
    * rather than `ensureConnected()`, which resolves at `module:authenticated`
    * while sends are still refused (#2305).
    */

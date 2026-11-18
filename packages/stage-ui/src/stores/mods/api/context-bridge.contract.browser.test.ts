@@ -353,14 +353,24 @@ describe('context bridge contract', () => {
     localStorage.clear()
   })
 
-  it('registers chat-ingestion consumers on every transport ready, not when initialize resolves (#2305)', async () => {
+  // https://github.com/moeru-ai/airi/issues/2305
+  // ROOT CAUSE:
+  //
+  // The bridge sent its consumer registration right after `ensureConnected()`.
+  // That resolves at `module:authenticated`, while the transport still refuses sends.
+  //
+  // await serverChannelStore.ensureConnected()
+  // registerConsumers()
+  //
+  // We fixed this by registering on each transport ready.
+  // serverChannelStore.onReady(registerConsumers)
+  it('registers chat-ingestion consumers on each transport ready for Issue #2305', async () => {
     const registrations = () => serverSendMock.mock.calls
       .filter(([event]) => event.type === 'module:consumer:register')
       .map(([event]) => event.data.event)
 
     await useContextBridgeStore().initialize()
-    // ensureConnected() resolves at `module:authenticated`, while the transport
-    // still refuses sends; nothing may be registered before ready.
+    // The transport is not ready yet, so nothing may be registered.
     expect(registrations()).toEqual([])
 
     for (const callback of readyCallbacks) callback()

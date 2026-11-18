@@ -623,11 +623,9 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
       }
 
       await serverChannelStore.ensureConnected()
-      // The runtime keeps consumer registrations per connection, and only a
-      // `ready` transport accepts sends: `ensureConnected()` resolves at
-      // `module:authenticated`, still inside the prepare phase. Register on
-      // every ready (first connect, reconnect, replaced connection) so the
-      // runtime never routes `input:*` to nobody (#2305).
+      // `ensureConnected()` resolves at `module:authenticated`, before the
+      // transport accepts sends. The runtime also keeps registrations per
+      // connection. So register on each transport ready (#2305).
       disposeHookFns.value.push(serverChannelStore.onReady(registerConsumers))
 
       const remoteContexts = new WeakSet<object>()

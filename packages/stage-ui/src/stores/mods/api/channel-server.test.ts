@@ -212,7 +212,17 @@ describe('channel-server store reconnect', () => {
     })
   })
 
-  it('issue #2305: runs onReady callbacks on the first ready, not at authenticated, and on every reconnect', async () => {
+  // https://github.com/moeru-ai/airi/issues/2305
+  // ROOT CAUSE:
+  //
+  // `module:authenticated` arrives while the transport is `preparing`.
+  // `Client.send()` returns false until `ready`, so the registration was dropped.
+  //
+  // await ensureConnected()
+  // registerConsumers()
+  //
+  // We fixed this with `onReady(callback)`, and `send()` now queues refused events.
+  it('runs onReady callbacks on each ready but not at authenticated for Issue #2305', async () => {
     const store = useModsServerChannelStore()
     const onReady = vi.fn()
     store.onReady(onReady)
@@ -420,7 +430,8 @@ describe('channel-server store reconnect', () => {
     ]))
   })
 
-  it('issue #2305: queues a send the preparing transport refuses and delivers it on ready', async () => {
+  // https://github.com/moeru-ai/airi/issues/2305
+  it('queues a send that the preparing transport refuses and delivers it on ready for Issue #2305', async () => {
     const store = useModsServerChannelStore()
 
     const initializePromise = store.initialize({ token: 'secret' })
@@ -448,53 +459,37 @@ describe('channel-server store reconnect', () => {
     ])
   })
 
-  it('issue #2305: flush keeps messages the transport refused instead of dropping them', async () => {
+  // https://github.com/moeru-ai/airi/issues/2305
+  it('delivers events refused while preparing on the connection that replaces it for Issue #2305', async () => {
     const store = useModsServerChannelStore()
 
     const initializePromise = store.initialize({ token: 'secret' })
-    const client = serverSdkMocks.MockClient.instances[0]
-
-    client.simulateAuthenticated()
+    const firstClient = serverSdkMocks.MockClient.instances[0]
+    firstClient.simulateAuthenticated()
     await initializePromise
-    client.simulateReady()
 
     store.send({
       type: 'module:consumer:register',
       data: { event: 'input:text', mode: 'consumer-group', group: 'chat-ingestion' },
     } as any)
 
-    expect(store.pendingSendCount).toBe(0)
+    // The token changes before the first transport is ready. `dispose()` flushes
+    // into the transport that is still preparing, and it refuses the event.
+    store.websocketAuthToken = 'rotated'
+    await nextTick()
 
-    // The transport goes back to a non-ready state after a transient error;
-    // a queued message must survive a flush that cannot send it.
-    client.simulateTransientDisconnect()
-    store.send({
-      type: 'module:consumer:register',
-      data: { event: 'input:voice', mode: 'consumer-group', group: 'chat-ingestion' },
-    } as any)
+    expect(firstClient.sent).toEqual([])
     expect(store.pendingSendCount).toBe(1)
 
-    // Refuse one send round: the ready-flush must keep the message queued...
-    const originalSend = client.send.bind(client)
-    client.send = () => false
-    client.simulateReady()
-    expect(store.pendingSendCount).toBe(1)
-    client.send = originalSend
+    const replacementClient = serverSdkMocks.MockClient.instances.at(-1)!
+    replacementClient.simulateAuthenticated()
+    replacementClient.simulateReady()
 
-    // ...and the next ready-flush delivers it exactly once.
-    client.simulateReady()
     expect(store.pendingSendCount).toBe(0)
-    const registrations = client.sent.filter((event: any) => event?.type === 'module:consumer:register')
-    expect(registrations).toEqual([
-      // First ready-flush: the input:text registration from before the
-      // transient disconnect.
+    expect(replacementClient.sent).toEqual([
       expect.objectContaining({
+        type: 'module:consumer:register',
         data: expect.objectContaining({ event: 'input:text' }),
-      }),
-      // Second ready-flush: the input:voice registration the refused round
-      // kept queued, delivered exactly once.
-      expect.objectContaining({
-        data: expect.objectContaining({ event: 'input:voice' }),
       }),
     ])
   })
