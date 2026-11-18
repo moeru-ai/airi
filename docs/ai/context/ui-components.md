@@ -173,13 +173,12 @@ Loading placeholder with animation.
 
 ### Table
 
-Native table with horizontal scrolling and shared row dividers.
+Native table with horizontal scrolling, a rounded border, and shared row dividers.
 HTML attributes pass to the table element.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `containerClass` | `string \| string[]?` | — | Classes for the scroll container |
-| `framed` | `boolean?` | `false` | Add a rounded border to the scroll container |
 
 **Slots**: `header` contains header rows. `default` contains body rows.
 

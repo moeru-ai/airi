@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { useInfiniteQuery } from '@pinia/colada'
 import { client } from '@proj-airi/stage-ui/composables/api'
-import { useVerifiedSession } from '@proj-airi/stage-ui/composables/use-verified-session'
+import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { Alert, Button, GhostButton, Skeleton, Table, TableCell, TableHead } from '@proj-airi/ui'
 import { intlFormat, parseISO } from 'date-fns'
+import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
@@ -11,7 +12,7 @@ import { useRoute } from 'vue-router'
 import PaymentReceiptButton from './payment-receipt-button.vue'
 
 const { t, n, locale } = useI18n()
-const verifiedSession = useVerifiedSession()
+const { verifiedSession } = storeToRefs(useAuthStore())
 const route = useRoute()
 const receiptError = ref(false)
 const { data, error, isLoading, hasNextPage, loadNextPage, refetch } = useInfiniteQuery({
@@ -79,7 +80,7 @@ function formatDate(iso: string) {
     <p v-else-if="!records.length && !error" :class="['py-4 text-center text-sm text-neutral-500 dark:text-neutral-400']">
       {{ t('settings.pages.billing.empty') }}
     </p>
-    <Table v-if="records.length" framed container-class="hidden sm:block">
+    <Table v-if="records.length" container-class="hidden sm:block">
       <template #header>
         <tr>
           <TableHead>{{ t('settings.pages.billing.date') }}</TableHead>

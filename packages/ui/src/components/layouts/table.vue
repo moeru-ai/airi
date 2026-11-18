@@ -1,7 +1,6 @@
 <script setup lang="ts">
 export interface TableProps {
   containerClass?: string | string[]
-  framed?: boolean
 }
 
 defineOptions({ inheritAttrs: false })
@@ -13,7 +12,7 @@ defineSlots<{
 </script>
 
 <template>
-  <div :class="['w-full overflow-x-auto', framed && 'border border-neutral-200 rounded-xl dark:border-neutral-800', containerClass]">
+  <div :class="['w-full overflow-x-auto', 'border border-neutral-200 rounded-xl dark:border-neutral-800', containerClass]">
     <table v-bind="$attrs" :class="['w-full text-sm']">
       <thead :class="['border-b border-neutral-200 dark:border-neutral-800']">
         <slot name="header" />

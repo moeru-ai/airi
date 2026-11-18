@@ -1,18 +1,32 @@
+import type Stripe from 'stripe'
+
 import type { Database } from '../../../libs/db'
-import type { PaymentReceiptAdapter } from '../../adapters/payment/types'
 
 import { ApiError, createNotFoundError } from '@proj-airi/http-error-shared'
 import { and, desc, eq, isNull, sql } from 'drizzle-orm'
 import { number, object, pipe, regex, safeParse, string, toUpperCase } from 'valibot'
 
 import { paymentOrder } from '../../../schemas/payment'
+import { appleIapReceiptAdapter } from '../../adapters/payment/apple-iap'
+import { createStripeReceiptAdapter } from '../../adapters/payment/stripe'
 
 const storedAmountSchema = object({
   amount: number(),
   currency: pipe(string(), regex(/^[a-z]{3}$/i), toUpperCase()),
 })
 
-export function createPaymentReceiptService(db: Database, adapters: ReadonlyMap<string, PaymentReceiptAdapter>) {
+export function createPaymentReceiptService(db: Database, stripe: Stripe | null) {
+  const stripeReceiptAdapter = createStripeReceiptAdapter(stripe)
+
+  function getReceiptAdapter(processor: string) {
+    switch (processor) {
+      case 'stripe':
+        return stripeReceiptAdapter
+      case 'apple_iap':
+        return appleIapReceiptAdapter
+    }
+  }
+
   return {
     async listOrders(userId: string, limit: number, offset: number) {
       const orderDate = sql`coalesce(${paymentOrder.creditedAt}, ${paymentOrder.createdAt})`
@@ -33,7 +47,7 @@ export function createPaymentReceiptService(db: Database, adapters: ReadonlyMap<
 
       return {
         records: records.slice(0, limit).map((record) => {
-          const adapter = adapters.get(record.processor)
+          const adapter = getReceiptAdapter(record.processor)
           const storedAmount = safeParse(storedAmountSchema, record)
           if (!adapter || !storedAmount.success)
             return { ...record, amount: null, currency: null }
@@ -59,12 +73,10 @@ export function createPaymentReceiptService(db: Database, adapters: ReadonlyMap<
       if (!order)
         throw createNotFoundError('Payment order not found')
 
-      const adapter = adapters.get(order.processor)
-      if (adapter) {
-        const url = await adapter.resolveReceiptUrl(order.processorOrderId)
-        if (url)
-          return { url }
-      }
+      const url = await getReceiptAdapter(order.processor)?.resolveReceiptUrl(order.processorOrderId)
+      if (url)
+        return { url }
+
       throw new ApiError(404, 'PAYMENT_RECEIPT_UNAVAILABLE', 'Payment receipt is unavailable')
     },
   }

@@ -9,12 +9,10 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import { createPaymentRoutes } from '.'
 import { mockDB } from '../../libs/mock-db'
 import { paymentOrder } from '../../schemas/payment'
-import { createPaymentReceiptAdapters } from '../../services/adapters/payment'
 import { createPaymentReceiptService } from '../../services/domain/payment/receipt'
 
 describe('payment routes', () => {
   let db: Database
-  const adapters = createPaymentReceiptAdapters(null)
 
   beforeAll(async () => {
     db = await mockDB({ paymentOrder })
@@ -44,7 +42,7 @@ describe('payment routes', () => {
           })
       await next()
     })
-    app.route('/api/v1/payments', createPaymentRoutes(createPaymentReceiptService(db, adapters)))
+    app.route('/api/v1/payments', createPaymentRoutes(createPaymentReceiptService(db, null)))
     return app
   }
 

@@ -9,9 +9,9 @@ const rows = [
 
 <template>
   <Story title="Table" group="misc">
-    <Variant id="framed" title="Framed with horizontal scrolling">
+    <Variant id="framed" title="Horizontal scrolling">
       <div :class="['max-w-sm p-4']">
-        <Table framed aria-label="Purchases" :class="['min-w-96']">
+        <Table aria-label="Purchases" :class="['min-w-96']">
           <template #header>
             <tr>
               <TableHead>Item</TableHead>

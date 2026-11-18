@@ -187,7 +187,7 @@ watch(isAuthenticated, (authenticated) => {
         {{ t('settings.pages.flux.audit.empty') }}
       </div>
 
-      <Table v-else framed container-class="hidden sm:block">
+      <Table v-else container-class="hidden sm:block">
         <template #header>
           <tr>
             <TableHead>{{ t('settings.pages.flux.audit.time') }}</TableHead>

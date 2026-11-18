@@ -30,8 +30,8 @@ Prefer a valid HTTPS hosted invoice URL. If one is unavailable, use a valid HTTP
 Apple purchases open Apple's purchase history at `https://reportaproblem.apple.com/`.
 Apple does not expose a documented web link for an individual transaction.
 Resolve links only after the user clicks View receipt. Do not persist expiring receipt links.
-The API entry point supplies the adapters to the receipt service.
-The service selects a supplied adapter by the processor on the original order.
+The API entry point supplies the Stripe client to the receipt service.
+The receipt service selects its adapter by the processor on the original order.
 Each adapter owns that channel's amount conversion and receipt destination.
 
 ## Scope and non-goals
@@ -53,7 +53,7 @@ flowchart LR
   History --> Wallet[(Wallet transactions)]
   Billing[Billing page] --> Payments[Payment routes]
   Payments --> Receipts[Payment receipt service]
-  App[API entry point] -->|Supplies adapters| Receipts
+  App[API entry point] -->|Supplies Stripe client| Receipts
   Receipts --> Orders[(Payment orders)]
   Receipts --> StripeReceipt[Stripe receipt adapter]
   Receipts --> AppleReceipt[Apple receipt adapter]
@@ -66,11 +66,12 @@ flowchart LR
 packages/
   stage-pages/src/pages/settings/{flux.vue,usage.vue}
   stage-pages/src/pages/settings/components/{payment-history.vue,payment-receipt-button.vue}
+  stage-ui/src/stores/{auth.ts,auth.test.ts}
   i18n/src/locales/{en,zh-Hans}/settings.yaml
 server/apps/api/src/
   app.ts
   routes/payments/{index.ts,route.test.ts}
-  services/adapters/payment/{index.ts,apple-iap.ts,stripe.ts,types.ts}
+  services/adapters/payment/{apple-iap.ts,stripe.ts,types.ts}
   services/domain/payment/{receipt.ts,tests/receipt.test.ts}
 ```
 

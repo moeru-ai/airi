@@ -4,7 +4,6 @@ import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 
-import { useVerifiedSession } from '../composables/use-verified-session'
 import { triggerSignIn } from '../libs/auth'
 import { requestAuthSession } from '../libs/auth-client'
 import { refreshAccessToken, TokenRefreshError } from '../libs/auth-oidc'
@@ -146,20 +145,19 @@ describe('auth store sign-in requests', () => {
 
   it('waits for verification before exposing a replacement session', async () => {
     const authStore = useAuthStore()
-    const verifiedSession = useVerifiedSession()
     await authStore.completeSignIn({ accessToken: 'first-access-token', expiresIn: 3600, clientId: 'airi-stage-web' })
-    const firstSession = verifiedSession.value
+    const firstSession = authStore.verifiedSession
     expect(firstSession?.userId).toBe(user.id)
 
     const pending = Promise.withResolvers<{ user: User, session: Session }>()
     vi.mocked(requestAuthSession).mockReturnValueOnce(pending.promise)
     const signingIn = authStore.completeSignIn({ accessToken: 'next-access-token', expiresIn: 3600, clientId: 'airi-stage-web' })
-    expect(verifiedSession.value).toBeNull()
+    expect(authStore.verifiedSession).toBeNull()
 
     pending.resolve({ user, session: { ...session, id: 'session-2' } })
     await signingIn
-    expect(verifiedSession.value?.userId).toBe(user.id)
-    expect(verifiedSession.value).not.toEqual(firstSession)
+    expect(authStore.verifiedSession?.userId).toBe(user.id)
+    expect(authStore.verifiedSession).not.toEqual(firstSession)
 
     await authStore.clearAllAuthState()
   })

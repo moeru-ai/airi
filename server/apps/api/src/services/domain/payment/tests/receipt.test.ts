@@ -7,7 +7,6 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { mockDB } from '../../../../libs/mock-db'
 import { paymentOrder } from '../../../../schemas/payment'
-import { createPaymentReceiptAdapters } from '../../../adapters/payment'
 import { createPaymentReceiptService } from '../receipt'
 
 describe('payment receipts', () => {
@@ -19,8 +18,8 @@ describe('payment receipts', () => {
 
   beforeAll(async () => {
     db = await mockDB({ paymentOrder })
-    receipts = createPaymentReceiptService(db, createPaymentReceiptAdapters(stripe))
-    receiptsWithoutStripe = createPaymentReceiptService(db, createPaymentReceiptAdapters(null))
+    receipts = createPaymentReceiptService(db, stripe)
+    receiptsWithoutStripe = createPaymentReceiptService(db, null)
   })
 
   beforeEach(async () => {
