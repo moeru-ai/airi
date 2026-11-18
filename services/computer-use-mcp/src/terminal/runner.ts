@@ -218,20 +218,26 @@ export function createLocalShellRunner(config: ComputerUseConfig): TerminalRunne
       let lifecycleEnded = false
       let escalationTimer: ReturnType<typeof setTimeout> | undefined
       let drainTimer: ReturnType<typeof setTimeout> | undefined
-      function boundOutputDrain(code: number | null) {
-        drainTimer ??= setTimeout(() => {
-          endLifecycle('unknown', code ?? child.exitCode)
-          child.stdout?.destroy()
-          child.stderr?.destroy()
-          child.unref()
-        }, OUTPUT_DRAIN_MS)
-      }
       const stop = () => {
         if (lifecycleEnded || escalationTimer)
           return
         signalProcessGroup(child, 'SIGTERM')
         escalationTimer = setTimeout(signalProcessGroup, PROCESS_GROUP_KILL_GRACE_MS, child, 'SIGKILL')
         escalationTimer.unref()
+      }
+      function boundOutputDrain(code: number | null) {
+        drainTimer ??= setTimeout(() => {
+          // NOTICE:
+          // The command exited, but a process it started still holds the output
+          // pipes. Ending the execution here drops it from `active`, and `close()`
+          // only stops the executions it still tracks. Signal the group first so
+          // the forced drain does not orphan that process.
+          stop()
+          endLifecycle('unknown', code ?? child.exitCode)
+          child.stdout?.destroy()
+          child.stderr?.destroy()
+          child.unref()
+        }, OUTPUT_DRAIN_MS)
       }
       const owned = { stop, lifecycle }
       active.add(owned)

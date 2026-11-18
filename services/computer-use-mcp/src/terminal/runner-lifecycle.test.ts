@@ -49,6 +49,32 @@ describe('direct Shell lifecycle', () => {
     }
   })
 
+  it('terminates a process group that outlives its command and still holds the pipes', async () => {
+    // ROOT CAUSE:
+    //
+    // The forced drain dropped the execution from `active` without signalling
+    // the group. `close()` only stops tracked executions, so anything the
+    // command left running survived the runner.
+    vi.useFakeTimers()
+    try {
+      const { child, runner, input } = fixture()
+      const execution = runner.startPrepared!(input)
+      const lifecycle = vi.fn()
+      void execution.lifecycle.then(lifecycle)
+
+      child.emit('exit', 0)
+      expect(child.kill).not.toHaveBeenCalled()
+      await vi.advanceTimersByTimeAsync(1000)
+
+      expect(lifecycle).toHaveBeenCalledExactlyOnceWith('unknown')
+      expect(child.kill).toHaveBeenCalledWith('SIGTERM')
+      await runner.close!()
+    }
+    finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('ends ownership when spawn rejects synchronously before creating a native process', async () => {
     const { runner, input } = fixture()
     io.spawn.mockImplementationOnce(() => {

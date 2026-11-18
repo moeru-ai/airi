@@ -15,7 +15,9 @@ function isMutatingAction(action: ActionInvocation) {
 }
 
 function isUiInteractionAction(action: ActionInvocation) {
-  return ['click', 'desktop_click_target', 'type_text', 'press_keys', 'scroll', 'open_app', 'focus_app'].includes(action.kind)
+  // Browser DOM writes share the same denyApps / denyWindowTitles gate as desktop input.
+  return action.kind.startsWith('browser_dom_')
+    || ['click', 'desktop_click_target', 'type_text', 'press_keys', 'scroll', 'open_app', 'focus_app'].includes(action.kind)
 }
 
 function getCoordinate(action: ActionInvocation) {
