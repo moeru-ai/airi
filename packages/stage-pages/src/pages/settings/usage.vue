@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { client } from '@proj-airi/stage-ui/composables/api'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
-import { Button } from '@proj-airi/ui'
+import { Button, Table, TableCell, TableHead } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -162,7 +162,7 @@ watch(isAuthenticated, (authenticated) => {
 <template>
   <div :class="['flex min-h-full flex-col gap-4 p-4']">
     <RouterLink to="/settings/flux" :class="['self-end text-sm text-primary-500 hover:text-primary-600 dark:text-primary-400']">
-      {{ t('settings.pages.billing.title') }}
+      {{ t('settings.pages.flux.pageTitle') }}
     </RouterLink>
     <div v-if="!isAuthenticated" :class="['flex flex-col items-center gap-3 py-8 text-sm text-neutral-500 dark:text-neutral-400']">
       <p>{{ t('settings.pages.usage.signIn') }}</p>
@@ -187,121 +187,108 @@ watch(isAuthenticated, (authenticated) => {
         {{ t('settings.pages.flux.audit.empty') }}
       </div>
 
-      <div v-else border="1 neutral-200 dark:neutral-800" overflow-x-auto rounded-xl hidden sm:block>
-        <table w-full text-sm>
-          <thead border="b neutral-200 dark:neutral-800">
-            <tr>
-              <th px-4 py-3 text-left font-medium>
-                {{ t('settings.pages.flux.audit.time') }}
-              </th>
-              <th px-4 py-3 text-left font-medium>
-                {{ t('settings.pages.flux.audit.type') }}
-              </th>
-              <th px-4 py-3 text-left font-medium>
-                {{ t('settings.pages.flux.audit.detail') }}
-              </th>
-              <th px-4 py-3 text-right font-medium>
-                {{ t('settings.pages.flux.audit.amount') }}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <template v-for="row in groupedRows" :key="row.type === 'single' ? row.record.id : row.key">
-              <tr
-                v-if="row.type === 'single'"
-                border="b neutral-100 dark:neutral-800/50 last:none"
-              >
-                <td whitespace-nowrap px-4 py-3 text="neutral-500">
-                  {{ formatDate(row.record.createdAt) }}
-                </td>
-                <td px-4 py-3>
-                  <span
-                    inline-block rounded-full px-2 py-0.5 text-xs font-medium
-                    :class="row.record.type === 'debit'
-                      ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
-                      : 'bg-green-500/10 text-green-600 dark:text-green-400'"
-                  >
-                    {{ typeLabel(row.record.type) }}
-                  </span>
-                </td>
-                <td px-4 py-3>
-                  <span>{{ row.record.description }}</span>
-                  <span
-                    v-if="row.record.metadata?.promptTokens != null"
-                    ml-1 text="xs neutral-400"
-                  >
-                    ({{ row.record.metadata.promptTokens }}+{{ row.record.metadata.completionTokens }} tokens)
-                  </span>
-                  <span
-                    v-else-if="row.record.description?.startsWith('tts:') && row.record.metadata?.model"
-                    ml-1 text="xs neutral-400"
-                  >
-                    ({{ row.record.metadata.model }})
-                  </span>
-                </td>
-                <td px-4 py-3 text-right font-mono>
-                  <span :class="isPositive(row.record) ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'">
-                    {{ displayAmount(row.record) }}
-                  </span>
-                </td>
-              </tr>
+      <Table v-else framed container-class="hidden sm:block">
+        <template #header>
+          <tr>
+            <TableHead>{{ t('settings.pages.flux.audit.time') }}</TableHead>
+            <TableHead>{{ t('settings.pages.flux.audit.type') }}</TableHead>
+            <TableHead>{{ t('settings.pages.flux.audit.detail') }}</TableHead>
+            <TableHead align="right">
+              {{ t('settings.pages.flux.audit.amount') }}
+            </TableHead>
+          </tr>
+        </template>
 
-              <tr
-                v-else
-                :class="['cursor-pointer', 'hover:bg-neutral-50', 'dark:hover:bg-neutral-800/30']"
-                border="b neutral-100 dark:neutral-800/50"
-                @click="toggleGroup(row.key)"
+        <template v-for="row in groupedRows" :key="row.type === 'single' ? row.record.id : row.key">
+          <tr v-if="row.type === 'single'">
+            <TableCell :class="['whitespace-nowrap text-neutral-500']">
+              {{ formatDate(row.record.createdAt) }}
+            </TableCell>
+            <TableCell>
+              <span
+                inline-block rounded-full px-2 py-0.5 text-xs font-medium
+                :class="row.record.type === 'debit'
+                  ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
+                  : 'bg-green-500/10 text-green-600 dark:text-green-400'"
               >
-                <td whitespace-nowrap px-4 py-3 text="neutral-500">
-                  {{ formatDate(row.lastTime) }}
-                </td>
-                <td px-4 py-3>
-                  <span
-                    :class="['inline-block', 'rounded-full', 'px-2', 'py-0.5', 'text-xs', 'font-medium',
-                             'bg-orange-500/10', 'text-orange-600', 'dark:text-orange-400']"
-                  >
-                    {{ t('settings.pages.flux.audit.typeConsumption') }}
-                  </span>
-                </td>
-                <td px-4 py-3>
-                  <span flex="~ items-center gap-1">
-                    <span
-                      :class="expandedGroups.has(row.key) ? 'i-solar:alt-arrow-down-line-duotone' : 'i-solar:alt-arrow-right-line-duotone'"
-                      inline-block size-4 text="neutral-400"
-                    />
-                    {{ row.description }}
-                    <span ml-1 text="xs neutral-400">
-                      ({{ row.count }} {{ t('settings.pages.flux.audit.ttsRequests') }})
-                    </span>
-                  </span>
-                </td>
-                <td px-4 py-3 text-right font-mono>
-                  <span text="orange-600 dark:orange-400">
-                    -{{ row.totalAmount }}
-                  </span>
-                </td>
-              </tr>
+                {{ typeLabel(row.record.type) }}
+              </span>
+            </TableCell>
+            <TableCell>
+              <span>{{ row.record.description }}</span>
+              <span
+                v-if="row.record.metadata?.promptTokens != null"
+                ml-1 text="xs neutral-400"
+              >
+                ({{ row.record.metadata.promptTokens }}+{{ row.record.metadata.completionTokens }} tokens)
+              </span>
+              <span
+                v-else-if="row.record.description?.startsWith('tts:') && row.record.metadata?.model"
+                ml-1 text="xs neutral-400"
+              >
+                ({{ row.record.metadata.model }})
+              </span>
+            </TableCell>
+            <TableCell align="right" :class="['font-mono']">
+              <span :class="isPositive(row.record) ? 'text-green-600 dark:text-green-400' : 'text-orange-600 dark:text-orange-400'">
+                {{ displayAmount(row.record) }}
+              </span>
+            </TableCell>
+          </tr>
 
-              <tr
-                v-for="child in (row.type === 'group' && expandedGroups.has(row.key) ? row.records : [])"
-                :key="child.id"
-                border="b neutral-100 dark:neutral-800/50 last:none" bg="neutral-50/50 dark:neutral-800/20"
+          <tr
+            v-else
+            :class="['cursor-pointer', 'hover:bg-neutral-50', 'dark:hover:bg-neutral-800/30']"
+            @click="toggleGroup(row.key)"
+          >
+            <TableCell :class="['whitespace-nowrap text-neutral-500']">
+              {{ formatDate(row.lastTime) }}
+            </TableCell>
+            <TableCell>
+              <span
+                :class="['inline-block', 'rounded-full', 'px-2', 'py-0.5', 'text-xs', 'font-medium',
+                         'bg-orange-500/10', 'text-orange-600', 'dark:text-orange-400']"
               >
-                <td whitespace-nowrap px-4 py-2 pl-8 text="xs neutral-400">
-                  {{ formatDate(child.createdAt) }}
-                </td>
-                <td px-4 py-2 />
-                <td px-4 py-2 text="xs neutral-400">
-                  {{ child.description }}
-                </td>
-                <td px-4 py-2 text-right font-mono text="xs orange-500 dark:orange-400">
-                  -{{ child.amount }}
-                </td>
-              </tr>
-            </template>
-          </tbody>
-        </table>
-      </div>
+                {{ t('settings.pages.flux.audit.typeConsumption') }}
+              </span>
+            </TableCell>
+            <TableCell>
+              <span flex="~ items-center gap-1">
+                <span
+                  :class="expandedGroups.has(row.key) ? 'i-solar:alt-arrow-down-line-duotone' : 'i-solar:alt-arrow-right-line-duotone'"
+                  inline-block size-4 text="neutral-400"
+                />
+                {{ row.description }}
+                <span ml-1 text="xs neutral-400">
+                  ({{ row.count }} {{ t('settings.pages.flux.audit.ttsRequests') }})
+                </span>
+              </span>
+            </TableCell>
+            <TableCell align="right" :class="['font-mono']">
+              <span text="orange-600 dark:orange-400">
+                -{{ row.totalAmount }}
+              </span>
+            </TableCell>
+          </tr>
+
+          <tr
+            v-for="child in (row.type === 'group' && expandedGroups.has(row.key) ? row.records : [])"
+            :key="child.id"
+            :class="['bg-neutral-50/50 dark:bg-neutral-800/20']"
+          >
+            <TableCell compact :class="['whitespace-nowrap pl-8 text-xs text-neutral-400']">
+              {{ formatDate(child.createdAt) }}
+            </TableCell>
+            <TableCell compact />
+            <TableCell compact :class="['text-xs text-neutral-400']">
+              {{ child.description }}
+            </TableCell>
+            <TableCell compact align="right" :class="['font-mono text-xs text-orange-500 dark:text-orange-400']">
+              -{{ child.amount }}
+            </TableCell>
+          </tr>
+        </template>
+      </Table>
 
       <div v-if="auditRecords.length > 0" flex="~ col gap-2" sm:hidden>
         <template v-for="row in groupedRows" :key="row.type === 'single' ? row.record.id : row.key">

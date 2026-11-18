@@ -1842,10 +1842,9 @@ pages:
       description: One-time purchase. It does not expire.
   billing:
     refresh: Refresh
-    title: Billing & Invoices
     description: Manage subscriptions, Flux purchases, and receipts
-    receipts: Invoices & receipts
-    receiptsHint: Receipts for Flux purchases. Manage subscription billing in the subscription section above.
+    receipts: Flux top-up receipts
+    receiptsHint: Manage subscription billing in the subscription section above.
     date: Date
     descriptionColumn: Description
     status: Status

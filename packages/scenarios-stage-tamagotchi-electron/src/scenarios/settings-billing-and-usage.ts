@@ -116,7 +116,7 @@ export async function checkBillingAndUsage(
   await usage.getByText('Flux top-up', { exact: true }).filter({ visible: true }).first().waitFor()
   await capture('usage-paginated', page)
   const paymentReads = state.requests.filter(path => path.includes('/payments?')).length
-  await page.getByRole('link', { name: 'Billing & Invoices', exact: true }).click()
+  await page.getByRole('link', { name: 'Subscription', exact: true }).click()
   await page.getByTestId('payment-history').getByText('USD 4.99').filter({ visible: true }).first().waitFor()
   await page.getByRole('link', { name: /Usage/ }).click()
   await usage.getByText('Initial grant', { exact: true }).filter({ visible: true }).first().waitFor()

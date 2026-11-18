@@ -1754,10 +1754,9 @@ pages:
       description: 单次购买，不会过期。
   billing:
     refresh: 刷新
-    title: 账单与收据
     description: 管理订阅、Flux 购买和收据
-    receipts: 账单与收据
-    receiptsHint: 此处显示 Flux 购买收据。订阅账单请在上方订阅区域管理。
+    receipts: Flux 充值收据
+    receiptsHint: 请在上方订阅区域管理订阅账单。
     date: 日期
     descriptionColumn: 购买内容
     status: 状态

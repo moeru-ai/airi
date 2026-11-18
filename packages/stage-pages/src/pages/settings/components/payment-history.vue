@@ -2,7 +2,7 @@
 import { useInfiniteQuery } from '@pinia/colada'
 import { client } from '@proj-airi/stage-ui/composables/api'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
-import { Alert, Button, GhostButton, Skeleton } from '@proj-airi/ui'
+import { Alert, Button, GhostButton, Skeleton, Table, TableCell, TableHead } from '@proj-airi/ui'
 import { intlFormat, parseISO } from 'date-fns'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -68,48 +68,37 @@ function formatDate(iso: string) {
     <p v-else-if="!records?.length && !error" :class="['py-4 text-center text-sm text-neutral-500 dark:text-neutral-400']">
       {{ t('settings.pages.billing.empty') }}
     </p>
-    <div v-if="records?.length" :class="['hidden overflow-x-auto rounded-xl sm:block', 'border border-neutral-200 dark:border-neutral-800']">
-      <table :class="['w-full text-sm']">
-        <thead :class="['border-b border-neutral-200 dark:border-neutral-800']">
-          <tr>
-            <th :class="['px-4 py-3 text-left font-medium']">
-              {{ t('settings.pages.billing.date') }}
-            </th>
-            <th :class="['px-4 py-3 text-left font-medium']">
-              {{ t('settings.pages.billing.descriptionColumn') }}
-            </th>
-            <th :class="['px-4 py-3 text-left font-medium']">
-              {{ t('settings.pages.billing.status') }}
-            </th>
-            <th :class="['px-4 py-3 text-right font-medium']">
-              {{ t('settings.pages.billing.amount') }}
-            </th>
-            <th :class="['px-4 py-3 text-right font-medium']">
-              {{ t('settings.pages.billing.receipt') }}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="record in records" :key="record.id" :class="['border-b border-neutral-100 last:border-b-0 dark:border-neutral-800']">
-            <td :class="['whitespace-nowrap px-4 py-3 text-neutral-500 dark:text-neutral-400']">
-              {{ formatDate(record.creditedAt ?? record.createdAt) }}
-            </td>
-            <td :class="['px-4 py-3']">
-              {{ record.fluxAmount === null ? t('settings.pages.billing.topUp') : t('settings.pages.billing.fluxTopUp', { amount: numberFormat.format(record.fluxAmount) }) }}
-            </td>
-            <td :class="['px-4 py-3']">
-              {{ t('settings.pages.billing.paid') }}
-            </td>
-            <td :class="['whitespace-nowrap px-4 py-3 text-right tabular-nums']">
-              {{ formatPaymentAmount(record.amount, record.currency, record.processor, locale) ?? t('settings.pages.billing.unavailable') }}
-            </td>
-            <td :class="['px-4 py-2 text-right']">
-              <PaymentReceiptButton :order-id="record.id" @error="receiptError = true" @start="receiptError = false" />
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    <Table v-if="records?.length" framed container-class="hidden sm:block">
+      <template #header>
+        <tr>
+          <TableHead>{{ t('settings.pages.billing.date') }}</TableHead>
+          <TableHead>{{ t('settings.pages.billing.descriptionColumn') }}</TableHead>
+          <TableHead>{{ t('settings.pages.billing.status') }}</TableHead>
+          <TableHead align="right">
+            {{ t('settings.pages.billing.amount') }}
+          </TableHead>
+          <TableHead align="right">
+            {{ t('settings.pages.billing.receipt') }}
+          </TableHead>
+        </tr>
+      </template>
+
+      <tr v-for="record in records" :key="record.id">
+        <TableCell :class="['whitespace-nowrap text-neutral-500 dark:text-neutral-400']">
+          {{ formatDate(record.creditedAt ?? record.createdAt) }}
+        </TableCell>
+        <TableCell>
+          {{ record.fluxAmount === null ? t('settings.pages.billing.topUp') : t('settings.pages.billing.fluxTopUp', { amount: numberFormat.format(record.fluxAmount) }) }}
+        </TableCell>
+        <TableCell>{{ t('settings.pages.billing.paid') }}</TableCell>
+        <TableCell align="right" :class="['whitespace-nowrap tabular-nums']">
+          {{ formatPaymentAmount(record.amount, record.currency, record.processor, locale) ?? t('settings.pages.billing.unavailable') }}
+        </TableCell>
+        <TableCell compact align="right">
+          <PaymentReceiptButton :order-id="record.id" @error="receiptError = true" @start="receiptError = false" />
+        </TableCell>
+      </tr>
+    </Table>
     <div v-if="records?.length" :class="['flex flex-col gap-2 sm:hidden']">
       <article v-for="record in records" :key="record.id" :class="['flex flex-col gap-2 rounded-xl p-3', 'bg-neutral-100/60 dark:bg-neutral-800/40']">
         <div :class="['flex items-baseline justify-between gap-3']">

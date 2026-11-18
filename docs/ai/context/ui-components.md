@@ -171,6 +171,23 @@ Loading placeholder with animation.
 
 **Slots**: `default`
 
+### Table
+
+Native table with horizontal scrolling and shared row dividers.
+HTML attributes pass to the table element.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `containerClass` | `string \| string[]?` | — | Classes for the scroll container |
+| `framed` | `boolean?` | `false` | Add a rounded border to the scroll container |
+
+**Slots**: `header` contains header rows. `default` contains body rows.
+
+Use `TableHead` for column headings and `TableCell` for body cells.
+Both accept `align="left"` or `align="right"` and have a default slot.
+`TableHead` defaults to left alignment. `TableCell` inherits its alignment.
+Use `compact` on a `TableCell` to reduce its vertical padding.
+
 ### Truncatable
 
 Line-clamped content container that expands and collapses when the overflowing content area is clicked.
