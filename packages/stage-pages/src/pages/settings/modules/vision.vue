@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { RadioCardManySelect, RadioCardSimple } from '@proj-airi/stage-ui/components'
-import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useVisionActivityStore, useVisionProcessingStore, useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
@@ -46,7 +45,6 @@ const {
 } = storeToRefs(visionActivityStore)
 
 const { t, locale } = useI18n()
-const { trackProviderClick } = useAnalytics()
 
 watch(activeProvider, async (provider) => {
   if (!provider)
@@ -155,7 +153,6 @@ function formatRelativeTime(timestamp: number | null) {
               :title="metadata.localizedName || 'Unknown'"
               :description="metadata.localizedDescription"
               @update:model-value="selectProvider"
-              @click="trackProviderClick(metadata.id, 'vision')"
             >
               <template v-if="canDeleteProvider(metadata.id)" #topRight>
                 <button

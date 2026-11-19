@@ -27,6 +27,7 @@ import type {
   VrmUpdateFrameTracePayload,
 } from '@proj-airi/stage-ui-three/trace'
 import type { ChatHistoryReplyPayload } from '@proj-airi/stage-ui/components/scenarios/chat'
+import type { McpDispatchOutcome } from '@proj-airi/stage-ui/tools/mcp'
 import type { Rectangle } from 'electron'
 
 import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
@@ -524,6 +525,7 @@ export interface ElectronMcpCallToolResult {
   structuredContent?: Record<string, unknown>
   toolResult?: unknown
   isError?: boolean
+  dispatchOutcome?: McpDispatchOutcome
 }
 
 export interface ElectronMcpConfigText {

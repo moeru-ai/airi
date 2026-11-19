@@ -341,9 +341,7 @@ export const useChatStore = defineStore('chat', () => {
    */
   const ownedTurnSpans = new Map<string, TraceSpan>()
   let stopLeadershipListener: (() => void) | undefined
-  const analyticsHooks = createChatAnalyticsHooks({
-    getSessionMessages: sessionId => chatSession.getSessionMessages(sessionId),
-  })
+  const analyticsHooks = createChatAnalyticsHooks()
 
   /**
    * Initializes chat state and binds local consumers to synchronized leadership.
@@ -1094,19 +1092,9 @@ export const useChatStore = defineStore('chat', () => {
     onMessageRoundFailed: event => isTaskSession(event.conversationId) ? undefined : analyticsHooks.onMessageRoundFailed?.(event),
     onLifecycle: record => contextObservability.recordLifecycle(record),
     onPromptProjection: payload => contextObservability.capturePromptProjection(payload),
-    onUserMessageAppended: ({ sessionId, message, messageText, source, model, provider, roundId, turnIndex }) => {
+    onUserMessageAppended: ({ sessionId, message, messageText }) => {
       if (isTaskSession(sessionId))
         return
-      analyticsHooks.onUserMessageAppended?.({
-        sessionId,
-        message,
-        messageText,
-        source,
-        model,
-        provider,
-        roundId,
-        turnIndex,
-      })
       if (isCloudSyncableMessage(message) && syncsToCloud(sessionId)) {
         void chatSession.pushMessageToCloud(sessionId, {
           id: message.id,

@@ -2,6 +2,7 @@ import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { GlobalShortcutService } from '../../services/electron/global-shortcut'
 
+import { onWindowClosed } from '@proj-airi/electron-vueuse/main'
 import { BrowserWindow, screen } from 'electron'
 import { isMacOS } from 'std-env'
 
@@ -65,7 +66,7 @@ export function setupInlayWindowReusable(params: {
     screen.on('display-metrics-changed', place)
     screen.on('display-added', place)
     screen.on('display-removed', place)
-    window.once('closed', () => {
+    onWindowClosed(window, () => {
       screen.off('display-metrics-changed', place)
       screen.off('display-added', place)
       screen.off('display-removed', place)

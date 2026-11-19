@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { createI18n } from 'vue-i18n'
 
+import BlockedPage from './blocked-page.vue'
 import PermissionPageLayout from './permission-page-layout.vue'
 import PermissionSummary from './permission-summary.vue'
 
@@ -15,7 +16,11 @@ describe('permission pages', () => {
   it.each([
     ['page layout', () => render(PermissionPageLayout, { props: { title: 'Title', description: 'Description' } })],
     ['summary', () => render(PermissionSummary, {
-      props: { permissions: [], statuses: {}, skipped: new Set<string>() },
+      props: { items: [] },
+      global: { plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })] },
+    })],
+    ['blocked page', () => render(BlockedPage, {
+      props: { page: 'Voiceprint', requirement: 'Microphone', icon: 'i-mingcute:voice-line' },
       global: { plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })] },
     })],
   ])('renders the %s as one element, so the flow transition can animate it', (_, renderPage) => {

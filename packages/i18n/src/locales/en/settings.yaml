@@ -94,6 +94,12 @@ dialogs:
           skipped: Skipped
           todo: Not set up
           review: Review
+          done: Done
+          blocked: 'Needs {requirement}'
+        blocked:
+          title: '{page} needs {requirement}'
+          body: 'Set up {requirement} first, or skip this page.'
+          action: 'Set up {requirement}'
         microphone:
           title: Let your character hear you
           body: Voice chat and wake words use it.
@@ -148,8 +154,26 @@ dialogs:
           almost: Almost there
           body: You can change these in Settings at any time.
           skipped: 'Skipped. {consequence}'
+          blocked: 'Needs {requirement} first. {consequence}'
           setUp: Set up
           setUpOne: 'Set up {permission}'
+    voiceprint:
+      title: Let your character know your voice
+      body: Talk for about {seconds} seconds in a quiet place. AIRI keeps only your voiceprint on this device, not the recording.
+      count: '{seconds} of {target} s'
+      cue:
+        start: Start talking
+        speaking: Sounds good, keep going
+        more: Say a little more
+        almost: Almost there
+      progress: 'Voiceprint enrollment: {seconds} of {target} seconds of speech'
+      languages: A voiceprint works best in the language you enrolled it in. If you speak other languages, enroll another voiceprint.
+      delete: 'Delete voiceprint {index}'
+      label: 'Label of voiceprint {index}'
+      more: 'You can enroll more voiceprints later in {path}.'
+      on: Your voiceprint is saved on this device.
+      off: AIRI cannot recognize your voice.
+      speakerRecognition: AIRI checks if a voice input sounds like you. Other people can still talk to AIRI.
   bug-report:
     title: Bug report (´;ω;`)ヾ(･∀･`)
     subtitle: Oops, sorry we made something wrong. Would you mind telling us what
@@ -438,8 +462,8 @@ pages:
           title: Providers
           description: Your provider settings, with their API keys. The server keeps them encrypted.
         character_cards:
-          title: Character cards
-          description: Your character cards. A card that you delete stays restorable for 30 days.
+          title: Characters
+          description: Your characters. A character that you delete stays restorable for 30 days.
         display_models:
           title: Models
           description: The Live2D and VRM models that you import. Large files use your account storage and network data.
@@ -498,21 +522,21 @@ pages:
   card:
     wake-word-conflicts:
       title: 'One shared wake word pronunciation needs a character | {count} shared wake word pronunciations need a character'
-      description: Two cards use the same pronunciation. No character answers it until you choose one.
+      description: Two characters use the same pronunciation. No character answers it until you choose one.
       action: Choose who answers
     sync:
-      notice: Character cards sync to your account. A deleted card stays restorable for 30 days.
+      notice: Characters sync to your account. A deleted character stays restorable for 30 days.
       state:
         synced: Synced to your account
         pending: Waiting to upload
-        refused: Not uploaded. Your account has no room for more cards, so this card stays on this device.
+        refused: Not uploaded. Your account has no room for more characters, so this character stays on this device.
       conflict_copy_name: '{name} (conflict copy)'
       conflict_notice: Another device changed the same character. AIRI kept the version from this device as a copy.
       history:
         tab: History
-        empty: No history yet for this card.
+        empty: No history yet for this character.
         loading: Loading history…
-        load_failed: Could not load the history of this card.
+        load_failed: Could not load the history of this character.
         current: Current
         changed_label: Changed
         removed_label: Removed
@@ -559,7 +583,7 @@ pages:
         days_left: '{days} days left to restore'
         restore: Restore
         restore_success: Restored {name}.
-        restore_failed: Could not restore this card. The server may no longer have its content.
+        restore_failed: Could not restore this character. The server may no longer have its content.
     activate: Activate
     active: Active
     active_badge: Currently Active
@@ -567,7 +591,7 @@ pages:
     cancel: Cancel action
     save: Save changes
     save_and_activate: Save and activate
-    card_not_found: Card not found
+    card_not_found: Character not found
     back: Back
     character: Character
     close: Close
@@ -581,14 +605,14 @@ pages:
     created_by: created by
     creator_notes: Creator Notes
     delete: Delete
-    delete_card: Delete Card
-    delete_confirmation: Are you sure you want to delete this card?
-    description: Manage AIRI character cards
+    delete_card: Delete character
+    delete_confirmation: Are you sure you want to delete this character?
+    description: Manage your characters
     description_label: Description
     drop_here: Drop to upload
-    create_card: Create a new Card
-    edit_card: Edit Card
-    saved: Card saved
+    create_card: Create a new character
+    edit_card: Edit character
+    saved: Character saved
     unsaved:
       badge: Unsaved
       title: Discard changes?
@@ -613,7 +637,7 @@ pages:
         systemprompt: You will receive messages, answer to them like a real human.
         posthistoryinstructions: Remember to imitate an human.
       modules_info: >-
-        Configure modules for this character card. Empty chat, vision, and speech fields inherit global settings. No Body Model disables the renderer.
+        Configure modules for this character. Empty chat, vision, and speech fields inherit global settings. No Body Model disables the renderer.
       sections:
         chat: Chat
         vision: Vision
@@ -651,7 +675,7 @@ pages:
         model_required: Select a model for each explicit provider. Models cannot be inherited from a different provider.
         name: Name should be valid or non-empty.
         version: 'Error: Invalid version number !'
-        description: 'Error: You must provide a description for this card.'
+        description: 'Error: You must provide a description for this character.'
         personality: 'Error: A personality must be provided for this character.'
         scenario: 'Error: A scenario is required.'
         systemprompt: 'Error: Please, provide a system prompt.'
@@ -662,18 +686,18 @@ pages:
     modules: Modules
     name_asc: Name (A-Z)
     name_desc: Name (Z-A)
-    no_cards: No cards yet. Click the button above to upload one!
-    no_results: No matching cards found
+    no_cards: No characters yet. Click the button above to import one!
+    no_results: No matching characters found
     personality: Personality
     posthistoryinstructions: Post-History Instructions
     context_window: Turns to remember
     context_window_all: All
     recent: Recently Added
     scenario: Scenario
-    search: Search cards...
+    search: Search characters...
     sort_by: Sort by
     body-model: Body / Display Model
-    view-card: View card
+    view-card: View character
     model_not_bound: No model selected
     gallery: Gallery
     pinned_background: Pinned background
@@ -692,7 +716,7 @@ pages:
       model: Speech / Model
       voice: Speech / Voice
     systemprompt: System Prompt
-    title: AIRI Card
+    title: Characters
     try_different_search: Try a different search term
     export: Export
     exported: Card package exported
@@ -708,6 +732,16 @@ pages:
   data:
     title: Data
     description: Manage stored AIRI data, exports, and resets
+    actions:
+      export: Export
+      import: Import
+      export_area: Export {dataArea}
+      import_area: Import {dataArea}
+    sensitive:
+      title: Include sensitive information?
+      description: This file contains API keys or module credentials. Anyone who receives it can access those services.
+      confirm: Export with sensitive information
+      cancel: Cancel
     sections:
       chats:
         title: Chat sessions
@@ -717,18 +751,19 @@ pages:
         delete: Delete all chat sessions
       models:
         title: Models
-        description: Remove imported Live2D, VRM, Spine, and MMD models.
+        description: Export or import imported Live2D, VRM, Spine, Tachie, and MMD model files.
+        empty: No imported models.
         delete: Delete all models
       model-downloads:
         title: Downloaded speech models
-        description: Sherpaw model files stored on this device.
+        description: Export or import Sherpaw model files stored on this device.
         empty: No speech models are downloaded.
         wake-word-model: Wake word model
         voiceprint-model: Voiceprint model
         refresh: Refresh
       modules:
         title: Modules
-        description: Reset module preferences and credentials.
+        description: Export or import module settings and credentials.
         reset: Reset module settings
       providers:
         title: Providers
@@ -757,6 +792,12 @@ pages:
       exported: Chat sessions exported.
       imported: Chat sessions imported.
       import_error: Failed to import chat sessions. Please check the file format.
+      exported_area: Exported {dataArea}.
+      imported_area: Imported {dataArea}.
+      transfer_import_error: Import failed. Check the file format or settings.
+      transfer_export_error: Could not export this data. Please try again.
+      action_error: The action failed. Please try again.
+      processing: Processing
       chats_deleted: Chat sessions deleted.
       models_deleted: Models deleted.
       model_download_cancelled: Model download canceled.
@@ -882,7 +923,7 @@ pages:
       description: Image generation, scene background and drawing.
       page:
         title: Artistry Provider Configuration
-        description: Select the active backend provider for image generation. Characters can override this in their Card settings.
+        description: Select the active backend provider for image generation. Characters can override this in their own settings.
       providers:
         none:
           name: None
@@ -1043,7 +1084,7 @@ pages:
       wake-words:
         title: Wake words
         description: See the wake words of each character, and choose who answers a shared pronunciation.
-        intro: Each character keeps its wake words on its card. To change the words, ask the character in chat.
+        intro: Each character keeps its own wake words. To change the words, ask the character in chat.
         empty: This character has no wake words.
         state:
           active: Active
@@ -1052,7 +1093,7 @@ pages:
           unsupported: Not available with the current wake word model
         conflicts:
           title: Shared pronunciations
-          description: Two or more characters use the same pronunciation. Choose the character that answers it on this device. Each card keeps its words.
+          description: Two or more characters use the same pronunciation. Choose the character that answers it on this device. Each character keeps its words.
           choose-label: Character that answers
           choose: '{name} ("{word}")'
           answered-by: '{name} answers'
@@ -1060,32 +1101,41 @@ pages:
       voiceprint:
         title: Voiceprint
         description: Enroll your voice, so that AIRI can recognize it.
-        intro: A voiceprint is a list of numbers that the voiceprint model computes from your speech. It contains no audio, but it can identify you.
-        privacy: AIRI keeps your voiceprint only on this device. Card export does not include it, and AIRI does not upload it. To delete it, use Delete voiceprint on this page, or Delete all data in Data settings.
+        intro: A voiceprint is a list of numbers that the voiceprint model computes from speech. It contains no audio, but it can identify the person who spoke.
+        languages: A voiceprint matches speech in the language of its enrollment best. If you speak several languages, enroll one voiceprint for each. A label helps you tell them apart, for example a language, a microphone, or a person.
+        privacy: AIRI does not keep the recordings of an enrollment. It keeps voiceprints only on this device. Card export does not include them, and AIRI does not upload them. To delete one, use Delete on this page. To delete all of them, use Delete all data in Data settings.
         download: The first enrollment downloads the voiceprint model, about 28 MB.
+        saved: Saved voiceprints
+        label: Label
+        label-placeholder: Label, for example English
+        enabled: Use for speaker recognition
         speaker-recognition:
           label: Speaker recognition
-          description: Compares each voice input that speech or a wake word starts with your voiceprint, and records the score in the IO trace of the input. Push to Talk inputs get no score. Every voice can still start an input, and the chat model does not receive the score. While AIRI listens, the voiceprint model stays in memory.
-          needs-voiceprint: Enroll your voice to turn on speaker recognition.
+          description: Compares each voice input that speech or a wake word starts with each voiceprint that has Use for speaker recognition on. The IO trace of the input records the highest score and its voiceprint. Push to Talk inputs get no score. Every voice can still start an input, and the chat model does not receive the score. While AIRI listens, the voiceprint model stays in memory.
+          needs-voiceprint: To use speaker recognition, enroll a voiceprint and turn on Use for speaker recognition for it.
         status:
           none: You have no voiceprint.
           enrolled: 'Enrolled on {date}, from {seconds} s of speech.'
-          outdated: The voiceprint model changed. Enroll again to use your voiceprint.
-        instructions: Stay alone near the microphone. Click Start recording, then read these sentences aloud in your usual voice.
-        sentence-1: Today I want to check the weather, read my messages, and plan the rest of my day.
-        sentence-2: I usually talk to AIRI in the evening, when the room is quiet and I have some free time.
-        sentence-3: Please remember my voice, so that you can tell when I am the one who speaks.
+          outdated: The voiceprint model changed. Enroll again to use this voiceprint.
+        instructions: Stay alone near the microphone. Click Start recording, then talk in your usual voice.
+        sample-prompt: 'Not sure what to say? Read this:'
+        sample: Today I want to check the weather, read my messages, and plan the rest of my day. I usually talk to AIRI in the evening, when the room is quiet and I have some free time. Please remember my voice, so that you can tell when I am the one who speaks.
         progress: '{seconds} s of speech. Enrollment needs at least {min} s.'
         start: Start recording
-        again: Enroll again
+        again: Enroll another voiceprint
         finish: Finish
         cancel: Cancel
-        delete: Delete voiceprint
-        enrolling: Computing your voiceprint...
+        delete: Delete
+        enrolling: Creating your voiceprint...
+        review:
+          title: This voice is not like your saved voiceprints
+          body: A different person, language, or microphone can cause this.
+          keep: Keep voiceprint
+          discard: Discard
         result:
           enrolled: Your voiceprint is saved.
-          cancelled: Enrollment cancelled.
-          too-short: 'The recording had {seconds} s of speech. Enrollment needs at least {min} s. Record again.'
+          cancelled: Enrollment cancelled. Nothing was saved.
+          too-short: 'Only {seconds} seconds of speech. Enrollment needs at least {min} seconds. Record again.'
           error: 'Enrollment failed: {error}'
       sections:
         section:
@@ -2178,7 +2228,7 @@ pages:
             remove: Remove
             config_snippet: Artistry Config Snippet
             copy_json: Copy JSON
-            paste_hint: Paste this into your AIRI Card artistry config to override these nodes.
+            paste_hint: Paste this into the artistry config of your character to override these nodes.
           upload:
             prompt: Drop or select a workflow_api.json file
             invalid_json: Invalid JSON
@@ -2200,7 +2250,7 @@ pages:
             placeholder: r8_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
           default_model:
             label: Default Model
-            description: Fallback owner/model string to use if the character card doesn't specify one
+            description: Fallback owner/model string to use if the character doesn't specify one
             placeholder: black-forest-labs/flux-schnell
           aspect_ratio:
             label: Aspect Ratio
@@ -2795,7 +2845,7 @@ pages:
     title: Scenes
     description: Customize the virtual environment for your characters.
     beta_label: Scenes System
-    beta_description: Each character card specifies its own preferred background
+    beta_description: Each character specifies its own preferred background
       from this gallery. Setting it here will set it as the default for the
       currently active character.
     background_image:
