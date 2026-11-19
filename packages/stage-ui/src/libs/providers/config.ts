@@ -10,6 +10,6 @@ import { cloneDeep } from 'es-toolkit'
  * toProviderConfigSnapshot(reactive({ apiKey: 'key', voiceSettings: { speed: 1 } }))
  * // => { apiKey: 'key', voiceSettings: { speed: 1 } }
  */
-export function toProviderConfigSnapshot(config: Record<string, unknown>): Record<string, unknown> {
+export function toProviderConfigSnapshot<T extends Record<string, unknown>>(config: T): T {
   return cloneDeep(config)
 }

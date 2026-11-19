@@ -107,7 +107,7 @@ export function useProviderValidation(providerId: string) {
    * nested values as proxies, so this copy must be deep.
    */
   function configToValidate(): Record<string, any> {
-    const config = toProviderConfigSnapshot(credentials.value) as Record<string, any>
+    const config = toProviderConfigSnapshot(credentials.value)
     if (config.apiKey)
       config.apiKey = config.apiKey.trim()
     if (config.baseUrl)
