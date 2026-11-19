@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { cleanupRedundantPendingInstallers } from './auto-updater'
+import { cleanupRedundantPendingInstallers } from './auto-updater-cleanup'
 
 describe('cleanupRedundantPendingInstallers (Issue #3469)', () => {
   let tempDir: string
@@ -17,15 +17,10 @@ describe('cleanupRedundantPendingInstallers (Issue #3469)', () => {
     await rm(tempDir, { force: true, recursive: true })
   })
 
-  // https://github.com/moeru-ai/airi/issues/3469
-  // ROOT CAUSE:
-  //
-  // On Windows, NSIS copies the installer to installer.exe in the root updater cache directory.
-  // The downloaded installer and update-info.json stay in the pending directory after the update.
-  //
-  // Before this fix, the pending directory retained redundant multi-gigabyte installer files across updates.
-  //
-  // We fixed this by deleting matching pending installers and obsolete update-info.json on bundle health report.
+  // Report: https://github.com/moeru-ai/airi/issues/3469
+  // Root cause: NSIS copies the installer to installer.exe.
+  // The downloaded installer remains in the pending directory.
+  // Fix: Delete matching pending installers when bundle reports healthy.
   it('deletes duplicate pending installer and obsolete update-info.json when it matches root installer.exe (Issue #3469)', async () => {
     const installerContent = 'NSIS_INSTALLER_PAYLOAD_VERSION_0_15_2_MOCK'
     const rootInstallerPath = join(tempDir, 'installer.exe')
