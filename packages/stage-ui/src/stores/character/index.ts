@@ -5,6 +5,7 @@ import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, reactive, ref } from 'vue'
 
+import { getChatHistoryItemCopyText } from '../../components/scenarios/chat/utils'
 import { useLlmmarkerParser } from '../../composables/llm-marker-parser'
 import { getSpeechBusContext, voiceGetTurns, voiceInterrupt } from '../../services/speech/bus'
 import { SpeechClient as Speech } from '../../services/speech/speech-client'
@@ -160,9 +161,7 @@ export const useCharacterStore = defineStore('character', () => {
     if (!lastAssistant)
       return false
 
-    const text = typeof lastAssistant.content === 'string'
-      ? lastAssistant.content
-      : lastAssistant.slices?.flatMap(s => s.type === 'text' || s.type === 'card' ? [s.text] : []).join('\n\n') ?? ''
+    const text = getChatHistoryItemCopyText(lastAssistant)
 
     if (!text.trim())
       return false
