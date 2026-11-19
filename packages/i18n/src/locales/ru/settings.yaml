@@ -434,7 +434,7 @@ pages:
     delete: Удалить
     delete_card: Удалить карту
     delete_confirmation: Вы уверены, что хотите удалить эту карту?
-    description: Используйте предустановленные карты персонажей AIRI
+    description: Управление картами персонажей AIRI
     description_label: Описание
     drop_here: Перетащите сюда для загрузки
     create_card: Создать новую карту
@@ -714,7 +714,7 @@ pages:
       gaming: Игры
       artistry: Создание изображений
     consciousness:
-      description: Личность, модель сознания и др.
+      description: Выбор и настройка языковой модели
       sections:
         section:
           provider-model-selection:
@@ -958,7 +958,7 @@ pages:
       title: Речь
     title: Модули
     vision:
-      description: Зрение
+      description: Настройки понимания изображений и захвата экрана
       title: Зрение
       tool-images:
         label: Использовать модель зрения для изображений инструментов
@@ -1920,7 +1920,7 @@ pages:
         playground:
           title: Песочница транскрипции
       aihubmix:
-        description: https://aihubmix.com (скидка 10%)
+        description: aihubmix.com (скидка 10%)
     title: Провайдеры
   connection:
     description: Настроить соединение сервера WebSocket

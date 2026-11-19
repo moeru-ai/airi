@@ -189,70 +189,92 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
 
 // -- Plugins ---------------------------------------------------------------
 
-export function useMotionUpdatePluginBeatSync(beatSync: BeatSyncController): MotionManagerPlugin {
-  return (ctx) => {
-    beatSync.updateTargets(ctx.now)
+// Semi-implicit Euler spring of the Beat Sync head motion.
+const beatSyncStiffness = 120 // Higher -> Snappier
+const beatSyncDamping = 16 // Higher -> Less bounce
+const beatSyncMass = 1
+// Explicit damping diverges at long frames (a 0.1 s frame overshoots more on each step),
+// so bound the frame and integrate in short steps, as `createLive2DMotionSpring` does.
+const beatSyncMaximumFrameSeconds = 0.05
+const beatSyncMaximumStepSeconds = 1 / 120
 
-    // Semi-implicit Euler approach
-    const stiffness = 120 // Higher -> Snappier
-    const damping = 16 // Higher -> Less bounce
-    const mass = 1
+/** Moves `position` one frame toward `target`, and returns the new position. */
+function stepBeatSyncSpring(position: number, target: number, velocity: { value: number }, timeDelta: number) {
+  const frameSeconds = Math.min(Math.max(timeDelta, 0), beatSyncMaximumFrameSeconds)
+  const stepCount = Math.max(1, Math.ceil(frameSeconds / beatSyncMaximumStepSeconds))
+  const stepSeconds = frameSeconds / stepCount
 
-    let paramAngleX = ctx.model.getParameterValueById('ParamAngleX') as number
-    let paramAngleY = ctx.model.getParameterValueById('ParamAngleY') as number
-    let paramAngleZ = ctx.model.getParameterValueById('ParamAngleZ') as number
+  let next = position
+  for (let step = 0; step < stepCount; step += 1) {
+    const accel = (beatSyncStiffness * (target - next) - beatSyncDamping * velocity.value) / beatSyncMass
+    velocity.value = velocity.value + accel * stepSeconds
+    next = next + velocity.value * stepSeconds
+  }
 
-    // X
-    {
-      const target = beatSync.targetX.value
-      const pos = paramAngleX
-      const vel = beatSync.velocityX.value
-      const accel = (stiffness * (target - pos) - damping * vel) / mass
-      beatSync.velocityX.value = vel + accel * ctx.timeDelta
-      paramAngleX = pos + beatSync.velocityX.value * ctx.timeDelta
+  // Snap
+  if (Math.abs(target - next) < 0.01 && Math.abs(velocity.value) < 0.01) {
+    velocity.value = 0
+    return target
+  }
 
-      if (Math.abs(target - paramAngleX) < 0.01 && Math.abs(beatSync.velocityX.value) < 0.01) {
-        paramAngleX = target
-        beatSync.velocityX.value = 0
-      }
+  return next
+}
+
+/**
+ * Creates the two Beat Sync plugins. They decide once per frame who moves the head.
+ *
+ * - `pre` runs in the pre phase. Without a manual pose, it springs the head angles toward the Beat Sync targets.
+ * - `layer` runs in the final phase after the manual-control plugin. With a manual pose, for example from the
+ *   MAGIC driver, it springs the beat offset from the base angles and adds it, because the pose writes absolute
+ *   head angles and hides anything that the pre phase wrote.
+ *
+ * Only `pre` advances the springs, once per frame. It springs the beat offset on every frame, whoever owns the head.
+ * The manual-control plugin can start or end a pose between the two plugins. `layer` adds the offset when the pose
+ * wrote the head in this frame, or when `pre` left the head to a pose at the start of it.
+ */
+export function useMotionUpdatePluginsBeatSync(beatSync: BeatSyncController, isLayered: () => boolean): { pre: MotionManagerPlugin, layer: MotionManagerPlugin } {
+  let layered = false
+  const offset = { y: 0, z: 0 }
+  const offsetVelocity = { y: { value: 0 }, z: { value: 0 } }
+
+  const pre: MotionManagerPlugin = (ctx) => {
+    layered = isLayered()
+
+    // `ctx.now` is in seconds. The controller schedules beats on its own clock in milliseconds.
+    beatSync.updateTargets()
+
+    const targetOffset = beatSync.targetOffsets()
+    offset.y = stepBeatSyncSpring(offset.y, targetOffset.y, offsetVelocity.y, ctx.timeDelta)
+    offset.z = stepBeatSyncSpring(offset.z, targetOffset.z, offsetVelocity.z, ctx.timeDelta)
+
+    if (layered) {
+      // Keep the absolute spring moving with the beat, so the head does not kick when the pose ends.
+      beatSync.velocityX.value = 0
+      beatSync.velocityY.value = offsetVelocity.y.value
+      beatSync.velocityZ.value = offsetVelocity.z.value
+      return
     }
 
-    // Y
-    {
-      const target = beatSync.targetY.value
-      const pos = paramAngleY
-      const vel = beatSync.velocityY.value
-      const accel = (stiffness * (target - pos) - damping * vel) / mass
-      beatSync.velocityY.value = vel + accel * ctx.timeDelta
-      paramAngleY = pos + beatSync.velocityY.value * ctx.timeDelta
-
-      // Snap
-      if (Math.abs(target - paramAngleY) < 0.01 && Math.abs(beatSync.velocityY.value) < 0.01) {
-        paramAngleY = target
-        beatSync.velocityY.value = 0
-      }
-    }
-
-    // Z
-    {
-      const target = beatSync.targetZ.value
-      const pos = paramAngleZ
-      const vel = beatSync.velocityZ.value
-      const accel = (stiffness * (target - pos) - damping * vel) / mass
-      beatSync.velocityZ.value = vel + accel * ctx.timeDelta
-      paramAngleZ = pos + beatSync.velocityZ.value * ctx.timeDelta
-
-      // Snap
-      if (Math.abs(target - paramAngleZ) < 0.01 && Math.abs(beatSync.velocityZ.value) < 0.01) {
-        paramAngleZ = target
-        beatSync.velocityZ.value = 0
-      }
-    }
+    const paramAngleX = stepBeatSyncSpring(ctx.model.getParameterValueById('ParamAngleX') as number, beatSync.targetX.value, beatSync.velocityX, ctx.timeDelta)
+    const paramAngleY = stepBeatSyncSpring(ctx.model.getParameterValueById('ParamAngleY') as number, beatSync.targetY.value, beatSync.velocityY, ctx.timeDelta)
+    const paramAngleZ = stepBeatSyncSpring(ctx.model.getParameterValueById('ParamAngleZ') as number, beatSync.targetZ.value, beatSync.velocityZ, ctx.timeDelta)
 
     ctx.model.setParameterValueById('ParamAngleX', paramAngleX)
     ctx.model.setParameterValueById('ParamAngleY', paramAngleY)
     ctx.model.setParameterValueById('ParamAngleZ', paramAngleZ)
   }
+
+  const layer: MotionManagerPlugin = (ctx) => {
+    if (!layered && !isLayered())
+      return
+
+    if (offset.y)
+      ctx.model.addParameterValueById('ParamAngleY', offset.y)
+    if (offset.z)
+      ctx.model.addParameterValueById('ParamAngleZ', offset.z)
+  }
+
+  return { pre, layer }
 }
 
 export function useMotionUpdatePluginIdleDisable(idleEyeFocus = useLive2DIdleEyeFocus()): MotionManagerPlugin {

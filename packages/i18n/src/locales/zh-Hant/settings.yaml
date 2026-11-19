@@ -434,7 +434,7 @@ pages:
     delete: 刪除
     delete_card: 刪除角色卡
     delete_confirmation: 確定要刪除此角色卡嗎？
-    description: 使用 AIRI 角色卡預設
+    description: 管理 AIRI 角色卡
     description_label: 描述
     drop_here: 放開以上傳檔案
     create_card: 建立新角色卡
@@ -714,7 +714,7 @@ pages:
       gaming: 遊戲
       artistry: 繪圖
     consciousness:
-      description: 人格設定、使用的模型等設定
+      description: 選擇並設定語言模型
       sections:
         section:
           provider-model-selection:
@@ -961,7 +961,7 @@ pages:
       title: 發聲
     title: 機體模組
     vision:
-      description: 視覺
+      description: 圖像理解和螢幕擷取設定
       title: 視覺
       tool-images:
         label: 使用視覺模型處理工具圖片
@@ -1902,7 +1902,7 @@ pages:
         playground:
           title: 實驗平台
       aihubmix:
-        description: https://aihubmix.com (10% 優惠)
+        description: aihubmix.com (10% 優惠)
     title: 服務來源
   connection:
     description: 配置 WebSocket 伺服器連接

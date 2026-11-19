@@ -1,13 +1,16 @@
 import type { BackgroundOption } from '@proj-airi/stage-ui/components'
 import type { Ref, ShallowRef } from 'vue'
 
-import localforage from 'localforage'
-
+import { listRawItems, storage } from '@proj-airi/stage-ui/database/storage'
 import { useLocalStorage, useObjectUrl } from '@vueuse/core'
 import { defineStore } from 'pinia'
+import { prefixStorage } from 'unstorage'
 import { computed, markRaw, onScopeDispose, ref, shallowRef, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { DefaultBackgroundPreview, TransparentBackgroundPreview } from '../components/Backgrounds/default'
+
+const backgroundFiles = prefixStorage(storage, 'device')
 
 export enum BackgroundKind {
   Wave = 'wave',
@@ -27,28 +30,30 @@ type PersistedBackgroundItem = Omit<BackgroundItem, 'file'> & {
 type BackgroundPreferenceRecord = Record<string, Pick<BackgroundOption, 'id' | 'blur'>>
 
 export const useBackgroundStore = defineStore('background', () => {
-  // TODO: STORAGE_PREFIX used with multiple less maintainable `localforage` and `key.startsWith(...)` call that creates complexity.
+  const { t } = useI18n()
+  // TODO: STORAGE_PREFIX used with multiple less maintainable `key.startsWith(...)` calls that create complexity.
   const STORAGE_PREFIX = 'background-'
-  const presets: BackgroundItem[] = [
+  /** Preset labels follow the active language while their persisted IDs stay unchanged. */
+  const presets = computed<BackgroundItem[]>(() => [
     {
       id: 'colorful-wave',
-      label: 'Colorful Wave',
-      description: 'Animated wave on cross grid',
+      label: t('stage.background-picker.presets.colorful-wave.label'),
+      description: t('stage.background-picker.presets.colorful-wave.description'),
       kind: BackgroundKind.Wave,
       component: markRaw(DefaultBackgroundPreview),
     },
     {
       id: 'transparent',
-      label: 'Transparent',
-      description: 'Reveal the native background behind the WebView',
+      label: t('stage.background-picker.presets.transparent.label'),
+      description: t('stage.background-picker.presets.transparent.description'),
       kind: BackgroundKind.Transparent,
       component: markRaw(TransparentBackgroundPreview),
     },
-  ]
+  ])
 
   const loading = ref(false)
   const galleryOptions = useLocalStorage<BackgroundPreferenceRecord>('settings/theme/background/gallery-options', {})
-  const galleryId = useLocalStorage<string>('settings/theme/background/gallery-active', presets[0]?.id)
+  const galleryId = useLocalStorage<string>('settings/theme/background/gallery-active', presets.value[0]?.id)
   const storedOptions = ref<BackgroundItem[]>([])
 
   const sampledColor = useLocalStorage<string>('settings/theme/background/sampled-color', '')
@@ -57,7 +62,7 @@ export const useBackgroundStore = defineStore('background', () => {
     set: value => galleryId.value = value,
   })
   const options = computed(() => {
-    const merged = [...presets, ...storedOptions.value].map((option) => {
+    const merged = [...presets.value, ...storedOptions.value].map((option) => {
       const stored = galleryOptions.value[option.id]
       if (!stored || stored.blur === undefined || option.blur === stored.blur)
         return option
@@ -123,7 +128,7 @@ export const useBackgroundStore = defineStore('background', () => {
         file: blob,
       }
 
-      await localforage.setItem<PersistedBackgroundItem>(key, payload)
+      await backgroundFiles.setItemRaw<PersistedBackgroundItem>(key, payload)
     }
     catch (error) {
       console.error('Failed to migrate background data URL to Blob', error)
@@ -178,10 +183,7 @@ export const useBackgroundStore = defineStore('background', () => {
 
     const stored: BackgroundItem[] = []
     try {
-      await localforage.iterate<PersistedBackgroundItem, void>((val, key) => {
-        if (!key.startsWith(STORAGE_PREFIX))
-          return
-
+      for (const [key, val] of await listRawItems<PersistedBackgroundItem>(backgroundFiles, STORAGE_PREFIX)) {
         const storedBlob = val.file instanceof Blob ? val.file : undefined
         const storedSrc = typeof val.src === 'string' && val.src.length > 0 ? val.src : undefined
 
@@ -196,7 +198,7 @@ export const useBackgroundStore = defineStore('background', () => {
             component: undefined,
             removable: true,
           })
-          return
+          continue
         }
 
         if (storedSrc) {
@@ -216,7 +218,7 @@ export const useBackgroundStore = defineStore('background', () => {
             }, 0)
           }
         }
-      })
+      }
     }
     catch (error) {
       console.error('Failed to load backgrounds from IndexedDB', error)
@@ -270,7 +272,7 @@ export const useBackgroundStore = defineStore('background', () => {
         removable: true,
       }
       try {
-        await localforage.setItem<PersistedBackgroundItem>(payload.id, payload)
+        await backgroundFiles.setItemRaw<PersistedBackgroundItem>(payload.id, payload)
       }
       catch (error) {
         console.error('Failed to persist background', error)
@@ -287,10 +289,10 @@ export const useBackgroundStore = defineStore('background', () => {
 
     const option = options.value[optionIndex]
 
-    // Remove from localforage
+    // Remove from IndexedDB
     try {
       if (option.id.startsWith(STORAGE_PREFIX)) {
-        await localforage.removeItem(option.id)
+        await backgroundFiles.removeItem(option.id)
       }
     }
     catch (error) {

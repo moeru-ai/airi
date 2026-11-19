@@ -2,6 +2,7 @@ import type {
   BackgroundToContentMessage,
   ContentToBackgroundMessage,
   ExtensionSettings,
+  VideoContextPayload,
 } from '../src/shared/types'
 
 import { defineInvokeHandler } from '@moeru/eventa'
@@ -12,9 +13,11 @@ import {
   handlePageContext,
   handleSubtitle,
   handleVideoContext,
+  notifyVideo,
   toStatus,
 } from '../src/background/client'
 import { loadSettings, saveSettings } from '../src/background/storage'
+import { VideoNotifyGate } from '../src/background/video-notify'
 import { DEFAULT_SETTINGS, STORAGE_KEY } from '../src/shared/constants'
 import {
   backgroundStatusChanged,
@@ -30,7 +33,6 @@ import { detectSiteFromUrl } from '../src/shared/sites'
 const state = createClientState()
 
 let settings: ExtensionSettings = { ...DEFAULT_SETTINGS }
-let lastVideoNotifyKey = ''
 let lastStatusSentAt = 0
 let connectionKey = ''
 let eventaContext: ReturnType<typeof createRuntimeEventaContext>['context'] | undefined
@@ -45,18 +47,6 @@ async function refreshClient() {
     state.connected = false
   }
   await ensureClient(state, settings)
-}
-
-function buildNotifyKey(payload: { url: string, title?: string, videoId?: string }) {
-  return [payload.videoId, payload.title, payload.url].filter(Boolean).join('|')
-}
-
-function shouldNotifyVideo(payload: { url: string, title?: string, videoId?: string }) {
-  const key = buildNotifyKey(payload)
-  if (!key || key === lastVideoNotifyKey)
-    return false
-  lastVideoNotifyKey = key
-  return true
 }
 
 function emitStatus() {
@@ -80,7 +70,12 @@ async function init() {
   emitStatus()
 }
 
-function handleContentMessage(message: ContentToBackgroundMessage) {
+// The gate calls back after a video settles: the user stays on a ready video, or its title stays the same.
+// Only then does the character get a notification.
+// The settled report can be seconds old, so it does not replace the video context.
+const videoNotifyGate = new VideoNotifyGate<VideoContextPayload>(payload => notifyVideo(state, settings, payload))
+
+function handleContentMessage(message: ContentToBackgroundMessage, tabId?: number) {
   switch (message.type) {
     case 'content:page': {
       const payload = {
@@ -96,7 +91,8 @@ function handleContentMessage(message: ContentToBackgroundMessage) {
         ...message.payload,
         site: message.payload.site === 'unknown' ? detectSiteFromUrl(message.payload.url) : message.payload.site,
       }
-      handleVideoContext(state, settings, payload, { notify: shouldNotifyVideo(payload) })
+      handleVideoContext(state, settings, payload)
+      videoNotifyGate.report(payload, tabId)
       emitStatus()
       break
     }
@@ -151,15 +147,17 @@ export default defineBackground(() => {
 
   void init()
 
-  browser.runtime.onMessage.addListener((message: unknown) => {
+  browser.runtime.onMessage.addListener((message: unknown, sender) => {
     if (!message || typeof message !== 'object')
       return
     if ('__eventa' in message)
       return
     if ('type' in message && typeof message.type === 'string' && message.type.startsWith('content:')) {
-      handleContentMessage(message as ContentToBackgroundMessage)
+      handleContentMessage(message as ContentToBackgroundMessage, sender.tab?.id)
     }
   })
+
+  browser.tabs.onRemoved.addListener(tabId => videoNotifyGate.forgetTab(tabId))
 
   browser.storage.onChanged.addListener((changes) => {
     if (changes[STORAGE_KEY]) {
