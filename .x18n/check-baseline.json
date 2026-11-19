@@ -2022,6 +2022,13 @@
     {
       "path": "packages/i18n/src/locales/en/stage.yaml",
       "code": "unused-key",
+      "key": "stage.chat.images.capturing-screen",
+      "message": "\"stage.chat.images.capturing-screen\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/stage.yaml",
+      "code": "unused-key",
       "key": "stage.chat.invoked-skill.background",
       "message": "\"stage.chat.invoked-skill.background\" is not used.",
       "count": 1
