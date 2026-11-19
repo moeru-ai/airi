@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/pipelines-audio",
   "type": "module",
-  "version": "0.15.1",
+  "version": "0.15.4",
   "private": true,
   "description": "Audio pipeline orchestration for AIRI (capture, VAD, encode, stream)",
   "author": {
@@ -39,7 +39,7 @@
     "@moeru/std": "catalog:",
     "@proj-airi/stream-kit": "workspace:^",
     "clustr": "catalog:",
+    "fft.js": "catalog:",
     "nanoid": "catalog:"
-  },
-  "devDependencies": {}
+  }
 }

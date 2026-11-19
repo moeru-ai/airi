@@ -1,8 +1,11 @@
+import type { VNode } from 'vue'
+
 import { beginSpan } from '@proj-airi/trace-kit'
 import { createPinia, disposePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { cleanup, render } from 'vitest-browser-vue'
 import { page } from 'vitest/browser'
+import { h } from 'vue'
 import { createI18n } from 'vue-i18n'
 
 import IOTracerDevtools from './io-tracer-devtools.vue'
@@ -22,11 +25,12 @@ describe('io tracer page', () => {
     disposePinia(pinia)
   })
 
-  async function renderPage() {
+  async function renderPage(options: { props?: InstanceType<typeof IOTracerDevtools>['$props'], slots?: Record<string, () => VNode> } = {}) {
     // The workbench sizes its panels from its container, so the page needs a desktop viewport and a height.
     await page.viewport(1440, 900)
     document.body.style.height = '900px'
     return render(IOTracerDevtools, {
+      ...options,
       container: document.body.appendChild(Object.assign(document.createElement('div'), { style: 'height: 900px' })),
       global: { plugins: [pinia, createI18n({ legacy: false, locale: 'en', messages: { en: {} }, missingWarn: false, fallbackWarn: false })] },
     })
@@ -40,6 +44,25 @@ describe('io tracer page', () => {
   const detailOf = (screen: Screen) => screen.getByRole('complementary', { name: 'Details' })
   // The canvas has no role, because the item list is its accessible form. The tests find it inside the timeline.
   const canvasOf = (screen: Screen) => timelineOf(screen).element().querySelector('canvas')!
+
+  it('acts as the title bar of a window without one', async () => {
+    const screen = await renderPage({
+      props: { frame: { insetStart: '72px', draggable: true } },
+      slots: { 'frame-end': () => h('button', { type: 'button' }, 'Close window') },
+    })
+    const bounds = screen.container.getBoundingClientRect()
+
+    // The window buttons sit at the end of the top-right tab bar, above the content of the panels.
+    const close = screen.getByRole('button', { name: 'Close window' })
+    await expect.element(close).toBeVisible()
+    const closeRect = close.element().getBoundingClientRect()
+    expect(bounds.right - closeRect.right).toBeLessThan(16)
+    expect(closeRect.top).toBeLessThan(timelineOf(screen).element().getBoundingClientRect().top)
+
+    // The first tab of the top-left tab bar starts after the space for the macOS traffic lights.
+    const firstTab = screen.getByText('tamagotchi.settings.devtools.pages.io-tracer.panels.timeline')
+    expect(firstTab.element().getBoundingClientRect().left - bounds.left).toBeGreaterThan(72)
+  })
 
   it('shows an open span while it runs, and its details on click', async () => {
     const screen = await renderPage()

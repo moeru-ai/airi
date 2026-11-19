@@ -2,7 +2,7 @@
 import type { TooltipContentProps } from 'reka-ui'
 
 import { TooltipContent, TooltipPortal, TooltipProvider, TooltipRoot, TooltipTrigger } from 'reka-ui'
-import { computed, shallowRef, watch } from 'vue'
+import { computed, shallowRef, useTemplateRef, watch } from 'vue'
 
 /**
  * A short label beside one control. It opens at once on hover, and on keyboard focus only.
@@ -36,6 +36,11 @@ const props = withDefaults(defineProps<{
   blur?: number
   /** Closes the tooltip and keeps it closed, for example while a menu of the control is open. @default false */
   disabled?: boolean
+  /**
+   * Declares the open tooltip as a translucent surface, for example to draw native window glass behind it. The tooltip
+   * calls it with its surface element when it opens, and calls the returned function when it closes.
+   */
+  registerSurface?: (element: HTMLElement) => () => void
 }>(), {
   side: 'bottom',
   sideOffset: 6,
@@ -43,6 +48,7 @@ const props = withDefaults(defineProps<{
   opacity: 0.8,
   blur: 12,
   disabled: false,
+  registerSurface: undefined,
 })
 
 const open = shallowRef(false)
@@ -51,6 +57,14 @@ watch(() => props.disabled, (disabled) => {
   if (disabled)
     open.value = false
 })
+
+// The root of `TooltipContent` is the positioning wrapper of Reka UI. The parent of the anchor is the element that
+// paints the fill and the round corners, so that element is the surface.
+const surfaceAnchor = useTemplateRef<HTMLElement>('surfaceAnchor')
+watch(() => props.registerSurface ? surfaceAnchor.value?.parentElement : undefined, (surface, _, onCleanup) => {
+  if (surface && props.registerSurface)
+    onCleanup(props.registerSurface(surface))
+}, { flush: 'post' })
 
 // A `blurry` surface reads its opacity and blur from these variables.
 const surfaceStyle = computed(() => props.variant === 'blurry'
@@ -95,7 +109,9 @@ const surfaceStyle = computed(() => props.variant === 'blurry'
                 : 'bg-white dark:bg-neutral-900',
             ]"
           >
-            {{ props.label }}
+            <!-- The label has its own element, so no whitespace text joins it to the anchor. -->
+            <span v-if="props.registerSurface" ref="surfaceAnchor" aria-hidden="true" :class="['hidden']" />
+            <span>{{ props.label }}</span>
           </TooltipContent>
         </Transition>
       </TooltipPortal>

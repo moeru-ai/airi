@@ -1,14 +1,14 @@
 export interface HandlerContext<T> {
   data: T
-  emit: (eventName: string, ...params: any[]) => void
+  emit: (eventName: string, ...params: unknown[]) => void
 }
 
 export interface Events<T> {
   enqueue: Array<(payload: T, queueLength: number) => void>
   dequeue: Array<(payload: T, queueLength: number) => void>
-  process: Array<(payload: T, handler: (param: HandlerContext<T>) => Promise<any>) => void>
-  error: Array<(payload: T, error: unknown, handler: (param: HandlerContext<T>) => Promise<any>) => void>
-  result: Array<<R>(payload: T, result: R, handler: (param: HandlerContext<T>) => Promise<any>) => void>
+  process: Array<(payload: T, handler: (param: HandlerContext<T>) => Promise<unknown>) => void>
+  error: Array<(payload: T, error: unknown, handler: (param: HandlerContext<T>) => Promise<unknown>) => void>
+  result: Array<<R>(payload: T, result: R, handler: (param: HandlerContext<T>) => Promise<unknown>) => void>
   drain: Array<() => void>
 }
 
@@ -28,23 +28,58 @@ export function createQueue<T>(options: {
     result: [],
     drain: [],
   }
-  const internalHandlerEventListeners: Record<string, Array<(...params: any[]) => void>> = {}
+  const internalHandlerEventListeners: Record<string, Array<(...params: unknown[]) => void>> = {}
 
   function on<E extends keyof Events<T>>(eventName: E, listener: Events<T>[E][number]) {
-    internalEventListeners[eventName].push(listener as any)
+    const listeners: Array<Events<T>[E][number]> = internalEventListeners[eventName]
+    listeners.push(listener)
   }
 
-  function emit<E extends keyof Events<T>>(eventName: E, ...params: Parameters<Events<T>[E][number]>) {
-    const listeners = internalEventListeners[eventName] as Events<T>[E]
-    listeners.forEach(listener => (listener as any)(...params))
+  // Pair each event name with the parameter tuple of its own listeners. The switch in `emit` then narrows the
+  // name and the parameters together, so every listener call keeps its full type.
+  type EventArgs = {
+    [E in keyof Events<T>]: [eventName: E, ...params: Parameters<Events<T>[E][number]>]
+  }[keyof Events<T>]
+
+  function excludeFirstArgument<Args extends unknown[]>([, ...params]: [unknown, ...Args]): Args {
+    return params
   }
 
-  function onHandlerEvent(eventName: string, listener: (...params: any[]) => void) {
+  function emit(...args: EventArgs) {
+    switch (args[0]) {
+      case 'enqueue': {
+        internalEventListeners.enqueue.forEach(listener => listener(...excludeFirstArgument(args)))
+        break
+      }
+      case 'dequeue': {
+        internalEventListeners.dequeue.forEach(listener => listener(...excludeFirstArgument(args)))
+        break
+      }
+      case 'process': {
+        internalEventListeners.process.forEach(listener => listener(...excludeFirstArgument(args)))
+        break
+      }
+      case 'error': {
+        internalEventListeners.error.forEach(listener => listener(...excludeFirstArgument(args)))
+        break
+      }
+      case 'result': {
+        internalEventListeners.result.forEach(listener => listener(...excludeFirstArgument(args)))
+        break
+      }
+      case 'drain': {
+        internalEventListeners.drain.forEach(listener => listener(...excludeFirstArgument(args)))
+        break
+      }
+    }
+  }
+
+  function onHandlerEvent(eventName: string, listener: (...params: unknown[]) => void) {
     internalHandlerEventListeners[eventName] = internalHandlerEventListeners[eventName] || []
     internalHandlerEventListeners[eventName].push(listener)
   }
 
-  function emitHandlerEvent(eventName: string, ...params: any[]) {
+  function emitHandlerEvent(eventName: string, ...params: unknown[]) {
     const listeners = internalHandlerEventListeners[eventName] || []
     listeners.forEach(listener => listener(...params))
   }

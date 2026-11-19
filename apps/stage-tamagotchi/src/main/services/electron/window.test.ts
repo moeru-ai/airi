@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   electronGetWindowControlsState,
+  electronWindowCenterSystemControls,
   electronWindowControlsStateChanged,
   electronWindowMinimize,
   electronWindowToggleMaximize,
@@ -30,6 +31,7 @@ vi.mock('@moeru/eventa', async (importOriginal) => {
 
 vi.mock('@proj-airi/electron-vueuse/main', () => ({
   createRendererLoop: () => ({ start: vi.fn(), stop: vi.fn() }),
+  onWindowClosed: () => () => {},
   safeClose: vi.fn(),
 }))
 
@@ -63,6 +65,11 @@ class FakeWindow extends EventEmitter {
   isMinimizable = () => false
   isMaximizable = () => true
   isClosable = () => true
+  buttonPosition: { x: number, y: number } | null = { x: 16, y: 15 }
+  getWindowButtonPosition = () => this.buttonPosition
+  setWindowButtonPosition = vi.fn((position: { x: number, y: number } | null) => {
+    this.buttonPosition = position
+  })
 }
 
 function setupService() {
@@ -72,8 +79,8 @@ function setupService() {
   return { emit, window }
 }
 
-function invoke(event: unknown, sender: unknown = ownSender) {
-  return mocks.handlers.get(event)!(undefined, sender)
+function invoke(event: unknown, sender: unknown = ownSender, payload?: unknown) {
+  return mocks.handlers.get(event)!(payload, sender)
 }
 
 describe('window controls', () => {
@@ -100,6 +107,29 @@ describe('window controls', () => {
     setupService()
 
     expect(invoke(electronGetWindowControlsState)).toMatchObject({ systemControls: true })
+  })
+
+  it('centers the traffic lights on a taller title bar, and restores them', () => {
+    mocks.platform.isMacOS = true
+    const { window } = setupService()
+
+    invoke(electronWindowCenterSystemControls, ownSender, { centerY: 26 })
+    expect(window.buttonPosition).toEqual({ x: 16, y: 19 })
+
+    invoke(electronWindowCenterSystemControls, ownSender, {})
+    expect(window.buttonPosition).toEqual({ x: 16, y: 15 })
+  })
+
+  it('leaves the window buttons alone on other platforms and for another window', () => {
+    const { window } = setupService()
+    invoke(electronWindowCenterSystemControls, ownSender, { centerY: 26 })
+
+    mocks.platform.isMacOS = true
+    const mac = setupService()
+    invoke(electronWindowCenterSystemControls, otherSender, { centerY: 26 })
+
+    expect(window.setWindowButtonPosition).not.toHaveBeenCalled()
+    expect(mac.window.setWindowButtonPosition).not.toHaveBeenCalled()
   })
 
   it('maximizes a normal window and restores a maximized window', () => {

@@ -1,4 +1,4 @@
-export * from './activation-plan'
+export * from './activation-checks'
 export * from './core'
 export { KitProviderRegistrationError } from './hosted-kits'
 export type {

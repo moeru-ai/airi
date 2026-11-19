@@ -5,6 +5,6 @@ export default defineConfig({
     environment: 'node',
     // The reader benchmark runs a full garbage collection before each heap read.
     execArgv: ['--expose-gc'],
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'scripts/**/*.test.ts'],
   },
 })

@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ModelAssetProgress } from '@proj-airi/stage-ui/components'
 import { useModelAssetStatus } from '@proj-airi/stage-ui/composables'
+import { useBackdropSurface } from '@proj-airi/stage-ui/composables/backdrop-surface'
 import { ensureSherpawModelAssets } from '@proj-airi/stage-ui/libs/providers/providers/sherpaw/model-assets'
 import { TransitionVertical } from '@proj-airi/ui'
 import { TooltipContent, TooltipPortal, TooltipProvider, TooltipRoot, TooltipTrigger } from 'reka-ui'
-import { computed, shallowRef, watch } from 'vue'
+import { computed, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { stageOpaqueAttribute } from '../../../composables/use-stage-painted-mask'
@@ -16,6 +17,9 @@ const hasActiveResources = computed(() => modelAssets.value.length > 0)
 const hasAssetError = computed(() => modelAssets.value.some(model => model.state === 'error'))
 
 const loadingProgressOpen = shallowRef(false)
+// The pill and its progress card float over the stage, and the desktop shows through the transparent window around the character.
+useBackdropSurface(useTemplateRef<HTMLElement>('pill'))
+useBackdropSurface(useTemplateRef<HTMLElement>('card'))
 
 watch(hasActiveResources, (newVal) => {
   loadingProgressOpen.value = newVal
@@ -46,6 +50,7 @@ function retry(id: string) {
           <Transition name="fade">
             <div
               v-if="hasActiveResources"
+              ref="pill"
               :[stageOpaqueAttribute]="true"
               :class="[
                 'pointer-events-auto mb-1 flex w-fit cursor-pointer items-center gap-2',
@@ -66,6 +71,7 @@ function retry(id: string) {
           <TransitionVertical>
             <TooltipContent :class="['resource-status-island-tooltip', 'flex w-fit justify-center']">
               <div
+                ref="card"
                 :class="[
                   'w-[calc(100dvw-1.5rem)] sm:w-[calc(75dvw-1.5rem)] md:sm:w-[calc(50dvw-1.5rem)]',
                   'rounded-xl p-3 shadow-md backdrop-blur-md',
