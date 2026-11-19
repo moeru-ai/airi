@@ -1,22 +1,33 @@
 import type { StreamingTranscriber, TranscriptionEvent, TranscriptSegment } from '@proj-airi/core-agent'
+import type { TraceIds } from '@proj-airi/trace-kit'
 
 import type { AIRIStreamTranscriptionDelta } from '../providers/stream-transcription'
 import type { HearingTranscriptionResult } from '../providers/transcription-types'
 
 import { errorMessageFrom } from '@moeru/std'
-import { SpanStatusCode } from '@opentelemetry/api'
-import { IOAttributes, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
+import { beginSpan, TraceEndReasons, trackPath } from '@proj-airi/trace-kit'
+import { VoiceAttributes, VoiceNames, VoiceTracks } from '@proj-airi/trace-kit/voice'
 
-import { activeTurnSpan, startSpan } from '../../composables/use-io-tracer'
+import { getTraceSink } from '../../composables/use-trace'
+import { LOCAL_USER_ACTOR } from '../../composables/voice-input-trace'
+
+export interface HearingTranscriberTraceOptions {
+  /**
+   * The domain IDs of what each recognition transcribes, for example a voice input or the turn of a voice message.
+   * Without them, the recognition span belongs to no input or turn.
+   */
+  ids?: TraceIds
+}
 
 /**
  * Converts provider output into complete transcript revisions. Each adapter owns its segmenters and cancellation.
  *
- * Each request records one speech recognition span. Completion records the final text, caller abort marks
- * the span as aborted, and a provider failure marks it as an error. Devtools and audio tests read this span.
+ * Each request records one span on the recognition track of the local user. Completion records the final text, caller
+ * abort ends the span as cancelled, and a provider failure ends it with an error. The tracer and audio tests read it.
  */
 export function createHearingTranscriber(
   invoke: (audio: Parameters<StreamingTranscriber['transcribe']>[0]['audio'], signal: AbortSignal) => Promise<HearingTranscriptionResult>,
+  options: HearingTranscriberTraceOptions = {},
 ): StreamingTranscriber {
   const words = new Intl.Segmenter(undefined, { granularity: 'word' })
   const sentences = new Intl.Segmenter(undefined, { granularity: 'sentence' })
@@ -26,7 +37,7 @@ export function createHearingTranscriber(
     const signal = AbortSignal.any([request.signal, cancelled.signal])
     let reader: ReadableStreamDefaultReader<AIRIStreamTranscriptionDelta> | undefined
     let closed = false
-    const span = startSpan(IOSpanNames.SpeechRecognition, activeTurnSpan.value, { [IOAttributes.Subsystem]: IOSubsystems.ASR })
+    const span = beginSpan(getTraceSink(), { track: trackPath(VoiceTracks.ASR, { actor: LOCAL_USER_ACTOR }), name: VoiceNames.SpeechRecognition, ids: options.ids })
 
     return new ReadableStream<TranscriptionEvent>({
       start: (output) => {
@@ -36,10 +47,9 @@ export function createHearingTranscriber(
 
           closed = true
           if (request.signal.aborted)
-            span.setAttribute(IOAttributes.ASRAbort, true)
+            span.end({ status: 'cancelled', reason: TraceEndReasons.Aborted })
           else
-            span.setStatus({ code: SpanStatusCode.ERROR, message: errorMessageFrom(error) ?? 'Speech recognition failed' })
-          span.end()
+            span.end({ status: 'error', message: errorMessageFrom(error) ?? 'Speech recognition failed' })
           output.error(error)
           cancelled.abort(error)
           void reader?.cancel(error).catch(() => {})
@@ -107,8 +117,7 @@ export function createHearingTranscriber(
 
             output.enqueue({ type: 'complete', revision })
             closed = true
-            span.setAttribute(IOAttributes.ASRText, text)
-            span.end()
+            span.end({ attrs: { [VoiceAttributes.ASRText]: text } })
             output.close()
           }
           catch (error) {

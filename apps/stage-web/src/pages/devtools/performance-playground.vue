@@ -5,9 +5,9 @@ import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import { createPlaybackManager, createSpeechPipeline } from '@proj-airi/pipelines-audio'
 import { ThreeScene } from '@proj-airi/stage-ui-three'
 import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
-import { useDelayMessageQueue, useEmotionsMessageQueue } from '@proj-airi/stage-ui/composables/queues'
-import { llmInferenceEndToken } from '@proj-airi/stage-ui/constants'
+import { useEmotionsMessageQueue } from '@proj-airi/stage-ui/composables/queues'
 import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '@proj-airi/stage-ui/constants/emotions'
+import { bindSpeakingStateToPlaybackManager } from '@proj-airi/stage-ui/libs/speech/playback-speaking-state'
 import { useAudioContext, useSpeakingStore } from '@proj-airi/stage-ui/stores/audio'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatMaintenanceStore } from '@proj-airi/stage-ui/stores/chat/maintenance'
@@ -23,13 +23,20 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 const sceneRef = ref<InstanceType<typeof ThreeScene>>()
-const currentAudioSource = ref<AudioBufferSourceNode>()
-
 const { audioContext } = useAudioContext()
+// Every played source goes through this mix, so the lip sync node and the analyser hear the whole speech.
+const speechMix = audioContext.createGain()
+speechMix.connect(audioContext.destination)
+function connectSpeech(node: AudioNode) {
+  speechMix.connect(node)
+  return () => speechMix.disconnect(node)
+}
 const audioAnalyser = ref<AnalyserNode>()
 function setupAnalyser() {
-  if (!audioAnalyser.value)
+  if (!audioAnalyser.value) {
     audioAnalyser.value = audioContext.createAnalyser()
+    connectSpeech(audioAnalyser.value)
+  }
 }
 
 const settingsStore = useSettings()
@@ -52,7 +59,6 @@ const { activeSpeechProvider, activeSpeechVoice, activeSpeechModel, ssmlEnabled,
 const consciousnessStore = useConsciousnessStore()
 const { activeProvider: activeChatProvider, activeModel: activeChatModel } = storeToRefs(consciousnessStore)
 
-const delaysQueue = useDelayMessageQueue()
 const currentMotion = ref<{ group: string }>({ group: EmotionThinkMotionName })
 const emotionsQueue = createQueue<EmotionPayload>({
   handlers: [
@@ -105,10 +111,7 @@ const playbackManager = createPlaybackManager<AudioBuffer>({
     return new Promise((resolve) => {
       const source = audioContext.createBufferSource()
       source.buffer = item.audio
-      source.connect(audioContext.destination)
-      if (audioAnalyser.value)
-        source.connect(audioAnalyser.value)
-      currentAudioSource.value = source
+      source.connect(speechMix)
 
       const stopPlayback = () => {
         try {
@@ -116,8 +119,6 @@ const playbackManager = createPlaybackManager<AudioBuffer>({
           source.disconnect()
         }
         catch {}
-        if (currentAudioSource.value === source)
-          currentAudioSource.value = undefined
         resolve()
       }
 
@@ -184,15 +185,16 @@ speechPipeline.on('onSpecial', (segment) => {
     emotionMessageQueue.enqueue(segment.special)
 })
 
-playbackManager.onStart(({ item }) => {
-  nowSpeaking.value = true
-  log(`播放开始：${item.text}`)
+bindSpeakingStateToPlaybackManager(playbackManager, {
+  setSpeaking: (speaking) => {
+    nowSpeaking.value = speaking
+    if (!speaking)
+      mouthOpenSize.value = 0
+  },
+  onStart: ({ item }) => log(`播放开始：${item.text}`),
 })
 
 playbackManager.onEnd(({ item }) => {
-  nowSpeaking.value = false
-  mouthOpenSize.value = 0
-
   if (item.special)
     log(`播放结束，special: ${item.special}`)
 })
@@ -253,7 +255,6 @@ chatHookCleanups.push(onTokenSpecial(async (special) => {
 }))
 
 chatHookCleanups.push(onStreamEnd(async () => {
-  delaysQueue.enqueue(llmInferenceEndToken)
   currentIntent?.writeFlush()
 }))
 
@@ -281,7 +282,9 @@ onUnmounted(() => {
           :model-id="stageModelSelected"
           :model-src="stageModelSelectedUrl"
           :idle-animation="animations.idleLoop.toString()"
-          :current-audio-source="currentAudioSource"
+          :audio-context="audioContext"
+          :connect-speech="connectSpeech"
+          :speech-active="nowSpeaking"
           :show-axes="stageViewControlsEnabled"
           :paused="false"
           @error="console.error"

@@ -1,4 +1,4 @@
-import type { GenerationProvider } from '@proj-airi/provider-inference'
+import type { GenerationProvider, GenerationRequest } from '@proj-airi/provider-inference'
 import type { CommonContentPart, CompletionToolCall, Tool, ToolChoice } from '@xsai/shared-chat'
 
 import type { AssistantTurn, Conversation } from '../messages/types'
@@ -18,6 +18,8 @@ export type StreamEvent
   = | { type: 'text-delta', text: string }
     | { type: 'reasoning-delta', text: string }
     | { type: 'finish' }
+    /** The model starts to write a tool call. Its arguments arrive with `tool-call`, when the call is complete. */
+    | { type: 'tool-call-start', toolCallId: string, toolName: string }
     | ({ type: 'tool-call' } & CompletionToolCall)
     | { type: 'tool-error', toolCallId: string, result?: string | CommonContentPart[], isError: true }
     | { type: 'tool-result', toolCallId: string, result?: string | CommonContentPart[] }
@@ -27,6 +29,20 @@ export type StreamEvent
 
 /** Options shared by generation adapters. SDK payloads stay inside each adapter. */
 export interface StreamOptions {
+  /**
+   * Adapts the conversation to the provider request that the runtime resolved.
+   *
+   * It runs before each SDK stream, after `resolveStep` and before the protocol adapter projects its input.
+   * A request scope change after a tool round starts a new stream, so the callback runs again for the new model.
+   * It returns a request copy. The caller's conversation and stored history stay unchanged.
+   */
+  prepareConversation?: (conversation: Conversation, target: {
+    /** Model of the resolved request. */
+    model: string
+    /** Provider registry identity of the resolved request. */
+    providerId?: string
+    request: GenerationRequest
+  }) => Promise<Conversation>
   /** Reads the pinned character's current settings before each model request. */
   resolveStep?: () => Promise<{
     model: string
@@ -37,6 +53,11 @@ export interface StreamOptions {
     headers?: Record<string, string>
     temperature?: number
     topP?: number
+    /**
+     * Overrides the caller's per-request output token cap.
+     * @default undefined - use the caller's cap.
+     */
+    maxTokens?: number
     tools?: Tool[]
   }>
   /** Internal turn identity reused after a protocol change. */
@@ -72,12 +93,27 @@ export interface StreamOptions {
    * the tokens comprising the top 10% probability mass are considered.
    */
   topP?: number
+  /**
+   * Provider-enforced output token cap for each model request, including tool continuations.
+   * This is not a total turn budget. Providers define how reasoning tokens count.
+   * @default undefined - use the provider's default limit.
+   */
+  maxTokens?: number
   toolsCompatibility?: Map<string, boolean>
   supportsTools?: boolean
   waitForTools?: boolean
-  /** Provider tool-selection directive for one request. */
+  /**
+   * The tool choice of the first model request. Later requests of the tool loop let the model choose, so a forced
+   * tool call does not repeat and the model can answer.
+   */
   toolChoice?: ToolChoice
   tools?: Tool[] | (() => Promise<Tool[] | undefined>)
+  /**
+   * Lets the provider add its own tools, for example the web search of OpenAI Responses that its settings turn on.
+   * A task beside the chat sets it to `false`, so its request carries only the tools that it passes.
+   * @default true
+   */
+  providerTools?: boolean
   /**
    * Per-model runtime cache of whether the provider accepts content-part arrays
    * (e.g. `[{type:'text',...},{type:'image_url',...}]`) for `messages[].content`.

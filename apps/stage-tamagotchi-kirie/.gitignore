@@ -6,6 +6,8 @@
 node_modules/
 addons/godot_cef/
 addons/kirie/
+addons/kirie_notifications/
+addons/kirie_tray/
 src-web/dist/
 dist/
 build/

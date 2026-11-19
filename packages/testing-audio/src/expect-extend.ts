@@ -1,8 +1,6 @@
-import type { SerializedIOSpan } from '@proj-airi/stage-shared/types/io-trace'
+import type { AudioInputObservations, AudioInputSpan } from './types'
 
-import type { AudioInputObservations } from './types'
-
-import { IOAttributes, IOSpanNames } from '@proj-airi/stage-shared/perf/io-trace'
+import { VoiceNames } from '@proj-airi/trace-kit/voice'
 import { expect as vitestExpect } from 'vitest'
 
 export interface CapturedTranscriptionAudioExpectation {
@@ -123,19 +121,16 @@ export function installAudioInputMatchers(): void {
   })
 }
 
-/** OpenTelemetry marks a span that ended with an error with this status code. */
-const SPAN_STATUS_ERROR = 2
-
 async function waitForTranscription(
   session: AudioInputObservations,
   timeout: number,
 ): Promise<{ complete: boolean, failed: boolean, summary: string }> {
   const deadline = Date.now() + timeout
-  let result = transcriptionResult(await session.completedSpans(IOSpanNames.SpeechRecognition))
+  let result = transcriptionResult(await session.completedSpans(VoiceNames.SpeechRecognition))
 
   while (!result.complete && !result.failed && Date.now() < deadline) {
     await new Promise(resolve => setTimeout(resolve, 100))
-    result = transcriptionResult(await session.completedSpans(IOSpanNames.SpeechRecognition))
+    result = transcriptionResult(await session.completedSpans(VoiceNames.SpeechRecognition))
   }
   return result
 }
@@ -144,13 +139,13 @@ async function waitForTranscription(
  * Reads the latest speech recognition span. The hearing transcriber ends one span per provider request.
  * An aborted request is neither complete nor failed, because the voice input that owned it was cancelled.
  */
-function transcriptionResult(spans: SerializedIOSpan[]): { complete: boolean, failed: boolean, summary: string } {
-  const latest = spans.findLast(span => span.attributes[IOAttributes.ASRAbort] !== true)
-  if (latest?.status.code === SPAN_STATUS_ERROR) {
+function transcriptionResult(spans: AudioInputSpan[]): { complete: boolean, failed: boolean, summary: string } {
+  const latest = spans.findLast(span => span.status !== 'cancelled')
+  if (latest?.status === 'error') {
     return {
       complete: false,
       failed: true,
-      summary: `ASR failed${latest.status.message ? `: ${latest.status.message}` : ''}`,
+      summary: `ASR failed${latest.message ? `: ${latest.message}` : ''}`,
     }
   }
   return {

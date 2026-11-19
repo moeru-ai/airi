@@ -19,6 +19,7 @@
   },
   "include": [
     "cases/**/*.ts",
+    "scripts/**/*.ts",
     "src/**/*.ts",
     "vitest.config.ts"
   ]

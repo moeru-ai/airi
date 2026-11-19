@@ -1,7 +1,7 @@
 import type { ConfigKVService } from '../../adapters/config-kv'
 import type { LlmModel, ModelKind, RouterConfig, TtsModel } from './types'
 
-import { createBadRequestError, createServiceUnavailableError } from '../../../utils/error'
+import { createBadRequestError, createServiceUnavailableError } from '@proj-airi/http-error-shared'
 
 /**
  * Default TTL for the in-memory config cache. Plan KTD-4 fallback path:

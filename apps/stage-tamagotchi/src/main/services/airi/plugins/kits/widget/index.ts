@@ -1,4 +1,4 @@
-import type { ExtensionHost, KitDescriptor } from '@proj-airi/plugin-sdk/plugin-host'
+import type { KitDescriptor } from '@proj-airi/plugin-sdk/plugin-host'
 
 export { resolveWidgetAssetRoute, rewriteWidgetModuleAssetUrl } from './asset-url'
 
@@ -23,20 +23,3 @@ export const widgetPluginKitDescriptor = {
     { key: 'kit.widget.module', actions: ['announce', 'activate', 'update', 'withdraw'] },
   ],
 } satisfies KitDescriptor
-
-/**
- * Registers the built-in widget kit on one host instance.
- *
- * Use when:
- * - Bootstrapping the Electron extension host with widget kit support
- * - Keeping widget descriptor registration inside the widget kit module
- *
- * Expects:
- * - `host` is the initialized extension host instance
- *
- * Returns:
- * - The registered widget kit descriptor
- */
-export function registerWidgetPluginKit(host: ExtensionHost): KitDescriptor {
-  return host.registerKit(widgetPluginKitDescriptor)
-}

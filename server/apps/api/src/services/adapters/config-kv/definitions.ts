@@ -1,6 +1,6 @@
 import type { InferOutput } from 'valibot'
 
-import { any, array, boolean, check, finite, integer, minValue, nonEmpty, number, object, optional, picklist, pipe, record, regex, string } from 'valibot'
+import { any, array, boolean, check, finite, integer, isoTimestamp, minValue, nonEmpty, number, object, optional, picklist, pipe, record, regex, safeInteger, string } from 'valibot'
 
 import { generationProtocolSchema } from '../../../schemas/generation-protocol'
 import { costPricingSchema } from '../../domain/billing/billing'
@@ -62,6 +62,20 @@ export const llmUpstreamSchema = object({
   overrideModel: optional(string()),
   keys: pipe(array(keyEntrySchema), check(v => v.length >= 1, 'llm.upstreams[].keys must contain at least 1 entry')),
   headerTemplate: optional(string(), 'Bearer {KEY}'),
+  /**
+   * Request headers, for example Authorization and OpenRouter `HTTP-Referer` / `X-Title`. `{KEY}` in a value is
+   * replaced with the key of each attempt. Without an Authorization entry, `headerTemplate` supplies it.
+   */
+  headers: pipe(
+    optional(record(
+      pipe(string(), regex(/^[!#$%&'*+.^`|~\w-]+$/, 'llm.upstreams[].headers names must be HTTP tokens')),
+      string(),
+    ), {}),
+    check(
+      headers => Object.keys(headers).every(name => name.toLowerCase() !== 'content-type'),
+      'llm.upstreams[].headers must not set content-type',
+    ),
+  ),
   timeoutMs: optional(number()),
 })
 
@@ -257,6 +271,22 @@ export const configEntrySchemas = {
       fluxAmount: pipe(number(), minValue(1, 'APPLE_FLUX_PACKS fluxAmount must be >= 1')),
     }),
   ), {}),
+  // RevenueCat subscription product id → entitlement and per-period capacitor Flux.
+  // Unused capacitor Flux dies with the billing period.
+  REVENUECAT_CAPACITORS: optional(record(
+    pipe(string(), nonEmpty('REVENUECAT_CAPACITORS product ids must not be empty')),
+    object({
+      entitlementId: pipe(string(), nonEmpty('REVENUECAT_CAPACITORS entitlementId must not be empty')),
+      // The wallet stores whole Flux in a number-backed bigint column.
+      // A fraction fails the database write, and an unsafe integer loses precision.
+      quota: pipe(number(), safeInteger('REVENUECAT_CAPACITORS quota must be a safe whole number'), minValue(1, 'REVENUECAT_CAPACITORS quota must be >= 1')),
+    }),
+  ), {}),
+  // Refills the capacitor bucket on a shorter window inside the billing period.
+  // Unset refills once per billing period.
+  CAPACITOR_RESET_INTERVAL: optional(picklist(['day', 'week'])),
+  // Refills every active capacitor bucket once at this time. An admin sets it.
+  CAPACITOR_RESET_AT: optional(pipe(string(), isoTimestamp('CAPACITOR_RESET_AT must be an ISO timestamp'))),
   // No default — absent means top-up is not available yet
   STRIPE_FLUX_PRODUCT_ID: optional(string()),
   // No default — absent lets Stripe auto-select payment methods via Dashboard config

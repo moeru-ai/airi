@@ -1,6 +1,8 @@
 import { createPinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { page } from 'vitest/browser'
 import { createApp, nextTick } from 'vue'
+import { createI18n } from 'vue-i18n'
 
 import HearingConfig from './hearing-config.vue'
 
@@ -38,6 +40,7 @@ vi.mock('../../../../composables/audio', async () => {
         stream: shallowRef<MediaStream>(),
         deviceConstraints: computed(() => ({ audio: true })),
         permissionGranted,
+        permission: shallowRef('granted'),
         source: shallowRef(),
         input: shallowRef({ subscribe: () => new ReadableStream() }),
         askPermission: audioDeviceMocks.storeAskPermission,
@@ -73,25 +76,66 @@ function mountHearingConfig(beforeEnable?: () => Promise<void>) {
   const host = document.createElement('div')
   document.body.appendChild(host)
   const app = createApp(HearingConfig, { beforeEnable })
-  app.use(createPinia())
+  // The microphone settings store reads the Hearing input mode. The Hearing store loads provider metadata, which needs i18n.
+  app.use(createPinia()).use(createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false }))
   app.mount(host)
 
   return { app, host }
 }
 
+/** The microphone switch of the controls. Reka renders it as a `role="switch"` button inside the field label. */
+function microphoneSwitch(host: HTMLElement) {
+  return host.querySelector<HTMLButtonElement>('[data-testid="hearing-microphone-switch"] [role="switch"]')!
+}
+
 describe('hearing config audio device ownership', () => {
-  beforeEach(() => {
+  // The microphone switch exists on a wide screen. A small web screen listens only during a voice call.
+  beforeEach(async () => {
+    await page.viewport(1280, 800)
     audioDeviceMocks.componentAskPermission.mockClear()
     audioDeviceMocks.storeAskPermission.mockClear()
     localStorage.clear()
   })
 
-  it('requests microphone permission through the settings store', async () => {
+  // The island and the mobile Hearing drawer show these controls. Users must be able to close the microphone there.
+  it('turns the microphone off for every feature, and keeps listening waiting until it is on again', async () => {
     const { app, host } = mountHearingConfig()
-    const button = host.querySelector<HTMLButtonElement>('button[aria-label="Enable microphone input"]')
-
-    button?.click()
+    const offSwitch = () => host.querySelector<HTMLButtonElement>('[data-testid="hearing-microphone-off-switch"] [role="switch"]')!
     await nextTick()
+    expect(offSwitch().getAttribute('aria-checked')).toBe('true')
+
+    offSwitch().click()
+
+    await expect.poll(() => offSwitch().getAttribute('aria-checked')).toBe('false')
+    expect(localStorage.getItem('settings/audio/input/off')).toBe('true')
+    expect(microphoneSwitch(host).disabled).toBe(true)
+
+    offSwitch().click()
+
+    await expect.poll(() => offSwitch().getAttribute('aria-checked')).toBe('true')
+    expect(microphoneSwitch(host).disabled).toBe(false)
+    expect(audioDeviceMocks.storeAskPermission).not.toHaveBeenCalled()
+
+    app.unmount()
+    host.remove()
+  })
+
+  it('does not request microphone permission when the controls render', async () => {
+    const { app, host } = mountHearingConfig()
+    await nextTick()
+
+    expect(microphoneSwitch(host).getAttribute('aria-checked')).toBe('false')
+    expect(audioDeviceMocks.storeAskPermission).not.toHaveBeenCalled()
+
+    app.unmount()
+    host.remove()
+  })
+
+  it('requests microphone permission through the settings store when the switch turns on', async () => {
+    const { app, host } = mountHearingConfig()
+
+    microphoneSwitch(host).click()
+    await expect.poll(() => microphoneSwitch(host).getAttribute('aria-checked')).toBe('true')
 
     expect(audioDeviceMocks.storeAskPermission).toHaveBeenCalledOnce()
     expect(audioDeviceMocks.componentAskPermission).not.toHaveBeenCalled()
@@ -100,12 +144,55 @@ describe('hearing config audio device ownership', () => {
     host.remove()
   })
 
-  it('renders the microphone selected by the settings store', () => {
+  it('renders the microphone selected by the settings store in a select on a wide screen', async () => {
+    await page.viewport(1280, 800)
     localStorage.setItem('settings/audio/input', 'store-microphone')
     const { app, host } = mountHearingConfig()
 
-    expect(host.querySelector<HTMLInputElement>('input[role="combobox"]')?.value).toBe('Store microphone')
+    await expect.poll(() => host.querySelector<HTMLInputElement>('input[role="combobox"]')?.value).toBe('Store microphone')
     expect(host.textContent).not.toContain('Detached microphone')
+
+    app.unmount()
+    host.remove()
+  })
+
+  // A phone shows this config in a bottom drawer. A select there opened a second floating layer that the drawer
+  // and the composer covered, so a narrow screen lists the microphones as rows.
+  it('lists the microphones as rows on a narrow screen', async () => {
+    await page.viewport(390, 844)
+    localStorage.setItem('settings/audio/input', 'store-microphone')
+    const { app, host } = mountHearingConfig()
+
+    await expect.poll(() => host.querySelector('[data-testid="microphone-picker"]')?.getAttribute('data-layout')).toBe('list')
+    expect(host.querySelector('input[role="combobox"]')).toBeNull()
+    expect(host.querySelector('[data-testid="microphone-picker"] [role="radio"][data-state="checked"]')?.textContent).toContain('Store microphone')
+
+    app.unmount()
+    host.remove()
+  })
+
+  it('hides continuous listening on a small web screen, where only a voice call listens', async () => {
+    await page.viewport(390, 844)
+    const { app, host } = mountHearingConfig()
+
+    await expect.poll(() => host.querySelector('[data-testid="hearing-call-only"]')).not.toBeNull()
+    expect(host.querySelector('[data-testid="hearing-microphone-switch"]')).toBeNull()
+    expect(host.querySelector('[data-testid="hearing-input-mode"]')).toBeNull()
+    expect(host.querySelector('[data-testid="microphone-picker"]')).not.toBeNull()
+
+    app.unmount()
+    host.remove()
+  })
+
+  it('keeps the switch off when the permission request fails', async () => {
+    audioDeviceMocks.storeAskPermission.mockRejectedValueOnce(new DOMException('Permission denied', 'NotAllowedError'))
+    const { app, host } = mountHearingConfig()
+
+    microphoneSwitch(host).click()
+    await expect.poll(() => host.querySelector('[data-testid="hearing-microphone-error"]')).not.toBeNull()
+
+    expect(microphoneSwitch(host).getAttribute('aria-checked')).toBe('false')
+    expect(microphoneSwitch(host).disabled).toBe(false)
 
     app.unmount()
     host.remove()
@@ -115,26 +202,26 @@ describe('hearing config audio device ownership', () => {
     const permissionPreparation = Promise.withResolvers<void>()
     const beforeEnable = vi.fn(() => permissionPreparation.promise)
     const { app, host } = mountHearingConfig(beforeEnable)
-    const button = host.querySelector<HTMLButtonElement>('button[aria-label="Enable microphone input"]')!
+    const toggle = microphoneSwitch(host)
 
-    button.click()
-    button.click()
+    toggle.click()
+    await nextTick()
+    toggle.click()
     await nextTick()
 
     expect(beforeEnable).toHaveBeenCalledOnce()
-    expect(button.disabled).toBe(true)
+    expect(toggle.disabled).toBe(true)
     expect(audioDeviceMocks.storeAskPermission).not.toHaveBeenCalled()
 
     permissionPreparation.resolve()
-    await expect.poll(() => button.getAttribute('aria-label')).toBe('Disable microphone input')
+    await expect.poll(() => toggle.getAttribute('aria-checked')).toBe('true')
 
     expect(audioDeviceMocks.storeAskPermission).toHaveBeenCalledOnce()
-    expect(button.disabled).toBe(false)
+    expect(toggle.disabled).toBe(false)
 
-    button.click()
-    await nextTick()
+    toggle.click()
+    await expect.poll(() => toggle.getAttribute('aria-checked')).toBe('false')
 
-    expect(button.getAttribute('aria-label')).toBe('Enable microphone input')
     expect(beforeEnable).toHaveBeenCalledOnce()
 
     app.unmount()
@@ -147,18 +234,18 @@ describe('hearing config audio device ownership', () => {
     const { app, host } = mountHearingConfig(beforeEnable)
     const onError = vi.fn()
     app.config.errorHandler = onError
-    const button = host.querySelector<HTMLButtonElement>('button[aria-label="Enable microphone input"]')!
+    const toggle = microphoneSwitch(host)
 
-    button.click()
+    toggle.click()
     await expect.poll(() => onError.mock.calls.length).toBe(1)
 
     expect(onError.mock.calls[0]?.[0]).toBe(error)
-    expect(button.disabled).toBe(false)
-    expect(button.getAttribute('aria-label')).toBe('Enable microphone input')
+    expect(toggle.disabled).toBe(false)
+    expect(toggle.getAttribute('aria-checked')).toBe('false')
     expect(audioDeviceMocks.storeAskPermission).not.toHaveBeenCalled()
 
-    button.click()
-    await expect.poll(() => button.getAttribute('aria-label')).toBe('Disable microphone input')
+    toggle.click()
+    await expect.poll(() => toggle.getAttribute('aria-checked')).toBe('true')
 
     expect(beforeEnable).toHaveBeenCalledTimes(2)
     expect(audioDeviceMocks.storeAskPermission).toHaveBeenCalledOnce()

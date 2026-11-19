@@ -5,16 +5,18 @@ import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { formatAccelerator, ShortcutFailureReasons } from '@proj-airi/stage-shared/global-shortcut'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { Button } from '@proj-airi/ui'
-import { isMacOS } from 'std-env'
 import { computed, onMounted, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
+
+import PushToTalkShortcut from '../../../components/settings/push-to-talk-shortcut.vue'
 
 import {
   electronSpotlightShortcutGet,
   electronSpotlightShortcutSet,
 } from '../../../../shared/eventa'
 import { isSafeSpotlightAccelerator } from '../../../../shared/spotlight-shortcut'
+import { acceleratorFromKeyboardEvent } from '../../../utils/shortcut-recording'
 
 const getShortcut = useElectronEventaInvoke(electronSpotlightShortcutGet)
 const setShortcut = useElectronEventaInvoke(electronSpotlightShortcutSet)
@@ -39,23 +41,6 @@ function errorKeyForReason(reason: ShortcutFailureReason) {
   if (reason === ShortcutFailureReasons.Invalid)
     return 'errors.requiresModifier'
   return 'errors.failed'
-}
-
-function acceleratorFromEvent(event: KeyboardEvent): ShortcutAccelerator | null {
-  if (event.repeat || ['Alt', 'Control', 'Meta', 'Shift'].includes(event.key))
-    return null
-
-  const modifiers: ShortcutAccelerator['modifiers'] = []
-  if (event.metaKey)
-    modifiers.push(isMacOS ? 'cmd' : 'super')
-  if (event.ctrlKey)
-    modifiers.push('ctrl')
-  if (event.altKey)
-    modifiers.push('alt')
-  if (event.shiftKey)
-    modifiers.push('shift')
-
-  return { modifiers, key: event.code }
 }
 
 async function saveShortcut(next: ShortcutAccelerator | null) {
@@ -91,7 +76,7 @@ function recordShortcut(event: KeyboardEvent) {
     return
   }
 
-  const next = acceleratorFromEvent(event)
+  const next = acceleratorFromKeyboardEvent(event)
   if (!next)
     return
   recording.value = false
@@ -149,6 +134,8 @@ onMounted(async () => {
       />
     </div>
   </section>
+
+  <PushToTalkShortcut :class="['mt-4']" />
 </template>
 
 <route lang="yaml">

@@ -1,3 +1,5 @@
+/// <reference path="../../settings-search-entries.d.ts" />
+
 import type {
   AppleSpeechTranscription,
   TranscriptionEvent,
@@ -224,8 +226,13 @@ export const providerAppleSpeechTranscription = defineProvider<AppleSpeechConfig
   tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt', 'streaming-transcription'],
   requiresCredentials: false,
   isAvailableBy: isAppleSpeechAvailable,
+  // The settings live in the Hearing module, not under /settings/providers.
+  to: '/settings/modules/hearing/transcriber',
   views: {
     hearing: () => import('./hearing-settings.vue'),
+  },
+  viewSearchEntries: {
+    hearing: () => import('./hearing-settings.vue?settings-search'),
   },
   capabilities: {
     transcription: {

@@ -1,7 +1,9 @@
 import type { GlobalShortcut, GlobalShortcutKeyEvent } from '@gd-kirie/platform'
 import type { ShortcutAccelerator, ShortcutBinding } from '@proj-airi/stage-shared/global-shortcut'
+import type { EffectScope } from 'vue'
 
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { effectScope } from 'vue'
 
 import { toKirieGlobalShortcut, useHostGlobalShortcuts } from './global-shortcuts'
 import {
@@ -39,9 +41,9 @@ vi.mock('./owner', () => ({
         return () => listeners.delete(event.id)
       },
     },
+    notifications,
     platform: {
       globalShortcuts: platformShortcuts,
-      notifications,
     },
   }),
 }))
@@ -66,7 +68,10 @@ const rendererOwned: ShortcutBinding = {
 }
 
 describe('spotlight host context', () => {
+  let scope: EffectScope
+
   beforeEach(async () => {
+    scope = effectScope()
     listeners.clear()
     invoke.mockReset().mockImplementation(async (id: string) => {
       if (id === 'eventa:invoke:electron:windows:spotlight:shortcut:get-send')
@@ -82,8 +87,12 @@ describe('spotlight host context', () => {
     platformShortcuts.unregister.mockReset().mockResolvedValue(undefined)
   })
 
+  afterEach(() => {
+    scope.stop()
+  })
+
   it('hides through Kirie with an explicit empty payload', async () => {
-    await useHostSpotlightWindow().hide()
+    await scope.run(useHostSpotlightWindow)!.hide()
 
     expect(invoke).toHaveBeenCalledWith(
       'eventa:invoke:electron:windows:spotlight:hide-send',
@@ -91,8 +100,8 @@ describe('spotlight host context', () => {
     )
   })
 
-  it('shows a Platform notification and opens Chat on activation', async () => {
-    await useHostSpotlightWindow().showResultNotification('Hello from Spotlight')
+  it('shows a notification and opens Chat on activation', async () => {
+    await scope.run(useHostSpotlightWindow)!.showResultNotification('Hello from Spotlight')
 
     expect(notifications.show).toHaveBeenCalledWith({
       body: 'Hello from Spotlight',
@@ -101,7 +110,7 @@ describe('spotlight host context', () => {
     })
 
     const notificationId = notifications.show.mock.calls[0]![0].id as string
-    listeners.get('kirie:platform:notification:activated')?.({ body: { id: notificationId } })
+    listeners.get('kirie:notifications:activated')?.({ body: { id: notificationId } })
     expect(openChat).toHaveBeenCalledOnce()
   })
 
@@ -165,13 +174,8 @@ describe('spotlight host context', () => {
   it('releases the host-owned shortcut when the page unloads', async () => {
     // ROOT CAUSE:
     //
-    // The host keeps the registration across renderer page loads, and the key
-    // callback it stores belongs to the page that registered it. A page that went
-    // away without releasing left the accelerator claimed, so the next page's
-    // register was rejected as a duplicate and the shortcut kept dispatching into
-    // the unloaded page until the app restarted.
-    //
-    // We fixed this by releasing the registration from a `beforeunload` listener.
+    // The host retained the old page's callback after reload.
+    // Unregistering before unload lets the next page register its callback.
     const stop = startHostOwnedSpotlightShortcut()
     await vi.waitFor(() => {
       expect(platformShortcuts.register).toHaveBeenCalledOnce()

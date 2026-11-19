@@ -41,7 +41,7 @@ it.skipIf(!databaseUrl)('conserves mixed fees across concurrent connections and 
   await db.delete(userFlux)
   await db.insert(userFlux).values({ userId: 'concurrent', flux: 500 })
   const redis = createTestRedis()
-  const billing = createBillingService(db, redis)
+  const billing = createBillingService(db, redis, { getOptional: async () => null })
   const calls: Array<() => Promise<unknown>> = []
   for (let index = 0; index < 100; index++) {
     const requestId = `event-${index}`

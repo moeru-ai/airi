@@ -1,11 +1,17 @@
 // @vitest-environment jsdom
 
+import type { DevicePermission } from './device-permissions'
+
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 
-import { useOnboardingStore } from './onboarding'
+import { isSherpawModelBundled } from '../libs/providers/providers/sherpaw/model-assets'
+import { toStoredVoiceprint } from '../libs/voice/voiceprint'
+import { useDevicePermissionsStore } from './device-permissions'
+import { isStepPending, sharedOnboardingSteps, useOnboardingStore } from './onboarding'
 import { useProviderConfigStore } from './providers/config'
+import { useVoiceprintStore } from './voiceprint'
 
 vi.mock('./auth', async () => {
   const { defineStore } = await import('pinia')
@@ -19,6 +25,11 @@ vi.mock('./auth', async () => {
     }),
   }
 })
+
+// The Sherpaw Vite plugin of each app decides at build time which model packs are bundled. Desktop bundles the voiceprint model.
+vi.mock('../libs/providers/providers/sherpaw/model-assets', () => ({
+  isSherpawModelBundled: vi.fn(() => false),
+}))
 
 vi.mock('./providers/config', async () => {
   const { defineStore } = await import('pinia')
@@ -94,17 +105,202 @@ describe('onboarding store', () => {
   //
   // The authenticated command now persists completion and publishes a
   // monotonic close request through synchronized Pinia state.
-  it('publishes a close request after authentication', () => {
+  it('publishes a close request after authentication', async () => {
     const store = useOnboardingStore()
 
-    store.closeAfterAuthentication()
+    await store.closeAfterAuthentication()
 
-    expect(store.hasCompletedSetup).toBe(true)
-    expect(store.hasSkippedSetup).toBe(false)
     expect(store.closeRequestId).toBe(1)
+    expect(store.needsOnboarding).toBe(false)
     expect(store.$state).not.toHaveProperty('closeRequestId')
-    expect(store.$state).not.toHaveProperty('hasCompletedSetup')
-    expect(localStorage.getItem('onboarding/completed')).toBe('true')
-    expect(localStorage.getItem('onboarding/skipped')).toBe('false')
+    expect(store.$state).not.toHaveProperty('stepRecords')
+    const records = JSON.parse(localStorage.getItem('onboarding/steps') ?? '{}')
+    for (const step of sharedOnboardingSteps.filter(step => step.scope === 'provider-setup'))
+      expect(records[step.id]).toMatchObject({ version: step.version, outcome: 'done' })
+    // Sign-in does not grant a permission, so the permissions step stays pending.
+    expect(records.permissions).toBeUndefined()
+  })
+
+  it('records the shared steps as done when an upgrade finds the completed flag', () => {
+    localStorage.setItem('onboarding/completed', 'true')
+    localStorage.setItem('onboarding/skipped', 'false')
+
+    const store = useOnboardingStore()
+
+    expect(store.needsOnboarding).toBe(false)
+    expect(store.stepRecords['analytics-notice']).toMatchObject({ version: 1, outcome: 'done' })
+    expect(localStorage.getItem('onboarding/completed')).toBeNull()
+    expect(localStorage.getItem('onboarding/skipped')).toBeNull()
+  })
+
+  it('opens onboarding again for a shared step whose version increased', () => {
+    const [firstStep] = sharedOnboardingSteps
+    localStorage.setItem('onboarding/steps', JSON.stringify({ [firstStep.id]: { version: firstStep.version - 1, outcome: 'done', at: 0 } }))
+
+    const store = useOnboardingStore()
+
+    expect(store.pendingSharedSteps.map(step => step.id)).toContain(firstStep.id)
+    expect(store.needsOnboarding).toBe(true)
+  })
+
+  // Found in the review of https://github.com/moeru-ai/airi/pull/3293
+  // ROOT CAUSE:
+  //
+  // A new version of only the provider configuration step showed that step alone.
+  // It had no selected provider, so the user could not finish or go back.
+  //
+  // We fixed this by showing every provider setup step when one of them is pending.
+  it('shows every provider setup step when only one of them has a new version', () => {
+    const providerConfiguration = sharedOnboardingSteps.find(step => step.id === 'provider-configuration')!
+    localStorage.setItem('onboarding/steps', JSON.stringify(Object.fromEntries(sharedOnboardingSteps.map(step => [
+      step.id,
+      { version: step === providerConfiguration ? step.version - 1 : step.version, outcome: 'done', at: 0 },
+    ]))))
+
+    const store = useOnboardingStore()
+
+    expect(store.pendingSharedSteps.map(step => step.id)).toEqual(sharedOnboardingSteps.filter(step => step.scope === 'provider-setup').map(step => step.id))
+  })
+
+  it('treats an unreadable record value as no records', () => {
+    localStorage.setItem('onboarding/steps', '{not json')
+
+    const store = useOnboardingStore()
+
+    expect(store.stepRecords).toEqual({})
+    expect(store.needsOnboarding).toBe(true)
+  })
+
+  it('opens onboarding again after a reset', async () => {
+    const store = useOnboardingStore()
+    await store.recordSteps(sharedOnboardingSteps, 'done')
+    expect(store.needsOnboarding).toBe(false)
+
+    await store.resetSetupState()
+
+    expect(store.needsOnboarding).toBe(true)
+    expect(localStorage.getItem('onboarding/steps')).toBeNull()
+  })
+})
+
+describe('onboarding permissions step', () => {
+  /** A permission that the test host registers. Its functions do nothing, because the store only counts permissions. */
+  const microphone: DevicePermission = {
+    id: 'microphone',
+    kind: 'microphone',
+    titleKey: 'settings.dialogs.onboarding.permissions.microphoneTitle',
+    descriptionKey: 'settings.dialogs.onboarding.permissions.microphoneDescription',
+    check: async () => 'not-determined',
+    request: async () => {},
+  }
+
+  beforeEach(() => {
+    localStorage.clear()
+    setActivePinia(createPinia())
+  })
+
+  it('does not apply on a host without registered permissions', () => {
+    localStorage.setItem('onboarding/completed', 'true')
+
+    const store = useOnboardingStore()
+
+    expect(store.needsOnboarding).toBe(false)
+  })
+
+  it('opens onboarding with only the permissions step after an upgrade', () => {
+    localStorage.setItem('onboarding/completed', 'true')
+    useDevicePermissionsStore().register([microphone])
+
+    const store = useOnboardingStore()
+
+    expect(store.pendingSharedSteps.map(step => step.id)).toEqual(['permissions'])
+    expect(store.needsOnboarding).toBe(true)
+  })
+
+  it('applies when a provider was configured at startup', () => {
+    useProviderConfigStore().configuredProviders.openai = true
+    useDevicePermissionsStore().register([microphone])
+
+    const store = useOnboardingStore()
+
+    expect(store.pendingSharedSteps.map(step => step.id)).toEqual(['permissions'])
+  })
+
+  // ROOT CAUSE:
+  //
+  // Sign-in closed the whole flow, so a signed-in user never saw the permissions step.
+  // Sign-in finishes only provider setup, and the flow stays open for the permissions.
+  it('keeps the flow open after sign-in while the permissions step is pending', async () => {
+    useDevicePermissionsStore().register([microphone])
+    const store = useOnboardingStore()
+    store.forceShowSetup()
+
+    await store.closeAfterAuthentication()
+
+    expect(store.closeRequestId).toBe(1)
+    expect(store.pendingSharedSteps.map(step => step.id)).toEqual(['permissions'])
+    expect(store.showingSetup).toBe(true)
+  })
+})
+
+describe('onboarding voiceprint page', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    setActivePinia(createPinia())
+    vi.mocked(isSherpawModelBundled).mockReturnValue(false)
+  })
+
+  it('adds no voiceprint page when the app does not bundle the voiceprint model', () => {
+    localStorage.setItem('onboarding/completed', 'true')
+
+    const store = useOnboardingStore()
+
+    expect(store.deviceSetupPages).toEqual([])
+    expect(store.needsOnboarding).toBe(false)
+  })
+
+  // Linux desktop registers no permissions, because Chromium uses the microphone without a system consent.
+  it('opens the permissions step with only the voiceprint page on a host without permissions', () => {
+    localStorage.setItem('onboarding/completed', 'true')
+    vi.mocked(isSherpawModelBundled).mockReturnValue(true)
+
+    const store = useOnboardingStore()
+
+    expect(store.deviceSetupPages.map(page => page.id)).toEqual(['voiceprint'])
+    expect(store.pendingSharedSteps.map(step => step.id)).toEqual(['permissions'])
+  })
+
+  it('adds no voiceprint page when the user enrolled a voiceprint before', () => {
+    localStorage.setItem('onboarding/completed', 'true')
+    localStorage.setItem('settings/voice/voiceprints', JSON.stringify([toStoredVoiceprint({ embedding: new Float32Array([1, 0]), seconds: 8 }, { id: 'voiceprint-1', label: '', createdAt: Date.now() })]))
+    vi.mocked(isSherpawModelBundled).mockReturnValue(true)
+
+    const store = useOnboardingStore()
+
+    expect(store.deviceSetupPages).toEqual([])
+    expect(store.needsOnboarding).toBe(false)
+  })
+
+  // A reactive check removes the page as soon as the enrollment saves the voiceprint.
+  // Then the flow loses the page before the user sees the result and the speaker recognition switch.
+  it('keeps the voiceprint page after the flow saves a voiceprint', () => {
+    localStorage.setItem('onboarding/completed', 'true')
+    vi.mocked(isSherpawModelBundled).mockReturnValue(true)
+    const store = useOnboardingStore()
+    const [page] = store.deviceSetupPages
+
+    expect(useVoiceprintStore().add({ embedding: new Float32Array([1, 0]), seconds: 8 }, Date.now())).toBeDefined()
+
+    expect(store.deviceSetupPages.map(item => item.id)).toEqual(['voiceprint'])
+    expect(page.type === 'feature' && page.feature.done()).toBe(true)
+    expect(store.pendingSharedSteps.map(step => step.id)).toEqual(['permissions'])
+  })
+})
+
+describe('isStepPending', () => {
+  it('is pending without a record and with a record of an older version', () => {
+    expect(isStepPending({}, { id: 'notice', version: 1 })).toBe(true)
+    expect(isStepPending({ notice: { version: 1, outcome: 'later', at: 0 } }, { id: 'notice', version: 2 })).toBe(true)
+    expect(isStepPending({ notice: { version: 2, outcome: 'later', at: 0 } }, { id: 'notice', version: 2 })).toBe(false)
   })
 })

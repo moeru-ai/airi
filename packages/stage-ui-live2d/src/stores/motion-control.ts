@@ -16,6 +16,18 @@ export interface Live2DMotionControlDynamics {
   inertia: number
 }
 
+/** Delivery of one motion control update. */
+export interface Live2DMotionControlDelivery {
+  /**
+   * Sends the update to the other renderer windows. @default true
+   *
+   * A motion source that runs in each renderer, for example MAGIC, sets this to
+   * false. Two windows that both broadcast one owner would otherwise replace the
+   * pose of each other on every frame.
+   */
+  broadcast?: boolean
+}
+
 /** The active manual control owner, target pose, and spring settings. */
 export interface Live2DMotionControlState {
   active: boolean
@@ -307,7 +319,12 @@ export const useLive2DMotionControl = defineStore('live2d-motion-control', () =>
       exclusiveOwnerId.value = null
   }
 
-  function setPose(ownerId: string, pose: Live2DMotionControlPose, dynamics: Live2DMotionControlDynamics) {
+  function setPose(
+    ownerId: string,
+    pose: Live2DMotionControlPose,
+    dynamics: Live2DMotionControlDynamics,
+    delivery: Live2DMotionControlDelivery = {},
+  ) {
     const event: Live2DMotionControlEvent = {
       type: 'live2d-motion-control-set',
       ownerId,
@@ -315,16 +332,18 @@ export const useLive2DMotionControl = defineStore('live2d-motion-control', () =>
       dynamics: normalizeDynamics(dynamics),
     }
     applyEvent(event)
-    post(event)
+    if (delivery.broadcast ?? true)
+      post(event)
   }
 
-  function release(ownerId: string) {
+  function release(ownerId: string, delivery: Live2DMotionControlDelivery = {}) {
     const event: Live2DMotionControlEvent = {
       type: 'live2d-motion-control-release',
       ownerId,
     }
     applyEvent(event)
-    post(event)
+    if (delivery.broadcast ?? true)
+      post(event)
   }
 
   function setBreath(ownerId: string, options: Live2DBreathControlOptions, startedAtMs = Date.now()) {

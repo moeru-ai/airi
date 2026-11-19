@@ -4,7 +4,7 @@ import type { VirtualizerHandle } from 'virtua/vue'
 import type { ChatToolCallRerunEvent, ToolCallRerunRequest } from '../../../../stores/tool-call-rerun'
 import type { ChatHistoryItem, StreamingAssistantMessage } from '../../../../types/chat'
 import type { ChatHistoryReplyPayload } from '../reply'
-import type { ChatToolCallRendererRegistry } from './tool-call-renderer'
+import type { ChatToolCallRendererRegistry, ChatToolCallWidgetRegistry } from './tool-call-renderer'
 
 import { useNow } from '@vueuse/core'
 import { Virtualizer } from 'virtua/vue'
@@ -16,6 +16,7 @@ import ChatHistoryScrollContainer from './chat-history-scroll-container.vue'
 import ChatErrorItem from './error-item.vue'
 import ChatHistoryMessageFrame from './history-message-frame.vue'
 import ChatHistoryTimeSeparator from './history-time-separator.vue'
+import ChatNoticeItem from './notice-item.vue'
 import ChatUserItem from './user-item.vue'
 
 import { useChatHistoryScroll } from '../composables/use-chat-history-scroll'
@@ -57,7 +58,17 @@ const props = withDefaults(defineProps<{
    * nobody can scroll it back.
    */
   passive?: boolean
+  /**
+   * Index of the first message that the history shows. The messages before
+   * it fade out and become hidden, but keep their place, so the layout and
+   * the scroll position never move. A hidden message takes no pointer. A
+   * smaller value shows the messages again. The danmaku chat window uses it
+   * to hide read messages.
+   */
+  expiredBefore?: number
   toolCallRenderers?: ChatToolCallRendererRegistry
+  /** Widgets for tool results. Each assistant message passes them to its tool call groups. */
+  toolCallWidgets?: ChatToolCallWidgetRegistry
 }>(), {
   sending: false,
   tailInset: 0,
@@ -65,7 +76,9 @@ const props = withDefaults(defineProps<{
   surface: 'translucent',
   scrollbar: 'scroll',
   passive: false,
+  expiredBefore: 0,
   toolCallRenderers: () => ({}),
+  toolCallWidgets: () => ({}),
 })
 
 const emit = defineEmits<{
@@ -107,6 +120,10 @@ function canReplyToMessage(message: ChatHistoryItem) {
     return false
 
   if (message.role !== 'assistant' && message.role !== 'user')
+    return false
+
+  // A notice is not a message from either side, so nobody replies to it.
+  if (message.role === 'user' && message.notice)
     return false
 
   if (message.role === 'assistant' && shouldShowPlaceholder(message) && showStreamingPlaceholder.value)
@@ -170,6 +187,7 @@ useChatHistoryScroll({
   scrollToIndex,
   tailInset,
   passive: computed(() => props.passive),
+  hiddenBefore: computed(() => props.expiredBefore),
 })
 useChatHistoryTopFade({
   container: chatHistoryRef,
@@ -258,10 +276,12 @@ function emitToolCallRerun(
     >
       <template #default="{ item: message, index }">
         <div :key="getChatHistoryItemKey(message, index)">
+          <!-- An expired message takes its time label with it, so no label floats in an empty feed. -->
           <ChatHistoryTimeSeparator
             v-if="timeSeparators[index] != null"
             :timestamp="timeSeparators[index]!"
             :now="now.getTime()"
+            :class="['transition-[opacity,visibility] duration-200 ease-out motion-reduce:transition-none', index < expiredBefore ? 'invisible opacity-0' : '']"
           />
           <!-- Audio end-to-end tests read rendered messages through data-chat-message-role. -->
           <ChatHistoryMessageFrame
@@ -270,6 +290,7 @@ function emitToolCallRerun(
             :variant="variant"
             :scroll-container="chatHistoryRef"
             :reply-enabled="canReplyToMessage(message)"
+            :expired="index < expiredBefore"
             @reply="emitReplyMessage(message)"
           >
             <ChatErrorItem
@@ -293,14 +314,21 @@ function emitToolCallRerun(
               :reply-target="getReplyTarget(message)"
               :can-reply="canReplyToMessage(message)"
               :show-placeholder="shouldShowPlaceholder(message) && showStreamingPlaceholder"
+              :streaming="shouldShowPlaceholder(message)"
               :scroll-container="chatHistoryRef"
               :variant="variant"
               :surface="surface"
               :tool-call-renderers="toolCallRenderers"
+              :tool-call-widgets="toolCallWidgets"
               @copy="emitCopyMessage(message, index)"
               @delete="emitDeleteMessage(message, index)"
               @reply="emitReplyMessage(message)"
               @tool-call-rerun="emitToolCallRerun(message, index, $event)"
+            />
+            <ChatNoticeItem
+              v-else-if="message.role === 'user' && message.notice"
+              :message="message"
+              :surface="surface"
             />
             <ChatUserItem
               v-else-if="message.role === 'user'"

@@ -11,8 +11,10 @@ import { createFluxService } from './flux'
 
 import * as schema from '../../schemas'
 
-function createMockConfigKV(overrides: Record<string, number> = {}): ReturnType<typeof createConfigKVService> {
-  const defaults: Record<string, number> = { INITIAL_USER_FLUX: 100, FLUX_PER_REQUEST: 1, ...overrides }
+const emptyCapacitor = { unsettledMicroFlux: 0, capacitorFlux: 0, capacitorQuota: 0, capacitorExpiresAt: null, capacitorRechargesAt: null, fallbackToFlux: false }
+
+function createMockConfigKV(overrides: Record<string, number | string> = {}): ReturnType<typeof createConfigKVService> {
+  const defaults: Record<string, number | string> = { INITIAL_USER_FLUX: 100, FLUX_PER_REQUEST: 1, ...overrides }
   return {
     get: vi.fn(async (key: string) => defaults[key]),
     getOrThrow: vi.fn(async (key: string) => defaults[key]),
@@ -54,7 +56,7 @@ describe('fluxService (DB-backed)', () => {
   it('getFlux should initialize new user with INITIAL_USER_FLUX and populate Redis', async () => {
     const record = await service.getFlux(testUser.id)
     expect(record.flux).toBe(100)
-    expect(set).toHaveBeenCalledWith(userFluxRedisKey(testUser.id), JSON.stringify({ flux: 100, unsettledMicroFlux: 0 }), 'EX', 60)
+    expect(set).toHaveBeenCalledWith(userFluxRedisKey(testUser.id), JSON.stringify({ flux: 100, ...emptyCapacitor }), 'EX', 60)
   })
 
   it('getFlux should write a transaction entry on initialization', async () => {
@@ -83,7 +85,7 @@ describe('fluxService (DB-backed)', () => {
 
     const record = await service.getFlux(testUser.id)
     expect(record.flux).toBe(42)
-    expect(set).toHaveBeenCalledWith(userFluxRedisKey(testUser.id), JSON.stringify({ flux: 42, unsettledMicroFlux: 0 }), 'EX', 60)
+    expect(set).toHaveBeenCalledWith(userFluxRedisKey(testUser.id), JSON.stringify({ flux: 42, ...emptyCapacitor }), 'EX', 60)
   })
 
   // ROOT CAUSE:
@@ -133,11 +135,128 @@ describe('fluxService (DB-backed)', () => {
     const get = redis.get.bind(redis)
     vi.spyOn(redis, 'get').mockImplementationOnce(async (requestedKey) => {
       const previous = await get(requestedKey)
-      await redis.set(key, JSON.stringify({ flux: 42, unsettledMicroFlux: 0 }), 'EX', 60)
+      await redis.set(key, JSON.stringify({ flux: 42, ...emptyCapacitor }), 'EX', 60)
       return previous
     })
 
     expect((await service.getFlux(testUser.id)).flux).toBe(42)
+  })
+
+  it('reports the next recharge when a reset interval is configured', async () => {
+    const hour = 3_600_000
+    const periodStart = new Date(Date.now() - 2 * hour)
+    await db.insert(schema.userFlux).values({
+      userId: testUser.id,
+      flux: 42,
+      capacitorFlux: 25,
+      capacitorQuota: 100,
+      capacitorExpiresAt: new Date(Date.now() + 30 * 24 * hour),
+      capacitorPeriodStart: periodStart,
+      capacitorFilledAt: periodStart,
+    })
+
+    expect(await service.getFlux(testUser.id)).toMatchObject({ capacitorRechargesAt: null })
+
+    await redis.flushall()
+    const daily = createFluxService(db, redis, createMockConfigKV({ CAPACITOR_RESET_INTERVAL: 'day' }))
+    expect(await daily.getFlux(testUser.id)).toMatchObject({
+      capacitorRechargesAt: new Date(periodStart.getTime() + 24 * hour).toISOString(),
+    })
+  })
+
+  it('counts a due capacitor refill in the capacitor percent', async () => {
+    await db.insert(schema.userFlux).values({
+      userId: testUser.id,
+      flux: 42,
+      capacitorFlux: 25,
+      capacitorQuota: 100,
+      capacitorExpiresAt: new Date(Date.now() + 60_000),
+      capacitorPeriodStart: new Date(Date.now() - 60_000),
+      capacitorFilledAt: new Date(Date.now() - 120_000),
+    })
+
+    expect(await service.getFlux(testUser.id)).toMatchObject({ capacitorPercent: 100 })
+  })
+
+  it('reports the capacitor percent and judges expiry on every read', async () => {
+    const capacitorExpiresAt = new Date(Date.now() + 60_000)
+    await db.insert(schema.userFlux).values({ userId: testUser.id, flux: 42, capacitorFlux: 25, capacitorQuota: 100, capacitorExpiresAt })
+
+    expect(await service.getFlux(testUser.id)).toMatchObject({ flux: 42, capacitorPercent: 25 })
+
+    // The cached snapshot keeps the raw expiry, so a later read sees an expired capacitor.
+    vi.useFakeTimers({ toFake: ['Date'], now: Date.now() + 120_000 })
+    try {
+      expect(await service.getFlux(testUser.id)).toMatchObject({ capacitorPercent: null })
+    }
+    finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('lists the capacitor percent after each debit of the current window', async () => {
+    const hour = 3_600_000
+    const filledAt = new Date(Date.now() - 2 * hour)
+    const capacitorExpiresAt = new Date(Date.now() + 30 * 24 * hour)
+    await db.insert(schema.userFlux).values({
+      userId: testUser.id,
+      flux: 42,
+      capacitorFlux: 60,
+      capacitorQuota: 100,
+      capacitorExpiresAt,
+      capacitorPeriodStart: filledAt,
+      capacitorFilledAt: filledAt,
+    })
+    const debit = { userId: testUser.id, type: 'debit', description: 'usage_settlement' }
+    await db.insert(schema.fluxTransaction).values([
+      // A debit of the window before the refill, a refill, and a wallet debit stay out of the list.
+      { ...debit, pool: 'capacitor', amount: 50, balanceBefore: 90, balanceAfter: 40, createdAt: new Date(filledAt.getTime() - hour) },
+      { ...debit, pool: 'capacitor', type: 'credit', amount: 100, balanceBefore: 40, balanceAfter: 100, createdAt: filledAt },
+      { ...debit, pool: 'wallet', amount: 5, balanceBefore: 47, balanceAfter: 42, createdAt: new Date(filledAt.getTime() + hour) },
+      { ...debit, pool: 'capacitor', amount: 25, balanceBefore: 85, balanceAfter: 60, createdAt: new Date(filledAt.getTime() + hour) },
+      { ...debit, pool: 'capacitor', amount: 15, balanceBefore: 100, balanceAfter: 85, createdAt: new Date(filledAt.getTime() + hour / 2) },
+    ])
+
+    expect(await service.getCapacitorUsage(testUser.id)).toEqual({
+      startedAt: filledAt.toISOString(),
+      endsAt: capacitorExpiresAt.toISOString(),
+      records: [
+        { at: new Date(filledAt.getTime() + hour / 2).toISOString(), percent: 85 },
+        { at: new Date(filledAt.getTime() + hour).toISOString(), percent: 60 },
+      ],
+    })
+
+    const daily = createFluxService(db, redis, createMockConfigKV({ CAPACITOR_RESET_INTERVAL: 'day' }))
+    expect(await daily.getCapacitorUsage(testUser.id)).toMatchObject({
+      endsAt: new Date(filledAt.getTime() + 24 * hour).toISOString(),
+    })
+  })
+
+  it('starts an empty usage window when a capacitor refill is due', async () => {
+    const hour = 3_600_000
+    const periodStart = new Date(Date.now() - 60_000)
+    await db.insert(schema.userFlux).values({
+      userId: testUser.id,
+      flux: 42,
+      capacitorFlux: 25,
+      capacitorQuota: 100,
+      capacitorExpiresAt: new Date(Date.now() + hour),
+      capacitorPeriodStart: periodStart,
+      capacitorFilledAt: new Date(Date.now() - 2 * hour),
+    })
+    await db.insert(schema.fluxTransaction).values({ userId: testUser.id, type: 'debit', pool: 'capacitor', amount: 75, balanceBefore: 100, balanceAfter: 25, description: 'usage_settlement', createdAt: new Date(Date.now() - 30_000) })
+
+    const usage = await service.getCapacitorUsage(testUser.id)
+    expect(usage.records).toEqual([])
+    expect(usage.startedAt).not.toBeNull()
+  })
+
+  it('reports no usage window without an active capacitor', async () => {
+    const none = { startedAt: null, endsAt: null, records: [] }
+    expect(await service.getCapacitorUsage(testUser.id)).toEqual(none)
+
+    await db.insert(schema.userFlux).values({ userId: testUser.id, flux: 42, capacitorFlux: 25, capacitorQuota: 100, capacitorExpiresAt: new Date(Date.now() - 60_000) })
+    expect(await service.getCapacitorUsage(testUser.id)).toEqual(none)
   })
 
   it('reloads malformed cached balances instead of accepting partial numbers', async () => {

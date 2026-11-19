@@ -11,7 +11,10 @@ export interface BeatSyncController {
   velocityX: Ref<number>
   velocityY: Ref<number>
   velocityZ: Ref<number>
-  updateTargets: (now: number) => void
+  /** Advances the targets to `now`, in milliseconds of the controller clock. */
+  updateTargets: (now?: number) => void
+  /** Returns how far the current targets are from the base angles. The beat patterns move only Y and Z. */
+  targetOffsets: () => { y: number, z: number }
   scheduleBeat: (timestamp?: number | null) => void
   debugState: () => {
     primed: boolean
@@ -46,6 +49,12 @@ interface CreateBeatSyncControllerOptions {
   styles?: Partial<Record<BeatSyncStyleName, BeatStyleConfig>>
   initialStyle?: BeatSyncStyleName
   autoStyleShift?: boolean
+  /**
+   * Clock in milliseconds for beats and targets.
+   *
+   * @default performance.now
+   */
+  now?: () => number
 }
 
 type BeatStylePattern = 'v' | 'swing' | 'sway'
@@ -76,6 +85,7 @@ export function createBeatSyncController(options: CreateBeatSyncControllerOption
     styles = {},
     initialStyle = 'punchy-v',
     autoStyleShift = false,
+    now: clock = () => performance.now(),
   } = options
 
   const styleMap = { ...defaultStyles, ...styles }
@@ -128,7 +138,7 @@ export function createBeatSyncController(options: CreateBeatSyncControllerOption
     }
   }
 
-  function updateTargets(now: number) {
+  function updateTargets(now = clock()) {
     let currentY: number | undefined = targetY.value
     let currentZ: number | undefined = targetZ.value
 
@@ -185,7 +195,7 @@ export function createBeatSyncController(options: CreateBeatSyncControllerOption
   function scheduleBeat(timestamp?: number | null) {
     const now = timestamp != null && Number.isFinite(timestamp)
       ? Number(timestamp)
-      : (typeof performance !== 'undefined' ? performance.now() : Date.now())
+      : clock()
     updateTargets(now)
 
     if (!primed.value) {
@@ -341,6 +351,10 @@ export function createBeatSyncController(options: CreateBeatSyncControllerOption
     velocityY,
     velocityZ,
     updateTargets,
+    targetOffsets: () => ({
+      y: targetY.value - baseAngles.value.y,
+      z: targetZ.value - baseAngles.value.z,
+    }),
     scheduleBeat,
     setStyle: (s: BeatSyncStyleName) => { style.value = s },
     getStyle: () => style.value,

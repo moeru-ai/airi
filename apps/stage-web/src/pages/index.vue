@@ -8,17 +8,22 @@ import { useBackgroundThemeColor } from '@proj-airi/stage-layouts/composables/th
 import { useBackgroundStore } from '@proj-airi/stage-layouts/stores/background'
 import { HoloCoupon } from '@proj-airi/stage-ui/components'
 import { ViewControlSlider, WidgetStage } from '@proj-airi/stage-ui/components/scenes'
-import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
+import { useVoiceHoldKey } from '@proj-airi/stage-ui/composables/voice-hold'
+import { useVoiceListening, useVoicePushToTalk } from '@proj-airi/stage-ui/composables/voice-input-mode'
+import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useStartupResourcesStore } from '@proj-airi/stage-ui/stores/startup-resources'
-import { useVoiceStore } from '@proj-airi/stage-ui/stores/voice'
 import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
+import { computed, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
+import { toast } from 'vue-sonner'
 
 const paused = ref(false)
 const modelRenderState = ref<'pending' | 'loading' | 'mounted'>('pending')
 const modelRenderError = ref<Error>()
 const startup = useStartupResourcesStore()
+const { t } = useI18n()
 
 watch([modelRenderState, modelRenderError, () => startup.resources.find(resource => resource.id === 'model')?.status], ([state, error, status]) => {
   if (status !== 'loading')
@@ -63,29 +68,26 @@ const { stageModelRenderer } = storeToRefs(useSettings())
 const { syncBackgroundTheme } = useBackgroundThemeColor({ backgroundSurface, selectedOption, sampledColor })
 onMounted(() => syncBackgroundTheme())
 
-const voice = useVoiceStore()
-const { enabled } = storeToRefs(useSettingsAudioDevice())
-watch(enabled, (value) => {
-  if (value)
-    voice.startListening()
-  else
-    void voice.stopListening()
-}, { immediate: true })
-onUnmounted(() => {
-  void voice.stopListening()
-})
+// Small screens offer no control for continuous listening, so only a voice call listens there.
+useVoiceListening({ continuous: () => !isMobile.value })
+// The page has no global shortcut, so Push to Talk uses Space while the stage page has focus.
+useVoiceHoldKey(useVoicePushToTalk({
+  onUnconfigured: () => toast(t('stage.chat.voice-composer.configure-title'), { description: t('stage.chat.voice-composer.configure-description') }),
+}))
 
 const { x: mouseX, y: mouseY } = useMouse()
 const cursorPosition = computed(() => ({
   x: mouseX.value,
   y: mouseY.value,
 }))
+
+const router = useRouter()
 </script>
 
 <template>
   <BackgroundProvider
     ref="backgroundSurface"
-    class="widgets top-widgets"
+    :class="['widgets top-widgets']"
     :background="selectedOption"
     :style="stageSurfaceStyle"
     :top-color="sampledColor"
@@ -98,15 +100,16 @@ const cursorPosition = computed(() => ({
       ]"
     >
       <!-- header -->
-      <div class="px-0 py-1 md:px-3 md:py-3" w-full gap-2>
-        <Header class="hidden md:flex" />
+      <div :class="['w-full gap-2 px-0 py-1 md:px-3 md:py-3']">
+        <Header :class="['hidden md:flex']" />
       </div>
       <!-- page -->
-      <div relative flex="~ 1 row gap-y-0 gap-x-2 <md:col">
-        <div relative flex-1 min-w="1/2">
+      <div :class="['relative flex flex-1 flex-row gap-x-2 gap-y-0 <md:flex-col']">
+        <div :class="['relative min-w-1/2 flex-1']">
           <div
-            absolute left-0 z-15 px-3
+            v-if="!isMobile || stageModelRenderer !== 'live2d'"
             :class="[
+              'absolute left-0 z-15 px-3',
               stageModelRenderer === 'live2d' ? 'top-0 h-full py-[20vh]' : 'top-1/2 -translate-y-1/2',
             ]"
           >
@@ -114,14 +117,16 @@ const cursorPosition = computed(() => ({
           </div>
           <WidgetStage
             v-model:state="modelRenderState"
-            h-full w-full
+            :class="['h-full w-full']"
             :cursor-position="cursorPosition"
             :enable-orbit-controls="!isMobile"
             :paused="paused"
             @error="markModelFailed"
+            @select-avatar-model="router.push('/settings/models')"
           />
         </div>
-        <InteractiveArea v-if="!isMobile" h="85dvh" absolute right-4 flex flex-1 flex-col max-w="500px" min-w="30%" />
+        <!-- A fixed width keeps the chat panel narrow on wide screens. A percentage minimum overrode the maximum there. -->
+        <InteractiveArea v-if="!isMobile" :class="['absolute right-4 h-[85dvh] w-[min(440px,45%)] flex flex-col']" />
       </div>
       <HoloCoupon />
     </div>

@@ -1,6 +1,7 @@
 import type { RequestLogService } from '../../services/domain/request-log'
 import type { HonoEnv } from '../../types/hono'
 
+import { createBadRequestError, createNotFoundError } from '@proj-airi/http-error-shared'
 import { Hono } from 'hono'
 import { maxLength, nonEmpty, parse, pipe, safeParse, string } from 'valibot'
 
@@ -26,10 +27,10 @@ export function createLlmRequestRoutes(service: RequestLogService) {
     .get('/:requestId', async (context) => {
       const requestId = safeParse(pipe(string(), nonEmpty(), maxLength(128)), context.req.param('requestId'))
       if (!requestId.success)
-        return context.json({ error: 'INVALID_REQUEST_ID' }, 400)
+        throw createBadRequestError('Invalid request ID', 'INVALID_REQUEST_ID')
       const { request, attempts } = await service.getRequest(context.get('user')!.id, requestId.output)
       if (!request)
-        return context.json({ error: 'NOT_FOUND' }, 404)
+        throw createNotFoundError('LLM request not found')
       return context.json({
         request: request
           ? {

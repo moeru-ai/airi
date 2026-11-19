@@ -138,7 +138,7 @@ describe('official streaming speech provider settings', () => {
     const pinia = createPinia()
 
     const { errors } = await renderPage(pinia)
-    useAuthStore(pinia).$patch({ user, session })
+    useAuthStore(pinia).$patch({ user, session, token: 'access-token' })
     const providerConfigStore = useProviderConfigStore(pinia)
 
     await expect.poll(() => providerConfigStore.getProviderConfig(providerId)?.model).toBe('volcengine/seed-tts-2.0')
@@ -173,7 +173,7 @@ describe('official streaming speech provider settings', () => {
         actionOrder.push('voices')
     })
 
-    useAuthStore(pinia).$patch({ user, session })
+    useAuthStore(pinia).$patch({ user, session, token: 'access-token' })
     await expect.poll(() => actionOrder).toEqual(['configured', 'voices'])
     expect(errors.map(error => errorMessageFrom(error))).toEqual([])
   })
@@ -207,7 +207,7 @@ describe('official streaming speech provider settings', () => {
     const setProviderUnconfigured = vi.spyOn(providerStore, 'setProviderUnconfigured')
     const setProviderAvailabilityOverride = vi.spyOn(providerStore, 'setProviderAvailabilityOverride')
 
-    useAuthStore(pinia).$patch({ user, session })
+    useAuthStore(pinia).$patch({ user, session, token: 'access-token' })
     await expect.poll(() => providerStore.modelLoadError[providerId]).toContain('streaming models upstream 502')
 
     expect(setProviderAvailabilityOverride).not.toHaveBeenCalledWith(providerId, false)

@@ -6,6 +6,7 @@ import type { HonoEnv } from './routes'
 import { isIP } from 'node:net'
 
 import { getConnInfo } from '@hono/node-server/conninfo'
+import { createTooManyRequestsError } from '@proj-airi/http-error-shared'
 import { rateLimiter as createRateLimiter } from 'hono-rate-limiter'
 
 interface RateLimitOptions {
@@ -79,7 +80,7 @@ export function rateLimiter(opts: RateLimitOptions) {
         key_type: keyType,
         limit: String(opts.max),
       })
-      return c.json({ error: 'TOO_MANY_REQUESTS', message: 'Too many requests' }, 429)
+      throw createTooManyRequestsError()
     },
   })
 }

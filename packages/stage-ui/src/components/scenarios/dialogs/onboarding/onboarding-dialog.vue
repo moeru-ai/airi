@@ -20,7 +20,6 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   (e: 'configured'): void
-  (e: 'skipped'): void
 }>()
 
 const showDialog = defineModel({ type: Boolean, default: false, required: false })
@@ -41,7 +40,7 @@ onMounted(() => screenSafeArea.update())
           <DialogTitle>Onboarding</DialogTitle>
         </VisuallyHidden>
         <div class="min-h-0 min-w-0 w-full flex flex-1 flex-col">
-          <Onboarding :extra-steps="props.extraSteps" @configured="emit('configured')" @skipped="emit('skipped')" />
+          <Onboarding :extra-steps="props.extraSteps" @configured="emit('configured')" />
         </div>
       </DialogContent>
     </DialogPortal>
@@ -74,7 +73,7 @@ onMounted(() => screenSafeArea.update())
           ]"
         />
         <div class="min-h-0 min-w-0 w-full flex flex-1 flex-col">
-          <Onboarding :extra-steps="props.extraSteps" @configured="emit('configured')" @skipped="emit('skipped')" />
+          <Onboarding :extra-steps="props.extraSteps" @configured="emit('configured')" />
         </div>
       </DrawerContent>
     </DrawerPortal>

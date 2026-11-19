@@ -13,6 +13,7 @@ internal sealed class SettingsWindowManager : IDisposable
     private readonly string _rendererUrl;
     private readonly AuthService _auth;
     private readonly MicrophonePermissionService _microphonePermissions;
+    private readonly WidgetWindowManager _widgets;
     private readonly DeveloperToolsService _developerTools;
     private readonly SpotlightHost _spotlight;
     private readonly IDisposable _openRegistration;
@@ -28,7 +29,8 @@ internal sealed class SettingsWindowManager : IDisposable
         AuthService auth,
         MicrophonePermissionService microphonePermissions,
         DeveloperToolsService developerTools,
-        SpotlightHost spotlight)
+        SpotlightHost spotlight,
+        WidgetWindowManager widgets)
     {
         _owner = owner;
         _mainWindow = mainWindow;
@@ -36,15 +38,24 @@ internal sealed class SettingsWindowManager : IDisposable
         _rendererUrl = rendererUrl;
         _auth = auth;
         _microphonePermissions = microphonePermissions;
+        _widgets = widgets;
         _developerTools = developerTools;
         _spotlight = spotlight;
         _openRegistration = context.RegisterInvokeHandler(
             AiriDesktopEvents.OpenSettings,
-            (OpenSettingsPayload payload, CancellationToken _) =>
-            {
-                Open(payload.Route);
-                return Task.FromResult(new EmptyPayload());
-            });
+            (OpenSettingsPayload payload, CancellationToken _) => OpenFromRenderer(payload));
+    }
+
+    /// <summary>
+    /// Lets another renderer open settings, for example a chat window that links to a settings
+    /// page. The window disposes the registration when it closes.
+    /// </summary>
+    public IDisposable Attach(IEventContext context)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        return context.RegisterInvokeHandler(
+            AiriDesktopEvents.OpenSettings,
+            (OpenSettingsPayload payload, CancellationToken _) => OpenFromRenderer(payload));
     }
 
     public void Dispose()
@@ -58,7 +69,16 @@ internal sealed class SettingsWindowManager : IDisposable
         _openRegistration.Dispose();
     }
 
-    private void Open(string? requestedRoute)
+    private Task<EmptyPayload> OpenFromRenderer(OpenSettingsPayload payload)
+    {
+        Open(payload.Route);
+        return Task.FromResult(new EmptyPayload());
+    }
+
+    /// <summary>
+    /// Opens or reuses the settings window. A null route opens /settings.
+    /// </summary>
+    public void Open(string? requestedRoute)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         var route = ResolveRoute(requestedRoute);
@@ -83,7 +103,8 @@ internal sealed class SettingsWindowManager : IDisposable
                     _auth,
                     _microphonePermissions,
                     _developerTools,
-                    _spotlight);
+                    _spotlight,
+                    _widgets);
             }
             catch
             {

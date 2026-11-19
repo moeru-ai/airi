@@ -2,7 +2,8 @@ import type { ChatHistoryItem } from '../../../../types/chat'
 
 import en from '@proj-airi/i18n/locales/en'
 
-import { expect, it, onTestFinished, vi } from 'vitest'
+import { createPinia, disposePinia, setActivePinia } from 'pinia'
+import { afterEach, beforeEach, expect, it, onTestFinished, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { createI18n } from 'vue-i18n'
 
@@ -10,6 +11,14 @@ import ChatHistory from './history.vue'
 
 import '@unocss/reset/tailwind.css'
 import 'virtual:uno.css'
+
+// A user message reads voice message snapshots from a store.
+let pinia: ReturnType<typeof createPinia>
+beforeEach(() => {
+  pinia = createPinia()
+  setActivePinia(pinia)
+})
+afterEach(() => disposePinia(pinia))
 
 it.each(['desktop', 'mobile'] as const)('centers timestamps after five minutes of inactivity on %s', async (variant) => {
   const start = new Date('2026-10-06T10:00:00Z').getTime()

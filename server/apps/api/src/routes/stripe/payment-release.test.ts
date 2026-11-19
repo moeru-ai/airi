@@ -35,7 +35,7 @@ describe('pR #2335 payment release', () => {
     await db.delete(schema.paymentOrder)
     await db.delete(schema.paymentCustomer)
     const redis = createTestRedis()
-    payment = createPaymentService(db, createBillingService(db, redis))
+    payment = createPaymentService(db, createBillingService(db, redis, { getOptional: async () => null }))
     webhook = createWebhookOperation(stripe, secret, payment, null, null)
   })
 
