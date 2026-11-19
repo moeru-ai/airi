@@ -1,3 +1,21 @@
+background-picker:
+  title: 背景を選択
+  add-custom: カスタム背景を追加
+  custom: カスタム背景
+  preview: プレビュー
+  no-preview: プレビューなし
+  select: 背景を選択してください
+  blur: ぼかし
+  remove: 背景を削除
+  sampling: 色を抽出中…
+  apply: この背景を使用
+  presets:
+    colorful-wave:
+      label: カラフルな波
+      description: 十字グリッド上で動く波
+    transparent:
+      label: 透明
+      description: アプリ画面の背後にある背景を表示
 character-switcher:
   title: キャラクターを切り替え
   manage: キャラクターを管理

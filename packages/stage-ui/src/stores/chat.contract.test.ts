@@ -30,6 +30,7 @@ import { composeDrawCardPrompt } from '../tools/draw-card'
 import { composeMemoryPrompt } from '../tools/memory'
 import { useChatStore } from './chat'
 import { CHAT_FORMAT_RULES } from './chat/prompt-recipe'
+import { characterMembersOfMeta } from './chat/session-members'
 import { useContextObservabilityStore } from './devtools/context-observability'
 import { useMemoryStore } from './memory'
 import { useConsciousnessSettingsStore } from './modules/consciousness-settings'
@@ -51,7 +52,6 @@ const trackFirstMessageMock = vi.fn()
 const chatAnalyticsMocks = vi.hoisted(() => ({
   trackMessageRound: vi.fn(),
   trackMessageRoundFailed: vi.fn(),
-  trackMessageSent: vi.fn(),
 }))
 const redundantChatAnalyticsMocks = vi.hoisted(() => ({
   trackAssistantResponseCompleted: vi.fn(),
@@ -68,7 +68,7 @@ const persistSessionMessagesMock = vi.fn()
 const forkSessionMock = vi.fn()
 const createSessionMock = vi.fn()
 const loadSessionMock = vi.fn()
-const deleteSessionMock = vi.fn()
+const deleteSessionsMock = vi.fn()
 const initializeSessionMock = vi.fn()
 const disposeSessionMock = vi.fn()
 const ensureCurrentSessionMock = vi.fn()
@@ -131,6 +131,9 @@ vi.mock('./modules/vision', () => ({
     get configured() {
       return visionMocks.configured
     },
+    get enabled() {
+      return visionMocks.configured
+    },
     activeProvider: 'apple-vision',
     get activeModel() {
       return visionMocks.model
@@ -151,6 +154,7 @@ vi.mock('./chat/session-store', () => ({
     activeSessionId: activeSessionIdRef,
     sessionMessages,
     sessionMetas,
+    characterMembersOf: (sessionId: string) => characterMembersOfMeta(sessionMetas[sessionId]),
     storeMessage: async (sessionId: string, message: ChatHistoryItem & { id: string }) => {
       const messages = sessionMessages[sessionId] ?? []
       const index = messages.findIndex(item => item.id === message.id)
@@ -176,7 +180,7 @@ vi.mock('./chat/session-store', () => ({
     getSessionMessages: (sessionId: string) => sessionMessages[sessionId] ?? [],
     getSessionMessagesIfLoaded: (sessionId: string) => sessionMessages[sessionId],
     loadSession: loadSessionMock,
-    deleteSession: deleteSessionMock,
+    deleteSessions: deleteSessionsMock,
     initialize: initializeSessionMock,
     dispose: disposeSessionMock,
     ensureCurrentSession: ensureCurrentSessionMock,
@@ -224,6 +228,12 @@ vi.mock('./ai/chat-llm/toolset-prompts', () => ({
   }),
 }))
 
+// The chat vision decision reads the catalog of the chat provider of the session character.
+vi.mock('./providers/provider', async (importOriginal) => {
+  const original = await importOriginal<typeof import('./providers/provider')>()
+  return { ...original, useProviderStore: () => ({ getModelsForProvider: () => consciousnessModels.value }) }
+})
+
 vi.mock('./modules/consciousness', () => ({
   useConsciousnessStore: defineStore('consciousness', () => ({
     activeModel: activeModelRef,
@@ -244,10 +254,10 @@ vi.mock('./modules/airi-card', () => ({
     activeCard: undefined,
     activeCardId: 'default',
     getSystemPrompt: () => cardPrompt.value,
-    getCard: () => undefined,
+    getCard: () => ({ extensions: { airi: {} } }),
     getModules: (id: string) => ({
       consciousness: cardSelections.get(id) ?? { provider: activeProviderRef.value, model: activeModelRef.value },
-      vision: { provider: visionMocks.configured ? 'vision-provider' : '', model: visionMocks.configured ? 'vision-model' : '' },
+      vision: { provider: visionMocks.configured ? 'vision-provider' : '', model: visionMocks.configured ? visionMocks.model : '' },
     }),
   }),
 }))
@@ -306,9 +316,6 @@ describe('chat store contract', () => {
         case 'message_round_failed':
           chatAnalyticsMocks.trackMessageRoundFailed(properties)
           break
-        case 'message_sent':
-          chatAnalyticsMocks.trackMessageSent(properties)
-          break
         default:
           return false
       }
@@ -340,7 +347,7 @@ describe('chat store contract', () => {
       sessionMessages[sessionId] = []
       return sessionId
     })
-    deleteSessionMock.mockReset().mockResolvedValue(undefined)
+    deleteSessionsMock.mockReset().mockResolvedValue(undefined)
     initializeSessionMock.mockReset().mockResolvedValue(undefined)
     disposeSessionMock.mockReset()
     ensureCurrentSessionMock.mockReset().mockResolvedValue('session-1')
@@ -948,6 +955,8 @@ describe('chat store contract', () => {
     // stayed a proxy, and `structuredClone` rejected the send result.
     expect(() => structuredClone(result)).not.toThrow()
     expect(visionMocks.runInference).toHaveBeenCalledOnce()
+    // The read uses the vision selection of the session character, not the selection of the vision store.
+    expect(visionMocks.runInference).toHaveBeenCalledWith(expect.objectContaining({ selection: { provider: 'vision-provider', model: visionMocks.model } }))
     expect(sessionMessages['session-1'].find(message => message.role === 'user' && Array.isArray(message.content))?.imageDescriptions).toEqual([
       {
         description: 'A red square.',
@@ -1063,7 +1072,7 @@ describe('chat store contract', () => {
     await store.send({ sessionId: 'session-1', text: 'Look at my screen' })
 
     expect(await toolImageReaders[0]?.('data:image/png;base64,aW1hZ2U=')).toBe('A settings window.')
-    expect(visionMocks.runInference).toHaveBeenCalledWith(expect.objectContaining({ workloadId: 'tool:image' }))
+    expect(visionMocks.runInference).toHaveBeenCalledWith(expect.objectContaining({ workloadId: 'tool:image', selection: { provider: 'vision-provider', model: visionMocks.model } }))
   })
 
   it('stores the description of an image that a rerun tool returns', async () => {
@@ -1358,19 +1367,12 @@ describe('chat store contract', () => {
       chatProvider: provider,
     })
 
-    const messageProperties = chatAnalyticsMocks.trackMessageSent.mock.calls[0]?.[0]
-    expect(messageProperties).toMatchObject({
+    const userMessage = sessionMessages['session-1'].find(message => message.role === 'user')
+    expect(chatAnalyticsMocks.trackMessageRound).toHaveBeenCalledWith(expect.objectContaining({
       conversation_id: 'session-1',
-      round_id: messageProperties.message_id,
+      round_id: userMessage?.id,
       turn_index: 1,
-    })
-
-    const correlation = {
-      conversation_id: 'session-1',
-      round_id: messageProperties.round_id,
-      turn_index: 1,
-    }
-    expect(chatAnalyticsMocks.trackMessageRound).toHaveBeenCalledWith(expect.objectContaining(correlation))
+    }))
   })
 
   it('keeps custom and official provider usage in completed message rounds', async () => {
@@ -1418,7 +1420,7 @@ describe('chat store contract', () => {
     })
   })
 
-  it('uses turn_index on message_sent instead of a second-turn alias', async () => {
+  it('uses turn_index on message_round instead of a second-turn alias', async () => {
     activeProviderRef.value = 'official-provider'
     llmStreamMock.mockImplementation(async (_model: string, _chatProvider: GenerationProvider, _messages: Conversation, options: any) => {
       await options.onStreamEvent({ type: 'text-delta', text: 'ok' })
@@ -1436,12 +1438,13 @@ describe('chat store contract', () => {
       chatProvider: provider,
     })
 
-    expect(chatAnalyticsMocks.trackMessageSent).toHaveBeenLastCalledWith(expect.objectContaining({
+    expect(chatAnalyticsMocks.trackMessageRound).toHaveBeenLastCalledWith(expect.objectContaining({
       conversation_id: 'session-1',
       round_id: expect.any(String),
       turn_index: 2,
+      provider_type: 'official',
       trigger_method: 'text_input',
-      trigger_type: 'user_action',
+      trigger_type: 'user_flow_result',
     }))
   })
 
@@ -1996,7 +1999,7 @@ describe('chat store contract', () => {
         releaseFirstSend = resolve
       })
     })
-    deleteSessionMock.mockImplementationOnce(async () => {
+    deleteSessionsMock.mockImplementationOnce(async () => {
       currentGeneration += 1
       delete sessionMessages['session-1']
     })
@@ -2027,7 +2030,7 @@ describe('chat store contract', () => {
     })
     await store.deleteSession('session-1')
 
-    expect(deleteSessionMock).toHaveBeenCalledWith('session-1')
+    expect(deleteSessionsMock).toHaveBeenCalledWith(['session-1'])
     expect(await queuedOutcome).toBe('Chat session was reset before send could start')
     expect(sessionMessages['session-1']).toBeUndefined()
 

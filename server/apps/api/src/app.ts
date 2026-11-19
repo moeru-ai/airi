@@ -40,7 +40,7 @@ import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
 import { logger as honoLogger } from 'hono/logger'
 import { parseAccept } from 'hono/utils/accept'
-import { createLoggLogger, injeca, lifecycle } from 'injeca'
+import { createLoggLogger, injeca } from 'injeca'
 
 import { createDrizzle, migrateDatabase } from './libs/db'
 import { parsedEnv } from './libs/env'
@@ -78,6 +78,8 @@ import { createConfigKVService } from './services/adapters/config-kv'
 import { createConfigKVStore } from './services/adapters/config-kv/store'
 import { createS3ObjectStore } from './services/adapters/object-store'
 import { createOpenpanelSink } from './services/adapters/openpanel'
+import { createPosthogSink } from './services/adapters/posthog'
+import { createFanoutSink } from './services/adapters/product-analytics'
 import { createRevenuecatSubscriberClient } from './services/adapters/revenuecat-subscriber'
 import { createRevenuecatSubscriptionSync } from './services/adapters/revenuecat-subscriptions'
 import { createBillingService } from './services/domain/billing/billing-service'
@@ -522,6 +524,7 @@ export type AppType = Awaited<ReturnType<typeof buildApp>>['app']
 export async function createApp() {
   initLogger(LoggerLevel.Debug, LoggerFormat.Pretty)
   injeca.setLogger(createLoggLogger(useLogger('injeca').useGlobalConfig()))
+  injeca.getContainer().logging = true
   const logger = useLogger('app').useGlobalConfig()
 
   // Forward logg output to OpenTelemetry log exporter
@@ -532,7 +535,7 @@ export async function createApp() {
   // NOTICE: OTel SDK lifecycle (start/shutdown) is owned entirely by
   // instrumentation.ts (preload). This factory only consumes the global
   // MeterProvider that the preload set up, builds metric handles, and primes
-  // counters. No `lifecycle.onStop(shutdown)` here — preload registers SIGTERM
+  // counters. No `on('stop', shutdown)` here — preload registers SIGTERM
   // / SIGINT to flush exporters on its own.
   const otel = injeca.provide('libs:otel', {
     dependsOn: { env: parsedEnv },
@@ -540,8 +543,8 @@ export async function createApp() {
   })
 
   const db = injeca.provide('datastore:db', {
-    dependsOn: { env: parsedEnv, lifecycle, otel },
-    build: async ({ dependsOn }) => {
+    dependsOn: { env: parsedEnv, otel },
+    build: async ({ dependsOn, on }) => {
       const { db: dbInstance, pool } = await initializeExternalDependency(
         'Database',
         logger,
@@ -564,14 +567,14 @@ export async function createApp() {
 
       if (dependsOn.otel)
         registerDbPoolGauge(dependsOn.otel.database.poolConnections, pool)
-      dependsOn.lifecycle.appHooks.onStop(() => pool.end())
+      on('stop', () => pool.end())
       return dbInstance
     },
   })
 
   const redis = injeca.provide('datastore:redis', {
-    dependsOn: { env: parsedEnv, lifecycle },
-    build: async ({ dependsOn }) => {
+    dependsOn: { env: parsedEnv },
+    build: async ({ dependsOn, on }) => {
       const redisInstance = await initializeExternalDependency(
         'Redis',
         logger,
@@ -590,7 +593,7 @@ export async function createApp() {
         },
       )
 
-      dependsOn.lifecycle.appHooks.onStop(async () => {
+      on('stop', async () => {
         await redisInstance.quit()
       })
       return redisInstance
@@ -598,10 +601,10 @@ export async function createApp() {
   })
 
   const objectStore = injeca.provide('datastore:objectStore', {
-    dependsOn: { env: parsedEnv, lifecycle },
-    build: ({ dependsOn }) => {
+    dependsOn: { env: parsedEnv },
+    build: ({ dependsOn, on }) => {
       const store = createS3ObjectStore(dependsOn.env)
-      dependsOn.lifecycle.appHooks.onStop(() => store.dispose())
+      on('stop', () => store.dispose())
       return store
     },
   })
@@ -623,9 +626,28 @@ export async function createApp() {
     },
   })
 
+  const posthogSink = injeca.provide('services:posthogSink', {
+    dependsOn: { env: parsedEnv },
+    build: ({ dependsOn, on }) => {
+      const { POSTHOG_API_HOST: host, POSTHOG_PROJECT_KEY: projectKey } = dependsOn.env
+      if (!projectKey)
+        return null
+      const sink = createPosthogSink({ projectKey, host })
+      on('stop', () => sink.shutdown())
+      return sink
+    },
+  })
+
   const productEventService = injeca.provide('services:productEvents', {
-    dependsOn: { openpanelSink },
-    build: ({ dependsOn }) => createProductEventService(dependsOn.openpanelSink),
+    dependsOn: { openpanelSink, posthogSink },
+    build: ({ dependsOn }) => {
+      // Each provider is on when its env is set. Both run in parallel while the data sets are compared.
+      const sinks = [
+        ...(dependsOn.openpanelSink ? [{ name: 'openpanel', sink: dependsOn.openpanelSink }] : []),
+        ...(dependsOn.posthogSink ? [{ name: 'posthog', sink: dependsOn.posthogSink }] : []),
+      ]
+      return createProductEventService(createFanoutSink(sinks))
+    },
   })
 
   const characterService = injeca.provide('services:characters', {

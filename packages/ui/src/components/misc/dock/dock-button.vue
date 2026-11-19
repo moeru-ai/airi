@@ -66,6 +66,7 @@ const icon = computed(() => props.pressed && props.pressedIcon ? props.pressedIc
     :variant="variant"
     :opacity="dock?.opacity.value"
     :blur="dock?.blur.value"
+    :register-surface="dock?.registerSurface.value"
     :disabled="!props.tooltip"
   >
     <BasicButton

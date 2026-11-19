@@ -6,16 +6,15 @@ import type { HearingTranscriptionResult } from '../providers/transcription-type
 
 import { errorMessageFrom } from '@moeru/std'
 import { beginSpan, TraceEndReasons, trackPath } from '@proj-airi/trace-kit'
-import { VoiceAttributes, VoiceIdKeys, VoiceNames, VoiceTracks } from '@proj-airi/trace-kit/voice'
+import { VoiceAttributes, VoiceNames, VoiceTracks } from '@proj-airi/trace-kit/voice'
 
-import { activeVoiceInput, getTraceSink } from '../../composables/use-trace'
+import { getTraceSink } from '../../composables/use-trace'
 import { LOCAL_USER_ACTOR } from '../../composables/voice-input-trace'
 
 export interface HearingTranscriberTraceOptions {
   /**
-   * The domain IDs of what each recognition transcribes, for example the turn of a voice message.
-   *
-   * @default the IDs of the voice input that runs now
+   * The domain IDs of what each recognition transcribes, for example a voice input or the turn of a voice message.
+   * Without them, the recognition span belongs to no input or turn.
    */
   ids?: TraceIds
 }
@@ -38,11 +37,7 @@ export function createHearingTranscriber(
     const signal = AbortSignal.any([request.signal, cancelled.signal])
     let reader: ReadableStreamDefaultReader<AIRIStreamTranscriptionDelta> | undefined
     let closed = false
-    // Recognition belongs to what it transcribes: the turn that the caller names, such as the turn of a voice
-    // message, or else the voice input that runs now. The microphone has one voice input at a time.
-    const input = activeVoiceInput.value
-    const ids = options.ids ?? (input ? { [VoiceIdKeys.Input]: input.inputId, [VoiceIdKeys.Conversation]: input.sessionId } : undefined)
-    const span = beginSpan(getTraceSink(), { track: trackPath(VoiceTracks.ASR, { actor: LOCAL_USER_ACTOR }), name: VoiceNames.SpeechRecognition, ids })
+    const span = beginSpan(getTraceSink(), { track: trackPath(VoiceTracks.ASR, { actor: LOCAL_USER_ACTOR }), name: VoiceNames.SpeechRecognition, ids: options.ids })
 
     return new ReadableStream<TranscriptionEvent>({
       start: (output) => {
