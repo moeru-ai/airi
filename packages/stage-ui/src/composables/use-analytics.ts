@@ -1,19 +1,20 @@
 import type { ControlsIslandAction } from '../libs/product-signals/events/controls-island'
+import type { AnalyticsSurface } from '../libs/product-signals/surface'
 import type { SpeechOutputStopReason } from '../stores/speech-output-control'
 
-import { isStageCapacitor, isStageTamagotchi } from '@proj-airi/stage-shared'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { captureAnalyticsEvent, enableAnalytics, getAnalytics, getAnalyticsPrivacyPolicyUrl, isAnalyticsAvailableInBuild } from '../libs/product-signals'
 import { captureTrackButtonEvent } from '../libs/product-signals/events/interaction'
+import { analyticsSurface } from '../libs/product-signals/surface'
 import { useSettingsAnalytics } from '../stores/settings/analytics'
 import { useSettingsGeneral } from '../stores/settings/general'
 
 /**
  * User-facing chat surfaces that can emit product analytics.
  */
-export type ConversationAnalyticsSurface = 'web' | 'mobile' | 'electron'
+export type ConversationAnalyticsSurface = AnalyticsSurface
 
 /**
  * Low-cardinality source names for conversation action events.
@@ -94,21 +95,8 @@ interface OnboardingProviderProperties {
   selected_use_case?: string
 }
 
-interface ConversationBaseProperties {
-  conversation_id: string
-  provider_type: ProviderMode
-  provider_name: string
-  model: string
-}
-
 export function getConversationAnalyticsSurface(): ConversationAnalyticsSurface {
-  if (isStageTamagotchi())
-    return 'electron'
-
-  if (isStageCapacitor())
-    return 'mobile'
-
-  return 'web'
+  return analyticsSurface()
 }
 
 export function useAnalytics() {
@@ -128,16 +116,18 @@ export function useAnalytics() {
     return enableAnalytics()
   }
 
-  function trackProviderClick(providerId: string, module: string) {
+  /**
+   * Records the first successful settings check of a provider: the end of the provider setup funnel.
+   * A card click is not a setup step, so no event records it.
+   */
+  function trackProviderConfigured(properties: ProviderConnectionTestProperties) {
     if (!canCapture())
       return
 
-    captureAnalyticsEvent('provider_card_clicked', {
-      provider_id: providerId,
-      module,
+    captureAnalyticsEvent('provider_configured', {
+      ...properties,
       app_surface: getConversationAnalyticsSurface(),
-      trigger_method: 'provider_card',
-      trigger_type: 'user_action',
+      trigger_type: 'user_flow_result',
     })
   }
 
@@ -378,25 +368,6 @@ export function useAnalytics() {
     })
   }
 
-  function trackMessageSent(properties: ConversationBaseProperties & {
-    round_id: string
-    turn_index: number
-    message_id?: string
-    message_index?: number
-    message_length?: number
-    has_attachment: boolean
-    mode: MessageInputMode
-  }) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('message_sent', {
-      ...properties,
-      app_surface: getConversationAnalyticsSurface(),
-      trigger_method: properties.mode === 'voice' ? 'voice' : 'text_input',
-      trigger_type: 'user_action',
-    })
-  }
-
   function trackProviderConnectionTestStarted(properties: ProviderConnectionTestProperties) {
     if (!canCapture())
       return
@@ -535,27 +506,10 @@ export function useAnalytics() {
 
   // ─── STT events ──────────────────────────────────────────────────────
 
-  function trackSttSucceeded(properties: { provider: string, latency_ms: number, char_count: number, stream: boolean }) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('stt_succeeded', properties)
-  }
-
   function trackSttFailed(properties: { provider: string, error_code?: string }) {
     if (!canCapture())
       return
     captureAnalyticsEvent('stt_failed', properties)
-  }
-
-  function trackVoiceInputStarted(properties: VoiceInputBaseProperties) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('voice_input_started', {
-      ...properties,
-      app_surface: getConversationAnalyticsSurface(),
-      trigger_method: 'voice',
-      trigger_type: 'user_action',
-    })
   }
 
   function trackMicrophonePermissionDenied(properties: VoiceInputBaseProperties & { error_code?: 'permission_denied' | string }) {
@@ -826,12 +780,6 @@ export function useAnalytics() {
     captureAnalyticsEvent('character_switched', properties)
   }
 
-  function trackChatSessionDeleted(properties: { session_id: string, message_count: number }) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('chat_session_deleted', properties)
-  }
-
   function trackOnboardingStepCompleted(step: string) {
     if (!canCapture())
       return
@@ -988,7 +936,7 @@ export function useAnalytics() {
 
   return {
     privacyPolicyUrl,
-    trackProviderClick,
+    trackProviderConfigured,
     trackFirstMessage,
     trackPricingViewed,
     trackPlanSelected,
@@ -1010,7 +958,6 @@ export function useAnalytics() {
 
     trackMessageRound,
     trackMessageRoundFailed,
-    trackMessageSent,
     trackProviderConnectionTestStarted,
     trackProviderConnectionTestCompleted,
     trackTtsStopClicked,
@@ -1024,9 +971,7 @@ export function useAnalytics() {
     trackConversationShared,
     trackConversationDeleted,
 
-    trackSttSucceeded,
     trackSttFailed,
-    trackVoiceInputStarted,
     trackMicrophonePermissionDenied,
     trackVoiceInputCancelled,
     trackBugReportSubmitted,
@@ -1056,7 +1001,6 @@ export function useAnalytics() {
     trackCharacterUpdated,
     trackCharacterDeleted,
     trackCharacterSwitched,
-    trackChatSessionDeleted,
     trackOnboardingStepCompleted,
     trackOnboardingSkipped,
 

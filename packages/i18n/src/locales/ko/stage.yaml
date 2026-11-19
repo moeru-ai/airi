@@ -1,3 +1,21 @@
+background-picker:
+  title: 배경 선택
+  add-custom: 사용자 지정 배경 추가
+  custom: 사용자 지정 배경
+  preview: 미리보기
+  no-preview: 미리보기 없음
+  select: 배경을 선택하세요
+  blur: 흐림 효과
+  remove: 배경 삭제
+  sampling: 색상 추출 중…
+  apply: 이 배경 사용
+  presets:
+    colorful-wave:
+      label: 다채로운 물결
+      description: 십자 격자 위에서 움직이는 물결
+    transparent:
+      label: 투명
+      description: 앱 화면 뒤의 배경 표시
 character-switcher:
   title: 캐릭터 전환
   manage: 캐릭터 관리

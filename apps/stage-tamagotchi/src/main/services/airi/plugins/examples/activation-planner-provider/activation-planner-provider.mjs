@@ -8,9 +8,9 @@ const contract = defineKitContract({
 })
 
 /**
- * Declares a Kit that the Activation Planner can use for static dependency planning.
+ * Declares and registers a Kit that the example Consumer waits for.
  *
- * Phase 3 also registers the declared Kit before the Consumer starts.
+ * The Consumer setup runs after this registration.
  */
 export default defineExtension({
   id: 'activation-planner-provider',

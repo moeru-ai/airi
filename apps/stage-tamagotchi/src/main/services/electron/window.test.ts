@@ -31,6 +31,7 @@ vi.mock('@moeru/eventa', async (importOriginal) => {
 
 vi.mock('@proj-airi/electron-vueuse/main', () => ({
   createRendererLoop: () => ({ start: vi.fn(), stop: vi.fn() }),
+  onWindowClosed: () => () => {},
   safeClose: vi.fn(),
 }))
 

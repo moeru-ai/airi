@@ -13,3 +13,9 @@ export interface SelectTabOption<T extends string | number> {
   /** Iconify class name rendered before the label. */
   icon?: string
 }
+
+/** Corner radius of the track, the thumb, and the items of {@link SelectTab}. */
+export type SelectTabRadius = 'lg' | 'xl' | 'full'
+
+/** Color family of the track, the thumb, and the items of {@link SelectTab}. */
+export type SelectTabColor = 'primary' | 'neutral'
