@@ -26,6 +26,7 @@ docs:
   'fade-on-hover':
     enable: 悬停时隐藏
     disable: 总是显示
+    title: 悬停时隐藏
   'open-settings': 打开设置
   'open-chat': 打开聊天
   'hide-chat': 收起聊天
@@ -50,6 +51,15 @@ docs:
   'logging-in': 登录中...
   'account': 账号
   'logout': 退出登录
+  'more': 更多
+  'character': 角色
+  'manage-characters': 管理角色…
+  'character-voice': 角色声音
+  'microphone-settings': 麦克风设置…
+  'keep-on-top': 置顶窗口
+  'settings': 设置…
+  'quit': 退出 AIRI
+  'sign-in': 登录…
 'chat-window':
   style:
     title: 聊天窗口样式
@@ -122,9 +132,11 @@ about:
     home: 首页
     documentation: 文档
   update:
+    settings:
+      title: 更新设置
     auto-download:
       label: 自动下载更新
-      description: 关闭后，只有点击「下载更新」时才会下载更新。
+      description: 关闭后，只有点击「下载」时才会下载更新。
     lane:
       label: 更新频道
       description: 选择更新频道
@@ -138,8 +150,13 @@ about:
       nightly: 每日更新版
       dev: 开发版
     status:
+      title: 应用更新
+      up-to-date: 已是最新版
+      available: 有可用的更新
+      ready: 已准备好安装
       manual-install-required: 新版本 v{version} 需要重新安装。请下载后手动安装。
       downloading: 正在下载更新......
+      download-remaining: 剩余 {duration} · {speed}
       error-prefix: 错误
       latest: 已是最新版（v{version}）
       downloaded:
@@ -162,6 +179,8 @@ about:
       whats-new: 更新内容
       view-changes: 查看代码变更
     dialog:
+      version-available: v{version} 现已可用
+      released-on: 发布于 {date}
       title: 有可用的更新
       description: 有新的 v{version} 版本可用
       no-release-notes-markdown: _无发布日志_

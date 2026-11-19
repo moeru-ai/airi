@@ -78,6 +78,8 @@ import { createConfigKVService } from './services/adapters/config-kv'
 import { createConfigKVStore } from './services/adapters/config-kv/store'
 import { createS3ObjectStore } from './services/adapters/object-store'
 import { createOpenpanelSink } from './services/adapters/openpanel'
+import { createPosthogSink } from './services/adapters/posthog'
+import { createFanoutSink } from './services/adapters/product-analytics'
 import { createRevenuecatSubscriberClient } from './services/adapters/revenuecat-subscriber'
 import { createRevenuecatSubscriptionSync } from './services/adapters/revenuecat-subscriptions'
 import { createBillingService } from './services/domain/billing/billing-service'
@@ -522,6 +524,7 @@ export type AppType = Awaited<ReturnType<typeof buildApp>>['app']
 export async function createApp() {
   initLogger(LoggerLevel.Debug, LoggerFormat.Pretty)
   injeca.setLogger(createLoggLogger(useLogger('injeca').useGlobalConfig()))
+  injeca.getContainer().logging = true
   const logger = useLogger('app').useGlobalConfig()
 
   // Forward logg output to OpenTelemetry log exporter
@@ -623,9 +626,28 @@ export async function createApp() {
     },
   })
 
+  const posthogSink = injeca.provide('services:posthogSink', {
+    dependsOn: { env: parsedEnv },
+    build: ({ dependsOn, on }) => {
+      const { POSTHOG_API_HOST: host, POSTHOG_PROJECT_KEY: projectKey } = dependsOn.env
+      if (!projectKey)
+        return null
+      const sink = createPosthogSink({ projectKey, host })
+      on('stop', () => sink.shutdown())
+      return sink
+    },
+  })
+
   const productEventService = injeca.provide('services:productEvents', {
-    dependsOn: { openpanelSink },
-    build: ({ dependsOn }) => createProductEventService(dependsOn.openpanelSink),
+    dependsOn: { openpanelSink, posthogSink },
+    build: ({ dependsOn }) => {
+      // Each provider is on when its env is set. Both run in parallel while the data sets are compared.
+      const sinks = [
+        ...(dependsOn.openpanelSink ? [{ name: 'openpanel', sink: dependsOn.openpanelSink }] : []),
+        ...(dependsOn.posthogSink ? [{ name: 'posthog', sink: dependsOn.posthogSink }] : []),
+      ]
+      return createProductEventService(createFanoutSink(sinks))
+    },
   })
 
   const characterService = injeca.provide('services:characters', {

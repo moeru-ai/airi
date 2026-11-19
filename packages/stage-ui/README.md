@@ -228,26 +228,30 @@ Use this flow for chat attachments and tool images, not periodic screen capture.
 
 ## Character-card module settings
 
-The card store owns three distinct states:
+The settings of these modules have two sources:
 
-- `moduleDefaults` stores global provider, model, voice, and display selections.
-- Each card stores explicit overrides. An empty string means inherit.
-- Module stores expose the resolved runtime selections used by the application.
+- The module stores (`consciousness`, `vision`, `speech`) hold the global defaults. They hold nothing else.
+- Each card stores the values of its character. An empty string means inherit.
 
-Use `configureForAuthentication` for login and logout. It updates global
-defaults, then reapplies the active card without saving defaults into that card.
-Use card commands for activation and explicit edits. Settings pages must not
-save cards from watchers: authentication and remote snapshots also trigger them.
-The synchronization leader owns these commands; followers receive snapshots.
+`getModules(characterId)` of the card store resolves the two. Chat turns and speech output use it.
+The activation of a card does not write the module stores.
+See `docs/ai/adr/2026-11-11-module-defaults-and-character-values.md`.
+
+Use `configureForAuthentication` for login and logout. It updates the global
+defaults and does not save them into a card.
+The module settings pages edit the global defaults. The character editor edits the values of one character.
+Settings pages must not save cards from watchers: authentication and remote snapshots also trigger them.
+The synchronization leader owns the card commands. Followers receive snapshots.
 
 Models inherit only within the same provider. Voices also require the same
 model. Selecting a vision provider on the vision page stores the catalog default
-model of that provider on the active card. A different provider without a model stays unconfigured rather than
+model of that provider as the default. A different provider without a model stays unconfigured rather than
 receiving an unrelated model id. The editor requires a model for an explicit
 chat or vision provider unless that model can be inherited safely.
 
-Defaults are seeded once from the current runtime on upgrade. This cannot
-recover historical global values that an older card already overwrote.
+Versions before this design kept the defaults in the `airi-card-module-defaults` key. The first start moves
+them into the module stores one time. A selection that a user made on a module settings page in those versions
+stays a value of the character that was active at that time.
 Existing `speech-noop` selections are preserved because they may represent
 intentional silence. Users can explicitly choose **Inherit global settings**
 in the editor; importing or saving an unrelated card field does not change it.

@@ -208,6 +208,14 @@ const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMo
 
 const controlsOverlayActive = computed(() => controlsIslandRef.value?.overlayActive ?? false)
 
+/** A right-click on the character opens the app menu, as desktop pets do. Interface drawn over the stage keeps its own menu. */
+function openMenuFromCharacter(event: MouseEvent) {
+  if (event.target !== stageCanvas.value)
+    return
+  event.preventDefault()
+  controlsIslandRef.value?.openMenu()
+}
+
 const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() => {
   const hasModel = !!stageModelSelectedUrl.value
 
@@ -714,6 +722,7 @@ const cursorPosition = computed(() => ({
           'rounded-2xl',
           'transition-opacity duration-250 ease-in-out',
         ]"
+        @contextmenu="openMenuFromCharacter"
       >
         <!--
           Every element that paints over the stage carries the opaque marker,

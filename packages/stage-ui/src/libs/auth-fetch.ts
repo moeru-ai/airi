@@ -1,5 +1,5 @@
 import { useAuthStore } from '../stores/auth'
-import { getAnalyticsIdentitySnapshot } from './product-signals'
+import { getAnalyticsIdentityHeaders } from './product-signals'
 import { SERVER_URL } from './server'
 
 /**
@@ -13,10 +13,17 @@ import { SERVER_URL } from './server'
  * The reactive 401 path is the safety net.
  *
  * When refresh cannot succeed — missing state (refreshToken/oidcClientId),
- * refresh endpoint errors, or a retried request that still returns 401 —
+ * a rejected refresh token, or a retried request that still returns 401 —
  * clear local auth state and flip `needsLogin` so the user is prompted to
  * sign in immediately, instead of letting the dead session linger until the
  * next fetchSession call on the home page.
+ *
+ * A refresh that fails for a reason that can pass, such as a network error or
+ * a 5xx, keeps the refresh token. This wrapper then returns the 401 and keeps
+ * the credentials, because the auth store already scheduled a retry.
+ *
+ * Request headers apply unless `init.headers` replaces them. Each attempt clones
+ * the Request so its body stays available for the retry.
  */
 export async function authedFetch(
   input: RequestInfo | URL,
@@ -24,17 +31,18 @@ export async function authedFetch(
 ): Promise<Response> {
   const authStore = useAuthStore()
   const version = authStore.sessionVersion
+  const request = input instanceof Request ? input : undefined
   const doFetch = (token: string | null): Promise<Response> => {
-    const headers = new Headers(init?.headers)
+    const headers = new Headers(init?.headers ?? request?.headers)
     if (token)
       headers.set('Authorization', `Bearer ${token}`)
-    const openpanelIdentity = shouldAttachOpenpanelIdentity(input) ? getAnalyticsIdentitySnapshot() : null
-    if (openpanelIdentity) {
-      headers.set('x-openpanel-device-id', openpanelIdentity.distinctId)
-      if (openpanelIdentity.sessionId)
-        headers.set('x-openpanel-session-id', openpanelIdentity.sessionId)
+    // Only the API receives the analytics identity. Other origins never see the ids.
+    const identityHeaders = isApiRequest(input) ? getAnalyticsIdentityHeaders() : null
+    if (identityHeaders) {
+      for (const [name, value] of Object.entries(identityHeaders))
+        headers.set(name, value)
     }
-    return fetch(input, { ...init, headers, credentials: 'omit' })
+    return fetch(request ? request.clone() : input, { ...init, headers, credentials: 'omit' })
   }
 
   const response = await doFetch(authStore.token)
@@ -54,7 +62,10 @@ export async function authedFetch(
     return response
 
   if (!newToken) {
-    await authStore.expireSession(version)
+    // The store clears the refresh token when the server rejects it. A remaining
+    // refresh token means that the refresh failed for a reason that can pass.
+    if (!authStore.refreshToken)
+      await authStore.expireSession(version)
     return response
   }
 
@@ -64,7 +75,7 @@ export async function authedFetch(
   return retried
 }
 
-function shouldAttachOpenpanelIdentity(input: RequestInfo | URL): boolean {
+function isApiRequest(input: RequestInfo | URL): boolean {
   const url = typeof input === 'string'
     ? input
     : input instanceof URL ? input.toString() : input.url

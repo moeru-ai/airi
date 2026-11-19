@@ -103,6 +103,25 @@ describe('mcp discovery', () => {
 
     const result = await callTool.execute({ name: 'memory::missing', arguments: '{}' }, { messages: [], toolCallId: 'call-failed' })
 
-    expect(result).toEqual({ isError: true, content: [{ type: 'text', text: 'Unknown tool.' }] })
+    expect(result).toEqual({
+      dispatchOutcome: 'outcome_unknown',
+      isError: true,
+      content: [{ type: 'text', text: 'Unknown tool.' }],
+    })
+  })
+
+  it('marks malformed arguments as failed before dispatch', async () => {
+    const runtime = createRuntime()
+    const [, callTool] = await Promise.all(createMcpTools(runtime))
+
+    const result = await callTool.execute({ name: 'memory::write', arguments: '{' }, { messages: [], toolCallId: 'invalid-arguments' })
+
+    expect(result).toMatchObject({
+      dispatchOutcome: 'failed_before_dispatch',
+      isError: true,
+      content: [{ type: 'text' }],
+    })
+    expect((result as { content: Array<{ text: string }> }).content[0].text).toContain('JSON')
+    expect(runtime.callTool).not.toHaveBeenCalled()
   })
 })

@@ -1,4 +1,5 @@
 import { join, resolve } from 'node:path'
+import { env } from 'node:process'
 
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
 import Vue from '@vitejs/plugin-vue'
@@ -10,6 +11,7 @@ import Layouts from 'vite-plugin-vue-layouts'
 import VueMacros from 'vue-macros/vite'
 import VueRouter from 'vue-router/vite'
 
+import { sentrySourceMaps } from '@proj-airi/stage-shared/analytics/sentry-vite'
 import { defineConfig, loadEnv } from 'vite'
 
 // NOTICE:
@@ -63,7 +65,7 @@ const config = defineConfig({
         chunkFileNames: (chunkInfo) => {
           const containsAnalyticsModule = chunkInfo.moduleIds.some((moduleId) => {
             const normalizedModuleId = moduleId.replaceAll('\\', '/').toLowerCase()
-            return normalizedModuleId.includes('analytics') || normalizedModuleId.includes('openpanel')
+            return ['analytics', 'openpanel', 'posthog'].some(name => normalizedModuleId.includes(name))
           })
 
           // Keep analytics as the source-domain name, but explicitly map its
@@ -139,6 +141,7 @@ const config = defineConfig({
 
     // https://github.com/webfansplz/vite-plugin-vue-devtools
     VueDevTools(),
+    sentrySourceMaps({ project: 'web', authToken: env.SENTRY_AUTH_TOKEN }),
   ],
 })
 
