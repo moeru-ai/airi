@@ -25,6 +25,7 @@ import type { McpManager } from '../../services/airi/mcp-servers'
 
 import { env } from 'node:process'
 
+import { onWindowClosed } from '@proj-airi/electron-vueuse/main'
 import { BrowserWindow, screen } from 'electron'
 
 import { desktopOverlayPollHeartbeatMarker, desktopOverlayPollHeartbeatQueryParam } from '../../../shared/desktop-overlay-heartbeat'
@@ -89,7 +90,7 @@ export async function setupDesktopOverlayWindow(params: {
       showDesktopOverlayWithoutFocus(overlayWindow)
   })
 
-  overlayWindow.on('closed', () => {
+  onWindowClosed(overlayWindow, () => {
     overlayWindow = null
   })
 

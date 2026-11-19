@@ -11,7 +11,7 @@ vi.mock('electron', () => ({
   BrowserWindow: class {
     readonly close = vi.fn()
     readonly isDestroyed = vi.fn(() => false)
-    readonly on = vi.fn()
+    readonly once = vi.fn()
     readonly webContents = { isDestroyed: () => false, isCrashed: () => false }
   },
 }))

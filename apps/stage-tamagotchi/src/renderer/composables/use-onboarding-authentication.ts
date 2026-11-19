@@ -9,6 +9,8 @@ interface UseOnboardingAuthenticationOptions {
   consumeLoginRequest: () => Promise<boolean>
   closeRequestId: Readonly<Ref<number>>
   closeWindow: () => Promise<unknown>
+  /** True while the flow has steps that sign-in does not finish, for example permissions. The window stays open for them. */
+  hasPendingSteps: Readonly<Ref<boolean>>
   isAuthenticated: Readonly<Ref<boolean>>
   isConfirming: Readonly<Ref<boolean>>
   needsLogin: Readonly<Ref<boolean>>
@@ -31,7 +33,8 @@ interface OnboardingAuthenticationControls {
 export function useOnboardingAuthentication(options: UseOnboardingAuthenticationOptions): OnboardingAuthenticationControls {
   let closing = false
   const initialCloseRequestId = options.closeRequestId.value
-  const shouldClose = computed(() => options.isAuthenticated.value || options.closeRequestId.value !== initialCloseRequestId)
+  // Sign-in ends provider setup. The flow closes the window itself when it finishes the remaining steps.
+  const shouldClose = computed(() => (options.isAuthenticated.value || options.closeRequestId.value !== initialCloseRequestId) && !options.hasPendingSteps.value)
 
   /**
    * Closes onboarding after a direct action or a released automatic request. A failed close can be retried.

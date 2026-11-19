@@ -19,6 +19,7 @@ import VueRouter from 'vue-router/vite'
 
 import { paraformerBilingualZhEn, xAsrBilingualZhEnInt8, zipformerMultilingual } from '@proj-airi/provider-inference/sherpaw-transcription/models'
 import { createSettingsSearch } from '@proj-airi/stage-pages/vite/settings-search'
+import { sentrySourceMaps } from '@proj-airi/stage-shared/analytics/sentry-vite'
 import { speakerModel } from '@proj-airi/stage-shared/speaker-model'
 import { kwsModel } from '@proj-airi/stage-ui/libs/voice/kws-model-info'
 import { Download } from '@proj-airi/unplugin-fetch'
@@ -60,12 +61,30 @@ const buildTime = resolveBuildTime()
 /** The renderer chunk that holds the `unplugin-info` modules. Its file name has no hash. */
 const buildInfoChunkName = 'build-info'
 
+/** CI release builds set this token. Without it, the Electron builds make no source maps, as before. */
+const sentryAuthToken = env.SENTRY_AUTH_TOKEN
+
+/**
+ * Uploads the source maps of one Electron build, then deletes them, so app.asar does not ship them.
+ * Ergosphere writes each build to `out/bundle/<build>`. The main build also writes the launcher to `out/launcher`.
+ */
+function electronSourceMaps(build: 'main' | 'preload' | 'renderer') {
+  return sentrySourceMaps({
+    project: 'desktop',
+    authToken: sentryAuthToken,
+    filesToDeleteAfterUpload: build === 'main'
+      ? ['out/bundle/main/**/*.map', 'out/launcher/**/*.map']
+      : [`out/bundle/${build}/**/*.map`],
+  })
+}
+
 export default defineConfig({
   main: {
     define: {
       'import.meta.env.SHERPAW_MODEL_ENDPOINT': JSON.stringify(sherpawModelEndpoint),
     },
     build: {
+      sourcemap: sentryAuthToken ? 'hidden' : false,
       // electron-vite externalizes exactly the `dependencies` of package.json.
       // electron-builder copies only `dependencies` into app.asar.
       // Keep only native modules there: they use `__dirname` or load `.node` and binary files at runtime.
@@ -112,6 +131,7 @@ export default defineConfig({
       Info({ time: buildTime }),
       // Main bundles `@proj-airi/i18n/locales`, and its locale sources are YAML files.
       Yaml(),
+      electronSourceMaps('main'),
     ],
 
     resolve: {
@@ -125,6 +145,7 @@ export default defineConfig({
 
   preload: {
     build: {
+      sourcemap: sentryAuthToken ? 'hidden' : false,
       lib: {
         entry: {
           'index': resolve(join(import.meta.dirname, 'src', 'preload', 'index.ts')),
@@ -135,6 +156,7 @@ export default defineConfig({
 
     plugins: [
       ErgospherePreload(),
+      electronSourceMaps('preload'),
     ],
   },
 
@@ -151,6 +173,7 @@ export default defineConfig({
     },
 
     build: {
+      sourcemap: sentryAuthToken ? 'hidden' : false,
       rolldownOptions: {
         input: {
           'main': resolve(join(import.meta.dirname, 'src', 'renderer', 'index.html')),
@@ -194,6 +217,15 @@ export default defineConfig({
         '@framework/type/csmmap',
         '@framework/utils/cubismdebug',
         '@framework/model/cubismmoc',
+      ],
+      // NOTICE:
+      // Only workers import these packages, and the dependency scanner does not follow `new Worker(new URL(...))`.
+      // Vite then optimizes them when a worker first loads and reloads the page, which stops a voice enrollment.
+      // Source: Vite's `vite:dep-scan` plugin.
+      // Remove when the scanner follows worker entries.
+      include: [
+        '@huggingface/transformers',
+        '@moeru/eventa/adapters/webworkers/worker',
       ],
     },
 
@@ -348,6 +380,7 @@ export default defineConfig({
       Download('https://dist.ayaka.moe/live2d-models/hiyori_pro_zh.zip', 'hiyori_pro_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
       Download('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-A/AvatarSample_A.vrm', 'AvatarSample_A.vrm', 'vrm/models/AvatarSample-A', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
       Download('https://dist.ayaka.moe/vrm-models/VRoid-Hub/AvatarSample-B/AvatarSample_B.vrm', 'AvatarSample_B.vrm', 'vrm/models/AvatarSample-B', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
+      electronSourceMaps('renderer'),
     ],
   },
 })
