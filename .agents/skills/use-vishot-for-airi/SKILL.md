@@ -14,6 +14,7 @@ Build Electron, then pass the model path and explicit format through the environ
 ```bash
 pnpm build:tamagotchi
 
+APP_IGNORE_FOCUS=1 \
 AIRI_DISPLAY_MODEL_FORMAT=live2d \
 AIRI_DISPLAY_MODEL_PATH='/Users/neko/Pictures/Project AIRI 静态资产/形象 - Iru/Live2D/Iru v2.0 @ Project AIRI 运行文件.zip' \
 pnpm exec vishot capture \
@@ -24,6 +25,8 @@ pnpm exec vishot capture \
   --settle-ms 2500 \
   --output-dir ./.vishot/display-model/live2d
 ```
+
+`APP_IGNORE_FOCUS=1` keeps AIRI windows from taking focus from the user. `pnpm capture:tamagotchi` sets it by default. To capture focus behavior, set it to `0`.
 
 Use `AIRI_DISPLAY_MODEL_FORMAT=vrm` with a local file such as:
 

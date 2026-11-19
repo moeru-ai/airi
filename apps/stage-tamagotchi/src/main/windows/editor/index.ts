@@ -7,9 +7,10 @@ import { BrowserWindow as ElectronBrowserWindow } from 'electron'
 
 import icon from '../../../../resources/icon.png?asset'
 
+import { showWindow } from '../../libs/electron/focus'
 import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
-import { protectPrivilegedWindowNavigation, toggleWindowShow } from '../shared'
+import { customTitleBarWindowConfig, protectPrivilegedWindowNavigation, toggleWindowShow } from '../shared'
 import { setupEditorWindowInvokes } from './rpc/index.electron'
 
 export interface EditorWindowManager {
@@ -38,13 +39,14 @@ export function setupEditorWindowManager(params: {
       minHeight: 600,
       show: false,
       icon,
+      ...customTitleBarWindowConfig(),
       webPreferences: {
         preload: getPreloadPath(),
         sandbox: false,
       },
     })
 
-    window.on('ready-to-show', () => window.show())
+    window.on('ready-to-show', () => showWindow(window))
     protectPrivilegedWindowNavigation(window)
 
     await setupEditorWindowInvokes({

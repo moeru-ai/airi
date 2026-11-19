@@ -36,11 +36,11 @@ export interface ProfileUser {
   /** True once the user clicked the verification link sent on sign-up. */
   emailVerified: boolean
   /**
-   * Avatar URL. Server decorates this so it's always populated for
-   * signed-in users: provider-set / user-uploaded URL when present, or a
-   * Gravatar fallback derived server-side from the email hash. The UI
-   * detects the fallback by URL prefix
-   * (`https://www.gravatar.com/avatar/`).
+   * Avatar URL. The server always sets it for signed-in users: the provider
+   * or uploaded URL when present, or else a Gravatar URL from the email hash.
+   * That Gravatar URL fails when the email has no Gravatar, and `Avatar`
+   * then draws a beam avatar from the user ID. The UI detects the Gravatar
+   * URL by its prefix (`https://www.gravatar.com/avatar/`).
    */
   image: string | null
   /** ISO timestamp from `created_at`. */

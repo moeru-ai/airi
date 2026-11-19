@@ -12,12 +12,14 @@ import { Toaster } from 'vue-sonner'
 import VoiceInputButton from './voice-input-button.vue'
 
 import { pushToTalkTriggerKey } from '../../../../composables/push-to-talk-trigger'
+import { trackPendingActions } from '../../../../libs/pinia/pending-actions'
 import { getSpeechBusContext, voiceInputCommand, voiceLevelMonitor, voiceMessageCommand, voiceMessagesChanged, voiceRequestSnapshot, voiceSnapshotChanged } from '../../../../services/speech/bus'
 
-const cleanups: (() => void)[] = []
+const cleanups: (() => void | Promise<void>)[] = []
 
-afterEach(() => {
-  cleanups.splice(0).reverse().forEach(cleanup => cleanup())
+afterEach(async () => {
+  for (const cleanup of cleanups.splice(0).reverse())
+    await cleanup()
   localStorage.clear()
 })
 
@@ -50,6 +52,11 @@ async function mountButton(options: { afterFinish?: Partial<VoiceMessageSnapshot
 
   const pinia = createPinia()
   cleanups.push(() => disposePinia(pinia))
+  // Unmounting discards an open recording through the host. That command must settle before the store is disposed.
+  const pendingCommands = trackPendingActions(pinia, storeId => storeId === 'voice-controls')
+  cleanups.push(async () => {
+    await expect.poll(pendingCommands).toBe(0)
+  })
   const draft = ref('Hello')
   const submitted: unknown[] = []
   const status = document.body.appendChild(document.createElement('div'))

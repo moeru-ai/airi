@@ -6,25 +6,43 @@ import { useSettingsAudioDevice } from '../stores/settings/audio-device'
 import { useVoiceStore } from '../stores/voice'
 import { useVoiceHold } from './voice-hold'
 
+export interface VoiceListeningOptions {
+  /**
+   * Whether the Hearing input mode can listen outside a voice call. Small screens have no control for it, so they
+   * turn it off, and only a call listens there.
+   * @default () => true
+   */
+  continuous?: () => boolean
+}
+
 /**
- * Runs continuous listening on the voice host while microphone input is on and the Hearing input mode listens continuously.
+ * Runs continuous listening on the voice host during a voice call, or while microphone input is on and the Hearing
+ * input mode listens continuously.
  *
  * Each stage page that owns the voice host calls this once. It is the one place that decides whether voice activity
  * detection runs, so a new input mode changes this function and `listensContinuously`, not each app.
- * Scope disposal stops listening.
+ * Scope disposal stops listening and ends a voice call. The page that listens also shows the call controls, so a call
+ * that outlived it would listen again, without its controls, when the page comes back.
  */
-export function useVoiceListening() {
+export function useVoiceListening(options: VoiceListeningOptions = {}) {
   const voice = useVoiceStore()
   const devices = useSettingsAudioDevice()
   const hearing = useHearingStore()
+  const continuous = options.continuous ?? (() => true)
+  // The device store holds the microphone open only where the input mode can listen, so it reads the same decision.
+  watch(continuous, (allowed) => {
+    devices.continuousAllowed = allowed
+  }, { immediate: true, flush: 'sync' })
 
-  watch(() => hearing.enabled && devices.listening && listensContinuously(hearing.inputMode), (listen) => {
+  // The microphone switch closes the microphone for every feature, so a call does not listen while it is off.
+  watch(() => hearing.enabled && !devices.off && (voice.callActive || (continuous() && devices.listening && listensContinuously(hearing.inputMode))), (listen) => {
     if (listen)
       voice.startListening()
     else
       void voice.stopListening()
   }, { immediate: true })
   onScopeDispose(() => {
+    voice.endCall()
     void voice.stopListening()
   })
 }

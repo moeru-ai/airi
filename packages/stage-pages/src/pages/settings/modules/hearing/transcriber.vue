@@ -4,7 +4,7 @@ import type { VoicePluginHandle } from '@proj-airi/core-agent'
 import { errorMessageFrom } from '@moeru/std'
 import { encodeWav } from '@proj-airi/audio/encoding'
 import { LevelMeter, MicrophonePicker, RadioCardManySelect, RadioCardSimple, TestDummyMarker, ThresholdMeter, TimeSeriesChart } from '@proj-airi/stage-ui/components'
-import { useAnalytics, useHearingPlaygroundSegments } from '@proj-airi/stage-ui/composables'
+import { useHearingPlaygroundSegments } from '@proj-airi/stage-ui/composables'
 import { useVoiceController } from '@proj-airi/stage-ui/composables/audio/voice-controller'
 import { hearingProviderViewContextKey } from '@proj-airi/stage-ui/libs'
 import { createVoiceActivityPlugin } from '@proj-airi/stage-ui/libs/voice/voice-activity-plugin'
@@ -49,7 +49,6 @@ const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
 const { moduleTranscriptionProvidersMetadata } = storeToRefs(providersStore)
 
-const { trackProviderClick } = useAnalytics()
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { audioInputOptions, permission, selectedAudioInput } = storeToRefs(settingsAudioDeviceStore)
 const supportsStreamInput = computed(() => providersStore.getTranscriptionFeatures(activeTranscriptionProvider.value).supportsStreamInput)
@@ -105,9 +104,8 @@ const recordings = new Map<string, Promise<ReturnType<typeof startRecording> | u
 let listening: VoicePluginHandle | undefined
 let monitoringStartup: AbortController | undefined
 const { controller, state: inputState, snapshot, error: transcriptionPipelineError } = useVoiceController({
-  transcriber: () => {
+  transcriber: ({ inputId: id }) => {
     const transcriber = hearingStore.createTranscriber()
-    const id = controller.activeInput!.id
     return { transcribe: (request) => {
       const [audio, preview] = request.audio.tee()
       recordings.set(id, encodeWav(preview, { sampleRate: 16000, channels: 1 }, request.signal).then(startRecording, () => undefined))
@@ -412,14 +410,13 @@ onUnmounted(() => {
                 :value="metadata.id"
                 :title="metadata.localizedName || 'Unknown'"
                 :description="metadata.localizedDescription"
-                @click="trackProviderClick(metadata.id, 'hearing')"
               />
               <RouterLink
                 to="/settings/providers#transcription"
                 :class="[
                   'relative min-w-50 w-fit flex flex-col items-center justify-center rounded-xl p-4',
                   'border-2 border-solid border-neutral-100 bg-white dark:border-neutral-900 dark:bg-neutral-900/20',
-                  'hover:border-primary-500/30 dark:hover:border-primary-400/30',
+                  'hover:bg-neutral-50 dark:hover:bg-neutral-900/50',
                   'transition-all duration-200 ease-in-out',
                 ]"
               >
@@ -435,7 +432,6 @@ onUnmounted(() => {
                 to="/settings/providers"
                 :class="[
                   'flex items-center gap-3 rounded-lg p-4',
-                  'border-2 border-dashed border-neutral-200 dark:border-neutral-800',
                   'bg-neutral-50 dark:bg-neutral-800',
                   'transition-colors duration-200 ease-in-out',
                 ]"

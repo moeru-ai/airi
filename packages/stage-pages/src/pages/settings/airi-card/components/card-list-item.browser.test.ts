@@ -56,7 +56,7 @@ describe('card list item', () => {
   it.each([
     ['synced', 'Synced to your account'],
     ['pending', 'Waiting to upload'],
-    ['refused', 'Not uploaded. Your account has no room for more cards, so this card stays on this device.'],
+    ['refused', 'Not uploaded. Your account has no room for more characters, so this character stays on this device.'],
   ] as const)('shows the %s state with its text', async (state, text) => {
     const { screen, pinia } = await renderItem(state)
 

@@ -208,6 +208,8 @@ describe('stripeRoutes', () => {
               stripePriceId: 'price_starter',
               openpanelDeviceId: 'anon-browser-1',
               openpanelSessionId: 'ph-session-1',
+              posthogDistinctId: 'posthog-browser-1',
+              posthogSessionId: 'posthog-session-1',
             },
           },
         },
@@ -239,6 +241,8 @@ describe('stripeRoutes', () => {
         action: 'payment_completed',
         metadata: expect.objectContaining({
           openpanel_device_id: 'anon-browser-1',
+          posthog_distinct_id: 'posthog-browser-1',
+          posthog_session_id: 'posthog-session-1',
           stripe_price_id: 'price_starter',
         }),
       }))

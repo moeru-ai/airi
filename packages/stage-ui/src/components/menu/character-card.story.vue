@@ -40,8 +40,8 @@ const subtitleTextColor = ref('#6693b6')
     >
       <div p-4>
         <CharacterCard
-          title="ReLU"
-          subtitle="ReLU-chan"
+          title="Iru"
+          subtitle="Iru-chan"
           description="First awaken cyber consciousness in Project AIRI, quite a bit of a prankster"
           :image="characterImage"
           :primary-color="primaryColor"
@@ -64,8 +64,8 @@ const subtitleTextColor = ref('#6693b6')
     >
       <div p-4>
         <CharacterCard
-          title="ReLU"
-          subtitle="ReLU-chan"
+          title="Iru"
+          subtitle="Iru-chan"
           description="First awaken cyber consciousness in Project AIRI, quite a bit of a prankster"
           :primary-color="primaryColor"
           :secondary-color="secondaryColor"

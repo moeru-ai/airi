@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { FluxBalanceBucket } from '@proj-airi/stage-ui/composables/use-analytics'
 
-import { isFluxPurchaseDisabled, isStageTamagotchi } from '@proj-airi/stage-shared'
+import { isCapacitorAvailable, isFluxPurchaseDisabled, isStageTamagotchi } from '@proj-airi/stage-shared'
 import { client } from '@proj-airi/stage-ui/composables/api'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { AIRI_PRIVACY_URL, AIRI_TERMS_URL } from '@proj-airi/stage-ui/constants/public-links'
@@ -13,6 +13,8 @@ import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
+
+import CapacitorSection from '../../components/capacitor-section.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -29,6 +31,9 @@ const {
 } = useAnalytics()
 
 const fluxPurchaseDisabled = isFluxPurchaseDisabled()
+/** The page leads with the Capacitor subscription when this build can sell it. */
+const subscriptionAvailable = isCapacitorAvailable()
+const showCapacitor = computed(() => isAuthenticated.value && subscriptionAvailable)
 
 // On desktop, checkout happens in the external system browser (see handleBuy), so
 // the app never receives the success_url redirect that web/mobile use to refresh.
@@ -131,12 +136,6 @@ const auditOffset = ref(0)
 const AUDIT_PAGE_SIZE = 20
 
 const capacity = ref(0)
-
-const fluxPercentage = computed(() => {
-  if (capacity.value <= 0)
-    return credits.value > 0 ? 100 : 0
-  return Math.min(100, Math.round((credits.value / capacity.value) * 100))
-})
 
 async function fetchStats() {
   try {
@@ -396,107 +395,100 @@ async function handleBuy(stripePriceId: string) {
       {{ message.text }}
     </Alert>
 
-    <!-- Battery Card -->
-    <div v-if="isAuthenticated" relative overflow-hidden rounded-2xl bg="neutral-100 dark:neutral-800" p-6 sm:p-8>
-      <!-- Background Progress -->
-      <div
-        class="flux-progress-bar absolute inset-y-0 left-0 bg-primary-500/20 dark:bg-primary-400/20"
-      />
+    <!-- The subscription leads the page. The section opens on the Capacitor card. -->
+    <CapacitorSection v-if="showCapacitor" data-testid="flux-subscription" />
 
-      <!-- Content -->
-      <div relative z-1 flex="~ items-center justify-start sm:col sm:justify-center gap-4 sm:gap-2" text-left sm:text-center>
-        <div i-solar:battery-charge-bold-duotone size-12 shrink-0 text-primary-500 sm:mx-auto sm:size-14 />
-        <div flex="~ col gap-1">
-          <h2 text-3xl font-bold tracking-tight sm:text-4xl>
-            {{ formatNumber(credits) }}
+    <!-- One-time Flux packs. A signed-in user also sees the balance of purchased Flux. -->
+    <section
+      v-if="!fluxPurchaseDisabled || isAuthenticated"
+      data-testid="flux-purchase"
+      :class="['flex flex-col gap-3.5']"
+    >
+      <div :class="['flex items-baseline justify-between gap-4']">
+        <div>
+          <h2 :class="['mb-1 text-xl']">
+            {{ t(fluxPurchaseDisabled ? 'settings.pages.account.fluxBalance' : 'settings.pages.flux.packages.title') }}
           </h2>
-          <p text="sm neutral-500">
-            {{ t(fluxPurchaseDisabled ? 'settings.pages.account.fluxBalance' : 'settings.pages.flux.description') }}
+          <p v-if="!fluxPurchaseDisabled" :class="['text-[13px]', 'text-neutral-500 dark:text-neutral-400']">
+            {{ t('settings.pages.flux.packages.description') }}
           </p>
         </div>
-      </div>
-    </div>
-
-    <div v-if="!fluxPurchaseDisabled" flex="~ col gap-4">
-      <!-- Currency selector -->
-      <Skeleton v-if="packagesLoading" h-9 w-40 rounded-lg />
-      <div v-else-if="currencyOptions.length > 1" flex="~ justify-start sm:justify-end">
-        <SelectTab
-          v-model="selectedCurrency"
-          :options="currencyOptions"
-          size="sm"
-        />
-      </div>
-
-      <div grid="~ cols-1 sm:cols-3 gap-4" :aria-busy="packagesLoading">
-        <template v-if="packagesLoading">
-          <div
-            v-for="i in 3" :key="i"
-            flex="~ row sm:col items-center justify-between sm:justify-center gap-4 sm:gap-3"
-            border="2 neutral-200 dark:neutral-800" rounded-2xl bg-white p-6 dark:bg-neutral-900
-          >
-            <div flex="~ col sm:items-center gap-2" w-full>
-              <Skeleton h-4 w-20 rounded-md />
-              <Skeleton h-8 w-28 rounded-md />
-            </div>
-            <Skeleton h-8 w-16 rounded-lg sm:hidden />
-          </div>
-        </template>
-        <button
-          v-for="(pkg, index) in packages" :key="pkg.stripePriceId"
-          :disabled="loadingPriceId !== null"
-          :class="[
-            'group relative flex flex-row sm:flex-col items-center justify-between sm:justify-center overflow-hidden text-left sm:text-center gap-4 sm:gap-2',
-            'rounded-2xl border-2 bg-white p-6 transition-all duration-300 ease-out',
-            pkg.recommended ? 'border-primary-400 dark:border-primary-500 shadow-sm' : 'border-neutral-200 dark:border-neutral-800',
-            'dark:bg-neutral-900',
-            'hover:-translate-y-1 hover:border-primary-400 hover:shadow-md dark:hover:border-primary-500 active:translate-y-0 active:scale-[0.99]',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
-            loadingPriceId !== null && loadingPriceId !== pkg.stripePriceId ? 'opacity-50 grayscale-50 cursor-not-allowed' : 'cursor-pointer',
-          ]"
-          @click="handleBuy(pkg.stripePriceId)"
+        <i18n-t
+          v-if="isAuthenticated"
+          keypath="settings.pages.flux.balance"
+          tag="span"
+          scope="global"
+          data-testid="flux-balance"
+          :class="['shrink-0 text-[13px]', 'text-neutral-500 dark:text-neutral-400']"
         >
-          <!-- Recommended Badge -->
-          <div
-            v-if="pkg.recommended"
-            class="absolute right-0 top-0 flex items-center gap-1 rounded-bl-xl bg-primary-500 px-2.5 py-1 text-[10px] text-white font-bold tracking-wider uppercase shadow-sm"
-          >
-            <div class="i-solar:star-fall-bold-duotone size-3" />
-            HOT
-          </div>
-
-          <!-- Loading Overlay -->
-          <div
-            v-if="loadingPriceId === pkg.stripePriceId"
-            class="absolute inset-0 z-10 flex items-center justify-center bg-white/60 backdrop-blur-sm dark:bg-neutral-900/60"
-          >
-            <div class="i-svg-spinners:90-ring-with-bg size-8 text-primary-500" />
-          </div>
-
-          <div flex="~ col sm:items-center gap-1" relative z-1 w-full>
-            <div text="sm neutral-500 dark:neutral-400" font-medium transition-colors class="group-hover:text-primary-600 dark:group-hover:text-primary-400">
-              {{ pkg.label }}
-            </div>
-            <div flex="~ items-baseline justify-start sm:justify-center gap-1">
-              <span text="2xl neutral-800 dark:neutral-100" font-bold>
-                {{ pkg.currencies[selectedCurrency] ?? pkg.currencies[pkg.defaultCurrency] }}
-              </span>
-            </div>
-          </div>
-
-          <!-- Battery Icons (Mobile Only) -->
-          <div flex="~ items-center gap-1" relative z-1 class="text-primary-200 transition-colors dark:text-primary-800/60 group-hover:text-primary-300 sm:hidden dark:group-hover:text-primary-700">
-            <div
-              v-for="i in Math.min(index + 1, 3)" :key="i"
-              class="i-solar:battery-charge-bold-duotone size-8 sm:size-10"
-            />
-          </div>
-        </button>
+          <template #balance>
+            <span :class="['text-lg tabular-nums', 'text-neutral-900 dark:text-neutral-50']">{{ formatNumber(credits) }}</span>
+          </template>
+        </i18n-t>
       </div>
-    </div>
+
+      <div v-if="!fluxPurchaseDisabled" data-testid="flux-packages" :class="['flex flex-col gap-3']">
+        <!-- Currency selector -->
+        <Skeleton v-if="packagesLoading" :class="['h-9 w-40 rounded-lg']" />
+        <div v-else-if="currencyOptions.length > 1" :class="['flex justify-start']">
+          <SelectTab
+            v-model="selectedCurrency"
+            :options="currencyOptions"
+            size="sm"
+          />
+        </div>
+
+        <!-- The grid takes any number of packs. A row that is full starts the next row. -->
+        <div :class="['grid grid-cols-[repeat(auto-fill,minmax(156px,1fr))] gap-2.5']" :aria-busy="packagesLoading">
+          <template v-if="packagesLoading">
+            <Skeleton v-for="i in 3" :key="i" :class="['h-17 rounded-xl']" />
+          </template>
+          <button
+            v-for="pkg in packages" :key="pkg.stripePriceId"
+            :disabled="loadingPriceId !== null"
+            :class="[
+              'relative flex flex-col items-start gap-0.5 overflow-hidden rounded-xl border-2 border-solid px-4 py-3 text-left',
+              'transition-colors duration-200 ease-in-out',
+              // The badge marks the recommended pack. A tinted fill sets it apart without a border.
+              pkg.recommended
+                ? 'border-transparent bg-primary-50 hover:bg-primary-100 dark:bg-primary-900/30 dark:hover:bg-primary-900/50'
+                : 'border-neutral-100 bg-neutral-50 hover:bg-neutral-100 dark:border-neutral-900 dark:bg-neutral-900 dark:hover:bg-neutral-800',
+              'focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-2',
+              loadingPriceId !== null && loadingPriceId !== pkg.stripePriceId ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
+            ]"
+            @click="handleBuy(pkg.stripePriceId)"
+          >
+            <span
+              v-if="pkg.recommended"
+              :class="[
+                'absolute right-0 top-0 flex items-center gap-1 rounded-bl-lg px-2 py-0.5',
+                'bg-primary-500 text-[10px] text-white font-bold tracking-wider uppercase',
+              ]"
+            >
+              <span aria-hidden="true" :class="['i-solar:star-fall-bold-duotone size-3']" />
+              HOT
+            </span>
+
+            <span
+              v-if="loadingPriceId === pkg.stripePriceId"
+              :class="['absolute inset-0 z-10 flex items-center justify-center', 'bg-white/60 backdrop-blur-sm dark:bg-neutral-900/60']"
+            >
+              <span aria-hidden="true" :class="['i-svg-spinners:90-ring-with-bg size-6 text-primary-500']" />
+            </span>
+
+            <span :class="['text-[13px] tabular-nums', 'text-neutral-500 dark:text-neutral-400']">
+              {{ pkg.label }}
+            </span>
+            <span :class="['text-lg tabular-nums', 'text-neutral-900 dark:text-neutral-50']">
+              {{ pkg.currencies[selectedCurrency] ?? pkg.currencies[pkg.defaultCurrency] }}
+            </span>
+          </button>
+        </div>
+      </div>
+    </section>
 
     <!-- Audit History -->
-    <div v-if="isAuthenticated" flex="~ col gap-3">
+    <div v-if="isAuthenticated" data-testid="flux-history" flex="~ col gap-3">
       <div flex="~ col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
         <h3 text-lg font-semibold>
           {{ t('settings.pages.flux.audit.title') }}
@@ -741,28 +733,10 @@ async function handleBuy(stripePriceId: string) {
   </div>
 </template>
 
-<style scoped>
-.flux-progress-bar {
-  width: 100%;
-  animation: flux-progress-bar-grow 1s cubic-bezier(0.4, 0, 0.2, 1) 0.5s forwards;
-}
-
-@keyframes flux-progress-bar-grow {
-  0% {
-    width: 100%;
-    opacity: 0.5;
-  }
-  100% {
-    width: v-bind('`${fluxPercentage}%`');
-    opacity: 1;
-  }
-}
-</style>
-
 <route lang="yaml">
 meta:
   layout: settings
   onboarding: false
-  titleKey: settings.pages.flux.title
-  icon: i-solar:battery-charge-bold-duotone
+  titleKey: settings.pages.flux.pageTitle
+  icon: i-solar:star-bold-duotone
 </route>
