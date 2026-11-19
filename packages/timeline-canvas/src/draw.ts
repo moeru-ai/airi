@@ -1,8 +1,13 @@
 import type { IntervalRun, PointMark } from './aggregate'
 import type { Envelope } from './series'
+import type { ValueRange } from './value'
+import type { TimelineView } from './view'
 
 import { CAPSULE_COLORS } from './capsule'
+import { lowerBound, upperBound } from './search'
 import { waveformColumns } from './series'
+import { valueToY } from './value'
+import { timeToX } from './view'
 
 type Context2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D
 
@@ -520,9 +525,8 @@ export interface EnvelopeDrawOptions extends RowGeometry {
 export function drawEnvelope(ctx: Context2D, envelope: Envelope, options: EnvelopeDrawOptions): void {
   const columnPx = options.columnPx ?? 1
   const [low, high] = options.range ?? (options.mode === 'waveform' && !options.symmetric ? [-1, 1] : [0, 1])
-  const span = high - low || 1
   const { top, height } = options
-  const y = (value: number) => top + height - ((Math.min(high, Math.max(low, value)) - low) / span) * height
+  const y = (value: number) => valueToY([low, high], options, Math.min(high, Math.max(low, value)))
 
   ctx.save()
   ctx.fillStyle = options.color
@@ -592,5 +596,56 @@ export function drawEnvelope(ctx: Context2D, envelope: Envelope, options: Envelo
     ctx.lineTo(envelope.mins.length * columnPx, thresholdY)
     ctx.stroke()
   }
+  ctx.restore()
+}
+
+export interface LineDrawOptions extends RowGeometry {
+  view: TimelineView
+  color: string
+  /** The value range that the row height shows. Values outside it draw at the edge of the row. @default [0, 1] */
+  range?: ValueRange
+  /**
+   * - `linear`: a straight segment between two points.
+   * - `step`: each value holds until the time of the next point, then the line jumps to the next value.
+   * @default 'linear'
+   */
+  curve?: 'linear' | 'step'
+  /** @default 1.5 */
+  lineWidth?: number
+  /** @default 1 */
+  opacity?: number
+}
+
+/**
+ * Draws a line through sparse points of a series, for example the keyframes of a curve. `times` must be sorted.
+ *
+ * The line includes the nearest point outside each side of the view, so a segment that crosses the view edge still
+ * draws when no point is inside the view. Use {@link drawEnvelope} for a dense series, where many samples share a pixel.
+ */
+export function drawLine(ctx: Context2D, times: ArrayLike<number>, values: ArrayLike<number>, options: LineDrawOptions): void {
+  const count = Math.min(times.length, values.length)
+  if (count === 0)
+    return
+  const range = options.range ?? [0, 1]
+  const [low, high] = range
+  const first = Math.max(0, lowerBound(times, count, options.view.start) - 1)
+  const last = Math.min(count - 1, upperBound(times, count, options.view.end))
+  const x = (index: number) => timeToX(options.view, times[index]!)
+  const y = (index: number) => valueToY(range, options, Math.min(high, Math.max(low, values[index]!)))
+
+  ctx.save()
+  ctx.globalAlpha = options.opacity ?? 1
+  ctx.strokeStyle = options.color
+  ctx.lineWidth = options.lineWidth ?? 1.5
+  ctx.lineJoin = 'round'
+  ctx.lineCap = 'round'
+  ctx.beginPath()
+  ctx.moveTo(x(first), y(first))
+  for (let index = first + 1; index <= last; index++) {
+    if (options.curve === 'step')
+      ctx.lineTo(x(index), y(index - 1))
+    ctx.lineTo(x(index), y(index))
+  }
+  ctx.stroke()
   ctx.restore()
 }

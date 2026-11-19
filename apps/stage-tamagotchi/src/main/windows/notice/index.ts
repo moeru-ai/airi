@@ -13,7 +13,7 @@ import icon from '../../../../resources/icon.png?asset'
 import { noticeWindowEventa } from '../../../shared/eventa'
 import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
 import { createReferencedWindowManager } from '../shared/referenced-window'
-import { protectPrivilegedWindowNavigation } from '../shared/window'
+import { customTitleBarWindowConfig, protectPrivilegedWindowNavigation } from '../shared/window'
 
 export interface NoticeWindowManager {
   open: (payload: RequestWindowPayload) => Promise<boolean>
@@ -30,6 +30,7 @@ export function setupNoticeWindowManager(params: {
       height: 600,
       show: false,
       icon,
+      ...customTitleBarWindowConfig(),
       webPreferences: {
         preload: getPreloadPath(),
         sandbox: false,

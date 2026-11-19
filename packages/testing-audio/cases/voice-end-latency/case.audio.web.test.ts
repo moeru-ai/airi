@@ -1,6 +1,7 @@
-import type { SerializedIOSpan } from '@proj-airi/stage-shared/types/io-trace'
+import type { AudioInputSpan } from '../../src/types'
 
-import { IOAttributes, IOSpanNames } from '@proj-airi/stage-shared/perf/io-trace'
+import { ATTR_DECISION_VERDICT } from '@proj-airi/trace-kit'
+import { VoiceIdKeys, VoiceNames } from '@proj-airi/trace-kit/voice'
 
 import { describe, expect, it } from '../../src'
 import { audioCaseLive2D, configureLive2D, configureModuleConsciousness, configureModuleHearing, configureOnboarding, loadCaseEnvironment } from '../shared/configurations'
@@ -13,10 +14,6 @@ import { aliyunNlsAsr, openaiLlm } from '../shared/providers'
  */
 const PAUSE_MS = 1200
 const SILENCE_LIMIT_MS = 4200
-
-function millis(nano: string) {
-  return Number(BigInt(nano) / 1_000_000n)
-}
 
 describe('voice end latency', () => {
   // The fixture is the single-utterance-pipeline recording with 8 s of trailing silence, so the silence limit
@@ -64,32 +61,33 @@ describe('voice end latency', () => {
     await audio.waitForVoiceInput({ timeout: 60_000 })
     await waitForVoiceDraft(audio, { timeout: 60_000 })
 
-    const [voiceInput] = await audio.completedSpans(IOSpanNames.VoiceInput)
+    const [voiceInput] = await audio.completedSpans(VoiceNames.VoiceInput)
     expect(voiceInput).toBeDefined()
-    const ofInput = (spans: SerializedIOSpan[]) => spans.filter(span => span.traceId === voiceInput!.traceId)
-    const speech = ofInput(await audio.completedSpans(IOSpanNames.VoiceActivityDetection))
-    const [recognition] = ofInput(await audio.completedSpans(IOSpanNames.SpeechRecognition))
-    const judgements = ofInput(await audio.completedSpans(IOSpanNames.EndOfSpeechJudgement))
-    const rewrites = ofInput(await audio.completedSpans(IOSpanNames.TranscriptRephrase))
+    // Every span of the input carries its input ID.
+    const ofInput = (spans: AudioInputSpan[]) => spans.filter(span => span.ids[VoiceIdKeys.Input] === voiceInput!.ids[VoiceIdKeys.Input])
+    const speech = ofInput(await audio.completedSpans(VoiceNames.SpeechSegment))
+    const [recognition] = ofInput(await audio.completedSpans(VoiceNames.SpeechRecognition))
+    const judgements = ofInput(await audio.completedSpans(VoiceNames.EndpointJudgement))
+    const rewrites = ofInput(await audio.completedSpans(VoiceNames.TranscriptRephrase))
     expect(speech.length).toBeGreaterThan(0)
     expect(recognition).toBeDefined()
 
-    const lastSpeechEnd = Math.max(...speech.map(span => millis(span.endTimeNano)))
-    const recognitionEnd = millis(recognition!.endTimeNano)
-    const submitted = millis(voiceInput!.endTimeNano)
+    const lastSpeechEnd = Math.max(...speech.map(span => span.end))
+    const recognitionEnd = recognition!.end
+    const submitted = voiceInput!.end
     const timeline = {
       transcript: (await audio.transcriptionResults(1)).at(-1),
       endOfSpeechToRecognitionEndMs: recognitionEnd - lastSpeechEnd,
       recognitionEndToSubmissionMs: submitted - recognitionEnd,
       judgements: judgements.map(span => ({
-        startMs: millis(span.startTimeNano) - lastSpeechEnd,
-        endMs: millis(span.endTimeNano) - lastSpeechEnd,
-        judgement: span.attributes[IOAttributes.EndJudgement],
-        cancelled: span.attributes[IOAttributes.Cancelled] ?? false,
+        startMs: span.start - lastSpeechEnd,
+        endMs: span.end - lastSpeechEnd,
+        judgement: span.attrs[ATTR_DECISION_VERDICT],
+        cancelled: span.status === 'cancelled',
       })),
       rewrites: rewrites.map(span => ({
-        startMs: millis(span.startTimeNano) - lastSpeechEnd,
-        endMs: millis(span.endTimeNano) - lastSpeechEnd,
+        startMs: span.start - lastSpeechEnd,
+        endMs: span.end - lastSpeechEnd,
       })),
     }
     await annotate('voice-end-latency.json', { body: `${JSON.stringify(timeline, null, 2)}\n`, bodyEncoding: 'utf-8', contentType: 'application/json' })
@@ -104,6 +102,6 @@ describe('voice end latency', () => {
     if (judgement!.judgement === 'complete')
       expect(timeline.endOfSpeechToRecognitionEndMs, details).toBeLessThan(SILENCE_LIMIT_MS)
     // The rewrite started during the pause, before the provider finished, so submission did not wait for a new request.
-    expect(rewrites.some(span => millis(span.startTimeNano) < recognitionEnd), details).toBe(true)
+    expect(rewrites.some(span => span.start < recognitionEnd), details).toBe(true)
   })
 })

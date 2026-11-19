@@ -1,3 +1,5 @@
+import type { Attributes, Counter } from '@opentelemetry/api'
+
 import type { GenAiMetrics } from '../../../../otel'
 import type { GenerationObservation } from '../../../../services/domain/generation-observation'
 import type { UsageInfo } from '../../../../services/domain/generation-usage'
@@ -6,16 +8,25 @@ import type { RequestLogService } from '../../../../services/domain/request-log'
 
 import { useLogger } from '@guiiai/logg'
 import { context, SpanStatusCode, trace } from '@opentelemetry/api'
+import { ATTR_ERROR_TYPE } from '@opentelemetry/semantic-conventions'
+import {
+  ATTR_GEN_AI_OPERATION_NAME,
+  ATTR_GEN_AI_PROVIDER_NAME,
+  ATTR_GEN_AI_REQUEST_MODEL,
+  ATTR_GEN_AI_RESPONSE_MODEL,
+  ATTR_GEN_AI_TOKEN_MODALITY,
+  ATTR_GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS,
+  ATTR_GEN_AI_USAGE_CACHE_WRITE_INPUT_TOKENS,
+  ATTR_GEN_AI_USAGE_INPUT_TOKENS,
+  ATTR_GEN_AI_USAGE_OUTPUT_TOKENS,
+  ATTR_GEN_AI_USAGE_REASONING_OUTPUT_TOKENS,
+} from '@proj-airi/trace-kit/semconv'
 
 import {
   AIRI_ATTR_BILLING_FLUX_CONSUMED,
   AIRI_ATTR_GEN_AI_OPERATION_KIND,
   AIRI_ATTR_GEN_AI_STREAM,
   AIRI_ATTR_GEN_AI_STREAM_INTERRUPTED,
-  GEN_AI_ATTR_OPERATION_NAME,
-  GEN_AI_ATTR_REQUEST_MODEL,
-  GEN_AI_ATTR_USAGE_INPUT_TOKENS,
-  GEN_AI_ATTR_USAGE_OUTPUT_TOKENS,
 } from '../../../../utils/observability'
 
 export const tracer = trace.getTracer('v1-completions')
@@ -29,33 +40,38 @@ export interface OperationMetricsInput extends UsageInfo {
   provider: string
   durationMs: number
   fluxConsumed: number
+  /** Upstream cost that the provider reports. It is not the Flux charge. */
+  costUsd?: number
 }
 
 export type RequestLogInput = GenerationObservation
 
 type GenerationOperation = 'chat' | 'responses'
 
-export function getLlmMetricAttributes(opts: { model: string, type: string, status: number, provider: string }): Record<string, string | number> {
-  // `provider` is the upstream the router actually used (winning upstream on
-  // success, last-tried on exhaustion), so per-provider rollups in Grafana
-  // line up with each vendor's own console. Same label name as the gateway
-  // error counters (`airi_gen_ai_gateway_upstream_errors{provider}`) so the
-  // two can be compared/joined.
-  if (opts.type === 'chat' || opts.type === 'responses') {
-    return {
-      [GEN_AI_ATTR_REQUEST_MODEL]: opts.model,
-      [GEN_AI_ATTR_OPERATION_NAME]: opts.type,
-      'http.response.status_code': opts.status,
-      'provider': opts.provider,
-    }
-  }
-
-  return {
-    [GEN_AI_ATTR_REQUEST_MODEL]: opts.model,
-    [AIRI_ATTR_GEN_AI_OPERATION_KIND]: opts.type,
+export function getLlmMetricAttributes(opts: { model: string, type: string, status: number, provider: string, responseModel?: string }): Attributes {
+  // `gen_ai.provider.name` is the upstream that the router used: the winning
+  // upstream on success, or the last tried upstream on exhaustion. Gateway
+  // error counters still use the `provider` label with the same value.
+  const attrs: Attributes = {
+    [ATTR_GEN_AI_REQUEST_MODEL]: opts.model,
+    [ATTR_GEN_AI_PROVIDER_NAME]: opts.provider,
     'http.response.status_code': opts.status,
-    'provider': opts.provider,
   }
+  if (opts.type === 'chat' || opts.type === 'responses')
+    attrs[ATTR_GEN_AI_OPERATION_NAME] = opts.type
+  else
+    attrs[AIRI_ATTR_GEN_AI_OPERATION_KIND] = opts.type
+  if (opts.responseModel)
+    attrs[ATTR_GEN_AI_RESPONSE_MODEL] = opts.responseModel
+  if (opts.status >= 400)
+    attrs[ATTR_ERROR_TYPE] = String(opts.status)
+  return attrs
+}
+
+// The semantic conventions allow only known, strictly positive token and cost measurements.
+function addPositive(counter: Counter, value: number | undefined, attrs: Attributes): void {
+  if (value != null && value > 0)
+    counter.add(value, attrs)
 }
 
 // Fresh per-request context handed to `llmRouter.route` / `routeTts` so the
@@ -76,13 +92,16 @@ export function createRouteTelemetry(deps: {
     if (!deps.genAi)
       return
     const attrs = getLlmMetricAttributes(opts)
-    deps.genAi.operationCount.add(1, attrs)
-    deps.genAi.operationDuration.record(opts.durationMs / 1000, attrs)
+    // Upstream usage does not split tokens by modality, so every token counter uses `unknown`.
+    const tokenAttrs = { ...attrs, [ATTR_GEN_AI_TOKEN_MODALITY]: 'unknown' }
+    deps.genAi.inferenceDuration.record(opts.durationMs / 1000, attrs)
     deps.genAi.fluxConsumed.add(opts.fluxConsumed, attrs)
-    if (opts.promptTokens != null)
-      deps.genAi.tokenUsageInput.add(opts.promptTokens, attrs)
-    if (opts.completionTokens != null)
-      deps.genAi.tokenUsageOutput.add(opts.completionTokens, attrs)
+    addPositive(deps.genAi.inputTokens, opts.promptTokens, tokenAttrs)
+    addPositive(deps.genAi.outputTokens, opts.completionTokens, tokenAttrs)
+    addPositive(deps.genAi.cacheReadInputTokens, opts.cachedTokens, tokenAttrs)
+    addPositive(deps.genAi.cacheWriteInputTokens, opts.cacheWriteTokens, tokenAttrs)
+    addPositive(deps.genAi.reasoningOutputTokens, opts.reasoningTokens, attrs)
+    addPositive(deps.genAi.costUsd, opts.costUsd, attrs)
   }
 
   function recordRequestLog(entry: RequestLogInput) {
@@ -92,8 +111,8 @@ export function createRouteTelemetry(deps: {
   function startGenerationSpan(input: { model: string, stream: boolean, operation: GenerationOperation }): GatewaySpan {
     return tracer.startSpan(`llm.gateway.${input.operation}`, {
       attributes: {
-        [GEN_AI_ATTR_OPERATION_NAME]: input.operation,
-        [GEN_AI_ATTR_REQUEST_MODEL]: input.model,
+        [ATTR_GEN_AI_OPERATION_NAME]: input.operation,
+        [ATTR_GEN_AI_REQUEST_MODEL]: input.model,
         [AIRI_ATTR_GEN_AI_STREAM]: input.stream,
       },
     })
@@ -102,7 +121,7 @@ export function createRouteTelemetry(deps: {
   function startTtsSpan(input: { model: string }): GatewaySpan {
     return tracer.startSpan('llm.gateway.tts', {
       attributes: {
-        [GEN_AI_ATTR_REQUEST_MODEL]: input.model,
+        [ATTR_GEN_AI_REQUEST_MODEL]: input.model,
         [AIRI_ATTR_GEN_AI_OPERATION_KIND]: 'text_to_speech',
       },
     })
@@ -127,8 +146,11 @@ export function createRouteTelemetry(deps: {
 
   function recordUsageOnSpan(span: GatewaySpan, input: UsageInfo & { fluxConsumed: number }): void {
     span.setAttributes({
-      [GEN_AI_ATTR_USAGE_INPUT_TOKENS]: input.promptTokens ?? 0,
-      [GEN_AI_ATTR_USAGE_OUTPUT_TOKENS]: input.completionTokens ?? 0,
+      [ATTR_GEN_AI_USAGE_INPUT_TOKENS]: input.promptTokens ?? 0,
+      [ATTR_GEN_AI_USAGE_OUTPUT_TOKENS]: input.completionTokens ?? 0,
+      [ATTR_GEN_AI_USAGE_CACHE_READ_INPUT_TOKENS]: input.cachedTokens,
+      [ATTR_GEN_AI_USAGE_CACHE_WRITE_INPUT_TOKENS]: input.cacheWriteTokens,
+      [ATTR_GEN_AI_USAGE_REASONING_OUTPUT_TOKENS]: input.reasoningTokens,
       [AIRI_ATTR_BILLING_FLUX_CONSUMED]: input.fluxConsumed,
     })
   }
@@ -144,10 +166,10 @@ export function createRouteTelemetry(deps: {
     firstChunkAt: number
     operation: GenerationOperation
   }): void {
-    deps.genAi?.firstTokenDuration.record((input.firstChunkAt - input.startedAt) / 1000, {
-      [GEN_AI_ATTR_REQUEST_MODEL]: input.model,
-      [GEN_AI_ATTR_OPERATION_NAME]: input.operation,
-      provider: input.provider,
+    deps.genAi?.timeToFirstChunk.record((input.firstChunkAt - input.startedAt) / 1000, {
+      [ATTR_GEN_AI_REQUEST_MODEL]: input.model,
+      [ATTR_GEN_AI_OPERATION_NAME]: input.operation,
+      [ATTR_GEN_AI_PROVIDER_NAME]: input.provider,
     })
   }
 
@@ -161,7 +183,7 @@ export function createRouteTelemetry(deps: {
     // Counter so alerts/dashboards can fire on interrupted streams; the
     // span attribute alone only shows up in trace search, not metrics.
     deps.genAi?.streamInterrupted.add(1, {
-      [GEN_AI_ATTR_REQUEST_MODEL]: input.model,
+      [ATTR_GEN_AI_REQUEST_MODEL]: input.model,
       stage: input.stage,
     })
   }

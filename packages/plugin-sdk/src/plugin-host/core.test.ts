@@ -3,7 +3,7 @@ import type { ExtensionManifestV2, ModulePermissionDeclaration } from './shared/
 import { join } from 'node:path'
 
 import { safeParse } from 'valibot'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, onTestFinished, vi } from 'vitest'
 
 import { ExtensionHost, extensionManifestV2Schema, FileSystemLoader } from '.'
 import { defineExtension } from '../extension'
@@ -609,8 +609,12 @@ describe('extension-hosted Kit registration lifecycle', () => {
   // ROOT CAUSE:
   //
   // Stop joined the cleanup promise that awaited its own disposer, including after await.
-  // Node asynchronous context now rejects self-waits while external callers retain the shared outcome.
-  it('rejects self-stop across an await while external stops share completed cleanup (PR #2687)', async () => {
+  // The session stop timeout now ends the self-wait, while external callers retain the shared outcome.
+  it('ends self-stop across an await at the stop timeout while external stops share the outcome (PR #2687)', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    onTestFinished(() => {
+      vi.useRealTimers()
+    })
     const host = new ExtensionHost()
     const entered = Promise.withResolvers<void>()
     const resume = Promise.withResolvers<void>()
@@ -640,12 +644,12 @@ describe('extension-hosted Kit registration lifecycle', () => {
     expect(externalFinished).toBe(false)
     expect(remaining).not.toHaveBeenCalled()
     resume.resolve()
+    await vi.runAllTimersAsync()
 
-    const failure = await stopping
-    expect(failure).toBeInstanceOf(Error)
-    expect(failure).toHaveProperty('message', expect.stringContaining('from its own cleanup'))
-    expect(await stoppingAgain).toBe(failure)
-    expect(await reloading).toBe(failure)
+    expect(await stopping).toBe(session)
+    expect(await stoppingAgain).toBe(session)
+    // Reload continues after the stop. This session has no entrypoint, so the fresh start fails.
+    expect(await reloading).toHaveProperty('message', expect.stringContaining('entrypoint'))
     expect(remaining).toHaveBeenCalledTimes(1)
     expect(host.listSessions()).toEqual([])
     expect(host.getKitProvider(contract.id)).toBeUndefined()
@@ -655,8 +659,12 @@ describe('extension-hosted Kit registration lifecycle', () => {
   // ROOT CAUSE:
   //
   // Direct self-stop returned the pending cleanup promise while the disposer remained pending.
-  // Cleanup context now rejects the join, and best-effort disposal continues.
-  it('rejects synchronous self-stop without skipping later cleanup (PR #2687)', async () => {
+  // The session stop timeout now ends the join, and best-effort disposal continues.
+  it('ends direct self-stop at the stop timeout without skipping later cleanup (PR #2687)', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    onTestFinished(() => {
+      vi.useRealTimers()
+    })
     const host = new ExtensionHost({ runtime: 'node' })
     const remaining = vi.fn()
     const session = await host.startExtension(defineExtension({
@@ -670,7 +678,9 @@ describe('extension-hosted Kit registration lifecycle', () => {
       },
     }), { manifest: { ...manifest('self-stop-sync'), engines: { airi: '*', runtimes: ['node'] } } })
 
-    await expect(host.stop(session.id)).rejects.toThrow('from its own cleanup')
+    const stopping = host.stop(session.id)
+    await vi.runAllTimersAsync()
+    await expect(stopping).resolves.toBe(session)
     expect(remaining).toHaveBeenCalledTimes(1)
     expect(host.listSessions()).toEqual([])
   })
@@ -679,8 +689,12 @@ describe('extension-hosted Kit registration lifecycle', () => {
   // ROOT CAUSE:
   //
   // Reload joined the same session cleanup from inside a module disposer and never reached fresh start.
-  // The shared cleanup join now rejects calls from that session's active cleanup chain.
-  it('rejects module self-reload after an await without starting a replacement (PR #2687)', async () => {
+  // The session stop timeout now ends the join. Then reload continues with its fresh start.
+  it('ends module self-reload after an await at the stop timeout (PR #2687)', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    onTestFinished(() => {
+      vi.useRealTimers()
+    })
     const host = new ExtensionHost()
     const start = vi.spyOn(host, 'start')
     const remaining = vi.fn()
@@ -697,8 +711,10 @@ describe('extension-hosted Kit registration lifecycle', () => {
       },
     }), { manifest: manifest('self-reload') })
 
-    await expect(host.stop(session.id)).rejects.toThrow('from its own cleanup')
-    expect(start).not.toHaveBeenCalled()
+    const stopping = host.stop(session.id)
+    await vi.runAllTimersAsync()
+    await expect(stopping).resolves.toBe(session)
+    await vi.waitFor(() => expect(start).toHaveBeenCalledTimes(1))
     expect(remaining).toHaveBeenCalledTimes(1)
     expect(session.modules.size).toBe(0)
     expect(host.listSessions()).toEqual([])
@@ -708,8 +724,12 @@ describe('extension-hosted Kit registration lifecycle', () => {
   // ROOT CAUSE:
   //
   // A disposer stopped another session whose cleanup then awaited the first session.
-  // Active cleanup ancestors remain visible across nested asynchronous calls, so the cyclic join rejects.
-  it('allows cleanup to stop another session but rejects a wait on an ancestor cleanup (PR #2687)', async () => {
+  // The session stop timeout now ends the cyclic join.
+  it('allows cleanup to stop another session and ends a wait on an ancestor cleanup at the stop timeout (PR #2687)', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    onTestFinished(() => {
+      vi.useRealTimers()
+    })
     const host = new ExtensionHost()
     const order: string[] = []
     let secondId: string
@@ -734,7 +754,9 @@ describe('extension-hosted Kit registration lifecycle', () => {
     }), { manifest: { ...manifest('second-cleanup'), kits: undefined } })
     secondId = second.id
 
-    await expect(host.stop(first.id)).rejects.toThrow('from its own cleanup')
+    const stopping = host.stop(first.id)
+    await vi.runAllTimersAsync()
+    await expect(stopping).resolves.toBe(first)
     expect(order).toEqual(['first', 'second'])
     expect(host.listSessions()).toEqual([])
   })
@@ -1261,6 +1283,141 @@ describe('host-provided Kit registration integrity', () => {
       runtimes: ['electron'],
       capabilities: [{ key: 'kit.query-copy.read', actions: ['invoke'] }],
     })
+  })
+})
+
+describe('required Kit waiting', () => {
+  const contract = defineKitContract({
+    id: 'kit.awaited',
+    version: '1.0.0',
+    methods: { read: defineKitMethod<undefined, string>() },
+    events: {},
+  })
+
+  function manifest(id: string, kits: ExtensionManifestV2['kits']): ExtensionManifestV2 {
+    return {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id,
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron'] },
+      permissions: { apis: [{ key: contract.id, actions: ['invoke'] }] },
+      entrypoints: {},
+      kits,
+    }
+  }
+
+  it('waits in pending, then runs setup when a Host Kit registers', async () => {
+    const host = new ExtensionHost()
+    const kit = defineKit({ id: contract.id, version: '1.2.0', createClient: () => ({ value: 'host' }) })
+    let observed = ''
+    const extension = defineExtension({
+      id: 'awaiting-consumer',
+      async setup(ctx) {
+        observed = (await ctx.kits.use(kit)).value
+      },
+    })
+
+    const session = await host.startExtension(extension, {
+      manifest: manifest(extension.id, { uses: [{ id: contract.id, version: '^1.0.0' }] }),
+    })
+
+    expect(session).toMatchObject({ phase: 'pending', missingKitIds: [contract.id] })
+    expect(observed).toBe('')
+
+    host.registerKitApi(kit)
+
+    await vi.waitFor(() => expect(session).toMatchObject({ phase: 'ready', missingKitIds: [] }))
+    expect(observed).toBe('host')
+  })
+
+  it('runs setup after an Extension Provider of a compatible version commits', async () => {
+    const host = new ExtensionHost()
+    const setupOrder: string[] = []
+    const consumer = await host.startExtension(defineExtension({
+      id: 'awaiting-extension-consumer',
+      setup() {
+        setupOrder.push('consumer')
+      },
+    }), { manifest: manifest('awaiting-extension-consumer', { uses: [{ id: contract.id, version: '^1.0.0' }] }) })
+
+    expect(consumer.phase).toBe('pending')
+
+    await host.startExtension(defineExtension({
+      id: 'awaited-provider',
+      setup(ctx) {
+        setupOrder.push('provider')
+        ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
+      },
+    }), { manifest: manifest('awaited-provider', { provides: [{ id: contract.id, version: contract.version, exposure: 'local-only' }] }) })
+
+    await vi.waitFor(() => expect(consumer.phase).toBe('ready'))
+    expect(setupOrder).toEqual(['provider', 'consumer'])
+  })
+
+  it('keeps waiting while the Provider version does not satisfy the range', async () => {
+    const host = new ExtensionHost()
+    host.registerKitApi(defineKit({ id: contract.id, version: '1.0.0', createClient: () => ({}) }))
+    const setup = vi.fn()
+
+    const session = await host.startExtension(defineExtension({ id: 'newer-consumer', setup }), {
+      manifest: manifest('newer-consumer', { uses: [{ id: contract.id, version: '^2.0.0' }] }),
+    })
+
+    expect(session).toMatchObject({ phase: 'pending', missingKitIds: [contract.id] })
+    expect(setup).not.toHaveBeenCalled()
+  })
+
+  it('starts at once when only an optional Kit is missing', async () => {
+    const host = new ExtensionHost()
+
+    const session = await host.startExtension(defineExtension({ id: 'optional-consumer', setup() {} }), {
+      manifest: manifest('optional-consumer', { uses: [{ id: contract.id, version: '^1.0.0', optional: true }] }),
+    })
+
+    expect(session).toMatchObject({ phase: 'ready', missingKitIds: [] })
+  })
+
+  it('stops a pending session without setup and releases its reserved Providers', async () => {
+    const host = new ExtensionHost()
+    const setup = vi.fn()
+    const session = await host.startExtension(defineExtension({ id: 'never-ready', setup }), {
+      manifest: manifest('never-ready', {
+        uses: [{ id: 'kit.never-registered', version: '^1.0.0' }],
+        provides: [{ id: contract.id, version: contract.version, exposure: 'local-only' }],
+      }),
+    })
+
+    expect(await host.stop(session.id)).toBe(session)
+    host.registerKitApi(defineKit({ id: 'kit.never-registered', version: '1.0.0', createClient: () => ({}) }))
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    expect(session.phase).toBe('stopped')
+    expect(setup).not.toHaveBeenCalled()
+    expect(host.listSessions()).toEqual([])
+    await expect(host.startExtension(defineExtension({
+      id: 'replacement-provider',
+      setup(ctx) {
+        ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
+      },
+    }), { manifest: manifest('replacement-provider', { provides: [{ id: contract.id, version: contract.version, exposure: 'local-only' }] }) }))
+      .resolves
+      .toMatchObject({ phase: 'ready' })
+  })
+
+  it('stops the session when the setup after the wait fails', async () => {
+    const host = new ExtensionHost()
+    const session = await host.startExtension(defineExtension({
+      id: 'failing-after-wait',
+      setup() {
+        throw new Error('setup failed')
+      },
+    }), { manifest: manifest('failing-after-wait', { uses: [{ id: contract.id, version: '^1.0.0' }] }) })
+
+    host.registerKitApi(defineKit({ id: contract.id, version: '1.0.0', createClient: () => ({}) }))
+
+    await vi.waitFor(() => expect(host.listSessions()).toEqual([]))
+    expect(session.phase).toBe('stopped')
   })
 })
 

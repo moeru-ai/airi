@@ -5,15 +5,22 @@ WORKDIR /app
 ARG VITE_ENABLE_ANALYTICS=false
 ENV VITE_ENABLE_ANALYTICS=${VITE_ENABLE_ANALYTICS}
 
-RUN apt update && apt install -y ca-certificates curl
+RUN apt update && apt install -y build-essential ca-certificates curl python3 python3-setuptools
 RUN update-ca-certificates
-RUN apt update && apt install -y build-essential python3 python3-setuptools curl
 
 RUN corepack enable
 
+ENV pnpm_config_store_dir=/root/.pnpm-store
+
+# Only the lockfile decides this layer, so a source change does not download dependencies again.
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY patches/ ./patches/
+RUN --mount=type=cache,id=pnpm-store,target=/root/.pnpm-store \
+    pnpm fetch
+
 COPY . .
 RUN --mount=type=cache,id=pnpm-store,target=/root/.pnpm-store \
-    pnpm install --frozen-lockfile
+    pnpm install --frozen-lockfile --offline
 
 RUN pnpm -F @proj-airi/stage-web run build && \
     ./scripts/build-airi-docs.sh ./apps/stage-web/dist/docs && \

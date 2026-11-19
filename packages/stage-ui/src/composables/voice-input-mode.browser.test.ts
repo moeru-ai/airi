@@ -3,14 +3,16 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createApp, nextTick, shallowRef } from 'vue'
 import { createI18n } from 'vue-i18n'
 
+import { trackPendingActions } from '../libs/pinia/pending-actions'
 import { useSettingsAudioDevice } from '../stores/settings/audio-device'
 import { useVoiceStore } from '../stores/voice'
 import { useVoiceListening } from './voice-input-mode'
 
-const cleanups: (() => void)[] = []
+const cleanups: (() => Promise<void>)[] = []
 
-afterEach(() => {
-  cleanups.splice(0).reverse().forEach(cleanup => cleanup())
+afterEach(async () => {
+  for (const cleanup of cleanups.splice(0).reverse())
+    await cleanup()
   vi.restoreAllMocks()
   localStorage.clear()
 })
@@ -21,6 +23,8 @@ afterEach(() => {
  */
 function mountListening(continuous: () => boolean, options: { onUnmount?: (unmount: () => void) => void } = {}) {
   const pinia = createPinia()
+  // The speech store loads the voice catalog when it starts. Disposing first leaves that load running into the next test.
+  const pendingCatalogLoads = trackPendingActions(pinia, storeId => storeId === 'speech')
   const app = createApp({ setup() {
     const voice = useVoiceStore()
     vi.spyOn(voice, 'startListening').mockImplementation(() => {})
@@ -36,7 +40,8 @@ function mountListening(continuous: () => boolean, options: { onUnmount?: (unmou
     mounted = false
   }
   options.onUnmount?.(unmount)
-  cleanups.push(() => {
+  cleanups.push(async () => {
+    await expect.poll(pendingCatalogLoads).toBe(0)
     unmount()
     disposePinia(pinia)
   })

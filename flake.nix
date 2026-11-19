@@ -28,7 +28,8 @@
       overlays = {
         default = self.overlays.airi;
         airi = final: _: {
-          airi = final.callPackage ./nix/package.nix { };
+          airi = final.callPackage ./nix/stage-tamagotchi.nix { };
+          airi-server-runtime = final.callPackage ./nix/server-runtime.nix { };
         };
       };
 
@@ -43,12 +44,13 @@
           default = self.devShells.${system}.develop;
 
           develop = mkShell {
-            inputsFrom = [ airi ];
             packages = [
+              asar
               markdown-oxide
               nixd
               nixfmt
               nixfmt-tree
+              airi.nodejs
               airi.pnpm # Use pinned version
               python314
               typescript-language-server
@@ -63,7 +65,7 @@
               name = "airi-electron-fhs";
               targetPkgs =
                 p: with p; [
-                  nodejs_24
+                  airi.nodejs
                   airi.pnpm
                   # Electron system library dependencies
                   # Note: some packages need explicit output refs because the

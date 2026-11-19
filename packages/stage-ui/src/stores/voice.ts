@@ -1,28 +1,32 @@
 import type { BeginSpeechInput, SpeechInputAttempt, SpeechOutput, SpeechStream, TurnRef, VoicePluginHandle, VoiceResponse } from '@proj-airi/core-agent'
-import type { AudioWindow } from '@proj-airi/pipelines-audio'
+import type { AudioPlayback, AudioWindow } from '@proj-airi/pipelines-audio'
 
+import type { SpeakerCandidate } from '../libs/voice/speaker-evidence-plugin'
 import type { VoiceActivityOptions } from '../libs/voice/voice-activity-plugin'
 import type { VoiceHostSnapshot } from '../services/speech/bus'
 import type { ChatToolReference } from '../types/chat'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
-import { turnKey } from '@proj-airi/core-agent'
+import { DEFAULT_SPEECH_THRESHOLD, turnKey } from '@proj-airi/core-agent'
+import { observeLevel } from '@proj-airi/pipelines-audio'
+import { VoiceIdKeys } from '@proj-airi/trace-kit/voice'
 import { defineStore, storeToRefs } from 'pinia'
 import { onScopeDispose, shallowRef, watch } from 'vue'
 
 import { useVoiceController } from '../composables/audio/voice-controller'
 import { traceSpeechOutput } from '../composables/speech-output-trace'
+import { LOCAL_AGENT_ACTOR } from '../composables/use-trace'
 import { useVoiceDrafts } from '../composables/voice-drafts'
 import { useVoiceEndJudge } from '../composables/voice-end-judge'
 import { createVoiceInputTracer } from '../composables/voice-input-trace'
 import { useVoiceRephrase } from '../composables/voice-rephrase'
-import { observeInputLevel } from '../libs/voice/input-level'
-import { createSpeakerEvidencePlugin } from '../libs/voice/speaker-evidence-plugin'
+import { createSpeakerEvidencePlugin, NO_SPEAKER_CANDIDATES } from '../libs/voice/speaker-evidence-plugin'
+import { createSpeechOutputLevelPlugin } from '../libs/voice/speech-output-level-plugin'
 import { createVoiceActivityPlugin } from '../libs/voice/voice-activity-plugin'
 import { createVoiceEndJudgePlugin } from '../libs/voice/voice-end-judge-plugin'
 import { createVoiceRephrasePlugin } from '../libs/voice/voice-rephrase-plugin'
-import { getSpeechBusContext, voiceGenerationEnded, voiceGetTurns, voiceInputCommand, voiceInputLevel, voiceInterrupt, voiceLevelMonitor, voiceRequestSnapshot, voiceRequestTurns, voiceSnapshotChanged, voiceSpeechCommand, voiceTurnsChanged } from '../services/speech/bus'
+import { getSpeechBusContext, speechOutputLevel, voiceGenerationEnded, voiceGetTurns, voiceInputCommand, voiceInputLevel, voiceInterrupt, voiceLevelMonitor, voiceRequestSnapshot, voiceRequestTurns, voiceSnapshotChanged, voiceSpeechCommand, voiceTurnsChanged } from '../services/speech/bus'
 import { SileroVad } from '../workers/vad/silero-vad'
 import { useLlmStreamingControlStore } from './ai/chat-llm/streaming-control'
 import { useAudioContext, useSpeakingStore } from './audio'
@@ -105,14 +109,18 @@ export const useVoiceStore = defineStore('voice', () => {
   const composerInputs = new Map<string, string | undefined>()
   let presentedInput: { requestId: string, attempt: SpeechInputAttempt } | undefined
 
-  const inputTracer = createVoiceInputTracer()
+  const inputTracer = createVoiceInputTracer({
+    speechThreshold: DEFAULT_SPEECH_THRESHOLD,
+    speakerLabel: speakerId => voiceprints.records.find(record => record.id === speakerId)?.label,
+  })
   const { controller, state, snapshot: transcript, error } = useVoiceController({
-    transcriber: () => hearing.createTranscriber(),
+    // The recognition span belongs to its input, which can still finalize after the next input began.
+    transcriber: ({ inputId, sessionId }) => hearing.createTranscriber(undefined, { ids: { [VoiceIdKeys.Input]: inputId, [VoiceIdKeys.Conversation]: sessionId } }),
     speech: (turn) => {
       if (!output)
         throw new Error('Voice output host is not connected')
 
-      const trace = traceSpeechOutput(turn, chat.openTurnSpan(turn), output(turn), async audio => audioContext.audioContext.decodeAudioData(await audio.arrayBuffer()))
+      const trace = traceSpeechOutput(turn, LOCAL_AGENT_ACTOR, output(turn), async audio => audioContext.audioContext.decodeAudioData(await audio.arrayBuffer()))
       speechTraces.set(turnKey(turn), trace)
       return trace.output
     },
@@ -122,9 +130,6 @@ export const useVoiceStore = defineStore('voice', () => {
 
       // The composer owns this text as its own draft. No voice draft or message is created.
       composerInputs.set(submission.submissionId, submission.text)
-      // The composer sends dictated text later. Empty text gives the composer nothing to send.
-      if (submission.text.trim())
-        inputTracer.markComposer(submission.submissionId, submission.sessionId)
       return { status: 'drafted', draftId: submission.submissionId }
     },
     recordInterruption: async (event) => {
@@ -137,6 +142,11 @@ export const useVoiceStore = defineStore('voice', () => {
   const { rephrase } = useVoiceRephrase()
   controller.use(
     createVoiceRephrasePlugin({ enabled: () => hearing.rephraseEnabled, rephrase, timeoutMs: VOICE_REPHRASE_TIMEOUT_MS }),
+    { onError: event => report(event.error) },
+  )
+  // Motion that follows the voice, for example the MAGIC speaking profile, reads this level in every window.
+  controller.use(
+    createSpeechOutputLevelPlugin({ onLevel: level => getSpeechBusContext().emit(speechOutputLevel, { level }) }),
     { onError: event => report(event.error) },
   )
   const { judge } = useVoiceEndJudge()
@@ -321,7 +331,7 @@ export const useVoiceStore = defineStore('voice', () => {
 
         const current = new AbortController()
         observation = current
-        observeInputLevel(input, current.signal, level => getSpeechBusContext().emit(voiceInputLevel, { level }))
+        observeLevel(input, current.signal, level => getSpeechBusContext().emit(voiceInputLevel, { level }))
       },
       { immediate: true },
     )
@@ -350,12 +360,36 @@ export const useVoiceStore = defineStore('voice', () => {
     }
   }
 
-  /** The mounted scene supplies its browser output. Detachment stops only this host's responses. */
-  function connectOutput(factory: (turn: TurnRef) => SpeechOutput) {
+  let speechNodeCount = 0
+
+  /**
+   * Connects a Web Audio node, for example a lip sync worklet, to the played speech until the returned function runs.
+   *
+   * The connection is an output plugin, so it follows a replaced playback and survives until its owner leaves.
+   */
+  function connectSpeechNode(node: AudioNode): () => void {
+    speechNodeCount += 1
+    const handle = controller.use({
+      name: `speech-node:${speechNodeCount}`,
+      setup(scope) {
+        scope.output.connect?.(node)
+        return undefined
+      },
+    }, { onError: event => report(event.error) })
+    return () => void handle.dispose()
+  }
+
+  /**
+   * The mounted scene supplies its browser output. Detachment stops only this host's responses.
+   *
+   * `playback` is the playback that the outputs of `factory` use. Output plugins observe it and connect nodes to it.
+   */
+  function connectOutput(factory: (turn: TurnRef) => SpeechOutput, playback?: AudioPlayback<AudioNode>) {
     if (output)
       throw new Error('Voice output host is already connected')
 
     output = factory
+    controller.replacePlayback(playback)
     const context = getSpeechBusContext()
     const producers = new Map<string, SpeechStream>()
     const opened = new Set<string>()
@@ -525,6 +559,7 @@ export const useVoiceStore = defineStore('voice', () => {
     return () => {
       stops.forEach(stop => stop())
       output = undefined
+      controller.replacePlayback(undefined)
       for (const entry of responses.values())
         entry.response.cancel('Voice output host detached')
       responses.clear()
@@ -550,7 +585,7 @@ export const useVoiceStore = defineStore('voice', () => {
     // Speaker recognition only measures. It reads the VAD results, so it counts only the speech of each input.
     const speakerEvidence = createSpeakerEvidencePlugin({
       enabled: () => hearing.speakerRecognitionEnabled && speakerTracker.preparation === 'ready',
-      compare: compareOwnerVoice,
+      compare: compareVoiceprints,
       input: () => controller.activeInput,
       update: (update) => {
         const result = controller.updateSpeakerEvidence(update.inputId, { range: update.range, value: update.value })
@@ -558,7 +593,13 @@ export const useVoiceStore = defineStore('voice', () => {
       },
     })
     const plugin = createVoiceActivityPlugin({
-      detect: (window, signal) => model.score(window, signal),
+      // The input tracer records the same threshold, so the trace draws the score that begins speech.
+      threshold: DEFAULT_SPEECH_THRESHOLD,
+      detect: async (window, signal) => {
+        const probability = await model.score(window, signal)
+        inputTracer.window(window.channels, probability)
+        return probability
+      },
       onActivity: (activity) => {
         inputTracer.activity(activity)
         speakerEvidence.noteActivity(activity)
@@ -590,7 +631,7 @@ export const useVoiceStore = defineStore('voice', () => {
       controller.use({ ...speakerEvidence, setup(scope) {
         speakerEvidence.setup(scope)
         // The tracker Worker holds the voiceprint model, so it runs only while the host listens with speaker recognition on.
-        const stopTracker = watch(() => hearing.speakerRecognitionEnabled && !!voiceprints.voiceprint, (active) => {
+        const stopTracker = watch(() => hearing.speakerRecognitionEnabled && voiceprints.matching.length > 0, (active) => {
           if (active)
             void speakerTracker.acquire().catch(report)
           else
@@ -606,18 +647,18 @@ export const useVoiceStore = defineStore('voice', () => {
   }
 
   /**
-   * Compares one window with the owner's voiceprint for speaker recognition.
+   * Compares one window with the enabled voiceprints for speaker recognition.
    * A failed comparison reports the error and releases the tracker, so a broken Worker does not fail every window.
-   * The window then has no score. Turning speaker recognition on again, or a new voiceprint, loads the tracker again.
+   * The window then has no score. Turning speaker recognition off and on, or listening again, loads the tracker again.
    */
-  async function compareOwnerVoice(window: AudioWindow) {
+  async function compareVoiceprints(window: AudioWindow): Promise<readonly SpeakerCandidate[]> {
     try {
-      return await speakerTracker.compareOwner(window)
+      return await speakerTracker.compare(window)
     }
     catch (cause) {
       report(cause)
       speakerTracker.release()
-      return Number.NaN
+      return NO_SPEAKER_CANDIDATES
     }
   }
 
@@ -679,5 +720,5 @@ export const useVoiceStore = defineStore('voice', () => {
     void stopListening()
   })
 
-  return { controller, state, transcript, error, drafts, activeTurns, callActive, callMuted, startCall, endCall, setCallMuted, beginInput, beginManual, endInput, cancelInput, sendDraft, discardDraft, startResponse, getSpeech, finishResponse, interrupt, connectOutput, connectTools, startListening, stopListening, resolveWakeTarget }
+  return { controller, state, transcript, error, drafts, activeTurns, callActive, callMuted, startCall, endCall, setCallMuted, beginInput, beginManual, endInput, cancelInput, sendDraft, discardDraft, startResponse, getSpeech, finishResponse, interrupt, connectOutput, connectSpeechNode, connectTools, startListening, stopListening, resolveWakeTarget }
 })

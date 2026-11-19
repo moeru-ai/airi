@@ -163,6 +163,10 @@ export default defineConfig({
         id: 'providers',
         title: 'Providers',
       },
+      {
+        id: 'devtools',
+        title: 'Devtools',
+      },
     ],
   },
 })

@@ -1,13 +1,13 @@
-import type { SerializedIOSpan } from '@proj-airi/stage-shared/types/io-trace'
 import type { PiniaActionEvent } from '@proj-airi/stage-shared/types/pinia-action-event'
 import type { WakeWordPreparation } from '@proj-airi/stage-ui/libs/voice/wake-word-detector'
+import type { TraceRecord } from '@proj-airi/trace-kit'
 
 import type { AudioInputVoiceInput } from '../types'
 
 declare global {
   interface BrowserAudioInputState {
     piniaActionEvents: PiniaActionEvent[]
-    spans: SerializedIOSpan[]
+    records: TraceRecord[]
     streamingTranscriptionReady: boolean
     streamingTranscriptionUpdates: string[]
     transcriptionAudio: Array<{ base64: string, format: 'pcm' | 'wav' }>

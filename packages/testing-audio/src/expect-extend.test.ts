@@ -1,8 +1,6 @@
-import type { SerializedIOSpan } from '@proj-airi/stage-shared/types/io-trace'
+import type { AudioInputObservations, AudioInputSpan } from './types'
 
-import type { AudioInputObservations } from './types'
-
-import { IOAttributes, IOSpanNames } from '@proj-airi/stage-shared/perf/io-trace'
+import { VoiceAttributes, VoiceNames } from '@proj-airi/trace-kit/voice'
 import { describe, it } from 'vitest'
 
 import { expect, installAudioInputMatchers } from './expect-extend'
@@ -19,15 +17,15 @@ describe('audio input matchers', () => {
   })
 
   it('reports a failed speech recognition span', async () => {
-    const session = createAudioInputSession([], [recognitionSpan({ status: { code: 2, message: 'Request failed' } })])
+    const session = createAudioInputSession([], [recognitionSpan({ status: 'error', message: 'Request failed' })])
 
     await expect(expect(session).toHaveCompletedTranscription()).rejects.toThrow('ASR failed: Request failed')
   })
 
   it('ignores an aborted request and completes with the next recognition span', async () => {
     const session = createAudioInputSession([], [
-      recognitionSpan({ attributes: { [IOAttributes.ASRAbort]: true } }),
-      recognitionSpan({ attributes: { [IOAttributes.ASRText]: 'Please say hello.' } }),
+      recognitionSpan({ status: 'cancelled' }),
+      recognitionSpan({ attrs: { [VoiceAttributes.ASRText]: 'Please say hello.' } }),
     ])
 
     await expect(session).toHaveCompletedTranscription()
@@ -36,7 +34,7 @@ describe('audio input matchers', () => {
 
 function createAudioInputSession(
   transcriptions: string[],
-  spans: SerializedIOSpan[] = [],
+  spans: AudioInputSpan[] = [],
 ): AudioInputObservations {
   return {
     capturedTranscriptionAudio: async () => [],
@@ -57,19 +55,16 @@ function createAudioInputSession(
   }
 }
 
-function recognitionSpan(overrides: Partial<SerializedIOSpan>): SerializedIOSpan {
+function recognitionSpan(overrides: Partial<AudioInputSpan>): AudioInputSpan {
   return {
-    attributes: {},
-    ended: true,
-    endTimeNano: '1',
-    events: [],
-    kind: 0,
-    name: IOSpanNames.SpeechRecognition,
-    parentSpanId: '',
     spanId: 'recognition',
-    startTimeNano: '0',
-    status: { code: 0, message: '' },
-    traceId: 'trace',
+    name: VoiceNames.SpeechRecognition,
+    track: 'participants/user/asr',
+    ids: {},
+    attrs: {},
+    start: 0,
+    end: 1,
+    status: 'ok',
     ...overrides,
   }
 }

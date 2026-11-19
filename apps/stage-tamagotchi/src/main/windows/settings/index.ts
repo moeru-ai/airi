@@ -12,6 +12,7 @@ import type { WidgetsWindowManager } from '../widgets'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
+import { onWindowClosed } from '@proj-airi/electron-vueuse/main'
 import { BrowserWindow } from 'electron'
 
 import icon from '../../../../resources/icon.png?asset'
@@ -21,7 +22,7 @@ import { SETTINGS_WINDOW_WIDTH } from '../../../shared/settings-window'
 import { showWindow } from '../../libs/electron/focus'
 import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
-import { protectPrivilegedWindowNavigation, toggleWindowShow } from '../shared'
+import { customTitleBarWindowConfig, protectPrivilegedWindowNavigation, toggleWindowShow } from '../shared'
 import { setupSettingsWindowInvokes } from './rpc/index.electron'
 
 export interface SettingsWindowManager {
@@ -59,6 +60,7 @@ export function setupSettingsWindowReusableFunc(params: {
       height: 800.0,
       show: false,
       icon,
+      ...customTitleBarWindowConfig(),
       webPreferences: {
         preload: getPreloadPath(),
         sandbox: false,
@@ -95,7 +97,7 @@ export function setupSettingsWindowReusableFunc(params: {
       query: { 'synced-leader': 'false' },
     }))
 
-    window.on('closed', () => {
+    onWindowClosed(window, () => {
       if (settingsContext)
         settingsContext = undefined
     })

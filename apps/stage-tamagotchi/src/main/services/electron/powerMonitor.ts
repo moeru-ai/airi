@@ -4,6 +4,7 @@ import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { BrowserWindow } from 'electron'
 
 import { electronEvents } from '@proj-airi/electron-eventa'
+import { onWindowClosed } from '@proj-airi/electron-vueuse/main'
 import { powerMonitor } from 'electron'
 
 import { onAppBeforeQuit } from '../../libs/bootkit/lifecycle'
@@ -18,7 +19,7 @@ export function createPowerMonitorService(params: { context: ReturnType<typeof c
     }
     eventEmitter.on(event, listener)
     const offBeforeQuit = onAppBeforeQuit(remove)
-    params.window.once('closed', () => {
+    onWindowClosed(params.window, () => {
       remove()
       offBeforeQuit()
     })

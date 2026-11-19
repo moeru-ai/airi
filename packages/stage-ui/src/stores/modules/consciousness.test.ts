@@ -165,13 +165,13 @@ describe('consciousness store provider selection', () => {
     const consciousnessStore = useConsciousnessStore()
     const settingsStore = useConsciousnessSettingsStore()
 
-    const disabledProvider = await consciousnessStore.getChatProviderInstance('openai')
+    const disabledProvider = await consciousnessStore.getChatProviderInstance('openai', 'gpt-5.1')
     // The provider only sends efforts supported by the selected catalog model.
     expect(disabledProvider.generation('gpt-5.1').config).toMatchObject({ reasoning: { effort: 'none' } })
 
     await settingsStore.setReasoning(true)
 
-    const enabledProvider = await consciousnessStore.getChatProviderInstance('openai')
+    const enabledProvider = await consciousnessStore.getChatProviderInstance('openai', 'gpt-5.1')
     expect(enabledProvider.generation('gpt-5.1').config).toMatchObject({ reasoning: { effort: 'medium', summary: 'auto' } })
     expect(enabledProvider.generation('test-model').config).not.toHaveProperty('reasoning')
   })
@@ -191,7 +191,19 @@ describe('consciousness store provider selection', () => {
 
     expect(consciousnessStore.activeModelUsesProviderReasoningDefault).toBe(true)
 
-    const provider = await consciousnessStore.getChatProviderInstance('openrouter-ai')
+    const provider = await consciousnessStore.getChatProviderInstance('openrouter-ai', 'uncatalogued-model')
+    expect(provider.generation('uncatalogued-model').config).not.toHaveProperty('reasoning')
+  })
+
+  it('uses the OpenRouter default for the model of a character when the store selects another provider', async () => {
+    const providerConfigStore = useProviderConfigStore()
+    providerConfigStore.ensureProvider('openai', 'openai', { apiKey: 'sk-test' })
+    providerConfigStore.ensureProvider('openrouter-ai', 'openrouter-ai', { apiKey: 'test-key' })
+    const consciousnessStore = useConsciousnessStore()
+    consciousnessStore.activeProvider = 'openai'
+    consciousnessStore.activeModel = 'gpt-5.1'
+
+    const provider = await consciousnessStore.getChatProviderInstance('openrouter-ai', 'uncatalogued-model')
     expect(provider.generation('uncatalogued-model').config).not.toHaveProperty('reasoning')
   })
 

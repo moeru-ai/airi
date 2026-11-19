@@ -1,13 +1,14 @@
-import type { Span } from '@opentelemetry/api'
 import type { AudioWindow } from '@proj-airi/pipelines-audio'
 
 import type { WakeActivity, WakeTarget, WakeWordPreparation } from '../libs/voice/wake-word-detector'
 
-import { IOAttributes, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
+import { beginSpan, trackPath } from '@proj-airi/trace-kit'
+import { VoiceAttributes, VoiceIdKeys, VoiceNames, VoiceTracks } from '@proj-airi/trace-kit/voice'
 import { defineStore } from 'pinia'
 import { computed, shallowRef, watch } from 'vue'
 
-import { runInSpan, startSpan } from '../composables/use-io-tracer'
+import { getTraceSink, runInTraceSpan } from '../composables/use-trace'
+import { LOCAL_USER_ACTOR } from '../composables/voice-input-trace'
 import { createKwsSpotter, kwsModel, kwsSearch, kwsToneVariants } from '../libs/voice/kws-model'
 import { WakeWordDetector } from '../libs/voice/wake-word-detector'
 import { useSettingsAudioDevice } from './settings/audio-device'
@@ -35,10 +36,10 @@ export const useWakeWordDetectionStore = defineStore('wake-word-detection', () =
   const pronunciations = computed(() => wakeWords.catalog.active.filter(pronunciation => pronunciation.modelId === kwsModel.id))
   let running: { detector: WakeWordDetector, stopWatches: readonly (() => void)[] } | undefined
   /**
-   * The `Wake word` span of the newest resolved wake, until an input claims it as its trace root.
+   * The span ID of the newest resolved wake, until an input claims it as its cause.
    * A wake that starts no input, for example because that session already listens, leaves a span that nothing claims.
    */
-  let unclaimedWake: { span: Span, resolvedAt: number } | undefined
+  let unclaimedWake: { spanId: string, resolvedAt: number } | undefined
 
   function stop() {
     const current = running
@@ -63,17 +64,21 @@ export const useWakeWordDetectionStore = defineStore('wake-word-detection', () =
       createSpotter: createKwsSpotter,
       search: { score: kwsSearch.score, threshold: kwsSearch.threshold },
       variants: kwsToneVariants,
-      // The span covers the match and the session selection. The voice input that the wake starts becomes its child.
+      // The span covers the match and the session selection. The voice input that the wake starts links to it.
       resolveTarget: (characterId, signal, pronunciation) => {
-        const span = startSpan(IOSpanNames.WakeWord, undefined, {
-          [IOAttributes.Subsystem]: IOSubsystems.KWS,
-          [IOAttributes.WakeCharacterId]: characterId,
-          [IOAttributes.WakeText]: pronunciation.text,
-          [IOAttributes.WakeTokens]: pronunciation.tokens.join(' '),
+        const span = beginSpan(getTraceSink(), {
+          track: trackPath(VoiceTracks.Wake, { actor: LOCAL_USER_ACTOR }),
+          name: VoiceNames.WakeWord,
+          ids: { [VoiceIdKeys.Actor]: LOCAL_USER_ACTOR },
+          attrs: {
+            [VoiceAttributes.WakeCharacterId]: characterId,
+            [VoiceAttributes.WakeText]: pronunciation.text,
+            [VoiceAttributes.WakeTokens]: pronunciation.tokens.join(' '),
+          },
         })
-        return runInSpan(span, signal, async () => {
+        return runInTraceSpan(span, signal, async () => {
           const target = await options.resolveTarget(characterId, signal)
-          unclaimedWake = { span, resolvedAt: performance.now() }
+          unclaimedWake = { spanId: span.spanId, resolvedAt: performance.now() }
           return target
         })
       },
@@ -113,14 +118,14 @@ export const useWakeWordDetectionStore = defineStore('wake-word-detection', () =
   }
 
   /**
-   * Returns the span of the newest resolved wake, once. Call it only for an input that a wake began.
+   * Returns the span ID of the newest resolved wake, once. Call it only for an input that a wake began.
    * A wake that started no input stays unclaimed until a newer wake replaces it.
    * The second limit drops a wake that resolved long before, for example while the plugin was paused.
    */
-  function claimWakeSpan(): Span | undefined {
+  function claimWakeSpan(): string | undefined {
     const wake = unclaimedWake
     unclaimedWake = undefined
-    return wake && performance.now() - wake.resolvedAt < 1000 ? wake.span : undefined
+    return wake && performance.now() - wake.resolvedAt < 1000 ? wake.spanId : undefined
   }
 
   return { preparation, error, pronunciations, start, stop, claimWakeSpan }

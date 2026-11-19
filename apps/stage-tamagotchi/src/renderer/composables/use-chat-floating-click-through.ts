@@ -1,10 +1,13 @@
 import type { MaybeRefOrGetter } from 'vue'
 
+import { errorMessageFrom } from '@moeru/std'
 import { electron } from '@proj-airi/electron-eventa'
 import { useElectronEventaInvoke, useElectronMouse, useElectronRelativeMouse } from '@proj-airi/electron-vueuse'
 import { useEventListener, useMutationObserver } from '@vueuse/core'
 import { parse } from 'culori'
 import { nextTick, shallowRef, toValue, watch } from 'vue'
+
+import { electronAppIsWayland } from '../../shared/eventa'
 
 function paintsBackground(style: CSSStyleDeclaration) {
   if (style.backgroundImage !== 'none')
@@ -75,6 +78,9 @@ export async function dismissOverlays() {
  * paints nothing, and interactive wherever the user can see something.
  *
  * The window takes the pointer when one of these holds:
+ * - The window runs on native Wayland. The cursor signal there can stick
+ *   stale, and ignored mouse events never return to a Linux window, so a
+ *   click-through chat would lose every click (see the NOTICE below).
  * - The chat is not pinned above other windows, and no passive area is set.
  *   As on the main window, an unpinned window that passes a click through
  *   sinks behind the app the click activates (see
@@ -117,6 +123,17 @@ export function useChatFloatingClickThrough(options: {
   // position tells whether the hand moved.
   const hand = useElectronMouse()
   const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMouseEvents)
+
+  // NOTICE:
+  // On native Wayland the polled cursor position can stick stale (#2521),
+  // and Electron's setIgnoreMouseEvents `forward` flag is unsupported on
+  // Linux. A click-through chat there never gets pointer events, so the
+  // composer cannot be clicked or typed into. Keep the window interactive.
+  // Removal: Wayland cursor reporting or Linux `forward` support.
+  const clickThroughAvailable = shallowRef(false)
+  useElectronEventaInvoke(electronAppIsWayland)()
+    .then(isWayland => clickThroughAvailable.value = !isWayland)
+    .catch(error => console.warn('[chat click-through] Wayland probe failed, the window stays interactive:', errorMessageFrom(error) ?? 'unknown'))
 
   /** Screen position of the hand when the cursor last found paint; a press clears it. */
   let paintedAt: { x: number, y: number } | undefined
@@ -197,7 +214,7 @@ export function useChatFloatingClickThrough(options: {
   function hitTest(options: { removed?: boolean } = {}) {
     if (options.removed)
       paintedAt = undefined
-    const next = takesPointer()
+    const next = !clickThroughAvailable.value || takesPointer()
     if (next === appliedTakesPointer)
       return
     appliedTakesPointer = next
@@ -218,6 +235,7 @@ export function useChatFloatingClickThrough(options: {
 
   // Dialogs and menus mount straight into the body.
   useMutationObserver(document.body, () => hitTest(), { childList: true })
+  watch(clickThroughAvailable, () => hitTest())
   watch([() => toValue(options.pinned), () => toValue(options.passiveArea), pointerHeld, x, y], () => hitTest(), { immediate: true })
 
   return { hitTest }

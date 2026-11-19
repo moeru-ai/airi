@@ -96,6 +96,7 @@ export class AdaptiveInput extends EventTarget {
   private layoutValue: AdaptiveInputLayout
   private pendingWindowScrollRepair = false
   private referenceLayoutHeight: number
+  private referenceLayoutWidth: number
   private synchronousHeightBeforeWrite: string | undefined
   private synchronousHeightValue: string | undefined
 
@@ -112,6 +113,7 @@ export class AdaptiveInput extends EventTarget {
     this.viewport = options.viewport
     this.visualViewport = targetWindow.visualViewport
     this.referenceLayoutHeight = initialHeight
+    this.referenceLayoutWidth = targetWindow.document.documentElement.clientWidth
     this.layoutValue = {
       keyboardVisible: false,
       stableViewportHeight: initialHeight,
@@ -180,8 +182,11 @@ export class AdaptiveInput extends EventTarget {
     this.animationFrame = undefined
 
     const currentLayoutHeight = readLayoutHeight(this.targetWindow)
-    if (this.focusPhase === 'idle' && !this.pendingWindowScrollRepair)
+    const currentLayoutWidth = this.targetWindow.document.documentElement.clientWidth
+    // A software keyboard does not change the width. A new width means a rotation or a fold, so the saved height is old.
+    if (currentLayoutWidth !== this.referenceLayoutWidth || (this.focusPhase === 'idle' && !this.pendingWindowScrollRepair))
       this.referenceLayoutHeight = currentLayoutHeight
+    this.referenceLayoutWidth = currentLayoutWidth
 
     const stableLayoutHeight = this.referenceLayoutHeight || currentLayoutHeight
     let keyboardVisible = false

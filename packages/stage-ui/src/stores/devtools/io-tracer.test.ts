@@ -1,124 +1,128 @@
-import type { ReadableSpan } from '../../composables/use-io-tracer'
+import type { TraceFeedMessage, TraceFeedSource } from '@proj-airi/trace-kit'
 
-import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
+import { createRecordStamper } from '@proj-airi/trace-kit/testing'
 import { createPinia, setActivePinia } from 'pinia'
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { computed } from 'vue'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { setIOTraceSource, startSpan, subscribeIOSpan } from '../../composables/use-io-tracer'
+import { setTraceFeedSource } from '../../composables/use-trace'
 import { useIOTracerStore } from './io-tracer'
 
+let record = createRecordStamper({ source: 'window:a', clock: 'mono:test' })
+
+/** A feed that keeps a backlog and pushes later messages to the open subscriptions. */
+function createFakeFeed() {
+  const backlog: TraceFeedMessage[] = []
+  const listeners = new Set<(message: TraceFeedMessage) => void>()
+  const unsubscribe = vi.fn()
+  const setTracks = vi.fn()
+  const source: TraceFeedSource = {
+    traceClock: 'mono:test',
+    subscribe: async (onMessage) => {
+      for (const message of backlog)
+        onMessage(message)
+      onMessage({ kind: 'caughtUp', cursor: {}, traceClock: 'mono:test', now: 100 })
+      listeners.add(onMessage)
+      return {
+        unsubscribe: () => {
+          listeners.delete(onMessage)
+          unsubscribe()
+        },
+        setTracks,
+      }
+    },
+  }
+  return {
+    source,
+    backlog,
+    unsubscribe,
+    setTracks,
+    push: (message: TraceFeedMessage) => listeners.forEach(listener => listener(message)),
+  }
+}
+
 describe('useIOTracerStore', () => {
+  let feed: ReturnType<typeof createFakeFeed>
+  let stopFeed: () => void
+
+  beforeEach(() => {
+    record = createRecordStamper({ source: 'window:a', clock: 'mono:test' })
+    feed = createFakeFeed()
+    stopFeed = setTraceFeedSource(feed.source)
+    setActivePinia(createPinia())
+  })
+
   afterEach(() => {
-    useIOTracerStore().stopRecording()
+    useIOTracerStore().stop()
+    stopFeed()
   })
 
-  it('updates views of a turn when more spans of its trace end', () => {
-    setActivePinia(createPinia())
+  it('reads the backlog and later records into the timeline', async () => {
+    feed.backlog.push({ kind: 'record', record: record({ type: 'span.begin', ts: 10, track: 'agents/agent/llm', spanId: 's1', name: 'chat' }) })
     const store = useIOTracerStore()
-    store.startRecording()
-    // The chart receives the turn list as a prop, so it keeps one array reference and reads spans through it.
-    const turns = store.turns
-    const spanNames = computed(() => turns.map(turn => turn.spans.map(span => span.name)))
 
-    const voiceInput = startSpan(IOSpanNames.VoiceInput, undefined, { [IOAttributes.Subsystem]: IOSubsystems.VoiceInput })
-    const recognition = startSpan(IOSpanNames.SpeechRecognition, voiceInput, { [IOAttributes.Subsystem]: IOSubsystems.ASR })
-    recognition.end()
-    expect(spanNames.value).toEqual([[IOSpanNames.SpeechRecognition]])
+    await store.start()
+    feed.push({ kind: 'record', record: record({ type: 'span.end', ts: 40, track: 'agents/agent/llm', spanId: 's1', status: 'ok' }) })
 
-    voiceInput.end()
-
-    expect(spanNames.value).toEqual([[IOSpanNames.SpeechRecognition, IOSpanNames.VoiceInput]])
-    // The child ended first, but the turn starts where its parent started.
-    expect(store.turns[0]!.startTs).toBe(store.turns[0]!.spans[1]!.startTs)
+    const span = store.timelineView().spans.get('window:a/e1/s1')
+    expect(span?.start).toBe(10)
+    expect(span?.end).toBe(40)
+    expect(store.subscribed).toBe(true)
+    await vi.waitFor(() => expect(store.version).toBe(store.reader.version))
   })
 
-  it('ends a spoken turn when its playback ends, not when its LLM ends', () => {
-    setActivePinia(createPinia())
+  it('estimates the trace clock from the caughtUp marker', async () => {
     const store = useIOTracerStore()
-    store.startRecording()
+    expect(store.traceNow()).toBeUndefined()
 
-    const interaction = startSpan(IOSpanNames.InteractionTurn)
-    const llm = startSpan(IOSpanNames.LLMInference, interaction, { [IOAttributes.Subsystem]: IOSubsystems.LLM })
-    const speech = startSpan(IOSpanNames.SpeechTurn, interaction)
-    llm.end()
-    interaction.end()
-    const playback = startSpan(IOSpanNames.AudioPlayback, speech, { [IOAttributes.Subsystem]: IOSubsystems.Playback })
-    playback.end()
-    speech.end()
+    await store.start()
 
-    const turn = store.turns[0]!
-    const playbackSpan = turn.spans.find(span => span.name === IOSpanNames.AudioPlayback)!
-    expect(turn.endTs).toBeGreaterThanOrEqual(playbackSpan.endTs!)
+    expect(store.traceNow()).toBeGreaterThanOrEqual(100)
   })
 
-  it('reads the time to first token from the first token event', () => {
-    setActivePinia(createPinia())
+  it('stops reading the feed and keeps what it read', async () => {
     const store = useIOTracerStore()
-    store.startRecording()
+    await store.start()
+    feed.push({ kind: 'record', record: record({ type: 'instant', ts: 1, track: 't', name: 'kept' }) })
 
-    const llm = startSpan(IOSpanNames.LLMInference, undefined, { [IOAttributes.Subsystem]: IOSubsystems.LLM })
-    llm.addEvent(IOEvents.LLMFirstToken, { [IOAttributes.LLM_TTFT]: 408 })
-    llm.end()
+    store.stop()
+    feed.push({ kind: 'record', record: record({ type: 'instant', ts: 2, track: 't', name: 'dropped' }) })
 
-    expect(store.turns[0]!.spans[0]!.meta.ttftMs).toBe(408)
+    expect(feed.unsubscribe).toHaveBeenCalledOnce()
+    expect(store.subscribed).toBe(false)
+    expect(store.timelineView().tracks.get('t')?.instants.map(instant => instant.name)).toEqual(['kept'])
   })
 
-  it('keeps span attributes when an event of the span has an attribute with the same name', () => {
-    setActivePinia(createPinia())
+  it('clears the projections and the selection', async () => {
     const store = useIOTracerStore()
-    store.startRecording()
+    await store.start()
+    feed.push({ kind: 'record', record: record({ type: 'instant', ts: 1, track: 't', name: 'old' }) })
+    store.select({ kind: 'instant', key: 'window:a/e1/0' })
 
-    const dispatch = startSpan(IOSpanNames.StreamingControlDispatch, undefined, {
-      [IOAttributes.Subsystem]: IOSubsystems.StreamingControl,
-      [IOAttributes.StreamingControlReason]: 'unknown-token',
-    })
-    dispatch.addEvent(IOEvents.StreamingControlHandlerError, { [IOAttributes.StreamingControlReason]: 'handler failed' })
-    dispatch.end()
+    store.clear()
+    feed.push({ kind: 'record', record: record({ type: 'instant', ts: 2, track: 't', name: 'new' }) })
 
-    const span = store.turns[0]!.spans[0]!
-    expect(span.meta.reason).toBe('unknown-token')
-    expect(span.events?.[0]?.meta.reason).toBe('handler failed')
+    expect(store.selection).toBeUndefined()
+    expect(store.timelineView().tracks.get('t')?.instants.map(instant => instant.name)).toEqual(['new'])
   })
 
-  it('drops the raw spans of evicted turns', () => {
-    setActivePinia(createPinia())
+  it('reads the backlog again after a restart, without duplicates', async () => {
+    feed.backlog.push({ kind: 'record', record: record({ type: 'instant', ts: 1, track: 't', name: 'once' }) })
     const store = useIOTracerStore()
-    store.startRecording()
+    await store.start()
+    store.stop()
 
-    for (let index = 0; index < 60; index++)
-      startSpan(IOSpanNames.LLMInference, undefined, { [IOAttributes.Subsystem]: IOSubsystems.LLM }).end()
+    await store.start()
 
-    expect(store.turns).toHaveLength(50)
-    expect(store.rawSpanCount).toBe(50)
+    expect(store.timelineView().tracks.get('t')?.instants).toHaveLength(1)
+    expect(store.eventLogView().entries).toHaveLength(1)
   })
 
-  it('shows the spans that a trace source kept before recording started, once each', async () => {
-    setActivePinia(createPinia())
+  it('passes the visible tracks to the feed', async () => {
     const store = useIOTracerStore()
-    const ended: ReadableSpan[] = []
-    const stopCapture = subscribeIOSpan(span => ended.push(span))
-    startSpan(IOSpanNames.LLMInference, undefined, { [IOAttributes.Subsystem]: IOSubsystems.LLM }).end()
-    stopCapture()
-    const unsubscribe = vi.fn()
-    let onSpan: ((span: ReadableSpan) => void) | undefined
-    // The hub of the Electron main process is the real source. It is outside this package.
-    const stopSource = setIOTraceSource({
-      subscribe: async (listener) => {
-        onSpan = listener
-        return { spans: ended, unsubscribe }
-      },
-    })
+    await store.start()
 
-    store.startRecording()
-    await vi.waitFor(() => expect(store.turns).toHaveLength(1))
-    // The source can also send a span of its snapshot as a later span.
-    onSpan?.(ended[0]!)
-    store.stopRecording()
-    stopSource()
+    store.setVisibleTracks(['participants/user/input'])
 
-    expect(store.turns[0]!.spans).toHaveLength(1)
-    expect(store.recordingStartTs).toBeLessThanOrEqual(store.turns[0]!.startTs)
-    expect(unsubscribe).toHaveBeenCalledTimes(1)
+    expect(feed.setTracks).toHaveBeenCalledWith(['participants/user/input'])
   })
 })
