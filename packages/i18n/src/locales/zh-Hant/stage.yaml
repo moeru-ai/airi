@@ -1,3 +1,21 @@
+background-picker:
+  title: 選擇背景
+  add-custom: 新增自訂背景
+  custom: 自訂背景
+  preview: 預覽
+  no-preview: 暫無預覽
+  select: 請選擇背景
+  blur: 模糊
+  remove: 移除背景
+  sampling: 正在擷取顏色…
+  apply: 使用此背景
+  presets:
+    colorful-wave:
+      label: 彩色波浪
+      description: 十字網格上的動態波浪
+    transparent:
+      label: 透明背景
+      description: 透出應用程式的底層背景
 character-switcher:
   title: 切換角色
   manage: 管理角色
@@ -33,15 +51,9 @@ chat:
   voice-composer:
     audio: 語音訊息
     transcription: 聽寫
-    hold-hint: 按住以錄音。點一下可切換語音訊息與聽寫，按 Enter 可在不按住的情況下錄音。
     listening: 正在聆聽…
-    lock: 向上滑動以鎖定錄音
-    cancel-hint: 向左滑動以取消
     processing: 正在完成…
     cancel: 取消
-    send: 傳送語音訊息
-    insert: 插入文字
-    retry: 重新傳送語音訊息
     discard: 捨棄語音訊息
     failed: 語音輸入失敗
     configure-title: 設定聽覺

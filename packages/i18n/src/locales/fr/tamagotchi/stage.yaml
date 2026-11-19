@@ -97,8 +97,8 @@ about:
     channels:
       auto: Automatique
       beta: Bêta
-      nightly: Nocturne
       canary: Expérimental
+      nightly: Nocturne
     status:
       downloading: Téléchargement de la mise à jour...
       error-prefix: Erreur

@@ -53,6 +53,7 @@ export interface McpManager {
   applyAndRestart: () => Promise<ElectronMcpApplyResult>
   /** Returns the complete active-server catalog. Any discovery failure rejects with server names and reasons. */
   listTools: () => Promise<ElectronMcpToolDescriptor[]>
+  /** Dispatches the exact tool name once. A failed reply does not prove the absence of effects. */
   callTool: (payload: ElectronMcpCallToolPayload) => Promise<ElectronMcpCallToolResult>
   stopAll: () => Promise<void>
   getRuntimeStatus: () => ElectronMcpRuntimeStatus
@@ -93,20 +94,12 @@ function parseQualifiedToolName(name: string) {
   }
 }
 
-function resolveFallbackToolName(toolName: string): string | undefined {
-  const normalizedTransportPrefix = toolName
-    .replace(/^\.(?:stdio|stdo)::/, '')
-    .replace(/^(?:stdio|stdo)::/, '')
-  if (normalizedTransportPrefix !== toolName) {
-    return normalizedTransportPrefix
+function failedBeforeDispatchResult(error: unknown): ElectronMcpCallToolResult {
+  return {
+    dispatchOutcome: 'failed_before_dispatch',
+    isError: true,
+    content: [{ type: 'text', text: errorMessageFrom(error) ?? 'Unknown error.' }],
   }
-
-  const lastSeparatorIndex = toolName.lastIndexOf(toolNameSeparator)
-  if (lastSeparatorIndex <= 0 || lastSeparatorIndex === toolName.length - toolNameSeparator.length) {
-    return undefined
-  }
-
-  return toolName.slice(lastSeparatorIndex + toolNameSeparator.length)
 }
 
 async function closeSession(session: McpServerSession) {
@@ -336,44 +329,28 @@ export function createMcpManager(): McpManager {
   }
 
   const callTool = async (payload: ElectronMcpCallToolPayload): Promise<ElectronMcpCallToolResult> => {
-    const { serverName, toolName } = parseQualifiedToolName(payload.name)
-    const session = sessions.get(serverName)
-    if (!session) {
-      throw new Error(`mcp server is not running: ${serverName}`)
-    }
-
-    let result
+    let qualifiedToolName: ReturnType<typeof parseQualifiedToolName>
     try {
-      result = await session.client.callTool({
-        name: toolName,
-        arguments: payload.arguments ?? {},
-      }, undefined, {
-        timeout: mcpRequestTimeoutMsec,
-        maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
-      })
+      qualifiedToolName = parseQualifiedToolName(payload.name)
     }
     catch (error) {
-      const fallbackToolName = resolveFallbackToolName(toolName)
-      if (!fallbackToolName || fallbackToolName === toolName) {
-        throw error
-      }
-
-      log.withFields({
-        serverName,
-        requestedToolName: toolName,
-        fallbackToolName,
-      }).warn('retrying mcp tool call with normalized tool name')
-
-      result = await session.client.callTool({
-        name: fallbackToolName,
-        arguments: payload.arguments ?? {},
-      }, undefined, {
-        timeout: mcpRequestTimeoutMsec,
-        maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
-      })
+      return failedBeforeDispatchResult(error)
     }
 
-    const normalized: ElectronMcpCallToolResult = {}
+    const { serverName, toolName } = qualifiedToolName
+    const session = sessions.get(serverName)
+    if (!session)
+      return failedBeforeDispatchResult(new Error(`mcp server is not running: ${serverName}`))
+
+    const result = await session.client.callTool({
+      name: toolName,
+      arguments: payload.arguments ?? {},
+    }, undefined, {
+      timeout: mcpRequestTimeoutMsec,
+      maxTotalTimeout: mcpRequestMaxTotalTimeoutMsec,
+    })
+
+    const normalized: ElectronMcpCallToolResult = { dispatchOutcome: 'response_received' }
     if ('content' in result && Array.isArray(result.content)) {
       normalized.content = result.content as Array<Record<string, unknown>>
     }

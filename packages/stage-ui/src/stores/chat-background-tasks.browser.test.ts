@@ -9,6 +9,7 @@ import { render } from 'vitest-browser-vue'
 import { defineComponent, h } from 'vue'
 import { createI18n } from 'vue-i18n'
 
+import { recipesRepo } from '../database/repos/recipes.repo'
 import { useLLM } from './ai/chat-llm/llm'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
 import { useChatStore } from './chat'
@@ -27,14 +28,14 @@ const provider: GenerationProvider = {
  * Mounts the chat with real stores. Only the model boundary is replaced: provider resolution and the stream.
  * `reply` answers each request from its prompt, and the returned prompts list every request in order.
  */
-async function setupChat(reply: (prompt: string, options?: StreamOptions) => Promise<string>) {
+async function setupChat(reply: (prompt: string, options?: StreamOptions) => Promise<string>, contextWindow = -1) {
   // A send reads the provider and model of the session character. The card store reads them from storage when it starts.
   const modules = {
     consciousness: { provider: 'openai', model: 'test-model' },
     vision: { provider: '', model: '' },
     speech: { provider: '', model: '', voice_id: '' },
   }
-  localStorage.setItem('airi-cards', JSON.stringify([['default', { name: 'Character', version: '1.0', extensions: { airi: { agents: {}, modules } } }]]))
+  localStorage.setItem('airi-cards', JSON.stringify([['default', { name: 'Character', version: '1.0', extensions: { airi: { agents: {}, modules, contextWindow } } }]]))
   localStorage.setItem('airi-card-module-defaults', JSON.stringify(modules))
   const pinia = createPinia()
   pinias.push(pinia)
@@ -64,7 +65,16 @@ async function setupChat(reply: (prompt: string, options?: StreamOptions) => Pro
   return { pinia, chat: useChatStore(pinia), sessions, recipes: useRecipesStore(pinia), prompts }
 }
 
-afterEach(() => {
+/**
+ * Waits until the conversation holds `count` notices and no turn runs.
+ * A finished task sends its notice in the background, so a test that ends sooner leaves the send running into the next test.
+ */
+async function waitForNotices(chat: ReturnType<typeof useChatStore>, sessions: ReturnType<typeof useChatSessionStore>, sessionId: string, count: number) {
+  const notices = () => sessions.getSessionMessages(sessionId).filter(message => message.role === 'user' && message.notice).length
+  await expect.poll(() => [notices(), chat.activeTurns.length]).toEqual([count, 0])
+}
+
+afterEach(async () => {
   vi.restoreAllMocks()
   for (const pinia of pinias.splice(0)) {
     useModsServerChannelStore(pinia).dispose()
@@ -72,6 +82,7 @@ afterEach(() => {
     disposePinia(pinia)
   }
   localStorage.clear()
+  await recipesRepo.clear()
 })
 
 // ROOT CAUSE:
@@ -83,8 +94,8 @@ it('stops a running task without a result, while another task runs on', async ()
       await new Promise<void>(resolve => options?.abortSignal?.addEventListener('abort', () => resolve(), { once: true }))
     return 'done'
   })
-  recipes.add({ name: 'Watch', description: 'Watches a page.', instructions: 'Watch the page.', keywords: [], background: true, enabled: true })
-  recipes.add({ name: 'Sum', description: 'Adds numbers.', instructions: 'Add the numbers.', keywords: [], background: true, enabled: true })
+  await recipes.add({ name: 'Watch', description: 'Watches a page.', instructions: 'Watch the page.', keywords: [], background: true, enabled: true })
+  await recipes.add({ name: 'Sum', description: 'Adds numbers.', instructions: 'Add the numbers.', keywords: [], background: true, enabled: true })
   const [watch, sum] = ['Watch', 'Sum'].map(name => recipes.recipes.find(recipe => recipe.name === name)!)
   const parent = sessions.activeSessionId
 
@@ -102,14 +113,15 @@ it('stops a running task without a result, while another task runs on', async ()
   await chat.stopBackgroundTask(watching.sessionId)
 
   await expect.poll(() => sessions.sessionMetas[watching.sessionId]?.task?.status).toBe('interrupted')
+  await waitForNotices(chat, sessions, parent, 1)
   expect(prompts.some(prompt => prompt.includes('The background task \\"Watch\\"'))).toBe(false)
 })
 
 // ROOT CAUSE:
 // Each task kept its own session forever, and deleting one through deleteSession moved the character's selected conversation.
-it('keeps the sessions of only the newest finished tasks, without moving the selected conversation', async () => {
-  const { chat, sessions, recipes } = await setupChat(async () => 'checked')
-  recipes.add({ name: 'Check', description: 'Checks the weather.', instructions: 'Check the weather.', keywords: [], background: true, enabled: true })
+it.each([-1, 4])('keeps only the newest finished tasks without moving the selected conversation, with message limit %i', async (contextWindow) => {
+  const { chat, sessions, recipes } = await setupChat(async () => 'checked', contextWindow)
+  await recipes.add({ name: 'Check', description: 'Checks the weather.', instructions: 'Check the weather.', keywords: [], background: true, enabled: true })
   const check = recipes.recipes.find(recipe => recipe.name === 'Check')!
   const selected = sessions.activeSessionId
   const characterId = sessions.sessionMetas[selected]!.characterId
@@ -126,19 +138,20 @@ it('keeps the sessions of only the newest finished tasks, without moving the sel
   expect(chat.backgroundTasks).toHaveLength(2)
   expect(sessions.activeSessionId).toBe(selected)
   expect(sessions.index?.characters[characterId]?.activeSessionId).toBe(selected)
+  await waitForNotices(chat, sessions, selected, 5)
 })
 
 // A background recipe runs in its own session, so its steps never enter the conversation.
 // The result returns as a notice that history keeps, marked as a notice and never as owner speech.
 it('runs a keyword-triggered background recipe and keeps its result as a notice', async () => {
   const { chat, sessions, recipes, prompts } = await setupChat(async prompt => prompt.includes('Ask which game, then start it.') ? 'The owner wants porridge games.' : '')
-  recipes.add({ name: 'Game night', description: 'Starts a game when the owner wants to play.', instructions: 'Ask which game, then start it.', keywords: ['想玩粥了'], background: true, enabled: true })
+  await recipes.add({ name: 'Game night', description: 'Starts a game when the owner wants to play.', instructions: 'Ask which game, then start it.', keywords: ['想玩粥了'], background: true, enabled: true })
   const parent = sessions.activeSessionId
 
   await chat.send({ sessionId: parent, text: '今天想玩粥了' })
 
   const ownerMessages = () => sessions.getSessionMessages(parent).filter(message => message.role === 'user')
-  await expect.poll(() => ownerMessages().filter(message => message.role === 'user' && message.notice).length).toBe(1)
+  await waitForNotices(chat, sessions, parent, 1)
   expect(ownerMessages().filter(message => message.role === 'user' && !message.notice)).toHaveLength(1)
   expect(ownerMessages().find(message => message.role === 'user' && message.notice)).toMatchObject({ notice: { source: 'recipe:Game night' } })
   expect(prompts.find(prompt => prompt.includes('Ask which game, then start it.'))).toContain('The owner said: 今天想玩粥了')
@@ -160,11 +173,13 @@ it('runs a recipe with every registered tool', async () => {
     requiresExplicitSelection: true,
     execute: async () => 'ok',
   })
-  recipes.add({ name: 'Tidy up', description: '', instructions: 'Tidy the desktop.', background: true, keywords: [], enabled: true })
+  await recipes.add({ name: 'Tidy up', description: '', instructions: 'Tidy the desktop.', background: true, keywords: [], enabled: true })
   const tidy = recipes.recipes.find(recipe => recipe.name === 'Tidy up')!
 
-  await chat.startRecipe(tidy, { parentSessionId: sessions.activeSessionId, task: 'Tidy the desktop now.' })
+  const parent = sessions.activeSessionId
+  await chat.startRecipe(tidy, { parentSessionId: parent, task: 'Tidy the desktop now.' })
 
   const task = () => Object.values(sessions.sessionMetas).find(meta => meta.recipeId === tidy.id)
   await expect.poll(() => task() && sessions.getSessionMessages(task()!.sessionId).find(message => message.role === 'user')?.tools).toContainEqual({ name: 'computer_use' })
+  await waitForNotices(chat, sessions, parent, 1)
 })

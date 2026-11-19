@@ -17,7 +17,7 @@ import type {
   StageViewSnapshotPayload,
 } from '@proj-airi/stage-shared/godot-stage'
 import type { ServerChannelQrPayload } from '@proj-airi/stage-shared/server-channel-qr'
-import type { IOTraceHubState, IOTraceRecordingState, SerializedIOSpan } from '@proj-airi/stage-shared/types/io-trace'
+import type { IOTraceHubState, IOTraceRecordingState } from '@proj-airi/stage-shared/types/io-trace'
 import type {
   ThreeHitTestReadTracePayload,
   ThreeSceneRenderInfoTracePayload,
@@ -29,6 +29,8 @@ import type {
   VrmUpdateFrameTracePayload,
 } from '@proj-airi/stage-ui-three/trace'
 import type { ChatHistoryReplyPayload } from '@proj-airi/stage-ui/components/scenarios/chat'
+import type { McpDispatchOutcome } from '@proj-airi/stage-ui/tools/mcp'
+import type { TraceFeedMessage } from '@proj-airi/trace-kit'
 import type { Rectangle } from 'electron'
 
 import type { UpdateChannel } from '../update-channels'
@@ -140,6 +142,59 @@ export const electronFullscreenRequestClose = defineInvokeEventa<boolean>('event
 export const electronOpenInlay = defineInvokeEventa<void>('eventa:invoke:electron:windows:inlay:open')
 /** Moves a dragged inlay back to the bottom center of the primary display. The inlay calls it when it has been idle. */
 export const electronInlayReturnHome = defineInvokeEventa<void>('eventa:invoke:electron:windows:inlay:return-home')
+
+/**
+ * Where the app menu of the controls island opens, and the state of the main window that the menu shows. The menu opens
+ * on `side` of the anchor, aligned to its `align` edge, away from the screen corner that the island docks to.
+ */
+export interface ControlsMenuRequest {
+  /**
+   * The more button of the island, in CSS pixels. The island sends it in the page coordinates of the main window. The
+   * main process passes it on in the page coordinates of the menu window.
+   */
+  anchor: Rectangle
+  side: 'left' | 'right'
+  align: 'start' | 'end'
+  /** The main window started a sign-in that has not ended. The sign-in row shows it and takes no selection. */
+  signingIn: boolean
+}
+/**
+ * What the main window does after the menu closes. The menu window cannot do these itself.
+ *
+ * - `sign-in`: starts a sign-in. The main window owns sign-in, and the token callback returns to it.
+ * - `open-hearing`: opens Hearing controls, which the microphone button opens too.
+ * - `center-main-window`: moves the main window to the center of its display.
+ */
+export type ControlsMenuAction = 'sign-in' | 'open-hearing' | 'center-main-window'
+/**
+ * Opens the app menu in a window of its own, so the menu can extend past the main window. The main window sends it.
+ * Resolves when the menu closes, with the action that the user chose, or `undefined`. Rejects when the menu window
+ * closes or cannot show.
+ */
+export const electronControlsMenuOpen = defineInvokeEventa<ControlsMenuAction | undefined, ControlsMenuRequest>('eventa:invoke:electron:windows:controls-menu:open')
+/**
+ * Asks the menu page to open the menu at the anchor. The main process shows the window after the page answers, so the
+ * first frame holds the open menu.
+ */
+export const electronControlsMenuShow = defineInvokeEventa<void, ControlsMenuRequest>('eventa:invoke:electron:windows:controls-menu:show')
+/** Tells the main process that the menu page can take requests. The first request waits for it. */
+export const electronControlsMenuPageMounted = defineInvokeEventa<void>('eventa:invoke:electron:windows:controls-menu:page-mounted')
+/**
+ * Tells the main process that the menu closed and its exit animation ended, with the action that the user chose. The
+ * main process hides the window and answers the open request.
+ */
+export const electronControlsMenuClosed = defineInvokeEventa<void, ControlsMenuAction | undefined>('eventa:invoke:electron:windows:controls-menu:closed')
+/**
+ * Tells the main process that a read of Notifications in the menu reached the server or rolled back. The main process
+ * passes it to the main window.
+ */
+export const electronControlsMenuNotificationsRead = defineInvokeEventa<void>('eventa:invoke:electron:windows:controls-menu:notifications-read')
+/**
+ * Asks the main window to read the unread count of Notifications again. The menu window marks Notifications read in its
+ * own store, and the dot of the more button reads another one.
+ */
+export const electronMainWindowRefreshUnread = defineEventa('eventa:event:electron:windows:main:refresh-unread')
+
 export const electronSettingsNavigate = defineEventa<{ route: string }>('eventa:event:electron:windows:settings:navigate')
 export const electronOpenChat = defineInvokeEventa('eventa:invoke:electron:windows:chat:open')
 
@@ -147,14 +202,31 @@ export const ioTraceRecordingChanged = defineEventa<IOTraceRecordingState>('even
 export const ioTraceRecordingGet = defineInvokeEventa<IOTraceRecordingState>('eventa:invoke:electron:io-trace-recording:get')
 export const ioTraceRecordingSetEnabled = defineInvokeEventa<IOTraceRecordingState, { enabled: boolean }>('eventa:invoke:electron:io-trace-recording:set-enabled')
 
-/** Sends an ended IO span of this window to the IO trace hub in the main process. */
-export const ioTraceHubPublish = defineInvokeEventa<void, SerializedIOSpan>('eventa:invoke:electron:io-trace-hub:publish')
+/**
+ * Sends a batch of trace records of this window to the trace hub in the main process.
+ * The hub validates each record, so a bad record of one window cannot break the views of the others.
+ */
+export const ioTraceHubEmit = defineInvokeEventa<void, { records: unknown[] }>('eventa:invoke:electron:io-trace-hub:emit')
+/** Returns the value of the hub clock now. A window pairs it with its own clock in a clock snapshot. */
+export const ioTraceHubPing = defineInvokeEventa<number>('eventa:invoke:electron:io-trace-hub:ping')
 export const ioTraceHubGet = defineInvokeEventa<IOTraceHubState>('eventa:invoke:electron:io-trace-hub:get')
 export const ioTraceHubSetCollecting = defineInvokeEventa<IOTraceHubState, { collecting: boolean }>('eventa:invoke:electron:io-trace-hub:set-collecting')
-/** Returns the spans that the hub keeps, and sends each later span to this window as `ioTraceHubSpan`. */
-export const ioTraceHubSubscribe = defineInvokeEventa<SerializedIOSpan[]>('eventa:invoke:electron:io-trace-hub:subscribe')
+/**
+ * Returns the backlog of the hub feed, and sends each later feed message to this window as `ioTraceHubFeed`.
+ * `tracks` are the track paths that the view of this window shows.
+ */
+export const ioTraceHubSubscribe = defineInvokeEventa<{ messages: TraceFeedMessage[], traceClock: string }, { tracks: string[] | '*' }>('eventa:invoke:electron:io-trace-hub:subscribe')
+export const ioTraceHubSetTracks = defineInvokeEventa<void, { tracks: string[] | '*' }>('eventa:invoke:electron:io-trace-hub:set-tracks')
 export const ioTraceHubUnsubscribe = defineInvokeEventa<void>('eventa:invoke:electron:io-trace-hub:unsubscribe')
-export const ioTraceHubSpan = defineEventa<SerializedIOSpan>('eventa:event:electron:io-trace-hub:span')
+/** Later feed messages for a subscribed window, in feed order. */
+export const ioTraceHubFeed = defineEventa<TraceFeedMessage[]>('eventa:event:electron:io-trace-hub:feed')
+/** The tracks that viewers show now. Each window skips costly series of other tracks. */
+export const ioTraceHubWanted = defineEventa<{ tracks: string[] | '*' }>('eventa:event:electron:io-trace-hub:wanted')
+/**
+ * The system resumed from sleep. Monotonic clocks can stop or continue through sleep, so each window writes a clock
+ * discontinuity and measures its clock again.
+ */
+export const ioTraceHubResync = defineEventa<void>('eventa:event:electron:io-trace-hub:resync')
 
 /**
  * Where the Controls Island chat button opens the chat.
@@ -336,7 +408,10 @@ export const electronGetServerChannelQrPayload = defineInvokeEventa<ServerChanne
 
 export type ElectronUpdaterChannel = UpdateChannel
 
+/** Every updater preference. A set call sends all of them, and `channel` undefined means auto. */
 export interface ElectronUpdaterPreferences {
+  /** Whether a check downloads the update that it finds. Off, the renderer starts the download. */
+  autoDownload: boolean
   channel?: ElectronUpdaterChannel
 }
 
@@ -571,6 +646,7 @@ export interface ElectronMcpCallToolResult {
   structuredContent?: Record<string, unknown>
   toolResult?: unknown
   isError?: boolean
+  dispatchOutcome?: McpDispatchOutcome
 }
 
 export interface ElectronMcpConfigText {
@@ -610,6 +686,36 @@ export const widgetsPrepareWindow = defineInvokeEventa<string | undefined, { id?
 export const widgetsIframePublish = defineInvokeEventa<void, { id: string, event: Record<string, unknown> }>('eventa:invoke:electron:windows:widgets:iframe-publish')
 
 export const electronWindowClose = defineInvokeEventa<void>('eventa:invoke:electron:window:close')
+export const electronWindowMinimize = defineInvokeEventa<void>('eventa:invoke:electron:window:minimize')
+export const electronWindowToggleMaximize = defineInvokeEventa<void>('eventa:invoke:electron:window:toggle-maximize')
+
+/**
+ * What the self-drawn title bar shows for its window. The main process owns these values.
+ */
+export interface ElectronWindowControlsState {
+  /** The system draws the window buttons, so the title bar draws none and leaves room for them. Only true on macOS. */
+  systemControls: boolean
+  /** On macOS, the traffic lights hide in fullscreen, so the title bar stops leaving room for them. */
+  fullscreen: boolean
+  /** Selects the restore or the maximize button. */
+  maximized: boolean
+  /** Hides the minimize button when false. Linux always reports true. */
+  minimizable: boolean
+  /** Hides the maximize button when false. Linux always reports true. */
+  maximizable: boolean
+  /** Hides the close button when false. */
+  closable: boolean
+}
+
+export const electronGetWindowControlsState = defineInvokeEventa<ElectronWindowControlsState>('eventa:invoke:electron:window:get-controls-state')
+/**
+ * Centers the macOS traffic lights on a title bar that is not 44px high, for example the tab bar of a workbench.
+ * Without `centerY`, the traffic lights go back to the position that the window was created with.
+ * Other platforms ignore it.
+ */
+export const electronWindowCenterSystemControls = defineInvokeEventa<void, { centerY?: number }>('eventa:invoke:electron:window:center-system-controls')
+export const electronWindowControlsStateChanged = defineEventa<ElectronWindowControlsState>('eventa:event:electron:window:controls-state-changed')
+
 export type ElectronWindowLifecycleReason
   = | 'initial'
     | 'snapshot'
@@ -649,6 +755,11 @@ export const electronAppIsWayland = defineInvokeEventa<boolean>('eventa:invoke:e
 export const electronMainPageMounted = defineInvokeEventa<void>('eventa:invoke:electron:main-window:page-mounted')
 export const electronAppIconGet = defineInvokeEventa<boolean>('eventa:invoke:electron:app-icon:get')
 export const electronAppIconSet = defineInvokeEventa<boolean, boolean>('eventa:invoke:electron:app-icon:set')
+/**
+ * The renderer sends the analytics switch to main. Main saves it and applies it to error reports from main, from the
+ * renderers, and from native crashes, also on the next start before a renderer loads.
+ */
+export const electronErrorReportingSet = defineInvokeEventa<void, boolean>('eventa:invoke:electron:error-reporting:set')
 
 export type ElectronGodotStageState = 'stopped' | 'starting' | 'running' | 'stopping' | 'error'
 

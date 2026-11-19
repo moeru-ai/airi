@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import { Alert } from '@proj-airi/ui'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
-import Alert from '../misc/alert.vue'
 import VoiceCard from './voice-card.vue'
 
 const props = withDefaults(defineProps<Props>(), {
@@ -345,13 +345,8 @@ const customVoiceName = ref('')
       </div>
 
       <!-- No search results -->
-      <Alert v-if="searchQuery && filteredVoices.length === 0" type="warning">
-        <template #title>
-          {{ searchNoResultsTitle }}
-        </template>
-        <template #content>
-          {{ searchNoResultsDescription.replace('{query}', searchQuery) }}
-        </template>
+      <Alert v-if="searchQuery && filteredVoices.length === 0" tone="warning" :title="searchNoResultsTitle">
+        {{ searchNoResultsDescription.replace('{query}', searchQuery) }}
       </Alert>
 
       <!-- Voices grid -->
@@ -377,13 +372,8 @@ const customVoiceName = ref('')
           :style="{ '--cols': props.columns }"
         >
           <!-- Not support voices warning -->
-          <Alert v-if="!searchQuery && filteredVoices.length === 0" type="warning">
-            <template #title>
-              {{ unsupportedVoiceWarningTitle }}
-            </template>
-            <template #content>
-              {{ unsupportedVoiceWarningContent }}
-            </template>
+          <Alert v-if="!searchQuery && filteredVoices.length === 0" tone="warning" :title="unsupportedVoiceWarningTitle">
+            {{ unsupportedVoiceWarningContent }}
           </Alert>
 
           <!-- Voice card with preview button -->

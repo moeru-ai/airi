@@ -1,7 +1,9 @@
+import type { DisplayModelSettingsScope } from '@proj-airi/stage-shared/composables'
 import type {} from 'pinia-plugin-synced'
 
 import type { DisplayModel } from '../display-models'
 
+import { setActiveDisplayModelForSettings } from '@proj-airi/stage-shared/composables'
 import { refManualReset, useEventListener } from '@vueuse/core'
 import { defineStore, getActivePinia, storeToRefs } from 'pinia'
 import { computed, onScopeDispose, shallowRef, watch } from 'vue'
@@ -10,6 +12,15 @@ import { DisplayModelFormat, useDisplayModelsStore } from '../display-models'
 
 export type StageModelRenderer = 'live2d' | 'vrm' | 'spine' | 'tachie' | 'mmd' | 'godot' | 'disabled' | undefined
 type BuiltInStageModelRenderer = Exclude<StageModelRenderer, 'godot'>
+
+/** The settings group that each built-in renderer reads. A renderer without settings has no entry. */
+const settingsScopeByRenderer: Partial<Record<NonNullable<BuiltInStageModelRenderer>, DisplayModelSettingsScope>> = {
+  live2d: 'live2d',
+  vrm: 'three',
+  mmd: 'mmd',
+  spine: 'spine',
+  tachie: 'tachie',
+}
 
 const useStageModelSelectionStore = defineStore('settings-stage-model-selection', () => {
   // The active Character owns the durable Avatar Model references. This store
@@ -35,6 +46,11 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   const stageModelSelectionStore = useStageModelSelectionStore()
   const { selected: stageModelSelectedState } = storeToRefs(stageModelSelectionStore)
   let stageModelUpdateSequence = 0
+  // The load that runs now. A pick writes the selection, so the selection watcher and the picker
+  // both request a load of the same model. The second request waits for the first load.
+  let activeStageModelUpdate: { modelId: string, requestId: number, promise: Promise<void> } | undefined
+  // The selection could not load. The next change of the available models tries again.
+  let stageModelLoadPending = false
   let legacyModelIdentityResetPromise: Promise<void> | undefined
   // The Three.js store loads after an await. By then another Pinia can be
   // active, or this one can be disposed, so keep the Pinia that owns this store.
@@ -42,6 +58,8 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
   let disposed = false
   onScopeDispose(() => {
     disposed = true
+    // Cancel a pending update. Its next store action would make this disposed Pinia active again.
+    stageModelUpdateSequence++
   })
   const stageModelSelected = computed<string>({
     get: () => stageModelSelectedState.value,
@@ -112,9 +130,22 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     return legacyModelIdentityResetPromise
   }
 
-  async function updateStageModel() {
-    const requestId = ++stageModelUpdateSequence
+  function updateStageModel() {
     const selectedModelId = stageModelSelectedState.value
+    if (activeStageModelUpdate?.modelId === selectedModelId)
+      return activeStageModelUpdate.promise
+
+    const requestId = ++stageModelUpdateSequence
+    const promise = loadStageModel(selectedModelId, requestId).finally(() => {
+      if (activeStageModelUpdate?.requestId === requestId)
+        activeStageModelUpdate = undefined
+    })
+    activeStageModelUpdate = { modelId: selectedModelId, requestId, promise }
+    return promise
+  }
+
+  async function loadStageModel(selectedModelId: string, requestId: number) {
+    stageModelLoadPending = false
     stageModelUnavailable.value = false
 
     const legacyModelIdentityReset = resetLegacyModelIdentity()
@@ -138,14 +169,17 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
       model = await displayModelsStore.ensureDisplayModelAvailable(selectedModelId)
     }
     catch (error) {
-      // The selection stays. A cloud model that cannot download now is retried on the next update.
+      // The selection stays. A cloud model that cannot download now is retried after the next synchronization.
       console.error('[stage-model] failed to make the selected display model available:', error)
+      if (requestId === stageModelUpdateSequence)
+        stageModelLoadPending = true
       return
     }
     if (requestId !== stageModelUpdateSequence)
       return
 
     if (!model) {
+      stageModelLoadPending = true
       replaceStageModelUrl(undefined)
       stageModelSelectedDisplayModel.value = undefined
       stageModelUnavailable.value = true
@@ -168,6 +202,12 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     }
 
     const builtInRenderer = resolveBuiltInStageModelRenderer(model)
+
+    // The renderer reads the settings of this model from its first frame. Select them before
+    // the refs publish the model.
+    const settingsScope = builtInRenderer ? settingsScopeByRenderer[builtInRenderer] : undefined
+    if (settingsScope)
+      setActiveDisplayModelForSettings(settingsScope, model.id)
 
     // Browser startup consumes the one-time legacy reset before these refs publish.
     // Direct ThreeScene routes mount from the refs and cannot start with stale identity state.
@@ -196,6 +236,12 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
 
   watch(stageModelSelectedState, (_newValue, _oldValue) => {
     void updateStageModel()
+  })
+
+  // A sign-in, a reconnection, or another device can make the selection available without changing it.
+  watch(() => displayModelsStore.availabilityRevision, () => {
+    if (stageModelLoadPending)
+      void updateStageModel()
   })
 
   async function resetState() {

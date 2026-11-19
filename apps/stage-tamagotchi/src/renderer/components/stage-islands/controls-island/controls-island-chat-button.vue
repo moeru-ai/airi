@@ -2,16 +2,13 @@
 import type { ChatButtonState } from '../../../../shared/eventa'
 
 import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import { DockButton } from '@proj-airi/ui'
 import { computed, onMounted, onScopeDispose, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
-
-import ControlButtonTooltip from './control-button-tooltip.vue'
-import ControlButton from './control-button.vue'
 
 import { electronChatButtonStateChanged, electronGetChatButtonState, electronOpenChat } from '../../../../shared/eventa'
 
 defineProps<{
-  buttonStyle: string
   iconClass: string
 }>()
 
@@ -38,24 +35,13 @@ const label = computed(() => pressed.value
 </script>
 
 <template>
-  <ControlButtonTooltip side="inward">
-    <ControlButton
-      v-track-button="{ name: 'controls_island_action', action: 'toggle_chat' }"
-      :button-style="[buttonStyle, pressed ? 'bg-primary-100! dark:bg-primary-900/60!' : ''].join(' ')"
-      :aria-label="label"
-      :aria-pressed="pressed"
-      @click="() => openChat()"
-    >
-      <div
-        i-solar:chat-line-line-duotone
-        :class="[
-          iconClass,
-          pressed ? 'text-primary-600 dark:text-primary-300' : 'text-neutral-800 dark:text-neutral-300',
-        ]"
-      />
-    </ControlButton>
-    <template #tooltip>
-      {{ label }}
-    </template>
-  </ControlButtonTooltip>
+  <!--
+    The click tracker is a DOM directive, and `DockButton` renders no element of its own. The wrapper takes no box, and
+    the click of the button bubbles to it.
+  -->
+  <span v-track-button="{ name: 'controls_island_action', action: 'toggle_chat' }" :class="['contents']">
+    <DockButton data-testid="controls-island-chat" :label="label" :pressed="pressed" @click="() => openChat()">
+      <span :class="['i-mingcute:chat-2-line', iconClass]" />
+    </DockButton>
+  </span>
 </template>

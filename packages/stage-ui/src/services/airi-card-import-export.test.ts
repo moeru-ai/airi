@@ -54,6 +54,8 @@ describe('airi card package import/export', () => {
     expect(await zip.file('models/body-model.vrm')?.async('string')).toBe('preset-vrm-model')
     expect(cardJson.data).toMatchObject({ name: 'AIRI / Test Card', creator: '', tags: [], mes_example: '' })
     expect(airi.modules).toMatchObject({ consciousness: { provider: 'openai', model: 'gpt-4o' }, speech: { provider: 'elevenlabs', model: 'eleven', voice_id: 'alloy' } })
+    expect(airi.contextWindow).toBe(42)
+    expect(airiFrom(imported).contextWindow).toBe(42)
     expect(airi.modules).not.toHaveProperty('activeBackgroundId')
     expect(airi.modules.artistry).not.toHaveProperty('workflowId')
     expect(airi.agents).toEqual({})
@@ -211,6 +213,7 @@ function createCard(displayModelId = 'preset-vrm-1'): AiriCard {
     tags: ['hidden'],
     extensions: {
       airi: {
+        contextWindow: 42,
         avatarModels: [{ id: 'selected-avatar-model', displayModelId, type: displayModelId === 'tachie-model' ? 'tachie' : 'vrm', config: {} }],
         defaultAvatarModelId: 'selected-avatar-model',
         modules: {

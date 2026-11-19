@@ -26,9 +26,10 @@ Web exposes its pinned remote URL. The renderer model asset repository installs 
 Its status, cancellation, Data settings entry, and `clear()` follow the transcription models.
 
 The plugin also exposes the CAM++ speaker embedding pack `speakerModel` from `stage-shared/src/speaker-model.ts`. Speaker tracking reads it. It is about 28 MB.
-The pack lives in `stage-shared`, because the Electron main process downloads it and main does not import `stage-ui`.
-No build bundles this pack, because speaker tracking is off by default. Web and Pocket install it in OPFS. Desktop downloads it in the main process to the user data directory.
-The download starts when a feature first acquires the speaker tracker. Its status, cancellation, Data settings entry, and `clear()` follow the transcription models.
+The pack lives in `stage-shared`. Application Vite configs and `stage-ui` import it, so the module has no runtime imports.
+Electron bundles this pack in every build and reads it from the repository cache in development. The Electron main process does not download it.
+Desktop bundles it because a failed download blocked voiceprint enrollment, and 28 MB is a small part of the desktop package.
+Web and Pocket install it in OPFS. The download starts when a feature first acquires the speaker tracker. Its status, cancellation, Data settings entry, and `clear()` follow the transcription models.
 
 The UI derives its model options from the assets exposed by the host. It renders localized language names from `supportedLanguages`. It must not duplicate language lists in translation files or offer a model that the host did not expose.
 

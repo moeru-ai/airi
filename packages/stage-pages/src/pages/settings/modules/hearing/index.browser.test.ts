@@ -1,6 +1,7 @@
 import en from '@proj-airi/i18n/locales/en'
 
 import { pushToTalkTriggerKey } from '@proj-airi/stage-ui/composables/push-to-talk-trigger'
+import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { createPinia, disposePinia } from 'pinia'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render } from 'vitest-browser-vue'
@@ -49,6 +50,24 @@ async function openInputModeSelect(screen: Awaited<ReturnType<typeof renderHeari
 }
 
 describe('hearing overview', () => {
+  // https://github.com/moeru-ai/airi/issues/3153
+  // ROOT CAUSE:
+  // The overview lacked a module switch. The switch now preserves the selected provider and model.
+  it('issue #3153: switches hearing off and on without clearing its selection', async () => {
+    localStorage.setItem('settings/hearing/active-provider', 'browser-web-speech-api')
+    localStorage.setItem('settings/hearing/active-model', 'web-speech-api')
+    const screen = await renderHearing(true)
+    const hearing = useHearingStore(pinias[pinias.length - 1])
+    const toggle = screen.getByRole('switch', { name: 'Hearing', exact: true })
+    await expect.element(toggle).toBeChecked()
+    await toggle.click()
+    expect(hearing.configured).toBe(false)
+    expect(hearing.activeTranscriptionProvider).toBe('browser-web-speech-api')
+    expect(hearing.activeTranscriptionModel).toBe('web-speech-api')
+    await toggle.click()
+    expect(hearing.configured).toBe(true)
+  })
+
   it('links to the speech recognition and wake words pages', async () => {
     const screen = await renderHearing(true)
 
@@ -76,13 +95,13 @@ describe('hearing overview', () => {
 })
 
 describe('hearing input mode', () => {
-  it('lists the input modes as rows on a narrow screen and disables Push to Talk without a trigger', async () => {
+  // A narrow web screen listens only during a voice call, so the input mode and the microphone switch change nothing there.
+  it('explains on a narrow web screen that only a voice call listens', async () => {
     const screen = await renderHearing(undefined, 390)
 
-    const pushToTalk = screen.getByTestId('hearing-input-mode').getByRole('radio', { name: /Push to Talk/ })
-    await expect.element(pushToTalk).toBeVisible()
-    await expect.element(pushToTalk).toHaveAttribute('data-disabled')
-    await expect.element(screen.getByTestId('hearing-input-mode').getByRole('radio', { name: /Always on/ })).toHaveAttribute('data-state', 'checked')
+    await expect.element(screen.getByTestId('hearing-call-only')).toBeVisible()
+    expect(screen.getByTestId('hearing-input-mode').query()).toBeNull()
+    expect(screen.getByTestId('hearing-microphone-switch').query()).toBeNull()
   })
 
   // Review: https://github.com/moeru-ai/airi/pull/2729#discussion_r4237157722

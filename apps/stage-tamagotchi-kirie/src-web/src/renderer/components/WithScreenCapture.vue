@@ -2,7 +2,7 @@
 import type { SourcesOptions } from 'electron'
 
 import { useHostScreenCapture } from '@proj-airi/stage-host-context'
-import { Button, Callout } from '@proj-airi/ui'
+import { Alert, Button } from '@proj-airi/ui'
 import { useWindowFocus } from '@vueuse/core'
 import { DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
 import { onMounted, ref, toRef, watch } from 'vue'
@@ -77,9 +77,9 @@ watch(hasPermissions, (nextHasPermissions, previousHasPermissions) => {
 </script>
 
 <template>
-  <Callout v-if="!isSupported" theme="orange" label="Screen capture unavailable">
+  <Alert v-if="!isSupported" tone="warning" title="Screen capture unavailable">
     The Kirie host does not provide the Electron screen capture API.
-  </Callout>
+  </Alert>
 
   <template v-else>
     <slot

@@ -1,5 +1,5 @@
 import type { SpeechOutput, TurnRef } from '@proj-airi/core-agent'
-import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
+import type { SpeechProvider, SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type {} from 'pinia-plugin-synced'
 
 import type { AiriExtension } from '../../types/airiCard'
@@ -148,6 +148,16 @@ export const useSpeechStore = defineStore('speech', () => {
 
   // State
   const activeSpeechProvider = useLocalStorageManualReset<string>('settings/speech/active-provider', 'speech-noop', persistenceOptions)
+  const enabled = useLocalStorageManualReset('settings/speech/enabled', true, persistenceOptions)
+  // Disabling invalidates synthesis captured by an open response, including requests that have not started yet.
+  let synthesis = new AbortController()
+  watch(enabled, (value) => {
+    if (value)
+      synthesis = new AbortController()
+    else
+      synthesis.abort(new DOMException('Speech is disabled', 'AbortError'))
+  }, { immediate: true, flush: 'sync' })
+  onScopeDispose(() => synthesis.abort())
   const activeSpeechModel = useLocalStorageManualReset<string>('settings/speech/active-model', '', persistenceOptions)
   const activeSpeechVoiceId = useLocalStorageManualReset<string>('settings/speech/voice', '', persistenceOptions)
   const activeSpeechVoice = refManualReset<VoiceInfo | undefined>(undefined)
@@ -294,6 +304,58 @@ export const useSpeechStore = defineStore('speech', () => {
     stopCoordination?.()
     cancelCatalogRequests()
   })
+
+  /**
+   * The voices of the speech selections of characters, by provider and model. Speech output reads the metadata of a
+   * character voice from it, for example the language.
+   *
+   * It is apart from `availableVoices`, which holds one catalog for each provider and belongs to the selection of
+   * this store: a load for another model there discards the catalog and clears the selected voice.
+   * Each window keeps its own copy. It is not synchronized, and it does not validate a selection.
+   */
+  const characterVoices = new Map<string, VoiceInfo[]>()
+  const latestCharacterVoiceLoads = new Map<string, number>()
+  let characterVoiceLoadSequence = 0
+
+  // A reset replaces the provider sessions and settings. The voices of characters go with them.
+  watch(resetGeneration, () => {
+    characterVoices.clear()
+    latestCharacterVoiceLoads.clear()
+  }, { flush: 'sync' })
+
+  function characterVoicesKey(provider: string, model: string | undefined) {
+    return JSON.stringify([provider, model ?? ''])
+  }
+
+  /**
+   * Loads the voices of a character's speech selection, so that {@link createOutput} can read the metadata of its voice.
+   *
+   * A selection equal to the selection of this store needs no load, because `availableVoices` already has its catalog.
+   * A failed load keeps the voices of an earlier load. An expired provider session removes them.
+   */
+  async function loadVoicesForCharacter(provider: string, model?: string): Promise<void> {
+    if (!provider || provider === 'speech-noop' || disposed)
+      return
+    if (provider === activeSpeechProvider.value && (model ?? '') === activeSpeechModel.value)
+      return
+
+    const key = characterVoicesKey(provider, model)
+    const sequence = ++characterVoiceLoadSequence
+    latestCharacterVoiceLoads.set(key, sequence)
+    try {
+      const voices = await providersStore.listProviderVoices(provider, model, providersStore.getVoiceCatalogConfiguration(provider))
+      // A newer load for the same selection owns the result.
+      if (latestCharacterVoiceLoads.get(key) !== sequence)
+        return
+      if (voices === undefined)
+        characterVoices.delete(key)
+      else
+        characterVoices.set(key, voices)
+    }
+    catch (error) {
+      console.error('Failed to load the voices of a character:', errorMessageFrom(error) ?? 'Unknown error')
+    }
+  }
 
   /** Executes a caller's immutable catalog request in the synchronization leader. */
   async function loadVoiceCatalog(provider: string, model: string | undefined, configuration: VoiceCatalogConfiguration, generation = resetGeneration.value): Promise<VoiceInfo[]> {
@@ -469,6 +531,17 @@ export const useSpeechStore = defineStore('speech', () => {
     clearVoiceSelection()
   }
 
+  /** Selects a source in the leader. None disables speech, and selecting the saved source restores its model and voice. */
+  async function selectSource(provider: string) {
+    enabled.value = provider !== 'speech-noop'
+    if (!enabled.value)
+      return
+    const restoresStreamingSource = provider === OFFICIAL_SPEECH_PROVIDER_ID && activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
+    if (activeSpeechProvider.value !== provider && !restoresStreamingSource)
+      await selectProviderModel(provider, '')
+    return { provider: activeSpeechProvider.value, model: activeSpeechModel.value, voice_id: activeSpeechVoiceId.value }
+  }
+
   /** Commits an explicit selection in the leader before watchers request its catalog. An omitted voice preserves an unchanged selection. */
   async function selectProviderModel(provider: string, model: string, voiceId?: string) {
     if (disposed)
@@ -581,17 +654,19 @@ export const useSpeechStore = defineStore('speech', () => {
    * @returns ArrayBuffer containing the audio data
    */
   async function speech(
-    provider: SpeechProviderWithExtraOptions<string, any>,
+    provider: SpeechProvider | SpeechProviderWithExtraOptions<string, Record<string, unknown>>,
     model: string,
     input: string,
     voice: string,
-    providerConfig: Record<string, any> = {},
+    providerConfig: Record<string, unknown> = {},
     analytics: SpeechAnalytics = {
       trigger: 'manual',
       source: 'manual_preview',
       voice_type: resolveVoiceType(voice),
     },
   ): Promise<ArrayBuffer> {
+    const signal = synthesis.signal
+    signal.throwIfAborted()
     const requestProviderConfig = activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID
       || activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
       ? withAiriTtsAnalytics(providerConfig, analytics)
@@ -600,16 +675,27 @@ export const useSpeechStore = defineStore('speech', () => {
       ...provider.speech(model, requestProviderConfig),
       input,
       voice,
+      abortSignal: signal,
     })
 
+    signal.throwIfAborted()
     return response
   }
 
   /** Captures one response's provider, voice, model, and settings before any asynchronous work. */
   function createOutput(turn: TurnRef, selection: AiriExtension['modules']['speech'], output: Pick<SpeechOutput, 'playback' | 'onPlaybackStart' | 'onPlaybackEnd' | 'onSpecial'>, audioContext: AudioContext): SpeechOutput {
+    if (!enabled.value)
+      return { ...output, synthesize: async () => null }
+    const synthesisSignal = synthesis.signal
     const providerId = selection.provider
     const config = structuredClone(toRaw(providerStore.getProviderConfig(providerId) ?? {}))
-    const selectedVoice = availableVoices.value[providerId]?.find(voice => voice.id === selection.voice_id)
+    // The catalog of the store is the current one for the selection of the store. For another selection, the voices
+    // of that exact selection come first, because the catalog of the provider can belong to another model.
+    const isStoreSelection = providerId === activeSpeechProvider.value && (selection.model || '') === activeSpeechModel.value
+    const characterVoice = isStoreSelection
+      ? undefined
+      : characterVoices.get(characterVoicesKey(providerId, selection.model || undefined))?.find(voice => voice.id === selection.voice_id)
+    const selectedVoice = characterVoice ?? availableVoices.value[providerId]?.find(voice => voice.id === selection.voice_id)
     const voice = selectedVoice ? structuredClone(toRaw(selectedVoice)) : undefined
     const { model, voiceId, streaming, streamingModel } = resolveSpeechSelection(selection, config, () => providersStore.getDefaultModelForProvider(providerId))
     const useSSML = ssmlEnabled.value
@@ -633,12 +719,13 @@ export const useSpeechStore = defineStore('speech', () => {
         ttsVoiceType: voiceType,
         bufferEntireSession: resource.startsWith('seed-tts-2.0') || resource.startsWith('seed-icl-2.0'),
         extraBody: { api_resource_id: resource, audio: { sample_rate: 24000, bit_rate: 64000 } },
-      }, text, signal) }
+      }, text, AbortSignal.any([signal, synthesisSignal])) }
     }
     if (!model || !voiceId)
       throw new Error('Speech requires a model and voice')
     const provider = providersStore.getProviderInstance<SpeechProviderWithExtraOptions<string, Record<string, unknown>>>(providerId)
     return { ...output, language, synthesize: async (request, signal) => {
+      signal = AbortSignal.any([signal, synthesisSignal])
       signal.throwIfAborted()
       const client = await provider
       signal.throwIfAborted()
@@ -647,6 +734,7 @@ export const useSpeechStore = defineStore('speech', () => {
         ? { ...config, extraBody: { ...(config.extraBody as Record<string, unknown> | undefined), airi_analytics: { trigger: 'auto', source: 'chat_auto_tts', voice_type: voiceType, turn_id: turn.turnId } } }
         : config
       const audio = await generateSpeech({ ...client.speech(model, settings), input, voice: voiceId, abortSignal: signal })
+      signal.throwIfAborted()
       return new Blob([audio])
     } }
   }
@@ -727,6 +815,8 @@ export const useSpeechStore = defineStore('speech', () => {
   }
 
   const configured = computed(() => {
+    if (!enabled.value)
+      return false
     if (activeSpeechProvider.value === 'speech-noop')
       return false
 
@@ -754,6 +844,7 @@ export const useSpeechStore = defineStore('speech', () => {
 
   /** Resets shared settings in the leader and rejects catalog results started before this reset. */
   async function resetSettings() {
+    enabled.reset()
     // Invalidate request ownership before the reset publishes new settings.
     cancelCatalogRequests()
     activeSpeechProvider.reset()
@@ -774,6 +865,7 @@ export const useSpeechStore = defineStore('speech', () => {
   return {
     // State
     configured,
+    enabled,
     activeSpeechProvider,
     activeSpeechModel,
     activeSpeechVoice,
@@ -800,9 +892,11 @@ export const useSpeechStore = defineStore('speech', () => {
     // Actions
     speech,
     loadVoicesForProvider,
+    loadVoicesForCharacter,
     loadVoiceCatalog,
     invalidateVoiceCatalogs,
     selectProviderModel,
+    selectSource,
     ensureActiveSpeechVoice,
     getVoicesForProvider,
     ensureStreamingDefaultModel,
@@ -815,7 +909,7 @@ export const useSpeechStore = defineStore('speech', () => {
   }
 }, {
   synced: {
-    actions: ['loadVoiceCatalog', 'invalidateVoiceCatalogs', 'selectProviderModel', 'ensureActiveSpeechVoice', 'resetSettings'],
+    actions: ['loadVoiceCatalog', 'invalidateVoiceCatalogs', 'selectProviderModel', 'selectSource', 'ensureActiveSpeechVoice', 'resetSettings'],
     state: true,
   },
 })

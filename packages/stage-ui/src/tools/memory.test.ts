@@ -1,16 +1,16 @@
-import type { MemoryEntry } from '../stores/memory'
+import type { MemoryEntry, MemoryWrite } from '../types/memory'
 
 import { describe, expect, it, vi } from 'vitest'
 
 import { composeMemoryPrompt, createMemoryTools, FORGET_MEMORY_TOOL_NAME, READ_MEMORY_TOOL_NAME, WRITE_MEMORY_TOOL_NAME } from './memory'
 
-const entry: MemoryEntry = { name: 'nickname', description: 'What the owner likes to be called.', body: 'Yumeka.', updatedAt: 0 }
+const entry: MemoryEntry = { id: 'nickname-id', description: 'What the owner likes to be called.', body: 'Yumeka.', updatedAt: 0 }
 
 function options() {
   return {
-    read: vi.fn((name: string) => name === 'nickname' ? entry : undefined),
-    write: vi.fn((input: Pick<MemoryEntry, 'name' | 'description' | 'body'>): MemoryEntry => ({ ...input, updatedAt: 0 })),
-    forget: vi.fn(() => true),
+    read: vi.fn((id: string) => id === 'nickname-id' ? entry : undefined),
+    write: vi.fn(async (input: MemoryWrite): Promise<MemoryEntry> => ({ ...input, id: input.id ?? `${input.description}-id`, updatedAt: 0 })),
+    forget: vi.fn(async () => true),
   }
 }
 
@@ -23,11 +23,12 @@ describe('memory tools', () => {
 
     expect(tools.map(tool => tool.function.name)).toEqual([READ_MEMORY_TOOL_NAME, WRITE_MEMORY_TOOL_NAME, FORGET_MEMORY_TOOL_NAME])
     // One call reads or writes every entry that the turn needs.
-    expect(await read!.execute({ names: ['nickname', 'unknown'] }, call)).toBe('nickname (general): Yumeka.\nNo memory entry named "unknown".')
-    expect(await write!.execute({ entries: [{ name: 'nickname', description: 'Yumeka.', body: 'Yumeka.' }, { name: 'city', description: 'Tokyo.', body: 'Tokyo.' }] }, call)).toBe('Saved memory "nickname".\nSaved memory "city".')
-    expect(bound.write).toHaveBeenNthCalledWith(1, { name: 'nickname', description: 'Yumeka.', body: 'Yumeka.' })
-    expect(bound.write).toHaveBeenNthCalledWith(2, { name: 'city', description: 'Tokyo.', body: 'Tokyo.' })
-    expect(await forget!.execute({ name: 'nickname' }, call)).toBe('Forgot memory "nickname".')
+    expect(await read!.execute({ ids: ['nickname-id', 'unknown'] }, call)).toBe('nickname-id (general): Yumeka.\nNo memory entry with id "unknown".')
+    // An id changes that entry. A null id adds an entry, and the store gives it an id.
+    expect(await write!.execute({ entries: [{ id: 'nickname-id', description: 'Yumeka.', body: 'Yumeka.' }, { id: null, description: 'Tokyo.', body: 'Tokyo.' }] }, call)).toBe('Saved memory "nickname-id".\nSaved memory "Tokyo.-id".')
+    expect(bound.write).toHaveBeenNthCalledWith(1, { id: 'nickname-id', description: 'Yumeka.', body: 'Yumeka.' })
+    expect(bound.write).toHaveBeenNthCalledWith(2, { id: undefined, description: 'Tokyo.', body: 'Tokyo.' })
+    expect(await forget!.execute({ id: 'nickname-id' }, call)).toBe('Forgot memory "nickname-id".')
   })
 
   // Strict function calling rejects a schema whose objects leave a property out of `required`.
@@ -43,7 +44,7 @@ describe('memory tools', () => {
   })
 
   it('asks for few, plain writes and shows the index', () => {
-    expect(composeMemoryPrompt('General:\n- nickname: d')).toContain('Memory index:\nGeneral:\n- nickname: d')
+    expect(composeMemoryPrompt('General:\n- nickname-id: d')).toContain('Memory index:\nGeneral:\n- nickname-id: d')
     expect(composeMemoryPrompt('')).toContain('An index line that already states the fact needs no read.')
     expect(composeMemoryPrompt('')).toContain('Most turns save nothing.')
     expect(composeMemoryPrompt('')).toContain('Never save what a recipe already holds')

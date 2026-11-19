@@ -56,7 +56,7 @@ The settings home searches the settings pages, the settings on them, and the run
   - A name is `t('key')` in the `label` or `title` prop of a component, a heading, a label, or a legend.
   - A key can use a string constant of the file, a static prop, or a translation helper, such as `tn('enable')`, as its prefix.
 - **Excluded content**:
-  - Buttons, notices (`Callout`, `Alert`, `ErrorContainer`), and overlay content are not settings, so they are not in the index. A button is a component whose template root is a `<button>` or another button component.
+  - Buttons, notices (`Callout`, `Alert`, `ContainerError`), and overlay content are not settings, so they are not in the index. A button is a component whose template root is a `<button>` or another button component.
   - A branch that the app build never renders, such as a desktop-only row on the web, is not in the index either.
 - **Conditional settings**:
   - When a setting shows only in some state, the scan writes its gate into `meta.searchGates`.
