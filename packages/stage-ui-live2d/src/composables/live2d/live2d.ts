@@ -1,15 +1,15 @@
-import { useLocalStorageManualReset, useVersionedLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
+import { useLocalStorageManualReset, useModelScopedLocalStorageManualReset, useVersionedLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
 
 export type Live2DMotionDriver = 'magic' | 'universal'
 
-const live2dMotionDriver = useLocalStorageManualReset<Live2DMotionDriver>('settings/live2d/motion-driver', 'universal')
-const live2dEyeTracking = useLocalStorageManualReset<boolean>('settings/live2d/eye-tracking', true)
+const live2dMotionDriver = useModelScopedLocalStorageManualReset<Live2DMotionDriver>('live2d', 'settings/live2d/motion-driver', 'universal')
+const live2dEyeTracking = useModelScopedLocalStorageManualReset<boolean>('live2d', 'settings/live2d/eye-tracking', true)
 /** Offset from model center to the eyes of the model, in percentages of full model width/height */
-const live2dModelEyeOffset = useLocalStorageManualReset('settings/live2d/model-eye-offset', { x: 0, y: 0 })
-const live2dIdleAnimationEnabled = useLocalStorageManualReset<boolean>('settings/live2d/idle-animation-enabled', true)
+const live2dModelEyeOffset = useModelScopedLocalStorageManualReset('live2d', 'settings/live2d/model-eye-offset', { x: 0, y: 0 })
+const live2dIdleAnimationEnabled = useModelScopedLocalStorageManualReset<boolean>('live2d', 'settings/live2d/idle-animation-enabled', true)
 /** Let the avatar look around while no cursor tracking source is active. */
-const live2dForceIdleEyeAnimation = useLocalStorageManualReset<boolean>('settings/live2d/idle-eye-animation-enabled', true)
+const live2dForceIdleEyeAnimation = useModelScopedLocalStorageManualReset<boolean>('live2d', 'settings/live2d/idle-eye-animation-enabled', true)
 const live2dAutoBlinkEnabled = useVersionedLocalStorageManualReset<boolean>('settings/live2d/auto-blink-enabled', true, {
   defaultVersion: '2.0.0',
   satisfiesVersionBy(beforeVersion, afterVersion) {
@@ -30,8 +30,8 @@ const live2dForceAutoBlinkEnabled = useVersionedLocalStorageManualReset<boolean>
     return false
   },
 })
-const live2dExpressionEnabled = useLocalStorageManualReset<boolean>('settings/live2d/expression-enabled', false)
-const live2dShadowEnabled = useLocalStorageManualReset<boolean>('settings/live2d/shadow-enabled', true)
+const live2dExpressionEnabled = useModelScopedLocalStorageManualReset<boolean>('live2d', 'settings/live2d/expression-enabled', false)
+const live2dShadowEnabled = useModelScopedLocalStorageManualReset<boolean>('live2d', 'settings/live2d/shadow-enabled', true)
 const live2dMaxFps = useLocalStorageManualReset<number>('settings/live2d/max-fps', 0)
 const live2dRenderScale = useLocalStorageManualReset<number>('settings/live2d/render-scale', 2)
 
