@@ -1291,7 +1291,7 @@ catalogs:
       version: 0.1.16
 
 overrides:
-  '@huggingface/transformers>onnxruntime-node': ^1.27.0
+  '@huggingface/transformers>onnxruntime-node': 1.27.0
   '@huggingface/transformers>onnxruntime-web': ^1.27.0
   array-flatten: npm:@nolyfill/array-flatten@^1.0.44
   axios: npm:feaxios@^0.0.23
@@ -14349,9 +14349,9 @@ packages:
     engines: {node: '>=0.4.0'}
     hasBin: true
 
-  adm-zip@0.6.1:
-    resolution: {integrity: sha512-Xwrja8nx9e5o2N1my4DsKCeKpdrnACyr1wtbPxBDgGzKzKyE9kRtBFA8mWldI+RVlD7CBZNWY/wQ2+ydwOR6kQ==}
-    engines: {node: '>=14.0'}
+  adm-zip@0.5.18:
+    resolution: {integrity: sha512-ufJnssQGbxzLNS1Ho9bCtX4rQKCCvoVuDLHoJyc3F9dOGDB4BkWs2Ci0kv53lqocAEQ/Cbi+I2XCsNYGqVYqng==}
+    engines: {node: '>=12.0'}
 
   aes-js@3.1.2:
     resolution: {integrity: sha512-e5pEa2kBnBOgR4Y/p20pskXI74UEz7de8ZGVo58asOtvSVG5YAbJeELPZxOmt+Bnz3rX753YKhfIn4X4l1PPRQ==}
@@ -18634,11 +18634,8 @@ packages:
   onnxruntime-common@1.27.0:
     resolution: {integrity: sha512-3KxL5wIVqa8Ex08jxSzncm9CMgw8CjOFyOQ7SxvG9o0cVLlhTNKXyIQuTbtX4tGPJEf73OER2xrjt4HJSBL4ow==}
 
-  onnxruntime-common@1.31.1:
-    resolution: {integrity: sha512-F+nnYNiQtmNJ95V6R/isBJqiVpdANCrsMEg1OaF+Bkbl3GAtzWLR7Ng17Ld0QtYtYJyotOHPJzOQn1Y6PLZjpg==}
-
-  onnxruntime-node@1.31.1:
-    resolution: {integrity: sha512-ijnSghbDHVWaQ2nDPmVccPlCHI8kH1Mx1aJ4a/qzRP16bBcVs4E3EqZQKZCkhWnbqN1tuQWxagimFtDpbPYYQw==}
+  onnxruntime-node@1.27.0:
+    resolution: {integrity: sha512-QEzGwrvNBgv4uPVdnbHsOGG4G6T96mdlcFI8aAKPjMU8wOPpVocPXb6k3QGkaZagVTv2G9Bnnbo6Z3JdXr1fQw==}
     os: [win32, darwin, linux]
 
   onnxruntime-web@1.27.0:
@@ -24514,11 +24511,11 @@ snapshots:
   '@huggingface/transformers@3.8.1':
     dependencies:
       '@huggingface/jinja': 0.5.9
-      onnxruntime-node: 1.31.1
+      onnxruntime-node: 1.27.0
       onnxruntime-web: 1.27.0
       sharp: 0.34.5
     optionalDependencies:
-      onnxruntime-common: 1.31.1
+      onnxruntime-common: 1.27.0
 
   '@humanfs/core@0.19.2':
     dependencies:
@@ -29632,7 +29629,7 @@ snapshots:
       '@moeru/std': 0.1.0-beta.20
       '@xsai-ext/shared-providers': 0.4.0-beta.12
       '@xsai/shared': 0.4.4
-      onnxruntime-common: 1.31.1
+      onnxruntime-common: 1.27.0
     transitivePeerDependencies:
       - electron
       - h3
@@ -29841,7 +29838,7 @@ snapshots:
 
   acorn@8.18.0: {}
 
-  adm-zip@0.6.1: {}
+  adm-zip@0.5.18: {}
 
   aes-js@3.1.2: {}
 
@@ -34703,13 +34700,11 @@ snapshots:
 
   onnxruntime-common@1.27.0: {}
 
-  onnxruntime-common@1.31.1: {}
-
-  onnxruntime-node@1.31.1:
+  onnxruntime-node@1.27.0:
     dependencies:
-      adm-zip: 0.6.1
+      adm-zip: 0.5.18
       global-agent: 4.1.7
-      onnxruntime-common: 1.31.1
+      onnxruntime-common: 1.27.0
 
   onnxruntime-web@1.27.0:
     dependencies:
