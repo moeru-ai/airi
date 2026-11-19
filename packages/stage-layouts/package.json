@@ -28,6 +28,7 @@
     "./stores/*": "./src/stores/*.ts"
   },
   "scripts": {
+    "test:run": "vitest run",
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {

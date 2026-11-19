@@ -22,16 +22,10 @@ describe('adaptive input browser mode', () => {
     viewport.remove()
   })
 
-  // https://github.com/moeru-ai/airi/issues/3502
-  // ROOT CAUSE:
-  //
-  // On Safari and Android Chrome where the software keyboard resizes the viewport,
-  // switching focus between text inputs while the keyboard was open triggered onFocusIn.
-  // onFocusIn previously overwrote referenceLayoutHeight with the shrunken layout viewport,
-  // permanently collapsing the mobile stage surface until the next blur.
-  //
-  // We fixed this by preserving the idle referenceLayoutHeight when focus changes between inputs
-  // while the keyboard is already active or closing.
+  // Report: https://github.com/moeru-ai/airi/issues/3502
+  // Root cause: Mobile keyboards resize the viewport; switching focus triggered onFocusIn,
+  // which overwrote referenceLayoutHeight with the shrunken height and collapsed the stage.
+  // Fix: Preserve referenceLayoutHeight while the keyboard is active or closing.
   it('preserves stableViewportHeight when focus switches between text entries (Issue #3502)', async () => {
     const adaptiveInput = new AdaptiveInput({ area, viewport, window })
     await new Promise(resolve => requestAnimationFrame(resolve))
