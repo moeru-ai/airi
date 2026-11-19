@@ -34,14 +34,15 @@ vi.mock('vue-router', async (importOriginal) => {
   return { ...original, useRouter: () => router }
 })
 
-vi.mock('localforage', () => ({
-  default: {
-    getItem: vi.fn(async () => undefined),
-    iterate: vi.fn(async () => undefined),
-    removeItem: vi.fn(async () => undefined),
-    setItem: vi.fn(async <T>(_: string, value: T) => value),
-  },
-}))
+// Node has no IndexedDB. An in-memory driver replaces the IndexedDB mounts.
+vi.mock('../database/storage', async (importOriginal) => {
+  const { createStorage } = await import('unstorage')
+  const { default: memoryDriver } = await import('unstorage/drivers/memory')
+  return {
+    ...await importOriginal<typeof import('../database/storage')>(),
+    storage: createStorage({ driver: memoryDriver() }),
+  }
+})
 
 function cardWithSpeech(provider: string): AiriCard {
   return {
@@ -120,13 +121,13 @@ describe('useSettingsNeedsAttention', () => {
 
   // ROOT CAUSE:
   //
-  // Edit on an item of the active character opened the module page, because that page saves to the active character.
+  // Edit on an item of the active character opened the module page, because that page saved to the active character.
   // The item names a selection of the character card, and the character editor is where the card shows and changes it.
   // The link also names the row, so the editor scrolls to it and highlights it, as a settings search result does.
   it('opens the editor of the active character at the row to change', async () => {
     const cards = useAiriCardStore()
     await cards.initialize()
-    await cards.updateActiveCardSpeech({ provider: 'removed-speech-provider', model: 'model', voice_id: 'voice' })
+    await cards.activateCard(await cards.addCard(cardWithSpeech('removed-speech-provider'), 'import'))
     await waitForProviderRegistry()
 
     const { items } = useSettingsNeedsAttention()

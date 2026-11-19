@@ -3,17 +3,19 @@ import type { Ref } from 'vue'
 import type { BackgroundProvider } from '../components/Backgrounds'
 import type { BackgroundItem } from '../stores/background'
 
-import Color from 'colorjs.io'
-
 import { withRetry } from '@moeru/std'
 import { colorFromElement, patchThemeSamplingHtml2CanvasClone } from '@proj-airi/stage-ui/libs'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useTheme } from '@proj-airi/ui'
 import { useDocumentVisibility, useIntervalFn } from '@vueuse/core'
+import { formatHex, formatHex8, parse, toGamut } from 'culori'
 import { storeToRefs } from 'pinia'
 import { nextTick, watch } from 'vue'
 
 import { BackgroundKind } from '../stores/background'
+
+/** Maps a color into sRGB with the CSS Color 4 gamut mapping, so a wide-gamut color keeps its hue. */
+const toSrgb = toGamut('rgb', 'oklch')
 
 export function themeColorFromPropertyOf(colorFromClass: string, property: string): () => Promise<string> {
   return async () => {
@@ -49,7 +51,13 @@ export function useThemeColor(colorFrom: () => string | Promise<string>) {
     if (!('window' in globalThis) || globalThis.window == null)
       return
 
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', new Color(await colorFrom()).to('srgb').toString({ format: 'hex' }))
+    const color = parse(await colorFrom())
+    if (!color)
+      return
+
+    // The meta tag takes hex. Keep the alpha channel only for a translucent color.
+    const srgb = toSrgb(color)
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', (srgb.alpha ?? 1) < 1 ? formatHex8(srgb) : formatHex(srgb))
   }
 
   return {

@@ -434,7 +434,7 @@ pages:
     delete: 削除
     delete_card: カードを削除
     delete_confirmation: このカードを削除してもよろしいですか？
-    description: AIRIキャラクターカードプリセットを使用する
+    description: AIRIキャラクターカードを管理
     description_label: 説明
     drop_here: アップロードするにはここにドラッグ
     create_card: 新しいカードを作成
@@ -714,7 +714,7 @@ pages:
       gaming: ゲーミング
       artistry: アート
     consciousness:
-      description: 性格、希望するモデルなど。
+      description: 言語モデルの選択と設定
       sections:
         section:
           provider-model-selection:
@@ -959,7 +959,7 @@ pages:
       title: 音声
     title: モジュール
     vision:
-      description: 視覚
+      description: 画像理解とスクリーンキャプチャの設定
       title: 視覚
       tool-images:
         label: ツールの画像に視覚モデルを使う
@@ -1886,7 +1886,7 @@ pages:
         playground:
           title: 文字起こし実験場
       aihubmix:
-        description: https://aihubmix.com (10% オフ)
+        description: aihubmix.com (10% オフ)
     title: プロバイダー
   connection:
     description: WebSocket サーバーの接続設定

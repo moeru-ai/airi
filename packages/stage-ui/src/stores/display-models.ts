@@ -1,6 +1,7 @@
 import type { CloudDisplayModel } from '../services/display-model-sync'
 
 import { errorMessageFrom } from '@moeru/std'
+import { removeDisplayModelSettings } from '@proj-airi/stage-shared/composables'
 import { createEventHook, until } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { defineStore, getActivePinia } from 'pinia'
@@ -83,6 +84,8 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
   const pendingDownloads = new Map<string, { promise: Promise<DisplayModelFile>, controller: AbortController }>()
   const downloadErrors = ref<Record<string, string>>({})
   const syncErrors = computed(() => ({ ...cloud.errors, ...downloadErrors.value }))
+  /** Whole percent of each running upload. A model has no entry until its bytes start to send. */
+  const uploadProgress = computed(() => cloud.uploadProgress)
   // Reports IDs that no longer exist on this device or in the account. Removing only the
   // local copy of a model that the account keeps does not report it, because the model can
   // download again. The card store removes the references to reported IDs.
@@ -293,8 +296,11 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
   async function removeDisplayModel(id: string) {
     const record = await displayModelsRepo.get(id)
     await removeLocalCopy(id)
-    if (!isKeptByAccount(record ?? { id }))
+    if (!isKeptByAccount(record ?? { id })) {
+      // A model that stays in the account can come back to this device, so its settings stay.
+      removeDisplayModelSettings(id)
       await displayModelsDeleted.trigger([id])
+    }
   }
 
   async function resetDisplayModels() {
@@ -306,6 +312,8 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
 
     displayModels.value = [...displayModelsPresets].sort((a, b) => b.importedAt - a.importedAt)
     const deleted = userModels.filter(model => !isKeptByAccount(model)).map(model => model.id)
+    for (const id of deleted)
+      removeDisplayModelSettings(id)
     if (deleted.length > 0)
       await displayModelsDeleted.trigger(deleted)
   }
@@ -495,6 +503,7 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     cloudOnlyModels,
     syncStatuses,
     syncErrors,
+    uploadProgress,
 
     initialize,
     loadDisplayModelsFromIndexedDB,

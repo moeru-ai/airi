@@ -59,7 +59,7 @@ function forwardableCookieHeader(...headerSources: Headers[]): string {
 }
 
 /** Builds a fake Steam OpenID `id_res` callback query, as if Steam redirected the browser here. */
-function buildCallbackQuery(state: string, steamId = STEAM_ID): string {
+function buildCallbackQuery(state: string, steamId = STEAM_ID, overrides: Record<string, string> = {}): string {
   const params = new URLSearchParams({
     state,
     'openid.mode': 'id_res',
@@ -67,11 +67,12 @@ function buildCallbackQuery(state: string, steamId = STEAM_ID): string {
     'openid.op_endpoint': 'https://steamcommunity.com/openid/login',
     'openid.claimed_id': `https://steamcommunity.com/openid/id/${steamId}`,
     'openid.identity': `https://steamcommunity.com/openid/id/${steamId}`,
-    'openid.return_to': 'http://localhost/api/auth/steam/callback',
+    'openid.return_to': `http://localhost/api/auth/steam/callback?state=${encodeURIComponent(state)}`,
     'openid.response_nonce': '2026-07-31T00:00:00Zxxxxx',
     'openid.assoc_handle': 'test-handle',
     'openid.signed': 'signed,op_endpoint,claimed_id,identity,return_to,response_nonce,assoc_handle',
     'openid.sig': 'test-signature',
+    ...overrides,
   })
   return params.toString()
 }
@@ -212,6 +213,79 @@ describe('steam auth plugin', () => {
 
     expect(callbackResponse.status).toBe(302)
     expect(callbackResponse.headers.get('location')).toContain('error=steam_openid_verification_failed')
+  })
+
+  it('rejects an assertion whose signed return_to points to another site', async () => {
+    mockSteamVerification(true)
+    const context = await auth.$context
+    const steamId = '76561198066666666'
+
+    const { response: startResponse, headers: startHeaders } = await auth.api.signInSteam({
+      body: { callbackURL: 'http://localhost/ui/profile' },
+      returnHeaders: true,
+    })
+    const returnToState = new URL(new URL(startResponse.url).searchParams.get('openid.return_to')!).searchParams.get('state')!
+
+    const callbackResponse = await auth.handler(new Request(
+      `http://localhost/api/auth/steam/callback?${buildCallbackQuery(returnToState, steamId, {
+        'openid.return_to': 'https://example.com/steam/callback',
+      })}`,
+      { headers: { cookie: forwardableCookieHeader(startHeaders) } },
+    ))
+
+    expect(callbackResponse.status).toBe(302)
+    expect(callbackResponse.headers.get('location')).toContain('error=steam_openid_return_to_mismatch')
+    expect(callbackResponse.headers.getSetCookie().some(cookie => cookie.startsWith('better-auth.session_token='))).toBe(false)
+    expect(ofetchMock).not.toHaveBeenCalled()
+    expect(await context.internalAdapter.findAccountByProviderId(steamId, 'steam')).toBeNull()
+  })
+
+  it('rejects an assertion whose signed return_to carries a different state', async () => {
+    mockSteamVerification(true)
+    const context = await auth.$context
+    const steamId = '76561198077777777'
+
+    const { response: startResponse, headers: startHeaders } = await auth.api.signInSteam({
+      body: { callbackURL: 'http://localhost/ui/profile' },
+      returnHeaders: true,
+    })
+    const returnToState = new URL(new URL(startResponse.url).searchParams.get('openid.return_to')!).searchParams.get('state')!
+
+    const callbackResponse = await auth.handler(new Request(
+      `http://localhost/api/auth/steam/callback?${buildCallbackQuery(returnToState, steamId, {
+        'openid.return_to': 'http://localhost/api/auth/steam/callback?state=other-state',
+      })}`,
+      { headers: { cookie: forwardableCookieHeader(startHeaders) } },
+    ))
+
+    expect(callbackResponse.status).toBe(302)
+    expect(callbackResponse.headers.get('location')).toContain('error=steam_openid_return_to_mismatch')
+    expect(ofetchMock).not.toHaveBeenCalled()
+    expect(await context.internalAdapter.findAccountByProviderId(steamId, 'steam')).toBeNull()
+  })
+
+  it('rejects an assertion whose signed list does not cover return_to', async () => {
+    mockSteamVerification(true)
+    const context = await auth.$context
+    const steamId = '76561198010101010'
+
+    const { response: startResponse, headers: startHeaders } = await auth.api.signInSteam({
+      body: { callbackURL: 'http://localhost/ui/profile' },
+      returnHeaders: true,
+    })
+    const returnToState = new URL(new URL(startResponse.url).searchParams.get('openid.return_to')!).searchParams.get('state')!
+
+    const callbackResponse = await auth.handler(new Request(
+      `http://localhost/api/auth/steam/callback?${buildCallbackQuery(returnToState, steamId, {
+        'openid.signed': 'signed,op_endpoint,claimed_id,identity,response_nonce,assoc_handle',
+      })}`,
+      { headers: { cookie: forwardableCookieHeader(startHeaders) } },
+    ))
+
+    expect(callbackResponse.status).toBe(302)
+    expect(callbackResponse.headers.get('location')).toContain('error=steam_openid_assertion_invalid')
+    expect(ofetchMock).not.toHaveBeenCalled()
+    expect(await context.internalAdapter.findAccountByProviderId(steamId, 'steam')).toBeNull()
   })
 
   it('sets a 10-second timeout for Steam callback verification', async () => {

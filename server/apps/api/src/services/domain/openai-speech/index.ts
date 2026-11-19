@@ -8,13 +8,16 @@ import type { VoicePackService } from '../voice-packs'
 import { useLogger } from '@guiiai/logg'
 import { context, SpanStatusCode, trace } from '@opentelemetry/api'
 import { ApiError, createBadRequestError, createPaymentRequiredError } from '@proj-airi/http-error-shared'
+import {
+  ATTR_GEN_AI_PROVIDER_NAME,
+  ATTR_GEN_AI_REQUEST_MODEL,
+} from '@proj-airi/trace-kit/semconv'
 import { check, pipe, safeParse, string, transform } from 'valibot'
 
 import { nanoid } from '../../../utils/id'
 import {
   AIRI_ATTR_BILLING_FLUX_CONSUMED,
   AIRI_ATTR_GEN_AI_OPERATION_KIND,
-  GEN_AI_ATTR_REQUEST_MODEL,
 } from '../../../utils/observability'
 
 const tracer = trace.getTracer('v1-completions')
@@ -169,7 +172,7 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
 
     const span = tracer.startSpan('llm.gateway.tts', {
       attributes: {
-        [GEN_AI_ATTR_REQUEST_MODEL]: requestModel,
+        [ATTR_GEN_AI_REQUEST_MODEL]: requestModel,
         [AIRI_ATTR_GEN_AI_OPERATION_KIND]: 'text_to_speech',
       },
     })
@@ -260,12 +263,11 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
     fluxConsumed: number
   }): void {
     const attrs = {
-      [GEN_AI_ATTR_REQUEST_MODEL]: input.model,
+      [ATTR_GEN_AI_REQUEST_MODEL]: input.model,
       [AIRI_ATTR_GEN_AI_OPERATION_KIND]: 'tts',
+      [ATTR_GEN_AI_PROVIDER_NAME]: input.provider,
       'http.response.status_code': input.status,
-      'provider': input.provider,
     }
-    deps.genAi?.operationCount.add(1, attrs)
     deps.genAi?.operationDuration.record(input.durationMs / 1000, attrs)
     deps.genAi?.fluxConsumed.add(input.fluxConsumed, attrs)
   }
