@@ -39,6 +39,13 @@ export type GenerationCapabilities = {
   }
 }[GenerationRequest['protocol']]
 
+/**
+ * Image reads that a vision provider answers at once when its definition
+ * declares no limit. Cloud providers answer several reads in parallel, and four
+ * keeps a message with several images fast without flooding the provider.
+ */
+export const DEFAULT_CONCURRENT_VISION_READS = 4
+
 /** Narrows instances that already expose AIRI's protocol-neutral inference capability. */
 export function isGenerationProvider(provider: ProviderInstance): provider is GenerationProvider {
   return 'generation' in provider && typeof provider.generation === 'function'
@@ -53,6 +60,11 @@ export function getGenerationProvider(provider: ProviderInstance): GenerationPro
     return provider
   if ('chat' in provider && typeof provider.chat === 'function')
     return { generation: (model, options) => ({ protocol: 'chat-completions', config: provider.chat(model, options) }) }
+}
+
+/** Applies one reasoning choice to every request of a provider. Undefined options keep the provider default. */
+export function withReasoning(provider: GenerationProvider, options: ChatRequestOptions | undefined): GenerationProvider {
+  return { generation: model => provider.generation(model, options) }
 }
 
 /** Translates a provider label or description for the active interface locale. */
@@ -72,9 +84,19 @@ export type ProviderInstance
     | SpeechProvider
     | SpeechProviderWithExtraOptions
     | TranscriptionProvider
-    | TranscriptionProviderWithExtraOptions
+    | TranscriptionProviderWithExtraOptions<string, Record<string, unknown>>
     | ModelProvider
     | ModelProviderWithExtraOptions
+
+/** A complete transcript snapshot that replaces earlier volatile text. */
+export interface StreamTranscriptionSnapshot {
+  durationMilliseconds: number
+  isFinal: boolean
+  locale: string
+  startMilliseconds: number
+  text: string
+  type: 'transcript.text.snapshot'
+}
 
 /** Validation lifecycle for one serializable provider configuration. */
 export type ProviderValidationStatus = 'unconfigured' | 'validating' | 'configured' | 'invalid' | 'bypassed'
@@ -210,11 +232,15 @@ export type ModelMetadata = Pick<AIChatModelCard, 'abilities' | 'maxOutput' | 'p
 
 export interface ModelInfo {
   metadata?: ModelMetadata
+  /** Provider-reported reasoning constraints for this model, when available. */
+  reasoning?: { mandatory?: boolean }
   id: string
   name: string
   provider: string
   description?: string
   capabilities?: string[]
+  /** Input media declared by the provider model catalog. Missing means unknown. */
+  inputModalities?: string[]
   contextLength?: number
   deprecated?: boolean
 }
@@ -314,6 +340,15 @@ export interface ProviderDefinition<TConfig = Record<string, unknown>, TId exten
       generation?: GenerationCapabilities
       reasoning?: ChatReasoningCapability
     }
+    vision?: {
+      /**
+       * How many image reads the provider answers at once. Stage queues the
+       * other reads of each window, so a queued read does not spend its timeout.
+       *
+       * @default {@link DEFAULT_CONCURRENT_VISION_READS}
+       */
+      concurrentReads: number
+    }
     transcription?: {
       protocol: 'websocket' | 'http' | 'native'
       generateOutput: boolean
@@ -339,6 +374,12 @@ export interface ProviderDefinition<TConfig = Record<string, unknown>, TId exten
      */
     speech?: {
       transport: 'rest' | 'bidirectional-ws'
+      /**
+       * Whether the voice catalogue differs for each model, as on the AIRI server.
+       * Then the catalogue of one model is not the catalogue of the provider.
+       * A caller that needs every voice, such as the settings search, asks `listVoices` once for each model.
+       */
+      voicesByModel?: boolean
     }
   }
   /**

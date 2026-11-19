@@ -1,28 +1,42 @@
 <script setup lang="ts">
-import type { VoiceInputBinding } from '@proj-airi/stage-ui/libs/audio/voice-input-binding'
-
 import Header from '@proj-airi/stage-layouts/components/Layouts/Header.vue'
 import InteractiveArea from '@proj-airi/stage-layouts/components/Layouts/InteractiveArea.vue'
 import MobileInteractiveArea from '@proj-airi/stage-layouts/components/Layouts/MobileInteractiveArea.vue'
-import workletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 
 import { BackgroundProvider } from '@proj-airi/stage-layouts/components/Backgrounds'
 import { useBackgroundThemeColor } from '@proj-airi/stage-layouts/composables/theme-color'
 import { useBackgroundStore } from '@proj-airi/stage-layouts/stores/background'
 import { HoloCoupon } from '@proj-airi/stage-ui/components'
 import { ViewControlSlider, WidgetStage } from '@proj-airi/stage-ui/components/scenes'
-import { useAudioRecorder } from '@proj-airi/stage-ui/composables/audio/audio-recorder'
-import { createVoiceInputBinding } from '@proj-airi/stage-ui/libs/audio/voice-input-binding'
-import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
-import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
-import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
-import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
+import { useVoiceHoldKey } from '@proj-airi/stage-ui/composables/voice-hold'
+import { useVoiceListening, useVoicePushToTalk } from '@proj-airi/stage-ui/composables/voice-input-mode'
+import { useSettings } from '@proj-airi/stage-ui/stores/settings'
+import { useStartupResourcesStore } from '@proj-airi/stage-ui/stores/startup-resources'
 import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
+import { computed, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
+import { toast } from 'vue-sonner'
 
 const paused = ref(false)
+const modelRenderState = ref<'pending' | 'loading' | 'mounted'>('pending')
+const modelRenderError = ref<Error>()
+const startup = useStartupResourcesStore()
+const { t } = useI18n()
+
+watch([modelRenderState, modelRenderError, () => startup.resources.find(resource => resource.id === 'model')?.status], ([state, error, status]) => {
+  if (status !== 'loading')
+    return
+  if (error)
+    startup.fail('model', error)
+  else if (state === 'mounted')
+    startup.complete('model')
+})
+
+function markModelFailed(error: Error) {
+  modelRenderError.value = error
+}
 
 function handleSettingsOpen(open: boolean) {
   paused.value = open
@@ -54,142 +68,26 @@ const { stageModelRenderer } = storeToRefs(useSettings())
 const { syncBackgroundTheme } = useBackgroundThemeColor({ backgroundSurface, selectedOption, sampledColor })
 onMounted(() => syncBackgroundTheme())
 
-// Audio + transcription pipeline (mirrors stage-tamagotchi)
-const settingsAudioDeviceStore = useSettingsAudioDevice()
-const { stream, enabled } = storeToRefs(settingsAudioDeviceStore)
-const { discardRecord, startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
-const hearingPipeline = useHearingSpeechInputPipeline()
-const { releaseStreamingTranscriptionConsumer, transcribeForMediaStream, transcribeForRecording } = hearingPipeline
-const { supportsStreamInput } = storeToRefs(hearingPipeline)
-const consciousnessStore = useConsciousnessStore()
-const { activeProvider: activeChatProvider, activeModel: activeChatModel, activeTemperature, activeTopP } = storeToRefs(consciousnessStore)
-const chatStore = useChatStore()
-
-/** Identifies this page in the shared streaming transcription session. */
-const transcriptionConsumerId = 'stage-web:voice-input'
-
-const {
-  init: initVAD,
-  dispose: disposeVAD,
-  start: startVAD,
-  loaded: vadLoaded,
-  inferenceError: vadError,
-} = useVAD(workletUrl, {
-  threshold: ref(0.6),
-  onSpeechStart: () => handleSpeechStart(),
-  onSpeechEnd: () => handleSpeechEnd(),
-  onSpeechCancel: () => handleSpeechCancel(),
-})
-
-let stopOnStopRecord: (() => void) | undefined
-let currentBinding: VoiceInputBinding | undefined
-
-async function sendVoiceInputTextToChat(text: string | undefined) {
-  if (!text?.trim())
-    return
-
-  try {
-    const providerId = activeChatProvider.value
-    const model = activeChatModel.value
-    if (!providerId || !model)
-      return
-
-    const provider = await consciousnessStore.getChatProviderInstance(providerId)
-
-    await chatStore.ingest(text, {
-      model,
-      chatProvider: provider,
-      temperature: activeTemperature.value,
-      topP: activeTopP.value,
-    })
-  }
-  catch (error) {
-    console.error('Failed to send chat from voice:', error)
-  }
-}
-
-async function startAudioInteraction(binding: VoiceInputBinding) {
-  currentBinding = binding
-  if (binding.mode === 'stream') {
-    await transcribeForMediaStream(binding.stream, {
-      consumerId: transcriptionConsumerId,
-      onSentenceEnd: (text) => {
-        if (currentBinding === binding)
-          void sendVoiceInputTextToChat(text)
-      },
-    })
-    if (hearingPipeline.error)
-      throw new Error(hearingPipeline.error)
-    return
-  }
-
-  await initVAD()
-  if (!vadLoaded.value)
-    throw new Error(vadError.value || 'Failed to initialize voice activity detection.')
-  if (currentBinding !== binding)
-    return
-  await startVAD(binding.stream)
-
-  stopOnStopRecord = onStopRecord(async (recording) => {
-    const text = await transcribeForRecording(recording)
-    if (currentBinding === binding)
-      await sendVoiceInputTextToChat(text)
-  })
-}
-
-async function handleSpeechStart() {
-  if (currentBinding?.mode === 'recording')
-    await startRecord()
-}
-
-async function handleSpeechEnd() {
-  if (currentBinding?.mode === 'recording')
-    await stopRecord()
-}
-
-async function handleSpeechCancel() {
-  if (currentBinding?.mode === 'recording')
-    await discardRecord()
-}
-
-async function stopAudioInteraction() {
-  currentBinding = undefined
-  stopOnStopRecord?.()
-  stopOnStopRecord = undefined
-  disposeVAD()
-  await discardRecord()
-  await releaseStreamingTranscriptionConsumer(transcriptionConsumerId)
-}
-
-const voiceInputBinding = createVoiceInputBinding({
-  start: startAudioInteraction,
-  stop: stopAudioInteraction,
-})
-
-watch([enabled, stream, supportsStreamInput], ([isEnabled, currentStream, supportsStream]) => {
-  const binding: VoiceInputBinding | undefined = isEnabled && currentStream
-    ? { stream: currentStream, mode: supportsStream ? 'stream' : 'recording' }
-    : undefined
-  void voiceInputBinding.update(binding).catch((error) => {
-    console.error('Audio interaction failed:', error)
-  })
-}, { immediate: true })
-
-onUnmounted(() => {
-  void voiceInputBinding.update().catch(error => console.error('Failed to stop audio interaction:', error))
-})
+// Small screens offer no control for continuous listening, so only a voice call listens there.
+useVoiceListening({ continuous: () => !isMobile.value })
+// The page has no global shortcut, so Push to Talk uses Space while the stage page has focus.
+useVoiceHoldKey(useVoicePushToTalk({
+  onUnconfigured: () => toast(t('stage.chat.voice-composer.configure-title'), { description: t('stage.chat.voice-composer.configure-description') }),
+}))
 
 const { x: mouseX, y: mouseY } = useMouse()
 const cursorPosition = computed(() => ({
   x: mouseX.value,
   y: mouseY.value,
 }))
+
+const router = useRouter()
 </script>
 
 <template>
   <BackgroundProvider
     ref="backgroundSurface"
-    class="widgets top-widgets"
+    :class="['widgets top-widgets']"
     :background="selectedOption"
     :style="stageSurfaceStyle"
     :top-color="sampledColor"
@@ -202,28 +100,33 @@ const cursorPosition = computed(() => ({
       ]"
     >
       <!-- header -->
-      <div class="px-0 py-1 md:px-3 md:py-3" w-full gap-2>
-        <Header class="hidden md:flex" />
+      <div :class="['w-full gap-2 px-0 py-1 md:px-3 md:py-3']">
+        <Header :class="['hidden md:flex']" />
       </div>
       <!-- page -->
-      <div relative flex="~ 1 row gap-y-0 gap-x-2 <md:col">
-        <div relative flex-1 min-w="1/2">
+      <div :class="['relative flex flex-1 flex-row gap-x-2 gap-y-0 <md:flex-col']">
+        <div :class="['relative min-w-1/2 flex-1']">
           <div
-            absolute left-0 z-15 px-3
+            v-if="!isMobile || stageModelRenderer !== 'live2d'"
             :class="[
+              'absolute left-0 z-15 px-3',
               stageModelRenderer === 'live2d' ? 'top-0 h-full py-[20vh]' : 'top-1/2 -translate-y-1/2',
             ]"
           >
             <ViewControlSlider />
           </div>
           <WidgetStage
-            h-full w-full
+            v-model:state="modelRenderState"
+            :class="['h-full w-full']"
             :cursor-position="cursorPosition"
             :enable-orbit-controls="!isMobile"
             :paused="paused"
+            @error="markModelFailed"
+            @select-avatar-model="router.push('/settings/models')"
           />
         </div>
-        <InteractiveArea v-if="!isMobile" h="85dvh" absolute right-4 flex flex-1 flex-col max-w="500px" min-w="30%" />
+        <!-- A fixed width keeps the chat panel narrow on wide screens. A percentage minimum overrode the maximum there. -->
+        <InteractiveArea v-if="!isMobile" :class="['absolute right-4 h-[85dvh] w-[min(440px,45%)] flex flex-col']" />
       </div>
       <HoloCoupon />
     </div>

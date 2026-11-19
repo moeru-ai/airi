@@ -178,6 +178,28 @@ describe('provider store synchronization boundary', () => {
     })
   })
 
+  it('uses the current interface language when Sherpaw is first configured', async () => {
+    let storedLanguage = 'en'
+    vi.stubGlobal('localStorage', { getItem: () => storedLanguage })
+
+    try {
+      const store = useProviderStore()
+      const configStore = useProviderConfigStore()
+
+      await store.initializeProvider('speech-noop')
+      storedLanguage = 'zh-Hans'
+      await store.initializeProvider('sherpaw-transcription')
+
+      expect(configStore.getProviderConfig('sherpaw-transcription')).toMatchObject({
+        model: 'paraformer-zh-en',
+        modelLanguageFilter: 'zh',
+      })
+    }
+    finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   // ROOT CAUSE:
   //
   // Module pages treated every credential-free provider as available before

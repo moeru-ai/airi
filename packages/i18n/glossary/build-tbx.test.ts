@@ -223,7 +223,7 @@ describe('terms.yaml', () => {
 
     // The glossary shares one Crowdin container with the documentation terminology, so a
     // term may live in prose rather than in a string. `Project AIRI` appears six times in
-    // README.md and in no interface string, and `Neuro Sama` only under docs/content/en.
+    // README.md and in no interface string.
     //
     // The check still has teeth. A term that appears in none of these places can never match
     // in the editor, so it cannot help a translator. `Ayaka Neko` was such a term, and it is
@@ -240,7 +240,8 @@ describe('terms.yaml', () => {
           prose.push(await readFile(path, 'utf8'))
       }
     }
-    await readDocs(join(repository, 'docs', 'content', 'en'))
+    // The documentation site lives in moeru-ai/airi-docs, `docs/` keeps the translated READMEs.
+    await readDocs(join(repository, 'docs'))
 
     const haystack = [...await loadEnglishStrings(), ...prose].join('\n').toLowerCase()
 

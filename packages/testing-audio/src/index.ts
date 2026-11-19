@@ -6,6 +6,7 @@ export type {
   AudioInputLLMMessage,
   AudioInputLLMOutputChunk,
   AudioInputObservations,
+  AudioInputPipeline,
   AudioInputPreflightCallback,
   AudioInputPreflightContext,
   AudioInputSession,
@@ -13,6 +14,7 @@ export type {
   AudioInputTestCase,
   AudioInputTTSSegment,
   AudioInputTurn,
+  AudioInputVoiceInput,
 } from './types'
 
 export type { PiniaActionEvent, PiniaActionEventStatus } from '@proj-airi/stage-shared/types/pinia-action-event'

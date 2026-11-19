@@ -1,21 +1,23 @@
 import type { StageAvatarBoundsPayload, StageViewState } from '@proj-airi/stage-shared/godot-stage'
-import type { Live2DExpressionSettingsSnapshot } from '@proj-airi/stage-ui-live2d/stores/expression-store'
 
 import type { StageModelRenderer } from '../../../../stores/settings/stage-model'
+
+/**
+ * The marker of the button that opens the model picker. The display models live in that dialog,
+ * so a settings search result for a model points to this button.
+ */
+export const MODEL_PICKER_SEARCH_KEY = 'display-model-picker'
 
 export type ModelSettingsRuntimeRenderer = 'disabled' | 'live2d' | 'vrm' | 'spine' | 'tachie' | 'mmd' | 'godot'
 export type ModelSettingsRuntimePhase = 'pending' | 'loading' | 'binding' | 'mounted' | 'no-model' | 'error'
 
 export interface ModelSettingsRuntimeSnapshot {
   ownerInstanceId: string
-  /** Identifies the loaded model state that produced the runtime controls. */
-  modelId: string
   renderer: ModelSettingsRuntimeRenderer
   phase: ModelSettingsRuntimePhase
   controlsLocked: boolean
   previewAvailable: boolean
   canCapturePreview: boolean
-  live2dExpressions?: Live2DExpressionSettingsSnapshot
   lastError?: string
   updatedAt: number
 }
@@ -25,7 +27,6 @@ export function createEmptyModelSettingsRuntimeSnapshot(
 ): ModelSettingsRuntimeSnapshot {
   return {
     ownerInstanceId: '',
-    modelId: '',
     renderer: 'disabled',
     phase: 'pending',
     controlsLocked: false,

@@ -7,17 +7,12 @@ export interface Disposable {
 }
 
 /**
- * Stores disposable resources and releases them in reverse registration order.
+ * Attempts resource disposal sequentially in reverse registration order, even when an entry fails.
  *
- * Use when:
- * - Extension setup needs to collect session-level cleanup callbacks
- * - Module registration needs scoped cleanup for watches, subscriptions, and bindings
+ * Each registered entry is attempted once. A single failure retains its identity, and multiple failures produce an AggregateError.
+ * Repeated disposal is a no-op, including while disposal is pending.
  *
- * Expects:
- * - Disposables are independent or tolerate reverse-order teardown
- *
- * Returns:
- * - A disposable store that can be awaited during host cleanup
+ * Entries added after disposal starts run immediately. Their disposal is not joined to the pending operation.
  */
 export class DisposableStore implements Disposable {
   private readonly disposables: Disposable[] = []
@@ -39,9 +34,21 @@ export class DisposableStore implements Disposable {
     }
 
     this.disposed = true
-    for (const disposable of [...this.disposables].reverse()) {
-      await disposable.dispose()
+    const disposables = this.disposables.splice(0)
+    const errors: unknown[] = []
+    for (const disposable of disposables.reverse()) {
+      try {
+        await disposable.dispose()
+      }
+      catch (error) {
+        errors.push(error)
+      }
     }
-    this.disposables.length = 0
+    if (errors.length === 1) {
+      throw errors[0]
+    }
+    if (errors.length > 1) {
+      throw new AggregateError(errors, 'Resource disposal failed.')
+    }
   }
 }

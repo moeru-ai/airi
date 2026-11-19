@@ -3,6 +3,8 @@ import type { Database } from '../../libs/db'
 import { useLogger } from '@guiiai/logg'
 import { and, desc, eq, getTableColumns, inArray, sql } from 'drizzle-orm'
 
+import { fluxUsage } from '../../schemas/flux-usage'
+
 import * as schema from '../../schemas/flux-transaction'
 
 const logger = useLogger('flux-transaction')
@@ -20,6 +22,18 @@ export interface TransactionEntry {
 
 export function createFluxTransactionService(db: Database) {
   return {
+    /** Lists confirmed fees, including zero fees, independently of pooled integer wallet debits. */
+    async getUsageHistory(userId: string, limit: number, offset: number) {
+      const rows = await db.select({
+        id: fluxUsage.id,
+        sourceType: fluxUsage.sourceType,
+        sourceId: fluxUsage.sourceId,
+        amountMicroFlux: fluxUsage.amountMicroFlux,
+        createdAt: fluxUsage.createdAt,
+      }).from(fluxUsage).where(eq(fluxUsage.userId, userId)).orderBy(desc(fluxUsage.createdAt), desc(fluxUsage.id)).limit(limit + 1).offset(offset)
+      return { records: rows.slice(0, limit), hasMore: rows.length > limit }
+    },
+
     async log(entry: TransactionEntry) {
       await db.insert(schema.fluxTransaction).values(entry)
       logger.withFields({ userId: entry.userId, type: entry.type, amount: entry.amount }).log('Transaction recorded')
@@ -46,7 +60,8 @@ export function createFluxTransactionService(db: Database) {
         END`.as('group_key'),
       })
         .from(schema.fluxTransaction)
-        .where(eq(schema.fluxTransaction.userId, userId))
+        // The history lists purchased Flux. Capacitor grants and capacitor debits stay out of it.
+        .where(and(eq(schema.fluxTransaction.userId, userId), eq(schema.fluxTransaction.pool, 'wallet')))
         .as('history_transactions')
       const history = db.select({
         id: transactions.id,
@@ -77,8 +92,8 @@ export function createFluxTransactionService(db: Database) {
     },
 
     async getStats(userId: string) {
-      // Get the balance right after the most recent credit/initial/promo transaction
-      // as the "capacity" for the progress bar. 'promo' (admin grant) bumps capacity
+      // Get the purchased-Flux balance right after the most recent credit/initial/promo transaction
+      // as the "capacity" for the progress bar. Capacitor grants live in the capacitor pool and are skipped. 'promo' (admin grant) bumps capacity
       // so the user's progress bar reflects the new total they have to spend.
       const [latestCredit] = await db.select({
         balanceAfter: schema.fluxTransaction.balanceAfter,
@@ -87,6 +102,7 @@ export function createFluxTransactionService(db: Database) {
         .where(
           and(
             eq(schema.fluxTransaction.userId, userId),
+            eq(schema.fluxTransaction.pool, 'wallet'),
             inArray(schema.fluxTransaction.type, ['credit', 'initial', 'promo']),
           ),
         )

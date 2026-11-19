@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { bigint, boolean, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
+import { boolean, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
 
 import { nanoid } from '../utils/id'
 
@@ -10,7 +10,6 @@ export const llmRequestLog = pgTable('llm_request_log', {
   model: text('model').notNull(),
   status: integer('status').notNull(),
   durationMs: integer('duration_ms').notNull(),
-  fluxConsumed: bigint('flux_consumed', { mode: 'number' }).notNull(),
   promptTokens: integer('prompt_tokens'),
   completionTokens: integer('completion_tokens'),
   totalTokens: integer('total_tokens'),
@@ -34,6 +33,9 @@ export const llmRequestLog = pgTable('llm_request_log', {
   routing: jsonb('routing'),
   providerUsage: jsonb('provider_usage'),
   providerMetadata: jsonb('provider_metadata'),
+  prompt: jsonb('prompt'),
+  completion: jsonb('completion'),
+  errorBody: jsonb('error_body'),
   attemptId: text('attempt_id'),
   interactionId: text('interaction_id'),
   state: text('state'),
@@ -47,4 +49,6 @@ export const llmRequestLog = pgTable('llm_request_log', {
   index('llm_request_log_state_started_idx').on(table.state, table.startedAt),
   index('llm_request_log_gateway_generation_idx').on(table.gateway, table.generationId),
   index('llm_request_log_user_created_idx').on(table.userId, table.createdAt),
+  // Admin request statistics and provider health filter by time window across all users.
+  index('llm_request_log_created_idx').on(table.createdAt),
 ])

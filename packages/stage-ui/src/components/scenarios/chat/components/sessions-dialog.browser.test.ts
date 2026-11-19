@@ -31,6 +31,11 @@ function createTestI18n() {
               'cancel': 'Cancel',
               'confirm-delete': 'Delete this conversation and its messages?',
               'cloud-badge': 'Cloud synced',
+              'rename': 'Rename conversation',
+              'rename-input': 'Conversation name',
+              'rename-placeholder': 'Enter a conversation name',
+              'save-rename': 'Save conversation name',
+              'cancel-rename': 'Cancel renaming',
             },
           },
         },
@@ -50,8 +55,8 @@ function sessionMeta(sessionId: string, updatedAt: number): ChatSessionMeta {
 }
 
 function createHarness(rows = [
-  { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, updatedAtLabel: 'now' },
-  { meta: sessionMeta('session-two', 1), preview: 'Second chat', isActive: false, updatedAtLabel: 'yesterday' },
+  { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, activityAtLabel: 'now' },
+  { meta: sessionMeta('session-two', 1), preview: 'Second chat', isActive: false, activityAtLabel: 'yesterday' },
 ], isDesktop = false) {
   return defineComponent({
     name: 'SessionsDialogHarness',
@@ -92,7 +97,7 @@ function createHarness(rows = [
 describe('sessions dialog actions', () => {
   it('opens the compact desktop list from its conversation trigger', async () => {
     const rows = [
-      { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, updatedAtLabel: 'now' },
+      { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, activityAtLabel: 'now' },
     ]
     const screen = await render(defineComponent({
       components: { SessionsDialog },
@@ -127,8 +132,8 @@ describe('sessions dialog actions', () => {
           deleted: ref('none'),
           open: ref(false),
           rows: [
-            { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, updatedAtLabel: 'now' },
-            { meta: sessionMeta('session-two', 1), preview: 'Second chat', isActive: false, updatedAtLabel: 'yesterday' },
+            { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, activityAtLabel: 'now' },
+            { meta: sessionMeta('session-two', 1), preview: 'Second chat', isActive: false, activityAtLabel: 'yesterday' },
           ],
         }
       },
@@ -646,7 +651,7 @@ describe('sessions dialog actions', () => {
       meta: sessionMeta(`session-${index}`, 30 - index),
       preview: `Chat ${index}`,
       isActive: index === 0,
-      updatedAtLabel: 'now',
+      activityAtLabel: 'now',
     }))
 
     await render(createHarness(rows), {

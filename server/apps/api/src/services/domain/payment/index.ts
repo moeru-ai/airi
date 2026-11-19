@@ -11,9 +11,8 @@ import type {
 } from './types'
 
 import { useLogger } from '@guiiai/logg'
+import { createInternalError } from '@proj-airi/http-error-shared'
 import { and, eq, isNull } from 'drizzle-orm'
-
-import { createInternalError } from '../../../utils/error'
 
 import * as schema from '../../../schemas/payment'
 
@@ -186,7 +185,7 @@ export function createPaymentService(db: Database, billing: BillingService) {
     })
 
     if (result.applied) {
-      await billing.syncFluxCache(result.userId, result.balanceAfter, {
+      await billing.syncFluxCache(result.userId, {
         amount: result.fluxAmount,
         source: 'payment.pack',
       })
@@ -247,7 +246,7 @@ export function createPaymentService(db: Database, billing: BillingService) {
     })
 
     if (result.applied) {
-      await billing.syncFluxCache(result.userId, result.balanceAfter, {
+      await billing.syncFluxCache(result.userId, {
         amount: result.fluxAmount,
         source: 'payment.pack',
       })

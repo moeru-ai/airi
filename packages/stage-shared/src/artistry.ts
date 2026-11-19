@@ -1,13 +1,47 @@
-import { defineInvokeEventa } from '@moeru/eventa'
+import type { InferInput, InferOutput } from 'valibot'
 
-export interface ArtistrySyncPayload {
-  provider: string
-  globals: any
-  // Card-level defaults to ensure widget triggers respect character settings
-  model?: string
-  promptPrefix?: string
-  options?: Record<string, any>
-}
+import { defineInvokeEventa } from '@moeru/eventa'
+import { array, number, object, optional, record, string, unknown } from 'valibot'
+
+const comfyUIWorkflowTemplateSchema = object({
+  id: string(),
+  name: string(),
+  workflow: record(string(), unknown()),
+  exposedFields: record(string(), array(string())),
+})
+
+/** Validates provider-wide settings that the renderer sends to main. */
+export const artistryGlobalsSchema = object({
+  comfyuiServerUrl: optional(string(), 'http://localhost:8188'),
+  comfyuiSavedWorkflows: optional(array(comfyUIWorkflowTemplateSchema), []),
+  comfyuiActiveWorkflow: optional(string(), ''),
+  replicateApiKey: optional(string(), ''),
+  replicateDefaultModel: optional(string(), 'black-forest-labs/flux-schnell'),
+  replicateAspectRatio: optional(string(), '16:9'),
+  replicateInferenceSteps: optional(number(), 4),
+  nanobananaApiKey: optional(string(), ''),
+  nanobananaModel: optional(string(), 'gemini-3.1-flash-image-preview'),
+  nanobananaResolution: optional(string(), '1K'),
+})
+
+/** Provider-wide settings shared between the renderer and main. */
+export type ArtistryGlobals = InferOutput<typeof artistryGlobalsSchema>
+
+/** Saved ComfyUI workflow data used by Artistry settings and generation. */
+export type ComfyUIWorkflowTemplate = InferOutput<typeof comfyUIWorkflowTemplateSchema>
+
+/** Validates an Artistry settings sync request before main uses it. */
+export const artistrySyncConfigPayloadSchema = object({
+  provider: string(),
+  globals: artistryGlobalsSchema,
+  model: optional(string()),
+  promptPrefix: optional(string()),
+  options: optional(record(string(), unknown())),
+})
+
+/** Input that the renderer sends to main to sync Artistry settings. */
+export type ArtistrySyncPayload = InferInput<typeof artistrySyncConfigPayloadSchema>
+
 export const ARTISTRY_SYNC_CONFIG_ADDRESS = 'eventa:invoke:electron:artistry:sync-config'
 export const ARTISTRY_TEST_COMFYUI_CONNECTION_ADDRESS = 'eventa:invoke:electron:artistry:test-comfyui-connection'
 
@@ -20,7 +54,7 @@ export interface ArtistryTestComfyUIResult {
 }
 export const artistryTestComfyUIConnection = defineInvokeEventa<ArtistryTestComfyUIResult, { url: string }>(ARTISTRY_TEST_COMFYUI_CONNECTION_ADDRESS)
 
-export const artistryGenerateHeadless = defineInvokeEventa<{ imageUrl?: string, base64?: string, error?: string }, { prompt: string, model?: string, provider?: string, options?: Record<string, any>, globals?: Record<string, any> }>('eventa:invoke:electron:artistry:generate-headless')
+export const artistryGenerateHeadless = defineInvokeEventa<{ imageUrl?: string, base64?: string, error?: string }, { prompt: string, model?: string, provider?: string, options?: Record<string, unknown>, globals?: Record<string, unknown> }>('eventa:invoke:electron:artistry:generate-headless')
 
 export const REPLICATE_IMAGEGEN_PRESETS = [
   {

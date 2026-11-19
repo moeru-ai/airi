@@ -39,6 +39,49 @@ describe('useWebSearchStore', () => {
   })
 
   describe('toolset-prompt watcher', () => {
+    it('uses only the selected service key and updates prompt availability on switching', async () => {
+      const store = useWebSearchStore()
+      const prompts = useLlmToolsetPromptsStore()
+      store.enabled = true
+      store.apiKey = 'tavily-key'
+      store.provider = 'deepseek'
+      await nextTick()
+      expect(store.configured).toBe(false)
+      expect(prompts.activeToolsetPrompt).not.toContain(WEB_SEARCH_TOOLSET_PROMPT)
+
+      store.activeApiKey = 'deepseek-key'
+      await nextTick()
+      expect(store.deepSeekApiKey).toBe('deepseek-key')
+      expect(store.apiKey).toBe('tavily-key')
+      expect(store.configured).toBe(true)
+      expect(prompts.activeToolsetPrompt).toContain(WEB_SEARCH_TOOLSET_PROMPT)
+
+      store.provider = 'tavily'
+      expect(store.activeApiKey).toBe('tavily-key')
+      store.activeApiKey = ''
+      await nextTick()
+      expect(store.configured).toBe(false)
+      expect(store.deepSeekApiKey).toBe('deepseek-key')
+      expect(prompts.activeToolsetPrompt).not.toContain(WEB_SEARCH_TOOLSET_PROMPT)
+    })
+
+    it('clears both keys and disables search on reset', async () => {
+      const store = useWebSearchStore()
+      store.enabled = true
+      store.apiKey = 'tavily-key'
+      store.provider = 'deepseek'
+      store.deepSeekApiKey = 'deepseek-key'
+      await nextTick()
+      store.resetState()
+      await nextTick()
+      expect(store.enabled).toBe(false)
+      expect(store.provider).toBe('tavily')
+      expect(store.apiKey).toBe('')
+      expect(store.deepSeekApiKey).toBe('')
+      expect(store.configured).toBe(false)
+      expect(useLlmToolsetPromptsStore().activeToolsetPrompt).not.toContain(WEB_SEARCH_TOOLSET_PROMPT)
+    })
+
     it('registers the safety prompt when configured and clears it when not', async () => {
       const store = useWebSearchStore()
       const prompts = useLlmToolsetPromptsStore()

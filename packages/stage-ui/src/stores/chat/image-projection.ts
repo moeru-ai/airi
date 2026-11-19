@@ -1,10 +1,5 @@
 import type { Conversation } from '@proj-airi/core-agent'
 
-import { Semaphore } from 'es-toolkit'
-
-const CHAT_IMAGE_DESCRIPTION_CONCURRENCY = 4
-const chatImageDescriptionSlots = new Semaphore(CHAT_IMAGE_DESCRIPTION_CONCURRENCY)
-
 function isTextSegment(part: { type: string }): part is { type: 'text', text: string } {
   return part.type === 'text'
 }
@@ -34,14 +29,8 @@ export async function describeChatImages(
 
       const sourceImageIndex = imageIndex
       imageIndex += 1
-      await chatImageDescriptionSlots.acquire()
-      let description: string
-      try {
-        description = await describe(part.url, question, turn.id, sourceImageIndex)
-      }
-      finally {
-        chatImageDescriptionSlots.release()
-      }
+      // The vision inference queue limits how many images are read at once.
+      const description = await describe(part.url, question, turn.id, sourceImageIndex)
       if (!description.trim())
         throw new Error(emptyDescriptionError)
       return {
@@ -52,4 +41,39 @@ export async function describeChatImages(
     return { ...turn, content }
   }))
   return { turns }
+}
+
+/**
+ * Replaces the images in stored tool results with a note, only in the provider
+ * prompt. A stored tool result can hold an original image, for example from a
+ * turn before the vision model read tool images. The chat store applies this
+ * while the vision model reads tool images, so the prompt holds no raw image.
+ */
+export function replaceToolResultImages(conversation: Conversation, note: string): Conversation {
+  return {
+    turns: conversation.turns.map((turn) => {
+      if (turn.type !== 'assistant')
+        return turn
+
+      return {
+        ...turn,
+        rounds: turn.rounds.map(round => ({
+          ...round,
+          toolInvocations: round.toolInvocations.map((invocation) => {
+            const execution = invocation.execution
+            if (!('output' in execution) || !execution.output.some(segment => segment.type === 'image'))
+              return invocation
+
+            return {
+              ...invocation,
+              execution: {
+                ...execution,
+                output: execution.output.map(segment => segment.type === 'image' ? { type: 'text' as const, text: note } : segment),
+              },
+            }
+          }),
+        })),
+      }
+    }),
+  }
 }

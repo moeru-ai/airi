@@ -1,14 +1,19 @@
-import localforage from 'localforage'
-
 import { useBroadcastChannel } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
+import { prefixStorage } from 'unstorage'
 import { computed, onScopeDispose, reactive, ref, watch } from 'vue'
 
 import cozyTeaCornerInPastelHuesUrl from '../assets/backgrounds/cozy-tea-corner-in-pastel-hues.avif'
 import cuteStreamingRoomWithPastelDecorUrl from '../assets/backgrounds/cute-streaming-room-with-pastel-decor.avif'
 
+import { listRawItems, storage } from '../database/storage'
 import { useAiriCardStore } from './modules/airi-card'
+
+/** A journal image that an earlier release stored under the `image-journal-` prefix. */
+type ImageJournalRecord = Pick<BackgroundEntry, 'characterId' | 'blob'> & Partial<Pick<BackgroundEntry, 'title' | 'prompt' | 'createdAt'>>
+
+const backgroundFiles = prefixStorage(storage, 'device')
 
 export interface BackgroundEntry {
   id: string
@@ -94,50 +99,50 @@ export const useBackgroundStore = defineStore('background-entries', () => {
       const loadedEntries = new Map<string, BackgroundEntry>()
 
       // 1. Read existing backgrounds from IndexedDB
-      await localforage.iterate<BackgroundEntry, void>((val, key) => {
-        if (key.startsWith(STORAGE_PREFIX) || key.startsWith('builtin:')) {
-          const entry = { ...val, id: key }
-          if (entry.blob instanceof Blob) {
-            ensureObjectUrl(key, entry.blob)
-          }
-          loadedEntries.set(key, entry)
+      const storedEntries = [
+        ...await listRawItems<BackgroundEntry>(backgroundFiles, STORAGE_PREFIX),
+        ...await listRawItems<BackgroundEntry>(backgroundFiles, 'builtin:'),
+      ]
+      for (const [key, val] of storedEntries) {
+        const entry = { ...val, id: key }
+        if (entry.blob instanceof Blob) {
+          ensureObjectUrl(key, entry.blob)
         }
-      })
+        loadedEntries.set(key, entry)
+      }
 
       // 2. Migration: check for legacy image-journal entries
       const legacyPrefix = 'image-journal-'
       const legacyEntriesToMigrate: BackgroundEntry[] = []
       const legacyKeysToDelete: string[] = []
 
-      await localforage.iterate<any, void>((val, key) => {
-        if (key.startsWith(legacyPrefix)) {
-          legacyKeysToDelete.push(key)
-          const newId = key.replace(legacyPrefix, STORAGE_PREFIX)
+      for (const [key, val] of await listRawItems<ImageJournalRecord>(backgroundFiles, legacyPrefix)) {
+        legacyKeysToDelete.push(key)
+        const newId = key.replace(legacyPrefix, STORAGE_PREFIX)
 
-          if (!loadedEntries.has(newId)) {
-            const migrated: BackgroundEntry = {
-              id: newId,
-              type: 'journal',
-              characterId: val.characterId,
-              title: val.title || 'Migrated Journal Image',
-              blob: val.blob,
-              prompt: val.prompt,
-              createdAt: val.createdAt || Date.now(),
-            }
-            if (migrated.blob instanceof Blob) {
-              ensureObjectUrl(newId, migrated.blob)
-            }
-            legacyEntriesToMigrate.push(migrated)
-            loadedEntries.set(newId, migrated)
+        if (!loadedEntries.has(newId)) {
+          const migrated: BackgroundEntry = {
+            id: newId,
+            type: 'journal',
+            characterId: val.characterId,
+            title: val.title || 'Migrated Journal Image',
+            blob: val.blob,
+            prompt: val.prompt,
+            createdAt: val.createdAt || Date.now(),
           }
+          if (migrated.blob instanceof Blob) {
+            ensureObjectUrl(newId, migrated.blob)
+          }
+          legacyEntriesToMigrate.push(migrated)
+          loadedEntries.set(newId, migrated)
         }
-      })
+      }
 
       for (const entry of legacyEntriesToMigrate) {
-        await localforage.setItem(entry.id, entry)
+        await backgroundFiles.setItemRaw(entry.id, entry)
       }
       for (const key of legacyKeysToDelete) {
-        await localforage.removeItem(key)
+        await backgroundFiles.removeItem(key)
       }
 
       // 3. Seeding logic for defaults
@@ -157,7 +162,7 @@ export const useBackgroundStore = defineStore('background-entries', () => {
               createdAt: Date.now(),
             }
             ensureObjectUrl(entry.id, blob)
-            await localforage.setItem(entry.id, entry)
+            await backgroundFiles.setItemRaw(entry.id, entry)
             loadedEntries.set(entry.id, entry)
           }
           catch (e) {
@@ -296,7 +301,7 @@ export const useBackgroundStore = defineStore('background-entries', () => {
     }
 
     try {
-      await localforage.setItem(id, entry)
+      await backgroundFiles.setItemRaw(id, entry)
       ensureObjectUrl(id, blob)
 
       const nextEntries = new Map(entries.value)
@@ -315,7 +320,7 @@ export const useBackgroundStore = defineStore('background-entries', () => {
 
   async function removeBackground(id: string) {
     try {
-      await localforage.removeItem(id)
+      await backgroundFiles.removeItem(id)
 
       const nextEntries = new Map(entries.value)
       nextEntries.delete(id)

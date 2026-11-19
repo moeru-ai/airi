@@ -3,229 +3,266 @@ import type Redis from 'ioredis'
 import type { Database } from '../../../libs/db'
 import type { RevenueMetrics } from '../../../otel'
 import type { ConfigKVService } from '../../adapters/config-kv'
+import type { CapacitorResetPolicy, FluxUsageInput } from './flux-posting'
 
 import { useLogger } from '@guiiai/logg'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, isNull, sql } from 'drizzle-orm'
+import { minValue, number, parse, pipe, safeInteger } from 'valibot'
 
-import { createPaymentRequiredError } from '../../../utils/error'
-import { invalidateBalanceCache, writeBalanceCache } from '../flux-cache'
+import { nanoid } from '../../../utils/id'
+import { invalidateBalanceCache } from '../flux-cache'
+import { fluxUsageInputSchema, readCapacitorResetPolicy, refillCapacitor, settleOutstandingMicroFlux } from './flux-posting'
+import { initializeWallet } from './wallet-initialization'
 
 import * as fluxSchema from '../../../schemas/flux'
 import * as fluxTxSchema from '../../../schemas/flux-transaction'
+import * as fluxUsageSchema from '../../../schemas/flux-usage'
 
 const logger = useLogger('billing-service')
 
-/** Database handle used when Payment CORE already owns the outer transaction. */
+/** Database handle used when the caller owns the outer transaction. */
 export type BillingTransaction = Pick<Database, 'insert' | 'update' | 'select'>
+
+/** The capacitor period that the payment channel reports as active now. */
+export interface CapacitorPeriod {
+  quota: number
+  periodStart: Date
+  expiresAt: Date
+}
 
 export function createBillingService(
   db: Database,
   redis: Redis,
-  _configKV: ConfigKVService,
+  configKV: Pick<ConfigKVService, 'getOptional'>,
   metrics?: RevenueMetrics | null,
 ) {
   /**
-   * Update Redis cache after a successful DB transaction.
+   * Invalidate the wallet snapshot after a successful database transaction.
    * Best-effort: cache loss is harmless since DB is the source of truth.
    */
-  async function updateRedisCache(userId: string, balance: number): Promise<void> {
+  async function updateRedisCache(userId: string): Promise<void> {
     try {
-      await writeBalanceCache(redis, userId, balance)
+      await invalidateBalanceCache(redis, userId)
     }
     catch {
       logger.withFields({ userId }).warn('Failed to update Redis cache after balance change')
     }
   }
 
+  async function lockWallet(tx: BillingTransaction, userId: string) {
+    const [wallet] = await tx.select().from(fluxSchema.userFlux).where(and(
+      eq(fluxSchema.userFlux.userId, userId),
+      isNull(fluxSchema.userFlux.deletedAt),
+    )).for('update')
+    if (!wallet)
+      throw new Error(`No active flux record for user ${userId}`)
+    return wallet
+  }
+
   /**
-   * Debit flux from a user's balance within a single DB transaction.
-   *
-   * The transaction locks the user_flux row, validates the balance, updates
-   * it, and writes the matching `flux_transaction` ledger entry — all in one
-   * commit. The unique partial index `(user_id, request_id) WHERE request_id IS NOT NULL`
-   * keeps retries idempotent at the DB level.
-   *
-   * Partial-debit semantics:
-   * When `0 < balance < amount`, the balance is drained to zero and the
-   * ledger row is written with `amount = charged` and metadata recording
-   * `requestedAmount` + `unbilled`. The function returns `charged < requested`
-   * so callers can attribute the delta to a metric counter. This prevents
-   * the post-streaming leak where a partial-balance user could replay the
-   * same request indefinitely (each attempt rolled back the whole tx,
-   * leaving the balance untouched). The very next call sees `flux <= 0`
-   * and hits the throw branch.
-   *
-   * Private — call domain-specific wrappers (e.g. consumeFluxForLLM) instead.
+   * Refills the capacitor bucket when a refill is due, then settles integer debits from the shared pool.
+   * The capacitor bucket pays first, then purchased Flux.
    */
-  async function debitFlux(input: {
-    userId: string
-    amount: number
-    requestId?: string
-    description?: string
-    source: string
-    metadata?: Record<string, unknown>
-  }): Promise<{ userId: string, flux: number, charged: number, requested: number }> {
-    const result = await db.transaction(async (tx) => {
-      // Idempotency: a previous successful debit with the same requestId
-      // returns the prior post-balance and skips the second deduction.
-      // Mirrors creditFlux's idempotent path so retries (network errors,
-      // worker restarts) don't double-charge.
-      if (input.requestId != null) {
-        const [existing] = await tx
-          .select({
-            amount: fluxTxSchema.fluxTransaction.amount,
-            balanceAfter: fluxTxSchema.fluxTransaction.balanceAfter,
-          })
-          .from(fluxTxSchema.fluxTransaction)
-          .where(and(
-            eq(fluxTxSchema.fluxTransaction.userId, input.userId),
-            eq(fluxTxSchema.fluxTransaction.requestId, input.requestId),
-          ))
-          .limit(1)
-
-        if (existing) {
-          // Replay reuses the historical `charged`; we deliberately reflect
-          // the original (possibly partial) outcome instead of the caller's
-          // current `amount`, so the caller doesn't double-fire unbilled
-          // counters on retries.
-          return {
-            userId: input.userId,
-            flux: existing.balanceAfter,
-            charged: existing.amount,
-            requested: existing.amount,
-            idempotent: true as const,
-          }
-        }
-      }
-
-      const [row] = await tx
-        .select({ flux: fluxSchema.userFlux.flux })
-        .from(fluxSchema.userFlux)
-        .where(eq(fluxSchema.userFlux.userId, input.userId))
-        .for('update')
-
-      if (!row) {
-        throw new Error(`No flux record for user ${input.userId}`)
-      }
-
-      const balanceBefore = row.flux
-      // Hard floor: zero (or somehow negative) balance still throws so
-      // streaming callers' catch path fires `fluxUnbilled` with the full
-      // amount and TTS meter restores its debt counter. Partial debit only
-      // kicks in when there is *some* balance left to drain.
-      if (balanceBefore <= 0) {
-        metrics?.fluxInsufficientBalance.add(1)
-        throw createPaymentRequiredError('Insufficient flux')
-      }
-
-      const chargedAmount = Math.min(input.amount, balanceBefore)
-      const balanceAfter = balanceBefore - chargedAmount
-      const isPartial = chargedAmount < input.amount
-      if (isPartial) {
-        metrics?.fluxInsufficientBalance.add(1)
-      }
-
-      await tx.update(fluxSchema.userFlux)
-        .set({ flux: balanceAfter, updatedAt: new Date() })
-        .where(eq(fluxSchema.userFlux.userId, input.userId))
-
+  async function settleOutstanding(
+    tx: BillingTransaction,
+    stored: typeof fluxSchema.userFlux.$inferSelect,
+    policy: CapacitorResetPolicy,
+    operationId: string,
+    usageId?: string,
+  ) {
+    const now = new Date()
+    const wallet = refillCapacitor(stored, policy, now)
+    if (wallet.refilled) {
       await tx.insert(fluxTxSchema.fluxTransaction).values({
-        userId: input.userId,
-        type: 'debit',
-        amount: chargedAmount,
-        balanceBefore,
-        balanceAfter,
-        requestId: input.requestId,
-        description: input.description ?? input.source,
-        metadata: {
-          ...input.metadata,
-          source: input.source,
-          ...(isPartial && {
-            requestedAmount: input.amount,
-            unbilled: input.amount - chargedAmount,
-          }),
-        },
+        userId: wallet.userId,
+        operationId: `${operationId}:refill`,
+        type: 'credit',
+        pool: 'capacitor',
+        amount: wallet.capacitorQuota,
+        balanceBefore: stored.capacitorFlux,
+        balanceAfter: wallet.capacitorQuota,
+        description: 'capacitor_refill',
+        metadata: { source: 'capacitor.refill', periodStart: wallet.capacitorPeriodStart?.toISOString(), forfeited: stored.capacitorFlux },
       })
-
-      return {
-        userId: input.userId,
-        flux: balanceAfter,
-        charged: chargedAmount,
-        requested: input.amount,
-        idempotent: false as const,
-      }
-    })
-
-    if (!result.idempotent) {
-      await updateRedisCache(input.userId, result.flux)
     }
+    const settled = settleOutstandingMicroFlux(wallet, now)
+    await tx.update(fluxSchema.userFlux).set({
+      flux: settled.flux,
+      capacitorFlux: settled.capacitorFlux,
+      capacitorFilledAt: wallet.capacitorFilledAt,
+      unsettledMicroFlux: settled.unsettledMicroFlux,
+      updatedAt: now,
+    }).where(eq(fluxSchema.userFlux.userId, wallet.userId))
 
-    logger.withFields({
-      userId: input.userId,
-      amount: input.amount,
-      charged: result.charged,
-      balance: result.flux,
-      idempotent: result.idempotent,
-    }).log('Debited flux')
-    return {
-      userId: result.userId,
-      flux: result.flux,
-      charged: result.charged,
-      requested: result.requested,
+    const metadata = { source: 'usage.settlement', usageId, unsettledBefore: wallet.unsettledMicroFlux, unsettledAfter: settled.unsettledMicroFlux }
+    if (settled.fromPurchased > 0) {
+      await tx.insert(fluxTxSchema.fluxTransaction).values({
+        userId: wallet.userId,
+        operationId,
+        type: 'debit',
+        pool: 'wallet',
+        amount: settled.fromPurchased,
+        balanceBefore: wallet.flux,
+        balanceAfter: settled.flux,
+        description: 'usage_settlement',
+        metadata,
+      })
     }
+    if (settled.fromCapacitor > 0) {
+      await tx.insert(fluxTxSchema.fluxTransaction).values({
+        userId: wallet.userId,
+        operationId: `${operationId}:capacitor`,
+        type: 'debit',
+        pool: 'capacitor',
+        amount: settled.fromCapacitor,
+        balanceBefore: wallet.capacitorFlux,
+        balanceAfter: settled.capacitorFlux,
+        description: 'usage_settlement',
+        metadata,
+      })
+    }
+    return { charged: settled.charged, requested: settled.requested, balance: settled.flux, unsettledMicroFlux: settled.unsettledMicroFlux }
   }
 
   return {
-    /**
-     * Debit flux for an LLM API request (chat, TTS).
-     * Token usage is persisted in the `flux_transaction.metadata` column so
-     * the existing transaction-history UI can render per-request token counts.
-     */
-    async consumeFluxForLLM(input: {
-      userId: string
-      amount: number
-      requestId?: string
-      description?: string
-      model?: string
-      turnId?: string
-      promptTokens?: number
-      completionTokens?: number
-    }): Promise<{ userId: string, flux: number, charged: number, requested: number }> {
-      return debitFlux({
-        userId: input.userId,
-        amount: input.amount,
-        requestId: input.requestId,
-        description: input.description,
-        source: 'llm.request',
-        metadata: {
-          ...(input.model != null && { model: input.model }),
-          ...(input.turnId != null && { turnId: input.turnId }),
-          ...(input.promptTokens != null && { promptTokens: input.promptTokens }),
-          ...(input.completionTokens != null && { completionTokens: input.completionTokens }),
-        },
+    /** Posts a confirmed fee once per source. The wallet row lock serializes pooled settlement. */
+    async postFluxUsage(input: FluxUsageInput) {
+      const command = parse(fluxUsageInputSchema, input)
+      // The policy read needs its own pool client. It runs before the transaction, so a
+      // settlement never holds one client while it waits for a second.
+      const policy = await readCapacitorResetPolicy(configKV)
+      const result = await db.transaction(async (tx) => {
+        const wallet = await lockWallet(tx, command.userId)
+        const [usage] = await tx.insert(fluxUsageSchema.fluxUsage).values({
+          userId: command.userId,
+          sourceType: command.source.type,
+          sourceId: command.source.id,
+          amountMicroFlux: command.amountMicroFlux,
+          detail: command.detail,
+        }).onConflictDoNothing().returning({ id: fluxUsageSchema.fluxUsage.id })
+        if (!usage) {
+          const [existing] = await tx.select({ amountMicroFlux: fluxUsageSchema.fluxUsage.amountMicroFlux }).from(fluxUsageSchema.fluxUsage).where(and(
+            eq(fluxUsageSchema.fluxUsage.userId, command.userId),
+            eq(fluxUsageSchema.fluxUsage.sourceType, command.source.type),
+            eq(fluxUsageSchema.fluxUsage.sourceId, command.source.id),
+          ))
+          if (existing!.amountMicroFlux !== command.amountMicroFlux)
+            throw new Error('Flux source replay does not match the posted amount')
+          return { charged: 0, requested: 0, balance: wallet.flux, unsettledMicroFlux: wallet.unsettledMicroFlux, amountMicroFlux: command.amountMicroFlux, replay: true }
+        }
+        const outstanding = wallet.unsettledMicroFlux + command.amountMicroFlux
+        parse(pipe(number(), safeInteger(), minValue(0)), outstanding)
+        const settled = await settleOutstanding(tx, { ...wallet, unsettledMicroFlux: outstanding }, policy, `usage:${usage.id}:settle`, usage.id)
+        return { ...settled, amountMicroFlux: command.amountMicroFlux, replay: false }
       })
+      if (!result.replay)
+        await updateRedisCache(command.userId)
+      return result
     },
 
     /**
-     * Credit flux to a user's balance within a DB transaction.
-     * Generic credit method for non-Stripe flows (e.g. admin grants).
-     *
-     * Idempotency:
-     * When `requestId` is provided, the call is idempotent across crash /
-     * retry boundaries. If a `flux_transaction` row with the same
-     * `(user_id, request_id)` already exists, this method returns that
-     * existing row's balance + id without re-crediting the user, without
-     * touching `user_flux`, and without re-emitting the Redis cache write.
-     *
-     * This guards against the worker crash window where:
-     * 1. `creditFlux` commits the credit
-     * 2. caller crashes before marking its own state (e.g. recipient row) granted
-     * 3. on restart, caller sees pending state and calls `creditFlux` again with same requestId
-     *
-     * Without idempotency, step 3 would hit the `(user_id, request_id)`
-     * unique index and throw — causing the caller to mark the work failed
-     * even though the user was already credited.
+     * Reads authoritative admission state. Cached balances cannot authorize concurrent usage.
+     * A due capacitor refill is written here with the settlement of outstanding fees.
+     * A rejected request never reaches `postFluxUsage`, so a refill that is only counted
+     * would pay the same outstanding fee again after each reset.
      */
+    async getWallet(userId: string) {
+      const policy = await readCapacitorResetPolicy(configKV)
+      const [wallet] = await db.select().from(fluxSchema.userFlux).where(and(
+        eq(fluxSchema.userFlux.userId, userId),
+        isNull(fluxSchema.userFlux.deletedAt),
+      ))
+      if (!wallet)
+        throw new Error(`No active flux record for user ${userId}`)
+      if (!refillCapacitor(wallet, policy).refilled)
+        return wallet
+
+      const refilled = await db.transaction(async (tx) => {
+        const locked = await lockWallet(tx, userId)
+        // A concurrent admission or settlement can write the refill first.
+        if (!refillCapacitor(locked, policy).refilled)
+          return locked
+        await settleOutstanding(tx, locked, policy, `admission:${nanoid()}:settle`)
+        return lockWallet(tx, userId)
+      })
+      await updateRedisCache(userId)
+      return refilled
+    },
+
+    /**
+     * Stores the period that `resolve` returns. `null` means no active capacitor, so the capacitor expires now.
+     * The refill rule then decides the grant: a later period start refills the bucket,
+     * and the same or an earlier start keeps the spent amount.
+     * A smaller quota caps the bucket.
+     *
+     * An advisory lock per user serializes syncs while `resolve` reads the payment channel.
+     * The wallet row stays unlocked during that read, so debits are not blocked.
+     * Returns the period that `resolve` gave.
+     */
+    async syncCapacitor(userId: string, resolve: () => Promise<CapacitorPeriod | null>): Promise<CapacitorPeriod | null> {
+      const policy = await readCapacitorResetPolicy(configKV)
+      // INITIAL_USER_FLUX has a zero default when no initial grant is configured.
+      const initialFlux = await configKV.getOptional('INITIAL_USER_FLUX') ?? 0
+      const synced = await db.transaction(async (tx) => {
+        await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${userId}))`)
+        const period = await resolve()
+        const now = new Date()
+
+        if (period)
+          await initializeWallet(tx, userId, initialFlux)
+        const [wallet] = await tx.select().from(fluxSchema.userFlux).where(and(
+          eq(fluxSchema.userFlux.userId, userId),
+          isNull(fluxSchema.userFlux.deletedAt),
+        )).for('update')
+        if (!wallet)
+          return period
+
+        if (!period) {
+          if (wallet.capacitorExpiresAt !== null && wallet.capacitorExpiresAt > now)
+            await tx.update(fluxSchema.userFlux).set({ capacitorExpiresAt: now, updatedAt: now }).where(eq(fluxSchema.userFlux.userId, userId))
+          return period
+        }
+
+        const operationId = `capacitor:${nanoid()}`
+        const capacitor = {
+          capacitorFlux: Math.min(wallet.capacitorFlux, period.quota),
+          capacitorQuota: period.quota,
+          capacitorExpiresAt: period.expiresAt,
+          capacitorPeriodStart: period.periodStart,
+        }
+        await tx.update(fluxSchema.userFlux).set(capacitor).where(eq(fluxSchema.userFlux.userId, userId))
+        if (capacitor.capacitorFlux < wallet.capacitorFlux) {
+          await tx.insert(fluxTxSchema.fluxTransaction).values({
+            userId,
+            operationId: `${operationId}:cap`,
+            type: 'debit',
+            pool: 'capacitor',
+            amount: wallet.capacitorFlux - capacitor.capacitorFlux,
+            balanceBefore: wallet.capacitorFlux,
+            balanceAfter: capacitor.capacitorFlux,
+            description: 'capacitor_quota_cap',
+            metadata: { source: 'capacitor.quota_cap', quota: period.quota },
+          })
+        }
+        await settleOutstanding(tx, { ...wallet, ...capacitor }, policy, `${operationId}:settle`)
+        return period
+      })
+      await updateRedisCache(userId)
+      return synced
+    },
+
+    /** Chooses whether purchased Flux pays after the capacitor bucket runs out. Needs an initialized wallet. */
+    async setFallbackToFlux(userId: string, fallbackToFlux: boolean): Promise<void> {
+      const updated = await db.update(fluxSchema.userFlux)
+        .set({ fallbackToFlux, updatedAt: new Date() })
+        .where(and(eq(fluxSchema.userFlux.userId, userId), isNull(fluxSchema.userFlux.deletedAt)))
+        .returning({ userId: fluxSchema.userFlux.userId })
+      if (updated.length === 0)
+        throw new Error(`No active flux record for user ${userId}`)
+      await updateRedisCache(userId)
+    },
+
+    /** Credits integer Flux, then settles affordable outstanding fees in the same transaction. Replay returns the current wallet balance. */
     async creditFlux(input: {
       userId: string
       amount: number
@@ -245,9 +282,22 @@ export function createBillingService(
        */
       tx?: BillingTransaction
     }): Promise<{ balanceBefore: number, balanceAfter: number, fluxTransactionId: string, idempotent: boolean }> {
+      parse(pipe(number(), safeInteger(), minValue(1)), input.amount)
       const ledgerType = input.type ?? 'credit'
 
+      // With `input.tx`, the caller already holds a client. That path is a purchase, not the request path.
+      const policy = await readCapacitorResetPolicy(configKV)
       const writeCredit = async (tx: BillingTransaction) => {
+        await tx.insert(fluxSchema.userFlux)
+          .values({ userId: input.userId, flux: 0 })
+          .onConflictDoNothing({ target: fluxSchema.userFlux.userId })
+
+        const [row] = await tx
+          .select()
+          .from(fluxSchema.userFlux)
+          .where(eq(fluxSchema.userFlux.userId, input.userId))
+          .for('update')
+
         if (input.requestId != null) {
           const [existing] = await tx
             .select({
@@ -265,25 +315,18 @@ export function createBillingService(
           if (existing) {
             return {
               balanceBefore: existing.balanceBefore,
-              balanceAfter: existing.balanceAfter,
+              balanceAfter: row!.flux,
               fluxTransactionId: existing.id,
               idempotent: true,
             }
           }
         }
 
-        await tx.insert(fluxSchema.userFlux)
-          .values({ userId: input.userId, flux: 0 })
-          .onConflictDoNothing({ target: fluxSchema.userFlux.userId })
-
-        const [row] = await tx
-          .select({ flux: fluxSchema.userFlux.flux })
-          .from(fluxSchema.userFlux)
-          .where(eq(fluxSchema.userFlux.userId, input.userId))
-          .for('update')
-
-        const balanceBefore = row!.flux
+        if (!row || row.deletedAt !== null)
+          throw new Error('Cannot credit a deleted wallet')
+        const balanceBefore = row.flux
         const balanceAfter = balanceBefore + input.amount
+        parse(pipe(number(), safeInteger(), minValue(0)), balanceAfter)
 
         await tx.update(fluxSchema.userFlux)
           .set({ flux: balanceAfter, updatedAt: new Date() })
@@ -300,9 +343,10 @@ export function createBillingService(
           metadata: input.auditMetadata,
         }).returning({ id: fluxTxSchema.fluxTransaction.id })
 
+        const settled = await settleOutstanding(tx, { ...row!, flux: balanceAfter }, policy, `credit:${insertedTx!.id}:settle`)
         return {
           balanceBefore,
-          balanceAfter,
+          balanceAfter: settled.balance,
           fluxTransactionId: insertedTx!.id,
           idempotent: false,
         }
@@ -322,7 +366,7 @@ export function createBillingService(
       }
 
       if (!input.tx) {
-        await updateRedisCache(input.userId, txResult.balanceAfter)
+        await updateRedisCache(input.userId)
         metrics?.fluxCredited.add(input.amount, { source: input.source, type: ledgerType })
       }
 
@@ -330,47 +374,34 @@ export function createBillingService(
       return txResult
     },
 
-    async syncFluxCache(userId: string, balance: number, credited?: { amount: number, source: string }): Promise<void> {
-      await updateRedisCache(userId, balance)
+    async syncFluxCache(userId: string, credited?: { amount: number, source: string }): Promise<void> {
+      await updateRedisCache(userId)
       if (credited)
         metrics?.fluxCredited.add(credited.amount, { source: credited.source, type: 'credit' })
     },
 
-    /**
-     * Set a user's flux balance to an absolute value within a DB transaction.
-     *
-     * Use when:
-     * - An admin overrides a balance directly (e.g. zeroing it out for
-     *   testing). Unlike credit/debit this is not request-driven and carries
-     *   no idempotency key — every call rewrites the balance to `balance` and
-     *   appends one `admin_set` ledger row recording the before/after.
-     *
-     * Expects:
-     * - `balance` is a non-negative integer. The route layer validates this.
-     *
-     * Returns:
-     * - The balance before and after, plus the appended ledger row id. The
-     *   ledger `amount` is the absolute delta magnitude; direction lives in
-     *   `metadata.direction` since a set can move the balance either way.
-     */
+    /** Sets the integer balance and preserves outstanding fees. The admin adjustment remains a separate ledger fact. */
     async setFlux(input: {
       userId: string
       balance: number
       description: string
       issuedByUserId: string
     }): Promise<{ balanceBefore: number, balanceAfter: number, fluxTransactionId: string }> {
+      parse(pipe(number(), safeInteger(), minValue(0)), input.balance)
       const txResult = await db.transaction(async (tx) => {
         await tx.insert(fluxSchema.userFlux)
           .values({ userId: input.userId, flux: 0 })
           .onConflictDoNothing({ target: fluxSchema.userFlux.userId })
 
         const [row] = await tx
-          .select({ flux: fluxSchema.userFlux.flux })
+          .select()
           .from(fluxSchema.userFlux)
           .where(eq(fluxSchema.userFlux.userId, input.userId))
           .for('update')
 
-        const balanceBefore = row!.flux
+        if (!row || row.deletedAt !== null)
+          throw new Error('Cannot adjust a deleted wallet')
+        const balanceBefore = row.flux
         const balanceAfter = input.balance
         const delta = balanceAfter - balanceBefore
 
@@ -396,16 +427,7 @@ export function createBillingService(
         return { balanceBefore, balanceAfter, fluxTransactionId: insertedTx!.id }
       })
 
-      // NOTICE:
-      // Invalidate (DEL) rather than write (SET) the cache. An admin override
-      // is a "truth changed" event, so we drop the key and let the next
-      // getFlux miss reload from Postgres — mirrors FluxService.deleteAllForUser.
-      // Writing the new value instead would have setFlux contribute its own
-      // post-commit SET to the existing cross-operation cache-write race that
-      // credit/debit already have (a slower concurrent SET can land last and
-      // clobber it); DEL keeps setFlux from adding to that and defers to truth.
-      // Best-effort: a failed DEL only leaves a stale cache entry that the next
-      // mutation or cache expiry corrects; Postgres stays authoritative.
+      // Invalidation prevents a balance-only write from hiding confirmed outstanding fees.
       try {
         await invalidateBalanceCache(redis, input.userId)
       }

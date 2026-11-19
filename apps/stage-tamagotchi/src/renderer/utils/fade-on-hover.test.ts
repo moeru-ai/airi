@@ -7,6 +7,7 @@ describe('fade on hover interaction', () => {
     const interaction = resolveFadeOnHoverInteraction({
       alwaysOnTop: true,
       cursorInsideWindow: true,
+      clickThroughAvailable: true,
       enabled: true,
       transparentForFade: false,
       transparentForPointer: false,
@@ -20,6 +21,7 @@ describe('fade on hover interaction', () => {
     const interaction = resolveFadeOnHoverInteraction({
       alwaysOnTop: true,
       cursorInsideWindow: true,
+      clickThroughAvailable: true,
       enabled: true,
       transparentForFade: true,
       transparentForPointer: true,
@@ -33,6 +35,7 @@ describe('fade on hover interaction', () => {
     const interaction = resolveFadeOnHoverInteraction({
       alwaysOnTop: true,
       cursorInsideWindow: true,
+      clickThroughAvailable: true,
       enabled: false,
       transparentForFade: true,
       transparentForPointer: true,
@@ -46,6 +49,7 @@ describe('fade on hover interaction', () => {
     const interaction = resolveFadeOnHoverInteraction({
       alwaysOnTop: true,
       cursorInsideWindow: true,
+      clickThroughAvailable: true,
       enabled: false,
       transparentForFade: false,
       transparentForPointer: false,
@@ -59,7 +63,21 @@ describe('fade on hover interaction', () => {
     const interaction = resolveFadeOnHoverInteraction({
       alwaysOnTop: false,
       cursorInsideWindow: true,
+      clickThroughAvailable: true,
       enabled: false,
+      transparentForFade: true,
+      transparentForPointer: true,
+    })
+
+    expect(interaction.ignoreMouseEvents).toBe(false)
+  })
+
+  it('keeps the window interactive where the cursor signal cannot drive click-through', () => {
+    const interaction = resolveFadeOnHoverInteraction({
+      alwaysOnTop: true,
+      cursorInsideWindow: false,
+      clickThroughAvailable: false,
+      enabled: true,
       transparentForFade: true,
       transparentForPointer: true,
     })

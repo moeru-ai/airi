@@ -62,5 +62,28 @@
     "comments": "off",
     "strings": "off",
     "other": "off"
+  },
+
+  // Do not import Gradle projects from worktrees or local copies.
+  // This list replaces the defaults, so the first four entries keep them.
+  "java.import.exclusions": [
+    "**/node_modules/**",
+    "**/.metadata/**",
+    "**/archetype-resources/**",
+    "**/META-INF/maven/**",
+    "**/.worktrees/**",
+    "**/.claude/worktrees/**",
+    "**/.local/**"
+  ],
+  // pnpm links packages with symlinks. Following them makes extension
+  // file lookups (for example, the Gradle extension) scan for minutes.
+  "search.followSymlinks": false,
+  "search.exclude": {
+    "**/.worktrees": true,
+    "**/.claude/worktrees": true
+  },
+  "files.watcherExclude": {
+    "**/.worktrees/**": true,
+    "**/.claude/worktrees/**": true
   }
 }

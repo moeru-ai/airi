@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Button, Callout, GhostButton } from '@proj-airi/ui'
+import { Alert, Button, GhostButton } from '@proj-airi/ui'
 import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{
@@ -48,9 +48,9 @@ const JSON_TEXTAREA = 'w-full rounded-lg border-2 border-solid border-primary-10
       :class="JSON_TEXTAREA"
     />
 
-    <Callout v-if="props.error" theme="orange" :label="tn('error-title')">
+    <Alert v-if="props.error" tone="danger" :title="tn('error-title')" live="polite">
       {{ props.error }}
-    </Callout>
+    </Alert>
 
     <div class="flex flex-wrap items-center justify-end gap-2 pt-1">
       <Button size="sm" :label="tn('actions.cancel')" @click="emit('close')" />

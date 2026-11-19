@@ -2,6 +2,8 @@ import type { InferOutput } from 'valibot'
 
 import { number, object, optional, picklist, string } from 'valibot'
 
+import { requestContentSchema } from '../request-content'
+
 export const attemptStartSchema = object({
   gateway: string(),
   routeId: optional(string()),
@@ -13,6 +15,7 @@ export const attemptResultSchema = object({
   state: picklist(['headers_received', 'failed', 'cancelled', 'unknown']),
   status: optional(number()),
   errorCode: optional(picklist(['upstream_http', 'transport_error', 'client_cancelled'])),
+  errorBody: optional(requestContentSchema),
 })
 
 /** Awaited persistence boundary. A failed write must stop dispatch, not trigger model fallback. */

@@ -4,14 +4,11 @@ import type { HookInput } from '@anthropic-ai/claude-code'
 
 import { argv, exit, stdin } from 'node:process'
 
-import debug from 'debug'
-
 import { Format, LogLevel, LogLevelString, useLogg } from '@guiiai/logg'
 import { Client } from '@proj-airi/server-sdk'
 import { cac } from 'cac'
 
 import { name, version } from '../package.json'
-import { resolveComma, toArray } from './utils/general'
 
 interface Options {
   config?: string
@@ -42,6 +39,12 @@ cli
   .action(async (_, flags: Options) => {
     if (flags?.quiet) {
       logger = logger.withLogLevel(-1 as LogLevel)
+    }
+    // `--debug` keeps its optional value for existing hook configs. Every value shows debug logs.
+    // It reads `cli.options`, because cac passes no `flags` to this action: `send` has no positional argument.
+    else if (cli.options.debug) {
+      logger = logger.withLogLevel(LogLevel.Debug)
+      logger.withField('debug', cli.options.debug).debug('Debugging enabled')
     }
     else {
       logger = logger.withLogLevelString(flags?.logLevel ?? LogLevelString.Log)
@@ -77,26 +80,6 @@ cli
 
 export async function runCLI(): Promise<void> {
   cli.parse(argv, { run: false })
-
-  if (cli.options.debug) {
-    let namespace: string
-    if (cli.options.debug === true) {
-      namespace = `${name}:*`
-    }
-    else {
-      // support debugging multiple flags with comma-separated list
-      namespace = resolveComma(toArray(cli.options.debug))
-        .map(v => `${name}:${v}`)
-        .join(',')
-    }
-
-    const enabled = debug.disable()
-    if (enabled)
-      namespace += `,${enabled}`
-
-    debug.enable(namespace)
-    debug(`${name}:debug`)('Debugging enabled', namespace)
-  }
 
   try {
     await cli.runMatchedCommand()

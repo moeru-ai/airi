@@ -1,27 +1,18 @@
 import type { Database } from '../../../../libs/db'
-import type { ConfigKVService } from '../../../adapters/config-kv'
 import type { ClaimReceipt, EvidenceReceipt } from '../types'
 
+import { Environment } from '@apple/app-store-server-library'
 import { eq } from 'drizzle-orm'
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { mockDB } from '../../../../libs/mock-db'
 import { createTestRedis } from '../../../../libs/tests/redis'
+import { evidenceReceiptFromTransaction } from '../../../../routes/apple-iap/evidence'
 import { userFluxRedisKey } from '../../../../utils/redis-keys'
 import { createBillingService } from '../../billing/billing-service'
 import { createPaymentService } from '../index'
 
 import * as schema from '../../../../schemas'
-
-function createPacksConfigKV(): ConfigKVService {
-  return {
-    getOptional: vi.fn(async () => null),
-    getOrThrow: vi.fn(),
-    get: vi.fn(),
-    refresh: vi.fn(),
-    invalidateCache: vi.fn(),
-  } as ConfigKVService
-}
 
 describe('payment CORE', () => {
   let db: Database
@@ -39,7 +30,7 @@ describe('payment CORE', () => {
 
   beforeEach(async () => {
     redis = createTestRedis()
-    const billing = createBillingService(db, redis, createPacksConfigKV())
+    const billing = createBillingService(db, redis, { getOptional: async () => null })
     payment = createPaymentService(db, billing)
 
     await db.delete(schema.fluxTransaction).where(eq(schema.fluxTransaction.userId, 'user-pay-1'))
@@ -92,7 +83,7 @@ describe('payment CORE', () => {
     expect(paid?.fluxAmount).toBe(500)
     expect(paid?.processorOrderId).toBe(`cs_test_${order.id}`)
 
-    expect(await redis.get(userFluxRedisKey('user-pay-1'))).toBe('500')
+    expect(await redis.get(userFluxRedisKey('user-pay-1'))).toBeNull()
   })
 
   it('settle replay returns applied false and does not double credit', async () => {
@@ -287,7 +278,7 @@ describe('payment CORE', () => {
 
     const [flux] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-pay-1'))
     expect(flux?.flux).toBe(500)
-    expect(await redis.get(userFluxRedisKey('user-pay-1'))).toBe('500')
+    expect(await redis.get(userFluxRedisKey('user-pay-1'))).toBeNull()
   })
 
   it('evidence settle replay returns applied false and does not double credit', async () => {
@@ -311,5 +302,61 @@ describe('payment CORE', () => {
 
     const second = await payment.settle(appleEvidence({ processorOrderId: 'txn_catalog_2', fluxAmount: 9999 }))
     expect(second).toMatchObject({ applied: true, fluxAmount: 9999 })
+  })
+
+  it('credits sandbox replay once without colliding with a production transaction ID', async () => {
+    const fields = { transactionId: 'txn_same', productId: 'starter', appAccountToken: 'token-1' }
+    const payload = { bundleId: 'ai.moeru.airi-pocket', environment: Environment.SANDBOX }
+    const sandbox = evidenceReceiptFromTransaction(payload, fields, 'user-pay-1', { fluxAmount: 500 })
+    const production = evidenceReceiptFromTransaction(
+      { ...payload, environment: Environment.PRODUCTION },
+      fields,
+      'user-pay-1',
+      { fluxAmount: 500 },
+    )
+    const first = await payment.settle(sandbox)
+    const replay = await payment.settle(sandbox)
+    const real = await payment.settle(production)
+
+    expect(first.applied).toBe(true)
+    expect(replay.applied).toBe(false)
+    expect(real.applied).toBe(true)
+    const orders = await db.select().from(schema.paymentOrder).where(eq(schema.paymentOrder.userId, 'user-pay-1'))
+    expect(orders).toHaveLength(2)
+    const [flux] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-pay-1'))
+    expect(flux?.flux).toBe(1000)
+  })
+
+  it('credits concurrent deliveries of a new sandbox transaction once', async () => {
+    const fields = { transactionId: 'race_txn', productId: 'starter', appAccountToken: 'token-1' }
+    const payload = { bundleId: 'ai.moeru.airi-pocket', environment: Environment.SANDBOX }
+    const current = evidenceReceiptFromTransaction(payload, fields, 'user-pay-1', { fluxAmount: 500 })
+    const results = await Promise.all([
+      payment.settle(current),
+      payment.settle(current),
+    ])
+
+    expect(results.filter(result => result.applied)).toHaveLength(1)
+    const [flux] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-pay-1'))
+    expect(flux.flux).toBe(500)
+  })
+
+  it('does not deduplicate sandbox transactions across different bundles', async () => {
+    const fields = { transactionId: 'shared_txn', productId: 'starter', appAccountToken: 'token-1' }
+    const first = evidenceReceiptFromTransaction(
+      { bundleId: 'ai.moeru.airi-pocket', environment: Environment.SANDBOX },
+      fields,
+      'user-pay-1',
+      { fluxAmount: 500 },
+    )
+    const second = evidenceReceiptFromTransaction(
+      { bundleId: 'ai.moeru.airi-pocket-lab', environment: Environment.SANDBOX },
+      fields,
+      'user-pay-1',
+      { fluxAmount: 500 },
+    )
+
+    expect((await payment.settle(first)).applied).toBe(true)
+    expect((await payment.settle(second)).applied).toBe(true)
   })
 })

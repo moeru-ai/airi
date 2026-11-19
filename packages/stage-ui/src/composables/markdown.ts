@@ -5,6 +5,7 @@ import type { Processor } from 'unified'
 import rehypeShiki from '@shikijs/rehype'
 import rehypeKatex from 'rehype-katex'
 import RehypeStringify from 'rehype-stringify'
+import remarkCjkFriendly from 'remark-cjk-friendly'
 import RemarkParse from 'remark-parse'
 import RemarkRehype from 'remark-rehype'
 
@@ -22,6 +23,7 @@ const processorCache = new Map<string, Promise<MarkdownProcessor>>()
 // inside blockquotes or nested lists follow Remark rules instead of a regex.
 const languageParser = unified()
   .use(RemarkParse)
+  .use(remarkCjkFriendly)
   .use(chatMathPreset)
 
 function extractLangs(markdown: string): BundledLanguage[] {
@@ -67,6 +69,7 @@ async function createProcessor(langs: BundledLanguage[]): Promise<MarkdownProces
 
   return unified()
     .use(RemarkParse)
+    .use(remarkCjkFriendly)
     .use(chatMathPreset)
     .use(RemarkRehype)
     .use(measuredKatex, { output: 'mathml' })
@@ -89,6 +92,7 @@ function getProcessor(langs: BundledLanguage[]): Promise<MarkdownProcessor> {
 export function useMarkdown() {
   const fallbackProcessor = unified()
     .use(RemarkParse)
+    .use(remarkCjkFriendly)
     .use(chatMathPreset)
     .use(RemarkRehype)
     .use(measuredKatex, { output: 'mathml' })
@@ -96,7 +100,7 @@ export function useMarkdown() {
 
   return {
     process: async (markdown: string): Promise<string> => {
-      const hasCodeFence = /`{3,}/.test(markdown)
+      const hasCodeFence = /`{3,}|~{3,}/.test(markdown)
       const meta = { length: markdown.length, hasCodeFence }
 
       return defaultPerfTracer.withMeasure('markdown', 'process', async () => {

@@ -3,9 +3,11 @@ import type { Component } from 'vue'
 import en from '@proj-airi/i18n/locales/en'
 
 import { MotionPlugin } from '@vueuse/motion'
+import { generateSpeech } from '@xsai/generate-speech'
 import { createPinia, disposePinia } from 'pinia'
 import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
 import { afterEach, expect, it, vi } from 'vitest'
+import { page } from 'vitest/browser'
 import { createApp, h } from 'vue'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
@@ -21,6 +23,7 @@ import { useSpeechStore } from './speech'
 // Analytics delivery is external IO. Exercise the real page and stores while
 // recording its outgoing payload instead of sending product events.
 vi.mock('../../libs/product-signals/client', { spy: true })
+vi.mock('@xsai/generate-speech', { spy: true })
 
 const cleanups: Array<() => void> = []
 
@@ -59,6 +62,81 @@ afterEach(() => {
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
   localStorage.clear()
+})
+
+// https://github.com/moeru-ai/airi/issues/3153
+// ROOT CAUSE:
+// None replaced the selected speech configuration. The source action now retains it and commits activation in the leader.
+it.each(['provider', 'switch'] as const)('issue #3153: disables speech with the %s control from a follower and restores the saved model and voice', async (control) => {
+  localStorage.clear()
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], data: [] })))
+  const namespace = `speech-disabled:${crypto.randomUUID()}`
+  const leader = mountRenderer(namespace)
+  await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+  const provider = 'openai-compatible-audio-speech'
+  await useProviderConfigStore(leader.pinia).ensureProvider(provider, provider, { apiKey: 'key', baseUrl: 'https://voices.invalid/v1/' })
+  await useProviderStore(leader.pinia).forceProviderConfigured(provider)
+  await leader.speech.selectProviderModel(provider, 'tts-1', 'alloy')
+  const follower = mountRenderer(namespace, SpeechSettings)
+  await vi.waitFor(() => expect(follower.speech.activeSpeechVoiceId).toBe('alloy'))
+  const view = page.elementLocator(follower.container)
+  const toggle = view.getByRole('switch', { name: 'Speech', exact: true })
+  const none = view.getByRole('radio', { name: 'None', exact: true })
+  await expect.element(toggle).toBeChecked()
+  if (control === 'switch')
+    await toggle.click()
+  else
+    await page.elementLocator(none.element().closest('label')!).click()
+  await vi.waitFor(() => expect(leader.speech.enabled).toBe(false))
+  expect(leader.speech.configured).toBe(false)
+  expect(leader.speech.activeSpeechProvider).toBe(provider)
+  expect(leader.speech.activeSpeechModel).toBe('tts-1')
+  expect(leader.speech.activeSpeechVoiceId).toBe('alloy')
+  // The leader commits before the follower renders its snapshot. Wait for the
+  // displayed state before clicking a radio that was previously selected.
+  await expect.element(toggle).not.toBeChecked()
+  await expect.element(none).toBeChecked()
+  if (control === 'switch') {
+    await toggle.click()
+  }
+  else {
+    const savedProvider = follower.container.querySelector<HTMLInputElement>(`input[value="${provider}"]`)!
+    await expect.element(page.elementLocator(savedProvider)).not.toBeChecked()
+    await page.elementLocator(savedProvider.closest('label')!).click()
+  }
+  await vi.waitFor(() => expect(leader.speech.enabled).toBe(true))
+  await expect.element(toggle).toBeChecked()
+  expect(follower.speech.activeSpeechProvider).toBe(provider)
+  expect(leader.speech.activeSpeechModel).toBe('tts-1')
+  expect(leader.speech.activeSpeechVoiceId).toBe('alloy')
+})
+
+// https://github.com/moeru-ai/airi/issues/3153
+// ROOT CAUSE:
+// The preview bypassed module cancellation. Disabling now aborts its request and rejects late audio.
+it('issue #3153: cancels a speech preview when another window disables speech', async () => {
+  localStorage.clear()
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], data: [] })))
+  const pending = Promise.withResolvers<ArrayBuffer>()
+  vi.mocked(generateSpeech).mockReturnValue(pending.promise)
+  const namespace = `speech-preview-disabled:${crypto.randomUUID()}`
+  const leader = mountRenderer(namespace)
+  await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+  const provider = 'openai-compatible-audio-speech'
+  await useProviderConfigStore(leader.pinia).ensureProvider(provider, provider, { apiKey: 'key', baseUrl: 'https://voices.invalid/v1/' })
+  await useProviderStore(leader.pinia).forceProviderConfigured(provider)
+  await leader.speech.selectProviderModel(provider, 'tts-1', 'alloy')
+  const follower = mountRenderer(namespace, SpeechSettings)
+  const preview = () => Array.from(follower.container.querySelectorAll('button')).find(button => button.textContent?.includes('Test Voice'))!
+  await vi.waitFor(() => expect(preview()?.disabled).toBe(false))
+  preview().click()
+  await vi.waitFor(() => expect(generateSpeech).toHaveBeenCalledTimes(1))
+  const signal = vi.mocked(generateSpeech).mock.calls[0][0].abortSignal
+  await leader.speech.selectSource('speech-noop')
+  await vi.waitFor(() => expect(signal?.aborted).toBe(true))
+  pending.resolve(new ArrayBuffer(0))
+  await vi.waitFor(() => expect(preview()?.disabled).toBe(true))
+  expect(follower.container.querySelector('audio')).toBeNull()
 })
 
 // https://github.com/moeru-ai/airi/actions/runs/34348745853/job/102456521103
@@ -136,7 +214,7 @@ it('reports the committed provider and model after a settings-page click', async
     tts_model_id: 'v1',
     source: 'settings',
   }))
-  expect(follower.speech.activeSpeechProvider).toBe('microsoft-speech')
+  await vi.waitFor(() => expect(follower.speech.activeSpeechProvider).toBe('microsoft-speech'))
 })
 
 // https://github.com/moeru-ai/airi/pull/2490#discussion_r3967708960

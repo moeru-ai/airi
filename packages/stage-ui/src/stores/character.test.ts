@@ -1,12 +1,14 @@
 import type { AiriCard } from './modules'
 
+import { defineInvokeHandler } from '@moeru/eventa'
 import { createTestingPinia } from '@pinia/testing'
 import { setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { getSpeechBusContext, voiceSpeechCommand } from '../services/speech/bus'
 import { setCharacterLlmMarkerParserFactoryForTest, useCharacterStore } from './character'
+import { useChatSessionStore } from './chat/session-store'
 import { useAiriCardStore } from './modules'
-import { useSpeechRuntimeStore } from './speech-runtime'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
@@ -15,23 +17,13 @@ vi.mock('vue-i18n', () => ({
 }))
 
 const writeLiteralSpy = vi.fn()
-const writeFlushSpy = vi.fn()
 const endSpy = vi.fn()
-const cancelSpy = vi.fn()
+const finishSpy = vi.fn()
 const parserConsumeSpy = vi.fn()
 const parserEndSpy = vi.fn()
+let stopHost: (() => void) | undefined
 
-const openSpeechIntentSpy = vi.fn(() => ({
-  intentId: 'intent-test',
-  streamId: 'stream-test',
-  priority: 100,
-  stream: new ReadableStream(),
-  writeLiteral: writeLiteralSpy,
-  writeSpecial: vi.fn(),
-  writeFlush: writeFlushSpy,
-  end: endSpy,
-  cancel: cancelSpy,
-}))
+afterEach(() => stopHost?.())
 
 describe('store character', () => {
   beforeEach(() => {
@@ -44,21 +36,28 @@ describe('store character', () => {
         if (textPart)
           await options.onLiteral?.(textPart)
       },
+      // This parser emits each part at once, so it holds nothing back.
+      async flush() {},
       async end() {
         parserEndSpy()
       },
     }))
 
     writeLiteralSpy.mockClear()
-    writeFlushSpy.mockClear()
     endSpy.mockClear()
-    cancelSpy.mockClear()
-    openSpeechIntentSpy.mockClear()
     parserConsumeSpy.mockClear()
     parserEndSpy.mockClear()
 
-    const speechRuntimeStore = useSpeechRuntimeStore(pinia)
-    speechRuntimeStore.openIntent = openSpeechIntentSpy
+    useChatSessionStore(pinia).activeSessionId = 'session-1'
+    stopHost = defineInvokeHandler(getSpeechBusContext(), voiceSpeechCommand, (command) => {
+      if (command.type === 'text')
+        writeLiteralSpy(command.value)
+      if (command.type === 'end')
+        endSpy()
+      if (command.type === 'finish')
+        finishSpy()
+      return { status: 'accepted' }
+    })
 
     const airiCardStore = useAiriCardStore(pinia)
     // @ts-expect-error - testing purpose
@@ -69,6 +68,7 @@ describe('store character', () => {
       version: '1.0',
       extensions: {
         airi: {
+          avatarModels: [],
           agents: {},
           modules: {
             consciousness: {
@@ -127,7 +127,7 @@ describe('store character', () => {
       expect(parserEndSpy).toHaveBeenCalled()
       expect(writeLiteralSpy).toHaveBeenCalledWith('Hello')
       expect(writeLiteralSpy).toHaveBeenCalledWith(' world')
-      expect(writeFlushSpy).toHaveBeenCalled()
+      expect(finishSpy).toHaveBeenCalled()
       expect(endSpy).toHaveBeenCalled()
     })
 

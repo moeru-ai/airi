@@ -52,6 +52,7 @@ export interface UserDeletionHandler {
    * - 10: external side-effects without rollback (Stripe API cancel)
    * - 20: financial / cache state (Flux balance, Redis invalidation)
    * - 30: pure DB soft-delete (providers, characters, chats)
+   * - 40: events that report the finished soft delete (`user.deleted` account event)
    *
    * @default 30
    */

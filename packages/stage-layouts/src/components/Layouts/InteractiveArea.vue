@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import type { ChatImageAttachment } from '@proj-airi/stage-ui/components/scenarios/chat'
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
-import { ChatHistory } from '@proj-airi/stage-ui/components'
-import { useChatComposer } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatBackgroundTasks, ChatHistory } from '@proj-airi/stage-ui/components'
+import { VoiceCallCapsule } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
@@ -19,33 +18,24 @@ import ChatArea from '../Widgets/ChatArea.vue'
 import ChatContainer from '../Widgets/ChatContainer.vue'
 
 import { useChatToolCallRerun } from '../../composables/useChatToolCallRerun'
+import { useStageChatComposerStore } from '../../stores/chat-composer'
 
 const { isReady } = useDeferredMount()
 const chatOrchestrator = useChatStore()
-const { activeSendSessionId, activeStreamingMessage, sending } = storeToRefs(chatOrchestrator)
+const { activeTurns, backgroundTasks } = storeToRefs(chatOrchestrator)
 const { activeSessionId, messages } = storeToRefs(useChatSessionStore())
 const { streamingMessage } = storeToRefs(useChatStreamStore())
 const { isReceivingRemoteStream } = storeToRefs(useContextBridgeStore())
 
 const isLoading = ref(true)
-const composer = useChatComposer<ChatImageAttachment>({
-  activeSessionId,
-  send: submission => chatOrchestrator.send({
-    sessionId: submission.sessionId,
-    text: submission.text,
-    attachments: submission.attachments.map(({ type, data, mimeType }) => ({ type, data, mimeType })),
-    replyToMessageId: submission.replyToMessageId,
-  }),
-})
+const { composer } = useStageChatComposerStore()
 const { clearReplyForMessage, selectReply } = composer
-const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
+const historyMessages = computed(() => messages.value)
 const isActiveSessionSending = computed(() => (
-  (sending.value && activeSendSessionId.value === activeSessionId.value)
+  (activeTurns.value.some(turn => turn.sessionId === activeSessionId.value))
   || isReceivingRemoteStream.value
 ))
-const visibleStreamingMessage = computed(() => activeSendSessionId.value === activeSessionId.value
-  ? activeStreamingMessage.value
-  : streamingMessage.value)
+const visibleStreamingMessage = streamingMessage
 const { trackChatMessageDeleted } = useAnalytics()
 const { rerunToolCall } = useChatToolCallRerun()
 
@@ -95,11 +85,13 @@ async function handleRetryMessage(index: number) {
             @vue:mounted="isLoading = false"
           />
         </div>
+        <ChatBackgroundTasks :tasks="backgroundTasks" @stop="task => chatOrchestrator.stopBackgroundTask(task.sessionId)" @dismiss="task => chatOrchestrator.dismissBackgroundTask(task.sessionId)" />
         <ChatArea :composer="composer" :generating="isActiveSessionSending" />
       </ChatContainer>
     </div>
 
     <ChatActionButtons />
+    <VoiceCallCapsule />
   </div>
 </template>
 

@@ -6,16 +6,25 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: crowdin
+  # Every run waits for its turn. With the default, a new pending run cancels the older
+  # pending one, and a translation upload could be lost.
+  queue: max
+
 jobs:
   upload-translations-to-crowdin:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       # NOTICE: Uploading local translations to Crowdin can overwrite remote changes and discard pending sync work. Run only when intentionally pushing the repo state upstream. See https://github.com/moeru-ai/airi/pull/813#issuecomment-3669328994 and https://support.crowdin.com/enterprise/github-integration/ (explained by @typed-sigterm); Mastodon follows a similar flow.
-      - uses: crowdin/github-action@v2
+      - uses: crowdin/github-action@v3
         with:
           upload_sources: false
           upload_translations: true
+          # The sync exports only approved translations, so an upload must approve what it
+          # imports to take effect.
+          auto_approve_imported: true
           download_translations: false
           localization_branch_name: crowdin
           create_pull_request: false

@@ -1,0 +1,141 @@
+import en from '@proj-airi/i18n/locales/en'
+
+import { pushToTalkTriggerKey } from '@proj-airi/stage-ui/composables/push-to-talk-trigger'
+import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { createPinia, disposePinia } from 'pinia'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, render } from 'vitest-browser-vue'
+import { page } from 'vitest/browser'
+import { createI18n } from 'vue-i18n'
+import { createMemoryHistory, createRouter } from 'vue-router'
+
+import HearingPage from './index.vue'
+
+import 'virtual:uno.css'
+
+const pinias: ReturnType<typeof createPinia>[] = []
+
+afterEach(() => {
+  cleanup()
+  pinias.splice(0).forEach(pinia => disposePinia(pinia))
+  vi.restoreAllMocks()
+  localStorage.clear()
+})
+
+/**
+ * Renders the Hearing overview in a host that declares whether it has a Push to Talk trigger. `undefined` provides nothing.
+ * The page renders selects on a wide screen and row lists on a narrow one, so each test sets its width.
+ */
+async function renderHearing(trigger: boolean | undefined, width = 1280) {
+  await page.viewport(width, 800)
+  const pinia = createPinia()
+  pinias.push(pinia)
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: '/:path(.*)*', component: { template: '<div />' } }],
+  })
+  await router.push('/settings/modules/hearing')
+
+  return render(HearingPage, {
+    global: {
+      plugins: [pinia, router, createI18n({ legacy: false, locale: 'en', messages: { en }, missingWarn: false, fallbackWarn: false })],
+      provide: trigger === undefined ? {} : { [pushToTalkTriggerKey as symbol]: trigger },
+    },
+  })
+}
+
+async function openInputModeSelect(screen: Awaited<ReturnType<typeof renderHearing>>) {
+  await screen.getByTestId('hearing-input-mode').getByRole('combobox').click()
+  return screen.getByRole('option', { name: /Push to Talk/ })
+}
+
+describe('hearing overview', () => {
+  // https://github.com/moeru-ai/airi/issues/3153
+  // ROOT CAUSE:
+  // The overview lacked a module switch. The switch now preserves the selected provider and model.
+  it('issue #3153: switches hearing off and on without clearing its selection', async () => {
+    localStorage.setItem('settings/hearing/active-provider', 'browser-web-speech-api')
+    localStorage.setItem('settings/hearing/active-model', 'web-speech-api')
+    const screen = await renderHearing(true)
+    const hearing = useHearingStore(pinias[pinias.length - 1])
+    const toggle = screen.getByRole('switch', { name: 'Hearing', exact: true })
+    await expect.element(toggle).toBeChecked()
+    await toggle.click()
+    expect(hearing.configured).toBe(false)
+    expect(hearing.activeTranscriptionProvider).toBe('browser-web-speech-api')
+    expect(hearing.activeTranscriptionModel).toBe('web-speech-api')
+    await toggle.click()
+    expect(hearing.configured).toBe(true)
+  })
+
+  it('links to the speech recognition and wake words pages', async () => {
+    const screen = await renderHearing(true)
+
+    await expect.element(screen.getByTestId('hearing-page-transcriber').getByRole('link')).toHaveAttribute('href', '/settings/modules/hearing/transcriber')
+    await expect.element(screen.getByTestId('hearing-page-transcriber')).toHaveTextContent('Speech recognition')
+    await expect.element(screen.getByTestId('hearing-page-wake-words').getByRole('link')).toHaveAttribute('href', '/settings/modules/hearing/wake-words')
+    await expect.element(screen.getByTestId('hearing-page-wake-words')).toHaveTextContent('Wake words')
+  })
+
+  it('does not open the microphone when the page opens', async () => {
+    const capture = vi.spyOn(navigator.mediaDevices, 'getUserMedia')
+    const screen = await renderHearing(true)
+
+    await expect.element(screen.getByTestId('hearing-microphone-switch')).toBeVisible()
+    await expect.element(screen.getByTestId('hearing-auto-send')).toBeVisible()
+    expect(capture).not.toHaveBeenCalled()
+  })
+
+  it('shows the wake word status when the input mode is wake words', async () => {
+    localStorage.setItem('settings/hearing/input-mode', 'wake-word')
+    const screen = await renderHearing(true)
+
+    await expect.element(screen.getByTestId('hearing-wake-word-status')).toHaveTextContent('No character has wake words.')
+  })
+})
+
+describe('hearing input mode', () => {
+  // A narrow web screen listens only during a voice call, so the input mode and the microphone switch change nothing there.
+  it('explains on a narrow web screen that only a voice call listens', async () => {
+    const screen = await renderHearing(undefined, 390)
+
+    await expect.element(screen.getByTestId('hearing-call-only')).toBeVisible()
+    expect(screen.getByTestId('hearing-input-mode').query()).toBeNull()
+    expect(screen.getByTestId('hearing-microphone-switch').query()).toBeNull()
+  })
+
+  // Review: https://github.com/moeru-ai/airi/pull/2729#discussion_r4237157722
+  it('disables Push to Talk with a hint when the host declares no trigger', async () => {
+    const screen = await renderHearing(undefined)
+
+    const option = await openInputModeSelect(screen)
+
+    await expect.element(option).toHaveAttribute('data-disabled')
+    await expect.element(option).toHaveTextContent('Not available here. This app has no Push to Talk key on this device.')
+  })
+
+  it('offers Push to Talk when the host has a trigger', async () => {
+    const screen = await renderHearing(true)
+
+    const option = await openInputModeSelect(screen)
+
+    await expect.element(option).not.toHaveAttribute('data-disabled')
+    await expect.element(option).toHaveTextContent('AIRI listens only while you hold the Push to Talk key.')
+  })
+
+  it('warns when the saved mode is Push to Talk and the host has no trigger', async () => {
+    localStorage.setItem('settings/hearing/input-mode', 'push-to-talk')
+    const screen = await renderHearing(false)
+
+    await expect.element(screen.getByTestId('hearing-input-mode-stranded')).toBeVisible()
+    await expect.element(screen.getByTestId('hearing-input-mode-stranded')).toHaveTextContent('Push to Talk is not available here')
+  })
+
+  it('shows no warning for a saved Push to Talk mode when the host has a trigger', async () => {
+    localStorage.setItem('settings/hearing/input-mode', 'push-to-talk')
+    const screen = await renderHearing(true)
+
+    await expect.element(screen.getByTestId('hearing-input-mode')).toBeVisible()
+    expect(screen.getByTestId('hearing-input-mode-stranded').query()).toBeNull()
+  })
+})

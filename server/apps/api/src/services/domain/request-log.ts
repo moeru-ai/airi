@@ -46,7 +46,8 @@ export function createRequestLogService(db: Database) {
     },
 
     async listRequests(userId: string, limit = 50, offset = 0) {
-      return db.select().from(schema.llmRequestLog).where(eq(schema.llmRequestLog.userId, userId)).orderBy(desc(schema.llmRequestLog.createdAt), desc(schema.llmRequestLog.id)).limit(Math.min(101, Math.max(1, limit))).offset(offset)
+      const table = schema.llmRequestLog
+      return db.select({ requestId: table.requestId, model: table.model, state: table.state, status: table.status, durationMs: table.durationMs, createdAt: table.createdAt }).from(table).where(eq(table.userId, userId)).orderBy(desc(table.createdAt), desc(table.id)).limit(Math.min(101, Math.max(1, limit))).offset(offset)
     },
 
     async recoverStaleRequests(before: Date) {
@@ -79,6 +80,7 @@ export function createRequestLogService(db: Database) {
           responseModel: observation.responseModel,
           providerUsage: observation.providerUsage,
           providerMetadata: observation.providerMetadata,
+          errorBody: observation.errorBody,
           timeToFirstTokenMs: observation.startedAt && observation.timeToFirstTokenMs != null
             ? sql`greatest(0, round(extract(epoch from (${new Date(observation.startedAt.getTime() + observation.timeToFirstTokenMs).toISOString()}::timestamp - ${llmRequestAttempt.startedAt})) * 1000))::integer`
             : undefined,

@@ -153,11 +153,8 @@ describe('useLinkedAccounts link dispatch', () => {
       error: null,
     }))
 
-    // Separate composable instances: a successful link without a redirect
-    // URL leaves `inFlight` set (the row refreshes in place), so a second
-    // link call on the same instance would be a no-op.
-    const steamHolder = await mountLinkedAccounts(fakeLinkedAccountsClient({ linkSteam }))
-    await steamHolder.link('steam', 'Steam')
+    const holder = await mountLinkedAccounts(fakeLinkedAccountsClient({ linkSocial, linkSteam }))
+    await holder.link('steam', 'Steam')
     expect(linkSteam).toHaveBeenCalledTimes(1)
     expect(linkSteam).toHaveBeenCalledWith({
       callbackURL: 'https://accounts.airi.build/ui/profile',
@@ -165,8 +162,7 @@ describe('useLinkedAccounts link dispatch', () => {
     })
     expect(linkSocial).not.toHaveBeenCalled()
 
-    const socialHolder = await mountLinkedAccounts(fakeLinkedAccountsClient({ linkSocial }))
-    await socialHolder.link('google', 'Google')
+    await holder.link('google', 'Google')
     expect(linkSocial).toHaveBeenCalledTimes(1)
     expect(linkSocial).toHaveBeenCalledWith({
       provider: 'google',
@@ -174,6 +170,81 @@ describe('useLinkedAccounts link dispatch', () => {
       errorCallbackURL: 'https://accounts.airi.build/ui/profile',
     })
     expect(linkSteam).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('useLinkedAccounts pending state', () => {
+  // Reported for stage-tamagotchi: the settings row keeps spinning after the
+  // system browser completes the link.
+  //
+  // ROOT CAUSE:
+  //
+  // `link` cleared `inFlight` on failure only, so a successful link without a
+  // redirect URL left the row busy for good. We fixed this by clearing
+  // `inFlight` in a `finally`.
+  it('clears the pending state when the provider links without a redirect', async () => {
+    const holder = await mountLinkedAccounts(fakeLinkedAccountsClient())
+
+    await holder.link('google', 'Google')
+
+    expect(holder.inFlight.value).toBeNull()
+  })
+
+  it('clears the pending state when the server reports a link failure', async () => {
+    const holder = await mountLinkedAccounts(fakeLinkedAccountsClient({
+      linkSocial: vi.fn(async () => ({ data: null, error: { message: 'nope' } })),
+    }))
+
+    await holder.link('google', 'Google')
+
+    expect(holder.error.value).toBe('link failed')
+    expect(holder.inFlight.value).toBeNull()
+  })
+})
+
+describe('useLinkedAccounts new sign-in prompt', () => {
+  it.each(['google', 'steam'])('asks for a new sign-in when the %s link answers SESSION_REQUIRED', async (providerId) => {
+    const rejected = vi.fn(async () => ({ data: null, error: { code: 'SESSION_REQUIRED', message: 'Sign in again', status: 403 } }))
+    const holder = await mountLinkedAccounts(fakeLinkedAccountsClient({ linkSocial: rejected, linkSteam: rejected }))
+
+    await holder.link(providerId, providerId)
+
+    expect(rejected).toHaveBeenCalledTimes(1)
+    expect(holder.needsLogin.value).toBe(true)
+    expect(holder.error.value).toBe('sign in again')
+    expect(holder.message.value).toBeNull()
+  })
+
+  it('asks for a new sign-in when unlink answers SESSION_NOT_FRESH', async () => {
+    const holder = await mountLinkedAccounts(fakeLinkedAccountsClient({
+      // Two rows so `isLastSignInMethod` does not stop the unlink.
+      listAccounts: vi.fn(async () => ({
+        data: [
+          { id: '1', accountId: 'a-1', providerId: 'github', createdAt: '2026-01-01T00:00:00Z', scopes: [] },
+          { id: '2', accountId: 'a-2', providerId: 'credential', createdAt: '2026-01-01T00:00:00Z', scopes: [] },
+        ],
+        error: null,
+      })),
+      unlinkAccount: vi.fn(async () => ({ data: null, error: { code: 'SESSION_NOT_FRESH', status: 403 } })),
+    }))
+    await holder.refresh()
+
+    await holder.unlink('github', 'GitHub')
+
+    expect(holder.needsLogin.value).toBe(true)
+    expect(holder.error.value).toBe('sign in again')
+  })
+
+  it('clears the prompt when the next link fails for another reason', async () => {
+    const linkSocial = vi.fn(async () => ({ data: null, error: { code: 'SESSION_REQUIRED', status: 403 } }))
+    const holder = await mountLinkedAccounts(fakeLinkedAccountsClient({ linkSocial }))
+    await holder.link('google', 'Google')
+    linkSocial.mockResolvedValueOnce({ data: null, error: { code: 'PROVIDER_NOT_FOUND', status: 404 } })
+
+    await holder.link('google', 'Google')
+
+    expect(holder.needsLogin.value).toBe(false)
+    expect(holder.error.value).toBe('link failed')
   })
 })
 
@@ -195,6 +266,7 @@ async function mountLinkedAccounts(client: LinkedAccountsClient) {
           lastAccount: 'last account',
           unlinked: provider => `${provider} unlinked`,
           linkStarted: provider => `${provider} link started`,
+          reauthenticate: 'sign in again',
         },
       })
 

@@ -8,7 +8,7 @@ import { createContext, defineInvoke } from '@moeru/eventa'
 import { shell } from 'electron'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { electronAuthCallback, electronAuthCallbackError, electronAuthLogout, electronAuthStartLogin } from '../../../shared/eventa'
+import { electronAuthCallback, electronAuthCallbackError, electronAuthComplete, electronAuthGetStatus, electronAuthLogout, electronAuthStartLogin } from '../../../shared/eventa'
 import { createAuthService } from './auth'
 
 vi.mock('electron', () => ({ shell: { openExternal: vi.fn().mockResolvedValue(undefined) } }))
@@ -31,6 +31,8 @@ describe('electron login request ownership', () => {
     const options = { raw: { ipcMainEvent: { sender: { id } } as IpcMainEvent, event: undefined } }
     const start = defineInvoke(context, electronAuthStartLogin)
     const logout = defineInvoke(context, electronAuthLogout)
+    const getStatus = defineInvoke(context, electronAuthGetStatus)
+    const complete = defineInvoke(context, electronAuthComplete)
     const received = vi.fn()
     context.on(electronAuthCallback, received)
     const failed = vi.fn()
@@ -38,7 +40,15 @@ describe('electron login request ownership', () => {
     cleanups.push(async () => {
       await logout(undefined, options)
     })
-    return { start: () => start(undefined, options), logout: () => logout(undefined, options), received, failed, window }
+    return {
+      start: () => start(undefined, options),
+      logout: () => logout(undefined, options),
+      getStatus: () => getStatus(undefined, options),
+      complete: (result: { attemptId: string, error?: string }) => complete(result, options),
+      received,
+      failed,
+      window,
+    }
   }
 
   async function callback(index: number) {
@@ -85,6 +95,32 @@ describe('electron login request ownership', () => {
     await vi.waitFor(() => expect(second.received).toHaveBeenCalledTimes(1))
     expect(first.received).not.toHaveBeenCalled()
     expect(second.received.mock.calls[0]![0].body.accessToken).toBe('current')
+  })
+
+  it('keeps confirmation open until the renderer reports completion', async () => {
+    const login = windowLogin(10)
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ access_token: 'current', expires_in: 3600 }))
+    await login.start()
+    await callback(0)
+    await vi.waitFor(() => expect(login.received).toHaveBeenCalledTimes(1))
+    const attemptId = login.received.mock.calls[0]![0].body.attemptId as string
+    await setImmediate()
+    expect((await login.getStatus())?.state).toBe('confirming')
+    await login.complete({ attemptId })
+    expect((await login.getStatus())?.state).toBe('success')
+  })
+
+  it('ignores completion from a replaced login', async () => {
+    const first = windowLogin(11)
+    const second = windowLogin(12)
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ access_token: 'current', expires_in: 3600 }))
+    await first.start()
+    await callback(0)
+    await vi.waitFor(() => expect(first.received).toHaveBeenCalledTimes(1))
+    const oldAttemptId = first.received.mock.calls[0]![0].body.attemptId as string
+    await second.start()
+    await first.complete({ attemptId: oldAttemptId })
+    expect((await second.getStatus())?.state).toBe('waiting')
   })
 
   // ROOT CAUSE:

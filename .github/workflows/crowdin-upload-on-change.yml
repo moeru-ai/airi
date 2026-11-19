@@ -1,0 +1,45 @@
+name: Crowdin upload changed translations
+
+# A translation that a contributor edits in the repository must reach Crowdin before the
+# next sync, or the sync replaces it with the older Crowdin text. This workflow uploads the
+# translated locales each time a change to them lands on main.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'packages/i18n/src/locales/**'
+      - '!packages/i18n/src/locales/en/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: crowdin
+  # Every run waits for its turn. With the default, a new pending run cancels the older
+  # pending one, and a translation upload could be lost.
+  queue: max
+
+jobs:
+  upload-translations-to-crowdin:
+    # The merge of the Crowdin pull request changes the same files. Its content came from
+    # Crowdin, so an upload would only send it back.
+    if: "${{ !startsWith(github.event.head_commit.message, 'chore(i18n): update translations') }}"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: crowdin/github-action@v3
+        with:
+          # A change can add an English key together with its translation. Crowdin ignores a
+          # translation for a string it does not have, so the sources go first.
+          upload_sources: true
+          upload_translations: true
+          # The sync exports only approved translations. Approving on import lets a
+          # translation from the repository reach the next export.
+          auto_approve_imported: true
+          download_translations: false
+          localization_branch_name: crowdin
+          create_pull_request: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CROWDIN_PERSONAL_TOKEN: ${{ secrets.CROWDIN_PERSONAL_TOKEN }}

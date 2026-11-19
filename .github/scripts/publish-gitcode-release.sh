@@ -1,18 +1,20 @@
 #!/usr/bin/env bash
 
 set -euo pipefail
+umask 077
 
 GITCODE_API_BASE="${GITCODE_API_BASE:-https://api.gitcode.com/api/v5}"
 GITHUB_REPOSITORY_NAME="${GITHUB_REPOSITORY:-moeru-ai/airi}"
 RELEASE_TAG="${GITCODE_RELEASE_TAG:-${RELEASE_TAG:-${GITHUB_REF_NAME:-}}}"
-GITCODE_TARGET_COMMITISH="${GITCODE_TARGET_COMMITISH:-main}"
 WORK_DIR="${RUNNER_TEMP:-/tmp}/gitcode-release-${RELEASE_TAG}"
 ASSETS_DIR="${WORK_DIR}/assets"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 if [[ -z "${RELEASE_TAG}" ]]; then
   echo "::error::Missing release tag. Set GITCODE_RELEASE_TAG or run from a release tag ref."
   exit 1
 fi
+git check-ref-format "refs/tags/${RELEASE_TAG}"
 
 # Ensures required environment variables are present before any network call.
 require_env() {
@@ -48,25 +50,27 @@ write_gitcode_curl_config() {
   chmod 600 "${config_file}"
 }
 
-# Reads GitHub release metadata and creates the same GitCode release when absent.
+# Mirrors release metadata and reserves latest status for the current GitHub stable release.
 ensure_gitcode_release() {
   local github_release_json="${WORK_DIR}/github-release.json"
   local gitcode_release_json="${WORK_DIR}/gitcode-release.json"
   local response_json="${WORK_DIR}/create-release-response.json"
   local request_config="${WORK_DIR}/create-release-request.curlrc"
-  local http_status
+  local http_status latest_tag
 
   gh release view "${RELEASE_TAG}" \
     --repo "${GITHUB_REPOSITORY_NAME}" \
     --json tagName,name,body,isPrerelease \
     > "${github_release_json}"
 
-  jq --arg target_commitish "${GITCODE_TARGET_COMMITISH}" '{
+  latest_tag="$(gh api "repos/${GITHUB_REPOSITORY_NAME}/releases/latest" --jq '.tag_name')"
+
+  jq --arg target_commitish "${GITCODE_TARGET_COMMITISH}" --arg latest_tag "${latest_tag}" '{
     tag_name: .tagName,
     name: .name,
     body: .body,
     target_commitish: $target_commitish,
-    release_status: (if .isPrerelease then "pre" else "latest" end)
+    release_status: (if .isPrerelease then "pre" elif .tagName == $latest_tag then "latest" else "none" end)
   }' "${github_release_json}" > "${gitcode_release_json}"
 
   write_gitcode_curl_config "/repos/${GITCODE_OWNER}/${GITCODE_REPO}/releases" "${request_config}"
@@ -87,7 +91,22 @@ ensure_gitcode_release() {
   fi
 
   if jq -e '.error_code == 409 or (.error_message // "" | contains("Release already exists"))' "${response_json}" >/dev/null 2>&1; then
-    echo "GitCode release ${RELEASE_TAG} already exists; reusing it."
+    jq '{name, body, release_status}' "${gitcode_release_json}" > "${WORK_DIR}/update-release.json"
+    write_gitcode_curl_config "/repos/${GITCODE_OWNER}/${GITCODE_REPO}/releases/$(urlencode "${RELEASE_TAG}")" "${request_config}"
+    http_status="$(
+      curl --retry 3 --retry-all-errors -sS \
+        --config "${request_config}" \
+        -o "${response_json}" \
+        -w '%{http_code}' \
+        -X PATCH \
+        -H 'Content-Type: application/json' \
+        --data @"${WORK_DIR}/update-release.json"
+    )"
+    if [[ ! "${http_status}" =~ ^2 ]]; then
+      echo "::error::Failed to update GitCode release ${RELEASE_TAG}; HTTP ${http_status}."
+      exit 1
+    fi
+    echo "Updated GitCode release ${RELEASE_TAG}."
     return
   fi
 
@@ -111,6 +130,20 @@ write_existing_gitcode_asset_names() {
     > "${release_json}"
 
   jq -r '.assets[]?.name' "${release_json}" | sort > "${WORK_DIR}/existing-gitcode-assets.txt"
+}
+
+# Rejects a successful HTTP response that retained stale release notes or prerelease status.
+verify_gitcode_release_metadata() {
+  if ! jq -e --slurpfile expected "${WORK_DIR}/gitcode-release.json" '
+    .tag_name == $expected[0].tag_name and
+    .name == $expected[0].name and
+    .body == $expected[0].body and
+    .release_status == $expected[0].release_status and
+    .prerelease == ($expected[0].release_status == "pre")
+  ' "${WORK_DIR}/gitcode-release-current.json" > /dev/null; then
+    echo "::error::GitCode release metadata differs from GitHub."
+    return 1
+  fi
 }
 
 # Writes the GitHub release assets that should be mirrored to GitCode.
@@ -382,10 +415,18 @@ main() {
   require_env GITCODE_OWNER
   require_env GITCODE_REPO
 
-  mkdir -p "${WORK_DIR}"
+  WORK_DIR="$(mktemp -d "${RUNNER_TEMP:-/tmp}/gitcode-release.XXXXXX")"
+  ASSETS_DIR="${WORK_DIR}/assets"
+
+  # The release API creates missing tags from target_commitish. Push the real tag first.
+  source "${SCRIPT_DIR}/sync-gitcode-repository.sh"
+  trap cleanup_gitcode_credentials EXIT
+  prepare_gitcode_repository
+  sync_gitcode_tag
 
   ensure_gitcode_release
   write_existing_gitcode_asset_names
+  verify_gitcode_release_metadata
   write_expected_github_asset_metadata
   verify_gitcode_asset_digests warn
   download_missing_github_release_assets
@@ -395,6 +436,10 @@ main() {
   done < "${WORK_DIR}/assets-to-upload.txt"
 
   verify_gitcode_release_assets
+  verify_gitcode_release_metadata
+  sync_gitcode_repository
 }
 
-main "$@"
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi

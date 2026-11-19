@@ -4,4 +4,8 @@
 **/.env
 **/.env.*
 !**/.env.example
-target
+airi-docs
+.git
+.worktrees
+**/.turbo
+.vishot

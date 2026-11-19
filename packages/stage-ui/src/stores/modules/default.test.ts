@@ -16,8 +16,6 @@ vi.mock('../../composables/use-analytics', () => ({
     trackMicrophonePermissionDenied: vi.fn(),
     trackSttFailed: vi.fn(),
     trackSttStarted: vi.fn(),
-    trackSttSucceeded: vi.fn(),
-    trackVoiceInputStarted: vi.fn(),
   }),
 }))
 
@@ -29,6 +27,23 @@ vi.mock('vue-i18n', () => ({
 }))
 
 describe('official provider module defaults', () => {
+  it('keeps explicit None selections disabled when authentication applies defaults', async () => {
+    const hearing = useHearingStore()
+    const vision = useVisionStore()
+    const speech = useSpeechStore()
+    hearing.enabled = false
+    vision.enabled = false
+    speech.enabled = false
+    speech.activeSpeechProvider = 'speech-noop'
+
+    await configureAsDefaultsIfEmpty()
+
+    expect(hearing.configured).toBe(false)
+    expect(vision.configured).toBe(false)
+    expect(speech.configured).toBe(false)
+    expect(speech.activeSpeechProvider).toBe('speech-noop')
+  })
+
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({

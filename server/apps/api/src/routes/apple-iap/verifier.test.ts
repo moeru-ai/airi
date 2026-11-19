@@ -1,5 +1,6 @@
 import { Buffer } from 'node:buffer'
 
+import { Environment } from '@apple/app-store-server-library'
 import { describe, expect, it } from 'vitest'
 
 import { createVerifier } from './verifier'
@@ -7,6 +8,7 @@ import { createVerifier } from './verifier'
 const pocketBundleId = 'ai.moeru.airi-pocket'
 const liteBundleId = 'ai.moeru.airi-lite'
 
+/** Builds deliberately unsigned input to exercise rejection by the real Apple library. */
 function unsignedJwt(payload: Record<string, unknown>) {
   const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url')
   const body = Buffer.from(JSON.stringify(payload)).toString('base64url')
@@ -14,6 +16,7 @@ function unsignedJwt(payload: Record<string, unknown>) {
 }
 
 describe('apple-iap verifier', () => {
+  /** Uses both trusted bundles without weakening signature verification. */
   async function createTestVerifier() {
     return createVerifier({
       apps: [
@@ -49,12 +52,12 @@ describe('apple-iap verifier', () => {
   it('routes a known bundle id into signature verification', async () => {
     const verifier = await createTestVerifier()
 
-    await expect(verifier.verifyTransaction(unsignedJwt({ bundleId: pocketBundleId })))
+    await expect(verifier.verifyTransaction(unsignedJwt({ bundleId: pocketBundleId, environment: Environment.SANDBOX })))
       .rejects
       .toMatchObject({ statusCode: 400, errorCode: 'JWS_VERIFICATION_FAILED' })
 
     await expect(verifier.verifyNotification(unsignedJwt({
-      data: { bundleId: liteBundleId },
+      data: { bundleId: liteBundleId, environment: Environment.SANDBOX },
     })))
       .rejects
       .toMatchObject({ statusCode: 400, errorCode: 'JWS_VERIFICATION_FAILED' })
@@ -65,5 +68,43 @@ describe('apple-iap verifier', () => {
       apps: [{ bundleId: pocketBundleId }],
       env: 'production',
     })).rejects.toThrow('App Store Connect id')
+  })
+
+  it('keeps sandbox disabled on production unless explicitly enabled', async () => {
+    const verifier = await createVerifier({
+      apps: [{ bundleId: pocketBundleId, appAppleId: 123 }],
+      env: 'production',
+    })
+    await expect(verifier.verifyTransaction(unsignedJwt({
+      bundleId: pocketBundleId,
+      environment: Environment.SANDBOX,
+    }))).rejects.toMatchObject({ statusCode: 400, errorCode: 'ENVIRONMENT_MISMATCH' })
+  })
+
+  it('does not trust unsigned sandbox transactions or notifications when enabled', async () => {
+    const verifier = await createVerifier({
+      apps: [{ bundleId: pocketBundleId, appAppleId: 123 }],
+      env: 'production',
+      allowSandbox: true,
+    })
+    await expect(verifier.verifyTransaction(unsignedJwt({
+      bundleId: pocketBundleId,
+      environment: Environment.SANDBOX,
+    }))).rejects.toMatchObject({ statusCode: 400, errorCode: 'JWS_VERIFICATION_FAILED' })
+    await expect(verifier.verifyNotification(unsignedJwt({
+      data: { bundleId: pocketBundleId, environment: Environment.SANDBOX },
+    }))).rejects.toMatchObject({ statusCode: 400, errorCode: 'JWS_VERIFICATION_FAILED' })
+  })
+
+  it('never enables unsigned Xcode verification on a production server', async () => {
+    const verifier = await createVerifier({
+      apps: [{ bundleId: pocketBundleId, appAppleId: 123 }],
+      env: 'production',
+      allowSandbox: true,
+    })
+    await expect(verifier.verifyTransaction(unsignedJwt({
+      bundleId: pocketBundleId,
+      environment: Environment.XCODE,
+    }))).rejects.toMatchObject({ statusCode: 400, errorCode: 'ENVIRONMENT_MISMATCH' })
   })
 })

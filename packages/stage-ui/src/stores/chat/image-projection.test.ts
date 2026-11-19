@@ -2,9 +2,34 @@ import type { Conversation } from '@proj-airi/core-agent'
 
 import { describe, expect, it, vi } from 'vitest'
 
-import { describeChatImages } from './image-projection'
+import { describeChatImages, replaceToolResultImages } from './image-projection'
 
 describe('chat image projection', () => {
+  it('replaces the images in stored tool results and keeps the other output', () => {
+    const conversation: Conversation = { turns: [{
+      type: 'assistant',
+      id: 'assistant',
+      status: 'completed',
+      rounds: [{
+        id: 'round',
+        content: [{ type: 'tool', invocationId: 'invocation' }],
+        projectionIssues: [],
+        toolInvocations: [{ id: 'invocation', callId: 'call', name: 'computer_use_read_image', arguments: '{}', execution: { status: 'succeeded', output: [
+          { type: 'text', text: 'Captured.' },
+          { type: 'image', url: 'data:image/png;base64,aW1hZ2U=' },
+        ] } }],
+      }],
+    }] }
+    const original = structuredClone(conversation)
+
+    const result = replaceToolResultImages(conversation, 'Image left out.')
+
+    expect(JSON.stringify(result)).not.toContain('data:image')
+    expect(JSON.stringify(result)).toContain('Captured.')
+    expect(JSON.stringify(result)).toContain('Image left out.')
+    expect(conversation).toEqual(original)
+  })
+
   it('keeps originals in history while replacing every image for a text-only model', async () => {
     // ROOT CAUSE:
     // Old images remain in history on later text-only turns. Replacing only the
@@ -39,25 +64,12 @@ describe('chat image projection', () => {
     ])
   })
 
-  it('limits concurrent descriptions and preserves their source order', async () => {
-    // ROOT CAUSE:
-    //
-    // The projection first awaited each image serially, then started every
-    // image together without a limit. Serial work made latency additive, while
-    // unbounded work could overload the vision provider on a long history.
-    //
-    // We fixed this with a four-permit semaphore. Promise.all still keeps the
-    // projected content in the same order as the source content.
-    let activeDescriptions = 0
-    let maximumActiveDescriptions = 0
+  it('preserves the source order when descriptions finish out of order', async () => {
+    // The vision inference queue limits concurrent reads. The projection starts
+    // every image, and Promise.all keeps the source order.
     const resolveByUrl = new Map<string, (description: string) => void>()
     const vision = vi.fn((url: string) => new Promise<string>((resolve) => {
-      activeDescriptions += 1
-      maximumActiveDescriptions = Math.max(maximumActiveDescriptions, activeDescriptions)
-      resolveByUrl.set(url, (description) => {
-        activeDescriptions -= 1
-        resolve(description)
-      })
+      resolveByUrl.set(url, resolve)
     }))
     function resolveImage(url: string) {
       const resolve = resolveByUrl.get(url)
@@ -76,13 +88,8 @@ describe('chat image projection', () => {
       { type: 'image', url: 'image-5' },
     ] }] }, vision, 'empty')
 
-    await vi.waitFor(() => expect(vision).toHaveBeenCalledTimes(4))
-    expect(maximumActiveDescriptions).toBe(4)
-    resolveImage('image-2')
-    await vi.waitFor(() => expect(vision).toHaveBeenCalledTimes(5))
-    resolveImage('image-0')
     await vi.waitFor(() => expect(vision).toHaveBeenCalledTimes(6))
-    for (const url of ['image-1', 'image-3', 'image-4', 'image-5'])
+    for (const url of ['image-2', 'image-0', 'image-5', 'image-1', 'image-4', 'image-3'])
       resolveImage(url)
 
     const result = await projection
@@ -94,7 +101,6 @@ describe('chat image projection', () => {
         text: `[Image description, supplied as user content]\nDescription for image-${index}.\n[End image description]`,
       })),
     }])
-    expect(maximumActiveDescriptions).toBe(4)
   })
 
   it('fails explicitly when vision returns no description', async () => {
