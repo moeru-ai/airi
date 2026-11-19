@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import type { ChatToolCallRendererRegistry } from '@proj-airi/stage-ui/components'
-import type { ChatHistoryReplyPayload } from '@proj-airi/stage-ui/components/scenarios/chat'
-import type { ChatSendPayload } from '@proj-airi/stage-ui/stores/chat'
+import type { ChatToolCallRendererRegistry, ChatToolCallWidgetRegistry } from '@proj-airi/stage-ui/components'
+import type { ChatHistoryReplyPayload, ChatImageAttachment } from '@proj-airi/stage-ui/components/scenarios/chat'
 import type { ChatToolCallRerunEvent } from '@proj-airi/stage-ui/stores/tool-call-rerun'
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
-import { useStopSpeakingButton } from '@proj-airi/stage-layouts/composables/useStopSpeakingButton'
-import { ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
-import { ChatReplyPreview, useChatComposer } from '@proj-airi/stage-ui/components/scenarios/chat'
+import type { ChatDraftHandover } from '../../shared/eventa'
+
+import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import { useChatInterruption } from '@proj-airi/stage-layouts/composables/use-chat-interruption'
+import { ChatBackgroundTasks, ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
+import { ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSendButton, useChatComposer, useChatImages, VoiceInputButton } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -16,25 +18,95 @@ import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store
 import { useJournalPreviewStore } from '@proj-airi/stage-ui/stores/journal-preview'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { BasicTextarea, GhostButton } from '@proj-airi/ui'
-import { useLocalStorage } from '@vueuse/core'
+import { until, useLocalStorage } from '@vueuse/core'
+import { nanoid } from 'nanoid/non-secure'
 import { storeToRefs } from 'pinia'
-import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
-import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, shallowRef, toRaw, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
 
-import ChatImageAttachmentPreview from './chat-image-attachment-preview.vue'
 import JournalToolCallBlock from './chat-tool-renderers/journal-tool-call-block.vue'
 import ChatViewportLayout from './chat-viewport-layout.vue'
 
+import { electronAuthStartLogin, electronOpenSettings } from '../../shared/eventa'
 import { useHearingInputChannel } from '../composables/use-hearing-input-channel'
-import { artistryToolReferences, computerUseToolReferences, widgetToolReferences } from '../stores/tools'
+import { computerUseToolReferences, useToolSelectionStore, widgetToolReferences } from '../stores/tools'
+import { COMPUTER_USE_READ_IMAGE_TOOL_NAME, COMPUTER_USE_TOOL_NAME } from '../stores/tools/builtin/computer-use'
+import { WEATHER_TOOL_NAME } from '../stores/tools/builtin/weather'
+import { computerUseReadImageToolCallWidget } from './chat-tool-renderers/computer-use-read-image-tool-call-widget'
+import { computerUseToolCallWidget } from './chat-tool-renderers/computer-use/widget'
+import { weatherToolCallWidget } from './chat-tool-renderers/weather-tool-call-widget'
 
-const router = useRouter()
+const props = withDefaults(defineProps<{
+  /**
+   * `true` in the transparent floating chat window, which draws nothing
+   * behind the chat. The history scrollbar shows on hover, because the wheel
+   * over the empty history reaches the app below instead. Without
+   * `glassBackdrop`, bubbles, the composer and the welcome card paint solid
+   * backgrounds that keep their contrast over any desktop.
+   */
+  floating?: boolean
+  /**
+   * `true` when the window draws native glass behind the floating chat, such
+   * as the floating panel on macOS. The chat then looks the same as in the
+   * chat window.
+   */
+  glassBackdrop?: boolean
+  /**
+   * `true` adds a tab at the bottom edge that folds the composer away, so
+   * the history reaches the bottom. The folded composer stays mounted, so an
+   * unsent draft, its attachments and its reply target survive.
+   */
+  composerFoldable?: boolean
+  /**
+   * `true` when nobody scrolls or reads the history by hand, such as a feed
+   * that passes every click through. The history then returns to the
+   * newest message.
+   */
+  passive?: boolean
+  /**
+   * Index of the first message that the history shows. The host hides the
+   * messages before it in place, such as read messages in the danmaku feed.
+   * Hidden messages stay in the session.
+   */
+  expiredBefore?: number
+  /**
+   * The side where an open dock stands over the history, such as the dock of the attached floating feed while the
+   * cursor is near it. The messages slide aside to keep a lane free for it. The composer and the welcome card keep
+   * their place.
+   */
+  dockSide?: 'left' | 'right'
+  /**
+   * The width in pixels of a band along the right edge of the window that resizes it, such as the outer edge of an
+   * attached floating chat. The history keeps clear of the band, so its scrollbar ends where the band starts.
+   */
+  rightResizeBand?: number
+}>(), {
+  floating: false,
+  glassBackdrop: false,
+  composerFoldable: false,
+  passive: false,
+  expiredBefore: 0,
+})
+
+// A translucent fill over the bare desktop loses its contrast, so a floating chat without glass paints solid surfaces.
+const solidSurfaces = computed(() => props.floating && !props.glassBackdrop)
+
+/** Whether a foldable composer is folded away. */
+const composerFolded = defineModel<boolean>('composerFolded', { default: false })
+const viewportLayout = useTemplateRef<InstanceType<typeof ChatViewportLayout>>('viewport-layout')
+
 const messageComposer = useTemplateRef<HTMLDivElement>('message-composer')
+const voiceStatus = useTemplateRef<HTMLDivElement>('voice-status')
+const voiceAttachment = useTemplateRef<HTMLDivElement>('voice-attachment')
+const voiceButton = useTemplateRef<InstanceType<typeof VoiceInputButton>>('voice-button')
+/** A recorded voice message waits for the send button. It can be sent without text. */
+const voicePending = shallowRef(false)
+/** A recording is open. Dictation writes into the text, so the text stays read-only and send waits until it closes. */
+const voiceActive = shallowRef(false)
 const lastEnterTime = ref(0)
-// Each request captures this composer selection, including retries and tool reruns.
-const computerUseEnabled = ref(true)
+// Each request captures this selection, including retries and tool reruns. Spoken turns read the same store.
+const toolSelection = useToolSelectionStore()
+const { computerUseEnabled, requestTools } = storeToRefs(toolSelection)
 
 const chatStore = useChatStore()
 const chatSession = useChatSessionStore()
@@ -45,17 +117,13 @@ const airiCardStore = useAiriCardStore()
 
 const { activeSessionId, messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
-const { activeSendSessionId, activeStreamingMessage, sending } = storeToRefs(chatStore)
+const { activeTurns, backgroundTasks } = storeToRefs(chatStore)
 const { activeCard, activeCardId } = storeToRefs(airiCardStore)
+const { activeChatReady: chatReady } = storeToRefs(chatStore)
+const openSettings = useElectronEventaInvoke(electronOpenSettings)
+const startLogin = useElectronEventaInvoke(electronAuthStartLogin)
 
-type ChatImageAttachment = NonNullable<ChatSendPayload['attachments']>[number]
-
-interface ImageComposerAttachment extends ChatImageAttachment {
-  file: File
-  previewId: string
-}
-
-const composer = useChatComposer<ImageComposerAttachment>({
+const composer = useChatComposer<ChatImageAttachment>({
   activeSessionId,
   send: submission => chatStore.send({
     sessionId: submission.sessionId,
@@ -66,11 +134,10 @@ const composer = useChatComposer<ImageComposerAttachment>({
       data: attachment.data,
       mimeType: attachment.mimeType,
     })),
-    tools: computerUseEnabled.value ? [...artistryToolReferences, ...computerUseToolReferences] : artistryToolReferences,
+    tools: requestTools.value,
   }),
 })
 const {
-  addAttachments,
   attachments,
   clearReplyForMessage,
   draft: messageInput,
@@ -79,43 +146,60 @@ const {
   replyTarget,
   selectReply,
 } = composer
+const { addFiles: handleFilePaste, selectFiles: handleFileSelect, error: imageError, pending: pendingImages } = useChatImages(composer, () => activeSessionId.value)
 useHearingInputChannel(messageInput)
 const { t } = useI18n()
 const { openImagePreview } = journalPreviewStore
 const DOUBLE_ENTER_INTERVAL_MS = 300
 const TRAILING_NEWLINES_REGEX = /[\r\n]+$/
-const SEND_MODES = ['enter', 'ctrl-enter', 'double-enter'] as const
-type SendMode = (typeof SEND_MODES)[number]
+type SendMode = 'enter' | 'ctrl-enter' | 'double-enter'
 const sendMode = useLocalStorage<SendMode>('ui/chat/settings/send-mode', 'enter')
 const toolCallRenderers = {
   image_journal: JournalToolCallBlock,
   text_journal: JournalToolCallBlock,
 } satisfies ChatToolCallRendererRegistry
-const sendModeLabels = computed<Record<SendMode, string>>(() => ({
-  'enter': t('stage.send-mode.enter'),
-  'ctrl-enter': t('stage.send-mode.ctrl-enter'),
-  'double-enter': t('stage.send-mode.double-enter'),
-}))
+const toolCallWidgets = {
+  [WEATHER_TOOL_NAME]: weatherToolCallWidget,
+  [COMPUTER_USE_TOOL_NAME]: computerUseToolCallWidget,
+  [COMPUTER_USE_READ_IMAGE_TOOL_NAME]: computerUseReadImageToolCallWidget,
+} satisfies ChatToolCallWidgetRegistry
 const {
   trackChatMessageDeleted,
   trackChatMessageRetried,
 } = useAnalytics()
-const { showStopSpeakingButton, stopSpeakingFromChat } = useStopSpeakingButton()
-
 const latestImageEntries = computed(() => {
   if (!activeCardId.value)
     return []
   return backgroundStore.journalEntries.slice(0, 3)
 })
 
-function navigateToImageJournal() {
-  if (!activeCardId.value)
-    return
-  router.push(`/settings/airi-card?cardId=${activeCardId.value}&tab=gallery`)
-}
+const hasSubmission = computed(() => !!messageInput.value.trim() || attachments.value.length > 0)
+const { showStopAction, stopActiveResponse, submitInterruptingResponse } = useChatInterruption({
+  sessionId: activeSessionId,
+  generating: computed(() => activeTurns.value.some(turn => turn.sessionId === activeSessionId.value)),
+  hasSubmission,
+  submit: async (hooks) => {
+    await composer.submit({
+      beforeSend: hooks && (submission => hooks.beforeSend(submission.sessionId)),
+      afterSendStarted: hooks && (submission => hooks.afterSendStarted(submission.sessionId)),
+    })
+  },
+})
 
 async function handleSend() {
-  await composer.submit()
+  // The draft stays in the composer while the setup callout is shown.
+  if (voiceActive.value || pendingImages.value || !chatReady.value)
+    return
+
+  // A waiting voice message takes the composer text into the same user message.
+  const voice = await voiceButton.value?.sendPending(messageInput.value)
+  if (voice === 'sent')
+    messageInput.value = ''
+  // A failed send keeps the text for a retry. A send that still runs, for example after a double Enter, clears it itself.
+  if (voice && voice !== 'none')
+    return
+
+  await submitInterruptingResponse()
 }
 
 function sendFromKeyboard() {
@@ -127,13 +211,6 @@ const fileInput = ref<HTMLInputElement | null>(null)
 
 function handleManualAttach() {
   fileInput.value?.click()
-}
-
-function handleFileSelect(event: Event) {
-  const target = event.target as HTMLInputElement
-  if (target.files?.length) {
-    handleFilePaste(Array.from(target.files))
-  }
 }
 
 function handleMessageInputKeydown(event: KeyboardEvent) {
@@ -171,37 +248,14 @@ function handleMessageInputKeydown(event: KeyboardEvent) {
   }
 }
 
-async function handleFilePaste(files: File[]) {
-  for (const file of files) {
-    if (file.type.startsWith('image/')) {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const base64Data = (e.target?.result as string)?.split(',')[1]
-        if (base64Data) {
-          addAttachments({
-            type: 'image',
-            data: base64Data,
-            mimeType: file.type,
-            file,
-            previewId: crypto.randomUUID(),
-          })
-        }
-      }
-      reader.readAsDataURL(file)
-    }
-  }
-}
-
 watch(sendMode, () => {
   lastEnterTime.value = 0
 })
 
-const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
+const historyMessages = computed(() => messages.value)
 const assistantLabel = computed(() => activeCard.value?.name?.trim() || undefined)
-const isActiveSessionSending = computed(() => sending.value && activeSendSessionId.value === activeSessionId.value)
-const visibleStreamingMessage = computed(() => activeSendSessionId.value === activeSessionId.value
-  ? activeStreamingMessage.value
-  : streamingMessage.value)
+const isActiveSessionSending = computed(() => activeTurns.value.some(turn => turn.sessionId === activeSessionId.value))
+const visibleStreamingMessage = streamingMessage
 
 async function handleDeleteMessage(payload: { message: ChatHistoryItem, index: number }) {
   const { index, message } = payload
@@ -218,6 +272,8 @@ async function handleDeleteMessage(payload: { message: ChatHistoryItem, index: n
 
 async function handleReplyMessage(payload: ChatHistoryReplyPayload) {
   selectReply(payload)
+  // A reply needs the composer, so a folded one opens.
+  composerFolded.value = false
   await nextTick()
   messageComposer.value?.querySelector('textarea')?.focus()
 }
@@ -259,11 +315,116 @@ async function handleToolCallRerun(payload: ChatToolCallRerunEvent) {
     tools: computerUseEnabled.value ? computerUseToolReferences : [],
   })
 }
+
+function fileFromBase64(attachment: ChatDraftHandover['attachments'][number]) {
+  const bytes = Uint8Array.from(atob(attachment.data), character => character.charCodeAt(0))
+  return new File([bytes], attachment.name, { type: attachment.mimeType })
+}
+
+/**
+ * Captures the conversation and the unsent composer content for a chat mode
+ * switch, which closes this window. An image that is still being read joins
+ * the content before it is captured. Returns `undefined` when this window
+ * shows no conversation.
+ */
+async function snapshotDraft(): Promise<ChatDraftHandover | undefined> {
+  await until(pendingImages).toBe(0)
+  if (!activeSessionId.value)
+    return undefined
+
+  const reply = replyTarget.value
+  return {
+    sessionId: activeSessionId.value,
+    text: messageInput.value,
+    // The history hands out reactive message proxies, which cannot cross IPC.
+    replyTarget: reply && { label: reply.label, message: structuredClone(toRaw(reply.message)) },
+    attachments: attachments.value.map(attachment => ({
+      data: attachment.data,
+      mimeType: attachment.mimeType,
+      name: attachment.file.name,
+    })),
+  }
+}
+
+/**
+ * Opens the conversation of another chat window and puts its content back
+ * into the composer. Returns whether it did.
+ *
+ * A new window receives the synchronized session state after it mounts, so
+ * this waits until the window has selected a conversation. The window starts
+ * on the conversation saved for the character, which is not always the one the
+ * draft came from. A window that selects nothing in time does not restore, and
+ * the mode switch keeps the window that still holds the content.
+ */
+async function restoreDraft(draft: ChatDraftHandover): Promise<boolean> {
+  await until(activeSessionId).toMatch(Boolean, { timeout: 5000 })
+  if (!activeSessionId.value)
+    return false
+  if (activeSessionId.value !== draft.sessionId)
+    await chatSession.setActiveSession(draft.sessionId)
+  if (activeSessionId.value !== draft.sessionId)
+    return false
+  if (!draft.text && draft.attachments.length === 0 && !draft.replyTarget)
+    return true
+
+  // The carried content must stay in sight, so a folded composer opens.
+  composerFolded.value = false
+  messageInput.value = draft.text
+  if (draft.replyTarget)
+    selectReply(draft.replyTarget)
+  composer.addAttachments(...draft.attachments.map(attachment => ({
+    type: 'image' as const,
+    data: attachment.data,
+    mimeType: attachment.mimeType,
+    file: fileFromBase64(attachment),
+    previewId: nanoid(),
+  })))
+  return true
+}
+
+defineExpose({
+  restoreDraft,
+  snapshotDraft,
+  /** The layer that holds the history, without the composer. */
+  historyLayer: computed(() => viewportLayout.value?.historyLayer ?? null),
+})
 </script>
 
 <template>
-  <ChatViewportLayout>
+  <ChatViewportLayout
+    ref="viewport-layout"
+    :composer-at-edge="props.composerFoldable"
+  >
     <template #history="{ tailInset }">
+      <!--
+        The welcome card centers in the space above the composer, which covers
+        the bottom of the history. The container query below drops the icon,
+        then the description, when that space is too short for them.
+        The history scroller fills the layer and comes later, so the container
+        sits above it and passes the pointer through. The floating card paints
+        its own surface, so it takes the pointer, and the hit test of the
+        transparent window finds it.
+      -->
+      <div
+        v-if="!historyMessages.some(message => message.role !== 'system') && !isActiveSessionSending"
+        :class="['chat-empty-state pointer-events-none absolute inset-x-0 top-0 z-1 flex items-center justify-center overflow-hidden px-6']"
+        :style="{ bottom: `calc(${tailInset}px + 1rem)` }"
+      >
+        <div
+          :class="[
+            'flex flex-col items-center gap-3 text-center',
+            solidSurfaces ? 'pointer-events-auto rounded-2xl bg-white px-6 py-6 shadow-md dark:bg-neutral-900' : '',
+          ]"
+        >
+          <div :class="['chat-empty-state-icon size-14 flex items-center justify-center rounded-2xl bg-primary-100/60 text-primary-500 dark:bg-primary-900/30']">
+            <span :class="['i-solar:chat-line-bold-duotone size-7']" />
+          </div>
+          <span :class="['font-cute text-xl text-neutral-700 dark:text-neutral-200']">{{ assistantLabel || 'AIRI' }}</span>
+          <p :class="['chat-empty-state-description text-sm text-neutral-500 dark:text-neutral-400']">
+            {{ t('stage.chat.images.empty') }}
+          </p>
+        </div>
+      </div>
       <ChatHistory
         :messages="historyMessages"
         :assistant-label="assistantLabel"
@@ -271,6 +432,13 @@ async function handleToolCallRerun(payload: ChatToolCallRerunEvent) {
         :streaming-message="visibleStreamingMessage"
         :tail-inset="tailInset"
         :tool-call-renderers="toolCallRenderers"
+        :tool-call-widgets="toolCallWidgets"
+        :surface="solidSurfaces ? 'opaque' : 'translucent'"
+        :scrollbar="props.floating ? 'hover' : 'scroll'"
+        :passive="props.passive"
+        :class="['transition-[padding] duration-300 ease-out motion-reduce:transition-none', props.dockSide && { left: 'pl-12', right: 'pr-12' }[props.dockSide]]"
+        :style="props.rightResizeBand ? { width: `calc(100% - ${props.rightResizeBand}px)` } : undefined"
+        :expired-before="props.expiredBefore"
         @delete-message="handleDeleteMessage"
         @reply-message="handleReplyMessage"
         @retry-message="handleRetryMessage($event.index)"
@@ -279,10 +447,42 @@ async function handleToolCallRerun(payload: ChatToolCallRerunEvent) {
     </template>
 
     <template #composer>
+      <!-- The tab rides on the composer's top edge, and drops to the bottom edge with a fold. -->
+      <button
+        v-if="props.composerFoldable"
+        :title="composerFolded ? t('tamagotchi.stage.chat-window.composer.show') : t('tamagotchi.stage.chat-window.composer.hide')"
+        :aria-label="composerFolded ? t('tamagotchi.stage.chat-window.composer.show') : t('tamagotchi.stage.chat-window.composer.hide')"
+        :aria-expanded="!composerFolded"
+        :class="[
+          'mx-auto h-5 w-10 flex items-center justify-center rounded-t-full border border-b-0 outline-none transition-colors',
+          'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300',
+          'border-neutral-200 bg-white text-neutral-400 hover:text-primary-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-500 dark:hover:text-primary-400',
+        ]"
+        @click="composerFolded = !composerFolded"
+      >
+        <div :class="[composerFolded ? 'i-solar:alt-arrow-up-linear' : 'i-solar:alt-arrow-down-linear', 'size-4']" />
+      </button>
+      <ChatProviderSetupCallout
+        v-if="!chatReady"
+        :class="['mx-2 mb-1']"
+        @configure="openSettings({ route: '/settings/providers' })"
+        @sign-in="startLogin()"
+      />
       <div
         ref="message-composer"
         :class="[
-          'min-h-0 max-h-full flex flex-col gap-1 overflow-hidden',
+          'min-h-0 max-h-full flex flex-col gap-1 overflow-hidden rounded-2xl',
+          // A foldable composer leaves the bottom edge to its folded tab.
+          props.composerFoldable ? 'chat-composer-foldable mb-4' : '',
+          props.composerFoldable && composerFolded ? 'chat-composer-folded' : '',
+          // The composer layer clips overflow, which would cut a ring or a
+          // shadow; a border stays inside the box.
+          solidSurfaces
+            ? 'border border-neutral-200 bg-white p-2 dark:border-neutral-800 dark:bg-neutral-900'
+            : [
+              'bg-neutral-100/70 p-2 backdrop-blur-xl dark:bg-neutral-900/65',
+              'transition-colors duration-200 ease-out focus-within:bg-neutral-100 dark:focus-within:bg-neutral-900 motion-reduce:transition-none',
+            ],
         ]"
       >
         <div
@@ -291,6 +491,8 @@ async function handleToolCallRerun(payload: ChatToolCallRerunEvent) {
             'min-h-0 overflow-y-auto scrollbar-none',
           ]"
         >
+          <ChatBackgroundTasks :tasks="backgroundTasks" @stop="task => chatStore.stopBackgroundTask(task.sessionId)" @dismiss="task => chatStore.dismissBackgroundTask(task.sessionId)" />
+          <div ref="voice-attachment" :class="['px-2 pt-1 empty:hidden']" />
           <!-- Journal Preview Chips -->
           <div v-if="latestImageEntries.length > 0" class="flex gap-2 overflow-x-auto px-2 py-1 scrollbar-none">
             <div
@@ -324,7 +526,7 @@ async function handleToolCallRerun(payload: ChatToolCallRerunEvent) {
           <div
             v-if="attachments.length > 0"
             :class="[
-              'flex flex-nowrap gap-2 overflow-x-auto border-t border-primary-100 p-2 scrollbar-none',
+              'flex flex-nowrap gap-2 overflow-x-auto p-2 scrollbar-none',
             ]"
           >
             <ChatImageAttachmentPreview
@@ -335,11 +537,49 @@ async function handleToolCallRerun(payload: ChatToolCallRerunEvent) {
             />
           </div>
         </div>
-        <div :class="['flex shrink-0 items-center justify-end gap-2 py-1']">
+        <p v-if="imageError" role="alert" :class="['px-2 text-sm text-red-600 dark:text-red-400']">
+          {{ imageError }}
+        </p>
+        <p v-if="pendingImages" role="status" :class="['px-2 text-sm text-neutral-500']">
+          {{ t('stage.chat.images.reading') }}
+        </p>
+        <div :class="['w-full shrink-0 overflow-hidden bg-transparent']">
+          <ChatReplyPreview
+            :target="replyTarget"
+            @cancel="handleCancelReply"
+          />
+          <BasicTextarea
+            v-model="messageInput"
+            :submit-on-enter="false"
+            :readonly="voiceActive"
+            :placeholder="t('stage.message')"
+            :class="[
+              'ph-no-capture w-full resize-none overflow-y-auto border-0 bg-transparent px-2 font-medium outline-none [scrollbar-gutter:stable]',
+              'max-h-[10lh]',
+              solidSurfaces ? 'min-h-[2lh] py-2' : 'min-h-[1lh] py-1',
+              'text-neutral-700 placeholder:text-neutral-400 dark:text-neutral-200 dark:placeholder:text-neutral-500',
+              'transition-colors duration-200 ease-out motion-reduce:transition-none',
+            ]"
+            @compositionstart="isComposing = true"
+            @compositionend="isComposing = false"
+            @keydown="handleMessageInputKeydown"
+            @paste-file="handleFilePaste"
+          />
+        </div>
+        <div data-testid="chat-composer-actions" :class="['flex shrink-0 items-center gap-1 pt-1']">
+          <GhostButton
+            size="unset"
+            :class="['size-9 transition-colors duration-200 motion-reduce:transition-none']"
+            :title="t('stage.chat.images.attach')"
+            :aria-label="t('stage.chat.images.attach')"
+            @click="handleManualAttach"
+          >
+            <span :class="['i-solar:paperclip-bold-duotone h-5 w-5']" />
+          </GhostButton>
           <GhostButton
             data-testid="computer-use-toggle"
             size="unset"
-            :class="['h-9 gap-2 px-2 text-xs']"
+            :class="['size-9']"
             :aria-label="t('stage.computer-use.label')"
             :title="t('stage.computer-use.description')"
             :active="computerUseEnabled"
@@ -348,119 +588,57 @@ async function handleToolCallRerun(payload: ChatToolCallRerunEvent) {
             @click="computerUseEnabled = !computerUseEnabled"
           >
             <span :class="['i-solar:monitor-bold-duotone h-5 w-5 shrink-0']" />
-            <span>{{ t('stage.computer-use.label') }}</span>
-          </GhostButton>
-          <DropdownMenuRoot>
-            <DropdownMenuTrigger as-child>
-              <GhostButton
-                size="unset"
-                :class="['h-9 w-9']"
-                :title="t('stage.send-mode.title')"
-                :aria-label="t('stage.send-mode.title')"
-              >
-                <span :class="['i-solar:keyboard-bold-duotone h-5 w-5']" />
-              </GhostButton>
-            </DropdownMenuTrigger>
-            <DropdownMenuPortal>
-              <DropdownMenuContent
-                align="end"
-                side="top"
-                :side-offset="8"
-                :class="[
-                  'z-50 min-w-[180px] rounded-xl p-1 shadow',
-                  'bg-white dark:bg-neutral-800',
-                  'flex flex-col gap-1',
-                  'data-[side=top]:animate-slideDownAndFade',
-                  'data-[side=left]:animate-none',
-                  'data-[side=bottom]:animate-none',
-                  'data-[side=right]:animate-none',
-                ]"
-              >
-                <DropdownMenuItem
-                  v-for="mode in SEND_MODES"
-                  :key="mode"
-                  :class="[
-                    'w-full flex cursor-pointer items-center rounded-md px-3 py-2 text-left text-xs outline-none transition-colors',
-                    'hover:bg-primary-50 dark:hover:bg-primary-900/20',
-                    sendMode === mode ? 'bg-primary-50 text-primary-600 font-semibold dark:bg-primary-900/20 dark:text-primary-300' : 'text-neutral-500',
-                  ]"
-                  @select="sendMode = mode"
-                >
-                  <div class="mr-2 h-4 w-4 flex shrink-0 items-center justify-center">
-                    <div v-if="sendMode === mode" class="i-ph:check-bold text-base" />
-                  </div>
-                  <span>{{ sendModeLabels[mode] }}</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenuPortal>
-          </DropdownMenuRoot>
-
-          <GhostButton
-            v-if="showStopSpeakingButton"
-            size="unset"
-            :class="['h-9 w-9']"
-            data-testid="stop-speaking-button"
-            title="Stop speaking"
-            aria-label="Stop speaking"
-            @click="stopSpeakingFromChat"
-          >
-            <span :class="['i-solar:stop-circle-bold-duotone h-5 w-5']" />
           </GhostButton>
 
-          <GhostButton
-            size="unset"
-            :class="['h-9 w-9']"
-            title="Image Journal"
-            aria-label="Image Journal"
-            @click="navigateToImageJournal"
-          >
-            <span :class="['i-solar:gallery-bold-duotone h-5 w-5']" />
-          </GhostButton>
+          <!-- The voice control shows its recording status here, so the composer keeps its height. -->
+          <div ref="voice-status" :class="['min-w-0 flex flex-1 items-center px-1']" />
+          <div :class="['flex shrink-0 items-center gap-1']">
+            <VoiceInputButton
+              ref="voice-button"
+              v-model="messageInput"
+              :status-element="voiceStatus"
+              :attachment-element="voiceAttachment"
+              :session-id="activeSessionId"
+              :reply-to-message-id="replyTarget?.message.id"
+              :tools="requestTools"
+              @recording-change="voiceActive = $event"
+              @pending-change="voicePending = $event"
+              @sent="composer.clearReply()"
+              @submit="handleSend"
+              @configure="route => openSettings({ route })"
+            />
+            <GhostButton
+              v-if="showStopAction"
+              size="unset"
+              :class="['size-9 rounded-full']"
+              data-testid="stop-speaking-button"
+              :title="t('stage.chat.actions.stop')"
+              :aria-label="t('stage.chat.actions.stop')"
+              @click="stopActiveResponse"
+            >
+              <span :class="['i-solar:stop-bold-duotone h-4 w-4']" />
+            </GhostButton>
 
-          <GhostButton
-            size="unset"
-            :class="['h-9 w-9']"
-            title="Attach Image"
-            aria-label="Attach Image"
-            @click="handleManualAttach"
-          >
-            <span :class="['i-solar:camera-add-bold-duotone h-5 w-5']" />
-          </GhostButton>
+            <!-- Hover or right-click the send button to choose the send key. -->
+            <ChatSendButton
+              v-else
+              v-model:send-mode="sendMode"
+              :disabled="voiceActive || !!pendingImages || (!messageInput.trim() && !attachments.length && !voicePending) || isComposing"
+              :button-class="[
+                'size-9 rounded-full bg-primary-500 text-white',
+                'hover:bg-primary-600 disabled:pointer-events-none disabled:bg-neutral-200 disabled:text-neutral-400 dark:disabled:bg-neutral-700 dark:disabled:text-neutral-500 motion-reduce:transition-none',
+              ]"
+              @send="handleSend"
+            />
+          </div>
           <input
             ref="fileInput"
             type="file"
-            accept="image/*"
+            accept="image/png,image/jpeg,image/webp,image/gif"
             class="hidden"
             multiple
             @change="handleFileSelect"
           >
-        </div>
-        <div
-          :class="[
-            'w-full shrink-0 overflow-hidden rounded-xl border-2 border-solid',
-            'border-primary-200/20 bg-primary-100/50 backdrop-blur-md',
-            'dark:border-primary-400/20 dark:bg-primary-900/70',
-          ]"
-        >
-          <ChatReplyPreview
-            :target="replyTarget"
-            @cancel="handleCancelReply"
-          />
-          <BasicTextarea
-            v-model="messageInput"
-            :submit-on-enter="false"
-            :placeholder="t('stage.message')"
-            class="ph-no-capture [scrollbar-gutter:stable]"
-            text="primary-600 dark:primary-100  placeholder:primary-500 dark:placeholder:primary-200"
-            bg="transparent"
-            max-h="[10lh]" min-h="[1lh]"
-            w-full resize-none overflow-y-auto border-2 border-transparent border-solid p-2 font-medium outline-none
-            transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
-            @compositionstart="isComposing = true"
-            @compositionend="isComposing = false"
-            @keydown="handleMessageInputKeydown"
-            @paste-file="handleFilePaste"
-          />
         </div>
       </div>
     </template>
@@ -469,3 +647,52 @@ async function handleToolCallRerun(payload: ChatToolCallRerunEvent) {
   <!-- Shared Preview Modal -->
   <JournalPreviewModal />
 </template>
+
+<style scoped>
+/*
+ * The composer folds down with the tab on top of it, and the history follows
+ * its height down. A hidden composer takes no focus.
+ */
+.chat-composer-foldable {
+  interpolate-size: allow-keywords;
+  transition:
+    height 250ms ease,
+    padding 250ms ease,
+    margin 250ms ease,
+    border-width 250ms ease,
+    opacity 200ms ease,
+    visibility 250ms;
+}
+
+.chat-composer-folded {
+  height: 0;
+  padding-block: 0;
+  margin-block: 0;
+  border-block-width: 0;
+  opacity: 0;
+  visibility: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-composer-foldable {
+    transition: none;
+  }
+}
+
+.chat-empty-state {
+  container-type: size;
+}
+
+/* The card needs about 11rem with the icon and 5rem with the description. */
+@container (max-height: 12rem) {
+  .chat-empty-state-icon {
+    display: none;
+  }
+}
+
+@container (max-height: 6rem) {
+  .chat-empty-state-description {
+    display: none;
+  }
+}
+</style>

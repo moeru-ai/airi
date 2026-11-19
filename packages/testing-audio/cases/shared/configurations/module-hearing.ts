@@ -11,6 +11,16 @@ export interface HearingModuleConfiguration {
   captureFormat?: AudioCaptureFormat
   /** @default false */
   microphoneEnabled?: boolean
+  /**
+   * Sends each accepted transcript to chat. Without it, AIRI keeps the transcript as a voice draft.
+   * @default false
+   */
+  autoSend?: boolean
+  /**
+   * Lets an LLM clean up each transcript before it is sent. When unset, the case keeps the application setting.
+   * @default undefined
+   */
+  rephrase?: boolean
   provider: ProviderConfiguration
 }
 
@@ -28,17 +38,18 @@ export function configureModuleHearing(resolve: HearingModuleResolver): AudioInp
       'settings/hearing/active-provider': configuration.provider.id,
       'settings/hearing/active-model': configuration.provider.model,
       'settings/audio/input/enabled': String(configuration.microphoneEnabled ?? false),
+      'settings/hearing/auto-send-enabled': String(configuration.autoSend ?? false),
     }
+    if (configuration.rephrase !== undefined)
+      settings['settings/hearing/rephrase-enabled'] = String(configuration.rephrase)
 
-    if (context.runtime.target === 'electron') {
-      const microphoneInput = await context.runtime.runtimePage.evaluate(async () => {
-        const devices = await navigator.mediaDevices.enumerateDevices()
-        return devices.find(device => device.kind === 'audioinput' && device.label.includes('Fake'))?.deviceId
-      })
-      if (!microphoneInput)
-        throw new Error('Chromium did not expose the file-backed fake microphone.')
-      settings['settings/audio/input'] = microphoneInput
-    }
+    const microphoneInput = await context.runtime.runtimePage.evaluate(async () => {
+      const devices = await navigator.mediaDevices.enumerateDevices()
+      return devices.find(device => device.kind === 'audioinput' && device.label.includes('Fake'))?.deviceId
+    })
+    if (!microphoneInput)
+      throw new Error('Chromium did not expose the file-backed fake microphone.')
+    settings['settings/audio/input'] = microphoneInput
 
     await configureStorage(context.runtime, settings)
     context.runtime.transcriptionCaptureFormat = configuration.captureFormat

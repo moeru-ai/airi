@@ -27,6 +27,277 @@ function provider(fetch: typeof globalThis.fetch): GenerationProvider {
   }
 }
 
+it('refreshes Responses settings after a tool changes the character configuration', async () => {
+  const live = { model: 'first-model', prompt: 'First prompt', baseURL: 'https://first.example/v1/', toolName: 'rename' }
+  const reasoning: ItemParam = { type: 'reasoning', id: 'private-1', summary: [], encrypted_content: 'first-provider-state' }
+  const requests: Array<{ url: string, body: { model?: string, input?: ItemParam[], tools?: Array<{ name?: string }> } }> = []
+  const fetch: typeof globalThis.fetch = async (url, init) => {
+    requests.push({ url: String(url), body: JSON.parse(String(init?.body)) })
+    return sse(completed(requests.length === 1
+      ? [reasoning, { type: 'function_call', call_id: 'rename-1', name: 'rename', arguments: '{}' }]
+      : []))
+  }
+  const liveProvider: GenerationProvider = {
+    generation: model => ({ protocol: 'responses', webSearch: false, config: { model, baseURL: live.baseURL, fetch } }),
+  }
+  const changeSettings = () => {
+    live.model = 'second-model'
+    live.prompt = 'Edited prompt'
+    live.baseURL = 'https://second.example/v1/'
+    live.toolName = 'new_tool'
+    return 'done'
+  }
+
+  await streamFrom({
+    model: live.model,
+    chatProvider: liveProvider,
+    conversation: { turns: [] },
+    options: {
+      resolveStep: async () => ({
+        model: live.model,
+        chatProvider: liveProvider,
+        providerId: 'live',
+        systemPrompt: live.prompt,
+        tools: [{
+          type: 'function',
+          function: { name: live.toolName, parameters: { type: 'object', properties: {} } },
+          execute: changeSettings,
+        }],
+      }),
+    },
+  })
+
+  expect(requests).toHaveLength(2)
+  expect(requests[0].url).toContain('first.example')
+  expect(requests[0].body.model).toBe('first-model')
+  expect(requests[0].body.input?.find(item => item.type === 'message' && item.role === 'system')?.content).toBe('First prompt')
+  expect(requests[1].url).toContain('second.example')
+  expect(requests[1].body.model).toBe('second-model')
+  expect(requests[1].body.input?.find(item => item.type === 'message' && item.role === 'system')?.content).toBe('Edited prompt')
+  expect(requests[1].body.input?.some(item => item.type === 'reasoning')).toBe(false)
+  expect(requests[1].body.tools?.[0]?.name).toBe('new_tool')
+})
+
+it('removes local and hosted tools for a newly incompatible Responses model', async () => {
+  const live = { model: 'first', baseURL: 'https://first.test/v1/' }
+  const requests: Array<{ tools?: unknown, tool_choice?: string }> = []
+  const fetch: typeof globalThis.fetch = async (_url, init) => {
+    requests.push(JSON.parse(String(init?.body)))
+    return sse(completed(requests.length === 1
+      ? [{ type: 'function_call', call_id: 'change-1', name: 'change', arguments: '{}' }]
+      : []))
+  }
+  const chatProvider: GenerationProvider = {
+    generation: model => ({ protocol: 'responses', webSearch: true, config: { model, baseURL: live.baseURL, fetch } }),
+  }
+  await streamFrom({
+    model: live.model,
+    chatProvider,
+    conversation: { turns: [] },
+    options: {
+      toolsCompatibility: new Map([['responses:https://second.test/v1/-second', false]]),
+      toolChoice: 'required',
+      resolveStep: async () => ({
+        model: live.model,
+        chatProvider,
+        providerId: 'live',
+        systemPrompt: '',
+        tools: [{ type: 'function', function: { name: 'change', parameters: { type: 'object', properties: {} } }, execute: () => {
+          live.model = 'second'
+          live.baseURL = 'https://second.test/v1/'
+          return 'changed'
+        } }],
+      }),
+    },
+  })
+  expect(requests).toHaveLength(2)
+  expect(requests[0].tools).toHaveLength(2)
+  expect(requests[0].tool_choice).toBe('required')
+  expect(requests[1].tools).toBeUndefined()
+  expect(requests[1].tool_choice).toBeUndefined()
+})
+
+it('continues one assistant turn in Chat Completions after a Responses tool switches protocol', async () => {
+  const live: { protocol: 'responses' | 'chat-completions', model: string } = { protocol: 'responses', model: 'responses-model' }
+  const requests: Array<{ url: string, body: Record<string, unknown> }> = []
+  const events: unknown[] = []
+  const onGeneratedTurn = vi.fn()
+  const fetch: typeof globalThis.fetch = async (url, init) => {
+    requests.push({ url: String(url), body: JSON.parse(String(init?.body)) })
+    if (requests.length === 1)
+      return sse(completed([{ type: 'function_call', call_id: 'switch-1', name: 'switch_protocol', arguments: '{}' }]))
+    return sse([{ choices: [{ index: 0, delta: { content: 'Continued.' }, finish_reason: 'stop' }] }])
+  }
+  const liveProvider: GenerationProvider = {
+    generation: model => live.protocol === 'responses'
+      ? { protocol: 'responses', webSearch: false, config: { model, baseURL: 'https://responses.example/v1/', fetch } }
+      : { protocol: 'chat-completions', config: { model, baseURL: 'https://chat.example/v1/', fetch } },
+  }
+
+  await streamFrom({
+    model: live.model,
+    chatProvider: liveProvider,
+    conversation: { turns: [] },
+    options: {
+      resolveStep: async () => ({
+        model: live.model,
+        chatProvider: liveProvider,
+        providerId: 'live',
+        systemPrompt: 'The character stays the same.',
+        tools: [{
+          type: 'function',
+          function: { name: 'switch_protocol', parameters: { type: 'object', properties: {} } },
+          execute: () => {
+            live.protocol = 'chat-completions'
+            live.model = 'chat-model'
+            return 'switched'
+          },
+        }],
+      }),
+      onGeneratedTurn,
+      onStreamEvent: (event) => { events.push(event) },
+    },
+  })
+
+  expect(requests).toHaveLength(2)
+  expect(requests[0].url).toContain('responses.example')
+  expect(requests[1].url).toContain('chat.example')
+  expect(requests[1].body.model).toBe('chat-model')
+  expect(JSON.stringify(requests[1].body.messages)).toContain('switched')
+  expect(onGeneratedTurn).toHaveBeenCalledOnce()
+  const rounds = onGeneratedTurn.mock.calls[0][0].rounds
+  expect(rounds.map((round: { continuation?: { protocol: string } }) => round.continuation?.protocol))
+    .toEqual(['responses', 'chat-completions'])
+  expect(new Set(rounds.map((round: { id: string }) => round.id)).size).toBe(rounds.length)
+  expect(new Set(rounds.flatMap((round: { toolInvocations: Array<{ id: string }> }) => round.toolInvocations.map(call => call.id))).size)
+    .toBe(rounds.flatMap((round: { toolInvocations: unknown[] }) => round.toolInvocations).length)
+  expect(rounds[0].toolInvocations[0].id).toBe(`${rounds[0].id}/switch-1`)
+  expect(events.filter(event => (event as { type: string }).type === 'finish')).toHaveLength(1)
+})
+
+it('continues one assistant turn in Responses after a Chat Completions tool switches protocol', async () => {
+  const live: { protocol: 'responses' | 'chat-completions', model: string } = { protocol: 'chat-completions', model: 'chat-model' }
+  const requests: Array<{ url: string, body: Record<string, unknown> }> = []
+  const onGeneratedTurn = vi.fn()
+  const fetch: typeof globalThis.fetch = async (url, init) => {
+    requests.push({ url: String(url), body: JSON.parse(String(init?.body)) })
+    if (requests.length === 1) {
+      return sse([
+        { choices: [{ index: 0, delta: { role: 'assistant', tool_calls: [{ index: 0, id: 'switch-1', type: 'function', function: { name: 'switch_protocol', arguments: '{}' } }] }, finish_reason: null }] },
+        { choices: [{ index: 0, delta: {}, finish_reason: 'tool_calls' }] },
+      ])
+    }
+    return sse(completed([{ type: 'message', role: 'assistant', id: 'answer-1', content: [{ type: 'output_text', text: 'Continued.', annotations: [] }] }]))
+  }
+  const liveProvider: GenerationProvider = {
+    generation: model => live.protocol === 'chat-completions'
+      ? { protocol: 'chat-completions', config: { model, baseURL: 'https://chat.example/v1/', fetch } }
+      : { protocol: 'responses', webSearch: false, config: { model, baseURL: 'https://responses.example/v1/', fetch } },
+  }
+
+  await streamFrom({
+    model: live.model,
+    chatProvider: liveProvider,
+    conversation: { turns: [] },
+    options: {
+      resolveStep: async () => ({
+        model: live.model,
+        chatProvider: liveProvider,
+        providerId: 'live',
+        systemPrompt: 'The character stays the same.',
+        tools: [{
+          type: 'function',
+          function: { name: 'switch_protocol', parameters: { type: 'object', properties: {} } },
+          execute: () => {
+            live.protocol = 'responses'
+            live.model = 'responses-model'
+            return 'switched'
+          },
+        }],
+      }),
+      onGeneratedTurn,
+    },
+  })
+
+  expect(requests).toHaveLength(2)
+  expect(requests[0].url).toContain('chat.example')
+  expect(requests[1].url).toContain('responses.example')
+  expect(requests[1].body.model).toBe('responses-model')
+  expect(JSON.stringify(requests[1].body.input)).toContain('switched')
+  expect(onGeneratedTurn).toHaveBeenCalledOnce()
+  const rounds: AssistantTurn['rounds'] = onGeneratedTurn.mock.calls[0][0].rounds
+  expect(rounds.map(round => round.continuation?.protocol)).toEqual(['chat-completions', 'responses'])
+  expect(new Set(rounds.map(round => round.id)).size).toBe(rounds.length)
+  const invocationIds = rounds.flatMap(round => round.toolInvocations.map(call => call.id))
+  expect(new Set(invocationIds).size).toBe(invocationIds.length)
+  expect(rounds[0].toolInvocations[0].id).toBe(`${rounds[0].id}/switch-1`)
+})
+
+it('projects stored audio again for the model that a tool step selects', async () => {
+  const live: { protocol: 'responses' | 'chat-completions', model: string } = { protocol: 'chat-completions', model: 'audio-model' }
+  const requests: Array<{ url: string, body: Record<string, unknown> }> = []
+  const fetch: typeof globalThis.fetch = async (url, init) => {
+    requests.push({ url: String(url), body: JSON.parse(String(init?.body)) })
+    if (requests.length === 1) {
+      return sse([
+        { choices: [{ index: 0, delta: { role: 'assistant', tool_calls: [{ index: 0, id: 'switch-1', type: 'function', function: { name: 'switch_model', arguments: '{}' } }] }, finish_reason: null }] },
+        { choices: [{ index: 0, delta: {}, finish_reason: 'tool_calls' }] },
+      ])
+    }
+    return sse(completed([{ type: 'message', role: 'assistant', id: 'answer-1', content: [{ type: 'output_text', text: 'Continued.', annotations: [] }] }]))
+  }
+  const liveProvider: GenerationProvider = {
+    generation: model => live.protocol === 'chat-completions'
+      ? { protocol: 'chat-completions', config: { model, baseURL: 'https://chat.example/v1/', fetch } }
+      : { protocol: 'responses', webSearch: false, config: { model, baseURL: 'https://responses.example/v1/', fetch } },
+  }
+  const conversation: Conversation = {
+    turns: [{ type: 'user', id: 'audio-question', content: [{ type: 'audio', data: 'AA==', format: 'wav' }] }],
+  }
+  // The callback stands in for a host that sends audio only to a Chat Completions audio model.
+  const prepareConversation = vi.fn(async (source: Conversation, target: { model: string }) => {
+    if (target.model === 'audio-model')
+      return source
+    const projected = structuredClone(source)
+    for (const turn of projected.turns) {
+      if (turn.type === 'user')
+        turn.content = turn.content.map(part => part.type === 'audio' ? { type: 'text' as const, text: 'spoken words' } : part)
+    }
+    return projected
+  })
+
+  await streamFrom({
+    model: live.model,
+    chatProvider: liveProvider,
+    conversation,
+    options: {
+      prepareConversation,
+      resolveStep: async () => ({
+        model: live.model,
+        chatProvider: liveProvider,
+        providerId: 'live',
+        systemPrompt: '',
+        tools: [{
+          type: 'function',
+          function: { name: 'switch_model', parameters: { type: 'object', properties: {} } },
+          execute: () => {
+            live.protocol = 'responses'
+            live.model = 'text-model'
+            return 'switched'
+          },
+        }],
+      }),
+    },
+  })
+
+  expect(prepareConversation).toHaveBeenCalledTimes(2)
+  expect(prepareConversation.mock.calls.map(([, target]) => target.model)).toEqual(['audio-model', 'text-model'])
+  expect(JSON.stringify(requests[0].body.messages)).toContain('input_audio')
+  expect(JSON.stringify(requests[1].body.input)).toContain('spoken words')
+  expect(JSON.stringify(requests[1].body.input)).not.toContain('input_audio')
+  expect(conversation.turns[0]).toMatchObject({ content: [{ type: 'audio', data: 'AA==' }] })
+})
+
 // https://github.com/moeru-ai/airi/pull/2477#discussion_r4005498788
 // https://github.com/moeru-ai/airi/pull/2477#discussion_r4005940671
 it.each([
@@ -143,6 +414,15 @@ describe('responses generation', () => {
     await streamFrom({ model: 'test', chatProvider: provider(fetch), conversation: { turns: readTurns([{ id: 'user', role: 'user', segments: [{ type: 'image', url: 'data:image/png;base64,AA==', detail: 'low' }] }]) }, options: { toolChoice: { type: 'function', function: { name: 'inspect' } } } })
   })
 
+  it('maps audio input to an input_audio part', async () => {
+    const fetch: typeof globalThis.fetch = async (_url, init) => {
+      const request = JSON.parse(String(init?.body))
+      expect(request.input).toEqual([{ type: 'message', role: 'user', content: [{ type: 'input_audio', input_audio: { data: 'UklGRg==', format: 'wav' } }] }])
+      return sse(completed([]))
+    }
+    await streamFrom({ model: 'test', chatProvider: provider(fetch), conversation: { turns: readTurns([{ id: 'user', role: 'user', segments: [{ type: 'audio', data: 'UklGRg==', format: 'wav' }] }]) } })
+  })
+
   it('does not persist a failed response', async () => {
     const onGeneratedTurn = vi.fn()
     await expect(streamFrom({
@@ -179,14 +459,21 @@ describe('responses generation', () => {
   })
 })
 
-it('fails instead of storing an unanswered function call at the step limit', async () => {
+it('keeps calling tools until the model answers, with no step limit', async () => {
+  // ROOT CAUSE:
+  // The tool loop stopped after 10 steps with "Generation tool step limit
+  // reached", so a long computer-use task failed in the middle.
+  // The loop now ends only when the model answers or the request aborts.
+  const toolSteps = 15
   let requestCount = 0
   const execute = vi.fn(() => 'done')
   const onGeneratedTurn = vi.fn()
-  await expect(streamFrom({
+  await streamFrom({
     model: 'test',
     chatProvider: provider(async () => {
       requestCount += 1
+      if (requestCount > toolSteps)
+        return sse(completed([{ type: 'message', role: 'assistant', id: 'answer-1', content: [{ type: 'output_text', text: 'Done.', annotations: [] }] }]))
       return sse(completed([{ type: 'function_call', id: `fc_${requestCount}`, call_id: `call_${requestCount}`, name: 'repeat', arguments: '{}' }]))
     }),
     conversation: { turns: [] },
@@ -194,10 +481,38 @@ it('fails instead of storing an unanswered function call at the step limit', asy
       tools: [{ type: 'function', function: { name: 'repeat', parameters: { type: 'object', properties: {} } }, execute }],
       onGeneratedTurn,
     },
-  })).rejects.toThrow('tool step limit')
-  expect(requestCount).toBe(10)
-  expect(execute).toHaveBeenCalledTimes(9)
-  expect(onGeneratedTurn).not.toHaveBeenCalled()
+  })
+  expect(requestCount).toBe(toolSteps + 1)
+  expect(execute).toHaveBeenCalledTimes(toolSteps)
+  expect(onGeneratedTurn).toHaveBeenCalledTimes(1)
+  expect(onGeneratedTurn.mock.calls[0][0].rounds).toHaveLength(toolSteps + 1)
+})
+
+it('forces the tool choice only on the first request, so the model can answer after the tool', async () => {
+  // ROOT CAUSE:
+  // Each request of the tool loop kept a tool choice that names one function.
+  // The model had to call it again every time, so a loop without a step limit
+  // never ended. The caller's tool choice now applies to the first request.
+  const bodies: Array<{ tool_choice?: unknown }> = []
+  const execute = vi.fn(() => 'sent')
+  await streamFrom({
+    model: 'test',
+    chatProvider: provider(async (_url, init) => {
+      bodies.push(JSON.parse(String(init?.body)))
+      if (bodies.length === 1)
+        return sse(completed([{ type: 'function_call', id: 'fc_1', call_id: 'call_1', name: 'command', arguments: '{}' }]))
+      return sse(completed([{ type: 'message', role: 'assistant', id: 'answer-1', content: [{ type: 'output_text', text: 'Done.', annotations: [] }] }]))
+    }),
+    conversation: { turns: [] },
+    options: {
+      tools: [{ type: 'function', function: { name: 'command', parameters: { type: 'object', properties: {} } }, execute }],
+      toolChoice: { type: 'function', function: { name: 'command' } },
+    },
+  })
+  expect(bodies).toHaveLength(2)
+  expect(bodies[0].tool_choice).toEqual({ type: 'function', name: 'command' })
+  expect(bodies[1].tool_choice).toBeUndefined()
+  expect(execute).toHaveBeenCalledOnce()
 })
 
 it('projects structured context and media directly without Chat compatibility loss', async () => {

@@ -22,10 +22,11 @@ export interface ChatHistoryReplyPayload {
  */
 export function normalizeChatReplyPreview(text: string): string {
   const normalized = text.replace(/\s+/g, ' ').trim()
-  if (normalized.length <= REPLY_PREVIEW_CHARACTER_LIMIT)
+  const chars = Array.from(normalized)
+  if (chars.length <= REPLY_PREVIEW_CHARACTER_LIMIT)
     return normalized
 
-  return `${normalized.slice(0, REPLY_PREVIEW_CHARACTER_LIMIT - 1).trimEnd()}…`
+  return `${chars.slice(0, REPLY_PREVIEW_CHARACTER_LIMIT - 1).join('').trimEnd()}…`
 }
 
 /** Returns the text shown in the composer for a selected reply target. */

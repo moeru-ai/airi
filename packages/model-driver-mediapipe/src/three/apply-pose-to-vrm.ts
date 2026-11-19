@@ -1,4 +1,4 @@
-import type { VRM } from '@pixiv/three-vrm'
+import type { VRM, VRMHumanBoneName } from '@pixiv/three-vrm'
 
 import type { VrmPoseDirections, VrmPoseTarget, VrmPoseTargets } from './pose-to-vrm'
 
@@ -27,8 +27,8 @@ export interface VrmPoseApplyOptions {
 type BoneKey = keyof VrmPoseDirections
 
 interface BoneChain {
-  bone: string
-  childCandidates: readonly string[]
+  bone: VRMHumanBoneName
+  childCandidates: readonly VRMHumanBoneName[]
 }
 
 const DEFAULT_ALPHA = 0.35
@@ -102,16 +102,16 @@ function isFiniteVec3(v: { x: number, y: number, z?: number } | undefined): v is
   return Number.isFinite(v.x) && Number.isFinite(v.y) && Number.isFinite(v.z ?? 0)
 }
 
-function firstExistingBone(vrm: VRM, candidates: readonly string[]) {
+function firstExistingBone(vrm: VRM, candidates: readonly VRMHumanBoneName[]) {
   for (const name of candidates) {
-    const node = vrm.humanoid?.getNormalizedBoneNode(name as any)
+    const node = vrm.humanoid?.getNormalizedBoneNode(name)
     if (node)
       return node
   }
   return null
 }
 
-function grandchildCandidatesFor(key: BoneKey): readonly string[] {
+function grandchildCandidatesFor(key: BoneKey): readonly VRMHumanBoneName[] {
   if (key === 'leftUpperArm')
     return ['leftHand']
   if (key === 'rightUpperArm')
@@ -170,7 +170,7 @@ export function createVrmPoseApplier(options?: VrmPoseApplyOptions) {
       return existing
 
     const chain = CHAINS[key]
-    const bone = vrm.humanoid?.getNormalizedBoneNode(chain.bone as any)
+    const bone = vrm.humanoid?.getNormalizedBoneNode(chain.bone)
     if (!bone)
       return null
 
@@ -202,7 +202,7 @@ export function createVrmPoseApplier(options?: VrmPoseApplyOptions) {
       return existing
 
     const chain = CHAINS[key]
-    const bone = vrm.humanoid?.getNormalizedBoneNode(chain.bone as any)
+    const bone = vrm.humanoid?.getNormalizedBoneNode(chain.bone)
     if (!bone)
       return null
 
@@ -248,7 +248,7 @@ export function createVrmPoseApplier(options?: VrmPoseApplyOptions) {
 
   function applyOne(vrm: VRM, key: BoneKey, target: VrmPoseTarget) {
     const chain = CHAINS[key]
-    const bone = vrm.humanoid?.getNormalizedBoneNode(chain.bone as any)
+    const bone = vrm.humanoid?.getNormalizedBoneNode(chain.bone)
     if (!bone)
       return
 

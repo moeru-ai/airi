@@ -1,9 +1,10 @@
-import type { JSONObject, ModelSettings } from 'pixi-live2d-display/cubism4'
+import type { CubismSpec, JSONObject, ModelSettings } from 'pixi-live2d-display/cubism4'
 
 import JSZip from 'jszip'
 
 import { Cubism4ModelSettings, FileLoader, Live2DFactory, ZipLoader } from 'pixi-live2d-display/cubism4'
 
+import { resolveLive2DModelControls } from '../controls/manifest'
 import { decodeZipFileName } from './decode-zip-filename'
 
 // Legacy/VTube-Studio archives often store entry names without the UTF-8 flag in a legacy
@@ -37,6 +38,8 @@ ZipLoader.createSettings = async (reader: JSZip) => {
     }
     return createModelSettings(await ZipLoader.readText(reader, settingsFilePath), settingsFilePath)
   })()
+
+  mergeDiscoveredControlsIntoSettings(settings, filePaths)
 
   // Extract CDI data from the zip if available
   try {
@@ -75,6 +78,33 @@ ZipLoader.createSettings = async (reader: JSZip) => {
   }
 
   return settings
+}
+
+function mergeDiscoveredControlsIntoSettings(settings: ModelSettings, filePaths: string[]) {
+  if (!(settings instanceof Cubism4ModelSettings))
+    return
+
+  const existingExpressions = settings.expressions ?? []
+  const existingMotions = settings.motions ?? {}
+  const controls = resolveLive2DModelControls(settings.url, {
+    Expressions: existingExpressions,
+    Motions: existingMotions,
+  }, filePaths)
+
+  settings.expressions = controls.expressions.length > 0
+    ? controls.expressions.map(control => existingExpressions.find(expression => (
+        expression.Name === control.name && expression.File === control.fileName
+      )) ?? { Name: control.name, File: control.fileName })
+    : undefined
+
+  const motions: Record<string, CubismSpec.Motion[]> = {}
+  for (const control of controls.motions) {
+    const existingMotion = existingMotions[control.group]?.[control.index]
+    const group = motions[control.group] ?? []
+    group.push(existingMotion?.File === control.fileName ? existingMotion : { File: control.fileName })
+    motions[control.group] = group
+  }
+  settings.motions = Object.keys(motions).length > 0 ? motions : undefined
 }
 
 /**
@@ -227,6 +257,8 @@ FileLoader.createSettings = async (files: File[]) => {
   const settingsUrl = settingsFile.webkitRelativePath || settingsFile.name
   const settingsText = await FileLoader.readText(settingsFile)
   const settings = createModelSettings(settingsText, settingsUrl)
+  mergeDiscoveredControlsIntoSettings(settings, files.map(file => file.webkitRelativePath || file.name).filter(path => !shouldIgnoreLive2DArchiveEntry(path)))
+
   Object.assign(settings, { _objectURL: URL.createObjectURL(settingsFile) })
 
   return settings

@@ -23,6 +23,14 @@ export interface ChatComposerSubmission<TAttachment> {
 /** The observable result of one composer submission attempt. */
 export type ChatComposerSubmitResult = 'discarded' | 'ignored' | 'restored' | 'sent'
 
+/** Work that must finish after the draft is captured and before it is sent. */
+export interface ChatComposerSubmitOptions<TAttachment> {
+  /** Runs with the immutable submission, before the chat send begins. */
+  beforeSend?: (submission: ChatComposerSubmission<TAttachment>) => Promise<void>
+  /** Runs immediately after the chat send has been started. */
+  afterSendStarted?: (submission: ChatComposerSubmission<TAttachment>) => void
+}
+
 /** Dependencies and runtime ownership for one local composer. */
 export interface UseChatComposerOptions<TAttachment> {
   /** The session selection for this window or view. */
@@ -52,7 +60,7 @@ export interface ChatComposerController<TAttachment> {
   /** Selects a message as the reply target. */
   selectReply: (target: ChatHistoryReplyPayload) => void
   /** Submits one snapshot and restores it after a recoverable failure. */
-  submit: () => Promise<ChatComposerSubmitResult>
+  submit: (options?: ChatComposerSubmitOptions<TAttachment>) => Promise<ChatComposerSubmitResult>
 }
 
 function isCancelledSessionSend(error: unknown): boolean {
@@ -98,7 +106,7 @@ export function useChatComposer<TAttachment = never>(options: UseChatComposerOpt
     replyTarget.value = target
   }
 
-  async function submit(): Promise<ChatComposerSubmitResult> {
+  async function submit(submitOptions?: ChatComposerSubmitOptions<TAttachment>): Promise<ChatComposerSubmitResult> {
     if (isComposing.value || (!draft.value.trim() && attachments.value.length === 0))
       return 'ignored'
 
@@ -116,7 +124,10 @@ export function useChatComposer<TAttachment = never>(options: UseChatComposerOpt
     replyTarget.value = undefined
 
     try {
-      await options.send(submission)
+      await submitOptions?.beforeSend?.(submission)
+      const sendPromise = options.send(submission)
+      submitOptions?.afterSendStarted?.(submission)
+      await sendPromise
       return 'sent'
     }
     catch (error) {

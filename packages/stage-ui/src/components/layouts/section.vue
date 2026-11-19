@@ -16,6 +16,7 @@ withDefaults(defineProps<{
   <Collapsible :default="expand">
     <template #trigger="slotProps">
       <button
+        :aria-expanded="slotProps.visible"
         class="w-full flex items-center justify-between rounded-lg px-3 py-2 outline-none transition-all duration-250 ease-in-out sm:px-4 sm:py-3"
         text="neutral-600 dark:neutral-400 sm sm:base"
         bg="neutral-100 dark:neutral-800"

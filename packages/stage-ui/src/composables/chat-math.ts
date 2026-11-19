@@ -57,6 +57,43 @@ const remarkChatMath: Plugin<[], Root> = () => (tree) => {
 }
 
 /**
+ * Returns the markdown without a formula that is still open at its end, for a message that is still streaming.
+ *
+ * remark-math reads an unclosed `$$` as a formula up to the end of the text, so a half-written formula, as
+ * `$$\frac{dx_t}{`, is a KaTeX error and flashes red until its closing `$$` arrives. A `latex`, `tex`, or `math` fence
+ * that is still open has the same problem. The formula renders once it closes. Other code fences stay, because
+ * their text is shown as written.
+ *
+ * @example
+ * withoutPendingMath('Speed:\n\n$$\nu_t = \\frac{dx_t}{')
+ * // => 'Speed:\n\n'
+ */
+export function withoutPendingMath(markdown: string): string {
+  let fence: { marker: string, math: boolean, start: number } | undefined
+  let dollars: number | undefined
+  let offset = 0
+  for (const line of markdown.split(/(?<=\n)/)) {
+    const opening = /^ {0,3}(`{3,}|~{3,})\s*([\w-]*)/.exec(line)
+    if (fence) {
+      if (opening && opening[1]!.startsWith(fence.marker) && !opening[2])
+        fence = undefined
+    }
+    else if (opening) {
+      fence = { marker: opening[1]!, math: isChatMathFenceLanguage(opening[2]), start: offset }
+    }
+    else {
+      // Each `$$` outside code opens or closes a formula. An escaped `\$$` is text.
+      for (const match of line.matchAll(/(?<!\\)\$\$/g))
+        dollars = dollars === undefined ? offset + match.index : undefined
+    }
+    offset += line.length
+  }
+  if (fence?.math)
+    return markdown.slice(0, fence.start)
+  return dollars === undefined ? markdown : markdown.slice(0, dollars)
+}
+
+/**
  * Defines the math syntax for AIRI chat Markdown.
  *
  * A single dollar sign stays text, and `$$...$$` defines inline math. A

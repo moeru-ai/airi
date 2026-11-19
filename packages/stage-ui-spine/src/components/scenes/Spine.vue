@@ -7,7 +7,7 @@ import { ref, watch } from 'vue'
 import SpineCanvas from './spine/Canvas.vue'
 import SpineModel from './spine/Model.vue'
 
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
   /** Scene painted inside the canvas, behind the model. */
   backgroundUrl?: string | null
   modelSrc?: string
@@ -27,18 +27,30 @@ withDefaults(defineProps<{
   renderScale: 1,
 })
 
+const emit = defineEmits<{ (e: 'error', error: Error): void }>()
+
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
 const componentStateCanvas = defineModel<'pending' | 'loading' | 'mounted'>('canvasState', { default: 'pending' })
 const componentStateModel = defineModel<'pending' | 'loading' | 'mounted'>('modelState', { default: 'pending' })
+const modelFailed = ref(false)
+watch(() => [props.modelSrc, props.modelId], () => {
+  modelFailed.value = false
+})
 
 const canvasRef = ref<InstanceType<typeof SpineCanvas>>()
 const modelRef = ref<InstanceType<typeof SpineModel>>()
 
 watch([componentStateModel, componentStateCanvas], () => {
-  componentState.value = (componentStateModel.value === 'mounted' && componentStateCanvas.value === 'mounted')
+  componentState.value = (!modelFailed.value && componentStateModel.value === 'mounted' && componentStateCanvas.value === 'mounted')
     ? 'mounted'
     : 'loading'
 })
+
+function reportModelError(error: Error) {
+  modelFailed.value = true
+  componentState.value = 'loading'
+  emit('error', error)
+}
 
 defineExpose({
   canvasElement: () => canvasRef.value?.canvasElement(),
@@ -74,6 +86,7 @@ defineExpose({
         :default-mix-duration="defaultMixDuration"
         :idle-animation-enabled="idleAnimationEnabled"
         :max-fps="maxFps"
+        @error="reportModelError"
       />
     </SpineCanvas>
   </Screen>

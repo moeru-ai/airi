@@ -3,9 +3,11 @@ import { cwd } from 'node:process'
 import vue from '@vitejs/plugin-vue'
 import UnoCss from 'unocss/vite'
 import Info from 'unplugin-info/vite'
+import VueRouter from 'vue-router/vite'
 
+import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'
 import { playwright } from '@vitest/browser-playwright'
-import { loadEnv } from 'vite'
+import { loadEnv, normalizePath } from 'vite'
 import { defineConfig } from 'vitest/config'
 
 import unoConfig from './uno.config'
@@ -30,10 +32,10 @@ export default defineConfig({
       content: {
         ...unoConfig.content,
         filesystem: [
-          `${import.meta.dirname}/src/**/*.vue`,
-          `${import.meta.dirname}/../../packages/stage-layouts/src/**/*.vue`,
-          `${import.meta.dirname}/../../packages/stage-ui/src/**/*.vue`,
-          `${import.meta.dirname}/../../packages/ui/src/**/*.vue`,
+          `${normalizePath(import.meta.dirname)}/src/**/*.vue`,
+          `${normalizePath(import.meta.dirname)}/../../packages/stage-layouts/src/**/*.vue`,
+          `${normalizePath(import.meta.dirname)}/../../packages/stage-ui/src/**/*.vue`,
+          `${normalizePath(import.meta.dirname)}/../../packages/ui/src/**/*.vue`,
         ],
       },
     }),
@@ -53,10 +55,18 @@ export default defineConfig({
       },
       {
         extends: true,
+        plugins: [
+          DownloadLive2DSDK(),
+          // The settings pages carry a `<route>` block, and this plugin is the
+          // one that turns that block into a module. A test that imports a page
+          // fails to resolve it without this plugin.
+          VueRouter({ dts: false, routesFolder: ['src/renderer/pages'] }),
+        ],
         test: {
           name: 'browser',
           include: ['src/**/*.browser.test.ts'],
           exclude: ['**/node_modules/**', '**/.git/**'],
+          setupFiles: ['./src/test/setup-live2d.browser.ts'],
           browser: {
             enabled: true,
             headless: true,

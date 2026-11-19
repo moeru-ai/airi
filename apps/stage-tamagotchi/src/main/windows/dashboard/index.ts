@@ -6,14 +6,9 @@ import type { ServerChannel } from '../../services/airi/channel-server'
 import type { NoticeWindowManager } from '../notice'
 import type { SettingsWindowManager } from '../settings'
 
-import { dirname, join, resolve } from 'node:path'
-import { env } from 'node:process'
-import { fileURLToPath } from 'node:url'
-
-import { is } from '@electron-toolkit/utils'
 import { defineInvokeHandler } from '@moeru/eventa'
-import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
+import { onWindowClosed } from '@proj-airi/electron-vueuse/main'
 import { defu } from 'defu'
 import { BrowserWindow, ipcMain } from 'electron'
 import { isLinux } from 'std-env'
@@ -22,8 +17,11 @@ import { array, number, object, optional, string } from 'valibot'
 import icon from '../../../../resources/icon.png?asset'
 
 import { electronStartDraggingWindow } from '../../../shared/eventa'
-import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
+import { shouldOpenDevTools } from '../../libs/electron/devtools'
+import { isWindowFocusIgnored, showWindow } from '../../libs/electron/focus'
+import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
+import { createWindowContext } from '../../libs/electron/window-context'
 import { protectPrivilegedWindowNavigation } from '../shared'
 import { setupDashboardWindowElectronInvokes } from './rpc/index.electron'
 
@@ -71,7 +69,7 @@ export async function setupDashboardWindow(params: {
     show: false,
     icon,
     webPreferences: {
-      preload: join(dirname(fileURLToPath(import.meta.url)), '../preload/index.mjs'),
+      preload: getPreloadPath(),
       sandbox: false,
     },
   })
@@ -80,10 +78,9 @@ export async function setupDashboardWindow(params: {
     params.onWindowCreated(window)
   }
 
-  // NOTICE: in development mode, open devtools by default
-  if (is.dev || env.MAIN_APP_DEBUG || env.APP_DEBUG) {
+  if (shouldOpenDevTools()) {
     try {
-      window.webContents.openDevTools({ mode: 'detach' })
+      window.webContents.openDevTools({ mode: 'detach', activate: !isWindowFocusIgnored() })
     }
     catch (err) {
       console.error('failed to open devtools:', err)
@@ -125,7 +122,7 @@ export async function setupDashboardWindow(params: {
   window.on('resize', () => handleNewBounds(window.getBounds()))
   window.on('move', () => handleNewBounds(window.getBounds()))
 
-  window.on('ready-to-show', () => window!.show())
+  window.on('ready-to-show', () => showWindow(window!))
   protectPrivilegedWindowNavigation(window)
 
   await setupDashboardWindowElectronInvokes({
@@ -137,7 +134,7 @@ export async function setupDashboardWindow(params: {
     serverChannel: params.serverChannel,
   })
 
-  await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/dashboard', {
+  await load(window, withHashRoute(baseUrl(getRendererRoot()), '/dashboard', {
     query: { 'synced-leader': 'false' },
   }))
 
@@ -166,10 +163,10 @@ export async function setupDashboardWindow(params: {
     // manage events within eventa's context system.
     ipcMain.setMaxListeners(0)
 
-    const { context } = createContext(ipcMain, window)
+    const { context } = createWindowContext(window)
     const cleanUpWindowDraggingInvokeHandler = defineInvokeHandler(context, electronStartDraggingWindow, handleStartDraggingWindow)
 
-    window.on('closed', () => {
+    onWindowClosed(window, () => {
       cleanUpWindowDraggingInvokeHandler()
     })
   }

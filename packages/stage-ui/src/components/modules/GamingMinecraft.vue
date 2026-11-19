@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Callout } from '@proj-airi/ui'
+import { Alert, SettingsCard } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -17,7 +17,7 @@ const {
   trafficEntries,
 } = storeToRefs(minecraftStore)
 
-const statusTheme = computed(() => serviceConnected.value ? 'lime' : 'orange')
+const statusTone = computed(() => serviceConnected.value ? 'success' : 'warning')
 
 const statusLabel = computed(() => {
   return serviceConnected.value
@@ -54,20 +54,10 @@ onMounted(() => {
 </script>
 
 <template>
-  <div
-    :class="[
-      'h-fit w-full',
-      'flex flex-col gap-4',
-      'rounded-xl bg-neutral-100 p-4 dark:bg-[rgba(0,0,0,0.3)]',
-    ]"
-  >
-    <Callout :theme="statusTheme" :label="statusLabel">
-      <div :class="['flex flex-col gap-2 text-sm']">
-        <div>
-          {{ lastRuntimeUpdate }}
-        </div>
-      </div>
-    </Callout>
+  <SettingsCard>
+    <Alert :tone="statusTone" :title="statusLabel">
+      {{ lastRuntimeUpdate }}
+    </Alert>
 
     <div :class="['flex flex-col gap-3']">
       <div :class="['text-sm font-medium text-neutral-900 dark:text-neutral-100']">
@@ -133,5 +123,5 @@ onMounted(() => {
         </div>
       </div>
     </div>
-  </div>
+  </SettingsCard>
 </template>

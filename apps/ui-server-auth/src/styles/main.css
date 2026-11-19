@@ -42,7 +42,7 @@ html.dark {
 }
 
 #nprogress .bar {
-  background: color-mix(in srgb, oklch(95% var(--chromatic-chroma-900) calc(var(--chromatic-hue) + ${0})) 70%, oklch(50% 0 360));
+  background: color-mix(in srgb, theme('colors.primary.200') 70%, oklch(50% 0 360));
   opacity: 0.75;
   position: fixed;
   z-index: 1031;
@@ -53,7 +53,7 @@ html.dark {
 }
 
 .dark #nprogress .bar {
-  background: `color-mix(in srgb, oklch(95% var(--chromatic-chroma-900) calc(var(--chromatic-hue) + ${0})) 90%, oklch(90% 0 360))`;
+  background: color-mix(in srgb, theme('colors.primary.200') 90%, oklch(90% 0 360));
 }
 
 @media (display-mode: standalone) {

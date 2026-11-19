@@ -33,6 +33,7 @@ export function useProviderValidation(providerId: string) {
   const providersStore = useProviderStore()
   const providerStore = useProviderConfigStore()
   const {
+    trackProviderConfigured,
     trackProviderConnectionTestCompleted,
     trackProviderConnectionTestStarted,
   } = useAnalytics()
@@ -125,29 +126,23 @@ export function useProviderValidation(providerId: string) {
     let finalValidationMessage = ''
 
     try {
-      // Settings pages always skip chat ping check during automatic validation
-      // to avoid unexpected API billing. Users can trigger it manually.
-      const validationResult = await providersStore.validateProviderConfig(providerId, configToValidate(), {
-        skipChatPingCheck: true,
-      })
+      const validationResult = await providersStore.validateProviderSettings(providerId, configToValidate())
       isValid.value = validationResult.valid
-      providerStore.setProviderStatus(providerId, isValid.value ? 'configured' : 'invalid')
 
       if (!isValid.value) {
         finalValidationMessage = validationResult.reason
       }
 
-      // When a provider validates successfully on its settings page,
-      // mark it as added so it appears in the model selector (e.g. Consciousness module).
-      // This fixes providers like LM Studio that use default config and may not
-      // need an API key, yet should be selectable after successful validation.
+      // A successful settings check makes providers with default configs selectable too, such as LM Studio.
       if (isValid.value) {
+        // The check runs again on every edit. Only the change from not added to added is a setup result.
+        if (!providerStore.addedProviders[providerId])
+          trackProviderConfigured(providerConnectionTestAnalyticsBase())
         providerStore.markProviderAdded(providerId)
       }
     }
     catch (error) {
       isValid.value = false
-      providerStore.setProviderStatus(providerId, 'invalid')
       finalValidationMessage = t('settings.dialogs.onboarding.validationError', {
         error: errorMessageFrom(error) ?? 'Generic error (993b5ad7)',
       })
@@ -214,7 +209,7 @@ export function useProviderValidation(providerId: string) {
   const debouncedValidateConfiguration = useDebounceFn(async () => {
     if (!await shouldValidateConfiguration()) {
       isValid.value = false
-      providerStore.setProviderStatus(providerId, 'unconfigured')
+      await providersStore.recordUnfinishedConfig(providerId)
       validationMessage.value = ''
       isValidating.value = 0
       return

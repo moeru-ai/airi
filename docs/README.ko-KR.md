@@ -1,15 +1,15 @@
 <picture>
   <source
     width="100%"
-    srcset="./content/public/banner-dark-1280x640.avif"
+    srcset="./assets/banner-dark-1280x640.avif"
     media="(prefers-color-scheme: dark)"
   />
   <source
     width="100%"
-    srcset="./content/public/banner-light-1280x640.avif"
+    srcset="./assets/banner-light-1280x640.avif"
     media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
   />
-  <img width="250" src="./content/public/banner-light-1280x640.avif" />
+  <img width="250" src="./assets/banner-light-1280x640.avif" />
 </picture>
 
 <h1 align="center">Project AIRI</h1>
@@ -32,50 +32,50 @@
 
 <p float="left" align="center">
   <!-- readme-section:release-binary-windows -->
-  <a href="https://github.com/moeru-ai/airi/releases/download/v0.12.0-beta.5/AIRI-0.12.0-beta.5-windows-x64-setup.exe">
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.15.4/AIRI-0.15.4-windows-x64-setup.exe">
     <picture>
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.windows.dark.en-US.avif"
+        srcset="./assets/download-buttons/download-buttons.windows.dark.en-US.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.windows.light.en-US.avif"
+        srcset="./assets/download-buttons/download-buttons.windows.light.en-US.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./content/public/assets/download-buttons/download-buttons.windows.light.en-US.avif" />
+      <img width="33%" src="./assets/download-buttons/download-buttons.windows.light.en-US.avif" />
     </picture>
   </a>
   <!-- readme-section:release-binary-macos -->
-  <a href="https://github.com/moeru-ai/airi/releases/download/v0.12.0-beta.5/AIRI-0.12.0-beta.5-darwin-arm64.dmg">
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.15.4/AIRI-0.15.4-darwin-arm64.dmg">
     <picture>
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.macos.dark.en-US.avif"
+        srcset="./assets/download-buttons/download-buttons.macos.dark.en-US.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.macos.light.en-US.avif"
+        srcset="./assets/download-buttons/download-buttons.macos.light.en-US.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./content/public/assets/download-buttons/download-buttons.macos.light.en-US.avif" />
+      <img width="33%" src="./assets/download-buttons/download-buttons.macos.light.en-US.avif" />
     </picture>
   </a>
   <a href="https://github.com/moeru-ai/airi/releases/latest">
     <picture>
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.linux.dark.en-US.avif"
+        srcset="./assets/download-buttons/download-buttons.linux.dark.en-US.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.linux.light.en-US.avif"
+        srcset="./assets/download-buttons/download-buttons.linux.light.en-US.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./content/public/assets/download-buttons/download-buttons.linux.light.en-US.avif" />
+      <img width="33%" src="./assets/download-buttons/download-buttons.linux.light.en-US.avif" />
     </picture>
   </a>
 </p>
@@ -84,45 +84,45 @@
     <picture>
       <source
         width="33%"
-        srcset="./content/public/assets/QR%20code%20button/section.cards.qrcode.dark.kr-KR.png"
+        srcset="./assets/QR%20code%20button/section.cards.qrcode.dark.kr-KR.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="33%"
-        srcset="./content/public/assets/QR%20code%20button/section.cards.qrcode.light.kr-KR.png"
+        srcset="./assets/QR%20code%20button/section.cards.qrcode.light.kr-KR.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./content/public/assets/QR%20code%20button/section.cards.qrcode.light.kr-KR.png" />
+      <img width="33%" src="./assets/QR%20code%20button/section.cards.qrcode.light.kr-KR.avif" />
     </picture>
   </a>
   <a href="https://airi.moeru.ai">
     <picture>
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.mobile.dark.en-US.avif"
+        srcset="./assets/download-buttons/download-buttons.mobile.dark.en-US.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.mobile.light.en-US.avif"
+        srcset="./assets/download-buttons/download-buttons.mobile.light.en-US.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./content/public/assets/download-buttons/download-buttons.mobile.light.en-US.avif" />
+      <img width="33%" src="./assets/download-buttons/download-buttons.mobile.light.en-US.avif" />
     </picture>
   </a>
   <a href="https://airi.moeru.ai">
     <picture>
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.browser.dark.en-US.png"
+        srcset="./assets/download-buttons/download-buttons.browser.dark.en-US.avif"
         media="(prefers-color-scheme: dark)"
       />
       <source
         width="33%"
-        srcset="./content/public/assets/download-buttons/download-buttons.browser.light.en-US.png"
+        srcset="./assets/download-buttons/download-buttons.browser.light.en-US.avif"
         media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)"
       />
-      <img width="33%" src="./content/public/assets/download-buttons/download-buttons.browser.light.en-US.png" />
+      <img width="33%" src="./assets/download-buttons/download-buttons.browser.light.en-US.avif" />
     </picture>
   </a>
 </p>
@@ -164,7 +164,10 @@
 > RAG, 메모리 시스템, 임베디드 데이터베이스, 아이콘, Live2D 유틸리티 등 다양한 프로젝트가 있습니다!
 
 > [!TIP]
-> [Crowdin](https://crowdin.com/project/proj-airi)에 번역 프로젝트가 있습니다. 번역이 부정확하다고 느끼시면 자유롭게 기여해 주세요.
+> [Crowdin](https://crowdin.com/project/proj-airi)에서 AIRI를 번역하거나 `packages/i18n/src/locales/`를 수정하는 Pull Request를 열 수 있습니다. 두 방법은 같은 번역을 업데이트합니다.
+>
+> 영어 원문과 완전히 동일한 번역을 제출하지 마세요. 검토에서 거부됩니다. 번역이 없는 문자열은 영어로 표시됩니다.
+>
 > <a href="https://crowdin.com/project/proj-airi" target="_blank" rel="nofollow"><img style="width: 140px; height: 40px;" src="https://badges.crowdin.net/badge/light/crowdin-on-dark.png" srcset="https://badges.crowdin.net/badge/light/crowdin-on-dark.png 1x, https://badges.crowdin.net/badge/light/crowdin-on-dark@2x.png 2x" alt="Crowdin | Agile localization for tech companies" width="140" height="40" /></a>
 
 사이버 생명체(사이버 와이프, 디지털 펫)나 함께 놀고 대화할 수 있는 디지털 동반자를 꿈꿔 본 적이 있으신가요?
@@ -179,17 +182,17 @@
 
 ## 최근 DevLog와 이야기
 
-- [DevLog @ 2026.03.23: 모바일 성능과 게임 엔진 탐색](https://airi.moeru.ai/docs/en/blog/DevLog-2026.03.23/) - 2026년 3월 23일
-- [DevLog @ 2026.03.14: VRM 스테이지 수명주기, 캐시, 관측성](https://airi.moeru.ai/docs/en/blog/DevLog-2026.03.14/) - 2026년 3월 14일
-- [DevLog @ 2026.02.16: Dome Keeper 데이터 수집과 학습 파이프라인](https://airi.moeru.ai/docs/en/blog/DevLog-2026.02.16/) - 2026년 2월 16일
-- [DevLog @ 2026.01.01: AIRI Pocket과 FlowChat 메모리 실험](https://airi.moeru.ai/docs/en/blog/DevLog-2026.01.01/) - 2026년 1월 1일
-- [DevLog @ 2025.10.20: Electron 이전, 새 모델, Moeru AI 업데이트](https://airi.moeru.ai/docs/en/blog/DevLog-2025.10.20/) - 2025년 10월 20일
-- [DevLog @ 2025.08.26: airi-factorio의 순수 비전 방향 진척](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.26/) - 2025년 8월 26일
-- [DevLog @ 2025.08.05: AIRI v0.7 릴리스 하이라이트](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.05/) - 2025년 8월 5일
-- [DevLog @ 2025.08.01: 스트리밍 텍스트 애니메이션과 자소 클러스터](https://airi.moeru.ai/docs/en/blog/DevLog-2025.08.01/) - 2025년 8월 1일
-- [DevLog @ 2025.07.18: Factorio Learning Environment로 airi-factorio 다시 보기](https://airi.moeru.ai/docs/en/blog/DevLog-2025.07.18/) - 2025년 7월 18일
-- [DreamLog 0x1: Project AIRI의 시작 이야기](https://airi.moeru.ai/docs/en/blog/DreamLog-0x1/) - 2025년 6월 16일
-- ...더 많은 내용은 [문서 사이트](https://airi.moeru.ai/docs/en/)에서
+- [DevLog @ 2026.03.23: 모바일 성능과 게임 엔진 탐색](https://airi.moeru.ai/docs/ko/blog/DevLog-2026.03.23/) - 2026년 3월 23일
+- [DevLog @ 2026.03.14: VRM 스테이지 수명주기, 캐시, 관측성](https://airi.moeru.ai/docs/ko/blog/DevLog-2026.03.14/) - 2026년 3월 14일
+- [DevLog @ 2026.02.16: Dome Keeper 데이터 수집과 학습 파이프라인](https://airi.moeru.ai/docs/ko/blog/DevLog-2026.02.16/) - 2026년 2월 16일
+- [DevLog @ 2026.01.01: AIRI Pocket과 FlowChat 메모리 실험](https://airi.moeru.ai/docs/ko/blog/DevLog-2026.01.01/) - 2026년 1월 1일
+- [DevLog @ 2025.10.20: Electron 이전, 새 모델, Moeru AI 업데이트](https://airi.moeru.ai/docs/ko/blog/DevLog-2025.10.20/) - 2025년 10월 20일
+- [DevLog @ 2025.08.26: airi-factorio의 순수 비전 방향 진척](https://airi.moeru.ai/docs/ko/blog/DevLog-2025.08.26/) - 2025년 8월 26일
+- [DevLog @ 2025.08.05: AIRI v0.7 릴리스 하이라이트](https://airi.moeru.ai/docs/ko/blog/DevLog-2025.08.05/) - 2025년 8월 5일
+- [DevLog @ 2025.08.01: 스트리밍 텍스트 애니메이션과 자소 클러스터](https://airi.moeru.ai/docs/ko/blog/DevLog-2025.08.01/) - 2025년 8월 1일
+- [DevLog @ 2025.07.18: Factorio Learning Environment로 airi-factorio 다시 보기](https://airi.moeru.ai/docs/ko/blog/DevLog-2025.07.18/) - 2025년 7월 18일
+- [DreamLog 0x1: Project AIRI의 시작 이야기](https://airi.moeru.ai/docs/ko/blog/DreamLog-0x1/) - 2025년 6월 16일
+- ...더 많은 내용은 [문서 사이트](https://airi.moeru.ai/docs/ko/)에서
 
 ## 이 프로젝트의 특별한 점은?
 
@@ -294,6 +297,15 @@ Tamagotchi용 Nix 패키지도 포함되어 있습니다. flakes를 활성화한
 nix run github:moeru-ai/airi
 ```
 
+#### NixOS
+
+Electron에 필요한 공유 라이브러리가 NixOS에서는 표준 경로에 없습니다. `flake.nix`에 정의된 FHS 셸을 사용하세요:
+
+```shell
+nix develop .#fhs
+pnpm dev:tamagotchi
+```
+
 ### Stage Pocket (모바일 버전)
 
 Capacitor 개발 서버를 시작합니다:
@@ -318,9 +330,7 @@ sudo pnpm dev:tamagotchi
 
 ### 문서 사이트
 
-```shell
-pnpm dev:docs
-```
+문서 사이트는 [moeru-ai/airi-docs](https://github.com/moeru-ai/airi-docs)에 있습니다.
 
 ### 배포
 
@@ -339,7 +349,7 @@ npx bumpp --no-commit --no-tag
 - [x] [Ollama](https://github.com/ollama/ollama)
 - [x] [302.AI (sponsored)](https://share.302.ai/514k2v)
 - [x] [OpenAI](https://platform.openai.com/docs/guides/gpt/chat-completions-api)
-  - [ ] [Azure OpenAI API](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference) (PR 환영)
+  - [x] [Azure OpenAI API](https://learn.microsoft.com/en-us/azure/ai-services/openai/reference)
 - [x] [Anthropic Claude](https://anthropic.com)
   - [ ] [AWS Claude](https://docs.anthropic.com/en/api/claude-on-amazon-bedrock) (PR 환영)
 - [x] [DeepSeek](https://www.deepseek.com/)
@@ -370,17 +380,18 @@ npx bumpp --no-commit --no-tag
 - [Awesome AI VTuber](https://github.com/proj-airi/awesome-ai-vtuber): AI VTuber 및 관련 프로젝트의 큐레이션 목록
 - [`unspeech`](https://github.com/moeru-ai/unspeech): `/audio/transcriptions` 및 `/audio/speech`를 위한 범용 엔드포인트 프록시 서버, LiteLLM과 유사하지만 모든 ASR 및 TTS에 대응
 - [`hfup`](https://github.com/moeru-ai/hfup): HuggingFace Spaces로의 배포 및 번들링을 지원하는 도구
-- [`xsai-transformers`](https://github.com/moeru-ai/xsai-transformers): [xsAI](https://github.com/moeru-ai/xsai)용 실험적 [Transformers.js](https://github.com/huggingface/transformers.js) 프로바이더
+- [`xsai-transformers`](https://github.com/moeru-ai/xsai-transformers): [xsAI](https://github.com/moeru-ai/xsai)용 실험적 [Transformers.js](https://github.com/huggingface/transformers.js) 제공자
 - [WebAI: Realtime Voice Chat](https://github.com/proj-airi/webai-realtime-voice-chat): VAD + STT + LLM + TTS로 ChatGPT 실시간 음성을 처음부터 구현한 완전한 예제
 - [`@proj-airi/drizzle-duckdb-wasm`](https://github.com/moeru-ai/airi/tree/main/packages/drizzle-duckdb-wasm/README.md): DuckDB WASM용 Drizzle ORM 드라이버
 - [`@proj-airi/duckdb-wasm`](https://github.com/moeru-ai/airi/tree/main/packages/duckdb-wasm/README.md): 사용하기 쉬운 `@duckdb/duckdb-wasm` 래퍼
 - [AIRI Factorio](https://github.com/moeru-ai/airi-factorio): AIRI가 Factorio를 플레이할 수 있게 하는 프로젝트
+- [AIRI DomeKeeper](https://github.com/proj-airi/game-playing-ai-dome-keeper): AIRI가 DomeKeeper를 플레이할 수 있게 하는 프로젝트
 - [Factorio RCON API](https://github.com/nekomeowww/factorio-rcon-api): Factorio 헤드리스 서버 콘솔용 RESTful API 래퍼
 - [`autorio`](https://github.com/moeru-ai/airi-factorio/tree/main/packages/autorio): Factorio 자동화 라이브러리
 - [`tstl-plugin-reload-factorio-mod`](https://github.com/moeru-ai/airi-factorio/tree/main/packages/tstl-plugin-reload-factorio-mod): 개발 중 Factorio 모드 리로드 지원
 - [Velin](https://github.com/luoling8192/velin): Vue SFC와 Markdown으로 관리하기 쉬운 상태 기반 LLM 프롬프트 작성
 - [`demodel`](https://github.com/moeru-ai/demodel): 다양한 추론 런타임에서 모델과 데이터셋 다운로드를 간편하게 가속
-- [`inventory`](https://github.com/moeru-ai/inventory): 중앙 집중식 모델 카탈로그 및 기본 프로바이더 설정 백엔드 서비스
+- [`inventory`](https://github.com/moeru-ai/inventory): 중앙 집중식 모델 카탈로그 및 기본 제공자 설정 백엔드 서비스
 - [MCP Launcher](https://github.com/moeru-ai/mcp-launcher): 모든 MCP 서버를 쉽게 빌드하고 실행하는 런처, 모델 세계의 Ollama 같은 존재!
 - [SAD](https://github.com/moeru-ai/sad): 셀프 호스팅 및 브라우저에서 LLM을 실행하기 위한 문서 및 노트
 
@@ -478,7 +489,7 @@ flowchart LR
 </p>
 
 <p align="center">
-  <img src="./content/public/assets/sponsors/sponsors.svg" alt="Project AIRI supporters" />
+  <img src="./assets/sponsors/sponsors.svg" alt="Project AIRI supporters" />
 </p>
 
 ## 특별한 감사

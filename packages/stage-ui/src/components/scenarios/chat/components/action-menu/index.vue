@@ -333,7 +333,7 @@ onUnmounted(() => scaleAnimation?.cancel())
         ref="contextMenuContainer"
         :data-pressing="isPressing"
         :class="[
-          'group/chat-action relative w-fit',
+          'group/chat-action relative w-fit min-w-0 max-w-full',
         ]"
         :style="{
           transform: `scale(${pressedAnimatable.scale / 100})`,

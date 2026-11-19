@@ -2,12 +2,13 @@
 import type { ChatHistoryReplyPayload } from '@proj-airi/stage-ui/components/scenarios/chat'
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
-import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
-import { CharacterSwitcherDrawer, ChatHistory } from '@proj-airi/stage-ui/components'
-import { ChatReplyPreview, ChatSessionsDrawer, useChatComposer } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { CharacterSwitcherDrawer, ChatBackgroundTasks, ChatHistory } from '@proj-airi/stage-ui/components'
+import { ChatComposerAddMenu, ChatComposerVoiceInput, ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSessionsDrawer, useChatImages, useStartVoiceCall, VoiceCallCapsule, VoicePresence } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ModelPlacementPanel, ModelPlacementSurface } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings'
 import { useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
+import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
@@ -15,21 +16,23 @@ import { useL2dViewControl } from '@proj-airi/stage-ui/stores/live2d'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
-import { BasicButton, BasicTextarea } from '@proj-airi/ui'
-import { onLongPress, useEventListener, usePointerSwipe } from '@vueuse/core'
-import { animate, spring } from 'animejs'
+import { useVoiceCallStore } from '@proj-airi/stage-ui/stores/voice-call'
+import { BasicButton, BasicTextarea, ProgressiveBlur } from '@proj-airi/ui'
+import { useFocusWithin } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, nextTick, onMounted, onUnmounted, shallowRef, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onUnmounted, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 
 import ViewControls from './InteractiveArea/Actions/ViewControls.vue'
 import MobileSettingsDrawer from './mobile-settings-drawer.vue'
 import MobileHeader from './MobileHeader.vue'
 
+import { useChatInterruption } from '../../composables/use-chat-interruption'
 import { useMobileInteractiveAreaLayout } from '../../composables/use-mobile-interactive-area-layout'
-import { useTranscriptions } from '../../composables/use-transcriptions'
 import { useChatToolCallRerun } from '../../composables/useChatToolCallRerun'
 import { useStopSpeakingButton } from '../../composables/useStopSpeakingButton'
+import { useStageChatComposerStore } from '../../stores/chat-composer'
 
 const emit = defineEmits<{
   /** Reports the stable height and offset that keep the Stage in the same screen position. */
@@ -41,33 +44,54 @@ const chatSession = useChatSessionStore()
 const chatStream = useChatStreamStore()
 const { activeSessionId, messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
-const { activeSendSessionId, activeStreamingMessage, sending } = storeToRefs(chatOrchestrator)
+const { activeTurns, backgroundTasks } = storeToRefs(chatOrchestrator)
 const { isReceivingRemoteStream } = storeToRefs(useContextBridgeStore())
-const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
+const { activeChatReady: chatReady } = storeToRefs(chatOrchestrator)
+const historyMessages = computed(() => messages.value)
 const isActiveSessionSending = computed(() => (
-  (sending.value && activeSendSessionId.value === activeSessionId.value)
+  (activeTurns.value.some(turn => turn.sessionId === activeSessionId.value))
   || isReceivingRemoteStream.value
 ))
-const visibleStreamingMessage = computed(() => activeSendSessionId.value === activeSessionId.value
-  ? activeStreamingMessage.value
-  : streamingMessage.value)
+const visibleStreamingMessage = streamingMessage
 const { trackChatMessageDeleted } = useAnalytics()
 const { rerunToolCall } = useChatToolCallRerun()
-const composer = useChatComposer({
-  activeSessionId,
-  send: submission => chatOrchestrator.send({
-    sessionId: submission.sessionId,
-    text: submission.text,
-    replyToMessageId: submission.replyToMessageId,
-  }),
-})
+const { composer } = useStageChatComposerStore()
 const {
+  attachments,
+  removeAttachment,
   clearReplyForMessage,
   draft: messageInput,
   isComposing,
   replyTarget,
   selectReply,
 } = composer
+const { addFiles, selectFiles, error: imageError, pending: pendingImages } = useChatImages(composer, () => activeSessionId.value)
+const imageInput = useTemplateRef<HTMLInputElement>('imageInput')
+/** A recording bar or the walkie-talkie bar covers the input bubble, so the text is hidden under it. */
+const voiceCovering = shallowRef(false)
+/** A recording is open. Its transcript is not in the text yet, so send waits until it closes. */
+const voiceRecording = shallowRef(false)
+/** A recorded voice message waits for the send button. It can be sent without text. */
+const voicePending = shallowRef(false)
+const voiceInput = useTemplateRef<InstanceType<typeof ChatComposerVoiceInput>>('voiceInput')
+const voiceAttachment = useTemplateRef<HTMLElement>('voiceAttachment')
+const voiceSurface = useTemplateRef<HTMLElement>('voiceSurface')
+const router = useRouter()
+const authStore = useAuthStore()
+const call = useVoiceCallStore()
+const startVoiceCall = useStartVoiceCall(route => router.push(route), () => !voiceRecording.value)
+const hasSubmission = computed(() => !!messageInput.value.trim() || attachments.value.length > 0)
+const { showStopAction, stopActiveResponse, submitInterruptingResponse } = useChatInterruption({
+  sessionId: activeSessionId,
+  generating: isActiveSessionSending,
+  hasSubmission,
+  submit: async (hooks) => {
+    await composer.submit({
+      beforeSend: hooks && (submission => hooks.beforeSend(submission.sessionId)),
+      afterSendStarted: hooks && (submission => hooks.afterSendStarted(submission.sessionId)),
+    })
+  },
+})
 
 async function handleDeleteMessage(payload: { message: ChatHistoryItem, index: number }) {
   const { index, message } = payload
@@ -83,15 +107,20 @@ async function handleDeleteMessage(payload: { message: ChatHistoryItem, index: n
   clearReplyForMessage(message)
 }
 
-const inputBubbleDocked = shallowRef(false)
-const inputBubbleDragging = shallowRef(false)
-const inputBubbleAnimating = shallowRef(false)
+async function handleRetryMessage(index: number) {
+  await chatOrchestrator.retry({ sessionId: activeSessionId.value, index })
+}
+
 const sessionsDrawerOpen = shallowRef(false)
 const mobileInteractiveArea = useTemplateRef<HTMLElement>('mobileInteractiveArea')
 const messageComposer = useTemplateRef<HTMLElement>('messageComposer')
 const inputBubble = useTemplateRef<HTMLElement>('inputBubble')
-const inputBubbleDockTarget = useTemplateRef<HTMLElement>('inputBubbleDockTarget')
-const inputBubbleIcon = useTemplateRef<HTMLElement>('inputBubbleIcon')
+const { focused: inputBubbleFocused } = useFocusWithin(inputBubble)
+/**
+ * An idle composer is narrower, so more of the stage shows. It widens while the user types or a draft, a reply, or a
+ * recording is in it. Then the text does not reflow when the keyboard closes.
+ */
+const composerExpanded = computed(() => inputBubbleFocused.value || hasSubmission.value || !!replyTarget.value || voiceCovering.value || voicePending.value || call.active)
 const interactionControls = useTemplateRef<HTMLElement>('interactionControls')
 const controlsIsland = useTemplateRef<HTMLElement>('controlsIsland')
 const controlsIslandContent = useTemplateRef<HTMLElement>('controlsIslandContent')
@@ -120,6 +149,7 @@ watch(
 const mobileInteractiveAreaClass = [
   'pointer-events-none fixed inset-x-0 top-0 z-20 w-full',
   'flex flex-col',
+  'pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]',
 ]
 const chatHistoryClass = [
   'pointer-events-auto relative z-20',
@@ -136,8 +166,9 @@ const controlsIslandClass = computed(() => [
   ],
 ])
 const { themeColorsHueDynamic } = storeToRefs(useSettings())
-const { stageModelRenderer } = storeToRefs(useSettingsStageModel())
+const { stageModelRenderer, stageModelSelected } = storeToRefs(useSettingsStageModel())
 const l2dViewControl = useL2dViewControl()
+const { scale: modelScale, position: modelPosition } = l2dViewControl
 const threeViewControl = useThreeViewControl()
 const viewControlsAvailable = computed(() => stageModelRenderer.value === 'live2d' || stageModelRenderer.value === 'vrm')
 const viewControlsEnabled = computed(() => {
@@ -148,7 +179,8 @@ const viewControlsEnabled = computed(() => {
   return false
 })
 const settingsAudioDevice = useSettingsAudioDevice()
-const { enabled, stream } = storeToRefs(settingsAudioDevice)
+const { listening, stream } = storeToRefs(settingsAudioDevice)
+
 const { t } = useI18n()
 const { audioContext } = useAudioContext()
 const { startAnalyzer, stopAnalyzer } = useAudioAnalyzer()
@@ -168,6 +200,7 @@ async function openViewControls() {
     ?.focus()
 }
 
+/** Ends the temporary edit mode while retaining the saved model placement. */
 function closeViewControls() {
   l2dViewControl.viewControlsEnabled.value = false
   threeViewControl.viewControlsEnabled.value = false
@@ -207,28 +240,7 @@ function isMobileDevice() {
   return /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 }
 
-function isAndroidDevice() {
-  return /Android/i.test(navigator.userAgent)
-}
-
-const messageInputPointerEventsClass = computed(() => {
-  if (inputBubbleDocked.value)
-    return 'pointer-events-none'
-
-  if (isAndroidDevice())
-    return 'pointer-events-none group-focus-within:pointer-events-auto'
-
-  return 'pointer-events-auto'
-})
-
-useTranscriptions(
-  {
-    messageInputRef: messageInput,
-    sendMessage: handleSend,
-    isStageTamagotchi,
-  },
-)
-const { showStopSpeakingButton, speechMuted, stopSpeakingFromChat, toggleSpeechMuted } = useStopSpeakingButton()
+const { speechMuted, toggleSpeechMuted } = useStopSpeakingButton()
 const characterVoiceEnabled = computed({
   get: () => !speechMuted.value,
   set: (value) => {
@@ -237,154 +249,7 @@ const characterVoiceEnabled = computed({
   },
 })
 
-let suppressNextInputBubbleClick = false
-
-async function resetInputBubblePosition() {
-  await animate(inputBubble.value!, {
-    transform: 'translate3d(0px, 0px, 0px) scale(1)',
-    ease: spring({ bounce: 0.3, duration: 320 }),
-  })
-}
-
-async function setInputBubbleDocked(docked: boolean) {
-  if (inputBubbleDocked.value === docked)
-    return
-
-  inputBubbleAnimating.value = true
-  const bubble = inputBubble.value!
-  const source = bubble.getBoundingClientRect()
-  bubble.style.transform = 'translate3d(0px, 0px, 0px) scale(1)'
-  if (!docked) {
-    bubble.style.removeProperty('width')
-    bubble.style.removeProperty('max-width')
-    bubble.style.removeProperty('height')
-  }
-  inputBubbleDocked.value = docked
-  await nextTick()
-
-  const destination = bubble.getBoundingClientRect()
-  const target = docked ? inputBubbleDockTarget.value!.getBoundingClientRect() : destination
-  const startX = source.left + source.width / 2 - destination.left - destination.width / 2
-  const startY = source.top - destination.top
-  const endX = target.left + target.width / 2 - destination.left - destination.width / 2
-  const endY = target.top + target.height / 2 - destination.top - destination.height / 2
-  const messageInput = bubble.querySelector<HTMLTextAreaElement>('textarea')!
-
-  await Promise.all([
-    animate(bubble, {
-      width: [`${source.width}px`, `${target.width}px`],
-      maxWidth: [`${source.width}px`, `${target.width}px`],
-      height: [`${source.height}px`, `${target.height}px`],
-      transform: [
-        `translate3d(${startX}px, ${startY}px, 0)`,
-        `translate3d(${endX}px, ${endY}px, 0)`,
-      ],
-      ease: spring({ bounce: docked ? 0.35 : 0.25, duration: 400 }),
-    }),
-    animate(messageInput, {
-      opacity: docked ? 0 : 1,
-      duration: 120,
-      ease: 'out(2)',
-    }),
-    animate(inputBubbleIcon.value!, {
-      opacity: docked ? 1 : 0,
-      duration: 120,
-      ease: 'out(2)',
-    }),
-  ])
-
-  if (!docked) {
-    bubble.style.removeProperty('width')
-    bubble.style.removeProperty('max-width')
-    bubble.style.removeProperty('height')
-  }
-  inputBubbleAnimating.value = false
-  await nextTick()
-}
-
-const {
-  distanceX: inputBubbleDistanceX,
-  distanceY: inputBubbleDistanceY,
-} = usePointerSwipe(inputBubble, {
-  threshold: 0,
-  onSwipe: handleInputBubbleSwipe,
-  onSwipeEnd: finishInputBubbleDrag,
-})
-
-async function finishInputBubbleDrag() {
-  if (!inputBubbleDragging.value)
-    return
-
-  inputBubbleDragging.value = false
-  const upwardDistance = inputBubbleDistanceY.value
-  const draggedTowardDock = upwardDistance >= 64
-    && upwardDistance > Math.abs(inputBubbleDistanceX.value)
-  if (draggedTowardDock)
-    await setInputBubbleDocked(true)
-  else
-    await resetInputBubblePosition()
-}
-
-function handleInputBubbleSwipe() {
-  if (!inputBubbleDragging.value)
-    return
-
-  inputBubble.value!.style.transform = `translate3d(${-inputBubbleDistanceX.value}px, ${-inputBubbleDistanceY.value}px, 0) scale(.98)`
-}
-
-function handleInputBubbleLongPress() {
-  if (inputBubbleDocked.value)
-    return
-
-  suppressNextInputBubbleClick = true
-  inputBubbleDragging.value = true
-  inputBubble.value!.querySelector<HTMLTextAreaElement>('textarea')!.blur()
-  inputBubble.value!.style.transform = 'translate3d(0, 0, 0) scale(.98)'
-}
-
-function handleInputBubblePointerDown(event: PointerEvent) {
-  suppressNextInputBubbleClick = false
-
-  const messageInput = inputBubble.value!.querySelector<HTMLTextAreaElement>('textarea')!
-
-  // NOTICE:
-  // The focused textarea must suppress native text selection before a dock drag starts.
-  // A blurred textarea must keep native activation so Safari can cancel an active keyboard dismissal.
-  // See the closing-focus regression in adaptive-input.test.ts.
-  // Remove this branch when Safari exposes a keyboard lifecycle that can cancel an active dismissal.
-  if (document.activeElement === messageInput)
-    event.preventDefault()
-}
-
-function handleInputBubbleContextMenu(event: MouseEvent) {
-  if (isAndroidDevice())
-    event.preventDefault()
-}
-
-onLongPress(inputBubble, handleInputBubbleLongPress, {
-  delay: 500,
-  distanceThreshold: 10,
-  onMouseUp: (_duration, _distance, longPressed) => longPressed && finishInputBubbleDrag(),
-})
-
-async function handleInputBubbleClick() {
-  if (suppressNextInputBubbleClick) {
-    suppressNextInputBubbleClick = false
-    return
-  }
-
-  if (inputBubbleDocked.value) {
-    await setInputBubbleDocked(false)
-    return
-  }
-
-  inputBubble.value!.querySelector<HTMLTextAreaElement>('textarea')!.focus()
-}
-
 async function handleReplyMessage(payload: ChatHistoryReplyPayload) {
-  if (inputBubbleDocked.value)
-    await setInputBubbleDocked(false)
-
   selectReply(payload)
   await nextTick()
   inputBubble.value?.querySelector<HTMLTextAreaElement>('textarea')?.focus()
@@ -396,17 +261,6 @@ async function handleCancelReply() {
   inputBubble.value?.querySelector<HTMLTextAreaElement>('textarea')?.focus()
 }
 
-async function handleInputBubblePointerCancel() {
-  inputBubbleDragging.value = false
-  await resetInputBubblePosition()
-}
-
-useEventListener(inputBubble, 'pointercancel', handleInputBubblePointerCancel)
-
-onMounted(() => {
-  inputBubble.value!.style.setProperty('touch-action', 'none')
-})
-
 async function handleSubmit() {
   if (!isMobileDevice()) {
     await handleSend()
@@ -414,7 +268,19 @@ async function handleSubmit() {
 }
 
 async function handleSend() {
-  await composer.submit()
+  // The draft stays in the composer while the setup callout is shown.
+  if (voiceRecording.value || pendingImages.value || !chatReady.value)
+    return
+
+  // A waiting voice message takes the composer text into the same user message.
+  const voice = await voiceInput.value?.sendPending(messageInput.value)
+  if (voice === 'sent')
+    messageInput.value = ''
+  // A failed send keeps the text for a retry. A send that still runs, for example after a double Enter, clears it itself.
+  if (voice && voice !== 'none')
+    return
+
+  await submitInterruptingResponse()
 }
 
 function teardownAnalyzer() {
@@ -428,7 +294,7 @@ function teardownAnalyzer() {
 
 async function setupAnalyzer() {
   teardownAnalyzer()
-  if (!enabled.value || !stream.value)
+  if (!listening.value || !stream.value)
     return
   if (audioContext.state === 'suspended')
     await audioContext.resume()
@@ -439,11 +305,12 @@ async function setupAnalyzer() {
   analyzerSource.connect(analyser)
 }
 
-watch([enabled, stream], () => {
+watch([listening, stream], () => {
   setupAnalyzer()
 }, { immediate: true })
 
 onUnmounted(() => {
+  closeViewControls()
   teardownAnalyzer()
 })
 </script>
@@ -456,6 +323,13 @@ onUnmounted(() => {
     :style="mobileInteractiveAreaStyle"
     @keydown="handleViewControlsKeydown"
   >
+    <ModelPlacementSurface
+      v-if="viewControlsEnabled && stageModelRenderer === 'live2d'"
+      :key="stageModelSelected"
+      v-model:scale="modelScale"
+      v-model:position="modelPosition"
+      :class="['pointer-events-auto']"
+    />
     <MobileHeader v-if="!viewControlsEnabled">
       <BasicButton
         size="unset"
@@ -514,6 +388,7 @@ onUnmounted(() => {
             :class="chatHistoryClass"
             @delete-message="handleDeleteMessage"
             @reply-message="handleReplyMessage"
+            @retry-message="handleRetryMessage($event.index)"
             @tool-call-rerun="rerunToolCall"
           />
         </Transition>
@@ -527,8 +402,16 @@ onUnmounted(() => {
         'pointer-events-auto relative w-full shrink-0 self-end',
       ]"
     >
-      <div translate-y="[-100%]" absolute left-0 px-3 pb-3 font-sans>
-        <div flex="~ col" gap-1>
+      <!--
+        The stage shows through the input area with a blur that grows toward the bottom edge, so the composer and a call
+        stay readable over any character or background. It reaches above the controls to fade in softly.
+      -->
+      <div aria-hidden="true" data-testid="mobile-input-backdrop" :class="['pointer-events-none absolute inset-x-0 bottom-0 -top-16 -z-1']">
+        <ProgressiveBlur edge="bottom" :strength="call.active ? 32 : 16" />
+        <div :class="['absolute inset-0 bg-gradient-to-b from-transparent to-neutral-50/60 dark:to-neutral-950/60']" />
+      </div>
+      <div :class="['absolute left-0 top-2 z-30 -translate-y-full px-3 font-sans']">
+        <div :class="['flex flex-col gap-1']">
           <slot name="status" />
         </div>
       </div>
@@ -544,120 +427,189 @@ onUnmounted(() => {
             'flex flex-col gap-1',
           ]"
         >
-          <div
-            ref="inputBubbleDockTarget"
-            data-testid="mobile-input-bubble-dock-target"
-            class="invisible size-10 shrink-0 self-end"
-          />
           <ChatSessionsDrawer v-model="sessionsDrawerOpen" />
         </div>
       </div>
+      <!-- Speech and drafts show above the composer, also during a call. The call itself is the capsule at the top. -->
+      <div :class="['flex justify-center px-3 pb-1 empty:hidden']">
+        <VoicePresence />
+      </div>
+      <ChatProviderSetupCallout
+        v-if="!chatReady"
+        :class="['mx-3']"
+        @configure="router.push('/settings/providers')"
+        @sign-in="authStore.requestLogin()"
+      />
       <div
         ref="messageComposer"
         data-testid="mobile-message-composer"
         :class="[
           'max-h-100dvh max-w-100dvw w-full',
-          'flex gap-2 px-3 pt-2',
+          'flex gap-2 pt-2',
+          '[transition-property:padding-left,padding-right] duration-250 ease-out motion-reduce:transition-none',
+          composerExpanded ? 'px-3' : 'px-7',
         ]"
         :style="messageComposerStyle"
       >
+        <ChatComposerAddMenu
+          size="md"
+          :in-call="call.active"
+          :recording="voiceRecording"
+          :class="[
+            'self-end backdrop-blur-md',
+            'border-2 border-solid border-neutral-200/60 bg-neutral-100/80',
+            'dark:border-neutral-700/60 dark:bg-neutral-950/80',
+          ]"
+          @attach-images="imageInput?.click()"
+          @call="startVoiceCall"
+        />
+        <input ref="imageInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple :class="['hidden']" @change="selectFiles">
         <div
           ref="inputBubble"
           data-testid="mobile-input-bubble"
-          :data-dragging="inputBubbleDragging"
           :class="[
-            'group relative mx-auto min-h-10 flex flex-col justify-center origin-center overflow-hidden',
-            'touch-none select-none focus-within:touch-auto focus-within:select-text',
+            'relative min-h-10 min-w-0 flex flex-1 flex-col justify-center overflow-hidden rounded-[1lh]',
             'border-2 border-solid border-neutral-200/60 bg-neutral-100/80 backdrop-blur-md',
             'dark:border-neutral-700/60 dark:bg-neutral-950/80',
-            inputBubbleDragging || inputBubbleAnimating
-              ? 'transition-none'
-              : 'transition-[max-width] duration-320 [transition-timing-function:cubic-bezier(0.16,1,0.3,1)]',
-            inputBubbleDocked
-              ? [
-                'h-10 max-w-10 w-10 cursor-pointer rounded-xl',
-                'border-neutral-100/60 bg-neutral-50/70 dark:border-neutral-800/30 dark:bg-neutral-800/70',
-              ]
-              : 'max-w-[70%] w-full rounded-[1lh] focus-within:max-w-full',
           ]"
-          @click="handleInputBubbleClick"
-          @contextmenu="handleInputBubbleContextMenu"
-          @pointerdown="handleInputBubblePointerDown"
         >
           <ChatReplyPreview
             :target="replyTarget"
-            :class="['w-full']"
+            :class="['w-full', voiceCovering && 'invisible']"
             @cancel="handleCancelReply"
           />
-          <!-- Android handles touch from the scrollable textarea, so it needs touch-none to keep the bubble drag active. -->
-          <BasicTextarea
-            v-model="messageInput"
-            autocomplete="off"
-            autocapitalize="off"
-            autocorrect="off"
-            :spellcheck="false"
-            :placeholder="t('stage.message')"
-            :class="[
-              'font-cute',
-              'max-h-[10lh] min-h-[calc(1lh+4px+4px)] w-full touch-none resize-none overflow-y-scroll scrollbar-none',
-              'border-2 border-solid border-transparent bg-transparent px-4 py-0.5 outline-none',
-              'text-neutral-500 dark:text-neutral-100',
-              'transition-colors duration-250 ease-in-out hover:text-neutral-600 dark:hover:text-neutral-200',
-              'placeholder:text-[14px] placeholder:vertical-middle placeholder:leading-6 placeholder:text-neutral-400',
-              'placeholder:transition-all placeholder:duration-250 placeholder:ease-in-out placeholder:hover:text-neutral-500 dark:placeholder:text-neutral-500 dark:placeholder:hover:text-neutral-400',
-              messageInputPointerEventsClass,
-              themeColorsHueDynamic ? 'transition-colors-none placeholder:transition-colors-none' : undefined,
-            ]"
-            default-height="1lh"
-            @submit="handleSubmit"
-            @compositionstart="isComposing = true"
-            @compositionend="isComposing = false"
-          />
-          <div
-            ref="inputBubbleIcon"
-            aria-hidden="true"
-            class="pointer-events-none absolute inset-0 flex items-center justify-center text-neutral-500 opacity-0 dark:text-neutral-400"
-          >
-            <div class="i-solar:keyboard-bold-duotone size-5" />
+          <ChatBackgroundTasks :tasks="backgroundTasks" @stop="task => chatOrchestrator.stopBackgroundTask(task.sessionId)" @dismiss="task => chatOrchestrator.dismissBackgroundTask(task.sessionId)" />
+          <div v-if="attachments.length" :class="['flex gap-2 overflow-x-auto p-2', voiceCovering && 'invisible']">
+            <ChatImageAttachmentPreview v-for="(attachment, index) in attachments" :key="attachment.previewId" :file="attachment.file" @remove="removeAttachment(index)" />
+          </div>
+          <div ref="voiceAttachment" :class="['px-2 pt-2 empty:hidden', voiceCovering && 'invisible']" />
+          <p v-if="imageError" role="alert" :class="['px-3 py-1 text-xs text-red-600 dark:text-red-400']">
+            {{ imageError }}
+          </p>
+          <p v-if="pendingImages" role="status" :class="['px-3 py-1 text-xs text-neutral-500']">
+            {{ t('stage.chat.images.reading') }}
+          </p>
+          <div :class="['flex items-end']">
+            <!-- The recording status and the walkie-talkie bar cover the text here. The microphone stays beside it. -->
+            <div ref="voiceSurface" :class="['relative min-w-0 flex flex-1 rounded-[1lh]']">
+              <BasicTextarea
+                v-model="messageInput"
+                autocomplete="off"
+                autocapitalize="off"
+                autocorrect="off"
+                :spellcheck="false"
+                :placeholder="t('stage.message')"
+                :class="[
+                  'font-cute',
+                  'max-h-[10lh] min-h-[calc(1lh+4px+4px)] min-w-0 flex-1 resize-none overflow-y-scroll scrollbar-none',
+                  // The 2px margins center one line of text against the 36px microphone in the bubble.
+                  'my-0.5 border-2 border-solid border-transparent bg-transparent py-0.5 pl-4 pr-1 outline-none',
+                  'text-neutral-500 dark:text-neutral-100',
+                  'transition-colors duration-250 ease-in-out hover:text-neutral-600 dark:hover:text-neutral-200',
+                  'placeholder:text-[14px] placeholder:vertical-middle placeholder:leading-6 placeholder:text-neutral-400',
+                  'placeholder:transition-all placeholder:duration-250 placeholder:ease-in-out placeholder:hover:text-neutral-500 dark:placeholder:text-neutral-500 dark:placeholder:hover:text-neutral-400',
+                  themeColorsHueDynamic ? 'transition-colors-none placeholder:transition-colors-none' : undefined,
+                  voiceCovering && 'invisible',
+                ]"
+                default-height="1lh"
+                @submit="handleSubmit"
+                @paste-file="addFiles"
+                @compositionstart="isComposing = true"
+                @compositionend="isComposing = false"
+              />
+            </div>
+            <!-- A call listens already, so the microphone becomes the mute button of the call. -->
+            <BasicButton
+              v-if="call.active"
+              size="unset"
+              type="button"
+              data-testid="mobile-call-mute"
+              :aria-pressed="call.muted"
+              :aria-label="t(call.muted ? 'stage.chat.call.unmute' : 'stage.chat.call.mute')"
+              :title="t(call.muted ? 'stage.chat.call.unmute' : 'stage.chat.call.mute')"
+              :class="[
+                'mr-0.5 size-9 shrink-0 flex items-center justify-center rounded-full outline-none',
+                'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary-500',
+                'transition-colors duration-150 motion-reduce:transition-none',
+                call.muted
+                  ? 'bg-neutral-700 text-white dark:bg-white/20 dark:text-white'
+                  : 'text-neutral-500 hover:bg-neutral-900/8 dark:text-neutral-400 dark:hover:bg-white/10',
+              ]"
+              @click="call.toggleMuted()"
+            >
+              <span aria-hidden="true" :class="[call.muted ? 'i-mingcute:mic-off-line' : 'i-mingcute:mic-line', 'size-5']" />
+            </BasicButton>
+            <!-- The microphone stays mounted during a call, so a voice message that waits for the send button is kept. -->
+            <ChatComposerVoiceInput
+              ref="voiceInput"
+              v-model="messageInput"
+              :hidden="call.active"
+              size="md"
+              :class="['mr-0.5']"
+              :surface="voiceSurface"
+              :attachment-element="voiceAttachment"
+              :session-id="activeSessionId"
+              :reply-to-message-id="replyTarget?.message.id"
+              @active-change="voiceCovering = $event"
+              @recording-change="voiceRecording = $event"
+              @pending-change="voicePending = $event"
+              @sent="composer.clearReply()"
+              @submit="handleSend"
+              @configure="route => router.push(route)"
+            />
           </div>
         </div>
-        <button
-          v-if="showStopSpeakingButton"
-          data-testid="stop-speaking-button"
-          :class="[
-            'h-[calc(1lh+4px+4px)] w-[calc(1lh+4px+4px)] flex items-center justify-center self-end rounded-md outline-none',
-            'text-lg text-neutral-500 transition-all duration-200 active:scale-95 dark:text-neutral-400',
-            'hover:bg-primary-100/60 hover:text-primary-600 dark:hover:bg-primary-900/40 dark:hover:text-primary-300',
-          ]"
-          title="Stop speaking"
-          aria-label="Stop speaking"
-          @click="stopSpeakingFromChat"
-        >
-          <div class="i-solar:stop-circle-bold-duotone h-5 w-5" />
-        </button>
-        <button
-          v-if="messageInput.trim() || isComposing"
-          :aria-label="t('stage.chat.actions.send')"
-          w="[calc(1lh+4px+4px)]" h="[calc(1lh+4px+4px)]" aspect-square flex items-center self-end justify-center rounded-full outline-none backdrop-blur-md
-          text="neutral-500 hover:neutral-600 dark:neutral-900 dark:hover:neutral-800"
-          bg="primary-50/80 dark:neutral-100/80 hover:neutral-50"
-          transition="all duration-250 ease-in-out"
-          @click="handleSend"
-        >
-          <div i-solar:arrow-up-outline />
-        </button>
+        <div :class="['shrink-0 flex items-end']">
+          <button
+            v-if="showStopAction"
+            data-testid="stop-speaking-button"
+            :class="[
+              'size-10 flex items-center justify-center rounded-full outline-none backdrop-blur-md',
+              'border-2 border-solid border-neutral-200/60 bg-neutral-100/80',
+              'text-lg text-neutral-500 transition-all duration-200 active:scale-95',
+              'dark:border-neutral-700/60 dark:bg-neutral-950/80 dark:text-neutral-400',
+              'hover:bg-primary-100/60 hover:text-primary-600 dark:hover:bg-primary-900/40 dark:hover:text-primary-300',
+            ]"
+            :title="t('stage.chat.actions.stop')"
+            :aria-label="t('stage.chat.actions.stop')"
+            @click="stopActiveResponse"
+          >
+            <div :class="['i-solar:stop-outline size-5']" />
+          </button>
+          <button
+            v-else
+            data-testid="mobile-send-button"
+            :disabled="voiceRecording || !!pendingImages || (!hasSubmission && !voicePending)"
+            :aria-label="t('stage.chat.actions.send')"
+            :class="[
+              'size-10 flex items-center justify-center rounded-full bg-primary-500 text-white outline-none',
+              'transition-[background-color,opacity] duration-200 hover:bg-primary-600 disabled:opacity-40 motion-reduce:transition-none',
+            ]"
+            @click="handleSend"
+          >
+            <div :class="['i-mingcute:arrow-up-line size-5']" />
+          </button>
+        </div>
       </div>
     </div>
+    <VoiceCallCapsule placement="below-header" />
     <div
-      v-show="viewControlsEnabled"
+      v-if="viewControlsEnabled"
       data-testid="view-controls-toolbar"
       :class="[
         'pointer-events-auto fixed inset-x-0 z-30',
-        'pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))]',
+        stageModelRenderer === 'live2d'
+          ? 'pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]'
+          : 'pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))]',
         'bottom-[max(1rem,env(safe-area-inset-bottom))]',
       ]"
     >
-      <ViewControls variant="mobile-stage" />
+      <ModelPlacementPanel
+        v-if="stageModelRenderer === 'live2d'"
+        v-model:scale="modelScale"
+        v-model:position="modelPosition"
+      />
+      <ViewControls v-else variant="mobile-stage" />
     </div>
   </div>
 </template>

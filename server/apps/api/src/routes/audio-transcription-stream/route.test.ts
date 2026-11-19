@@ -3,10 +3,10 @@ import type { ProviderCatalogService } from '../../services/domain/provider-cata
 
 import { Buffer } from 'node:buffer'
 
+import { ApiError } from '@proj-airi/http-error-shared'
 import { describe, expect, it, vi } from 'vitest'
 
 import { createEnvelopeCrypto } from '../../utils/envelope-crypto'
-import { ApiError } from '../../utils/error'
 import { resolveOfficialAliyunNlsCredentials, resolveOfficialAliyunNlsCredentialsFromConfig } from './route'
 
 function createRouterConfig(overrides?: Partial<RouterConfig>): RouterConfig {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { ElectronMcpStdioTestResult } from '../../../../../shared/eventa'
+import type { ElectronMcpTestResult } from '../../../../../shared/eventa'
 
-import { Button, Callout, FieldSelect } from '@proj-airi/ui'
+import { Alert, Button, FieldSelect, SettingsCard } from '@proj-airi/ui'
 import { useI18n } from 'vue-i18n'
 
 interface TestOption {
@@ -11,7 +11,7 @@ interface TestOption {
 
 const props = defineProps<{
   options: TestOption[]
-  result?: ElectronMcpStdioTestResult
+  result?: ElectronMcpTestResult
   running: boolean
 }>()
 
@@ -23,12 +23,10 @@ const selectedRowId = defineModel<string>({ required: true })
 
 const { t } = useI18n()
 const tn = (key: string, params?: Record<string, unknown>) => t(`settings.pages.modules.mcp-server.${key}`, params ?? {})
-
-const PANEL = 'flex flex-col gap-3 rounded-xl border-2 border-solid border-neutral-100 bg-white p-4 md:p-5 dark:border-neutral-900 dark:bg-neutral-900/30'
 </script>
 
 <template>
-  <section :class="PANEL">
+  <SettingsCard>
     <div flex="~ col gap-1">
       <h3 class="text-sm font-semibold">
         {{ tn('test.title') }}
@@ -59,21 +57,26 @@ const PANEL = 'flex flex-col gap-3 rounded-xl border-2 border-solid border-neutr
       />
     </div>
 
-    <Callout
+    <Alert
       v-if="props.result"
-      :theme="props.result.ok ? 'lime' : 'orange'"
-      :label="props.result.ok
+      :tone="props.result.ok ? 'success' : 'danger'"
+      live="polite"
+      :title="props.result.ok
         ? tn('test.success', { count: props.result.tools?.length ?? 0, ms: props.result.durationMs })
         : tn('test.failure', { ms: props.result.durationMs })"
     >
-      <div v-if="!props.result.ok && props.result.error" class="break-all text-xs">
-        {{ props.result.error }}
-      </div>
-      <div v-if="props.result.ok && props.result.tools?.length" class="flex flex-wrap gap-1 text-xs">
-        <span v-for="name in props.result.tools" :key="name" class="rounded-md bg-emerald-500/15 px-2 py-0.5 font-mono">
-          {{ name }}
-        </span>
-      </div>
-    </Callout>
-  </section>
+      <template v-if="!props.result.ok && props.result.error" #default>
+        <div :class="['break-all text-xs']">
+          {{ props.result.error }}
+        </div>
+      </template>
+      <template v-else-if="props.result.ok && props.result.tools?.length" #default>
+        <div :class="['flex flex-wrap gap-1 text-xs']">
+          <span v-for="name in props.result.tools" :key="name" :class="['rounded-md bg-emerald-500/15 px-2 py-0.5 font-mono']">
+            {{ name }}
+          </span>
+        </div>
+      </template>
+    </Alert>
+  </SettingsCard>
 </template>

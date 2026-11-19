@@ -33,6 +33,20 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     return providersStore.getModelsForProvider(activeProvider.value)
   })
 
+  function isOpenRouterProvider(provider: string) {
+    return providersStore.findProviderDefinition(provider)?.id === 'openrouter-ai'
+  }
+
+  const activeModelRequiresReasoning = computed(() => {
+    return isOpenRouterProvider(activeProvider.value)
+      && providerModels.value.find(model => model.id === activeModel.value)?.reasoning?.mandatory === true
+  })
+
+  const activeModelUsesProviderReasoningDefault = computed(() => {
+    return isOpenRouterProvider(activeProvider.value)
+      && !providerModels.value.some(model => model.id === activeModel.value)
+  })
+
   const isLoadingActiveProviderModels = computed(() => {
     return providersStore.isLoadingModels[activeProvider.value] || false
   })
@@ -41,17 +55,22 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     return providersStore.modelLoadError[activeProvider.value] || null
   })
 
-  const activeTemperature = useLocalStorageManualReset<number>(
+  const temperature = useLocalStorageManualReset<number>(
     'settings/consciousness/active-temperature',
     0.7,
     persistenceOptions,
   )
 
-  const activeTopP = useLocalStorageManualReset<number>(
+  const topP = useLocalStorageManualReset<number>(
     'settings/consciousness/active-top-p',
     1.0,
     persistenceOptions,
   )
+
+  // Saved slider values do not imply consent to override provider defaults.
+  // All request paths consume these projections; disabled fields stay undefined.
+  const activeTemperature = computed(() => settingsStore.temperatureEnabled ? temperature.value : undefined)
+  const activeTopP = computed(() => settingsStore.topPEnabled ? topP.value : undefined)
 
   const filteredModels = computed(() => {
     if (!modelSearchQuery.value.trim()) {
@@ -107,8 +126,22 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     return []
   }
 
-  /** Resolves a provider with the reasoning mode shared by every Consciousness input path. */
-  async function getChatProviderInstance(provider: string) {
+  /**
+   * Resolves a provider with the reasoning mode shared by every Consciousness input path.
+   *
+   * `model` is the model of the request. A chat turn passes the model of the session character,
+   * which can differ from the selection of this store.
+   */
+  async function getChatProviderInstance(provider: string, model: string) {
+    const requestModel = providersStore.getModelsForProvider(provider).find(candidate => candidate.id === model)
+    const useProviderReasoningDefault = isOpenRouterProvider(provider)
+      && (!requestModel || requestModel.reasoning?.mandatory === true)
+
+    // OpenRouter applies the model default when reasoning is mandatory or the catalog does not list the model.
+    if (useProviderReasoningDefault) {
+      return providersStore.getChatProviderInstance(provider)
+    }
+
     return providersStore.getChatProviderInstance(provider, {
       reasoning: settingsStore.reasoning ? 'enabled' : 'disabled',
     })
@@ -118,20 +151,30 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     return !!activeProvider.value && !!activeModel.value
   })
 
-  function resetState() {
+  /** Whether chat can send. The `prompt-api` provider runs without a selected model. */
+  const chatReady = computed(() => {
+    return !!activeProvider.value && (!!activeModel.value || activeProvider.value === 'prompt-api')
+  })
+
+  async function resetState() {
     activeProvider.reset()
     resetModelSelection()
-    activeTemperature.reset()
-    activeTopP.reset()
+    temperature.reset()
+    topP.reset()
+    await settingsStore.setTemperatureEnabled(false)
+    await settingsStore.setTopPEnabled(false)
   }
 
   return {
     // State
     configured,
+    chatReady,
     activeProvider,
     activeModel,
     activeTemperature,
     activeTopP,
+    temperature,
+    topP,
     customModelName: activeCustomModelName,
     expandedDescriptions,
     modelSearchQuery,
@@ -139,6 +182,8 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     // Computed
     supportsModelListing,
     providerModels,
+    activeModelRequiresReasoning,
+    activeModelUsesProviderReasoningDefault,
     isLoadingActiveProviderModels,
     activeProviderModelError,
     filteredModels,

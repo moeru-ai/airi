@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { ComfyUIWorkflowTemplate } from '@proj-airi/stage-ui/stores/modules/artistry'
+import type { ComfyUIWorkflowTemplate } from '@proj-airi/stage-shared'
 
 import { REPLICATE_IMAGEGEN_PRESETS } from '@proj-airi/stage-shared'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
-import { Button, Checkbox, FieldInput, FieldRange, IconButton, Select } from '@proj-airi/ui'
+import { Alert, Button, Checkbox, FieldInput, FieldRange, IconButton, Select } from '@proj-airi/ui'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -193,15 +193,9 @@ function openReplicateModel() {
         v-if="selectedArtistryProvider === 'comfyui'"
         class="mb-2 flex flex-col gap-3"
       >
-        <div
-          v-if="comfyuiWorkflows.length === 0"
-          :class="['flex flex-row items-center gap-3 rounded-xl border-2 border-amber-500/20 bg-amber-500/5 p-4 text-sm text-amber-600 dark:text-amber-400']"
-        >
-          <div i-solar:info-circle-bold-duotone class="shrink-0 text-lg" />
-          <p>
-            {{ t('settings.pages.modules.artistry.card.comfyui_empty') }}
-          </p>
-        </div>
+        <Alert v-if="comfyuiWorkflows.length === 0" tone="warning">
+          {{ t('settings.pages.modules.artistry.card.comfyui_empty') }}
+        </Alert>
         <div v-else class="grid grid-cols-2 gap-3">
           <Button
             v-for="wf in comfyuiWorkflows"
@@ -227,7 +221,7 @@ function openReplicateModel() {
             v-model="selectedArtistryModel"
             :label="t('settings.pages.modules.artistry.model.label')"
             :description="t('settings.pages.modules.artistry.model.description')"
-            placeholder="e.g. black-forest-labs/flux-schnell"
+            :placeholder="t('settings.pages.modules.artistry.model.placeholder')"
           />
           <IconButton
             v-if="selectedArtistryProvider === 'replicate' && selectedArtistryModel"
@@ -274,20 +268,20 @@ function openReplicateModel() {
           v-model="selectedArtistryPromptPrefix"
           :label="t('settings.pages.modules.artistry.prompt-prefix.label')"
           :description="t('settings.pages.modules.artistry.prompt-prefix.description')"
-          placeholder="e.g. Masterpiece, high quality, 1girl, anime,"
+          :placeholder="t('settings.pages.modules.artistry.prompt-prefix.placeholder')"
         />
         <FieldInput
           v-model="selectedArtistryWidgetInstruction"
           :label="t('settings.pages.modules.artistry.widget-instructions.label')"
           :description="t('settings.pages.modules.artistry.widget-instructions.description')"
           :single-line="false"
-          input-class="min-h-40"
+          input-class="min-h-40 md:min-h-[clamp(12rem,30dvh,24rem)]"
         />
         <FieldInput
           v-model="selectedArtistryConfigStr"
           :label="t('settings.pages.modules.artistry.options.label')"
           :single-line="false"
-          input-class="min-h-28 font-mono text-xs"
+          input-class="min-h-28 font-mono text-xs md:min-h-[clamp(8rem,20dvh,16rem)]"
         />
       </div>
     </div>

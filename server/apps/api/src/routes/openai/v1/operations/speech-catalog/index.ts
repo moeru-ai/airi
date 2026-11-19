@@ -2,10 +2,10 @@ import type { VoicePack } from '../../../../../schemas/voice-packs'
 import type { V1RouteDeps } from '../../types'
 
 import { useLogger } from '@guiiai/logg'
+import { createBadGatewayError, createBadRequestError, createServiceUnavailableError } from '@proj-airi/http-error-shared'
 import { ofetch } from 'ofetch'
 
 import { catalogVoiceResponse } from '../../../../../services/domain/provider-catalog/provider-voices'
-import { createBadGatewayError, createBadRequestError, createServiceUnavailableError } from '../../../../../utils/error'
 
 const VOICE_PACK_MODEL_ID = 'voice-pack'
 

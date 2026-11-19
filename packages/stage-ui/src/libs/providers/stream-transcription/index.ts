@@ -1,17 +1,10 @@
+import type { StreamTranscriptionSnapshot } from '@proj-airi/provider-inference'
 import type { CommonRequestOptions } from '@xsai/shared'
 import type { StreamTranscriptionDelta, StreamTranscriptionResult } from '@xsai/stream-transcription'
 
 type AudioChunk = ArrayBuffer | ArrayBufferView
 
-/** A complete transcript snapshot that replaces earlier volatile text. */
-export interface StreamTranscriptionSnapshot {
-  durationMilliseconds: number
-  isFinal: boolean
-  locale: string
-  startMilliseconds: number
-  text: string
-  type: 'transcript.text.snapshot'
-}
+export type { StreamTranscriptionSnapshot } from '@proj-airi/provider-inference'
 
 export type AIRIStreamTranscriptionDelta = StreamTranscriptionDelta | StreamTranscriptionSnapshot
 

@@ -111,6 +111,17 @@ export const useContextObservabilityStore = defineStore('devtools:context-observ
     }
   }
 
+  function captureProviderPromptProjection(sessionId: string, composedMessage: Message[]) {
+    if (lastPromptProjection.value?.sessionId !== sessionId)
+      return
+
+    lastPromptProjection.value = {
+      ...lastPromptProjection.value,
+      capturedAt: Date.now(),
+      composedMessage: cloneValue(composedMessage),
+    }
+  }
+
   function clearHistory() {
     history.value = []
   }
@@ -123,6 +134,7 @@ export const useContextObservabilityStore = defineStore('devtools:context-observ
     lastBroadcastReceivedAt,
     recordLifecycle,
     capturePromptProjection,
+    captureProviderPromptProjection,
     clearHistory,
   }
 })

@@ -1,12 +1,19 @@
 import type { Ref } from 'vue'
 
-import { watch } from 'vue'
+import { computed, watch } from 'vue'
+
+/** Limits how long a replicated close request waits for sign-in confirmation. */
+const CONFIRMATION_CLOSE_TIMEOUT_MS = 30_000
 
 interface UseOnboardingAuthenticationOptions {
+  consumeLoginRequest: () => Promise<boolean>
   closeRequestId: Readonly<Ref<number>>
   closeWindow: () => Promise<unknown>
+  /** True while the flow has steps that sign-in does not finish, for example permissions. The window stays open for them. */
+  hasPendingSteps: Readonly<Ref<boolean>>
   isAuthenticated: Readonly<Ref<boolean>>
-  needsLogin: Ref<boolean>
+  isConfirming: Readonly<Ref<boolean>>
+  needsLogin: Readonly<Ref<boolean>>
   onCloseError: (error: unknown) => void
   startLogin: () => Promise<void>
 }
@@ -19,13 +26,26 @@ interface OnboardingAuthenticationControls {
  * Coordinates sign-in and window closure for the standalone onboarding renderer.
  *
  * The renderer that starts the external sign-in remains alive until synchronized
- * authentication state confirms completion. Close requests are deduplicated while
+ * authentication state confirms completion and main acknowledges the status report.
+ * Close requests are deduplicated while
  * the Electron close operation is in flight.
  */
 export function useOnboardingAuthentication(options: UseOnboardingAuthenticationOptions): OnboardingAuthenticationControls {
   let closing = false
+  const initialCloseRequestId = options.closeRequestId.value
+  // Sign-in ends provider setup. The flow closes the window itself when it finishes the remaining steps.
+  const shouldClose = computed(() => (options.isAuthenticated.value || options.closeRequestId.value !== initialCloseRequestId) && !options.hasPendingSteps.value)
 
-  /** Closes the onboarding window once and permits a retry after a failed close. */
+  /**
+   * Closes onboarding after a direct action or a released automatic request. A failed close can be retried.
+   *
+   * Triggering workflow:
+   *
+   * `OnboardingScreen` `configured`
+   *   -> `handleConfigured` in onboarding.vue
+   *     -> {@link closeOnboardingWindow}
+   *       -> `electronOnboardingClose` through `options.closeWindow`
+   */
   async function closeOnboardingWindow(): Promise<void> {
     if (closing)
       return
@@ -40,13 +60,28 @@ export function useOnboardingAuthentication(options: UseOnboardingAuthentication
     }
   }
 
-  // The shared action publishes a close request from the renderer that finishes
-  // authentication. This renderer remains the sole owner of the Electron close
-  // side effect. The auth check also handles a window mounted after the request.
-  watch([options.isAuthenticated, options.closeRequestId], ([authenticated, requestId], previous) => {
-    const previousRequestId = previous?.[1]
-    if (authenticated || (previousRequestId !== undefined && requestId !== previousRequestId))
+  /**
+   * Defers replicated close requests until sign-in confirmation ends or times out.
+   *
+   * Triggering workflow:
+   *
+   * `isAuthenticated`, `closeRequestId`, or `isConfirming`
+   *   -> {@link watch}
+   *     -> `electronAuthComplete` status or confirmation timeout
+   *       -> {@link closeOnboardingWindow}
+   */
+  watch([shouldClose, options.isConfirming], ([requested, confirming], _, onCleanup) => {
+    if (!requested)
+      return
+
+    if (!confirming) {
       void closeOnboardingWindow()
+      return
+    }
+
+    // Session replication can request closure before main receives the completion report.
+    const timer = setTimeout(() => void closeOnboardingWindow(), CONFIRMATION_CLOSE_TIMEOUT_MS)
+    onCleanup(() => clearTimeout(timer))
   }, { immediate: true })
 
   // The onboarding window is a separate Electron renderer with its own Pinia
@@ -55,8 +90,10 @@ export function useOnboardingAuthentication(options: UseOnboardingAuthentication
     if (!needsLogin || options.isAuthenticated.value)
       return
 
-    await options.startLogin()
-    options.needsLogin.value = false
+    // All login-capable renderers can receive the same snapshot. The leader
+    // grants consumption once, before the winning renderer starts its IPC flow.
+    if (await options.consumeLoginRequest())
+      await options.startLogin()
   })
 
   return { closeOnboardingWindow }

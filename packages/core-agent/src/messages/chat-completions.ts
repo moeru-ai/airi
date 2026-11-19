@@ -1,4 +1,4 @@
-import type { Message as ChatMessage, CommonContentPart } from '@xsai/shared-chat'
+import type { Message as ChatMessage, CommonContentPart, RefusalContentPart } from '@xsai/shared-chat'
 
 import type { ProjectionEntry } from './turns'
 import type { Conversation, InputSegment, MessageSegment, Turn } from './types'
@@ -83,6 +83,17 @@ function writeContent(segment: MessageSegment): CommonContentPart {
       return { type: 'file', file: { file_data: segment.data, filename: segment.name, file_id: segment.providerFileId } }
     default: return { type: 'text', text: renderSegmentText(segment) }
   }
+}
+
+/**
+ * Converts Chat content for providers that accept only strings.
+ *
+ * @example
+ * chatContentToString([{ type: 'text', text: 'Hi' }, { type: 'refusal', refusal: 'No' }])
+ * // => 'HiNo'
+ */
+export function chatContentToString(content: Array<CommonContentPart | RefusalContentPart>): string {
+  return content.map(part => part.type === 'text' ? part.text : part.type === 'refusal' ? part.refusal : '').join('')
 }
 
 function renderEntry(message: ProjectionEntry, supportsContentArray: boolean): ChatMessage[] {
@@ -171,14 +182,7 @@ export function conversationToChatMessages(conversation: Conversation, supportsC
           throw new Error('Chat continuation must contain a message array')
         return continuation.data.map((message) => {
           if (Array.isArray(message.content) && (!supportsContentArray || message.content.every(part => part.type === 'text'))) {
-            return { ...message, content: message.content.map((part) => {
-              if (part.type === 'text')
-                return part.text
-              if (part.type === 'refusal')
-                return part.refusal
-              // String-only endpoints cannot accept media parts.
-              return ''
-            }).join('') }
+            return { ...message, content: chatContentToString(message.content) }
           }
           return message
         })
