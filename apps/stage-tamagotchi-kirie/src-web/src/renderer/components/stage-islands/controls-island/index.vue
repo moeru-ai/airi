@@ -596,10 +596,6 @@ function resetMainWindowPosition() {
         <div ref="mainControls" data-testid="main-controls" :class="['shrink-0', mainControlsLayoutClasses]">
           <ControlButtonTooltip side="inward">
             <ControlButton
-              v-track-button="{
-                name: 'controls_island_action',
-                action: expanded ? 'collapse_controls' : 'expand_controls',
-              }"
               :button-style="adjustStyleClasses.button"
               :aria-expanded="expanded"
               :aria-controls="menuId"

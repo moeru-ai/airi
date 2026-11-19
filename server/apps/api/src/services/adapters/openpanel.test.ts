@@ -21,7 +21,7 @@ describe('openPanel sink', () => {
     try {
       const sink = createOpenpanelSink({ apiUrl: `http://127.0.0.1:${address.port}`, clientId: 'test-client', clientSecret: 'test-secret' })
       await Promise.all([
-        sink.capture({ userId: 'alice', event: 'payment_completed', deviceId: 'alice-device', properties: { event_id: 'cs_alice' } }),
+        sink.capture({ userId: 'alice', event: 'payment_completed', openpanelDeviceId: 'alice-device', properties: { event_id: 'cs_alice' } }),
         sink.capture({ userId: 'bob', event: 'signup_completed', properties: {} }),
       ])
       expect(bodies.map(body => JSON.parse(body))).toEqual(expect.arrayContaining([

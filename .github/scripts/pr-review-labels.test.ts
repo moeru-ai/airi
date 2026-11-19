@@ -10,14 +10,18 @@ const managed = ['pr-review/waiting-maintainer', 'pr-review/waiting-on-author']
 const context = { repo: { owner: 'moeru-ai', repo: 'airi' }, payload: { pull_request: { number: 42 } } }
 const request = { state: 'CHANGES_REQUESTED', submittedAt: '2026-10-05T10:00:00Z', commit: { oid: 'reviewed' } }
 const changedCommit = { oid: 'changed', committedDate: '2026-10-05T11:00:00Z', parents: { totalCount: 1 } }
+const attestation = { id: 100, name: 'Human Attestation', app: { id: 5607869 }, head_sha: 'head', status: 'completed', conclusion: 'success' }
 
 function api(options: {
   state?: string
   isDraft?: boolean
+  authorType?: string
+  permission?: string
   reviews?: Array<Omit<typeof request, 'commit'> & { commit: typeof request.commit | null }>
   commits?: typeof changedCommit[]
   compared?: string[]
   labels?: string[]
+  checks?: Array<Omit<typeof attestation, 'conclusion'> & { conclusion: string | null }>
 } = {}) {
   const pageInfo: { hasNextPage: boolean, endCursor: string | null } = { hasNextPage: false, endCursor: null }
   const labels = options.labels ?? ['pr-review/hold', 'scope/ui', 'priority/urgent']
@@ -30,7 +34,9 @@ function api(options: {
       removeLabel: vi.fn(),
     },
     pulls: { list: vi.fn() },
+    checks: { listForRef: vi.fn() },
     repos: {
+      getCollaboratorPermissionLevel: vi.fn().mockResolvedValue({ data: { permission: options.permission ?? 'read' } }),
       compareCommitsWithBasehead: vi.fn().mockResolvedValue({ data: {
         commits: (options.compared ?? []).map(sha => ({ sha })),
         total_commits: (options.compared ?? []).length,
@@ -46,6 +52,7 @@ function api(options: {
           state: options.state ?? 'OPEN',
           isDraft: options.isDraft ?? false,
           headRefOid: 'head',
+          author: { __typename: options.authorType ?? 'User', login: 'author' },
           latestOpinionatedReviews: {
             nodes: options.reviews ?? [],
             pageInfo,
@@ -62,6 +69,8 @@ function api(options: {
         return managed.map(name => ({ name }))
       if (method === rest.pulls.list)
         return [{ number: 42 }]
+      if (method === rest.checks.listForRef)
+        return options.checks ?? [attestation]
       return labels.map(name => ({ name }))
     }),
   }
@@ -69,6 +78,92 @@ function api(options: {
 }
 
 describe('pR review handoff labels', () => {
+  it.each(['write', 'maintain', 'admin'])('exempts human authors with %s permission before the bot creates its check', async (permission) => {
+    const github = api({ permission, checks: [], labels: ['pr-review/waiting-on-author'] })
+    await run(github, context)
+    expect(github.rest.repos.getCollaboratorPermissionLevel).toHaveBeenCalledExactlyOnceWith({ ...context.repo, username: 'author' })
+    expect(github.paginate).not.toHaveBeenCalledWith(github.rest.checks.listForRef, expect.anything())
+    expect(github.rest.issues.addLabels).toHaveBeenCalledExactlyOnceWith({ ...context.repo, issue_number: 42, labels: ['pr-review/waiting-maintainer'] })
+    expect(github.rest.issues.removeLabel).toHaveBeenCalledExactlyOnceWith({ ...context.repo, issue_number: 42, name: 'pr-review/waiting-on-author' })
+  })
+
+  it('requires attestation when the author is not a collaborator', async () => {
+    const github = api({ checks: [], labels: ['pr-review/waiting-on-author'] })
+    github.rest.repos.getCollaboratorPermissionLevel.mockRejectedValue({ status: 404 })
+    await run(github, context)
+    expect(github.paginate).toHaveBeenCalledWith(github.rest.checks.listForRef, expect.anything())
+    expect(github.rest.issues.addLabels).not.toHaveBeenCalled()
+    expect(github.rest.issues.removeLabel).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { permission: 'read' },
+    { permission: 'triage' },
+    { permission: 'none' },
+    { permission: 'admin', authorType: 'Bot' },
+    { reviews: [request], commits: [changedCommit], compared: ['changed'] },
+    { reviews: [{ ...request, commit: null }] },
+    { reviews: [{ ...request, state: 'APPROVED' }] },
+    { checks: [] },
+    { checks: [{ ...attestation, status: 'in_progress', conclusion: null }] },
+    ...['action_required', 'failure', 'cancelled', 'timed_out', 'neutral', 'skipped', 'stale'].map(conclusion => ({ checks: [{ ...attestation, conclusion }] })),
+    { checks: [{ ...attestation, app: { id: 1 } }] },
+    { checks: [{ ...attestation, head_sha: 'previous-head' }] },
+    { checks: [{ ...attestation, name: 'Other Check' }] },
+    { checks: [attestation, { ...attestation, id: 101, conclusion: 'action_required' }] },
+  ])('waits for the author without a current successful attestation: %j', async (options) => {
+    const github = api({ checks: [], ...options, labels: ['pr-review/waiting-maintainer', 'scope/ui'] })
+    await run(github, context)
+    expect(github.rest.issues.addLabels).toHaveBeenCalledExactlyOnceWith({ ...context.repo, issue_number: 42, labels: ['pr-review/waiting-on-author'] })
+    expect(github.rest.issues.removeLabel).toHaveBeenCalledExactlyOnceWith({ ...context.repo, issue_number: 42, name: 'pr-review/waiting-maintainer' })
+    expect(github.rest.repos.compareCommitsWithBasehead).not.toHaveBeenCalled()
+  })
+
+  it.each([{}, { check_run: { ...attestation, details_url: 'https://example.com/attest/moeru-ai/airi/42', pull_requests: [] } }])('returns the PR to maintainers after successful attestation: %j', async (payload) => {
+    const github = api({ labels: ['pr-review/waiting-on-author'] })
+    await run(github, { ...context, payload })
+    if ('check_run' in payload) {
+      expect(github.paginate).not.toHaveBeenCalledWith(github.rest.pulls.list, expect.anything())
+      expect(github.graphql).toHaveBeenCalledTimes(1)
+    }
+    expect(github.paginate).toHaveBeenCalledWith(github.rest.checks.listForRef, {
+      ...context.repo,
+      ref: 'head',
+      check_name: 'Human Attestation',
+      app_id: 5607869,
+      filter: 'latest',
+      per_page: 100,
+    })
+    expect(github.rest.issues.addLabels).toHaveBeenCalledExactlyOnceWith({ ...context.repo, issue_number: 42, labels: ['pr-review/waiting-maintainer'] })
+    expect(github.rest.issues.removeLabel).toHaveBeenCalledExactlyOnceWith({ ...context.repo, issue_number: 42, name: 'pr-review/waiting-on-author' })
+  })
+
+  it.each(['other/repo/42', 'moeru-ai/airi/invalid'])('rejects an attestation link outside the PR route: %s', async (path) => {
+    const github = api()
+    await expect(run(github, { ...context, payload: { check_run: { ...attestation, details_url: `https://example.com/attest/${path}` } } })).rejects.toThrow('Unexpected attestation check details URL')
+    expect(github.graphql).not.toHaveBeenCalled()
+    expect(github.rest.issues.addLabels).not.toHaveBeenCalled()
+    expect(github.rest.issues.removeLabel).not.toHaveBeenCalled()
+  })
+
+  it.each(['permissions', 'checks'])('preserves labels when the %s API fails', async (boundary) => {
+    const github = api({ labels: ['pr-review/waiting-on-author'] })
+    const error = new Error('API unavailable')
+    if (boundary === 'permissions') {
+      github.rest.repos.getCollaboratorPermissionLevel.mockRejectedValue(error)
+    }
+    else {
+      github.paginate.mockImplementation(async (method: unknown) => {
+        if (method === github.rest.checks.listForRef)
+          throw error
+        return managed.map(name => ({ name }))
+      })
+    }
+    await expect(run(github, context)).rejects.toThrow(error)
+    expect(github.rest.issues.addLabels).not.toHaveBeenCalled()
+    expect(github.rest.issues.removeLabel).not.toHaveBeenCalled()
+  })
+
   it('initially waits for the maintainer and preserves manual labels', async () => {
     const github = api()
     await run(github, context)
@@ -77,7 +172,7 @@ describe('pR review handoff labels', () => {
   })
 
   it.each([{ reviews: [] }, { reviews: [request] }])('clears both waiting labels on drafts with reviews %j', async ({ reviews }) => {
-    const github = api({ isDraft: true, reviews, labels: [...managed, 'scope/ui', 'pr-review/hold'] })
+    const github = api({ isDraft: true, reviews, checks: [], labels: [...managed, 'scope/ui', 'pr-review/hold'] })
     await run(github, context)
     expect(github.rest.issues.addLabels).not.toHaveBeenCalled()
     expect(github.rest.issues.removeLabel).toHaveBeenCalledTimes(2)
@@ -100,8 +195,8 @@ describe('pR review handoff labels', () => {
     expect(github.graphql.mock.calls[0][0]).toContain('latestOpinionatedReviews(first: 100, after: $cursor, writersOnly: true)')
   })
 
-  it('hands the PR to the author after a maintainer requests changes', async () => {
-    const github = api({ reviews: [request], labels: ['pr-review/waiting-maintainer', 'pr-review/hold'] })
+  it.each([{}, { permission: 'write', checks: [] }])('hands the PR to the author after a maintainer requests changes: %j', async (options) => {
+    const github = api({ ...options, reviews: [request], labels: ['pr-review/waiting-maintainer', 'pr-review/hold'] })
     await run(github, context)
     expect(github.rest.issues.addLabels).toHaveBeenCalledExactlyOnceWith({ ...context.repo, issue_number: 42, labels: ['pr-review/waiting-on-author'] })
     expect(github.rest.issues.removeLabel).toHaveBeenCalledExactlyOnceWith({ ...context.repo, issue_number: 42, name: 'pr-review/waiting-maintainer' })
@@ -167,7 +262,7 @@ describe('pR review handoff labels', () => {
   })
 
   it.each(['CLOSED', 'MERGED'])('clears waiting labels on %s PRs', async (state) => {
-    const github = api({ state, labels: ['pr-review/waiting-maintainer', 'pr-review/waiting-on-author', 'pr-review/hold'] })
+    const github = api({ state, checks: [], labels: ['pr-review/waiting-maintainer', 'pr-review/waiting-on-author', 'pr-review/hold'] })
     await run(github, context)
     expect(github.rest.issues.addLabels).not.toHaveBeenCalled()
     expect(github.rest.issues.removeLabel).toHaveBeenCalledTimes(2)
@@ -187,6 +282,7 @@ describe('pR review handoff labels', () => {
       state: 'OPEN',
       isDraft: false,
       headRefOid: 'head',
+      author: { __typename: 'User', login: 'author' },
       latestOpinionatedReviews: {
         nodes: [],
         pageInfo: { hasNextPage: true, endCursor: 'next-review' },
@@ -224,6 +320,7 @@ describe('pR review handoff labels', () => {
       state: 'OPEN',
       isDraft: false,
       headRefOid: 'head',
+      author: { __typename: 'User', login: 'author' },
       latestOpinionatedReviews: {
         nodes: [{ ...request, commit: null }],
         pageInfo: { hasNextPage: false, endCursor: null },

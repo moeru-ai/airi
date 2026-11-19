@@ -18,12 +18,16 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
       // Create container and get required services
       container = createAgentContainer(options.airiClient)
 
-      const perceptionPipeline = container.resolve('perceptionPipeline')
-      const brain = container.resolve('brain')
-      const reflexManager = container.resolve('reflexManager')
-      const taskExecutor = container.resolve('taskExecutor')
-      const airiBridge = container.resolve('airiBridge')
-      const minecraftContextService = container.resolve('minecraftContextService')
+      const { perceptionPipeline, brain, reflexManager, taskExecutor, airiBridge, minecraftContextService, eventBus, logger } = await container.resolve(
+        'perceptionPipeline',
+        'brain',
+        'reflexManager',
+        'taskExecutor',
+        'airiBridge',
+        'minecraftContextService',
+        'eventBus',
+        'logger',
+      )
       const debugService = DebugService.getInstance()
 
       airiBridge.init()
@@ -72,7 +76,7 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
       const botWithAgents = bot as unknown as MineflayerWithAgents
       botWithAgents.reflexManager = reflexManager
 
-      const startCognitive = () => {
+      const startCognitive = async () => {
         if (started)
           return
         started = true
@@ -81,8 +85,8 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
         reflexManager.init(botWithAgents)
         brain.init(botWithAgents)
 
-        // Ensure perception rules engine is instantiated (Awilix is lazy).
-        void container.resolve('ruleEngine')
+        // The container builds a service on its first resolve, so the rule engine starts here, before perception.
+        await container.resolve('ruleEngine')
 
         // Initialize perception pipeline (raw events + detectors)
         perceptionPipeline.init(botWithAgents)
@@ -90,9 +94,6 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
         bot.onTick('tick', () => {
           // Empty listener
         })
-
-        // Resolve EventBus for message handling
-        const eventBus = container.resolve('eventBus')
 
         // NOTICE: EventBus trace forwarding disabled - trace logs removed to reduce noise
         // All events from EventBus were being forwarded to DebugService as trace events,
@@ -138,10 +139,12 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
       }
 
       if (bot.bot.entity) {
-        startCognitive()
+        await startCognitive()
       }
       else {
-        spawnHandler = () => startCognitive()
+        spawnHandler = () => {
+          void startCognitive().catch(error => logger.errorWithError('Failed to start the cognitive engine', error))
+        }
         bot.bot.once('spawn', spawnHandler)
       }
     },
@@ -153,25 +156,21 @@ export function CognitiveEngine(options: CognitiveEngineOptions): MineflayerPlug
       }
 
       if (container) {
-        const minecraftContextService = container.resolve('minecraftContextService')
+        const { minecraftContextService, airiBridge, brain, taskExecutor, perceptionPipeline, ruleEngine, reflexManager } = await container.resolve(
+          'minecraftContextService',
+          'airiBridge',
+          'brain',
+          'taskExecutor',
+          'perceptionPipeline',
+          'ruleEngine',
+          'reflexManager',
+        )
         minecraftContextService.destroy()
-
-        const airiBridge = container.resolve('airiBridge')
         airiBridge.destroy()
-
-        const brain = container.resolve('brain')
         brain.destroy()
-
-        const taskExecutor = container.resolve('taskExecutor')
         await taskExecutor.destroy()
-
-        const perceptionPipeline = container.resolve('perceptionPipeline')
         perceptionPipeline.destroy()
-
-        const ruleEngine = container.resolve('ruleEngine')
         ruleEngine.destroy()
-
-        const reflexManager = container.resolve('reflexManager')
         reflexManager.destroy()
       }
 

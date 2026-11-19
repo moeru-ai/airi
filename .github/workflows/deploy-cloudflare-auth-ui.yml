@@ -50,6 +50,8 @@ jobs:
         run: pnpm -F @proj-airi/ui-server-auth run build
         env:
           VITE_ENABLE_ANALYTICS: 'true'
+          # Uploads source maps to Sentry. The build skips the upload when the secret is absent.
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           VITE_SERVER_URL: 'https://api.airi.build'
           VITE_WEB_APP_URL: 'https://airi.moeru.ai/'
 

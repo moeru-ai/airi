@@ -87,7 +87,7 @@ const router = useRouter()
 <template>
   <BackgroundProvider
     ref="backgroundSurface"
-    class="widgets top-widgets"
+    :class="['widgets top-widgets']"
     :background="selectedOption"
     :style="stageSurfaceStyle"
     :top-color="sampledColor"
@@ -100,15 +100,16 @@ const router = useRouter()
       ]"
     >
       <!-- header -->
-      <div class="px-0 py-1 md:px-3 md:py-3" w-full gap-2>
-        <Header class="hidden md:flex" />
+      <div :class="['w-full gap-2 px-0 py-1 md:px-3 md:py-3']">
+        <Header :class="['hidden md:flex']" />
       </div>
       <!-- page -->
-      <div relative flex="~ 1 row gap-y-0 gap-x-2 <md:col">
-        <div relative flex-1 min-w="1/2">
+      <div :class="['relative flex flex-1 flex-row gap-x-2 gap-y-0 <md:flex-col']">
+        <div :class="['relative min-w-1/2 flex-1']">
           <div
-            absolute left-0 z-15 px-3
+            v-if="!isMobile || stageModelRenderer !== 'live2d'"
             :class="[
+              'absolute left-0 z-15 px-3',
               stageModelRenderer === 'live2d' ? 'top-0 h-full py-[20vh]' : 'top-1/2 -translate-y-1/2',
             ]"
           >
@@ -116,7 +117,7 @@ const router = useRouter()
           </div>
           <WidgetStage
             v-model:state="modelRenderState"
-            h-full w-full
+            :class="['h-full w-full']"
             :cursor-position="cursorPosition"
             :enable-orbit-controls="!isMobile"
             :paused="paused"

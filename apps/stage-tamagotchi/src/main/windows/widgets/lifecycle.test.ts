@@ -54,6 +54,11 @@ const mocks = vi.hoisted(() => {
       return this
     }
 
+    // The window emits `closed` only one time, so `once` can keep the listener.
+    once(event: string, listener: () => void) {
+      return this.on(event, listener)
+    }
+
     private emit(event: string) {
       for (const listener of this.listeners.get(event) ?? [])
         listener()
@@ -96,7 +101,8 @@ vi.mock('@moeru/eventa/adapters/electron/main', () => ({
   })),
 }))
 
-vi.mock('@proj-airi/electron-vueuse/main', () => ({
+vi.mock('@proj-airi/electron-vueuse/main', async importOriginal => ({
+  ...await importOriginal<typeof import('@proj-airi/electron-vueuse/main')>(),
   safeClose: vi.fn((window: BrowserWindow) => {
     window.close()
     return true
