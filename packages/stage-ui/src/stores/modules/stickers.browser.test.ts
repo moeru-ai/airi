@@ -1,5 +1,4 @@
 import en from '@proj-airi/i18n/locales/en'
-import localforage from 'localforage'
 
 import { createPinia, disposePinia } from 'pinia'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
@@ -12,6 +11,7 @@ import Stickers from '../../components/modules/stickers.vue'
 
 import { chatStickers } from '../../assets/stickers'
 import { stickersRepo } from '../../database/repos/stickers.repo'
+import { storage } from '../../database/storage'
 import { stickerEmotions } from '../../types/sticker'
 import { useStickersStore } from './stickers'
 
@@ -26,7 +26,7 @@ function createStore() {
 }
 
 beforeEach(async () => {
-  await Promise.all(['entries', 'images'].map(storeName => localforage.createInstance({ name: 'airi-stickers', storeName }).clear()))
+  await storage.clear('stickers')
   localStorage.removeItem('settings/stickers/enabled')
   localStorage.removeItem('settings/stickers/frequency')
 })
@@ -36,7 +36,7 @@ afterEach(async () => {
   localStorage.removeItem('settings/stickers/enabled')
   localStorage.removeItem('settings/stickers/frequency')
   vi.restoreAllMocks()
-  await Promise.all(['entries', 'images'].map(storeName => localforage.createInstance({ name: 'airi-stickers', storeName }).clear()))
+  await storage.clear('stickers')
 })
 
 it('requires opt-in and restores the preference when the store is recreated', async () => {

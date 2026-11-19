@@ -2,6 +2,8 @@
 
 AIRI sends product events to a self-hosted OpenPanel project. Langfuse handles AI tracing through the existing server integration.
 
+The clients and the API also send each product event to PostHog in parallel, while the two data sets are compared. See `server/docs/ai/adr/2026-11-09-product-analytics-posthog.md`.
+
 Use this setup for product events, user profiles, and conversion funnels. It does not migrate historical events, HogQL queries, or saved PostHog dashboards.
 
 ## Client configuration
@@ -11,7 +13,11 @@ Use `VITE_ENABLE_ANALYTICS` as the build switch for app analytics. Existing user
 Client builds use the public API URL and write client id from `packages/stage-shared/src/analytics/openpanel.ts`.
 The stage apps and auth UI share this configuration. CI variables and Docker build arguments are not required for these values.
 
-Never put a client secret in a Vite variable. Allow only the intended application origins on the public OpenPanel client.
+Never put a client secret in a Vite variable.
+
+OpenPanel accepts a client request when its `Origin` header is in the allowed origins of the project. The desktop app cannot pass this check: Electron sends no `Origin` header from a `file://` page. OpenPanel answers 401 `Ingestion: Invalid cors or secret`, and the SDK does not report this error.
+
+Thus the public write client has `"ignoreCorsAndSecret" = true` in the `clients` table of the OpenPanel PostgreSQL database. OpenPanel then skips the origin check and the secret check for this client. No dashboard page and no API sets this column. Set it with SQL, and wait five minutes for the client cache. Revenue events still need the client secret.
 
 ## Server configuration
 
@@ -35,8 +41,38 @@ Logged-in events use the stable AIRI user id. Checkout sends the device id to th
 
 Query strings and fragments are removed from automatic page URLs and referrers. This prevents OAuth codes from entering those fields.
 
-Per-generation analytics events are removed. Completed `message_round` events retain model, token usage, duration, and round identifiers.
-`message_sent` retains provider selection. `message_round_failed` retains the failure stage and error code.
+The installed apps report a page address that stands for the app, because OpenPanel groups pages by origin and path:
+
+| Surface | Reported page | Real page URL |
+| --- | --- | --- |
+| Desktop app | `https://desktop.airi.moeru.ai/<route>` | `file://` and a hash route. It holds a directory of the user's computer. |
+| Mobile app | `https://pocket.airi.moeru.ai/<route>` | `https://localhost` on Android, `capacitor://localhost` on iOS |
+
+No server answers these hosts. To compare one page across surfaces, break down `screen_view` by `path` and by `app_surface`. Versions before this change report the real page URL.
+
+Two properties on each stage app event tell where the event comes from:
+
+| Property | Meaning | Values |
+| --- | --- | --- |
+| `app_surface` | Kind of device | `web`, `mobile`, `desktop` |
+| `app_client` | Client app that sent the event | `stage-web`, `stage-pocket`, `stage-tamagotchi` |
+
+For a new client app, add an `app_client` value and keep the three `app_surface` values. Desktop versions before this change report the surface `electron` and no `app_client`. In a report, read `electron` and `desktop` as the same surface.
+
+Per-generation analytics events are removed. Completed `message_round` events retain model, provider class and name, token usage, duration, and round identifiers.
+`message_round_failed` retains the failure stage and error code. One sent message is one `message_round` or one `message_round_failed`, so no separate send event exists.
+
+These high-volume events are removed, because they add no product decision:
+
+| Event | Replacement |
+| --- | --- |
+| `message_sent` | `message_round` and `message_round_failed` |
+| `voice_input_started`, `stt_succeeded` | `message_round` with `trigger_method: voice`. `stt_failed` stays. |
+| `provider_card_clicked` | `provider_configured`, sent once when a provider first passes its settings check |
+| `chat_session_deleted` | `conversation_deleted` |
+| `controls_island_action` with `expand_controls` or `collapse_controls` | None. The other controls island actions stay. |
+
+`provider_configured` counts provider setups. The manual connection test keeps its own pair: `provider_connection_test_started` and `provider_connection_test_completed`.
 Official model tracing, operational metrics, request logs, and billing remain in their existing services.
 No client sends prompts or model responses to OpenPanel.
 

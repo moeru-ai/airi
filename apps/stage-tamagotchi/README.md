@@ -38,7 +38,9 @@ It serializes commands across windows, stores artifacts under the app's user-dat
 The CLI runs without a shell. Model arguments cannot change the device, endpoint, run, or storage root.
 Nonzero exits retain AUV output and failure details as tool errors. A zero exit code does not prove that the intended UI change occurred.
 
-On macOS, grant Accessibility and Screen Recording permissions to the launching app when the OS requests them.
+On macOS, grant Accessibility and Screen Recording permissions to AIRI when the OS requests them.
+The packaged app is its own TCC responsible process, also when a terminal or Steam starts it.
+A development run uses the permissions of the terminal that starts it.
 Some application actions also need Automation permission. If `permission.probe` reports missing screen-recording permission, a capture can contain only the desktop background despite exit code zero. Available commands depend on the OS and AUV backend.
 Use this feature for local native applications. It does not expose a remote-device gateway or replace the separate `services/computer-use-mcp` service.
 

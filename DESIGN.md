@@ -48,6 +48,8 @@ Use text or icons to explain business states. A palette name does not establish 
 | `FieldInput` descriptions | `text-xs`, `neutral-500` in light mode, `neutral-400` in dark mode |
 | `BottomDrawer` titles | `text-xl font-semibold tracking-tight` |
 
+Use only the font families that `uno.config.ts` defines. The [`enforce-rules-for-fonts`](.agents/skills/enforce-rules-for-fonts/SKILL.md) skill gives the rules.
+
 These values describe controls, not a global heading scale. Use the surrounding layout and adjacent pages as references for page titles and body text.
 
 ## Layout & Spacing
@@ -110,6 +112,10 @@ A border separates a surface only when a fill change is not enough. Keep it quie
 | Dashed border | A real drop zone only | Buttons and empty states. Use a fill and a short text for an empty state. |
 
 Keep `focus-visible` outlines. They show keyboard focus.
+
+### Loading, empty, and error states
+
+Each view that loads data shows a loading, empty, error, and ready state. A skeleton matches the final layout. The [`enforce-rules-for-ui-components`](.agents/skills/enforce-rules-for-ui-components/SKILL.md) skill gives the rules.
 
 ## Shapes
 

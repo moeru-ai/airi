@@ -5,7 +5,7 @@ import { ref } from 'vue'
 const persistedValues = vi.hoisted(() => new Map<string, unknown>())
 
 vi.mock('@proj-airi/stage-shared/composables', () => ({
-  useLocalStorageManualReset<T>(key: string, initialValue: T) {
+  useModelScopedLocalStorageManualReset<T>(_scope: string, key: string, initialValue: T) {
     const storedValue = persistedValues.has(key) ? persistedValues.get(key) as T : initialValue
     const state = ref(storedValue)
     return Object.assign(state, {
