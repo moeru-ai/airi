@@ -600,7 +600,16 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     }
   }
 
-  async function initialize() {
+  /**
+   * Starts the bridge for this window.
+   *
+   * @param options Bridge options.
+   * @param options.consumerPriority Priority of this window's `chat-ingestion` consumer registration.
+   * The runtime gives an input to the highest priority, and then to the earliest registration. An app with
+   * several windows gives the window that runs the chat a higher priority, so a reconnect order does not move
+   * external input to another window. Defaults to 0.
+   */
+  async function initialize(options?: { consumerPriority?: number }) {
     await mutex.acquire()
 
     try {
@@ -617,6 +626,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
               event: consumerEvent,
               mode: 'consumer-group',
               group: 'chat-ingestion',
+              priority: options?.consumerPriority ?? 0,
             },
           })
         }

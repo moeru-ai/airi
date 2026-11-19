@@ -392,6 +392,16 @@ describe('context bridge contract', () => {
     expect(serverSendMock).not.toHaveBeenCalled()
   })
 
+  it('registers chat-ingestion consumers with the priority that the window passes', async () => {
+    await useContextBridgeStore().initialize({ consumerPriority: 1 })
+    for (const callback of readyCallbacks) callback()
+
+    const priorities = serverSendMock.mock.calls
+      .filter(([event]) => event.type === 'module:consumer:register')
+      .map(([event]) => event.data.priority)
+    expect(priorities).toEqual([1, 1, 1])
+  })
+
   it('lists the images and recordings of the turn in the chat message event', async () => {
     storedSessionMessages['session-1'] = [{
       id: 'turn-1',
