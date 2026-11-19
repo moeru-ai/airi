@@ -14,7 +14,6 @@ import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-sto
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
 import { useL2dViewControl } from '@proj-airi/stage-ui/stores/live2d'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
-import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
 import { useVoiceCallStore } from '@proj-airi/stage-ui/stores/voice-call'
@@ -47,7 +46,7 @@ const { activeSessionId, messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
 const { activeTurns, backgroundTasks } = storeToRefs(chatOrchestrator)
 const { isReceivingRemoteStream } = storeToRefs(useContextBridgeStore())
-const { chatReady } = storeToRefs(useConsciousnessStore())
+const { activeChatReady: chatReady } = storeToRefs(chatOrchestrator)
 const historyMessages = computed(() => messages.value)
 const isActiveSessionSending = computed(() => (
   (activeTurns.value.some(turn => turn.sessionId === activeSessionId.value))

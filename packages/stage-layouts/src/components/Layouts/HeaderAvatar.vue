@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { isCapacitorAvailable } from '@proj-airi/stage-shared'
 import { InboxPopover } from '@proj-airi/stage-ui/components'
 import { signOut } from '@proj-airi/stage-ui/libs/auth'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
@@ -20,14 +19,13 @@ defineProps<{
 }>()
 
 const authStore = useAuthStore()
-const { isAuthenticated, user, credits, capacitorPercent } = storeToRefs(authStore)
+const { isAuthenticated, user } = storeToRefs(authStore)
 const { t } = useI18n()
 
 const userName = computed(() => user.value?.name)
 const userAvatar = computed(() => user.value?.image)
 
-const formattedCredits = computed(() => credits.value.toLocaleString())
-const capacitorAvailable = isCapacitorAvailable()
+// Flux is not repeated here. The Flux entry next to this menu shows it on every page.
 
 const { unread } = storeToRefs(useInboxStore())
 /** The Notifications card opens below the account pill after the account menu closes. */
@@ -115,17 +113,6 @@ const notificationsLabel = computed(() => unread.value > 0
             <p class="truncate text-sm text-neutral-900 font-medium dark:text-white">
               {{ userName }}
             </p>
-            <div
-              v-if="capacitorPercent != null"
-              class="mt-1 flex items-center gap-1.5 text-xs text-primary-600 font-medium dark:text-primary-400"
-            >
-              <div class="i-solar:star-bold-duotone text-sm" />
-              <span>{{ capacitorPercent }}%</span>
-            </div>
-            <div class="mt-1 flex items-center gap-1.5 text-xs text-primary-600 font-medium dark:text-primary-400">
-              <div class="i-solar:battery-charge-bold-duotone text-sm" />
-              <span>{{ formattedCredits }} Flux</span>
-            </div>
           </div>
 
           <DropdownMenuSeparator :class="['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/80']" />
@@ -160,36 +147,6 @@ const notificationsLabel = computed(() => unread.value > 0
             >
               <div class="i-solar:user-id-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500" />
               {{ t('settings.pages.account.profile.title') }}
-            </RouterLink>
-          </DropdownMenuItem>
-
-          <DropdownMenuItem as-child>
-            <RouterLink
-              to="/settings/flux"
-              :class="[
-                'group w-full flex cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-2',
-                'text-sm leading-none outline-none text-neutral-700 dark:text-neutral-200',
-                'data-[highlighted]:bg-primary-100/80 dark:data-[highlighted]:bg-primary-900/40',
-                'transition-colors duration-150 ease-in-out',
-              ]"
-            >
-              <div class="i-solar:battery-charge-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500" />
-              {{ t('settings.pages.flux.title') }}
-            </RouterLink>
-          </DropdownMenuItem>
-
-          <DropdownMenuItem v-if="capacitorAvailable" as-child>
-            <RouterLink
-              to="/settings/capacitor"
-              :class="[
-                'group w-full flex cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-2',
-                'text-sm leading-none outline-none text-neutral-700 dark:text-neutral-200',
-                'data-[highlighted]:bg-primary-100/80 dark:data-[highlighted]:bg-primary-900/40',
-                'transition-colors duration-150 ease-in-out',
-              ]"
-            >
-              <div class="i-solar:star-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500" />
-              {{ t('settings.pages.capacitor.title') }}
             </RouterLink>
           </DropdownMenuItem>
 
@@ -243,21 +200,6 @@ const notificationsLabel = computed(() => unread.value > 0
           </DropdownMenuItem>
 
           <DropdownMenuSeparator :class="['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/80']" />
-
-          <DropdownMenuItem as-child>
-            <RouterLink
-              to="/settings/flux"
-              :class="[
-                'group w-full flex cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-2',
-                'text-sm leading-none outline-none text-neutral-700 dark:text-neutral-200',
-                'data-[highlighted]:bg-primary-100/80 dark:data-[highlighted]:bg-primary-900/40',
-                'transition-colors duration-150 ease-in-out',
-              ]"
-            >
-              <span :class="['i-solar:battery-charge-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500']" aria-hidden="true" />
-              {{ t('settings.pages.flux.title') }}
-            </RouterLink>
-          </DropdownMenuItem>
 
           <DropdownMenuItem as-child>
             <RouterLink

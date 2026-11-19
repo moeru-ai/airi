@@ -35,7 +35,7 @@ const log = useLogger('audio-speech-ws').useGlobalConfig()
  */
 const STREAMING_PREFLIGHT_CHARS_ESTIMATE = 2000
 
-const STREAM_MODEL_LABEL_FALLBACK = 'streaming-tts'
+export const STREAM_MODEL_LABEL_FALLBACK = 'streaming-tts'
 
 const tracer = trace.getTracer('audio-speech-ws')
 
