@@ -84,4 +84,32 @@ describe('fade on hover interaction', () => {
 
     expect(interaction.ignoreMouseEvents).toBe(false)
   })
+
+  // https://github.com/moeru-ai/airi/issues/2160
+  // ROOT CAUSE:
+  // Disabling Auto Hide must clear the faded state and restore pointer input over opaque model pixels.
+  // This regression preserves that transition on a pinned stage with click-through support.
+  it('restores interaction after disabling Auto Hide from a faded state (Issue #2160)', () => {
+    const fadedInteraction = resolveFadeOnHoverInteraction({
+      alwaysOnTop: true,
+      cursorInsideWindow: true,
+      clickThroughAvailable: true,
+      enabled: true,
+      transparentForFade: false,
+      transparentForPointer: false,
+    })
+    const restoredInteraction = resolveFadeOnHoverInteraction({
+      alwaysOnTop: true,
+      cursorInsideWindow: true,
+      clickThroughAvailable: true,
+      enabled: false,
+      transparentForFade: false,
+      transparentForPointer: false,
+    })
+
+    expect(fadedInteraction.fadeStage).toBe(true)
+    expect(fadedInteraction.ignoreMouseEvents).toBe(true)
+    expect(restoredInteraction.fadeStage).toBe(false)
+    expect(restoredInteraction.ignoreMouseEvents).toBe(false)
+  })
 })
