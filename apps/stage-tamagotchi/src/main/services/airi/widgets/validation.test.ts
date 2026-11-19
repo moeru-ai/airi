@@ -157,3 +157,10 @@ describe('widget invoke validation', () => {
     })
   })
 })
+
+it('reserves routine widget names and ids for the trusted routine query', () => {
+  for (const componentName of ['routine-next', ' ROUTINE-AGENDA '])
+    expect(() => validateWidgetsAddPayload({ componentName })).toThrow('reserved-routine-widget')
+  expect(() => validateWidgetsAddPayload({ componentName: 'weather', id: 'routine:next' })).toThrow('reserved-routine-widget')
+  expect(() => validateWidgetsUpdatePayload({ id: ' routine:day ', componentProps: { events: [] } })).toThrow('reserved-routine-widget')
+})

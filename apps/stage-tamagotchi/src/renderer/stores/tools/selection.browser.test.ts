@@ -5,7 +5,7 @@ import { createPinia, disposePinia, setActivePinia } from 'pinia'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createApp } from 'vue'
 
-import { artistryToolReferences, computerUseToolReferences } from './built-in'
+import { artistryToolReferences, computerUseToolReferences, routineToolReferences } from './built-in'
 import { useToolSelectionStore } from './selection'
 
 type SyncedRuntime = ReturnType<typeof usePiniaSynced>
@@ -60,11 +60,11 @@ describe('tool selection', () => {
     const chat = useToolSelectionStore()
     await vi.waitFor(() => expect(chatWindow.runtime.getLeaderId()).toBe(mainWindow.runtime.participantId))
 
-    expect(main.requestTools).toEqual([...artistryToolReferences, ...computerUseToolReferences])
+    expect(main.requestTools).toEqual([...artistryToolReferences, ...routineToolReferences, ...computerUseToolReferences])
 
     chat.computerUseEnabled = false
 
-    await vi.waitFor(() => expect(main.requestTools).toEqual(artistryToolReferences))
+    await vi.waitFor(() => expect(main.requestTools).toEqual([...artistryToolReferences, ...routineToolReferences]))
   })
 
   it('takes a leader snapshot without proposing one back', async () => {

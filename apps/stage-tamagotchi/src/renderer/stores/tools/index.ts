@@ -1,6 +1,7 @@
 export {
   artistryToolReferences,
   computerUseToolReferences,
+  routineToolReferences,
   useTamagotchiBuiltinToolsStore,
   widgetToolReferences,
 } from './built-in'

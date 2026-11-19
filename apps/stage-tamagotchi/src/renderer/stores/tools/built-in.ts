@@ -7,12 +7,18 @@ import { defineStore } from 'pinia'
 
 import { computerUseTools } from './builtin/computer-use'
 import { imageJournalTools } from './builtin/image-journal'
+import { routineTools } from './builtin/routines'
 import { weatherTools } from './builtin/weather'
 import { widgetsTools } from './builtin/widgets'
 
 export const computerUseToolReferences = [
   { name: 'computer_use' },
   { name: 'computer_use_read_image' },
+] satisfies ChatToolReference[]
+
+export const routineToolReferences = [
+  { name: 'routine_query' },
+  { name: 'routine_propose_change' },
 ] satisfies ChatToolReference[]
 
 export const widgetToolReferences = [
@@ -42,6 +48,7 @@ export const useTamagotchiBuiltinToolsStore = defineStore('tamagotchi-builtin-to
       widgetsTools().then(tools => ({ tools, icon: TOOL_ICONS.widgets })),
       weatherTools().then(tools => ({ tools, icon: TOOL_ICONS.weather })),
       computerUseTools().then(tools => ({ tools, icon: TOOL_ICONS.computerUse })),
+      routineTools().then(tools => ({ tools, icon: TOOL_ICONS.routines })),
     ])
 
     llmToolsStore.removeToolsByIds(...registeredToolIds())
