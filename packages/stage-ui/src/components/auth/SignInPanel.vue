@@ -2,10 +2,9 @@
 import type { OAuthProvider } from '../../libs/auth'
 import type { SignInProviderDefinition } from './providers'
 
-import { Button, Callout } from '@proj-airi/ui'
+import { Alert, Button, Callout } from '@proj-airi/ui'
 import { computed } from 'vue'
-
-import Alert from '../misc/alert.vue'
+import { useI18n } from 'vue-i18n'
 
 import { AIRI_PRIVACY_URL, AIRI_TERMS_URL } from '../../constants/public-links'
 
@@ -25,6 +24,8 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   select: [provider: OAuthProvider]
 }>()
+
+const { t } = useI18n()
 
 const hasProviders = computed(() => props.providers.length > 0)
 
@@ -72,13 +73,8 @@ function handleSelect(provider: OAuthProvider) {
         </div>
       </div>
 
-      <Alert v-if="error" type="error">
-        <template #title>
-          Sign-in failed
-        </template>
-        <template #content>
-          {{ error }}
-        </template>
+      <Alert v-if="error" tone="danger" :title="t('server.auth.signIn.error.fallback')">
+        {{ error }}
       </Alert>
 
       <div v-if="hasProviders" :class="['flex flex-col gap-3']">
@@ -101,13 +97,8 @@ function handleSelect(provider: OAuthProvider) {
         </Button>
       </div>
 
-      <Alert v-else type="warning">
-        <template #title>
-          No providers available
-        </template>
-        <template #content>
-          The sign-in page is not configured with any providers yet.
-        </template>
+      <Alert v-else tone="warning" :title="t('server.auth.signIn.error.noProviders.title')">
+        {{ t('server.auth.signIn.error.noProviders.description') }}
       </Alert>
 
       <footer :class="['text-xs leading-5 text-neutral-500 dark:text-neutral-400']">

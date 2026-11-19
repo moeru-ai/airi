@@ -79,6 +79,15 @@ describe('reconcileLocalAndRemote', () => {
     expect(plan.adopt).toEqual([])
   })
 
+  it('carries a pending title into an unmapped session create', () => {
+    const plan = reconcileLocalAndRemote(
+      [makeMeta({ sessionId: 'abc', title: 'Local title', cloudTitlePending: 'Pending title' })],
+      [],
+    )
+
+    expect(plan.create).toEqual([{ sessionId: 'abc', characterId: 'char-1', title: 'Pending title' }])
+  })
+
   /**
    * @example
    * Remote chat "xyz" exists, local has nothing.
@@ -344,6 +353,23 @@ describe('createCloudChatMapper.createChat', () => {
   })
 })
 
+describe('createCloudChatMapper.updateChat', () => {
+  it('patches the cloud title and validates the response', async () => {
+    const updated = { id: 'abc', type: 'bot', title: 'Project notes', createdAt: '2026-01-01', updatedAt: '2026-01-02' }
+    const fetchMock = vi.fn(async () => jsonResponse(updated))
+    const mapper = createCloudChatMapper({ serverUrl: 'https://api.example.com', fetch: fetchMock as unknown as typeof fetch })
+
+    await expect(mapper.updateChat('abc', { title: 'Project notes' })).resolves.toEqual(updated)
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.example.com/api/v1/chats/abc',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ title: 'Project notes' }),
+      }),
+    )
+  })
+})
+
 describe('createCloudChatMapper.deleteChat', () => {
   /**
    * @example
@@ -395,6 +421,7 @@ describe('applyCreateActions', () => {
     const mapper: CloudChatMapper = {
       listChats: async () => [],
       createChat: async input => ({ id: input.id!, type: 'bot', title: null, createdAt: '', updatedAt: '' }),
+      updateChat: async () => ({ id: '', type: 'bot', title: null, createdAt: '', updatedAt: '' }),
       deleteChat: async () => {},
     }
     const results = await applyCreateActions(mapper, [
@@ -405,6 +432,27 @@ describe('applyCreateActions', () => {
       { sessionId: 's1', cloudChatId: 's1' },
       { sessionId: 's2', cloudChatId: 's2' },
     ])
+  })
+
+  it('sends the pending title when creating a cloud chat', async () => {
+    const createChat = vi.fn(async (input: { id?: string, title?: string }) => ({
+      id: input.id!,
+      type: 'bot' as const,
+      title: input.title ?? null,
+      createdAt: '',
+      updatedAt: '',
+    }))
+    const mapper: CloudChatMapper = {
+      listChats: async () => [],
+      createChat,
+      updateChat: async () => ({ id: '', type: 'bot', title: null, createdAt: '', updatedAt: '' }),
+      deleteChat: async () => {},
+    }
+
+    await expect(applyCreateActions(mapper, [{ sessionId: 's1', characterId: 'c1', title: 'Project notes' }])).resolves.toEqual([
+      { sessionId: 's1', cloudChatId: 's1', remoteTitle: 'Project notes' },
+    ])
+    expect(createChat).toHaveBeenCalledWith(expect.objectContaining({ title: 'Project notes' }))
   })
 
   /**
@@ -421,6 +469,7 @@ describe('applyCreateActions', () => {
           throw new Error('boom')
         return { id: input.id!, type: 'bot', title: null, createdAt: '', updatedAt: '' }
       },
+      updateChat: async () => ({ id: '', type: 'bot', title: null, createdAt: '', updatedAt: '' }),
       deleteChat: async () => {},
     }
     const results = await applyCreateActions(mapper, [
@@ -444,6 +493,7 @@ describe('applyCreateActions', () => {
     const mapper: CloudChatMapper = {
       listChats: async () => [],
       createChat: createChat as unknown as CloudChatMapper['createChat'],
+      updateChat: async () => ({ id: '', type: 'bot', title: null, createdAt: '', updatedAt: '' }),
       deleteChat: async () => {},
     }
     expect(await applyCreateActions(mapper, [])).toEqual([])

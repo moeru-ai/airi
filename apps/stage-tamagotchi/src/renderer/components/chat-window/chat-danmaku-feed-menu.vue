@@ -2,12 +2,12 @@
 import type { ChatHeaderButtonVariant } from './chat-header-button'
 
 import { useHoverMenu } from '@proj-airi/stage-ui/components/scenarios/chat/composables/use-hover-menu'
-import { DropdownMenu, Range } from '@proj-airi/ui'
+import { danmakuFeedTiming, useDanmakuFeedSettings } from '@proj-airi/stage-ui/composables/use-danmaku-feed-settings'
+import { DockButton, DropdownMenu, Range } from '@proj-airi/ui'
 import { DropdownMenuCheckboxItem, DropdownMenuLabel, DropdownMenuSeparator } from 'reka-ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { danmakuFeedTiming, useDanmakuFeedSettings } from '../../composables/use-danmaku-feed-settings'
 import { chatHeaderButtonClass } from './chat-header-button'
 
 // The root holds the button and its menu, so a class from the parent goes to
@@ -79,12 +79,28 @@ function switchThumbClasses(on: boolean) {
 <template>
   <div :class="['relative']" @pointerenter="menu.enter()" @pointerleave="menu.leave()">
     <!--
+      In the dock, the tooltip closes while the menu is open, because the menu
+      covers its place.
+    -->
+    <DockButton
+      v-if="variant === 'dock'"
+      v-bind="$attrs"
+      icon="i-mingcute:sandglass-line"
+      :label="t('tamagotchi.stage.chat-window.danmaku-feed.hide-read')"
+      :pressed="hideReadMessages"
+      :tooltip="!menuOpen"
+      @click="toggleHideReadMessages"
+      @contextmenu.prevent="menu.openNow()"
+      @keydown.down.prevent="menu.openNow()"
+    />
+    <!--
       A plain button, like its neighbors in the header. GhostButton owns a
       darker text color that a caller cannot override reliably.
     -->
     <button
+      v-else
       v-bind="$attrs"
-      :class="chatHeaderButtonClass(variant, hideReadMessages)"
+      :class="chatHeaderButtonClass(hideReadMessages)"
       :title="`${t('tamagotchi.stage.chat-window.danmaku-feed.hide-read')} · ${t('tamagotchi.stage.chat-window.danmaku-feed.options-hint')}`"
       :aria-label="t('tamagotchi.stage.chat-window.danmaku-feed.hide-read')"
       :aria-pressed="hideReadMessages"

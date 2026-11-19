@@ -126,6 +126,9 @@ Integrate account deletion with the same durable removal path.
 
 Persist the local file before queueing upload. A failed local write is an import failure.
 Persist upload work by account and model ID. Resume pending work after restart.
+Reserve a new session for each upload attempt. The server returns the session of a known request ID as it is, and an expired, aborted, or written session cannot complete again.
+Run the upload queue and the directory comparison in the leader window. `packages/stage-ui/src/libs/sync-runner` decides when a run starts, and character cards use the same runner.
+Compare the directory with the local copies in each run. A deletion marker removes the copy. A name follows the side that changed it, and the account name wins if both sides changed it.
 Capture the authenticated account and an account generation for every transfer.
 After account switching, cancel transfers and reject stale completion callbacks.
 Keep downloaded private caches scoped to their owner. Local-only imports remain device-owned.

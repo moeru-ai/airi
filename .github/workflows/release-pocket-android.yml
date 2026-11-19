@@ -26,10 +26,14 @@ jobs:
   build:
     name: Build Android APK
     runs-on: ubuntu-latest
+    outputs:
+      gitcode_tag: ${{ steps.upload-github-release.outcome == 'success' && (github.event.release.tag_name || inputs.tag) || '' }}
     env:
       PRODUCT_NAME: 'AIRI'
       # Every current trigger path produces an installable APK artifact, so ship the analytics-enabled build consistently.
       VITE_ENABLE_ANALYTICS: 'true'
+      # Uploads source maps to Sentry. The build skips the upload when the secret is absent.
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
     steps:
       - uses: actions/checkout@v6
 
@@ -43,7 +47,7 @@ jobs:
 
       - uses: pnpm/setup@v2
         with:
-          runtime: node@26.7.0
+          runtime: node@^26.12.1
           cache: true
           install: false
 
@@ -124,13 +128,25 @@ jobs:
         env:
           BUTLER_API_KEY: ${{ secrets.GAME_PUBLISHING_ITCHIO }}
 
+  publish-gitcode-release:
+    name: Publish GitCode Release Mirror
+    needs: build
+    if: ${{ always() && github.repository == 'moeru-ai/airi' && needs.build.outputs.gitcode_tag != '' }}
+    continue-on-error: true
+    concurrency:
+      group: gitcode-release-${{ needs.build.outputs.gitcode_tag }}
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
       - name: Publish release assets to GitCode
-        if: ${{ always() && github.repository == 'moeru-ai/airi' && steps.upload-github-release.outcome == 'success' && (github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && !inputs.build_only)) }}
-        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITCODE_TOKEN: ${{ secrets.GITCODE_TOKEN }}
           GITCODE_OWNER: ${{ secrets.GITCODE_OWNER }}
           GITCODE_REPO: ${{ secrets.GITCODE_REPO }}
-          GITCODE_RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+          GITCODE_RELEASE_TAG: ${{ needs.build.outputs.gitcode_tag }}
         run: bash .github/scripts/publish-gitcode-release.sh

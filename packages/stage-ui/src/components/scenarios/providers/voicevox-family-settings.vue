@@ -2,11 +2,10 @@
 import type { SpeechProvider } from '@xsai-ext/providers/utils'
 
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
-import { Callout, FieldRange } from '@proj-airi/ui'
+import { Alert, Button, Callout, FieldRange } from '@proj-airi/ui'
 import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import Alert from '../../misc/alert.vue'
 import SpeechPlayground from './speech-playground.vue'
 import SpeechProviderSettings from './speech-provider-settings.vue'
 
@@ -83,35 +82,18 @@ async function handleGenerateSpeech(input: string, voiceId: string) {
     <!-- The Advanced section starts collapsed. An unreachable engine leaves the
          voice list empty, so its reason has to stay visible. -->
     <template #basic-settings>
-      <Alert v-if="isValidating > 0" type="loading">
-        <template #title>
-          {{ t('settings.dialogs.onboarding.validationRunning') }}
+      <Alert v-if="isValidating > 0" tone="info" loading :title="t('settings.dialogs.onboarding.validationRunning')" />
+      <Alert v-else-if="!isValid && validationMessage" tone="danger" :title="t('settings.dialogs.onboarding.validationFailed')">
+        <div :class="['whitespace-pre-wrap break-all']">
+          {{ validationMessage }}
+        </div>
+        <template #actions>
+          <Button size="sm" color="red" @click="forceValid">
+            {{ t('settings.pages.providers.common.continueAnyway') }}
+          </Button>
         </template>
       </Alert>
-      <Alert v-else-if="!isValid && validationMessage" type="error">
-        <template #title>
-          <div class="w-full flex items-center justify-between">
-            <span>{{ t('settings.dialogs.onboarding.validationFailed') }}</span>
-            <button
-              type="button"
-              class="ml-2 rounded bg-red-100 px-2 py-0.5 text-xs text-red-600 font-medium transition-colors dark:bg-red-800/30 hover:bg-red-200 dark:text-red-300 dark:hover:bg-red-700/40"
-              @click="forceValid"
-            >
-              {{ t('settings.pages.providers.common.continueAnyway') }}
-            </button>
-          </div>
-        </template>
-        <template #content>
-          <div class="whitespace-pre-wrap break-all">
-            {{ validationMessage }}
-          </div>
-        </template>
-      </Alert>
-      <Alert v-else-if="isValid" type="success">
-        <template #title>
-          {{ t('settings.dialogs.onboarding.validationSuccess') }}
-        </template>
-      </Alert>
+      <Alert v-else-if="isValid" tone="success" :title="t('settings.dialogs.onboarding.validationSuccess')" />
     </template>
 
     <template #voice-settings="{ voiceSettings }">

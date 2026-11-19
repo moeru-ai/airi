@@ -11,7 +11,7 @@ export async function setupBeatSync() {
     show: false,
     skipTaskbar: true,
     webPreferences: {
-      preload: getPreloadPath('beat-sync.mjs'),
+      preload: getPreloadPath('beat-sync'),
       sandbox: false,
     },
   })

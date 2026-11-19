@@ -46,6 +46,11 @@ export interface ProviderMetadata extends Pick<ProviderDefinition, ProviderMetad
   beginnerRecommended?: boolean
 }
 
+/** The settings page of a provider: its own route, or the page of its category for this provider id. */
+export function providerSettingsRouteOf(metadata: { to?: string, category: string, id: string }) {
+  return metadata.to ?? `/settings/providers/${metadata.category}/${metadata.id}`
+}
+
 /** Classifies a provider from its declared inference tasks. */
 export function getProviderCategory(tasks: string[]): ProviderCategory {
   if (tasks.some(task => ['vision', 'image-understanding', 'image-to-text', 'multimodal'].includes(task.toLowerCase())))

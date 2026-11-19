@@ -111,6 +111,12 @@ const menu = computed(() => [
     icon: 'i-solar:chat-line-line-duotone',
     to: '/devtools/presence-bubble',
   },
+  {
+    title: t('settings.pages.system.sections.section.developer.sections.section.needs-attention.title'),
+    description: t('settings.pages.system.sections.section.developer.sections.section.needs-attention.description'),
+    icon: 'i-solar:shield-check-bold-duotone',
+    to: '/devtools/needs-attention',
+  },
 ])
 
 const openWebInspector = useHostEventaInvoke(electronOpenMainDevtools)

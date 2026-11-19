@@ -40,6 +40,17 @@ function audioDeviceErrorCode(error: unknown): 'permission_denied' | 'device_una
  */
 export type MicrophonePermission = 'granted' | 'denied' | 'prompt' | 'unknown'
 
+/**
+ * The error of a capture that starts while the user has turned the microphone off in AIRI.
+ * Controls check the switch before they start, so this error reaches only a consumer that did not check it.
+ */
+export class MicrophoneOffError extends Error {
+  constructor() {
+    super('The microphone is turned off in AIRI')
+    this.name = 'MicrophoneOffError'
+  }
+}
+
 /** Prefers the system default microphone, then the first detected input. */
 function resolvePreferredAudioInput(audioInputs: readonly MediaDeviceInfo[]) {
   return audioInputs.find(device => device.deviceId === 'default')?.deviceId || audioInputs[0]?.deviceId || ''
@@ -58,8 +69,13 @@ function resolvePreferredAudioInput(audioInputs: readonly MediaDeviceInfo[]) {
  *
  * `selectedAudioInput` can be a persisted preference. An empty or unavailable selection falls back to the
  * preferred device once the browser lists device IDs, so controls show the device that capture uses.
+ *
+ * While `off` is true, the microphone stays closed for every consumer. Turning it off ends every open subscription
+ * of both inputs, so the system microphone indicator turns off at once. A new subscription then fails with
+ * {@link MicrophoneOffError} and opens no device.
  */
-export function useAudioDevice(selectedAudioInput: Ref<string> = ref('')) {
+export function useAudioDevice(selectedAudioInput: Ref<string> = ref(''), options: { off?: Readonly<Ref<boolean>> } = {}) {
+  const off = options.off ?? ref(false)
   const { trackMicrophonePermissionDenied } = useAnalytics()
   const { devices, audioInputs } = useDevicesList({ requestPermissions: false })
   const permissionGranted = ref(false)
@@ -109,21 +125,37 @@ export function useAudioDevice(selectedAudioInput: Ref<string> = ref('')) {
   const input = shallowRef(markRaw(new AudioInput(source.value, { historyMs: MICROPHONE_HISTORY_MS })))
   const unprocessedInput = shallowRef(createUnprocessedInput())
 
+  /** Refuses to open the device while the microphone is off. The check runs for each new connection. */
+  function guard(source: MicrophoneSource): MicrophoneSource {
+    return {
+      live: true,
+      get stream() {
+        return source.stream
+      },
+      get echoCancellation() {
+        return source.echoCancellation
+      },
+      open: signal => off.value
+        ? new ReadableStream({ start: controller => controller.error(new MicrophoneOffError()) })
+        : source.open(signal),
+    }
+  }
+
   function createSource(constraints: MediaStreamConstraints): MicrophoneSource {
-    const created = markRaw(microphoneSource(constraints, {
+    const created = markRaw(guard(microphoneSource(constraints, {
       contextOptions: MICROPHONE_CONTEXT,
       // A replaced device can close after the new one opened. Only the selected source updates the view.
       onStream: (opened) => {
         if (source.value === created)
           stream.value = opened
       },
-    }))
+    })))
     return created
   }
 
   /** Keyword spotting needs no history, because a wake starts its input after the keyword. */
   function createUnprocessedInput() {
-    return markRaw(new AudioInput(markRaw(microphoneSource(unprocessedConstraints.value, { contextOptions: MICROPHONE_CONTEXT }))))
+    return markRaw(new AudioInput(markRaw(guard(microphoneSource(unprocessedConstraints.value, { contextOptions: MICROPHONE_CONTEXT })))))
   }
 
   // Browsers hide device IDs until permission, so the fallback waits for a list with IDs.
@@ -142,11 +174,33 @@ export function useAudioDevice(selectedAudioInput: Ref<string> = ref('')) {
     unprocessedInput.value = createUnprocessedInput()
   })
 
+  // Closing ends the subscriptions without an error, as if the device stopped. Owners of an active recording
+  // stop it first in their own watchers of the same switch, so a closed input never looks like finished speech.
+  watch(off, (value) => {
+    if (!value)
+      return
+    void input.value.close()
+    void unprocessedInput.value.close()
+  })
+
   /**
-   * Subscribes until the first block arrives, then leaves. It reports a denied or missing device.
-   * Device labels need enumeration after permission, so this also refreshes the device list.
+   * Gets microphone access, and refreshes the device list, because device labels need enumeration after permission.
+   *
+   * With access already granted, it only refreshes the list. Every capture turns on the system microphone indicator,
+   * so a capture only to check access shows the indicator although nothing records. A missing device then fails at
+   * the first real capture.
+   * Without granted access, it subscribes until the first block arrives, then leaves. That asks the user for access,
+   * and it reports a denied or missing device.
    */
   async function askPermission() {
+    // The state comes from the Permissions API watch above, not from a new query. The probe must open in the same
+    // task as the click that called it, so that the click still counts as a user gesture for its AudioContext.
+    if (permission.value === 'granted') {
+      permissionGranted.value = true
+      devices.value = await navigator.mediaDevices.enumerateDevices()
+      return
+    }
+
     const probe = new AbortController()
     const reader = input.value.subscribe({ signal: probe.signal }).getReader()
     try {

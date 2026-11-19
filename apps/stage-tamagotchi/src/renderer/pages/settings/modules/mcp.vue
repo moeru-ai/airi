@@ -9,7 +9,7 @@ import type { ServerForm } from './mcp-config'
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
-import { Button, Callout, Checkbox, GhostButton, SettingsCard, TransitionVertical } from '@proj-airi/ui'
+import { Alert, Button, Checkbox, GhostButton, SettingsCard, TransitionVertical } from '@proj-airi/ui'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -36,6 +36,7 @@ import {
   syncJsonDraftFromServers,
   validateServerForm,
 } from './mcp-config'
+import { mcpServerSearchKey } from './mcp.search'
 
 const { t } = useI18n()
 const { trackMcpServerRemoved, trackMcpConnectionTestRun } = useAnalytics()
@@ -340,12 +341,12 @@ onMounted(async () => {
 
 <template>
   <div flex="~ col gap-4">
-    <Callout v-if="errorMessage" theme="orange" :label="tn('error-title')">
+    <Alert v-if="errorMessage" tone="danger" :title="tn('error-title')" live="polite">
       {{ errorMessage }}
-    </Callout>
-    <Callout v-if="infoMessage" theme="lime" :label="tn('success-title')">
+    </Alert>
+    <Alert v-if="infoMessage" tone="success" :title="tn('success-title')" live="polite">
       {{ infoMessage }}
-    </Callout>
+    </Alert>
 
     <SettingsCard>
       <p class="text-sm text-neutral-500 dark:text-neutral-400">
@@ -399,6 +400,7 @@ onMounted(async () => {
       <article
         v-for="server in savedServers"
         :key="server.rowId"
+        :data-settings-search="mcpServerSearchKey(server.identifier)"
         :class="server.enabled ? CARD_PRIMARY : CARD_MUTED"
       >
         <div class="flex items-center gap-3">

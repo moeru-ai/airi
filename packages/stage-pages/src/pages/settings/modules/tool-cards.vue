@@ -10,6 +10,8 @@ import { storeToRefs } from 'pinia'
 import { computed, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { toolCardSearchKey } from './tool-cards.search'
+
 const { t, locale } = useI18n()
 const toolCards = useToolCardsStore()
 const { enabled, replyCardsEnabled, cards } = storeToRefs(toolCards)
@@ -88,6 +90,7 @@ function toggleTemplate(key: string) {
         </p>
         <div
           v-else
+          :data-settings-search="toolCardSearchKey(row.card.key)"
           :class="[
             'grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,360px)]',
             'gap-4',

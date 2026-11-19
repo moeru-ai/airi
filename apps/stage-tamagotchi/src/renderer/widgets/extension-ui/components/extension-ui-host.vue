@@ -10,6 +10,7 @@ import type { PluginModuleWidgetPayload } from '../../../../shared/eventa/plugin
 
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
+import { Alert } from '@proj-airi/ui'
 import { isPlainObject } from 'es-toolkit'
 import { computed, shallowRef, watch } from 'vue'
 
@@ -183,9 +184,11 @@ const canRenderIframe = computed(() => canRenderExtensionUi({
       @error="onIframeError"
     />
 
+    <!-- The panel always has a dark surface, so `dark` makes nested components such as `Alert` use their dark palette. -->
     <div
       v-else
       :class="[
+        'dark',
         'h-full',
         'w-full',
         'flex',
@@ -220,17 +223,17 @@ const canRenderIframe = computed(() => canRenderExtensionUi({
         Loading extension UI...
       </div>
 
-      <div v-else-if="error" :class="['rounded-lg', 'bg-amber-500/12', 'p-3', 'text-sm', 'text-amber-100']">
+      <Alert v-else-if="error" tone="danger">
         {{ error }}
-      </div>
+      </Alert>
 
-      <div v-else-if="iframeLoadError" :class="['rounded-lg', 'bg-amber-500/12', 'p-3', 'text-sm', 'text-amber-100']">
+      <Alert v-else-if="iframeLoadError" tone="danger">
         {{ iframeLoadError }}
-      </div>
+      </Alert>
 
-      <div v-else-if="iframeMountError" :class="['rounded-lg', 'bg-amber-500/12', 'p-3', 'text-sm', 'text-amber-100']">
+      <Alert v-else-if="iframeMountError" tone="danger">
         {{ iframeMountError }}
-      </div>
+      </Alert>
 
       <div v-else-if="!iframeSrc && !iframeSrcdoc" :class="['text-sm', 'opacity-80']">
         This module is registered, but it did not declare an iframe source to mount yet.

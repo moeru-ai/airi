@@ -5,7 +5,7 @@ import type { Conversation } from '../messages/types'
 import type { StreamEvent, StreamOptions } from '../types/llm'
 import type { ResolvedStep } from './request-context'
 
-import { stepCountAtLeast } from '@xsai/shared-chat'
+import { hasToolCall, not } from '@xsai/shared-chat'
 import { streamText } from '@xsai/stream-text'
 
 import { chatContentToString, chatMessagesToProjectionEntries, conversationToChatMessages } from '../messages/chat-completions'
@@ -35,6 +35,10 @@ export function streamChatCompletions(input: {
     continuation: (data: Message[], index) => ({ protocol: 'chat-completions' as const, scope: scopes[index] ?? input.scope, data }),
     project: item => chatMessagesToProjectionEntries([item]),
   })
+  // The caller's tool choice applies to the first model request of the generation. A choice that forces a tool
+  // call on every request leaves the model no way to answer, and the tool loop has no step limit.
+  const callerToolChoice = (steps: readonly CompletionStep[]) =>
+    steps.length === 0 && !input.options?.generationRoundOffset ? input.options?.toolChoice : undefined
   let providerConfigKeys = Object.keys(input.config)
   const requestOptions: Parameters<typeof streamText>[0] = {
     ...input.config,
@@ -42,7 +46,8 @@ export function streamChatCompletions(input: {
       const resolveStep = input.options?.resolveStep
       if (!resolveStep) {
         scopes.push(input.scope)
-        return generation.prepareStep({ input: current })
+        generation.prepareStep({ input: current })
+        return { toolChoice: callerToolChoice(steps) }
       }
       return (async () => {
         const firstStep = scopes.length === 0 && input.initialStep
@@ -94,7 +99,7 @@ export function streamChatCompletions(input: {
         else if (next.systemPrompt)
           current.unshift({ role: 'system', content: next.systemPrompt })
 
-        return { input: current, model: next.model, toolChoice: toolsSupported ? input.options?.toolChoice : undefined }
+        return { input: current, model: next.model, toolChoice: toolsSupported ? callerToolChoice(steps) : undefined }
       })()
     },
     abortSignal: input.options?.abortSignal,
@@ -104,9 +109,9 @@ export function streamChatCompletions(input: {
     messages,
     headers: mergeRequestHeaders(input.config.headers, input.options?.headers),
     streamOptions: { includeUsage: true },
-    stopWhen: stepCountAtLeast(10),
+    // The tool loop has no step limit. It stops when the model answers without a tool call.
+    stopWhen: not(hasToolCall()),
     tools: input.tools,
-    toolChoice: input.options?.resolveStep ? undefined : input.options?.toolChoice,
     onEvent: async (event) => {
       const mapped = toAiriStreamEvent(event)
       if (mapped)

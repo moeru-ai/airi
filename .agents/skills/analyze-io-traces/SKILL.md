@@ -5,64 +5,78 @@ description: Read and analyze AIRI IO traces that Tamagotchi saved to local file
 
 # Analyze IO traces
 
-Tamagotchi saves each ended IO span as one JSON line when **Record IO traces automatically** is on. The setting is under Settings > System > Developer.
+Tamagotchi saves each trace record as one JSON line when **Record IO traces automatically** is on. The setting is under Settings > System > Developer. The record format is in the README of `packages/trace-kit`.
 
 ## Find the files
 
-Files are named `<start time>.jsonl`. A new file starts each time recording starts. Files older than seven days are deleted.
+Files are named `<start time>.jsonl`. A new file starts each time recording starts. When a span fails or runs past its deadline, the hub also writes the minute before it to `flight-<reason>-<time>.jsonl`, even when recording is off. Files older than seven days are deleted.
 
 ```sh
 ls -t "$HOME/Library/Application Support/ai.moeru.airi/io-traces"/*.jsonl | head -3
 ls -t "$HOME/Library/Application Support/@proj-airi/stage-tamagotchi/io-traces"/*.jsonl | head -3
 ```
 
-The first path is the packaged app on macOS. The second is `pnpm dev` on macOS. If `APP_USER_DATA_PATH` is set, use `$APP_USER_DATA_PATH/io-traces`. If recording is off or nothing ran yet, the folder does not exist. Ask the user to turn it on and reproduce the problem.
+The first path is the packaged app on macOS. The second is `pnpm dev` on macOS. If `APP_USER_DATA_PATH` is set, use `$APP_USER_DATA_PATH/io-traces`. If recording is off or nothing ran yet, the folder can be empty. Ask the user to turn recording on and reproduce the problem.
 
 ## Record shape
 
-Each line is one span with `traceId`, `spanId`, `parentSpanId`, `name`, `startTimeNano`, `endTimeNano`, `status.code` (2 means error), `attributes`, and `events`. Time values are decimal strings in nanoseconds. Subsystems are in `attributes["ai.moeru.airi.io.subsystem"]`.
+Each line is one record with `type`, `source`, `epoch`, `seq`, `ts`, `clock`, and `observedTs`. Domain records also have `track`, and often `ids`, `attrs`, and `links`.
 
-A trace is one turn. A typed turn starts at `Interaction turn`. A spoken turn starts earlier, and one trace covers the whole path:
+- `span.begin` and `span.end` are separate lines with the same `spanId`. A span without an end was still open, or its source was lost.
+- `instant` is one moment. With `spanId`, it belongs to that span.
+- `state` is a state change on a state track. `source.started`, `source.stopped`, and `source.lost` give the life of each window. `source.lost` with `reason: "epoch-replaced"` means that the window reloaded.
+- `ts` is on the clock that `clock` names. `observedTs` is on the hub clock, `mono:collector`. Use `observedTs` to order records of different windows. Within one span, `ts` values share a clock, so `end.ts - begin.ts` is the duration.
+- Files remove user content, such as transcripts and TTS text. Say so when the cause needs content.
+
+Tracks and IDs:
 
 ```text
-Wake word (kws)                      only when a wake word started the input
-└── Voice input (voice-input)        trigger: control, speech, or wake-word. outcome: committed, drafted, cancelled, or failed
-    ├── Voice activity detection     one span for each speech segment
-    ├── Speech recognition (asr)
-    ├── End of speech judgement      one span for each pause that the chat model judged
-    ├── Transcript rephrase
-    └── Interaction turn             LLM inference, streaming control, speech turn, TTS synthesis, audio playback
+participants/user/wake       wake word
+participants/user/input      voice input          ids.input. attrs voice.input.trigger and voice.input.outcome
+participants/user/speech     speech segments      ids.input
+participants/user/asr        speech recognition   ids.input, or ids.turn for a voice message
+participants/user/rephrase   transcript rephrase  ids.input
+conversations/<id>/endpoint  end-of-turn judgement attrs decision.verdict and decision.latency_ms
+agents/agent/turn            chat turn            ids.turn and ids.conversation. Links caused-by to the input with the same ID
+agents/agent/llm             model request        ids.turn. attrs llm.ttft_ms, llm.text_length. Instant llm.first_chunk
+agents/agent/control         streaming control    ids.turn
+participants/agent/output    speech output        ids.turn
+participants/agent/tts       TTS request          ids.turn and ids.segment
+participants/agent/playback  played clip          ids.turn and ids.segment
 ```
 
-A span ends before its parent can end, so a file can hold children whose parent is missing. The parent is still open, or the app stopped first. A `Voice input` with the outcome `cancelled` or `drafted` has no `Interaction turn`. Attribute `ai.moeru.airi.io.cancelled` marks work that the caller aborted, such as a judgement after the speaker continued.
+A spoken turn uses the input ID as its turn ID, so `ids.input` of the input and `ids.turn` of the chat turn have the same value.
 
 ## Common queries
 
 Set `F` to the newest file first.
 
 ```sh
-# Spans by name, slowest first, in milliseconds
-jq -r '[.name, ((.endTimeNano|tonumber)-(.startTimeNano|tonumber))/1e6] | @tsv' "$F" | sort -t$'\t' -k2 -nr | head -20
+# Durations of ended spans in milliseconds, slowest first
+jq -s -r 'group_by(.spanId) | map(select(.[0].spanId != null) | {b: (map(select(.type == "span.begin"))[0]), e: (map(select(.type == "span.end"))[0])}) | map(select(.b and .e)) | map([.b.name, .b.track, (.e.ts - .b.ts)] | @tsv)[]' "$F" | sort -t$'\t' -k3 -nr | head -20
 
-# Spans with an error status
-jq -c 'select(.status.code == 2) | {name, traceId, message: .status.message}' "$F"
+# Spans that ended with an error
+jq -c 'select(.type == "span.end" and .status == "error") | {track, spanId, reason, message}' "$F"
 
-# All spans of one trace in start order
-jq -c 'select(.traceId == "TRACE_ID")' "$F" | jq -s 'sort_by(.startTimeNano|tonumber)'
+# Spans that never ended
+jq -s -c '(map(select(.type == "span.end") | .spanId)) as $ended | map(select(.type == "span.begin" and ((.spanId | IN($ended[])) | not))) | .[] | {name, track, ids}' "$F"
 
-# Spoken turns: trigger, outcome, and how long the input took
-jq -c 'select(.name == "Voice input") | {traceId, trigger: .attributes["ai.moeru.airi.io.voice_input.trigger"], outcome: .attributes["ai.moeru.airi.io.voice_input.outcome"], reason: .attributes["ai.moeru.airi.io.voice_input.reason"], ms: (((.endTimeNano|tonumber)-(.startTimeNano|tonumber))/1e6)}' "$F"
+# Every record of one turn, in hub order
+jq -c 'select(.ids.turn == "TURN_ID" or .ids.input == "TURN_ID")' "$F" | jq -s 'sort_by(.observedTs)'
 
-# Wake words that started an input, with the matched tokens
-jq -c 'select(.name == "Wake word") | {traceId, text: .attributes["ai.moeru.airi.io.kws.text"], tokens: .attributes["ai.moeru.airi.io.kws.tokens"]}' "$F"
+# Voice inputs: trigger and outcome
+jq -c 'select(.type == "span.end" and (.track | endswith("/input"))) | {input: .ids.input, outcome: .attrs["voice.input.outcome"], status, reason}' "$F"
 
-# End of speech judgements, and judgements that a newer utterance cancelled
-jq -c 'select(.name == "End of speech judgement") | {traceId, judgement: .attributes["ai.moeru.airi.io.end_judge.judgement"], cancelled: .attributes["ai.moeru.airi.io.cancelled"]}' "$F"
+# Time to first token of each model request
+jq -c 'select(.type == "span.end" and (.track | endswith("/llm"))) | {turn: .ids.turn, ttft: .attrs["llm.ttft_ms"]}' "$F"
 
-# Time to first token for each LLM span
-jq -c 'select(.events | any(.name | endswith("llm.first_token"))) | {traceId, events}' "$F"
+# End-of-turn judgements
+jq -c 'select(.type == "span.end" and (.track | endswith("/endpoint"))) | {input: .ids.input, verdict: .attrs["decision.verdict"], ms: .attrs["decision.latency_ms"], status}' "$F"
+
+# Lost and reloaded windows
+jq -c 'select(.type == "source.lost") | {of, reason}' "$F"
 ```
 
 ## Limits
 
-Spans are saved only after they end. A call that never ends is not in the file. Spans record timing and counts, not prompts or replies. Say so when the cause needs content.
+Records of windows that open before recording starts are in the file only from the time recording starts. A window that crashes leaves open spans and a `source.lost` record. Files keep timing, counts, and IDs, not prompts or replies.

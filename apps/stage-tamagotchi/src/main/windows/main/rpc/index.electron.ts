@@ -8,6 +8,7 @@ import type { McpManager } from '../../../services/airi/mcp-servers'
 import type { AutoUpdater } from '../../../services/electron/auto-updater'
 import type { GlobalShortcutService } from '../../../services/electron/global-shortcut'
 import type { ChatWindowManager } from '../../chat'
+import type { ControlsMenuWindowManager } from '../../controls-menu'
 import type { EditorWindowManager } from '../../editor'
 import type { NoticeWindowManager } from '../../notice'
 import type { OnboardingWindowManager } from '../../onboarding'
@@ -15,12 +16,16 @@ import type { SettingsWindowManager } from '../../settings'
 import type { WidgetsWindowManager } from '../../widgets'
 
 import { defineInvokeHandler } from '@moeru/eventa'
+import { onWindowClosed } from '@proj-airi/electron-vueuse/main'
 import { ipcMain } from 'electron'
 
 import {
   electronCenterMainWindow,
   electronChatButtonStateChanged,
+  electronControlsMenuOpen,
   electronGetChatButtonState,
+  electronMainPageMounted,
+  electronMainWindowRefreshUnread,
   electronOpenChat,
   electronOpenEditor,
   electronOpenInlay,
@@ -40,6 +45,8 @@ import { setupBaseWindowElectronInvokes } from '../../shared/window'
 
 export async function setupMainWindowElectronInvokes(params: {
   window: BrowserWindow
+  /** The app menu of the controls island. It opens in its own window, so it can extend past this one. */
+  controlsMenu: ControlsMenuWindowManager
   editorWindow: EditorWindowManager
   settingsWindow: SettingsWindowManager
   chatWindow: ChatWindowManager
@@ -71,12 +78,13 @@ export async function setupMainWindowElectronInvokes(params: {
   params.globalShortcut.registerWindow({ context, window: params.window })
   createWidgetsService({ context, widgetsManager: params.widgetsManager, window: params.window })
   createAutoUpdaterService({ context, window: params.window, service: params.autoUpdater })
+  defineInvokeHandler(context, electronMainPageMounted, () => params.autoUpdater.markMainPageMounted())
   createMcpServersService({ context, manager: params.mcpManager })
   createGodotStageService({ context, manager: params.godotStageManager, window: params.window })
   createOnboardingService({ context, onboardingWindowManager: params.onboardingWindowManager, mainWindow: params.window })
   createAuthService({ context, window: params.window })
   const stopIOTraceRecording = registerIOTraceRecording(context, params.ioTraceRecording)
-  params.window.once('closed', stopIOTraceRecording)
+  onWindowClosed(params.window, stopIOTraceRecording)
 
   defineInvokeHandler(context, electronCenterMainWindow, () => params.center())
   defineInvokeHandler(context, electronOpenMainDevtools, () => params.window.webContents.openDevTools({ mode: 'detach' }))
@@ -91,6 +99,9 @@ export async function setupMainWindowElectronInvokes(params: {
   defineInvokeHandler(context, electronOpenChat, () => params.chatWindow.toggle())
   defineInvokeHandler(context, electronGetChatButtonState, () => params.chatWindow.getButtonState())
   const stopChatButtonState = params.chatWindow.onButtonStateChange(state => context.emit(electronChatButtonStateChanged, state))
-  params.window.once('closed', stopChatButtonState)
+  onWindowClosed(params.window, stopChatButtonState)
   defineInvokeHandler(context, noticeWindowEventa.openWindow, payload => params.noticeWindow.open(payload))
+  defineInvokeHandler(context, electronControlsMenuOpen, request => params.controlsMenu.open(request))
+  const stopControlsMenuRead = params.controlsMenu.onNotificationsRead(() => context.emit(electronMainWindowRefreshUnread, undefined))
+  onWindowClosed(params.window, stopControlsMenuRead)
 }

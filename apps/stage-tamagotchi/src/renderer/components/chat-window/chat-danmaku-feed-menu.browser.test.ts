@@ -1,11 +1,10 @@
+import { useDanmakuFeedSettings } from '@proj-airi/stage-ui/composables/use-danmaku-feed-settings'
 import { beforeEach, describe, expect, it, onTestFinished } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { page, userEvent } from 'vitest/browser'
 import { createI18n } from 'vue-i18n'
 
 import ChatDanmakuFeedMenu from './chat-danmaku-feed-menu.vue'
-
-import { useDanmakuFeedSettings } from '../../composables/use-danmaku-feed-settings'
 
 import '@unocss/reset/tailwind.css'
 import 'virtual:uno.css'
