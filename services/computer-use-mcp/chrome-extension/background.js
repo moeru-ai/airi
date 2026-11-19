@@ -40,8 +40,8 @@ let bridgeConfigRevision = 0
 let bridgeSocketRevision = 0
 // Module startup, onStartup, and onInstalled share one initialization read.
 let bridgeInitializationPromise = null
-// WebSocket commands wait for the latest settings read before they execute.
-let bridgeConfigRefreshPromise = null
+// Overlapping reads share these waiters. Only the latest read releases them.
+let bridgeConfigWaiters = null
 let bridgeReconnectDelayMs = BRIDGE_RECONNECT_MIN_MS
 let bridgeReconnectTimer = null
 
@@ -121,13 +121,11 @@ function sendBridgePayload(payload, socket) {
 }
 
 async function waitForBridgeConfigRefresh() {
-  let pendingRefresh
-  do {
-    pendingRefresh = bridgeConfigRefreshPromise
-    // Refresh callers log failures and keep the existing endpoint active.
-    if (pendingRefresh)
-      await pendingRefresh.catch(() => {})
-  } while (pendingRefresh)
+  for (let waiters = bridgeConfigWaiters; waiters; waiters = bridgeConfigWaiters) {
+    await new Promise((resolve) => {
+      waiters.push(resolve)
+    })
+  }
 }
 
 async function handleBridgeSocketMessage(raw, socket) {
@@ -214,7 +212,8 @@ async function ensureBridgeConnected(revision = bridgeConfigRevision) {
 
 function refreshBridgeConfig() {
   const revision = ++bridgeConfigRevision
-  const refreshPromise = Promise.resolve()
+  bridgeConfigWaiters ??= []
+  return Promise.resolve()
     .then(() => chrome.storage.local.get([
       'browserDomBridgeHost',
       'browserDomBridgePort',
@@ -246,13 +245,14 @@ function refreshBridgeConfig() {
 
       return revision
     })
-  const trackedRefreshPromise = refreshPromise.finally(() => {
-    if (bridgeConfigRevision === revision)
-      bridgeConfigRefreshPromise = null
-  })
+    .finally(() => {
+      if (revision !== bridgeConfigRevision)
+        return
 
-  bridgeConfigRefreshPromise = trackedRefreshPromise
-  return trackedRefreshPromise
+      for (const resolve of bridgeConfigWaiters)
+        resolve()
+      bridgeConfigWaiters = null
+    })
 }
 
 function initializeBridge() {

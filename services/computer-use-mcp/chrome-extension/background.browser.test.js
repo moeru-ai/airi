@@ -178,6 +178,7 @@ it('queues commands across settings refreshes and isolates replaced sockets', as
   const defaultAfterStaleReply = await readServerState(servers.defaultUrl)
   expect(defaultAfterStaleReply.messages.some(message => message.id === 'stale-read')).toBe(false)
 
+  const socketSend = vi.spyOn(WebSocket.prototype, 'send')
   const freshCommandDelivery = await sendCommand(servers.defaultUrl, { id: 'fresh-read', action: 'getActiveTab' })
   expect(freshCommandDelivery.sent).toBe(1)
   const defaultAfterFreshReply = await waitForServerState(
@@ -239,15 +240,43 @@ it('queues commands across settings refreshes and isolates replaced sockets', as
     result: { id: 42, url: 'https://fresh.example', title: 'Fresh' },
   })
 
+  // https://github.com/moeru-ai/airi/pull/3300#discussion_r4631098700
+  // ROOT CAUSE:
+  // Commands waited for an obsolete read after a newer read kept the socket.
+  // The latest read now releases all queued commands.
+  updateSettings({ browserDomBridgePort: servers.customPort })
+  await waitFor(() => pendingStorageReads.length === 6, 'older storage read')
+
+  const retainedSocket = socketSend.mock.contexts.find(socket => new URL(socket.url).port === String(servers.defaultPort))
+  const commandReceived = new Promise(resolve => retainedSocket.addEventListener('message', resolve, { once: true }))
+  await sendCommand(servers.defaultUrl, { id: 'newer-read-first', action: 'getActiveTab' })
+  await commandReceived
+  expect(tabsQuery).toHaveBeenCalledTimes(4)
+
+  updateSettings({ browserDomBridgePort: servers.defaultPort })
+  await waitFor(() => pendingStorageReads.length === 7, 'newer storage read')
+  pendingStorageReads[6]()
+  const stateBeforeOlderRead = await waitForServerState(
+    servers.defaultUrl,
+    state => state.messages.some(message => message.id === 'newer-read-first'),
+    'queued command response while the older storage read is pending',
+  )
+  expect(stateBeforeOlderRead.messages.find(message => message.id === 'newer-read-first')).toMatchObject({ ok: true })
+  pendingStorageReads[5]()
+
+  await sendCommand(servers.defaultUrl, { id: 'after-older-read', action: 'getActiveTab' })
   const stateAfterRefresh = await waitForServerState(
     servers.defaultUrl,
-    state => state.openConnectionCount === 1,
-    'retained bridge connection',
+    state => state.messages.some(message => message.id === 'after-older-read' && message.ok),
+    'command response after the older storage read finishes',
   )
+  expect(stateAfterRefresh.openConnectionCount).toBe(1)
   expect(stateAfterRefresh.connectionCount).toBe(connectionCount)
+  expect(tabsQuery).toHaveBeenCalledTimes(6)
 }, 15_000)
 
 afterEach(() => {
+  vi.restoreAllMocks()
   vi.unstubAllGlobals()
   vi.resetModules()
 })
