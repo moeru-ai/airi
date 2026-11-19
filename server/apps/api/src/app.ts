@@ -1,12 +1,18 @@
 import type { Database } from './libs/db'
 import type { Env } from './libs/env'
 import type { OtelInstance } from './otel'
+import type { Verifier as AppleIapVerifier } from './routes/apple-iap/verifier'
 import type { StreamingTtsVoiceType } from './routes/audio-speech-ws/session'
+import type { AccountEventPublisher } from './services/adapters/account-events'
 import type { ConfigKVService } from './services/adapters/config-kv'
+import type { RevenuecatSubscriberClient } from './services/adapters/revenuecat-subscriber'
+import type { RevenuecatSubscriptionSync } from './services/adapters/revenuecat-subscriptions'
 import type { BillingService } from './services/domain/billing/billing-service'
-import type { FluxMeter } from './services/domain/billing/flux-meter'
+import type { LlmBillingService } from './services/domain/billing/llm-billing'
+import type { CharacterCardService } from './services/domain/character-cards'
 import type { CharacterService } from './services/domain/characters'
 import type { ChatService } from './services/domain/chats'
+import type { DisplayModelService } from './services/domain/display-models'
 import type { FluxService } from './services/domain/flux'
 import type { FluxTransactionService } from './services/domain/flux-transaction'
 import type { LlmRouterService } from './services/domain/llm-router'
@@ -28,15 +34,18 @@ import Stripe from 'stripe'
 import { initLogger, LoggerFormat, LoggerLevel, setGlobalHookPostLog, useLogger } from '@guiiai/logg'
 import { createNodeWebSocket } from '@hono/node-ws'
 import { httpInstrumentationMiddleware } from '@hono/otel'
+import { createErrorHandler, createPayloadTooLargeError } from '@proj-airi/http-error-shared'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
 import { logger as honoLogger } from 'hono/logger'
-import { createLoggLogger, injeca, lifecycle } from 'injeca'
+import { parseAccept } from 'hono/utils/accept'
+import { createLoggLogger, injeca } from 'injeca'
 
 import { createDrizzle, migrateDatabase } from './libs/db'
 import { parsedEnv } from './libs/env'
 import { initializeExternalDependency } from './libs/external-dependency'
+import { createStreamPublisher } from './libs/redis/stream'
 import { resolveRequestAuth } from './libs/request-auth'
 import { createUnauthorizedWsEvents } from './libs/ws-auth'
 import { authGuard, sessionMiddleware } from './middlewares/auth'
@@ -44,27 +53,42 @@ import { emitOtelLog, initOtel } from './otel'
 import { registerDbPoolGauge } from './otel/gauges/db-pool'
 import { registerTtsPoolGauge } from './otel/gauges/tts-pool'
 import { registerWsOnlineUsersGauge } from './otel/gauges/ws-online-users'
+import { createAppleIapRoutes } from './routes/apple-iap'
+import { createVerifier as createAppleIapVerifier } from './routes/apple-iap/verifier'
 import { createAudioSpeechWsHandlers } from './routes/audio-speech-ws'
 import { createAudioTranscriptionStreamHandler } from './routes/audio-transcription-stream/route'
+import { createCharacterCardRoutes } from './routes/character-cards'
 import { createCharacterRoutes } from './routes/characters'
 import { createChatWsRuntime } from './routes/chat-ws/runtime'
 import { createChatWsV1Handlers } from './routes/chat-ws/v1'
 import { createChatWsV2Handlers } from './routes/chat-ws/v2'
 import { createChatWsPayloadLimit } from './routes/chat-ws/v2/payload-limit'
 import { createChatRoutes } from './routes/chats'
+import { createDisplayModelRoutes } from './routes/display-models'
 import { createFluxRoutes } from './routes/flux'
 import { createInternalAuthRoutes } from './routes/internal-auth'
+import { createLlmRequestRoutes } from './routes/llm-requests'
 import { createV1Routes } from './routes/openai/v1'
 import { createProviderRoutes } from './routes/providers'
+import { createRevenuecatRoutes } from './routes/revenuecat'
 import { createStripeRoutes } from './routes/stripe'
 import { createVoicePackRoutes } from './routes/voice-packs'
+import { accountEventsStream, createUserDeletedEventHandler } from './services/adapters/account-events'
 import { createConfigKVService } from './services/adapters/config-kv'
 import { createConfigKVStore } from './services/adapters/config-kv/store'
+import { createS3ObjectStore } from './services/adapters/object-store'
 import { createOpenpanelSink } from './services/adapters/openpanel'
+import { createPosthogSink } from './services/adapters/posthog'
+import { createFanoutSink } from './services/adapters/product-analytics'
+import { createRevenuecatSubscriberClient } from './services/adapters/revenuecat-subscriber'
+import { createRevenuecatSubscriptionSync } from './services/adapters/revenuecat-subscriptions'
 import { createBillingService } from './services/domain/billing/billing-service'
-import { createFluxMeter } from './services/domain/billing/flux-meter'
+import { createLlmBillingService } from './services/domain/billing/llm-billing'
+import { SpeechBilling } from './services/domain/billing/speech-billing'
+import { createCharacterCardService } from './services/domain/character-cards'
 import { createCharacterService } from './services/domain/characters'
 import { createChatService } from './services/domain/chats'
+import { createDisplayModelService } from './services/domain/display-models'
 import { createFluxService } from './services/domain/flux'
 import { createFluxTransactionService } from './services/domain/flux-transaction'
 import { createConcurrencyLedger, createConfigSyncSubscriber, createLlmRouterService } from './services/domain/llm-router'
@@ -73,26 +97,33 @@ import { createProductEventService } from './services/domain/product-events'
 import { createProviderCatalogService } from './services/domain/provider-catalog'
 import { createProviderService } from './services/domain/providers'
 import { createRequestLogService } from './services/domain/request-log'
+import { createUploadSessionService } from './services/domain/upload-sessions'
 import { createUserDeletionService } from './services/domain/user-deletion'
 import { createVoicePackService } from './services/domain/voice-packs'
 import { createEnvelopeCrypto } from './utils/envelope-crypto'
-import { ApiError, createInternalError } from './utils/error'
 import { nanoid } from './utils/id'
 import { getTrustedOrigin } from './utils/origin'
 
 interface AppDeps {
   db: Database
+  characterCardService: CharacterCardService
   characterService: CharacterService
   chatService: ChatService
   providerService: ProviderService
   fluxService: FluxService
   fluxTransactionService: FluxTransactionService
   paymentService: PaymentService
+  appleIapVerifier: AppleIapVerifier | null
   stripe: Stripe | null
+  llmBilling: LlmBillingService
   billingService: BillingService
-  ttsMeter: FluxMeter
+  speechBilling: SpeechBilling
+  subscriptionSync: RevenuecatSubscriptionSync
+  accountEvents: AccountEventPublisher
+  revenuecatSubscriber: RevenuecatSubscriberClient
   requestLogService: RequestLogService
   voicePackService: VoicePackService
+  displayModelService: DisplayModelService
   productEventService: ProductEventService
   configKV: ConfigKVService
   envelopeCrypto: EnvelopeCrypto
@@ -112,12 +143,16 @@ const DEFAULT_API_MAX_REQUEST_BYTES = 1024 * 1024
 function apiBodyLimit(maxSize: number) {
   return bodyLimit({
     maxSize,
-    onError: c => c.json({ error: 'PAYLOAD_TOO_LARGE', message: 'Payload Too Large' }, 413),
+    onError: () => {
+      throw createPayloadTooLargeError('Payload Too Large')
+    },
   })
 }
 
 export async function buildApp(deps: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
+  const webAppUrl = deps.env.WEB_APP_URL
+  const docsUrl = new URL('/docs', webAppUrl).toString()
 
   const app = new Hono<HonoEnv>()
     .use('*', async (c, next) => {
@@ -223,9 +258,8 @@ export async function buildApp(deps: AppDeps) {
   const audioSpeechWsSetup = createAudioSpeechWsHandlers({
     configKV: deps.configKV,
     envelopeCrypto: deps.envelopeCrypto,
-    fluxService: deps.fluxService,
-    ttsMeter: deps.ttsMeter,
-    requestLogService: deps.requestLogService,
+    speechBilling: deps.speechBilling,
+    genAi: deps.otel?.genAi,
   })
   app.get('/api/v1/audio/speech/ws', upgradeWebSocket(async (c) => {
     const token = c.req.query('token')
@@ -276,10 +310,11 @@ export async function buildApp(deps: AppDeps) {
   const v1Routes = createV1Routes({
     fluxService: deps.fluxService,
     billingService: deps.billingService,
+    llmBilling: deps.llmBilling,
     configKV: deps.configKV,
     requestLogService: deps.requestLogService,
     productEventService: deps.productEventService,
-    ttsMeter: deps.ttsMeter,
+    speechBilling: deps.speechBilling,
     llmRouter: deps.llmRouter,
     providerCatalogService: deps.providerCatalogService,
     voicePackService: deps.voicePackService,
@@ -301,35 +336,7 @@ export async function buildApp(deps: AppDeps) {
         return next()
       return defaultApiBodyLimit(c, next)
     })
-    .onError((err, c) => {
-      if (err instanceof ApiError) {
-        // Surface details + cause to the server-side log only. SEC-5 keeps
-        // upstream body content (carried by `cause`) out of the client
-        // response body; the logger / OTel pipeline is the right channel
-        // for operators to see the real upstream message.
-        const logFields = { details: err.details, cause: (err as { cause?: unknown }).cause }
-
-        if (err.statusCode >= 500) {
-          logger.withError(err).withFields(logFields).error('API error occurred')
-        }
-        else if (err.statusCode !== 401) {
-          logger.withError(err).withFields(logFields).warn('API error occurred')
-        }
-
-        return c.json({
-          error: err.errorCode,
-          message: err.message,
-          details: err.details,
-        }, err.statusCode)
-      }
-
-      logger.withError(err).error('Unhandled error')
-      const internalError = createInternalError()
-      return c.json({
-        error: internalError.errorCode,
-        message: internalError.message,
-      }, internalError.statusCode)
-    })
+    .onError(createErrorHandler(logger))
 
     /**
      * Liveness probe (K8s convention). Returns 200 as long as the Node
@@ -365,27 +372,40 @@ export async function buildApp(deps: AppDeps) {
       )
     })
 
-    /**
-     * Service identity at the API root. Visitors who land here from a stray
-     * email link, search engine, or copy-pasted URL get a clear pointer to
-     * the actual product UI instead of the framework's default "404 Not Found".
-     */
-    .on('GET', '/', c => c.json({
-      service: 'airi-api',
-      message: 'This is the Project AIRI API server. Visit https://airi.moeru.ai to use the product, or see the docs at https://airi.moeru.ai/docs.',
-      docs: 'https://airi.moeru.ai/docs',
-      ui: 'https://airi.moeru.ai',
-    }))
+    .on('GET', '/', (context) => {
+      context.header('Vary', 'Accept')
+      const accept = context.req.header('Accept')
+      if (accept && parseAccept(accept).some(media => media.type.toLowerCase() === 'text/html' && media.q > 0))
+        return context.redirect(webAppUrl, 302)
+
+      return context.json({
+        service: 'airi-api',
+        message: `This is the Project AIRI API server. Visit ${webAppUrl} to use the product, or see the docs at ${docsUrl}.`,
+        docs: docsUrl,
+        ui: webAppUrl,
+      })
+    })
 
     .route('/internal/auth', createInternalAuthRoutes({
       userDeletionService: deps.userDeletionService,
       productEventService: deps.productEventService,
+      revenuecatSubscriber: deps.revenuecatSubscriber,
     }))
 
     /**
      * Character routes are handled by the character service.
      */
     .route('/api/v1/characters', createCharacterRoutes(deps.characterService))
+
+    /**
+     * Character card routes synchronize the cards of a user between devices.
+     */
+    .route('/api/v1/character-cards', createCharacterCardRoutes(deps.characterCardService))
+
+    /**
+     * Display model routes sync imported Live2D and VRM originals through private object storage.
+     */
+    .route('/api/v1/display-models', createDisplayModelRoutes(deps.displayModelService))
 
     /**
      * Provider routes are handled by the provider service.
@@ -414,7 +434,8 @@ export async function buildApp(deps: AppDeps) {
     /**
      * Flux routes.
      */
-    .route('/api/v1/flux', createFluxRoutes(deps.fluxService, deps.fluxTransactionService))
+    .route('/api/v1/flux', createFluxRoutes(deps.fluxService, deps.fluxTransactionService, deps.billingService))
+    .route('/api/v1/llm-requests', createLlmRequestRoutes(deps.requestLogService))
 
     /**
      * Stripe routes.
@@ -431,14 +452,37 @@ export async function buildApp(deps: AppDeps) {
     ))
 
     /**
+     * RevenueCat webhook ingress and Capacitor reconciliation for the caller.
+     */
+    .route('/api/v1/revenuecat', createRevenuecatRoutes(
+      deps.subscriptionSync,
+      deps.accountEvents,
+      deps.revenuecatSubscriber,
+      deps.env,
+      deps.otel?.rateLimit ?? null,
+    ))
+
+    /**
+     * Apple IAP routes (StoreKit 2 JWS and Notifications V2).
+     */
+    .route('/api/v1/apple-iap', createAppleIapRoutes(
+      deps.paymentService,
+      deps.db,
+      deps.appleIapVerifier,
+      deps.configKV,
+      deps.otel?.rateLimit ?? null,
+      deps.env.APPLE_IAP_SANDBOX_USER_IDS,
+    ))
+
+    /**
      * Catch-all 404 in JSON. Replaces hono's default `text/html` "404 Not
      * Found" so unmatched routes (typos, stale email links, scanners) get a
      * structured response and a hint at where to go for the real product UI.
      */
     .notFound(c => c.json({
       error: 'NOT_FOUND',
-      message: `No route matched ${c.req.method} ${new URL(c.req.url).pathname}. This is the airi-api server; the product UI lives at https://airi.moeru.ai.`,
-      ui: 'https://airi.moeru.ai',
+      message: `No route matched ${c.req.method} ${new URL(c.req.url).pathname}. This is the airi-api server; the product UI lives at ${webAppUrl}.`,
+      ui: webAppUrl,
     }, 404))
 
   return { app: builtApp, injectWebSocket }
@@ -480,6 +524,7 @@ export type AppType = Awaited<ReturnType<typeof buildApp>>['app']
 export async function createApp() {
   initLogger(LoggerLevel.Debug, LoggerFormat.Pretty)
   injeca.setLogger(createLoggLogger(useLogger('injeca').useGlobalConfig()))
+  injeca.getContainer().logging = true
   const logger = useLogger('app').useGlobalConfig()
 
   // Forward logg output to OpenTelemetry log exporter
@@ -490,7 +535,7 @@ export async function createApp() {
   // NOTICE: OTel SDK lifecycle (start/shutdown) is owned entirely by
   // instrumentation.ts (preload). This factory only consumes the global
   // MeterProvider that the preload set up, builds metric handles, and primes
-  // counters. No `lifecycle.onStop(shutdown)` here — preload registers SIGTERM
+  // counters. No `on('stop', shutdown)` here — preload registers SIGTERM
   // / SIGINT to flush exporters on its own.
   const otel = injeca.provide('libs:otel', {
     dependsOn: { env: parsedEnv },
@@ -498,8 +543,8 @@ export async function createApp() {
   })
 
   const db = injeca.provide('datastore:db', {
-    dependsOn: { env: parsedEnv, lifecycle, otel },
-    build: async ({ dependsOn }) => {
+    dependsOn: { env: parsedEnv, otel },
+    build: async ({ dependsOn, on }) => {
       const { db: dbInstance, pool } = await initializeExternalDependency(
         'Database',
         logger,
@@ -522,14 +567,14 @@ export async function createApp() {
 
       if (dependsOn.otel)
         registerDbPoolGauge(dependsOn.otel.database.poolConnections, pool)
-      dependsOn.lifecycle.appHooks.onStop(() => pool.end())
+      on('stop', () => pool.end())
       return dbInstance
     },
   })
 
   const redis = injeca.provide('datastore:redis', {
-    dependsOn: { env: parsedEnv, lifecycle },
-    build: async ({ dependsOn }) => {
+    dependsOn: { env: parsedEnv },
+    build: async ({ dependsOn, on }) => {
       const redisInstance = await initializeExternalDependency(
         'Redis',
         logger,
@@ -548,10 +593,19 @@ export async function createApp() {
         },
       )
 
-      dependsOn.lifecycle.appHooks.onStop(async () => {
+      on('stop', async () => {
         await redisInstance.quit()
       })
       return redisInstance
+    },
+  })
+
+  const objectStore = injeca.provide('datastore:objectStore', {
+    dependsOn: { env: parsedEnv },
+    build: ({ dependsOn, on }) => {
+      const store = createS3ObjectStore(dependsOn.env)
+      on('stop', () => store.dispose())
+      return store
     },
   })
 
@@ -572,9 +626,28 @@ export async function createApp() {
     },
   })
 
+  const posthogSink = injeca.provide('services:posthogSink', {
+    dependsOn: { env: parsedEnv },
+    build: ({ dependsOn, on }) => {
+      const { POSTHOG_API_HOST: host, POSTHOG_PROJECT_KEY: projectKey } = dependsOn.env
+      if (!projectKey)
+        return null
+      const sink = createPosthogSink({ projectKey, host })
+      on('stop', () => sink.shutdown())
+      return sink
+    },
+  })
+
   const productEventService = injeca.provide('services:productEvents', {
-    dependsOn: { openpanelSink },
-    build: ({ dependsOn }) => createProductEventService(dependsOn.openpanelSink),
+    dependsOn: { openpanelSink, posthogSink },
+    build: ({ dependsOn }) => {
+      // Each provider is on when its env is set. Both run in parallel while the data sets are compared.
+      const sinks = [
+        ...(dependsOn.openpanelSink ? [{ name: 'openpanel', sink: dependsOn.openpanelSink }] : []),
+        ...(dependsOn.posthogSink ? [{ name: 'posthog', sink: dependsOn.posthogSink }] : []),
+      ]
+      return createProductEventService(createFanoutSink(sinks))
+    },
   })
 
   const characterService = injeca.provide('services:characters', {
@@ -582,9 +655,25 @@ export async function createApp() {
     build: ({ dependsOn }) => createCharacterService(dependsOn.db, dependsOn.otel?.engagement),
   })
 
-  const providerService = injeca.provide('services:providers', {
+  const characterCardService = injeca.provide('services:characterCards', {
     dependsOn: { db },
-    build: ({ dependsOn }) => createProviderService(dependsOn.db),
+    build: ({ dependsOn }) => createCharacterCardService(dependsOn.db),
+  })
+
+  // Envelope crypto for at-rest upstream key decryption. Shared by provider
+  // config rows, the LLM router (HTTP chat / TTS), and the audio-speech-ws
+  // proxy (streaming TTS) so a single master-key change rotates every surface.
+  const envelopeCrypto = injeca.provide('libs:envelopeCrypto', {
+    dependsOn: { env: parsedEnv },
+    build: ({ dependsOn }) => createEnvelopeCrypto({
+      masterKey: dependsOn.env.LLM_ROUTER_MASTER_KEY,
+      previousMasterKey: dependsOn.env.LLM_ROUTER_MASTER_KEY_PREVIOUS,
+    }),
+  })
+
+  const providerService = injeca.provide('services:providers', {
+    dependsOn: { db, envelopeCrypto },
+    build: ({ dependsOn }) => createProviderService(dependsOn.db, dependsOn.envelopeCrypto),
   })
 
   const chatService = injeca.provide('services:chats', {
@@ -598,6 +687,25 @@ export async function createApp() {
       // Stripe SDK is optional — when STRIPE_SECRET_KEY is unset (dev/CI)
       // billing routes degrade gracefully.
       return dependsOn.env.STRIPE_SECRET_KEY ? new Stripe(dependsOn.env.STRIPE_SECRET_KEY) : null
+    },
+  })
+
+  const appleIapVerifier = injeca.provide('services:appleIapVerifier', {
+    dependsOn: { env: parsedEnv },
+    build: async ({ dependsOn }) => {
+      if (dependsOn.env.APPLE_IAP_APPS.length === 0)
+        return null
+      try {
+        return await createAppleIapVerifier({
+          apps: dependsOn.env.APPLE_IAP_APPS,
+          env: dependsOn.env.APPLE_IAP_ENV,
+          allowSandbox: dependsOn.env.APPLE_IAP_SANDBOX_USER_IDS.length > 0,
+        })
+      }
+      catch (error) {
+        useLogger().withError(error).error('Failed to create Apple IAP verifier')
+        return null
+      }
     },
   })
 
@@ -621,6 +729,11 @@ export async function createApp() {
     build: ({ dependsOn }) => createVoicePackService(dependsOn.db),
   })
 
+  const displayModelService = injeca.provide('services:displayModel', {
+    dependsOn: { db, objectStore },
+    build: ({ dependsOn }) => createDisplayModelService(dependsOn.db, dependsOn.objectStore, createUploadSessionService(dependsOn.objectStore)),
+  })
+
   const providerCatalogService = injeca.provide('services:providerCatalog', {
     dependsOn: { db },
     build: ({ dependsOn }) => createProviderCatalogService(dependsOn.db),
@@ -631,9 +744,40 @@ export async function createApp() {
     build: ({ dependsOn }) => createBillingService(dependsOn.db, dependsOn.redis, dependsOn.configKV, dependsOn.otel?.revenue),
   })
 
+  const llmBilling = injeca.provide('services:llmBilling', {
+    dependsOn: { billingService, otel },
+    build: ({ dependsOn }) => createLlmBillingService(dependsOn.billingService, dependsOn.otel?.revenue),
+  })
+
   const paymentService = injeca.provide('services:payment', {
     dependsOn: { db, billingService },
     build: ({ dependsOn }) => createPaymentService(dependsOn.db, dependsOn.billingService),
+  })
+
+  const revenuecatSubscriber = injeca.provide('adapters:revenuecatSubscriber', {
+    dependsOn: { env: parsedEnv },
+    build: ({ dependsOn }) => createRevenuecatSubscriberClient({
+      apiKey: dependsOn.env.REVENUECAT_V2_API_KEY ?? null,
+      projectId: dependsOn.env.REVENUECAT_PROJECT_ID ?? null,
+      environment: dependsOn.env.REVENUECAT_ENVIRONMENT,
+      sandboxUserIds: dependsOn.env.REVENUECAT_SANDBOX_USER_IDS,
+      sellsSubscriptions: Boolean(dependsOn.env.REVENUECAT_WEBHOOK_AUTH || dependsOn.env.REVENUECAT_WEBHOOK_SECRET),
+    }),
+  })
+
+  // Producer of the account events stream that Cloud turns into notifications.
+  const accountEvents = injeca.provide('adapters:accountEvents', {
+    dependsOn: { redis },
+    build: ({ dependsOn }) => createStreamPublisher(dependsOn.redis, accountEventsStream),
+  })
+
+  const subscriptionSync = injeca.provide('services:revenuecatSubscriptionSync', {
+    dependsOn: { billingService, configKV, revenuecatSubscriber },
+    build: ({ dependsOn }) => createRevenuecatSubscriptionSync(
+      dependsOn.billingService,
+      dependsOn.configKV,
+      dependsOn.revenuecatSubscriber,
+    ),
   })
 
   // NOTICE:
@@ -642,56 +786,31 @@ export async function createApp() {
   //   1. give it a `deleteAllForUser(userId)` method
   //   2. add one `service.register(...)` line below
   // Domain knowledge stays inside each service instead of being copied into
-  // a parallel handler file. See `server/apps/api/docs/ai-context/account-deletion.md`.
+  // a parallel handler file.
   const userDeletionService = injeca.provide('services:userDeletion', {
-    dependsOn: { paymentService, fluxService, providerService, characterService, chatService },
+    dependsOn: { paymentService, fluxService, providerService, characterService, characterCardService, chatService, accountEvents },
     build: ({ dependsOn }) => {
       const service = createUserDeletionService()
       // priority: 20 = financial / cache state (Flux balance + Redis),
-      //           30 = pure DB soft-delete (no external touch).
+      //           30 = pure DB soft-delete (no external touch),
+      //           40 = account event for Cloud, after every soft delete.
       service.register({ name: 'payment', priority: 30, softDelete: ({ userId }) => dependsOn.paymentService.deleteAllForUser(userId) })
       service.register({ name: 'flux', priority: 20, softDelete: ({ userId }) => dependsOn.fluxService.deleteAllForUser(userId) })
       service.register({ name: 'providers', priority: 30, softDelete: ({ userId }) => dependsOn.providerService.deleteAllForUser(userId) })
       service.register({ name: 'characters', priority: 30, softDelete: ({ userId }) => dependsOn.characterService.deleteAllForUser(userId) })
+      service.register({ name: 'characterCards', priority: 30, softDelete: ({ userId }) => dependsOn.characterCardService.deleteAllForUser(userId) })
       service.register({ name: 'chats', priority: 30, softDelete: ({ userId }) => dependsOn.chatService.deleteAllForUser(userId) })
+      service.register(createUserDeletedEventHandler(dependsOn.accountEvents))
       return service
     },
   })
 
-  const ttsMeter = injeca.provide('services:ttsMeter', {
-    dependsOn: { redis, billingService, configKV, otel },
-    build: ({ dependsOn }) => createFluxMeter(dependsOn.redis, dependsOn.billingService, {
-      name: 'tts',
-      // Lazy config read: missing FLUX_PER_1K_CHARS_TTS surfaces as a
-      // per-request 503 (via route-level configGuard), not a server boot
-      // failure that would take chat/auth/stripe down with it.
-      resolveRuntime: async () => {
-        const fluxPer1kChars = await dependsOn.configKV.getOrThrow('FLUX_PER_1K_CHARS_TTS')
-        const ttl = await dependsOn.configKV.get('TTS_DEBT_TTL_SECONDS')
-        return {
-          unitsPerFlux: Math.max(1, Math.floor(1000 / fluxPer1kChars)),
-          debtTtlSeconds: ttl,
-        }
-      },
-    }, dependsOn.otel?.revenue),
+  const speechBilling = injeca.provide('services:speechBilling', {
+    dependsOn: { billingService, configKV, otel },
+    build: ({ dependsOn }) => new SpeechBilling(dependsOn.billingService, dependsOn.configKV, dependsOn.otel?.revenue),
   })
 
-  // Envelope crypto for at-rest upstream key decryption. Shared by the LLM
-  // router (HTTP chat / TTS) and the audio-speech-ws proxy (streaming TTS)
-  // so a single master-key change rotates every surface at once.
-  const envelopeCrypto = injeca.provide('libs:envelopeCrypto', {
-    dependsOn: { env: parsedEnv },
-    build: ({ dependsOn }) => createEnvelopeCrypto({
-      masterKey: dependsOn.env.LLM_ROUTER_MASTER_KEY,
-      previousMasterKey: dependsOn.env.LLM_ROUTER_MASTER_KEY_PREVIOUS,
-    }),
-  })
-
-  // LLM router (KTD-5 in-process replacement for the knoway sidecar).
-  // LLM_ROUTER_MASTER_KEY is required at env-parse time, so this provider
-  // always builds a real router — the legacy `null` fallback path is gone.
-  // Shared by the TTS router (acquires slots) and the pool watermark gauge
-  // (reads the snapshot). Cluster-wide Redis state — the server is multi-instance.
+  // Redis coordinates upstream pool capacity across API replicas.
   const ttsConcurrencyLedger = injeca.provide('services:ttsConcurrencyLedger', {
     dependsOn: { redis },
     build: ({ dependsOn }) => createConcurrencyLedger(dependsOn.redis),
@@ -710,7 +829,9 @@ export async function createApp() {
 
   await injeca.start()
   const resolved = await injeca.resolve({
+    objectStore,
     db,
+    characterCardService,
     characterService,
     chatService,
     providerService,
@@ -718,17 +839,23 @@ export async function createApp() {
     fluxTransactionService,
     requestLogService,
     voicePackService,
+    displayModelService,
     productEventService,
     paymentService,
+    subscriptionSync,
+    accountEvents,
+    appleIapVerifier,
     stripe,
     billingService,
-    ttsMeter,
+    llmBilling,
+    speechBilling,
     configKV,
     envelopeCrypto,
     redis,
     env: parsedEnv,
     otel,
     userDeletionService,
+    revenuecatSubscriber,
     llmRouter,
     providerCatalogService,
     ttsConcurrencyLedger,
@@ -740,16 +867,22 @@ export async function createApp() {
 
   const appDeps = {
     db: resolved.db,
+    characterCardService: resolved.characterCardService,
     characterService: resolved.characterService,
     chatService: resolved.chatService,
     providerService: resolved.providerService,
     fluxService: resolved.fluxService,
     fluxTransactionService: resolved.fluxTransactionService,
     paymentService: resolved.paymentService,
+    subscriptionSync: resolved.subscriptionSync,
+    accountEvents: resolved.accountEvents,
+    appleIapVerifier: resolved.appleIapVerifier,
     stripe: resolved.stripe,
     voicePackService: resolved.voicePackService,
+    displayModelService: resolved.displayModelService,
     billingService: resolved.billingService,
-    ttsMeter: resolved.ttsMeter,
+    llmBilling: resolved.llmBilling,
+    speechBilling: resolved.speechBilling,
     requestLogService: resolved.requestLogService,
     productEventService: resolved.productEventService,
     configKV: resolved.configKV,
@@ -758,6 +891,7 @@ export async function createApp() {
     env: resolved.env,
     otel: resolved.otel,
     userDeletionService: resolved.userDeletionService,
+    revenuecatSubscriber: resolved.revenuecatSubscriber,
     llmRouter: resolved.llmRouter,
     providerCatalogService: resolved.providerCatalogService,
   }

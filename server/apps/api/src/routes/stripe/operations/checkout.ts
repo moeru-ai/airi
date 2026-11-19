@@ -7,9 +7,9 @@ import type { PaymentService } from '../../../services/domain/payment'
 import type { ProductEventService } from '../../../services/domain/product-events'
 import type { StripePriceCatalog } from '../price-catalog'
 
+import { createBadRequestError, createServiceUnavailableError } from '@proj-airi/http-error-shared'
 import { safeParse } from 'valibot'
 
-import { createBadRequestError, createServiceUnavailableError } from '../../../utils/error'
 import { resolveCheckoutRedirectBase } from '../../../utils/origin'
 import { CheckoutBodySchema } from '../schema'
 
@@ -46,6 +46,7 @@ export function createCheckoutOperation(
 
     const redirectBase = resolveCheckoutRedirectBase(request, env.ADDITIONAL_TRUSTED_ORIGINS, env.WEB_APP_URL)
     const openpanelIdentity = readOpenpanelIdentityHeaders(request)
+    const posthogIdentity = readPosthogIdentityHeaders(request)
 
     const order = await payment.openPending({
       userId: user.id,
@@ -63,6 +64,7 @@ export function createCheckoutOperation(
       cancel_url: `${redirectBase}/settings/flux?canceled=true`,
       customer: order.customerId,
       customer_email: order.customerId ? undefined : user.email,
+      customer_creation: order.customerId ? undefined : 'always',
       metadata: {
         payment_order_id: order.id,
         userId: user.id,
@@ -70,6 +72,8 @@ export function createCheckoutOperation(
         fluxAmount: String(fluxAmount),
         ...(openpanelIdentity.distinctId && { openpanelDeviceId: openpanelIdentity.distinctId }),
         ...(openpanelIdentity.sessionId && { openpanelSessionId: openpanelIdentity.sessionId }),
+        ...(posthogIdentity.distinctId && { posthogDistinctId: posthogIdentity.distinctId }),
+        ...(posthogIdentity.sessionId && { posthogSessionId: posthogIdentity.sessionId }),
       },
     }
 
@@ -120,6 +124,8 @@ export function createCheckoutOperation(
         currency: session.currency,
         ...(openpanelIdentity.distinctId && { openpanel_device_id: openpanelIdentity.distinctId }),
         ...(openpanelIdentity.sessionId && { openpanel_session_id: openpanelIdentity.sessionId }),
+        ...(posthogIdentity.distinctId && { posthog_distinct_id: posthogIdentity.distinctId }),
+        ...(posthogIdentity.sessionId && { posthog_session_id: posthogIdentity.sessionId }),
       },
     })
 
@@ -130,6 +136,15 @@ export function createCheckoutOperation(
 function readOpenpanelIdentityHeaders(request: Request) {
   const distinctId = readStripeMetadataHeader(request, 'x-openpanel-device-id')
   const sessionId = readStripeMetadataHeader(request, 'x-openpanel-session-id')
+  return {
+    ...(distinctId && { distinctId }),
+    ...(sessionId && { sessionId }),
+  }
+}
+
+function readPosthogIdentityHeaders(request: Request) {
+  const distinctId = readStripeMetadataHeader(request, 'x-posthog-distinct-id')
+  const sessionId = readStripeMetadataHeader(request, 'x-posthog-session-id')
   return {
     ...(distinctId && { distinctId }),
     ...(sessionId && { sessionId }),

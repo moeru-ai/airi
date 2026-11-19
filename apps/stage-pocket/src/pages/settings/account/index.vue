@@ -8,8 +8,8 @@ import { useRouter } from 'vue-router'
 const authStore = useAuthStore()
 const router = useRouter()
 
-function handleLogin() {
-  authStore.needsLogin = true
+async function handleLogin() {
+  await authStore.requestLogin()
 }
 
 async function handleLogout() {

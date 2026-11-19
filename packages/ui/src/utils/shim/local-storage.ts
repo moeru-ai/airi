@@ -1,5 +1,5 @@
 export class LocalStorageShim implements Storage {
-  private map = new Map<string, any>()
+  private map = new Map<string, string>()
 
   clear() {
     this.map.clear()

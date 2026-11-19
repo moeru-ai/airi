@@ -1,0 +1,61 @@
+import type { HostWindowState } from '@gd-kirie/platform'
+
+import type { ElectronWindowLifecycleReason, ElectronWindowLifecycleState } from '../../shared/eventa'
+
+import { hostWindowStateChanged } from '@gd-kirie/platform'
+
+import { initializeHostContext } from './owner'
+
+export interface HostWindowLifecycle {
+  getState: () => Promise<ElectronWindowLifecycleState>
+  onChanged: (listener: (state: ElectronWindowLifecycleState) => void) => () => void
+}
+
+function changeReason(previous: HostWindowState | undefined, next: HostWindowState): ElectronWindowLifecycleReason {
+  if (previous?.minimized !== next.minimized)
+    return next.minimized ? 'minimize' : 'restore'
+
+  if (previous?.visible !== next.visible)
+    return next.visible ? 'show' : 'hide'
+
+  if (previous?.focused !== next.focused)
+    return next.focused ? 'focus' : 'blur'
+
+  if (next.minimized)
+    return 'minimize'
+  if (!next.visible)
+    return 'hide'
+  if (!next.focused)
+    return 'blur'
+  return 'snapshot'
+}
+
+function toAiriWindowState(state: HostWindowState, reason: ElectronWindowLifecycleReason): ElectronWindowLifecycleState {
+  return {
+    ...state,
+    reason,
+    updatedAt: Date.now(),
+  }
+}
+
+export function useHostWindowLifecycle(): HostWindowLifecycle {
+  const host = initializeHostContext()
+  let previous: HostWindowState | undefined
+
+  return {
+    async getState() {
+      previous = await host.platform.hostWindow.getState()
+      return toAiriWindowState(previous, 'snapshot')
+    },
+    onChanged(listener) {
+      return host.context.on(hostWindowStateChanged, ({ body: next }) => {
+        if (!next)
+          return
+
+        const reason = changeReason(previous, next)
+        previous = next
+        listener(toAiriWindowState(next, reason))
+      })
+    },
+  }
+}

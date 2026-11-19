@@ -13,7 +13,7 @@ import { nextTick, onMounted, onUnmounted, ref, toRef, watch } from 'vue'
 import { useSpineAnimationManager } from '../../../composables/spine'
 import { EMOTION_SpineAnimationName_value, SPINE_IDLE_TRACK, SpineAnimationName } from '../../../constants/emotions'
 import { useSpine } from '../../../stores/spine'
-import { loadSpineRuntime } from '../../../utils/spine-runtime'
+import { loadSpineRuntime, updateSpineWorldTransform } from '../../../utils/spine-runtime'
 import { detectSpineVersionFromBinary, detectSpineVersionFromJson } from '../../../utils/spine-version'
 import { loadSpineZip } from '../../../utils/spine-zip-loader'
 
@@ -302,10 +302,7 @@ async function loadModel() {
             skeleton.scaleY = 1
             skeleton.x = 0
             skeleton.y = 0
-            if (spine.Physics)
-              skeleton.updateWorldTransform(spine.Physics.update)
-            else
-              (skeleton as any).updateWorldTransform()
+            updateSpineWorldTransform(spine, skeleton)
             const boundsOffset = new spine.Vector2()
             const boundsSize = new spine.Vector2()
             skeleton.getBounds(boundsOffset, boundsSize, [])
@@ -324,7 +321,6 @@ async function loadModel() {
           }
           catch (err) {
             const error = err instanceof Error ? err : new Error(String(err))
-            emits('error', error)
             reject(error)
           }
         },
@@ -336,11 +332,7 @@ async function loadModel() {
           }
           animationState.update(delta * animationSpeed.value)
           animationState.apply(skeleton)
-          // Physics was added in Spine 4.2; older runtimes take no argument.
-          if (spine.Physics)
-            skeleton.updateWorldTransform(spine.Physics.update)
-          else
-            (skeleton as any).updateWorldTransform()
+          updateSpineWorldTransform(spine, skeleton)
         },
         render: (sc) => {
           if (!skeleton)
@@ -388,7 +380,6 @@ async function loadModel() {
         error: (_sc, errors: Record<string, string>) => {
           const message = Object.values(errors).join('; ')
           const error = new Error(message)
-          emits('error', error)
           reject(error)
         },
       }
@@ -402,6 +393,7 @@ async function loadModel() {
       // below has already fired and found nothing to draw with.
       void syncBackground()
     })
+    componentState.value = 'mounted'
   }
   catch (err) {
     console.error('[Spine] Failed to load model:', err)
@@ -409,7 +401,6 @@ async function loadModel() {
   }
   finally {
     modelLoading.value = false
-    componentState.value = 'mounted'
     modelLoadMutex.release()
   }
 }

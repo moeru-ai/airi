@@ -3,16 +3,19 @@ import type { AIChatModelCard } from 'model-bank/types'
 import type { ModelInfo, ProviderModelCatalog } from './types'
 
 import { listModels } from '@xsai/model'
-import { z } from 'zod'
+import { array, boolean, number, object, optional, parse, string } from 'valibot'
 
-const discoveredModelSchema = z.object({
-  id: z.string(),
-  name: z.string().optional(),
-  display_name: z.string().optional(),
-  description: z.string().optional(),
-  context_length: z.number().optional(),
-  contextLength: z.number().optional(),
-  deprecated: z.boolean().optional(),
+const discoveredModelSchema = object({
+  id: string(),
+  inputModalities: optional(array(string())),
+  architecture: optional(object({ input_modalities: optional(array(string())) })),
+  reasoning: optional(object({ mandatory: optional(boolean()) })),
+  name: optional(string()),
+  display_name: optional(string()),
+  description: optional(string()),
+  context_length: optional(number()),
+  contextLength: optional(number()),
+  deprecated: optional(boolean()),
 })
 
 /**
@@ -26,14 +29,16 @@ export async function listModelCatalog(
 ): Promise<ProviderModelCatalog> {
   const discovered = await listModels(config)
   const models: ModelInfo[] = discovered.map((value) => {
-    const model = discoveredModelSchema.parse(value)
+    const model = parse(discoveredModelSchema, value)
     return {
       id: model.id,
+      inputModalities: model.inputModalities ?? model.architecture?.input_modalities,
       name: model.name ?? model.display_name ?? model.id,
       provider: route.providerId,
       description: model.description,
       contextLength: model.contextLength ?? model.context_length,
       deprecated: model.deprecated,
+      reasoning: model.reasoning,
     }
   })
   const endpoint = new URL(config.baseURL)

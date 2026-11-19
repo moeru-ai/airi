@@ -2,7 +2,26 @@ import type { Ref } from 'vue'
 
 import type { SteamOAuthStartArgs, SteamOAuthStartResult } from '../libs/steam-auth-client'
 
-import { computed, onMounted, shallowRef, watch } from 'vue'
+import { computed, onMounted, onScopeDispose, shallowRef, watch } from 'vue'
+
+/**
+ * Auth error codes that a new sign-in fixes. The user cannot fix them in place.
+ *
+ * - `SESSION_REQUIRED`: the auth server rejects a link because the JWT has no
+ *   active original session. Source: server/apps/auth/src/plugins/oidc-jwt-bearer.ts.
+ * - `SESSION_NOT_FRESH`: Better Auth rejects an unlink from a session that is
+ *   not fresh. A request-only JWT identity is never fresh.
+ */
+const REAUTHENTICATE_ERROR_CODES: ReadonlySet<string> = new Set(['SESSION_REQUIRED', 'SESSION_NOT_FRESH'])
+
+/**
+ * Error shape that better-auth's client returns. `code` is the server error code.
+ */
+export interface LinkedAccountsClientError {
+  code?: string
+  message?: string
+  status?: number
+}
 
 /**
  * Provider key for the linked-account actions. OAuth2 providers go through
@@ -40,15 +59,15 @@ export interface LinkedAccountsClient {
       createdAt: Date | string
       scopes?: string[]
     }> | null
-    error: { message?: string, status?: number } | null
+    error: LinkedAccountsClientError | null
   }>
   unlinkAccount: (args: { providerId: string, accountId?: string }) => Promise<{
     data: unknown
-    error: { message?: string, status?: number } | null
+    error: LinkedAccountsClientError | null
   }>
   linkSocial: (args: { provider: string, callbackURL: string, errorCallbackURL?: string }) => Promise<{
     data: { url?: string, redirect?: boolean, status?: boolean } | null
-    error: { message?: string, status?: number } | null
+    error: LinkedAccountsClientError | null
   }>
   /**
    * Starts linking the current user to a Steam account.
@@ -61,7 +80,7 @@ export interface LinkedAccountsClient {
    */
   linkSteam: (args: SteamOAuthStartArgs) => Promise<{
     data: SteamOAuthStartResult | null
-    error: { message?: string, status?: number } | null
+    error: LinkedAccountsClientError | null
   }>
 }
 
@@ -77,6 +96,12 @@ export interface LinkedAccountsMessages {
   lastAccount: string
   unlinked: (provider: string) => string
   linkStarted: (provider: string) => string
+  /**
+   * Shown when the server needs a new sign-in before a link or unlink.
+   * The consumer also shows its sign-in action when `needsLogin` is `true`.
+   * Without this message, the composable shows the error from `describeError`.
+   */
+  reauthenticate?: string
 }
 
 export interface UseLinkedAccountsArgs {
@@ -110,6 +135,37 @@ export interface UseLinkedAccountsArgs {
 }
 
 /**
+ * Runs `onReturn` when the window becomes active again, and returns a stop
+ * function.
+ *
+ * Electron blocks renderer navigation and opens the URL in the system
+ * browser instead, so the document survives the handoff and only the window
+ * state reports that the user came back. A browser unloads the document
+ * during the redirect, and the listeners die with it.
+ */
+function onWindowReturn(onReturn: () => void): () => void {
+  function stop() {
+    window.removeEventListener('focus', handleReturn)
+    document.removeEventListener('visibilitychange', handleVisible)
+  }
+
+  function handleReturn() {
+    stop()
+    onReturn()
+  }
+
+  function handleVisible() {
+    if (document.visibilityState === 'visible')
+      handleReturn()
+  }
+
+  window.addEventListener('focus', handleReturn)
+  document.addEventListener('visibilitychange', handleVisible)
+
+  return stop
+}
+
+/**
  * Shared state + handlers for the "Connected accounts" section.
  * Two consumers (ui-server-auth profile, stage-web settings/account)
  * share all the logic but render the section differently, so this stops
@@ -130,6 +186,21 @@ export function useLinkedAccounts(args: UseLinkedAccountsArgs) {
   const message = shallowRef<string | null>(null)
   /** Provider id currently being linked / unlinked. `null` when idle. */
   const inFlight = shallowRef<string | null>(null)
+  /**
+   * `true` after a link or unlink failed with a code in
+   * {@link REAUTHENTICATE_ERROR_CODES}. The next link or unlink resets it.
+   */
+  const needsLogin = shallowRef(false)
+
+  /**
+   * Returns the text for a failed link or unlink. A failure that only a new
+   * sign-in fixes shows `reauthenticate` instead of the server message.
+   */
+  function describeActionError(err: unknown, fallback: string): string {
+    if (needsLogin.value && args.messages.reauthenticate)
+      return args.messages.reauthenticate
+    return args.describeError(err) || fallback
+  }
 
   const accountsByProvider = computed(() => {
     const map = new Map<string, LinkedAccountRow>()
@@ -198,22 +269,50 @@ export function useLinkedAccounts(args: UseLinkedAccountsArgs) {
     inFlight.value = providerId
     error.value = null
     message.value = null
+    needsLogin.value = false
 
     try {
       const { error: apiError } = await args.client.unlinkAccount({ providerId })
-      if (apiError)
+      if (apiError) {
+        needsLogin.value = REAUTHENTICATE_ERROR_CODES.has(apiError.code ?? '')
         throw new Error(apiError.message ?? 'unlinkAccount failed')
+      }
       message.value = args.messages.unlinked(providerName)
       args.onUnlinked?.(providerId)
       await refresh()
     }
     catch (err) {
-      error.value = args.describeError(err) || args.messages.unlinkFailed
+      error.value = describeActionError(err, args.messages.unlinkFailed)
     }
     finally {
       inFlight.value = null
     }
   }
+
+  /**
+   * Removes the return listener of the pending handoff, when one exists.
+   */
+  let stopReturnListener: (() => void) | undefined
+
+  /**
+   * Reloads the rows when the user comes back from the provider's site.
+   *
+   * The consent step happens outside this document, so the row keeps its
+   * pre-link value until the server list is read again. A browser unloads
+   * the document during the redirect, and the listeners die with it.
+   */
+  function resyncOnWindowReturn() {
+    stopReturnListener?.()
+    stopReturnListener = onWindowReturn(() => {
+      stopReturnListener = undefined
+      void refresh()
+    })
+  }
+
+  onScopeDispose(() => {
+    stopReturnListener?.()
+    stopReturnListener = undefined
+  })
 
   async function link(providerId: LinkedProviderId, providerName: string) {
     if (inFlight.value)
@@ -222,6 +321,7 @@ export function useLinkedAccounts(args: UseLinkedAccountsArgs) {
     inFlight.value = providerId
     error.value = null
     message.value = args.messages.linkStarted(providerName)
+    needsLogin.value = false
 
     try {
       const callbackURL = args.buildCallbackURL ? args.buildCallbackURL() : window.location.href
@@ -232,21 +332,31 @@ export function useLinkedAccounts(args: UseLinkedAccountsArgs) {
         ? await args.client.linkSteam({ callbackURL, errorCallbackURL: callbackURL })
         : await args.client.linkSocial({ provider: providerId, callbackURL, errorCallbackURL: callbackURL })
       const { data, error: apiError } = result
-      if (apiError)
+      if (apiError) {
+        needsLogin.value = REAUTHENTICATE_ERROR_CODES.has(apiError.code ?? '')
         throw new Error(apiError.message ?? 'link failed')
+      }
+      args.onLinkStarted?.(providerId)
       if (data?.url) {
-        args.onLinkStarted?.(providerId)
+        // Register the return listener before the redirect. Electron blocks
+        // the redirect and opens the URL in the system browser instead, so
+        // this listener is the only signal that the user came back.
+        resyncOnWindowReturn()
         window.location.assign(data.url)
         return
       }
       // No URL came back (e.g. provider returned success synchronously) —
       // refresh so the new row shows up without a navigation.
-      args.onLinkStarted?.(providerId)
       await refresh()
     }
     catch (err) {
-      error.value = args.describeError(err) || args.messages.linkFailed
+      error.value = describeActionError(err, args.messages.linkFailed)
       message.value = null
+    }
+    finally {
+      // Every path must leave the row usable. A browser unloads the document
+      // during the redirect, so this write only matters in runtimes that
+      // block the redirect.
       inFlight.value = null
     }
   }
@@ -266,6 +376,7 @@ export function useLinkedAccounts(args: UseLinkedAccountsArgs) {
       // Don't leak previous user's accounts into the next session.
       linkedAccounts.value = []
       loaded.value = false
+      needsLogin.value = false
     }
   })
 
@@ -276,6 +387,7 @@ export function useLinkedAccounts(args: UseLinkedAccountsArgs) {
     error,
     message,
     inFlight,
+    needsLogin,
     accountsByProvider,
     hasCredentialAccount,
     socialLinkedCount,

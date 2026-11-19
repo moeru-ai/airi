@@ -1,4 +1,6 @@
-import { array, object, optional, picklist, string } from 'valibot'
+import type { UpdateChannel } from '../../shared/update-channels'
+
+import { array, boolean, object, optional, picklist, pipe, string, transform } from 'valibot'
 
 import { createConfig } from '../libs/electron/persistence'
 
@@ -7,10 +9,32 @@ const shortcutAcceleratorSchema = object({
   key: string(),
 })
 
+// NOTICE:
+// Releases up to v0.13.0 let the user choose `latest`, `alpha`, and `beta`, which the store never had.
+// `latest` becomes auto. `alpha` and `beta` become `canary`, which gets every prerelease.
+// Remove the old names after the next stable release.
+const storedUpdateChannels = {
+  stable: 'stable',
+  canary: 'canary',
+  nightly: 'nightly',
+  dev: 'dev',
+  latest: undefined,
+  alpha: 'canary',
+  beta: 'canary',
+} as const satisfies Record<UpdateChannel | 'latest' | 'alpha' | 'beta', UpdateChannel | undefined>
+
+const updateChannelSchema = pipe(
+  picklist(['stable', 'canary', 'nightly', 'dev', 'latest', 'alpha', 'beta']),
+  transform(channel => storedUpdateChannels[channel]),
+)
+
 export const globalAppConfigSchema = object({
+  // Mirrors the analytics switch of the renderer settings. Absent means on, the same default as that switch.
+  errorReportingEnabled: optional(boolean()),
+  hideAppIcon: optional(boolean()),
   language: optional(string()),
   spotlightShortcutAccelerator: optional(shortcutAcceleratorSchema),
-  updateChannel: optional(picklist(['latest', 'stable', 'alpha', 'beta', 'nightly', 'canary'])),
+  updateChannel: optional(updateChannelSchema),
 })
 
 export function createGlobalAppConfig() {

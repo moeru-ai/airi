@@ -2,7 +2,7 @@ import type { BrowserWindow } from 'electron'
 
 import type { I18n } from '../../../libs/i18n'
 import type { ServerChannel } from '../../../services/airi/channel-server'
-import type { McpStdioManager } from '../../../services/airi/mcp-servers'
+import type { McpManager } from '../../../services/airi/mcp-servers'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -44,7 +44,7 @@ vi.mock('../../../services/airi/mcp-servers', () => ({
 
 describe('setupDesktopOverlayElectronInvokes', () => {
   const window = {} as BrowserWindow
-  const mcpStdioManager = {} as McpStdioManager
+  const mcpManager = {} as McpManager
   const serverChannel = {} as ServerChannel
   const i18n = {} as I18n
 
@@ -63,7 +63,7 @@ describe('setupDesktopOverlayElectronInvokes', () => {
 
     await setupDesktopOverlayElectronInvokes({
       window,
-      mcpStdioManager,
+      mcpManager,
       serverChannel,
       i18n,
     })
@@ -86,7 +86,7 @@ describe('setupDesktopOverlayElectronInvokes', () => {
 
     await setupDesktopOverlayElectronInvokes({
       window,
-      mcpStdioManager,
+      mcpManager,
       serverChannel,
       i18n,
     })

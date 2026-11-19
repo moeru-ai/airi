@@ -1,13 +1,59 @@
+import { useLogger } from '@guiiai/logg'
+import { errorMessageFrom } from '@moeru/std'
 import { createAuthEndpoint, sessionMiddleware } from 'better-auth/api'
 import { setSessionCookie } from 'better-auth/cookies'
 import { generateState, parseState } from 'better-auth/oauth2'
 import { ofetch } from 'ofetch'
+import { array, check, literal, looseObject, nonEmpty, object, optional, pipe, safeParse, string, url } from 'valibot'
 
 import * as z from 'zod'
 
 const STEAM_OPENID_ENDPOINT = 'https://steamcommunity.com/openid/login'
 const STEAM_OPENID_NS = 'http://specs.openid.net/auth/2.0'
 const STEAM_OPENID_IDENTIFIER_SELECT = 'http://specs.openid.net/auth/2.0/identifier_select'
+const STEAM_PLAYER_SUMMARIES_ENDPOINT = 'https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/'
+const logger = useLogger('steam').useGlobalConfig()
+
+const SteamPlayerSummarySchema = object({
+  steamid: string(),
+  personaname: optional(string()),
+  avatarfull: optional(string()),
+})
+
+const SteamPlayerSummariesSchema = object({
+  response: object({
+    players: array(SteamPlayerSummarySchema),
+  }),
+})
+
+/**
+ * Fields that the `openid.signed` list must cover. Steam's signature then
+ * vouches for each of them. OpenID 2.0 section 10.1 lists these fields, and
+ * this plugin requires `claimed_id` and `identity` because it reads the SteamID from them.
+ */
+const REQUIRED_SIGNED_FIELDS = ['op_endpoint', 'return_to', 'response_nonce', 'assoc_handle', 'claimed_id', 'identity']
+
+/**
+ * Positive assertion (`openid.mode=id_res`) that Steam sends to `/steam/callback`.
+ * The callback checks this shape before it asks Steam to verify the signature.
+ */
+const PositiveAssertionSchema = pipe(
+  looseObject({
+    'state': pipe(string(), nonEmpty()),
+    'openid.op_endpoint': literal(STEAM_OPENID_ENDPOINT),
+    'openid.return_to': pipe(string(), url()),
+    'openid.response_nonce': pipe(string(), nonEmpty()),
+    'openid.assoc_handle': pipe(string(), nonEmpty()),
+    'openid.signed': pipe(string(), check((signed) => {
+      const signedFields = new Set(signed.split(','))
+      return REQUIRED_SIGNED_FIELDS.every(field => signedFields.has(field))
+    })),
+    'openid.sig': pipe(string(), nonEmpty()),
+    'openid.claimed_id': pipe(string(), nonEmpty()),
+    'openid.identity': pipe(string(), nonEmpty()),
+  }),
+  check(assertion => assertion['openid.identity'] === assertion['openid.claimed_id']),
+)
 
 /** Matches `https://steamcommunity.com/openid/id/<steamid64>`. */
 const STEAM_CLAIMED_ID_PATTERN = /^https:\/\/steamcommunity\.com\/openid\/id\/(\d{17})$/
@@ -44,6 +90,10 @@ const CallbackQuerySchema = z.looseObject({
  *   `<sub>@apple.placeholder.local`) with `emailVerified: true` — the
  *   placeholder can never receive mail, so verification is meaningless and
  *   would otherwise permanently block sign-in.
+ * - The first sign-up reads GetPlayerSummaries when `webApiKey` is set.
+ *   `personaname` becomes `name`. An https `avatarfull` URL becomes `image`.
+ *   An empty key or a failed read keeps `Steam User <steamid64>` and an empty
+ *   image. Later sign-ins and account links do not read or replace the profile.
  *
  * Mechanism:
  * - Both start endpoints build the same `checkid_setup` redirect URL,
@@ -57,10 +107,88 @@ const CallbackQuerySchema = z.looseObject({
  *   validating the RSA signature ourselves — no association/session state
  *   to manage, at the cost of one extra HTTP round trip per login.
  */
-export function steam() {
+function httpsAvatarUrl(value: string | undefined): string | undefined {
+  if (!value)
+    return undefined
+  try {
+    if (new URL(value).protocol !== 'https:')
+      return undefined
+    return value
+  }
+  catch {
+    return undefined
+  }
+}
+
+// ofetch puts the request URL in the error text. The Web API key is a query
+// parameter on that URL, so the log text must not keep it.
+function logTextWithoutSteamWebApiUrl(error: unknown, webApiKey: string): string {
+  const message = errorMessageFrom(error) ?? 'Steam profile request failed'
+  return message
+    .replace(/https:\/\/api\.steampowered\.com\S*/g, '[steam-web-api]')
+    .replaceAll(webApiKey, '[redacted]')
+    .replaceAll(encodeURIComponent(webApiKey), '[redacted]')
+}
+
+/** The callback URL that Steam returns the browser to. The `state` query value binds it to one sign-in or link attempt. */
+function buildReturnToURL(baseURL: string, state: string): URL {
+  const returnTo = new URL(`${baseURL}/steam/callback`)
+  returnTo.searchParams.set('state', state)
+  return returnTo
+}
+
+/**
+ * OpenID 2.0 section 11.1 requires the relying party to verify return_to.
+ * The signed value must be this service's callback with the current `state`
+ * and no other query or fragment.
+ */
+function isOwnReturnTo(signedReturnTo: string, expected: URL): boolean {
+  const returnTo = new URL(signedReturnTo)
+  if (returnTo.origin !== expected.origin || returnTo.pathname !== expected.pathname || returnTo.hash !== '')
+    return false
+
+  const keys = Array.from(returnTo.searchParams.keys())
+  return keys.length === 1
+    && keys[0] === 'state'
+    && returnTo.searchParams.get('state') === expected.searchParams.get('state')
+}
+
+export function steam(options: { webApiKey: string }) {
+  const { webApiKey } = options
+
+  async function readSignupProfile(steamId: string): Promise<{ name: string, image?: string }> {
+    const name = `Steam User ${steamId}`
+    if (webApiKey.length === 0)
+      return { name }
+
+    const profileUrl = new URL(STEAM_PLAYER_SUMMARIES_ENDPOINT)
+    profileUrl.searchParams.set('key', webApiKey)
+    profileUrl.searchParams.set('steamids', steamId)
+
+    try {
+      const body = await ofetch(profileUrl.toString(), { timeout: 10_000 })
+      const parsed = safeParse(SteamPlayerSummariesSchema, body)
+      if (!parsed.success)
+        return { name }
+
+      const player = parsed.output.response.players.find(item => item.steamid === steamId)
+      if (!player)
+        return { name }
+
+      const image = httpsAvatarUrl(player.avatarfull)
+      return {
+        name: player.personaname?.trim() || name,
+        ...(image ? { image } : {}),
+      }
+    }
+    catch (error) {
+      logger.error(logTextWithoutSteamWebApiUrl(error, webApiKey))
+      return { name }
+    }
+  }
+
   function buildOpenIdRedirectURL(baseURL: string, state: string): string {
-    const returnTo = new URL(`${baseURL}/steam/callback`)
-    returnTo.searchParams.set('state', state)
+    const returnTo = buildReturnToURL(baseURL, state)
 
     const redirectURL = new URL(STEAM_OPENID_ENDPOINT)
     redirectURL.searchParams.set('openid.ns', STEAM_OPENID_NS)
@@ -176,12 +304,19 @@ export function steam() {
     if (ctx.query['openid.mode'] !== 'id_res')
       return redirectOnError('steam_openid_denied')
 
+    const assertion = safeParse(PositiveAssertionSchema, ctx.query)
+    if (!assertion.success)
+      return redirectOnError('steam_openid_assertion_invalid')
+
+    const expectedReturnTo = buildReturnToURL(ctx.context.baseURL, assertion.output.state)
+    if (!isOwnReturnTo(assertion.output['openid.return_to'], expectedReturnTo))
+      return redirectOnError('steam_openid_return_to_mismatch')
+
     const isValid = await verifyOpenIdCallback(ctx.query as Record<string, string>)
     if (!isValid)
       return redirectOnError('steam_openid_verification_failed')
 
-    const claimedId = ctx.query['openid.claimed_id'] as string | undefined
-    const steamId = claimedId ? (STEAM_CLAIMED_ID_PATTERN.exec(claimedId)?.[1] ?? null) : null
+    const steamId = STEAM_CLAIMED_ID_PATTERN.exec(assertion.output['openid.claimed_id'])?.[1] ?? null
     if (!steamId)
       return redirectOnError('steam_claimed_id_missing')
 
@@ -206,11 +341,13 @@ export function steam() {
       userId = existingAccount.userId
     }
     else {
+      const profile = await readSignupProfile(steamId)
       const { user } = await ctx.context.internalAdapter.createOAuthUser(
         {
           email: `${steamId}@steam.placeholder.local`,
           emailVerified: true,
-          name: `Steam User ${steamId}`,
+          name: profile.name,
+          ...(profile.image ? { image: profile.image } : {}),
         },
         { providerId: 'steam', accountId: steamId },
       )

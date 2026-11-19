@@ -2,7 +2,7 @@ import type { InferInsertModel, InferSelectModel } from 'drizzle-orm'
 
 import { user } from '@proj-airi/auth-shared'
 import { relations } from 'drizzle-orm'
-import { boolean, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
 
 import { nanoid } from '../utils/id'
 
@@ -14,16 +14,19 @@ export const userProviderConfigs = pgTable(
   {
     id: text('id').primaryKey().$defaultFn(() => nanoid()),
     ownerId: text('owner_id').notNull(),
+    // Client-assigned provider instance id. The client generates it (its local
+    // provider.id), addresses the row through HTTP PUT/DELETE /:id, and keeps
+    // it stable across edits so PUT upserts. Scoped by ownerId, not the row PK.
+    instanceId: text('instance_id').notNull(),
     definitionId: text('definition_id').notNull(),
-    name: text('name').notNull(),
-    config: jsonb('config').notNull().default({}),
-    validated: boolean('validated').notNull().default(false),
-    validationBypassed: boolean('validation_bypassed').notNull().default(false),
-
+    config: text('config').notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
     deletedAt: timestamp('deleted_at'),
   },
+  table => [
+    uniqueIndex('user_provider_configs_owner_instance_uidx').on(table.ownerId, table.instanceId),
+  ],
 )
 
 export type UserProviderConfig = InferSelectModel<typeof userProviderConfigs>
@@ -38,22 +41,3 @@ export const userProviderConfigsRelations = relations(
     }),
   }),
 )
-
-export const systemProviderConfigs = pgTable(
-  'system_provider_configs',
-  {
-    id: text('id').primaryKey().$defaultFn(() => nanoid()),
-    definitionId: text('definition_id').notNull(),
-    name: text('name').notNull(),
-    config: jsonb('config').notNull().default({}),
-    validated: boolean('validated').notNull().default(false),
-    validationBypassed: boolean('validation_bypassed').notNull().default(false),
-
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
-    deletedAt: timestamp('deleted_at'),
-  },
-)
-
-export type SystemProviderConfig = InferSelectModel<typeof systemProviderConfigs>
-export type NewSystemProviderConfig = InferInsertModel<typeof systemProviderConfigs>

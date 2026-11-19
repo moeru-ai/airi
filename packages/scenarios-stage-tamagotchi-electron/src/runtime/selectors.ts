@@ -29,7 +29,11 @@ export async function openSettingsFromControlsIsland(page: Page): Promise<void> 
 }
 
 export async function openChatFromControlsIsland(page: Page): Promise<void> {
-  await clickControlButtonByIcon(page, 'i-solar:chat-line-line-duotone')
+  const button = page.getByTestId('controls-island-chat')
+
+  await button.waitFor({ state: 'visible', timeout: controlsIslandReadyTimeoutMs })
+  await button.click({ force: true })
+  await sleep(100)
 }
 
 export async function openHearingFromControlsIsland(page: Page): Promise<Page> {

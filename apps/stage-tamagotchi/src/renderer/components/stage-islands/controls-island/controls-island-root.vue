@@ -21,7 +21,7 @@ defineSlots<{
 const displays = useElectronAllDisplays()
 const windowBounds = useElectronWindowBounds()
 const preferredMotion = usePreferredReducedMotion()
-const dock = shallowRef<ControlsIslandDock>('bottom-right')
+const dock = shallowRef<ControlsIslandDock>('top-right')
 const pendingDock = shallowRef<ControlsIslandDock>()
 const relocationTarget = shallowRef<ControlsIslandDock>()
 const motionPhase = shallowRef<ControlsIslandMotionPhase>('idle')

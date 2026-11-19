@@ -1,0 +1,43 @@
+name: Setup workspace
+description: Restore the Turbo and pnpm caches, then install the workspace dependencies.
+
+inputs:
+  turbo-cache:
+    description: Name of the Turbo cache to restore. Empty restores the newest cache, which is enough for the package builds in postinstall.
+    default: ''
+  save-pnpm-store:
+    description: Save the pnpm store after the job. One job on main owns this, because a store is 800 MB of the 10 GB repository limit.
+    default: 'false'
+  install-args:
+    description: Arguments for pnpm install.
+    default: --frozen-lockfile
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/cache/restore@v5
+      with:
+        path: .turbo/cache
+        key: ${{ runner.os }}-turbo-${{ inputs.turbo-cache }}-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-turbo-${{ inputs.turbo-cache }}-
+          ${{ runner.os }}-turbo-
+
+    - name: Mark the restored Turbo cache
+      shell: bash
+      run: |
+        mkdir -p .turbo/cache
+        touch .turbo/cache-restored
+
+    - uses: pnpm/setup@v3
+      with:
+        runtime: node@^26.12.1
+        cache: true
+        save-cache: ${{ inputs.save-pnpm-store }}
+        install: false
+
+    - name: Install dependencies
+      shell: bash
+      env:
+        INSTALL_ARGS: ${{ inputs.install-args }}
+      run: pnpm install $INSTALL_ARGS

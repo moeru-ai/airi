@@ -79,7 +79,7 @@ describe('chat image drafts', () => {
       return file
     })
     await images.addFiles(largeFiles)
-    expect(images.error.value).toBe('stage.chat.images.total-too-large')
+    expect(images.error.value).toBe('stage.chat.images.too-large')
     expect(images.pending.value).toBe(0)
     expect(composer.attachments.value).toHaveLength(0)
     screen.unmount()

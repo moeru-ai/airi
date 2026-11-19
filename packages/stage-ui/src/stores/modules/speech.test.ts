@@ -8,7 +8,7 @@ import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, pic
 import { useAuthStore } from '../auth'
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
-import { toSignedPercent, useSpeechStore } from './speech'
+import { speechFieldsKeyOf, speechFieldStatus, toSignedPercent, useSpeechStore } from './speech'
 
 const i18nState = vi.hoisted(() => ({
   locale: { value: 'en-US' },
@@ -603,17 +603,22 @@ describe('vOICEVOX provider defaults', () => {
       .toEqual({ speed: 1, pitch: 0, intonation: 1, volume: 1 })
   })
   // ROOT CAUSE: Model reloads lived in the settings page, so card changes bypassed them.
+  // https://github.com/moeru-ai/airi/actions/runs/39113696560/job/117634993202
+  // Catalog hashing is asynchronous. Wait for each request instead of assuming it finishes within 20 ms.
   it('refreshes voices when only the active model changes outside settings', async () => {
     const providers = useProviderStore()
     const loads = vi.spyOn(providers, 'listProviderVoices').mockResolvedValue([])
     const speech = useSpeechStore()
     speech.activeSpeechProvider = OFFICIAL_SPEECH_PROVIDER_ID
     speech.activeSpeechModel = 'model-a'
-    await new Promise(resolve => setTimeout(resolve, 20))
+    await vi.waitFor(() => {
+      expect(loads).toHaveBeenCalledWith(OFFICIAL_SPEECH_PROVIDER_ID, 'model-a', expect.anything())
+    })
     loads.mockClear()
     speech.activeSpeechModel = 'model-b'
-    await new Promise(resolve => setTimeout(resolve, 20))
-    expect(loads).toHaveBeenCalledWith(OFFICIAL_SPEECH_PROVIDER_ID, 'model-b', expect.anything())
+    await vi.waitFor(() => {
+      expect(loads).toHaveBeenCalledWith(OFFICIAL_SPEECH_PROVIDER_ID, 'model-b', expect.anything())
+    })
   })
 
   // https://github.com/moeru-ai/airi/pull/2490#discussion_r3964660980
@@ -631,6 +636,71 @@ describe('vOICEVOX provider defaults', () => {
     expect(speech.voiceCatalogStatus['microsoft-speech']?.error).toBe('temporary outage')
     await speech.loadVoicesForProvider('microsoft-speech', 'model-b')
     expect(speech.availableVoices['microsoft-speech']).toEqual([])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/3487#discussion_r4537737568
+  // ROOT CAUSE: The store keeps one catalog for each provider. A load for the selected provider with the model of
+  // a character discarded that catalog and cleared the selected voice.
+  it('reads the voice of a character with another model of the selected provider and keeps the selected voice', async () => {
+    const providers = useProviderStore()
+    const voices = [{ id: 'selected', name: 'Selected', languages: [{ code: 'en-US', title: 'English' }], provider: 'microsoft-speech' }]
+    const loads = vi.spyOn(providers, 'listProviderVoices').mockResolvedValue(voices)
+    // The output resolves its client only when it synthesizes. This test reads the language and never synthesizes.
+    vi.spyOn(providers, 'getProviderInstance').mockResolvedValue({} as unknown as Awaited<ReturnType<typeof providers.getProviderInstance>>)
+    const speech = useSpeechStore()
+    await speech.selectProviderModel('microsoft-speech', 'model-a')
+    await vi.waitFor(() => expect(speech.isLoadingSpeechProviderVoices).toBe(false))
+    speech.activeSpeechVoiceId = 'selected'
+    await speech.ensureActiveSpeechVoice()
+    loads.mockResolvedValue([{ id: 'character', name: 'Character', languages: [{ code: 'ja-JP', title: 'Japanese' }], provider: 'microsoft-speech' }])
+
+    await speech.loadVoicesForCharacter('microsoft-speech', 'model-b')
+
+    expect(loads).toHaveBeenLastCalledWith('microsoft-speech', 'model-b', expect.anything())
+    expect(speech.activeSpeechVoiceId).toBe('selected')
+    expect(speech.availableVoices['microsoft-speech']).toEqual(voices)
+    const output = speech.createOutput({ sessionId: 'session-1', turnId: 'turn-1' }, { provider: 'microsoft-speech', model: 'model-b', voice_id: 'character' }, { playback: {} as never }, {} as AudioContext)
+    expect(output.language).toBe('ja-JP')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/3491#discussion_r4538636428
+  // ROOT CAUSE: The voices that a character load stored stayed first after the same provider and model became the
+  // selection of the store. A later catalog of the store, for example after a settings change, did not replace them.
+  it('reads the catalog of the store when the selection of a character becomes the selection of the store', async () => {
+    const providers = useProviderStore()
+    const loads = vi.spyOn(providers, 'listProviderVoices').mockResolvedValue([{ id: 'voice', name: 'Voice', languages: [{ code: 'ja-JP', title: 'Japanese' }], provider: 'microsoft-speech' }])
+    vi.spyOn(providers, 'getProviderInstance').mockResolvedValue({} as unknown as Awaited<ReturnType<typeof providers.getProviderInstance>>)
+    const speech = useSpeechStore()
+    await speech.loadVoicesForCharacter('microsoft-speech', 'model-b')
+    loads.mockResolvedValue([{ id: 'voice', name: 'Voice', languages: [{ code: 'en-US', title: 'English' }], provider: 'microsoft-speech' }])
+
+    await speech.selectProviderModel('microsoft-speech', 'model-b', 'voice')
+    await vi.waitFor(() => expect(speech.availableVoices['microsoft-speech']?.[0]?.languages[0]?.code).toBe('en-US'))
+
+    const output = speech.createOutput({ sessionId: 'session-1', turnId: 'turn-1' }, { provider: 'microsoft-speech', model: 'model-b', voice_id: 'voice' }, { playback: {} as never }, {} as AudioContext)
+    expect(output.language).toBe('en-US')
+  })
+
+  it('does not load for a character whose speech selection is the selection of the store', async () => {
+    const loads = vi.spyOn(useProviderStore(), 'listProviderVoices').mockResolvedValue([])
+    const speech = useSpeechStore()
+    await speech.selectProviderModel('microsoft-speech', 'model-a')
+    await vi.waitFor(() => expect(speech.isLoadingSpeechProviderVoices).toBe(false))
+    loads.mockClear()
+
+    await speech.loadVoicesForCharacter('microsoft-speech', 'model-a')
+
+    expect(loads).not.toHaveBeenCalled()
+  })
+
+  it('keeps the catalog of a provider apart from the voices of a character that uses it', async () => {
+    const loads = vi.spyOn(useProviderStore(), 'listProviderVoices').mockResolvedValue([{ id: 'character', name: 'Character', languages: [], provider: 'elevenlabs' }])
+    const speech = useSpeechStore()
+
+    await speech.loadVoicesForCharacter('elevenlabs', 'model-c')
+
+    expect(loads).toHaveBeenCalledWith('elevenlabs', 'model-c', expect.anything())
+    expect(speech.availableVoices.elevenlabs ?? []).toEqual([])
   })
 
   // https://github.com/moeru-ai/airi/pull/2490#discussion_r3966034981
@@ -834,5 +904,52 @@ describe('vOICEVOX provider defaults', () => {
       rejectActive?.(new Error('test cleanup'))
       await active
     }
+  })
+})
+
+describe('speechFieldStatus', () => {
+  const official = { provider: OFFICIAL_SPEECH_PROVIDER_ID, model: 'auto', voice_id: '' }
+  const streaming = { provider: OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, model: '', voice_id: 'voice' }
+
+  it('waits for the voice that the store picks while the voice catalog of an official provider loads', () => {
+    expect(speechFieldStatus(official, {}, () => null, true)).toEqual({ missing: [], pending: ['voice'] })
+  })
+
+  it('reports the voice of an official provider as missing when its voice catalog is not loading', () => {
+    // A catalog that failed, came back empty, or was not requested picks no voice, so the reply stays text only.
+    expect(speechFieldStatus(official, {}, () => null, false)).toEqual({ missing: ['voice'], pending: [] })
+  })
+
+  it('waits for the default model while the model catalog of a streaming provider loads', () => {
+    expect(speechFieldStatus(streaming, {}, () => undefined, false)).toEqual({ missing: [], pending: ['model'] })
+  })
+
+  it('reports the model of a streaming provider as missing when its catalog has no default model', () => {
+    expect(speechFieldStatus(streaming, {}, () => null, false)).toEqual({ missing: ['model'], pending: [] })
+  })
+
+  it('takes the default model of a streaming provider', () => {
+    expect(speechFieldStatus(streaming, {}, () => 'volcengine/seed-tts-1.0', false)).toEqual({ missing: [], pending: [] })
+  })
+
+  it('reports a missing voice of a provider that does not pick one, even while a catalog loads', () => {
+    expect(speechFieldStatus({ provider: 'minimax-speech', model: 'speech-02-hd', voice_id: '' }, {}, () => undefined, true)).toEqual({ missing: ['voice'], pending: [] })
+  })
+
+  it('takes the model and the voice from the provider config', () => {
+    expect(speechFieldStatus({ provider: 'openai-compatible-audio-speech', model: '', voice_id: '' }, { model: 'tts-1', voice: 'alloy' }, () => null, false)).toEqual({ missing: [], pending: [] })
+  })
+
+  it('reports nothing when speech is off', () => {
+    expect(speechFieldStatus({ provider: 'speech-noop', model: '', voice_id: '' }, {}, () => null, false)).toEqual({ missing: [], pending: [] })
+  })
+})
+
+describe('speechFieldsKeyOf', () => {
+  it('names each set of fields with one key', () => {
+    expect(speechFieldsKeyOf(['model'])).toBe('model')
+    expect(speechFieldsKeyOf(['voice'])).toBe('voice')
+    expect(speechFieldsKeyOf(['model', 'voice'])).toBe('model-voice')
+    expect(speechFieldsKeyOf([])).toBeUndefined()
   })
 })

@@ -1,11 +1,14 @@
-import type { SerializedIOSpan } from '@proj-airi/stage-shared/types/io-trace'
 import type { PiniaActionEvent, PiniaActionEventStatus } from '@proj-airi/stage-shared/types/pinia-action-event'
+import type { TraceAttributes, TraceIds, TraceRecord, TraceStatus } from '@proj-airi/trace-kit'
 import type { AudioCapture, AudioCaptureFormat, AudioTestCase, AudioTestPreflightCallback, AudioTestSession } from '@proj-airi/vitest-plugin-fakemic'
 import type { ElectronApplication, Page } from 'playwright'
 
 export const audioInputTargets = ['web', 'electron'] as const
 
 export type AudioInputTarget = (typeof audioInputTargets)[number]
+
+/** Audio pipelines that need case-specific runner preparation. */
+export type AudioInputPipeline = 'kws'
 
 /** Values available when one case resolves its preflight callbacks. */
 export interface AudioInputPreflightContext {
@@ -21,14 +24,44 @@ export interface AudioInputPreflightContext {
 export type AudioInputPreflightCallback = AudioTestPreflightCallback<AudioInputPreflightContext>
 
 /** One AIRI audio-input test definition. */
-export type AudioInputTestCase = AudioTestCase<AudioInputPreflightContext>
+export interface AudioInputTestCase extends AudioTestCase<AudioInputPreflightContext> {
+  /**
+   * Selects pipelines that the runner prepares before the file microphone starts.
+   * For `kws` on Web, the runner downloads and verifies the pinned wake word model.
+   * @default []
+   */
+  pipelines?: readonly AudioInputPipeline[]
+}
+
+/** One ended span, folded from the trace records of the pages. Times are on the clock of the page that wrote it. */
+export interface AudioInputSpan {
+  spanId: string
+  name: string
+  track: string
+  ids: TraceIds
+  /** Merged attributes of the begin, updates, and end. */
+  attrs: TraceAttributes
+  start: number
+  end: number
+  status: TraceStatus
+  message?: string
+}
 
 /** Snapshot of the observable AIRI audio pipeline state. */
 export interface AudioInputSnapshot {
   piniaActionEvents: PiniaActionEvent[]
-  spans: SerializedIOSpan[]
+  /** Trace records that the probes of the pages received. */
+  records: TraceRecord[]
   streamingTranscriptionUpdates: string[]
   transcriptionResults: string[]
+  voiceInputs: AudioInputVoiceInput[]
+}
+
+/** One speech input that the voice host began, from the first host snapshot that contains it. */
+export interface AudioInputVoiceInput {
+  requestId: string
+  /** Chat session that receives the transcript. A wake selects the session of the character that owns the wake word. */
+  sessionId: string
 }
 
 /** One rendered chat message from the completed turn. */
@@ -76,7 +109,8 @@ export interface AudioInputObservations {
   capturedTranscriptionAudio: (count: number) => Promise<AudioCapture[]>
   streamingTranscriptionUpdates: () => Promise<string[]>
   transcriptionResults: (count: number) => Promise<string[]>
-  completedSpans: (name?: string) => Promise<SerializedIOSpan[]>
+  /** Ended spans of the trace records of the pages, in start order. */
+  completedSpans: (name?: string) => Promise<AudioInputSpan[]>
   /** Waits until all speech work for the latest LLM turn is complete. */
   waitForTurn: (options?: {
     /** @default 60000 */
@@ -84,10 +118,19 @@ export interface AudioInputObservations {
   }) => Promise<AudioInputTurn>
   /** Returns the Pinia action events collected by the runtime probe. */
   piniaActionEvents: () => Promise<PiniaActionEvent[]>
-  /** Waits until the VAD audio graph is connected to the microphone stream. */
-  waitForVadReady: () => Promise<void>
   /** Waits until a streaming transcription transport accepts microphone audio. */
   waitForStreamingTranscriptionReady: () => Promise<void>
+  /**
+   * Waits until the voice host begins a speech input, and returns the first input since the page loaded.
+   *
+   * @example
+   * const input = await audio.waitForVoiceInput({ timeout: 90_000 })
+   * expect(input.sessionId).toBe(expectedSessionId)
+   */
+  waitForVoiceInput: (options?: {
+    /** @default 60000 */
+    timeout?: number
+  }) => Promise<AudioInputVoiceInput>
   /**
    * Waits for the next matching Pinia action event after this method is called.
    *

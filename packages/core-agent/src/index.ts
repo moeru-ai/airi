@@ -15,6 +15,7 @@ export { renderConversationPreview } from './messages/preview'
 export type { AssistantTurn, Citation, ContentSegment, Conversation, GenerationRound, ProviderContinuation, SystemTurn, ToolExecution, ToolInvocation, Turn, UserTurn } from './messages/types'
 export { createChatHooks } from './runtime/agent-hooks'
 export type {
+  ChatAttachment,
   ChatOrchestratorLifecycleRecord,
   ChatOrchestratorLLMPort,
   ChatOrchestratorPromptProjection,
@@ -24,6 +25,7 @@ export type {
   ChatOrchestratorSendOptions,
   ChatOrchestratorSessionPort,
   QueuedSendSnapshot,
+  ToolContent,
 } from './runtime/chat-orchestrator-runtime'
 export { createChatOrchestratorRuntime } from './runtime/chat-orchestrator-runtime'
 export type { ContextHistoryEntry, ContextIngestResult, ContextRegistry } from './runtime/context-registry'
@@ -35,6 +37,8 @@ export {
   modelKey,
   streamFrom,
 } from './runtime/llm-service'
+export { decisionOptions, isBackgroundRecipe, judgeDecision, matchKeywordRecipes, MODEL_DECIDES_STEPS, usableRecipes } from './runtime/recipe'
+export type { DecisionAction, DecisionOption, DecisionQuestion, Recipe, RecipeDecision } from './runtime/recipe'
 export {
   categorizeResponse,
   createStreamingCategorizer,
@@ -48,11 +52,15 @@ export { mergeLoadedSessionMessages } from './session/merge-loaded-session-messa
 export type {
   ChatAssistantMessage,
   ChatHistoryItem,
+  ChatInvokedSkill,
   ChatMessage,
   ChatSlices,
+  ChatSlicesCard,
+  ChatSlicesSticker,
   ChatSlicesText,
   ChatSlicesToolCall,
   ChatSlicesToolCallResult,
+  ChatSlicesToolContent,
   ChatStreamEvent,
   ChatStreamEventContext,
   ChatToolReference,
@@ -67,3 +75,4 @@ export type {
   StreamFromOptions,
   StreamOptions,
 } from './types/llm'
+export * from './voice'

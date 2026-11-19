@@ -7,6 +7,7 @@ import { storeToRefs } from 'pinia'
 import { computed, nextTick, onScopeDispose, ref, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { useBackdropSurface } from '../../composables/backdrop-surface'
 import { useAiriCardStore } from '../../stores/modules/airi-card'
 
 const props = withDefaults(defineProps<Props>(), {
@@ -47,12 +48,15 @@ const { t } = useI18n()
 const cardStore = useAiriCardStore()
 const { cards, activeCardId, activeCard } = storeToRefs(cardStore)
 
-const creatingNew = ref(false)
+/** Keeps host surfaces open while the user enters a name for a new profile. */
+const creatingNew = defineModel<boolean>('creating', { default: false })
 const newProfileName = ref('')
 const nameInputRef = ref<HTMLInputElement>()
 const containerRef = ref<HTMLElement>()
 const { x: containerX, y: containerY, width: containerWidth, height: containerHeight } = useElementBounding(containerRef)
 const createFormRef = ref<HTMLElement>()
+// The form floats over the stage, so a desktop host can draw native glass behind its fill.
+useBackdropSurface(createFormRef)
 const createContentRef = ref<HTMLElement>()
 const { width: windowWidth, height: windowHeight } = useWindowSize()
 const { width: formWidth } = useElementSize(createFormRef, undefined, { box: 'border-box' })
@@ -125,7 +129,6 @@ watch(() => props.active, (active) => {
 })
 watch(() => open.value || creatingNew.value, active => emit('interactionChange', active), { immediate: true })
 onScopeDispose(() => emit('interactionChange', false))
-
 watch(activeCardId, (value) => {
   selectedProfile.value = value
 }, { immediate: true })
@@ -282,19 +285,25 @@ function toggleOpen() {
       :content-align="props.contentAlign"
       variant="blurry"
       shape="rounded"
+      :class="[
+        'h-10! w-auto! max-w-48 gap-1.5! px-1! pr-2.5! shadow-sm',
+        'data-[state=open]:ring-2 data-[state=open]:ring-primary-500/20',
+      ]"
     >
       <template #value="{ option, placeholder }">
-        <div :class="['min-w-0', 'flex', 'items-center', 'gap-2', 'px-1 py-1.5']">
+        <div :class="['min-w-0 flex items-center gap-2']">
           <div
             :class="[
-              'size-6 shrink-0',
-              option?.value === activeCardId ? 'i-solar:check-circle-bold-duotone text-primary-500' : option?.icon ?? 'i-solar:emoji-funny-square-broken text-neutral-400',
+              'size-7 shrink-0 flex items-center justify-center rounded-full',
+              'bg-primary-100/80 text-primary-600',
+              'dark:bg-primary-900/40 dark:text-primary-300',
             ]"
-          />
+          >
+            <div :class="['i-solar:emoji-funny-square-bold-duotone size-4.5']" />
+          </div>
           <span
             :class="[
-              'inline-block w-full flex-1',
-              'text-sm',
+              'min-w-0 truncate text-sm font-medium',
               'select-none',
               option ? 'text-neutral-700 dark:text-neutral-200' : 'text-neutral-400 dark:text-neutral-500',
             ]"
@@ -351,7 +360,7 @@ function toggleOpen() {
             'border-neutral-200 bg-white/95 dark:border-neutral-800 dark:bg-neutral-900/95',
           ]"
         >
-          <div ref="createContentRef" :class="['flex flex-wrap items-center justify-end gap-2 border-2 rounded-xl p-2']">
+          <div ref="createContentRef" :class="['flex flex-wrap items-center justify-end gap-2 rounded-xl p-2']">
             <input
               ref="nameInputRef"
               v-model="newProfileName"

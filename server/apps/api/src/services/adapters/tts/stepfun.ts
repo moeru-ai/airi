@@ -10,6 +10,8 @@ import { listVoicesViaUnSpeech, sendSpeechViaUnSpeech } from './unspeech'
 const STEPFUN_DEFAULT_MODEL = 'stepaudio-2.5-tts'
 const STEPFUN_DEFAULT_FORMAT = 'mp3'
 const STEPFUN_DEFAULT_VOICE = 'cixingnansheng'
+/** The languages that StepFun TTS reads. StepFun marks `ja`, `ko`, `fr`, and `es` as a preview. */
+const STEPFUN_LANGUAGES = new Set(['zh', 'en', 'ja', 'ko', 'fr', 'es'])
 
 /**
  * StepFun TTS adapter.
@@ -74,6 +76,10 @@ function buildExtraBody(input: TtsInput, ctx: TtsAdapterContext): Record<string,
   if (typeof ctx.adapterParams.endpointProfile === 'string' && ctx.adapterParams.endpointProfile)
     body.endpoint_profile = ctx.adapterParams.endpointProfile
 
+  const language = stepfunLanguage(input.language)
+  if (language)
+    body.language = language
+
   if (typeof extraOptions.volume === 'number' && Number.isFinite(extraOptions.volume))
     body.volume = extraOptions.volume
   else if (typeof ctx.adapterParams.volume === 'number' && Number.isFinite(ctx.adapterParams.volume))
@@ -107,4 +113,21 @@ function buildExtraBody(input: TtsInput, ctx: TtsAdapterContext): Record<string,
     body.voice_label = extraOptions.voiceLabel
 
   return body
+}
+
+/**
+ * Maps a BCP 47 tag to the language code of StepFun.
+ *
+ * StepFun takes the primary language subtag. The tag is canonical, so the subtag is lower case. A language that StepFun does not read is not sent, so the request
+ * still succeeds and StepFun reads the text as it did without a language.
+ *
+ * @example
+ * stepfunLanguage('en-US')
+ * // => 'en'
+ * stepfunLanguage('de-DE')
+ * // => undefined
+ */
+function stepfunLanguage(tag: string | undefined): string | undefined {
+  const primary = tag?.split('-')[0]
+  return primary && STEPFUN_LANGUAGES.has(primary) ? primary : undefined
 }

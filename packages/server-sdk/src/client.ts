@@ -16,6 +16,7 @@ import type {
 } from '@proj-airi/server-shared/types'
 
 import { errorMessageFrom } from '@moeru/std'
+import { decodeBase64 } from '@moeru/std/base64'
 import { createClient as createBetterWsClient } from '@proj-airi/better-ws'
 import { createCrossWsConnector } from '@proj-airi/better-ws/client/crossws'
 import { isTerminalAuthenticationServerErrorMessage, parseServerErrorMessage } from '@proj-airi/server-shared'
@@ -354,6 +355,34 @@ export class Client<C = undefined> {
   sendOrThrow(data: WebSocketEventOptionalSource<C>): void {
     if (!this.send(data)) {
       throw new Error(`Client is not connected, current status: ${this.status}`)
+    }
+  }
+
+  /**
+   * Reads the bytes of an image or recording that a chat message references as `airi-asset:<id>`.
+   *
+   * The stage answers the request. The call rejects with the stage error, when the client is not connected, or when
+   * no answer arrives within `timeoutMs`.
+   */
+  async getAsset(ref: string, options: { timeoutMs?: number } = {}): Promise<{ mimeType: string, data: Uint8Array }> {
+    const id = createEventId()
+    const { promise, resolve, reject } = Promise.withResolvers<WebSocketEvents<C>['asset:get:response']>()
+    const timer = setTimeout(() => reject(new Error(`The stage did not answer for asset ${ref}`)), options.timeoutMs ?? 10_000)
+    const stop = this.onEvent('asset:get:response', (event) => {
+      if (event.metadata.event.parentId === id)
+        resolve(event.data)
+    })
+
+    try {
+      this.sendOrThrow({ type: 'asset:get:request', data: { ref }, metadata: { event: { id } } } as WebSocketEventOptionalSource<C>)
+      const answer = await promise
+      if ('error' in answer)
+        throw new Error(answer.error)
+      return { mimeType: answer.mimeType, data: decodeBase64(answer.data) }
+    }
+    finally {
+      clearTimeout(timer)
+      stop()
     }
   }
 

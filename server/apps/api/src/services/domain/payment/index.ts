@@ -3,23 +3,26 @@ import type { BillingService } from '../billing/billing-service'
 import type {
   BindProcessorOrderInput,
   ClaimReceipt,
+  EvidenceReceipt,
   OpenPendingInput,
   PendingPaymentOrder,
+  Receipt,
   SettleResult,
 } from './types'
 
 import { useLogger } from '@guiiai/logg'
+import { createInternalError } from '@proj-airi/http-error-shared'
 import { and, eq, isNull } from 'drizzle-orm'
-
-import { createInternalError } from '../../../utils/error'
 
 import * as schema from '../../../schemas/payment'
 
 export type {
   BindProcessorOrderInput,
   ClaimReceipt,
+  EvidenceReceipt,
   OpenPendingInput,
   PendingPaymentOrder,
+  Receipt,
   SettleResult,
 } from './types'
 
@@ -37,6 +40,11 @@ const logger = useLogger('payment')
  *
  * Stripe `POST /webhook` (after signature verify)
  * -> Stripe adapter maps session to {@link ClaimReceipt}
+ * -> {@link createPaymentService} `settle`
+ * -> {@link BillingService.creditFlux}
+ *
+ * Apple `POST /transactions` (after JWS verify)
+ * -> channel maps transaction to {@link EvidenceReceipt}
  * -> {@link createPaymentService} `settle`
  * -> {@link BillingService.creditFlux}
  */
@@ -177,7 +185,68 @@ export function createPaymentService(db: Database, billing: BillingService) {
     })
 
     if (result.applied) {
-      await billing.syncFluxCache(result.userId, result.balanceAfter, {
+      await billing.syncFluxCache(result.userId, {
+        amount: result.fluxAmount,
+        source: 'payment.pack',
+      })
+    }
+
+    return result
+  }
+
+  async function claimEvidenceOrder(receipt: EvidenceReceipt): Promise<SettleResult> {
+    const [existing] = await db
+      .select({ id: schema.paymentOrder.id })
+      .from(schema.paymentOrder)
+      .where(and(
+        eq(schema.paymentOrder.processor, receipt.processor),
+        eq(schema.paymentOrder.processorOrderId, receipt.processorOrderId),
+      ))
+      .limit(1)
+
+    if (existing)
+      return { applied: false }
+
+    const result = await db.transaction(async (tx) => {
+      const [inserted] = await tx.insert(schema.paymentOrder).values({
+        userId: receipt.userId,
+        processor: receipt.processor,
+        processorOrderId: receipt.processorOrderId,
+        status: 'paid',
+        packKey: receipt.packKey,
+        fluxAmount: receipt.fluxAmount,
+        amount: receipt.amount,
+        currency: receipt.currency,
+        creditedAt: new Date(),
+        processorData: receipt.extras,
+      }).onConflictDoNothing().returning()
+
+      if (!inserted)
+        return { applied: false as const }
+
+      const credit = await billing.creditFlux({
+        userId: receipt.userId,
+        amount: receipt.fluxAmount,
+        requestId: inserted.id,
+        description: `Flux pack ${receipt.packKey}`,
+        source: 'payment.pack',
+        tx,
+      })
+
+      if (receipt.customerId) {
+        await insertPaymentCustomerIfAbsent(tx, receipt.userId, receipt.processor, receipt.customerId)
+      }
+
+      return {
+        applied: true as const,
+        userId: receipt.userId,
+        fluxAmount: receipt.fluxAmount,
+        balanceAfter: credit.balanceAfter,
+      }
+    })
+
+    if (result.applied) {
+      await billing.syncFluxCache(result.userId, {
         amount: result.fluxAmount,
         source: 'payment.pack',
       })
@@ -240,8 +309,17 @@ export function createPaymentService(db: Database, billing: BillingService) {
         ))
     },
 
-    async settle(receipt: ClaimReceipt): Promise<SettleResult> {
-      return claimExistingOrder(receipt)
+    async settle(receipt: Receipt): Promise<SettleResult> {
+      switch (receipt.kind) {
+        case 'claim':
+          return claimExistingOrder(receipt)
+        case 'evidence':
+          return claimEvidenceOrder(receipt)
+        default: {
+          const exhaustive: never = receipt
+          throw createInternalError(`Unhandled payment receipt: ${String(exhaustive)}`)
+        }
+      }
     },
 
     /**

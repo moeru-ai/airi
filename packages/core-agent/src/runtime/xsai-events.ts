@@ -15,6 +15,8 @@ export function toAiriStreamEvent(event: Event): StreamEvent | null {
       return { type: 'text-delta', text: event.delta }
     case 'reasoning.delta':
       return { type: 'reasoning-delta', text: event.delta }
+    case 'tool-call.start':
+      return { type: 'tool-call-start', toolCallId: event.toolCallId, toolName: event.toolName }
     case 'tool-call.done':
       return { ...event, type: 'tool-call' }
     case 'tool-result.done':
@@ -38,7 +40,6 @@ export function toAiriStreamEvent(event: Event): StreamEvent | null {
     case 'reasoning.done':
     case 'step.start':
     case 'step.done':
-    case 'tool-call.start':
     case 'tool-call.delta':
       return null
   }
