@@ -26,7 +26,7 @@ interface GoogleGeminiSpeechProviderConfig {
 }
 
 const providerId = 'google-gemini-audio-speech'
-const defaultModel = 'gemini-2.5-flash-preview-tts'
+const defaultModel = 'gemini-3.8-flash-tts'
 
 const config = computed(() => providers.value[providerId] as GoogleGeminiSpeechProviderConfig | undefined)
 
@@ -60,6 +60,8 @@ const temperature = computed({
     ensureProviderConfig().temperature = value
   },
 })
+
+const supportsTemperature = computed(() => !model.value.startsWith('gemini-3.8'))
 
 const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
 
@@ -114,6 +116,7 @@ const {
         placeholder="Select a Gemini model..."
       />
       <FieldRange
+        v-if="supportsTemperature"
         v-model="temperature"
         label="Temperature"
         description="Controls randomness in speech generation. Lower values make speech more predictable, higher values make it more creative."

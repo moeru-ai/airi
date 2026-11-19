@@ -181,6 +181,7 @@ const {
   sceneTransactionDepth,
 
   lastCommittedModelId,
+  savedViewModelId,
   modelSize,
   modelOrigin,
   modelOffset,
@@ -466,7 +467,13 @@ function applySceneBootstrap(value: SceneBootstrap) {
   modelSize.value = { ...value.modelSize }
   eyeHeight.value = value.eyeHeight
 
-  if (reason === 'initial-load' || reason === 'unknown' || reason === 'no-model' || reason === 'model-switch') {
+  // Each model stores its own view. A model that has one keeps it when it comes back.
+  const sceneModelId = requestedModelIdentity.value?.modelId ?? props.modelId ?? ''
+  const hasSavedView = !!sceneModelId && savedViewModelId.value === sceneModelId
+  savedViewModelId.value = sceneModelId
+
+  const startsNewView = reason === 'initial-load' || reason === 'unknown' || reason === 'no-model' || reason === 'model-switch'
+  if (startsNewView && !hasSavedView) {
     modelOffset.value = { ...value.modelOffset }
     cameraDistance.value = value.cameraDistance
     cameraPosition.value = { ...value.cameraPosition }

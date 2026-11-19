@@ -1,6 +1,7 @@
 import type { CloudDisplayModel } from '../services/display-model-sync'
 
 import { errorMessageFrom } from '@moeru/std'
+import { removeDisplayModelSettings } from '@proj-airi/stage-shared/composables'
 import { createEventHook, until } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { defineStore, getActivePinia } from 'pinia'
@@ -295,8 +296,11 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
   async function removeDisplayModel(id: string) {
     const record = await displayModelsRepo.get(id)
     await removeLocalCopy(id)
-    if (!isKeptByAccount(record ?? { id }))
+    if (!isKeptByAccount(record ?? { id })) {
+      // A model that stays in the account can come back to this device, so its settings stay.
+      removeDisplayModelSettings(id)
       await displayModelsDeleted.trigger([id])
+    }
   }
 
   async function resetDisplayModels() {
@@ -308,6 +312,8 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
 
     displayModels.value = [...displayModelsPresets].sort((a, b) => b.importedAt - a.importedAt)
     const deleted = userModels.filter(model => !isKeptByAccount(model)).map(model => model.id)
+    for (const id of deleted)
+      removeDisplayModelSettings(id)
     if (deleted.length > 0)
       await displayModelsDeleted.trigger(deleted)
   }

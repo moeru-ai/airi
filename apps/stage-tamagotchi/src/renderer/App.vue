@@ -131,6 +131,8 @@ const syncedPinia = usePiniaSynced()
 const isSpotlightWindow = initialRoutePath === '/spotlight'
 // The floating chat resizes from its own edges, which keep the edges beside the character in place.
 const isFloatingChatWindow = initialRoutePath === '/chat-floating'
+// The app menu window covers the work area, so its edges are the edges of the screen.
+const isControlsMenuWindow = initialRoutePath === '/controls-menu'
 // The fullscreen mode places the main window itself, so its edges offer no resize.
 const { active: mainWindowFullscreen } = storeToRefs(useFullscreenStore())
 // A window that hosts the fullscreen mode can load on a settings route, after a reload for example. So the windows
@@ -441,7 +443,7 @@ onUnmounted(() => {
   <ToasterRoot @close="id => toast.dismiss(id)">
     <Toaster />
   </ToasterRoot>
-  <ResizeHandler v-if="!isSpotlightWindow && !isFloatingChatWindow && !mainWindowFullscreen" />
+  <ResizeHandler v-if="!isSpotlightWindow && !isFloatingChatWindow && !isControlsMenuWindow && !mainWindowFullscreen" />
   <SettingsWindowFrame :enabled="!windowContext.fullscreenHost">
     <RouterView />
   </SettingsWindowFrame>
