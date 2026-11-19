@@ -102,6 +102,37 @@ describe('revenuecat subscription sync', () => {
     expect(synced).toEqual([null])
   })
 
+  it('syncs a promotional entitlement with the quota of its products', async () => {
+    const promotional = { ...goEntitlement, entitlementId: 'airi_plus', productId: null }
+    const { synced } = await reconcile([promotional])
+    expect(synced).toEqual([{ quota: 5000, periodStart: promotional.purchasedAt, expiresAt: future }])
+  })
+
+  it('selects a later promotional entitlement over a paid capacitor', async () => {
+    const { synced } = await reconcile([
+      goEntitlement,
+      { entitlementId: 'airi_plus', productId: null, purchasedAt: new Date('2026-10-20T00:00:00.000Z'), accessUntil: future },
+    ])
+    expect(synced).toMatchObject([{ quota: 5000 }])
+  })
+
+  it('syncs one quota when two products of the promotional entitlement share it', async () => {
+    const configKV = createConfigKV({ ...starterCapacitors, rc_go_web_monthly: { entitlementId: 'airi_go', quota: 2000 } })
+    const { synced } = await reconcile([{ ...goEntitlement, productId: null }], configKV)
+    expect(synced).toMatchObject([{ quota: 2000 }])
+  })
+
+  it('syncs no period when the products of the promotional entitlement have different quotas', async () => {
+    const configKV = createConfigKV({ ...starterCapacitors, rc_go_yearly: { entitlementId: 'airi_go', quota: 24000 } })
+    const { synced } = await reconcile([{ ...goEntitlement, productId: null }], configKV)
+    expect(synced).toEqual([null])
+  })
+
+  it('syncs no period when no product grants the promotional entitlement', async () => {
+    const { synced } = await reconcile([{ ...goEntitlement, entitlementId: 'other', productId: null }])
+    expect(synced).toEqual([null])
+  })
+
   it('leaves the wallet as it is when the capacitor map is empty', async () => {
     const { synced, fetchEntitlements } = await reconcile([goEntitlement], createConfigKV({}))
     expect(synced).toEqual([])

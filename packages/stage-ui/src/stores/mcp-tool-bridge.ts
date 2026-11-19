@@ -1,3 +1,5 @@
+import type { McpDispatchOutcome } from '../tools/mcp'
+
 /**
  * Minimal bridge interface for calling MCP tools from the desktop overlay
  * renderer without a direct dependency on the MCP server runtime.
@@ -24,6 +26,7 @@ export interface McpCallToolResult {
   structuredContent?: Record<string, unknown>
   toolResult?: unknown
   isError?: boolean
+  dispatchOutcome?: McpDispatchOutcome
 }
 
 interface McpToolBridge {

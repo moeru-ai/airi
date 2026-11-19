@@ -7,6 +7,7 @@ import { initializeAnalytics, isAnalyticsAvailableInBuild } from '@proj-airi/sta
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
+import { useDevicePermissionsStore } from '@proj-airi/stage-ui/stores/device-permissions'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
@@ -30,6 +31,7 @@ import { toast, Toaster } from 'vue-sonner'
 
 import PerformanceOverlay from './components/Devtools/PerformanceOverlay.vue'
 
+import { useDevicePermissions } from './composables/device-permissions'
 import { usePWAStore } from './stores/pwa'
 
 usePWAStore()
@@ -43,6 +45,8 @@ const displayModelsStore = useDisplayModelsStore()
 const settingsStore = useSettings()
 const settings = storeToRefs(settingsStore)
 const onboardingStore = useOnboardingStore()
+// The onboarding reads the permissions of the host, so they register before it decides whether to show.
+useDevicePermissionsStore().register(useDevicePermissions())
 const chatStore = useChatStore()
 const syncedPinia = usePiniaSynced()
 const serverChannelStore = useModsServerChannelStore()
@@ -90,26 +94,13 @@ watch(showingSetup, (visible) => {
     startupOnboarding.value = false
 })
 
-const primaryColor = computed(() => {
-  return isDark.value
-    ? `color-mix(in srgb, oklch(95% var(--chromatic-chroma-900) calc(var(--chromatic-hue) + ${0})) 70%, oklch(50% 0 360))`
-    : `color-mix(in srgb, oklch(95% var(--chromatic-chroma-900) calc(var(--chromatic-hue) + ${0})) 90%, oklch(90% 0 360))`
-})
-
-const secondaryColor = computed(() => {
-  return isDark.value
-    ? `color-mix(in srgb, oklch(95% var(--chromatic-chroma-900) calc(var(--chromatic-hue) + ${180})) 70%, oklch(50% 0 360))`
-    : `color-mix(in srgb, oklch(95% var(--chromatic-chroma-900) calc(var(--chromatic-hue) + ${180})) 90%, oklch(90% 0 360))`
-})
-
-const tertiaryColor = computed(() => {
-  return isDark.value
-    ? `color-mix(in srgb, oklch(95% var(--chromatic-chroma-900) calc(var(--chromatic-hue) + ${60})) 70%, oklch(50% 0 360))`
-    : `color-mix(in srgb, oklch(95% var(--chromatic-chroma-900) calc(var(--chromatic-hue) + ${60})) 90%, oklch(90% 0 360))`
-})
+// Defined in `styles/main.css`, so they follow the theme hue (including `dynamic-hue`) and dark mode.
+const primaryColor = 'var(--stage-transition-primary)'
+const secondaryColor = 'var(--stage-transition-secondary)'
+const tertiaryColor = 'var(--stage-transition-tertiary)'
 
 const colors = computed(() => {
-  return [primaryColor.value, secondaryColor.value, tertiaryColor.value, isDark.value ? '#121212' : '#FFFFFF']
+  return [primaryColor, secondaryColor, tertiaryColor, isDark.value ? '#121212' : '#FFFFFF']
 })
 
 router.beforeEach((to, from) => {
@@ -136,6 +127,7 @@ const onboardingExtraSteps = computed(() => {
 
 watch(settings.language, () => {
   i18n.locale.value = settings.language.value
+  document.documentElement.lang = i18n.locale.value
 })
 
 watch(settings.themeColorsHue, () => {
@@ -200,7 +192,10 @@ function continueWithoutModel() {
   startup.skip('model')
 }
 
+const startupFinished = ref(false)
+
 function openOnboardingAfterStartup() {
+  startupFinished.value = true
   if (router.currentRoute.value.meta.onboarding === false)
     return
 
@@ -209,6 +204,13 @@ function openOnboardingAfterStartup() {
     onboardingStore.showingSetup = true
   }
 }
+
+// Sign-in leaves the page and returns on the callback route, which shows no onboarding. The steps that sign-in
+// does not finish, for example permissions, open when the callback goes on to the stage.
+watch(() => router.currentRoute.value.meta.onboarding, (onboarding, previous) => {
+  if (startupFinished.value && previous === false && onboarding !== false)
+    openOnboardingAfterStartup()
+})
 </script>
 
 <template>
@@ -249,8 +251,7 @@ function openOnboardingAfterStartup() {
       :scale-background="false"
       :instant-open="startupOnboarding"
       :extra-steps="onboardingExtraSteps"
-      @configured="onboardingStore.markSetupCompleted()"
-      @skipped="onboardingStore.markSetupSkipped()"
+      @configured="showingSetup = false"
     />
 
     <PerformanceOverlay />

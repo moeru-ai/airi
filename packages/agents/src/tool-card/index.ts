@@ -11,7 +11,7 @@ import type { GenerateText } from '../generate-text'
 export const TOOL_CARD_INSTRUCTIONS = [
   'You design a card that shows the result of one tool call in a chat app.',
   'The app saves the card and shows every later result of the same tool with it, so the card must work for other results of the same shape.',
-  'You cannot call tools. The user message gives the result of one call as a sample. A result can be an object, a list, or text.',
+  'You cannot call the tool of the card. The user message gives the result of one call as a sample. A result can be an object, a list, or text.',
   'Read the result with exactly one Query, for example `data = Query("tool_name", {}, {items: []})`. The app answers that Query with the result of each call.',
   'Read every value from the Query. Never copy values of the sample into the program.',
   'Do not use Mutation, forms, or $variables.',
@@ -96,6 +96,8 @@ export interface ToolCardAgentOptions {
    * The model reads each problem in the fix round, so a problem names the statement and the fix.
    */
   validate: (program: string) => string[] | Promise<string[]>
+  /** Tools that the model can use while it writes, for example an icon search. */
+  tools?: Parameters<GenerateText>[2]
 }
 
 /**
@@ -112,7 +114,7 @@ export interface ToolCardAgentOptions {
 export function createToolCardAgent(options: ToolCardAgentOptions) {
   async function make(request: ToolCardRequest, signal: AbortSignal): Promise<ToolCard> {
     const conversation = createToolCardConversation(request)
-    const reply = await options.generateText(conversation, signal)
+    const reply = await options.generateText(conversation, signal, options.tools)
     const card = readToolCardReply(reply)
     const problems = await options.validate(card.program)
     if (problems.length === 0)
@@ -129,7 +131,7 @@ export function createToolCardAgent(options: ToolCardAgentOptions) {
     const fixed = readToolCardReply(await options.generateText({ turns: [
       ...conversation.turns,
       { id: 'tool-card-fix', type: 'user', content: [{ type: 'text', text: fix }] },
-    ] }, signal))
+    ] }, signal, options.tools))
     const remaining = await options.validate(fixed.program)
     if (remaining.length > 0)
       throw new Error(`The card program still has problems: ${remaining.join('; ')}`)

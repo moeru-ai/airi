@@ -293,7 +293,7 @@ describe('revenuecat routes', () => {
 
       expect(res.status).toBe(200)
       expect(await readWallet('user-1')).toMatchObject({ capacitorFlux: 2000 })
-      expect(await readStreamFields(redis, 'airi:account-events')).toEqual([{
+      expect(await readStreamFields(redis, 'account-events')).toEqual([{
         id: 'revenuecat:renewal-1',
         type: 'subscription.renewed',
         version: '1',
@@ -308,7 +308,7 @@ describe('revenuecat routes', () => {
       const res = await postWebhook(app, webhookBody(billingIssue))
 
       expect(res.status).toBe(200)
-      expect(await readStreamFields(redis, 'airi:account-events')).toEqual([{
+      expect(await readStreamFields(redis, 'account-events')).toEqual([{
         id: 'revenuecat:billing-issue-1',
         type: 'subscription.payment_failed',
         version: '1',
@@ -329,7 +329,7 @@ describe('revenuecat routes', () => {
       const retried = await postWebhook(app, webhookBody(renewal))
       expect(retried.status).toBe(200)
       expect(await readWallet('user-1')).toMatchObject({ capacitorFlux: 2000, capacitorQuota: 2000 })
-      expect((await readStreamFields(redis, 'airi:account-events')).map(event => event.id)).toEqual(['revenuecat:renewal-1'])
+      expect((await readStreamFields(redis, 'account-events')).map(event => event.id)).toEqual(['revenuecat:renewal-1'])
     })
 
     it('returns 500 when the BILLING_ISSUE publish fails', async () => {
@@ -348,7 +348,7 @@ describe('revenuecat routes', () => {
       const res = await postWebhook(app, webhookBody())
 
       expect(res.status).toBe(200)
-      expect(await readStreamFields(redis, 'airi:account-events')).toEqual([])
+      expect(await readStreamFields(redis, 'account-events')).toEqual([])
     })
 
     it('publishes nothing for a sandbox renewal of a production user', async () => {
@@ -357,7 +357,7 @@ describe('revenuecat routes', () => {
       const res = await postWebhook(app, webhookBody({ ...renewal, environment: 'SANDBOX' }))
 
       expect(res.status).toBe(200)
-      expect(await readStreamFields(redis, 'airi:account-events')).toEqual([])
+      expect(await readStreamFields(redis, 'account-events')).toEqual([])
     })
 
     it('publishes a sandbox renewal of a listed test account', async () => {
@@ -366,7 +366,7 @@ describe('revenuecat routes', () => {
       const res = await postWebhook(app, webhookBody({ ...renewal, app_user_id: 'tester', environment: 'SANDBOX' }))
 
       expect(res.status).toBe(200)
-      expect((await readStreamFields(redis, 'airi:account-events')).map(event => event.payload)).toEqual(['{"userId":"tester","plan":"rc_go_monthly","periodEnd":"2026-11-18T00:00:00.000Z"}'])
+      expect((await readStreamFields(redis, 'account-events')).map(event => event.payload)).toEqual(['{"userId":"tester","plan":"rc_go_monthly","periodEnd":"2026-11-18T00:00:00.000Z"}'])
     })
 
     it('rejects a RENEWAL without its period end before the reconciliation', async () => {
@@ -377,7 +377,7 @@ describe('revenuecat routes', () => {
 
       expect(res.status).toBe(400)
       expect(fetchEntitlements).not.toHaveBeenCalled()
-      expect(await readStreamFields(redis, 'airi:account-events')).toEqual([])
+      expect(await readStreamFields(redis, 'account-events')).toEqual([])
     })
   })
 

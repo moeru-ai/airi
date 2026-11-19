@@ -74,9 +74,6 @@ export function createGeneration<Native extends ProviderContinuation>(input: {
       const output = final.slice(start, starts[index + 1] ?? final.length)
       recordRound(turn, input.continuation(output, index), step, models[index] ?? input.model, input.roundOffset ?? 0, input.project)
     }
-    const lastStep = completedSteps.at(-1)
-    if ((lastStep?.finishReason === 'tool-calls' || lastStep?.finishReason === 'tool_calls') && lastStep.toolCalls.length > 0 && lastStep.toolResults.length === 0)
-      throw new Error('Generation tool step limit reached')
     return turn
   }
 

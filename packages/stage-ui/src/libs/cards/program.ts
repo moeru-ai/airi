@@ -1,11 +1,12 @@
 import type { ElementNode, OpenUIError, ParseResult } from '@openuidev/lang-core'
 import type { VNodeChild } from 'vue'
 
-import { getIconData } from '@iconify/utils'
 import { errorMessageFrom } from '@moeru/std'
 import { createParser, createStore, evaluate, evaluateElementProps } from '@openuidev/lang-core'
 
-import { cardLibrary, drawCard, isPartNode, loadCardIcons, partProblem } from './catalog'
+import { SEARCH_ICONS_TOOL_NAME } from '../../tools/search-icons'
+import { hasTablerIcon } from '../tabler-icons'
+import { cardLibrary, drawCard, isPartNode, partProblem } from './catalog'
 
 const programParser = createParser(cardLibrary.toJSONSchema(), 'Card')
 /** A tool name in a Query is a string literal, so it evaluates without state or references. */
@@ -94,12 +95,11 @@ export async function problemsOfProgram(program: string, query?: { key: string, 
   if (parsed.mutationStatements.length > 0)
     problems.push('Remove every Mutation. A card only shows a result.')
 
-  // A part draws nothing for an icon that MingCute does not have. The model can still fix the name now.
-  const icons = await loadCardIcons()
+  // A part draws nothing for an icon that Tabler does not have. The model can still fix the name now.
   for (const part of partsOf(root)) {
     const icon = part.props.icon
-    if (typeof icon === 'string' && icon && !getIconData(icons, icon))
-      problems.push(`"${icon}" is not a MingCute icon name. Use a MingCute name such as "github-line", or leave the icon out.`)
+    if (typeof icon === 'string' && icon && !await hasTablerIcon(icon))
+      problems.push(`"${icon}" is not a Tabler icon name. Find one with \`${SEARCH_ICONS_TOOL_NAME}\`, or leave the icon out.`)
   }
   return problems
 }

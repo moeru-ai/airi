@@ -23,11 +23,8 @@ function createHarness(options: Partial<Pick<ChatOrchestratorRuntimeDeps, 'getSy
   })
   const runtime = createChatOrchestratorRuntime({
     session: {
-      ensureSession: (sessionId) => {
-        messages[sessionId] ??= []
-      },
       getSessionMessages: sessionId => messages[sessionId] ?? [],
-      appendSessionMessage: (sessionId, message) => {
+      commitAssistantMessage: async (sessionId, message) => {
         (messages[sessionId] ??= []).push(message)
       },
       commitUserMessage: async (sessionId, message) => {

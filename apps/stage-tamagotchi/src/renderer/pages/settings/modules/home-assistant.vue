@@ -6,6 +6,7 @@ import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { HomeAssistantEntityTile } from '@proj-airi/stage-ui/components/scenarios/home-assistant'
 import { useHomeAssistantStateLabel } from '@proj-airi/stage-ui/composables/use-home-assistant-state-label'
+import { useSettingsSearchTarget } from '@proj-airi/stage-ui/composables/use-settings-search'
 import { domainLabel, summarizeDomains, summarizeEntities } from '@proj-airi/stage-ui/libs/home-assistant/presentation'
 import { useHomeAssistantStore } from '@proj-airi/stage-ui/stores/modules/home-assistant'
 import { Button, FieldCheckbox, FieldInput, GhostButton, Input, Radio, ScrollableArea, SettingsCard } from '@proj-airi/ui'
@@ -15,6 +16,7 @@ import { useI18n } from 'vue-i18n'
 
 import { homeAssistantConfigRejections, homeAssistantGetConfig, homeAssistantSetConfig } from '../../../../shared/eventa/home-assistant'
 import { useTamagotchiHomeAssistantStore } from '../../../stores/tools/home-assistant'
+import { homeAssistantEntityOfSearchKey, homeAssistantEntitySearchKey } from './home-assistant.search'
 
 const { t } = useI18n()
 /**
@@ -117,6 +119,16 @@ const visibleEntities = computed(() => {
       || entity.name.toLowerCase().includes(query)
       || entity.entityId.toLowerCase().includes(query))
 })
+
+// A search result names one device. The grid mounts only a batch of the rows, so it filters to that device first.
+const searchTarget = useSettingsSearchTarget()
+watch(() => searchTarget.value.keys, (keys) => {
+  const entityId = keys.map(homeAssistantEntityOfSearchKey).find(id => id !== undefined)
+  if (!entityId)
+    return
+  activeDomain.value = null
+  entityQuery.value = entityId
+}, { immediate: true })
 
 const allVisibleSelected = computed(() =>
   visibleEntities.value.length > 0 && visibleEntities.value.every(entity => selectedIds.value.has(entity.entityId)))
@@ -666,6 +678,7 @@ watch(exposureMode, async (mode) => {
               <HomeAssistantEntityTile
                 v-for="entity in mountedEntities"
                 :key="entity.entityId"
+                :data-settings-search="homeAssistantEntitySearchKey(entity.entityId)"
                 :entity="entity"
                 :selected="selectedIds.has(entity.entityId)"
                 :state-label="stateLabel(entity.domain, entity.state)"

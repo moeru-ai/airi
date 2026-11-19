@@ -2,12 +2,13 @@ import type { AboutBuildInfo } from '../../components/scenarios/about/types'
 
 import { isEnvTruthy } from '@proj-airi/stage-shared'
 
-export interface AnalyticsIdentitySnapshot {
-  /** Current provider distinct id for the browser, device, or user. */
-  distinctId: string
-  /** Current provider session id, when one exists. */
-  sessionId?: string
-}
+/**
+ * Request headers that carry the current analytics identity of each provider to the API.
+ *
+ * The API reads them at checkout and forwards each id to the server sink of the same
+ * provider, so the payment joins the browser visit. Each provider owns its header names.
+ */
+export type AnalyticsIdentityHeaders = Readonly<Record<string, string>>
 
 /** Provider-neutral delivery options for one product event. */
 export interface AnalyticsCaptureOptions {
@@ -18,7 +19,8 @@ export interface AnalyticsCaptureOptions {
 /** Provider contract behind the product analytics facade. */
 export interface AnalyticsAdapter {
   capture: (name: string, properties: object, options?: AnalyticsCaptureOptions) => boolean
-  getIdentitySnapshot: () => AnalyticsIdentitySnapshot | null
+  /** Returns the identity headers of this provider, or `null` while capture is off. */
+  getIdentityHeaders: () => AnalyticsIdentityHeaders | null
   identify: (userId: string) => void
   registerBuildInfo: (buildInfo: AboutBuildInfo) => void
   resetIdentity: () => void
@@ -68,15 +70,15 @@ export class AnalyticsClient {
 
   syncCapture(enabled: boolean): boolean {
     this.captureEnabled = enabled
-    if (enabled)
-      return this.ensureInitialized(true)
-
     if (this.adapter)
-      this.adapter.setCaptureEnabled(false)
-    else if (this.loadState === 'loading')
-      this.enqueue({ kind: 'set-capture-enabled', enabled: false })
+      return this.adapter.setCaptureEnabled(enabled)
 
-    return false
+    if (this.loadState === 'loading') {
+      this.enqueue({ kind: 'set-capture-enabled', enabled })
+      return enabled
+    }
+
+    return enabled && this.ensureInitialized(true)
   }
 
   registerBuildInfo(buildInfo: AboutBuildInfo): void {
@@ -100,8 +102,8 @@ export class AnalyticsClient {
       this.enqueue({ kind: 'reset-identity' })
   }
 
-  getIdentitySnapshot(): AnalyticsIdentitySnapshot | null {
-    return this.adapter?.getIdentitySnapshot() ?? null
+  getIdentityHeaders(): AnalyticsIdentityHeaders | null {
+    return this.adapter?.getIdentityHeaders() ?? null
   }
 
   capture(name: string, properties: object, options?: AnalyticsCaptureOptions): boolean {
@@ -201,8 +203,8 @@ export function disableAnalyticsCapture(): void {
   analyticsClient.syncCapture(false)
 }
 
-export function getAnalyticsIdentitySnapshot(): AnalyticsIdentitySnapshot | null {
-  return analyticsClient.getIdentitySnapshot()
+export function getAnalyticsIdentityHeaders(): AnalyticsIdentityHeaders | null {
+  return analyticsClient.getIdentityHeaders()
 }
 
 export function identifyAnalyticsUser(userId: string): void {

@@ -3,6 +3,15 @@ import type { InjectionKey } from 'vue'
 
 import { inject } from 'vue'
 
+/**
+ * Roles that a Stage context claims in the synchronization runtime.
+ * A synced action that lists a role runs in a context that holds it.
+ */
+export const syncedRoles = {
+  /** The context mounts a Stage, so it plays chat replies and registers the chat hooks that speak them. */
+  speechPlayer: 'speech-player',
+} as const
+
 /** Shares the installed runtime without importing its transport and election implementation. */
 export const injectKeyPiniaSynced: InjectionKey<SyncedPiniaRuntime> = Symbol('stage-synced-pinia-runtime')
 

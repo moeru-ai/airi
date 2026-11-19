@@ -49,6 +49,34 @@ internal sealed record SpotlightShortcutRegistrationResultPayload(
     string? Reason,
     SpotlightAcceleratorPayload? ActualAccelerator);
 
+/// <summary>
+/// Localized tray menu labels. The main renderer owns AIRI translations and sends them to Godot.
+/// </summary>
+internal sealed record TrayLabelsPayload(
+    string Show,
+    string AdjustSizes,
+    string RecommendedSize,
+    string FullHeight,
+    string HalfHeight,
+    string FullScreen,
+    string AlignTo,
+    string Center,
+    string TopLeft,
+    string TopRight,
+    string BottomLeft,
+    string BottomRight,
+    string Settings,
+    string About,
+    string OpenInlay,
+    string OpenWidgets,
+    string OpenCaption,
+    string CaptionOverlay,
+    string FollowWindow,
+    string ResetPosition,
+    string Devtools,
+    string TroubleshootBeatSync,
+    string Quit);
+
 internal static class AiriDesktopEvents
 {
     public static readonly InvokeEventDefinition<EmptyPayload, EmptyPayload> OpenOnboarding =
@@ -156,6 +184,9 @@ internal static class AiriDesktopEvents
 
     public static readonly EventDefinition<SpotlightAcceleratorPayload> SpotlightShortcutChanged =
         new("eventa:event:airi:windows:spotlight:shortcut-changed");
+
+    public static readonly InvokeEventDefinition<EmptyPayload, TrayLabelsPayload> SetTrayLabels =
+        new("eventa:invoke:airi:tray:labels:set");
 }
 
 internal static class AiriDesktopContracts
@@ -281,7 +312,11 @@ internal static class AiriDesktopContracts
                 AiriDesktopJsonContext.Default.SpotlightShortcutSetPayload)
             .RegisterEvent(
                 AiriDesktopEvents.SpotlightShortcutChanged,
-                AiriDesktopJsonContext.Default.SpotlightAcceleratorPayload);
+                AiriDesktopJsonContext.Default.SpotlightAcceleratorPayload)
+            .RegisterInvoke(
+                AiriDesktopEvents.SetTrayLabels,
+                AiriDesktopJsonContext.Default.EmptyPayload,
+                AiriDesktopJsonContext.Default.TrayLabelsPayload);
     }
 }
 
@@ -308,4 +343,5 @@ internal static class AiriDesktopContracts
 [JsonSerializable(typeof(SpotlightAcceleratorPayload))]
 [JsonSerializable(typeof(SpotlightShortcutSetPayload))]
 [JsonSerializable(typeof(SpotlightShortcutRegistrationResultPayload))]
+[JsonSerializable(typeof(TrayLabelsPayload))]
 internal sealed partial class AiriDesktopJsonContext : JsonSerializerContext;

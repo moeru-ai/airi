@@ -1,25 +1,10 @@
 import type { Tool } from '@xsai/shared-chat'
 
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createPinia, disposePinia, setActivePinia } from 'pinia'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { useWebSearchStore } from '../../modules/web-search'
 import { resolveLlmTools, toolNameFrom } from './tool-resolver'
-
-// The default (non-injected) web-search branch reads the module store and the
-// tools barrel; mock both so the configured-gate + key-trim logic can be
-// exercised without real Pinia state or a live Tavily factory.
-const { createWebSearchToolsMock, useWebSearchStoreMock } = vi.hoisted(() => ({
-  createWebSearchToolsMock: vi.fn(),
-  useWebSearchStoreMock: vi.fn(),
-}))
-
-vi.mock('../../../tools', async (importOriginal) => {
-  const actual = await importOriginal() as Record<string, unknown>
-  return { ...actual, createWebSearchTools: createWebSearchToolsMock }
-})
-
-vi.mock('../../modules/web-search', () => ({
-  useWebSearchStore: useWebSearchStoreMock,
-}))
 
 // The default (non-injected) spark-command branch reads the channel store. Mock
 // it so the test observes the exact event the tool hands to the socket, without
@@ -151,45 +136,52 @@ describe('resolveLlmTools', () => {
   })
 
   describe('default web-search branch (module store gate)', () => {
+    let pinia: ReturnType<typeof createPinia>
+
     beforeEach(() => {
-      createWebSearchToolsMock.mockReset()
-      useWebSearchStoreMock.mockReset()
+      pinia = createPinia()
+      setActivePinia(pinia)
     })
 
-    it('omits web_search when the web-search module is not configured', async () => {
-      useWebSearchStoreMock.mockReturnValue({ configured: false, apiKey: '' })
-      const builtInTool = createTool('built_in_tool')
+    afterEach(() => {
+      disposePinia(pinia)
+      vi.unstubAllGlobals()
+    })
 
-      // webSearchTools is intentionally omitted so resolveWebSearchTools falls
-      // through to the module store instead of the injected source.
+    it('omits web_search when the selected service is not configured', async () => {
+      const store = useWebSearchStore()
+      store.enabled = true
+      store.apiKey = 'tavily-key'
+      store.provider = 'deepseek'
+      const builtInTool = createTool('built_in_tool')
       const tools = await resolveLlmTools({
         builtInTools: [builtInTool],
         debugTools: [],
         sparkCommandTools: [],
         activeTools: [],
       })
-
       expect(descriptionsOf(tools)).toEqual(descriptionsOf([builtInTool]))
-      expect(createWebSearchToolsMock).not.toHaveBeenCalled()
     })
 
-    it('mounts web_search with a trimmed key when the module is configured', async () => {
-      const webSearchTool = createTool('web_search')
-      createWebSearchToolsMock.mockResolvedValue([webSearchTool])
-      // A key pasted with surrounding whitespace still reads as configured, so
-      // the resolver must trim it before handing it to the factory.
-      useWebSearchStoreMock.mockReturnValue({ configured: true, apiKey: '  tvly-key\n' })
-      const builtInTool = createTool('built_in_tool')
-
+    it.each(['tavily', 'deepseek'] as const)('uses the trimmed key of %s through the resolved tool', async (provider) => {
+      const store = useWebSearchStore()
+      store.enabled = true
+      store.apiKey = '  tavily-key\n'
+      store.deepSeekApiKey = '  deepseek-key\n'
+      store.provider = provider
+      const request = vi.fn<typeof fetch>(async () => Response.json({ results: [] }))
+      vi.stubGlobal('fetch', request)
       const tools = await resolveLlmTools({
-        builtInTools: [builtInTool],
+        builtInTools: [],
         debugTools: [],
         sparkCommandTools: [],
         activeTools: [],
       })
-
-      expect(createWebSearchToolsMock).toHaveBeenCalledWith({ apiKey: 'tvly-key' })
-      expect(descriptionsOf(tools)).toEqual(descriptionsOf([builtInTool, webSearchTool]))
+      expect(tools.map(toolNameFrom)).toEqual(['web_search'])
+      await tools[0]!.execute({ query: 'news', max_results: null, call_summary: 'Search news', call_icon: ['search'] }, { messages: [], toolCallId: 'search' })
+      expect(request).toHaveBeenCalledTimes(1)
+      expect(request.mock.calls[0]![0]).toBe(provider === 'deepseek' ? 'https://api.deepseek.com/v1/tools/search' : 'https://api.tavily.com/search')
+      expect(request.mock.calls[0]![1]?.headers).toMatchObject({ authorization: `Bearer ${provider}-key` })
     })
   })
 

@@ -11,18 +11,22 @@ interface GeocodingResult {
 }
 
 interface OpenMeteoWeather {
+  timezone: string
   current: {
     temperature_2m: number
     relative_humidity_2m: number
     apparent_temperature: number
     weather_code: number
     wind_speed_10m: number
-    precipitation: number
     is_day: number
   }
-  daily?: {
+  daily: {
+    time: string[]
+    weather_code: number[]
     temperature_2m_max: number[]
     temperature_2m_min: number[]
+    precipitation_probability_max: Array<number | null>
+    wind_speed_10m_max: number[]
   }
 }
 
@@ -60,20 +64,42 @@ const wmoCodeToCondition: Record<number, { conditionCode: string, condition: str
   99: { conditionCode: 'thunderstorm', condition: 'Thunderstorm with heavy hail' },
 }
 
-export interface WeatherData {
-  city: string
-  country: string
+/**
+ * The fields that the weather widget shows for one moment or one day.
+ *
+ * The tool result uses the prop names of `widgets/weather/components/Weather.vue`, so the model can pass one entry
+ * to `stage_widgets` as it is. `precipitation` is a chance, because the widget labels it "Chance of rain".
+ */
+export interface WeatherView {
+  /** What the widget shows above the city, for example `Now`, `Today`, `Tomorrow`, or a date. */
+  label: string
   temperature: string
   condition: string
   conditionCode: string
   isNight: boolean
-  feelsLike: string
-  humidity: string
-  wind: string
   precipitation: string
+  wind: string
   high?: string
   low?: string
+  feelsLike?: string
+  humidity?: string
 }
+
+/** One forecast day in the local calendar of the location. */
+export interface WeatherDay extends WeatherView {
+  /** `YYYY-MM-DD` in the time zone of the location. */
+  date: string
+}
+
+export interface WeatherReport {
+  location: { city: string, country: string, timezone: string }
+  current: WeatherView
+  /** Index 0 is today in the time zone of the location. */
+  daily: WeatherDay[]
+}
+
+/** The forecast range that the tool accepts, in days from today. */
+export const weatherForecastDays = { min: 1, max: 7 } as const
 
 export function mapWmoCode(code: number, isNight: boolean): { conditionCode: string, condition: string } {
   const mapped = wmoCodeToCondition[code] ?? { conditionCode: 'clear-day', condition: 'Unknown' }
@@ -108,15 +134,39 @@ export async function geocodeCity(city: string): Promise<{ name: string, latitud
   return { name: result.name, latitude: result.latitude, longitude: result.longitude, country: result.country }
 }
 
-export async function fetchWeather(city: string): Promise<WeatherData> {
+function formatTemperature(value: number) {
+  return `${Math.round(value)}°C`
+}
+
+function formatChance(value: number | null | undefined) {
+  return value == null ? '--' : `${value}%`
+}
+
+function dayLabel(index: number, date: string) {
+  if (index === 0)
+    return 'Today'
+  if (index === 1)
+    return 'Tomorrow'
+  return date
+}
+
+/**
+ * Reads the current weather and a daily forecast for a city.
+ *
+ * `timezone: auto` makes Open-Meteo split days in the time zone of the location. Without it, a day is a UTC day,
+ * so the high and low of "today" in Shanghai cover a range that starts at 08:00 local time.
+ */
+export async function fetchWeather(city: string, days: number): Promise<WeatherReport> {
   const geo = await geocodeCity(city)
+  const forecastDays = Math.min(Math.max(Math.round(days), weatherForecastDays.min), weatherForecastDays.max)
 
   const params = new URLSearchParams({
     latitude: String(geo.latitude),
     longitude: String(geo.longitude),
-    current: 'temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,precipitation,is_day',
-    daily: 'temperature_2m_max,temperature_2m_min',
-    forecast_days: '1',
+    timezone: 'auto',
+    current: 'temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,is_day',
+    daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max',
+    forecast_days: String(forecastDays),
   })
 
   const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`)
@@ -127,20 +177,38 @@ export async function fetchWeather(city: string): Promise<WeatherData> {
   const data: OpenMeteoWeather = await res.json()
   const current = data.current
   const isNight = current.is_day === 0
-  const { conditionCode, condition } = mapWmoCode(current.weather_code, isNight)
+  const daily = data.daily.time.map((date, index): WeatherDay => {
+    const high = formatTemperature(data.daily.temperature_2m_max[index])
+    const low = formatTemperature(data.daily.temperature_2m_min[index])
+    return {
+      date,
+      label: dayLabel(index, date),
+      // One unit for the range keeps the text on one line in the medium widget.
+      temperature: `${Math.round(data.daily.temperature_2m_min[index])}–${high}`,
+      ...mapWmoCode(data.daily.weather_code[index], false),
+      isNight: false,
+      precipitation: formatChance(data.daily.precipitation_probability_max[index]),
+      wind: `${Math.round(data.daily.wind_speed_10m_max[index])} km/h`,
+      high,
+      low,
+    }
+  })
 
   return {
-    city: geo.name,
-    country: geo.country,
-    temperature: `${Math.round(current.temperature_2m)}°C`,
-    condition,
-    conditionCode,
-    isNight,
-    feelsLike: `${Math.round(current.apparent_temperature)}°C`,
-    humidity: `${current.relative_humidity_2m}%`,
-    wind: `${Math.round(current.wind_speed_10m)} km/h`,
-    precipitation: `${current.precipitation} mm`,
-    high: data.daily ? `${Math.round(data.daily.temperature_2m_max[0])}°C` : undefined,
-    low: data.daily ? `${Math.round(data.daily.temperature_2m_min[0])}°C` : undefined,
+    location: { city: geo.name, country: geo.country, timezone: data.timezone },
+    current: {
+      label: 'Now',
+      temperature: formatTemperature(current.temperature_2m),
+      ...mapWmoCode(current.weather_code, isNight),
+      isNight,
+      // The current block has no chance of precipitation. The chance of today is the closest value.
+      precipitation: daily[0]?.precipitation ?? '--',
+      wind: `${Math.round(current.wind_speed_10m)} km/h`,
+      high: daily[0]?.high,
+      low: daily[0]?.low,
+      feelsLike: formatTemperature(current.apparent_temperature),
+      humidity: `${current.relative_humidity_2m}%`,
+    },
+    daily,
   }
 }

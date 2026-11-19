@@ -45,11 +45,6 @@ docs:
   style:
     title: Kiểu cửa sổ trò chuyện
     legacy: Cửa sổ cổ điển
-    floating-attached: Nổi, cạnh nhân vật
-    floating-free: Nổi, bất kỳ đâu trên màn hình
-    floating-danmaku: Nổi, luồng tin nhắn
-    pinned: Luôn ở trên cùng
-  resize: Kéo để đổi kích thước trò chuyện
   move: Kéo để di chuyển trò chuyện
   fold: Ẩn trò chuyện
   composer:

@@ -1,12 +1,13 @@
 import type { Emotion } from '../constants/emotions'
 import type { MorphSlot } from '../constants/morphs'
 
-import localforage from 'localforage'
+import indexedDbDriver from 'unstorage/drivers/indexedb'
 
-import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
+import { useLocalStorageManualReset, useModelScopedLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { useBroadcastChannel } from '@vueuse/core'
 import { nanoid } from 'nanoid/non-secure'
 import { defineStore } from 'pinia'
+import { createStorage } from 'unstorage'
 import { ref, watch } from 'vue'
 
 import { EMOTION_ACTION_NAME } from '../constants/actions'
@@ -57,6 +58,14 @@ export interface MMDMaterialDescriptor {
 
 const MOTION_STORAGE_PREFIX = 'mmd-motion-'
 
+/**
+ * The IndexedDB store of imported files that `@proj-airi/stage-ui/database/storage` mounts as `device`.
+ * This package cannot import that module, because `@proj-airi/stage-ui` depends on this package.
+ */
+const motionFiles = createStorage({
+  driver: indexedDbDriver({ dbName: 'localforage', storeName: 'keyvaluepairs' }),
+})
+
 /** Eye/head tracking mode, mirroring the VRM renderer's tracking modes. */
 export type MMDGazeMode = 'camera' | 'mouse' | 'none'
 
@@ -103,17 +112,17 @@ export const useMMD = defineStore('mmd', () => {
 
   // === Physics & solver toggles ===
   /** Master switch for the Ammo/Bullet rigid-body simulation (hair, skirt, etc.). */
-  const physicsEnabled = useLocalStorageManualReset<boolean>('settings/mmd/physics-enabled', true)
+  const physicsEnabled = useModelScopedLocalStorageManualReset<boolean>('mmd', 'settings/mmd/physics-enabled', true)
   /** CCD IK solving for limbs/standard rigs. */
-  const ikEnabled = useLocalStorageManualReset<boolean>('settings/mmd/ik-enabled', true)
+  const ikEnabled = useModelScopedLocalStorageManualReset<boolean>('mmd', 'settings/mmd/ik-enabled', true)
   /** Append-bone ("grant") propagation for derived bones. */
-  const grantEnabled = useLocalStorageManualReset<boolean>('settings/mmd/grant-enabled', true)
+  const grantEnabled = useModelScopedLocalStorageManualReset<boolean>('mmd', 'settings/mmd/grant-enabled', true)
   /**
    * Physics gravity strength (magnitude). Applied as world gravity (0, -g, 0).
    * MMD's default is 98 (9.8 × 10 for MMD's scale). Lower = floatier hair and
    * cloth, higher = heavier/droopier.
    */
-  const physicsGravity = useLocalStorageManualReset<number>('settings/mmd/physics-gravity', 98)
+  const physicsGravity = useModelScopedLocalStorageManualReset<number>('mmd', 'settings/mmd/physics-gravity', 98)
 
   // === Gaze ===
   /**
@@ -122,18 +131,19 @@ export const useMMD = defineStore('mmd', () => {
    * - `camera` — look toward the camera (forward)
    * - `none`   — no tracking; idle saccades only
    */
-  const gazeMode = useLocalStorageManualReset<MMDGazeMode>('settings/mmd/gaze-mode', 'mouse')
+  const gazeMode = useModelScopedLocalStorageManualReset<MMDGazeMode>('mmd', 'settings/mmd/gaze-mode', 'mouse')
 
   // === Scene: camera ===
   /** Vertical field of view in degrees. */
-  const cameraFov = useLocalStorageManualReset<number>('settings/mmd/camera-fov', 30)
+  const cameraFov = useModelScopedLocalStorageManualReset<number>('mmd', 'settings/mmd/camera-fov', 30)
 
   // === Scene: lighting ===
-  const ambientColor = useLocalStorageManualReset<string>('settings/mmd/ambient-color', '#FFFFFF')
-  const ambientIntensity = useLocalStorageManualReset<number>('settings/mmd/ambient-intensity', 0.6)
-  const directionalColor = useLocalStorageManualReset<string>('settings/mmd/directional-color', '#FFFBF5')
-  const directionalIntensity = useLocalStorageManualReset<number>('settings/mmd/directional-intensity', 0.75)
-  const directionalPosition = useLocalStorageManualReset<{ x: number, y: number, z: number }>(
+  const ambientColor = useModelScopedLocalStorageManualReset<string>('mmd', 'settings/mmd/ambient-color', '#FFFFFF')
+  const ambientIntensity = useModelScopedLocalStorageManualReset<number>('mmd', 'settings/mmd/ambient-intensity', 0.6)
+  const directionalColor = useModelScopedLocalStorageManualReset<string>('mmd', 'settings/mmd/directional-color', '#FFFBF5')
+  const directionalIntensity = useModelScopedLocalStorageManualReset<number>('mmd', 'settings/mmd/directional-intensity', 0.75)
+  const directionalPosition = useModelScopedLocalStorageManualReset<{ x: number, y: number, z: number }>(
+    'mmd',
     'settings/mmd/directional-position',
     () => ({ x: 1, y: 2, z: 2 }),
   )
@@ -144,13 +154,13 @@ export const useMMD = defineStore('mmd', () => {
    * material so the model reads as the flat, luminous MMD/anime look. 0 = lit
    * only by scene lights, 1 = nearly self-lit.
    */
-  const albedoGlow = useLocalStorageManualReset<number>('settings/mmd/albedo-glow', 0.45)
+  const albedoGlow = useModelScopedLocalStorageManualReset<number>('mmd', 'settings/mmd/albedo-glow', 0.45)
   /** Device-pixel-ratio multiplier for render resolution. */
   const renderScale = useLocalStorageManualReset<number>('settings/mmd/render-scale', 1)
 
   // === Animation ===
   /** Name of the persistent idle motion; empty means none/static. */
-  const idleMotionName = useLocalStorageManualReset<string>('settings/mmd/idle-motion', '')
+  const idleMotionName = useModelScopedLocalStorageManualReset<string>('mmd', 'settings/mmd/idle-motion', '')
   /**
    * Motions imported for use across windows.
    *
@@ -159,7 +169,7 @@ export const useMMD = defineStore('mmd', () => {
    * with independent Pinia stores). Only id + name are stored here; the VMD
    * files live in IndexedDB.
    */
-  const availableMotions = useLocalStorageManualReset<MMDMotionDescriptor[]>('settings/mmd/motions', () => [])
+  const availableMotions = useModelScopedLocalStorageManualReset<MMDMotionDescriptor[]>('mmd', 'settings/mmd/motions', () => [])
 
   /**
    * Persists a VMD file to IndexedDB and adds it to the synced list.
@@ -172,7 +182,7 @@ export const useMMD = defineStore('mmd', () => {
     const existing = availableMotions.value.find(motion => motion.name === name)
     const id = existing?.id ?? `${MOTION_STORAGE_PREFIX}${nanoid()}`
 
-    await localforage.setItem<PersistedMMDMotion>(id, { id, name, file })
+    await motionFiles.setItemRaw<PersistedMMDMotion>(id, { id, name, file })
     if (!existing)
       availableMotions.value = [...availableMotions.value, { id, name }]
 
@@ -181,7 +191,7 @@ export const useMMD = defineStore('mmd', () => {
 
   /** Loads a persisted VMD file by id so a window can build its own object URL. */
   async function getMotionFile(id: string): Promise<File | undefined> {
-    const persisted = await localforage.getItem<PersistedMMDMotion>(id)
+    const persisted = await motionFiles.getItemRaw<PersistedMMDMotion>(id)
     return persisted?.file
   }
 
@@ -189,7 +199,7 @@ export const useMMD = defineStore('mmd', () => {
   async function clearMotions(): Promise<void> {
     const motions = availableMotions.value
     availableMotions.value = []
-    await Promise.all(motions.map(motion => localforage.removeItem(motion.id)))
+    await Promise.all(motions.map(motion => motionFiles.removeItem(motion.id)))
   }
 
   /** Removes a single imported motion (from the synced list and IndexedDB). */
@@ -199,28 +209,31 @@ export const useMMD = defineStore('mmd', () => {
     // Drop the idle selection if it pointed at the removed motion.
     if (motion && idleMotionName.value === motion.name)
       idleMotionName.value = ''
-    await localforage.removeItem(id)
+    await motionFiles.removeItem(id)
   }
   /** Per-emotion gesture motion overrides; falls back to EMOTION_ACTION_NAME. */
-  const emotionActionMap = useLocalStorageManualReset<Record<Emotion, string>>(
+  const emotionActionMap = useModelScopedLocalStorageManualReset<Record<Emotion, string>>(
+    'mmd',
     'settings/mmd/emotion-action-map',
     () => ({ ...EMOTION_ACTION_NAME }),
   )
 
   // === Morphs ===
   /** Manual morph-slot → morph-name overrides for non-standard models. */
-  const morphOverrides = useLocalStorageManualReset<Partial<Record<MorphSlot, string>>>(
+  const morphOverrides = useModelScopedLocalStorageManualReset<Partial<Record<MorphSlot, string>>>(
+    'mmd',
     'settings/mmd/morph-overrides',
     () => ({}),
   )
   /** All morph names exposed by the active model (runtime). */
-  const availableMorphs = useLocalStorageManualReset<string[]>('settings/mmd/available-morphs', () => [])
+  const availableMorphs = useModelScopedLocalStorageManualReset<string[]>('mmd', 'settings/mmd/available-morphs', () => [])
 
   /**
    * Materials (parts) of the active model, published by the scene so the
    * settings window can render a control per part.
    */
-  const availableMaterials = useLocalStorageManualReset<MMDMaterialDescriptor[]>(
+  const availableMaterials = useModelScopedLocalStorageManualReset<MMDMaterialDescriptor[]>(
+    'mmd',
     'settings/mmd/available-materials',
     () => [],
   )
@@ -228,7 +241,8 @@ export const useMMD = defineStore('mmd', () => {
    * Per-material opacity overrides, keyed by material name. Missing entries
    * render at full opacity. Lets the user fade or hide individual parts.
    */
-  const materialOpacity = useLocalStorageManualReset<Record<string, number>>(
+  const materialOpacity = useModelScopedLocalStorageManualReset<Record<string, number>>(
+    'mmd',
     'settings/mmd/material-opacity',
     () => ({}),
   )

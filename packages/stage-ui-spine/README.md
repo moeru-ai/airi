@@ -12,6 +12,11 @@ End users of a shipped product that uses Spine animations do not need their own 
 
 ## Usage
 
+The package supports Spine 4.0, 4.1, and 4.2 models. Version detection selects the matching runtime.
+The scene and preview use `updateSpineWorldTransform()` to preserve each runtime's method signature.
+Spine 4.0 and 4.1 use no argument. Spine 4.2 uses `Physics.update`.
+The helper rejects a skeleton from a different runtime.
+
 ```ts
 import { SpineScene } from '@proj-airi/stage-ui-spine/components/scenes'
 import { useSpineStore } from '@proj-airi/stage-ui-spine/stores/spine'

@@ -46,7 +46,7 @@ function toSummary(entity: HomeAssistantEntity) {
  * The payload crosses into the main process and lands in a request body, so a
  * nested or non-object value is a caller mistake rather than something to send.
  */
-function parseServiceData(raw: string | undefined) {
+function parseServiceData(raw: string | null | undefined) {
   if (!raw?.trim())
     return undefined
 
@@ -183,7 +183,9 @@ export async function createHomeAssistantTools(
         })
       },
       parameters: z.object({
-        domain: z.string().optional().describe('Entity domain to filter by, for example "light" or "climate".'),
+        // Optional inputs are required-nullable, not `.optional()`. OpenAI strict
+        // mode wants every property in `required`, or the whole request fails.
+        domain: z.union([z.string(), z.null()]).describe('Entity domain to filter by, for example "light" or "climate", or null for every domain.'),
       }).strict(),
     }),
     tool({
@@ -267,7 +269,8 @@ export async function createHomeAssistantTools(
         entity_id: z.string().describe('Target entity id, for example "light.living_room". Always pass one.'),
         // NOTICE: `data` is z.string() (JSON) because z.record() emits `propertyNames`,
         // which OpenAI rejects. The same reason appears beside builtIn_mcpCallTool.
-        data: z.string().optional().describe('Extra service fields as a JSON object string, for example {"brightness": 200}.'),
+        // Required-nullable for OpenAI strict mode, as with `domain` above.
+        data: z.union([z.string(), z.null()]).describe('Extra service fields as a JSON object string, for example {"brightness": 200}, or null for none.'),
       }).strict(),
     }),
   ])

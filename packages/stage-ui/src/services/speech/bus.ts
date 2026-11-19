@@ -25,6 +25,13 @@ export const speechOutputGetPlaybackState = defineInvokeEventa<SpeechOutputPlayb
 /** The output host sends its new playback state after `speaking` or `voicing` changes. */
 export const speechOutputPlaybackStateChangedEvent = defineEventa<SpeechOutputPlaybackState>('eventa:audio:speech:output:playback-state-changed')
 
+/**
+ * Level of the assistant speech that plays now, from 0 (silence) to 1 (full scale), with the scale of `voiceInputLevel`.
+ * The output host publishes it every 50 ms while a voice response plays audio, then one 0 when the response stops voicing.
+ * The host reads it before the user volume, so a low volume does not change it.
+ */
+export const speechOutputLevel = defineEventa<{ level: number }>('eventa:audio:speech:output:level')
+
 const BUS_CHANNEL_NAME = 'proj-airi:pipelines:outputs:speech'
 
 let context: ReturnType<typeof createBroadcastChannelContext>['context'] | undefined
