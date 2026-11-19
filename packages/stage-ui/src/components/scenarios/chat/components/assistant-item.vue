@@ -5,6 +5,7 @@ import type { ChatHistoryReplyPayload } from '../reply'
 import type { ChatToolCallRendererRegistry, ChatToolCallWidgetRegistry } from './tool-call-renderer'
 
 import { isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
+import { getActivePinia } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -138,25 +139,30 @@ const boxClasses = computed(() => {
   ]
 })
 const copyText = computed(() => getChatHistoryItemCopyText(props.message as ChatHistoryItem))
-const speechStore = useSpeechStore()
-const chatSession = useChatSessionStore()
-const cardStore = useAiriCardStore()
 const isSpeechAvailable = computed(() => {
-  if (!speechStore.enabled)
+  const pinia = getActivePinia()
+  if (!pinia)
     return false
 
-  const activeSessionId = chatSession.activeSessionId
-  const [characterId] = activeSessionId ? chatSession.characterMembersOf(activeSessionId) : []
-  const targetCharacterId = characterId ?? cardStore.activeCardId
-  if (!targetCharacterId)
-    return Boolean(speechStore.activeSpeechProvider && speechStore.activeSpeechProvider !== 'speech-noop')
-
   try {
+    const speechStore = useSpeechStore(pinia)
+    if (!speechStore.enabled)
+      return false
+
+    const chatSession = useChatSessionStore(pinia)
+    const cardStore = useAiriCardStore(pinia)
+
+    const activeSessionId = chatSession.activeSessionId
+    const [characterId] = activeSessionId ? chatSession.characterMembersOf(activeSessionId) : []
+    const targetCharacterId = characterId ?? cardStore.activeCardId
+    if (!targetCharacterId)
+      return Boolean(speechStore.activeSpeechProvider && speechStore.activeSpeechProvider !== 'speech-noop')
+
     const speechModule = cardStore.getModules(targetCharacterId).speech
     return Boolean(speechModule?.provider && speechModule.provider !== 'speech-noop')
   }
   catch {
-    return Boolean(speechStore.activeSpeechProvider && speechStore.activeSpeechProvider !== 'speech-noop')
+    return false
   }
 })
 </script>
