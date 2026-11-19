@@ -21,6 +21,7 @@ PR review labels identify who must act next:
 | State | Label |
 | --- | --- |
 | Draft PR | No automatic waiting label |
+| Open PR without human attestation or an author exemption | `pr-review/waiting-on-author` |
 | New open PR ready for review | `pr-review/waiting-maintainer` |
 | A maintainer requests changes | `pr-review/waiting-on-author` |
 | A new PR commit changes files after the request | `pr-review/waiting-maintainer` |
@@ -29,6 +30,10 @@ PR review labels identify who must act next:
 
 Draft status takes precedence over the review state. Converting a PR to draft removes both automatic waiting labels.
 Marking a draft ready reevaluates active change requests and subsequent file changes. Category and human labels remain unchanged.
+
+Human authors with `write`, `maintain`, or `admin` permission bypass attestation. Bot accounts are not exempt.
+Other authors need the latest `Human Attestation` check from app `5607869` to succeed on the current PR head.
+This prerequisite takes precedence over review progress.
 
 A maintainer has repository write access, as defined by GitHub's `latestOpinionatedReviews(writersOnly: true)` filter.
 Reviews from other users do not change the waiting labels.
@@ -46,6 +51,10 @@ Commit dates identify new work. A commit created before a request and pushed aft
 Maintainers decide whether the update resolves the feedback. The workflow identifies an update for another review.
 
 Review labels update after PR events and review events. An hourly run reconciles all open PRs.
+Label jobs run serially and queue up to 100 pending jobs, so new events do not replace pending updates within that limit.
+Completion of the attestation app's `Human Attestation` check also updates labels for open PRs whose current head matches the checked commit.
+The trusted app's check details URL identifies the PR, including forks with no event association. Other apps and check names do not start this job.
+GitHub can suppress check events associated with Actions. The existing hourly run remains a fallback.
 The review event workflow has no permissions. Its completion triggers the label workflow, including for fork PRs.
 The label workflow reads current GitHub API data. It never checks out PR code or reads review workflow artifacts.
 Fork workflow approval requirements can delay review events. The hourly run also handles these PRs.
