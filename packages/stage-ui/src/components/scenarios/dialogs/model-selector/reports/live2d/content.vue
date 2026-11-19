@@ -257,13 +257,21 @@ watch(isDesktop, (desktop) => {
             <DrawerContent
               :class="[
                 'fixed bottom-0 left-0 right-0 z-[10001] max-h-[70dvh]',
-                'overflow-y-auto rounded-t-2xl bg-neutral-50 px-4 pt-3 shadow-xl outline-none dark:bg-neutral-900',
+                'flex flex-col overflow-clip rounded-t-2xl bg-neutral-50 px-4 pt-3 shadow-xl outline-none dark:bg-neutral-900',
               ]"
               :style="{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom, 0px))' }"
             >
               <DrawerHandle />
 
-              <div v-if="activeIssue" class="mt-3">
+              <!--
+                NOTICE:
+                The drawer clips its overflow, and this inner element scrolls.
+                vaul-vue adds a `[data-vaul-drawer]::after` layer that is 200% tall and copies the drawer background.
+                A scrolling or overflow-hidden drawer can scroll into that layer, for example on focus, and shows it as an empty panel.
+                Source: node_modules/vaul-vue/dist/index.js (vaul-vue 0.4.1).
+                Remove when vaul-vue no longer adds this layer inside the drawer.
+              -->
+              <div v-if="activeIssue" data-vaul-no-drag class="mt-3 min-h-0 flex-1 overflow-y-auto">
                 <div class="flex items-center justify-between gap-3">
                   <div class="flex items-center gap-2 text-xs text-neutral-500 font-semibold dark:text-neutral-400">
                     <span

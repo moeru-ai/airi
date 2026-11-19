@@ -1,5 +1,5 @@
 import type { Extension } from '../../../../extension'
-import type { ExtensionLoadOptions, ExtensionManifestV1 } from '../../../shared/types'
+import type { ExtensionLoadOptions, ExtensionManifestV2 } from '../../../shared/types'
 
 import { isAbsolute, join } from 'node:path'
 import { cwd } from 'node:process'
@@ -48,28 +48,29 @@ export class FileSystemLoader {
    * Resolution order:
    * 1) `entrypoints.<runtime>`
    * 2) `entrypoints.default`
-   * 3) `entrypoints.electron` (legacy fallback for current local extension manifests)
    */
-  resolveEntrypointFor(manifest: ExtensionManifestV1, options?: ExtensionLoadOptions) {
+  resolveEntrypointFor(manifest: ExtensionManifestV2, options?: ExtensionLoadOptions) {
     const runtime = options?.runtime ?? 'electron'
+    if (!manifest.engines.runtimes.includes(runtime)) {
+      throw new Error(`Extension \`${manifest.id}\` does not support runtime \`${runtime}\`.`)
+    }
+
     const root = options?.cwd ?? cwd()
     const entrypoint
       = manifest.entrypoints[runtime]
         ?? manifest.entrypoints.default
-        ?? manifest.entrypoints.electron
 
     if (!entrypoint) {
       throw new Error(''
         + `Extension entrypoint is required for runtime \`${runtime}\`. `
-        + 'Define one of `entrypoints.<runtime>`, `entrypoints.default`, '
-        + 'or `entrypoints.electron` in the extension manifest.',
+        + 'Define `entrypoints.<runtime>` or `entrypoints.default` in the extension manifest.',
       )
     }
 
     return isAbsolute(entrypoint) ? entrypoint : join(root, entrypoint)
   }
 
-  async loadExtensionFor(manifest: ExtensionManifestV1, options?: ExtensionLoadOptions) {
+  async loadExtensionFor(manifest: ExtensionManifestV2, options?: ExtensionLoadOptions) {
     const entrypoint = this.resolveEntrypointFor(manifest, options)
     const extensionModule = await import(entrypoint)
     return coerceExtensionFromModule(extensionModule)

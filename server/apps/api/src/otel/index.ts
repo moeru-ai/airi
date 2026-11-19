@@ -12,6 +12,16 @@ import type { Env } from '../libs/env'
 import { useLogger } from '@guiiai/logg'
 import { metrics, trace } from '@opentelemetry/api'
 import { logs, SeverityNumber } from '@opentelemetry/api-logs'
+import {
+  METRIC_GEN_AI_CLIENT_INFERENCE_DURATION,
+  METRIC_GEN_AI_CLIENT_INFERENCE_TIME_TO_FIRST_CHUNK,
+  METRIC_GEN_AI_CLIENT_INFERENCE_USAGE_CACHE_READ_INPUT_TOKENS,
+  METRIC_GEN_AI_CLIENT_INFERENCE_USAGE_CACHE_WRITE_INPUT_TOKENS,
+  METRIC_GEN_AI_CLIENT_INFERENCE_USAGE_INPUT_TOKENS,
+  METRIC_GEN_AI_CLIENT_INFERENCE_USAGE_OUTPUT_TOKENS,
+  METRIC_GEN_AI_CLIENT_INFERENCE_USAGE_REASONING_OUTPUT_TOKENS,
+  METRIC_GEN_AI_CLIENT_OPERATION_DURATION,
+} from '@proj-airi/trace-kit/semconv'
 
 import {
   METRIC_AIRI_DB_POOL_CONNECTIONS,
@@ -20,6 +30,7 @@ import {
   METRIC_AIRI_EMAIL_SEND,
   METRIC_AIRI_FLUX_CREDITED,
   METRIC_AIRI_FLUX_UNBILLED,
+  METRIC_AIRI_GEN_AI_CLIENT_COST,
   METRIC_AIRI_GEN_AI_GATEWAY_CONFIG_INVALID_HMAC,
   METRIC_AIRI_GEN_AI_GATEWAY_CONFIG_RELOAD,
   METRIC_AIRI_GEN_AI_GATEWAY_DECRYPT_FAILURES,
@@ -45,16 +56,9 @@ import {
   METRIC_CHAT_MESSAGES,
   METRIC_FLUX_CONSUMED,
   METRIC_FLUX_INSUFFICIENT_BALANCE,
-  METRIC_GEN_AI_CLIENT_FIRST_TOKEN_DURATION,
-  METRIC_GEN_AI_CLIENT_OPERATION_COUNT,
-  METRIC_GEN_AI_CLIENT_OPERATION_DURATION,
-  METRIC_GEN_AI_CLIENT_TOKEN_USAGE_INPUT,
-  METRIC_GEN_AI_CLIENT_TOKEN_USAGE_OUTPUT,
   METRIC_STRIPE_CHECKOUT_COMPLETED,
   METRIC_STRIPE_CHECKOUT_CREATED,
   METRIC_STRIPE_EVENTS,
-  METRIC_STRIPE_PAYMENT_FAILED,
-  METRIC_STRIPE_SUBSCRIPTION_EVENT,
   METRIC_USER_LOGIN,
   METRIC_USER_REGISTERED,
   METRIC_WS_CONNECTIONS_ACTIVE,
@@ -112,8 +116,6 @@ export interface EngagementMetrics {
 export interface RevenueMetrics {
   stripeCheckoutCreated: Counter
   stripeCheckoutCompleted: Counter
-  stripePaymentFailed: Counter
-  stripeSubscriptionEvent: Counter
   stripeEvents: Counter
   stripeRevenue: Counter
   fluxInsufficientBalance: Counter
@@ -126,7 +128,7 @@ export interface RevenueMetrics {
    * - Tracking real revenue leak in the LLM proxy.
    *
    * Labels (`reason`):
-   * - `debit_failed` — `consumeFluxForLLM` threw (DB error, or `balance <= 0`
+   * - `debit_failed` — fee posting failed (DB error, or `balance <= 0`
    *   after a race lost). Counter records the *full* requested amount.
    * - `partial_debit_drained` — user had `0 < balance < requested`, so we
    *   drained the balance to zero and charged what we could. Counter records
@@ -147,12 +149,17 @@ export interface RevenueMetrics {
 }
 
 export interface GenAiMetrics {
+  /** TTS duration. Chat and Responses use `inferenceDuration`. */
   operationDuration: Histogram
-  operationCount: Counter
-  tokenUsageInput: Counter
-  tokenUsageOutput: Counter
+  inferenceDuration: Histogram
+  timeToFirstChunk: Histogram
+  inputTokens: Counter
+  outputTokens: Counter
+  cacheReadInputTokens: Counter
+  cacheWriteInputTokens: Counter
+  reasoningOutputTokens: Counter
+  costUsd: Counter
   fluxConsumed: Counter
-  firstTokenDuration: Histogram
   streamInterrupted: Counter
 }
 
@@ -354,12 +361,6 @@ export function initOtel(env: Env): OtelInstance | null {
     stripeCheckoutCompleted: meter.createCounter(METRIC_STRIPE_CHECKOUT_COMPLETED, {
       description: 'Number of Stripe checkout sessions completed',
     }),
-    stripePaymentFailed: meter.createCounter(METRIC_STRIPE_PAYMENT_FAILED, {
-      description: 'Number of failed Stripe payments',
-    }),
-    stripeSubscriptionEvent: meter.createCounter(METRIC_STRIPE_SUBSCRIPTION_EVENT, {
-      description: 'Number of Stripe subscription lifecycle events',
-    }),
     stripeEvents: meter.createCounter(METRIC_STRIPE_EVENTS, {
       description: 'Number of Stripe webhook events processed',
     }),
@@ -380,31 +381,50 @@ export function initOtel(env: Env): OtelInstance | null {
       description: 'TTS input characters processed (billing base unit)',
     }),
     ttsPreflightRejections: meter.createCounter(METRIC_AIRI_TTS_PREFLIGHT_REJECTIONS, {
-      description: 'Pre-flight rejections from flux-meter assertCanAfford',
+      description: 'Speech admission rejections against confirmed outstanding fees',
     }),
   }
 
   // GenAI metrics (semconv: gen_ai.client.*)
   const genAi: GenAiMetrics = {
     operationDuration: meter.createHistogram(METRIC_GEN_AI_CLIENT_OPERATION_DURATION, {
-      description: 'GenAI client operation duration',
+      description: 'GenAI client operation duration (TTS)',
       unit: 's',
     }),
-    operationCount: meter.createCounter(METRIC_GEN_AI_CLIENT_OPERATION_COUNT, {
-      description: 'Number of GenAI client operations',
+    inferenceDuration: meter.createHistogram(METRIC_GEN_AI_CLIENT_INFERENCE_DURATION, {
+      description: 'GenAI client inference duration (chat and responses)',
+      unit: 's',
     }),
-    tokenUsageInput: meter.createCounter(METRIC_GEN_AI_CLIENT_TOKEN_USAGE_INPUT, {
-      description: 'Total input (prompt) tokens consumed',
+    timeToFirstChunk: meter.createHistogram(METRIC_GEN_AI_CLIENT_INFERENCE_TIME_TO_FIRST_CHUNK, {
+      description: 'Time from request start to the first chunk of a streaming response',
+      unit: 's',
     }),
-    tokenUsageOutput: meter.createCounter(METRIC_GEN_AI_CLIENT_TOKEN_USAGE_OUTPUT, {
-      description: 'Total output (completion) tokens consumed',
+    inputTokens: meter.createCounter(METRIC_GEN_AI_CLIENT_INFERENCE_USAGE_INPUT_TOKENS, {
+      description: 'Input (prompt) tokens, including cached tokens',
+      unit: '{token}',
+    }),
+    outputTokens: meter.createCounter(METRIC_GEN_AI_CLIENT_INFERENCE_USAGE_OUTPUT_TOKENS, {
+      description: 'Output (completion) tokens, including reasoning tokens',
+      unit: '{token}',
+    }),
+    cacheReadInputTokens: meter.createCounter(METRIC_GEN_AI_CLIENT_INFERENCE_USAGE_CACHE_READ_INPUT_TOKENS, {
+      description: 'Input tokens served from a provider-managed cache',
+      unit: '{token}',
+    }),
+    cacheWriteInputTokens: meter.createCounter(METRIC_GEN_AI_CLIENT_INFERENCE_USAGE_CACHE_WRITE_INPUT_TOKENS, {
+      description: 'Input tokens written to a provider-managed cache',
+      unit: '{token}',
+    }),
+    reasoningOutputTokens: meter.createCounter(METRIC_GEN_AI_CLIENT_INFERENCE_USAGE_REASONING_OUTPUT_TOKENS, {
+      description: 'Output tokens used for reasoning',
+      unit: '{token}',
+    }),
+    costUsd: meter.createCounter(METRIC_AIRI_GEN_AI_CLIENT_COST, {
+      description: 'Upstream inference cost in USD that the provider reports',
+      unit: '{USD}',
     }),
     fluxConsumed: meter.createCounter(METRIC_FLUX_CONSUMED, {
       description: 'Total flux consumed',
-    }),
-    firstTokenDuration: meter.createHistogram(METRIC_GEN_AI_CLIENT_FIRST_TOKEN_DURATION, {
-      description: 'Time from request start to first streamed token (TTFB for streaming)',
-      unit: 's',
     }),
     streamInterrupted: meter.createCounter(METRIC_AIRI_GEN_AI_STREAM_INTERRUPTED, {
       description: 'Streaming responses interrupted before completion',
@@ -503,8 +523,6 @@ export function initOtel(env: Env): OtelInstance | null {
     engagement.wsMessagesReceived,
     revenue.stripeCheckoutCreated,
     revenue.stripeCheckoutCompleted,
-    revenue.stripePaymentFailed,
-    revenue.stripeSubscriptionEvent,
     revenue.stripeEvents,
     revenue.stripeRevenue,
     revenue.fluxInsufficientBalance,
@@ -512,9 +530,12 @@ export function initOtel(env: Env): OtelInstance | null {
     revenue.fluxUnbilled,
     revenue.ttsChars,
     revenue.ttsPreflightRejections,
-    genAi.operationCount,
-    genAi.tokenUsageInput,
-    genAi.tokenUsageOutput,
+    genAi.inputTokens,
+    genAi.outputTokens,
+    genAi.cacheReadInputTokens,
+    genAi.cacheWriteInputTokens,
+    genAi.reasoningOutputTokens,
+    genAi.costUsd,
     genAi.fluxConsumed,
     genAi.streamInterrupted,
     gateway.fallbackCount,

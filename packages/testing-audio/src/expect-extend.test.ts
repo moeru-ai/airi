@@ -1,7 +1,6 @@
-import type { PiniaActionEvent } from '@proj-airi/stage-shared/types/pinia-action-event'
+import type { AudioInputObservations, AudioInputSpan } from './types'
 
-import type { AudioInputObservations } from './types'
-
+import { VoiceAttributes, VoiceNames } from '@proj-airi/trace-kit/voice'
 import { describe, it } from 'vitest'
 
 import { expect, installAudioInputMatchers } from './expect-extend'
@@ -17,27 +16,32 @@ describe('audio input matchers', () => {
     ])
   })
 
-  it('reports a failed transcription action', async () => {
-    const session = createAudioInputSession([], [{
-      ...actionEvent('modules:hearing:speech:audio-input-pipeline', 'transcribeForRecording'),
-      errorMessage: 'Request failed',
-      status: 'failed',
-    }])
+  it('reports a failed speech recognition span', async () => {
+    const session = createAudioInputSession([], [recognitionSpan({ status: 'error', message: 'Request failed' })])
 
     await expect(expect(session).toHaveCompletedTranscription()).rejects.toThrow('ASR failed: Request failed')
+  })
+
+  it('ignores an aborted request and completes with the next recognition span', async () => {
+    const session = createAudioInputSession([], [
+      recognitionSpan({ status: 'cancelled' }),
+      recognitionSpan({ attrs: { [VoiceAttributes.ASRText]: 'Please say hello.' } }),
+    ])
+
+    await expect(session).toHaveCompletedTranscription()
   })
 })
 
 function createAudioInputSession(
   transcriptions: string[],
-  actions: PiniaActionEvent[] = [],
+  spans: AudioInputSpan[] = [],
 ): AudioInputObservations {
   return {
     capturedTranscriptionAudio: async () => [],
     streamingTranscriptionUpdates: async () => [],
     transcriptionResults: async () => transcriptions,
-    completedSpans: async () => [],
-    piniaActionEvents: async () => actions,
+    completedSpans: async name => spans.filter(span => !name || span.name === name),
+    piniaActionEvents: async () => [],
     waitForPiniaAction: async () => {
       throw new Error('This matcher fixture does not observe Pinia actions.')
     },
@@ -45,16 +49,22 @@ function createAudioInputSession(
     waitForTurn: async () => {
       throw new Error('This matcher fixture does not observe completed turns.')
     },
-    waitForVadReady: async () => {},
+    waitForVoiceInput: async () => {
+      throw new Error('This matcher fixture does not observe voice inputs.')
+    },
   }
 }
 
-function actionEvent(storeId: string, actionName: string): PiniaActionEvent {
+function recognitionSpan(overrides: Partial<AudioInputSpan>): AudioInputSpan {
   return {
-    actionName,
-    invocationId: `${storeId}:${actionName}`,
-    status: 'completed',
-    storeId,
-    timestamp: 0,
+    spanId: 'recognition',
+    name: VoiceNames.SpeechRecognition,
+    track: 'participants/user/asr',
+    ids: {},
+    attrs: {},
+    start: 0,
+    end: 1,
+    status: 'ok',
+    ...overrides,
   }
 }

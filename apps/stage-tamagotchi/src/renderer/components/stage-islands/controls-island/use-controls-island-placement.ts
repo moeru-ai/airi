@@ -24,7 +24,7 @@ export interface ResolveControlsIslandDockOptions {
 const displayCenterDeadZoneRatio = 0.05
 
 /**
- * Resolves the window corner that matches the current display quadrant.
+ * Resolves the window corner in the same quadrant as its display position.
  *
  * The screen geometry stays in Electron logical coordinates. The returned
  * dock contains no DOM coordinates, so display scaling cannot affect layout.

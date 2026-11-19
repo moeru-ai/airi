@@ -1,6 +1,8 @@
-import type { StreamOptions } from '@proj-airi/core-agent'
-import type { ChatProvider } from '@xsai-ext/providers/utils'
-import type { Message } from '@xsai/shared-chat'
+import type { Conversation, StreamOptions } from '@proj-airi/core-agent'
+import type { GenerationProvider } from '@proj-airi/provider-inference'
+import type { Tool } from '@xsai/shared-chat'
+
+import type { DescribeToolImage } from './tool-images'
 
 import { streamFrom as coreStreamFrom, isContentArrayRelatedError, isToolRelatedError, modelKey } from '@proj-airi/core-agent'
 import { listModels } from '@xsai/model'
@@ -12,21 +14,51 @@ import { resolveLlmTools } from './tool-resolver'
 export type { StreamEvent, StreamOptions } from '@proj-airi/core-agent'
 export { isContentArrayRelatedError, isToolRelatedError } from '@proj-airi/core-agent'
 
+/** Core stream options plus the stage-ui reader of images in tool results. */
+export interface LlmStreamOptions extends StreamOptions {
+  /** Reads the images in tool results as text. See {@link resolveLlmTools}. */
+  describeToolImage?: DescribeToolImage
+  /**
+   * The only tools of a task beside the chat, for example the icon search of a tool card. The request gets them in
+   * place of the tools of the chat, and without the tools of the provider, so a task runs nothing else.
+   */
+  taskTools?: Tool[]
+}
+
 export const useLLM = defineStore('llm', () => {
   const toolsCompatibility = ref<Map<string, boolean>>(new Map())
   const contentArrayCompatibility = ref<Map<string, boolean>>(new Map())
 
-  async function stream(model: string, chatProvider: ChatProvider, messages: Message[], options?: StreamOptions) {
-    const key = modelKey(model, chatProvider)
-    const { tools: customTools, ...streamOptions } = options ?? {}
-    const builtinToolsResolver = () => resolveLlmTools({ customTools })
+  async function stream(model: string, chatProvider: GenerationProvider, context: Conversation, options?: LlmStreamOptions) {
+    // Compatibility belongs to the model that received the failing request.
+    // `prepareConversation` runs for every resolved request, so the key follows a step that changes the model.
+    let key = modelKey(model, chatProvider.generation(model))
+    let toolExecutionStarted = false
+    const { tools: customTools, describeToolImage, taskTools, ...streamOptions } = options ?? {}
+    const resolveTools = async () => taskTools ?? await resolveLlmTools({ customTools, describeImage: describeToolImage })
+    const builtinToolsResolver = resolveTools
+    const resolveStep = streamOptions.resolveStep
 
     const runStream = () => coreStreamFrom({
       model,
       chatProvider,
-      messages,
+      conversation: context,
       options: {
         ...streamOptions,
+        ...(taskTools ? { providerTools: false } : {}),
+        // Core uses only the tools of a resolved step, so each step carries the complete tool list.
+        resolveStep: resolveStep
+          ? async () => ({ ...await resolveStep(), tools: await resolveTools() })
+          : undefined,
+        prepareConversation: async (conversation, target) => {
+          key = modelKey(target.model, target.request)
+          return await streamOptions.prepareConversation?.(conversation, target) ?? conversation
+        },
+        onStreamEvent: async (event) => {
+          if (event.type === 'tool-call')
+            toolExecutionStarted = true
+          await streamOptions.onStreamEvent?.(event)
+        },
         toolsCompatibility: toolsCompatibility.value,
         contentArrayCompatibility: contentArrayCompatibility.value,
       },
@@ -50,6 +82,9 @@ export const useLLM = defineStore('llm', () => {
       if (isContentArrayRelatedError(err) && contentArrayCompatibility.value.get(key) !== false) {
         console.warn(`[llm] Auto-disabling content-part arrays for "${key}" and retrying once`)
         contentArrayCompatibility.value.set(key, false)
+        // A completed tool can have external effects. A full retry must not repeat it.
+        if (toolExecutionStarted)
+          throw err
         await runStream()
         return
       }

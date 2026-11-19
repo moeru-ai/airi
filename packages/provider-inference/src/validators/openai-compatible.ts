@@ -3,14 +3,15 @@ import type { ProviderDefinition, ProviderExtraMethods, ProviderInstance } from 
 import isNetworkError from 'is-network-error'
 
 import { errorMessageFrom } from '@moeru/std'
+import { responses } from '@xsai-ext/responses'
 import { generateText } from '@xsai/generate-text'
 import { listModels } from '@xsai/model'
 import { message } from '@xsai/utils-chat'
 import { Mutex } from 'es-toolkit'
 
-import { isModelProvider, ProviderValidationCheck } from '../types'
+import { getGenerationProvider, isModelProvider, ProviderValidationCheck } from '../types'
 
-interface OpenAICompatibleValidationOptions<TConfig extends { apiKey?: string, baseUrl?: string }> {
+interface OpenAICompatibleValidationOptions<TConfig extends { apiKey?: string, baseUrl?: string, model?: string }> {
   checks?: ProviderValidationCheck[]
   additionalHeaders?: Record<string, string>
   allowValidationWithoutModel?: boolean
@@ -90,6 +91,9 @@ async function pickValidationModel<TConfig extends { apiKey?: string | null, bas
   provider: ProviderInstance,
   providerExtra: ProviderExtraMethods<TConfig> | undefined,
 ): Promise<string | null> {
+  // A configured model expresses the user's protocol choice. Catalog order does not.
+  if ('model' in config && typeof config.model === 'string' && config.model.trim())
+    return config.model.trim()
   try {
     const models = await resolveModels(config, provider, providerExtra)
     const modelId = extractModelId(models.find(model => !shouldSkipModelId(extractModelId(model))))
@@ -100,7 +104,7 @@ async function pickValidationModel<TConfig extends { apiKey?: string | null, bas
   }
 }
 
-export function createOpenAICompatibleValidators<TConfig extends { apiKey?: string, baseUrl?: string }>(
+export function createOpenAICompatibleValidators<TConfig extends { apiKey?: string, baseUrl?: string, model?: string }>(
   options?: OpenAICompatibleValidationOptions<TConfig>,
 ): ProviderDefinition<TConfig>['validators'] {
   const checks = options?.checks ?? [ProviderValidationCheck.Connectivity, ProviderValidationCheck.ModelList]
@@ -134,7 +138,19 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
       }
     }
 
+    const generation = getGenerationProvider(provider)?.generation(normalizedModel)
     try {
+      if (generation?.protocol === 'responses') {
+        const result = responses({
+          ...generation.config,
+          input: 'ping',
+          maxOutputTokens: 16,
+          store: false,
+          headers: additionalHeaders,
+        })
+        await Promise.all([result.steps, result.input, result.usage, result.totalUsage])
+        return { connectivityOk: true, chatOk: true }
+      }
       await generateText({
         apiKey: config.apiKey,
         baseURL: config.baseUrl!,
@@ -159,7 +175,7 @@ export function createOpenAICompatibleValidators<TConfig extends { apiKey?: stri
       }
 
       const status = extractStatusCode(e)
-      const chatOk = status === 400 || Boolean(status && status >= 200 && status < 300)
+      const chatOk = generation?.protocol !== 'responses' && (status === 400 || Boolean(status && status >= 200 && status < 300))
       return { connectivityOk: true, chatOk, errorMessage: errorMessageFrom(e) }
     }
   }

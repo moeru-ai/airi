@@ -4,7 +4,7 @@ Own the Electron capture scenarios used to generate tamagotchi docs screenshots.
 
 ## Purpose
 
-This package owns product-specific Electron scenario definitions and AIRI window/navigation helpers only. It depends on `@vishot/source-electron` for:
+This package owns product-specific Electron scenario definitions and AIRI window, navigation, and interaction helpers only. It depends on `@vishot/source-electron` for:
 
 - the generic `defineScenario()` helper
 - the generic Electron capture context surface
@@ -27,7 +27,7 @@ From repo root, run:
 
 ```bash
 pnpm -F @proj-airi/stage-tamagotchi build
-pnpm exec vishot capture --target electron ./packages/scenarios-stage-tamagotchi-electron/src/scenarios/demo-controls-settings-chat-websocket/index.ts --app-entrypoint ./apps/stage-tamagotchi/out/main/index.js --cwd . --output-dir ./packages/scenarios-stage-tamagotchi-browser/artifacts/raw --format avif
+pnpm exec vishot capture --target electron ./packages/scenarios-stage-tamagotchi-electron/src/scenarios/demo-controls-settings-chat-websocket/index.ts --app-entrypoint ./apps/stage-tamagotchi --cwd . --output-dir ./packages/scenarios-stage-tamagotchi-browser/artifacts/raw --format avif
 ```
 
 Expected result:
@@ -45,13 +45,38 @@ AIRI_DISPLAY_MODEL_PATH=/absolute/path/to/avatar.vrm \
 pnpm exec vishot capture \
   ./packages/scenarios-stage-tamagotchi-electron/src/scenarios/display-model-from-file.ts \
   --target electron \
-  --app-entrypoint ./apps/stage-tamagotchi/out/main/index.js \
+  --app-entrypoint ./apps/stage-tamagotchi \
   --cwd . \
   --settle-ms 2500 \
   --output-dir ./.vishot/display-model/vrm
 ```
 
 Set `AIRI_DISPLAY_MODEL_FORMAT` to `live2d`, `vrm`, or `mmd`. The scenario skips first-run onboarding in the capture profile, imports and selects the supplied file through the model chooser, captures the main stage, then restores persisted state and removes the imported fixture.
+
+### Check the app menu window
+
+The app menu of the Controls Island opens in a window of its own. This scenario opens and closes it in each way and checks the handoff between the windows:
+
+```bash
+APP_IGNORE_FOCUS=1 \
+pnpm exec vishot capture \
+  ./packages/scenarios-stage-tamagotchi-electron/src/scenarios/controls-menu-window.ts \
+  --target electron \
+  --app-entrypoint ./apps/stage-tamagotchi \
+  --cwd . \
+  --settle-ms 2500 \
+  --output-dir ./.vishot/controls-menu-window
+```
+
+Quit a running `dev:tamagotchi` first. The app directory shares its single-instance lock, and the capture app quits at once.
+
+Expected result:
+
+- The run ends without an error. Each step waits for the window that answers it, so a broken handoff stops the run.
+- `controls-menu-open` shows the menu beside the more button. `controls-menu-main-window` shows the Island at that time.
+- `controls-menu-hearing` shows Hearing controls in the main window.
+
+With `APP_IGNORE_FOCUS=1`, the menu window never takes focus. Check by hand that a click in another app closes the menu.
 
 ## Scenario Authoring
 
@@ -73,6 +98,29 @@ export default defineStageTamagotchiScenario({
   },
 })
 ```
+
+### Gesture primitive
+
+Use `gestures.swipe` to reproduce a direct touch swipe or a two-finger wheel pan:
+
+```ts
+export default defineStageTamagotchiScenario({
+  id: 'chat-swipe-reply',
+  async run({ gestures, stageWindows }) {
+    const chat = await stageWindows.waitFor('chat')
+    const message = chat.page.locator('[data-swipeable]').last()
+
+    await gestures.swipe(message, {
+      input: 'wheel',
+      direction: 'left',
+    })
+  },
+})
+```
+
+Use `input: 'touch'` for the narrow-screen Pointer Event path. The primitive
+calculates the target center, splits the travel into samples, and waits for the
+gesture to settle.
 
 ## Scenario Layout
 

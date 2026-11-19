@@ -34,8 +34,9 @@ The script prints only the final `https://github.com/user-attachments/assets/...
 
 ## Verification
 
-1. Request the returned URL and follow redirects.
-2. Require HTTP 200 and the expected content type.
-3. After creating or editing the GitHub content, reopen it and verify that the attachment renders.
+1. Require a successful upload command and a returned `https://github.com/user-attachments/assets/...` URL.
+2. Use that URL for the intended local file. Do not issue GET or HEAD requests to verify the uploaded asset.
+3. Do not treat anonymous access returning 404 as an upload failure or a reason to stop the workflow.
+4. After creating or editing GitHub content, reopen it and verify the attachment Markdown uses the returned URL.
 
-The upload endpoint is currently undocumented by GitHub. Treat a rejected request as a blocking capability change instead of falling back to committing PR-only artifacts. Background and the observed Bearer-token flow: <https://island94.org/2026/08/programmatically-upload-attachments-to-github-issues-pull-requests-comments>.
+The upload endpoint is currently undocumented by GitHub. Treat a rejected upload request as a blocking capability change instead of committing PR-only artifacts. Background and the observed Bearer-token flow: <https://island94.org/2026/08/programmatically-upload-attachments-to-github-issues-pull-requests-comments>.

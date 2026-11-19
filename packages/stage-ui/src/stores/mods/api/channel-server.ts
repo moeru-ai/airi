@@ -14,7 +14,7 @@ import { Client, createTextProtocolConnector, WebSocketEventSource } from '@proj
 import { isStageTamagotchi, isStageWeb } from '@proj-airi/stage-shared'
 import { useLocalStorage } from '@vueuse/core'
 import { nanoid } from 'nanoid'
-import { defineStore } from 'pinia'
+import { defineStore, getActivePinia } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
 import { useWebSocketInspectorStore } from '../../devtools/websocket-inspector'
@@ -55,6 +55,9 @@ const REPLAYABLE_EVENT_TYPES = new Set<keyof WebSocketEvents>([
 ])
 
 export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:server', () => {
+  // A watcher or an await runs outside the setup of this store. The active
+  // Pinia can then be another one, so keep the Pinia that owns this store.
+  const pinia = getActivePinia()
   const connected = ref(false)
   const client = ref<Client>()
   const initializing = ref<Promise<void> | null>(null)
@@ -79,6 +82,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     'module:announced',
     'module:configure',
     'module:de-announced',
+    'extension:module:de-announced',
     'module:consumer:register',
     'module:consumer:unregister',
     'module:authenticated',
@@ -94,6 +98,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     'output:gen-ai:chat:complete',
     'output:gen-ai:chat:tool-call',
     'ui:configure',
+    'asset:get:request',
   ]
 
   async function initialize(options?: {
@@ -147,10 +152,10 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
           if (REPLAYABLE_EVENT_TYPES.has(event.type as keyof WebSocketEvents))
             replayableEvents.set(event.type as keyof WebSocketEvents, event as WebSocketBaseEvent<any, any>)
 
-          useWebSocketInspectorStore().add('incoming', event)
+          useWebSocketInspectorStore(pinia).add('incoming', event)
         },
         onAnySend: (event) => {
-          useWebSocketInspectorStore().add('outgoing', event)
+          useWebSocketInspectorStore(pinia).add('outgoing', event)
         },
         onError: (error) => {
           if (attempt !== connectionAttempt)

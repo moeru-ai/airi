@@ -22,10 +22,11 @@ import {
   setMMDMaterialGlow,
 } from './mmd-materials'
 
-function createDescriptor(name: string, opacity = 1, transparent = false): MMDMaterialDescriptor {
+function createDescriptor(name: string, opacity = 1): MMDMaterialDescriptor {
   return {
     ambient: new Color(0.1, 0.2, 0.3),
     diffuse: new Color(0.4, 0.5, 0.6),
+    doubleSided: false,
     fog: true,
     isDefaultToonTexture: true,
     name,
@@ -40,7 +41,6 @@ function createDescriptor(name: string, opacity = 1, transparent = false): MMDMa
     specular: new Color(0.2, 0.3, 0.4),
     toonMap: new Texture(),
     toonMapFileName: 'toon01.bmp',
-    transparent,
   }
 }
 
@@ -53,7 +53,7 @@ function countDisposals(resource: BufferGeometry | MeshBasicMaterial | MeshDepth
 describe('mmd surface materials', () => {
   it('keeps generated outline materials out of the settings catalog and live controls', () => {
     const root = new Group()
-    const surface = new MMDToonMaterial(createDescriptor('skin', 0.8, true))
+    const surface = new MMDToonMaterial(createDescriptor('skin', 0.8))
     const outline = new MeshPhongMaterial({ opacity: 0.35, transparent: true })
     outline.name = 'skin:outline'
     const mesh = new Mesh(new BufferGeometry(), surface)
@@ -75,7 +75,7 @@ describe('mmd surface materials', () => {
   })
 
   it('restores each surface material authored opacity and transparency', () => {
-    const surface = new MMDToonMaterial(createDescriptor('glass', 0.6, true))
+    const surface = new MMDToonMaterial(createDescriptor('glass', 0.6))
     const root = new Mesh(new BufferGeometry(), surface)
 
     applyMMDMaterialOpacity(root, { glass: 0.2 })

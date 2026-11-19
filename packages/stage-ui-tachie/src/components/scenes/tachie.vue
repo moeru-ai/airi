@@ -13,6 +13,8 @@ import { useTachie } from '../../stores/tachie'
 const props = defineProps<{
   modelSrc?: string
   modelId?: string
+  /** Scene painted inside the canvas, behind the model. */
+  backgroundUrl?: string | null
   paused?: boolean
   renderScale?: number
   shadowEnabled?: boolean
@@ -54,6 +56,7 @@ defineExpose({
       ref="canvas"
       v-slot="{ app }"
       v-model:state="componentStateCanvas"
+      :background-url="props.backgroundUrl"
       :width="width"
       :height="height"
       :resolution="effectiveRenderScale"

@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import { errorMessageFrom } from '@moeru/std'
 import { computedAsync, useDebounceFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref, watch } from 'vue'
+import { nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -55,29 +56,17 @@ const providerMetadata = computedAsync(async () => {
   return await selectProviderMetadata(definition, t, { id: props.providerId })
 }, undefined)
 
-// Common provider settings
-const apiKey = computed({
-  get: () => providers.value[props.providerId]?.apiKey as string | undefined || '',
-  set: (value) => {
-    if (!providers.value[props.providerId])
-      providers.value[props.providerId] = {}
-
-    providers.value[props.providerId].apiKey = value
-  },
-})
-
-const baseUrl = computed({
-  get: () => providers.value[props.providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultConfig.baseUrl as string | undefined || '',
-  set: (value) => {
-    if (!providers.value[props.providerId])
-      providers.value[props.providerId] = {}
-
-    providers.value[props.providerId].baseUrl = value
-  },
-})
+// Common provider settings stay local until the debounced leader write.
+const apiKey = ref('')
+const baseUrl = ref('')
 
 // Voice settings as reactive objects to allow for different provider settings
 const voiceSettings = ref<Record<string, any>>({})
+let settingsInitialized = false
+let pendingPatch: Record<string, unknown> | undefined
+let inFlightPatch: Record<string, unknown> | undefined
+let pendingProviderConfigUpdate: Promise<void> | undefined
+let applyingSnapshot = false
 
 /**
  * Resolves the voice settings a provider starts from.
@@ -99,53 +88,144 @@ function resolveDefaultVoiceSettings(): Record<string, any> {
   }
 }
 
-// Initialize voice settings with defaults or from provider
-function initializeVoiceSettings() {
-  const stored = providers.value[props.providerId]?.voiceSettings as Record<string, any> | undefined
-  voiceSettings.value = stored ? { ...stored } : resolveDefaultVoiceSettings()
+function reconcileSettings() {
+  const stored = providers.value[props.providerId]
+  // Local edits own their fields until the leader acknowledges them. Snapshot
+  // assignments run synchronous watchers under this guard and never write back.
+  applyingSnapshot = true
+  try {
+    if (!props.hideApiKey && !hasUnsavedField('apiKey'))
+      apiKey.value = stored?.apiKey as string | undefined || ''
+    if (!hasUnsavedField('baseUrl'))
+      baseUrl.value = stored?.baseUrl as string | undefined || providerMetadata.value?.defaultConfig.baseUrl as string | undefined || ''
+    if (!hasUnsavedField('voiceSettings')) {
+      const voice = stored?.voiceSettings as Record<string, unknown> | undefined
+      voiceSettings.value = voice ? { ...voice } : resolveDefaultVoiceSettings()
+    }
+  }
+  finally {
+    applyingSnapshot = false
+  }
 }
+
+function hasUnsavedField(field: string) {
+  return (pendingPatch !== undefined && Object.hasOwn(pendingPatch, field))
+    || (inFlightPatch !== undefined && Object.hasOwn(inFlightPatch, field))
+}
+
+watch(() => providers.value[props.providerId], reconcileSettings, { deep: true })
 
 onMounted(async () => {
   await providersStore.initializeProvider(props.providerId)
 
-  // Skip the API key write when the field is hidden. Its setter mutates the
-  // stored configuration, and an empty string makes that configuration differ
-  // from the schema defaults. `shouldListProvider` reads any such difference as
-  // the user having configured the provider.
-  if (!props.hideApiKey)
-    apiKey.value = providers.value[props.providerId]?.apiKey as string | undefined || ''
+  // Hidden credentials stay absent for providers that do not use an API key.
+  reconcileSettings()
 
-  baseUrl.value = providers.value[props.providerId]?.baseUrl as string | undefined || providerMetadata.value?.defaultConfig.baseUrl as string | undefined || ''
+  // Initial assignments must not become writes. Catalog loading can remain
+  // pending while the form is interactive, so it must not gate persistence.
+  await nextTick()
+  settingsInitialized = true
 
-  // Initialize voice settings
-  initializeVoiceSettings()
-
-  // Load voices if provider is configured
   if (providerStore.configuredProviders[props.providerId]) {
-    speechStore.loadVoicesForProvider(props.providerId)
+    await speechStore.loadVoicesForProvider(props.providerId)
   }
 })
 
-const debouncedUpdate = useDebounceFn(() => {
-  providers.value[props.providerId] = {
-    ...providers.value[props.providerId],
-    // A provider without a credential field keeps no `apiKey` key. The guard in
-    // `onMounted` stops the same key arriving by the other path.
-    ...(props.hideApiKey ? {} : { apiKey: apiKey.value }),
-    baseUrl: baseUrl.value || providerMetadata.value?.defaultConfig.baseUrl || '',
-    voiceSettings: { ...voiceSettings.value },
+async function persistProviderConfig() {
+  if (pendingProviderConfigUpdate)
+    return pendingProviderConfigUpdate
+
+  // One drain owns the RPC at a time. New edits accumulate while it waits,
+  // and failed fields return to the queue with newer edits taking precedence.
+  //
+  // The drain outlives its queue: an edit whose debounce fires during
+  // validation finds this promise. Each cycle rechecks it, so it is saved.
+  pendingProviderConfigUpdate = (async () => {
+    for (;;) {
+      while (pendingPatch) {
+        const patch = pendingPatch
+        pendingPatch = undefined
+        inFlightPatch = patch
+        try {
+          const saved = await providerStore.patchProviderConfig(props.providerId, patch)
+          if (!saved)
+            throw new Error('The speech provider no longer exists')
+        }
+        catch (error) {
+          pendingPatch = Object.assign({}, patch, pendingPatch)
+          throw error
+        }
+        finally {
+          inFlightPatch = undefined
+        }
+        reconcileSettings()
+      }
+
+      // ROOT CAUSE:
+      //
+      // A provider page wrote credentials without touching the status. It
+      // stayed `unconfigured`, so the module filters dropped a valid provider.
+      //
+      // The user edit is the explicit trigger, so the store keeps no watcher.
+      // Validation caches on the credential hash, so an extra cycle is free.
+      try {
+        await providersStore.validateProvider(props.providerId)
+      }
+      catch (error) {
+        console.error('Failed to validate speech provider:', errorMessageFrom(error))
+      }
+
+      if (!pendingPatch)
+        break
+    }
+  })()
+  try {
+    await pendingProviderConfigUpdate
   }
-}, 1000)
+  finally {
+    pendingProviderConfigUpdate = undefined
+  }
+}
 
-// Watch all settings and update the provider configuration
-watch([apiKey, baseUrl], debouncedUpdate)
+const debouncedUpdate = useDebounceFn(persistProviderConfig, 1000)
 
-// Watch voice settings for changes
-watch(voiceSettings, debouncedUpdate, { deep: true })
+function reportSaveError(error: unknown) {
+  console.error('Failed to save speech settings:', errorMessageFrom(error))
+}
+
+async function scheduleProviderConfigUpdate(patch: Record<string, unknown>) {
+  if (!settingsInitialized || applyingSnapshot)
+    return
+
+  // Accumulate only edited fields. Sending every local draft would restore
+  // stale credentials after another renderer updates the provider snapshot.
+  pendingPatch = { ...pendingPatch, ...patch }
+  try {
+    await debouncedUpdate()
+  }
+  catch (error) {
+    reportSaveError(error)
+  }
+}
+
+// Synchronous watchers distinguish user input from guarded snapshot assignments.
+watch(apiKey, async (value) => {
+  if (!props.hideApiKey)
+    await scheduleProviderConfigUpdate({ apiKey: value })
+}, { flush: 'sync' })
+
+watch(baseUrl, async (value) => {
+  await scheduleProviderConfigUpdate({
+    baseUrl: value || providerMetadata.value?.defaultConfig.baseUrl || '',
+  })
+}, { flush: 'sync' })
+
+watch(voiceSettings, async (value) => {
+  await scheduleProviderConfigUpdate({ voiceSettings: { ...value } })
+}, { deep: true, flush: 'sync' })
 
 function handleResetVoiceSettings() {
   voiceSettings.value = resolveDefaultVoiceSettings()
-  debouncedUpdate()
 }
 </script>
 

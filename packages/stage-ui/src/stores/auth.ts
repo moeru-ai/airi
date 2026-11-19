@@ -1,18 +1,46 @@
 import type { Session, User } from 'better-auth'
 import type {} from 'pinia-plugin-synced'
 
+import type { TokenResponse } from '../libs/auth-oidc'
+
 import { errorMessageFrom } from '@moeru/std'
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useTimeoutFn, whenever } from '@vueuse/core'
-import { defineStore } from 'pinia'
+import { delay } from 'es-toolkit'
+import { defineStore, getActivePinia } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
 import { client } from '../composables/api'
 import { useBreakpoints } from '../composables/use-breakpoints'
 import { triggerSignIn } from '../libs/auth'
 import { authClient, requestAuthSession } from '../libs/auth-client'
-import { refreshAccessToken } from '../libs/auth-oidc'
+import { refreshAccessToken, revokeRefreshToken, TokenRefreshError } from '../libs/auth-oidc'
 import { SERVER_URL } from '../libs/server'
+
+/**
+ * Delays between attempts after a refresh or a session request fails for a reason that
+ * can pass, such as a network error, a 5xx, or a 429. Each failure doubles the delay up to the cap.
+ * The refresh retry and the session retry count their failures separately.
+ */
+const retryBackoff = {
+  initialMs: 30_000,
+  maxMs: 5 * 60_000,
+}
+
+function retryDelayMs(failedAttempts: number): number {
+  return Math.min(retryBackoff.initialMs * 2 ** failedAttempts, retryBackoff.maxMs)
+}
+
+/** Upper bound for each server step of sign-out. Local state clears regardless of the outcome. */
+const SIGN_OUT_REQUEST_TIMEOUT_MS = 5_000
+
+/**
+ * Answer of one session request.
+ * - `authenticated`: the server confirmed the token, and identity is committed.
+ * - `unauthenticated`: the server rejected the token. The credentials no longer prove identity.
+ * - `unavailable`: the server did not answer, or the answer is stale. Local state stays as it was.
+ */
+type SessionLookup = 'authenticated' | 'unauthenticated' | 'unavailable'
 
 function createLocalStorageForAuth() {
   const keys = {
@@ -63,12 +91,15 @@ export interface AuthTokenSet {
 }
 
 /**
- * Auth store — holds identity state and credits.
+ * Auth store — holds identity state, Flux credits, and the capacitor remaining percent.
  *
  * This store has no dependency on `stores/providers`, which allows
  * `providers` to safely depend on it without creating a circular import.
  */
 export const useAuthStore = defineStore('auth', () => {
+  // A watcher or an await runs outside the setup of this store. The active
+  // Pinia can then be another one, so keep the Pinia that owns this store.
+  const pinia = getActivePinia()
   const storage = createLocalStorageForAuth()
 
   // Pinia owns live auth state. Persistence is command-driven so a state patch
@@ -90,13 +121,24 @@ export const useAuthStore = defineStore('auth', () => {
   const oidcClientId = ref<string | null>(null)
   const tokenExpiry = ref<number | null>(null)
   const initialized = ref(false)
+  // This runtime version follows user intent across windows. New sign-in, logout,
+  // and explicit clearing advance it. Requests from older versions cannot commit.
+  const sessionVersion = ref(0)
+  // The session version that `user` belongs to. A new sign-in replaces the token first, and `user`
+  // follows after the session request. Until they match, `user` does not describe the token.
+  const verifiedSessionVersion = ref(0)
+  /** False while the token can belong to another account than `user`. Requests that move private data must wait. */
+  const isSessionVerified = computed(() => verifiedSessionVersion.value === sessionVersion.value)
 
   const credits = ref(0)
+  /** Whole percent of the capacitor Flux left. Null without an active capacitor. */
+  const capacitorPercent = ref<number | null>(null)
+  /** Next recharge inside the billing period. Null when the Capacitor recharges only on renewal. */
+  const capacitorRechargesAt = ref<string | null>(null)
+  const fallbackToFlux = ref(false)
 
-  // Cross-app "user must log in" flag. Setting this to true triggers an
-  // immediate OIDC redirect on web (mobile + desktop). Electron skips this
-  // path because controls-island-auth-button listens for IPC and handles
-  // sign-in in the main process.
+  // The leader owns this cross-window login request. Web consumes it locally;
+  // Electron renderers compete to consume it before starting the IPC flow.
   const needsLogin = ref(false)
   const { isMobile } = useBreakpoints()
 
@@ -152,46 +194,84 @@ export const useAuthStore = defineStore('auth', () => {
   // must not trigger multiple token exchanges. All share one in-flight promise.
   let inflightRefresh: Promise<string | null> | null = null
 
-  async function refreshTokenNow(): Promise<string | null> {
+  // Failed attempts since the last successful refresh. It is runtime retry
+  // state of the leader, so it stays outside the synced state.
+  let refreshRetryAttempt = 0
+
+  /**
+   * Refreshes credentials only for the requested session version.
+   * Stale or rejected requests return null and never return another account's token.
+   *
+   * A rejected refresh token clears the credentials and requests sign-in. Any other
+   * failure keeps the credentials and schedules a retry with the refresh timer.
+   * @param expectedVersion Session version captured by the caller. Defaults to the current version.
+   */
+  async function refreshTokenNow(expectedVersion = sessionVersion.value): Promise<string | null> {
+    if (expectedVersion !== sessionVersion.value)
+      return null
     if (inflightRefresh)
       return inflightRefresh
 
     if (!refreshToken.value || !oidcClientId.value)
       return null
 
-    inflightRefresh = (async () => {
+    const version = expectedVersion
+    let requestToken = token.value
+    const refresh = (async () => {
+      let tokens: TokenResponse
       try {
-        const tokens = await refreshAccessToken(oidcClientId.value!, refreshToken.value!)
-        token.value = tokens.access_token
-        storage.setAccessToken(tokens.access_token)
-        if (tokens.refresh_token) {
-          refreshToken.value = tokens.refresh_token
-          storage.setRefreshToken(tokens.refresh_token)
-        }
-        if (tokens.expires_in) {
-          tokenExpiry.value = Date.now() + tokens.expires_in * 1000
-          storage.setTokenExpiry(tokenExpiry.value)
-          scheduleTokenRefresh(tokens.expires_in)
-        }
-
-        await fetchSession(tokens.access_token)
-        return tokens.access_token
+        tokens = await refreshAccessToken(oidcClientId.value!, refreshToken.value!)
       }
       catch (error) {
-        console.error('OIDC token refresh failed', errorMessageFrom(error))
+        if (version !== sessionVersion.value || requestToken !== token.value)
+          return null
+        if (error instanceof TokenRefreshError && error.rejected) {
+          console.error('OIDC refresh token rejected', errorMessageFrom(error))
+          await expireSession(version)
+          return null
+        }
+        console.warn('OIDC token refresh failed, retrying later', errorMessageFrom(error))
+        scheduleRefreshRetry()
+        return null
+      }
+
+      if (version !== sessionVersion.value || requestToken !== token.value)
+        return null
+      refreshRetryAttempt = 0
+      token.value = tokens.access_token
+      requestToken = tokens.access_token
+      storage.setAccessToken(tokens.access_token)
+      if (tokens.refresh_token) {
+        refreshToken.value = tokens.refresh_token
+        storage.setRefreshToken(tokens.refresh_token)
+      }
+      if (tokens.expires_in) {
+        tokenExpiry.value = Date.now() + tokens.expires_in * 1000
+        storage.setTokenExpiry(tokenExpiry.value)
+        scheduleTokenRefresh(tokens.expires_in)
+      }
+
+      const lookup = await lookupSession(tokens.access_token)
+      if (version !== sessionVersion.value)
+        return null
+      if (lookup === 'unauthenticated') {
         clearAuthState()
         return null
       }
-      finally {
+      // The token endpoint accepted the refresh, so the rotated token is valid
+      // even when the session request did not get an answer. Callers can retry
+      // their request with it.
+      return tokens.access_token
+    })().finally(() => {
+      if (inflightRefresh === refresh)
         inflightRefresh = null
-      }
-    })()
-
-    return inflightRefresh
+    })
+    inflightRefresh = refresh
+    return refresh
   }
 
   const { start: startRefreshTimer, stop: stopRefreshTimer } = useTimeoutFn(
-    () => { void useAuthStore().refreshTokenNow() },
+    () => { void useAuthStore(pinia).refreshTokenNow() },
     refreshDelayMs,
     { immediate: false },
   )
@@ -209,10 +289,63 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
+   * Reuses the refresh timer for a retry after a failure that can pass.
+   * Sign-out, a new sign-in, and a rejected refresh replace or stop this timer.
+   */
+  function scheduleRefreshRetry(): void {
+    stopRefreshTimer()
+    refreshDelayMs.value = retryDelayMs(refreshRetryAttempt)
+    refreshRetryAttempt += 1
+    startRefreshTimer()
+  }
+
+  // --- Session retry scheduling ---
+  // A session request without an answer leaves `user` unloaded while the token stays valid.
+  // Without a retry, identity loads only at the next refresh or a reload.
+  // Like the refresh timer, this leader timer stays outside the synced state.
+
+  const sessionRetryDelayMs = ref(0)
+  let sessionRetryAttempt = 0
+  // The session version that the pending retry belongs to.
+  let sessionRetryVersion = 0
+
+  const { start: startSessionRetryTimer, stop: stopSessionRetryTimer } = useTimeoutFn(
+    () => {
+      const authStore = useAuthStore(pinia)
+      // Each version change stops this timer. The check also keeps a retry of an
+      // older sign-in from requesting the session of a newer one.
+      if (sessionRetryVersion === authStore.sessionVersion)
+        void authStore.fetchSession()
+    },
+    sessionRetryDelayMs,
+    { immediate: false },
+  )
+
+  /**
+   * Requests the session again after a failure that can pass.
+   * A definitive session answer, sign-out, a new sign-in, and clearing stop the retry.
+   */
+  function scheduleSessionRetry(): void {
+    stopSessionRetryTimer()
+    sessionRetryVersion = sessionVersion.value
+    sessionRetryDelayMs.value = retryDelayMs(sessionRetryAttempt)
+    sessionRetryAttempt += 1
+    startSessionRetryTimer()
+  }
+
+  function stopSessionRetry(): void {
+    stopSessionRetryTimer()
+    sessionRetryAttempt = 0
+  }
+
+  /**
    * Restore refresh scheduling from persisted state after page reload.
    * Returns a promise that resolves after an immediate refresh completes
    * (when the persisted token is already expired) so callers can avoid
    * racing `fetchSession()` against a stale Bearer token.
+   *
+   * Resolves true when a refresh ran. The refresh already requested the
+   * session or scheduled a retry, so the caller must not request it again.
    */
   async function restoreRefreshSchedule(): Promise<boolean> {
     if (!refreshToken.value || !oidcClientId.value)
@@ -227,7 +360,8 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     // Already expired — refresh synchronously so subsequent requests use fresh token
-    return !!(await refreshTokenNow())
+    await refreshTokenNow()
+    return true
   }
 
   async function initialize(): Promise<void> {
@@ -245,16 +379,21 @@ export const useAuthStore = defineStore('auth', () => {
     const hasRefreshToken = !!refreshToken.value
     const hasClientId = !!oidcClientId.value
     if (hasRefreshToken !== hasClientId) {
+      sessionVersion.value += 1
       clearAuthState()
       return
     }
 
-    const refreshed = await restoreRefreshSchedule()
-    if (!refreshed && token.value)
+    const refreshRan = await restoreRefreshSchedule()
+    if (!refreshRan && token.value)
       await fetchSession(token.value)
   }
 
   async function completeSignIn(tokens: AuthTokenSet): Promise<boolean> {
+    sessionVersion.value += 1
+    inflightRefresh = null
+    refreshRetryAttempt = 0
+    stopSessionRetry()
     token.value = tokens.accessToken
     refreshToken.value = tokens.refreshToken ?? null
     idToken.value = tokens.idToken ?? null
@@ -269,19 +408,69 @@ export const useAuthStore = defineStore('auth', () => {
     storage.setOidcClientId(oidcClientId.value)
     storage.setTokenExpiry(tokenExpiry.value)
 
-    return await fetchSession(tokens.accessToken)
+    const lookup = await lookupSession(tokens.accessToken)
+    // The server issued this token a moment ago. If it rejects the token now,
+    // a refresh cannot help, so the sign-in fails without a refresh.
+    if (lookup === 'unauthenticated')
+      clearAuthState()
+    return lookup === 'authenticated'
   }
 
+  /**
+   * Requests the session of the current token and commits the identity.
+   *
+   * A rejected token with a refresh token present gets one refresh before the
+   * state clears. A wrong local clock or an early server-side expiry rejects the
+   * access token while the refresh token still works. A session request without
+   * an answer keeps the state and resolves false.
+   */
   async function fetchSession(accessToken: string | null = token.value): Promise<boolean> {
-    const data = await requestAuthSession(accessToken)
-    if (data) {
-      user.value = data.user
-      session.value = data.session
-      return true
-    }
+    const version = sessionVersion.value
+    const lookup = await lookupSession(accessToken)
+    if (lookup !== 'unauthenticated')
+      return lookup === 'authenticated'
+
+    if (refreshToken.value && oidcClientId.value)
+      return !!(await refreshTokenNow(version))
 
     clearAuthState()
     return false
+  }
+
+  /**
+   * Requests the session for one token and commits the identity on success.
+   * It never clears state, so the refresh flow and `fetchSession` choose their own
+   * reaction to a rejected token.
+   *
+   * A request without an answer schedules a session retry. A stale request does not,
+   * because the newer sign-in, refresh, or sign-out owns the session state.
+   */
+  async function lookupSession(accessToken: string | null): Promise<SessionLookup> {
+    if (accessToken !== token.value)
+      return 'unavailable'
+    const version = sessionVersion.value
+    let data: Awaited<ReturnType<typeof requestAuthSession>>
+    try {
+      data = await requestAuthSession(accessToken)
+    }
+    catch (error) {
+      console.warn('Session request failed', errorMessageFrom(error))
+      if (version === sessionVersion.value && accessToken === token.value)
+        scheduleSessionRetry()
+      return 'unavailable'
+    }
+    // A refresh can replace the token without changing the user-intent version.
+    // Both must still match before identity or failure state is committed.
+    if (version !== sessionVersion.value || accessToken !== token.value)
+      return 'unavailable'
+    stopSessionRetry()
+    if (!data)
+      return 'unauthenticated'
+
+    user.value = data.user
+    session.value = data.session
+    verifiedSessionVersion.value = version
+    return 'authenticated'
   }
 
   async function listSessions() {
@@ -295,39 +484,78 @@ export const useAuthStore = defineStore('auth', () => {
     })
   }
 
+  /**
+   * Signs out locally at once and ends the server session in the background.
+   *
+   * Local state clears before any server answer, so a slow or unreachable server
+   * cannot keep the user signed in. A later sign-in cannot reuse the old server
+   * session, because a plain login sends `prompt=login` and a provider login authenticates again.
+   */
   async function signOut(): Promise<void> {
+    // A refresh in flight can rotate the refresh token on the server first. A revoke
+    // of the rotated token deletes every refresh token of this user and client, which
+    // signs out other devices. Wait for the refresh, then revoke the current token.
+    // Source: @better-auth/oauth-provider dist/index.mjs, revokeRefreshToken and invalidateRefreshFamily.
+    if (inflightRefresh)
+      await Promise.race([inflightRefresh, delay(SIGN_OUT_REQUEST_TIMEOUT_MS)])
+
     const idTokenHint = idToken.value
     const clientId = oidcClientId.value
     const bearerToken = token.value
-
-    // Delete the server session before local state. A new authorization request
-    // can otherwise reuse the server cookie and restore the previous identity.
-    try {
-      if (idTokenHint && clientId) {
-        const url = new URL('/api/auth/oauth2/end-session', SERVER_URL)
-        url.searchParams.set('id_token_hint', idTokenHint)
-        url.searchParams.set('client_id', clientId)
-        await fetch(url.toString(), { method: 'GET' })
-      }
-      else if (bearerToken) {
-        const url = new URL('/api/auth/sign-out', SERVER_URL)
-        await fetch(url.toString(), {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${bearerToken}` },
-        })
-      }
-    }
-    catch (error) {
-      // A network error cannot preserve local credentials. The server session
-      // expires by its TTL after the local credentials are removed.
-      console.error('Server sign-out failed', errorMessageFrom(error))
-    }
-
+    const refreshTokenToRevoke = refreshToken.value
+    sessionVersion.value += 1
     clearAuthState()
+
+    // `keepalive` lets both requests finish when sign-out navigates away or closes the window.
+    const init = { keepalive: true, signal: AbortSignal.timeout(SIGN_OUT_REQUEST_TIMEOUT_MS) }
+    void Promise.allSettled([
+      // Ending the server session does not revoke the refresh token, and the
+      // refresh grant does not check the session. Without this revoke, a copied
+      // refresh token keeps issuing access tokens until it expires.
+      refreshTokenToRevoke && clientId
+        ? revokeRefreshToken(clientId, refreshTokenToRevoke, init)
+            .catch(error => console.error('Refresh token revocation failed', errorMessageFrom(error)))
+        : undefined,
+      endServerSession(idTokenHint, clientId, bearerToken, init)
+        .then((response) => {
+          if (response && !response.ok)
+            throw new Error(`Server sign-out failed: ${response.status}`)
+        })
+        .catch(error => console.error('Server sign-out failed', errorMessageFrom(error))),
+    ])
   }
 
   /**
-   * Reset every auth-related field atomically.
+   * Ends the server session of the signed-in user. Returns null when no credential can identify it.
+   *
+   * RP-Initiated Logout finds the session through the `sid` claim of the ID token.
+   * Without an ID token, Better Auth's `/sign-out` deletes the session only when
+   * the access token still carries an active `sid`. Otherwise it answers success and deletes nothing.
+   */
+  async function endServerSession(idTokenHint: string | null, clientId: string | null, bearerToken: string | null, init: RequestInit): Promise<Response | null> {
+    if (idTokenHint && clientId) {
+      const url = new URL('/api/auth/oauth2/end-session', SERVER_URL)
+      url.searchParams.set('id_token_hint', idTokenHint)
+      url.searchParams.set('client_id', clientId)
+      return await fetch(url.toString(), { ...init, method: 'GET' })
+    }
+
+    if (bearerToken) {
+      const url = new URL('/api/auth/sign-out', SERVER_URL)
+      return await fetch(url.toString(), {
+        ...init,
+        method: 'POST',
+        headers: { Authorization: `Bearer ${bearerToken}` },
+      })
+    }
+
+    return null
+  }
+
+  /**
+   * Clear identity, credentials, and pending refresh work together.
+   * Callers advance the version for login/logout intent. Credential rejection
+   * keeps it so the matching API request can still ask the user to sign in.
    *
    * Use when: signing out, refresh fails, session is rejected by server, or
    * persisted state is detected inconsistent.
@@ -338,7 +566,10 @@ export const useAuthStore = defineStore('auth', () => {
    * loop silently until the user lands on a page that calls fetchSession.
    */
   function clearAuthState(): void {
+    inflightRefresh = null
+    refreshRetryAttempt = 0
     stopRefreshTimer()
+    stopSessionRetry()
     user.value = null
     session.value = null
     token.value = null
@@ -350,16 +581,47 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function clearAllAuthState(): Promise<void> {
+    sessionVersion.value += 1
     clearAuthState()
+  }
+
+  /** Grants one renderer ownership of a shared login request. */
+  async function consumeLoginRequest(): Promise<boolean> {
+    if (!needsLogin.value || isAuthenticated.value)
+      return false
+    needsLogin.value = false
+    return true
+  }
+
+  /** Publishes a login request on the leader before any renderer can consume it. */
+  async function requestLogin(): Promise<void> {
+    if (isAuthenticated.value)
+      return
+    needsLogin.value = true
+  }
+
+  /** Requests sign-in only if the failed request still belongs to this session. */
+  async function expireSession(expectedVersion: number): Promise<void> {
+    if (expectedVersion !== sessionVersion.value)
+      return
+    sessionVersion.value += 1
+    clearAuthState()
+    needsLogin.value = true
   }
 
   const updateCredits = async () => {
     if (!isAuthenticated.value)
       return
+    const version = sessionVersion.value
     const res = await client.api.v1.flux.$get()
     if (res.ok) {
       const data = await res.json()
-      credits.value = data.flux
+      if (version === sessionVersion.value && isAuthenticated.value) {
+        credits.value = data.flux
+        capacitorPercent.value = data.capacitorPercent
+        capacitorRechargesAt.value = data.capacitorRechargesAt
+        fallbackToFlux.value = data.fallbackToFlux
+      }
     }
   }
 
@@ -376,6 +638,9 @@ export const useAuthStore = defineStore('auth', () => {
     }
     else {
       credits.value = 0
+      capacitorPercent.value = null
+      capacitorRechargesAt.value = null
+      fallbackToFlux.value = false
 
       if (wasAuthenticated)
         await dispatchHooks(logoutHooks, 'logout hook error')
@@ -402,6 +667,9 @@ export const useAuthStore = defineStore('auth', () => {
     idToken,
     isAuthenticated,
     credits,
+    capacitorPercent,
+    capacitorRechargesAt,
+    fallbackToFlux,
     updateCredits,
     needsLogin,
     onAuthenticated,
@@ -417,6 +685,12 @@ export const useAuthStore = defineStore('auth', () => {
     listSessions,
     signOut,
     refreshTokenNow,
+    sessionVersion,
+    verifiedSessionVersion,
+    isSessionVerified,
+    consumeLoginRequest,
+    requestLogin,
+    expireSession,
     clearAllAuthState,
   }
 }, {
@@ -428,6 +702,9 @@ export const useAuthStore = defineStore('auth', () => {
       'signOut',
       'refreshTokenNow',
       'clearAllAuthState',
+      'expireSession',
+      'consumeLoginRequest',
+      'requestLogin',
     ],
     state: true,
   },

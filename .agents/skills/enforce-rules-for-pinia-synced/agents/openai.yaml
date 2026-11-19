@@ -1,0 +1,4 @@
+interface:
+  display_name: "Enforce Pinia Sync Rules"
+  short_description: "Apply AIRI cross-window Pinia synchronization standards"
+  default_prompt: "Use $enforce-rules-for-pinia-synced to change or review a synchronized Pinia store under AIRI's cross-window rules."

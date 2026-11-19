@@ -2,6 +2,7 @@
 import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
 import { RadioCardSimple } from '@proj-airi/stage-ui/components'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
+import { SettingsCard } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -50,7 +51,7 @@ const availableProviders = computed(() => [
 
 <template>
   <div class="flex flex-col gap-6">
-    <div class="h-fit w-full flex flex-col gap-4 rounded-xl bg-neutral-100 p-4 dark:bg-[rgba(0,0,0,0.3)]">
+    <SettingsCard>
       <div>
         <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
           {{ t('settings.pages.modules.artistry.page.title') }}
@@ -78,7 +79,7 @@ const availableProviders = computed(() => [
           />
         </fieldset>
       </div>
-    </div>
+    </SettingsCard>
   </div>
 
   <div

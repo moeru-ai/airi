@@ -41,7 +41,9 @@ export const providerBrowserWebSpeechApi = defineProvider({
   isAvailableBy: isWebSpeechApiAvailable,
   createProviderConfig: () => webSpeechApiConfigSchema,
   createProvider: createWebSpeechAPIProvider,
-  validationRequiredWhen: () => false,
+  // No field needs input, so the availability check always runs.
+  // When Web Speech is not available, the check fails with its reason, not as an unfinished config.
+  validationRequiredWhen: () => true,
 
   extraMethods: {
     listModels: async () => [

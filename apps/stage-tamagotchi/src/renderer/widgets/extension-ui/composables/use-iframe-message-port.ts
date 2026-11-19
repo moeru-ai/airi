@@ -1,8 +1,7 @@
 import type { WidgetsIframeInitPayload } from '@proj-airi/plugin-sdk-tamagotchi/widgets'
+import type { PluginHostModuleSummary } from '@proj-airi/stage-shared/plugin-host'
 import type { MaybeElementRef } from '@vueuse/core'
 import type { ComputedRef } from 'vue'
-
-import type { PluginHostModuleSummary } from '../../../../shared/eventa/plugin/host'
 
 import { createContext } from '@moeru/eventa/adapters/window-message'
 import { errorMessageFrom } from '@moeru/std'

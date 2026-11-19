@@ -3,13 +3,13 @@ import type { ProviderMetadata } from '../../../../libs/providers/metadata'
 import type { OnboardingStepNextHandler, OnboardingStepPrevHandler } from './types'
 
 import { errorMessageFrom } from '@moeru/std'
-import { Button, Callout, FieldCheckbox, FieldInput, ScrollableArea } from '@proj-airi/ui'
+import { Alert, Button, Callout, FieldCheckbox, FieldInput, ScrollableArea } from '@proj-airi/ui'
 import { computedAsync } from '@vueuse/core'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { useProviderConfigStore } from '../../../../stores/providers/config'
 import { useProviderStore } from '../../../../stores/providers/provider'
-import { Alert } from '../../../misc'
 import { ProviderAccountIdInput } from '../../../scenarios/providers'
 
 interface Props {
@@ -22,6 +22,7 @@ interface Props {
 const props = defineProps<Props>()
 const { t } = useI18n()
 const providersStore = useProviderStore()
+const providerConfigStore = useProviderConfigStore()
 
 const apiKey = ref('')
 const baseUrl = ref('')
@@ -34,21 +35,30 @@ const validationError = ref<any>()
 
 const hasOnboardingFields = computed(() => (props.selectedProvider?.onboardingFields?.length ?? 0) > 0)
 
-// Initialize form with default values when provider changes
+// Initialize form with default values when provider changes, rehydrating from
+// the configuration saved on a previous visit to this step (for example after
+// going back from model selection) so step navigation does not wipe user input
 function initializeForm() {
   const provider = props.selectedProvider
   if (!provider)
     return
 
   const defaultOptions = provider.defaultConfig
-  baseUrl.value = ('baseUrl' in defaultOptions ? String(defaultOptions.baseUrl) : '') || ''
-  apiKey.value = ''
-  accountId.value = ''
+  const defaultBaseUrl = ('baseUrl' in defaultOptions ? String(defaultOptions.baseUrl) : '') || ''
+  const savedConfig = providerConfigStore.getProviderConfig(provider.id)
+  const savedBaseUrl = typeof savedConfig?.baseUrl === 'string' ? savedConfig.baseUrl : ''
+  const savedApiKey = typeof savedConfig?.apiKey === 'string' ? savedConfig.apiKey : ''
+  const savedAccountId = typeof savedConfig?.accountId === 'string' ? savedConfig.accountId : ''
 
-  // Initialize custom fields with their default values
+  baseUrl.value = savedBaseUrl || defaultBaseUrl
+  apiKey.value = savedApiKey
+  accountId.value = savedAccountId
+
+  // Initialize custom fields with their saved or default values
   const fields: Record<string, string> = {}
   for (const field of provider.onboardingFields ?? []) {
-    fields[field.key] = field.defaultValue ?? ''
+    const savedValue = savedConfig?.[field.key]
+    fields[field.key] = typeof savedValue === 'string' ? savedValue : (field.defaultValue ?? '')
   }
   customFieldValues.value = fields
 
@@ -176,13 +186,14 @@ async function handleContinueAnyway() {
   if (!props.selectedProvider)
     return
 
+  // onNext saves the configuration and marks the provider configured, so a
+  // failed validation does not need a separate force-configured call here.
   await props.onNext({
     apiKey: apiKey.value,
     baseUrl: baseUrl.value,
     accountId: accountId.value,
     customFields: hasOnboardingFields.value ? { ...customFieldValues.value } : undefined,
   })
-  providersStore.forceProviderConfigured(props.selectedProvider.id)
 }
 
 // Placeholder helpers
@@ -304,21 +315,12 @@ initializeForm()
         />
 
         <!-- Validation Status -->
-        <Alert v-if="validation === 'failed'" type="error">
-          <template #title>
-            <div class="w-full flex items-center justify-between">
-              <span>{{ t('settings.dialogs.onboarding.validationFailed') }}</span>
-              <button
-                type="button"
-                class="ml-2 rounded bg-red-100 px-2 py-0.5 text-xs text-red-600 font-medium transition-colors dark:bg-red-800/30 hover:bg-red-200 dark:text-red-300 dark:hover:bg-red-700/40"
-                @click="handleContinueAnyway"
-              >
-                {{ t('settings.pages.providers.common.continueAnyway') }}
-              </button>
-            </div>
-          </template>
-          <template v-if="validationError" #content>
-            <pre class="whitespace-pre-wrap break-all">{{ String(validationError) }}</pre>
+        <Alert v-if="validation === 'failed'" tone="danger" :title="t('settings.dialogs.onboarding.validationFailed')">
+          <pre v-if="validationError" :class="['whitespace-pre-wrap break-all']">{{ String(validationError) }}</pre>
+          <template #actions>
+            <Button size="sm" color="red" @click="handleContinueAnyway">
+              {{ t('settings.pages.providers.common.continueAnyway') }}
+            </Button>
           </template>
         </Alert>
       </div>

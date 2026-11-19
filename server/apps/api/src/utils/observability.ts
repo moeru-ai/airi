@@ -2,13 +2,7 @@
 // Span attribute constants (OTel semantic conventions + AIRI custom)
 // ---------------------------------------------------------------------------
 
-// GenAI semconv attributes — https://opentelemetry.io/docs/specs/semconv/gen-ai/
-export const GEN_AI_ATTR_OPERATION_NAME = 'gen_ai.operation.name'
-export const GEN_AI_ATTR_REQUEST_MODEL = 'gen_ai.request.model'
-export const GEN_AI_ATTR_RESPONSE_MODEL = 'gen_ai.response.model'
-export const GEN_AI_ATTR_SYSTEM = 'gen_ai.system'
-export const GEN_AI_ATTR_USAGE_INPUT_TOKENS = 'gen_ai.usage.input_tokens'
-export const GEN_AI_ATTR_USAGE_OUTPUT_TOKENS = 'gen_ai.usage.output_tokens'
+// GenAI semconv attributes come from `@proj-airi/trace-kit/semconv`.
 
 // AIRI custom span attributes
 export const AIRI_ATTR_BILLING_FLUX_CONSUMED = 'airi.billing.flux_consumed'
@@ -61,16 +55,12 @@ export const METRIC_WS_MESSAGES_RECEIVED = 'ws.messages.received'
 // Revenue (AIRI custom)
 export const METRIC_STRIPE_CHECKOUT_CREATED = 'stripe.checkout.created'
 export const METRIC_STRIPE_CHECKOUT_COMPLETED = 'stripe.checkout.completed'
-export const METRIC_STRIPE_PAYMENT_FAILED = 'stripe.payment.failed'
-export const METRIC_STRIPE_SUBSCRIPTION_EVENT = 'stripe.subscription.event'
 export const METRIC_STRIPE_EVENTS = 'stripe.events'
 export const METRIC_FLUX_INSUFFICIENT_BALANCE = 'flux.insufficient_balance'
 
-// GenAI — https://opentelemetry.io/docs/specs/semconv/gen-ai/gen-ai-metrics/
-export const METRIC_GEN_AI_CLIENT_OPERATION_DURATION = 'gen_ai.client.operation.duration'
-export const METRIC_GEN_AI_CLIENT_OPERATION_COUNT = 'gen_ai.client.operation.count'
-export const METRIC_GEN_AI_CLIENT_TOKEN_USAGE_INPUT = 'gen_ai.client.token.usage.input'
-export const METRIC_GEN_AI_CLIENT_TOKEN_USAGE_OUTPUT = 'gen_ai.client.token.usage.output'
+// GenAI semconv metric names come from `@proj-airi/trace-kit/semconv`.
+// The conventions have no cost metric. This counter is the provider-reported upstream cost in USD.
+export const METRIC_AIRI_GEN_AI_CLIENT_COST = 'airi.gen_ai.client.cost'
 export const METRIC_FLUX_CONSUMED = 'airi.billing.flux.consumed'
 
 // AIRI billing — credit/debit visibility beyond raw consumption
@@ -101,7 +91,6 @@ export const METRIC_AIRI_RATE_LIMIT_BLOCKED = 'airi.rate_limit.blocked'
 
 // AIRI GenAI — stream quality
 export const METRIC_AIRI_GEN_AI_STREAM_INTERRUPTED = 'airi.gen_ai.stream.interrupted'
-export const METRIC_GEN_AI_CLIENT_FIRST_TOKEN_DURATION = 'gen_ai.client.first_token.duration'
 
 // AIRI router gateway — in-process LLM/TTS routing fallback / health signals.
 //

@@ -8,8 +8,8 @@ defineProps<{
 <template>
   <div relative overflow-hidden rounded-md>
     <div
-      :class="[barClass ? barClass : 'bg-primary-300 dark:bg-primary-300/50']"
-      absolute h-4 min-w-2 rounded-md will-change-width
+      :class="[barClass ? barClass : 'bg-primary-300 dark:bg-primary-300/50', progress > 0 && 'min-w-2']"
+      absolute h-4 rounded-md will-change-width
       :style="{ width: `${progress}%` }"
       transition="width duration-500 ease-in-out"
     >
@@ -29,6 +29,13 @@ defineProps<{
 .progress-shine-animation {
   animation: progress-shine 2s cubic-bezier(0.35, 0.08, 0.04, 0.99) infinite;
   will-change: transform, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-shine-animation {
+    animation: none;
+    opacity: 0;
+  }
 }
 
 @keyframes progress-shine {

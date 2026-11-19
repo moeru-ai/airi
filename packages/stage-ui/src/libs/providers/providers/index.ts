@@ -4,15 +4,17 @@ import { registerProviders } from './registry'
 
 import './aliyun-nls'
 import './apple-speech'
+import './apple-vision'
+import './sherpaw'
 import './local-audio'
 import './kokoro-local'
 import './nvidia'
 import './official'
+import './prompt-api'
 
 registerProviders(portableProviderDefinitions)
 
 export {
-  getDefaultStreamingModel,
   OFFICIAL_TRANSCRIPTION_PROVIDER_ID,
 } from './official'
 

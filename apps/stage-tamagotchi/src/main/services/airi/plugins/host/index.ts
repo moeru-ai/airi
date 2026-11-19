@@ -1,27 +1,32 @@
-import type { TamagotchiToolRegistry } from '@proj-airi/plugin-sdk-tamagotchi/tools'
-
 import type {
+  ExtensionDirectoryImportPlan,
   PluginHostDebugSnapshot,
   PluginRegistrySnapshot,
-} from '../../../../../shared/eventa/plugin/host'
+} from '@proj-airi/stage-shared/plugin-host'
+
 import type {
   ExtensionAssetCookie,
   ExtensionAssetSession,
   ExtensionAssetSnapshotService,
 } from '../features/static-assets'
+import type { TamagotchiToolRegistry } from '../kits/tool/registry'
 import type { ExtensionHostService, SetupExtensionHostOptions } from '../types'
+import type { SessionCleanupReport } from './managed-sessions'
 
 import { dirname, join } from 'node:path'
 
 import { useLogg } from '@guiiai/logg'
-import { ExtensionHost } from '@proj-airi/plugin-sdk/plugin-host'
+import { errorMessageFrom } from '@moeru/std'
+import { checkExtensionActivation } from '@proj-airi/plugin-sdk/plugin-host'
+import { Mutex } from 'async-mutex'
 import { app, session as electronSession } from 'electron'
 
 import { createExtensionAutoReloadFeature } from '../features/auto-reload'
 import { createExtensionAssetService } from '../features/static-assets'
-import { createBuiltInExtensionKitRuntime } from '../kits'
 import { createExtensionHostConfigStore } from './config'
 import { buildPluginHostDebugSnapshot } from './debug'
+import { ExtensionDirectoryImporter } from './directory-import'
+import { ManagedExtensionSessions } from './managed-sessions'
 import {
   buildPluginRegistrySnapshot,
   createExtensionHostRegistry,
@@ -31,6 +36,23 @@ import {
 } from './registry'
 
 const extensionAssetSessionTtlMs = 30 * 24 * 60 * 60 * 1000
+
+/** Separates runtime failures from static activation check diagnostics. */
+interface ActivationExecutionReport {
+  loadedExtensionIds: string[]
+  unloadedExtensionIds: string[]
+  failures: Array<{
+    extensionId: string
+    operation: 'load' | 'unload'
+    owner?: 'runtime' | 'assets'
+    error: unknown
+    message: string
+  }>
+}
+
+type ExtensionLoadResult
+  = | { ok: true }
+    | { ok: false, cleanup: SessionCleanupReport }
 
 function createElectronExtensionAssetCookieAdapter() {
   return {
@@ -61,14 +83,31 @@ function createElectronExtensionAssetCookieAdapter() {
  *
  * Expects:
  * - Consumers treat this as an internal bootstrap surface and keep the public facade unchanged
- * - `widgetsManager` is ready before startup begins
+ * - The built-in Kits are registered on `host` before startup begins
  *
  * Returns:
- * - The plain `ExtensionHostService` fields plus internal helpers for list/load/unload/inspect/dispose
+ * - The Host fields plus internal helpers for list/load/unload/inspect/dispose
  */
 export interface ExtensionHostServiceInternal extends ExtensionHostService {
   /** Tamagotchi-owned extension tool registry used by IPC tool bridges. */
   tools: TamagotchiToolRegistry
+
+  /**
+   * Applies the main-process system activation state without changing enabled intent.
+   *
+   * A disabled system stops live sessions in reverse start order. Re-enabling the
+   * system starts the persisted enabled set. A Consumer waits for its required Kits.
+   */
+  setSystemEnabled: (enabled: boolean) => Promise<ActivationExecutionReport>
+
+  /** Reads and validates one selected folder without executing Extension code. */
+  prepareDirectoryImport: (sourcePath: string, securityScopedBookmark?: string) => Promise<ExtensionDirectoryImportPlan>
+
+  /** Copies one reviewed folder into the managed registry and keeps it disabled. */
+  commitDirectoryImport: (planId: string) => Promise<PluginRegistrySnapshot>
+
+  /** Removes one pending folder import plan. */
+  cancelDirectoryImport: (planId: string) => void
 
   /**
    * Lists the current extension registry snapshot.
@@ -190,21 +229,6 @@ export interface ExtensionHostServiceInternal extends ExtensionHostService {
    * - The current extension asset base URL, or an empty string when unavailable
    */
   getAssetBaseUrl: () => string
-
-  /**
-   * Disposes optional host features and asset hosting resources.
-   *
-   * Use when:
-   * - Electron shutdown needs to stop extension-owned background work
-   * - Tests need to release watchers and local asset servers deterministically
-   *
-   * Expects:
-   * - Disposal may be called after partial startup or after prior plugin failures
-   *
-   * Returns:
-   * - A promise that resolves after feature and asset cleanup finish
-   */
-  dispose: () => Promise<void>
 }
 
 /**
@@ -231,30 +255,27 @@ export async function setupExtensionHostServiceInternal(
   const extensionConfig = createExtensionHostConfigStore()
   extensionConfig.setup()
 
-  // Kit API, Host
-  const builtInKitRuntime = createBuiltInExtensionKitRuntime(options)
-  const host = new ExtensionHost({ runtime: 'electron' })
+  const { host, kits } = options
+  const airiVersion = app.getVersion()
+  const activationMutex = new Mutex()
+  let systemEnabled = true
   log.withFields({ extensionsRoot }).log('loading extension manifests')
-  builtInKitRuntime.registerHostKits(host)
 
-  // extension registry
+  // Extension registry and asset service
   const extensionRegistry = createExtensionHostRegistry({ extensionsRoot, log })
-
-  await extensionRegistry.refresh()
-  log.withFields({ count: extensionRegistry.listEntries().length }).log('extension manifests loaded')
-  for (const entry of extensionRegistry.listEntries()) {
-    log.withFields({ name: manifestIdOf(entry.manifest), path: entry.path }).log('extension manifest found')
-  }
-
-  // Extension feature: Static Assets serving
   const extensionAssetService = createExtensionAssetService({
-    getManifestEntryByExtensionId: () => extensionRegistry.getManifestEntryByExtensionId(),
+    getManifestEntryByExtensionId: () => new Map(
+      [...extensionRegistry.getManifestEntryByExtensionId()].map(([extensionId, entry]) => [
+        extensionId,
+        {
+          rootDir: entry.rootDir,
+          version: entry.manifest.version,
+        },
+      ]),
+    ),
     cookieAdapter: createElectronExtensionAssetCookieAdapter(),
   })
-  await extensionAssetService.start()
 
-  const loaded = new Set<string>()
-  const loadedSessionIds = new Map<string, string>()
   const moduleAssetSessionCache = new Map<string, ExtensionAssetSession>()
 
   const clearModuleAssetSessionCacheByExtensionId = (extensionId: string) => {
@@ -265,14 +286,33 @@ export async function setupExtensionHostServiceInternal(
     }
   }
 
-  const clearModuleAssetSessionCacheByOwnerSessionId = (ownerSessionId: string) => {
-    for (const key of moduleAssetSessionCache.keys()) {
-      const segments = key.split(':')
-      if (segments[2] === ownerSessionId) {
-        moduleAssetSessionCache.delete(key)
-      }
-    }
+  const managedSessions = new ManagedExtensionSessions({
+    stopRuntime: async (sessionId) => {
+      await host.stop(sessionId)
+    },
+    revokeAssets: async (sessionId) => {
+      await extensionAssetService.revokeByOwnerSessionId(sessionId)
+    },
+  })
+  const getLoadedExtensionIds = () => managedSessions.snapshot().loadedExtensionIds
+  const getLoadedExtensionIdSet = () => new Set(getLoadedExtensionIds())
+
+  const directoryImporter = new ExtensionDirectoryImporter(
+    extensionsRoot,
+    extensionId => Boolean(extensionRegistry.findManifestEntry(extensionId)) || managedSessions.hasOwnership(extensionId),
+    (bookmark) => {
+      const stopAccessing = app.startAccessingSecurityScopedResource(bookmark)
+      return () => stopAccessing()
+    },
+  )
+  await directoryImporter.initialize()
+
+  await extensionRegistry.refresh()
+  log.withFields({ count: extensionRegistry.listEntries().length }).log('extension manifests loaded')
+  for (const entry of extensionRegistry.listEntries()) {
+    log.withFields({ name: manifestIdOf(entry.manifest), path: entry.path }).log('extension manifest found')
   }
+  await extensionAssetService.start()
 
   const refreshManifests = async () => {
     await extensionRegistry.refresh()
@@ -280,12 +320,24 @@ export async function setupExtensionHostServiceInternal(
 
   const getConfig = () => extensionConfig.get()
 
+  const checkActivation = (enabledExtensionIds: readonly string[]) => {
+    const diagnostics = checkExtensionActivation({
+      installedManifests: extensionRegistry.listManifests(),
+      enabledExtensionIds,
+      runtime: 'electron',
+      airiVersion,
+    })
+    if (diagnostics.length > 0) {
+      throw new Error(diagnostics.map(diagnostic => diagnostic.message).join('\n'))
+    }
+  }
+
   const listSnapshot = (): PluginRegistrySnapshot => {
     return buildPluginRegistrySnapshot({
       extensionsRoot,
       entries: extensionRegistry.listEntries(),
       config: getConfig(),
-      loaded,
+      loaded: getLoadedExtensionIdSet(),
     })
   }
 
@@ -334,18 +386,25 @@ export async function setupExtensionHostServiceInternal(
       extensionsRoot,
       entries: extensionRegistry.listEntries(),
       config: getConfig(),
-      loaded,
+      loaded: getLoadedExtensionIdSet(),
       manifestEntryByExtensionId: extensionRegistry.getManifestEntryByExtensionId(),
       extensionAssetService: extensionAssetSnapshotService,
+      canMaterializeAssetSession: ({ extensionId, sessionId }) => {
+        return managedSessions.isLoadedSession(extensionId, sessionId)
+      },
     })
   }
 
   const loadExtensionById = async (
     extensionId: string,
     loadOptions: { cacheBustKey?: string } = {},
-  ) => {
-    if (loaded.has(extensionId)) {
-      return
+  ): Promise<ExtensionLoadResult> => {
+    const preparation = await managedSessions.prepareForLoad(extensionId)
+    if (preparation === 'already-loaded') {
+      return { ok: true }
+    }
+    if (preparation !== 'ready') {
+      return { ok: false, cleanup: preparation }
     }
 
     const entry = extensionRegistry.findManifestEntry(extensionId)
@@ -355,26 +414,142 @@ export async function setupExtensionHostServiceInternal(
 
     const manifestForLoad = createManifestForLoad(entry, loadOptions)
     const session = await host.start(manifestForLoad, { cwd: dirname(entry.path) })
-    loaded.add(extensionId)
-    loadedSessionIds.set(extensionId, session.id)
+    managedSessions.registerLoaded({
+      extensionId,
+      sessionId: session.id,
+      manifest: manifestForLoad,
+    })
     log.withFields({ extensionId, sessionId: session.id }).log('extension loaded')
+    return { ok: true }
   }
 
   const stopLoadedExtensionById = async (extensionId: string) => {
-    const sessionId = loadedSessionIds.get(extensionId)
-    if (!sessionId) {
-      loaded.delete(extensionId)
-      return
+    // The module asset cache is a synchronous local projection. It does not own
+    // retryable cleanup work, so clear it before the session state transition.
+    clearModuleAssetSessionCacheByExtensionId(extensionId)
+    const report = await managedSessions.cleanup(extensionId)
+    if (report.complete) {
+      log.withFields({ extensionId }).log('extension unloaded')
+    }
+    return report
+  }
+
+  let autoReloadFeature: ReturnType<typeof createExtensionAutoReloadFeature>
+
+  const unloadExtensionById = async (extensionId: string) => {
+    autoReloadFeature.clearExtension(extensionId)
+    return await stopLoadedExtensionById(extensionId)
+  }
+
+  /** Stops `unload` in order, retries other cleanup debt, then starts `load` in order. */
+  const executeActivation = async (
+    transition: { unload?: readonly string[], load?: readonly string[] },
+    options: { cacheBustKey?: string, rejectOnFailure?: boolean } = {},
+  ): Promise<ActivationExecutionReport> => {
+    const unloadExtensionIds = transition.unload ?? []
+    const loadExtensionIds = transition.load ?? []
+    const report: ActivationExecutionReport = {
+      loadedExtensionIds: [],
+      unloadedExtensionIds: [],
+      failures: [],
+    }
+    const failedExtensionIds = new Set<string>()
+    const runtimeFailures: unknown[] = []
+    const executeUnload = async (extensionId: string) => {
+      try {
+        const cleanupReport: SessionCleanupReport = await unloadExtensionById(extensionId)
+        if (cleanupReport.complete) {
+          report.unloadedExtensionIds.push(extensionId)
+          return
+        }
+
+        failedExtensionIds.add(extensionId)
+        for (const failure of cleanupReport.failures) {
+          runtimeFailures.push(failure.error)
+          report.failures.push({
+            extensionId,
+            operation: 'unload',
+            owner: failure.owner,
+            error: failure.error,
+            message: errorMessageFrom(failure.error) ?? 'Unknown Extension unload failure.',
+          })
+          log.withError(failure.error).withFields({ extensionId, owner: failure.owner }).error('extension failed to stop')
+        }
+      }
+      catch (error) {
+        runtimeFailures.push(error)
+        failedExtensionIds.add(extensionId)
+        report.failures.push({
+          extensionId,
+          operation: 'unload',
+          error,
+          message: errorMessageFrom(error) ?? 'Unknown Extension unload failure.',
+        })
+        log.withError(error).withFields({ extensionId }).error('extension failed to stop')
+      }
+    }
+    for (const extensionId of unloadExtensionIds) {
+      await executeUnload(extensionId)
     }
 
-    await host.stop(sessionId)
-    loadedSessionIds.delete(extensionId)
-    loaded.delete(extensionId)
+    // Cleanup debt is absent from the loaded snapshot. Retry owners that this transition neither stops nor starts.
+    const { cleanupPendingExtensionIds } = managedSessions.snapshot()
+    for (const extensionId of cleanupPendingExtensionIds.filter(id => !loadExtensionIds.includes(id) && !unloadExtensionIds.includes(id))) {
+      await executeUnload(extensionId)
+    }
 
-    clearModuleAssetSessionCacheByOwnerSessionId(sessionId)
-    await extensionAssetService.revokeByOwnerSessionId(sessionId)
+    for (const extensionId of loadExtensionIds) {
+      if (failedExtensionIds.has(extensionId)) {
+        log.withFields({ extensionId }).error('extension restart skipped because stop failed')
+        continue
+      }
 
-    log.withFields({ extensionId, sessionId }).log('extension unloaded')
+      try {
+        const loadResult = await loadExtensionById(extensionId, options)
+        if (!loadResult.ok) {
+          failedExtensionIds.add(extensionId)
+          for (const failure of loadResult.cleanup.failures) {
+            runtimeFailures.push(failure.error)
+            report.failures.push({
+              extensionId,
+              operation: 'load',
+              owner: failure.owner,
+              error: failure.error,
+              message: errorMessageFrom(failure.error) ?? 'Unknown Extension cleanup failure before load.',
+            })
+            log.withError(failure.error).withFields({ extensionId, owner: failure.owner }).error('extension cleanup failed before start')
+          }
+          continue
+        }
+        report.loadedExtensionIds.push(extensionId)
+      }
+      catch (error) {
+        runtimeFailures.push(error)
+        failedExtensionIds.add(extensionId)
+        report.failures.push({
+          extensionId,
+          operation: 'load',
+          error,
+          message: errorMessageFrom(error) ?? 'Unknown Extension load failure.',
+        })
+        log.withError(error).withFields({ extensionId }).error('extension failed to start')
+      }
+    }
+
+    if (report.failures.length > 0) {
+      log.withFields({ report }).error('extension activation finished with runtime failures')
+    }
+
+    if (options.rejectOnFailure) {
+      if (runtimeFailures.length === 1) {
+        throw runtimeFailures[0]
+      }
+      if (runtimeFailures.length > 1) {
+        throw new AggregateError(runtimeFailures, 'Extension activation failed.')
+      }
+    }
+
+    return report
   }
 
   const resolveAutoReloadWatchPaths = (extensionId: string) => {
@@ -388,89 +563,116 @@ export async function setupExtensionHostServiceInternal(
   }
 
   // Extension feature: Auto-reload for plugins
-  const autoReloadFeature = createExtensionAutoReloadFeature({
+  autoReloadFeature = createExtensionAutoReloadFeature({
     log,
     getConfig,
     listEntries: () => extensionRegistry.listEntries(),
-    isLoaded: extensionId => loaded.has(extensionId),
+    isLoaded: extensionId => managedSessions.isLoaded(extensionId),
     resolveWatchPaths: resolveAutoReloadWatchPaths,
     reload: async (extensionId) => {
-      await stopLoadedExtensionById(extensionId)
-      await refreshManifests()
-      await loadExtensionById(extensionId, { cacheBustKey: `auto-reload-${Date.now()}` })
+      await activationMutex.runExclusive(async () => {
+        await refreshManifests()
+        if (!managedSessions.isLoaded(extensionId)) {
+          throw new Error(`Extension "${extensionId}" cannot restart because it is not loaded.`)
+        }
+        checkActivation(getLoadedExtensionIds())
+        await executeActivation({ unload: [extensionId], load: [extensionId] }, { cacheBustKey: `auto-reload-${Date.now()}` })
+        autoReloadFeature.sync()
+      })
     },
   })
 
-  const unloadExtensionById = async (extensionId: string) => {
-    autoReloadFeature.clearExtension(extensionId)
-    await stopLoadedExtensionById(extensionId)
-  }
-
   const loadEnabledExtensions = async () => {
     const config = getConfig()
-    for (const entry of extensionRegistry.listEntries()) {
-      const extensionId = manifestIdOf(entry.manifest)
-      if (!config.enabled.includes(extensionId)) {
-        continue
-      }
-      if (loaded.has(extensionId)) {
-        continue
-      }
-
-      try {
-        await loadExtensionById(extensionId)
-      }
-      catch (error) {
-        log.withError(error).withFields({ extensionId }).error('extension failed to start')
-      }
-    }
-
+    checkActivation(config.enabled)
+    // loadEnabled reconciles persisted intent without undoing Devtools raw loads.
+    // Raw-loaded sessions are runtime facts, so this operation stops nothing.
+    const report = await executeActivation({
+      load: systemEnabled ? config.enabled.filter(extensionId => !managedSessions.isLoaded(extensionId)) : [],
+    })
     autoReloadFeature.sync()
+    return report
   }
 
-  await refreshManifests()
-  await loadEnabledExtensions()
+  await activationMutex.runExclusive(async () => {
+    await refreshManifests()
+    try {
+      await loadEnabledExtensions()
+    }
+    catch (error) {
+      log.withError(error).error('extension activation rejected during startup')
+    }
+  })
   autoReloadFeature.sync()
 
   return {
     host,
-    // REVIEW: Tool registry ownership is currently hidden inside the built-in kit runtime even though
-    // the host service also exposes it for IPC listing/invocation. Consider moving registry ownership
-    // to this host service and passing it into kit registration as a dependency.
-    tools: builtInKitRuntime.tools,
+    tools: kits.tools,
     manifests: extensionRegistry.listManifests(),
+    async prepareDirectoryImport(sourcePath, securityScopedBookmark) {
+      await refreshManifests()
+      return await directoryImporter.prepare(sourcePath, securityScopedBookmark)
+    },
+    async commitDirectoryImport(planId) {
+      await refreshManifests()
+      const imported = await directoryImporter.commit(planId)
+      extensionRegistry.recordCommittedEntry(imported)
+
+      const config = getConfig()
+      extensionConfig.update({
+        enabled: config.enabled.filter(extensionId => extensionId !== imported.manifest.id),
+        autoReload: config.autoReload.filter(extensionId => extensionId !== imported.manifest.id),
+        known: {
+          ...config.known,
+          [imported.manifest.id]: { path: imported.path },
+        },
+      })
+
+      autoReloadFeature.sync()
+      return listSnapshot()
+    },
+    cancelDirectoryImport(planId) {
+      directoryImporter.cancel(planId)
+    },
     async list() {
       await refreshManifests()
       autoReloadFeature.sync()
       return listSnapshot()
     },
     async setEnabled(payload) {
-      await refreshManifests()
+      return await activationMutex.runExclusive(async () => {
+        await refreshManifests()
 
-      const config = getConfig()
-      const enabled = new Set(config.enabled)
-      if (payload.enabled) {
-        enabled.add(payload.extensionId)
-      }
-      else {
-        enabled.delete(payload.extensionId)
-        clearModuleAssetSessionCacheByExtensionId(payload.extensionId)
-        await extensionAssetService.revokeByExtensionId(payload.extensionId)
-      }
+        const config = getConfig()
+        const enabled = new Set(config.enabled)
+        if (payload.enabled) {
+          enabled.add(payload.extensionId)
+        }
+        else {
+          enabled.delete(payload.extensionId)
+        }
 
-      const entry = extensionRegistry.findManifestEntry(payload.extensionId)
-      const manifestPath = entry?.path ?? payload.path ?? ''
-      extensionConfig.update({
-        enabled: [...enabled],
-        autoReload: config.autoReload,
-        known: {
-          ...config.known,
-          [payload.extensionId]: { path: manifestPath },
-        },
+        checkActivation([...enabled])
+
+        const entry = extensionRegistry.findManifestEntry(payload.extensionId)
+        const manifestPath = entry?.path ?? payload.path ?? ''
+        extensionConfig.update({
+          enabled: [...enabled],
+          autoReload: config.autoReload,
+          known: {
+            ...config.known,
+            [payload.extensionId]: { path: manifestPath },
+          },
+        })
+
+        if (!payload.enabled) {
+          clearModuleAssetSessionCacheByExtensionId(payload.extensionId)
+          await extensionAssetService.revokeByExtensionId(payload.extensionId)
+        }
+
+        autoReloadFeature.sync()
+        return listSnapshot()
       })
-
-      autoReloadFeature.sync()
-      return listSnapshot()
     },
     async setAutoReload(payload) {
       await refreshManifests()
@@ -493,37 +695,101 @@ export async function setupExtensionHostServiceInternal(
       return listSnapshot()
     },
     async loadEnabled() {
-      await refreshManifests()
-      await loadEnabledExtensions()
-      autoReloadFeature.sync()
-      return listSnapshot()
+      return await activationMutex.runExclusive(async () => {
+        await refreshManifests()
+        await loadEnabledExtensions()
+        autoReloadFeature.sync()
+        return listSnapshot()
+      })
     },
     async load(extensionId) {
-      await refreshManifests()
-      await loadExtensionById(extensionId)
-      autoReloadFeature.sync()
-      return listSnapshot()
+      return await activationMutex.runExclusive(async () => {
+        await refreshManifests()
+        checkActivation([...getLoadedExtensionIds(), extensionId])
+        await executeActivation({ load: managedSessions.isLoaded(extensionId) ? [] : [extensionId] }, { rejectOnFailure: true })
+        autoReloadFeature.sync()
+        return listSnapshot()
+      })
     },
     async unload(extensionId) {
-      await unloadExtensionById(extensionId)
-      autoReloadFeature.sync()
-      return listSnapshot()
+      return await activationMutex.runExclusive(async () => {
+        await refreshManifests()
+        await executeActivation({ unload: managedSessions.isLoaded(extensionId) ? [extensionId] : [] }, { rejectOnFailure: true })
+        autoReloadFeature.sync()
+        return listSnapshot()
+      })
+    },
+    async setSystemEnabled(enabled) {
+      return await activationMutex.runExclusive(async () => {
+        await refreshManifests()
+        const config = getConfig()
+        checkActivation(config.enabled)
+        systemEnabled = enabled
+        const targetExtensionIds = new Set(enabled ? config.enabled : [])
+        const report = await executeActivation({
+          unload: getLoadedExtensionIds().filter(extensionId => !targetExtensionIds.has(extensionId)).reverse(),
+          load: [...targetExtensionIds].filter(extensionId => !managedSessions.isLoaded(extensionId)),
+        })
+        autoReloadFeature.sync()
+        return report
+      })
     },
     async inspect() {
-      await refreshManifests()
-      autoReloadFeature.sync()
-      return await inspectSnapshot()
+      return await activationMutex.runExclusive(async () => {
+        await refreshManifests()
+        autoReloadFeature.sync()
+        return await inspectSnapshot()
+      })
     },
     getAssetBaseUrl() {
       return extensionAssetService.getBaseUrl() ?? ''
     },
     async dispose() {
-      autoReloadFeature.dispose()
-      builtInKitRuntime.dispose()
+      await activationMutex.runExclusive(async () => {
+        const cleanupFailures: unknown[] = []
+        const report = await executeActivation({
+          unload: managedSessions.snapshot().ownedManifests.map(manifest => manifest.id).reverse(),
+        })
+        for (const failure of report.failures) {
+          cleanupFailures.push(failure.error)
+        }
 
-      moduleAssetSessionCache.clear()
-      await extensionAssetService.revokeAll()
-      await extensionAssetService.stop()
+        // Session cleanup runs first because Extension stop handlers can still use
+        // Kit and asset services. Shared owners shut down even when a stop fails.
+        try {
+          await directoryImporter.dispose()
+        }
+        catch (error) {
+          cleanupFailures.push(error)
+        }
+        try {
+          autoReloadFeature.dispose()
+        }
+        catch (error) {
+          cleanupFailures.push(error)
+        }
+
+        moduleAssetSessionCache.clear()
+        try {
+          await extensionAssetService.revokeAll()
+        }
+        catch (error) {
+          cleanupFailures.push(error)
+        }
+        try {
+          await extensionAssetService.stop()
+        }
+        catch (error) {
+          cleanupFailures.push(error)
+        }
+
+        if (cleanupFailures.length === 1) {
+          throw cleanupFailures[0]
+        }
+        if (cleanupFailures.length > 1) {
+          throw new AggregateError(cleanupFailures, 'Extension Host disposal failed.')
+        }
+      })
     },
   }
 }

@@ -37,7 +37,7 @@ const workletNode = shallowRef<AudioWorkletNode>()
 const mediaStreamSource = shallowRef<MediaStreamAudioSourceNode>()
 const mediaStream = shallowRef<MediaStream>()
 
-const audioStreamController = shallowRef<ReadableStreamDefaultController<ArrayBuffer>>()
+const audioStreamController = shallowRef<ReadableStreamDefaultController<Uint8Array>>()
 const transcriptionAbortController = shallowRef<AbortController>()
 const transcriptionTextPromise = shallowRef<Promise<string> | null>(null)
 
@@ -109,7 +109,7 @@ async function initializeAudioGraph(stream: MediaStream) {
       return
 
     const pcm16 = toPCM16FromFloat32(buffer)
-    controller.enqueue(pcm16.buffer.slice(0))
+    controller.enqueue(new Uint8Array(pcm16.buffer))
 
     audioChunkCount += 1
     if (audioChunkCount === 1 || audioChunkCount - lastChunkLogAt >= 50) {
@@ -141,7 +141,7 @@ async function startRecording() {
   const abortController = new AbortController()
   transcriptionAbortController.value = abortController
 
-  const audioStream = new ReadableStream<ArrayBuffer>({
+  const audioStream = new ReadableStream<Uint8Array>({
     start(controller) {
       audioStreamController.value = controller
     },

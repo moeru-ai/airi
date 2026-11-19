@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { all } from '@proj-airi/i18n'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
-import { isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/libs/analytics'
+import { isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/libs/product-signals'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { FieldCheckbox, FieldCombobox, useTheme } from '@proj-airi/ui'
 import { computed } from 'vue'
@@ -14,6 +14,7 @@ const props = withDefaults(defineProps<{
 })
 
 const settings = useSettings()
+const showStreamerMode = import.meta.env.RUNTIME_ENVIRONMENT === 'electron'
 
 const showControlsIsland = computed(() => props.needsControlsIslandIconSizeSetting)
 const showAnalyticsSettings = computed(() => isAnalyticsAvailableInBuild())
@@ -23,7 +24,7 @@ const analyticsToggleValue = computed({
 })
 
 const { t } = useI18n()
-const { isDark: dark } = useTheme()
+const { themeMode } = useTheme()
 const { privacyPolicyUrl } = useAnalytics()
 
 const languages = computed(() => {
@@ -33,8 +34,8 @@ const languages = computed(() => {
 
 <template>
   <div class="flex flex-col gap-4 rounded-lg bg-neutral-50 p-4 dark:bg-neutral-800">
-    <FieldCheckbox
-      v-model="dark"
+    <FieldCombobox
+      v-model="themeMode"
       v-motion
       :class="['mb-2']"
       :initial="{ opacity: 0, y: 10 }"
@@ -43,6 +44,11 @@ const languages = computed(() => {
       :delay="2 * 50"
       :label="t('settings.theme.title')"
       :description="t('settings.theme.description')"
+      :options="[
+        { value: 'auto', label: t('settings.theme.auto') },
+        { value: 'light', label: t('settings.theme.light') },
+        { value: 'dark', label: t('settings.theme.dark') },
+      ]"
     />
 
     <FieldCombobox
@@ -75,6 +81,13 @@ const languages = computed(() => {
         { value: 'large', label: t('settings.controls-island.icon-size.large') },
         { value: 'small', label: t('settings.controls-island.icon-size.small') },
       ]"
+    />
+
+    <FieldCheckbox
+      v-if="showStreamerMode"
+      v-model="settings.streamerMode"
+      :label="t('settings.streamer-mode.title')"
+      :description="t('settings.streamer-mode.description')"
     />
 
     <FieldCheckbox

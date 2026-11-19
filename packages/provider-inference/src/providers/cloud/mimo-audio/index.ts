@@ -227,6 +227,7 @@ export const providerMimoAudioSpeech = defineProvider<MimoSpeechConfig, 'mimo-au
       { id: 'mimo-v2.5-tts-voicedesign', name: 'MiMo v2.5 TTS Voice Design', provider: 'mimo-audio-speech', description: 'Design a new voice from a natural language description', deprecated: false },
       { id: 'mimo-v2.5-tts-voiceclone', name: 'MiMo v2.5 TTS Voice Clone', provider: 'mimo-audio-speech', description: 'Clone a voice from a base64-encoded audio sample', deprecated: false },
     ],
+    voiceCatalogConfig: () => ({}),
     listVoices: async () => [
       { id: 'mimo_default', name: 'MiMo-默认', provider: 'mimo-audio-speech', gender: 'female', languages: [{ code: 'en', title: 'English' }, { code: 'zh', title: 'Chinese' }] },
       { id: '冰糖', name: '冰糖', provider: 'mimo-audio-speech', gender: 'female', languages: [{ code: 'zh', title: 'Chinese' }] },

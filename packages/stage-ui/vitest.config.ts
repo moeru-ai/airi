@@ -1,17 +1,57 @@
 import { cwd } from 'node:process'
 
 import Vue from '@vitejs/plugin-vue'
+import UnoCSS from 'unocss/vite'
 import Info from 'unplugin-info/vite'
+import VueRouter from 'vue-router/vite'
 
 import { playwright } from '@vitest/browser-playwright'
-import { loadEnv } from 'vite'
+import { mergeConfigs } from 'unocss'
+import { loadEnv, normalizePath } from 'vite'
 import { defineConfig } from 'vitest/config'
+
+import { sharedUnoConfig } from '../../uno.config'
 
 export default defineConfig({
   root: import.meta.dirname,
+  // Shared settings pages import these optional UI dependencies through the
+  // component barrel, and test Workers import the eventa Worker adapter.
+  // Bundle them before a browser test starts to avoid HMR.
+  optimizeDeps: {
+    include: [
+      '@moeru/eventa/adapters/webworkers',
+      '@moeru/eventa/adapters/webworkers/worker',
+      '@moeru/std',
+      '@vueuse/core',
+      'embla-carousel-vue',
+      'html2canvas',
+      'node-vibrant/browser',
+      'reka-ui',
+      'vaul-vue',
+      'vue',
+      'vue-i18n',
+    ],
+  },
   plugins: [
     Info(),
+    // Use the app's route-block transform when browser tests mount shared pages.
+    VueRouter({ routesFolder: [], dts: false }),
     Vue(),
+    UnoCSS(mergeConfigs([sharedUnoConfig(), {
+      // Browser tests use product styles, not Histoire's hover-preview variants.
+      configFile: false,
+      // Vitest loads components after the stylesheet. Scan their source before
+      // the initial CSS response instead of relying on Vite's HMR updates.
+      content: {
+        filesystem: [
+          `${normalizePath(import.meta.dirname)}/src/**/*.vue`,
+          `${normalizePath(import.meta.dirname)}/../ui/src/**/*.vue`,
+          `${normalizePath(import.meta.dirname)}/../ui-panes/src/**/*.vue`,
+          `${normalizePath(import.meta.dirname)}/../ui-timeline/src/**/*.vue`,
+          `${normalizePath(import.meta.dirname)}/../ui-trace/src/**/*.vue`,
+        ],
+      },
+    }])),
   ],
   test: {
     env: loadEnv('test', cwd(), ''),
@@ -22,9 +62,13 @@ export default defineConfig({
           name: 'node',
           include: ['src/**/*.test.ts'],
           exclude: ['src/**/*.browser.test.ts'],
-          fileParallelism: false,
           hookTimeout: 20_000,
-          maxWorkers: 1,
+          // Two workers leave CPU for other packages that Turbo runs at the same time.
+          // More workers make the slow store imports exceed their timeouts.
+          maxWorkers: 2,
+          // Vitest needs a separate group for a project with its own worker limit.
+          // The browser group starts after this group ends.
+          sequence: { groupOrder: 0 },
           testTimeout: 20_000,
         },
       },
@@ -32,12 +76,13 @@ export default defineConfig({
         extends: true,
         test: {
           name: 'browser',
+          sequence: { groupOrder: 1 },
           include: ['src/**/*.browser.test.ts'],
           exclude: ['**/node_modules/**'],
           browser: {
             enabled: true,
             headless: true,
-            provider: playwright(),
+            provider: playwright({ launchOptions: { args: ['--autoplay-policy=no-user-gesture-required', '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] } }),
             instances: [
               { browser: 'chromium' },
             ],

@@ -5,6 +5,15 @@ import type { StageWindowName, StageWindowSnapshot } from './runtime/windows'
 
 import { defineScenario } from '@vishot/source-electron'
 
+import {
+  clickBesideControlsMenu,
+  expectControlsMenuBesideMoreButton,
+  openControlsMenuFromCharacter,
+  openControlsMenuFromMoreButton,
+  waitForControlsMenuPage,
+  waitForControlsMenuWindow,
+} from './runtime/controls-menu'
+import { swipe } from './runtime/gestures'
 import { dismissDialog, dismissDrawer, swipeDownDrawer } from './runtime/overlays'
 import { expandControlsIsland, openChatFromControlsIsland, openHearingFromControlsIsland, openSettingsFromControlsIsland, waitForControlsIslandReady } from './runtime/selectors'
 import { goToSettingsConnectionPage, goToSettingsRoute } from './runtime/settings'
@@ -22,6 +31,20 @@ export interface ControlsIslandApi {
   openHearing: (page: Page) => Promise<Page>
 }
 
+/** The app menu of the Island, which opens in a window of its own. */
+export interface ControlsMenuApi {
+  /** Finds the page of the menu window without showing the window. */
+  waitForPage: (timeout?: number) => Promise<Page>
+  /** Waits until the menu window shows or hides. */
+  waitForWindow: (state: 'shown' | 'hidden') => Promise<void>
+  openFromMoreButton: (mainPage: Page, menuPage: Page) => Promise<void>
+  openFromCharacter: (mainPage: Page, menuPage: Page) => Promise<void>
+  /** Throws unless the menu opened 8px beside the more button, level with it, on the screen. */
+  expectBesideMoreButton: (mainPage: Page, menuPage: Page) => Promise<void>
+  /** Clicks the menu window away from the menu, which closes the menu. */
+  clickBeside: (menuPage: Page) => Promise<void>
+}
+
 export interface SettingsWindowApi {
   waitFor: (timeout?: number) => Promise<StageWindowSnapshot>
   goToConnection: (page: Page) => Promise<Page>
@@ -37,15 +60,21 @@ export interface DrawersApi {
   dismiss: (page: Page) => Promise<void>
 }
 
+export interface GesturesApi {
+  swipe: typeof swipe
+}
+
 /**
  * Generic Vishot Electron context plus AIRI stage-tamagotchi navigation helpers.
  */
 export interface StageTamagotchiScenarioContext extends ScenarioContext {
   stageWindows: StageWindowsApi
   controlsIsland: ControlsIslandApi
+  controlsMenu: ControlsMenuApi
   settingsWindow: SettingsWindowApi
   dialogs: DialogsApi
   drawers: DrawersApi
+  gestures: GesturesApi
 }
 
 export interface StageTamagotchiScenario {
@@ -83,6 +112,26 @@ export function createStageTamagotchiScenarioContext(context: ScenarioContext): 
         return openHearingFromControlsIsland(page)
       },
     },
+    controlsMenu: {
+      waitForPage(timeout) {
+        return waitForControlsMenuPage(context.electronApp, timeout)
+      },
+      waitForWindow(state) {
+        return waitForControlsMenuWindow(context.electronApp, state)
+      },
+      openFromMoreButton(mainPage, menuPage) {
+        return openControlsMenuFromMoreButton(context.electronApp, mainPage, menuPage)
+      },
+      openFromCharacter(mainPage, menuPage) {
+        return openControlsMenuFromCharacter(context.electronApp, mainPage, menuPage)
+      },
+      expectBesideMoreButton(mainPage, menuPage) {
+        return expectControlsMenuBesideMoreButton(context.electronApp, mainPage, menuPage)
+      },
+      clickBeside(menuPage) {
+        return clickBesideControlsMenu(menuPage)
+      },
+    },
     settingsWindow: {
       waitFor(timeout) {
         return waitForStageWindow(context.electronApp, 'settings', timeout)
@@ -106,6 +155,9 @@ export function createStageTamagotchiScenarioContext(context: ScenarioContext): 
       dismiss(page) {
         return dismissDrawer(page)
       },
+    },
+    gestures: {
+      swipe,
     },
   }
 }

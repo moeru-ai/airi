@@ -1,11 +1,15 @@
+import type { GenerationRequest } from '../../../types'
+
 import { createOpenAI } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
+import { compatibleProtocols, generationProtocolOptions } from '../../../generation'
 import { ProviderValidationCheck } from '../../../types'
 import { createOpenAICompatibleValidators } from '../../../validators'
 import { defineProvider } from '../../registry'
 
-const openAICompatibleConfigSchema = z.object({
+const configSchema = z.object({
+  api: z.enum(compatibleProtocols.supportedProtocols).default(compatibleProtocols.defaultProtocol),
   apiKey: z
     .string('API Key')
     .optional(),
@@ -15,9 +19,9 @@ const openAICompatibleConfigSchema = z.object({
     .default('https://api.openai.com/v1'),
 })
 
-type OpenAICompatibleConfig = z.input<typeof openAICompatibleConfigSchema>
+type Config = z.input<typeof configSchema>
 
-export const providerOpenAICompatible = defineProvider<OpenAICompatibleConfig, 'openai-compatible'>({
+export const providerOpenAICompatible = defineProvider<Config, 'openai-compatible'>({
   id: 'openai-compatible',
   order: 4,
   name: 'OpenAI Compatible',
@@ -25,23 +29,42 @@ export const providerOpenAICompatible = defineProvider<OpenAICompatibleConfig, '
   description: 'OpenAI-compatible chat APIs with API key authentication.',
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.openai-compatible.description'),
   tasks: ['chat'],
+  capabilities: { chat: { generation: compatibleProtocols } },
   icon: 'i-lobe-icons:openai',
 
-  createProviderConfig: ({ t }) => openAICompatibleConfigSchema.extend({
-    apiKey: openAICompatibleConfigSchema.shape.apiKey.meta({
+  createProviderConfig: ({ t }) => configSchema.extend({
+    api: configSchema.shape.api.meta({
+      type: 'select',
+      options: generationProtocolOptions(compatibleProtocols),
+      labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-protocol.label'),
+      descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-protocol.description'),
+    }),
+    apiKey: configSchema.shape.apiKey.meta({
       labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.label'),
       descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description'),
       placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.placeholder'),
       type: 'password',
     }),
-    baseUrl: openAICompatibleConfigSchema.shape.baseUrl.meta({
+    baseUrl: configSchema.shape.baseUrl.meta({
       labelLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.label'),
       descriptionLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.description'),
       placeholderLocalized: t('settings.pages.providers.catalog.edit.config.common.fields.field.base-url.placeholder'),
     }),
   }),
   createProvider(config) {
-    return createOpenAI(config.apiKey as string, config.baseUrl)
+    const provider = createOpenAI(config.apiKey ?? '', config.baseUrl)
+    return {
+      model: provider.model,
+      generation(model: string): GenerationRequest {
+        const request = provider.chat(model)
+        switch (config.api ?? compatibleProtocols.defaultProtocol) {
+          case 'responses':
+            return { protocol: 'responses', config: request, webSearch: false }
+          case 'chat-completions':
+            return { protocol: 'chat-completions', config: request }
+        }
+      },
+    }
   },
 
   validationRequiredWhen(config) {

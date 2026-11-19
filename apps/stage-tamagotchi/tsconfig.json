@@ -40,7 +40,7 @@
       "electron-vite/node",
       "unplugin-info/client",
       "@proj-airi/stage-shared/electron-renderer",
-      "@webgpu/types"
+      "@ergosphere-it/electron/virtual"
     ],
     "allowJs": true,
     "strict": true,
@@ -53,6 +53,8 @@
     ]
   },
   "include": [
+    "src/launcher/**/*.ts",
+
     "src/main/**/*.ts",
     "src/main/**/*.d.ts",
     "src/main/**/*.tsx",

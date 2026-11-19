@@ -306,7 +306,7 @@ async function typeCharacters(entry: Ref<ConsoleEntry>, text: string, speed: num
   entry.value.content = text // Ensure final state is complete
 }
 
-async function writeLine<T extends any[]>(
+async function writeLine<T extends unknown[]>(
   format: string,
   ...args: [...T, WriteLineOptions?]
 ): Promise<void> {
