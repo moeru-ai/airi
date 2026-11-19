@@ -1,7 +1,6 @@
 import type { AnalyticsCaptureOptions } from './client'
 import type { AnalyticsEvent, InferAnalyticsEventPayload } from './utils/dsl'
 
-import { isStageCapacitor, isStageTamagotchi } from '@proj-airi/stage-shared'
 import { watch } from 'vue'
 
 import { useBuildInfo } from '../../composables/use-build-info'
@@ -13,7 +12,7 @@ import {
   configureAnalyticsAdapter,
   disableAnalyticsCapture,
   enableAnalyticsCapture,
-  getAnalyticsIdentitySnapshot,
+  getAnalyticsIdentityHeaders,
   identifyAnalyticsUser,
   isAnalyticsAvailableInBuild,
   registerAnalyticsBuildInfo,
@@ -26,11 +25,13 @@ import {
   characterSwitchedEvent,
   firstMessageSentEvent,
 } from './events/app'
+import { analyticsSurface } from './surface'
 
 export * from './client'
 export * from './error-reporting'
 export * from './events'
 export * from './privacy-policy'
+export * from './surface'
 export type { AnalyticsEvent, InferAnalyticsEventPayload } from './utils/dsl'
 export { defineEvent } from './utils/dsl'
 
@@ -42,14 +43,6 @@ export interface AnalyticsRecorder {
   emit: <Event extends AnyAnalyticsEvent>(event: Event, payload: InferAnalyticsEventPayload<Event>, options?: AnalyticsCaptureOptions) => boolean
   /** Emits the first-message event once for the current application lifetime. */
   recordFirstMessage: () => boolean
-}
-
-function analyticsSurface(): 'web' | 'desktop' | 'mobile' {
-  return isStageTamagotchi()
-    ? 'desktop'
-    : isStageCapacitor()
-      ? 'mobile'
-      : 'web'
 }
 
 /**
@@ -198,4 +191,4 @@ export function initializeAnalytics(): void {
   analytics.initialize()
 }
 
-export { configureAnalyticsAdapter, getAnalyticsIdentitySnapshot, isAnalyticsAvailableInBuild }
+export { configureAnalyticsAdapter, getAnalyticsIdentityHeaders, isAnalyticsAvailableInBuild }

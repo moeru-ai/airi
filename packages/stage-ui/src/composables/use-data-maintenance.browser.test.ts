@@ -9,6 +9,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { createApp, nextTick, toRaw } from 'vue'
 import { createI18n } from 'vue-i18n'
 
+import { importData } from '../libs/data-transfer'
 import { injectKeyPiniaSynced } from '../libs/pinia/synced-context'
 import { toStoredVoiceprint } from '../libs/voice/voiceprint'
 import { useDisplayModelsStore } from '../stores/display-models'
@@ -41,13 +42,25 @@ vi.mock('../libs/inference/adapters/kokoro', () => ({
   }),
 }))
 
-const cleanups: Array<() => void> = []
+const cleanups: Array<() => void | Promise<void>> = []
 
 /** Mounts the maintenance composable with real stores and a separate synchronization runtime. */
 function mountMaintenance(namespace: string, leadership: LeadershipMode) {
   const pinia = createPinia()
   const runtime = createSyncedPiniaPlugin({ namespace, leadership })
   pinia.use(runtime.plugin)
+  const pendingActions = new Set<symbol>()
+  pinia.use(({ store }) => {
+    store.$onAction(({ after, onError }) => {
+      const action = Symbol('pending action')
+      pendingActions.add(action)
+      const settled = () => {
+        pendingActions.delete(action)
+      }
+      after(settled)
+      onError(settled)
+    })
+  })
   // https://github.com/moeru-ai/airi/pull/2477
   // ROOT CAUSE:
   // Maintenance initializes the module channel. A local server can send events
@@ -68,7 +81,10 @@ function mountMaintenance(namespace: string, leadership: LeadershipMode) {
     .use(PiniaColada)
     .use(createI18n({ legacy: false, locale: 'en', messages: { en } }))
     .mount(document.createElement('div'))
-  cleanups.push(() => {
+  cleanups.push(async () => {
+    // Imported settings wake asynchronous store watchers. Finish their actions before the transport closes.
+    await nextTick()
+    await vi.waitFor(() => expect(pendingActions.size).toBe(0))
     app.unmount()
     channel.dispose()
     disposePinia(pinia)
@@ -79,9 +95,9 @@ function mountMaintenance(namespace: string, leadership: LeadershipMode) {
   return { pinia, runtime, maintenance }
 }
 
-afterEach(() => {
-  for (const cleanup of cleanups.splice(0))
-    cleanup()
+afterEach(async () => {
+  for (const cleanup of cleanups.splice(0).reverse())
+    await cleanup()
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
   localStorage.clear()
@@ -161,8 +177,8 @@ it.each(['leader-only', 'follower-only'] as const)('clears unavailable module pr
   expect(hearing.autoSendDelay).toBe(1234)
   expect(speech.pitch).toBe(2)
   expect(consciousness.activeProvider).toBe('openai')
-  expect(consciousness.activeModel).toBe('card-chat-model')
-  expect(cards.moduleDefaults?.consciousness).toEqual({ provider: 'openai', model: 'chat-model' })
+  expect(consciousness.activeModel).toBe('chat-model')
+  expect(cards.getModules(activeId).consciousness).toEqual({ provider: 'openai', model: 'card-chat-model' })
   for (const id of [activeId, inactiveId, inheritedId, partialId]) {
     expect(cards.getModules(id)?.vision).toEqual({ provider: '', model: '' })
     expect(cards.getModules(id)?.speech).toEqual({ provider: 'speech-noop', model: '', voice_id: '' })
@@ -349,27 +365,133 @@ it('removes downloaded speech models when all data is deleted', async () => {
   await expect(origin.getDirectoryHandle('airi-model-assets')).rejects.toThrow()
 })
 
-it('removes the voiceprint when all data is deleted', async () => {
+it('removes the voiceprints when all data is deleted', async () => {
   vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [] })))
-  localStorage.setItem('settings/voice/voiceprint', JSON.stringify(toStoredVoiceprint({ embedding: new Float32Array([1, 0]), seconds: 8 }, Date.now())))
+  localStorage.setItem('settings/voice/voiceprints', JSON.stringify([toStoredVoiceprint({ embedding: new Float32Array([1, 0]), seconds: 8 }, { id: 'voiceprint-1', label: '', createdAt: Date.now() })]))
   const { pinia, runtime, maintenance } = mountMaintenance(`maintenance:${crypto.randomUUID()}`, 'leader-only')
   await vi.waitFor(() => expect(runtime.isLeader()).toBe(true))
-  expect(useVoiceprintStore(pinia).record).toBeDefined()
+  expect(useVoiceprintStore(pinia).records).toHaveLength(1)
 
   await maintenance.deleteAllData()
 
-  expect(useVoiceprintStore(pinia).record).toBeUndefined()
-  expect(localStorage.getItem('settings/voice/voiceprint')).toBeNull()
+  expect(useVoiceprintStore(pinia).records).toEqual([])
+  expect(JSON.parse(localStorage.getItem('settings/voice/voiceprints') ?? '[]')).toEqual([])
 })
 
-it('removes the voiceprint when an earlier cleanup fails', async () => {
+it('removes the voiceprints when an earlier cleanup fails', async () => {
   vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [] })))
-  localStorage.setItem('settings/voice/voiceprint', JSON.stringify(toStoredVoiceprint({ embedding: new Float32Array([1, 0]), seconds: 8 }, Date.now())))
+  localStorage.setItem('settings/voice/voiceprints', JSON.stringify([toStoredVoiceprint({ embedding: new Float32Array([1, 0]), seconds: 8 }, { id: 'voiceprint-1', label: '', createdAt: Date.now() })]))
   const { pinia, runtime, maintenance } = mountMaintenance(`maintenance:${crypto.randomUUID()}`, 'leader-only')
   await vi.waitFor(() => expect(runtime.isLeader()).toBe(true))
   vi.spyOn(useDisplayModelsStore(pinia), 'resetDisplayModels').mockRejectedValue(new Error('Model storage unavailable'))
 
   await expect(maintenance.deleteAllData()).rejects.toThrow('Model storage unavailable')
 
-  expect(localStorage.getItem('settings/voice/voiceprint')).toBeNull()
+  expect(JSON.parse(localStorage.getItem('settings/voice/voiceprints') ?? '[]')).toEqual([])
+})
+
+// ROOT CAUSE:
+// Current voice values defined the schema. Fixed optional fields let backups cross different selections.
+it.each([true, false])('restores speech voices independently of the destination selection (selected: %s)', async (selected) => {
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [] })))
+  const { pinia, runtime, maintenance } = mountMaintenance(`maintenance:${crypto.randomUUID()}`, 'leader-only')
+  await vi.waitFor(() => expect(runtime.isLeader()).toBe(true))
+  const speech = useSpeechStore(pinia)
+  const voice = { id: 'backup-voice', name: 'Backup voice', provider: 'speech-noop', languages: [{ code: 'en', title: 'English' }], previewURL: '' }
+  speech.activeSpeechVoice = selected ? voice : undefined
+  const adapter = maintenance.createModuleSettingsExportAdapter()
+  const file = new File([await adapter.encode(await adapter.read())], 'modules.json')
+  speech.activeSpeechVoice = selected ? undefined : voice
+  const importer = maintenance.createModuleSettingsImportAdapter()
+
+  await importer.apply(await importer.validate(await importer.decode(file)))
+
+  expect(speech.activeSpeechVoice).toEqual(selected ? voice : undefined)
+})
+
+// ROOT CAUSE:
+// Pinia state omitted the computed exposure mode. The backup contract now captures it and restores its persisted setter.
+it.each(['allow', 'deny'] as const)('preserves the Home Assistant %s policy through a backup', async (mode) => {
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [] })))
+  const { pinia, runtime, maintenance } = mountMaintenance(`maintenance:${crypto.randomUUID()}`, 'leader-only')
+  await vi.waitFor(() => expect(runtime.isLeader()).toBe(true))
+  const homeAssistant = useHomeAssistantStore(pinia)
+  homeAssistant.enabled = true
+  homeAssistant.exposureMode = mode
+  homeAssistant.allowedEntities = ['light.living_room']
+  homeAssistant.deniedEntities = ['lock.front_door']
+  const adapter = maintenance.createModuleSettingsExportAdapter()
+  const file = new File([await adapter.encode(await adapter.read())], 'modules.json')
+  homeAssistant.resetState()
+  const importer = maintenance.createModuleSettingsImportAdapter()
+
+  await importer.apply(await importer.validate(await importer.decode(file)))
+
+  expect(homeAssistant.exposureMode).toBe(mode)
+  expect(homeAssistant.exposure).toEqual({ mode, entityIds: mode === 'allow' ? ['light.living_room'] : ['lock.front_door'] })
+  expect(localStorage.getItem('settings/home-assistant/exposure-mode')).toBe(mode)
+  expect(homeAssistant.enabled).toBe(true)
+})
+
+it('persists restored consciousness policies', async () => {
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [] })))
+  const { pinia, runtime, maintenance } = mountMaintenance(`maintenance:${crypto.randomUUID()}`, 'leader-only')
+  await vi.waitFor(() => expect(runtime.isLeader()).toBe(true))
+  const settings = useConsciousnessSettingsStore(pinia)
+  await settings.setReasoning(true)
+  await settings.setTemperatureEnabled(true)
+  await settings.setTopPEnabled(true)
+  const exporter = maintenance.createModuleSettingsExportAdapter()
+  const file = new File([await exporter.encode(await exporter.read())], 'modules.json')
+  await settings.resetState()
+  const importer = maintenance.createModuleSettingsImportAdapter()
+
+  await importer.apply(await importer.validate(await importer.decode(file)))
+
+  const reopened = useConsciousnessSettingsStore(createPinia())
+  expect(reopened.reasoning).toBe(true)
+  expect(reopened.temperatureEnabled).toBe(true)
+  expect(reopened.topPEnabled).toBe(true)
+})
+
+it('restores previous module settings when applying an import fails', async () => {
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [] })))
+  const { pinia, runtime, maintenance } = mountMaintenance(`maintenance:${crypto.randomUUID()}`, 'leader-only')
+  await vi.waitFor(() => expect(runtime.isLeader()).toBe(true))
+  const settings = useConsciousnessSettingsStore(pinia)
+  await settings.setReasoning(true)
+  await settings.setTemperatureEnabled(true)
+  await settings.setTopPEnabled(true)
+
+  const exporter = maintenance.createModuleSettingsExportAdapter()
+  const target = await exporter.read()
+  target.consciousnessSettings.reasoning = false
+  target.consciousnessSettings.temperatureEnabled = false
+  target.consciousnessSettings.topPEnabled = false
+  const file = new File([await exporter.encode(target)], 'modules.json')
+  const importer = maintenance.createModuleSettingsImportAdapter()
+  vi.spyOn(settings, 'setTopPEnabled').mockRejectedValueOnce(new Error('Module setting apply failed'))
+
+  await expect(importData(importer, file)).rejects.toThrow('Module setting apply failed')
+
+  expect(settings.reasoning).toBe(true)
+  expect(settings.temperatureEnabled).toBe(true)
+  expect(settings.topPEnabled).toBe(true)
+})
+
+it('uses the same fixed contract for export and import validation', async () => {
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [], models: [] })))
+  const { pinia, runtime, maintenance } = mountMaintenance(`maintenance:${crypto.randomUUID()}`, 'leader-only')
+  await vi.waitFor(() => expect(runtime.isLeader()).toBe(true))
+  const exporter = maintenance.createModuleSettingsExportAdapter()
+  const importer = maintenance.createModuleSettingsImportAdapter()
+  const data = await exporter.read()
+  delete data.homeAssistant.exposureMode
+
+  await expect(exporter.encode(data)).rejects.toThrow()
+  await expect(importer.validate({ format: 'airi-module-settings', version: 1, data })).rejects.toThrow()
+
+  useSpeechStore(pinia).pitch = Number.NaN
+
+  await expect(exporter.encode(await exporter.read())).rejects.toThrow()
 })

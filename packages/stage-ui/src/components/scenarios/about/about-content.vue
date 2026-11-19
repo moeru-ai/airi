@@ -39,6 +39,8 @@ const hasBuildInfo = computed(() => {
       <div v-if="subtitle" class="mt-2 text-base text-neutral-500 dark:text-neutral-400">
         {{ subtitle }}
       </div>
+      <!-- Details of the running app, for example its version, under the title. -->
+      <slot name="after-subtitle" />
     </div>
 
     <slot name="before-build-info" />

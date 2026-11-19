@@ -9,7 +9,7 @@ import { computed, onMounted, provide, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView, useRoute } from 'vue-router'
 
-import HeaderLink from '../components/Layouts/HeaderLink.vue'
+import Header from '../components/Layouts/Header.vue'
 
 import { themeColorFromValue, useThemeColor } from '../composables/theme-color'
 
@@ -105,12 +105,12 @@ onMounted(() => updateThemeColor())
     }"
     :class="['h-full w-full', 'flex flex-col']"
   >
-    <!-- Header -->
+    <!-- Header. The same header as the stage, so Flux and the account menu stay in one place on every page. -->
     <div
       v-if="!isStageTamagotchi()"
       :class="['px-0 py-1 hidden sm:block', 'md:px-3 md:py-3', 'w-full gap-2', 'bg-$bg-color']"
     >
-      <HeaderLink />
+      <Header :character-switcher="false" />
     </div>
     <!-- Content -->
     <div
