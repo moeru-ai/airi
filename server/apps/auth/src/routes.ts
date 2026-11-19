@@ -252,7 +252,6 @@ function createOIDCTokenAuthRoute(
       const image = session.user.image || buildGravatarUrl(session.user.email)
       return c.json({ ...session, user: { ...session.user, image } })
     })
-    .post('/sign-out', c => c.json({ success: true }))
     .get('/list-sessions', async (c) => {
       const session = await resolveAuthRequest(deps.auth, deps.db, verifyAccessToken, c.req.raw.headers)
       return c.json(session ? [session.session] : [])

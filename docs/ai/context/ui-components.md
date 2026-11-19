@@ -322,11 +322,18 @@ so the space between two icons is the padding of their hover backgrounds.
 | `blur` | `number?` | `12` | Background blur of a `blurry` dock and its tooltips, in pixels |
 | `tooltipSide` | `TooltipContentProps['side']?` | `'bottom'`, or `'right'` when vertical | Side of the button tooltips. Pick the side that faces into the window |
 | `shadow` | `boolean?` | `true` | Turn it off when a parent draws the shadow, for example around a clipped dock |
+| `registerSurface` | `((element: HTMLElement) => () => void)?` | — | Gives each open button tooltip to the `registerSurface` of its `Tooltip`. The dock element registers nothing, so its parent declares it |
 
 **Slots**: `default` (`DockButton`, `DockSeparator`, or custom items in a `Tooltip`).
 
 A custom item, such as a drag handle or a name, takes `dockItemClasses(variant, pressed)`.
 It returns the hover background and the icon color of `DockButton`, so the item matches its neighbors.
+
+A custom item that is not round and sits at an end of the dock also takes
+`dockEdgeItemClasses(size, orientation, edge)`. `edge` is the end that the item shows at: `start` is the top of a
+vertical dock or the left of a horizontal dock. The outer corners take half the button size, 14 px or 18 px, so the
+hover background shares the center of the round dock end. The inner corners take 6 px. Make the item at least 6 px
+longer than half a button along the dock.
 
 ### DockButton
 
@@ -370,6 +377,7 @@ can wrap the tooltip.
 | `opacity` | `number?` | `0.8` | Opacity of a `blurry` tooltip, from 0 to 1. Dark mode uses 0.1 less |
 | `blur` | `number?` | `12` | Background blur of a `blurry` tooltip, in pixels |
 | `disabled` | `boolean?` | `false` | Closes the tooltip and keeps it closed |
+| `registerSurface` | `((element: HTMLElement) => () => void)?` | — | Declares the open tooltip as a translucent surface, for example for native window glass. The tooltip calls it with the element that paints its fill when it opens. It calls the returned function when it closes |
 
 ### CopyableLabel
 

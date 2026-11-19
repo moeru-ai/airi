@@ -1,4 +1,5 @@
 import type { createContext as createMainEventaContext } from '@moeru/eventa/adapters/electron/main'
+import type { ArtistryGlobals } from '@proj-airi/stage-shared'
 import type { ProvidedBy } from 'injeca'
 
 import type { artistryConfigSchema } from '../../../configs/artistry'
@@ -12,8 +13,9 @@ import { createHash } from 'node:crypto'
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
-import { artistryGenerateHeadless, artistrySyncConfig, artistryTestComfyUIConnection, errorMessageFromValue } from '@proj-airi/stage-shared'
+import { artistryGenerateHeadless, artistrySyncConfig, artistrySyncConfigPayloadSchema, artistryTestComfyUIConnection, errorMessageFromValue } from '@proj-airi/stage-shared'
 import { injeca } from 'injeca'
+import { getDotPath, safeParse } from 'valibot'
 
 import { ComfyUIProvider } from './providers/comfyui'
 import { NanoBananaProvider } from './providers/nanobanana'
@@ -28,7 +30,7 @@ interface ArtistrySyncSnapshot {
   model?: string
   promptPrefix?: string
   options?: Record<string, any>
-  globals?: Record<string, any>
+  globals?: ArtistryGlobals
 }
 
 interface TriggerConfig {
@@ -70,7 +72,7 @@ const cardDefaults: ArtistrySyncSnapshot = {
   model: undefined as string | undefined,
   promptPrefix: undefined as string | undefined,
   options: undefined as Record<string, unknown> | undefined,
-  globals: undefined as Record<string, unknown> | undefined,
+  globals: undefined as ArtistryGlobals | undefined,
 }
 
 function createRunId(widgetId: string) {
@@ -463,29 +465,27 @@ export async function setupArtistryBridge(params: {
     })
 
     defineInvokeHandler(params.context, artistrySyncConfig, (payload) => {
-      log.log(`🔄 Syncing artistry config to main. Provider: ${payload.provider}`)
+      const parsedPayload = safeParse(artistrySyncConfigPayloadSchema, payload)
+      if (!parsedPayload.success) {
+        // Log only the field paths. The values can contain API keys.
+        const invalidFields = parsedPayload.issues.map(issue => getDotPath(issue) ?? '(root)').join(', ')
+        log.warn(`Artistry settings were not applied because these fields are invalid: ${invalidFields}`)
+        return
+      }
+
+      const { provider, globals, model, promptPrefix, options } = parsedPayload.output
+      log.log(`🔄 Syncing artistry config to main. Provider: ${provider}`)
       params.artistryConfig.update({
-        artistryProvider: payload.provider || params.artistryConfig.get()?.artistryProvider || DEFAULT_ARTISTRY_PROVIDER,
-        artistryGlobals: payload.globals || params.artistryConfig.get()?.artistryGlobals || {
-          comfyuiServerUrl: 'http://localhost:8188',
-          comfyuiSavedWorkflows: [],
-          comfyuiActiveWorkflow: '',
-          replicateApiKey: '',
-          replicateDefaultModel: 'black-forest-labs/flux-schnell',
-          replicateAspectRatio: '16:9',
-          replicateInferenceSteps: 4,
-          nanobananaApiKey: '',
-          nanobananaModel: 'gemini-3.1-flash-image-preview',
-          nanobananaResolution: '1K',
-        },
+        artistryProvider: provider || params.artistryConfig.get()?.artistryProvider || DEFAULT_ARTISTRY_PROVIDER,
+        artistryGlobals: globals,
       })
 
       // Update character-level defaults (volatile only)
-      cardDefaults.provider = payload.provider
-      cardDefaults.model = payload.model
-      cardDefaults.promptPrefix = payload.promptPrefix
-      cardDefaults.options = payload.options
-      cardDefaults.globals = payload.globals
+      cardDefaults.provider = provider
+      cardDefaults.model = model
+      cardDefaults.promptPrefix = promptPrefix
+      cardDefaults.options = options
+      cardDefaults.globals = globals
     })
 
     defineInvokeHandler(params.context, artistryTestComfyUIConnection, async (payload) => {

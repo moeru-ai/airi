@@ -1,3 +1,4 @@
+import { setActiveDisplayModelForSettings } from '@proj-airi/stage-shared/composables'
 import { ThreeScene, useModelStore } from '@proj-airi/stage-ui-three'
 import { createPinia } from 'pinia'
 import { beforeAll, describe, expect, it } from 'vitest'
@@ -212,5 +213,68 @@ describe('imported VRM view settings', () => {
 
     expect(modelStore.lastCommittedModelId).toBe('display-model-incoming')
     expect(modelStore.modelOffset).toEqual({ x: 0, y: 0, z: 0 })
+  }, 120_000) // Repeated real VRM loads need a generous timeout.
+
+  it('restores the view of a model when the stage returns to it', async () => {
+    // ROOT CAUSE:
+    //
+    // The view settings were one value for the renderer. A switch to another model replaced
+    // the view, and a return to the first model started from the default view again.
+    //
+    // Each model now stores its own view. The stage selects the settings of a model before
+    // it loads the model, and a model with a stored view keeps it.
+    const pinia = createPinia()
+    const modelStore = useModelStore(pinia)
+    const modelId = shallowRef('display-model-first')
+    const modelSrc = shallowRef(URL.createObjectURL(vrmModel))
+    const container = document.createElement('div')
+    container.style.height = '600px'
+    container.style.width = '800px'
+    document.body.appendChild(container)
+
+    async function showModel(id: string) {
+      setActiveDisplayModelForSettings('three', id)
+      modelId.value = id
+      modelSrc.value = URL.createObjectURL(vrmModel)
+      await nextTick()
+      await expect.poll(() => modelStore.scenePhase, { timeout: 20_000 }).toBe('loading')
+      await expect.poll(() => modelStore.scenePhase, { timeout: 20_000 }).toBe('mounted')
+    }
+
+    setActiveDisplayModelForSettings('three', modelId.value)
+    const TestHarness = defineComponent(() => () => h(ThreeScene, {
+      modelId: modelId.value,
+      modelSrc: modelSrc.value,
+      style: { height: '600px', width: '800px' },
+    }))
+    // The app stays mounted until Vitest closes the page, for the reason in the test above.
+    const app = createApp(TestHarness)
+    app.use(pinia)
+    app.mount(container)
+
+    try {
+      await expect.poll(() => modelStore.scenePhase, { timeout: 20_000 }).toBe('mounted')
+      modelStore.modelOffset = { x: 0.35, y: 0.35, z: 0 }
+      modelStore.cameraDistance = 1.75
+      modelStore.directionalLightIntensity = 3
+      await nextTick()
+
+      await showModel('display-model-second')
+      expect(modelStore.modelOffset).toEqual({ x: 0, y: 0, z: 0 })
+      expect(modelStore.directionalLightIntensity).toBe(2.02)
+      modelStore.modelOffset = { x: -0.2, y: 0.1, z: 0 }
+      await nextTick()
+
+      await showModel('display-model-first')
+      expect(modelStore.modelOffset).toEqual({ x: 0.35, y: 0.35, z: 0 })
+      expect(modelStore.cameraDistance).toBe(1.75)
+      expect(modelStore.directionalLightIntensity).toBe(3)
+
+      await showModel('display-model-second')
+      expect(modelStore.modelOffset).toEqual({ x: -0.2, y: 0.1, z: 0 })
+    }
+    finally {
+      setActiveDisplayModelForSettings('three', '')
+    }
   }, 120_000) // Repeated real VRM loads need a generous timeout.
 })

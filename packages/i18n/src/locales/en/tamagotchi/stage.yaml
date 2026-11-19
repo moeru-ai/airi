@@ -26,6 +26,7 @@ docs:
   'fade-on-hover':
     enable: Auto hide
     disable: Always show
+    title: Hide on hover
   'open-settings': Open settings
   'open-chat': Open Chat
   'hide-chat': Hide Chat
@@ -50,6 +51,15 @@ docs:
   'logging-in': Signing in...
   'account': Account
   'logout': Sign out
+  'more': More
+  'character': Character
+  'manage-characters': Manage characters…
+  'character-voice': Character voice
+  'microphone-settings': Microphone settings…
+  'keep-on-top': Keep on top
+  'settings': Settings…
+  'quit': Quit AIRI
+  'sign-in': Sign in…
 
 'chat-window':
   style:
@@ -130,9 +140,11 @@ about:
     documentation: Documentations
     github: GitHub
   update:
+    settings:
+      title: Update settings
     auto-download:
       label: Download updates automatically
-      description: Turn this off to download each update only when you select Download Update.
+      description: Turn this off to download each update only when you select Download.
     lane:
       label: Update lane
       description: Choose channel release to follow
@@ -146,8 +158,13 @@ about:
       nightly: Nightly
       dev: Dev
     status:
+      title: App updates
+      up-to-date: Up to date
+      available: Update available
+      ready: Ready to install
       manual-install-required: Version v{version} needs a new install. Download it and install it by hand.
       downloading: Downloading update...
+      download-remaining: '{duration} left · {speed}'
       error-prefix: Error
       latest: Up to date (v{version}).
       downloaded:
@@ -170,6 +187,8 @@ about:
       whats-new: "What's new"
       view-changes: View code changes
     dialog:
+      version-available: v{version} available
+      released-on: Released {date}
       title: Update Available
       description: A new version (v{version}) is available.
       no-release-notes-markdown: _No release notes provided._

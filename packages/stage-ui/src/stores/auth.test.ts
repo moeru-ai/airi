@@ -356,4 +356,86 @@ describe('auth store refresh failures', () => {
     expect(authStore.token).toBe('rotated-access-token')
     expect(authStore.isAuthenticated).toBe(true)
   })
+
+  function persistSession(tokenExpiry = Date.now() + 3_600_000) {
+    storage.values.set('auth/v1/token', 'persisted-access-token')
+    storage.values.set('auth/v1/refresh-token', 'persisted-refresh-token')
+    storage.values.set('auth/v1/oidc-client-id', 'airi-stage-web')
+    storage.values.set('auth/v1/oidc-token-expiry', String(tokenExpiry))
+  }
+
+  // ROOT CAUSE:
+  //
+  // A session request without an answer left `user` null while the access token stayed valid.
+  // Nothing requested the session again until the refresh at 80% of the token lifetime, or a reload.
+  //
+  // We fixed this by retrying the session request with the refresh backoff.
+  it('retries a failed session request on startup and loads the user later', async () => {
+    persistSession()
+    vi.mocked(requestAuthSession).mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    const authStore = useAuthStore()
+
+    await authStore.initialize()
+
+    expect(authStore.user).toBeNull()
+    expect(authStore.token).toBe('persisted-access-token')
+
+    await vi.advanceTimersByTimeAsync(29_999)
+    expect(requestAuthSession).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(requestAuthSession).toHaveBeenCalledTimes(2)
+    expect(requestAuthSession).toHaveBeenLastCalledWith('persisted-access-token')
+    expect(authStore.user).toEqual(user)
+    expect(authStore.isAuthenticated).toBe(true)
+
+    // A definitive answer stops the retry.
+    await vi.advanceTimersByTimeAsync(10 * 60_000)
+    expect(requestAuthSession).toHaveBeenCalledTimes(2)
+    expect(refreshAccessToken).not.toHaveBeenCalled()
+  })
+
+  it('retries a failed session request after a startup refresh', async () => {
+    persistSession(Date.now() - 1000)
+    vi.mocked(refreshAccessToken).mockResolvedValue({
+      access_token: 'rotated-access-token',
+      refresh_token: 'rotated-refresh-token',
+      token_type: 'Bearer',
+      expires_in: 3600,
+    })
+    vi.mocked(requestAuthSession).mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    const authStore = useAuthStore()
+
+    await authStore.initialize()
+
+    expect(authStore.user).toBeNull()
+    expectCredentialsKept(authStore, 'rotated-access-token', 'rotated-refresh-token')
+
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(requestAuthSession).toHaveBeenCalledTimes(2)
+    expect(requestAuthSession).toHaveBeenLastCalledWith('rotated-access-token')
+    expect(authStore.user).toEqual(user)
+    expect(refreshAccessToken).toHaveBeenCalledTimes(1)
+  })
+
+  it('doubles the session retry delay and stops the retry on sign-out', async () => {
+    persistSession()
+    vi.mocked(requestAuthSession).mockRejectedValue(new TypeError('Failed to fetch'))
+    const authStore = useAuthStore()
+
+    await authStore.initialize()
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(requestAuthSession).toHaveBeenCalledTimes(2)
+
+    await vi.advanceTimersByTimeAsync(59_999)
+    expect(requestAuthSession).toHaveBeenCalledTimes(2)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(requestAuthSession).toHaveBeenCalledTimes(3)
+
+    await authStore.signOut()
+    await vi.advanceTimersByTimeAsync(10 * 60_000)
+
+    expect(requestAuthSession).toHaveBeenCalledTimes(3)
+    expect(authStore.token).toBeNull()
+    expect(storage.values.size).toBe(0)
+  })
 })

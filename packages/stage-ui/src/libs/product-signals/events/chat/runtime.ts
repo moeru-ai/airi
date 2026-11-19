@@ -1,13 +1,11 @@
 import type { ChatOrchestratorRuntimeDeps } from '@proj-airi/core-agent'
 
-import type { ChatHistoryItem } from '../../../../types/chat'
 import type { AnalyticsRecorder } from '../../index'
 
 import { getAnalytics } from '../../index'
 import {
   messageRoundEvent,
   messageRoundFailedEvent,
-  messageSentEvent,
 } from './events'
 import { getProviderMode } from './types'
 
@@ -16,13 +14,10 @@ type ChatAnalyticsCallbacks = Pick<
   | 'onMessageRound'
   | 'onMessageRoundFailed'
   | 'onTrackFirstMessage'
-  | 'onUserMessageAppended'
 >
 
 /** Options used to bind analytics to one chat runtime. */
 export interface CreateChatAnalyticsHooksOptions {
-  /** Reads the message count after the runtime persists a user message. */
-  getSessionMessages: (sessionId: string) => ChatHistoryItem[]
   /** Typed analytics recorder. Defaults to the module-global recorder. */
   analytics?: AnalyticsRecorder
 }
@@ -33,12 +28,13 @@ export interface CreateChatAnalyticsHooksOptions {
  * The chat store owns session state and streaming. This module owns event
  * names, payload projection, and the provider-cardinality policy.
  */
-export function createChatAnalyticsHooks(options: CreateChatAnalyticsHooksOptions): ChatAnalyticsCallbacks {
+export function createChatAnalyticsHooks(options: CreateChatAnalyticsHooksOptions = {}): ChatAnalyticsCallbacks {
   const analytics = options.analytics ?? getAnalytics()
 
   return {
     onTrackFirstMessage: () => analytics.recordFirstMessage(),
-    onMessageRound: ({ conversationId, roundId, turnIndex, durationMs, hasVoice, model, inputTokens, outputTokens, totalTokens, usageSource }) => {
+    // One event for each finished round. `message_round_failed` covers the other rounds, so no separate send event exists.
+    onMessageRound: ({ conversationId, roundId, turnIndex, durationMs, hasVoice, model, provider, inputTokens, outputTokens, totalTokens, usageSource }) => {
       analytics.emit(messageRoundEvent, {
         conversation_id: conversationId,
         round_id: roundId,
@@ -46,6 +42,8 @@ export function createChatAnalyticsHooks(options: CreateChatAnalyticsHooksOption
         duration_ms: durationMs,
         has_voice: hasVoice,
         model,
+        provider_type: getProviderMode(provider),
+        provider_name: provider || 'unknown',
         input_tokens: inputTokens,
         output_tokens: outputTokens,
         total_tokens: totalTokens,
@@ -66,24 +64,6 @@ export function createChatAnalyticsHooks(options: CreateChatAnalyticsHooksOption
         failure_stage: failureStage,
         trigger_method: source === 'voice' ? 'voice' : 'text_input',
         trigger_type: 'user_flow_result',
-      })
-    },
-    onUserMessageAppended: ({ sessionId, message, messageText, source, model, provider, roundId, turnIndex }) => {
-      const providerType = getProviderMode(provider)
-      analytics.emit(messageSentEvent, {
-        conversation_id: sessionId,
-        provider_type: providerType,
-        provider_name: provider || 'unknown',
-        model: model || 'unknown',
-        message_id: message.id,
-        round_id: roundId,
-        turn_index: turnIndex,
-        message_index: options.getSessionMessages(sessionId).length,
-        message_length: messageText.length,
-        has_attachment: false,
-        mode: source,
-        trigger_method: source === 'voice' ? 'voice' : 'text_input',
-        trigger_type: 'user_action',
       })
     },
   }

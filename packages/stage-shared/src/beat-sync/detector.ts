@@ -23,13 +23,16 @@ import {
 
 export const inputAnalyserFFTSize = 1024
 
+// TypeScript can match an event to its args only through an args map, not through the listener map.
+type BeatSyncDetectorEventArgs = { [K in keyof BeatSyncDetectorEventMap]: Parameters<BeatSyncDetectorEventMap[K]> }
+
 export interface BeatSyncDetector {
   start: (createSource: (context: AudioContext) => Promise<AudioNode>) => Promise<void>
   updateParameters: (params: Partial<AnalyserWorkletParameters>) => void
   startScreenCapture: () => Promise<void>
   stop: () => void
-  on: <E extends keyof BeatSyncDetectorEventMap>(event: E, listener: BeatSyncDetectorEventMap[E]) => () => void
-  off: <E extends keyof BeatSyncDetectorEventMap>(event: E, listener: BeatSyncDetectorEventMap[E]) => void
+  on: <E extends keyof BeatSyncDetectorEventArgs>(event: E, listener: (...args: BeatSyncDetectorEventArgs[E]) => void) => () => void
+  off: <E extends keyof BeatSyncDetectorEventArgs>(event: E, listener: (...args: BeatSyncDetectorEventArgs[E]) => void) => void
   getInputByteFrequencyData: () => Uint8Array<ArrayBuffer>
   readonly state: BeatSyncDetectorState
   readonly context: AudioContext | undefined
@@ -55,12 +58,12 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
   let inputAnalyserNode: AnalyserNode | undefined
   let inputAnalyserBuffer: Uint8Array<ArrayBuffer> | undefined
 
-  const listeners: { [K in keyof BeatSyncDetectorEventMap]: Array<(...args: any) => void> } = {
+  const listeners: { [K in keyof BeatSyncDetectorEventArgs]: Array<(...args: BeatSyncDetectorEventArgs[K]) => void> } = {
     stateChange: [],
     beat: [],
   }
 
-  const emit = <E extends keyof BeatSyncDetectorEventMap>(event: E, ...args: Parameters<BeatSyncDetectorEventMap[E]>) => {
+  const emit = <E extends keyof BeatSyncDetectorEventArgs>(event: E, ...args: BeatSyncDetectorEventArgs[E]) => {
     listeners[event].forEach(listener => listener(...args))
   }
 
@@ -196,7 +199,7 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
     }
   })
 
-  const off = <E extends keyof BeatSyncDetectorEventMap>(event: E, listener: BeatSyncDetectorEventMap[E]) => {
+  const off = <E extends keyof BeatSyncDetectorEventArgs>(event: E, listener: (...args: BeatSyncDetectorEventArgs[E]) => void) => {
     const listenerFns = listeners[event]
     if (!listenerFns) {
       throw new Error(`Unknown event: ${event}`)
@@ -207,7 +210,7 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
       listenerFns.splice(index, 1)
   }
 
-  const on = <E extends keyof BeatSyncDetectorEventMap>(event: E, listener: BeatSyncDetectorEventMap[E]) => {
+  const on = <E extends keyof BeatSyncDetectorEventArgs>(event: E, listener: (...args: BeatSyncDetectorEventArgs[E]) => void) => {
     const listenerFns = listeners[event]
     if (!listenerFns) {
       throw new Error(`Unknown event: ${event}`)
