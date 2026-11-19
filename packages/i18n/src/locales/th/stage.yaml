@@ -1,3 +1,21 @@
+background-picker:
+  title: เลือกพื้นหลัง
+  add-custom: เพิ่มพื้นหลังที่กำหนดเอง
+  custom: พื้นหลังที่กำหนดเอง
+  preview: ดูตัวอย่าง
+  no-preview: ไม่มีตัวอย่าง
+  select: เลือกพื้นหลัง
+  blur: เบลอ
+  remove: ลบพื้นหลัง
+  sampling: กำลังดึงสี…
+  apply: ใช้พื้นหลังนี้
+  presets:
+    colorful-wave:
+      label: คลื่นหลากสี
+      description: คลื่นเคลื่อนไหวบนตารางกากบาท
+    transparent:
+      label: โปร่งใส
+      description: แสดงพื้นหลังที่อยู่ด้านหลังหน้าจอแอป
 character-switcher:
   title: สลับตัวละคร
   manage: จัดการตัวละคร
@@ -33,15 +51,9 @@ chat:
   voice-composer:
     audio: ข้อความเสียง
     transcription: พิมพ์ด้วยเสียง
-    hold-hint: กดค้างไว้เพื่อบันทึก คลิกเพื่อสลับระหว่างข้อความเสียงกับการพิมพ์ด้วยเสียง กด Enter เพื่อบันทึกโดยไม่ต้องกดค้าง
     listening: กำลังฟัง…
-    lock: เลื่อนขึ้นเพื่อล็อก
-    cancel-hint: เลื่อนไปทางซ้ายเพื่อยกเลิก
     processing: กำลังจัดการให้เสร็จ…
     cancel: ยกเลิก
-    send: ส่งข้อความเสียง
-    insert: แทรกข้อความ
-    retry: ส่งข้อความเสียงอีกครั้ง
     discard: ทิ้งข้อความเสียง
     failed: การป้อนเสียงล้มเหลว
     configure-title: ตั้งค่าการฟัง

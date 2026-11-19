@@ -187,8 +187,6 @@ live2d:
           description: Tạo chuyển động từ bộ dữ liệu MAGIC đi kèm.
       magic:
         profile:
-          title: Hồ sơ MAGIC
-          description: Chọn bộ dữ liệu chuyển động đi kèm phù hợp với bộ điều khiển MAGIC.
           options:
             idle-calm:
               title: Nghỉ / bình tĩnh
@@ -242,14 +240,7 @@ live2d:
     sdk-preset-preserved-notice: >
       Quản lý biểu cảm SDK và nháy mắt được giữ nguyên khi tắt.
     no-expression: Không có biểu cảm khả dụng cho mô hình này.
-    llm-integration-wip: Tích hợp công cụ LLM chưa được hoàn thiện.
-    save-default: Lưu biểu cảm mặc định
     reset: Đặt lại tất cả biểu cảm
-    expose-to-llm-toggle: Cho phép LLM truy cập
-    expose-to-llm-options:
-      none: Không
-      all: Tất cả
-      custom: Tùy chỉnh
 microphone: Micro
 models: Mô hình
 pages:
@@ -443,7 +434,7 @@ pages:
     delete: Xóa
     delete_card: Xóa thẻ
     delete_confirmation: Bạn có chắc muốn xóa thẻ này?
-    description: Dùng preset thẻ nhân vật AIRI
+    description: Quản lý thẻ nhân vật AIRI
     description_label: Mô tả
     drop_here: Kéo vào đây để tải lên
     create_card: Tạo thẻ mới
@@ -723,7 +714,7 @@ pages:
       gaming: Chơi game
       artistry: Nghệ thuật
     consciousness:
-      description: Tính cách, mô hình mong muốn, v.v.
+      description: Lựa chọn và cấu hình mô hình ngôn ngữ
       sections:
         section:
           provider-model-selection:
@@ -836,8 +827,6 @@ pages:
             description: Chọn nhà cung cấp nhận diện giọng nói phù hợp
           microphone:
             title: Micrô
-            label: Micrô
-            description: Bật micrô cho mô-đun Nghe. Chế độ đầu vào quyết định khi nào AIRI lắng nghe.
             error: Micrô không khả dụng
           input-device:
             label: Thiết bị đầu vào
@@ -969,7 +958,7 @@ pages:
       title: Giọng nói
     title: Module
     vision:
-      description: Thị giác
+      description: Cài đặt hiểu hình ảnh và chụp màn hình
       title: Thị giác
       tool-images:
         label: Dùng mô hình thị giác cho ảnh từ công cụ
@@ -1396,11 +1385,9 @@ pages:
       buy: Mua
       description: Các gói Flux để lựa chọn.
   capacitor:
-    description: Capacitor chứa Flux và tự nạp lại.
     statusError: Không thể tải Capacitor của bạn. Thử lại sau.
     packagesError: Không thể tải danh sách Capacitor. Thử lại sau.
     preferenceError: Không thể lưu tùy chọn. Thử lại sau.
-    noCapacitor: Không có Capacitor
     remaining: 'Còn {percent}'
     rechargesAt: Nạp lại vào {date}
     renewsAt: Gia hạn vào {date}
@@ -1899,7 +1886,7 @@ pages:
         playground:
           title: Thử nghiệm chuyển văn bản
       aihubmix:
-        description: https://aihubmix.com (Giảm giá 10%)
+        description: aihubmix.com (Giảm giá 10%)
     title: Nhà cung cấp
   connection:
     description: Cấu hình kết nối máy chủ WebSocket

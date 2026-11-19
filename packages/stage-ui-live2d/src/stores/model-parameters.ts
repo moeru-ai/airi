@@ -1,4 +1,4 @@
-import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
+import { useModelScopedLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { useBroadcastChannel } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
@@ -59,13 +59,13 @@ export const useLive2dParams = defineStore('live2d', () => {
     }
   })
 
-  const currentMotion = useLocalStorageManualReset<{ group: string, index?: number }>('settings/live2d/current-motion', () => ({ group: 'Idle', index: 0 }))
-  const availableMotions = useLocalStorageManualReset<{ motionName: string, motionIndex: number, fileName: string }[]>('settings/live2d/available-motions', () => [])
-  const motionMap = useLocalStorageManualReset<Record<string, string>>('settings/live2d/motion-map', {})
+  const currentMotion = useModelScopedLocalStorageManualReset<{ group: string, index?: number }>('live2d', 'settings/live2d/current-motion', () => ({ group: 'Idle', index: 0 }))
+  const availableMotions = useModelScopedLocalStorageManualReset<{ motionName: string, motionIndex: number, fileName: string }[]>('live2d', 'settings/live2d/available-motions', () => [])
+  const motionMap = useModelScopedLocalStorageManualReset<Record<string, string>>('live2d', 'settings/live2d/motion-map', {})
   const { position, scale, set: setViewControl } = useL2dViewControl()
 
   // Live2D model parameters
-  const modelParameters = useLocalStorageManualReset<Record<string, number>>('settings/live2d/parameters', defaultModelParameters)
+  const modelParameters = useModelScopedLocalStorageManualReset<Record<string, number>>('live2d', 'settings/live2d/parameters', defaultModelParameters)
 
   function resetState() {
     supportedControl.forEach(c => setViewControl(c))

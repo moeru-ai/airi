@@ -9,7 +9,7 @@ import { useI18n } from 'vue-i18n'
 
 import { chatStickers } from '../../assets/stickers'
 import { StickerValidationError, validateStickerImage } from '../../libs/stickers/import'
-import { useStickersStore } from '../../stores/modules/stickers'
+import { stickerDisplayName, stickerSearchKey, useStickersStore } from '../../stores/modules/stickers'
 import { stickerEmotions } from '../../types/sticker'
 
 const { t } = useI18n()
@@ -33,8 +33,7 @@ const previewSrc = computed(() => validFile.value && preview.value ? preview.val
 const builtin = computed(() => chatStickers.some(sticker => sticker.id === editingId.value))
 
 function displayName(entry: StickerEntry) {
-  const bundled = chatStickers.find(sticker => sticker.id === entry.id)
-  return bundled && entry.name === bundled.description ? t(`settings.pages.modules.stickers.artwork.${entry.id}`) : entry.name
+  return stickerDisplayName(entry, t)
 }
 
 function showError(cause: unknown) {
@@ -164,7 +163,7 @@ async function remove(entry: StickerEntry) {
       {{ formError }}
     </p>
     <ul :aria-label="t('settings.pages.modules.stickers.catalog')" :class="['grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4']">
-      <li v-for="entry in entries" :key="entry.id" :class="['flex flex-col items-center gap-3', 'rounded-xl bg-neutral-100 p-3 dark:bg-neutral-900']">
+      <li v-for="entry in entries" :key="entry.id" :data-settings-search="stickerSearchKey(entry.id)" :class="['flex flex-col items-center gap-3', 'rounded-xl bg-neutral-100 p-3 dark:bg-neutral-900']">
         <img :src="artwork[entry.assetId]" :alt="displayName(entry)" width="96" height="96" :class="['size-24 object-contain']">
         <span :class="['max-w-full break-words text-center text-sm font-medium']">{{ displayName(entry) }}</span>
         <div :class="['flex flex-wrap justify-center gap-1']">

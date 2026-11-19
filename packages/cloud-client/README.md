@@ -20,7 +20,7 @@ Give the base URL and the request options in each call. The package has no globa
 import { inboxServiceGetInboxUnreadCount } from '@proj-airi/cloud-client'
 
 const { data } = await inboxServiceGetInboxUnreadCount({
-  baseUrl: import.meta.env.VITE_CLOUD_API_URL || 'https://cloud.airi.build',
+  baseUrl: import.meta.env.VITE_CLOUD_URL || 'https://cloud.airi.build',
   headers: { Authorization: `Bearer ${accessToken}` },
   throwOnError: true,
 })

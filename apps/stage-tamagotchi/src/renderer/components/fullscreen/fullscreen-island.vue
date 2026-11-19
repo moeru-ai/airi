@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { FullscreenSurfaceId } from '../../../shared/eventa'
 
-import { GhostButton, useTheme } from '@proj-airi/ui'
+import { Dock, DockButton, DockSeparator, useTheme } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -9,8 +9,9 @@ import { useI18n } from 'vue-i18n'
 import { useFullscreenStore } from '../../stores/fullscreen'
 import { fullscreenSurfaces } from './surfaces'
 
-// The island of the fullscreen mode: one button for each registered surface, the theme switch, and the way out of
-// the mode.
+// The island of the fullscreen mode: a button for each registered surface and the theme switch. The way out of the
+// mode is an island of its own below it, like the feed settings beside the floating chat dock. Only the icon of the
+// shown surface takes the theme color.
 const { t } = useI18n()
 const fullscreen = useFullscreenStore()
 const { surface } = storeToRefs(fullscreen)
@@ -26,8 +27,8 @@ function show(id: FullscreenSurfaceId) {
 // The theme cycles light, dark, then the system theme, like the Controls Island. Each button names the next theme.
 const { themeMode, switchToNextTheme } = useTheme()
 const themeIcon = computed(() => ({
-  light: 'i-solar:sun-2-outline',
-  dark: 'i-solar:moon-outline',
+  light: 'i-mingcute:sun-line',
+  dark: 'i-mingcute:moon-line',
   auto: 'i-lucide:contrast',
 })[themeMode.value])
 const themeLabel = computed(() => t({
@@ -38,46 +39,21 @@ const themeLabel = computed(() => t({
 </script>
 
 <template>
-  <div
-    :class="[
-      'flex flex-col items-center',
-      'gap-1',
-      'rounded-2xl p-1.5',
-      'bg-neutral-200 dark:bg-neutral-800',
-    ]"
-  >
-    <GhostButton
-      v-for="entry in surfaces"
-      :key="entry.id"
-      size="unset"
-      :class="['size-11']"
-      :active="surface === entry.id"
-      :aria-pressed="surface === entry.id"
-      :aria-label="t(entry.label)"
-      :title="t(entry.label)"
-      @click="show(entry.id)"
-    >
-      <span :class="[entry.icon, 'size-5']" />
-    </GhostButton>
-    <div :class="['my-1 h-px w-6', 'bg-neutral-300 dark:bg-neutral-700']" />
-    <GhostButton
-      size="unset"
-      :class="['size-11']"
-      :aria-label="themeLabel"
-      :title="themeLabel"
-      @click="switchToNextTheme"
-    >
-      <span :class="[themeIcon, 'size-5']" />
-    </GhostButton>
-    <div :class="['my-1 h-px w-6', 'bg-neutral-300 dark:bg-neutral-700']" />
-    <GhostButton
-      size="unset"
-      :class="['size-11']"
-      :aria-label="t(`${KEY}.exit`)"
-      :title="t(`${KEY}.exit`)"
-      @click="fullscreen.close()"
-    >
-      <span :class="['i-solar:quit-full-screen-square-linear', 'size-5']" />
-    </GhostButton>
+  <div :class="['flex flex-col items-center gap-2']">
+    <Dock orientation="vertical" size="md" variant="blurry">
+      <DockButton
+        v-for="entry in surfaces"
+        :key="entry.id"
+        :icon="entry.icon"
+        :label="t(entry.label)"
+        :pressed="surface === entry.id"
+        @click="show(entry.id)"
+      />
+      <DockSeparator />
+      <DockButton :icon="themeIcon" :label="themeLabel" @click="switchToNextTheme" />
+    </Dock>
+    <Dock orientation="vertical" size="md" variant="blurry">
+      <DockButton icon="i-mingcute:fullscreen-exit-line" :label="t(`${KEY}.exit`)" @click="fullscreen.close()" />
+    </Dock>
   </div>
 </template>

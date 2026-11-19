@@ -2,14 +2,13 @@ import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { GlobalShortcutService } from '../../services/electron/global-shortcut'
 
-import { join, resolve } from 'node:path'
-
+import { onWindowClosed } from '@proj-airi/electron-vueuse/main'
 import { BrowserWindow, screen } from 'electron'
 import { isMacOS } from 'std-env'
 
 import icon from '../../../../resources/icon.png?asset'
 
-import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
+import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager/reusable'
 import { protectPrivilegedWindowNavigation, setWindowAlwaysOnTop, transparentWindowConfig } from '../shared/window'
 import { INLAY_WINDOW_HEIGHT, inlayWindowBounds } from './bounds'
@@ -44,7 +43,7 @@ export function setupInlayWindowReusable(params: {
       skipTaskbar: true,
       icon,
       webPreferences: {
-        preload: join(getElectronMainDirname(), '../preload/index.mjs'),
+        preload: getPreloadPath(),
         sandbox: false,
       },
     })
@@ -67,7 +66,7 @@ export function setupInlayWindowReusable(params: {
     screen.on('display-metrics-changed', place)
     screen.on('display-added', place)
     screen.on('display-removed', place)
-    window.once('closed', () => {
+    onWindowClosed(window, () => {
       screen.off('display-metrics-changed', place)
       screen.off('display-added', place)
       screen.off('display-removed', place)
@@ -77,7 +76,7 @@ export function setupInlayWindowReusable(params: {
 
     await setupInlayWindowInvokes({ inlayWindow: window, serverChannel: params.serverChannel, i18n: params.i18n, globalShortcut: params.globalShortcut, returnHome: place })
 
-    await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/inlay', {
+    await load(window, withHashRoute(baseUrl(getRendererRoot()), '/inlay', {
       query: { 'stage-runtime': 'minimal', 'synced-leader': 'false' },
     }))
 

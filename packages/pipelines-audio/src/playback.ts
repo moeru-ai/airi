@@ -1,6 +1,8 @@
-import type { PcmBlock } from './audio-input'
+import type { LiveAudioSource, PcmBlock } from './audio-input'
 
 import { nanoid } from 'nanoid/non-secure'
+
+import { AudioInput } from './audio-input'
 
 /**
  * How much of one clip was rendered, and when, on the driver clock.
@@ -40,11 +42,25 @@ export interface PlayingAudio {
   stop: (options: { fadeMs: number }) => Promise<PlayedAudio>
 }
 
-/** The platform owns the audio clock, decoding, audio-clock fades, and owned node cleanup. */
-export interface PlaybackDriver {
+/**
+ * The platform owns the audio clock, decoding, audio-clock fades, and owned node cleanup.
+ *
+ * `TNode` is the node type of the platform audio graph, for example `AudioNode` in a browser. A driver without a graph keeps `never`.
+ */
+export interface PlaybackDriver<TNode = never> {
   /** Current audio clock time in milliseconds. `startAtMs` and `PlayedAudio.interval` use this clock. */
   nowMs: () => number
   play: (clip: PlaybackClip) => PlayingAudio
+  /**
+   * The mixed audio of every clip that this driver plays, as it leaves the driver.
+   * A driver that cannot read its own output leaves it out.
+   */
+  readonly output?: LiveAudioSource
+  /**
+   * Connects a node of the platform graph to the mixed audio, after the fades of each clip. Returns the disconnection.
+   * Use it for consumers that need a graph node, such as a lip sync worklet. A driver without a graph leaves it out.
+   */
+  connect?: (node: TNode) => () => void
 }
 
 /** Group identity is fresh even when labels match. Finished and stopped groups cannot reopen. */
@@ -58,10 +74,14 @@ export interface PlaybackGroup {
 }
 
 /** Conversation ownership stays outside this audio-only contract. */
-export interface AudioPlayback {
+export interface AudioPlayback<TNode = never> {
   /** Current driver clock time in milliseconds, for callers that compute `startAtMs`. */
   nowMs: () => number
   openGroup: (label: string) => PlaybackGroup
+  /** The played audio as a shared input. Undefined when the driver cannot read its output. */
+  readonly output?: AudioInput
+  /** Connects a platform graph node to the played audio, see {@link PlaybackDriver.connect}. */
+  readonly connect?: (node: TNode) => () => void
 }
 
 interface PendingClip {
@@ -214,8 +234,19 @@ class OutputGroup implements PlaybackGroup {
 }
 
 /** Keeps group queues independent. It does not interpret speech signals or notify an agent. */
-export class Playback implements AudioPlayback {
-  constructor(private readonly driver: PlaybackDriver) {}
+export class Playback<TNode = never> implements AudioPlayback<TNode> {
+  /**
+   * The played audio as a shared input, for observers such as a level meter. Undefined when the driver cannot read its output.
+   *
+   * The first subscriber opens the tap of the driver and the last one closes it, so an unobserved playback costs nothing.
+   */
+  readonly output: AudioInput | undefined
+  readonly connect: ((node: TNode) => () => void) | undefined
+
+  constructor(private readonly driver: PlaybackDriver<TNode>) {
+    this.output = driver.output ? new AudioInput(driver.output) : undefined
+    this.connect = driver.connect ? node => driver.connect!(node) : undefined
+  }
 
   nowMs() {
     return this.driver.nowMs()

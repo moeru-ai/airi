@@ -27,6 +27,7 @@ function createBridge(registry: PluginRegistrySnapshot) {
       id: 'sample-session',
       extensionId: plugin.extensionId,
       phase: 'ready',
+      missingKitIds: [],
       runtime: 'electron',
       moduleId: plugin.extensionId,
     })),

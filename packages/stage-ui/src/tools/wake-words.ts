@@ -50,7 +50,7 @@ export async function createWakeWordTool(options: { characterId: string, setWord
         return {
           status: result.status,
           conflicts: result.conflicts.map(conflict => ({
-            tokens: conflict.candidates[0]?.tokens ?? [],
+            tokens: [...(conflict.candidates[0]?.tokens ?? [])],
             active: conflict.owner === characterId,
             owner: conflict.owner ?? null,
             claimedBy: conflict.candidates.map(candidate => ({ characterId: candidate.characterId, text: candidate.text })),

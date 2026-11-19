@@ -1,7 +1,7 @@
 import type { TurnRef, VoicePlugin } from '@proj-airi/core-agent'
 import type { AudioRange, AudioWindow } from '@proj-airi/pipelines-audio'
 
-import { createSpeechActivityRule, inputActivitySignal, speechActivitySignal } from '@proj-airi/core-agent'
+import { createSpeechActivityRule, DEFAULT_SPEECH_THRESHOLD, inputActivitySignal, speechActivitySignal } from '@proj-airi/core-agent'
 
 /** Application policy chooses the destination. The model only supplies scores for ordered windows. */
 export interface VoiceActivityOptions {
@@ -57,11 +57,11 @@ export function createVoiceActivityPlugin(options: VoiceActivityOptions): VoiceP
     // SileroVad requires 512 samples at 16 kHz, so each window lasts 32 ms.
     // The constraint is in workers/vad/silero-vad.ts.
     // Remove this fixed size when detectors supply their own window requirements.
-    scope.observeAudio({ windowMs: 32, hopMs: 32, scheduling: 'ordered', preRollMs }, async (ctx) => {
+    scope.input.observe({ windowMs: 32, hopMs: 32, scheduling: 'ordered', preRollMs }, async (ctx) => {
       const { window } = ctx
       const score = await options.detect(window, ctx.signal)
       const durationMs = (window.range.endFrame - window.range.startFrame) * 1000 / window.sampleRate
-      const threshold = options.threshold ?? 0.6
+      const threshold = options.threshold ?? DEFAULT_SPEECH_THRESHOLD
       const wake = await options.detectWakeWord?.(window, ctx.signal, { speech: score >= threshold, durationMs })
       ctx.signal.throwIfAborted()
 

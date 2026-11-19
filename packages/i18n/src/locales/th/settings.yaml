@@ -187,8 +187,6 @@ live2d:
           description: สร้างท่าทางจากชุดข้อมูล MAGIC ที่มาพร้อมแอป
       magic:
         profile:
-          title: โปรไฟล์ MAGIC
-          description: เลือกชุดข้อมูลท่าทางที่มาพร้อมแอปซึ่งเหมาะกับตัวขับเคลื่อน MAGIC
           options:
             idle-calm:
               title: อยู่นิ่ง / สงบ
@@ -242,14 +240,7 @@ live2d:
     sdk-preset-preserved-notice: >
       ตัวจัดการสีหน้าและการกะพริบตาของ SDK จะยังคงทำงานเมื่อปิดตัวเลือกนี้
     no-expression: โมเดลนี้ไม่มีสีหน้าที่ใช้ได้
-    llm-integration-wip: ยังไม่ได้เชื่อมต่อเครื่องมือของ LLM
-    save-default: บันทึกค่าเริ่มต้นของสีหน้า
     reset: รีเซ็ตสีหน้าทั้งหมด
-    expose-to-llm-toggle: เปิดให้ LLM ใช้
-    expose-to-llm-options:
-      none: ไม่มี
-      all: ทั้งหมด
-      custom: กำหนดเอง
 microphone: ไมโครโฟน
 models: โมเดล
 pages:
@@ -443,7 +434,7 @@ pages:
     delete: ลบ
     delete_card: ลบการ์ด
     delete_confirmation: คุณแน่ใจไหมว่าต้องการลบการ์ดนี้?
-    description: ใช้พรีเซ็ตการ์ดตัวละครของ AIRI
+    description: จัดการการ์ดตัวละคร AIRI
     description_label: คำอธิบาย
     drop_here: วางเพื่ออัปโหลด
     create_card: สร้างการ์ดใหม่
@@ -723,7 +714,7 @@ pages:
       gaming: เกม
       artistry: การสร้างภาพ
     consciousness:
-      description: บุคลิกภาพ โมเดลที่ต้องการ และอื่น ๆ
+      description: การเลือกและตั้งค่าโมเดลภาษา
       sections:
         section:
           provider-model-selection:
@@ -836,8 +827,6 @@ pages:
             description: เลือกผู้ให้บริการการรู้จำเสียงพูดที่เหมาะสม
           microphone:
             title: ไมโครโฟน
-            label: ไมโครโฟน
-            description: เปิดไมโครโฟนสำหรับการฟัง โหมดการป้อนเสียงจะกำหนดว่า AIRI ฟังเมื่อใด
             error: ไมโครโฟนไม่พร้อมใช้งาน
           input-device:
             label: อุปกรณ์รับเสียง
@@ -969,7 +958,7 @@ pages:
       title: การพูด
     title: โมดูล
     vision:
-      description: การมองเห็น
+      description: การตั้งค่าความเข้าใจภาพและการจับภาพหน้าจอ
       title: การมองเห็น
       tool-images:
         label: ใช้โมเดลการมองเห็นกับรูปภาพจากเครื่องมือ
@@ -1396,12 +1385,9 @@ pages:
       buy: เติมเงิน
       description: แพ็กเกจ Flux ที่เลือกได้
   capacitor:
-    description: Capacitor เก็บ Flux ไว้และเติมเองโดยอัตโนมัติ
     statusError: โหลด Capacitor ของคุณไม่สำเร็จ โปรดลองอีกครั้งภายหลัง
     packagesError: โหลด Capacitor ไม่สำเร็จ โปรดลองอีกครั้งภายหลัง
     preferenceError: บันทึกการกำหนดค่าไม่สำเร็จ โปรดลองอีกครั้งภายหลัง
-    noCapacitor: ไม่มี Capacitor
-    available: Capacitor ที่มี
     remaining: 'เหลือ {percent}'
     rechargesAt: เติมใหม่ {date}
     renewsAt: ต่ออายุ {date}
@@ -1883,7 +1869,7 @@ pages:
         playground:
           title: พื้นที่ทดลองการถอดเสียง
       aihubmix:
-        description: https://aihubmix.com (ลด 10%)
+        description: aihubmix.com (ลด 10%)
     title: ผู้ให้บริการ
   connection:
     description: ตั้งค่าการเชื่อมต่อเซิร์ฟเวอร์ WebSocket

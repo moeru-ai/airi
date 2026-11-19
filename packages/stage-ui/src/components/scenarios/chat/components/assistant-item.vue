@@ -119,7 +119,6 @@ const drawingCard = computed(() => props.streaming && props.message.pendingConte
 const sliceEntries = computed(() => groupToolCallSlices(resolvedSlices.value, toolName => Boolean(props.toolCallRenderers[toolName])))
 
 const showLoader = computed(() => props.showPlaceholder && resolvedSlices.value.length === 0)
-const containerClass = computed(() => props.variant === 'mobile' ? 'mr-0' : 'mr-12')
 const boxClasses = computed(() => {
   const spacing = props.variant === 'mobile' ? 'px-2 py-2 text-sm' : 'px-3 py-3'
   if (props.surface === 'opaque')
@@ -136,7 +135,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
 </script>
 
 <template>
-  <div :class="['flex font-cute ph-no-capture', containerClass]">
+  <div :class="['mr-12 flex font-cute ph-no-capture']">
     <ChatActionMenu
       :copy-text="copyText"
       :can-reply="canReply"
@@ -190,7 +189,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
               />
               <ChatSticker v-else-if="entry.slice.type === 'sticker'" :sticker-id="entry.slice.stickerId" />
               <ChatReplyCard v-else-if="entry.slice.type === 'card'" :card="entry.slice" />
-              <MarkdownRenderer v-else-if="entry.slice.type === 'text'" :content="entry.slice.text" />
+              <MarkdownRenderer v-else-if="entry.slice.type === 'text'" :content="entry.slice.text" :streaming="streaming" />
             </template>
             <div v-if="drawingCard" :class="['flex items-center gap-1.5 text-[11px]', 'text-neutral-500 dark:text-neutral-400']" aria-live="polite">
               <span :class="['i-svg-spinners:ring-resize', 'text-xs', 'text-primary-500 dark:text-primary-300']" aria-hidden="true" />

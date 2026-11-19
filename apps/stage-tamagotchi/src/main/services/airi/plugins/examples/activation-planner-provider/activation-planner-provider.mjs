@@ -1,13 +1,21 @@
-import { defineExtension } from '@proj-airi/plugin-sdk'
+import { defineExtension, defineKitContract, defineKitMethod } from '@proj-airi/plugin-sdk'
+
+const contract = defineKitContract({
+  id: 'dev.airi.example-activation',
+  version: '1.0.0',
+  methods: { read: defineKitMethod() },
+  events: {},
+})
 
 /**
- * Declares a Kit that the Activation Planner can use for static dependency planning.
+ * Declares and registers a Kit that the example Consumer waits for.
  *
- * Phase 2 does not register a runtime Kit implementation.
+ * The Consumer setup runs after this registration.
  */
 export default defineExtension({
   id: 'activation-planner-provider',
-  setup() {
+  setup(ctx) {
+    ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
     console.info('[activation-planner-provider] setup')
   },
 })

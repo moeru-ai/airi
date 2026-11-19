@@ -155,6 +155,47 @@ describe('voiceController output', () => {
     await controller.close()
   })
 
+  it('reads a formula that two writes split as one formula in the voice language', async () => {
+    const requested: string[] = []
+    const playback = new Playback({ nowMs: () => 0, play: () => ({ done: Promise.resolve({ throughMs: 1 }), stop: async () => ({ throughMs: 0 }) }) })
+    const controller = new VoiceController({ speech: () => ({ playback, language: 'zh-CN', synthesize: async (request) => {
+      requested.push(request.text)
+      return new Blob([request.text])
+    } }) })
+    const response = controller.openResponse({ sessionId: 'alice', turnId: 'formula' })
+    const speech = response.openSpeech({ purpose: 'answer' })
+    // A model streams tokens, so the closing `$` and the `\\to` arrive in later writes.
+    speech.write('结果是 $\\lim_{n \\t')
+    speech.write('o \\infty} \\frac{1}{n} = 0$。\n\n$$\n')
+    speech.write('x \\in A\n$$')
+    speech.end()
+
+    expect(await response.finish()).toBe('finished')
+    expect(requested).toEqual(['结果是 当n趋于无穷大时 n分之1的极限 等于 0。', 'x 属于 A'])
+    await controller.close()
+  })
+
+  it('synthesizes the first sentence before the model ends, and holds an open formula', async () => {
+    const requested: string[] = []
+    const playback = new Playback({ nowMs: () => 0, play: () => ({ done: Promise.resolve({ throughMs: 1 }), stop: async () => ({ throughMs: 0 }) }) })
+    const controller = new VoiceController({ speech: () => ({ playback, language: 'en-US', synthesize: async (request) => {
+      requested.push(request.text)
+      return new Blob([request.text])
+    } }) })
+    const response = controller.openResponse({ sessionId: 'alice', turnId: 'stream' })
+    const speech = response.openSpeech({ purpose: 'answer' })
+    speech.write('The answer is ready. The area is $x^')
+    await vi.waitFor(() => expect(requested).toEqual(['The answer is ready.']))
+
+    // The formula is still open, so its source does not reach TTS.
+    speech.write('2$. Done')
+    speech.end()
+
+    expect(await response.finish()).toBe('finished')
+    expect(requested).toEqual(['The answer is ready.', 'The area is x squared.', 'Done'])
+    await controller.close()
+  })
+
   it('retains speech-onset samples while waiting for playback silence', async () => {
     const source = createPushStream<import('@proj-airi/pipelines-audio').PcmBlock>()
     const audio = new AudioInput(pcmSource(source.stream), { historyMs: 4 })

@@ -11,7 +11,8 @@ Apply these rules to every test change in AIRI.
 
 - Use Vitest to verify the behavior of each module that you implement.
 - Use the Vitest project that owns the affected code. Keep runs targeted for speed.
-- Grow component and end-to-end coverage progressively. Prefer Vitest browser mode when the behavior depends on DOM or Web Platform APIs.
+- For UI work, read `enforce-rules-for-ui-tests` first. Do not write DOM-driven page or component tests outside the cases that it allows.
+- Prefer Vitest browser mode when the behavior depends on DOM or Web Platform APIs.
 - Use the smallest automated test that faithfully exercises the behavior. Prefer a unit test, then the smallest suitable higher-level test.
 - Do not rely on smoke-only tests.
 

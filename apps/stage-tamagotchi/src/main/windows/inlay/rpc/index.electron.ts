@@ -5,10 +5,10 @@ import type { ServerChannel } from '../../../services/airi/channel-server'
 import type { GlobalShortcutService } from '../../../services/electron/global-shortcut'
 
 import { defineInvokeHandler } from '@moeru/eventa'
-import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { ipcMain } from 'electron'
 
 import { electronInlayReturnHome } from '../../../../shared/eventa'
+import { createWindowContext } from '../../../libs/electron/window-context'
 import { setupBaseWindowElectronInvokes } from '../../shared/window'
 
 export async function setupInlayWindowInvokes(params: {
@@ -25,7 +25,7 @@ export async function setupInlayWindowInvokes(params: {
   // manage events within eventa's context system.
   ipcMain.setMaxListeners(0)
 
-  const { context } = createContext(ipcMain, params.inlayWindow)
+  const { context } = createWindowContext(params.inlayWindow)
 
   await setupBaseWindowElectronInvokes({
     context,

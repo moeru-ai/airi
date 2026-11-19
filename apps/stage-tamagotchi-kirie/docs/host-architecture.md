@@ -10,7 +10,8 @@
 | Kirie Core | WebView lifecycle and IPC transport |
 | Kirie Platform | Window operations, global shortcuts, external URLs, and the application data directory |
 | Kirie Notifications | System notifications and activation events |
-| AIRI Godot services | Application windows, authentication, microphone policy, and service attachments |
+| Kirie Tray | Native tray icon, menus, and tray events |
+| AIRI Godot services | Application windows, the tray menu, authentication, microphone policy, and service attachments |
 
 The renderer has one Eventa transport owner. Capability clients borrow its context.
 [Platform](https://github.com/gd-kirie/gd-kirie/blob/v0.14.2/packages/platform/README.md) and [Notifications](https://github.com/gd-kirie/kirie-plugins/blob/main/packages/notifications/README.md) document the upstream capability APIs.
@@ -36,7 +37,7 @@ The production Web entry is `res://src-web/dist/index.html`.
 ## Window and context lifecycle
 
 Main receives `synced-leader=true` before Pinia initialization. Followers receive `synced-leader=false`.
-Chat and Spotlight use `stage-runtime=minimal`.
+About, Chat, and Spotlight use `stage-runtime=minimal`.
 Pointer, display, window-action, and lifecycle adapters borrow the same host context.
 Display placement uses one atomic snapshot. Kirie's pointer-inside result overrides stale renderer bounds.
 
@@ -52,6 +53,20 @@ Main registers Notifications contracts in the shared JSON registry before any wi
 Main and Spotlight attach their own Notifications hosts.
 Readiness, focus grace periods, cancellation, and completion guards retain distinct meanings.
 See [Godot lifecycle](https://github.com/godotengine/godot/blob/4.7.2-stable/scene/main/node.cpp).
+
+## Tray
+
+Godot owns the tray through the `GdKirie.Tray` C# API. The tray stays usable while the main renderer reloads.
+The menu follows the [Electron tray](../../stage-tamagotchi/src/main/tray/index.ts).
+Godot applies the size and alignment items to the main window directly. Alignment animates with a Godot `Tween`.
+The checked size and alignment items follow the main-window geometry on each frame.
+Kirie has no Inlay, Widgets list, Caption, or BeatSync window. Their items stay disabled.
+The DevTools section appears only in debug builds.
+
+The main renderer owns translations. It sends all labels through `eventa:invoke:airi:tray:labels:set` at start and after each locale change.
+Godot shows English labels until the first labels arrive.
+A left click shows the main window on Windows. On macOS, a left click opens the menu and a double click shows the main window.
+If the platform has no tray, Main logs the error and continues. Main still answers the label invoke, because an unanswered invoke never settles.
 
 ## Spotlight and permissions
 

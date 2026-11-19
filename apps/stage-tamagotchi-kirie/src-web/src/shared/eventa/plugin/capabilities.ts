@@ -1,3 +1,5 @@
+import type { PluginCapabilityState } from '@proj-airi/stage-shared/plugin-host'
+
 import { defineInvokeEventa } from '@moeru/eventa'
 
 /**
@@ -16,25 +18,6 @@ export interface PluginCapabilityPayload {
   key: string
   state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
   metadata?: Record<string, unknown>
-}
-
-/**
- * Plugin capability snapshot stored by the host.
- *
- * Use when:
- * - Inspecting plugin capability lifecycle state in renderer tooling
- *
- * Expects:
- * - `updatedAt` is a millisecond timestamp from the host process
- *
- * Returns:
- * - N/A
- */
-export interface PluginCapabilityState {
-  key: string
-  state: 'announced' | 'ready' | 'degraded' | 'withdrawn'
-  metadata?: Record<string, unknown>
-  updatedAt: number
 }
 
 export const pluginProtocolListProvidersEventName = 'proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers'

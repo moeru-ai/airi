@@ -75,6 +75,35 @@ it('uses one request snapshot while tools load (PR #2477)', async () => {
   expect(generation).toHaveBeenCalledTimes(1)
 })
 
+it('forces the Chat tool choice only on the first request, so the model can answer after the tool', async () => {
+  // ROOT CAUSE:
+  // Each request of the tool loop kept a tool choice that names one function.
+  // The model had to call it again every time, so a loop without a step limit
+  // never ended. The caller's tool choice now applies to the first request.
+  const requests: Array<{ tool_choice?: unknown }> = []
+  const execute = vi.fn(() => 'sent')
+  const fetch: typeof globalThis.fetch = async (_url, init) => {
+    requests.push(JSON.parse(String(init?.body)))
+    const chunk = requests.length === 1
+      ? { choices: [{ index: 0, delta: { tool_calls: [{ index: 0, id: 'call-1', type: 'function', function: { name: 'command', arguments: '{}' } }] }, finish_reason: 'tool_calls' }] }
+      : { choices: [{ index: 0, delta: { content: 'Done.' }, finish_reason: 'stop' }] }
+    return new Response(`data: ${JSON.stringify(chunk)}\n\ndata: [DONE]\n\n`, { headers: { 'Content-Type': 'text/event-stream' } })
+  }
+  await streamFrom({
+    model: 'test',
+    chatProvider: { generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://chat.test/v1/', fetch } }) },
+    conversation: { turns: [] },
+    options: {
+      tools: [{ type: 'function', function: { name: 'command', parameters: { type: 'object', properties: {} } }, execute }],
+      toolChoice: { type: 'function', function: { name: 'command' } },
+    },
+  })
+  expect(requests).toHaveLength(2)
+  expect(requests[0].tool_choice).toEqual({ type: 'function', function: { name: 'command' } })
+  expect(requests[1].tool_choice).toBeUndefined()
+  expect(execute).toHaveBeenCalledOnce()
+})
+
 it('applies the new Chat model tool and content compatibility after a tool changes settings', async () => {
   // ROOT CAUSE:
   // The first model's compatibility decisions were reused by later xsAI tool steps.

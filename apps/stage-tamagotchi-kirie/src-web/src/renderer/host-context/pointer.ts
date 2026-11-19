@@ -167,6 +167,10 @@ export function useHostMouseAroundWindowBorder(
   const isNearAnyBorder = computed(() => nearLeft.value || nearRight.value || nearTop.value || nearBottom.value)
 
   return {
+    nearLeft,
+    nearRight,
+    nearTop,
+    nearBottom,
     isNearAnyBorder,
   }
 }
