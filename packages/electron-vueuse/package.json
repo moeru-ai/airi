@@ -29,7 +29,8 @@
   "scripts": {
     "dev": "pnpm run build",
     "build": "tsdown",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:run": "vitest run --config vitest.config.ts"
   },
   "peerDependencies": {
     "electron": ">=43.8.4 <44",

@@ -1,17 +1,6 @@
 import type { TrackHandlerPayload } from '@openpanel/sdk'
 
-/** One confirmed product fact, with an optional browser device for attribution. */
-export interface ProductCaptureInput {
-  userId: string
-  event: string
-  properties: Record<string, unknown>
-  deviceId?: string
-}
-
-/** External delivery boundary for confirmed product facts. */
-export interface ProductAnalyticsSink {
-  capture: (input: ProductCaptureInput) => Promise<void>
-}
+import type { ProductAnalyticsSink } from './product-analytics'
 
 /**
  * Sends each fact once. Callers own replay suppression through business state.
@@ -29,7 +18,7 @@ export function createOpenpanelSink(options: { clientId: string, clientSecret: s
           profileId: input.userId,
           properties: {
             ...input.properties,
-            ...(input.deviceId && { __deviceId: input.deviceId }),
+            ...(input.openpanelDeviceId && { __deviceId: input.openpanelDeviceId }),
           },
         },
       }

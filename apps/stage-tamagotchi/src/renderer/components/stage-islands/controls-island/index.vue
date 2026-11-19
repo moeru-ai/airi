@@ -1,29 +1,34 @@
 <script setup lang="ts">
+import type { ControlsMenuAction } from '../../../../shared/eventa'
+
 import { defineInvoke } from '@moeru/eventa'
+import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
-import { IS_DEV } from '@proj-airi/stage-shared'
+import { IS_DEV, isElectronWindow } from '@proj-airi/stage-shared'
 import { HearingConfigDialog } from '@proj-airi/stage-ui/components'
-import { useBackdropSurface } from '@proj-airi/stage-ui/composables/backdrop-surface'
+import { backdropSurfaceHostKey, useBackdropSurface } from '@proj-airi/stage-ui/composables/backdrop-surface'
+import { useInboxStore } from '@proj-airi/stage-ui/stores/inbox'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { Badge } from '@proj-airi/ui'
-import { useEventListener, useFocusWithin, useMouseInElement, useMousePressed } from '@vueuse/core'
+import { Badge, Dock, DockButton, dockEdgeItemClasses, dockItemClasses, Tooltip } from '@proj-airi/ui'
+import { useFocusWithin, useMouseInElement, useMousePressed } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, reactive, ref, useTemplateRef, watch } from 'vue'
+import { computed, inject, onScopeDispose, reactive, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import StatusIsland from '../status-island/index.vue'
-import ControlButtonTooltip from './control-button-tooltip.vue'
-import ControlButton from './control-button.vue'
 import ControlsIslandChatButton from './controls-island-chat-button.vue'
-import ControlsIslandMenu from './controls-island-menu.vue'
 import IndicatorMicVolume from './indicator-mic-volume.vue'
 
 import {
-  electron,
+  electronCenterMainWindow,
+  electronControlsMenuOpen,
+  electronMainWindowRefreshUnread,
   electronStartDraggingWindow,
   electronWindowSetAlwaysOnTop,
 } from '../../../../shared/eventa'
+import { isControlsIslandConcealed } from './controls-island-visibility'
 import { useControlsIslandPlacement } from './use-controls-island-placement'
+import { useControlsIslandSignIn } from './use-controls-island-sign-in'
 
 interface Emits {
   /** Reports whether an active interaction must delay placement changes. */
@@ -51,22 +56,72 @@ const settingsStore = useSettings()
 const context = useElectronEventaContext()
 const { enabled, listening, off: microphoneOff } = storeToRefs(settingsAudioDeviceStore)
 const { alwaysOnTop, controlsIslandIconSize } = storeToRefs(settingsStore)
-const isLinux = useElectronEventaInvoke(electron.app.isLinux)
 const setAlwaysOnTop = useElectronEventaInvoke(electronWindowSetAlwaysOnTop)
 
 const islandElement = useTemplateRef<HTMLElement>('island')
-// The capsule is the only surface of the Island. Its buttons have no fill, so the native glass is behind the capsule only.
-useBackdropSurface(useTemplateRef<HTMLElement>('capsule'))
+// The dock is the only surface of the Island. Its buttons have no fill, so the native glass is behind the dock only.
+const dockInstance = useTemplateRef<InstanceType<typeof Dock>>('dock')
+useBackdropSurface(computed(() => dockInstance.value?.$el as HTMLElement | undefined))
+// The tooltips portal out of the Island, so each open tooltip declares its own surface.
+const registerTooltipSurface = inject(backdropSurfaceHostKey, undefined)?.register
 
-/** The one app menu. The more button opens it, and so does a right-click on the character. */
+/**
+ * The one app menu. It opens in a window of its own beside the more button, so it can extend past this window. The
+ * more button opens it, and so does a right-click on the character. The menu window covers the button while the menu
+ * shows, so a second click there closes the menu.
+ */
 const menuOpen = ref(false)
-// The menu lives on the desktop, so a click in another app must close it. That click blurs this window.
-useEventListener(window, 'blur', () => {
-  menuOpen.value = false
-})
+const openMenuWindow = useElectronEventaInvoke(electronControlsMenuOpen)
+const centerMainWindow = useElectronEventaInvoke(electronCenterMainWindow)
+const { signingIn, signIn } = useControlsIslandSignIn()
 
-// Tracks open overlays that portal outside the Island, for example 'menu' and 'hearing'.
-// The stage keeps the whole window interactive while one is open.
+// Unread Notifications are in the menu. The dot on the more button tells the user to open it.
+const inbox = useInboxStore()
+const { unread } = storeToRefs(inbox)
+
+async function openAppMenu() {
+  const button = islandElement.value?.querySelector<HTMLElement>('[aria-haspopup="menu"]')
+  if (!button)
+    return
+
+  const { x, y, width, height } = button.getBoundingClientRect()
+  menuOpen.value = true
+  // The request answers when the menu closes, with the item that this window carries out.
+  let action: ControlsMenuAction | undefined
+  try {
+    action = await openMenuWindow({
+      anchor: { x, y, width, height },
+      side: isLeft.value ? 'right' : 'left',
+      align: isTop.value ? 'start' : 'end',
+      signingIn: signingIn.value,
+    })
+  }
+  catch (error) {
+    console.error('Failed to open the app menu:', errorMessageFrom(error) ?? 'unknown')
+  }
+  finally {
+    menuOpen.value = false
+  }
+
+  switch (action) {
+    case 'sign-in':
+      signIn()
+      break
+    case 'open-hearing':
+      openHearing()
+      break
+    case 'center-main-window':
+      centerMainWindow().catch(console.error)
+      break
+  }
+}
+
+// The menu window keeps its own Notifications state. After a read there settles, the server count is final.
+const stopUnreadRequest = context.value.on(electronMainWindowRefreshUnread, () => void inbox.refreshUnread())
+onScopeDispose(stopUnreadRequest)
+
+// Tracks the open menu and dialogs of the Island, for example 'menu' and 'hearing'.
+// The stage keeps the whole window interactive while one is open, and the Island stays in view.
 const blockingOverlays = reactive(new Set<string>())
 // A press that starts on the Island can end outside it, for example a window drag.
 const { pressed } = useMousePressed({ target: islandElement })
@@ -123,7 +178,6 @@ async function toggleMicrophone() {
 }
 
 function openHearing() {
-  menuOpen.value = false
   setOverlay('hearing', true)
 }
 
@@ -146,7 +200,12 @@ const isOutside = computed(() => isOutsideByCursor.value && isOutsideByDom.value
 // A user who works in the menu, in a dialog, or with the keyboard keeps the
 // Island after the cursor leaves the window.
 const { focused: islandFocused } = useFocusWithin(islandElement)
-const concealed = computed(() => props.cursorAway && !isBlocked.value && !islandFocused.value)
+const concealed = computed(() => isControlsIslandConcealed({
+  cursorAway: props.cursorAway,
+  overlayOpen: blockingOverlays.size > 0,
+  pressed: pressed.value,
+  focused: islandFocused.value,
+}))
 
 // The stage page observes this element for cursor hit testing.
 defineExpose({
@@ -156,7 +215,7 @@ defineExpose({
   get hearingDialogOpen() { return blockingOverlays.has('hearing') },
   set hearingDialogOpen(v: boolean) { setOverlay('hearing', v) },
   /** Opens the app menu, for example when the user right-clicks the character. */
-  openMenu() { menuOpen.value = true },
+  openMenu() { void openAppMenu() },
 })
 
 watch(isBlocked, (active) => {
@@ -168,8 +227,17 @@ watch(alwaysOnTop, (val) => {
   setAlwaysOnTop(val)
 }, { immediate: true })
 
-const iconClass = computed(() => controlsIslandIconSize.value === 'small' ? 'size-3' : 'size-5')
-const buttonStyle = computed(() => controlsIslandIconSize.value === 'small' ? 'size-7' : 'size-10')
+// The small setting is the size of the floating chat dock. Large and auto are the medium dock.
+const dockSize = computed(() => controlsIslandIconSize.value === 'small' ? 'sm' : 'md')
+const iconClass = computed(() => dockSize.value === 'sm' ? 'size-4' : 'size-5')
+// The tooltips open into the window, away from the screen corner that the Island docks to.
+const tooltipSide = computed(() => isLeft.value ? 'right' : 'left')
+
+// The grip is shorter than it is wide, and it sits at the end of the dock that faces into the window.
+const gripClasses = computed(() => [
+  dockSize.value === 'sm' ? 'h-5 w-7' : 'h-6 w-9',
+  dockEdgeItemClasses(dockSize.value, 'vertical', isTop.value ? 'end' : 'start'),
+])
 
 const islandPositionClasses = computed(() => [
   isTop.value ? 'top-2' : 'bottom-2',
@@ -193,12 +261,13 @@ const islandMotionClasses = computed(() => {
 })
 
 /**
- * This is a know issue (or expected behavior maybe) to Electron.
- * We don't use this approach on Linux because it's not working.
+ * The native drag of the main process does not work on Linux, so the grip there is a drag region instead. A drag
+ * region takes no pointer events, so the grip on Linux has no hover background and no tooltip.
  *
- * See `apps/stage-tamagotchi/src/main/windows/main/index.ts` for handler definition
+ * See `apps/stage-tamagotchi/src/main/windows/main/index.ts` for the handler.
  */
-const startDraggingWindow = !isLinux() ? defineInvoke(context.value, electronStartDraggingWindow) : undefined
+const linuxWindow = isElectronWindow(window) && window.platform === 'linux'
+const startDraggingWindow = linuxWindow ? undefined : defineInvoke(context.value, electronStartDraggingWindow)
 </script>
 
 <template>
@@ -211,88 +280,82 @@ const startDraggingWindow = !isLinux() ? defineInvoke(context.value, electronSta
       islandMotionClasses,
     ]"
   >
-    <div
-      ref="capsule"
+    <!--
+      The Island is a vertical blurry dock, as the dock of the floating chat. The grip sits at the end that faces into
+      the window, so `flex-col-reverse` overrides the column of the dock at the top of the screen.
+    -->
+    <Dock
+      ref="dock"
       data-testid="main-controls"
-      :class="[
-        'flex items-center gap-0.5 rounded-full p-1',
-        'bg-neutral-50/80 dark:bg-neutral-800/70',
-        'shadow-md ring-1 ring-neutral-900/8 backdrop-blur-md dark:ring-white/10',
-        isTop ? 'flex-col-reverse' : 'flex-col',
-      ]"
+      orientation="vertical"
+      variant="blurry"
+      :size="dockSize"
+      :tooltip-side="tooltipSide"
+      :register-surface="registerTooltipSurface"
+      :class="[isTop ? 'flex-col-reverse!' : '']"
     >
-      <!-- The grip moves the window. -->
-      <ControlButtonTooltip side="inward">
+      <!--
+        The grip moves the window. It has the hover background of the dock buttons. Its dots are one step quieter than
+        the icons of the buttons: lighter in light mode, and darker in dark mode.
+      -->
+      <Tooltip
+        :label="t('tamagotchi.stage.controls-island.drag-to-move-window')"
+        :side="tooltipSide"
+        variant="blurry"
+        :register-surface="registerTooltipSurface"
+      >
         <div
           data-testid="controls-island-grip"
           :aria-label="t('tamagotchi.stage.controls-island.drag-to-move-window')"
-          :class="['h-4 w-8 flex cursor-move items-center justify-center', { 'drag-region': isLinux }]"
+          :class="[
+            gripClasses,
+            'shrink-0 flex cursor-move items-center justify-center transition-colors',
+            dockItemClasses('blurry'),
+            { 'drag-region': linuxWindow },
+          ]"
           @mousedown="startDraggingWindow?.()"
         >
-          <span aria-hidden="true" :class="['h-1 w-5 rounded-full bg-neutral-400/70 dark:bg-neutral-500/70']" />
+          <span aria-hidden="true" :class="['i-mingcute:dots-vertical-fill size-4 text-neutral-400/70 dark:text-neutral-400']" />
         </div>
-        <template #tooltip>
-          {{ t('tamagotchi.stage.controls-island.drag-to-move-window') }}
-        </template>
-      </ControlButtonTooltip>
+      </Tooltip>
 
-      <StatusIsland
-        v-if="IS_DEV"
-        :button-style="buttonStyle"
-        :icon-class="iconClass"
-      />
+      <StatusIsland v-if="IS_DEV" :icon-class="iconClass" />
 
-      <ControlButtonTooltip side="inward">
-        <ControlButton
-          data-testid="controls-island-microphone"
-          :button-style="buttonStyle"
-          :aria-label="microphoneLabel"
-          :aria-pressed="listening"
-          :aria-busy="microphonePending"
-          :disabled="microphonePending"
-          :class="[listening ? 'bg-primary-500! hover:bg-primary-600! dark:bg-primary-400! dark:hover:bg-primary-300!' : '']"
-          @click="toggleMicrophone"
-        >
-          <!-- While AIRI listens, the button is filled with the theme color, so the state reads at a glance. -->
-          <Transition name="fade" mode="out-in">
-            <IndicatorMicVolume v-if="listening" color-class="text-white dark:text-primary-950" :class="iconClass" />
-            <div v-else :class="['i-ph:microphone-slash text-neutral-800 dark:text-neutral-300', iconClass]" />
-          </Transition>
-        </ControlButton>
-        <template #tooltip>
-          {{ microphoneLabel }}
-        </template>
-      </ControlButtonTooltip>
-
-      <ControlsIslandChatButton :button-style="buttonStyle" :icon-class="iconClass" />
-
-      <ControlsIslandMenu
-        v-model:open="menuOpen"
-        :side="isLeft ? 'right' : 'left'"
-        :align="isTop ? 'start' : 'end'"
-        @open-hearing="openHearing"
+      <!-- While AIRI listens, only the icon takes the theme color, as every toggle of a dock. -->
+      <DockButton
+        data-testid="controls-island-microphone"
+        :label="microphoneLabel"
+        :pressed="listening"
+        :aria-busy="microphonePending"
+        :disabled="microphonePending"
+        @click="toggleMicrophone"
       >
-        <template #trigger="{ unread }">
-          <ControlButton
-            data-testid="controls-island-more"
-            :button-style="buttonStyle"
-            :on="menuOpen"
-            :aria-label="t('tamagotchi.stage.controls-island.more')"
-            :title="t('tamagotchi.stage.controls-island.more')"
-            :class="['relative']"
-          >
-            <div :class="['i-solar:menu-dots-bold text-neutral-800 dark:text-neutral-300', iconClass]" />
-            <!-- Unread Notifications are in the menu. The dot tells the user to open it. -->
-            <Badge
-              v-if="unread > 0"
-              dot
-              data-testid="controls-island-notifications-dot"
-              :class="['pointer-events-none absolute right-1 top-1 ring-2 ring-neutral-50 dark:ring-neutral-800']"
-            />
-          </ControlButton>
-        </template>
-      </ControlsIslandMenu>
-    </div>
+        <Transition name="fade" mode="out-in">
+          <IndicatorMicVolume v-if="listening" color-class="" :class="iconClass" />
+          <span v-else :class="['i-mingcute:mic-off-line', iconClass]" />
+        </Transition>
+      </DockButton>
+
+      <ControlsIslandChatButton :icon-class="iconClass" />
+
+      <DockButton
+        data-testid="controls-island-more"
+        aria-haspopup="menu"
+        :aria-expanded="menuOpen"
+        :label="t('tamagotchi.stage.controls-island.more')"
+        :tooltip="!menuOpen"
+        :class="['relative']"
+        @click="openAppMenu"
+      >
+        <span :class="['i-mingcute:more-1-line', iconClass]" />
+        <Badge
+          v-if="unread > 0"
+          dot
+          data-testid="controls-island-notifications-dot"
+          :class="['pointer-events-none absolute right-1 top-1 ring-2 ring-neutral-50 dark:ring-neutral-800']"
+        />
+      </DockButton>
+    </Dock>
 
     <!-- The menu and the microphone button open Hearing controls. The dialog needs a trigger, so it gets a hidden one. -->
     <HearingConfigDialog :show="blockingOverlays.has('hearing')" @update:show="setOverlay('hearing', $event)">

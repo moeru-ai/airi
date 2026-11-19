@@ -4,6 +4,7 @@ import type { ExtensionHostService, SetupExtensionHostOptions } from './types'
 
 import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
+import { onWindowClosed } from '@proj-airi/electron-vueuse/main'
 import { BrowserWindow, dialog, ipcMain } from 'electron'
 
 import { electronPluginGetAssetBaseUrl } from '../../../../shared/eventa/plugin/assets'
@@ -80,7 +81,7 @@ function trackDirectoryImportOwner(
   }
 
   trackedOwnerIds.add(ownerId)
-  ownerWindow.once('closed', () => {
+  onWindowClosed(ownerWindow, () => {
     cancelDirectoryImportsForOwner(hostService, planOwners, ownerId)
     trackedOwnerIds.delete(ownerId)
   })

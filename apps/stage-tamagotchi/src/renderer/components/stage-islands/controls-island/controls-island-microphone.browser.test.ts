@@ -15,11 +15,17 @@ import { controlsIslandPlacementKey } from './use-controls-island-placement'
 import '@unocss/reset/tailwind.css'
 import 'virtual:uno.css'
 
-vi.mock('@proj-airi/electron-vueuse', () => ({
-  useElectronEventaContext: () => ref({ on: vi.fn(() => vi.fn()), emit: vi.fn() }),
-  useElectronEventaInvoke: () => vi.fn().mockResolvedValue(false),
-  useElectronMouseInElement: () => ({ isOutside: ref(false) }),
-}))
+vi.mock('@proj-airi/electron-vueuse', async () => {
+  const { electronControlsMenuOpen } = await import('../../../../shared/eventa')
+  return {
+    useElectronEventaContext: () => ref({ on: vi.fn(() => vi.fn()), emit: vi.fn() }),
+    // The menu window answers the open request with the item that the user chose: here, Microphone settings.
+    useElectronEventaInvoke: (event: unknown) => event === electronControlsMenuOpen
+      ? vi.fn().mockResolvedValue('open-hearing')
+      : vi.fn().mockResolvedValue(false),
+    useElectronMouseInElement: () => ({ isOutside: ref(false) }),
+  }
+})
 
 vi.mock('@moeru/eventa', async importOriginal => ({
   ...await importOriginal<typeof import('@moeru/eventa')>(),
@@ -154,7 +160,6 @@ describe('controls Island microphone', () => {
     const { screen, askPermission } = mountControlsIsland()
 
     await screen.getByTestId('controls-island-more').click()
-    await page.getByTestId('controls-island-hearing-controls').click()
 
     await expect.element(screen.getByTestId('hearing-config-dialog')).toBeVisible()
     expect(askPermission).not.toHaveBeenCalled()

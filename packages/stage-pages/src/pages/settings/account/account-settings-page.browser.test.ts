@@ -26,7 +26,7 @@ const capture = vi.fn((_name: string, _properties: object) => true)
 beforeAll(() => {
   configureAnalyticsAdapter(async () => ({
     capture,
-    getIdentitySnapshot: () => null,
+    getIdentityHeaders: () => null,
     identify: () => {},
     registerBuildInfo: () => {},
     resetIdentity: () => {},

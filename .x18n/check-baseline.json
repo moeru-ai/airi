@@ -608,6 +608,20 @@
     {
       "path": "packages/i18n/src/locales/en/settings.yaml",
       "code": "unused-key",
+      "key": "settings.pages.data.actions.export",
+      "message": "\"settings.pages.data.actions.export\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.data.actions.import",
+      "message": "\"settings.pages.data.actions.import\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
       "key": "settings.pages.data.confirmations.tooltip",
       "message": "\"settings.pages.data.confirmations.tooltip\" is not used.",
       "count": 1
@@ -624,6 +638,13 @@
       "code": "unused-key",
       "key": "settings.pages.data.sections.model-downloads.wake-word-model",
       "message": "\"settings.pages.data.sections.model-downloads.wake-word-model\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/settings.yaml",
+      "code": "unused-key",
+      "key": "settings.pages.data.sections.models.empty",
+      "message": "\"settings.pages.data.sections.models.empty\" is not used.",
       "count": 1
     },
     {
