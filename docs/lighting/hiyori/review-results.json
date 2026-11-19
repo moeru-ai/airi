@@ -1,0 +1,76 @@
+{
+  "results": [
+    {
+      "angle": 0,
+      "corrected": false,
+      "gpuError": 0,
+      "light": "Left"
+    },
+    {
+      "angle": 0,
+      "corrected": false,
+      "gpuError": 0,
+      "light": "Right"
+    },
+    {
+      "angle": 0,
+      "corrected": false,
+      "gpuError": 0,
+      "light": "Top"
+    },
+    {
+      "angle": 0,
+      "corrected": true,
+      "gpuError": 0,
+      "light": "Left"
+    },
+    {
+      "angle": 0,
+      "corrected": true,
+      "gpuError": 0,
+      "light": "Right"
+    },
+    {
+      "angle": 0,
+      "corrected": true,
+      "gpuError": 0,
+      "light": "Top"
+    },
+    {
+      "angle": -30,
+      "corrected": true,
+      "gpuError": 0,
+      "light": "Left"
+    },
+    {
+      "angle": -30,
+      "corrected": true,
+      "gpuError": 0,
+      "light": "Right"
+    },
+    {
+      "angle": -30,
+      "corrected": true,
+      "gpuError": 0,
+      "light": "Top"
+    },
+    {
+      "angle": 30,
+      "corrected": true,
+      "gpuError": 0,
+      "light": "Left"
+    },
+    {
+      "angle": 30,
+      "corrected": true,
+      "gpuError": 0,
+      "light": "Right"
+    },
+    {
+      "angle": 30,
+      "corrected": true,
+      "gpuError": 0,
+      "light": "Top"
+    }
+  ]
+}

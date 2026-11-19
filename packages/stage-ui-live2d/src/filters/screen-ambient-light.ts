@@ -19,6 +19,8 @@ import {
 } from '@proj-airi/stage-shared/screen-ambient-light'
 import { clamp } from 'es-toolkit'
 
+import { ScreenExposure } from './screen-exposure'
+
 /**
  * Transparent margin kept around the model, in pixels.
  *
@@ -26,7 +28,7 @@ import { clamp } from 'es-toolkit'
  * a silhouette that touches the filter frame reads its own alpha past the
  * frame edge, and no wrap appears there.
  */
-const wrapPadding = 16
+const wrapPadding = 64
 
 /**
  * Resolution of the alpha blur passes relative to the filter input.
@@ -40,11 +42,11 @@ const blurResolutionScale = 0.5
 
 /**
  * Taps on each side of the center tap in one blur pass, and their spacing in
- * standard deviations. Six taps half a deviation apart span three deviations,
+ * standard deviations. Twenty-four taps span three deviations,
  * which holds 99.7% of the kernel.
  */
-const blurHalfTaps = 6
-const blurTapSpacingSigma = 0.5
+const blurHalfTaps = 24
+const blurTapSpacingSigma = 3 / blurHalfTaps
 
 /**
  * Standard deviation of the backlight rim, as a fraction of the frame height.
@@ -90,6 +92,8 @@ void main(void) {
 
 const fragmentShader = `
 varying vec2 vTextureCoord;
+uniform sampler2D uSurfaceBloom;
+uniform float uUseSurfaceBloom;
 
 uniform sampler2D uSampler;
 
@@ -114,6 +118,12 @@ uniform vec3 uSurroundAverage;
 uniform vec3 uContactAverage;
 uniform highp vec2 uStageSize;
 uniform float uBacklight;
+uniform float uBloom;
+uniform float uPhotometry;
+uniform float uLightScale;
+uniform float uBloomGain;
+uniform float uGlareGain;
+uniform float uCameraExposure;
 uniform float uDirectional;
 uniform float uStrength;
 uniform float uDisplayLevel;
@@ -217,7 +227,7 @@ vec3 enhanceLightColor(vec3 unlit, vec3 lit, vec3 incident) {
 
 void main(void) {
   vec4 source = texture2D(uSampler, vTextureCoord);
-  if (source.a <= 0.0) {
+  if (source.a <= 0.0 && uBloom <= 0.0) {
     gl_FragColor = source;
     return;
   }
@@ -236,7 +246,7 @@ void main(void) {
   vec2 subjectUv = (windowUv - uSubjectRect.xy) / max(uSubjectRect.zw, vec2(0.0001));
   vec2 mapUv = (subjectUv + uMapMargin) / (vec2(1.0) + 2.0 * uMapMargin);
 
-  vec3 baseLinear = srgbToLinear(source.rgb / source.a);
+  vec3 baseLinear = srgbToLinear(source.rgb / max(source.a, 0.0001));
 
   // Global mode replaces both lookups with the mean of the map, so the whole
   // model takes one color.
@@ -296,7 +306,12 @@ void main(void) {
   // line a subject shows in front of a bright plate. Both follow the light
   // behind each part of the edge, so an edge in front of a dark area stays
   // dark.
-  vec3 added = wrapColor * uStrength * (wrapMask * uWrapIntensity + rimMask * uBacklight);
+  //
+  // In the exposure trial, the assumed screen luminance scales this light. The
+  // camera exposure and the glare gain then scale both bands.
+  vec3 physicalLight = wrapColor * (uPhotometry > 0.5 ? uLightScale : 1.0);
+  vec3 added = physicalLight * uStrength * (wrapMask * uWrapIntensity + rimMask * uBacklight);
+  added *= uCameraExposure * uGlareGain;
 
   // Added light compresses into the remaining headroom instead of clipping, so
   // bright texture detail under a strong wrap keeps its differences. One factor
@@ -315,7 +330,29 @@ void main(void) {
   vec3 unlitClamped = clamp(unlit, 0.0, 1.0);
   litLinear = enhanceLightColor(unlitClamped, litLinear, max(litLinear - unlitClamped, vec3(0.0)));
 
-  gl_FragColor = vec4(linearToSrgb(litLinear) * source.a, source.a);
+  // Outside the silhouette, the same backlight field illuminates the blurred
+  // coverage. This adds a premultiplied halo over the transparent desktop.
+  // It is independent of albedo, so pale clothes cannot bloom on a dark screen.
+  // Coverage remains linear opacity. Applying the sRGB curve to the 8-bit
+  // mask amplifies its lowest steps into visible bands outside the model.
+  float haloCoverage = max(blurredAlpha.g-source.a,0.0);
+  vec3 haloEnergy = physicalLight * uStrength * uBacklight * uBloom * uCameraExposure;
+  float energyPeak = max(haloEnergy.r,max(haloEnergy.g,haloEnergy.b));
+  vec3 haloColor = haloEnergy/(1.+energyPeak);
+  // Adapt visible halo opacity after highlight compression. Applying the gain
+  // to energy first makes saturation and sRGB undo most bright-page suppression.
+  // One limiting factor preserves hue and premultiplied coverage when gain > 1.
+  float haloPeak = max(max(haloColor.r,haloColor.g),haloColor.b);
+  vec3 halo = haloColor*min(uBloomGain,1./max(haloPeak,.0001))*haloCoverage;
+  if (uUseSurfaceBloom > .5) {
+    vec3 received = texture2D(uSurfaceBloom,clamp(vTextureCoord*uWrapScale,uWrapClamp.xy,uWrapClamp.zw)).rgb;
+    halo = received*uBloom*uBloomGain;
+    halo /= max(1.,max(halo.r,max(halo.g,halo.b)));
+  }
+  float haloAlpha = max(max(halo.r,halo.g),halo.b);
+  vec3 outputColor = linearToSrgb(litLinear)*source.a + halo*(1.0-source.a);
+  float outputAlpha = source.a + haloAlpha*(1.0-source.a);
+  gl_FragColor = vec4(outputColor,outputAlpha);
 }
 `
 
@@ -356,6 +393,7 @@ export interface ScreenAmbientLightFilterUpdate {
  * screen: `apply` reads the screen size for that conversion.
  */
 export class ScreenAmbientLightFilter extends Filter {
+  readonly exposure = new ScreenExposure()
   /**
    * The two light maps as sRGB texels.
    *
@@ -379,6 +417,31 @@ export class ScreenAmbientLightFilter extends Filter {
    */
   private contactPeak = 0
   private readonly blurPass: Filter
+  private readonly bloomPass = new Filter(undefined, `
+    varying vec2 vTextureCoord;
+    uniform sampler2D uSampler;
+    uniform highp vec2 uSourceScale;
+    uniform highp vec4 uSourceClamp;
+    uniform highp vec2 uTapStep;
+    uniform vec2 uWeights[${blurHalfTaps + 1}];
+    void main() {
+      vec2 center=vTextureCoord*uSourceScale;
+      vec3 sum=texture2D(uSampler,clamp(center,uSourceClamp.xy,uSourceClamp.zw)).rgb*uWeights[0].y;
+      for (int tap=1;tap<=${blurHalfTaps};tap++) {
+        vec2 offset=uTapStep*float(tap);
+        sum+=(texture2D(uSampler,clamp(center+offset,uSourceClamp.xy,uSourceClamp.zw)).rgb
+          +texture2D(uSampler,clamp(center-offset,uSourceClamp.xy,uSourceClamp.zw)).rgb)*uWeights[tap].y;
+      }
+      gl_FragColor=vec4(sum,1.);
+    }
+  `, { uSourceScale: new Float32Array(2), uSourceClamp: new Float32Array(4), uTapStep: new Float32Array(2), uWeights: new Float32Array((blurHalfTaps + 1) * 2) })
+
+  /**
+   * Optional surface renderer for directional Live2D lighting. Called once per
+   * filtered frame when bloom is enabled. Its texture matches the input frame,
+   * contains premultiplied light-only RGB, and remains owned by the producer.
+   */
+  renderSurfaceBloom?: (input: RenderTexture) => RenderTexture
   /** Interleaved rim and wrap weights, one pair per tap from the center out. */
   private readonly blurWeights = new Float32Array((blurHalfTaps + 1) * 2)
   private wrapDiffuse = ambientLightDefaults.filter.wrapDiffuse
@@ -402,6 +465,12 @@ export class ScreenAmbientLightFilter extends Filter {
       uContactAverage: new Float32Array([1, 1, 1]),
       uStageSize: new Float32Array([1, 1]),
       uBacklight: ambientLightDefaults.filter.backlight,
+      uBloom: ambientLightDefaults.filter.bloom,
+      uPhotometry: 0,
+      uLightScale: 1,
+      uBloomGain: 1,
+      uGlareGain: 1,
+      uCameraExposure: 1,
       uDirectional: 0,
       uStrength: 0,
       uDisplayLevel: 1,
@@ -463,6 +532,7 @@ export class ScreenAmbientLightFilter extends Filter {
     this.uniforms.uWrapIntensity = Math.max(0, options.wrapIntensity)
     this.uniforms.uWrapSaturation = clamp(options.wrapSaturation, 0, 1)
     this.uniforms.uBacklight = clamp(options.backlight, 0, 4)
+    this.uniforms.uBloom = clamp(options.bloom, 0, 3)
     this.uniforms.uTranslucentWrap = options.translucentWrap ? 1 : 0
     this.wrapDiffuse = clamp(options.wrapDiffuse, 0, 0.5)
   }
@@ -476,6 +546,17 @@ export class ScreenAmbientLightFilter extends Filter {
    * pool before this returns.
    */
   override apply(filterManager: FilterSystem, input: RenderTexture, output: RenderTexture, clearMode?: CLEAR_MODES) {
+    const surfaceBloom = this.renderSurfaceBloom && this.uniforms.uBloom > 0 && this.uniforms.uStrength > 0
+      ? this.renderSurfaceBloom(input)
+      : undefined
+    this.uniforms.uUseSurfaceBloom = surfaceBloom ? 1 : 0
+    this.uniforms.uSurfaceBloom = Texture.EMPTY
+    this.exposure.advance()
+    this.uniforms.uPhotometry = this.exposure.enabled ? 1 : 0
+    this.uniforms.uLightScale = this.exposure.lightScale
+    this.uniforms.uBloomGain = this.exposure.bloomGain
+    this.uniforms.uGlareGain = this.exposure.glareGain
+    this.uniforms.uCameraExposure = this.exposure.cameraExposure
     // The stage size turns the filter frame, which Pixi reports in stage
     // pixels, into a position inside the window and then inside the maps.
     const screen = filterManager.renderer.screen
@@ -485,7 +566,8 @@ export class ScreenAmbientLightFilter extends Filter {
 
     // With no light, or with no wrap and no backlight, both bands add zero. A
     // white texture reads as fully covered, which is the same mask at no cost.
-    if (!this.needsBands()) {
+    // The surface bloom still needs the blurred alpha.
+    if (!this.needsBands() && !surfaceBloom) {
       this.uniforms.uWrapAlpha = Texture.WHITE
       filterManager.applyFilter(this, input, output, clearMode)
       return
@@ -523,10 +605,30 @@ export class ScreenAmbientLightFilter extends Filter {
     this.uniforms.uWrapScale[0] = input.width / vertical.width
     this.uniforms.uWrapScale[1] = input.height / vertical.height
     writeFrameClamp(this.uniforms.uWrapClamp, vertical)
+    let bloomHorizontal: RenderTexture | undefined
+    let bloomVertical: RenderTexture | undefined
+    if (surfaceBloom) {
+      bloomHorizontal = filterManager.getFilterTexture(input, blurResolution)
+      bloomVertical = filterManager.getFilterTexture(input, blurResolution)
+      const bloomPass = this.bloomPass
+      bloomPass.uniforms.uWeights.set(this.blurWeights)
+      setBlurSource(bloomPass, input, surfaceBloom)
+      bloomPass.uniforms.uTapStep.set([tapSpacing / input.width, 0])
+      filterManager.applyFilter(bloomPass, surfaceBloom, bloomHorizontal, CLEAR_MODES.CLEAR)
+      setBlurSource(bloomPass, input, bloomHorizontal)
+      bloomPass.uniforms.uTapStep.set([0, tapSpacing / bloomHorizontal.height])
+      filterManager.applyFilter(bloomPass, bloomHorizontal, bloomVertical, CLEAR_MODES.CLEAR)
+      this.uniforms.uSurfaceBloom = bloomVertical
+    }
     filterManager.applyFilter(this, input, output, clearMode)
 
     // A pooled texture must not stay referenced after it returns to the pool.
     this.uniforms.uWrapAlpha = Texture.WHITE
+    this.uniforms.uSurfaceBloom = Texture.EMPTY
+    if (bloomHorizontal)
+      filterManager.returnFilterTexture(bloomHorizontal)
+    if (bloomVertical)
+      filterManager.returnFilterTexture(bloomVertical)
     filterManager.returnFilterTexture(horizontal)
     filterManager.returnFilterTexture(vertical)
   }
@@ -534,6 +636,7 @@ export class ScreenAmbientLightFilter extends Filter {
   override destroy() {
     super.destroy()
     this.blurPass.destroy()
+    this.bloomPass.destroy()
     this.surroundTexture.destroy(true)
     this.contactTexture.destroy(true)
   }

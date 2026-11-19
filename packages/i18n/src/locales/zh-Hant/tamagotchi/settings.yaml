@@ -106,7 +106,7 @@ devtools:
       mode:
         title: 光照模式
         options:
-          window-gradient: 視窗漸層
+          window-gradient: 曲面光照
           global: 全域環境光
       forced-color:
         title: 測試色彩
@@ -118,6 +118,49 @@ devtools:
         title: 對亮度變化眯眼
         description: 當螢幕變亮的速度快於角色的適應速度時收窄眼睛。持續明亮的螢幕不會讓眼睛保持眯著。設為 0 可關閉。
       main-window-note: 變更會顯示在 AIRI 主視窗中。
+      normals:
+        title: 模型光照
+        description: 在本機為目前模型生成法線，不會自動執行。重新生成會在驗證後覆寫已儲存的光照附件，不會修改原始模型檔案。
+        model: 目前模型
+        fingerprint: 素材指紋
+        saved: 已儲存的附件
+        missing: 無
+        binding: 目前綁定
+        import: 匯入光照 ZIP
+        export: 匯出光照 ZIP
+        portable-note: ZIP 包含貼圖及其綁定，但不包含模型。匯入會在驗證後取代目前模型已儲存的光照。
+        generate: 為目前模型生成
+        regenerate: 重新生成並覆寫
+        refresh: 檢查已儲存資料
+        cancel: 取消
+        drawables: 繪製網格
+        neutral: 中立姿勢截圖
+        normal: 生成的法線
+        coverage: 參考覆蓋範圍
+        coverage-note: 綠色表示具有法線參考的可見表面。動畫露出隱藏表面時會使用近似法線。此實驗不會另行推算臉部結構。
+        bindings:
+          proxy: 解析近似法線
+          generated: 已儲存的光照附件
+        phases:
+          importing: 正在讀取並驗證光照 ZIP…
+          exporting: 正在封裝已儲存的貼圖與綁定…
+          checking: 正在檢查模型素材與已儲存的光照…
+          ready: 就緒。只有按下生成或重新生成才會開始。
+          capturing: 正在擷取獨立模型的中立姿勢與網格歸屬…
+          generating: Marigold 正在這台電腦上生成法線…
+          saving: 正在檢查、儲存並綁定新的法線貼圖…
+          error: 上次操作失敗，請查看下方錯誤。
+          unloaded: 沒有使用中的 Live2D 模型。載入模型後再檢查。
+      geometry:
+        gap:
+          title: 螢幕間距
+          description: 設定螢幕在角色後方的距離，以角色模型高度的百分比表示。間距越大，正面光線越少。
+        flat-width:
+          title: 中央平面寬度
+          description: 設定維持平面的寬度，以角色模型高度的百分比表示。螢幕在此範圍外開始彎曲。
+        area-lights:
+          title: 試用面積光源區塊
+          description: 將螢幕光照合併至快取光場，讓光線更連續並降低運算量。臉部動作與鼻尖高光保留細節；關閉即可比較點光源區塊。
       diagnostics:
         title: 擷取診斷
         waiting: 正在等待 AIRI 主視窗傳送診斷資料。
@@ -175,6 +218,35 @@ devtools:
         neutral-color-weight:
           title: 中性色權重
           description: 設定低飽和色彩的最低權重。彩色內容的權重高於灰色。
+      exposure:
+        title: 亮度與明暗適應
+        adaptive-base:
+          title: 自動基礎亮度
+          description: 以全螢幕平均亮度的平滑值設定環境光，使用下方明暗適應時間。關閉後使用手動基礎亮度。
+        bright-base:
+          title: 亮畫面基礎亮度
+          description: 螢幕全白時的環境光亮度，不低於暗畫面基礎亮度。
+        response-curve:
+          title: 暗光色彩增強
+          description: 強調微弱彩色光的色彩，不提高受光亮度，也不壓暗基礎色。0 關閉增強。中性光維持原樣，效果受可用色彩空間限制。
+        enabled:
+          title: 試用線性螢幕照明
+          description: 僅適用表面照明。分別計算環境光、螢幕發光與相機曝光，自動基礎亮度可跟隨螢幕平均亮度。
+        screen-nits:
+          title: 螢幕白色亮度（尼特）
+          description: 假定的螢幕亮度，以 200 尼特為基準。擷取像素無法測得實際螢幕亮度。
+        compensation:
+          title: 曝光補償（級）
+          description: 增加一級會在高光壓縮前將光量加倍。啟用自動基礎亮度時以此設定環境光；此試驗不使用曝光範圍。
+        dark-seconds:
+          title: 暗適應（秒）
+          description: 螢幕變暗後，基礎亮度下降、光暈敏感度上升的時間常數。數值越大，反應越慢。
+        bright-seconds:
+          title: 明適應（秒）
+          description: 螢幕變亮後，基礎亮度上升、光暈敏感度下降的時間常數。
+        bloom:
+          title: 自適應光暈
+          description: 持續顯示明亮頁面時減少光暈與向內溢光，變暗後逐漸恢復敏感度。全黑光源不會產生光暈。
       shader:
         title: 著色器反應
         dark-base:

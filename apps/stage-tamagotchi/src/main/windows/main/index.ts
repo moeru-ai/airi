@@ -22,6 +22,7 @@ import type { WidgetsWindowManager } from '../widgets'
 
 import { useLogg } from '@guiiai/logg'
 import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
+import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
 import { isRendererUnavailable, onWindowClosed } from '@proj-airi/electron-vueuse/main'
 import { animate, cubicBezier, utils } from 'animejs'
@@ -39,6 +40,8 @@ import { isWindowFocusIgnored, showWindow } from '../../libs/electron/focus'
 import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { createWindowContext } from '../../libs/electron/window-context'
+import { setupAmbientCapture } from '../../services/electron/ambient-capture-window'
+import { setupNormalGeneration } from '../../services/electron/live2d-normal-generation'
 import { setupSettingsPageInvokes } from '../settings/rpc/index.electron'
 import { protectPrivilegedWindowNavigation, setWindowAlwaysOnTop, transparentWindowConfig } from '../shared'
 import { centerWindowOnDisplay, computeCenteredWindowBounds } from '../shared/display'
@@ -252,6 +255,12 @@ export async function setupMainWindow(params: {
     setPinned,
     center: centerWindow,
   })
+
+  // One inference handler serves every devtool. Omitting the destination window
+  // lets Eventa reply to the requesting renderer instead of the character window.
+  const normalContext = createContext(ipcMain)
+  setupNormalGeneration({ context: normalContext.context, window })
+  window.once('closed', () => normalContext.dispose())
 
   await load(window, withHashRoute(baseUrl(getRendererRoot()), '/', {
     // The main window page hosts the fullscreen mode, so it routes the fullscreen surfaces under its own page.
@@ -469,6 +478,7 @@ export async function setupMainWindow(params: {
   onWindowClosed(window, () => stopFullscreenGlide())
 
   initScreenCaptureForWindow(window)
+  setupAmbientCapture(window)
 
   return window
 }

@@ -20,6 +20,42 @@ const samplingOptions = ambientLightDefaults.sampling
 const centeredWindow = { x: 0.375, y: 0.25, width: 0.25, height: 0.5 }
 
 describe('screen ambient light sampling', () => {
+  it('preserves a small light behind a moving window when native capture excludes that window', () => {
+    // ROOT CAUSE:
+    // Discarding the painted silhouette erased the remaining pixels of small
+    // emitters. Native window exclusion supplies the actual desktop underneath.
+    const frame = createFrame(96, 72, [0, 0, 0, 255])
+    fillPixels(frame, 48, 30, 4, 4, [255, 190, 0, 255])
+    const outside = sampleScreenAmbientLight(frame, { exclude: { x: 0.2, y: 0.2, width: 0.25, height: 0.5 }, windowExcludedByCapture: true }, samplingOptions)
+    const covered = sampleScreenAmbientLight(frame, { exclude: centeredWindow, windowExcludedByCapture: true }, samplingOptions)
+    expect(covered.environment.screen!.radiance).toEqual(outside.environment.screen!.radiance)
+    expect(covered.environment.screen!.radiance.data.some(value => value > 0)).toBe(true)
+    expect(covered.diagnostics.excludedPixelCount).toBe(0)
+  })
+
+  it('keeps distant display emission in display coordinates and excludes painted pixels', () => {
+    // ROOT CAUSE:
+    // The local contact map omitted distant emitters and filled off-display
+    // cells with average colors. Surface lighting needs the actual full display.
+    const frame = createFrame(96, 72, [0, 0, 0, 255])
+    fillPixels(frame, 0, 0, 24, 72, [255, 0, 0, 255])
+    fillPixels(frame, 80, 40, 8, 16, [0, 255, 0, 255])
+    const paintedAlpha = new Uint8ClampedArray(96 * 72)
+    for (let y = 40; y < 56; y++) {
+      for (let x = 80; x < 88; x++) paintedAlpha[y * 96 + x] = 255
+    }
+    const exclude = { x: 0.8, y: 0.4, width: 0.3, height: 0.7 }
+    const { environment } = sampleScreenAmbientLight(frame, { exclude, paintedAlpha }, samplingOptions)
+    expect(environment.screen?.stage).toEqual(exclude)
+    const map = environment.screen!.radiance
+    expect(map.data[(12 * map.width + 2) * 3]).toBeCloseTo(1)
+    expect(map.data[(12 * map.width + 18) * 3]).toBe(0)
+    expect(map.data.filter((_, i) => i % 3 === 1).every(value => value === 0)).toBe(true)
+    const moved = sampleScreenAmbientLight(frame, { exclude: centeredWindow, paintedAlpha }, samplingOptions).environment
+    expect(moved.screen!.radiance).toEqual(map)
+    expect(smoothAmbientLightEnvironment(environment, moved, 50, 100).screen!.stage).toEqual(centeredWindow)
+  })
+
   it('counts painted, transparent, and accepted pixels in the region it reads', () => {
     const frame = createFrame(5, 1, [100, 50, 200, 255])
     setPixel(frame, 1, 0, [100, 50, 200, 0])
