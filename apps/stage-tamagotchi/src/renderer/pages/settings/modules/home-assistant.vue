@@ -5,7 +5,9 @@ import type { HomeAssistantEntitySummary } from '@proj-airi/stage-ui/libs/home-a
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { HomeAssistantEntityTile } from '@proj-airi/stage-ui/components/scenarios/home-assistant'
-import { domainLabel, isTranslatableState, parseStateMoment, stateLabelKeys, summarizeDomains, summarizeEntities } from '@proj-airi/stage-ui/libs/home-assistant/presentation'
+import { useHomeAssistantStateLabel } from '@proj-airi/stage-ui/composables/use-home-assistant-state-label'
+import { useSettingsSearchTarget } from '@proj-airi/stage-ui/composables/use-settings-search'
+import { domainLabel, summarizeDomains, summarizeEntities } from '@proj-airi/stage-ui/libs/home-assistant/presentation'
 import { useHomeAssistantStore } from '@proj-airi/stage-ui/stores/modules/home-assistant'
 import { Button, FieldCheckbox, FieldInput, GhostButton, Input, Radio, ScrollableArea, SettingsCard } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
@@ -14,8 +16,9 @@ import { useI18n } from 'vue-i18n'
 
 import { homeAssistantConfigRejections, homeAssistantGetConfig, homeAssistantSetConfig } from '../../../../shared/eventa/home-assistant'
 import { useTamagotchiHomeAssistantStore } from '../../../stores/tools/home-assistant'
+import { homeAssistantEntityOfSearchKey, homeAssistantEntitySearchKey } from './home-assistant.search'
 
-const { locale, t, te } = useI18n()
+const { t } = useI18n()
 /**
  * Translates one key of this page.
  *
@@ -117,6 +120,16 @@ const visibleEntities = computed(() => {
       || entity.entityId.toLowerCase().includes(query))
 })
 
+// A search result names one device. The grid mounts only a batch of the rows, so it filters to that device first.
+const searchTarget = useSettingsSearchTarget()
+watch(() => searchTarget.value.keys, (keys) => {
+  const entityId = keys.map(homeAssistantEntityOfSearchKey).find(id => id !== undefined)
+  if (!entityId)
+    return
+  activeDomain.value = null
+  entityQuery.value = entityId
+}, { immediate: true })
+
 const allVisibleSelected = computed(() =>
   visibleEntities.value.length > 0 && visibleEntities.value.every(entity => selectedIds.value.has(entity.entityId)))
 
@@ -135,44 +148,7 @@ const mountedEntities = computed(() => visibleEntities.value.slice(0, gridLimit.
 /** The rows the next page adds, which is the whole remainder when it is smaller. */
 const nextBatch = computed(() => Math.min(GRID_BATCH, visibleEntities.value.length - mountedEntities.value.length))
 
-/** Formats a date without its time. */
-const dateFormat = computed(() => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium' }))
-/** Formats a date with its time. */
-const dateTimeFormat = computed(() => new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short' }))
-
-/**
- * Names one state.
- *
- * Home Assistant names states per domain, so the table is asked for the domain
- * first. A state the table lacks stays as the instance reports it, which is the
- * honest answer for a reading such as a temperature.
- */
-function translateState(domain: string, state: string): string | undefined {
-  if (!isTranslatableState(state))
-    return undefined
-
-  for (const key of stateLabelKeys(domain, state)) {
-    if (te(key) || te(key, 'en'))
-      return t(key)
-  }
-
-  return undefined
-}
-
-/** The state a tile prints. */
-function stateLabel(entity: HomeAssistantEntitySummary) {
-  const named = translateState(entity.domain, entity.state)
-  if (named)
-    return named
-
-  // Home Assistant reports a date or a timestamp as ISO 8601 text. A card reads
-  // better with the date the page language writes.
-  const moment = parseStateMoment(entity.state)
-  if (moment)
-    return (moment.kind === 'date' ? dateFormat.value : dateTimeFormat.value).format(moment.at)
-
-  return entity.state
-}
+const { stateLabel } = useHomeAssistantStateLabel()
 
 /** Mirrors what the main process holds, so the module card can show its state. */
 function recordCredentials(saved: { baseUrl: string, hasToken: boolean }) {
@@ -702,9 +678,10 @@ watch(exposureMode, async (mode) => {
               <HomeAssistantEntityTile
                 v-for="entity in mountedEntities"
                 :key="entity.entityId"
+                :data-settings-search="homeAssistantEntitySearchKey(entity.entityId)"
                 :entity="entity"
                 :selected="selectedIds.has(entity.entityId)"
-                :state-label="stateLabel(entity)"
+                :state-label="stateLabel(entity.domain, entity.state)"
                 :disabled="pickerHeld"
                 @toggle="toggleEntity(entity.entityId, !selectedIds.has(entity.entityId))"
               />

@@ -3,7 +3,7 @@ import type {
   OutputFilterOptions,
   Pose,
 } from '@proj-airi/model-driver-magic-live2d'
-import type { FitOptions, MagicModel } from '@proj-airi/motion-driver-magic'
+import type { FitOptions, Generator, MagicModel } from '@proj-airi/motion-driver-magic'
 import type { MaybeRefOrGetter } from 'vue'
 
 import type { Live2DMotionMagicDataset } from './profiles'
@@ -16,7 +16,7 @@ import {
   neutralPose,
   poseAxes,
 } from '@proj-airi/model-driver-magic-live2d'
-import { fit } from '@proj-airi/motion-driver-magic'
+import { crossfade, fit } from '@proj-airi/motion-driver-magic'
 import { computed, onScopeDispose, reactive, readonly, shallowRef, toValue, watch } from 'vue'
 
 import { defaultLive2DMotionMagicDataset } from './profiles'
@@ -29,6 +29,14 @@ export type Live2DMotionMagicStatus = 'idle' | 'initializing' | 'playing' | 'rea
 export interface UseLive2DMotionMagicOptions {
   /** Supplies a dataset that replaces the bundled dataset. */
   dataset?: MaybeRefOrGetter<Live2DMotionMagicDataset | null | undefined>
+  /**
+   * Blends to a new dataset during playback, in milliseconds.
+   *
+   * Without this option, a new dataset stops playback and needs a new
+   * initialization. With it, playback continues and the motion of the new
+   * dataset fades in.
+   */
+  transitionMs?: MaybeRefOrGetter<number | undefined>
   /** Prevents generated motion from controlling mouth opening. @default true */
   skipMouthOpen?: MaybeRefOrGetter<boolean>
   /** Keeps the generated eyes aimed at the forward view target. @default true */
@@ -101,6 +109,10 @@ export function useLive2DMotionMagic(options: UseLive2DMotionMagicOptions) {
     noiseScale: 0.8,
   })
   let initializeRequest = 0
+  /** Fitted models for the current method and settings, by dataset. */
+  let fittedModels = new WeakMap<Live2DMotionMagicDataset, MagicModel>()
+  /** The generator that the driver plays, including a running crossfade. */
+  let activeGenerator: Generator<number | undefined> | undefined
 
   const driver = createDriver<number | undefined>({
     target: {
@@ -143,6 +155,7 @@ export function useLive2DMotionMagic(options: UseLive2DMotionMagicOptions) {
       return
 
     driver.stop()
+    activeGenerator = undefined
     currentState.value = undefined
     status.value = model.value ? 'ready' : 'idle'
     options.setPlaying?.(false)
@@ -151,11 +164,76 @@ export function useLive2DMotionMagic(options: UseLive2DMotionMagicOptions) {
   function invalidate() {
     initializeRequest++
     stop()
+    fittedModels = new WeakMap()
     model.value = undefined
     fitDurationMs.value = 0
     error.value = ''
     generatedFrameCount.value = 0
     status.value = 'idle'
+  }
+
+  function fitOptions(): FitOptions {
+    return method.value === 'var'
+      ? {
+          method: 'var',
+          order: varSettings.order,
+          ridge: 0.001,
+        }
+      : {
+          method: 'ar-hmm',
+          stateCount: arHmmSettings.stateCount,
+          order: arHmmSettings.order,
+          ridge: 0.003,
+          iterations: 6,
+        }
+  }
+
+  function fitDataset(dataset: Live2DMotionMagicDataset): MagicModel {
+    const cached = fittedModels.get(dataset)
+    if (cached)
+      return cached
+
+    const fitted = fit(toTrainingSequence(dataset, 30), fitOptions())
+    fittedModels.set(dataset, fitted)
+    return fitted
+  }
+
+  /**
+   * Fits a dataset ahead of a transition, so the transition does not wait for the fit.
+   *
+   * A failure only logs, because the transition fits the dataset again and reports its own failure.
+   */
+  function prepare(dataset: Live2DMotionMagicDataset) {
+    if (toValue(options.disabled ?? false))
+      return
+
+    try {
+      fitDataset(dataset)
+    }
+    catch (cause) {
+      console.warn(`[Live2D ${method.value}] Failed to prepare MAGIC motion`, errorMessageFrom(cause))
+    }
+  }
+
+  function transitionTo(dataset: Live2DMotionMagicDataset, durationMs: number) {
+    if (!activeGenerator)
+      return
+
+    let nextModel: MagicModel
+    try {
+      nextModel = fitDataset(dataset)
+    }
+    catch (cause) {
+      console.error(`[Live2D ${method.value}] Failed to change MAGIC motion`, errorMessageFrom(cause))
+      error.value = errorMessageFrom(cause) ?? 'The MAGIC motion model failed to initialize.'
+      return
+    }
+
+    const frameCount = Math.round(durationMs / 1000 * nextModel.sampleRateHz)
+    activeGenerator = crossfade(activeGenerator, nextModel.toGenerator({ seed: seed.value }), { frameCount })
+    model.value = nextModel
+    error.value = ''
+    driver.replace(activeGenerator)
   }
 
   /** Fits the selected method with the supplied dataset or the bundled dataset. */
@@ -174,20 +252,7 @@ export function useLive2DMotionMagic(options: UseLive2DMotionMagicOptions) {
       return
 
     try {
-      const fitOptions: FitOptions = method.value === 'var'
-        ? {
-            method: 'var',
-            order: varSettings.order,
-            ridge: 0.001,
-          }
-        : {
-            method: 'ar-hmm',
-            stateCount: arHmmSettings.stateCount,
-            order: arHmmSettings.order,
-            ridge: 0.003,
-            iterations: 6,
-          }
-      const nextModel = fit(toTrainingSequence(dataset, 30), fitOptions)
+      const nextModel = fitDataset(dataset)
       if (request !== initializeRequest)
         return
 
@@ -217,7 +282,8 @@ export function useLive2DMotionMagic(options: UseLive2DMotionMagicOptions) {
     currentState.value = undefined
     status.value = 'playing'
     options.setPlaying?.(true)
-    driver.start(model.value.toGenerator({ seed: seed.value }))
+    activeGenerator = model.value.toGenerator({ seed: seed.value })
+    driver.start(activeGenerator)
   }
 
   function randomizeSeed() {
@@ -227,7 +293,8 @@ export function useLive2DMotionMagic(options: UseLive2DMotionMagicOptions) {
 
     generatedFrameCount.value = 0
     currentState.value = undefined
-    driver.replace(model.value.toGenerator({ seed: seed.value }))
+    activeGenerator = model.value.toGenerator({ seed: seed.value })
+    driver.replace(activeGenerator)
   }
 
   function setOutputFilterOptions(nextOptions: OutputFilterOptions) {
@@ -239,7 +306,15 @@ export function useLive2DMotionMagic(options: UseLive2DMotionMagicOptions) {
     driver.resetFilter()
   }
 
-  watch(() => toValue(options.dataset), invalidate)
+  watch(() => toValue(options.dataset), (dataset) => {
+    const transitionMs = toValue(options.transitionMs)
+    if (transitionMs === undefined || status.value !== 'playing' || !dataset) {
+      invalidate()
+      return
+    }
+
+    transitionTo(dataset, transitionMs)
+  })
   watch(() => toValue(options.disabled ?? false), (disabled) => {
     if (disabled)
       invalidate()
@@ -270,6 +345,7 @@ export function useLive2DMotionMagic(options: UseLive2DMotionMagicOptions) {
     outputFilterOptions: readonly(outputFilterOptions),
     outputFilterFrame: readonly(outputFilterFrame),
     initialize,
+    prepare,
     start,
     stop,
     randomizeSeed,

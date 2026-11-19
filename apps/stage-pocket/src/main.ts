@@ -8,11 +8,14 @@ import { Capacitor } from '@capacitor/core'
 import { Keyboard } from '@capacitor/keyboard'
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
 import { errorMessageFrom } from '@moeru/std'
+import { settingsSearchModules } from '@proj-airi/stage-pages/settings-search'
 import { isEnvTruthy } from '@proj-airi/stage-shared'
 import { trackButtonPlugin } from '@proj-airi/stage-ui/directives/track-button'
 import { browserAuthorizationHandler, registerAuthorizationHandler } from '@proj-airi/stage-ui/libs/auth'
 import { setupSynced } from '@proj-airi/stage-ui/libs/pinia'
-import { configureAnalyticsAdapter } from '@proj-airi/stage-ui/libs/product-signals'
+import { configureAnalyticsAdapter, startErrorReporting } from '@proj-airi/stage-ui/libs/product-signals'
+import { settingsSearch } from '@proj-airi/stage-ui/libs/settings-search'
+import { useSettingsAnalytics } from '@proj-airi/stage-ui/stores/settings/analytics'
 import { MotionPlugin } from '@vueuse/motion'
 import { createPinia } from 'pinia'
 import { setupLayouts } from 'virtual:generated-layouts'
@@ -35,8 +38,8 @@ import './styles/main.css'
 import 'uno.css'
 
 configureAnalyticsAdapter(async (options) => {
-  const { createOpenpanelAdapter } = await import('@proj-airi/stage-ui/libs/product-signals/openpanel')
-  return createOpenpanelAdapter(options)
+  const { loadAnalyticsProviders } = await import('@proj-airi/stage-ui/libs/product-signals/providers')
+  return loadAnalyticsProviders(options)
 })
 
 if (Capacitor.isNativePlatform()) {
@@ -60,6 +63,10 @@ if (Capacitor.isNativePlatform()) {
 else {
   registerAuthorizationHandler(browserAuthorizationHandler)
 }
+
+// The settings search lists only what these modules hold. Each module decides at runtime whether it is on.
+for (const [name, source] of Object.entries(settingsSearchModules))
+  settingsSearch.provide(name, source)
 
 const pinia = createPinia()
 const synced = setupSynced()
@@ -89,7 +96,13 @@ window.addEventListener('unhandledrejection', (event) => {
 
 installDeepLinks(router)
 
-createApp(App)
+const app = createApp(App)
+startErrorReporting(app, () => useSettingsAnalytics(pinia).analyticsEnabled, async (options) => {
+  const { createSentryAdapter } = await import('./modules/sentry')
+  return createSentryAdapter(options)
+})
+
+app
   .use(synced.vue)
   .use(MotionPlugin)
   // TODO: Fix autoAnimatePlugin type error

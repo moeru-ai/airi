@@ -1,63 +1,59 @@
-import type { PreTrainedModel } from '@huggingface/transformers'
 import type { AudioWindow } from '@proj-airi/pipelines-audio'
 
-import { AutoModel, PretrainedConfig, Tensor } from '@huggingface/transformers'
+import { defineInvoke } from '@moeru/eventa'
+import { createContext } from '@moeru/eventa/adapters/webworkers'
 
-/** Owns model inference state. Speech admission and recording remain outside the model. */
+import { closeSileroVad, scoreSileroVadWindow } from './silero-vad-events'
+
+export interface SileroVadOptions {
+  /**
+   * The Worker that runs the model. It must serve the Silero VAD events of `silero-vad-events`.
+   *
+   * @default A new Silero VAD Worker
+   */
+  readonly worker?: Worker
+}
+
+/**
+ * Scores 32 ms windows with Silero VAD in a Worker of its own, so model inference does not run on the main thread.
+ *
+ * The Worker starts to load the model when this object is created, and `close` ends the Worker. Speech admission and
+ * recording remain outside the model. When the Worker fails, every pending and later score rejects.
+ */
 export class SileroVad {
-  private readonly model: Promise<PreTrainedModel>
-  private state = new Tensor('float32', new Float32Array(256), [2, 1, 128])
-  private readonly sampleRate = new Tensor('int64', [16000], [])
-  private processing: Promise<unknown> = Promise.resolve()
-  private closed = false
+  private readonly worker: Worker
+  private readonly scoreWindow
+  private readonly closeModel
+  private closing: Promise<void> | undefined
 
-  constructor() {
-    this.model = AutoModel.from_pretrained('onnx-community/silero-vad', { config: new PretrainedConfig({ model_type: 'custom' }), dtype: 'fp32' })
-    void this.model.catch(() => {})
+  constructor(options: SileroVadOptions = {}) {
+    this.worker = options.worker ?? new Worker(new URL('./silero-vad.worker.ts', import.meta.url), { type: 'module' })
+    const { context } = createContext(this.worker)
+    this.scoreWindow = defineInvoke(context, scoreSileroVadWindow)
+    this.closeModel = defineInvoke(context, closeSileroVad)
   }
 
-  score(window: AudioWindow, signal: AbortSignal): Promise<number> {
-    const result = this.processing.then(async () => {
-      signal.throwIfAborted()
-      if (this.closed)
-        throw new Error('VAD model is closed')
-      if (window.sampleRate !== 16000 || window.channels[0]?.length !== 512)
-        throw new Error('Silero VAD requires 512 samples at 16 kHz')
-      const model = await this.model
-      signal.throwIfAborted()
-      if (window.discontinuity) {
-        this.state.dispose()
-        this.state = new Tensor('float32', new Float32Array(256), [2, 1, 128])
-      }
-      const mono = new Float32Array(512)
-      for (const channel of window.channels) {
-        for (let index = 0; index < mono.length; index++)
-          mono[index] += channel[index] / window.channels.length
-      }
-      const input = new Tensor('float32', mono, [1, mono.length])
-      try {
-        const result = await model({ input, sr: this.sampleRate, state: this.state })
-        this.state.dispose()
-        this.state = result.stateN
-        const score = Number(result.output.data[0])
-        result.output.dispose()
-        return score
-      }
-      finally {
-        input.dispose()
-      }
-    })
-    this.processing = result.catch(() => {})
-    return result
+  /** The speech probability of one window, from 0 to 1. The signal also cancels the window in the Worker. */
+  async score(window: AudioWindow, signal: AbortSignal): Promise<number> {
+    signal.throwIfAborted()
+    if (this.closing)
+      throw new Error('VAD model is closed')
+    if (window.sampleRate !== 16000 || window.channels[0]?.length !== 512)
+      throw new Error('Silero VAD requires 512 samples at 16 kHz')
+
+    // The model reads one channel, so the channels are averaged before the copy to the Worker.
+    const samples = new Float32Array(512)
+    for (const channel of window.channels) {
+      for (let index = 0; index < samples.length; index++)
+        samples[index] += channel[index] / window.channels.length
+    }
+    return await this.scoreWindow({ samples, reset: window.discontinuity }, { signal })
   }
 
-  async close() {
-    if (this.closed)
-      return
-    this.closed = true
-    await this.processing
-    await this.model.then(model => model.dispose(), () => {})
-    this.state.dispose()
-    this.sampleRate.dispose()
+  /** Waits for the windows that the Worker already has, releases the model, and ends the Worker. Repeated calls share completion. */
+  close(): Promise<void> {
+    // A failed Worker cannot answer the close request. Terminating it releases the model too.
+    this.closing ??= this.closeModel().catch(() => {}).finally(() => this.worker.terminate())
+    return this.closing
   }
 }

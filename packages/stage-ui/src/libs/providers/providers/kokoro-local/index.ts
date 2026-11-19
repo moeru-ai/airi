@@ -1,6 +1,7 @@
 import type { ProgressInfo } from '@xsai-transformers/shared/types'
 
 import type { VoiceKey } from '../../../../workers/kokoro/types'
+import type { KokoroAdapter } from '../../../inference/adapters/kokoro'
 
 import { getCachedWebGPUCapabilities } from '@proj-airi/stage-shared/webgpu'
 import { z } from 'zod'
@@ -61,6 +62,14 @@ function progressInfo(progress: { file?: string, percent: number, loaded?: numbe
   }
 }
 
+async function ensureModelLoaded(adapter: KokoroAdapter, modelId: string) {
+  const model = assertModelSupported(modelId)
+  if (adapter.state === 'loading' || adapter.manifest?.quantization === model.quantization)
+    return
+
+  await adapter.loadModel(model.quantization, model.platform)
+}
+
 let lastLoadedModelId: string | null = null
 
 export const providerKokoroLocal = defineProvider({
@@ -79,8 +88,7 @@ export const providerKokoroLocal = defineProvider({
       voiceId: z.string().default(''),
     })
   },
-  createProvider() {
-    const adapterPromise = getKokoroAdapter()
+  createProvider(config) {
     return {
       speech: () => ({
         baseURL: 'http://kokoro-local/v1/',
@@ -94,7 +102,8 @@ export const providerKokoroLocal = defineProvider({
             throw new Error('Voice parameter is required')
 
           try {
-            const adapter = await adapterPromise
+            const adapter = await getKokoroAdapter()
+            await ensureModelLoaded(adapter, config.model)
             if (!(body.voice in adapter.getVoices()))
               throw new Error(`Unknown Kokoro voice: ${body.voice}`)
             const buffer = await adapter.generate(body.input ?? '', body.voice as VoiceKey)

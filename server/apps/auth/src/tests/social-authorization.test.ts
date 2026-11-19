@@ -222,10 +222,12 @@ describe('social authorization revocation', () => {
     })
   })
 
-  it('ignores credential accounts because they have no external grant', async () => {
+  // https://github.com/moeru-ai/airi/pull/2895#discussion_r4237016671
+  // ROOT CAUSE: Steam was treated as unknown despite having no external grant to revoke.
+  it.each(['credential', 'steam'])('ignores %s accounts because they have no external grant', async (providerId) => {
     const fetchRequest = vi.fn<typeof fetch>()
     const revoker = createSocialAuthorizationRevoker(
-      createAccountDb([{ providerId: 'credential', accessToken: null, refreshToken: null }]),
+      createAccountDb([{ providerId, accessToken: null, refreshToken: null }]),
       createCredentials(),
       fetchRequest,
     )
@@ -266,6 +268,7 @@ describe('social authorization revocation', () => {
 
   it.each([200, 503])('applies linked Google revocation policy before resource cleanup (status %s)', async (status) => {
     const db = createAccountDb([
+      { providerId: 'steam', accessToken: null, refreshToken: null },
       { providerId: 'google', accessToken: null, refreshToken: null },
       { providerId: 'google', accessToken: 'saved-access-token', refreshToken: null },
     ])

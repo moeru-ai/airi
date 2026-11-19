@@ -22,6 +22,67 @@ async function collectChunks(text: string): Promise<TtsInputChunk[]> {
   return chunks
 }
 
+describe('chunkTtsInput sentence ends', () => {
+  // ROOT CAUSE:
+  //
+  // Each `.` that did not follow a digit ended a chunk, so `home.example.com` became three TTS requests, and the voice
+  // read each part with a sentence-end tone and a pause. A `.` before a letter is inside a token.
+  it('keeps a token with a dot in one chunk', async () => {
+    expect(await collectChunkText('连接 https://home.example.com 时失败了。'))
+      .toEqual(['连接 https://home.example.com 时失败了。'])
+    expect(await collectChunkText('Open index.ts and README.md now.')).toEqual(['Open index.ts and README.md now.'])
+  })
+
+  it('still ends a sentence at a dot before a space, CJK text, punctuation, or the end', async () => {
+    expect(await collectChunkText('It works. The U.S. team agrees.')).toEqual(['It works.', 'The U.S.', 'team agrees.'])
+    expect(await collectChunkText('完成了.接下来开始吧.')).toEqual(['完成了.', '接下来开始吧.'])
+    expect(await collectChunkText('Read the guide (see it.) now.')).toEqual(['Read the guide (see it.', ') now.'])
+  })
+
+  it('keeps numbers and reads three dots as an ellipsis', async () => {
+    expect(await collectChunkText('Pi is 3.14 and 1,000 is big. Wait... ok.')).toEqual(['Pi is 3.14 and 1,000 is big.', 'Wait…', 'ok.'])
+  })
+})
+
+describe('chunkTtsInput length limit', () => {
+  async function collectReasonsAndText(text: string) {
+    return (await collectChunks(text)).map(chunk => [chunk.reason, chunk.text])
+  }
+
+  // ROOT CAUSE:
+  //
+  // The length limit ended a chunk at any soft punctuation, also at the Chinese `、` between list items. So
+  // 网络、地址解析 became two TTS requests, and the voice paused in the middle of the list.
+  // Each case opens with two sentences, so the boost chunks end before the length limit decides.
+  it('does not end a chunk at a Chinese list separator', async () => {
+    expect(await collectReasonsAndText('我这里只能看到工具返回的错误：连接 Home Assistant 地址时，网络请求失败。它没有提供更具体的原因或 HTTP 状态码，所以我没法判断究竟是网络、地址解析还是服务端暂时不可用。')).toEqual([
+      ['boost', '我这里只能看到工具返回的错误：'],
+      ['boost', '连接 Home Assistant 地址时，'],
+      ['hard', '网络请求失败。'],
+      ['limit', '它没有提供更具体的原因或 HTTP 状态码，'],
+      ['hard', '所以我没法判断究竟是网络、地址解析还是服务端暂时不可用。'],
+    ])
+  })
+
+  it('ends a chunk at a Japanese comma', async () => {
+    expect(await collectReasonsAndText('今日は晴れです。散歩しました。公園へ行って、少し散歩してから、カフェでコーヒーを飲んで、本を読みました。')).toEqual([
+      ['hard', '今日は晴れです。'],
+      ['hard', '散歩しました。'],
+      ['limit', '公園へ行って、少し散歩してから、'],
+      ['hard', 'カフェでコーヒーを飲んで、本を読みました。'],
+    ])
+  })
+
+  it('ends a chunk at a Chinese list separator after twice the word limit', async () => {
+    expect(await collectReasonsAndText('这是第一句。这是第二句。支持的格式有 PNG、JPEG、WebP、GIF、AVIF、BMP、TIFF、SVG、HEIC、ICO、PSD、RAW、EXR、HDR、TGA、DDS、JXL、QOI、PCX、WBMP、XBM、XPM、CUR、ANI、EPS、AI、PDF、DNG、CR2、NEF 等等。')).toEqual([
+      ['hard', '这是第一句。'],
+      ['hard', '这是第二句。'],
+      ['limit', '支持的格式有 PNG、JPEG、WebP、GIF、AVIF、BMP、TIFF、SVG、HEIC、ICO、PSD、RAW、EXR、HDR、TGA、DDS、JXL、QOI、PCX、WBMP、'],
+      ['hard', 'XBM、XPM、CUR、ANI、EPS、AI、PDF、DNG、CR2、NEF 等等。'],
+    ])
+  })
+})
+
 describe('chunkTtsInput boost', () => {
   // ROOT CAUSE:
   //
@@ -156,6 +217,20 @@ describe('tTS Chunker Logic Cleanup', () => {
       const chunks = await collectChunkText(input)
 
       expect(chunks.join('')).toBe(input)
+    })
+
+    it('keeps a kept punctuation once, with its own sentence, at the length limit', async () => {
+      const chunks = await collectChunkText('直觉上，模型在学习：“处于位置 x下标t、时间为 t 时，应该往哪个方向、以多快的速度移动？”生成时，从噪声出发。')
+
+      expect(chunks.join('').split('？')).toHaveLength(2)
+      expect(chunks.some(chunk => chunk.endsWith('方向、？'))).toBe(false)
+    })
+
+    it('does not send a chunk without sound, as a lone closing quote', async () => {
+      const chunks = await collectChunkText('以多快的速度移动？”\n生成时。')
+
+      expect(chunks).not.toContain('”')
+      expect(chunks.every(chunk => /[\p{L}\p{N}]/u.test(chunk))).toBe(true)
     })
 
     it('preserves emoji grapheme clusters while chunking', async () => {

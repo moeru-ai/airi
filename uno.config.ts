@@ -2,12 +2,15 @@ import type { WebFontMeta } from '@unocss/preset-web-fonts'
 import type { Preset, PresetOrFactoryAwaitable } from 'unocss'
 
 import { setDefaultAutoSelectFamilyAttemptTimeout } from 'node:net'
+import { env } from 'node:process'
 
+import { loadIcon } from '@iconify/utils'
 import { createExternalPackageIconLoader } from '@iconify/utils/lib/loader/external-pkg'
 import { presetChromatic } from '@proj-airi/unocss-preset-chromatic'
 import { colorToString } from '@unocss/preset-mini/utils'
-import { defineConfig, mergeConfigs, presetAttributify, presetIcons, presetTypography, presetWind3, transformerDirectives, transformerVariantGroup } from 'unocss'
+import { defineConfig, mergeConfigs, presetAttributify, presetTypography, presetWind3, transformerDirectives, transformerVariantGroup } from 'unocss'
 import { presetScrollbar } from 'unocss-preset-scrollbar'
+import { createNodeLoader, createPresetIcons } from 'unocss/preset-icons'
 import { parseColor } from 'unocss/preset-mini'
 
 // On Netlify, building will result in when fetching metadata and fonts from @unocss/preset-web-fonts plugin:
@@ -91,7 +94,7 @@ export function presetWebFontsFonts(provider: 'fontsource' | 'none'): Record<str
       provider,
     },
     'mono': {
-      name: 'DM Mono',
+      name: 'Maple Mono',
       provider,
     },
     'cutejp': {
@@ -139,6 +142,18 @@ export function presetWebFontsFonts(provider: 'fontsource' | 'none'): Record<str
 }
 
 export function sharedUnoConfig() {
+  // NOTICE:
+  // UnoCSS skips the Node loader when VSCODE_CWD is set, so installed icon collections can lose their CSS.
+  // Supply the Node loader directly so those icons work with VSCODE_CWD set.
+  // https://github.com/unocss/unocss/blob/v66.7.5/packages-presets/preset-icons/src/index.ts#L16-L26
+  // Use the default preset when it loads installed icons with VSCODE_CWD set.
+  const presetIcons = createPresetIcons(async () => {
+    if (env.ESLINT)
+      return loadIcon
+
+    return await createNodeLoader() ?? loadIcon
+  })
+
   return defineConfig({
     presets: [
       presetWind3(),
@@ -191,6 +206,8 @@ export function sharedUnoConfig() {
           '(components|src)/**/*.{js,ts,vue}', // THIS CAN INCLUDE node_modules
           '**/stage-ui/**/*.{vue,js,ts}', // THIS TOO
           '**/ui/**/*.{vue,js,ts}', // THIS TOO
+          // Provider definitions declare their brand icons, such as `i-lobe-icons:openai`. Apps load the built files.
+          '**/provider-inference/**/*.{mjs,ts}',
         ],
         exclude: [
 
@@ -216,6 +233,7 @@ export function sharedUnoConfig() {
     theme: {
       fontFamily: {
         'sans': `"DM Sans Variant", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
+        'mono': `"Maple Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;`,
         'sans-rounded': `"Comfortaa Variable", "Comfortaa", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
         'cute': `"Nunito Variable", "Nunito", "ChillRoundM", "Kiwi Maru", "Comfortaa Variable", "Comfortaa", "DM Sans Variant", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,
         'cuteen': `"Nunito Variable", "Nunito", "ChillRoundM", "Kiwi Maru", "Comfortaa Variable", "Comfortaa", "DM Sans Variant", "DM Sans", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";`,

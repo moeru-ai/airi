@@ -1,6 +1,6 @@
-import type { Scope } from './scope'
+import type { Outcome, Scope } from '@proj-airi/stream-kit'
 
-import { createScope } from './scope'
+import { createScope } from '@proj-airi/stream-kit'
 
 /** Frame coordinates belong to one source connection and never cross a device change. */
 export interface Position {
@@ -23,14 +23,10 @@ export interface PcmBlock {
 }
 
 /**
- * Settlement shared by captures, observers, and their callers.
- *
- * Operational failure resolves completion. Invalid configuration throws before allocation.
+ * Captures and observers settle with this outcome. Operational failure resolves completion.
+ * Invalid configuration throws before allocation.
  */
-export type Outcome<T = void>
-  = { readonly status: 'finished', readonly value: T }
-    | { readonly status: 'cancelled', readonly reason: string }
-    | { readonly status: 'failed', readonly error: Error }
+export type { Outcome }
 
 /**
  * Anything that produces PCM: a microphone, a borrowed MediaStream, or a decoded file.

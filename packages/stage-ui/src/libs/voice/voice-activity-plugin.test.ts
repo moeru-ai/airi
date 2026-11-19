@@ -2,7 +2,8 @@ import type { SpeechInputAttempt, TranscriptionEvent } from '@proj-airi/core-age
 import type { PcmBlock } from '@proj-airi/pipelines-audio'
 
 import { VoiceController } from '@proj-airi/core-agent'
-import { AudioInput, createPushStream, Playback } from '@proj-airi/pipelines-audio'
+import { AudioInput, Playback } from '@proj-airi/pipelines-audio'
+import { createPushStream } from '@proj-airi/stream-kit'
 import { expect, it, vi } from 'vitest'
 
 import { listensContinuously, startsInputOnSpeech } from '../../stores/modules/hearing'
@@ -15,6 +16,7 @@ it('uses ordered VAD signals to capture, stream transcription, and submit to the
   const submit = vi.fn(async () => ({ status: 'committed' as const, messageId: 'accepted' }))
   let sessionId = 'alice'
   let attempt: SpeechInputAttempt | undefined
+  const activity = vi.fn()
   const controller = new VoiceController({ audio, submit, transcriber: () => ({
     transcribe: (request) => {
       const media = request.audio
@@ -27,10 +29,13 @@ it('uses ordered VAD signals to capture, stream transcription, and submit to the
       } })
     },
   }) })
+  controller.onInput((next) => {
+    attempt = next
+  })
   controller.use(createVoiceActivityPlugin({
     detect: async window => window.channels[0][0],
     target: () => ({ sessionId, interruptTurns: [] }),
-    onInput: () => { attempt = controller.activeInput },
+    onActivity: activity,
     minSpeechMs: 32,
     silenceMs: 64,
   }), { grants: ['input-control', 'cancel-input'] })
@@ -42,6 +47,13 @@ it('uses ordered VAD signals to capture, stream transcription, and submit to the
   expect(await attempt!.done).toEqual({ status: 'committed', messageId: 'accepted' })
   expect(received).toHaveLength(96)
   expect(submit).toHaveBeenCalledWith(expect.objectContaining({ sessionId: 'alice', text: 'Hello' }), expect.any(AbortSignal))
+  // Each noted window reaches the host trace in order.
+  expect(activity.mock.calls.map(([event]) => [event.inputId, event.speech, event.durationMs])).toEqual([
+    [attempt!.id, true, 32],
+    [attempt!.id, false, 32],
+    [attempt!.id, false, 32],
+  ])
+  expect(attempt!.cause).toBe('speech')
   await controller.close()
 })
 
@@ -92,11 +104,13 @@ it('rejects playback echo and opens the matched character input only after playb
   push(0, 1)
   await expect.poll(() => gate).toHaveBeenCalledOnce()
   expect(controller.activeInput).toBeUndefined()
+  // Codex review on PR #2939: a wake that echo rejection dropped must not begin a wake-word input.
   expect(fade).not.toHaveBeenCalled()
   accepted = true
   push(32, 1)
   await expect.poll(() => fade).toHaveBeenCalledOnce()
   const attempt = controller.activeInput!
+  expect(attempt.cause).toBe('wake-word')
   expect(attempt.state).toEqual({ phase: 'pending', waitingFor: 'silence' })
   push(64, 1)
   await expect.poll(() => detected).toHaveBeenCalledTimes(3)

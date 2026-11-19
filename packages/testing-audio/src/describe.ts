@@ -54,7 +54,7 @@ const audioTestAPI = createAudioTestAPI<
         await session.runtimePage.reload({ waitUntil: 'domcontentloaded' })
         const ready = session.target === 'web'
           ? session.runtimePage.locator('textarea').first()
-          : session.runtimePage.locator('[i-solar\\:alt-arrow-up-line-duotone]').first()
+          : session.runtimePage.locator('[data-testid="main-controls"]').first()
         await ready.waitFor({ state: 'visible', timeout: 30_000 })
         await session.runtimePage.bringToFront()
         await session.runtimePage.waitForTimeout(750)

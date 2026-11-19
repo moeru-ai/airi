@@ -1,19 +1,23 @@
 <script setup lang="ts">
+import type { LinkedAccountsClient } from '@proj-airi/stage-ui/composables'
+
 import { errorMessageFrom } from '@moeru/std'
-import { isCapacitorAvailable } from '@proj-airi/stage-shared'
-import { defaultSignInProviders } from '@proj-airi/stage-ui/components/auth'
+import { defaultSignInProviders } from '@proj-airi/stage-ui/components/auth/providers'
 import { resolveLinkedAccountOAuthErrorMessageKey, useAnalytics, useLinkedAccounts } from '@proj-airi/stage-ui/composables'
 import { authClient } from '@proj-airi/stage-ui/libs/auth'
+import { authedFetch } from '@proj-airi/stage-ui/libs/auth-fetch'
 import { SERVER_URL } from '@proj-airi/stage-ui/libs/server'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { Avatar, Button, FieldInput, GhostButton } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { DialogClose, DialogContent, DialogDescription, DialogOverlay, DialogPortal, DialogRoot, DialogTitle } from 'reka-ui'
-import { computed, reactive, ref, shallowRef, watch } from 'vue'
+import { computed, onScopeDispose, reactive, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
-type SectionId = 'profile' | 'security' | 'connections' | 'danger'
+import SyncSection from './components/sync-section.vue'
+
+type SectionId = 'profile' | 'security' | 'connections' | 'sync' | 'danger'
 
 const emit = defineEmits<{
   login: []
@@ -25,13 +29,14 @@ const route = useRoute()
 const router = useRouter()
 const {
   trackAccountDeletionRequested,
+  trackAccountDeletionCompleted,
   trackOauthProviderLinkStarted,
   trackOauthProviderUnlinked,
   trackPasswordChanged,
   trackPasswordResetRequested,
 } = useAnalytics()
 const authStore = useAuthStore()
-const { isAuthenticated, user, credits } = storeToRefs(authStore)
+const { isAuthenticated, user } = storeToRefs(authStore)
 
 const userName = computed(() => user.value?.name ?? '')
 const userEmail = computed(() => user.value?.email ?? null)
@@ -50,13 +55,6 @@ const gravatarProfileUrl = computed(() => {
     return null
   return `https://gravatar.com/${encodeURIComponent(userEmail.value.trim().toLowerCase())}`
 })
-
-// Locale-aware thousand separator. Bare 5–6 digit numbers are noisy to scan
-// (e.g. "44965" reads as one block); Intl.NumberFormat respects user locale
-// (44,965 / 44 965 / 44.965 depending on region) without us having to ship a
-// formatter.
-const formattedCredits = computed(() => credits.value.toLocaleString())
-const capacitorAvailable = isCapacitorAvailable()
 
 // Profile form. Initialized from store and re-synced when user changes (e.g.
 // after a successful save we mutate the store).
@@ -110,6 +108,7 @@ const activeSection = ref<SectionId>('profile')
 const profileSectionRef = ref<HTMLElement | null>(null)
 const securitySectionRef = ref<HTMLElement | null>(null)
 const connectionsSectionRef = ref<HTMLElement | null>(null)
+const syncSectionRef = ref<HTMLElement | null>(null)
 const dangerSectionRef = ref<HTMLElement | null>(null)
 const linkedAccountsRouteErrorKey = shallowRef<string | null>(null)
 
@@ -123,9 +122,27 @@ function scrollToSection(id: SectionId) {
     profile: profileSectionRef.value,
     security: securitySectionRef.value,
     connections: connectionsSectionRef.value,
+    sync: syncSectionRef.value,
     danger: dangerSectionRef.value,
   }
   targets[id]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+/**
+ * Fetch options for account calls whose 401 means an expired access token.
+ * They refresh the token once and retry. A second 401 signs the user out.
+ */
+const refreshOn401 = { customFetchImpl: authedFetch }
+
+// Better Auth's `sensitiveSessionMiddleware` answers 401 for a valid token without an
+// active session, and a refresh cannot fix that. `changePassword` and `/delete-account`
+// use it, so they keep the direct fetch.
+// Source: better-auth/dist/api/routes/session.mjs, sensitiveSessionMiddleware.
+const linkedAccountsClient: LinkedAccountsClient = {
+  listAccounts: () => authClient.listAccounts({ fetchOptions: refreshOn401 }),
+  unlinkAccount: args => authClient.unlinkAccount({ ...args, fetchOptions: refreshOn401 }),
+  linkSocial: args => authClient.linkSocial({ ...args, fetchOptions: refreshOn401 }),
+  linkSteam: args => authClient.linkSteam(args, refreshOn401),
 }
 
 // Connected accounts: state + handlers come from the shared composable
@@ -142,12 +159,13 @@ const {
   error: linkedAccountsError,
   message: linkedAccountsMessage,
   inFlight: linkActionInFlight,
+  needsLogin: linkedAccountsNeedsLogin,
   accountsByProvider: linkedAccountsByProvider,
   hasCredentialAccount,
   unlink: unlinkLinkedProvider,
   link: linkLinkedProvider,
 } = useLinkedAccounts({
-  client: authClient,
+  client: linkedAccountsClient,
   isAuthenticated,
   describeError: error => errorMessageFrom(error) ?? '',
   messages: {
@@ -157,6 +175,7 @@ const {
     lastAccount: t('settings.pages.account.connections.error.lastAccount'),
     unlinked: provider => t('settings.pages.account.connections.message.unlinked', { provider }),
     linkStarted: provider => t('settings.pages.account.connections.message.linkStarted', { provider }),
+    reauthenticate: t('settings.pages.account.connections.error.reauthenticate'),
   },
   onUnlinked: providerId => trackOauthProviderUnlinked({ provider: providerId }),
   onLinkStarted: providerId => trackOauthProviderLinkStarted({ provider: providerId }),
@@ -230,6 +249,7 @@ async function handleSaveProfile(event: Event) {
   try {
     const { error } = await authClient.updateUser({
       name: trimmedName,
+      fetchOptions: refreshOn401,
     })
     if (error)
       throw new Error(error.message ?? 'updateUser failed')
@@ -330,81 +350,118 @@ async function handleSendSetPasswordLink() {
   }
 }
 
-// ---- Delete account ----
-//
-// Two-step flow:
-// (1) Click "Delete account" -> open a reka-ui Dialog with a focus-trap and
-//     overlay so the destructive action is unambiguously modal. Inside the
-//     dialog the user retypes their email; we only enable the submit button
-//     when the entered value matches `userEmail` exactly. This is the same
-//     irreversible-action pattern GitHub / Linear use.
-// (2) On confirm, call `authClient.deleteUser({ callbackURL })`. better-auth
-//     emails a single-use link; clicking it runs the soft-delete handlers
-//     server-side, hard-deletes the auth tables, then redirects the browser
-//     to `callbackURL`. We point the callback at ui-server-auth's success
-//     page on the API server origin — stage-web and stage-tamagotchi do not
-//     own a dedicated post-delete route, and ui-server-auth is reachable
-//     from every embedding app.
+// The server deletes the current account only after recent authentication and cleanup.
 const deleteDialogOpen = ref(false)
-const deleteSent = shallowRef(false)
-const deleteForm = reactive({ confirmEmail: '' })
+const deleteForm = reactive({ confirmation: '' })
 const deleteLoading = shallowRef(false)
 const deleteError = shallowRef<string | null>(null)
+const deleteNeedsLogin = ref(false)
+const accountDeleted = ref(false)
+let deletionRequest: AbortController | undefined
 
-const deleteEmailMatches = computed(() => {
-  const target = userEmail.value?.trim().toLowerCase() ?? ''
-  return target.length > 0 && deleteForm.confirmEmail.trim().toLowerCase() === target
+const deletionEmail = computed(() => {
+  const email = userEmail.value?.trim().toLowerCase() ?? ''
+  return email && !email.endsWith('.placeholder.local') ? email : ''
+})
+const deletionConfirmation = computed(() => deletionEmail.value || 'DELETE')
+const deletionConfirmed = computed(() => {
+  const value = deleteForm.confirmation.trim()
+  return deletionEmail.value ? value.toLowerCase() === deletionConfirmation.value : value === deletionConfirmation.value
 })
 
+/** Opens a new explicit confirmation without retaining a previous deletion intent. */
 function openDeleteDialog() {
-  deleteForm.confirmEmail = ''
+  deleteForm.confirmation = ''
   deleteError.value = null
+  deleteNeedsLogin.value = false
   deleteDialogOpen.value = true
 }
 
-// Reset transient form state whenever the dialog closes (cancel button, ESC,
-// overlay click). We deliberately keep `deleteSent` outside this reset so the
-// success message under the Danger Zone stays visible after the dialog is
-// dismissed by the user.
-watch(deleteDialogOpen, (open) => {
-  if (!open) {
-    deleteForm.confirmEmail = ''
-    deleteError.value = null
-  }
-})
+/** Cancels local continuation when the dialog or its account context disappears. */
+function cancelDeletion() {
+  deletionRequest?.abort()
+  deletionRequest = undefined
+  deleteLoading.value = false
+  deleteForm.confirmation = ''
+  deleteError.value = null
+  deleteNeedsLogin.value = false
+}
 
+watch(deleteDialogOpen, (open) => {
+  if (!open)
+    cancelDeletion()
+}, { flush: 'sync' })
+watch(() => [authStore.sessionVersion, user.value?.id, userEmail.value], () => {
+  deleteDialogOpen.value = false
+  cancelDeletion()
+  accountDeleted.value = false
+}, { flush: 'sync' })
+onScopeDispose(cancelDeletion)
+
+/**
+ * Clears the current login and starts the existing platform login flow.
+ * Account deletion and connected-account changes use it when the server needs a new sign-in.
+ */
+async function signInAgain() {
+  const version = authStore.sessionVersion
+  await authStore.clearAllAuthState()
+  if (authStore.sessionVersion === version + 1 && !authStore.isAuthenticated)
+    emit('login')
+}
+
+/** Starts a new sign-in and requires a new manual deletion confirmation afterward. */
+async function reauthenticateForDeletion() {
+  deleteDialogOpen.value = false
+  await signInAgain()
+}
+
+/** Deletes only the confirmed session's account and ignores results after account changes or cancellation. */
 async function handleConfirmDelete(event: Event) {
   event.preventDefault()
-  if (deleteLoading.value || !deleteEmailMatches.value)
+  if (deleteLoading.value || !deletionConfirmed.value || deleteNeedsLogin.value || !authStore.token)
     return
 
+  const version = authStore.sessionVersion
+  const request = new AbortController()
+  deletionRequest = request
   deleteError.value = null
   deleteLoading.value = true
 
   try {
-    // The success page lives on the API-server origin (shared
-    // ui-server-auth bundle). It tells the user the deletion completed
-    // and asks them to close the tab — there is no "back to home"
-    // because the API server has no reliable way to know which calling
-    // app origin (stage-web / stage-tamagotchi / stage-pocket) the
-    // request came from.
-    const callbackURL = new URL('/auth/delete-account', SERVER_URL).toString()
-    const { error } = await authClient.deleteUser({ callbackURL })
-    // The server sends no email while a subscription can still charge. A deleted user cannot cancel it.
-    if (error?.code === 'SUBSCRIPTION_ACTIVE')
-      throw new Error(t('settings.pages.account.danger.deleteAccount.error.subscriptionActive'))
-    if (error)
-      throw new Error(error.message ?? 'deleteUser failed')
-
-    deleteSent.value = true
-    deleteDialogOpen.value = false
     trackAccountDeletionRequested()
+    const { data, error } = await authClient.$fetch<{ success: boolean }, { code?: string }>('/delete-account', {
+      method: 'POST',
+      body: { confirm: true },
+      signal: request.signal,
+      auth: { type: 'Bearer', token: authStore.token },
+    })
+    if (request.signal.aborted || version !== authStore.sessionVersion)
+      return
+    if (error?.code === 'SESSION_NOT_FRESH' || error?.status === 401) {
+      deleteNeedsLogin.value = true
+      deleteError.value = t('settings.pages.account.danger.deleteAccount.error.reauthenticate')
+      return
+    }
+    if (error?.code === 'SUBSCRIPTION_ACTIVE') {
+      deleteError.value = t('settings.pages.account.danger.deleteAccount.error.subscriptionActive')
+      return
+    }
+    if (error || data?.success !== true)
+      throw new Error('Account deletion failed')
+
+    trackAccountDeletionCompleted()
+    await authStore.clearAllAuthState()
+    accountDeleted.value = authStore.sessionVersion === version + 1 && !authStore.isAuthenticated
   }
-  catch (error) {
-    deleteError.value = errorMessageFrom(error) ?? t('settings.pages.account.danger.deleteAccount.error.fallback')
+  catch {
+    if (!request.signal.aborted && version === authStore.sessionVersion)
+      deleteError.value = t('settings.pages.account.danger.deleteAccount.error.fallback')
   }
   finally {
-    deleteLoading.value = false
+    if (deletionRequest === request) {
+      deletionRequest = undefined
+      deleteLoading.value = false
+    }
   }
 }
 </script>
@@ -424,7 +481,7 @@ async function handleConfirmDelete(event: Event) {
              section like Profile / Security / Danger. -->
         <aside :class="['hidden md:flex flex-col gap-1 md:sticky md:top-2']">
           <button
-            v-for="section in ['profile', 'security', 'connections', 'danger'] as SectionId[]"
+            v-for="section in ['profile', 'security', 'connections', 'sync', 'danger'] as SectionId[]"
             :key="section"
             type="button"
             :class="[
@@ -467,6 +524,7 @@ async function handleConfirmDelete(event: Event) {
             <div :class="['flex items-center gap-4 py-2']">
               <Avatar
                 :src="userAvatar"
+                :seed="user?.id"
                 :class="['size-16 sm:size-20 rounded-full flex-shrink-0', 'bg-neutral-100 dark:bg-neutral-800', 'flex items-center justify-center']"
               />
               <div :class="['flex flex-col gap-0.5 min-w-0']">
@@ -499,46 +557,6 @@ async function handleConfirmDelete(event: Event) {
                 </p>
               </div>
             </div>
-
-            <!-- Flux row — quiet inline metadata. Hover bg only on hover so at
-                 rest it reads as plain text (not a button); chevron + colored
-                 link text are the only navigability hints. -->
-            <RouterLink
-              to="/settings/flux"
-              :class="[
-                '-mx-2 flex items-center gap-2 px-2 py-1.5 rounded-md',
-                'text-sm no-underline text-inherit',
-                'hover:bg-neutral-50 dark:hover:bg-neutral-800/40 transition-colors',
-              ]"
-            >
-              <span :class="['text-neutral-500 dark:text-neutral-400']">
-                {{ t('settings.pages.account.fluxBalance') }}
-              </span>
-              <span :class="['font-semibold tabular-nums']">
-                {{ formattedCredits }}
-              </span>
-              <span :class="['ml-auto flex items-center gap-1 text-primary-600 dark:text-primary-400']">
-                <span>{{ t('settings.pages.account.viewFluxDetails') }}</span>
-                <div :class="['i-solar:alt-arrow-right-linear', 'size-4']" />
-              </span>
-            </RouterLink>
-            <RouterLink
-              v-if="capacitorAvailable"
-              to="/settings/capacitor"
-              :class="[
-                '-mx-2 flex items-center gap-2 px-2 py-1.5 rounded-md',
-                'text-sm no-underline text-inherit',
-                'hover:bg-neutral-50 dark:hover:bg-neutral-800/40 transition-colors',
-              ]"
-            >
-              <span :class="['text-neutral-500 dark:text-neutral-400']">
-                {{ t('settings.pages.account.capacitorEntry') }}
-              </span>
-              <span :class="['ml-auto flex items-center gap-1 text-primary-600 dark:text-primary-400']">
-                <span>{{ t('settings.pages.account.viewCapacitor') }}</span>
-                <div :class="['i-solar:alt-arrow-right-linear', 'size-4']" />
-              </span>
-            </RouterLink>
           </section>
 
           <!-- Profile section. No card outline — sections are separated by a
@@ -797,6 +815,22 @@ async function handleConfirmDelete(event: Event) {
             >
               {{ linkedAccountsMessage }}
             </div>
+            <Button
+              v-if="linkedAccountsNeedsLogin && !linkedAccountsRouteErrorKey"
+              type="button"
+              :class="['self-start px-3 py-1 text-xs']"
+              :label="t('settings.pages.account.connections.action.signInAgain')"
+              @click="signInAgain"
+            />
+          </section>
+
+          <!-- Sync section. It follows Connected accounts because both decide what the account reaches,
+               and it stays out of Danger because a switch only pauses a sync and deletes no data. -->
+          <section
+            ref="syncSectionRef"
+            :class="['py-8 border-b border-neutral-200/70 dark:border-neutral-800/60']"
+          >
+            <SyncSection />
           </section>
 
           <!-- Danger zone. Same divider-based section style as Profile /
@@ -836,25 +870,13 @@ async function handleConfirmDelete(event: Event) {
                 />
               </div>
             </div>
-
-            <p
-              v-if="deleteSent"
-              :class="['text-sm text-green-600 dark:text-green-400 max-w-md']"
-              aria-live="polite"
-            >
-              {{ t('settings.pages.account.danger.deleteAccount.message.emailSent', { email: userEmail }) }}
-            </p>
           </section>
 
-          <!-- Delete-account confirmation dialog. Uses reka-ui's Dialog so we
-               get focus-trap, ESC-to-close, and overlay-click-to-close for
-               free — destructive actions warrant a real modal, not an inline
-               reveal. The email retype is the standard high-friction guard
-               for irreversible account actions (GitHub / Linear use the same
-               pattern). -->
+          <!-- Confirm with the account email, or DELETE when no deliverable email exists. -->
           <DialogRoot v-model:open="deleteDialogOpen">
             <DialogPortal>
               <DialogOverlay
+                data-testid="account-deletion-overlay"
                 :class="[
                   'fixed inset-0 z-9999 bg-black/50 backdrop-blur-sm',
                   'data-[state=closed]:animate-fadeOut data-[state=open]:animate-fadeIn',
@@ -868,6 +890,8 @@ async function handleConfirmDelete(event: Event) {
                   'p-6 shadow-xl outline-none',
                   'data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow',
                 ]"
+                @escape-key-down="deleteLoading && $event.preventDefault()"
+                @pointer-down-outside="deleteLoading && $event.preventDefault()"
               >
                 <DialogTitle :class="['text-lg font-semibold text-red-600 dark:text-red-400 mb-2']">
                   {{ t('settings.pages.account.danger.deleteAccount.modal.title') }}
@@ -878,11 +902,11 @@ async function handleConfirmDelete(event: Event) {
 
                 <form :class="['flex flex-col gap-3']" @submit="handleConfirmDelete">
                   <FieldInput
-                    v-model="deleteForm.confirmEmail"
-                    type="email"
+                    v-model="deleteForm.confirmation"
+                    :type="deletionEmail ? 'email' : 'text'"
                     autocomplete="off"
-                    :label="t('settings.pages.account.danger.deleteAccount.modal.confirmEmail.label')"
-                    :placeholder="userEmail ?? t('settings.pages.account.danger.deleteAccount.modal.confirmEmail.placeholder')"
+                    :label="deletionEmail ? t('settings.pages.account.danger.deleteAccount.modal.confirmEmail.label') : t('settings.pages.account.danger.deleteAccount.modal.confirmPhrase')"
+                    :placeholder="deletionConfirmation"
                   />
                   <div
                     v-if="deleteError"
@@ -892,6 +916,12 @@ async function handleConfirmDelete(event: Event) {
                   >
                     {{ deleteError }}
                   </div>
+                  <Button
+                    v-if="deleteNeedsLogin"
+                    type="button"
+                    :label="t('settings.pages.account.danger.deleteAccount.modal.signInAgain')"
+                    @click="reauthenticateForDeletion"
+                  />
                   <div :class="['flex justify-end gap-2 pt-1']">
                     <DialogClose as-child>
                       <Button
@@ -905,8 +935,8 @@ async function handleConfirmDelete(event: Event) {
                       type="submit"
 
                       :loading="deleteLoading"
-                      :disabled="!deleteEmailMatches"
-                      :label="t('settings.pages.account.danger.deleteAccount.modal.confirm')"
+                      :disabled="!deletionConfirmed || deleteNeedsLogin"
+                      :label="t('settings.pages.account.danger.deleteAccount.modal.deleteNow')"
                       color="red" variant="primary"
                     />
                   </div>
@@ -932,6 +962,9 @@ async function handleConfirmDelete(event: Event) {
     </template>
 
     <template v-else>
+      <p v-if="accountDeleted" role="status">
+        {{ t('settings.pages.account.danger.deleteAccount.message.deleted') }}
+      </p>
       <div :class="['flex flex-col items-center gap-6', 'rounded-xl p-8', 'bg-neutral-50 dark:bg-neutral-900']">
         <div :class="['i-solar:user-circle-bold-duotone', 'size-16 text-neutral-300 dark:text-neutral-600']" />
         <p :class="['text-sm text-neutral-500 dark:text-neutral-400', 'text-center max-w-xs']">

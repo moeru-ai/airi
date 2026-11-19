@@ -27,9 +27,10 @@ export function getChatHistoryItemCopyText(message: ChatHistoryItem): string {
 
   if (message.role === 'assistant') {
     if (message.slices?.length) {
+      // A card copies as its text.
       const text = message.slices
-        .filter(slice => slice.type === 'text')
-        .map(slice => slice.text.trim())
+        .flatMap(slice => slice.type === 'text' || slice.type === 'card' ? [slice.text] : [])
+        .map(text => text.trim())
         .filter(Boolean)
         .join('\n\n')
 

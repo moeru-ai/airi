@@ -6,8 +6,9 @@ on:
     branches:
       - main
     paths:
-      - 'apps/stage-web/package.json'
-      - 'apps/stage-web/vite.config.ts'
+      # While the assets hash is mainly changed by vite config, the remote
+      # assets can change at any time. Fortunately, this doesn't happen often.
+      - 'apps/stage-tamagotchi/electron.vite.config.ts'
 
 permissions:
   contents: write
