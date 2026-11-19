@@ -108,7 +108,12 @@ export async function resolvePendingAction(params: {
   }
   else if (pending.action.kind === 'desktop_ensure_chrome') {
     decision.signal?.throwIfAborted()
-    result = await executeChromeEnsure(runtime, pending.action.input, pending.policy.estimatedOperationUnits)
+    result = await executeChromeEnsure(
+      runtime,
+      pending.action.input,
+      pending.policy.estimatedOperationUnits,
+      decision.signal,
+    )
   }
   else {
     result = await executeAction(pending.action as ActionInvocation, pending.toolName, {

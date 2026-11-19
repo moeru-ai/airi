@@ -158,6 +158,20 @@ describe('chromeSessionManager', () => {
   })
 
   describe('ensureAgentWindow', () => {
+    it('does not launch Chrome when the abort signal is already aborted', async () => {
+      mockLaunchFlow(12345)
+      const controller = new AbortController()
+      controller.abort(new Error('Host approval was cancelled'))
+
+      await expect(manager.ensureAgentWindow({
+        url: 'https://example.com',
+        signal: controller.signal,
+      })).rejects.toThrow('Host approval was cancelled')
+
+      expect(mockedRunProcess).not.toHaveBeenCalled()
+      expect(mockedMkdir).not.toHaveBeenCalled()
+    })
+
     it('launches a dedicated Chrome profile with CDP', async () => {
       mockLaunchFlow(12345)
 

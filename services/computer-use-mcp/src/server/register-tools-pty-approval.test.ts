@@ -9,7 +9,7 @@ import { RunStateManager } from '../state'
 import { createPtySession, isPtyAvailable } from '../terminal/pty-runner'
 import { createLocalShellRunner } from '../terminal/runner'
 import { createTestConfig } from '../test-fixtures'
-import { registerComputerUseTools } from './register-tools'
+import { registerComputerUseTools, resolvePendingAction } from './register-tools'
 
 vi.mock('../terminal/pty-runner', () => ({
   createPtySession: vi.fn(),
@@ -156,6 +156,64 @@ describe('registerComputerUseTools: PTY approval bridge', () => {
     expect(createPtySession).not.toHaveBeenCalled()
     expect(runtime.stateManager.getActivePtyGrants()).toEqual([])
     expect(runtime.session.getPendingAction('pending-pty-1')).toBeDefined()
+  })
+
+  it('propagates the Host abort signal into Chrome startup after approval', async () => {
+    const controller = new AbortController()
+    vi.mocked(runtime.chromeSessionManager.ensureAgentWindow).mockResolvedValue({
+      wasAlreadyRunning: false,
+      ensureOutcome: 'launched',
+      windowId: 'chrome-window-1',
+      pid: 4242,
+      agentOwned: true,
+      cdpUrl: 'http://127.0.0.1:9333',
+      initialUrl: 'https://example.com',
+      createdAt: new Date().toISOString(),
+    })
+    vi.mocked(runtime.cdpBridgeManager.probeAvailability).mockResolvedValue({
+      endpoint: 'ws://127.0.0.1/devtools/browser/1',
+      connected: false,
+      connectable: true,
+    })
+
+    pendingActions.set('pending-chrome-signal-1', {
+      id: 'pending-chrome-signal-1',
+      createdAt: new Date().toISOString(),
+      toolName: 'desktop_ensure_chrome',
+      action: {
+        kind: 'desktop_ensure_chrome',
+        input: {
+          url: 'https://example.com',
+          cdpPort: 9333,
+        },
+      },
+      policy: {
+        allowed: true,
+        requiresApproval: true,
+        reasons: ['Opening Chrome requires approval.'],
+        riskLevel: 'medium',
+        estimatedOperationUnits: 2,
+      },
+      context: {
+        available: true,
+        appName: 'Finder',
+        platform: 'darwin',
+      },
+    })
+
+    const result = await resolvePendingAction({
+      runtime,
+      executeAction: vi.fn(),
+      id: 'pending-chrome-signal-1',
+      decision: { type: 'approve', source: 'host-approval-window', signal: controller.signal },
+    })
+
+    expect(result.isError).not.toBe(true)
+    expect(runtime.chromeSessionManager.ensureAgentWindow).toHaveBeenCalledWith({
+      url: 'https://example.com',
+      cdpPort: 9333,
+      signal: controller.signal,
+    })
   })
 
   it('rejects agent approval of pending Chrome creation', async () => {
