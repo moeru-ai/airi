@@ -3,6 +3,7 @@ import type { BrowserWindow } from 'electron'
 import type { FullscreenMode, FullscreenSurfaceId } from '../shared/eventa'
 import type { FileLoggerHandle } from './app/file-logger'
 import type { AutoUpdater } from './services/electron/auto-updater'
+import type { ChatWindowManager } from './windows/chat'
 import type { SettingsWindowManager } from './windows/settings'
 import type { FullscreenPlace } from './windows/shared/fullscreen'
 import type { WorkspaceWindowManager } from './windows/workspace'
@@ -46,6 +47,8 @@ import { setupAppleSpeechTranscriptionService } from './services/airi/apple-spee
 import { setupAppleVisionService } from './services/airi/apple-vision'
 import { setupServerChannel } from './services/airi/channel-server'
 import { setupComputerUse } from './services/airi/computer-use'
+import { PendingActionManager } from './services/airi/computer-use/action-manager'
+import { setupChatRequests } from './services/airi/computer-use/requests'
 import { setupGodotStageManager } from './services/airi/godot-stage'
 import { setupHomeAssistant } from './services/airi/home-assistant'
 import { setupBuiltInServer } from './services/airi/http-server'
@@ -54,6 +57,7 @@ import { registerIOTraceHub } from './services/airi/io-trace-hub/register'
 import { IOTraceRecordingService } from './services/airi/io-trace-recording'
 import { recordHubRecords } from './services/airi/io-trace-recording/hub'
 import { setupMcpManager } from './services/airi/mcp-servers'
+import { deliverTerminalNotice } from './services/airi/mcp-servers/terminal-notice'
 import { setupExtensionHost } from './services/airi/plugins'
 import { createBuiltInExtensionKits } from './services/airi/plugins/kits'
 import { setupArtistryBridge } from './services/airi/widgets/artistry-bridge'
@@ -78,6 +82,7 @@ import { setupOnboardingWindowManager } from './windows/onboarding'
 import { setupSettingsWindowReusableFunc } from './windows/settings'
 import { moveFullscreen } from './windows/shared/fullscreen'
 import { setupSpotlightWindowManager } from './windows/spotlight'
+import { setupTerminalApprovalWindow } from './windows/terminal-approval'
 import { setupWidgetsWindowManager } from './windows/widgets'
 import { setupWorkspaceWindowManager } from './windows/workspace'
 
@@ -180,6 +185,7 @@ electronApp.setAppUserModelId('ai.moeru.airi')
 // Track the real user-facing AIRI window because the process also owns hidden utility windows.
 // The second-instance handler should restore the main UI instead of accidentally surfacing internals.
 let userFacingMainWindow: BrowserWindow | undefined
+let chatWindowManager: ChatWindowManager | undefined
 let settingsWindowManager: SettingsWindowManager | undefined
 let workspaceWindowManager: WorkspaceWindowManager | undefined
 /** The fullscreen mode that the user chose, as the main window page reports it. */
@@ -330,8 +336,34 @@ app.whenReady().then(async () => {
     build: ({ on }) => setupAppleVisionService({ on }),
   })
 
+  const pendingActions = injeca.provide('services:pending-actions', () => new PendingActionManager())
+  const terminalApproval = injeca.provide('windows:terminal-approval', {
+    dependsOn: { actions: pendingActions, i18n, serverChannel },
+    build: ({ dependsOn }) => setupTerminalApprovalWindow(dependsOn),
+  })
+  const computerUse = injeca.provide('services:computer-use', {
+    dependsOn: { pendingActions, i18n, terminalApproval },
+    build: ({ dependsOn }) => {
+      const { context } = createContext(ipcMain)
+      const host = setupComputerUse(context, { actionManager: dependsOn.pendingActions })
+      const chatRequests = setupChatRequests(context, dependsOn.pendingActions, {
+        getRuntime: () => userFacingMainWindow?.webContents,
+        isChatWindow: window => chatWindowManager?.owns(window) === true,
+        i18n: dependsOn.i18n,
+        presentConfirmation: dependsOn.terminalApproval.confirm,
+      })
+      return { ...host, ...chatRequests }
+    },
+  })
   const mcpManager = injeca.provide('modules:mcp-manager', {
-    build: async () => setupMcpManager(),
+    dependsOn: { pendingActions, computerUse, terminalApproval },
+    build: async ({ dependsOn }) => setupMcpManager({
+      actions: dependsOn.pendingActions,
+      present: dependsOn.terminalApproval.present,
+      presentComputerUse: dependsOn.computerUse.presentComputerUse,
+      executeInSlot: (operation, signal) => dependsOn.computerUse.getRuntime().executeInSlot(operation, signal),
+      notify: notice => deliverTerminalNotice(dependsOn.pendingActions, notice),
+    }),
   })
 
   const ioTraceHub = injeca.provide('services:io-trace-hub', {
@@ -434,7 +466,7 @@ app.whenReady().then(async () => {
 
   const chatWindow = injeca.provide('windows:chat', {
     dependsOn: { widgetsManager, serverChannel, mcpManager, i18n },
-    build: ({ dependsOn }) => setupChatWindowManager({
+    build: ({ dependsOn }) => chatWindowManager = setupChatWindowManager({
       ...dependsOn,
       getMainWindow: () => userFacingMainWindow,
       // NOTICE:
@@ -541,7 +573,7 @@ app.whenReady().then(async () => {
   })
 
   const tray = injeca.provide('app:tray', {
-    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, serverChannel, beatSyncBgWindow: beatSync, aboutWindow, inlayWindow, i18n, appConfig },
+    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, serverChannel, beatSyncBgWindow: beatSync, aboutWindow, inlayWindow, i18n, appConfig, terminalApproval },
     build: async ({ dependsOn }) => setupTray(dependsOn),
   })
 
@@ -558,7 +590,6 @@ app.whenReady().then(async () => {
     dependsOn: { mainWindow, tray, serverChannel, airiHttpServer, godotStageManager, pluginHost, mcpManager, onboardingWindow: onboardingWindowManager, widgetsWindow: widgetsManager, spotlightWindow, artistryConfig },
     callback: async (deps) => {
       const { context } = createContext(ipcMain)
-      setupComputerUse(context)
       setupHomeAssistant(context)
       await setupArtistryBridge({
         widgetsManager: deps.widgetsWindow,

@@ -49,19 +49,24 @@ describe('useTamagotchiMcpToolsStore', async () => {
     await store.refresh()
 
     const mcpDefinitions = llmToolsStore.tools.filter(tool => tool.id.startsWith('mcp:'))
-    const listTools = llmToolsStore.activeTools.find(tool => tool.function.name === 'builtIn_mcpListTools')
-    const callTool = llmToolsStore.activeTools.find(tool => tool.function.name === 'builtIn_mcpCallTool')
+    const listTools = llmToolsStore.getToolsByNames('builtIn_mcpListTools')[0]
+    const callTool = llmToolsStore.getToolsByNames('builtIn_mcpCallTool')[0]
 
     expect(mcpDefinitions).toEqual([
       expect.objectContaining({
         id: 'mcp:builtIn_mcpListTools',
         function: expect.objectContaining({ name: 'builtIn_mcpListTools' }),
+        defaultActive: false,
+        requiresExplicitSelection: true,
       }),
       expect.objectContaining({
         id: 'mcp:builtIn_mcpCallTool',
         function: expect.objectContaining({ name: 'builtIn_mcpCallTool' }),
+        defaultActive: false,
+        requiresExplicitSelection: true,
       }),
     ])
+    expect(llmToolsStore.activeTools).toEqual([])
     expect(JSON.stringify(llmToolsStore.$state)).not.toContain('execute')
 
     const listResult = await listTools?.execute({}, toolOptions)

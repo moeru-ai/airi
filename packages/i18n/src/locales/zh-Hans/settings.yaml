@@ -1624,6 +1624,40 @@ pages:
       configured: 网络搜索已就绪！
     mcp-server:
       title: MCP 集成
+      terminal:
+        title: 随包 Terminal
+        description: 连接应用随附的 Terminal 工具。命令默认需要审批。可在聊天输入框为当前会话开启 Turbo。保存并重启后生效。
+        restore: 显示 Terminal 请求
+        approval: Terminal 审批
+        approve: 单次批准
+        reject: 拒绝
+        details: 完整执行器报告
+        pending: 等待批准。此命令尚未获得授权。
+        scope: 此命令可以修改文件、启动应用并影响桌面。批准仅适用于这一次具体操作。
+        session: 会话
+        server: 服务器
+        tool: 工具
+        turn: 轮次
+        call: 调用
+        command: 命令
+        working-directory: 工作目录
+        directory-source: Terminal 执行器中的 {source}
+        shell: Shell
+        executor: 执行器
+        expires: 过期时间
+        expires-unlimited: 无限制
+        arguments-identity: 完整参数和请求身份
+        turn-call: '轮次 {turn} · 调用 {call}'
+        request-action: '请求 {request} · 操作 {action}'
+        unavailable: 此审批请求不可用。
+        decision-error: 无法发送审批决定。
+        result:
+          executed: 命令已完成，请继续核对目标结果。
+          failed: 命令失败，之前可能已产生副作用。再次执行前请检查执行报告。
+          unknown: 结果未知，命令可能已产生副作用。再次执行前请核对当前状态。
+          rejected: 已拒绝，此请求未派发新的命令。
+          cancelled: 已在派发前取消，此请求未执行。
+          expired: 授权在派发前过期，此请求未执行。
       description: 配置其他 MCP 服务器并将能力拓展至 AIRI
       config-path: 配置文件
       runtime-title: 运行状态
@@ -1640,6 +1674,9 @@ pages:
         pending-badge: 未保存
       status:
         unknown: 未加载
+        running: 已连接
+        stopped: 已断开
+        error: 暂不可用
       actions:
         open-config: 在文件管理器中查看
         apply-and-restart: 保存并重启
@@ -2374,6 +2411,14 @@ pages:
         global: 已向登录账户开放
         account: 已向你的账户开放
       features:
+        conversation_compact:
+          title: 会话 Compact
+          description: 默认关闭。摘要压缩较早的观察，保留完整工具回执。限制按字节计算，不代表模型 Token 窗口。
+          mode:
+            title: 调度方式
+            description: 关闭实验会丢弃待应用摘要，请求硬字节限制仍然有效。
+            synchronous: '同步：等待摘要后再发起请求'
+            background: '后台：低于硬字节限制时继续运行'
         fullscreen_workspace:
           title: 全屏工作区
           description: 在铺满屏幕的工作区里打开设置和聊天，角色在左边。默认关闭。

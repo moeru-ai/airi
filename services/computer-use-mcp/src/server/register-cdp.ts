@@ -114,6 +114,14 @@ export function registerCdpTools({ server, runtime }: RegisterCdpToolsOptions) {
       cdpUrl: z.string().optional().describe('CDP endpoint override'),
     },
     async ({ expression, cdpUrl }) => {
+      // Arbitrary JavaScript can mutate authenticated browser state.
+      if (runtime.config.approvalMode !== 'never') {
+        return {
+          isError: true,
+          content: [textContent('CDP evaluation is disabled while the server requires approval.')],
+          structuredContent: { status: 'denied', reason: 'trusted_approval_required' },
+        }
+      }
       try {
         const bridge = await runtime.cdpBridgeManager.ensureBridge(cdpUrl)
         const result = await bridge.evaluate(expression)
@@ -234,6 +242,13 @@ export function registerCdpTools({ server, runtime }: RegisterCdpToolsOptions) {
       cdpUrl: z.string().optional().describe('CDP endpoint override'),
     },
     async ({ url, cdpUrl }) => {
+      if (runtime.config.approvalMode !== 'never') {
+        return {
+          isError: true,
+          content: [textContent('CDP navigation is disabled while the server requires approval.')],
+          structuredContent: { status: 'denied', reason: 'trusted_approval_required' },
+        }
+      }
       try {
         const bridge = await runtime.cdpBridgeManager.ensureBridge(cdpUrl)
         await bridge.navigate(url)

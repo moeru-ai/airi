@@ -237,6 +237,47 @@ export function buildCoordinateSpaceInfo(params: {
 }): CoordinateSpaceInfo {
   const { allowedBounds } = params.config
 
+  if (params.config.executor === 'auv') {
+    const screenshot = params.lastScreenshot
+    if (!params.displayInfo?.available || !params.displayInfo.displays?.length) {
+      return {
+        readyForMutations: false,
+        reason: 'AUV display geometry is unavailable',
+        allowedBounds: allowedBounds ?? params.displayInfo?.combinedBounds,
+        lastScreenshot: screenshot,
+      }
+    }
+    if (!screenshot || screenshot.placeholder || !screenshot.width || !screenshot.height) {
+      return {
+        readyForMutations: false,
+        reason: 'capture real AUV pixels before comparing logical coordinates',
+        allowedBounds: allowedBounds ?? params.displayInfo.combinedBounds,
+        lastScreenshot: screenshot,
+      }
+    }
+
+    const sourceDisplay = params.displayInfo.displays.find(display => String(display.displayId) === screenshot.sourceDisplayId)
+      ?? params.displayInfo.displays.find(display => display.isMain)
+      ?? params.displayInfo.displays[0]
+    if (screenshot.width !== sourceDisplay.bounds.width || screenshot.height !== sourceDisplay.bounds.height) {
+      return {
+        readyForMutations: false,
+        aligned: false,
+        reason: `AUV screenshot ${screenshot.width}x${screenshot.height} does not match logical display ${sourceDisplay.bounds.width}x${sourceDisplay.bounds.height}`,
+        allowedBounds: allowedBounds ?? params.displayInfo.combinedBounds ?? sourceDisplay.bounds,
+        lastScreenshot: screenshot,
+      }
+    }
+
+    return {
+      readyForMutations: true,
+      aligned: true,
+      reason: 'AUV screenshot pixels match logical display coordinates',
+      allowedBounds: allowedBounds ?? params.displayInfo.combinedBounds ?? sourceDisplay.bounds,
+      lastScreenshot: screenshot,
+    }
+  }
+
   if (!allowedBounds) {
     return {
       readyForMutations: false,

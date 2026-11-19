@@ -49,6 +49,12 @@ packages:
   - '!**/dist/**'
 
 overrides:
+  # NOTICE:
+  # Transformers pins ONNX Runtime Node 1.21.0, whose Linux CUDA download returns 404 and blocks dependency installation.
+  # Use 1.27.0 to match ONNX Runtime Web and download CUDA binaries from NuGet.
+  # Source: https://github.com/moeru-ai/airi/actions/runs/44542540241
+  # Remove when Transformers declares a Node version with working binary downloads.
+  '@huggingface/transformers>onnxruntime-node': 1.27.0
   # @huggingface/transformers 3.8.1 pins an onnxruntime-web dev build. Use the catalog version, which @sherpaw needs.
   # Remove when @huggingface/transformers declares the catalog version.
   '@huggingface/transformers>onnxruntime-web': 'catalog:'
@@ -339,7 +345,6 @@ catalog:
   eventemitter3: ^5.0.4
   fflate: ^0.8.3
   fft.js: ^4.0.4
-  file-type: ^22.2.0
   floating-vue: ^5.2.2
   fluent-ffmpeg: ^2.1.3
   get-port-please: ^3.2.0
@@ -533,7 +538,8 @@ allowBuilds:
   less: true
   msw: true
   node-pty: true
-  onnxruntime-node: true
+  # Its postinstall pulls native binaries from a CDN. CI only needs @huggingface/transformers through onnxruntime-web.
+  onnxruntime-node: false
   protobufjs: true
   sharp: true
   simple-git-hooks: false # [workaround] With `shellEmulator: true`, simple-git-hooks install may fail when no .git dir exists.

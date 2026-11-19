@@ -1,11 +1,13 @@
 import type { ToolMessage } from '@xsai/shared-chat'
 
-import type { AgentHookRegistry, ChatHookRegistry } from '../contracts/hook-types'
+import type { AgentHookRegistry, ChatHookRegistry, ChatToolCallRerunContext } from '../contracts/hook-types'
 import type { ChatStreamEventContext, StreamingAssistantMessage } from '../types/chat'
 
 export function createChatHooks(): ChatHookRegistry {
   const onBeforeMessageComposedHooks: Array<(message: string, context: Omit<ChatStreamEventContext, 'composedMessage'>) => Promise<void>> = []
   const onAfterMessageComposedHooks: Array<(message: string, context: ChatStreamEventContext) => Promise<void>> = []
+  const onToolCallRerunHooks: Array<(context: ChatToolCallRerunContext) => Promise<void>> = []
+  const onToolCallRerunEndHooks: Array<(context: ChatToolCallRerunContext) => Promise<void>> = []
   const onBeforeSendHooks: Array<(message: string, context: ChatStreamEventContext) => Promise<void>> = []
   const onAfterSendHooks: Array<(message: string, context: ChatStreamEventContext) => Promise<void>> = []
   const onTokenLiteralHooks: Array<(literal: string, context: ChatStreamEventContext) => Promise<void>> = []
@@ -14,6 +16,24 @@ export function createChatHooks(): ChatHookRegistry {
   const onAssistantResponseEndHooks: Array<(message: string, context: ChatStreamEventContext) => Promise<void>> = []
   const onAssistantMessageHooks: Array<(message: StreamingAssistantMessage, messageText: string, context: ChatStreamEventContext) => Promise<void>> = []
   const onChatTurnCompleteHooks: Array<(chat: { output: StreamingAssistantMessage, outputText: string, toolCalls: ToolMessage[] }, context: ChatStreamEventContext) => Promise<void>> = []
+
+  function onToolCallRerun(cb: (context: ChatToolCallRerunContext) => Promise<void>) {
+    onToolCallRerunHooks.push(cb)
+    return () => {
+      const index = onToolCallRerunHooks.indexOf(cb)
+      if (index >= 0)
+        onToolCallRerunHooks.splice(index, 1)
+    }
+  }
+
+  function onToolCallRerunEnd(cb: (context: ChatToolCallRerunContext) => Promise<void>) {
+    onToolCallRerunEndHooks.push(cb)
+    return () => {
+      const index = onToolCallRerunEndHooks.indexOf(cb)
+      if (index >= 0)
+        onToolCallRerunEndHooks.splice(index, 1)
+    }
+  }
 
   function onBeforeMessageComposed(cb: (message: string, context: Omit<ChatStreamEventContext, 'composedMessage'>) => Promise<void>) {
     onBeforeMessageComposedHooks.push(cb)
@@ -106,6 +126,8 @@ export function createChatHooks(): ChatHookRegistry {
   }
 
   function clearHooks() {
+    onToolCallRerunHooks.length = 0
+    onToolCallRerunEndHooks.length = 0
     onBeforeMessageComposedHooks.length = 0
     onAfterMessageComposedHooks.length = 0
     onBeforeSendHooks.length = 0
@@ -116,6 +138,16 @@ export function createChatHooks(): ChatHookRegistry {
     onAssistantResponseEndHooks.length = 0
     onAssistantMessageHooks.length = 0
     onChatTurnCompleteHooks.length = 0
+  }
+
+  async function emitToolCallRerunHooks(context: ChatToolCallRerunContext) {
+    for (const hook of onToolCallRerunHooks)
+      await hook(context)
+  }
+
+  async function emitToolCallRerunEndHooks(context: ChatToolCallRerunContext) {
+    for (const hook of onToolCallRerunEndHooks)
+      await hook(context)
   }
 
   async function emitBeforeMessageComposedHooks(message: string, context: Omit<ChatStreamEventContext, 'composedMessage'>) {
@@ -169,6 +201,10 @@ export function createChatHooks(): ChatHookRegistry {
   }
 
   return {
+    onToolCallRerun,
+    onToolCallRerunEnd,
+    emitToolCallRerunHooks,
+    emitToolCallRerunEndHooks,
     onBeforeMessageComposed,
     onAfterMessageComposed,
     onBeforeSend,

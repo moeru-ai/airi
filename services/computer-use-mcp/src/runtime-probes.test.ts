@@ -107,6 +107,42 @@ describe('buildCoordinateSpaceInfo', () => {
     expect(info.readyForMutations).toBe(true)
     expect(info.aligned).toBe(true)
   })
+
+  it('aligns a real AUV PNG with its logical display without requiring manual allowed bounds', () => {
+    const info = buildCoordinateSpaceInfo({
+      config: createTestConfig({ executor: 'auv', allowedBounds: undefined }),
+      lastScreenshot: {
+        path: '/tmp/auv-screenshot.png',
+        width: 2560,
+        height: 1440,
+        capturedAt: new Date().toISOString(),
+        placeholder: false,
+        executionTargetMode: 'local-windowed',
+        sourceDisplayId: '1',
+      },
+      displayInfo: {
+        available: true,
+        platform: 'win32',
+        displays: [{
+          displayId: 1,
+          isMain: true,
+          isBuiltIn: false,
+          bounds: { x: 0, y: 0, width: 2560, height: 1440 },
+          visibleBounds: { x: 0, y: 0, width: 2560, height: 1440 },
+          scaleFactor: 1,
+          pixelWidth: 2560,
+          pixelHeight: 1440,
+        }],
+        combinedBounds: { x: 0, y: 0, width: 2560, height: 1440 },
+      },
+    })
+
+    expect(info).toMatchObject({
+      readyForMutations: true,
+      aligned: true,
+      allowedBounds: { x: 0, y: 0, width: 2560, height: 1440 },
+    })
+  })
 })
 
 describe('buildDisplayInfoFromSnapshot', () => {

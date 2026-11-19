@@ -32,6 +32,14 @@ pages:
     mcp-server:
       description: 连接与管理 MCP 服务器和工具
       title: MCP 服务器
+      status-refresh-error: 无法获取连接状态。
+      tools:
+        title: 公开工具
+        description: 选择 Agent 可以直接使用或通过路由器调用的 MCP 工具
+        search: 搜索工具
+        empty: 没有匹配的工具
+        enabled: 已启用
+        router-only: 仅路由器
   system:
     general:
       hide-app-icon:

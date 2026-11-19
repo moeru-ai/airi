@@ -31,7 +31,13 @@ export function useChatToolCallRerun() {
           args: payload.args,
         },
         // A rerun stores its result in history, so it reads images like a send.
-        resolveTools: () => resolveLlmTools({ describeImage: chatVision.toolImageReader(chatVision.selectionOf(sessionId)) }),
+        resolveTools: () => resolveLlmTools({
+          describeImage: chatVision.toolImageReader(chatVision.selectionOf(sessionId)),
+          attribution: {
+            sessionId,
+            turnId: payload.message.id,
+          },
+        }),
       })
       chatSession.setSessionMessages(sessionId, nextMessages)
     }
