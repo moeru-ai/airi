@@ -1,6 +1,7 @@
 import en from '@proj-airi/i18n/locales/en'
 
-import { describe, expect, it } from 'vitest'
+import { createPinia, disposePinia } from 'pinia'
+import { afterEach, describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { createI18n } from 'vue-i18n'
 
@@ -10,11 +11,18 @@ import '@unocss/reset/tailwind.css'
 import 'virtual:uno.css'
 
 describe('chat history width', () => {
+  let pinia: ReturnType<typeof createPinia>
+
+  afterEach(() => {
+    disposePinia(pinia)
+  })
+
   // Report: user screenshot of the floating chat on 2026-09-30.
   // ROOT CAUSE:
   // The action wrapper kept its content minimum width and expanded beyond the viewport.
   // Constrain that wrapper so wide code scrolls inside the bubble.
   it.each(['assistant', 'user'] as const)('keeps long code inside a desktop %s bubble', async (role) => {
+    pinia = createPinia()
     const content = `这里主要是两类问题。\n\n\`\`\`text\n${'settings.pages.providers.provider.perplexity.description '.repeat(8)}\n\`\`\`\n\n${'说明内容。'.repeat(100)}`
     const screen = await render(ChatHistory, {
       props: {
@@ -26,7 +34,7 @@ describe('chat history width', () => {
         style: 'height: 400px; width: 360px',
       },
       global: {
-        plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })],
+        plugins: [pinia, createI18n({ legacy: false, locale: 'en', messages: { en } })],
       },
     })
     await expect.poll(() => screen.container.querySelector('pre')).not.toBeNull()
