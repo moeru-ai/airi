@@ -39,6 +39,11 @@ const props = withDefaults(defineProps<{
    * @default true
    */
   shadow?: boolean
+  /**
+   * Declares the open tooltips of the buttons as translucent surfaces, for example to draw native window glass behind
+   * them. The dock itself registers nothing: its parent declares the dock element.
+   */
+  registerSurface?: (element: HTMLElement) => () => void
 }>(), {
   orientation: 'horizontal',
   size: 'sm',
@@ -47,6 +52,7 @@ const props = withDefaults(defineProps<{
   blur: 12,
   tooltipSide: undefined,
   shadow: true,
+  registerSurface: undefined,
 })
 
 provideDockContext({
@@ -56,6 +62,7 @@ provideDockContext({
   opacity: toRef(() => props.opacity),
   blur: toRef(() => props.blur),
   tooltipSide: computed(() => props.tooltipSide ?? (props.orientation === 'vertical' ? 'right' : 'bottom')),
+  registerSurface: toRef(() => props.registerSurface),
 })
 
 // A `blurry` surface reads its opacity and blur from these variables.

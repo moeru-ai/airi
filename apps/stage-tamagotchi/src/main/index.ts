@@ -16,16 +16,21 @@ import messages from '@proj-airi/i18n/locales'
 
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalHookPostLog, setGlobalLogLevel, useLogg } from '@guiiai/logg'
+import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { hasSelectedScreenCaptureSource, initScreenCaptureForMain } from '@proj-airi/electron-screen-capture/main'
+import { onWindowClosed } from '@proj-airi/electron-vueuse/main'
 import { ExtensionHost } from '@proj-airi/plugin-sdk/plugin-host'
+import { isEnvTruthy } from '@proj-airi/stage-shared'
 import { app, ipcMain, protocol, session } from 'electron'
 import { createLoggLogger, injeca } from 'injeca'
 import { isLinux } from 'std-env'
 
 import devIcon from '../../resources/icon-dev.png?asset'
 
+import { electronErrorReportingSet } from '../shared/eventa'
 import { openDebugger, setupDebugger } from './app/debugger'
+import { ErrorReporting } from './app/error-reporting'
 import { nullFileLoggerHandle, setupFileLogger } from './app/file-logger'
 import { resolveIsWayland } from './app/ozone'
 import { installSingleInstanceGuard } from './app/single-instance'
@@ -62,6 +67,7 @@ import { setupAboutWindowReusable } from './windows/about'
 import { setupBeatSync } from './windows/beat-sync'
 import { setupCaptionWindowManager } from './windows/caption'
 import { setupChatWindowManager } from './windows/chat'
+import { setupControlsMenuWindowManager } from './windows/controls-menu'
 import { isDesktopOverlayEnabled, setupDesktopOverlayWindow } from './windows/desktop-overlay'
 import { setupDevtoolsWindow } from './windows/devtools'
 import { setupEditorWindowManager } from './windows/editor'
@@ -99,6 +105,13 @@ const appUserDataPath = env.APP_USER_DATA_PATH?.trim()
 if (appUserDataPath) {
   app.setPath('userData', appUserDataPath)
 }
+
+// The config and the error reports start after the user data path is final, because both store files under it.
+// The SDK must start before the app is ready, so that it can start the Electron crash reporter.
+const globalAppConfig = createGlobalAppConfig()
+const errorReporting = new ErrorReporting(globalAppConfig)
+if (isEnvTruthy(import.meta.env.VITE_ENABLE_ANALYTICS))
+  errorReporting.start()
 
 // Thanks to [@blurymind](https://github.com/blurymind),
 //
@@ -232,7 +245,7 @@ async function openFullscreenChat() {
 function trackExtensionManagementWindow(window: BrowserWindow) {
   const webContentsId = window.webContents.id
   extensionManagementWebContentsId = webContentsId
-  window.once('closed', () => {
+  onWindowClosed(window, () => {
     if (extensionManagementWebContentsId === webContentsId)
       extensionManagementWebContentsId = undefined
   })
@@ -253,6 +266,7 @@ app.whenReady().then(async () => {
 
   setupSherpawModelAssetsProtocol(getRendererRoot)
   setupSherpawModelAssets(createContext(ipcMain).context)
+  defineInvokeHandler(createContext(ipcMain).context, electronErrorReportingSet, enabled => errorReporting.setEnabled(Boolean(enabled)))
   setupPermissionHandlers(session.defaultSession, hasSelectedScreenCaptureSource)
 
   // Initialize file logger and register the hook
@@ -268,7 +282,7 @@ app.whenReady().then(async () => {
   injeca.setLogger(createLoggLogger(useLogg('injeca').useGlobalConfig()))
   injeca.getContainer().logging = true
 
-  const appConfig = injeca.provide('configs:app', () => createGlobalAppConfig())
+  const appConfig = injeca.provide('configs:app', () => globalAppConfig)
   const artistryConfig = injeca.provide('configs:artistry', () => createArtistryConfig())
   const ioTraceRecordingConfig = injeca.provide('configs:io-trace-recording', () => createIOTraceRecordingConfig())
   const ioTraceHubConfig = injeca.provide('configs:io-trace-hub', () => createIOTraceHubConfig())
@@ -400,7 +414,7 @@ app.whenReady().then(async () => {
   const devtoolsMarkdownStressWindow = injeca.provide('windows:devtools:markdown-stress', () => setupDevtoolsWindow())
 
   const onboardingWindowManager = injeca.provide('windows:onboarding', {
-    dependsOn: { serverChannel, i18n },
+    dependsOn: { serverChannel, i18n, globalShortcut },
     build: ({ dependsOn }) => setupOnboardingWindowManager(dependsOn),
   })
 
@@ -472,8 +486,21 @@ app.whenReady().then(async () => {
     },
   })
 
+  const controlsMenuWindow = injeca.provide('windows:controls-menu', {
+    dependsOn: { serverChannel, i18n, settingsWindow, noticeWindow },
+    build: ({ dependsOn }) => setupControlsMenuWindowManager({
+      ...dependsOn,
+      // NOTICE:
+      // The main window depends on the menu through injeca, so the menu cannot
+      // depend on the main window. The main window exists before it can ask for
+      // the menu, so the menu resolves it lazily.
+      // Removal condition: the main window no longer depends on the menu.
+      getMainWindow: () => userFacingMainWindow,
+    }),
+  })
+
   const mainWindow = injeca.provide('windows:main', {
-    dependsOn: { editorWindow, settingsWindow, workspaceWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, godotStageManager, mcpManager, i18n, onboardingWindowManager, inlayWindow, appleSpeechTranscription, appleVision, ioTraceRecording, globalShortcut, spotlightWindow, devtoolsWindow: devtoolsMarkdownStressWindow },
+    dependsOn: { controlsMenuWindow, editorWindow, settingsWindow, workspaceWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, godotStageManager, mcpManager, i18n, onboardingWindowManager, inlayWindow, appleSpeechTranscription, appleVision, ioTraceRecording, globalShortcut, spotlightWindow, devtoolsWindow: devtoolsMarkdownStressWindow },
     build: async ({ dependsOn }) => setupMainWindow({
       ...dependsOn,
       onWindowCreated: (window) => {

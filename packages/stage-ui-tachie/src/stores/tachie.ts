@@ -1,4 +1,4 @@
-import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
+import { useLocalStorageManualReset, useModelScopedLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
 
 /** Supported ranges and defaults for persisted Tachie appearance controls. */
@@ -13,13 +13,13 @@ export const tachieControlConfig = {
  * Persisted appearance and viewport calibration for the Tachie renderer.
  */
 export const useTachie = defineStore('tachie', () => {
-  const position = useLocalStorageManualReset('settings/tachie/position', {
+  const position = useModelScopedLocalStorageManualReset('tachie', 'settings/tachie/position', {
     x: tachieControlConfig.x.default,
     y: tachieControlConfig.y.default,
   })
-  const scale = useLocalStorageManualReset('settings/tachie/scale', tachieControlConfig.scale.default)
+  const scale = useModelScopedLocalStorageManualReset('tachie', 'settings/tachie/scale', tachieControlConfig.scale.default)
   const renderScale = useLocalStorageManualReset('settings/tachie/render-scale', tachieControlConfig.renderScale.default)
-  const shadowEnabled = useLocalStorageManualReset('settings/tachie/shadow-enabled', true)
+  const shadowEnabled = useModelScopedLocalStorageManualReset('tachie', 'settings/tachie/shadow-enabled', true)
 
   function resetState() {
     position.reset()
