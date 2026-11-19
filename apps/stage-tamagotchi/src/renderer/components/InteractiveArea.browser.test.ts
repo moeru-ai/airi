@@ -30,6 +30,7 @@ import 'virtual:uno.css'
 const openSettings = vi.hoisted(() => vi.fn())
 
 vi.mock('@proj-airi/electron-vueuse', () => ({
+  getElectronEventaContext: () => ({ on: vi.fn(), emit: vi.fn(), invoke: vi.fn() }),
   useElectronEventaInvoke: () => openSettings,
 }))
 
