@@ -20,8 +20,7 @@ export function getRevenuecatWebKey(): string | null {
 }
 
 /**
- * Whether this build can show and sell a Capacitor.
- * Builds without the web key, such as the desktop and mobile releases, hide every Capacitor entry.
+ * A build needs a web key and enabled Flux purchases to sell a Capacitor.
  */
 export function isCapacitorAvailable(): boolean {
   return !isFluxPurchaseDisabled() && getRevenuecatWebKey() != null

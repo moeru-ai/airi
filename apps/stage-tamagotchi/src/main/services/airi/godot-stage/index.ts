@@ -27,6 +27,7 @@ import { basename, dirname, join, resolve } from 'node:path'
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
+import { onWindowClosed } from '@proj-airi/electron-vueuse/main'
 import {
   parseStageViewErrorPayload,
   parseStageViewPatchPayload,
@@ -713,7 +714,7 @@ export function createGodotStageService(params: {
     }
   }
 
-  params.window.on('closed', cleanup)
+  onWindowClosed(params.window, cleanup)
   return cleanup
 }
 

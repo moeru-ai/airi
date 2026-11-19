@@ -4,7 +4,6 @@ import type { Ref } from 'vue'
 
 import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
 import { IconStatusItem, RippleGrid } from '@proj-airi/stage-ui/components'
-import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useRippleGridState } from '@proj-airi/stage-ui/composables/use-ripple-grid-state'
 import { providerSettingsRouteOf } from '@proj-airi/stage-ui/libs/providers/metadata'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
@@ -47,7 +46,6 @@ const providersStore = useProviderStore()
 const providerConfigStore = useProviderConfigStore()
 const artistryStore = useArtistryStore()
 const { lastClickedIndex, setLastClickedIndex } = useRippleGridState()
-const { trackProviderClick } = useAnalytics()
 
 const {
   allChatProvidersMetadata,
@@ -302,7 +300,6 @@ const providerBlocks = computed(() => {
           :pricing="provider.pricing"
           :deployment="provider.deployment"
           :beginner-recommended="provider.beginnerRecommended"
-          @click="trackProviderClick(provider.id, provider.category)"
         />
       </template>
     </RippleGrid>

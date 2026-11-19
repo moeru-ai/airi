@@ -6,6 +6,8 @@ describe('toSpeechText', () => {
   it('removes markup that has no sound', () => {
     expect(toSpeechText('This is **important** and *soft*.')).toBe('This is important and soft.')
     expect(toSpeechText('这是**重要**的事情。')).toBe('这是重要的事情。')
+    expect(toSpeechText('**测试。**测试')).toBe('测试。测试')
+    expect(toSpeechText('**中文（带括号）**继续')).toBe('中文（带括号）继续')
     expect(toSpeechText('Read [the guide](https://example.com/guide) first.')).toBe('Read the guide first.')
     expect(toSpeechText('Run `pnpm test` now.')).toBe('Run pnpm test now.')
     expect(toSpeechText('A ![cat](cat.png) sleeps.')).toBe('A cat sleeps.')

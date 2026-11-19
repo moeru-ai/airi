@@ -3,7 +3,7 @@ import type { BrowserWindow, Point } from 'electron'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { cursorScreenPoint, startLoopGetCursorScreenPoint } from '@proj-airi/electron-eventa'
-import { createRendererLoop } from '@proj-airi/electron-vueuse/main'
+import { createRendererLoop, onWindowClosed } from '@proj-airi/electron-vueuse/main'
 import { screen } from 'electron'
 
 import { electron } from '../../../shared/eventa'
@@ -27,7 +27,7 @@ export function createScreenService(params: { context: ReturnType<typeof createC
   // The loop stops with its window; these cover the app closing first.
   const offAllClosed = onAppWindowAllClosed(() => stop())
   const offBeforeQuit = onAppBeforeQuit(() => stop())
-  params.window.once('closed', () => {
+  onWindowClosed(params.window, () => {
     offAllClosed()
     offBeforeQuit()
   })

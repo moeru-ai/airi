@@ -16,23 +16,21 @@ function readTextInput(mode: 'type' | 'paste'): ComputerUseCommandReader {
   }
 }
 
-/** `input.key` takes one shortcut such as `cmd+f`. The other key commands take one key per argument, which can be `+` itself. */
-function readKeys(shortcut: boolean): ComputerUseCommandReader {
-  return (result, invocation) => {
-    const action = safeParse(InputActionSchema, result)
-    if (!action.success)
-      return undefined
-    return {
-      view: {
-        kind: 'keys',
-        keys: shortcut ? invocation.positional.flatMap(key => key.split('+')) : invocation.positional,
-        count: lastFlag(invocation, '--count'),
-        intervalMs: lastFlag(invocation, '--interval-ms'),
-        durationMs: lastFlag(invocation, '--duration-ms'),
-        action: action.output,
-      },
-      shown: { result: INPUT_ACTION_SHOWN },
-    }
+/** The key commands take one key per argument, which can be `+` itself. */
+const readKeys: ComputerUseCommandReader = (result, invocation) => {
+  const action = safeParse(InputActionSchema, result)
+  if (!action.success)
+    return undefined
+  return {
+    view: {
+      kind: 'keys',
+      keys: invocation.positional,
+      count: lastFlag(invocation, '--count'),
+      intervalMs: lastFlag(invocation, '--interval-ms'),
+      durationMs: lastFlag(invocation, '--duration-ms'),
+      action: action.output,
+    },
+    shown: { result: INPUT_ACTION_SHOWN },
   }
 }
 
@@ -54,11 +52,9 @@ const POINTER_SHOWN = { action: INPUT_ACTION_SHOWN, normalized: true, relative_t
 export const inputReaders: Record<string, ComputerUseCommandReader> = {
   'input.typeText': readTextInput('type'),
   'input.pasteText': readTextInput('paste'),
-  'input.key': readKeys(true),
-  'input.keys': readKeys(false),
-  'input.pressKeys': readKeys(false),
-  'input.holdKeys': readKeys(false),
-  'input.keyboard': (result, invocation) => {
+  'input.pressKeys': readKeys,
+  'input.holdKeys': readKeys,
+  'input.performKeyboardInputs': (result, invocation) => {
     const parsed = safeParse(looseObject({ actions: array(InputActionSchema) }), result)
     if (!parsed.success)
       return undefined
@@ -68,8 +64,7 @@ export const inputReaders: Record<string, ComputerUseCommandReader> = {
       shown: { result: { actions: [INPUT_ACTION_SHOWN] } },
     }
   },
-  'input.focusText': readFocus,
-  'input.axFocusText': readFocus,
+  'accessibility.focusText': readFocus,
   'input.moveMouse': (result) => {
     const parsed = safeParse(looseObject({ point: PointSchema, action: InputActionSchema }), result)
     if (!parsed.success)
@@ -97,7 +92,7 @@ export const inputReaders: Record<string, ComputerUseCommandReader> = {
       shown: { result: { ...POINTER_SHOWN, requested_point: POINT_SHOWN, screen_point: POINT_SHOWN } },
     }
   },
-  'input.drag': (result) => {
+  'input.dragMouse': (result) => {
     const parsed = safeParse(looseObject({
       action: InputActionSchema,
       button: string(),

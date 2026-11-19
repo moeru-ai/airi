@@ -146,7 +146,7 @@ function fieldRecordFrom(fields: string[]): Record<string, string> {
  * Lifecycle: `start()` creates the group, ignores `BUSYGROUP`, and starts the loop in the background.
  * `stop()` interrupts a blocking read, lets the current batch finish its acks, and closes the read
  * connection. An entry that the interrupted read already delivered stays pending and is claimed later.
- * Each instance starts at most one time. Register both with `lifecycle.appHooks`.
+ * Each instance starts at most one time. Register both with `on('start')` and `on('stop')` in the injeca `build`.
  *
  * No consumer runs in the API now. The API AGENTS.md has no background loops, so wiring one needs an ADR.
  */

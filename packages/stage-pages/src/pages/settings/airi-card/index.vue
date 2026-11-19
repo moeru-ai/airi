@@ -300,14 +300,6 @@ async function handleRestoreDeletedCard(card: DeletedCard) {
       </div>
     </div>
 
-    <p v-else-if="isAuthenticated" :class="['flex flex-wrap items-center gap-2 text-sm', 'text-neutral-500 dark:text-neutral-400']">
-      <span :class="['i-solar:cloud-cross-outline shrink-0']" />
-      {{ t('settings.pages.card.sync.off_notice') }}
-      <RouterLink to="/settings/system/experimental" :class="['text-primary-600 dark:text-primary-400 hover:underline']">
-        {{ t('settings.pages.card.sync.off_notice_link') }}
-      </RouterLink>
-    </p>
-
     <div :class="['flex flex-wrap items-center gap-3']">
       <SettingsSearchField
         v-model="searchQuery"
