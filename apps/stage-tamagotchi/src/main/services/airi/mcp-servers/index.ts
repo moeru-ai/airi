@@ -537,7 +537,8 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
       const authorizationSignal = combineSignals(callSignal, turboSignal)
       let privateRequestSent = false
       // Rejection and execution share `privateRequestSent`, but only execution can
-      // reach the desktop. A cancellation after it started leaves the outcome open.
+      // reach the desktop. Any failure after dispatch leaves the outcome open:
+      // abort, timeout, and a lost reply all need `unknown` with `doNotReplay`.
       let dispatched = false
       const reject = async () => {
         if (privateRequestSent)
@@ -592,14 +593,14 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
       catch (error) {
         if (!privateRequestSent && sessions.get(serverName) === session)
           await reject().catch(() => {})
-        if (authorizationSignal?.aborted) {
-          if (dispatched) {
-            return {
-              isError: true,
-              content: [{ type: 'text', text: 'The Computer Use action was dispatched before the cancellation. Its outcome is unknown. Check the current state before repeating it.' }],
-              structuredContent: { status: 'unknown', doNotReplay: true, pendingActionId },
-            }
+        if (dispatched) {
+          return {
+            isError: true,
+            content: [{ type: 'text', text: 'The Computer Use action was dispatched before the failure. Its outcome is unknown. Check the current state before repeating it.' }],
+            structuredContent: { status: 'unknown', doNotReplay: true, pendingActionId },
           }
+        }
+        if (authorizationSignal?.aborted) {
           return {
             isError: true,
             content: [{ type: 'text', text: 'Computer Use action was cancelled before dispatch.' }],

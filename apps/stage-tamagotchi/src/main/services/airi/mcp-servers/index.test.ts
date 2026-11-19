@@ -337,6 +337,43 @@ describe('createMcpManager', () => {
     expect(clientMocks.privateRequest).toHaveBeenCalledOnce()
   })
 
+  // https://github.com/moeru-ai/airi/pull/3496
+  // ROOT CAUSE:
+  //
+  // After `dispatched` is set, only an aborted authorization signal returned
+  // `unknown` with `doNotReplay`. A timeout or a lost reply rethrew, so the
+  // model could replay an action that may already have reached the desktop.
+  //
+  // We fixed this by returning `unknown` with `doNotReplay` for every failure
+  // after dispatch, not only for abort.
+  it('returns unknown with doNotReplay when a dispatched Computer Use reply is lost', async () => {
+    const actions = new PendingActionManager()
+    const attribution = { sessionId: 'session-lost-reply', turnId: 'turn-lost-reply', toolCallId: 'call-lost-reply' }
+    const request = actions.registerRequest({ sessionId: attribution.sessionId, turnId: attribution.turnId, text: 'Change the desktop.' }, 71)
+    actions.setTerminalTurbo(attribution.sessionId, 71, true)
+    const presentComputerUse = vi.fn(async () => false)
+    const manager = createMcpManager({
+      actions,
+      present: vi.fn(async () => false),
+      presentComputerUse,
+      executeInSlot: async operation => operation(new AbortController().signal, () => {}),
+      notify: async notice => ({ status: 'stored', sessionId: notice.sessionId, messageId: 'fixture' }),
+    })
+    managers.push(manager)
+    await manager.writeConfigText(JSON.stringify({ terminalEnabled: true, mcpServers: {} }))
+    await manager.applyAndRestart()
+    clientMocks.listTools.mockResolvedValue({ tools: [{ name: 'computer_act', inputSchema: { type: 'object' } }] })
+    clientMocks.callTool.mockResolvedValue({ content: [], structuredContent: { status: 'approval_required', pendingActionId: 'pending-lost-reply', toolName: 'computer_act', action: { kind: 'click', input: { x: 10, y: 20 } } } })
+    clientMocks.privateRequest.mockRejectedValue(new Error('MCP request timed out'))
+
+    await expect(manager.callTool({ name: 'airi-terminal::computer_act', arguments: { x: 10, y: 20 }, requestId: request.id, attribution }, 71)).resolves.toMatchObject({
+      isError: true,
+      structuredContent: { status: 'unknown', doNotReplay: true, pendingActionId: 'pending-lost-reply' },
+    })
+    expect(presentComputerUse).not.toHaveBeenCalled()
+    expect(clientMocks.privateRequest).toHaveBeenCalledOnce()
+  })
+
   it('starts the bundled Terminal in a new packaged Beta profile without external Node or a persisted install path', async () => {
     appMock.isPackaged = true
     vi.stubEnv('AIRI_DISTRIBUTION', 'terminal-beta')
