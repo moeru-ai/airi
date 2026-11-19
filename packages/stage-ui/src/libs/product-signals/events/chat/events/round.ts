@@ -10,6 +10,9 @@ export const messageRoundEvent = defineEvent<ChatRoundProperties & {
   duration_ms: number
   has_voice: boolean
   model: string
+  /** Provider class. Reports split official and custom providers by this value. */
+  provider_type: 'official' | 'custom' | 'unknown'
+  provider_name: string
   input_tokens?: number
   output_tokens?: number
   total_tokens?: number

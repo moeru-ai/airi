@@ -1,6 +1,6 @@
 ---
 name: enforce-rules-for-typescript
-description: Enforce AIRI's TypeScript and Vue source rules for imports, naming, comments, JSDoc, fallbacks, stateful and protocol code, and module design. Use when writing, refactoring, or reviewing TypeScript or Vue source code in the AIRI monorepo.
+description: Enforce AIRI's TypeScript and Vue source rules for imports, naming, comments, JSDoc, fallbacks, stateful and protocol code, module design, date and time code, and unit conversion and formatting helpers. Use when writing, refactoring, or reviewing TypeScript or Vue source code in the AIRI monorepo.
 ---
 
 # Enforce AIRI TypeScript Rules
@@ -127,6 +127,56 @@ Apply these rules to every TypeScript and Vue source change in AIRI. The root `A
 - Keep runtime entry points lean. Move heavy logic into services or modules.
 - Prefer early returns, and keep functions simple. Limit nesting when it improves readability. Do not add pass-through helpers or shallow modules only to reduce indentation.
 - The root `AGENTS.md` gives the rules for classes and dependency injection.
+
+## Dates and Times
+
+The repository uses `date-fns` 4 from the pnpm catalog. `@date-fns/utc` is also in the catalog. Hand-written date code repeats bugs with time zones, daylight saving time, month lengths, and locales.
+
+- Use `date-fns` for date and time work. Examples:
+  - Formatting: `format`, `formatISO`, and `intlFormat`.
+  - Relative time: `intlFormatDistance` and `formatDistanceToNow`.
+  - Durations: `intervalToDuration` and `formatDuration`.
+  - Arithmetic and comparison: `addDays`, `differenceInCalendarDays`, `isBefore`, and `startOfDay`.
+- Do not write date arithmetic with millisecond constants, such as `24 * 60 * 60 * 1000` or `86_400_000`. Use a `date-fns` function. If you need a constant, import it from `date-fns/constants`, for example `millisecondsInDay`.
+- Do not format dates by hand with `padStart` on `getHours()` and `getMinutes()`, or by slicing `toISOString()`.
+- Use `UTCDate` from `@date-fns/utc` for a value that is defined in UTC, for example a server day bucket.
+- Use `TZDate` from `@date-fns/tz` for a named time zone. `@date-fns/tz` is not in the catalog yet. Add it to the catalog the first time that you need it.
+- For text that users see, use the locale of `packages/i18n`. Pass it to the `date-fns` locale option, or use the `intl*` functions with that locale.
+- On the server, store and send instants as ISO 8601 strings in UTC.
+- If `date-fns` and its extensions cannot do a task, stop. Tell the user the gap, and ask for advice or for approval to research another library.
+
+These rules do not apply to frame clocks and to `performance.now()` durations for traces. The `enforce-rules-for-render-loops` skill covers them.
+
+### Refactor progressively
+
+- In each function that you change, replace hand-written date code with `date-fns`. Keep the output the same, or update the assertions and tell the reviewer.
+- Do not refactor unrelated files only for this rule.
+- When you find hand-written date code that you do not change, list it as follow-up work in the PR.
+
+## Units and Shared Utilities
+
+Unit conversion and unit formatting helpers are small, so agents often write them again. Examples are bytes, durations, clock time, percentages, counts, pixels, and audio sample conversions.
+
+- Before you write such a helper, search the repository for an existing one. Search for the operation, for example `formatBytes`, `toFixed(`, `/ 1024`, or `style: 'percent'`.
+- Known shared helpers include:
+  - `formatBytes` in `packages/stage-ui/src/libs/inference`.
+  - `formatClockDuration` in `packages/stage-ui/src/utils`.
+  - The time formatters in `packages/ui-timeline/src/headless/utils`.
+  - The PCM and WAV conversions in `packages/audio/src/encoding`.
+- You can write a local helper when no shared helper exists and only one place needs it.
+- When the same helper exists two or more times, move it to one shared module and replace the copies. Choose the location by its users:
+  - `packages/stage-shared/src` for logic without Vue that several stage packages or apps use.
+  - The `utils` directory of the owning package when only that package and its dependents use it.
+- Export the shared helper from the package entry. Give it JSDoc with an `@example`, and add a unit test.
+- For locale-aware numbers, use `Intl.NumberFormat` with the `unit`, `percent`, or `compact` options. Pass the locale of `packages/i18n`.
+- Name the unit in each input and output name, for example `sizeBytes` or `durationMs`.
+- When two copies format the same value differently, for example `"5 px"` and `"5px"`, pick one format and tell the reviewer about the change.
+
+### Refactor progressively
+
+- In each function that you change, replace a duplicate helper with the shared one.
+- When a change adds the second copy of a helper, move the helper to a shared module in the same change.
+- Do not consolidate unrelated copies in the same PR. List them as follow-up work.
 
 ## Constants, Options, and Tables
 

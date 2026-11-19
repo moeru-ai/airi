@@ -6,7 +6,7 @@ import type { ChatFloatingPlacement, ChatFloatingState } from '../../../shared/e
 import type { AttachedChatLayout } from './floating-placement'
 
 import { defineInvokeHandler } from '@moeru/eventa'
-import { isRendererUnavailable } from '@proj-airi/electron-vueuse/main'
+import { isRendererUnavailable, onWindowClosed } from '@proj-airi/electron-vueuse/main'
 import { animate } from 'animejs'
 import { BrowserWindow, screen } from 'electron'
 import { debounce } from 'es-toolkit'
@@ -466,7 +466,7 @@ export function setupFloatingChatWindow(params: {
     })
     // Registered before any await, so a window that fails during setup
     // still releases the main window listeners when it is destroyed.
-    target.on('closed', () => {
+    onWindowClosed(target, () => {
       persistMove.cancel()
       detachFromMain?.()
       detachFromMain = undefined

@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/stage-ui",
   "type": "module",
-  "version": "0.15.1",
+  "version": "0.15.4",
   "private": true,
   "description": "Shared core for stage",
   "author": {
@@ -170,6 +170,7 @@
     "ofetch": "catalog:",
     "pinia": "catalog:",
     "pinia-plugin-synced": "catalog:",
+    "posthog-js": "catalog:",
     "rehype-katex": "catalog:",
     "rehype-parse": "catalog:",
     "rehype-stringify": "catalog:",
