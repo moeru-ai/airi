@@ -6,14 +6,18 @@ const configSchema = v.object({
   airiUrl: v.optional(v.string(), 'ws://localhost:6121/ws'),
   airiToken: v.optional(v.string()),
   photonBaseUrl: v.optional(v.pipe(v.string(), v.url()), 'https://api.photon.codes'),
-  photonProjectId: v.pipe(v.string('PHOTON_PROJECT_ID is required'), v.nonEmpty()),
-  photonApiKey: v.pipe(v.string('PHOTON_API_KEY is required'), v.nonEmpty()),
+  photonProjectId: v.optional(v.string()),
+  photonApiKey: v.optional(v.string()),
   stateFile: v.optional(v.string(), 'photon-bot-state.local.json'),
 })
 
 export type PhotonBotConfig = v.InferOutput<typeof configSchema>
 
-/** Reads the configuration from the environment. An empty value counts as not set. */
+/**
+ * Reads the configuration from the environment. An empty value counts as not set.
+ *
+ * The Photon project ID and API key are optional here. AIRI can send them later with `module:configure`.
+ */
 export function loadConfig(source: Record<string, string | undefined> = env): PhotonBotConfig {
   return v.parse(configSchema, {
     airiUrl: source.AIRI_URL || undefined,
@@ -24,3 +28,12 @@ export function loadConfig(source: Record<string, string | undefined> = env): Ph
     stateFile: source.PHOTON_STATE_FILE || undefined,
   })
 }
+
+/** The settings that the Photon page of AIRI sends with `module:configure`. */
+export const moduleSettingsSchema = v.object({
+  enabled: v.optional(v.boolean()),
+  projectId: v.optional(v.string()),
+  apiKey: v.optional(v.string()),
+})
+
+export type PhotonModuleSettings = v.InferOutput<typeof moduleSettingsSchema>

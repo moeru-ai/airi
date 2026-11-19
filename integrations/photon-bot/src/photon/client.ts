@@ -50,6 +50,7 @@ export class PhotonStream {
   private readonly socket: Socket
   private queue = Promise.resolve()
   private stale = false
+  private closed = false
   private retry?: ReturnType<typeof setTimeout>
 
   constructor(private readonly options: PhotonStreamOptions) {
@@ -93,11 +94,15 @@ export class PhotonStream {
 
   close(): void {
     this.stale = true
+    this.closed = true
     clearTimeout(this.retry)
     this.socket.close()
   }
 
   private reconnectLater(): void {
+    // A handler can fail after `close()`. A closed stream must stay closed.
+    if (this.closed)
+      return
     clearTimeout(this.retry)
     this.retry = setTimeout(() => this.socket.connect(), RECONNECT_DELAY_MS)
   }

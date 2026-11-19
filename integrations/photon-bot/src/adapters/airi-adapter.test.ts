@@ -4,7 +4,7 @@ import type { Client as ServerChannel } from '@proj-airi/server-sdk'
 
 import type { PhotonBotConfig } from '../config'
 
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -34,6 +34,7 @@ function createFakeAiri() {
     reply: (input: SentInput, content: string) => listeners.get('output:gen-ai:chat:message')?.({ data: { 'message': { content }, 'gen-ai:chat': { input } } }),
     replyMessage: (input: SentInput, message: unknown) => listeners.get('output:gen-ai:chat:message')?.({ data: { message, 'gen-ai:chat': { input } } }),
     refuse: () => listeners.get('error')?.({ data: { message: 'no consumer registered for requested event delivery' } }),
+    configure: (config: unknown) => listeners.get('module:configure')?.({ data: { config } }),
   }
 }
 
@@ -45,16 +46,24 @@ describe('photonAdapter', () => {
   const http = createServer()
   const photon = new Server(http, { path: '/v1/projects/project-1/events/ws', addTrailingSlash: false, transports: ['websocket'] })
   const subscribes: number[] = []
+  const apiKeys: (string | undefined)[] = []
+  let disconnects = 0
   let config: PhotonBotConfig
   let adapter: PhotonAdapter
 
   beforeEach(async () => {
     subscribes.length = 0
+    apiKeys.length = 0
+    disconnects = 0
     photon.removeAllListeners('connection')
-    photon.on('connection', socket => socket.on('subscribe', (payload: { startSeq: number }, ack: (result: { ok: boolean }) => void) => {
-      subscribes.push(payload.startSeq)
-      ack({ ok: true })
-    }))
+    photon.on('connection', (socket) => {
+      apiKeys.push(socket.handshake.headers.authorization)
+      socket.on('disconnect', () => disconnects += 1)
+      socket.on('subscribe', (payload: { startSeq: number }, ack: (result: { ok: boolean }) => void) => {
+        subscribes.push(payload.startSeq)
+        ack({ ok: true })
+      })
+    })
     if (!http.listening)
       await new Promise<void>(resolve => http.listen(0, '127.0.0.1', resolve))
     config = {
@@ -87,7 +96,7 @@ describe('photonAdapter', () => {
     })
 
     airi.reply(airi.sent[0], 'hi there')
-    await vi.waitFor(() => expect(JSON.parse(readFileSync(config.stateFile, 'utf8'))).toEqual({ cursor: 7 }))
+    await vi.waitFor(() => expect(JSON.parse(readFileSync(config.stateFile, 'utf8'))).toEqual({ cursor: 7, projectId: 'project-1' }))
     expect(send).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({ projectId: 'project-1' }),
       { spaceId: 'space-1', senderId: 'agent-1', text: 'hi there', idempotencyKey: 'airi-reply:message-1' },
@@ -150,7 +159,7 @@ describe('photonAdapter', () => {
     photon.emit('delivery', received('message-6', 'hm'), { seq: 11 })
     await vi.waitFor(() => expect(airi.sent).toHaveLength(1))
     airi.replyMessage(airi.sent[0], { content: '', categorization: { speech: '<|ACT {"emotion":"neutral"}|>' } })
-    await vi.waitFor(() => expect(JSON.parse(readFileSync(config.stateFile, 'utf8'))).toEqual({ cursor: 11 }))
+    await vi.waitFor(() => expect(JSON.parse(readFileSync(config.stateFile, 'utf8'))).toEqual({ cursor: 11, projectId: 'project-1' }))
     expect(send).not.toHaveBeenCalled()
   })
 
@@ -178,12 +187,120 @@ describe('photonAdapter', () => {
     adapter.start()
     await vi.waitFor(() => expect(subscribes).toHaveLength(1))
     photon.emit('delivery', { type: 'message.accepted', data: { object: { id: 'message-3' } } }, { seq: 12 })
-    await vi.waitFor(() => expect(JSON.parse(readFileSync(config.stateFile, 'utf8'))).toEqual({ cursor: 12 }))
+    await vi.waitFor(() => expect(JSON.parse(readFileSync(config.stateFile, 'utf8'))).toEqual({ cursor: 12, projectId: 'project-1' }))
     expect(airi.sent).toHaveLength(0)
     adapter.stop()
 
     adapter = new PhotonAdapter(config, { markRead: async () => 202, setTyping: async () => 202, airiClient: createFakeAiri().client, send: vi.fn() })
     adapter.start()
     await vi.waitFor(() => expect(subscribes).toEqual([0, 12]))
+  })
+
+  it('waits for the settings from AIRI when the environment has no Photon credentials', async () => {
+    const airi = createFakeAiri()
+    const send = vi.fn(async () => {})
+    adapter = new PhotonAdapter({ ...config, photonProjectId: undefined, photonApiKey: undefined }, { markRead: async () => 202, setTyping: async () => 202, airiClient: airi.client, send })
+    adapter.start()
+
+    airi.configure({ enabled: true, projectId: ' project-1 ', apiKey: 'key-from-airi' })
+    await vi.waitFor(() => expect(subscribes).toEqual([0]))
+    expect(apiKeys).toEqual(['Bearer key-from-airi'])
+
+    photon.emit('delivery', received('message-7', 'hello'), { seq: 4 })
+    await vi.waitFor(() => expect(airi.sent).toHaveLength(1))
+    airi.reply(airi.sent[0], 'hi there')
+    await vi.waitFor(() => expect(send).toHaveBeenCalledOnce())
+    expect(send).toHaveBeenCalledWith(
+      { baseUrl: config.photonBaseUrl, projectId: 'project-1', apiKey: 'key-from-airi' },
+      expect.objectContaining({ text: 'hi there' }),
+    )
+  })
+
+  it('stops when AIRI disables the module, and replays the text in progress when AIRI enables it again', async () => {
+    const airi = createFakeAiri()
+    const send = vi.fn(async () => {})
+    adapter = new PhotonAdapter(config, { markRead: async () => 202, setTyping: async () => 202, airiClient: airi.client, send })
+    adapter.start()
+    await vi.waitFor(() => expect(subscribes).toEqual([0]))
+    photon.emit('delivery', received('message-8', 'still there?'), { seq: 5 })
+    await vi.waitFor(() => expect(airi.sent).toHaveLength(1))
+
+    airi.configure({ enabled: false, projectId: 'project-1', apiKey: 'test-key' })
+    await vi.waitFor(() => expect(disconnects).toBe(1))
+    airi.reply(airi.sent[0], 'too late')
+    expect(send).not.toHaveBeenCalled()
+    expect(() => readFileSync(config.stateFile)).toThrow()
+
+    airi.configure({ enabled: true, projectId: 'project-1', apiKey: 'test-key' })
+    await vi.waitFor(() => expect(subscribes).toEqual([0, 0]))
+    photon.emit('delivery', received('message-8', 'still there?'), { seq: 5 })
+    await vi.waitFor(() => expect(airi.sent).toHaveLength(2))
+    airi.reply(airi.sent[1], 'yes')
+    await vi.waitFor(() => expect(send).toHaveBeenCalledOnce())
+    expect(send).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ text: 'yes', idempotencyKey: 'airi-reply:message-8' }))
+  })
+
+  it('stops when AIRI enables the module without an API key', async () => {
+    const airi = createFakeAiri()
+    adapter = new PhotonAdapter(config, { markRead: async () => 202, setTyping: async () => 202, airiClient: airi.client, send: vi.fn() })
+    adapter.start()
+    await vi.waitFor(() => expect(subscribes).toEqual([0]))
+
+    airi.configure({ enabled: true, projectId: 'project-1', apiKey: '' })
+    await vi.waitFor(() => expect(disconnects).toBe(1))
+  })
+
+  it('connects again with a new API key and keeps the cursor of the project', async () => {
+    const airi = createFakeAiri()
+    adapter = new PhotonAdapter(config, { markRead: async () => 202, setTyping: async () => 202, airiClient: airi.client, send: vi.fn() })
+    adapter.start()
+    await vi.waitFor(() => expect(subscribes).toEqual([0]))
+    photon.emit('delivery', { type: 'message.accepted', data: { object: { id: 'message-9' } } }, { seq: 6 })
+    await vi.waitFor(() => expect(JSON.parse(readFileSync(config.stateFile, 'utf8'))).toEqual({ cursor: 6, projectId: 'project-1' }))
+
+    airi.configure({ enabled: true, projectId: 'project-1', apiKey: 'new-key' })
+    await vi.waitFor(() => expect(subscribes).toEqual([0, 6]))
+    expect(apiKeys).toEqual(['Bearer test-key', 'Bearer new-key'])
+  })
+
+  it('starts another project at the live end of its stream', async () => {
+    const otherHttp = createServer()
+    const otherPhoton = new Server(otherHttp, { path: '/v1/projects/project-2/events/ws', addTrailingSlash: false, transports: ['websocket'] })
+    const otherSubscribes: number[] = []
+    otherPhoton.on('connection', socket => socket.on('subscribe', (payload: { startSeq: number }, ack: (result: { ok: boolean }) => void) => {
+      otherSubscribes.push(payload.startSeq)
+      ack({ ok: true })
+    }))
+    await new Promise<void>(resolve => otherHttp.listen(0, '127.0.0.1', resolve))
+
+    const airi = createFakeAiri()
+    adapter = new PhotonAdapter({ ...config, photonBaseUrl: `http://127.0.0.1:${(otherHttp.address() as AddressInfo).port}`, photonProjectId: undefined, photonApiKey: undefined }, { markRead: async () => 202, setTyping: async () => 202, airiClient: airi.client, send: vi.fn() })
+    writeFileSync(config.stateFile, JSON.stringify({ cursor: 12, projectId: 'project-1' }))
+    adapter.start()
+
+    airi.configure({ enabled: true, projectId: 'project-2', apiKey: 'other-key' })
+    await vi.waitFor(() => expect(otherSubscribes).toEqual([0]))
+    otherPhoton.emit('delivery', { type: 'message.accepted', data: { object: { id: 'message-10' } } }, { seq: 2 })
+    await vi.waitFor(() => expect(JSON.parse(readFileSync(config.stateFile, 'utf8'))).toEqual({ cursor: 2, projectId: 'project-2' }))
+
+    adapter.stop()
+    await otherPhoton.close()
+  })
+
+  it('ignores settings that are not valid and keeps the stream when the settings do not change', async () => {
+    const airi = createFakeAiri()
+    const send = vi.fn(async () => {})
+    adapter = new PhotonAdapter(config, { markRead: async () => 202, setTyping: async () => 202, airiClient: airi.client, send })
+    adapter.start()
+    await vi.waitFor(() => expect(subscribes).toEqual([0]))
+    photon.emit('delivery', received('message-11', 'hello'), { seq: 8 })
+    await vi.waitFor(() => expect(airi.sent).toHaveLength(1))
+
+    airi.configure({ enabled: 'yes', projectId: 7 })
+    airi.configure({ enabled: true, projectId: 'project-1', apiKey: 'test-key' })
+    airi.reply(airi.sent[0], 'hi')
+    await vi.waitFor(() => expect(send).toHaveBeenCalledOnce())
+    expect(subscribes).toEqual([0])
+    expect(disconnects).toBe(0)
   })
 })
