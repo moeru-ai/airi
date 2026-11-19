@@ -145,6 +145,11 @@ describe('channel-server store reconnect', () => {
     await initializePromise
 
     expect(store.connected).toBe(true)
+    expect(store.pendingSendCount).toBe(1)
+    expect(client.sent).toHaveLength(0)
+
+    client.simulateReconnectReady()
+
     expect(store.pendingSendCount).toBe(0)
     expect(client.sent).toEqual(expect.arrayContaining([
       expect.objectContaining({
@@ -189,6 +194,34 @@ describe('channel-server store reconnect', () => {
       readTimeout: 60_000,
       pingInterval: 20_000,
     })
+  })
+
+  // Regression coverage for https://github.com/moeru-ai/airi/issues/2305
+  it('issue #2305: queues consumer registration until the channel is ready', async () => {
+    const store = useModsServerChannelStore()
+    const initializePromise = store.initialize({ token: 'secret' })
+    const client = serverSdkMocks.MockClient.instances[0]
+
+    client.simulateAuthenticated()
+    await initializePromise
+
+    store.send({
+      type: 'module:consumer:register',
+      data: { event: 'input:text', mode: 'consumer-group', group: 'chat-ingestion' },
+    })
+
+    expect(store.pendingSendCount).toBe(1)
+    expect(client.sent).toHaveLength(0)
+
+    client.simulateReconnectReady()
+
+    expect(store.pendingSendCount).toBe(0)
+    expect(client.sent).toEqual([
+      expect.objectContaining({
+        type: 'module:consumer:register',
+        data: { event: 'input:text', mode: 'consumer-group', group: 'chat-ingestion' },
+      }),
+    ])
   })
 
   it('notifies onReconnected callbacks when the websocket becomes ready again', async () => {

@@ -59,6 +59,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   // Pinia can then be another one, so keep the Pinia that owns this store.
   const pinia = getActivePinia()
   const connected = ref(false)
+  const ready = ref(false)
   const client = ref<Client>()
   const initializing = ref<Promise<void> | null>(null)
   let connectionAttempt = 0
@@ -162,6 +163,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
             return
 
           connected.value = false
+          ready.value = false
           // Do not clear listeners or replay cache here.
           // onError may be recoverable while the SDK is reconnecting.
           if (import.meta.env.DEV) {
@@ -176,6 +178,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
             return
 
           connected.value = false
+          ready.value = false
 
           if (!hasEverConnected.value) {
             // First handshake failed: clear lock so initialize() can be retried externally.
@@ -191,6 +194,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
           if (status === 'failed') {
             // SDK entered terminal state (auth terminal / retries exhausted / autoReconnect disabled).
             connected.value = false
+            ready.value = false
             initializing.value = null
             console.warn('WebSocket server connection failed')
           }
@@ -203,6 +207,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
 
           hasEverConnected.value = true
           connected.value = true
+          ready.value = true
           flush()
           initializeListeners()
 
@@ -229,18 +234,17 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
 
         if (event.data.authenticated) {
           if (!hasEverConnected.value) {
-            // First connection can flush immediately after authentication.
+            // Authentication precedes ready. Keep business events queued until announce completes.
             connected.value = true
-            flush()
             initializeListeners()
           }
-          // On reconnect, wait for onReady (after announce) before flushing business events.
           resolve()
 
           return
         }
 
         connected.value = false
+        ready.value = false
       })
     })
   }
@@ -307,7 +311,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     if (!client.value && !initializing.value)
       void initialize()
 
-    if (client.value && connected.value) {
+    if (client.value && connected.value && ready.value) {
       client.value.send(data as WebSocketEvent)
     }
     else {
@@ -316,7 +320,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   }
 
   function flush() {
-    if (client.value && connected.value) {
+    if (client.value && connected.value && ready.value) {
       for (const update of pendingSend.value) {
         client.value.send(update)
       }
@@ -358,6 +362,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     flush()
     hasEverConnected.value = false
     connected.value = false
+    ready.value = false
     initializing.value = null
     clearListeners()
     replayableEvents.clear()
