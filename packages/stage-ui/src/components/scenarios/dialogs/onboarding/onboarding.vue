@@ -4,6 +4,7 @@ import type { ProviderMetadata } from '../../../../libs/providers/metadata'
 import type {
   OnboardingStep,
   OnboardingStepGuard,
+  OnboardingStepLaterHandler,
   OnboardingStepNextHandler,
   OnboardingStepPrevHandler,
   ProviderConfigData,
@@ -11,21 +12,22 @@ import type {
 
 import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
 import { storeToRefs } from 'pinia'
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, shallowRef, watch } from 'vue'
 
 import StepModelSelection from './step-model-selection.vue'
+import StepPermissions from './step-permissions.vue'
 import StepProviderConfiguration from './step-provider-configuration.vue'
 import StepProviderSelection from './step-provider-selection.vue'
 import StepWelcome from './step-welcome.vue'
 
 import { useAnalytics } from '../../../../composables/use-analytics'
 import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
+import { isStepPending, sharedOnboardingSteps, useOnboardingStore } from '../../../../stores/onboarding'
 import { useProviderConfigStore } from '../../../../stores/providers/config'
 import { useProviderStore } from '../../../../stores/providers/provider'
 
 interface Emits {
   (e: 'configured'): void
-  (e: 'skipped'): void
 }
 
 const props = withDefaults(defineProps<{
@@ -40,9 +42,9 @@ const pendingProviderConfig = ref<ProviderConfigData | null>(null)
 const { trackOnboardingCompleted, trackOnboardingStarted, trackOnboardingStepCompleted } = useAnalytics()
 
 const providersStore = useProviderStore()
+const onboardingStore = useOnboardingStore()
 
 const providerStore = useProviderConfigStore()
-const { configs: providers } = storeToRefs(providerStore)
 const { allChatProvidersMetadata } = storeToRefs(providersStore)
 const consciousnessStore = useConsciousnessStore()
 const {
@@ -104,14 +106,14 @@ async function saveProviderConfiguration(data: ProviderConfigData) {
     }
   }
 
-  providers.value[selectedProvider.value.id] = {
-    ...providers.value[selectedProvider.value.id],
-    ...config,
-  }
+  // Provider configuration is leader-owned synchronized state. Route the save
+  // through synced actions so the leader persists it and replicates it back;
+  // the `configs` computed projection discards direct writes on recompute.
+  await providersStore.initializeProvider(selectedProvider.value.id)
+  await providerStore.patchProviderConfig(selectedProvider.value.id, config)
+  await providersStore.forceProviderConfigured(selectedProvider.value.id)
 
   activeProvider.value = selectedProvider.value.id
-
-  await nextTick()
 
   try {
     await consciousnessStore.loadModelsForProvider(selectedProvider.value.id)
@@ -121,10 +123,16 @@ async function saveProviderConfiguration(data: ProviderConfigData) {
   }
 }
 
+/** A shared step takes its version from the store catalog, so the store and the flow agree on it. */
+function sharedVersionOf(id: string) {
+  return sharedOnboardingSteps.find(step => step.id === id)?.version ?? 1
+}
+
 const allSteps = computed<OnboardingStep[]>(() => {
   const coreSteps: OnboardingStep[] = [
     {
       id: 'welcome',
+      version: sharedVersionOf('welcome'),
       component: StepWelcome,
       props: () => ({
         customProviderSetupEnabled: !isCustomProvidersDisabled(),
@@ -132,6 +140,7 @@ const allSteps = computed<OnboardingStep[]>(() => {
     },
     {
       id: 'provider-selection',
+      version: sharedVersionOf('provider-selection'),
       component: StepProviderSelection,
       props: () => ({
         selectedProviderId: selectedProviderId.value,
@@ -141,6 +150,7 @@ const allSteps = computed<OnboardingStep[]>(() => {
     },
     {
       id: 'provider-configuration',
+      version: sharedVersionOf('provider-configuration'),
       component: StepProviderConfiguration,
       props: () => ({
         selectedProviderId: selectedProviderId.value,
@@ -163,18 +173,45 @@ const allSteps = computed<OnboardingStep[]>(() => {
     })),
     {
       id: 'model-selection',
+      version: sharedVersionOf('model-selection'),
       component: StepModelSelection,
+    },
+    {
+      id: 'permissions',
+      version: sharedVersionOf('permissions'),
+      optional: true,
+      component: StepPermissions,
     },
   ]
 
   return coreSteps
 })
 
-const currentStep = computed(() => allSteps.value[step.value] ?? null)
-const isLastStep = computed(() => step.value === allSteps.value.length - 1)
+// The flow shows the pending shared steps, and the host steps that this device has no record of.
+// The list is fixed when the flow starts. A `later` record during the flow does not move the step index.
+// Only a sign-in changes it, see the watch below.
+const sharedStepIds = new Set(sharedOnboardingSteps.map(sharedStep => sharedStep.id))
+const pendingSharedStepIds = new Set(onboardingStore.pendingSharedSteps.map(sharedStep => sharedStep.id))
+const flowStepIds = shallowRef(new Set(allSteps.value
+  .filter(flowStep => sharedStepIds.has(flowStep.id)
+    ? pendingSharedStepIds.has(flowStep.id)
+    : isStepPending(onboardingStore.stepRecords, { id: flowStep.id, version: flowStep.version ?? 1 }))
+  .map(flowStep => flowStep.id)))
+const flowSteps = computed(() => allSteps.value.filter(flowStep => flowStepIds.value.has(flowStep.id)))
+/** Steps that the user postponed in this flow. The finish keeps their `later` record. */
+const postponedStepIds = new Set<string>()
+
+const currentStep = computed(() => flowSteps.value[step.value] ?? null)
+const isLastStep = computed(() => step.value === flowSteps.value.length - 1)
 const currentStepProps = computed(() => currentStep.value?.props?.() ?? {})
 
 async function handleSave() {
+  // Steps are recorded at the finish, not one by one. The provider steps depend on each
+  // other, so a flow that closes in the middle starts again from its first pending step.
+  await onboardingStore.recordSteps(
+    flowSteps.value.filter(flowStep => !postponedStepIds.has(flowStep.id)).map(flowStep => ({ id: flowStep.id, version: flowStep.version ?? 1 })),
+    'done',
+  )
   trackOnboardingStepCompleted(currentStep.value?.id ?? 'unknown')
   trackOnboardingCompleted({
     selected_provider_type: selectedProviderType.value,
@@ -198,12 +235,17 @@ async function navigateNext() {
   if (!(await canPassGuard(currentStep.value.beforeNext)))
     return
 
+  if (!isLastStep.value)
+    trackOnboardingStepCompleted(currentStep.value.id)
+  await advance()
+}
+
+async function advance() {
   if (isLastStep.value) {
     await handleSave()
     return
   }
 
-  trackOnboardingStepCompleted(currentStep.value.id)
   direction.value = 'next'
   step.value++
 }
@@ -218,6 +260,28 @@ async function navigatePrevious() {
   direction.value = 'previous'
   step.value--
 }
+
+const requestLater: OnboardingStepLaterHandler = async () => {
+  if (!currentStep.value?.optional)
+    return
+
+  // The record is saved now, so closing the dialog later keeps the choice.
+  await onboardingStore.recordSteps([{ id: currentStep.value.id, version: currentStep.value.version ?? 1 }], 'later')
+  postponedStepIds.add(currentStep.value.id)
+  await advance()
+}
+
+// A sign-in in any window ends provider setup and sends a close request. When device steps are still pending, for
+// example permissions, the flow leaves provider setup and goes on with them. Otherwise the host closes the flow.
+const providerSetupStepIds = new Set(sharedOnboardingSteps.filter(sharedStep => sharedStep.scope === 'provider-setup').map(sharedStep => sharedStep.id))
+watch(() => onboardingStore.closeRequestId, () => {
+  if (onboardingStore.pendingSharedSteps.length === 0)
+    return
+
+  flowStepIds.value = new Set([...flowStepIds.value].filter(id => !providerSetupStepIds.has(id)))
+  direction.value = 'next'
+  step.value = 0
+})
 
 onMounted(() => {
   trackOnboardingStarted({ entry: 'app_start' })
@@ -234,7 +298,8 @@ onMounted(() => {
         class="flex flex-1 flex-col"
         v-bind="currentStepProps"
         :on-next="requestNextStep"
-        :on-previous="requestPreviousStep"
+        :on-previous="step > 0 ? requestPreviousStep : undefined"
+        :on-later="currentStep.optional ? requestLater : undefined"
       />
     </Transition>
   </div>

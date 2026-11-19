@@ -2,15 +2,14 @@ import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { AutoUpdater } from '../../services/electron/auto-updater'
 
-import { join, resolve } from 'node:path'
-
 import { BrowserWindow } from 'electron'
 
 import icon from '../../../../resources/icon.png?asset'
 
-import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
+import { showWindow } from '../../libs/electron/focus'
+import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
-import { protectPrivilegedWindowNavigation } from '../shared'
+import { customTitleBarWindowConfig, protectPrivilegedWindowNavigation } from '../shared'
 import { setupAboutWindowElectronInvokes } from './rpc/index.electron'
 
 export function setupAboutWindowReusable(params: {
@@ -28,13 +27,14 @@ export function setupAboutWindowReusable(params: {
       maximizable: false,
       minimizable: false,
       icon,
+      ...customTitleBarWindowConfig(),
       webPreferences: {
-        preload: join(getElectronMainDirname(), '../preload/index.mjs'),
+        preload: getPreloadPath(),
         sandbox: false,
       },
     })
 
-    window.on('ready-to-show', () => window.show())
+    window.on('ready-to-show', () => showWindow(window))
     protectPrivilegedWindowNavigation(window)
 
     await setupAboutWindowElectronInvokes({
@@ -44,7 +44,7 @@ export function setupAboutWindowReusable(params: {
       serverChannel: params.serverChannel,
     })
 
-    await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/about', {
+    await load(window, withHashRoute(baseUrl(getRendererRoot()), '/about', {
       query: { 'synced-leader': 'false' },
     }))
 

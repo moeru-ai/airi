@@ -7,16 +7,27 @@ import * as schema from '@proj-airi/auth-shared'
 import { steam } from '../plugins/steam'
 import { createTestDatabase } from './mock-db'
 
-const { ofetchMock } = vi.hoisted(() => ({
+const { ofetchMock, steamLogError } = vi.hoisted(() => ({
   ofetchMock: vi.fn(),
+  steamLogError: vi.fn(),
 }))
 
 vi.mock('ofetch', () => ({
   ofetch: ofetchMock,
 }))
 
+vi.mock('@guiiai/logg', () => ({
+  useLogger: () => ({
+    useGlobalConfig: () => ({
+      error: steamLogError,
+    }),
+  }),
+}))
+
 /** Test fixture: arbitrary valid-format SteamID64 used in fake OpenID callbacks. */
 const STEAM_ID = '76561198012345678'
+const STEAM_WEB_API_KEY = 'test-steam-web-api-key'
+const STEAM_AVATAR_URL = 'https://avatars.steamstatic.com/test_full.jpg'
 
 /**
  * Merges `Set-Cookie` headers from one or more responses into a single
@@ -48,7 +59,7 @@ function forwardableCookieHeader(...headerSources: Headers[]): string {
 }
 
 /** Builds a fake Steam OpenID `id_res` callback query, as if Steam redirected the browser here. */
-function buildCallbackQuery(state: string, steamId = STEAM_ID): string {
+function buildCallbackQuery(state: string, steamId = STEAM_ID, overrides: Record<string, string> = {}): string {
   const params = new URLSearchParams({
     state,
     'openid.mode': 'id_res',
@@ -56,23 +67,49 @@ function buildCallbackQuery(state: string, steamId = STEAM_ID): string {
     'openid.op_endpoint': 'https://steamcommunity.com/openid/login',
     'openid.claimed_id': `https://steamcommunity.com/openid/id/${steamId}`,
     'openid.identity': `https://steamcommunity.com/openid/id/${steamId}`,
-    'openid.return_to': 'http://localhost/api/auth/steam/callback',
+    'openid.return_to': `http://localhost/api/auth/steam/callback?state=${encodeURIComponent(state)}`,
     'openid.response_nonce': '2026-07-31T00:00:00Zxxxxx',
     'openid.assoc_handle': 'test-handle',
     'openid.signed': 'signed,op_endpoint,claimed_id,identity,return_to,response_nonce,assoc_handle',
     'openid.sig': 'test-signature',
+    ...overrides,
   })
   return params.toString()
 }
 
-async function createTestAuth() {
+async function createTestAuth(webApiKey = '') {
   const db = await createTestDatabase()
   return betterAuth({
     database: drizzleAdapter(db, { provider: 'pg', schema }),
     secret: 'test-secret',
     baseURL: 'http://localhost',
-    plugins: [steam()],
+    plugins: [steam({ webApiKey })],
   })
+}
+
+function mockSteamProfile(mode: 'ok' | 'fail') {
+  ofetchMock.mockImplementation(async (request: string) => {
+    const target = request
+    if (target.includes('GetPlayerSummaries')) {
+      if (mode === 'fail')
+        throw new Error(`GET ${target}`)
+      const steamId = new URL(target).searchParams.get('steamids')
+      return {
+        response: {
+          players: [{
+            steamid: steamId,
+            personaname: `Player ${steamId}`,
+            avatarfull: STEAM_AVATAR_URL,
+          }],
+        },
+      }
+    }
+    return 'ns:http://specs.openid.net/auth/2.0\nis_valid:true'
+  })
+}
+
+function playerSummaryCallCount(): number {
+  return ofetchMock.mock.calls.filter(([url]) => String(url).includes('GetPlayerSummaries')).length
 }
 
 describe('steam auth plugin', () => {
@@ -82,7 +119,10 @@ describe('steam auth plugin', () => {
     auth = await createTestAuth()
   })
 
-  afterEach(() => ofetchMock.mockReset())
+  afterEach(() => {
+    ofetchMock.mockReset()
+    steamLogError.mockReset()
+  })
 
   // NOTICE:
   // We mock `ofetch` at the external Steam boundary instead of hitting the
@@ -175,6 +215,79 @@ describe('steam auth plugin', () => {
     expect(callbackResponse.headers.get('location')).toContain('error=steam_openid_verification_failed')
   })
 
+  it('rejects an assertion whose signed return_to points to another site', async () => {
+    mockSteamVerification(true)
+    const context = await auth.$context
+    const steamId = '76561198066666666'
+
+    const { response: startResponse, headers: startHeaders } = await auth.api.signInSteam({
+      body: { callbackURL: 'http://localhost/ui/profile' },
+      returnHeaders: true,
+    })
+    const returnToState = new URL(new URL(startResponse.url).searchParams.get('openid.return_to')!).searchParams.get('state')!
+
+    const callbackResponse = await auth.handler(new Request(
+      `http://localhost/api/auth/steam/callback?${buildCallbackQuery(returnToState, steamId, {
+        'openid.return_to': 'https://example.com/steam/callback',
+      })}`,
+      { headers: { cookie: forwardableCookieHeader(startHeaders) } },
+    ))
+
+    expect(callbackResponse.status).toBe(302)
+    expect(callbackResponse.headers.get('location')).toContain('error=steam_openid_return_to_mismatch')
+    expect(callbackResponse.headers.getSetCookie().some(cookie => cookie.startsWith('better-auth.session_token='))).toBe(false)
+    expect(ofetchMock).not.toHaveBeenCalled()
+    expect(await context.internalAdapter.findAccountByProviderId(steamId, 'steam')).toBeNull()
+  })
+
+  it('rejects an assertion whose signed return_to carries a different state', async () => {
+    mockSteamVerification(true)
+    const context = await auth.$context
+    const steamId = '76561198077777777'
+
+    const { response: startResponse, headers: startHeaders } = await auth.api.signInSteam({
+      body: { callbackURL: 'http://localhost/ui/profile' },
+      returnHeaders: true,
+    })
+    const returnToState = new URL(new URL(startResponse.url).searchParams.get('openid.return_to')!).searchParams.get('state')!
+
+    const callbackResponse = await auth.handler(new Request(
+      `http://localhost/api/auth/steam/callback?${buildCallbackQuery(returnToState, steamId, {
+        'openid.return_to': 'http://localhost/api/auth/steam/callback?state=other-state',
+      })}`,
+      { headers: { cookie: forwardableCookieHeader(startHeaders) } },
+    ))
+
+    expect(callbackResponse.status).toBe(302)
+    expect(callbackResponse.headers.get('location')).toContain('error=steam_openid_return_to_mismatch')
+    expect(ofetchMock).not.toHaveBeenCalled()
+    expect(await context.internalAdapter.findAccountByProviderId(steamId, 'steam')).toBeNull()
+  })
+
+  it('rejects an assertion whose signed list does not cover return_to', async () => {
+    mockSteamVerification(true)
+    const context = await auth.$context
+    const steamId = '76561198010101010'
+
+    const { response: startResponse, headers: startHeaders } = await auth.api.signInSteam({
+      body: { callbackURL: 'http://localhost/ui/profile' },
+      returnHeaders: true,
+    })
+    const returnToState = new URL(new URL(startResponse.url).searchParams.get('openid.return_to')!).searchParams.get('state')!
+
+    const callbackResponse = await auth.handler(new Request(
+      `http://localhost/api/auth/steam/callback?${buildCallbackQuery(returnToState, steamId, {
+        'openid.signed': 'signed,op_endpoint,claimed_id,identity,response_nonce,assoc_handle',
+      })}`,
+      { headers: { cookie: forwardableCookieHeader(startHeaders) } },
+    ))
+
+    expect(callbackResponse.status).toBe(302)
+    expect(callbackResponse.headers.get('location')).toContain('error=steam_openid_assertion_invalid')
+    expect(ofetchMock).not.toHaveBeenCalled()
+    expect(await context.internalAdapter.findAccountByProviderId(steamId, 'steam')).toBeNull()
+  })
+
   it('sets a 10-second timeout for Steam callback verification', async () => {
     mockSteamVerification(true)
 
@@ -200,18 +313,19 @@ describe('steam auth plugin', () => {
     )
   })
 
-  it('links a second Steam account to the already-signed-in user instead of creating a new one', async () => {
-    mockSteamVerification(true)
-    const context = await auth.$context
+  it('links a second Steam account to the signed-in user without creating a new user or reading the profile again', async () => {
+    mockSteamProfile('ok')
+    const profileAuth = await createTestAuth(STEAM_WEB_API_KEY)
+    const context = await profileAuth.$context
 
     // Sign in as a fresh user via Steam first, to get a session cookie to link against.
     const primarySteamId = '76561198011111111'
-    const { response: primaryStart, headers: primaryStartHeaders } = await auth.api.signInSteam({
+    const { response: primaryStart, headers: primaryStartHeaders } = await profileAuth.api.signInSteam({
       body: { callbackURL: 'http://localhost/ui/profile' },
       returnHeaders: true,
     })
     const primaryState = new URL(new URL(primaryStart.url).searchParams.get('openid.return_to')!).searchParams.get('state')!
-    const primaryCallback = await auth.handler(new Request(
+    const primaryCallback = await profileAuth.handler(new Request(
       `http://localhost/api/auth/steam/callback?${buildCallbackQuery(primaryState, primarySteamId)}`,
       { headers: { cookie: forwardableCookieHeader(primaryStartHeaders) } },
     ))
@@ -220,13 +334,13 @@ describe('steam auth plugin', () => {
 
     // Now link a second Steam account to that same session.
     const secondSteamId = '76561198022222222'
-    const { response: linkStart, headers: linkStartHeaders } = await auth.api.linkSteam({
+    const { response: linkStart, headers: linkStartHeaders } = await profileAuth.api.linkSteam({
       body: { callbackURL: 'http://localhost/ui/profile' },
       headers: { cookie: sessionCookie },
       returnHeaders: true,
     })
     const linkState = new URL(new URL(linkStart.url).searchParams.get('openid.return_to')!).searchParams.get('state')!
-    const linkCallback = await auth.handler(new Request(
+    const linkCallback = await profileAuth.handler(new Request(
       `http://localhost/api/auth/steam/callback?${buildCallbackQuery(linkState, secondSteamId)}`,
       { headers: { cookie: forwardableCookieHeader(primaryCallback.headers, linkStartHeaders) } },
     ))
@@ -236,6 +350,10 @@ describe('steam auth plugin', () => {
 
     const linkedAccount = await context.internalAdapter.findAccountByProviderId(secondSteamId, 'steam')
     expect(linkedAccount?.userId).toBe(primaryUserId)
+    const user = await context.internalAdapter.findUserById(primaryUserId)
+    expect(user?.name).toBe(`Player ${primarySteamId}`)
+    expect(user?.image).toBe(STEAM_AVATAR_URL)
+    expect(playerSummaryCallCount()).toBe(1)
   })
 
   it('refuses to link a Steam account that already belongs to a different user', async () => {
@@ -283,5 +401,70 @@ describe('steam auth plugin', () => {
 
     const stillClaimingUser = await context.internalAdapter.findAccountByProviderId(claimedSteamId, 'steam')
     expect(stillClaimingUser?.userId).toBe(claimingUserId)
+  })
+
+  it('stores the Steam persona name and avatar on first sign-in and does not read the profile again', async () => {
+    mockSteamProfile('ok')
+    const profileAuth = await createTestAuth(STEAM_WEB_API_KEY)
+    const context = await profileAuth.$context
+    const steamId = '76561198055555555'
+
+    const { response: startResponse, headers: startHeaders } = await profileAuth.api.signInSteam({
+      body: { callbackURL: 'http://localhost/ui/profile' },
+      returnHeaders: true,
+    })
+    const returnToState = new URL(new URL(startResponse.url).searchParams.get('openid.return_to')!).searchParams.get('state')!
+    const callbackResponse = await profileAuth.handler(new Request(
+      `http://localhost/api/auth/steam/callback?${buildCallbackQuery(returnToState, steamId)}`,
+      { headers: { cookie: forwardableCookieHeader(startHeaders) } },
+    ))
+
+    expect(callbackResponse.status).toBe(302)
+    const account = await context.internalAdapter.findAccountByProviderId(steamId, 'steam')
+    const user = await context.internalAdapter.findUserById(account!.userId)
+    expect(user?.name).toBe(`Player ${steamId}`)
+    expect(user?.image).toBe(STEAM_AVATAR_URL)
+    expect(playerSummaryCallCount()).toBe(1)
+
+    const { response: secondStart, headers: secondStartHeaders } = await profileAuth.api.signInSteam({
+      body: { callbackURL: 'http://localhost/ui/profile' },
+      returnHeaders: true,
+    })
+    const secondState = new URL(new URL(secondStart.url).searchParams.get('openid.return_to')!).searchParams.get('state')!
+    await profileAuth.handler(new Request(
+      `http://localhost/api/auth/steam/callback?${buildCallbackQuery(secondState, steamId)}`,
+      { headers: { cookie: forwardableCookieHeader(secondStartHeaders) } },
+    ))
+
+    expect(playerSummaryCallCount()).toBe(1)
+  })
+
+  it('creates a placeholder user when the Steam profile request fails', async () => {
+    mockSteamProfile('fail')
+    const profileAuth = await createTestAuth(STEAM_WEB_API_KEY)
+    const context = await profileAuth.$context
+    const steamId = '76561198088888888'
+
+    const { response: startResponse, headers: startHeaders } = await profileAuth.api.signInSteam({
+      body: { callbackURL: 'http://localhost/ui/profile' },
+      returnHeaders: true,
+    })
+    const returnToState = new URL(new URL(startResponse.url).searchParams.get('openid.return_to')!).searchParams.get('state')!
+    const callbackResponse = await profileAuth.handler(new Request(
+      `http://localhost/api/auth/steam/callback?${buildCallbackQuery(returnToState, steamId)}`,
+      { headers: { cookie: forwardableCookieHeader(startHeaders) } },
+    ))
+
+    expect(callbackResponse.status).toBe(302)
+    expect(callbackResponse.headers.get('location')).toBe('http://localhost/ui/profile')
+    const account = await context.internalAdapter.findAccountByProviderId(steamId, 'steam')
+    const user = await context.internalAdapter.findUserById(account!.userId)
+    expect(user?.name).toBe(`Steam User ${steamId}`)
+    expect(user?.image).toBeNull()
+
+    const logged = steamLogError.mock.calls.flat().map(value => String(value)).join('\n')
+    expect(logged).toContain('[steam-web-api]')
+    expect(logged).not.toContain(STEAM_WEB_API_KEY)
+    expect(logged).not.toContain('api.steampowered.com')
   })
 })

@@ -54,6 +54,11 @@ const mocks = vi.hoisted(() => {
       return this
     }
 
+    // The window emits `closed` only one time, so `once` can keep the listener.
+    once(event: string, listener: () => void) {
+      return this.on(event, listener)
+    }
+
     private emit(event: string) {
       for (const listener of this.listeners.get(event) ?? [])
         listener()
@@ -70,6 +75,8 @@ const mocks = vi.hoisted(() => {
 })
 
 vi.mock('electron', () => ({
+  // No Dock on this platform: the test runs with `isMacOS: false`.
+  app: {},
   BrowserWindow: mocks.FakeBrowserWindow,
   ipcMain: {
     off: vi.fn(),
@@ -94,7 +101,8 @@ vi.mock('@moeru/eventa/adapters/electron/main', () => ({
   })),
 }))
 
-vi.mock('@proj-airi/electron-vueuse/main', () => ({
+vi.mock('@proj-airi/electron-vueuse/main', async importOriginal => ({
+  ...await importOriginal<typeof import('@proj-airi/electron-vueuse/main')>(),
   safeClose: vi.fn((window: BrowserWindow) => {
     window.close()
     return true
@@ -103,7 +111,8 @@ vi.mock('@proj-airi/electron-vueuse/main', () => ({
 
 vi.mock('../../libs/electron/location', () => ({
   baseUrl: vi.fn(() => 'http://localhost:5173'),
-  getElectronMainDirname: vi.fn(() => '/tmp/airi-main'),
+  getPreloadPath: vi.fn(() => '/tmp/airi-preload/index.mjs'),
+  getRendererRoot: vi.fn(() => '/tmp/airi-renderer'),
   load: vi.fn(async () => undefined),
   withHashRoute: vi.fn((_base: string, route: string) => route),
 }))

@@ -1,0 +1,5 @@
+export { dockEdgeItemClasses, dockItemClasses } from './classes'
+export type { DockItemEdge, DockOrientation, DockSize, DockVariant } from './context'
+export { default as DockButton } from './dock-button.vue'
+export { default as DockSeparator } from './dock-separator.vue'
+export { default as Dock } from './dock.vue'

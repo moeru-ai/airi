@@ -12,7 +12,7 @@ Prefer product-owned Vishot capture roots when available. Otherwise capture a lo
 1. Identify the route, state, viewport, theme, locale, and output directory supplied by the caller.
 2. Ensure Vishot's Playwright Chromium runtime exists. If Vishot reports a missing executable, run `pnpm exec playwright install chromium` once and retry.
 3. Start the application with its repository-owned development or preview command.
-4. Wait until the development server reports that it is listening, then let Vishot handle reload stability with an explicit `--settle-ms 2500`. Vishot intentionally has no default delay because it serves projects with different readiness contracts.
+4. Wait until the development server reports that it is listening, then apply the scenario readiness conditions below. Use an explicit `--settle-ms 2500` for final rendering. Vishot intentionally has no default delay because it serves projects with different readiness contracts.
 5. Run the documented scene command when the app exposes Vishot capture roots and a ready signal.
 6. Otherwise capture the route directly:
 
@@ -60,6 +60,11 @@ await page.waitForFunction(size => (
 ## Scenario Readiness and Locators
 
 - Implement readiness for the specific route and UI state. A heading, button, or expected text from one page is not a reusable readiness condition for another page.
+- With UnoCSS on a development server, visible content can precede generated utility styles or their HMR update. Server readiness and a fixed delay do not prove style readiness.
+- After opening the target state, wait for representative computed styles from its loaded utilities and for `document.fonts.ready`. Then allow layout to settle before capture.
+- Choose style conditions that hold in both revisions, such as an unchanged dialog radius or field gap. Do not wait for the visual fix itself: that can prevent the before capture from completing.
+- Keep these conditions in the product scenario or disposable capture helper. Use a bounded timeout and report which condition failed. Do not modify production CSS to satisfy capture readiness.
+- If a capture has missing styles, reject it and repeat the affected before/after pair with the same corrected readiness conditions.
 - Wait in this order: let Vishot establish URL and reload stability, confirm the final route, wait for a state-specific visible locator, confirm transient overlays or loading indicators are gone, then let Vishot keep its final settle window for remaining bundling, refresh, animation, or rendering.
 - Use text only when it is visible, unique, stable for the selected locale, and intrinsic to the intended state. Do not wait on generic headings, placeholders, network-derived values, or text copied from another scenario.
 - Prefer semantic locators such as `getByRole('button', { name })` and `getByLabel()`. For an icon-only control, locate the owning button by its icon and click the button, not the icon node:

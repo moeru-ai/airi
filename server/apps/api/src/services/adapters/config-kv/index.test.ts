@@ -22,7 +22,30 @@ describe('configKVService', () => {
   })
 
   it('uses the ConfigKV schema as the key type', () => {
-    expectTypeOf(service.get('FLUX_PER_REQUEST')).toEqualTypeOf<Promise<number>>()
+    expectTypeOf(service.get('LLM_MINIMUM_BALANCE')).toEqualTypeOf<Promise<number>>()
+  })
+
+  it('does not invent cost prices when required configuration is absent', async () => {
+    expect(await service.getOptional('LLM_COST_BILLING')).toBeNull()
+  })
+
+  it('loads both OpenRouter price factors and rejects invalid configuration', async () => {
+    store._store.set('LLM_COST_BILLING', JSON.stringify({ openrouter: { fluxPerUsd: 1000, multiplier: 1.5 }, another: { fluxPerUsd: 200, multiplier: 2 } }))
+    expect(await service.get('LLM_COST_BILLING')).toEqual({ openrouter: { fluxPerUsd: 1000, multiplier: 1.5 }, another: { fluxPerUsd: 200, multiplier: 2 } })
+    for (const value of [{ fluxPerUsd: 1000 }, { fluxPerUsd: -1, multiplier: 1 }, { fluxPerUsd: 1, multiplier: 0 }]) {
+      store._store.set('LLM_COST_BILLING', JSON.stringify({ openrouter: value }))
+      await expect(service.refresh('LLM_COST_BILLING')).rejects.toMatchObject({ errorCode: 'CONFIG_INVALID' })
+    }
+  })
+
+  it('accepts a whole Capacitor quota and rejects a fraction or an unsafe integer', async () => {
+    store._store.set('REVENUECAT_CAPACITORS', JSON.stringify({ rc_go_monthly: { entitlementId: 'airi_go', quota: 100 } }))
+    expect(await service.getOptional('REVENUECAT_CAPACITORS')).toEqual({ rc_go_monthly: { entitlementId: 'airi_go', quota: 100 } })
+
+    for (const quota of [1.5, 1e20]) {
+      store._store.set('REVENUECAT_CAPACITORS', JSON.stringify({ rc_go_monthly: { entitlementId: 'airi_go', quota } }))
+      await expect(service.refresh('REVENUECAT_CAPACITORS')).rejects.toMatchObject({ errorCode: 'CONFIG_INVALID' })
+    }
   })
 
   it('get should throw 503 when key is not set', async () => {
@@ -32,21 +55,21 @@ describe('configKVService', () => {
   })
 
   it('get should return numeric value when key is set', async () => {
-    store._store.set('FLUX_PER_REQUEST', '5')
+    store._store.set('LLM_MINIMUM_BALANCE', '5')
 
-    const value = await service.getOrThrow('FLUX_PER_REQUEST')
+    const value = await service.getOrThrow('LLM_MINIMUM_BALANCE')
     expect(value).toBe(5)
   })
 
   it('get should read the requested ConfigKV key', async () => {
-    store._store.set('FLUX_PER_REQUEST', '3')
+    store._store.set('LLM_MINIMUM_BALANCE', '3')
 
-    await service.getOrThrow('FLUX_PER_REQUEST')
-    expect(store.getRaw).toHaveBeenCalledWith('FLUX_PER_REQUEST')
+    await service.getOrThrow('LLM_MINIMUM_BALANCE')
+    expect(store.getRaw).toHaveBeenCalledWith('LLM_MINIMUM_BALANCE')
   })
 
   it('getOptional should return schema default when key has one', async () => {
-    const value = await service.getOptional('FLUX_PER_REQUEST')
+    const value = await service.getOptional('LLM_MINIMUM_BALANCE')
     expect(value).toBe(5)
   })
 
@@ -82,9 +105,36 @@ describe('configKVService', () => {
   })
 
   it('getOptional should throw CONFIG_INVALID when the store contains schema-invalid JSON', async () => {
-    store._store.set('FLUX_PER_REQUEST', JSON.stringify('5'))
+    store._store.set('LLM_MINIMUM_BALANCE', JSON.stringify('5'))
 
-    await expect(service.getOptional('FLUX_PER_REQUEST'))
+    await expect(service.getOptional('LLM_MINIMUM_BALANCE'))
+      .rejects
+      .toMatchObject({
+        statusCode: 503,
+        errorCode: 'CONFIG_INVALID',
+      })
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2445#discussion_r3913931906
+  // ROOT CAUSE:
+  //
+  // The streaming TTS config accepted an empty default model. The catalog
+  // exposed that value as a present default, so clients skipped their fallback.
+  //
+  // Before: defaultModel used optional(string()).
+  //
+  // We fixed this by rejecting an empty configured default at the ConfigKV boundary.
+  it('rejects an empty streaming TTS default model', async () => {
+    store._store.set('UNSPEECH_UPSTREAM', JSON.stringify({
+      restBaseURL: 'http://unspeech.local:5933',
+      streaming: {
+        baseURL: 'wss://unspeech.local',
+        keys: [{ id: 'k1', ciphertext: 'enc' }],
+        defaultModel: '',
+      },
+    }))
+
+    await expect(service.getOptional('UNSPEECH_UPSTREAM'))
       .rejects
       .toMatchObject({
         statusCode: 503,
@@ -95,7 +145,7 @@ describe('configKVService', () => {
   it('wraps database failures as CONFIG_UNAVAILABLE', async () => {
     store.getRaw.mockRejectedValueOnce(new Error('database offline'))
 
-    await expect(service.getOrThrow('FLUX_PER_REQUEST'))
+    await expect(service.getOrThrow('LLM_MINIMUM_BALANCE'))
       .rejects
       .toMatchObject({
         statusCode: 503,
@@ -314,11 +364,79 @@ describe('configKVService', () => {
       })
   })
 
-  it('refresh should bypass the ordinary store read', async () => {
-    store._store.set('STRIPE_FLUX_PRODUCT_ID', JSON.stringify('prod_abc123'))
+  describe('llm upstream headers', () => {
+    function storeUpstream(upstream: Record<string, unknown>) {
+      store._store.set('LLM_ROUTER_CONFIG', JSON.stringify({
+        llm: {
+          models: {
+            'openrouter/small': {
+              upstreams: [{
+                baseURL: 'https://openrouter.ai/api/v1',
+                keys: [{ id: 'key', ciphertext: 'ciphertext' }],
+                ...upstream,
+              }],
+            },
+          },
+        },
+        tts: { models: {} },
+      }))
+    }
 
-    await expect(service.refresh('STRIPE_FLUX_PRODUCT_ID')).resolves.toBe('prod_abc123')
-    expect(store.getFreshRaw).toHaveBeenCalledWith('STRIPE_FLUX_PRODUCT_ID')
+    it('defaults headers to an empty object when the upstream omits them', async () => {
+      storeUpstream({})
+
+      const value = await service.getOrThrow('LLM_ROUTER_CONFIG')
+
+      expect(value.llm.models['openrouter/small'].upstreams[0].headers).toEqual({})
+    })
+
+    it('keeps configured headers', async () => {
+      storeUpstream({ headers: { 'HTTP-Referer': 'https://airi.moeru.ai', 'X-Title': 'AIRI' } })
+
+      const value = await service.getOrThrow('LLM_ROUTER_CONFIG')
+
+      expect(value.llm.models['openrouter/small'].upstreams[0].headers).toEqual({
+        'HTTP-Referer': 'https://airi.moeru.ai',
+        'X-Title': 'AIRI',
+      })
+    })
+
+    it.each(['authorization', 'Authorization', 'AUTHORIZATION'])('accepts %s with a {KEY} value', async (name) => {
+      storeUpstream({ headers: { [name]: 'Bearer {KEY}' } })
+
+      const value = await service.getOrThrow('LLM_ROUTER_CONFIG')
+
+      expect(value.llm.models['openrouter/small'].upstreams[0].headers).toEqual({ [name]: 'Bearer {KEY}' })
+    })
+
+    it.each(['content-type', 'Content-Type', 'CONTENT-TYPE'])('rejects the reserved header %s', async (name) => {
+      storeUpstream({ headers: { [name]: 'value' } })
+
+      await expect(service.getOptional('LLM_ROUTER_CONFIG'))
+        .rejects
+        .toMatchObject({
+          statusCode: 503,
+          errorCode: 'CONFIG_INVALID',
+        })
+    })
+
+    it.each(['', 'X Title', 'X-Title:', 'X-Tïtle', 'X-Title\r\n'])('rejects the header name %j because it is not an HTTP token', async (name) => {
+      storeUpstream({ headers: { [name]: 'value' } })
+
+      await expect(service.getOptional('LLM_ROUTER_CONFIG'))
+        .rejects
+        .toMatchObject({
+          statusCode: 503,
+          errorCode: 'CONFIG_INVALID',
+        })
+    })
+  })
+
+  it('refresh should bypass the ordinary store read', async () => {
+    store._store.set('LLM_MINIMUM_BALANCE', '9')
+
+    await expect(service.refresh('LLM_MINIMUM_BALANCE')).resolves.toBe(9)
+    expect(store.getFreshRaw).toHaveBeenCalledWith('LLM_MINIMUM_BALANCE')
     expect(store.getRaw).not.toHaveBeenCalled()
   })
 })

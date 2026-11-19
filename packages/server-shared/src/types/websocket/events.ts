@@ -10,6 +10,17 @@ export interface WebSocketEventBaseMetadata {
   }
 }
 
+/**
+ * The connection that sent a forwarded event. The server sets it on every event that it forwards and replaces any value
+ * that a client sent. Unlike `metadata.source`, a client cannot claim it.
+ */
+export interface WebSocketEventSender {
+  /** The server's ID of the sending connection. Route an answer to it with the destination `peer:<peerId>`. */
+  peerId: string
+  /** Names of the modules that the connection announced. Empty when it announced none. */
+  modules: string[]
+}
+
 export interface WebSocketBaseEvent<T, D, S extends string = string> {
   type: T
   data: D
@@ -23,6 +34,8 @@ export interface WebSocketBaseEvent<T, D, S extends string = string> {
       id: string
       parentId?: string
     }
+    /** Set by the server on forwarded events. See {@link WebSocketEventSender}. */
+    sender?: WebSocketEventSender
   }
   route?: RouteConfig
 }

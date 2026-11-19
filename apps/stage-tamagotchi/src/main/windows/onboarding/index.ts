@@ -1,21 +1,21 @@
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
-
-import { join, resolve } from 'node:path'
+import type { GlobalShortcutService } from '../../services/electron/global-shortcut'
 
 import { defineInvokeHandler } from '@moeru/eventa'
-import { createContext } from '@moeru/eventa/adapters/electron/main'
-import { safeClose } from '@proj-airi/electron-vueuse/main'
+import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
+import { onWindowClosed, safeClose } from '@proj-airi/electron-vueuse/main'
 import { BrowserWindow, ipcMain } from 'electron'
-import { isMacOS } from 'std-env'
 
 import icon from '../../../../resources/icon.png?asset'
 
 import { electronOnboardingClose } from '../../../shared/eventa'
-import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
+import { showWindow } from '../../libs/electron/focus'
+import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
+import { createWindowContext } from '../../libs/electron/window-context'
 import { createReusableWindow } from '../../libs/electron/window-manager'
 import { createAuthService } from '../../services/airi/auth'
-import { protectPrivilegedWindowNavigation, toggleWindowShow } from '../shared'
+import { customTitleBarWindowConfig, protectPrivilegedWindowNavigation, toggleWindowShow } from '../shared'
 import { setupBaseWindowElectronInvokes } from '../shared/window'
 
 export interface OnboardingWindowManager {
@@ -27,6 +27,8 @@ export interface OnboardingWindowManager {
 export function setupOnboardingWindowManager(params: {
   serverChannel: ServerChannel
   i18n: I18n
+  /** The permissions step tries the Push to Talk shortcut in this window. */
+  globalShortcut: GlobalShortcutService
 }): OnboardingWindowManager {
   const closeCallbacks = new Set<() => void>()
 
@@ -47,17 +49,16 @@ export function setupOnboardingWindowManager(params: {
       show: false,
       icon,
       resizable: true,
-      frame: !isMacOS,
-      titleBarStyle: isMacOS ? 'hidden' : undefined,
+      ...customTitleBarWindowConfig(),
       transparent: false,
       backgroundColor: '#0f0f0f',
       webPreferences: {
-        preload: join(getElectronMainDirname(), '../preload/index.mjs'),
+        preload: getPreloadPath(),
         sandbox: false,
       },
     })
 
-    newWindow.on('ready-to-show', () => newWindow.show())
+    newWindow.on('ready-to-show', () => showWindow(newWindow))
     protectPrivilegedWindowNavigation(newWindow)
 
     // TODO: once we refactored eventa to support window-namespaced contexts,
@@ -65,7 +66,7 @@ export function setupOnboardingWindowManager(params: {
     // manage events within eventa's context system.
     ipcMain.setMaxListeners(0)
 
-    const { context } = createContext(ipcMain, newWindow)
+    const { context } = createWindowContext(newWindow)
 
     defineInvokeHandler(context, electronOnboardingClose, async () => {
       safeClose(newWindow)
@@ -73,12 +74,15 @@ export function setupOnboardingWindowManager(params: {
 
     await setupBaseWindowElectronInvokes({ context, window: newWindow, i18n: params.i18n, serverChannel: params.serverChannel })
     createAuthService({ context, window: newWindow })
+    params.globalShortcut.registerWindow({ context, window: newWindow })
+    // The permissions step previews the screen after the user allows Screen Recording.
+    initScreenCaptureForWindow(newWindow)
 
-    await load(newWindow, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/onboarding', {
+    await load(newWindow, withHashRoute(baseUrl(getRendererRoot()), '/onboarding', {
       query: { 'synced-leader': 'false' },
     }))
 
-    newWindow.on('closed', () => {
+    onWindowClosed(newWindow, () => {
       for (const cb of closeCallbacks) {
         try {
           cb()

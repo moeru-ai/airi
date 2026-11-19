@@ -1,8 +1,11 @@
 import type { ChatRequestOptions } from '../../../types'
 
+import openRouterModels from 'model-bank/openrouter'
+
 import { createOpenRouter } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
+import { listModelCatalog } from '../../../model-catalog'
 import { ProviderValidationCheck } from '../../../types'
 import { createOpenAICompatibleValidators } from '../../../validators'
 import { defineProvider } from '../../registry'
@@ -68,6 +71,13 @@ export const providerOpenRouterAI = defineProvider<OpenRouterConfig, 'openrouter
         return { ...request, reasoning: { effort: options.reasoning === 'enabled' ? 'medium' : 'none' } }
       },
     }
+  },
+
+  extraMethods: {
+    listModelCatalog: config => listModelCatalog(
+      { apiKey: config.apiKey, baseURL: config.baseUrl ?? 'https://openrouter.ai/api/v1/', headers: OPENROUTER_ATTRIBUTION_HEADERS },
+      { models: openRouterModels.filter(model => model.type === 'chat'), providerId: 'openrouter-ai', baseURL: 'https://openrouter.ai/api/v1/' },
+    ),
   },
 
   validationRequiredWhen(config) {

@@ -4,6 +4,7 @@ import type {
   StageViewPatch,
   StageViewSnapshotPayload,
 } from '@proj-airi/stage-shared/godot-stage'
+import type { Live2DContext } from '@proj-airi/stage-ui-live2d'
 
 import type { DisplayModel } from '../../../../stores/display-models'
 import type { ModelSettingsRuntimeSnapshot } from './runtime'
@@ -23,13 +24,14 @@ import VRM from './vrm.vue'
 import { useAiriCardStore } from '../../../../stores/modules/airi-card'
 import { useSettings } from '../../../../stores/settings'
 import { ModelSelectorDialog } from '../../dialogs/model-selector'
-import { resolveModelSettingsPanelRenderer } from './runtime'
+import { MODEL_PICKER_SEARCH_KEY, resolveModelSettingsPanelRenderer } from './runtime'
 
 interface ModelSettingsPanelProps {
   palette: string[]
   settingsClass?: string | string[]
   allowExtractColors?: boolean
   runtimeSnapshot: ModelSettingsRuntimeSnapshot
+  live2dContext?: Live2DContext
   godotViewSnapshot?: StageViewSnapshotPayload | null
   godotViewError?: StageViewErrorPayload
   godotViewControlsLocked?: boolean
@@ -61,7 +63,7 @@ const effectiveRenderer = computed(() => resolveModelSettingsPanelRenderer({
 
 async function handleModelPick(selectedModel: DisplayModel | undefined) {
   stageModelSelected.value = selectedModel?.id ?? ''
-  await airiCardStore.updateActiveCardDisplayModel(selectedModel?.id)
+  await airiCardStore.setActiveCardDefaultAvatarModel(selectedModel?.id)
   await settingsStore.updateStageModel()
 }
 </script>
@@ -98,7 +100,7 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
       </Callout>
       <div :class="['flex flex-wrap items-center gap-2']">
         <ModelSelectorDialog v-model:show="modelSelectorOpen" :selected-model="stageModelSelectedDisplayModel" @pick="handleModelPick">
-          <Button>
+          <Button :data-settings-search="MODEL_PICKER_SEARCH_KEY">
             {{ t('settings.model-select.select-model.button') }}
           </Button>
         </ModelSelectorDialog>
@@ -109,6 +111,7 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
         :allow-extract-colors="allowExtractColors"
         :palette="palette"
         :runtime-snapshot="runtimeSnapshot"
+        :live2d-context="live2dContext"
         @extract-colors-from-model="emit('extractColorsFromModel')"
       />
       <VRM

@@ -161,6 +161,28 @@ describe('route middleware', () => {
     expect(collectDestinations(event)).toEqual([])
   })
 
+  it('broadcasts a spark:command that omits the destination field', () => {
+    // The LLM tool drops the model destinations to broadcast, so an absent field must
+    // return `undefined` here. An explicit empty array would reach no peer instead.
+    const event: WebSocketBaseEvent<'spark:command', WebSocketEvents['spark:command'], any> = {
+      type: 'spark:command',
+      data: {
+        id: 'evt-command-1',
+        commandId: 'command-1',
+        interrupt: false,
+        priority: 'normal',
+        intent: 'action',
+      },
+      metadata: {
+        source: { id: 'test', extension: { id: 'server-runtime' } },
+        event: { id: 'evt-command-1' },
+      },
+      route: undefined,
+    }
+
+    expect(collectDestinations(event)).toBeUndefined()
+  })
+
   it('ignores primitive data payloads when checking destinations', () => {
     const event = {
       type: 'spark:notify',

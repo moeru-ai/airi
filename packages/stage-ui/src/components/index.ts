@@ -1,6 +1,7 @@
 export * from './auth'
 export * from './data-pane'
 export * from './gadgets'
+export * from './gestures'
 export * from './graphics'
 export * from './layouts'
 export * from './markdown'

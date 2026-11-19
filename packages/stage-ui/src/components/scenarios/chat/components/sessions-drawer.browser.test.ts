@@ -2,7 +2,7 @@ import type { ChatSessionMeta } from '../../../../types/chat-session'
 
 import { PiniaColada } from '@pinia/colada'
 import { createPinia } from 'pinia'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { createI18n } from 'vue-i18n'
 
@@ -10,6 +10,9 @@ import SessionsDrawer from './sessions-drawer.vue'
 
 import { useChatStore } from '../../../../stores/chat'
 import { useChatSessionStore } from '../../../../stores/chat/session-store'
+
+import '@unocss/reset/tailwind.css'
+import 'virtual:uno.css'
 
 function createTestI18n() {
   return createI18n({
@@ -26,7 +29,16 @@ function createTestI18n() {
               'new': 'New chat',
               'empty': 'No chats',
               'delete': 'Delete',
+              'delete-short': 'Delete',
+              'current': 'Current',
+              'cancel': 'Cancel',
+              'confirm-delete': 'Delete this conversation and its messages?',
               'cloud-badge': 'Cloud synced',
+              'rename': 'Rename conversation',
+              'rename-input': 'Conversation name',
+              'rename-placeholder': 'Enter a conversation name',
+              'save-rename': 'Save conversation name',
+              'cancel-rename': 'Cancel renaming',
             },
           },
         },
@@ -68,7 +80,102 @@ function createSessionsPinia() {
   return pinia
 }
 
+// ROOT CAUSE:
+//
+// From 00:00 to 02:00, `Date.now() - 2 hours` falls on the previous day.
+// `intlFormatDistance` then shows "yesterday", not "2 hours ago".
+//
+// We fixed this by faking only `Date` at a fixed local noon. Polling timers stay real.
+function useFixedNoon() {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date(2026, 0, 15, 12))
+  return Date.now()
+}
+
 describe('sessions drawer orchestration', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('orders and labels chats by message time, not session saves', async () => {
+    const now = useFixedNoon()
+    const pinia = createSessionsPinia()
+    const screen = await render(SessionsDrawer, {
+      props: { modelValue: false },
+      global: { plugins: [pinia, PiniaColada, createTestI18n()] },
+    })
+    const chatSession = useChatSessionStore(pinia)
+    chatSession.sessionMessages['session-a'] = [
+      { id: 'a', role: 'user', content: 'Hello', createdAt: now - 7_200_000 },
+      { id: 'system', role: 'system', content: 'Context', createdAt: now },
+    ]
+    chatSession.sessionMessages['session-b'] = [
+      { id: 'b', role: 'user', content: 'Earlier', createdAt: now - 14_400_000 },
+    ]
+    vi.spyOn(chatSession, 'loadSession').mockResolvedValue(true)
+    await screen.rerender({ modelValue: true })
+    await expect.element(screen.getByRole('button', { name: /^Chat A/ })).toHaveTextContent('2 hours ago')
+    await expect.element(screen.getByRole('button', { name: /^Chat B/ })).toHaveTextContent('4 hours ago')
+    expect(Array.from(document.querySelectorAll('.session-select')).map(button => button.textContent?.trim())).toEqual([
+      expect.stringContaining('Chat A'),
+      expect.stringContaining('Chat B'),
+      expect.stringContaining('Chat C'),
+    ])
+    await chatSession.persistSessionMessages('session-b')
+    expect(chatSession.sessionMetas['session-b'].updatedAt).toBeGreaterThanOrEqual(now)
+    await expect.element(screen.getByRole('button', { name: /^Chat B/ })).toHaveTextContent('4 hours ago')
+    expect(document.querySelector('.session-select')?.textContent).toContain('Chat A')
+    chatSession.sessionMessages['session-b'].push({
+      id: 'reply',
+      role: 'assistant',
+      content: 'Reply',
+      slices: [],
+      tool_results: [],
+      createdAt: now - 3_600_000,
+    })
+    await expect.element(screen.getByRole('button', { name: /^Chat B/ })).toHaveTextContent('1 hour ago')
+    expect(document.querySelector('.session-select')?.textContent).toContain('Chat B')
+  })
+
+  it('uses creation time when no conversation message has a valid date', async () => {
+    const now = useFixedNoon()
+    const pinia = createSessionsPinia()
+    const screen = await render(SessionsDrawer, {
+      props: { modelValue: false },
+      global: { plugins: [pinia, PiniaColada, createTestI18n()] },
+    })
+    const chatSession = useChatSessionStore(pinia)
+    chatSession.sessionMetas['session-a'].createdAt = now - 7_200_000
+    chatSession.sessionMetas['session-a'].updatedAt = now
+    chatSession.sessionMessages['session-a'] = [
+      { id: 'system', role: 'system', content: 'Context', createdAt: now },
+      { id: 'undated', role: 'user', content: 'No date' },
+      { id: 'invalid', role: 'user', content: 'Invalid date', createdAt: Number.NaN },
+    ]
+    vi.spyOn(chatSession, 'loadSession').mockResolvedValue(true)
+    await screen.rerender({ modelValue: true })
+    await expect.element(screen.getByRole('button', { name: /^Chat A/ })).toHaveTextContent('2 hours ago')
+  })
+
+  it('renames a conversation from the session list', async () => {
+    const pinia = createSessionsPinia()
+    const screen = await render(SessionsDrawer, {
+      props: { modelValue: false },
+      global: { plugins: [pinia, PiniaColada, createTestI18n()] },
+    })
+    const chatSession = useChatSessionStore(pinia)
+    const renameSession = vi.spyOn(chatSession, 'renameSession').mockResolvedValue(true)
+    vi.spyOn(chatSession, 'loadSession').mockResolvedValue(true)
+
+    await screen.rerender({ modelValue: true })
+    await screen.getByRole('button', { name: 'Rename conversation: Chat B' }).click()
+    const input = screen.getByRole('textbox', { name: 'Conversation name' })
+    await input.fill('Project notes')
+    await screen.getByRole('button', { name: 'Save conversation name' }).click()
+
+    expect(renameSession).toHaveBeenCalledWith('session-b', 'Project notes')
+  })
+
   // https://github.com/moeru-ai/airi/pull/2086#discussion_r3743073795
   it('preserves a newer selection while active-session deletion is pending for Issue #2085', async () => {
     // ROOT CAUSE:
@@ -97,9 +204,10 @@ describe('sessions drawer orchestration', () => {
     await screen.rerender({ modelValue: true })
 
     await screen.getByRole('button', { name: 'Delete: Chat B' }).click()
+    await screen.getByRole('button', { name: 'Delete', exact: true }).click()
     await vi.waitFor(() => expect(chat.deleteSession).toHaveBeenCalledWith('session-b'))
 
-    await screen.getByRole('button', { name: /^Chat C / }).click()
+    await screen.getByRole('button', { name: /^Chat C/ }).click()
     expect(chatSession.activeSessionId).toBe('session-c')
 
     resolveDelete?.()
@@ -137,7 +245,7 @@ describe('sessions drawer orchestration', () => {
     await screen.getByRole('button', { name: 'New chat' }).click()
     await vi.waitFor(() => expect(chatSession.createSession).toHaveBeenCalledWith('default', { setActive: false }))
 
-    await screen.getByRole('button', { name: /^Chat C / }).click()
+    await screen.getByRole('button', { name: /^Chat C/ }).click()
     expect(chatSession.activeSessionId).toBe('session-c')
 
     resolveCreate?.('session-new')

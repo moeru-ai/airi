@@ -1,11 +1,12 @@
-import type { HistoryItem, Message, MessageHistoryBlockSegment, RawMessage } from './types'
+import type { ProjectionEntry } from './turns'
+import type { HistoryItem, MessageHistoryBlockSegment, RawMessage } from './types'
 
 /**
  * Options for compacting projected conversation history.
  */
 export interface CompactConversationEntriesOptions {
   /** Ordered conversation entries to compact in place. */
-  entries: Array<Message | RawMessage>
+  entries: Array<ProjectionEntry | RawMessage>
   /** Maximum number of explicit `turn` items to preserve inside each history block. */
   recentTurnLimit: number
   /** Optional domain-aware summary formatter used for removed history windows. */
@@ -16,7 +17,7 @@ export interface CompactConversationEntriesOptions {
   }) => string
 }
 
-function isStructuredMessage(entry: Message | RawMessage): entry is Message {
+function isStructuredMessage(entry: ProjectionEntry | RawMessage): entry is ProjectionEntry {
   return 'segments' in entry
 }
 
@@ -97,7 +98,7 @@ function compactHistoryBlock(
  * Returns:
  * - A new entry array with eligible history blocks compacted in place
  */
-export function compactConversationEntries(input: CompactConversationEntriesOptions): Array<Message | RawMessage> {
+export function compactConversationEntries(input: CompactConversationEntriesOptions): Array<ProjectionEntry | RawMessage> {
   if (input.recentTurnLimit <= 0)
     return input.entries
 
@@ -105,14 +106,12 @@ export function compactConversationEntries(input: CompactConversationEntriesOpti
     if (!isStructuredMessage(entry))
       return entry
 
-    return {
-      ...entry,
-      segments: entry.segments.map((segment) => {
-        if (segment.type !== 'history-block')
-          return segment
-
-        return compactHistoryBlock(segment, input.recentTurnLimit, input.summarizeCompactedHistory)
-      }),
+    // Only history blocks change. Keep role-dependent segment types intact.
+    const compacted = structuredClone(entry)
+    for (const segment of compacted.segments) {
+      if (segment.type === 'history-block')
+        Object.assign(segment, compactHistoryBlock(segment, input.recentTurnLimit, input.summarizeCompactedHistory))
     }
+    return compacted
   })
 }

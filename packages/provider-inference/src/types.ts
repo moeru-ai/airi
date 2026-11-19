@@ -10,9 +10,62 @@ import type {
   TranscriptionProvider,
   TranscriptionProviderWithExtraOptions,
 } from '@xsai-ext/providers/utils'
+import type { ResponsesOptions } from '@xsai-ext/responses'
 import type { ProgressInfo } from '@xsai-transformers/shared/types'
 import type { MaybePromise } from 'clustr'
+import type { AIChatModelCard } from 'model-bank/types'
 import type { $ZodType } from 'zod/v4/core'
+
+/** Request configuration for the Responses protocol. The caller owns input and tools. */
+export type ResponsesConfig = Pick<ResponsesOptions, 'apiKey' | 'baseURL' | 'fetch' | 'headers' | 'model' | 'reasoning'>
+
+/** A resolved request selects exactly one wire protocol before context projection. */
+export type GenerationRequest
+  = { protocol: 'chat-completions', config: ReturnType<ChatProvider['chat']> }
+    | { protocol: 'responses', config: ResponsesConfig, webSearch: boolean }
+
+/** A provider that owns protocol selection and model capabilities. */
+export interface GenerationProvider {
+  generation: (model: string, options?: ChatRequestOptions) => GenerationRequest
+}
+
+/** Declares implemented protocols. The default must be one of the supported protocols. */
+export type GenerationCapabilities = {
+  [Protocol in GenerationRequest['protocol']]: {
+    /** The preferred protocol is first in the selector. */
+    supportedProtocols: readonly [Protocol, ...GenerationRequest['protocol'][]]
+    defaultProtocol: Protocol
+    nativeTools?: { responses: readonly 'web-search'[] }
+  }
+}[GenerationRequest['protocol']]
+
+/**
+ * Image reads that a vision provider answers at once when its definition
+ * declares no limit. Cloud providers answer several reads in parallel, and four
+ * keeps a message with several images fast without flooding the provider.
+ */
+export const DEFAULT_CONCURRENT_VISION_READS = 4
+
+/** Narrows instances that already expose AIRI's protocol-neutral inference capability. */
+export function isGenerationProvider(provider: ProviderInstance): provider is GenerationProvider {
+  return 'generation' in provider && typeof provider.generation === 'function'
+}
+
+/**
+ * Adapts SDK chat instances at the provider boundary. Existing native instances keep their identity.
+ * Non-chat definitions return undefined. Core-agent receives only the returned generation interface.
+ */
+export function getGenerationProvider(provider: ProviderInstance): GenerationProvider | undefined {
+  if (isGenerationProvider(provider))
+    return provider
+  if ('chat' in provider && typeof provider.chat === 'function')
+    return { generation: (model, options) => ({ protocol: 'chat-completions', config: provider.chat(model, options) }) }
+}
+
+/** Applies one reasoning choice to every request of a provider. Undefined options keep the provider default. */
+export function withReasoning(provider: GenerationProvider, options: ChatRequestOptions | undefined): GenerationProvider {
+  return { generation: model => provider.generation(model, options) }
+}
 
 /** Translates a provider label or description for the active interface locale. */
 export type ProviderTranslator = (input: string) => string
@@ -24,16 +77,26 @@ export interface ProviderContext {
 }
 
 export type ProviderInstance
-  = | ChatProvider
-    | ChatProviderWithExtraOptions
+  = | GenerationProvider
+    | ChatProviderWithExtraOptions<string, ChatRequestOptions>
     | EmbedProvider
     | EmbedProviderWithExtraOptions
     | SpeechProvider
     | SpeechProviderWithExtraOptions
     | TranscriptionProvider
-    | TranscriptionProviderWithExtraOptions
+    | TranscriptionProviderWithExtraOptions<string, Record<string, unknown>>
     | ModelProvider
     | ModelProviderWithExtraOptions
+
+/** A complete transcript snapshot that replaces earlier volatile text. */
+export interface StreamTranscriptionSnapshot {
+  durationMilliseconds: number
+  isFinal: boolean
+  locale: string
+  startMilliseconds: number
+  text: string
+  type: 'transcript.text.snapshot'
+}
 
 /** Validation lifecycle for one serializable provider configuration. */
 export type ProviderValidationStatus = 'unconfigured' | 'validating' | 'configured' | 'invalid' | 'bypassed'
@@ -85,6 +148,8 @@ export interface ProviderModelCatalog {
   models: ModelInfo[]
   /** Whether the server exposes this catalog. Absent when discovery did not return an authoritative state. */
   available?: boolean
+  /** Last authoritative availability retained by the action owner after discovery fails. */
+  lastKnownAvailable?: boolean
   /** Server-selected model id, or null when the server has no default. */
   defaultModel?: string | null
 }
@@ -93,11 +158,20 @@ export interface ProviderExtraMethods<TConfig> {
   listModelCatalog?: (config: TConfig, provider: ProviderInstance, contextOptions?: ProviderContext) => Promise<ProviderModelCatalog>
   listModels?: (config: TConfig, provider: ProviderInstance, contextOptions?: ProviderContext) => Promise<ModelInfo[]>
   /**
+   * Selects serializable configuration fields used by voice discovery. The cache
+   * fingerprints these fields separately from model and authentication ownership.
+   * Omit synthesis-only controls. Without a selector, all config fields invalidate the cache.
+   */
+  voiceCatalogConfig?: (config: TConfig) => Record<string, unknown>
+  /**
    * Returns the voice catalogue. `model` lets providers whose voices vary by
    * model variant (Volcengine streaming TTS 1.0 vs 2.0 differ in catalogue)
    * narrow the result. Providers with a single catalogue ignore it.
+   * The request owner aborts the signal when its session ends. Adapters must
+   * discard aborted response side effects, including recommendation caches.
    */
-  listVoices?: (config: TConfig, provider: ProviderInstance, model?: string) => Promise<VoiceInfo[]>
+
+  listVoices?: (config: TConfig, provider: ProviderInstance, model?: string, signal?: AbortSignal) => Promise<VoiceInfo[]>
   loadModel?: (config: TConfig, provider: ProviderInstance, hooks?: { onProgress?: (progress: ProgressInfo) => Promise<void> | void }) => Promise<void>
 }
 
@@ -150,12 +224,23 @@ export interface ProviderRuntimeValidator<TConfig> {
   schedule?: ProviderValidatorSchedule
 }
 
+/**
+ * Advisory route metadata. Model-bank contracts retain their original pricing and search semantics.
+ * Reported search abilities do not select an AIRI native tool implementation.
+ */
+export type ModelMetadata = Pick<AIChatModelCard, 'abilities' | 'maxOutput' | 'pricing' | 'settings'>
+
 export interface ModelInfo {
+  metadata?: ModelMetadata
+  /** Provider-reported reasoning constraints for this model, when available. */
+  reasoning?: { mandatory?: boolean }
   id: string
   name: string
   provider: string
   description?: string
   capabilities?: string[]
+  /** Input media declared by the provider model catalog. Missing means unknown. */
+  inputModalities?: string[]
   contextLength?: number
   deprecated?: boolean
 }
@@ -164,6 +249,8 @@ export interface VoiceInfo {
   id: string
   name: string
   provider: string
+  /** Locales for which the server recommends this voice in this catalog response. */
+  recommendedFor?: string[]
   compatibleModels?: string[]
   description?: string
   gender?: string
@@ -250,7 +337,17 @@ export interface ProviderDefinition<TConfig = Record<string, unknown>, TId exten
   }
   capabilities?: {
     chat?: {
+      generation?: GenerationCapabilities
       reasoning?: ChatReasoningCapability
+    }
+    vision?: {
+      /**
+       * How many image reads the provider answers at once. Stage queues the
+       * other reads of each window, so a queued read does not spend its timeout.
+       *
+       * @default {@link DEFAULT_CONCURRENT_VISION_READS}
+       */
+      concurrentReads: number
     }
     transcription?: {
       protocol: 'websocket' | 'http' | 'native'
@@ -277,6 +374,12 @@ export interface ProviderDefinition<TConfig = Record<string, unknown>, TId exten
      */
     speech?: {
       transport: 'rest' | 'bidirectional-ws'
+      /**
+       * Whether the voice catalogue differs for each model, as on the AIRI server.
+       * Then the catalogue of one model is not the catalogue of the provider.
+       * A caller that needs every voice, such as the settings search, asks `listVoices` once for each model.
+       */
+      voicesByModel?: boolean
     }
   }
   /**

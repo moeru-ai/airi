@@ -23,6 +23,15 @@ export interface TtsInput {
   /** Provider format key (e.g. `mp3`, `wav`, Azure-specific `audio-24khz-48kbitrate-mono-mp3`). */
   responseFormat?: string
   /**
+   * The language of {@link text}, as a canonical BCP 47 tag such as `en-US` or `ja`.
+   * The speech domain canonicalizes it, so `zh-CN` never arrives as `ZH-cn`.
+   *
+   * An adapter whose provider takes a language maps the tag to the provider code. Other adapters ignore it.
+   * Without it, the provider guesses. A short text, such as a digit next to Latin letters, can then be read in the
+   * language of the voice.
+   */
+  language?: string
+  /**
    * Adapter-specific escape hatch for niche flags that aren't worth promoting
    * to the canonical shape (e.g. Azure's `disableSsml`, future per-call quirks).
    */
@@ -68,6 +77,19 @@ export interface TtsResult {
   contentType: string
   /** Audio payload (buffered or streamed). */
   body: ArrayBuffer | ReadableStream<Uint8Array>
+}
+
+/**
+ * A non-2xx response from the immediate TTS upstream.
+ *
+ * The router uses this response for configured fallback. It returns the final
+ * response to the client when every permitted fallback has failed.
+ */
+export class TtsUpstreamResponseError extends Error {
+  constructor(readonly response: Response) {
+    super(`TTS upstream responded with ${response.status}`)
+    this.name = 'TtsUpstreamResponseError'
+  }
 }
 
 /**
@@ -120,9 +142,8 @@ export interface TtsVoiceCatalogContext {
  *
  * Returns:
  * - A {@link TtsResult} on 2xx upstream responses.
- * - Throws (Error subclass) on upstream non-2xx — the router maps the error to
- *   the next fallback key/upstream or to a 5xx for the caller. Adapters MUST
- *   NOT swallow upstream failures.
+ * - Throws {@link TtsUpstreamResponseError} on upstream non-2xx. The router
+ *   can use the response for a fallback or return it to the caller.
  */
 export interface TtsAdapter {
   /** Stable id used by the registry and config (`tts.upstreams[i].adapter`). */

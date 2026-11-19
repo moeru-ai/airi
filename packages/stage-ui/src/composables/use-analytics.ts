@@ -1,19 +1,20 @@
-import type { ControlsIslandAction } from '../libs/analytics/events/controls-island'
+import type { ControlsIslandAction } from '../libs/product-signals/events/controls-island'
+import type { AnalyticsSurface } from '../libs/product-signals/surface'
 import type { SpeechOutputStopReason } from '../stores/speech-output-control'
 
-import { isStageCapacitor, isStageTamagotchi } from '@proj-airi/stage-shared'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { captureAnalyticsEvent, enableAnalytics, getAnalytics, getAnalyticsPrivacyPolicyUrl, isAnalyticsAvailableInBuild } from '../libs/analytics'
-import { captureTrackButtonEvent } from '../libs/analytics/events/interaction'
+import { captureAnalyticsEvent, enableAnalytics, getAnalytics, getAnalyticsPrivacyPolicyUrl, isAnalyticsAvailableInBuild } from '../libs/product-signals'
+import { captureTrackButtonEvent } from '../libs/product-signals/events/interaction'
+import { analyticsSurface } from '../libs/product-signals/surface'
 import { useSettingsAnalytics } from '../stores/settings/analytics'
 import { useSettingsGeneral } from '../stores/settings/general'
 
 /**
  * User-facing chat surfaces that can emit product analytics.
  */
-export type ConversationAnalyticsSurface = 'web' | 'mobile' | 'electron'
+export type ConversationAnalyticsSurface = AnalyticsSurface
 
 /**
  * Low-cardinality source names for conversation action events.
@@ -36,7 +37,7 @@ export type MessageInputMode = 'text' | 'voice'
 export type ConversationEventSource = 'new_session' | 'fork' | 'history' | 'share_button' | 'unknown'
 export type AiUsageSource = 'reported' | 'estimated' | 'unavailable'
 /** Stable, low-cardinality actions emitted by the Electron controls island. */
-export type { ControlsIslandAction } from '../libs/analytics/events/controls-island'
+export type { ControlsIslandAction } from '../libs/product-signals/events/controls-island'
 
 /**
  * Full stage vocabulary of the cross-surface `oauth_callback_failed` event.
@@ -94,21 +95,8 @@ interface OnboardingProviderProperties {
   selected_use_case?: string
 }
 
-interface ConversationBaseProperties {
-  conversation_id: string
-  provider_type: ProviderMode
-  provider_name: string
-  model: string
-}
-
 export function getConversationAnalyticsSurface(): ConversationAnalyticsSurface {
-  if (isStageTamagotchi())
-    return 'electron'
-
-  if (isStageCapacitor())
-    return 'mobile'
-
-  return 'web'
+  return analyticsSurface()
 }
 
 export function useAnalytics() {
@@ -128,16 +116,18 @@ export function useAnalytics() {
     return enableAnalytics()
   }
 
-  function trackProviderClick(providerId: string, module: string) {
+  /**
+   * Records the first successful settings check of a provider: the end of the provider setup funnel.
+   * A card click is not a setup step, so no event records it.
+   */
+  function trackProviderConfigured(properties: ProviderConnectionTestProperties) {
     if (!canCapture())
       return
 
-    captureAnalyticsEvent('provider_card_clicked', {
-      provider_id: providerId,
-      module,
+    captureAnalyticsEvent('provider_configured', {
+      ...properties,
       app_surface: getConversationAnalyticsSurface(),
-      trigger_method: 'provider_card',
-      trigger_type: 'user_action',
+      trigger_type: 'user_flow_result',
     })
   }
 
@@ -159,7 +149,7 @@ export function useAnalytics() {
    *
    * Expects:
    * - `entry_surface` is a stable identifier — don't rename without coordinating
-   *   PostHog funnel definitions in `docs/ai-context/metrics-ownership.md`.
+   *   OpenPanel funnel definitions in `docs/ai-context/metrics-ownership.md`.
    */
   function trackPricingViewed(entrySurface: string, planPeriod?: 'monthly' | 'annual' | 'one_time') {
     if (!canCapture())
@@ -187,7 +177,7 @@ export function useAnalytics() {
    *   `window.location.href = ...`. `beforeNavigation` lets the installed
    *   adapter choose a delivery mechanism that survives document unload.
    *
-   * The funnel terminator `payment_completed` is forwarded to PostHog
+   * The funnel terminator `payment_completed` is forwarded to OpenPanel
    * server-side by the product-events service, keyed by the Better Auth
    * user id.
    */
@@ -233,7 +223,7 @@ export function useAnalytics() {
   }
 
   // ─── Account lifecycle (same event names as apps/ui-server-auth's
-  // analytics module — both surfaces feed one PostHog series) ───────────
+  // analytics module — both surfaces feed one OpenPanel series) ───────────
 
   function trackPasswordChanged() {
     if (!canCapture())
@@ -272,15 +262,18 @@ export function useAnalytics() {
     })
   }
 
-  /**
-   * Deletion email sent (user confirmed in the dialog). The completion
-   * event lands on ui-server-auth's success page; this one is the churn
-   * intent signal even when the user never clicks the email link.
-   */
+  /** Records explicit deletion intent before the server accepts or rejects the request. */
   function trackAccountDeletionRequested() {
     if (!canCapture())
       return
     captureAnalyticsEvent('account_deletion_requested', { app_surface: getConversationAnalyticsSurface() })
+  }
+
+  /** Records server-confirmed deletion while honoring the same analytics consent as other events. */
+  function trackAccountDeletionCompleted() {
+    if (!canCapture())
+      return
+    captureAnalyticsEvent('account_deletion_completed', { app_surface: getConversationAnalyticsSurface() })
   }
 
   function trackOnboardingStarted(properties: { entry: ProductAnalyticsEntry }) {
@@ -308,7 +301,7 @@ export function useAnalytics() {
     captureAnalyticsEvent('character_created', properties)
   }
 
-  /** Feature adoption — voice mode is a candidate retention lever; cohort comparisons live in PostHog. */
+  /** Feature adoption — voice mode is a candidate retention lever; cohort comparisons live in OpenPanel. */
   function trackVoiceModeActivated(characterId?: string) {
     if (!canCapture())
       return
@@ -336,55 +329,12 @@ export function useAnalytics() {
   /**
    * Retention cohort denominator — every chat session start. Pair with
    * `payment_completed` cohort to compute "active paying user" retention
-   * curves in PostHog.
+   * curves in OpenPanel.
    */
   function trackChatSessionStarted(modelId: string, sessionIndex?: number) {
     if (!canCapture())
       return
     captureAnalyticsEvent('chat_session_started', { model_id: modelId, ...(sessionIndex != null && { session_index: sessionIndex }) })
-  }
-
-  /** Cost-fact event for one custom-provider generation; content is intentionally excluded. */
-  function trackAiGeneration(properties: {
-    conversation_id: string
-    round_id: string
-    provider_type: ProviderMode
-    provider_id: string
-    model_id: string
-    usage_source: AiUsageSource
-    input_tokens?: number
-    output_tokens?: number
-    total_tokens?: number
-  }) {
-    if (!canCapture())
-      return
-
-    const totalTokens = properties.total_tokens
-      ?? (properties.input_tokens != null && properties.output_tokens != null
-        ? properties.input_tokens + properties.output_tokens
-        : undefined)
-
-    captureAnalyticsEvent('$ai_generation', {
-      $ai_trace_id: properties.conversation_id,
-      $ai_session_id: properties.conversation_id,
-      $ai_span_id: properties.round_id,
-      $ai_model: properties.model_id,
-      $ai_provider: properties.provider_id,
-      ...(properties.input_tokens != null && { $ai_input_tokens: properties.input_tokens }),
-      ...(properties.output_tokens != null && { $ai_output_tokens: properties.output_tokens }),
-      ...(totalTokens != null && { $ai_total_tokens: totalTokens }),
-      $insert_id: `ai-generation:${properties.round_id}`,
-      app_surface: getConversationAnalyticsSurface(),
-      capture_surface: 'client',
-      conversation_id: properties.conversation_id,
-      conversation_id_source: 'client_runtime',
-      round_id: properties.round_id,
-      provider_type: properties.provider_type,
-      usage_source: properties.usage_source,
-      token_usage_available: properties.usage_source !== 'unavailable',
-      cost_usd_source: 'unavailable',
-      cost_usd_known: false,
-    })
   }
 
   /** Closing event for one full message round (user send → assistant render). */
@@ -415,25 +365,6 @@ export function useAnalytics() {
     captureAnalyticsEvent('message_round_failed', {
       ...properties,
       app_surface: getConversationAnalyticsSurface(),
-    })
-  }
-
-  function trackMessageSent(properties: ConversationBaseProperties & {
-    round_id: string
-    turn_index: number
-    message_id?: string
-    message_index?: number
-    message_length?: number
-    has_attachment: boolean
-    mode: MessageInputMode
-  }) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('message_sent', {
-      ...properties,
-      app_surface: getConversationAnalyticsSurface(),
-      trigger_method: properties.mode === 'voice' ? 'voice' : 'text_input',
-      trigger_type: 'user_action',
     })
   }
 
@@ -575,27 +506,10 @@ export function useAnalytics() {
 
   // ─── STT events ──────────────────────────────────────────────────────
 
-  function trackSttSucceeded(properties: { provider: string, latency_ms: number, char_count: number, stream: boolean }) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('stt_succeeded', properties)
-  }
-
   function trackSttFailed(properties: { provider: string, error_code?: string }) {
     if (!canCapture())
       return
     captureAnalyticsEvent('stt_failed', properties)
-  }
-
-  function trackVoiceInputStarted(properties: VoiceInputBaseProperties) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('voice_input_started', {
-      ...properties,
-      app_surface: getConversationAnalyticsSurface(),
-      trigger_method: 'voice',
-      trigger_type: 'user_action',
-    })
   }
 
   function trackMicrophonePermissionDenied(properties: VoiceInputBaseProperties & { error_code?: 'permission_denied' | string }) {
@@ -866,12 +780,6 @@ export function useAnalytics() {
     captureAnalyticsEvent('character_switched', properties)
   }
 
-  function trackChatSessionDeleted(properties: { session_id: string, message_count: number }) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('chat_session_deleted', properties)
-  }
-
   function trackOnboardingStepCompleted(step: string) {
     if (!canCapture())
       return
@@ -1028,7 +936,7 @@ export function useAnalytics() {
 
   return {
     privacyPolicyUrl,
-    trackProviderClick,
+    trackProviderConfigured,
     trackFirstMessage,
     trackPricingViewed,
     trackPlanSelected,
@@ -1040,6 +948,7 @@ export function useAnalytics() {
     trackOauthProviderLinkStarted,
     trackOauthProviderUnlinked,
     trackAccountDeletionRequested,
+    trackAccountDeletionCompleted,
     trackOnboardingStarted,
     trackOnboardingCompleted,
     trackCharacterCreated,
@@ -1047,10 +956,8 @@ export function useAnalytics() {
     trackModelSwitched,
     trackChatSessionStarted,
 
-    trackAiGeneration,
     trackMessageRound,
     trackMessageRoundFailed,
-    trackMessageSent,
     trackProviderConnectionTestStarted,
     trackProviderConnectionTestCompleted,
     trackTtsStopClicked,
@@ -1064,9 +971,7 @@ export function useAnalytics() {
     trackConversationShared,
     trackConversationDeleted,
 
-    trackSttSucceeded,
     trackSttFailed,
-    trackVoiceInputStarted,
     trackMicrophonePermissionDenied,
     trackVoiceInputCancelled,
     trackBugReportSubmitted,
@@ -1096,7 +1001,6 @@ export function useAnalytics() {
     trackCharacterUpdated,
     trackCharacterDeleted,
     trackCharacterSwitched,
-    trackChatSessionDeleted,
     trackOnboardingStepCompleted,
     trackOnboardingSkipped,
 

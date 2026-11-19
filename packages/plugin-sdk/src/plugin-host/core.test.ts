@@ -1,20 +1,25 @@
-import type { ExtensionManifestV1, ModulePermissionDeclaration } from './shared/types'
+import type { ExtensionManifestV2, ModulePermissionDeclaration } from './shared/types'
 
 import { join } from 'node:path'
 
 import { safeParse } from 'valibot'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, onTestFinished, vi } from 'vitest'
 
-import { ExtensionHost, extensionManifestV1Schema, FileSystemLoader } from '.'
+import { ExtensionHost, extensionManifestV2Schema, FileSystemLoader } from '.'
 import { defineExtension } from '../extension'
-import { defineKit } from '../kit'
+import { defineKit, defineKitContract, defineKitMethod } from '../kit'
 
 describe('extension manifest schema', () => {
-  it('accepts extension.airi.json v1 manifests', () => {
-    const result = safeParse(extensionManifestV1Schema, {
-      apiVersion: 'v1',
+  it('accepts extension.airi.json v2 manifests', () => {
+    const result = safeParse(extensionManifestV2Schema, {
+      manifestVersion: 2,
       kind: 'manifest.extension.airi.moeru.ai' as const,
       id: 'airi-extension-test',
+      version: '1.0.0',
+      engines: {
+        airi: '*',
+        runtimes: ['electron'],
+      },
       permissions: {},
       entrypoints: {
         electron: './extension.mjs',
@@ -24,8 +29,32 @@ describe('extension manifest schema', () => {
     expect(result.success).toBe(true)
   })
 
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r4013407993
+  it('rejects non-semantic Extension package versions (PR #2506)', () => {
+    // ROOT CAUSE:
+    //
+    // The manifest schema only required a non-empty package version, so an
+    // invalid value could become the installed package and session identity.
+    const result = safeParse(extensionManifestV2Schema, {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'airi-extension-test',
+      version: 'release-1',
+      engines: {
+        airi: '*',
+        runtimes: ['electron'],
+      },
+      permissions: {},
+      entrypoints: {
+        electron: './extension.mjs',
+      },
+    })
+
+    expect(result.success).toBe(false)
+  })
+
   it('rejects legacy extension manifests', () => {
-    const result = safeParse(extensionManifestV1Schema, {
+    const result = safeParse(extensionManifestV2Schema, {
       apiVersion: 'v1',
       kind: 'manifest.plugin.airi.moeru.ai',
       name: 'airi-plugin-test',
@@ -37,9 +66,1376 @@ describe('extension manifest schema', () => {
 
     expect(result.success).toBe(false)
   })
+
+  it('rejects unknown manifest fields', () => {
+    const result = safeParse(extensionManifestV2Schema, {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'airi-extension-test',
+      version: '1.0.0',
+      engines: {
+        airi: '*',
+        runtimes: ['electron'],
+      },
+      permissions: {},
+      entrypoints: {
+        electron: './extension.mjs',
+      },
+      permisisons: {},
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects manifests without a runtime entrypoint', () => {
+    const result = safeParse(extensionManifestV2Schema, {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'airi-extension-test',
+      version: '1.0.0',
+      engines: {
+        airi: '*',
+        runtimes: ['electron'],
+      },
+      permissions: {},
+      entrypoints: {},
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects Extension ids that cannot name an installation folder', () => {
+    const result = safeParse(extensionManifestV2Schema, {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: '../outside',
+      version: '1.0.0',
+      engines: {
+        airi: '*',
+        runtimes: ['electron'],
+      },
+      permissions: {},
+      entrypoints: {
+        electron: './extension.mjs',
+      },
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r4014945385
+  it('rejects Extension ids longer than one portable folder component (PR #2506)', () => {
+    // ROOT CAUSE:
+    //
+    // The schema accepted an ID that exceeds the 255-byte component limit on
+    // common file systems. Folder import then failed with ENAMETOOLONG.
+    const result = safeParse(extensionManifestV2Schema, {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'a'.repeat(256),
+      version: '1.0.0',
+      engines: {
+        airi: '*',
+        runtimes: ['electron'],
+      },
+      permissions: {},
+      entrypoints: {
+        electron: './extension.mjs',
+      },
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r4014945385
+  it('rejects Windows device names as Extension ids (PR #2506)', () => {
+    // ROOT CAUSE:
+    //
+    // Windows reserves device names even when a file extension follows them.
+    // The schema accepted these names as normal installation folders.
+    const result = safeParse(extensionManifestV2Schema, {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'con.tools',
+      version: '1.0.0',
+      engines: {
+        airi: '*',
+        runtimes: ['electron'],
+      },
+      permissions: {},
+      entrypoints: {
+        electron: './extension.mjs',
+      },
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  it('accepts extension-hosted kit declarations', () => {
+    const manifest = {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai' as const,
+      id: 'agent-activity-provider',
+      version: '1.0.0',
+      engines: {
+        airi: '*',
+        runtimes: ['electron' as const],
+      },
+      permissions: {},
+      entrypoints: {
+        electron: './extension.mjs',
+      },
+      kits: {
+        provides: [{
+          id: 'dev.airi.agent-activity',
+          version: '1.0.0',
+          exposure: 'local-only' as const,
+        }],
+        uses: [{
+          id: 'dev.airi.character-reaction',
+          version: '1.0.0',
+          optional: true,
+        }],
+      },
+    } satisfies ExtensionManifestV2
+
+    expect(safeParse(extensionManifestV2Schema, manifest).success).toBe(true)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2687
+  it('accepts exact package and Provider versions with build metadata (PR #2687)', () => {
+    // ROOT CAUSE:
+    //
+    // semver.valid omits build metadata from its result.
+    // Comparing that result with the input rejected valid exact versions.
+    // The exact-version predicate now reconstructs the complete version before comparison.
+    const version = '1.2.3-rc.1+build.007'
+    const result = safeParse(extensionManifestV2Schema, {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'build-metadata-provider',
+      version,
+      engines: { airi: '*', runtimes: ['electron'] },
+      permissions: {},
+      entrypoints: { electron: './extension.mjs' },
+      kits: { provides: [{ id: 'kit.build-metadata', version, exposure: 'local-only' }] },
+    })
+
+    expect(result.success).toBe(true)
+    if (result.success) {
+      expect(result.output.version).toBe(version)
+      expect(result.output.kits?.provides?.[0]?.version).toBe(version)
+    }
+  })
+
+  it('rejects duplicate provided Kit ids', () => {
+    const result = safeParse(extensionManifestV2Schema, {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'duplicate-kit-provider',
+      version: '1.0.0',
+      engines: {
+        airi: '*',
+        runtimes: ['electron'],
+      },
+      permissions: {},
+      entrypoints: {
+        electron: './extension.mjs',
+      },
+      kits: {
+        provides: [
+          {
+            id: 'dev.airi.agent-activity',
+            version: '1.0.0',
+            exposure: 'local-only',
+          },
+          {
+            id: 'dev.airi.agent-activity',
+            version: '2.0.0',
+            exposure: 'remote-callable',
+          },
+        ],
+      },
+    })
+
+    // ROOT CAUSE:
+    //
+    // Preflight and runtime resolution find Kit declarations by id. If the
+    // manifest repeats an id, those stages can select different contracts.
+    // The schema now rejects that ambiguity before Extension code can run.
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.issues).toContainEqual(expect.objectContaining({
+        message: 'Declare each provided Kit once.',
+      }))
+    }
+  })
+
+  it('rejects duplicate used Kit ids', () => {
+    const result = safeParse(extensionManifestV2Schema, {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'duplicate-kit-consumer',
+      version: '1.0.0',
+      engines: {
+        airi: '*',
+        runtimes: ['electron'],
+      },
+      permissions: {},
+      entrypoints: {
+        electron: './extension.mjs',
+      },
+      kits: {
+        uses: [
+          {
+            id: 'dev.airi.agent-activity',
+            version: '2.0.0',
+            optional: true,
+          },
+          {
+            id: 'dev.airi.agent-activity',
+            version: '1.0.0',
+          },
+        ],
+      },
+    })
+
+    expect(result.success).toBe(false)
+    if (!result.success) {
+      expect(result.issues).toContainEqual(expect.objectContaining({
+        message: 'Declare each used Kit once.',
+      }))
+    }
+  })
+
+  it('accepts Kit version ranges for Consumer declarations', () => {
+    const result = safeParse(extensionManifestV2Schema, {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'agent-activity-consumer',
+      version: '1.0.0',
+      engines: {
+        airi: '*',
+        runtimes: ['electron'],
+      },
+      permissions: {},
+      entrypoints: {
+        electron: './extension.mjs',
+      },
+      kits: {
+        uses: [{
+          id: 'dev.airi.agent-activity',
+          version: '^1.0.0',
+        }],
+      },
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts exact Kit versions for Consumer declarations', () => {
+    const result = safeParse(extensionManifestV2Schema, {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'exact-version-consumer',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron'] },
+      permissions: {},
+      entrypoints: { electron: './extension.mjs' },
+      kits: {
+        uses: [{ id: 'dev.airi.agent-activity', version: '1.0.0' }],
+      },
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts compound Kit version ranges for Consumer declarations', () => {
+    const result = safeParse(extensionManifestV2Schema, {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'compound-range-consumer',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron'] },
+      permissions: {},
+      entrypoints: { electron: './extension.mjs' },
+      kits: {
+        uses: [{ id: 'dev.airi.agent-activity', version: '>=1 <2' }],
+      },
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects invalid Kit version ranges for Consumer declarations', () => {
+    const result = safeParse(extensionManifestV2Schema, {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'invalid-range-consumer',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron'] },
+      permissions: {},
+      entrypoints: { electron: './extension.mjs' },
+      kits: {
+        uses: [{ id: 'dev.airi.agent-activity', version: 'not-a-range' }],
+      },
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects Kit version ranges for Provider declarations', () => {
+    const result = safeParse(extensionManifestV2Schema, {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'agent-activity-provider',
+      version: '1.0.0',
+      engines: {
+        airi: '*',
+        runtimes: ['electron'],
+      },
+      permissions: {},
+      entrypoints: {
+        electron: './extension.mjs',
+      },
+      kits: {
+        provides: [{
+          id: 'dev.airi.agent-activity',
+          version: '^1.0.0',
+          exposure: 'local-only',
+        }],
+      },
+    })
+
+    expect(result.success).toBe(false)
+  })
+})
+
+describe('extension-hosted Kit registration lifecycle', () => {
+  const contract = defineKitContract({
+    id: 'kit.hosted-lifecycle',
+    version: '1.0.0',
+    methods: { read: defineKitMethod<undefined, string>() },
+    events: {},
+  })
+
+  function manifest(id: string) {
+    return {
+      manifestVersion: 2 as const,
+      kind: 'manifest.extension.airi.moeru.ai' as const,
+      id,
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron' as const] },
+      permissions: {},
+      entrypoints: {},
+      kits: { provides: [{ id: contract.id, version: contract.version, exposure: 'local-only' as const }] },
+    }
+  }
+
+  it('publishes only after setup returns and withdraws before cleanup callbacks', async () => {
+    const host = new ExtensionHost()
+    const cleanupError = new Error('cleanup failed')
+    const extension = defineExtension({
+      id: 'provider-one',
+      setup(ctx) {
+        ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
+        expect(host.getKitProvider(contract.id)).toBeUndefined()
+        ctx.subscriptions.add({ dispose: () => {
+          expect(host.getKitProvider(contract.id)).toBeUndefined()
+          throw cleanupError
+        } })
+      },
+    })
+
+    const session = await host.startExtension(extension, { manifest: manifest(extension.id) })
+    expect(host.getKitProvider(contract.id)).toMatchObject({ generation: 1, owner: { sessionId: session.id } })
+    await expect(host.stop(session.id)).rejects.toBe(cleanupError)
+    expect(host.getKitProvider(contract.id)).toBeUndefined()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2687
+  it('releases pending slots on stop and rejects late setup publication (PR #2687)', async () => {
+    // ROOT CAUSE:
+    //
+    // Stop owned only committed leases, so an async setup retained its pending transaction.
+    // The old setup then published after stop or blocked a replacement session.
+    // Session lifecycle state now owns the transaction until commit and releases it on stop.
+    const host = new ExtensionHost()
+    const entered = Promise.withResolvers<void>()
+    const resume = Promise.withResolvers<void>()
+    const dispose = vi.fn()
+    const starting = host.startExtension(defineExtension({
+      id: 'provider-one',
+      async setup(ctx) {
+        ctx.kits.provide(contract, { methods: { read: () => 'old' } })
+        ctx.subscriptions.add({ dispose })
+        entered.resolve()
+        await resume.promise
+      },
+    }), { manifest: manifest('provider-one') })
+    const result = starting.catch((error: unknown) => error)
+    await entered.promise
+    const [pending] = host.listSessions()
+    expect(pending.phase).toBe('setting-up')
+
+    const stopping = host.stop(pending.id)
+    const replacement = await host.startExtension(defineExtension({
+      id: 'provider-two',
+      setup(ctx) {
+        ctx.kits.provide(contract, { methods: { read: () => 'new' } })
+      },
+    }), { manifest: manifest('provider-two') })
+    await stopping
+    resume.resolve()
+    expect(await result).toMatchObject({ message: expect.stringContaining('stopped before setup completed') })
+
+    expect(pending.phase).toBe('stopped')
+    expect(dispose).toHaveBeenCalledTimes(1)
+    expect(host.listSessions()).toEqual([replacement])
+    expect(host.getKitProvider(contract.id)).toMatchObject({ generation: 1, owner: { sessionId: replacement.id } })
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2687
+  // ROOT CAUSE:
+  //
+  // Stop released only committed Providers, so suspended setup retained its transaction and module registration access.
+  // The released lifecycle now rolls back pending ownership and rejects late registration.
+  it('cancels an unfilled setup and rejects late provide and module registration (PR #2687)', async () => {
+    const host = new ExtensionHost()
+    const entered = Promise.withResolvers<void>()
+    const resume = Promise.withResolvers<void>()
+    const starting = host.startExtension(defineExtension({
+      id: 'provider-one',
+      async setup(ctx) {
+        entered.resolve()
+        await resume.promise
+        expect(() => ctx.kits.provide(contract, { methods: { read: () => 'late' } })).toThrow()
+        await expect(ctx.modules.register({ id: 'late-module' })).rejects.toThrow('stopped')
+      },
+    }), { manifest: manifest('provider-one') })
+    const result = starting.catch((error: unknown) => error)
+    await entered.promise
+    const [pending] = host.listSessions()
+    await host.stop(pending.id)
+    resume.resolve()
+    expect(await result).toMatchObject({ message: expect.stringContaining('stopped before setup completed') })
+
+    expect(host.listSessions()).toEqual([])
+    expect(host.listModules()).toEqual([])
+    expect(host.getKitProvider(contract.id)).toBeUndefined()
+    const replacement = await host.startExtension(defineExtension({
+      id: 'provider-two',
+      setup(ctx) {
+        ctx.kits.provide(contract, { methods: { read: () => 'new' } })
+      },
+    }), { manifest: manifest('provider-two') })
+    expect(host.getKitProvider(contract.id)).toMatchObject({ generation: 1, owner: { sessionId: replacement.id } })
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2687
+  // ROOT CAUSE:
+  //
+  // Repeated cleanup returned early after disposal started, so late setup failure lost the pending stop's cleanup error.
+  // A shared cleanup promise now preserves that error for every lifecycle caller.
+  it('shares in-flight stop cleanup with late setup failure (PR #2687)', async () => {
+    const host = new ExtensionHost()
+    const entered = Promise.withResolvers<void>()
+    const resume = Promise.withResolvers<void>()
+    const cleaning = Promise.withResolvers<void>()
+    const finishCleanup = Promise.withResolvers<void>()
+    const setupError = new Error('late setup failure')
+    const cleanupError = new Error('stop cleanup failure')
+    const dispose = vi.fn(async () => {
+      cleaning.resolve()
+      await finishCleanup.promise
+      throw cleanupError
+    })
+    const starting = host.startExtension(defineExtension({
+      id: 'provider-one',
+      async setup(ctx) {
+        ctx.kits.provide(contract, { methods: { read: () => 'old' } })
+        ctx.subscriptions.add({ dispose })
+        entered.resolve()
+        await resume.promise
+        throw setupError
+      },
+    }), { manifest: manifest('provider-one') })
+    const result = starting.catch((error: unknown) => error)
+    await entered.promise
+    const [pending] = host.listSessions()
+    const stopping = host.stop(pending.id).catch((error: unknown) => error)
+    const stoppingAgain = host.stop(pending.id).catch((error: unknown) => error)
+    await cleaning.promise
+    resume.resolve()
+    finishCleanup.resolve()
+    expect(await result).toMatchObject({ errors: [setupError, cleanupError], cause: setupError })
+    expect(await stopping).toBe(cleanupError)
+    expect(await stoppingAgain).toBe(cleanupError)
+
+    expect(dispose).toHaveBeenCalledTimes(1)
+    expect(pending.phase).toBe('stopped')
+    expect(host.listSessions()).toEqual([])
+    expect(host.getKitProvider(contract.id)).toBeUndefined()
+  })
+
+  it('rolls back after setup failure and after an omitted declaration', async () => {
+    const host = new ExtensionHost()
+    const setupError = new Error('setup failed')
+    await expect(host.startExtension(defineExtension({
+      id: 'provider-one',
+      setup(ctx) {
+        ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
+        throw setupError
+      },
+    }), { manifest: manifest('provider-one') })).rejects.toBe(setupError)
+    expect(host.getKitProvider(contract.id)).toBeUndefined()
+
+    await expect(host.startExtension(defineExtension({
+      id: 'provider-two',
+      setup() {},
+    }), { manifest: manifest('provider-two') })).rejects.toThrow('missing-declared-kit')
+    expect(host.getKitProvider(contract.id)).toBeUndefined()
+
+    await host.startExtension(defineExtension({
+      id: 'provider-three',
+      setup(ctx) {
+        ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
+      },
+    }), { manifest: manifest('provider-three') })
+    expect(host.getKitProvider(contract.id)?.generation).toBe(1)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2687
+  // ROOT CAUSE:
+  //
+  // Stop joined the cleanup promise that awaited its own disposer, including after await.
+  // The session stop timeout now ends the self-wait, while external callers retain the shared outcome.
+  it('ends self-stop across an await at the stop timeout while external stops share the outcome (PR #2687)', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    onTestFinished(() => {
+      vi.useRealTimers()
+    })
+    const host = new ExtensionHost()
+    const entered = Promise.withResolvers<void>()
+    const resume = Promise.withResolvers<void>()
+    const remaining = vi.fn()
+    const session = await host.startExtension(defineExtension({
+      id: 'self-stop',
+      setup(ctx) {
+        ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
+        ctx.subscriptions.add({ dispose: remaining })
+        ctx.subscriptions.add({ dispose: async () => {
+          entered.resolve()
+          await resume.promise
+          await host.stop(session.id)
+        } })
+      },
+    }), { manifest: manifest('self-stop') })
+
+    const stopping = host.stop(session.id).catch((error: unknown) => error)
+    await entered.promise
+    const stoppingAgain = host.stop(session.id).catch((error: unknown) => error)
+    const reloading = host.reload(session.id).catch((error: unknown) => error)
+    let externalFinished = false
+    void stoppingAgain.then(() => {
+      externalFinished = true
+    })
+    await Promise.resolve()
+    expect(externalFinished).toBe(false)
+    expect(remaining).not.toHaveBeenCalled()
+    resume.resolve()
+    await vi.runAllTimersAsync()
+
+    expect(await stopping).toBe(session)
+    expect(await stoppingAgain).toBe(session)
+    // Reload continues after the stop. This session has no entrypoint, so the fresh start fails.
+    expect(await reloading).toHaveProperty('message', expect.stringContaining('entrypoint'))
+    expect(remaining).toHaveBeenCalledTimes(1)
+    expect(host.listSessions()).toEqual([])
+    expect(host.getKitProvider(contract.id)).toBeUndefined()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2687
+  // ROOT CAUSE:
+  //
+  // Direct self-stop returned the pending cleanup promise while the disposer remained pending.
+  // The session stop timeout now ends the join, and best-effort disposal continues.
+  it('ends direct self-stop at the stop timeout without skipping later cleanup (PR #2687)', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    onTestFinished(() => {
+      vi.useRealTimers()
+    })
+    const host = new ExtensionHost({ runtime: 'node' })
+    const remaining = vi.fn()
+    const session = await host.startExtension(defineExtension({
+      id: 'self-stop-sync',
+      setup(ctx) {
+        ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
+        ctx.subscriptions.add({ dispose: remaining })
+        ctx.subscriptions.add({ dispose: async () => {
+          await host.stop(session.id)
+        } })
+      },
+    }), { manifest: { ...manifest('self-stop-sync'), engines: { airi: '*', runtimes: ['node'] } } })
+
+    const stopping = host.stop(session.id)
+    await vi.runAllTimersAsync()
+    await expect(stopping).resolves.toBe(session)
+    expect(remaining).toHaveBeenCalledTimes(1)
+    expect(host.listSessions()).toEqual([])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2687
+  // ROOT CAUSE:
+  //
+  // Reload joined the same session cleanup from inside a module disposer and never reached fresh start.
+  // The session stop timeout now ends the join. Then reload continues with its fresh start.
+  it('ends module self-reload after an await at the stop timeout (PR #2687)', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    onTestFinished(() => {
+      vi.useRealTimers()
+    })
+    const host = new ExtensionHost()
+    const start = vi.spyOn(host, 'start')
+    const remaining = vi.fn()
+    const session = await host.startExtension(defineExtension({
+      id: 'self-reload',
+      async setup(ctx) {
+        ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
+        ctx.subscriptions.add({ dispose: remaining })
+        const module = await ctx.modules.register({ id: 'module-one' })
+        module.subscriptions.add({ dispose: async () => {
+          await Promise.resolve()
+          await host.reload(session.id)
+        } })
+      },
+    }), { manifest: manifest('self-reload') })
+
+    const stopping = host.stop(session.id)
+    await vi.runAllTimersAsync()
+    await expect(stopping).resolves.toBe(session)
+    await vi.waitFor(() => expect(start).toHaveBeenCalledTimes(1))
+    expect(remaining).toHaveBeenCalledTimes(1)
+    expect(session.modules.size).toBe(0)
+    expect(host.listSessions()).toEqual([])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2687
+  // ROOT CAUSE:
+  //
+  // A disposer stopped another session whose cleanup then awaited the first session.
+  // The session stop timeout now ends the cyclic join.
+  it('allows cleanup to stop another session and ends a wait on an ancestor cleanup at the stop timeout (PR #2687)', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    onTestFinished(() => {
+      vi.useRealTimers()
+    })
+    const host = new ExtensionHost()
+    const order: string[] = []
+    let secondId: string
+    const first = await host.startExtension(defineExtension({
+      id: 'first-cleanup',
+      setup(ctx) {
+        ctx.subscriptions.add({ dispose: async () => {
+          order.push('first')
+          await host.stop(secondId)
+        } })
+      },
+    }), { manifest: { ...manifest('first-cleanup'), kits: undefined } })
+    const second = await host.startExtension(defineExtension({
+      id: 'second-cleanup',
+      setup(ctx) {
+        ctx.subscriptions.add({ dispose: async () => {
+          order.push('second')
+          await Promise.resolve()
+          await host.stop(first.id)
+        } })
+      },
+    }), { manifest: { ...manifest('second-cleanup'), kits: undefined } })
+    secondId = second.id
+
+    const stopping = host.stop(first.id)
+    await vi.runAllTimersAsync()
+    await expect(stopping).resolves.toBe(first)
+    expect(order).toEqual(['first', 'second'])
+    expect(host.listSessions()).toEqual([])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2687
+  // ROOT CAUSE:
+  //
+  // A Host-wide flag cannot distinguish valid nested cleanup from self-wait.
+  // This companion case requires exact session ancestry and permits independent later operations.
+  it('keeps cleanup context isolated from unrelated sessions and later operations (PR #2687)', async () => {
+    const host = new ExtensionHost()
+    const remaining = vi.fn()
+    const second = await host.startExtension(defineExtension({
+      id: 'independent-cleanup',
+      setup(ctx) {
+        ctx.subscriptions.add({ dispose: remaining })
+      },
+    }), { manifest: { ...manifest('independent-cleanup'), kits: undefined } })
+    const first = await host.startExtension(defineExtension({
+      id: 'nested-cleanup',
+      setup(ctx) {
+        ctx.subscriptions.add({ dispose: async () => {
+          await Promise.resolve()
+          await host.stop(second.id)
+        } })
+      },
+    }), { manifest: { ...manifest('nested-cleanup'), kits: undefined } })
+
+    await expect(host.stop(first.id)).resolves.toBe(first)
+    expect(remaining).toHaveBeenCalledTimes(1)
+    expect(host.listSessions()).toEqual([])
+    await expect(host.stop(first.id)).resolves.toBeUndefined()
+  })
+
+  it('preserves shared external cleanup for a Web Host without Node context detection', async () => {
+    const host = new ExtensionHost({ runtime: 'web' })
+    const entered = Promise.withResolvers<void>()
+    const resume = Promise.withResolvers<void>()
+    const remaining = vi.fn()
+    const session = await host.startExtension(defineExtension({
+      id: 'web-cleanup',
+      setup(ctx) {
+        ctx.subscriptions.add({ dispose: remaining })
+        ctx.subscriptions.add({ dispose: async () => {
+          entered.resolve()
+          await resume.promise
+        } })
+      },
+    }), { manifest: { ...manifest('web-cleanup'), kits: undefined, engines: { airi: '*', runtimes: ['web'] } } })
+
+    const stopping = host.stop(session.id)
+    await entered.promise
+    const stoppingAgain = host.stop(session.id)
+    expect(remaining).not.toHaveBeenCalled()
+    resume.resolve()
+    expect(await stopping).toBe(session)
+    expect(await stoppingAgain).toBe(session)
+    expect(remaining).toHaveBeenCalledTimes(1)
+    expect(host.listSessions()).toEqual([])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2687
+  // ROOT CAUSE:
+  //
+  // A module failure skipped later cleanup before the Host removed the session.
+  // The watcher then remained active without an owning session to release it.
+  // Composite disposal now attempts remaining modules and root subscriptions before reporting failure.
+  it('cleans remaining modules and root watchers after a module fails (PR #2687)', async () => {
+    const host = new ExtensionHost()
+    const cleanupError = new Error('module cleanup failed')
+    const order: string[] = []
+    const observe = vi.fn()
+    const kit = defineKit({ id: 'kit.cleanup-watch', version: '1.0.0', createClient: () => ({}) })
+    const lease = host.registerKitApi(kit)
+    const session = await host.startExtension(defineExtension({
+      id: 'provider-one',
+      async setup(ctx) {
+        ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
+        ctx.subscriptions.add({ dispose: () => {
+          order.push('root')
+        } })
+        ctx.kits.watch(kit, observe)
+        const first = await ctx.modules.register({ id: 'first' })
+        first.subscriptions.add({ dispose: () => {
+          order.push('first')
+        } })
+        const failing = await ctx.modules.register({ id: 'failing' })
+        failing.subscriptions.add({ dispose: () => {
+          order.push('failing-tail')
+        } })
+        failing.subscriptions.add({ dispose: () => {
+          order.push('failing-error')
+          throw cleanupError
+        } })
+      },
+    }), { manifest: {
+      ...manifest('provider-one'),
+      permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
+    } })
+    expect(observe).toHaveBeenCalledTimes(1)
+
+    await expect(host.stop(session.id)).rejects.toBe(cleanupError)
+    expect(order).toEqual(['failing-error', 'failing-tail', 'first', 'root'])
+    expect(session.modules.size).toBe(0)
+    expect(host.listSessions()).toEqual([])
+    expect(host.getKitProvider(contract.id)).toBeUndefined()
+    lease.dispose()
+    const replacementLease = host.registerKitApi(kit)
+    expect(observe).toHaveBeenCalledTimes(1)
+    replacementLease.dispose()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2687
+  // ROOT CAUSE:
+  //
+  // Fail-fast cleanup reported only the first module failure and never attempted root subscriptions.
+  // Each cleanup group now retains its failures, and concurrent stops receive the same completed result.
+  it('shares all module and root cleanup failures between concurrent stops (PR #2687)', async () => {
+    const host = new ExtensionHost()
+    const firstError = new Error('first module cleanup failed')
+    const secondError = new Error('second module cleanup failed')
+    const rootError = new Error('root cleanup failed')
+    const entered = Promise.withResolvers<void>()
+    const resume = Promise.withResolvers<void>()
+    const remaining = vi.fn()
+    const session = await host.startExtension(defineExtension({
+      id: 'provider-one',
+      async setup(ctx) {
+        ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
+        ctx.subscriptions.add({ dispose: remaining })
+        ctx.subscriptions.add({ dispose: () => {
+          throw rootError
+        } })
+        const first = await ctx.modules.register({ id: 'first' })
+        first.subscriptions.add({ dispose: () => {
+          throw firstError
+        } })
+        const second = await ctx.modules.register({ id: 'second' })
+        second.subscriptions.add({ dispose: async () => {
+          entered.resolve()
+          await resume.promise
+          throw secondError
+        } })
+      },
+    }), { manifest: manifest('provider-one') })
+
+    const stopping = host.stop(session.id).catch((error: unknown) => error)
+    const stoppingAgain = host.stop(session.id).catch((error: unknown) => error)
+    await entered.promise
+    expect(remaining).not.toHaveBeenCalled()
+    resume.resolve()
+    const failure = await stopping
+    expect(failure).toBeInstanceOf(AggregateError)
+    if (!(failure instanceof AggregateError)) {
+      throw new Error('Expected all cleanup failures.')
+    }
+    expect(failure.errors).toEqual([expect.objectContaining({ errors: [secondError, firstError] }), rootError])
+    expect(await stoppingAgain).toBe(failure)
+    expect(remaining).toHaveBeenCalledTimes(1)
+    expect(session.modules.size).toBe(0)
+    expect(host.listSessions()).toEqual([])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2687
+  // ROOT CAUSE:
+  //
+  // A rejected module subscription skipped removal of its module record.
+  // Module cleanup now releases its record after all cleanup attempts, including failures.
+  it('removes a manually disposed module after its cleanup fails without retrying it (PR #2687)', async () => {
+    const host = new ExtensionHost()
+    const cleanupError = new Error('module cleanup failed')
+    const remaining = vi.fn()
+    const failing = vi.fn(() => {
+      throw cleanupError
+    })
+    const session = await host.startExtension(defineExtension({
+      id: 'provider-one',
+      async setup(ctx) {
+        ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
+        const module = await ctx.modules.register({ id: 'module-one' })
+        module.subscriptions.add({ dispose: remaining })
+        module.subscriptions.add({ dispose: failing })
+      },
+    }), { manifest: manifest('provider-one') })
+    const [module] = session.modules.values()
+
+    await expect(module.dispose()).rejects.toBe(cleanupError)
+    expect(session.modules.size).toBe(0)
+    await host.stop(session.id)
+    expect(remaining).toHaveBeenCalledTimes(1)
+    expect(failing).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps both setup and cleanup errors after withdrawing the Provider', async () => {
+    const host = new ExtensionHost()
+    const setupError = new Error('setup failed')
+    const cleanupError = new Error('cleanup failed')
+    const extension = defineExtension({
+      id: 'provider-one',
+      setup(ctx) {
+        ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
+        ctx.subscriptions.add({
+          dispose: () => {
+            throw cleanupError
+          },
+        })
+        throw setupError
+      },
+    })
+
+    try {
+      await host.startExtension(extension, { manifest: manifest(extension.id) })
+      throw new Error('Expected setup to fail.')
+    }
+    catch (error) {
+      if (!(error instanceof AggregateError)) {
+        throw error
+      }
+      expect(error.errors).toEqual([setupError, cleanupError])
+      expect(error.cause).toBe(setupError)
+    }
+    expect(host.getKitProvider(contract.id)).toBeUndefined()
+  })
+
+  it('rejects a Host-owned slot and leaves the Host descriptor intact', async () => {
+    const host = new ExtensionHost()
+    host.registerKit({ kitId: contract.id, version: '1.0.0', runtimes: ['electron'], capabilities: [] })
+    await expect(host.startExtension(defineExtension({
+      id: 'provider-one',
+      setup(ctx) {
+        ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
+      },
+    }), { manifest: manifest('provider-one') })).rejects.toThrow('provider-slot-conflict')
+    expect(host.getKit(contract.id)?.version).toBe('1.0.0')
+    expect(host.getKitProvider(contract.id)?.owner.kind).toBe('host')
+  })
+
+  it('keeps provide on root setup, not on a registered module', async () => {
+    const host = new ExtensionHost()
+    const extension = defineExtension({
+      id: 'provider-one',
+      async setup(ctx) {
+        const module = await ctx.modules.register({ id: 'module-one' })
+        expect('provide' in ctx.kits).toBe(true)
+        expect('provide' in module.kits).toBe(false)
+        ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
+      },
+    })
+
+    await host.startExtension(extension, { manifest: manifest(extension.id) })
+    expect(host.getKitProvider(contract.id)?.owner.kind).toBe('extension')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2687
+  // ROOT CAUSE:
+  //
+  // A Host-wide flag cannot distinguish external reload from a self-wait during cleanup.
+  // This companion case requires external reload to await full cleanup before it starts a new generation.
+  it('awaits concurrent external cleanup before reload and ignores an old handle (PR #2687)', async () => {
+    const host = new ExtensionHost()
+    const entered = Promise.withResolvers<void>()
+    const resume = Promise.withResolvers<void>()
+    const fixture = await import('./testdata/test-hosted-kit-provider-entrypoint')
+    const session = await host.start({
+      ...manifest('reload-provider'),
+      kits: { provides: [{ id: fixture.hostedKitContract.id, version: '1.0.0', exposure: 'local-only' }] },
+      entrypoints: { electron: join(import.meta.dirname, 'testdata', 'test-hosted-kit-provider-entrypoint.ts') },
+    })
+    const oldHandle = fixture.providerHandleState.current
+    session.subscriptions.add({ dispose: async () => {
+      entered.resolve()
+      await resume.promise
+    } })
+
+    const stopping = host.stop(session.id)
+    await entered.promise
+    const reloading = host.reload(session.id)
+    expect(host.getKitProvider(fixture.hostedKitContract.id)).toBeUndefined()
+    expect(host.listSessions()).toEqual([session])
+    resume.resolve()
+    expect(await stopping).toBe(session)
+    const next = await reloading
+    oldHandle?.dispose()
+
+    expect(next.id).not.toBe(session.id)
+    expect(host.getKitProvider(fixture.hostedKitContract.id)).toMatchObject({
+      generation: 2,
+      owner: { sessionId: next.id },
+    })
+  })
+})
+
+describe('host-provided Kit registration integrity', () => {
+  it('keeps Host sources under the identity captured at registration', () => {
+    // ROOT CAUSE:
+    //
+    // The Provider Registry captured one ID, but the Host payload stores read
+    // the caller's ID again. A changing getter split one registration in two.
+    // The Registry now stores and publishes the one captured ID.
+    const host = new ExtensionHost()
+    let apiReads = 0
+    const apiId = vi.fn(() => ++apiReads === 1 ? 'kit.api' : 'kit.api-drift')
+    const api = Object.defineProperty({ id: 'kit.api', version: '1.0.0', createClient: () => ({}) }, 'id', {
+      enumerable: true,
+      get: apiId,
+    })
+
+    const apiLease = host.registerKitApi(api)
+    expect(apiId).toHaveBeenCalledTimes(1)
+    expect(host.getKitProvider('kit.api')?.owner.kind).toBe('host')
+    expect(apiLease.dispose()).toBe(true)
+    expect(host.getKitProvider('kit.api')).toBeUndefined()
+
+    let descriptorReads = 0
+    const descriptorId = vi.fn(() => ++descriptorReads === 1 ? 'kit.descriptor' : 'kit.descriptor-drift')
+    const descriptor = Object.defineProperty({ kitId: 'kit.descriptor', version: '1.0.0', runtimes: ['electron' as const], capabilities: [] }, 'kitId', {
+      enumerable: true,
+      get: descriptorId,
+    })
+
+    const descriptorLease = host.registerKit(descriptor)
+    expect(descriptorId).toHaveBeenCalledTimes(1)
+    expect(host.getKit('kit.descriptor')?.kitId).toBe('kit.descriptor')
+    expect(descriptorLease.dispose()).toBe(true)
+    expect(host.getKitProvider('kit.descriptor')).toBeUndefined()
+  })
+
+  it('does not publish a Host source when payload capture fails', () => {
+    // ROOT CAUSE:
+    //
+    // Host payload access failed after the Registry changed registration state.
+    // The Registry now captures the complete source before publication.
+    const host = new ExtensionHost()
+    const failure = new Error('client factory is unavailable')
+    const api = Object.defineProperty({ id: 'kit.failed', version: '1.0.0', createClient: () => ({}) }, 'createClient', {
+      enumerable: true,
+      get() {
+        throw failure
+      },
+    })
+
+    let registrationError: unknown
+    try {
+      host.registerKitApi(api)
+    }
+    catch (error) {
+      registrationError = error
+    }
+    expect(registrationError).toMatchObject({
+      code: 'invalid-host-source',
+      kitId: 'kit.failed',
+    })
+    expect(registrationError).not.toHaveProperty('cause')
+    expect(host.getKitProvider('kit.failed')).toBeUndefined()
+  })
+
+  it('invokes a Host Kit factory without a receiver', async () => {
+    // ROOT CAUSE:
+    //
+    // Binding the factory to its registration input preserved undeclared mutable state.
+    // The Host now invokes a receiver-free factory with an undefined receiver.
+    const host = new ExtensionHost()
+    const kit = defineKit({
+      id: 'kit.receiver',
+      version: '1.0.0',
+      createClient(this: void) {
+        expect(this).toBeUndefined()
+        return { value: 'accepted' }
+      },
+    })
+    host.registerKitApi(kit)
+    let observed = ''
+    const extension = defineExtension({
+      id: 'host-kit-receiver-consumer',
+      async setup(ctx) {
+        observed = (await ctx.kits.use(kit)).value
+      },
+    })
+
+    await host.startExtension(extension, {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: extension.id,
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        permissions: { apis: [{ key: kit.id, actions: ['invoke'] }] },
+        entrypoints: {},
+      },
+    })
+
+    expect(observed).toBe('accepted')
+  })
+
+  it('keeps matching Host sources together until the last source leaves', () => {
+    const host = new ExtensionHost()
+    const descriptor = { kitId: 'kit.shared', version: '1.0.0', runtimes: ['electron' as const], capabilities: [] }
+    const api = { id: descriptor.kitId, version: descriptor.version, createClient: () => ({}) }
+
+    const descriptorLease = host.registerKit(descriptor)
+    const firstGeneration = host.getKitProvider(descriptor.kitId)?.generation
+    const factoryLease = host.registerKitApi(api)
+    expect(host.getKitProvider(descriptor.kitId)?.generation).toBe((firstGeneration ?? 0) + 1)
+    expect(() => host.registerKitApi({ ...api, version: '2.0.0' })).toThrow('provider-slot-conflict')
+
+    descriptorLease.dispose()
+    expect(host.getKit(descriptor.kitId)).toBeUndefined()
+    expect(host.getKitProvider(descriptor.kitId)?.owner.kind).toBe('host')
+    factoryLease.dispose()
+    expect(host.getKitProvider(descriptor.kitId)).toBeUndefined()
+  })
+
+  it('rejects a Host API replacement within the current generation', () => {
+    // ROOT CAUSE:
+    //
+    // A second API source replaced the Client factory without changing the
+    // Provider generation. The snapshot no longer identified one payload.
+    // The Registry now rejects a second current factory for the same Kit.
+    const host = new ExtensionHost()
+    const first = { id: 'kit.replacement', version: '1.0.0', createClient: () => ({ value: 'first' }) }
+    host.registerKitApi(first)
+    const generation = host.getKitProvider(first.id)?.generation
+
+    expect(() => host.registerKitApi({ ...first, createClient: () => ({ value: 'second' }) }))
+      .toThrow('provider-slot-conflict')
+    expect(host.getKitProvider(first.id)?.generation).toBe(generation)
+  })
+
+  it('does not leave a Host reservation after descriptor collision', () => {
+    // ROOT CAUSE:
+    //
+    // Descriptor conflicts escaped from the nested descriptor store as plain
+    // errors. Callers then lost the registration error code and Kit ID.
+    // The Registry now reports the conflict and keeps the current registration.
+    const host = new ExtensionHost()
+    const lease = host.registerKit({ kitId: 'kit.conflict', version: '1.0.0', runtimes: ['electron'], capabilities: [] })
+
+    expect(() => host.registerKit({ kitId: 'kit.conflict', version: '1.0.0', runtimes: ['node'], capabilities: [] }))
+      .toThrow(expect.objectContaining({ code: 'provider-slot-conflict', kitId: 'kit.conflict' }))
+    expect(host.getKit('kit.conflict')?.runtimes).toEqual(['electron'])
+    expect(host.getKitProvider('kit.conflict')?.version).toBe('1.0.0')
+    lease.dispose()
+    expect(host.getKitProvider('kit.conflict')).toBeUndefined()
+  })
+
+  it('keeps accepted Host payloads stable after caller mutation', async () => {
+    // ROOT CAUSE:
+    //
+    // The old registration stored caller-owned arrays and factory fields.
+    // Caller mutations then changed the current registration without a new generation.
+    // The Registry now stores immutable copies of accepted Host payloads.
+    const host = new ExtensionHost()
+    const descriptor = {
+      kitId: 'kit.mutable',
+      version: '1.0.0',
+      runtimes: ['electron' as const],
+      capabilities: [{ key: 'kit.mutable.capability', actions: ['read'] }],
+    }
+    const api = {
+      id: descriptor.kitId,
+      version: descriptor.version,
+      createClient: () => ({ value: 'original' }),
+    }
+    host.registerKit(descriptor)
+    host.registerKitApi(api)
+
+    descriptor.version = '2.0.0'
+    descriptor.capabilities[0].actions.push('changed')
+    api.version = '2.0.0'
+    api.createClient = () => ({ value: 'changed' })
+
+    expect(host.getKitProvider('kit.mutable')?.version).toBe('1.0.0')
+    expect(host.getKit('kit.mutable')).toMatchObject({
+      version: '1.0.0',
+      capabilities: [{ actions: ['read'] }],
+    })
+
+    let observed = ''
+    const extension = defineExtension({
+      id: 'host-kit-consumer',
+      async setup(ctx) {
+        observed = (await ctx.kits.use(api)).value
+      },
+    })
+    await host.startExtension(extension, {
+      manifest: {
+        manifestVersion: 2,
+        kind: 'manifest.extension.airi.moeru.ai',
+        id: extension.id,
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
+        permissions: { apis: [{ key: 'kit.mutable', actions: ['invoke'] }] },
+        entrypoints: {},
+      },
+    })
+    expect(observed).toBe('original')
+  })
+
+  it('returns mutable copies from the legacy Host Kit query interface', () => {
+    // ROOT CAUSE:
+    //
+    // The Provider Registry owns frozen descriptor snapshots. The Host exposed
+    // those internal snapshots through methods that previously returned copies.
+    // The Host now returns deep mutable copies from its legacy query methods.
+    const host = new ExtensionHost()
+    host.registerKit({
+      kitId: 'kit.query-copy',
+      version: '1.0.0',
+      runtimes: ['electron'],
+      capabilities: [{ key: 'kit.query-copy.read', actions: ['invoke'] }],
+    })
+
+    const descriptor = host.getKit('kit.query-copy')!
+    descriptor.runtimes.push('web')
+    descriptor.capabilities[0]!.actions.push('changed')
+    const listed = host.listKits()
+    listed[0]!.capabilities[0]!.actions.push('listed-change')
+    const capabilities = host.getKitCapabilities('kit.query-copy')
+    capabilities[0]!.actions.push('capability-change')
+
+    expect(host.getKit('kit.query-copy')).toEqual({
+      kitId: 'kit.query-copy',
+      version: '1.0.0',
+      runtimes: ['electron'],
+      capabilities: [{ key: 'kit.query-copy.read', actions: ['invoke'] }],
+    })
+  })
+})
+
+describe('required Kit waiting', () => {
+  const contract = defineKitContract({
+    id: 'kit.awaited',
+    version: '1.0.0',
+    methods: { read: defineKitMethod<undefined, string>() },
+    events: {},
+  })
+
+  function manifest(id: string, kits: ExtensionManifestV2['kits']): ExtensionManifestV2 {
+    return {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id,
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron'] },
+      permissions: { apis: [{ key: contract.id, actions: ['invoke'] }] },
+      entrypoints: {},
+      kits,
+    }
+  }
+
+  it('waits in pending, then runs setup when a Host Kit registers', async () => {
+    const host = new ExtensionHost()
+    const kit = defineKit({ id: contract.id, version: '1.2.0', createClient: () => ({ value: 'host' }) })
+    let observed = ''
+    const extension = defineExtension({
+      id: 'awaiting-consumer',
+      async setup(ctx) {
+        observed = (await ctx.kits.use(kit)).value
+      },
+    })
+
+    const session = await host.startExtension(extension, {
+      manifest: manifest(extension.id, { uses: [{ id: contract.id, version: '^1.0.0' }] }),
+    })
+
+    expect(session).toMatchObject({ phase: 'pending', missingKitIds: [contract.id] })
+    expect(observed).toBe('')
+
+    host.registerKitApi(kit)
+
+    await vi.waitFor(() => expect(session).toMatchObject({ phase: 'ready', missingKitIds: [] }))
+    expect(observed).toBe('host')
+  })
+
+  it('runs setup after an Extension Provider of a compatible version commits', async () => {
+    const host = new ExtensionHost()
+    const setupOrder: string[] = []
+    const consumer = await host.startExtension(defineExtension({
+      id: 'awaiting-extension-consumer',
+      setup() {
+        setupOrder.push('consumer')
+      },
+    }), { manifest: manifest('awaiting-extension-consumer', { uses: [{ id: contract.id, version: '^1.0.0' }] }) })
+
+    expect(consumer.phase).toBe('pending')
+
+    await host.startExtension(defineExtension({
+      id: 'awaited-provider',
+      setup(ctx) {
+        setupOrder.push('provider')
+        ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
+      },
+    }), { manifest: manifest('awaited-provider', { provides: [{ id: contract.id, version: contract.version, exposure: 'local-only' }] }) })
+
+    await vi.waitFor(() => expect(consumer.phase).toBe('ready'))
+    expect(setupOrder).toEqual(['provider', 'consumer'])
+  })
+
+  it('keeps waiting while the Provider version does not satisfy the range', async () => {
+    const host = new ExtensionHost()
+    host.registerKitApi(defineKit({ id: contract.id, version: '1.0.0', createClient: () => ({}) }))
+    const setup = vi.fn()
+
+    const session = await host.startExtension(defineExtension({ id: 'newer-consumer', setup }), {
+      manifest: manifest('newer-consumer', { uses: [{ id: contract.id, version: '^2.0.0' }] }),
+    })
+
+    expect(session).toMatchObject({ phase: 'pending', missingKitIds: [contract.id] })
+    expect(setup).not.toHaveBeenCalled()
+  })
+
+  it('starts at once when only an optional Kit is missing', async () => {
+    const host = new ExtensionHost()
+
+    const session = await host.startExtension(defineExtension({ id: 'optional-consumer', setup() {} }), {
+      manifest: manifest('optional-consumer', { uses: [{ id: contract.id, version: '^1.0.0', optional: true }] }),
+    })
+
+    expect(session).toMatchObject({ phase: 'ready', missingKitIds: [] })
+  })
+
+  it('stops a pending session without setup and releases its reserved Providers', async () => {
+    const host = new ExtensionHost()
+    const setup = vi.fn()
+    const session = await host.startExtension(defineExtension({ id: 'never-ready', setup }), {
+      manifest: manifest('never-ready', {
+        uses: [{ id: 'kit.never-registered', version: '^1.0.0' }],
+        provides: [{ id: contract.id, version: contract.version, exposure: 'local-only' }],
+      }),
+    })
+
+    expect(await host.stop(session.id)).toBe(session)
+    host.registerKitApi(defineKit({ id: 'kit.never-registered', version: '1.0.0', createClient: () => ({}) }))
+    await new Promise(resolve => setTimeout(resolve, 0))
+
+    expect(session.phase).toBe('stopped')
+    expect(setup).not.toHaveBeenCalled()
+    expect(host.listSessions()).toEqual([])
+    await expect(host.startExtension(defineExtension({
+      id: 'replacement-provider',
+      setup(ctx) {
+        ctx.kits.provide(contract, { methods: { read: () => 'ready' } })
+      },
+    }), { manifest: manifest('replacement-provider', { provides: [{ id: contract.id, version: contract.version, exposure: 'local-only' }] }) }))
+      .resolves
+      .toMatchObject({ phase: 'ready' })
+  })
+
+  it('stops the session when the setup after the wait fails', async () => {
+    const host = new ExtensionHost()
+    const session = await host.startExtension(defineExtension({
+      id: 'failing-after-wait',
+      setup() {
+        throw new Error('setup failed')
+      },
+    }), { manifest: manifest('failing-after-wait', { uses: [{ id: contract.id, version: '^1.0.0' }] }) })
+
+    host.registerKitApi(defineKit({ id: contract.id, version: '1.0.0', createClient: () => ({}) }))
+
+    await vi.waitFor(() => expect(host.listSessions()).toEqual([]))
+    expect(session.phase).toBe('stopped')
+  })
 })
 
 describe('for ExtensionHost', () => {
+  it('rejects an incompatible AIRI version before importing the entrypoint', async () => {
+    const host = new ExtensionHost({ runtime: 'node', airiVersion: '1.0.0' })
+
+    await expect(host.start({
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'future-extension',
+      version: '1.0.0',
+      engines: { airi: '>=99.0.0', runtimes: ['node'] },
+      permissions: {},
+      entrypoints: { node: './missing-entrypoint.mjs' },
+    })).rejects.toThrow('requires AIRI `>=99.0.0`')
+  })
+
   it('runs extension setup and registers multiple module sessions', async () => {
     const host = new ExtensionHost()
     const extension = defineExtension({
@@ -52,15 +1448,18 @@ describe('for ExtensionHost', () => {
 
     const session = await host.startExtension(extension, {
       manifest: {
-        apiVersion: 'v1',
+        manifestVersion: 2,
         kind: 'manifest.extension.airi.moeru.ai' as const,
         id: 'airi-extension-test',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
         permissions: {},
         entrypoints: {},
       },
     })
 
     expect(session.extension.id).toBe('airi-extension-test')
+    expect(session.extension.version).toBe('1.0.0')
     expect(host.listModules().map(module => module.id)).toEqual(['module-a', 'module-b'])
   })
 
@@ -73,9 +1472,11 @@ describe('for ExtensionHost', () => {
 
     await expect(host.startExtension(extension, {
       manifest: {
-        apiVersion: 'v1',
+        manifestVersion: 2,
         kind: 'manifest.extension.airi.moeru.ai' as const,
         id: 'airi-extension-manifest-id',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
         permissions: {},
         entrypoints: {},
       },
@@ -108,9 +1509,11 @@ describe('for ExtensionHost', () => {
 
     await expect(host.startExtension(extension, {
       manifest: {
-        apiVersion: 'v1',
+        manifestVersion: 2,
         kind: 'manifest.extension.airi.moeru.ai' as const,
         id: 'airi-extension-failing',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
         permissions: {},
         entrypoints: {},
       },
@@ -154,9 +1557,11 @@ describe('for ExtensionHost', () => {
 
     await expect(host.startExtension(extension, {
       manifest: {
-        apiVersion: 'v1',
+        manifestVersion: 2,
         kind: 'manifest.extension.airi.moeru.ai' as const,
         id: 'airi-extension-cleanup-failure',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
         permissions: {
           apis: [
             { key: 'kit.cleanup-failure', actions: ['invoke'] },
@@ -223,9 +1628,11 @@ describe('for ExtensionHost', () => {
 
     const session = await host.startExtension(extension, {
       manifest: {
-        apiVersion: 'v1',
+        manifestVersion: 2,
         kind: 'manifest.extension.airi.moeru.ai' as const,
         id: 'airi-extension-module-dispose',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
         permissions,
         entrypoints: {},
       },
@@ -258,9 +1665,11 @@ describe('for ExtensionHost', () => {
 
     await host.startExtension(extension, {
       manifest: {
-        apiVersion: 'v1',
+        manifestVersion: 2,
         kind: 'manifest.extension.airi.moeru.ai' as const,
         id: 'airi-extension-direct-kit',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
         permissions: {
           apis: [{ key: 'kit.extension-direct', actions: ['invoke'] }],
         },
@@ -296,9 +1705,11 @@ describe('for ExtensionHost', () => {
 
     await host.startExtension(extension, {
       manifest: {
-        apiVersion: 'v1',
+        manifestVersion: 2,
         kind: 'manifest.extension.airi.moeru.ai' as const,
         id: 'airi-extension-direct-kit-denied',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
         permissions: {
           apis: [{ key: 'kit.other', actions: ['invoke'] }],
         },
@@ -334,9 +1745,11 @@ describe('for ExtensionHost', () => {
 
     await host.startExtension(extension, {
       manifest: {
-        apiVersion: 'v1',
+        manifestVersion: 2,
         kind: 'manifest.extension.airi.moeru.ai' as const,
         id: 'airi-extension-direct-kit-resolver-denied',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
         permissions: {
           apis: [{ key: 'kit.extension-resolver-denied', actions: ['invoke'] }],
         },
@@ -363,14 +1776,16 @@ describe('for ExtensionHost', () => {
     host.registerKitApi(kit)
 
     const manifest = {
-      apiVersion: 'v1',
+      manifestVersion: 2,
       kind: 'manifest.extension.airi.moeru.ai' as const,
       id: 'airi-extension-direct-kit-persisted-revoked',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron'] },
       permissions: {
         apis: [{ key: 'kit.extension-persisted-revoked', actions: ['invoke'] }],
       },
       entrypoints: {},
-    } satisfies ExtensionManifestV1
+    } satisfies ExtensionManifestV2
 
     const grantedExtension = defineExtension({
       id: 'airi-extension-direct-kit-persisted-revoked',
@@ -423,9 +1838,11 @@ describe('for ExtensionHost', () => {
 
     await host.startExtension(extension, {
       manifest: {
-        apiVersion: 'v1',
+        manifestVersion: 2,
         kind: 'manifest.extension.airi.moeru.ai' as const,
         id: 'airi-extension-module-inherited-grant',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
         permissions: {
           apis: [{ key: 'kit.module-inherited-grant', actions: ['invoke'] }],
         },
@@ -467,9 +1884,11 @@ describe('for ExtensionHost', () => {
 
     await host.startExtension(extension, {
       manifest: {
-        apiVersion: 'v1',
+        manifestVersion: 2,
         kind: 'manifest.extension.airi.moeru.ai' as const,
         id: 'airi-extension-module-kit-resolver-denied',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
         permissions: {
           apis: [{ key: 'kit.module-resolver-denied', actions: ['invoke'] }],
         },
@@ -498,9 +1917,11 @@ describe('for ExtensionHost', () => {
 
     await host.startExtension(extension, {
       manifest: {
-        apiVersion: 'v1',
+        manifestVersion: 2,
         kind: 'manifest.extension.airi.moeru.ai' as const,
         id: 'airi-extension-direct-kit-watch',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
         permissions: {
           apis: [{ key: 'kit.extension-watch', actions: ['invoke'] }],
         },
@@ -508,9 +1929,21 @@ describe('for ExtensionHost', () => {
       },
     })
 
-    host.registerKitApi(kit)
+    const firstLease = host.registerKitApi(kit)
 
     expect(observed).toEqual([false, true])
+
+    expect(firstLease.dispose()).toBe(true)
+    expect(observed).toEqual([false, true, false])
+
+    const secondLease = host.registerKitApi(kit)
+    expect(observed).toEqual([false, true, false, true])
+
+    expect(firstLease.dispose()).toBe(false)
+    expect(observed).toEqual([false, true, false, true])
+
+    expect(secondLease.dispose()).toBe(true)
+    expect(observed).toEqual([false, true, false, true, false])
   })
 
   it('disposes extension-scoped kit availability watchers with the extension session', async () => {
@@ -533,9 +1966,11 @@ describe('for ExtensionHost', () => {
 
     const session = await host.startExtension(extension, {
       manifest: {
-        apiVersion: 'v1',
+        manifestVersion: 2,
         kind: 'manifest.extension.airi.moeru.ai' as const,
         id: 'airi-extension-direct-kit-watch-dispose',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
         permissions: {
           apis: [{ key: 'kit.extension-watch-dispose', actions: ['invoke'] }],
         },
@@ -582,9 +2017,11 @@ describe('for ExtensionHost', () => {
 
     await host.startExtension(extension, {
       manifest: {
-        apiVersion: 'v1',
+        manifestVersion: 2,
         kind: 'manifest.extension.airi.moeru.ai' as const,
         id: 'airi-extension-kit-test',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
         permissions: {
           apis: [{ key: 'kit.*', actions: ['invoke'] }],
         },
@@ -623,9 +2060,11 @@ describe('for ExtensionHost', () => {
 
     await host.startExtension(extension, {
       manifest: {
-        apiVersion: 'v1',
+        manifestVersion: 2,
         kind: 'manifest.extension.airi.moeru.ai' as const,
         id: 'airi-extension-module-kit-watch-dispose',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
         permissions: {
           apis: [{ key: 'kit.module-watch-dispose', actions: ['invoke'] }],
         },
@@ -663,9 +2102,11 @@ describe('for ExtensionHost', () => {
 
     const session = await host.startExtension(extension, {
       manifest: {
-        apiVersion: 'v1',
+        manifestVersion: 2,
         kind: 'manifest.extension.airi.moeru.ai' as const,
         id: 'airi-extension-duplicate-module',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
         permissions: {},
         entrypoints: {},
       },
@@ -696,9 +2137,11 @@ describe('for ExtensionHost', () => {
 
     const session = await host.startExtension(extension, {
       manifest: {
-        apiVersion: 'v1',
+        manifestVersion: 2,
         kind: 'manifest.extension.airi.moeru.ai' as const,
         id: 'airi-extension-async-stop-cleanup',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
         permissions: {},
         entrypoints: {},
       },
@@ -742,9 +2185,11 @@ describe('for ExtensionHost', () => {
 
     await host.startExtension(extension, {
       manifest: {
-        apiVersion: 'v1',
+        manifestVersion: 2,
         kind: 'manifest.extension.airi.moeru.ai' as const,
         id: 'airi-extension-kit-denied',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
         permissions: {
           apis: [{ key: 'kit.other', actions: ['invoke'] }],
         },
@@ -776,9 +2221,11 @@ describe('for FileSystemLoader', () => {
     const host = new ExtensionHost()
 
     await host.start({
-      apiVersion: 'v1',
+      manifestVersion: 2,
       kind: 'manifest.extension.airi.moeru.ai' as const,
       id: 'test-define-extension-entrypoint',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron'] },
       permissions: {},
       entrypoints: {
         electron: join(import.meta.dirname, 'testdata', 'test-define-extension-entrypoint.ts'),
@@ -799,9 +2246,11 @@ describe('for FileSystemLoader', () => {
     testEntrypoint.disposedSessionIds.splice(0)
 
     const session = await host.start({
-      apiVersion: 'v1',
+      manifestVersion: 2,
       kind: 'manifest.extension.airi.moeru.ai' as const,
       id: 'test-stoppable-extension-entrypoint',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron'] },
       permissions: {},
       entrypoints: {
         electron: entrypointPath,
@@ -829,9 +2278,11 @@ describe('for FileSystemLoader', () => {
     testEntrypoint.disposedSessionIds.splice(0)
 
     const session = await host.start({
-      apiVersion: 'v1',
+      manifestVersion: 2,
       kind: 'manifest.extension.airi.moeru.ai' as const,
       id: 'test-stoppable-extension-entrypoint',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron'] },
       permissions: {},
       entrypoints: {
         electron: entrypointPath,
@@ -845,13 +2296,15 @@ describe('for FileSystemLoader', () => {
     expect(host.listModules().map(module => module.id)).toEqual(['stoppable-extension-module'])
   })
 
-  it('should resolve runtime-specific extension entrypoint with node fallback', async () => {
+  it('should load a runtime-specific extension entrypoint', async () => {
     const host = new FileSystemLoader()
 
     const extension = await host.loadExtensionFor({
-      apiVersion: 'v1',
+      manifestVersion: 2,
       kind: 'manifest.extension.airi.moeru.ai' as const,
       id: 'test-extension',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['node'] },
       permissions: testPermissions,
       entrypoints: {
         node: join(import.meta.dirname, 'testdata', 'test-define-extension-entrypoint.ts'),
@@ -867,9 +2320,11 @@ describe('for FileSystemLoader', () => {
     const host = new FileSystemLoader()
 
     await expect(host.loadExtensionFor({
-      apiVersion: 'v1',
+      manifestVersion: 2,
       kind: 'manifest.extension.airi.moeru.ai' as const,
       id: 'test-extension',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron'] },
       permissions: testPermissions,
       entrypoints: {
         electron: join(import.meta.dirname, 'testdata', 'test-invalid-extension-entrypoint.ts'),
@@ -877,14 +2332,17 @@ describe('for FileSystemLoader', () => {
     }, { cwd: '', runtime: 'electron' })).rejects.toThrow('Failed to resolve extension module. The entrypoint must export defineExtension(...).')
   })
 
-  it('should resolve entrypoint by runtime then default then electron', () => {
+  it('resolves the runtime entrypoint before the default entrypoint', () => {
     const host = new FileSystemLoader()
+    const extensionRoot = join(import.meta.dirname, 'testdata', 'extension')
     const baseManifest = {
-      apiVersion: 'v1' as const,
+      manifestVersion: 2,
       kind: 'manifest.extension.airi.moeru.ai' as const,
       id: 'test-extension',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['node'] },
       permissions: testPermissions,
-    }
+    } satisfies Omit<ExtensionManifestV2, 'entrypoints'>
 
     const runtimeEntryManifest = {
       ...baseManifest,
@@ -901,36 +2359,51 @@ describe('for FileSystemLoader', () => {
         electron: './electron-entry.ts',
       },
     }
-    const electronFallbackManifest = {
-      ...baseManifest,
-      entrypoints: {
-        electron: './electron-entry.ts',
-      },
-    }
-
     expect(host.resolveEntrypointFor(runtimeEntryManifest, {
-      cwd: '/tmp/extension',
+      cwd: extensionRoot,
       runtime: 'node',
-    })).toBe('/tmp/extension/node-entry.ts')
+    })).toBe(join(extensionRoot, 'node-entry.ts'))
 
     expect(host.resolveEntrypointFor(defaultFallbackManifest, {
-      cwd: '/tmp/extension',
+      cwd: extensionRoot,
       runtime: 'node',
-    })).toBe('/tmp/extension/default-entry.ts')
+    })).toBe(join(extensionRoot, 'default-entry.ts'))
+  })
 
-    expect(host.resolveEntrypointFor(electronFallbackManifest, {
+  it('should reject a runtime that the extension does not support', () => {
+    const host = new FileSystemLoader()
+
+    // ROOT CAUSE:
+    //
+    // Entrypoint resolution ignored engines.runtimes. A host could therefore
+    // execute a default or runtime-named entrypoint even when the manifest
+    // explicitly excluded the active runtime.
+    expect(() => host.resolveEntrypointFor({
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai' as const,
+      id: 'test-extension',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['web'] },
+      permissions: testPermissions,
+      entrypoints: {
+        default: './default-entry.ts',
+        electron: './electron-entry.ts',
+      },
+    }, {
       cwd: '/tmp/extension',
-      runtime: 'node',
-    })).toBe('/tmp/extension/electron-entry.ts')
+      runtime: 'electron',
+    })).toThrow('does not support runtime `electron`')
   })
 
   it('should preserve absolute runtime entrypoints', () => {
     const host = new FileSystemLoader()
 
     expect(host.resolveEntrypointFor({
-      apiVersion: 'v1',
+      manifestVersion: 2,
       kind: 'manifest.extension.airi.moeru.ai' as const,
       id: 'test-extension',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['node'] },
       permissions: testPermissions,
       entrypoints: {
         node: '/opt/extensions/entry.ts',
@@ -945,9 +2418,11 @@ describe('for FileSystemLoader', () => {
     const host = new FileSystemLoader()
 
     expect(() => host.resolveEntrypointFor({
-      apiVersion: 'v1',
+      manifestVersion: 2,
       kind: 'manifest.extension.airi.moeru.ai' as const,
       id: 'test-extension',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['node'] },
       permissions: testPermissions,
       entrypoints: {},
     }, { runtime: 'node' })).toThrow('Extension entrypoint is required for runtime `node`.')
@@ -959,9 +2434,11 @@ describe('for migrated extension testdata', () => {
     const host = new ExtensionHost()
 
     const session = await host.start({
-      apiVersion: 'v1',
+      manifestVersion: 2,
       kind: 'manifest.extension.airi.moeru.ai' as const,
       id: 'test-plugin',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron'] },
       permissions: {},
       entrypoints: {
         electron: join(import.meta.dirname, 'testdata', 'test-normal-plugin.ts'),
@@ -976,9 +2453,11 @@ describe('for migrated extension testdata', () => {
     const host = new ExtensionHost()
 
     await expect(host.start({
-      apiVersion: 'v1',
+      manifestVersion: 2,
       kind: 'manifest.extension.airi.moeru.ai' as const,
       id: 'test-plugin-no-connect',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron'] },
       permissions: {},
       entrypoints: {
         electron: join(import.meta.dirname, 'testdata', 'test-no-connect-plugin.ts'),
@@ -994,9 +2473,11 @@ describe('for migrated extension testdata', () => {
     host.registerKitApi(testWidgetKit)
 
     const session = await host.start({
-      apiVersion: 'v1',
+      manifestVersion: 2,
       kind: 'manifest.extension.airi.moeru.ai' as const,
       id: 'test-plugin-injected-host-apis',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron'] },
       permissions: {
         apis: [{ key: testWidgetKit.id, actions: ['invoke'] }],
       },

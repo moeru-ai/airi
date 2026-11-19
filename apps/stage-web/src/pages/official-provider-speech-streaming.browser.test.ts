@@ -138,7 +138,7 @@ describe('official streaming speech provider settings', () => {
     const pinia = createPinia()
 
     const { errors } = await renderPage(pinia)
-    useAuthStore(pinia).$patch({ user, session })
+    useAuthStore(pinia).$patch({ user, session, token: 'access-token' })
     const providerConfigStore = useProviderConfigStore(pinia)
 
     await expect.poll(() => providerConfigStore.getProviderConfig(providerId)?.model).toBe('volcengine/seed-tts-2.0')
@@ -164,25 +164,17 @@ describe('official streaming speech provider settings', () => {
     const fetchMock = vi.fn<typeof fetch>(async input => responseFor(input))
     vi.stubGlobal('fetch', fetchMock)
     const pinia = createPinia()
-
     const { errors } = await renderPage(pinia)
-    const providerStore = useProviderStore(pinia)
-    const forceProviderConfigured = providerStore.forceProviderConfigured
-    let finishConfiguration: (() => void) | undefined
-    const configurationPending = new Promise<void>((resolve) => {
-      finishConfiguration = resolve
-    })
-    vi.spyOn(providerStore, 'forceProviderConfigured').mockImplementation(async (requestedProviderId) => {
-      await configurationPending
-      forceProviderConfigured(requestedProviderId)
+    const actionOrder: string[] = []
+    useProviderStore(pinia).$onAction(({ after, name }) => {
+      if (name === 'forceProviderConfigured')
+        after(() => actionOrder.push('configured'))
+      if (name === 'listProviderVoices')
+        actionOrder.push('voices')
     })
 
-    useAuthStore(pinia).$patch({ user, session })
-    await expect.poll(() => fetchMock.mock.calls.some(([input]) => responseUrl(input).includes('/api/v1/audio/models/streaming'))).toBe(true)
-    expect(fetchMock.mock.calls.some(([input]) => responseUrl(input).includes('/api/v1/audio/voices/streaming'))).toBe(false)
-
-    finishConfiguration?.()
-    await expect.poll(() => fetchMock.mock.calls.some(([input]) => responseUrl(input).includes('/api/v1/audio/voices/streaming'))).toBe(true)
+    useAuthStore(pinia).$patch({ user, session, token: 'access-token' })
+    await expect.poll(() => actionOrder).toEqual(['configured', 'voices'])
     expect(errors.map(error => errorMessageFrom(error))).toEqual([])
   })
 
@@ -215,12 +207,13 @@ describe('official streaming speech provider settings', () => {
     const setProviderUnconfigured = vi.spyOn(providerStore, 'setProviderUnconfigured')
     const setProviderAvailabilityOverride = vi.spyOn(providerStore, 'setProviderAvailabilityOverride')
 
-    useAuthStore(pinia).$patch({ user, session })
+    useAuthStore(pinia).$patch({ user, session, token: 'access-token' })
     await expect.poll(() => providerStore.modelLoadError[providerId]).toContain('streaming models upstream 502')
 
     expect(setProviderAvailabilityOverride).not.toHaveBeenCalledWith(providerId, false)
     expect(setProviderUnconfigured).not.toHaveBeenCalledWith(providerId)
     expect(providerConfigStore.providers[providerId]?.status).toBe('configured')
+    await expect.poll(() => fetchMock.mock.calls.some(([input]) => responseUrl(input).includes('/api/v1/audio/voices/streaming'))).toBe(true)
     expect(errors.map(error => errorMessageFrom(error))).toEqual([])
   })
 })

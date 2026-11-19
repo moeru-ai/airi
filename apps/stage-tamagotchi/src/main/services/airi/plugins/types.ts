@@ -1,10 +1,11 @@
-import type { ExtensionHost, ExtensionManifestV1 } from '@proj-airi/plugin-sdk/plugin-host'
+import type { ExtensionHost, ExtensionManifestV2 } from '@proj-airi/plugin-sdk/plugin-host'
 
 import type {
   WidgetsAddPayload,
   WidgetSnapshot,
   WidgetsUpdatePayload,
 } from '../../../../shared/eventa'
+import type { TamagotchiToolRegistry } from './kits/tool/registry'
 
 /**
  * Stable manifest id used as the runtime identity for one extension.
@@ -23,11 +24,29 @@ export type ExtensionId = string
  * - `manifests` reflect the latest loaded manifest snapshot at setup time
  *
  * Returns:
- * - A stable object containing host instance and manifest list
+ * - A stable object containing host instance, manifest list, and disposal
  */
 export interface ExtensionHostService {
   host: ExtensionHost
-  manifests: ExtensionManifestV1[]
+  manifests: ExtensionManifestV2[]
+
+  /**
+   * Disposes optional host features and asset hosting resources.
+   *
+   * Use when:
+   * - The `modules:plugin-host` unit stops. The built-in Kits stop after it.
+   * - Tests need to release watchers and local asset servers deterministically
+   *
+   * Expects:
+   * - Disposal may be called after partial startup or after prior plugin failures
+   *
+   * Returns:
+   * - A promise that resolves after all cleanup attempts finish
+   *
+   * Failures:
+   * - Rejects with the remaining failure or an AggregateError after all cleanup attempts finish
+   */
+  dispose: () => Promise<void>
 }
 
 /**
@@ -60,16 +79,24 @@ export interface ExtensionHostGameletWidgetsManager {
  *
  * Use when:
  * - Wiring the extension host during Electron startup
- * - Providing test doubles for extension-driven gamelet orchestration
  *
  * Expects:
- * - `widgetsManager` is already initialized and ready to manage overlay widgets
+ * - The built-in Kits are already registered on `host`
  *
  * Returns:
  * - N/A
  */
 export interface SetupExtensionHostOptions {
-  widgetsManager: ExtensionHostGameletWidgetsManager
+  host: ExtensionHost
+  kits: {
+    tools: TamagotchiToolRegistry
+  }
+  /**
+   * Returns the active Settings renderer that may import Extension folders.
+   *
+   * @default undefined, which disables folder import IPC
+   */
+  getExtensionManagementWebContentsId?: () => number | undefined
 }
 
 /**
@@ -133,7 +160,7 @@ export interface ExtensionConfig {
 }
 
 /**
- * Internal manifest record with resolved location and package version.
+ * Internal manifest record with its resolved location.
  *
  * Use when:
  * - Loading extension manifests from disk
@@ -143,14 +170,12 @@ export interface ExtensionConfig {
  * - `manifest` is schema-validated
  * - `path` points to `extension.airi.json`
  * - `rootDir` is the extension root directory
- * - `version` is discovered from package metadata or fallback
  *
  * Returns:
  * - N/A
  */
 export interface ManifestEntry {
-  manifest: ExtensionManifestV1
+  manifest: ExtensionManifestV2
   path: string
   rootDir: string
-  version: string
 }

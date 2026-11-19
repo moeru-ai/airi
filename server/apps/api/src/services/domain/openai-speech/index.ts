@@ -1,22 +1,23 @@
 import type { GenAiMetrics } from '../../../otel'
 import type { ConfigKVService } from '../../adapters/config-kv'
-import type { FluxMeter } from '../billing/flux-meter'
-import type { FluxService } from '../flux'
+import type { SpeechBilling } from '../billing/speech-billing'
 import type { LlmRouterService } from '../llm-router'
-import type { startTtsGeneration, TtsGenerationTrace } from '../llm-tracing'
 import type { ProviderCatalogService } from '../provider-catalog'
-import type { RequestLogService } from '../request-log'
 import type { VoicePackService } from '../voice-packs'
 
 import { useLogger } from '@guiiai/logg'
 import { context, SpanStatusCode, trace } from '@opentelemetry/api'
+import { ApiError, createBadRequestError, createPaymentRequiredError } from '@proj-airi/http-error-shared'
+import {
+  ATTR_GEN_AI_PROVIDER_NAME,
+  ATTR_GEN_AI_REQUEST_MODEL,
+} from '@proj-airi/trace-kit/semconv'
+import { check, pipe, safeParse, string, transform } from 'valibot'
 
-import { ApiError, createBadRequestError, createPaymentRequiredError } from '../../../utils/error'
 import { nanoid } from '../../../utils/id'
 import {
   AIRI_ATTR_BILLING_FLUX_CONSUMED,
   AIRI_ATTR_GEN_AI_OPERATION_KIND,
-  GEN_AI_ATTR_REQUEST_MODEL,
 } from '../../../utils/observability'
 
 const tracer = trace.getTracer('v1-completions')
@@ -27,6 +28,32 @@ const SAFE_RESPONSE_HEADERS = new Set([
   'transfer-encoding',
   'cache-control',
 ])
+
+const SAFE_ERROR_RESPONSE_HEADERS = new Set([
+  'content-type',
+  'retry-after',
+])
+
+/**
+ * The language of the speech text, as a BCP 47 tag such as `en-US` or `ja`.
+ * The output is the canonical form, so adapters compare tags without case handling: `ZH-cn` becomes `zh-CN`.
+ * Each TTS adapter decides which languages its provider reads.
+ */
+const speechLanguageSchema = pipe(
+  string(),
+  check(isLanguageTag, 'must be a BCP 47 language tag'),
+  transform(tag => Intl.getCanonicalLocales(tag)[0]!),
+)
+
+/** `Intl.getCanonicalLocales` parses BCP 47 and throws a `RangeError` for a malformed tag. */
+function isLanguageTag(value: string): boolean {
+  try {
+    return Intl.getCanonicalLocales(value).length === 1
+  }
+  catch {
+    return false
+  }
+}
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
   if (typeof value !== 'object' || value == null || Array.isArray(value))
@@ -42,17 +69,12 @@ function readOptionalNumber(record: Record<string, unknown> | undefined, key: st
 }
 
 export interface OpenAiSpeechServiceDeps {
-  fluxService: FluxService
   configKV: ConfigKVService
-  requestLogService: RequestLogService
-  ttsMeter: FluxMeter
+  speechBilling: SpeechBilling
   llmRouter: LlmRouterService
   voicePackService: VoicePackService
   providerCatalogService: ProviderCatalogService
   genAi?: GenAiMetrics | null
-  llmTracing: {
-    startTtsGeneration: (input: Parameters<typeof startTtsGeneration>[0]) => TtsGenerationTrace
-  }
 }
 
 export interface OpenAiSpeechRequest {
@@ -66,6 +88,7 @@ type TtsTrigger = 'auto' | 'manual'
 interface TtsAnalyticsContext {
   trigger: TtsTrigger
   source: 'audio.speech' | 'chat_auto_tts' | 'manual_preview' | 'settings_test'
+  turnId?: string
 }
 
 /**
@@ -92,6 +115,7 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
     const requestVoice = typeof input.body.voice === 'string' ? input.body.voice : undefined
     const inputText = typeof input.body.input === 'string' ? input.body.input : ''
     const analytics = ttsAnalyticsContext(input.body)
+    const language = speechLanguage(input.body)
 
     const voicePackRequest = await voicePackRequestOptions(input.body, {
       requestedModel,
@@ -116,9 +140,8 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
       voice: requestVoice,
     }).log('tts speech request')
 
-    const flux = await deps.fluxService.getFlux(input.userId)
     try {
-      await deps.ttsMeter.assertCanAfford(input.userId, billingUnits, flux.flux)
+      await deps.speechBilling.assertCanAfford(input.userId, billingUnits)
     }
     catch (err) {
       if (!(err instanceof ApiError) || err.statusCode !== 402)
@@ -143,20 +166,13 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
       voice: routedVoice,
       speed: voicePackRequest.speed ?? (typeof input.body.speed === 'number' ? input.body.speed : undefined),
       responseFormat: typeof input.body.response_format === 'string' ? input.body.response_format : undefined,
+      language,
       extraOptions: voicePackRequest.extraOptions,
     }
 
-    const generationTrace = deps.llmTracing.startTtsGeneration({
-      input: ttsInput,
-      model: requestModel,
-      requestId,
-      userId: input.userId,
-      sessionId: input.sessionId,
-    })
-
     const span = tracer.startSpan('llm.gateway.tts', {
       attributes: {
-        [GEN_AI_ATTR_REQUEST_MODEL]: requestModel,
+        [ATTR_GEN_AI_REQUEST_MODEL]: requestModel,
         [AIRI_ATTR_GEN_AI_OPERATION_KIND]: 'text_to_speech',
       },
     })
@@ -176,7 +192,6 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
       const failure = routerFailure(err)
       span.setStatus({ code: SpanStatusCode.ERROR, message: failure.message })
       span.end()
-      generationTrace.fail(failure.message)
       recordMetrics({
         durationMs: Date.now() - startedAt,
         fluxConsumed: 0,
@@ -193,35 +208,29 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
     if (!response.ok) {
       span.setStatus({ code: SpanStatusCode.ERROR, message: `Gateway ${response.status}` })
       span.end()
-      generationTrace.fail(`Gateway ${response.status}`)
       recordMetrics({ model: requestModel, status: response.status, provider: routeCtx.provider, durationMs, fluxConsumed: 0 })
       logger.withFields({ requestId, userId: input.userId, model: requestModel, status: response.status, durationMs })
         .warn('tts speech delivered with upstream error status')
       return new Response(response.body, {
         status: response.status,
-        headers: buildSafeResponseHeaders(response),
+        headers: buildSafeErrorResponseHeaders(response),
       })
     }
 
     let fluxConsumed = 0
     try {
-      const result = await deps.ttsMeter.accumulate({
+      const result = await deps.speechBilling.settle({
         userId: input.userId,
         units: billingUnits,
-        currentBalance: flux.flux,
         requestId,
-        metadata: { model: requestModel, costMultiplier: voicePackRequest.costMultiplier },
+        model: requestModel,
+        turnId: analytics.turnId,
+        provider: routeCtx.provider,
       })
-      fluxConsumed = result.fluxDebited
+      fluxConsumed = result.feeFlux
       span.setAttribute(AIRI_ATTR_BILLING_FLUX_CONSUMED, fluxConsumed)
-      generationTrace.succeed({
-        inputChars: inputText.length,
-        fluxConsumed,
-        output: { contentType: response.headers.get('content-type') },
-      })
     }
     catch (err) {
-      generationTrace.fail('TTS billing failed')
       throw err
     }
     finally {
@@ -229,13 +238,6 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
     }
 
     recordMetrics({ model: requestModel, status: response.status, provider: routeCtx.provider, durationMs, fluxConsumed })
-    deps.requestLogService.logRequest({
-      userId: input.userId,
-      model: requestModel,
-      status: response.status,
-      durationMs,
-      fluxConsumed,
-    }).catch(err => logger.withError(err).warn('Failed to write llm_request_log row'))
 
     logger.withFields({
       requestId,
@@ -261,12 +263,11 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
     fluxConsumed: number
   }): void {
     const attrs = {
-      [GEN_AI_ATTR_REQUEST_MODEL]: input.model,
+      [ATTR_GEN_AI_REQUEST_MODEL]: input.model,
       [AIRI_ATTR_GEN_AI_OPERATION_KIND]: 'tts',
+      [ATTR_GEN_AI_PROVIDER_NAME]: input.provider,
       'http.response.status_code': input.status,
-      'provider': input.provider,
     }
-    deps.genAi?.operationCount.add(1, attrs)
     deps.genAi?.operationDuration.record(input.durationMs / 1000, attrs)
     deps.genAi?.fluxConsumed.add(input.fluxConsumed, attrs)
   }
@@ -284,7 +285,29 @@ function ttsAnalyticsContext(body: Record<string, unknown>): TtsAnalyticsContext
     || rawSource === 'settings_test'
     ? rawSource
     : 'audio.speech'
-  return { trigger, source }
+  const turnId = typeof analytics?.turn_id === 'string' ? analytics.turn_id : undefined
+  return { trigger, source, turnId }
+}
+
+/**
+ * Reads the language of the speech text from `extra_body.language`.
+ *
+ * AIRI extensions of the OpenAI speech body live in `extra_body`, as `voice_pack` and `airi_analytics` do.
+ * An absent language returns `undefined`, so the provider reads the text as before. A malformed tag fails the request
+ * before billing, because the caller sent a value that no adapter can map.
+ */
+function speechLanguage(body: Record<string, unknown>): string | undefined {
+  const value = asRecord(body.extra_body)?.language
+  if (value === undefined)
+    return undefined
+
+  const result = safeParse(speechLanguageSchema, value)
+  if (!result.success) {
+    throw createBadRequestError('extra_body.language must be a BCP 47 language tag, for example en-US', 'INVALID_SPEECH_LANGUAGE', {
+      field: 'extra_body.language',
+    })
+  }
+  return result.output
 }
 
 async function voicePackRequestOptions(
@@ -379,6 +402,15 @@ function buildSafeResponseHeaders(response: Response): Headers {
   const headers = new Headers()
   response.headers.forEach((value, key) => {
     if (SAFE_RESPONSE_HEADERS.has(key.toLowerCase()))
+      headers.set(key, value)
+  })
+  return headers
+}
+
+function buildSafeErrorResponseHeaders(response: Response): Headers {
+  const headers = new Headers()
+  response.headers.forEach((value, key) => {
+    if (SAFE_ERROR_RESPONSE_HEADERS.has(key.toLowerCase()))
       headers.set(key, value)
   })
   return headers

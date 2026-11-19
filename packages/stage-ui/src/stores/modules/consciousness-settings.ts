@@ -3,20 +3,20 @@ import type {} from 'pinia-plugin-synced'
 import { defineStore } from 'pinia'
 import { shallowRef } from 'vue'
 
-function loadReasoning() {
+function loadEnabled(key: string) {
   // Non-renderer runtimes have no durable settings owner. They use the product
   // default until a synchronized renderer snapshot arrives.
   if (typeof localStorage === 'undefined')
     return false
 
-  return localStorage.getItem('settings/consciousness/reasoning') === 'true'
+  return localStorage.getItem(`settings/consciousness/${key}`) === 'true'
 }
 
-function persistReasoning(value: boolean) {
+function persistEnabled(key: string, value: boolean) {
   if (typeof localStorage === 'undefined')
     return
 
-  localStorage.setItem('settings/consciousness/reasoning', String(value))
+  localStorage.setItem(`settings/consciousness/${key}`, String(value))
 }
 
 /**
@@ -28,26 +28,43 @@ function persistReasoning(value: boolean) {
 export const useConsciousnessSettingsStore = defineStore('consciousness-settings', () => {
   // Pinia owns live cross-window state. Only synchronized actions write the
   // durable value, so a follower cannot persist an uncommitted proposal.
-  const reasoning = shallowRef(loadReasoning())
+  const reasoning = shallowRef(loadEnabled('reasoning'))
+  const temperatureEnabled = shallowRef(loadEnabled('temperature-enabled'))
+  const topPEnabled = shallowRef(loadEnabled('top-p-enabled'))
 
   async function setReasoning(value: boolean) {
     reasoning.value = value
-    persistReasoning(value)
+    persistEnabled('reasoning', value)
+  }
+
+  async function setTemperatureEnabled(value: boolean) {
+    temperatureEnabled.value = value
+    persistEnabled('temperature-enabled', value)
+  }
+
+  async function setTopPEnabled(value: boolean) {
+    topPEnabled.value = value
+    persistEnabled('top-p-enabled', value)
   }
 
   async function resetState() {
-    reasoning.value = false
-    persistReasoning(false)
+    await setReasoning(false)
+    await setTemperatureEnabled(false)
+    await setTopPEnabled(false)
   }
 
   return {
     reasoning,
+    temperatureEnabled,
+    topPEnabled,
     setReasoning,
+    setTemperatureEnabled,
+    setTopPEnabled,
     resetState,
   }
 }, {
   synced: {
-    actions: ['resetState', 'setReasoning'],
+    actions: ['resetState', 'setReasoning', 'setTemperatureEnabled', 'setTopPEnabled'],
     state: true,
   },
 })

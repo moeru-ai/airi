@@ -44,6 +44,37 @@ describe('pushMessages', () => {
     db = await mockDB(schema)
   })
 
+  it('persists and returns a native reply relation', async () => {
+    await db.insert(schema.chats).values({ id: 'group', type: 'group' })
+    await db.insert(schema.chatMembers).values({ chatId: 'group', memberType: 'user', userId: 'member' })
+    await db.insert(schema.messages).values({
+      id: 'assistant-1',
+      chatId: 'group',
+      senderId: 'member',
+      role: 'assistant',
+      seq: 1,
+      content: 'Earlier answer',
+      mediaIds: [],
+      stickerIds: [],
+    })
+    const service = createChatService(db)
+
+    await service.pushMessages('member', 'group', [{
+      id: 'user-reply',
+      role: 'user',
+      content: 'My follow-up',
+      replyToMessageId: 'assistant-1',
+    }])
+    const result = await service.pullMessages('member', 'group', 1)
+
+    expect(result.messages).toHaveLength(1)
+    expect(result.messages[0]).toMatchObject({
+      id: 'user-reply',
+      content: 'My follow-up',
+      replyToMessageId: 'assistant-1',
+    })
+  })
+
   it('rejects a member attempt to update another member’s message', async () => {
     await db.insert(schema.chats).values({ id: 'group', type: 'group' })
     await db.insert(schema.chatMembers).values([
@@ -251,5 +282,34 @@ describe('pushMessages', () => {
 
     const messages = await db.query.messages.findMany({ where: eq(schema.messages.chatId, 'group') })
     expect(messages).toHaveLength(0)
+  })
+})
+
+describe('listChats', () => {
+  let db: Database
+
+  beforeEach(async () => {
+    db = await mockDB(schema)
+  })
+
+  it('returns the members of each chat of the user', async () => {
+    const service = createChatService(db)
+    await service.createChat('owner', { id: 'luna-chat', type: 'bot', members: [{ type: 'character', characterId: 'luna' }] })
+    await service.createChat('owner', { id: 'sol-chat', type: 'bot', members: [{ type: 'character', characterId: 'sol' }] })
+    await service.createChat('stranger', { id: 'other-chat', type: 'bot', members: [{ type: 'character', characterId: 'luna' }] })
+
+    const chats = await service.listChats('owner')
+
+    const characterIdsByChatId = Object.fromEntries(chats.map(chat => [
+      chat.id,
+      chat.members.filter(member => member.memberType === 'character').map(member => member.characterId),
+    ]))
+    expect(characterIdsByChatId).toEqual({ 'luna-chat': ['luna'], 'sol-chat': ['sol'] })
+  })
+
+  it('returns an empty list for a user without chats', async () => {
+    const service = createChatService(db)
+
+    expect(await service.listChats('owner')).toEqual([])
   })
 })

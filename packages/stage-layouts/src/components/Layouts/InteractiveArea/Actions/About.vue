@@ -2,12 +2,16 @@
 import { isStageCapacitor, isStageTamagotchi } from '@proj-airi/stage-shared'
 import { AboutContent, AboutDialog } from '@proj-airi/stage-ui/components'
 import { useBuildInfo } from '@proj-airi/stage-ui/composables'
-import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+
+defineProps<{
+  /** Lets a parent menu provide the trigger. @default false */
+  hideTrigger?: boolean
+}>()
 
 const { t } = useI18n()
 
-const show = ref(false)
+const show = defineModel<boolean>({ default: false })
 const buildInfo = useBuildInfo()
 
 const aboutLinks = [
@@ -25,6 +29,7 @@ const edition = isStageTamagotchi()
 
 <template>
   <button
+    v-if="!hideTrigger"
     title="About"
     :class="[
       'w-fit p-2',

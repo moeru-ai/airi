@@ -8,7 +8,7 @@ import {
   WLIP_SYNC_VOWELS,
   wlipsyncProfile,
 } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
-import { shallowRef, watch } from 'vue'
+import { ref, shallowRef, watch } from 'vue'
 
 const VRM_EXPRESSION_BY_VOWEL: Record<WLipSyncVowel, string> = {
   A: 'aa',
@@ -21,19 +21,23 @@ const VRM_EXPRESSION_BY_VOWEL: Record<WLipSyncVowel, string> = {
 /**
  * Applies shared wLipSync vowel weights to a VRM expression manager.
  *
- * The caller owns the AudioContext and audio source lifecycle. This composable
- * owns only the connection between that source and its wLipSync node.
+ * The caller owns the AudioContext and the played speech. `connectSpeech`
+ * connects the wLipSync node to that speech and returns the disconnection.
  */
 export function useVRMLipSync(
   audioContext: Readonly<Ref<AudioContext | undefined>>,
-  audioSource: Readonly<Ref<AudioBufferSourceNode | undefined>>,
+  connectSpeech: Readonly<Ref<((node: AudioNode) => () => void) | undefined>>,
+  speechActive: Readonly<Ref<boolean | undefined>>,
 ) {
+  const isLipSyncActive = ref(false)
   const lipSyncNode = shallowRef<WLipSyncAudioNode>()
+  const ownsVisemes = ref(false)
   const vowelDriver = createWLipSyncVowelDriver()
 
   watch(audioContext, (context, _, onCleanup) => {
     lipSyncNode.value = undefined
     vowelDriver.reset()
+    isLipSyncActive.value = false
     if (!context)
       return
 
@@ -59,37 +63,59 @@ export function useVRMLipSync(
       })
   }, { immediate: true })
 
-  watch([lipSyncNode, audioSource], ([node, source], _, onCleanup) => {
-    if (!node || !source)
+  watch([lipSyncNode, connectSpeech], ([node, connect], _, onCleanup) => {
+    if (!node || !connect)
       return
 
     try {
-      source.connect(node)
+      onCleanup(connect(node))
     }
     catch (error) {
       console.error('[stage-ui-three] Failed to connect the VRM lip-sync node.', error)
+    }
+  }, { immediate: true })
+
+  function clearVisemes(vrm?: VRMCore) {
+    if (!vrm?.expressionManager)
+      return
+    for (const vowel of WLIP_SYNC_VOWELS)
+      vrm.expressionManager.setValue(VRM_EXPRESSION_BY_VOWEL[vowel], 0)
+  }
+
+  function releaseVisemes(vrm?: VRMCore) {
+    if (!ownsVisemes.value)
+      return
+    ownsVisemes.value = false
+    clearVisemes(vrm)
+  }
+
+  function update(vrm?: VRMCore, delta = 0.016) {
+    if (!vrm?.expressionManager)
+      return
+
+    const node = lipSyncNode.value
+    if (!node || speechActive.value === false) {
+      isLipSyncActive.value = false
+      vowelDriver.reset()
+      releaseVisemes(vrm)
       return
     }
 
-    onCleanup(() => {
-      try {
-        source.disconnect(node)
-      }
-      catch {
-        // The source can end before Vue runs this watcher cleanup.
-      }
-    })
-  }, { immediate: true })
-
-  function update(vrm?: VRMCore, delta = 0.016) {
-    const node = lipSyncNode.value
-    if (!vrm?.expressionManager || !node)
-      return
-
+    ownsVisemes.value = true
     const weights = vowelDriver.update(node, delta)
-    for (const vowel of WLIP_SYNC_VOWELS)
-      vrm.expressionManager.setValue(VRM_EXPRESSION_BY_VOWEL[vowel], weights[vowel])
+    let hasActiveVisemes = false
+    for (const vowel of WLIP_SYNC_VOWELS) {
+      const weight = weights[vowel]
+      if (weight > 0.01)
+        hasActiveVisemes = true
+      vrm.expressionManager.setValue(VRM_EXPRESSION_BY_VOWEL[vowel], weight)
+    }
+
+    isLipSyncActive.value = hasActiveVisemes
   }
 
-  return { update }
+  return {
+    isLipSyncActive,
+    update,
+  }
 }

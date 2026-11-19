@@ -23,7 +23,7 @@ describe('auth analytics', () => {
   //
   // The auth SPA emitted `signup_completed` before it knew the Better Auth
   // user id, while the server emitted the same canonical event with that id.
-  // PostHog therefore counted one email signup as two unrelated persons.
+  // The analytics provider therefore counted one email signup as two unrelated persons.
   //
   // The anonymous UI milestone must use its own name. The identified server
   // event remains the only canonical `signup_completed` business fact.

@@ -1,25 +1,49 @@
-import type { PostHogConfig } from 'posthog-js'
+import type { BeforeSendFn, PostHogConfig } from 'posthog-js'
 
-function isEnvFlagEnabled(value: string | undefined): boolean {
-  if (value == null)
-    return false
+/** The browser-safe PostHog project key that every AIRI client surface shares. */
+export const POSTHOG_PROJECT_KEY = 'phc_pzjziJjrVZpa9SqnQqq0QEKvkmuCPH7GDTA6TbRTEf9' // cspell:disable-line
 
-  return /^(?:1|true|t|yes|y|on)$/i.test(value.trim())
+const urlPropertyPattern = /(?:url|referrer)$/i
+
+function stripUrlQueries(properties: Record<string, unknown> | undefined): void {
+  if (!properties)
+    return
+  for (const [key, value] of Object.entries(properties)) {
+    if (typeof value === 'string' && urlPropertyPattern.test(key))
+      properties[key] = value.split(/[?#]/, 1)[0]
+  }
 }
 
-/** Whether client analytics is enabled for the current Vite build. */
-export const POSTHOG_ENABLED = isEnvFlagEnabled(import.meta.env.VITE_ENABLE_POSTHOG)
+/** Removes query strings and fragments from URL properties, so OAuth codes never enter analytics. */
+export const stripPosthogUrlQueries: BeforeSendFn = (event) => {
+  stripUrlQueries(event.properties)
+  stripUrlQueries(event.$set)
+  stripUrlQueries(event.$set_once)
+  return event
+}
 
-/** The shared PostHog project key used by every AIRI client surface. */
-export const POSTHOG_PROJECT_KEY
-  = import.meta.env.VITE_POSTHOG_PROJECT_KEY
-    ?? 'phc_pzjziJjrVZpa9SqnQqq0QEKvkmuCPH7GDTA6TbRTEf9' // cspell:disable-line
-
-/** Shared PostHog defaults for AIRI single-page applications. */
+/**
+ * Shared PostHog options for AIRI single-page applications.
+ *
+ * The PostHog project settings decide which capture products run, for example
+ * autocapture, exception capture, web vitals, heatmaps, and session replay.
+ * The SDK reads them from the remote config, so these options must not set
+ * those switches.
+ *
+ * These options keep only the privacy rules that a project setting must not
+ * turn off: URL queries are removed, and session replay masks all text.
+ * Page leaves are the one capture switch here, because no project setting controls them.
+ */
 export const DEFAULT_POSTHOG_CONFIG = {
   api_host: 'https://t.airi.build',
-  // This preset captures page views on history changes. PostHog then also
-  // captures page leaves, which keeps route-level dwell time measurable.
   defaults: '2025-05-24',
   person_profiles: 'identified_only',
+  // No report reads page leaves, and they double the page view volume.
+  capture_pageleave: false,
+  // Chat messages are page text. A replay must never record them.
+  session_recording: {
+    maskAllInputs: true,
+    maskTextSelector: '*',
+  },
+  before_send: stripPosthogUrlQueries,
 } as const satisfies Partial<PostHogConfig>

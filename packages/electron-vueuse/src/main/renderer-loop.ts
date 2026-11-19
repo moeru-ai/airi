@@ -3,6 +3,7 @@ import type { BrowserWindow } from 'electron'
 import { attemptAsync } from 'es-toolkit'
 
 import { useLoop } from './loop'
+import { onWindowClosed } from './window-closed'
 
 const rendererDisposedMessage = 'Render frame was disposed before WebFrameMain could be accessed'
 
@@ -31,7 +32,7 @@ export function shouldStopForRendererError(error: unknown) {
 }
 
 export function stopLoopWhenRendererIsGone(window: BrowserWindow, stop: () => void) {
-  window.on('closed', stop)
+  onWindowClosed(window, stop)
   window.webContents.on('destroyed', stop)
   window.webContents.on('render-process-gone', stop)
 }
@@ -66,22 +67,48 @@ export function createRendererLoop(params: { window: BrowserWindow, run: () => P
 
     throw error
   }, {
-    autoStart: params.autoStart ?? false,
+    // `startLoop` below owns starting, so an `autoStart` loop also waits for
+    // a visible window.
+    autoStart: false,
     interval: params.interval,
   })
 
   stopLoopWhenRendererIsGone(params.window, stop)
 
+  // A hidden window paints nothing, so its renderer has no use for what the
+  // loop sends. The loop pauses while the window is hidden and resumes when
+  // the window shows again, if it was started and not stopped since.
+  let started = false
+
   const startLoop = () => {
+    started = true
     if (!ensureRendererIsAvailable(params.window, stop)) {
       return
     }
 
-    start()
+    if (params.window.isVisible()) {
+      start()
+    }
+  }
+
+  const stopLoop = () => {
+    started = false
+    stop()
+  }
+
+  params.window.on('hide', stop)
+  params.window.on('show', () => {
+    if (started) {
+      startLoop()
+    }
+  })
+
+  if (params.autoStart) {
+    startLoop()
   }
 
   return {
     start: startLoop,
-    stop,
+    stop: stopLoop,
   }
 }

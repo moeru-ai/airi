@@ -145,7 +145,12 @@ export const providerBrowserLocalAudioTranscription = defineProvider<LocalAudioC
   descriptionLocalize: ({ t }) => t('settings.pages.providers.provider.browser-local-audio-transcription.description'),
   tasks: ['speech-to-text', 'automatic-speech-recognition', 'asr', 'stt'],
   icon: 'i-lobe-icons:huggingface',
-  isAvailableBy: isBrowserAndMemoryEnough,
+  // NOTICE:
+  // Hiding the provider keeps users from selecting one they cannot configure.
+  // Its settings page (browser-local-audio-transcription.vue) renders <WIP />.
+  // Reported in https://github.com/moeru-ai/airi/issues/2297 (item 6).
+  // Removal condition: restore isBrowserAndMemoryEnough once the settings page is implemented.
+  isAvailableBy: () => false,
   capabilities: {
     transcription: {
       protocol: 'http',

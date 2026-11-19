@@ -46,6 +46,11 @@ export interface ProviderMetadata extends Pick<ProviderDefinition, ProviderMetad
   beginnerRecommended?: boolean
 }
 
+/** The settings page of a provider: its own route, or the page of its category for this provider id. */
+export function providerSettingsRouteOf(metadata: { to?: string, category: string, id: string }) {
+  return metadata.to ?? `/settings/providers/${metadata.category}/${metadata.id}`
+}
+
 /** Classifies a provider from its declared inference tasks. */
 export function getProviderCategory(tasks: string[]): ProviderCategory {
   if (tasks.some(task => ['vision', 'image-understanding', 'image-to-text', 'multimodal'].includes(task.toLowerCase())))
@@ -74,6 +79,7 @@ export async function selectProviderMetadata<TConfig>(
   const key = (input: string): string => input
   const tasks = options.tasks ?? definition.tasks
   const transcription = definition.capabilities?.transcription
+  const to = options.to ?? definition.to
 
   const schema = await definition.createProviderConfig({ t })
   const onboardingFields = definition.onboardingFields
@@ -85,7 +91,7 @@ export async function selectProviderMetadata<TConfig>(
     order: definition.order,
     tasks: [...tasks],
     category: options.category ?? getProviderCategory(tasks),
-    ...(options.to ? { to: options.to } : {}),
+    ...(to ? { to } : {}),
     name: definition.name,
     nameKey: definition.nameLocalize({ t: key }),
     localizedName: definition.nameLocalize({ t }),

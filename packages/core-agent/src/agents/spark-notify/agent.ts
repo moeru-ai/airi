@@ -1,7 +1,8 @@
 import type { ProtocolEvents } from '@proj-airi/plugin-protocol/types'
 import type { WebSocketEventOf } from '@proj-airi/server-sdk'
-import type { Message, ToolChoice } from '@xsai/shared-chat'
+import type { ToolChoice } from '@xsai/shared-chat'
 
+import type { Turn } from '../../messages/types'
 import type { SparkNotifyCommandDraft } from './tools'
 import type {
   SparkNotifyPlugin,
@@ -47,6 +48,8 @@ export interface SparkNotifyHandleRequest {
   event: WebSocketEventOf<'spark:notify'>
   selectedChat: SparkNotifySelectedChat
   systemPrompt: string
+  /** Runtime instructions appended to the user message for this request. */
+  runtimePrompt?: string
   control?: SparkNotifyResponseControl
 }
 
@@ -66,15 +69,16 @@ export interface CreateSparkNotifyAgentOptions {
 }
 
 function renderSparkNotifyUserMessage(input: SparkNotifyHandleRequest, userSections: string[]) {
-  if (input.control?.messageOverride?.replaceUserMessage)
-    return input.control.messageOverride.replaceUserMessage
+  const messageOverride = input.control?.messageOverride
+  const defaultUserMessage = JSON.stringify({
+    notify: input.event.data,
+    source: input.event.metadata?.source,
+  }, null, 2)
 
   return [
-    JSON.stringify({
-      notify: input.event.data,
-      source: input.event.metadata?.source,
-    }, null, 2),
-    ...(input.control?.messageOverride?.appendUserSections ?? []),
+    messageOverride?.replaceUserMessage ?? defaultUserMessage,
+    ...(messageOverride?.appendUserSections ?? []),
+    input.runtimePrompt ?? '',
     ...userSections,
   ].filter(section => section.trim().length > 0).join('\n\n')
 }
@@ -198,19 +202,22 @@ export function createSparkNotifyAgent(options: CreateSparkNotifyAgentOptions): 
       ? sessions.flatMap(session => session.tools ?? [])
       : []
 
-    const messages: Message[] = [
+    const turns: Turn[] = [
       {
-        role: 'system',
-        content: [
+        id: 'spark-system',
+        type: 'system',
+        authority: 'system',
+        content: [{ type: 'text', text: [
           request.systemPrompt,
           getSparkNotifyHandlingAgentInstruction(getEventSourceKey(request.event)),
           ...(request.control?.messageOverride?.appendSystemInstructions ?? []),
           ...systemInstructions,
-        ].filter(Boolean).join('\n\n'),
+        ].filter(Boolean).join('\n\n') }],
       },
       {
-        role: 'user',
-        content: renderSparkNotifyUserMessage(request, userSections),
+        id: request.event.data.eventId,
+        type: 'user',
+        content: [{ type: 'text', text: renderSparkNotifyUserMessage(request, userSections) }],
       },
     ]
 
@@ -219,14 +226,14 @@ export function createSparkNotifyAgent(options: CreateSparkNotifyAgentOptions): 
         await session.onEvent?.(event)
     }
 
-    await emit({ type: 'messages-rendered', payload: { eventId: request.event.data.eventId, source: request.event.source, messageCount: messages.length } })
+    await emit({ type: 'messages-rendered', payload: { eventId: request.event.data.eventId, source: request.event.source, messageCount: turns.length } })
     await emit({ type: 'tools-prepared', payload: { eventId: request.event.data.eventId, toolNames: tools.flatMap(tool => tool.function?.name ? [tool.function.name] : []), toolCount: tools.length, supportsTools: policy.supportsTools } })
     await emit({ type: 'model-input', payload: { eventId: request.event.data.eventId, model: request.selectedChat.model, provider: request.selectedChat.providerId, supportsTools: policy.supportsTools, waitForTools: policy.waitForTools } })
 
     let reaction = ''
     await options.runner.run({
       selectedChat: request.selectedChat,
-      messages,
+      conversation: { turns },
       tools,
       policy,
       onStreamEvent: async (streamEvent) => {
@@ -241,7 +248,7 @@ export function createSparkNotifyAgent(options: CreateSparkNotifyAgentOptions): 
         }
 
         if (streamEvent.type === 'tool-call') {
-          await emit({ type: 'model-output-tool-call', payload: { eventId: request.event.data.eventId, toolCallId: streamEvent.id, toolName: streamEvent.function.name, input: streamEvent.function.arguments } })
+          await emit({ type: 'model-output-tool-call', payload: { eventId: request.event.data.eventId, toolCallId: streamEvent.toolCallId, toolName: streamEvent.toolName, input: streamEvent.args } })
           return
         }
 
