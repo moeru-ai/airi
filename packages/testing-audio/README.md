@@ -66,6 +66,12 @@ describe('audio input pipeline', () => {
 
 A case can independently choose its VAD behavior, ASR, LLM, and TTS configuration. A configuration callback can read its own environment, write local storage, use another persistence mechanism, or deliberately leave onboarding incomplete.
 
+## Lower the Live2D settings
+
+Headless Chromium renders WebGL on the CPU. With the default Live2D settings, the main thread is busy, and voice activity detection falls behind real time. The Web cases then time out before an input starts.
+
+If a case tests audio and not rendering, add `configureLive2D(() => audioCaseLive2D)`. It sets **Maximum FPS** to 15 and **Render Scale** to 1. A user can change the same settings on the Live2D settings page.
+
 ## Script the LLM reply
 
 When a case tests the output side of the pipeline, the reply must not depend on a model. Use `startScriptedLlm` from `cases/shared/providers`. It starts an OpenAI-compatible chat completion endpoint on `127.0.0.1` and streams a fixed reply in small chunks. AIRI receives the reply as model output, so the chat shows it and the speech output reads it. The case needs no LLM key.
@@ -73,6 +79,9 @@ When a case tests the output side of the pipeline, the reply must not depend on 
 Set `rephrase: false` in `configureModuleHearing` when the case uses the scripted LLM. Otherwise the transcript rephrase also sends its request to the scripted LLM. Call `close()` at the end of the case.
 
 ## Test wake word detection
+
+CI skips cases with `pipelines: ['kws']` before runtime startup because wake word preparation times out.
+The root cause is not confirmed. Local runs keep these cases enabled.
 
 Use `configureWakeWord` to add AIRI Cards with wake words. Each configuration adds one card with one wake word and its pronunciations. The callback also turns on the microphone and selects the `wake-word` Hearing input mode. The case does not need an ASR Provider.
 
@@ -133,7 +142,7 @@ The speech changes a little on each request. After you generate the fixtures, ru
 Run the cases on both hosts:
 
 ```bash
-pnpm -F @proj-airi/testing-audio test:run cases/wake-word
+pnpm -F @proj-airi/testing-audio test:e2e cases/wake-word
 ```
 
 For one host, build its app and select `--project audio-web` or `--project audio-electron`.
@@ -221,7 +230,7 @@ These tests send audio and text to external Providers. Each run can incur Provid
 Build both targets and run all runtime projects:
 
 ```bash
-pnpm -F @proj-airi/testing-audio test:run
+pnpm -F @proj-airi/testing-audio test:e2e
 ```
 
 Use existing builds:

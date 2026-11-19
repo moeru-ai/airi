@@ -30,6 +30,7 @@
     "./utils/spine-zip-loader": "./src/utils/spine-zip-loader.ts"
   },
   "scripts": {
+    "test:run": "vitest run",
     "typecheck": "vue-tsc --noEmit"
   },
   "dependencies": {

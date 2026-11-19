@@ -15,8 +15,11 @@ import { availableMicroFlux, capacitorPercent, nextCapacitorRecharge, refillCapa
 import * as schema from '../../../../schemas'
 
 const hour = 3_600_000
-const periodStart = new Date('2026-10-01T00:00:00.000Z')
-const nextPeriodStart = new Date('2026-11-01T00:00:00.000Z')
+const day = 24 * hour
+// The periods follow the real clock. Fixed dates broke after 2026-11-01, because the first refill was then
+// later than the next period start. The half day keeps the start off the daily and weekly reset windows.
+const periodStart = new Date(Date.now() - 14.5 * day)
+const nextPeriodStart = new Date(Date.now() + 17 * day)
 
 function activeCapacitor(quota: number, start = periodStart) {
   return { quota, periodStart: start, expiresAt: new Date(Date.now() + 24 * hour) }

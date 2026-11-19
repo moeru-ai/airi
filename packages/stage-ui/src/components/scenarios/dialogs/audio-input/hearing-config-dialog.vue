@@ -71,7 +71,7 @@ onMounted(() => screenSafeArea.update())
           'fixed bottom-0 left-0 right-0 z-1000',
           'mt-20 px-4 pt-4',
           'flex flex-col',
-          'max-h-[min(85dvh,36rem)] overflow-y-auto',
+          'max-h-[min(85dvh,36rem)] overflow-clip',
           'rounded-t-[32px] outline-none backdrop-blur-md',
           'bg-neutral-50/85 dark:bg-neutral-900/90',
         ]"
@@ -85,8 +85,18 @@ onMounted(() => screenSafeArea.update())
             '[div&]:bg-neutral-400 [div&]:dark:bg-neutral-600',
           ]"
         />
-        <HearingConfig :before-enable="props.beforeEnable" />
-        <slot name="extra" />
+        <!--
+          NOTICE:
+          The drawer clips its overflow, and this inner element scrolls.
+          vaul-vue adds a `[data-vaul-drawer]::after` layer that is 200% tall and copies the drawer background.
+          A scrolling or overflow-hidden drawer can scroll into that layer, for example on focus, and shows it as an empty panel.
+          Source: node_modules/vaul-vue/dist/index.js (vaul-vue 0.4.1).
+          Remove when vaul-vue no longer adds this layer inside the drawer.
+        -->
+        <div data-vaul-no-drag :class="['min-h-0 flex-1 overflow-y-auto']">
+          <HearingConfig :before-enable="props.beforeEnable" />
+          <slot name="extra" />
+        </div>
       </DrawerContent>
     </DrawerPortal>
   </DrawerRoot>

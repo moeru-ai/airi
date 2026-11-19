@@ -24,6 +24,9 @@ interface TrackedInput {
   readonly from?: Position
 }
 
+/** The VAD score that begins speech when the options set no `threshold`. A live input keeps speech at 30 percent of it. */
+export const DEFAULT_SPEECH_THRESHOLD = 0.6
+
 /**
  * Options are read on each window, not once, so a host setting with a getter applies at once.
  * Do not spread these options into a new object, because spreading reads each getter once.
@@ -140,7 +143,7 @@ export function createSpeechActivityRule(options: SpeechActivityRuleOptions): Vo
         return { state: { ...state, owned: undefined }, commands }
       }
 
-      const threshold = options.threshold ?? 0.6
+      const threshold = options.threshold ?? DEFAULT_SPEECH_THRESHOLD
       const speech = score >= (owned ? threshold * 0.3 : threshold)
       if ((wake && wake.sessionId !== owned?.sessionId) || (!owned && speech)) {
         if (!accepted)

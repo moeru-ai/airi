@@ -45,11 +45,6 @@ docs:
   style:
     title: Style de fenêtre de chat
     legacy: Fenêtre classique
-    floating-attached: Flottante, à côté du personnage
-    floating-free: Flottante, n’importe où sur l’écran
-    floating-danmaku: Flottante, fil de messages
-    pinned: Toujours au premier plan
-  resize: Faites glisser pour redimensionner le chat
   move: Faites glisser pour déplacer le chat
   fold: Masquer le chat
   composer:
@@ -102,8 +97,8 @@ about:
     channels:
       auto: Automatique
       beta: Bêta
-      nightly: Nocturne
       canary: Expérimental
+      nightly: Nocturne
     status:
       downloading: Téléchargement de la mise à jour...
       error-prefix: Erreur

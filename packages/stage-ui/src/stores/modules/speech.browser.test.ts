@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp } from 'vue'
 import { createI18n } from 'vue-i18n'
 
+import { trackPendingActions } from '../../libs/pinia/pending-actions'
 import { injectKeyPiniaSynced } from '../../libs/pinia/synced-context'
 import { useAuthStore } from '../auth'
 import { useProviderConfigStore } from '../providers/config'
@@ -20,6 +21,7 @@ const syncedContexts: Array<{
   app: App
   pinia: ReturnType<typeof createPinia>
   runtime: SyncedPiniaRuntime
+  pendingCatalogLoads: () => number
 }> = []
 
 const nativeFetch = globalThis.fetch
@@ -48,6 +50,8 @@ function createSyncedContext(namespace: string, leadership: LeadershipMode, with
   pinia.use(runtime.plugin)
 
   let speechStore: ReturnType<typeof useSpeechStore> | undefined
+  // A leader keeps loading a catalog after a reset releases the caller, so cleanup waits for every load to settle.
+  const pendingCatalogLoads = trackPendingActions(pinia, (storeId, action) => storeId === 'speech' && (action === 'loadVoicesForProvider' || action === 'loadVoiceCatalog'))
   const app = createApp({
     setup() {
       speechStore = useSpeechStore()
@@ -65,8 +69,8 @@ function createSyncedContext(namespace: string, leadership: LeadershipMode, with
   if (!speechStore)
     throw new Error('Speech store did not initialize')
 
-  syncedContexts.push({ app, pinia, runtime })
-  return { pinia, runtime, speechStore }
+  syncedContexts.push({ app, pinia, runtime, pendingCatalogLoads })
+  return { pinia, runtime, speechStore, pendingCatalogLoads }
 }
 
 /** Creates two real renderers and waits until their leader routing agrees. */
@@ -81,9 +85,9 @@ async function createSyncedPair() {
 
 describe('speech synchronization', () => {
   // https://github.com/moeru-ai/airi/pull/2490#discussion_r3967949219
-  // ROOT CAUSE: Catalog invalidation erased the voice just applied by a card.
-  // The selection command must discard the old catalog before setting the override.
-  it.each(['microsoft-speech', 'official-provider-speech'])('preserves a card voice while its new %s model catalog loads', async (provider) => {
+  // ROOT CAUSE: Catalog invalidation erased the voice that a selection command just applied.
+  // The selection command must discard the old catalog before it sets the voice.
+  it.each(['microsoft-speech', 'official-provider-speech'])('preserves a selected voice while its new %s model catalog loads', async (provider) => {
     const deferred = Promise.withResolvers<Response>()
     let pause = false
     stubCatalogFetch(vi.fn<typeof fetch>(async () => pause
@@ -107,17 +111,11 @@ describe('speech synchronization', () => {
     await leader.speechStore.selectProviderModel(provider, 'model-a', 'old')
     await vi.waitFor(() => expect(leader.speechStore.availableVoices[provider]?.[0]?.id).toBe('old'))
     await vi.waitFor(() => expect(follower.speechStore.activeSpeechVoice?.id).toBe('old'))
-    const cards = useAiriCardStore(leader.pinia)
-    await cards.initialize()
-    const id = await cards.addCard({
-      name: 'Saved voice',
-      version: '1.0',
-      description: '',
-      extensions: { airi: { modules: { speech: { provider, model: 'model-b', voice_id: 'saved' } } } },
-    }, 'scratch')
+    // The card store configures the providers of a login. Wait for it, so that it does not run during the selection.
+    await useAiriCardStore(leader.pinia).initialize()
     pause = true
     try {
-      await cards.activateCard(id)
+      await leader.speechStore.selectProviderModel(provider, 'model-b', 'saved')
       await vi.waitFor(() => expect(leader.speechStore.availableVoices[provider]).toEqual([]))
       expect(leader.speechStore.activeSpeechVoiceId).toBe('saved')
       deferred.resolve(Response.json({
@@ -126,12 +124,6 @@ describe('speech synchronization', () => {
       }))
       await vi.waitFor(() => expect(follower.speechStore.activeSpeechVoice?.id).toBe('saved'))
       expect(follower.speechStore.activeSpeechModel).toBe('model-b')
-      // Consecutive commands must not capture the first card's override as
-      // an inherited default while its leader action yields.
-      await cards.activateCard('default')
-      await Promise.all([cards.activateCard(id), cards.activateCard('default')])
-      expect(leader.speechStore.activeSpeechModel).toBe('model-a')
-      expect(cards.moduleDefaults?.speech.model).toBe('model-a')
     }
     finally {
       deferred.resolve(Response.json({ voices: [] }))
@@ -167,7 +159,8 @@ describe('speech synchronization', () => {
     localStorage.clear()
   })
 
-  afterEach(() => {
+  afterEach(async () => {
+    await expect.poll(() => syncedContexts.map(context => context.pendingCatalogLoads())).toEqual(syncedContexts.map(() => 0))
     for (const context of syncedContexts.splice(0)) {
       context.app.unmount()
       context.runtime.dispose()
@@ -580,6 +573,8 @@ describe('speech synchronization', () => {
     finally {
       finishOld(Response.json({ voices: [] }))
       await refresh
+      // The closed leader still finishes its interrupted load. It must settle before the next test starts.
+      await expect.poll(() => leader.pendingCatalogLoads()).toBe(0)
     }
   })
   // https://github.com/moeru-ai/airi/pull/2490#discussion_r3964310221

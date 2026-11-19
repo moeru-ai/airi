@@ -4,6 +4,7 @@ import type { Mineflayer } from '../../libs/mineflayer'
 
 import { ActionError } from '../../utils/errors'
 import { useLogger } from '../../utils/logger'
+import { withContainer } from '../containers'
 import { goToPlayer, goToPosition } from '../movement'
 import { getNearestBlock } from '../world'
 
@@ -69,64 +70,77 @@ export async function discard(mineflayer: Mineflayer, itemName: string, num = -1
 }
 
 /**
- * Put an item in a chest.
- * @param mineflayer The mineflayer instance.
- * @param itemName The name of the item to put in the chest.
- * @param num The number of items to put in the chest. Default is -1 for all.
+ * Prefers an exact item name in the open inventory.
+ * If no exact name exists, selects the first substring match.
+ * Transfers up to `num` items across its stacks, without metadata or NBT filters.
+ * Attempts to close the opened container after a transfer, including on failure.
+ * @param mineflayer The bot that owns the inventory and the container.
+ * @param itemName The exact item name, or a substring when no exact name exists.
+ * @param num Maximum quantity to transfer. Use `-1` for all available items.
+ * @default -1
+ * @returns The completed transfer quantity, limited to the available quantity.
  * @throws {ActionError} When no chest is nearby or the item is not in inventory.
  */
-export async function putInChest(mineflayer: Mineflayer, itemName: string, num = -1): Promise<void> {
+export async function putInChest(mineflayer: Mineflayer, itemName: string, num = -1): Promise<number> {
   const chest = getNearestBlock(mineflayer, 'chest', 32)
   if (!chest) {
     logger.log(`Could not find a chest nearby.`)
     throw new ActionError('TARGET_NOT_FOUND', 'Could not find a chest nearby', { blockType: 'chest' })
   }
-  const item = mineflayer.bot.inventory
-    .items()
-    .find(item => item.name.includes(itemName))
-  if (!item) {
-    logger.log(`You do not have any ${itemName} to put in the chest.`)
-    throw new ActionError('ITEM_NOT_FOUND', `You do not have any ${itemName} to put in the chest`, { item: itemName })
-  }
-  const toPut = num === -1 ? item.count : Math.min(num, item.count)
   await goToPosition(mineflayer, chest.position.x, chest.position.y, chest.position.z)
-  const chestContainer = await mineflayer.bot.openContainer(chest)
-  await chestContainer.deposit(item.type, null, toPut)
-  await chestContainer.close()
-  logger.log(`Successfully put ${toPut} ${itemName} in the chest.`)
+  const transferred = await withContainer(mineflayer, chest, async (container) => {
+    const items = container.items()
+    const item = items.find(item => item.name === itemName) ?? items.find(item => item.name.includes(itemName))
+    if (!item) {
+      logger.log(`You do not have any ${itemName} to put in the chest.`)
+      throw new ActionError('ITEM_NOT_FOUND', `You do not have any ${itemName} to put in the chest`, { item: itemName })
+    }
+    const available = container.count(item.type, null)
+    const toPut = num === -1 ? available : Math.min(num, available)
+    await container.deposit(item.type, null, toPut)
+    return toPut
+  })
+  logger.log(`Successfully put ${transferred} ${itemName} in the chest.`)
+  return transferred
 }
 
 /**
- * Take an item from a chest.
- * @param mineflayer The mineflayer instance.
- * @param itemName The name of the item to take.
- * @param num The number of items to take. Default is -1 for all.
+ * Prefers an exact item name in the open chest.
+ * If no exact name exists, selects the first substring match.
+ * Transfers up to `num` items across its stacks, without metadata or NBT filters.
+ * Attempts to close the opened container after a transfer, including on failure.
+ * @param mineflayer The bot that owns the inventory and the container.
+ * @param itemName The exact item name, or a substring when no exact name exists.
+ * @param num Maximum quantity to transfer. Use `-1` for all available items.
+ * @default -1
+ * @returns The completed transfer quantity, limited to the available quantity.
  * @throws {ActionError} When no chest is nearby or the item is not in the chest.
  */
 export async function takeFromChest(
   mineflayer: Mineflayer,
   itemName: string,
   num = -1,
-): Promise<void> {
+): Promise<number> {
   const chest = getNearestBlock(mineflayer, 'chest', 32)
   if (!chest) {
     logger.log(`Could not find a chest nearby.`)
     throw new ActionError('TARGET_NOT_FOUND', 'Could not find a chest nearby', { blockType: 'chest' })
   }
   await goToPosition(mineflayer, chest.position.x, chest.position.y, chest.position.z)
-  const chestContainer = await mineflayer.bot.openContainer(chest)
-  const item = chestContainer
-    .containerItems()
-    .find(item => item.name.includes(itemName))
-  if (!item) {
-    logger.log(`Could not find any ${itemName} in the chest.`)
-    await chestContainer.close()
-    throw new ActionError('ITEM_NOT_FOUND', `Could not find any ${itemName} in the chest`, { item: itemName })
-  }
-  const toTake = num === -1 ? item.count : Math.min(num, item.count)
-  await chestContainer.withdraw(item.type, null, toTake)
-  await chestContainer.close()
-  logger.log(`Successfully took ${toTake} ${itemName} from the chest.`)
+  const transferred = await withContainer(mineflayer, chest, async (container) => {
+    const items = container.containerItems()
+    const item = items.find(item => item.name === itemName) ?? items.find(item => item.name.includes(itemName))
+    if (!item) {
+      logger.log(`Could not find any ${itemName} in the chest.`)
+      throw new ActionError('ITEM_NOT_FOUND', `Could not find any ${itemName} in the chest`, { item: itemName })
+    }
+    const available = container.containerCount(item.type, null)
+    const toTake = num === -1 ? available : Math.min(num, available)
+    await container.withdraw(item.type, null, toTake)
+    return toTake
+  })
+  logger.log(`Successfully took ${transferred} ${itemName} from the chest.`)
+  return transferred
 }
 
 /**

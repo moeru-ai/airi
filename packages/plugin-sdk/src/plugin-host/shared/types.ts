@@ -2,10 +2,12 @@ import type {
   ExtensionIdentity as ProtocolExtensionIdentity,
   ModulePermissionDeclaration as ProtocolModulePermissionDeclaration,
   ModulePermissionGrant as ProtocolModulePermissionGrant,
-} from '@proj-airi/plugin-protocol/types'
+} from '@proj-airi/extension-protocol'
 import type { GenericSchema } from 'valibot'
 
-import type { KitDescriptor } from './kits'
+import type { ExposePolicy } from '../../kit/exposure-policy'
+import type { HostSourceLease } from './host-sources'
+import type { KitDescriptor, KitDescriptorSnapshot } from './kits'
 
 import semver from 'semver'
 
@@ -33,6 +35,9 @@ import {
   trim,
   union,
 } from 'valibot'
+
+import { isExactSemanticVersion } from '../../kit/exact-semantic-version'
+import { exposePolicySchema } from '../../kit/exposure-policy'
 
 /**
  * Lists the supported extension runtimes recognized by the host.
@@ -218,14 +223,14 @@ export interface ExtensionProvidedKitDeclaration {
   /** Exact version that the Provider implements. */
   version: string
   /** Transport boundary that the Provider permits. */
-  exposure: 'local-only' | 'remote-observable' | 'remote-callable'
+  exposure: ExposePolicy
 }
 
 /**
  * Declares one Kit that an Extension consumes.
  *
- * Required declarations participate in activation planning. Optional declarations
- * let an Extension start before a Provider is available.
+ * A required declaration keeps the Extension session `pending` until a compatible Provider is ready.
+ * An optional declaration lets an Extension start before a Provider is available.
  */
 export interface ExtensionUsedKitDeclaration {
   /** Stable Kit contract identifier. */
@@ -246,7 +251,7 @@ export interface ExtensionKitManifest {
  * Describes a version-2 Extension manifest consumed by `ExtensionHost`.
  *
  * The manifest is the package contract for discovery, import, compatibility,
- * permissions, and activation planning. Runtime registration happens later.
+ * permissions, and the Kits that a session waits for. Runtime registration happens later.
  */
 export interface ExtensionManifestV2 {
   /** Manifest schema version expected by the current Host. */
@@ -275,7 +280,7 @@ export interface ExtensionManifestV2 {
   }
   /** Package and session permission ceiling that Module permissions cannot exceed. */
   permissions: ModulePermissionDeclaration
-  /** Kit contracts used to build the static activation plan. */
+  /** Kit contracts that the Extension provides, and the Kits that its session waits for. */
   kits?: ExtensionKitManifest
 }
 
@@ -352,7 +357,7 @@ const exactSemanticVersionSchema = pipe(
   string(),
   trim(),
   minLength(1),
-  check(version => semver.valid(version) === version, 'Use an exact semantic version such as 1.0.0.'),
+  check(isExactSemanticVersion, 'Use an exact semantic version such as 1.0.0.'),
 )
 const semanticVersionRangeSchema = pipe(
   string(),
@@ -387,7 +392,7 @@ const manifestEntrypointsSchema = pipe(
 const providedKitDeclarationSchema = strictObject({
   id: pipe(string(), trim(), minLength(1)),
   version: exactSemanticVersionSchema,
-  exposure: picklist(['local-only', 'remote-observable', 'remote-callable']),
+  exposure: exposePolicySchema,
 })
 
 const usedKitDeclarationSchema = strictObject({
@@ -450,7 +455,7 @@ export const extensionManifestV2Schema = pipe(
  * - The host should register kits, resources, capabilities, or runtime-specific behavior
  *
  * Expects:
- * - Installation is idempotent for one host instance
+ * - The installation owner stores registration leases and does not register a current source twice
  * - Contributions keep domain-specific behavior out of the low-level host core
  *
  * Returns:
@@ -477,10 +482,9 @@ export interface ExtensionHostInstallContext {
   announceCapability: (key: string, metadata?: Record<string, unknown>) => void
   markCapabilityDegraded: (key: string, metadata?: Record<string, unknown>) => void
   markCapabilityReady: (key: string, metadata?: Record<string, unknown>) => void
-  registerKit: (kit: KitDescriptor) => KitDescriptor
+  registerKit: (kit: KitDescriptor) => HostSourceLease<KitDescriptorSnapshot>
   setResourceResolver: <T>(key: string, resolver: () => Promise<T> | T) => void
   setResourceValue: <T>(key: string, value: T) => void
-  unregisterKit: (kitId: string) => KitDescriptor | undefined
   withdrawCapability: (key: string, metadata?: Record<string, unknown>) => void
 }
 
@@ -508,7 +512,11 @@ export interface ExtensionHostOptions {
     persisted?: ModulePermissionGrant
     requested: ModulePermissionDeclaration
   }) => ModulePermissionGrant | Promise<ModulePermissionGrant>
-  /** Runtime used when callers do not override it per load/start call. @default 'electron' */
+  /**
+   * Host execution runtime and default Extension target. Only Node/Electron Hosts enable asynchronous cleanup self-wait detection.
+   * Per-start overrides change the Extension target, not the Host's cleanup context.
+   * @default 'electron'
+   */
   runtime?: PluginRuntime
 }
 

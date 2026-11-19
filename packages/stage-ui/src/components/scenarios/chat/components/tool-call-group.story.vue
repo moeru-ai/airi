@@ -2,8 +2,6 @@
 import type { ChatSlicesToolCallResult } from '../../../../types/chat'
 import type { ToolCallGroupItem } from './tool-call-group'
 
-import { createPinia } from 'pinia'
-
 import ChatToolCallGroup from './tool-call-group.vue'
 
 import { builtinToolCallWidgets } from './tool-call-widgets'
@@ -25,7 +23,7 @@ const running: Record<number, ChatSlicesToolCallResult> = { 0: done[0]! }
 
 <template>
   <Story title="Tool Call Group" group="chat">
-    <Variant id="states" title="One call, running, settled, and failed" :setup-app="({ app }) => { app.use(createPinia()) }">
+    <Variant id="states" title="One call, running, settled, and failed">
       <div :class="['flex max-w-lg flex-col gap-4 p-4']">
         <ChatToolCallGroup :items="items.slice(0, 1)" :result-of="index => done[index]" :widgets="builtinToolCallWidgets" />
         <ChatToolCallGroup :items="items.slice(0, 2)" :result-of="index => running[index]" :widgets="builtinToolCallWidgets" />

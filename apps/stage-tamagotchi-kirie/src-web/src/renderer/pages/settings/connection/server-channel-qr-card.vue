@@ -4,7 +4,7 @@ import type { ServerChannelQrPayload } from '@proj-airi/stage-shared/server-chan
 import { errorMessageFrom } from '@moeru/std'
 import { useHostEventaInvoke } from '@proj-airi/stage-host-context'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
-import { Callout, Collapsible, GhostButton } from '@proj-airi/ui'
+import { Alert, Collapsible, GhostButton } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { renderSVG } from 'uqr'
 import { computed, shallowRef, watch } from 'vue'
@@ -98,6 +98,7 @@ watch(appliedConfig, () => {
   <Collapsible :default="false">
     <template #trigger="slotProps">
       <button
+        :aria-expanded="slotProps.visible"
         :class="[
           'w-full flex items-center justify-between gap-3 rounded-xl text-left outline-none transition-all duration-250 ease-in-out',
         ]"
@@ -133,15 +134,13 @@ watch(appliedConfig, () => {
         </p>
       </div>
 
-      <Callout
+      <Alert
         v-if="errorMessage"
-        theme="orange"
-        :label="t('settings.pages.connection.qr.errors.title')"
+        tone="danger"
+        :title="t('settings.pages.connection.qr.errors.title')"
       >
-        <p :class="['m-0 text-xs leading-5']">
-          {{ errorMessage }}
-        </p>
-      </Callout>
+        {{ errorMessage }}
+      </Alert>
 
       <div
         v-else-if="payload"
@@ -168,6 +167,7 @@ watch(appliedConfig, () => {
           <Collapsible :default="false">
             <template #trigger="slotProps">
               <button
+                :aria-expanded="slotProps.visible"
                 :class="[
                   'w-full flex items-center justify-between gap-3 rounded-xl text-left outline-none transition-all duration-250 ease-in-out',
                 ]"

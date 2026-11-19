@@ -89,7 +89,7 @@ function toCssSize(value?: string | number): string | undefined {
         'w-full inline-flex items-center justify-between rounded-xl border px-3 leading-none h-9 gap-[5px] outline-none',
         'text-sm text-neutral-700 dark:text-neutral-200 data-[placeholder]:text-neutral-200',
         'bg-white dark:bg-neutral-900 hover:bg-neutral-50 dark:hover:bg-neutral-700',
-        'border-neutral-200 dark:border-neutral-800 border-solid border-2 focus:border-primary-300 dark:focus:border-primary-400/50',
+        'border-neutral-100 dark:border-neutral-900 border-solid border-2 focus:border-primary-300 dark:focus:border-primary-400/50',
         'shadow-sm focus:shadow-[0_0_0_2px] focus:shadow-black',
         'transition-colors duration-200 ease-in-out',
         props.disabled ? 'cursor-not-allowed bg-neutral-100 opacity-60 dark:bg-neutral-900' : 'cursor-pointer',
@@ -134,7 +134,7 @@ function toCssSize(value?: string | number): string | undefined {
           'w-full overflow-hidden rounded-xl shadow-sm border will-change-[opacity,transform]',
           'data-[side=top]:animate-slideDownAndFade data-[side=right]:animate-slideLeftAndFade data-[side=bottom]:animate-slideUpAndFade data-[side=left]:animate-slideRightAndFade',
           'bg-white dark:bg-neutral-900',
-          'border-neutral-200 dark:border-neutral-800 border-solid border-2 focus:border-neutral-300 dark:focus:border-neutral-600',
+          'border-neutral-100 dark:border-neutral-800 border-solid border',
         ]"
         :style="{
           width: toCssSize(props.contentWidth) ?? 'var(--reka-combobox-trigger-width)',

@@ -20,6 +20,8 @@ import VueRouter from 'vue-router/vite'
 import { tryCatch } from '@moeru/std'
 import { localeRemap, serializeStartupFallbackLocales } from '@proj-airi/i18n'
 import { paraformerBilingualZhEn, xAsrBilingualZhEnInt8, zipformerMultilingual } from '@proj-airi/provider-inference/sherpaw-transcription/models'
+import { createSettingsSearch } from '@proj-airi/stage-pages/vite/settings-search'
+import { sentrySourceMaps } from '@proj-airi/stage-shared/analytics/sentry-vite'
 import { speakerModel } from '@proj-airi/stage-shared/speaker-model'
 import { kwsModel } from '@proj-airi/stage-ui/libs/voice/kws-model-info'
 import { Download } from '@proj-airi/unplugin-fetch/vite'
@@ -31,6 +33,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
 const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
+const settingsSearch = createSettingsSearch()
 
 function hasFlagEnableMkcert(): boolean {
   if (process.argv.includes('--mkcert')) {
@@ -70,6 +73,15 @@ export default defineConfig({
       '@framework/utils/cubismdebug',
       '@framework/model/cubismmoc',
     ],
+    // NOTICE:
+    // Only workers import these packages, and the dependency scanner does not follow `new Worker(new URL(...))`.
+    // Vite then optimizes them when a worker first loads and reloads the page, which stops a voice enrollment.
+    // Source: Vite's `vite:dep-scan` plugin.
+    // Remove when the scanner follows worker entries.
+    include: [
+      '@huggingface/transformers',
+      '@moeru/eventa/adapters/webworkers/worker',
+    ],
   },
   resolve: {
     alias: {
@@ -103,7 +115,7 @@ export default defineConfig({
         chunkFileNames: (chunkInfo) => {
           const containsAnalyticsModule = chunkInfo.moduleIds.some((moduleId) => {
             const normalizedModuleId = moduleId.replaceAll('\\', '/').toLowerCase()
-            return normalizedModuleId.includes('analytics') || normalizedModuleId.includes('openpanel')
+            return ['analytics', 'openpanel', 'posthog'].some(name => normalizedModuleId.includes(name))
           })
 
           // Only analytics/provider chunks receive the manual neutral mapping;
@@ -146,6 +158,8 @@ export default defineConfig({
 
     Yaml(),
 
+    settingsSearch.plugin,
+
     VueMacros({
       plugins: {
         vue: Vue({
@@ -166,6 +180,7 @@ export default defineConfig({
         resolve(import.meta.dirname, '..', '..', 'packages', 'stage-pages', 'src', 'pages'),
       ],
       exclude: ['**/components/**'],
+      extendRoute: settingsSearch.extendRoute,
     }),
 
     // https://github.com/JohnCampionJr/vite-plugin-vue-layouts
@@ -356,5 +371,6 @@ export default defineConfig({
             }),
           }),
         ]),
+    sentrySourceMaps({ project: 'web', authToken: env.SENTRY_AUTH_TOKEN }),
   ],
 })

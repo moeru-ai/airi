@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { LevelBars } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -19,7 +20,7 @@ const microphoneError = computed(() => snapshot.value.microphone?.error)
 const transcript = computed(() => snapshot.value.input?.text)
 const isTranscribing = computed(() => snapshot.value.input?.phase === 'finalizing')
 const { volumeLevel } = useAudioAnalyzer()
-const { configured } = storeToRefs(useHearingStore())
+const { configured, enabled: hearingEnabled } = storeToRefs(useHearingStore())
 const issue = computed(() => {
   // Device failure prevents all input, so it takes precedence over provider feedback.
   if (microphoneError.value)
@@ -53,7 +54,7 @@ const label = computed(() => {
 
 <template>
   <StatusCapsule
-    v-if="enabled || issue || isTranscribing"
+    v-if="hearingEnabled && (enabled || issue || isTranscribing)"
     :align="align"
     :data-status="state"
     :tone="issue ? 'error' : 'neutral'"
@@ -61,18 +62,7 @@ const label = computed(() => {
     :details="issue || transcript || t('stage.status.no-transcript')"
   >
     <template #indicator>
-      <span aria-hidden="true" :class="['h-5 flex items-center justify-center gap-1']">
-        <span
-          v-for="(weight, index) in [0.4, 0.75, 1, 0.7, 0.45]"
-          :key="index"
-          :class="['relative block size-1', state === 'busy' && 'hearing-bar-busy']"
-          :style="{ '--hearing-bar-stretch': amplitude * weight * 4, 'animationDelay': `${index * -120}ms` }"
-        >
-          <span :class="['hearing-bar-top absolute inset-0 rounded-full bg-current']" />
-          <span :class="['hearing-bar-middle absolute inset-0 bg-current']" />
-          <span :class="['hearing-bar-bottom absolute inset-0 rounded-full bg-current']" />
-        </span>
-      </span>
+      <LevelBars :level="amplitude" :busy="state === 'busy'" />
       <span v-if="issue" aria-hidden="true" :class="['i-solar:danger-circle-linear ml-1.5 size-4']" />
     </template>
     <template v-if="issue" #details>
@@ -93,36 +83,3 @@ const label = computed(() => {
     </template>
   </StatusCapsule>
 </template>
-
-<style scoped>
-/*
- * A height transition lays out the page on each frame. A transform transition runs on the compositor, but a scaleY on
- * one round element stretches its round ends into ellipses. So each bar has two round ends and a middle part. The ends
- * move apart by half the extra height, and the middle part scales to fill the space between their centers.
- */
-.hearing-bar-top,
-.hearing-bar-middle,
-.hearing-bar-bottom {
-  transition: transform 100ms ease-out;
-}
-.hearing-bar-top {
-  transform: translateY(calc(var(--hearing-bar-stretch) * -2px));
-}
-.hearing-bar-middle {
-  transform: scaleY(var(--hearing-bar-stretch));
-}
-.hearing-bar-bottom {
-  transform: translateY(calc(var(--hearing-bar-stretch) * 2px));
-}
-.hearing-bar-busy {
-  animation: hearing-wave 900ms ease-in-out infinite;
-}
-@keyframes hearing-wave {
-  0%, 100% { transform: scaleY(1); opacity: 0.45; }
-  50% { transform: scaleY(3); opacity: 1; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .hearing-bar-top, .hearing-bar-middle, .hearing-bar-bottom { transition: none; }
-  .hearing-bar-busy { animation: none; }
-}
-</style>

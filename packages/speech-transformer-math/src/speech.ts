@@ -26,8 +26,11 @@ export interface MathSpeechOptions {
   fallbackLanguage?: MathLanguage
 }
 
-/** The primary language subtag of a BCP 47 code: `zh` for `zh-CN`, `ko` for `ko_KR`. Chinese dialect codes are `zh`. */
-function primaryLanguage(code: string): string {
+/**
+ * The primary language subtag of a BCP 47 code: `zh` for `zh-CN`, `ko` for `ko_KR`. Chinese dialect codes are `zh`,
+ * because the readers have one Chinese pack.
+ */
+export function primaryLanguage(code: string): string {
   const primary = code.toLowerCase().split(/[-_]/)[0] ?? ''
   return primary === 'cmn' || primary === 'yue' ? 'zh' : primary
 }

@@ -7,7 +7,7 @@ import { createPushStream } from '@proj-airi/stream-kit'
 import { describe, expect, it, vi } from 'vitest'
 
 import { VoiceController } from '../index'
-import { pcmSource } from '../testing/audio'
+import { keepOpen, pcmSource } from '../testing/audio'
 
 describe('voiceController input', () => {
   it('does not open the source for an already-cancelled plugin observation', async () => {
@@ -15,7 +15,7 @@ describe('voiceController input', () => {
     const controller = new VoiceController({ audio: new AudioInput(source), transcriber: vi.fn(), submit: vi.fn() })
     const cancelled = AbortSignal.abort('Plugin no longer needs audio')
     controller.use({ name: 'cancelled-detector', setup(scope) {
-      scope.observeAudio({ windowMs: 32, hopMs: 32, signal: cancelled }, async () => {})
+      scope.input.observe({ windowMs: 32, hopMs: 32, signal: cancelled }, async () => {})
     } })
     expect(source.open).not.toHaveBeenCalled()
     await controller.close()
@@ -88,7 +88,7 @@ describe('voiceController input', () => {
     const independent = vi.fn(async () => {})
     const other = observe(audio, { windowMs: 4, hopMs: 4 }, independent, () => {})
     controller.use({ name: 'detector', setup(scope) {
-      scope.observeAudio({ windowMs: 4, hopMs: 4 }, detected)
+      scope.input.observe({ windowMs: 4, hopMs: 4 }, detected)
     } })
 
     controller.replaceAudio(next)
@@ -109,7 +109,7 @@ describe('voiceController input', () => {
     const controller = new VoiceController({ audio: oldAudio })
     const detected = vi.fn(async (_task: AudioPluginTask) => {})
     controller.use({ name: 'detector', setup(scope) {
-      scope.observeAudio({ windowMs: 4, hopMs: 4 }, detected)
+      scope.input.observe({ windowMs: 4, hopMs: 4 }, detected)
     } })
 
     controller.replaceAudio(nextAudio)
@@ -144,7 +144,7 @@ describe('voiceController input', () => {
     const later = vi.fn()
     const controller = new VoiceController({ audio, transcriber: () => ({ transcribe: () => output.stream }), submit })
     controller.use({ name: 'memory', setup(plugin) {
-      plugin.onSpeechInput((input) => {
+      plugin.onInput((input) => {
         input.finalize(() => {
           throw new Error('Memory unavailable')
         })
@@ -176,7 +176,7 @@ describe('voiceController input', () => {
     const writes: WriteResult[] = []
     const controller = new VoiceController({ audio, transcriber: () => ({ transcribe: () => output.stream }), submit })
     controller.use({ name: 'memory', setup(plugin) {
-      plugin.onSpeechInput((input) => {
+      plugin.onInput((input) => {
         input.finalize(async (ctx) => {
           stage.resolve(ctx.signal)
           await release.promise
@@ -208,7 +208,7 @@ describe('voiceController input', () => {
     const finish = Promise.withResolvers<void>()
     const controller = new VoiceController({ audio, transcriber: () => ({ transcribe: () => output.stream }), submit: async () => ({ status: 'drafted', draftId: 'draft' }) })
     controller.use({ name: 'memory', setup(plugin) {
-      plugin.onSpeechInput((input) => {
+      plugin.onInput((input) => {
         input.finalize(async () => {
           waiting.resolve()
           await finish.promise
@@ -242,7 +242,7 @@ describe('voiceController input', () => {
     let observation: import('@proj-airi/pipelines-audio').Observer | undefined
     const observing = Promise.withResolvers<void>()
     controller.use({ name: 'speaker', setup(plugin) {
-      observation = plugin.observeAudio({ windowMs: 4, hopMs: 4 }, async () => {
+      observation = plugin.input.observe({ windowMs: 4, hopMs: 4 }, async () => {
         throw new Error('Model failed')
       })
       observing.resolve()
@@ -288,12 +288,12 @@ describe('voiceController input', () => {
     let retained: SpeechInputControl | undefined
     let withoutGrant: SpeechInputControl | undefined
     controller.use({ name: 'controls', setup(plugin) {
-      plugin.onSpeechInput((input) => {
+      plugin.onInput((input) => {
         retained = input.control
       })
     } }, { grants: ['input-control', 'cancel-input'] })
     controller.use({ name: 'reader', setup(plugin) {
-      plugin.onSpeechInput((input) => {
+      plugin.onInput((input) => {
         withoutGrant = input.control
       })
     } })
@@ -317,7 +317,7 @@ describe('voiceController input', () => {
     const submit = vi.fn(async () => ({ status: 'drafted' as const, draftId: 'draft' }))
     const controller = new VoiceController({ audio, transcriber: () => ({ transcribe: () => output.stream }), submit })
     controller.use({ name: 'rewrite', setup(plugin) {
-      plugin.onSpeechInput(async (input) => {
+      plugin.onInput(async (input) => {
         // An asynchronous install still registers its stage before finalization.
         await Promise.resolve()
         input.finalize((ctx) => {
@@ -327,7 +327,7 @@ describe('voiceController input', () => {
       })
     } })
     controller.use({ name: 'memory', setup(plugin) {
-      plugin.onSpeechInput((input) => {
+      plugin.onInput((input) => {
         input.finalize((ctx) => {
           seen.push(`memory:${ctx.document.corrected.text}`)
           ctx.attach('matches', ['AIRI'])
@@ -379,7 +379,7 @@ describe('voiceController input', () => {
     const submit = vi.fn(async () => ({ status: 'committed' as const, messageId: 'message' }))
     const controller = new VoiceController({ audio, transcriber: () => ({ transcribe: () => output.stream }), submit })
     controller.use({ name: 'memory', setup(plugin) {
-      plugin.onSpeechInput((input) => {
+      plugin.onInput((input) => {
         input.watch(async (document, signal) => {
           const text = document.raw.text
           if (!text)
@@ -409,6 +409,91 @@ describe('voiceController input', () => {
     expect(started).toEqual(['hello', 'hello there'])
     expect(aborted).toContain('hello')
     expect(submit).toHaveBeenCalledWith(expect.objectContaining({ context: [{ plugin: 'memory', key: 'matches', value: 'memory for hello there' }] }), expect.any(AbortSignal))
+    await controller.close()
+  })
+
+  // ROOT CAUSE:
+  //
+  // After `end()`, the attempt waited for the provider stream to close with no deadline. A provider that never closed
+  // held the input in `finalizing`, before its rephrase stage, while the next input began beside it.
+  //
+  // We fixed this with `transcriptionTimeoutMs`, which fails the input at the `transcription` stage.
+  it('fails an input whose provider does not close after the end, and the next input still submits', async () => {
+    const source = createPushStream<PcmBlock>()
+    const audio = new AudioInput(pcmSource(source.stream))
+    // A running detector keeps the source open between inputs.
+    const releaseSource = keepOpen(audio)
+    const outputs = [createPushStream<TranscriptionEvent>(), createPushStream<TranscriptionEvent>()]
+    let request = 0
+    const submit = vi.fn(async () => ({ status: 'committed' as const, messageId: 'message' }))
+    const controller = new VoiceController({ audio, transcriber: () => ({ transcribe: () => outputs[request++].stream }), submit, transcriptionTimeoutMs: 50 })
+    const first = controller.beginInput({ sessionId: 'alice', interruptTurns: [], start: { kind: 'after-silence' } })
+    source.write({ range: { sourceId: 'mic', startFrame: 0, endFrame: 4 }, sampleRate: 1000, channels: [new Float32Array(4)] })
+    await expect.poll(() => first.state.phase).toBe('capturing')
+    outputs[0].write({ type: 'update', revision: 1, segments: [{ id: 'one', revision: 1, text: 'hello', tokens: [], final: false }] })
+    const firstDone = first.end()
+
+    // The first provider never closes. The speaker talks again.
+    const second = controller.beginInput({ sessionId: 'alice', interruptTurns: [], start: { kind: 'after-silence' } })
+    source.write({ range: { sourceId: 'mic', startFrame: 4, endFrame: 8 }, sampleRate: 1000, channels: [new Float32Array(4)] })
+    await expect.poll(() => second.state.phase).toBe('capturing')
+    outputs[1].write({ type: 'update', revision: 1, segments: [{ id: 'one', revision: 1, text: 'again', tokens: [], final: true }] })
+    void second.end()
+    outputs[1].write({ type: 'complete', revision: 1 })
+    outputs[1].close()
+
+    expect((await second.done).status).toBe('committed')
+    expect(await firstDone).toEqual({ status: 'failed', stage: 'transcription', error: expect.objectContaining({ message: 'Speech recognition did not finish after the input ended' }) })
+    expect(submit).toHaveBeenCalledOnce()
+    expect(submit).toHaveBeenCalledWith(expect.objectContaining({ text: 'again' }), expect.any(AbortSignal))
+    releaseSource()
+    await controller.close()
+  })
+
+  it('submits the rewrite of an input when the next input begins during its finalization stage', async () => {
+    const source = createPushStream<PcmBlock>()
+    const audio = new AudioInput(pcmSource(source.stream))
+    // A running detector keeps the source open between inputs.
+    const releaseSource = keepOpen(audio)
+    const outputs = [createPushStream<TranscriptionEvent>(), createPushStream<TranscriptionEvent>()]
+    let request = 0
+    const rewriting = Promise.withResolvers<void>()
+    const release = Promise.withResolvers<void>()
+    const submit = vi.fn(async (submission: { text: string }) => ({ status: 'committed' as const, messageId: submission.text }))
+    const controller = new VoiceController({ audio, transcriber: () => ({ transcribe: () => outputs[request++].stream }), submit })
+    controller.use({ name: 'rephrase', setup(plugin) {
+      plugin.onInput((input) => {
+        input.finalize(async (ctx) => {
+          const segment = ctx.document.raw.segments[0]
+          if (segment.text !== 'helo')
+            return
+          rewriting.resolve()
+          await release.promise
+          ctx.patch([{ segmentId: segment.id, range: { kind: 'segment' }, expectedText: 'helo', replacement: 'hello' }])
+        }, { timeoutMs: 1000 })
+      })
+    } })
+    const first = controller.beginInput({ sessionId: 'alice', interruptTurns: [], start: { kind: 'after-silence' } })
+    source.write({ range: { sourceId: 'mic', startFrame: 0, endFrame: 4 }, sampleRate: 1000, channels: [new Float32Array(4)] })
+    await expect.poll(() => first.state.phase).toBe('capturing')
+    outputs[0].write({ type: 'update', revision: 1, segments: [{ id: 'one', revision: 1, text: 'helo', tokens: [], final: true }] })
+    void first.end()
+    outputs[0].write({ type: 'complete', revision: 1 })
+    outputs[0].close()
+    await rewriting.promise
+
+    const second = controller.beginInput({ sessionId: 'alice', interruptTurns: [], start: { kind: 'after-silence' } })
+    source.write({ range: { sourceId: 'mic', startFrame: 4, endFrame: 8 }, sampleRate: 1000, channels: [new Float32Array(4)] })
+    await expect.poll(() => second.state.phase).toBe('capturing')
+    release.resolve()
+    expect(await first.done).toEqual({ status: 'committed', messageId: 'hello' })
+
+    outputs[1].write({ type: 'update', revision: 1, segments: [{ id: 'one', revision: 1, text: 'again', tokens: [], final: true }] })
+    void second.end()
+    outputs[1].write({ type: 'complete', revision: 1 })
+    outputs[1].close()
+    expect(await second.done).toEqual({ status: 'committed', messageId: 'again' })
+    releaseSource()
     await controller.close()
   })
 

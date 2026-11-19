@@ -10,7 +10,7 @@
       "spoken": "I",
       "judge": {
         "reading": "natural",
-        "reason": "No part is spelled; “I” naturally reads the letter in the formula."
+        "reason": "No part is spelled; the spoken text reads the letter I naturally."
       },
       "label": "natural",
       "note": ""
@@ -38,7 +38,7 @@
       "spoken": "double struck E of N sub alpha to the T power of v",
       "judge": {
         "reading": "natural",
-        "reason": "No part is spelled; the reading uses standard words for the expectation, subscript, and power."
+        "reason": "No part is spelled; naming the double-struck E and reading the subscript, superscript, and function argument are natural."
       },
       "label": "natural",
       "note": "Check whether \"N sub alpha to the T power of v\" keeps the grouping of N_alpha^T(v)."
@@ -51,8 +51,8 @@
       "reference": "k=1 , \\dots , d",
       "spoken": "k equals one, dot dot dot, d",
       "judge": {
-        "reading": "natural",
-        "reason": "No part is spelled; “and so on, up to” is a natural way to read the ellipsis."
+        "reading": "mixed",
+        "reason": "“Dot dot dot” spells out the ellipsis."
       },
       "label": "mixed",
       "note": "Read the ellipsis as \"and so on\" or \"up to\", not \"dot dot dot\"."
@@ -66,7 +66,7 @@
       "spoken": "the fraction with numerator 6 and denominator pi squared",
       "judge": {
         "reading": "natural",
-        "reason": "No part is spelled; the numerator-and-denominator phrasing naturally preserves the grouping of pi squared."
+        "reason": "No part is spelled; the numerator and denominator are read naturally."
       },
       "label": "mixed",
       "note": "A simple fraction reads shorter: \"six over pi squared\"."
@@ -94,7 +94,7 @@
       "spoken": "open paren a plus b close paren squared equals a squared plus 2 a b plus b squared",
       "judge": {
         "reading": "spelled",
-        "reason": "The reading names the parentheses around the compound expression instead of reading its meaning naturally."
+        "reason": "“Open paren” and “close paren” spell out the grouping brackets instead of reading the quantity naturally."
       },
       "label": "spelled",
       "note": "Do not read the parentheses. Say \"the square of the sum of a and b\"."
@@ -108,7 +108,7 @@
       "spoken": "Delta sub k is less than zero.",
       "judge": {
         "reading": "natural",
-        "reason": "No part is spelled; “Delta sub k is less than zero” is a natural reading."
+        "reason": "No part is spelled; “Delta sub k” is a natural reading of the subscript."
       },
       "label": "natural",
       "note": "Good reading."
@@ -136,7 +136,7 @@
       "spoken": "G superscript, open parenthesis, p, close parenthesis.",
       "judge": {
         "reading": "spelled",
-        "reason": "“Open parenthesis” and “close parenthesis” spell out the grouping instead of reading the superscript as G to the power of p."
+        "reason": "The reading spells out the parentheses around the superscript."
       },
       "label": "mixed",
       "note": ""
@@ -150,7 +150,7 @@
       "spoken": "7 over 60 bold k times bold k prime",
       "judge": {
         "reading": "mixed",
-        "reason": "“Bold” names formatting markup for both k’s."
+        "reason": "The reading spells the boldface markup by saying “bold” for each k."
       },
       "label": "mixed",
       "note": "Only one k appears, so \"bold\" is not needed: \"k times k prime\"."
@@ -163,8 +163,8 @@
       "reference": "\\ce{2H2 + O2 -> 2H2O}",
       "spoken": "係数二、エイチの下付き数字二、プラス、オーの下付き数字二、右向き矢印、係数二、エイチの下付き数字二、オー",
       "judge": {
-        "reading": "mixed",
-        "reason": "No part is spelled; the element symbols are read by letter, and the subscripts and reaction arrow are described in Japanese."
+        "reading": "spelled",
+        "reason": "「下付き数字」と「右向き矢印」は数式の表記を説明しており、意味として読む形ではありません。"
       },
       "label": "spelled",
       "note": "Reads every subscript and the arrow by name. It does not work as a reading of an equation."
@@ -178,7 +178,7 @@
       "spoken": "分子がディー、分母がディーエックスの分数に、エックスのエヌ乗。イコール、エヌかけるエックスの、肩にエヌひく一。",
       "judge": {
         "reading": "mixed",
-        "reason": "The phrase 「肩に」 spells out the exponent’s visual placement instead of reading it as a power."
+        "reason": "「肩に」と位置を説明しており、指数を読むのではなく組版上の位置を述べています。"
       },
       "label": "spelled",
       "note": "Mostly right. Unsure whether 肩に is a usual Japanese reading."
@@ -206,7 +206,7 @@
       "spoken": "2 empty normal H of sub 2 normal O sub 2 right arrow 2 empty normal H of sub 2 normal O plus normal O sub 2",
       "judge": {
         "reading": "spelled",
-        "reason": "The reading spells the chemical symbols with markup words such as “empty” and “normal,” and says “right arrow” in English."
+        "reason": "It spells the chemistry element symbols with markup words such as “empty,” “normal,” and “of sub.”"
       },
       "label": "spelled",
       "note": ""
@@ -220,7 +220,7 @@
       "spoken": "ケーがゼロから無限大までのにのケー乗分のいちの和 イコール に",
       "judge": {
         "reading": "natural",
-        "reason": "No part is spelled; the sum, fraction, power, and equality are read in standard Japanese mathematical terms."
+        "reason": "No part is spelled; the sum, fraction, power, and equality are read in standard Japanese math terms."
       },
       "label": "natural",
       "note": ""
@@ -234,7 +234,7 @@
       "spoken": "小文字のエーは、大文字のエーに属する。",
       "judge": {
         "reading": "natural",
-        "reason": "No part is spelled; the reading naturally distinguishes lowercase a from uppercase A."
+        "reason": "No part is spelled; the case of each letter is naturally distinguished."
       },
       "label": "natural",
       "note": "Shorter case words are enough, for example 小 a and 大 A."
@@ -262,7 +262,7 @@
       "spoken": "左中かっこ、エックス、縦棒、エックス大なりゼロ、右中かっこ。",
       "judge": {
         "reading": "spelled",
-        "reason": "It spells out the set braces as “left brace” and “right brace,” and reads the set-builder bar as “vertical bar.”"
+        "reason": "It spells out the set braces and the vertical bar instead of reading the set as the set of x such that x is greater than zero."
       },
       "label": "spelled",
       "note": ""
@@ -276,7 +276,7 @@
       "spoken": "派的平方分之6",
       "judge": {
         "reading": "natural",
-        "reason": "No part is spelled; this is a natural reading of the fraction."
+        "reason": "No part is spelled; the denominator’s square is clear in this Mandarin fraction reading."
       },
       "label": "natural",
       "note": ""
@@ -290,7 +290,7 @@
       "spoken": "九点八米每秒平方",
       "judge": {
         "reading": "natural",
-        "reason": "No part is spelled; the quantity is read naturally in Mandarin Chinese."
+        "reason": "No part is spelled; the number and unit are read naturally in Mandarin Chinese."
       },
       "label": "natural",
       "note": ""
@@ -304,7 +304,7 @@
       "spoken": "小写字母 l，下标一，平行于小写字母 l，下标二。",
       "judge": {
         "reading": "mixed",
-        "reason": "The reading spells out “小写字母” even though the formula contains only one case of l."
+        "reason": "“小写字母” spells out the case of each letter even though the formula uses only one case; the subscript and parallel relation are read naturally."
       },
       "label": "mixed",
       "note": "The letter has one case in the formula, so the case is not needed. If it is, say 小 l."
@@ -317,8 +317,8 @@
       "reference": "\\frac{6}{\\pi^2}",
       "spoken": "the fraction with numerator 6 and denominator pi squared",
       "judge": {
-        "reading": "natural",
-        "reason": "The reading is in English rather than Mandarin Chinese."
+        "reading": "spelled",
+        "reason": "The reading is mostly in English rather than Mandarin Chinese."
       },
       "label": "mixed",
       "note": "Not Chinese. The fraction also reads shorter."
@@ -331,8 +331,8 @@
       "reference": "a \\in A",
       "spoken": "小写a 属于 大写A",
       "judge": {
-        "reading": "natural",
-        "reason": "No part is spelled."
+        "reading": "spelled",
+        "reason": "The spoken text unnecessarily specifies lowercase and uppercase for letters that appear in only one case in the formula."
       },
       "label": "mixed",
       "note": "Use the short form 小a and 大A. The case words can go unless a variant of the letter appears."
@@ -345,8 +345,8 @@
       "reference": "\\{x \\mid x > 0\\}",
       "spoken": "左花括号，x，使得 x 大于零，右花括号。",
       "judge": {
-        "reading": "spelled",
-        "reason": "The reading names the left and right braces around the set."
+        "reading": "mixed",
+        "reason": "The reading names the left and right curly braces around the set, which spells the markup."
       },
       "label": "spelled",
       "note": "The braces of a set are clear from the meaning and need no reading."
@@ -360,7 +360,7 @@
       "spoken": "open paren a plus b close paren squared equals a squared plus 2 a b plus b squared",
       "judge": {
         "reading": "spelled",
-        "reason": "The reading is mostly in English rather than Mandarin Chinese, and it names the main parentheses as “open paren” and “close paren.”"
+        "reason": "The reading is mostly in English rather than Mandarin Chinese, and it spells out the parentheses around the sum."
       },
       "label": "spelled",
       "note": "Not Chinese, and the parentheses are read. Better: a 与 b 的和的平方 等于 a 方加 2ab 加 b 方."
@@ -402,7 +402,7 @@
       "spoken": "x is less than or equal to 3",
       "judge": {
         "reading": "spelled",
-        "reason": "The comparison is read in English rather than Mandarin Chinese."
+        "reason": "The reading is mostly in English rather than Mandarin Chinese."
       },
       "label": "spelled",
       "note": "Reads in English, not Chinese. A reading in another language does not pass."
@@ -416,7 +416,7 @@
       "spoken": "Open brace, x such that x is greater than zero, close brace.",
       "judge": {
         "reading": "spelled",
-        "reason": "It spells out the opening and closing braces around the set."
+        "reason": "It names the opening and closing braces even though “the set of x such that” is a natural reading."
       },
       "label": "mixed",
       "note": "The braces of a set need no reading."
@@ -444,7 +444,7 @@
       "spoken": "Capital sigma, subscript, open brace, capital B, subscript capital T, close brace.",
       "judge": {
         "reading": "spelled",
-        "reason": "The reading spells the braces and subscript markup, and adds unnecessary case labels for sigma, B, and T."
+        "reason": "The reading spells the subscript markup by saying “subscript,” “open brace,” and “close brace,” and adds unnecessary case labels for the only instances of sigma and B."
       },
       "label": "spelled",
       "note": ""
@@ -472,7 +472,7 @@
       "spoken": "9.8 empty meters divided by seconds squared",
       "judge": {
         "reading": "spelled",
-        "reason": "“Empty” and “divided by” spell spacing and fraction notation rather than reading the unit naturally in Japanese."
+        "reason": "The word “empty” spells out the spacing command, and “divided by” reads the unit fraction symbolically rather than as the standard Japanese unit reading."
       },
       "label": "mixed",
       "note": "\"empty\" is not a reading."
@@ -485,8 +485,8 @@
       "reference": "N=n+1",
       "spoken": "大文字のエヌ、イコール、小文字のエヌ、プラス、一。",
       "judge": {
-        "reading": "natural",
-        "reason": "The case words for N and n are natural because both cases appear in the formula; no part is spelled."
+        "reading": "spelled",
+        "reason": "It unnecessarily says 大文字の and 小文字の for letters that appear only in one case each."
       },
       "label": "mixed",
       "note": "Shorter case words are enough, unless the formula has several variants of n."
@@ -500,7 +500,7 @@
       "spoken": "Celsius plus normal O sub 2 right arrow Celsius normal O sub 2",
       "judge": {
         "reading": "spelled",
-        "reason": "The reading is mostly English, and “sub” and “right arrow” spell the notation rather than reading it in Japanese."
+        "reason": "The reading is mostly English, and “sub 2” and “right arrow” spell out the notation rather than reading it naturally in Japanese."
       },
       "label": "spelled",
       "note": "Reads C as Celsius, and the oxygen molecule is lost."
@@ -514,7 +514,7 @@
       "spoken": "2 empty Celsius plus normal O sub 2 right arrow 2 empty Celsius normal O",
       "judge": {
         "reading": "spelled",
-        "reason": "The reading uses the English phrases “empty Celsius,” “plus,” “normal,” and “right arrow” instead of Japanese readings."
+        "reason": "“Empty Celsius,” “normal,” and “right arrow” spell the notation, and the reading is mostly English."
       },
       "label": "spelled",
       "note": "Reads the formula symbols, not the chemical formula."
@@ -542,7 +542,7 @@
       "spoken": "CuSO4 点 5 H2O",
       "judge": {
         "reading": "spelled",
-        "reason": "It leaves the chemical formulas “CuSO4” and “H2O” as source notation instead of reading the element symbols letter by letter."
+        "reason": "The reading spells the chemical formula as Latin element symbols and digits, and says “点” for the asterisk instead of reading the hydrate notation naturally."
       },
       "label": "spelled",
       "note": ""
@@ -556,7 +556,7 @@
       "spoken": "25 raised to the composed with power Celsius",
       "judge": {
         "reading": "spelled",
-        "reason": "The reading uses the English phrase “raised to the ... power” instead of Mandarin Chinese."
+        "reason": "“Raised to the composed with power” is English markup-like wording rather than a Mandarin reading."
       },
       "label": "spelled",
       "note": "Should be 25 摄氏度."
@@ -570,7 +570,7 @@
       "spoken": "系数二，过氧化氢分子，化学式中氢的下标是二，氧的下标是二，反应生成系数二的水分子，化学式中氢的下标是二，再加一个氧气分子，化学式中氧的下标是二。",
       "judge": {
         "reading": "natural",
-        "reason": "No part is spelled; the coefficients, compound names, and subscript readings use natural Mandarin terminology."
+        "reason": "No part is spelled; the reading uses compound names and describes the coefficients and subscripts in Mandarin."
       },
       "label": "mixed",
       "note": "Too mechanical."
@@ -584,7 +584,7 @@
       "spoken": "lim over x right arrow infinity of 1 over x equals 0",
       "judge": {
         "reading": "spelled",
-        "reason": "The reading is mostly English, and “right arrow” spells the arrow symbol."
+        "reason": "The reading is mostly English rather than Mandarin Chinese."
       },
       "label": "mixed",
       "note": "Unsure whether lim reads this way."
@@ -598,7 +598,7 @@
       "spoken": "f colon X right arrow Y comma x right arrow from bar y",
       "judge": {
         "reading": "spelled",
-        "reason": "The reading spells the symbols as “colon,” “right arrow,” “comma,” and “right arrow from bar” instead of reading their meaning in Mandarin."
+        "reason": "The reading uses the English markup names “colon,” “right arrow,” “comma,” and “right arrow from bar” instead of Mandarin mathematical phrasing."
       },
       "label": "spelled",
       "note": ""
@@ -612,7 +612,7 @@
       "spoken": "시그마 아래첨자 영은 분수 시작, 분자 에프 빼기 일, 분모 이, 분수 끝과 같다.",
       "judge": {
         "reading": "mixed",
-        "reason": "The reading spells out fraction markup with “분수 시작” and “분수 끝.”"
+        "reason": "The reading spells the fraction markup with “분수 시작” and “분수 끝.”"
       },
       "label": null,
       "note": ""
@@ -625,8 +625,8 @@
       "reference": "\\lim_{x \\to \\infty}\\frac{1}{x}=0",
       "spoken": "리미트 엑스가 무한대로 갈 때, 분수의 분자는 일, 분모는 엑스, 그 값은 영입니다.",
       "judge": {
-        "reading": "natural",
-        "reason": "No part is spelled; the limit and fraction are read in natural Korean mathematical language."
+        "reading": "mixed",
+        "reason": "The simple fraction is read in the unnecessarily explicit numerator-and-denominator form."
       },
       "label": null,
       "note": ""
@@ -654,7 +654,7 @@
       "spoken": "왼쪽 중괄호, 엑스, 세로줄, 엑스가 영보다 크다, 오른쪽 중괄호.",
       "judge": {
         "reading": "spelled",
-        "reason": "The reading spells out the set’s opening and closing braces and names the vertical bar instead of reading the set-builder structure naturally."
+        "reason": "The reading spells out the set braces as “왼쪽 중괄호” and “오른쪽 중괄호,” and the separator as “세로줄.”"
       },
       "label": null,
       "note": ""
@@ -668,7 +668,7 @@
       "spoken": "에이는 비와의 합집합이며, 중괄호를 열고 일, 이, 삼을 차례로 적은 뒤 중괄호를 닫은 집합과 같다.",
       "judge": {
         "reading": "mixed",
-        "reason": "It spells the set braces by saying to open and close the curly braces."
+        "reason": "The reading spells out the opening and closing curly braces around the set."
       },
       "label": null,
       "note": ""
@@ -682,7 +682,7 @@
       "spoken": "소문자 에이는 대문자 에이의 원소",
       "judge": {
         "reading": "natural",
-        "reason": "No part is spelled; the reading naturally distinguishes lowercase a from uppercase A."
+        "reason": "No part is spelled; the case words distinguish lowercase a from uppercase A."
       },
       "label": null,
       "note": ""
@@ -695,8 +695,8 @@
       "reference": "\\lim_{n \\to \\infty}\\left(1+\\frac{1}{n}\\right)^{n}=e",
       "spoken": "엔이 무한대로 갈 때 괄호 일 더하기 분자가 일, 분모가 엔인 분수 괄호 닫고의 엔 제곱의 극한은 e",
       "judge": {
-        "reading": "mixed",
-        "reason": "The reading is natural; it uses the standard fraction wording and names the meaningful parentheses around the compound expression."
+        "reading": "natural",
+        "reason": "No part is spelled; the fraction is naturally read by naming its numerator and denominator, and the parentheses group the compound expression."
       },
       "label": null,
       "note": ""
@@ -738,7 +738,7 @@
       "spoken": "엑스는 영 초과 비 이하인 구간의 원소",
       "judge": {
         "reading": "natural",
-        "reason": "No part is spelled; the interval and membership are read naturally in Korean."
+        "reason": "No part is spelled; the interval is read naturally as an element between zero and b, inclusive."
       },
       "label": null,
       "note": ""
@@ -751,8 +751,8 @@
       "reference": "\\sum_{k=1}^{n} k=\\frac{n(n+1)}{2}",
       "spoken": "ケーがいちからエヌまでのケーの和 イコール 分子がエヌかっこエヌプラスいちかっことじ、分母がにの分数",
       "judge": {
-        "reading": "mixed",
-        "reason": "The spoken reading spells the parentheses in the denominator expression by naming them."
+        "reading": "natural",
+        "reason": "No part is spelled; the sum and fraction are read using natural Japanese math phrasing."
       },
       "label": null,
       "note": ""
@@ -766,7 +766,7 @@
       "spoken": "f 콜론 X 오른쪽 화살표 Y 콤마 x 세로선이 붙은 오른쪽 화살표 y",
       "judge": {
         "reading": "mixed",
-        "reason": "The reading spells the mapsto symbol as “세로선이 붙은 오른쪽 화살표” instead of reading its mapping meaning."
+        "reason": "The phrase “세로선이 붙은 오른쪽 화살표” describes the mapsto symbol rather than reading its meaning."
       },
       "label": null,
       "note": ""
@@ -780,7 +780,7 @@
       "spoken": "2 기본 H 의 아래첨자 2 더하기 기본 O 아래첨자 2 오른쪽 화살표 2 기본 H 의 아래첨자 2 기본 O",
       "judge": {
         "reading": "mixed",
-        "reason": "“기본” spells font formatting, and “오른쪽 화살표” names the arrow symbol rather than reading its meaning."
+        "reason": "The reading spells the subscripts with “아래첨자” and the arrow with “오른쪽 화살표.”"
       },
       "label": null,
       "note": ""
@@ -794,7 +794,7 @@
       "spoken": "x 오른쪽 화살표 무한대 에 대한 리미트 의 x 분의 1 은 0",
       "judge": {
         "reading": "mixed",
-        "reason": "The reading names the arrow as a right arrow instead of reading the limit condition naturally."
+        "reason": "The reading spells the limit notation as “x right arrow infinity” instead of reading the limiting condition naturally."
       },
       "label": null,
       "note": ""
@@ -807,8 +807,8 @@
       "reference": "(a+b)^2=a^2+2ab+b^2",
       "spoken": "괄호 열고 a 더하기 b 괄호 닫고 제곱 은 a 제곱 더하기 2 a b 더하기 b 제곱",
       "judge": {
-        "reading": "spelled",
-        "reason": "The reading names the main parentheses around a plus b instead of using a natural phrase for the squared sum."
+        "reading": "natural",
+        "reason": "No part is spelled; the Korean grouping words and power readings are natural."
       },
       "label": null,
       "note": ""
@@ -822,7 +822,7 @@
       "spoken": "시그마 i 는 1 에서 n 까지 i 제곱",
       "judge": {
         "reading": "natural",
-        "reason": "No part is spelled; the summation notation is read in a conventional Korean shorthand."
+        "reason": "No part is spelled; the summation is read naturally as a sum from i equals one to n of i squared."
       },
       "label": null,
       "note": ""
@@ -836,7 +836,7 @@
       "spoken": "25 의 합성 함수 제곱 섭씨",
       "judge": {
         "reading": "mixed",
-        "reason": "The reading spells the superscript as “제곱,” which changes the degree symbol into an exponent."
+        "reason": "The reading spells the degree mark as a superscript and calls it a square rather than reading the temperature unit naturally."
       },
       "label": null,
       "note": ""

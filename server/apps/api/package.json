@@ -1,12 +1,13 @@
 {
   "name": "@proj-airi/api-server",
   "type": "module",
-  "version": "0.12.0-beta.5",
+  "version": "0.15.4",
   "private": true,
   "exports": {
     "./app-type": "./src/app-type.ts"
   },
   "scripts": {
+    "test:run": "vitest run --config vitest.config.ts",
     "apply:env": "dotenvx run -f .env.local --overload --ignore=MISSING_ENV_FILE",
     "dev": "pnpm run apply:env -- tsx --import ./instrumentation.ts --watch src/main.ts",
     "start": "pnpm run apply:env -- tsx --import ./instrumentation.ts src/main.ts",
@@ -49,6 +50,7 @@
     "@proj-airi/auth-shared": "workspace:*",
     "@proj-airi/http-error-shared": "workspace:*",
     "@proj-airi/server-sdk-shared": "workspace:*",
+    "@proj-airi/trace-kit": "workspace:^",
     "@xsai/shared-stream": "catalog:",
     "drizzle-orm": "catalog:",
     "drizzle-valibot": "catalog:",
@@ -62,6 +64,7 @@
     "nanoid": "catalog:",
     "ofetch": "catalog:",
     "pg": "catalog:",
+    "posthog-node": "catalog:",
     "stripe": "catalog:",
     "unspeech": "catalog:xsai",
     "valibot": "catalog:",

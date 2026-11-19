@@ -12,6 +12,8 @@ import { useI18n } from 'vue-i18n'
 
 import RecipeEditor from './components/recipe-editor.vue'
 
+import { recipeSearchKey } from './memory-long-term-recipes.search'
+
 /** Recipe types that the owner can write. */
 type RecipeType = 'instructions' | 'decision'
 /** Conversation recipes work inside a reply. Auto-run recipes are still in development, so their tab shows a banner. */
@@ -89,18 +91,18 @@ function grantsOf(recipe: Recipe) {
   return parts
 }
 
-function addRecipe(fields: RecipeFields) {
-  recipesStore.add({ ...fields, enabled: true })
+async function addRecipe(fields: RecipeFields) {
+  await recipesStore.add({ ...fields, enabled: true })
   closeForms()
 }
 
-function saveRecipe(id: string, fields: RecipeFields) {
-  recipesStore.update(id, fields)
+async function saveRecipe(id: string, fields: RecipeFields) {
+  await recipesStore.update(id, fields)
   closeForms()
 }
 
-function removeRecipe(id: string) {
-  recipesStore.remove(id)
+async function removeRecipe(id: string) {
+  await recipesStore.remove(id)
   closeForms()
 }
 </script>
@@ -173,6 +175,7 @@ function removeRecipe(id: string) {
         <li
           v-for="recipe in recipes"
           :key="recipe.id"
+          :data-settings-search="recipeSearchKey(recipe.id)"
           :class="[
             'flex flex-col', 'gap-3',
             'rounded-xl', 'px-4 py-3',

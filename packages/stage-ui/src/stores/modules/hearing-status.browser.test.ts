@@ -8,6 +8,7 @@ import { createI18n } from 'vue-i18n'
 import HearingStatus from '../../components/scenarios/status/hearing-status.vue'
 
 import { getSpeechBusContext, voiceSnapshotChanged } from '../../services/speech/bus'
+import { useHearingStore } from './hearing'
 
 const cleanups: (() => void)[] = []
 afterEach(() => {
@@ -24,4 +25,6 @@ it('shows final transcription work and reports a provider failure through the ho
   await expect.element(view.getByRole('status')).toHaveTextContent('Transcribing')
   context.emit(voiceSnapshotChanged, { connected: true, drafts: [], error: 'Provider timed out', input: { requestId: 'recording', sessionId: 'alice', phase: 'settled', text: 'recognized words', segments: [{ id: 'speech-0', text: 'recognized words', final: true }] } })
   await expect.element(view.getByRole('status')).toHaveTextContent('Could not transcribe audio')
+  useHearingStore(pinia).enabled = false
+  await expect.element(view.getByRole('status')).not.toBeInTheDocument()
 })

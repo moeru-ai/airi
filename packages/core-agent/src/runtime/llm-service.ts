@@ -283,7 +283,6 @@ export async function streamFrom(input: StreamFromOptions): Promise<void> {
   const completedRounds: GenerationRound[] = []
   let turnId = input.options.requestCorrelation?.turnId
   let request = input
-  let switches = 0
   while (true) {
     let finalTurn: AssistantTurn | undefined
     let lastUsage: Parameters<NonNullable<StreamOptions['onUsage']>>[0] | undefined
@@ -308,13 +307,8 @@ export async function streamFrom(input: StreamFromOptions): Promise<void> {
     catch (error) {
       if (!(error instanceof RequestSwitch))
         throw error
-      switches += 1
-      if (switches > 10)
-        throw new Error('Generation request scope changed too many times')
       turnId = error.partialTurn.id
       completedRounds.push(...error.partialTurn.rounds)
-      if (completedRounds.length >= 10)
-        throw new Error('Generation tool step limit reached')
       request = {
         ...input,
         model: error.next.model,
