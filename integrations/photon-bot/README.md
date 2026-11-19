@@ -59,6 +59,6 @@ Text the line's number from your iPhone. The bot only answers people who texted 
 
 - The bot handles text messages only. Images, tapbacks, and stickers are ignored.
 - Conversation is strictly turn-based: each text gets one reply. Two quick texts get two separate replies, and the character cannot stay silent or text first.
-- The first plain start of AIRI drops the bot's texts until the stage reconnects (moeru-ai/airi#2305). Until that is fixed, restart the channel server once in **Settings → Connection**, or apply the fix from the open pull request.
+- Without a fix, the first plain start of AIRI drops the bot's texts until the stage reconnects (moeru-ai/airi#2305). The fix is moeru-ai/airi#2313. This branch includes that pull request until it is merged upstream. On a checkout without it, restart the channel server once in **Settings → Connection**.
 - The bot reads its configuration from the environment only. It does not handle `module:configure`.
 - The first start begins at the live end of the stream. Texts that arrived earlier are not read.
