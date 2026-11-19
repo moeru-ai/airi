@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { Alert, SettingsSearchField } from '@proj-airi/stage-ui/components'
+import { SettingsSearchField } from '@proj-airi/stage-ui/components'
 import { getAiriCardEditorModuleSettings } from '@proj-airi/stage-ui/services/airi-card-editor'
 import { AiriCardPackageError, importAiriCardPackage } from '@proj-airi/stage-ui/services/airi-card-import-export'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { Button } from '@proj-airi/ui'
+import { Alert, Button } from '@proj-airi/ui'
 import { ComboboxSelect } from '@proj-airi/ui/components/form'
 import { storeToRefs } from 'pinia'
 import { computed, shallowRef, useTemplateRef, watch } from 'vue'
@@ -300,14 +300,6 @@ async function handleRestoreDeletedCard(card: DeletedCard) {
       </div>
     </div>
 
-    <p v-else-if="isAuthenticated" :class="['flex flex-wrap items-center gap-2 text-sm', 'text-neutral-500 dark:text-neutral-400']">
-      <span :class="['i-solar:cloud-cross-outline shrink-0']" />
-      {{ t('settings.pages.card.sync.off_notice') }}
-      <RouterLink to="/settings/system/experimental" :class="['text-primary-600 dark:text-primary-400 hover:underline']">
-        {{ t('settings.pages.card.sync.off_notice_link') }}
-      </RouterLink>
-    </p>
-
     <div :class="['flex flex-wrap items-center gap-3']">
       <SettingsSearchField
         v-model="searchQuery"
@@ -382,13 +374,8 @@ async function handleRestoreDeletedCard(card: DeletedCard) {
           <p>{{ t('settings.pages.card.no_cards') }}</p>
         </div>
 
-        <Alert v-if="searchQuery && sortedFilteredCards.length === 0" type="warning" :class="['col-span-full']">
-          <template #title>
-            {{ t('settings.pages.card.no_results') }}
-          </template>
-          <template #content>
-            {{ t('settings.pages.card.try_different_search') }}
-          </template>
+        <Alert v-if="searchQuery && sortedFilteredCards.length === 0" tone="warning" :title="t('settings.pages.card.no_results')" :class="['col-span-full']">
+          {{ t('settings.pages.card.try_different_search') }}
         </Alert>
       </div>
 

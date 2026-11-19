@@ -98,7 +98,7 @@ function mountControlsIsland(dock: ControlsIslandDock, size: typeof sizes[number
           useSettingsStageModel()
           useVisionStore()
           const defaultCard = {
-            name: 'ReLU',
+            name: 'Iru',
             version: '1.0.0',
             extensions: {
               airi: {
@@ -504,9 +504,9 @@ it('keeps the profile creation form open for pointer interaction (PR #2474)', as
   await page.getByRole('option', { name: i18n.global.t('stage.profile-switcher.save-as-new') }).click()
   await page.getByPlaceholder(i18n.global.t('stage.profile-switcher.new-profile-name')).fill('Stale profile name')
   await screen.getByRole('combobox').click()
-  await page.getByRole('option', { name: 'ReLU' }).click()
+  await page.getByRole('option', { name: 'Iru' }).click()
   await expect.element(page.getByTestId('profile-create-form')).not.toBeInTheDocument()
-  await expect.poll(() => cards.activeCard?.name).toBe('ReLU')
+  await expect.poll(() => cards.activeCard?.name).toBe('Iru')
 
   await screen.getByRole('combobox').click()
   await page.getByRole('option', { name: i18n.global.t('stage.profile-switcher.save-as-new') }).click()

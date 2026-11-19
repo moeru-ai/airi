@@ -26,9 +26,18 @@ function inputPart(segment: MessageSegment): InputContent[number] {
       if (segment.providerFileId)
         throw new Error('Responses file references require native input Items')
       return { type: 'input_file', file_data: segment.data, filename: segment.name, file_url: segment.url }
-    case 'audio': throw new Error('This Responses adapter does not support audio input')
+    // The caller sends audio only to an endpoint that accepts it, see `supportsResponsesAudioInputEndpoint`.
+    case 'audio': return { type: 'input_audio', input_audio: { data: segment.data, format: segment.format } }
     default: return { type: 'input_text', text: renderSegmentText(segment) }
   }
+}
+
+/** A tool result accepts the input parts of a user message, except audio. */
+function toolOutputPart(segment: MessageSegment) {
+  const part = inputPart(segment)
+  if (part.type === 'input_audio')
+    throw new Error('Responses tool output does not support audio')
+  return part
 }
 
 function renderMessage(message: ProjectionEntry): ItemParam[] {
@@ -64,7 +73,7 @@ function renderMessage(message: ProjectionEntry): ItemParam[] {
     }
     else if (segment.type === 'tool-result') {
       flush()
-      const content = segment.content.map(inputPart)
+      const content = segment.content.map(toolOutputPart)
       items.push({ type: 'function_call_output', call_id: segment.callId, output: content.every(part => part.type === 'input_text') ? content.map(part => part.text).join('') : content })
     }
     else {

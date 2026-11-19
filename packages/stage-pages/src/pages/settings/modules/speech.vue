@@ -4,8 +4,6 @@ import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
 import { errorMessageFrom } from '@moeru/std'
 import {
-  Alert,
-  ErrorContainer,
   RadioCardManySelect,
   RadioCardSimple,
   TestDummyMarker,
@@ -18,6 +16,7 @@ import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import {
+  Alert,
   FieldCheckbox,
   FieldInput,
   FieldRange,
@@ -57,7 +56,6 @@ const {
 } = storeToRefs(speechStore)
 
 const {
-  trackProviderClick,
   trackOfficialTtsExposed,
   trackOfficialTtsPreviewStarted,
   trackOfficialTtsPreviewSucceeded,
@@ -296,8 +294,7 @@ function withManualPreviewAnalytics<TProviderConfig extends Record<string, unkno
 /**
  * Tracks explicit voice selection from catalog or custom input controls.
  */
-async function selectSpeechVoice(voiceId: string | undefined) {
-  await persistSelection()
+function selectSpeechVoice(voiceId: string | undefined) {
   if (!voiceId)
     return
 
@@ -309,7 +306,6 @@ async function selectSpeechVoice(voiceId: string | undefined) {
   })
 }
 
-/** Persists the selection only after the leader commits its provider and model. */
 async function selectSpeechSource(sourceId: string) {
   const selection = await speechStore.selectSource(sourceId)
   if (!selection) {
@@ -325,8 +321,6 @@ async function selectSpeechSource(sourceId: string) {
     tts_model_id: selection.model || 'unknown',
     source: 'settings',
   })
-  // A follower can receive the action receipt before its state snapshot. Persist the committed selection.
-  await airiCardStore.updateActiveCardSpeech(selection)
 }
 
 /** Resolves the displayed model option before committing it in the leader. */
@@ -340,7 +334,6 @@ async function selectSpeechModel(modelOptionId: string) {
   const nextModel = streamingModelId ?? modelOptionId
 
   await speechStore.selectProviderModel(nextProvider, nextModel)
-  await persistSelection()
 }
 
 /**
@@ -417,14 +410,6 @@ watch(activeSpeechModel, () => {
 
   trackOfficialTtsExposure(activeSpeechProvider.value, currentTtsModelId())
 })
-
-async function persistSelection() {
-  await airiCardStore.updateActiveCardSpeech({
-    provider: activeSpeechProvider.value,
-    model: activeSpeechModel.value,
-    voice_id: activeSpeechVoiceId.value,
-  })
-}
 
 // Function to generate speech
 async function generateTestSpeech() {
@@ -619,7 +604,6 @@ async function updateCustomModelName(value: string | undefined) {
   errorMessage.value = ''
   try {
     await speechStore.selectProviderModel(activeSpeechProvider.value, value || '')
-    await persistSelection()
   }
   catch (error) {
     errorMessage.value = errorMessageFrom(error) ?? 'An unknown error occurred'
@@ -637,7 +621,9 @@ async function handleDeleteProvider(providerId: string) {
 </script>
 
 <template>
-  <ErrorContainer v-if="errorMessage" :error="errorMessage" />
+  <Alert v-if="errorMessage" tone="danger">
+    <pre :class="['whitespace-pre-wrap break-all']">{{ String(errorMessage) }}</pre>
+  </Alert>
   <div flex="~ col md:row gap-6">
     <SettingsCard class="md:w-[40%]">
       <FieldCheckbox v-model="speechStore.enabled" :label="t('settings.pages.modules.speech.title')" />
@@ -665,7 +651,6 @@ async function handleDeleteProvider(providerId: string) {
               :value="source.id"
               :title="source.title"
               :description="source.description"
-              @click="trackProviderClick(source.providerId || source.id, 'speech')"
             >
               <template #topRight>
                 <button
@@ -680,11 +665,12 @@ async function handleDeleteProvider(providerId: string) {
             </RadioCardSimple>
             <RouterLink
               to="/settings/providers#speech"
-              border="2px solid"
-              class="border-neutral-100 bg-white dark:border-neutral-900 hover:border-primary-500/30 dark:bg-neutral-900/20 dark:hover:border-primary-400/30"
-              flex="~ col items-center justify-center"
-              transition="all duration-200 ease-in-out"
-              relative min-w-50 w-fit rounded-xl p-4
+              :class="[
+                'relative min-w-50 w-fit flex flex-col items-center justify-center rounded-xl p-4',
+                'border-2 border-solid border-neutral-100 bg-white dark:border-neutral-900 dark:bg-neutral-900/20',
+                'hover:bg-neutral-50 dark:hover:bg-neutral-900/50',
+                'transition-all duration-200 ease-in-out',
+              ]"
             >
               <div i-solar:add-circle-line-duotone class="text-2xl text-neutral-500 dark:text-neutral-500" />
               <div
@@ -696,7 +682,7 @@ async function handleDeleteProvider(providerId: string) {
           </fieldset>
           <div v-else>
             <RouterLink
-              class="flex items-center gap-3 rounded-lg p-4" border="2 dashed neutral-200 dark:neutral-800"
+              class="flex items-center gap-3 rounded-lg p-4"
               bg="neutral-50 dark:neutral-800" transition="colors duration-200 ease-in-out" to="/settings/providers"
             >
               <div i-solar:warning-circle-line-duotone class="text-2xl text-amber-500 dark:text-amber-400" />
@@ -747,10 +733,9 @@ async function handleDeleteProvider(providerId: string) {
 
             <!-- Error state -->
             <template v-else-if="displayedModelError">
-              <ErrorContainer
-                :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
-                :error="displayedModelError"
-              />
+              <Alert tone="danger" :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')">
+                <pre :class="['whitespace-pre-wrap break-all']">{{ String(displayedModelError) }}</pre>
+              </Alert>
 
               <FieldInput
                 :model-value="activeSpeechModel || ''"
@@ -763,13 +748,8 @@ async function handleDeleteProvider(providerId: string) {
 
             <!-- No models available -->
             <template v-else-if="displayedProviderModels.length === 0 && !displayedModelsLoading">
-              <Alert type="warning">
-                <template #title>
-                  {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models') }}
-                </template>
-                <template #content>
-                  {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description') }}
-                </template>
+              <Alert tone="warning" :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models')">
+                {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description') }}
               </Alert>
 
               <FieldInput
@@ -870,27 +850,24 @@ async function handleDeleteProvider(providerId: string) {
             />
           </div>
 
-          <ErrorContainer
+          <Alert
             v-else-if="speechProviderError"
-            class="mb-2"
-            title="Error loading voices"
-            :error="speechProviderError"
-          />
+            tone="danger"
+            :title="t('settings.pages.modules.speech.sections.section.provider-voice-selection.load_error')"
+            :class="['mb-2']"
+          >
+            <pre :class="['whitespace-pre-wrap break-all']">{{ String(speechProviderError) }}</pre>
+          </Alert>
 
           <!-- No voices available -->
           <Alert
             v-else
-            type="warning"
-            icon="i-solar:info-circle-line-duotone"
-            class="mb-2"
+            tone="warning"
+            :title="t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices')"
+            :class="['mb-2']"
           >
-            <template #title>
-              {{ t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices') }}
-            </template>
-            <template #content>
-              {{ t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices_description') }}.
-              {{ t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices_hint') }}
-            </template>
+            {{ t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices_description') }}.
+            {{ t('settings.pages.modules.speech.sections.section.provider-voice-selection.no_voices_hint') }}
           </Alert>
 
           <!-- Voice parameters -->
@@ -991,23 +968,26 @@ async function handleDeleteProvider(providerId: string) {
 
           <div flex="~ row" gap-4>
             <button
-              border="neutral-800 dark:neutral-200 solid 2" transition="border duration-250 ease-in-out"
-              rounded-lg px-4 text="neutral-100 dark:neutral-900" py-2 text-sm
               :disabled="!speechStore.enabled || isGenerating || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || !activeSpeechVoice"
-              :class="{ 'opacity-50 cursor-not-allowed': !speechStore.enabled || isGenerating || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || !activeSpeechVoice }"
-              bg="neutral-700 dark:neutral-300" @click="generateTestSpeech"
+              :class="[
+                'rounded-lg px-4 py-2 text-sm transition-colors duration-250 ease-in-out',
+                'bg-neutral-700 text-neutral-100 dark:bg-neutral-300 dark:text-neutral-900',
+                { 'opacity-50 cursor-not-allowed': !speechStore.enabled || isGenerating || (!testText.trim() && !useSSML) || (useSSML && !ssmlText.trim()) || !activeSpeechVoice },
+              ]"
+              @click="generateTestSpeech"
             >
-              <div flex="~ row" items-center gap-2>
-                <div i-solar:play-circle-bold-duotone />
+              <div :class="['flex flex-row items-center gap-2']">
+                <div :class="['i-solar:play-circle-bold-duotone']" />
                 <span>{{ isGenerating ? t('settings.pages.providers.provider.elevenlabs.playground.buttons.button.test-voice.generating') : t('settings.pages.providers.provider.elevenlabs.playground.buttons.button.test-voice.label') }}</span>
               </div>
             </button>
             <button
-              v-if="audioUrl" border="primary-300 dark:primary-800 solid 2"
-              transition="border duration-250 ease-in-out" rounded-lg px-4 py-2 text-sm @click="stopTestAudio"
+              v-if="audioUrl"
+              :class="['rounded-lg px-4 py-2 text-sm transition-colors duration-250 ease-in-out', 'bg-primary-100 dark:bg-primary-900/50']"
+              @click="stopTestAudio"
             >
-              <div flex="~ row" items-center gap-2>
-                <div i-solar:stop-circle-bold-duotone />
+              <div :class="['flex flex-row items-center gap-2']">
+                <div :class="['i-solar:stop-circle-bold-duotone']" />
                 <span>Stop</span>
               </div>
             </button>

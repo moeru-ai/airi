@@ -1,4 +1,4 @@
-import { useLocalStorage } from '@vueuse/core'
+import { useModelScopedLocalStorage } from '@proj-airi/stage-shared/composables'
 import { ref } from 'vue'
 
 export const supportedControl = ['x', 'y', 'scale'] as const
@@ -9,9 +9,9 @@ const viewControlsEnabled = ref(false)
 const viewControlMode = ref<SupportedControl>('scale')
 
 /** model position relative to the centre of the screen, in pixels */
-const position = useLocalStorage<{ x: number, y: number }>('settings/spine/position', { x: 0, y: 0 })
+const position = useModelScopedLocalStorage<{ x: number, y: number }>('spine', 'settings/spine/position', { x: 0, y: 0 })
 /** uniform model scaling. `1` means no scaling. */
-const scale = useLocalStorage('settings/spine/scale', 1)
+const scale = useModelScopedLocalStorage('spine', 'settings/spine/scale', 1)
 
 const formatPixels = (val: number) => `${val.toFixed(0)}px`
 const formatToPercent = (val: number) => `${(val * 100).toFixed(0)}%`

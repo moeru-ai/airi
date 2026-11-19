@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -74,7 +74,8 @@ describe('static asset paths', () => {
     await mkdir(join(root, 'dist', 'ui'), { recursive: true })
     await writeFile(join(root, 'dist', 'ui', 'index.html'), '<html></html>')
 
-    await expect(resolveStaticAssetFilePath(root, 'dist/ui/index.html')).resolves.toBe(join(root, 'dist', 'ui', 'index.html'))
+    // The resolver returns the real path. A temporary directory can be under a link, for example `/var` on macOS.
+    await expect(resolveStaticAssetFilePath(root, 'dist/ui/index.html')).resolves.toBe(join(await realpath(root), 'dist', 'ui', 'index.html'))
     await expect(resolveStaticAssetFilePath(root, '../outside.txt')).resolves.toBeUndefined()
   })
 

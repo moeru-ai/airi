@@ -3,8 +3,8 @@ import type { VoicePluginHandle } from '@proj-airi/core-agent'
 
 import { errorMessageFrom } from '@moeru/std'
 import { encodeWav } from '@proj-airi/audio/encoding'
-import { Alert, ErrorContainer, LevelMeter, MicrophonePicker, RadioCardManySelect, RadioCardSimple, TestDummyMarker, ThresholdMeter, TimeSeriesChart } from '@proj-airi/stage-ui/components'
-import { useAnalytics, useHearingPlaygroundSegments } from '@proj-airi/stage-ui/composables'
+import { LevelMeter, MicrophonePicker, RadioCardManySelect, RadioCardSimple, TestDummyMarker, ThresholdMeter, TimeSeriesChart } from '@proj-airi/stage-ui/components'
+import { useHearingPlaygroundSegments } from '@proj-airi/stage-ui/composables'
 import { useVoiceController } from '@proj-airi/stage-ui/composables/audio/voice-controller'
 import { hearingProviderViewContextKey } from '@proj-airi/stage-ui/libs'
 import { createVoiceActivityPlugin } from '@proj-airi/stage-ui/libs/voice/voice-activity-plugin'
@@ -13,7 +13,7 @@ import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/con
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { SileroVad } from '@proj-airi/stage-ui/workers/vad/silero-vad'
-import { Button, FieldCheckbox, FieldInput, FieldRange, SettingsCard } from '@proj-airi/ui'
+import { Alert, Button, FieldCheckbox, FieldInput, FieldRange, SettingsCard } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, defineAsyncComponent, onMounted, onUnmounted, provide, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -49,7 +49,6 @@ const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
 const { moduleTranscriptionProvidersMetadata } = storeToRefs(providersStore)
 
-const { trackProviderClick } = useAnalytics()
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { audioInputOptions, permission, selectedAudioInput } = storeToRefs(settingsAudioDeviceStore)
 const supportsStreamInput = computed(() => providersStore.getTranscriptionFeatures(activeTranscriptionProvider.value).supportsStreamInput)
@@ -105,9 +104,8 @@ const recordings = new Map<string, Promise<ReturnType<typeof startRecording> | u
 let listening: VoicePluginHandle | undefined
 let monitoringStartup: AbortController | undefined
 const { controller, state: inputState, snapshot, error: transcriptionPipelineError } = useVoiceController({
-  transcriber: () => {
+  transcriber: ({ inputId: id }) => {
     const transcriber = hearingStore.createTranscriber()
-    const id = controller.activeInput!.id
     return { transcribe: (request) => {
       const [audio, preview] = request.audio.tee()
       recordings.set(id, encodeWav(preview, { sampleRate: 16000, channels: 1 }, request.signal).then(startRecording, () => undefined))
@@ -412,14 +410,13 @@ onUnmounted(() => {
                 :value="metadata.id"
                 :title="metadata.localizedName || 'Unknown'"
                 :description="metadata.localizedDescription"
-                @click="trackProviderClick(metadata.id, 'hearing')"
               />
               <RouterLink
                 to="/settings/providers#transcription"
                 :class="[
                   'relative min-w-50 w-fit flex flex-col items-center justify-center rounded-xl p-4',
                   'border-2 border-solid border-neutral-100 bg-white dark:border-neutral-900 dark:bg-neutral-900/20',
-                  'hover:border-primary-500/30 dark:hover:border-primary-400/30',
+                  'hover:bg-neutral-50 dark:hover:bg-neutral-900/50',
                   'transition-all duration-200 ease-in-out',
                 ]"
               >
@@ -435,7 +432,6 @@ onUnmounted(() => {
                 to="/settings/providers"
                 :class="[
                   'flex items-center gap-3 rounded-lg p-4',
-                  'border-2 border-dashed border-neutral-200 dark:border-neutral-800',
                   'bg-neutral-50 dark:bg-neutral-800',
                   'transition-colors duration-200 ease-in-out',
                 ]"
@@ -483,11 +479,13 @@ onUnmounted(() => {
             </div>
 
             <!-- Error state -->
-            <ErrorContainer
+            <Alert
               v-else-if="activeProviderModelError && supportsModelListing"
+              tone="danger"
               :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
-              :error="activeProviderModelError"
-            />
+            >
+              <pre :class="['whitespace-pre-wrap break-all']">{{ String(activeProviderModelError) }}</pre>
+            </Alert>
 
             <!-- Manual input for providers without model listing or when no models are available -->
             <div
@@ -504,14 +502,10 @@ onUnmounted(() => {
             <!-- No models available (for other providers with model listing but no models) -->
             <Alert
               v-else-if="providerModels.length === 0 && !isLoadingActiveProviderModels && supportsModelListing"
-              type="warning"
+              tone="warning"
+              :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models')"
             >
-              <template #title>
-                {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models') }}
-              </template>
-              <template #content>
-                {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description') }}
-              </template>
+              {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models_description') }}
             </Alert>
 
             <!-- Using the new RadioCardManySelect component for providers with models -->
@@ -580,12 +574,14 @@ onUnmounted(() => {
           {{ t('settings.pages.modules.hearing.sections.section.playground.description') }}
         </p>
 
-        <ErrorContainer
+        <Alert
           v-if="hearingStore.enabled && (error || transcriptionPipelineError)"
+          tone="danger"
           :title="t('settings.pages.modules.hearing.sections.section.playground.error-title')"
-          :error="error || transcriptionPipelineError"
           :class="['mb-4']"
-        />
+        >
+          <pre :class="['whitespace-pre-wrap break-all']">{{ String(error || transcriptionPipelineError) }}</pre>
+        </Alert>
 
         <!-- Browsers list device IDs only after permission, so starting with no selection uses the default device and asks for permission. -->
         <Button
@@ -684,11 +680,13 @@ onUnmounted(() => {
                     <span :class="['text-sm']">Loading...</span>
                   </div>
 
-                  <ErrorContainer
+                  <Alert
                     v-else-if="vadModelError"
-                    title="Inference error"
-                    :error="vadModelError"
-                  />
+                    tone="danger"
+                    :title="t('settings.pages.modules.hearing.sections.section.playground.vad-error-title')"
+                  >
+                    <pre :class="['whitespace-pre-wrap break-all']">{{ String(vadModelError) }}</pre>
+                  </Alert>
 
                   <div v-else-if="loadedVAD" :class="['flex items-center gap-2 text-green-600 dark:text-green-400']">
                     <div :class="['i-solar:check-circle-bold-duotone text-sm']" />

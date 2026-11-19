@@ -38,16 +38,16 @@ import '@fontsource-variable/jura/index.css'
 import '@fontsource-variable/quicksand/index.css'
 import '@fontsource-variable/urbanist/index.css'
 import '@fontsource-variable/comfortaa/index.css'
-import '@fontsource/dm-mono/index.css'
 import '@fontsource/dm-serif-display/index.css'
 import '@fontsource/gugi/index.css'
 import '@fontsource/kiwi-maru/index.css'
 import '@fontsource/m-plus-rounded-1c/index.css'
+import '@fontsource/maple-mono/index.css'
 import '@fontsource-variable/nunito/index.css'
 
 configureAnalyticsAdapter(async (options) => {
-  const { createOpenpanelAdapter } = await import('@proj-airi/stage-ui/libs/product-signals/openpanel')
-  return createOpenpanelAdapter(options)
+  const { loadAnalyticsProviders } = await import('@proj-airi/stage-ui/libs/product-signals/providers')
+  return loadAnalyticsProviders(options)
 })
 registerAuthorizationHandler(browserAuthorizationHandler)
 

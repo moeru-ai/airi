@@ -5,6 +5,7 @@ import type { ConversationContext } from '../input/ports'
 import type { TranscriptEdit, WriteResult } from '../input/transcript'
 import type { BeginSpeechInput, SpeechInputAttemptOutcome, TranscriptDocument } from '../input/types'
 import type { Interruption } from '../interruption'
+import type { SpeechOutputEvent } from '../output/response'
 import type { InputRevisions, VoiceRule } from '../policy/types'
 import type { TurnRef } from '../turn'
 
@@ -76,6 +77,17 @@ export interface SpeechInputScope {
   onDispose: (cleanup: () => void | Promise<void>) => void
 }
 
+/** This plugin's scope for one response that speaks. Its signal aborts when the response closes or the plugin is disposed. */
+export interface SpeechOutputScope {
+  readonly turn: TurnRef
+  readonly signal: AbortSignal
+  /** Commands that check the grants of the plugin, for example `interrupt` with `interrupt-turns`. */
+  readonly controls: VoicePluginControls
+  /** Receives the speech events of one type, in order, until the response closes. */
+  on: <T extends SpeechOutputEvent['type']>(type: T, listener: (event: Extract<SpeechOutputEvent, { type: T }>) => void) => void
+  onDispose: (cleanup: () => void | Promise<void>) => void
+}
+
 /** Audio callbacks have plugin ownership and cancellation. They cannot change transcript documents. */
 export interface AudioPluginTask {
   readonly controls: VoicePluginControls
@@ -87,18 +99,47 @@ export interface AudioPluginTask {
   fail: (error: Error) => void
 }
 
-/** Plugin installation exposes scoped operations, not the mutable controller or source. */
-export interface VoicePluginScope {
-  readonly signal: AbortSignal
-  observeAudio: (
+/**
+ * Windows of one side of the audio, for the whole life of the plugin.
+ *
+ * When the host replaces the device, for example the microphone or the playback, the observation moves to the new one.
+ */
+export interface VoicePluginAudio {
+  observe: (
     settings: WindowOptions & { minWindowMs?: number },
     run: (ctx: AudioPluginTask) => Promise<void>,
   ) => Observer
+}
+
+/** The played side. `connect` exists only on a host whose playback has a platform audio graph. */
+export interface VoicePluginOutputAudio<TNode> extends VoicePluginAudio {
+  /**
+   * Connects a node of the platform graph, for example an `AudioNode`, to the played audio until the plugin is disposed.
+   * A replaced playback moves the connection to the new playback.
+   */
+  readonly connect?: (node: TNode) => void
+}
+
+/**
+ * Plugin installation exposes scoped operations, not the mutable controller or source.
+ *
+ * Each stage of a turn has its own `onXxx` hook, which runs once for each occurrence. `input` and `output` give the
+ * audio itself for the whole life of the plugin. `TNode` is the node type of the platform audio graph. A plugin that
+ * needs no graph keeps `never` and installs on every host.
+ */
+export interface VoicePluginScope<TNode = never> {
+  readonly signal: AbortSignal
+  /** The microphone or another shared input. */
+  readonly input: VoicePluginAudio
+  /** The played speech. */
+  readonly output: VoicePluginOutputAudio<TNode>
   /**
    * Runs `install` for each accepted input, in plugin installation order. `install` can be asynchronous.
    * Finalization waits for pending installs, so a stage that an install registers late still runs.
    */
-  onSpeechInput: (install: (ctx: SpeechInputScope) => void | Promise<void>) => void
+  onInput: (install: (ctx: SpeechInputScope) => void | Promise<void>) => void
+  /** Runs `install` for each response that opens speech, in plugin installation order. */
+  onOutput: (install: (ctx: SpeechOutputScope) => void | Promise<void>) => void
   /**
    * Emits a voice event, usually a signal that this plugin defines with `defineEventa`.
    * Emits after disposal are dropped.
@@ -117,16 +158,18 @@ export interface VoicePluginScope {
 }
 
 /** Setup is synchronous. Cleanup releases only resources that this installation owns. */
-export interface VoicePlugin {
+export interface VoicePlugin<TNode = never> {
   readonly name: string
-  setup: (ctx: VoicePluginScope) => undefined | (() => void | Promise<void>)
+  setup: (ctx: VoicePluginScope<TNode>) => undefined | (() => void | Promise<void>)
 }
 
 /** Errors include ownership so the host can apply its own required or optional feature policy. */
 export interface VoicePluginError {
   readonly plugin: string
   readonly inputId?: string
-  readonly stage: 'setup' | 'input' | 'watch' | 'finalize' | 'audio' | 'cleanup'
+  /** The response of an `output` error. */
+  readonly turn?: TurnRef
+  readonly stage: 'setup' | 'input' | 'watch' | 'finalize' | 'audio' | 'output' | 'cleanup'
   readonly error: Error
 }
 

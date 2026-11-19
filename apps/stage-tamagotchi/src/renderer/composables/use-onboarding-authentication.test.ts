@@ -24,6 +24,7 @@ describe('useOnboardingAuthentication', () => {
       },
       closeRequestId,
       closeWindow,
+      hasPendingSteps: shallowRef(false),
       isAuthenticated,
       isConfirming: shallowRef(false),
       needsLogin,
@@ -55,6 +56,7 @@ describe('useOnboardingAuthentication', () => {
       consumeLoginRequest: vi.fn().mockResolvedValue(false),
       closeRequestId,
       closeWindow,
+      hasPendingSteps: shallowRef(false),
       isAuthenticated: shallowRef(false),
       isConfirming: shallowRef(false),
       needsLogin: shallowRef(false),
@@ -69,6 +71,38 @@ describe('useOnboardingAuthentication', () => {
     scope.stop()
   })
 
+  // ROOT CAUSE:
+  //
+  // Sign-in closed the onboarding window, so the permissions step never showed for a signed-in user.
+  // Sign-in finishes only provider setup. The window stays open while other steps are pending.
+  it('stays open after sign-in while the flow has pending steps', async () => {
+    const closeRequestId = shallowRef(0)
+    const hasPendingSteps = shallowRef(true)
+    const closeWindow = vi.fn<() => Promise<void>>().mockResolvedValue()
+    const scope = effectScope()
+
+    scope.run(() => useOnboardingAuthentication({
+      consumeLoginRequest: vi.fn().mockResolvedValue(false),
+      closeRequestId,
+      closeWindow,
+      hasPendingSteps,
+      isAuthenticated: shallowRef(true),
+      isConfirming: shallowRef(false),
+      needsLogin: shallowRef(false),
+      onCloseError: vi.fn(),
+      startLogin: vi.fn<() => Promise<void>>().mockResolvedValue(),
+    }))
+
+    closeRequestId.value += 1
+    await nextTick()
+    expect(closeWindow).not.toHaveBeenCalled()
+
+    hasPendingSteps.value = false
+    await nextTick()
+    expect(closeWindow).toHaveBeenCalledTimes(1)
+    scope.stop()
+  })
+
   it('allows a close retry after Electron rejects the first request', async () => {
     const closeWindow = vi.fn<() => Promise<void>>()
       .mockRejectedValueOnce(new Error('window unavailable'))
@@ -79,6 +113,7 @@ describe('useOnboardingAuthentication', () => {
       consumeLoginRequest: vi.fn().mockResolvedValue(false),
       closeRequestId: shallowRef(0),
       closeWindow,
+      hasPendingSteps: shallowRef(false),
       isAuthenticated: shallowRef(false),
       isConfirming: shallowRef(false),
       needsLogin: shallowRef(false),
@@ -101,6 +136,7 @@ describe('useOnboardingAuthentication', () => {
       consumeLoginRequest: vi.fn().mockResolvedValue(false),
       closeRequestId: shallowRef(0),
       closeWindow,
+      hasPendingSteps: shallowRef(false),
       isAuthenticated: shallowRef(false),
       isConfirming: shallowRef(true),
       needsLogin: shallowRef(false),
@@ -124,6 +160,7 @@ describe('useOnboardingAuthentication', () => {
         consumeLoginRequest: vi.fn().mockResolvedValue(false),
         closeRequestId,
         closeWindow,
+        hasPendingSteps: shallowRef(false),
         isAuthenticated: shallowRef(false),
         isConfirming: shallowRef(true),
         needsLogin: shallowRef(false),
@@ -161,6 +198,7 @@ it('keeps the callback renderer alive until its completion report is acknowledge
     consumeLoginRequest: vi.fn().mockResolvedValue(false),
     closeRequestId,
     closeWindow,
+    hasPendingSteps: shallowRef(false),
     isAuthenticated,
     isConfirming,
     needsLogin: shallowRef(false),

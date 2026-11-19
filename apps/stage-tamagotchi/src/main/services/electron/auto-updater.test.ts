@@ -16,6 +16,7 @@ vi.mock('electron', async () => {
   return {
     app: { getPath: (name: string) => `/tmp/${name}` },
     ipcMain: new EventEmitter(),
+    net: { fetch: vi.fn().mockRejectedValue(new Error('No network in tests.')) },
   }
 })
 
@@ -47,6 +48,7 @@ vi.mock('@guiiai/logg', () => ({
       error: vi.fn(),
       withError: () => ({
         error: vi.fn(),
+        warn: vi.fn(),
       }),
     }),
   }),
@@ -58,14 +60,24 @@ const update = { fromInstaller: false, releaseId: 1776000000000, requires: 'rest
 function createFakeUpdater(initial: UpdaterStatus = { status: 'idle' }) {
   let status = initial
   let channel = 'stable'
+  let autoDownload = true
   const statusListeners = new Set<(status: UpdaterStatus) => void>()
   const eventListeners = new Set<(event: LauncherEvent) => void>()
   const setChannel = vi.fn((next: string) => {
     channel = next
   })
+  const setAutoDownload = vi.fn((next: boolean) => {
+    autoDownload = next
+  })
 
   const updater = {
     applyUpdate: vi.fn().mockResolvedValue(undefined),
+    get autoDownload() {
+      return autoDownload
+    },
+    set autoDownload(next) {
+      setAutoDownload(next)
+    },
     get channel() {
       return channel
     },
@@ -76,6 +88,7 @@ function createFakeUpdater(initial: UpdaterStatus = { status: 'idle' }) {
     cohorts: [],
     delayHealthCheck: vi.fn(),
     dismissRollback: vi.fn().mockResolvedValue(undefined),
+    downloadUpdate: vi.fn(async () => status),
     markBundleHealthy: vi.fn(),
     onBundleChange: vi.fn(() => () => {}),
     onEvent: vi.fn((listener: (event: LauncherEvent) => void) => {
@@ -94,6 +107,7 @@ function createFakeUpdater(initial: UpdaterStatus = { status: 'idle' }) {
 
   return {
     updater,
+    setAutoDownload,
     setChannel,
     setStatus(next: UpdaterStatus) {
       status = next
@@ -114,6 +128,7 @@ describe('setupAutoUpdater', () => {
 
   it.each([
     { name: 'a check', status: { status: 'checking' }, expected: { status: 'checking' } },
+    { name: 'an update that waits for a download', status: { status: 'available', update }, expected: { status: 'available', info: { version: '0.9.0-beta.6' } } },
     { name: 'no update', status: { status: 'up-to-date' }, expected: { status: 'not-available', info: { version: '0.9.0-beta.4' } } },
     { name: 'a download', status: { status: 'downloading', bytesPerSecond: 524_288, downloadedBytes: 4_200_000, percent: 42, totalBytes: 10_000_000, update }, expected: { status: 'downloading', info: { version: '0.9.0-beta.6' }, progress: { bytesPerSecond: 524_288, percent: 42, total: 10_000_000, transferred: 4_200_000 } } },
     { name: 'a patch after a download', status: { status: 'preparing', percent: 70, update }, expected: { status: 'downloading', progress: { bytesPerSecond: 0, percent: 70 } } },
@@ -203,6 +218,106 @@ describe('setupAutoUpdater', () => {
     await service.setPreferredUpdateLane(undefined)
 
     expect(fake.updater.channel).toBe(expected)
+  })
+
+  it('downloads an available update when the user asks', async () => {
+    const fake = createFakeUpdater({ status: 'available', update })
+    const { setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater({ updater: fake.updater })
+
+    await service.downloadUpdate()
+
+    expect(fake.updater.downloadUpdate).toHaveBeenCalledTimes(1)
+  })
+
+  it('reports a failed download start', async () => {
+    const fake = createFakeUpdater({ status: 'available', update })
+    fake.updater.downloadUpdate.mockRejectedValueOnce(new Error('No space left.'))
+    const { setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater({ updater: fake.updater })
+
+    await service.downloadUpdate()
+
+    expect(service.state).toMatchObject({ status: 'error', error: { message: 'No space left.' } })
+  })
+
+  it('adds the release notes and the release page of an update', async () => {
+    const fake = createFakeUpdater()
+    const fetchReleaseNotes = vi.fn().mockResolvedValue('## v0.9.0-beta.6 Highlights')
+    const { setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater({ updater: fake.updater, fetchReleaseNotes })
+    const states = vi.fn()
+    service.subscribe(states)
+
+    fake.setStatus({ status: 'available', update })
+    expect(service.state).toMatchObject({ changesUrl: 'https://github.com/moeru-ai/airi/releases/tag/v0.9.0-beta.6' })
+    expect(service.state.info?.releaseNotes).toBeUndefined()
+
+    await vi.waitFor(() => expect(service.state.info?.releaseNotes).toBe('## v0.9.0-beta.6 Highlights'))
+    expect(states).toHaveBeenLastCalledWith(expect.objectContaining({ status: 'available' }))
+
+    fake.setStatus({ status: 'ready', update })
+    expect(service.state).toMatchObject({ status: 'downloaded', info: { releaseNotes: '## v0.9.0-beta.6 Highlights' } })
+    expect(fetchReleaseNotes).toHaveBeenCalledTimes(1)
+    expect(fetchReleaseNotes).toHaveBeenCalledWith('0.9.0-beta.6')
+  })
+
+  it('links a dev build to the commits since the running build, and does not ask for notes', async () => {
+    bundleState.version = '0.13.1-dev.821.13eef81'
+    const fake = createFakeUpdater()
+    const fetchReleaseNotes = vi.fn()
+    const { setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater({ updater: fake.updater, fetchReleaseNotes })
+
+    fake.setStatus({ status: 'ready', update: { ...update, version: '0.13.1-dev.830.4b5c6d7' } })
+
+    expect(service.state.changesUrl).toBe('https://github.com/moeru-ai/airi/compare/13eef81...4b5c6d7')
+    expect(fetchReleaseNotes).not.toHaveBeenCalled()
+  })
+
+  it('asks for failed notes once while a download reports progress', async () => {
+    const fake = createFakeUpdater()
+    const fetchReleaseNotes = vi.fn().mockRejectedValue(new Error('GitHub returned 404.'))
+    const { setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater({ updater: fake.updater, fetchReleaseNotes })
+
+    fake.setStatus({ status: 'available', update })
+    await vi.waitFor(() => expect(fetchReleaseNotes).toHaveBeenCalledTimes(1))
+    for (const percent of [10, 20, 30])
+      fake.setStatus({ status: 'downloading', bytesPerSecond: 1, downloadedBytes: percent, percent, totalBytes: 100, update })
+
+    expect(fetchReleaseNotes).toHaveBeenCalledTimes(1)
+    expect(service.state).toMatchObject({ status: 'downloading', changesUrl: 'https://github.com/moeru-ai/airi/releases/tag/v0.9.0-beta.6' })
+  })
+
+  it('shows no changes when no update waits', async () => {
+    const fake = createFakeUpdater()
+    const fetchReleaseNotes = vi.fn()
+    const { setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater({ updater: fake.updater, fetchReleaseNotes })
+
+    fake.setStatus({ status: 'up-to-date' })
+
+    expect(service.state.changesUrl).toBeUndefined()
+    expect(fetchReleaseNotes).not.toHaveBeenCalled()
+  })
+
+  it('saves the download preference and the lane from one renderer request', async () => {
+    const { ipcMain } = await import('electron')
+    const { electronGetUpdaterPreferences, electronSetUpdaterPreferences } = await import('../../../shared/eventa')
+    const fake = createFakeUpdater()
+    const setStoredUpdateLane = vi.fn()
+    const { createAutoUpdaterService, setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater({ updater: fake.updater, setStoredUpdateLane })
+    const { context, window } = createWindowIpc(ipcMain)
+    createAutoUpdaterService({ context: createWindowContext(window).context, window, service })
+
+    const saved = await defineInvoke(context, electronSetUpdaterPreferences)({ autoDownload: false, channel: 'nightly' })
+
+    expect(saved).toEqual({ autoDownload: false, channel: 'nightly' })
+    expect(fake.setAutoDownload).toHaveBeenCalledWith(false)
+    expect(setStoredUpdateLane).toHaveBeenCalledWith('nightly')
+    expect(await defineInvoke(context, electronGetUpdaterPreferences)()).toEqual({ autoDownload: false, channel: 'nightly' })
   })
 
   it('applies a ready update once while two clicks arrive at once', async () => {
@@ -315,8 +430,10 @@ describe('setupAutoUpdater', () => {
 
     await service.checkForUpdates()
     await service.setPreferredUpdateLane('nightly')
+    service.setAutoDownload(false)
 
     expect(fake.setChannel).not.toHaveBeenCalled()
+    expect(fake.setAutoDownload).not.toHaveBeenCalled()
     expect(fake.updater.checkForUpdates).not.toHaveBeenCalled()
     expect(service.state.status).toBe('disabled')
   })

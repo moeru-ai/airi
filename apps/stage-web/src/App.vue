@@ -7,6 +7,7 @@ import { initializeAnalytics, isAnalyticsAvailableInBuild } from '@proj-airi/sta
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
+import { useDevicePermissionsStore } from '@proj-airi/stage-ui/stores/device-permissions'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
@@ -30,6 +31,7 @@ import { toast, Toaster } from 'vue-sonner'
 
 import PerformanceOverlay from './components/Devtools/PerformanceOverlay.vue'
 
+import { useDevicePermissions } from './composables/device-permissions'
 import { usePWAStore } from './stores/pwa'
 
 usePWAStore()
@@ -43,6 +45,8 @@ const displayModelsStore = useDisplayModelsStore()
 const settingsStore = useSettings()
 const settings = storeToRefs(settingsStore)
 const onboardingStore = useOnboardingStore()
+// The onboarding reads the permissions of the host, so they register before it decides whether to show.
+useDevicePermissionsStore().register(useDevicePermissions())
 const chatStore = useChatStore()
 const syncedPinia = usePiniaSynced()
 const serverChannelStore = useModsServerChannelStore()
@@ -123,6 +127,7 @@ const onboardingExtraSteps = computed(() => {
 
 watch(settings.language, () => {
   i18n.locale.value = settings.language.value
+  document.documentElement.lang = i18n.locale.value
 })
 
 watch(settings.themeColorsHue, () => {
@@ -187,7 +192,10 @@ function continueWithoutModel() {
   startup.skip('model')
 }
 
+const startupFinished = ref(false)
+
 function openOnboardingAfterStartup() {
+  startupFinished.value = true
   if (router.currentRoute.value.meta.onboarding === false)
     return
 
@@ -196,6 +204,13 @@ function openOnboardingAfterStartup() {
     onboardingStore.showingSetup = true
   }
 }
+
+// Sign-in leaves the page and returns on the callback route, which shows no onboarding. The steps that sign-in
+// does not finish, for example permissions, open when the callback goes on to the stage.
+watch(() => router.currentRoute.value.meta.onboarding, (onboarding, previous) => {
+  if (startupFinished.value && previous === false && onboarding !== false)
+    openOnboardingAfterStartup()
+})
 </script>
 
 <template>
@@ -236,8 +251,7 @@ function openOnboardingAfterStartup() {
       :scale-background="false"
       :instant-open="startupOnboarding"
       :extra-steps="onboardingExtraSteps"
-      @configured="onboardingStore.markSetupCompleted()"
-      @skipped="onboardingStore.markSetupSkipped()"
+      @configured="showingSetup = false"
     />
 
     <PerformanceOverlay />

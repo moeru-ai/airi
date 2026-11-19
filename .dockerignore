@@ -5,3 +5,7 @@
 **/.env.*
 !**/.env.example
 airi-docs
+.git
+.worktrees
+**/.turbo
+.vishot

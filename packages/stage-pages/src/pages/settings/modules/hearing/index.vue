@@ -58,7 +58,7 @@ const pages = computed(() => [
     name: t('settings.pages.modules.hearing.voiceprint.title'),
     description: t('settings.pages.modules.hearing.voiceprint.description'),
     icon: 'i-solar:user-speak-rounded-bold-duotone',
-    configured: !!voiceprints.voiceprint,
+    configured: voiceprints.usable.length > 0,
   },
 ])
 </script>

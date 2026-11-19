@@ -25,11 +25,12 @@ import {
   electronChatWindowTakeDraft,
   electronFullscreenClose,
 } from '../../../shared/eventa'
+import { focusWindow, showWindow } from '../../libs/electron/focus'
 import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { createWindowContext } from '../../libs/electron/window-context'
 import { createReusableWindow } from '../../libs/electron/window-manager'
-import { protectPrivilegedWindowNavigation } from '../shared'
+import { customTitleBarWindowConfig, protectPrivilegedWindowNavigation } from '../shared'
 import { setupFloatingChatWindow } from './floating'
 import { createChatModeSwitch } from './mode-switch'
 import { setupChatWindowElectronInvokes } from './rpc/index.electron'
@@ -208,7 +209,7 @@ export function setupChatWindowManager(params: {
       show: false,
       icon,
       ...(isMacOS ? { transparent: true, backgroundColor: '#00000000' } : {}),
-      titleBarStyle: isMacOS ? 'hiddenInset' : undefined,
+      ...customTitleBarWindowConfig(),
       webPreferences: {
         preload: getPreloadPath(),
         sandbox: false,
@@ -217,7 +218,7 @@ export function setupChatWindowManager(params: {
 
     if (isMacOS)
       window.setWindowButtonVisibility(true)
-    window.on('ready-to-show', () => window.show())
+    window.on('ready-to-show', () => showWindow(window))
     protectPrivilegedWindowNavigation(window)
 
     // TODO: once we refactored eventa to support window-namespaced contexts,
@@ -273,9 +274,8 @@ export function setupChatWindowManager(params: {
     const window = await legacy.getWindow()
     if (window.isMinimized())
       window.restore()
-    window.show()
-    window.focus()
-    window.moveTop()
+    if (focusWindow(window))
+      window.moveTop()
   }
 
   /** The windows that can carry the fullscreen chat. Without an active one, the fullscreen chat has nowhere to show. */

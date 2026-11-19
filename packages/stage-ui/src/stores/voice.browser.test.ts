@@ -7,10 +7,11 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { createApp } from 'vue'
 import { createI18n } from 'vue-i18n'
 
-import { getSpeechBusContext, voiceSpeechCommand } from '../services/speech/bus'
+import { getSpeechBusContext, voiceInputLevel, voiceLevelMonitor, voiceSpeechCommand } from '../services/speech/bus'
 import { useLlmStreamingControlStore } from './ai/chat-llm/streaming-control'
 import { useChatStore } from './chat'
 import { useSpeechStore } from './modules/speech'
+import { useSettingsAudioDevice } from './settings/audio-device'
 import { useVoiceStore } from './voice'
 
 const cleanups: (() => void)[] = []
@@ -88,4 +89,55 @@ it.each(['local', 'remote'] as const)('issue #3153: disabling %s speech preserve
   expect(voice.activeTurns).toEqual([])
   expect(cancelChat).not.toHaveBeenCalled()
   await expect(generation.done).resolves.toEqual({ type: 'completed' })
+})
+
+// A level meter in a menu asks for the level when a hover opens the menu. Users saw the system microphone indicator
+// turn on although microphone input was off, because the host opened the microphone for the meter.
+it('publishes a requested level only while microphone input holds the microphone open', async () => {
+  const pinia = createPinia()
+  let voice!: ReturnType<typeof useVoiceStore>
+  let devices!: ReturnType<typeof useSettingsAudioDevice>
+  const app = createApp({ setup() {
+    voice = useVoiceStore()
+    devices = useSettingsAudioDevice()
+    return () => null
+  } }).use(pinia).use(createI18n({ legacy: false, locale: 'en', messages: { en: {} }, missingWarn: false, fallbackWarn: false }))
+  app.mount(document.createElement('div'))
+  cleanups.push(() => {
+    app.unmount()
+    disposePinia(pinia)
+  })
+  const output: SpeechOutput = {
+    playback: new Playback({ nowMs: () => 0, play: () => ({ done: new Promise<{ throughMs: number }>(() => {}), stop: async () => ({ throughMs: 0 }) }) }),
+    stream: async () => new ReadableStream(),
+  }
+  cleanups.push(voice.connectOutput(() => output))
+  devices.initialize()
+  // The device list decides which device the system default opens. A later list change replaces the input.
+  expect(await devices.askPermission()).toBe(true)
+  await expect.poll(() => devices.selectedAudioInput).not.toBe('')
+  await expect.poll(() => devices.stream).toBeUndefined()
+  const context = getSpeechBusContext()
+  const levels: number[] = []
+  cleanups.push(context.on(voiceInputLevel, ({ body }) => body && levels.push(body.level)))
+  const openMicrophone = vi.spyOn(navigator.mediaDevices, 'getUserMedia')
+
+  context.emit(voiceLevelMonitor, { until: Date.now() + 5000 })
+  await new Promise(resolve => setTimeout(resolve, 200))
+
+  expect(openMicrophone).not.toHaveBeenCalled()
+  expect(levels).toEqual([])
+
+  devices.enabled = true
+  context.emit(voiceLevelMonitor, { until: Date.now() + 10_000 })
+
+  // The first level waits for the device and the capture worklet, which is slow while other test files run.
+  await expect.poll(() => levels.length, { timeout: 10_000 }).toBeGreaterThan(0)
+  expect(openMicrophone).toHaveBeenCalledOnce()
+  const track = devices.stream!.getAudioTracks()[0]
+
+  // The menu still asks for the level. Turning microphone input off must close the microphone anyway.
+  devices.enabled = false
+
+  await expect.poll(() => track.readyState).toBe('ended')
 })
