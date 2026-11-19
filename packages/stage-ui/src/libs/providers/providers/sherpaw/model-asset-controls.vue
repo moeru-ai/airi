@@ -4,13 +4,14 @@ import { Button, GhostButton, Progress } from '@proj-airi/ui'
 import { computed, onMounted, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { useModelAssetStatus } from '../../../../composables/use-model-asset-status'
+import { useModelAssetFailureMessage, useModelAssetStatus } from '../../../../composables/use-model-asset-status'
 import { formatBytes } from '../../../inference/format-bytes'
 import { cancelSherpawModelAssets, ensureSherpawModelAssets, listSherpawModelAssets, removeSherpawModelAssets } from './model-assets'
 
 const props = defineProps<{ modelId: string }>()
 const { t } = useI18n()
 const { models } = useModelAssetStatus()
+const failureMessage = useModelAssetFailureMessage()
 const status = computed(() => models.value.find(model => model.id === props.modelId))
 const downloadPercent = computed(() => {
   const progress = status.value?.progress
@@ -130,6 +131,7 @@ onMounted(refresh)
     />
   </div>
   <p v-if="error || status?.error" role="alert" :class="['m-0 text-xs', 'text-red-600 dark:text-red-400']">
-    {{ error || status?.error }}
+    <!-- A failed download also rejects with a raw message. The status failure explains it better, so it wins. -->
+    {{ status?.error ? failureMessage(status.error) : error }}
   </p>
 </template>

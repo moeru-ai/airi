@@ -46,7 +46,7 @@ const readDisplayCapture: ComputerUseCommandReader = (result, _invocation, artif
 /** Screen captures, and the lists of displays and windows. */
 export const captureReaders: Record<string, ComputerUseCommandReader> = {
   'display.capture': readDisplayCapture,
-  'screen.captureRegion': readDisplayCapture,
+  'display.captureRegion': readDisplayCapture,
   'window.capture': (result, _invocation, artifacts) => {
     const parsed = safeParse(WindowCaptureSchema, result)
     if (!parsed.success)

@@ -3,6 +3,8 @@ import type { Plugin } from 'unified'
 
 import type { SpeechPreprocessor } from './preprocessor'
 
+import remarkWikiLink from '@flowershow/remark-wiki-link'
+import remarkCjkFriendly from 'remark-cjk-friendly'
 import remarkMath from 'remark-math'
 import remarkParse from 'remark-parse'
 
@@ -10,7 +12,8 @@ import { unified } from 'unified'
 
 import { detectSpeechLanguage, toSpeechLanguage } from './language'
 import { normalizeMathDelimiters } from './markdown'
-import { mathSpeechPreprocessor, moneySpeechPreprocessor } from './preprocessor'
+import { mathSpeechPreprocessor, moneySpeechPreprocessor, tokenSpeechPreprocessor } from './preprocessor'
+import { embedWord, imageWord, speakWikiTarget } from './wiki-link'
 
 export interface SpeechTextOptions {
   /**
@@ -30,20 +33,31 @@ export interface SpeechTextOptions {
   before?: string
   /**
    * The preprocessor plugins, in the order that their hooks run.
-   * The default is the money plugin, then the math plugin. A list replaces the default, so it includes them to keep them.
+   * The default is the token, money, and math plugins, in that order. A list replaces the default, so it includes
+   * them to keep them.
    */
   preprocessors?: readonly SpeechPreprocessor[]
 }
 
-/** The default preprocessor plugins: money first, so a price reads before the math plugin looks for bare TeX. */
+/**
+ * The default preprocessor plugins. Tokens such as addresses read first, so the other plugins do not read their parts.
+ * Money reads before math, so a price reads before the math plugin looks for bare TeX.
+ */
 export function defaultSpeechPreprocessors(): SpeechPreprocessor[] {
-  return [moneySpeechPreprocessor(), mathSpeechPreprocessor()]
+  return [tokenSpeechPreprocessor(), moneySpeechPreprocessor(), mathSpeechPreprocessor()]
 }
 
 /** A delimiter between two ASCII operands is an operator, for example `x**2` or `a*b*c`, not emphasis. */
 const asciiOperand = /^[A-Z0-9]$/i
 /** A sentence ends at these characters. The words of the sentence select the language of its formulas. */
 const sentenceEnd = /[.!?。！？\n]/
+/** A word is two letters, or one CJK character, which can be a word alone, as 看. */
+const word = /\p{L}{2,}|[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u
+/** One Pandoc or markdown-it attribute, for example `.note`, `#intro`, or `width=300`. */
+const attributeSource = String.raw`(?:[.#][\w-]+|[\w-]+=[^\s}]*)`
+/** An attribute list, for example `{.note #intro}`. It has no sound. */
+const attributeLists = new RegExp(String.raw`\s*\{${attributeSource}(?:\s+${attributeSource})*\}`, 'g')
+const leadingAttributeList = new RegExp(String.raw`^\{${attributeSource}(?:\s+${attributeSource})*\}`)
 
 /**
  * Compiles markdown to the text that a TTS provider reads.
@@ -69,7 +83,12 @@ export const remarkSpeech: Plugin<[SpeechTextOptions?], Root, string> = function
 export function toSpeechText(markdown: string, options?: SpeechTextOptions): string {
   const preprocessors = options?.preprocessors ?? defaultSpeechPreprocessors()
   const prepared = preprocessors.reduce((text, preprocessor) => preprocessor.prepare?.(text) ?? text, normalizeMathDelimiters(markdown))
-  return String(unified().use(remarkParse).use(remarkMath).use(remarkSpeech, { ...options, preprocessors }).processSync(prepared))
+  // NOTICE:
+  // The pnpm catalog pins `@flowershow/remark-wiki-link` to 3.4.0.
+  // The 4.0.0 and 4.0.1 tarballs have no `dist`, but their `exports` point into it, so the import fails.
+  // Source: npm tarballs of @flowershow/remark-wiki-link 4.0.0 and 4.0.1, checked 2026-11-02.
+  // Remove the pin when a 4.x release ships `dist`.
+  return String(unified().use(remarkParse).use(remarkCjkFriendly).use(remarkMath).use(remarkWikiLink).use(remarkSpeech, { ...options, preprocessors }).processSync(prepared))
 }
 
 function compile(tree: Root, source: string, options: SpeechTextOptions | undefined): string {
@@ -156,9 +175,9 @@ function compile(tree: Root, source: string, options: SpeechTextOptions | undefi
     const before = nodes.slice(0, index).map(plain).join('')
     const after = nodes.slice(index + 1).map(plain).join('')
     const sentence = before.split(sentenceEnd).at(-1)! + after.split(sentenceEnd)[0]!
-    if (/\p{L}{2,}/u.test(sentence))
+    if (word.test(sentence))
       return sentence
-    return /\p{L}{2,}/u.test(before + after) ? before + after : options?.before ?? ''
+    return word.test(before + after) ? before + after : options?.before ?? ''
   }
 
   function blocks(nodes: readonly RootContent[]): string {
@@ -187,31 +206,55 @@ function compile(tree: Root, source: string, options: SpeechTextOptions | undefi
     }
   }
 
-  function phrasing(nodes: readonly PhrasingContent[]): string {
-    return nodes.map((node, index) => inline(node, nodes, index)).join('')
+  /** `outer` is the sentence around the parent node, for example around a link. */
+  function phrasing(nodes: readonly PhrasingContent[], outer = ''): string {
+    return nodes.map((node, index) => inline(node, nodes, index, outer)).join('')
   }
 
-  function inline(node: PhrasingContent, siblings: readonly PhrasingContent[], index: number): string {
+  function inline(node: PhrasingContent, siblings: readonly PhrasingContent[], index: number, outer: string): string {
+    const around = () => sentenceAround(siblings, index) + outer
+    const language = () => detectSpeechLanguage(around(), fallback)
+
     switch (node.type) {
-      case 'text':
+      case 'text': {
+        // The attribute list of a link, as in `[docs](url){.note}`, starts the text after it.
+        const previous = siblings[index - 1]?.type
+        const value = previous === 'link' || previous === 'image' ? node.value.replace(leadingAttributeList, '') : node.value
         // A voice can read `$5` in another language, so a price is read as words of its sentence.
-        return speakProse(node.value, 'text', sentenceAround(siblings, index) + node.value)
+        return speakProse(value, 'text', around() + value)
+      }
       case 'inlineCode':
-        return speakProse(node.value, 'code', node.value)
+        // An address in code reads in the language of its sentence, not in the language of the code.
+        return speakProse(node.value, 'code', around() + node.value)
+      case 'wikiLink': {
+        const text = node.data?.alias ?? speakWikiTarget(node.value)
+        return keepMarkers(node, speakProse(text, 'text', around() + text))
+      }
+      case 'embed': {
+        const text = node.data?.alias ?? embedWord(node.value, language()) ?? speakWikiTarget(node.value)
+        return keepMarkers(node, speakProse(text, 'text', around() + text))
+      }
       case 'inlineMath':
-        return isFormula(node) ? keepMarkers(node, speakFormula(node.value, sentenceAround(siblings, index))) : keepMarkers(node, range(node))
+        return isFormula(node) ? keepMarkers(node, speakFormula(node.value, around())) : keepMarkers(node, range(node))
       case 'emphasis':
       case 'strong':
       case 'delete':
         // CommonMark reads `x**2 + y**2` as strong text, but the writer meant two powers.
         // The source text, delimiters included, keeps the operators.
-        return isOperator(node) ? range(node) : phrasing(node.children)
+        return isOperator(node) ? range(node) : phrasing(node.children, around())
       case 'link':
-      case 'linkReference':
-        return keepMarkers(node, phrasing(node.children))
+      case 'linkReference': {
+        // `[target | Display](url)` reads its display text, as `[[target|Display]]` does.
+        const spoken = phrasing(node.children, around())
+        const display = spoken.slice(spoken.lastIndexOf('|') + 1).replace(attributeLists, '').trim()
+        return keepMarkers(node, display)
+      }
       case 'image':
-      case 'imageReference':
-        return keepMarkers(node, node.alt ?? '')
+      case 'imageReference': {
+        // Obsidian writes a size after the alternative text, as in `![shot|300](shot.png)`.
+        const alt = (node.alt ?? '').replace(/\|\s*\d+(?:x\d+)?$/, '').trim()
+        return keepMarkers(node, alt || imageWord(language()))
+      }
       case 'break':
         return '\n'
       default:

@@ -1,9 +1,9 @@
-import type { Lifecycle, ProvidedBy } from 'injeca'
+import type { ProvidedBy } from 'injeca'
 import type * as vscode from 'vscode'
 
 import { initLogger, LoggerFormat, LoggerLevel, useLogger } from '@guiiai/logg'
 import { noop } from 'es-toolkit'
-import { injeca, lifecycle } from 'injeca'
+import { injeca } from 'injeca'
 import { commands, window, workspace } from 'vscode'
 
 import { Client } from './airi'
@@ -50,7 +50,7 @@ export async function activate(context: vscode.ExtensionContext) {
   })
 
   const extension = injeca.provide('extension', {
-    dependsOn: { client, vscodeContext, contextCollector, eventListeners, lifecycle, controlLoopInterval },
+    dependsOn: { client, vscodeContext, contextCollector, eventListeners, controlLoopInterval },
     build: ({ dependsOn }) => setup({ ...dependsOn, isEnabled, sendInterval }),
   })
 
@@ -67,7 +67,6 @@ async function setup(params: {
   vscodeContext: vscode.ExtensionContext
   contextCollector: ContextCollector
   eventListeners: vscode.Disposable[]
-  lifecycle: Lifecycle
   controlLoopInterval: IntervalHandle
   isEnabled: boolean
   sendInterval: number
@@ -118,7 +117,6 @@ async function setup(params: {
  */
 async function registerListeners(params: {
   contextCollector: ContextCollector
-  lifecycle: Lifecycle
   eventListeners: vscode.Disposable[]
   client: Client
   controlLoopInterval: IntervalHandle
@@ -189,7 +187,6 @@ function unregisterListeners(params: { eventListeners: vscode.Disposable[], cont
  */
 function startMonitoring(params: {
   contextCollector: ContextCollector
-  lifecycle: Lifecycle
   client: Client
   controlLoopInterval: IntervalHandle
   isEnabled: boolean

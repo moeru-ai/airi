@@ -370,7 +370,7 @@ function streamChatCompletion(input: {
 
         input.telemetry.recordUsageOnSpan(input.span, { ...usage, fluxConsumed: feeFlux })
         input.telemetry.endSpan(input.span)
-        input.telemetry.recordMetrics({ ...usage, model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed: feeFlux })
+        input.telemetry.recordMetrics({ ...usage, costUsd: price.costReceipt.usage.costUsd, model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed: feeFlux })
 
         input.telemetry.recordRequestLog({
           ...observation,
@@ -467,13 +467,13 @@ async function completeNonStreamingChat(input: {
     observation.errorBody = captureErrorMessage(error)
     input.telemetry.recordRequestLog({ ...observation, ...usage, status, userId: input.userId, requestId: input.requestId, model: input.requestModel })
     input.telemetry.failSpan(input.span, 'Chat settlement failed')
-    input.telemetry.recordMetrics({ ...usage, model: input.requestModel, status, type: 'chat', provider: input.routeCtxProvider, durationMs: observation.durationMs, fluxConsumed: feeFlux })
+    input.telemetry.recordMetrics({ ...usage, costUsd: price.costReceipt.usage.costUsd, model: input.requestModel, status, type: 'chat', provider: input.routeCtxProvider, durationMs: observation.durationMs, fluxConsumed: feeFlux })
     throw error
   }
   input.telemetry.recordRequestLog({ ...observation, ...usage, userId: input.userId, requestId: input.requestId, model: input.requestModel })
   input.telemetry.recordUsageOnSpan(input.span, { ...usage, fluxConsumed: feeFlux })
   input.telemetry.endSpan(input.span)
-  input.telemetry.recordMetrics({ ...usage, model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed: feeFlux })
+  input.telemetry.recordMetrics({ ...usage, costUsd: price.costReceipt.usage.costUsd, model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed: feeFlux })
 
   input.logger.withFields({
     requestId: input.requestId,

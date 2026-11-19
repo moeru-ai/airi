@@ -1,4 +1,4 @@
-import { loadSpineRuntime } from './spine-runtime'
+import { loadSpineRuntime, updateSpineWorldTransform } from './spine-runtime'
 import { detectSpineVersionFromBinary, detectSpineVersionFromJson } from './spine-version'
 import { loadSpineZip } from './spine-zip-loader'
 
@@ -102,10 +102,7 @@ export async function loadSpineModelPreview(file: File): Promise<string | undefi
           update: (canvasApp: import('@esotericsoftware/spine-webgl').SpineCanvas, _delta: number) => {
             const skeleton = (canvasApp as unknown as { __previewSkeleton?: import('@esotericsoftware/spine-webgl').Skeleton }).__previewSkeleton
             if (skeleton) {
-              if (spine.Physics)
-                skeleton.updateWorldTransform(spine.Physics.update)
-              else
-                (skeleton as any).updateWorldTransform()
+              updateSpineWorldTransform(spine, skeleton)
             }
           },
           render: (canvasApp: import('@esotericsoftware/spine-webgl').SpineCanvas) => {

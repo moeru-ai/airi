@@ -2,13 +2,15 @@ import type { LlmStreamingControlDispatchContext, LlmStreamingControlDispatchEve
 
 import { errorMessageFrom } from '@moeru/std'
 import { createStreamingControlParser } from '@proj-airi/pipelines-audio'
-import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
+import { beginSpan, trackPath } from '@proj-airi/trace-kit'
+import { AgentAttributes, AgentNames, AgentTracks } from '@proj-airi/trace-kit/agent'
+import { VoiceIdKeys } from '@proj-airi/trace-kit/voice'
 import { useBroadcastChannel } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
 import { watch } from 'vue'
 
-import { startSpan, turnSpanOf } from '../../../composables/use-io-tracer'
+import { getTraceSink, LOCAL_AGENT_ACTOR } from '../../../composables/use-trace'
 
 interface RemoteCallMessage {
   type: 'turn-call'
@@ -23,16 +25,6 @@ export const useLlmStreamingControlStore = defineStore('llm-streaming-control', 
   const instanceId = `streaming-control-${nanoid()}`
 
   const { post: postRemoteCall, data: incomingRemoteCall } = useBroadcastChannel<RemoteCallMessage, RemoteCallMessage>({ name: 'airi-streaming-control-turn-calls' })
-
-  const tooltipKeys = [
-    'token_type',
-    'call_name',
-    'parameter',
-    'handler_count',
-    'turn_id',
-    'reason',
-    'raw_token',
-  ]
 
   watch(incomingRemoteCall, (message) => {
     if (!message || message.type !== 'turn-call')
@@ -50,46 +42,41 @@ export const useLlmStreamingControlStore = defineStore('llm-streaming-control', 
   })
 
   async function dispatchWith(special: string, context?: Partial<LlmStreamingControlDispatchContext>) {
-    // A dispatch without a turn, or for a turn that runs in another window, starts a trace of its own.
-    const span = startSpan(IOSpanNames.StreamingControlDispatch, turnSpanOf(context?.turnId), {
-      [IOAttributes.StreamingControlMatched]: false,
-      [IOAttributes.StreamingControlParsed]: false,
-      [IOAttributes.StreamingControlTokenLength]: special.length,
-      [IOAttributes.Subsystem]: IOSubsystems.StreamingControl,
-      ...(context?.turnId ? { [IOAttributes.StreamingControlTurnId]: context.turnId } : {}),
+    // The span carries the turn ID, so the timeline joins it with the chat turn, also for a turn of another window.
+    const span = beginSpan(getTraceSink(), {
+      track: trackPath(AgentTracks.Control, { agent: LOCAL_AGENT_ACTOR }),
+      name: AgentNames.ControlDispatch,
+      ids: context?.turnId ? { [VoiceIdKeys.Turn]: context.turnId } : undefined,
+      attrs: {
+        [AgentAttributes.ControlMatched]: false,
+        [AgentAttributes.ControlParsed]: false,
+        [AgentAttributes.ControlTokenLength]: special.length,
+      },
     })
-    span.setAttribute(IOAttributes.TooltipKeys, tooltipKeys)
 
     function observe(event: LlmStreamingControlDispatchEvent) {
       switch (event.type) {
         case 'rejected':
-          span.setAttribute(IOAttributes.StreamingControlReason, event.reason)
-          span.setAttribute(IOAttributes.StreamingControlRawToken, special)
-          if (event.parserName) {
-            span.setAttribute(IOAttributes.StreamingControlMatched, true)
-            span.setAttribute(IOAttributes.StreamingControlParserName, event.parserName)
-          }
-          span.addEvent(IOEvents.StreamingControlRejected, {
-            [IOAttributes.StreamingControlReason]: event.reason,
-            [IOAttributes.StreamingControlRawToken]: special,
+          span.update({
+            [AgentAttributes.ControlReason]: event.reason,
+            [AgentAttributes.ControlRawToken]: special,
+            ...(event.parserName ? { [AgentAttributes.ControlMatched]: true, [AgentAttributes.ControlParserName]: event.parserName } : {}),
           })
+          span.instant(AgentNames.ControlRejected, { [AgentAttributes.ControlReason]: event.reason })
           break
         case 'parsed':
-          span.setAttribute(IOAttributes.StreamingControlMatched, true)
-          span.setAttribute(IOAttributes.StreamingControlParsed, true)
-          span.setAttribute(IOAttributes.StreamingControlParserName, event.parserName)
-          span.setAttribute(IOAttributes.StreamingControlTokenType, event.tokenType)
-          if (event.callName)
-            span.setAttribute(IOAttributes.StreamingControlCallName, event.callName)
-          if (event.parameter)
-            span.setAttribute(IOAttributes.StreamingControlParameter, event.parameter)
-          span.addEvent(IOEvents.StreamingControlParsed, {
-            [IOAttributes.StreamingControlTokenType]: event.tokenType,
-            ...(event.parameter ? { [IOAttributes.StreamingControlParameter]: event.parameter } : {}),
+          span.update({
+            [AgentAttributes.ControlMatched]: true,
+            [AgentAttributes.ControlParsed]: true,
+            [AgentAttributes.ControlParserName]: event.parserName,
+            [AgentAttributes.ControlTokenType]: event.tokenType,
+            ...(event.callName ? { [AgentAttributes.ControlCallName]: event.callName } : {}),
+            ...(event.parameter ? { [AgentAttributes.ControlParameter]: event.parameter } : {}),
           })
+          span.instant(AgentNames.ControlParsed, { [AgentAttributes.ControlTokenType]: event.tokenType })
           break
         case 'call-handler-count':
-          span.setAttribute(IOAttributes.StreamingControlHandlerCount, event.count)
+          span.update({ [AgentAttributes.ControlHandlerCount]: event.count })
           break
         case 'call-handler-missing':
           if (context?.turnId && !context.remote) {
@@ -103,25 +90,21 @@ export const useLlmStreamingControlStore = defineStore('llm-streaming-control', 
           }
           break
         case 'call-handler-start':
-          span.addEvent(IOEvents.StreamingControlHandlerStart, {
-            [IOAttributes.StreamingControlCallName]: event.callName,
-          })
+          span.instant(AgentNames.ControlHandlerStarted, { [AgentAttributes.ControlCallName]: event.callName })
           break
         case 'call-handler-end':
-          span.addEvent(IOEvents.StreamingControlHandlerEnd, {
-            [IOAttributes.StreamingControlCallName]: event.callName,
-          })
+          span.instant(AgentNames.ControlHandlerEnded, { [AgentAttributes.ControlCallName]: event.callName })
           break
         case 'call-handler-error':
-          span.addEvent(IOEvents.StreamingControlHandlerError, {
-            [IOAttributes.StreamingControlCallName]: event.callName,
-            [IOAttributes.StreamingControlReason]: errorMessageFrom(event.error) ?? 'Unknown error',
+          span.instant(AgentNames.ControlHandlerFailed, {
+            [AgentAttributes.ControlCallName]: event.callName,
+            [AgentAttributes.ControlReason]: errorMessageFrom(event.error) ?? 'Unknown error',
           })
           break
         case 'signal-handler-error':
-          span.addEvent(IOEvents.StreamingControlSignalHandlerError, {
-            [IOAttributes.StreamingControlReason]: errorMessageFrom(event.error) ?? 'Unknown error',
-            [IOAttributes.StreamingControlTokenType]: event.tokenType,
+          span.instant(AgentNames.ControlHandlerFailed, {
+            [AgentAttributes.ControlReason]: errorMessageFrom(event.error) ?? 'Unknown error',
+            [AgentAttributes.ControlTokenType]: event.tokenType,
           })
           break
       }

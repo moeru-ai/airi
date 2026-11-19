@@ -91,6 +91,15 @@ const selectedSpeechModel = ref<string>('')
 const selectedSpeechVoiceId = ref<string>('')
 const previewVoices = ref<VoiceInfo[]>([])
 const selectedDisplayModelId = ref<string>('')
+const selectedContextWindow = ref<number>(-1)
+const contextWindowInput = computed<number | undefined>({
+  get: () => selectedContextWindow.value < 0 ? undefined : selectedContextWindow.value,
+  set: (value) => {
+    selectedContextWindow.value = typeof value === 'number' && Number.isFinite(value)
+      ? Math.max(0, Math.floor(value))
+      : -1
+  },
+})
 
 // NOTICE:
 // The editor needs a non-empty option value for inherited settings.
@@ -328,6 +337,8 @@ const moduleSectionHeaderClasses = [
 const moduleFieldLabelClasses = [
   'text-xs font-medium text-neutral-500 dark:text-neutral-400',
 ]
+// A field fills its grid cell. Its heading stays at the top and its input moves to the bottom of the cell.
+const fieldCellClasses = ['h-full', '[&>label]:h-full [&>label]:justify-between']
 const editorTextareaClass = 'min-h-40 md:min-h-[clamp(12rem,30dvh,24rem)]'
 const editorLongTextareaClass = 'min-h-48 md:min-h-[clamp(14rem,34dvh,28rem)]'
 
@@ -459,6 +470,7 @@ function initializeCard(): Card {
   selectedSpeechModel.value = moduleSettings.speech.model
   selectedSpeechVoiceId.value = moduleSettings.speech.voice_id
   selectedDisplayModelId.value = moduleSettings.displayModelId ?? ''
+  selectedContextWindow.value = moduleSettings.contextWindow
 
   // NOTICE: keep legacy `extensions.airi.artistry` fallback so existing cards continue to load.
   const artistrySettings = airiExt?.modules?.artistry || airiExt?.artistry
@@ -504,6 +516,7 @@ interface EditorSnapshot {
     voiceId: string
   }
   displayModelId: string
+  contextWindow: number
   artistry: {
     provider: string
     model: string
@@ -534,6 +547,7 @@ function createEditorSnapshot(): EditorSnapshot {
       voiceId: selectedSpeechVoiceId.value,
     },
     displayModelId: selectedDisplayModelId.value,
+    contextWindow: selectedContextWindow.value,
     artistry: {
       provider: selectedArtistryProvider.value,
       model: selectedArtistryModel.value,
@@ -672,6 +686,7 @@ async function handleSave(activate: boolean) {
         model: selectedSpeechModel.value,
         voice_id: selectedSpeechVoiceId.value,
       },
+      contextWindow: selectedContextWindow.value,
       artistry: {
         provider: selectedArtistryProvider.value,
         model: selectedArtistryModel.value,
@@ -883,24 +898,30 @@ function handleBack() {
                 'lg:grid-cols-[minmax(0,1fr)_36%]',
               ]"
             >
-              <div :class="['flex flex-col justify-center gap-6 p-5 sm:p-7 lg:p-8']">
-                <div :class="['grid grid-cols-1 gap-5', 'sm:grid-cols-2']">
-                  <FieldInput v-model="cardName" :label="t('settings.pages.card.creation.name')" :description="t('settings.pages.card.creation.fields_info.name')" :required="true" />
-                  <FieldInput v-model="cardNickname" :label="t('settings.pages.card.creation.nickname')" :description="t('settings.pages.card.creation.fields_info.nickname')" />
-                </div>
-                <div :class="['grid grid-cols-1 gap-5', 'sm:grid-cols-2']">
-                  <div :class="['flex flex-col gap-1.5']">
-                    <label :class="moduleFieldLabelClasses">
-                      {{ t('settings.pages.card.body-model') }}
-                    </label>
+              <div :class="['flex flex-col justify-center p-5 sm:p-7 lg:p-8']">
+                <!-- One grid for all fields. Each field fills its row with the heading at the top and the input at the bottom, -->
+                <!-- so headings and inputs line up when one description wraps. -->
+                <div :class="['grid grid-cols-1 gap-x-5 gap-y-6', 'sm:grid-cols-2']">
+                  <FieldInput v-model="cardName" :class="fieldCellClasses" :label="t('settings.pages.card.creation.name')" :description="t('settings.pages.card.creation.fields_info.name')" :required="true" />
+                  <FieldInput v-model="cardNickname" :class="fieldCellClasses" :label="t('settings.pages.card.creation.nickname')" :description="t('settings.pages.card.creation.fields_info.nickname')" />
+                  <!-- The same heading and description as the FieldInput fields beside it. -->
+                  <label :class="['flex h-full flex-col justify-between gap-4']">
+                    <div>
+                      <div :class="['text-sm font-medium']">
+                        {{ t('settings.pages.card.creation.model') }}
+                      </div>
+                      <div :class="['text-xs text-neutral-500 dark:text-neutral-400']">
+                        {{ t('settings.pages.card.creation.fields_info.body_model') }}
+                      </div>
+                    </div>
                     <ComboboxSelect
                       v-model="displayModelSelection"
                       :options="displayModelOptions"
                       :placeholder="t('settings.pages.card.creation.no_model')"
                       class="w-full"
                     />
-                  </div>
-                  <FieldInput v-model="cardVersion" :label="t('settings.pages.card.creation.version')" :required="true" :description="t('settings.pages.card.creation.fields_info.version')" />
+                  </label>
+                  <FieldInput v-model="cardVersion" :class="fieldCellClasses" :label="t('settings.pages.card.creation.version')" :required="true" :description="t('settings.pages.card.creation.fields_info.version')" />
                 </div>
               </div>
               <CardModelPreview
@@ -1044,6 +1065,13 @@ function handleBack() {
             </div>
             <!-- Settings -->
             <div v-else-if="activeSection === 'settings'" :class="['flex flex-col gap-5']">
+              <FieldInput
+                v-model="contextWindowInput"
+                type="number"
+                :placeholder="t('settings.pages.card.context_window_all')"
+                :label="t('settings.pages.card.context_window')"
+                :description="t('settings.pages.card.creation.fields_info.context_window')"
+              />
               <div :class="['grid grid-cols-1 gap-5', 'xl:grid-cols-2']">
                 <FieldInput v-model="cardSystemPrompt" :label="t('settings.pages.card.systemprompt')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.systemprompt')" :input-class="editorLongTextareaClass" />
                 <FieldInput v-model="cardPostHistoryInstructions" :label="t('settings.pages.card.posthistoryinstructions')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.posthistoryinstructions')" :input-class="editorLongTextareaClass" />

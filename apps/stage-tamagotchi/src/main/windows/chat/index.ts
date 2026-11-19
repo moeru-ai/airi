@@ -30,7 +30,7 @@ import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '.
 import { createConfig } from '../../libs/electron/persistence'
 import { createWindowContext } from '../../libs/electron/window-context'
 import { createReusableWindow } from '../../libs/electron/window-manager'
-import { protectPrivilegedWindowNavigation } from '../shared'
+import { customTitleBarWindowConfig, protectPrivilegedWindowNavigation } from '../shared'
 import { setupFloatingChatWindow } from './floating'
 import { createChatModeSwitch } from './mode-switch'
 import { setupChatWindowElectronInvokes } from './rpc/index.electron'
@@ -209,7 +209,7 @@ export function setupChatWindowManager(params: {
       show: false,
       icon,
       ...(isMacOS ? { transparent: true, backgroundColor: '#00000000' } : {}),
-      titleBarStyle: isMacOS ? 'hiddenInset' : undefined,
+      ...customTitleBarWindowConfig(),
       webPreferences: {
         preload: getPreloadPath(),
         sandbox: false,
