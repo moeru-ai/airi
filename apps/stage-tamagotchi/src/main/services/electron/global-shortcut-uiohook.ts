@@ -205,10 +205,17 @@ export function createUiohookDriver(options: UiohookDriverOptions): UiohookDrive
     uIOhook.on('keyup', onKeyup)
   }
 
+  // TODO: Move to a fixed uiohook-napi release. valis-so/uiohook-napi 1.5.5-valis.4 has the fix but no Linux prebuilds.
+  // TODO: Keep the hook running after the first start, so that each voice inlay does not call start() again.
   function startIfNeeded(): void {
     if (started || entries.size === 0)
       return
     try {
+      // NOTICE:
+      // uIOhook.start() can deadlock the macOS main process and freeze the app.
+      // uiohook-napi 1.5.5 calls uv_cond_wait() in hook_enable() without a predicate loop.
+      // Source: src/lib/uiohook_worker.c, https://github.com/SnosMe/uiohook-napi/issues/67.
+      // Remove when a release with the fix ships prebuilds for every AIRI platform.
       uIOhook.start()
       started = true
     }

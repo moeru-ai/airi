@@ -25,8 +25,6 @@ type ManagedExtensionSession = LoadedExtensionSession | CleanupPendingExtensionS
 export interface ManagedSessionSnapshot {
   /** Extensions that callers may treat as active. */
   loadedExtensionIds: string[]
-  /** Manifests for active Extensions passed to the activation Planner. */
-  loadedManifests: ExtensionManifestV2[]
   /** Extensions hidden from active projections but still awaiting cleanup. */
   cleanupPendingExtensionIds: string[]
   /** Manifests for every session still owned by the Electron Host. */
@@ -107,9 +105,6 @@ export class ManagedExtensionSessions {
       loadedExtensionIds: sessions
         .filter(session => session.phase === 'loaded')
         .map(session => session.extensionId),
-      loadedManifests: sessions
-        .filter(session => session.phase === 'loaded')
-        .map(session => session.manifest),
       cleanupPendingExtensionIds: sessions
         .filter((session): session is CleanupPendingExtensionSession => session.phase === 'cleanup-pending')
         .sort((left, right) => left.cleanupSequence - right.cleanupSequence)

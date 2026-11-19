@@ -156,6 +156,13 @@ function createGlobalShortcuts(): HostGlobalShortcuts {
 let shortcuts: HostGlobalShortcuts | undefined
 
 export function useHostGlobalShortcuts(): HostGlobalShortcuts {
-  shortcuts ??= createGlobalShortcuts()
+  if (!shortcuts) {
+    shortcuts = createGlobalShortcuts()
+    if (typeof window !== 'undefined') {
+      window.addEventListener('beforeunload', () => {
+        void shortcuts?.unregisterAll()
+      })
+    }
+  }
   return shortcuts
 }

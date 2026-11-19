@@ -12,9 +12,10 @@ import type { NewMessagesPayload, WireMessage } from '@proj-airi/server-sdk-shar
  * Expects:
  * - Tool-result and tool-call slices are dropped silently. If you need full
  *   fidelity, wait until the server-side schema grows structured content.
+ * - A card uploads as its text, in its own paragraph.
  *
  * Returns:
- * - The first text slice for assistant messages with slice arrays; otherwise
+ * - The text and card slices for assistant messages with slice arrays; otherwise
  *   the message's stringified content. Empty string when nothing extractable.
  */
 export function extractMessageText(message: ChatHistoryItem): string {
@@ -24,10 +25,20 @@ export function extractMessageText(message: ChatHistoryItem): string {
     // `as` cast.
     const assistant: ChatAssistantMessage = message
     if (Array.isArray(assistant.slices) && assistant.slices.length > 0) {
-      const text = assistant.slices
-        .filter((slice): slice is { type: 'text', text: string } => slice.type === 'text')
-        .map(slice => slice.text)
-        .join('')
+      // Text slices of one run join as they streamed. A card ends the run and adds its text as a paragraph.
+      const blocks: string[] = []
+      let run = ''
+      for (const slice of assistant.slices) {
+        if (slice.type === 'text') {
+          run += slice.text
+        }
+        else if (slice.type === 'card') {
+          blocks.push(run, slice.text)
+          run = ''
+        }
+      }
+      blocks.push(run)
+      const text = blocks.filter(Boolean).join('\n\n')
       if (text)
         return text
     }
@@ -62,10 +73,16 @@ export function extractMessageText(message: ChatHistoryItem): string {
  * Returns:
  * - `true` when the message is a user or completed assistant turn. `tool`,
  *   `system`, `error`, and interrupted assistant messages stay local because
- *   the wire schema cannot preserve their runtime state.
+ *   the wire schema cannot preserve their runtime state. A notice and the reply
+ *   to it stay local too: the wire schema cannot mark a notice, so another
+ *   device would read it as owner speech.
  */
 export function isCloudSyncableMessage(message: ChatHistoryItem): boolean {
   if (message.role === 'tool')
+    return false
+  if (message.role === 'user' && message.notice)
+    return false
+  if (message.role === 'assistant' && message.proactive)
     return false
   if (message.role === 'system')
     return false

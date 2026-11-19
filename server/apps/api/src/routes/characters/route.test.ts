@@ -1,13 +1,13 @@
 import type { Database } from '../../libs/db'
 import type { HonoEnv } from '../../types/hono'
 
+import { ApiError } from '@proj-airi/http-error-shared'
 import { Hono } from 'hono'
 import { beforeAll, describe, expect, it } from 'vitest'
 
 import { createCharacterRoutes } from '.'
 import { mockDB } from '../../libs/mock-db'
 import { createCharacterService } from '../../services/domain/characters'
-import { ApiError } from '../../utils/error'
 
 import * as schema from '../../schemas'
 

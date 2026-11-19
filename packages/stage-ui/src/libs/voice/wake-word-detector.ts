@@ -7,6 +7,8 @@ import type { WakePronunciation } from './wake-words'
 import { errorMessageFrom } from '@moeru/std'
 import { observe } from '@proj-airi/pipelines-audio'
 
+import { toMonoSamples } from './mono-samples'
+
 /** The session that a wake selects. The voice activity plugin starts one input for it. */
 export interface WakeTarget {
   readonly sessionId: string
@@ -28,8 +30,11 @@ export interface WakeWordDetectorOptions {
   readonly modelId: string
   /** Creates a spotter Worker. Initialization requires at least one keyword. The detector owns and disposes the result. */
   readonly createSpotter: (keywords: readonly KeywordEntry[]) => Promise<KeywordSpotter>
-  /** Selects the character session after a match. The signal aborts when the observed audio window is abandoned. */
-  readonly resolveTarget: (characterId: string, signal: AbortSignal) => Promise<WakeTarget>
+  /**
+   * Selects the character session after a match. The signal aborts when the observed audio window is abandoned.
+   * `pronunciation` is the matched catalog entry, so the caller can trace which word woke the character.
+   */
+  readonly resolveTarget: (characterId: string, signal: AbortSignal, pronunciation: WakePronunciation) => Promise<WakeTarget>
   readonly onPreparationChange?: (preparation: WakeWordPreparation, error?: string) => void
   /** Receives a failure to select the target session. Recognition continues with the next window. */
   readonly onError?: (error: unknown) => void
@@ -76,23 +81,6 @@ interface RecognitionBatch {
   readonly samples: Float32Array
   readonly sampleRate: number
   readonly reset: boolean
-}
-
-/** Sherpa-ONNX accepts finite mono PCM in [-1, 1]. */
-function toMonoSamples(window: AudioWindow) {
-  const length = window.channels[0]?.length ?? 0
-  const samples = new Float32Array(length)
-  for (const channel of window.channels) {
-    for (let index = 0; index < length; index++)
-      samples[index] += (channel[index] ?? 0) / window.channels.length
-  }
-  for (let index = 0; index < length; index++) {
-    const value = samples[index]
-    // NaN or Infinity from a device or a resampler would poison the decoder state until the next reset.
-    samples[index] = Number.isFinite(value) ? Math.min(1, Math.max(-1, value)) : 0
-  }
-
-  return samples
 }
 
 /**
@@ -164,7 +152,8 @@ export class WakeWordDetector {
     const keywords = this.keywordsOf([...next.values()])
     const update = this.updates.then(async () => {
       // A newer list or a stop replaced this one while an earlier update ran.
-      if (generation !== this.generation || next !== this.pronunciations)
+      // An equal list replaces `pronunciations` without a new generation, so only the generation tells a newer list.
+      if (generation !== this.generation)
         return
 
       if (keywords.length === 0) {
@@ -196,7 +185,7 @@ export class WakeWordDetector {
       // A keyword update starts a new stream in the Worker.
       this.streamSampleRate = undefined
       this.resetStream = false
-      if (generation !== this.generation || next !== this.pronunciations)
+      if (generation !== this.generation)
         return
       this.keywordsReady = true
       this.options.onPreparationChange?.('ready')
@@ -378,7 +367,7 @@ export class WakeWordDetector {
   private async resolveWake(pronunciation: WakePronunciation, generation: number) {
     const signal = this.lifetime.signal
     try {
-      const target = await this.options.resolveTarget(pronunciation.characterId, signal)
+      const target = await this.options.resolveTarget(pronunciation.characterId, signal, pronunciation)
       if (generation === this.generation && !signal.aborted)
         this.wake = target
     }

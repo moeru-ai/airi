@@ -7,13 +7,14 @@ import type { ProviderSyncRow, ProviderSyncSnapshot } from './merge'
 import { useDebounceFn, useIntervalFn, useLocalStorage } from '@vueuse/core'
 import { isEqual } from 'es-toolkit'
 import { nanoid } from 'nanoid'
-import { defineStore } from 'pinia'
+import { defineStore, getActivePinia } from 'pinia'
 import { computed, shallowRef, watch } from 'vue'
 
 import { client } from '../../composables/api'
 import { getDefinedProvider } from '../../libs/providers'
 import { inferenceServiceProvidersService as service } from '../../services/inference-service-providers'
 import { useAuthStore } from '../auth'
+import { useSyncPreferencesStore } from '../sync-preferences'
 import { mergeProviderSync } from './merge'
 
 const providerStorageOptions = {
@@ -25,7 +26,8 @@ const providerStorageOptions = {
 
 const PUSH_DEBOUNCE_MS = 1000
 /** Same idle interval as VS Code Settings Sync. */
-const PULL_INTERVAL_MS = 5 * 60 * 1000
+/** How often a signed-in app syncs the provider configs with the cloud. The provider store checks the added providers after each sync. */
+export const PULL_INTERVAL_MS = 5 * 60 * 1000
 
 export type ProviderReplicaSyncState = 'synced' | 'pending' | 'not-uploaded'
 
@@ -46,7 +48,17 @@ function isUserProvider(provider: InferenceServiceProvider) {
  * on this device, then replica time.
  */
 export const useProviderConfigStore = defineStore('provider-config', () => {
+  // The watcher below runs outside this setup, where the active Pinia can be another one.
+  const pinia = getActivePinia()
   const authStore = useAuthStore()
+  const syncPreferences = useSyncPreferencesStore()
+  /**
+   * Providers sync only while an account is signed in and the provider sync switch is on.
+   * While it is off, changes stay dirty and deletions stay in `pendingDeletes`, so the next sync sends them.
+   */
+  function isSyncActive() {
+    return authStore.isAuthenticated && syncPreferences.isEnabled('providers')
+  }
   const providers = useLocalStorage<Record<string, StoredProvider>>('settings/providers/configured', {}, providerStorageOptions)
   const addedProviders = useLocalStorage<Record<string, boolean>>('settings/providers/added', {}, providerStorageOptions)
   const pendingDeletes = useLocalStorage<Record<string, string | null>>('settings/providers/pending-deletes', {}, providerStorageOptions)
@@ -184,7 +196,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   ))
 
   const replicaSyncState = computed(() => {
-    if (!authStore.isAuthenticated)
+    if (!isSyncActive())
       return emptyReplicaSyncState
 
     const states: Record<string, ProviderReplicaSyncState> = {}
@@ -366,7 +378,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   }
 
   async function syncProviders() {
-    if (!authStore.isAuthenticated)
+    if (!isSyncActive())
       return
 
     if (syncInFlight) {
@@ -402,7 +414,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   }
 
   async function pushProviders() {
-    if (!authStore.isAuthenticated)
+    if (!isSyncActive())
       return
 
     const toUpsert = Object.values(providers.value).filter(provider =>
@@ -464,6 +476,13 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
 
   authStore.onLogout(() => {
     periodicSync.pause()
+  })
+
+  // A sync that the switch turns on catches up at once. `syncProviders` is leader-routed and merges
+  // to the same result when several windows call it. While the switch is off, the periodic sync returns early.
+  watch(() => syncPreferences.isEnabled('providers'), async (enabled) => {
+    if (enabled)
+      await useProviderConfigStore(pinia).syncProviders()
   })
 
   async function addProvider(definitionId: string, initialConfig: Record<string, unknown> = {}) {

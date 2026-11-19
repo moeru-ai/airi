@@ -4,7 +4,8 @@ import type { Detection, KeywordEntry, KeywordSpotter } from '@sherpaw/kws'
 import type { WakeWordDetectorOptions } from './wake-word-detector'
 import type { WakePronunciation } from './wake-words'
 
-import { AudioInput, createPushStream } from '@proj-airi/pipelines-audio'
+import { AudioInput } from '@proj-airi/pipelines-audio'
+import { createPushStream } from '@proj-airi/stream-kit'
 import { describe, expect, it, vi } from 'vitest'
 
 import { WakeWordDetector } from './wake-word-detector'
@@ -96,7 +97,7 @@ describe('wakeWordDetector', () => {
     ])
     expect(harness.spotter.processAudio.mock.calls[0]![0]).toHaveLength(BATCH)
     expect(harness.spotter.processAudio.mock.calls[0]![1]).toBe(16_000)
-    expect(harness.resolveTarget).toHaveBeenCalledWith('bob', expect.any(AbortSignal))
+    expect(harness.resolveTarget).toHaveBeenCalledWith('bob', expect.any(AbortSignal), bob)
     expect(target).toEqual({ sessionId: 'session-bob', interruptTurns: [] })
     expect(harness.detector.take(new AbortController().signal)).toBeUndefined()
     expect(harness.onPreparationChange).toHaveBeenLastCalledWith('ready')
@@ -249,6 +250,27 @@ describe('wakeWordDetector', () => {
 
     expect(await nextWake(harness.detector)).toEqual({ sessionId: 'session-other', interruptTurns: [] })
     expect(harness.spotter.setKeywords).not.toHaveBeenCalled()
+  })
+
+  it('becomes ready when the same catalog arrives again while the spotter is loading', async () => {
+    let finishLoad!: () => void
+    const loaded = new Promise<void>(resolve => finishLoad = resolve)
+    const harness = createHarness()
+    harness.createSpotter.mockImplementationOnce(async () => {
+      await loaded
+      return harness.spotter
+    })
+    const catalog = () => pronunciations([{ characterId: 'alice', text: 'Alice', tokens: [['AE1', 'L', 'IH0', 'S']] }])
+
+    // A reactive catalog can emit an equal list again, for example after the card store hydrates.
+    const first = harness.detector.setPronunciations(catalog())
+    const second = harness.detector.setPronunciations(catalog())
+    finishLoad()
+    await Promise.all([first, second])
+
+    expect(harness.createSpotter).toHaveBeenCalledTimes(1)
+    expect(harness.detector.ready).toBe(true)
+    expect(harness.onPreparationChange).toHaveBeenLastCalledWith('ready')
   })
 
   it('does not load a model for pronunciations of another model', async () => {

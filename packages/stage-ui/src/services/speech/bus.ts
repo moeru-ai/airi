@@ -25,6 +25,13 @@ export const speechOutputGetPlaybackState = defineInvokeEventa<SpeechOutputPlayb
 /** The output host sends its new playback state after `speaking` or `voicing` changes. */
 export const speechOutputPlaybackStateChangedEvent = defineEventa<SpeechOutputPlaybackState>('eventa:audio:speech:output:playback-state-changed')
 
+/**
+ * Level of the assistant speech that plays now, from 0 (silence) to 1 (full scale), with the scale of `voiceInputLevel`.
+ * The output host publishes it every 50 ms while a voice response plays audio, then one 0 when the response stops voicing.
+ * The host reads it before the user volume, so a low volume does not change it.
+ */
+export const speechOutputLevel = defineEventa<{ level: number }>('eventa:audio:speech:output:level')
+
 const BUS_CHANNEL_NAME = 'proj-airi:pipelines:outputs:speech'
 
 let context: ReturnType<typeof createBroadcastChannelContext>['context'] | undefined
@@ -185,3 +192,11 @@ export const voiceRequestMessages = defineEventa('eventa:voice:request-messages'
  * The control that recorded it reports `error`.
  */
 export const voiceMessageDropped = defineEventa<{ id: string, sessionId: string, error: string }>('eventa:voice:message-dropped')
+
+/**
+ * A window that needs the microphone alone, for example for a voiceprint enrollment, holds a capture lease.
+ * While any lease holds, the voice host begins no input and records no voice message, and it ends the ones that run.
+ * The holder renews the lease before `until`, a Unix time in milliseconds, and sends `until: 0` to release it.
+ * A lease that nobody renews ends at `until`, so a closed window cannot keep the voice host paused.
+ */
+export const voiceCaptureLease = defineEventa<{ id: string, until: number }>('eventa:voice:capture-lease')

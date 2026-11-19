@@ -8,12 +8,12 @@ import type { RateLimitMetrics } from './otel'
 import { createHash } from 'node:crypto'
 
 import { account, isUserBannedNow, user } from '@proj-airi/auth-shared'
+import { createBadRequestError, createForbiddenError, createInternalError } from '@proj-airi/http-error-shared'
 import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
-import { boolean, email, nonEmpty, object, pipe, regex, safeParse, string, transform } from 'valibot'
+import { boolean, email, jwsCompact, nonEmpty, object, pipe, safeParse, string, transform } from 'valibot'
 
 import { ensureDynamicFirstPartyRedirectUri } from './auth'
-import { createBadRequestError, createForbiddenError, createInternalError } from './error'
 import { createOidcAccessTokenVerifier } from './oidc-access-token'
 import { rateLimiter } from './rate-limit'
 
@@ -34,7 +34,7 @@ const FORWARDED_AUTH_UI_PROVIDERS = new Set(['google', 'github', 'steam'])
 const JwtBearerTokenSchema = pipe(
   string(),
   transform(value => value.trim()),
-  regex(/^[\w-]+\.[\w-]+\.[\w-]+$/, 'Bearer token must be a compact JWT'),
+  jwsCompact('Bearer token must be a compact JWT'),
 )
 
 /** Builds a route URL below the configured standalone Auth UI base. */
@@ -187,7 +187,9 @@ function buildGravatarUrl(emailAddress: string): string | null {
     return null
 
   const url = new URL(createHash('sha256').update(normalized).digest('hex'), 'https://www.gravatar.com/avatar/')
-  url.searchParams.set('d', 'identicon')
+  // `d=404` makes Gravatar fail when the email has no Gravatar image.
+  // The client `Avatar` then draws its generated beam fallback from the user ID.
+  url.searchParams.set('d', '404')
   url.searchParams.set('s', '200')
   return url.toString()
 }
@@ -250,7 +252,6 @@ function createOIDCTokenAuthRoute(
       const image = session.user.image || buildGravatarUrl(session.user.email)
       return c.json({ ...session, user: { ...session.user, image } })
     })
-    .post('/sign-out', c => c.json({ success: true }))
     .get('/list-sessions', async (c) => {
       const session = await resolveAuthRequest(deps.auth, deps.db, verifyAccessToken, c.req.raw.headers)
       return c.json(session ? [session.session] : [])

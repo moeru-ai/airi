@@ -107,6 +107,24 @@ describe('useVisionInference', () => {
 
   const toolImage = { imageDataUrl: 'data:image/png;base64,Zm9v', workloadId: 'tool:image' as const }
 
+  it('cancels an active read on disable and blocks later provider calls', async () => {
+    const releases = holdEachRead()
+    const { runVisionInference, lastText } = useVisionInference()
+    const read = runVisionInference(toolImage)
+    const cancelled = expect(read).rejects.toMatchObject({ name: 'AbortError' })
+    await vi.advanceTimersByTimeAsync(1)
+    expect(stream).toHaveBeenCalledOnce()
+
+    useVisionStore().enabled = false
+    expect(stream.mock.calls[0][3]?.abortSignal?.aborted).toBe(true)
+    releases[0]()
+    await cancelled
+    await expect(runVisionInference(toolImage)).rejects.toMatchObject({ name: 'AbortError' })
+    expect(stream).toHaveBeenCalledOnce()
+    expect(useVisionActivityStore().inferenceCount).toBe(0)
+    expect(lastText.value).toBe('')
+  })
+
   it('reads one image at a time for a provider that answers one read at a time', async () => {
     // ROOT CAUSE:
     //

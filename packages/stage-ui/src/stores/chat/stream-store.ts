@@ -9,7 +9,7 @@ import { useChatSessionStore } from './session-store'
 
 export const useChatStreamStore = defineStore('chat-stream', () => {
   const chatSession = useChatSessionStore()
-  // Live text stays local. Context events supply remote streams without full-store replication.
+  // Live replies stay local. Context events supply each remote reply whole, without full-store replication.
   const activeTurns = shallowRef<ChatOrchestratorRuntimeState['activeTurns']>([])
   const remoteMessages = ref<Record<string, StreamingAssistantMessage>>({})
   const emptyMessage: StreamingAssistantMessage = { role: 'assistant', content: '', slices: [], tool_results: [] }
@@ -21,25 +21,6 @@ export const useChatStreamStore = defineStore('chat-stream', () => {
 
   function updateActiveTurns(turns: ChatOrchestratorRuntimeState['activeTurns']) {
     activeTurns.value = turns
-  }
-
-  function beginStream(id: string) {
-    streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [], createdAt: Date.now(), id }
-  }
-
-  function appendStreamLiteral(literal: string) {
-    streamingMessage.value.content += literal
-
-    const lastSlice = streamingMessage.value.slices.at(-1)
-    if (lastSlice?.type === 'text') {
-      lastSlice.text += literal
-      return
-    }
-
-    streamingMessage.value.slices.push({
-      type: 'text',
-      text: literal,
-    })
   }
 
   function finalizeStream(fullText?: string) {
@@ -59,8 +40,6 @@ export const useChatStreamStore = defineStore('chat-stream', () => {
     streamingMessage,
     activeTurns,
     updateActiveTurns,
-    beginStream,
-    appendStreamLiteral,
     finalizeStream,
     resetStream,
   }

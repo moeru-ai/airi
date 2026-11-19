@@ -1,8 +1,7 @@
 import type { InferOutput } from 'valibot'
 
+import { createBadGatewayError, createServiceUnavailableError } from '@proj-airi/http-error-shared'
 import { array, boolean, nullable, number, object, safeParse, string } from 'valibot'
-
-import { createBadGatewayError, createServiceUnavailableError } from '../../utils/error'
 
 const REQUEST_TIMEOUT_MS = 5_000
 
@@ -10,6 +9,11 @@ const REQUEST_TIMEOUT_MS = 5_000
 const PAGE_LIMIT = 100
 
 const subscriptionSchema = object({
+  /**
+   * `production` or `sandbox`. A deployment grants only the subscriptions of its own environment.
+   * See `countsFor`.
+   */
+  environment: string(),
   /**
    * RevenueCat's own product id. `GET /products/{id}` gives the store identifier.
    * Null for a promotional subscription, which a person grants and no store sells.
@@ -21,6 +25,8 @@ const subscriptionSchema = object({
   gives_access: boolean(),
   /** Start of the current billing period, in milliseconds. */
   current_period_starts_at: number(),
+  /** End of the current billing period, in milliseconds. Null for a subscription without an end. */
+  current_period_ends_at: nullable(number()),
   entitlements: object({
     items: array(object({ id: string(), lookup_key: string() })),
   }),
@@ -47,8 +53,11 @@ type Subscription = InferOutput<typeof subscriptionSchema>
 export interface SubscriberEntitlement {
   /** The entitlement lookup key, for example `airi_go`. */
   entitlementId: string
-  /** The store product identifier of the subscription that grants it. */
-  productId: string
+  /**
+   * The store product identifier of the subscription that grants it.
+   * Null for a promotional subscription, which an operator grants for one entitlement without a product.
+   */
+  productId: string | null
   /** Start of the current billing period. */
   purchasedAt: Date
   /** The end of access, grace period included. Null means no expiry. */
@@ -77,6 +86,10 @@ export function createRevenuecatSubscriberClient(input: {
   /** API v2 secret key with read access to customer information and project configuration. */
   apiKey: string | null
   projectId: string | null
+  /** The store environment whose subscriptions this deployment grants. */
+  environment: 'production' | 'sandbox'
+  /** Dedicated test accounts whose sandbox subscriptions a production deployment also grants. */
+  sandboxUserIds: readonly string[]
   /**
    * True when this deployment receives RevenueCat webhooks, so it sells subscriptions.
    * A missing configuration is then an error, not a deployment without subscriptions.
@@ -86,6 +99,16 @@ export function createRevenuecatSubscriberClient(input: {
 }) {
   const fetchImpl = input.fetch ?? globalThis.fetch
   const configured = Boolean(input.apiKey && input.projectId)
+  const sandboxUserIds = new Set(input.sandboxUserIds)
+
+  /**
+   * Whether a subscription of this environment can grant the user anything here.
+   * Sandbox subscriptions are test purchases. A production deployment grants them only to listed test accounts.
+   * The webhook also uses it, so a sandbox renewal does not notify a production user.
+   */
+  function countsFor(userId: string, environment: string): boolean {
+    return environment === input.environment || (environment === 'sandbox' && sandboxUserIds.has(userId))
+  }
 
   /** Reads one resource. Returns null for 404, which is a customer that RevenueCat does not know. */
   async function read(url: string): Promise<unknown> {
@@ -142,14 +165,21 @@ export function createRevenuecatSubscriberClient(input: {
    * The entitlements that the customer has now, each with the subscription that grants it.
    * The subscription gives the product and the billing period start. The active entitlement gives the end of access.
    * When two subscriptions grant one entitlement, the later period start is used.
+   * A subscription of another environment grants nothing. See {@link countsFor}.
    */
   async function fetchEntitlements(userId: string): Promise<SubscriberEntitlement[]> {
     if (!configured)
       throw createServiceUnavailableError('RevenueCat is not configured', 'REVENUECAT_NOT_CONFIGURED')
 
-    const granting = (await fetchSubscriptions(userId))
-      .filter(subscription => subscription.gives_access)
+    const withAccess = (await fetchSubscriptions(userId)).filter(subscription => subscription.gives_access)
+    const granting = withAccess
+      .filter(subscription => countsFor(userId, subscription.environment))
       .sort((left, right) => right.current_period_starts_at - left.current_period_starts_at)
+    // The active entitlement list ignores the environment filter. Its end of access can come from an
+    // excluded sandbox subscription, so such an entitlement ends with the period of its own subscription.
+    const sharedWithExcluded = new Set(withAccess
+      .filter(subscription => !countsFor(userId, subscription.environment))
+      .flatMap(subscription => subscription.entitlements.items.map(item => item.id)))
     if (granting.length === 0)
       return []
 
@@ -162,18 +192,22 @@ export function createRevenuecatSubscriberClient(input: {
     const seen = new Set<string>()
     for (const subscription of granting) {
       const granted = subscription.entitlements.items.filter(item => accessUntil.has(item.id) && !seen.has(item.id))
-      // A promotional subscription has no product. No Capacitor is mapped to it, so it grants none.
-      if (granted.length === 0 || subscription.product_id === null)
+      if (granted.length === 0)
         continue
-      const product = safeParse(productSchema, await read(projectUrl(`/products/${encodeURIComponent(subscription.product_id)}`)))
-      if (!product.success)
-        throw createBadGatewayError('RevenueCat subscriber response is invalid')
+      // A promotional subscription has no product. The entitlement alone names the Capacitor.
+      let productId: string | null = null
+      if (subscription.product_id !== null) {
+        const product = safeParse(productSchema, await read(projectUrl(`/products/${encodeURIComponent(subscription.product_id)}`)))
+        if (!product.success)
+          throw createBadGatewayError('RevenueCat subscriber response is invalid')
+        productId = product.output.store_identifier
+      }
       for (const item of granted) {
         seen.add(item.id)
-        const expiresAt = accessUntil.get(item.id)!
+        const expiresAt = sharedWithExcluded.has(item.id) ? subscription.current_period_ends_at : accessUntil.get(item.id)!
         entitlements.push({
           entitlementId: item.lookup_key,
-          productId: product.output.store_identifier,
+          productId,
           purchasedAt: new Date(subscription.current_period_starts_at),
           accessUntil: expiresAt === null ? null : new Date(expiresAt),
         })
@@ -186,6 +220,7 @@ export function createRevenuecatSubscriberClient(input: {
    * Tells whether the store can charge the customer again.
    * RevenueCat reports the status and the renewal status of each subscription, so nothing is inferred from dates.
    * A cancelled subscription keeps its access until the period ends, and it does not count.
+   * A subscription of another environment does not count, so a sandbox purchase cannot block a deletion.
    *
    * Without a configuration the answer is no for a deployment that sells no subscriptions.
    * A deployment that sells them fails, because its subscriptions cannot be read.
@@ -197,10 +232,10 @@ export function createRevenuecatSubscriberClient(input: {
       return false
     }
 
-    return (await fetchSubscriptions(userId)).some(canCharge)
+    return (await fetchSubscriptions(userId)).some(subscription => countsFor(userId, subscription.environment) && canCharge(subscription))
   }
 
-  return { fetchEntitlements, hasRenewingSubscription }
+  return { countsFor, fetchEntitlements, hasRenewingSubscription }
 }
 
 export type RevenuecatSubscriberClient = ReturnType<typeof createRevenuecatSubscriberClient>

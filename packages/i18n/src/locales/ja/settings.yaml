@@ -187,8 +187,6 @@ live2d:
           description: 付属の MAGIC データセットからモーションを生成します。
       magic:
         profile:
-          title: MAGIC プロファイル
-          description: MAGIC ドライバーに適した付属のモーションデータセットを選択してください。
           options:
             idle-calm:
               title: 待機 / 落ち着き
@@ -242,14 +240,7 @@ live2d:
     sdk-preset-preserved-notice: >
       無効化しても SDK の表情およびまばたきプリセットは保持されます。
     no-expression: このモデルで利用可能な表情はありません。
-    llm-integration-wip: LLM 統合エンジンは未完了です。
-    save-default: デフォルトの表情を保存
     reset: すべての表情をリセット
-    expose-to-llm-toggle: LLM へのアクセスを許可
-    expose-to-llm-options:
-      none: なし
-      all: すべて
-      custom: カスタム
 microphone: マイク
 models: モデル
 pages:
@@ -342,10 +333,15 @@ pages:
             label: 確認のためメールアドレスを入力してください
             mismatch: メールアドレスが一致しません。
           confirm: 確認メールを送信
+          deleteNow: 永久に削除
+          confirmPhrase: 確認のため DELETE と入力してください
+          signInAgain: もう一度ログイン
           cancel: キャンセル
         message:
+          deleted: アカウントを削除しました。
           emailSent: '{email} を確認して削除リンクを開いてください。'
         error:
+          reauthenticate: もう一度ログインしてから、ここに戻って削除を確定してください。メールは送信されません。
           fallback: 削除できませんでした。後ほど再試行してください。
           subscriptionActive: サブスクリプションがまだ有効です。先に Capacitor ページで解約してから、アカウントを削除してください。
   card:
@@ -438,7 +434,7 @@ pages:
     delete: 削除
     delete_card: カードを削除
     delete_confirmation: このカードを削除してもよろしいですか？
-    description: AIRIキャラクターカードプリセットを使用する
+    description: AIRIキャラクターカードを管理
     description_label: 説明
     drop_here: アップロードするにはここにドラッグ
     create_card: 新しいカードを作成
@@ -718,7 +714,7 @@ pages:
       gaming: ゲーミング
       artistry: アート
     consciousness:
-      description: 性格、希望するモデルなど。
+      description: 言語モデルの選択と設定
       sections:
         section:
           provider-model-selection:
@@ -823,6 +819,7 @@ pages:
           title: 共有する発音
           description: 複数のキャラクターが同じ発音を使っています。このデバイスで応答するキャラクターを選択してください。各カードのウェイクワードは保持されます。
           choose-label: 応答するキャラクター
+          choose: '{name}（「{word}」）'
           answered-by: '{name} が応答します'
           unresolved: この発音に応答するキャラクターはいません。
       sections:
@@ -831,8 +828,6 @@ pages:
             description: 適切な音声認識プロバイダーを選択
           microphone:
             title: マイク
-            label: マイク
-            description: 聴覚用のマイクを有効にしてください。入力モードによって AIRI が聞き取るタイミングを決めます。
             error: マイクを利用できません
           input-device:
             label: 入力デバイス
@@ -866,6 +861,11 @@ pages:
               preparing: ウェイクワードモデルを準備中…
               ready: ウェイクワードの準備ができました。
               error: 'ウェイクワードモデルを利用できません：{error}'
+          end-judge:
+            title: 発話の終わり
+            description: 話が途切れると、チャットモデルが文字起こしを読み、話し終えたかを判断します。まだ途中なら、AIRI は続きを話せるよう 3 秒長く待ちます。
+            enabled: 話し終えたかを判定
+            enabled-description: 話が途切れるたびに、その文字起こしが修正用のモデルに送信されます。オフにすると、AIRI は少し間があいた時点で発話を終了します。
           rephrase:
             title: 文字起こしの修正
             description: チャットモデルが認識ミスや不要なつなぎ言葉を修正してから、文字起こしを下書きにします。元のテキストも保持されます。
@@ -959,7 +959,7 @@ pages:
       title: 音声
     title: モジュール
     vision:
-      description: 視覚
+      description: 画像理解とスクリーンキャプチャの設定
       title: 視覚
       tool-images:
         label: ツールの画像に視覚モデルを使う
@@ -1309,6 +1309,7 @@ pages:
         headers:
           label: ヘッダー
           description: 認証トークンなど、各リクエストとともに送るヘッダーです。
+          value-placeholder: Bearer トークン
         command:
           label: コマンド
           description: stdio 経由で実行される実行ファイル。
@@ -1385,11 +1386,9 @@ pages:
       buy: 購入
       description: 選択可能な Flux パッケージ。
   capacitor:
-    description: Capacitor は Flux を蓄え、自動で充電されます。
     statusError: Capacitor を読み込めませんでした。後でもう一度お試しください。
     packagesError: Capacitor の一覧を読み込めませんでした。後でもう一度お試しください。
     preferenceError: 設定を保存できませんでした。後でもう一度お試しください。
-    noCapacitor: Capacitor なし
     remaining: '残り {percent}'
     rechargesAt: '{date} に充電'
     renewsAt: '{date} に更新'
@@ -1887,7 +1886,7 @@ pages:
         playground:
           title: 文字起こし実験場
       aihubmix:
-        description: https://aihubmix.com (10% オフ)
+        description: aihubmix.com (10% オフ)
     title: プロバイダー
   connection:
     description: WebSocket サーバーの接続設定

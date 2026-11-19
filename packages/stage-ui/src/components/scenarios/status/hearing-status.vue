@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { LevelBars } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -19,7 +20,7 @@ const microphoneError = computed(() => snapshot.value.microphone?.error)
 const transcript = computed(() => snapshot.value.input?.text)
 const isTranscribing = computed(() => snapshot.value.input?.phase === 'finalizing')
 const { volumeLevel } = useAudioAnalyzer()
-const { configured } = storeToRefs(useHearingStore())
+const { configured, enabled: hearingEnabled } = storeToRefs(useHearingStore())
 const issue = computed(() => {
   // Device failure prevents all input, so it takes precedence over provider feedback.
   if (microphoneError.value)
@@ -53,7 +54,7 @@ const label = computed(() => {
 
 <template>
   <StatusCapsule
-    v-if="enabled || issue || isTranscribing"
+    v-if="hearingEnabled && (enabled || issue || isTranscribing)"
     :align="align"
     :data-status="state"
     :tone="issue ? 'error' : 'neutral'"
@@ -61,14 +62,7 @@ const label = computed(() => {
     :details="issue || transcript || t('stage.status.no-transcript')"
   >
     <template #indicator>
-      <span aria-hidden="true" :class="['h-5 flex items-center justify-center gap-1']">
-        <span
-          v-for="(weight, index) in [0.4, 0.75, 1, 0.7, 0.45]"
-          :key="index"
-          :class="['hearing-bar block w-1 rounded-full bg-current', state === 'busy' && 'hearing-bar-busy']"
-          :style="{ height: `${4 + amplitude * weight * 16}px`, animationDelay: `${index * -120}ms` }"
-        />
-      </span>
+      <LevelBars :level="amplitude" :busy="state === 'busy'" />
       <span v-if="issue" aria-hidden="true" :class="['i-solar:danger-circle-linear ml-1.5 size-4']" />
     </template>
     <template v-if="issue" #details>
@@ -89,20 +83,3 @@ const label = computed(() => {
     </template>
   </StatusCapsule>
 </template>
-
-<style scoped>
-.hearing-bar {
-  transition: height 100ms ease-out;
-}
-.hearing-bar-busy {
-  animation: hearing-wave 900ms ease-in-out infinite;
-}
-@keyframes hearing-wave {
-  0%, 100% { transform: scaleY(1); opacity: 0.45; }
-  50% { transform: scaleY(3); opacity: 1; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .hearing-bar { transition: none; }
-  .hearing-bar-busy { animation: none; }
-}
-</style>

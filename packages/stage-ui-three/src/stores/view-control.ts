@@ -1,4 +1,4 @@
-import { useLocalStorage } from '@vueuse/core'
+import { useModelScopedLocalStorage } from '@proj-airi/stage-shared/composables'
 import { ref } from 'vue'
 
 import { DEFAULT_CAMERA_DISTANCE, DEFAULT_CAMERA_FOV, useThreeCamera } from './camera'
@@ -60,7 +60,7 @@ const clampMinMax = (value: number, min: number, max: number) => Math.min(Math.m
 const { cameraDistance, cameraFOV } = useThreeCamera()
 const controlConfig = ref(defaultControlConfig)
 /** model position from the scene origin, in meters. */
-const modelOffset = useLocalStorage('settings/stage-ui-three/modelOffset', { x: defaultControlConfig.x.default, y: defaultControlConfig.y.default, z: defaultControlConfig.z.default })
+const modelOffset = useModelScopedLocalStorage('three', 'settings/stage-ui-three/modelOffset', { x: defaultControlConfig.x.default, y: defaultControlConfig.y.default, z: defaultControlConfig.z.default })
 /**
  * show or hide the control element(slider) on HUD.
  *  also enable/disable camera panning.

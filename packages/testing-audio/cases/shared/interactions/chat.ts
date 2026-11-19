@@ -34,7 +34,7 @@ export async function enableChatMicrophone(
 
   if (runtime.target === 'web') {
     // The startup screen covers the page until its exit animation ends.
-    // A click before that point lands on the startup screen and does not open the hearing popover.
+    // A click before that point lands on the startup screen and does not open the microphone menu.
     await runtime.page.locator('.startup-screen').waitFor({ state: 'detached', timeout: 60_000 })
   }
 
@@ -48,34 +48,36 @@ export async function enableChatMicrophone(
       return devices.some(device => device.kind === 'audioinput' && device.label.includes('Fake'))
     })
 
-    const hearingTrigger = runtime.runtimePage.locator('div[aria-haspopup="dialog"] button').first()
-    await hearingTrigger.waitFor({ state: 'visible', timeout: 15_000 })
-    await hearingTrigger.hover()
-    await hearingTrigger.click({ force: true })
-    await runtime.runtimePage.waitForTimeout(500)
-
-    const enableButton = runtime.runtimePage.locator('button[aria-label="Enable microphone input"]')
-    await enableButton.waitFor({ state: 'visible', timeout: 15_000 })
+    // The controls island has its own microphone switch. Its `aria-pressed` follows the microphone preference.
+    const microphoneSwitch = runtime.runtimePage.locator('[data-testid="controls-island-microphone"]')
+    await microphoneSwitch.waitFor({ state: 'visible', timeout: 15_000 })
     const inputReady = options.readiness === 'streaming-transcription'
       ? runtime.waitForStreamingTranscriptionReady()
       : undefined
-    await enableButton.click({ force: true })
-    const disableButton = runtime.runtimePage.locator('button[aria-label="Disable microphone input"]')
-    await disableButton.waitFor({ state: 'visible', timeout: 15_000 })
+    if (await microphoneSwitch.getAttribute('aria-pressed') !== 'true')
+      await microphoneSwitch.click({ force: true })
+    await runtime.runtimePage.locator('[data-testid="controls-island-microphone"][aria-pressed="true"]').waitFor({ state: 'visible', timeout: 15_000 })
     await inputReady
     return
   }
 
-  const microphoneTrigger = page.getByRole('button', { name: 'Hearing' }).first()
-  await microphoneTrigger.click({ force: true })
+  // The Web composer has no listening switch. Its microphone menu opens the Hearing settings, which hold the Listen switch.
+  // The router keeps the document, so the browser probe and the transcription capture stay on the page.
+  await page.getByRole('button', { name: /^(?:Dictation|Walkie-talkie|Voice message)$/ }).click({ button: 'right' })
+  await page.getByRole('menuitem', { name: 'More Hearing settings…' }).click()
 
-  const enableButton = page.locator('button[aria-label="Enable microphone input"]')
-  await enableButton.waitFor({ state: 'visible' })
+  const listenSwitch = page.getByRole('switch', { name: /^Listen/ })
+  await listenSwitch.waitFor({ state: 'visible', timeout: 15_000 })
   const inputReady = options.readiness === 'streaming-transcription'
     ? runtime.waitForStreamingTranscriptionReady()
     : undefined
-  await enableButton.click()
-  await page.locator('button[aria-label="Disable microphone input"]').waitFor({ state: 'visible' })
+  if (!await listenSwitch.isChecked())
+    await listenSwitch.click()
+  await page.getByRole('switch', { name: /^Listen/, checked: true }).waitFor({ state: 'visible', timeout: 15_000 })
+
+  // The stage page owns the voice host, so listening starts after the user returns to it.
+  await page.goBack()
+  await page.locator('textarea').first().waitFor({ state: 'visible', timeout: 60_000 })
   await inputReady
 }
 

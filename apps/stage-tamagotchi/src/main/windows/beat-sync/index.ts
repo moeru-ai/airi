@@ -1,25 +1,25 @@
-import { dirname, join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
-
 import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
 import { BrowserWindow } from 'electron'
 
-import { baseUrl, getElectronMainDirname, load } from '../../libs/electron/location'
+import { baseUrl, getPreloadPath, getRendererRoot, load } from '../../libs/electron/location'
+import { excludeWindowFromTaskbar } from '../shared/app-icon'
 import { protectPrivilegedWindowNavigation } from '../shared/window'
 
 /** Creates the hidden renderer that owns the Beat Sync capture and detector. */
 export async function setupBeatSync() {
   const window = new BrowserWindow({
     show: false,
+    skipTaskbar: true,
     webPreferences: {
-      preload: join(dirname(fileURLToPath(import.meta.url)), '../preload/beat-sync.mjs'),
+      preload: getPreloadPath('beat-sync'),
       sandbox: false,
     },
   })
 
+  excludeWindowFromTaskbar(window)
   protectPrivilegedWindowNavigation(window)
 
-  await load(window, baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'), 'beat-sync.html'))
+  await load(window, baseUrl(getRendererRoot(), 'beat-sync.html'))
   initScreenCaptureForWindow(window)
 
   return window

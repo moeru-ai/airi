@@ -1,5 +1,7 @@
 import { SERVER_URL } from '@proj-airi/stage-ui/libs/server'
 
+import { isLoopbackUrl } from './loopback'
+
 export interface ServerAuthBootstrapContext {
   apiServerUrl: string
   currentUrl: string
@@ -26,13 +28,6 @@ const TRUSTED_HTTPS_API_SERVER_HOSTS = new Map(
     return [url.hostname, origin]
   }),
 )
-
-const TRUSTED_LOCAL_API_SERVER_ORIGIN_PATTERNS = [
-  /^http:\/\/localhost(:\d+)?$/,
-  /^http:\/\/127\.0\.0\.1(:\d+)?$/,
-  /^https:\/\/localhost(:\d+)?$/,
-  /^https:\/\/127\.0\.0\.1(:\d+)?$/,
-]
 
 let cachedContext: ServerAuthBootstrapContext | null | undefined
 
@@ -107,7 +102,7 @@ function normalizeTrustedApiServerUrl(value: string | null): string | null {
     if (TRUSTED_STANDALONE_API_SERVER_ORIGINS.includes(origin))
       return origin
 
-    if (TRUSTED_LOCAL_API_SERVER_ORIGIN_PATTERNS.some(pattern => pattern.test(origin)))
+    if (isLoopbackUrl(url))
       return origin
 
     return null

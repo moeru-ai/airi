@@ -1,5 +1,5 @@
 import { createInsertSchema, createSelectSchema } from 'drizzle-valibot'
-import { array, literal, number, object, optional, string, union } from 'valibot'
+import { array, literal, object, optional, string, union } from 'valibot'
 
 import * as schema from '../../schemas/characters'
 
@@ -11,35 +11,6 @@ export const AvatarModelConfigSchema = object({
     urls: array(string()),
   })),
 })
-
-export const CharacterCapabilityConfigSchema = object({
-  apiKey: string(),
-  apiBaseUrl: string(),
-  llm: optional(object({
-    temperature: number(),
-    topP: optional(number()),
-    model: string(),
-  })),
-  tts: optional(object({
-    ssml: string(),
-    voiceId: string(),
-    speed: number(),
-    pitch: number(),
-  })),
-  vlm: optional(object({
-    image: string(),
-  })),
-  asr: optional(object({
-    audio: string(),
-  })),
-})
-
-const CharacterCapabilityTypeSchema = union([
-  literal('llm'),
-  literal('tts'),
-  literal('vlm'),
-  literal('asr'),
-])
 
 const AvatarModelTypeSchema = union([
   literal('vrm'),
@@ -79,8 +50,8 @@ export const CreateCharacterSchema = object({
   })),
   capabilities: optional(array(createInsertSchema(schema.characterCapabilities, {
     characterId: optional(string()),
-    type: CharacterCapabilityTypeSchema,
-    config: CharacterCapabilityConfigSchema,
+    type: schema.CharacterCapabilityTypeSchema,
+    config: schema.CharacterCapabilityConfigSchema,
   }))),
   avatarModels: optional(array(createInsertSchema(schema.avatarModel, {
     characterId: optional(string()),
@@ -104,7 +75,7 @@ export const UpdateCharacterSchema = object({
   characterId: optional(string()),
   capabilities: optional(array(createInsertSchema(schema.characterCapabilities, {
     characterId: optional(string()),
-    type: CharacterCapabilityTypeSchema,
-    config: CharacterCapabilityConfigSchema,
+    type: schema.CharacterCapabilityTypeSchema,
+    config: schema.CharacterCapabilityConfigSchema,
   }))),
 })

@@ -138,6 +138,9 @@ const EnvSchema = intersect([S3EnvironmentSchema, object({
   OPENPANEL_API_URL: optional(string()),
   OPENPANEL_CLIENT_ID: optional(string()),
   OPENPANEL_CLIENT_SECRET: optional(string()),
+  POSTHOG_API_HOST: optional(string(), 'https://t.airi.build'),
+  // Server product events. Absent disables forwarding to PostHog.
+  POSTHOG_PROJECT_KEY: optional(string()),
   REDIS_URL: pipe(string(), nonEmpty('REDIS_URL is required')),
   STRIPE_SECRET_KEY: optional(string()),
 
@@ -152,6 +155,14 @@ const EnvSchema = intersect([S3EnvironmentSchema, object({
   // one of them is unset, so RevenueCat sends the event again.
   REVENUECAT_V2_API_KEY: optional(string()),
   REVENUECAT_PROJECT_ID: optional(string()),
+  // The store environment whose RevenueCat subscriptions this deployment grants. A dev deployment
+  // that sells with the sandbox Web Billing key sets `sandbox`.
+  REVENUECAT_ENVIRONMENT: optional(picklist(['production', 'sandbox']), 'production'),
+  // Exact internal IDs of dedicated accounts whose sandbox subscriptions a production deployment grants.
+  REVENUECAT_SANDBOX_USER_IDS: optional(pipe(
+    string(),
+    transform(raw => [...new Set(raw.split(',').map(id => id.trim()).filter(Boolean))]),
+  ), ''),
   // Testing-only bearer token bypass. Keep unset in production. When set,
   // Authorization: Bearer $TEST_AUTH_TOKEN resolves to the virtual user below
   // through resolveRequestAuth without creating an Auth session row.
