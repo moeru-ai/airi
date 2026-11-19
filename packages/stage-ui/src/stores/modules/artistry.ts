@@ -1,3 +1,4 @@
+import type { ArtistryGlobals, ComfyUIWorkflowTemplate } from '@proj-airi/stage-shared'
 import type {} from 'pinia-plugin-synced'
 
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
@@ -9,14 +10,7 @@ export interface ResolvedArtistryConfig {
   model?: string
   promptPrefix?: string
   options?: Record<string, any>
-  globals: Record<string, any>
-}
-
-export interface ComfyUIWorkflowTemplate {
-  id: string
-  name: string
-  workflow: Record<string, any>
-  exposedFields: Record<string, string[]>
+  globals: ArtistryGlobals
 }
 
 export const useArtistryStore = defineStore('artistry', () => {
