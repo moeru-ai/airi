@@ -346,7 +346,11 @@ describe('createMcpManager', () => {
   //
   // We fixed this by returning `unknown` with `doNotReplay` for every failure
   // after dispatch, not only for abort.
-  it('returns unknown with doNotReplay when a dispatched Computer Use reply is lost', async () => {
+  it.each([
+    'MCP request timed out',
+    'connection closed',
+    'response lost',
+  ])('returns unknown with doNotReplay when a dispatched Computer Use reply fails with %s', async (message) => {
     const actions = new PendingActionManager()
     const attribution = { sessionId: 'session-lost-reply', turnId: 'turn-lost-reply', toolCallId: 'call-lost-reply' }
     const request = actions.registerRequest({ sessionId: attribution.sessionId, turnId: attribution.turnId, text: 'Change the desktop.' }, 71)
@@ -364,14 +368,51 @@ describe('createMcpManager', () => {
     await manager.applyAndRestart()
     clientMocks.listTools.mockResolvedValue({ tools: [{ name: 'computer_act', inputSchema: { type: 'object' } }] })
     clientMocks.callTool.mockResolvedValue({ content: [], structuredContent: { status: 'approval_required', pendingActionId: 'pending-lost-reply', toolName: 'computer_act', action: { kind: 'click', input: { x: 10, y: 20 } } } })
-    clientMocks.privateRequest.mockRejectedValue(new Error('MCP request timed out'))
+    clientMocks.privateRequest.mockRejectedValue(new Error(message))
 
-    await expect(manager.callTool({ name: 'airi-terminal::computer_act', arguments: { x: 10, y: 20 }, requestId: request.id, attribution }, 71)).resolves.toMatchObject({
+    const result = await manager.callTool({ name: 'airi-terminal::computer_act', arguments: { x: 10, y: 20 }, requestId: request.id, attribution }, 71)
+    expect(result).toMatchObject({
       isError: true,
       structuredContent: { status: 'unknown', doNotReplay: true, pendingActionId: 'pending-lost-reply' },
     })
+    expect(result.structuredContent).not.toMatchObject({ status: 'executed' })
     expect(presentComputerUse).not.toHaveBeenCalled()
     expect(clientMocks.privateRequest).toHaveBeenCalledOnce()
+  })
+
+  it('reports cancelled without doNotReplay when aborted before Computer Use dispatch', async () => {
+    const actions = new PendingActionManager()
+    const attribution = { sessionId: 'session-pre-dispatch', turnId: 'turn-pre-dispatch', toolCallId: 'call-pre-dispatch' }
+    const request = actions.registerRequest({ sessionId: attribution.sessionId, turnId: attribution.turnId, text: 'Change the desktop.' }, 71)
+    const abort = new AbortController()
+    const presentComputerUse = vi.fn(async (_request, signal?: AbortSignal) => {
+      abort.abort(new Error('user cancelled before dispatch'))
+      signal?.throwIfAborted()
+      return false
+    })
+    const manager = createMcpManager({
+      actions,
+      present: vi.fn(async () => false),
+      presentComputerUse,
+      executeInSlot: async operation => operation(new AbortController().signal, () => {}),
+      notify: async notice => ({ status: 'stored', sessionId: notice.sessionId, messageId: 'fixture' }),
+    })
+    managers.push(manager)
+    await manager.writeConfigText(JSON.stringify({ terminalEnabled: true, mcpServers: {} }))
+    await manager.applyAndRestart()
+    clientMocks.listTools.mockResolvedValue({ tools: [{ name: 'computer_act', inputSchema: { type: 'object' } }] })
+    clientMocks.callTool.mockResolvedValue({ content: [], structuredContent: { status: 'approval_required', pendingActionId: 'pending-pre-dispatch', toolName: 'computer_act', action: { kind: 'click', input: { x: 10, y: 20 } } } })
+
+    const result = await manager.callTool({ name: 'airi-terminal::computer_act', arguments: { x: 10, y: 20 }, requestId: request.id, attribution }, 71, abort.signal)
+    expect(result).toMatchObject({
+      isError: true,
+      structuredContent: { status: 'cancelled', pendingActionId: 'pending-pre-dispatch' },
+    })
+    expect(result.structuredContent).not.toMatchObject({ doNotReplay: true })
+    expect(result.structuredContent).not.toMatchObject({ status: 'unknown' })
+    expect(result.structuredContent).not.toMatchObject({ status: 'executed' })
+    expect(presentComputerUse).toHaveBeenCalledOnce()
+    expect(clientMocks.privateRequest.mock.calls.every(([payload]) => payload.method !== 'airi/computer-use/execute-prepared')).toBe(true)
   })
 
   it('starts the bundled Terminal in a new packaged Beta profile without external Node or a persisted install path', async () => {

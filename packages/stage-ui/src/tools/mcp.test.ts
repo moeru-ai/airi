@@ -26,6 +26,7 @@ describe('mcp Agent execution prompt', () => {
     expect(MCP_AGENT_EXECUTION_PROMPT).toContain('External MCP tools are Host-selected and can be injected on demand.')
     expect(MCP_AGENT_EXECUTION_PROMPT).toContain('Complete safe, authorized steps and verify their effects before you report a blocker for later gameplay.')
     expect(MCP_AGENT_EXECUTION_PROMPT).toContain('Do not claim that a requested app is unavailable or a game cannot be played based only on a supported-app list.')
+    expect(MCP_AGENT_EXECUTION_PROMPT).toContain('Do not repeat an action after a lost or unclear result. Inspect the current state first.')
   })
 })
 
@@ -212,6 +213,25 @@ describe('mcp discovery', () => {
     expect(await terminal.execute({}, { messages: [], toolCallId: 'once' })).toMatchObject({ isError: true, content: [{ text: 'Effect occurred, response lost.' }] })
     expect(runtime.callTool).toHaveBeenCalledOnce()
     expect(effects).toBe(1)
+  })
+
+  it('preserves Host unknown doNotReplay structured content for the model', async () => {
+    const runtime = createRuntime()
+    const direct = [{ serverName: 'airi-terminal', name: 'airi-terminal::computer_act', toolName: 'computer_act', exposure: 'direct', inputSchema: { type: 'object', properties: {} } }] as const
+    vi.mocked(runtime.listTools).mockResolvedValue([...direct])
+    vi.mocked(runtime.callTool).mockResolvedValue({
+      isError: true,
+      content: [{ type: 'text', text: 'The Computer Use action was dispatched before the failure. Its outcome is unknown. Check the current state before repeating it.' }],
+      structuredContent: { status: 'unknown', doNotReplay: true, pendingActionId: 'pending-1' },
+    })
+    const tools = await createMcpTools(runtime, { direct })
+    const computerAct = tools.find(tool => tool.function.name === 'computer_act')!
+
+    await expect(computerAct.execute({}, { messages: [], toolCallId: 'once' })).resolves.toMatchObject({
+      isError: true,
+      structuredContent: { status: 'unknown', doNotReplay: true, pendingActionId: 'pending-1' },
+    })
+    expect(runtime.callTool).toHaveBeenCalledOnce()
   })
 
   it('registers direct and discovery tools without starting the catalog request', async () => {
