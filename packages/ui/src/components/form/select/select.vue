@@ -31,6 +31,12 @@ const props = withDefaults(defineProps<{
   contentAlign?: SelectContentProps['align']
   shape?: 'rounded' | 'default'
   variant?: 'blurry' | 'default'
+  /**
+   * The size of the trigger. A small trigger fits next to a line of small text. The options keep their size.
+   *
+   * @default 'md'
+   */
+  size?: 'sm' | 'md'
   class?: string | string[]
 }>(), {
   placeholder: 'Select an option',
@@ -42,6 +48,7 @@ const props = withDefaults(defineProps<{
   contentAlign: 'start',
   shape: 'default',
   variant: 'default',
+  size: 'md',
 })
 
 const modelValue = defineModel<T>({ required: false })
@@ -107,9 +114,10 @@ function toCssSize(value?: string | number): string | undefined {
       :class="[
         'group',
         ...Array.isArray(props.class) ? props.class : [props.class],
-        'w-full inline-flex items-center justify-between border px-3 leading-none h-9 gap-[5px] outline-none',
+        'w-full inline-flex items-center justify-between border leading-none outline-none',
+        props.size === 'sm' ? 'h-7 gap-1 px-2.5 text-xs' : 'h-9 gap-[5px] px-3 text-sm',
         props.shape === 'rounded' ? 'rounded-full' : 'rounded-lg',
-        'text-sm text-neutral-700 dark:text-neutral-200 data-[placeholder]:text-neutral-400 dark:data-[placeholder]:text-neutral-500',
+        'text-neutral-700 dark:text-neutral-200 data-[placeholder]:text-neutral-400 dark:data-[placeholder]:text-neutral-500',
         props.variant === 'default' ? 'bg-white dark:bg-neutral-900 disabled:bg-neutral-100 hover:bg-neutral-50 dark:disabled:bg-neutral-900 dark:hover:bg-neutral-700' : '',
         props.variant === 'blurry' ? 'bg-neutral-50/70 dark:bg-neutral-800/70 disabled:bg-neutral-100 hover:bg-neutral-100 dark:disabled:bg-neutral-900 dark:hover:bg-neutral-800' : '',
         props.variant === 'blurry' ? 'backdrop-blur-md' : '',
@@ -146,7 +154,8 @@ function toCssSize(value?: string | number): string | undefined {
         <div
           i-solar:alt-arrow-down-linear
           :class="[
-            'h-4 w-4 shrink-0',
+            props.size === 'sm' ? 'size-3.5' : 'size-4',
+            'shrink-0',
             'text-neutral-700 dark:text-neutral-200',
             'transition-transform duration-200 ease-in-out',
             'group-data-[state=open]:rotate-180',

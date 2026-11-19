@@ -41,6 +41,14 @@ export interface VoiceControllerOptions<TNode = never> extends SpeechInputPorts 
   readonly recordInterruption?: (event: VoiceInterruptionEvent) => Promise<{ status: 'acknowledged' | 'queued' | 'failed' }>
   /** @default 100. Playback uses its audio clock to apply this fade. */
   readonly fadeMs?: number
+  /**
+   * After an input ends, its provider must close the transcript within this time. Otherwise the input fails at the
+   * `transcription` stage and submits nothing. A provider that transcribes only after the audio ends, for example a
+   * file upload, uses this time for the whole request.
+   *
+   * @default 30_000
+   */
+  readonly transcriptionTimeoutMs?: number
 }
 
 interface TurnInterruption {
@@ -94,10 +102,13 @@ export class VoiceController<TNode = never> {
   private readonly inputOwner: SpeechInputAttemptOwner
 
   constructor(private readonly options: VoiceControllerOptions<TNode>) {
+    if (options.transcriptionTimeoutMs !== undefined && (!Number.isFinite(options.transcriptionTimeoutMs) || options.transcriptionTimeoutMs < 0))
+      throw new Error('Transcription timeout must be finite and nonnegative')
     this.audioInput = options.audio
     this.currentPlayback = options.playback
     this.inputOwner = {
       options,
+      transcriptionTimeoutMs: options.transcriptionTimeoutMs ?? 30_000,
       audio: () => this.audioInput,
       interrupt: request => this.interrupt(request),
       createPlugins: (attempt, input) => this.plugins.input(attempt, input),

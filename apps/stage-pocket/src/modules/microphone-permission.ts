@@ -8,5 +8,5 @@ interface MicrophonePermissionPlugin {
   checkPermission: () => Promise<MicrophonePermissionState>
 }
 
-/** Reads Android's native microphone permission state without triggering a permission request. */
+/** Reads the native microphone permission state of Android and iOS without a permission request. */
 export const MicrophonePermission = registerPlugin<MicrophonePermissionPlugin>('MicrophonePermission')

@@ -11,7 +11,10 @@ import type { CharacterAvatarModelReference } from './avatar-model'
  * losing each other's configuration.
  */
 export interface AiriExtension {
-  /** Message limit, including current input. Missing or `-1` keeps all history. `0` sends only current input. System messages are exempt. */
+  /**
+   * Conversation turn limit, including the current input's turn. Each turn contains a user group and its assistant/tool group.
+   * Missing or `-1` keeps all history. `0` sends only current input. System messages are exempt.
+   */
   contextWindow?: number
 
   wakeWords?: WakeWord[]

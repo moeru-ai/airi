@@ -40,6 +40,8 @@ export interface AutoUpdaterDiagnostics {
 export interface AutoUpdaterState {
   status: AutoUpdaterStatus
   info?: Omit<UpdateInfo, 'path' | 'sha512'>
+  /** The web page that lists the changes of the update in `info`, for example its release page. */
+  changesUrl?: string
   progress?: AutoUpdaterProgress
   error?: AutoUpdaterError
   diagnostics?: AutoUpdaterDiagnostics

@@ -8,6 +8,7 @@ import type { SettingsWindowManager } from '../settings'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
+import { onWindowClosed } from '@proj-airi/electron-vueuse/main'
 import { defu } from 'defu'
 import { BrowserWindow, ipcMain } from 'electron'
 import { isLinux } from 'std-env'
@@ -165,7 +166,7 @@ export async function setupDashboardWindow(params: {
     const { context } = createWindowContext(window)
     const cleanUpWindowDraggingInvokeHandler = defineInvokeHandler(context, electronStartDraggingWindow, handleStartDraggingWindow)
 
-    window.on('closed', () => {
+    onWindowClosed(window, () => {
       cleanUpWindowDraggingInvokeHandler()
     })
   }

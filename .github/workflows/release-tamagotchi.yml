@@ -122,6 +122,9 @@ jobs:
     continue-on-error: ${{ matrix.skip }} # WORKAROUND: Skipping subsequent steps without failing the whole workflow
     env:
       VITE_ENABLE_ANALYTICS: ${{ github.event_name == 'workflow_dispatch' && inputs.build_only && 'false' || 'true' }}
+      # Uploads source maps to Sentry. The build skips the upload when the secret is absent.
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      VITE_REVENUECAT_WEB_KEY: ${{ vars.VITE_REVENUECAT_WEB_KEY }}
       ERGOSPHERE_IT_RELEASE_ID: ${{ needs.updates.outputs.bundle-release-id }}
       ERGOSPHERE_IT_INSTALLER_RELEASE_ID: ${{ needs.updates.outputs.installer-release-id }}
       ERGOSPHERE_IT_VERSION: ${{ needs.updates.outputs.version }}
@@ -756,6 +759,9 @@ jobs:
     env:
       # The same build as the installers of this run, so the channel serves the bundle that they ship.
       VITE_ENABLE_ANALYTICS: ${{ github.event_name == 'workflow_dispatch' && inputs.build_only && 'false' || 'true' }}
+      # Uploads source maps to Sentry. The build skips the upload when the secret is absent.
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      VITE_REVENUECAT_WEB_KEY: ${{ vars.VITE_REVENUECAT_WEB_KEY }}
       ERGOSPHERE_IT_RELEASE_ID: ${{ needs.updates.outputs.bundle-release-id }}
       ERGOSPHERE_IT_INSTALLER_RELEASE_ID: ${{ needs.updates.outputs.installer-release-id }}
       ERGOSPHERE_IT_VERSION: ${{ needs.updates.outputs.version }}
@@ -867,8 +873,11 @@ jobs:
   publish-gitcode-release:
     name: Publish GitCode Release Mirror
     needs: build
-    if: ${{ always() && github.repository == 'moeru-ai/airi' && ((github.event_name == 'release' && github.event.action == 'published' && github.event.release.prerelease) || (github.event_name == 'workflow_dispatch' && !inputs.build_only && !inputs.artifacts_only && inputs.tag != '')) }}
+    if: ${{ always() && github.repository == 'moeru-ai/airi' && ((github.event_name == 'release' && (github.event.action == 'published' || github.event.action == 'released')) || (github.event_name == 'workflow_dispatch' && !inputs.build_only && !inputs.artifacts_only && inputs.tag != '')) }}
     continue-on-error: true
+    concurrency:
+      group: gitcode-release-${{ github.event.release.tag_name || inputs.tag }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -878,6 +887,10 @@ jobs:
           gh --version
           jq --version
           curl --version
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
 
       - name: Publish release assets to GitCode
         env:

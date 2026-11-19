@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS "llm_request_log_created_idx" ON "llm_request_log" USING btree ("created_at");

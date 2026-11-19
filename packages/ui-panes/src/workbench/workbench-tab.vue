@@ -33,7 +33,7 @@ onScopeDispose(() => disposables.forEach(disposable => disposable.dispose()))
         'text-xs font-medium whitespace-nowrap',
         'transition-colors duration-150',
         selected
-          ? 'bg-neutral-100 text-neutral-900 ring-1 ring-black/5 dark:bg-neutral-800 dark:text-neutral-100 dark:ring-white/5'
+          ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/40 dark:text-primary-200'
           : 'text-neutral-500 hover:bg-neutral-100/70 hover:text-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-800/60 dark:hover:text-neutral-200',
       ]"
     >

@@ -30,7 +30,7 @@
   "dependencies": {
     "@fontsource-variable/comfortaa": "catalog:",
     "@moeru/std": "catalog:",
-    "@proj-airi/font-departure-mono": "workspace:^",
+    "@proj-airi/font-departure-mono": "catalog:",
     "@proj-airi/ui": "workspace:^",
     "@rive-app/canvas-lite": "catalog:",
     "@vueuse/core": "catalog:",
