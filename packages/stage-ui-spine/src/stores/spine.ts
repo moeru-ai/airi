@@ -1,4 +1,4 @@
-import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
+import { useModelScopedLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { useBroadcastChannel } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
@@ -75,37 +75,41 @@ export const useSpine = defineStore('spine', () => {
   })
 
   /** Currently active idle animation (track 0). */
-  const currentAnimation = useLocalStorageManualReset<SpineCurrentAnimation>(
+  const currentAnimation = useModelScopedLocalStorageManualReset<SpineCurrentAnimation>(
+    'spine',
     'settings/spine/current-animation',
     () => ({ ...defaultSpineAnimation }),
   )
 
   /** All animations discovered on the loaded skeleton. */
-  const availableAnimations = useLocalStorageManualReset<SpineAnimationDescriptor[]>(
+  const availableAnimations = useModelScopedLocalStorageManualReset<SpineAnimationDescriptor[]>(
+    'spine',
     'settings/spine/available-animations',
     () => [],
   )
 
   /** All skins discovered on the loaded skeleton. */
-  const availableSkins = useLocalStorageManualReset<SpineSkinDescriptor[]>(
+  const availableSkins = useModelScopedLocalStorageManualReset<SpineSkinDescriptor[]>(
+    'spine',
     'settings/spine/available-skins',
     () => [],
   )
 
   /** Active skin name. Empty string means use the model's default skin. */
-  const currentSkin = useLocalStorageManualReset<string>('settings/spine/current-skin', '')
+  const currentSkin = useModelScopedLocalStorageManualReset<string>('spine', 'settings/spine/current-skin', '')
 
   /** All skeleton variants discovered in the ZIP. */
-  const availableVariants = useLocalStorageManualReset<SpineVariantDescriptor[]>(
+  const availableVariants = useModelScopedLocalStorageManualReset<SpineVariantDescriptor[]>(
+    'spine',
     'settings/spine/available-variants',
     () => [],
   )
 
   /** Active variant name. Empty string means use the default (first) variant. */
-  const currentVariant = useLocalStorageManualReset<string>('settings/spine/current-variant', '')
+  const currentVariant = useModelScopedLocalStorageManualReset<string>('spine', 'settings/spine/current-variant', '')
 
   /** Animation playback speed multiplier (1.0 = normal). */
-  const animationSpeed = useLocalStorageManualReset<number>('settings/spine/animation-speed', 1)
+  const animationSpeed = useModelScopedLocalStorageManualReset<number>('spine', 'settings/spine/animation-speed', 1)
 
   // NOTICE:
   // Premultiplied-alpha, default-mix, idle-enabled, and max-fps live in

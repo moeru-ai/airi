@@ -3,6 +3,7 @@ import type { BrowserWindow } from 'electron'
 import { attemptAsync } from 'es-toolkit'
 
 import { useLoop } from './loop'
+import { onWindowClosed } from './window-closed'
 
 const rendererDisposedMessage = 'Render frame was disposed before WebFrameMain could be accessed'
 
@@ -31,7 +32,7 @@ export function shouldStopForRendererError(error: unknown) {
 }
 
 export function stopLoopWhenRendererIsGone(window: BrowserWindow, stop: () => void) {
-  window.on('closed', stop)
+  onWindowClosed(window, stop)
   window.webContents.on('destroyed', stop)
   window.webContents.on('render-process-gone', stop)
 }

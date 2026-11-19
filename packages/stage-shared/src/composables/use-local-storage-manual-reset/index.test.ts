@@ -28,11 +28,11 @@ describe('useLocalStorageManualReset', () => {
       changes += 1
     }, { flush: 'sync' })
 
-    state.value = new Map([['card-1', 'ReLU']])
+    state.value = new Map([['card-1', 'Iru']])
     await nextTick()
 
     expect(changes).toBe(1)
-    expect(state.value).toEqual(new Map([['card-1', 'ReLU']]))
+    expect(state.value).toEqual(new Map([['card-1', 'Iru']]))
     stop()
   })
 
@@ -125,9 +125,9 @@ describe('useLocalStorageManualReset', () => {
     state.reset()
     await nextTick()
 
-    state.value.set('card-1', 'ReLU')
+    state.value.set('card-1', 'Iru')
     await nextTick()
 
-    expect(JSON.parse(localStorage.getItem('cards')!)).toEqual([['card-1', 'ReLU']])
+    expect(JSON.parse(localStorage.getItem('cards')!)).toEqual([['card-1', 'Iru']])
   })
 })

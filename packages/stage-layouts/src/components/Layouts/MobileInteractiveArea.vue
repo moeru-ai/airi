@@ -1,22 +1,24 @@
 <script setup lang="ts">
-import type { ChatHistoryReplyPayload, ChatImageAttachment } from '@proj-airi/stage-ui/components/scenarios/chat'
+import type { ChatHistoryReplyPayload } from '@proj-airi/stage-ui/components/scenarios/chat'
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
-import { CharacterSwitcherDrawer, ChatBackgroundTasks, ChatHistory, HearingStatus } from '@proj-airi/stage-ui/components'
-import { ChatComposerAddMenu, ChatComposerVoiceInput, ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSessionsDrawer, useChatComposer, useChatImages, useStartVoiceCall, VoiceCallCapsule, VoicePresence } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { CharacterSwitcherDrawer, ChatBackgroundTasks, ChatHistory } from '@proj-airi/stage-ui/components'
+import { ChatComposerAddMenu, ChatComposerVoiceInput, ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSessionsDrawer, useChatImages, useStartVoiceCall, VoiceCallCapsule, VoicePresence } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ModelPlacementPanel, ModelPlacementSurface } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings'
 import { useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
+import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
 import { useL2dViewControl } from '@proj-airi/stage-ui/stores/live2d'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
-import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
 import { useVoiceCallStore } from '@proj-airi/stage-ui/stores/voice-call'
 import { BasicButton, BasicTextarea, ProgressiveBlur } from '@proj-airi/ui'
+import { useFocusWithin } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onUnmounted, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -30,6 +32,7 @@ import { useChatInterruption } from '../../composables/use-chat-interruption'
 import { useMobileInteractiveAreaLayout } from '../../composables/use-mobile-interactive-area-layout'
 import { useChatToolCallRerun } from '../../composables/useChatToolCallRerun'
 import { useStopSpeakingButton } from '../../composables/useStopSpeakingButton'
+import { useStageChatComposerStore } from '../../stores/chat-composer'
 
 const emit = defineEmits<{
   /** Reports the stable height and offset that keep the Stage in the same screen position. */
@@ -43,7 +46,7 @@ const { activeSessionId, messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
 const { activeTurns, backgroundTasks } = storeToRefs(chatOrchestrator)
 const { isReceivingRemoteStream } = storeToRefs(useContextBridgeStore())
-const { chatReady } = storeToRefs(useConsciousnessStore())
+const { activeChatReady: chatReady } = storeToRefs(chatOrchestrator)
 const historyMessages = computed(() => messages.value)
 const isActiveSessionSending = computed(() => (
   (activeTurns.value.some(turn => turn.sessionId === activeSessionId.value))
@@ -52,15 +55,7 @@ const isActiveSessionSending = computed(() => (
 const visibleStreamingMessage = streamingMessage
 const { trackChatMessageDeleted } = useAnalytics()
 const { rerunToolCall } = useChatToolCallRerun()
-const composer = useChatComposer<ChatImageAttachment>({
-  activeSessionId,
-  send: submission => chatOrchestrator.send({
-    sessionId: submission.sessionId,
-    text: submission.text,
-    attachments: submission.attachments.map(({ type, data, mimeType }) => ({ type, data, mimeType })),
-    replyToMessageId: submission.replyToMessageId,
-  }),
-})
+const { composer } = useStageChatComposerStore()
 const {
   attachments,
   removeAttachment,
@@ -82,6 +77,7 @@ const voiceInput = useTemplateRef<InstanceType<typeof ChatComposerVoiceInput>>('
 const voiceAttachment = useTemplateRef<HTMLElement>('voiceAttachment')
 const voiceSurface = useTemplateRef<HTMLElement>('voiceSurface')
 const router = useRouter()
+const authStore = useAuthStore()
 const call = useVoiceCallStore()
 const startVoiceCall = useStartVoiceCall(route => router.push(route), () => !voiceRecording.value)
 const hasSubmission = computed(() => !!messageInput.value.trim() || attachments.value.length > 0)
@@ -119,6 +115,12 @@ const sessionsDrawerOpen = shallowRef(false)
 const mobileInteractiveArea = useTemplateRef<HTMLElement>('mobileInteractiveArea')
 const messageComposer = useTemplateRef<HTMLElement>('messageComposer')
 const inputBubble = useTemplateRef<HTMLElement>('inputBubble')
+const { focused: inputBubbleFocused } = useFocusWithin(inputBubble)
+/**
+ * An idle composer is narrower, so more of the stage shows. It widens while the user types or a draft, a reply, or a
+ * recording is in it. Then the text does not reflow when the keyboard closes.
+ */
+const composerExpanded = computed(() => inputBubbleFocused.value || hasSubmission.value || !!replyTarget.value || voiceCovering.value || voicePending.value || call.active)
 const interactionControls = useTemplateRef<HTMLElement>('interactionControls')
 const controlsIsland = useTemplateRef<HTMLElement>('controlsIsland')
 const controlsIslandContent = useTemplateRef<HTMLElement>('controlsIslandContent')
@@ -147,6 +149,7 @@ watch(
 const mobileInteractiveAreaClass = [
   'pointer-events-none fixed inset-x-0 top-0 z-20 w-full',
   'flex flex-col',
+  'pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]',
 ]
 const chatHistoryClass = [
   'pointer-events-auto relative z-20',
@@ -163,8 +166,9 @@ const controlsIslandClass = computed(() => [
   ],
 ])
 const { themeColorsHueDynamic } = storeToRefs(useSettings())
-const { stageModelRenderer } = storeToRefs(useSettingsStageModel())
+const { stageModelRenderer, stageModelSelected } = storeToRefs(useSettingsStageModel())
 const l2dViewControl = useL2dViewControl()
+const { scale: modelScale, position: modelPosition } = l2dViewControl
 const threeViewControl = useThreeViewControl()
 const viewControlsAvailable = computed(() => stageModelRenderer.value === 'live2d' || stageModelRenderer.value === 'vrm')
 const viewControlsEnabled = computed(() => {
@@ -196,6 +200,7 @@ async function openViewControls() {
     ?.focus()
 }
 
+/** Ends the temporary edit mode while retaining the saved model placement. */
 function closeViewControls() {
   l2dViewControl.viewControlsEnabled.value = false
   threeViewControl.viewControlsEnabled.value = false
@@ -305,6 +310,7 @@ watch([listening, stream], () => {
 }, { immediate: true })
 
 onUnmounted(() => {
+  closeViewControls()
   teardownAnalyzer()
 })
 </script>
@@ -317,6 +323,13 @@ onUnmounted(() => {
     :style="mobileInteractiveAreaStyle"
     @keydown="handleViewControlsKeydown"
   >
+    <ModelPlacementSurface
+      v-if="viewControlsEnabled && stageModelRenderer === 'live2d'"
+      :key="stageModelSelected"
+      v-model:scale="modelScale"
+      v-model:position="modelPosition"
+      :class="['pointer-events-auto']"
+    />
     <MobileHeader v-if="!viewControlsEnabled">
       <BasicButton
         size="unset"
@@ -400,7 +413,6 @@ onUnmounted(() => {
       <div :class="['absolute left-0 top-2 z-30 -translate-y-full px-3 font-sans']">
         <div :class="['flex flex-col gap-1']">
           <slot name="status" />
-          <HearingStatus v-if="!call.active" />
         </div>
       </div>
       <div
@@ -426,13 +438,16 @@ onUnmounted(() => {
         v-if="!chatReady"
         :class="['mx-3']"
         @configure="router.push('/settings/providers')"
+        @sign-in="authStore.requestLogin()"
       />
       <div
         ref="messageComposer"
         data-testid="mobile-message-composer"
         :class="[
           'max-h-100dvh max-w-100dvw w-full',
-          'flex gap-2 px-3 pt-2',
+          'flex gap-2 pt-2',
+          '[transition-property:padding-left,padding-right] duration-250 ease-out motion-reduce:transition-none',
+          composerExpanded ? 'px-3' : 'px-7',
         ]"
         :style="messageComposerStyle"
       >
@@ -577,17 +592,24 @@ onUnmounted(() => {
         </div>
       </div>
     </div>
-    <VoiceCallCapsule persistent />
+    <VoiceCallCapsule placement="below-header" />
     <div
-      v-show="viewControlsEnabled"
+      v-if="viewControlsEnabled"
       data-testid="view-controls-toolbar"
       :class="[
         'pointer-events-auto fixed inset-x-0 z-30',
-        'pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))]',
+        stageModelRenderer === 'live2d'
+          ? 'pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]'
+          : 'pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))]',
         'bottom-[max(1rem,env(safe-area-inset-bottom))]',
       ]"
     >
-      <ViewControls variant="mobile-stage" />
+      <ModelPlacementPanel
+        v-if="stageModelRenderer === 'live2d'"
+        v-model:scale="modelScale"
+        v-model:position="modelPosition"
+      />
+      <ViewControls v-else variant="mobile-stage" />
     </div>
   </div>
 </template>

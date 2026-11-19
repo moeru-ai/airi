@@ -33,7 +33,7 @@ is complete, the work is a sequence, like middleware.
 - Selections, context publication between plugins, `dependsOn`, and the `transcript-patch` grant are removed.
   Installation order replaces the dependency graph. Plugins are trusted in-process code.
 - Plugin corrections apply only during finalization. During capture, only a user correction changes corrected text.
-- `onSpeechInput` can be asynchronous. Finalization waits for pending installs.
+- `onSpeechInput` (now `onInput`) can be asynchronous. Finalization waits for pending installs.
 - An end judgement depends on the transcript text, not on the provider revision.
 - The rephrase plugin speculates. Interim text that stays the same for 600 ms starts a rewrite. Finalization reuses
   the rewrite when the final segment texts are the same, even while it still runs.

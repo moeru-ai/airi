@@ -10,15 +10,17 @@ import { createI18n } from 'vue-i18n'
 
 import ComposerVoiceInput from './composer-voice-input.vue'
 
+import { trackPendingActions } from '../../../../libs/pinia/pending-actions'
 import { getSpeechBusContext, voiceInputCommand, voiceMessageCommand, voiceMessagesChanged, voiceRequestSnapshot, voiceSnapshotChanged } from '../../../../services/speech/bus'
 
 import '@unocss/reset/tailwind.css'
 import 'virtual:uno.css'
 
-const cleanups: (() => void)[] = []
+const cleanups: (() => void | Promise<void>)[] = []
 
-afterEach(() => {
-  cleanups.splice(0).reverse().forEach(cleanup => cleanup())
+afterEach(async () => {
+  for (const cleanup of cleanups.splice(0).reverse())
+    await cleanup()
   localStorage.clear()
 })
 
@@ -54,6 +56,11 @@ async function mountInput(options: { dictation?: string, hidden?: () => boolean,
 
   const pinia = createPinia()
   cleanups.push(() => disposePinia(pinia))
+  // Unmounting discards an open recording through the host. That command must settle before the store is disposed.
+  const pendingCommands = trackPendingActions(pinia, storeId => storeId === 'voice-controls')
+  cleanups.push(async () => {
+    await expect.poll(pendingCommands).toBe(0)
+  })
   const draft = ref('Hello')
   const submitted: unknown[] = []
   const covering: boolean[] = []

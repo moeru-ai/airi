@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { RadioCardManySelect, RadioCardSimple } from '@proj-airi/stage-ui/components'
-import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useVisionActivityStore, useVisionProcessingStore, useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
@@ -46,7 +45,6 @@ const {
 } = storeToRefs(visionActivityStore)
 
 const { t, locale } = useI18n()
-const { trackProviderClick } = useAnalytics()
 
 watch(activeProvider, async (provider) => {
   if (!provider)
@@ -60,14 +58,10 @@ async function selectProvider(provider: string) {
     visionStore.enabled = false
     return
   }
-  await airiCardStore.selectActiveCardVisionProvider(provider)
+  await visionStore.selectProvider(provider)
 }
 
 const selectedProvider = computed(() => visionStore.enabled ? activeProvider.value : '')
-
-async function persistSelection() {
-  await airiCardStore.updateActiveCardVision({ provider: activeProvider.value, model: activeModel.value })
-}
 
 function updateCustomModelName(value: string) {
   customModelName.value = value
@@ -159,7 +153,6 @@ function formatRelativeTime(timestamp: number | null) {
               :title="metadata.localizedName || 'Unknown'"
               :description="metadata.localizedDescription"
               @update:model-value="selectProvider"
-              @click="trackProviderClick(metadata.id, 'vision')"
             >
               <template v-if="canDeleteProvider(metadata.id)" #topRight>
                 <button
@@ -213,10 +206,10 @@ function formatRelativeTime(timestamp: number | null) {
                 'transition',
                 'duration-200',
                 'ease-in-out',
-                'hover:border-primary-500/30',
+                'hover:bg-neutral-50',
                 'dark:border-neutral-900',
                 'dark:bg-neutral-900/20',
-                'dark:hover:border-primary-400/30',
+                'dark:hover:bg-neutral-900/50',
                 'flex',
                 'items-center',
                 'justify-center',
@@ -237,15 +230,11 @@ function formatRelativeTime(timestamp: number | null) {
                 'items-center',
                 'gap-3',
                 'rounded-lg',
-                'border-2',
-                'border-dashed',
-                'border-neutral-200',
                 'bg-neutral-50',
                 'p-4',
                 'transition',
                 'duration-200',
                 'ease-in-out',
-                'dark:border-neutral-800',
                 'dark:bg-neutral-800',
               ]"
             >
@@ -314,7 +303,6 @@ function formatRelativeTime(timestamp: number | null) {
             :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
             :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
             expanded-class="mb-12"
-            @update:model-value="persistSelection"
             @update:custom-value="updateCustomModelName"
           />
         </template>
@@ -355,7 +343,6 @@ function formatRelativeTime(timestamp: number | null) {
               'dark:bg-neutral-900',
             ]"
             :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
-            @input="persistSelection"
           >
         </div>
       </div>
@@ -383,7 +370,7 @@ function formatRelativeTime(timestamp: number | null) {
         />
 
         <div :class="['grid', 'gap-4', 'md:grid-cols-3']">
-          <div :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white', 'p-3', 'dark:border-neutral-800', 'dark:bg-neutral-900']">
+          <div :class="['rounded-lg p-3', 'bg-neutral-100/70 dark:bg-neutral-800/50']">
             <div :class="['text-xs', 'uppercase', 'tracking-wide', 'text-neutral-400']">
               {{ t('settings.pages.modules.vision.stats.captures') }}
             </div>
@@ -395,7 +382,7 @@ function formatRelativeTime(timestamp: number | null) {
             </div>
           </div>
 
-          <div :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white', 'p-3', 'dark:border-neutral-800', 'dark:bg-neutral-900']">
+          <div :class="['rounded-lg p-3', 'bg-neutral-100/70 dark:bg-neutral-800/50']">
             <div :class="['text-xs', 'uppercase', 'tracking-wide', 'text-neutral-400']">
               {{ t('settings.pages.modules.vision.stats.context-updates') }}
             </div>
@@ -407,7 +394,7 @@ function formatRelativeTime(timestamp: number | null) {
             </div>
           </div>
 
-          <div :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white', 'p-3', 'dark:border-neutral-800', 'dark:bg-neutral-900']">
+          <div :class="['rounded-lg p-3', 'bg-neutral-100/70 dark:bg-neutral-800/50']">
             <div :class="['text-xs', 'uppercase', 'tracking-wide', 'text-neutral-400']">
               {{ t('settings.pages.modules.vision.stats.inferences') }}
             </div>
@@ -419,7 +406,7 @@ function formatRelativeTime(timestamp: number | null) {
             </div>
           </div>
 
-          <div :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white', 'p-3', 'dark:border-neutral-800', 'dark:bg-neutral-900']">
+          <div :class="['rounded-lg p-3', 'bg-neutral-100/70 dark:bg-neutral-800/50']">
             <div :class="['text-xs', 'uppercase', 'tracking-wide', 'text-neutral-400']">
               {{ t('settings.pages.modules.vision.stats.failed-inferences') }}
             </div>
@@ -431,7 +418,7 @@ function formatRelativeTime(timestamp: number | null) {
             </div>
           </div>
 
-          <div :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white', 'p-3', 'dark:border-neutral-800', 'dark:bg-neutral-900']">
+          <div :class="['rounded-lg p-3', 'bg-neutral-100/70 dark:bg-neutral-800/50']">
             <div :class="['text-xs', 'uppercase', 'tracking-wide', 'text-neutral-400']">
               {{ t('settings.pages.modules.vision.stats.last-inference') }}
             </div>

@@ -8,6 +8,7 @@ import MobileInteractiveArea from '@proj-airi/stage-layouts/components/Layouts/M
 import { PiniaColada } from '@pinia/colada'
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
 import { browserAuthorizationHandler, registerAuthorizationHandler } from '@proj-airi/stage-ui/libs/auth'
+import { trackPendingActions } from '@proj-airi/stage-ui/libs/pinia/pending-actions'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
@@ -59,7 +60,13 @@ async function renderArea(component: Component = InteractiveArea, options: { pro
     updatedAt: 2,
   }
   const pinia = createPinia()
-  onTestFinished(() => disposePinia(pinia))
+  // The area reloads backgrounds when it mounts. Let each load end before its
+  // Pinia is destroyed.
+  const pendingBackgroundLoads = trackPendingActions(pinia, (storeId, action) => storeId === 'background-entries' && action === 'initializeStore')
+  onTestFinished(async () => {
+    await expect.poll(pendingBackgroundLoads).toBe(0)
+    disposePinia(pinia)
+  })
   pinia.state.value = {
     'chat-session-selection': { activeSessionId: 'session-b' },
     'chat-session': {
@@ -183,9 +190,11 @@ async function expectElectronReplyBubble(screen: Awaited<ReturnType<typeof rende
   expect(cancelButton.parentElement?.getAttribute('aria-hidden')).toBe('true')
   expect(bubble.getBoundingClientRect().height).toBeGreaterThan(collapsedHeight)
   expect(bubble.getBoundingClientRect().height).toBeCloseTo(expandedHeight, 0)
-  await new Promise(resolve => setTimeout(resolve, 50))
-  expect(bubble.getBoundingClientRect().height).toBeGreaterThan(collapsedHeight)
-  expect(bubble.getBoundingClientRect().height).toBeLessThan(expandedHeight)
+  await vi.waitFor(() => {
+    const height = bubble.getBoundingClientRect().height
+    expect(height).toBeGreaterThan(collapsedHeight)
+    expect(height).toBeLessThan(expandedHeight)
+  })
   await vi.waitFor(() => {
     expect(bubble.getBoundingClientRect().height).toBeCloseTo(collapsedHeight, 0)
   })
@@ -325,9 +334,9 @@ describe('interactive area synchronized state', () => {
     await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.title' })).not.toBeInTheDocument()
     await expect.element(screen.getByTestId('mobile-message-composer')).not.toBeVisible()
     await expect.element(screen.getByTestId('conversation-selector-button')).not.toBeInTheDocument()
-    await expect.element(screen.getByRole('button', { name: 'X', exact: true })).toBeVisible()
-    await expect.element(screen.getByRole('button', { name: 'Y', exact: true })).toBeVisible()
-    await expect.element(screen.getByRole('button', { name: 'Scale', exact: true })).toBeVisible()
+    await expect.element(screen.getByRole('button', { name: 'settings.pages.models.editor.tools.size', exact: true })).toBeVisible()
+    await expect.element(screen.getByRole('button', { name: 'settings.pages.models.editor.tools.position', exact: true })).toBeVisible()
+    await expect.element(screen.getByRole('slider', { name: 'settings.pages.models.editor.tools.size', exact: true })).toBeVisible()
 
     const close = screen.getByTestId('view-controls-close-button').element()
     // ROOT CAUSE:
@@ -340,16 +349,15 @@ describe('interactive area synchronized state', () => {
     const toolbar = screen.getByTestId('view-controls-toolbar').element()
     // ROOT CAUSE:
     //
-    // Fixed horizontal padding ignored display cutouts in landscape viewports.
-    // The toolbar now uses the same left and right safe-area minimum as the header.
-    expect(toolbar.classList).toContain('pl-[max(0.75rem,env(safe-area-inset-left))]')
-    expect(toolbar.classList).toContain('pr-[max(0.75rem,env(safe-area-inset-right))]')
+    // The placement panel supplies its own side margins. The toolbar adds the display cutout insets.
+    expect(toolbar.classList).toContain('pl-[env(safe-area-inset-left)]')
+    expect(toolbar.classList).toContain('pr-[env(safe-area-inset-right)]')
 
     await screen.getByRole('button', { name: 'stage.mobile-tools.close-view', exact: true }).click()
 
     await expect.element(screen.getByTestId('mobile-message-composer')).toBeVisible()
     await expect.element(screen.getByTestId('conversation-selector-button')).toBeVisible()
-    await expect.element(screen.getByRole('button', { name: 'X', exact: true })).not.toBeInTheDocument()
+    await expect.element(screen.getByRole('button', { name: 'settings.pages.models.editor.tools.size', exact: true })).not.toBeInTheDocument()
     // ROOT CAUSE:
     //
     // Closing view mode removed its focused header without moving focus to the
@@ -577,6 +585,28 @@ describe('interactive area synchronized state', () => {
 
     await screen.getByText('stage.chat.provider-configuration.action').click()
     await vi.waitFor(() => expect(router.currentRoute.value.path).toBe('/settings/providers'))
+  })
+
+  it('keeps the draft when a fold or a resize replaces the layout', async () => {
+    // ROOT CAUSE:
+    //
+    // Each layout created a composer, and unfolding a device replaces one layout with the other.
+    //
+    // Before the fix, the new layout started with an empty draft.
+    //
+    // We fixed this by moving the composer to a store that outlives both layouts.
+    const layoutSwitch = defineComponent({
+      props: { mobile: { type: Boolean, default: true } },
+      setup: props => () => h(props.mobile ? MobileInteractiveArea : SharedInteractiveArea),
+    })
+    const { screen } = await renderArea(layoutSwitch)
+    await screen.getByRole('textbox').fill('typed on the outer display')
+
+    await screen.rerender({ mobile: false })
+    await expect.element(screen.getByRole('textbox')).toHaveValue('typed on the outer display')
+
+    await screen.rerender({ mobile: true })
+    await expect.element(screen.getByRole('textbox')).toHaveValue('typed on the outer display')
   })
 
   // https://github.com/moeru-ai/airi/pull/2399

@@ -46,6 +46,9 @@ export default defineConfig({
         filesystem: [
           `${normalizePath(import.meta.dirname)}/src/**/*.vue`,
           `${normalizePath(import.meta.dirname)}/../ui/src/**/*.vue`,
+          `${normalizePath(import.meta.dirname)}/../ui-panes/src/**/*.vue`,
+          `${normalizePath(import.meta.dirname)}/../ui-timeline/src/**/*.vue`,
+          `${normalizePath(import.meta.dirname)}/../ui-trace/src/**/*.vue`,
         ],
       },
     }])),
@@ -59,9 +62,13 @@ export default defineConfig({
           name: 'node',
           include: ['src/**/*.test.ts'],
           exclude: ['src/**/*.browser.test.ts'],
-          fileParallelism: false,
           hookTimeout: 20_000,
-          maxWorkers: 1,
+          // Two workers leave CPU for other packages that Turbo runs at the same time.
+          // More workers make the slow store imports exceed their timeouts.
+          maxWorkers: 2,
+          // Vitest needs a separate group for a project with its own worker limit.
+          // The browser group starts after this group ends.
+          sequence: { groupOrder: 0 },
           testTimeout: 20_000,
         },
       },
@@ -69,9 +76,9 @@ export default defineConfig({
         extends: true,
         test: {
           name: 'browser',
+          sequence: { groupOrder: 1 },
           include: ['src/**/*.browser.test.ts'],
           exclude: ['**/node_modules/**'],
-          setupFiles: ['./vitest.browser.setup.ts'],
           browser: {
             enabled: true,
             headless: true,

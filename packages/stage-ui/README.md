@@ -80,7 +80,7 @@ Consumers subscribe to the microphone input with their own abort signal. The las
   - Voice message: a tap records audio. A second tap sends it with Auto send, or keeps it for the send button.
 - `ChatComposerAddMenu` is the `+` button of the web and mobile composers. It attaches images or starts a voice call.
 - `VoicePresence` shows live speech, editable drafts, and the sent text. The desktop app inlay window and the web composers share it. A window host adds its own Escape shortcut, hit testing, and position through `shownChange` and the exposed `dismiss`.
-- `useVoiceCallStore` owns a voice call. A call is continuous listening that the user starts. It starts an input on speech in every input mode and sends each input at once, so it never keeps a draft. Mute keeps the microphone open, cancels the speech that is captured now, and starts no input: no voice activity input, no Push to Talk hold, and no wake. A call ends when Hearing turns off or loses its transcription provider. An input that began during a call is sent at once, also when it finishes after the hang-up. The microphone switch in Hearing closes the microphone for every feature, so a call does not start while it is off, and turning it off ends the call. `VoiceCallPanel` shows the call above the desktop composer. `VoiceCallCapsule` shows the call at the top of the page with the hang-up button, the time, and a fading waveform. It shows a minimized desktop call, and a tap on its body returns to the panel. With `persistent`, it is the whole call UI of a touch layout. Only its hang-up button ends the call.
+- `useVoiceCallStore` owns a voice call. A call is continuous listening that the user starts. It starts an input on speech in every input mode and sends each input at once, so it never keeps a draft. Mute keeps the microphone open, cancels the speech that is captured now, and starts no input: no voice activity input, no Push to Talk hold, and no wake. A call ends when Hearing turns off or loses its transcription provider. An input that began during a call is sent at once, also when it finishes after the hang-up. The microphone switch in Hearing closes the microphone for every feature, so a call does not start while it is off, and turning it off ends the call. `VoiceCallCapsule` is the call UI of every layout. It shows at the top of the page for the whole call, with the hang-up button, the time, and a fading waveform. Only its hang-up button ends the call. The composer shows the mute button in place of the microphone during a call.
 - `useVoiceMessagesStore` owns voice message recordings and their attachment submission.
 - Hearing selects providers and converts captured PCM to each provider's upload format. It does not open the microphone.
 - Speech preserves existing chunked synthesis and bidirectional provider output.
@@ -228,26 +228,30 @@ Use this flow for chat attachments and tool images, not periodic screen capture.
 
 ## Character-card module settings
 
-The card store owns three distinct states:
+The settings of these modules have two sources:
 
-- `moduleDefaults` stores global provider, model, voice, and display selections.
-- Each card stores explicit overrides. An empty string means inherit.
-- Module stores expose the resolved runtime selections used by the application.
+- The module stores (`consciousness`, `vision`, `speech`) hold the global defaults. They hold nothing else.
+- Each card stores the values of its character. An empty string means inherit.
 
-Use `configureForAuthentication` for login and logout. It updates global
-defaults, then reapplies the active card without saving defaults into that card.
-Use card commands for activation and explicit edits. Settings pages must not
-save cards from watchers: authentication and remote snapshots also trigger them.
-The synchronization leader owns these commands; followers receive snapshots.
+`getModules(characterId)` of the card store resolves the two. Chat turns and speech output use it.
+The activation of a card does not write the module stores.
+See `docs/ai/adr/2026-11-11-module-defaults-and-character-values.md`.
+
+Use `configureForAuthentication` for login and logout. It updates the global
+defaults and does not save them into a card.
+The module settings pages edit the global defaults. The character editor edits the values of one character.
+Settings pages must not save cards from watchers: authentication and remote snapshots also trigger them.
+The synchronization leader owns the card commands. Followers receive snapshots.
 
 Models inherit only within the same provider. Voices also require the same
 model. Selecting a vision provider on the vision page stores the catalog default
-model of that provider on the active card. A different provider without a model stays unconfigured rather than
+model of that provider as the default. A different provider without a model stays unconfigured rather than
 receiving an unrelated model id. The editor requires a model for an explicit
 chat or vision provider unless that model can be inherited safely.
 
-Defaults are seeded once from the current runtime on upgrade. This cannot
-recover historical global values that an older card already overwrote.
+Versions before this design kept the defaults in the `airi-card-module-defaults` key. The first start moves
+them into the module stores one time. A selection that a user made on a module settings page in those versions
+stays a value of the character that was active at that time.
 Existing `speech-noop` selections are preserved because they may represent
 intentional silence. Users can explicitly choose **Inherit global settings**
 in the editor; importing or saving an unrelated card field does not change it.

@@ -4,7 +4,7 @@ allow-visible-on-all-workspaces:
 microphone-permission:
   prompt:
     title: 마이크 접근을 허용할까요?
-    description: AIRI는 음성 입력과 전사에 마이크를 사용합니다. 설정에서 초기화할 때까지 이 선택이 유지됩니다.
+    description: AIRI는 음성 입력과 음성 인식에 마이크를 사용합니다. 설정에서 초기화할 때까지 이 선택이 유지됩니다.
     allow: 허용
     deny: 거부
   states:
@@ -47,7 +47,7 @@ pages:
       push-to-talk:
         title: 눌러서 말하기 단축키
         description: 어느 앱에서든 이 단축키를 누른 채 AIRI에게 말하세요. 단축키를 클릭한 다음 새 단축키를 누르세요. Esc를 누르면 취소됩니다.
-        inactive: 청력 입력 모드가 눌러서 말하기이고 마이크가 켜져 있을 때만 이 단축키가 작동합니다.
+        inactive: 청각 입력 모드가 눌러서 말하기이고 마이크가 켜져 있을 때만 이 단축키가 작동합니다.
       actions:
         recording: 키를 누르세요
         reset: 재설정
@@ -539,6 +539,9 @@ devtools:
       description: 스트레스 마크다운 구문 분석 및 대량 채팅 페이로드 렌더링
     io-tracer:
       title: 입출력 추적기
+      collection:
+        title: 최근 입출력 추적을 메모리에 보관
+        description: 입출력 추적기가 열리기 전의 상황도 보여 줄 수 있도록, 최근 30분 동안의 입출력 스팬을 최대 5000개까지 보관합니다.
       recording:
         title: 입출력 추적 자동 기록
         description: 완료된 입출력 스팬을 앱 데이터 폴더에 JSON Lines로 저장하여 코딩 에이전트가 분석할 수 있게 합니다. 7일이 지난 파일은 삭제됩니다.

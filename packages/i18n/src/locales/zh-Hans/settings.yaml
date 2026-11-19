@@ -32,6 +32,8 @@ dialogs:
     skipForNow: 暂时跳过
     saveAndContinue: 保存并继续
     next: 下一步
+    back: 返回
+    later: 稍后
     retry: 重试
     credentialsSafeLabel: 保证您的 API 密钥和凭据的安全！
     credentialsSafeLocal: >-
@@ -59,10 +61,112 @@ dialogs:
       notificationsDescription: 允许提醒以及重要的状态更新。
       microphoneTitle: 麦克风
       microphoneDescription: 允许 AIRI 使用麦克风进行语音输入和转写。
+      accessibilityTitle: 辅助功能
+      accessibilityDescription: 让「按住说话」快捷键在其他应用处于前台时也能使用。
+      screenRecordingTitle: 屏幕录制
+      screenRecordingDescription: 在你让 AIRI 看屏幕时，允许它看到你的屏幕。
+      pushToTalkTitle: 按住说话
+      pushToTalkDescription: AIRI 在前台时，按住一个键说话。
+      screenShareTitle: 屏幕共享
+      screenShareDescription: 让 AIRI 看到你共享的屏幕或窗口。
       requestAction: 请求获取
+      openSettingsAction: 打开系统设置
       optionalHint: 即使没有授予这些权限，您也可以继续。
       stateGranted: 已授权
       stateNotGranted: 未授权
+      flow:
+        steps: 权限
+        setUpLater: 稍后设置
+        allow: 允许
+        continue: 继续
+        skip: 跳过
+        done: 完成
+        tryAgain: 再试一次
+        state:
+          granted: 已允许
+          skipped: 已跳过
+          todo: 未设置
+          review: 查看
+          done: 已完成
+          blocked: '需要{requirement}'
+        blocked:
+          title: '{page}需要{requirement}'
+          body: '请先设置{requirement}，或者跳过这一页。'
+          action: '设置{requirement}'
+        microphone:
+          title: 让角色听见你
+          body: 语音聊天和唤醒词需要它。
+          allow: 允许使用麦克风
+          device: 输入设备：{device}
+          testing: 说点什么，比如「你好」。
+          quiet: 还没有声音？检查是否静音，或换一个输入设备。
+          heard: 听到你了。
+          level: 麦克风输入音量
+          on: 语音聊天和唤醒词已开启。
+          off: 语音聊天保持关闭，你仍然可以打字。
+        accessibility:
+          title: 在其他应用里也能说话
+          body: 按住快捷键，说话，然后松开。macOS 把这个权限叫作「辅助功能」。
+          with: 有辅助功能权限
+          withBody: 快捷键在所有应用里都能用。
+          without: 没有这个权限
+          withoutBody: 只有 AIRI 在前台时才能用。
+          try: 按住这些键试试。
+          listening: 正在聆听
+          worksEverywhere: 可以用了。也去其他应用里试试吧。
+          worksHere: 在这里可以用。其他应用需要辅助功能权限。
+          location: 在「隐私与安全性 › 辅助功能」中打开 AIRI。
+          on: 快捷键在所有应用里都能用。
+          off: 快捷键只在 AIRI 处于前台时可用。
+        push-to-talk:
+          title: 按住一个键说话
+          body: AIRI 在前台时按住这个键，说话，然后松开。
+          try: 按住这个键试试。
+          works: 可以用了。AIRI 在前台时随时按住它说话。
+          on: AIRI 在前台时按住这个键说话。
+          off: 你仍然可以用麦克风按钮说话。
+        screen-recording:
+          title: 让角色看到你的屏幕
+          share: 共享屏幕
+          body: 只在你要求时，比如问「我的屏幕上有什么？」
+          visible: 这就是角色能看到的画面。
+          hidden: 角色看不到
+          display: 显示器
+          previewOf: '{screen} 的预览'
+          location: 在「隐私与安全性 › 录屏与系统录音」中打开 AIRI。
+          on: 你要求时，角色可以看到你的屏幕。
+          off: 角色看不到你的屏幕。
+        notifications:
+          title: 接收角色的提醒
+          body: 提醒和状态更新。
+          on: 通知已开启。
+          off: 你不会收到提醒。
+        summary:
+          name: 总结
+          title: 都设置好了
+          almost: 就差一点了
+          body: 之后可以随时在设置里修改。
+          skipped: 已跳过。{consequence}
+          blocked: '需要先设置{requirement}。{consequence}'
+          setUp: 去设置
+          setUpOne: 设置{permission}
+    voiceprint:
+      title: 让角色记住你的声音
+      body: 在安静的地方说大约 {seconds} 秒。AIRI 只在这台设备上保存声纹，不保存录音。
+      count: '{seconds} / {target} 秒'
+      cue:
+        start: 开始说吧
+        speaking: 很好，继续说
+        more: 再多说一点
+        almost: 快好了
+      progress: '声纹登记：已录到 {seconds} / {target} 秒语音'
+      languages: 声纹对登记时的语言最准。如果你还说其他语言，可以再登记一个声纹。
+      delete: '删除声纹 {index}'
+      label: '声纹 {index} 的标签'
+      more: 稍后可在 {path} 登记更多声纹。
+      on: 你的声纹已保存在这台设备上。
+      off: AIRI 无法识别你的声音。
+      speakerRecognition: AIRI 会检查输入的声音像不像你。其他人仍然可以和 AIRI 说话。
   bug-report:
     title: Bug 汇报 (´;ω;`)ヾ(･∀･`)
     subtitle: 坏哦，看起来我们不小心搞砸了一些东西。可以分享一下遇到了什么问题吗？
@@ -121,6 +225,7 @@ model-select:
     sync:
       upload: 上传到云端
       delete-cloud: 从云端删除
+      upload-progress: '上传中 {percent}%'
       status:
         local-only: 仅在本设备
         queued: 等待上传
@@ -199,8 +304,6 @@ live2d:
           description: 使用内置 MAGIC 数据集生成动作。
       magic:
         profile:
-          title: MAGIC 配置
-          description: 选择用于拟合 MAGIC 驱动器的内置动作数据集。
           options:
             idle-calm:
               title: 空闲 / 平静
@@ -264,10 +367,8 @@ pages:
     notLoggedIn: 登录以查看您的帐户并访问所有功能
     login: 登录
     logout: 登出
-    fluxBalance: 剩余通量
-    viewFluxDetails: 查看详情
-    viewCapacitor: 查看
-    signedInAs: 登录 为
+    fluxBalance: Flux 电量
+    signedInAs: 当前账号
     profile:
       tab: 个人资料
       title: 个人资料
@@ -276,7 +377,7 @@ pages:
         label: 昵称
         placeholder: 别人如何看到你
       avatar:
-        gravatarNotice: Gravatar头像。
+        gravatarNotice: Gravatar 头像。
         gravatarLink: 在 gravatar.com 上管理
       action:
         save: 保存更改
@@ -295,6 +396,7 @@ pages:
       action:
         link: 关联
         unlink: 取消关联
+        signInAgain: 重新登录
       message:
         loading: 正在加载已关联的帐户...
         unlinked: '解除了 {provider} 的关联'
@@ -307,6 +409,25 @@ pages:
         accountAlreadyLinkedToDifferentUser: 这个 OAuth 帐户已经关联到另一个 AIRI 帐户了。请选择另一个第三方帐户，或者先在另一个 AIRI 帐户中解除关联。
         oauthCallbackFailed: 暂时无法关联这个 OAuth 帐户。请重试，或选择另一个第三方帐户。
         lastAccount: 这是你当前唯一的登录方式，请务必先设置密码再解除关联哦
+        reauthenticate: 请先重新登录，再关联或解除关联帐户。
+    sync:
+      tab: 同步
+      title: 同步
+      description: 选择这台设备要同步到账号的数据。这些选择只对这台设备生效。
+      off_note: 关闭某项同步后，这台设备和账号里的数据都会保留。重新打开后，这台设备上的改动会继续同步。
+      items:
+        chats:
+          title: 聊天记录
+          description: 聊天的文字内容和标题。图片和贴纸只保存在这台设备上。
+        providers:
+          title: 服务来源
+          description: 服务来源的配置，包括 API Key。服务器会加密保存。
+        character_cards:
+          title: 角色
+          description: 你的角色。删除的角色可以在 30 天内恢复。
+        display_models:
+          title: 模型
+          description: 你导入的 Live2D 和 VRM 模型。文件较大，会占用账号存储空间和网络流量。
     security:
       tab: 安全
       title: 安全
@@ -342,7 +463,7 @@ pages:
         action: 删除帐户
         modal:
           title: 删除账户？
-          warning: 此操作无法撤销。现存的 Flux 余额会被清除。如有生效中的订阅，请先取消。
+          warning: 此操作无法撤销。现存的 Flux 电量会被清除。如有生效中的订阅，请先取消。
           confirmEmail:
             label: 请再次输入电子邮箱以确认删除
             mismatch: 邮箱不匹配。
@@ -357,27 +478,25 @@ pages:
         error:
           reauthenticate: 请重新登录，再回到此处确认删除。无需接收邮件。
           fallback: 无法开始删除操作，请稍后重试。
-          subscriptionActive: 您的订阅仍在生效。请先在 Capacitor 页面取消订阅，再删除帐户。
+          subscriptionActive: 您的订阅仍在生效。请先在订阅页面取消订阅，再删除帐户。
   card:
     wake-word-conflicts:
       title: '{count} 个共享的唤醒词发音需要选择角色'
-      description: 两张角色卡使用了相同的发音。选择角色之前，没有角色会回应它。
+      description: 两个角色使用了相同的发音。选择角色之前，没有角色会回应它。
       action: 选择回应的角色
     sync:
-      notice: 角色卡会同步到账号。删除的角色卡可在 30 天内恢复。
-      off_notice: 你已登录，但角色卡同步还没有打开。
-      off_notice_link: 去实验性特性里打开。
+      notice: 角色会同步到账号。删除的角色可在 30 天内恢复。
       state:
         synced: 已同步到账号
         pending: 等待上传
-        refused: 未上传。账号里没有空间再存角色卡，这张卡只保留在这台设备。
+        refused: 未上传。账号里没有空间再存角色，这个角色只保留在这台设备。
       conflict_copy_name: '{name}（冲突副本）'
       conflict_notice: 另一台设备修改了同一个角色，已将本设备的版本另存为副本。
       history:
         tab: 历史版本
-        empty: 这张角色卡还没有历史版本。
+        empty: 这个角色还没有历史版本。
         loading: 正在加载历史版本……
-        load_failed: 无法加载这张角色卡的历史版本。
+        load_failed: 无法加载这个角色的历史版本。
         current: 当前版本
         changed_label: 改动
         removed_label: 移除
@@ -417,14 +536,14 @@ pages:
         restore_failed: 无法恢复到此版本，服务端可能已不再保留它。
       deleted:
         title: 最近删除
-        empty: 没有最近删除的角色卡。
-        loading: 正在加载最近删除的角色卡……
-        load_failed: 无法加载最近删除的角色卡。
+        empty: 没有最近删除的角色。
+        loading: 正在加载最近删除的角色……
+        load_failed: 无法加载最近删除的角色。
         deleted_when: '删除于 {when}'
         days_left: '还可恢复，剩余 {days} 天'
         restore: 恢复
         restore_success: 已恢复 {name}。
-        restore_failed: 无法恢复这张角色卡，服务端可能已不再保留它的内容。
+        restore_failed: 无法恢复这个角色，服务端可能已不再保留它的内容。
     activate: 激活
     active: 已激活
     active_badge: 当前使用中
@@ -432,7 +551,7 @@ pages:
     cancel: 取消操作
     save: 保存更改
     save_and_activate: 保存并激活
-    card_not_found: 未找到角色卡
+    card_not_found: 未找到角色
     back: 返回
     character: 角色设定
     close: 关闭
@@ -446,14 +565,14 @@ pages:
     created_by: 创建者
     creator_notes: 创建者笔记
     delete: 删除
-    delete_card: 删除角色卡
-    delete_confirmation: 确定要删除这张角色卡吗？
-    description: 使用 AIRI 角色卡预设
+    delete_card: 删除角色
+    delete_confirmation: 确定要删除这个角色吗？
+    description: 管理你的角色
     description_label: 描述
-    drop_here: 放开以上传文件
-    create_card: 创建新角色卡
-    edit_card: 卡片编辑
-    saved: 角色卡已保存
+    drop_here: 松手以上传文件
+    create_card: 创建新角色
+    edit_card: 编辑角色
+    saved: 角色已保存
     unsaved:
       badge: 未保存
       title: 放弃更改？
@@ -469,6 +588,7 @@ pages:
       greetings: 问候语（每行一个）
       settings: 设置
       version: 版本
+      model: 角色模型
       create: 创建
       defaults:
         name: 名字
@@ -477,7 +597,7 @@ pages:
         systemprompt: 你将收到消息，请像真实人类一样回复。
         posthistoryinstructions: 记得模仿人类的行为。
       modules_info: >-
-        配置此角色卡的模块。留空会继承全局设置。
+        配置此角色的模块。留空会继承全局设置。
       sections:
         chat: 聊天
         vision: 视觉
@@ -491,6 +611,7 @@ pages:
           您可以在这里填写有关您正在创建的角色的一些详细信息，解释他的背景和情境，以及应该如何回应您的互动。
         name: 是该角色的正式名称。
         nickname: 您也可以提供一个昵称，它将被优先使用。
+        body_model: 在舞台上显示这个角色的模型。
         description: 该角色的描述。
         notes: 如果您想添加一些个人备注。
         personality: >-
@@ -500,6 +621,7 @@ pages:
         greetings: 您的角色应该如何说“你好”？
         systemprompt: 在这里向 AI LLM 解释当被提示时应该如何回应。
         posthistoryinstructions: 在消息历史之后，放入 AI LLM 应该阅读的内容。
+        context_window: '对话轮数上限，包含当前轮次。每轮包含用户消息和助手回复（含工具调用），连续的同角色消息视为一个整体。留空表示全部，0 表示仅发送当前输入。超出上限时，保留最新的若干轮，轮数为上限的 90% 向上取整。已保存的聊天记录不受影响。'
         version: >-
           卡片版本，如果您从之前的卡片做了更改，应当增加此版本号。
         consciousness_model: 为这个角色选择 AI 模型。
@@ -519,16 +641,18 @@ pages:
     modules: 模块
     name_asc: 名称 (A-Z)
     name_desc: 名称 (Z-A)
-    no_cards: 还没有任何角色卡，点击上方按钮上传一个吧！
-    no_results: 没有找到匹配的角色卡
+    no_cards: 还没有任何角色，点击上方按钮导入一个吧！
+    no_results: 没有找到匹配的角色
     personality: 性格
     posthistoryinstructions: 历史提示指令
+    context_window: 记住的对话轮数
+    context_window_all: 全部
     recent: 最近添加
     scenario: 场景
-    search: 搜索角色卡...
+    search: 搜索角色...
     sort_by: 排序方式
     body-model: 身体 / 显示模型
-    view-card: 查看角色卡
+    view-card: 查看角色
     model_not_bound: 未选择形象
     gallery: 图库
     pinned_background: 固定背景
@@ -547,14 +671,14 @@ pages:
       model: 声音 / 模型
       voice: 声音 / 声线
     systemprompt: 系统提示词
-    title: AIRI 角色卡
+    title: 角色
     try_different_search: 尝试使用其他关键词搜索
     export: 导出
-    exported: 卡片包已导出
-    export_failed: 导出卡片包失败
-    imported: 卡片包已导入
-    import_missing_file: 卡片包缺少必需文件
-    import_invalid_file: 卡片包文件无效
+    exported: 角色卡已导出
+    export_failed: 导出角色卡失败
+    imported: 角色卡已导入
+    import_missing_file: 角色卡缺少必需文件
+    import_invalid_file: 角色卡文件无效
     upload: 上传
     upload_desc: 点击或拖动 AIRI 角色卡包以导入
   memory:
@@ -622,6 +746,48 @@ pages:
       desktop_window_centered: 桌面窗口已移至屏幕中央。
       desktop_reset: 桌面数据重置。
   models:
+    editor:
+      model:
+        all-models: 全部模型
+      tabs:
+        model: 模型
+        placement: 位置
+        motion: 动作
+        look: 外观
+        display: 显示
+      tools:
+        size: 大小
+        position: 位置
+        look-at: 视线
+        eyes: 眼睛
+        idle-motion: 空闲动画
+        motion-source: 动作驱动器
+        expressions: 表情
+        shadow: 投影
+        theme-color: 主题颜色
+      position:
+        horizontal: 水平
+        vertical: 垂直
+        description: 在舞台上拖动角色，或者使用下面的刻度尺。
+      look-at:
+        title: 角色看向哪里
+        options:
+          cursor: 跟随鼠标
+          off: 看向前方
+      eyes:
+        look-around: 空闲时四处看
+        blink: 眨眼
+        blink-options:
+          off: '关闭'
+          model: 使用模型自带
+          airi: AIRI 计时
+      reset: 重置
+      back: 返回
+      clear-cache-confirm:
+        title: 清除模型缓存？
+        description: 这台设备上所有 Live2D 模型的文件都会被删除。下次加载时会重新下载每个模型。
+        confirm: 清除
+        cancel: 取消
     description: 切换角色的 Live2D、VRM、Spine 模型
     title: 角色模型
     sections:
@@ -689,7 +855,7 @@ pages:
       description: 图像生成、场景背景和绘图。
       page:
         title: 绘图提供商配置
-        description: 选择用于图像生成的活动后端提供商。角色可以在其角色卡设置中覆盖此选项。
+        description: 选择用于图像生成的活动后端提供商。角色可以在自己的设置中覆盖此选项。
       providers:
         none:
           name: 无
@@ -748,14 +914,14 @@ pages:
       gaming: 游戏
       artistry: 绘图
     consciousness:
-      description: 人格设定、使用的模型等配置
+      description: 选择并配置语言模型
       sections:
         section:
           provider-model-selection:
             collapse: 折叠
             custom_model_placeholder: 输入自订模型名称
             current_model_label: '当前模型：'
-            description: 为意识选择合适的 LLM 服务来源
+            description: 选择默认的 LLM 服务来源。角色没有单独设置时使用它。
             error: 获取出错啦
             health_check_failed: 健康检查失败
             no_providers_configured_title: 没有配置服务来源
@@ -844,7 +1010,7 @@ pages:
       wake-words:
         title: 唤醒词
         description: 查看每个角色的唤醒词，并选择由谁回应共享的发音。
-        intro: 唤醒词保存在每个角色的角色卡上。如需修改，可以在聊天中请角色更改。
+        intro: 每个角色保存自己的唤醒词。如需修改，可以在聊天中请角色更改。
         empty: 这个角色还没有唤醒词。
         state:
           active: 已启用
@@ -853,7 +1019,7 @@ pages:
           unsupported: 当前唤醒词模型不支持
         conflicts:
           title: 共享的发音
-          description: 多个角色使用了相同的发音。请选择在此设备上回应它的角色。每张角色卡都会保留自己的唤醒词。
+          description: 多个角色使用了相同的发音。请选择在此设备上回应它的角色。每个角色都会保留自己的唤醒词。
           choose-label: 回应的角色
           choose: '{name}（「{word}」）'
           answered-by: '由 {name} 回应'
@@ -861,32 +1027,41 @@ pages:
       voiceprint:
         title: 声纹
         description: 登记你的声音，让 AIRI 能认出你。
-        intro: 声纹是声纹模型从你的语音中算出的一组数字。它不包含音频，但能识别出你。
-        privacy: AIRI 只把你的声纹保存在这台设备上。导出角色卡不会带上它，AIRI 也不会上传它。要删除它，可以使用本页的「删除声纹」，或数据设置中的「删除所有数据」。
+        intro: 声纹是声纹模型从语音中算出的一组数字。它不包含音频，但能识别出说话的人。
+        languages: 声纹对登记时所说语言的语音最准。如果你说多种语言，可以每种语言各登记一个声纹。标签可以帮你区分它们，例如语言、麦克风或说话的人。
+        privacy: AIRI 不保存登记时的录音，只把声纹保存在这台设备上。导出角色卡不会带上它们，AIRI 也不会上传它们。要删除某个声纹，使用本页的「删除」。要全部删除，使用数据设置中的「删除所有数据」。
         download: 第一次登记时会下载声纹模型，约 28 MB。
+        saved: 已保存的声纹
+        label: 标签
+        label-placeholder: 标签，例如中文
+        enabled: 用于说话人识别
         speaker-recognition:
           label: 说话人识别
-          description: 把由说话或唤醒词开始的每次语音输入和你的声纹比对，并把分数记录在这次输入的 IO trace 中。「按住说话」的输入没有分数。任何人的声音仍然可以开始输入，聊天模型也收不到这个分数。AIRI 聆听期间，声纹模型会一直留在内存中。
-          needs-voiceprint: 登记声纹后才能开启说话人识别。
+          description: 把由说话或唤醒词开始的每次语音输入，和每个开启了「用于说话人识别」的声纹比对。这次输入的 IO trace 会记录最高的分数和对应的声纹。「按住说话」的输入没有分数。任何人的声音仍然可以开始输入，聊天模型也收不到这个分数。AIRI 聆听期间，声纹模型会一直留在内存中。
+          needs-voiceprint: 要使用说话人识别，请先登记声纹，并为它开启「用于说话人识别」。
         status:
           none: 你还没有声纹。
           enrolled: '{date} 登记，使用了 {seconds} 秒语音。'
-          outdated: 声纹模型已更新。请重新登记，才能使用你的声纹。
-        instructions: 请一个人待在麦克风旁边。点击「开始录音」，然后用平时的声音读出下面的句子。
-        sentence-1: 今天我想看看天气，读一下消息，再安排好接下来要做的事情。
-        sentence-2: 我一般在晚上和 AIRI 聊天，那时候房间很安静，我也有空。
-        sentence-3: 请记住我的声音，这样你就能知道是我在说话。
+          outdated: 声纹模型已更新。请重新登记，才能使用这个声纹。
+        instructions: 请一个人待在麦克风旁边。点击「开始录音」，然后用平时的声音说话。
+        sample-prompt: 不知道说什么？可以读这段：
+        sample: 今天我想看看天气，读一下消息，再安排好接下来要做的事情。我一般在晚上和 AIRI 聊天，那时候房间很安静，我也有空。请记住我的声音，这样你就能知道是我在说话。
         progress: '已录到 {seconds} 秒语音。登记至少需要 {min} 秒。'
         start: 开始录音
-        again: 重新登记
+        again: 再登记一个声纹
         finish: 完成
         cancel: 取消
-        delete: 删除声纹
-        enrolling: 正在计算你的声纹……
+        delete: 删除
+        enrolling: 正在生成你的声纹……
+        review:
+          title: 这个声音和已保存的声纹不太像
+          body: 换了人、语言或麦克风，都可能出现这种情况。
+          keep: 保留声纹
+          discard: 放弃
         result:
           enrolled: 你的声纹已保存。
-          cancelled: 已取消登记。
-          too-short: '这次录音只有 {seconds} 秒语音，登记至少需要 {min} 秒。请重新录音。'
+          cancelled: 已取消登记，没有保存任何内容。
+          too-short: '只录到 {seconds} 秒语音。登记至少需要 {min} 秒，请重新录音。'
           error: '登记失败：{error}'
       sections:
         section:
@@ -1099,7 +1274,7 @@ pages:
             load_error: 无法加载音色
             custom_model_placeholder: 输入指定模型名称...
             custom_voice_placeholder: 输入指定声线 ID...
-            description: 选择合适的语音服务来源
+            description: 选择默认的语音服务来源。角色没有单独设置时使用它。
             no_models: 没有任何可用的模型
             no_models_description: 该服务来源的模型列表没有返回任何的数据
             no_voices: 没有任何可用的声线
@@ -1126,7 +1301,7 @@ pages:
       title: 发声
     title: 机体模块
     vision:
-      description: 视觉
+      description: 图像识别和截图设置
       title: 视觉
       tool-images:
         label: 使用视觉模型理解工具图片
@@ -1546,15 +1721,16 @@ pages:
         json-applied: JSON 已经解析完成了，点「保存并重启」就写到磁盘上啦。
         restarted: 重启好啦！启动了 {started} 个，失败 {failed} 个，跳过 {skipped} 个
   flux:
-    title: Flux 电量
+    pageTitle: 订阅
+    balance: 余额 {balance} Flux
+    title: 订阅
     buy: 充值
     currency: 币种
-    description: 充值 Flux
     terms: 使用条款
     privacy: 隐私政策
     packagesError: 暂时无法获取可用的 Flux 电量包。可以之后再试试吗？
     checkout:
-      success: 谢谢你！你的 Flux 通量已经更新好啦～
+      success: 谢谢你！你的 Flux 电量已经更新好啦～
       canceled: 支付被取消
       error: 哎呀，出错了，请稍后再试
     audit:
@@ -1573,33 +1749,45 @@ pages:
       delayHint: Flux 电量历史记录是缓慢更新的，可能有延迟
       ttsRequests: 请求
     packages:
-      title: Flux 电池包
+      title: 电量补充包
       buy: 充值
-      description: 可以选择购入的 Flux 电池包
+      description: 单次购买，不会过期。
   capacitor:
+    name: Capacitor
+    left: Capacitor 还剩 {percent}
+    offer:
+      none: 还没有 Capacitor
+      day: 订阅一个 Capacitor，它每天自动充满 Flux
+      week: 订阅一个 Capacitor，它每周自动充满 Flux
+      month: 订阅一个 Capacitor，它每月自动充满 Flux
+      hint: 对话和语音先用 Capacitor 里的 Flux。
+    forecast:
+      left: 照现在的用法，到 {time} 大约还剩 {percent}
+      empty: 照现在的用法，大约 {time} 用完
+    empty: Capacitor 已用完。想现在继续聊天，可以打开下方的选项，改用 Flux 余额。
     statusError: 暂时无法获取 Capacitor 的状态，可以之后再试试吗？
     packagesError: 暂时无法获取可用的 Capacitor，可以之后再试试吗？
     preferenceError: 偏好保存失败，请稍后再试。
-    remaining: '剩余 {percent}'
-    ofQuota: 共 {quota} Flux
     rechargesAt: '{date} 充满'
     renewsAt: '{date} 续订'
     expiresAt: '{date} 到期'
-    change: 更换 Capacitor
+    choose: 选一个 Capacitor
+    change: 换一个 Capacitor
+    packagesHint: Capacitor 越大，能聊得越久。没用完的 Flux 不会累积。
     quota:
-      day: '每天 {quota} Flux'
-      week: '每周 {quota} Flux'
-      month: '每月 {quota} Flux'
+      day: '{quota} Flux / 天'
+      week: '{quota} Flux / 周'
+      month: '{quota} Flux / 月'
     perMonth: / 月
-    currentPackage: 当前
-    install: 装配
-    upgrade: 升级
-    downgrade: 降级
+    currentPackage: 使用中
+    install: 订阅这个
+    upgrade: 换成 {name}
+    downgrade: 换成 {name}
     manageSubscription: 管理订阅
-    fallbackToFlux: Capacitor 放空后使用 Flux
-    fallbackToFluxHint: 关闭后，对话和语音会暂停，直到 Capacitor 充满。
+    fallbackToFlux: Capacitor 用完后，改用 Flux 余额
+    fallbackToFluxHint: 关闭后，对话和语音会暂停，直到 Capacitor 再次充满。
     checkout:
-      success: Capacitor 已装配并充满。
+      success: 订阅成功，Capacitor 已充满。
       pending: 已收到付款，Capacitor 稍后充满。
       canceled: 购买被取消
       error: 哎呀，出错了，请稍后再试
@@ -1768,16 +1956,6 @@ pages:
         转录（语音转文本）模型服务来源，例如 Whisper.cpp, OpenAI, Azure Speech
     description: LLM，语音合成，语音识别服务来源等
     provider:
-      player2:
-        app-missing:
-          download: '请下载并运行 Player2 应用：{link}'
-          support: '安装后如果问题仍然存在，请在 Discord 联系我们：{link}'
-      mimo:
-        model-behavior:
-          title: MiMo 模型行为
-          preset: '{model} 使用下方的预设音色列表。'
-          voice-design: '{model} 根据风格提示词设计新音色，不接受 {field}。'
-          voice-clone: '{model} 使用你粘贴的音色样本，忽略预设音色选择。'
       sherpaw-transcription:
         description: 使用内置或按需加载的模型进行本地语音识别，无需 API 密钥。
         language:
@@ -1925,7 +2103,7 @@ pages:
             remove: 移除
             config_snippet: 绘图配置片段
             copy_json: 复制 JSON
-            paste_hint: 将其粘贴到 AIRI 角色卡绘图配置中，以覆盖这些节点。
+            paste_hint: 将其粘贴到角色的绘图配置中，以覆盖这些节点。
           upload:
             prompt: 拖放或选择 workflow_api.json 文件
             invalid_json: 无效的 JSON
@@ -1945,7 +2123,7 @@ pages:
             description: 您的 Replicate API 令牌（以 r8_ 开头）
           default_model:
             label: 默认模型
-            description: 角色卡未指定模型时使用的备用所有者/模型字符串
+            description: 角色未指定模型时使用的备用所有者/模型字符串
           aspect_ratio:
             label: 宽高比
             description: 默认图像宽高比（例如 16:9、1:1、9:16）
@@ -2063,6 +2241,12 @@ pages:
               placeholder: 选择一个 MiniMax 模型...
         playground:
           default-text: 您好！这是 MiniMax 语音合成测试。
+      mimo:
+        model-behavior:
+          title: MiMo 模型行为
+          preset: '{model} 使用下方的预设音色列表。'
+          voice-design: '{model} 根据风格提示词设计新音色，不接受 {field}。'
+          voice-clone: '{model} 使用你粘贴的音色样本，忽略预设音色选择。'
       moonshot:
         description: Moonshot.ai
         title: 月之暗面
@@ -2079,6 +2263,10 @@ pages:
         description: OpenRouter.ai
       openrouter-audio-speech:
         description: OpenRouter.ai
+      player2:
+        app-missing:
+          download: '请下载并运行 Player2 应用：{link}'
+          support: '安装后如果问题仍然存在，请在 Discord 联系我们：{link}'
       volcengine:
         fields:
           field:
@@ -2106,7 +2294,7 @@ pages:
           unavailable: 此浏览器不支持 Web Speech API。
           select-device: 请选择音频输入设备以开始测试。
           error-title: 转写错误
-          streaming-mode: 流式模式：说话时转写结果会实时显示。
+          streaming-mode: '流式模式：说话时转写结果会实时显示。'
         no-api-key: 无需 API 密钥。Web Speech API 免费且内置于浏览器。
         intro:
           title: 浏览器内置的免费语音识别
@@ -2131,7 +2319,7 @@ pages:
         playground:
           title: 实验平台
       aihubmix:
-        description: https://aihubmix.com (九折优惠)
+        description: aihubmix.com (九折优惠)
     title: 服务来源
   connection:
     description: 配置 WebSocket 服务器连接
@@ -2186,12 +2374,6 @@ pages:
         global: 已向登录账户开放
         account: 已向你的账户开放
       features:
-        character_card_sync:
-          title: 角色卡云同步
-          description: 登录后把角色卡同步到账号，方便在其他设备上使用。默认关闭。删除的角色卡会在账号里保留 30 天。
-        display_model_sync:
-          title: 模型云同步
-          description: 登录后把导入的 Live2D 和 VRM 模型上传到账号，方便在其他设备上使用。默认关闭。
         fullscreen_workspace:
           title: 全屏工作区
           description: 在铺满屏幕的工作区里打开设置和聊天，角色在左边。默认关闭。
@@ -2436,7 +2618,7 @@ pages:
     title: 场景
     description: 自定义角色的虚拟环境。
     beta_label: 场景系统
-    beta_description: 每个角色卡可以从场景库中指定自己偏好的背景。在此设置将作为当前活跃角色的默认背景。
+    beta_description: 每个角色可以从场景库中指定自己偏好的背景。在此设置将作为当前活跃角色的默认背景。
     background_image:
       title: 活跃角色背景
       no_background: 此角色没有活跃背景。上传正方形或横向图片以获得最佳效果。
@@ -2622,7 +2804,7 @@ tachie:
     render-scale: 渲染缩放
     shadow: 主题色动态阴影
   audit-report:
-    status: 状态：{status}
+    status: '状态：{status}'
     critical-issues: 严重问题
     warnings: 警告
 websocket-secure-enabled:

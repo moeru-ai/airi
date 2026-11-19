@@ -1,7 +1,9 @@
 import type { DisplayModelFile } from '../../stores/display-models'
 
 import localforage from 'localforage'
+import indexedDbDriver from 'unstorage/drivers/indexedb'
 
+import { createStorage } from 'unstorage'
 import { afterEach, expect, it } from 'vitest'
 
 import { sha256Hex } from '../../libs/file-transfer/transfer'
@@ -9,7 +11,10 @@ import { DisplayModelFormat } from '../../stores/display-models'
 import { createDisplayModelsRepo } from './display-models.repo'
 
 // Browser test files share one origin and one IndexedDB. Remove only the keys that this test writes.
-const store = localforage.createInstance({ name: 'airi-display-models-browser-test' })
+const dbName = 'airi-display-models-browser-test'
+const store = createStorage({ driver: indexedDbDriver({ dbName, storeName: 'keyvaluepairs' }) })
+// Releases before the unstorage migration wrote records with localforage. It uses the store name `keyvaluepairs` by default.
+const previousRelease = localforage.createInstance({ name: dbName })
 const id = 'display-model-browser-test'
 
 function bytes(size: number) {
@@ -26,7 +31,7 @@ afterEach(async () => {
 
 it('reads a model that the previous release wrote, with the same bytes', async () => {
   const content = bytes(1024 * 1024)
-  await store.setItem(id, {
+  await previousRelease.setItem(id, {
     format: DisplayModelFormat.VRM,
     file: new File([content], 'avatar.vrm', { type: 'model/gltf-binary' }),
     importedAt: 1,
