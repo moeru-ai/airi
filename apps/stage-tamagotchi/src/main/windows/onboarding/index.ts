@@ -4,7 +4,7 @@ import type { GlobalShortcutService } from '../../services/electron/global-short
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
-import { safeClose } from '@proj-airi/electron-vueuse/main'
+import { onWindowClosed, safeClose } from '@proj-airi/electron-vueuse/main'
 import { BrowserWindow, ipcMain } from 'electron'
 
 import icon from '../../../../resources/icon.png?asset'
@@ -82,7 +82,7 @@ export function setupOnboardingWindowManager(params: {
       query: { 'synced-leader': 'false' },
     }))
 
-    newWindow.on('closed', () => {
+    onWindowClosed(newWindow, () => {
       for (const cb of closeCallbacks) {
         try {
           cb()

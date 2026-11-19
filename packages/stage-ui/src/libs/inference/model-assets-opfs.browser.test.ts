@@ -66,6 +66,24 @@ describe('origin private model asset storage', () => {
     expect(await storage.has(model)).toBe(false)
   })
 
+  it('keeps the installed model when replacement staging fails', async () => {
+    const metadataUrl = URL.createObjectURL(new Blob(['metadata']))
+    urls.push(metadataUrl)
+    const model = asset(metadataUrl)
+    await storage.install(model, () => {}, new AbortController().signal)
+
+    await expect(storage.restore(model, {
+      data: new TextEncoder().encode('replacement data'),
+      metadata: new TextEncoder().encode('replacement metadata'),
+    }, (progress) => {
+      if (progress.file === 'data')
+        throw new Error('Stop replacement staging')
+    })).rejects.toThrow('Stop replacement staging')
+
+    expect(await storage.has(model)).toBe(true)
+    expect(await (await storage.open(model, model.files[0]!)).text()).toBe('model data')
+  })
+
   it('reclaims superseded revisions after a new revision commits', async () => {
     const metadataUrl = URL.createObjectURL(new Blob(['metadata']))
     urls.push(metadataUrl)

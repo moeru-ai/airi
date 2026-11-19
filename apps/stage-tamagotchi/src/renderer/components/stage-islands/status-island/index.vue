@@ -1,18 +1,14 @@
 <script setup lang="ts">
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
-import { lampFlickerAnimationClass } from '@proj-airi/ui'
+import { DockButton, lampFlickerAnimationClass } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import ControlButtonTooltip from '../controls-island/control-button-tooltip.vue'
-import ControlButton from '../controls-island/control-button.vue'
-
 import { electronOpenSettings } from '../../../../shared/eventa'
 
 const props = defineProps<{
-  buttonStyle: string
   iconClass: string
 }>()
 
@@ -25,7 +21,7 @@ const iconClasses = computed(() => {
     'i-mingcute:link-3-line',
     !connected.value && lampFlickerAnimationClass,
     props.iconClass,
-    'shrink-0 text-neutral-800 transition-colors duration-300 ease-in-out dark:text-neutral-300',
+    'shrink-0 transition-colors duration-300 ease-in-out',
   ]
 })
 
@@ -41,17 +37,7 @@ const tooltipLabel = computed(() => {
 </script>
 
 <template>
-  <ControlButtonTooltip side="inward">
-    <ControlButton
-      :button-style="props.buttonStyle"
-      :aria-label="tooltipLabel"
-      :title="tooltipLabel"
-      @click="openSettings({ route: '/settings/connection' })"
-    >
-      <div :class="iconClasses" />
-    </ControlButton>
-    <template #tooltip>
-      {{ tooltipLabel }}
-    </template>
-  </ControlButtonTooltip>
+  <DockButton :label="tooltipLabel" @click="openSettings({ route: '/settings/connection' })">
+    <span :class="iconClasses" />
+  </DockButton>
 </template>

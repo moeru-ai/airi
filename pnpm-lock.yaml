@@ -259,8 +259,8 @@ catalogs:
       specifier: 0.1.0-beta.19
       version: 0.1.0-beta.19
     '@moeru/eventa':
-      specifier: 1.0.2
-      version: 1.0.2
+      specifier: 1.0.3
+      version: 1.0.3
     '@moeru/std':
       specifier: 0.1.0-beta.17
       version: 0.1.0-beta.17
@@ -931,8 +931,8 @@ catalogs:
       specifier: ^1.0.2
       version: 1.0.2
     nanoid:
-      specifier: ^6.0.1
-      version: 6.0.1
+      specifier: ^6.0.2
+      version: 6.0.2
     node-macos-disclaim:
       specifier: ^0.0.1
       version: 0.0.1
@@ -987,6 +987,12 @@ catalogs:
     postgres:
       specifier: ^3.4.9
       version: 3.4.9
+    posthog-js:
+      specifier: ^1.440.0
+      version: 1.447.12
+    posthog-node:
+      specifier: ^5.60.0
+      version: 5.69.0
     postprocessing:
       specifier: ^6.39.4
       version: 6.39.4
@@ -1288,6 +1294,7 @@ catalogs:
       version: 0.1.16
 
 overrides:
+  '@huggingface/transformers>onnxruntime-node': 1.27.0
   '@huggingface/transformers>onnxruntime-web': ^1.27.0
   array-flatten: npm:@nolyfill/array-flatten@^1.0.44
   axios: npm:feaxios@^0.0.23
@@ -1552,7 +1559,7 @@ importers:
         version: 3.8.1
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
+        version: 1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -1699,7 +1706,7 @@ importers:
         version: 1.55.2
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       node-vibrant:
         specifier: 'catalog:'
         version: 4.0.4
@@ -2049,7 +2056,7 @@ importers:
         version: 1.30.0(supports-color@10.2.2)(zod@4.4.3)
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
+        version: 1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -2328,7 +2335,7 @@ importers:
         version: 2.0.1-rc.29(crossws@0.4.12(srvx@1.0.8))
       injeca:
         specifier: 'catalog:'
-        version: 0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.2)
       jszip:
         specifier: 'catalog:'
         version: 3.10.1
@@ -2343,7 +2350,7 @@ importers:
         version: 3.2.0
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       node-vibrant:
         specifier: 'catalog:'
         version: 4.0.4
@@ -2554,7 +2561,7 @@ importers:
         version: 11.4.9
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
+        version: 1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -2725,7 +2732,7 @@ importers:
         version: 1.51.0
       injeca:
         specifier: 'catalog:'
-        version: 0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.2)
       jszip:
         specifier: 'catalog:'
         version: 3.10.1
@@ -2734,7 +2741,7 @@ importers:
         version: 1.55.2
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       node-vibrant:
         specifier: 'catalog:'
         version: 4.0.4
@@ -2999,7 +3006,7 @@ importers:
         version: 3.8.1
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
+        version: 1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -3381,7 +3388,7 @@ importers:
         version: 0.10.0(vue@3.5.41(typescript@6.0.3))
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
+        version: 1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -3435,13 +3442,16 @@ importers:
         version: 4.4.0
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       nprogress:
         specifier: 'catalog:'
         version: 0.2.0
       pinia:
         specifier: 'catalog:'
         version: 4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3))
+      posthog-js:
+        specifier: 'catalog:'
+        version: 1.447.12
       uuid:
         specifier: 'catalog:'
         version: 14.0.2
@@ -3741,7 +3751,7 @@ importers:
         version: 5.0.4
       injeca:
         specifier: 'catalog:'
-        version: 0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.2)
       isolated-vm:
         specifier: 'catalog:'
         version: 7.0.1
@@ -3771,7 +3781,7 @@ importers:
         version: 1.2.0(supports-color@10.2.2)
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       prismarine-block:
         specifier: 'catalog:'
         version: 1.23.0(supports-color@10.2.2)
@@ -3847,7 +3857,7 @@ importers:
         version: 1.51.0
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       valibot:
         specifier: 'catalog:'
         version: 1.5.0(typescript@6.0.3)
@@ -3947,7 +3957,7 @@ importers:
         version: 1.45.1(supports-color@10.2.2)
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       p-limit:
         specifier: 'catalog:'
         version: 7.3.1
@@ -4023,10 +4033,10 @@ importers:
         version: 1.51.0
       injeca:
         specifier: 'catalog:'
-        version: 0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.2)
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       tinyexec:
         specifier: 'catalog:'
         version: 1.3.0
@@ -4072,7 +4082,7 @@ importers:
         version: 1.55.2
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
     devDependencies:
       '@types/audioworklet':
         specifier: 'catalog:'
@@ -4085,7 +4095,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
+        version: 1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       crossws:
         specifier: 'catalog:'
         version: 0.4.12(srvx@0.12.7)
@@ -4136,7 +4146,7 @@ importers:
         version: 3.4.0
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
+        version: 1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -4196,7 +4206,7 @@ importers:
         version: 0.5.1(@valibot/to-json-schema@1.8.0(valibot@1.5.0(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       rehype-parse:
         specifier: 'catalog:'
         version: 9.0.1
@@ -4263,7 +4273,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
+        version: 1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       builder-util-runtime:
         specifier: 'catalog:'
         version: 9.7.0(supports-color@10.2.2)
@@ -4300,7 +4310,7 @@ importers:
         version: 3.0.2(electron@43.8.4(supports-color@10.2.2))
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
+        version: 1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -4309,7 +4319,7 @@ importers:
         version: 0.5.0
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       vite:
         specifier: 'catalog:'
         version: 8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1)
@@ -4321,7 +4331,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
+        version: 1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -4464,7 +4474,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
+        version: 1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -4479,13 +4489,13 @@ importers:
         version: 4.0.4
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
 
   packages/plugin-protocol:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
+        version: 1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       '@proj-airi/extension-protocol':
         specifier: workspace:*
         version: link:../extension-protocol
@@ -4497,7 +4507,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
+        version: 1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -4506,10 +4516,10 @@ importers:
         version: link:../extension-protocol
       injeca:
         specifier: 'catalog:'
-        version: 0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.2)
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       semver:
         specifier: 'catalog:'
         version: 7.8.5
@@ -4528,13 +4538,13 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
+        version: 1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       '@proj-airi/plugin-sdk':
         specifier: workspace:*
         version: link:../plugin-sdk
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       valibot:
         specifier: 'catalog:'
         version: 1.5.0(typescript@6.0.3)
@@ -4719,7 +4729,7 @@ importers:
         version: 2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7))
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       srvx:
         specifier: 'catalog:'
         version: 0.12.7
@@ -4780,7 +4790,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
+        version: 1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -4828,7 +4838,7 @@ importers:
         version: 3.4.14
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       node-vibrant:
         specifier: 'catalog:'
         version: 4.0.4
@@ -4895,7 +4905,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
+        version: 1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -4967,7 +4977,7 @@ importers:
         version: 1.51.0
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       node-vibrant:
         specifier: 'catalog:'
         version: 4.0.4
@@ -5062,6 +5072,9 @@ importers:
       pinia:
         specifier: 'catalog:'
         version: 4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3))
+      posthog-js:
+        specifier: 'catalog:'
+        version: 1.447.12
       valibot:
         specifier: 'catalog:'
         version: 1.5.0(typescript@6.0.3)
@@ -5074,7 +5087,7 @@ importers:
         version: 3.0.2(electron@43.8.4(supports-color@10.2.2))
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
+        version: 1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       '@nekopaw/tempora':
         specifier: 'catalog:'
         version: 0.4.0-alpha.1
@@ -5110,7 +5123,7 @@ importers:
         version: 3.1.4
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
+        version: 1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -5359,7 +5372,7 @@ importers:
         version: 1.55.2
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       node-vibrant:
         specifier: 'catalog:'
         version: 4.0.4
@@ -5372,6 +5385,9 @@ importers:
       pinia-plugin-synced:
         specifier: 'catalog:'
         version: 0.1.7(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3))
+      posthog-js:
+        specifier: 'catalog:'
+        version: 1.447.12
       rehype-katex:
         specifier: 'catalog:'
         version: 7.0.1
@@ -5760,7 +5776,7 @@ importers:
         version: 3.10.1
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       pinia:
         specifier: 'catalog:'
         version: 4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3))
@@ -5892,7 +5908,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
+        version: 1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       '@pixiv/three-vrm':
         specifier: 'catalog:'
         version: 3.5.5(@types/three@0.185.4)(three@0.185.1)
@@ -6358,7 +6374,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
+        version: 1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -6446,7 +6462,7 @@ importers:
         version: 1.2.4
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
+        version: 1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -6467,7 +6483,7 @@ importers:
         version: 1.0.3(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))(vue@3.5.41(typescript@6.0.3))(wxt@0.21.4(canvas@3.2.3)(esbuild@0.28.2)(eslint@10.9.0(jiti@2.7.0)(supports-color@10.2.2))(oxc-parser@0.155.0)(rolldown@1.2.14)(rollup@4.62.5)(typescript@6.0.3)(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1)))
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       vue:
         specifier: 'catalog:'
         version: 3.5.41(typescript@6.0.3)
@@ -6512,7 +6528,7 @@ importers:
         version: 1.1.2(hono@4.13.3)
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
+        version: 1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -6602,7 +6618,7 @@ importers:
         version: 0.5.3(hono@4.13.3)(unstorage@1.17.5(idb-keyval@6.3.0)(ioredis@6.0.0(supports-color@10.2.2)))
       injeca:
         specifier: 'catalog:'
-        version: 0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.2)
       ioredis:
         specifier: 'catalog:'
         version: 6.0.0(supports-color@10.2.2)
@@ -6614,13 +6630,16 @@ importers:
         version: 1.0.20260904203849(zod@4.4.3)
       nanoid:
         specifier: 'catalog:'
-        version: 6.0.1
+        version: 6.0.2
       ofetch:
         specifier: 'catalog:'
         version: 1.5.1
       pg:
         specifier: 'catalog:'
         version: 8.23.0
+      posthog-node:
+        specifier: 'catalog:'
+        version: 5.69.0(@opentelemetry/api@1.9.1)(rxjs@7.8.2)
       stripe:
         specifier: 'catalog:'
         version: 22.5.0(@types/node@26.2.0)
@@ -6741,7 +6760,7 @@ importers:
         version: 0.5.3(hono@4.13.3)(unstorage@1.17.5(idb-keyval@6.3.0)(ioredis@6.0.0(supports-color@10.2.2)))
       injeca:
         specifier: 'catalog:'
-        version: 0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.2)
       ioredis:
         specifier: 'catalog:'
         version: 6.0.0(supports-color@10.2.2)
@@ -6813,7 +6832,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
+        version: 1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       valibot:
         specifier: 'catalog:'
         version: 1.5.0(typescript@6.0.3)
@@ -9661,13 +9680,13 @@ packages:
       web-worker:
         optional: true
 
-  '@moeru/eventa@1.0.2':
-    resolution: {integrity: sha512-GlgLTPxVN9A/1lxlAktB/zyjPZc4i6YFYbd6YHY+0dsoOPAjofzV+hzqtKCAzIEZ90waZ5OgiVFlkqcA0lzdkg==}
+  '@moeru/eventa@1.0.3':
+    resolution: {integrity: sha512-BSHjs9F1gcBLBQHFkd7lAR7siICZmejpNcUII1z2YtNEtfrqrYHbX4D9iVcPQ+hRV/pWBoMDGZ91Apdh8u8ZKw==}
     peerDependencies:
-      '@tauri-apps/api': '>=2'
+      '@tauri-apps/api': '>=2.12.4'
       electron: '>=39'
-      h3: '>=2.0.1-rc.22'
-      hono: '>=4.12.25'
+      h3: '>=2.0.8'
+      hono: '>=4.13.18'
       web-worker: ^1.5.0
     peerDependenciesMeta:
       '@tauri-apps/api':
@@ -12042,6 +12061,15 @@ packages:
   '@polka/url@1.0.0-next.29':
     resolution: {integrity: sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww==}
 
+  '@posthog/browser-common@0.10.8':
+    resolution: {integrity: sha512-TQmqLVNFoKaL4dDV5Q8AScX2dIwdq8By2cj2KU1hMGe88tn7Usbf3U/hv5okhobEojntqJeslPIRBrG79Su+vg==}
+
+  '@posthog/core@1.67.1':
+    resolution: {integrity: sha512-Fq8YySx3G2ggxKV/dLf5nfbQocB3/yU6TNSGIyRvVynizrIW8tZfB2HQ/13cY61PoU+cNzvKch+B7Ac+OUkORw==}
+
+  '@posthog/types@1.424.0':
+    resolution: {integrity: sha512-58RE0+Lt4vMLYmty2MlyAyfxFJvlM3Fp0tgRT25Klky7FSQvpznX+W9xKyVESB5oIAEJDxfHKX0cwEBHROZKqw==}
+
   '@prisma/client@5.22.0':
     resolution: {integrity: sha512-M0SVXfyHnQREBKxCgyo7sffrKttwE6R8PMq330MIUF0pTwjUhLbW84pFDlf06B27XyCR++VtjugEnIHdr07SVA==}
     engines: {node: '>=16.13'}
@@ -14316,6 +14344,10 @@ packages:
     engines: {node: '>=0.4.0'}
     hasBin: true
 
+  adm-zip@0.5.18:
+    resolution: {integrity: sha512-ufJnssQGbxzLNS1Ho9bCtX4rQKCCvoVuDLHoJyc3F9dOGDB4BkWs2Ci0kv53lqocAEQ/Cbi+I2XCsNYGqVYqng==}
+    engines: {node: '>=12.0'}
+
   aes-js@3.1.2:
     resolution: {integrity: sha512-e5pEa2kBnBOgR4Y/p20pskXI74UEz7de8ZGVo58asOtvSVG5YAbJeELPZxOmt+Bnz3rX753YKhfIn4X4l1PPRQ==}
 
@@ -15245,6 +15277,9 @@ packages:
   core-js-compat@3.50.0:
     resolution: {integrity: sha512-XGpFGbMLHwSt74YLTKho7Ib242qi6O8MSX+sRokV4oz7iKXvQWGYZthjIhjRGMxjzVkAubBO512dKGYcefmX3Q==}
     engines: {node: '>=6.4.0'}
+
+  core-js@3.51.0:
+    resolution: {integrity: sha512-7bDKx/5jm5MxzsXxc93g6Z2+4ZsuT/MddrfRmTDJNAkWsYWHU8EVNEsBiIEWnMAMCHMmRfUEjkuo3jeNBOIHRw==}
 
   core-util-is@1.0.3:
     resolution: {integrity: sha512-ZQBvi1DcpJ4GDqanjucZ2Hj3wEO5pZDS89BWbkcrvdxksJorwUDDZamX9ldFkp9aw2lmBDLgkObEA4DWNJ9FYQ==}
@@ -16592,6 +16627,9 @@ packages:
     resolution: {integrity: sha512-7yAQpD2UMJzLi1Dqv7qFYnPbaPx7ZfFK6PiIxQ4PfkGPyNyl2Ugx+a/umUonmKqjhM4DnfbMvdX6otXq83soQQ==}
     engines: {node: ^12.20 || >= 14.13}
 
+  fflate@0.4.9:
+    resolution: {integrity: sha512-zdxgIEddhfsyCaWpJ2SdXEP8ZMrKJ6+5jl4OupODcywU0IhRk6gdXuVGcPICyfx2H97hVK7xmJtRLPjkxAX8Vw==}
+
   fflate@0.6.11:
     resolution: {integrity: sha512-3JyEFWGjFn7zHmoa9+zG1BmW7X2okcmAB+0Cnu9UFbVs/jCBnl2A8o065ZlXiw145K3eBM3uLuzrYXC0RK7eDg==}
 
@@ -16918,6 +16956,10 @@ packages:
 
   global-agent@3.0.0:
     resolution: {integrity: sha512-PT6XReJ+D07JvGoxQMkT6qji/jVNfX/h364XHZOWeRzy64sSFr+xJ5OX7LI3b4MPQzdL4H8Y8M0xzPpsVMwA8Q==}
+    engines: {node: '>=10.0'}
+
+  global-agent@4.1.7:
+    resolution: {integrity: sha512-pxaZqdsMwPA4i7TuRKpDUONm2xGRjvYdRoidCQz7VleUKVuUfh/4p5Q3QDTGrpAE5Kz5TxxcZ+uqEgTkoKRNtg==}
     engines: {node: '>=10.0'}
 
   globals@15.15.0:
@@ -17957,6 +17999,10 @@ packages:
     resolution: {integrity: sha512-OkeDaAZ/bQCxeFAozM55PKcKU0yJMPGifLwV4Qgjitu+5MoAfSQN4lsLJeXZ1b8w0x+/Emda6MZgXS1jvsapng==}
     engines: {node: '>=10'}
 
+  matcher@4.0.0:
+    resolution: {integrity: sha512-S6x5wmcDmsDRRU/c2dkccDwQPXoFczc5+HpQ2lON8pnvHlnvHAHj5WlLVvw6n6vNyHuVugYrFohYxbS+pvFpKQ==}
+    engines: {node: '>=10'}
+
   math-intrinsics@1.1.0:
     resolution: {integrity: sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==}
     engines: {node: '>= 0.4'}
@@ -18361,8 +18407,8 @@ packages:
     engines: {node: ^18 || >=20}
     hasBin: true
 
-  nanoid@6.0.1:
-    resolution: {integrity: sha512-3wVS3i51pE2pi1k5FFL/95BGfVS0kSsvDVuGXHOtxox/TywUmtgq+3qiTOTbs9J7KfHaXPiN171k/A6dBnaXFw==}
+  nanoid@6.0.2:
+    resolution: {integrity: sha512-hIvVOb9Qr1p/9CNNLOe0OlWvgx/ziTsVwKN/GDSsuArN2K0wDiafP3s0SWmsm7o2BdnyS8Z9Z64NFBUbn6ziBg==}
     engines: {node: ^22 || ^24 || >=26}
     hasBin: true
 
@@ -18584,14 +18630,11 @@ packages:
   oniguruma-to-es@4.3.6:
     resolution: {integrity: sha512-csuQ9x3Yr0cEIs/Zgx/OEt9iBw9vqIunAPQkx19R/fiMq2oGVTgcMqO/V3Ybqefr1TBvosI6jU539ksaBULJyA==}
 
-  onnxruntime-common@1.21.0:
-    resolution: {integrity: sha512-Q632iLLrtCAVOTO65dh2+mNbQir/QNTVBG3h/QdZBpns7mZ0RYbLRBgGABPbpU9351AgYy7SJf1WaeVwMrBFPQ==}
-
   onnxruntime-common@1.27.0:
     resolution: {integrity: sha512-3KxL5wIVqa8Ex08jxSzncm9CMgw8CjOFyOQ7SxvG9o0cVLlhTNKXyIQuTbtX4tGPJEf73OER2xrjt4HJSBL4ow==}
 
-  onnxruntime-node@1.21.0:
-    resolution: {integrity: sha512-NeaCX6WW2L8cRCSqy3bInlo5ojjQqu2fD3D+9W5qb5irwxhEyWKXeH2vZ8W9r6VxaMPUan+4/7NDwZMtouZxEw==}
+  onnxruntime-node@1.27.0:
+    resolution: {integrity: sha512-QEzGwrvNBgv4uPVdnbHsOGG4G6T96mdlcFI8aAKPjMU8wOPpVocPXb6k3QGkaZagVTv2G9Bnnbo6Z3JdXr1fQw==}
     os: [win32, darwin, linux]
 
   onnxruntime-web@1.27.0:
@@ -19009,6 +19052,32 @@ packages:
     resolution: {integrity: sha512-GD3qdB0x1z9xgFI6cdRD6xu2Sp2WCOEoe3mtnyB5Ee0XrrL5Pe+e4CCnJrRMnL1zYtRDZmQQVbvOttLnKDLnaw==}
     engines: {node: '>=12'}
 
+  posthog-js@1.447.12:
+    resolution: {integrity: sha512-FN97nANDsi62K/ywRxL8XwSw8X/29cWheMzduxRiM6g7PmOWFA2MlttPM00Q+YIwzRAiTCZu0j2HMlJbbc5HLA==}
+    peerDependencies:
+      '@types/react': '>=16.8.0'
+      react: '>=16.8.0'
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+      react:
+        optional: true
+
+  posthog-node@5.69.0:
+    resolution: {integrity: sha512-sNTR0Ld3WfgXvdOtKw2K6f44MADcDED+35wId+ZJlk3qUt8CoKKBT4uP4jWMPuC9knCc9HWURXexJVY+/gat4g==}
+    engines: {node: ^20.20.0 || >=22.22.0}
+    peerDependencies:
+      '@opentelemetry/api': ^1.2.0
+      '@react-email/render': ^2.1.0
+      rxjs: ^7.0.0
+    peerDependenciesMeta:
+      '@opentelemetry/api':
+        optional: true
+      '@react-email/render':
+        optional: true
+      rxjs:
+        optional: true
+
   postject@1.0.0-alpha.6:
     resolution: {integrity: sha512-b9Eb8h2eVqNE8edvKdwqkrY6O7kAwmI8kcnBv1NScolYJbo59XUF0noFq+lxbC1yN20bmC0WBEbDC5H/7ASb0A==}
     engines: {node: '>=14.0.0'}
@@ -19029,6 +19098,14 @@ packages:
   powershell-utils@0.2.0:
     resolution: {integrity: sha512-ZlsFlG7MtSFCoc5xreOvBAozCJ6Pf06opgJjh9ONEv418xpZSAzNjstD36C6+JwOnfSqOW/9uDkqKjezTdxZhw==}
     engines: {node: '>=20'}
+
+  preact@10.29.8:
+    resolution: {integrity: sha512-ej2aVZ+vZ8WO7tvlQWRM9N63A0KzF9q4mWJfDUHgYaIofWY9hu74QdnQrjoPMmZi2/nZ5gN0bJCQF49xQqx09Q==}
+    peerDependencies:
+      preact-render-to-string: '>=5'
+    peerDependenciesMeta:
+      preact-render-to-string:
+        optional: true
 
   prebuild-install@7.1.3:
     resolution: {integrity: sha512-8Mf2cbV7x1cXPUILADGI3wuhfqWvtiLA1iclTDbFRZkgRQS0NqsPZphna9V+HyTEadheuPmjaJMsbzKQFOzLug==}
@@ -19241,6 +19318,9 @@ packages:
 
   quansync@1.0.0:
     resolution: {integrity: sha512-5xZacEEufv3HSTPQuchrvV6soaiACMFnq1H8wkVioctoH3TRha9Sz66lOxRwPK/qZj7HPiSveih9yAyh98gvqA==}
+
+  query-selector-shadow-dom@1.0.1:
+    resolution: {integrity: sha512-lT5yCqEBgfoMYpf3F2xQRK7zEr1rhIIZuceDK6+xRkJQ4NMbHTwXqk4NkwDwQMNqXgG9r9fyHnzwNVs6zV5KRw==}
 
   queue-microtask@1.2.3:
     resolution: {integrity: sha512-NuaNSa6flKT5JaSYQzJok04JzTL1CA6aGhv5rfLW3PgqA+M2ChpZQnAC8h8i4ZFkBS8X5RqkDBHA7r4hej3K9A==}
@@ -19669,6 +19749,10 @@ packages:
 
   serialize-error@7.0.1:
     resolution: {integrity: sha512-8I8TjW5KMOKsZQTvoxjuSIa7foAwPWGOts+6o7sgjz41/qMD9VQHEDxi6PBvK2l0MXUmqZyNpUK+T2tQaaElvw==}
+    engines: {node: '>=10'}
+
+  serialize-error@8.1.0:
+    resolution: {integrity: sha512-3NnuWfM6vBYoy5gZFvHiYsVbafvI9vZv/+jlIigFn4oP4zjNPK3LhcY0xSCgeb1a5L8jO71Mit9LlNoi2UfDDQ==}
     engines: {node: '>=10'}
 
   serialize-javascript@7.1.0:
@@ -20368,6 +20452,10 @@ packages:
 
   type-fest@0.16.0:
     resolution: {integrity: sha512-eaBzG6MxNzEn9kiwvtre90cXaNLkmadMWa1zQMs3XORCXNbsH/OewwbxC5ia9dCxIxnTAsSxXJaa/p5y8DlvJg==}
+    engines: {node: '>=10'}
+
+  type-fest@0.20.2:
+    resolution: {integrity: sha512-Ne+eE4r0/iWnpAxD852z3A+N0Bt5RN//NjJwRd2VFHEmrywxf5vsZlh4R6lixl6B+wz/8d+maTSAkN1FIkI3LQ==}
     engines: {node: '>=10'}
 
   type-fest@5.9.0:
@@ -21323,6 +21411,9 @@ packages:
   web-streams-polyfill@3.3.3:
     resolution: {integrity: sha512-d2JWLCivmZYTSIoge9MsgFCZrt571BikcWGYkjC1khllbTeDlGqZ2D8vD8E/lJa8WGWbb7Plm8/XJYV7IJHZZw==}
     engines: {node: '>= 8'}
+
+  web-vitals@6.2.1:
+    resolution: {integrity: sha512-rLcLXA2sx6+9dE88NHFubwTtGxpK4yYBLj6qHPdFoCaLr0cXGb4efOqtKLlm4loGA4OEKHIQKMKzZkKyOh5ctw==}
 
   web-vitals@6.2.3:
     resolution: {integrity: sha512-Dmy+vdO1UPMqXiAtZSNayhl4f794Bxfd94W4HIj2HlYtczEQfEOon969memlcpcHrTuOKLa5baFjX7WbgmOq+A==}
@@ -24197,7 +24288,7 @@ snapshots:
   '@gd-kirie/ipc-eventa@0.15.0(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)':
     dependencies:
       '@gd-kirie/ipc': 0.15.0
-      '@moeru/eventa': 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
+      '@moeru/eventa': 1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
     transitivePeerDependencies:
       - '@tauri-apps/api'
       - electron
@@ -24208,7 +24299,7 @@ snapshots:
   '@gd-kirie/ipc-eventa@0.16.0(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)':
     dependencies:
       '@gd-kirie/ipc': 0.16.0
-      '@moeru/eventa': 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
+      '@moeru/eventa': 1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
     transitivePeerDependencies:
       - '@tauri-apps/api'
       - electron
@@ -24227,7 +24318,7 @@ snapshots:
   '@gd-kirie/notifications@0.15.0(@types/node@26.2.0)(electron@43.8.4(supports-color@10.2.2))(esbuild@0.28.2)(hono@4.13.3)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(web-worker@1.5.0)(yaml@2.9.1)':
     dependencies:
       '@gd-kirie/ipc-eventa': 0.15.0(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
-      '@moeru/eventa': 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
+      '@moeru/eventa': 1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       kirie: 0.15.0(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1)
     transitivePeerDependencies:
       - '@tauri-apps/api'
@@ -24251,7 +24342,7 @@ snapshots:
   '@gd-kirie/platform@0.16.0(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)':
     dependencies:
       '@gd-kirie/ipc-eventa': 0.16.0(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
-      '@moeru/eventa': 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
+      '@moeru/eventa': 1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
     transitivePeerDependencies:
       - '@tauri-apps/api'
       - electron
@@ -24262,7 +24353,7 @@ snapshots:
   '@gd-kirie/tray@0.15.0(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(kirie@0.16.0(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1)))(web-worker@1.5.0)':
     dependencies:
       '@gd-kirie/ipc-eventa': 0.15.0(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
-      '@moeru/eventa': 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
+      '@moeru/eventa': 1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       kirie: 0.16.0(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.1))
     transitivePeerDependencies:
       - '@tauri-apps/api'
@@ -24433,7 +24524,7 @@ snapshots:
   '@huggingface/transformers@3.8.1':
     dependencies:
       '@huggingface/jinja': 0.5.9
-      onnxruntime-node: 1.21.0
+      onnxruntime-node: 1.27.0
       onnxruntime-web: 1.27.0
       sharp: 0.34.5
     optionalDependencies:
@@ -25065,16 +25156,16 @@ snapshots:
 
   '@moeru/eventa@1.0.1(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)':
     dependencies:
-      nanoid: 6.0.1
+      nanoid: 6.0.2
       picomatch: 4.0.7
     optionalDependencies:
       electron: 43.8.4(supports-color@10.2.2)
       hono: 4.13.3
       web-worker: 1.5.0
 
-  '@moeru/eventa@1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)':
+  '@moeru/eventa@1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)':
     dependencies:
-      nanoid: 6.0.1
+      nanoid: 6.0.2
       picomatch: 4.0.7
     optionalDependencies:
       electron: 43.8.4(supports-color@10.2.2)
@@ -25082,9 +25173,9 @@ snapshots:
       hono: 4.13.3
       web-worker: 1.5.0
 
-  '@moeru/eventa@1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)':
+  '@moeru/eventa@1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)':
     dependencies:
-      nanoid: 6.0.1
+      nanoid: 6.0.2
       picomatch: 4.0.7
     optionalDependencies:
       electron: 43.8.4(supports-color@10.2.2)
@@ -25092,9 +25183,9 @@ snapshots:
       hono: 4.13.3
       web-worker: 1.5.0
 
-  '@moeru/eventa@1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)':
+  '@moeru/eventa@1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)':
     dependencies:
-      nanoid: 6.0.1
+      nanoid: 6.0.2
       picomatch: 4.0.7
     optionalDependencies:
       electron: 43.8.4(supports-color@10.2.2)
@@ -26987,6 +27078,21 @@ snapshots:
       find-up: 5.0.0
 
   '@polka/url@1.0.0-next.29': {}
+
+  '@posthog/browser-common@0.10.8':
+    dependencies:
+      '@posthog/core': 1.67.1
+      '@posthog/types': 1.424.0
+      dompurify: 3.4.14
+      preact: 10.29.8
+    transitivePeerDependencies:
+      - preact-render-to-string
+
+  '@posthog/core@1.67.1':
+    dependencies:
+      '@posthog/types': 1.424.0
+
+  '@posthog/types@1.424.0': {}
 
   '@prisma/client@5.22.0': {}
 
@@ -29403,7 +29509,7 @@ snapshots:
 
   '@xsai-apple-speech/transcription-electron-plugin@0.1.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)':
     dependencies:
-      '@moeru/eventa': 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
+      '@moeru/eventa': 1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       '@xsai-apple-speech/transcription': 0.1.3(@xsai/generate-transcription@0.5.0-beta.8)
       '@xsai/generate-transcription': 0.5.0-beta.8
     optionalDependencies:
@@ -29416,7 +29522,7 @@ snapshots:
 
   '@xsai-apple-speech/transcription-electron-plugin@0.1.3(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)':
     dependencies:
-      '@moeru/eventa': 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
+      '@moeru/eventa': 1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       '@xsai-apple-speech/transcription': 0.1.3(@xsai/generate-transcription@0.5.0-beta.8)
       '@xsai/generate-transcription': 0.5.0-beta.8
     optionalDependencies:
@@ -29455,7 +29561,7 @@ snapshots:
 
   '@xsai-apple-vision/vision-electron-plugin@0.1.0(electron@43.8.4(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)':
     dependencies:
-      '@moeru/eventa': 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
+      '@moeru/eventa': 1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       '@xsai-apple-vision/vision': 0.1.0
     optionalDependencies:
       electron: 43.8.4(supports-color@10.2.2)
@@ -29467,7 +29573,7 @@ snapshots:
 
   '@xsai-apple-vision/vision-electron-plugin@0.1.0(electron@43.8.4(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)':
     dependencies:
-      '@moeru/eventa': 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
+      '@moeru/eventa': 1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       '@xsai-apple-vision/vision': 0.1.0
     optionalDependencies:
       electron: 43.8.4(supports-color@10.2.2)
@@ -29751,6 +29857,8 @@ snapshots:
       acorn: 8.18.0
 
   acorn@8.18.0: {}
+
+  adm-zip@0.5.18: {}
 
   aes-js@3.1.2: {}
 
@@ -30195,7 +30303,8 @@ snapshots:
 
   boolbase@2.0.0: {}
 
-  boolean@3.2.0: {}
+  boolean@3.2.0:
+    optional: true
 
   bowser@2.14.1: {}
 
@@ -30604,6 +30713,8 @@ snapshots:
     dependencies:
       browserslist: 4.28.8
 
+  core-js@3.51.0: {}
+
   core-util-is@1.0.3: {}
 
   cors@2.8.6:
@@ -30931,7 +31042,8 @@ snapshots:
 
   detect-libc@2.1.2: {}
 
-  detect-node@2.1.0: {}
+  detect-node@2.1.0:
+    optional: true
 
   devalue@5.9.4: {}
 
@@ -31406,7 +31518,8 @@ snapshots:
       esniff: 2.0.1
       next-tick: 1.1.0
 
-  es6-error@4.1.1: {}
+  es6-error@4.1.1:
+    optional: true
 
   es6-iterator@2.0.3:
     dependencies:
@@ -32093,6 +32206,8 @@ snapshots:
       node-domexception: 1.0.0
       web-streams-polyfill: 3.3.3
 
+  fflate@0.4.9: {}
+
   fflate@0.6.11: {}
 
   fflate@0.8.3: {}
@@ -32493,6 +32608,14 @@ snapshots:
       roarr: 2.15.4
       semver: 7.8.5
       serialize-error: 7.0.1
+    optional: true
+
+  global-agent@4.1.7:
+    dependencies:
+      globalthis: 1.0.4
+      matcher: 4.0.0
+      semver: 7.8.5
+      serialize-error: 8.1.0
 
   globals@15.15.0: {}
 
@@ -33011,12 +33134,12 @@ snapshots:
 
   ini@7.0.0: {}
 
-  injeca@0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1):
+  injeca@0.5.2(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.2):
     dependencies:
       alien-signals: 3.2.1
       error-stack-parser: 2.1.4
       es-toolkit: 1.53.1
-      nanoid: 6.0.1
+      nanoid: 6.0.2
     optionalDependencies:
       '@guiiai/logg': 1.2.12
 
@@ -33280,7 +33403,8 @@ snapshots:
 
   json-stable-stringify-without-jsonify@1.0.1: {}
 
-  json-stringify-safe@5.0.1: {}
+  json-stringify-safe@5.0.1:
+    optional: true
 
   json-with-bigint@3.5.12: {}
 
@@ -33705,6 +33829,11 @@ snapshots:
   markdown-table@3.0.4: {}
 
   matcher@3.0.0:
+    dependencies:
+      escape-string-regexp: 4.0.0
+    optional: true
+
+  matcher@4.0.0:
     dependencies:
       escape-string-regexp: 4.0.0
 
@@ -34378,7 +34507,7 @@ snapshots:
 
   nanoid@5.1.16: {}
 
-  nanoid@6.0.1: {}
+  nanoid@6.0.2: {}
 
   nanostores@1.5.2: {}
 
@@ -34598,15 +34727,13 @@ snapshots:
       regex: 6.1.0
       regex-recursion: 6.0.2
 
-  onnxruntime-common@1.21.0: {}
-
   onnxruntime-common@1.27.0: {}
 
-  onnxruntime-node@1.21.0:
+  onnxruntime-node@1.27.0:
     dependencies:
-      global-agent: 3.0.0
-      onnxruntime-common: 1.21.0
-      tar: 7.5.22
+      adm-zip: 0.5.18
+      global-agent: 4.1.7
+      onnxruntime-common: 1.27.0
 
   onnxruntime-web@1.27.0:
     dependencies:
@@ -35235,6 +35362,28 @@ snapshots:
 
   postgres@3.4.9: {}
 
+  posthog-js@1.447.12:
+    dependencies:
+      '@posthog/browser-common': 0.10.8
+      '@posthog/core': 1.67.1
+      '@posthog/types': 1.424.0
+      core-js: 3.51.0
+      dompurify: 3.4.14
+      fflate: 0.4.9
+      preact: 10.29.8
+      query-selector-shadow-dom: 1.0.1
+      web-vitals: 6.2.3
+      web-vitals-soft-navs: web-vitals@6.2.1
+    transitivePeerDependencies:
+      - preact-render-to-string
+
+  posthog-node@5.69.0(@opentelemetry/api@1.9.1)(rxjs@7.8.2):
+    dependencies:
+      '@posthog/core': 1.67.1
+    optionalDependencies:
+      '@opentelemetry/api': 1.9.1
+      rxjs: 7.8.2
+
   postject@1.0.0-alpha.6:
     dependencies:
       commander: 9.5.0
@@ -35249,6 +35398,8 @@ snapshots:
   powershell-utils@0.1.0: {}
 
   powershell-utils@0.2.0: {}
+
+  preact@10.29.8: {}
 
   prebuild-install@7.1.3:
     dependencies:
@@ -35531,6 +35682,8 @@ snapshots:
   quansync@0.2.11: {}
 
   quansync@1.0.0: {}
+
+  query-selector-shadow-dom@1.0.1: {}
 
   queue-microtask@1.2.3: {}
 
@@ -35846,6 +35999,7 @@ snapshots:
       json-stringify-safe: 5.0.1
       semver-compare: 1.0.0
       sprintf-js: 1.1.3
+    optional: true
 
   robust-predicates@3.0.3: {}
 
@@ -36011,7 +36165,8 @@ snapshots:
       extend-shallow: 2.0.1
       kind-of: 6.0.3
 
-  semver-compare@1.0.0: {}
+  semver-compare@1.0.0:
+    optional: true
 
   semver@5.7.2: {}
 
@@ -36062,6 +36217,11 @@ snapshots:
   serialize-error@7.0.1:
     dependencies:
       type-fest: 0.13.1
+    optional: true
+
+  serialize-error@8.1.0:
+    dependencies:
+      type-fest: 0.20.2
 
   serialize-javascript@7.1.0: {}
 
@@ -36845,9 +37005,12 @@ snapshots:
     dependencies:
       prelude-ls: 1.2.1
 
-  type-fest@0.13.1: {}
+  type-fest@0.13.1:
+    optional: true
 
   type-fest@0.16.0: {}
+
+  type-fest@0.20.2: {}
 
   type-fest@5.9.0:
     dependencies:
@@ -37373,7 +37536,7 @@ snapshots:
   vieval@0.10.3(@types/node@26.2.0)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(chokidar@5.0.0)(dotenv@17.4.2)(electron@43.8.4(supports-color@10.2.2))(esbuild@0.28.2)(giget@3.3.1)(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0)(canvas@3.2.3))(less@4.9.0(supports-color@10.2.2))(magicast@0.5.4)(terser@5.50.0)(tsx@4.23.12)(typescript@6.0.3)(web-worker@1.5.0)(yaml@2.9.1):
     dependencies:
       '@henrygd/queue': 1.2.0
-      '@moeru/eventa': 1.0.2(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
+      '@moeru/eventa': 1.0.3(electron@43.8.4(supports-color@10.2.2))(h3@2.0.8(crossws@0.4.17(srvx@1.0.8)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std': 0.1.0-beta.17
       '@opentelemetry/api': 1.9.1
       '@vitest/expect': 4.1.11
@@ -37827,6 +37990,8 @@ snapshots:
   web-namespaces@2.0.1: {}
 
   web-streams-polyfill@3.3.3: {}
+
+  web-vitals@6.2.1: {}
 
   web-vitals@6.2.3: {}
 

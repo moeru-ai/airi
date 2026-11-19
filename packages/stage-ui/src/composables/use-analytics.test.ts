@@ -319,12 +319,9 @@ describe('useAnalytics conversation product events', () => {
    * analytics.trackMicrophonePermissionDenied({ stt_provider_id: 'browser-web-speech-api' })
    * expect(captureAnalyticsEvent).toHaveBeenCalledWith('microphone_permission_denied', expect.objectContaining({ app_surface: 'web' }))
    */
-  it('emits one voice action and only user-relevant outcome events', () => {
+  it('emits only user-relevant voice outcome events', () => {
     const analytics = useAnalytics()
 
-    analytics.trackVoiceInputStarted({
-      stt_provider_id: 'browser-web-speech-api',
-    })
     analytics.trackMicrophonePermissionDenied({
       stt_provider_id: 'browser-web-speech-api',
       error_code: 'permission_denied',
@@ -334,27 +331,21 @@ describe('useAnalytics conversation product events', () => {
       duration_ms: 420,
     })
 
-    expect(analyticsMocks.captureMock).toHaveBeenNthCalledWith(1, 'voice_input_started', {
-      app_surface: 'web',
-      stt_provider_id: 'browser-web-speech-api',
-      trigger_method: 'voice',
-      trigger_type: 'user_action',
-    })
-    expect(analyticsMocks.captureMock).toHaveBeenNthCalledWith(2, 'microphone_permission_denied', {
+    expect(analyticsMocks.captureMock).toHaveBeenNthCalledWith(1, 'microphone_permission_denied', {
       app_surface: 'web',
       stt_provider_id: 'browser-web-speech-api',
       error_code: 'permission_denied',
       trigger_method: 'voice',
       trigger_type: 'user_flow_result',
     })
-    expect(analyticsMocks.captureMock).toHaveBeenNthCalledWith(3, 'voice_input_cancelled', {
+    expect(analyticsMocks.captureMock).toHaveBeenNthCalledWith(2, 'voice_input_cancelled', {
       app_surface: 'web',
       stt_provider_id: 'browser-web-speech-api',
       duration_ms: 420,
       trigger_method: 'voice',
       trigger_type: 'user_flow_result',
     })
-    expect(analyticsMocks.captureMock).toHaveBeenCalledTimes(3)
+    expect(analyticsMocks.captureMock).toHaveBeenCalledTimes(2)
   })
 
   /**
@@ -395,18 +386,17 @@ describe('useAnalytics conversation product events', () => {
     expect(analyticsMocks.captureMock).toHaveBeenCalledTimes(2)
   })
 
-  it('marks provider and model selections as explicit user actions', () => {
+  it('records the provider setup result and model selections', () => {
     const analytics = useAnalytics()
 
-    analytics.trackProviderClick('official-provider', 'consciousness')
+    analytics.trackProviderConfigured({ provider_id: 'official-provider', provider_mode: 'official' })
     analytics.trackModelSwitched('none', 'model-b')
 
-    expect(analyticsMocks.captureMock).toHaveBeenNthCalledWith(1, 'provider_card_clicked', {
+    expect(analyticsMocks.captureMock).toHaveBeenNthCalledWith(1, 'provider_configured', {
       app_surface: 'web',
       provider_id: 'official-provider',
-      module: 'consciousness',
-      trigger_method: 'provider_card',
-      trigger_type: 'user_action',
+      provider_mode: 'official',
+      trigger_type: 'user_flow_result',
     })
     expect(analyticsMocks.captureMock).toHaveBeenNthCalledWith(2, 'model_switched', {
       app_surface: 'web',
@@ -418,7 +408,7 @@ describe('useAnalytics conversation product events', () => {
     })
   })
 
-  it('emits P0 onboarding, message, quota, and feature events using canonical names', () => {
+  it('emits P0 onboarding, quota, and feature events using canonical names', () => {
     const analytics = useAnalytics()
 
     analytics.trackOnboardingStarted({
@@ -428,19 +418,6 @@ describe('useAnalytics conversation product events', () => {
       selected_provider_type: 'official',
       selected_provider_id: 'official-provider',
       selected_use_case: 'role_chat',
-    })
-    analytics.trackMessageSent({
-      conversation_id: 'session-1',
-      provider_type: 'official',
-      provider_name: 'official-provider',
-      model: 'gpt-test',
-      message_id: 'message-1',
-      round_id: 'message-1',
-      turn_index: 1,
-      message_index: 2,
-      message_length: 24,
-      has_attachment: false,
-      mode: 'text',
     })
     analytics.trackQuotaLimitReached({
       limit_type: 'flux',
@@ -470,34 +447,18 @@ describe('useAnalytics conversation product events', () => {
       selected_provider_id: 'official-provider',
       selected_use_case: 'role_chat',
     })
-    expect(analyticsMocks.captureMock).toHaveBeenNthCalledWith(3, 'message_sent', {
-      app_surface: 'web',
-      conversation_id: 'session-1',
-      provider_type: 'official',
-      provider_name: 'official-provider',
-      model: 'gpt-test',
-      message_id: 'message-1',
-      round_id: 'message-1',
-      turn_index: 1,
-      message_index: 2,
-      message_length: 24,
-      has_attachment: false,
-      mode: 'text',
-      trigger_method: 'text_input',
-      trigger_type: 'user_action',
-    })
-    expect(analyticsMocks.captureMock).toHaveBeenNthCalledWith(4, 'quota_limit_reached', {
+    expect(analyticsMocks.captureMock).toHaveBeenNthCalledWith(3, 'quota_limit_reached', {
       limit_type: 'flux',
       current_usage: 0,
       limit_value: 0,
       entry: 'pricing',
     })
-    expect(analyticsMocks.captureMock).toHaveBeenNthCalledWith(5, 'upgrade_clicked', {
+    expect(analyticsMocks.captureMock).toHaveBeenNthCalledWith(4, 'upgrade_clicked', {
       source_page: 'settings_flux',
       current_plan: 'flux',
       trigger: 'manual_topup',
     })
-    expect(analyticsMocks.captureMock).toHaveBeenNthCalledWith(6, 'feature_used', {
+    expect(analyticsMocks.captureMock).toHaveBeenNthCalledWith(5, 'feature_used', {
       app_surface: 'web',
       feature_name: 'chat',
       business_domain: 'conversation',

@@ -52,7 +52,6 @@ const trackFirstMessageMock = vi.fn()
 const chatAnalyticsMocks = vi.hoisted(() => ({
   trackMessageRound: vi.fn(),
   trackMessageRoundFailed: vi.fn(),
-  trackMessageSent: vi.fn(),
 }))
 const redundantChatAnalyticsMocks = vi.hoisted(() => ({
   trackAssistantResponseCompleted: vi.fn(),
@@ -316,9 +315,6 @@ describe('chat store contract', () => {
           break
         case 'message_round_failed':
           chatAnalyticsMocks.trackMessageRoundFailed(properties)
-          break
-        case 'message_sent':
-          chatAnalyticsMocks.trackMessageSent(properties)
           break
         default:
           return false
@@ -1371,19 +1367,12 @@ describe('chat store contract', () => {
       chatProvider: provider,
     })
 
-    const messageProperties = chatAnalyticsMocks.trackMessageSent.mock.calls[0]?.[0]
-    expect(messageProperties).toMatchObject({
+    const userMessage = sessionMessages['session-1'].find(message => message.role === 'user')
+    expect(chatAnalyticsMocks.trackMessageRound).toHaveBeenCalledWith(expect.objectContaining({
       conversation_id: 'session-1',
-      round_id: messageProperties.message_id,
+      round_id: userMessage?.id,
       turn_index: 1,
-    })
-
-    const correlation = {
-      conversation_id: 'session-1',
-      round_id: messageProperties.round_id,
-      turn_index: 1,
-    }
-    expect(chatAnalyticsMocks.trackMessageRound).toHaveBeenCalledWith(expect.objectContaining(correlation))
+    }))
   })
 
   it('keeps custom and official provider usage in completed message rounds', async () => {
@@ -1431,7 +1420,7 @@ describe('chat store contract', () => {
     })
   })
 
-  it('uses turn_index on message_sent instead of a second-turn alias', async () => {
+  it('uses turn_index on message_round instead of a second-turn alias', async () => {
     activeProviderRef.value = 'official-provider'
     llmStreamMock.mockImplementation(async (_model: string, _chatProvider: GenerationProvider, _messages: Conversation, options: any) => {
       await options.onStreamEvent({ type: 'text-delta', text: 'ok' })
@@ -1449,12 +1438,13 @@ describe('chat store contract', () => {
       chatProvider: provider,
     })
 
-    expect(chatAnalyticsMocks.trackMessageSent).toHaveBeenLastCalledWith(expect.objectContaining({
+    expect(chatAnalyticsMocks.trackMessageRound).toHaveBeenLastCalledWith(expect.objectContaining({
       conversation_id: 'session-1',
       round_id: expect.any(String),
       turn_index: 2,
+      provider_type: 'official',
       trigger_method: 'text_input',
-      trigger_type: 'user_action',
+      trigger_type: 'user_flow_result',
     }))
   })
 

@@ -71,7 +71,7 @@ Use pnpm workspace filters to limit a command to one workspace. Replace `<packag
 - If a refactor is small, do it step by step.
 - After a task, run the typecheck and the related tests for each workspace that you changed.
 - Before you create a PR or push to one, run the tests of the branch changes. CI runs every project, including the browser projects.
-- If a change alters UI structure, layout, or interaction, review the related browser and end-to-end tests.
+- If a change alters UI structure, layout, or interaction, review the related browser and end-to-end tests. Verify UI with stories, Vishot captures, and `agent-browser`, as `enforce-rules-for-ui-tests` describes.
 - If intended behavior changes, update the affected assertions. Keep valid regression checks. Do not delete an assertion only to make a test pass.
 - After the final UI change, run the related tests on the final commit.
 - Before you report a CI success, make sure that CI tested the current PR head.
@@ -105,7 +105,6 @@ Use pnpm workspace filters to limit a command to one workspace. Replace `<packag
 - Prefer classes for runtime or browser APIs. Also prefer classes for substantial business modules that own state, lifecycle, or a stable domain boundary.
 - Prefer functions for pure transformations and local helpers.
 - Use Valibot for schema validation. Keep each schema near its consumers.
-- Use `errorMessageFrom(error)` from `@moeru/std` to get an error message. Add `?? 'fallback'` when you need a default. For other error handling, prefer the `@moeru/std` patterns.
 - Mark every workaround with a `// NOTICE:` comment in this format:
 
   ```ts
@@ -123,6 +122,19 @@ Use pnpm workspace filters to limit a command to one workspace. Replace `<packag
 - If a compatibility fallback must stay for a limited time, mark it with `// NOTICE:` and give its removal condition.
 - If a compatibility fallback is permanent, document it as supported policy. Do not call it legacy.
 - A nested `AGENTS.md` can override this rule for a public contract. It must name the root rule that it overrides.
+
+### Errors, Dates, and Units
+
+These rules name the standard implementation for common helpers. The [`enforce-rules-for-typescript`](.agents/skills/enforce-rules-for-typescript/SKILL.md) skill gives the details.
+
+- Use `errorMessageFrom(error)` from `@moeru/std` to get an error message. Add `?? 'fallback'` when you need a default. For other error handling, prefer the `@moeru/std` patterns.
+- Use `date-fns` for date and time code: parsing, formatting, arithmetic, comparison, relative time, and durations.
+- Use `@date-fns/utc` for UTC values and `@date-fns/tz` for named time zones. Add them through the pnpm catalog.
+- If `date-fns` cannot do a task, ask the user before you research or add another date library.
+- In each function that you change, replace hand-written date code with `date-fns`. Refactor the rest progressively.
+- Render-loop clocks and `performance.now()` durations are not date code. The `enforce-rules-for-render-loops` skill covers them.
+- You can write a local helper for unit conversion or unit formatting, for example bytes, durations, or percentages.
+- Before you write such a helper, search for an existing one. When the same helper exists two or more times, move it to `packages/stage-shared` or to the `utils` directory of the owning package.
 
 ### Dependencies
 
@@ -162,7 +174,9 @@ Use pnpm workspace filters to limit a command to one workspace. Replace `<packag
 - Use Conventional Commits, for example `feat(<package name>): add runner reconnect backoff`. Do not use gitmoji.
 - Name branches `username/feat/short-name`.
 - Rebase when you pull.
-- To create, open, publish, or prepare a pull request, use the [`create-pr`](.agents/skills/create-pr/SKILL.md) skill. It also covers visual evidence and review follow-up.
+- Do not write `Co-authored-by` for an agent or a model. Add an `Assisted-by: <harness>:<model>` trailer to the commit body. Keep `Co-authored-by` for real people.
+- In a PR or an issue that an agent writes, give the request of the user, the scenario, and the harness and model. The `create-pr` skill gives the format.
+- To create, open, publish, or prepare a pull request, use the [`create-pr`](.agents/skills/create-pr/SKILL.md) skill. It also covers request context, agent attribution, visual evidence, and review follow-up.
 
 ## Task Routing
 
@@ -171,16 +185,19 @@ Skills are in `.agents/skills/<name>/SKILL.md`. Read the listed file before you 
 | Task | Read |
 | --- | --- |
 | Design, change, or review UI appearance and interaction | [AIRI Design Guide](DESIGN.md) |
-| Write, refactor, or review TypeScript or Vue code | [`enforce-rules-for-typescript`](.agents/skills/enforce-rules-for-typescript/SKILL.md) |
+| Write, refactor, or review TypeScript or Vue code, including date, time, and unit helpers | [`enforce-rules-for-typescript`](.agents/skills/enforce-rules-for-typescript/SKILL.md) |
 | Write or debug tests, reproduce a bug, add mocks, or fix test import boundaries | [`enforce-rules-for-vitest`](.agents/skills/enforce-rules-for-vitest/SKILL.md) |
+| Add, change, or plan tests or verification for a Vue page, component, or UI flow | [`enforce-rules-for-ui-tests`](.agents/skills/enforce-rules-for-ui-tests/SKILL.md) |
 | Change UnoCSS, Vue styles, UI components, animations, icons, or color mode | [`enforce-rules-for-unocss`](.agents/skills/enforce-rules-for-unocss/SKILL.md) |
+| Set or change a font, or add `font-family`, `@font-face`, or a font package | [`enforce-rules-for-fonts`](.agents/skills/enforce-rules-for-fonts/SKILL.md) |
+| Build or review a page, panel, list, or form. Also add a border, a loading, empty, or error state, or a new component. | [`enforce-rules-for-ui-components`](.agents/skills/enforce-rules-for-ui-components/SKILL.md) |
 | Add `synced` to a Pinia store, or change a synced store | [`enforce-rules-for-pinia-synced`](.agents/skills/enforce-rules-for-pinia-synced/SKILL.md) |
 | Write or change a string that users see, or a glossary term | [`packages/i18n/AGENTS.md`](packages/i18n/AGENTS.md) |
 | Review pending Crowdin translations, or find why approved translations did not reach the repository | [`enforce-rules-for-i18n`](.agents/skills/enforce-rules-for-i18n/SKILL.md) |
 | Work under `server/` | [`server/AGENTS.md`](server/AGENTS.md). For `server/apps/api`, also read [`server/apps/api/AGENTS.md`](server/apps/api/AGENTS.md). |
 | Write documentation, code comments, commit messages, or PR and issue text | [`simple-english`](.agents/skills/simple-english/SKILL.md) |
 | Analyze why a chat, speech, or audio turn was slow or failed, using saved IO traces | [`analyze-io-traces`](.agents/skills/analyze-io-traces/SKILL.md) |
-| Create or prepare a pull request | [`create-pr`](.agents/skills/create-pr/SKILL.md) |
+| Create or prepare a pull request or an issue, or write commit messages for one | [`create-pr`](.agents/skills/create-pr/SKILL.md) |
 | Cut a release with `bumpp`, a release tag, or a GitHub release. Also, write release notes. | [`release-note-writer`](.agents/skills/release-note-writer/SKILL.md). Draft the notes before you create the GitHub release. |
 | Upload a local file through a file input or a file chooser in a web or Electron app | [`use-agent-browser-with-input-file`](.agents/skills/use-agent-browser-with-input-file/SKILL.md) and [`agent-browser`](.agents/skills/agent-browser/SKILL.md). For Electron, also read [`agent-browser-electron`](.agents/skills/agent-browser-electron/SKILL.md). |
 | Write or review motion, reactions, animations, or springs that a Pixi, TresJS, or Three render loop samples | [`enforce-rules-for-render-loops`](.agents/skills/enforce-rules-for-render-loops/SKILL.md) |

@@ -871,8 +871,11 @@ jobs:
   publish-gitcode-release:
     name: Publish GitCode Release Mirror
     needs: build
-    if: ${{ always() && github.repository == 'moeru-ai/airi' && ((github.event_name == 'release' && github.event.action == 'published' && github.event.release.prerelease) || (github.event_name == 'workflow_dispatch' && !inputs.build_only && !inputs.artifacts_only && inputs.tag != '')) }}
+    if: ${{ always() && github.repository == 'moeru-ai/airi' && ((github.event_name == 'release' && (github.event.action == 'published' || github.event.action == 'released')) || (github.event_name == 'workflow_dispatch' && !inputs.build_only && !inputs.artifacts_only && inputs.tag != '')) }}
     continue-on-error: true
+    concurrency:
+      group: gitcode-release-${{ github.event.release.tag_name || inputs.tag }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -882,6 +885,10 @@ jobs:
           gh --version
           jq --version
           curl --version
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
 
       - name: Publish release assets to GitCode
         env:

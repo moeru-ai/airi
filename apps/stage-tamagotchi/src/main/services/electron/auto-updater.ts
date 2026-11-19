@@ -14,6 +14,7 @@ import { activeBundle, updater as ergosphereUpdater } from '@ergosphere-it/elect
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { tryCatch } from '@moeru/std'
+import { onWindowClosed } from '@proj-airi/electron-vueuse/main'
 import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import { app } from 'electron'
 import { isWindows } from 'std-env'
@@ -522,6 +523,6 @@ export function createAutoUpdaterService(params: { context: ReturnType<typeof cr
       fn()
   }
 
-  window.on('closed', cleanup)
+  onWindowClosed(window, cleanup)
   return cleanup
 }
