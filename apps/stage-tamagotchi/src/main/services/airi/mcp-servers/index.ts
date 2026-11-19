@@ -438,7 +438,7 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
         description: session.bundledTerminal && item.name === 'terminal_exec'
           ? [
               item.description ?? 'Run a command in a local Shell.',
-              'The bundled MCP includes AUV desktop observation and input. Use it for visual work. AIRI approves changes with Turbo off. Turbo authorizes this session.',
+              'The bundled MCP includes AUV desktop observation and input. Use it for visual work. AIRI asks before each change unless Computer Use full mode is on for this conversation. Terminal permission is separate.',
               'Use confirmed facts to work toward the user’s goal.',
               'If evidence is incomplete, choose an observation that can resolve the gap.',
               'Verify the requested outcome before reporting completion.',
@@ -533,7 +533,7 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
       if (computerUseApprovals.has(pendingActionId))
         throw new Error('The Computer Use approval is already bound to another Chat request.')
       computerUseApprovals.set(pendingActionId, owner)
-      const turboSignal = terminalApproval.actions.terminalTurboSignal(attribution.sessionId, senderWebContentsId)
+      const turboSignal = terminalApproval.actions.computerUseTurboSignal(attribution.sessionId, senderWebContentsId)
       const authorizationSignal = combineSignals(callSignal, turboSignal)
       let privateRequestSent = false
       // Rejection and execution share `privateRequestSent`, but only execution can

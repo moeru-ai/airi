@@ -239,7 +239,7 @@ The first trial retains two failed target forms before a successful application 
 One older whole-display Oracle was occluded. It does not establish complete display-content recognition.
 Two visual trials provide bounded evidence, not a stable success-rate estimate.
 No current-HEAD real-model replay occurred during Phase 4.0.
-The [B2b diagnosis](phase3-b2b-environment-diagnosis.md) records process-context-dependent Input Desktop refusal, including read-only enumeration.
+The [Phase 3 target-bound input ADR](../adr/2026-11-05-phase3-target-bound-input-research.md) records process-context-dependent Input Desktop refusal, including read-only enumeration.
 Historical Desktop success does not establish access for a fresh Host process.
 If the actual Host cannot observe the fixture with existing safety checks, record an environment block and stop.
 
@@ -253,12 +253,12 @@ They passed 18 tests. They are protocol contract tests, not new model E2E.
 | --- | --- | --- |
 | `pnpm -F @proj-airi/core-agent exec vitest run src/runtime src/messages --maxWorkers 2` | 226 passed | Controlled providers and runtime tests |
 | `pnpm -F @proj-airi/stage-ui exec vitest run --project node src/stores/ai/chat-llm src/tools/mcp.test.ts src/stores/tool-call-rerun.test.ts --maxWorkers 2` | 79 passed | Tool resolution, forwarding, and attribution |
-| `pnpm -F @proj-airi/stage-tamagotchi exec vitest run --project node src/main/services/airi/computer-use src/main/services/airi/mcp-servers src/renderer/stores/tools/built-in.test.ts src/renderer/stores/tools/mcp.test.ts scripts/phase3-harness/delivery-contract.test.ts --maxWorkers 2` | 182 passed, 1 skipped | Mock Electron and executors, plus retained native receipt checks |
+| `pnpm -F @proj-airi/stage-tamagotchi exec vitest run --project node src/main/services/airi/computer-use src/main/services/airi/mcp-servers src/renderer/stores/tools/built-in.test.ts src/renderer/stores/tools/mcp.test.ts --maxWorkers 2` | passed | Mock Electron and executors, plus target-delivery identity counterexamples |
 | `pnpm -F @proj-airi/computer-use-mcp exec vitest run --config ./vitest.config.ts src/policy.test.ts src/config.test.ts src/server/execution-authorization.test.ts src/server/register-tools-pty-approval.test.ts src/server/register-pty-terminal-lane.test.ts src/server/tool-lane-hygiene.test.ts --maxWorkers 2` | 64 passed | Real in-memory MCP transport, mock native executors |
 | `node --test --test-timeout=30000 scripts/gateway-tool-result/gateway-image.test.mjs` | 18 passed | Real local HTTP adapter, fake upstream |
 
-For the Desktop command, `AIRI_PHASE3_EVIDENCE` identifies the preserved Phase 3-A receipt directory.
-The sole skip is the opt-in live AUV smoke test. `AIRI_COMPUTER_USE_LIVE` stays unset.
+Phase 3 native receipt checks are removed with the harness. Identity counterexamples stay in unit tests.
+The opt-in live AUV smoke test still uses `AIRI_COMPUTER_USE_LIVE` when set.
 The gateway command requires `GATEWAY_SOURCE` and an isolated `TEST_TMPDIR` as documented in its README.
 All 551 selected Vitest tests passed. No real shell executor test ran.
 `pnpm lint` passed with zero errors and 682 warnings, the same count as the retained convergence baseline.

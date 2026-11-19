@@ -6,6 +6,7 @@ import type { PendingActionManager } from '../../services/airi/computer-use/acti
 import { randomUUID } from 'node:crypto'
 
 import { defineInvokeHandler } from '@moeru/eventa'
+import { clearClockInterval, setClockInterval } from '@moeru/std'
 import { safeClose } from '@proj-airi/electron-vueuse/main'
 import { BrowserWindow } from 'electron'
 
@@ -64,13 +65,14 @@ export function setupTerminalApprovalWindow(params: { actions: PendingActionMana
     handle.window.once('closed', () => presentations.delete(handle.window))
     return await new Promise<boolean>((resolve) => {
       let finished = false
-      let timer: ReturnType<typeof setInterval> | undefined
+      let timerId: number | undefined
       let abort = () => {}
       const finish = (approved: boolean) => {
         if (finished)
           return
         finished = true
-        clearInterval(timer)
+        if (timerId !== undefined)
+          clearClockInterval(timerId)
         signal?.removeEventListener('abort', abort)
         resolve(approved)
         // Let the decision IPC reply before closing its sender.
@@ -89,7 +91,7 @@ export function setupTerminalApprovalWindow(params: { actions: PendingActionMana
       })
       handle.window.once('closed', () => finish(false))
       // This timer only closes stale presentation. Main revalidates action state at the execution boundary.
-      timer = setInterval(() => {
+      timerId = setClockInterval(() => {
         if (!isPending() || Date.now() >= view.expiresAt)
           finish(false)
       }, 100)

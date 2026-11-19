@@ -28,21 +28,21 @@ import InteractiveArea from './InteractiveArea.vue'
 import '@unocss/reset/tailwind.css'
 import 'virtual:uno.css'
 
-const { openSettings, turboMode } = vi.hoisted(() => ({
+const { openSettings, sessionApprovalGrantInvoke } = vi.hoisted(() => ({
   openSettings: vi.fn(),
-  turboMode: vi.fn(),
+  sessionApprovalGrantInvoke: vi.fn(),
 }))
 
 vi.mock('@proj-airi/electron-vueuse', async () => {
   const { createContext } = await import('@moeru/eventa')
   const { shallowRef } = await import('vue')
-  const { terminalTurboMode } = await import('../../shared/eventa/terminal-approval')
+  const { sessionApprovalGrant } = await import('../../shared/eventa/terminal-approval')
   const context = shallowRef(createContext())
   return {
     useElectronEventaContext: () => context,
     useElectronEventaInvoke: (event: unknown) => {
-      if (event === terminalTurboMode)
-        return turboMode
+      if (event === sessionApprovalGrant)
+        return sessionApprovalGrantInvoke
       return openSettings
     },
   }
@@ -221,17 +221,20 @@ describe('interactive area synchronized state', () => {
     await page.viewport(1280, 720)
   })
 
-  it('keeps the confirmed Turbo switch for the selected conversation across messages', async () => {
+  it('keeps the confirmed Computer Use Full grant for the selected conversation across messages', async () => {
     const { chat, chatSession, screen, tools } = await renderArea()
     const send = vi.spyOn(chat, 'send').mockResolvedValue({ sessionId: 'session-b', messages: [] })
-    const modes = new Map<string, boolean>()
-    turboMode.mockReset().mockImplementation(async ({ sessionId, enabled }: { sessionId: string, enabled?: boolean }) => {
-      if (enabled !== undefined)
-        modes.set(sessionId, enabled)
-      return modes.get(sessionId) ?? false
+    const modes = new Map<string, 'ask' | 'full'>()
+    sessionApprovalGrantInvoke.mockReset().mockImplementation(async ({ sessionId, lane, mode }: { sessionId: string, lane: 'terminal' | 'computer_use', mode?: 'ask' | 'auto' | 'full' }) => {
+      const key = `${sessionId}:${lane}`
+      if (mode === 'ask')
+        modes.set(key, 'ask')
+      else if (mode === 'full')
+        modes.set(key, 'full')
+      return modes.get(key) ?? 'ask'
     })
     const toolButton = screen.getByRole('button', { name: 'tamagotchi.stage.chat-window.computer-tools.label' })
-    const activeButton = screen.getByRole('button', { name: 'tamagotchi.stage.chat-window.computer-tools.turbo-active' })
+    const activeButton = screen.getByRole('button', { name: 'tamagotchi.stage.chat-window.computer-tools.approval-active' })
     await toolButton.click()
     await expect.element(screen.getByText('tamagotchi.stage.chat-window.computer-tools.desktop-unavailable')).toBeVisible()
     await userEvent.keyboard('{Escape}')
@@ -241,26 +244,27 @@ describe('interactive area synchronized state', () => {
     )
     await toolButton.click()
     await expect.element(screen.getByText('tamagotchi.stage.chat-window.computer-tools.desktop-unavailable')).not.toBeInTheDocument()
-    const turbo = screen.getByRole('menuitemcheckbox', { name: 'tamagotchi.stage.chat-window.computer-tools.turbo-label' })
-    await expect.element(turbo).toHaveAttribute('data-state', 'unchecked')
-    await turbo.click()
-    await expect.element(turbo).toHaveAttribute('data-state', 'checked')
+    const fullGrant = screen.getByTestId('approval-computer_use-full')
+    await expect.element(fullGrant).toHaveAttribute('aria-checked', 'false')
+    await fullGrant.click()
+    await expect.element(fullGrant).toHaveAttribute('aria-checked', 'true')
     await userEvent.keyboard('{Escape}')
     await submitDraft(screen, 'Read the local time')
     await expect.element(activeButton).toBeVisible()
     await submitDraft(screen, 'Read the local time again')
     await expect.poll(() => send.mock.calls.length).toBe(2)
-    const changes = () => turboMode.mock.calls.map(([input]) => input).filter(input => input.enabled !== undefined)
-    expect(changes()).toEqual([{ sessionId: 'session-b', enabled: true }])
+    const changes = () => sessionApprovalGrantInvoke.mock.calls.map(([input]) => input).filter(input => input.mode !== undefined)
+    expect(changes()).toEqual([{ sessionId: 'session-b', lane: 'computer_use', mode: 'full' }])
     chatSession.activeSessionId = 'session-a'
     await expect.element(toolButton).toBeVisible()
     chatSession.activeSessionId = 'session-b'
     await expect.element(activeButton).toBeVisible()
     await activeButton.click()
-    await expect.element(turbo).toHaveAttribute('data-state', 'checked')
-    await turbo.click()
-    await expect.element(turbo).toHaveAttribute('data-state', 'unchecked')
-    expect(changes()).toEqual([{ sessionId: 'session-b', enabled: true }, { sessionId: 'session-b', enabled: false }])
+    await expect.element(fullGrant).toHaveAttribute('aria-checked', 'true')
+    const askGrant = screen.getByTestId('approval-computer_use-ask')
+    await askGrant.click()
+    await expect.element(fullGrant).toHaveAttribute('aria-checked', 'false')
+    expect(changes()).toEqual([{ sessionId: 'session-b', lane: 'computer_use', mode: 'full' }, { sessionId: 'session-b', lane: 'computer_use', mode: 'ask' }])
   })
 
   it('centers the mobile textarea when no reply preview is visible', async () => {

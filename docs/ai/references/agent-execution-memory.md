@@ -28,9 +28,9 @@ The bundled Agent currently receives only `computer_observe`, `computer_act`, `c
 
 ## Execution invariants
 
-With Turbo disabled, every Computer Use mutation enters the Main-owned approval flow. With Turbo enabled, Host authorization grants session-scoped approval for the configured action set.
+Each approval lane uses Ask, Auto, or Full. Auto is not implemented yet. Ask requires confirmation before each action. Full grants session-scoped execution for that lane only.
 
-Computer Use approval does not depend on Terminal or Terminal Turbo. Chat and Agent use the same Host action, approval, settlement, and trace path.
+Computer Use Full does not depend on Command Full. Chat and Agent use the same Host action, approval, settlement, and trace path.
 
 An AUV input receipt proves delivery only. It does not prove the requested application state. The Agent must observe the application after an action before it reports the goal as complete.
 

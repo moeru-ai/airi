@@ -8,7 +8,7 @@ import { defineInvoke } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { describe, expect, it, vi } from 'vitest'
 
-import { chatRequestCancel, chatRequestFinish, chatRequestRegister, terminalTurboMode } from '../../../../shared/eventa/terminal-approval'
+import { chatRequestCancel, chatRequestFinish, chatRequestRegister, sessionApprovalGrant } from '../../../../shared/eventa/terminal-approval'
 import { createWindowIpc } from '../../../libs/electron/testing/window-ipc'
 import { requireMainFrameSender } from '../../../libs/electron/window-context'
 import { createI18n } from '../../../libs/i18n'
@@ -37,9 +37,9 @@ function fixture() {
   })
   const input = { sessionId: 'session-a', turnId: 'turn-a', text: 'Read the local time.' }
   const register = defineInvoke(runtime.context, chatRequestRegister)
-  const turboMode = defineInvoke(chat.context, terminalTurboMode)
+  const sessionGrant = defineInvoke(chat.context, sessionApprovalGrant)
   const attribution = { ...input, senderWebContentsId: runtime.window.webContents.id }
-  return { main, runtime, chat, other, actions, input, attribution, register, turboMode, presentConfirmation, presentComputerUse: chatRequests.presentComputerUse }
+  return { main, runtime, chat, other, actions, input, attribution, register, sessionGrant, presentConfirmation, presentComputerUse: chatRequests.presentComputerUse }
 }
 
 describe('main Chat request IPC', () => {
@@ -65,29 +65,44 @@ describe('main Chat request IPC', () => {
   })
 
   it('confines AIRI Turbo confirmation to its conversation across multiple turns', async () => {
-    const { main, runtime, other, actions, input, attribution, register, turboMode, presentConfirmation } = fixture()
+    const { main, runtime, other, actions, input, attribution, register, sessionGrant, presentConfirmation } = fixture()
     const { sessionId } = input
-    await expect(defineInvoke(other.context, terminalTurboMode)({ sessionId, enabled: true })).resolves.toBe(false)
-    await expect(turboMode({ sessionId })).resolves.toBe(false)
+    await expect(defineInvoke(other.context, sessionApprovalGrant)({ sessionId, lane: 'terminal', mode: 'full' })).resolves.toBe(false)
+    await expect(sessionGrant({ sessionId, lane: 'terminal' })).resolves.toBe('ask')
     expect(presentConfirmation).not.toHaveBeenCalled()
     presentConfirmation.mockResolvedValueOnce(false)
-    await expect(turboMode({ sessionId, enabled: true })).resolves.toBe(false)
+    await expect(sessionGrant({ sessionId, lane: 'terminal', mode: 'full' })).resolves.toBe('ask')
     expect(actions.terminalTurboSignal(sessionId, attribution.senderWebContentsId)).toBeUndefined()
     presentConfirmation.mockResolvedValueOnce(true)
-    await expect(turboMode({ sessionId, enabled: true })).resolves.toBe(true)
+    await expect(sessionGrant({ sessionId, lane: 'terminal', mode: 'full' })).resolves.toBe('full')
     expect(presentConfirmation).toHaveBeenLastCalledWith(expect.objectContaining({ sessionId }), expect.any(AbortSignal))
     const signal = actions.terminalTurboSignal(sessionId, attribution.senderWebContentsId)
     expect(signal?.aborted).toBe(false)
     expect(actions.terminalTurboSignal(sessionId, other.window.webContents.id)).toBeUndefined()
-    await expect(turboMode({ sessionId: 'session-b' })).resolves.toBe(false)
+    await expect(sessionGrant({ sessionId: 'session-b', lane: 'terminal' })).resolves.toBe('ask')
     const first = await register(input)
     await defineInvoke(runtime.context, chatRequestFinish)({ requestId: first.requestId! })
     const next = await register({ ...input, turnId: 'turn-b' })
     expect(next.requestId).not.toBe(first.requestId)
     expect(actions.terminalTurboSignal(sessionId, attribution.senderWebContentsId)).toBe(signal)
-    await expect(turboMode({ sessionId, enabled: false })).resolves.toBe(false)
+    await expect(sessionGrant({ sessionId, lane: 'terminal', mode: 'ask' })).resolves.toBe('ask')
     expect(signal?.aborted).toBe(true)
     expect(actions.terminalTurboSignal(sessionId, attribution.senderWebContentsId)).toBeUndefined()
+    await main.dispose()
+  })
+
+  it('keeps Terminal and Computer Use Turbo grants independent', async () => {
+    const { main, actions, input, attribution, sessionGrant, presentConfirmation } = fixture()
+    presentConfirmation.mockResolvedValueOnce(true)
+    await expect(sessionGrant({ sessionId: input.sessionId, lane: 'terminal', mode: 'full' })).resolves.toBe('full')
+    expect(actions.terminalTurboSignal(input.sessionId, attribution.senderWebContentsId)?.aborted).toBe(false)
+    expect(actions.computerUseTurboSignal(input.sessionId, attribution.senderWebContentsId)).toBeUndefined()
+    presentConfirmation.mockResolvedValueOnce(true)
+    await expect(sessionGrant({ sessionId: input.sessionId, lane: 'computer_use', mode: 'full' })).resolves.toBe('full')
+    expect(actions.computerUseTurboSignal(input.sessionId, attribution.senderWebContentsId)?.aborted).toBe(false)
+    await expect(sessionGrant({ sessionId: input.sessionId, lane: 'terminal', mode: 'ask' })).resolves.toBe('ask')
+    expect(actions.terminalTurboSignal(input.sessionId, attribution.senderWebContentsId)).toBeUndefined()
+    expect(actions.computerUseTurboSignal(input.sessionId, attribution.senderWebContentsId)?.aborted).toBe(false)
     await main.dispose()
   })
 
@@ -112,17 +127,17 @@ describe('main Chat request IPC', () => {
   })
 
   it.each(['navigate', 'turn Turbo off'] as const)('discards a late Turbo confirmation when the user chooses to %s', async (action) => {
-    const { main, runtime, actions, input, attribution, turboMode, presentConfirmation } = fixture()
+    const { main, runtime, actions, input, attribution, sessionGrant, presentConfirmation } = fixture()
     const decision = Promise.withResolvers<boolean>()
     presentConfirmation.mockReturnValueOnce(decision.promise)
-    const confirmed = turboMode({ sessionId: input.sessionId, enabled: true })
+    const confirmed = sessionGrant({ sessionId: input.sessionId, lane: 'terminal', mode: 'full' })
     await vi.waitFor(() => expect(presentConfirmation).toHaveBeenCalledOnce())
     if (action === 'navigate')
       runtime.window.webContents.emit('did-start-navigation', { isMainFrame: true, isSameDocument: false })
     else
-      await expect(turboMode({ sessionId: input.sessionId, enabled: false })).resolves.toBe(false)
+      await expect(sessionGrant({ sessionId: input.sessionId, lane: 'terminal', mode: 'ask' })).resolves.toBe('ask')
     decision.resolve(true)
-    await expect(confirmed).resolves.toBe(false)
+    await expect(confirmed).resolves.toBe('ask')
     expect(actions.terminalTurboSignal(input.sessionId, attribution.senderWebContentsId)).toBeUndefined()
     await main.dispose()
   })

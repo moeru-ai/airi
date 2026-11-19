@@ -83,16 +83,24 @@ docs:
   computer-tools:
     label: 桌面工具
     desktop-unavailable: 当前版本无法截图或控制桌面。
-    turbo-label: Turbo
-    turbo-active: 当前会话已开启 Turbo
-    turbo-description: 允许此会话免确认运行 Terminal 命令和执行 Computer Use 更改，可随时关闭。
-    turbo-confirm: 允许此会话免确认使用 Terminal 和 Computer Use？
-    turbo-scope: AIRI 可以使用你的系统权限运行本地 Shell 命令，也可以通过 Computer Use 修改桌面、应用和输入。关闭 Turbo 后，这些更改会逐次询问。
-    turbo-allow: 允许 Turbo
+    approval-active: 当前会话已开启完全授权
+    approval-section: 审批
+    approval-command: 命令
+    approval-computer-use: Computer Use
+    approval-mode-ask: 询问
+    approval-mode-auto: 自动
+    approval-mode-full: 完全
+    approval-mode-auto-hint: 自动模式尚未开放。
+    approval-command-full-confirm: 允许此会话完全使用命令？
+    approval-command-full-scope: AIRI 可以用你的系统权限运行本地 Shell 命令。询问模式会在每条命令前确认。
+    approval-command-full-allow: 允许命令完全授权
+    approval-computer-use-full-confirm: 允许此会话完全使用 Computer Use？
+    approval-computer-use-full-scope: AIRI 可以通过 Computer Use 更改桌面、应用和输入。询问模式会在每次更改前确认。
+    approval-computer-use-full-allow: 允许 Computer Use 完全授权
     computer-use-confirm: 允许 Computer Use 更改此设备？
     computer-use-scope: AIRI 将按当前请求执行桌面、应用或输入操作。每次更改都会先显示在这里。
     computer-use-allow: 允许此项更改
-    turbo-error: 无法更改 Turbo。
+    approval-error: 无法更改审批。
     cancel: 取消
   context-inspector:
     open: 显示上下文

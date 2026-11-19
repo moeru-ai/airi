@@ -21,6 +21,7 @@ import { platform } from 'node:process'
 
 import { probeDisplayInfo, probePermissionInfo } from '../runtime-probes'
 import { captureScreenshotArtifact } from '../utils/screenshot'
+import { sleep } from '../utils/sleep'
 
 async function getBestEffortForegroundContext(): Promise<ForegroundContext> {
   return {
@@ -93,7 +94,7 @@ export function createDryRunExecutor(config: ComputerUseConfig): DesktopExecutor
     pressKeys: async (_input: PressKeysActionInput) => result(['dry-run: shortcut not injected'], executionTarget),
     scroll: async (_input: ScrollActionInput) => result(['dry-run: scroll not injected'], executionTarget),
     wait: async (input: WaitActionInput) => {
-      await new Promise(resolve => setTimeout(resolve, Math.max(input.durationMs, 0)))
+      await sleep(Math.max(input.durationMs, 0))
       return {
         performed: true,
         backend: 'dry-run',

@@ -12,10 +12,14 @@ import { BrowserWindow } from 'electron'
 
 import * as v from 'valibot'
 
-import { chatRequestCancel, chatRequestFinish, chatRequestRegister, terminalTurboMode } from '../../../../shared/eventa/terminal-approval'
+import { approvalGrantModeSchema, chatRequestCancel, chatRequestFinish, chatRequestRegister, sessionApprovalGrant, turboLaneSchema } from '../../../../shared/eventa/terminal-approval'
 import { requireMainFrameSender } from '../../../libs/electron/window-context'
 
-const turboModeSchema = v.strictObject({ sessionId: chatRequestSchema.entries.sessionId, enabled: v.optional(v.boolean()) })
+const sessionGrantSchema = v.strictObject({
+  sessionId: chatRequestSchema.entries.sessionId,
+  lane: turboLaneSchema,
+  mode: v.optional(approvalGrantModeSchema),
+})
 
 export interface ComputerUseApprovalRequest {
   actionId: string
@@ -64,40 +68,48 @@ export function setupChatRequests(context: ReturnType<typeof createContext>['con
     documentSignal(sender)
     return { requestId: actions.registerRequest(input, sender.id).id }
   })
-  defineInvokeHandler(context, terminalTurboMode, async (input, options) => {
+  defineInvokeHandler(context, sessionApprovalGrant, async (input, options) => {
     const sender = requireMainFrameSender(options)
     const window = BrowserWindow.fromWebContents(sender)
     const runtime = sources.getRuntime()
     if (!runtime || runtime.isDestroyed() || !window || !sources.isChatWindow(window))
       return false
-    const { sessionId, enabled } = v.parse(turboModeSchema, input)
-    const key = `${runtime.id}:${sessionId}`
-    if (enabled === false) {
+    const { sessionId, lane, mode } = v.parse(sessionGrantSchema, input)
+    const key = `${runtime.id}:${sessionId}:${lane}`
+    const setTurbo = lane === 'terminal' ? actions.setTerminalTurbo.bind(actions) : actions.setComputerUseTurbo.bind(actions)
+    const turboSignal = lane === 'terminal' ? actions.terminalTurboSignal.bind(actions) : actions.computerUseTurboSignal.bind(actions)
+    const currentGrant = (): 'ask' | 'full' => turboSignal(sessionId, runtime.id) ? 'full' : 'ask'
+
+    if (mode === undefined || mode === 'auto')
+      return currentGrant()
+
+    if (mode === 'ask') {
       turboDialogs.get(key)?.abort()
-      actions.setTerminalTurbo(sessionId, runtime.id, false)
-      return false
+      setTurbo(sessionId, runtime.id, false)
+      return 'ask'
     }
-    const active = !!actions.terminalTurboSignal(sessionId, runtime.id)
-    if (enabled === undefined || active)
-      return active
+
+    if (currentGrant() === 'full')
+      return 'full'
 
     turboDialogs.get(key)?.abort()
     const confirmation = new AbortController()
     turboDialogs.set(key, confirmation)
     const signal = AbortSignal.any([documentSignal(sender), documentSignal(runtime), confirmation.signal, ...(options?.abortController ? [options.abortController.signal] : [])])
     const { t } = sources.i18n
+    const confirmPrefix = lane === 'terminal' ? 'approval-command' : 'approval-computer-use'
     try {
       const approved = await sources.presentConfirmation({
-        title: t('tamagotchi.stage.chat-window.computer-tools.turbo-confirm'),
-        detail: t('tamagotchi.stage.chat-window.computer-tools.turbo-scope'),
+        title: t(`tamagotchi.stage.chat-window.computer-tools.${confirmPrefix}-full-confirm`),
+        detail: t(`tamagotchi.stage.chat-window.computer-tools.${confirmPrefix}-full-scope`),
         cancelLabel: t('tamagotchi.stage.chat-window.computer-tools.cancel'),
-        allowLabel: t('tamagotchi.stage.chat-window.computer-tools.turbo-allow'),
+        allowLabel: t(`tamagotchi.stage.chat-window.computer-tools.${confirmPrefix}-full-allow`),
         sessionId,
       }, signal)
       if (!approved || signal.aborted || runtime !== sources.getRuntime() || !sources.isChatWindow(window))
-        return false
-      actions.setTerminalTurbo(sessionId, runtime.id, true)
-      return true
+        return 'ask'
+      setTurbo(sessionId, runtime.id, true)
+      return 'full'
     }
     finally {
       if (turboDialogs.get(key) === confirmation)

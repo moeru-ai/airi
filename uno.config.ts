@@ -2,6 +2,7 @@ import type { WebFontMeta } from '@unocss/preset-web-fonts'
 import type { Preset, PresetOrFactoryAwaitable } from 'unocss'
 
 import { setDefaultAutoSelectFamilyAttemptTimeout } from 'node:net'
+import { env } from 'node:process'
 
 import { createExternalPackageIconLoader } from '@iconify/utils/lib/loader/external-pkg'
 import { presetChromatic } from '@proj-airi/unocss-preset-chromatic'
@@ -139,6 +140,13 @@ export function presetWebFontsFonts(provider: 'fontsource' | 'none'): Record<str
 }
 
 export function sharedUnoConfig() {
+  // NOTICE:
+  // A Vite build inside Cursor must still load Iconify icons from local packages.
+  // @unocss/preset-icons skips that loader when VSCODE_CWD is set.
+  // Source: getEnvFlags in @unocss/preset-icons dist/core (66.7.5).
+  // Remove this when that preset loads local icons inside Cursor and VS Code.
+  delete env.VSCODE_CWD
+
   return defineConfig({
     presets: [
       presetWind3(),

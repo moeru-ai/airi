@@ -27,6 +27,7 @@ import {
   summarizeTaskProgress,
 } from '../transparency'
 import { errorMessageFromValue } from '../utils/error-message'
+import { sleep } from '../utils/sleep'
 import { resolveTerminalSurface } from './surface-resolver'
 import { resolveStepAction, resolveTerminalConfig } from './types'
 
@@ -1050,7 +1051,7 @@ async function executePtyStepFamily(params: {
               return { succeeded: true, explanation: `Marker "${marker}" found in PTY ${ptySessionId}.` }
             }
           }
-          await new Promise(resolve => setTimeout(resolve, 250))
+          await sleep(250)
         }
         return { succeeded: false, explanation: `Timeout waiting for marker "${marker}" in PTY ${ptySessionId}.` }
       }
@@ -1109,7 +1110,7 @@ async function executePtyCommand(params: {
     }
 
     // Brief pause for command execution
-    await new Promise(resolve => setTimeout(resolve, 500))
+    await sleep(500)
 
     // Read the screen
     const readResult = await executePrepTool(`pty_read_screen:${ptySessionId}`)

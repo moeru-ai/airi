@@ -270,11 +270,37 @@ describe('createMcpManager', () => {
     expect(result.structuredContent).toMatchObject({ status: 'executed', action: 'click' })
   })
 
-  it('skips the Computer Use approval dialog while Turbo is active', async () => {
+  it('still requires Computer Use approval when only Terminal Turbo is active', async () => {
+    const actions = new PendingActionManager()
+    const attribution = { sessionId: 'session-terminal-only-turbo', turnId: 'turn-terminal-only-turbo', toolCallId: 'call-terminal-only-turbo' }
+    const request = actions.registerRequest({ sessionId: attribution.sessionId, turnId: attribution.turnId, text: 'Change the desktop.' }, 71)
+    actions.setTerminalTurbo(attribution.sessionId, 71, true)
+    const presentComputerUse = vi.fn(async () => true)
+    const manager = createMcpManager({
+      actions,
+      present: vi.fn(async () => false),
+      presentComputerUse,
+      executeInSlot: async operation => operation(new AbortController().signal, () => {}),
+      notify: async notice => ({ status: 'stored', sessionId: notice.sessionId, messageId: 'fixture' }),
+    })
+    managers.push(manager)
+    await manager.writeConfigText(JSON.stringify({ terminalEnabled: true, mcpServers: {} }))
+    await manager.applyAndRestart()
+    clientMocks.listTools.mockResolvedValue({ tools: [{ name: 'computer_act', inputSchema: { type: 'object' } }] })
+    clientMocks.callTool.mockResolvedValue({ content: [], structuredContent: { status: 'approval_required', pendingActionId: 'pending-terminal-only', toolName: 'computer_act', action: { kind: 'click', input: { x: 10, y: 20 } } } })
+    clientMocks.privateRequest.mockResolvedValue({ content: [{ type: 'text', text: 'Clicked.' }], structuredContent: { status: 'executed', action: 'click' } })
+
+    await manager.callTool({ name: 'airi-terminal::computer_act', arguments: { x: 10, y: 20 }, requestId: request.id, attribution }, 71)
+
+    expect(presentComputerUse).toHaveBeenCalledOnce()
+    expect(actions.computerUseTurboSignal(attribution.sessionId, 71)).toBeUndefined()
+  })
+
+  it('skips the Computer Use approval dialog while Computer Use Turbo is active', async () => {
     const actions = new PendingActionManager()
     const attribution = { sessionId: 'session-turbo-computer', turnId: 'turn-turbo-computer', toolCallId: 'call-turbo-computer' }
     const request = actions.registerRequest({ sessionId: attribution.sessionId, turnId: attribution.turnId, text: 'Change the desktop.' }, 71)
-    actions.setTerminalTurbo(attribution.sessionId, 71, true)
+    actions.setComputerUseTurbo(attribution.sessionId, 71, true)
     const presentComputerUse = vi.fn(async () => false)
     const manager = createMcpManager({
       actions,
@@ -301,7 +327,7 @@ describe('createMcpManager', () => {
     const actions = new PendingActionManager()
     const attribution = { sessionId: 'session-revoked-turbo', turnId: 'turn-revoked-turbo', toolCallId: 'call-revoked-turbo' }
     const request = actions.registerRequest({ sessionId: attribution.sessionId, turnId: attribution.turnId, text: 'Change the desktop.' }, 71)
-    actions.setTerminalTurbo(attribution.sessionId, 71, true)
+    actions.setComputerUseTurbo(attribution.sessionId, 71, true)
     const presentComputerUse = vi.fn(async () => false)
     const manager = createMcpManager({
       actions,
@@ -319,7 +345,7 @@ describe('createMcpManager', () => {
     clientMocks.privateRequest.mockImplementation(async (_request, _schema, options) => {
       const signal = options?.signal
       if (!signal)
-        throw new Error('Turbo execution must carry its revocation signal.')
+        throw new Error('Computer Use Turbo execution must carry its revocation signal.')
       executionStarted.resolve(signal)
       return await new Promise<never>((_resolve, reject) => {
         signal.addEventListener('abort', () => reject(signal.reason), { once: true })
@@ -329,7 +355,7 @@ describe('createMcpManager', () => {
     const pending = manager.callTool({ name: 'airi-terminal::computer_act', arguments: { x: 10, y: 20 }, requestId: request.id, attribution }, 71)
     const signal = await executionStarted.promise
     expect(signal.aborted).toBe(false)
-    actions.setTerminalTurbo(attribution.sessionId, 71, false)
+    actions.setComputerUseTurbo(attribution.sessionId, 71, false)
 
     await expect(pending).resolves.toMatchObject({ isError: true, structuredContent: { status: 'unknown', doNotReplay: true, pendingActionId: 'pending-revoked-turbo' } })
     expect(signal.aborted).toBe(true)
@@ -354,7 +380,7 @@ describe('createMcpManager', () => {
     const actions = new PendingActionManager()
     const attribution = { sessionId: 'session-lost-reply', turnId: 'turn-lost-reply', toolCallId: 'call-lost-reply' }
     const request = actions.registerRequest({ sessionId: attribution.sessionId, turnId: attribution.turnId, text: 'Change the desktop.' }, 71)
-    actions.setTerminalTurbo(attribution.sessionId, 71, true)
+    actions.setComputerUseTurbo(attribution.sessionId, 71, true)
     const presentComputerUse = vi.fn(async () => false)
     const manager = createMcpManager({
       actions,

@@ -12,7 +12,11 @@ import { createRequestWindowEventa } from '.'
 export const chatRequestRegister = defineInvokeEventa<{ requestId?: string }, ChatRequestInput>('eventa:invoke:chat-request:register')
 export const chatRequestFinish = defineInvokeEventa<void, { requestId: string }>('eventa:invoke:chat-request:finish')
 export const chatRequestCancel = defineInvokeEventa<void, { requestId: string }>('eventa:invoke:chat-request:cancel')
-export const terminalTurboMode = defineInvokeEventa<boolean, { sessionId: string, enabled?: boolean }>('eventa:invoke:terminal-approval:turbo-mode')
+export const turboLaneSchema = v.picklist(['terminal', 'computer_use'])
+export type TurboLane = v.InferOutput<typeof turboLaneSchema>
+export const approvalGrantModeSchema = v.picklist(['ask', 'auto', 'full'])
+export type ApprovalGrantMode = v.InferOutput<typeof approvalGrantModeSchema>
+export const sessionApprovalGrant = defineInvokeEventa<ApprovalGrantMode | false, { sessionId: string, lane: TurboLane, mode?: ApprovalGrantMode }>('eventa:invoke:terminal-approval:session-grant')
 export const terminalOutcomeNotice = defineInvokeEventa<{ status: 'stored' | 'suppressed', sessionId: string, messageId: string }, TerminalNotice>('eventa:invoke:terminal-approval:outcome-notice')
 
 export const terminalApprovalWindow = createRequestWindowEventa('terminal-approval')

@@ -84,16 +84,24 @@ docs:
   computer-tools:
     label: Computer tools
     desktop-unavailable: Desktop capture and input are unavailable in this build.
-    turbo-label: Turbo
-    turbo-active: Turbo is on for this conversation
-    turbo-description: Allow Terminal commands and Computer Use changes in this conversation without asking each time. Turn it off here at any time.
-    turbo-confirm: Allow Terminal and Computer Use without asking in this conversation?
-    turbo-scope: AIRI can run local Shell commands with your system privileges and change the desktop, apps, and input through Computer Use. These changes ask again after you turn Turbo off.
-    turbo-allow: Allow Turbo
+    approval-active: Full approval is on for this conversation
+    approval-section: Approval
+    approval-command: Command
+    approval-computer-use: Computer Use
+    approval-mode-ask: Ask
+    approval-mode-auto: Auto
+    approval-mode-full: Full
+    approval-mode-auto-hint: Auto is not available yet.
+    approval-command-full-confirm: Allow Command full access in this conversation?
+    approval-command-full-scope: AIRI can run local Shell commands with your system privileges. Ask mode requires confirmation before each command.
+    approval-command-full-allow: Allow Command full access
+    approval-computer-use-full-confirm: Allow Computer Use full access in this conversation?
+    approval-computer-use-full-scope: AIRI can change the desktop, apps, and input through Computer Use. Ask mode requires confirmation before each change.
+    approval-computer-use-full-allow: Allow Computer Use full access
     computer-use-confirm: Allow Computer Use to change this device?
     computer-use-scope: AIRI will perform the requested desktop, app, or input action. Each change is shown here before it runs.
     computer-use-allow: Allow this change
-    turbo-error: Could not change Turbo.
+    approval-error: Could not change approval.
     cancel: Cancel
   context-inspector:
     open: Show context

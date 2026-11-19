@@ -150,10 +150,21 @@ export function verifyExecutionPreconditions(command: string, argv: readonly str
  * Consumed actions never regain approval and accept exactly one execution settlement.
  * All public records are detached snapshots. Source, session, turn, call and arguments bind each approval.
  */
+export type TurboLane = 'terminal' | 'computer_use'
+
+const TURBO_REVOKE_MESSAGES: Record<TurboLane, string> = {
+  terminal: 'Terminal Turbo was turned off before dispatch.',
+  computer_use: 'Computer Use Turbo was turned off before dispatch.',
+}
+
 export class PendingActionManager {
   private actions = new Map<string, PendingAction>()
   private requests = new Map<string, { record: ChatRequest, cancel: AbortController }>()
-  private turboSessions = new Map<number, Map<string, AbortController>>()
+  private turboSessions: Record<TurboLane, Map<number, Map<string, AbortController>>> = {
+    terminal: new Map(),
+    computer_use: new Map(),
+  }
+
   private defaultTtlMs = 60_000 // 60 seconds
 
   constructor(options?: { defaultTtlMs?: number }) {
@@ -198,25 +209,42 @@ export class PendingActionManager {
   }
 
   /** A grant belongs to one verified Runtime and conversation. Revocation aborts only queued Turbo approvals. */
-  terminalTurboSignal(sessionId: string, senderWebContentsId: number | undefined): AbortSignal | undefined {
+  turboSignal(lane: TurboLane, sessionId: string, senderWebContentsId: number | undefined): AbortSignal | undefined {
     if (senderWebContentsId !== undefined)
-      return this.turboSessions.get(senderWebContentsId)?.get(sessionId)?.signal
+      return this.turboSessions[lane].get(senderWebContentsId)?.get(sessionId)?.signal
+  }
+
+  terminalTurboSignal(sessionId: string, senderWebContentsId: number | undefined): AbortSignal | undefined {
+    return this.turboSignal('terminal', sessionId, senderWebContentsId)
+  }
+
+  computerUseTurboSignal(sessionId: string, senderWebContentsId: number | undefined): AbortSignal | undefined {
+    return this.turboSignal('computer_use', sessionId, senderWebContentsId)
   }
 
   /** Only Main calls this after a user decision in the native confirmation dialog. */
-  setTerminalTurbo(sessionId: string, senderWebContentsId: number, enabled: boolean): void {
-    const sessions = this.turboSessions.get(senderWebContentsId)
+  setTurbo(lane: TurboLane, sessionId: string, senderWebContentsId: number, enabled: boolean): void {
+    const store = this.turboSessions[lane]
+    const sessions = store.get(senderWebContentsId)
     if (enabled) {
       if (!sessions)
-        this.turboSessions.set(senderWebContentsId, new Map([[sessionId, new AbortController()]]))
+        store.set(senderWebContentsId, new Map([[sessionId, new AbortController()]]))
       else if (!sessions.has(sessionId))
         sessions.set(sessionId, new AbortController())
       return
     }
-    sessions?.get(sessionId)?.abort(new Error('Terminal Turbo was turned off before dispatch.'))
+    sessions?.get(sessionId)?.abort(new Error(TURBO_REVOKE_MESSAGES[lane]))
     sessions?.delete(sessionId)
     if (!sessions?.size)
-      this.turboSessions.delete(senderWebContentsId)
+      store.delete(senderWebContentsId)
+  }
+
+  setTerminalTurbo(sessionId: string, senderWebContentsId: number, enabled: boolean): void {
+    this.setTurbo('terminal', sessionId, senderWebContentsId, enabled)
+  }
+
+  setComputerUseTurbo(sessionId: string, senderWebContentsId: number, enabled: boolean): void {
+    this.setTurbo('computer_use', sessionId, senderWebContentsId, enabled)
   }
 
   /** Resolves the Host record and rejects replacement labels or execution sources. Closed runs admit no new tools. */
@@ -597,8 +625,10 @@ export class PendingActionManager {
 
   /** Invalidates waiting approvals when their renderer is destroyed. In-flight work retains its real settlement. */
   cancelBySender(senderWebContentsId: number): void {
-    for (const sessionId of this.turboSessions.get(senderWebContentsId)?.keys() ?? [])
-      this.setTerminalTurbo(sessionId, senderWebContentsId, false)
+    for (const lane of ['terminal', 'computer_use'] as const) {
+      for (const sessionId of this.turboSessions[lane].get(senderWebContentsId)?.keys() ?? [])
+        this.setTurbo(lane, sessionId, senderWebContentsId, false)
+    }
     for (const { record: request, cancel } of this.requests.values()) {
       if (request.senderWebContentsId === senderWebContentsId) {
         request.cancelled = true
@@ -616,9 +646,11 @@ export class PendingActionManager {
    */
   invalidateAll(): void {
     const now = Date.now()
-    for (const [sender, sessions] of this.turboSessions) {
-      for (const sessionId of sessions.keys())
-        this.setTerminalTurbo(sessionId, sender, false)
+    for (const lane of ['terminal', 'computer_use'] as const) {
+      for (const [sender, sessions] of this.turboSessions[lane]) {
+        for (const sessionId of sessions.keys())
+          this.setTurbo(lane, sessionId, sender, false)
+      }
     }
     for (const { record: request, cancel } of this.requests.values()) {
       request.cancelled = true
