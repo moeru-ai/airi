@@ -17,7 +17,7 @@ import type { WidgetsWindowManager } from '../widgets'
 
 import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
-import { isRendererUnavailable } from '@proj-airi/electron-vueuse/main'
+import { isRendererUnavailable, onWindowClosed } from '@proj-airi/electron-vueuse/main'
 import { BrowserWindow, screen } from 'electron'
 
 import icon from '../../../../resources/icon.png?asset'
@@ -174,7 +174,7 @@ export function setupWorkspaceWindowManager(params: {
       isActive: params.isActive,
     })
 
-    window.on('closed', () => {
+    onWindowClosed(window, () => {
       detachChat()
       context = undefined
       requests = undefined

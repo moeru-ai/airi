@@ -5,8 +5,9 @@ import type { ConfigKVService } from '../adapters/config-kv'
 import type { WalletSnapshot } from './flux-cache'
 
 import { useLogger } from '@guiiai/logg'
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, desc, eq, gte, isNull } from 'drizzle-orm'
 
+import { fluxTransaction } from '../../schemas/flux-transaction'
 import { capacitorPercent, nextCapacitorRecharge, readCapacitorResetPolicy, refillCapacitor } from './billing/flux-posting'
 import { initializeWallet } from './billing/wallet-initialization'
 import { invalidateBalanceCache, readBalanceCache, writeBalanceCache } from './flux-cache'
@@ -14,6 +15,11 @@ import { invalidateBalanceCache, readBalanceCache, writeBalanceCache } from './f
 import * as schema from '../../schemas/flux'
 
 const logger = useLogger('flux-service')
+
+/** The most debit rows that one usage read returns. A window with more debits shows its latest part. */
+const CAPACITOR_USAGE_LIMIT = 500
+
+const noCapacitorUsage: { startedAt: string | null, endsAt: string | null, records: { at: string, percent: number }[] } = { startedAt: null, endsAt: null, records: [] }
 
 // NOTICE:
 // All read paths here treat soft-deleted rows (`deletedAt IS NOT NULL`) as
@@ -88,6 +94,51 @@ export function createFluxService(db: Database, redis: Redis, configKV: ConfigKV
       }
       await writeBalanceCache(redis, userId, snapshot)
       return toBalance(userId, snapshot)
+    },
+
+    /**
+     * Lists the Capacitor percent after each debit of the current refill window.
+     * The window starts at the last refill. It ends at the next recharge, or at expiry without a reset interval.
+     * The response has percents only, the same as the balance read.
+     */
+    async getCapacitorUsage(userId: string, now: Date = new Date()) {
+      const record = await db.query.userFlux.findFirst({
+        where: and(
+          eq(schema.userFlux.userId, userId),
+          isNull(schema.userFlux.deletedAt),
+        ),
+      })
+      if (!record || record.capacitorExpiresAt === null || record.capacitorExpiresAt <= now || record.capacitorQuota <= 0)
+        return noCapacitorUsage
+
+      const policy = await readCapacitorResetPolicy(configKV)
+      const window = refillCapacitor(record, policy, now)
+      if (window.capacitorFilledAt === null)
+        return noCapacitorUsage
+
+      // A due refill that no request has written yet starts a full window. The stored debits belong to the window before it.
+      const rows = window.refilled
+        ? []
+        : await db.select({ createdAt: fluxTransaction.createdAt, balanceAfter: fluxTransaction.balanceAfter })
+            .from(fluxTransaction)
+            .where(and(
+              eq(fluxTransaction.userId, userId),
+              eq(fluxTransaction.pool, 'capacitor'),
+              eq(fluxTransaction.type, 'debit'),
+              gte(fluxTransaction.createdAt, window.capacitorFilledAt),
+            ))
+            .orderBy(desc(fluxTransaction.createdAt), desc(fluxTransaction.id))
+            .limit(CAPACITOR_USAGE_LIMIT)
+
+      const endsAt = nextCapacitorRecharge(record, policy, now) ?? record.capacitorExpiresAt
+      return {
+        startedAt: window.capacitorFilledAt.toISOString(),
+        endsAt: endsAt.toISOString(),
+        records: rows.reverse().map(row => ({
+          at: row.createdAt.toISOString(),
+          percent: Math.min(100, Math.max(0, Math.round(row.balanceAfter / record.capacitorQuota * 100))),
+        })),
+      }
     },
 
     /**

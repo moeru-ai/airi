@@ -95,7 +95,7 @@ function phaseChipTheme(phase: string) {
     return 'emerald'
   if (phase === 'failed')
     return 'amber'
-  if (phase === 'loading' || phase === 'authenticating' || phase === 'preparing')
+  if (phase === 'pending' || phase === 'loading' || phase === 'authenticating' || phase === 'preparing')
     return 'amber'
   return 'neutral'
 }
@@ -564,6 +564,12 @@ onMounted(async () => {
               {{ sessionByExtensionId.get(plugin.extensionId)!.phase }}
             </span>
             <span :class="['opacity-70', 'font-mono']">{{ sessionByExtensionId.get(plugin.extensionId)!.moduleId }}</span>
+            <span
+              v-if="sessionByExtensionId.get(plugin.extensionId)!.missingKitIds.length > 0"
+              :class="['opacity-70']"
+            >
+              {{ t('settings.pages.system.sections.section.developer.sections.section.plugin-host.session.waiting-for-kits', { kitIds: sessionByExtensionId.get(plugin.extensionId)!.missingKitIds.join(', ') }) }}
+            </span>
           </div>
         </div>
       </div>

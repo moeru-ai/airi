@@ -22,6 +22,7 @@ export const settingsFullBleedHostKey: InjectionKey<SettingsFullBleedHost> = Sym
  *
  * Expects:
  * - The page keeps the top of its area clear enough for the header title and the back button.
+ * - The page pads its bottom controls for the bottom safe area, because the layout does not add that padding.
  * - `enabled` turns the declaration off and on while the page stays mounted.
  */
 export function useSettingsFullBleed(enabled: MaybeRefOrGetter<boolean> = true) {

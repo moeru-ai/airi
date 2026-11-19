@@ -1,4 +1,4 @@
-import type { Lifecycle } from 'injeca'
+import type { LifecycleContext } from 'injeca'
 
 import { useLogg } from '@guiiai/logg'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
@@ -30,7 +30,7 @@ import { isMacOS } from 'std-env'
  *     -> {@link setupAppleVision}
  *       -> {@link createAppleVisionProvider}
  */
-export async function setupAppleVisionService(options: { lifecycle: Lifecycle }) {
+export async function setupAppleVisionService(options: { on: LifecycleContext['on'] }) {
   if (!isMacOS)
     return { dispose: () => {} }
 
@@ -61,7 +61,7 @@ export async function setupAppleVisionService(options: { lifecycle: Lifecycle })
     eventa.dispose()
   }
 
-  options.lifecycle.appHooks.onStop(dispose)
+  options.on('stop', dispose)
 
   return { dispose }
 }

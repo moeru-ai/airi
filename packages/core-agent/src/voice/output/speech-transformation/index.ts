@@ -4,6 +4,7 @@ import type { Plugin } from 'unified'
 import type { SpeechPreprocessor } from './preprocessor'
 
 import remarkWikiLink from '@flowershow/remark-wiki-link'
+import remarkCjkFriendly from 'remark-cjk-friendly'
 import remarkMath from 'remark-math'
 import remarkParse from 'remark-parse'
 
@@ -87,7 +88,7 @@ export function toSpeechText(markdown: string, options?: SpeechTextOptions): str
   // The 4.0.0 and 4.0.1 tarballs have no `dist`, but their `exports` point into it, so the import fails.
   // Source: npm tarballs of @flowershow/remark-wiki-link 4.0.0 and 4.0.1, checked 2026-11-02.
   // Remove the pin when a 4.x release ships `dist`.
-  return String(unified().use(remarkParse).use(remarkMath).use(remarkWikiLink).use(remarkSpeech, { ...options, preprocessors }).processSync(prepared))
+  return String(unified().use(remarkParse).use(remarkCjkFriendly).use(remarkMath).use(remarkWikiLink).use(remarkSpeech, { ...options, preprocessors }).processSync(prepared))
 }
 
 function compile(tree: Root, source: string, options: SpeechTextOptions | undefined): string {

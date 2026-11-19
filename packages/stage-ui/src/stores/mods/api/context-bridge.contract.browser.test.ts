@@ -179,6 +179,7 @@ const chatOrchestratorMock = {
   activeSendSessionId: undefined as string | undefined,
   sending: false,
   send: vi.fn(),
+  chatReadyFor: vi.fn<(sessionId: string) => boolean>(),
   cancelPendingSends: vi.fn(),
   cancelTurn: vi.fn(),
 
@@ -310,6 +311,7 @@ describe('context bridge contract', () => {
     getProviderInstanceMock.mockReset()
     recordLifecycleMock.mockReset()
     chatOrchestratorMock.send.mockReset().mockResolvedValue(undefined)
+    chatOrchestratorMock.chatReadyFor.mockReset().mockReturnValue(true)
     chatOrchestratorMock.cancelPendingSends.mockReset().mockResolvedValue(undefined)
     chatOrchestratorMock.cancelTurn.mockReset().mockResolvedValue(undefined)
 
@@ -442,6 +444,41 @@ describe('context bridge contract', () => {
 
     expect(chatOrchestratorMock.send).toHaveBeenCalledTimes(1)
     expect(chatOrchestratorMock.send.mock.calls[0]?.[0]).toMatchObject({ sessionId: 'bound:discord:channel:a' })
+    await store.dispose()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/3492#discussion_r4538897976
+  // ROOT CAUSE: The gate read the selection of the consciousness store. That store holds the global default,
+  // so an input for a character with its own chat model got no reply while the default was empty.
+  it('sends input when the target session can send and the consciousness store has no selection', async () => {
+    const store = useContextBridgeStore()
+    await store.initialize()
+
+    await emitServerEvent('input:text', {
+      type: 'input:text',
+      source: 'discord',
+      metadata: createMetadata('discord', 'bot'),
+      data: { text: 'hello', overrides: { binding: 'discord:channel:a' } },
+    })
+
+    expect(chatOrchestratorMock.chatReadyFor).toHaveBeenCalledWith('bound:discord:channel:a')
+    expect(chatOrchestratorMock.send).toHaveBeenCalledTimes(1)
+    await store.dispose()
+  })
+
+  it('does not send input when the target session cannot send', async () => {
+    chatOrchestratorMock.chatReadyFor.mockReturnValue(false)
+    const store = useContextBridgeStore()
+    await store.initialize()
+
+    await emitServerEvent('input:text', {
+      type: 'input:text',
+      source: 'discord',
+      metadata: createMetadata('discord', 'bot'),
+      data: { text: 'hello', overrides: { binding: 'discord:channel:a' } },
+    })
+
+    expect(chatOrchestratorMock.send).not.toHaveBeenCalled()
     await store.dispose()
   })
 

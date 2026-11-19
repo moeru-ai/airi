@@ -2,6 +2,13 @@
 
 Scope: `packages/i18n/**`, and every string that a user sees. The root `AGENTS.md` gives the rules for which locale files to edit.
 
+## Keys
+
+- After you add, rename, or delete a key, run `pnpm i18n:check` in the repository root. Fix each error that it reports.
+- Do not edit `.x18n/check-baseline.json` or run `x18n check --update-baseline`. The autofix.ci workflow updates the baseline.
+  The update also writes new errors into the baseline, and then CI does not report them.
+- Before you delete a key that x18n reports as unused, search the code for its parent key. x18n cannot follow keys built at runtime.
+
 ## Glossary
 
 `packages/i18n/glossary/terms.yaml` gives the approved English term for each product concept.
@@ -32,3 +39,10 @@ the pull request.
 **Write a definition in one sentence.** Describe the thing, not the word, and put a negative rule in
 the `note`. Keep each sentence short and active: translators read them, and most do not read English
 as a first language.
+
+## Code Review Rules
+
+- Do not report a change to `.x18n/check-baseline.json` that a commit by `autofix-ci[bot]` made.
+  The rule in [Keys](#keys) forbids the edit for contributors and agents. Only the autofix.ci workflow updates the baseline.
+- To find the commit that changed the baseline, run `git log --format='%h %an %s' <base>..HEAD -- .x18n/check-baseline.json`.
+  `<base>` is the merge base with the target branch.

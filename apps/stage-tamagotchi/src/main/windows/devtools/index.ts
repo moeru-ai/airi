@@ -1,4 +1,5 @@
 import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
+import { onWindowClosed } from '@proj-airi/electron-vueuse/main'
 import { BrowserWindow } from 'electron'
 
 import icon from '../../../../resources/icon.png?asset'
@@ -46,7 +47,7 @@ export function setupDevtoolsWindow(): DevtoolsWindowManager {
       })
 
       window.on('ready-to-show', () => showWindow(window))
-      window.on('closed', () => {
+      onWindowClosed(window, () => {
         if (reusableWindows.get(key) === reusable)
           reusableWindows.delete(key)
       })

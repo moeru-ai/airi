@@ -1,11 +1,11 @@
-import localforage from 'localforage'
-
 import { createPinia, disposePinia } from 'pinia'
+import { prefixStorage } from 'unstorage'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { storage } from '../database/storage'
 import { useRecipesStore } from './recipes'
 
-const records = localforage.createInstance({ name: 'airi-recipes', storeName: 'recipes' })
+const records = prefixStorage(storage, 'recipes')
 const stores: ReturnType<typeof createPinia>[] = []
 
 /** Each store stands for one window. */
@@ -83,7 +83,7 @@ describe('recipes store', () => {
     await chat.remove(proposal.id)
     await settings.setEnabled(proposal.id, false)
 
-    expect(await records.getItem(proposal.id)).toEqual({ id: proposal.id, updatedAt: expect.any(Number), deleted: true })
+    expect(await records.getItemRaw(proposal.id)).toEqual({ id: proposal.id, updatedAt: expect.any(Number), deleted: true })
   })
 
   it('keeps the recipes across restarts and shows a change in every window', async () => {
@@ -100,7 +100,7 @@ describe('recipes store', () => {
 
     await vi.waitFor(() => expect(chat.recipes).toEqual([]))
     // The removal stays as a tombstone.
-    expect(await records.getItem(music.id)).toEqual({ id: music.id, updatedAt: expect.any(Number), deleted: true })
+    expect(await records.getItemRaw(music.id)).toEqual({ id: music.id, updatedAt: expect.any(Number), deleted: true })
   })
 
   it('moves the recipes from localStorage once, with their ids and order, before it is ready', async () => {

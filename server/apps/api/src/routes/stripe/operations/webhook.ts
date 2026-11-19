@@ -72,6 +72,8 @@ export function createWebhookOperation(
         if (result.applied) {
           const openpanelDeviceId = session.metadata?.openpanelDeviceId
           const openpanelSessionId = session.metadata?.openpanelSessionId
+          const posthogDistinctId = session.metadata?.posthogDistinctId
+          const posthogSessionId = session.metadata?.posthogSessionId
           void productEventService?.track({
             userId: result.userId,
             feature: 'billing',
@@ -87,6 +89,8 @@ export function createWebhookOperation(
               stripe_customer_id: typeof session.customer === 'string' ? session.customer : session.customer?.id ?? null,
               ...(openpanelDeviceId && { openpanel_device_id: openpanelDeviceId }),
               ...(openpanelSessionId && { openpanel_session_id: openpanelSessionId }),
+              ...(posthogDistinctId && { posthog_distinct_id: posthogDistinctId }),
+              ...(posthogSessionId && { posthog_session_id: posthogSessionId }),
             },
           })
         }

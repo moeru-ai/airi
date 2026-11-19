@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import type { SessionRow } from './sessions-list.vue'
 
-import { BasicButton, BottomDrawer } from '@proj-airi/ui'
+import { BottomDrawer } from '@proj-airi/ui'
 import { DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle, PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
+import { shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import SessionsList from './sessions-list.vue'
 
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
   open: boolean
   rows: SessionRow[]
   isDesktop: boolean
@@ -19,6 +20,7 @@ withDefaults(defineProps<{
 
 const emit = defineEmits<{
   'deleteSession': [sessionId: string]
+  'deleteSessions': [sessionIds: string[]]
   'newSession': []
   'renameSession': [payload: { sessionId: string, title: string }]
   'selectSession': [sessionId: string]
@@ -26,6 +28,13 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+// Every open starts outside selection mode, so a closed list never keeps a selection.
+const selecting = shallowRef(false)
+
+watch(() => props.open, (open) => {
+  if (!open)
+    selecting.value = false
+})
 
 function preserveTriggerFocus(event: Event) {
   event.preventDefault()
@@ -44,12 +53,14 @@ function preserveTriggerFocus(event: Event) {
       <slot name="trigger" />
     </template>
     <SessionsList
+      v-model:selecting="selecting"
       :rows="rows"
       :is-creating-session="isCreatingSession"
       @new-session="emit('newSession')"
       @rename-session="emit('renameSession', $event)"
       @select-session="emit('selectSession', $event)"
       @delete-session="emit('deleteSession', $event)"
+      @delete-sessions="emit('deleteSessions', $event)"
     />
   </BottomDrawer>
   <PopoverRoot v-else-if="desktopMode === 'popover'" :open="open" @update:open="emit('update:open', $event)">
@@ -67,30 +78,16 @@ function preserveTriggerFocus(event: Event) {
         ]"
         @open-auto-focus="preserveTriggerFocus"
       >
-        <BasicButton
-          block
-          size="unset"
-          :class="[
-            'new-session-action h-9 rounded-lg px-2 text-sm text-primary-600 outline-none',
-            'hover:bg-primary-50 dark:text-primary-300 dark:hover:bg-primary-950/70',
-            'focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-[-2px]',
-          ]"
-          :loading="isCreatingSession"
-          @click="emit('newSession')"
-        >
-          <span aria-hidden="true" :class="['i-solar:add-circle-outline size-4.5']" />
-          {{ t('stage.chat.sessions.new') }}
-        </BasicButton>
-        <div :class="['my-1 h-px bg-neutral-200/70 dark:bg-neutral-700/70']" />
         <SessionsList
+          v-model:selecting="selecting"
           compact
-          :show-new-session="false"
           :rows="rows"
           :is-creating-session="isCreatingSession"
           @new-session="emit('newSession')"
           @rename-session="emit('renameSession', $event)"
           @select-session="emit('selectSession', $event)"
           @delete-session="emit('deleteSession', $event)"
+          @delete-sessions="emit('deleteSessions', $event)"
         />
       </PopoverContent>
     </PopoverPortal>
@@ -113,21 +110,16 @@ function preserveTriggerFocus(event: Event) {
           {{ t('stage.chat.sessions.title') }}
         </DialogTitle>
         <SessionsList
+          v-model:selecting="selecting"
           :rows="rows"
           :is-creating-session="isCreatingSession"
           @new-session="emit('newSession')"
           @rename-session="emit('renameSession', $event)"
           @select-session="emit('selectSession', $event)"
           @delete-session="emit('deleteSession', $event)"
+          @delete-sessions="emit('deleteSessions', $event)"
         />
       </DialogContent>
     </DialogPortal>
   </DialogRoot>
 </template>
-
-<style scoped>
-.new-session-action :deep(.basic-button-content) {
-  width: 100%;
-  justify-content: flex-start;
-}
-</style>
