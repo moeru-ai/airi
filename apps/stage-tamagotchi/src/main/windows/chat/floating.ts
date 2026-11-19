@@ -6,7 +6,7 @@ import type { ChatFloatingPlacement, ChatFloatingState } from '../../../shared/e
 import type { AttachedChatLayout } from './floating-placement'
 
 import { defineInvokeHandler } from '@moeru/eventa'
-import { isRendererUnavailable } from '@proj-airi/electron-vueuse/main'
+import { isRendererUnavailable, onWindowClosed } from '@proj-airi/electron-vueuse/main'
 import { animate } from 'animejs'
 import { BrowserWindow, screen } from 'electron'
 import { debounce } from 'es-toolkit'
@@ -22,6 +22,7 @@ import {
   electronChatFloatingResizeBy,
   electronChatFloatingStateChanged,
 } from '../../../shared/eventa'
+import { focusWindow } from '../../libs/electron/focus'
 import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
 import { createWindowContext } from '../../libs/electron/window-context'
 import { createReusableWindow } from '../../libs/electron/window-manager'
@@ -465,7 +466,7 @@ export function setupFloatingChatWindow(params: {
     })
     // Registered before any await, so a window that fails during setup
     // still releases the main window listeners when it is destroyed.
-    target.on('closed', () => {
+    onWindowClosed(target, () => {
       persistMove.cancel()
       detachFromMain?.()
       detachFromMain = undefined
@@ -531,9 +532,8 @@ export function setupFloatingChatWindow(params: {
 
     if (target.isMinimized())
       target.restore()
-    target.show()
-    target.focus()
-    target.moveTop()
+    if (focusWindow(target))
+      target.moveTop()
   }
 
   function fold(target: BrowserWindow) {

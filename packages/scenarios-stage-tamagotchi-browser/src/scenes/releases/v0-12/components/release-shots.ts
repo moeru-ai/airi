@@ -1,4 +1,4 @@
-import { inject } from 'vue'
+import type { ReleaseShot } from '../../components/release-shot'
 
 import chatFloatingDanmakuLight from '../../../../../artifacts/raw/releases/v0-12/chat-floating-danmaku-light.avif'
 import chatFloatingDanmaku from '../../../../../artifacts/raw/releases/v0-12/chat-floating-danmaku.avif'
@@ -26,16 +26,7 @@ import stageVrm from '../../../../../artifacts/raw/releases/v0-12/stage-vrm.avif
 import webStageChatLight from '../../../../../artifacts/raw/releases/v0-12/web-stage-chat-light.avif'
 import webStageChat from '../../../../../artifacts/raw/releases/v0-12/web-stage-chat.avif'
 
-import { releaseThemeKey } from './release-theme'
-
-export interface ReleaseShot {
-  /** The screenshot of the dark app theme. */
-  dark: string
-  /** The screenshot of the light app theme. A shot without it looks the same in both themes. */
-  light?: string
-  /** The CSS width of the screen that took the screenshot. */
-  width: number
-}
+import { releaseShotSourcesOf } from '../../components/release-shot'
 
 /**
  * Raw screenshots of v0.12, with the CSS width of the screen that took each one.
@@ -64,11 +55,4 @@ export const releaseShots = {
   webStageChat: { dark: webStageChat, light: webStageChatLight, width: 1440 },
 } satisfies Record<string, ReleaseShot>
 
-export const releaseShotSources = Object.values(releaseShots as Record<string, ReleaseShot>)
-  .flatMap(shot => shot.light ? [shot.dark, shot.light] : [shot.dark])
-
-/** Returns a function that selects the screenshot of the theme of the current area. */
-export function useReleaseShot() {
-  const theme = inject(releaseThemeKey, 'dark')
-  return (shot: ReleaseShot) => (theme === 'light' ? shot.light : undefined) ?? shot.dark
-}
+export const releaseShotSources = releaseShotSourcesOf(releaseShots)

@@ -13,7 +13,7 @@ import {
   useElectronRelativeMouse,
 } from '@proj-airi/electron-vueuse'
 import { useModelStore, useThreeSceneIsTransparentAtPoint } from '@proj-airi/stage-ui-three'
-import { HearingStatus, HoloCoupon } from '@proj-airi/stage-ui/components'
+import { HoloCoupon } from '@proj-airi/stage-ui/components'
 import {
   createEmptyModelSettingsRuntimeSnapshot,
   resolveComponentStateToRuntimePhase,
@@ -26,7 +26,7 @@ import { useFeatureFlagsStore } from '@proj-airi/stage-ui/stores/feature-flags'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useVoiceStore } from '@proj-airi/stage-ui/stores/voice'
-import { refDebounced } from '@vueuse/core'
+import { refDebounced, until } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, onScopeDispose, ref, shallowRef, toRef, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -55,9 +55,7 @@ import { useToolSelectionStore } from '../stores/tools'
 import { resolveFadeOnHoverInteraction } from '../utils/fade-on-hover'
 import { shouldSampleStageTransparency } from '../utils/stage-three-transparency'
 
-const hearingStatusElement = ref<HTMLElement>()
 const authStatusElement = ref<HTMLElement>()
-const { isOutside: outsideHearingStatus } = useElectronMouseInElement(hearingStatusElement)
 const { isOutside: outsideAuthStatus } = useElectronMouseInElement(authStatusElement)
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
 const controlsIslandInteractionActive = shallowRef(false)
@@ -199,15 +197,24 @@ useElectronEventaInvoke(electronAppIsWayland)()
   .then(value => isWayland.value = value)
   .catch(error => console.warn('[Main Page] Failed to detect Wayland; the controls Island stays shown:', errorMessageFrom(error)))
 
-// The update launcher keeps a new bundle only when it reports healthy. The main window mounting this page is part of it.
+// The update launcher keeps a new bundle only when it reports healthy, and rolls it back otherwise. This page reports
+// when the stage stops loading, with the model or with the error surface. A page stuck on loading never reports.
 const reportPageMounted = useElectronEventaInvoke(electronMainPageMounted)
-onMounted(() => void reportPageMounted())
+until(isLoading).toBe(false).then(() => reportPageMounted())
 
 const cursorAwayFromWindow = computed(() => !isWayland.value && isOutsideWindow.value && !isAroundWindowBorder.value)
 
 const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMouseEvents)
 
 const controlsOverlayActive = computed(() => controlsIslandRef.value?.overlayActive ?? false)
+
+/** A right-click on the character opens the app menu, as desktop pets do. Interface drawn over the stage keeps its own menu. */
+function openMenuFromCharacter(event: MouseEvent) {
+  if (event.target !== stageCanvas.value)
+    return
+  event.preventDefault()
+  controlsIslandRef.value?.openMenu()
+}
 
 const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() => {
   const hasModel = !!stageModelSelectedUrl.value
@@ -593,7 +600,7 @@ function handleFadeOnHoverInteractionChange() {
     return
   }
 
-  if (controlsOverlayActive.value || !outsideHearingStatus.value || !outsideAuthStatus.value) {
+  if (controlsOverlayActive.value || !outsideAuthStatus.value) {
     // Portaled controls must receive clicks even outside the Island's bounds.
     isIgnoringMouseEvents.value = false
     shouldFadeOnCursorWithin.value = false
@@ -636,7 +643,7 @@ function handleFadeOnHoverInteractionChange() {
 }
 
 watch(
-  [outsideHearingStatus, outsideAuthStatus, isOutside, isOutsideFor250Ms, isPointerOverStageCanvas, isAroundWindowBorder, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, controlsOverlayActive, fadeOnHoverEnabled, alwaysOnTop, stagePaused, isWayland, fullscreenActive],
+  [outsideAuthStatus, isOutside, isOutsideFor250Ms, isPointerOverStageCanvas, isAroundWindowBorder, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, controlsOverlayActive, fadeOnHoverEnabled, alwaysOnTop, stagePaused, isWayland, fullscreenActive],
   handleFadeOnHoverInteractionChange,
   { immediate: true },
 )
@@ -694,9 +701,6 @@ const cursorPosition = computed(() => ({
     relative z-2 h-full overflow-hidden rounded-xl
     transition="opacity duration-500 ease-in-out"
   >
-    <div v-show="!settingsStore.streamerMode && !fullscreenActive" ref="hearingStatusElement" :class="['absolute bottom-3 left-1/2 z-30 w-fit -translate-x-1/2']">
-      <HearingStatus align="center" />
-    </div>
     <div v-show="!settingsStore.streamerMode && !fullscreenActive" ref="authStatusElement" :class="['absolute left-1/2 top-3 z-40 w-fit -translate-x-1/2']">
       <AuthStatusIsland />
     </div>
@@ -718,6 +722,7 @@ const cursorPosition = computed(() => ({
           'rounded-2xl',
           'transition-opacity duration-250 ease-in-out',
         ]"
+        @contextmenu="openMenuFromCharacter"
       >
         <!--
           Every element that paints over the stage carries the opaque marker,

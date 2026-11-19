@@ -6,6 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp } from 'vue'
 
 import { useAiriCardStore } from '../stores/modules/airi-card'
+import { useHearingStore } from '../stores/modules/hearing'
+import { useSpeechStore } from '../stores/modules/speech'
 import { useProviderConfigStore } from '../stores/providers/config'
 import { useProviderStore } from '../stores/providers/provider'
 import { useSettingsNeedsAttention } from './use-settings-needs-attention'
@@ -32,14 +34,15 @@ vi.mock('vue-router', async (importOriginal) => {
   return { ...original, useRouter: () => router }
 })
 
-vi.mock('localforage', () => ({
-  default: {
-    getItem: vi.fn(async () => undefined),
-    iterate: vi.fn(async () => undefined),
-    removeItem: vi.fn(async () => undefined),
-    setItem: vi.fn(async <T>(_: string, value: T) => value),
-  },
-}))
+// Node has no IndexedDB. An in-memory driver replaces the IndexedDB mounts.
+vi.mock('../database/storage', async (importOriginal) => {
+  const { createStorage } = await import('unstorage')
+  const { default: memoryDriver } = await import('unstorage/drivers/memory')
+  return {
+    ...await importOriginal<typeof import('../database/storage')>(),
+    storage: createStorage({ driver: memoryDriver() }),
+  }
+})
 
 function cardWithSpeech(provider: string): AiriCard {
   return {
@@ -76,6 +79,29 @@ describe('useSettingsNeedsAttention', () => {
 
   afterEach(() => vi.unstubAllGlobals())
 
+  // https://github.com/moeru-ai/airi/issues/3153
+  // ROOT CAUSE:
+  // Saved providers counted as active. Disabled modules now leave the provider usage list without deleting shared settings.
+  it('issue #3153: removes disabled module warnings while retaining another module that uses the same provider', async () => {
+    const cards = useAiriCardStore()
+    await cards.initialize()
+    const provider = 'removed-provider'
+    const characterId = await cards.addCard(cardWithSpeech(provider), 'import')
+    const hearing = useHearingStore()
+    hearing.activeTranscriptionProvider = provider
+    await waitForProviderRegistry()
+    const { moduleSelections } = useSettingsNeedsAttention()
+    expect(moduleSelections.value.some(selection => selection.key === 'hearing')).toBe(true)
+
+    hearing.enabled = false
+    expect(moduleSelections.value.some(selection => selection.key === 'hearing')).toBe(false)
+    expect(moduleSelections.value.some(selection => selection.key === `${characterId}:speech`)).toBe(true)
+    expect(hearing.activeTranscriptionProvider).toBe(provider)
+
+    useSpeechStore().enabled = false
+    expect(moduleSelections.value.some(selection => selection.key === `${characterId}:speech`)).toBe(false)
+  })
+
   // ROOT CAUSE:
   //
   // The added flag of a provider stays after an update removes the provider.
@@ -95,13 +121,13 @@ describe('useSettingsNeedsAttention', () => {
 
   // ROOT CAUSE:
   //
-  // Edit on an item of the active character opened the module page, because that page saves to the active character.
+  // Edit on an item of the active character opened the module page, because that page saved to the active character.
   // The item names a selection of the character card, and the character editor is where the card shows and changes it.
   // The link also names the row, so the editor scrolls to it and highlights it, as a settings search result does.
   it('opens the editor of the active character at the row to change', async () => {
     const cards = useAiriCardStore()
     await cards.initialize()
-    await cards.updateActiveCardSpeech({ provider: 'removed-speech-provider', model: 'model', voice_id: 'voice' })
+    await cards.activateCard(await cards.addCard(cardWithSpeech('removed-speech-provider'), 'import'))
     await waitForProviderRegistry()
 
     const { items } = useSettingsNeedsAttention()

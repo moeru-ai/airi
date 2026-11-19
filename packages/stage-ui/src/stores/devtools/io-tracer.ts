@@ -1,291 +1,168 @@
-import type { Attributes } from '@opentelemetry/api'
-import type { ReadableSpan } from '@opentelemetry/sdk-trace-base'
-import type { IOSpan, IOSubsystem, IOTurn } from '@proj-airi/stage-shared'
+import type { TraceFeedMessage, TraceRecord } from '@proj-airi/trace-kit'
+import type { TraceItemRef } from '@proj-airi/trace-kit/views'
 
 import { errorMessageFrom } from '@moeru/std'
-import { hrTimeToMilliseconds } from '@opentelemetry/core'
-import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
+import { createTraceViewReader } from '@proj-airi/trace-kit/views'
 import { defineStore } from 'pinia'
-import { computed, ref, triggerRef } from 'vue'
+import { markRaw, shallowRef } from 'vue'
 
-import { getIOTraceSource, initIOTracer, onIOSpan, onRemoteIOSpan } from '../../composables/use-io-tracer'
-import { toOTLPTrace } from './io-tracer-otlp'
+import { getTraceFeedSource } from '../../composables/use-trace'
+import { seriesAsSampleChunks } from './io-tracer-export'
 
-const MAX_TURNS = 50
+/**
+ * Views read the projections at most this often. Records can arrive at hundreds per second, and each view update
+ * walks the visible lanes.
+ */
+const VIEW_UPDATE_INTERVAL_MS = 50
 
-function attrsToMeta(attrs: Attributes): Record<string, any> {
-  const meta: Record<string, any> = {}
-  for (const [key, value] of Object.entries(attrs)) {
-    const shortKey = key === IOAttributes.TooltipKeys
-      ? 'tooltipKeys'
-      : key.includes('.')
-        ? key.split('.').at(-1)!
-        : key
-    meta[shortKey] = value
-  }
-  return meta
-}
-
+/**
+ * The tracer view state: one reader of the collector feed and its projections.
+ *
+ * State model:
+ * - `reader` holds the projections in plain objects. It is not reactive.
+ * - `version` changes at most every {@link VIEW_UPDATE_INTERVAL_MS} after records arrive. Views read the projections
+ *   through computed values keyed on it.
+ * - `subscribed` is true while the store reads the feed. `start` subscribes. `stop` unsubscribes, keeps the state, and
+ *   holds `traceNow` at the time it paused.
+ * - `clear` resets the projections. Records that arrive later still show.
+ */
 export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
-  const turns = ref<IOTurn[]>([])
-  const isRecording = ref(false)
-  const selectedSpanId = ref<string | null>(null)
-  const recordingStartTs = ref(0)
-  const rawSpanCount = ref(0)
+  const feed = getTraceFeedSource()
+  const { reader: plainReader, timelineView, eventLogView, metricSamples } = createTraceViewReader(feed.traceClock)
+  const reader = markRaw(plainReader)
 
-  const turnsByTraceId = new Map<string, IOTurn>()
-  /** Latest end time of any span of each trace, including spans that the chart does not draw. */
-  const latestEndByTraceId = new Map<string, number>()
-  /** Traces whose `Interaction turn` span ended. Only these turns have an end. */
-  const settledTraceIds = new Set<string>()
+  const version = shallowRef(0)
+  const subscribed = shallowRef(false)
+  const error = shallowRef<string>()
+  const selection = shallowRef<TraceItemRef>()
 
-  const rawSpans: ReadableSpan[] = []
-  /** A trace source can send a span twice: in its snapshot and as a later span. */
-  let seenSpanIds = new Set<string>()
-  let unsubscribeRemote: (() => void) | undefined
-  /** Increases on each start and stop, so a late subscription of an earlier recording is dropped. */
-  let recordingSession = 0
+  let subscription: { unsubscribe: () => void, setTracks: (tracks: string[] | '*') => void } | undefined
+  /**
+   * A trace clock value and the local clock when it arrived. The view runs its live clock from it.
+   * Live records and `caughtUp` update it. Backlog records are old, so they do not.
+   */
+  let clockAnchor: { trace: number, local: number } | undefined
+  /** The trace clock when the view paused. A paused view holds its now there, so the now line stops. */
+  let pausedAt: number | undefined
+  let session = 0
+  let pendingUpdate: ReturnType<typeof setTimeout> | undefined
 
-  function notifyUpdate() {
-    triggerRef(turns)
+  function scheduleUpdate() {
+    pendingUpdate ??= setTimeout(() => {
+      pendingUpdate = undefined
+      version.value = reader.version
+    }, VIEW_UPDATE_INTERVAL_MS)
   }
 
-  const activeTurn = computed(() => {
-    if (turns.value.length === 0)
-      return undefined
-    const last = turns.value.at(-1)
-    return last?.endTs == null ? last : undefined
-  })
+  function handle(message: TraceFeedMessage) {
+    reader.handle(message)
+    if (message.kind === 'caughtUp' && message.now !== undefined)
+      clockAnchor = { trace: message.now, local: performance.now() }
+    else if (message.kind === 'record' && reader.caughtUp && message.record.observedTs !== undefined)
+      clockAnchor = { trace: message.record.observedTs, local: performance.now() }
+    scheduleUpdate()
+  }
 
-  const selectedSpan = computed(() => {
-    if (!selectedSpanId.value)
-      return undefined
-    for (const turn of turns.value) {
-      const span = turn.spans.find(s => s.id === selectedSpanId.value)
-      if (span)
-        return { span, turn }
-    }
-    return undefined
-  })
+  /** An estimate of the trace clock now. Undefined until the feed caught up. A paused view returns the time it paused. */
+  function traceNow(): number | undefined {
+    if (!subscribed.value && pausedAt !== undefined)
+      return pausedAt
+    return clockAnchor ? clockAnchor.trace + (performance.now() - clockAnchor.local) : undefined
+  }
 
-  function handleSpan(readable: ReadableSpan) {
-    if (seenSpanIds.has(readable.spanContext().spanId))
+  /** Subscribes to the collector feed. The backlog arrives first. A second call while subscribed does nothing. */
+  async function start() {
+    if (subscribed.value)
       return
-    seenSpanIds.add(readable.spanContext().spanId)
-    rawSpans.push(readable)
-    rawSpanCount.value++
-
-    const spanCtx = readable.spanContext()
-    const traceId = spanCtx.traceId
-    const spanId = spanCtx.spanId
-    const startMs = hrTimeToMilliseconds(readable.startTime)
-    const endMs = readable.ended ? hrTimeToMilliseconds(readable.endTime) : undefined
-
-    function getOrCreateTurn(): IOTurn {
-      let turn = turnsByTraceId.get(traceId)
-      if (!turn) {
-        turns.value.push({
-          id: traceId,
-          startTs: startMs,
-          spans: [],
-        })
-        // The reactive copy, not the raw object. Later spans of this trace mutate it, and views that hold the turn
-        // list, such as the chart through its prop, only see mutations through the proxy.
-        turn = turns.value.at(-1)!
-        turnsByTraceId.set(traceId, turn)
-
-        evictOldTurns()
+    subscribed.value = true
+    pausedAt = undefined
+    error.value = undefined
+    const current = ++session
+    // A new subscription sends the backlog again, so the projections start empty.
+    reader.reset()
+    try {
+      const next = await feed.subscribe((message) => {
+        if (current === session)
+          handle(message)
+      }, '*')
+      // `stop` ran while the subscription started. Drop the late subscription.
+      if (current !== session) {
+        next.unsubscribe()
+        return
       }
-      // Spans arrive when they end, so a child, such as a VAD segment, can arrive before the span that starts the turn.
-      if (startMs < turn.startTs)
-        turn.startTs = startMs
-      // A spoken turn ends when its last playback ends. The `Speech turn` span outlives the `Interaction turn` span.
-      if (settledTraceIds.has(traceId))
-        turn.endTs = latestEndByTraceId.get(traceId)
-      return turn
+      subscription = next
     }
-
-    if (endMs != null)
-      latestEndByTraceId.set(traceId, Math.max(latestEndByTraceId.get(traceId) ?? endMs, endMs))
-
-    if (readable.name === IOSpanNames.InteractionTurn) {
-      settledTraceIds.add(traceId)
-      const turn = getOrCreateTurn()
-      const text = readable.attributes[IOAttributes.ASRText]
-      if (typeof text === 'string')
-        turn.inputText = text
-
-      notifyUpdate()
-      return
+    catch (cause) {
+      error.value = errorMessageFrom(cause) ?? 'Failed to read traces'
+      subscribed.value = false
     }
-
-    const subsystem = readable.attributes[IOAttributes.Subsystem] as IOSubsystem | undefined
-
-    if (!subsystem) {
-      // A span without a subsystem, such as `Speech turn`, is not drawn. It can still move the end of its turn.
-      if (turnsByTraceId.has(traceId))
-        getOrCreateTurn()
-      notifyUpdate()
-      return
-    }
-
-    if (readable.name === IOSpanNames.TTSSynthesis) {
-      const turn = getOrCreateTurn()
-      const text = readable.attributes[IOAttributes.TTSText]
-      if (typeof text === 'string' && !turn.outputText)
-        turn.outputText = text
-    }
-
-    const turn = getOrCreateTurn()
-    const meta = attrsToMeta(readable.attributes)
-    const events = readable.events.map(event => ({
-      name: event.name,
-      timeTs: hrTimeToMilliseconds(event.time),
-      meta: attrsToMeta(event.attributes ?? {}),
-    }))
-
-    // Event attributes stay in `events`. Copying them into the span meta overwrote span attributes with the same short key.
-    const firstToken = readable.events.find(event => event.name === IOEvents.LLMFirstToken)
-    if (firstToken) {
-      meta.firstTokenTs = hrTimeToMilliseconds(firstToken.time)
-      const ttft = firstToken.attributes?.[IOAttributes.LLM_TTFT]
-      if (typeof ttft === 'number')
-        meta.ttftMs = ttft
-    }
-
-    if (subsystem === IOSubsystems.ASR && typeof readable.attributes[IOAttributes.ASRText] === 'string')
-      turn.inputText = (turn.inputText ?? '') + (readable.attributes[IOAttributes.ASRText] as string)
-    if (subsystem === IOSubsystems.LLM && typeof meta.text_length === 'number')
-      turn.outputText = `(${meta.text_length} chars)`
-
-    const segmentId = readable.attributes[IOAttributes.TTSSegmentId]
-
-    const ioSpan: IOSpan = {
-      id: spanId,
-      traceId,
-      parentSpanId: readable.parentSpanContext?.spanId,
-      ttsCorrelationId: typeof segmentId === 'string' ? segmentId : undefined,
-      subsystem,
-      name: readable.name,
-      startTs: startMs,
-      endTs: endMs,
-      meta,
-      events,
-    }
-
-    turn.spans.push(ioSpan)
-    notifyUpdate()
   }
 
-  function evictOldTurns() {
-    let evicted = false
-    while (turns.value.length > MAX_TURNS) {
-      const turn = turns.value.shift()
-      if (!turn)
-        break
-      turnsByTraceId.delete(turn.id)
-      latestEndByTraceId.delete(turn.id)
-      settledTraceIds.delete(turn.id)
-      evicted = true
-    }
-    if (!evicted)
-      return
-
-    // The export reads the raw spans, so it must contain the same turns as the views.
-    const kept = rawSpans.filter(span => turnsByTraceId.has(span.spanContext().traceId))
-    rawSpans.length = 0
-    rawSpans.push(...kept)
-    seenSpanIds = new Set(kept.map(span => span.spanContext().spanId))
-    rawSpanCount.value = rawSpans.length
-  }
-
-  function startRecording() {
-    if (isRecording.value)
-      return
-
-    initIOTracer()
-    recordingStartTs.value = performance.timeOrigin + performance.now()
-    isRecording.value = true
-    const session = ++recordingSession
-
-    const source = getIOTraceSource()
-    if (!source) {
-      onIOSpan(handleSpan)
-      unsubscribeRemote = onRemoteIOSpan(handleSpan)
-      return
-    }
-
-    source.subscribe(handleSpan)
-      .then(({ spans, unsubscribe }) => {
-        if (session !== recordingSession) {
-          unsubscribe()
-          return
-        }
-        unsubscribeRemote = unsubscribe
-        for (const span of spans)
-          handleSpan(span)
-        // The time axis starts at the recording start. Spans that ended before it would sit left of zero.
-        for (const span of spans)
-          recordingStartTs.value = Math.min(recordingStartTs.value, hrTimeToMilliseconds(span.startTime))
-      })
-      .catch(error => console.error('[IOTracer] Failed to subscribe to the IO trace source:', errorMessageFrom(error)))
-  }
-
-  function stopRecording() {
-    if (!isRecording.value)
-      return
-
-    recordingSession++
-    onIOSpan(undefined)
-    unsubscribeRemote?.()
-    unsubscribeRemote = undefined
-    isRecording.value = false
+  function stop() {
+    pausedAt = traceNow()
+    session++
+    subscription?.unsubscribe()
+    subscription = undefined
+    subscribed.value = false
   }
 
   function clear() {
-    turns.value = []
-    turnsByTraceId.clear()
-    seenSpanIds.clear()
-    latestEndByTraceId.clear()
-    settledTraceIds.clear()
-    rawSpans.length = 0
-    rawSpanCount.value = 0
-    selectedSpanId.value = null
-    recordingStartTs.value = performance.timeOrigin + performance.now()
+    reader.reset()
+    // A cleared view still runs its clock. The next records start a fresh timeline.
+    reader.caughtUp = true
+    selection.value = undefined
+    version.value = reader.version
   }
 
-  function selectSpan(spanId: string | null) {
-    selectedSpanId.value = spanId
+  /** Tells the collector the track paths that the view shows, so producers skip costly series of other tracks. */
+  function setVisibleTracks(tracks: string[] | '*') {
+    subscription?.setTracks(tracks)
   }
 
-  function exportOTLP() {
-    if (rawSpans.length === 0)
+  function select(next: TraceItemRef | undefined) {
+    selection.value = next
+  }
+
+  /**
+   * The records of the event log and the series of the timeline as JSON lines. The event log has no samples, so the
+   * series follow as chunks on the trace clock. The record format makes the file readable later.
+   */
+  function recordsAsJsonLines(): string {
+    const records: TraceRecord[] = [
+      ...eventLogView().entries.map(entry => entry.record),
+      ...seriesAsSampleChunks(timelineView().tracks.values(), feed.traceClock, crypto.randomUUID()),
+    ]
+    return records.map(record => JSON.stringify(record)).join('\n')
+  }
+
+  function saveRecords() {
+    const text = recordsAsJsonLines()
+    if (!text)
       return
-
-    const otlpPayload = toOTLPTrace(rawSpans)
-
-    const json = JSON.stringify(otlpPayload, null, 2)
-    const blob = new Blob([json], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `trace_${Date.now()}.json`
-    a.click()
+    const url = URL.createObjectURL(new Blob([`${text}\n`], { type: 'application/jsonl' }))
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `trace-${new Date().toISOString().replace(/[:.]/g, '-')}.jsonl`
+    anchor.click()
     URL.revokeObjectURL(url)
   }
 
   return {
-    turns,
-    activeTurn,
-    isRecording,
-    rawSpanCount,
-    recordingStartTs,
-    selectedSpanId,
-    selectedSpan,
-    startRecording,
-    stopRecording,
+    reader,
+    traceClock: feed.traceClock,
+    version,
+    subscribed,
+    error,
+    selection,
+    start,
+    stop,
     clear,
-    selectSpan,
-    exportOTLP,
+    select,
+    setVisibleTracks,
+    saveRecords,
+    traceNow,
+    timelineView,
+    eventLogView,
+    metricSamples,
   }
 })

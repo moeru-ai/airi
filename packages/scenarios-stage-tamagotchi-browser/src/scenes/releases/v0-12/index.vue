@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import type { ReleaseTimelineMode } from './components/release-timeline'
+import type { ReleaseTimelineMode } from '../components/release-timeline'
 
 import { useSceneReady } from '@vishot/mockup-desktop-vue'
 import { computed, provide } from 'vue'
 import { useRoute } from 'vue-router'
 
+import ReleaseThemeScope from '../components/release-theme-scope.vue'
 import AreaAvatars from './components/area-avatars.vue'
 import AreaCover from './components/area-cover.vue'
 import AreaDesktop from './components/area-desktop.vue'
@@ -13,11 +14,10 @@ import AreaStickers from './components/area-stickers.vue'
 import AreaToolCalls from './components/area-tool-calls.vue'
 import AreaVoice from './components/area-voice.vue'
 import AreaWebMobile from './components/area-web-mobile.vue'
-import ReleaseThemeScope from './components/release-theme-scope.vue'
 
+import { releaseThemes } from '../components/release-theme'
+import { releaseTimelineKey } from '../components/release-timeline'
 import { releaseShotSources } from './components/release-shots'
-import { releaseThemes } from './components/release-theme'
-import { releaseTimelineKey } from './components/release-timeline'
 
 /**
  * The v0.12 release areas, in reading order.

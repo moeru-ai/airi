@@ -24,7 +24,7 @@ const developerPattern = /Open DevTools|打开|Markdown|Lag|Vision Capture|Scree
 // /settings/modules/vision. That remains safe because this step is reached from
 // developer, which does not render either phrase. If the step order changes,
 // pick a token unique to consciousness.vue instead.
-const consciousnessPattern = /Select the suitable LLM|为意识选择合适/i
+const consciousnessPattern = /Select the default LLM|选择默认的 LLM/i
 const speechPattern = /Hello, my name is AI Assistant|Test voice|Voice|声音|Speech|选择语音合成服务来源/i
 const visionPattern = /Capture interval|context|ollama|提供商|Current model|Chat|Vision capture cadence/i
 const navHeaderSettleWaitMs = 1000

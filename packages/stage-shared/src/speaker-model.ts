@@ -2,8 +2,7 @@
  * The pinned CAM++ speaker embedding pack for Sherpaw speaker tracking.
  *
  * Its shape matches `SherpawModelArtifacts` in `@proj-airi/provider-inference`.
- * The pack lives here because the Electron main process downloads it on desktop, and main does not import `@proj-airi/stage-ui`.
- * Application Vite configs also import this value, so this module must stay free of runtime imports.
+ * Application Vite configs import this value to bundle or expose the pack, so this module must stay free of runtime imports.
  */
 export const speakerModel = {
   id: 'sherpaw-campplus-zh-en-advanced',

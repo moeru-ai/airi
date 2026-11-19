@@ -8,6 +8,7 @@ import type { SettingsWindowManager } from '../settings'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
+import { onWindowClosed } from '@proj-airi/electron-vueuse/main'
 import { defu } from 'defu'
 import { BrowserWindow, ipcMain } from 'electron'
 import { isLinux } from 'std-env'
@@ -17,6 +18,7 @@ import icon from '../../../../resources/icon.png?asset'
 
 import { electronStartDraggingWindow } from '../../../shared/eventa'
 import { shouldOpenDevTools } from '../../libs/electron/devtools'
+import { isWindowFocusIgnored, showWindow } from '../../libs/electron/focus'
 import { baseUrl, getPreloadPath, getRendererRoot, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { createWindowContext } from '../../libs/electron/window-context'
@@ -78,7 +80,7 @@ export async function setupDashboardWindow(params: {
 
   if (shouldOpenDevTools()) {
     try {
-      window.webContents.openDevTools({ mode: 'detach' })
+      window.webContents.openDevTools({ mode: 'detach', activate: !isWindowFocusIgnored() })
     }
     catch (err) {
       console.error('failed to open devtools:', err)
@@ -120,7 +122,7 @@ export async function setupDashboardWindow(params: {
   window.on('resize', () => handleNewBounds(window.getBounds()))
   window.on('move', () => handleNewBounds(window.getBounds()))
 
-  window.on('ready-to-show', () => window!.show())
+  window.on('ready-to-show', () => showWindow(window!))
   protectPrivilegedWindowNavigation(window)
 
   await setupDashboardWindowElectronInvokes({
@@ -164,7 +166,7 @@ export async function setupDashboardWindow(params: {
     const { context } = createWindowContext(window)
     const cleanUpWindowDraggingInvokeHandler = defineInvokeHandler(context, electronStartDraggingWindow, handleStartDraggingWindow)
 
-    window.on('closed', () => {
+    onWindowClosed(window, () => {
       cleanUpWindowDraggingInvokeHandler()
     })
   }

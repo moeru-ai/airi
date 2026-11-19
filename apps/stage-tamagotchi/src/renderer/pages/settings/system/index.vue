@@ -19,6 +19,12 @@ const settings = computed(() => [
     to: '/settings/system/color-scheme',
   },
   {
+    title: t('settings.pages.system.permissions.title'),
+    description: t('settings.pages.system.permissions.description'),
+    icon: 'i-mingcute:safe-shield-line',
+    to: '/settings/system/permissions',
+  },
+  {
     title: t('tamagotchi.settings.pages.system.window-shortcuts.title'),
     description: t('tamagotchi.settings.pages.system.window-shortcuts.description'),
     icon: 'i-solar:keyboard-bold-duotone',

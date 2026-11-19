@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import ReleaseArea from './release-area.vue'
-import ReleaseReveal from './release-reveal.vue'
-import ShotCrop from './shot-crop.vue'
+import ReleaseArea from '../../components/release-area.vue'
+import ReleaseReveal from '../../components/release-reveal.vue'
+import ShotCrop from '../../components/shot-crop.vue'
 
+import { copyTimeline } from '../../components/release-timeline'
 import { releaseCopy } from './release-copy'
 import { releaseShots } from './release-shots'
-import { copyTimeline } from './release-timeline'
 
 // The sticker grid continues below the crop, so it fades out at the bottom edge.
 const fadeOut = { maskImage: 'linear-gradient(to bottom, black 82%, transparent)' }

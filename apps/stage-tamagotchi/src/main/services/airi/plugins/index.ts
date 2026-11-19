@@ -4,6 +4,7 @@ import type { ExtensionHostService, SetupExtensionHostOptions } from './types'
 
 import { defineInvoke, defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
+import { onWindowClosed } from '@proj-airi/electron-vueuse/main'
 import { BrowserWindow, dialog, ipcMain } from 'electron'
 
 import { electronPluginGetAssetBaseUrl } from '../../../../shared/eventa/plugin/assets'
@@ -30,7 +31,6 @@ import {
   electronPluginListXsaiTools,
   electronPluginToolsChanged,
 } from '../../../../shared/eventa/plugin/tools'
-import { onAppBeforeQuit } from '../../../libs/bootkit/lifecycle'
 import { setupExtensionHostServiceInternal } from './host'
 
 interface ElectronInvokeOptions {
@@ -81,7 +81,7 @@ function trackDirectoryImportOwner(
   }
 
   trackedOwnerIds.add(ownerId)
-  ownerWindow.once('closed', () => {
+  onWindowClosed(ownerWindow, () => {
     cancelDirectoryImportsForOwner(hostService, planOwners, ownerId)
     trackedOwnerIds.delete(ownerId)
   })
@@ -254,10 +254,9 @@ export async function setupExtensionHost(options: SetupExtensionHostOptions): Pr
     }
   })
 
-  onAppBeforeQuit(() => hostService.dispose())
-
   return {
     host: hostService.host,
     manifests: hostService.manifests,
+    dispose: hostService.dispose,
   }
 }

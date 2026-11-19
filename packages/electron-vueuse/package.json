@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/electron-vueuse",
   "type": "module",
-  "version": "0.12.0",
+  "version": "0.15.4",
   "private": true,
   "description": "VueUse-like composables and helpers for Electron apps",
   "author": {
@@ -29,10 +29,11 @@
   "scripts": {
     "dev": "pnpm run build",
     "build": "tsdown",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:run": "vitest run --config vitest.config.ts"
   },
   "peerDependencies": {
-    "electron": ">=39 <44",
+    "electron": ">=43.8.4 <44",
     "vue": ">=3"
   },
   "dependencies": {

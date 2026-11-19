@@ -58,13 +58,19 @@ const pages = computed(() => [
     name: t('settings.pages.modules.hearing.voiceprint.title'),
     description: t('settings.pages.modules.hearing.voiceprint.description'),
     icon: 'i-solar:user-speak-rounded-bold-duotone',
-    configured: !!voiceprints.voiceprint,
+    configured: voiceprints.usable.length > 0,
   },
 ])
 </script>
 
 <template>
   <div :class="['flex flex-col gap-6']">
+    <SettingsCard>
+      <FieldCheckbox
+        v-model="hearingStore.enabled"
+        :label="t('settings.pages.modules.hearing.title')"
+      />
+    </SettingsCard>
     <RippleGrid :items="pages" :columns="{ default: 1, sm: 2 }">
       <template #item="{ item: page }">
         <IconStatusItem

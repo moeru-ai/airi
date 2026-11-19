@@ -63,7 +63,7 @@ For a required value, store it in a field, or in another table that has the key 
 
 - `applyLocal` must write the local documents before it awaits anything. The run compares and writes in one task.
 - A field value must not be `null`. Omit the field.
-- Run one synchronization at a time for each feature and account.
+- Run one synchronization at a time for each feature and account. `libs/sync-runner` does this, and decides when a run starts.
 - `synchronize` returns the documents that the server refused with 400 or 413. Show the user that these documents stay on the device. The run does not stop for them.
 - `applyLocal` returns the ids of the documents that it could not apply, for example because the content is invalid. The run then keeps their sync state. Without it, the next run reads the missing document as a deletion and deletes the server copy.
 - A document that every device creates with the same id, such as the built-in character card, sends only its edits. `readLocal` leaves out the parts that equal the built-in content, and `applyLocal` adds them back. The built-in content can depend on the language of the device, so it must not leave the device.

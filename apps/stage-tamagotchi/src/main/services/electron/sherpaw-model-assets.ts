@@ -6,13 +6,13 @@ import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { sherpawModelArtifactUrl, sherpawModels } from '@proj-airi/provider-inference/sherpaw-transcription/models'
 import { ModelAssetRepository } from '@proj-airi/stage-shared/model-assets'
-import { speakerModel } from '@proj-airi/stage-shared/speaker-model'
 import { app, BrowserWindow, ipcMain, protocol } from 'electron'
 
 import {
   electronModelAssetCancel,
   electronModelAssetEnsure,
   electronModelAssetRemove,
+  electronModelAssetRestore,
   electronModelAssetsClear,
   electronModelAssetsList,
   electronModelAssetStatusChanged,
@@ -21,8 +21,8 @@ import { FileModelAssetStorage } from './model-asset-storage'
 
 // The renderer gets mirror URLs from the Vite plugin, but main owns desktop downloads.
 // The build defines the same endpoint for main, so both processes resolve one source.
-// The wake word pack is not here, because every desktop build bundles it.
-const models: ModelAsset[] = [...Object.values(sherpawModels), speakerModel].map(model => ({
+// The wake word and voiceprint packs are not here, because every desktop build bundles them.
+const models: ModelAsset[] = Object.values(sherpawModels).map(model => ({
   id: model.id,
   revision: model.revision,
   source: 'remote',
@@ -72,6 +72,9 @@ export function setupSherpawModelAssets(context: ReturnType<typeof createContext
   defineInvokeHandler(context, electronModelAssetEnsure, id => repository.ensureAvailable(id))
   defineInvokeHandler(context, electronModelAssetCancel, id => repository.cancel(id))
   defineInvokeHandler(context, electronModelAssetRemove, id => repository.remove(id))
+  defineInvokeHandler(context, electronModelAssetRestore, async ({ id, revision, files }) => {
+    await repository.restore(id, revision, Object.fromEntries(Object.entries(files).map(([name, bytes]) => [name, new Uint8Array(bytes)])))
+  })
   defineInvokeHandler(context, electronModelAssetsClear, () => repository.clear())
 
   protocol.handle('airi-model', async (request) => {

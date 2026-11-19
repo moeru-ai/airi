@@ -23,19 +23,25 @@ Current docs capture target route:
 
 ## Release Areas
 
-`/releases/v0-12` -> `src/scenes/releases/v0-12/index.vue` shows the v0.12 feature areas. Each area is a 1600x640 (2.5:1) capture root, so each one exports as one shareable image.
+Each release has a scene at `/releases/<version>`, for example `/releases/v0-13` -> `src/scenes/releases/v0-13/index.vue`. The scene shows the feature areas of that release. Each area is a 1600x640 (2.5:1) capture root, so each one exports as one shareable image.
+
+| Route | Areas |
+| --- | --- |
+| `/releases/v0-12` | Cover, avatars, Live2D, tool calls, voice, desktop, web and mobile, stickers |
+| `/releases/v0-13` | Cover, settings search, needs attention, desktop updates, fixes |
 
 - Each area renders in a dark and a light theme. Vishot exports `<area>-dark.png` and `<area>-light.png`.
-- The raw screenshots are in `artifacts/raw/releases/v0-12`. A `-light` file is the same state in the light app theme. `components/release-shots.ts` lists them with the CSS width of the screen that took each one.
-- The text of all areas is in `components/release-copy.ts`.
+- The raw screenshots are in `artifacts/raw/releases/<version>`. A `-light` file is the same state in the light app theme. `<version>/components/release-shots.ts` lists them with the CSS width of the screen that took each one.
+- The text of the areas of a release is in `<version>/components/release-copy.ts`.
+- `src/scenes/releases/components` has the parts that all releases share: the area frame, `ReleaseReveal`, `ShotCrop`, the theme, and the timeline.
 - Each layer is a `ReleaseReveal` with an entry time `at`. `?play` plays the entry timeline with the AIRI blur fade, so a screen recorder can record an area as a video.
-- `?area=<name>` shows one area, for example `?area=release-v0-12-voice`.
+- `?area=<name>` shows one area, for example `?area=release-v0-13-needs-attention`.
 - `?theme=dark` or `?theme=light` shows one theme.
 
-Export all areas in both themes, 3200x1280 each:
+Export all areas of a release in both themes, 3200x1280 each:
 
 ```bash
-pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --route /releases/v0-12 --output-dir artifacts/final/releases/v0-12 --settle-ms 1000
+pnpm -F @proj-airi/scenarios-stage-tamagotchi-browser capture --route /releases/v0-13 --output-dir artifacts/final/releases/v0-13 --settle-ms 1000
 ```
 
 ## Workflow

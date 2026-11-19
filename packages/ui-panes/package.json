@@ -1,0 +1,32 @@
+{
+  "name": "@proj-airi/ui-panes",
+  "type": "module",
+  "private": true,
+  "description": "Docking panes with tabs for AIRI tool pages, built on Dockview",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/ui-panes"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@proj-airi/ui": "workspace:^",
+    "dockview-vue": "catalog:",
+    "vue": "catalog:"
+  },
+  "devDependencies": {
+    "@histoire/plugin-vue": "catalog:",
+    "vue-tsc": "catalog:"
+  }
+}
