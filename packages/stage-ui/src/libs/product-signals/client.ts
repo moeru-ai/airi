@@ -70,15 +70,15 @@ export class AnalyticsClient {
 
   syncCapture(enabled: boolean): boolean {
     this.captureEnabled = enabled
-    if (enabled)
-      return this.ensureInitialized(true)
-
     if (this.adapter)
-      this.adapter.setCaptureEnabled(false)
-    else if (this.loadState === 'loading')
-      this.enqueue({ kind: 'set-capture-enabled', enabled: false })
+      return this.adapter.setCaptureEnabled(enabled)
 
-    return false
+    if (this.loadState === 'loading') {
+      this.enqueue({ kind: 'set-capture-enabled', enabled })
+      return enabled
+    }
+
+    return enabled && this.ensureInitialized(true)
   }
 
   registerBuildInfo(buildInfo: AboutBuildInfo): void {

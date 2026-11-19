@@ -1,26 +1,34 @@
 <script setup lang="ts">
+import type { ControlsMenuAction } from '../../../../shared/eventa'
+
 import { defineInvoke } from '@moeru/eventa'
+import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
 import { IS_DEV, isElectronWindow } from '@proj-airi/stage-shared'
 import { HearingConfigDialog } from '@proj-airi/stage-ui/components'
 import { backdropSurfaceHostKey, useBackdropSurface } from '@proj-airi/stage-ui/composables/backdrop-surface'
+import { useInboxStore } from '@proj-airi/stage-ui/stores/inbox'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { Badge, Dock, DockButton, dockEdgeItemClasses, dockItemClasses, Tooltip } from '@proj-airi/ui'
-import { useEventListener, useFocusWithin, useMouseInElement, useMousePressed } from '@vueuse/core'
+import { useFocusWithin, useMouseInElement, useMousePressed } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, inject, reactive, ref, useTemplateRef, watch } from 'vue'
+import { computed, inject, onScopeDispose, reactive, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import StatusIsland from '../status-island/index.vue'
 import ControlsIslandChatButton from './controls-island-chat-button.vue'
-import ControlsIslandMenu from './controls-island-menu.vue'
 import IndicatorMicVolume from './indicator-mic-volume.vue'
 
 import {
+  electronCenterMainWindow,
+  electronControlsMenuOpen,
+  electronMainWindowRefreshUnread,
   electronStartDraggingWindow,
   electronWindowSetAlwaysOnTop,
 } from '../../../../shared/eventa'
+import { isControlsIslandConcealed } from './controls-island-visibility'
 import { useControlsIslandPlacement } from './use-controls-island-placement'
+import { useControlsIslandSignIn } from './use-controls-island-sign-in'
 
 interface Emits {
   /** Reports whether an active interaction must delay placement changes. */
@@ -57,15 +65,63 @@ useBackdropSurface(computed(() => dockInstance.value?.$el as HTMLElement | undef
 // The tooltips portal out of the Island, so each open tooltip declares its own surface.
 const registerTooltipSurface = inject(backdropSurfaceHostKey, undefined)?.register
 
-/** The one app menu. The more button opens it, and so does a right-click on the character. */
+/**
+ * The one app menu. It opens in a window of its own beside the more button, so it can extend past this window. The
+ * more button opens it, and so does a right-click on the character. The menu window covers the button while the menu
+ * shows, so a second click there closes the menu.
+ */
 const menuOpen = ref(false)
-// The menu lives on the desktop, so a click in another app must close it. That click blurs this window.
-useEventListener(window, 'blur', () => {
-  menuOpen.value = false
-})
+const openMenuWindow = useElectronEventaInvoke(electronControlsMenuOpen)
+const centerMainWindow = useElectronEventaInvoke(electronCenterMainWindow)
+const { signingIn, signIn } = useControlsIslandSignIn()
 
-// Tracks open overlays that portal outside the Island, for example 'menu' and 'hearing'.
-// The stage keeps the whole window interactive while one is open.
+// Unread Notifications are in the menu. The dot on the more button tells the user to open it.
+const inbox = useInboxStore()
+const { unread } = storeToRefs(inbox)
+
+async function openAppMenu() {
+  const button = islandElement.value?.querySelector<HTMLElement>('[aria-haspopup="menu"]')
+  if (!button)
+    return
+
+  const { x, y, width, height } = button.getBoundingClientRect()
+  menuOpen.value = true
+  // The request answers when the menu closes, with the item that this window carries out.
+  let action: ControlsMenuAction | undefined
+  try {
+    action = await openMenuWindow({
+      anchor: { x, y, width, height },
+      side: isLeft.value ? 'right' : 'left',
+      align: isTop.value ? 'start' : 'end',
+      signingIn: signingIn.value,
+    })
+  }
+  catch (error) {
+    console.error('Failed to open the app menu:', errorMessageFrom(error) ?? 'unknown')
+  }
+  finally {
+    menuOpen.value = false
+  }
+
+  switch (action) {
+    case 'sign-in':
+      signIn()
+      break
+    case 'open-hearing':
+      openHearing()
+      break
+    case 'center-main-window':
+      centerMainWindow().catch(console.error)
+      break
+  }
+}
+
+// The menu window keeps its own Notifications state. After a read there settles, the server count is final.
+const stopUnreadRequest = context.value.on(electronMainWindowRefreshUnread, () => void inbox.refreshUnread())
+onScopeDispose(stopUnreadRequest)
+
+// Tracks the open menu and dialogs of the Island, for example 'menu' and 'hearing'.
+// The stage keeps the whole window interactive while one is open, and the Island stays in view.
 const blockingOverlays = reactive(new Set<string>())
 // A press that starts on the Island can end outside it, for example a window drag.
 const { pressed } = useMousePressed({ target: islandElement })
@@ -122,7 +178,6 @@ async function toggleMicrophone() {
 }
 
 function openHearing() {
-  menuOpen.value = false
   setOverlay('hearing', true)
 }
 
@@ -145,7 +200,12 @@ const isOutside = computed(() => isOutsideByCursor.value && isOutsideByDom.value
 // A user who works in the menu, in a dialog, or with the keyboard keeps the
 // Island after the cursor leaves the window.
 const { focused: islandFocused } = useFocusWithin(islandElement)
-const concealed = computed(() => props.cursorAway && !isBlocked.value && !islandFocused.value)
+const concealed = computed(() => isControlsIslandConcealed({
+  cursorAway: props.cursorAway,
+  overlayOpen: blockingOverlays.size > 0,
+  pressed: pressed.value,
+  focused: islandFocused.value,
+}))
 
 // The stage page observes this element for cursor hit testing.
 defineExpose({
@@ -155,7 +215,7 @@ defineExpose({
   get hearingDialogOpen() { return blockingOverlays.has('hearing') },
   set hearingDialogOpen(v: boolean) { setOverlay('hearing', v) },
   /** Opens the app menu, for example when the user right-clicks the character. */
-  openMenu() { menuOpen.value = true },
+  openMenu() { void openAppMenu() },
 })
 
 watch(isBlocked, (active) => {
@@ -278,30 +338,23 @@ const startDraggingWindow = linuxWindow ? undefined : defineInvoke(context.value
 
       <ControlsIslandChatButton :icon-class="iconClass" />
 
-      <ControlsIslandMenu
-        v-model:open="menuOpen"
-        :side="isLeft ? 'right' : 'left'"
-        :align="isTop ? 'start' : 'end'"
-        @open-hearing="openHearing"
+      <DockButton
+        data-testid="controls-island-more"
+        aria-haspopup="menu"
+        :aria-expanded="menuOpen"
+        :label="t('tamagotchi.stage.controls-island.more')"
+        :tooltip="!menuOpen"
+        :class="['relative']"
+        @click="openAppMenu"
       >
-        <template #trigger="{ unread }">
-          <DockButton
-            data-testid="controls-island-more"
-            :label="t('tamagotchi.stage.controls-island.more')"
-            :tooltip="!menuOpen"
-            :class="['relative']"
-          >
-            <span :class="['i-mingcute:more-1-line', iconClass]" />
-            <!-- Unread Notifications are in the menu. The dot tells the user to open it. -->
-            <Badge
-              v-if="unread > 0"
-              dot
-              data-testid="controls-island-notifications-dot"
-              :class="['pointer-events-none absolute right-1 top-1 ring-2 ring-neutral-50 dark:ring-neutral-800']"
-            />
-          </DockButton>
-        </template>
-      </ControlsIslandMenu>
+        <span :class="['i-mingcute:more-1-line', iconClass]" />
+        <Badge
+          v-if="unread > 0"
+          dot
+          data-testid="controls-island-notifications-dot"
+          :class="['pointer-events-none absolute right-1 top-1 ring-2 ring-neutral-50 dark:ring-neutral-800']"
+        />
+      </DockButton>
     </Dock>
 
     <!-- The menu and the microphone button open Hearing controls. The dialog needs a trigger, so it gets a hidden one. -->

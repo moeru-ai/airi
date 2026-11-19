@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import type { ControlsMenuAction } from '../../../../shared/eventa'
+
+import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useStopSpeakingButton } from '@proj-airi/stage-layouts/composables/useStopSpeakingButton'
 import { InboxPanel } from '@proj-airi/stage-ui/components'
 import { useBackdropSurface } from '@proj-airi/stage-ui/composables/backdrop-surface'
@@ -14,75 +16,47 @@ import { Avatar, Badge, DropdownMenu, MenuItem, menuItemClasses, MenuRadioItem, 
 import { useNow } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuPortal, DropdownMenuRadioGroup, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger } from 'reka-ui'
-import { computed, onScopeDispose, ref, useTemplateRef, watch } from 'vue'
+import { computed, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import {
   electronAppQuit,
-  electronAuthCallback,
-  electronAuthCallbackError,
-  electronAuthStartLogin,
-  electronCenterMainWindow,
   electronOpenSettings,
   noticeWindowEventa,
 } from '../../../../shared/eventa'
+import { createPlaybackSpeakingReader } from '../../../composables/playback-speaking-reader'
 import { useControlsIslandStore } from '../../../stores/controls-island'
 
 const props = defineProps<{
   /** The menu opens beside the Island, away from the screen corner that the Island docks to. */
   side: 'left' | 'right'
   align: 'start' | 'end'
+  /** The main window started a sign-in that has not ended. */
+  signingIn: boolean
 }>()
 
 const emit = defineEmits<{
-  /** Opens Hearing controls, which the Island owns because the microphone button also opens them. */
-  openHearing: []
+  /** The user chose an item that the main window carries out after the menu closes. */
+  action: [action: ControlsMenuAction]
+  /** The menu content left the page, after its exit animation. */
+  closed: []
+  /** A read of Notifications reached the server or rolled back. */
+  notificationsRead: []
 }>()
 
-/** The open state. The stage page also opens it when the user right-clicks the character. */
+/** The open state. The menu window opens it on each request of the main window. */
 const open = defineModel<boolean>('open', { default: false })
 
 const { t } = useI18n()
-const context = useElectronEventaContext()
 const { trackControlsIslandAction } = useAnalytics()
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const quitApp = useElectronEventaInvoke(electronAppQuit)
-const centerMainWindow = useElectronEventaInvoke(electronCenterMainWindow)
-const startSigningIn = useElectronEventaInvoke(electronAuthStartLogin)
 const requestNotice = useElectronEventaInvoke(noticeWindowEventa.openWindow)
 
-// Account: one row at the top, as an app menu shows who is signed in.
-const authStore = useAuthStore()
-const { isAuthenticated, user, needsLogin } = storeToRefs(authStore)
+// Account: one row at the top, as an app menu shows who is signed in. The main window owns sign-in.
+const { isAuthenticated, user } = storeToRefs(useAuthStore())
 // The Flux line follows the shared rule: the Capacitor percent for a subscriber, otherwise the Flux balance.
 const { subscribed, low, valueLabel: fluxValue, icon: fluxIcon } = useFluxStatus()
-const signingIn = ref(false)
-
-function signIn() {
-  signingIn.value = true
-  trackControlsIslandAction({ action: 'sign_in' })
-  startSigningIn()
-}
-
-const stopCallback = context.value.on(electronAuthCallback, () => {
-  signingIn.value = false
-})
-const stopError = context.value.on(electronAuthCallbackError, () => {
-  signingIn.value = false
-})
-onScopeDispose(() => {
-  stopCallback()
-  stopError()
-})
-watch(isAuthenticated, (authenticated) => {
-  if (authenticated)
-    signingIn.value = false
-})
-// Another surface can ask for a sign-in, for example a chat that needs the official provider.
-watch(needsLogin, async (requested) => {
-  if (requested && !isAuthenticated.value && await authStore.consumeLoginRequest())
-    signIn()
-}, { immediate: true })
 
 const inbox = useInboxStore()
 const { unread, messages, loading, error, hasMore, signedIn: inboxSignedIn } = storeToRefs(inbox)
@@ -94,6 +68,17 @@ watch(notificationsOpen, (opened) => {
     void inbox.loadFirstPage()
   }
 })
+
+// Each read resolves after it reached the server or rolled back. The dot on the more button reads its own count, so it
+// reads again only then.
+async function markRead(id: string) {
+  await inbox.markRead(id)
+  emit('notificationsRead')
+}
+async function markAllRead() {
+  await inbox.markAllRead()
+  emit('notificationsRead')
+}
 
 // Character
 const cardStore = useAiriCardStore()
@@ -120,7 +105,10 @@ const selectedCardId = computed({
 })
 
 // Muting also publishes a stop request, so it clears the queued and the playing speech on its way.
-const { speechMuted, toggleSpeechMuted } = useStopSpeakingButton()
+// The main window plays the speech, so this window asks it whether the character speaks.
+const { speechMuted, toggleSpeechMuted } = useStopSpeakingButton({
+  resolveSpeakingState: createPlaybackSpeakingReader(),
+})
 const characterVoice = computed({
   get: () => !speechMuted.value,
   set: (on: boolean) => {
@@ -173,7 +161,7 @@ function openSettingsAt(route: string, action: 'toggle_settings' | 'open_account
 
 function centerWindow() {
   trackControlsIslandAction({ action: 'center_main_window' })
-  centerMainWindow().catch(console.error)
+  emit('action', 'center-main-window')
 }
 
 function quit() {
@@ -181,12 +169,13 @@ function quit() {
   quitApp()
 }
 
+// The menu window mounts the menu with its first request, so the menu can mount already open.
 watch(open, (opened) => {
   if (opened)
     trackControlsIslandAction({ action: 'open_menu' })
   else
     notificationsOpen.value = false
-})
+}, { immediate: true })
 
 const subMenuClasses = [
   'z-[10001] min-w-48 rounded-xl border p-1 shadow-lg outline-none backdrop-blur-md',
@@ -194,10 +183,15 @@ const subMenuClasses = [
   'max-h-[var(--reka-dropdown-menu-content-available-height)] overflow-y-auto',
 ]
 
-// The open menus float over the stage, and the desktop shows through the transparent window around the character.
+// The open menus float in a transparent window, and the desktop shows through it.
 // The menu content roots are not exposed. An element in each slot mounts with its menu and finds the root that paints the fill.
 const menuSurfaceAnchor = useTemplateRef<HTMLElement>('menuSurfaceAnchor')
 useBackdropSurface(() => menuSurfaceAnchor.value?.closest<HTMLElement>('[role="menu"]'))
+// The anchor unmounts with the menu content, which stays until its exit animation ends.
+watch(menuSurfaceAnchor, (element, previous) => {
+  if (!element && previous)
+    emit('closed')
+}, { flush: 'post' })
 const notificationsSurfaceAnchor = useTemplateRef<HTMLElement>('notificationsSurfaceAnchor')
 useBackdropSurface(() => notificationsSurfaceAnchor.value?.closest<HTMLElement>('[role="menu"]'))
 const characterSurfaceAnchor = useTemplateRef<HTMLElement>('characterSurfaceAnchor')
@@ -215,7 +209,7 @@ useBackdropSurface(() => characterSurfaceAnchor.value?.closest<HTMLElement>('[ro
     :content-class="['w-64 max-h-[var(--reka-dropdown-menu-content-available-height)] overflow-y-auto']"
   >
     <template #trigger>
-      <slot name="trigger" :unread="unread" />
+      <slot name="trigger" />
     </template>
 
     <span ref="menuSurfaceAnchor" aria-hidden="true" :class="['hidden']" />
@@ -254,9 +248,9 @@ useBackdropSurface(() => characterSurfaceAnchor.value?.closest<HTMLElement>('[ro
     >
       {{ t('settings.pages.flux.title') }}
     </MenuItem>
-    <MenuItem v-else data-testid="controls-island-sign-in" :disabled="signingIn" @select="signIn">
-      <span v-if="signingIn" aria-hidden="true" :class="['i-svg-spinners:ring-resize size-4 shrink-0 text-primary-500']" />
-      {{ signingIn ? t('tamagotchi.stage.controls-island.logging-in') : t('tamagotchi.stage.controls-island.sign-in') }}
+    <MenuItem v-else data-testid="controls-island-sign-in" :disabled="props.signingIn" @select="emit('action', 'sign-in')">
+      <span v-if="props.signingIn" aria-hidden="true" :class="['i-svg-spinners:ring-resize size-4 shrink-0 text-primary-500']" />
+      {{ props.signingIn ? t('tamagotchi.stage.controls-island.logging-in') : t('tamagotchi.stage.controls-island.sign-in') }}
     </MenuItem>
 
     <DropdownMenuSub v-if="inboxSignedIn" v-model:open="notificationsOpen">
@@ -273,7 +267,7 @@ useBackdropSurface(() => characterSurfaceAnchor.value?.closest<HTMLElement>('[ro
             :messages="messages" :now="now" :unread="unread"
             :loading="loading" :error="error" :has-more="hasMore"
             surface="drawer"
-            @open="inbox.markRead" @read-all="inbox.markAllRead" @retry="inbox.loadFirstPage" @load-more="inbox.loadMore"
+            @open="markRead" @read-all="markAllRead" @retry="inbox.loadFirstPage" @load-more="inbox.loadMore"
           />
         </DropdownMenuSubContent>
       </DropdownMenuPortal>
@@ -305,7 +299,7 @@ useBackdropSurface(() => characterSurfaceAnchor.value?.closest<HTMLElement>('[ro
     <MenuSwitchItem v-model="characterVoice" data-testid="controls-island-character-voice">
       {{ t('tamagotchi.stage.controls-island.character-voice') }}
     </MenuSwitchItem>
-    <MenuItem data-testid="controls-island-hearing-controls" @select="emit('openHearing')">
+    <MenuItem data-testid="controls-island-hearing-controls" @select="emit('action', 'open-hearing')">
       {{ t('tamagotchi.stage.controls-island.microphone-settings') }}
     </MenuItem>
     <MenuSeparator />
