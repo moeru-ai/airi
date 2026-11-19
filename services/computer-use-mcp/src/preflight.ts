@@ -7,12 +7,17 @@ import type {
   LaunchContext,
 } from './types'
 
+import { differenceInMilliseconds } from 'date-fns'
+
 import { buildCoordinateSpaceInfo, resolveLaunchContext } from './runtime-probes'
+
+const maxAuvScreenshotAgeMs = 60_000
 
 function getScreenshotBindingIssue(params: {
   config: ComputerUseConfig
   lastScreenshot?: LastScreenshotInfo
   executionTarget: ExecutionTarget
+  foregroundContext?: import('./types').ForegroundContext
 }) {
   if (!params.lastScreenshot) {
     return 'capture a fresh screenshot before mutating the remote desktop'
@@ -26,12 +31,30 @@ function getScreenshotBindingIssue(params: {
     return 'the latest screenshot was captured on a different remote host'
   }
 
-  if (params.executionTarget.displayId !== params.lastScreenshot.sourceDisplayId) {
+  if (params.executionTarget.displayId && params.lastScreenshot.sourceDisplayId && params.executionTarget.displayId !== params.lastScreenshot.sourceDisplayId) {
     return 'the latest screenshot was captured from a different remote display'
   }
 
   if (params.config.sessionTag && params.config.sessionTag !== params.lastScreenshot.sourceSessionTag) {
     return 'the latest screenshot was captured from a different remote session tag'
+  }
+
+  if (params.config.executor === 'auv') {
+    if (params.lastScreenshot.placeholder) {
+      return 'the latest AUV screenshot is a placeholder; capture real pixels before acting'
+    }
+    const ageMs = params.lastScreenshot.capturedAt
+      ? differenceInMilliseconds(new Date(), new Date(params.lastScreenshot.capturedAt))
+      : Number.POSITIVE_INFINITY
+    if (!Number.isFinite(ageMs) || ageMs < 0 || ageMs > maxAuvScreenshotAgeMs) {
+      return 'the latest AUV screenshot is older than 60 seconds; capture a fresh screenshot before acting'
+    }
+    if (params.foregroundContext?.available && params.lastScreenshot.sourceWindowId !== params.foregroundContext.windowId) {
+      return 'the foreground window changed after the latest AUV screenshot; capture the new window before acting'
+    }
+    if (!params.foregroundContext?.available) {
+      return 'AUV could not identify the foreground window for the latest screenshot'
+    }
   }
 
   return undefined
@@ -49,6 +72,7 @@ export function getRuntimePreflight(params: {
   lastScreenshot?: LastScreenshotInfo
   displayInfo: DisplayInfo
   executionTarget: ExecutionTarget
+  foregroundContext?: import('./types').ForegroundContext
 }): RuntimePreflight {
   const launchContext = resolveLaunchContext(params.config)
   const coordinateSpace = buildCoordinateSpaceInfo({
@@ -98,6 +122,20 @@ export function getRuntimePreflight(params: {
     if (params.config.requireCoordinateAlignmentForMutatingActions && !coordinateSpace.readyForMutations) {
       mutationReadinessIssues.push(coordinateSpace.reason)
     }
+  }
+
+  if (params.config.executor === 'auv') {
+    const screenshotBindingIssue = getScreenshotBindingIssue({
+      config: params.config,
+      lastScreenshot: params.lastScreenshot,
+      executionTarget: params.executionTarget,
+      foregroundContext: params.foregroundContext,
+    })
+    if (screenshotBindingIssue)
+      mutationReadinessIssues.push(screenshotBindingIssue)
+
+    if (!coordinateSpace.readyForMutations && !mutationReadinessIssues.includes(coordinateSpace.reason))
+      mutationReadinessIssues.push(coordinateSpace.reason)
   }
 
   return {

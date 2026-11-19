@@ -1,10 +1,16 @@
-import type { ComputerUseConfig } from '../types'
+import type { ComputerUseConfig, ExecutorKind } from '../types'
 import type { ComputerUseServerRuntime } from './runtime'
 
 import { describe, expect, it, vi } from 'vitest'
 
 import { RunStateManager } from '../state'
-import { createDisplayInfo, createLocalExecutionTarget, createTerminalState, createTestConfig } from '../test-fixtures'
+import {
+  createDisplayInfo,
+  createLocalExecutionTarget,
+  createRemoteExecutionTarget,
+  createTerminalState,
+  createTestConfig,
+} from '../test-fixtures'
 import { createExecuteAction } from './action-executor'
 
 function createRuntimeForActionTest(configOverrides: Partial<ComputerUseConfig> = {}) {
@@ -26,8 +32,8 @@ function createRuntimeForActionTest(configOverrides: Partial<ComputerUseConfig> 
     setPointerPosition: vi.fn(),
   }
   const executor = {
-    kind: 'dry-run' as const,
-    describe: () => ({ kind: 'dry-run' as const, notes: [] }),
+    kind: 'dry-run' as ExecutorKind,
+    describe: () => ({ kind: 'dry-run' as ExecutorKind, notes: [] }),
     getExecutionTarget: vi.fn().mockResolvedValue(createLocalExecutionTarget()),
     getForegroundContext: vi.fn().mockResolvedValue({
       available: true,
@@ -73,7 +79,10 @@ function createRuntimeForActionTest(configOverrides: Partial<ComputerUseConfig> 
     }),
     supportsAction: vi.fn().mockReturnValue(true),
     clickSelector: vi.fn().mockResolvedValue(undefined),
+    setInputValue: vi.fn().mockResolvedValue([]),
     checkCheckbox: vi.fn().mockResolvedValue(undefined),
+    selectOption: vi.fn().mockResolvedValue([]),
+    triggerEvent: vi.fn().mockResolvedValue([]),
   }
   const cdpBridgeManager = {
     probeAvailability: vi.fn().mockResolvedValue({
@@ -193,7 +202,7 @@ describe('createExecuteAction', () => {
       button: 'left',
       clickCount: 1,
       pointerTrace: [{ x: 140, y: 215, delayMs: 0 }],
-    }))
+    }), expect.objectContaining({ signal: undefined }))
     expect(session.consumeOperation).toHaveBeenCalledWith(1)
     expect(session.setPointerPosition).toHaveBeenCalledWith({ x: 140, y: 215 })
     expect(session.record).toHaveBeenCalledWith(expect.objectContaining({
@@ -476,7 +485,7 @@ describe('createExecuteAction', () => {
 
     expect(result.isError).not.toBe(true)
     expect(desktopSessionController.ensureControlledAppInForeground).not.toHaveBeenCalled()
-    expect(executor.focusApp).toHaveBeenCalledWith({ app: 'Google Chrome' })
+    expect(executor.focusApp).toHaveBeenCalledWith({ app: 'Google Chrome' }, expect.objectContaining({ signal: undefined }))
     expect(executor.click).toHaveBeenCalledOnce()
     expect(result.structuredContent).toMatchObject({
       status: 'executed',
@@ -601,7 +610,7 @@ describe('createExecuteAction', () => {
     const result = await executeAction({ kind: 'desktop_click_target', input: { candidateId: 't_missing' } }, 'desktop_click_target')
 
     expect(result.isError).toBe(true)
-    expect(result.content.find(item => item.type === 'text')?.text).toContain('No desktop_observe snapshot available')
+    expect(result.content.find(item => item.type === 'text')?.text).toContain('No computer_observe snapshot available')
     expect(executor.click).not.toHaveBeenCalled()
     expect(session.consumeOperation).not.toHaveBeenCalled()
     expect(session.record).toHaveBeenCalledWith(expect.objectContaining({
@@ -688,8 +697,8 @@ describe('createExecuteAction', () => {
       setPointerPosition: vi.fn(),
     }
     const executor = {
-      kind: 'dry-run' as const,
-      describe: () => ({ kind: 'dry-run' as const, notes: [] }),
+      kind: 'dry-run' as ExecutorKind,
+      describe: () => ({ kind: 'dry-run' as ExecutorKind, notes: [] }),
       getExecutionTarget: vi.fn().mockResolvedValue(createLocalExecutionTarget()),
       getForegroundContext: vi.fn().mockResolvedValue({
         available: true,
@@ -830,8 +839,8 @@ describe('createExecuteAction', () => {
       setPointerPosition: vi.fn(),
     }
     const executor = {
-      kind: 'dry-run' as const,
-      describe: () => ({ kind: 'dry-run' as const, notes: [] }),
+      kind: 'dry-run' as ExecutorKind,
+      describe: () => ({ kind: 'dry-run' as ExecutorKind, notes: [] }),
       getExecutionTarget: vi.fn().mockResolvedValue(createLocalExecutionTarget()),
       getForegroundContext: vi.fn().mockResolvedValue({
         available: true,
@@ -924,7 +933,7 @@ describe('createExecuteAction', () => {
       pointerTrace: expect.arrayContaining([
         expect.objectContaining({ x: 100, y: 50 }),
       ]),
-    }))
+    }), expect.objectContaining({ signal: undefined }))
 
     const structured = result.structuredContent as Record<string, any>
     expect(structured.backendResult.displayPoint).toMatchObject({
@@ -951,7 +960,7 @@ describe('createExecuteAction', () => {
       pointerTrace: expect.arrayContaining([
         expect.objectContaining({ x: -100, y: -500 }),
       ]),
-    }))
+    }), expect.objectContaining({ signal: undefined }))
 
     const structured = result.structuredContent as Record<string, any>
     expect(structured.backendResult.displayPoint).toMatchObject({
@@ -994,7 +1003,7 @@ describe('createExecuteAction', () => {
     expect(executor.click).toHaveBeenCalledWith(expect.objectContaining({
       x: -100,
       y: -500,
-    }))
+    }), expect.objectContaining({ signal: undefined }))
     expect(executor.typeText).toHaveBeenCalledTimes(1)
 
     const structured = result.structuredContent as Record<string, any>
@@ -1003,5 +1012,147 @@ describe('createExecuteAction', () => {
       local: { x: 122, y: 580 },
       backingPixel: { x: 122, y: 580 },
     })
+  })
+
+  it('denies terminal_exec under linux-x11 when remote execution target is tainted', async () => {
+    const { runtime, executor } = createRuntimeForActionTest({
+      executor: 'linux-x11',
+    })
+    executor.getExecutionTarget.mockResolvedValue(createRemoteExecutionTarget({
+      tainted: true,
+      note: 'remote connection lost',
+    }))
+
+    const executeAction = createExecuteAction(runtime)
+    const result = await executeAction(
+      { kind: 'terminal_exec', input: { command: 'ls -la' } },
+      'terminal_exec',
+    )
+
+    expect(result.isError).toBe(true)
+    const structured = result.structuredContent as Record<string, any>
+    expect(structured.status).toBe('denied')
+    expect(structured.policy.reasons).toContain('remote runner session is tainted; capture a fresh screenshot before resuming mutations')
+    expect(runtime.terminalRunner.execute).not.toHaveBeenCalled()
+  })
+
+  it('denies terminal_exec under linux-x11 when screenshot binding issue exists', async () => {
+    const { runtime, executor, session } = createRuntimeForActionTest({
+      executor: 'linux-x11',
+    })
+    executor.getExecutionTarget.mockResolvedValue(createRemoteExecutionTarget({
+      sessionTag: 'tag-1',
+    }))
+    session.getLastScreenshot.mockReturnValue({
+      path: '/tmp/old.png',
+      width: 1280,
+      height: 720,
+      capturedAt: new Date(Date.now() - 60_000).toISOString(),
+      sourceSessionTag: 'tag-different',
+    })
+
+    const executeAction = createExecuteAction(runtime)
+    const result = await executeAction(
+      { kind: 'terminal_exec', input: { command: 'ls -la' } },
+      'terminal_exec',
+    )
+
+    expect(result.isError).toBe(true)
+    const structured = result.structuredContent as Record<string, any>
+    expect(structured.status).toBe('denied')
+    expect(runtime.terminalRunner.execute).not.toHaveBeenCalled()
+  })
+
+  it('routes browser DOM mutations through approval and avoids desktop preflight', async () => {
+    const { runtime, session } = createRuntimeForActionTest({ approvalMode: 'actions', executor: 'auv' })
+    session.createPendingAction.mockReturnValue({
+      id: 'browser-pending',
+      createdAt: new Date().toISOString(),
+      toolName: 'browser_dom_set_input_value',
+      action: { kind: 'browser_dom_set_input_value', input: { selector: '#name', value: 'AIRI' } },
+      context: { available: false, platform: 'win32' },
+      policy: { allowed: true, requiresApproval: true, reasons: [], riskLevel: 'medium', estimatedOperationUnits: 2 },
+    })
+
+    const executeAction = createExecuteAction(runtime)
+    const result = await executeAction({ kind: 'browser_dom_set_input_value', input: { selector: '#name', value: 'AIRI' } }, 'browser_dom_set_input_value')
+
+    expect(result.structuredContent).toMatchObject({ status: 'approval_required', pendingActionId: 'browser-pending' })
+    expect(runtime.browserDomBridge.setInputValue).not.toHaveBeenCalled()
+    expect(session.record).toHaveBeenCalledWith(expect.objectContaining({ event: 'approval_required', toolName: 'browser_dom_set_input_value' }))
+  })
+
+  it('fails a browser DOM click when the bridge reports no successful frame', async () => {
+    const { runtime, session } = createRuntimeForActionTest({ approvalMode: 'never', executor: 'auv' })
+    ;(runtime.browserDomBridge.clickSelector as any).mockResolvedValue({
+      targetFrameId: 0,
+      targetPoint: { x: 10, y: 20 },
+      clickResults: [{ frameId: 0, result: { success: false } }],
+    })
+
+    const executeAction = createExecuteAction(runtime)
+    const result = await executeAction({ kind: 'browser_dom_click', input: { selector: '#submit' } }, 'browser_dom_click')
+
+    expect(result.isError).toBe(true)
+    expect(result.structuredContent).toMatchObject({ status: 'failed', action: 'browser_dom_click' })
+    expect(session.record).toHaveBeenCalledWith(expect.objectContaining({ event: 'failed', toolName: 'browser_dom_click' }))
+  })
+
+  // https://github.com/moeru-ai/airi/pull/3496
+  // ROOT CAUSE:
+  // Terminal waited for a CDP probe in the shared run state refresh.
+  // Terminal now refreshes the facts its policy checks use without probing CDP.
+  it('executes Terminal without probing CDP when the AUV desktop surface is unavailable (PR #3496)', async () => {
+    const { runtime, executor, cdpBridgeManager } = createRuntimeForActionTest({
+      executor: 'auv',
+      approvalMode: 'never',
+    })
+    executor.kind = 'auv'
+    runtime.terminalRunner.execute = vi.fn().mockResolvedValue({
+      command: 'Write-Output "windows-terminal-ok"',
+      exitCode: 0,
+      stdout: 'windows-terminal-ok',
+      stderr: '',
+      durationMs: 15,
+    })
+
+    const executeAction = createExecuteAction(runtime)
+    const result = await executeAction(
+      { kind: 'terminal_exec', input: { command: 'Write-Output "windows-terminal-ok"' } },
+      'terminal_exec',
+    )
+
+    expect(result.isError).not.toBe(true)
+    const structured = result.structuredContent as Record<string, any>
+    expect(structured.status).toBe('executed')
+    expect(runtime.terminalRunner.execute).toHaveBeenCalledTimes(1)
+    expect(cdpBridgeManager.probeAvailability).not.toHaveBeenCalled()
+  })
+
+  it('keeps Terminal usable when a real AUV probe fails before it starts', async () => {
+    const { runtime, executor, cdpBridgeManager } = createRuntimeForActionTest({
+      executor: 'auv',
+      approvalMode: 'never',
+    })
+    executor.getExecutionTarget.mockRejectedValue(new Error('AUV daemon unavailable'))
+    executor.getForegroundContext.mockRejectedValue(new Error('AUV daemon unavailable'))
+    executor.getDisplayInfo.mockRejectedValue(new Error('AUV daemon unavailable'))
+    runtime.terminalRunner.execute = vi.fn().mockResolvedValue({
+      command: 'Write-Output "terminal-survives-auv"',
+      exitCode: 0,
+      stdout: 'terminal-survives-auv',
+      stderr: '',
+      durationMs: 3,
+      timedOut: false,
+    })
+
+    const result = await createExecuteAction(runtime)(
+      { kind: 'terminal_exec', input: { command: 'Write-Output "terminal-survives-auv"' } },
+      'terminal_exec',
+    )
+
+    expect(result.structuredContent).toMatchObject({ status: 'executed' })
+    expect(runtime.terminalRunner.execute).toHaveBeenCalledOnce()
+    expect(cdpBridgeManager.probeAvailability).not.toHaveBeenCalled()
   })
 })

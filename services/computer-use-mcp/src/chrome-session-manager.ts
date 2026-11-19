@@ -40,7 +40,7 @@ export interface ChromeSessionManager {
    * Human-owned Chrome instances are not reused. The agent always launches its
    * own profile so browser-dom/CDP capture has a stable endpoint.
    */
-  ensureAgentWindow: (options?: { url?: string, cdpPort?: number }) => Promise<ChromeSessionInfo>
+  ensureAgentWindow: (options?: { url?: string, cdpPort?: number, signal?: AbortSignal }) => Promise<ChromeSessionInfo>
 
   /**
    * Bring the agent's Chrome window to the foreground.
@@ -294,6 +294,7 @@ export function createChromeSessionManager(
   return {
     async ensureAgentWindow(options) {
       let ensureOutcome: ChromeSessionInfo['ensureOutcome'] = 'launched'
+      const signal = options?.signal
 
       if (session) {
         const trackedSession = session
@@ -331,6 +332,8 @@ export function createChromeSessionManager(
         }
       }
 
+      signal?.throwIfAborted()
+
       // Record the user's current foreground app before we steal focus.
       previousForegroundApp = await getCurrentForegroundApp()
 
@@ -343,17 +346,20 @@ export function createChromeSessionManager(
       activeProfileDir = await mkdtemp(join(config.sessionRoot, 'chrome-profile-'))
 
       try {
+        signal?.throwIfAborted()
         // Always launch a dedicated profile so CDP is stable even when Chrome is already running.
         await launchChromeWithCdp(cdpPort, activeProfileDir, options?.url)
 
         // Bring Chrome to front.
         await activateChrome()
         // Brief wait for activation.
+        signal?.throwIfAborted()
         await sleep(300)
 
         const deadline = Date.now() + config.timeoutMs
         let pid: number | undefined
         while (Date.now() < deadline) {
+          signal?.throwIfAborted()
           pid = await getChromePidForProfile(activeProfileDir, cdpPort)
           if (pid) {
             break

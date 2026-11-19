@@ -3,7 +3,7 @@ import type { Message as ChatMessage } from '@xsai/shared-chat'
 import type { Conversation, MessageSegment } from './types'
 
 import { renderSegmentText } from './render-context'
-import { projectInput } from './turns'
+import { projectInput, projectStopReason } from './turns'
 
 function describeSegment(segment: MessageSegment): string {
   switch (segment.type) {
@@ -27,7 +27,7 @@ export function renderConversationPreview(context: Conversation): ChatMessage[] 
       const entry = projectInput(turn)
       return [{ role: entry.role === 'system' || entry.role === 'developer' ? entry.role : 'user', content: entry.segments.map(describeSegment).join('') }]
     }
-    return turn.rounds.map(round => ({
+    const messages: ChatMessage[] = turn.rounds.map((round): ChatMessage => ({
       role: 'assistant',
       content: round.content.map((part) => {
         if (part.type !== 'tool')
@@ -41,5 +41,9 @@ export function renderConversationPreview(context: Conversation): ChatMessage[] 
         return `${invocation.name}(${invocation.arguments}): ${output}`
       }).join(''),
     }))
+    const stopReason = projectStopReason(turn)
+    return stopReason
+      ? [...messages, { role: 'user', content: stopReason.segments.map(describeSegment).join('') }]
+      : messages
   })
 }

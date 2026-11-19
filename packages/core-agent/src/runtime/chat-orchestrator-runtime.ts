@@ -130,6 +130,9 @@ export interface ChatOrchestratorSendOptions {
   /** Model capabilities captured before the request enters its session queue. */
   supportsAudioInput?: boolean
   supportsVisionInput?: boolean
+  /** Context and output limits reported by the initial model catalog entry. */
+  contextWindowTokens?: number
+  modelMaxOutputTokens?: number
   /** Request-owned character instructions, captured before waiting in the session queue. */
   systemPromptSupplement?: string
   /** Eligible catalog for this request. Omission disables stickers. The queue copies entries before waiting. */
@@ -148,6 +151,11 @@ export interface ChatOrchestratorSendOptions {
   attachments?: ChatAttachment[]
   /** Tool definitions passed through to the LLM stream port. */
   tools?: StreamOptions['tools']
+  /**
+   * Maximum model decision steps. Each step can contain any number of tool calls.
+   * @default 30
+   */
+  maxSteps?: StreamOptions['maxSteps']
   /**
    * Reads the current settings of the request owner before each model request.
    * The runtime appends this request's system prompt supplement to the returned prompt.
@@ -632,6 +640,10 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         ? prependTextToContent(unwrapMessage(message), `${formatTimePrefix(getStablePromptTimestamp(message, nowTs))}${noticePrefix}${formatReplyPromptPrefix(message.replyToMessageId, messagesById)}`)
         : unwrapMessage(message)
       const turns = chatMessagesToTurns(source.role === 'assistant' && source.providerTranscript?.length ? source.providerTranscript : [source], message.id ?? `history-${historyIndex}`)
+      const notice = message.role === 'user' ? message.notice : undefined
+      const noticeTurn = notice ? turns.find(turn => turn.type === 'user') : undefined
+      if (notice && noticeTurn?.type === 'user')
+        noticeTurn.notice = { ...notice }
       // An invoked skill joins its message as the owner's own instruction, like a slash command.
       if (message.role === 'user' && message.skills?.length) {
         const userTurn = turns.find(turn => turn.type === 'user')
@@ -1117,6 +1129,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           : undefined,
         supportsAudioInput: options.supportsAudioInput,
         supportsVisionInput: options.supportsVisionInput,
+        contextWindowTokens: options.contextWindowTokens,
+        modelMaxOutputTokens: options.modelMaxOutputTokens,
         abortSignal,
         onGeneratedTurn: (turn) => { generatedTurn = structuredClone(turn) },
         requestCorrelation: {
@@ -1124,6 +1138,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           turnId: correlation.roundId,
         },
         tools: options.tools,
+        maxSteps: options.maxSteps,
         temperature: options.temperature,
         topP: options.topP,
         waitForTools: true,
@@ -1250,6 +1265,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
               break
             }
             case 'finish':
+              break
+            case 'step-limit':
               break
             case 'error':
               throw event.error ?? new Error('Stream error')

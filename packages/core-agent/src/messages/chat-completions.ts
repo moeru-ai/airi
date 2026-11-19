@@ -4,7 +4,7 @@ import type { ProjectionEntry } from './turns'
 import type { Conversation, InputSegment, MessageSegment, Turn } from './types'
 
 import { renderSegmentText } from './render-context'
-import { projectInput, projectRound, readTurns } from './turns'
+import { projectInput, projectRound, projectStopReason, readTurns } from './turns'
 
 /**
  * Converts Chat content at storage and SDK boundaries without inventing a message envelope.
@@ -174,7 +174,7 @@ export function conversationToChatMessages(conversation: Conversation, supportsC
   return conversation.turns.flatMap((turn) => {
     if (turn.type !== 'assistant')
       return renderEntry(projectInput(turn), supportsContentArray)
-    return turn.rounds.flatMap((round) => {
+    const messages = turn.rounds.flatMap((round) => {
       const continuation = round.continuation
       if (scope && continuation?.protocol === 'chat-completions' && continuation.scope === scope) {
         // Native reasoning and provider extensions cannot be reconstructed from portable content.
@@ -189,5 +189,7 @@ export function conversationToChatMessages(conversation: Conversation, supportsC
       }
       return projectRound(round).flatMap(entry => renderEntry(entry, supportsContentArray))
     })
+    const stopReason = projectStopReason(turn)
+    return stopReason ? [...messages, ...renderEntry(stopReason, supportsContentArray)] : messages
   })
 }

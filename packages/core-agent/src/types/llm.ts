@@ -1,6 +1,7 @@
 import type { GenerationProvider, GenerationRequest } from '@proj-airi/provider-inference'
 import type { CommonContentPart, CompletionToolCall, Tool, ToolChoice } from '@xsai/shared-chat'
 
+import type { ContextBudget, ContextBudgetLimits } from '../messages/context-budget'
 import type { AssistantTurn, Conversation } from '../messages/types'
 
 /** Describes whether generation usage came from the provider or a local fallback. */
@@ -23,6 +24,7 @@ export type StreamEvent
     | ({ type: 'tool-call' } & CompletionToolCall)
     | { type: 'tool-error', toolCallId: string, result?: string | CommonContentPart[], isError: true }
     | { type: 'tool-result', toolCallId: string, result?: string | CommonContentPart[] }
+    | { type: 'step-limit', maxSteps: number, completedSteps: number }
     | { type: 'citations', citations: import('../messages/types').Citation[] }
     | { type: 'search', id: string, status: 'in_progress' | 'searching' | 'completed' | 'failed' }
     | { type: 'error', error: unknown }
@@ -30,10 +32,17 @@ export type StreamEvent
 /** Options shared by generation adapters. SDK payloads stay inside each adapter. */
 export interface StreamOptions {
   /**
+   * Maximum model decision steps in one generated turn.
+   * Each step can contain any number of tool calls.
+   * The runtime settles every call in the final step before it stores a checkpoint.
+   * @default 30
+   */
+  maxSteps?: number
+  /**
    * Adapts the conversation to the provider request that the runtime resolved.
    *
-   * It runs before each SDK stream, after `resolveStep` and before the protocol adapter projects its input.
-   * A request scope change after a tool round starts a new stream, so the callback runs again for the new model.
+   * It runs before every provider request, including tool continuations, after `resolveStep`.
+   * Completed rounds remain in the source even when a preceding request used a shorter projection.
    * It returns a request copy. The caller's conversation and stored history stay unchanged.
    */
   prepareConversation?: (conversation: Conversation, target: {
@@ -42,6 +51,27 @@ export interface StreamOptions {
     /** Provider registry identity of the resolved request. */
     providerId?: string
     request: GenerationRequest
+    /** Native continuation scope, isolated by provider, endpoint, model and session. */
+    scope: string
+    /** Context window reported by the resolved model catalog, when available. */
+    contextWindowTokens?: number
+    /** Model output cap reported by the resolved model catalog, when available. */
+    modelMaxOutputTokens?: number
+    /** Output cap sent with this request, when that cap is a number. */
+    requestedOutputTokens?: number
+    /** Request-specific text budget; inline image bytes remain a separate measurement. */
+    contextBudgetLimits?: ContextBudgetLimits
+    /** UTF-8 bytes of the projected context and current tool schemas. This is not a token count. */
+    measureContextBytes: (conversation: Conversation) => number
+    /** Separates text and inline media bytes when the resolved model accepts vision input. */
+    measureContextBudget?: (conversation: Conversation) => ContextBudget
+    /**
+     * The value `measureContextBudget` measures for this request, including tool schemas.
+     * Inspectors classify this object. It is not a token count.
+     */
+    readProjectedRequest?: (conversation: Conversation) => unknown
+    /** True only when the resolved model accepts image content in this request. */
+    supportsVisionInput?: boolean
   }) => Promise<Conversation>
   /** Reads the pinned character's current settings before each model request. */
   resolveStep?: () => Promise<{
@@ -58,6 +88,12 @@ export interface StreamOptions {
      * @default undefined - use the caller's cap.
      */
     maxTokens?: number
+    /** Context window reported for this resolved model, when available. */
+    contextWindowTokens?: number
+    /** Model output cap reported for this resolved model, when available. */
+    modelMaxOutputTokens?: number
+    /** True only when this resolved model explicitly declares image input. */
+    supportsVisionInput?: boolean
     tools?: Tool[]
   }>
   /** Internal turn identity reused after a protocol change. */
@@ -99,6 +135,10 @@ export interface StreamOptions {
    * @default undefined - use the provider's default limit.
    */
   maxTokens?: number
+  /** Context window reported for the initial model, when available. */
+  contextWindowTokens?: number
+  /** Model output cap reported for the initial model, when available. */
+  modelMaxOutputTokens?: number
   toolsCompatibility?: Map<string, boolean>
   supportsTools?: boolean
   waitForTools?: boolean
