@@ -613,10 +613,18 @@ describe('createMcpManager', () => {
       ['computer_act', 'router-only'],
       ['terminal_exec', 'disabled'],
     ])
-    await expect(manager.callTool({ name: 'airi-terminal::desktop_get_session_trace' })).rejects.toThrow('disabled by the Host')
-    await expect(manager.callTool({ name: 'airi-terminal::desktop_get_state' })).rejects.toThrow('disabled by the Host')
-    await expect(manager.callTool({ name: 'airi-terminal::desktop_click' })).rejects.toThrow('disabled by the Host')
-    await expect(manager.callTool({ name: 'airi-terminal::terminal_exec' })).rejects.toThrow('disabled by the Host')
+    for (const name of [
+      'airi-terminal::desktop_get_session_trace',
+      'airi-terminal::desktop_get_state',
+      'airi-terminal::desktop_click',
+      'airi-terminal::terminal_exec',
+    ]) {
+      await expect(manager.callTool({ name })).resolves.toEqual({
+        dispatchOutcome: 'failed_before_dispatch',
+        isError: true,
+        content: [{ type: 'text', text: `MCP tool is disabled by the Host: ${name}` }],
+      })
+    }
     expect(clientMocks.callTool).not.toHaveBeenCalled()
   })
 
@@ -666,9 +674,15 @@ describe('createMcpManager', () => {
       const result = { content: [{ type: 'text', text: 'Fixture metadata.' }] } satisfies CallToolResult
       clientMocks.callTool.mockResolvedValue(result)
       const payload = { name: 'fixture::read', requestId: request.id, attribution }
-      await expect(manager.callTool(payload, 71)).resolves.toEqual(result)
+      await expect(manager.callTool(payload, 71)).resolves.toEqual({
+        ...result,
+        dispatchOutcome: 'response_received',
+      })
       vi.setSystemTime(request.expiresAt)
-      await expect(manager.callTool(payload, 71)).resolves.toEqual(result)
+      await expect(manager.callTool(payload, 71)).resolves.toEqual({
+        ...result,
+        dispatchOutcome: 'response_received',
+      })
       expect(clientMocks.callTool).toHaveBeenCalledTimes(2)
       expect(clientMocks.callTool).toHaveBeenLastCalledWith(
         { name: 'read', arguments: {} },
@@ -746,16 +760,38 @@ describe('createMcpManager', () => {
       ['terminal_get_state', 'disabled'],
       ['terminal_reset_state', 'disabled'],
     ])
-    for (const tool of desktopTools)
-      await expect(manager.callTool({ name: `airi-terminal::${tool}` })).rejects.toThrow('disabled by the Host')
-    await expect(manager.callTool({ name: 'airi-terminal::terminal_history' })).rejects.toThrow('disabled by the Host')
-    await expect(manager.callTool({ name: 'airi-terminal::terminal_exec', arguments: { command: 'fixture' } })).rejects.toThrow('normal Chat request')
+    for (const tool of desktopTools) {
+      await expect(manager.callTool({ name: `airi-terminal::${tool}` })).resolves.toEqual({
+        dispatchOutcome: 'failed_before_dispatch',
+        isError: true,
+        content: [{ type: 'text', text: `MCP tool is disabled by the Host: airi-terminal::${tool}` }],
+      })
+    }
+    await expect(manager.callTool({ name: 'airi-terminal::terminal_history' })).resolves.toEqual({
+      dispatchOutcome: 'failed_before_dispatch',
+      isError: true,
+      content: [{ type: 'text', text: 'MCP tool is disabled by the Host: airi-terminal::terminal_history' }],
+    })
+    await expect(manager.callTool({ name: 'airi-terminal::terminal_exec', arguments: { command: 'fixture' } })).resolves.toEqual({
+      dispatchOutcome: 'failed_before_dispatch',
+      isError: true,
+      content: [{ type: 'text', text: 'Host-controlled MCP actions require a normal Chat request registered by the Host.' }],
+    })
     expect(clientMocks.callTool).not.toHaveBeenCalled()
     const attribution = { sessionId: 'session-a', turnId: 'turn-a' }
     actions.setTerminalTurbo(attribution.sessionId, 71, true)
-    for (const tool of desktopTools)
-      await expect(manager.callTool({ name: `airi-terminal::${tool}`, attribution }, 71)).rejects.toThrow('disabled by the Host')
-    await expect(manager.callTool({ name: 'airi-terminal::terminal_history', attribution }, 71)).rejects.toThrow('disabled by the Host')
+    for (const tool of desktopTools) {
+      await expect(manager.callTool({ name: `airi-terminal::${tool}`, attribution }, 71)).resolves.toEqual({
+        dispatchOutcome: 'failed_before_dispatch',
+        isError: true,
+        content: [{ type: 'text', text: `MCP tool is disabled by the Host: airi-terminal::${tool}` }],
+      })
+    }
+    await expect(manager.callTool({ name: 'airi-terminal::terminal_history', attribution }, 71)).resolves.toEqual({
+      dispatchOutcome: 'failed_before_dispatch',
+      isError: true,
+      content: [{ type: 'text', text: 'MCP tool is disabled by the Host: airi-terminal::terminal_history' }],
+    })
     expect(clientMocks.callTool).not.toHaveBeenCalled()
     const request = actions.registerRequest({ ...attribution, text: 'Run the fixture.' }, 71)
     const tools = await resolveLlmTools({ builtInTools: [], debugTools: [], sparkCommandTools: [], webSearchTools: [], activeTools: await createMcpTools({
@@ -825,7 +861,7 @@ describe('createMcpManager', () => {
     },
   )
 
-  it('preserves an MCP error result without dispatching again', async () => {
+  it('marks an MCP error result as response received without dispatching again', async () => {
     const manager = await startServers('terminal')
     const denial = { isError: true, content: [{ type: 'text', text: 'Action denied.' }] } satisfies CallToolResult
     let effects = 0
@@ -835,9 +871,61 @@ describe('createMcpManager', () => {
       return denial
     })
 
-    expect(await manager.callTool({ name: 'terminal::stdio::write' })).toEqual(denial)
+    expect(await manager.callTool({ name: 'terminal::stdio::write' })).toEqual({
+      ...denial,
+      dispatchOutcome: 'response_received',
+    })
     expect(clientMocks.callTool).toHaveBeenCalledOnce()
     expect(effects).toBe(0)
+  })
+
+  it('passes unknown call outcomes through createMcpTools without redispatching', async () => {
+    const manager = await startServers('terminal')
+    let effects = 0
+    clientMocks.callTool.mockImplementation(async () => {
+      effects += 1
+      throw new Error('MCP connection closed.')
+    })
+    const [, callTool] = await createMcpTools({
+      listTools: async () => [],
+      callTool: payload => manager.callTool(payload),
+    }, { proxy: 'active' })
+
+    const result = await callTool.execute({ name: 'terminal::stdio::write', arguments: '{}' }, { messages: [], toolCallId: 'unknown-outcome' })
+
+    expect(result).toEqual({
+      dispatchOutcome: 'outcome_unknown',
+      isError: true,
+      content: [{ type: 'text', text: 'MCP connection closed.' }],
+    })
+    expect(clientMocks.callTool).toHaveBeenCalledOnce()
+    expect(effects).toBe(1)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/3473
+  // ROOT CAUSE:
+  //
+  // The manager rejected invalid names and missing sessions before transport dispatch.
+  // The shared MCP tool wrapper treated every rejection as an unknown outcome.
+  // We now return a typed error result before dispatch and reserve rejections for transport failures.
+  it.each([
+    { scenario: 'an invalid tool name', serverNames: ['terminal'], name: 'invalid-name', error: 'invalid qualified tool name: invalid-name' },
+    { scenario: 'an inactive server', serverNames: [], name: 'offline::write', error: 'mcp server is not running: offline' },
+  ])('marks $scenario as failed before dispatch', async ({ serverNames, name, error }) => {
+    const manager = await startServers(...serverNames)
+    const [, callTool] = await createMcpTools({
+      listTools: async () => [],
+      callTool: payload => manager.callTool(payload),
+    }, { proxy: 'active' })
+
+    const result = await callTool.execute({ name, arguments: '{}' }, { messages: [], toolCallId: 'failed-before-dispatch' })
+
+    expect(result).toEqual({
+      dispatchOutcome: 'failed_before_dispatch',
+      isError: true,
+      content: [{ type: 'text', text: error }],
+    })
+    expect(clientMocks.callTool).not.toHaveBeenCalled()
   })
 
   it('does not guess another tool when the requested tool is absent', async () => {

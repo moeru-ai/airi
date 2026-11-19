@@ -32,6 +32,9 @@ export interface McpExecutionOptions extends ToolExecuteOptions {
   attribution?: ToolAttributionContext & { toolCallId?: string }
 }
 
+/** Describes whether the MCP transport returned a response for one call. */
+export type McpDispatchOutcome = 'response_received' | 'failed_before_dispatch' | 'outcome_unknown'
+
 /**
  * Result returned from an MCP tool invocation.
  *
@@ -49,6 +52,8 @@ export interface McpCallToolResult {
   structuredContent?: Record<string, unknown>
   toolResult?: unknown
   isError?: boolean
+  /** `outcome_unknown` means that the call can have produced an external side effect. */
+  dispatchOutcome?: McpDispatchOutcome
 }
 
 /**
@@ -60,6 +65,7 @@ export interface McpCallToolResult {
  * Expects:
  * - `listTools` supports exact names when the transport can scope discovery
  * - The Host enforces tool availability and permission for each `callTool`
+ * - Each `callTool` call can produce side effects. Do not retry when the outcome is unknown.
  *
  * Returns:
  * - An object that can back `createMcpTools`
@@ -67,6 +73,14 @@ export interface McpCallToolResult {
 export interface McpToolRuntime {
   listTools: (name?: string) => Promise<McpToolDescriptor[]>
   callTool: (payload: McpCallToolPayload, options?: McpExecutionOptions) => Promise<McpCallToolResult>
+}
+
+function errorResult(dispatchOutcome: McpDispatchOutcome, error: unknown): McpCallToolResult {
+  return {
+    dispatchOutcome,
+    isError: true,
+    content: [{ type: 'text', text: errorMessageFrom(error) ?? 'Unknown error.' }],
+  }
 }
 
 /**
@@ -172,7 +186,9 @@ export async function createMcpTools(runtime: McpToolRuntime, registration: McpT
       return await runtime.callTool(payload, options)
     }
     catch (error) {
-      return { isError: true, content: [{ type: 'text', text: errorMessageFrom(error) ?? 'Unknown error.' }] }
+      if (options?.abortSignal?.aborted)
+        return errorResult('failed_before_dispatch', error)
+      return errorResult('outcome_unknown', error)
     }
   }
 
@@ -211,23 +227,22 @@ export async function createMcpTools(runtime: McpToolRuntime, registration: McpT
           name: MCP_CALL_TOOL_NAME,
           description: 'Call an MCP tool by name. Use builtIn_mcpListTools first to get available tool names.',
           execute: async ({ name, arguments: argsJson }, options?: McpExecutionOptions) => {
+            let args: Record<string, unknown> = {}
             try {
               options?.abortSignal?.throwIfAborted()
               if (!isProxyTarget(name)) {
-                return {
-                  isError: true,
-                  content: [{ type: 'text', text: `MCP server is not available through secondary routing: ${name}` }],
-                }
+                return errorResult('failed_before_dispatch', new Error(`MCP server is not available through secondary routing: ${name}`))
               }
-              const args = argsJson ? JSON.parse(argsJson) : {}
-              return await execute({ name, arguments: args }, options)
+              const parsed = argsJson ? JSON.parse(argsJson) : {}
+              if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed))
+                return errorResult('failed_before_dispatch', new Error('MCP tool arguments must be a JSON object.'))
+              args = parsed
             }
             catch (error) {
-              return {
-                isError: true,
-                content: [{ type: 'text', text: errorMessageFrom(error) ?? 'Unknown error.' }],
-              }
+              return errorResult('failed_before_dispatch', error)
             }
+
+            return await execute({ name, arguments: args }, options)
           },
           // NOTICE:
           // OpenAI rejects the schemas that z.unknown() and z.record() produce here.

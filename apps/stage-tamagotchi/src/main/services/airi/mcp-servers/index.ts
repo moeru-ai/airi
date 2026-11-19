@@ -128,7 +128,7 @@ function combineSignals(...signals: Array<AbortSignal | undefined>) {
 }
 
 function normalizeCallToolResult(result: { content?: unknown, structuredContent?: unknown, toolResult?: unknown, isError?: unknown }): ElectronMcpCallToolResult {
-  const normalized: ElectronMcpCallToolResult = {}
+  const normalized: ElectronMcpCallToolResult = { dispatchOutcome: 'response_received' }
   if (Array.isArray(result.content))
     normalized.content = result.content as Array<Record<string, unknown>>
   if (result.structuredContent && typeof result.structuredContent === 'object' && !Array.isArray(result.structuredContent))
@@ -138,6 +138,14 @@ function normalizeCallToolResult(result: { content?: unknown, structuredContent?
   if ('toolResult' in result)
     normalized.toolResult = result.toolResult
   return normalized
+}
+
+function failedBeforeDispatchResult(error: unknown): ElectronMcpCallToolResult {
+  return {
+    dispatchOutcome: 'failed_before_dispatch',
+    isError: true,
+    content: [{ type: 'text', text: errorMessageFrom(error) ?? 'Unknown error.' }],
+  }
 }
 
 function getConfigPath() {
@@ -479,13 +487,20 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
   }
 
   const callTool = async (payload: ElectronMcpCallToolPayload, senderWebContentsId?: number, signal?: AbortSignal): Promise<ElectronMcpCallToolResult> => {
-    const { serverName, toolName } = parseQualifiedToolName(payload.name)
-    const session = sessions.get(serverName)
-    if (!session) {
-      throw new Error(`mcp server is not running: ${serverName}`)
+    let qualifiedToolName: ReturnType<typeof parseQualifiedToolName>
+    try {
+      qualifiedToolName = parseQualifiedToolName(payload.name)
     }
+    catch (error) {
+      return failedBeforeDispatchResult(error)
+    }
+
+    const { serverName, toolName } = qualifiedToolName
+    const session = sessions.get(serverName)
+    if (!session)
+      return failedBeforeDispatchResult(new Error(`mcp server is not running: ${serverName}`))
     if (exposureOf(serverName, session, toolName) === 'disabled')
-      throw new Error(`MCP tool is disabled by the Host: ${payload.name}`)
+      return failedBeforeDispatchResult(new Error(`MCP tool is disabled by the Host: ${payload.name}`))
     const terminalNonce = toolName === 'terminal_exec' ? session.terminalNonce : undefined
     const computerUseNonce = session.computerUseNonce
     const requestId = payload.requestId
@@ -497,8 +512,13 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
     const callSignal = combineSignals(signal, requestSignal, session.lifetime.signal)
     if (hostControlled) {
       if (!terminalApproval || !requestId || !attribution?.toolCallId)
-        throw new Error('Host-controlled MCP actions require a normal Chat request registered by the Host.')
-      terminalApproval.actions.validateRequest(requestId, attribution)
+        return failedBeforeDispatchResult(new Error('Host-controlled MCP actions require a normal Chat request registered by the Host.'))
+      try {
+        terminalApproval.actions.validateRequest(requestId, attribution)
+      }
+      catch (error) {
+        return failedBeforeDispatchResult(error)
+      }
     }
 
     const result = await session.client.callTool({
@@ -576,6 +596,7 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
         if (authorizationSignal?.aborted) {
           await reject()
           return {
+            dispatchOutcome: 'failed_before_dispatch',
             isError: true,
             content: [{ type: 'text', text: 'Computer Use action was cancelled before dispatch.' }],
             structuredContent: { status: 'cancelled', pendingActionId },
@@ -595,6 +616,7 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
           await reject().catch(() => {})
         if (dispatched) {
           return {
+            dispatchOutcome: 'outcome_unknown',
             isError: true,
             content: [{ type: 'text', text: 'The Computer Use action was dispatched before the failure. Its outcome is unknown. Check the current state before repeating it.' }],
             structuredContent: { status: 'unknown', doNotReplay: true, pendingActionId },
@@ -602,6 +624,7 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
         }
         if (authorizationSignal?.aborted) {
           return {
+            dispatchOutcome: 'failed_before_dispatch',
             isError: true,
             content: [{ type: 'text', text: 'Computer Use action was cancelled before dispatch.' }],
             structuredContent: { status: 'cancelled', pendingActionId },
