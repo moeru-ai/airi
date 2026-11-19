@@ -229,6 +229,8 @@ describe('stripe checkout', () => {
         headers: {
           'x-openpanel-device-id': 'anon-browser-1',
           'x-openpanel-session-id': 'ph-session-1',
+          'x-posthog-distinct-id': 'posthog-browser-1',
+          'x-posthog-session-id': 'posthog-session-1',
         },
       }),
     )
@@ -237,12 +239,16 @@ describe('stripe checkout', () => {
       metadata: expect.objectContaining({
         openpanelDeviceId: 'anon-browser-1',
         openpanelSessionId: 'ph-session-1',
+        posthogDistinctId: 'posthog-browser-1',
+        posthogSessionId: 'posthog-session-1',
       }),
     }))
     expect(productEventService.track).toHaveBeenCalledWith(expect.objectContaining({
       action: 'checkout_started',
       metadata: expect.objectContaining({
         openpanel_device_id: 'anon-browser-1',
+        posthog_distinct_id: 'posthog-browser-1',
+        posthog_session_id: 'posthog-session-1',
         stripe_price_id: 'price_starter',
       }),
     }))

@@ -42,6 +42,7 @@
     "nanoid": "catalog:",
     "nprogress": "catalog:",
     "pinia": "catalog:",
+    "posthog-js": "catalog:",
     "uuid": "catalog:",
     "valibot": "catalog:",
     "vaul-vue": "catalog:",

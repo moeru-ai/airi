@@ -1,7 +1,9 @@
+import type { DisplayModelSettingsScope } from '@proj-airi/stage-shared/composables'
 import type {} from 'pinia-plugin-synced'
 
 import type { DisplayModel } from '../display-models'
 
+import { setActiveDisplayModelForSettings } from '@proj-airi/stage-shared/composables'
 import { refManualReset, useEventListener } from '@vueuse/core'
 import { defineStore, getActivePinia, storeToRefs } from 'pinia'
 import { computed, onScopeDispose, shallowRef, watch } from 'vue'
@@ -10,6 +12,15 @@ import { DisplayModelFormat, useDisplayModelsStore } from '../display-models'
 
 export type StageModelRenderer = 'live2d' | 'vrm' | 'spine' | 'tachie' | 'mmd' | 'godot' | 'disabled' | undefined
 type BuiltInStageModelRenderer = Exclude<StageModelRenderer, 'godot'>
+
+/** The settings group that each built-in renderer reads. A renderer without settings has no entry. */
+const settingsScopeByRenderer: Partial<Record<NonNullable<BuiltInStageModelRenderer>, DisplayModelSettingsScope>> = {
+  live2d: 'live2d',
+  vrm: 'three',
+  mmd: 'mmd',
+  spine: 'spine',
+  tachie: 'tachie',
+}
 
 const useStageModelSelectionStore = defineStore('settings-stage-model-selection', () => {
   // The active Character owns the durable Avatar Model references. This store
@@ -191,6 +202,12 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
     }
 
     const builtInRenderer = resolveBuiltInStageModelRenderer(model)
+
+    // The renderer reads the settings of this model from its first frame. Select them before
+    // the refs publish the model.
+    const settingsScope = builtInRenderer ? settingsScopeByRenderer[builtInRenderer] : undefined
+    if (settingsScope)
+      setActiveDisplayModelForSettings(settingsScope, model.id)
 
     // Browser startup consumes the one-time legacy reset before these refs publish.
     // Direct ThreeScene routes mount from the refs and cannot start with stale identity state.

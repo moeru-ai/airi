@@ -1,14 +1,4 @@
 {
-  "apps/component-calling/src/pages/index.vue": {
-    "ts/no-explicit-any": {
-      "count": 3
-    }
-  },
-  "apps/component-calling/src/plugins/plugin-component-calling/index.ts": {
-    "ts/no-explicit-any": {
-      "count": 1
-    }
-  },
   "apps/stage-pocket/src/pages/devtools/performance-playground.vue": {
     "ts/no-explicit-any": {
       "count": 2
@@ -76,7 +66,7 @@
   },
   "apps/stage-tamagotchi/src/main/services/airi/widgets/artistry-bridge.ts": {
     "ts/no-explicit-any": {
-      "count": 11
+      "count": 10
     }
   },
   "apps/stage-tamagotchi/src/main/services/airi/widgets/providers/base.ts": {
@@ -549,21 +539,6 @@
       "count": 1
     }
   },
-  "packages/stage-shared/src/artistry.ts": {
-    "ts/no-explicit-any": {
-      "count": 4
-    }
-  },
-  "packages/stage-shared/src/beat-sync/detector.ts": {
-    "ts/no-explicit-any": {
-      "count": 1
-    }
-  },
-  "packages/stage-shared/src/perf/tracer.ts": {
-    "ts/no-explicit-any": {
-      "count": 5
-    }
-  },
   "packages/stage-ui-live2d/src/components/scenes/live2d/Model.vue": {
     "ts/no-explicit-any": {
       "count": 9
@@ -731,7 +706,7 @@
   },
   "packages/stage-ui/src/stores/modules/artistry.ts": {
     "ts/no-explicit-any": {
-      "count": 6
+      "count": 4
     }
   },
   "packages/stage-ui/src/stores/modules/gaming-minecraft.ts": {

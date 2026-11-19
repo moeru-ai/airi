@@ -157,12 +157,7 @@ export function handlePageContext(state: ClientState, settings: ExtensionSetting
   })
 }
 
-export function handleVideoContext(
-  state: ClientState,
-  settings: ExtensionSettings,
-  payload: VideoContextPayload,
-  options?: { notify?: boolean },
-) {
+export function handleVideoContext(state: ClientState, settings: ExtensionSettings, payload: VideoContextPayload) {
   state.lastVideo = payload
 
   if (!settings.enabled || !settings.sendVideoContext)
@@ -171,24 +166,6 @@ export function handleVideoContext(
   const headline = payload.title
     ? `User is watching: ${payload.title}`
     : 'User is watching a video'
-
-  if (settings.sendSparkNotify && options?.notify !== false && payload.title) {
-    sendSparkNotify(state, {
-      headline,
-      note: payload.channel ? `Channel: ${payload.channel}` : undefined,
-      payload: {
-        site: payload.site,
-        url: payload.url,
-        title: payload.title,
-        channel: payload.channel,
-        videoId: payload.videoId,
-        durationSec: payload.durationSec,
-        currentTimeSec: payload.currentTimeSec,
-        isPlaying: payload.isPlaying,
-        isLive: payload.isLive,
-      },
-    })
-  }
 
   sendContextUpdate(state, {
     strategy: ContextUpdateStrategy.ReplaceSelf,
@@ -214,6 +191,31 @@ export function handleVideoContext(
       playbackRate: payload.playbackRate,
       isLive: payload.isLive,
       playerSize: payload.playerSize,
+    },
+  })
+}
+
+/**
+ * Asks the character to react to a video.
+ * It sends only the notification. The latest video context stays with {@link handleVideoContext}.
+ */
+export function notifyVideo(state: ClientState, settings: ExtensionSettings, payload: VideoContextPayload) {
+  if (!settings.enabled || !settings.sendVideoContext || !settings.sendSparkNotify || !payload.title)
+    return
+
+  sendSparkNotify(state, {
+    headline: `User is watching: ${payload.title}`,
+    note: payload.channel ? `Channel: ${payload.channel}` : undefined,
+    payload: {
+      site: payload.site,
+      url: payload.url,
+      title: payload.title,
+      channel: payload.channel,
+      videoId: payload.videoId,
+      durationSec: payload.durationSec,
+      currentTimeSec: payload.currentTimeSec,
+      isPlaying: payload.isPlaying,
+      isLive: payload.isLive,
     },
   })
 }

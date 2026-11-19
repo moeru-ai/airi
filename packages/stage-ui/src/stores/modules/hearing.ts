@@ -317,8 +317,6 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const {
     trackMicrophonePermissionDenied,
     trackSttFailed,
-    trackSttSucceeded,
-    trackVoiceInputStarted,
   } = useAnalytics()
 
   // Pinia synchronization owns live cross-window state. localStorage only
@@ -463,17 +461,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
     const features = providersStore.getTranscriptionFeatures(providerId)
     const streamExecutor = resolveStreamTranscriptionExecutor(providerId)
 
-    const sttStartedAt = performance.now()
-    trackVoiceInputStarted({ stt_provider_id: providerId })
-
-    function emitSucceeded(charCount: number, stream: boolean) {
-      trackSttSucceeded({
-        provider: providerId,
-        latency_ms: Math.round(performance.now() - sttStartedAt),
-        char_count: charCount,
-        stream,
-      })
-    }
+    // Only a failed transcription is a product event. A voice round is already counted by `message_round`.
     function emitFailed(err: unknown) {
       const errorCode = transcriptionAnalyticsErrorCode(err)
       trackSttFailed({ provider: providerId, error_code: errorCode })
@@ -503,7 +491,6 @@ export const useHearingStore = defineStore('hearing-store', () => {
             ...request,
             inputAudioStream: normalizedInput.inputAudioStream,
           } as Parameters<typeof streamExecutor>[0])
-          emitSucceeded(0, true)
           return {
             mode: 'stream',
             ...streamResult,
@@ -515,7 +502,6 @@ export const useHearingStore = defineStore('hearing-store', () => {
             ...request,
             file: normalizedInput.file,
           } as Parameters<typeof streamExecutor>[0])
-          emitSucceeded(0, true)
           return {
             mode: 'stream',
             ...streamResult,
@@ -527,7 +513,6 @@ export const useHearingStore = defineStore('hearing-store', () => {
             ...request,
             file: normalizedInput.file,
           } as Parameters<typeof streamExecutor>[0])
-          emitSucceeded(0, true)
           return {
             mode: 'stream',
             ...streamResult,
@@ -559,7 +544,6 @@ export const useHearingStore = defineStore('hearing-store', () => {
         if (response.segments) {
           verboseJsonNotSupported.value = false
           const filteredText = filterTranscriptionByConfidence(response.segments, threshold)
-          emitSucceeded(filteredText.length, false)
           return {
             mode: 'generate',
             ...response,
@@ -573,7 +557,6 @@ export const useHearingStore = defineStore('hearing-store', () => {
       }
 
       const fallbackText = normalizeGeneratedTranscriptionText(response)
-      emitSucceeded(fallbackText.length, false)
       return {
         mode: 'generate',
         ...response,
