@@ -49,6 +49,12 @@ packages:
   - '!**/dist/**'
 
 overrides:
+  # NOTICE:
+  # Transformers pins ONNX Runtime Node 1.21.0, whose Linux CUDA download returns 404 and blocks dependency installation.
+  # Use 1.27.0 to match ONNX Runtime Web and download CUDA binaries from NuGet.
+  # Source: https://github.com/moeru-ai/airi/actions/runs/44542540241
+  # Remove when Transformers declares a Node version with working binary downloads.
+  '@huggingface/transformers>onnxruntime-node': 1.27.0
   # @huggingface/transformers 3.8.1 pins an onnxruntime-web dev build. Use the catalog version, which @sherpaw needs.
   # Remove when @huggingface/transformers declares the catalog version.
   '@huggingface/transformers>onnxruntime-web': 'catalog:'
