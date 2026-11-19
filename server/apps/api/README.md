@@ -267,6 +267,34 @@ the private JWKS route; `AUTH_SERVER_URL` remains the public Auth issuer URL.
 See [`server/README.md`](../../README.md#railway-deployment) for the complete
 cross-service variable and migration contract.
 
+### Rotate `LLM_ROUTER_MASTER_KEY`
+
+The master key encrypts provider keys at rest. Two services read it: this API and the admin service in `proj-airi/backend`. Both services must hold the same key.
+
+The script `src/scripts/rotate-llm-router-master-key/index.ts` re-encrypts these values:
+
+- ConfigKV `LLM_ROUTER_CONFIG`: LLM, TTS, and ASR upstream keys
+- ConfigKV `UNSPEECH_UPSTREAM`: streaming TTS keys
+- `user_provider_configs.config`, soft-deleted rows included
+
+Steps:
+
+1. Generate a key: `openssl rand -base64 32`.
+2. On every service that reads the key, set `LLM_ROUTER_MASTER_KEY_PREVIOUS` to the old key and `LLM_ROUTER_MASTER_KEY` to the new key. Pass `--skip-deploys`, then deploy each service once.
+3. Wait until every replacement deployment is `SUCCESS`. The admin service must also run the new key, or it writes values under the old key.
+4. In one API container, run the script without `--apply`. Exit code 2 means some values need the old key.
+5. Run the script with `--apply`. It rewrites those values, clears the ConfigKV cache, publishes `configkv:invalidate`, and checks again.
+6. When the script exits 0, remove `LLM_ROUTER_MASTER_KEY_PREVIOUS` from every service and deploy again.
+
+```sh
+pnpm -F @proj-airi/api-server exec tsx src/scripts/rotate-llm-router-master-key/index.ts
+pnpm -F @proj-airi/api-server exec tsx src/scripts/rotate-llm-router-master-key/index.ts --apply
+```
+
+Exit code 1 means some values open with neither key. Do not remove the old key then. Check that `LLM_ROUTER_MASTER_KEY_PREVIOUS` holds the right key.
+
+During step 2, replicas with the old key cannot read values that replicas with the new key write. Deploy all services close together.
+
 ### Hosted Responses API
 
 `POST /api/v1/openai/responses` accepts authenticated, stateless OpenAI Responses requests.
