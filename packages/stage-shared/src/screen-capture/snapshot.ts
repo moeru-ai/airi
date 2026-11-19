@@ -1,6 +1,8 @@
 import type { createContext } from '@moeru/eventa/adapters/electron/renderer'
 import type { SerializableDesktopCapturerSource } from '@proj-airi/electron-screen-capture'
 
+import process from 'node:process'
+
 import { setupElectronScreenCapture } from '@proj-airi/electron-screen-capture/renderer'
 
 import { isStageTamagotchi } from '../environment'
@@ -48,6 +50,15 @@ export async function captureScreenSnapshotFile(options: ScreenSnapshotOptions =
   if (options.context && (isStageTamagotchi() || (typeof window !== 'undefined' && 'electron' in window))) {
     try {
       const capturer = setupElectronScreenCapture(options.context)
+      const isDarwin = (typeof process !== 'undefined' && process.platform === 'darwin')
+        || (typeof navigator !== 'undefined' && /Macintosh|Mac OS X/.test(navigator.userAgent))
+      if (isDarwin) {
+        const permission = await capturer.checkMacOSPermission().catch(() => 'granted')
+        if (permission !== 'granted') {
+          await capturer.requestMacOSPermission().catch(() => {})
+          return null
+        }
+      }
       const sources: SerializableDesktopCapturerSource[] = await capturer.getSources({
         types: ['screen'],
         thumbnailSize: { width, height },

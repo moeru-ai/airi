@@ -6,6 +6,7 @@ import type { ChatFloatingPlacement, ChatFloatingState } from '../../../shared/e
 import type { AttachedChatLayout } from './floating-placement'
 
 import { defineInvokeHandler } from '@moeru/eventa'
+import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
 import { isRendererUnavailable, onWindowClosed } from '@proj-airi/electron-vueuse/main'
 import { animate } from 'animejs'
 import { BrowserWindow, screen } from 'electron'
@@ -452,6 +453,7 @@ export function setupFloatingChatWindow(params: {
     // `onlySameWindow` hears only this window and disposes with it.
     const { context: targetContext } = createWindowContext(target)
     context = targetContext
+    initScreenCaptureForWindow(target)
     // Every platform reports `move`; `moved` is only on macOS and Windows.
     // Only a chat that is not attached owns its position. An attached one
     // follows the main window, and a resize saves its size.

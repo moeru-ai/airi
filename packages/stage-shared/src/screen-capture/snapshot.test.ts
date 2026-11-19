@@ -1,5 +1,7 @@
 import type { ElectronEventaContext } from './snapshot'
 
+import process from 'node:process'
+
 import { createContext } from '@moeru/eventa'
 import { setupElectronScreenCapture } from '@proj-airi/electron-screen-capture/renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -140,6 +142,31 @@ describe('captureScreenSnapshotFile', () => {
         value: originalMediaDevices,
         configurable: true,
       })
+    }
+  })
+
+  it('requests permission and returns null when macOS permission is denied', async () => {
+    const { isStageTamagotchi } = await import('../environment')
+    vi.mocked(isStageTamagotchi).mockReturnValue(true)
+
+    const originalPlatform = process.platform
+    Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true })
+
+    const mockRequest = vi.fn().mockResolvedValue(true)
+    const mockCapturer = {
+      ...createMockScreenCapturer(vi.fn()),
+      checkMacOSPermission: vi.fn().mockResolvedValue('denied'),
+      requestMacOSPermission: mockRequest,
+    }
+    vi.mocked(setupElectronScreenCapture).mockReturnValue(mockCapturer)
+
+    try {
+      const result = await captureScreenSnapshotFile({ context: createMockEventaContext() })
+      expect(result).toBeNull()
+      expect(mockRequest).toHaveBeenCalledOnce()
+    }
+    finally {
+      Object.defineProperty(process, 'platform', { value: originalPlatform, configurable: true })
     }
   })
 })
