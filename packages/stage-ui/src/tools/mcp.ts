@@ -1,6 +1,6 @@
 import type { Tool } from '@xsai/shared-chat'
 
-import { errorMessageFromValue } from '@proj-airi/stage-shared'
+import { errorMessageFrom } from '@moeru/std'
 import { tool } from '@xsai/tool'
 import { z } from 'zod'
 
@@ -42,6 +42,9 @@ export interface McpCallToolPayload {
   arguments?: Record<string, unknown>
 }
 
+/** Describes whether the MCP transport returned a response for one call. */
+export type McpDispatchOutcome = 'response_received' | 'failed_before_dispatch' | 'outcome_unknown'
+
 /**
  * Result returned from an MCP tool invocation.
  *
@@ -59,6 +62,8 @@ export interface McpCallToolResult {
   structuredContent?: Record<string, unknown>
   toolResult?: unknown
   isError?: boolean
+  /** `outcome_unknown` means that the call can have produced an external side effect. */
+  dispatchOutcome?: McpDispatchOutcome
 }
 
 /**
@@ -68,7 +73,8 @@ export interface McpCallToolResult {
  * - A concrete runtime such as Electron needs to provide MCP access without a singleton bridge
  *
  * Expects:
- * - `listTools` and `callTool` are safe to call multiple times
+ * - `listTools` can be called multiple times
+ * - Each `callTool` call can produce side effects. Do not retry when the outcome is unknown.
  *
  * Returns:
  * - An object that can back `createMcpTools`
@@ -78,17 +84,26 @@ export interface McpToolRuntime {
   callTool: (payload: McpCallToolPayload) => Promise<McpCallToolResult>
 }
 
+function isJsonObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function errorResult(dispatchOutcome: McpDispatchOutcome, error: unknown): McpCallToolResult {
+  return {
+    dispatchOutcome,
+    isError: true,
+    content: [{ type: 'text', text: errorMessageFrom(error) ?? 'Unknown error.' }],
+  }
+}
+
+/** The proxy tool that calls an MCP tool. Each call names the MCP tool in its `name` argument, as `server::tool`. */
+export const MCP_CALL_TOOL_NAME = 'builtIn_mcpCallTool'
+
 /**
  * Creates MCP proxy tools backed by a runtime-provided transport.
  *
- * Use when:
- * - A runtime wants to register MCP tools into the shared LLM tool store
- *
- * Expects:
- * - The runtime implements the `McpToolRuntime` contract
- *
- * Returns:
- * - xsai tool definition promises for MCP listing and invocation
+ * Discovery returns descriptors, an explicit empty-catalog message, or an MCP
+ * error result. Runtime owners register these tools in the shared LLM tool store.
  */
 export function createMcpTools(runtime: McpToolRuntime): Array<Promise<Tool>> {
   return [
@@ -97,63 +112,61 @@ export function createMcpTools(runtime: McpToolRuntime): Array<Promise<Tool>> {
       description: 'List all available MCP tools. Call this first to discover tool names before calling builtIn_mcpCallTool.',
       execute: async () => {
         try {
-          return await runtime.listTools()
+          const tools = await runtime.listTools()
+          if (tools.length === 0)
+            return 'No MCP tools are available. Do not retry discovery during this assistant turn.'
+
+          return tools
         }
         catch (error) {
-          console.warn('[builtIn_mcpListTools] failed to list tools:', error)
-          return ''
+          return {
+            isError: true,
+            content: [{ type: 'text', text: `MCP tool discovery failed: ${errorMessageFrom(error) ?? 'Unknown error.'}` }],
+          }
         }
       },
       parameters: z.object({}).strict(),
     }),
     tool({
-      name: 'builtIn_mcpCallTool',
+      name: MCP_CALL_TOOL_NAME,
       description: 'Call an MCP tool by name. Use builtIn_mcpListTools first to get available tool names.',
       execute: async ({ name, arguments: argsJson }) => {
+        let args: Record<string, unknown> = {}
         try {
-          const args = argsJson ? JSON.parse(argsJson) : {}
+          const parsed = argsJson ? JSON.parse(argsJson) : {}
+          if (!isJsonObject(parsed))
+            return errorResult('failed_before_dispatch', new Error('MCP tool arguments must be a JSON object.'))
+          args = parsed
+        }
+        catch (error) {
+          return errorResult('failed_before_dispatch', error)
+        }
+
+        try {
           return await runtime.callTool({ name, arguments: args })
         }
         catch (error) {
-          return {
-            isError: true,
-            content: [{ type: 'text', text: errorMessageFromValue(error) }],
-          }
+          return errorResult('outcome_unknown', error)
         }
       },
-      // NOTICE: `arguments` is z.string() (JSON) because z.unknown() produces `{}` (no `type` key)
-      // and z.record() emits `propertyNames`, both rejected by OpenAI.
+      // NOTICE:
+      // OpenAI rejects the schemas that z.unknown() and z.record() produce here.
+      // They omit `type` or include `propertyNames`, so arguments use a JSON string.
+      // Source/context: @xsai/tool schema conversion and ./mcp.test.ts.
+      // Removal condition: The schema conversion produces an object schema that OpenAI accepts.
       parameters: z.object({
         name: z.string().describe('Tool name in "<serverName>::<toolName>" format'),
-        arguments: z.string().describe('JSON object of tool arguments, e.g. {"query":"hello","limit":10}'),
+        arguments: z.string().describe('JSON object of tool arguments, for example {"query":"hello","limit":10}'),
       }).strict(),
     }),
   ]
 }
 
-function createUnavailableMcpToolRuntime(): McpToolRuntime {
-  return {
-    async listTools() {
-      throw new Error('MCP tools are not available in this runtime.')
-    },
-    async callTool() {
-      throw new Error('MCP tools are not available in this runtime.')
-    },
-  }
-}
-
 /**
- * Builds the default stage-ui MCP tool set without depending on runtime singletons.
+ * Omits MCP proxy tools from the default tool set because shared code has no MCP transport.
  *
- * Use when:
- * - Shared code needs the MCP tool schema before a concrete runtime registers live implementations
- *
- * Expects:
- * - Runtime-specific callers override these tools through `useLlmToolsStore`
- *
- * Returns:
- * - MCP tool definitions with an unavailable-runtime fallback
+ * Supported runtimes register {@link createMcpTools} results through `useLlmToolsStore`.
  */
 export async function mcp(): Promise<Tool[]> {
-  return await Promise.all(createMcpTools(createUnavailableMcpToolRuntime()))
+  return []
 }

@@ -4,6 +4,7 @@ import type { WithUnknown } from '@xsai/shared'
 import type { StreamTranscriptionOptions as XSAIStreamTranscriptionOptions } from '@xsai/stream-transcription'
 import type {} from 'pinia-plugin-synced'
 
+import type { HearingTranscriberTraceOptions } from '../../libs/audio/hearing-transcriber'
 import type { AIRIStreamTranscriptionResult } from '../../libs/providers/stream-transcription'
 import type { HearingTranscriptionResult } from '../../libs/providers/transcription-types'
 
@@ -15,7 +16,7 @@ import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { refManualReset } from '@vueuse/core'
 import { generateTranscription } from '@xsai/generate-transcription'
 import { defineStore, storeToRefs } from 'pinia'
-import { computed, ref, toRaw, watch } from 'vue'
+import { computed, onScopeDispose, ref, toRaw, watch } from 'vue'
 
 import { useAnalytics } from '../../composables/use-analytics'
 import { createHearingTranscriber } from '../../libs/audio/hearing-transcriber'
@@ -316,13 +317,22 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const {
     trackMicrophonePermissionDenied,
     trackSttFailed,
-    trackSttSucceeded,
-    trackVoiceInputStarted,
   } = useAnalytics()
 
   // Pinia synchronization owns live cross-window state. localStorage only
   // loads and saves durable values for this synchronized store.
   const persistenceOptions = { listenToStorageChanges: false }
+  const enabled = useLocalStorageManualReset('settings/hearing/enabled', true, persistenceOptions)
+
+  // Each enabled period owns its requests. Disabling also invalidates transcribers captured by pending recordings.
+  let recognition = new AbortController()
+  watch(enabled, (value) => {
+    if (value)
+      recognition = new AbortController()
+    else
+      recognition.abort(new DOMException('Hearing is disabled', 'AbortError'))
+  }, { immediate: true, flush: 'sync' })
+  onScopeDispose(() => recognition.abort())
 
   // State
   const activeTranscriptionProvider = useLocalStorageManualReset('settings/hearing/active-provider', '', persistenceOptions)
@@ -337,6 +347,8 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const rephraseEnabled = useLocalStorageManualReset<boolean>('settings/hearing/rephrase-enabled', true, persistenceOptions)
   // A chat model reads paused transcripts and ends finished messages before the silence limit.
   const endJudgeEnabled = useLocalStorageManualReset<boolean>('settings/hearing/end-judge-enabled', true, persistenceOptions)
+  // Speaker recognition compares each voice input with the saved voiceprint and traces the score. It changes no input.
+  const speakerRecognitionEnabled = useLocalStorageManualReset<boolean>('settings/hearing/speaker-recognition-enabled', false, persistenceOptions)
   // An empty provider uses the chat model of the consciousness module.
   const rephraseProvider = useLocalStorageManualReset('settings/hearing/rephrase-provider', '', persistenceOptions)
   const rephraseModel = useLocalStorageManualReset('settings/hearing/rephrase-model', '', persistenceOptions)
@@ -384,7 +396,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
   }
 
   const configured = computed(() => {
-    if (!activeTranscriptionProvider.value)
+    if (!enabled.value || !activeTranscriptionProvider.value)
       return false
 
     // Web Speech API doesn't strictly need a model selected (it has a default)
@@ -404,6 +416,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
   })
 
   function resetState() {
+    enabled.reset()
     activeTranscriptionProvider.reset()
     activeTranscriptionModel.reset()
     activeCustomModelName.reset()
@@ -414,8 +427,20 @@ export const useHearingStore = defineStore('hearing-store', () => {
     confidenceThreshold.reset()
     rephraseEnabled.reset()
     endJudgeEnabled.reset()
+    speakerRecognitionEnabled.reset()
     rephraseProvider.reset()
     rephraseModel.reset()
+  }
+
+  /** Clears a selection whose provider settings were removed. Other hearing preferences stay unchanged. */
+  async function clearUnavailableProviderSelection() {
+    if (!activeTranscriptionProvider.value || providersStore.isProviderAvailableWithoutConfiguration(activeTranscriptionProvider.value))
+      return
+
+    activeTranscriptionProvider.value = ''
+    activeTranscriptionModel.value = ''
+    activeCustomModelName.value = ''
+    transcriptionModelSearchQuery.value = ''
   }
 
   async function transcription(
@@ -426,6 +451,8 @@ export const useHearingStore = defineStore('hearing-store', () => {
     format?: 'json' | 'verbose_json',
     options?: HearingTranscriptionInvokeOptions,
   ): Promise<HearingTranscriptionResult> {
+    const signal = AbortSignal.any([recognition.signal, ...(options?.signal ? [options.signal] : [])])
+    signal.throwIfAborted()
     const normalizedInput = (input instanceof File ? { file: input } : input ?? {}) as {
       file?: File
       fileName?: string
@@ -434,17 +461,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
     const features = providersStore.getTranscriptionFeatures(providerId)
     const streamExecutor = resolveStreamTranscriptionExecutor(providerId)
 
-    const sttStartedAt = performance.now()
-    trackVoiceInputStarted({ stt_provider_id: providerId })
-
-    function emitSucceeded(charCount: number, stream: boolean) {
-      trackSttSucceeded({
-        provider: providerId,
-        latency_ms: Math.round(performance.now() - sttStartedAt),
-        char_count: charCount,
-        stream,
-      })
-    }
+    // Only a failed transcription is a product event. A voice round is already counted by `message_round`.
     function emitFailed(err: unknown) {
       const errorCode = transcriptionAnalyticsErrorCode(err)
       trackSttFailed({ provider: providerId, error_code: errorCode })
@@ -458,7 +475,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
 
     try {
       if (features.supportsStreamOutput && streamExecutor) {
-        const request = { ...provider.transcription(model, options?.providerOptions), abortSignal: options?.signal }
+        const request = { ...provider.transcription(model, options?.providerOptions), abortSignal: signal }
 
         // Recorder files contain encoded media. Sherpaw accepts only the raw PCM16 stream from the live pipeline.
         if (providerId === SHERPAW_TRANSCRIPTION_PROVIDER_ID && normalizedInput.file && !normalizedInput.inputAudioStream) {
@@ -474,7 +491,6 @@ export const useHearingStore = defineStore('hearing-store', () => {
             ...request,
             inputAudioStream: normalizedInput.inputAudioStream,
           } as Parameters<typeof streamExecutor>[0])
-          emitSucceeded(0, true)
           return {
             mode: 'stream',
             ...streamResult,
@@ -486,7 +502,6 @@ export const useHearingStore = defineStore('hearing-store', () => {
             ...request,
             file: normalizedInput.file,
           } as Parameters<typeof streamExecutor>[0])
-          emitSucceeded(0, true)
           return {
             mode: 'stream',
             ...streamResult,
@@ -498,7 +513,6 @@ export const useHearingStore = defineStore('hearing-store', () => {
             ...request,
             file: normalizedInput.file,
           } as Parameters<typeof streamExecutor>[0])
-          emitSucceeded(0, true)
           return {
             mode: 'stream',
             ...streamResult,
@@ -518,17 +532,18 @@ export const useHearingStore = defineStore('hearing-store', () => {
       const useVerboseJson = !format && threshold > CONFIDENCE_THRESHOLD_DISABLED
       const response = await generateTranscription({
         ...provider.transcription(model, options?.providerOptions),
-        abortSignal: options?.signal,
+        abortSignal: signal,
         file: normalizedInput.file,
         fileName: resolveTranscriptionFileName(normalizedInput.file, normalizedInput.fileName),
         responseFormat: useVerboseJson ? 'verbose_json' : format,
       })
 
+      signal.throwIfAborted()
+
       if (useVerboseJson) {
         if (response.segments) {
           verboseJsonNotSupported.value = false
           const filteredText = filterTranscriptionByConfidence(response.segments, threshold)
-          emitSucceeded(filteredText.length, false)
           return {
             mode: 'generate',
             ...response,
@@ -542,7 +557,6 @@ export const useHearingStore = defineStore('hearing-store', () => {
       }
 
       const fallbackText = normalizeGeneratedTranscriptionText(response)
-      emitSucceeded(fallbackText.length, false)
       return {
         mode: 'generate',
         ...response,
@@ -556,7 +570,9 @@ export const useHearingStore = defineStore('hearing-store', () => {
   }
 
   /** Freezes Hearing settings for one request. The controller supplies media and owns cancellation. */
-  function createTranscriber(providerId = activeTranscriptionProvider.value): StreamingTranscriber {
+  function createTranscriber(providerId = activeTranscriptionProvider.value, trace: HearingTranscriberTraceOptions = {}): StreamingTranscriber {
+    const recognitionSignal = recognition.signal
+    recognitionSignal.throwIfAborted()
     const config = structuredClone(toRaw(providerStore.getProviderConfig(providerId) ?? {}))
     const model = resolveActiveTranscriptionModel(activeTranscriptionModel.value, config)
     const threshold = confidenceThreshold.value
@@ -569,7 +585,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
       upload = 'media-stream'
     else if (providerId === SHERPAW_TRANSCRIPTION_PROVIDER_ID || features.supportsStreamInput)
       upload = 'pcm'
-    return createHearingTranscriber(async (audio, signal) => {
+    const transcriber = createHearingTranscriber(async (audio, signal) => {
       const setupError = resolveActiveTranscriptionProviderError(providerId)
       if (setupError)
         throw new Error(setupError)
@@ -620,10 +636,17 @@ export const useHearingStore = defineStore('hearing-store', () => {
         await dispose()
         throw error
       }
-    })
+    }, trace)
+    return {
+      transcribe: request => transcriber.transcribe({
+        ...request,
+        signal: AbortSignal.any([request.signal, recognitionSignal]),
+      }),
+    }
   }
 
   return {
+    enabled,
     activeTranscriptionProvider,
     activeTranscriptionModel,
     availableProvidersMetadata,
@@ -635,6 +658,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
     confidenceThreshold,
     rephraseEnabled,
     endJudgeEnabled,
+    speakerRecognitionEnabled,
     rephraseProvider,
     rephraseModel,
     verboseJsonNotSupported,
@@ -649,10 +673,12 @@ export const useHearingStore = defineStore('hearing-store', () => {
     createTranscriber,
     loadModelsForProvider,
     getModelsForProvider,
+    clearUnavailableProviderSelection,
     resetState,
   }
 }, {
   synced: {
+    actions: ['clearUnavailableProviderSelection'],
     state: true,
   },
 })

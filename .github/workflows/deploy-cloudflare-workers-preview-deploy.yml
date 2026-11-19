@@ -30,6 +30,11 @@ jobs:
           path: preview-meta
           allow_forks: true
 
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '^26.12.1'
+          check-latest: true
+
       - name: Parse metadata
         id: meta
         run: |
@@ -109,6 +114,11 @@ jobs:
           path: preview-meta
           allow_forks: true
 
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '^26.12.1'
+          check-latest: true
+
       - name: Parse metadata
         id: meta
         run: |
@@ -145,7 +155,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/setup@v2
         with:
-          runtime: node@26.7.0
+          runtime: node@^26.12.1
           cache: true
           install: false
 

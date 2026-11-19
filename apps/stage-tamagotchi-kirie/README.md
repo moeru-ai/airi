@@ -5,97 +5,85 @@ Kirie supplies the WebView and IPC transport. AIRI owns application services and
 
 Use this application for Kirie desktop development.
 The Electron application remains supported and supplies the behavior reference.
-Production packaging remains deferred. Windows CEF shutdown still fails.
-
-## Documentation
-
-| Document | Owns |
-| --- | --- |
-| This README | Setup, commands, and environment failures |
-| [Migration status](MIGRATION.md) | The 29 capabilities, platform decisions, blockers, dependencies, and deferred work |
-| [Host architecture](docs/host-architecture.md) | Runtime boundaries, ownership, and implementation requirements |
-| [Platform verification](docs/verification.md) | Dated acceptance evidence and automation limits |
-| [Ablation review](docs/ablation-review.md) | Whole-framework decisions, compact experiment evidence, and review limits |
+[Host architecture](docs/host-architecture.md) describes runtime ownership and lifecycle.
 
 ## Setup and development
 
 Install [mise](https://mise.jdx.dev/getting-started.html).
 The root [.tool-versions](../../.tool-versions) selects Node.js, pnpm, and .NET.
 The local [mise.toml](mise.toml) selects Godot Mono.
-[StageTamagotchiKirie.csproj](StageTamagotchiKirie.csproj) requires .NET 10 and Godot.NET.Sdk 4.7.2.
+[package.json](package.json) and [StageTamagotchiKirie.csproj](StageTamagotchiKirie.csproj) own dependency versions.
 
-From the repository root, install the workspace tools and dependencies:
+From the repository root, install the tools and dependencies:
 
 ```sh
 mise install
 mise x -- pnpm install
 cd apps/stage-tamagotchi-kirie
 mise install
-```
-
-Run all remaining application commands from this directory.
-Dependency installation creates `node_modules/.gdignore` so Godot skips the dependency directory. Git ignores the entire directory.
-
-Install the dependencies from the Kirie core plugin:
-
-```sh
 mise x -- pnpm kirie doctor --fix plugin:core
+mise x -- pnpm kirie doctor --fix plugin:notifications
+mise x -- pnpm kirie doctor --fix plugin:tray
 ```
 
-The command installs the `0.10.0` addon, Godot CEF backend, and NuGet packages.
-The addon supplies `addons/kirie/`, including `KirieClient.cs`. Git ignores this installed dependency.
-After a Kirie version change, run the command again.
+Run the remaining application commands from this directory.
+The Core plugin installs Kirie, Godot CEF, and the core NuGet packages.
+The Notifications plugin installs its addon, NuGet host, and notification scheduler.
+The Tray plugin installs its addon and the `GdKirie.Tray` NuGet package.
+Git ignores these installed dependencies. Dependency installation creates `node_modules/.gdignore` so Godot skips that directory.
+After a dependency version change, repeat the corresponding plugin installation command.
 
-Inspect the installed environment:
-
-```sh
-mise x -- pnpm kirie doctor
-```
-
-The doctor checks the configured core plugin and its .NET packages.
-Missing Android SDK or export templates alone do not block desktop development.
-Exports require matching Godot export templates. Android work also requires the Android SDK.
-
-If CEF is absent or stale, install the configured backend:
-
-```sh
-mise x -- pnpm kirie doctor --fix plugin:core
-```
-
-The [installer](https://github.com/moeru-ai/godot-kirie/blob/v0.10.0/packages/cli/src/commands/doctor/addons.ts) verifies the Godot CEF archive and records its checksum under `.godot/kirie/`.
-The [doctor](https://github.com/moeru-ai/godot-kirie/blob/v0.10.0/packages/cli/src/commands/doctor/index.ts) checks the configured plugin dependencies and their versions.
-It does not hash installed native files or inspect macOS signatures.
-
-After a CEF version change, repeat installation.
-Before acceptance, make sure that the installed artifact matches the release.
-On macOS, also make sure that the framework passes strict signature verification.
-If installation or signatures fail, record the exact upstream failure before a dependency workaround.
-
-Build C# before the first development session:
+Build C# and start development:
 
 ```sh
 mise x -- dotnet build
 mise x -- pnpm kirie dev
 ```
 
-`kirie dev` starts Vite, Godot, and CEF renderers.
-The [dev command](https://github.com/moeru-ai/godot-kirie/blob/v0.10.0/packages/cli/src/commands/dev.ts) reuses the last C# build.
+`kirie dev` starts Vite, Godot, and the CEF renderers.
+The [dev command](https://github.com/gd-kirie/gd-kirie/blob/v0.14.2/packages/cli/src/commands/dev.ts) checks required addons and reuses the last C# build.
 After a C# change, repeat both commands.
 Spotlight opens through its global shortcut and has no in-app entry point.
 
+## Scope and limitations
+
+The desktop host supplies native windows, Spotlight, the system tray, permissions, authentication, desktop operations, and shared browser storage.
+Model-specific rendering, assets, and media for Live2D, VRM, and MMD require separate verification.
+
+The following work remains deferred:
+
+| Area | Missing responsibility |
+| --- | --- |
+| Server channel | Server configuration, QR payload, listener, and WebSocket lifecycle |
+| Plugin host | Discovery, workers, directory import, and extension lifecycle |
+| Artistry | Credentials, provider jobs, downloads, and Widget updates |
+| MCP | Configuration and stdio process lifecycle |
+| Packaging and updates | Exports, signatures, installation, update manifests, and relaunch |
+| Auxiliary windows | Inlay, Widgets list, Caption, and BeatSync. Their tray items stay disabled. |
+
+The Node services remain outside the Kirie bootstrap until AIRI supplies their runtime and lifecycle.
+The workspace Node.js command is not a production sidecar.
+The plugin inspector reports unavailable until its host operations exist.
+
+System notification clicks and Windows behavior require native verification with the selected dependency versions.
+Physical input, multiple displays, mixed DPI, and authentication require separate platform checks.
+Linux system notifications remain outside the supported scope.
+The Linux tray requires a StatusNotifierItem host. Without a tray, the application starts and logs an error.
+
 ## Checks and build
 
-From this application directory, run:
+From the application directory, run:
 
 ```sh
 mise x -- pnpm typecheck
 mise x -- pnpm test:unit
 mise x -- dotnet run --project tests/StageTamagotchiKirie.Tests
+mise x -- dotnet format --verify-no-changes
 mise x -- pnpm build
 ```
 
-`pnpm build` runs `kirie build` for Web assets and C#.
-It does not export or package the application.
+`pnpm build` builds Web assets and C#. It does not export or package the application.
+Root test commands do not run the application's frontend suite or C# harness.
 
 From the repository root, run:
 
@@ -104,16 +92,17 @@ mise x -- pnpm typecheck
 mise x -- pnpm lint
 ```
 
-Build success does not establish native acceptance.
-[Verification](docs/verification.md) and [ablation evidence](docs/ablation-review.md) record historical command results.
-
 ## Environment failures
 
 | Symptom | Action |
 | --- | --- |
 | Godot is absent or a C# change has no effect | Use the application directory and rebuild C# before development. |
-| CEF is absent or its marker is stale | Run the CEF installation command. |
-| CEF signature verification fails | Record the exact failure. A matching marker can cause the installer to skip an invalid framework. |
+| An addon or NuGet package is absent or stale | Repeat its plugin installation command, then run `mise x -- pnpm kirie doctor`. |
+| Doctor reports a missing Android SDK or export template | Desktop development does not require Android tools or export templates. Exports require matching templates. |
+| CEF signature checks fail | Record the upstream failure. The installer marker does not establish that installed files or signatures remain valid. |
 | `Accelerated OSR unavailable` | Make sure that desktop uses Forward+ with Metal, Direct3D 12, or Vulkan. |
-| NuGet reports a missing pinned release | Compare feed metadata with the [dependency evidence](MIGRATION.md#dependency-baseline). |
-| Native or IPC behavior fails | Find its capability and accepted scope in [MIGRATION.md](MIGRATION.md). |
+| NuGet reports a missing pinned release | Compare official feed metadata with the package reference before a dependency workaround. |
+
+The [installer](https://github.com/gd-kirie/gd-kirie/blob/v0.14.2/packages/cli/src/commands/doctor/addons.ts) checks archive digests and records them under `.godot/kirie/`.
+The [doctor](https://github.com/gd-kirie/gd-kirie/blob/v0.14.2/packages/cli/src/commands/doctor/index.ts) checks configured dependencies and versions.
+It does not hash installed native files or inspect macOS signatures.

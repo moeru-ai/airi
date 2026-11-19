@@ -10,6 +10,7 @@ import type {
   ProviderCatalogTtsVoiceLanguage,
 } from '../../../schemas/provider-catalog'
 
+import { createBadRequestError } from '@proj-airi/http-error-shared'
 import { and, asc, eq, inArray } from 'drizzle-orm'
 
 import {
@@ -18,7 +19,6 @@ import {
   providerCatalogTtsModels,
   providerCatalogTtsVoices,
 } from '../../../schemas/provider-catalog'
-import { createBadRequestError } from '../../../utils/error'
 
 const DEFAULT_ALIAS_ID = 'auto'
 

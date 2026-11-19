@@ -3,6 +3,7 @@ import type { Tool } from '@xsai/shared-chat'
 import type { useWakeWordsStore } from '../stores/wake-words'
 
 import { describe, expect, it, vi } from 'vitest'
+import { reactive } from 'vue'
 
 import { kwsModel } from '../libs/voice/kws-model'
 import { resolveWakeWords, validateWakeWords } from '../libs/voice/wake-words'
@@ -41,6 +42,25 @@ describe('configure_wake_words tool', () => {
     })
   })
 
+  // ROOT CAUSE:
+  //
+  // A conflict returned `tokens` from the reactive card store as a Vue proxy.
+  // xsAI calls `structuredClone(steps)` before the next request, so the turn failed.
+  //
+  // We fixed this by copying the tokens into a plain array.
+  it('returns conflict data that the next model request can clone', async () => {
+    const cards = reactive([{ characterId: 'other', words: [{ text: 'Alice', modelId: kwsModel.id, pronunciations: [['AE1', 'L', 'IH0', 'S']] }] }])
+    const setWords = vi.fn<SetWords>(async (characterId, value, model) => {
+      const { conflicts } = resolveWakeWords([...cards, { characterId, words: validateWakeWords(value, model) }], {})
+      return { status: 'saved' as const, conflicts }
+    })
+    const agentTool = await createWakeWordTool({ characterId: 'turn-character', setWords })
+
+    const result = await agentTool.execute({ words: [{ text: 'Alice', pronunciations: [['AE1', 'L', 'IH0', 'S']] }] }, toolOptions)
+
+    expect(structuredClone(result)).toEqual(result)
+  })
+
   it('rejects tokens outside the model vocabulary without saving', async () => {
     const setWords = createSetWords()
     const agentTool = await createWakeWordTool({ characterId: 'turn-character', setWords })
@@ -69,6 +89,16 @@ describe('configure_wake_words tool', () => {
       type: 'object',
       required: ['words'],
       properties: { words: { items: { required: expect.arrayContaining(['text', 'pronunciations']) } } },
+    })
+  })
+
+  // OpenAI-compatible providers with strict schemas rejected the whole request with 400 when a nested object allowed other keys.
+  it('closes every object in the parameter schema', async () => {
+    const agentTool = await createWakeWordTool({ characterId: 'turn-character', setWords: createSetWords() })
+
+    expect(agentTool.function.parameters).toMatchObject({
+      additionalProperties: false,
+      properties: { words: { items: { additionalProperties: false } } },
     })
   })
 })

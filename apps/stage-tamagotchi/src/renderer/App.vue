@@ -7,12 +7,14 @@ import { themeColorFromValue, useThemeColor } from '@proj-airi/stage-layouts/com
 import { artistrySyncConfig } from '@proj-airi/stage-shared'
 import { ToasterRoot } from '@proj-airi/stage-ui/components'
 import { updateModelAssetStatus, useInferencePreload } from '@proj-airi/stage-ui/composables'
+import { copyArrayBuffer } from '@proj-airi/stage-ui/libs/data-transfer'
 import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
 import { initializeAnalytics } from '@proj-airi/stage-ui/libs/product-signals'
 import { isSherpawModelBundled, setSherpawModelAssetHost } from '@proj-airi/stage-ui/libs/providers/providers/sherpaw/model-assets'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
+import { useDevicePermissionsStore } from '@proj-airi/stage-ui/stores/device-permissions'
 import { usePluginHostInspectorStore } from '@proj-airi/stage-ui/stores/devtools/plugin-host-debug'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
@@ -36,6 +38,7 @@ import { RouterView, useRoute, useRouter } from 'vue-router'
 import { toast, Toaster } from 'vue-sonner'
 
 import ResizeHandler from './components/ResizeHandler.vue'
+import SettingsWindowFrame from './components/Window/settings-window-frame.vue'
 
 import {
   electronGetServerChannelConfig,
@@ -45,7 +48,7 @@ import {
   i18nGetLocale,
   i18nSetLocale,
 } from '../shared/eventa'
-import { electronModelAssetCancel, electronModelAssetEnsure, electronModelAssetRemove, electronModelAssetsClear, electronModelAssetsList, electronModelAssetStatusChanged } from '../shared/eventa/model-assets'
+import { electronModelAssetCancel, electronModelAssetEnsure, electronModelAssetRemove, electronModelAssetRestore, electronModelAssetsClear, electronModelAssetsList, electronModelAssetStatusChanged } from '../shared/eventa/model-assets'
 import {
   electronPluginUpdateCapability,
   pluginProtocolListProviders,
@@ -65,9 +68,11 @@ import {
 } from '../shared/eventa/plugin/host'
 import { electronPluginToolsChanged } from '../shared/eventa/plugin/tools'
 import { initializeElectronAuthCallbackBridge } from './bridges/electron-auth-callback'
-import { initializeIOTraceRecordingBridge } from './bridges/io-trace-recording'
+import { initializeIOTraceHubBridge } from './bridges/io-trace-hub'
 import { initializeStageThreeRuntimeTraceBridge } from './bridges/stage-three-runtime-trace'
+import { useDevicePermissions } from './composables/use-device-permissions'
 import { useLanguage } from './composables/use-language'
+import { useFullscreenStore } from './stores/fullscreen'
 import { useServerChannelSettingsStore } from './stores/settings/server-channel'
 import { useStageWindowLifecycleStore } from './stores/stage-window-lifecycle'
 import {
@@ -84,10 +89,14 @@ const { language, themeColorsHue, themeColorsHueDynamic } = storeToRefs(settings
 const router = useRouter()
 const route = useRoute()
 const context = useElectronEventaContext()
+// Each window registers the same list. The stage window decides onboarding at startup, and the
+// onboarding and settings windows show the permissions.
+useDevicePermissionsStore().register(useDevicePermissions())
 const listModelAssets = useElectronEventaInvoke(electronModelAssetsList)
 const ensureModelAsset = useElectronEventaInvoke(electronModelAssetEnsure)
 const cancelModelAsset = useElectronEventaInvoke(electronModelAssetCancel)
 const removeModelAsset = useElectronEventaInvoke(electronModelAssetRemove)
+const restoreModelAsset = useElectronEventaInvoke(electronModelAssetRestore)
 const clearModelAssets = useElectronEventaInvoke(electronModelAssetsClear)
 const stopModelAssetStatus = context.value.on(electronModelAssetStatusChanged, (event) => {
   if (event.body && !isSherpawModelBundled(event.body.id))
@@ -102,6 +111,11 @@ setSherpawModelAssetHost({
   ensure: ensureModelAsset,
   cancel: cancelModelAsset,
   remove: removeModelAsset,
+  restore: (id, revision, files) => restoreModelAsset({
+    id,
+    revision,
+    files: Object.fromEntries(Object.entries(files).map(([name, bytes]) => [name, copyArrayBuffer(bytes)] as const)),
+  }),
   clear: clearModelAssets,
 })
 const getMainLocale = useElectronEventaInvoke(i18nGetLocale)
@@ -115,12 +129,17 @@ const mcpToolsStore = useTamagotchiMcpToolsStore()
 const pluginToolsStore = useTamagotchiPluginToolsStore()
 const syncedPinia = usePiniaSynced()
 const isSpotlightWindow = initialRoutePath === '/spotlight'
-// The floating chat resizes from its own grip, which keeps the corner beside the character in place.
+// The floating chat resizes from its own edges, which keep the edges beside the character in place.
 const isFloatingChatWindow = initialRoutePath === '/chat-floating'
-const isSettingsWindow = initialRoutePath === '/settings' || initialRoutePath.startsWith('/settings/')
-const stopIOTraceRecordingBridge = initialRoutePath === '/'
-  ? initializeIOTraceRecordingBridge(context.value)
-  : undefined
+// The app menu window covers the work area, so its edges are the edges of the screen.
+const isControlsMenuWindow = initialRoutePath === '/controls-menu'
+// The fullscreen mode places the main window itself, so its edges offer no resize.
+const { active: mainWindowFullscreen } = storeToRefs(useFullscreenStore())
+// A window that hosts the fullscreen mode can load on a settings route, after a reload for example. So the windows
+// are told apart by the host that the main process names, not by the first route alone.
+const isSettingsWindow = !windowContext.fullscreenHost && (initialRoutePath === '/settings' || initialRoutePath.startsWith('/settings/'))
+// Every window sends its spans to the hub, so the IO tracer and the trace files have the spans of every window.
+const stopIOTraceHubBridge = initializeIOTraceHubBridge(context.value)
 
 async function refreshPluginRuntimeTools() {
   try {
@@ -205,7 +224,7 @@ function createFullStageRuntime() {
   const reportPluginCapability = useElectronEventaInvoke(electronPluginUpdateCapability)
   const getGodotStageStatus = useElectronEventaInvoke(electronGodotStageGetStatus)
   const syncArtistryConfig = useElectronEventaInvoke(artistrySyncConfig)
-  const usesGodotStage = initialRoutePath === '/' || initialRoutePath.startsWith('/settings')
+  const usesGodotStage = !!windowContext.fullscreenHost || initialRoutePath.startsWith('/settings')
   const isWidgetsWindow = initialRoutePath === '/widgets'
 
   function syncGodotStageRenderer(state: { state: 'stopped' | 'starting' | 'running' | 'stopping' | 'error' }) {
@@ -325,7 +344,7 @@ function createFullStageRuntime() {
       }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
       contextBridgeStore.initialize()
       if (!isWidgetsWindow) {
-        characterOrchestratorStore.initialize()
+        characterOrchestratorStore.initialize(syncedPinia)
       }
 
       defineInvokeHandler(context.value, pluginProtocolListProviders, async () => listProvidersForPluginHost())
@@ -345,6 +364,7 @@ function createFullStageRuntime() {
     dispose() {
       stopAuthenticatedSetup?.()
       stopLoggedOutSetup?.()
+      characterOrchestratorStore.dispose()
       contextBridgeStore.dispose()
     },
   }
@@ -352,6 +372,11 @@ function createFullStageRuntime() {
 
 const fullStageRuntime = windowContext.stageRuntime === 'full'
   ? createFullStageRuntime()
+  : null
+// A minimal chat window shows the live reply of the turn that the main window runs.
+// The full runtime starts the whole context bridge, which includes this view.
+const chatStreamView = !fullStageRuntime && (initialRoutePath === '/chat' || isFloatingChatWindow)
+  ? useContextBridgeStore()
   : null
 
 const { restore: restoreLocale } = useLanguage(language, getMainLocale, setLocale)
@@ -393,6 +418,7 @@ onMounted(async () => {
   await chatStore.initialize(syncedPinia)
 
   await fullStageRuntime?.initialize()
+  await chatStreamView?.initializeStreamView()
 })
 
 watch(themeColorsHue, () => {
@@ -404,11 +430,12 @@ watch(themeColorsHueDynamic, () => {
 }, { immediate: true })
 
 onUnmounted(() => {
-  stopIOTraceRecordingBridge?.()
+  stopIOTraceHubBridge()
   stopModelAssetStatus()
   stopLeadershipListener?.()
   chatStore.dispose()
   fullStageRuntime?.dispose()
+  void chatStreamView?.dispose()
 })
 </script>
 
@@ -416,8 +443,10 @@ onUnmounted(() => {
   <ToasterRoot @close="id => toast.dismiss(id)">
     <Toaster />
   </ToasterRoot>
-  <ResizeHandler v-if="!isSpotlightWindow && !isFloatingChatWindow" />
-  <RouterView />
+  <ResizeHandler v-if="!isSpotlightWindow && !isFloatingChatWindow && !isControlsMenuWindow && !mainWindowFullscreen" />
+  <SettingsWindowFrame :enabled="!windowContext.fullscreenHost">
+    <RouterView />
+  </SettingsWindowFrame>
 </template>
 
 <style>

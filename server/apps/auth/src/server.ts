@@ -13,17 +13,17 @@ import Redis from 'ioredis'
 import { initLogger, LoggerFormat, LoggerLevel, setGlobalHookPostLog, useLogger } from '@guiiai/logg'
 import { serve } from '@hono/node-server'
 import { withRetry } from '@moeru/std'
+import { createErrorHandler } from '@proj-airi/http-error-shared'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
 import { logger as honoLogger } from 'hono/logger'
-import { createContainer, createLoggLogger, lifecycle, provide, resolve, start, stop } from 'injeca'
+import { createContainer, createLoggLogger, provide, resolve, start, stop } from 'injeca'
 
 import { createAuth, getTrustedClientSeedSummaries, seedTrustedClients } from './auth'
 import { createAuthDrizzle } from './db'
 import { createEmailService } from './email'
 import { parseAuthEnv } from './env'
-import { ApiError, createInternalError } from './error'
 import { getTrustedOrigin } from './origin'
 import { emitOtelLog, initAuthOtel } from './otel'
 import { createResourceApi } from './resource-api'
@@ -85,28 +85,7 @@ export async function buildAuthApp(deps: AuthAppDeps) {
     )
     .use(honoLogger())
     .use('*', bodyLimit({ maxSize: 1024 * 1024 }))
-    .onError((err, c) => {
-      if (err instanceof ApiError) {
-        const logFields = { details: err.details, cause: (err as { cause?: unknown }).cause }
-        if (err.statusCode >= 500)
-          logger.withError(err).withFields(logFields).error('Auth API error occurred')
-        else if (err.statusCode !== 401)
-          logger.withError(err).withFields(logFields).warn('Auth API error occurred')
-
-        return c.json({
-          error: err.errorCode,
-          message: err.message,
-          details: err.details,
-        }, err.statusCode)
-      }
-
-      logger.withError(err).error('Unhandled auth error')
-      const internalError = createInternalError()
-      return c.json({
-        error: internalError.errorCode,
-        message: internalError.message,
-      }, internalError.statusCode)
-    })
+    .onError(createErrorHandler(logger))
     .get('/livez', c => c.json({ status: 'live' }))
     .get('/readyz', async (c) => {
       const [dbResult, redisResult] = await Promise.allSettled([
@@ -149,7 +128,7 @@ export type AuthAppType = Awaited<ReturnType<typeof buildAuthApp>>['app']
 export async function createAuthServer() {
   initLogger(LoggerLevel.Debug, LoggerFormat.Pretty)
   const logger = useLogger('auth-server').useGlobalConfig()
-  const container = createContainer({ logger: createLoggLogger(useLogger('injeca').useGlobalConfig()) })
+  const container = createContainer({ logger: createLoggLogger(useLogger('injeca').useGlobalConfig()), logging: true })
 
   setGlobalHookPostLog((log) => {
     emitOtelLog(log.level, log.context, log.message, log.fields as Record<string, string | number | boolean>)
@@ -161,8 +140,8 @@ export async function createAuthServer() {
     build: ({ dependsOn }) => initAuthOtel(dependsOn.env),
   })
   const db = provide(container, 'datastore:db', {
-    dependsOn: { env, lifecycle },
-    build: async ({ dependsOn }) => {
+    dependsOn: { env },
+    build: async ({ dependsOn, on }) => {
       const connection = await initializeExternalDependency('Database', logger, async (attempt) => {
         const candidate = createAuthDrizzle(dependsOn.env)
         try {
@@ -177,13 +156,13 @@ export async function createAuthServer() {
           throw error
         }
       })
-      dependsOn.lifecycle.appHooks.onStop(() => connection.pool.end())
+      on('stop', () => connection.pool.end())
       return connection.db
     },
   })
   const redis = provide(container, 'datastore:redis', {
-    dependsOn: { env, lifecycle },
-    build: async ({ dependsOn }) => {
+    dependsOn: { env },
+    build: async ({ dependsOn, on }) => {
       const instance = await initializeExternalDependency('Redis', logger, async (attempt) => {
         const candidate = new Redis(dependsOn.env.REDIS_URL, { lazyConnect: true })
         try {
@@ -196,7 +175,7 @@ export async function createAuthServer() {
           throw error
         }
       })
-      dependsOn.lifecycle.appHooks.onStop(async () => {
+      on('stop', async () => {
         await instance.quit()
       })
       return instance

@@ -5,7 +5,7 @@ export type WriteResult
   = { readonly status: 'applied' }
     | { readonly status: 'rejected', readonly reason: 'stale' | 'closed' | 'conflict' | 'denied' }
 
-/** Edits refer to raw tokens from the task snapshot. The runtime supplies their dependency versions. */
+/** Edits refer to raw tokens of the document that the author read. `expectedText` rejects an edit of changed text. */
 export interface TranscriptEdit {
   readonly segmentId: string
   readonly range: { readonly kind: 'tokens', readonly start: number, readonly end: number } | { readonly kind: 'segment' }
@@ -41,7 +41,7 @@ export interface TranscriptSnapshot {
   readonly segments: readonly TranscriptSegment[]
 }
 
-/** Patch history retains rejected dependencies and removed plugin contributions for inspection. */
+/** Patch history keeps patches that a later provider update deactivated, for inspection. */
 export interface TranscriptPatch {
   readonly id: string
   readonly author: string
@@ -54,13 +54,13 @@ export interface TranscriptPatch {
 interface AppliedPatch {
   readonly record: Omit<TranscriptPatch, 'active'>
   readonly spans: readonly { segmentId: string, revision: number, start: number, end: number, expectedText: string, replacement: string }[]
-  readonly current: () => boolean
   active: boolean
 }
 
 /** Owns provider revisions and raw history. A completed transcript cannot reopen. */
 export class Transcript {
   private current: TranscriptSnapshot = Object.freeze({ revision: 0, text: '', segments: Object.freeze([]) })
+
   private readonly updates: TranscriptSnapshot[] = []
   private complete = false
   private revision = 0
@@ -78,19 +78,9 @@ export class Transcript {
     return this.complete
   }
 
+  /** Raw text with every active patch applied. `revision` counts raw updates and patch changes. */
   get corrected(): TranscriptSnapshot {
-    return this.select('corrected')
-  }
-
-  get patchHistory(): readonly TranscriptPatch[] {
-    return this.patches.map(patch => Object.freeze({ ...patch.record, active: patch.active }))
-  }
-
-  select(view: 'raw' | 'corrected', authors?: readonly string[]): TranscriptSnapshot {
-    if (view === 'raw')
-      return this.raw
-
-    const patches = this.patches.filter(patch => patch.active && (patch.record.manual || !authors || authors.includes(patch.record.author)))
+    const patches = this.patches.filter(patch => patch.active)
     const segments = this.raw.segments.map((segment) => {
       const spans = patches.flatMap(patch => patch.spans.filter(span => span.segmentId === segment.id)).sort((a, b) => b.start - a.start)
       let text = segment.text
@@ -100,18 +90,18 @@ export class Transcript {
       return Object.freeze({ ...segment, text })
     })
 
-    return Object.freeze({ revision: this.revision, text: segments.map(segment => segment.text).join(''), segments: Object.freeze(segments) })
+    return Object.freeze({
+      revision: this.revision,
+      text: segments.map(segment => segment.text).join(''),
+      segments: Object.freeze(segments),
+    })
   }
 
-  /** Selected patch identities preserve freshness even when a correction restores an earlier text value. */
-  patchVersions(segmentIds: readonly string[], authors: readonly string[]): readonly string[] {
-    return this.patches.filter(patch => patch.active && (patch.record.manual || authors.includes(patch.record.author)) && patch.spans.some(span => segmentIds.includes(span.segmentId))).map(patch => patch.record.id)
+  get patchHistory(): readonly TranscriptPatch[] {
+    return this.patches.map(patch => Object.freeze({ ...patch.record, active: patch.active }))
   }
 
-  patch(author: string, proposal: { edits: readonly TranscriptEdit[], evidenceIds: readonly string[] }, current: () => boolean, manual = false): WriteResult {
-    if (!current())
-      return { status: 'rejected', reason: 'stale' }
-
+  patch(author: string, proposal: { edits: readonly TranscriptEdit[], evidenceIds: readonly string[] }, manual = false): WriteResult {
     const spans: AppliedPatch['spans'][number][] = []
     for (const edit of proposal.edits) {
       if (edit.range.kind === 'tokens' && (!Number.isSafeInteger(edit.range.start) || !Number.isSafeInteger(edit.range.end) || edit.range.start < 0 || edit.range.end <= edit.range.start))
@@ -136,7 +126,7 @@ export class Transcript {
     if (!spans.length)
       return { status: 'rejected', reason: 'conflict' }
 
-    this.patches.push({ record: Object.freeze({ id: nanoid(), author, manual, edits: Object.freeze(proposal.edits.map(edit => Object.freeze({ ...edit, range: Object.freeze({ ...edit.range }) }))), evidenceIds: Object.freeze([...proposal.evidenceIds]) }), spans, current, active: true })
+    this.patches.push({ record: Object.freeze({ id: nanoid(), author, manual, edits: Object.freeze(proposal.edits.map(edit => Object.freeze({ ...edit, range: Object.freeze({ ...edit.range }) }))), evidenceIds: Object.freeze([...proposal.evidenceIds]) }), spans, active: true })
     this.revision += 1
 
     return { status: 'applied' }
@@ -156,7 +146,7 @@ export class Transcript {
           ? segment.text.slice(span.start, span.end) !== span.expectedText
           : segment.revision !== span.revision
       })
-      if (patch.active && (!patch.current() || targetChanged)) {
+      if (patch.active && targetChanged) {
         patch.active = false
         changed = true
       }
@@ -166,15 +156,6 @@ export class Transcript {
       this.revision += 1
 
     return changed
-  }
-
-  removeAuthor(author: string) {
-    for (const patch of this.patches) {
-      if (patch.active && !patch.record.manual && patch.record.author === author) {
-        patch.active = false
-        this.revision += 1
-      }
-    }
   }
 
   /** Triggering workflow: provider output → SpeechInputAttempt → raw document update or completion. */

@@ -13,7 +13,7 @@ import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import { normalizeActPayload, Playback } from '@proj-airi/pipelines-audio'
 import { presenceBubbleIdle, presenceBubbleThinking } from '@proj-airi/stage-shared'
-import { defaultLive2DMotionControlDynamics, Live2DScene, useLive2DMotionControl, useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
+import { createLive2D, Live2DScene, useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
 import { MMDScene } from '@proj-airi/stage-ui-mmd'
 import { SpineScene } from '@proj-airi/stage-ui-spine'
 import { TachieScene } from '@proj-airi/stage-ui-tachie'
@@ -28,21 +28,27 @@ import { useBroadcastChannel, useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onUnmounted, ref, shallowRef, watch } from 'vue'
 
+import StageAvatarModelMissing from './stage-avatar-model-missing.vue'
 import StageRenderError from './stage-render-error.vue'
 
 // import { useDuckDb } from '../../composables/use-duck-db'
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
-import { live2dMotionMagicProfiles, useLive2DMotionMagic, useLive2DMotionMagicSettings } from '../../features/motions/live2d'
+import { useLive2DStageMotionMagic } from '../../features/motions/live2d/use-live2d-stage-motion-magic'
+import { createAvatarTouchAggregator } from '../../libs/avatar-touch/notify'
+import { syncedRoles, usePiniaSynced } from '../../libs/pinia/synced-context'
 import { getSpeechBusContext, speechOutputGetPlaybackState, speechOutputPlaybackStateChangedEvent } from '../../services/speech/bus'
 import { useLlmStreamingControlStore } from '../../stores/ai/chat-llm/streaming-control'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useBackgroundStore } from '../../stores/background'
+import { useAvatarTouchStore } from '../../stores/character/avatar-touch'
 import { useChatStore } from '../../stores/chat'
 import { useChatSessionStore } from '../../stores/chat/session-store'
+import { useSharedLive2DExpressionPreview } from '../../stores/live2d'
 import { useAiriCardStore } from '../../stores/modules/airi-card'
 import { useSpeechStore } from '../../stores/modules/speech'
 import { useSettingsPresenceBubble } from '../../stores/presence-bubble'
 import { useSettings } from '../../stores/settings'
+import { useSettingsStageModel } from '../../stores/settings/stage-model'
 import { useSpeechOutputControlStore } from '../../stores/speech-output-control'
 import { useVoiceStore } from '../../stores/voice'
 
@@ -55,7 +61,13 @@ const props = withDefaults(defineProps<{
   paused: false,
 })
 
-const emit = defineEmits<{ error: [error: Error] }>()
+const emit = defineEmits<{
+  error: [error: Error]
+  /** The stage dropped a render error and starts a new load. */
+  reset: []
+  /** The active card has no model. The app opens the model settings. */
+  selectAvatarModel: []
+}>()
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
 
 // NOTICE: disabled together with the DuckDB start on mount below.
@@ -84,49 +96,9 @@ const {
   live2dMaxFps,
   live2dRenderScale,
 } = storeToRefs(useSettingsLive2d())
-const live2dMotionControl = useLive2DMotionControl()
-const { exclusiveOwnerId: live2dMotionControlOwnerId } = storeToRefs(live2dMotionControl)
-const {
-  forceViewTarget: live2dMagicForceViewTarget,
-  profileId: live2dMagicProfileId,
-  skipMouthOpen: live2dMagicSkipMouthOpen,
-} = storeToRefs(useLive2DMotionMagicSettings())
-const live2dMagicMotion = useLive2DMotionMagic({
-  dataset: () => live2dMotionMagicProfiles[live2dMagicProfileId.value].dataset,
-  forceViewTarget: live2dMagicForceViewTarget,
-  skipMouthOpen: live2dMagicSkipMouthOpen,
-  disabled: () => live2dMotionControlOwnerId.value !== null,
-  publishPose: pose => live2dMotionControl.setPose('stage:live2d-motion-magic', pose, defaultLive2DMotionControlDynamics),
-  releasePose: () => live2dMotionControl.release('stage:live2d-motion-magic'),
+useLive2DStageMotionMagic({
+  active: () => stageModelRenderer.value === 'live2d' && live2dMotionDriver.value === 'magic' && !props.paused,
 })
-let live2dMagicActivationRequest = 0
-
-watch(
-  [stageModelRenderer, live2dMotionDriver, live2dMagicProfileId, () => props.paused, live2dMotionControlOwnerId],
-  async ([renderer, driver, , paused, controlOwnerId]) => {
-    const request = ++live2dMagicActivationRequest
-    if (renderer !== 'live2d' || driver !== 'magic' || paused || controlOwnerId !== null) {
-      live2dMagicMotion.stop()
-      return
-    }
-
-    if (live2dMagicMotion.status.value === 'idle')
-      await live2dMagicMotion.initialize()
-
-    if (
-      request !== live2dMagicActivationRequest
-      || stageModelRenderer.value !== 'live2d'
-      || live2dMotionDriver.value !== 'magic'
-      || props.paused
-      || live2dMotionControlOwnerId.value !== null
-    ) {
-      return
-    }
-
-    live2dMagicMotion.start()
-  },
-  { immediate: true },
-)
 const {
   spinePremultipliedAlpha,
   spineDefaultMixDuration,
@@ -148,9 +120,8 @@ watch([nowSpeaking, speechVoicing], ([speaking, voicing]) => {
   getSpeechBusContext().emit(speechOutputPlaybackStateChangedEvent, { speaking, voicing })
 }, { immediate: true })
 const { audioContext } = useAudioContext()
-const currentAudioSource = ref<AudioBufferSourceNode>()
 const speechOutputControlStore = useSpeechOutputControlStore()
-const { speechMuted } = storeToRefs(speechOutputControlStore)
+const { speechMuted, speechVolume } = storeToRefs(speechOutputControlStore)
 const lastVrmInteractionAt = new Map<VrmInteractionTarget, number>()
 const VRM_INTERACTION_COOLDOWN_MS = 450
 
@@ -172,6 +143,8 @@ function onVRMInteract(target: VrmInteractionTarget) {
 }
 
 const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatStore()
+// This context registers the hooks that speak a reply, so chat actions must run here.
+const releaseSpeechPlayerRole = usePiniaSynced().addRole(syncedRoles.speechPlayer)
 const chatHookCleanups: Array<() => void> = []
 // WORKAROUND: clear previous handlers on unmount to avoid duplicate calls when this component remounts.
 //             We keep per-hook disposers instead of wiping the global chat hooks to play nicely with
@@ -192,15 +165,22 @@ function reportStageRenderError(error: unknown) {
   handleStageRenderError(new Error(errorMessageFrom(error) ?? 'Failed to render stage'))
 }
 
-async function retryStageRenderer() {
+// Any reset clears the error the parent mirrors, so the loading surface can return
+// while the new load runs. Every path that drops `stageRenderError` reports it here.
+function clearStageRenderError() {
   stageRenderError.value = undefined
+  emit('reset')
+}
+
+async function retryStageRenderer() {
+  clearStageRenderError()
   showStage.value = false
   await nextTick()
   showStage.value = true
 }
 
 watch([stageModelRenderer, stageModelSelected, stageModelSelectedUrl], () => {
-  stageRenderError.value = undefined
+  clearStageRenderError()
 })
 
 // Caption + Presentation broadcast channels
@@ -225,9 +205,11 @@ const lipSyncStarted = ref(false)
 const lipSyncLoopId = ref<number>()
 const live2dLipSync = ref<Live2DLipSync>()
 const live2dLipSyncOptions: Live2DLipSyncOptions = { mouthUpdateIntervalMs: 50, mouthLerpWindowMs: 50 }
+let playingCount = 0
 
 function resetAssistantSpeechSurface(source: string) {
-  nowSpeaking.value = false
+  if (playingCount === 0)
+    nowSpeaking.value = false
   mouthOpenSize.value = 0
   assistantCaption.value = ''
 
@@ -246,6 +228,17 @@ function resetAssistantSpeechSurface(source: string) {
   }
 }
 
+const { activeCardId: selectedCharacterId, activeCard, selectedAvatarModel, ready: cardsReady } = storeToRefs(useAiriCardStore())
+const { stageModelUnavailable } = storeToRefs(useSettingsStageModel())
+// Before the card store is ready, no card owns the Stage yet, so an empty Stage is not a missing model.
+// `missing`: the card has no model. `unavailable`: this device cannot load the model of the card.
+const avatarModelPrompt = computed<'missing' | 'unavailable' | undefined>(() => {
+  if (!cardsReady.value || stageModelRenderer.value !== 'disabled' || stageRenderError.value)
+    return undefined
+  if (!selectedAvatarModel.value)
+    return 'missing'
+  return stageModelUnavailable.value ? 'unavailable' : undefined
+})
 const { sending: chatSending } = storeToRefs(useChatStore())
 const { presenceOverride } = storeToRefs(useSettingsPresenceBubble())
 
@@ -262,6 +255,12 @@ const backgroundStore = useBackgroundStore()
 const { activeBackgroundUrl } = storeToRefs(backgroundStore)
 
 const { currentMotion } = storeToRefs(useLive2dParams())
+const live2d = createLive2D({
+  controlPolicy: () => selectedAvatarModel.value?.type === 'live2d'
+    ? selectedAvatarModel.value.config.controls
+    : undefined,
+})
+useSharedLive2DExpressionPreview(live2d, selectedCharacterId, () => selectedAvatarModel.value?.id)
 
 const emotionsQueue = createQueue<EmotionPayload>({
   handlers: [
@@ -320,11 +319,23 @@ function toStageEmotionPayload(payload: { name: string, intensity: number }): Em
 chatHookCleanups.push(streamingControl.onSignal(async (signal) => {
   if (signal.type === 'act') {
     const act = normalizeActPayload(signal.payload)
-    if (act.motion && stageModelRenderer.value === 'live2d') {
-      currentMotion.value = { group: act.motion }
-      return
+    let explicitLive2DMotion = false
+
+    if (stageModelRenderer.value === 'live2d') {
+      if (act.motion) {
+        if (await live2d.motions.execute(act.motion))
+          explicitLive2DMotion = true
+      }
+
+      if (act.expression === null) {
+        await live2d.expressions.resetExecution()
+      }
+      else if (act.expression) {
+        await live2d.expressions.execute(act.expression)
+      }
     }
-    if (act.emotion) {
+
+    if (act.emotion && !explicitLive2DMotion) {
       const emotion = toStageEmotionPayload(act.emotion)
       if (!emotion)
         return
@@ -358,16 +369,32 @@ async function playSpecialToken(
     streamId: options?.streamId,
   })
 }
-const lipSyncNode = ref<AudioNode>()
+let disconnectLipSync: (() => void) | undefined
+let disconnectAnalyser: (() => void) | undefined
 
 const voice = useVoiceStore()
+const avatarTouch = useAvatarTouchStore()
+// A burst of touches on the avatar becomes one notification for the character.
+// The avatar already plays its own reaction, so a skipped notification still shows the touch.
+const avatarTouchAggregator = createAvatarTouchAggregator({
+  onSummary: (summary) => {
+    // A reply in progress keeps the floor. A notification reply would play over it.
+    if (voice.activeTurns.length > 0)
+      return
+    void avatarTouch.notifyTouch(summary).catch(error => console.error('Avatar touch notification failed', error))
+  },
+})
+// Lip sync and the spectrum analyser connect to the playback through voice output plugins.
+// The playback connects them before this volume, so a low volume does not change the mouth or the analyser.
 const speechDestination = audioContext.createGain()
 speechDestination.connect(audioContext.destination)
-const playback = new Playback(new BrowserPlayback(audioContext, {
-  destination: speechDestination,
-  onSource: (source) => { currentAudioSource.value = source },
-}))
-let playingCount = 0
+/** Connects a renderer node, for example the VRM or MMD lip sync worklet, to the played speech. */
+const connectSpeech = (node: AudioNode) => voice.connectSpeechNode(node)
+// setTargetAtTime smooths slider drags into the gain, so volume changes do not click.
+watch(speechVolume, (volume) => {
+  speechDestination.gain.setTargetAtTime(volume, audioContext.currentTime, 0.05)
+}, { immediate: true })
+const playback = new Playback(new BrowserPlayback(audioContext, { destination: speechDestination }))
 
 function resetSpeakingState() {
   nowSpeaking.value = false
@@ -382,6 +409,21 @@ watch(() => voice.activeTurns, (turns) => {
 })
 
 const cards = useAiriCardStore()
+/** The speech provider and model of the character of the chat that this window shows. */
+const shownChatSpeech = computed(() => {
+  const [characterId] = chatSession.characterMembersOf(chatSession.activeSessionId)
+  if (!cards.ready || !characterId || !cards.getCard(characterId))
+    return undefined
+
+  return cards.getModules(characterId).speech
+})
+// The speech store loads the voice catalog of its own selection only. A reply reads the language of
+// its voice from the catalog of the character's provider, so load that catalog when it is another provider.
+watch([() => shownChatSpeech.value?.provider, () => shownChatSpeech.value?.model], async ([provider, model]) => {
+  if (provider)
+    await speechStore.loadVoicesForCharacter(provider, model || undefined)
+}, { immediate: true })
+
 const disconnectVoiceOutput = voice.connectOutput((turn) => {
   const output = {
     playback,
@@ -408,7 +450,7 @@ const disconnectVoiceOutput = voice.connectOutput((turn) => {
   if (speechMuted.value)
     return { ...output, synthesize: async () => null }
   try {
-    const characterId = chatSession.sessionMetas[turn.sessionId]?.characterId
+    const [characterId] = chatSession.characterMembersOf(turn.sessionId)
     if (!characterId)
       throw new Error('The response session has no character')
     return speechStore.createOutput(turn, cards.getModules(characterId).speech, output, audioContext)
@@ -418,7 +460,7 @@ const disconnectVoiceOutput = voice.connectOutput((turn) => {
     console.error('Speech output is unavailable', error)
     return { ...output, synthesize: async () => null }
   }
-})
+}, playback)
 
 function startLipSyncLoop() {
   if (lipSyncLoopId.value)
@@ -449,14 +491,8 @@ function stopLipSyncLoop() {
 function resetLive2dLipSync() {
   stopLipSyncLoop()
 
-  try {
-    lipSyncNode.value?.disconnect()
-  }
-  catch {
-
-  }
-
-  lipSyncNode.value = undefined
+  disconnectLipSync?.()
+  disconnectLipSync = undefined
   live2dLipSync.value = undefined
   lipSyncStarted.value = false
 }
@@ -482,8 +518,7 @@ async function setupLipSync() {
   try {
     const lipSync = await createLive2DLipSync(audioContext, wlipsyncProfile as Profile, live2dLipSyncOptions)
     live2dLipSync.value = lipSync
-    lipSyncNode.value = lipSync.node
-    speechDestination.connect(lipSync.node)
+    disconnectLipSync = connectSpeech(lipSync.node)
     await audioContext.resume()
     lipSyncStarted.value = true
     syncLipSyncLoop()
@@ -497,7 +532,7 @@ async function setupLipSync() {
 function setupAnalyser() {
   if (!audioAnalyser.value) {
     audioAnalyser.value = audioContext.createAnalyser()
-    speechDestination.connect(audioAnalyser.value)
+    disconnectAnalyser = connectSpeech(audioAnalyser.value)
   }
 }
 
@@ -508,7 +543,14 @@ watch(speechMuted, (muted) => {
   }
 })
 
+// Only a reply that speaks drives speech and expression. Background work and scene replies never speak here.
+function holdsVoice(context: { speaks?: boolean }) {
+  return context.speaks ?? false
+}
+
 chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
+  if (!holdsVoice(context))
+    return
   voice.startResponse(context)
   if (context.sessionId === chatSession.activeSessionId)
     resetAssistantSpeechSurface('new-message')
@@ -516,16 +558,19 @@ chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
   await setupLipSync()
 }))
 
-chatHookCleanups.push(onBeforeSend(async () => {
-  currentMotion.value = { group: EmotionThinkMotionName }
+chatHookCleanups.push(onBeforeSend(async (_message, context) => {
+  if (holdsVoice(context))
+    currentMotion.value = { group: EmotionThinkMotionName }
 }))
 
 chatHookCleanups.push(onTokenLiteral(async (literal, context) => {
-  if (!speechMuted.value)
+  if (holdsVoice(context) && !speechMuted.value)
     await voice.getSpeech(context)?.write(literal)
 }))
 
 chatHookCleanups.push(onTokenSpecial(async (special, context) => {
+  if (!holdsVoice(context))
+    return
   if (speechMuted.value)
     await playSpecialToken(special, { turnId: context.turnId })
   else
@@ -537,6 +582,8 @@ chatHookCleanups.push(onStreamEnd(async (context) => {
 }))
 
 chatHookCleanups.push(onAssistantResponseEnd(async (_message, context) => {
+  if (!holdsVoice(context))
+    return
   void voice.finishResponse(context).catch(error => console.error('Speech response completion failed', error))
 }))
 
@@ -615,11 +662,15 @@ async function captureCharacterFrame() {
 }
 
 onUnmounted(() => {
+  avatarTouchAggregator.dispose()
+  live2d.dispose()
   disposePlaybackStateHandler()
   resetLive2dLipSync()
+  disconnectAnalyser?.()
   chatHookCleanups.forEach(dispose => dispose?.())
   viewUpdateCleanups.forEach(dispose => dispose?.())
   disconnectVoiceOutput()
+  releaseSpeechPlayerRole()
   speechDestination.disconnect()
 })
 
@@ -646,6 +697,7 @@ defineExpose({
         v-if="stageModelRenderer === 'live2d' && showStage"
         ref="live2dSceneRef"
         v-model:state="componentState"
+        :context="live2d"
         :presence="presenceBubble"
         min-w="50% <lg:full"
         h-full w-full flex-1
@@ -662,6 +714,7 @@ defineExpose({
         :live2d-max-fps="live2dMaxFps"
         :live2d-render-scale="live2dRenderScale"
         @error="handleStageRenderError"
+        @touch="avatarTouchAggregator.record"
       />
       <ThreeScene
         v-if="stageModelRenderer === 'vrm' && showStage"
@@ -678,7 +731,8 @@ defineExpose({
         :show-axes="stageViewControlsEnabled"
         :enable-orbit-controls="props.enableOrbitControls"
         :audio-context="audioContext"
-        :current-audio-source="currentAudioSource"
+        :connect-speech="connectSpeech"
+        :speech-active="nowSpeaking"
         @error="reportStageRenderError"
         @vrm-interact="onVRMInteract"
       />
@@ -726,7 +780,7 @@ defineExpose({
         :cursor-position="cursorPosition"
         :enable-orbit-controls="props.enableOrbitControls"
         :audio-context="audioContext"
-        :current-audio-source="currentAudioSource"
+        :connect-speech="connectSpeech"
         @error="reportStageRenderError"
       />
       <div
@@ -750,6 +804,12 @@ defineExpose({
         </div>
       </div>
 
+      <StageAvatarModelMissing
+        v-if="avatarModelPrompt"
+        :reason="avatarModelPrompt"
+        :name="activeCard?.name ?? ''"
+        @select="emit('selectAvatarModel')"
+      />
       <StageRenderError
         v-if="stageRenderError"
         :error="stageRenderError"

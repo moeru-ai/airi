@@ -1,5 +1,7 @@
 import type { Env } from '../../libs/env'
 import type { RateLimitMetrics } from '../../otel'
+import type { AccountEventPublisher } from '../../services/adapters/account-events'
+import type { RevenuecatSubscriberClient } from '../../services/adapters/revenuecat-subscriber'
 import type { RevenuecatSubscriptionSync } from '../../services/adapters/revenuecat-subscriptions'
 import type { HonoEnv } from '../../types/hono'
 
@@ -12,6 +14,7 @@ import { createWebhookOperation } from './operations/webhook'
 /**
  * RevenueCat webhook ingress and the Capacitor reads of a signed-in user.
  * Each webhook event reconciles capacitor Flux from RevenueCat.
+ * RENEWAL and BILLING_ISSUE also publish an account event for Cloud notifications.
  * `POST /sync` runs the same reconciliation for the caller. The client calls it after a purchase
  * and when the Capacitor page opens, so a late or lost webhook does not delay the grant.
  *
@@ -21,10 +24,12 @@ import { createWebhookOperation } from './operations/webhook'
  */
 export function createRevenuecatRoutes(
   subscriptionSync: RevenuecatSubscriptionSync,
+  accountEvents: Pick<AccountEventPublisher, 'publish'>,
+  subscriber: Pick<RevenuecatSubscriberClient, 'countsFor'>,
   env: Pick<Env, 'REVENUECAT_WEBHOOK_AUTH' | 'REVENUECAT_WEBHOOK_SECRET'>,
   rateLimitMetrics: RateLimitMetrics | null,
 ) {
-  const webhook = createWebhookOperation(subscriptionSync, {
+  const webhook = createWebhookOperation(subscriptionSync, accountEvents, subscriber, {
     authorization: env.REVENUECAT_WEBHOOK_AUTH ?? null,
     signingSecret: env.REVENUECAT_WEBHOOK_SECRET ?? null,
   })
@@ -43,4 +48,5 @@ export function createRevenuecatRoutes(
       return c.json({ synced: true })
     })
     .get('/capacitors', authGuard, async c => c.json({ productIds: await subscriptionSync.listProductIds() }))
+    .get('/catalog', authGuard, async c => c.json(await subscriptionSync.listCapacitors()))
 }

@@ -1,5 +1,7 @@
 import type { ModelAsset, ModelAssetFile, ModelAssetProgress, ModelAssetStorage } from '@proj-airi/stage-shared/model-assets'
 
+import { ModelAssetDownloadError, readModelAssetChunk, requestModelAssetFile } from '@proj-airi/stage-shared/model-assets'
+
 import * as v from 'valibot'
 
 const installedModelSchema = v.object({
@@ -12,6 +14,26 @@ const MARKER_NAME = 'installed.json'
 
 function isMissing(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'NotFoundError'
+}
+
+/**
+ * NOTICE:
+ * The DOM type library omits the OPFS file move method.
+ * Runtime support applies to OPFS files, not directories.
+ * Source: https://developer.chrome.com/docs/capabilities/web-apis/file-system-access/
+ * Replace the custom type when the DOM library declares `FileSystemHandle.move`.
+ * Keep the runtime check for browsers without support.
+ */
+const movableOpfsFileHandleSchema = v.custom<FileSystemFileHandle & {
+  move: (destination: FileSystemDirectoryHandle, name?: string) => Promise<void>
+}>(
+  handle => typeof handle === 'object' && handle !== null && 'move' in handle && typeof handle.move === 'function',
+  'This browser cannot move staged model files',
+)
+
+async function moveOpfsFile(source: FileSystemDirectoryHandle, destination: FileSystemDirectoryHandle, name: string): Promise<void> {
+  const file = v.parse(movableOpfsFileHandleSchema, await source.getFileHandle(name))
+  await file.move(destination, name)
 }
 
 /** Stores complete model versions in the origin private file system. */
@@ -56,16 +78,15 @@ export class OpfsModelAssetStorage implements ModelAssetStorage {
     try {
       for (const file of model.files) {
         signal.throwIfAborted()
-        const response = await fetch(file.url, { signal })
-        if (!response.ok)
-          throw new Error(`Model asset download failed: ${response.status} ${file.url}`)
+        const response = await requestModelAssetFile(fetch, file.url, signal)
 
         const totalHeader = response.headers.get('content-length')
         const parsedTotal = totalHeader ? Number(totalHeader) : undefined
         const total = parsedTotal !== undefined && Number.isFinite(parsedTotal) && parsedTotal >= 0
           ? parsedTotal
           : undefined
-        const writable = await (await directory.getFileHandle(file.name, { create: true })).createWritable()
+        const storedFile = await directory.getFileHandle(file.name, { create: true })
+        const writable = await storedFile.createWritable()
         let loaded = 0
         try {
           if (response.body) {
@@ -73,7 +94,7 @@ export class OpfsModelAssetStorage implements ModelAssetStorage {
             try {
               while (true) {
                 signal.throwIfAborted()
-                const { done, value } = await reader.read()
+                const { done, value } = await readModelAssetChunk(reader, file.url, signal)
                 if (done)
                   break
                 await writable.write(value)
@@ -82,6 +103,9 @@ export class OpfsModelAssetStorage implements ModelAssetStorage {
               }
             }
             finally {
+              // A write error or abort leaves the body unread. Cancel it, so the connection closes now and not at garbage collection.
+              // Cancel does nothing after the stream ends, and rejects on a stream that already failed.
+              await reader.cancel().catch(() => {})
               reader.releaseLock()
             }
           }
@@ -99,7 +123,7 @@ export class OpfsModelAssetStorage implements ModelAssetStorage {
           throw error
         }
         if (loaded === 0 || (total !== undefined && loaded !== total))
-          throw new Error(`Incomplete model asset: ${model.id}/${file.name}`)
+          throw new ModelAssetDownloadError('incomplete', file.url)
         sizes[file.name] = loaded
       }
 
@@ -122,6 +146,68 @@ export class OpfsModelAssetStorage implements ModelAssetStorage {
     const superseded: string[] = []
     for await (const name of parent.keys()) {
       if (name !== current)
+        superseded.push(name)
+    }
+    for (const name of superseded)
+      await parent.removeEntry(name, { recursive: true })
+  }
+
+  async restore(model: ModelAsset, files: Readonly<Record<string, Uint8Array>>, onProgress: (progress: ModelAssetProgress) => void): Promise<void> {
+    const root = await this.rootDirectory()
+    const parent = await root.getDirectoryHandle(encodeURIComponent(model.id), { create: true })
+    const revision = encodeURIComponent(model.revision)
+    const stagingName = `.restore-${crypto.randomUUID()}`
+    const stagingDirectory = await parent.getDirectoryHandle(stagingName, { create: true })
+    const sizes: Record<string, number> = {}
+    try {
+      for (const file of model.files) {
+        const content = files[file.name]
+        const stagedFile = await stagingDirectory.getFileHandle(file.name, { create: true })
+        const writable = await stagedFile.createWritable()
+        try {
+          const buffer = new ArrayBuffer(content.byteLength)
+          new Uint8Array(buffer).set(content)
+          await writable.write(buffer)
+          await writable.close()
+        }
+        catch (error) {
+          await writable.abort()
+          throw error
+        }
+        sizes[file.name] = content.byteLength
+        onProgress({ file: file.name, loaded: content.byteLength, total: content.byteLength })
+      }
+
+      const marker = await stagingDirectory.getFileHandle(MARKER_NAME, { create: true })
+      const writable = await marker.createWritable()
+      await writable.write(JSON.stringify({ revision: model.revision, files: sizes } satisfies v.InferOutput<typeof installedModelSchema>))
+      await writable.close()
+
+      for (const name of [...model.files.map(file => file.name), MARKER_NAME]) {
+        const stagedFile = await stagingDirectory.getFileHandle(name)
+        v.parse(movableOpfsFileHandleSchema, stagedFile)
+      }
+    }
+    catch (error) {
+      await parent.removeEntry(stagingName, { recursive: true })
+      throw error
+    }
+
+    try {
+      await this.removeRevision(model)
+      const directory = await this.modelDirectory(model, true)
+      for (const file of model.files)
+        await moveOpfsFile(stagingDirectory, directory, file.name)
+      await moveOpfsFile(stagingDirectory, directory, MARKER_NAME)
+    }
+    catch (error) {
+      await parent.removeEntry(stagingName, { recursive: true })
+      throw error
+    }
+
+    const superseded: string[] = []
+    for await (const name of parent.keys()) {
+      if (name !== revision)
         superseded.push(name)
     }
     for (const name of superseded)

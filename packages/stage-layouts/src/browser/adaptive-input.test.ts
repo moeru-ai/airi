@@ -21,6 +21,7 @@ function createPointerDown(): PointerEvent {
 describe('adaptive input', () => {
   let animationFrames: Map<number, FrameRequestCallback>
   let keyboardViewportHeight: number
+  let layoutElement: { clientHeight: number, clientWidth: number }
   let layoutHeight: number
   let nextAnimationFrameId: number
   let targetDocument: Document
@@ -39,6 +40,7 @@ describe('adaptive input', () => {
     animationFrames = new Map()
     layoutHeight = 714
     keyboardViewportHeight = layoutHeight - 310
+    layoutElement = { clientHeight: layoutHeight, clientWidth: 390 }
     nextAnimationFrameId = 0
     visualViewport = Object.assign(new EventTarget(), {
       height: layoutHeight,
@@ -64,10 +66,7 @@ describe('adaptive input', () => {
       },
       documentElement: {
         configurable: true,
-        value: {
-          clientHeight: layoutHeight,
-          clientWidth: 390,
-        },
+        value: layoutElement,
       },
     })
 
@@ -191,6 +190,42 @@ describe('adaptive input', () => {
     expect(document.activeElement).toBe(document.body)
     expect(adaptiveInput.layout.keyboardVisible).toBe(false)
     expect(viewport.style.height).toBe(`${layoutHeight}px`)
+
+    adaptiveInput.dispose()
+  })
+  it('does not report a keyboard when a fold changes the viewport while the input keeps focus', () => {
+    // ROOT CAUSE:
+    //
+    // A fold changes the viewport without a focus change, so the height saved at focus is old.
+    //
+    // Before the fix, closing a device with a focused input reported a keyboard.
+    //
+    // We fixed this by saving the height again when the layout width changes.
+    const viewport = document.createElement('div')
+    const area = document.createElement('div')
+    const textarea = document.createElement('textarea')
+    area.append(textarea)
+    viewport.append(area)
+    document.body.append(viewport)
+
+    layoutElement.clientWidth = 669
+    layoutElement.clientHeight = 951
+    visualViewport.height = 951
+    const adaptiveInput = new AdaptiveInput({ area, viewport, window: targetWindow })
+    runAnimationFrame()
+
+    textarea.focus()
+    runAnimationFrame()
+
+    layoutElement.clientWidth = 466
+    layoutElement.clientHeight = 678
+    visualViewport.height = 678
+    visualViewport.dispatchEvent(new Event('resize'))
+    runAnimationFrame()
+
+    expect(document.activeElement).toBe(textarea)
+    expect(adaptiveInput.layout.keyboardVisible).toBe(false)
+    expect(adaptiveInput.layout.stableViewportHeight).toBe(678)
 
     adaptiveInput.dispose()
   })

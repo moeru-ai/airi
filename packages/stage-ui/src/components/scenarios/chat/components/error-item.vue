@@ -60,8 +60,8 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
 <template>
   <div
     :class="[
-      'max-w-[min(28rem,calc(100vw-2rem))] flex flex-col',
-      variant === 'mobile' ? 'mr-0' : 'mr-12',
+      'w-fit max-w-[min(28rem,calc(100vw-2rem))] flex items-end gap-1',
+      'mr-12',
       'font-cute',
     ]"
   >
@@ -137,9 +137,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
     </ChatActionMenu>
     <div
       v-if="canRetry && !showPlaceholder"
-      :class="[
-        'self-end mt-1 w-fit',
-      ]"
+      :class="['shrink-0']"
     >
       <IconButton
         icon="i-solar:refresh-bold"

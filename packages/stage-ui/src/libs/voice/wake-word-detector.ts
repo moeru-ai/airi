@@ -7,6 +7,8 @@ import type { WakePronunciation } from './wake-words'
 import { errorMessageFrom } from '@moeru/std'
 import { observe } from '@proj-airi/pipelines-audio'
 
+import { toMonoSamples } from './mono-samples'
+
 /** The session that a wake selects. The voice activity plugin starts one input for it. */
 export interface WakeTarget {
   readonly sessionId: string
@@ -81,23 +83,6 @@ interface RecognitionBatch {
   readonly reset: boolean
 }
 
-/** Sherpa-ONNX accepts finite mono PCM in [-1, 1]. */
-function toMonoSamples(window: AudioWindow) {
-  const length = window.channels[0]?.length ?? 0
-  const samples = new Float32Array(length)
-  for (const channel of window.channels) {
-    for (let index = 0; index < length; index++)
-      samples[index] += (channel[index] ?? 0) / window.channels.length
-  }
-  for (let index = 0; index < length; index++) {
-    const value = samples[index]
-    // NaN or Infinity from a device or a resampler would poison the decoder state until the next reset.
-    samples[index] = Number.isFinite(value) ? Math.min(1, Math.max(-1, value)) : 0
-  }
-
-  return samples
-}
-
 /**
  * Spots active wake word pronunciations in the windows of an audio input.
  *
@@ -167,7 +152,8 @@ export class WakeWordDetector {
     const keywords = this.keywordsOf([...next.values()])
     const update = this.updates.then(async () => {
       // A newer list or a stop replaced this one while an earlier update ran.
-      if (generation !== this.generation || next !== this.pronunciations)
+      // An equal list replaces `pronunciations` without a new generation, so only the generation tells a newer list.
+      if (generation !== this.generation)
         return
 
       if (keywords.length === 0) {
@@ -199,7 +185,7 @@ export class WakeWordDetector {
       // A keyword update starts a new stream in the Worker.
       this.streamSampleRate = undefined
       this.resetStream = false
-      if (generation !== this.generation || next !== this.pronunciations)
+      if (generation !== this.generation)
         return
       this.keywordsReady = true
       this.options.onPreparationChange?.('ready')

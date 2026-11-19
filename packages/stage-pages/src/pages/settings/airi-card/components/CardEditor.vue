@@ -8,6 +8,7 @@ import type { Ref } from 'vue'
 import { errorMessageFrom } from '@moeru/std'
 import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
+import { useSettingsSearchReveal } from '@proj-airi/stage-ui/composables/use-settings-search'
 import { DEFAULT_ARTISTRY_WIDGET_INSTRUCTION } from '@proj-airi/stage-ui/constants/prompts/artistry-instruction'
 import { applyAiriCardEditorModules, getAiriCardEditorModuleSettings, safeParseAiriCardDraft } from '@proj-airi/stage-ui/services/airi-card-editor'
 import { resolveModuleSelection } from '@proj-airi/stage-ui/services/airi-card-modules'
@@ -16,14 +17,15 @@ import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
-import { Button, FieldInput, FieldValues, GhostButton, IconButton } from '@proj-airi/ui'
+import { Alert, Button, FieldInput, FieldValues, GhostButton, IconButton } from '@proj-airi/ui'
 import { ComboboxSelect } from '@proj-airi/ui/components/form'
 import { isEqual } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
-import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, toRaw, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, toRaw, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
+import CardModelPreview from './card-model-preview.vue'
 import CardCreationTabArtistry from './tabs/CardCreationTabArtistry.vue'
 
 interface Props {
@@ -89,6 +91,15 @@ const selectedSpeechModel = ref<string>('')
 const selectedSpeechVoiceId = ref<string>('')
 const previewVoices = ref<VoiceInfo[]>([])
 const selectedDisplayModelId = ref<string>('')
+const selectedContextWindow = ref<number>(-1)
+const contextWindowInput = computed<number | undefined>({
+  get: () => selectedContextWindow.value < 0 ? undefined : selectedContextWindow.value,
+  set: (value) => {
+    selectedContextWindow.value = typeof value === 'number' && Number.isFinite(value)
+      ? Math.max(0, Math.floor(value))
+      : -1
+  },
+})
 
 // NOTICE:
 // The editor needs a non-empty option value for inherited settings.
@@ -133,13 +144,13 @@ interface ModuleSelectOption {
   label: string
 }
 
-function withInheritGlobalSetting(options: ModuleSelectOption[], selected = ''): ModuleSelectOption[] {
+function withInheritGlobalSetting(options: ModuleSelectOption[], selected = '', emptyLabel = t('settings.pages.card.creation.inherit_global_settings')): ModuleSelectOption[] {
   // Imported ids remain visible even when their provider is not configured here.
   const missingSelection = selected && !options.some(option => option.value === selected)
     ? [{ value: selected, label: selected }]
     : []
   return [
-    { value: inheritGlobalSettingOptionValue, label: t('settings.pages.card.creation.inherit_global_settings') },
+    { value: inheritGlobalSettingOptionValue, label: emptyLabel },
     ...options,
     ...missingSelection,
   ]
@@ -150,7 +161,7 @@ const displayModelOptions = computed(() =>
   withInheritGlobalSetting(displayModels.value.map(model => ({
     value: model.id,
     label: model.name,
-  })), selectedDisplayModelId.value),
+  })), selectedDisplayModelId.value, t('settings.pages.card.creation.no_model')),
 )
 
 // Computed: available consciousness provider options
@@ -326,6 +337,8 @@ const moduleSectionHeaderClasses = [
 const moduleFieldLabelClasses = [
   'text-xs font-medium text-neutral-500 dark:text-neutral-400',
 ]
+// A field fills its grid cell. Its heading stays at the top and its input moves to the bottom of the cell.
+const fieldCellClasses = ['h-full', '[&>label]:h-full [&>label]:justify-between']
 const editorTextareaClass = 'min-h-40 md:min-h-[clamp(12rem,30dvh,24rem)]'
 const editorLongTextareaClass = 'min-h-48 md:min-h-[clamp(14rem,34dvh,28rem)]'
 
@@ -387,6 +400,10 @@ watch(activeSection, async (section) => {
 }, { immediate: true, flush: 'post' })
 
 onMounted(() => revealActiveSection(activeSection.value))
+
+// A link that names a setting, such as the voice from the settings home, scrolls to its row and highlights it, as a
+// settings search result does. The editor has its own scroll container, outside the settings layout.
+useSettingsSearchReveal(useTemplateRef<HTMLElement>('section-scroll'))
 
 onUnmounted(() => window.clearTimeout(revealTimer))
 
@@ -453,6 +470,7 @@ function initializeCard(): Card {
   selectedSpeechModel.value = moduleSettings.speech.model
   selectedSpeechVoiceId.value = moduleSettings.speech.voice_id
   selectedDisplayModelId.value = moduleSettings.displayModelId ?? ''
+  selectedContextWindow.value = moduleSettings.contextWindow
 
   // NOTICE: keep legacy `extensions.airi.artistry` fallback so existing cards continue to load.
   const artistrySettings = airiExt?.modules?.artistry || airiExt?.artistry
@@ -498,6 +516,7 @@ interface EditorSnapshot {
     voiceId: string
   }
   displayModelId: string
+  contextWindow: number
   artistry: {
     provider: string
     model: string
@@ -528,6 +547,7 @@ function createEditorSnapshot(): EditorSnapshot {
       voiceId: selectedSpeechVoiceId.value,
     },
     displayModelId: selectedDisplayModelId.value,
+    contextWindow: selectedContextWindow.value,
     artistry: {
       provider: selectedArtistryProvider.value,
       model: selectedArtistryModel.value,
@@ -666,7 +686,7 @@ async function handleSave(activate: boolean) {
         model: selectedSpeechModel.value,
         voice_id: selectedSpeechVoiceId.value,
       },
-      displayModelId: selectedDisplayModelId.value,
+      contextWindow: selectedContextWindow.value,
       artistry: {
         provider: selectedArtistryProvider.value,
         model: selectedArtistryModel.value,
@@ -681,7 +701,7 @@ async function handleSave(activate: boolean) {
 
     let savedCardId: string
     if (isEditMode.value && props.cardId) {
-      if (!await cardStore.updateCard(props.cardId, cardWithModules)) {
+      if (!await cardStore.updateCard(props.cardId, cardWithModules, selectedDisplayModelId.value)) {
         showError.value = true
         errorMessage.value = t('settings.pages.card.card_not_found')
         return
@@ -690,7 +710,7 @@ async function handleSave(activate: boolean) {
       trackCardEdited({ card_id: props.cardId })
     }
     else {
-      savedCardId = await cardStore.addCard(cardWithModules, 'scratch')
+      savedCardId = await cardStore.addCard(cardWithModules, 'scratch', selectedDisplayModelId.value)
     }
 
     if (activate)
@@ -864,32 +884,58 @@ function handleBack() {
           </div>
         </div>
 
-        <div :class="['min-h-0 flex-1 overflow-y-auto']">
+        <div ref="section-scroll" :class="['min-h-0 flex-1 overflow-y-auto']">
           <div :class="['mx-auto w-full max-w-6xl', 'px-4 py-5 lg:px-8 lg:py-8']">
             <!-- Error banner -->
-            <div
-              v-if="showError"
+            <Alert v-if="showError" tone="danger" live="polite" :class="['mb-5']">
+              {{ errorMessage }}
+            </Alert>
+
+            <section
               :class="[
-                'mb-5 flex items-center gap-3',
-                'rounded-xl border border-red-500/30 bg-red-500/10',
-                'px-4 py-3 text-sm',
-                'text-red-600 dark:text-red-400',
+                'mb-8 grid overflow-hidden rounded-2xl',
+                'bg-primary-100 text-primary-950 dark:bg-primary-950 dark:text-primary-100',
+                'lg:grid-cols-[minmax(0,1fr)_36%]',
               ]"
             >
-              <div class="i-solar:danger-triangle-bold-duotone shrink-0 text-lg" />
-              <p>{{ errorMessage }}</p>
-            </div>
+              <div :class="['flex flex-col justify-center p-5 sm:p-7 lg:p-8']">
+                <!-- One grid for all fields. Each field fills its row with the heading at the top and the input at the bottom, -->
+                <!-- so headings and inputs line up when one description wraps. -->
+                <div :class="['grid grid-cols-1 gap-x-5 gap-y-6', 'sm:grid-cols-2']">
+                  <FieldInput v-model="cardName" :class="fieldCellClasses" :label="t('settings.pages.card.creation.name')" :description="t('settings.pages.card.creation.fields_info.name')" :required="true" />
+                  <FieldInput v-model="cardNickname" :class="fieldCellClasses" :label="t('settings.pages.card.creation.nickname')" :description="t('settings.pages.card.creation.fields_info.nickname')" />
+                  <!-- The same heading and description as the FieldInput fields beside it. -->
+                  <label :class="['flex h-full flex-col justify-between gap-4']">
+                    <div>
+                      <div :class="['text-sm font-medium']">
+                        {{ t('settings.pages.card.creation.model') }}
+                      </div>
+                      <div :class="['text-xs text-neutral-500 dark:text-neutral-400']">
+                        {{ t('settings.pages.card.creation.fields_info.body_model') }}
+                      </div>
+                    </div>
+                    <ComboboxSelect
+                      v-model="displayModelSelection"
+                      :options="displayModelOptions"
+                      :placeholder="t('settings.pages.card.creation.no_model')"
+                      class="w-full"
+                    />
+                  </label>
+                  <FieldInput v-model="cardVersion" :class="fieldCellClasses" :label="t('settings.pages.card.creation.version')" :required="true" :description="t('settings.pages.card.creation.fields_info.version')" />
+                </div>
+              </div>
+              <CardModelPreview
+                :model-id="selectedDisplayModelId"
+                fit="contain"
+                :class="['order--1 !h-56 sm:!h-64 lg:order-none lg:!h-auto lg:min-h-[300px]']"
+              />
+            </section>
 
             <!-- Identity details -->
             <div v-if="activeSection === 'identity'" :class="['flex flex-col gap-6']">
               <p :class="['text-sm text-neutral-500 dark:text-neutral-400']">
                 {{ t('settings.pages.card.creation.fields_info.subtitle') }}
               </p>
-
-              <div :class="['grid grid-cols-1 gap-5', 'sm:grid-cols-2']">
-                <FieldInput v-model="cardName" :label="t('settings.pages.card.creation.name')" :description="t('settings.pages.card.creation.fields_info.name')" :required="true" />
-                <FieldInput v-model="cardNickname" :label="t('settings.pages.card.creation.nickname')" :description="t('settings.pages.card.creation.fields_info.nickname')" />
-              </div>
 
               <div :class="['grid grid-cols-1 gap-5', 'xl:grid-cols-2']">
                 <FieldInput v-model="cardDescription" :label="t('settings.pages.card.creation.description')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.description')" :input-class="editorTextareaClass" />
@@ -1016,34 +1062,19 @@ function handleBack() {
                   </div>
                 </div>
               </section>
-
-              <!-- Body -->
-              <section :class="moduleSectionClasses">
-                <div :class="moduleSectionHeaderClasses">
-                  <div i-solar:ghost-bold-duotone :class="['text-base text-primary-500 dark:text-primary-400']" />
-                  {{ t('settings.pages.card.creation.sections.body') }}
-                </div>
-                <div :class="['flex flex-col gap-1.5']">
-                  <label :class="moduleFieldLabelClasses">
-                    {{ t('settings.pages.card.body-model') }}
-                  </label>
-                  <ComboboxSelect
-                    v-model="displayModelSelection"
-                    :options="displayModelOptions"
-                    :placeholder="getDefaultPlaceholder()"
-                    class="w-full"
-                  />
-                </div>
-              </section>
             </div>
             <!-- Settings -->
             <div v-else-if="activeSection === 'settings'" :class="['flex flex-col gap-5']">
+              <FieldInput
+                v-model="contextWindowInput"
+                type="number"
+                :placeholder="t('settings.pages.card.context_window_all')"
+                :label="t('settings.pages.card.context_window')"
+                :description="t('settings.pages.card.creation.fields_info.context_window')"
+              />
               <div :class="['grid grid-cols-1 gap-5', 'xl:grid-cols-2']">
                 <FieldInput v-model="cardSystemPrompt" :label="t('settings.pages.card.systemprompt')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.systemprompt')" :input-class="editorLongTextareaClass" />
                 <FieldInput v-model="cardPostHistoryInstructions" :label="t('settings.pages.card.posthistoryinstructions')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.posthistoryinstructions')" :input-class="editorLongTextareaClass" />
-              </div>
-              <div :class="['grid grid-cols-1 gap-5', 'sm:grid-cols-2']">
-                <FieldInput v-model="cardVersion" :label="t('settings.pages.card.creation.version')" :required="true" :description="t('settings.pages.card.creation.fields_info.version')" />
               </div>
             </div>
             <!-- Artistry -->

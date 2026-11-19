@@ -2,9 +2,8 @@ import type { Database } from '../../libs/db'
 import type { EnvelopeCrypto } from '../../utils/envelope-crypto'
 
 import { useLogger } from '@guiiai/logg'
+import { createNotFoundError } from '@proj-airi/http-error-shared'
 import { and, eq, isNull } from 'drizzle-orm'
-
-import { createNotFoundError } from '../../utils/error'
 
 import * as schema from '../../schemas/providers'
 
@@ -30,7 +29,8 @@ interface UpsertProviderConfigInput {
   config: Record<string, unknown>
 }
 
-function configAad(ownerId: string, instanceId: string) {
+/** Returns the envelope AAD that binds one provider config ciphertext to its row. */
+export function providerConfigAad(ownerId: string, instanceId: string) {
   return {
     modelName: CONFIG_MODEL_NAME,
     keyEntryId: `${ownerId}:${instanceId}`,
@@ -39,11 +39,11 @@ function configAad(ownerId: string, instanceId: string) {
 
 export function createProviderService(db: Database, envelopeCrypto: EnvelopeCrypto) {
   function encryptConfig(ownerId: string, instanceId: string, config: Record<string, unknown>): string {
-    return envelopeCrypto.encryptKey(JSON.stringify(config), configAad(ownerId, instanceId))
+    return envelopeCrypto.encryptKey(JSON.stringify(config), providerConfigAad(ownerId, instanceId))
   }
 
   function decryptConfig(ownerId: string, instanceId: string, ciphertext: string): Record<string, unknown> {
-    const plaintext = envelopeCrypto.decryptKey(ciphertext, configAad(ownerId, instanceId)).toString('utf8')
+    const plaintext = envelopeCrypto.decryptKey(ciphertext, providerConfigAad(ownerId, instanceId)).toString('utf8')
     return JSON.parse(plaintext) as Record<string, unknown>
   }
 

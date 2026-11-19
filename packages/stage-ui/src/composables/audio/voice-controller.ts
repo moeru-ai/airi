@@ -1,4 +1,4 @@
-import type { SpeechInputAttemptState, SpeechSnapshot, VoiceControllerOptions } from '@proj-airi/core-agent'
+import type { SpeechInputAttemptState, TranscriptDocument, VoiceControllerOptions } from '@proj-airi/core-agent'
 
 import { errorMessageFrom } from '@moeru/std'
 import { VoiceController } from '@proj-airi/core-agent'
@@ -11,15 +11,16 @@ import { useSettingsAudioDevice } from '../../stores/settings/audio-device'
  *
  * The controller subscribes to the selected microphone input. A device change moves future inputs and
  * plugin observations to the new input, and the old device closes once nothing subscribes to it.
+ * The playback of the speech is a Web Audio graph, so output plugins can connect `AudioNode` consumers to it.
  */
-export function useVoiceController(options: Omit<VoiceControllerOptions, 'audio'>) {
+export function useVoiceController(options: Omit<VoiceControllerOptions<AudioNode>, 'audio'>) {
   const devices = useSettingsAudioDevice()
   const state = shallowRef<SpeechInputAttemptState>()
-  const snapshot = shallowRef<SpeechSnapshot>()
+  const snapshot = shallowRef<TranscriptDocument>()
   const error = shallowRef<string>()
   let inputId: string | undefined
   let stopState: (() => void) | undefined
-  const controller = markRaw(new VoiceController({ ...options, audio: devices.input }))
+  const controller = markRaw(new VoiceController<AudioNode>({ ...options, audio: devices.input }))
   watch(() => devices.input, input => controller.replaceAudio(input), { flush: 'sync' })
 
   controller.onInput((attempt) => {
@@ -35,13 +36,13 @@ export function useVoiceController(options: Omit<VoiceControllerOptions, 'audio'
     })
   })
 
+  // Each document version reaches the view. A document of a replaced input is ignored.
   controller.use({ name: 'vue-snapshot', setup(scope) {
-    scope.onSpeechInput((input) => {
-      input.subscribe({ transcript: 'corrected', speakers: true, scheduling: 'latest' }, async (ctx) => {
-        if (ctx.snapshot.inputId === inputId)
-          snapshot.value = ctx.snapshot
+    scope.onInput((input) => {
+      input.watch((document) => {
+        if (document.inputId === inputId)
+          snapshot.value = document
       })
-      return undefined
     })
     return undefined
   } })

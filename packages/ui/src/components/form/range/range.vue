@@ -84,9 +84,10 @@ https://toughengineer.github.io/demo/slider-styler*/
   --thumb-box-shadow: 0 0 0px #e6e6e6;
   --thumb-border: none;
   --thumb-border-radius: 999px;
-  --thumb-background: oklch(80% var(--chromatic-chroma-200) calc(var(--chromatic-hue) + 0));
-  --thumb-background-hover: oklch(90% var(--chromatic-chroma-200) calc(var(--chromatic-hue) + 0));
-  --thumb-background-active: oklch(70% var(--chromatic-chroma-200) calc(var(--chromatic-hue) + 0));
+  /* The defaults keep @proj-airi/ui buildable where the chromatic preset is not configured (e.g. ui-loading-screens). */
+  --thumb-background: theme('colors.primary.300', oklch(85% 0.09 var(--chromatic-hue)));
+  --thumb-background-hover: theme('colors.primary.200', oklch(90% 0.07 var(--chromatic-hue)));
+  --thumb-background-active: theme('colors.primary.400', oklch(77% 0.12 var(--chromatic-hue)));
 
   --track-height: calc(var(--height) - var(--track-value-padding) * 2);
   --track-box-shadow: none;
@@ -103,9 +104,9 @@ https://toughengineer.github.io/demo/slider-styler*/
 }
 
 .dark .form_input-range {
-  --thumb-background: oklch(70% var(--chromatic-chroma-200) calc(var(--chromatic-hue) + 0));
-  --thumb-background-hover: oklch(90% var(--chromatic-chroma-200) calc(var(--chromatic-hue) + 0));
-  --thumb-background-active: oklch(80% var(--chromatic-chroma-200) calc(var(--chromatic-hue) + 0));
+  --thumb-background: theme('colors.primary.400', oklch(77% 0.12 var(--chromatic-hue)));
+  --thumb-background-hover: theme('colors.primary.200', oklch(90% 0.07 var(--chromatic-hue)));
+  --thumb-background-active: theme('colors.primary.300', oklch(85% 0.09 var(--chromatic-hue)));
 
   --track-border: solid 2px rgb(44, 44, 44);
   --track-background: rgba(44, 44, 44, 0.7);

@@ -72,4 +72,24 @@ describe('provider metadata selector', () => {
     expect(definition.id).toBe('test-provider')
     expect(definition.tasks).toEqual(['chat'])
   })
+
+  it('uses the settings route that the definition declares', async () => {
+    const metadata = await selectProviderMetadata({ ...definition, to: '/settings/modules/hearing/transcriber' }, t)
+
+    expect(metadata.to).toBe('/settings/modules/hearing/transcriber')
+  })
+
+  it('prefers the settings route of the view override over the definition route', async () => {
+    const metadata = await selectProviderMetadata({ ...definition, to: '/settings/modules/hearing/transcriber' }, t, {
+      to: '/settings/providers/vision/test-provider',
+    })
+
+    expect(metadata.to).toBe('/settings/providers/vision/test-provider')
+  })
+
+  it('leaves the route empty when neither the definition nor the override declares one', async () => {
+    const metadata = await selectProviderMetadata(definition, t)
+
+    expect('to' in metadata).toBe(false)
+  })
 })

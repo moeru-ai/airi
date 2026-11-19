@@ -1,18 +1,13 @@
-import type { Logg } from '@guiiai/logg'
 import type { Client } from '@proj-airi/server-sdk'
-
-import type { AiriBridge } from '../airi/airi-bridge'
-import type { MinecraftContextService } from '../airi/minecraft-context-service'
-import type { EventBus } from './event-bus'
-import type { RuleEngine } from './perception/rules'
 
 import { fileURLToPath } from 'node:url'
 
 import { useLogg } from '@guiiai/logg'
-import { asClass, asFunction, asValue, createContainer, InjectionMode } from 'awilix'
+import { pick } from 'es-toolkit'
+import { createContainer, provide, resolve } from 'injeca'
 
-import { AiriBridge as AiriBridgeImpl } from '../airi/airi-bridge'
-import { MinecraftContextService as MinecraftContextServiceImpl } from '../airi/minecraft-context-service'
+import { AiriBridge } from '../airi/airi-bridge'
+import { MinecraftContextService } from '../airi/minecraft-context-service'
 import { config } from '../composables/config'
 import { TaskExecutor } from './action/task-executor'
 import { Brain } from './conscious/brain'
@@ -22,74 +17,63 @@ import { PerceptionPipeline } from './perception/pipeline'
 import { createRuleEngine } from './perception/rules'
 import { ReflexManager } from './reflex/reflex-manager'
 
-export interface ContainerServices {
-  logger: Logg
-  eventBus: EventBus
-  ruleEngine: RuleEngine
-  llmAgent: LLMAgent
-  perceptionPipeline: PerceptionPipeline
-  taskExecutor: TaskExecutor
-  brain: Brain
-  reflexManager: ReflexManager
-  airiClient: Client
-  airiBridge: AiriBridge
-  minecraftContextService: MinecraftContextService
-}
-
+/**
+ * Wires the services of one agent. Each service is built on its first `resolve` and then cached,
+ * so a caller decides when a service starts, for example the rule engine after the bot spawns.
+ */
 export function createAgentContainer(airiClient: Client) {
-  const container = createContainer<ContainerServices>({
-    injectionMode: InjectionMode.PROXY,
-    strict: true,
+  // The agent logs its own startup. The container writes no lifecycle logs, as before the move to injeca.
+  const container = createContainer()
+
+  // Create independent logger for each agent
+  const logger = provide(container, 'logger', () => useLogg('agent').useGlobalConfig())
+
+  // Register EventBus (cognitive event core)
+  const eventBus = provide(container, 'eventBus', {
+    dependsOn: { logger },
+    build: ({ dependsOn }) => createEventBus({
+      onSubscriberError: ({ event, pattern, error }) => {
+        dependsOn.logger
+          .withFields({
+            eventType: event.type,
+            eventId: event.id,
+            traceId: event.traceId,
+            parentId: event.parentId,
+            pattern,
+          })
+          .errorWithError('EventBus subscriber failed', error)
+      },
+    }),
   })
 
-  // Register services
-  container.register({
-    airiClient: asValue(airiClient),
+  const airiBridge = provide(container, 'airiBridge', {
+    dependsOn: { eventBus },
+    build: ({ dependsOn }) => new AiriBridge(airiClient, dependsOn.eventBus),
+  })
 
-    airiBridge: asFunction(({ eventBus }: { eventBus: EventBus }) =>
-      new AiriBridgeImpl(airiClient, eventBus),
-    ).singleton(),
+  const minecraftContextService = provide(container, 'minecraftContextService', {
+    dependsOn: { airiBridge },
+    build: ({ dependsOn }) => new MinecraftContextService({
+      airiBridge: dependsOn.airiBridge,
+      serverHost: config.bot.host,
+      serverPort: config.bot.port,
+      masterUsername: config.bot.masterUsername,
+    }),
+  })
 
-    minecraftContextService: asFunction(({ airiBridge }) =>
-      new MinecraftContextServiceImpl({
-        airiBridge,
-        serverHost: config.bot.host,
-        serverPort: config.bot.port,
-        masterUsername: config.bot.masterUsername,
-      }),
-    ).singleton(),
+  // Register LLM Agent (xsai-based)
+  const llmAgent = provide(container, 'llmAgent', () => new LLMAgent({
+    baseURL: config.openai.baseUrl,
+    apiKey: config.openai.apiKey,
+    model: config.openai.model,
+  }))
 
-    // Create independent logger for each agent
-    logger: asFunction(() => useLogg('agent').useGlobalConfig()).singleton(),
-
-    // Register LLM Agent (xsai-based)
-    llmAgent: asFunction(() => new LLMAgent({
-      baseURL: config.openai.baseUrl,
-      apiKey: config.openai.apiKey,
-      model: config.openai.model,
-    })).singleton(),
-
-    // Register EventBus (cognitive event core)
-    eventBus: asFunction(({ logger }) =>
-      createEventBus({
-        onSubscriberError: ({ event, pattern, error }) => {
-          logger
-            .withFields({
-              eventType: event.type,
-              eventId: event.id,
-              traceId: event.traceId,
-              parentId: event.parentId,
-              pattern,
-            })
-            .errorWithError('EventBus subscriber failed', error)
-        },
-      }),
-    ).singleton(),
-
-    // Register RuleEngine (YAML rules processing)
-    ruleEngine: asFunction(({ eventBus }) => {
+  // Register RuleEngine (YAML rules processing)
+  const ruleEngine = provide(container, 'ruleEngine', {
+    dependsOn: { eventBus },
+    build: ({ dependsOn }) => {
       const engine = createRuleEngine({
-        eventBus,
+        eventBus: dependsOn.eventBus,
         logger: useLogg('ruleEngine').useGlobalConfig(),
         config: {
           // NOTICE: Use fileURLToPath, not URL.pathname — on Windows `.pathname` yields
@@ -103,36 +87,35 @@ export function createAgentContainer(airiClient: Client) {
       })
       engine.init()
       return engine
-    }).singleton(),
-
-    perceptionPipeline: asClass(PerceptionPipeline).singleton(),
-
-    // TaskExecutor with logger injection only
-    taskExecutor: asFunction(({ logger }) =>
-      new TaskExecutor({ logger }),
-    ).singleton(),
-
-    brain: asClass(Brain)
-      .singleton()
-      .inject(c => ({
-        eventBus: c.resolve('eventBus'),
-        llmAgent: c.resolve('llmAgent'),
-        reflexManager: c.resolve('reflexManager'),
-        taskExecutor: c.resolve('taskExecutor'),
-        logger: c.resolve('logger'),
-        airiBridge: c.resolve('airiBridge'),
-        minecraftContextService: c.resolve('minecraftContextService'),
-      })),
-
-    // Reflex Manager (Reactive Layer)
-    reflexManager: asFunction(({ eventBus, taskExecutor, logger }) =>
-      new ReflexManager({
-        eventBus,
-        taskExecutor,
-        logger,
-      }),
-    ).singleton(),
+    },
   })
 
-  return container
+  const perceptionPipeline = provide(container, 'perceptionPipeline', {
+    dependsOn: { eventBus, logger },
+    build: ({ dependsOn }) => new PerceptionPipeline(dependsOn),
+  })
+
+  // TaskExecutor with logger injection only
+  const taskExecutor = provide(container, 'taskExecutor', {
+    dependsOn: { logger },
+    build: ({ dependsOn }) => new TaskExecutor(dependsOn),
+  })
+
+  // Reflex Manager (Reactive Layer)
+  const reflexManager = provide(container, 'reflexManager', {
+    dependsOn: { eventBus, taskExecutor, logger },
+    build: ({ dependsOn }) => new ReflexManager(dependsOn),
+  })
+
+  const brain = provide(container, 'brain', {
+    dependsOn: { eventBus, llmAgent, reflexManager, taskExecutor, logger, airiBridge, minecraftContextService },
+    build: ({ dependsOn }) => new Brain(dependsOn),
+  })
+
+  const services = { logger, eventBus, ruleEngine, llmAgent, perceptionPipeline, taskExecutor, brain, reflexManager, airiBridge, minecraftContextService }
+
+  return {
+    /** Builds the named services that are not built yet, and resolves to all of them. */
+    resolve: <Name extends keyof typeof services>(...names: Name[]) => resolve(container, pick(services, names)),
+  }
 }

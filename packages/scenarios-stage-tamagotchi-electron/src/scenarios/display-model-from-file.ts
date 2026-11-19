@@ -26,7 +26,6 @@ const localStorageKeys = [
   'airi-cards',
   'onboarding/completed',
   'onboarding/skipped',
-  'settings/stage/model',
 ] as const
 
 const localforageDatabaseName = 'localforage'
@@ -257,7 +256,25 @@ async function selectImportedModel(settingsPage: Page, modelFileName: string): P
 
 async function waitForSelectedModel(page: Page, importedModelId: string): Promise<void> {
   await page.waitForFunction((modelId) => {
-    return globalThis.localStorage.getItem('settings/stage/model') === modelId
+    const serializedCards = globalThis.localStorage.getItem('airi-cards')
+    if (!serializedCards)
+      return false
+
+    const cards = JSON.parse(serializedCards) as Array<[string, {
+      extensions?: {
+        airi?: {
+          avatarModels?: Array<{ id?: string, displayModelId?: string }>
+          defaultAvatarModelId?: string
+        }
+      }
+    }]>
+    return cards.some(([, card]) => {
+      const extension = card.extensions?.airi
+      return extension?.avatarModels?.some(avatarModel => (
+        avatarModel.id === extension.defaultAvatarModelId
+        && avatarModel.displayModelId === modelId
+      ))
+    })
   }, importedModelId, { timeout: 30_000 })
 }
 
