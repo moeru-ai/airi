@@ -1,6 +1,6 @@
 import type { Live2DMotionMagicProfileId } from './profiles'
 
-import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
+import { useModelScopedLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
 import { watch } from 'vue'
 
@@ -11,11 +11,11 @@ export const defaultLive2DMotionMagicIdleProfileId: Live2DMotionMagicProfileId =
 /** Profile played while a response generates text or plays speech. */
 export const defaultLive2DMotionMagicSpeakingProfileId: Live2DMotionMagicProfileId = 'speaking-excited'
 
-const idleProfileId = useLocalStorageManualReset<Live2DMotionMagicProfileId>('settings/live2d/magic/idle-profile', defaultLive2DMotionMagicIdleProfileId)
-const speakingProfileId = useLocalStorageManualReset<Live2DMotionMagicProfileId>('settings/live2d/magic/speaking-profile', defaultLive2DMotionMagicSpeakingProfileId)
-const followSpeech = useLocalStorageManualReset('settings/live2d/magic/follow-speech', true)
-const skipMouthOpen = useLocalStorageManualReset('settings/live2d/magic/skip-mouth-open', true)
-const forceViewTarget = useLocalStorageManualReset('settings/live2d/magic/force-view-target', true)
+const idleProfileId = useModelScopedLocalStorageManualReset<Live2DMotionMagicProfileId>('live2d', 'settings/live2d/magic/idle-profile', defaultLive2DMotionMagicIdleProfileId)
+const speakingProfileId = useModelScopedLocalStorageManualReset<Live2DMotionMagicProfileId>('live2d', 'settings/live2d/magic/speaking-profile', defaultLive2DMotionMagicSpeakingProfileId)
+const followSpeech = useModelScopedLocalStorageManualReset('live2d', 'settings/live2d/magic/follow-speech', true)
+const skipMouthOpen = useModelScopedLocalStorageManualReset('live2d', 'settings/live2d/magic/skip-mouth-open', true)
+const forceViewTarget = useModelScopedLocalStorageManualReset('live2d', 'settings/live2d/magic/force-view-target', true)
 
 function isKnownProfileId(value: unknown): value is Live2DMotionMagicProfileId {
   return typeof value === 'string' && Object.hasOwn(live2dMotionMagicProfiles, value)
