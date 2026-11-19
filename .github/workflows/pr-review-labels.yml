@@ -6,27 +6,36 @@ on:
   workflow_run:
     workflows: [PR Review Event]
     types: [completed]
+  check_run:
+    types: [completed]
   schedule:
     - cron: '17 * * * *'
   workflow_dispatch:
 
 permissions:
   contents: read
+  checks: read
   pull-requests: write
   issues: write
 
-concurrency:
-  group: pr-review-labels
-  cancel-in-progress: false
-
 jobs:
   label:
+    if: >-
+      github.event_name != 'check_run' ||
+      (github.event.check_run.app.id == 5607869 && github.event.check_run.name == 'Human Attestation')
     runs-on: ubuntu-latest
+    concurrency:
+      group: pr-review-labels
+      cancel-in-progress: false
+      queue: max
     steps:
       - uses: actions/github-script@v8
         with:
           script: |
             const managed = ['pr-review/waiting-maintainer', 'pr-review/waiting-on-author'];
+            // Only the installed human-attestation GitHub App can attest non-exempt authors.
+            const attestationAppId = 5607869;
+            const attestationName = 'Human Attestation';
             const repo = context.repo;
             const repositoryLabels = await github.paginate(github.rest.issues.listLabelsForRepo, { ...repo, per_page: 100 });
             for (const name of managed) {
@@ -34,10 +43,20 @@ jobs:
                 await github.rest.issues.createLabel({ ...repo, name, color: 'c2e0e0' });
               }
             }
-            // Review event jobs have no write token on forks. Read current API data after their completion.
-            const pulls = context.payload.pull_request
-              ? [context.payload.pull_request]
-              : await github.paginate(github.rest.pulls.list, { ...repo, state: 'open', per_page: 100 });
+            let pulls;
+            if (context.payload.pull_request) {
+              pulls = [context.payload.pull_request];
+            } else if (context.payload.check_run) {
+              // The trusted app links each check to /attest/{owner}/{repo}/{number}, including fork PRs with no event association.
+              const pathname = new URL(context.payload.check_run.details_url).pathname;
+              const prefix = `/attest/${repo.owner}/${repo.repo}/`;
+              const number = pathname.startsWith(prefix) ? pathname.slice(prefix.length) : '';
+              if (!/^[1-9]\d*$/.test(number)) throw new Error('Unexpected attestation check details URL');
+              pulls = [{ number: Number(number) }];
+            } else {
+              // Review event jobs have no write token on forks. Read current API data after their completion.
+              pulls = await github.paginate(github.rest.pulls.list, { ...repo, state: 'open', per_page: 100 });
+            }
             for (const pull of pulls) {
               let current;
               let cursor = null;
@@ -48,6 +67,7 @@ jobs:
                     repository(owner: $owner, name: $repo) {
                       pullRequest(number: $number) {
                         state isDraft headRefOid
+                        author { __typename login }
                         latestOpinionatedReviews(first: 100, after: $cursor, writersOnly: true) {
                           nodes { state submittedAt commit { oid } }
                           pageInfo { hasNextPage endCursor }
@@ -61,12 +81,34 @@ jobs:
                 requests.push(...reviews.nodes.filter(review => review.state === 'CHANGES_REQUESTED'));
                 cursor = reviews.pageInfo.hasNextPage ? reviews.pageInfo.endCursor : null;
               } while (cursor);
+              if (context.payload.check_run && current.headRefOid !== context.payload.check_run.head_sha) continue;
               let desired;
               if (current.state === 'OPEN' && !current.isDraft) {
-                desired = 'pr-review/waiting-maintainer';
+                let attestationSatisfied = false;
+                // Match the attestation bot's exemption for human authors, independently of check creation timing.
+                if (current.author?.__typename === 'User') {
+                  try {
+                    const { data } = await github.rest.repos.getCollaboratorPermissionLevel({ ...repo, username: current.author.login });
+                    attestationSatisfied = ['write', 'maintain', 'admin'].includes(data.permission);
+                  } catch (error) {
+                    // An absent collaborator has no exemption. Other API errors must stop label changes.
+                    if (error.status !== 404) throw error;
+                  }
+                }
+                if (!attestationSatisfied) {
+                  const checks = await github.paginate(github.rest.checks.listForRef, {
+                    ...repo, ref: current.headRefOid, check_name: attestationName, app_id: attestationAppId, filter: 'latest', per_page: 100,
+                  });
+                  // Old checks cannot authorize a newer run or commit.
+                  const attestation = checks.filter(check =>
+                    check.name === attestationName && check.app?.id === attestationAppId && check.head_sha === current.headRefOid
+                  ).sort((a, b) => b.id - a.id)[0];
+                  attestationSatisfied = attestation?.status === 'completed' && attestation.conclusion === 'success';
+                }
+                desired = attestationSatisfied ? 'pr-review/waiting-maintainer' : 'pr-review/waiting-on-author';
                 // The latest active request starts a new author response cycle, even if older requests remain.
                 const request = requests.sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))[0];
-                if (request) {
+                if (attestationSatisfied && request) {
                   desired = 'pr-review/waiting-on-author';
                   if (!request.commit) {
                     console.warn(`PR #${pull.number} has no reviewed commit. Leaving labels unchanged.`);

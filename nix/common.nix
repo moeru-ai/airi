@@ -6,7 +6,6 @@
 
   cacert,
   gitMinimal,
-  nodejs,
   pnpmConfigHook,
 
   # Use project version
@@ -15,10 +14,17 @@
     (builtins.match ''.*"version": "([^[:space:]]+)".*'')
     builtins.head
   ],
-  # Pin pnpm version
-  pnpm' ? lib.pipe ../package.json [
+  # Pin nodejs version
+  nodejs' ? lib.pipe ../.tool-versions [
     builtins.readFile
-    (builtins.match ''.*"packageManager": "pnpm@([[:digit:]]+).*'')
+    (builtins.match ".*nodejs +([[:digit:]]+).*")
+    builtins.head
+    (major: pkgs."nodejs_${major}")
+  ],
+  # Pin pnpm version
+  pnpm' ? lib.pipe ../.tool-versions [
+    builtins.readFile
+    (builtins.match ".*pnpm +([[:digit:]]+).*")
     builtins.head
     (major: pkgs."pnpm_${major}")
   ],
@@ -44,64 +50,64 @@ stdenvNoCC.mkDerivation (final: {
   pnpmDeps = fetchPnpmDeps {
     inherit (final) pname version src;
     pnpm = pnpm';
-    fetcherVersion = 4;
+    fetcherVersion = 5;
     hash = builtins.readFile ./pnpm-deps-hash.txt;
   };
 
-  # Cache of assets downloaded during vite build
-  assets = stdenvNoCC.mkDerivation {
-    pname = "airi-assets";
-    inherit (final) version src pnpmDeps;
+  passthru = {
+    # Cache of assets downloaded during vite build
+    assets = stdenvNoCC.mkDerivation {
+      pname = "airi-assets";
+      inherit (final) version src pnpmDeps;
 
-    nativeBuildInputs = [
-      cacert # For network request
-      gitMinimal # For unplugin-info
-      nodejs
-      pnpm'
-      pnpmConfigHook
-    ];
+      nativeBuildInputs = [
+        cacert # For network request
+        gitMinimal # For unplugin-info
+        nodejs'
+        pnpm'
+        pnpmConfigHook
+      ];
 
-    buildPhase = ''
-      runHook preBuild
+      buildPhase = ''
+        runHook preBuild
 
-      # Build Tamagotchi since it has all assets of web + embedded models.
-      # If another stage gets unique assets, this must be updated.
-      pnpm -F @proj-airi/stage-tamagotchi... run build
+        # Build Tamagotchi since it has all assets of web + embedded models.
+        # If another stage gets unique assets, this must be updated.
+        pnpm -F @proj-airi/stage-tamagotchi... run build
 
-      runHook postBuild
-    '';
+        runHook postBuild
+      '';
 
-    installPhase = ''
-      runHook preInstall
+      installPhase = ''
+        runHook preInstall
 
-      mkdir -p "$out"
-      cp -vr .cache/* "$out"
-      cp -vr apps/stage-tamagotchi/src/renderer/.cache/assets/* "$out"
+        mkdir -p "$out"
+        cp -vr .cache/* "$out"
+        cp -vr apps/stage-tamagotchi/src/renderer/.cache/assets/* "$out"
 
-      runHook postInstall
-    '';
+        runHook postInstall
+      '';
 
-    outputHashMode = "recursive";
-    outputHashAlgo = "sha256";
-    outputHash = builtins.readFile ./assets-hash.txt;
+      outputHashMode = "recursive";
+      outputHashAlgo = "sha256";
+      outputHash = builtins.readFile ./assets-hash.txt;
+    };
+
+    # To be pinned by dev shells
+    nodejs = nodejs';
+    pnpm = pnpm';
   };
-
-  # To be pinned by dev shells
-  passthru.pnpm = pnpm';
 
   meta = {
     description = "Self-hostable AI waifu / companion / VTuber";
     longDescription = ''
       AIRI is a soul container of AI waifu / virtual characters to bring them into our world,
-      wishing to achieve Neuro-sama's altitude. It's completely LLM and AI driven, capable of
-      realtime voice chat, playing Minecraft and Factorio. It can be run in browser or on desktop.
-      This is the desktop version.
+      wishing to achieve Neuro-sama's altitude. It's capable of realtime voice
+      chat, playing Minecraft and Factorio and more. It can be run in browser or on desktop.
     '';
     homepage = "https://github.com/moeru-ai/airi";
     changelog = "https://github.com/moeru-ai/airi/releases/tag/v${final.version}";
-    # While airi itself is licensed under MIT, it uses the nonfree Cubism SDK. Whether it's
-    # redistributable remains a question, so we say it's not.
-    license = lib.licenses.unfree;
+    license = lib.licenses.mit;
     platforms = [
       "x86_64-linux"
       "aarch64-linux"
