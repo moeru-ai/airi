@@ -144,12 +144,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   const cloudHydratedSessions = new Set<string>()
   const loadingSessions = new Map<string, Promise<boolean>>()
 
-  // Cloud sync state. The WS client is constructed lazily so anonymous
-  // (`userId === 'local'`) users never open a socket. `cloudSyncReady` is a
-  // UI-facing readiness flag (true after a successful reconcile); it does
-  // NOT gate `pushMessageToCloud`, which writes to the outbox and lets
-  // reconnect catch up — that way the very first message in a session does
-  // not get dropped while reconcile completes.
+  // Cloud sync state. The WS client is lazy so anonymous (`userId === 'local'`)
+  // users open no socket. `cloudSyncReady` indicates reconcile finished; it does
+  // not gate `pushMessageToCloud`, which writes to outbox so the first message
+  // is never dropped while reconcile completes.
   const cloudSyncReady = ref(false)
   /**
    * Number of message sends + tombstone deletes waiting on cloud delivery.
@@ -817,11 +815,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     if (isCloudUser) {
       for (const { sessionId, cloudChatId } of removed) {
         const remoteChatId = cloudChatId ?? sessionId
-        // Tombstone first: even if the cloud DELETE never reaches the server
-        // (offline, transient 5xx), the next reconcile will see the remote id
-        // here and skip the adopt branch — preventing the ghost-session bug
-        // where the server still has the row and re-creates the local mapping.
-        // The reconcile-driven `drainTombstones` retries failed DELETEs.
+        // Tombstone first so next reconcile skips this remote id even if DELETE
+        // fails (offline, 5xx), preventing deleted sessions from resurrecting.
+        // `drainTombstones` retries any failed DELETEs on future reconciles.
         await enqueuePersist(() => chatSessionsRepo.addTombstone(currentUserId, remoteChatId))
         // While chat sync is off, the tombstone waits. `drainTombstones` sends the deletion after the next sync.
         if (cloudChatId && chatSyncEnabled.value) {
@@ -1247,11 +1243,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       // reconcile retries them after a reconnect or another sync trigger.
       await Promise.all([...new Set(titleSyncSessions)].map(sessionId => syncPendingSessionTitle(sessionId)))
 
-      // After reconcile, fan out a catch-up pull for every session that has
-      // a cloudChatId now (claimed + created + previously-mapped). This
-      // closes the window between offline writes on other devices and the
-      // moment the WS push begins delivering live updates.
-      // Remote chats whose mapping is gone on the server are excluded from pull.
+      // Fan out catch-up pull for active sessions with cloudChatId to sync
+      // offline writes before WS live updates begin.
+      // Remote chats whose mapping is gone on the server are excluded.
       const cloudMappedIds = Object.values(sessionMetas.value)
         .filter(meta => meta.cloudChatId && remoteById.has(meta.cloudChatId))
         .map(meta => meta.sessionId)

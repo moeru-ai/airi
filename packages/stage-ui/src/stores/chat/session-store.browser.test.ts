@@ -758,16 +758,9 @@ describe('chat session synchronization', () => {
     expect(chatSyncMocks.clients[1]?.connect).toHaveBeenCalledOnce()
   })
 
-  // https://github.com/moeru-ai/airi/issues/2671
-  //
-  // ROOT CAUSE:
-  //
-  // In multi-window setups, follower message deletion routes to the leader.
-  // The leader must update synchronized state and dequeue the outbox without producing duplicate proposals.
-  //
-  // Before the fix, outbox rows remained queued or resurrected across windows.
-  //
-  // We fixed this by leader-routing deleteMessage, stabilizing session ownership, and canceling in-flight outbox sends.
+  // Report: https://github.com/moeru-ai/airi/issues/2671
+  // Root cause: Multi-window follower message deletion did not dequeue leader outbox.
+  // Fix: Route deleteMessage to leader and cancel in-flight outbox sends.
   it('routes deleteMessage from follower to leader and synchronizes deletion without proposals for Issue #2671', async () => {
     const namespace = `chat-delete-synced:${crypto.randomUUID()}`
     const leaderContext = createSyncedContext(namespace, 'leader-only')
@@ -790,16 +783,9 @@ describe('chat session synchronization', () => {
     await vi.waitFor(() => expect(follower.sessionMessages[sessionId]).toHaveLength(0))
   })
 
-  // https://github.com/moeru-ai/airi/issues/2671
-  //
-  // ROOT CAUSE:
-  //
-  // In multi-window setups, follower pushMessageToCloud routes to the leader.
-  // The leader advances cloudMaxSeq and synchronizes the updated cursor without producing proposals.
-  //
-  // Before the fix, cloudMaxSeq was not synchronized to followers after sends.
-  //
-  // We fixed this by leader-routing pushMessageToCloud and updating the synchronized session meta.
+  // Report: https://github.com/moeru-ai/airi/issues/2671
+  // Root cause: Followers did not receive updated cloudMaxSeq after pushes.
+  // Fix: Route pushMessageToCloud to leader and sync updated session meta.
   it('routes pushMessageToCloud from follower to leader and synchronizes cloudMaxSeq for Issue #2671', async () => {
     const namespace = `chat-push-synced:${crypto.randomUUID()}`
     const leaderContext = createSyncedContext(namespace, 'leader-only')
@@ -836,16 +822,9 @@ describe('chat session synchronization', () => {
     await vi.waitFor(() => expect(follower.sessionMetas[sessionId]?.cloudMaxSeq).toBe(77))
   })
 
-  // https://github.com/moeru-ai/airi/issues/2671
-  //
-  // ROOT CAUSE:
-  //
-  // If a message is deleted locally while sendMessages or its pull is in flight, the server returns that row.
-  // mergeCloudMessagesIntoSession treated it as a new row and resurrected it locally.
-  //
-  // const merged = mergeCloudMessagesIntoLocal(current, meta.cloudMaxSeq, payload)
-  //
-  // We fixed this by filtering out cancelledOutboxMessageIds before merging pulled cloud messages.
+  // Report: https://github.com/moeru-ai/airi/issues/2671
+  // Root cause: Pulled server messages resurrected locally deleted rows.
+  // Fix: Filter cancelledOutboxMessageIds before merging pulled cloud messages.
   it('excludes cancelled messages from post-send pull when deleted during in-flight send for Issue #2671', async () => {
     const namespace = `chat-cancel-pull:${crypto.randomUUID()}`
     const leaderContext = createSyncedContext(namespace, 'leader-only')

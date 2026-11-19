@@ -1217,18 +1217,9 @@ describe('chat-session-store · synchronized data actions', () => {
     expect(store.getSnapshot().index?.characters.default?.activeSessionId).toBe('persisted-session')
   })
 
-  // https://github.com/moeru-ai/airi/issues/2671
-  //
-  // ROOT CAUSE:
-  //
-  // If a user sends a message, deletes it locally, and switches characters, deleted messages resurrect.
-  // This happens because pushMessageToCloud never updated cloudMaxSeq from the server sequence response.
-  //
-  // const response = await wsClient.sendMessages(...)
-  // // cloudMaxSeq stayed 0, so subsequent pullCloudMessages used afterSeq: 0 and re-fetched the deleted message
-  //
-  // We fixed this by capturing response.seq and advancing cloudMaxSeq to the confirmed sequence.
-  // await updateSessionCloudMaxSeq(sessionId, response.seq, 1)
+  // Report: https://github.com/moeru-ai/airi/issues/2671
+  // Root cause: pushMessageToCloud never updated cloudMaxSeq from server responses.
+  // Fix: Advance cloudMaxSeq using the response sequence number.
   it('advances cloudMaxSeq upon sending messages so deleted messages do not resurrect after switching characters for Issue #2671', async () => {
     userIdRef.value = 'cloud-user'
     cloudWsStatus = 'open'
@@ -1294,17 +1285,9 @@ describe('chat-session-store · synchronized data actions', () => {
     expect(store.getSessionMessages('session-a')).toHaveLength(0)
   })
 
-  // https://github.com/moeru-ai/airi/issues/2671
-  //
-  // ROOT CAUSE:
-  //
-  // If sendMessages returns a sequence above unpulled messages, moving cloudMaxSeq directly creates a gap.
-  // This happens because the client never pulled the intermediate messages, and pullCloudMessages requests rows after that cursor.
-  //
-  // sessionMetas.value[sessionId] = { ...meta, cloudMaxSeq: seq }
-  //
-  // We fixed this by pulling missing messages before advancing the cursor.
-  // await pullCloudMessages(sessionId)
+  // Report: https://github.com/moeru-ai/airi/issues/2671
+  // Root cause: Advancing cloudMaxSeq directly created unpulled message gaps.
+  // Fix: Pull missing messages before advancing the cursor.
   it('fills sequence gap by pulling missing messages before advancing cloudMaxSeq for Issue #2671', async () => {
     userIdRef.value = 'cloud-user'
     cloudWsStatus = 'open'
@@ -1354,18 +1337,9 @@ describe('chat-session-store · synchronized data actions', () => {
     )
   })
 
-  // https://github.com/moeru-ai/airi/issues/2671
-  //
-  // ROOT CAUSE:
-  //
-  // If a message is deleted locally before send completion, the outbox still sends it to the cloud later.
-  // This happens because deleteMessage only removed the message from local reactive state and messages IDB store.
-  //
-  // await chatSessionsRepo.deleteMessage(userId, sessionId, messageId)
-  // // outbox entry remained pending in IDB and drained to the cloud on reconnect
-  //
-  // We fixed this by dequeuing the deleted message id from the outbox immediately.
-  // await chatSessionsRepo.dequeueOutbox(userId, [messageId])
+  // Report: https://github.com/moeru-ai/airi/issues/2671
+  // Root cause: Locally deleted messages stayed pending in IDB outbox and sent later.
+  // Fix: Dequeue the deleted message id from the outbox immediately.
   it('removes pending message from outbox when deleted locally before send for Issue #2671', async () => {
     userIdRef.value = 'cloud-user'
     cloudWsStatus = 'idle' // WS is closed, message stays in outbox
@@ -1404,19 +1378,9 @@ describe('chat-session-store · synchronized data actions', () => {
     expect(dequeueOutboxMock).toHaveBeenCalledWith('cloud-user', ['pending-1'])
   })
 
-  // https://github.com/moeru-ai/airi/issues/2671
-  //
-  // ROOT CAUSE:
-  //
-  // If a cloud chat is deleted on the server, reconnecting throws 404 ApiErrors continuously.
-  // This happens because reconcileCloudSessions called pullCloudMessages for every local cloudChatId unconditionally.
-  //
-  // for (const [sessionId, meta] of Object.entries(sessionMetas.value)) {
-  //   if (meta?.cloudChatId) await pullCloudMessages(sessionId)
-  // }
-  //
-  // We fixed this by filtering against the remote chats list returned by listChats.
-  // if (remoteById.has(meta.cloudChatId)) await pullCloudMessages(sessionId)
+  // Report: https://github.com/moeru-ai/airi/issues/2671
+  // Root cause: Reconcile unconditionally pulled deleted server chats, throwing 404s.
+  // Fix: Filter against remote chats returned by listChats before pulling.
   it('reconcileCloudSessions skips pulling messages for remote chats that no longer exist on server for Issue #2671', async () => {
     userIdRef.value = 'cloud-user'
     cloudWsStatus = 'open'
