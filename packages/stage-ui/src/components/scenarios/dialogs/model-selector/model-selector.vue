@@ -6,7 +6,7 @@ import type { DisplayModel } from '../../../../stores/display-models'
 
 import { validateLive2DZip } from '@proj-airi/stage-ui-live2d'
 import { TACHIE_ARCHIVE_SUFFIX, validateTachieZip } from '@proj-airi/stage-ui-tachie'
-import { Button } from '@proj-airi/ui'
+import { Button, Progress } from '@proj-airi/ui'
 import { useFileDialog } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger, EditableArea, EditableEditTrigger, EditableInput, EditablePreview, EditableRoot, EditableSubmitTrigger } from 'reka-ui'
@@ -27,7 +27,7 @@ const emits = defineEmits<{
 }>()
 
 const displayModelStore = useDisplayModelsStore()
-const { displayModelsFromIndexedDBLoading, displayModels, cloudOnlyModels, syncStatuses, syncErrors } = storeToRefs(displayModelStore)
+const { displayModelsFromIndexedDBLoading, displayModels, cloudOnlyModels, syncStatuses, syncErrors, uploadProgress } = storeToRefs(displayModelStore)
 const { t } = useI18n()
 
 const listedModels = computed(() => [
@@ -484,8 +484,23 @@ mmdDialog.onChange(handleAddMMDModel)
               </div>
               <div v-if="syncStatuses[model.id]" flex items-center gap-1 text="xs neutral-400 dark:neutral-600">
                 <div i-solar:cloud-bold />
-                <div>{{ t(`settings.model-select.select-model.sync.status.${syncStatuses[model.id]}`) }}</div>
+                <div v-if="syncStatuses[model.id] === 'uploading' && uploadProgress[model.id] !== undefined">
+                  {{ t('settings.model-select.select-model.sync.upload-progress', { percent: uploadProgress[model.id] }) }}
+                </div>
+                <div v-else>
+                  {{ t(`settings.model-select.select-model.sync.status.${syncStatuses[model.id]}`) }}
+                </div>
               </div>
+              <Progress
+                v-if="syncStatuses[model.id] === 'uploading' && uploadProgress[model.id] !== undefined"
+                :progress="uploadProgress[model.id]"
+                role="progressbar"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                :aria-valuenow="uploadProgress[model.id]"
+                :aria-label="t('settings.model-select.select-model.sync.status.uploading')"
+                class="mt-1"
+              />
               <div v-if="syncErrors[model.id]" text="xs red-500" class="line-clamp-2">
                 {{ syncErrors[model.id] }}
               </div>

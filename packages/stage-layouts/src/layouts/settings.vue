@@ -9,7 +9,7 @@ import { computed, onMounted, provide, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterView, useRoute } from 'vue-router'
 
-import HeaderLink from '../components/Layouts/HeaderLink.vue'
+import Header from '../components/Layouts/Header.vue'
 
 import { themeColorFromValue, useThemeColor } from '../composables/theme-color'
 
@@ -96,21 +96,21 @@ onMounted(() => updateThemeColor())
 </script>
 
 <template>
+  <!-- The bottom safe area is padded inside the scroll area, so content scrolls under the home indicator. -->
   <div
     :style="{
-      paddingBottom: 'env(safe-area-inset-bottom, 0px)',
       paddingTop: 'env(safe-area-inset-top, 0px)',
       paddingRight: 'env(safe-area-inset-right, 0px)',
       paddingLeft: 'env(safe-area-inset-left, 0px)',
     }"
     :class="['h-full w-full', 'flex flex-col']"
   >
-    <!-- Header -->
+    <!-- Header. The same header as the stage, so Flux and the account menu stay in one place on every page. -->
     <div
       v-if="!isStageTamagotchi()"
       :class="['px-0 py-1 hidden sm:block', 'md:px-3 md:py-3', 'w-full gap-2', 'bg-$bg-color']"
     >
-      <HeaderLink />
+      <Header :character-switcher="false" />
     </div>
     <!-- Content -->
     <div
@@ -133,14 +133,14 @@ onMounted(() => updateThemeColor())
           :transparent="fullBleed"
         />
       </div>
-      <!-- The scroll area reaches the screen edges and pads its content instead. A full-bleed page gets no padding. -->
+      <!-- The scroll area reaches the screen edges and pads its content instead. A full-bleed page gets no padding and pads its own controls. -->
       <div
         id="settings-scroll-container"
         ref="scrollContainer"
         :class="[
           'relative', 'min-h-0', 'flex-1', 'overflow-y-auto', 'scrollbar-none',
           '-mx-3 xl:-mx-4',
-          fullBleed ? '' : 'px-3 xl:px-4',
+          fullBleed ? '' : 'px-3 xl:px-4 pb-[env(safe-area-inset-bottom,0px)]',
         ]"
       >
         <RouterView />

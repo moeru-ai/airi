@@ -8,6 +8,7 @@ import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { errorMessageFrom } from '@moeru/std'
 import { NativeBackdrop } from '@proj-airi/electron-native-backdrop'
+import { onWindowClosed } from '@proj-airi/electron-vueuse/main'
 import { ipcMain } from 'electron'
 import { isMacOS } from 'std-env'
 import { array, check, finite, maxLength, maxValue, minLength, minValue, number, object, parse, pipe, string } from 'valibot'
@@ -64,7 +65,7 @@ export class WindowBackdropService {
     const contents = window.webContents
     contents.on('did-start-navigation', this.releaseOnDocumentChange)
     contents.on('render-process-gone', this.release)
-    window.once('closed', () => {
+    onWindowClosed(window, () => {
       this.closed = true
       WindowBackdropService.windows.delete(window)
       this.release()

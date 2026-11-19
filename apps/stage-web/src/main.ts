@@ -12,8 +12,9 @@ import { pushToTalkTriggerKey } from '@proj-airi/stage-ui/composables/push-to-ta
 import { trackButtonPlugin } from '@proj-airi/stage-ui/directives/track-button'
 import { browserAuthorizationHandler, registerAuthorizationHandler } from '@proj-airi/stage-ui/libs/auth'
 import { piniaPluginTracing, setupSynced } from '@proj-airi/stage-ui/libs/pinia'
-import { configureAnalyticsAdapter } from '@proj-airi/stage-ui/libs/product-signals'
+import { configureAnalyticsAdapter, startErrorReporting } from '@proj-airi/stage-ui/libs/product-signals'
 import { settingsSearch } from '@proj-airi/stage-ui/libs/settings-search'
+import { useSettingsAnalytics } from '@proj-airi/stage-ui/stores/settings/analytics'
 import { useMediaQuery } from '@vueuse/core'
 import { MotionPlugin } from '@vueuse/motion'
 import { createPinia } from 'pinia'
@@ -35,8 +36,8 @@ import './styles/main.css'
 import 'uno.css'
 
 configureAnalyticsAdapter(async (options) => {
-  const { createOpenpanelAdapter } = await import('@proj-airi/stage-ui/libs/product-signals/openpanel')
-  return createOpenpanelAdapter(options)
+  const { loadAnalyticsProviders } = await import('@proj-airi/stage-ui/libs/product-signals/providers')
+  return loadAnalyticsProviders(options)
 })
 registerAuthorizationHandler(browserAuthorizationHandler)
 
@@ -71,7 +72,13 @@ router.afterEach(() => {
   NProgress.done()
 })
 
-createApp(App)
+const app = createApp(App)
+startErrorReporting(app, () => useSettingsAnalytics(pinia).analyticsEnabled, async (options) => {
+  const { createSentryAdapter } = await import('./modules/sentry')
+  return createSentryAdapter(options)
+})
+
+app
   .use(synced.vue)
   .use(MotionPlugin)
   // TODO: Fix autoAnimatePlugin type error

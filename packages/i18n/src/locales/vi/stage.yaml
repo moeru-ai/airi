@@ -1,3 +1,21 @@
+background-picker:
+  title: Chọn nền
+  add-custom: Thêm nền tùy chỉnh
+  custom: Nền tùy chỉnh
+  preview: Xem trước
+  no-preview: Không có bản xem trước
+  select: Chọn một nền
+  blur: Làm mờ
+  remove: Xóa nền
+  sampling: Đang trích xuất màu…
+  apply: Sử dụng nền này
+  presets:
+    colorful-wave:
+      label: Sóng nhiều màu
+      description: Sóng chuyển động trên lưới dấu cộng
+    transparent:
+      label: Trong suốt
+      description: Hiển thị nền phía sau giao diện ứng dụng
 character-switcher:
   title: Đổi nhân vật
   manage: Quản lý nhân vật

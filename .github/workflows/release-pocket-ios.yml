@@ -32,6 +32,8 @@ jobs:
     env:
       PRODUCT_NAME: 'AIRI'
       VITE_ENABLE_ANALYTICS: 'true'
+      # Uploads source maps to Sentry. The build skips the upload when the secret is absent.
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
       UPLOAD_TESTFLIGHT: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.testflight) }}
       RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
     steps:
@@ -171,6 +173,9 @@ jobs:
     needs: build
     if: ${{ always() && github.repository == 'moeru-ai/airi' && needs.build.result == 'success' && (github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.tag != '')) }}
     continue-on-error: true
+    concurrency:
+      group: gitcode-release-${{ github.event.release.tag_name || inputs.tag }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -180,6 +185,10 @@ jobs:
           gh --version
           jq --version
           curl --version
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
 
       - name: Publish release assets to GitCode
         env:
