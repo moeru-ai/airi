@@ -17,7 +17,6 @@ import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-sto
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
 import { useJournalPreviewStore } from '@proj-airi/stage-ui/stores/journal-preview'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { BasicTextarea, GhostButton } from '@proj-airi/ui'
 import { until, useLocalStorage } from '@vueuse/core'
 import { nanoid } from 'nanoid/non-secure'
@@ -28,7 +27,7 @@ import { useI18n } from 'vue-i18n'
 import JournalToolCallBlock from './chat-tool-renderers/journal-tool-call-block.vue'
 import ChatViewportLayout from './chat-viewport-layout.vue'
 
-import { electronOpenSettings } from '../../shared/eventa'
+import { electronAuthStartLogin, electronOpenSettings } from '../../shared/eventa'
 import { useHearingInputChannel } from '../composables/use-hearing-input-channel'
 import { computerUseToolReferences, useToolSelectionStore, widgetToolReferences } from '../stores/tools'
 import { COMPUTER_USE_READ_IMAGE_TOOL_NAME, COMPUTER_USE_TOOL_NAME } from '../stores/tools/builtin/computer-use'
@@ -120,8 +119,9 @@ const { activeSessionId, messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
 const { activeTurns, backgroundTasks } = storeToRefs(chatStore)
 const { activeCard, activeCardId } = storeToRefs(airiCardStore)
-const { chatReady } = storeToRefs(useConsciousnessStore())
+const { activeChatReady: chatReady } = storeToRefs(chatStore)
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
+const startLogin = useElectronEventaInvoke(electronAuthStartLogin)
 
 const composer = useChatComposer<ChatImageAttachment>({
   activeSessionId,
@@ -466,6 +466,7 @@ defineExpose({
         v-if="!chatReady"
         :class="['mx-2 mb-1']"
         @configure="openSettings({ route: '/settings/providers' })"
+        @sign-in="startLogin()"
       />
       <div
         ref="message-composer"

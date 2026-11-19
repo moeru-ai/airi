@@ -47,12 +47,32 @@ function handleReady(api: WorkbenchApi) {
 - A panel can give a tab icon with `params: { icon }`.
 - Set `padded` to `false` for a panel that has its own scroll area. Set `floating` to let panels float above the layout.
 
+### In a window without a title bar
+
+Give `frame` when the workbench fills a window that has no title bar. The tab bars at the top edge then act as the title bar.
+
+```vue
+<template>
+  <Workbench :panels="PANELS" :frame="{ insetStart: '4.75rem', draggable: true }" @ready="handleReady">
+    <template #frame-end>
+      <WindowControls />
+    </template>
+  </Workbench>
+</template>
+```
+
+- `insetStart` keeps space at the start of the top-left tab bar, for example for the macOS traffic lights.
+- `draggable` makes the empty part of each top tab bar move the window. A tab still moves its panel.
+- The `frame-end` slot shows at the end of the top-right tab bar, for example the Windows and Linux window buttons.
+- The top-left and top-right groups follow the layout when the user moves a panel.
+
 ## Exports
 
 | Export | Contents |
 | --- | --- |
 | `Workbench` | The docking component |
 | `WorkbenchApi` | The Dockview API type that `ready` gives |
+| `WorkbenchFrame` | The type of the `frame` prop |
 
 ## Stories
 

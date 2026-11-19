@@ -67,6 +67,15 @@ jobs:
       - run: docker run -v `pwd`:`pwd` -w `pwd` ghcr.io/realm/swiftlint:latest --fix
         working-directory: ./apps/stage-pocket
 
+      # Writes the current i18n diagnostics into `.x18n/check-baseline.json`.
+      # The update drops the diagnostics that no longer occur, and adds the new warnings.
+      # A new error skips the update, so the baseline never hides it. The Lint job in ci.yml reports it.
+      - name: Update the i18n baseline
+        run: |
+          if pnpm exec x18n check > /dev/null; then
+            pnpm exec x18n check --update-baseline
+          fi
+
       # - name: AutoCorrect
       #   uses: huacnlee/autocorrect-action@main
       #   with:

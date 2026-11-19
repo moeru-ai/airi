@@ -18,7 +18,7 @@ import { createWindowBackdropHost } from '../../composables/window-backdrop'
 
 import 'virtual:uno.css'
 
-const { backdrop, returnHome, setIgnoreMouseEvents, registerShortcut, unregisterShortcut, shortcutListeners, cursor } = vi.hoisted(() => ({
+const { backdrop, returnHome, setIgnoreMouseEvents, registerShortcut, unregisterShortcut, shortcutListeners, cursor, isWayland } = vi.hoisted(() => ({
   backdrop: vi.fn<(request: { regions: BackdropRegion[] }) => Promise<WindowBackdropStatus>>(async () => ({ state: 'unsupported', reason: 'Browser test' })),
   returnHome: vi.fn(),
   setIgnoreMouseEvents: vi.fn(),
@@ -28,16 +28,20 @@ const { backdrop, returnHome, setIgnoreMouseEvents, registerShortcut, unregister
   shortcutListeners: new Set<(event: { body?: { id: string, phase: 'down' | 'up' } }) => void>(),
   /** The cursor position that the main process reports. The mock factory fills it with refs. */
   cursor: {} as { x?: { value: number }, y?: { value: number } },
+  /** Whether the mocked platform is Wayland. Most tests cover the click-through platforms. */
+  isWayland: { value: false },
 }))
 
 // The inlay talks to its Electron window through these IPC composables. The cursor starts outside the page.
 vi.mock('@proj-airi/electron-vueuse', async () => {
   const { shallowRef } = await import('vue')
-  const { electronInlayReturnHome, electronShortcutRegister, electronShortcutUnregister } = await import('../../../shared/eventa')
+  const { electronAppIsWayland, electronInlayReturnHome, electronShortcutRegister, electronShortcutUnregister } = await import('../../../shared/eventa')
   const invokes = new Map<unknown, unknown>([
     [electronInlayReturnHome, returnHome],
     [electronShortcutRegister, registerShortcut],
     [electronShortcutUnregister, unregisterShortcut],
+    // Not Wayland by default: the inlay window can stay click-through around its card.
+    [electronAppIsWayland, () => Promise.resolve(isWayland.value)],
   ])
   return {
     useElectronEventaInvoke: (eventa: unknown) => invokes.get(eventa) ?? setIgnoreMouseEvents,
@@ -60,6 +64,7 @@ const cleanups: (() => void)[] = []
 
 afterEach(() => {
   cleanups.splice(0).reverse().forEach(cleanup => cleanup())
+  isWayland.value = false
   backdrop.mockReset()
   backdrop.mockResolvedValue({ state: 'unsupported', reason: 'Browser test' })
   returnHome.mockReset()
@@ -154,6 +159,14 @@ describe('voice inlay', () => {
     await expect.poll(() => setIgnoreMouseEvents.mock.calls.at(-1)).toEqual([[true, { forward: true }]])
   })
 
+  it('stays interactive on Wayland, where the cursor signal cannot drive click-through', async () => {
+    isWayland.value = true
+    renderInlay()
+
+    await expect.poll(() => setIgnoreMouseEvents.mock.calls.at(-1)).toEqual([[false, { forward: true }]])
+    expect(inlayView()).toBe('hidden')
+  })
+
   it('shows a capsule when capture starts, and grows into the card when text arrives', async () => {
     const view = renderInlay()
 
@@ -214,11 +227,20 @@ describe('voice inlay', () => {
     publish({ drafts: [], input: { ...capturing, text: '', segments: [] } })
     await expect.poll(inlayView).toBe('capsule')
 
-    await new Promise(resolve => setTimeout(resolve, 5500))
+    // Fake timers move the clock past the 5 s delay without a real wait.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    cleanups.push(() => vi.useRealTimers())
+    await vi.advanceTimersByTimeAsync(5500)
     expect(returnHome).not.toHaveBeenCalled()
 
     publish({ drafts: [] })
-    await expect.poll(() => returnHome.mock.calls.length, { timeout: 7000 }).toBe(1)
+    // The leave transition ends on a timer too, so each poll moves the clock forward a little.
+    await expect.poll(async () => {
+      await vi.advanceTimersByTimeAsync(50)
+      return inlayView()
+    }).toBe('hidden')
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(returnHome).toHaveBeenCalledTimes(1)
   })
 
   it('cancels live speech on Escape and shrinks away', async () => {

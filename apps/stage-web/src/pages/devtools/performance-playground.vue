@@ -7,6 +7,7 @@ import { ThreeScene } from '@proj-airi/stage-ui-three'
 import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
 import { useEmotionsMessageQueue } from '@proj-airi/stage-ui/composables/queues'
 import { EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '@proj-airi/stage-ui/constants/emotions'
+import { bindSpeakingStateToPlaybackManager } from '@proj-airi/stage-ui/libs/speech/playback-speaking-state'
 import { useAudioContext, useSpeakingStore } from '@proj-airi/stage-ui/stores/audio'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatMaintenanceStore } from '@proj-airi/stage-ui/stores/chat/maintenance'
@@ -184,15 +185,16 @@ speechPipeline.on('onSpecial', (segment) => {
     emotionMessageQueue.enqueue(segment.special)
 })
 
-playbackManager.onStart(({ item }) => {
-  nowSpeaking.value = true
-  log(`播放开始：${item.text}`)
+bindSpeakingStateToPlaybackManager(playbackManager, {
+  setSpeaking: (speaking) => {
+    nowSpeaking.value = speaking
+    if (!speaking)
+      mouthOpenSize.value = 0
+  },
+  onStart: ({ item }) => log(`播放开始：${item.text}`),
 })
 
 playbackManager.onEnd(({ item }) => {
-  nowSpeaking.value = false
-  mouthOpenSize.value = 0
-
   if (item.special)
     log(`播放结束，special: ${item.special}`)
 })
@@ -282,6 +284,7 @@ onUnmounted(() => {
           :idle-animation="animations.idleLoop.toString()"
           :audio-context="audioContext"
           :connect-speech="connectSpeech"
+          :speech-active="nowSpeaking"
           :show-axes="stageViewControlsEnabled"
           :paused="false"
           @error="console.error"

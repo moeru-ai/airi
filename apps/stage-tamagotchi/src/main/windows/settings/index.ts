@@ -12,6 +12,7 @@ import type { WidgetsWindowManager } from '../widgets'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
+import { onWindowClosed } from '@proj-airi/electron-vueuse/main'
 import { BrowserWindow } from 'electron'
 
 import icon from '../../../../resources/icon.png?asset'
@@ -96,7 +97,7 @@ export function setupSettingsWindowReusableFunc(params: {
       query: { 'synced-leader': 'false' },
     }))
 
-    window.on('closed', () => {
+    onWindowClosed(window, () => {
       if (settingsContext)
         settingsContext = undefined
     })

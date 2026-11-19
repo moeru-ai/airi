@@ -15,7 +15,6 @@ import { effectScope, onScopeDispose, ref, watch } from 'vue'
 import * as v from 'valibot'
 
 import { displayModelsRepo } from '../database/repos/display-models.repo'
-import { DISPLAY_MODEL_SYNC_FLAG } from '../libs/feature-flags'
 import { isPermanentTransferFailure } from '../libs/file-transfer/request-error'
 import { putToTarget, sha256Hex } from '../libs/file-transfer/transfer'
 import { TransferQueue } from '../libs/file-transfer/transfer-queue'
@@ -28,7 +27,7 @@ import {
   reserveDisplayModelUpload,
 } from '../services/display-model-sync'
 import { useAuthStore } from './auth'
-import { useFeatureFlagsStore } from './feature-flags'
+import { useSyncPreferencesStore } from './sync-preferences'
 
 const uploadTaskKind = 'upload-display-model'
 const UploadPayloadSchema = v.object({ modelId: v.string() })
@@ -45,7 +44,7 @@ const POLL_INTERVAL_MS = 10 * 60 * 1000
  */
 export function resolveCloudOwnerId(pinia?: Pinia) {
   const auth = useAuthStore(pinia)
-  return auth.isAuthenticated && auth.isSessionVerified && useFeatureFlagsStore(pinia).isEnabled(DISPLAY_MODEL_SYNC_FLAG.key) ? auth.userId : undefined
+  return auth.isAuthenticated && auth.isSessionVerified && useSyncPreferencesStore(pinia).isEnabled('display-models') ? auth.userId : undefined
 }
 
 /**
@@ -68,6 +67,12 @@ export const useDisplayModelCloudStore = defineStore('display-model-cloud', () =
   const models = ref<CloudDisplayModel[]>([])
   const directoryLoaded = ref(false)
   const uploads = ref<Record<string, TransferTask['status']>>({})
+  /**
+   * Whole percent of the bytes that the running upload sent, by model ID. The selector shows it as a bar.
+   * A model has no entry before its PUT starts, for example while the window computes the checksum.
+   * Only a change of the whole percent writes the state, so other windows get at most 101 updates for each upload.
+   */
+  const uploadProgress = ref<Record<string, number>>({})
   const errors = ref<Record<string, string>>({})
   /** Increases after a local file changes. Each window reads the files again. */
   const localRevision = ref(0)
@@ -87,6 +92,8 @@ export const useDisplayModelCloudStore = defineStore('display-model-cloud', () =
     (task, removed) => {
       const { [task.id]: _previous, ...rest } = uploads.value
       uploads.value = removed ? rest : { ...rest, [task.id]: task.status }
+      if (removed || task.status !== 'running')
+        clearUploadProgress(task.id)
       if (task.status === 'failed' && !removed)
         setError(task.id, task.error ?? 'Upload failed')
     },
@@ -113,6 +120,20 @@ export const useDisplayModelCloudStore = defineStore('display-model-cloud', () =
 
   function setError(id: string, message: string) {
     errors.value = { ...errors.value, [id]: message }
+  }
+
+  function setUploadProgress(id: string, sentBytes: number, totalBytes: number) {
+    // The server refuses an empty file, so a size of 0 only reaches the store before that refusal.
+    const percent = totalBytes > 0 ? Math.min(100, Math.floor(sentBytes * 100 / totalBytes)) : 0
+    if (uploadProgress.value[id] !== percent)
+      uploadProgress.value = { ...uploadProgress.value, [id]: percent }
+  }
+
+  function clearUploadProgress(id: string) {
+    if (!(id in uploadProgress.value))
+      return
+    const { [id]: _cleared, ...rest } = uploadProgress.value
+    uploadProgress.value = rest
   }
 
   function clearError(id: string) {
@@ -265,7 +286,15 @@ export const useDisplayModelCloudStore = defineStore('display-model-cloud', () =
       sha256: await sha256Hex(record.file),
     }, signal)
     if (upload) {
-      await putToTarget(record.file, upload, signal)
+      setUploadProgress(modelId, 0, record.file.size)
+      await putToTarget(record.file, upload, {
+        signal,
+        // A late event of an aborted request must not show progress again.
+        onProgress: (sentBytes) => {
+          if (!signal.aborted)
+            setUploadProgress(modelId, sentBytes, record.file.size)
+        },
+      })
       await completeDisplayModelUpload(upload.uploadId, signal)
     }
 
@@ -360,6 +389,7 @@ export const useDisplayModelCloudStore = defineStore('display-model-cloud', () =
     models,
     directoryLoaded,
     uploads,
+    uploadProgress,
     errors,
     localRevision,
     completedRuns,

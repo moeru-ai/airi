@@ -14,6 +14,8 @@ vi.mock('@proj-airi/stage-shared/composables', () => {
 
   return {
     useLocalStorageManualReset,
+    useModelScopedLocalStorage: <T>(_scope: string, _key: string, initialValue: T) => ref(initialValue),
+    useModelScopedLocalStorageManualReset: <T>(_scope: string, key: string, initialValue: T) => useLocalStorageManualReset(key, initialValue),
     useVersionedLocalStorageManualReset: useLocalStorageManualReset,
   }
 })

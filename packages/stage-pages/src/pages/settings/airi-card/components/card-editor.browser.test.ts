@@ -12,7 +12,7 @@ import CardEditor from './CardEditor.vue'
 
 import 'virtual:uno.css'
 
-describe('card editor message limit', () => {
+describe('card editor turn limit', () => {
   let pinia: ReturnType<typeof createPinia>
 
   beforeEach(async () => {
@@ -43,7 +43,7 @@ describe('card editor message limit', () => {
     const cardId = await store.addCard({ name: 'Luna', version: '1.0.0' }, 'scratch')
     await screen.rerender({ cardId, initialSection: 'settings' })
 
-    const input = screen.getByRole('spinbutton', { name: 'Messages to remember' })
+    const input = screen.getByRole('spinbutton', { name: 'Turns to remember' })
     await expect.element(input).toHaveValue(null)
     await expect.element(input).toHaveAttribute('placeholder', 'All')
     for (const [text, expected] of [['20', 20], ['0', 0], ['', -1]] as const) {

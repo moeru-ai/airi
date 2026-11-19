@@ -1,14 +1,4 @@
 {
-  "apps/component-calling/src/pages/index.vue": {
-    "ts/no-explicit-any": {
-      "count": 3
-    }
-  },
-  "apps/component-calling/src/plugins/plugin-component-calling/index.ts": {
-    "ts/no-explicit-any": {
-      "count": 1
-    }
-  },
   "apps/stage-pocket/src/pages/devtools/performance-playground.vue": {
     "ts/no-explicit-any": {
       "count": 2
@@ -76,7 +66,7 @@
   },
   "apps/stage-tamagotchi/src/main/services/airi/widgets/artistry-bridge.ts": {
     "ts/no-explicit-any": {
-      "count": 11
+      "count": 10
     }
   },
   "apps/stage-tamagotchi/src/main/services/airi/widgets/providers/base.ts": {
@@ -364,26 +354,6 @@
       "count": 2
     }
   },
-  "packages/core-agent/src/agents/spark-notify/tools.ts": {
-    "ts/no-explicit-any": {
-      "count": 2
-    }
-  },
-  "packages/core-agent/src/runtime/agent-hooks.ts": {
-    "ts/no-explicit-any": {
-      "count": 1
-    }
-  },
-  "packages/model-driver-mediapipe/src/three/apply-pose-to-vrm.ts": {
-    "ts/no-explicit-any": {
-      "count": 4
-    }
-  },
-  "packages/plugin-protocol/src/types/events.ts": {
-    "ts/no-explicit-any": {
-      "count": 3
-    }
-  },
   "packages/plugin-sdk/src/channels/index.ts": {
     "ts/no-explicit-any": {
       "count": 6
@@ -564,21 +534,6 @@
       "count": 1
     }
   },
-  "packages/stage-shared/src/artistry.ts": {
-    "ts/no-explicit-any": {
-      "count": 4
-    }
-  },
-  "packages/stage-shared/src/beat-sync/detector.ts": {
-    "ts/no-explicit-any": {
-      "count": 1
-    }
-  },
-  "packages/stage-shared/src/perf/tracer.ts": {
-    "ts/no-explicit-any": {
-      "count": 5
-    }
-  },
   "packages/stage-ui-live2d/src/components/scenes/live2d/Model.vue": {
     "ts/no-explicit-any": {
       "count": 9
@@ -597,16 +552,6 @@
   "packages/stage-ui-live2d/src/utils/live2d-structure-report.ts": {
     "ts/no-explicit-any": {
       "count": 2
-    }
-  },
-  "packages/stage-ui-spine/src/components/scenes/spine/Model.vue": {
-    "ts/no-explicit-any": {
-      "count": 2
-    }
-  },
-  "packages/stage-ui-spine/src/utils/spine-preview.ts": {
-    "ts/no-explicit-any": {
-      "count": 1
     }
   },
   "packages/stage-ui-three/src/components/Model/VRMModel.vue": {
@@ -667,11 +612,6 @@
   "packages/stage-ui/src/components/misc/steppers/steppers.vue": {
     "ts/no-explicit-any": {
       "count": 1
-    }
-  },
-  "packages/stage-ui/src/components/scenarios/dialogs/background-picker/background-picker.vue": {
-    "ts/no-explicit-any": {
-      "count": 6
     }
   },
   "packages/stage-ui/src/components/scenarios/dialogs/onboarding/step-provider-configuration.vue": {
@@ -741,7 +681,7 @@
   },
   "packages/stage-ui/src/stores/background.ts": {
     "ts/no-explicit-any": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/stage-ui/src/stores/mods/api/channel-server.ts": {
@@ -761,7 +701,7 @@
   },
   "packages/stage-ui/src/stores/modules/artistry.ts": {
     "ts/no-explicit-any": {
-      "count": 6
+      "count": 4
     }
   },
   "packages/stage-ui/src/stores/modules/gaming-minecraft.ts": {
@@ -779,11 +719,6 @@
       "count": 2
     }
   },
-  "packages/stage-ui/src/utils/tts.ts": {
-    "ts/no-explicit-any": {
-      "count": 2
-    }
-  },
   "packages/stage-ui/src/workers/background-removal/worker.ts": {
     "ts/no-explicit-any": {
       "count": 2
@@ -797,46 +732,6 @@
   "packages/stage-ui/src/workers/vad/vad.ts": {
     "ts/no-explicit-any": {
       "count": 3
-    }
-  },
-  "packages/stream-kit/src/queue.ts": {
-    "ts/no-explicit-any": {
-      "count": 9
-    }
-  },
-  "packages/ui-loading-screens/src/components/LoadingSciFiCircle/index.vue": {
-    "ts/no-explicit-any": {
-      "count": 1
-    }
-  },
-  "packages/ui-transitions/src/components/StageTransitionGroup.vue": {
-    "ts/no-explicit-any": {
-      "count": 2
-    }
-  },
-  "packages/ui/src/components/animations/transition-horizontal.vue": {
-    "ts/no-explicit-any": {
-      "count": 5
-    }
-  },
-  "packages/ui/src/utils/shim/local-storage.ts": {
-    "ts/no-explicit-any": {
-      "count": 1
-    }
-  },
-  "plugins/airi-plugin-claude-code/src/utils/general.ts": {
-    "ts/no-explicit-any": {
-      "count": 4
-    }
-  },
-  "server/apps/api/src/libs/mock-db.ts": {
-    "ts/no-explicit-any": {
-      "count": 2
-    }
-  },
-  "server/apps/api/src/services/domain/characters.ts": {
-    "ts/no-explicit-any": {
-      "count": 1
     }
   },
   "services/computer-use-mcp/src/bin/e2e-airi-chat-observable.ts": {

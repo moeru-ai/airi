@@ -21,7 +21,7 @@ export interface PreviewSeries {
 
 /** A series inside the capsules of the row. See `CapsuleContent` of timeline-canvas. */
 export type PreviewContent
-  = | { kind: 'waveform', level: PreviewSeries, intensity?: PreviewSeries }
+  = | { kind: 'waveform', level: PreviewSeries, intensity?: PreviewSeries, curve?: PreviewSeries, curveThreshold?: number }
     | { kind: 'chart', series: PreviewSeries, range?: [number, number], threshold?: number }
 
 /**
@@ -79,7 +79,13 @@ const row = computed(() => {
     points.append(point.time, table.index({ color: point.color }), String(point.time))
 
   const content: CapsuleContent | undefined = props.content?.kind === 'waveform'
-    ? { kind: 'waveform', level: pyramidOf(props.content.level), intensity: props.content.intensity && pyramidOf(props.content.intensity) }
+    ? {
+        kind: 'waveform',
+        level: pyramidOf(props.content.level),
+        intensity: props.content.intensity && pyramidOf(props.content.intensity),
+        curve: props.content.curve && pyramidOf(props.content.curve),
+        curveThreshold: props.content.curveThreshold,
+      }
     : props.content?.kind === 'chart'
       ? { kind: 'chart', series: pyramidOf(props.content.series), range: props.content.range, threshold: props.content.threshold }
       : undefined

@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import type { DockviewApi, DockviewReadyEvent, DockviewTheme, VueComponent } from 'dockview-vue'
+import type { DockviewApi, DockviewReadyEvent, DockviewTheme, IDockviewHeaderActionsProps, VueComponent } from 'dockview-vue'
+import type { PropType, VNode } from 'vue'
+
+import type { WorkbenchFrame } from './types'
 
 import { useTheme } from '@proj-airi/ui'
 import { DockviewVue } from 'dockview-vue'
-import { computed, defineComponent, h, useSlots } from 'vue'
+import { computed, defineComponent, h, onScopeDispose, shallowRef, useSlots, useTemplateRef } from 'vue'
 
 import WorkbenchTab from './workbench-tab.vue'
 
@@ -22,6 +25,11 @@ const props = withDefaults(defineProps<{
   floating?: boolean
   /** The panel content scrolls inside the panel and gets padding. A panel with its own scroll area turns it off. */
   padded?: boolean
+  /**
+   * The workbench fills a window without a title bar, so the tab bars at the top edge act as the title bar.
+   * The `frame-end` slot shows at the end of the top-right tab bar, for example the window buttons.
+   */
+  frame?: WorkbenchFrame
 }>(), { floating: false, padded: true })
 
 const emit = defineEmits<{
@@ -30,6 +38,42 @@ const emit = defineEmits<{
 
 const { isDark } = useTheme()
 const slots = useSlots()
+const root = useTemplateRef<HTMLElement>('root')
+
+/** The edges of the workbench that a group touches. The frame uses them to find the groups that are in the title bar. */
+interface GroupEdges {
+  top: boolean
+  start: boolean
+  end: boolean
+}
+
+const edges = shallowRef<ReadonlyMap<string, GroupEdges>>(new Map())
+
+/** A group that touches an edge has a distance to it below half of the gap between groups. */
+const EDGE_TOLERANCE = 3
+
+function measureEdges(api: DockviewApi) {
+  if (!root.value)
+    return
+
+  const bounds = root.value.getBoundingClientRect()
+  const next = new Map<string, GroupEdges>()
+  for (const group of api.groups) {
+    if (group.api.location.type !== 'grid')
+      continue
+
+    const rect = group.element.getBoundingClientRect()
+    const groupEdges = {
+      top: rect.top - bounds.top < EDGE_TOLERANCE,
+      start: rect.left - bounds.left < EDGE_TOLERANCE,
+      end: bounds.right - rect.right < EDGE_TOLERANCE,
+    }
+    next.set(group.id, groupEdges)
+    // The style sheet can then reach the void part of the tab bar, which Dockview owns.
+    group.element.classList.toggle('airi-workbench-group--top', groupEdges.top)
+  }
+  edges.value = next
+}
 
 function createPanelComponent(slotName: string): VueComponent {
   // NOTICE:
@@ -52,6 +96,36 @@ function createPanelComponent(slotName: string): VueComponent {
 // Remove this cast when Dockview accepts Vue's Component type for registry entries.
 const tabComponent = WorkbenchTab as unknown as VueComponent
 
+/**
+ * A header action of each group. It renders only in a group that touches the given edges, so it moves with the layout.
+ */
+function createFrameActionsComponent(render: (edges: GroupEdges, frame: WorkbenchFrame) => VNode | null | undefined): VueComponent {
+  // NOTICE:
+  // Dockview declares registry entries as DefineComponent<any>.
+  // Vue's concrete defineComponent result is not assignable to that broad generic type.
+  // Source: dockview-vue/dist/types/utils.d.ts.
+  // Remove this cast when Dockview accepts Vue's Component type for registry entries.
+  return defineComponent({
+    props: { params: { type: Object as PropType<IDockviewHeaderActionsProps>, required: true } },
+    setup(actionsProps) {
+      return () => {
+        const groupEdges = edges.value.get(actionsProps.params.group.id)
+        return props.frame && groupEdges ? render(groupEdges, props.frame) : null
+      }
+    },
+  }) as VueComponent
+}
+
+/** Keeps space at the start of the top-left tab bar, for window buttons that the system draws over the page. */
+const prefixActionsComponent = createFrameActionsComponent(({ top, start }, { insetStart }) => top && start && insetStart
+  ? h('div', { class: 'airi-workbench-frame-inset h-full shrink-0', style: { width: insetStart } })
+  : null)
+
+/** Shows the `frame-end` slot at the end of the top-right tab bar. */
+const rightActionsComponent = createFrameActionsComponent(({ top, end }) => top && end
+  ? h('div', { class: 'h-full flex items-stretch [-webkit-app-region:no-drag]' }, slots['frame-end']?.())
+  : null)
+
 const components = computed<Record<string, VueComponent>>(() => Object.fromEntries(props.panels.map(name => [name, createPanelComponent(name)])))
 
 const theme = computed<DockviewTheme>(() => ({
@@ -64,20 +138,34 @@ const theme = computed<DockviewTheme>(() => ({
   dndTabIndicator: 'line',
 }))
 
+let stopLayoutChange: (() => void) | undefined
+onScopeDispose(() => stopLayoutChange?.())
+
 function handleReady({ api }: DockviewReadyEvent) {
+  // Every add, move, and removal of a group fires a layout change, so the edges follow the user's layout.
+  const disposable = api.onDidLayoutChange(() => measureEdges(api))
+  stopLayoutChange = () => disposable.dispose()
   emit('ready', api)
+  measureEdges(api)
 }
 </script>
 
 <template>
-  <DockviewVue
-    :theme="theme"
-    :components="components"
-    :default-tab-component="tabComponent"
-    :disable-floating-groups="!floating"
-    :class="['h-full w-full']"
-    @ready="handleReady"
-  />
+  <!-- The surface is a step darker than the cards on it. Its padding is as wide as the gap between the cards. -->
+  <div :class="['airi-workbench-surface h-full w-full p-1.5', frame?.draggable && 'airi-workbench--draggable']">
+    <div ref="root" :class="['h-full w-full']">
+      <DockviewVue
+        :theme="theme"
+        :components="components"
+        :default-tab-component="tabComponent"
+        :prefix-header-actions-component="prefixActionsComponent"
+        :right-header-actions-component="rightActionsComponent"
+        :disable-floating-groups="!floating"
+        :class="['h-full w-full']"
+        @ready="handleReady"
+      />
+    </div>
+  </div>
 </template>
 
 <style>
@@ -106,8 +194,15 @@ function handleReady({ api }: DockviewReadyEvent) {
   --dv-border-radius: 0.375rem;
   --dv-tab-border-radius: 0.5rem;
   --dv-spacing-padding: 0.375rem;
-  /* In light mode, the gap is a step darker than the white cards, so each card reads as its own surface. */
-  background: rgb(236 236 236);
+}
+
+/* The cards are white on a gray surface, so each card reads as a layer above it. */
+.airi-workbench-surface {
+  background: rgb(229 229 229);
+}
+
+.dark .airi-workbench-surface {
+  background: rgb(10 10 10);
 }
 
 /* Dockview paints its root with the card color, which hides the gap. The gap shows the workbench background. */
@@ -116,22 +211,17 @@ function handleReady({ api }: DockviewReadyEvent) {
 }
 
 .dark .airi-workbench {
-  --dv-tabs-and-actions-container-background-color: rgb(10 10 10 / 0.7);
-  --dv-group-view-background-color: rgb(10 10 10 / 0.7);
+  /* In dark mode, a card is a step lighter than the surface, so it also reads as a layer above it. */
+  --dv-tabs-and-actions-container-background-color: rgb(23 23 23);
+  --dv-group-view-background-color: rgb(23 23 23);
   --dv-separator-border: rgb(64 64 64 / 0.64);
   --dv-icon-hover-background-color: rgb(64 64 64 / 0.8);
-  background: rgb(23 23 23 / 0.52);
 }
 
-/* Each group is a card with its own border. The gaps between cards separate the groups, so no separator line draws. */
+/* Each group is a card. The gaps between cards separate the groups, so no border or separator line draws. */
 .airi-workbench .dv-groupview {
   overflow: hidden;
-  border: 1px solid rgb(229 229 229 / 0.55);
   border-radius: 0.625rem;
-}
-
-.dark .airi-workbench .dv-groupview {
-  border-color: rgb(64 64 64 / 0.4);
 }
 
 .airi-workbench .dv-tab {
@@ -144,5 +234,11 @@ function handleReady({ api }: DockviewReadyEvent) {
 
 .airi-workbench .dv-split-view-container > .dv-view-container > .dv-view::before {
   display: none;
+}
+
+/* In a frame, the empty part of each tab bar at the top edge moves the window. A tab still moves its panel. */
+.airi-workbench--draggable .airi-workbench-group--top .dv-void-container,
+.airi-workbench--draggable .airi-workbench-frame-inset {
+  -webkit-app-region: drag;
 }
 </style>

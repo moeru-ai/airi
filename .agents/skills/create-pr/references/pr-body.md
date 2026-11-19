@@ -1,6 +1,6 @@
 # Pull Request Body Template
 
-Use this template as a decision guide. Keep `Summary` and `Verification`. Add other sections only when they improve the review. Do not invent content to fill a section.
+Use this template as a decision guide. Keep `Summary`, `Context`, `Verification`, and `Agent`. Add other sections only when they improve the review. Do not invent content to fill a section.
 
 ## Summary
 
@@ -11,6 +11,17 @@ State the problem or capability first. Then state the result and the reason for 
 - Is this PR independent or stacked?
 
 For a stacked PR, name the parent PR or branch. Separate inherited changes from this PR's own changes.
+
+## Context
+
+Give the need that caused this PR. The main skill gives the rules in Request Context.
+
+- Request: `<short English paraphrase of what the user asked for, with their decisions and constraints>`
+- Scenario: `<what the user did, where, and what they saw or expected>`
+- Scope: `<what the user asked to keep out, or the follow-up work>`
+- Source: `<issue, review, or discussion link, when one exists>`
+
+Do not paste private chat, logs, or screenshots. Remove private data.
 
 ## Change map
 
@@ -153,3 +164,12 @@ Use `Absent` for a new UI state. Use `Removed` for a deleted UI state.
 Add this optional section for migrations, feature gates, staged rollout, monitoring, known gaps, or a required follow-up PR.
 
 Do not hide incomplete work in this section. State whether the gap blocks merge or belongs to a separate task.
+
+## Agent
+
+Add this section when an agent wrote or changed the PR. The main skill gives the rules in Agent Attribution.
+
+- Harness: `<agent product, for example Claude Code or Codex CLI>`
+- Model: `<exact model ID that the runtime reports, or Unknown>`
+
+Put a footer that the harness requires after this section.
