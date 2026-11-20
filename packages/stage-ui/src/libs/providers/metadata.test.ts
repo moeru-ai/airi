@@ -92,4 +92,14 @@ describe('provider metadata selector', () => {
 
     expect('to' in metadata).toBe(false)
   })
+
+  it('keeps Eden AI in the paid and cloud catalogue filters', async () => {
+    const metadata = await selectProviderMetadata({ ...definition, id: 'eden-ai' }, t)
+
+    const paidProviders = [metadata].filter(provider => provider.pricing === 'paid')
+    const cloudProviders = [metadata].filter(provider => provider.deployment === 'cloud')
+
+    expect(paidProviders).toEqual([metadata])
+    expect(cloudProviders).toEqual([metadata])
+  })
 })
