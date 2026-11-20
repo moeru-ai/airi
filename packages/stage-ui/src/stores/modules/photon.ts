@@ -10,7 +10,7 @@ export const usePhotonStore = defineStore('photon', () => {
   const projectId = useLocalStorageManualReset<string>('settings/photon/project-id', '')
   const apiKey = useLocalStorageManualReset<string>('settings/photon/api-key', '')
 
-  /** Sends the settings to the `photon` module, which is the bot in `integrations/photon-bot`. */
+  /** Sends the settings of the iMessage page to the `photon` module, which is the bot in `integrations/photon-bot`. */
   function saveSettings() {
     configurator.updateFor('photon', {
       enabled: enabled.value,

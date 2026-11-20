@@ -40,7 +40,7 @@ export interface PhotonAdapterDeps {
 /**
  * Joins one Photon project to AIRI.
  *
- * The Photon connection comes from the environment at the start. The Photon page of AIRI can replace it or remove it
+ * The Photon connection comes from the environment at the start. The iMessage page of AIRI can replace it or remove it
  * at any time with `module:configure`. Each connection owns one stream. A text that belongs to a replaced connection
  * gets no reply.
  */
@@ -49,7 +49,7 @@ export class PhotonAdapter {
   private readonly send: typeof sendText
   private readonly markRead: typeof markRead
   private readonly setTyping: typeof setTyping
-  /** The Photon project in use. It is not set while the bot waits for settings or while AIRI disables the module. */
+  /** The Photon project in use. It is not set while the bot waits for settings or while AIRI disables the integration. */
   private connection?: PhotonConnection
   private stream?: PhotonStream
   private pending?: { messageId: string, resolve: (result: TurnResult) => void }
@@ -118,10 +118,10 @@ export class PhotonAdapter {
     this.airiClient.close()
   }
 
-  /** Applies the settings from the Photon page of AIRI. They replace the values from the environment. */
+  /** Applies the settings from the iMessage page of AIRI. They replace the values from the environment. */
   private applySettings(settings: PhotonModuleSettings): void {
     if (settings.enabled === false) {
-      log.log('AIRI disabled the Photon module. The bot stops reading texts.')
+      log.log('AIRI disabled the iMessage integration. The bot stops reading texts.')
       this.disconnectPhoton()
       return
     }
@@ -129,7 +129,7 @@ export class PhotonAdapter {
     const projectId = settings.projectId?.trim()
     const apiKey = settings.apiKey?.trim()
     if (!projectId || !apiKey) {
-      log.warn('AIRI enabled the Photon module without a project ID or an API key. The bot stops reading texts.')
+      log.warn('AIRI enabled the iMessage integration without a project ID or an API key. The bot stops reading texts.')
       this.disconnectPhoton()
       return
     }

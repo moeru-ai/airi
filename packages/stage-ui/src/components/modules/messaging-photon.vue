@@ -18,6 +18,19 @@ const { enabled, projectId, apiKey, configured } = storeToRefs(photonStore)
       :description="t('settings.pages.modules.messaging-photon.enable-description')"
     />
 
+    <p :class="['text-xs', 'text-neutral-500 dark:text-neutral-400']">
+      <i18n-t keypath="settings.pages.modules.messaging-photon.powered-by" scope="global">
+        <template #link>
+          <a
+            href="https://app.beta.photon.codes"
+            target="_blank"
+            rel="noopener noreferrer"
+            :class="['underline', 'hover:text-primary-500']"
+          >app.beta.photon.codes</a>
+        </template>
+      </i18n-t>
+    </p>
+
     <FieldInput
       v-model="projectId"
       :label="t('settings.pages.modules.messaging-photon.project-id')"

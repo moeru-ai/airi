@@ -16,7 +16,7 @@ export type PhotonBotConfig = v.InferOutput<typeof configSchema>
 /**
  * Reads the configuration from the environment. An empty value counts as not set.
  *
- * The Photon project ID and API key are optional here. AIRI can send them later with `module:configure`.
+ * The Photon project ID and API key are optional here. The iMessage page of AIRI can send them later with `module:configure`.
  */
 export function loadConfig(source: Record<string, string | undefined> = env): PhotonBotConfig {
   return v.parse(configSchema, {
@@ -29,7 +29,7 @@ export function loadConfig(source: Record<string, string | undefined> = env): Ph
   })
 }
 
-/** The settings that the Photon page of AIRI sends with `module:configure`. */
+/** The settings that the iMessage page of AIRI sends with `module:configure`. */
 export const moduleSettingsSchema = v.object({
   enabled: v.optional(v.boolean()),
   projectId: v.optional(v.string()),

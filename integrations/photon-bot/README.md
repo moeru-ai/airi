@@ -1,6 +1,6 @@
-# `photon-bot`
+# iMessage integration (`photon-bot`)
 
-Allow アイリ to answer iMessage texts through [Photon](https://photon.codes).
+Allow アイリ to answer iMessage texts. The iMessage integration uses the [Photon](https://photon.codes) API.
 
 The bot runs as its own process. It holds the Photon event stream, gives each text to AIRI as `input:text`, and sends the reply of the character through the Photon API.
 
@@ -40,7 +40,7 @@ Start AIRI, then start the bot. AIRI must stay open: the character answers from 
 pnpm run -F @proj-airi/photon-bot start
 ```
 
-In AIRI, open **Settings → Modules → Photon**. Select **Enable Photon Integration**. Enter the project ID and the project API key. Then select **Save**.
+In AIRI, open **Settings → Modules → iMessage**. Select **Enable iMessage Integration**. Enter the Photon project ID and the Photon API key. Then select **Save**.
 
 Text the line's number from your iPhone. The bot only answers people who texted first: the shared line cannot start a conversation.
 
@@ -48,12 +48,12 @@ Text the line's number from your iPhone. The bot only answers people who texted 
 
 The bot takes the Photon project ID and the project API key from two sources:
 
-- The **Photon** page of AIRI sends them with `module:configure` when you select **Save**.
+- The **iMessage** page of AIRI sends them with `module:configure` when you select **Save**.
 - `PHOTON_PROJECT_ID` and `PHOTON_API_KEY` in `.env.local` apply when the bot starts.
 
 The values from AIRI replace the values from the environment. The bot connects to Photon again with the new values, so a restart is not necessary.
 
-- If you clear **Enable Photon Integration** and select **Save**, the bot stops reading texts. A text in progress gets no reply.
+- If you clear **Enable iMessage Integration** and select **Save**, the bot stops reading texts. A text in progress gets no reply.
 - When you enable the module again for the same project, the bot continues from the saved cursor.
 - When you change the project, the bot starts at the live end of the stream of the new project.
 - AIRI sends the settings only when you select **Save**. If you start the bot later, select **Save** again, or keep the values in `.env.local`.
