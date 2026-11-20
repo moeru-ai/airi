@@ -767,10 +767,18 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
     deletingFolderIds.add(folderId)
     try {
-      const members = Object.values(sessionMetas.value)
+      // A deletion that failed part way already took the folder off the members in memory, while the index still
+      // lists some with the folder. Members from both take the folder off on disk before the folder goes away.
+      const members = new Set(Object.values(sessionMetas.value)
         .filter(meta => meta.folderId === folderId)
-        .map(meta => meta.sessionId)
-      await updateSessionMetas(members, meta => ({ ...meta, folderId: undefined }))
+        .map(meta => meta.sessionId))
+      for (const character of Object.values(index.value.characters)) {
+        for (const meta of Object.values(character.sessions)) {
+          if (meta.folderId === folderId)
+            members.add(meta.sessionId)
+        }
+      }
+      await updateSessionMetas([...members], meta => ({ ...meta, folderId: undefined }))
       if (!index.value?.folders?.[folderId])
         return
       index.value.folders = omit(index.value.folders, [folderId])

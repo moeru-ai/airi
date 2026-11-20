@@ -147,6 +147,13 @@ const visibleRows = computed(() => {
 // The selection survives a change of place or character. Only the rows that the list shows count and take a batch action.
 const selectedRows = computed(() => visibleRows.value.filter(row => selectedIds.value.has(row.meta.sessionId)))
 const allSelected = computed(() => visibleRows.value.length > 0 && selectedRows.value.length === visibleRows.value.length)
+/** The folder that every selected conversation is in. The batch menu marks it, also in all conversations and the archive. */
+const selectedFolderId = computed(() => {
+  const folderIds = new Set(selectedRows.value.map(row => row.meta.folderId))
+  return folderIds.size === 1 ? [...folderIds][0] : undefined
+})
+/** Whether a selected conversation is in a folder. The batch menu then offers No folder. */
+const selectionInFolder = computed(() => selectedRows.value.some(row => row.meta.folderId !== undefined))
 
 const placeLabel = computed(() => {
   if (place.value.kind === 'archive')
@@ -952,7 +959,8 @@ const menuCheckClasses = ['i-mingcute:check-line size-4 shrink-0 text-primary-50
             </template>
             <SessionFolderTargets
               :folders="props.folders"
-              :current-folder-id="currentFolder?.id"
+              :current-folder-id="selectedFolderId"
+              :in-folder="selectionInFolder"
               @move="moveSelected"
               @create="createFolderForSelection"
             />

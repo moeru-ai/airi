@@ -448,6 +448,7 @@ const avatarClasses = computed(() => ['relative shrink-0', props.compact ? 'size
                 <SessionFolderTargets
                   :folders="props.folders"
                   :current-folder-id="props.row.meta.folderId"
+                  :in-folder="props.row.meta.folderId !== undefined"
                   @move="moveTo"
                   @create="createFolder"
                 />
@@ -468,6 +469,7 @@ const avatarClasses = computed(() => ['relative shrink-0', props.compact ? 'size
                       <SessionFolderTargets
                         :folders="props.folders"
                         :current-folder-id="props.row.meta.folderId"
+                        :in-folder="props.row.meta.folderId !== undefined"
                         @move="moveTo"
                         @create="createFolder"
                       />
