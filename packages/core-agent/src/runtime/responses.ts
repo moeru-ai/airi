@@ -1,4 +1,4 @@
-import type { ResponsesConfig } from '@proj-airi/provider-inference'
+import type { GenerationRequest, ResponsesConfig } from '@proj-airi/provider-inference'
 import type { ItemParam, ResponsesOptions } from '@xsai-ext/responses'
 import type { CompletionStep, Tool } from '@xsai/shared-chat'
 
@@ -10,8 +10,10 @@ import type { ResolvedStep } from './request-context'
 import { responses } from '@xsai-ext/responses'
 import { hasToolCall, not } from '@xsai/shared-chat'
 
+import { measureContextBudget, resolveContextBudgetLimits } from '../messages/context-budget'
 import { renderSegmentText } from '../messages/render-context'
-import { projectInput, projectRound } from '../messages/turns'
+import { projectInput, projectRound, projectStopReason } from '../messages/turns'
+import { DecisionStepLimitReached } from './decision-budget'
 import { createGeneration } from './generation'
 import { createContinuationScope, mergeRequestHeaders, replaceProviderConfig, supportsTools } from './request-context'
 import { RequestSwitch } from './request-switch'
@@ -88,7 +90,7 @@ function renderConversation(conversation: Conversation, scope: string): ItemPara
   return conversation.turns.flatMap((turn) => {
     if (turn.type !== 'assistant')
       return renderMessage(projectInput(turn))
-    return turn.rounds.flatMap((round) => {
+    const items = turn.rounds.flatMap((round) => {
       const continuation = round.continuation
       if (continuation?.protocol === 'responses' && continuation.scope === scope) {
         if (!Array.isArray(continuation.data))
@@ -97,6 +99,8 @@ function renderConversation(conversation: Conversation, scope: string): ItemPara
       }
       return projectRound(round).flatMap(renderMessage)
     })
+    const stopReason = projectStopReason(turn)
+    return stopReason ? [...items, ...renderMessage(stopReason)] : items
   })
 }
 
@@ -182,7 +186,8 @@ export function streamResponses(input: {
   initialStep?: ResolvedStep
   onEvent: (event: StreamEvent) => Promise<void>
 }) {
-  const items = renderConversation(input.conversation, input.scope)
+  // Request preparation can translate media that this protocol cannot render directly.
+  const items = input.options?.prepareConversation ? [] : renderConversation(input.conversation, input.scope)
   const scopes: string[] = []
   const generation = createGeneration({
     turnId: input.options?.requestCorrelation?.turnId ?? input.options?.generationTurnId,
@@ -193,22 +198,27 @@ export function streamResponses(input: {
     project: item => readOutput([item]),
   })
   // The caller's tool choice applies to the first model request of the generation. A choice that forces a tool
-  // call on every request leaves the model no way to answer, and the tool loop has no step limit.
+  // call on every request leaves the model no way to answer. A configured step budget is handled after tool settlement.
   const callerToolChoice = (steps: readonly CompletionStep[]) =>
     steps.length === 0 && !input.options?.generationRoundOffset ? input.options?.toolChoice : undefined
   let providerConfigKeys = Object.keys(input.config)
   const requestOptions: ResponsesOptions = {
     ...input.config,
-    prepareStep: ({ input: current, steps }: { input: ItemParam[], steps: CompletionStep[] }) => {
-      const resolveStep = input.options?.resolveStep
-      if (!resolveStep) {
-        scopes.push(input.scope)
-        generation.prepareStep({ input: current })
-        return { toolChoice: toolChoice(callerToolChoice(steps)) }
+    prepareStep: async ({ input: current, steps }: { input: ItemParam[], steps: CompletionStep[] }) => {
+      const sdkInput = current
+      const completed = generation.snapshot(current, steps)
+      input.options?.abortSignal?.throwIfAborted()
+      const completedSteps = (input.options?.generationRoundOffset ?? 0) + steps.length
+      if (input.options?.maxSteps !== undefined && completedSteps >= input.options.maxSteps) {
+        const partialTurn = await generation.complete(Promise.resolve(current), Promise.resolve(steps))
+        throw new DecisionStepLimitReached(partialTurn, input.options.maxSteps, completedSteps)
       }
-      return (async () => {
+      const resolveStep = input.options?.resolveStep
+      let next: ResolvedStep | undefined
+      let request: GenerationRequest = { protocol: 'responses', config: input.config, webSearch: input.webSearch ?? false }
+      if (resolveStep) {
         const firstStep = scopes.length === 0 && input.initialStep
-        const next = firstStep || await resolveStep()
+        next = firstStep || await resolveStep()
 
         const nextRequest = firstStep
           ? { protocol: 'responses' as const, config: input.config, webSearch: input.webSearch ?? false }
@@ -218,6 +228,7 @@ export function streamResponses(input: {
           const partialTurn = await generation.complete(Promise.resolve(current), Promise.resolve(steps))
           throw new RequestSwitch(next, partialTurn)
         }
+        request = nextRequest
 
         // NOTICE:
         // xsAI 0.5 prepareStep returns only input, model, and toolChoice.
@@ -239,17 +250,57 @@ export function streamResponses(input: {
             : undefined,
           toolChoice: undefined,
         })
-        generation.prepareStep({ input: current, model: next.model })
-        scopes.push(nextScope)
-        const systemIndex = current.findIndex(item => item.type === 'message' && item.role === 'system')
-        const systemMessage = current[systemIndex]
+      }
+      const project = (conversation: Conversation) => {
+        const projected = renderConversation(conversation, input.scope)
+        if (!next)
+          return projected
+        const systemIndex = projected.findIndex(item => item.type === 'message' && item.role === 'system')
+        const systemMessage = projected[systemIndex]
         if (systemMessage?.type === 'message' && systemMessage.role === 'system')
-          current[systemIndex] = { ...systemMessage, content: next.systemPrompt }
+          projected[systemIndex] = { ...systemMessage, content: next.systemPrompt }
         else if (next.systemPrompt)
-          current.unshift({ type: 'message', role: 'system', content: next.systemPrompt })
+          projected.unshift({ type: 'message', role: 'system', content: next.systemPrompt })
+        return projected
+      }
+      if (input.options?.prepareConversation || next) {
+        const contextWindowTokens = next ? next.contextWindowTokens : input.options?.contextWindowTokens
+        const modelMaxOutputTokens = next ? next.modelMaxOutputTokens : input.options?.modelMaxOutputTokens
+        const requestedOutputTokens = typeof requestOptions.maxOutputTokens === 'number' ? requestOptions.maxOutputTokens : undefined
+        const contextBudgetLimits = resolveContextBudgetLimits({
+          contextWindowTokens,
+          requestedOutputTokens,
+          modelMaxOutputTokens,
+        })
+        const projectedRequest = (source: Conversation) => ({
+          input: project(source),
+          tools: requestOptions.tools?.map(tool => tool.type === 'function'
+            ? { type: 'function' as const, description: tool.function.description ?? null, name: tool.function.name, parameters: tool.function.parameters, strict: tool.function.strict ?? true }
+            : tool),
+        })
+        const conversation = await input.options?.prepareConversation?.(completed.rounds.length
+          ? { turns: [...input.conversation.turns, completed] }
+          : input.conversation, {
+          model: next?.model ?? input.config.model,
+          providerId: next?.providerId ?? input.options?.providerId,
+          request,
+          scope: input.scope,
+          contextWindowTokens,
+          modelMaxOutputTokens,
+          requestedOutputTokens,
+          contextBudgetLimits: contextBudgetLimits.source === 'provider-model-metadata' ? contextBudgetLimits : undefined,
+          measureContextBytes: source => new TextEncoder().encode(JSON.stringify(projectedRequest(source))).byteLength,
+          measureContextBudget: source => measureContextBudget(projectedRequest(source)),
+          readProjectedRequest: projectedRequest,
+          supportsVisionInput: next ? next.supportsVisionInput === true : input.options?.supportsVisionInput === true,
+        }) ?? { turns: [...input.conversation.turns, ...(completed.rounds.length ? [completed] : [])] }
+        input.options?.abortSignal?.throwIfAborted()
+        current = project(conversation)
+      }
+      scopes.push(input.scope)
+      generation.prepareStep({ input: sdkInput, model: next?.model })
 
-        return { input: current, model: next.model, toolChoice: toolsSupported ? toolChoice(callerToolChoice(steps)) : undefined }
-      })()
+      return { input: current, model: next?.model ?? input.config.model, toolChoice: !next || requestOptions.tools?.length ? toolChoice(callerToolChoice(steps)) : undefined }
     },
     input: items,
     store: false,
@@ -260,7 +311,7 @@ export function streamResponses(input: {
     maxOutputTokens: input.options?.maxTokens,
     headers: mergeRequestHeaders(input.config.headers, input.options?.headers),
     tools: input.webSearch ? [...(input.tools ?? []), { type: 'web_search' }] : input.tools,
-    // The tool loop has no step limit. It stops when the model answers without a tool call.
+    // A configured budget stops only after the current model step settles all tool calls.
     stopWhen: not(hasToolCall()),
     onEvent: async (event) => {
       const mapped = toAiriStreamEvent(event)

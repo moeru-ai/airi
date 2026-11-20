@@ -8,6 +8,19 @@ Shared character behavior belongs in `packages/stage-ui`. Use `stage-web` for br
 From the repository root, run `pnpm install`, then `pnpm dev:tamagotchi`.
 Run `pnpm -F @proj-airi/stage-tamagotchi build` to build the app.
 
+The root install builds shared packages and the desktop dependency graph, including the Terminal MCP service.
+If you install with `--ignore-scripts`, run `pnpm build:packages` before typecheck, development, or build.
+This generates the MCP package entry point and declarations. Do not copy `dist` from another worktree.
+
+Responses SDK extensions come from the versioned patch in [`patches/README.md`](../../patches/README.md).
+A fresh install applies it through `patchedDependencies`. Do not restore dependency files from another worktree.
+If an installation has unexpected dependency bytes, preserve the evidence and reproduce with an isolated store and virtual store.
+For example, run `pnpm install --frozen-lockfile --store-dir <empty-store> --virtual-store-dir <empty-virtual-store>`.
+The root lint command runs Oxlint and ESLint. Their rule handoff is explicit, including with an external virtual store.
+
+Desktop builds download model artifacts. They need network access and space for downloads, unpacked assets, and output.
+Keep download caches and generated assets separate from frozen experiment evidence.
+
 ## Local model files
 
 Sherpaw downloads remote model files into the app user data directory. The main
@@ -23,14 +36,12 @@ Turn it off before sending messages that must not receive computer-use tools.
 
 Only the current selection grants access, including retries and tool reruns. Historical messages do not grant access.
 The selected request receives `computer_use` and `computer_use_read_image`.
-The first tool accepts AUV arguments, such as `["invoke", "window.list"]`.
+The first tool accepts AUV arguments for command help.
 Use `["invoke", "--help"]` and command-specific help to discover supported operations.
-The image tool returns a screenshot as model image content. It accepts PNG, JPEG, and WebP artifacts inside the app's computer-use store.
-WebP artifacts convert to PNG. PNG and JPEG artifacts keep their original bytes.
-Use a model and provider that support tool calls for visual tasks.
-With **Use the vision model for tool images** on, the vision model reads the screenshot first for a chat model whose provider does not report image input.
-The chat model then gets a text description. It has the visible text and layout, but no pixel positions.
-Use AUV commands such as `display.findText` to get coordinates.
+Native observation, screenshot reads, and history previews are currently denied without trusted observation scope and capture provenance.
+Trusted window capture requires lifecycle binding at dispatch. Window titles and model-supplied targets do not grant access.
+The MCP AUV observation adapter is also disabled. Terminal approval and execution remain independent.
+This containment does not establish admission for visual tasks. See `docs/ai/adr/2026-11-09-native-observation-admission.md`.
 
 Electron starts a private AUV daemon with the matching AUV SDK and CLI 0.0.43 on demand, over a private Unix socket or Windows named pipe.
 Each CLI call runs its command on that daemon. The CLI and the daemon both write their traces and artifacts to the same store.
@@ -41,7 +52,7 @@ Nonzero exits retain AUV output and failure details as tool errors. A zero exit 
 On macOS, grant Accessibility and Screen Recording permissions to AIRI when the OS requests them.
 The packaged app is its own TCC responsible process, also when a terminal or Steam starts it.
 A development run uses the permissions of the terminal that starts it.
-Some application actions also need Automation permission. If `permission.probe` reports missing screen-recording permission, a capture can contain only the desktop background despite exit code zero. Available commands depend on the OS and AUV backend.
+Some application actions also need Automation permission. Available commands depend on the OS and AUV backend.
 Use this feature for local native applications. It does not expose a remote-device gateway or replace the separate `services/computer-use-mcp` service.
 
 The desktop package includes the platform CLI as an optional dependency and unpacks its executable from ASAR.

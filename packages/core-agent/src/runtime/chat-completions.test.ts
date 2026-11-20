@@ -78,8 +78,8 @@ it('uses one request snapshot while tools load (PR #2477)', async () => {
 it('forces the Chat tool choice only on the first request, so the model can answer after the tool', async () => {
   // ROOT CAUSE:
   // Each request of the tool loop kept a tool choice that names one function.
-  // The model had to call it again every time, so a loop without a step limit
-  // never ended. The caller's tool choice now applies to the first request.
+  // The model had to call it again every time, so it could not finish before the step budget.
+  // The caller's tool choice now applies to the first request.
   const requests: Array<{ tool_choice?: unknown }> = []
   const execute = vi.fn(() => 'sent')
   const fetch: typeof globalThis.fetch = async (_url, init) => {

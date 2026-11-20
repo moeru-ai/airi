@@ -1,7 +1,7 @@
 /**
  * Desktop grounding layer — unified observation aggregation.
  *
- * This is the main entry point for the `desktop_observe` tool.
+ * This is the main entry point for the `computer_observe` tool.
  * It captures screenshot, window observation, AX tree, and Chrome semantics
  * in parallel when available, then merges everything into a single
  * `DesktopGroundingSnapshot` with deduplicated, ranked target candidates.
@@ -396,7 +396,7 @@ function createPlaceholderScreenshot(): ScreenshotArtifact {
     mimeType: 'image/png',
     path: '',
     placeholder: true,
-    note: 'screenshot capture failed during desktop_observe',
+    note: 'screenshot capture failed during computer_observe',
     capturedAt: new Date().toISOString(),
   }
 }

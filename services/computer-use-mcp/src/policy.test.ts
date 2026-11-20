@@ -136,6 +136,59 @@ describe('evaluateActionPolicy', () => {
     expect(decision.reasons[0]).toContain('foreground app denied')
   })
 
+  it('denies browser DOM writes against the same denyApps list', () => {
+    const decision = evaluateActionPolicy({
+      action: {
+        kind: 'browser_dom_click',
+        input: {
+          selector: '#submit',
+        },
+      },
+      config: {
+        ...baseConfig,
+        denyApps: ['chrome'],
+      },
+      context: {
+        available: true,
+        appName: 'Google Chrome',
+        windowTitle: 'Example',
+        platform: 'win32',
+      },
+      operationsExecuted: 0,
+      operationUnitsConsumed: 0,
+    })
+
+    expect(decision.allowed).toBe(false)
+    expect(decision.reasons[0]).toContain('foreground app denied')
+  })
+
+  it('denies browser DOM writes against denyWindowTitles', () => {
+    const decision = evaluateActionPolicy({
+      action: {
+        kind: 'browser_dom_set_input_value',
+        input: {
+          selector: '#password',
+          value: 'secret',
+        },
+      },
+      config: {
+        ...baseConfig,
+        denyWindowTitles: ['password manager'],
+      },
+      context: {
+        available: true,
+        appName: 'Google Chrome',
+        windowTitle: 'Password Manager',
+        platform: 'win32',
+      },
+      operationsExecuted: 0,
+      operationUnitsConsumed: 0,
+    })
+
+    expect(decision.allowed).toBe(false)
+    expect(decision.reasons[0]).toContain('foreground window denied')
+  })
+
   it('denies opening apps outside the configured openable list', () => {
     const decision = evaluateActionPolicy({
       action: {

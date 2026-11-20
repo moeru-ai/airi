@@ -1,15 +1,20 @@
 <script setup lang="ts">
+import type { McpToolExposureMode } from '@proj-airi/stage-ui/types/mcp'
+
 import type {
   ElectronMcpConfigFile,
   ElectronMcpRuntimeStatus,
   ElectronMcpTestResult,
+  ElectronMcpToolDescriptor,
 } from '../../../../shared/eventa'
 import type { ServerForm } from './mcp-config'
 
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import { bundledTerminalServerName } from '@proj-airi/stage-shared/terminal-approval'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { Alert, Button, Checkbox, GhostButton, SettingsCard, TransitionVertical } from '@proj-airi/ui'
+import { useIntervalFn } from '@vueuse/core'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -20,12 +25,14 @@ import McpServerForm from './components/McpServerForm.vue'
 import {
   electronMcpApplyAndRestart,
   electronMcpGetRuntimeStatus,
+  electronMcpListTools,
   electronMcpOpenConfigFile,
   electronMcpReadConfigText,
   electronMcpTestServer,
   electronMcpWriteConfigText,
 } from '../../../../shared/eventa'
 import { parseElectronMcpConfigText } from '../../../../shared/mcp-config'
+import { useTamagotchiMcpToolsStore } from '../../../stores/tools/mcp'
 import {
   buildConfigFile,
   buildServerConfig,
@@ -40,17 +47,24 @@ import { mcpServerSearchKey } from './mcp.search'
 
 const { t } = useI18n()
 const { trackMcpServerRemoved, trackMcpConnectionTestRun } = useAnalytics()
+const mcpTools = useTamagotchiMcpToolsStore()
 const tn = (key: string, params?: Record<string, unknown>) => t(`settings.pages.modules.mcp-server.${key}`, params ?? {})
 
 const invokeOpenConfigFile = useElectronEventaInvoke(electronMcpOpenConfigFile)
 const invokeApplyAndRestart = useElectronEventaInvoke(electronMcpApplyAndRestart)
 const invokeGetRuntimeStatus = useElectronEventaInvoke(electronMcpGetRuntimeStatus)
+const invokeListTools = useElectronEventaInvoke(electronMcpListTools)
 const invokeReadConfigText = useElectronEventaInvoke(electronMcpReadConfigText)
 const invokeWriteConfigText = useElectronEventaInvoke(electronMcpWriteConfigText)
 const invokeTestServer = useElectronEventaInvoke(electronMcpTestServer)
 
 const servers = ref<ServerForm[]>([])
+const terminalEnabled = ref<boolean>()
+const toolExposureOverrides = ref<Record<string, McpToolExposureMode>>({})
 const runtime = ref<ElectronMcpRuntimeStatus>()
+const availableTools = ref<ElectronMcpToolDescriptor[]>([])
+const toolSearch = ref('')
+const collapsedToolServers = ref<Set<string>>(new Set())
 const infoMessage = ref('')
 const errorMessage = ref('')
 const isBusy = ref(false)
@@ -69,12 +83,15 @@ const testRunning = ref(false)
 const testResult = ref<ElectronMcpTestResult>()
 
 function buildConfig() {
-  return buildConfigFile(servers.value, tn)
+  const exposure = Object.keys(toolExposureOverrides.value).length ? { toolExposure: toolExposureOverrides.value } : {}
+  return { ...(terminalEnabled.value === undefined ? {} : { terminalEnabled: terminalEnabled.value }), ...exposure, ...buildConfigFile(servers.value, tn) }
 }
 
 function applyLoadedConfig(config: ElectronMcpConfigFile) {
   const selectedIdentifier = findServerIdentifierByRowId(servers.value, testRowId.value)
   const loaded = loadServerForms(config, { selectedIdentifier })
+  terminalEnabled.value = config.terminalEnabled
+  toolExposureOverrides.value = { ...config.toolExposure }
   servers.value = loaded.servers
   savedIds.value = loaded.savedIds
   expandedIds.value = new Set()
@@ -140,6 +157,80 @@ async function refreshRuntime() {
   runtime.value = await invokeGetRuntimeStatus()
 }
 
+async function refreshToolCatalog() {
+  availableTools.value = await invokeListTools(undefined)
+}
+
+function toolExposure(tool: ElectronMcpToolDescriptor): McpToolExposureMode {
+  if (isHostDisabled(tool))
+    return 'disabled'
+  const configured = toolExposureOverrides.value[tool.name]
+  if (configured === 'disabled')
+    return 'disabled'
+  if (configured === 'router-only')
+    return 'router-only'
+  if (configured === 'direct')
+    return tool.serverName === bundledTerminalServerName ? 'direct' : 'router-only'
+  return tool.exposure ?? 'router-only'
+}
+
+function setToolExposure(tool: ElectronMcpToolDescriptor, exposure: McpToolExposureMode) {
+  toolExposureOverrides.value = { ...toolExposureOverrides.value, [tool.name]: exposure }
+}
+
+/**
+ * Whether the Host owns this `disabled` and the settings page must not undo it.
+ * A tool the user disabled still reports `disabled`, but its default is not, so
+ * that one stays reversible.
+ */
+function isHostDisabled(tool: ElectronMcpToolDescriptor) {
+  return tool.defaultExposure === 'disabled'
+}
+
+function setToolEnabled(tool: ElectronMcpToolDescriptor, enabled: boolean) {
+  if (isHostDisabled(tool))
+    return
+  if (!enabled) {
+    setToolExposure(tool, 'disabled')
+    return
+  }
+  // Re-enabling returns the tool to its Host policy instead of guessing the
+  // exposure it had before: the disabled descriptor no longer carries it.
+  const next = { ...toolExposureOverrides.value }
+  delete next[tool.name]
+  toolExposureOverrides.value = next
+}
+
+function setToolRouterOnly(tool: ElectronMcpToolDescriptor, routerOnly: boolean) {
+  if (isHostDisabled(tool))
+    return
+  if (toolExposure(tool) === 'disabled')
+    return setToolExposure(tool, routerOnly ? 'router-only' : (tool.serverName === bundledTerminalServerName ? 'direct' : 'router-only'))
+  setToolExposure(tool, routerOnly ? 'router-only' : (tool.serverName === bundledTerminalServerName ? 'direct' : 'router-only'))
+}
+
+const filteredToolGroups = computed(() => {
+  const needle = toolSearch.value.trim().toLocaleLowerCase()
+  const groups = new Map<string, ElectronMcpToolDescriptor[]>()
+  for (const tool of availableTools.value) {
+    if (needle && !`${tool.serverName} ${tool.toolName} ${tool.description ?? ''}`.toLocaleLowerCase().includes(needle))
+      continue
+    const tools = groups.get(tool.serverName) ?? []
+    tools.push(tool)
+    groups.set(tool.serverName, tools)
+  }
+  return [...groups.entries()].map(([serverName, tools]) => ({ serverName, tools }))
+})
+
+function toggleToolServer(serverName: string) {
+  const next = new Set(collapsedToolServers.value)
+  if (next.has(serverName))
+    next.delete(serverName)
+  else
+    next.add(serverName)
+  collapsedToolServers.value = next
+}
+
 async function loadFromDisk() {
   const { text } = await invokeReadConfigText()
   try {
@@ -158,6 +249,7 @@ async function loadFromDisk() {
     jsonOpen.value = true
     servers.value = []
     savedIds.value = new Set()
+    toolExposureOverrides.value = {}
     expandedIds.value = new Set()
     savedSig.value = emptyConfigSignature
     testRowId.value = ''
@@ -172,6 +264,8 @@ function syncJsonDraft() {
     error => errorMessageFrom(error) ?? 'Unknown error',
   )
   jsonDraft.value = result.draft
+  if (!result.error)
+    jsonDraft.value = `${JSON.stringify(buildConfig(), null, 2)}\n`
   jsonError.value = result.error
 }
 
@@ -228,60 +322,32 @@ function removeServer(rowId: string) {
     testRowId.value = servers.value[0]?.rowId ?? ''
 }
 
-async function saveAndRestart() {
-  isBusy.value = true
-  errorMessage.value = ''
-  infoMessage.value = ''
-  try {
-    const text = `${JSON.stringify(buildConfig(), null, 2)}\n`
-    const written = await invokeWriteConfigText({ text })
-    const parsed = parseElectronMcpConfigText(written.text)
-    applyLoadedConfig(parsed)
-    savedSig.value = JSON.stringify(parsed)
-    const result = await invokeApplyAndRestart()
-    await refreshRuntime()
-    infoMessage.value = tn('messages.restarted', {
-      started: result.started.length,
-      failed: result.failed.length,
-      skipped: result.skipped.length,
-    })
-  }
-  catch (e) {
-    errorMessage.value = errorMessageFrom(e) ?? 'Unknown error'
-  }
-  finally {
-    isBusy.value = false
-  }
-}
-
-async function restartServers() {
-  isBusy.value = true
-  errorMessage.value = ''
-  infoMessage.value = ''
-  try {
-    const result = await invokeApplyAndRestart()
-    await refreshRuntime()
-    infoMessage.value = tn('messages.restarted', {
-      started: result.started.length,
-      failed: result.failed.length,
-      skipped: result.skipped.length,
-    })
-  }
-  catch (e) {
-    errorMessage.value = errorMessageFrom(e) ?? 'Unknown error'
-  }
-  finally {
-    isBusy.value = false
-  }
-}
-
 async function applyRestartAction() {
-  if (isDirty.value) {
-    await saveAndRestart()
-    return
+  isBusy.value = true
+  errorMessage.value = ''
+  infoMessage.value = ''
+  try {
+    if (isDirty.value) {
+      const text = `${JSON.stringify(buildConfig(), null, 2)}\n`
+      const written = await invokeWriteConfigText({ text })
+      const parsed = parseElectronMcpConfigText(written.text)
+      applyLoadedConfig(parsed)
+      savedSig.value = JSON.stringify(parsed)
+    }
+    const result = await invokeApplyAndRestart()
+    await Promise.all([refreshRuntime(), refreshToolCatalog(), mcpTools.refresh()])
+    infoMessage.value = tn('messages.restarted', {
+      started: result.started.length,
+      failed: result.failed.length,
+      skipped: result.skipped.length,
+    })
   }
-
-  await restartServers()
+  catch (e) {
+    errorMessage.value = errorMessageFrom(e) ?? 'Unknown error'
+  }
+  finally {
+    isBusy.value = false
+  }
 }
 
 async function openConfigInSystem() {
@@ -328,7 +394,7 @@ async function runConnectionTest() {
 }
 
 onMounted(async () => {
-  const results = await Promise.allSettled([refreshRuntime(), loadFromDisk()])
+  const results = await Promise.allSettled([refreshRuntime(), loadFromDisk(), refreshToolCatalog()])
   const reasons = results
     .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
     .map(r => errorMessageFrom(r.reason) ?? 'Unknown error')
@@ -337,6 +403,12 @@ onMounted(async () => {
   if (!testRowId.value && servers.value[0])
     testRowId.value = servers.value[0].rowId
 })
+
+useIntervalFn(() => {
+  void refreshRuntime().catch((error) => {
+    errorMessage.value = errorMessageFrom(error) ?? tn('status-refresh-error')
+  })
+}, 2000)
 </script>
 
 <template>
@@ -362,6 +434,70 @@ onMounted(async () => {
           :label="jsonOpen ? tn('actions.close-json') : tn('actions.edit-json')"
           @click="toggleJsonPanel"
         />
+      </div>
+    </SettingsCard>
+
+    <SettingsCard>
+      <Checkbox data-testid="terminal-enabled-switch" :model-value="terminalEnabled ?? false" :label="tn('terminal.title')" @update:model-value="terminalEnabled = $event" />
+      <p :class="['text-sm', 'text-neutral-500 dark:text-neutral-400']">
+        {{ tn('terminal.description') }}
+      </p>
+      <p :class="['text-xs', badgeClass(runtimeStateOf('airi-terminal'))]" data-testid="terminal-connection-status">
+        {{ tn(`status.${runtimeStateOf('airi-terminal') ?? 'unknown'}`) }}
+      </p>
+      <p v-if="runtime?.servers.find(server => server.name === 'airi-terminal')?.lastError" :class="['text-xs', 'text-red-600']" role="alert">
+        {{ runtime?.servers.find(server => server.name === 'airi-terminal')?.lastError }}
+      </p>
+    </SettingsCard>
+
+    <SettingsCard>
+      <div flex="~ col gap-1">
+        <h3 class="text-sm font-semibold">
+          {{ tn('tools.title') }}
+        </h3>
+        <p class="text-xs text-neutral-500 dark:text-neutral-400">
+          {{ tn('tools.description') }}
+        </p>
+      </div>
+      <input
+        v-model="toolSearch" type="search"
+        class="w-full border border-neutral-300 rounded-lg bg-transparent px-3 py-2 text-sm outline-none dark:border-neutral-700 focus:border-primary-500"
+        :placeholder="tn('tools.search')"
+      >
+      <div v-if="!filteredToolGroups.length" class="border-2 border-neutral-200 rounded-lg border-dashed p-6 text-center text-xs text-neutral-500 dark:border-neutral-800">
+        {{ tn('tools.empty') }}
+      </div>
+      <div v-for="group in filteredToolGroups" :key="group.serverName" class="flex flex-col gap-2">
+        <button
+          type="button"
+          class="flex items-center justify-between rounded-lg bg-neutral-100/70 px-3 py-2 text-left text-sm font-medium dark:bg-neutral-800/70"
+          @click="toggleToolServer(group.serverName)"
+        >
+          <span>{{ group.serverName }}</span>
+          <span :class="collapsedToolServers.has(group.serverName) ? 'i-solar:alt-arrow-right-line-duotone' : 'i-solar:alt-arrow-down-line-duotone'" class="size-4 text-neutral-500" />
+        </button>
+        <div v-if="!collapsedToolServers.has(group.serverName)" class="flex flex-col gap-1">
+          <div v-for="tool in group.tools" :key="tool.name" class="flex flex-col gap-2 border border-neutral-200 rounded-lg px-3 py-2 md:flex-row md:items-center md:gap-3 dark:border-neutral-800">
+            <div class="min-w-0 flex-1">
+              <div class="truncate text-xs font-medium font-mono">
+                {{ tool.toolName }}
+              </div>
+              <div v-if="tool.description" class="line-clamp-2 text-xs text-neutral-500 dark:text-neutral-400">
+                {{ tool.description }}
+              </div>
+            </div>
+            <div class="flex shrink-0 items-center gap-3 text-xs text-neutral-600 dark:text-neutral-300">
+              <label class="flex items-center gap-1.5">
+                <Checkbox :model-value="toolExposure(tool) !== 'disabled'" :disabled="isHostDisabled(tool)" @update:model-value="setToolEnabled(tool, $event)" />
+                <span>{{ tn('tools.enabled') }}</span>
+              </label>
+              <label class="flex items-center gap-1.5">
+                <Checkbox :model-value="toolExposure(tool) === 'router-only'" :disabled="isHostDisabled(tool)" @update:model-value="setToolRouterOnly(tool, $event)" />
+                <span>{{ tn('tools.router-only') }}</span>
+              </label>
+            </div>
+          </div>
+        </div>
       </div>
     </SettingsCard>
 
