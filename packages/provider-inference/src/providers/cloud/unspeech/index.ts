@@ -253,9 +253,9 @@ export const providerVolcengineSpeech = defineProvider<VolcengineSpeechConfig, '
  *
  * NOTICE:
  * unspeech 0.1.16 declares `createUnStepfun` in its types but does not export it at runtime.
- * AIRI patches the export into the package.
+ * AIRI patches the runtime export and the host language option into the package.
  * Source: patches/unspeech@0.1.16.patch.
- * Remove the patch when a published unspeech version exports `createUnStepfun`.
+ * Remove the patch when unspeech exports `createUnStepfun` with the host endpoint and language options.
  */
 export const providerStepfunSpeech = defineProvider<UnspeechConfig, 'stepfun-speech'>({
   id: 'stepfun-speech',

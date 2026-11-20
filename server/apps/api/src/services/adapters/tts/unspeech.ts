@@ -3,9 +3,8 @@ import type { Voice } from 'unspeech'
 import type { TtsVoiceCatalogContext } from './types'
 
 import { errorMessageFrom } from '@moeru/std'
-import { listVoices, UnSpeechAPIError } from 'unspeech'
-
 import { createBadGatewayError } from '@proj-airi/http-error-shared'
+import { listVoices, UnSpeechAPIError } from 'unspeech'
 
 interface ListVoicesOptions {
   ctx: TtsVoiceCatalogContext

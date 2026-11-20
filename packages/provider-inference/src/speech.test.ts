@@ -74,4 +74,22 @@ describe('executeSpeech', () => {
       { model: 'm', text: 't', voice: 'v' },
     )).rejects.toThrow('does not support speech synthesis')
   })
+
+  // https://github.com/moeru-ai/airi/pull/2838
+  // ROOT CAUSE:
+  // The extracted speech method lost the provider receiver.
+  // Calling it with the provider retains method-owned configuration.
+  it('retains the provider receiver during speech execution (PR #2838)', async () => {
+    const transport = vi.fn<typeof fetch>(async () => new Response(new Uint8Array([1])))
+    const provider = {
+      baseURL: 'https://example.com/v1/',
+      speech(this: { baseURL: string }, model: string) {
+        return { baseURL: this.baseURL, model, fetch: transport }
+      },
+    }
+
+    await executeSpeech(provider, { model: 'tts-1', text: 'Hello', voice: 'alloy' })
+
+    expect(String(transport.mock.calls[0][0])).toBe('https://example.com/v1/audio/speech')
+  })
 })

@@ -79,7 +79,7 @@ function buildSpeechOptions(input: TtsInput, ctx: TtsAdapterContext): StepfunSpe
 
   const language = stepfunLanguage(input.language)
   if (language)
-    body.language = language
+    options.language = language
 
   if (typeof extraOptions.volume === 'number' && Number.isFinite(extraOptions.volume))
     options.volume = extraOptions.volume

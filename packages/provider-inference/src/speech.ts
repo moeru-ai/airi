@@ -64,7 +64,7 @@ export async function executeSpeech(provider: ProviderInstance, input: SpeechExe
   // Source: `SpeechProviderWithExtraOptions` in @xsai-ext/providers.
   // Remove when AIRI defines its own speech provider contract with typed provider options.
   const speech = provider.speech as (model: string, options?: object) => ReturnType<SpeechProvider['speech']>
-  const request = speech(input.model, input.providerOptions)
+  const request = speech.call(provider, input.model, input.providerOptions)
   const providerFetch = request.fetch ?? input.fetch ?? globalThis.fetch
   let contentType: string | undefined
   let failure: Response | undefined
@@ -94,6 +94,9 @@ export async function executeSpeech(provider: ProviderInstance, input: SpeechExe
     return { contentType, body }
   }
   catch (error) {
+    // A body read can report a transport error after cancellation.
+    // Preserve the caller's abort reason before classifying the upstream status.
+    input.abortSignal?.throwIfAborted()
     if (failure === undefined)
       throw error
     throw new SpeechUpstreamError(failure.status, failure.headers, await failure.text(), { cause: error })

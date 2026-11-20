@@ -3,9 +3,9 @@ import type { ProviderDefinition } from '@proj-airi/provider-inference'
 import type { TtsAdapterContext, TtsResult } from './types'
 
 import { errorMessageFrom } from '@moeru/std'
+import { createInternalError } from '@proj-airi/http-error-shared'
 import { executeSpeech, SpeechUpstreamError } from '@proj-airi/provider-inference'
 
-import { createInternalError } from '@proj-airi/http-error-shared'
 import { audioMimeFromFormat } from './audio-format'
 import { TtsUpstreamResponseError } from './types'
 
