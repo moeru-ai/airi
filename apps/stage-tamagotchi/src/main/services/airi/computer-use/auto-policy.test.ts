@@ -108,8 +108,8 @@ describe('command auto cage', () => {
 
   it('refuses secrets and privileged commands', () => {
     expect(decideCommandAuto(snapshot('cat .env'), '/workspace/app').outcome).toBe('refuse')
-    expect(decideCommandAuto(snapshot("cp '.'env copy output"), '/workspace/app').outcome).toBe('refuse')
-    expect(decideCommandAuto(snapshot("cp '.ssh'/id_rsa copy"), '/workspace/app').outcome).toBe('refuse')
+    expect(decideCommandAuto(snapshot('cp \'.\'env copy output'), '/workspace/app').outcome).toBe('refuse')
+    expect(decideCommandAuto(snapshot('cp \'.ssh\'/id_rsa copy'), '/workspace/app').outcome).toBe('refuse')
     expect(decideCommandAuto(snapshot('cat ~/.ssh/id_rsa'), '/workspace/app').outcome).toBe('refuse')
     expect(decideCommandAuto(snapshot('sudo ls'), '/workspace/app').outcome).toBe('refuse')
     expect(decideCommandAuto(snapshot('shutdown /s'), '/workspace/app').outcome).toBe('refuse')
