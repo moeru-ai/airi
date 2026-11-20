@@ -14,7 +14,7 @@ export type AutoDecision
     | { outcome: 'review', reason: string, card: AutoApprovalCard }
 
 const READ_ONLY_LIST = new Set(['pwd', 'ls', 'get-location', 'get-childitem'])
-const READ_ONLY_GIT = new Set(['status', 'diff', 'log', 'show'])
+const READ_ONLY_GIT = new Set(['status', 'log', 'show'])
 const DELETE_COMMANDS = new Set(['rm', 'del', 'remove-item'])
 const WRITE_COMMANDS = new Set(['mkdir', 'mv', 'cp', 'move-item', 'copy-item', 'set-content', 'out-file', 'new-item'])
 const REFUSE_COMMANDS = new Set([
