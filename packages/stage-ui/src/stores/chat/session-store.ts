@@ -234,10 +234,12 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   }
 
   async function persistIndex() {
-    if (!index.value)
-      return
-    const snapshot = cloneDeep(index.value)
-    await enqueuePersist(() => chatSessionsRepo.saveIndex(snapshot))
+    // The snapshot happens when the save runs, like in the other saves of the queue. A snapshot from the call can be
+    // older than a save that queued before it, and it would overwrite that save.
+    await enqueuePersist(async () => {
+      if (index.value)
+        await chatSessionsRepo.saveIndex(cloneDeep(index.value))
+    })
   }
 
   async function persistSession(sessionId: string) {
