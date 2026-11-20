@@ -10,8 +10,8 @@ The Electron application remains supported and supplies the behavior reference.
 ## Setup and development
 
 Install [mise](https://mise.jdx.dev/getting-started.html).
-The root [.tool-versions](../../.tool-versions) selects Node.js, pnpm, and .NET.
-The local [mise.toml](mise.toml) selects Godot Mono.
+The root [.tool-versions](../../.tool-versions) selects Node.js and pnpm.
+The local [mise.toml](mise.toml) selects Godot Mono and .NET 11.
 [package.json](package.json) and [StageTamagotchiKirie.csproj](StageTamagotchiKirie.csproj) own dependency versions.
 
 From the repository root, install the tools and dependencies:

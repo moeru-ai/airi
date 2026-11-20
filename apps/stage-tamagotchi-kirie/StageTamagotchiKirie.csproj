@@ -1,7 +1,7 @@
 <Project Sdk="Godot.NET.Sdk/4.7.2">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
