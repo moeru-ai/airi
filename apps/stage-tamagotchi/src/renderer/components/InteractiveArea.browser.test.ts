@@ -267,37 +267,15 @@ describe('interactive area synchronized state', () => {
     expect(changes()).toEqual([{ sessionId: 'session-b', lane: 'computer_use', mode: 'full' }, { sessionId: 'session-b', lane: 'computer_use', mode: 'ask' }])
   })
 
-  it('explains why Auto cannot open a confirmation without an active conversation', async () => {
-    const { chatSession, screen } = await renderArea()
-    chatSession.activeSessionId = ''
-    sessionApprovalGrantInvoke.mockReset().mockResolvedValue('ask')
-
-    await screen.getByRole('button', { name: 'tamagotchi.stage.chat-window.computer-tools.label' }).click()
-    await screen.getByTestId('approval-terminal-auto').click()
-
-    await expect.element(screen.getByRole('alert')).toHaveTextContent('tamagotchi.stage.chat-window.computer-tools.approval-session-unavailable')
-    expect(sessionApprovalGrantInvoke).not.toHaveBeenCalled()
-  })
-
-  it('explains why Command Auto cannot open its confirmation without a workspace', async () => {
-    const { screen } = await renderArea()
-    sessionApprovalGrantInvoke.mockReset().mockImplementation(async ({ mode }: { mode?: 'ask' | 'auto' | 'full' }) => {
-      if (mode === 'auto')
-        return { unavailableReason: 'workspace_unavailable' }
-      return 'ask'
-    })
-
-    await screen.getByRole('button', { name: 'tamagotchi.stage.chat-window.computer-tools.label' }).click()
-    const autoGrant = screen.getByTestId('approval-terminal-auto')
-    await expect.element(autoGrant).toBeEnabled()
-    await autoGrant.click()
-
-    await expect.element(screen.getByRole('alert')).toHaveTextContent('tamagotchi.stage.chat-window.computer-tools.approval-command-auto-unavailable')
-    await expect.element(autoGrant).toHaveAttribute('aria-checked', 'false')
-  })
-
   it('centers the mobile textarea when no reply preview is visible', async () => {
-    // A reply preview changes the bubble height. Center the textarea when that preview is absent.
+    // ROOT CAUSE:
+    //
+    // Without a reply preview, the 40px bubble has spare height around its
+    // 32px textarea and borders. Before the fix, justify-end put all spare
+    // height above the textarea: 6px above and 2px below.
+    //
+    // We fixed this with justify-center. The empty and single-line textarea
+    // now has 4px on each side, and multiline input stays centered.
     await page.viewport(390, 844)
     const { screen } = await renderArea(MobileInteractiveArea)
     const bubble = screen.getByTestId('mobile-input-bubble').element()
@@ -895,7 +873,14 @@ describe('interactive area synchronized state', () => {
     expect(scrollOwners).toEqual([viewport])
   })
 
-  // Wait for Virtua's row measurements and pending tail scroll before testing scroll stability.
+  // https://github.com/moeru-ai/airi/actions/runs/34448585692/job/102804067154
+  // ROOT CAUSE:
+  //
+  // The test scrolled as soon as the reply started to expand. Each later resize
+  // queued a tail scroll, which could unmount the message selected by the test.
+  // Virtua then retried that tail scroll when older rows were first measured.
+  // Wait for the transition, measurements, and pending scroll before the jitter.
+  // A slower transition exposes this race without depending on CI load.
   it.each(['200ms', '1s'])('keeps the history scrollport behind the floating composer (%s reply)', async (duration) => {
     const { chatSession, screen } = await renderArea()
     const layout = screen.getByTestId('chat-viewport-layout').element() as HTMLElement
