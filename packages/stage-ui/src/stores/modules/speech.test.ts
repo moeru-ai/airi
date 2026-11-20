@@ -65,6 +65,20 @@ describe('speech store helpers', () => {
     expect(toSignedPercent(0)).toBe('0%')
   })
 
+  it('initializes a local provider before requesting its voice catalog', async () => {
+    const providersStore = useProviderStore()
+    const listProviderVoices = vi.spyOn(providersStore, 'listProviderVoices').mockResolvedValue([])
+    const speechStore = useSpeechStore()
+
+    await speechStore.loadVoicesForProvider('kokoro-local', 'q8')
+
+    expect(listProviderVoices).toHaveBeenCalledWith(
+      'kokoro-local',
+      'q8',
+      expect.objectContaining({ config: expect.objectContaining({ model: 'q8' }) }),
+    )
+  })
+
   // ROOT CAUSE:
   //
   // The speech store watched its model-list projection even when no UI used
