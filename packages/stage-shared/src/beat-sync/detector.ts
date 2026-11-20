@@ -34,6 +34,8 @@ export interface BeatSyncDetector {
   on: <E extends keyof BeatSyncDetectorEventArgs>(event: E, listener: (...args: BeatSyncDetectorEventArgs[E]) => void) => () => void
   off: <E extends keyof BeatSyncDetectorEventArgs>(event: E, listener: (...args: BeatSyncDetectorEventArgs[E]) => void) => void
   getInputByteFrequencyData: () => Uint8Array<ArrayBuffer>
+  /** Sends a beat to the `beat` listeners, as a detected beat does. */
+  signalBeat: (event: AnalyserBeatEvent) => void
   readonly state: BeatSyncDetectorState
   readonly context: AudioContext | undefined
   readonly analyser: Analyser | undefined
@@ -232,6 +234,7 @@ export function createBeatSyncDetector(options: CreateBeatSyncDetectorOptions): 
     on,
     off,
     getInputByteFrequencyData,
+    signalBeat: event => emit('beat', event),
 
     get state() { return state },
     get context() { return context },
@@ -335,6 +338,27 @@ export function listenBeatSyncStateChange(listener: (state: BeatSyncDetectorStat
   }
 
   throw new Error('Unknown environment for listenBeatSyncStateChange()')
+}
+
+/**
+ * Sends a beat to every Beat Sync listener, as a detected beat does.
+ *
+ * Use when:
+ * - A devtools page tests how the character reacts to beats without audio
+ */
+export function signalBeatSyncBeat(event: AnalyserBeatEvent) {
+  if (isStageWeb()) {
+    getDetector().signalBeat(event)
+    return
+  }
+
+  if (isStageTamagotchi() || isStageCapacitor()) {
+    // Every window that listens answers the invoke. Like the detector window, do not wait for the answers.
+    void defineInvoke(getContext(), beatSyncBeatSignaledInvokeEventa)(event)
+    return
+  }
+
+  throw new Error('Unknown environment for signalBeatSyncBeat()')
 }
 
 export function listenBeatSyncBeatSignal(listener: (e: AnalyserBeatEvent) => void) {
