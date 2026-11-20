@@ -148,9 +148,9 @@ describe('channel-server store reconnect', () => {
     const store = useModsServerChannelStore()
 
     store.send({
-      type: 'spark:notify',
-      data: { message: 'before-init' },
-    } as any)
+      type: 'ui:configure',
+      data: { moduleName: 'before-init', config: {} },
+    })
 
     const initializePromise = store.initialize({ token: 'secret' })
     const client = serverSdkMocks.MockClient.instances.at(-1)!
@@ -169,8 +169,8 @@ describe('channel-server store reconnect', () => {
     expect(store.pendingSendCount).toBe(0)
     expect(client.sent).toEqual(expect.arrayContaining([
       expect.objectContaining({
-        type: 'spark:notify',
-        data: { message: 'before-init' },
+        type: 'ui:configure',
+        data: { moduleName: 'before-init', config: {} },
       }),
     ]))
 
@@ -179,9 +179,9 @@ describe('channel-server store reconnect', () => {
     expect(store.connected).toBe(false)
 
     store.send({
-      type: 'spark:notify',
-      data: { message: 'queued-during-disconnect' },
-    } as any)
+      type: 'ui:configure',
+      data: { moduleName: 'queued-during-disconnect', config: {} },
+    })
 
     expect(store.pendingSendCount).toBe(1)
 
@@ -191,8 +191,8 @@ describe('channel-server store reconnect', () => {
     expect(store.pendingSendCount).toBe(0)
     expect(client.sent).toEqual(expect.arrayContaining([
       expect.objectContaining({
-        type: 'spark:notify',
-        data: { message: 'queued-during-disconnect' },
+        type: 'ui:configure',
+        data: { moduleName: 'queued-during-disconnect', config: {} },
       }),
     ]))
   })
@@ -407,9 +407,9 @@ describe('channel-server store reconnect', () => {
     client.simulateTransientDisconnect()
 
     store.send({
-      type: 'spark:notify',
-      data: { message: 'reconnect-authenticated-queued' },
-    } as any)
+      type: 'ui:configure',
+      data: { moduleName: 'reconnect-authenticated-queued', config: {} },
+    })
 
     expect(store.pendingSendCount).toBe(1)
 
@@ -424,8 +424,8 @@ describe('channel-server store reconnect', () => {
     expect(store.pendingSendCount).toBe(0)
     expect(client.sent).toEqual(expect.arrayContaining([
       expect.objectContaining({
-        type: 'spark:notify',
-        data: { message: 'reconnect-authenticated-queued' },
+        type: 'ui:configure',
+        data: { moduleName: 'reconnect-authenticated-queued', config: {} },
       }),
     ]))
   })
@@ -443,7 +443,7 @@ describe('channel-server store reconnect', () => {
     store.send({
       type: 'module:consumer:register',
       data: { event: 'input:text', mode: 'consumer-group', group: 'chat-ingestion' },
-    } as any)
+    })
 
     expect(client.sent).toEqual([])
     expect(store.pendingSendCount).toBe(1)
@@ -471,7 +471,7 @@ describe('channel-server store reconnect', () => {
     store.send({
       type: 'module:consumer:register',
       data: { event: 'input:text', mode: 'consumer-group', group: 'chat-ingestion' },
-    } as any)
+    })
 
     // The token changes before the first transport is ready. `dispose()` flushes
     // into the transport that is still preparing, and it refuses the event.
