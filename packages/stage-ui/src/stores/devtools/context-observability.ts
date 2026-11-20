@@ -1,13 +1,25 @@
 import type { ContextUpdateStrategy } from '@proj-airi/server-sdk'
-import type { Message } from '@xsai/shared-chat'
-
-import type { ContextMessage } from '../../types/chat'
 
 import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
-import { formatContextPromptText } from '../chat/context-prompt'
+import { useContextPromptProjectionStore } from './context-prompt-projection'
+
+export type {
+  ContextProjectionGroup,
+  ContextProjectionGroupKind,
+  ContextProjectionSectionKind,
+  SerializedProjectionBreakdown,
+} from './context-projection'
+export { groupProjectionSections, reportedWindowUsage } from './context-projection'
+export type {
+  PromptProjectionRequest,
+  PromptProjectionSnapshot,
+  ProviderProjectionCapture,
+  ReportedPromptUsage,
+} from './context-prompt-projection'
+export { useContextPromptProjectionStore } from './context-prompt-projection'
 
 export type ContextLifecyclePhase
   = | 'server-received'
@@ -37,16 +49,6 @@ export interface ContextLifecycleRecord {
   details?: unknown
 }
 
-export interface PromptProjectionSnapshot {
-  capturedAt: number
-  sessionId: string
-  message: string
-  contexts: Record<string, ContextMessage[]>
-  promptText: string
-  promptMessage?: Message
-  composedMessage?: Message[]
-}
-
 const DEFAULT_MAX_HISTORY = 200
 
 function truncateText(value: string, limit = 220) {
@@ -64,12 +66,19 @@ function cloneValue<T>(value: T): T {
   }
 }
 
+/**
+ * Local context lifecycle history for this window.
+ *
+ * Prompt projection lives in {@link useContextPromptProjectionStore}, which is
+ * replicated to follower chat windows. Lifecycle history stays local.
+ */
 export const useContextObservabilityStore = defineStore('devtools:context-observability', () => {
+  const promptProjection = useContextPromptProjectionStore()
   const history = ref<ContextLifecycleRecord[]>([])
   const maxHistory = ref(DEFAULT_MAX_HISTORY)
-  const lastPromptProjection = ref<PromptProjectionSnapshot>()
   const lastBroadcastPostedAt = ref<number>()
   const lastBroadcastReceivedAt = ref<number>()
+  const lastPromptProjection = computed(() => promptProjection.lastPromptProjection)
 
   function recordLifecycle(record: Omit<ContextLifecycleRecord, 'id' | 'timestamp' | 'textPreview'> & { textPreview?: string }) {
     const nextRecord: ContextLifecycleRecord = {
@@ -93,33 +102,16 @@ export const useContextObservabilityStore = defineStore('devtools:context-observ
     return nextRecord
   }
 
-  function capturePromptProjection(payload: {
-    sessionId: string
-    message: string
-    contexts: Record<string, ContextMessage[]>
-    promptMessage?: Message | null
-    composedMessage?: Message[]
-  }) {
-    lastPromptProjection.value = {
-      capturedAt: Date.now(),
-      sessionId: payload.sessionId,
-      message: payload.message,
-      contexts: cloneValue(payload.contexts),
-      promptText: formatContextPromptText(payload.contexts),
-      promptMessage: payload.promptMessage ? cloneValue(payload.promptMessage) : undefined,
-      composedMessage: payload.composedMessage ? cloneValue(payload.composedMessage) : undefined,
-    }
+  function capturePromptProjection(...args: Parameters<typeof promptProjection.capturePromptProjection>) {
+    return promptProjection.capturePromptProjection(...args)
   }
 
-  function captureProviderPromptProjection(sessionId: string, composedMessage: Message[]) {
-    if (lastPromptProjection.value?.sessionId !== sessionId)
-      return
+  function captureProviderPromptProjection(...args: Parameters<typeof promptProjection.captureProviderPromptProjection>) {
+    return promptProjection.captureProviderPromptProjection(...args)
+  }
 
-    lastPromptProjection.value = {
-      ...lastPromptProjection.value,
-      capturedAt: Date.now(),
-      composedMessage: cloneValue(composedMessage),
-    }
+  function recordReportedUsage(...args: Parameters<typeof promptProjection.recordReportedUsage>) {
+    return promptProjection.recordReportedUsage(...args)
   }
 
   function clearHistory() {
@@ -135,6 +127,7 @@ export const useContextObservabilityStore = defineStore('devtools:context-observ
     recordLifecycle,
     capturePromptProjection,
     captureProviderPromptProjection,
+    recordReportedUsage,
     clearHistory,
   }
 })

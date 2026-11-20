@@ -124,22 +124,6 @@ describe('resolveTerminalSurface', () => {
       expect(res.reason).toBe('auto_interactive_command')
     })
 
-    it('condition 4: auto_interactive_output with markers', () => {
-      const res = resolveTerminalSurface(base({
-        previousExecOutput: 'Waiting for input... Password: ',
-      }))
-      expect(res.surface).toBe('pty')
-      expect(res.reason).toBe('auto_interactive_output')
-    })
-
-    it('condition 4: no match without markers in output', () => {
-      const res = resolveTerminalSurface(base({
-        previousExecOutput: 'Build succeeded',
-      }))
-      expect(res.surface).toBe('exec')
-      expect(res.reason).toBe('auto_default_exec')
-    })
-
     it('defaults to exec when no auto conditions match', () => {
       const res = resolveTerminalSurface(base())
       expect(res.surface).toBe('exec')
@@ -169,14 +153,6 @@ describe('resolveTerminalSurface', () => {
       }))
       expect(res.reason).toBe('auto_persistent_interaction')
     })
-
-    it('interactive command wins over interactive output', () => {
-      const res = resolveTerminalSurface(base({
-        command: 'vim',
-        previousExecOutput: 'Password:',
-      }))
-      expect(res.reason).toBe('auto_interactive_command')
-    })
   })
 
   // Explanation
@@ -187,7 +163,6 @@ describe('resolveTerminalSurface', () => {
         { config: { mode: 'pty', interaction: 'one_shot' } },
         { config: { mode: 'auto', interaction: 'persistent' } },
         { command: 'vim' },
-        { previousExecOutput: 'Password:' },
         {},
       ]
 

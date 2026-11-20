@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { getProviderBootstrapConfig, resolveGithubModelsApiKey } from './provider-bootstrap'
+import {
+  getProviderBootstrapConfig,
+  resolveGithubModelsApiKey,
+  resolveOpenAICompatibleApiKey,
+  resolveOpenAICompatibleBaseUrl,
+} from './provider-bootstrap'
 
 describe('provider bootstrap', () => {
   it('prefers explicit github models env keys before legacy aliases', () => {
@@ -41,6 +46,32 @@ describe('provider bootstrap', () => {
       processEnv: {
         GITHUB_MODELS_API_KEY: 'ghp-test',
       },
+      dotenvValues: {},
+    })).toBeUndefined()
+  })
+
+  it('reads an OpenAI-compatible gateway key and base URL from the test environment', () => {
+    const processEnv = {
+      AIRI_E2E_API_KEY: 'gateway-key',
+      AIRI_E2E_BASE_URL: 'http://127.0.0.1:8787/v1',
+    }
+
+    expect(resolveOpenAICompatibleApiKey({ processEnv, dotenvValues: {} })).toBe('gateway-key')
+    expect(resolveOpenAICompatibleBaseUrl({ processEnv, dotenvValues: {} })).toBe('http://127.0.0.1:8787/v1')
+    expect(getProviderBootstrapConfig({
+      providerId: 'openai-compatible',
+      processEnv,
+      dotenvValues: {},
+    })).toEqual({
+      apiKey: 'gateway-key',
+      baseUrl: 'http://127.0.0.1:8787/v1',
+    })
+  })
+
+  it('does not bootstrap an OpenAI-compatible provider without both values', () => {
+    expect(getProviderBootstrapConfig({
+      providerId: 'openai-compatible',
+      processEnv: { AIRI_E2E_API_KEY: 'gateway-key' },
       dotenvValues: {},
     })).toBeUndefined()
   })

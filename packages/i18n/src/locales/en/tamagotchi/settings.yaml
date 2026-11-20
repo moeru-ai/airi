@@ -32,6 +32,14 @@ pages:
     mcp-server:
       description: Connect and manage MCP server and tools
       title: MCP Server
+      status-refresh-error: Connection status unavailable.
+      tools:
+        title: Public tools
+        description: Choose which connected MCP tools the Agent can use directly or through the Router
+        search: Search tools
+        empty: No matching tools
+        enabled: Enabled
+        router-only: Router only
   system:
     general:
       hide-app-icon:
