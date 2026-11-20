@@ -42,7 +42,11 @@ function describe(parent: QuotedMessage | undefined): string {
  * Writes an inline reply as plain text that quotes the message it answers.
  *
  * AIRI takes plain text only, so the quote is the only way to tell the character what the person answers.
- * Without `parent`, the text says "a message": the bot could not find the answered message.
+ * Without `parent`, the text says "a message" because the bot did not find the answered message.
+ *
+ * @example
+ * replyTextFor('yes please', { text: 'Do you want tea?', fromAgent: true })
+ * // => 'Replying to your message "Do you want tea?": yes please'
  */
 export function replyTextFor(text: string, parent?: QuotedMessage): string {
   return `Replying to ${describe(parent)}: ${text}`
@@ -50,7 +54,11 @@ export function replyTextFor(text: string, parent?: QuotedMessage): string {
 
 /**
  * Writes a tapback as a plain sentence that quotes the message it is on.
- * Without `parent`, the sentence says "a message": the bot could not find the message with the tapback.
+ * Without `parent`, the sentence says "a message" because the bot did not find the message with the tapback.
+ *
+ * @example
+ * tapbackTextFor('love', { text: 'good night', fromAgent: true })
+ * // => 'Reacted ❤️ to your message "good night"'
  */
 export function tapbackTextFor(reaction: string, parent?: QuotedMessage): string {
   return `Reacted ${TAPBACKS[reaction.trim().toLowerCase()] ?? reaction.trim()} to ${describe(parent)}`
@@ -60,6 +68,10 @@ export function tapbackTextFor(reaction: string, parent?: QuotedMessage): string
  * Returns a message as JSON for the log, so a person can compare the real shape with the code.
  *
  * Each string keeps at most 200 characters. A phone number or an email address keeps only its masked form.
+ *
+ * @example
+ * shapeOf({ id: 'msg-1', sentBy: { id: 'u-1', handle: '+15550101234' } })
+ * // => '{"id":"msg-1","sentBy":{"id":"u-1","handle":"…1234"}}'
  */
 export function shapeOf(message: PhotonMessage): string {
   return JSON.stringify(message, (key, value: unknown) => {

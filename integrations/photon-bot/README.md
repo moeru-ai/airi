@@ -6,7 +6,7 @@ The bot runs as its own process. It holds the Photon event stream, gives each te
 
 ## Conversation sessions
 
-Each Photon space binds to `photon:<spaceId>:<agentUserId>`. Without a binding, a reply would join the owner's private session.
+Each Photon space binds to `photon:<spaceId>:<agentUserId>`. Without a binding, a reply joins the owner's private session.
 
 ## Getting started
 

@@ -72,12 +72,6 @@ export interface PhotonStreamOptions extends PhotonConnection {
   cursor: () => number
   /** Handles one delivery. The stream waits for it before it starts the next delivery. */
   onDelivery: (event: PhotonEvent, seq: number) => Promise<void>
-  /**
-   * The wait before the first retry with a rejected API key.
-   *
-   * @default 30_000
-   */
-  authRetryDelayMs?: number
 }
 
 /**
@@ -176,7 +170,7 @@ export class PhotonStream {
     if (this.closed)
       return
 
-    const delay = Math.min((this.options.authRetryDelayMs ?? AUTH_RETRY_DELAY_MS) * 2 ** this.rejections, AUTH_RETRY_MAX_DELAY_MS)
+    const delay = Math.min(AUTH_RETRY_DELAY_MS * 2 ** this.rejections, AUTH_RETRY_MAX_DELAY_MS)
     if (this.rejections === 0)
       log.error(`Photon rejected the API key for project ${this.options.projectId} (${status}). Update the key on the iMessage page of AIRI, or in PHOTON_API_KEY. The bot tries again with longer waits.`)
     this.rejections += 1
@@ -249,7 +243,7 @@ export async function getMessage(connection: PhotonConnection, messageId: string
   return await response.json() as PhotonMessage
 }
 
-/** Marks one incoming message as read. 202 means Photon accepted it; the recipient may still not see it (privacy settings). */
+/** Marks one incoming message as read. Status 202 means Photon accepted it. Privacy settings can still hide it from the recipient. */
 export async function markRead(connection: PhotonConnection, messageId: string): Promise<number> {
   const response = await fetch(`${connection.baseUrl}/v1/projects/${connection.projectId}/messages/${messageId}/read`, {
     method: 'POST',

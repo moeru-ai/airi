@@ -17,9 +17,15 @@ const CONTROL_TOKEN = /<\|?\s*[A-Z]+\b[^<>]*?\|>/g
  *
  * The stage puts the text in `content`, or leaves `content` empty and puts it in `categorization.speech`.
  * Returns an empty string when the message has no text.
+ *
+ * @example
+ * replyTextOf({ content: '', categorization: { speech: '<|ACT {"emotion":"happy"}|> Hello!' } })
+ * // => 'Hello!'
  */
 export function replyTextOf(message: unknown): string {
-  const { content, categorization } = (message ?? {}) as { content?: unknown, categorization?: { speech?: unknown } }
+  if (typeof message !== 'object' || message === null)
+    return ''
+  const { content, categorization } = message as { content?: unknown, categorization?: { speech?: unknown } }
   const raw = textOf(content) || (typeof categorization?.speech === 'string' ? categorization.speech : '')
   return raw
     .replace(CONTROL_TOKEN, ' ')
@@ -32,6 +38,12 @@ export function replyTextOf(message: unknown): string {
 /**
  * Shortens a phone number or email handle for the message prefix that the character and the AIRI chat window show.
  * A phone number keeps its last four digits. An email keeps its first character and its domain.
+ *
+ * @example
+ * maskHandle('+15550101234')
+ * // => '…1234'
+ * maskHandle('user@example.com')
+ * // => 'u…@example.com'
  */
 export function maskHandle(handle: string): string {
   const at = handle.indexOf('@')

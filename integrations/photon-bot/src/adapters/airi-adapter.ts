@@ -3,7 +3,6 @@ import type { PhotonConnection, PhotonEvent, PhotonMessage } from '../photon/cli
 import type { QuotedMessage } from './inbound-text'
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { setTimeout as sleep } from 'node:timers/promises'
 
 import { useLogg } from '@guiiai/logg'
 import { errorMessageFrom } from '@moeru/std'
@@ -37,17 +36,8 @@ interface Inbound {
 const TYPING_REFRESH_MS = 10_000
 /** The number of received and sent messages that the bot keeps for quotes. An older message is read from Photon. */
 const RECENT_MESSAGES_MAX = 200
-
-export interface PhotonAdapterDeps {
-  airiClient?: ServerChannel
-  send?: typeof sendText
-  markRead?: typeof markRead
-  setTyping?: typeof setTyping
-  getMessage?: typeof getMessage
-  replyTimeoutMs?: number
-  retryDelayMs?: number
-  authRetryDelayMs?: number
-}
+const REPLY_TIMEOUT_MS = 60_000
+const RETRY_DELAY_MS = 3_000
 
 /**
  * Joins one Photon project to AIRI.
@@ -58,10 +48,6 @@ export interface PhotonAdapterDeps {
  */
 export class PhotonAdapter {
   private readonly airiClient: ServerChannel
-  private readonly send: typeof sendText
-  private readonly markRead: typeof markRead
-  private readonly setTyping: typeof setTyping
-  private readonly getMessage: typeof getMessage
   /** The newest messages that the bot received or sent. A reply or a tapback quotes its message from here. */
   private readonly recent = new Map<string, QuotedMessage>()
   /** The content types that the log already has a report for. */
@@ -74,18 +60,14 @@ export class PhotonAdapter {
   private cursor = 0
   private cursorProjectId?: string
 
-  constructor(private readonly config: PhotonBotConfig, private readonly deps: PhotonAdapterDeps = {}) {
-    this.send = deps.send ?? sendText
-    this.markRead = deps.markRead ?? markRead
-    this.setTyping = deps.setTyping ?? setTyping
-    this.getMessage = deps.getMessage ?? getMessage
+  constructor(private readonly config: PhotonBotConfig) {
     if (existsSync(config.stateFile)) {
       const state = JSON.parse(readFileSync(config.stateFile, 'utf8')) as { cursor: number, projectId?: string }
       this.cursor = state.cursor
       this.cursorProjectId = state.projectId
     }
 
-    this.airiClient = deps.airiClient ?? new ServerChannel({
+    this.airiClient = new ServerChannel({
       name: 'photon',
       possibleEvents: ['input:text', 'module:configure', 'output:gen-ai:chat:message', 'error'],
       token: config.airiToken,
@@ -175,7 +157,6 @@ export class PhotonAdapter {
       ...connection,
       cursor: () => this.cursor,
       onDelivery: (event, seq) => this.handleDelivery(connection, event, seq),
-      authRetryDelayMs: this.deps.authRetryDelayMs,
     })
     this.stream.start()
   }
@@ -225,11 +206,11 @@ export class PhotonAdapter {
         throw error
       log.warn(`${what} for ${kind} ${id} failed: ${errorMessageFrom(error) ?? 'unknown'}`)
     })
-    const typing = (on: boolean) => bestEffort(on ? 'Typing' : 'Stopping typing', this.setTyping(connection, space.id, receivedBy.id, on))
+    const typing = (on: boolean) => bestEffort(on ? 'Typing' : 'Stopping typing', setTyping(connection, space.id, receivedBy.id, on))
 
     // A tapback is not a message that a person reads, so it gets no read receipt.
     if (kind !== 'tapback')
-      await bestEffort('Read receipt', this.markRead(connection, id))
+      await bestEffort('Read receipt', markRead(connection, id))
     await typing(true)
     // A refresh that fails has no caller. The send after it reports a rejected API key.
     const typingRefresh = setInterval(() => void typing(true).catch(() => {}), TYPING_REFRESH_MS)
@@ -243,7 +224,7 @@ export class PhotonAdapter {
     }
 
     if (reply) {
-      const sentId = await this.send(connection, { spaceId: space.id, senderId: receivedBy.id, text: reply, idempotencyKey: `airi-reply:${id}` })
+      const sentId = await sendText(connection, { spaceId: space.id, senderId: receivedBy.id, text: reply, idempotencyKey: `airi-reply:${id}` })
       if (sentId)
         this.remember(sentId, { text: reply, fromAgent: true })
       log.log(`Sent the reply for ${kind} ${id} to ${who}`)
@@ -281,7 +262,7 @@ export class PhotonAdapter {
       return known
 
     try {
-      const parent = await this.getMessage(connection, messageId)
+      const parent = await getMessage(connection, messageId)
       if (!parent)
         return undefined
 
@@ -333,7 +314,7 @@ export class PhotonAdapter {
       }
 
       log.warn(`AIRI did not take text ${photon.messageId} (${result.retry}). Trying again.`)
-      await sleep(this.deps.retryDelayMs ?? 3000)
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS))
     }
 
     throw new Error(`The Photon connection changed before AIRI replied to text ${photon.messageId}`)
@@ -348,10 +329,10 @@ export class PhotonAdapter {
     }
 
     const { promise, resolve } = Promise.withResolvers<TurnResult>()
-    const timer = setTimeout(resolve, this.deps.replyTimeoutMs ?? 60_000, { timeout: true })
+    const timer = setTimeout(resolve, REPLY_TIMEOUT_MS, { timeout: true })
     this.pending = { messageId: photon.messageId, resolve }
 
-    // Each space owns one persistent conversation. Without a binding, a reply would join the owner's private session.
+    // Each space owns one persistent conversation. Without a binding, a reply joins the owner's private session.
     const data = {
       text,
       textRaw: text,
