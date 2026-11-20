@@ -79,4 +79,16 @@ describe('resolveComputerUseConfig', () => {
     expect(config.browserDomBridge.port).toBe(8876)
     expect(config.browserDomBridge.requestTimeoutMs).toBe(4500)
   })
+
+  it('configures the real AUV Windows executor and its owned store', () => {
+    process.env.COMPUTER_USE_EXECUTOR = 'auv'
+
+    const config = resolveComputerUseConfig()
+
+    expect(config.executor).toBe('auv')
+    expect(config.openableApps).toEqual([])
+    expect(config.permissionChainHint).toContain('AUV daemon -> local Windows Runner')
+    expect(config.auv.storeRoot).toContain('auv')
+    expect(config.auv.startupTimeoutMs).toBe(10_000)
+  })
 })

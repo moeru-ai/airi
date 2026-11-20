@@ -15,10 +15,17 @@ export function describePolicy(decision: PolicyDecision) {
 export function describeExecutionTarget(target: ExecutionTarget) {
   if (target.mode === 'dry-run')
     return `local dry-run on ${target.hostName}`
+  if (target.mode === 'local-windowed' && target.note?.startsWith('auv daemon'))
+    return `local Windows AUV execution on ${target.hostName}`
   if (target.mode === 'local-windowed')
     return `local macOS windowed execution on ${target.hostName}`
 
   return `${target.hostName}${target.displayId ? ` ${target.displayId}` : ''}${target.sessionTag ? ` (${target.sessionTag})` : ''}`
+}
+
+/** Keeps desktop environment metadata separate from Terminal execution and directory facts. */
+export function describeTerminalBackend(backend: string) {
+  return `Terminal backend: ${backend}. Each Terminal command starts a local Shell process. For terminal_exec, backendResult.effectiveCwd is the directory used to spawn this command. terminalState.effectiveCwd is the default directory for a later command.`
 }
 
 export function summarizeCoordinateSpace(info: CoordinateSpaceInfo) {

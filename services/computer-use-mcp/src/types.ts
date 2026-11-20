@@ -1,5 +1,9 @@
+import type { TerminalSnapshot, TerminalSpawnInput } from '@proj-airi/stage-shared/terminal-approval'
+
+import type { AgentExecutionContracts } from './contracts/agent-execution'
+
 export type ApprovalMode = 'never' | 'actions' | 'all'
-export type ExecutorKind = 'dry-run' | 'macos-local' | 'linux-x11'
+export type ExecutorKind = 'auv' | 'dry-run' | 'macos-local' | 'linux-x11'
 export type ExecutionMode = 'dry-run' | 'local-windowed' | 'remote'
 export type ExecutionTransport = 'local' | 'ssh-stdio'
 export type RiskLevel = 'low' | 'medium' | 'high'
@@ -21,6 +25,11 @@ export type ActionKind
     | 'wait'
     | 'terminal_exec'
     | 'terminal_reset'
+    | 'browser_dom_click'
+    | 'browser_dom_set_input_value'
+    | 'browser_dom_check_checkbox'
+    | 'browser_dom_select_option'
+    | 'browser_dom_trigger_event'
 export type ApprovalGrantScope = 'terminal_and_apps' | 'pty_session'
 
 // ---------------------------------------------------------------------------
@@ -118,6 +127,8 @@ export interface ForegroundContext {
   available: boolean
   appName?: string
   windowTitle?: string
+  windowId?: string
+  ownerPid?: number
   windowBounds?: Bounds
   platform: NodeJS.Platform
   unavailableReason?: string
@@ -167,6 +178,10 @@ export interface WindowObservation {
   frontmostWindowTitle?: string
   windows: WindowInfo[]
   observedAt: string
+  provenance?: {
+    backend: string
+    [key: string]: unknown
+  }
 }
 
 export interface ScreenshotArtifact {
@@ -183,6 +198,7 @@ export interface ScreenshotArtifact {
   executionTargetMode?: ExecutionMode
   sourceHostName?: string
   sourceDisplayId?: string
+  sourceWindowId?: string
   sourceSessionTag?: string
 }
 
@@ -289,6 +305,44 @@ export interface TerminalResetActionInput {
   reason?: string
 }
 
+export interface BrowserDomClickActionInput {
+  selector: string
+  tabId?: number
+  frameIds?: number[]
+}
+
+export interface BrowserDomSetInputValueActionInput {
+  selector: string
+  value: string
+  simulateKeystrokes?: boolean
+  blur?: boolean
+  tabId?: number
+  frameIds?: number[]
+}
+
+export interface BrowserDomCheckCheckboxActionInput {
+  selector: string
+  checked?: boolean
+  tabId?: number
+  frameIds?: number[]
+}
+
+export interface BrowserDomSelectOptionActionInput {
+  selector: string
+  value: string
+  tabId?: number
+  frameIds?: number[]
+}
+
+export interface BrowserDomTriggerEventActionInput {
+  selector: string
+  eventName: string
+  eventType?: string
+  opts?: Record<string, unknown>
+  tabId?: number
+  frameIds?: number[]
+}
+
 export interface PtyCreateApprovalInput {
   rows?: number
   cols?: number
@@ -379,6 +433,11 @@ export type ActionInvocation
     | { kind: 'wait', input: WaitActionInput }
     | { kind: 'terminal_exec', input: TerminalExecActionInput }
     | { kind: 'terminal_reset', input: TerminalResetActionInput }
+    | { kind: 'browser_dom_click', input: BrowserDomClickActionInput }
+    | { kind: 'browser_dom_set_input_value', input: BrowserDomSetInputValueActionInput }
+    | { kind: 'browser_dom_check_checkbox', input: BrowserDomCheckCheckboxActionInput }
+    | { kind: 'browser_dom_select_option', input: BrowserDomSelectOptionActionInput }
+    | { kind: 'browser_dom_trigger_event', input: BrowserDomTriggerEventActionInput }
 
 export type PendingExecutableAction
   = | ActionInvocation
@@ -403,6 +462,8 @@ export interface SessionTraceEntry {
   context: ForegroundContext
   policy: PolicyDecision
   result?: Record<string, unknown>
+  /** Separate model, authorization, execution, and verification records. */
+  contracts?: AgentExecutionContracts
 }
 
 export interface PendingActionRecord {
@@ -412,6 +473,9 @@ export interface PendingActionRecord {
   action: PendingExecutableAction
   policy: PolicyDecision
   context: ForegroundContext
+  preparedTerminal?: TerminalSnapshot
+  /** Stable model decision retained until Host settlement. */
+  modelDecision?: import('./contracts/agent-execution').ModelDecisionContract
 }
 
 export interface LaunchContext {
@@ -475,6 +539,7 @@ export interface LastScreenshotInfo {
   executionTargetMode?: ExecutionMode
   sourceHostName?: string
   sourceDisplayId?: string
+  sourceWindowId?: string
   sourceSessionTag?: string
 }
 
@@ -615,6 +680,12 @@ export interface ComputerUseConfig {
   remoteObservationBaseUrl?: string
   remoteObservationServePort?: number
   remoteObservationToken?: string
+  auv: {
+    binaryPath?: string
+    storeRoot: string
+    startupTimeoutMs: number
+    shutdownTimeoutMs: number
+  }
   browserDomBridge: BrowserDomBridgeConfig
   binaries: {
     swift: string
@@ -636,6 +707,13 @@ export interface ExecutorActionResult {
   executionTarget?: ExecutionTarget
 }
 
+export interface ExecutorCallOptions {
+  signal?: AbortSignal
+  /** Pins an action to the window that was visible when Host approval was requested. */
+  targetWindowId?: string
+  targetWindowContext?: ForegroundContext
+}
+
 export interface DesktopExecutor {
   kind: ExecutorKind
   describe: () => { kind: ExecutorKind, notes: string[] }
@@ -643,15 +721,15 @@ export interface DesktopExecutor {
   getForegroundContext: () => Promise<ForegroundContext>
   getDisplayInfo: () => Promise<DisplayInfo>
   getPermissionInfo: () => Promise<PermissionInfo>
-  observeWindows: (request: ObserveWindowsRequest) => Promise<WindowObservation>
-  takeScreenshot: (request: ScreenshotRequest) => Promise<ScreenshotArtifact>
-  openApp: (input: OpenAppActionInput) => Promise<ExecutorActionResult>
-  focusApp: (input: FocusAppActionInput) => Promise<ExecutorActionResult>
-  click: (input: ClickActionInput & { pointerTrace: PointerTracePoint[] }) => Promise<ExecutorActionResult>
-  typeText: (input: TypeTextActionInput) => Promise<ExecutorActionResult>
-  pressKeys: (input: PressKeysActionInput) => Promise<ExecutorActionResult>
-  scroll: (input: ScrollActionInput) => Promise<ExecutorActionResult>
-  wait: (input: WaitActionInput) => Promise<ExecutorActionResult>
+  observeWindows: (request: ObserveWindowsRequest, options?: ExecutorCallOptions) => Promise<WindowObservation>
+  takeScreenshot: (request: ScreenshotRequest, options?: ExecutorCallOptions) => Promise<ScreenshotArtifact>
+  openApp: (input: OpenAppActionInput, options?: ExecutorCallOptions) => Promise<ExecutorActionResult>
+  focusApp: (input: FocusAppActionInput, options?: ExecutorCallOptions) => Promise<ExecutorActionResult>
+  click: (input: ClickActionInput & { pointerTrace: PointerTracePoint[] }, options?: ExecutorCallOptions) => Promise<ExecutorActionResult>
+  typeText: (input: TypeTextActionInput, options?: ExecutorCallOptions) => Promise<ExecutorActionResult>
+  pressKeys: (input: PressKeysActionInput, options?: ExecutorCallOptions) => Promise<ExecutorActionResult>
+  scroll: (input: ScrollActionInput, options?: ExecutorCallOptions) => Promise<ExecutorActionResult>
+  wait: (input: WaitActionInput, options?: ExecutorCallOptions) => Promise<ExecutorActionResult>
   openTestTarget?: () => Promise<TestTargetLaunchResult>
   close?: () => Promise<void>
 }
@@ -661,4 +739,17 @@ export interface TerminalRunner {
   execute: (input: TerminalExecActionInput) => Promise<TerminalCommandResult>
   getState: () => TerminalState
   resetState: (reason?: string) => TerminalState
+  /** Local executors can freeze spawn inputs before an independent Host decision. Missing capability fails closed. */
+  prepare?: (input: TerminalExecActionInput) => TerminalSpawnInput
+  /** Starts synchronously. Result readiness and direct shell close are separate lifecycle facts. */
+  startPrepared?: (input: TerminalSpawnInput, signal?: AbortSignal) => TerminalExecution
+  /** Stops admission and waits for direct shell exit and bounded output drain. */
+  close?: () => Promise<void>
+}
+
+/** Result readiness does not confirm that the direct shell process has closed. */
+export interface TerminalExecution {
+  result: Promise<TerminalCommandResult>
+  /** A bounded output drain can end without a confirmed close. Neither result proves descendant termination. */
+  lifecycle: Promise<'closed' | 'unknown'>
 }

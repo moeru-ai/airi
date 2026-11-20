@@ -1,10 +1,13 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 
 import type {
+  ActionInvocation,
   BrowserDomFrameResult,
   ClickActionInput,
   FocusAppActionInput,
   OpenAppActionInput,
+  PendingActionRecord,
   SecretReadEnvValueActionInput,
   TerminalExecActionInput,
   TypeTextActionInput,
@@ -14,7 +17,10 @@ import type { ExecuteAction } from './action-executor'
 import type { ComputerUseServerRuntime } from './runtime'
 
 import { errorMessageFrom } from '@moeru/std'
+import { terminalOriginMetaKey, terminalOriginSchema } from '@proj-airi/stage-shared/terminal-approval'
 import { z } from 'zod'
+
+import * as v from 'valibot'
 
 import { diagnoseBrowserActionError } from '../browser-dom/browser-repair-contract'
 import { getUnsupportedBrowserDomActions, isBrowserDomActionSupported } from '../browser-dom/capabilities'
@@ -48,6 +54,104 @@ export interface RegisterComputerUseToolsOptions {
   runtime: ComputerUseServerRuntime
   executeAction: ExecuteAction
   enableTestTools: boolean
+}
+
+export async function resolvePendingAction(params: {
+  runtime: ComputerUseServerRuntime
+  executeAction: ExecuteAction
+  id: string
+  decision: { type: 'approve', source: string, signal?: AbortSignal } | { type: 'reject', source: string, reason?: string }
+}): Promise<CallToolResult> {
+  const { runtime, executeAction, id, decision } = params
+  const pending = runtime.session.getPendingAction(id)
+  if (!pending)
+    throw new Error(`Pending action not found: ${id}`)
+
+  if (decision.type === 'approve' && pending.action.kind === 'terminal_exec')
+    throw new Error('Terminal actions use the Terminal approval protocol.')
+  if (decision.type === 'approve' && decision.signal?.aborted)
+    return recordComputerUseRejection(runtime, pending, id, decision.source, 'Host approval was cancelled before dispatch')
+
+  runtime.session.removePendingAction(id)
+  runtime.stateManager.setPendingApprovalCount(runtime.session.listPendingActions().length)
+  if (decision.type === 'reject') {
+    runtime.stateManager.recordApprovalOutcome(true, decision.reason)
+    await runtime.session.record({
+      event: 'rejected',
+      toolName: decision.source,
+      action: pending.action,
+      context: pending.context,
+      policy: pending.policy,
+      result: { pendingActionId: id, reason: decision.reason, source: decision.source },
+    })
+    return {
+      content: [textContent(`Pending action rejected: ${id}${decision.reason ? ` (${decision.reason})` : ''}. The strategy layer will suggest an alternative approach.`)],
+      structuredContent: { status: 'rejected', pendingActionId: id, reason: decision.reason },
+    }
+  }
+
+  runtime.stateManager.recordApprovalOutcome(false)
+  await runtime.session.record({
+    event: 'approved',
+    toolName: decision.source,
+    action: pending.action,
+    context: pending.context,
+    policy: pending.policy,
+    result: { pendingActionId: id, source: decision.source },
+  })
+  if (decision.signal?.aborted)
+    return recordComputerUseRejection(runtime, pending, id, decision.source, 'Host approval was cancelled before dispatch')
+
+  let result: CallToolResult
+  if (pending.action.kind === 'pty_create') {
+    result = await executeApprovedPtyCreate(runtime, pending.action.input, decision.signal)
+  }
+  else if (pending.action.kind === 'desktop_ensure_chrome') {
+    decision.signal?.throwIfAborted()
+    result = await executeChromeEnsure(
+      runtime,
+      pending.action.input,
+      pending.policy.estimatedOperationUnits,
+      decision.signal,
+    )
+  }
+  else {
+    result = await executeAction(pending.action as ActionInvocation, pending.toolName, {
+      skipApprovalQueue: true,
+      executionSignal: decision.signal,
+      approvedContext: pending.context,
+      authorizationSource: 'host',
+      modelDecision: pending.modelDecision,
+    })
+  }
+  await runtime.session.record({
+    event: result.isError === true ? 'failed' : 'executed',
+    toolName: pending.toolName,
+    action: pending.action,
+    context: pending.context,
+    policy: pending.policy,
+    result: { pendingActionId: id, ...(typeof result.structuredContent === 'object' && result.structuredContent !== null ? result.structuredContent as Record<string, unknown> : {}) },
+  })
+  return result
+}
+
+async function recordComputerUseRejection(runtime: ComputerUseServerRuntime, pending: PendingActionRecord, id: string, source: string, reason: string): Promise<CallToolResult> {
+  runtime.session.removePendingAction(id)
+  runtime.stateManager.recordApprovalOutcome(true, reason)
+  runtime.stateManager.setPendingApprovalCount(runtime.session.listPendingActions().length)
+  await runtime.session.record({
+    event: 'rejected',
+    toolName: pending.toolName,
+    action: pending.action,
+    context: pending.context,
+    policy: pending.policy,
+    result: { pendingActionId: id, source, reason },
+  })
+  return {
+    isError: true,
+    content: [textContent('Computer Use action was cancelled before dispatch.')],
+    structuredContent: { status: 'cancelled', pendingActionId: id },
+  }
 }
 
 const optionalTabIdSchema = z.number().int().min(0).optional().describe('Optional browser tab id override; defaults to the active tab')
@@ -110,8 +214,9 @@ function buildBrowserDomActionErrorResponse(params: {
   error: unknown
   selector: string
   actionKind: string
+  structuredContent?: CallToolResult['structuredContent']
 }) {
-  const { runtime, error, selector, actionKind } = params
+  const { runtime, error, selector, actionKind, structuredContent } = params
   const message = errorMessageFrom(error) ?? 'unknown error'
   const repairSuggestion = diagnoseBrowserActionError(error, selector, actionKind)
 
@@ -125,6 +230,7 @@ function buildBrowserDomActionErrorResponse(params: {
       ),
     ],
     structuredContent: {
+      ...structuredContent,
       status: 'error',
       selector,
       actionKind,
@@ -140,9 +246,37 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
   const server = createToolLaneHygieneServer(params.server, runtime.stateManager)
   const executePrepTool = createWorkflowPrepToolExecutor(runtime)
   const acquirePty = createAcquirePtyCallback(runtime)
+  const desktopBackend = runtime.executor.describe()
+  const desktopDescription = `MCP Desktop backend: ${desktopBackend.kind}. ${desktopBackend.notes.join(' ')}`
 
   async function refreshWorkflowRunState() {
     await refreshRuntimeRunState(runtime)
+  }
+
+  async function executeBrowserDomAction(action: ActionInvocation & { input: { selector: string } }, toolName: string) {
+    try {
+      const result = await executeAction(action, toolName)
+      if (!result?.isError)
+        return result
+      const error = result.structuredContent?.error
+        ?? result.content?.map(item => item.type === 'text' ? item.text : '').filter(Boolean).join('\n')
+        ?? 'Browser DOM action failed.'
+      return buildBrowserDomActionErrorResponse({
+        runtime,
+        error,
+        selector: action.input.selector,
+        actionKind: action.kind,
+        structuredContent: result.structuredContent,
+      })
+    }
+    catch (error) {
+      return buildBrowserDomActionErrorResponse({
+        runtime,
+        error,
+        selector: action.input.selector,
+        actionKind: action.kind,
+      })
+    }
   }
 
   // Workflow suspension state — stored in this closure so that
@@ -163,6 +297,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         lastScreenshot: runtime.session.getLastScreenshot(),
         displayInfo,
         executionTarget,
+        foregroundContext: context,
       })
 
       return {
@@ -203,7 +338,9 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
             ? 'NSWorkspace + CGWindowList + Quartz'
             : runtime.config.executor === 'linux-x11'
               ? 'remote X11 runner'
-              : 'dry-run',
+              : runtime.config.executor === 'auv'
+                ? 'AUV Windows Runner (window observation, display capture, targeted input)'
+                : 'dry-run',
           supportedAppsForOpenFocus: runtime.config.openableApps,
           approvalUx: 'electron-dialog',
           coordScope: 'global-screen',
@@ -242,6 +379,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
 
   server.tool(
     'desktop_observe_windows',
+    `List windows observed by this MCP Desktop executor. ${desktopDescription}`,
     {
       limit: z.number().int().min(1).max(32).optional().describe('Maximum number of visible windows to return'),
       app: z.string().optional().describe('Optional app-name substring filter'),
@@ -251,6 +389,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
 
   server.tool(
     'desktop_screenshot',
+    `Capture an image from this MCP Desktop executor. ${desktopDescription}`,
     {
       label: z.string().optional().describe('Optional label for the saved screenshot file'),
     },
@@ -329,16 +468,23 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
 
   server.tool(
     'terminal_exec',
+    `Run command text inside the configured local Shell. terminal_exec is an MCP tool, not a Shell command. ${runtime.terminalRunner.describe().notes.join(' ')}`,
     {
-      command: z.string().min(1).describe('Shell command to execute in the local background runner'),
-      cwd: z.string().optional().describe('Optional working directory override'),
+      command: z.string().min(1).describe('Command text interpreted by the configured Shell'),
+      cwd: z.string().optional().describe('Optional spawn directory. Omit to use the previous spawn directory. Relative paths resolve against the executor process directory.'),
       timeoutMs: z.number().int().min(1).max(120_000).optional().describe('Optional timeout override in milliseconds'),
     },
-    async (input: TerminalExecActionInput) => executeAction({ kind: 'terminal_exec', input }, 'terminal_exec'),
+    async (input: TerminalExecActionInput, extra) => {
+      const origin = v.safeParse(terminalOriginSchema, extra._meta?.[terminalOriginMetaKey])
+      return executeAction({ kind: 'terminal_exec', input }, 'terminal_exec', {
+        terminalOrigin: origin.success && origin.output.nonce === runtime.terminalControlNonce ? origin.output : undefined,
+      })
+    },
   )
 
   server.tool(
     'terminal_get_state',
+    'Read the Terminal executor contract and default spawn directory without executing a command. This is not a live interactive Shell directory.',
     {},
     async () => {
       const terminalState = runtime.session.getTerminalState()
@@ -349,6 +495,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         structuredContent: {
           status: 'ok',
           terminalState,
+          terminalBackend: runtime.terminalRunner.describe(),
         },
       }
     },
@@ -433,6 +580,13 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       timeoutMs: z.number().int().min(1_000).max(900_000).optional().describe('End-to-end timeout for the delegated browser task (default: 180000).'),
     },
     async ({ instruction, agent, cdpUrl, maxTurns, timeoutMs }) => {
+      if (runtime.config.approvalMode !== 'never') {
+        return {
+          isError: true,
+          content: [textContent('Delegated browser execution is disabled while the server requires approval.')],
+          structuredContent: { status: 'denied', reason: 'trusted_approval_required' },
+        }
+      }
       const launchContext = getBrowserAgentLaunchContext({ cdpUrl })
 
       if (!launchContext.rootExists) {
@@ -599,57 +753,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       const requiredActions = ['getClickTarget', 'clickAt']
       if (!isBrowserDomActionSupported(runtime.browserDomBridge, ...requiredActions))
         return buildBrowserDomUnavailableResponse(runtime, getUnsupportedBrowserDomActions(runtime.browserDomBridge, ...requiredActions))
-
-      let result: Awaited<ReturnType<typeof runtime.browserDomBridge.clickSelector>>
-      try {
-        result = await runtime.browserDomBridge.clickSelector({
-          selector,
-          tabId,
-          frameIds,
-        })
-      }
-      catch (error) {
-        return buildBrowserDomActionErrorResponse({
-          runtime,
-          error,
-          selector,
-          actionKind: 'browser_dom_click',
-        })
-      }
-
-      // NOTICE: clickSelector resolves even when the clickAt step misses
-      // (e.g. reflow between target lookup and click dispatch). Inspect
-      // per-frame results before reporting success.
-      const clickFrames = result?.clickResults
-      const anyClickSucceeded = Array.isArray(clickFrames) && clickFrames.some(
-        fr => (fr.result as Record<string, unknown>)?.success === true,
-      )
-      if (!anyClickSucceeded) {
-        return {
-          isError: true,
-          content: [
-            textContent(`browser_dom_click: clicked at (${result.targetPoint.x}, ${result.targetPoint.y}) in frame ${result.targetFrameId} but no frame reported a successful DOM click for "${selector}".`),
-          ],
-          structuredContent: {
-            status: 'click_miss',
-            selector,
-            ...result,
-            bridge: runtime.browserDomBridge.getStatus(),
-          },
-        }
-      }
-
-      return {
-        content: [
-          textContent(`Clicked selector "${selector}" in frame ${result.targetFrameId} at (${result.targetPoint.x}, ${result.targetPoint.y}).`),
-        ],
-        structuredContent: {
-          status: 'ok',
-          selector,
-          ...result,
-          bridge: runtime.browserDomBridge.getStatus(),
-        },
-      }
+      return executeBrowserDomAction({ kind: 'browser_dom_click', input: { selector, tabId, frameIds } }, 'browser_dom_click')
     },
   )
 
@@ -702,27 +806,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       const requiredActions = ['setInputValue']
       if (!isBrowserDomActionSupported(runtime.browserDomBridge, ...requiredActions))
         return buildBrowserDomUnavailableResponse(runtime, getUnsupportedBrowserDomActions(runtime.browserDomBridge, ...requiredActions))
-
-      const results = await runtime.browserDomBridge.setInputValue({
-        selector,
-        value,
-        simulateKeystrokes,
-        blur,
-        tabId,
-        frameIds,
-      })
-      return {
-        content: [
-          textContent(summarizeBrowserDomFrameResults(`set_input_value for "${selector}"`, results)),
-        ],
-        structuredContent: {
-          status: 'ok',
-          selector,
-          valueLength: value.length,
-          results,
-          bridge: runtime.browserDomBridge.getStatus(),
-        },
-      }
+      return executeBrowserDomAction({ kind: 'browser_dom_set_input_value', input: { selector, value, simulateKeystrokes, blur, tabId, frameIds } }, 'browser_dom_set_input_value')
     },
   )
 
@@ -740,25 +824,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       const requiredActions = ['checkCheckbox']
       if (!isBrowserDomActionSupported(runtime.browserDomBridge, ...requiredActions))
         return buildBrowserDomUnavailableResponse(runtime, getUnsupportedBrowserDomActions(runtime.browserDomBridge, ...requiredActions))
-
-      const results = await runtime.browserDomBridge.checkCheckbox({
-        selector,
-        checked,
-        tabId,
-        frameIds,
-      })
-      return {
-        content: [
-          textContent(summarizeBrowserDomFrameResults(`check_checkbox for "${selector}"`, results)),
-        ],
-        structuredContent: {
-          status: 'ok',
-          selector,
-          checked,
-          results,
-          bridge: runtime.browserDomBridge.getStatus(),
-        },
-      }
+      return executeBrowserDomAction({ kind: 'browser_dom_check_checkbox', input: { selector, checked, tabId, frameIds } }, 'browser_dom_check_checkbox')
     },
   )
 
@@ -776,25 +842,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       const requiredActions = ['selectOption']
       if (!isBrowserDomActionSupported(runtime.browserDomBridge, ...requiredActions))
         return buildBrowserDomUnavailableResponse(runtime, getUnsupportedBrowserDomActions(runtime.browserDomBridge, ...requiredActions))
-
-      const results = await runtime.browserDomBridge.selectOption({
-        selector,
-        value,
-        tabId,
-        frameIds,
-      })
-      return {
-        content: [
-          textContent(summarizeBrowserDomFrameResults(`select_option for "${selector}"`, results)),
-        ],
-        structuredContent: {
-          status: 'ok',
-          selector,
-          value,
-          results,
-          bridge: runtime.browserDomBridge.getStatus(),
-        },
-      }
+      return executeBrowserDomAction({ kind: 'browser_dom_select_option', input: { selector, value, tabId, frameIds } }, 'browser_dom_select_option')
     },
   )
 
@@ -958,28 +1006,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         }
         opts = record
       }
-
-      const results = await runtime.browserDomBridge.triggerEvent({
-        selector,
-        eventName,
-        eventType,
-        opts,
-        tabId,
-        frameIds,
-      })
-      return {
-        content: [
-          textContent(summarizeBrowserDomFrameResults(`trigger_event ${eventName} for "${selector}"`, results)),
-        ],
-        structuredContent: {
-          status: 'ok',
-          selector,
-          eventName,
-          eventType,
-          results,
-          bridge: runtime.browserDomBridge.getStatus(),
-        },
-      }
+      return executeBrowserDomAction({ kind: 'browser_dom_trigger_event', input: { selector, eventName, eventType, opts, tabId, frameIds } }, 'browser_dom_trigger_event')
     },
   )
 
@@ -1007,77 +1034,20 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       id: z.string().min(1).describe('Pending action id returned by another desktop tool'),
     },
     async ({ id }) => {
-      const pending = runtime.session.getPendingAction(id)
-      if (!pending) {
+      // An agent-callable MCP tool cannot establish independent human consent.
+      if (runtime.config.approvalMode !== 'never') {
         return {
           isError: true,
-          content: [
-            textContent(`Pending action not found: ${id}`),
-          ],
+          content: [textContent('This operation requires trusted Host approval. MCP callers cannot approve their own requests.')],
+          structuredContent: { status: 'denied', reason: 'trusted_approval_required' },
         }
       }
-
-      runtime.session.removePendingAction(id)
-      runtime.stateManager.recordApprovalOutcome(false)
-      runtime.stateManager.setPendingApprovalCount(runtime.session.listPendingActions().length)
-      await runtime.session.record({
-        event: 'approved',
-        toolName: 'desktop_approve_pending_action',
-        action: pending.action,
-        context: pending.context,
-        policy: pending.policy,
-        result: {
-          pendingActionId: id,
-        },
-      })
-
-      if (pending.action.kind === 'pty_create') {
-        const result = await executeApprovedPtyCreate(runtime, pending.action.input)
-
-        await runtime.session.record({
-          event: result.isError === true ? 'failed' : 'executed',
-          toolName: pending.toolName,
-          action: pending.action,
-          context: pending.context,
-          policy: pending.policy,
-          result: {
-            pendingActionId: id,
-            ...(typeof result.structuredContent === 'object' && result.structuredContent !== null
-              ? result.structuredContent as Record<string, unknown>
-              : {}),
-          },
-        })
-
-        return result
+      try {
+        return await resolvePendingAction({ runtime, executeAction, id, decision: { type: 'approve', source: 'desktop_approve_pending_action' } })
       }
-
-      if (pending.action.kind === 'desktop_ensure_chrome') {
-        const result = await executeChromeEnsure(
-          runtime,
-          pending.action.input,
-          pending.policy.estimatedOperationUnits,
-        )
-
-        await runtime.session.record({
-          event: result.isError === true ? 'failed' : 'executed',
-          toolName: pending.toolName,
-          action: pending.action,
-          context: pending.context,
-          policy: pending.policy,
-          result: {
-            pendingActionId: id,
-            ...(typeof result.structuredContent === 'object' && result.structuredContent !== null
-              ? result.structuredContent as Record<string, unknown>
-              : {}),
-          },
-        })
-
-        return result
+      catch (error) {
+        return { isError: true, content: [textContent(errorMessageFrom(error) ?? 'Pending action not found.')] }
       }
-
-      return await executeAction(pending.action, pending.toolName, {
-        skipApprovalQueue: true,
-      })
     },
   )
 
@@ -1088,40 +1058,11 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       reason: z.string().optional().describe('Optional rejection note for the audit log'),
     },
     async ({ id, reason }) => {
-      const pending = runtime.session.getPendingAction(id)
-      if (!pending) {
-        return {
-          isError: true,
-          content: [
-            textContent(`Pending action not found: ${id}`),
-          ],
-        }
+      try {
+        return await resolvePendingAction({ runtime, executeAction, id, decision: { type: 'reject', source: 'desktop_reject_pending_action', reason } })
       }
-
-      runtime.session.removePendingAction(id)
-      runtime.stateManager.recordApprovalOutcome(true, reason)
-      runtime.stateManager.setPendingApprovalCount(runtime.session.listPendingActions().length)
-      await runtime.session.record({
-        event: 'rejected',
-        toolName: 'desktop_reject_pending_action',
-        action: pending.action,
-        context: pending.context,
-        policy: pending.policy,
-        result: {
-          pendingActionId: id,
-          reason,
-        },
-      })
-
-      return {
-        content: [
-          textContent(`Pending action rejected: ${id}${reason ? ` (${reason})` : ''}. The strategy layer will suggest an alternative approach.`),
-        ],
-        structuredContent: {
-          status: 'rejected',
-          pendingActionId: id,
-          reason,
-        },
+      catch (error) {
+        return { isError: true, content: [textContent(errorMessageFrom(error) ?? 'Pending action not found.')] }
       }
     },
   )
@@ -1192,7 +1133,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       projectPath: z.string().min(1).describe('Absolute path to the project directory'),
       ideApp: z.string().optional().describe('IDE application to open the workspace with (default: Cursor)'),
       fileManagerApp: z.string().optional().describe('File manager to reveal the workspace in (default: Finder)'),
-      autoApprove: z.boolean().optional().describe('Skip per-step approval for workflow actions (default: true)'),
+      autoApprove: z.boolean().optional().describe('Skip approval only when server approvalMode is never (default: true)'),
     },
     async ({ projectPath, ideApp, fileManagerApp, autoApprove }) => {
       const workflow = createDevOpenWorkspaceWorkflow({ projectPath, ideApp, fileManagerApp })
@@ -1204,7 +1145,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         stateManager: runtime.stateManager,
         refreshState: refreshWorkflowRunState,
         overrides: { projectPath },
-        autoApproveSteps: autoApprove ?? true,
+        autoApproveSteps: runtime.config.approvalMode === 'never' && (autoApprove ?? true),
       })
 
       suspendedWorkflow = result.suspension
@@ -1221,7 +1162,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       fileManagerApp: z.string().optional().describe('File manager to reveal the workspace in (default: Finder)'),
       changesCommand: z.string().optional().describe('Command to inspect local changes (default: git diff --stat)'),
       checkCommand: z.string().optional().describe('Validation command to run from the workspace root (default: pnpm typecheck)'),
-      autoApprove: z.boolean().optional().describe('Skip per-step approval for workflow actions (default: true)'),
+      autoApprove: z.boolean().optional().describe('Skip approval only when server approvalMode is never (default: true)'),
     },
     async ({ projectPath, ideApp, fileManagerApp, changesCommand, checkCommand, autoApprove }) => {
       const workflow = createDevValidateWorkspaceWorkflow({
@@ -1239,7 +1180,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         stateManager: runtime.stateManager,
         refreshState: refreshWorkflowRunState,
         overrides: { projectPath },
-        autoApproveSteps: autoApprove ?? true,
+        autoApproveSteps: runtime.config.approvalMode === 'never' && (autoApprove ?? true),
       })
 
       suspendedWorkflow = result.suspension
@@ -1253,7 +1194,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
     {
       projectPath: z.string().min(1).describe('Absolute path to the project directory'),
       testCommand: z.string().optional().describe('Shell command to run tests (default: pnpm test:run)'),
-      autoApprove: z.boolean().optional().describe('Skip per-step approval for workflow actions (default: true)'),
+      autoApprove: z.boolean().optional().describe('Skip approval only when server approvalMode is never (default: true)'),
     },
     async ({ projectPath, testCommand, autoApprove }) => {
       const workflow = createDevRunTestsWorkflow({ projectPath, testCommand })
@@ -1265,7 +1206,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         stateManager: runtime.stateManager,
         refreshState: refreshWorkflowRunState,
         overrides: { projectPath },
-        autoApproveSteps: autoApprove ?? true,
+        autoApproveSteps: runtime.config.approvalMode === 'never' && (autoApprove ?? true),
       })
 
       // Store suspension for resume capability.
@@ -1280,7 +1221,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
     {
       ideApp: z.string().optional().describe('IDE application to focus (default: Cursor)'),
       diagnosticCommand: z.string().optional().describe('Optional command to re-run for fresh error output'),
-      autoApprove: z.boolean().optional().describe('Skip per-step approval for workflow actions (default: true)'),
+      autoApprove: z.boolean().optional().describe('Skip approval only when server approvalMode is never (default: true)'),
     },
     async ({ ideApp, diagnosticCommand, autoApprove }) => {
       const workflow = createDevInspectFailureWorkflow({ ideApp, diagnosticCommand })
@@ -1291,7 +1232,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         acquirePty,
         stateManager: runtime.stateManager,
         refreshState: refreshWorkflowRunState,
-        autoApproveSteps: autoApprove ?? true,
+        autoApproveSteps: runtime.config.approvalMode === 'never' && (autoApprove ?? true),
       })
 
       suspendedWorkflow = result.suspension
@@ -1306,7 +1247,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
       app: z.string().optional().describe('Application to open (default: Google Chrome)'),
       goal: z.string().optional().describe('Short description of what to accomplish'),
       url: z.string().optional().describe('Optional URL to navigate to in the browser'),
-      autoApprove: z.boolean().optional().describe('Skip per-step approval for workflow actions (default: true)'),
+      autoApprove: z.boolean().optional().describe('Skip approval only when server approvalMode is never (default: true)'),
     },
     async ({ app, goal, url, autoApprove }) => {
       const workflow = createAppBrowseAndActWorkflow({ app, goal, url })
@@ -1317,7 +1258,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         acquirePty,
         stateManager: runtime.stateManager,
         refreshState: refreshWorkflowRunState,
-        autoApproveSteps: autoApprove ?? true,
+        autoApproveSteps: runtime.config.approvalMode === 'never' && (autoApprove ?? true),
       })
 
       suspendedWorkflow = result.suspension
@@ -1330,9 +1271,17 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
     'workflow_resume',
     {
       approved: z.boolean().optional().describe('Whether the pending step was approved (default: true)'),
-      autoApprove: z.boolean().optional().describe('Skip per-step approval for remaining steps (default: true)'),
+      autoApprove: z.boolean().optional().describe('Skip remaining approval only when server approvalMode is never (default: true)'),
     },
     async ({ approved, autoApprove }) => {
+      // Resume cannot claim that a queued action was approved and executed.
+      if (approved !== false && runtime.config.approvalMode !== 'never') {
+        return {
+          isError: true,
+          content: [textContent('Workflow continuation requires trusted approval and execution settlement.')],
+          structuredContent: { status: 'denied', reason: 'trusted_approval_required' },
+        }
+      }
       if (!suspendedWorkflow) {
         return {
           isError: true,
@@ -1352,7 +1301,7 @@ export function registerComputerUseTools(params: RegisterComputerUseToolsOptions
         stateManager: runtime.stateManager,
         refreshState: refreshWorkflowRunState,
         approved: approved ?? true,
-        autoApproveSteps: autoApprove ?? true,
+        autoApproveSteps: runtime.config.approvalMode === 'never' && (autoApprove ?? true),
       })
 
       // Store new suspension if workflow pauses again.

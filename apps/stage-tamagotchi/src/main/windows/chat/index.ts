@@ -98,6 +98,7 @@ export interface ChatWindowManager {
    * the fullscreen chat opens in the main window.
    */
   toggle: () => Promise<void>
+  owns: (window: BrowserWindow) => boolean
   getButtonState: () => ChatButtonState
   /** Calls `listener` whenever the button state changes. Returns the function that stops it. */
   onButtonStateChange: (listener: (state: ChatButtonState) => void) => () => void
@@ -373,6 +374,9 @@ export function setupChatWindowManager(params: {
 
   return {
     open: modeSwitch.show,
+    owns: window => window === legacy.getOpenWindow()
+      || window === floating.getOpenWindow()
+      || [...fullscreenHosts].some(host => host.window === window && host.isActive() && hasChat(host)),
     toggle: () => modeSwitch.run(async () => {
       const mode = getConfig().mode
       if (mode === 'floating')

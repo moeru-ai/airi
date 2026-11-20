@@ -1,4 +1,5 @@
-import type { BrowserWindow } from 'electron'
+import type { ElectronMainEmitOptions } from '@moeru/eventa/adapters/electron/main'
+import type { BrowserWindow, WebContents } from 'electron'
 
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { ipcMain } from 'electron'
@@ -20,4 +21,13 @@ import { ipcMain } from 'electron'
  */
 export function createWindowContext(window: BrowserWindow) {
   return createContext(ipcMain, window, { onlySameWindow: true })
+}
+
+/** Returns the actual sender of a live top-level frame. Payload source fields never participate in this check. */
+export function requireMainFrameSender(options?: Partial<ElectronMainEmitOptions>): WebContents {
+  const event = options?.raw?.ipcMainEvent
+  const sender = event?.sender
+  if (!sender || sender.isDestroyed() || !event.senderFrame || event.senderFrame !== sender.mainFrame)
+    throw new Error('This operation requires a live main-frame Electron source.')
+  return sender
 }

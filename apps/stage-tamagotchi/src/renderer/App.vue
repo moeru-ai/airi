@@ -342,7 +342,9 @@ function createFullStageRuntime() {
         token: serverChannelConfig.authToken || undefined,
         possibleEvents: ['ui:configure'],
       }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
-      contextBridgeStore.initialize()
+      // Every full-runtime window registers as a chat-ingestion consumer, but chat turns run in the
+      // synced leader. Prefer the leader, so external input and its context updates land where the turn runs.
+      contextBridgeStore.initialize({ consumerPriority: windowContext.leadership === 'leader-only' ? 1 : 0 })
       if (!isWidgetsWindow) {
         characterOrchestratorStore.initialize(syncedPinia)
       }
