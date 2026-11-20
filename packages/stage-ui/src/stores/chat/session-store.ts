@@ -670,12 +670,51 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     await updateSessionMetas([sessionId], meta => ({ ...meta, pinnedAt: pinned ? Date.now() : undefined }))
   }
 
-  /** Archives or restores conversations. An archived conversation leaves the conversation list and loses its pin. */
-  async function setSessionsArchived(sessionIds: string[], archived: boolean) {
+  /**
+   * Archives or restores conversations. An archived conversation leaves the conversation list and loses its pin.
+   *
+   * A character does not open an archived conversation on its own. When the conversation that a character opens is
+   * archived, the character opens its first conversation that is not archived, or a new one, as after a deletion.
+   *
+   * @returns The conversation that each character of the conversations opens now. A window that shows an archived
+   * conversation moves to it.
+   */
+  async function setSessionsArchived(sessionIds: string[], archived: boolean): Promise<Record<string, string>> {
     const archivedAt = Date.now()
     await updateSessionMetas(sessionIds, meta => archived
       ? { ...meta, archivedAt, pinnedAt: undefined }
       : { ...meta, archivedAt: undefined })
+
+    const opened: Record<string, string> = {}
+    const characterIds = new Set(sessionIds.flatMap(sessionId => sessionMetas.value[sessionId]?.characterId ?? []))
+    for (const characterId of characterIds) {
+      const characterIndex = index.value?.characters[characterId]
+      if (!characterIndex)
+        continue
+      if (archived && sessionMetas.value[characterIndex.activeSessionId]?.archivedAt !== undefined) {
+        // A hidden session, such as a background task's own space, never becomes the conversation that a character opens.
+        const fallbackId = Object.keys(characterIndex.sessions).find((sessionId) => {
+          const meta = sessionMetas.value[sessionId]
+          return !!meta && !meta.hidden && meta.archivedAt === undefined
+        })
+        if (fallbackId) {
+          characterIndex.activeSessionId = fallbackId
+          await persistIndex()
+        }
+        else {
+          const replacementSessionId = await createSession(characterId, { setActive: false })
+          const replacementCharacterIndex = index.value?.characters[characterId]
+          if (replacementCharacterIndex) {
+            replacementCharacterIndex.activeSessionId = replacementSessionId
+            await persistIndex()
+          }
+        }
+      }
+      const openedSessionId = index.value?.characters[characterId]?.activeSessionId
+      if (openedSessionId)
+        opened[characterId] = openedSessionId
+    }
+    return opened
   }
 
   /**

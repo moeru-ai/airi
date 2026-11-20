@@ -128,8 +128,13 @@ const characterFilter = computed(() => characterChips.value.some(chip => chip.id
   ? chosenCharacterId.value
   : undefined)
 
-/** The name of the filtered character. The primary action names it, because a new conversation goes to it. */
+/** The name of the filtered character. The empty state names it. */
 const filteredCharacterName = computed(() => characterChips.value.find(chip => chip.id === characterFilter.value)?.name)
+/**
+ * The filtered character when this device has its card. A new conversation goes to it, and the primary action names
+ * it. A character without a card cannot send, so a new conversation under its filter goes to the default character.
+ */
+const newSessionCharacter = computed(() => props.characters.find(character => character.id === characterFilter.value))
 
 /** The rows that the list shows. Pinned conversations come first, and the rows already arrive in the order of their last message. */
 const visibleRows = computed(() => {
@@ -269,7 +274,7 @@ function toggleAllSelected() {
 
 function newSessionLabel() {
   const folder = currentFolder.value?.name
-  const name = filteredCharacterName.value
+  const name = newSessionCharacter.value?.name
   if (folder !== undefined) {
     return name === undefined
       ? t('stage.chat.sessions.new-in-folder', { folder })
@@ -280,7 +285,7 @@ function newSessionLabel() {
 
 function runPrimaryAction() {
   if (!selecting.value) {
-    emit('newSession', { folderId: currentFolder.value?.id, characterId: characterFilter.value })
+    emit('newSession', { folderId: currentFolder.value?.id, characterId: newSessionCharacter.value?.id })
     return
   }
   const sessionIds = selectedRows.value.map(row => row.meta.sessionId)

@@ -48,12 +48,12 @@ const { trackChatSessionSelected, trackChatSessionStarted, trackConversationRena
 // second click from creating an orphan session while the first is pending.
 const isCreatingSession = ref(false)
 
+const effectiveUserId = computed(() => userId.value || 'local')
+
 // Keep another account's sessions hidden while an account swap rehydrates.
 // Background recipe sessions are hidden too. Their results reach the conversation as notices.
-const ownedSessions = computed(() => {
-  const effectiveUserId = userId.value || 'local'
-  return Object.values(sessionMetas.value).filter(meta => meta.userId === effectiveUserId && !meta.hidden)
-})
+const ownedSessions = computed(() => Object.values(sessionMetas.value)
+  .filter(meta => meta.userId === effectiveUserId.value && !meta.hidden))
 
 /**
  * Normalizes a session into its one-line drawer preview.
@@ -109,9 +109,15 @@ const rows = computed<SessionRow[]>(() => {
 /** Every character card, so the filter can pick a character that has no conversation yet. */
 const characters = computed(() => [...cards.value].map(([id, card]) => ({ id, name: card.name, preview: characterPreviews.value.get(id) })))
 
-/** Folders in the order of their creation, so a new folder appears last. */
-const folders = computed<ChatSessionFolder[]>(() => Object.values(index.value?.folders ?? {})
-  .sort((first, second) => first.createdAt - second.createdAt))
+/**
+ * Folders in the order of their creation, so a new folder appears last. While an account swap rehydrates, the index
+ * can still belong to the other account, so its folders stay hidden, like its sessions.
+ */
+const folders = computed<ChatSessionFolder[]>(() => {
+  if (index.value?.userId !== effectiveUserId.value)
+    return []
+  return Object.values(index.value.folders ?? {}).sort((first, second) => first.createdAt - second.createdAt)
+})
 
 async function selectSession(sessionId: string) {
   const selectedRow = rows.value.find(row => row.meta.sessionId === sessionId)
@@ -154,6 +160,22 @@ async function startNewSession(payload: { folderId?: string, characterId?: strin
   finally {
     isCreatingSession.value = false
   }
+}
+
+/**
+ * Archives or restores conversations. When this window shows a conversation that it archives, the window moves to the
+ * conversation that the character opens now, as after a deletion. Otherwise the next message goes to a hidden
+ * conversation.
+ */
+async function archiveSessions(payload: { sessionIds: string[], archived: boolean }) {
+  const shown = sessionMetas.value[activeSessionId.value]
+  const opened = await chatSession.setSessionsArchived(payload.sessionIds, payload.archived)
+  if (!payload.archived || !shown || !payload.sessionIds.includes(shown.sessionId))
+    return
+  // The user can select another conversation while the archive saves. That selection stays.
+  const next = opened[shown.characterId]
+  if (activeSessionId.value === shown.sessionId && next && next !== shown.sessionId)
+    await chatSession.setActiveSession(next)
 }
 
 async function renameSession(payload: { sessionId: string, title: string }) {
@@ -214,7 +236,7 @@ watch(showDialog, async (open) => {
     @delete-sessions="chat.deleteSessions"
     @rename-session="renameSession"
     @pin-session="chatSession.setSessionPinned($event.sessionId, $event.pinned)"
-    @archive-sessions="chatSession.setSessionsArchived($event.sessionIds, $event.archived)"
+    @archive-sessions="archiveSessions"
     @move-sessions="chatSession.moveSessionsToFolder($event.sessionIds, $event.folderId)"
     @create-folder="createFolder"
     @rename-folder="chatSession.renameFolder($event.folderId, $event.name)"
