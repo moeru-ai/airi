@@ -4451,6 +4451,13 @@
     {
       "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
       "code": "unused-key",
+      "key": "tamagotchi.stage.fullscreen-island.account",
+      "message": "\"tamagotchi.stage.fullscreen-island.account\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
       "key": "tamagotchi.stage.fullscreen-island.chat",
       "message": "\"tamagotchi.stage.fullscreen-island.chat\" is not used.",
       "count": 1
@@ -4465,8 +4472,29 @@
     {
       "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
       "code": "unused-key",
+      "key": "tamagotchi.stage.fullscreen-island.notifications",
+      "message": "\"tamagotchi.stage.fullscreen-island.notifications\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.fullscreen-island.notifications-unread",
+      "message": "\"tamagotchi.stage.fullscreen-island.notifications-unread\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
       "key": "tamagotchi.stage.fullscreen-island.settings",
       "message": "\"tamagotchi.stage.fullscreen-island.settings\" is not used.",
+      "count": 1
+    },
+    {
+      "path": "packages/i18n/src/locales/en/tamagotchi/stage.yaml",
+      "code": "unused-key",
+      "key": "tamagotchi.stage.fullscreen-island.sign-in",
+      "message": "\"tamagotchi.stage.fullscreen-island.sign-in\" is not used.",
       "count": 1
     },
     {
