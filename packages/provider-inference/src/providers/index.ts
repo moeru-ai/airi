@@ -36,6 +36,7 @@ import {
   providerOpenAICompatibleAudioTranscription,
 } from './cloud/openai-audio'
 import { providerOpenAICompatible } from './cloud/openai-compatible'
+import { providerOpenCodeGo } from './cloud/opencode-go'
 import { providerOpenPaths } from './cloud/openpaths'
 import { providerOpenRouterAI } from './cloud/openrouter-ai'
 import { providerOpenRouterAudioSpeech } from './cloud/openrouter-audio-speech'
@@ -124,6 +125,7 @@ export const portableProviderDefinitions = eraseProviderDefinitions(
   providerOpenAICompatibleAudioSpeech,
   providerOpenAICompatibleAudioTranscription,
   providerOpenAICompatible,
+  providerOpenCodeGo,
   providerOpenPaths,
   providerOpenRouterAI,
   providerOpenRouterAudioSpeech,
