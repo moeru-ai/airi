@@ -8,10 +8,12 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { setTimeout as sleep } from 'node:timers/promises'
 
 import { Server } from 'socket.io'
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { PhotonAuthError } from '../photon/client'
 import { PhotonAdapter } from './airi-adapter'
 
 interface SentInput { type: string, data: { text: string, overrides: { binding: string }, photon: { messageId: string } }, route: unknown }
@@ -48,13 +50,23 @@ describe('photonAdapter', () => {
   const subscribes: number[] = []
   const apiKeys: (string | undefined)[] = []
   let disconnects = 0
+  let refusedHandshakes = 0
   let config: PhotonBotConfig
   let adapter: PhotonAdapter
+
+  // Photon answers 401 to the handshake of the event stream when the API key is wrong or revoked.
+  http.prependListener('upgrade', (request, socket) => {
+    if (request.headers.authorization !== 'Bearer revoked-key')
+      return
+    refusedHandshakes += 1
+    socket.end('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n')
+  })
 
   beforeEach(async () => {
     subscribes.length = 0
     apiKeys.length = 0
     disconnects = 0
+    refusedHandshakes = 0
     photon.removeAllListeners('connection')
     photon.on('connection', (socket) => {
       apiKeys.push(socket.handshake.headers.authorization)
@@ -75,7 +87,12 @@ describe('photonAdapter', () => {
     }
   })
 
-  afterEach(() => adapter.stop())
+  afterEach(async () => {
+    adapter.stop()
+    vi.restoreAllMocks()
+    // The next test counts disconnects, so the stand-in must see this one first.
+    await vi.waitFor(() => expect(photon.sockets.sockets.size).toBe(0))
+  })
   afterAll(() => photon.close())
 
   it('answers an inbound text in its own session and saves the cursor after the send', async () => {
@@ -285,6 +302,64 @@ describe('photonAdapter', () => {
 
     adapter.stop()
     await otherPhoton.close()
+  })
+
+  it('names a rejected API key in the log and does not connect again every few seconds', async () => {
+    const error = vi.spyOn(console, 'error')
+    adapter = new PhotonAdapter({ ...config, photonApiKey: 'revoked-key' }, { markRead: async () => 202, setTyping: async () => 202, airiClient: createFakeAiri().client, send: vi.fn() })
+    adapter.start()
+    await vi.waitFor(() => expect(refusedHandshakes).toBe(1))
+
+    // Socket.IO alone connects again 0.5 to 1.5 seconds after a refused handshake.
+    await sleep(1700)
+    expect(refusedHandshakes).toBe(1)
+    const lines = error.mock.calls.map(call => String(call[0])).filter(line => line.includes('rejected the API key'))
+    expect(lines).toHaveLength(1)
+    expect(lines[0]).toContain('Photon rejected the API key for project project-1 (401). Update the key on the iMessage page of AIRI')
+  })
+
+  it('waits longer after each rejection, logs the cause one time, and connects at once with a new key', async () => {
+    const error = vi.spyOn(console, 'error')
+    const airi = createFakeAiri()
+    const send = vi.fn(async () => {})
+    adapter = new PhotonAdapter({ ...config, photonApiKey: 'revoked-key' }, { markRead: async () => 202, setTyping: async () => 202, airiClient: airi.client, send, authRetryDelayMs: 20 })
+    adapter.start()
+    await vi.waitFor(() => expect(refusedHandshakes).toBeGreaterThanOrEqual(3))
+    expect(error.mock.calls.filter(call => String(call[0]).includes('rejected the API key'))).toHaveLength(1)
+
+    airi.configure({ enabled: true, projectId: 'project-1', apiKey: 'new-key' })
+    await vi.waitFor(() => expect(subscribes).toEqual([0]))
+    photon.emit('delivery', received('message-12', 'hello again'), { seq: 3 })
+    await vi.waitFor(() => expect(airi.sent).toHaveLength(1))
+    airi.reply(airi.sent[0], 'welcome back')
+    await vi.waitFor(() => expect(send).toHaveBeenCalledOnce())
+  })
+
+  it('tries a rejected API key again at once when AIRI sends the same settings', async () => {
+    const airi = createFakeAiri()
+    adapter = new PhotonAdapter({ ...config, photonApiKey: 'revoked-key' }, { markRead: async () => 202, setTyping: async () => 202, airiClient: airi.client, send: vi.fn() })
+    adapter.start()
+    await vi.waitFor(() => expect(refusedHandshakes).toBe(1))
+
+    airi.configure({ enabled: true, projectId: 'project-1', apiKey: 'revoked-key' })
+    await vi.waitFor(() => expect(refusedHandshakes).toBe(2))
+  })
+
+  it('does not ask AIRI for a reply when Photon rejects the API key on the read receipt', async () => {
+    const airi = createFakeAiri()
+    const markRead = vi.fn(async () => {
+      throw new PhotonAuthError('Photon refused the read receipt: 401', 401)
+    })
+    adapter = new PhotonAdapter(config, { markRead, setTyping: async () => 202, airiClient: airi.client, send: vi.fn(), authRetryDelayMs: 20 })
+    adapter.start()
+    await vi.waitFor(() => expect(subscribes).toEqual([0]))
+
+    photon.emit('delivery', received('message-13', 'anyone?'), { seq: 4 })
+    await vi.waitFor(() => expect(disconnects).toBe(1))
+    expect(airi.sent).toHaveLength(0)
+    expect(() => readFileSync(config.stateFile)).toThrow()
+    // The stream connects again after the wait, from the same cursor.
+    await vi.waitFor(() => expect(subscribes).toEqual([0, 0]))
   })
 
   it('ignores settings that are not valid and keeps the stream when the settings do not change', async () => {

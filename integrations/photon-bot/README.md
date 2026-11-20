@@ -40,7 +40,7 @@ Start AIRI, then start the bot. AIRI must stay open: the character answers from 
 pnpm run -F @proj-airi/photon-bot start
 ```
 
-In AIRI, open **Settings → Modules → iMessage**. Select **Enable iMessage Integration**. Enter the Photon project ID and the Photon API key. Then select **Save**.
+In AIRI, open **Settings → Modules → iMessage**. Enter the Photon project ID and the Photon API key. Then select **Enable iMessage Integration**.
 
 Text the line's number from your iPhone. The bot only answers people who texted first: the shared line cannot start a conversation.
 
@@ -48,15 +48,18 @@ Text the line's number from your iPhone. The bot only answers people who texted 
 
 The bot takes the Photon project ID and the project API key from two sources:
 
-- The **iMessage** page of AIRI sends them with `module:configure` when you select **Save**.
+- The **iMessage** page of AIRI sends them with `module:configure`.
 - `PHOTON_PROJECT_ID` and `PHOTON_API_KEY` in `.env.local` apply when the bot starts.
 
 The values from AIRI replace the values from the environment. The bot connects to Photon again with the new values, so a restart is not necessary.
 
-- If you clear **Enable iMessage Integration** and select **Save**, the bot stops reading texts. A text in progress gets no reply.
+- The **Enable iMessage Integration** switch applies at once. It sends the values that the two fields hold.
+- You can select the switch only when both fields have a value.
+- **Save** sends a changed project ID or API key. It is available only while the switch is on.
+- If you clear the switch, the bot stops reading texts. A text in progress gets no reply.
 - When you enable the module again for the same project, the bot continues from the saved cursor.
 - When you change the project, the bot starts at the live end of the stream of the new project.
-- AIRI sends the settings only when you select **Save**. If you start the bot later, select **Save** again, or keep the values in `.env.local`.
+- AIRI sends the settings only when you use the switch or select **Save**. If you start the bot later, select **Save** again, or keep the values in `.env.local`.
 - AIRI keeps the values in the local storage of the app. `AIRI_URL`, `AIRI_TOKEN`, and `PHOTON_BASE_URL` come from the environment only.
 
 ## Delivery
@@ -68,6 +71,17 @@ The values from AIRI replace the values from the environment. The bot connects t
 - The bot marks each text as read and shows the typing bubble until the reply is sent. Both are best effort: a failure is logged and the reply still goes out. The person sees the read receipt only when their privacy settings allow it.
 - The reply is the text of the character without the stage control tokens (`<|ACT …|>`, `<|DELAY …|>`). The bot also removes the malformed `<ACT …|>` form that some models write. A reply with no text left is not sent.
 - The character sees each text with the prefix `(From iMessage user …1234): `, which keeps only the last four digits of the phone number.
+
+## Rejected API key
+
+Photon answers 401 or 403 when the API key is wrong or revoked, or when it has no access to the project.
+
+- The bot writes one error to its log: `Photon rejected the API key for project <id> (401)`. It does not repeat the error for each retry.
+- The bot does not ask AIRI for a reply while Photon rejects the key.
+- The bot tries again after 30 seconds. Each later wait is two times longer, up to 10 minutes.
+- To correct the key, enter the new key on the **iMessage** page and select **Save**. The bot connects again at once.
+- **Save** with the same values also makes the bot try again at once.
+- The **iMessage** page does not show this error. The notice on the page means only that the switch is on and both fields have a value.
 
 ## Limits
 

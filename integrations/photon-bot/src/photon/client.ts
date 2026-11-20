@@ -7,6 +7,38 @@ import { io } from 'socket.io-client'
 const log = useLogg('PhotonStream').useGlobalConfig()
 const API_VERSION = '2026-07-01'
 const RECONNECT_DELAY_MS = 2000
+/** The wait before the first retry with a rejected API key. Each later retry waits two times longer, up to the maximum. */
+const AUTH_RETRY_DELAY_MS = 30_000
+const AUTH_RETRY_MAX_DELAY_MS = 600_000
+
+/** Photon answered 401 or 403. It does not accept the API key for the project, so the same request fails again. */
+export class PhotonAuthError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message)
+  }
+}
+
+async function refusalOf(what: string, response: Response): Promise<Error> {
+  const message = `Photon refused ${what}: ${response.status} ${await response.text()}`
+  return response.status === 401 || response.status === 403 ? new PhotonAuthError(message, response.status) : new Error(message)
+}
+
+/**
+ * Returns the HTTP status with which Photon refused the handshake of the event stream.
+ *
+ * Photon answers 401 when the API key is wrong or revoked.
+ */
+function refusedHandshakeStatus(error: Error & { description?: unknown }): number | undefined {
+  // NOTICE:
+  // Socket.IO reports a refused WebSocket handshake only as "websocket error", with no status.
+  // The `ws` package puts the status in its error event: "Unexpected server response: 401".
+  // Source: `ws/lib/websocket.js`, and `description` of `TransportError` in `engine.io-client`.
+  // Remove this parse when Socket.IO exposes the status.
+  const { description } = error
+  const message = typeof description === 'object' && description !== null && 'message' in description ? String(description.message) : ''
+  const status = /Unexpected server response: (\d{3})/.exec(message)?.[1]
+  return status ? Number(status) : undefined
+}
 
 export interface PhotonConnection {
   baseUrl: string
@@ -38,6 +70,12 @@ export interface PhotonStreamOptions extends PhotonConnection {
   cursor: () => number
   /** Handles one delivery. The stream waits for it before it starts the next delivery. */
   onDelivery: (event: PhotonEvent, seq: number) => Promise<void>
+  /**
+   * The wait before the first retry with a rejected API key.
+   *
+   * @default 30_000
+   */
+  authRetryDelayMs?: number
 }
 
 /**
@@ -45,12 +83,16 @@ export interface PhotonStreamOptions extends PhotonConnection {
  *
  * The stream subscribes after each connect, because Photon keeps no session.
  * It handles deliveries one at a time. If a handler fails, it connects again and Photon replays from the saved cursor.
+ *
+ * When Photon rejects the API key, on the handshake or in a handler, the stream logs the cause one time. Then it
+ * connects again after a wait that grows with each rejection. A handled delivery ends this state.
  */
 export class PhotonStream {
   private readonly socket: Socket
   private queue = Promise.resolve()
   private stale = false
   private closed = false
+  private rejections = 0
   private retry?: ReturnType<typeof setTimeout>
 
   constructor(private readonly options: PhotonStreamOptions) {
@@ -63,7 +105,13 @@ export class PhotonStream {
     })
 
     this.socket.on('connect', () => this.subscribe())
-    this.socket.on('connect_error', error => log.withError(error).warn('Cannot connect to Photon'))
+    this.socket.on('connect_error', (error) => {
+      const status = refusedHandshakeStatus(error)
+      if (status === 401 || status === 403)
+        this.backOff(status)
+      else
+        log.withError(error).warn('Cannot connect to Photon')
+    })
     this.socket.on('delivery_error', (error: { code: string }) => log.warn(`Photon reported ${error.code}`))
     this.socket.on('disconnect', (reason) => {
       log.warn(`Photon stream disconnected: ${reason}`)
@@ -77,8 +125,18 @@ export class PhotonStream {
           return
         try {
           await options.onDelivery(event, metadata.seq)
+          this.rejections = 0
         }
         catch (error) {
+          // The owner closed the stream while this delivery was in progress. The owner reports that.
+          if (this.closed)
+            return
+
+          if (error instanceof PhotonAuthError) {
+            this.backOff(error.status)
+            return
+          }
+
           log.withError(error).error(`Delivery ${metadata.seq} failed, replaying from the saved cursor`)
           this.stale = true
           this.socket.disconnect()
@@ -97,6 +155,31 @@ export class PhotonStream {
     this.closed = true
     clearTimeout(this.retry)
     this.socket.close()
+  }
+
+  /** True from the first rejection of the API key until the stream handles a delivery. */
+  get rejected(): boolean {
+    return this.rejections > 0
+  }
+
+  /**
+   * Stops the fast retries after Photon rejected the API key, and connects again after a longer wait.
+   *
+   * Socket.IO connects again every few seconds by itself. A rejected key fails each time, so the disconnect here
+   * stops that loop.
+   */
+  private backOff(status: number): void {
+    this.stale = true
+    this.socket.disconnect()
+    if (this.closed)
+      return
+
+    const delay = Math.min((this.options.authRetryDelayMs ?? AUTH_RETRY_DELAY_MS) * 2 ** this.rejections, AUTH_RETRY_MAX_DELAY_MS)
+    if (this.rejections === 0)
+      log.error(`Photon rejected the API key for project ${this.options.projectId} (${status}). Update the key on the iMessage page of AIRI, or in PHOTON_API_KEY. The bot tries again with longer waits.`)
+    this.rejections += 1
+    clearTimeout(this.retry)
+    this.retry = setTimeout(() => this.socket.connect(), delay)
   }
 
   private reconnectLater(): void {
@@ -143,7 +226,7 @@ export async function sendText(connection: PhotonConnection, message: PhotonText
     }),
   })
   if (!response.ok)
-    throw new Error(`Photon refused the message: ${response.status} ${await response.text()}`)
+    throw await refusalOf('the message', response)
 }
 
 /** Marks one incoming message as read. 202 means Photon accepted it; the recipient may still not see it (privacy settings). */
@@ -153,7 +236,7 @@ export async function markRead(connection: PhotonConnection, messageId: string):
     headers: { 'authorization': `Bearer ${connection.apiKey}`, 'idempotency-key': `airi-read:${messageId}` },
   })
   if (!response.ok)
-    throw new Error(`Photon refused the read receipt: ${response.status} ${await response.text()}`)
+    throw await refusalOf('the read receipt', response)
   return response.status
 }
 
@@ -165,6 +248,6 @@ export async function setTyping(connection: PhotonConnection, spaceId: string, s
     body: JSON.stringify({ senderId, typing }),
   })
   if (!response.ok)
-    throw new Error(`Photon refused typing=${typing}: ${response.status} ${await response.text()}`)
+    throw await refusalOf(`typing=${typing}`, response)
   return response.status
 }

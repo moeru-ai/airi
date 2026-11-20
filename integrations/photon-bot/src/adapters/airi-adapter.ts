@@ -10,7 +10,7 @@ import { Client as ServerChannel } from '@proj-airi/server-sdk'
 import { safeParse } from 'valibot'
 
 import { moduleSettingsSchema } from '../config'
-import { markRead, PhotonStream, sendText, setTyping } from '../photon/client'
+import { markRead, PhotonAuthError, PhotonStream, sendText, setTyping } from '../photon/client'
 import { maskHandle, replyTextOf } from './reply-text'
 
 const log = useLogg('PhotonAdapter').useGlobalConfig()
@@ -35,6 +35,7 @@ export interface PhotonAdapterDeps {
   setTyping?: typeof setTyping
   replyTimeoutMs?: number
   retryDelayMs?: number
+  authRetryDelayMs?: number
 }
 
 /**
@@ -135,7 +136,8 @@ export class PhotonAdapter {
     }
 
     // The same settings keep the stream, so a text in progress still gets its reply.
-    if (this.connection?.projectId === projectId && this.connection.apiKey === apiKey)
+    // After a rejected key, the same settings connect again at once. The person can then correct the key in Photon and select Save.
+    if (this.connection?.projectId === projectId && this.connection.apiKey === apiKey && !this.stream?.rejected)
       return
 
     log.log(`Connecting to Photon project ${projectId} with the settings from AIRI`)
@@ -156,6 +158,7 @@ export class PhotonAdapter {
       ...connection,
       cursor: () => this.cursor,
       onDelivery: (event, seq) => this.handleDelivery(connection, event, seq),
+      authRetryDelayMs: this.deps.authRetryDelayMs,
     })
     this.stream.start()
   }
@@ -165,6 +168,8 @@ export class PhotonAdapter {
     this.stream?.close()
     this.stream = undefined
     // The text in progress gets no reply. The cursor stays before it, so Photon replays it for the same project.
+    if (this.pending)
+      log.warn(`Text ${this.pending.messageId} gets no reply now, because the Photon connection changed.`)
     this.pending?.resolve({ retry: 'the Photon connection changed' })
   }
 
@@ -178,12 +183,18 @@ export class PhotonAdapter {
       const who = maskHandle(sentBy.handle)
       log.log(`Received text ${id} from ${who}`)
       // The read receipt and the typing bubble are best effort: a failure is logged and never blocks the reply.
-      const bestEffort = (what: string, call: Promise<unknown>) => call.catch(error => log.warn(`${what} for text ${id} failed: ${errorMessageFrom(error) ?? 'unknown'}`))
+      // A rejected API key is the exception. The reply cannot go out with it, so the bot does not ask AIRI for one.
+      const bestEffort = (what: string, call: Promise<unknown>) => call.catch((error) => {
+        if (error instanceof PhotonAuthError)
+          throw error
+        log.warn(`${what} for text ${id} failed: ${errorMessageFrom(error) ?? 'unknown'}`)
+      })
       const typing = (on: boolean) => bestEffort(on ? 'Typing' : 'Stopping typing', this.setTyping(connection, space.id, receivedBy.id, on))
 
       await bestEffort('Read receipt', this.markRead(connection, id))
       await typing(true)
-      const typingRefresh = setInterval(() => void typing(true), TYPING_REFRESH_MS)
+      // A refresh that fails has no caller. The send after it reports a rejected API key.
+      const typingRefresh = setInterval(() => void typing(true).catch(() => {}), TYPING_REFRESH_MS)
       let reply: string | undefined
       try {
         reply = await this.converse(connection, { messageId: id, spaceId: space.id, agentUserId: receivedBy.id, handle: sentBy.handle }, content.text)
