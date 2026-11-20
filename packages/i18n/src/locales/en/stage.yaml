@@ -49,6 +49,9 @@ chat:
     sign-in-description: Sign in to use the official AIRI provider, or set up your own provider in Settings.
     sign-in-description-official-only: Sign in to use the official AIRI provider.
     sign-in-action: Sign in
+  archived-session:
+    description: This conversation is archived. Restore it to continue.
+    restore: Restore
   voice-message:
     recording: Recording
     starting: Starting microphone

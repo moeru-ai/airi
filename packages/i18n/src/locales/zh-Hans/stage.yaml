@@ -49,6 +49,9 @@ chat:
     sign-in-description: 登录即可使用 AIRI 官方 Provider，也可以在设置中配置你自己的 Provider。
     sign-in-description-official-only: 登录即可使用 AIRI 官方 Provider。
     sign-in-action: 登录
+  archived-session:
+    description: 这个对话已归档，取消归档后才能继续。
+    restore: 取消归档
   voice-message:
     recording: 正在录制
     starting: 正在启动麦克风

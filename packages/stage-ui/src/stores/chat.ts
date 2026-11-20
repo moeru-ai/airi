@@ -1744,11 +1744,14 @@ export const useChatStore = defineStore('chat', () => {
 
   /** Whether the chat that this window shows can send. */
   const activeChatReady = computed(() => chatReadyFor(activeSessionId.value))
+  /** Whether the chat that this window shows is archived. It is read-only until the user restores it. */
+  const activeChatArchived = computed(() => chatSession.sessionMetas[activeSessionId.value]?.archivedAt !== undefined)
 
   return {
     sending,
     activeTurns,
     activeChatReady,
+    activeChatArchived,
     chatReadyFor,
     activeSendSessionId,
     activeStreamingMessage,

@@ -11,7 +11,7 @@ import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useChatInterruption } from '@proj-airi/stage-layouts/composables/use-chat-interruption'
 import { ChatBackgroundTasks, ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
-import { ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSendButton, useChatComposer, useChatImages, VoiceInputButton } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatArchivedSessionCallout, ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSendButton, useChatComposer, useChatImages, VoiceInputButton } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/ai/chat-llm/tools'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
@@ -123,7 +123,7 @@ const { activeSessionId, messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
 const { activeTurns, backgroundTasks } = storeToRefs(chatStore)
 const { activeCard, activeCardId } = storeToRefs(airiCardStore)
-const { activeChatReady: chatReady } = storeToRefs(chatStore)
+const { activeChatReady: chatReady, activeChatArchived: chatArchived } = storeToRefs(chatStore)
 const { t } = useI18n()
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const startLogin = useElectronEventaInvoke(electronAuthStartLogin)
@@ -256,8 +256,8 @@ const { showStopAction, stopActiveResponse, submitInterruptingResponse } = useCh
 })
 
 async function handleSend() {
-  // The draft stays in the composer while the setup callout is shown.
-  if (voiceActive.value || pendingImages.value || !chatReady.value)
+  // The draft stays in the composer while the setup callout or the archived callout is shown.
+  if (voiceActive.value || pendingImages.value || !chatReady.value || chatArchived.value)
     return
 
   // A waiting voice message takes the composer text into the same user message.
@@ -536,6 +536,7 @@ defineExpose({
         @configure="openSettings({ route: '/settings/providers' })"
         @sign-in="startLogin()"
       />
+      <ChatArchivedSessionCallout v-else-if="chatArchived" :class="['mx-2 mb-1']" />
       <div
         ref="message-composer"
         :class="[

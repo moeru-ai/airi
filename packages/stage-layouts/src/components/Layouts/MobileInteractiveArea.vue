@@ -4,7 +4,7 @@ import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
 import { CharacterSwitcherDrawer, ChatBackgroundTasks, ChatHistory } from '@proj-airi/stage-ui/components'
-import { ChatComposerAddMenu, ChatComposerVoiceInput, ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSessionsDrawer, useChatImages, useStartVoiceCall, VoiceCallCapsule, VoicePresence } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatArchivedSessionCallout, ChatComposerAddMenu, ChatComposerVoiceInput, ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSessionsDrawer, useChatImages, useStartVoiceCall, VoiceCallCapsule, VoicePresence } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { ModelPlacementPanel, ModelPlacementSurface } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings'
 import { useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
@@ -46,7 +46,7 @@ const { activeSessionId, messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
 const { activeTurns, backgroundTasks } = storeToRefs(chatOrchestrator)
 const { isReceivingRemoteStream } = storeToRefs(useContextBridgeStore())
-const { activeChatReady: chatReady } = storeToRefs(chatOrchestrator)
+const { activeChatReady: chatReady, activeChatArchived: chatArchived } = storeToRefs(chatOrchestrator)
 const historyMessages = computed(() => messages.value)
 const isActiveSessionSending = computed(() => (
   (activeTurns.value.some(turn => turn.sessionId === activeSessionId.value))
@@ -268,8 +268,8 @@ async function handleSubmit() {
 }
 
 async function handleSend() {
-  // The draft stays in the composer while the setup callout is shown.
-  if (voiceRecording.value || pendingImages.value || !chatReady.value)
+  // The draft stays in the composer while the setup callout or the archived callout is shown.
+  if (voiceRecording.value || pendingImages.value || !chatReady.value || chatArchived.value)
     return
 
   // A waiting voice message takes the composer text into the same user message.
@@ -440,6 +440,7 @@ onUnmounted(() => {
         @configure="router.push('/settings/providers')"
         @sign-in="authStore.requestLogin()"
       />
+      <ChatArchivedSessionCallout v-else-if="chatArchived" :class="['mx-3']" />
       <div
         ref="messageComposer"
         data-testid="mobile-message-composer"
