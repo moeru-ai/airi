@@ -1,7 +1,7 @@
 /**
  * Represents supported chat message action identifiers.
  */
-export type ChatActionMenuAction = 'reply' | 'copy' | 'retry' | 'delete'
+export type ChatActionMenuAction = 'replay' | 'reply' | 'copy' | 'retry' | 'delete'
 
 /**
  * Represents one visible action in a chat message action menu.
@@ -57,10 +57,19 @@ export function createChatActionMenuItems(options: {
   canCopy: boolean
   canRetry: boolean
   canDelete: boolean
+  canReplay?: boolean
   retryLabel?: string
   replyLabel: string
+  replayLabel?: string
 }): ChatActionMenuItem[] {
   return [
+    options.canReplay
+      ? {
+          action: 'replay',
+          label: options.replayLabel ?? 'Replay',
+          icon: 'i-solar:restart-bold',
+        }
+      : null,
     options.canReply
       ? {
           action: 'reply',

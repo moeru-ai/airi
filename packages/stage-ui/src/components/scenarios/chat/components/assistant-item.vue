@@ -5,6 +5,7 @@ import type { ChatHistoryReplyPayload } from '../reply'
 import type { ChatToolCallRendererRegistry, ChatToolCallWidgetRegistry } from './tool-call-renderer'
 
 import { isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
+import { getActivePinia } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -15,6 +16,9 @@ import ChatResponsePart from './response-part.vue'
 import ChatSticker from './sticker.vue'
 import ChatToolCallGroup from './tool-call-group.vue'
 
+import { useChatSessionStore } from '../../../../stores/chat/session-store'
+import { useAiriCardStore } from '../../../../stores/modules/airi-card'
+import { useSpeechStore } from '../../../../stores/modules/speech'
 import { MarkdownRenderer } from '../../../markdown'
 import { getChatHistoryItemCopyText } from '../utils'
 import { ChatActionMenu } from './action-menu'
@@ -28,6 +32,7 @@ const props = withDefaults(defineProps<{
   label: string
   replyTarget?: ChatHistoryReplyPayload
   canReply?: boolean
+  canReplay?: boolean
   scrollContainer?: HTMLElement | null
   showPlaceholder?: boolean
   /** The reply is still being written. */
@@ -40,6 +45,7 @@ const props = withDefaults(defineProps<{
   toolCallWidgets?: ChatToolCallWidgetRegistry
 }>(), {
   canReply: false,
+  canReplay: true,
   showPlaceholder: false,
   streaming: false,
   scrollContainer: null,
@@ -53,6 +59,7 @@ const emit = defineEmits<{
   (e: 'copy'): void
   (e: 'delete'): void
   (e: 'reply'): void
+  (e: 'replay'): void
   (e: 'toolCallRerun', payload: ToolCallRerunRequest): void
 }>()
 
@@ -132,6 +139,32 @@ const boxClasses = computed(() => {
   ]
 })
 const copyText = computed(() => getChatHistoryItemCopyText(props.message as ChatHistoryItem))
+const isSpeechAvailable = computed(() => {
+  const pinia = getActivePinia()
+  if (!pinia)
+    return false
+
+  try {
+    const speechStore = useSpeechStore(pinia)
+    if (!speechStore.enabled)
+      return false
+
+    const chatSession = useChatSessionStore(pinia)
+    const cardStore = useAiriCardStore(pinia)
+
+    const activeSessionId = chatSession.activeSessionId
+    const [characterId] = activeSessionId ? chatSession.characterMembersOf(activeSessionId) : []
+    const targetCharacterId = characterId ?? cardStore.activeCardId
+    if (!targetCharacterId)
+      return Boolean(speechStore.activeSpeechProvider && speechStore.activeSpeechProvider !== 'speech-noop')
+
+    const speechModule = cardStore.getModules(targetCharacterId).speech
+    return Boolean(speechModule?.provider && speechModule.provider !== 'speech-noop')
+  }
+  catch {
+    return false
+  }
+})
 </script>
 
 <template>
@@ -139,12 +172,14 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
     <ChatActionMenu
       :copy-text="copyText"
       :can-reply="canReply"
+      :can-replay="canReplay && isSpeechAvailable && !streaming && !showPlaceholder && !!copyText.trim()"
       :can-delete="!showPlaceholder"
       :press-feedback-enabled="variant === 'mobile'"
       :scroll-container="scrollContainer"
       @copy="emit('copy')"
       @delete="emit('delete')"
       @reply="emit('reply')"
+      @replay="emit('replay')"
     >
       <template #default="{ setMeasuredElement }">
         <div

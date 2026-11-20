@@ -1,10 +1,13 @@
 import type { SpeechClient } from '../../services/speech/speech-client'
 
+import { defineInvoke } from '@moeru/eventa'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, reactive, ref } from 'vue'
 
+import { getChatHistoryItemCopyText } from '../../components/scenarios/chat/utils'
 import { useLlmmarkerParser } from '../../composables/llm-marker-parser'
+import { getSpeechBusContext, voiceGetTurns, voiceInterrupt } from '../../services/speech/bus'
 import { SpeechClient as Speech } from '../../services/speech/speech-client'
 import { useChatSessionStore } from '../chat/session-store'
 import { useAiriCardStore } from '../modules'
@@ -44,8 +47,8 @@ export const useCharacterStore = defineStore('character', () => {
   const streamingReactions = ref<Map<string, StreamingReactionState>>(new Map())
   const sessions = useChatSessionStore()
 
-  async function emitTextOutput(text: string) {
-    const speech = new Speech({ sessionId: sessions.activeSessionId, turnId: nanoid() }, 'read-aloud')
+  async function emitTextOutput(text: string, sessionId = sessions.activeSessionId) {
+    const speech = new Speech({ sessionId, turnId: nanoid() }, 'read-aloud')
 
     const parser = parserFactory({
       onLiteral: async (literal) => {
@@ -127,6 +130,46 @@ export const useCharacterStore = defineStore('character', () => {
     }
   }
 
+  const interruptVoice = defineInvoke(getSpeechBusContext(), voiceInterrupt)
+  const getTurns = defineInvoke(getSpeechBusContext(), voiceGetTurns)
+
+  async function replaySpeech(text: string, targetSessionId = sessions.activeSessionId) {
+    if (!text.trim() || !targetSessionId)
+      return
+
+    const replaySessionId = targetSessionId
+
+    try {
+      const activeTurns = await getTurns(undefined, { signal: AbortSignal.timeout(200) })
+      const turnsToInterrupt = activeTurns?.filter(turn => turn.sessionId === replaySessionId)
+      if (turnsToInterrupt && turnsToInterrupt.length > 0)
+        await interruptVoice({ turns: turnsToInterrupt, cause: 'replay' }, { signal: AbortSignal.timeout(500) })
+    }
+    catch {
+      // Proceed even if voice host is detached or response times out
+    }
+
+    await emitTextOutput(text, replaySessionId)
+  }
+
+  async function replayLastSpeech(): Promise<boolean> {
+    const targetSessionId = sessions.activeSessionId
+    if (!targetSessionId)
+      return false
+
+    const lastAssistant = [...sessions.messages].reverse().find(m => m.role === 'assistant')
+    if (!lastAssistant)
+      return false
+
+    const text = getChatHistoryItemCopyText(lastAssistant)
+
+    if (!text.trim())
+      return false
+
+    await replaySpeech(text, targetSessionId)
+    return true
+  }
+
   function clearReactions() {
     reactions.value = []
   }
@@ -142,5 +185,7 @@ export const useCharacterStore = defineStore('character', () => {
     clearReactions,
 
     emitTextOutput,
+    replaySpeech,
+    replayLastSpeech,
   }
 })

@@ -2,8 +2,9 @@
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { ChatBackgroundTasks, ChatHistory } from '@proj-airi/stage-ui/components'
-import { VoiceCallCapsule } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { getChatHistoryItemCopyText, VoiceCallCapsule } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
+import { useCharacterStore } from '@proj-airi/stage-ui/stores/character'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
@@ -56,6 +57,12 @@ async function handleDeleteMessage(payload: { message: ChatHistoryItem, index: n
 async function handleRetryMessage(index: number) {
   await chatOrchestrator.retry({ sessionId: activeSessionId.value, index })
 }
+
+async function handleReplayMessage(payload: { message: ChatHistoryItem }) {
+  const text = getChatHistoryItemCopyText(payload.message)
+  if (text)
+    await useCharacterStore().replaySpeech(text)
+}
 </script>
 
 <template>
@@ -81,6 +88,7 @@ async function handleRetryMessage(index: number) {
             @delete-message="handleDeleteMessage"
             @reply-message="selectReply"
             @retry-message="handleRetryMessage($event.index)"
+            @replay-message="handleReplayMessage"
             @tool-call-rerun="rerunToolCall"
             @vue:mounted="isLoading = false"
           />
