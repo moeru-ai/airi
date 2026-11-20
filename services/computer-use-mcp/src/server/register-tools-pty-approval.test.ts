@@ -4,10 +4,12 @@ import type { ComputerUseServerRuntime } from './runtime'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { createDryRunExecutor } from '../executors/dry-run'
 import { RunStateManager } from '../state'
 import { createPtySession, isPtyAvailable } from '../terminal/pty-runner'
+import { createLocalShellRunner } from '../terminal/runner'
 import { createTestConfig } from '../test-fixtures'
-import { registerComputerUseTools } from './register-tools'
+import { registerComputerUseTools, resolvePendingAction } from './register-tools'
 
 vi.mock('../terminal/pty-runner', () => ({
   createPtySession: vi.fn(),
@@ -49,8 +51,9 @@ describe('registerComputerUseTools: PTY approval bridge', () => {
 
   beforeEach(() => {
     pendingActions = new Map()
+    const config = createTestConfig({ approvalMode: 'actions' })
     runtime = {
-      config: createTestConfig({ approvalMode: 'actions' }),
+      config,
       stateManager: new RunStateManager(),
       session: {
         createPendingAction: vi.fn(),
@@ -63,9 +66,11 @@ describe('registerComputerUseTools: PTY approval bridge', () => {
         getLastScreenshot: vi.fn(() => undefined),
       },
       executor: {
+        ...createDryRunExecutor(config),
         getPermissionInfo: vi.fn().mockResolvedValue({}),
       },
       terminalRunner: {
+        ...createLocalShellRunner(config),
         getState: vi.fn(() => ({ effectiveCwd: '/tmp' })),
       },
       browserDomBridge: {
@@ -98,7 +103,7 @@ describe('registerComputerUseTools: PTY approval bridge', () => {
     vi.clearAllMocks()
   })
 
-  it('executes approved pending pty_create through desktop_approve_pending_action', async () => {
+  it('rejects agent approval of pending pty_create', async () => {
     vi.mocked(isPtyAvailable).mockResolvedValue(true)
     vi.mocked(createPtySession).mockResolvedValue({
       id: 'pty_approved',
@@ -136,34 +141,28 @@ describe('registerComputerUseTools: PTY approval bridge', () => {
     })
 
     const { server, invoke } = createMockServer()
+    const executeAction = vi.fn()
     registerComputerUseTools({
       server,
       runtime,
-      executeAction: vi.fn(),
+      executeAction,
       enableTestTools: false,
     })
 
     const result = await invoke('desktop_approve_pending_action', { id: 'pending-pty-1' })
 
-    expect((result.structuredContent as Record<string, any>).status).toBe('ok')
-    expect(createPtySession).toHaveBeenCalledWith(runtime.config, {
-      rows: 24,
-      cols: 80,
-      cwd: '/tmp/project',
-    })
-    expect(runtime.stateManager.getActivePtyGrants()).toEqual([
-      expect.objectContaining({
-        approvalSessionId: 'approval_1',
-        ptySessionId: 'pty_approved',
-        active: true,
-      }),
-    ])
-    expect((runtime.session.getPendingAction as any)('pending-pty-1')).toBeUndefined()
+    expect(result.isError).toBe(true)
+    expect(result.structuredContent).toMatchObject({ status: 'denied', reason: 'trusted_approval_required' })
+    expect(createPtySession).not.toHaveBeenCalled()
+    expect(runtime.stateManager.getActivePtyGrants()).toEqual([])
+    expect(runtime.session.getPendingAction('pending-pty-1')).toBeDefined()
   })
 
-  it('executes approved pending desktop_ensure_chrome through the Chrome session manager', async () => {
-    ;(runtime.chromeSessionManager.ensureAgentWindow as any).mockResolvedValue({
+  it('propagates the Host abort signal into Chrome startup after approval', async () => {
+    const controller = new AbortController()
+    vi.mocked(runtime.chromeSessionManager.ensureAgentWindow).mockResolvedValue({
       wasAlreadyRunning: false,
+      ensureOutcome: 'launched',
       windowId: 'chrome-window-1',
       pid: 4242,
       agentOwned: true,
@@ -171,7 +170,64 @@ describe('registerComputerUseTools: PTY approval bridge', () => {
       initialUrl: 'https://example.com',
       createdAt: new Date().toISOString(),
     })
-    ;(runtime.cdpBridgeManager.probeAvailability as any).mockResolvedValue({
+    vi.mocked(runtime.cdpBridgeManager.probeAvailability).mockResolvedValue({
+      endpoint: 'ws://127.0.0.1/devtools/browser/1',
+      connected: false,
+      connectable: true,
+    })
+
+    pendingActions.set('pending-chrome-signal-1', {
+      id: 'pending-chrome-signal-1',
+      createdAt: new Date().toISOString(),
+      toolName: 'desktop_ensure_chrome',
+      action: {
+        kind: 'desktop_ensure_chrome',
+        input: {
+          url: 'https://example.com',
+          cdpPort: 9333,
+        },
+      },
+      policy: {
+        allowed: true,
+        requiresApproval: true,
+        reasons: ['Opening Chrome requires approval.'],
+        riskLevel: 'medium',
+        estimatedOperationUnits: 2,
+      },
+      context: {
+        available: true,
+        appName: 'Finder',
+        platform: 'darwin',
+      },
+    })
+
+    const result = await resolvePendingAction({
+      runtime,
+      executeAction: vi.fn(),
+      id: 'pending-chrome-signal-1',
+      decision: { type: 'approve', source: 'host-approval-window', signal: controller.signal },
+    })
+
+    expect(result.isError).not.toBe(true)
+    expect(runtime.chromeSessionManager.ensureAgentWindow).toHaveBeenCalledWith({
+      url: 'https://example.com',
+      cdpPort: 9333,
+      signal: controller.signal,
+    })
+  })
+
+  it('rejects agent approval of pending Chrome creation', async () => {
+    vi.mocked(runtime.chromeSessionManager.ensureAgentWindow).mockResolvedValue({
+      wasAlreadyRunning: false,
+      ensureOutcome: 'launched',
+      windowId: 'chrome-window-1',
+      pid: 4242,
+      agentOwned: true,
+      cdpUrl: 'http://127.0.0.1:9333',
+      initialUrl: 'https://example.com',
+      createdAt: new Date().toISOString(),
+    })
+    vi.mocked(runtime.cdpBridgeManager.probeAvailability).mockResolvedValue({
       endpoint: 'ws://127.0.0.1/devtools/browser/1',
       connected: false,
       connectable: true,
@@ -213,19 +269,13 @@ describe('registerComputerUseTools: PTY approval bridge', () => {
 
     const result = await invoke('desktop_approve_pending_action', { id: 'pending-chrome-1' })
 
-    expect(result.isError).not.toBe(true)
-    expect(runtime.chromeSessionManager.ensureAgentWindow).toHaveBeenCalledWith({
-      url: 'https://example.com',
-      cdpPort: 9333,
-    })
-    expect(runtime.cdpBridgeManager.ensureBridge).toHaveBeenCalledWith('http://127.0.0.1:9333')
-    expect(runtime.stateManager.getState().chromeSession).toMatchObject({
-      windowId: 'chrome-window-1',
-      pid: 4242,
-    })
-    expect(runtime.session.consumeOperation).toHaveBeenCalledWith(2)
+    expect(result.isError).toBe(true)
+    expect(result.structuredContent).toMatchObject({ status: 'denied', reason: 'trusted_approval_required' })
+    expect(runtime.chromeSessionManager.ensureAgentWindow).not.toHaveBeenCalled()
+    expect(runtime.cdpBridgeManager.ensureBridge).not.toHaveBeenCalled()
+    expect(runtime.session.consumeOperation).not.toHaveBeenCalled()
     expect(executeAction).not.toHaveBeenCalled()
-    expect((runtime.session.getPendingAction as any)('pending-chrome-1')).toBeUndefined()
+    expect(runtime.session.getPendingAction('pending-chrome-1')).toBeDefined()
   })
 
   it('returns a structured error when browser_dom_trigger_event receives malformed optsJson', async () => {
@@ -295,15 +345,14 @@ describe('registerComputerUseTools: PTY approval bridge', () => {
       connected: true,
       pendingRequests: 0,
     })
-    ;(runtime.browserDomBridge.clickSelector as any).mockRejectedValue(
+    const { server, invoke } = createMockServer()
+    const executeAction = vi.fn().mockRejectedValue(
       new Error('selector "#submit" did not match any element'),
     )
-
-    const { server, invoke } = createMockServer()
     registerComputerUseTools({
       server,
       runtime,
-      executeAction: vi.fn(),
+      executeAction,
       enableTestTools: false,
     })
 
@@ -317,6 +366,42 @@ describe('registerComputerUseTools: PTY approval bridge', () => {
       status: 'error',
       selector: '#submit',
       actionKind: 'browser_dom_click',
+      repairSuggestion: {
+        pattern: 'element_not_found',
+        suggestedTool: 'browser_dom_read_page',
+      },
+    })
+    expect(executeAction).toHaveBeenCalledWith({ kind: 'browser_dom_click', input: { selector: '#submit', tabId: undefined, frameIds: undefined } }, 'browser_dom_click')
+    expect((runtime.browserDomBridge.clickSelector as any)).not.toHaveBeenCalled()
+  })
+
+  it('preserves execution replay safeguards when adding a browser repair suggestion', async () => {
+    ;(runtime.browserDomBridge.getStatus as any).mockReturnValue({
+      enabled: true,
+      connected: true,
+      pendingRequests: 0,
+    })
+    const execution = { status: 'unknown', doNotReplay: true }
+    const { server, invoke } = createMockServer()
+    registerComputerUseTools({
+      server,
+      runtime,
+      executeAction: vi.fn().mockResolvedValue({
+        isError: true,
+        content: [{ type: 'text', text: 'selector "#submit" did not match any element' }],
+        structuredContent: {
+          error: 'selector "#submit" did not match any element',
+          execution,
+        },
+      }),
+      enableTestTools: false,
+    })
+
+    const result = await invoke('browser_dom_click', { selector: '#submit' })
+
+    expect(result.isError).toBe(true)
+    expect(result.structuredContent).toMatchObject({
+      execution,
       repairSuggestion: {
         pattern: 'element_not_found',
         suggestedTool: 'browser_dom_read_page',

@@ -34,6 +34,8 @@ export interface UserTurn {
   type: 'user'
   id: string
   content: (InputSegment | ContextSegment)[]
+  /** Host notices remain source-tagged data through request projections. */
+  notice?: { source: string }
 }
 
 /** Context supplied by the application is not automatically a trusted instruction. */
@@ -52,6 +54,8 @@ export interface AssistantTurn {
   runId?: string
   /** Failed or cancelled generations reject before the caller receives a turn. */
   status: 'completed'
+  /** A saved turn can stop at its decision-step budget without certifying the user's task as complete. */
+  stopReason?: { type: 'step-limit', maxSteps: number, completedSteps: number }
   rounds: GenerationRound[]
 }
 
@@ -64,11 +68,22 @@ export interface GenerationRound {
   /** Absent for imported history whose original model invocation is not known. */
   modelCall?: { model: string, finishReason: CompletionStep['finishReason'], usage?: CompletionStep['usage'] }
   content: RoundContent[]
+  /** Model decisions are stored separately from their later execution results. */
+  modelDecisions?: ModelDecisionRecord[]
   toolInvocations: ToolInvocation[]
   /** Provider data belongs to this round and cannot cross the recorded scope. */
   continuation?: ProviderContinuation
   /** Unknown native content is saved, but cannot silently disappear on a protocol change. */
   projectionIssues: string[]
+}
+
+/** One model-selected tool call. It contains no authorization or execution state. */
+export interface ModelDecisionRecord {
+  id: string
+  callId: string
+  name: string
+  arguments: string
+  decidedAt?: string
 }
 
 /** A tool call and its execution result have one owner inside a round. */

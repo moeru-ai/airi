@@ -48,7 +48,7 @@ export function decideDesktopExecutionMode(params: {
     if (action.input?.includeChrome === false) {
       return {
         executionMode: 'background',
-        executionReason: 'desktop_observe is background-only when Chrome capture is disabled',
+        executionReason: 'Observation is background-only when Chrome capture is disabled',
         browserSurfacePreferred: false,
         foregroundRequired: false,
       }
@@ -57,7 +57,7 @@ export function decideDesktopExecutionMode(params: {
     if (browserSurfaceAvailable) {
       return {
         executionMode: 'browser_surface',
-        executionReason: 'browser surface is available, so desktop_observe can collect Chrome semantics without a foreground switch',
+        executionReason: 'A browser surface can collect Chrome semantics without a foreground switch',
         browserSurfacePreferred: true,
         foregroundRequired: false,
       }
@@ -65,7 +65,7 @@ export function decideDesktopExecutionMode(params: {
 
     return {
       executionMode: 'background',
-      executionReason: 'desktop_observe stays background-only because no browser surface is available',
+      executionReason: 'Observation stays background-only because no browser surface is available',
       browserSurfacePreferred: false,
       foregroundRequired: false,
     }
@@ -84,7 +84,7 @@ export function decideDesktopExecutionMode(params: {
     if (browserDomRoute) {
       return {
         executionMode: 'browser_surface',
-        executionReason: 'browser_dom route is available, so click_target can stay background-safe',
+        executionReason: 'The grounded click can stay background-safe through browser_dom',
         browserSurfacePreferred: true,
         foregroundRequired: false,
       }
@@ -93,8 +93,8 @@ export function decideDesktopExecutionMode(params: {
     return {
       executionMode: 'foreground',
       executionReason: browserSurfaceAvailable
-        ? 'desktop_click_target needs foreground because browser_dom is unavailable for this candidate'
-        : 'desktop_click_target needs foreground because no browser surface is available',
+        ? 'The grounded click needs foreground because browser_dom is unavailable for this candidate'
+        : 'The grounded click needs foreground because no browser surface is available',
       browserSurfacePreferred: false,
       foregroundRequired: true,
     }

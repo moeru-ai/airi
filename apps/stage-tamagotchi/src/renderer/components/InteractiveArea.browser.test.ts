@@ -9,6 +9,7 @@ import { PiniaColada } from '@pinia/colada'
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
 import { browserAuthorizationHandler, registerAuthorizationHandler } from '@proj-airi/stage-ui/libs/auth'
 import { trackPendingActions } from '@proj-airi/stage-ui/libs/pinia/pending-actions'
+import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/ai/chat-llm/tools'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
@@ -27,11 +28,25 @@ import InteractiveArea from './InteractiveArea.vue'
 import '@unocss/reset/tailwind.css'
 import 'virtual:uno.css'
 
-const openSettings = vi.hoisted(() => vi.fn())
-
-vi.mock('@proj-airi/electron-vueuse', () => ({
-  useElectronEventaInvoke: () => openSettings,
+const { openSettings, sessionApprovalGrantInvoke } = vi.hoisted(() => ({
+  openSettings: vi.fn(),
+  sessionApprovalGrantInvoke: vi.fn(),
 }))
+
+vi.mock('@proj-airi/electron-vueuse', async () => {
+  const { createContext } = await import('@moeru/eventa')
+  const { shallowRef } = await import('vue')
+  const { sessionApprovalGrant } = await import('../../shared/eventa/terminal-approval')
+  const context = shallowRef(createContext())
+  return {
+    useElectronEventaContext: () => context,
+    useElectronEventaInvoke: (event: unknown) => {
+      if (event === sessionApprovalGrant)
+        return sessionApprovalGrantInvoke
+      return openSettings
+    },
+  }
+})
 
 function createTestI18n() {
   return createI18n({
@@ -110,6 +125,7 @@ async function renderArea(component: Component = InteractiveArea, options: { pro
     chat: useChatStore(pinia),
     chatSession: useChatSessionStore(pinia),
     chatStream: useChatStreamStore(pinia),
+    tools: useLlmToolsStore(pinia),
     stageModel: useSettingsStageModel(pinia),
     router,
     screen,
@@ -203,6 +219,52 @@ async function expectElectronReplyBubble(screen: Awaited<ReturnType<typeof rende
 describe('interactive area synchronized state', () => {
   beforeEach(async () => {
     await page.viewport(1280, 720)
+  })
+
+  it('keeps the confirmed Computer Use Full grant for the selected conversation across messages', async () => {
+    const { chat, chatSession, screen, tools } = await renderArea()
+    const send = vi.spyOn(chat, 'send').mockResolvedValue({ sessionId: 'session-b', messages: [] })
+    const modes = new Map<string, 'ask' | 'full'>()
+    sessionApprovalGrantInvoke.mockReset().mockImplementation(async ({ sessionId, lane, mode }: { sessionId: string, lane: 'terminal' | 'computer_use', mode?: 'ask' | 'auto' | 'full' }) => {
+      const key = `${sessionId}:${lane}`
+      if (mode === 'ask')
+        modes.set(key, 'ask')
+      else if (mode === 'full')
+        modes.set(key, 'full')
+      return modes.get(key) ?? 'ask'
+    })
+    const toolButton = screen.getByRole('button', { name: 'tamagotchi.stage.chat-window.computer-tools.label' })
+    const activeButton = screen.getByRole('button', { name: 'tamagotchi.stage.chat-window.computer-tools.approval-active' })
+    await toolButton.click()
+    await expect.element(screen.getByText('tamagotchi.stage.chat-window.computer-tools.desktop-unavailable')).toBeVisible()
+    await userEvent.keyboard('{Escape}')
+    tools.addTools(
+      { id: 'mcp:computer_act', type: 'function', function: { name: 'computer_act', parameters: { type: 'object' } }, execute: async () => '' },
+      { id: 'mcp:computer_observe', type: 'function', function: { name: 'computer_observe', parameters: { type: 'object' } }, execute: async () => '' },
+    )
+    await toolButton.click()
+    await expect.element(screen.getByText('tamagotchi.stage.chat-window.computer-tools.desktop-unavailable')).not.toBeInTheDocument()
+    const fullGrant = screen.getByTestId('approval-computer_use-full')
+    await expect.element(fullGrant).toHaveAttribute('aria-checked', 'false')
+    await fullGrant.click()
+    await expect.element(fullGrant).toHaveAttribute('aria-checked', 'true')
+    await userEvent.keyboard('{Escape}')
+    await submitDraft(screen, 'Read the local time')
+    await expect.element(activeButton).toBeVisible()
+    await submitDraft(screen, 'Read the local time again')
+    await expect.poll(() => send.mock.calls.length).toBe(2)
+    const changes = () => sessionApprovalGrantInvoke.mock.calls.map(([input]) => input).filter(input => input.mode !== undefined)
+    expect(changes()).toEqual([{ sessionId: 'session-b', lane: 'computer_use', mode: 'full' }])
+    chatSession.activeSessionId = 'session-a'
+    await expect.element(toolButton).toBeVisible()
+    chatSession.activeSessionId = 'session-b'
+    await expect.element(activeButton).toBeVisible()
+    await activeButton.click()
+    await expect.element(fullGrant).toHaveAttribute('aria-checked', 'true')
+    const askGrant = screen.getByTestId('approval-computer_use-ask')
+    await askGrant.click()
+    await expect.element(fullGrant).toHaveAttribute('aria-checked', 'false')
+    expect(changes()).toEqual([{ sessionId: 'session-b', lane: 'computer_use', mode: 'full' }, { sessionId: 'session-b', lane: 'computer_use', mode: 'ask' }])
   })
 
   it('centers the mobile textarea when no reply preview is visible', async () => {

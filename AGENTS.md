@@ -197,6 +197,7 @@ Skills are in `.agents/skills/<name>/SKILL.md`. Read the listed file before you 
 | Work under `server/` | [`server/AGENTS.md`](server/AGENTS.md). For `server/apps/api`, also read [`server/apps/api/AGENTS.md`](server/apps/api/AGENTS.md). |
 | Write documentation, code comments, commit messages, or PR and issue text | [`simple-english`](.agents/skills/simple-english/SKILL.md) |
 | Analyze why a chat, speech, or audio turn was slow or failed, using saved IO traces | [`analyze-io-traces`](.agents/skills/analyze-io-traces/SKILL.md) |
+| Continue AIRI Agent, Computer Use, or AUV execution work | [Agent execution project memory](docs/ai/references/agent-execution-memory.md) and [maintenance handoff](docs/ai/handoffs/airi-agent-execution-maintenance.md) |
 | Create or prepare a pull request or an issue, or write commit messages for one | [`create-pr`](.agents/skills/create-pr/SKILL.md) |
 | Cut a release with `bumpp`, a release tag, or a GitHub release. Also, write release notes. | [`release-note-writer`](.agents/skills/release-note-writer/SKILL.md). Draft the notes before you create the GitHub release. |
 | Upload a local file through a file input or a file chooser in a web or Electron app | [`use-agent-browser-with-input-file`](.agents/skills/use-agent-browser-with-input-file/SKILL.md) and [`agent-browser`](.agents/skills/agent-browser/SKILL.md). For Electron, also read [`agent-browser-electron`](.agents/skills/agent-browser-electron/SKILL.md). |

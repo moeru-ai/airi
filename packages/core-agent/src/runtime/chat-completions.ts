@@ -1,3 +1,4 @@
+import type { GenerationRequest } from '@proj-airi/provider-inference'
 import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { CompletionStep, Message, Tool } from '@xsai/shared-chat'
 
@@ -8,7 +9,9 @@ import type { ResolvedStep } from './request-context'
 import { hasToolCall, not } from '@xsai/shared-chat'
 import { streamText } from '@xsai/stream-text'
 
-import { chatContentToString, chatMessagesToProjectionEntries, conversationToChatMessages } from '../messages/chat-completions'
+import { chatMessagesToProjectionEntries, conversationToChatMessages } from '../messages/chat-completions'
+import { measureContextBudget, resolveContextBudgetLimits } from '../messages/context-budget'
+import { DecisionStepLimitReached } from './decision-budget'
 import { createGeneration } from './generation'
 import { createContinuationScope, mergeRequestHeaders, replaceProviderConfig, supportsContentArray, supportsTools } from './request-context'
 import { RequestSwitch } from './request-switch'
@@ -36,22 +39,28 @@ export function streamChatCompletions(input: {
     project: item => chatMessagesToProjectionEntries([item]),
   })
   // The caller's tool choice applies to the first model request of the generation. A choice that forces a tool
-  // call on every request leaves the model no way to answer, and the tool loop has no step limit.
+  // call on every request leaves the model no way to answer. A configured step budget is handled after tool settlement.
   const callerToolChoice = (steps: readonly CompletionStep[]) =>
     steps.length === 0 && !input.options?.generationRoundOffset ? input.options?.toolChoice : undefined
   let providerConfigKeys = Object.keys(input.config)
   const requestOptions: Parameters<typeof streamText>[0] = {
     ...input.config,
-    prepareStep: ({ input: current, steps }: { input: Message[], steps: CompletionStep[] }) => {
-      const resolveStep = input.options?.resolveStep
-      if (!resolveStep) {
-        scopes.push(input.scope)
-        generation.prepareStep({ input: current })
-        return { toolChoice: callerToolChoice(steps) }
+    prepareStep: async ({ input: current, steps }: { input: Message[], steps: CompletionStep[] }) => {
+      const sdkInput = current
+      const completed = generation.snapshot(current, steps)
+      input.options?.abortSignal?.throwIfAborted()
+      const completedSteps = (input.options?.generationRoundOffset ?? 0) + steps.length
+      if (input.options?.maxSteps !== undefined && completedSteps >= input.options.maxSteps) {
+        const partialTurn = await generation.complete(Promise.resolve(current), Promise.resolve(steps))
+        throw new DecisionStepLimitReached(partialTurn, input.options.maxSteps, completedSteps)
       }
-      return (async () => {
+      const resolveStep = input.options?.resolveStep
+      let next: ResolvedStep | undefined
+      let request: GenerationRequest = { protocol: 'chat-completions', config: input.config }
+      let contentArraySupported = input.supportsContentArray
+      if (resolveStep) {
         const firstStep = scopes.length === 0 && input.initialStep
-        const next = firstStep || await resolveStep()
+        next = firstStep || await resolveStep()
 
         const nextRequest = firstStep
           ? { protocol: 'chat-completions' as const, config: input.config }
@@ -61,6 +70,7 @@ export function streamChatCompletions(input: {
           const partialTurn = await generation.complete(Promise.resolve(current), Promise.resolve(steps))
           throw new RequestSwitch(next, partialTurn)
         }
+        request = nextRequest
 
         // NOTICE:
         // xsAI 0.5 prepareStep returns only input, model, and toolChoice.
@@ -79,28 +89,55 @@ export function streamChatCompletions(input: {
           tools: toolsSupported && next.tools?.length ? next.tools : undefined,
           toolChoice: undefined,
         })
-        generation.prepareStep({ input: current, model: next.model })
-        const contentArraySupported = supportsContentArray(next.model, nextRequest, input.options)
-        scopes.push(nextScope)
-        if (!contentArraySupported) {
-          for (const [index, message] of current.entries()) {
-            if (!Array.isArray(message.content))
-              continue
-            current[index] = {
-              ...message,
-              content: chatContentToString(message.content),
-            } as Message
-          }
-        }
-        const systemIndex = current.findIndex(message => message.role === 'system')
-        const systemMessage = current[systemIndex]
+        contentArraySupported = supportsContentArray(next.model, nextRequest, input.options)
+      }
+      const project = (conversation: Conversation) => {
+        const projected = conversationToChatMessages(conversation, contentArraySupported, input.scope)
+        if (!next)
+          return projected
+        const systemIndex = projected.findIndex(message => message.role === 'system')
+        const systemMessage = projected[systemIndex]
         if (systemMessage?.role === 'system')
-          current[systemIndex] = { ...systemMessage, content: next.systemPrompt }
+          projected[systemIndex] = { ...systemMessage, content: next.systemPrompt }
         else if (next.systemPrompt)
-          current.unshift({ role: 'system', content: next.systemPrompt })
+          projected.unshift({ role: 'system', content: next.systemPrompt })
+        return projected
+      }
+      if (input.options?.prepareConversation || input.options?.prepareStringContent || next) {
+        const contextWindowTokens = next ? next.contextWindowTokens : input.options?.contextWindowTokens
+        const modelMaxOutputTokens = next ? next.modelMaxOutputTokens : input.options?.modelMaxOutputTokens
+        const requestedOutputTokens = typeof requestOptions.maxTokens === 'number' ? requestOptions.maxTokens : undefined
+        const contextBudgetLimits = resolveContextBudgetLimits({
+          contextWindowTokens,
+          requestedOutputTokens,
+          modelMaxOutputTokens,
+        })
+        const projectedRequest = (source: Conversation) => ({ messages: project(source), tools: requestOptions.tools })
+        let conversation: Conversation = completed.rounds.length
+          ? { turns: [...input.conversation.turns, completed] }
+          : input.conversation
+        conversation = await input.options?.prepareConversation?.(conversation, {
+          model: next?.model ?? input.config.model,
+          providerId: next?.providerId ?? input.options?.providerId,
+          request,
+          scope: input.scope,
+          contextWindowTokens,
+          modelMaxOutputTokens,
+          requestedOutputTokens,
+          contextBudgetLimits: contextBudgetLimits.source === 'provider-model-metadata' ? contextBudgetLimits : undefined,
+          measureContextBytes: source => new TextEncoder().encode(JSON.stringify(projectedRequest(source))).byteLength,
+          measureContextBudget: source => measureContextBudget(projectedRequest(source)),
+          readProjectedRequest: projectedRequest,
+          supportsVisionInput: next ? next.supportsVisionInput === true : input.options?.supportsVisionInput === true,
+        }) ?? conversation
+        input.options?.abortSignal?.throwIfAborted()
+        current = project(conversation)
+      }
+      // xsAI appends output to its original array, not the projected request array.
+      scopes.push(input.scope)
+      generation.prepareStep({ input: sdkInput, model: next?.model })
 
-        return { input: current, model: next.model, toolChoice: toolsSupported ? callerToolChoice(steps) : undefined }
-      })()
+      return { input: current, model: next?.model ?? input.config.model, toolChoice: !next || requestOptions.tools?.length ? callerToolChoice(steps) : undefined }
     },
     abortSignal: input.options?.abortSignal,
     temperature: input.options?.temperature,
@@ -109,7 +146,7 @@ export function streamChatCompletions(input: {
     messages,
     headers: mergeRequestHeaders(input.config.headers, input.options?.headers),
     streamOptions: { includeUsage: true },
-    // The tool loop has no step limit. It stops when the model answers without a tool call.
+    // A configured budget stops only after the current model step settles all tool calls.
     stopWhen: not(hasToolCall()),
     tools: input.tools,
     onEvent: async (event) => {

@@ -36,8 +36,7 @@ useChatDraftHandover(interactiveArea)
     </WindowTitleBar>
     <InteractiveArea
       ref="interactive-area"
-      class="interaction-area block"
-      h-full w-full transition="opacity duration-250"
+      :class="['interaction-area block h-full w-full transition-opacity duration-250']"
     />
     <ChatSessionsDrawer v-model="sessionsDrawerOpen" />
   </ChatPageShell>

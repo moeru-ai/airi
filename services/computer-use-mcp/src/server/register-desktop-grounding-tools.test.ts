@@ -5,6 +5,7 @@ import type { ComputerUseServerRuntime } from './runtime'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { createDryRunExecutor } from '../executors/dry-run'
 import { RunStateManager } from '../state'
 import { createTestConfig } from '../test-fixtures'
 import { registerDesktopGroundingTools } from './register-desktop-grounding'
@@ -33,6 +34,7 @@ function createMockServer() {
         return { disable: vi.fn() }
       },
     } as unknown as McpServer,
+    toolNames: () => [...handlers.keys()],
     async invoke(name: string, args: Record<string, unknown> = {}) {
       const handler = handlers.get(name)
       if (!handler) {
@@ -45,8 +47,9 @@ function createMockServer() {
 }
 
 function createRuntime() {
+  const config = createTestConfig()
   const runtime = {
-    config: createTestConfig(),
+    config,
     stateManager: new RunStateManager(),
     cdpBridgeManager: {
       getStatus: vi.fn().mockReturnValue({ connected: false }),
@@ -56,7 +59,7 @@ function createRuntime() {
       getSessionInfo: vi.fn().mockReturnValue(undefined),
     },
     browserDomBridge: {},
-    executor: {},
+    executor: createDryRunExecutor(config),
     session: {
       setLastScreenshot: vi.fn(),
     },
@@ -80,15 +83,27 @@ describe('registerDesktopGroundingTools', () => {
     captureDesktopGroundingMock.mockReset()
   })
 
-  it('registers desktop_click_target through the action executor', async () => {
+  it('registers only the stable desktop entrypoints', async () => {
+    const { runtime, executeAction } = createRuntime()
+    const { server, toolNames, invoke } = createMockServer()
+
+    registerDesktopGroundingTools({ server, runtime, executeAction })
+
+    expect(toolNames()).toEqual(['computer_observe', 'computer_act', 'computer_verify'])
+    await expect(invoke('desktop_observe')).rejects.toThrow('Missing registered tool: desktop_observe')
+    await expect(invoke('desktop_click_target')).rejects.toThrow('Missing registered tool: desktop_click_target')
+  })
+
+  it('routes grounded clicks through computer_act and the action executor', async () => {
     const { runtime, executeAction } = createRuntime()
 
     const { server, invoke } = createMockServer()
 
     registerDesktopGroundingTools({ server, runtime, executeAction })
 
-    const result = await invoke('desktop_click_target', {
-      candidateId: 't_0',
+    const result = await invoke('computer_act', {
+      action: 'click',
+      targetId: 't_0',
       clickCount: 2,
       button: 'right',
     })
@@ -101,7 +116,7 @@ describe('registerDesktopGroundingTools', () => {
         clickCount: 2,
         button: 'right',
       },
-    }, 'desktop_click_target')
+    }, 'computer_act')
   })
 
   it('returns observe error content when captureDesktopGrounding fails', async () => {
@@ -111,7 +126,7 @@ describe('registerDesktopGroundingTools', () => {
     const { server, invoke } = createMockServer()
     registerDesktopGroundingTools({ server, runtime, executeAction })
 
-    const result = await invoke('desktop_observe', {})
+    const result = await invoke('computer_observe', {})
 
     expect(result.isError).toBe(true)
     expect(result.content).toEqual([
@@ -145,7 +160,7 @@ describe('registerDesktopGroundingTools', () => {
     const { server, invoke } = createMockServer()
     registerDesktopGroundingTools({ server, runtime, executeAction })
 
-    const result = await invoke('desktop_observe', {})
+    const result = await invoke('computer_observe', {})
     const state = runtime.stateManager.getState()
 
     expect(state.lastGroundingSnapshot?.screenshot.dataBase64).toBe('ZmFrZS1wbmc=')
@@ -166,7 +181,7 @@ describe('registerDesktopGroundingTools', () => {
     ])
   })
 
-  it('does not refocus before desktop_observe', async () => {
+  it('does not refocus before computer_observe', async () => {
     const { runtime, executeAction } = createRuntime()
     const { server, invoke } = createMockServer()
     registerDesktopGroundingTools({ server, runtime, executeAction })
@@ -186,7 +201,7 @@ describe('registerDesktopGroundingTools', () => {
       staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
     } as any)
 
-    const result = await invoke('desktop_observe', { includeChrome: true })
+    const result = await invoke('computer_observe', { includeChrome: true })
 
     expect(result.isError).not.toBe(true)
     expect(runtime.desktopSessionController.ensureControlledAppInForeground).not.toHaveBeenCalled()
