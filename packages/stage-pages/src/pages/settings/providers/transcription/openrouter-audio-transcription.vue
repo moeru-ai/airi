@@ -2,14 +2,13 @@
 import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
 import {
-  ErrorContainer,
   TranscriptionPlayground,
   TranscriptionProviderSettings,
 } from '@proj-airi/stage-ui/components'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
-import { FieldCombobox } from '@proj-airi/ui'
+import { Alert, FieldCombobox } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -74,11 +73,13 @@ async function handleGenerateTranscription(file: File) {
         :disabled="isLoadingModels || providerModels.length === 0"
         @update:model-value="handleModelChange"
       />
-      <ErrorContainer
+      <Alert
         v-if="modelLoadError"
+        tone="danger"
         :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.error')"
-        :error="modelLoadError"
-      />
+      >
+        <pre :class="['whitespace-pre-wrap break-all']">{{ String(modelLoadError) }}</pre>
+      </Alert>
     </template>
     <template #playground>
       <TranscriptionPlayground

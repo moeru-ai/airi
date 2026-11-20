@@ -96,6 +96,7 @@ const vadModelError = shallowRef('')
 const recordings = new Map<string, Promise<ReturnType<typeof startRecording> | undefined>>()
 let listening: VoicePluginHandle | undefined
 let monitoringStartup: AbortController | undefined
+let monitoringStop: Promise<void> | undefined
 const { controller, state: inputState, snapshot, error: transcriptionPipelineError } = useVoiceController({
   transcriber: ({ inputId: id }) => {
     const transcriber = hearingStore.createTranscriber()
@@ -190,7 +191,23 @@ async function stopAudioMonitoring() {
   const previous = listening
   listening = undefined
   controller.activeInput?.cancel('Hearing preview stopped')
-  await previous?.dispose()
+  const previousStop = monitoringStop
+  const pendingStop = (async () => {
+    try {
+      await previousStop
+    }
+    finally {
+      await previous?.dispose()
+    }
+  })()
+  monitoringStop = pendingStop
+  try {
+    await pendingStop
+  }
+  finally {
+    if (monitoringStop === pendingStop)
+      monitoringStop = undefined
+  }
 }
 
 // Monitoring toggle
@@ -314,51 +331,57 @@ watch([selectedAudioInput, useVADModel], async () => {
   await setupAudioMonitoring()
 })
 
-watch(selectedProvider, async (provider, _previousProvider, onCleanup) => {
+watch([selectedProvider, activeTranscriptionProvider], async ([monitoringProvider, provider], _previous, onCleanup) => {
   let isCurrentProviderChange = true
   onCleanup(() => {
     isCurrentProviderChange = false
   })
+  const isCurrent = () => isCurrentProviderChange
+    && activeTranscriptionProvider.value === provider
+    && selectedProvider.value === monitoringProvider
 
   if (isMonitoring.value)
     shouldRestartMonitoringAfterProviderChange = true
 
-  if (isMonitoring.value) {
-    isMonitoring.value = false
+  try {
     await stopAudioMonitoring()
-    if (!isCurrentProviderChange)
-      return
   }
+  catch (cause) {
+    if (isCurrent()) {
+      shouldRestartMonitoringAfterProviderChange = false
+      error.value = errorMessageFrom(cause) ?? t('settings.pages.modules.hearing.sections.section.playground.transcription-failed')
+    }
+    return
+  }
+  if (!isCurrent())
+    return
 
   clearPlaygroundSegments()
   error.value = ''
   vadModelError.value = ''
 
-  if (!provider) {
-    await hearingStore.restoreProviderModel(provider)
-    if (!isCurrentProviderChange)
-      return
+  const restored = await hearingStore.restoreProviderModel(provider)
+  if (!isCurrent() || !restored)
+    return
+
+  // Disabling stops monitoring while preserving the configured provider and its model.
+  if (!monitoringProvider) {
     shouldRestartMonitoringAfterProviderChange = false
     return
   }
 
-  const restored = await hearingStore.restoreProviderModel(provider)
-  if (!isCurrentProviderChange || !restored)
-    return
-
   await hearingStore.loadModelsForProvider(provider)
-  if (!isCurrentProviderChange)
+  if (!isCurrent())
     return
 
   syncOpenAICompatibleSettings()
-
   const models = providerModels.value
   if (models.length > 0 && !activeTranscriptionModel.value) {
     activeTranscriptionModel.value = models[0].id
     activeCustomModelName.value = models[0].id
   }
 
-  if (isCurrentProviderChange && shouldRestartMonitoringAfterProviderChange) {
+  if (isCurrent() && hearingStore.enabled && shouldRestartMonitoringAfterProviderChange) {
     shouldRestartMonitoringAfterProviderChange = false
     await setupAudioMonitoring()
   }

@@ -23,7 +23,7 @@ const props = defineProps<{
   // Default model to use if not specified in provider settings
   defaultModel?: string
   // Additional provider-specific settings
-  additionalSettings?: Record<string, any>
+  additionalSettings?: Record<string, unknown>
   placeholder?: string
 }>()
 
@@ -82,13 +82,14 @@ onMounted(async () => {
 })
 
 async function persistProviderConfig() {
+  const providerId = props.providerId
   const config = { apiKey: apiKey.value, baseUrl: baseUrl.value }
   try {
-    const saved = await providerStore.patchProviderConfig(props.providerId, config)
+    const saved = await providerStore.patchProviderConfig(providerId, config)
     if (!saved)
       throw new Error('The transcription provider no longer exists')
-    await providersStore.validateProvider(props.providerId)
-    if (apiKey.value === config.apiKey && baseUrl.value === config.baseUrl) {
+    await providersStore.validateProvider(providerId)
+    if (props.providerId === providerId && apiKey.value === config.apiKey && baseUrl.value === config.baseUrl) {
       hasLocalEdits = false
       reconcileSettings()
     }

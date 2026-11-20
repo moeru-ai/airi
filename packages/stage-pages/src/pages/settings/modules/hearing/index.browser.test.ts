@@ -29,9 +29,8 @@ afterEach(() => {
  * Renders the Hearing overview in a host that declares whether it has a Push to Talk trigger. `undefined` provides nothing.
  * The page renders selects on a wide screen and row lists on a narrow one, so each test sets its width.
  */
-async function renderHearing(trigger: boolean | undefined, width = 1280) {
+async function renderHearing(trigger: boolean | undefined, width = 1280, pinia = createPinia()) {
   await page.viewport(width, 800)
-  const pinia = createPinia()
   pinias.push(pinia)
   const router = createRouter({
     history: createMemoryHistory(),

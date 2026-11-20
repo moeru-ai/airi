@@ -92,3 +92,44 @@ it('restores provider models through the leader action', async () => {
   expect(leaderActionCount).toBe(2)
   expect(leaderStateUpdates).toBe(0)
 })
+
+it('keeps a disabled module selection when its provider model is restored', async () => {
+  const namespace = `hearing:${crypto.randomUUID()}`
+  const leader = createContext(namespace, 'leader-only')
+  await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+  const follower = createContext(namespace, 'follower-only')
+  await vi.waitFor(() => expect(follower.runtime.getLeaderId()).toBe(leader.runtime.participantId))
+  leader.hearing.activeTranscriptionProvider = 'comet-api-transcription'
+  await leader.hearing.restoreProviderModel('comet-api-transcription')
+  leader.hearing.activeTranscriptionModel = 'saved-model'
+  leader.hearing.activeCustomModelName = 'saved-model'
+  leader.hearing.enabled = false
+  await vi.waitFor(() => expect(follower.hearing.enabled).toBe(false))
+
+  await follower.hearing.restoreProviderModel('comet-api-transcription')
+
+  expect(leader.hearing.enabled).toBe(false)
+  expect(leader.hearing.activeTranscriptionProvider).toBe('comet-api-transcription')
+  expect(leader.hearing.activeTranscriptionModel).toBe('saved-model')
+  expect(follower.hearing.activeCustomModelName).toBe('saved-model')
+})
+
+it('does not save the removed provider again after its selection clears', async () => {
+  const namespace = `hearing:${crypto.randomUUID()}`
+  const leader = createContext(namespace, 'leader-only')
+  await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+  const follower = createContext(namespace, 'follower-only')
+  await vi.waitFor(() => expect(follower.runtime.getLeaderId()).toBe(leader.runtime.participantId))
+  const removedProvider = 'openai-compatible-audio-transcription'
+  leader.hearing.activeTranscriptionProvider = removedProvider
+  await leader.hearing.restoreProviderModel(removedProvider)
+  leader.hearing.activeTranscriptionModel = 'removed-model'
+  await vi.waitFor(() => expect(follower.hearing.activeTranscriptionModel).toBe('removed-model'))
+
+  await follower.hearing.clearUnavailableProviderSelection()
+  await vi.waitFor(() => expect(leader.hearing.activeTranscriptionProvider).toBe(''))
+  leader.hearing.activeTranscriptionProvider = 'comet-api-transcription'
+  await leader.hearing.restoreProviderModel('comet-api-transcription')
+
+  expect(localStorage.getItem(`settings/hearing/provider-model/${encodeURIComponent(removedProvider)}`)).toBeNull()
+})
