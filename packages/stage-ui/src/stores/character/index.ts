@@ -2,7 +2,7 @@ import type { SpeechClient } from '../../services/speech/speech-client'
 
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
-import { computed, reactive, ref } from 'vue'
+import { computed, markRaw, reactive, ref } from 'vue'
 
 import { useLlmmarkerParser } from '../../composables/llm-marker-parser'
 import { SpeechClient as Speech } from '../../services/speech/speech-client'
@@ -88,7 +88,10 @@ export const useCharacterStore = defineStore('character', () => {
         },
       })
 
-      streamingReactions.value.set(sparkEventId, { reaction: newReaction, speech, parser })
+      // The speech client and parser are transport objects, not UI state. A deep
+      // reactive wrapper proxies them, and the speech bus cannot structured-clone
+      // a proxied `turn`, so `end`/`finish` throws DataCloneError and stays silent.
+      streamingReactions.value.set(sparkEventId, { reaction: newReaction, speech: markRaw(speech), parser: markRaw(parser) })
     }
 
     const state = streamingReactions.value.get(sparkEventId)!
