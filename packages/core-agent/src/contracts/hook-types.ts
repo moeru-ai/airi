@@ -2,7 +2,21 @@ import type { ToolMessage } from '@xsai/shared-chat'
 
 import type { ChatStreamEventContext, StreamingAssistantMessage } from '../types/chat'
 
+/**
+ * Routing labels of one stored tool call that a user asked to run again.
+ * A rerun has no submission of its own, so a Host admits it by these labels.
+ */
+export interface ChatToolCallRerunContext {
+  sessionId: string
+  turnId: string
+  toolName: string
+}
+
 export interface ChatHookRegistry {
+  onToolCallRerun: (cb: (context: ChatToolCallRerunContext) => Promise<void>) => () => void
+  onToolCallRerunEnd: (cb: (context: ChatToolCallRerunContext) => Promise<void>) => () => void
+  emitToolCallRerunHooks: (context: ChatToolCallRerunContext) => Promise<void>
+  emitToolCallRerunEndHooks: (context: ChatToolCallRerunContext) => Promise<void>
   onBeforeMessageComposed: (cb: (message: string, context: Omit<ChatStreamEventContext, 'composedMessage'>) => Promise<void>) => () => void
   onAfterMessageComposed: (cb: (message: string, context: ChatStreamEventContext) => Promise<void>) => () => void
   onBeforeSend: (cb: (message: string, context: ChatStreamEventContext) => Promise<void>) => () => void

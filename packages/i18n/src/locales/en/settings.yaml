@@ -1710,6 +1710,40 @@ pages:
       configured: Web search is ready to use!
     mcp-server:
       title: MCP servers
+      terminal:
+        title: Bundled Terminal
+        description: Connect the bundled Terminal tools. Commands need approval by default. Enable Turbo for a conversation from the chat composer. Save and restart to apply.
+        restore: Show Terminal requests
+        approval: Terminal approval
+        approve: Approve once
+        reject: Reject
+        details: Full executor report
+        pending: Waiting for your approval. This command has not been authorized.
+        scope: This command can change files, start applications, and affect the desktop. Approval applies once to this exact operation.
+        session: Session
+        server: Server
+        tool: Tool
+        turn: Turn
+        call: Call
+        command: Command
+        working-directory: Working directory
+        directory-source: '{source} in the Terminal executor'
+        shell: Shell
+        executor: Executor
+        expires: Expires
+        expires-unlimited: No limit
+        arguments-identity: Full arguments and request identity
+        turn-call: 'Turn {turn} · Call {call}'
+        request-action: 'Request {request} · Action {action}'
+        unavailable: This approval request is unavailable.
+        decision-error: The approval decision could not be sent.
+        result:
+          executed: Command finished. Review the requested result before continuing.
+          failed: Command failed. Earlier effects can remain. Check the executor report before running another command.
+          unknown: Result unknown. Earlier effects can remain. Check current state before repeating the command.
+          rejected: Rejected. This request did not dispatch a new command.
+          cancelled: Cancelled before dispatch. This request did not execute.
+          expired: Approval expired before dispatch. This request did not execute.
       description: Configure MCP servers and bring their tools into AIRI.
       config-path: Config file
       runtime-title: Runtime status
@@ -1726,6 +1760,9 @@ pages:
         pending-badge: Unsaved
       status:
         unknown: not loaded
+        running: connected
+        stopped: disconnected
+        error: unavailable
       actions:
         open-config: Reveal in file manager
         apply-and-restart: Save and restart
@@ -2596,6 +2633,14 @@ pages:
         global: Available to signed-in accounts
         account: Available to your account
       features:
+        conversation_compact:
+          title: Conversation Compact
+          description: Off by default. Summarize older observations while retaining exact tool receipts. Limits measure bytes, not the model token window.
+          mode:
+            title: Scheduling
+            description: Turning this experiment off discards pending summaries. The hard request byte limit stays active.
+            synchronous: 'Synchronous: wait before the next request'
+            background: 'Background: continue below the hard byte limit'
         fullscreen_workspace:
           title: Fullscreen workspace
           description: Open settings and the chat in a workspace that covers the screen, with the character on the left. Off by default.

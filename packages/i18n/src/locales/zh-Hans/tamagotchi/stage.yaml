@@ -80,6 +80,63 @@ docs:
   composer:
     show: 展开输入框
     hide: 收起输入框
+  computer-tools:
+    label: 桌面工具
+    desktop-unavailable: 当前版本无法截图或控制桌面。
+    approval-active: 当前会话已开启完全授权
+    approval-section: 审批
+    approval-command: 命令
+    approval-computer-use: Computer Use
+    approval-mode-ask: 询问
+    approval-mode-auto: 自动
+    approval-mode-full: 完全
+    approval-mode-auto-hint: 自动模式尚未开放。
+    approval-command-full-confirm: 允许此会话完全使用命令？
+    approval-command-full-scope: AIRI 可以用你的系统权限运行本地 Shell 命令。询问模式会在每条命令前确认。
+    approval-command-full-allow: 允许命令完全授权
+    approval-computer-use-full-confirm: 允许此会话完全使用 Computer Use？
+    approval-computer-use-full-scope: AIRI 可以通过 Computer Use 更改桌面、应用和输入。询问模式会在每次更改前确认。
+    approval-computer-use-full-allow: 允许 Computer Use 完全授权
+    computer-use-confirm: 允许 Computer Use 更改此设备？
+    computer-use-scope: AIRI 将按当前请求执行桌面、应用或输入操作。每次更改都会先显示在这里。
+    computer-use-allow: 允许此项更改
+    approval-error: 无法更改审批。
+    cancel: 取消
+  context-inspector:
+    open: 显示上下文
+    close: 隐藏上下文
+    title: 上下文用量
+    empty: 这个会话还没有向模型发送过请求。
+    bytes: 序列化大小
+    bytes-note: 分类大小是序列化投影的 UTF-8 字节数，不是 token。
+    text: 文本
+    images: 图像
+    framing: JSON 结构
+    model: 模型
+    provider: 提供方
+    window: 上下文窗口
+    window-value: '{count} tokens'
+    window-full: '{percent}% 已用'
+    window-over: '已用窗口的 {percent}%（超出）'
+    window-usage: 上下文窗口的 {percent}%，来自提供方回报的输入 token
+    tokens: tokens
+    reported-usage: 最近一次请求的回报用量
+    reported-note: 下面的 token 数是提供方对最近一次已完成请求的回报。它们不是由上面的字节估算出来的，也不是更早消息的累计。
+    input: 输入
+    output: 输出
+    total: 合计
+    usage-unavailable: 这次请求没有提供方回报的 token 用量。
+    budget: 压缩阈值
+    budget-note: 这是用来安排压缩的序列化字节阈值，不是上下文窗口已经占用了多少。
+    expand: 展开内容
+    collapse: 收起内容
+    kind:
+      system-context: 系统与上下文
+      conversation: 对话消息
+      tool-call: 工具调用
+      tool-result: 工具结果
+      tool-schema: 工具 schema
+
   danmaku-feed:
     title: 消息停留时间
     hide-read: 自动隐藏已读消息

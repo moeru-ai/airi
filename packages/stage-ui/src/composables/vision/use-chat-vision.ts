@@ -1,3 +1,5 @@
+import type { ModelInfo } from '@proj-airi/provider-inference'
+
 import type { DescribeToolImage } from '../../stores/ai/chat-llm/tool-images'
 
 import { useChatSessionStore } from '../../stores/chat/session-store'
@@ -6,6 +8,11 @@ import { useConsciousnessStore } from '../../stores/modules/consciousness'
 import { useVisionStore } from '../../stores/modules/vision'
 import { useProviderStore } from '../../stores/providers/provider'
 import { useVisionInference } from './use-vision-inference'
+
+/** Accepts explicit image support from either provider catalogs or model-bank metadata. */
+export function modelDeclaresImageInput(model?: Pick<ModelInfo, 'inputModalities' | 'metadata'>) {
+  return model?.metadata?.abilities?.vision === true || model?.inputModalities?.includes('image') === true
+}
 
 /** The chat model that gets the images of a turn, and the vision model that can read them in its place. */
 export interface ChatVisionSelection {
@@ -57,7 +64,8 @@ export function useChatVision() {
 
   /** Whether the catalog of the chat provider declares image input for the model. Most catalogs omit it. */
   function declaresImageInput(chat: ChatVisionSelection['chat']) {
-    return providersStore.getModelsForProvider(chat.provider).find(candidate => candidate.id === chat.model)?.metadata?.abilities?.vision === true
+    const model = providersStore.getModelsForProvider(chat.provider).find(candidate => candidate.id === chat.model)
+    return modelDeclaresImageInput(model)
   }
 
   function needsVisionModel(selection: ChatVisionSelection) {

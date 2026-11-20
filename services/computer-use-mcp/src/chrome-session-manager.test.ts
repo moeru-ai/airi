@@ -10,6 +10,7 @@ import type { ComputerUseConfig } from './types'
 
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
+import { join } from 'node:path'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -157,6 +158,20 @@ describe('chromeSessionManager', () => {
   })
 
   describe('ensureAgentWindow', () => {
+    it('does not launch Chrome when the abort signal is already aborted', async () => {
+      mockLaunchFlow(12345)
+      const controller = new AbortController()
+      controller.abort(new Error('Host approval was cancelled'))
+
+      await expect(manager.ensureAgentWindow({
+        url: 'https://example.com',
+        signal: controller.signal,
+      })).rejects.toThrow('Host approval was cancelled')
+
+      expect(mockedRunProcess).not.toHaveBeenCalled()
+      expect(mockedMkdir).not.toHaveBeenCalled()
+    })
+
     it('launches a dedicated Chrome profile with CDP', async () => {
       mockLaunchFlow(12345)
 
@@ -169,8 +184,8 @@ describe('chromeSessionManager', () => {
       expect(info.cdpUrl).toBe('http://127.0.0.1:9222')
       expect(info.windowId).toBe('12345:0:Google Chrome')
       expect(mockedMkdir).toHaveBeenCalledWith('/tmp/test', { recursive: true })
-      expect(mockedMkdtemp).toHaveBeenCalledWith('/tmp/test/chrome-profile-')
-      expect(mockedWriteFile).toHaveBeenCalledWith('/tmp/test/chrome-profile-abc123/First Run', '')
+      expect(mockedMkdtemp).toHaveBeenCalledWith(join('/tmp/test', 'chrome-profile-'))
+      expect(mockedWriteFile).toHaveBeenCalledWith(join('/tmp/test/chrome-profile-abc123', 'First Run'), '')
       expect(mockedRunProcess.mock.calls[2]).toEqual([
         '/usr/bin/open',
         [
