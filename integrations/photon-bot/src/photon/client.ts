@@ -51,18 +51,20 @@ interface PhotonUser {
   handle: string
 }
 
-/** The part of a stream event that the adapter reads. Photon publishes no TypeScript types for stream events. */
+/** The part of a Photon message that the adapter reads. Photon publishes no TypeScript types for stream events. */
+export interface PhotonMessage {
+  id: string
+  space?: { id: string }
+  sentBy?: PhotonUser
+  receivedBy?: PhotonUser
+  /** The message that an inline reply answers, or that a tapback is on. */
+  parentMessageId?: string
+  content?: { type: string, text?: string, reaction?: string, action?: unknown }
+}
+
 export interface PhotonEvent {
   type: string
-  data: {
-    object: {
-      id: string
-      space?: { id: string }
-      sentBy?: PhotonUser
-      receivedBy?: PhotonUser
-      content?: { type: string, text?: string }
-    }
-  }
+  data: { object: PhotonMessage }
 }
 
 export interface PhotonStreamOptions extends PhotonConnection {
@@ -210,8 +212,12 @@ export interface PhotonTextMessage {
   idempotencyKey: string
 }
 
-/** Sends one text. Photon answers 202 when it accepts the message. Delivery comes later on the stream. */
-export async function sendText(connection: PhotonConnection, message: PhotonTextMessage): Promise<void> {
+/**
+ * Sends one text. Photon answers 202 when it accepts the message. Delivery comes later on the stream.
+ *
+ * Returns the ID that Photon gave to the sent message.
+ */
+export async function sendText(connection: PhotonConnection, message: PhotonTextMessage): Promise<string | undefined> {
   const response = await fetch(`${connection.baseUrl}/v1/projects/${connection.projectId}/messages`, {
     method: 'POST',
     headers: {
@@ -227,6 +233,20 @@ export async function sendText(connection: PhotonConnection, message: PhotonText
   })
   if (!response.ok)
     throw await refusalOf('the message', response)
+  const sent = await response.json() as { id?: string }
+  return sent.id
+}
+
+/** Reads one stored message of the project. Returns nothing when Photon has no message with this ID. */
+export async function getMessage(connection: PhotonConnection, messageId: string): Promise<PhotonMessage | undefined> {
+  const response = await fetch(`${connection.baseUrl}/v1/projects/${connection.projectId}/messages/${messageId}`, {
+    headers: { authorization: `Bearer ${connection.apiKey}` },
+  })
+  if (response.status === 404)
+    return undefined
+  if (!response.ok)
+    throw await refusalOf(`the read of message ${messageId}`, response)
+  return await response.json() as PhotonMessage
 }
 
 /** Marks one incoming message as read. 202 means Photon accepted it; the recipient may still not see it (privacy settings). */

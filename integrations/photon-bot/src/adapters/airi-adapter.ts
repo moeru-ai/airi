@@ -1,5 +1,6 @@
 import type { PhotonBotConfig, PhotonModuleSettings } from '../config'
-import type { PhotonConnection, PhotonEvent } from '../photon/client'
+import type { PhotonConnection, PhotonEvent, PhotonMessage } from '../photon/client'
+import type { QuotedMessage } from './inbound-text'
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { setTimeout as sleep } from 'node:timers/promises'
@@ -10,7 +11,8 @@ import { Client as ServerChannel } from '@proj-airi/server-sdk'
 import { safeParse } from 'valibot'
 
 import { moduleSettingsSchema } from '../config'
-import { markRead, PhotonAuthError, PhotonStream, sendText, setTyping } from '../photon/client'
+import { getMessage, markRead, PhotonAuthError, PhotonStream, sendText, setTyping } from '../photon/client'
+import { replyTextFor, shapeOf, tapbackTextFor } from './inbound-text'
 import { maskHandle, replyTextOf } from './reply-text'
 
 const log = useLogg('PhotonAdapter').useGlobalConfig()
@@ -25,14 +27,23 @@ interface PhotonContext {
 
 type TurnResult = { text: string } | { retry: string } | { timeout: true }
 
+/** What the character gets for one inbound message. */
+interface Inbound {
+  kind: 'text' | 'reply' | 'tapback'
+  text: string
+}
+
 /** iMessage hides the typing bubble after a while, so the bot refreshes it while AIRI writes the reply. */
 const TYPING_REFRESH_MS = 10_000
+/** The number of received and sent messages that the bot keeps for quotes. An older message is read from Photon. */
+const RECENT_MESSAGES_MAX = 200
 
 export interface PhotonAdapterDeps {
   airiClient?: ServerChannel
   send?: typeof sendText
   markRead?: typeof markRead
   setTyping?: typeof setTyping
+  getMessage?: typeof getMessage
   replyTimeoutMs?: number
   retryDelayMs?: number
   authRetryDelayMs?: number
@@ -50,6 +61,11 @@ export class PhotonAdapter {
   private readonly send: typeof sendText
   private readonly markRead: typeof markRead
   private readonly setTyping: typeof setTyping
+  private readonly getMessage: typeof getMessage
+  /** The newest messages that the bot received or sent. A reply or a tapback quotes its message from here. */
+  private readonly recent = new Map<string, QuotedMessage>()
+  /** The content types that the log already has a report for. */
+  private readonly reportedTypes = new Set<string>()
   /** The Photon project in use. It is not set while the bot waits for settings or while AIRI disables the integration. */
   private connection?: PhotonConnection
   private stream?: PhotonStream
@@ -62,6 +78,7 @@ export class PhotonAdapter {
     this.send = deps.send ?? sendText
     this.markRead = deps.markRead ?? markRead
     this.setTyping = deps.setTyping ?? setTyping
+    this.getMessage = deps.getMessage ?? getMessage
     if (existsSync(config.stateFile)) {
       const state = JSON.parse(readFileSync(config.stateFile, 'utf8')) as { cursor: number, projectId?: string }
       this.cursor = state.cursor
@@ -178,44 +195,124 @@ export class PhotonAdapter {
     if (seq <= this.cursor)
       return
 
-    const { id, space, sentBy, receivedBy, content } = event.data.object
-    if (event.type === 'message.received' && space && sentBy && receivedBy && content?.type === 'text' && content.text) {
-      const who = maskHandle(sentBy.handle)
-      log.log(`Received text ${id} from ${who}`)
-      // The read receipt and the typing bubble are best effort: a failure is logged and never blocks the reply.
-      // A rejected API key is the exception. The reply cannot go out with it, so the bot does not ask AIRI for one.
-      const bestEffort = (what: string, call: Promise<unknown>) => call.catch((error) => {
-        if (error instanceof PhotonAuthError)
-          throw error
-        log.warn(`${what} for text ${id} failed: ${errorMessageFrom(error) ?? 'unknown'}`)
-      })
-      const typing = (on: boolean) => bestEffort(on ? 'Typing' : 'Stopping typing', this.setTyping(connection, space.id, receivedBy.id, on))
-
-      await bestEffort('Read receipt', this.markRead(connection, id))
-      await typing(true)
-      // A refresh that fails has no caller. The send after it reports a rejected API key.
-      const typingRefresh = setInterval(() => void typing(true).catch(() => {}), TYPING_REFRESH_MS)
-      let reply: string | undefined
-      try {
-        reply = await this.converse(connection, { messageId: id, spaceId: space.id, agentUserId: receivedBy.id, handle: sentBy.handle }, content.text)
-      }
-      finally {
-        clearInterval(typingRefresh)
-        await typing(false)
-      }
-
-      if (reply) {
-        await this.send(connection, { spaceId: space.id, senderId: receivedBy.id, text: reply, idempotencyKey: `airi-reply:${id}` })
-        log.log(`Sent the reply for text ${id} to ${who}`)
-      }
-      else if (reply === '') {
-        log.warn(`AIRI replied to text ${id} with no text. Nothing was sent.`)
-      }
-    }
+    if (event.type === 'message.received')
+      await this.answer(connection, event.data.object)
 
     // The cursor moves only after the delivery is handled. A crash before this line replays the delivery.
     this.cursor = seq
     writeFileSync(this.config.stateFile, JSON.stringify({ cursor: seq, projectId: connection.projectId }))
+  }
+
+  /** Gives one inbound message to the character and sends the reply. Content that the bot does not handle gets no reply. */
+  private async answer(connection: PhotonConnection, message: PhotonMessage): Promise<void> {
+    const { id, space, sentBy, receivedBy } = message
+    if (!space || !sentBy || !receivedBy || !message.content)
+      return
+
+    const inbound = await this.inboundOf(connection, message, receivedBy.id)
+    if (!inbound) {
+      this.reportUnhandled(message)
+      return
+    }
+
+    const { kind, text } = inbound
+    const who = maskHandle(sentBy.handle)
+    log.log(`Received ${kind} ${id} from ${who}`)
+    // The read receipt and the typing bubble are best effort: a failure is logged and never blocks the reply.
+    // A rejected API key is the exception. The reply cannot go out with it, so the bot does not ask AIRI for one.
+    const bestEffort = (what: string, call: Promise<unknown>) => call.catch((error) => {
+      if (error instanceof PhotonAuthError)
+        throw error
+      log.warn(`${what} for ${kind} ${id} failed: ${errorMessageFrom(error) ?? 'unknown'}`)
+    })
+    const typing = (on: boolean) => bestEffort(on ? 'Typing' : 'Stopping typing', this.setTyping(connection, space.id, receivedBy.id, on))
+
+    // A tapback is not a message that a person reads, so it gets no read receipt.
+    if (kind !== 'tapback')
+      await bestEffort('Read receipt', this.markRead(connection, id))
+    await typing(true)
+    // A refresh that fails has no caller. The send after it reports a rejected API key.
+    const typingRefresh = setInterval(() => void typing(true).catch(() => {}), TYPING_REFRESH_MS)
+    let reply: string | undefined
+    try {
+      reply = await this.converse(connection, { messageId: id, spaceId: space.id, agentUserId: receivedBy.id, handle: sentBy.handle }, text)
+    }
+    finally {
+      clearInterval(typingRefresh)
+      await typing(false)
+    }
+
+    if (reply) {
+      const sentId = await this.send(connection, { spaceId: space.id, senderId: receivedBy.id, text: reply, idempotencyKey: `airi-reply:${id}` })
+      if (sentId)
+        this.remember(sentId, { text: reply, fromAgent: true })
+      log.log(`Sent the reply for ${kind} ${id} to ${who}`)
+    }
+    else if (reply === '') {
+      log.warn(`AIRI replied to ${kind} ${id} with no text. Nothing was sent.`)
+    }
+  }
+
+  /**
+   * Returns the plain text that the character gets for a message. Returns nothing for content that the bot does not handle.
+   *
+   * AIRI takes plain text only. An inline reply and a tapback become a sentence that quotes the message they point to.
+   */
+  private async inboundOf(connection: PhotonConnection, message: PhotonMessage, agentUserId: string): Promise<Inbound | undefined> {
+    const { id, content, parentMessageId } = message
+    if (content?.type === 'text' && content.text) {
+      this.remember(id, { text: content.text, fromAgent: false })
+      if (!parentMessageId)
+        return { kind: 'text', text: content.text }
+      return { kind: 'reply', text: replyTextFor(content.text, await this.quoted(connection, parentMessageId, agentUserId)) }
+    }
+
+    // The OpenAPI document of Photon gives a reaction no `action`. A reaction that has one is not handled, so the log shows it.
+    if (content?.type === 'reaction' && content.reaction && content.action === undefined)
+      return { kind: 'tapback', text: tapbackTextFor(content.reaction, parentMessageId ? await this.quoted(connection, parentMessageId, agentUserId) : undefined) }
+
+    return undefined
+  }
+
+  /** Finds the message that a reply or a tapback points to. Returns nothing when Photon does not have it. */
+  private async quoted(connection: PhotonConnection, messageId: string, agentUserId: string): Promise<QuotedMessage | undefined> {
+    const known = this.recent.get(messageId)
+    if (known)
+      return known
+
+    try {
+      const parent = await this.getMessage(connection, messageId)
+      if (!parent)
+        return undefined
+
+      const quoted = { text: parent.content?.type === 'text' ? parent.content.text : undefined, fromAgent: parent.sentBy?.id === agentUserId }
+      this.remember(messageId, quoted)
+      return quoted
+    }
+    catch (error) {
+      if (error instanceof PhotonAuthError)
+        throw error
+      // The quote is best effort. Without it the character still gets the reply or the tapback.
+      log.warn(`Cannot read message ${messageId} for the quote: ${errorMessageFrom(error) ?? 'unknown'}`)
+      return undefined
+    }
+  }
+
+  private remember(messageId: string, message: QuotedMessage): void {
+    this.recent.set(messageId, message)
+    const oldest = this.recent.keys().next().value
+    if (this.recent.size > RECENT_MESSAGES_MAX && oldest !== undefined)
+      this.recent.delete(oldest)
+  }
+
+  /** Logs the shape of a message with content that the bot does not handle, one time for each content type. */
+  private reportUnhandled(message: PhotonMessage): void {
+    const type = message.content?.type ?? 'unknown'
+    if (this.reportedTypes.has(type))
+      return
+
+    this.reportedTypes.add(type)
+    log.warn(`Photon delivered content of the type "${type}", which the bot does not handle. The bot reports each type one time. Message: ${shapeOf(message)}`)
   }
 
   /**
