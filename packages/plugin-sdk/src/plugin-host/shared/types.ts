@@ -267,7 +267,7 @@ export interface ExtensionManifestV2 {
     airi: string
     runtimes: PluginRuntime[]
   }
-  /** Runtime-specific Extension entrypoints that the Host can resolve and import. */
+  /** Filesystem paths for each runtime. Keep cache keys in load options, separate from these paths. */
   entrypoints: {
     /** Fallback entrypoint used when no runtime-specific path is provided. */
     default?: string
@@ -552,6 +552,13 @@ export interface ExtensionHostPermissionRequest {
  * - Runtime and working-directory overrides for one load operation
  */
 export interface ExtensionLoadOptions {
+  /**
+   * Selects the Node ESM cache entry for this load without changing or persisting the manifest.
+   * Undefined adds no query parameter. URLSearchParams adds each specified value, including an empty string, as `cacheBust`.
+   * A new key re-evaluates the entry module. The same key can reuse it. Child modules retain their cached instances.
+   * @default undefined
+   */
+  cacheBustKey?: string
   /** Working directory used to resolve relative manifest entrypoints. */
   cwd?: string
   /** Runtime used when selecting a manifest entrypoint. */
@@ -571,6 +578,13 @@ export interface ExtensionLoadOptions {
  * - Per-start overrides for initialization behavior
  */
 export interface ExtensionStartOptions {
+  /**
+   * Selects the Node ESM cache entry for this load without changing or persisting the manifest.
+   * Undefined adds no query parameter. URLSearchParams adds each specified value, including an empty string, as `cacheBust`.
+   * A new key re-evaluates the entry module. The same key can reuse it. Child modules retain their cached instances.
+   * @default undefined
+   */
+  cacheBustKey?: string
   /** Working directory used to resolve relative manifest entrypoints. */
   cwd?: string
   /** Runtime override used for this specific start operation. */

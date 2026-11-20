@@ -38,6 +38,37 @@ Kit Provider declarations use exact semantic versions. Kit Consumer declarations
 
 Exact versions retain prerelease and build identifiers, such as `1.2.3-rc.1+build.007`. Provider declarations, Contracts, and matching Host sources require the same complete version.
 
+## Filesystem Loads and Reloads
+
+Manifest entrypoints are filesystem paths. Runtime-specific entrypoints take priority over `default`. Relative paths use the load option `cwd`, or the process directory.
+The Node loader converts the selected path with `pathToFileURL`. Filename characters, including spaces, Unicode, `#`, `%`, and POSIX `?`, remain part of the filename.
+
+`ExtensionLoadOptions` and `ExtensionStartOptions` accept `cacheBustKey?: string`.
+When this option is `undefined`, the loader adds no query parameter.
+For each specified value, including an empty string, `URLSearchParams` adds the `cacheBust` query parameter to the import URL.
+The key belongs to one load. The Host does not persist it or put it in the manifest.
+
+```ts
+const session = await host.start(manifest, { cwd: extensionDirectory, cacheBustKey: 'revision-a' })
+await host.reload(session.id, { cacheBustKey: 'revision-b' })
+```
+
+`reload()` waits for cleanup, then creates a new session. Without an explicit new key, it can reuse the cached entry module.
+A new key re-evaluates the entry module. The same key can reuse its cached instance.
+Child modules retain their Node ESM cache entries. Unique keys accumulate entry modules in that cache until the process exits.
+This option does not provide dependency-tree hot reload or process isolation.
+
+The desktop Host generates a fresh UUID key for each automatic reload. Its registry retains the original manifest paths.
+
+Before the native ESM regression tests, build the SDK and its workspace dependencies:
+
+```sh
+pnpm -F @proj-airi/plugin-sdk... build
+pnpm -F @proj-airi/plugin-sdk exec vitest run src/plugin-host/runtimes/node/loaders/fs.test.ts
+```
+
+These tests import the built public SDK in real Node subprocesses. The focused CI job runs them on Windows, Linux, and macOS.
+
 ## Extension-hosted Kit Registration
 
 An Extension-hosted Kit has a shared Contract and a Provider implementation. The Manifest declares the Kit before the Extension runs. Root setup calls `ctx.kits.provide(...)` with the same ID, version, and exposure policy.
