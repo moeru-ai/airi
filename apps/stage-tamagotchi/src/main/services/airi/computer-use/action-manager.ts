@@ -167,6 +167,7 @@ interface StoredGrant {
   expiresAt?: number
   expiryTimer?: ReturnType<typeof setTimeout>
   workspaceRoot?: string
+  frozenAppName?: string
   reviewCache: Map<string, 'allow' | 'refuse'>
 }
 
@@ -267,12 +268,12 @@ export class PendingActionManager {
       return grant.controller.signal
   }
 
-  /** The Auto signal, workspace, and review memory. Full and Ask have none. */
-  autoGrant(lane: TurboLane, sessionId: string, senderWebContentsId: number | undefined): { signal: AbortSignal, workspaceRoot?: string } | undefined {
+  /** The Auto signal, workspace, frozen desktop app, and review memory. Full and Ask have none. */
+  autoGrant(lane: TurboLane, sessionId: string, senderWebContentsId: number | undefined): { signal: AbortSignal, workspaceRoot?: string, frozenAppName?: string } | undefined {
     const grant = this.liveGrant(lane, sessionId, senderWebContentsId)
     if (grant?.mode !== 'auto')
       return undefined
-    return { signal: grant.controller.signal, workspaceRoot: grant.workspaceRoot }
+    return { signal: grant.controller.signal, workspaceRoot: grant.workspaceRoot, frozenAppName: grant.frozenAppName }
   }
 
   terminalTurboSignal(sessionId: string, senderWebContentsId: number | undefined): AbortSignal | undefined {
@@ -288,18 +289,22 @@ export class PendingActionManager {
    * Replacing or clearing a grant aborts reviews and dispatches that have not started.
    * Command Auto keeps the workspace that was shown in the confirmation.
    */
-  setGrant(lane: TurboLane, sessionId: string, senderWebContentsId: number, mode: SessionApprovalMode, options?: { workspaceRoot?: string }): void {
+  setGrant(lane: TurboLane, sessionId: string, senderWebContentsId: number, mode: SessionApprovalMode, options?: { workspaceRoot?: string, frozenAppName?: string }): void {
     this.clearGrant(lane, sessionId, senderWebContentsId)
     if (mode === 'ask')
       return
     if (mode === 'auto' && lane === 'terminal' && !options?.workspaceRoot)
       throw new Error('Command Auto requires a workspace.')
+    const frozenAppName = options?.frozenAppName?.trim()
+    if (mode === 'auto' && lane === 'computer_use' && !frozenAppName)
+      throw new Error('Computer Use Auto requires a frozen application.')
     const controller = new AbortController()
     const grant: StoredGrant = {
       mode,
       controller,
       reviewCache: new Map(),
       workspaceRoot: options?.workspaceRoot,
+      frozenAppName,
     }
     if (mode === 'auto') {
       grant.expiresAt = Date.now() + this.autoGrantTtlMs

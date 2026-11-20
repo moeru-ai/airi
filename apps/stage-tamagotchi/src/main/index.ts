@@ -340,6 +340,9 @@ app.whenReady().then(async () => {
   const commandWorkspaceReader: { read: () => Promise<string | undefined> } = {
     read: async () => undefined,
   }
+  const foregroundAppReader: { read: () => Promise<{ appName: string, windowTitle?: string } | undefined> } = {
+    read: async () => undefined,
+  }
   const pendingActions = injeca.provide('services:pending-actions', () => new PendingActionManager())
   const terminalApproval = injeca.provide('windows:terminal-approval', {
     dependsOn: { actions: pendingActions, i18n, serverChannel },
@@ -356,6 +359,7 @@ app.whenReady().then(async () => {
         i18n: dependsOn.i18n,
         presentConfirmation: dependsOn.terminalApproval.confirm,
         readCommandWorkspace: () => commandWorkspaceReader.read(),
+        readForegroundApp: () => foregroundAppReader.read(),
       })
       return { ...host, ...chatRequests }
     },
@@ -372,6 +376,7 @@ app.whenReady().then(async () => {
         reviewAuto: reviewAutoApproval(() => userFacingMainWindow?.webContents),
       })
       commandWorkspaceReader.read = () => manager.readBundledTerminalCwd()
+      foregroundAppReader.read = () => manager.readBundledForeground()
       return manager
     },
   })

@@ -1,7 +1,15 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { parseAutoApprovalReview } from '../../../../shared/auto-approval-review'
+import { autoApprovalReviewPrompt, parseAutoApprovalReview } from '../../../../shared/auto-approval-review'
 import { consultAuto } from './auto-review'
+
+describe('auto review prompt', () => {
+  it('selects one rule from reviewClass', () => {
+    expect(autoApprovalReviewPrompt({ lane: 'terminal', cwd: '.', command: 'rm a', reviewClass: 'delete' })).toContain('delete')
+    expect(autoApprovalReviewPrompt({ lane: 'terminal', cwd: '.', command: 'mkdir a', reviewClass: 'write' })).toContain('write')
+    expect(autoApprovalReviewPrompt({ lane: 'computer_use', actionKind: 'type_text', appName: 'Notes', windowTitle: 'Notes', reviewClass: 'desktop', targetName: 'hi', detail: '' })).toContain('targetName')
+  })
+})
 
 describe('auto review reply', () => {
   it('accepts only the exact words', () => {
@@ -39,7 +47,7 @@ describe('auto review consultation', () => {
     const review = vi.fn(async () => 'allow' as const)
     const cache = new Map<string, 'allow' | 'refuse'>()
     const input = {
-      decision: { outcome: 'review' as const, reason: 'write', card: { lane: 'terminal' as const, cwd: '.', command: 'rm ./file' } },
+      decision: { outcome: 'review' as const, reason: 'write', card: { lane: 'terminal' as const, cwd: '.', command: 'rm ./file', reviewClass: 'delete' as const } },
       signal: new AbortController().signal,
       cacheGet: (card: string) => cache.get(card),
       cacheSet: (card: string, verdict: 'allow' | 'refuse') => { cache.set(card, verdict) },
@@ -55,7 +63,7 @@ describe('auto review consultation', () => {
       signal.addEventListener('abort', () => reject(new Error('aborted')))
     }))
     const verdict = await consultAuto({
-      decision: { outcome: 'review', reason: 'write', card: { lane: 'computer_use', actionKind: 'click', appName: 'Notes', windowTitle: 'Notes', detail: '1,2' } },
+      decision: { outcome: 'review', reason: 'write', card: { lane: 'computer_use', actionKind: 'type_text', appName: 'Notes', windowTitle: 'Notes', reviewClass: 'desktop', targetName: 'hi', detail: '' } },
       signal: new AbortController().signal,
       timeoutMs: 20,
       cacheGet: () => undefined,

@@ -113,6 +113,57 @@ describe('main Chat request IPC', () => {
     await main.dispose()
   })
 
+  it('keeps Ask when Computer Use Auto cannot read the foreground app', async () => {
+    const { main, input, sessionGrant, presentConfirmation } = fixture()
+    await expect(sessionGrant({ sessionId: input.sessionId, lane: 'computer_use', mode: 'auto' })).resolves.toBe('ask')
+    expect(presentConfirmation).not.toHaveBeenCalled()
+    await main.dispose()
+  })
+
+  it('keeps Ask when the foreground application name is blank', async () => {
+    const ipc = new EventEmitter()
+    const main = createContext(ipc as never)
+    const runtime = createWindowIpc(ipc)
+    const chat = createWindowIpc(ipc)
+    electron.fromWebContents.mockImplementation(sender => [runtime, chat].find(window => window.window.webContents === sender)?.window)
+    const presentConfirmation = vi.fn<(request: ApprovalPrompt, signal?: AbortSignal) => Promise<boolean>>().mockResolvedValue(true)
+    const actions = new PendingActionManager()
+    setupChatRequests(main.context, actions, {
+      getRuntime: () => runtime.window.webContents,
+      isChatWindow: window => window === chat.window,
+      i18n: createI18n({ locale: 'en', messages: { en: {} } }),
+      presentConfirmation,
+      readForegroundApp: async () => ({ appName: '   ', windowTitle: 'Notes' }),
+    })
+    const sessionGrant = defineInvoke(chat.context, sessionApprovalGrant)
+    await expect(sessionGrant({ sessionId: 'session-blank-app', lane: 'computer_use', mode: 'auto' })).resolves.toBe('ask')
+    expect(presentConfirmation).not.toHaveBeenCalled()
+    await main.dispose()
+  })
+
+  it('confirms Computer Use Auto against the frozen application', async () => {
+    const ipc = new EventEmitter()
+    const main = createContext(ipc as never)
+    const runtime = createWindowIpc(ipc)
+    const chat = createWindowIpc(ipc)
+    electron.fromWebContents.mockImplementation(sender => [runtime, chat].find(window => window.window.webContents === sender)?.window)
+    const presentConfirmation = vi.fn<(request: ApprovalPrompt, signal?: AbortSignal) => Promise<boolean>>().mockResolvedValue(true)
+    const actions = new PendingActionManager()
+    setupChatRequests(main.context, actions, {
+      getRuntime: () => runtime.window.webContents,
+      isChatWindow: window => window === chat.window,
+      i18n: createI18n({ locale: 'en', messages: { en: {} } }),
+      presentConfirmation,
+      readForegroundApp: async () => ({ appName: 'Notes', windowTitle: 'Notes' }),
+    })
+    const sessionGrant = defineInvoke(chat.context, sessionApprovalGrant)
+    const sessionId = 'session-computer-auto'
+    await expect(sessionGrant({ sessionId, lane: 'computer_use', mode: 'auto' })).resolves.toBe('auto')
+    expect(presentConfirmation).toHaveBeenCalledWith(expect.objectContaining({ sessionId }), expect.any(AbortSignal))
+    expect(actions.autoGrant('computer_use', sessionId, runtime.window.webContents.id)?.frozenAppName).toBe('Notes')
+    await main.dispose()
+  })
+
   it('confirms Command Auto against the frozen workspace and returns to Ask when it expires', async () => {
     const startedAt = 1_700_000_000_000
     const now = vi.spyOn(Date, 'now').mockReturnValue(startedAt)

@@ -1,8 +1,18 @@
 import type { TerminalSnapshot } from '@proj-airi/stage-shared/terminal-approval'
 
+import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
 import { describe, expect, it } from 'vitest'
 
-import { decideCommandAuto, decideComputerUseAuto, isAskReadOnlyCommand } from './auto-policy'
+import {
+  appsMatchForAuto,
+  decideCommandAuto,
+  decideComputerUseAuto,
+  foregroundMatchesComputerCard,
+  isAskReadOnlyCommand,
+} from './auto-policy'
 
 function snapshot(command: string, overrides: Partial<TerminalSnapshot> = {}): TerminalSnapshot {
   return {
@@ -25,6 +35,8 @@ function snapshot(command: string, overrides: Partial<TerminalSnapshot> = {}): T
   }
 }
 
+const frozenApp = 'Notes'
+
 describe('command auto cage', () => {
   it('allows a read-only command inside the workspace', () => {
     expect(decideCommandAuto(snapshot('pwd'), '/workspace/app')).toMatchObject({ outcome: 'allow' })
@@ -42,10 +54,32 @@ describe('command auto cage', () => {
   })
 
   it('reviews a write that stays inside the workspace', () => {
-    expect(decideCommandAuto(snapshot('rm ./file'), '/workspace/app')).toMatchObject({
-      outcome: 'review',
-      card: { lane: 'terminal', cwd: '.', command: 'rm ./file' },
-    })
+    const root = mkdtempSync(join(tmpdir(), 'auto-cage-rm-'))
+    writeFileSync(join(root, 'file'), 'x')
+    try {
+      const platform = process.platform === 'win32' ? 'win32' : 'linux'
+      expect(decideCommandAuto(snapshot('rm ./file', { effectiveCwd: root, executorCwd: root, executorPlatform: platform }), root)).toMatchObject({
+        outcome: 'review',
+        card: { lane: 'terminal', cwd: '.', command: 'rm ./file', reviewClass: 'delete' },
+      })
+    }
+    finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('refuses interpreters and nested shells without review', () => {
+    expect(decideCommandAuto(snapshot('python -c "print(1)"'), '/workspace/app').outcome).toBe('refuse')
+    expect(decideCommandAuto(snapshot('node -e "console.log(1)"'), '/workspace/app').outcome).toBe('refuse')
+    expect(decideCommandAuto(snapshot('npm install'), '/workspace/app').outcome).toBe('refuse')
+    expect(decideCommandAuto(snapshot('cmd /c dir'), '/workspace/app').outcome).toBe('refuse')
+  })
+
+  it('refuses a broad delete of the workspace root', () => {
+    expect(decideCommandAuto(snapshot('rm -rf .'), '/workspace/app').outcome).toBe('refuse')
+    expect(decideCommandAuto(snapshot('rm -r -f .'), '/workspace/app').outcome).toBe('refuse')
+    expect(decideCommandAuto(snapshot('rm -R .'), '/workspace/app').outcome).toBe('refuse')
+    expect(decideCommandAuto(snapshot('Remove-Item -Recurse .', { executorPlatform: 'win32' }), '/workspace/app').outcome).toBe('refuse')
   })
 
   it('refuses a command outside the workspace', () => {
@@ -69,6 +103,27 @@ describe('command auto cage', () => {
     expect(decideCommandAuto(snapshot('shutdown /s'), '/workspace/app').outcome).toBe('refuse')
   })
 
+  it('refuses a path that resolves outside the workspace through a symlink', () => {
+    const root = mkdtempSync(join(tmpdir(), 'auto-cage-root-'))
+    const outside = mkdtempSync(join(tmpdir(), 'auto-cage-out-'))
+    writeFileSync(join(outside, 'marker.txt'), 'x')
+    const link = join(root, 'escape')
+    try {
+      if (process.platform === 'win32')
+        symlinkSync(outside, link, 'junction')
+      else
+        symlinkSync(outside, link)
+      const platform = process.platform === 'win32' ? 'win32' : 'linux'
+      const command = { effectiveCwd: root, executorCwd: root, executorPlatform: platform }
+      expect(decideCommandAuto(snapshot('ls ./escape', command), root).outcome).toBe('refuse')
+      expect(decideCommandAuto(snapshot('rm ./escape/missing', command), root).outcome).toBe('refuse')
+    }
+    finally {
+      rmSync(root, { recursive: true, force: true })
+      rmSync(outside, { recursive: true, force: true })
+    }
+  })
+
   it('refuses a review card that is too long to send', () => {
     const command = `rm ${'a'.repeat(3000)}`
     expect(decideCommandAuto(snapshot(command), '/workspace/app')).toMatchObject({
@@ -87,50 +142,127 @@ describe('ask read-only fast path', () => {
     expect(isAskReadOnlyCommand(snapshot('git status src'))).toBe(false)
     expect(isAskReadOnlyCommand(snapshot('rm ./file'))).toBe(false)
     expect(isAskReadOnlyCommand(snapshot('ls; pwd'))).toBe(false)
+    expect(isAskReadOnlyCommand(snapshot('git -c alias.status=status status'))).toBe(false)
+    expect(isAskReadOnlyCommand(snapshot('git diff --output=../leak'))).toBe(false)
   })
 })
 
 describe('computer use auto cage', () => {
-  it('allows scroll and wait only when the foreground window is visible', () => {
-    expect(decideComputerUseAuto({ actionKind: 'scroll', contextAvailable: true, appName: 'Notes', windowTitle: 'Notes' })).toMatchObject({ outcome: 'allow' })
-    expect(decideComputerUseAuto({ actionKind: 'wait', contextAvailable: true })).toMatchObject({ outcome: 'allow' })
-    expect(decideComputerUseAuto({ actionKind: 'scroll', contextAvailable: false }).outcome).toBe('refuse')
+  it('allows scroll and wait only inside the frozen application', () => {
+    expect(decideComputerUseAuto({ frozenAppName: frozenApp, actionKind: 'scroll', contextAvailable: true, appName: 'Notes', windowTitle: 'Notes', action: { input: { deltaY: 40 } } })).toMatchObject({ outcome: 'allow' })
+    expect(decideComputerUseAuto({ frozenAppName: frozenApp, actionKind: 'wait', contextAvailable: true, appName: 'Notes', windowTitle: 'Notes' })).toMatchObject({ outcome: 'allow' })
+    expect(decideComputerUseAuto({ frozenAppName: frozenApp, actionKind: 'scroll', contextAvailable: false }).outcome).toBe('refuse')
+    expect(decideComputerUseAuto({ frozenAppName: frozenApp, actionKind: 'scroll', contextAvailable: true, appName: 'Terminal' }).outcome).toBe('refuse')
+    expect(decideComputerUseAuto({
+      frozenAppName: frozenApp,
+      actionKind: 'scroll',
+      contextAvailable: true,
+      appName: 'Notes',
+      windowTitle: 'Notes',
+      action: { input: { x: 1, y: 2, deltaY: 40 } },
+    }).outcome).toBe('refuse')
   })
 
-  it('reviews a click and keeps the window title on the card', () => {
-    const notes = decideComputerUseAuto({
+  it('refuses coordinate clicks without a target name', () => {
+    expect(decideComputerUseAuto({
+      frozenAppName: frozenApp,
       actionKind: 'click',
       contextAvailable: true,
       appName: 'Notes',
       windowTitle: 'Notes',
       action: { input: { x: 4, y: 8 } },
-    })
-    const confirm = decideComputerUseAuto({
-      actionKind: 'click',
-      contextAvailable: true,
-      appName: 'Notes',
-      windowTitle: 'Delete file?',
-      action: { input: { x: 4, y: 8 } },
-    })
-    expect(notes).toMatchObject({ outcome: 'review', card: { windowTitle: 'Notes', detail: '4,8' } })
-    expect(confirm).toMatchObject({ outcome: 'review', card: { windowTitle: 'Delete file?' } })
-    expect(notes.outcome === 'review' && confirm.outcome === 'review' && notes.card.lane === 'computer_use' && confirm.card.lane === 'computer_use' && notes.card.windowTitle !== confirm.card.windowTitle).toBe(true)
-  })
-
-  it('refuses password managers, clipboard, secrets, and new terminals', () => {
-    expect(decideComputerUseAuto({ actionKind: 'click', contextAvailable: true, appName: '1Password', windowTitle: 'Vault' }).outcome).toBe('refuse')
-    expect(decideComputerUseAuto({ actionKind: 'clipboard_read_text', contextAvailable: true, windowTitle: 'Notes' }).outcome).toBe('refuse')
-    expect(decideComputerUseAuto({ actionKind: 'secret_read_env_value', contextAvailable: true, windowTitle: 'Notes' }).outcome).toBe('refuse')
-    expect(decideComputerUseAuto({ actionKind: 'pty_create', contextAvailable: true, windowTitle: 'Terminal' }).outcome).toBe('refuse')
-  })
-
-  it('sends the length of typed text instead of the text', () => {
+    })).toMatchObject({ outcome: 'refuse' })
     expect(decideComputerUseAuto({
+      frozenAppName: frozenApp,
       actionKind: 'type_text',
       contextAvailable: true,
       appName: 'Notes',
       windowTitle: 'Notes',
-      action: { input: { text: 'secret phrase' } },
-    })).toMatchObject({ outcome: 'review', card: { detail: 'chars:13' } })
+      action: { input: { text: 'hello', x: 4, y: 8 } },
+    }).outcome).toBe('refuse')
+  })
+
+  it('reviews named desktop actions and keeps the window title on the card', () => {
+    const typing = decideComputerUseAuto({
+      frozenAppName: frozenApp,
+      actionKind: 'type_text',
+      contextAvailable: true,
+      appName: 'Notes',
+      windowTitle: 'Notes',
+      action: { input: { text: 'hello' } },
+    })
+    const confirm = decideComputerUseAuto({
+      frozenAppName: frozenApp,
+      actionKind: 'type_text',
+      contextAvailable: true,
+      appName: 'Notes',
+      windowTitle: 'Delete file?',
+      action: { input: { text: 'hello' } },
+    })
+    const target = decideComputerUseAuto({
+      frozenAppName: frozenApp,
+      actionKind: 'desktop_click_target',
+      contextAvailable: true,
+      appName: 'Notes',
+      windowTitle: 'Notes',
+      targetLabel: 'Save',
+      action: { input: { candidateId: 'c1' } },
+    })
+    expect(typing).toMatchObject({ outcome: 'review', card: { windowTitle: 'Notes', targetName: 'hello', reviewClass: 'desktop' } })
+    expect(confirm).toMatchObject({ outcome: 'review', card: { windowTitle: 'Delete file?' } })
+    expect(target).toMatchObject({ outcome: 'review', card: { targetName: 'Save', detail: 'Save' } })
+    expect(typing.outcome === 'review' && confirm.outcome === 'review' && typing.card.lane === 'computer_use' && confirm.card.lane === 'computer_use' && typing.card.windowTitle !== confirm.card.windowTitle).toBe(true)
+  })
+
+  it('refuses password managers, clipboard, secrets, and new terminals', () => {
+    expect(decideComputerUseAuto({ frozenAppName: '1Password', actionKind: 'type_text', contextAvailable: true, appName: '1Password', windowTitle: 'Vault', action: { input: { text: 'x' } } }).outcome).toBe('refuse')
+    expect(decideComputerUseAuto({ frozenAppName: frozenApp, actionKind: 'clipboard_read_text', contextAvailable: true, windowTitle: 'Notes' }).outcome).toBe('refuse')
+    expect(decideComputerUseAuto({ frozenAppName: frozenApp, actionKind: 'secret_read_env_value', contextAvailable: true, windowTitle: 'Notes' }).outcome).toBe('refuse')
+    expect(decideComputerUseAuto({ frozenAppName: frozenApp, actionKind: 'pty_create', contextAvailable: true, windowTitle: 'Terminal' }).outcome).toBe('refuse')
+  })
+
+  it('reviews opening the frozen application and refuses a different one', () => {
+    expect(decideComputerUseAuto({
+      frozenAppName: frozenApp,
+      actionKind: 'open_app',
+      contextAvailable: true,
+      appName: 'Notes',
+      windowTitle: 'Notes',
+      action: { input: { app: 'Notes' } },
+    })).toMatchObject({ outcome: 'review', card: { targetName: 'Notes' } })
+    expect(decideComputerUseAuto({
+      frozenAppName: frozenApp,
+      actionKind: 'focus_app',
+      contextAvailable: true,
+      appName: 'notes',
+      windowTitle: 'Notes',
+      action: { input: { app: 'Notes' } },
+    })).toMatchObject({ outcome: 'review' })
+    expect(decideComputerUseAuto({
+      frozenAppName: frozenApp,
+      actionKind: 'open_app',
+      contextAvailable: true,
+      appName: 'Notes',
+      windowTitle: 'Notes',
+      action: { input: { app: 'Terminal' } },
+    }).outcome).toBe('refuse')
+  })
+})
+
+describe('foreground recheck helpers', () => {
+  it('matches the whole application name', () => {
+    expect(appsMatchForAuto('Notes', 'Notes')).toBe(true)
+    expect(appsMatchForAuto('Notes', ' notes ')).toBe(true)
+    expect(appsMatchForAuto('Microsoft Notes', 'Notes')).toBe(false)
+    expect(appsMatchForAuto('Notes', 'Sticky Notes')).toBe(false)
+    expect(appsMatchForAuto(' ', 'Notes')).toBe(false)
+    expect(appsMatchForAuto('Notes', 'Terminal')).toBe(false)
+  })
+
+  it('requires the foreground window title to match the review card', () => {
+    const card = { lane: 'computer_use' as const, actionKind: 'type_text', appName: 'Notes', windowTitle: 'Notes', reviewClass: 'desktop' as const, targetName: 'hi', detail: '' }
+    expect(foregroundMatchesComputerCard(card, { available: true, appName: 'Notes', windowTitle: 'Notes' })).toBe(true)
+    expect(foregroundMatchesComputerCard(card, { available: true, appName: 'Notes', windowTitle: 'Other' })).toBe(false)
+    expect(foregroundMatchesComputerCard(card, { available: false, appName: 'Notes', windowTitle: 'Notes' })).toBe(false)
   })
 })

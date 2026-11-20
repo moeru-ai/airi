@@ -18,7 +18,7 @@ import { onScopeDispose } from 'vue'
 
 import * as v from 'valibot'
 
-import { AUTO_APPROVAL_REVIEW_PROMPT, parseAutoApprovalReview } from '../../../shared/auto-approval-review'
+import { autoApprovalReviewPrompt, parseAutoApprovalReview } from '../../../shared/auto-approval-review'
 import { electronMcpCallTool, electronMcpGetRuntimeStatus, electronMcpListTools } from '../../../shared/eventa'
 import { autoApprovalCardSchema, autoApprovalReview, chatRequestCancel, chatRequestFinish, chatRequestRegister, terminalOutcomeNotice } from '../../../shared/eventa/terminal-approval'
 import { artistryToolReferences } from './built-in'
@@ -45,7 +45,7 @@ export const useTamagotchiMcpToolsStore = defineStore('tamagotchi-mcp-tools', ()
     if (!consciousness.configured)
       return { decision: 'refuse' as const }
     const conversation: Conversation = { turns: [
-      { id: 'auto-approval-instructions', type: 'system', authority: 'system', content: [{ type: 'text', text: AUTO_APPROVAL_REVIEW_PROMPT }] },
+      { id: 'auto-approval-instructions', type: 'system', authority: 'system', content: [{ type: 'text', text: autoApprovalReviewPrompt(card) }] },
       { id: 'auto-approval-card', type: 'user', content: [{ type: 'text', text: JSON.stringify(card) }] },
     ] }
     try {

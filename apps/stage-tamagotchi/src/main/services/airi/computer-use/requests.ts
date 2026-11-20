@@ -14,6 +14,7 @@ import * as v from 'valibot'
 
 import { approvalGrantModeSchema, chatRequestCancel, chatRequestFinish, chatRequestRegister, sessionApprovalGrant, turboLaneSchema } from '../../../../shared/eventa/terminal-approval'
 import { requireMainFrameSender } from '../../../libs/electron/window-context'
+import { isAutoGrantForegroundDenied } from './auto-policy'
 
 const sessionGrantSchema = v.strictObject({
   sessionId: chatRequestSchema.entries.sessionId,
@@ -37,6 +38,7 @@ export function setupChatRequests(context: ReturnType<typeof createContext>['con
   i18n: I18n
   presentConfirmation: (request: ApprovalPrompt, signal?: AbortSignal) => Promise<boolean>
   readCommandWorkspace?: () => Promise<string | undefined>
+  readForegroundApp?: () => Promise<{ appName: string, windowTitle?: string } | undefined>
 }) {
   const documents = new WeakMap<WebContents, AbortController>()
   const turboDialogs = new Map<string, AbortController>()
@@ -92,10 +94,18 @@ export function setupChatRequests(context: ReturnType<typeof createContext>['con
       return mode
 
     let workspaceRoot: string | undefined
+    let frozenAppName: string | undefined
     if (mode === 'auto' && lane === 'terminal') {
       workspaceRoot = await sources.readCommandWorkspace?.()
       if (!workspaceRoot)
         return currentGrant()
+    }
+    if (mode === 'auto' && lane === 'computer_use') {
+      const foreground = await sources.readForegroundApp?.()
+      const appName = foreground?.appName.trim() ?? ''
+      if (!appName || isAutoGrantForegroundDenied(appName, foreground?.windowTitle))
+        return currentGrant()
+      frozenAppName = appName
     }
 
     turboDialogs.get(key)?.abort()
@@ -110,14 +120,19 @@ export function setupChatRequests(context: ReturnType<typeof createContext>['con
         title: t(`tamagotchi.stage.chat-window.computer-tools.${confirmPrefix}-${modeName}-confirm`),
         detail: mode === 'auto' && lane === 'terminal'
           ? t(`tamagotchi.stage.chat-window.computer-tools.${confirmPrefix}-auto-scope`, { workspace: workspaceRoot ?? '' })
-          : t(`tamagotchi.stage.chat-window.computer-tools.${confirmPrefix}-${modeName}-scope`),
+          : mode === 'auto' && lane === 'computer_use'
+            ? t(`tamagotchi.stage.chat-window.computer-tools.${confirmPrefix}-auto-scope`, { app: frozenAppName ?? '' })
+            : t(`tamagotchi.stage.chat-window.computer-tools.${confirmPrefix}-${modeName}-scope`),
         cancelLabel: t('tamagotchi.stage.chat-window.computer-tools.cancel'),
         allowLabel: t(`tamagotchi.stage.chat-window.computer-tools.${confirmPrefix}-${modeName}-allow`),
         sessionId,
       }, signal)
       if (!approved || signal.aborted || runtime !== sources.getRuntime() || !sources.isChatWindow(window))
         return currentGrant()
-      actions.setGrant(lane, sessionId, runtime.id, mode, workspaceRoot ? { workspaceRoot } : undefined)
+      actions.setGrant(lane, sessionId, runtime.id, mode, {
+        ...(workspaceRoot ? { workspaceRoot } : {}),
+        ...(frozenAppName ? { frozenAppName } : {}),
+      })
       return mode
     }
     finally {

@@ -59,6 +59,8 @@ function createMcpManagerMock() {
     writeConfigText: vi.fn<McpManager['writeConfigText']>(),
     testServer: vi.fn<McpManager['testServer']>(),
     readBundledTerminalCwd: vi.fn<McpManager['readBundledTerminalCwd']>(async () => undefined),
+    readBundledForeground: vi.fn<McpManager['readBundledForeground']>(async () => undefined),
+    readGroundingCandidateLabel: vi.fn<McpManager['readGroundingCandidateLabel']>(async () => undefined),
   } satisfies McpManager
 }
 

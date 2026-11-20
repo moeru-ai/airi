@@ -3,6 +3,10 @@ import type { TerminalNotice, TerminalSnapshot } from '@proj-airi/stage-shared/t
 
 import type { TerminalApprovalOptions } from './terminal-approval'
 
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { ErrorCode, McpError } from '@modelcontextprotocol/sdk/types.js'
 import { terminalDiscardMethod, terminalExecuteMethod } from '@proj-airi/stage-shared/terminal-approval'
@@ -25,6 +29,17 @@ function barrier<T>() {
 
 const evidence: Array<Record<string, unknown>> = []
 const cleanups: Array<() => Promise<void>> = []
+
+function autoWorkspaceDir() {
+  const root = mkdtempSync(join(tmpdir(), 'auto-term-'))
+  writeFileSync(join(root, 'file'), 'x')
+  cleanups.push(async () => {
+    rmSync(root, { recursive: true, force: true })
+  })
+  const executorPlatform = process.platform === 'win32' ? 'win32' as const : 'linux' as const
+  return { root, executorPlatform }
+}
+
 afterEach(async () => {
   for (const cleanup of cleanups.splice(0))
     await cleanup()
@@ -606,7 +621,13 @@ describe('main Terminal approval controller', () => {
 
   it('dispatches an Auto command only after review allows it', async () => {
     const review = vi.fn(async () => 'allow' as const)
-    const h = fixture({ bundled: true, autoWorkspace: '/workspace/app', reviewAuto: review, snapshot: { command: 'rm ./file', effectiveCwd: '/workspace/app' } })
+    const workspace = autoWorkspaceDir()
+    const h = fixture({
+      bundled: true,
+      autoWorkspace: workspace.root,
+      reviewAuto: review,
+      snapshot: { command: 'rm ./file', effectiveCwd: workspace.root, executorCwd: workspace.root, executorPlatform: workspace.executorPlatform },
+    })
     const resultPromise = h.bind()
     await h.queued.promise
     h.ready.release()
@@ -620,12 +641,38 @@ describe('main Terminal approval controller', () => {
   it('reviews the same Auto card once', async () => {
     const review = vi.fn(async () => 'allow' as const)
     const actions = new PendingActionManager()
-    const first = fixture({ actions, bundled: true, autoWorkspace: '/workspace/app', reviewAuto: review, snapshot: { command: 'rm ./file', effectiveCwd: '/workspace/app', preparedId: 'prepared-a' } })
+    const workspace = autoWorkspaceDir()
+    const first = fixture({
+      actions,
+      bundled: true,
+      autoWorkspace: workspace.root,
+      reviewAuto: review,
+      snapshot: {
+        command: 'rm ./file',
+        effectiveCwd: workspace.root,
+        executorCwd: workspace.root,
+        executorPlatform: workspace.executorPlatform,
+        preparedId: 'prepared-a',
+      },
+    })
     const firstResult = first.bind()
     await first.queued.promise
     first.ready.release()
     await firstResult
-    const second = fixture({ actions, bundled: true, reviewAuto: review, turnId: 'turn-b', snapshot: { command: 'rm ./file', effectiveCwd: '/workspace/app', preparedId: 'prepared-b', toolCallId: 'call-b' } })
+    const second = fixture({
+      actions,
+      bundled: true,
+      reviewAuto: review,
+      turnId: 'turn-b',
+      snapshot: {
+        command: 'rm ./file',
+        effectiveCwd: workspace.root,
+        executorCwd: workspace.root,
+        executorPlatform: workspace.executorPlatform,
+        preparedId: 'prepared-b',
+        toolCallId: 'call-b',
+      },
+    })
     second.attribution.toolCallId = 'call-b'
     const secondResult = second.bind()
     await second.queued.promise
@@ -647,12 +694,18 @@ describe('main Terminal approval controller', () => {
     const review = vi.fn((_card: unknown, signal: AbortSignal) => new Promise<'allow' | 'refuse'>((_resolve, reject) => {
       signal.addEventListener('abort', () => reject(new Error('aborted')))
     }))
+    const workspace = autoWorkspaceDir()
     const h = fixture({
       bundled: true,
-      autoWorkspace: '/workspace/app',
+      autoWorkspace: workspace.root,
       reviewAuto: review,
       reviewTimeoutMs: 20,
-      snapshot: { command: 'rm ./file', effectiveCwd: '/workspace/app' },
+      snapshot: {
+        command: 'rm ./file',
+        effectiveCwd: workspace.root,
+        executorCwd: workspace.root,
+        executorPlatform: workspace.executorPlatform,
+      },
     })
     const result = await h.bind()
     expect(h.oracle.dispatches).toBe(0)

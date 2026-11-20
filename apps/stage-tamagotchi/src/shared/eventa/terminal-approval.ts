@@ -17,16 +17,21 @@ export type TurboLane = v.InferOutput<typeof turboLaneSchema>
 export const approvalGrantModeSchema = v.picklist(['ask', 'auto', 'full'])
 export type ApprovalGrantMode = v.InferOutput<typeof approvalGrantModeSchema>
 export const sessionApprovalGrant = defineInvokeEventa<ApprovalGrantMode | false, { sessionId: string, lane: TurboLane, mode?: ApprovalGrantMode }>('eventa:invoke:terminal-approval:session-grant')
+export const autoApprovalReviewClassSchema = v.picklist(['delete', 'write', 'desktop'])
+export type AutoApprovalReviewClass = v.InferOutput<typeof autoApprovalReviewClassSchema>
 export const autoApprovalTerminalCardSchema = v.strictObject({
   lane: v.literal('terminal'),
   cwd: v.string(),
   command: v.string(),
+  reviewClass: autoApprovalReviewClassSchema,
 })
 export const autoApprovalComputerCardSchema = v.strictObject({
   lane: v.literal('computer_use'),
   actionKind: v.string(),
   appName: v.string(),
   windowTitle: v.string(),
+  reviewClass: v.literal('desktop'),
+  targetName: v.string(),
   detail: v.string(),
 })
 export const autoApprovalCardSchema = v.variant('lane', [autoApprovalTerminalCardSchema, autoApprovalComputerCardSchema])

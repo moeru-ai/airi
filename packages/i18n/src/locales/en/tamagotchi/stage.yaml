@@ -99,7 +99,7 @@ docs:
     approval-command-full-scope: AIRI can run local Shell commands with your system privileges. Ask mode requires confirmation before each command.
     approval-command-full-allow: Allow Command full access
     approval-computer-use-auto-confirm: Allow Computer Use auto approval in this conversation?
-    approval-computer-use-auto-scope: AIRI approves desktop changes for 30 minutes. Password managers, wallets, the clipboard, and secrets are refused. Clicks, typing, and shortcuts are reviewed without asking you.
+    approval-computer-use-auto-scope: AIRI approves changes in {app} for 30 minutes. Other apps, password managers, wallets, the clipboard, and secrets are refused. Named clicks, typing, and shortcuts are reviewed without asking you.
     approval-computer-use-auto-allow: Allow Computer Use auto approval
     approval-computer-use-full-confirm: Allow Computer Use full access in this conversation?
     approval-computer-use-full-scope: AIRI can change the desktop, apps, and input through Computer Use. Ask mode requires confirmation before each change.
