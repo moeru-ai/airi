@@ -315,7 +315,25 @@ function mergeGenerationUsage(rounds: GenerationRound[], last?: Parameters<NonNu
   }
 }
 
-async function finishAtDecisionStepLimit(options: StreamOptions | undefined, reached: DecisionStepLimitReached, previousRounds: GenerationRound[] = []) {
+/**
+ * Inspects held output before storing a settled decision-step checkpoint.
+ *
+ * Triggering workflow:
+ * {@link streamFrom} -> {@link DecisionStepLimitReached} -> {@link finishAtDecisionStepLimit}
+ *
+ * Upstream:
+ * - {@link streamWithTransientRetry} drains accepted events before it rejects.
+ *
+ * Downstream:
+ * - {@link ToolCallGuard.inspect} rejects leaked tool calls before checkpoint publication.
+ * - {@link StreamOptions.onGeneratedTurn} stores the partial turn.
+ */
+async function finishAtDecisionStepLimit(options: StreamOptions | undefined, reached: DecisionStepLimitReached, guard: ToolCallGuard, previousRounds: GenerationRound[] = []) {
+  options?.abortSignal?.throwIfAborted()
+  // The step-limit exception bypasses the normal completion path's final inspection.
+  await guard.inspect(true, async (event) => {
+    await options?.onStreamEvent?.(event)
+  }, () => options?.abortSignal?.aborted === true)
   options?.abortSignal?.throwIfAborted()
   const turn: AssistantTurn = {
     ...reached.partialTurn,
@@ -367,7 +385,7 @@ export async function streamFrom(input: StreamFromOptions): Promise<void> {
     catch (error) {
       if (!(error instanceof DecisionStepLimitReached))
         throw error
-      await finishAtDecisionStepLimit(input.options, error)
+      await finishAtDecisionStepLimit(requestInput.options, error, guard)
     }
     return
   }
@@ -398,7 +416,7 @@ export async function streamFrom(input: StreamFromOptions): Promise<void> {
     }
     catch (error) {
       if (error instanceof DecisionStepLimitReached) {
-        await finishAtDecisionStepLimit(requestInput.options, error, completedRounds)
+        await finishAtDecisionStepLimit(requestInput.options, error, guard, completedRounds)
         return
       }
       if (!(error instanceof RequestSwitch))

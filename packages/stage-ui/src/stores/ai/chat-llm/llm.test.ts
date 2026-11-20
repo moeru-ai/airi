@@ -9,6 +9,7 @@ import { createServer } from 'node:http'
 import { env } from 'node:process'
 
 import { chatMessagesToTurns } from '@proj-airi/core-agent'
+import { resolvePrepareStep } from '@xsai/shared-chat'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -1094,7 +1095,7 @@ describe('isToolRelatedError', () => {
   // ROOT CAUSE:
   // Resolved steps skipped the full tool list, so the guard lost names during media preparation and cached retries.
   // Resolve the current tools for each step and keep the actual target's compatibility state through media preparation.
-  it.each(['text.delta', 'reasoning.delta'])('recovers a resolved media request and guards its cached retry in %s for Issue #2161', async (type) => {
+  it.each(['text.delta', 'reasoning.delta'] as const)('recovers a resolved media request and guards its cached retry in %s for Issue #2161', async (type) => {
     const store = useLLM()
     const rawToolCall = '{"name":"builtIn_emitSparkCommand","arguments":{}}'
     const customTools = vi.fn(async () => [createSparkTool()])
@@ -1109,8 +1110,29 @@ describe('isToolRelatedError', () => {
       prepareConversation,
       onStreamEvent,
     } satisfies StreamOptions
-    mockStreamEvents([{ type, delta: rawToolCall }])
-    mockStreamEvents([{ type: 'text.delta', delta: 'Natural response' }])
+    const requests: Message[][] = []
+    // The SDK sends prepareStep's projection while retaining its original message array for generation history.
+    const streamEventsAfterPreparation = (events: Event[]) => {
+      streamTextMock.mockImplementationOnce((request: StreamTextOptions) => {
+        const steps = (async () => {
+          const prepared = await resolvePrepareStep({
+            input: structuredClone(request.messages),
+            model: request.model,
+            prepareStep: request.prepareStep,
+            stepNumber: 0,
+            steps: [],
+            toolChoice: request.toolChoice,
+          })
+          requests.push(prepared.input)
+          for (const event of events)
+            void request.onEvent?.(event)
+          return []
+        })()
+        return { ...createMockStreamResult(), steps }
+      })
+    }
+    streamEventsAfterPreparation([{ type, delta: rawToolCall }])
+    streamEventsAfterPreparation([{ type: 'text.delta', delta: 'Natural response' }])
 
     await store.stream('model-a', provider, conversation, options)
 
@@ -1118,8 +1140,8 @@ describe('isToolRelatedError', () => {
     expect(streamTextMock.mock.calls[0]?.[0]?.model).toBe('model-b')
     expect(streamTextMock.mock.calls[0]?.[0]?.tools?.map(toolNameFrom)).toContain('builtIn_emitSparkCommand')
     expect(streamTextMock.mock.calls[1]?.[0]?.tools).toBeUndefined()
-    expect(streamTextMock.mock.calls[0]?.[0]?.messages).toEqual([{ role: 'user', content: 'Spoken request' }])
-    expect(streamTextMock.mock.calls[1]?.[0]?.messages).toEqual([{ role: 'user', content: 'Spoken request' }])
+    expect(requests[0]).toEqual([{ role: 'user', content: 'Spoken request' }])
+    expect(requests[1]).toEqual([{ role: 'user', content: 'Spoken request' }])
     expect(prepareConversation).toHaveBeenCalledTimes(2)
     expect(prepareConversation.mock.calls[0]?.[1]).toMatchObject({ model: 'model-b', providerId: 'test' })
     expect(conversation.turns[0]).toMatchObject({ content: [{ type: 'audio', data: 'YXVkaW8=' }] })
@@ -1127,7 +1149,7 @@ describe('isToolRelatedError', () => {
     expect(onStreamEvent.mock.calls.some(([event]) => 'text' in event && event.text.includes(rawToolCall))).toBe(false)
 
     onStreamEvent.mockClear()
-    mockStreamEvents([{ type, delta: rawToolCall }])
+    streamEventsAfterPreparation([{ type, delta: rawToolCall }])
     await expect(store.stream('model-a', provider, conversation, options)).rejects.toThrow('tool call "builtIn_emitSparkCommand" as plain text')
 
     expect(streamTextMock).toHaveBeenCalledTimes(3)

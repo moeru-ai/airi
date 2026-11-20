@@ -7,7 +7,7 @@ import type { StreamEvent } from '../types/llm'
 import { describe, expect, it, vi } from 'vitest'
 
 import { conversationToChatMessages } from '../messages/chat-completions'
-import { streamFrom } from './llm-service'
+import { isPlainTextToolCallError, streamFrom } from './llm-service'
 
 function sse(events: unknown[]) {
   return new Response(events.map(event => `data: ${JSON.stringify(event)}\n\n`).join(''), { headers: { 'Content-Type': 'text/event-stream' } })
@@ -59,6 +59,59 @@ function sequentialToolResponse(protocol: 'chat-completions' | 'responses', requ
 }
 
 describe.each(['chat-completions', 'responses'] as const)('%s decision-step budget', (protocol) => {
+  // https://github.com/moeru-ai/airi/pull/2459
+  // ROOT CAUSE:
+  // A step-limit failure bypassed the final inspection of held tool JSON.
+  // Inspect the shared guard before publishing the partial turn.
+  it.each([false, true])('rejects held tool JSON before checkpointing at the limit (PR #2459, dynamic steps: %s)', async (dynamicSteps) => {
+    const text = '{"unclosed": {"name":"repeat","arguments":{}}'
+    const execute = vi.fn(() => 'Settled.')
+    const onGeneratedTurn = vi.fn()
+    const events: StreamEvent[] = []
+    const fetch = vi.fn<typeof globalThis.fetch>(async () => {
+      if (protocol === 'responses') {
+        const output = [
+          { type: 'message', role: 'assistant', id: 'answer', content: [{ type: 'output_text', text, annotations: [] }] },
+          { type: 'function_call', id: 'fc-1', call_id: 'call-1', name: 'repeat', arguments: '{}' },
+        ]
+        return sse([
+          { type: 'response.output_text.delta', delta: text },
+          ...output.map(item => ({ type: 'response.output_item.done', item })),
+          { type: 'response.completed', response: { output } },
+        ])
+      }
+      const textChunk = { choices: [{ index: 0, delta: { content: text } }] }
+      const toolChunk = { choices: [{ index: 0, delta: {
+        tool_calls: [{ index: 0, id: 'call-1', type: 'function', function: { name: 'repeat', arguments: '{}' } }],
+      }, finish_reason: 'tool_calls' }] }
+      return new Response(`data: ${JSON.stringify(textChunk)}\n\ndata: ${JSON.stringify(toolChunk)}\n\ndata: [DONE]\n\n`, { headers: { 'Content-Type': 'text/event-stream' } })
+    })
+    const chatProvider: GenerationProvider = {
+      generation: model => protocol === 'responses'
+        ? { protocol, webSearch: false, config: { model, baseURL: 'https://example.com/v1/', fetch } }
+        : { protocol, config: { model, baseURL: 'https://example.com/v1/', fetch } },
+    }
+    const tools: Tool[] = [{ type: 'function', function: { name: 'repeat', parameters: { type: 'object', properties: {} } }, execute }]
+
+    await expect(streamFrom({
+      model: 'test',
+      chatProvider,
+      conversation: { turns: [] },
+      options: {
+        maxSteps: 1,
+        tools,
+        resolveStep: dynamicSteps ? async () => ({ model: 'test', chatProvider, providerId: 'test', systemPrompt: '', tools }) : undefined,
+        onStreamEvent: (event) => { events.push(event) },
+        onGeneratedTurn,
+      },
+    })).rejects.toSatisfy(isPlainTextToolCallError)
+
+    expect(fetch).toHaveBeenCalledOnce()
+    expect(execute).toHaveBeenCalledOnce()
+    expect(onGeneratedTurn).not.toHaveBeenCalled()
+    expect(events.filter(event => event.type === 'text-delta' || event.type === 'reasoning-delta' || event.type === 'step-limit' || event.type === 'finish')).toEqual([])
+  })
+
   it('settles every tool call in the final allowed step and stores a checkpoint', async () => {
     const toolCount = 40
     let requestCount = 0
