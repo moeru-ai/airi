@@ -59,7 +59,11 @@ useIntersectionObserver(listEnd, ([entry]) => {
 <template>
   <!-- Announcements have their own surface. This panel holds only the user's private messages. -->
   <section :class="['flex flex-col text-neutral-900 dark:text-neutral-100']" :aria-label="t('stage.notifications.title')">
-    <header :class="['flex items-center gap-2', surface === 'floating' ? 'pl-5 pr-3 pt-3' : 'pt-1']">
+    <!--
+      The button pads its icon, so the header has a smaller right padding. Then the icon keeps the distance of the
+      title from the edge. In a drawer, the title lines up with the text of the messages.
+    -->
+    <header :class="['flex items-center gap-2', surface === 'floating' ? 'pl-5 pr-3 pt-3' : 'pl-4 pr-2.5 pt-1']">
       <slot name="leading" />
       <h2 :class="['flex flex-1 items-center gap-2 text-base font-semibold']">
         {{ t('stage.notifications.title') }}
