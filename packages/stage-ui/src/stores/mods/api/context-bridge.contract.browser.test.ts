@@ -26,7 +26,13 @@ const resetStreamMock = vi.fn()
 const refreshSessionMock = vi.fn()
 const serverSendMock = vi.fn()
 const ensureConnectedMock = vi.fn().mockResolvedValue(undefined)
-const onReconnectedMock = vi.fn(() => () => {})
+const readyCallbacks = new Set<() => void>()
+const onReadyMock = vi.fn((callback: () => void) => {
+  readyCallbacks.add(callback)
+  return () => {
+    readyCallbacks.delete(callback)
+  }
+})
 const onContextUpdateMock = vi.fn((callback: HookCallback) => registerHook(contextUpdateHooks, callback))
 const onEventMock = vi.fn((eventName: string, callback: HookCallback) => registerServerEventHook(eventName, callback))
 const getProviderInstanceMock = vi.fn()
@@ -282,7 +288,7 @@ vi.mock('../../providers/provider', () => ({
 vi.mock('./channel-server', () => ({
   useModsServerChannelStore: () => ({
     ensureConnected: ensureConnectedMock,
-    onReconnected: onReconnectedMock,
+    onReady: onReadyMock,
     onContextUpdate: onContextUpdateMock,
     onEvent: onEventMock,
     send: serverSendMock,
@@ -305,7 +311,8 @@ describe('context bridge contract', () => {
     serverSendMock.mockReset()
     ensureConnectedMock.mockClear()
     ensureConnectedMock.mockResolvedValue(undefined)
-    onReconnectedMock.mockClear()
+    onReadyMock.mockClear()
+    readyCallbacks.clear()
     onContextUpdateMock.mockClear()
     onEventMock.mockClear()
     getProviderInstanceMock.mockReset()
@@ -344,6 +351,55 @@ describe('context bridge contract', () => {
     disposePinia(pinia)
     vi.restoreAllMocks()
     localStorage.clear()
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2305
+  // ROOT CAUSE:
+  //
+  // The bridge sent its consumer registration right after `ensureConnected()`.
+  // That resolves at `module:authenticated`, while the transport still refuses sends.
+  //
+  // await serverChannelStore.ensureConnected()
+  // registerConsumers()
+  //
+  // We fixed this by registering on each transport ready.
+  // serverChannelStore.onReady(registerConsumers)
+  it('registers chat-ingestion consumers on each transport ready for Issue #2305', async () => {
+    const registrations = () => serverSendMock.mock.calls
+      .filter(([event]) => event.type === 'module:consumer:register')
+      .map(([event]) => event.data.event)
+
+    await useContextBridgeStore().initialize()
+    // The transport is not ready yet, so nothing may be registered.
+    expect(registrations()).toEqual([])
+
+    for (const callback of readyCallbacks) callback()
+    expect(registrations()).toEqual(['input:text', 'input:text:voice', 'input:voice'])
+
+    // Reconnect or replaced connection: the runtime lost the registry entry.
+    for (const callback of readyCallbacks) callback()
+    expect(registrations()).toHaveLength(6)
+  })
+
+  it('stops registering chat-ingestion consumers after dispose', async () => {
+    const store = useContextBridgeStore()
+    await store.initialize()
+    await store.dispose()
+    serverSendMock.mockClear()
+
+    for (const callback of readyCallbacks) callback()
+
+    expect(serverSendMock).not.toHaveBeenCalled()
+  })
+
+  it('registers chat-ingestion consumers with the priority that the window passes', async () => {
+    await useContextBridgeStore().initialize({ consumerPriority: 1 })
+    for (const callback of readyCallbacks) callback()
+
+    const priorities = serverSendMock.mock.calls
+      .filter(([event]) => event.type === 'module:consumer:register')
+      .map(([event]) => event.data.priority)
+    expect(priorities).toEqual([1, 1, 1])
   })
 
   it('lists the images and recordings of the turn in the chat message event', async () => {
