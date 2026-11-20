@@ -18,6 +18,7 @@
     "start": "tsx --env-file=.env --env-file-if-exists=.env.local src/index.ts",
     "dev": "tsx watch --env-file=.env --env-file-if-exists=.env.local src/index.ts",
     "typecheck": "tsc --noEmit",
+    "test:run": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push"
   },
