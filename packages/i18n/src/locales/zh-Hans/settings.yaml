@@ -368,9 +368,9 @@ pages:
     login: 登录
     logout: 登出
     fluxBalance: Flux 电量
-    signedInAs: 当前账号
     usage:
       tab: 用量
+    signedInAs: 当前账号
     profile:
       tab: 个人资料
       title: 个人资料

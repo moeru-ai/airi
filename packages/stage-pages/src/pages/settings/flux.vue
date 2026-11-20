@@ -274,7 +274,7 @@ async function handleBuy(stripePriceId: string) {
           :class="['shrink-0 text-[13px]', 'text-neutral-500 dark:text-neutral-400']"
         >
           <template #balance>
-            <span :class="['text-lg tabular-nums', 'text-neutral-900 dark:text-neutral-50']">{{ formatNumber(credits) }}</span>
+            <span :class="['text-lg tabular-nums', 'text-neutral-900 dark:text-neutral-50']">{{ formattedCredits }}</span>
           </template>
         </i18n-t>
       </div>

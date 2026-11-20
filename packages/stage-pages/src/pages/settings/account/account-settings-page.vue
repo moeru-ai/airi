@@ -484,7 +484,7 @@ async function handleConfirmDelete(event: Event) {
              section like Profile / Security / Danger. -->
         <aside :class="['hidden md:flex flex-col gap-1 md:sticky md:top-2']">
           <button
-            v-for="section in ['usage', 'security', 'connections', 'sync', 'danger'] as SectionId[]"
+            v-for="section in ['usage', 'profile', 'security', 'connections', 'sync', 'danger'] as SectionId[]"
             :key="section"
             type="button"
             :class="[
