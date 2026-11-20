@@ -12,6 +12,8 @@ import process from 'node:process'
 import { randomUUID } from 'node:crypto'
 import { appendFile, mkdir } from 'node:fs/promises'
 
+import { buildTraceContracts } from './contracts/agent-execution'
+
 export class ComputerUseSession {
   private initialized = false
   private pendingActions = new Map<string, PendingActionRecord>()
@@ -69,6 +71,7 @@ export class ComputerUseSession {
       executionTargetMode: screenshot.executionTargetMode,
       sourceHostName: screenshot.sourceHostName,
       sourceDisplayId: screenshot.sourceDisplayId,
+      sourceWindowId: screenshot.sourceWindowId,
       sourceSessionTag: screenshot.sourceSessionTag,
     }
   }
@@ -126,6 +129,15 @@ export class ComputerUseSession {
   async record(entry: Omit<SessionTraceEntry, 'id' | 'at'>) {
     const fullEntry: SessionTraceEntry = {
       ...entry,
+      contracts: entry.contracts ?? buildTraceContracts({
+        event: entry.event,
+        toolName: entry.toolName,
+        action: entry.action,
+        requiresApproval: entry.policy.requiresApproval,
+        reason: entry.result && typeof entry.result.error === 'string' ? entry.result.error : undefined,
+        pendingActionId: entry.result && typeof entry.result.pendingActionId === 'string' ? entry.result.pendingActionId : undefined,
+        backend: entry.result && typeof entry.result.terminalBackend === 'string' ? entry.result.terminalBackend : undefined,
+      }),
       id: randomUUID(),
       at: new Date().toISOString(),
     }
