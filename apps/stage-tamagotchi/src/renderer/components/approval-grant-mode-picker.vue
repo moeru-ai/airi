@@ -20,12 +20,12 @@ const { t } = useI18n()
 
 const options = computed(() => [
   { value: 'ask' as const, label: t('tamagotchi.stage.chat-window.computer-tools.approval-mode-ask') },
-  { value: 'auto' as const, label: t('tamagotchi.stage.chat-window.computer-tools.approval-mode-auto'), unavailable: true },
+  { value: 'auto' as const, label: t('tamagotchi.stage.chat-window.computer-tools.approval-mode-auto') },
   { value: 'full' as const, label: t('tamagotchi.stage.chat-window.computer-tools.approval-mode-full') },
 ])
 
 function select(mode: ApprovalGrantMode) {
-  if (props.disabled || mode === 'auto' || mode === props.modelValue)
+  if (props.disabled || mode === props.modelValue)
     return
   emit('update:modelValue', mode)
 }
@@ -46,14 +46,13 @@ function select(mode: ApprovalGrantMode) {
       role="radio"
       :data-testid="`approval-${lane}-${option.value}`"
       :aria-checked="modelValue === option.value"
-      :disabled="disabled || option.unavailable"
-      :title="option.unavailable ? t('tamagotchi.stage.chat-window.computer-tools.approval-mode-auto-hint') : undefined"
+      :disabled="disabled"
       :class="[
         'min-w-0 flex-1 rounded-md px-2 py-1 text-center text-xs font-medium transition-colors duration-200',
         modelValue === option.value
           ? 'bg-primary-300/50 text-primary-950 dark:bg-primary-400/50 dark:text-primary-50'
           : 'text-neutral-700 dark:text-neutral-200',
-        disabled || option.unavailable
+        disabled
           ? 'cursor-not-allowed opacity-45'
           : 'cursor-pointer hover:bg-primary-300/20 dark:hover:bg-primary-400/20',
       ]"

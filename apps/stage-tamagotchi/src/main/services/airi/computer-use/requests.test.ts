@@ -106,6 +106,45 @@ describe('main Chat request IPC', () => {
     await main.dispose()
   })
 
+  it('keeps Ask when Command Auto cannot read a workspace', async () => {
+    const { main, input, sessionGrant, presentConfirmation } = fixture()
+    await expect(sessionGrant({ sessionId: input.sessionId, lane: 'terminal', mode: 'auto' })).resolves.toBe('ask')
+    expect(presentConfirmation).not.toHaveBeenCalled()
+    await main.dispose()
+  })
+
+  it('confirms Command Auto against the frozen workspace and returns to Ask when it expires', async () => {
+    const startedAt = 1_700_000_000_000
+    const now = vi.spyOn(Date, 'now').mockReturnValue(startedAt)
+    const ipc = new EventEmitter()
+    const main = createContext(ipc as never)
+    const runtime = createWindowIpc(ipc)
+    const chat = createWindowIpc(ipc)
+    electron.fromWebContents.mockImplementation(sender => [runtime, chat].find(window => window.window.webContents === sender)?.window)
+    const presentConfirmation = vi.fn<(request: ApprovalPrompt, signal?: AbortSignal) => Promise<boolean>>().mockResolvedValue(true)
+    const actions = new PendingActionManager({ autoGrantTtlMs: 30_000 })
+    setupChatRequests(main.context, actions, {
+      getRuntime: () => runtime.window.webContents,
+      isChatWindow: window => window === chat.window,
+      i18n: createI18n({ locale: 'en', messages: { en: {} } }),
+      presentConfirmation,
+      readCommandWorkspace: async () => '/workspace/app',
+    })
+    const sessionGrant = defineInvoke(chat.context, sessionApprovalGrant)
+    const sessionId = 'session-auto'
+    await expect(sessionGrant({ sessionId, lane: 'terminal', mode: 'auto' })).resolves.toBe('auto')
+    expect(presentConfirmation).toHaveBeenCalledWith(expect.objectContaining({ sessionId }), expect.any(AbortSignal))
+    expect(actions.autoGrant('terminal', sessionId, runtime.window.webContents.id)?.workspaceRoot).toBe('/workspace/app')
+    expect(actions.grantMode('terminal', sessionId, runtime.window.webContents.id)).toBe('auto')
+    expect(actions.terminalTurboSignal(sessionId, runtime.window.webContents.id)).toBeUndefined()
+    const signal = actions.autoGrant('terminal', sessionId, runtime.window.webContents.id)?.signal
+    vi.spyOn(Date, 'now').mockReturnValue(startedAt + 30_000)
+    await expect(sessionGrant({ sessionId, lane: 'terminal' })).resolves.toBe('ask')
+    expect(signal?.aborted).toBe(true)
+    await main.dispose()
+    now.mockRestore()
+  })
+
   it('uses the same AIRI approval window for a Computer Use change when Turbo is off', async () => {
     const { main, input, attribution, register, presentConfirmation, presentComputerUse } = fixture()
     const request = await register(input)

@@ -151,25 +151,42 @@ export function verifyExecutionPreconditions(command: string, argv: readonly str
  * All public records are detached snapshots. Source, session, turn, call and arguments bind each approval.
  */
 export type TurboLane = 'terminal' | 'computer_use'
+export type SessionApprovalMode = 'ask' | 'auto' | 'full'
 
-const TURBO_REVOKE_MESSAGES: Record<TurboLane, string> = {
-  terminal: 'Terminal Turbo was turned off before dispatch.',
-  computer_use: 'Computer Use Turbo was turned off before dispatch.',
+/** Auto stands in for the user only until this deadline, then the lane returns to Ask. */
+export const AUTO_GRANT_TTL_MS = 30 * 60_000
+
+const GRANT_REVOKE_MESSAGES: Record<TurboLane, string> = {
+  terminal: 'Terminal approval was turned off before dispatch.',
+  computer_use: 'Computer Use approval was turned off before dispatch.',
+}
+
+interface StoredGrant {
+  mode: 'auto' | 'full'
+  controller: AbortController
+  expiresAt?: number
+  expiryTimer?: ReturnType<typeof setTimeout>
+  workspaceRoot?: string
+  reviewCache: Map<string, 'allow' | 'refuse'>
 }
 
 export class PendingActionManager {
   private actions = new Map<string, PendingAction>()
   private requests = new Map<string, { record: ChatRequest, cancel: AbortController }>()
-  private turboSessions: Record<TurboLane, Map<number, Map<string, AbortController>>> = {
+  private grants: Record<TurboLane, Map<number, Map<string, StoredGrant>>> = {
     terminal: new Map(),
     computer_use: new Map(),
   }
 
   private defaultTtlMs = 60_000 // 60 seconds
+  private autoGrantTtlMs = AUTO_GRANT_TTL_MS
 
-  constructor(options?: { defaultTtlMs?: number }) {
+  constructor(options?: { defaultTtlMs?: number, autoGrantTtlMs?: number }) {
     if (options?.defaultTtlMs) {
       this.defaultTtlMs = options.defaultTtlMs
+    }
+    if (options?.autoGrantTtlMs) {
+      this.autoGrantTtlMs = options.autoGrantTtlMs
     }
   }
 
@@ -208,10 +225,54 @@ export class PendingActionManager {
     return structuredClone(request)
   }
 
-  /** A grant belongs to one verified Runtime and conversation. Revocation aborts only queued Turbo approvals. */
+  /**
+   * Returns the live grant for one Runtime and conversation.
+   * An Auto grant past its deadline is cleared here, which aborts a review that has not dispatched.
+   */
+  private liveGrant(lane: TurboLane, sessionId: string, senderWebContentsId: number | undefined): StoredGrant | undefined {
+    if (senderWebContentsId === undefined)
+      return undefined
+    const grant = this.grants[lane].get(senderWebContentsId)?.get(sessionId)
+    if (!grant)
+      return undefined
+    if (grant.mode === 'auto' && grant.expiresAt !== undefined && Date.now() >= grant.expiresAt) {
+      this.clearGrant(lane, sessionId, senderWebContentsId)
+      return undefined
+    }
+    return grant
+  }
+
+  private clearGrant(lane: TurboLane, sessionId: string, senderWebContentsId: number): void {
+    const sessions = this.grants[lane].get(senderWebContentsId)
+    const grant = sessions?.get(sessionId)
+    if (!grant)
+      return
+    if (grant.expiryTimer)
+      clearTimeout(grant.expiryTimer)
+    grant.controller.abort(new Error(GRANT_REVOKE_MESSAGES[lane]))
+    sessions?.delete(sessionId)
+    if (!sessions?.size)
+      this.grants[lane].delete(senderWebContentsId)
+  }
+
+  /** Ask, Auto, or Full for one lane. A missing or expired grant is Ask. */
+  grantMode(lane: TurboLane, sessionId: string, senderWebContentsId: number | undefined): SessionApprovalMode {
+    return this.liveGrant(lane, sessionId, senderWebContentsId)?.mode ?? 'ask'
+  }
+
+  /** The Full signal. Auto does not reuse it, because a present signal means the dialog is skipped entirely. */
   turboSignal(lane: TurboLane, sessionId: string, senderWebContentsId: number | undefined): AbortSignal | undefined {
-    if (senderWebContentsId !== undefined)
-      return this.turboSessions[lane].get(senderWebContentsId)?.get(sessionId)?.signal
+    const grant = this.liveGrant(lane, sessionId, senderWebContentsId)
+    if (grant?.mode === 'full')
+      return grant.controller.signal
+  }
+
+  /** The Auto signal, workspace, and review memory. Full and Ask have none. */
+  autoGrant(lane: TurboLane, sessionId: string, senderWebContentsId: number | undefined): { signal: AbortSignal, workspaceRoot?: string } | undefined {
+    const grant = this.liveGrant(lane, sessionId, senderWebContentsId)
+    if (grant?.mode !== 'auto')
+      return undefined
+    return { signal: grant.controller.signal, workspaceRoot: grant.workspaceRoot }
   }
 
   terminalTurboSignal(sessionId: string, senderWebContentsId: number | undefined): AbortSignal | undefined {
@@ -222,21 +283,51 @@ export class PendingActionManager {
     return this.turboSignal('computer_use', sessionId, senderWebContentsId)
   }
 
+  /**
+   * Stores one lane grant after the user confirms it.
+   * Replacing or clearing a grant aborts reviews and dispatches that have not started.
+   * Command Auto keeps the workspace that was shown in the confirmation.
+   */
+  setGrant(lane: TurboLane, sessionId: string, senderWebContentsId: number, mode: SessionApprovalMode, options?: { workspaceRoot?: string }): void {
+    this.clearGrant(lane, sessionId, senderWebContentsId)
+    if (mode === 'ask')
+      return
+    if (mode === 'auto' && lane === 'terminal' && !options?.workspaceRoot)
+      throw new Error('Command Auto requires a workspace.')
+    const controller = new AbortController()
+    const grant: StoredGrant = {
+      mode,
+      controller,
+      reviewCache: new Map(),
+      workspaceRoot: options?.workspaceRoot,
+    }
+    if (mode === 'auto') {
+      grant.expiresAt = Date.now() + this.autoGrantTtlMs
+      grant.expiryTimer = setTimeout(() => {
+        this.clearGrant(lane, sessionId, senderWebContentsId)
+      }, this.autoGrantTtlMs)
+      grant.expiryTimer.unref?.()
+    }
+    const sessions = this.grants[lane].get(senderWebContentsId) ?? new Map<string, StoredGrant>()
+    sessions.set(sessionId, grant)
+    this.grants[lane].set(senderWebContentsId, sessions)
+  }
+
+  /** A previous review of this exact card during the current Auto grant. */
+  cachedReview(lane: TurboLane, sessionId: string, senderWebContentsId: number | undefined, card: string): 'allow' | 'refuse' | undefined {
+    return this.liveGrant(lane, sessionId, senderWebContentsId)?.reviewCache.get(card)
+  }
+
+  /** Remembers a review only while that Auto grant is still current. */
+  rememberReview(lane: TurboLane, sessionId: string, senderWebContentsId: number | undefined, card: string, verdict: 'allow' | 'refuse'): void {
+    const grant = this.liveGrant(lane, sessionId, senderWebContentsId)
+    if (grant?.mode === 'auto')
+      grant.reviewCache.set(card, verdict)
+  }
+
   /** Only Main calls this after a user decision in the native confirmation dialog. */
   setTurbo(lane: TurboLane, sessionId: string, senderWebContentsId: number, enabled: boolean): void {
-    const store = this.turboSessions[lane]
-    const sessions = store.get(senderWebContentsId)
-    if (enabled) {
-      if (!sessions)
-        store.set(senderWebContentsId, new Map([[sessionId, new AbortController()]]))
-      else if (!sessions.has(sessionId))
-        sessions.set(sessionId, new AbortController())
-      return
-    }
-    sessions?.get(sessionId)?.abort(new Error(TURBO_REVOKE_MESSAGES[lane]))
-    sessions?.delete(sessionId)
-    if (!sessions?.size)
-      store.delete(senderWebContentsId)
+    this.setGrant(lane, sessionId, senderWebContentsId, enabled ? 'full' : 'ask')
   }
 
   setTerminalTurbo(sessionId: string, senderWebContentsId: number, enabled: boolean): void {
@@ -626,8 +717,8 @@ export class PendingActionManager {
   /** Invalidates waiting approvals when their renderer is destroyed. In-flight work retains its real settlement. */
   cancelBySender(senderWebContentsId: number): void {
     for (const lane of ['terminal', 'computer_use'] as const) {
-      for (const sessionId of this.turboSessions[lane].get(senderWebContentsId)?.keys() ?? [])
-        this.setTurbo(lane, sessionId, senderWebContentsId, false)
+      for (const sessionId of [...this.grants[lane].get(senderWebContentsId)?.keys() ?? []])
+        this.setGrant(lane, sessionId, senderWebContentsId, 'ask')
     }
     for (const { record: request, cancel } of this.requests.values()) {
       if (request.senderWebContentsId === senderWebContentsId) {
@@ -647,9 +738,9 @@ export class PendingActionManager {
   invalidateAll(): void {
     const now = Date.now()
     for (const lane of ['terminal', 'computer_use'] as const) {
-      for (const [sender, sessions] of this.turboSessions[lane]) {
-        for (const sessionId of sessions.keys())
-          this.setTurbo(lane, sessionId, sender, false)
+      for (const [sender, sessions] of [...this.grants[lane]]) {
+        for (const sessionId of [...sessions.keys()])
+          this.setGrant(lane, sessionId, sender, 'ask')
       }
     }
     for (const { record: request, cancel } of this.requests.values()) {

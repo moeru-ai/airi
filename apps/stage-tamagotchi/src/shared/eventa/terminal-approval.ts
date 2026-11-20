@@ -17,6 +17,25 @@ export type TurboLane = v.InferOutput<typeof turboLaneSchema>
 export const approvalGrantModeSchema = v.picklist(['ask', 'auto', 'full'])
 export type ApprovalGrantMode = v.InferOutput<typeof approvalGrantModeSchema>
 export const sessionApprovalGrant = defineInvokeEventa<ApprovalGrantMode | false, { sessionId: string, lane: TurboLane, mode?: ApprovalGrantMode }>('eventa:invoke:terminal-approval:session-grant')
+export const autoApprovalTerminalCardSchema = v.strictObject({
+  lane: v.literal('terminal'),
+  cwd: v.string(),
+  command: v.string(),
+})
+export const autoApprovalComputerCardSchema = v.strictObject({
+  lane: v.literal('computer_use'),
+  actionKind: v.string(),
+  appName: v.string(),
+  windowTitle: v.string(),
+  detail: v.string(),
+})
+export const autoApprovalCardSchema = v.variant('lane', [autoApprovalTerminalCardSchema, autoApprovalComputerCardSchema])
+export type AutoApprovalCard = v.InferOutput<typeof autoApprovalCardSchema>
+export const autoApprovalReviewResultSchema = v.strictObject({
+  decision: v.picklist(['allow', 'refuse']),
+})
+export type AutoApprovalReviewResult = v.InferOutput<typeof autoApprovalReviewResultSchema>
+export const autoApprovalReview = defineInvokeEventa<AutoApprovalReviewResult, AutoApprovalCard>('eventa:invoke:terminal-approval:auto-review')
 export const terminalOutcomeNotice = defineInvokeEventa<{ status: 'stored' | 'suppressed', sessionId: string, messageId: string }, TerminalNotice>('eventa:invoke:terminal-approval:outcome-notice')
 
 export const terminalApprovalWindow = createRequestWindowEventa('terminal-approval')

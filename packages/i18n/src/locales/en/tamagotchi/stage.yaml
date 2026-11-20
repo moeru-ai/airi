@@ -84,7 +84,7 @@ docs:
   computer-tools:
     label: Computer tools
     desktop-unavailable: Desktop capture and input are unavailable in this build.
-    approval-active: Full approval is on for this conversation
+    approval-active: Full or Auto approval is on for this conversation
     approval-section: Approval
     approval-command: Command
     approval-computer-use: Computer Use
@@ -92,9 +92,15 @@ docs:
     approval-mode-auto: Auto
     approval-mode-full: Full
     approval-mode-auto-hint: Auto is not available yet.
+    approval-command-auto-confirm: Allow Command auto approval in this conversation?
+    approval-command-auto-scope: AIRI approves Shell commands inside {workspace} for 30 minutes. Commands outside that folder, privilege changes, and secrets are refused. Sensitive commands inside the folder are reviewed without asking you.
+    approval-command-auto-allow: Allow Command auto approval
     approval-command-full-confirm: Allow Command full access in this conversation?
     approval-command-full-scope: AIRI can run local Shell commands with your system privileges. Ask mode requires confirmation before each command.
     approval-command-full-allow: Allow Command full access
+    approval-computer-use-auto-confirm: Allow Computer Use auto approval in this conversation?
+    approval-computer-use-auto-scope: AIRI approves desktop changes for 30 minutes. Password managers, wallets, the clipboard, and secrets are refused. Clicks, typing, and shortcuts are reviewed without asking you.
+    approval-computer-use-auto-allow: Allow Computer Use auto approval
     approval-computer-use-full-confirm: Allow Computer Use full access in this conversation?
     approval-computer-use-full-scope: AIRI can change the desktop, apps, and input through Computer Use. Ask mode requires confirmation before each change.
     approval-computer-use-full-allow: Allow Computer Use full access

@@ -1,13 +1,16 @@
+import type { Conversation } from '@proj-airi/core-agent'
 import type { ExecutableTool } from '@proj-airi/stage-ui/stores/ai/chat-llm/tools'
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { bundledTerminalServerName, terminalNoticeSchema, terminalNoticeText } from '@proj-airi/stage-shared/terminal-approval'
+import { useTextGeneration } from '@proj-airi/stage-ui/composables/text-generation'
 import { getSpeechBusContext, voiceGenerationEnded } from '@proj-airi/stage-ui/services/speech/bus'
 import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/ai/chat-llm/tools'
 import { useLlmToolsetPromptsStore } from '@proj-airi/stage-ui/stores/ai/chat-llm/toolset-prompts'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
+import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { TOOL_ICONS } from '@proj-airi/stage-ui/tools/icons'
 import { createMcpTools, MCP_AGENT_EXECUTION_PROMPT } from '@proj-airi/stage-ui/tools/mcp'
 import { defineStore } from 'pinia'
@@ -15,8 +18,9 @@ import { onScopeDispose } from 'vue'
 
 import * as v from 'valibot'
 
+import { AUTO_APPROVAL_REVIEW_PROMPT, parseAutoApprovalReview } from '../../../shared/auto-approval-review'
 import { electronMcpCallTool, electronMcpGetRuntimeStatus, electronMcpListTools } from '../../../shared/eventa'
-import { chatRequestCancel, chatRequestFinish, chatRequestRegister, terminalOutcomeNotice } from '../../../shared/eventa/terminal-approval'
+import { autoApprovalCardSchema, autoApprovalReview, chatRequestCancel, chatRequestFinish, chatRequestRegister, terminalOutcomeNotice } from '../../../shared/eventa/terminal-approval'
 import { artistryToolReferences } from './built-in'
 
 export const useTamagotchiMcpToolsStore = defineStore('tamagotchi-mcp-tools', () => {
@@ -34,6 +38,27 @@ export const useTamagotchiMcpToolsStore = defineStore('tamagotchi-mcp-tools', ()
   const cancellations = new WeakMap<AbortSignal, Set<string>>()
   let refreshGeneration = 0
   const chat = useChatStore()
+  const consciousness = useConsciousnessStore()
+  const textGeneration = useTextGeneration()
+  const stopReview = defineInvokeHandler(useElectronEventaContext().value, autoApprovalReview, async (input, options) => {
+    const card = v.parse(autoApprovalCardSchema, input)
+    if (!consciousness.configured)
+      return { decision: 'refuse' as const }
+    const conversation: Conversation = { turns: [
+      { id: 'auto-approval-instructions', type: 'system', authority: 'system', content: [{ type: 'text', text: AUTO_APPROVAL_REVIEW_PROMPT }] },
+      { id: 'auto-approval-card', type: 'user', content: [{ type: 'text', text: JSON.stringify(card) }] },
+    ] }
+    try {
+      const reply = await textGeneration.generateText({
+        providerId: consciousness.activeProvider,
+        model: consciousness.activeModel,
+      })(conversation, options?.abortController?.signal ?? new AbortController().signal)
+      return { decision: parseAutoApprovalReview(reply) }
+    }
+    catch {
+      return { decision: 'refuse' as const }
+    }
+  })
   const stopNotice = defineInvokeHandler(useElectronEventaContext().value, terminalOutcomeNotice, async (input, options) => {
     const notice = v.parse(terminalNoticeSchema, input)
     const messageId = `terminal:${notice.actionId}`
@@ -99,6 +124,7 @@ export const useTamagotchiMcpToolsStore = defineStore('tamagotchi-mcp-tools', ()
     void end({ requestId }).catch(error => console.warn('[MCP] Failed to close a Host request:', error))
   })
   onScopeDispose(() => {
+    stopReview()
     stopNotice()
     stopBeforeSend()
     stopToolCallRerun()

@@ -2,6 +2,7 @@ import type { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import type { TerminalNotice } from '@proj-airi/stage-shared/terminal-approval'
 
 import type { ElectronMcpCallToolPayload, ElectronMcpCallToolResult } from '../../../../shared/eventa'
+import type { AutoApprovalCard } from '../../../../shared/eventa/terminal-approval'
 import type { PendingActionManager } from '../computer-use/action-manager'
 import type { InvocationAttribution } from '../computer-use/attribution'
 import type { ComputerUseApprovalRequest } from '../computer-use/requests'
@@ -15,12 +16,17 @@ import { z } from 'zod'
 
 import * as v from 'valibot'
 
+import { decideCommandAuto, isAskReadOnlyCommand } from '../computer-use/auto-policy'
+import { consultAuto } from '../computer-use/auto-review'
+
 export interface TerminalApprovalOptions {
   actions: PendingActionManager
   present: (actionId: string) => Promise<boolean>
   executeInSlot: ReturnType<typeof createComputerUseRuntime>['executeInSlot']
   notify: (notice: TerminalNotice) => Promise<{ status: 'stored' | 'suppressed', sessionId: string, messageId: string }>
   presentComputerUse: (request: ComputerUseApprovalRequest, signal?: AbortSignal) => Promise<boolean>
+  reviewAuto?: (card: AutoApprovalCard, signal: AbortSignal) => Promise<'allow' | 'refuse'>
+  reviewTimeoutMs?: number
 }
 
 interface TerminalConnection {
@@ -51,9 +57,9 @@ export async function bindTerminalApproval(params: {
     throw new Error('Terminal approval requires the original Host request.')
   const action = options.actions.createTerminalAction({ requestId: payload.requestId, attribution, serverName: connection.serverName, snapshot, arguments: payload.arguments ?? {} })
   const actionId = action.id
-  const turbo = connection.bundledTerminal
-    ? options.actions.terminalTurboSignal(attribution.sessionId, attribution.senderWebContentsId)
-    : undefined
+  let inlineApproval: 'turbo' | 'auto' | 'ask' | undefined
+  let inlineSignal: AbortSignal | undefined
+  let inlineReason: string | undefined
   const log = useLogg('main/terminal-approval').useGlobalConfig()
   const trace = (event: string, detail: Record<string, unknown> = {}) => {
     log.withFields({ event, actionId, requestId: snapshot.requestId, sessionId: attribution.sessionId, turnId: attribution.turnId, toolCallId: attribution.toolCallId, senderWebContentsId: attribution.senderWebContentsId, ...detail }).log('Terminal approval')
@@ -84,12 +90,12 @@ export async function bindTerminalApproval(params: {
     return {
       isError: status !== 'executed' || result?.isError,
       content: [{ type: 'text', text: [guidance, terminalNoticeText(notice, { includeOutcomeGuidance: false })].filter(Boolean).join('\n') }],
-      structuredContent: { status, approval: 'turbo', hostActionId: actionId },
+      structuredContent: { status, approval: inlineApproval ?? 'turbo', hostActionId: actionId, ...(inlineReason ? { reason: inlineReason } : {}) },
     }
   }
   function notify(status: TerminalNotice['status'], result?: Record<string, unknown>, error?: string) {
-    // Turbo returns the settlement through the active tool call, so a second notice turn would interrupt the same task.
-    if (turbo)
+    // An inline grant returns the settlement through the active tool call, so a second notice turn would interrupt the same task.
+    if (inlineApproval)
       return
     const notice = createNotice(status, result, error)
     trace('outcome_notice', { notice })
@@ -112,7 +118,7 @@ export async function bindTerminalApproval(params: {
 
   async function commit(lifetime: AbortSignal, retainMutationRisk: () => void): Promise<ElectronMcpCallToolResult | undefined> {
     lifetime.throwIfAborted()
-    turbo?.throwIfAborted()
+    inlineSignal?.throwIfAborted()
     if (!connection.isCurrent())
       throw new Error('The approved Terminal connection was replaced before dispatch.')
     const approved = options.actions.get(actionId)
@@ -132,7 +138,7 @@ export async function bindTerminalApproval(params: {
       retainMutationRisk()
       trace('unknown', { error, result })
       notifyResult('unknown', result, error)
-      if (turbo)
+      if (inlineApproval)
         return turboResult('unknown', result, error)
       if (result)
         return result
@@ -148,7 +154,7 @@ export async function bindTerminalApproval(params: {
         options.actions.settle(actionId, { outcome: 'failed', executionState: 'not_executed', error: JSON.stringify(result.content) })
         trace('settled_without_executor_dispatch', { result })
         notifyResult('failed', result)
-        return turbo ? turboResult('failed', { ...result, isError: true }) : result
+        return inlineApproval ? turboResult('failed', { ...result, isError: true }) : result
       }
       if (result.structuredContent?.terminalLifecycle !== 'closed') {
         const details = result.structuredContent
@@ -162,14 +168,14 @@ export async function bindTerminalApproval(params: {
         options.actions.settle(actionId, { outcome: 'failed', executionState: 'unknown', error })
         trace('settled', { result })
         notifyResult('unknown', result, error)
-        return turbo ? turboResult('unknown', result, error) : result
+        return inlineApproval ? turboResult('unknown', result, error) : result
       }
       const { exitCode, timedOut } = terminal.output
       const succeeded = !result.isError && exitCode === 0 && !timedOut
       options.actions.settle(actionId, { outcome: succeeded ? 'success' : 'failed', executionState: 'executed', exitCode, error: succeeded ? undefined : JSON.stringify(result.content) })
       trace('settled', { result })
       notifyResult(succeeded ? 'executed' : 'failed', result)
-      return turbo ? turboResult(succeeded ? 'executed' : 'failed', result) : result
+      return inlineApproval ? turboResult(succeeded ? 'executed' : 'failed', result) : result
     }
     catch (error) {
       // Only this bound private-connection proof retires a prepared operation without starting its executor.
@@ -178,7 +184,7 @@ export async function bindTerminalApproval(params: {
         options.actions.settle(actionId, { outcome: 'failed', executionState: 'not_executed', error: errorMessageFrom(error) ?? 'Executor refused before dispatch.' })
         trace('settled_without_executor_dispatch', { error: errorMessageFrom(error) })
         notify('failed', refusal.output, errorMessageFrom(error) ?? 'Executor refused before dispatch. No executor invocation was started by this request.')
-        if (turbo) {
+        if (inlineApproval) {
           return turboResult('failed', {
             isError: true,
             content: [{ type: 'text', text: errorMessageFrom(error) ?? 'The Terminal command was refused before dispatch.' }],
@@ -194,14 +200,14 @@ export async function bindTerminalApproval(params: {
   async function execute(): Promise<ElectronMcpCallToolResult | undefined> {
     let expiryTimer: ReturnType<typeof setTimeout> | undefined
     try {
-      const approved = !!turbo || await options.present(actionId)
+      const approved = inlineApproval !== undefined || await options.present(actionId)
       const current = options.actions.get(actionId)
       if (!current)
-        return turbo ? turboResult('cancelled', undefined, 'The Terminal action closed before dispatch.') : undefined
+        return inlineApproval ? turboResult('cancelled', undefined, 'The Terminal action closed before dispatch.') : undefined
       if (current.status !== 'pending') {
         if (current.status === 'cancelled' || current.status === 'rejected' || current.status === 'expired')
           notify(current.status)
-        return turbo && (current.status === 'cancelled' || current.status === 'expired')
+        return inlineApproval && (current.status === 'cancelled' || current.status === 'expired')
           ? turboResult(current.status, undefined, 'The Terminal action stopped before dispatch.')
           : undefined
       }
@@ -212,7 +218,7 @@ export async function bindTerminalApproval(params: {
         return
       }
       options.actions.approve(actionId)
-      trace('approved', { source: turbo ? 'turbo' : 'approval-window' })
+      trace('approved', { source: inlineApproval === 'turbo' ? 'turbo' : inlineApproval === 'auto' ? 'auto' : inlineApproval === 'ask' ? 'ask-readonly' : 'approval-window' })
       const requestSignal = options.actions.requestSignal(snapshot.requestId, attribution)
       const expiry = new AbortController()
       expiryTimer = setTimeout(() => expiry.abort(new Error('The Terminal approval expired while waiting for dispatch.')), Math.max(0, action.expiresAt - Date.now()))
@@ -220,7 +226,7 @@ export async function bindTerminalApproval(params: {
         // Cancellation and expiry only own admission. An invoked operation keeps its settlement.
         clearTimeout(expiryTimer)
         return commit(lifetime, retainMutationRisk)
-      }, AbortSignal.any(turbo ? [requestSignal, expiry.signal, turbo] : [requestSignal, expiry.signal]))
+      }, AbortSignal.any(inlineSignal ? [requestSignal, expiry.signal, inlineSignal] : [requestSignal, expiry.signal]))
     }
     catch (error) {
       const current = options.actions.get(actionId)
@@ -230,7 +236,7 @@ export async function bindTerminalApproval(params: {
       if (stopped?.status === 'cancelled' || stopped?.status === 'expired')
         notify(stopped.status, undefined, errorMessageFrom(error))
       trace('approval_or_dispatch_stopped', { error: errorMessageFrom(error) })
-      if (turbo)
+      if (inlineApproval)
         return turboResult(stopped?.status === 'expired' ? 'expired' : 'cancelled', undefined, errorMessageFrom(error))
     }
     finally {
@@ -240,13 +246,62 @@ export async function bindTerminalApproval(params: {
         await discard()
     }
   }
-  if (turbo) {
+  async function admit(): Promise<'commit' | 'dialog' | 'refuse'> {
+    if (!connection.bundledTerminal)
+      return 'dialog'
+    const mode = options.actions.grantMode('terminal', attribution.sessionId, attribution.senderWebContentsId)
+    if (mode === 'full') {
+      inlineApproval = 'turbo'
+      inlineSignal = options.actions.terminalTurboSignal(attribution.sessionId, attribution.senderWebContentsId)
+      return 'commit'
+    }
+    if (mode === 'ask') {
+      if (!isAskReadOnlyCommand(snapshot))
+        return 'dialog'
+      inlineApproval = 'ask'
+      return 'commit'
+    }
+    const auto = options.actions.autoGrant('terminal', attribution.sessionId, attribution.senderWebContentsId)
+    if (!auto?.workspaceRoot) {
+      inlineReason = 'Command Auto has no workspace.'
+      return 'refuse'
+    }
+    const decision = decideCommandAuto(snapshot, auto.workspaceRoot)
+    const verdict = await consultAuto({
+      decision,
+      signal: auto.signal,
+      timeoutMs: options.reviewTimeoutMs,
+      cacheGet: card => options.actions.cachedReview('terminal', attribution.sessionId, attribution.senderWebContentsId, card),
+      cacheSet: (card, value) => options.actions.rememberReview('terminal', attribution.sessionId, attribution.senderWebContentsId, card, value),
+      review: (card, signal) => options.reviewAuto?.(card, signal) ?? Promise.resolve('refuse' as const),
+    })
+    inlineReason = verdict.reason
+    if (!verdict.proceed)
+      return 'refuse'
+    inlineApproval = 'auto'
+    inlineSignal = auto.signal
+    return 'commit'
+  }
+
+  const admission = await admit()
+  if (admission === 'refuse') {
+    const reason = inlineReason ?? 'Auto approval refused the command.'
+    options.actions.reject(actionId, reason)
+    await discard().catch(error => trace('prepared_discard_failed', { error: errorMessageFrom(error) }))
+    options.actions.finishTerminalAction(actionId)
+    return {
+      isError: true,
+      content: [{ type: 'text', text: `The Terminal command was refused before dispatch. ${reason}` }],
+      structuredContent: { status: 'rejected', approval: 'auto', hostActionId: actionId, reason, executorInvoked: false },
+    }
+  }
+  if (admission === 'commit') {
     return execute().catch((error) => {
       trace('turbo_result_unavailable', { error: errorMessageFrom(error) })
       return turboResult('unknown', undefined, errorMessageFrom(error))
     }).then((result) => {
       options.actions.finishTerminalAction(actionId)
-      return result ?? turboResult('unknown', undefined, 'Terminal Turbo did not return a command result.')
+      return result ?? turboResult('unknown', undefined, 'The Terminal command did not return a result.')
     })
   }
   const prepared = {

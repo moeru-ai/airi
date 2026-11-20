@@ -156,7 +156,7 @@ const { state: computerUseGrantMode, executeImmediate: refreshComputerUseGrant, 
   'ask' satisfies ApprovalGrantMode,
   { immediate: false },
 )
-const approvalMenuActive = computed(() => commandGrantMode.value === 'full' || computerUseGrantMode.value === 'full')
+const approvalMenuActive = computed(() => commandGrantMode.value !== 'ask' || computerUseGrantMode.value !== 'ask')
 const loadingApproval = computed(() => loadingCommandGrant.value || loadingComputerUseGrant.value)
 const changingApprovalLane = ref<'terminal' | 'computer_use' | null>(null)
 const approvalError = ref('')
@@ -177,7 +177,7 @@ async function refreshApproval(sessionId: string | undefined) {
 
 async function changeApprovalGrant(lane: 'terminal' | 'computer_use', mode: ApprovalGrantMode) {
   const sessionId = activeSessionId.value
-  if (!sessionId || changingApprovalLane.value || loadingApproval.value || mode === 'auto')
+  if (!sessionId || changingApprovalLane.value || loadingApproval.value)
     return
   changingApprovalLane.value = lane
   approvalError.value = ''

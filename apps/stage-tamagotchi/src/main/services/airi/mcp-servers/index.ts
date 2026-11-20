@@ -45,6 +45,8 @@ import { isHttpServerConfig, parseElectronMcpConfigText } from '../../../../shar
 import { onAppBeforeQuit } from '../../../libs/bootkit/lifecycle'
 import { requireMainFrameSender } from '../../../libs/electron/window-context'
 import { validateAttribution } from '../computer-use/attribution'
+import { decideComputerUseAuto } from '../computer-use/auto-policy'
+import { consultAuto } from '../computer-use/auto-review'
 import { McpClient } from './client'
 import { bindTerminalApproval } from './terminal-approval'
 import { defaultBundledToolExposure } from './tool-exposure'
@@ -104,6 +106,8 @@ export interface McpManager {
   readConfigText: () => Promise<ElectronMcpConfigText>
   writeConfigText: (text: string) => Promise<ElectronMcpConfigText>
   testServer: (payload: ElectronMcpTestPayload) => Promise<ElectronMcpTestResult>
+  /** Reads the bundled Terminal runner directory. Missing service or an unreadable state returns undefined. */
+  readBundledTerminalCwd: () => Promise<string | undefined>
 }
 
 const toolNameSeparator = '::'
@@ -553,8 +557,10 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
       if (computerUseApprovals.has(pendingActionId))
         throw new Error('The Computer Use approval is already bound to another Chat request.')
       computerUseApprovals.set(pendingActionId, owner)
-      const turboSignal = terminalApproval.actions.computerUseTurboSignal(attribution.sessionId, senderWebContentsId)
-      const authorizationSignal = combineSignals(callSignal, turboSignal)
+      const mode = terminalApproval.actions.grantMode('computer_use', attribution.sessionId, senderWebContentsId)
+      const fullSignal = mode === 'full' ? terminalApproval.actions.computerUseTurboSignal(attribution.sessionId, senderWebContentsId) : undefined
+      const autoGrant = mode === 'auto' ? terminalApproval.actions.autoGrant('computer_use', attribution.sessionId, senderWebContentsId) : undefined
+      const authorizationSignal = combineSignals(callSignal, fullSignal, autoGrant?.signal)
       let privateRequestSent = false
       // Rejection and execution share `privateRequestSent`, but only execution can
       // reach the desktop. Any failure after dispatch leaves the outcome open:
@@ -570,7 +576,39 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
         })
       }
       try {
-        if (!turboSignal) {
+        if (mode === 'auto') {
+          const contextRecord = normalized.structuredContent.context
+          const context = contextRecord && typeof contextRecord === 'object' && !Array.isArray(contextRecord) ? contextRecord as Record<string, unknown> : undefined
+          const actionRecord = declaredAction && typeof declaredAction === 'object' && !Array.isArray(declaredAction) ? declaredAction as Record<string, unknown> : undefined
+          const decision = decideComputerUseAuto({
+            actionKind,
+            appName: typeof context?.appName === 'string' ? context.appName : undefined,
+            windowTitle: typeof context?.windowTitle === 'string' ? context.windowTitle : undefined,
+            contextAvailable: context?.available === true,
+            action: actionRecord ? { kind: actionKind, input: actionRecord.input && typeof actionRecord.input === 'object' && !Array.isArray(actionRecord.input) ? actionRecord.input as Record<string, unknown> : undefined } : undefined,
+          })
+          const verdict = await consultAuto({
+            decision,
+            signal: autoGrant?.signal ?? AbortSignal.abort(),
+            timeoutMs: terminalApproval.reviewTimeoutMs,
+            cacheGet: card => terminalApproval.actions.cachedReview('computer_use', attribution.sessionId, senderWebContentsId, card),
+            cacheSet: (card, value) => terminalApproval.actions.rememberReview('computer_use', attribution.sessionId, senderWebContentsId, card, value),
+            review: (card, reviewSignal) => terminalApproval.reviewAuto?.(card, reviewSignal) ?? Promise.resolve('refuse'),
+          })
+          if (!verdict.proceed) {
+            const rejected = await reject()
+            if (!rejected)
+              throw new Error('The Computer Use approval was already dispatched.')
+            const normalizedRejection = normalizeCallToolResult(rejected)
+            return {
+              ...normalizedRejection,
+              isError: true,
+              content: [{ type: 'text', text: verdict.reason }, ...(normalizedRejection.content ?? [])],
+              structuredContent: { ...normalizedRejection.structuredContent, status: 'rejected', approval: 'auto', reason: verdict.reason },
+            }
+          }
+        }
+        else if (mode !== 'full') {
           const transparency = normalized.structuredContent.transparency
           const summary = transparency && typeof transparency === 'object' && !Array.isArray(transparency)
             ? Object.values(transparency as Record<string, unknown>).filter((value): value is string => typeof value === 'string' && value.trim().length > 0).join('\n')
@@ -731,6 +769,26 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
     }
   }
 
+  async function readBundledTerminalCwd(): Promise<string | undefined> {
+    const session = sessions.get(bundledTerminalServerName)
+    if (!session)
+      return undefined
+    try {
+      const result = await session.client.callTool({ name: 'terminal_get_state', arguments: {} }, undefined, {
+        timeout: mcpRequestTimeoutMsec,
+        maxTotalTimeout: mcpRequestTimeoutMsec,
+      })
+      const state = normalizeCallToolResult(result).structuredContent?.terminalState
+      if (!state || typeof state !== 'object' || Array.isArray(state))
+        return undefined
+      const cwd = (state as { effectiveCwd?: unknown }).effectiveCwd
+      return typeof cwd === 'string' && cwd.trim().length > 0 ? cwd : undefined
+    }
+    catch {
+      return undefined
+    }
+  }
+
   return {
     ensureConfigFile,
     openConfigFile,
@@ -742,6 +800,7 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
     readConfigText,
     writeConfigText,
     testServer,
+    readBundledTerminalCwd,
   }
 }
 

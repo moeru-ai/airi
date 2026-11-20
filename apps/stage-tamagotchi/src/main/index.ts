@@ -57,6 +57,7 @@ import { registerIOTraceHub } from './services/airi/io-trace-hub/register'
 import { IOTraceRecordingService } from './services/airi/io-trace-recording'
 import { recordHubRecords } from './services/airi/io-trace-recording/hub'
 import { setupMcpManager } from './services/airi/mcp-servers'
+import { reviewAutoApproval } from './services/airi/mcp-servers/auto-review-client'
 import { deliverTerminalNotice } from './services/airi/mcp-servers/terminal-notice'
 import { setupExtensionHost } from './services/airi/plugins'
 import { createBuiltInExtensionKits } from './services/airi/plugins/kits'
@@ -336,6 +337,9 @@ app.whenReady().then(async () => {
     build: ({ on }) => setupAppleVisionService({ on }),
   })
 
+  const commandWorkspaceReader: { read: () => Promise<string | undefined> } = {
+    read: async () => undefined,
+  }
   const pendingActions = injeca.provide('services:pending-actions', () => new PendingActionManager())
   const terminalApproval = injeca.provide('windows:terminal-approval', {
     dependsOn: { actions: pendingActions, i18n, serverChannel },
@@ -351,19 +355,25 @@ app.whenReady().then(async () => {
         isChatWindow: window => chatWindowManager?.owns(window) === true,
         i18n: dependsOn.i18n,
         presentConfirmation: dependsOn.terminalApproval.confirm,
+        readCommandWorkspace: () => commandWorkspaceReader.read(),
       })
       return { ...host, ...chatRequests }
     },
   })
   const mcpManager = injeca.provide('modules:mcp-manager', {
     dependsOn: { pendingActions, computerUse, terminalApproval },
-    build: async ({ dependsOn }) => setupMcpManager({
-      actions: dependsOn.pendingActions,
-      present: dependsOn.terminalApproval.present,
-      presentComputerUse: dependsOn.computerUse.presentComputerUse,
-      executeInSlot: (operation, signal) => dependsOn.computerUse.getRuntime().executeInSlot(operation, signal),
-      notify: notice => deliverTerminalNotice(dependsOn.pendingActions, notice),
-    }),
+    build: async ({ dependsOn }) => {
+      const manager = await setupMcpManager({
+        actions: dependsOn.pendingActions,
+        present: dependsOn.terminalApproval.present,
+        presentComputerUse: dependsOn.computerUse.presentComputerUse,
+        executeInSlot: (operation, signal) => dependsOn.computerUse.getRuntime().executeInSlot(operation, signal),
+        notify: notice => deliverTerminalNotice(dependsOn.pendingActions, notice),
+        reviewAuto: reviewAutoApproval(() => userFacingMainWindow?.webContents),
+      })
+      commandWorkspaceReader.read = () => manager.readBundledTerminalCwd()
+      return manager
+    },
   })
 
   const ioTraceHub = injeca.provide('services:io-trace-hub', {
