@@ -1,20 +1,43 @@
+import type { ComfyUIWorkflowTemplate } from '@proj-airi/stage-shared'
+
 import type { ArtistryJob, ArtistryJobStatus, ArtistryProvider, ArtistryRequest } from './base'
 
 import { Buffer } from 'node:buffer'
 
 import { useLogg } from '@guiiai/logg'
+import { errorMessageFrom } from '@moeru/std'
+import { artistryGlobalsSchema } from '@proj-airi/stage-shared'
+import { differenceInMilliseconds, minutesToMilliseconds, secondsToMilliseconds } from 'date-fns'
+import { millisecondsInMinute } from 'date-fns/constants'
+import { array, nullish, object, optional, parse, record, string, unknown } from 'valibot'
 
 const log = useLogg('providers-comfyui').useGlobalConfig()
 
-const POLL_INTERVAL_MS = 5000
-const POLL_TIMEOUT_MS = 1000 * 60 * 5 // 5 minutes
+const POLL_INTERVAL_MS = secondsToMilliseconds(5)
+const HISTORY_REQUEST_TIMEOUT_MS = secondsToMilliseconds(10)
+const UPLOAD_REQUEST_TIMEOUT_MS = secondsToMilliseconds(60)
+const PROMPT_QUEUE_TIMEOUT_MS = secondsToMilliseconds(15)
+
+/** Upload and prompt-queue requests finish before ComfyUI starts the generation clock. */
+export const COMFYUI_PREPARATION_TIMEOUT_MS = UPLOAD_REQUEST_TIMEOUT_MS + PROMPT_QUEUE_TIMEOUT_MS
+
+const EMPTY_REQUEST_EXTRAS: Readonly<Record<string, unknown>> = Object.freeze({})
+const promptResponseSchema = object({ prompt_id: optional(string()) })
+const uploadResponseSchema = object({ name: string() })
+const historyResponseSchema = record(string(), object({
+  outputs: nullish(record(string(), object({
+    images: nullish(array(object({ filename: string(), subfolder: optional(string()), type: optional(string()) }))),
+  }))),
+  status: nullish(object({ messages: nullish(array(unknown())) })),
+}))
 
 export class ComfyUIProvider implements ArtistryProvider {
   readonly id = 'comfyui'
   readonly name = 'ComfyUI (Local)'
 
   private serverUrl = 'http://localhost:8188'
-  private savedWorkflows: any[] = []
+  private generationTimeoutMs = minutesToMilliseconds(parse(artistryGlobalsSchema.entries.comfyuiGenerationTimeoutMinutes, undefined))
+  private savedWorkflows: ComfyUIWorkflowTemplate[] = []
   private activeWorkflowId = ''
 
   private jobResults = new Map<string, ArtistryJobStatus>()
@@ -52,21 +75,34 @@ export class ComfyUIProvider implements ArtistryProvider {
       callback(status)
   }
 
-  async initialize(config: any): Promise<void> {
-    if (config?.comfyuiServerUrl)
-      this.serverUrl = config.comfyuiServerUrl.replace(/\/+$/, '') // strip trailing slashes
-    if (config?.comfyuiSavedWorkflows)
-      this.savedWorkflows = config.comfyuiSavedWorkflows
-    if (config?.comfyuiActiveWorkflow)
-      this.activeWorkflowId = config.comfyuiActiveWorkflow
+  /**
+   * Updates provided configuration fields. The shared schema supplies the generation default.
+   *
+   * Triggering workflow:
+   * `generateHeadless/handleArtistryTrigger` -> {@link initialize} -> {@link generate}.
+   */
+  async initialize(config: Readonly<Record<string, unknown>>): Promise<void> {
+    if (config.comfyuiServerUrl)
+      this.serverUrl = parse(artistryGlobalsSchema.entries.comfyuiServerUrl, config.comfyuiServerUrl).replace(/\/+$/, '')
+    this.generationTimeoutMs = minutesToMilliseconds(parse(artistryGlobalsSchema.entries.comfyuiGenerationTimeoutMinutes, config.comfyuiGenerationTimeoutMinutes))
+    if (config.comfyuiSavedWorkflows)
+      this.savedWorkflows = parse(artistryGlobalsSchema.entries.comfyuiSavedWorkflows, config.comfyuiSavedWorkflows)
+    if (config.comfyuiActiveWorkflow)
+      this.activeWorkflowId = parse(artistryGlobalsSchema.entries.comfyuiActiveWorkflow, config.comfyuiActiveWorkflow)
   }
 
+  /**
+   * Starts background work with a fixed generation window for this job.
+   *
+   * Triggering workflow:
+   * `generateHeadless/handleArtistryTrigger` -> {@link generate} -> {@link pollForResult} -> job callbacks.
+   */
   async generate(request: ArtistryRequest): Promise<ArtistryJob> {
     const jobId = request.extra?.internalJobId || Math.random().toString(36).slice(2)
 
     // Resolve which workflow template to use --- per-request template override takes precedence over card model default
     const templateId = request.extra?.template || request.model || this.activeWorkflowId
-    const template = this.savedWorkflows.find((w: any) => w.id === templateId)
+    const template = this.savedWorkflows.find(workflow => workflow.id === templateId)
 
     if (!template) {
       this.updateStatus(jobId, {
@@ -77,47 +113,56 @@ export class ComfyUIProvider implements ArtistryProvider {
       return { jobId, providerJobId: jobId }
     }
 
-    // Start async generation
-    this.pollForResult(jobId, template, request)
+    // A validated request snapshot wins over mutable provider configuration.
+    // Direct callers use the initialized setting, captured before background work starts.
+    this.pollForResult(jobId, template, request, request.generationTimeoutMs ?? this.generationTimeoutMs)
 
     return { jobId, providerJobId: jobId }
   }
 
+  /**
+   * Uploads input, queues the workflow, then polls within the job's generation window.
+   *
+   * Triggering workflow:
+   * {@link generate} -> {@link pollForResult} -> `/upload/image`, `/prompt`, `/history` -> {@link updateStatus}.
+   */
   private async pollForResult(
     jobId: string,
-    template: { workflow: Record<string, any>, exposedFields: Record<string, string[]> },
+    template: ComfyUIWorkflowTemplate,
     request: ArtistryRequest,
+    generationTimeoutMs: number,
   ) {
     this.updateStatus(jobId, { status: 'running', actionLabel: 'Preparing workflow...' })
 
     try {
       // 0. Handle potential image and prompt upload bidirectional flow
-      const extraStr = JSON.stringify(request.extra || {})
-      const workflowStr = JSON.stringify(template.workflow || {})
+      const extras: Readonly<Record<string, unknown>> = request.extra ?? EMPTY_REQUEST_EXTRAS
+      const extraStr = JSON.stringify(extras)
+      const workflowStr = JSON.stringify(template.workflow)
       const hasImagePlaceholder = extraStr.includes('{{IMAGE}}') || workflowStr.includes('{{IMAGE}}')
       const hasPromptPlaceholder = extraStr.includes('{{PROMPT}}') || workflowStr.includes('{{PROMPT}}')
 
       let uploadedImageName = ''
-      if (hasImagePlaceholder && request.extra?.image) {
+      if (hasImagePlaceholder && extras.image) {
         log.log(`[ComfyUI] Bidirectional flow detected. Uploading texture for job ${jobId}...`)
         this.updateStatus(jobId, { status: 'running', actionLabel: 'Uploading texture to ComfyUI...' })
         try {
-          uploadedImageName = await this.uploadImage(request.extra.image)
+          uploadedImageName = await this.uploadImage(parse(string(), extras.image))
           log.log(`[ComfyUI] Texture uploaded as: ${uploadedImageName}`)
         }
-        catch (e: any) {
-          log.error(`[ComfyUI] Texture upload failed: ${e.message}`)
+        catch (error) {
+          log.error(`[ComfyUI] Texture upload failed: ${errorMessageFrom(error) ?? 'Unknown error'}`)
         }
       }
 
       // 1. Apply overrides to the workflow template (standard injection)
-      let resolvedPrompt = this.applyOverrides(template, request)
+      let resolvedPrompt: Record<string, unknown> = this.applyOverrides(template, request)
 
       // 2. Perform final placeholder resolution across the ENTIRE resolved prompt
       if (hasImagePlaceholder || hasPromptPlaceholder) {
         log.log(`[ComfyUI] Performing final placeholder resolution for ${jobId}...`)
         const replacements: Record<string, string> = {
-          '{{PROMPT}}': request.prompt || '',
+          '{{PROMPT}}': request.prompt,
         }
         if (uploadedImageName) {
           replacements['{{IMAGE}}'] = uploadedImageName
@@ -137,10 +182,10 @@ export class ComfyUIProvider implements ArtistryProvider {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ prompt: resolvedPrompt }),
-        }, 15000)
+        }, PROMPT_QUEUE_TIMEOUT_MS)
       }
-      catch (e: any) {
-        throw new Error(`Cannot connect to ComfyUI at ${this.serverUrl}: ${e.message}`)
+      catch (error) {
+        throw new Error(`Cannot connect to ComfyUI at ${this.serverUrl}: ${errorMessageFrom(error) ?? 'Unknown error'}`)
       }
 
       if (!queueResp.ok) {
@@ -148,7 +193,7 @@ export class ComfyUIProvider implements ArtistryProvider {
         throw new Error(`Workflow error: ${errorBody.slice(0, 200)}`)
       }
 
-      const queueData = await queueResp.json()
+      const queueData = parse(promptResponseSchema, await queueResp.json())
       const promptId = queueData.prompt_id
       if (!promptId) {
         throw new Error('ComfyUI returned no prompt_id')
@@ -166,8 +211,8 @@ export class ComfyUIProvider implements ArtistryProvider {
         await new Promise(r => setTimeout(r, POLL_INTERVAL_MS))
         attempt++
 
-        if (Date.now() - startTime > POLL_TIMEOUT_MS) {
-          throw new Error('Generation timed out after 5 minutes')
+        if (differenceInMilliseconds(Date.now(), startTime) > generationTimeoutMs) {
+          throw new Error(`Generation timed out after ${generationTimeoutMs / millisecondsInMinute} minutes`)
         }
 
         if (attempt % 3 === 0) {
@@ -176,14 +221,14 @@ export class ComfyUIProvider implements ArtistryProvider {
 
         let histResp: Response
         try {
-          histResp = await this.fetchWithTimeout(`${this.serverUrl}/history/${promptId}`, {}, 10000)
+          histResp = await this.fetchWithTimeout(`${this.serverUrl}/history/${promptId}`, {}, HISTORY_REQUEST_TIMEOUT_MS)
         }
-        catch (e: any) {
-          throw new Error(`ComfyUI disconnected during polling: ${e.message}`)
+        catch (error) {
+          throw new Error(`ComfyUI disconnected during polling: ${errorMessageFrom(error) ?? 'Unknown error'}`)
         }
 
         if (histResp.ok) {
-          const histData = await histResp.json()
+          const histData = parse(historyResponseSchema, await histResp.json())
           if (histData[promptId]) {
             let outputs = histData[promptId].outputs
             const stats = histData[promptId].status
@@ -191,10 +236,10 @@ export class ComfyUIProvider implements ArtistryProvider {
             // 3.1. Race condition protection: If outputs are missing, wait a beat and retry once
             if ((!outputs || Object.keys(outputs).length === 0) && !historyDone) {
               log.warn(`[ComfyUI] Job ${jobId} finished but outputs are empty. Retrying history in 1s...`)
-              await new Promise(r => setTimeout(r, 1000))
-              const retryResp = await this.fetchWithTimeout(`${this.serverUrl}/history/${promptId}`, {}, 10000)
+              await new Promise(r => setTimeout(r, secondsToMilliseconds(1)))
+              const retryResp = await this.fetchWithTimeout(`${this.serverUrl}/history/${promptId}`, {}, HISTORY_REQUEST_TIMEOUT_MS)
               if (retryResp.ok) {
-                const retryData = await retryResp.json()
+                const retryData = parse(historyResponseSchema, await retryResp.json())
                 if (retryData[promptId] && retryData[promptId].outputs) {
                   log.log(`[ComfyUI] Retry successful for ${jobId}. Managed to find outputs!`)
                   outputs = retryData[promptId].outputs
@@ -234,8 +279,8 @@ export class ComfyUIProvider implements ArtistryProvider {
         }
       }
     }
-    catch (error: any) {
-      const errorMessage = error.message || String(error)
+    catch (error) {
+      const errorMessage = errorMessageFrom(error) ?? 'Generation failed'
       log.error(`[ComfyUI] Generation failed for job ${jobId}: ${errorMessage}`)
       this.updateStatus(jobId, {
         status: 'failed',
@@ -248,7 +293,7 @@ export class ComfyUIProvider implements ArtistryProvider {
       setTimeout(() => {
         this.callbacks.delete(jobId)
         this.jobResults.delete(jobId)
-      }, 10000)
+      }, secondsToMilliseconds(10))
     }
   }
 
@@ -342,6 +387,12 @@ export class ComfyUIProvider implements ArtistryProvider {
     return this.jobResults.get(jobId) || { status: 'queued' }
   }
 
+  /**
+   * Uploads a texture before the generation clock starts.
+   *
+   * Triggering workflow:
+   * {@link pollForResult} -> {@link uploadImage} -> `/upload/image` -> workflow image placeholder.
+   */
   private async uploadImage(base64Data: string): Promise<string> {
     // 1. Clean data URL prefix if present
     const base64 = base64Data.replace(/^data:image\/\w+;base64,/, '')
@@ -352,21 +403,21 @@ export class ComfyUIProvider implements ArtistryProvider {
     const fileName = `vhack_${Date.now()}.png`
 
     // Electron/Node 18+ fetch handles Blobs in FormData
-    const blob = new Blob([buffer], { type: 'image/png' })
+    const blob = new Blob([new Uint8Array(buffer)], { type: 'image/png' })
     formData.append('image', blob, fileName)
     formData.append('overwrite', 'true')
 
     const response = await this.fetchWithTimeout(`${this.serverUrl}/upload/image`, {
       method: 'POST',
       body: formData,
-    }, 60000) // 1 minute timeout for uploads
+    }, UPLOAD_REQUEST_TIMEOUT_MS)
 
     if (!response.ok) {
       const error = await response.text()
       throw new Error(`ComfyUI upload failed: ${error}`)
     }
 
-    const data = await response.json()
+    const data = parse(uploadResponseSchema, await response.json())
     return data.name // Returns the filename in ComfyUI's input folder
   }
 
