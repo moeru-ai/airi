@@ -61,10 +61,6 @@ const TEXT_ENTRY_SELECTOR = [
   '[contenteditable]:not([contenteditable="false"])',
 ].join(',')
 
-function readLayoutHeight(targetWindow: Window): number {
-  return targetWindow.document.documentElement.clientHeight
-}
-
 function isTextEntry(element: Element): boolean {
   return element.matches(TEXT_ENTRY_SELECTOR)
     && !element.matches(':disabled, [readonly]')
@@ -181,7 +177,7 @@ export class AdaptiveInput extends EventTarget {
   private readonly measure = () => {
     this.animationFrame = undefined
 
-    const currentLayoutHeight = readLayoutHeight(this.targetWindow)
+    const currentLayoutHeight = this.targetWindow.document.documentElement.clientHeight
     const currentLayoutWidth = this.targetWindow.document.documentElement.clientWidth
     // A software keyboard does not change the width. A new width means a rotation or a fold, so the saved height is old.
     if (currentLayoutWidth !== this.referenceLayoutWidth || (this.focusPhase === 'idle' && !this.pendingWindowScrollRepair))
@@ -271,8 +267,18 @@ export class AdaptiveInput extends EventTarget {
     if (!this.area.contains(event.target) || !isTextEntry(event.target))
       return
 
+    const previousFocusPhase = this.focusPhase
     this.focusPhase = 'focused'
-    this.referenceLayoutHeight = readLayoutHeight(this.targetWindow)
+
+    // WORKAROUND:
+    // NOTICE:
+    // Why: Preserve the idle layout height when moving focus between inputs while the keyboard stays open.
+    // Root cause: Mobile browsers shrink the layout viewport when the virtual keyboard opens.
+    // Source: https://github.com/moeru-ai/airi/issues/3502
+    // Removal condition: Mobile browsers provide keyboard-independent layout viewport metrics.
+    if (previousFocusPhase === 'idle' && !this.layoutValue.keyboardVisible)
+      this.referenceLayoutHeight = this.targetWindow.document.documentElement.clientHeight
+
     this.requestMeasurement()
   }
 
@@ -290,7 +296,7 @@ export class AdaptiveInput extends EventTarget {
     // Root cause: Safari keeps the keyboard-sized Visual Viewport until its close animation ends.
     // Source: https://bugs.webkit.org/show_bug.cgi?id=265578
     // Removal condition: Safari reports each intermediate keyboard close frame through a keyboard API.
-    const normalHeight = this.referenceLayoutHeight || readLayoutHeight(this.targetWindow)
+    const normalHeight = this.referenceLayoutHeight || this.targetWindow.document.documentElement.clientHeight
     this.layoutValue = {
       keyboardVisible: false,
       stableViewportHeight: normalHeight,
