@@ -35,6 +35,24 @@ content.js (MAIN world, window.__AIRI_DG__)
 4. Select this `chrome-extension/` directory
 5. The extension will auto-inject into all pages
 
+## Configure the bridge endpoint
+
+The extension reads its WebSocket endpoint from `chrome.storage.local` when the
+service worker starts. The defaults are `127.0.0.1:8765`.
+
+Run this in the extension service worker's DevTools console to override them:
+
+```js
+chrome.storage.local.set({
+  browserDomBridgeHost: '127.0.0.1',
+  browserDomBridgePort: 8876,
+})
+```
+
+Changes to either setting are applied immediately; the service worker closes
+the old connection and reconnects to the new endpoint. Remove either key from
+`chrome.storage.local` to restore that setting's default.
+
 ## Supported commands
 
 | Command | Description |
