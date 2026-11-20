@@ -16,18 +16,17 @@ import { withRetry } from '@moeru/std'
 import { createErrorHandler } from '@proj-airi/http-error-shared'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
-import { cors } from 'hono/cors'
 import { logger as honoLogger } from 'hono/logger'
 import { createContainer, createLoggLogger, provide, resolve, start, stop } from 'injeca'
 
 import { createAuth, getTrustedClientSeedSummaries, seedTrustedClients } from './auth'
+import { crossOrigin } from './cross-origin'
 import { createAuthDrizzle } from './db'
 import { createEmailService } from './email'
 import { parseAuthEnv } from './env'
-import { getTrustedOrigin } from './origin'
 import { emitOtelLog, initAuthOtel } from './otel'
 import { createResourceApi } from './resource-api'
-import { createAuthRoutes } from './routes'
+import { createAuthRoutes, resolveAuthUiUrl } from './routes'
 
 const EXTERNAL_DEPENDENCY_INIT_MAX_ATTEMPTS = 5
 const EXTERNAL_DEPENDENCY_INIT_BASE_DELAY_MS = 5000
@@ -76,13 +75,12 @@ export async function buildAuthApp(deps: AuthAppDeps) {
       c.res.headers.set('Pragma', 'no-cache')
       c.res.headers.set('Expires', '0')
     })
-    .use(
-      '/api/*',
-      cors({
-        origin: origin => getTrustedOrigin(origin, deps.env.ADDITIONAL_TRUSTED_ORIGINS),
-        credentials: true,
-      }),
-    )
+    // Only the Auth UI sends cookies. Use the resolved UI URL, because server-dev serves
+    // the default UI setting from its own Pages origin.
+    // See server/docs/ai/adr/2026-11-07-cross-origin-boundary.md.
+    .use('/api/*', crossOrigin({
+      credentialedOrigin: new URL(resolveAuthUiUrl(deps.env.AUTH_UI_URL, deps.env.PUBLIC_URL)).origin,
+    }))
     .use(honoLogger())
     .use('*', bodyLimit({ maxSize: 1024 * 1024 }))
     .onError(createErrorHandler(logger))

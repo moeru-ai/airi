@@ -110,7 +110,7 @@ Use it for domain-owned files such as attachments and audio. It does not provide
 public upload routes, access control, attachment records, or message sync.
 
 `S3_BUCKET` and `S3_REGION` are required. The API does not start without them.
-The local `docker-compose.yaml` stack provides RustFS at `http://s3.localhost:6113` and creates the bucket with CORS for local web origins.
+The local `docker-compose.yaml` stack provides RustFS at `http://s3.localhost:6113` and creates the bucket with CORS that allows every origin.
 
 | Variable | Purpose | Default |
 | --- | --- | --- |
@@ -146,8 +146,9 @@ The signature does not prove uploaded bytes match application metadata.
 The domain must validate the uploaded object before it marks a file complete.
 `createDownloadUrl` signs access without checking object existence.
 Authorize access before either signing operation. Do not persist or log signed URLs.
-For browser uploads, configure bucket CORS for the exact client origins, required
-methods, and returned upload headers. CORS configuration remains deployment-owned.
+For browser uploads, bucket CORS allows every origin (`*`) for GET, PUT, and HEAD, and exposes `ETag`.
+The presigned signature is the credential, so an origin list protects nothing.
+The deployment owns the production bucket rule. See [the cross-origin ADR](../../docs/ai/adr/2026-11-07-cross-origin-boundary.md).
 
 See [the storage ADR](../../docs/ai/adr/2026-09-27-s3-object-storage.md).
 
@@ -245,6 +246,13 @@ the API and Auth container ports private.
   the private network while issuer and audience remain `AUTH_SERVER_URL`.
 - Auth tables and principal types come from `@proj-airi/auth-shared`; no module
   under `server/apps/auth` is imported.
+- `/api/*` sends `Access-Control-Allow-Origin: *` to every origin and no
+  `Access-Control-Allow-Credentials`. Clients send a bearer token and the API reads no cookies.
+  `Retry-After` is in `Access-Control-Expose-Headers`.
+  See [the cross-origin ADR](../../docs/ai/adr/2026-11-07-cross-origin-boundary.md).
+- The Stripe return base is a trusted web origin of the request. Trusted means `TRUSTED_ORIGINS`
+  from `@proj-airi/auth-shared`, `ADDITIONAL_TRUSTED_ORIGINS`, or the loopback and Worker preview rules.
+  Native app origins, such as `capacitor://localhost` and `https://localhost`, get `WEB_APP_URL`.
 
 ## Railway
 
