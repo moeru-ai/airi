@@ -3,6 +3,7 @@ import type { Preset, PresetOrFactoryAwaitable } from 'unocss'
 
 import { setDefaultAutoSelectFamilyAttemptTimeout } from 'node:net'
 import { env } from 'node:process'
+import { fileURLToPath } from 'node:url'
 
 import { loadIcon } from '@iconify/utils'
 import { createExternalPackageIconLoader } from '@iconify/utils/lib/loader/external-pkg'
@@ -197,6 +198,9 @@ export function sharedUnoConfig() {
     // If you want to extract them, use the following configuration.
     // It's necessary to add the following configuration if you use shadcn-vue or shadcn-svelte.
     content: {
+      filesystem: [
+        fileURLToPath(new URL('./packages/provider-inference/src/**/*.ts', import.meta.url)).replaceAll('\\', '/'),
+      ],
       pipeline: {
         include: [
           // the default
