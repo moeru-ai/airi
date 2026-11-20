@@ -1,6 +1,6 @@
 # computer-use-mcp
 
-AIRI-specific macOS desktop orchestration MCP service.
+AIRI-specific desktop orchestration MCP service. Windows uses the AUV Runner for native observation and input; Terminal remains the process-launch lane.
 
 ## Why This Exists
 
@@ -37,11 +37,11 @@ The current v1 shape is:
   - audit log
   - trace history
   - screenshot persistence
-- `computer-use-mcp` provides a local macOS execution layer:
+- `computer-use-mcp` provides a local desktop execution layer:
   - window observation
   - screenshots
-  - app open/focus
-  - mouse/keyboard injection
+  - app activation and focus
+  - AUV-backed mouse/keyboard injection on Windows
   - background terminal command execution
 - AIRI desktop adds a native approval adapter:
   - `approval_required` still comes from MCP
@@ -76,8 +76,13 @@ capabilities into one observable, controllable task system.
   - default
   - never injects input
   - still captures best-effort local screenshots for debugging
+- `auv`
+  - current Windows primary backend
+  - window observation through the local AUV daemon
+  - display capture and window-bound click/type/key/scroll operations
+  - each mutation keeps the Host approval gate and a fresh target-window binding
 - `macos-local`
-  - current primary backend
+  - legacy local backend
   - window observation via `NSWorkspace + CGWindowList`
   - input injection via Swift + Quartz `CGEvent`
   - app open/focus via `open -a` and `activate`
@@ -86,6 +91,21 @@ capabilities into one observable, controllable task system.
   - not the main v1 story anymore
 
 ## Tool Surface
+
+### AIRI Agent entry points
+
+The bundled AIRI Agent sees four stable entry points:
+
+- `computer_observe` returns the current screenshot, windows, accessibility data, and grounded targets.
+- `computer_act` performs one grounded or coordinate action through the shared executor.
+- `computer_verify` checks the requested application state after an action.
+- `terminal_exec` runs a command through the Host-managed Terminal approval flow.
+
+The Computer Use MCP keeps granular tools for direct MCP clients and focused integrations. AIRI does not expose them as additional bundled Agent entry points. The Host manages approvals, pending-action state, and session traces.
+
+### Other direct MCP tools
+
+The MCP protocol also exposes the focused tools below to direct clients:
 
 Desktop observation and control:
 
@@ -154,23 +174,38 @@ Workflow orchestration:
 
 ## Policy Model
 
-The current macOS v1 boundary is intentionally narrow and explicit:
+The desktop policy boundary is intentionally narrow and explicit:
 
 - global screen coordinates are allowed for UI actions
 - `allowApps` is not used as a hard gate for click/type/scroll
 - `denyApps` still blocks sensitive foreground apps
 - `COMPUTER_USE_OPENABLE_APPS` only gates `desktop_open_app` and `desktop_focus_app`
 - AIRI itself is in the default deny list to avoid self-operation
-- terminal commands always require approval
-- app open/focus always require approval
+- terminal commands require approval in `actions` and `all` modes
+- app open/focus requires approval in `actions` and `all` modes
 - click/type/press/scroll still use per-action approval
+
+`never` is an explicit operator configuration. It disables action approval, including for arbitrary shell commands.
+The desktop executor does not sandbox Terminal, PTY, or CDP. `dry-run` only describes desktop input.
+The AUV backend executes through the app-owned daemon and refuses stale, placeholder, or cross-window mutation attempts. Terminal uses its own runner and is still the route for launching a process that has no existing window.
+
+In `actions` and `all`, MCP callers cannot approve their own pending actions or claim approved workflow continuation.
+Workflow `autoApprove` cannot weaken the server configuration.
+Unrestricted CDP evaluation, navigation, and delegated browser execution stay disabled while the server requires approval.
+These restrictions do not implement a trusted human approval interface.
 
 ## Environment Variables
 
 Core:
 
 - `COMPUTER_USE_EXECUTOR`
-  - `dry-run`, `macos-local`, or `linux-x11`
+  - `dry-run`, `auv`, `macos-local`, or `linux-x11`
+- `COMPUTER_USE_AUV_BINARY_PATH`
+  - optional path override for the Windows AUV executable
+- `COMPUTER_USE_AUV_STORE_ROOT`
+  - defaults to `<COMPUTER_USE_SESSION_ROOT>/auv`
+- `COMPUTER_USE_AUV_STARTUP_TIMEOUT_MS`, `COMPUTER_USE_AUV_SHUTDOWN_TIMEOUT_MS`
+  - daemon lifecycle deadlines; defaults are 10000 ms and 5000 ms
 - `COMPUTER_USE_APPROVAL_MODE`
   - `actions` (default), `all`, `never`
 - `COMPUTER_USE_SESSION_ROOT`
@@ -181,7 +216,14 @@ Core:
 - `COMPUTER_USE_MAX_OPERATION_UNITS`
 - `COMPUTER_USE_MAX_PENDING_ACTIONS`
 
-macOS orchestration:
+Host control:
+
+- `AIRI_TRUSTED_TERMINAL` and `AIRI_HOST_TERMINAL_NONCE`
+  - private Terminal approval connection. It only authorizes `terminal_exec`.
+- `AIRI_TRUSTED_COMPUTER_USE` and `AIRI_HOST_COMPUTER_USE_NONCE`
+  - private Computer Use approval connection. It authorizes approved desktop and browser mutations without requiring Terminal control.
+
+Desktop orchestration:
 
 - `COMPUTER_USE_OPENABLE_APPS`
   - default `Terminal,Cursor,Google Chrome`
@@ -234,7 +276,7 @@ Binary overrides:
 ## AIRI Integration
 
 AIRI still connects through `mcp.json`.
-Example local macOS entry:
+Example Windows AUV entry:
 
 ```json
 {
@@ -248,7 +290,7 @@ Example local macOS entry:
       ],
       "cwd": "/path/to/your/airi/repo",
       "env": {
-        "COMPUTER_USE_EXECUTOR": "macos-local",
+        "COMPUTER_USE_EXECUTOR": "auv",
         "COMPUTER_USE_APPROVAL_MODE": "actions",
         "COMPUTER_USE_OPENABLE_APPS": "Terminal,Cursor,Google Chrome"
       }
@@ -257,13 +299,11 @@ Example local macOS entry:
 }
 ```
 
-On the AIRI desktop side, approvals are handled like this:
-
-1. model calls a `computer_use::*` tool
-2. MCP returns `approval_required`
-3. Electron shows a native approval dialog
-4. AIRI automatically calls `desktop_approve_pending_action` or `desktop_reject_pending_action`
-5. terminal/app approvals can be reused for the current run only
+The current AIRI desktop attachment forwards the MCP tool catalog and calls.
+Bundled AIRI sessions bind the private Computer Use nonce to the existing Host approval window.
+External MCP clients still need their own trusted adapter before `actions` or `all` can dispatch approved mutations.
+The public `desktop_approve_pending_action` tool returns `denied` in those modes.
+Keep approved writes closed until a trusted host adapter binds identity, target, cancellation, and actual execution settlement.
 
 For browser DOM automation, `computer-use-mcp` also exposes a local WebSocket bridge that matches the user's Chrome extension bridge pattern:
 

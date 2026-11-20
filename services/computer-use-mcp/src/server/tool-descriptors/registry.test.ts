@@ -180,8 +180,9 @@ describe('toolDescriptorRegistry', () => {
       }
 
       expect(Array.from(toolNames).sort()).toEqual([
-        'desktop_click_target',
-        'desktop_observe',
+        'computer_act',
+        'computer_observe',
+        'computer_verify',
       ])
 
       const result = validateToolsHaveDescriptors(Array.from(toolNames))
@@ -308,13 +309,14 @@ describe('toolDescriptorRegistry', () => {
   })
 
   describe('desktop grounding tool enablement', () => {
-    // These 3 core desktop grounding tools must be eagerly enabled (defaultDeferred: false)
-    // so the overlay can poll desktop_get_state, and agents can call desktop_observe / desktop_click_target
+    // Core desktop tools must be eagerly enabled (defaultDeferred: false)
+    // so agents can observe, act, and verify without a discovery round.
     // without needing an explicit enable step.
     const eagerlyEnabledTools = [
+      'computer_observe',
+      'computer_act',
+      'computer_verify',
       'desktop_get_state',
-      'desktop_observe',
-      'desktop_click_target',
     ]
 
     for (const toolName of eagerlyEnabledTools) {
@@ -325,6 +327,13 @@ describe('toolDescriptorRegistry', () => {
         expect(desc.defaultDeferred, `${toolName} must NOT be deferred — it is a core grounding tool`).toBeFalsy()
       })
     }
+
+    it('keeps legacy grounding action kinds out of the public registry', () => {
+      const registry = createPopulatedRegistry()
+
+      expect(registry.get('desktop_observe').public).toBe(false)
+      expect(registry.get('desktop_click_target').public).toBe(false)
+    })
 
     // Other desktop interaction tools must remain deferred to avoid exposing
     // the full desktop surface without explicit enablement.

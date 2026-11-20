@@ -27,6 +27,7 @@ import { probeDisplayInfo, probePermissionInfo } from '../runtime-probes'
 import { errorMessageFromValue } from '../utils/error-message'
 import { runProcess } from '../utils/process'
 import { captureScreenshotArtifact } from '../utils/screenshot'
+import { sleep } from '../utils/sleep'
 import { runSwiftScript } from '../utils/swift'
 
 const buttonNames = {
@@ -608,7 +609,7 @@ export function createMacOSLocalExecutor(config: ComputerUseConfig): DesktopExec
       return result(['scrolled on local macOS desktop'], executionTarget)
     },
     wait: async (input: WaitActionInput) => {
-      await new Promise(resolve => setTimeout(resolve, Math.max(input.durationMs, 0)))
+      await sleep(Math.max(input.durationMs, 0))
       return result(['waited on local macOS desktop'], executionTarget)
     },
   }

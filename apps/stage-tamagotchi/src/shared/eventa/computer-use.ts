@@ -1,15 +1,159 @@
 import { defineInvokeEventa } from '@moeru/eventa'
 
+/** Tool names used by existing computer-use chat history. */
+export const COMPUTER_USE_TOOL_NAME = 'computer_use'
+export const COMPUTER_USE_READ_IMAGE_TOOL_NAME = 'computer_use_read_image'
+
+/** Request correlation supplied by application code, never by model arguments. It does not authenticate a renderer. */
+export interface InvocationAttributionPayload {
+  sessionId: string
+  turnId?: string
+  toolCallId?: string
+}
+
+/** Input payload for computer_use IPC execution */
+export interface ComputerUseRunInput {
+  argv: string[]
+  actionId?: string
+  attribution?: InvocationAttributionPayload
+}
+
+/** Input payload for computer_use_read_image IPC */
+export interface ComputerUseReadImageInput {
+  path: string
+  attribution?: InvocationAttributionPayload
+}
+
+/** Underlying execution state of a computer use command. */
+export type ExecutionState = 'not_executed' | 'executed' | 'unknown'
+
+/** Structured error details for computer use failures across process boundaries. */
+export interface ComputerUseErrorDetails {
+  executionState: ExecutionState
+  authoritativeState?: ExecutionState
+  argv?: readonly string[]
+  exitCode?: number
+  stderr?: string
+  rawMessage?: string
+  cause?: unknown
+}
+
+/** Error thrown when computer use execution fails, preserving execution state and context. */
+export class ComputerUseExecutionError extends Error {
+  readonly executionState: ExecutionState
+  readonly argv?: readonly string[]
+  readonly exitCode?: number
+  readonly stderr?: string
+  readonly rawMessage: string
+
+  constructor(message: string, details: ComputerUseErrorDetails) {
+    super(message, { cause: details })
+    this.name = 'ComputerUseExecutionError'
+    this.rawMessage = details.rawMessage ?? message.replace(/^\[executionState:\s*\w+\]\s*/, '')
+    this.executionState = details.executionState
+    this.argv = details.argv
+    this.exitCode = details.exitCode
+    this.stderr = details.stderr
+    Object.setPrototypeOf(this, new.target.prototype)
+  }
+
+  toJSON() {
+    return {
+      name: this.name,
+      message: this.message,
+      rawMessage: this.rawMessage,
+      executionState: this.executionState,
+      argv: this.argv,
+      exitCode: this.exitCode,
+      stderr: this.stderr,
+    }
+  }
+}
+
+function isExecutionState(value: unknown): value is ExecutionState {
+  return value === 'not_executed' || value === 'executed' || value === 'unknown'
+}
+
+/** Resolves error details across structured clone. Missing or invalid execution facts remain unknown. */
+export function extractErrorDetails(error: unknown): ComputerUseErrorDetails {
+  const direct = error && typeof error === 'object' ? (error as Record<string, unknown>) : undefined
+  const cause = (direct && 'cause' in direct && direct.cause && typeof direct.cause === 'object')
+    ? (direct.cause as Record<string, unknown>)
+    : undefined
+
+  const explicitState = isExecutionState(direct?.executionState)
+    ? direct.executionState
+    : isExecutionState(cause?.executionState)
+      ? cause.executionState
+      : undefined
+
+  const messageMatch = typeof direct?.message === 'string'
+    ? direct.message.match(/\[executionState:\s*(\w+)\]/)?.[1]
+    : undefined
+
+  const authoritativeState = explicitState ?? (isExecutionState(messageMatch) ? messageMatch : undefined)
+  const executionState = authoritativeState ?? 'unknown'
+
+  const exitCode = typeof direct?.exitCode === 'number'
+    ? direct.exitCode
+    : typeof cause?.exitCode === 'number'
+      ? cause.exitCode
+      : typeof direct?.code === 'number'
+        ? direct.code
+        : typeof cause?.code === 'number'
+          ? cause.code
+          : undefined
+
+  const stderr = typeof direct?.stderr === 'string'
+    ? direct.stderr
+    : typeof cause?.stderr === 'string'
+      ? cause.stderr
+      : undefined
+
+  const argv = Array.isArray(direct?.argv)
+    ? direct.argv as readonly string[]
+    : Array.isArray(cause?.argv)
+      ? cause.argv as readonly string[]
+      : undefined
+
+  const rawMessage = typeof direct?.rawMessage === 'string'
+    ? direct.rawMessage
+    : typeof cause?.rawMessage === 'string'
+      ? cause.rawMessage
+      : undefined
+
+  return {
+    executionState,
+    authoritativeState,
+    argv,
+    exitCode,
+    stderr,
+    rawMessage,
+    cause: error,
+  }
+}
+
 /** AUV invocation result. A zero exit code does not verify the requested UI effect. */
 export interface ComputerUseResult {
   argv: string[]
   exitCode: number
   output: unknown
   stderr: string
+  executionState: ExecutionState
 }
 
-export const computerUseRun = defineInvokeEventa<ComputerUseResult, { argv: string[] }>('eventa:invoke:computer-use:run')
-export const computerUseReadImage = defineInvokeEventa<string, { path: string }>('eventa:invoke:computer-use:read-image')
+export interface ComputerUseCancelInput {
+  attribution: InvocationAttributionPayload
+  reason?: string
+}
+
+/** Local history previews share the host artifact store and do not represent a model tool invocation. */
+export type ComputerUsePreviewImageInput = Pick<ComputerUseReadImageInput, 'path'>
+
+export const computerUseRun = defineInvokeEventa<ComputerUseResult, ComputerUseRunInput>('eventa:invoke:computer-use:run')
+export const computerUseReadImage = defineInvokeEventa<string, ComputerUseReadImageInput>('eventa:invoke:computer-use:read-image')
+export const computerUsePreviewImage = defineInvokeEventa<string, ComputerUsePreviewImageInput>('eventa:invoke:computer-use:preview-image')
+export const computerUseCancel = defineInvokeEventa<number, ComputerUseCancelInput>('eventa:invoke:computer-use:cancel')
 
 /**
  * Whether an AUV call asks for help. AUV prints help as text, so the host runs it without `--json`, and the chat shows it as help.

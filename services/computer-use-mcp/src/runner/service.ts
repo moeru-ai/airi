@@ -33,6 +33,7 @@ import { basename, join } from 'node:path'
 
 import { errorMessageFromValue } from '../utils/error-message'
 import { runProcess, sanitizeFileSegment } from '../utils/process'
+import { sleep } from '../utils/sleep'
 
 const sessionDisplayStart = 90
 const sessionDisplayEnd = 110
@@ -43,10 +44,6 @@ const CRLF_SPLIT_RE = /\r?\n/
 const WHITESPACE_SPLIT_RE = /\s+/
 const TRAILING_SLASH_RE = /\/$/
 const DUPLICATE_SLASH_RE = /\/{2,}/g
-
-async function sleep(durationMs: number) {
-  await new Promise(resolve => setTimeout(resolve, durationMs))
-}
 
 function toExecutionTarget(params: {
   hostName: string

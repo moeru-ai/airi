@@ -2,20 +2,148 @@
 
 Scope: terminal lane work in `services/computer-use-mcp/**`.
 
+The AIRI composer can enable Terminal Turbo for one conversation after a native confirmation.
+Main approves bundled Terminal commands through the existing Terminal action and shared execution queue.
+Turning Turbo off cancels queued automatic approvals. Chat receives the result after either approval mode.
+The MCP audit retains desktop metadata.
+Bundled Computer Use mutations use the same Main-owned native approval surface. Turbo off requests one approval for each prepared action, while Turbo on commits the action through the private Host request.
+
+PowerShell receives the normalized exit code without interrupting output formatting.
+The runner returns formatted stdout together with the shell exit code.
+
+Terminal exec and reset skip CDP discovery in the shared action pipeline.
+Linux X11 still checks the remote target, display bounds, and screenshot binding before execution.
+
+## Native AUV admission: 2026-11-16
+
+The Windows MCP service uses `@auv-js/sdk` 0.0.43 and an app-owned AUV daemon.
+Runtime smoke verified real 2560x1440 PNG pixels, window metadata, and the AUV executor.
+Click, type, key, and scroll calls use the approved window and report delivery evidence only.
+Host approval remains the final input gate. Turbo skips the dialog only after the Host enables it for the session.
+Terminal remains independent and launches processes that do not have an existing window.
+Compact remains an Agent conversation concern. It does not grant input authority or replay an uncertain action.
+
+## Executor discovery contract: 2026-11-08
+
+MCP discovery includes the Terminal runner's configured Shell and platform before command preparation.
+The local runner describes fresh Shell processes, default spawn directories, and relative cwd resolution.
+`terminal_get_state` returns that contract with the current default directory without executing a command.
+The tool name is an MCP method. It is not a command installed inside PowerShell.
+The executor still accepts command text. Its syntax and effects require independent inspection.
+Shell version is not probed or inferred from the executable name.
+Approval still freezes argv and spawn cwd. Referenced scripts and their dependencies are not frozen.
+These information changes grant no execution authority. Main approvals and GUI write restrictions remain unchanged.
+
+MCP Desktop observation descriptions also name their configured executor before a call.
+The dry-run executor reports empty native window observations.
+Windows AUV screenshots contain real pixels after daemon startup. Linux screenshots remain remote-runner outputs.
+The bundled Agent receives the selected AUV desktop, Terminal, and PTY tools directly.
+The other service tools stay behind on-demand MCP discovery. Compact runs in Core Agent and Stage UI.
+These descriptions distinguish the backends. They do not establish reliable model tool selection.
+
+## Windows Beta lifecycle: 2026-11-08
+
+The bundled stdio service closes on input EOF, transport close, SIGINT and SIGTERM.
+Shutdown stops Terminal admission and waits for direct shell exit. Output drain after exit has a deadline.
+The private prepared request passes protocol cancellation to the runner.
+Cancellation after dispatch requests process termination. It does not reverse effects or prove zero dispatch.
+Result readiness and direct shell closure remain separate. A drain deadline reports an unconfirmed lifecycle.
+Windows termination still covers the direct Shell only. Descendant cleanup remains unverified at this boundary.
+Main latches its existing descendant-risk guard after an unconfirmed lifecycle and retains known timeout facts.
+Waiting approvals can expire or cancel while another execution owns the queue.
+The Host discards those prepared records. The guard blocks subsequent mutations until shutdown.
+
+Tests: `pnpm -F @proj-airi/computer-use-mcp exec vitest run src/server-lifecycle.test.ts src/terminal/runner-lifecycle.test.ts src/server/terminal-approval.test.ts`.
+These controlled tests use mock processes and the real MCP protocol. They do not establish human production authorization.
+
+## Terminal environment scope: 2026-11-07
+
+MCP execution reports retain desktop `executionTarget` and `context` fields for audit.
+AIRI omits those fields from Terminal notices sent to Chat.
+The `terminalBackend` field comes from the actual Terminal runner, independently of the desktop executor.
+Desktop dry-run does not establish whether a Shell command executed.
+Command results retain their actual exit code, timeout and possible side effects.
+
+`backendResult.effectiveCwd` is the directory used for that command's spawn.
+`terminalState.effectiveCwd` is the runner default for a later command.
+Neither field tracks the current directory of an interactive Shell.
+Controlled MCP and provider projection tests cover this information contract.
+Native execution and business effects require their separate Host and Fixture evidence.
+
+## Convergence authorization correction: 2026-11-05
+
+The accepted integration baseline had three independent approval bypasses.
+Agent-callable approval, workflow auto-approval/resume, and direct CDP mutations crossed the configured human-consent boundary.
+Real MCP protocol tests reproduced them with mock executors before the correction.
+
+- In `actions` and `all`, public pending-action approval now returns `denied`.
+- Workflow automatic approval is derived from trusted `approvalMode=never`, rather than model arguments alone.
+- A caller cannot claim approved workflow continuation while the server requires approval.
+- Raw CDP evaluation, navigation, and optional delegated browser execution remain closed in those modes.
+- Explicit `never` retains its broad operator-configured scope. The desktop executor does not sandbox shell commands.
+
+Phase 5.1 adds an opt-in trusted Terminal approval adapter in Electron Main.
+The adapter requires a Main-managed direct stdio connection and a registered Chat request.
+A separate Main-created window presents the frozen command, shell arguments, executor identity and cwd source.
+Only its actual main frame can return a decision. Model-facing approval remains denied.
+Main consumes its existing PendingAction once inside the shared desktop execution queue.
+The private executor protocol freezes spawn arguments before approval and waits for direct shell closure.
+
+This slice has controlled tests and delegated UI operator evidence with a mock provider.
+It does not establish real-model continuation or real-human production authorization.
+Phase 5.2 verifies bounded cancellation and direct-process lifecycle cases with controlled barriers.
+The final private dispatch boundary rechecks the MCP request signal and deadline.
+Windows direct shell closure does not prove descendant termination. Terminal commands are not sandboxed.
+B0-style notice delivery now uses the original Host request and existing Core FIFO and persistent message identity.
+Controlled and delegated UI tests use a mock provider. Real-model acceptance remains a separate gate.
+Native GUI writes remain closed.
+The historical run-grant claims below do not establish current product support.
+See `docs/ai/convergence/execution-authorization-boundary.md` from the repository root for evidence and remaining limits.
+
 This file is the handoff record for terminal lane work. It moved here from `AGENTS.md` without content changes.
+
+## Workflow result correction: 2026-11-06
+
+Workflow exec steps now treat a reported nonzero exit code or timeout as failure.
+The existing formatter forwards the exit code, timeout flag, and bounded error output in the step explanation.
+The explanation preserves dispatch and possible side effects. Recovery requires inspecting the result before another decision.
+Command exit zero does not verify an independent business outcome.
+
+- PTY self-acquire routing and PTY completion semantics are unchanged.
+- This correction uses controlled executor and provider boundaries. No new real AIRI Chat E2E ran.
+- Public self-approval remains denied in approval modes. The Phase 5.1 adapter does not grant workflow auto-approval.
+- Support-matrix labels are unchanged. AUV GUI writes pass through Host approval and fresh window binding.
 
 ## Current Status Snapshot
 
-Updated for the current terminal-lane-v2 workstream.
+Updated for the current AUV and terminal-lane-v2 workstream.
 
 The important truth is:
 
 - `exec` is already a real mainline surface.
+- Windows AUV observation and input are real mainline surfaces behind Host approval.
 - `PTY` is no longer just a loose tool set; the workflow engine now has self-acquire support.
 - Service-layer terminal E2Es for the current lane are present and treated as the terminal proof line.
 - The AIRI chat terminal demo is now aligned with terminal lane v2 and no longer pre-creates PTY.
-- The desktop shell now distinguishes `pty_session` from `terminal_and_apps`.
+- PTY acquisition records a `pty_session` grant. Desktop AUV approval uses the separate Host Computer Use request.
 - AIRI chat self-acquire is now part of the strict release gate set, so PTY mainline support is no longer intentionally held back.
+
+## Current lane handoff: 2026-11-16
+
+The workflow self-acquires PTY for interactive steps. The workflow does not need a pre-created PTY.
+The AIRI Chat self-acquire E2E uses the same service path. It remains the Chat integration proof.
+`terminal_exec` uses the Terminal approval protocol. AUV desktop actions use the Host Computer Use approval request.
+The MCP client cannot approve its own AUV actions. Turbo uses the Host action request and its cancellation signal.
+`pty_create` returns a service grant scoped to `approvalSessionId` and `ptySessionId`. Host UI does not persist a `pty_session` grant.
+
+Current `src/support-matrix.ts` status:
+
+- `terminal_exec`, `terminal_pty`, and `terminal_pty_self_acquire` are `product-supported`.
+- `terminal_exec_to_pty_reroute`, `terminal_auto_surface_resolution`, and `terminal_pty_step_family` are `covered`.
+- PTY Open Grant, PTY audit, and the VS Code controller are `covered`.
+
+The bundled Agent catalog exposes selected AUV desktop, Terminal, and PTY tools directly.
+Browser, workflow, accessibility, memory, and other service tools remain available through on-demand MCP discovery.
 
 Do not rely on compressed chat summaries to resume this work. Use this file as the handoff source of truth and update it when terminal-lane behavior changes materially.
 
@@ -48,7 +176,6 @@ The main implementation lives in:
 1. The current `taskId + stepId` already has a bound PTY session.
 2. The step explicitly declares `interaction: 'persistent'`.
 3. The command matches `KNOWN_INTERACTIVE_COMMAND_PATTERNS`.
-4. A failed/timed-out exec attempt surfaces one of `INTERACTIVE_OUTPUT_MARKERS`.
 
 This rule set is covered by:
 
@@ -60,7 +187,6 @@ This rule set is covered by:
 The engine already contains the v2 shape:
 
 - `AcquirePtyForStep`
-- `StepTerminalProgress`
 - suspension point `before_pty_acquire`
 - PTY step family support:
   - `pty_send_input`

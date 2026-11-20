@@ -1,4 +1,4 @@
-import type { AssistantTurn, ContextSegment, GenerationRound, InputSegment, SegmentRefusal, SegmentText, SegmentToolCall, SegmentToolResult, Turn } from './types'
+import type { AssistantTurn, ContextSegment, GenerationRound, InputSegment, ModelDecisionRecord, SegmentRefusal, SegmentText, SegmentToolCall, SegmentToolResult, Turn } from './types'
 
 /** Adapter-local content records used while decoding and encoding protocol messages. Not stored in Conversation. */
 export type ProjectionEntry = { id: string, source?: string, metadata?: Record<string, unknown> } & (
@@ -10,7 +10,7 @@ export type ProjectionEntry = { id: string, source?: string, metadata?: Record<s
 
 /** Decodes one known model step. Tool results correlate only with calls in this round. */
 export function readRound(id: string, entries: ProjectionEntry[]): GenerationRound {
-  const round: GenerationRound = { id, content: [], toolInvocations: [], projectionIssues: [] }
+  const round: GenerationRound = { id, content: [], modelDecisions: [], toolInvocations: [], projectionIssues: [] }
   for (const entry of entries) {
     for (const segment of entry.segments) {
       if (segment.type === 'tool-call') {
@@ -19,7 +19,15 @@ export function readRound(id: string, entries: ProjectionEntry[]): GenerationRou
           continue
         }
         const invocationId = `${id}/${segment.callId}`
+        const decision: ModelDecisionRecord = {
+          id: invocationId,
+          callId: segment.callId,
+          name: segment.name,
+          arguments: segment.arguments,
+          decidedAt: new Date().toISOString(),
+        }
         round.content.push({ type: 'tool', invocationId })
+        round.modelDecisions!.push(decision)
         round.toolInvocations.push({ id: invocationId, callId: segment.callId, name: segment.name, arguments: segment.arguments, execution: { status: 'pending' } })
       }
       else if (segment.type === 'tool-result') {
@@ -88,7 +96,8 @@ export function projectRound(round: GenerationRound): ProjectionEntry[] {
     const invocation = round.toolInvocations.find(call => call.id === part.invocationId)
     if (!invocation)
       throw new Error(`Missing tool invocation ${part.invocationId}`)
-    segments.push({ type: 'tool-call', callId: invocation.callId, name: invocation.name, arguments: invocation.arguments })
+    const decision = round.modelDecisions?.find(item => item.id === invocation.id)
+    segments.push({ type: 'tool-call', callId: decision?.callId ?? invocation.callId, name: decision?.name ?? invocation.name, arguments: decision?.arguments ?? invocation.arguments })
   }
   if (segments.length)
     entries.push({ id: round.id, role: 'assistant', segments })
@@ -97,6 +106,26 @@ export function projectRound(round: GenerationRound): ProjectionEntry[] {
       entries.push({ id: invocation.id, role: 'tool', segments: [{ type: 'tool-result', callId: invocation.callId, content: invocation.execution.output }] })
   }
   return entries
+}
+
+/** Adds the stored decision-budget result to provider context without treating it as business verification. */
+export function projectStopReason(turn: AssistantTurn): ProjectionEntry | undefined {
+  if (turn.stopReason?.type !== 'step-limit')
+    return undefined
+
+  return {
+    id: `${turn.id}/stop-reason`,
+    role: 'context',
+    segments: [{
+      type: 'domain-event',
+      eventType: 'agent-decision-step-limit',
+      payload: {
+        maxSteps: turn.stopReason.maxSteps,
+        completedSteps: turn.stopReason.completedSteps,
+        goalState: 'not-verified',
+      },
+    }],
+  }
 }
 
 /** Application context becomes user-level data; trusted instructions retain their declared authority. */
