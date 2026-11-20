@@ -4,6 +4,7 @@ import type { AutoUpdaterState } from '@proj-airi/electron-eventa/electron-updat
 import type { BrowserWindow } from 'electron'
 
 import type { ElectronUpdaterChannel } from '../../../shared/eventa'
+import type { CleanupPendingInstallersOptions } from './auto-updater-cleanup'
 
 import process from 'node:process'
 
@@ -17,6 +18,7 @@ import { tryCatch } from '@moeru/std'
 import { onWindowClosed } from '@proj-airi/electron-vueuse/main'
 import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import { app } from 'electron'
+import { injeca, optional } from 'injeca'
 import { isWindows } from 'std-env'
 
 import {
@@ -26,6 +28,11 @@ import {
   electronSetUpdaterPreferences,
 } from '../../../shared/eventa'
 import { channelOfVersion, updateChannels } from '../../../shared/update-channels'
+import {
+  cleanupRedundantPendingInstallers,
+  getWindowsUpdaterCacheDir,
+  hashFileSha512,
+} from './auto-updater-cleanup'
 import { changesUrlOf, fetchGitHubReleaseNotes, hasGitHubRelease } from './release-notes'
 
 const UPDATE_CHANNEL_ENV_KEY = 'AIRI_UPDATE_CHANNEL'
@@ -247,6 +254,9 @@ function createDisabledAutoUpdater(options: AutoUpdaterOptions): AutoUpdater {
   }
 }
 
+export type { CleanupPendingInstallersOptions }
+export { cleanupRedundantPendingInstallers, getWindowsUpdaterCacheDir, hashFileSha512 }
+
 /**
  * Serves the AIRI updater contract with the ergosphere-it updater, which the launcher runs. It checks at launch and
  * then every hour by itself, downloads bundles and installers, and rolls back a bundle that does not report healthy.
@@ -394,8 +404,17 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
   let mainReady = false
   let pageMounted = false
   function reportHealthWhenReady() {
-    if (mainReady && pageMounted && updater.status.status !== 'disabled')
+    if (mainReady && pageMounted && updater.status.status !== 'disabled') {
       updater.markBundleHealthy()
+      const runCleanup = async () => {
+        const resolved = await injeca.resolve({ cleanup: optional('services:auto-updater:cleanup') }).catch(() => undefined)
+        const cleanup = (resolved?.cleanup?.value as (() => Promise<unknown>) | undefined) ?? cleanupRedundantPendingInstallers
+        return cleanup()
+      }
+      void runCleanup().catch((error) => {
+        log.withError(error).warn('[auto-updater] failed to cleanup redundant pending installer')
+      })
+    }
   }
 
   return {
