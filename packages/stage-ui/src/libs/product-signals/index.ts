@@ -21,7 +21,7 @@ import {
 import { setErrorReportingEnabled, setErrorReportingUser } from './error-reporting'
 import {
   analyticsSettingChangedEvent,
-  appLoadedEvent,
+  appOpenedEvent,
   characterSwitchedEvent,
   firstMessageSentEvent,
 } from './events/app'
@@ -36,6 +36,9 @@ export type { AnalyticsEvent, InferAnalyticsEventPayload } from './utils/dsl'
 export { defineEvent } from './utils/dsl'
 
 type AnyAnalyticsEvent = AnalyticsEvent<object>
+
+/** Primary runtimes count app opens. Auxiliary windows retain observers without counting another open. */
+export type AnalyticsAppEntry = 'primary' | 'auxiliary'
 
 /** Minimal analytics boundary that product event modules can depend on. */
 export interface AnalyticsRecorder {
@@ -57,7 +60,7 @@ class Analytics implements AnalyticsRecorder {
   private firstMessageRecorded = false
   private initialized = false
 
-  initialize(): void {
+  initialize(appEntry: AnalyticsAppEntry): void {
     if (this.initialized)
       return
 
@@ -70,10 +73,12 @@ class Analytics implements AnalyticsRecorder {
 
     if (settingsAnalytics.analyticsEnabled && enableAnalytics()) {
       registerAnalyticsBuildInfo(buildInfo)
-      this.emit(appLoadedEvent, {
-        platform: analyticsSurface(),
-        version: buildInfo.version,
-      })
+      if (appEntry === 'primary') {
+        this.emit(appOpenedEvent, {
+          app_surface: analyticsSurface(),
+          version: buildInfo.version,
+        })
+      }
     }
 
     const identify = (userId: string) => {
@@ -186,9 +191,9 @@ export function disableAnalytics(): void {
   disableAnalyticsCapture()
 }
 
-/** Starts analytics lifecycle observers after Pinia is available. */
-export function initializeAnalytics(): void {
-  analytics.initialize()
+/** Starts runtime observers after Pinia is available. App entry ownership controls the single startup event. */
+export function initializeAnalytics(appEntry: AnalyticsAppEntry): void {
+  analytics.initialize(appEntry)
 }
 
 export { configureAnalyticsAdapter, getAnalyticsIdentityHeaders, isAnalyticsAvailableInBuild }

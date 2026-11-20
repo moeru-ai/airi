@@ -140,7 +140,7 @@ watch(settings.themeColorsHueDynamic, () => {
 
 async function loadStartup() {
   try {
-    initializeAnalytics()
+    initializeAnalytics('primary')
     await startup.run('auth', () => authStore.initialize())
     await startup.run('modelIndex', () => displayModelsStore.initialize())
     await startup.run('card', async () => {

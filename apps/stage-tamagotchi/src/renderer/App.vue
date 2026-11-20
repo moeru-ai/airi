@@ -312,7 +312,7 @@ function createFullStageRuntime() {
 
   return {
     async initialize() {
-      initializeAnalytics()
+      initializeAnalytics(windowContext.appEntry)
       await authStore.initialize()
       await displayModelsStore.initialize()
       await cardStore.initialize()

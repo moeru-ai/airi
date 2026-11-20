@@ -758,14 +758,6 @@ export function useAnalytics() {
     captureAnalyticsEvent('character_updated', properties)
   }
 
-  // ─── App lifecycle ───────────────────────────────────────────────────
-
-  function trackAppLoaded(properties: { platform: 'web' | 'desktop' | 'mobile', version: string, cold_start_ms?: number }) {
-    if (!canCapture())
-      return
-    captureAnalyticsEvent('app_loaded', properties)
-  }
-
   // ─── Feature usage / retention ───────────────────────────────────────
 
   function trackCharacterDeleted(properties: { character_id: string }) {
@@ -993,8 +985,6 @@ export function useAnalytics() {
     trackOfficialTtsPreviewSucceeded,
 
     trackAutonomousGenerateText,
-
-    trackAppLoaded,
 
     trackCardEdited,
     trackSceneBackgroundSet,

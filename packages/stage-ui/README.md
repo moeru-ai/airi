@@ -313,6 +313,14 @@ A spoken turn is one IO trace, from the wake word to playback:
 
 A typed turn starts its trace at `Interaction turn`.
 
+## Application lifecycle analytics
+
+Each app calls `initializeAnalytics` after Pinia is available.
+Pass `primary` for the application entry and `auxiliary` for a secondary desktop window.
+If analytics are enabled, a primary runtime sends one `app_opened` event with `app_surface` and `version`.
+Auxiliary windows keep identity, settings, and character observers without adding a startup event.
+Use shared `desktop`, `web`, and `mobile` surface values across event types.
+
 ## Button analytics
 
 Register the shared plugin once in each Vue application:
