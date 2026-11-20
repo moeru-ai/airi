@@ -41,6 +41,7 @@
     "./libs/providers/stream-transcription": "./src/libs/providers/stream-transcription/index.ts",
     "./libs/providers/providers/aliyun-nls": "./src/libs/providers/providers/aliyun-nls/index.ts",
     "./libs/providers/providers/official": "./src/libs/providers/providers/official/index.ts",
+    "./libs/providers/providers/voicebox": "./src/libs/providers/providers/voicebox/index.ts",
     "./libs/providers/providers/sherpaw/model-assets": "./src/libs/providers/providers/sherpaw/model-assets.ts",
     "./libs/*": "./src/libs/*.ts",
     "./libs": "./src/libs/index.ts",
