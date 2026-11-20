@@ -350,7 +350,7 @@ const avatarClasses = computed(() => ['relative shrink-0', props.compact ? 'size
               <span :class="['block truncate text-sm font-medium']">{{ props.row.preview }}</span>
               <span :class="['flex items-center gap-2 text-xs font-normal text-neutral-500 dark:text-neutral-400', props.compact ? 'mt-0.5' : 'mt-1']">
                 <span
-                  v-if="props.row.meta.pinnedAt && !archived"
+                  v-if="props.row.meta.pinnedAt"
                   role="img"
                   :aria-label="t('stage.chat.sessions.pinned')"
                   :title="t('stage.chat.sessions.pinned')"

@@ -507,6 +507,7 @@ defineExpose({
         :class="['transition-[padding] duration-300 ease-out motion-reduce:transition-none', props.dockSide && { left: 'pl-12', right: 'pr-12' }[props.dockSide]]"
         :style="props.rightResizeBand ? { width: `calc(100% - ${props.rightResizeBand}px)` } : undefined"
         :expired-before="props.expiredBefore"
+        :readonly="chatArchived"
         @delete-message="handleDeleteMessage"
         @reply-message="handleReplyMessage"
         @retry-message="handleRetryMessage($event.index)"

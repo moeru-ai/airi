@@ -111,36 +111,19 @@ const characterChips = computed(() => {
   for (const row of placeRows.value)
     counts.set(row.meta.characterId, (counts.get(row.meta.characterId) ?? 0) + 1)
 
-  const result = new Map<string, { id: string, name: string, preview?: string, count: number }>()
-  for (const character of props.characters)
-    result.set(character.id, { ...character, count: counts.get(character.id) ?? 0 })
-  // A conversation can belong to a character that this device does not have. Its rows name the character.
-  for (const row of props.rows) {
-    const id = row.meta.characterId
-    if (!result.has(id))
-      result.set(id, { id, name: row.characterName, preview: row.characterPreview, count: counts.get(id) ?? 0 })
-  }
-  return [...result.values()]
+  return props.characters.map(character => ({ ...character, count: counts.get(character.id) ?? 0 }))
 })
 
-/** The character that the filter applies. A chosen character that no longer exists applies no filter. */
-const characterFilter = computed(() => characterChips.value.some(chip => chip.id === chosenCharacterId.value)
-  ? chosenCharacterId.value
-  : undefined)
-
-/** The name of the filtered character. The empty state names it. */
-const filteredCharacterName = computed(() => characterChips.value.find(chip => chip.id === characterFilter.value)?.name)
 /**
- * The filtered character when this device has its card. A new conversation goes to it, and the primary action names
- * it. A character without a card cannot send, so a new conversation under its filter goes to the default character.
+ * The character that the filter applies. A new conversation goes to it, and the empty state and the primary action
+ * name it. A chosen character that no longer exists applies no filter.
  */
-const newSessionCharacter = computed(() => props.characters.find(character => character.id === characterFilter.value))
+const filteredCharacter = computed(() => characterChips.value.find(chip => chip.id === chosenCharacterId.value))
+const characterFilter = computed(() => filteredCharacter.value?.id)
 
 /** The rows that the list shows. Pinned conversations come first, and the rows already arrive in the order of their last message. */
 const visibleRows = computed(() => {
   const rows = placeRows.value.filter(row => characterFilter.value === undefined || row.meta.characterId === characterFilter.value)
-  if (place.value.kind === 'archive')
-    return rows
   return [...rows].sort((first, second) => Number(!!second.meta.pinnedAt) - Number(!!first.meta.pinnedAt))
 })
 
@@ -194,7 +177,7 @@ const primaryAction = computed(() => {
 })
 
 const emptyState = computed(() => {
-  const name = filteredCharacterName.value
+  const name = filteredCharacter.value?.name
   if (place.value.kind === 'archive') {
     return {
       icon: 'i-mingcute:archive-line',
@@ -281,7 +264,7 @@ function toggleAllSelected() {
 
 function newSessionLabel() {
   const folder = currentFolder.value?.name
-  const name = newSessionCharacter.value?.name
+  const name = filteredCharacter.value?.name
   if (folder !== undefined) {
     return name === undefined
       ? t('stage.chat.sessions.new-in-folder', { folder })
@@ -292,7 +275,7 @@ function newSessionLabel() {
 
 function runPrimaryAction() {
   if (!selecting.value) {
-    emit('newSession', { folderId: currentFolder.value?.id, characterId: newSessionCharacter.value?.id })
+    emit('newSession', { folderId: currentFolder.value?.id, characterId: characterFilter.value })
     return
   }
   const sessionIds = selectedRows.value.map(row => row.meta.sessionId)

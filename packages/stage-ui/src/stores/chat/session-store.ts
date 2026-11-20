@@ -671,6 +671,14 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   }
 
   /**
+   * Whether a character can open the conversation without a choice of the user, for example after a deletion. A hidden
+   * conversation is the own space of a background task. An archived one is read-only.
+   */
+  function opensByDefault(meta: ChatSessionMeta | undefined) {
+    return !!meta && !meta.hidden && meta.archivedAt === undefined
+  }
+
+  /**
    * Archives or restores conversations. An archived conversation leaves the conversation list and loses its pin.
    *
    * A character does not open an archived conversation on its own. When the conversation that a character opens is
@@ -692,11 +700,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       if (!characterIndex)
         continue
       if (archived && sessionMetas.value[characterIndex.activeSessionId]?.archivedAt !== undefined) {
-        // A hidden session, such as a background task's own space, never becomes the conversation that a character opens.
-        const fallbackId = Object.keys(characterIndex.sessions).find((sessionId) => {
-          const meta = sessionMetas.value[sessionId]
-          return !!meta && !meta.hidden && meta.archivedAt === undefined
-        })
+        const fallbackId = Object.keys(characterIndex.sessions).find(sessionId => opensByDefault(sessionMetas.value[sessionId]))
         if (fallbackId) {
           characterIndex.activeSessionId = fallbackId
           await persistIndex()
@@ -717,15 +721,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     return opened
   }
 
-  /**
-   * Folders whose deletion is saving. A move into one of them moves nothing, so no conversation joins a folder that
-   * is going away. Actions run in the leader, so this window holds the only copy.
-   */
-  const deletingFolderIds = new Set<string>()
-
-  /** Moves conversations into a folder, or out of their folder with `undefined`. An unknown or deleting folder moves nothing. */
+  /** Moves conversations into a folder, or out of their folder with `undefined`. An unknown folder moves nothing. */
   async function moveSessionsToFolder(sessionIds: string[], folderId: string | undefined) {
-    if (folderId !== undefined && (!index.value?.folders?.[folderId] || deletingFolderIds.has(folderId)))
+    if (folderId !== undefined && !index.value?.folders?.[folderId])
       return
     await updateSessionMetas(sessionIds, meta => ({ ...meta, folderId }))
   }
@@ -758,35 +756,17 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   /**
    * Deletes a folder. Its conversations stay and return to the conversation list.
    *
-   * The conversations leave the folder on disk before the folder leaves the index. A save that stops part way keeps
-   * the folder with the conversations that are still in it, so no saved conversation points to a missing folder.
+   * A conversation is in a folder only while the index has the folder, so one save of the index deletes it. The
+   * conversations then drop the folder from their records. A record that still names it is in no folder.
    */
   async function deleteFolder(folderId: string) {
-    if (!index.value?.folders?.[folderId] || deletingFolderIds.has(folderId))
+    if (!index.value?.folders?.[folderId])
       return
 
-    deletingFolderIds.add(folderId)
-    try {
-      // A deletion that failed part way already took the folder off the members in memory, while the index still
-      // lists some with the folder. Members from both take the folder off on disk before the folder goes away.
-      const members = new Set(Object.values(sessionMetas.value)
-        .filter(meta => meta.folderId === folderId)
-        .map(meta => meta.sessionId))
-      for (const character of Object.values(index.value.characters)) {
-        for (const meta of Object.values(character.sessions)) {
-          if (meta.folderId === folderId)
-            members.add(meta.sessionId)
-        }
-      }
-      await updateSessionMetas([...members], meta => ({ ...meta, folderId: undefined }))
-      if (!index.value?.folders?.[folderId])
-        return
-      index.value.folders = omit(index.value.folders, [folderId])
-      await persistIndex()
-    }
-    finally {
-      deletingFolderIds.delete(folderId)
-    }
+    index.value.folders = omit(index.value.folders, [folderId])
+    await persistIndex()
+    const members = Object.values(sessionMetas.value).filter(meta => meta.folderId === folderId).map(meta => meta.sessionId)
+    await updateSessionMetas(members, meta => ({ ...meta, folderId: undefined }))
   }
 
   async function syncPendingSessionTitle(sessionId: string): Promise<boolean> {
@@ -920,13 +900,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
     for (const [characterId, wasActive] of affectedCharacters) {
       const characterIndex = index.value?.characters[characterId]
-      // A hidden session, such as a background task's own space, never becomes the selected conversation. An archived
-      // one does not either, because it is read-only.
       const fallbackId = characterIndex
-        ? Object.keys(characterIndex.sessions).find((id) => {
-            const meta = sessionMetas.value[id]
-            return !!meta && !meta.hidden && meta.archivedAt === undefined
-          })
+        ? Object.keys(characterIndex.sessions).find(id => opensByDefault(sessionMetas.value[id]))
         : undefined
 
       // Persisted character fallback is shared, but live selection is local to
@@ -2119,9 +2094,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     const characterId = lastActiveSessionMeta?.sessionId === sessionId
       ? lastActiveSessionMeta.characterId
       : getCurrentCharacterId()
-    // An archived conversation is read-only, so it is no fallback.
     const fallbackSessionId = metas
-      .find(candidate => candidate.characterId === characterId && candidate.userId === getCurrentUserId() && candidate.archivedAt === undefined)
+      .find(candidate => candidate.characterId === characterId && candidate.userId === getCurrentUserId() && opensByDefault(candidate))
       ?.sessionId
 
     if (fallbackSessionId) {

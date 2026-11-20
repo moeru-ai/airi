@@ -16,12 +16,14 @@ const props = withDefaults(defineProps<{
   retryLabel?: string
   scrollContainer?: HTMLElement | null
   canRetry?: boolean
+  canDelete?: boolean
   showPlaceholder?: boolean
   variant?: 'desktop' | 'mobile'
   /** How the bubble paints its background; see `ChatHistory`'s `surface`. */
   surface?: 'translucent' | 'opaque'
 }>(), {
   canRetry: false,
+  canDelete: true,
   scrollContainer: null,
   showPlaceholder: false,
   variant: 'desktop',
@@ -67,7 +69,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
   >
     <ChatActionMenu
       :copy-text="copyText"
-      :can-delete="!showPlaceholder"
+      :can-delete="canDelete && !showPlaceholder"
       :can-retry="canRetry && !showPlaceholder"
       :scroll-container="scrollContainer"
       @copy="emit('copy')"

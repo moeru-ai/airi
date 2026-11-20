@@ -408,6 +408,7 @@ defineExpose({
         :scrollbar="props.floating ? 'hover' : 'scroll'"
         :passive="props.passive"
         :expired-before="props.expiredBefore"
+        :readonly="chatArchived"
         @delete-message="handleDeleteMessage"
         @reply-message="handleReplyMessage"
         @retry-message="handleRetryMessage($event.index)"

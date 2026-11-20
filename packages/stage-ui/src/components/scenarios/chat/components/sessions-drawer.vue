@@ -91,13 +91,25 @@ function activityAtFor(meta: ChatSessionMeta): number {
   return lastMessageAt ?? meta.createdAt
 }
 
+/**
+ * Folders in the order of their creation, so a new folder appears last. While an account swap rehydrates, the index
+ * can still belong to the other account, so its folders stay hidden, like its sessions.
+ */
+const folders = computed<ChatSessionFolder[]>(() => {
+  if (index.value?.userId !== effectiveUserId.value)
+    return []
+  return Object.values(index.value.folders ?? {}).sort((first, second) => first.createdAt - second.createdAt)
+})
+
 const rows = computed<SessionRow[]>(() => {
   const referenceTime = Math.max(now.value.getTime(), Date.now())
+  const folderIds = new Set(folders.value.map(folder => folder.id))
   return ownedSessions.value
     .map(meta => ({ meta, activityAt: activityAtFor(meta) }))
     .sort((first, second) => second.activityAt - first.activityAt)
     .map(({ meta, activityAt }) => ({
-      meta,
+      // A conversation is in a folder only while the folder exists. A deleted folder can stay on its record.
+      meta: meta.folderId === undefined || folderIds.has(meta.folderId) ? meta : { ...meta, folderId: undefined },
       preview: previewFor(meta),
       isActive: meta.sessionId === activeSessionId.value,
       activityAtLabel: intlFormatDistance(activityAt, referenceTime, { locale: locale.value }),
@@ -108,16 +120,6 @@ const rows = computed<SessionRow[]>(() => {
 
 /** Every character card, so the filter can pick a character that has no conversation yet. */
 const characters = computed(() => [...cards.value].map(([id, card]) => ({ id, name: card.name, preview: characterPreviews.value.get(id) })))
-
-/**
- * Folders in the order of their creation, so a new folder appears last. While an account swap rehydrates, the index
- * can still belong to the other account, so its folders stay hidden, like its sessions.
- */
-const folders = computed<ChatSessionFolder[]>(() => {
-  if (index.value?.userId !== effectiveUserId.value)
-    return []
-  return Object.values(index.value.folders ?? {}).sort((first, second) => first.createdAt - second.createdAt)
-})
 
 async function selectSession(sessionId: string) {
   const selectedRow = rows.value.find(row => row.meta.sessionId === sessionId)
@@ -164,8 +166,7 @@ async function startNewSession(payload: { folderId?: string, characterId?: strin
 
 /**
  * Archives or restores conversations. When this window shows a conversation that it archives, the window moves to the
- * conversation that the character opens now, as after a deletion. Otherwise the next message goes to a hidden
- * conversation.
+ * conversation that the character opens now, as after a deletion.
  */
 async function archiveSessions(payload: { sessionIds: string[], archived: boolean }) {
   const shown = sessionMetas.value[activeSessionId.value]

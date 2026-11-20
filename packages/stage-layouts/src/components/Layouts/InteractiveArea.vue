@@ -22,7 +22,7 @@ import { useStageChatComposerStore } from '../../stores/chat-composer'
 
 const { isReady } = useDeferredMount()
 const chatOrchestrator = useChatStore()
-const { activeTurns, backgroundTasks } = storeToRefs(chatOrchestrator)
+const { activeTurns, backgroundTasks, activeChatArchived: chatArchived } = storeToRefs(chatOrchestrator)
 const { activeSessionId, messages } = storeToRefs(useChatSessionStore())
 const { streamingMessage } = storeToRefs(useChatStreamStore())
 const { isReceivingRemoteStream } = storeToRefs(useContextBridgeStore())
@@ -76,6 +76,7 @@ async function handleRetryMessage(index: number) {
             :messages="historyMessages"
             :sending="isActiveSessionSending"
             :streaming-message="visibleStreamingMessage"
+            :readonly="chatArchived"
             h-full
             variant="desktop"
             @delete-message="handleDeleteMessage"

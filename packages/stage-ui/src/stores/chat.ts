@@ -1359,9 +1359,12 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   /**
-   * Refuses a send of the user to an archived conversation. It is read-only until the user restores it. The refusal
-   * comes before the send starts, so the conversation gets no error message, and a voice draft stays and shows the
-   * reason. A notice of finished background work does not pass here and still reaches the conversation.
+   * Refuses a send of the user to an archived conversation. It is read-only until the user restores it.
+   *
+   * The history of an archived conversation offers no action that changes it, so retry and rerun never reach the store.
+   * Send and submit also take senders outside the history, for example a voice draft, so these two refuse here. The
+   * refusal comes before the send starts, so the conversation gets no error message, and a voice draft shows the reason.
+   * A notice of finished background work does not pass here and still reaches the conversation.
    */
   function assertSessionOpenForSend(sessionId: string) {
     if (chatSession.sessionMetas[sessionId]?.archivedAt !== undefined)
@@ -1585,7 +1588,6 @@ export const useChatStore = defineStore('chat', () => {
 
   /** Replaces one stored turn with a new execution of its user message. */
   async function retry(payload: ChatRetryPayload): Promise<ChatSendResult> {
-    assertSessionOpenForSend(payload.sessionId)
     if (!await chatSession.loadSession(payload.sessionId))
       throw new Error('Failed to load the target chat session')
 

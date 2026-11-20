@@ -383,6 +383,7 @@ onUnmounted(() => {
             :messages="historyMessages"
             :sending="isActiveSessionSending"
             :streaming-message="visibleStreamingMessage"
+            :readonly="chatArchived"
             class="chat-history"
             :style="chatHistoryStyle"
             :class="chatHistoryClass"
