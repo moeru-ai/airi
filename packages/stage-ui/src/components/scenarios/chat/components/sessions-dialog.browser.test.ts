@@ -612,7 +612,13 @@ describe('sessions dialog actions', () => {
     await remove.click()
     await expect.element(screen.getByRole('button', { name: 'Delete conversation', exact: true })).toBeVisible()
     await expect.element(screen.getByLabelText('deleted-session-id')).toHaveTextContent('none')
-    await screen.getByRole('button', { name: /^Second chat/ }).click()
+    // Archive and Delete take 176px, so most of the row leaves the view. A tap on the part that stays visible closes the
+    // actions and selects nothing. A tap on the center of the row would scroll it into view first, which closes them.
+    const row = screen.getByRole('button', { name: /^Second chat/ }).element().closest<HTMLElement>('[data-swipe-actions]')!
+    const actions = row.querySelector<HTMLElement>('[data-swipe-actions-list]')!
+    await expect.poll(() => actions.getBoundingClientRect().width).toBeCloseTo(176, 0)
+    const rowBounds = row.getBoundingClientRect()
+    await userEvent.click(row, { position: { x: (rowBounds.width - actions.getBoundingClientRect().width) / 2, y: rowBounds.height / 2 } })
     await expect.element(remove).toHaveAttribute('aria-expanded', 'false')
     await expect.element(screen.getByLabelText('selected-session-id')).toHaveTextContent('none')
     await expect.element(screen.getByRole('button', { name: 'Delete conversation', exact: true })).not.toBeInTheDocument()
@@ -621,7 +627,7 @@ describe('sessions dialog actions', () => {
   })
 
   // https://github.com/moeru-ai/airi/pull/2536#discussion_r3999211068
-  it('moves keyboard focus from the fading trigger to Delete', async () => {
+  it('moves keyboard focus from the fading trigger into the actions', async () => {
     // ROOT CAUSE:
     // The trigger fades and leaves the tab order while List precedes Content.
     // Opening with the keyboard must focus an action before the trigger hides.
@@ -629,11 +635,15 @@ describe('sessions dialog actions', () => {
     const trigger = screen.getByRole('button', { name: 'Delete conversation: Second chat' })
     trigger.element().focus()
     await userEvent.keyboard('{Enter}')
-    const action = screen.getByRole('button', { name: 'Delete conversation', exact: true })
-    await expect.element(action).toBeVisible()
-    await expect.poll(() => document.activeElement).toBe(action.element())
+    const remove = screen.getByRole('button', { name: 'Delete conversation', exact: true })
+    await expect.element(remove).toBeVisible()
+    const row = trigger.element().closest<HTMLElement>('[data-swipe-actions]')!
+    // The first action takes the focus. Archive comes before Delete.
+    await expect.poll(() => document.activeElement).toBe(row.querySelector('[data-swipe-actions-item][data-value="archive"]'))
+    await userEvent.keyboard('{Tab}')
+    await expect.poll(() => document.activeElement).toBe(remove.element())
     await userEvent.keyboard('{Enter}')
-    expect(screen.getByLabelText('deleted-session-id').element().textContent).toBe('session-two')
+    await expect.element(screen.getByLabelText('deleted-session-id')).toHaveTextContent('session-two')
   })
 
   it('keeps only one action area open and consumes Escape before drawer dismissal', async () => {
