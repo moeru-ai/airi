@@ -119,6 +119,7 @@ export async function executeApprovedPtyCreate(
     workflowStepLabel,
     approvalSessionId,
   }: PtyCreateApprovalInput,
+  signal?: AbortSignal,
 ): Promise<CallToolResult> {
   const availability = await getPtyAvailabilityInfo()
   if (!availability.available) {
@@ -133,6 +134,7 @@ export async function executeApprovedPtyCreate(
   }
 
   try {
+    signal?.throwIfAborted()
     const session = await createPtySession(runtime.config, { rows, cols, cwd })
 
     runtime.stateManager.registerPtySession({

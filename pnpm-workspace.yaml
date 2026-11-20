@@ -345,7 +345,6 @@ catalog:
   eventemitter3: ^5.0.4
   fflate: ^0.8.3
   fft.js: ^4.0.4
-  file-type: ^22.2.0
   floating-vue: ^5.2.2
   fluent-ffmpeg: ^2.1.3
   get-port-please: ^3.2.0
@@ -539,7 +538,8 @@ allowBuilds:
   less: true
   msw: true
   node-pty: true
-  onnxruntime-node: true
+  # Its postinstall pulls native binaries from a CDN. CI only needs @huggingface/transformers through onnxruntime-web.
+  onnxruntime-node: false
   protobufjs: true
   sharp: true
   simple-git-hooks: false # [workaround] With `shellEmulator: true`, simple-git-hooks install may fail when no .git dir exists.

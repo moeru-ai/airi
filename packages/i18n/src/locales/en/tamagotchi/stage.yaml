@@ -81,6 +81,63 @@ docs:
   composer:
     show: Show the message box
     hide: Hide the message box
+  computer-tools:
+    label: Computer tools
+    desktop-unavailable: Desktop capture and input are unavailable in this build.
+    approval-active: Full approval is on for this conversation
+    approval-section: Approval
+    approval-command: Command
+    approval-computer-use: Computer Use
+    approval-mode-ask: Ask
+    approval-mode-auto: Auto
+    approval-mode-full: Full
+    approval-mode-auto-hint: Auto is not available yet.
+    approval-command-full-confirm: Allow Command full access in this conversation?
+    approval-command-full-scope: AIRI can run local Shell commands with your system privileges. Ask mode requires confirmation before each command.
+    approval-command-full-allow: Allow Command full access
+    approval-computer-use-full-confirm: Allow Computer Use full access in this conversation?
+    approval-computer-use-full-scope: AIRI can change the desktop, apps, and input through Computer Use. Ask mode requires confirmation before each change.
+    approval-computer-use-full-allow: Allow Computer Use full access
+    computer-use-confirm: Allow Computer Use to change this device?
+    computer-use-scope: AIRI will perform the requested desktop, app, or input action. Each change is shown here before it runs.
+    computer-use-allow: Allow this change
+    approval-error: Could not change approval.
+    cancel: Cancel
+  context-inspector:
+    open: Show context
+    close: Hide context
+    title: Context usage
+    empty: This conversation has not sent a model request yet.
+    bytes: Serialized size
+    bytes-note: Category sizes are UTF-8 bytes of the serialized projection, not tokens.
+    text: Text
+    images: Images
+    framing: JSON framing
+    model: Model
+    provider: Provider
+    window: Context window
+    window-value: '{count} tokens'
+    window-full: '{percent}% full'
+    window-over: '{percent}% of window (over)'
+    window-usage: '{percent}% of the context window, from reported input tokens'
+    tokens: tokens
+    reported-usage: Latest request, reported by the provider
+    reported-note: Token counts below were reported for the latest completed request. They are not estimated from the bytes above, and they are not a sum of earlier messages.
+    input: Input
+    output: Output
+    total: Total
+    usage-unavailable: No provider-reported token usage for this request.
+    budget: Compaction threshold
+    budget-note: A serialized-byte threshold for scheduling compaction. It is not how full the context window is.
+    expand: Show content
+    collapse: Hide content
+    kind:
+      system-context: System and context
+      conversation: Messages
+      tool-call: Tool calls
+      tool-result: Tool results
+      tool-schema: Tool schemas
+
   danmaku-feed:
     title: Message timing
     hide-read: Hide read messages

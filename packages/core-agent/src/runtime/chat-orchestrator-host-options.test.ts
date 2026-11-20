@@ -45,6 +45,14 @@ function createHarness(options: Partial<Pick<ChatOrchestratorRuntimeDeps, 'getSy
 }
 
 describe('chat orchestrator host options', () => {
+  it('forwards the decision-step budget to the Core Agent stream', async () => {
+    const harness = createHarness()
+
+    await harness.runtime.ingest('Continue the task.', { model: 'test', chatProvider: provider, maxSteps: 12 })
+
+    expect(harness.stream.mock.calls[0]?.[3]?.maxSteps).toBe(12)
+  })
+
   // A notice tells the conversation about earlier work. History keeps it marked as a notice, never as owner speech.
   it('stores a notice with its source, marks it in every prompt, and marks the reply as proactive', async () => {
     const harness = createHarness()
@@ -61,6 +69,7 @@ describe('chat orchestrator host options', () => {
     // A later turn still knows the result, and only the request that delivered the notice offers silence.
     expect(harness.prompt(1)).toContain('[Notice from recipe:Research, not a message from the owner.]')
     expect(harness.prompt(1)).not.toContain('Speak about this notice only if it fits now')
+    expect(harness.stream.mock.calls[1]?.[2].turns.find(turn => turn.type === 'user' && turn.notice)).toMatchObject({ notice: { source: 'recipe:Research' } })
   })
 
   it('leaves stored system messages out of the prompt, and reads identity per session', async () => {
