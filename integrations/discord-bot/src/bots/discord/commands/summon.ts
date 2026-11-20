@@ -477,15 +477,10 @@ export class VoiceManager extends EventEmitter {
           guildMember: member,
         } satisfies Discord
 
-        this.airiClient.send({
-          type: 'input:text:voice',
-          data: { transcription: transcriptionText, discord: discordContext },
-        })
-
         // A voice channel is its own scene. Without a binding, the reply joins the owner's private session.
         this.airiClient.send({
-          type: 'input:text',
-          data: { text: transcriptionText, discord: discordContext, overrides: { binding: `discord:channel:${channelId}` } },
+          type: 'input:text:voice',
+          data: { transcription: transcriptionText, discord: discordContext, overrides: { binding: `discord:channel:${channelId}` } },
         })
       }
       if (state.transcriptionText.length) {

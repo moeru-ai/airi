@@ -503,6 +503,32 @@ describe('context bridge contract', () => {
     await store.dispose()
   })
 
+  // ROOT CAUSE: The stage registered as the chat-ingestion consumer of `input:text:voice`, but no handler read the event.
+  // The server gave each transcript to the stage, and the stage dropped it without a reply or a warning.
+  it('sends a voice transcript as voice input', async () => {
+    const store = useContextBridgeStore()
+    await store.initialize()
+
+    await emitServerEvent('input:text:voice', {
+      type: 'input:text:voice',
+      source: 'discord',
+      metadata: createMetadata('discord', 'bot'),
+      data: { transcription: 'hello from voice', overrides: { binding: 'discord:channel:a' } },
+    })
+
+    expect(chatOrchestratorMock.chatReadyFor).toHaveBeenCalledWith('bound:discord:channel:a')
+    expect(chatOrchestratorMock.send).toHaveBeenCalledTimes(1)
+    expect(chatOrchestratorMock.send.mock.calls[0]?.[0]).toMatchObject({
+      sessionId: 'bound:discord:channel:a',
+      text: 'hello from voice',
+      input: {
+        type: 'input:text:voice',
+        data: { transcription: 'hello from voice', overrides: { binding: 'discord:channel:a' } },
+      },
+    })
+    await store.dispose()
+  })
+
   // https://github.com/moeru-ai/airi/pull/3492#discussion_r4538897976
   // ROOT CAUSE: The gate read the selection of the consciousness store. That store holds the global default,
   // so an input for a character with its own chat model got no reply while the default was empty.
