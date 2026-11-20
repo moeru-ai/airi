@@ -428,3 +428,11 @@ The default pack contains twelve generated chibi reactions of AIRI's official bl
 See [artwork provenance](src/assets/stickers/README.md) for references, exact prompts, and inspection notes.
 These are static assets. No runtime image-generation dependency is included.
 The four development-only Fluent Emoji images are removed. No old-ID migration is included.
+
+## MiMo recorder uploads
+
+`libs/audio/mimo-asr-upload.ts` owns browser conversion for MiMo transcription uploads.
+It preserves supported WAV and MP3 bytes and converts other decodable containers to mono WAV.
+The portable provider owns signature checks, payload size, language choices, and response validation.
+Hearing keeps its existing PCM-to-WAV microphone path and captures MiMo language choices before a request starts.
+The synthetic stereo WebM fixture exercises the real browser decoder and channel averaging without microphone access.

@@ -79,3 +79,13 @@ Reported search abilities do not select a native tool implementation.
 OpenAI reasoning controls use the exact model entry and effort levels from the pinned catalog.
 Unsupported effort values are omitted. In particular, models without a `none` effort keep their server default when reasoning is disabled.
 Generation validation uses the configured model before consulting the endpoint model list.
+
+## MiMo transcription
+
+MiMo transcription uses `mimo-v2.5-asr` and accepts WAV or MP3 container bytes.
+The provider validates their signatures and limits the Base64 payload to 10 MB.
+It sends one `input_audio` part with a matching data URL and format.
+The response must identify the dedicated ASR model and contain a string transcript.
+Language choices are `auto`, `zh`, and `en`. Request options take precedence over saved configuration.
+The portable provider does not decode browser recorder formats.
+The Stage UI upload boundary converts other containers with AudioContext. Hearing microphone input uses its existing mono WAV encoder.

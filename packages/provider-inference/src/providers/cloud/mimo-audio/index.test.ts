@@ -41,7 +41,7 @@ async function callProvider(file = createWavFile(), config: Partial<Config> = {}
   form.set('file', file)
   if (!request.fetch)
     throw new Error('MiMo transcription does not expose its HTTP adapter')
-  return request.fetch('https://example.com/v1/audio/transcriptions', { method: 'POST', body: form })
+  return request.fetch(new URL('https://example.com/v1/audio/transcriptions'), { method: 'POST', body: form })
 }
 
 function lastPayload(fetchMock: ReturnType<typeof vi.fn<typeof fetch>>) {
@@ -102,7 +102,7 @@ describe('xiaomi MiMo ASR transcription provider', () => {
     }), { status: 200 }))
     vi.stubGlobal('fetch', fetchMock)
 
-    for (const language of ['zh', 'en']) {
+    for (const language of ['zh', 'en'] as const) {
       await callProvider(createWavFile(), { language })
       expect(lastPayload(fetchMock).asr_options).toEqual({ language })
     }

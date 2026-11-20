@@ -87,9 +87,9 @@ async function handleGenerateTranscription(file: File) {
       >
         <ProviderApiKeyInput
           :model-value="apiKey"
-          @update:model-value="setField('apiKey', $event)"
           :provider-name="providerMetadata?.localizedName"
           placeholder="mimo_... (MiMo API key)"
+          @update:model-value="setField('apiKey', $event)"
         />
         <FieldCombobox
           :model-value="model"
@@ -110,8 +110,8 @@ async function handleGenerateTranscription(file: File) {
       <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">
         <ProviderBaseUrlInput
           :model-value="baseUrl"
-          @update:model-value="setField('baseUrl', $event)"
           :placeholder="providerMetadata?.defaultConfig.baseUrl as string || 'https://api.xiaomimimo.com/v1/'"
+          @update:model-value="setField('baseUrl', $event)"
         />
       </ProviderAdvancedSettings>
 
