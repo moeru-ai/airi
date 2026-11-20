@@ -10,7 +10,6 @@ import './local-audio'
 import './kokoro-local'
 import './nvidia'
 import './official'
-import './opencode-go'
 import './prompt-api'
 
 registerProviders(portableProviderDefinitions)

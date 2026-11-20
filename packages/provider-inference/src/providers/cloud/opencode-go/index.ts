@@ -1,12 +1,12 @@
-import type { ModelInfo } from '../../types'
+import type { ModelInfo } from '../../../types'
 
 import { errorMessageFrom } from '@moeru/std'
 import { createOpenAI } from '@xsai-ext/providers/create'
 import { z } from 'zod'
 
-import { ProviderValidationCheck } from '../../types'
-import { createOpenAICompatibleValidators } from '../../validators'
-import { defineProvider } from '../registry'
+import { ProviderValidationCheck } from '../../../types'
+import { createOpenAICompatibleValidators } from '../../../validators'
+import { defineProvider } from '../../registry'
 
 const OPENCODE_GO_DEFAULT_BASE_URL = 'https://opencode.ai/zen/go/v1/'
 const OPENCODE_GO_MODEL_PREFIX = 'opencode-go/'
@@ -43,6 +43,13 @@ const chatCompletionModels = [
   { id: 'hy3', name: 'Hy3' },
 ]
 
+/**
+ * Removes the catalog namespace before sending a model to the direct API.
+ *
+ * @example
+ * stripModelPrefix('opencode-go/example-model')
+ * // => 'example-model'
+ */
 function stripModelPrefix(modelId: string) {
   return modelId.startsWith(OPENCODE_GO_MODEL_PREFIX)
     ? modelId.slice(OPENCODE_GO_MODEL_PREFIX.length)
@@ -111,7 +118,7 @@ const openCodeGoValidators = createOpenAICompatibleValidators<OpenCodeGoConfig>(
   normalizeModelId: stripModelPrefix,
 }) ?? {}
 
-export const providerOpenCodeGo = defineProvider<OpenCodeGoConfig>({
+export const providerOpenCodeGo = defineProvider<OpenCodeGoConfig, 'opencode-go'>({
   id: 'opencode-go',
   name: 'OpenCode Go',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.opencode-go.title'),
