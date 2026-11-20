@@ -14,6 +14,7 @@ function createClient() {
               id: 'srv-provider-1',
               instanceId: 'provider-1',
               definitionId: 'openai-compatible',
+              displayName: 'Provider label',
               config: { baseUrl: 'https://example.com/v1/' },
               updatedAt: '2026-01-02T00:00:00.000Z',
               deletedAt: null,
@@ -27,6 +28,7 @@ function createClient() {
                 id: 'srv-provider-1',
                 instanceId: 'provider-1',
                 definitionId: 'openai-compatible',
+                displayName: 'Provider label',
                 config: { apiKey: 'sk-test' },
                 updatedAt: '2026-01-03T00:00:00.000Z',
                 deletedAt: null,
@@ -47,6 +49,7 @@ describe('services inference-service-providers', () => {
     await expect(inferenceServiceProvidersService.listRemote(client)).resolves.toEqual([{
       id: 'provider-1',
       definitionId: 'openai-compatible',
+      displayName: 'Provider label',
       config: { baseUrl: 'https://example.com/v1/' },
       updatedAt: '2026-01-02T00:00:00.000Z',
       deletedAt: null,
@@ -59,13 +62,19 @@ describe('services inference-service-providers', () => {
     await expect(inferenceServiceProvidersService.upsertRemote(client, {
       id: 'provider-1',
       definitionId: 'openai-compatible',
+      displayName: 'Provider label',
       config: { apiKey: 'sk-test' },
     })).resolves.toEqual({
       id: 'provider-1',
       definitionId: 'openai-compatible',
+      displayName: 'Provider label',
       config: { apiKey: 'sk-test' },
       updatedAt: '2026-01-03T00:00:00.000Z',
       deletedAt: null,
+    })
+    expect(client.api.v1.providers[':id'].$put).toHaveBeenCalledWith({
+      param: { id: 'provider-1' },
+      json: { definitionId: 'openai-compatible', displayName: 'Provider label', config: { apiKey: 'sk-test' } },
     })
   })
 
@@ -80,6 +89,7 @@ describe('services inference-service-providers', () => {
     await expect(inferenceServiceProvidersService.upsertRemote(client, {
       id: 'provider-1',
       definitionId: 'openai-compatible',
+      displayName: 'Provider label',
       config: {},
     })).rejects.toThrow('Failed to update provider config')
   })

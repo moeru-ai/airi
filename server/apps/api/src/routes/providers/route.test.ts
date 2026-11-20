@@ -5,6 +5,7 @@ import { Buffer } from 'node:buffer'
 
 import { ApiError } from '@proj-airi/http-error-shared'
 import { Hono } from 'hono'
+import { object, parse, record, string, unknown } from 'valibot'
 import { beforeAll, describe, expect, it } from 'vitest'
 
 import { createProviderRoutes } from '.'
@@ -70,14 +71,16 @@ describe('providerRoutes', () => {
       method: 'PUT',
       body: JSON.stringify({
         definitionId: 'openai',
+        displayName: 'Custom provider',
         config: { apiKey: 'sk-123' },
       }),
       headers: { 'Content-Type': 'application/json' },
     }), { user: testUser } as never)
 
     expect(res.status).toBe(200)
-    const data = await res.json() as { instanceId: string, config: Record<string, unknown> }
+    const data = parse(object({ instanceId: string(), displayName: string(), config: record(string(), unknown()) }), await res.json())
     expect(data.instanceId).toBe('prov-1')
+    expect(data.displayName).toBe('Custom provider')
     expect(data.config).toEqual({ apiKey: 'sk-123' })
   })
 

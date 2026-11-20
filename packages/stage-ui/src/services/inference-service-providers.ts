@@ -1,6 +1,9 @@
+import { nullable, object, optional, parse, record, string, unknown } from 'valibot'
+
 export interface ProviderReplicaRow {
   id: string
   definitionId: string
+  displayName?: string | null
   config: Record<string, unknown>
   updatedAt: string
   deletedAt: string | null
@@ -28,6 +31,7 @@ export interface InferenceServiceProvidersRemoteClient {
           $put: (params: {
             json: {
               definitionId: string
+              displayName?: string | null
               config: Record<string, unknown>
             }
             param: { id: string }
@@ -41,18 +45,29 @@ export interface InferenceServiceProvidersRemoteClient {
   }
 }
 
+const remoteProviderSchema = object({
+  instanceId: string(),
+  definitionId: string(),
+  displayName: optional(nullable(string())),
+  config: record(string(), unknown()),
+  updatedAt: string(),
+  deletedAt: optional(nullable(string())),
+})
+
+/**
+ * Projects the validated API row into the local replica contract.
+ *
+ * @example
+ * asReplicaRow({ instanceId: 'provider-1', definitionId: 'openai', displayName: null, config: {}, updatedAt: '2026-01-01', deletedAt: null })
+ * // => { id: 'provider-1', definitionId: 'openai', displayName: undefined, config: {}, updatedAt: '2026-01-01', deletedAt: null }
+ */
 function asReplicaRow(value: unknown): ProviderReplicaRow {
-  const item = value as {
-    instanceId: string
-    definitionId: string
-    config?: Record<string, unknown>
-    updatedAt: string
-    deletedAt?: string | null
-  }
+  const item = parse(remoteProviderSchema, value)
   return {
     id: item.instanceId,
     definitionId: item.definitionId,
-    config: item.config ?? {},
+    displayName: item.displayName,
+    config: item.config,
     updatedAt: item.updatedAt,
     deletedAt: item.deletedAt ?? null,
   }
@@ -62,7 +77,7 @@ export interface InferenceServiceProvidersService {
   listRemote: (client: InferenceServiceProvidersRemoteClient) => Promise<ProviderReplicaRow[]>
   upsertRemote: (
     client: InferenceServiceProvidersRemoteClient,
-    provider: { id: string, definitionId: string, config: Record<string, unknown> },
+    provider: { id: string, definitionId: string, displayName?: string | null, config: Record<string, unknown> },
   ) => Promise<ProviderReplicaRow>
   deleteRemote: (
     client: InferenceServiceProvidersRemoteClient,
@@ -82,12 +97,13 @@ export function createInferenceServiceProvidersService(): InferenceServiceProvid
 
   async function upsertRemote(
     client: InferenceServiceProvidersRemoteClient,
-    provider: { id: string, definitionId: string, config: Record<string, unknown> },
+    provider: { id: string, definitionId: string, displayName?: string | null, config: Record<string, unknown> },
   ): Promise<ProviderReplicaRow> {
     const res = await client.api.v1.providers[':id'].$put({
       param: { id: provider.id },
       json: {
         definitionId: provider.definitionId,
+        displayName: provider.displayName,
         config: provider.config,
       },
     })

@@ -5,7 +5,7 @@ import type { ProviderReplicaRow } from '../../services/inference-service-provid
 import type { ProviderSyncRow, ProviderSyncSnapshot } from './merge'
 
 import { useDebounceFn, useIntervalFn, useLocalStorage } from '@vueuse/core'
-import { isEqual } from 'es-toolkit'
+import { cloneDeep, isEqual } from 'es-toolkit'
 import { nanoid } from 'nanoid'
 import { defineStore, getActivePinia } from 'pinia'
 import { computed, shallowRef, watch } from 'vue'
@@ -120,8 +120,8 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
 
   // Uploaded fields only. status and replicaUpdatedAt stay local; a successful
   // push writes replicaUpdatedAt and must not look like a new local edit.
-  function replicaBody(row: { definitionId: string, config: Record<string, unknown> }) {
-    return { definitionId: row.definitionId, config: row.config }
+  function replicaBody(row: { definitionId: string, displayName?: string | null, config: Record<string, unknown> }) {
+    return { definitionId: row.definitionId, displayName: row.displayName, config: row.config }
   }
 
   function snapshotLocal(): ProviderSyncSnapshot {
@@ -150,6 +150,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       next[row.id] = {
         id: row.id,
         definitionId: row.definitionId,
+        displayName: row.displayName,
         config: { ...row.config },
         updatedAt: row.replicaUpdatedAt ?? '',
         deletedAt: null,
@@ -337,6 +338,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       next[id] = {
         id: row.id,
         definitionId: row.definitionId,
+        displayName: row.displayName,
         config: row.config,
         replicaUpdatedAt: row.replicaUpdatedAt,
         status: current?.status ?? 'unconfigured',
@@ -432,6 +434,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
         const remote = await service.upsertRemote(client, {
           id: provider.id,
           definitionId: provider.definitionId,
+          displayName: provider.displayName,
           config: provider.config,
         })
         const current = providers.value[provider.id]
@@ -508,7 +511,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     schedulePush()
   }
 
-  async function updateProviderConfig(providerId: string, config: Record<string, unknown>, status: ProviderValidationStatus) {
+  async function updateProviderConfig(providerId: string, config: Record<string, unknown>, status: ProviderValidationStatus, displayName?: string | null) {
     const provider = providers.value[providerId]
     if (!provider)
       return
@@ -517,10 +520,29 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       ...provider,
       config: { ...config },
       status,
+      displayName: displayName === undefined ? provider.displayName : displayName,
     }
     providers.value[providerId] = next
     schedulePush()
     return next
+  }
+
+  /**
+   * Changes UI metadata in the leader without replacing credentials or validation state.
+   *
+   * Triggering workflow:
+   * Provider editor rename -> synchronized action -> leader provider snapshot -> debounced replica push.
+   */
+  async function setProviderDisplayName(providerId: string, displayName: string | null) {
+    const provider = providers.value[providerId]
+    if (!provider)
+      return
+
+    const next: StoredProvider = { ...provider, displayName }
+    providers.value[providerId] = next
+    schedulePush()
+    // Replica snapshots can wrap nested config values in Vue proxies. RPC results need plain values.
+    return cloneDeep(next)
   }
 
   async function resetProviders() {
@@ -554,6 +576,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     addProvider,
     removeProvider,
     updateProviderConfig,
+    setProviderDisplayName,
     resetProviders,
     onAfterSync,
     onRemoteWorking,
@@ -573,6 +596,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       'addProvider',
       'removeProvider',
       'updateProviderConfig',
+      'setProviderDisplayName',
       'resetProviders',
     ],
     state: true,
