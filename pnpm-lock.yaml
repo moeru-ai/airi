@@ -19897,10 +19897,6 @@ packages:
   socket.io-adapter@2.5.8:
     resolution: {integrity: sha512-6Oy52pbg+kvdCVvjcN+FnY7BvxZ7cIHNScbvztT/It5d0vbwoJoVZmF2gjJmnV0/4WlXRfG15zc45ySk9Ah8bw==}
 
-  socket.io-client@4.8.3:
-    resolution: {integrity: sha512-uP0bpjWrjQmUt5DTHq9RuoCBdFJF10cdX9X+a368j/Ft0wmaVgxlrjvK3kjvgCODOMMOz9lcaRzxmso0bTWZ/g==}
-    engines: {node: '>=10.0.0'}
-
   socket.io-client@4.8.4:
     resolution: {integrity: sha512-7wjKAvVXYOJsbmUgkWbnhPD4bFpkqrUR0++XOjpGFmqDqsqV1CI93VTraeExLxpjxEqrWgFoSRZu1ihjLWfkAA==}
     engines: {node: '>=10.0.0'}
@@ -19908,10 +19904,6 @@ packages:
   socket.io-parser@4.2.7:
     resolution: {integrity: sha512-IH/iSeO9T6gz1KkFleGDWkG9N3dl4jXVYUtMhIqH10Md0ttMer8nUNWiP1DKuNrybD2xBrixLJdCC9J6ECoYkg==}
     engines: {node: '>=10.0.0'}
-
-  socket.io@4.8.3:
-    resolution: {integrity: sha512-2Dd78bqzzjE6KPkD5fHZmDAKRNe3J15q+YHDrIsy9WEkqttc7GY+kT9OBLSMaPbQaEd0x1BjcmtMtXkfpc+T5A==}
-    engines: {node: '>=10.2.0'}
 
   socket.io@4.8.4:
     resolution: {integrity: sha512-9ZV9zg8vN8hO3Y25DhR7nUkJ1VDnBhq5O/JrXhFT9s6+F0gqytSASTHVfCFc2mJXaTfARroErplXlzFWwETZqQ==}
@@ -35555,8 +35547,8 @@ snapshots:
       prismarine-block: 1.23.0(supports-color@10.2.2)
       prismarine-chunk: 1.41.0(supports-color@10.2.2)
       prismarine-world: 3.7.0
-      socket.io: 4.8.3(bufferutil@4.1.0)(supports-color@10.2.2)(utf-8-validate@5.0.10)
-      socket.io-client: 4.8.3(bufferutil@4.1.0)(supports-color@10.2.2)(utf-8-validate@5.0.10)
+      socket.io: 4.8.4(bufferutil@4.1.0)(supports-color@10.2.2)(utf-8-validate@5.0.10)
+      socket.io-client: 4.8.4(bufferutil@4.1.0)(supports-color@10.2.2)(utf-8-validate@5.0.10)
       three: 0.128.0
       three.meshline: 1.4.0
       vec3: 0.1.10
@@ -36391,17 +36383,6 @@ snapshots:
       - supports-color
       - utf-8-validate
 
-  socket.io-client@4.8.3(bufferutil@4.1.0)(supports-color@10.2.2)(utf-8-validate@5.0.10):
-    dependencies:
-      '@socket.io/component-emitter': 3.1.2
-      debug: 4.4.3(supports-color@10.2.2)
-      engine.io-client: 6.6.6(bufferutil@4.1.0)(supports-color@10.2.2)(utf-8-validate@5.0.10)
-      socket.io-parser: 4.2.7(supports-color@10.2.2)
-    transitivePeerDependencies:
-      - bufferutil
-      - supports-color
-      - utf-8-validate
-
   socket.io-client@4.8.4(bufferutil@4.1.0)(supports-color@10.2.2)(utf-8-validate@5.0.10):
     dependencies:
       '@socket.io/component-emitter': 3.1.2
@@ -36419,20 +36400,6 @@ snapshots:
       debug: 4.4.3(supports-color@10.2.2)
     transitivePeerDependencies:
       - supports-color
-
-  socket.io@4.8.3(bufferutil@4.1.0)(supports-color@10.2.2)(utf-8-validate@5.0.10):
-    dependencies:
-      accepts: 1.3.8
-      base64id: 2.0.0
-      cors: 2.8.6
-      debug: 4.4.3(supports-color@10.2.2)
-      engine.io: 6.6.9(bufferutil@4.1.0)(supports-color@10.2.2)(utf-8-validate@5.0.10)
-      socket.io-adapter: 2.5.8(bufferutil@4.1.0)(supports-color@10.2.2)(utf-8-validate@5.0.10)
-      socket.io-parser: 4.2.7(supports-color@10.2.2)
-    transitivePeerDependencies:
-      - bufferutil
-      - supports-color
-      - utf-8-validate
 
   socket.io@4.8.4(bufferutil@4.1.0)(supports-color@10.2.2)(utf-8-validate@5.0.10):
     dependencies:
