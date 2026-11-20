@@ -483,6 +483,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     const loadPromise = (async () => {
       try {
         if (!loadedSessions.has(sessionId) || staleSessions.has(sessionId)) {
+          const metaBeforeRead = sessionMetas.value[sessionId]
           const stored = await chatSessionsRepo.getSession(sessionId)
           // Re-check existence after the IDB read. Deletion or an account
           // change can remove this session while the read is pending.
@@ -494,7 +495,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
             const currentMessages = sessionMessages.value[sessionId] ?? []
             const mergedMessages = mergeLoadedSessionMessages(stored.messages, currentMessages)
 
-            sessionMetas.value[sessionId] = stored.meta
+            // A change of the metadata during the read is newer than the record, for example a pin while the
+            // conversation list loads. It stays, and its own save writes it.
+            if (sessionMetas.value[sessionId] === metaBeforeRead)
+              sessionMetas.value[sessionId] = stored.meta
             replaceSessionMessages(sessionId, mergedMessages, { persist: false })
             ensureGeneration(sessionId)
 
