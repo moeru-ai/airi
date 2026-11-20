@@ -31,6 +31,7 @@ export function createProviderRoutes(providerService: ProviderService) {
         instanceId,
         ownerId: user.id,
         definitionId: result.output.definitionId,
+        displayName: result.output.displayName,
         config: result.output.config,
       })
       return c.json(provider)
