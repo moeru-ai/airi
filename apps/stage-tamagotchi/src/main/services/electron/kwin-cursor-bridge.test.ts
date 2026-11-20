@@ -52,7 +52,7 @@ function snapshot(cursorX = 320, cursorY = 240) {
   })
 }
 
-describe('KWinCursorBridge', () => {
+describe('kWinCursorBridge', () => {
   afterEach(() => {
     vi.useRealTimers()
   })
@@ -165,6 +165,34 @@ describe('KWinCursorBridge', () => {
     vi.advanceTimersByTime(1750)
     expect(bridge.getCursorScreenPoint()).toBeUndefined()
     expect(reportUnavailable).toHaveBeenLastCalledWith(expect.any(String), expect.any(Error))
+    bridge.stop()
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2701
+  // ROOT CAUSE:
+  // A superseded socket could replace or clear the new connection's snapshot.
+  // Socket handlers now check current connection ownership before mutating state.
+  it('ignores superseded socket callbacks after reconnect for Issue #2701', () => {
+    vi.useFakeTimers()
+    const first = new MockSocket()
+    const second = new MockSocket()
+    const sockets = [first, second]
+    const reportUnavailable = vi.fn()
+    const bridge = new KWinCursorBridge({
+      createSocket: () => sockets.shift()!,
+      reportUnavailable,
+    })
+    bridge.start()
+    first.emitClose()
+    vi.advanceTimersByTime(1000)
+    second.emitMessage(snapshot(640, 480))
+
+    first.emitMessage(snapshot(10, 20))
+    first.emitError()
+    first.emitClose()
+
+    expect(bridge.getCursorScreenPoint()).toEqual({ x: 640, y: 480 })
+    expect(reportUnavailable).not.toHaveBeenCalled()
     bridge.stop()
   })
 })

@@ -29,6 +29,12 @@ const TRAFFIC_LIGHTS_HALF_HEIGHT = 7
 /** The x of `customTitleBarWindowConfig`, for a window that has the system position. */
 const TRAFFIC_LIGHTS_DEFAULT_X = 16
 
+/**
+ * Registers window controls and geometry reads for the owning renderer.
+ *
+ * Triggering workflow:
+ * Renderer window Eventa invoke -> sender-bound native handler -> owning BrowserWindow.
+ */
 export function createWindowService(params: {
   context: ReturnType<typeof createContext>['context']
   window: BrowserWindow

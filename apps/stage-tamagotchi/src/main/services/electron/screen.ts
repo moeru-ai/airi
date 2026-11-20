@@ -10,6 +10,12 @@ import { electron } from '../../../shared/eventa'
 import { onAppBeforeQuit, onAppWindowAllClosed } from '../../libs/bootkit/lifecycle'
 import { getKWinCursorBridge } from './kwin-cursor-bridge'
 
+/**
+ * Dispatches changed cursor coordinates from the fresh compositor snapshot or Electron.
+ *
+ * Triggering workflow:
+ * Renderer startLoopGetCursorScreenPoint -> renderer loop -> cursorScreenPoint Eventa -> Stage gaze.
+ */
 export function createScreenService(params: { context: ReturnType<typeof createContext>['context'], window: BrowserWindow }) {
   // The last position that the renderer received. The renderer keeps it, so a cursor that did not move needs no
   // message. Each message costs the renderer an IPC dispatch on its main thread, where the Stage renders.

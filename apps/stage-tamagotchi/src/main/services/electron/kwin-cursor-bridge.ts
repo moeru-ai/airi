@@ -1,20 +1,34 @@
 import type { Point, Rectangle } from 'electron'
+import type { InferOutput } from 'valibot'
+
+import { array, finite, gtValue, literal, minLength, number, object, pipe, safeParse, string } from 'valibot'
 
 const endpoint = 'ws://127.0.0.1:6181'
 const reconnectInterval = 1000
 const snapshotMaxAge = 1500
 const freshnessCheckInterval = 250
 
+const finiteCoordinate = pipe(number(), finite())
+const positiveDimension = pipe(number(), finite(), gtValue(0))
+const snapshotSchema = object({
+  version: literal(1),
+  cursor: object({ x: finiteCoordinate, y: finiteCoordinate }),
+  windows: array(object({
+    title: pipe(string(), minLength(1)),
+    bounds: object({ x: finiteCoordinate, y: finiteCoordinate, width: positiveDimension, height: positiveDimension }),
+  })),
+})
+
 interface CursorSnapshot {
-  cursor: Point
+  cursor: InferOutput<typeof snapshotSchema>['cursor']
   windows: Map<string, Rectangle>
 }
 
 interface CursorSocket {
-  close(): void
-  onClose(listener: () => void): void
-  onError(listener: (error: unknown) => void): void
-  onMessage(listener: (data: unknown) => void): void
+  close: () => void
+  onClose: (listener: () => void) => void
+  onError: (listener: (error: unknown) => void) => void
+  onMessage: (listener: (data: unknown) => void) => void
 }
 
 interface CursorBridgeOptions {
@@ -22,63 +36,31 @@ interface CursorBridgeOptions {
   reportUnavailable: (message: string, error?: unknown) => void
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function isFiniteNumber(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value)
-}
-
-function parseBounds(value: unknown): Rectangle | undefined {
-  if (!isRecord(value))
-    return undefined
-
-  const { x, y, width, height } = value
-  if (!isFiniteNumber(x) || !isFiniteNumber(y) || !isFiniteNumber(width) || !isFiniteNumber(height) || width <= 0 || height <= 0)
-    return undefined
-
-  return { x, y, width, height }
-}
-
-function parseWindows(value: unknown): Map<string, Rectangle> | undefined {
-  if (!Array.isArray(value))
+/**
+ * Validates compositor snapshots and excludes ambiguous titles from geometry lookup.
+ *
+ * @example
+ * parseSnapshot({ version: 1, cursor: { x: 0, y: 0 }, windows: [] })
+ * // => { cursor: { x: 0, y: 0 }, windows: new Map() }
+ */
+function parseSnapshot(value: unknown): CursorSnapshot | undefined {
+  const result = safeParse(snapshotSchema, value)
+  if (!result.success)
     return undefined
 
   const windows = new Map<string, Rectangle>()
   const duplicates = new Set<string>()
-
-  for (const entry of value) {
-    if (!isRecord(entry) || typeof entry.title !== 'string' || entry.title.length === 0)
-      return undefined
-
-    const bounds = parseBounds(entry.bounds)
-    if (!bounds)
-      return undefined
-
+  for (const entry of result.output.windows) {
     if (windows.has(entry.title)) {
       windows.delete(entry.title)
       duplicates.add(entry.title)
-      continue
     }
-
-    if (!duplicates.has(entry.title))
-      windows.set(entry.title, bounds)
+    else if (!duplicates.has(entry.title)) {
+      windows.set(entry.title, entry.bounds)
+    }
   }
 
-  return windows
-}
-
-function parseSnapshot(value: unknown): CursorSnapshot | undefined {
-  if (!isRecord(value) || value.version !== 1 || !isRecord(value.cursor))
-    return undefined
-
-  const { x, y } = value.cursor
-  const windows = parseWindows(value.windows)
-  if (!isFiniteNumber(x) || !isFiniteNumber(y) || !windows)
-    return undefined
-
-  return { cursor: { x, y }, windows }
+  return { cursor: result.output.cursor, windows }
 }
 
 function createCursorSocket(): CursorSocket {
@@ -109,6 +91,7 @@ export class KWinCursorBridge {
     this.options = options
   }
 
+  /** Connects once and starts freshness checks for this process-owned bridge. */
   start(): void {
     if (this.started)
       return
@@ -118,6 +101,7 @@ export class KWinCursorBridge {
     this.connect()
   }
 
+  /** Discards geometry and stops reconnect and freshness timers before the runtime closes. */
   stop(): void {
     this.stopped = true
     this.snapshot = undefined
@@ -166,25 +150,36 @@ export class KWinCursorBridge {
     this.socket = socket
     this.connectionStartedAt = Date.now()
     socket.onMessage(data => this.handleMessage(socket, data))
-    socket.onError((error) => {
-      if (this.socket === socket)
-        this.snapshot = undefined
-
-      this.reportUnavailable(error)
-      socket.close()
-    })
-    socket.onClose(() => {
-      if (this.socket === socket)
-        this.socket = undefined
-
-      this.snapshot = undefined
-      this.snapshotReceivedAt = undefined
-      this.connectionStartedAt = undefined
-      this.scheduleReconnect()
-    })
+    socket.onError(error => this.handleSocketError(socket, error))
+    socket.onClose(() => this.handleSocketClosed(socket))
   }
 
+  /** Triggering workflow: current socket error -> discard its snapshot -> close and reconnect. */
+  private handleSocketError(socket: CursorSocket, error: unknown): void {
+    if (this.socket !== socket)
+      return
+    this.snapshot = undefined
+    this.reportUnavailable(error)
+    socket.close()
+  }
+
+  /** Triggering workflow: current socket close -> clear compositor geometry -> schedule reconnection. */
+  private handleSocketClosed(socket: CursorSocket): void {
+    if (this.socket !== socket)
+      return
+    this.socket = undefined
+    this.snapshot = undefined
+    this.snapshotReceivedAt = undefined
+    this.connectionStartedAt = undefined
+    this.scheduleReconnect()
+  }
+
+  /** Triggering workflow: current socket message -> validated snapshot -> renderer cursor and window geometry reads. */
+
   private handleMessage(socket: CursorSocket, data: unknown): void {
+    if (this.socket !== socket)
+      return
+
     if (typeof data !== 'string') {
       this.rejectSnapshot(socket, new Error('KWin cursor bridge expected a text snapshot.'))
       return

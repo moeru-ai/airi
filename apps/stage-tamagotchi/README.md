@@ -30,9 +30,19 @@ remote downloads. The Resource Status Island shows transfer progress and errors.
 
 ## KDE Wayland cursor tracking
 
-On native Wayland, install the bundled `resources/kwin/airi-cursor-bridge` KWin script with `kpackagetool6 --type=KWin/Script --install <path-to-airi-cursor-bridge>`, then enable **AIRI Cursor Bridge** in System Settings under **Window Management > KWin Scripts** and restart KWin. The host must have the QtWebSockets QML module. The packaged script is under the app's `resources/kwin/airi-cursor-bridge` directory.
+On native KDE Wayland, install the bundled KWin script:
 
-The script shares the cursor position and AIRI window geometry with the app over loopback port `6181`. AIRI uses this data only while connected; otherwise it falls back to Electron's values. Other Wayland compositors are not supported by this script.
+```sh
+kpackagetool6 --type=KWin/Script --install <path-to-airi-cursor-bridge>
+```
+
+Enable **AIRI Cursor Bridge** in **System Settings > Window Management > KWin Scripts**, then restart KWin.
+The host must include the QtWebSockets QML module.
+The packaged script is in the app's `resources/kwin/airi-cursor-bridge` directory.
+
+The script shares cursor position and AIRI window geometry over loopback port `6181`.
+AIRI uses fresh connected snapshots and otherwise uses Electron's values.
+The script supports KDE Wayland.
 
 ## Computer use
 
