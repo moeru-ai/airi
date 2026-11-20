@@ -621,20 +621,23 @@ export const useSpeechStore = defineStore('speech', () => {
     if (!voiceId)
       return
 
-    let nextVoice: VoiceInfo | undefined
-    if (activeSpeechProvider.value === 'openai-compatible-audio-speech') {
+    const provider = activeSpeechProvider.value
+    const catalog = voices[provider] ?? []
+    const definition = providersStore.findProviderDefinition(provider)
+    const acceptsManualVoice = provider === 'openai-compatible-audio-speech'
+      || (definition?.tasks.includes('text-to-speech') && !definition.extraMethods?.listVoices)
+    let nextVoice = catalog.find(voice => voice.id === voiceId)
+    // A missing catalog entry cannot validate an ID. Catalog-free providers accept manual IDs instead.
+    if (!nextVoice && catalog.length === 0 && acceptsManualVoice) {
       nextVoice = {
         id: voiceId,
         name: voiceId,
         description: voiceId,
         previewURL: '',
         languages: [{ code: 'en', title: 'English' }],
-        provider: activeSpeechProvider.value,
+        provider,
         gender: 'neutral',
       }
-    }
-    else {
-      nextVoice = voices[activeSpeechProvider.value]?.find(voice => voice.id === voiceId)
     }
 
     if (!nextVoice || isEqual(activeSpeechVoice.value, nextVoice))
