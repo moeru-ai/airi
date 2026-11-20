@@ -1360,12 +1360,12 @@ export const useChatStore = defineStore('chat', () => {
 
   /**
    * Refuses a send of the user to an archived conversation. It is read-only until the user restores it. The refusal
-   * comes before the send starts, so the conversation gets no error message, and a voice draft stays. A notice of
-   * finished background work does not pass here and still reaches the conversation.
+   * comes before the send starts, so the conversation gets no error message, and a voice draft stays and shows the
+   * reason. A notice of finished background work does not pass here and still reaches the conversation.
    */
   function assertSessionOpenForSend(sessionId: string) {
     if (chatSession.sessionMetas[sessionId]?.archivedAt !== undefined)
-      throw new Error('The conversation is archived. Restore it to continue.')
+      throw new Error(t('stage.chat.archived-session.description'))
   }
 
   function appendSendError(sessionId: string, error: unknown) {
