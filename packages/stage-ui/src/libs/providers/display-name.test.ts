@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { resolveProviderDisplayName } from './display-name'
+import { normalizeProviderDisplayName, resolveProviderDisplayName } from './display-name'
 
 describe('resolveProviderDisplayName', () => {
   it('prefers a custom display name', () => {
@@ -19,5 +19,13 @@ describe('resolveProviderDisplayName', () => {
 
   it('uses the definition id when no provider definition exists', () => {
     expect(resolveProviderDisplayName({ definitionId: 'unknown-provider' })).toBe('unknown-provider')
+  })
+})
+
+describe('custom provider name persistence', () => {
+  it('keeps the default localized instead of saving its current translation', () => {
+    expect(normalizeProviderDisplayName('Localized provider', 'Localized provider')).toBeNull()
+    expect(normalizeProviderDisplayName('  ', 'Localized provider')).toBeNull()
+    expect(normalizeProviderDisplayName('  My provider  ', 'Localized provider')).toBe('My provider')
   })
 })

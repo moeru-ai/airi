@@ -17,7 +17,7 @@ import {
   ProviderSettingsLayout,
   ProviderValidationDetailsDialog,
 } from '@proj-airi/stage-ui/components'
-import { getDefinedProvider, getSchemaDefault, getValidatorsOfProvider, validateProvider } from '@proj-airi/stage-ui/libs'
+import { getDefinedProvider, getSchemaDefault, getValidatorsOfProvider, normalizeProviderDisplayName, validateProvider } from '@proj-airi/stage-ui/libs'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { Alert, Button, Callout, FieldCheckbox, FieldCombobox, FieldInput, FieldKeyValues, GhostButton } from '@proj-airi/ui'
 import { computedAsync, useCloned, useDebounceFn } from '@vueuse/core'
@@ -52,10 +52,7 @@ const providerDisplayNameEdit = computed({
 const providerDisplayName = computed(() => providerConfigEdit.value?.displayName?.trim() || providerDefinitionDisplayName.value)
 
 function getCustomProviderDisplayName(displayName: string = providerDisplayNameEdit.value): string | null {
-  const normalizedDisplayName = displayName.trim()
-  return normalizedDisplayName && normalizedDisplayName !== providerDefinitionDisplayName.value
-    ? normalizedDisplayName
-    : null
+  return normalizeProviderDisplayName(displayName, providerDefinitionDisplayName.value)
 }
 
 const isProviderSchemaLoading = ref(false)
@@ -407,16 +404,11 @@ function persistProviderUpdate(update: ProviderUpdate) {
 
   const save = providerSaveChain.then(async () => {
     try {
-      const provider = providerStore.getProvider(id)
-      if (!provider)
-        return
+      if (update.type === 'display-name')
+        return await providerStore.setProviderDisplayName(id, update.displayName)
 
-      const next = update.type === 'validated-draft'
-        ? { config: update.config, status: update.status, displayName: update.displayName }
-        : { config: provider.config, status: provider.status, displayName: update.displayName }
-
-      const remote = await providerStore.updateProviderConfig(id, next.config, next.status, next.displayName)
-      if (update.type === 'validated-draft' && isCurrentProviderDraft(next.config, next.displayName))
+      const remote = await providerStore.updateProviderConfig(id, update.config, update.status, update.displayName)
+      if (isCurrentProviderDraft(update.config, update.displayName))
         syncProviderConfigEdit()
       return remote
     }

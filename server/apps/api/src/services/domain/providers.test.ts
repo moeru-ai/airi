@@ -34,12 +34,14 @@ describe('providerService', () => {
       instanceId: 'prov-1',
       ownerId: testUser.id,
       definitionId: 'openai',
+      displayName: 'Custom provider',
       config: { apiKey: 'sk-123' },
     })
 
     expect(result.instanceId).toBe('prov-1')
     expect(result.id).not.toBe('prov-1')
     expect(result.definitionId).toBe('openai')
+    expect(result.displayName).toBe('Custom provider')
     expect(result.config).toEqual({ apiKey: 'sk-123' })
     expect(result.deletedAt).toBeNull()
     expect(result.updatedAt).toEqual(expect.any(String))
@@ -48,6 +50,7 @@ describe('providerService', () => {
       where: eq(schema.userProviderConfigs.id, result.id),
     })
     expect(stored?.instanceId).toBe('prov-1')
+    expect(stored?.displayName).toBe('Custom provider')
     expect(stored?.config.startsWith('v1.')).toBe(true)
     expect(stored?.config).not.toContain('sk-123')
   })

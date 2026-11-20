@@ -59,8 +59,8 @@ it('upgrades an existing database through the Drizzle migrator', async () => {
     await migrate(db, { migrationsFolder })
     await migrate(db, { migrationsFolder })
 
-    expect((await client.query("SELECT tablename FROM pg_tables WHERE tablename = 'upload_sessions'")).rows).toEqual([{ tablename: 'upload_sessions' }])
-    expect((await client.query("SELECT indexname FROM pg_indexes WHERE indexname = 'llm_request_log_created_idx'")).rows).toEqual([{ indexname: 'llm_request_log_created_idx' }])
+    expect((await client.query('SELECT tablename FROM pg_tables WHERE tablename = \'upload_sessions\'')).rows).toEqual([{ tablename: 'upload_sessions' }])
+    expect((await client.query('SELECT indexname FROM pg_indexes WHERE indexname = \'llm_request_log_created_idx\'')).rows).toEqual([{ indexname: 'llm_request_log_created_idx' }])
 
     expect((await client.query('SELECT id, definition_id, display_name FROM user_provider_configs')).rows).toEqual([{
       id: 'provider-config',

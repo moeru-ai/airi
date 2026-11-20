@@ -17,3 +17,15 @@ export function resolveProviderDisplayName(
 
   return definition?.name || provider.definitionId
 }
+
+/**
+ * Stores only a custom name. Empty input or the localized default clears the custom metadata.
+ *
+ * @example
+ * normalizeProviderDisplayName('  Custom  ', 'Localized provider')
+ * // => 'Custom'
+ */
+export function normalizeProviderDisplayName(displayName: string, definitionName: string): string | null {
+  const name = displayName.trim()
+  return name && name !== definitionName ? name : null
+}

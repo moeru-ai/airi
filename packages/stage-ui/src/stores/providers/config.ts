@@ -527,6 +527,23 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     return next
   }
 
+  /**
+   * Changes UI metadata in the leader without replacing credentials or validation state.
+   *
+   * Triggering workflow:
+   * Provider editor rename -> synchronized action -> leader provider snapshot -> debounced replica push.
+   */
+  async function setProviderDisplayName(providerId: string, displayName: string | null) {
+    const provider = providers.value[providerId]
+    if (!provider)
+      return
+
+    const next: StoredProvider = { ...provider, displayName }
+    providers.value[providerId] = next
+    schedulePush()
+    return next
+  }
+
   async function resetProviders() {
     providers.value = {}
     addedProviders.value = {}
@@ -558,6 +575,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     addProvider,
     removeProvider,
     updateProviderConfig,
+    setProviderDisplayName,
     resetProviders,
     onAfterSync,
     onRemoteWorking,
@@ -577,6 +595,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       'addProvider',
       'removeProvider',
       'updateProviderConfig',
+      'setProviderDisplayName',
       'resetProviders',
     ],
     state: true,
