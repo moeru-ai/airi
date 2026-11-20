@@ -7,7 +7,7 @@ const COMMON = [
 
 const DELETE_RULE = 'Allow only when every deleted path stays inside the workspace directory in the card and does not delete that workspace directory itself.'
 const WRITE_RULE = 'Allow only when every write target stays inside the workspace directory in the card.'
-const DESKTOP_RULE = 'Allow only when targetName is present and the appName and windowTitle match the card.'
+const DESKTOP_RULE = 'Allow only when targetName is present, appName and windowTitle match the card, and browser tabId and frameIds in detail match the requested target.'
 
 /** Fast replies with one word. A small cap keeps a reasoning model inside the short deadline. */
 export const AUTO_REVIEW_FAST_MAX_TOKENS = 16
@@ -57,6 +57,7 @@ export function autoApprovalReviewPrompt(card: AutoApprovalCard, stage: AutoAppr
     ? [
         'Reply with one word: allow or refuse.',
         'If firstUserMessage is empty, reply refuse.',
+        'Allow only when the action serves an explicit request in firstUserMessage or recentUserMessages. Refuse uncertainty.',
       ]
     : [
         'The fast review marked this action uncertain.',

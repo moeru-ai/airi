@@ -108,6 +108,8 @@ describe('command auto cage', () => {
 
   it('refuses secrets and privileged commands', () => {
     expect(decideCommandAuto(snapshot('cat .env'), '/workspace/app').outcome).toBe('refuse')
+    expect(decideCommandAuto(snapshot("cp '.'env copy output"), '/workspace/app').outcome).toBe('refuse')
+    expect(decideCommandAuto(snapshot("cp '.ssh'/id_rsa copy"), '/workspace/app').outcome).toBe('refuse')
     expect(decideCommandAuto(snapshot('cat ~/.ssh/id_rsa'), '/workspace/app').outcome).toBe('refuse')
     expect(decideCommandAuto(snapshot('sudo ls'), '/workspace/app').outcome).toBe('refuse')
     expect(decideCommandAuto(snapshot('shutdown /s'), '/workspace/app').outcome).toBe('refuse')
@@ -323,14 +325,14 @@ describe('foreground recheck helpers', () => {
 })
 
 describe('computer use review card payload', () => {
-  function domInput(value: string) {
+  function domInput(value: string, routing: { tabId?: number, frameIds?: number[] } = {}) {
     return decideComputerUseAuto({
       frozenAppName: frozenApp,
       actionKind: 'browser_dom_set_input_value',
       contextAvailable: true,
       appName: 'Notes',
       windowTitle: ' Notes ',
-      action: { input: { selector: '#input', value } },
+      action: { input: { selector: '#input', value, ...routing } },
     })
   }
 
@@ -345,6 +347,14 @@ describe('computer use review card payload', () => {
     expect(hello.outcome === 'review' && evil.outcome === 'review' && JSON.stringify(hello.card) !== JSON.stringify(evil.card)).toBe(true)
     if (hello.outcome === 'review')
       expect(foregroundMatchesComputerCard(hello.card, { available: true, appName: 'Notes', windowTitle: ' Notes ' })).toBe(true)
+  })
+
+  it('stores the selected browser tab and frames on the review card', () => {
+    expect(domInput('hello', { tabId: 7, frameIds: [0, 3] })).toMatchObject({
+      outcome: 'review',
+      card: { detail: JSON.stringify({ tabId: 7, frameIds: [0, 3], value: 'hello' }) },
+    })
+    expect(domInput('hello', { tabId: 8, frameIds: [0, 3] })).not.toEqual(domInput('hello', { tabId: 7, frameIds: [0, 3] }))
   })
 
   it('stores checkbox, option, and event payloads', () => {

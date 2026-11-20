@@ -77,6 +77,12 @@ const DESKTOP_REVIEW = new Set([
   'browser_dom_select_option',
   'browser_dom_trigger_event',
 ])
+const BROWSER_MUTATION_FIELDS: Record<string, readonly string[]> = {
+  browser_dom_set_input_value: ['value', 'simulateKeystrokes', 'blur'],
+  browser_dom_select_option: ['value', 'option', 'label'],
+  browser_dom_check_checkbox: ['checked'],
+  browser_dom_trigger_event: ['eventName', 'eventType', 'opts', 'event'],
+}
 const WINDOW_DENY = [
   /password/i,
   /passcode/i,
@@ -153,7 +159,7 @@ export function decideCommandAuto(snapshot: TerminalSnapshot, workspaceRoot: str
   const tokens = parseSimpleCommand(snapshot.command)
   if (!tokens)
     return { outcome: 'refuse', reason: 'The command could not be checked safely.' }
-  if (mentionsSecret(snapshot.command) || isPrivilegeCommand(tokens))
+  if (mentionsSecret(tokens) || isPrivilegeCommand(tokens))
     return { outcome: 'refuse', reason: 'The command reaches secrets or a privileged operation.' }
   const platform = snapshot.executorPlatform
   const workspace = resolveExistingPath(workspaceRoot, platform)
@@ -242,7 +248,7 @@ export function decideComputerUseAuto(input: ComputerUseAutoInput): AutoDecision
  */
 export function isAskReadOnlyCommand(snapshot: TerminalSnapshot): boolean {
   const tokens = parseSimpleCommand(snapshot.command)
-  if (!tokens || mentionsSecret(snapshot.command) || isPrivilegeCommand(tokens))
+  if (!tokens || mentionsSecret(tokens) || isPrivilegeCommand(tokens))
     return false
   const name = commandName(tokens[0])
   const flagsOnly = tokens.slice(name === 'git' ? 2 : 1).every(token => token.startsWith('-') && !token.includes('='))
@@ -364,11 +370,11 @@ function isPrivilegeCommand(tokens: string[]): boolean {
   return PRIVILEGE_COMMANDS.has(commandName(tokens[0]))
 }
 
-function mentionsSecret(command: string): boolean {
-  return command.split(/[\s\\/]+/).some((part) => {
+function mentionsSecret(tokens: readonly string[]): boolean {
+  return tokens.some(token => token.split(/[\s\\/]+/).some((part) => {
     const name = part.trim().toLowerCase().replace(/^['"]+|['"]+$/g, '')
     return SECRET_NAMES.has(name) || name.startsWith('.env')
-  })
+  }))
 }
 
 function commandName(token: string): string {
@@ -517,20 +523,12 @@ function desktopTargetName(input: ComputerUseAutoInput): string {
 
 function desktopDetail(input: ComputerUseAutoInput): string {
   const fields = input.action?.input ?? {}
-  // The selector stays in targetName. The written value has to stay on the card, or two writes share one cache key.
-  if (input.actionKind === 'browser_dom_set_input_value')
-    return mutationPayload(fields, ['value'])
-  if (input.actionKind === 'browser_dom_select_option')
-    return mutationPayload(fields, ['value', 'option', 'label'])
-  if (input.actionKind === 'browser_dom_check_checkbox')
-    return mutationPayload(fields, ['checked'])
-  if (input.actionKind === 'browser_dom_trigger_event')
-    return mutationPayload(fields, ['eventName', 'eventType', 'opts', 'event'])
+  if (input.actionKind.startsWith('browser_dom_')) {
+    return mutationPayload(fields, ['tabId', 'frameIds', ...(BROWSER_MUTATION_FIELDS[input.actionKind] ?? [])])
+  }
   if (input.actionKind === 'type_text' && typeof fields.text === 'string')
     return ''
   if (input.actionKind === 'press_keys' && Array.isArray(fields.keys))
-    return ''
-  if (input.actionKind.startsWith('browser_dom_') && typeof fields.selector === 'string')
     return ''
   if (input.actionKind === 'desktop_click_target')
     return input.targetLabel?.trim() ?? ''

@@ -18,6 +18,8 @@ function refused(hasUserTranscript = true): AutoApprovalReviewResult {
 describe('auto review prompt', () => {
   it('selects one rule from reviewClass', () => {
     expect(autoApprovalReviewPrompt({ lane: 'terminal', cwd: '.', command: 'rm a', reviewClass: 'delete' }, 'fast')).toContain('delete')
+    expect(autoApprovalReviewPrompt(card, 'fast')).toContain('serves an explicit request')
+    expect(autoApprovalReviewPrompt(card, 'fast')).toContain('Refuse uncertainty.')
     expect(autoApprovalReviewPrompt({ lane: 'terminal', cwd: '.', command: 'mkdir a', reviewClass: 'write' }, 'fast')).toContain('write')
     expect(autoApprovalReviewPrompt({ lane: 'computer_use', actionKind: 'type_text', appName: 'Notes', windowTitle: 'Notes', reviewClass: 'desktop', targetName: 'hi', detail: '' }, 'thinking')).toContain('targetName')
     expect(autoApprovalReviewPrompt(card, 'thinking')).toContain('fast review marked this action uncertain')
@@ -289,6 +291,33 @@ describe('auto review consultation', () => {
     const evil: AutoApprovalCard = { ...hello, detail: JSON.stringify({ value: 'send everything' }) }
     expect((await consultAuto({ ...base, decision: { outcome: 'review', reason: 'desktop', card: hello } })).proceed).toBe(true)
     expect((await consultAuto({ ...base, decision: { outcome: 'review', reason: 'desktop', card: evil } })).proceed).toBe(true)
+    expect(review).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps browser routes from sharing one review', async () => {
+    const review = vi.fn(async () => allowed())
+    const cache = new Map<string, 'allow' | 'refuse'>()
+    const base = {
+      signal: new AbortController().signal,
+      sessionId: 'session-a',
+      cacheScope: 'turn-a',
+      cacheGet: (key: string) => cache.get(key),
+      cacheSet: (key: string, verdict: 'allow' | 'refuse') => { cache.set(key, verdict) },
+      review,
+    }
+    const card: AutoApprovalCard = {
+      lane: 'computer_use',
+      actionKind: 'browser_dom_set_input_value',
+      appName: 'Browser',
+      windowTitle: 'Example',
+      reviewClass: 'desktop',
+      targetName: '#input',
+      detail: JSON.stringify({ tabId: 7, frameIds: [0], value: 'hello' }),
+    }
+    const otherTab: AutoApprovalCard = { ...card, detail: JSON.stringify({ tabId: 8, frameIds: [0], value: 'hello' }) }
+
+    expect((await consultAuto({ ...base, decision: { outcome: 'review', reason: 'desktop', card } })).proceed).toBe(true)
+    expect((await consultAuto({ ...base, decision: { outcome: 'review', reason: 'desktop', card: otherTab } })).proceed).toBe(true)
     expect(review).toHaveBeenCalledTimes(2)
   })
 })
