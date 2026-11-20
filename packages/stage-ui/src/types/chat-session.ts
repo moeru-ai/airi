@@ -54,6 +54,19 @@ export interface ChatSessionMeta {
    * @default undefined
    */
   cloudMaxSeq?: number
+  /** When the owner pinned the conversation. The conversation list shows pinned conversations first. This device only. */
+  pinnedAt?: number
+  /** When the owner archived the conversation. The conversation list moves it to its archive. This device only. */
+  archivedAt?: number
+  /** The folder of the conversation, a key of {@link ChatSessionsIndex.folders}. This device only. */
+  folderId?: string
+}
+
+/** A folder that groups conversations of any character in the conversation list. */
+export interface ChatSessionFolder {
+  id: string
+  name: string
+  createdAt: number
 }
 
 export interface ChatSessionRecord {
@@ -69,6 +82,8 @@ export interface ChatCharacterSessionsIndex {
 export interface ChatSessionsIndex {
   userId: string
   characters: Record<string, ChatCharacterSessionsIndex>
+  /** Folders of the conversation list, by ID. A folder holds conversations of every character, so the index of the user owns it. */
+  folders?: Record<string, ChatSessionFolder>
 }
 
 export interface ChatSessionsExport {

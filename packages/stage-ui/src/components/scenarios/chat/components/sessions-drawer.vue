@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { ChatSessionMeta } from '../../../../types/chat-session'
-import type { SessionRow } from './sessions-list.vue'
+import type { ChatSessionFolder, ChatSessionMeta } from '../../../../types/chat-session'
+import type { SessionRow } from './session-row.vue'
 
 import { useNow } from '@vueuse/core'
 import { intlFormatDistance } from 'date-fns'
@@ -12,6 +12,7 @@ import SessionsDialog from './sessions-dialog.vue'
 
 import { useAnalytics } from '../../../../composables/use-analytics'
 import { useBreakpoints } from '../../../../composables/use-breakpoints'
+import { useCharacterPreviews } from '../../../../composables/use-character-previews'
 import { extractMessageText } from '../../../../libs/chat-sync'
 import { useAuthStore } from '../../../../stores/auth'
 import { useChatStore } from '../../../../stores/chat'
@@ -33,8 +34,9 @@ const now = useNow({ interval: 60_000 })
 
 const chatSession = useChatSessionStore()
 const chat = useChatStore()
-const { sessionMetas, sessionMessages, activeSessionId } = storeToRefs(chatSession)
-const { activeCardId } = storeToRefs(useAiriCardStore())
+const { sessionMetas, sessionMessages, activeSessionId, index } = storeToRefs(chatSession)
+const { activeCardId, cards } = storeToRefs(useAiriCardStore())
+const characterPreviews = useCharacterPreviews()
 const { userId } = storeToRefs(useAuthStore())
 const { activeModel } = storeToRefs(useConsciousnessStore())
 const { trackChatSessionSelected, trackChatSessionStarted, trackConversationRenamed } = useAnalytics()
@@ -96,8 +98,17 @@ const rows = computed<SessionRow[]>(() => {
       preview: previewFor(meta),
       isActive: meta.sessionId === activeSessionId.value,
       activityAtLabel: intlFormatDistance(activityAt, referenceTime, { locale: locale.value }),
+      characterName: cards.value.get(meta.characterId)?.name ?? t('stage.chat.sessions.unknown-character'),
+      characterPreview: characterPreviews.value.get(meta.characterId),
     }))
 })
+
+/** Every character card, so the filter can pick a character that has no conversation yet. */
+const characters = computed(() => [...cards.value].map(([id, card]) => ({ id, name: card.name, preview: characterPreviews.value.get(id) })))
+
+/** Folders in the order of their creation, so a new folder appears last. */
+const folders = computed<ChatSessionFolder[]>(() => Object.values(index.value?.folders ?? {})
+  .sort((first, second) => first.createdAt - second.createdAt))
 
 async function selectSession(sessionId: string) {
   const selectedRow = rows.value.find(row => row.meta.sessionId === sessionId)
@@ -112,16 +123,22 @@ async function selectSession(sessionId: string) {
   showDialog.value = false
 }
 
-async function startNewSession() {
+/**
+ * Creates a conversation and opens it. Without a character ID, it belongs to the active character.
+ * A folder ID puts the conversation into that folder.
+ */
+async function startNewSession(payload: { folderId?: string, characterId?: string }) {
   if (isCreatingSession.value)
     return
   isCreatingSession.value = true
   try {
-    const characterId = activeCardId.value || 'default'
+    const characterId = payload.characterId ?? (activeCardId.value || 'default')
     const selectionBeforeCreation = activeSessionId.value
     // Creation runs in the synchronized leader, while navigation belongs to
     // this window. Activating inside createSession would navigate the leader.
     const sessionId = await chatSession.createSession(characterId, { setActive: false })
+    if (payload.folderId)
+      await chatSession.moveSessionsToFolder([sessionId], payload.folderId)
     // Rows remain interactive while creation is persisted in the leader. Do
     // not let that stale continuation replace a newer local user selection.
     if (activeSessionId.value === selectionBeforeCreation)
@@ -144,6 +161,12 @@ async function renameSession(payload: { sessionId: string, title: string }) {
     conversation_id: payload.sessionId,
     source: 'sessions_drawer',
   })
+}
+
+async function createFolder(payload: { name: string, sessionIds: string[] }) {
+  const folderId = await chatSession.createFolder(payload.name)
+  if (folderId && payload.sessionIds.length > 0)
+    await chatSession.moveSessionsToFolder(payload.sessionIds, folderId)
 }
 
 // Per-open generation counter. The batch loadSession loop checks this before
@@ -175,6 +198,8 @@ watch(showDialog, async (open) => {
   <SessionsDialog
     v-model:open="showDialog"
     :rows="rows"
+    :characters="characters"
+    :folders="folders"
     :is-desktop="isDesktop"
     :is-creating-session="isCreatingSession"
     :desktop-mode="props.desktopMode"
@@ -183,6 +208,12 @@ watch(showDialog, async (open) => {
     @delete-session="chat.deleteSession"
     @delete-sessions="chat.deleteSessions"
     @rename-session="renameSession"
+    @pin-session="chatSession.setSessionPinned($event.sessionId, $event.pinned)"
+    @archive-sessions="chatSession.setSessionsArchived($event.sessionIds, $event.archived)"
+    @move-sessions="chatSession.moveSessionsToFolder($event.sessionIds, $event.folderId)"
+    @create-folder="createFolder"
+    @rename-folder="chatSession.renameFolder($event.folderId, $event.name)"
+    @delete-folder="chatSession.deleteFolder"
   >
     <template #trigger>
       <slot name="trigger" />

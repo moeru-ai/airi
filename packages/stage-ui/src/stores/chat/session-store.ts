@@ -4,10 +4,10 @@ import type {} from 'pinia-plugin-synced'
 import type { ChatSendOutboxEntry } from '../../database/repos/chat-sessions.repo'
 import type { ChatWsClient, CloudChatMapper } from '../../libs/chat-sync'
 import type { ChatHistoryItem } from '../../types/chat'
-import type { ChatSessionMeta, ChatSessionRecord, ChatSessionsExport, ChatSessionsIndex, ChatSessionTask, StoredVoiceInterruption } from '../../types/chat-session'
+import type { ChatSessionFolder, ChatSessionMeta, ChatSessionRecord, ChatSessionsExport, ChatSessionsIndex, ChatSessionTask, StoredVoiceInterruption } from '../../types/chat-session'
 
 import { errorMessageFrom } from '@moeru/std'
-import { cloneDeep } from 'es-toolkit'
+import { cloneDeep, omit } from 'es-toolkit'
 import { nanoid } from 'nanoid'
 import { defineStore, getActivePinia, storeToRefs } from 'pinia'
 import { computed, ref, toRaw, watch } from 'vue'
@@ -646,6 +646,100 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     void syncPendingSessionTitle(sessionId)
 
     return true
+  }
+
+  /**
+   * Changes the metadata of each known session, then saves it. A session that another window deleted is skipped.
+   * Every change reaches memory before the first wait, so an action that runs during the writes sees all of them.
+   */
+  async function updateSessionMetas(sessionIds: string[], change: (meta: ChatSessionMeta) => ChatSessionMeta) {
+    const changedIds: string[] = []
+    for (const sessionId of sessionIds) {
+      const meta = sessionMetas.value[sessionId]
+      if (!meta)
+        continue
+      sessionMetas.value[sessionId] = change(meta)
+      changedIds.push(sessionId)
+    }
+    for (const sessionId of changedIds)
+      await persistSessionMeta(sessionId)
+  }
+
+  /** Pins or unpins a conversation. The conversation list shows pinned conversations first. */
+  async function setSessionPinned(sessionId: string, pinned: boolean) {
+    await updateSessionMetas([sessionId], meta => ({ ...meta, pinnedAt: pinned ? Date.now() : undefined }))
+  }
+
+  /** Archives or restores conversations. An archived conversation leaves the conversation list and loses its pin. */
+  async function setSessionsArchived(sessionIds: string[], archived: boolean) {
+    const archivedAt = Date.now()
+    await updateSessionMetas(sessionIds, meta => archived
+      ? { ...meta, archivedAt, pinnedAt: undefined }
+      : { ...meta, archivedAt: undefined })
+  }
+
+  /**
+   * Folders whose deletion is saving. A move into one of them moves nothing, so no conversation joins a folder that
+   * is going away. Actions run in the leader, so this window holds the only copy.
+   */
+  const deletingFolderIds = new Set<string>()
+
+  /** Moves conversations into a folder, or out of their folder with `undefined`. An unknown or deleting folder moves nothing. */
+  async function moveSessionsToFolder(sessionIds: string[], folderId: string | undefined) {
+    if (folderId !== undefined && (!index.value?.folders?.[folderId] || deletingFolderIds.has(folderId)))
+      return
+    await updateSessionMetas(sessionIds, meta => ({ ...meta, folderId }))
+  }
+
+  /** Creates a folder of the conversation list and returns its ID. A blank name creates nothing. */
+  async function createFolder(name: string): Promise<string | undefined> {
+    const normalizedName = name.trim()
+    if (!normalizedName)
+      return undefined
+    if (!index.value)
+      index.value = { userId: getCurrentUserId(), characters: {} }
+
+    const folder: ChatSessionFolder = { id: nanoid(), name: normalizedName, createdAt: Date.now() }
+    index.value.folders = { ...index.value.folders, [folder.id]: folder }
+    await persistIndex()
+    return folder.id
+  }
+
+  async function renameFolder(folderId: string, name: string): Promise<boolean> {
+    const folder = index.value?.folders?.[folderId]
+    const normalizedName = name.trim()
+    if (!index.value || !folder || !normalizedName)
+      return false
+
+    index.value.folders = { ...index.value.folders, [folderId]: { ...folder, name: normalizedName } }
+    await persistIndex()
+    return true
+  }
+
+  /**
+   * Deletes a folder. Its conversations stay and return to the conversation list.
+   *
+   * The conversations leave the folder on disk before the folder leaves the index. A save that stops part way keeps
+   * the folder with the conversations that are still in it, so no saved conversation points to a missing folder.
+   */
+  async function deleteFolder(folderId: string) {
+    if (!index.value?.folders?.[folderId] || deletingFolderIds.has(folderId))
+      return
+
+    deletingFolderIds.add(folderId)
+    try {
+      const members = Object.values(sessionMetas.value)
+        .filter(meta => meta.folderId === folderId)
+        .map(meta => meta.sessionId)
+      await updateSessionMetas(members, meta => ({ ...meta, folderId: undefined }))
+      if (!index.value?.folders?.[folderId])
+        return
+      index.value.folders = omit(index.value.folders, [folderId])
+      await persistIndex()
+    }
+    finally {
+      deletingFolderIds.delete(folderId)
+    }
   }
 
   async function syncPendingSessionTitle(sessionId: string): Promise<boolean> {
@@ -2073,6 +2167,12 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     loadSession,
     refreshSession,
     renameSession,
+    setSessionPinned,
+    setSessionsArchived,
+    moveSessionsToFolder,
+    createFolder,
+    renameFolder,
+    deleteFolder,
     deleteSession,
     deleteSessions,
     activateCurrentUser,
@@ -2109,6 +2209,12 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       'pushMessageToCloud',
       'refreshSession',
       'renameSession',
+      'setSessionPinned',
+      'setSessionsArchived',
+      'moveSessionsToFolder',
+      'createFolder',
+      'renameFolder',
+      'deleteFolder',
       'resetAllSessions',
       'setSessionTask',
       'deleteHiddenSession',
