@@ -5,12 +5,16 @@ import type { HonoEnv } from '../../types/hono'
 
 import { createBadRequestError } from '@proj-airi/http-error-shared'
 import { Hono } from 'hono'
-import { boolean, object, parse, safeParse } from 'valibot'
+import { boolean, nonEmpty, object, parse, pipe, safeParse, string } from 'valibot'
 
 import { authGuard } from '../../middlewares/auth'
 import { LimitOffsetPaginationQuerySchema } from '../../utils/http-query'
 
 const FallbackBodySchema = object({ fallbackToFlux: boolean() })
+
+const TimeZoneQuerySchema = object({
+  timeZone: pipe(string(), nonEmpty()),
+})
 
 export function createFluxRoutes(
   fluxService: FluxService,
@@ -44,14 +48,18 @@ export function createFluxRoutes(
         limit: c.req.query('limit'),
         offset: c.req.query('offset'),
       })
-      const result = await fluxTransactionService.getUsageHistory(user.id, limit, offset)
+      const { records, hasMore } = await fluxTransactionService.getUsageHistory(user.id, limit, offset)
       return c.json({
-        records: result.records.map(record => ({
-          ...record,
-          createdAt: record.createdAt.toISOString(),
-        })),
-        hasMore: result.hasMore,
+        records: records.map(record => ({ ...record, createdAt: record.createdAt.toISOString() })),
+        hasMore,
       })
+    })
+    .get('/usage/daily', async (c) => {
+      const user = c.get('user')!
+      const query = safeParse(TimeZoneQuerySchema, { timeZone: c.req.query('timeZone') })
+      if (!query.success)
+        throw createBadRequestError('Invalid time zone', 'INVALID_TIME_ZONE', query.issues)
+      return c.json(await fluxTransactionService.getDailyUsage(user.id, query.output.timeZone))
     })
     .get('/stats', async (c) => {
       const user = c.get('user')!

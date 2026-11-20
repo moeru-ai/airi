@@ -671,27 +671,6 @@
     {
       "path": "packages/i18n/src/locales/en/settings.yaml",
       "code": "unused-key",
-      "key": "settings.pages.flux.audit.typeAddition",
-      "message": "\"settings.pages.flux.audit.typeAddition\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/settings.yaml",
-      "code": "unused-key",
-      "key": "settings.pages.flux.audit.typeInitial",
-      "message": "\"settings.pages.flux.audit.typeInitial\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/settings.yaml",
-      "code": "unused-key",
-      "key": "settings.pages.flux.audit.typePromo",
-      "message": "\"settings.pages.flux.audit.typePromo\" is not used.",
-      "count": 1
-    },
-    {
-      "path": "packages/i18n/src/locales/en/settings.yaml",
-      "code": "unused-key",
       "key": "settings.pages.flux.buy",
       "message": "\"settings.pages.flux.buy\" is not used.",
       "count": 1

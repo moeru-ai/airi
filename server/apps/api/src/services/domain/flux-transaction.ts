@@ -1,28 +1,23 @@
 import type { Database } from '../../libs/db'
 
-import { useLogger } from '@guiiai/logg'
-import { and, desc, eq, getTableColumns, inArray, sql } from 'drizzle-orm'
+import { createBadRequestError } from '@proj-airi/http-error-shared'
+import { and, desc, eq, getTableColumns, gte, inArray, lte, sql, sum } from 'drizzle-orm'
 
 import { fluxUsage } from '../../schemas/flux-usage'
 
 import * as schema from '../../schemas/flux-transaction'
 
-const logger = useLogger('flux-transaction')
+const DAILY_USAGE_DAYS = 365
 
-export interface TransactionEntry {
-  userId: string
-  type: 'credit' | 'debit' | 'initial' | 'promo'
-  amount: number
-  balanceBefore: number
-  balanceAfter: number
-  requestId?: string
-  description: string
-  metadata?: Record<string, unknown>
+function shiftDate(date: string, days: number): string {
+  const shifted = new Date(`${date}T00:00:00Z`)
+  shifted.setUTCDate(shifted.getUTCDate() + days)
+  return shifted.toISOString().slice(0, 10)
 }
 
 export function createFluxTransactionService(db: Database) {
   return {
-    /** Lists confirmed fees, including zero fees, independently of pooled integer wallet debits. */
+    /** Lists confirmed fees independently of pooled wallet debits. */
     async getUsageHistory(userId: string, limit: number, offset: number) {
       const rows = await db.select({
         id: fluxUsage.id,
@@ -30,20 +25,59 @@ export function createFluxTransactionService(db: Database) {
         sourceId: fluxUsage.sourceId,
         amountMicroFlux: fluxUsage.amountMicroFlux,
         createdAt: fluxUsage.createdAt,
-      }).from(fluxUsage).where(eq(fluxUsage.userId, userId)).orderBy(desc(fluxUsage.createdAt), desc(fluxUsage.id)).limit(limit + 1).offset(offset)
+      })
+        .from(fluxUsage)
+        .where(eq(fluxUsage.userId, userId))
+        .orderBy(desc(fluxUsage.createdAt), desc(fluxUsage.id))
+        .limit(limit + 1)
+        .offset(offset)
       return { records: rows.slice(0, limit), hasMore: rows.length > limit }
     },
 
-    async log(entry: TransactionEntry) {
-      await db.insert(schema.fluxTransaction).values(entry)
-      logger.withFields({ userId: entry.userId, type: entry.type, amount: entry.amount }).log('Transaction recorded')
-    },
+    /** Returns 365 local calendar days, with zero fees on days without usage. */
+    async getDailyUsage(userId: string, timeZone: string, now = new Date()) {
+      const { rows: [zone] } = await db.execute<{ last_date: string }>(sql`
+        SELECT to_char(${now.toISOString()}::timestamptz AT TIME ZONE name, 'YYYY-MM-DD') AS last_date
+        FROM pg_timezone_names
+        WHERE name = ${timeZone}
+      `)
+      if (!zone)
+        throw createBadRequestError('Invalid time zone', 'INVALID_TIME_ZONE')
 
-    async logBatch(entries: TransactionEntry[]) {
-      if (entries.length === 0)
-        return
-      await db.insert(schema.fluxTransaction).values(entries)
-      logger.withFields({ count: entries.length }).log('Transaction batch recorded')
+      const lastDate = zone.last_date
+      const firstDate = shiftDate(lastDate, 1 - DAILY_USAGE_DAYS)
+      // Start one UTC day early to include local midnight in zones ahead of UTC.
+      const scanStart = new Date(`${shiftDate(firstDate, -1)}T00:00:00Z`)
+
+      // NOTICE:
+      // Read created_at as UTC before grouping fees by local day.
+      // The fee ledger stores UTC values in a timestamp without a time zone.
+      // Source: src/schemas/flux-usage.ts.
+      // Remove the UTC interpretation when created_at uses timestamptz.
+      const localDay = sql<string>`to_char((${fluxUsage.createdAt} AT TIME ZONE 'UTC') AT TIME ZONE ${timeZone}, 'YYYY-MM-DD')`.as('local_date')
+      const fluxRows = await db.select({
+        date: localDay,
+        microFlux: sum(fluxUsage.amountMicroFlux).mapWith(Number),
+      })
+        .from(fluxUsage)
+        .where(and(
+          eq(fluxUsage.userId, userId),
+          inArray(fluxUsage.sourceType, ['llm', 'tts']),
+          gte(fluxUsage.createdAt, scanStart),
+          lte(fluxUsage.createdAt, now),
+        ))
+        .groupBy(({ date }) => date)
+
+      const microFluxByDate = new Map(fluxRows.map(row => [row.date, row.microFlux]))
+      const days = Array.from({ length: DAILY_USAGE_DAYS }, (_, index) => {
+        const date = shiftDate(firstDate, index)
+        return {
+          date,
+          microFlux: microFluxByDate.get(date) ?? 0,
+        }
+      })
+
+      return { days }
     },
 
     async getHistory(userId: string, limit: number, offset: number) {
