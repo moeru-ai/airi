@@ -22,12 +22,14 @@ const props = withDefaults(defineProps<{
   label: string
   replyTarget?: ChatHistoryReplyPayload
   canReply?: boolean
+  canDelete?: boolean
   scrollContainer?: HTMLElement | null
   variant?: 'desktop' | 'mobile'
   /** How the bubble paints its background; see `ChatHistory`'s `surface`. */
   surface?: 'translucent' | 'opaque'
 }>(), {
   canReply: false,
+  canDelete: true,
   scrollContainer: null,
   variant: 'desktop',
   surface: 'translucent',
@@ -102,6 +104,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message))
     <div :class="['min-w-0 max-w-full flex flex-col gap-1.5', props.variant === 'mobile' ? 'items-start' : 'items-end']">
       <ChatActionMenu
         :can-reply="canReply"
+        :can-delete="canDelete"
         :copy-text="copyText"
         placement="left"
         :press-feedback-enabled="variant === 'mobile'"
