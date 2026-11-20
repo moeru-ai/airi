@@ -74,6 +74,13 @@ The values from AIRI replace the values from the environment. The bot connects t
 
 ## Replies and tapbacks
 
+Photon Beta does not deliver what this section needs yet. So today an inline reply reaches the character as a plain text with no quote, and a tapback does not reach the character.
+
+- Photon delivers an inline reply without `parentMessageId`. This was seen on a real shared iMessage line on 2026-11-20. The Photon API schema has the field.
+- Photon does not deliver an iMessage tapback. Its Beta documentation lists tapbacks as a Stable feature.
+
+The rest of this section applies from the time that Photon delivers both.
+
 AIRI takes plain text only. So an inline reply and a tapback of the person reach the character as a sentence that quotes the message they point to.
 
 | The person does this | The character gets this text |
@@ -90,7 +97,7 @@ AIRI takes plain text only. So an inline reply and a tapback of the person reach
 - A removed tapback gets no reply.
 - The character answers only with plain messages. It cannot send an inline reply or a tapback.
 
-Photon Beta does not deliver iMessage tapbacks yet: its documentation lists them as a Stable feature. The bot reads a tapback in the shape that the Photon API gives a reaction on other platforms (`content.type` is `reaction`, with `parentMessageId`). The shape of a real iMessage tapback can differ.
+The bot reads a tapback in the shape that the Photon API gives a reaction on other platforms (`content.type` is `reaction`, with `parentMessageId`). The Photon API schema does not have this shape for iMessage yet, so the shape of a real iMessage tapback can differ.
 
 When Photon delivers content that the bot does not handle, the bot writes a warning with the message as JSON. It does this one time for each content type. Each string in the JSON keeps at most 200 characters, and each phone number is masked.
 
@@ -107,8 +114,8 @@ Photon answers 401 or 403 when the API key is wrong or revoked, or when it has n
 
 ## Limits
 
-- The bot handles texts, inline replies, and tapbacks. Images, stickers, and voice messages are ignored. Photon has a `group` content type for a message with more than one part, such as a text with an image. The bot ignores it too.
-- Replies and tapbacks work in one direction only, from the person to the character. See [Replies and tapbacks](#replies-and-tapbacks).
+- The bot handles texts. Images, stickers, and voice messages are ignored. Photon has a `group` content type for a message with more than one part, such as a text with an image. The bot ignores it too.
+- Photon Beta delivers an inline reply as a plain text, and it does not deliver a tapback. The bot is ready for both, in one direction only, from the person to the character. See [Replies and tapbacks](#replies-and-tapbacks).
 - Conversation is strictly turn-based: each text gets one reply. Two quick texts get two separate replies, and the character cannot stay silent or text first.
 - Without a fix, the first plain start of AIRI drops the bot's texts until the stage reconnects (moeru-ai/airi#2305). The fix is moeru-ai/airi#2313. This branch includes that pull request until it is merged upstream. On a checkout without it, restart the channel server once in **Settings → Connection**.
 - The first start begins at the live end of the stream. Texts that arrived earlier are not read.
