@@ -37,8 +37,8 @@ const emit = defineEmits<{
   archiveSessions: [payload: { sessionIds: string[], archived: boolean }]
   /** `folderId: undefined` moves the conversations out of their folder. */
   moveSessions: [payload: { sessionIds: string[], folderId: string | undefined }]
-  /** Creates a folder, then moves the conversations into it. */
-  createFolder: [payload: { name: string, sessionIds: string[] }]
+  /** Creates a folder, then moves the conversations into it. With `open`, the list then shows the new folder. */
+  createFolder: [payload: { name: string, sessionIds: string[], open: boolean }]
   renameFolder: [payload: { folderId: string, name: string }]
   deleteFolder: [folderId: string]
 }>()
@@ -68,8 +68,6 @@ const renamingFolder = shallowRef(false)
 const folderName = ref('')
 // Folder rename starts when the folder menu has closed, so the menu does not move focus back to its trigger.
 let renameFolderRequested = false
-/** The folders before a folder was created from the place menu. The new folder opens when the store adds it. */
-let foldersBeforeCreate: Set<string> | undefined
 
 const placeTrigger = useTemplateRef<HTMLElement>('placeTrigger')
 const folderRenameGroup = useTemplateRef<HTMLElement>('folderRenameGroup')
@@ -220,17 +218,6 @@ watch([place, characterFilter], () => {
   renamingFolder.value = false
 })
 
-watch(() => props.folders, (folders) => {
-  const before = foldersBeforeCreate
-  if (!before)
-    return
-  const created = folders.find(folder => !before.has(folder.id))
-  if (!created)
-    return
-  foldersBeforeCreate = undefined
-  chosenPlace.value = { kind: 'folder', folderId: created.id }
-})
-
 function isPlace(target: ChatSessionsPlace) {
   const current = place.value
   if (current.kind === 'folder' && target.kind === 'folder')
@@ -239,7 +226,6 @@ function isPlace(target: ChatSessionsPlace) {
 }
 
 function setPlace(target: ChatSessionsPlace) {
-  foldersBeforeCreate = undefined
   if (!isPlace(target))
     chosenPlace.value = target
 }
@@ -309,14 +295,13 @@ function moveSelected(folderId: string | undefined) {
 function createFolderForSelection(name: string) {
   const sessionIds = selectedRows.value.map(row => row.meta.sessionId)
   batchMoveOpen.value = false
-  emit('createFolder', { name, sessionIds })
+  emit('createFolder', { name, sessionIds, open: false })
   selecting.value = false
 }
 
 function createFolderFromPlaceMenu(name: string) {
   placeMenuOpen.value = false
-  foldersBeforeCreate = new Set(props.folders.map(folder => folder.id))
-  emit('createFolder', { name, sessionIds: [] })
+  emit('createFolder', { name, sessionIds: [], open: true })
 }
 
 function selectSession(sessionId: string) {
@@ -893,7 +878,7 @@ const menuCheckClasses = ['i-mingcute:check-line size-4 shrink-0 text-primary-50
                   @pin="pinned => emit('pinSession', { sessionId: row.meta.sessionId, pinned })"
                   @archive="archived => emit('archiveSessions', { sessionIds: [row.meta.sessionId], archived })"
                   @move="folderId => emit('moveSessions', { sessionIds: [row.meta.sessionId], folderId })"
-                  @create-folder="name => emit('createFolder', { name, sessionIds: [row.meta.sessionId] })"
+                  @create-folder="name => emit('createFolder', { name, sessionIds: [row.meta.sessionId], open: false })"
                   @arm-delete="pendingDeleteSessionId = row.meta.sessionId"
                   @delete="deleteRow(row.meta.sessionId)"
                 />

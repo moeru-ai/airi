@@ -189,10 +189,19 @@ async function renameSession(payload: { sessionId: string, title: string }) {
   })
 }
 
-async function createFolder(payload: { name: string, sessionIds: string[] }) {
+/**
+ * Creates a folder, then moves the conversations into it. With `open`, the list then shows the new folder. A place
+ * that the user chose while the folder saved stays.
+ */
+async function createFolder(payload: { name: string, sessionIds: string[], open: boolean }) {
+  const placeBeforeCreation = listPlace.value
   const folderId = await chatSession.createFolder(payload.name)
-  if (folderId && payload.sessionIds.length > 0)
+  if (!folderId)
+    return
+  if (payload.sessionIds.length > 0)
     await chatSession.moveSessionsToFolder(payload.sessionIds, folderId)
+  if (payload.open && listPlace.value === placeBeforeCreation)
+    listPlace.value = { kind: 'folder', folderId }
 }
 
 // Per-open generation counter. The batch loadSession loop checks this before

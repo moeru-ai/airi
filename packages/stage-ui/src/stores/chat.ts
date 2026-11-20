@@ -1359,14 +1359,14 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   /**
-   * Refuses a send of the user to an archived conversation. It is read-only until the user restores it.
+   * Refuses an action of the user that changes an archived conversation. It is read-only until the user restores it.
    *
-   * The history of an archived conversation offers no action that changes it, so retry and rerun never reach the store.
-   * Send and submit also take senders outside the history, for example a voice draft, so these two refuse here. The
-   * refusal comes before the send starts, so the conversation gets no error message, and a voice draft shows the reason.
-   * A notice of finished background work does not pass here and still reaches the conversation.
+   * Each such action of this store checks it first: send, submit, retry, and the rerun of a tool call. The refusal comes
+   * before the action starts, so the conversation gets no error message, and a voice draft shows the reason. The
+   * history only leaves out the actions that this store refuses. A notice of finished background work does not pass
+   * here and still reaches the conversation.
    */
-  function assertSessionOpenForSend(sessionId: string) {
+  function assertSessionOpen(sessionId: string) {
     if (chatSession.sessionMetas[sessionId]?.archivedAt !== undefined)
       throw new Error(t('stage.chat.archived-session.description'))
   }
@@ -1548,7 +1548,7 @@ export const useChatStore = defineStore('chat', () => {
 
   /** Returns the storage receipt while generation continues in the elected leader. */
   async function submit(payload: ChatSendPayload & { messageId: string }) {
-    assertSessionOpenForSend(payload.sessionId)
+    assertSessionOpen(payload.sessionId)
     const key = JSON.stringify([payload.sessionId, payload.messageId])
     if (payload.audioTranscriptPending && !liveTranscripts.has(key))
       liveTranscripts.set(key, Promise.withResolvers<void>())
@@ -1576,7 +1576,7 @@ export const useChatStore = defineStore('chat', () => {
 
   /** Sends one serializable chat request through the elected leader. */
   async function send(payload: ChatSendPayload): Promise<ChatSendResult> {
-    assertSessionOpenForSend(payload.sessionId)
+    assertSessionOpen(payload.sessionId)
     try {
       return await executeSend(payload)
     }
@@ -1588,6 +1588,7 @@ export const useChatStore = defineStore('chat', () => {
 
   /** Replaces one stored turn with a new execution of its user message. */
   async function retry(payload: ChatRetryPayload): Promise<ChatSendResult> {
+    assertSessionOpen(payload.sessionId)
     if (!await chatSession.loadSession(payload.sessionId))
       throw new Error('Failed to load the target chat session')
 
@@ -1647,6 +1648,7 @@ export const useChatStore = defineStore('chat', () => {
 
   /** Runs one stored tool call again and replaces its stored result. */
   async function rerunToolCall(payload: ChatToolCallRerunPayload): Promise<void> {
+    assertSessionOpen(payload.sessionId)
     if (requiresToolSelection(payload.toolName) && !payload.tools?.some(tool => tool.name === payload.toolName))
       throw new Error('Select this tool before running it again.')
 

@@ -30,7 +30,7 @@ const emit = defineEmits<{
   'pinSession': [payload: { sessionId: string, pinned: boolean }]
   'archiveSessions': [payload: { sessionIds: string[], archived: boolean }]
   'moveSessions': [payload: { sessionIds: string[], folderId: string | undefined }]
-  'createFolder': [payload: { name: string, sessionIds: string[] }]
+  'createFolder': [payload: { name: string, sessionIds: string[], open: boolean }]
   'renameFolder': [payload: { folderId: string, name: string }]
   'deleteFolder': [folderId: string]
   'update:open': [open: boolean]
