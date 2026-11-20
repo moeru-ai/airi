@@ -633,7 +633,7 @@ const menuCheckClasses = ['i-mingcute:check-line size-4 shrink-0 text-primary-50
         </button>
       </div>
       <template v-else>
-        <DropdownMenu v-model:open="placeMenuOpen" align="start" :side-offset="4" content-class="min-w-56 max-w-72">
+        <DropdownMenu v-model:open="placeMenuOpen" align="start" :side-offset="4" :content-class="['min-w-56 max-w-72 max-h-[var(--reka-dropdown-menu-content-available-height)] overflow-y-auto']">
           <template #trigger>
             <button
               ref="placeTrigger"
@@ -946,7 +946,7 @@ const menuCheckClasses = ['i-mingcute:check-line size-4 shrink-0 text-primary-50
             <span aria-hidden="true" :class="[place.kind === 'archive' ? 'i-mingcute:unarchive-line' : 'i-mingcute:archive-line', 'size-4 shrink-0']" />
             {{ place.kind === 'archive' ? t('stage.chat.sessions.unarchive') : t('stage.chat.sessions.archive') }}
           </GhostButton>
-          <DropdownMenu v-model:open="batchMoveOpen" align="end" :side-offset="4" content-class="min-w-48" :disabled="selectedRows.length === 0">
+          <DropdownMenu v-model:open="batchMoveOpen" align="end" :side-offset="4" :content-class="['min-w-48 max-h-[var(--reka-dropdown-menu-content-available-height)] overflow-y-auto']" :disabled="selectedRows.length === 0">
             <template #trigger>
               <GhostButton
                 size="unset"

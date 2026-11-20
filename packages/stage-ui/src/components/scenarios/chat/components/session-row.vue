@@ -166,8 +166,9 @@ function pressDelete() {
     emit('armDelete')
 }
 
+// A long folder list scrolls inside the room that the menu has on screen.
 const subMenuClasses = [
-  'z-[10001] min-w-44 rounded-xl border p-1 shadow-lg outline-none',
+  'z-[10001] min-w-44 max-h-[var(--reka-dropdown-menu-content-available-height)] overflow-y-auto rounded-xl border p-1 shadow-lg outline-none',
   'border-neutral-100 bg-white text-neutral-700 dark:border-neutral-700/50 dark:bg-neutral-800 dark:text-neutral-100',
 ]
 const avatarClasses = computed(() => ['relative shrink-0', props.compact ? 'size-7' : 'size-9'])
@@ -416,7 +417,7 @@ const avatarClasses = computed(() => ['relative shrink-0', props.compact ? 'size
               v-model:open="menuOpen"
               align="end"
               :side-offset="4"
-              content-class="min-w-48"
+              :content-class="['min-w-48 max-h-[var(--reka-dropdown-menu-content-available-height)] overflow-y-auto']"
               @close-auto-focus="openRenameAfterMenu"
             >
               <template #trigger>

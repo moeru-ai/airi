@@ -920,9 +920,13 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
     for (const [characterId, wasActive] of affectedCharacters) {
       const characterIndex = index.value?.characters[characterId]
-      // A hidden session, such as a background task's own space, never becomes the selected conversation.
+      // A hidden session, such as a background task's own space, never becomes the selected conversation. An archived
+      // one does not either, because it is read-only.
       const fallbackId = characterIndex
-        ? Object.keys(characterIndex.sessions).find(id => sessionMetas.value[id] && !sessionMetas.value[id].hidden)
+        ? Object.keys(characterIndex.sessions).find((id) => {
+            const meta = sessionMetas.value[id]
+            return !!meta && !meta.hidden && meta.archivedAt === undefined
+          })
         : undefined
 
       // Persisted character fallback is shared, but live selection is local to
@@ -2115,8 +2119,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     const characterId = lastActiveSessionMeta?.sessionId === sessionId
       ? lastActiveSessionMeta.characterId
       : getCurrentCharacterId()
+    // An archived conversation is read-only, so it is no fallback.
     const fallbackSessionId = metas
-      .find(candidate => candidate.characterId === characterId && candidate.userId === getCurrentUserId())
+      .find(candidate => candidate.characterId === characterId && candidate.userId === getCurrentUserId() && candidate.archivedAt === undefined)
       ?.sessionId
 
     if (fallbackSessionId) {
