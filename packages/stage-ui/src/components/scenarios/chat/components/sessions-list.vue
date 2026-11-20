@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ChatSessionFolder } from '../../../../types/chat-session'
+import type { ChatSessionFolder, ChatSessionsPlace } from '../../../../types/chat-session'
 import type { SessionRow } from './session-row.vue'
 
 import { AnimatedHeight, Avatar, BasicButton, Button, DropdownMenu, GhostButton, Input, MenuItem, MenuLabel, MenuSeparator, ScrollableArea } from '@proj-airi/ui'
@@ -12,15 +12,6 @@ import SessionMenuNewFolder from './session-menu-new-folder.vue'
 import SessionRowItem from './session-row.vue'
 
 import { iconButtonClasses, quietIconClasses } from './icon-button-classes'
-
-/**
- * Where the list looks. The title of the list switches it.
- *
- * - `all`: every conversation that is not archived.
- * - `folder`: the conversations of one folder.
- * - `archive`: the archived conversations.
- */
-type Place = { kind: 'all' } | { kind: 'folder', folderId: string } | { kind: 'archive' }
 
 const props = withDefaults(defineProps<{
   /** Every conversation of the user, archived ones included. */
@@ -54,9 +45,12 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
-const place = shallowRef<Place>({ kind: 'all' })
-/** Shows only the conversations of one character. `undefined` shows every character. */
-const characterFilter = shallowRef<string>()
+/**
+ * The place that the user chose. The owner can keep it after the list closes, so the list opens where the user left it.
+ */
+const chosenPlace = defineModel<ChatSessionsPlace>('place', { default: () => ({ kind: 'all' }) })
+/** The character that the user chose for the filter. `undefined` shows every character. The owner can keep it too. */
+const chosenCharacterId = defineModel<string>('characterId')
 // The swipe area that is open belongs to this open list, never to persisted session state.
 const expandedSessionId = shallowRef<string>()
 /** The compact row that waits for the second press on its delete button. */
@@ -81,10 +75,14 @@ const placeTrigger = useTemplateRef<HTMLElement>('placeTrigger')
 const folderRenameGroup = useTemplateRef<HTMLElement>('folderRenameGroup')
 const chips = useTemplateRef<HTMLElement>('chips')
 
+/** The chosen folder. It is missing when this list or another window deleted it. */
 const currentFolder = computed(() => {
-  const current = place.value
-  return current.kind === 'folder' ? props.folders.find(folder => folder.id === current.folderId) : undefined
+  const chosen = chosenPlace.value
+  return chosen.kind === 'folder' ? props.folders.find(folder => folder.id === chosen.folderId) : undefined
 })
+const allPlace: ChatSessionsPlace = { kind: 'all' }
+/** The place that the list shows. A chosen folder that no longer exists shows every conversation. */
+const place = computed(() => chosenPlace.value.kind === 'folder' && !currentFolder.value ? allPlace : chosenPlace.value)
 
 const liveRows = computed(() => props.rows.filter(row => row.meta.archivedAt === undefined))
 const archivedCount = computed(() => props.rows.length - liveRows.value.length)
@@ -124,6 +122,11 @@ const characterChips = computed(() => {
   }
   return [...result.values()]
 })
+
+/** The character that the filter applies. A chosen character that no longer exists applies no filter. */
+const characterFilter = computed(() => characterChips.value.some(chip => chip.id === chosenCharacterId.value)
+  ? chosenCharacterId.value
+  : undefined)
 
 /** The name of the filtered character. The primary action names it, because a new conversation goes to it. */
 const filteredCharacterName = computed(() => characterChips.value.find(chip => chip.id === characterFilter.value)?.name)
@@ -222,12 +225,6 @@ watch([place, characterFilter], () => {
   renamingFolder.value = false
 })
 
-// Another window can delete the open folder. The list then shows every conversation.
-watch(currentFolder, (folder) => {
-  if (place.value.kind === 'folder' && !folder)
-    place.value = { kind: 'all' }
-})
-
 watch(() => props.folders, (folders) => {
   const before = foldersBeforeCreate
   if (!before)
@@ -236,20 +233,20 @@ watch(() => props.folders, (folders) => {
   if (!created)
     return
   foldersBeforeCreate = undefined
-  place.value = { kind: 'folder', folderId: created.id }
+  chosenPlace.value = { kind: 'folder', folderId: created.id }
 })
 
-function isPlace(target: Place) {
+function isPlace(target: ChatSessionsPlace) {
   const current = place.value
   if (current.kind === 'folder' && target.kind === 'folder')
     return current.folderId === target.folderId
   return current.kind === target.kind
 }
 
-function setPlace(target: Place) {
+function setPlace(target: ChatSessionsPlace) {
   foldersBeforeCreate = undefined
   if (!isPlace(target))
-    place.value = target
+    chosenPlace.value = target
 }
 
 function toggleSelected(sessionId: string) {
@@ -826,7 +823,7 @@ const menuCheckClasses = ['i-mingcute:check-line size-4 shrink-0 text-primary-50
         type="button"
         :aria-pressed="characterFilter === undefined"
         :class="[chipClasses(characterFilter === undefined), props.compact ? 'px-2.5' : 'px-3']"
-        @click="characterFilter = undefined"
+        @click="chosenCharacterId = undefined"
       >
         {{ t('stage.chat.sessions.all') }}
         <span :class="['tabular-nums opacity-60']">{{ placeRows.length }}</span>
@@ -837,7 +834,7 @@ const menuCheckClasses = ['i-mingcute:check-line size-4 shrink-0 text-primary-50
         type="button"
         :aria-pressed="characterFilter === chip.id"
         :class="[chipClasses(characterFilter === chip.id), props.compact ? 'pl-1 pr-2.5' : 'pl-1 pr-3']"
-        @click="characterFilter = characterFilter === chip.id ? undefined : chip.id"
+        @click="chosenCharacterId = characterFilter === chip.id ? undefined : chip.id"
       >
         <Avatar
           :src="chip.preview"

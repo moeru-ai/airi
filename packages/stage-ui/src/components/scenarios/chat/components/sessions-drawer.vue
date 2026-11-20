@@ -17,6 +17,7 @@ import { extractMessageText } from '../../../../libs/chat-sync'
 import { useAuthStore } from '../../../../stores/auth'
 import { useChatStore } from '../../../../stores/chat'
 import { useChatSessionStore } from '../../../../stores/chat/session-store'
+import { useChatSessionsViewStore } from '../../../../stores/chat/sessions-view-store'
 import { useAiriCardStore } from '../../../../stores/modules/airi-card'
 import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
 
@@ -36,6 +37,8 @@ const chatSession = useChatSessionStore()
 const chat = useChatStore()
 const { sessionMetas, sessionMessages, activeSessionId, index } = storeToRefs(chatSession)
 const { activeCardId, cards } = storeToRefs(useAiriCardStore())
+// The list keeps its place and filter in memory, so a closed and reopened list shows them again.
+const { place: listPlace, characterId: listCharacterId } = storeToRefs(useChatSessionsViewStore())
 const characterPreviews = useCharacterPreviews()
 const { userId } = storeToRefs(useAuthStore())
 const { activeModel } = storeToRefs(useConsciousnessStore())
@@ -197,6 +200,8 @@ watch(showDialog, async (open) => {
 <template>
   <SessionsDialog
     v-model:open="showDialog"
+    v-model:place="listPlace"
+    v-model:character-id="listCharacterId"
     :rows="rows"
     :characters="characters"
     :folders="folders"

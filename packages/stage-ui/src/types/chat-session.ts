@@ -69,6 +69,15 @@ export interface ChatSessionFolder {
   createdAt: number
 }
 
+/**
+ * Where the conversation list looks. The title of the list switches it.
+ *
+ * - `all`: every conversation that is not archived.
+ * - `folder`: the conversations of one folder.
+ * - `archive`: the archived conversations.
+ */
+export type ChatSessionsPlace = { kind: 'all' } | { kind: 'folder', folderId: string } | { kind: 'archive' }
+
 export interface ChatSessionRecord {
   meta: ChatSessionMeta
   messages: ChatHistoryItem[]

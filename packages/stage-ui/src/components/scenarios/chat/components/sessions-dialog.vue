@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ChatSessionFolder } from '../../../../types/chat-session'
+import type { ChatSessionFolder, ChatSessionsPlace } from '../../../../types/chat-session'
 import type { SessionRow } from './session-row.vue'
 
 import { BottomDrawer } from '@proj-airi/ui'
@@ -36,6 +36,10 @@ const emit = defineEmits<{
   'update:open': [open: boolean]
 }>()
 
+/** The place and the character of the list. The owner can keep them, so the list opens where the user left it. */
+const place = defineModel<ChatSessionsPlace>('place', { default: () => ({ kind: 'all' }) })
+const characterId = defineModel<string>('characterId')
+
 const { t } = useI18n()
 // Every open starts outside selection mode, so a closed list never keeps a selection.
 const selecting = shallowRef(false)
@@ -64,6 +68,8 @@ function preserveTriggerFocus(event: Event) {
     </template>
     <SessionsList
       v-model:selecting="selecting"
+      v-model:place="place"
+      v-model:character-id="characterId"
       :rows="rows"
       :characters="characters"
       :folders="folders"
@@ -98,6 +104,8 @@ function preserveTriggerFocus(event: Event) {
       >
         <SessionsList
           v-model:selecting="selecting"
+          v-model:place="place"
+          v-model:character-id="characterId"
           compact
           :rows="rows"
           :characters="characters"
@@ -138,6 +146,8 @@ function preserveTriggerFocus(event: Event) {
         </DialogTitle>
         <SessionsList
           v-model:selecting="selecting"
+          v-model:place="place"
+          v-model:character-id="characterId"
           :rows="rows"
           :characters="characters"
           :folders="folders"
