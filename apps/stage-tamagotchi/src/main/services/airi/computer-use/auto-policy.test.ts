@@ -106,6 +106,12 @@ describe('command auto cage', () => {
     expect(decideCommandAuto(snapshot('powershell -EncodedCommand AAAA'), '/workspace/app').outcome).toBe('refuse')
   })
 
+  it('refuses POSIX backslash escapes before path checks', () => {
+    const command = snapshot('ls \\../outside')
+    expect(decideCommandAuto(command, '/workspace/app').outcome).toBe('refuse')
+    expect(isAskReadOnlyCommand(command)).toBe(false)
+  })
+
   it('refuses secrets and privileged commands', () => {
     expect(decideCommandAuto(snapshot('cat .env'), '/workspace/app').outcome).toBe('refuse')
     expect(decideCommandAuto(snapshot('cp \'.\'env copy output'), '/workspace/app').outcome).toBe('refuse')

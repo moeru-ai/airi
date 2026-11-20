@@ -156,7 +156,7 @@ export function foregroundMatchesComputerCard(card: AutoApprovalCard, context: F
  * The cage refuses anything it cannot prove, and it never asks the model to widen that result.
  */
 export function decideCommandAuto(snapshot: TerminalSnapshot, workspaceRoot: string): AutoDecision {
-  const tokens = parseSimpleCommand(snapshot.command)
+  const tokens = parseSimpleCommand(snapshot.command, snapshot.executorPlatform)
   if (!tokens)
     return { outcome: 'refuse', reason: 'The command could not be checked safely.' }
   if (mentionsSecret(tokens) || isPrivilegeCommand(tokens))
@@ -247,7 +247,7 @@ export function decideComputerUseAuto(input: ComputerUseAutoInput): AutoDecision
  * Path arguments still wait, because Ask has no workspace cage.
  */
 export function isAskReadOnlyCommand(snapshot: TerminalSnapshot): boolean {
-  const tokens = parseSimpleCommand(snapshot.command)
+  const tokens = parseSimpleCommand(snapshot.command, snapshot.executorPlatform)
   if (!tokens || mentionsSecret(tokens) || isPrivilegeCommand(tokens))
     return false
   const name = commandName(tokens[0])
@@ -300,7 +300,9 @@ function isBroadDelete(tokens: string[], workspaceRoot: string, cwd: string, pla
   return targets.some(token => token === '.' || token === '*') || Boolean(rootToken)
 }
 
-function parseSimpleCommand(command: string): string[] | undefined {
+function parseSimpleCommand(command: string, platform: string): string[] | undefined {
+  if (platform !== 'win32' && command.includes('\\'))
+    return undefined
   if (/\bInvoke-Expression\b/i.test(command) || /\biex\b/i.test(command) || /-EncodedCommand/i.test(command) || /\bcmd(?:\.exe)?\s+\/c\b/i.test(command))
     return undefined
   const tokens: string[] = []

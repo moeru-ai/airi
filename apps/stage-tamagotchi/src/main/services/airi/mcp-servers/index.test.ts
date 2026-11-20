@@ -499,6 +499,55 @@ describe('createMcpManager', () => {
     expect(reviewAuto).toHaveBeenCalledOnce()
   })
 
+  it('reviews a grounded desktop click with its target label', async () => {
+    const actions = new PendingActionManager()
+    const attribution = { sessionId: 'session-auto-grounding', turnId: 'turn-auto-grounding', toolCallId: 'call-auto-grounding' }
+    const request = actions.registerRequest({ sessionId: attribution.sessionId, turnId: attribution.turnId, text: 'Click Save.' }, 71)
+    actions.setGrant('computer_use', attribution.sessionId, 71, 'auto', { frozenAppName: 'Notes' })
+    const reviewAuto = vi.fn(async () => modelAllow)
+    const manager = createMcpManager({
+      actions,
+      present: vi.fn(async () => false),
+      presentComputerUse: vi.fn(async () => false),
+      reviewAuto,
+      executeInSlot: async operation => operation(new AbortController().signal, () => {}),
+      notify: async notice => ({ status: 'stored', sessionId: notice.sessionId, messageId: 'fixture' }),
+    })
+    managers.push(manager)
+    await manager.writeConfigText(JSON.stringify({ terminalEnabled: true, mcpServers: {} }))
+    await manager.applyAndRestart()
+    clientMocks.listTools.mockResolvedValue({ tools: [{ name: 'computer_act', inputSchema: { type: 'object' } }] })
+    clientMocks.callTool.mockImplementation(async (call) => {
+      if (call.name === 'desktop_get_state') {
+        return {
+          content: [],
+          structuredContent: {
+            runState: {
+              foregroundContext: { available: true, appName: 'Notes', windowTitle: 'Notes' },
+              lastGroundingSnapshot: { targetCandidates: [{ id: 'candidate-1', label: 'Save' }] },
+            },
+          },
+        }
+      }
+      return {
+        content: [],
+        structuredContent: {
+          status: 'approval_required',
+          pendingActionId: 'pending-auto-grounding',
+          toolName: 'computer_act',
+          action: { kind: 'desktop_click_target', input: { candidateId: 'candidate-1' } },
+          context: { available: true, appName: 'Notes', windowTitle: 'Notes' },
+        },
+      }
+    })
+    clientMocks.privateRequest.mockResolvedValue({ content: [{ type: 'text', text: 'Clicked.' }], structuredContent: { status: 'executed' } })
+
+    await manager.callTool({ name: 'airi-terminal::computer_act', arguments: { candidateId: 'candidate-1' }, requestId: request.id, attribution }, 71)
+
+    expect(reviewAuto).toHaveBeenCalledWith(expect.objectContaining({ card: expect.objectContaining({ targetName: 'Save' }) }), expect.any(AbortSignal))
+    expect(clientMocks.privateRequest).toHaveBeenCalledWith(expect.objectContaining({ method: 'airi/computer-use/execute-prepared' }), expect.anything(), expect.anything())
+  })
+
   it('refuses to dispatch after Auto review when the foreground window changes', async () => {
     const actions = new PendingActionManager()
     const attribution = { sessionId: 'session-auto-recheck', turnId: 'turn-auto-recheck', toolCallId: 'call-auto-recheck' }

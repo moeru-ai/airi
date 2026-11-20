@@ -856,7 +856,7 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
     const snapshot = runState?.lastGroundingSnapshot
     if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot))
       return undefined
-    const candidates = (snapshot as { candidates?: unknown }).candidates
+    const candidates = (snapshot as { targetCandidates?: unknown }).targetCandidates
     if (!Array.isArray(candidates))
       return undefined
     for (const candidate of candidates) {
