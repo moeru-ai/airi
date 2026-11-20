@@ -247,6 +247,51 @@ describe('revenuecat routes', () => {
     expect(await readWallet('user-1')).toMatchObject({ flux: 500 })
   })
 
+  // https://github.com/moeru-ai/airi/pull/3009
+  // ROOT CAUSE:
+  // The consumable path returned before the shared subscription reconciliation.
+  // A valid pack now reconciles named accounts before idempotent payment settlement.
+  it('reconciles named accounts before settling the pack (PR #3009)', async () => {
+    const { app, payment, sync } = await setup()
+    const order: string[] = []
+    const reconcile = sync.reconcile
+    const settle = payment.settle
+    vi.spyOn(sync, 'reconcile').mockImplementation(async (userId) => {
+      order.push(`reconcile:${userId}`)
+      await reconcile(userId)
+    })
+    vi.spyOn(payment, 'settle').mockImplementation(async (receipt) => {
+      order.push('settle')
+      return settle(receipt)
+    })
+
+    const response = await postWebhook(app, packBody({ transferred_from: ['user-2'], transferred_to: ['user-1'] }))
+
+    expect(response.status).toBe(200)
+    expect(order).toEqual(['reconcile:user-1', 'reconcile:user-2', 'settle'])
+  })
+
+  it('retries reconciliation before one pack grant after a failed read (PR #3009)', async () => {
+    const { app, payment, fetchEntitlements } = await setup()
+    entitlements['user-1'] = [goEntitlement]
+    fetchEntitlements.mockRejectedValueOnce(new Error('RevenueCat is unavailable'))
+    const settle = vi.spyOn(payment, 'settle')
+
+    const failed = await postWebhook(app, packBody())
+    expect(failed.status).toBe(500)
+    expect(settle).not.toHaveBeenCalled()
+
+    const retried = await postWebhook(app, packBody())
+    expect(retried.status).toBe(200)
+    expect(await retried.json()).toEqual({ received: true, granted: true })
+    expect(await readWallet('user-1')).toMatchObject({ flux: 500, capacitorFlux: 2000 })
+
+    const replayed = await postWebhook(app, packBody())
+    expect(replayed.status).toBe(200)
+    expect(await replayed.json()).toEqual({ received: true, granted: false })
+    expect(await readWallet('user-1')).toMatchObject({ flux: 500, capacitorFlux: 2000 })
+  })
+
   it('ignores a sandbox purchase for a user outside the allowlist', async () => {
     const { app } = await setup()
 

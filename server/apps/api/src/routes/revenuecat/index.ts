@@ -1,12 +1,11 @@
 import type { Database } from '../../libs/db'
 import type { Env } from '../../libs/env'
 import type { RateLimitMetrics } from '../../otel'
-import type { ConfigKVService } from '../../services/adapters/config-kv'
-import type { PaymentService } from '../../services/domain/payment'
-
 import type { AccountEventPublisher } from '../../services/adapters/account-events'
+import type { ConfigKVService } from '../../services/adapters/config-kv'
 import type { RevenuecatSubscriberClient } from '../../services/adapters/revenuecat-subscriber'
 import type { RevenuecatSubscriptionSync } from '../../services/adapters/revenuecat-subscriptions'
+import type { PaymentService } from '../../services/domain/payment'
 import type { HonoEnv } from '../../types/hono'
 
 import { Hono } from 'hono'
@@ -16,15 +15,11 @@ import { rateLimiter } from '../../middlewares/rate-limit'
 import { createWebhookOperation } from './operations/webhook'
 
 /**
- * RevenueCat webhook ingress and the Capacitor reads of a signed-in user.
- * Each webhook event reconciles capacitor Flux from RevenueCat.
- * RENEWAL and BILLING_ISSUE also publish an account event for Cloud notifications.
- * `POST /sync` runs the same reconciliation for the caller. The client calls it after a purchase
- * and when the Capacitor page opens, so a late or lost webhook does not delay the grant.
- *
- * The webhook has no rate limit. An anonymous limit counts all callers behind the proxy as one,
- * so unsigned requests could use the budget and RevenueCat would get 429.
- * The operation rejects an unsigned request before it reads the database.
+ * RevenueCat routes reconcile subscriptions and settle configured pack receipts.
+ * Renewal and billing-issue notifications publish after reconciliation.
+ * `POST /sync` reconciles signed-in users.
+ * The webhook authenticates requests before database access.
+ * Anonymous rate limits can block RevenueCat behind a shared proxy.
  */
 export function createRevenuecatRoutes(
   payment: PaymentService,

@@ -1,7 +1,7 @@
 import type { InferOutput } from 'valibot'
 
 import type { ConfigKVService } from '../../services/adapters/config-kv'
-import type { EvidenceReceipt } from '../../services/domain/payment'
+import type { EvidenceReceipt } from '../../services/domain/payment/types'
 
 import { array, nullable, object, optional, string } from 'valibot'
 
@@ -31,6 +31,7 @@ export type RevenuecatEvent = InferOutput<typeof revenuecatEventSchema>
 /** Webhook event type that grants Flux. Consumables arrive as non-renewing purchases. */
 export const FLUX_GRANT_EVENT = 'NON_RENEWING_PURCHASE'
 
+/** Reads a configured Flux pack by its RevenueCat product identifier. */
 export async function resolveRevenuecatPack(configKV: ConfigKVService, productId: string) {
   const packs = await configKV.getOptional('REVENUECAT_FLUX_PACKS')
   return packs?.[productId]
