@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Input, MenuItem } from '@proj-airi/ui'
+import { Button, Input, MenuItem } from '@proj-airi/ui'
 import { nextTick, ref, shallowRef, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -40,19 +40,15 @@ function create() {
       :placeholder="t('stage.chat.sessions.folder-name-placeholder')"
       @keydown.enter.stop.prevent="create"
     />
-    <button
-      type="button"
+    <Button
+      size="sm"
+      color="primary"
       :disabled="!name.trim()"
-      :class="[
-        'h-8 shrink-0 rounded-lg px-3 text-sm font-semibold outline-none',
-        'bg-primary-100 text-primary-700 dark:bg-primary-900/60 dark:text-primary-200',
-        'transition-opacity duration-150 disabled:cursor-default disabled:opacity-45 motion-reduce:transition-none',
-        'focus-visible:outline-2 focus-visible:outline-primary-500',
-      ]"
+      :class="['shrink-0']"
       @click="create"
     >
       {{ t('stage.chat.sessions.create-folder') }}
-    </button>
+    </Button>
   </div>
   <MenuItem v-else @select="startEditing">
     <span aria-hidden="true" :class="['i-mingcute:new-folder-line size-4 shrink-0']" />

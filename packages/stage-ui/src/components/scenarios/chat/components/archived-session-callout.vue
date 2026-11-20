@@ -1,14 +1,17 @@
 <script setup lang="ts">
+import { errorMessageFrom } from '@moeru/std'
 import { Button } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { toast } from 'vue-sonner'
 
 import { useChatSessionStore } from '../../../../stores/chat/session-store'
 
 /**
  * Shows above the composer while the conversation of this window is archived. The conversation is read-only until the
- * user restores it, so a message never goes to a conversation that the list hides.
+ * user restores it, so a message never goes to a conversation that the list hides. A failed restore explains itself
+ * with a toast, as the other chat controls do, and the callout stays for another try.
  */
 const { t } = useI18n()
 const chatSession = useChatSessionStore()
@@ -21,6 +24,9 @@ async function restore() {
   restoring.value = true
   try {
     await chatSession.setSessionsArchived([activeSessionId.value], false)
+  }
+  catch (error) {
+    toast.error(t('stage.chat.archived-session.restore-failed'), { description: errorMessageFrom(error) })
   }
   finally {
     restoring.value = false

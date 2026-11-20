@@ -328,7 +328,7 @@ const visibleStreamingMessage = streamingMessage
 
 async function handleDeleteMessage(payload: { message: ChatHistoryItem, index: number }) {
   const { index, message } = payload
-  await chatSession.deleteMessage({
+  await chatStore.deleteMessage({
     sessionId: chatSession.activeSessionId,
     index,
   })
@@ -564,7 +564,7 @@ defineExpose({
           <ChatBackgroundTasks :tasks="backgroundTasks" @stop="task => chatStore.stopBackgroundTask(task.sessionId)" @dismiss="task => chatStore.dismissBackgroundTask(task.sessionId)" />
           <div ref="voice-attachment" :class="['px-2 pt-1 empty:hidden']" />
           <!-- Journal Preview Chips -->
-          <div v-if="latestImageEntries.length > 0" class="flex gap-2 overflow-x-auto px-2 py-1 scrollbar-none">
+          <div v-if="latestImageEntries.length > 0" :class="['flex gap-2 overflow-x-auto px-2 py-1', 'scrollbar-none']">
             <div
               v-for="entry in latestImageEntries"
               :key="entry.id"
@@ -575,9 +575,9 @@ defineExpose({
               ]"
               @click="openImagePreview(entry)"
             >
-              <img :src="entry.url || ''" class="h-full w-full object-cover">
+              <img :src="entry.url || ''" :class="['h-full w-full object-cover']">
               <div :class="['absolute inset-0 flex items-end p-1', 'bg-gradient-to-t from-black/60 to-transparent']">
-                <span class="truncate text-[8px] text-white font-medium">{{ entry.title }}</span>
+                <span :class="['truncate text-[8px] font-medium', 'text-white']">{{ entry.title }}</span>
               </div>
 
               <!-- Save Button (Top Right, Hover Only) -->
@@ -589,7 +589,7 @@ defineExpose({
                 title="Save to computer"
                 @click.stop="journalPreviewStore.downloadImage(entry.url || '', entry.title)"
               >
-                <div class="i-solar:download-minimalistic-bold-duotone text-[10px]" />
+                <div :class="['i-solar:download-minimalistic-bold-duotone text-[10px]']" />
               </button>
             </div>
           </div>

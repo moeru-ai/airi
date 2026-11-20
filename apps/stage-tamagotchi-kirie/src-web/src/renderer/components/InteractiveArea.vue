@@ -234,7 +234,7 @@ const visibleStreamingMessage = streamingMessage
 
 async function handleDeleteMessage(payload: { message: ChatHistoryItem, index: number }) {
   const { index, message } = payload
-  await chatSession.deleteMessage({
+  await chatStore.deleteMessage({
     sessionId: chatSession.activeSessionId,
     index,
   })

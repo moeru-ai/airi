@@ -613,7 +613,7 @@ describe('sessions dialog actions', () => {
     await expect.element(screen.getByRole('button', { name: 'Delete conversation', exact: true })).toBeVisible()
     await expect.element(screen.getByLabelText('deleted-session-id')).toHaveTextContent('none')
     // Archive and Delete take 176px, so most of the row leaves the view. A tap on the part that stays visible closes the
-    // actions and selects nothing. A tap on the center of the row would scroll it into view first, which closes them.
+    // actions and selects nothing. A tap on the center of the row scrolls it into view first, and that closes them.
     const row = screen.getByRole('button', { name: /^Second chat/ }).element().closest<HTMLElement>('[data-swipe-actions]')!
     const actions = row.querySelector<HTMLElement>('[data-swipe-actions-list]')!
     await expect.poll(() => actions.getBoundingClientRect().width).toBeCloseTo(176, 0)

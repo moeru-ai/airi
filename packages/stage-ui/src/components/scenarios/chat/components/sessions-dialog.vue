@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ChatSessionFolder, ChatSessionsPlace } from '../../../../types/chat-session'
-import type { SessionRow } from './session-row.vue'
+import type { SessionRow } from './session-row-model'
 
 import { BottomDrawer } from '@proj-airi/ui'
 import { DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle, PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
@@ -13,7 +13,7 @@ const props = withDefaults(defineProps<{
   open: boolean
   rows: SessionRow[]
   characters: Array<{ id: string, name: string, preview?: string }>
-  folders: ChatSessionFolder[]
+  folders: readonly ChatSessionFolder[]
   isDesktop: boolean
   isCreatingSession: boolean
   desktopMode?: 'dialog' | 'popover'

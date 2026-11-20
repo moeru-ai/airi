@@ -1,5 +1,5 @@
 import { storeToRefs } from 'pinia'
-import { computed, onMounted } from 'vue'
+import { computed } from 'vue'
 
 import { useDisplayModelsStore } from '../stores/display-models'
 import { useAiriCardStore } from '../stores/modules/airi-card'
@@ -10,17 +10,11 @@ import { useAiriCardStore } from '../stores/modules/airi-card'
  * Surfaces that show a character avatar read it here, so every surface shows the same image. A character whose model
  * has no preview maps to `undefined`, and the surface shows its fallback.
  *
- * The previews come from the display model list in IndexedDB. A window with the minimal stage runtime, for example the
- * chat window of Stage Tamagotchi, does not read that list at startup, so the surface reads it when it mounts.
+ * The previews come from the display model list that the runtime of the window reads at startup.
  */
 export function useCharacterPreviews() {
-  const displayModelsStore = useDisplayModelsStore()
   const { cards } = storeToRefs(useAiriCardStore())
-  const { displayModels } = storeToRefs(displayModelsStore)
-
-  onMounted(() => {
-    void displayModelsStore.loadDisplayModelsFromIndexedDB()
-  })
+  const { displayModels } = storeToRefs(useDisplayModelsStore())
 
   return computed(() => {
     const previews = new Map<string, string | undefined>()

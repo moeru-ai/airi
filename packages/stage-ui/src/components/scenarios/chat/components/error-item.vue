@@ -98,7 +98,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
             <MarkdownRenderer
               v-else-if="!hasDetails"
               :content="message.content"
-              class="break-words text-violet-500 dark:text-violet-300"
+              :class="['break-words', 'text-violet-500 dark:text-violet-300']"
             />
             <template v-else>
               <p :class="['mt-1 mb-0 break-words text-sm text-neutral-800 font-medium leading-relaxed dark:text-neutral-100']">

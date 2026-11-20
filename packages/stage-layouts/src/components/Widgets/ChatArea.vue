@@ -274,7 +274,7 @@ watch(replyTarget, async (target) => {
           :aria-label="t('stage.chat.actions.stop')"
           @click="stopActiveResponse"
         >
-          <div class="i-solar:stop-outline size-5" />
+          <div :class="['i-solar:stop-outline size-5']" />
         </button>
         <!-- Hover or right-click the send button to choose the send key. -->
         <ChatSendButton

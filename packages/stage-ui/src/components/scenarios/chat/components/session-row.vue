@@ -1,33 +1,25 @@
-<script lang="ts">
-import type { ChatSessionFolder, ChatSessionMeta } from '../../../../types/chat-session'
+<script setup lang="ts">
+import type { ChatSessionFolder } from '../../../../types/chat-session'
+import type { SessionRow } from './session-row-model'
 
-import { Avatar, BasicButton, DropdownMenu, Input, MenuItem, menuItemClasses, MenuSeparator, SwipeActionButton, SwipeActionsContent, SwipeActionsItem, SwipeActionsList, SwipeActionsRoot } from '@proj-airi/ui'
+import { BasicButton, DropdownMenu, MenuItem, menuItemClasses, MenuSeparator, SwipeActionButton, SwipeActionsContent, SwipeActionsItem, SwipeActionsList, SwipeActionsRoot } from '@proj-airi/ui'
 import { DropdownMenuPortal, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger } from 'reka-ui'
 import { computed, nextTick, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import SessionDeleteButton from './session-delete-button.vue'
 import SessionFolderTargets from './session-folder-targets.vue'
+import SessionNameField from './session-name-field.vue'
+import SessionRowAvatar from './session-row-avatar.vue'
+import SessionRowSummary from './session-row-summary.vue'
 
+import { useMenuCloseAction } from '../composables/use-menu-close-action'
 import { iconButtonClasses, quietIconClasses } from './icon-button-classes'
 
-/** A conversation preview prepared by the session owner for either dialog surface. */
-export interface SessionRow {
-  meta: ChatSessionMeta
-  preview: string
-  isActive: boolean
-  activityAtLabel: string
-  /** The name of the character of the conversation. */
-  characterName: string
-  /** The preview image of the default model of the character. Without it, the avatar shows its fallback. */
-  characterPreview?: string
-}
-</script>
-
-<script setup lang="ts">
 const props = defineProps<{
   row: SessionRow
   /** Folders that the Move to folder menu offers. */
-  folders: ChatSessionFolder[]
+  folders: readonly ChatSessionFolder[]
   compact: boolean
   /** The list selects conversations for a batch action, so the row toggles its selection instead of opening. */
   selecting: boolean
@@ -63,9 +55,9 @@ const menuPage = shallowRef<'actions' | 'folders'>('actions')
 const renaming = shallowRef(false)
 const renameTitle = ref('')
 // Rename starts when the menu has closed, so the menu does not move focus back to its trigger after the field opens.
-let renameRequested = false
+const menuClose = useMenuCloseAction()
 const rowRoot = useTemplateRef<HTMLElement>('rowRoot')
-const renameGroup = useTemplateRef<HTMLElement>('renameGroup')
+const nameField = useTemplateRef<InstanceType<typeof SessionNameField>>('nameField')
 
 watch(menuOpen, (open) => {
   if (open)
@@ -73,7 +65,7 @@ watch(menuOpen, (open) => {
 })
 watch(() => props.selecting, (selecting) => {
   if (selecting)
-    cancelRename()
+    endRename(false)
 })
 
 const archived = computed(() => props.row.meta.archivedAt !== undefined)
@@ -104,52 +96,30 @@ function createFolder(name: string) {
 }
 
 function requestRename() {
-  renameRequested = true
+  menuClose.request(async () => {
+    renameTitle.value = props.row.meta.title ?? props.row.preview
+    renaming.value = true
+    await nextTick()
+    nameField.value?.focus()
+  })
 }
 
-async function openRenameAfterMenu(event: Event) {
-  if (!renameRequested)
-    return
-  renameRequested = false
-  event.preventDefault()
-  renameTitle.value = props.row.meta.title ?? props.row.preview
-  renaming.value = true
-  await nextTick()
-  const input = renameGroup.value?.querySelector('input')
-  input?.focus()
-  input?.select()
-}
-
-function cancelRename() {
+/** Closes the field. With `returnFocus`, focus goes to the row, so the keyboard user continues from it. */
+async function endRename(returnFocus: boolean) {
   renaming.value = false
   renameTitle.value = ''
-}
-
-function commitRename() {
-  if (!renaming.value)
+  if (!returnFocus)
     return
-  emit('rename', renameTitle.value)
-  cancelRename()
-}
-
-/** Enter, Escape, Save, and Cancel keep focus on the row, so the keyboard user continues from it. */
-async function finishRename(save: boolean) {
-  if (save)
-    commitRename()
-  else
-    cancelRename()
   await nextTick()
   rowRoot.value?.querySelector<HTMLElement>('[data-session-main]')?.focus()
 }
 
-/** Focus that leaves the name field and its buttons saves a name, and cancels an empty field. */
-function handleRenameFocusOut(event: FocusEvent) {
-  if (event.relatedTarget instanceof Node && renameGroup.value?.contains(event.relatedTarget))
+/** An empty title gives the conversation back its automatic title. */
+function saveRename(returnFocus: boolean) {
+  if (!renaming.value)
     return
-  if (renameTitle.value.trim())
-    commitRename()
-  else
-    cancelRename()
+  emit('rename', renameTitle.value)
+  void endRename(returnFocus)
 }
 
 function runSwipeAction(value: string) {
@@ -171,7 +141,6 @@ const subMenuClasses = [
   'z-[10001] min-w-44 max-h-[var(--reka-dropdown-menu-content-available-height)] overflow-y-auto rounded-xl border p-1 shadow-lg outline-none',
   'border-neutral-100 bg-white text-neutral-700 dark:border-neutral-700/50 dark:bg-neutral-800 dark:text-neutral-100',
 ]
-const avatarClasses = computed(() => ['relative shrink-0', props.compact ? 'size-7' : 'size-9'])
 </script>
 
 <template>
@@ -203,27 +172,7 @@ const avatarClasses = computed(() => ['relative shrink-0', props.compact ? 'size
             : 'border-2 border-solid border-neutral-300 rounded-full dark:border-neutral-600',
         ]"
       />
-      <span :class="avatarClasses">
-        <Avatar
-          :src="props.row.characterPreview"
-          :class="['block size-full rounded-full bg-neutral-100 text-neutral-400 dark:bg-neutral-700', '[&_[data-avatar-image]]:object-top']"
-        >
-          <template #fallback>
-            <span aria-hidden="true" :class="['i-mingcute:user-3-line', props.compact ? 'size-4' : 'size-5']" />
-          </template>
-        </Avatar>
-      </span>
-      <span :class="['min-w-0 flex-1']">
-        <span :class="['block truncate text-sm font-medium']">{{ props.row.preview }}</span>
-        <span :class="['flex items-center gap-2 text-xs font-normal text-neutral-500 dark:text-neutral-400', props.compact ? 'mt-0.5' : 'mt-1']">
-          <span>{{ props.row.activityAtLabel }}</span>
-          <span v-if="folderName" :class="['min-w-0 inline-flex items-center gap-1']">
-            <span aria-hidden="true" :class="['i-mingcute:folder-line size-3.5 shrink-0']" />
-            <span :class="['truncate']">{{ folderName }}</span>
-          </span>
-          <span :class="['sr-only']">{{ props.row.characterName }}</span>
-        </span>
-      </span>
+      <SessionRowSummary :row="props.row" :compact="props.compact" :folder-name="folderName" :marks="false" />
     </BasicButton>
 
     <SwipeActionsRoot
@@ -267,51 +216,20 @@ const avatarClasses = computed(() => ['relative shrink-0', props.compact ? 'size
         >
           <div
             v-if="renaming"
-            ref="renameGroup"
             :class="['session-rename', props.compact ? 'min-h-12.5 gap-2 px-2 py-1.5' : 'min-h-20 gap-3 px-3 py-3', 'min-w-0 flex flex-1 items-center']"
-            @focusout="handleRenameFocusOut"
           >
-            <span :class="avatarClasses">
-              <Avatar
-                :src="props.row.characterPreview"
-                :class="['block size-full rounded-full bg-neutral-100 text-neutral-400 dark:bg-neutral-700', '[&_[data-avatar-image]]:object-top']"
-              >
-                <template #fallback>
-                  <span aria-hidden="true" :class="['i-mingcute:user-3-line', props.compact ? 'size-4' : 'size-5']" />
-                </template>
-              </Avatar>
-            </span>
-            <div :class="['min-w-0 flex flex-1 items-center gap-0.5']">
-              <Input
-                v-model="renameTitle"
-                :aria-label="t('stage.chat.sessions.rename-input')"
-                :placeholder="t('stage.chat.sessions.rename-placeholder')"
-                @click.stop
-                @keydown.enter.stop.prevent="finishRename(true)"
-                @keydown.esc.stop="finishRename(false)"
-              />
-              <!-- The buttons keep focus in the field on press, so leaving focus does not save before Cancel runs. -->
-              <button
-                type="button"
-                :aria-label="t('stage.chat.sessions.save-rename')"
-                :title="t('stage.chat.sessions.save-rename')"
-                :class="[iconButtonClasses, props.compact ? 'size-8' : 'size-9', 'text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300']"
-                @pointerdown.prevent
-                @click.stop="finishRename(true)"
-              >
-                <span aria-hidden="true" :class="['i-mingcute:check-line', props.compact ? 'size-4' : 'size-5']" />
-              </button>
-              <button
-                type="button"
-                :aria-label="t('stage.chat.sessions.cancel-rename')"
-                :title="t('stage.chat.sessions.cancel-rename')"
-                :class="[iconButtonClasses, props.compact ? 'size-8' : 'size-9', quietIconClasses]"
-                @pointerdown.prevent
-                @click.stop="finishRename(false)"
-              >
-                <span aria-hidden="true" :class="['i-mingcute:close-line', props.compact ? 'size-4' : 'size-5']" />
-              </button>
-            </div>
+            <SessionRowAvatar :src="props.row.characterPreview" :compact="props.compact" :current="false" />
+            <SessionNameField
+              ref="nameField"
+              v-model="renameTitle"
+              :label="t('stage.chat.sessions.rename-input')"
+              :placeholder="t('stage.chat.sessions.rename-placeholder')"
+              :save-label="t('stage.chat.sessions.save-rename')"
+              :cancel-label="t('stage.chat.sessions.cancel-rename')"
+              :compact="props.compact"
+              @save="saveRename"
+              @cancel="endRename"
+            />
           </div>
           <BasicButton
             v-else
@@ -325,47 +243,7 @@ const avatarClasses = computed(() => ['relative shrink-0', props.compact ? 'size
             ]"
             @click="emit('select')"
           >
-            <!-- The avatar of the character, as the character switcher shows it. The current conversation adds a check. -->
-            <span :class="avatarClasses">
-              <Avatar
-                :src="props.row.characterPreview"
-                :class="['block size-full rounded-full bg-neutral-100 text-neutral-400 dark:bg-neutral-700', '[&_[data-avatar-image]]:object-top']"
-              >
-                <template #fallback>
-                  <span aria-hidden="true" :class="['i-mingcute:user-3-line', props.compact ? 'size-4' : 'size-5']" />
-                </template>
-              </Avatar>
-              <span
-                v-if="props.row.isActive"
-                aria-hidden="true"
-                :class="[
-                  'absolute flex items-center justify-center rounded-full bg-primary-500 text-white ring-2 ring-primary-50 dark:ring-primary-950',
-                  props.compact ? '-bottom-0.5 -right-0.5 size-3.5' : '-bottom-0.5 -right-0.5 size-4',
-                ]"
-              >
-                <span :class="['i-mingcute:check-fill size-2.5']" />
-              </span>
-            </span>
-            <span :class="['min-w-0 flex-1']">
-              <span :class="['block truncate text-sm font-medium']">{{ props.row.preview }}</span>
-              <span :class="['flex items-center gap-2 text-xs font-normal text-neutral-500 dark:text-neutral-400', props.compact ? 'mt-0.5' : 'mt-1']">
-                <span
-                  v-if="props.row.meta.pinnedAt"
-                  role="img"
-                  :aria-label="t('stage.chat.sessions.pinned')"
-                  :title="t('stage.chat.sessions.pinned')"
-                  :class="['i-mingcute:pin-line size-3.5 shrink-0']"
-                />
-                <span>{{ props.row.activityAtLabel }}</span>
-                <span v-if="props.row.isActive && !props.compact" :class="['text-primary-600 dark:text-primary-300']">{{ t('stage.chat.sessions.current') }}</span>
-                <span v-if="folderName" :class="['min-w-0 inline-flex items-center gap-1']">
-                  <span aria-hidden="true" :class="['i-mingcute:folder-line size-3.5 shrink-0']" />
-                  <span :class="['truncate']">{{ folderName }}</span>
-                </span>
-                <span v-if="props.row.meta.cloudChatId" role="img" :aria-label="t('stage.chat.sessions.cloud-badge')" :title="t('stage.chat.sessions.cloud-badge')" :class="['i-mingcute:cloud-line size-4 shrink-0']" />
-                <span :class="['sr-only']">{{ props.row.characterName }}</span>
-              </span>
-            </span>
+            <SessionRowSummary :row="props.row" :compact="props.compact" :folder-name="folderName" marks />
           </BasicButton>
 
           <template v-if="!renaming">
@@ -373,32 +251,17 @@ const avatarClasses = computed(() => ['relative shrink-0', props.compact ? 'size
               Delete stays on the row, outside the menu. The compact row turns the button into its confirmation in
               place. The mobile row opens the swipe area, where Delete is the second press.
             -->
-            <button
+            <SessionDeleteButton
               v-if="props.compact"
-              type="button"
               :data-session-confirm="`row:${props.row.meta.sessionId}`"
-              :aria-label="props.confirmingDelete
-                ? `${t('stage.chat.sessions.confirm-delete-short')}: ${props.row.preview}`
-                : `${t('stage.chat.sessions.delete')}: ${props.row.preview}`"
-              :title="props.confirmingDelete ? t('stage.chat.sessions.confirm-delete-short') : t('stage.chat.sessions.delete')"
-              :class="props.confirmingDelete
-                ? [
-                  'session-confirm-pill h-7 shrink-0 inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 outline-none',
-                  'bg-red-500/10 text-xs font-semibold text-red-500 dark:text-red-400',
-                  'focus-visible:outline-2 focus-visible:outline-red-500',
-                ]
-                : [
-                  iconButtonClasses, 'size-8',
-                  'text-neutral-400 hover:text-red-500 dark:text-neutral-500 dark:hover:text-red-400',
-                  'opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
-                ]"
-              @click="pressDelete"
-            >
-              <span aria-hidden="true" :class="[props.confirmingDelete ? 'i-mingcute:delete-2-fill size-3.5' : 'i-mingcute:delete-2-line size-4']" />
-              <template v-if="props.confirmingDelete">
-                {{ t('stage.chat.sessions.confirm-delete-short') }}
-              </template>
-            </button>
+              :confirming="props.confirmingDelete"
+              compact
+              :label="t('stage.chat.sessions.delete')"
+              :confirm-label="t('stage.chat.sessions.confirm-delete-short')"
+              :subject="props.row.preview"
+              reveal-on-hover
+              @press="pressDelete"
+            />
             <button
               v-else
               type="button"
@@ -418,7 +281,7 @@ const avatarClasses = computed(() => ['relative shrink-0', props.compact ? 'size
               align="end"
               :side-offset="4"
               :content-class="['min-w-48 max-h-[var(--reka-dropdown-menu-content-available-height)] overflow-y-auto']"
-              @close-auto-focus="openRenameAfterMenu"
+              @close-auto-focus="menuClose.onCloseAutoFocus"
             >
               <template #trigger>
                 <!-- The open menu keeps the icon in the theme color, which marks the row that the menu belongs to. -->
@@ -527,20 +390,9 @@ const avatarClasses = computed(() => ['relative shrink-0', props.compact ? 'size
   }
 }
 
-.session-confirm-pill {
-  animation: session-confirm-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-@keyframes session-confirm-in {
-  from {
-    opacity: 0;
-    transform: scale(0.9);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .session-check,
-  .session-rename,
-  .session-confirm-pill {
+  .session-rename {
     animation: none;
   }
 }

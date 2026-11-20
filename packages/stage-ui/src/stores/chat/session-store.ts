@@ -275,29 +275,39 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
   /** Persists metadata without loading message state into memory. */
   async function persistSessionMeta(sessionId: string) {
+    await persistSessionMetas([sessionId])
+  }
+
+  /**
+   * Persists the metadata of several sessions without loading their messages. Each record saves, then the index saves
+   * once, so a batch action writes the index one time. A session that another window deleted is skipped.
+   */
+  async function persistSessionMetas(sessionIds: string[]) {
     await enqueuePersist(async () => {
-      const meta = sessionMetas.value[sessionId]
-      if (!meta)
-        return
+      const updatedAt = Date.now()
+      let changed = false
+      for (const sessionId of sessionIds) {
+        const meta = sessionMetas.value[sessionId]
+        if (!meta)
+          continue
 
-      const updatedMeta = {
-        ...cloneDeep(meta),
-        updatedAt: Date.now(),
+        const updatedMeta = { ...cloneDeep(meta), updatedAt }
+        sessionMetas.value[sessionId] = updatedMeta
+        const characterIndex = index.value?.characters[meta.characterId]
+        if (characterIndex)
+          characterIndex.sessions[sessionId] = updatedMeta
+        changed = true
+
+        const stored = await chatSessionsRepo.getSession(sessionId)
+        if (stored) {
+          await chatSessionsRepo.saveSession(sessionId, {
+            meta: updatedMeta,
+            messages: stored.messages,
+          })
+        }
       }
-      sessionMetas.value[sessionId] = updatedMeta
-      const characterIndex = index.value?.characters[meta.characterId]
-      if (characterIndex)
-        characterIndex.sessions[sessionId] = updatedMeta
 
-      const stored = await chatSessionsRepo.getSession(sessionId)
-      if (stored) {
-        await chatSessionsRepo.saveSession(sessionId, {
-          meta: updatedMeta,
-          messages: stored.messages,
-        })
-      }
-
-      if (index.value)
+      if (changed && index.value)
         await chatSessionsRepo.saveIndex(cloneDeep(index.value))
     })
   }
@@ -661,8 +671,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       sessionMetas.value[sessionId] = change(meta)
       changedIds.push(sessionId)
     }
-    for (const sessionId of changedIds)
-      await persistSessionMeta(sessionId)
+    await persistSessionMetas(changedIds)
   }
 
   /** Pins or unpins a conversation. The conversation list shows pinned conversations first. */
@@ -694,7 +703,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       : { ...meta, archivedAt: undefined })
 
     const opened: Record<string, string> = {}
-    const characterIds = new Set(sessionIds.flatMap(sessionId => sessionMetas.value[sessionId]?.characterId ?? []))
+    const characterIds = new Set(sessionIds
+      .map(sessionId => sessionMetas.value[sessionId]?.characterId)
+      .filter(characterId => characterId !== undefined))
     for (const characterId of characterIds) {
       const characterIndex = index.value?.characters[characterId]
       if (!characterIndex)

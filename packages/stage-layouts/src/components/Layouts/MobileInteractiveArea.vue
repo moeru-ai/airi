@@ -95,7 +95,7 @@ const { showStopAction, stopActiveResponse, submitInterruptingResponse } = useCh
 
 async function handleDeleteMessage(payload: { message: ChatHistoryItem, index: number }) {
   const { index, message } = payload
-  await chatSession.deleteMessage({
+  await chatOrchestrator.deleteMessage({
     sessionId: activeSessionId.value,
     messageId: message?.id,
     index,

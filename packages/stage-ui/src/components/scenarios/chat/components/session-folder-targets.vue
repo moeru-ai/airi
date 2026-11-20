@@ -8,7 +8,7 @@ import SessionMenuNewFolder from './session-menu-new-folder.vue'
 
 /** The targets of Move to folder, for one conversation or a selection. */
 const props = defineProps<{
-  folders: ChatSessionFolder[]
+  folders: readonly ChatSessionFolder[]
   /** The folder that every conversation is in. It shows a check and takes no move. */
   currentFolderId?: string
   /** Whether any of the conversations is in a folder. No folder is then available, also when the folders differ. */

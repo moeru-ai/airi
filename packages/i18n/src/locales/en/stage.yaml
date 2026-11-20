@@ -52,6 +52,7 @@ chat:
   archived-session:
     description: This conversation is archived. Restore it to continue.
     restore: Restore
+    restore-failed: The conversation could not be restored
   voice-message:
     recording: Recording
     starting: Starting microphone
@@ -312,6 +313,7 @@ chat:
     empty-archive: No archived conversations. Archived conversations stay here and are not deleted.
     empty-archive-character: No archived conversations with {name}. Archived conversations stay here and are not deleted.
     empty-character: No conversations with {name} yet. Use the button above to start the first one.
+    save-failed: The change could not be saved
 avatar-model-missing:
   title: No model selected
   unavailable-title: This model is not on this device

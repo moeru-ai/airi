@@ -1,24 +1,24 @@
 <script setup lang="ts">
 import type { ChatSessionFolder, ChatSessionsPlace } from '../../../../types/chat-session'
-import type { SessionRow } from './session-row.vue'
+import type { SessionRow } from './session-row-model'
 
-import { AnimatedHeight, Avatar, BasicButton, Button, DropdownMenu, GhostButton, Input, MenuItem, MenuLabel, MenuSeparator, ScrollableArea } from '@proj-airi/ui'
+import { AnimatedHeight, Avatar, BasicButton, Button, DropdownMenu, GhostButton, ScrollableArea } from '@proj-airi/ui'
 import { useEventListener, usePreferredReducedMotion, useResizeObserver, useScroll } from '@vueuse/core'
-import { computed, nextTick, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onMounted, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import SessionFolderTargets from './session-folder-targets.vue'
-import SessionMenuNewFolder from './session-menu-new-folder.vue'
 import SessionRowItem from './session-row.vue'
+import SessionsListHeader from './sessions-list-header.vue'
 
-import { iconButtonClasses, quietIconClasses } from './icon-button-classes'
+import { useListReorderMotion } from '../composables/use-list-reorder-motion'
 
 const props = withDefaults(defineProps<{
   /** Every conversation of the user, archived ones included. */
   rows: SessionRow[]
   /** Every character of the user. The filter offers each one, also one without conversations, so a first conversation can go to it. */
   characters: Array<{ id: string, name: string, preview?: string }>
-  folders: ChatSessionFolder[]
+  folders: readonly ChatSessionFolder[]
   isCreatingSession: boolean
   /** The desktop popover. Rows are denser, and the list keeps a fixed maximum height. */
   compact?: boolean
@@ -60,17 +60,9 @@ const selecting = defineModel<boolean>('selecting', { default: false })
 const selectedIds = shallowRef(new Set<string>())
 // The first press on the batch delete action only asks for confirmation, like the single-row delete.
 const confirmingBatchDelete = shallowRef(false)
-const placeMenuOpen = shallowRef(false)
-const folderMenuOpen = shallowRef(false)
-const batchMoveOpen = shallowRef(false)
 const confirmingFolderDelete = shallowRef(false)
-const renamingFolder = shallowRef(false)
-const folderName = ref('')
-// Folder rename starts when the folder menu has closed, so the menu does not move focus back to its trigger.
-let renameFolderRequested = false
+const batchMoveOpen = shallowRef(false)
 
-const placeTrigger = useTemplateRef<HTMLElement>('placeTrigger')
-const folderRenameGroup = useTemplateRef<HTMLElement>('folderRenameGroup')
 const chips = useTemplateRef<HTMLElement>('chips')
 
 /** The chosen folder. It is missing when this list or another window deleted it. */
@@ -136,21 +128,6 @@ const selectedFolderId = computed(() => {
 /** Whether a selected conversation is in a folder. The batch menu then offers No folder. */
 const selectionInFolder = computed(() => selectedRows.value.some(row => row.meta.folderId !== undefined))
 
-const placeLabel = computed(() => {
-  if (place.value.kind === 'archive')
-    return t('stage.chat.sessions.archived')
-  if (place.value.kind === 'folder')
-    return currentFolder.value?.name ?? ''
-  return t('stage.chat.sessions.all-conversations')
-})
-const placeIcon = computed(() => {
-  if (place.value.kind === 'archive')
-    return 'i-mingcute:archive-line'
-  if (place.value.kind === 'folder')
-    return 'i-mingcute:folder-line'
-  return undefined
-})
-
 /** The primary action creates a conversation, or deletes the selection while selecting. */
 const primaryAction = computed(() => {
   if (!selecting.value) {
@@ -171,6 +148,41 @@ const primaryAction = computed(() => {
     key: 'delete',
     icon: 'i-mingcute:delete-2-line',
     label: t('stage.chat.sessions.delete-selected', selectedRows.value.length),
+  }
+})
+
+/**
+ * The buttons of the action row. The popover shows plain buttons that fill on hover, and the drawer and the dialog show
+ * filled buttons. The primary action turns red while selecting, and solid while it waits for the second press.
+ */
+const actionButtons = computed(() => {
+  if (props.compact) {
+    return {
+      primary: BasicButton,
+      primaryProps: {
+        class: [
+          'session-primary-action session-primary-action--start h-9 min-w-0 flex-1 rounded-lg px-2 text-sm outline-none',
+          selecting.value
+            ? ['text-red-500 hover:bg-red-500/10 dark:text-red-400', confirmingBatchDelete.value ? 'bg-red-500/10' : '']
+            : 'text-primary-600 hover:bg-primary-50 dark:text-primary-300 dark:hover:bg-primary-950/70',
+          'focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-[-2px]',
+        ],
+      },
+      secondary: GhostButton,
+      secondaryProps: {},
+      iconSize: 'size-4.5',
+    }
+  }
+  return {
+    primary: Button,
+    primaryProps: {
+      color: selecting.value ? 'red' : 'primary',
+      variant: confirmingBatchDelete.value ? 'primary' : 'secondary',
+      class: ['session-primary-action min-h-12 min-w-0 flex-1 rounded-2xl px-4 py-3'],
+    },
+    secondary: Button,
+    secondaryProps: { color: 'neutral', variant: 'secondary' },
+    iconSize: 'size-5',
   }
 })
 
@@ -215,7 +227,6 @@ watch([place, characterFilter], () => {
   pendingDeleteSessionId.value = undefined
   confirmingBatchDelete.value = false
   confirmingFolderDelete.value = false
-  renamingFolder.value = false
 })
 
 function isPlace(target: ChatSessionsPlace) {
@@ -299,11 +310,6 @@ function createFolderForSelection(name: string) {
   selecting.value = false
 }
 
-function createFolderFromPlaceMenu(name: string) {
-  placeMenuOpen.value = false
-  emit('createFolder', { name, sessionIds: [], open: true })
-}
-
 function selectSession(sessionId: string) {
   expandedSessionId.value = undefined
   pendingDeleteSessionId.value = undefined
@@ -314,58 +320,6 @@ function deleteRow(sessionId: string) {
   pendingDeleteSessionId.value = undefined
   expandedSessionId.value = undefined
   emit('deleteSession', sessionId)
-}
-
-function pressFolderDelete() {
-  if (!confirmingFolderDelete.value) {
-    confirmingFolderDelete.value = true
-    return
-  }
-  confirmingFolderDelete.value = false
-  if (currentFolder.value)
-    emit('deleteFolder', currentFolder.value.id)
-}
-
-function requestFolderRename() {
-  renameFolderRequested = true
-}
-
-async function openFolderRenameAfterMenu(event: Event) {
-  if (!renameFolderRequested || !currentFolder.value)
-    return
-  renameFolderRequested = false
-  event.preventDefault()
-  folderName.value = currentFolder.value.name
-  renamingFolder.value = true
-  await nextTick()
-  const input = folderRenameGroup.value?.querySelector('input')
-  input?.focus()
-  input?.select()
-}
-
-function saveFolderName() {
-  if (!renamingFolder.value)
-    return
-  if (currentFolder.value && folderName.value.trim())
-    emit('renameFolder', { folderId: currentFolder.value.id, name: folderName.value })
-  renamingFolder.value = false
-}
-
-/** Enter, Escape, Save, and Cancel return focus to the title, so the keyboard user continues from it. */
-async function finishFolderRename(save: boolean) {
-  if (save)
-    saveFolderName()
-  else
-    renamingFolder.value = false
-  await nextTick()
-  placeTrigger.value?.focus()
-}
-
-/** Focus that leaves the name field and its buttons saves a name. An empty field keeps the old name. */
-function handleFolderRenameFocusOut(event: FocusEvent) {
-  if (event.relatedTarget instanceof Node && folderRenameGroup.value?.contains(event.relatedTarget))
-    return
-  saveFolderName()
 }
 
 /**
@@ -396,15 +350,6 @@ useEventListener(document, 'focusin', (event) => {
   if (event.target instanceof Element && event.target.matches(':focus-visible'))
     dropConfirmations(event.target)
 })
-
-/**
- * An item that leaves keeps the place where it was while it fades. It leaves the flow at once, so the items after it
- * slide up. Without a fixed top, items that leave together would share the place of the first one.
- */
-function holdLeavingItem(element: Element) {
-  if (element instanceof HTMLElement)
-    element.style.top = `${element.offsetTop}px`
-}
 
 function handleEscape(event: KeyboardEvent) {
   if (dropConfirmations(null)) {
@@ -461,6 +406,13 @@ useResizeObserver(() => root.value
   : [], measureListRoom)
 useEventListener(window, 'resize', measureListRoom)
 
+const { holdLeavingItem } = useListReorderMotion({
+  list: () => listBox.value?.querySelector('ul'),
+  keys: () => visibleRows.value.map(row => row.meta.sessionId),
+  keyOf: item => item.dataset.sessionKey,
+  leaveActiveClass: 'session-item-leave-active',
+})
+
 // The character row scrolls sideways. A faded edge shows that more characters are there.
 const { arrivedState, measure: measureChips } = useScroll(chips)
 const chipsFade = computed(() => {
@@ -478,57 +430,6 @@ useResizeObserver(chips, () => measureChips())
 onMounted(() => measureChips())
 
 const reducedMotion = usePreferredReducedMotion()
-
-/** The order of the visible rows. It keeps its identity while the order stays, so an update of row data moves nothing. */
-const visibleKeys = computed<string[]>((previous) => {
-  const next = visibleRows.value.map(row => row.meta.sessionId)
-  return previous && previous.length === next.length && previous.every((key, index) => key === next[index]) ? previous : next
-})
-
-/**
- * Rows that stay slide from where they are to where they land. The list moves them itself: the store can update the
- * rows several times right after one action, and `TransitionGroup` cancels a running move on each update without
- * starting it again, so the row jumps. Only a change of the order starts a move here, from the place where the row is
- * at that moment.
- */
-const rowMoves = new WeakMap<HTMLElement, Animation>()
-let rowTopsBefore = new Map<string, number>()
-
-function rowItems() {
-  const list = listBox.value?.querySelector('ul')
-  const items = [...list?.children ?? []].filter((item): item is HTMLElement =>
-    item instanceof HTMLElement && item.dataset.sessionKey !== undefined && !item.classList.contains('session-item-leave-active'))
-  return { list, items }
-}
-
-watch(visibleKeys, () => {
-  const { list, items } = rowItems()
-  rowTopsBefore = new Map()
-  if (!list)
-    return
-  const listTop = list.getBoundingClientRect().top
-  for (const item of items)
-    rowTopsBefore.set(item.dataset.sessionKey!, item.getBoundingClientRect().top - listTop)
-}, { flush: 'pre' })
-
-watch(visibleKeys, () => {
-  if (reducedMotion.value === 'reduce')
-    return
-  for (const item of rowItems().items) {
-    const before = rowTopsBefore.get(item.dataset.sessionKey!)
-    if (before === undefined)
-      continue
-    // The place before includes a running move. The layout offset does not, so the new move starts where the row is.
-    const offset = before - item.offsetTop
-    rowMoves.get(item)?.cancel()
-    if (Math.abs(offset) < 0.5)
-      continue
-    rowMoves.set(item, item.animate(
-      [{ transform: `translateY(${offset}px)` }, { transform: 'none' }],
-      { duration: 300, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' },
-    ))
-  }
-}, { flush: 'post' })
 
 watch([characterChips, characterFilter], async () => {
   await nextTick()
@@ -551,245 +452,73 @@ function chipClasses(pressed: boolean) {
       : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200/80 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700/80',
   ]
 }
-const confirmPillClasses = computed(() => [
-  'session-confirm-pill shrink-0 inline-flex items-center gap-1 whitespace-nowrap rounded-full outline-none',
-  'bg-red-500/10 font-semibold text-red-500 dark:text-red-400',
-  'focus-visible:outline-2 focus-visible:outline-red-500',
-  props.compact ? 'h-7 px-2.5 text-xs' : 'h-8 px-3 text-sm',
-])
-const menuCountClasses = ['ml-auto pl-3 text-xs tabular-nums text-neutral-400 dark:text-neutral-500']
-const menuCheckClasses = ['i-mingcute:check-line size-4 shrink-0 text-primary-500']
 </script>
 
 <template>
   <div ref="root" :class="['min-h-0 flex flex-col']" @keydown.esc="handleEscape">
-    <!-- The title is the place switcher. A folder adds its delete button and its menu. -->
-    <div :class="['flex shrink-0 items-center gap-0.5', props.compact ? 'mb-0.5 min-h-8' : 'mb-2 min-h-11']">
-      <div
-        v-if="renamingFolder"
-        ref="folderRenameGroup"
-        :class="['min-w-0 flex flex-1 items-center gap-0.5']"
-        @focusout="handleFolderRenameFocusOut"
-      >
-        <Input
-          v-model="folderName"
-          :aria-label="t('stage.chat.sessions.folder-name')"
-          :placeholder="t('stage.chat.sessions.folder-name-placeholder')"
-          @keydown.enter.stop.prevent="finishFolderRename(true)"
-          @keydown.esc.stop="finishFolderRename(false)"
-        />
-        <!-- The buttons keep focus in the field on press, so leaving focus does not save before Cancel runs. -->
-        <button
-          type="button"
-          :aria-label="t('stage.chat.sessions.save-folder')"
-          :title="t('stage.chat.sessions.save-folder')"
-          :class="[iconButtonClasses, props.compact ? 'size-8' : 'size-9', 'text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300']"
-          @pointerdown.prevent
-          @click="finishFolderRename(true)"
-        >
-          <span aria-hidden="true" :class="['i-mingcute:check-line', props.compact ? 'size-4' : 'size-5']" />
-        </button>
-        <button
-          type="button"
-          :aria-label="t('stage.chat.sessions.cancel-folder')"
-          :title="t('stage.chat.sessions.cancel-folder')"
-          :class="[iconButtonClasses, props.compact ? 'size-8' : 'size-9', quietIconClasses]"
-          @pointerdown.prevent
-          @click="finishFolderRename(false)"
-        >
-          <span aria-hidden="true" :class="['i-mingcute:close-line', props.compact ? 'size-4' : 'size-5']" />
-        </button>
-      </div>
-      <template v-else>
-        <DropdownMenu v-model:open="placeMenuOpen" align="start" :side-offset="4" :content-class="['min-w-56 max-w-72 max-h-[var(--reka-dropdown-menu-content-available-height)] overflow-y-auto']">
-          <template #trigger>
-            <button
-              ref="placeTrigger"
-              type="button"
-              :title="t('stage.chat.sessions.switch-place')"
-              :class="[
-                'min-w-0 inline-flex items-center outline-none',
-                'transition-colors duration-200 motion-reduce:transition-none',
-                'hover:text-primary-600 dark:hover:text-primary-300',
-                'focus-visible:outline-2 focus-visible:outline-primary-500',
-                placeMenuOpen ? 'text-primary-600 dark:text-primary-300' : '',
-                props.compact
-                  ? 'h-8 gap-1 rounded-lg px-1.5 text-sm font-semibold'
-                  : '-ml-1 h-11 gap-1.5 rounded-xl px-1 text-xl font-semibold tracking-tight',
-              ]"
-            >
-              <span v-if="placeIcon" aria-hidden="true" :class="[placeIcon, props.compact ? 'size-4' : 'size-5.5', 'shrink-0']" />
-              <span :class="['truncate']">{{ placeLabel }}</span>
-              <span
-                aria-hidden="true"
-                :class="[
-                  'i-mingcute:down-line shrink-0 transition-transform duration-200 motion-reduce:transition-none',
-                  props.compact ? 'size-3.5' : 'size-4.5',
-                  placeMenuOpen ? 'rotate-180' : 'text-neutral-400 dark:text-neutral-500',
-                ]"
-              />
-            </button>
-          </template>
-          <MenuItem @select="setPlace({ kind: 'all' })">
-            <span aria-hidden="true" :class="['i-mingcute:chat-2-line size-4 shrink-0']" />
-            <span :class="['min-w-0 truncate']">{{ t('stage.chat.sessions.all-conversations') }}</span>
-            <span :class="menuCountClasses">{{ liveRows.length }}</span>
-            <span v-if="place.kind === 'all'" aria-hidden="true" :class="menuCheckClasses" />
-          </MenuItem>
-          <MenuLabel>{{ t('stage.chat.sessions.folders') }}</MenuLabel>
-          <MenuItem
-            v-for="folder in props.folders"
-            :key="folder.id"
-            @select="setPlace({ kind: 'folder', folderId: folder.id })"
-          >
-            <span aria-hidden="true" :class="['i-mingcute:folder-line size-4 shrink-0']" />
-            <span :class="['min-w-0 truncate']">{{ folder.name }}</span>
-            <span :class="menuCountClasses">{{ folderCounts.get(folder.id) ?? 0 }}</span>
-            <span v-if="place.kind === 'folder' && place.folderId === folder.id" aria-hidden="true" :class="menuCheckClasses" />
-          </MenuItem>
-          <SessionMenuNewFolder @create="createFolderFromPlaceMenu" />
-          <MenuSeparator />
-          <MenuItem @select="setPlace({ kind: 'archive' })">
-            <span aria-hidden="true" :class="['i-mingcute:archive-line size-4 shrink-0']" />
-            <span :class="['min-w-0 truncate']">{{ t('stage.chat.sessions.archived') }}</span>
-            <span :class="menuCountClasses">{{ archivedCount }}</span>
-            <span v-if="place.kind === 'archive'" aria-hidden="true" :class="menuCheckClasses" />
-          </MenuItem>
-        </DropdownMenu>
-        <span :class="['flex-1']" />
-        <template v-if="currentFolder">
-          <!-- Deleting a folder keeps its conversations. The button turns into its confirmation in place. -->
-          <button
-            type="button"
-            data-session-confirm="folder"
-            :aria-label="confirmingFolderDelete ? t('stage.chat.sessions.confirm-delete-folder') : t('stage.chat.sessions.delete-folder')"
-            :title="confirmingFolderDelete ? t('stage.chat.sessions.confirm-delete-folder') : t('stage.chat.sessions.delete-folder')"
-            :class="confirmingFolderDelete
-              ? confirmPillClasses
-              : [iconButtonClasses, props.compact ? 'size-8' : 'size-10', 'text-neutral-400 hover:text-red-500 dark:text-neutral-500 dark:hover:text-red-400']"
-            @click="pressFolderDelete"
-          >
-            <span aria-hidden="true" :class="[confirmingFolderDelete ? 'i-mingcute:delete-2-fill size-3.5' : ['i-mingcute:delete-2-line', props.compact ? 'size-4' : 'size-5']]" />
-            <template v-if="confirmingFolderDelete">
-              {{ t('stage.chat.sessions.confirm-delete-folder') }}
-            </template>
-          </button>
-          <DropdownMenu
-            v-model:open="folderMenuOpen"
-            align="end"
-            :side-offset="4"
-            @close-auto-focus="openFolderRenameAfterMenu"
-          >
-            <template #trigger>
-              <button
-                type="button"
-                :aria-label="t('stage.chat.sessions.folder-actions')"
-                :title="t('stage.chat.sessions.folder-actions')"
-                :class="[
-                  iconButtonClasses,
-                  folderMenuOpen ? 'text-primary-500 dark:text-primary-400' : quietIconClasses,
-                  props.compact ? 'size-8' : 'size-10',
-                ]"
-              >
-                <span aria-hidden="true" :class="['i-mingcute:more-2-fill', props.compact ? 'size-4' : 'size-5']" />
-              </button>
-            </template>
-            <MenuItem @select="requestFolderRename">
-              <span aria-hidden="true" :class="['i-mingcute:edit-2-line size-4 shrink-0']" />
-              {{ t('stage.chat.sessions.rename-folder') }}
-            </MenuItem>
-          </DropdownMenu>
-        </template>
-      </template>
-    </div>
+    <SessionsListHeader
+      v-model:confirming-delete="confirmingFolderDelete"
+      :place="place"
+      :folders="props.folders"
+      :current-folder="currentFolder"
+      :live-count="liveRows.length"
+      :archived-count="archivedCount"
+      :folder-counts="folderCounts"
+      :compact="props.compact"
+      @select-place="setPlace"
+      @create-folder="name => emit('createFolder', { name, sessionIds: [], open: true })"
+      @rename-folder="emit('renameFolder', $event)"
+      @delete-folder="emit('deleteFolder', $event)"
+    />
 
     <div :class="['flex shrink-0 items-center']">
-      <BasicButton
-        v-if="props.compact"
+      <component
+        :is="actionButtons.primary"
+        v-bind="actionButtons.primaryProps"
         block
         size="unset"
         :data-session-confirm="selecting ? 'batch' : undefined"
         :disabled="selecting && selectedRows.length === 0"
         :loading="!selecting && isCreatingSession"
-        :class="[
-          'session-primary-action session-primary-action--start h-9 min-w-0 flex-1 rounded-lg px-2 text-sm outline-none',
-          selecting
-            ? ['text-red-500 hover:bg-red-500/10 dark:text-red-400', confirmingBatchDelete ? 'bg-red-500/10' : '']
-            : 'text-primary-600 hover:bg-primary-50 dark:text-primary-300 dark:hover:bg-primary-950/70',
-          'focus-visible:outline-2 focus-visible:outline-primary-500 focus-visible:outline-offset-[-2px]',
-        ]"
         @click="runPrimaryAction"
       >
         <Transition name="session-action-swap" mode="out-in">
           <span :key="primaryAction.key" :class="['min-w-0 max-w-full inline-flex items-center gap-2']">
-            <span aria-hidden="true" :class="[primaryAction.icon, 'size-4.5 shrink-0']" />
+            <span aria-hidden="true" :class="[primaryAction.icon, actionButtons.iconSize, 'shrink-0']" />
             <span :class="['truncate']">{{ primaryAction.label }}</span>
           </span>
         </Transition>
-      </BasicButton>
-      <Button
-        v-else
-        block
-        :data-session-confirm="selecting ? 'batch' : undefined"
-        :color="selecting ? 'red' : 'primary'"
-        :variant="confirmingBatchDelete ? 'primary' : 'secondary'"
-        size="unset"
-        :disabled="selecting && selectedRows.length === 0"
-        :loading="!selecting && isCreatingSession"
-        :class="['session-primary-action min-h-12 min-w-0 flex-1 rounded-2xl px-4 py-3']"
-        @click="runPrimaryAction"
-      >
-        <Transition name="session-action-swap" mode="out-in">
-          <span :key="primaryAction.key" :class="['min-w-0 max-w-full inline-flex items-center gap-2']">
-            <span aria-hidden="true" :class="[primaryAction.icon, 'size-5 shrink-0']" />
-            <span :class="['truncate']">{{ primaryAction.label }}</span>
-          </span>
-        </Transition>
-      </Button>
+      </component>
       <Transition name="session-action-slot">
         <div v-if="selecting" :class="['shrink-0 overflow-hidden max-w-40', props.compact ? 'ml-0.5' : 'ml-2']">
-          <GhostButton
-            v-if="props.compact"
+          <component
+            :is="actionButtons.secondary"
+            v-bind="actionButtons.secondaryProps"
             size="unset"
-            :class="['h-9 whitespace-nowrap rounded-lg px-2 text-sm', 'focus-visible:outline-2 focus-visible:outline-primary-500']"
+            :class="props.compact
+              ? ['h-9 whitespace-nowrap rounded-lg px-2 text-sm', 'focus-visible:outline-2 focus-visible:outline-primary-500']
+              : ['h-12 whitespace-nowrap rounded-2xl px-4']"
             @click="toggleAllSelected"
           >
             {{ allSelected ? t('stage.chat.sessions.clear-selection') : t('stage.chat.sessions.select-all') }}
-          </GhostButton>
-          <Button
-            v-else
-            color="neutral" variant="secondary" size="unset"
-            :class="['h-12 whitespace-nowrap rounded-2xl px-4']"
-            @click="toggleAllSelected"
-          >
-            {{ allSelected ? t('stage.chat.sessions.clear-selection') : t('stage.chat.sessions.select-all') }}
-          </Button>
+          </component>
         </div>
       </Transition>
-      <GhostButton
-        v-if="props.compact"
+      <component
+        :is="actionButtons.secondary"
+        v-bind="actionButtons.secondaryProps"
         size="unset"
         :aria-label="selecting ? t('stage.chat.sessions.done-selecting') : t('stage.chat.sessions.select')"
         :title="selecting ? t('stage.chat.sessions.done-selecting') : t('stage.chat.sessions.select')"
-        :class="['ml-0.5 size-9 shrink-0 rounded-lg text-neutral-400 hover:bg-neutral-500/10 hover:text-neutral-600 dark:hover:text-neutral-200', 'focus-visible:outline-2 focus-visible:outline-primary-500']"
+        :class="props.compact
+          ? ['ml-0.5 size-9 shrink-0 rounded-lg text-neutral-400 hover:bg-neutral-500/10 hover:text-neutral-600 dark:hover:text-neutral-200', 'focus-visible:outline-2 focus-visible:outline-primary-500']
+          : ['ml-2 size-12 shrink-0 rounded-2xl']"
         @click="selecting = !selecting"
       >
         <Transition name="session-action-swap" mode="out-in">
-          <span :key="String(selecting)" aria-hidden="true" :class="[selecting ? 'i-mingcute:close-line' : 'i-mingcute:list-check-3-line', 'size-4.5']" />
+          <span :key="String(selecting)" aria-hidden="true" :class="[selecting ? 'i-mingcute:close-line' : 'i-mingcute:list-check-3-line', actionButtons.iconSize]" />
         </Transition>
-      </GhostButton>
-      <Button
-        v-else
-        color="neutral" variant="secondary" size="unset"
-        :aria-label="selecting ? t('stage.chat.sessions.done-selecting') : t('stage.chat.sessions.select')"
-        :title="selecting ? t('stage.chat.sessions.done-selecting') : t('stage.chat.sessions.select')"
-        :class="['ml-2 size-12 shrink-0 rounded-2xl']"
-        @click="selecting = !selecting"
-      >
-        <Transition name="session-action-swap" mode="out-in">
-          <span :key="String(selecting)" aria-hidden="true" :class="[selecting ? 'i-mingcute:close-line' : 'i-mingcute:list-check-3-line', 'size-5']" />
-        </Transition>
-      </Button>
+      </component>
     </div>
 
     <!-- The character filter stays while selecting, so a selection can be made one character at a time. -->
@@ -964,16 +693,6 @@ const menuCheckClasses = ['i-mingcute:check-line size-4 shrink-0 text-primary-50
   mask-image: linear-gradient(to right, transparent, #000 1.75rem, #000 calc(100% - 1.75rem), transparent);
 }
 
-.session-confirm-pill {
-  animation: session-confirm-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-@keyframes session-confirm-in {
-  from {
-    opacity: 0;
-    transform: scale(0.9);
-  }
-}
-
 .session-action-swap-enter-active,
 .session-action-swap-leave-active {
   transition: opacity 120ms ease, transform 120ms ease;
@@ -1001,7 +720,7 @@ const menuCheckClasses = ['i-mingcute:check-line size-4 shrink-0 text-primary-50
 
 /*
  * One keyed sequence with one height owner. A new item fades in where it lands. An item that leaves leaves the flow at
- * once and fades where it was. The script moves the rows that stay, with the timing of `AnimatedHeight`.
+ * once and fades where it was. `useListReorderMotion` moves the rows that stay, with the timing of `AnimatedHeight`.
  */
 .session-item-enter-active {
   transition:
@@ -1024,9 +743,6 @@ const menuCheckClasses = ['i-mingcute:check-line size-4 shrink-0 text-primary-50
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .session-confirm-pill {
-    animation: none;
-  }
   .session-item-enter-active,
   .session-item-leave-active,
   .session-action-swap-enter-active,

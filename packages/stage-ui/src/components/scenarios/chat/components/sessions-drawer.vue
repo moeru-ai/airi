@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import type { ChatSessionFolder, ChatSessionMeta } from '../../../../types/chat-session'
-import type { SessionRow } from './session-row.vue'
+import type { SessionRow } from './session-row-model'
 
+import { errorMessageFrom } from '@moeru/std'
 import { useNow } from '@vueuse/core'
 import { intlFormatDistance } from 'date-fns'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { toast } from 'vue-sonner'
 
 import SessionsDialog from './sessions-dialog.vue'
 
@@ -28,6 +30,9 @@ const props = withDefaults(defineProps<{
 })
 
 const showDialog = defineModel({ type: Boolean, default: false, required: false })
+
+/** The folders of a user without folders. One frozen value, so the list sees no change while there are none. */
+const NO_FOLDERS: readonly ChatSessionFolder[] = Object.freeze([])
 
 const { isDesktop } = useBreakpoints()
 const { t, locale } = useI18n()
@@ -95,10 +100,11 @@ function activityAtFor(meta: ChatSessionMeta): number {
  * Folders in the order of their creation, so a new folder appears last. While an account swap rehydrates, the index
  * can still belong to the other account, so its folders stay hidden, like its sessions.
  */
-const folders = computed<ChatSessionFolder[]>(() => {
-  if (index.value?.userId !== effectiveUserId.value)
-    return []
-  return Object.values(index.value.folders ?? {}).sort((first, second) => first.createdAt - second.createdAt)
+const folders = computed<readonly ChatSessionFolder[]>(() => {
+  const owned = index.value?.userId === effectiveUserId.value ? index.value.folders : undefined
+  if (!owned)
+    return NO_FOLDERS
+  return Object.values(owned).sort((first, second) => first.createdAt - second.createdAt)
 })
 
 const rows = computed<SessionRow[]>(() => {
@@ -120,6 +126,19 @@ const rows = computed<SessionRow[]>(() => {
 
 /** Every character card, so the filter can pick a character that has no conversation yet. */
 const characters = computed(() => [...cards.value].map(([id, card]) => ({ id, name: card.name, preview: characterPreviews.value.get(id) })))
+
+/**
+ * Runs an action of the list and explains a failure with a toast, as the other chat controls do. The list keeps its
+ * state, so the user can try again.
+ */
+async function reportFailure(action: () => Promise<unknown>) {
+  try {
+    await action()
+  }
+  catch (error) {
+    toast.error(t('stage.chat.sessions.save-failed'), { description: errorMessageFrom(error) })
+  }
+}
 
 async function selectSession(sessionId: string) {
   const selectedRow = rows.value.find(row => row.meta.sessionId === sessionId)
@@ -240,17 +259,17 @@ watch(showDialog, async (open) => {
     :is-desktop="isDesktop"
     :is-creating-session="isCreatingSession"
     :desktop-mode="props.desktopMode"
-    @new-session="startNewSession"
+    @new-session="payload => reportFailure(() => startNewSession(payload))"
     @select-session="selectSession"
-    @delete-session="chat.deleteSession"
-    @delete-sessions="chat.deleteSessions"
-    @rename-session="renameSession"
-    @pin-session="chatSession.setSessionPinned($event.sessionId, $event.pinned)"
-    @archive-sessions="archiveSessions"
-    @move-sessions="chatSession.moveSessionsToFolder($event.sessionIds, $event.folderId)"
-    @create-folder="createFolder"
-    @rename-folder="chatSession.renameFolder($event.folderId, $event.name)"
-    @delete-folder="chatSession.deleteFolder"
+    @delete-session="sessionId => reportFailure(() => chat.deleteSession(sessionId))"
+    @delete-sessions="sessionIds => reportFailure(() => chat.deleteSessions(sessionIds))"
+    @rename-session="payload => reportFailure(() => renameSession(payload))"
+    @pin-session="payload => reportFailure(() => chatSession.setSessionPinned(payload.sessionId, payload.pinned))"
+    @archive-sessions="payload => reportFailure(() => archiveSessions(payload))"
+    @move-sessions="payload => reportFailure(() => chatSession.moveSessionsToFolder(payload.sessionIds, payload.folderId))"
+    @create-folder="payload => reportFailure(() => createFolder(payload))"
+    @rename-folder="payload => reportFailure(() => chatSession.renameFolder(payload.folderId, payload.name))"
+    @delete-folder="folderId => reportFailure(() => chatSession.deleteFolder(folderId))"
   >
     <template #trigger>
       <slot name="trigger" />
