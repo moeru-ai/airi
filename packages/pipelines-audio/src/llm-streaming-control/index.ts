@@ -1,4 +1,5 @@
 export { createStreamingControlParser } from './controller'
+export { formatAct, tokenAct } from './parsers'
 export { normalizeActPayload } from './payloads'
 export type {
   NormalizedActPayload,
