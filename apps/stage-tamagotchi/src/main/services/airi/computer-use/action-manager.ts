@@ -155,6 +155,8 @@ export type SessionApprovalMode = 'ask' | 'auto' | 'full'
 
 /** Auto stands in for the user only until this deadline, then the lane returns to Ask. */
 export const AUTO_GRANT_TTL_MS = 30 * 60_000
+/** One Auto grant can review many turns. The map drops the oldest card past this size. */
+const AUTO_REVIEW_CACHE_MAX = 256
 
 const GRANT_REVOKE_MESSAGES: Record<TurboLane, string> = {
   terminal: 'Terminal approval was turned off before dispatch.',
@@ -326,8 +328,14 @@ export class PendingActionManager {
   /** Remembers a review only while that Auto grant is still current. */
   rememberReview(lane: TurboLane, sessionId: string, senderWebContentsId: number | undefined, card: string, verdict: 'allow' | 'refuse'): void {
     const grant = this.liveGrant(lane, sessionId, senderWebContentsId)
-    if (grant?.mode === 'auto')
-      grant.reviewCache.set(card, verdict)
+    if (grant?.mode !== 'auto')
+      return
+    if (!grant.reviewCache.has(card) && grant.reviewCache.size >= AUTO_REVIEW_CACHE_MAX) {
+      const oldest = grant.reviewCache.keys().next().value
+      if (oldest !== undefined)
+        grant.reviewCache.delete(oldest)
+    }
+    grant.reviewCache.set(card, verdict)
   }
 
   /** Only Main calls this after a user decision in the native confirmation dialog. */

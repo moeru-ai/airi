@@ -106,21 +106,21 @@ describe('main Chat request IPC', () => {
     await main.dispose()
   })
 
-  it('keeps Ask when Command Auto cannot read a workspace', async () => {
+  it('reports when Command Auto cannot read a workspace', async () => {
     const { main, input, sessionGrant, presentConfirmation } = fixture()
-    await expect(sessionGrant({ sessionId: input.sessionId, lane: 'terminal', mode: 'auto' })).resolves.toBe('ask')
+    await expect(sessionGrant({ sessionId: input.sessionId, lane: 'terminal', mode: 'auto' })).resolves.toEqual({ unavailableReason: 'workspace_unavailable' })
     expect(presentConfirmation).not.toHaveBeenCalled()
     await main.dispose()
   })
 
-  it('keeps Ask when Computer Use Auto cannot read the foreground app', async () => {
+  it('reports when Computer Use Auto cannot read the foreground app', async () => {
     const { main, input, sessionGrant, presentConfirmation } = fixture()
-    await expect(sessionGrant({ sessionId: input.sessionId, lane: 'computer_use', mode: 'auto' })).resolves.toBe('ask')
+    await expect(sessionGrant({ sessionId: input.sessionId, lane: 'computer_use', mode: 'auto' })).resolves.toEqual({ unavailableReason: 'foreground_unavailable' })
     expect(presentConfirmation).not.toHaveBeenCalled()
     await main.dispose()
   })
 
-  it('keeps Ask when the foreground application name is blank', async () => {
+  it('reports when the foreground application name is blank', async () => {
     const ipc = new EventEmitter()
     const main = createContext(ipc as never)
     const runtime = createWindowIpc(ipc)
@@ -136,7 +136,28 @@ describe('main Chat request IPC', () => {
       readForegroundApp: async () => ({ appName: '   ', windowTitle: 'Notes' }),
     })
     const sessionGrant = defineInvoke(chat.context, sessionApprovalGrant)
-    await expect(sessionGrant({ sessionId: 'session-blank-app', lane: 'computer_use', mode: 'auto' })).resolves.toBe('ask')
+    await expect(sessionGrant({ sessionId: 'session-blank-app', lane: 'computer_use', mode: 'auto' })).resolves.toEqual({ unavailableReason: 'foreground_unavailable' })
+    expect(presentConfirmation).not.toHaveBeenCalled()
+    await main.dispose()
+  })
+
+  it('reports when the foreground application is a terminal', async () => {
+    const ipc = new EventEmitter()
+    const main = createContext(ipc as never)
+    const runtime = createWindowIpc(ipc)
+    const chat = createWindowIpc(ipc)
+    electron.fromWebContents.mockImplementation(sender => [runtime, chat].find(window => window.window.webContents === sender)?.window)
+    const presentConfirmation = vi.fn<(request: ApprovalPrompt, signal?: AbortSignal) => Promise<boolean>>().mockResolvedValue(true)
+    const actions = new PendingActionManager()
+    setupChatRequests(main.context, actions, {
+      getRuntime: () => runtime.window.webContents,
+      isChatWindow: window => window === chat.window,
+      i18n: createI18n({ locale: 'en', messages: { en: {} } }),
+      presentConfirmation,
+      readForegroundApp: async () => ({ appName: 'Windows Terminal', windowTitle: 'PowerShell' }),
+    })
+    const sessionGrant = defineInvoke(chat.context, sessionApprovalGrant)
+    await expect(sessionGrant({ sessionId: 'session-terminal-app', lane: 'computer_use', mode: 'auto' })).resolves.toEqual({ unavailableReason: 'foreground_denied' })
     expect(presentConfirmation).not.toHaveBeenCalled()
     await main.dispose()
   })

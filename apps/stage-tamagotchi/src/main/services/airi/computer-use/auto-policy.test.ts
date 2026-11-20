@@ -68,6 +68,16 @@ describe('command auto cage', () => {
     }
   })
 
+  it('refuses path-qualified executables and Git commands that can run hooks or filters', () => {
+    expect(decideCommandAuto(snapshot('./set-content file value'), '/workspace/app').outcome).toBe('refuse')
+    expect(decideCommandAuto(snapshot('.\\set-content file value', { effectiveCwd: 'C:\\workspace\\app', executorCwd: 'C:\\workspace\\app', executorPlatform: 'win32' }), 'C:\\workspace\\app').outcome).toBe('refuse')
+    expect(decideCommandAuto(snapshot('git add file'), '/workspace/app').outcome).toBe('refuse')
+    expect(decideCommandAuto(snapshot('git commit -m save'), '/workspace/app').outcome).toBe('refuse')
+    expect(decideCommandAuto(snapshot('git checkout branch'), '/workspace/app').outcome).toBe('refuse')
+    expect(decideCommandAuto(snapshot('git switch branch'), '/workspace/app').outcome).toBe('refuse')
+    expect(decideCommandAuto(snapshot('git restore file'), '/workspace/app').outcome).toBe('refuse')
+  })
+
   it('refuses interpreters and nested shells without review', () => {
     expect(decideCommandAuto(snapshot('python -c "print(1)"'), '/workspace/app').outcome).toBe('refuse')
     expect(decideCommandAuto(snapshot('node -e "console.log(1)"'), '/workspace/app').outcome).toBe('refuse')
@@ -117,6 +127,24 @@ describe('command auto cage', () => {
       const command = { effectiveCwd: root, executorCwd: root, executorPlatform: platform }
       expect(decideCommandAuto(snapshot('ls ./escape', command), root).outcome).toBe('refuse')
       expect(decideCommandAuto(snapshot('rm ./escape/missing', command), root).outcome).toBe('refuse')
+      const bare = join(root, 'foo')
+      if (process.platform === 'win32')
+        symlinkSync(outside, bare, 'junction')
+      else
+        symlinkSync(outside, bare)
+      expect(decideCommandAuto(snapshot('set-content foo hello', command), root).outcome).toBe('refuse')
+      expect(decideCommandAuto(snapshot('rm foo', command), root).outcome).toBe('refuse')
+      expect(decideCommandAuto(snapshot(`Get-Content foo`, command), root).outcome).toBe('refuse')
+      expect(decideCommandAuto(snapshot('cat foo', command), root).outcome).toBe('refuse')
+      writeFileSync(join(root, 'source.txt'), 'inside')
+      const outsideFile = join(outside, 'destination.txt')
+      writeFileSync(outsideFile, 'outside')
+      const outputLink = join(root, 'output.txt')
+      if (process.platform === 'win32')
+        symlinkSync(outsideFile, outputLink, 'file')
+      else
+        symlinkSync(outsideFile, outputLink)
+      expect(decideCommandAuto(snapshot('cp source.txt output.txt', command), root).outcome).toBe('refuse')
     }
     finally {
       rmSync(root, { recursive: true, force: true })
@@ -148,11 +176,11 @@ describe('ask read-only fast path', () => {
 })
 
 describe('computer use auto cage', () => {
-  it('allows scroll and wait only inside the frozen application', () => {
-    expect(decideComputerUseAuto({ frozenAppName: frozenApp, actionKind: 'scroll', contextAvailable: true, appName: 'Notes', windowTitle: 'Notes', action: { input: { deltaY: 40 } } })).toMatchObject({ outcome: 'allow' })
+  it('allows wait and refuses scroll inside the frozen application', () => {
     expect(decideComputerUseAuto({ frozenAppName: frozenApp, actionKind: 'wait', contextAvailable: true, appName: 'Notes', windowTitle: 'Notes' })).toMatchObject({ outcome: 'allow' })
     expect(decideComputerUseAuto({ frozenAppName: frozenApp, actionKind: 'scroll', contextAvailable: false }).outcome).toBe('refuse')
     expect(decideComputerUseAuto({ frozenAppName: frozenApp, actionKind: 'scroll', contextAvailable: true, appName: 'Terminal' }).outcome).toBe('refuse')
+    expect(decideComputerUseAuto({ frozenAppName: frozenApp, actionKind: 'scroll', contextAvailable: true, appName: 'Notes', windowTitle: 'Notes', action: { input: { deltaY: 40 } } })).toMatchObject({ outcome: 'refuse' })
     expect(decideComputerUseAuto({
       frozenAppName: frozenApp,
       actionKind: 'scroll',
@@ -221,6 +249,33 @@ describe('computer use auto cage', () => {
     expect(decideComputerUseAuto({ frozenAppName: frozenApp, actionKind: 'pty_create', contextAvailable: true, windowTitle: 'Terminal' }).outcome).toBe('refuse')
   })
 
+  it('refuses desktop actions in terminal windows and submitted text', () => {
+    expect(decideComputerUseAuto({
+      frozenAppName: 'Terminal',
+      actionKind: 'type_text',
+      contextAvailable: true,
+      appName: 'Terminal',
+      windowTitle: 'Terminal',
+      action: { input: { text: 'rm -rf ./data', pressEnter: true } },
+    })).toMatchObject({ outcome: 'refuse', reason: expect.stringContaining('terminal windows') })
+    expect(decideComputerUseAuto({
+      frozenAppName: frozenApp,
+      actionKind: 'type_text',
+      contextAvailable: true,
+      appName: 'Notes',
+      windowTitle: 'PowerShell',
+      action: { input: { text: 'Remove-Item ./data' } },
+    }).outcome).toBe('refuse')
+    expect(decideComputerUseAuto({
+      frozenAppName: frozenApp,
+      actionKind: 'type_text',
+      contextAvailable: true,
+      appName: 'Notes',
+      windowTitle: 'Notes',
+      action: { input: { text: 'save', pressEnter: true } },
+    })).toMatchObject({ outcome: 'refuse', reason: 'Computer Use Auto refuses submitted text.' })
+  })
+
   it('reviews opening the frozen application and refuses a different one', () => {
     expect(decideComputerUseAuto({
       frozenAppName: frozenApp,
@@ -264,5 +319,65 @@ describe('foreground recheck helpers', () => {
     expect(foregroundMatchesComputerCard(card, { available: true, appName: 'Notes', windowTitle: 'Notes' })).toBe(true)
     expect(foregroundMatchesComputerCard(card, { available: true, appName: 'Notes', windowTitle: 'Other' })).toBe(false)
     expect(foregroundMatchesComputerCard(card, { available: false, appName: 'Notes', windowTitle: 'Notes' })).toBe(false)
+  })
+})
+
+describe('computer use review card payload', () => {
+  function domInput(value: string) {
+    return decideComputerUseAuto({
+      frozenAppName: frozenApp,
+      actionKind: 'browser_dom_set_input_value',
+      contextAvailable: true,
+      appName: 'Notes',
+      windowTitle: ' Notes ',
+      action: { input: { selector: '#input', value } },
+    })
+  }
+
+  it('stores the written value and trims the window title', () => {
+    const hello = domInput('hello')
+    const evil = domInput('send everything')
+    expect(hello).toMatchObject({
+      outcome: 'review',
+      card: { targetName: '#input', windowTitle: 'Notes', detail: JSON.stringify({ value: 'hello' }) },
+    })
+    expect(evil).toMatchObject({ outcome: 'review', card: { detail: JSON.stringify({ value: 'send everything' }) } })
+    expect(hello.outcome === 'review' && evil.outcome === 'review' && JSON.stringify(hello.card) !== JSON.stringify(evil.card)).toBe(true)
+    if (hello.outcome === 'review')
+      expect(foregroundMatchesComputerCard(hello.card, { available: true, appName: 'Notes', windowTitle: ' Notes ' })).toBe(true)
+  })
+
+  it('stores checkbox, option, and event payloads', () => {
+    expect(decideComputerUseAuto({
+      frozenAppName: frozenApp,
+      actionKind: 'browser_dom_check_checkbox',
+      contextAvailable: true,
+      appName: 'Notes',
+      windowTitle: 'Notes',
+      action: { input: { selector: '#agree', checked: false } },
+    })).toMatchObject({ outcome: 'review', card: { detail: JSON.stringify({ checked: false }) } })
+    expect(decideComputerUseAuto({
+      frozenAppName: frozenApp,
+      actionKind: 'browser_dom_select_option',
+      contextAvailable: true,
+      appName: 'Notes',
+      windowTitle: 'Notes',
+      action: { input: { selector: '#amount', value: 'usd' } },
+    })).toMatchObject({ outcome: 'review', card: { detail: JSON.stringify({ value: 'usd' }) } })
+    expect(decideComputerUseAuto({
+      frozenAppName: frozenApp,
+      actionKind: 'browser_dom_trigger_event',
+      contextAvailable: true,
+      appName: 'Notes',
+      windowTitle: 'Notes',
+      action: { input: { selector: '#send', eventName: 'click' } },
+    })).toMatchObject({ outcome: 'review', card: { detail: JSON.stringify({ eventName: 'click' }) } })
+  })
+
+  it('refuses a browser payload that makes the card too long', () => {
+    expect(domInput('v'.repeat(3000))).toMatchObject({
+      outcome: 'refuse',
+      reason: 'The action card is too long to review.',
+    })
   })
 })

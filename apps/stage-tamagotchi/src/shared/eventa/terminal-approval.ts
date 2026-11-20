@@ -16,7 +16,10 @@ export const turboLaneSchema = v.picklist(['terminal', 'computer_use'])
 export type TurboLane = v.InferOutput<typeof turboLaneSchema>
 export const approvalGrantModeSchema = v.picklist(['ask', 'auto', 'full'])
 export type ApprovalGrantMode = v.InferOutput<typeof approvalGrantModeSchema>
-export const sessionApprovalGrant = defineInvokeEventa<ApprovalGrantMode | false, { sessionId: string, lane: TurboLane, mode?: ApprovalGrantMode }>('eventa:invoke:terminal-approval:session-grant')
+export const autoGrantUnavailableReasonSchema = v.picklist(['workspace_unavailable', 'foreground_unavailable', 'foreground_denied'])
+export type AutoGrantUnavailableReason = v.InferOutput<typeof autoGrantUnavailableReasonSchema>
+export type ApprovalGrantResult = ApprovalGrantMode | { unavailableReason: AutoGrantUnavailableReason } | false
+export const sessionApprovalGrant = defineInvokeEventa<ApprovalGrantResult, { sessionId: string, lane: TurboLane, mode?: ApprovalGrantMode }>('eventa:invoke:terminal-approval:session-grant')
 export const autoApprovalReviewClassSchema = v.picklist(['delete', 'write', 'desktop'])
 export type AutoApprovalReviewClass = v.InferOutput<typeof autoApprovalReviewClassSchema>
 export const autoApprovalTerminalCardSchema = v.strictObject({
@@ -36,11 +39,25 @@ export const autoApprovalComputerCardSchema = v.strictObject({
 })
 export const autoApprovalCardSchema = v.variant('lane', [autoApprovalTerminalCardSchema, autoApprovalComputerCardSchema])
 export type AutoApprovalCard = v.InferOutput<typeof autoApprovalCardSchema>
+export const autoApprovalReviewStageSchema = v.picklist(['fast', 'thinking'])
+export type AutoApprovalReviewStage = v.InferOutput<typeof autoApprovalReviewStageSchema>
+export const autoApprovalReviewReasonCodeSchema = v.picklist(['model_allow', 'model_refuse', 'parse_error', 'unavailable'])
+export type AutoApprovalReviewReasonCode = v.InferOutput<typeof autoApprovalReviewReasonCodeSchema>
+export const autoApprovalReviewRequestSchema = v.strictObject({
+  requestId: v.optional(v.string()),
+  sessionId: v.string(),
+  stage: autoApprovalReviewStageSchema,
+  card: autoApprovalCardSchema,
+})
+export type AutoApprovalReviewRequest = v.InferOutput<typeof autoApprovalReviewRequestSchema>
 export const autoApprovalReviewResultSchema = v.strictObject({
   decision: v.picklist(['allow', 'refuse']),
+  reasonCode: autoApprovalReviewReasonCodeSchema,
+  hasUserTranscript: v.boolean(),
+  detail: v.optional(v.string()),
 })
 export type AutoApprovalReviewResult = v.InferOutput<typeof autoApprovalReviewResultSchema>
-export const autoApprovalReview = defineInvokeEventa<AutoApprovalReviewResult, AutoApprovalCard>('eventa:invoke:terminal-approval:auto-review')
+export const autoApprovalReview = defineInvokeEventa<AutoApprovalReviewResult, AutoApprovalReviewRequest>('eventa:invoke:terminal-approval:auto-review')
 export const terminalOutcomeNotice = defineInvokeEventa<{ status: 'stored' | 'suppressed', sessionId: string, messageId: string }, TerminalNotice>('eventa:invoke:terminal-approval:outcome-notice')
 
 export const terminalApprovalWindow = createRequestWindowEventa('terminal-approval')

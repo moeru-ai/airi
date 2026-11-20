@@ -2,6 +2,8 @@ import type { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import type { ElectronMainContextExtensions, ElectronMainEmitOptions } from '@moeru/eventa/adapters/electron/main'
 
+import type { AutoApprovalReviewResult } from '../../../../shared/eventa/terminal-approval'
+
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -26,6 +28,8 @@ const shellMock = vi.hoisted(() => ({
   showItemInFolder: vi.fn(),
 }))
 
+const modelAllow: AutoApprovalReviewResult = { decision: 'allow', reasonCode: 'model_allow', hasUserTranscript: true }
+const modelRefuse: AutoApprovalReviewResult = { decision: 'refuse', reasonCode: 'model_refuse', hasUserTranscript: true }
 const clientMocks = vi.hoisted(() => ({
   instances: [] as Array<Pick<Client, 'onclose' | 'onerror'>>,
   callTool: vi.fn<Client['callTool']>(),
@@ -329,7 +333,7 @@ describe('createMcpManager', () => {
     const request = actions.registerRequest({ sessionId: attribution.sessionId, turnId: attribution.turnId, text: 'Change the desktop.' }, 71)
     actions.setGrant('computer_use', attribution.sessionId, 71, 'auto', { frozenAppName: 'Notes' })
     const presentComputerUse = vi.fn(async () => false)
-    const reviewAuto = vi.fn(async () => 'allow' as const)
+    const reviewAuto = vi.fn(async () => modelAllow)
     const manager = createMcpManager({
       actions,
       present: vi.fn(async () => false),
@@ -363,13 +367,13 @@ describe('createMcpManager', () => {
     expect(result.structuredContent).toMatchObject({ status: 'rejected', approval: 'auto' })
   })
 
-  it('scrolls in Auto without a review or a dialog', async () => {
+  it('refuses an Auto scroll whose destination cannot be pinned to the frozen window', async () => {
     const actions = new PendingActionManager()
     const attribution = { sessionId: 'session-auto-scroll', turnId: 'turn-auto-scroll', toolCallId: 'call-auto-scroll' }
     const request = actions.registerRequest({ sessionId: attribution.sessionId, turnId: attribution.turnId, text: 'Scroll.' }, 71)
     actions.setGrant('computer_use', attribution.sessionId, 71, 'auto', { frozenAppName: 'Notes' })
     const presentComputerUse = vi.fn(async () => false)
-    const reviewAuto = vi.fn(async () => 'refuse' as const)
+    const reviewAuto = vi.fn(async () => modelRefuse)
     const manager = createMcpManager({
       actions,
       present: vi.fn(async () => false),
@@ -392,13 +396,15 @@ describe('createMcpManager', () => {
         context: { available: true, appName: 'Notes', windowTitle: 'Notes' },
       },
     })
-    clientMocks.privateRequest.mockResolvedValue({ content: [{ type: 'text', text: 'Scrolled.' }], structuredContent: { status: 'executed' } })
+    clientMocks.privateRequest.mockResolvedValue({ content: [{ type: 'text', text: 'Rejected.' }], structuredContent: { status: 'rejected' } })
 
-    await manager.callTool({ name: 'airi-terminal::computer_act', arguments: { deltaY: 40 }, requestId: request.id, attribution }, 71)
+    const result = await manager.callTool({ name: 'airi-terminal::computer_act', arguments: { deltaY: 40 }, requestId: request.id, attribution }, 71)
 
     expect(presentComputerUse).not.toHaveBeenCalled()
     expect(reviewAuto).not.toHaveBeenCalled()
-    expect(clientMocks.privateRequest).toHaveBeenCalledWith(expect.objectContaining({ method: 'airi/computer-use/execute-prepared' }), expect.anything(), expect.anything())
+    expect(clientMocks.privateRequest).toHaveBeenCalledWith(expect.objectContaining({ method: 'airi/computer-use/reject-prepared' }), expect.anything(), expect.anything())
+    expect(clientMocks.privateRequest).not.toHaveBeenCalledWith(expect.objectContaining({ method: 'airi/computer-use/execute-prepared' }), expect.anything(), expect.anything())
+    expect(result.structuredContent).toMatchObject({ status: 'rejected', approval: 'auto', reason: 'Computer Use Auto cannot pin scrolling to the frozen application.' })
   })
 
   it('refuses a Computer Use Auto click in a password manager without dispatching it', async () => {
@@ -406,7 +412,7 @@ describe('createMcpManager', () => {
     const attribution = { sessionId: 'session-auto-deny', turnId: 'turn-auto-deny', toolCallId: 'call-auto-deny' }
     const request = actions.registerRequest({ sessionId: attribution.sessionId, turnId: attribution.turnId, text: 'Open the vault.' }, 71)
     actions.setGrant('computer_use', attribution.sessionId, 71, 'auto', { frozenAppName: 'Notes' })
-    const reviewAuto = vi.fn(async () => 'allow' as const)
+    const reviewAuto = vi.fn(async () => modelAllow)
     const manager = createMcpManager({
       actions,
       present: vi.fn(async () => false),
@@ -444,7 +450,7 @@ describe('createMcpManager', () => {
     const attribution = { sessionId: 'session-auto-cache', turnId: 'turn-auto-cache', toolCallId: 'call-auto-cache' }
     const request = actions.registerRequest({ sessionId: attribution.sessionId, turnId: attribution.turnId, text: 'Type twice.' }, 71)
     actions.setGrant('computer_use', attribution.sessionId, 71, 'auto', { frozenAppName: 'Notes' })
-    const reviewAuto = vi.fn(async () => 'allow' as const)
+    const reviewAuto = vi.fn(async () => modelAllow)
     const manager = createMcpManager({
       actions,
       present: vi.fn(async () => false),
@@ -498,7 +504,7 @@ describe('createMcpManager', () => {
     const attribution = { sessionId: 'session-auto-recheck', turnId: 'turn-auto-recheck', toolCallId: 'call-auto-recheck' }
     const request = actions.registerRequest({ sessionId: attribution.sessionId, turnId: attribution.turnId, text: 'Type once.' }, 71)
     actions.setGrant('computer_use', attribution.sessionId, 71, 'auto', { frozenAppName: 'Notes' })
-    const reviewAuto = vi.fn(async () => 'allow' as const)
+    const reviewAuto = vi.fn(async () => modelAllow)
     const manager = createMcpManager({
       actions,
       present: vi.fn(async () => false),
@@ -587,12 +593,10 @@ describe('createMcpManager', () => {
   // https://github.com/moeru-ai/airi/pull/3496
   // ROOT CAUSE:
   //
-  // After `dispatched` is set, only an aborted authorization signal returned
-  // `unknown` with `doNotReplay`. A timeout or a lost reply rethrew, so the
-  // model could replay an action that may already have reached the desktop.
+  // After dispatch, only an aborted signal returned `unknown` with `doNotReplay`.
+  // Timeouts and lost replies rethrew, so the model could replay an action that may have run.
   //
-  // We fixed this by returning `unknown` with `doNotReplay` for every failure
-  // after dispatch, not only for abort.
+  // Return `unknown` with `doNotReplay` for every post-dispatch failure.
   it.each([
     'MCP request timed out',
     'connection closed',

@@ -1,4 +1,3 @@
-import type { Conversation } from '@proj-airi/core-agent'
 import type { ExecutableTool } from '@proj-airi/stage-ui/stores/ai/chat-llm/tools'
 
 import { defineInvokeHandler } from '@moeru/eventa'
@@ -18,9 +17,10 @@ import { onScopeDispose } from 'vue'
 
 import * as v from 'valibot'
 
-import { autoApprovalReviewPrompt, parseAutoApprovalReview } from '../../../shared/auto-approval-review'
+import { AUTO_REVIEW_FAST_MAX_TOKENS, AUTO_REVIEW_THINKING_MAX_TOKENS } from '../../../shared/auto-approval-review'
 import { electronMcpCallTool, electronMcpGetRuntimeStatus, electronMcpListTools } from '../../../shared/eventa'
-import { autoApprovalCardSchema, autoApprovalReview, chatRequestCancel, chatRequestFinish, chatRequestRegister, terminalOutcomeNotice } from '../../../shared/eventa/terminal-approval'
+import { autoApprovalReview, autoApprovalReviewRequestSchema, chatRequestCancel, chatRequestFinish, chatRequestRegister, terminalOutcomeNotice } from '../../../shared/eventa/terminal-approval'
+import { runAutoApprovalReview } from './auto-approval-review-run'
 import { artistryToolReferences } from './built-in'
 
 export const useTamagotchiMcpToolsStore = defineStore('tamagotchi-mcp-tools', () => {
@@ -41,23 +41,20 @@ export const useTamagotchiMcpToolsStore = defineStore('tamagotchi-mcp-tools', ()
   const consciousness = useConsciousnessStore()
   const textGeneration = useTextGeneration()
   const stopReview = defineInvokeHandler(useElectronEventaContext().value, autoApprovalReview, async (input, options) => {
-    const card = v.parse(autoApprovalCardSchema, input)
-    if (!consciousness.configured)
-      return { decision: 'refuse' as const }
-    const conversation: Conversation = { turns: [
-      { id: 'auto-approval-instructions', type: 'system', authority: 'system', content: [{ type: 'text', text: autoApprovalReviewPrompt(card) }] },
-      { id: 'auto-approval-card', type: 'user', content: [{ type: 'text', text: JSON.stringify(card) }] },
-    ] }
-    try {
-      const reply = await textGeneration.generateText({
+    const request = v.parse(autoApprovalReviewRequestSchema, input)
+    const signal = options?.abortController?.signal ?? new AbortController().signal
+    return runAutoApprovalReview({
+      request,
+      signal,
+      consciousnessConfigured: consciousness.configured,
+      messages: chat.getSessionMessagesIfLoaded(request.sessionId) ?? [],
+      generateText: (conversation, reviewSignal) => textGeneration.generateText({
         providerId: consciousness.activeProvider,
         model: consciousness.activeModel,
-      })(conversation, options?.abortController?.signal ?? new AbortController().signal)
-      return { decision: parseAutoApprovalReview(reply) }
-    }
-    catch {
-      return { decision: 'refuse' as const }
-    }
+        temperature: 0,
+        maxTokens: request.stage === 'fast' ? AUTO_REVIEW_FAST_MAX_TOKENS : AUTO_REVIEW_THINKING_MAX_TOKENS,
+      })(conversation, reviewSignal),
+    })
   })
   const stopNotice = defineInvokeHandler(useElectronEventaContext().value, terminalOutcomeNotice, async (input, options) => {
     const notice = v.parse(terminalNoticeSchema, input)

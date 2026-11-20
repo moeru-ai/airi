@@ -15,7 +15,6 @@ export type AutoDecision
 
 const READ_ONLY_LIST = new Set(['pwd', 'ls', 'get-location', 'get-childitem'])
 const READ_ONLY_GIT = new Set(['status', 'diff', 'log', 'show'])
-const GIT_WRITE = new Set(['add', 'commit', 'checkout', 'switch', 'restore', 'mv', 'rm'])
 const DELETE_COMMANDS = new Set(['rm', 'del', 'remove-item'])
 const WRITE_COMMANDS = new Set(['mkdir', 'mv', 'cp', 'move-item', 'copy-item', 'set-content', 'out-file', 'new-item'])
 const REFUSE_COMMANDS = new Set([
@@ -65,7 +64,7 @@ const SECRET_NAMES = new Set([
   'secrets',
   'keychain',
 ])
-const DESKTOP_ALLOW = new Set(['scroll', 'wait'])
+const DESKTOP_ALLOW = new Set(['wait'])
 const DESKTOP_REVIEW = new Set([
   'desktop_click_target',
   'type_text',
@@ -96,6 +95,17 @@ const WINDOW_DENY = [
   /剪贴板/,
   /密钥/,
 ]
+const TERMINAL_WINDOW = [
+  /\bterminal\b/i,
+  /\bconsole\b/i,
+  /\bcommand prompt\b/i,
+  /\bpowershell\b/i,
+  /\b(?:cmd|pwsh)(?:\.exe)?\b/i,
+  /\biterm2?\b/i,
+  /\bwezterm\b/i,
+  /\balacritty\b/i,
+  /\bkitty\b/i,
+]
 
 export interface ComputerUseAutoInput {
   frozenAppName: string
@@ -115,7 +125,7 @@ export interface ForegroundContextLike {
 
 /** A denied foreground application blocks Computer Use Auto grant. */
 export function isAutoGrantForegroundDenied(appName?: string, windowTitle?: string): boolean {
-  return isDeniedWindow(appName) || isDeniedWindow(windowTitle)
+  return isDeniedWindow(appName) || isDeniedWindow(windowTitle) || isTerminalWindow(appName) || isTerminalWindow(windowTitle)
 }
 
 /** Compares one frozen application name with the current name. The match is exact after trimming, ignoring case. */
@@ -150,8 +160,10 @@ export function decideCommandAuto(snapshot: TerminalSnapshot, workspaceRoot: str
   const effectiveCwd = resolveExistingPath(snapshot.effectiveCwd, platform)
   if (!isInsideRoot(workspace, effectiveCwd, platform))
     return { outcome: 'refuse', reason: 'The command directory is outside the Auto workspace.' }
-  for (const token of tokens) {
-    const located = resolvePathToken(token, effectiveCwd, platform)
+  for (let index = 0; index < tokens.length; index++) {
+    const token = tokens[index]
+    const checkBareExisting = index > 0 && !token.startsWith('-')
+    const located = resolvePathToken(token, effectiveCwd, platform, checkBareExisting)
     if (located === 'unsafe' || (located !== 'skip' && !isInsideRoot(workspace, located, platform)))
       return { outcome: 'refuse', reason: 'The command reaches a path outside the Auto workspace.' }
   }
@@ -187,12 +199,18 @@ export function decideComputerUseAuto(input: ComputerUseAutoInput): AutoDecision
     return { outcome: 'refuse', reason: 'Computer Use Auto refuses applications outside the frozen scope.' }
   if (isDeniedWindow(input.appName) || isDeniedWindow(input.windowTitle))
     return { outcome: 'refuse', reason: 'Computer Use Auto refuses this application.' }
+  if (isTerminalWindow(input.appName) || isTerminalWindow(input.windowTitle))
+    return { outcome: 'refuse', reason: 'Computer Use Auto refuses terminal windows. Use Command approval for shell commands.' }
+  if (input.actionKind === 'type_text' && input.action?.input?.pressEnter === true)
+    return { outcome: 'refuse', reason: 'Computer Use Auto refuses submitted text.' }
   if (input.actionKind === 'clipboard_read_text' || input.actionKind === 'clipboard_write_text' || input.actionKind === 'secret_read_env_value' || input.actionKind.startsWith('pty_'))
     return { outcome: 'refuse', reason: 'Computer Use Auto refuses clipboard, secrets, and new terminals.' }
   if (input.actionKind === 'click')
     return { outcome: 'refuse', reason: 'Computer Use Auto refuses coordinate clicks without a target name.' }
   if (hasScreenPoint(input) && (input.actionKind === 'scroll' || input.actionKind === 'type_text'))
     return { outcome: 'refuse', reason: 'Computer Use Auto refuses actions aimed at a screen coordinate.' }
+  if (input.actionKind === 'scroll')
+    return { outcome: 'refuse', reason: 'Computer Use Auto cannot pin scrolling to the frozen application.' }
   if (DESKTOP_ALLOW.has(input.actionKind))
     return { outcome: 'allow', reason: 'The desktop action does not change input.' }
   if (!DESKTOP_REVIEW.has(input.actionKind))
@@ -208,7 +226,7 @@ export function decideComputerUseAuto(input: ComputerUseAutoInput): AutoDecision
     lane: 'computer_use',
     actionKind: input.actionKind,
     appName: input.appName ?? '',
-    windowTitle: input.windowTitle ?? '',
+    windowTitle: (input.windowTitle ?? '').trim(),
     reviewClass: 'desktop',
     targetName,
     detail: desktopDetail(input),
@@ -256,8 +274,6 @@ function commandReviewClass(tokens: string[]): 'delete' | 'write' | undefined {
     return undefined
   if (subcommand === 'rm' || subcommand === 'mv')
     return 'delete'
-  if (GIT_WRITE.has(subcommand))
-    return 'write'
   return undefined
 }
 
@@ -356,12 +372,10 @@ function mentionsSecret(command: string): boolean {
 }
 
 function commandName(token: string): string {
-  const normalized = token.replace(/\\/g, '/')
-  const slash = normalized.lastIndexOf('/')
-  return (slash >= 0 ? normalized.slice(slash + 1) : normalized).toLowerCase()
+  return token.toLowerCase()
 }
 
-function resolvePathToken(token: string, cwd: string, platform: string): string | 'skip' | 'unsafe' {
+function resolvePathToken(token: string, cwd: string, platform: string, checkBareExisting = false): string | 'skip' | 'unsafe' {
   if (token === '--')
     return 'skip'
   if (token.startsWith('-')) {
@@ -369,7 +383,7 @@ function resolvePathToken(token: string, cwd: string, platform: string): string 
     if (separator === -1)
       return 'skip'
     const value = token.slice(separator + 1)
-    return value ? resolvePathToken(value, cwd, platform) : 'skip'
+    return value ? resolvePathToken(value, cwd, platform, checkBareExisting) : 'skip'
   }
   if (token.startsWith('~') || token.startsWith('\\\\?\\'))
     return 'unsafe'
@@ -380,7 +394,7 @@ function resolvePathToken(token: string, cwd: string, platform: string): string 
     || token.includes('\\')
     || (token.includes('/') && !token.includes('://'))
   if (!looksLikePath)
-    return 'skip'
+    return checkBareExisting ? resolveBareExistingToken(token, cwd, platform) : 'skip'
   const api = pathApi(platform)
   const resolved = api.isAbsolute(token) ? api.normalize(token) : api.resolve(cwd, token)
   try {
@@ -482,6 +496,10 @@ function isDeniedWindow(value: string | undefined): boolean {
   return value !== undefined && WINDOW_DENY.some(pattern => pattern.test(value))
 }
 
+function isTerminalWindow(value: string | undefined): boolean {
+  return value !== undefined && TERMINAL_WINDOW.some(pattern => pattern.test(value))
+}
+
 function desktopTargetName(input: ComputerUseAutoInput): string {
   const fields = input.action?.input ?? {}
   if (input.actionKind === 'desktop_click_target')
@@ -499,6 +517,15 @@ function desktopTargetName(input: ComputerUseAutoInput): string {
 
 function desktopDetail(input: ComputerUseAutoInput): string {
   const fields = input.action?.input ?? {}
+  // The selector stays in targetName. The written value has to stay on the card, or two writes share one cache key.
+  if (input.actionKind === 'browser_dom_set_input_value')
+    return mutationPayload(fields, ['value'])
+  if (input.actionKind === 'browser_dom_select_option')
+    return mutationPayload(fields, ['value', 'option', 'label'])
+  if (input.actionKind === 'browser_dom_check_checkbox')
+    return mutationPayload(fields, ['checked'])
+  if (input.actionKind === 'browser_dom_trigger_event')
+    return mutationPayload(fields, ['eventName', 'eventType', 'opts', 'event'])
   if (input.actionKind === 'type_text' && typeof fields.text === 'string')
     return ''
   if (input.actionKind === 'press_keys' && Array.isArray(fields.keys))
@@ -508,4 +535,32 @@ function desktopDetail(input: ComputerUseAutoInput): string {
   if (input.actionKind === 'desktop_click_target')
     return input.targetLabel?.trim() ?? ''
   return ''
+}
+
+function mutationPayload(fields: Record<string, unknown>, keys: readonly string[]): string {
+  const payload: Record<string, unknown> = {}
+  for (const key of keys) {
+    if (fields[key] !== undefined)
+      payload[key] = fields[key]
+  }
+  return JSON.stringify(payload)
+}
+
+/** A bare token that exists under the cwd is canonicalized so a symlink cannot hide an escape. */
+function resolveBareExistingToken(token: string, cwd: string, platform: string): string | 'skip' | 'unsafe' {
+  if (token.includes('://'))
+    return 'skip'
+  const resolved = pathApi(platform).resolve(cwd, token)
+  try {
+    fs.lstatSync(resolved)
+  }
+  catch {
+    return 'skip'
+  }
+  try {
+    return fs.realpathSync.native(resolved)
+  }
+  catch {
+    return 'unsafe'
+  }
 }

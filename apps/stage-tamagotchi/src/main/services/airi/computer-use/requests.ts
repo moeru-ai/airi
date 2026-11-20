@@ -98,13 +98,15 @@ export function setupChatRequests(context: ReturnType<typeof createContext>['con
     if (mode === 'auto' && lane === 'terminal') {
       workspaceRoot = await sources.readCommandWorkspace?.()
       if (!workspaceRoot)
-        return currentGrant()
+        return { unavailableReason: 'workspace_unavailable' }
     }
     if (mode === 'auto' && lane === 'computer_use') {
       const foreground = await sources.readForegroundApp?.()
       const appName = foreground?.appName.trim() ?? ''
-      if (!appName || isAutoGrantForegroundDenied(appName, foreground?.windowTitle))
-        return currentGrant()
+      if (!appName)
+        return { unavailableReason: 'foreground_unavailable' }
+      if (isAutoGrantForegroundDenied(appName, foreground?.windowTitle))
+        return { unavailableReason: 'foreground_denied' }
       frozenAppName = appName
     }
 

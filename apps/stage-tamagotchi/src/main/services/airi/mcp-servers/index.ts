@@ -602,10 +602,12 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
           const verdict = await consultAuto({
             decision,
             signal: autoGrant?.signal ?? AbortSignal.abort(),
+            sessionId: attribution.sessionId,
+            cacheScope: attribution.turnId,
             timeoutMs: terminalApproval.reviewTimeoutMs,
-            cacheGet: card => terminalApproval.actions.cachedReview('computer_use', attribution.sessionId, senderWebContentsId, card),
-            cacheSet: (card, value) => terminalApproval.actions.rememberReview('computer_use', attribution.sessionId, senderWebContentsId, card, value),
-            review: (card, reviewSignal) => terminalApproval.reviewAuto?.(card, reviewSignal) ?? Promise.resolve('refuse'),
+            cacheGet: key => terminalApproval.actions.cachedReview('computer_use', attribution.sessionId, senderWebContentsId, key),
+            cacheSet: (key, value) => terminalApproval.actions.rememberReview('computer_use', attribution.sessionId, senderWebContentsId, key, value),
+            review: terminalApproval.reviewAuto,
           })
           if (verdict.proceed && decision.outcome === 'review') {
             const foreground = await readBundledForeground()

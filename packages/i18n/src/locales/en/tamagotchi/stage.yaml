@@ -91,15 +91,14 @@ docs:
     approval-mode-ask: Ask
     approval-mode-auto: Auto
     approval-mode-full: Full
-    approval-mode-auto-hint: Auto is not available yet.
     approval-command-auto-confirm: Allow Command auto approval in this conversation?
-    approval-command-auto-scope: AIRI approves Shell commands inside {workspace} for 30 minutes. Commands outside that folder, privilege changes, and secrets are refused. Sensitive commands inside the folder are reviewed without asking you.
+    approval-command-auto-scope: AIRI approves Shell commands inside {workspace} for 30 minutes. Commands outside that folder, privilege changes, and secrets are refused. Sensitive commands inside the folder are reviewed without asking you. The review reads a short excerpt from this conversation.
     approval-command-auto-allow: Allow Command auto approval
     approval-command-full-confirm: Allow Command full access in this conversation?
     approval-command-full-scope: AIRI can run local Shell commands with your system privileges. Ask mode requires confirmation before each command.
     approval-command-full-allow: Allow Command full access
     approval-computer-use-auto-confirm: Allow Computer Use auto approval in this conversation?
-    approval-computer-use-auto-scope: AIRI approves changes in {app} for 30 minutes. Other apps, password managers, wallets, the clipboard, and secrets are refused. Named clicks, typing, and shortcuts are reviewed without asking you.
+    approval-computer-use-auto-scope: AIRI approves changes in {app} for 30 minutes. Other apps, password managers, wallets, the clipboard, and secrets are refused. Named clicks, typing, and shortcuts are reviewed without asking you. The review reads a short excerpt from this conversation.
     approval-computer-use-auto-allow: Allow Computer Use auto approval
     approval-computer-use-full-confirm: Allow Computer Use full access in this conversation?
     approval-computer-use-full-scope: AIRI can change the desktop, apps, and input through Computer Use. Ask mode requires confirmation before each change.
@@ -108,6 +107,10 @@ docs:
     computer-use-scope: AIRI will perform the requested desktop, app, or input action. Each change is shown here before it runs.
     computer-use-allow: Allow this change
     approval-error: Could not change approval.
+    approval-session-unavailable: Select or start a conversation before changing approval.
+    approval-command-auto-unavailable: No terminal workspace is available. Start the AIRI terminal and select a workspace, then try again.
+    approval-computer-use-auto-foreground-unavailable: No foreground app is available. Open an allowed app and try again.
+    approval-computer-use-auto-foreground-denied: This app or window cannot use Computer Use Auto. Focus an allowed app and try again.
     cancel: Cancel
   context-inspector:
     open: Show context

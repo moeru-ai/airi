@@ -14,7 +14,14 @@ export function useTextGeneration() {
   const llm = useLLM()
   const providers = useProviderStore()
 
-  function generateText(selection: { providerId: string, model: string }): GenerateText {
+  function generateText(selection: {
+    providerId: string
+    model: string
+    /** Sampling temperature for this task. Omit it to keep the provider default. */
+    temperature?: number
+    /** Output token cap for this task. Omit it to keep the provider default. */
+    maxTokens?: number
+  }): GenerateText {
     return async (conversation, signal, tools) => {
       const provider = await providers.getChatProviderInstance(selection.providerId, { reasoning: 'disabled' })
       let reply = ''
@@ -23,6 +30,8 @@ export function useTextGeneration() {
         supportsTools: tools ? undefined : false,
         taskTools: tools,
         abortSignal: signal,
+        ...(selection.temperature !== undefined ? { temperature: selection.temperature } : {}),
+        ...(selection.maxTokens !== undefined ? { maxTokens: selection.maxTokens } : {}),
         onStreamEvent: (event) => {
           // Text before a tool call only leads up to the call. The reply is the text after the last call.
           if (event.type === 'tool-call')

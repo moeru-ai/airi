@@ -1,6 +1,7 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import type { TerminalNotice, TerminalSnapshot } from '@proj-airi/stage-shared/terminal-approval'
 
+import type { AutoApprovalReviewResult } from '../../../../shared/eventa/terminal-approval'
 import type { TerminalApprovalOptions } from './terminal-approval'
 
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
@@ -27,6 +28,7 @@ function barrier<T>() {
   }
 }
 
+const modelAllow: AutoApprovalReviewResult = { decision: 'allow', reasonCode: 'model_allow', hasUserTranscript: true }
 const evidence: Array<Record<string, unknown>> = []
 const cleanups: Array<() => Promise<void>> = []
 
@@ -610,7 +612,7 @@ describe('main Terminal approval controller', () => {
   })
 
   it('refuses an Auto command outside the workspace without dispatching it', async () => {
-    const review = vi.fn(async () => 'allow' as const)
+    const review = vi.fn(async () => modelAllow)
     const h = fixture({ bundled: true, autoWorkspace: '/workspace/app', reviewAuto: review, snapshot: { command: 'rm /etc/passwd', effectiveCwd: '/workspace/app' } })
     const result = await h.bind()
     expect(review).not.toHaveBeenCalled()
@@ -620,7 +622,7 @@ describe('main Terminal approval controller', () => {
   })
 
   it('dispatches an Auto command only after review allows it', async () => {
-    const review = vi.fn(async () => 'allow' as const)
+    const review = vi.fn(async () => modelAllow)
     const workspace = autoWorkspaceDir()
     const h = fixture({
       bundled: true,
@@ -638,8 +640,8 @@ describe('main Terminal approval controller', () => {
     expect(h.oracle.dispatches).toBe(1)
   })
 
-  it('reviews the same Auto card once', async () => {
-    const review = vi.fn(async () => 'allow' as const)
+  it('reviews the same Auto card again on a later turn', async () => {
+    const review = vi.fn(async () => modelAllow)
     const actions = new PendingActionManager()
     const workspace = autoWorkspaceDir()
     const first = fixture({
@@ -678,11 +680,11 @@ describe('main Terminal approval controller', () => {
     await second.queued.promise
     second.ready.release()
     await secondResult
-    expect(review).toHaveBeenCalledOnce()
+    expect(review).toHaveBeenCalledTimes(2)
   })
 
   it('does not review an Auto command whose card is too long', async () => {
-    const review = vi.fn(async () => 'allow' as const)
+    const review = vi.fn(async () => modelAllow)
     const h = fixture({ bundled: true, autoWorkspace: '/workspace/app', reviewAuto: review, snapshot: { command: `rm ${'a'.repeat(3000)}`, effectiveCwd: '/workspace/app' } })
     const result = await h.bind()
     expect(review).not.toHaveBeenCalled()
@@ -691,7 +693,7 @@ describe('main Terminal approval controller', () => {
   })
 
   it('refuses an Auto command when review times out', async () => {
-    const review = vi.fn((_card: unknown, signal: AbortSignal) => new Promise<'allow' | 'refuse'>((_resolve, reject) => {
+    const review = vi.fn((_request: unknown, signal: AbortSignal) => new Promise<AutoApprovalReviewResult>((_resolve, reject) => {
       signal.addEventListener('abort', () => reject(new Error('aborted')))
     }))
     const workspace = autoWorkspaceDir()

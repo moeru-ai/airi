@@ -1745,11 +1745,17 @@ export const useChatStore = defineStore('chat', () => {
   /** Whether the chat that this window shows can send. */
   const activeChatReady = computed(() => chatReadyFor(activeSessionId.value))
 
+  /** Messages already in memory. This read does not load a session and it does not write. */
+  function getSessionMessagesIfLoaded(sessionId: string) {
+    return chatSession.getSessionMessagesIfLoaded(sessionId)
+  }
+
   return {
     sending,
     activeTurns,
     activeChatReady,
     chatReadyFor,
+    getSessionMessagesIfLoaded,
     activeSendSessionId,
     activeStreamingMessage,
     backgroundTasks,

@@ -2,7 +2,7 @@ import type { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import type { TerminalNotice } from '@proj-airi/stage-shared/terminal-approval'
 
 import type { ElectronMcpCallToolPayload, ElectronMcpCallToolResult } from '../../../../shared/eventa'
-import type { AutoApprovalCard } from '../../../../shared/eventa/terminal-approval'
+import type { AutoApprovalReviewRequest, AutoApprovalReviewResult } from '../../../../shared/eventa/terminal-approval'
 import type { PendingActionManager } from '../computer-use/action-manager'
 import type { InvocationAttribution } from '../computer-use/attribution'
 import type { ComputerUseApprovalRequest } from '../computer-use/requests'
@@ -25,7 +25,7 @@ export interface TerminalApprovalOptions {
   executeInSlot: ReturnType<typeof createComputerUseRuntime>['executeInSlot']
   notify: (notice: TerminalNotice) => Promise<{ status: 'stored' | 'suppressed', sessionId: string, messageId: string }>
   presentComputerUse: (request: ComputerUseApprovalRequest, signal?: AbortSignal) => Promise<boolean>
-  reviewAuto?: (card: AutoApprovalCard, signal: AbortSignal) => Promise<'allow' | 'refuse'>
+  reviewAuto?: (request: AutoApprovalReviewRequest, signal: AbortSignal) => Promise<AutoApprovalReviewResult>
   reviewTimeoutMs?: number
 }
 
@@ -270,10 +270,12 @@ export async function bindTerminalApproval(params: {
     const verdict = await consultAuto({
       decision,
       signal: auto.signal,
+      sessionId: attribution.sessionId,
+      cacheScope: attribution.turnId,
       timeoutMs: options.reviewTimeoutMs,
-      cacheGet: card => options.actions.cachedReview('terminal', attribution.sessionId, attribution.senderWebContentsId, card),
-      cacheSet: (card, value) => options.actions.rememberReview('terminal', attribution.sessionId, attribution.senderWebContentsId, card, value),
-      review: (card, signal) => options.reviewAuto?.(card, signal) ?? Promise.resolve('refuse' as const),
+      cacheGet: key => options.actions.cachedReview('terminal', attribution.sessionId, attribution.senderWebContentsId, key),
+      cacheSet: (key, value) => options.actions.rememberReview('terminal', attribution.sessionId, attribution.senderWebContentsId, key, value),
+      review: options.reviewAuto,
     })
     inlineReason = verdict.reason
     if (!verdict.proceed)
