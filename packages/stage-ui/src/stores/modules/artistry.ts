@@ -1,15 +1,16 @@
 import type { ArtistryGlobals, ComfyUIWorkflowTemplate } from '@proj-airi/stage-shared'
 import type {} from 'pinia-plugin-synced'
+import type { MaybeRef } from 'vue'
 
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
-import { computed, isRef, ref, watch } from 'vue'
+import { computed, ref, toValue, watch } from 'vue'
 
 export interface ResolvedArtistryConfig {
   provider?: string
   model?: string
   promptPrefix?: string
-  options?: Record<string, any>
+  options?: Record<string, unknown>
   globals: ArtistryGlobals
 }
 
@@ -23,7 +24,7 @@ export const useArtistryStore = defineStore('artistry', () => {
   const globalProvider = useLocalStorageManualReset<string>('artistry-provider', 'none', persistenceOptions)
   const globalModel = useLocalStorageManualReset<string>('artistry-model', '', persistenceOptions)
   const globalPromptPrefix = useLocalStorageManualReset<string>('artistry-prompt-prefix', '', persistenceOptions)
-  const globalProviderOptions = useLocalStorageManualReset<Record<string, any> | undefined>('artistry-provider-options', undefined, persistenceOptions)
+  const globalProviderOptions = useLocalStorageManualReset<Record<string, unknown> | undefined>('artistry-provider-options', undefined, persistenceOptions)
 
   // --- Active settings (transient, can be overridden by cards) ---
   const activeProvider = ref(globalProvider.value)
@@ -206,42 +207,40 @@ export const useArtistryStore = defineStore('artistry', () => {
   },
 })
 
+type ArtistryConfigSource = {
+  [Key in keyof ArtistryGlobals]: MaybeRef<ArtistryGlobals[Key]>
+} & {
+  activeProvider: MaybeRef<string>
+  activeModel: MaybeRef<string>
+  defaultPromptPrefix: MaybeRef<string>
+  providerOptions: MaybeRef<ResolvedArtistryConfig['options']>
+}
+
 /**
- * Resolves Artistry configuration from a Pinia store instance.
+ * Reads the current configuration from actual Vue refs or an unwrapped Pinia store.
+ * The IPC caller serializes this result before main applies the shared schema.
  *
- * This utility handles the divergence between Vue components (where Pinia state is auto-unwrapped)
- * and headless service/tool contexts (where state properties remain as Refs).
- *
- * @param store - The artistry store instance (from useArtistryStore())
+ * @example
+ * const config = resolveArtistryConfigFromStore(useArtistryStore())
  */
-export function resolveArtistryConfigFromStore(store: any): ResolvedArtistryConfig {
-  const unwrap = (val: any) => {
-    if (isRef(val))
-      return val.value
-
-    if (val && typeof val === 'object' && 'value' in val && Object.keys(val).length === 1)
-      return val.value
-
-    return val
-  }
-
+export function resolveArtistryConfigFromStore(store: ArtistryConfigSource): ResolvedArtistryConfig {
   return {
-    provider: unwrap(store.activeProvider),
-    model: unwrap(store.activeModel),
-    promptPrefix: unwrap(store.defaultPromptPrefix),
-    options: unwrap(store.providerOptions),
+    provider: toValue(store.activeProvider),
+    model: toValue(store.activeModel),
+    promptPrefix: toValue(store.defaultPromptPrefix),
+    options: toValue(store.providerOptions),
     globals: {
-      comfyuiServerUrl: unwrap(store.comfyuiServerUrl),
-      comfyuiGenerationTimeoutMinutes: unwrap(store.comfyuiGenerationTimeoutMinutes),
-      comfyuiSavedWorkflows: unwrap(store.comfyuiSavedWorkflows),
-      comfyuiActiveWorkflow: unwrap(store.comfyuiActiveWorkflow),
-      replicateApiKey: unwrap(store.replicateApiKey),
-      replicateDefaultModel: unwrap(store.replicateDefaultModel),
-      replicateAspectRatio: unwrap(store.replicateAspectRatio),
-      replicateInferenceSteps: unwrap(store.replicateInferenceSteps),
-      nanobananaApiKey: unwrap(store.nanobananaApiKey),
-      nanobananaModel: unwrap(store.nanobananaModel),
-      nanobananaResolution: unwrap(store.nanobananaResolution),
+      comfyuiServerUrl: toValue(store.comfyuiServerUrl),
+      comfyuiGenerationTimeoutMinutes: toValue(store.comfyuiGenerationTimeoutMinutes),
+      comfyuiSavedWorkflows: toValue(store.comfyuiSavedWorkflows),
+      comfyuiActiveWorkflow: toValue(store.comfyuiActiveWorkflow),
+      replicateApiKey: toValue(store.replicateApiKey),
+      replicateDefaultModel: toValue(store.replicateDefaultModel),
+      replicateAspectRatio: toValue(store.replicateAspectRatio),
+      replicateInferenceSteps: toValue(store.replicateInferenceSteps),
+      nanobananaApiKey: toValue(store.nanobananaApiKey),
+      nanobananaModel: toValue(store.nanobananaModel),
+      nanobananaResolution: toValue(store.nanobananaResolution),
     },
   }
 }

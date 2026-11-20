@@ -6,6 +6,7 @@
  * the current AIRI card's artistry settings.
  */
 
+/** One image request after the host resolves provider settings. */
 export interface ArtistryRequest {
   /** The text prompt describing the desired image */
   prompt: string
@@ -17,6 +18,8 @@ export interface ArtistryRequest {
   height?: number
   /** Provider-specific model identifier */
   model?: string
+  /** ComfyUI generation window pinned from validated configuration before asynchronous provider initialization. */
+  generationTimeoutMs?: number
   /** Provider-specific extras (e.g. remixId, checkpoint, seed, aspect_ratio) */
   extra?: Record<string, any>
 }

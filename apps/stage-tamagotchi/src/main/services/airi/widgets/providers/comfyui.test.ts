@@ -1,3 +1,4 @@
+import { minutesToMilliseconds, secondsToMilliseconds } from 'date-fns'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { ComfyUIProvider } from './comfyui'
@@ -10,12 +11,8 @@ describe('comfyui provider', () => {
 
   it('waits beyond the former five-minute limit when a longer timeout is configured', async () => {
     // ROOT CAUSE:
-    //
-    // ComfyUI jobs continue on the remote host after AIRI's polling loop stops.
-    // A workflow that needs more than five minutes therefore produced a failed
-    // tool result even though ComfyUI eventually saved the requested image.
-    //
-    // The timeout is now persisted as a user setting and passed to the provider.
+    // ComfyUI keeps remote jobs running after local polling stops.
+    // A longer configured deadline must keep polling until the image is ready.
     vi.useFakeTimers()
 
     let historyRequests = 0
@@ -42,10 +39,11 @@ describe('comfyui provider', () => {
 
     const provider = new ComfyUIProvider()
     await provider.initialize({
-      comfyuiServerUrl: 'http://comfyui.test:8188',
+      comfyuiServerUrl: 'https://comfyui.example.com',
       comfyuiGenerationTimeoutMinutes: 10,
       comfyuiSavedWorkflows: [{
         id: 'slow-workflow',
+        name: 'Slow fixture',
         workflow: {},
         exposedFields: {},
       }],
@@ -53,26 +51,19 @@ describe('comfyui provider', () => {
     })
 
     const job = await provider.generate({ prompt: 'A slow image', extra: {} })
-    await vi.advanceTimersByTimeAsync(310_000)
+    await vi.advanceTimersByTimeAsync(minutesToMilliseconds(5) + secondsToMilliseconds(10))
 
     await expect(provider.getStatus(job.jobId)).resolves.toMatchObject({
       status: 'succeeded',
-      imageUrl: 'http://comfyui.test:8188/view?filename=result.png&subfolder=&type=output',
+      imageUrl: 'https://comfyui.example.com/view?filename=result.png&subfolder=&type=output',
     })
   })
 
   // https://github.com/moeru-ai/airi/pull/2083 (Codex review: snapshot the generation timeout per ComfyUI job)
   it('keeps a running job\'s original timeout when the provider is re-initialized mid-flight (PR #2083 review)', async () => {
     // ROOT CAUSE:
-    //
-    // The provider is registered as a singleton and pollForResult read the mutable
-    // this.generationTimeoutMs on every poll pass. Re-initializing the provider while
-    // a slow job was still polling (e.g. a second headless generation syncing a
-    // shorter timeout) moved the first job's deadline, so a 10-minute job failed
-    // ~5 minutes after the second initialize().
-    //
-    // We fixed this by snapshotting the timeout in generate() and passing that
-    // snapshot into pollForResult instead of reading the mutable field.
+    // Re-initializing the singleton changed deadlines for running jobs.
+    // Each job must retain the timeout captured when generation starts.
     vi.useFakeTimers()
 
     let historyRequests = 0
@@ -82,7 +73,7 @@ describe('comfyui provider', () => {
       }
 
       historyRequests++
-      // Complete after ~6 minutes of polling (5s interval -> 72 polls)
+      // Complete after six minutes of polling at five-second intervals.
       if (historyRequests < 72)
         return new Response(JSON.stringify({}), { status: 200 })
 
@@ -100,10 +91,11 @@ describe('comfyui provider', () => {
 
     const provider = new ComfyUIProvider()
     await provider.initialize({
-      comfyuiServerUrl: 'http://comfyui.test:8188',
+      comfyuiServerUrl: 'https://comfyui.example.com',
       comfyuiGenerationTimeoutMinutes: 10,
       comfyuiSavedWorkflows: [{
         id: 'slow-workflow',
+        name: 'Slow fixture',
         workflow: {},
         exposedFields: {},
       }],
@@ -117,11 +109,11 @@ describe('comfyui provider', () => {
 
     // Past the re-initialized 5-minute deadline but before the original 10-minute
     // one, and before the provider's 10s post-completion result cleanup runs.
-    await vi.advanceTimersByTimeAsync(6 * 60 * 1000 + 5_000)
+    await vi.advanceTimersByTimeAsync(minutesToMilliseconds(6) + secondsToMilliseconds(5))
 
     await expect(provider.getStatus(job.jobId)).resolves.toMatchObject({
       status: 'succeeded',
-      imageUrl: 'http://comfyui.test:8188/view?filename=result.png&subfolder=&type=output',
+      imageUrl: 'https://comfyui.example.com/view?filename=result.png&subfolder=&type=output',
     })
   })
 })

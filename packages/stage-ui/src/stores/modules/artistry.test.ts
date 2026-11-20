@@ -2,31 +2,30 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { nextTick } from 'vue'
 
-import { useArtistryStore } from './artistry'
+import { resolveArtistryConfigFromStore, useArtistryStore } from './artistry'
 
-/**
- * @example
- * describe('artistry store', () => {})
- */
 describe('artistry store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
   })
 
-  /**
-   * @example
-   * it('defaults to disabled artistry without treating ComfyUI as configured', () => {})
-   */
   it('defaults to disabled artistry without treating ComfyUI as configured', () => {
     const artistryStore = useArtistryStore()
 
-    // @example
     expect(artistryStore.globalProvider).toBe('none')
-    // @example
     expect(artistryStore.activeProvider).toBe('none')
     expect(artistryStore.comfyuiGenerationTimeoutMinutes).toBe(10)
-    // @example
     expect(artistryStore.configured).toBe(false)
+  })
+
+  it('keeps a plain provider option named value in the configuration snapshot', () => {
+    const artistryStore = useArtistryStore()
+    artistryStore.providerOptions = { value: 'fixture-option' }
+
+    const snapshot = resolveArtistryConfigFromStore(artistryStore)
+
+    expect(snapshot.options).toEqual({ value: 'fixture-option' })
+    expect(snapshot.globals.comfyuiGenerationTimeoutMinutes).toBe(10)
   })
 
   // ROOT CAUSE:

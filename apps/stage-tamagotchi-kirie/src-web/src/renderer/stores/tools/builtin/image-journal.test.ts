@@ -1,5 +1,6 @@
 import { resolveArtistryConfigFromStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { describe, expect, it, vi } from 'vitest'
+import { ref } from 'vue'
 
 import { installStrictToolSchemaMatchers } from '../testing/strict-tool-schema'
 
@@ -27,20 +28,21 @@ describe('image_journal config snapshot', () => {
 
   it('extracts plain values instead of leaking Ref objects', () => {
     const config = resolveArtistryConfigFromStore({
-      activeProvider: { value: 'comfyui' },
-      activeModel: { value: 'flux' },
-      defaultPromptPrefix: { value: 'anime style' },
-      providerOptions: { value: { seed: 42 } },
-      comfyuiServerUrl: { value: 'http://localhost:8188' },
-      comfyuiSavedWorkflows: { value: [{ id: 'wf-1' }] },
-      comfyuiActiveWorkflow: { value: 'wf-1' },
-      replicateApiKey: { value: 'r8_xxx' },
-      replicateDefaultModel: { value: 'black-forest-labs/flux-schnell' },
-      replicateAspectRatio: { value: '16:9' },
-      replicateInferenceSteps: { value: 4 },
-      nanobananaApiKey: { value: 'AIza-test' },
-      nanobananaModel: { value: 'gemini-3.1-flash-image-preview' },
-      nanobananaResolution: { value: '1K' },
+      activeProvider: ref('comfyui'),
+      activeModel: ref('flux'),
+      defaultPromptPrefix: ref('anime style'),
+      providerOptions: ref({ seed: 42 }),
+      comfyuiServerUrl: ref('https://comfyui.example.com'),
+      comfyuiGenerationTimeoutMinutes: ref(20),
+      comfyuiSavedWorkflows: ref([{ id: 'wf-1', name: 'Fixture workflow', workflow: {}, exposedFields: {} }]),
+      comfyuiActiveWorkflow: ref('wf-1'),
+      replicateApiKey: ref('r8_xxx'),
+      replicateDefaultModel: ref('black-forest-labs/flux-schnell'),
+      replicateAspectRatio: ref('16:9'),
+      replicateInferenceSteps: ref(4),
+      nanobananaApiKey: ref('AIza-test'),
+      nanobananaModel: ref('gemini-3.1-flash-image-preview'),
+      nanobananaResolution: ref('1K'),
     })
 
     expect(config).toEqual({
@@ -49,8 +51,9 @@ describe('image_journal config snapshot', () => {
       promptPrefix: 'anime style',
       options: { seed: 42 },
       globals: {
-        comfyuiServerUrl: 'http://localhost:8188',
-        comfyuiSavedWorkflows: [{ id: 'wf-1' }],
+        comfyuiServerUrl: 'https://comfyui.example.com',
+        comfyuiGenerationTimeoutMinutes: 20,
+        comfyuiSavedWorkflows: [{ id: 'wf-1', name: 'Fixture workflow', workflow: {}, exposedFields: {} }],
         comfyuiActiveWorkflow: 'wf-1',
         replicateApiKey: 'r8_xxx',
         replicateDefaultModel: 'black-forest-labs/flux-schnell',

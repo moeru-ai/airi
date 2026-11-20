@@ -13,17 +13,19 @@ import { createHash } from 'node:crypto'
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
-import { artistryGenerateHeadless, artistrySyncConfig, artistrySyncConfigPayloadSchema, artistryTestComfyUIConnection, errorMessageFromValue } from '@proj-airi/stage-shared'
+import { artistryGenerateHeadless, artistryGlobalsSchema, artistrySyncConfig, artistrySyncConfigPayloadSchema, artistryTestComfyUIConnection, errorMessageFromValue } from '@proj-airi/stage-shared'
+import { differenceInMilliseconds, minutesToMilliseconds, secondsToMilliseconds } from 'date-fns'
 import { injeca } from 'injeca'
-import { getDotPath, safeParse } from 'valibot'
+import { getDotPath, parse, safeParse } from 'valibot'
 
-import { ComfyUIProvider } from './providers/comfyui'
+import { COMFYUI_PREPARATION_TIMEOUT_MS, ComfyUIProvider } from './providers/comfyui'
 import { NanoBananaProvider } from './providers/nanobanana'
 import { ReplicateProvider } from './providers/replicate'
 
 const log = useLogg('artistry-bridge').useGlobalConfig()
 const DEFAULT_REMIX_ID = '48250602'
 const DEFAULT_ARTISTRY_PROVIDER = 'none'
+const EMPTY_ARTISTRY_GLOBALS: Readonly<Record<string, unknown>> = Object.freeze({})
 
 interface ArtistrySyncSnapshot {
   provider?: string
@@ -109,40 +111,33 @@ artistryProviders.set('nanobanana', new NanoBananaProvider())
 // Deduplication map for headless requests
 const pendingHeadlessRequests = new Map<string, Promise<{ imageUrl?: string, base64?: string, error?: string }>>()
 
-/**
- * Resolves the safety-net timeout (in minutes) for headless generation waits.
- *
- * ComfyUI derives its provider timeout from the user-configured
- * `comfyuiGenerationTimeoutMinutes`; other providers keep the default five-minute
- * safety-net timeout. The wrapper timer in
- * {@link generateHeadless} only guards against a callback that never fires, so it must
- * outlive the provider's own timeout — otherwise headless callers (image_journal,
- * autonomous artistry) reject with a generic 5-minute error while the provider is still
- * legitimately polling.
- */
-function resolveHeadlessWaitTimeoutMinutes(providerId: string, globals: Record<string, any>): number {
+/** ComfyUI uses the shared setting default. Other providers retain the five-minute safety limit. */
+function resolveHeadlessWaitTimeoutMinutes(providerId: string, globals: Readonly<Record<string, unknown>>): number {
   if (providerId !== 'comfyui')
     return 5
-
-  const configured = globals?.comfyuiGenerationTimeoutMinutes
-  if (typeof configured === 'number' && Number.isFinite(configured) && configured > 0)
-    return configured
-  return 5
+  return parse(artistryGlobalsSchema.entries.comfyuiGenerationTimeoutMinutes, globals.comfyuiGenerationTimeoutMinutes)
 }
 
+/**
+ * Runs one headless request and deduplicates identical in-flight input snapshots.
+ *
+ * Triggering workflow:
+ * {@link artistryGenerateHeadless} -> {@link generateHeadless} -> {@link ArtistryProvider.generate} -> job callback or status polling.
+ */
 export async function generateHeadless(params: {
   prompt: string
   model?: string
   provider?: string
-  options?: Record<string, any>
-  globals?: Record<string, any>
+  options?: Record<string, unknown>
+  globals?: Record<string, unknown>
 }): Promise<{ imageUrl?: string, base64?: string, error?: string }> {
   // Resolve config and effective globals early to secure the deduplication fingerprint
   const { config: artistryConfig } = await injeca.resolve({ config: 'configs:artistry' } as { config: ProvidedBy<Config<typeof artistryConfigSchema>> })
-  const activeGlobals = (params.globals || artistryConfig.get()?.artistryGlobals || {}) as Record<string, any>
+  // Per-request globals win over persisted configuration. An unconfigured provider has no extra globals.
+  const activeGlobals: Readonly<Record<string, unknown>> = params.globals ?? artistryConfig.get()?.artistryGlobals ?? EMPTY_ARTISTRY_GLOBALS
 
   // Create a fingerprint for deduplication
-  const sourceImage = activeGlobals?.image
+  const sourceImage = activeGlobals.image
   const imageHash = typeof sourceImage === 'string'
     ? createHash('sha256').update(sourceImage).digest('hex')
     : 'NONE'
@@ -179,26 +174,29 @@ export async function generateHeadless(params: {
       throw new Error(`Provider '${requestedProvider}' not found.`)
     }
 
+    const waitTimeoutMinutes = resolveHeadlessWaitTimeoutMinutes(requestedProvider, activeGlobals)
     // Initialize the provider
-    if (provider.initialize && activeGlobals) {
+    if (provider.initialize) {
       log.log(`[Headless] Initializing provider ${requestedProvider} with globals...`)
       await provider.initialize(activeGlobals)
     }
 
-    log.log(`[Headless] Globals keys: ${Object.keys(activeGlobals || {}).join(', ')}`)
-    if (activeGlobals?.image)
-      log.log(`[Headless] Source image length: ${activeGlobals.image.length}`)
+    log.log(`[Headless] Globals keys: ${Object.keys(activeGlobals).join(', ')}`)
+    if (typeof sourceImage === 'string')
+      log.log(`[Headless] Source image length: ${sourceImage.length}`)
 
+    const internalJobId = createRunId('headless')
     const request: ArtistryRequest = {
       prompt: params.prompt,
-      negativePrompt: params.options?.negativePrompt,
+      generationTimeoutMs: requestedProvider === 'comfyui' ? minutesToMilliseconds(waitTimeoutMinutes) : undefined,
+      negativePrompt: typeof params.options?.negativePrompt === 'string' ? params.options.negativePrompt : undefined,
       width: typeof params.options?.width === 'number' ? params.options.width : undefined,
       height: typeof params.options?.height === 'number' ? params.options.height : undefined,
       model: params.model,
       extra: {
         ...params.options,
-        image: activeGlobals?.image,
-        internalJobId: createRunId('headless'),
+        image: sourceImage,
+        internalJobId,
       },
     }
 
@@ -206,12 +204,15 @@ export async function generateHeadless(params: {
     const job = await provider.generate(request)
     log.log(`[Headless] Job created: ${job.jobId}`)
 
-    // NOTICE: The grace margin beyond the configured timeout exists because ComfyUI only
-    // starts its own timeout clock after the upload/queue requests complete, which happens
-    // after this timer starts. An identical timeout would race and mask the provider's
-    // more specific timeout error with this generic one.
-    const waitTimeoutMinutes = resolveHeadlessWaitTimeoutMinutes(requestedProvider, activeGlobals)
-    const waitTimeoutMs = waitTimeoutMinutes * 60 * 1000 + 30_000
+    let waitTimeoutMs = minutesToMilliseconds(waitTimeoutMinutes)
+    if (requestedProvider === 'comfyui') {
+      // NOTICE:
+      // ComfyUI starts its generation clock after upload and queue requests.
+      // Include both transport budgets and the existing final-poll allowance.
+      // Source: ComfyUIProvider.pollForResult and uploadImage in ./providers/comfyui.
+      // Remove this allowance when the provider deadline also governs the headless wrapper.
+      waitTimeoutMs += COMFYUI_PREPARATION_TIMEOUT_MS + secondsToMilliseconds(30)
+    }
 
     // Polling/Wait for result
     if (!supportsJobCallback(provider)) {
@@ -220,7 +221,7 @@ export async function generateHeadless(params: {
       const start = Date.now()
 
       while (!isDone) {
-        if (Date.now() - start > waitTimeoutMs) {
+        if (differenceInMilliseconds(Date.now(), start) > waitTimeoutMs) {
           log.error(`[Headless] Job ${job.jobId} timed out after ${waitTimeoutMinutes} minutes.`)
           throw new Error(`Image generation timed out after ${waitTimeoutMinutes} minutes.`)
         }
@@ -233,7 +234,7 @@ export async function generateHeadless(params: {
           isDone = true
         }
         if (!isDone) {
-          await new Promise(resolve => setTimeout(resolve, 2000))
+          await new Promise(resolve => setTimeout(resolve, secondsToMilliseconds(2)))
         }
       }
 
@@ -254,7 +255,7 @@ export async function generateHeadless(params: {
           reject(new Error(`Image generation timed out after ${waitTimeoutMinutes} minutes.`))
         }, waitTimeoutMs)
 
-        provider.setJobCallback(request.extra?.internalJobId as string, async (status) => {
+        provider.setJobCallback(internalJobId, async (status) => {
           if (status.status === 'succeeded') {
             clearTimeout(timer)
             try {
