@@ -36,7 +36,7 @@ export function setCharacterLlmMarkerParserFactoryForTest(factory: ParserFactory
 }
 
 export const useCharacterStore = defineStore('character', () => {
-  const { activeCard, systemPrompt } = storeToRefs(useAiriCardStore())
+  const { activeCard, activeCardId, systemPrompt } = storeToRefs(useAiriCardStore())
 
   const name = computed(() => activeCard.value?.name ?? '')
 
@@ -103,6 +103,8 @@ export const useCharacterStore = defineStore('character', () => {
 
     state.reaction.message = fullText
     recordSparkNotifyReaction(sparkEventId, fullText, { metadata: options?.metadata })
+    void storeSparkNotifyReactionInChat(fullText)
+      .catch(error => console.error('Failed to store a spark notify reaction in chat', error))
 
     void state.parser.end().then(async () => {
       await state.speech.end()
@@ -125,6 +127,32 @@ export const useCharacterStore = defineStore('character', () => {
     if (reactions.value.length > MAX_REACTIONS) {
       reactions.value.splice(0, reactions.value.length - MAX_REACTIONS)
     }
+  }
+
+  /**
+   * Stores a spoken spark notify reaction in the current chat session of the active character.
+   * The chat then shows the reaction, and later turns send it to the model.
+   */
+  async function storeSparkNotifyReactionInChat(fullText: string) {
+    const text = fullText.replace(/<\|[\s\S]*?\|>/g, '').trim()
+    const characterId = activeCardId.value
+    if (!text || !characterId)
+      return
+
+    // Notifications can run in a window other than the chat window.
+    // The selected session of this window can be old, so use the current session of the character.
+    const sessionId = await sessions.ensureCharacterSession(characterId)
+
+    const now = Date.now()
+    await sessions.storeMessage(sessionId, {
+      id: nanoid(),
+      role: 'assistant',
+      content: text,
+      slices: [{ type: 'text', text }],
+      tool_results: [],
+      createdAt: now,
+      completedAt: now,
+    })
   }
 
   function clearReactions() {
