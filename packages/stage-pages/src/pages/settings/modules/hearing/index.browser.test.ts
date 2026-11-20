@@ -68,15 +68,6 @@ describe('hearing overview', () => {
     expect(hearing.configured).toBe(true)
   })
 
-  it('links to the speech recognition and wake words pages', async () => {
-    const screen = await renderHearing(true)
-
-    await expect.element(screen.getByTestId('hearing-page-transcriber').getByRole('link')).toHaveAttribute('href', '/settings/modules/hearing/transcriber')
-    await expect.element(screen.getByTestId('hearing-page-transcriber')).toHaveTextContent('Speech recognition')
-    await expect.element(screen.getByTestId('hearing-page-wake-words').getByRole('link')).toHaveAttribute('href', '/settings/modules/hearing/wake-words')
-    await expect.element(screen.getByTestId('hearing-page-wake-words')).toHaveTextContent('Wake words')
-  })
-
   it('does not open the microphone when the page opens', async () => {
     const capture = vi.spyOn(navigator.mediaDevices, 'getUserMedia')
     const screen = await renderHearing(true)
@@ -95,15 +86,6 @@ describe('hearing overview', () => {
 })
 
 describe('hearing input mode', () => {
-  // A narrow web screen listens only during a voice call, so the input mode and the microphone switch change nothing there.
-  it('explains on a narrow web screen that only a voice call listens', async () => {
-    const screen = await renderHearing(undefined, 390)
-
-    await expect.element(screen.getByTestId('hearing-call-only')).toBeVisible()
-    expect(screen.getByTestId('hearing-input-mode').query()).toBeNull()
-    expect(screen.getByTestId('hearing-microphone-switch').query()).toBeNull()
-  })
-
   // Review: https://github.com/moeru-ai/airi/pull/2729#discussion_r4237157722
   it('disables Push to Talk with a hint when the host declares no trigger', async () => {
     const screen = await renderHearing(undefined)

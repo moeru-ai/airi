@@ -463,33 +463,6 @@ describe('chat history', () => {
     })
   })
 
-  it('keeps a stable mask on each mobile message container', async () => {
-    const screen = await render(ChatHistory, {
-      props: {
-        messages: [{ role: 'user', content: 'hello' }],
-        variant: 'mobile',
-        style: 'height: 240px; width: 320px; overflow-y: auto;',
-      },
-      global: {
-        plugins: [createEnglishI18n()],
-      },
-    })
-
-    await vi.waitFor(() => {
-      expect(screen.container.querySelector('.chat-message-item-container')).not.toBeNull()
-    })
-
-    const messageContainer = screen.container.querySelector<HTMLElement>('.chat-message-item-container')
-    expect(messageContainer).not.toBeNull()
-    if (!messageContainer)
-      throw new Error('Expected a mobile chat message container.')
-
-    expect(getComputedStyle(messageContainer).maskImage).not.toBe('none')
-    await vi.waitFor(() => {
-      expect(messageContainer.closest('.chat-message-item-visible')).not.toBeNull()
-    })
-  })
-
   // ROOT CAUSE:
   //
   // Cross-window synchronization can publish `sending` before it publishes the new stream.

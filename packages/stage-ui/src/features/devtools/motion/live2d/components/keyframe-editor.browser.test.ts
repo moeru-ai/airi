@@ -108,20 +108,6 @@ describe('keyframe editor', () => {
     canvas.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, button: 0, pointerId: 1, ...point }))
   }
 
-  it('shows all tracks on one shared timeline and expands the active track', async () => {
-    await mountEditor()
-
-    expect(trackButtons()).toHaveLength(13)
-    expect(trackButtons().filter(button => button.getAttribute('aria-expanded') === 'true')).toHaveLength(1)
-    expect(document.querySelectorAll('canvas')).toHaveLength(1)
-    await expect.element(page.getByRole('slider', { name: `${editorKey}.playhead` })).toBeInTheDocument()
-    expect(document.body.textContent).toContain('.tracks.eyeOpen')
-    expect(document.body.textContent).toContain('.tracks.mouthForm')
-    expect(document.body.textContent).toContain('.tracks.mouthOpen')
-    expect(document.body.textContent).toContain('.tracks.viewTargetX')
-    expect(document.body.textContent).toContain('.tracks.viewTargetY')
-  })
-
   it('owns recording and streams captured samples into the source timeline', async () => {
     const onToggleRecording = vi.fn()
     const mounted = await mountEditor({

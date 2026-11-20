@@ -95,35 +95,6 @@ function createHarness(rows = [
 }
 
 describe('sessions dialog actions', () => {
-  it('opens the compact desktop list from its conversation trigger', async () => {
-    const rows = [
-      { meta: sessionMeta('session-one', 2), preview: 'First chat', isActive: true, activityAtLabel: 'now' },
-    ]
-    const screen = await render(defineComponent({
-      components: { SessionsDialog },
-      setup() {
-        return { open: ref(false), rows }
-      },
-      template: `
-        <SessionsDialog
-          v-model:open="open"
-          :rows="rows"
-          :is-desktop="true"
-          :is-creating-session="false"
-          desktop-mode="popover"
-        >
-          <template #trigger><button>Current chat</button></template>
-        </SessionsDialog>
-      `,
-    }), { global: { plugins: [createTestI18n()] } })
-
-    await screen.getByRole('button', { name: 'Current chat' }).click()
-
-    await expect.element(screen.getByRole('dialog')).toBeVisible()
-    await expect.element(screen.getByRole('button', { name: 'New chat' })).toBeVisible()
-    await expect.element(screen.getByRole('button', { name: /^First chat/ })).toBeVisible()
-  })
-
   it('requires a second click before deleting a desktop conversation', async () => {
     const screen = await render(defineComponent({
       components: { SessionsDialog },

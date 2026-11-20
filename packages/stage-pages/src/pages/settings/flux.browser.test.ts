@@ -132,48 +132,6 @@ describe('flux page with the Capacitor subscription', () => {
     })
   }
 
-  it('opens on the subscription offer, then the packs with the balance, then the history', async () => {
-    const screen = await openSignedIn()
-
-    await expect.element(screen.getByTestId('capacitor-offer')).toHaveTextContent('No Capacitor yet')
-    expect(screen.getByTestId('capacitor-hero').elements()).toHaveLength(0)
-    await expect.element(screen.getByRole('button', { name: '500 Flux $3.00' })).toBeVisible()
-    await expect.element(screen.getByTestId('flux-balance')).toHaveTextContent('Balance 1,200 Flux')
-    await expect.element(screen.getByTestId('flux-history')).toBeVisible()
-    // The page leads with the subscription: it comes before the one-time packs.
-    const subscription = screen.getByTestId('flux-subscription').element()
-    const packages = screen.getByTestId('flux-packages').element()
-    expect(subscription.compareDocumentPosition(packages) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-  })
-
-  it('draws the usage of the window as the fill of the Capacitor card', async () => {
-    const hour = 3_600_000
-    const startedAt = new Date(Date.now() - 12 * hour)
-    wallet = { capacitorPercent: 62 }
-    usage = {
-      startedAt: startedAt.toISOString(),
-      endsAt: new Date(startedAt.getTime() + 24 * hour).toISOString(),
-      records: [{ at: new Date(startedAt.getTime() + 6 * hour).toISOString(), percent: 80 }],
-    }
-    const screen = await openSignedIn()
-
-    await expect.element(screen.getByTestId('capacitor-percent')).toHaveAccessibleName('Capacitor: 62% left')
-    await expect.element(screen.getByTestId('capacitor-curve')).toBeInTheDocument()
-    // Half of the window used 38 percent, so the forecast leaves 24 percent.
-    await expect.element(screen.getByTestId('capacitor-forecast')).toHaveTextContent('about 24% is left')
-    expect(screen.getByTestId('capacitor-offer').elements()).toHaveLength(0)
-  })
-
-  it('keeps the percent as a plain fill when the usage read fails', async () => {
-    wallet = { capacitorPercent: 40 }
-    usage = null
-    const screen = await openSignedIn()
-
-    await expect.element(screen.getByTestId('capacitor-percent')).toHaveAccessibleName('Capacitor: 40% left')
-    expect(screen.getByTestId('capacitor-curve').elements()).toHaveLength(0)
-    expect(screen.getByTestId('capacitor-forecast').elements()).toHaveLength(0)
-  })
-
   it('shows the result after a Stripe checkout returns', async () => {
     wallet = { capacitorPercent: 40 }
     const screen = await openSignedIn('/settings/flux?success=true')

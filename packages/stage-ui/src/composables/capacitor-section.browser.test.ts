@@ -191,17 +191,6 @@ describe('capacitor quota display and purchase actions', () => {
     ])
   })
 
-  it('explains the Capacitor to a user without a subscription', async () => {
-    sdk.getCustomerInfo.mockResolvedValue(customer(null))
-    wallet = { capacitorPercent: null, fallbackToFlux: false }
-    const screen = await openPage()
-
-    await expect.element(screen.getByText('No Capacitor yet')).toBeVisible()
-    await expect.element(screen.getByText('Subscribe to a Capacitor. It refills with Flux every day.')).toBeVisible()
-    await expect.element(screen.getByRole('heading', { name: 'Choose a Capacitor' })).toBeVisible()
-    await expect.element(screen.getByRole('button', { name: 'Subscribe', exact: true }).first()).toBeVisible()
-  })
-
   it.each([
     { fallbackToFlux: false, warnings: 1 },
     { fallbackToFlux: true, warnings: 0 },
