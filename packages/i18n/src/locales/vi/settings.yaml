@@ -1669,6 +1669,18 @@ pages:
               label: Cường độ biểu đạt cảm xúc
         callout_origin_title: Kết nối với bộ máy từ trình duyệt
         callout_origin: Trình duyệt chỉ kết nối được với bộ máy trên thiết bị này. Với bộ máy trên thiết bị khác, dùng ứng dụng máy tính. Bộ máy phải cho phép trang này trong trang cài đặt ở cổng 10101.
+      minimax-transcription:
+        description: minimax.io
+        fields:
+          field:
+            language:
+              description: Thẻ BCP-47 gợi ý ngôn ngữ đang nói. Để trống để nhận diện nhiều ngôn ngữ.
+              label: Ngôn ngữ
+              placeholder: Để trống để tự động nhận diện
+            model:
+              description: Phiên bản mô hình chuyển giọng nói dùng cho yêu cầu này.
+              label: Mô hình
+        title: MiniMax Chuyển giọng nói
       speech-noop:
         title: Không có
         description: Không phát âm thanh.
