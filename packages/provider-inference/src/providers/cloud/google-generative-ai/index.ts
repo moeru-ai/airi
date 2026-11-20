@@ -52,10 +52,20 @@ export const providerGoogleGenerativeAI = defineProvider<GoogleGenerativeConfig,
         if (!options?.reasoning)
           return request
 
-        // Gemini 2.5 Pro and Gemini 3 reject `none`; `minimal` is their lowest valid effort.
+        if (options.reasoning === 'enabled')
+          return { ...request, reasoningEffort: 'medium' }
+
+        // NOTICE:
+        // Use the lowest supported effort when the user disables reasoning.
+        // Gemini 2.5 Pro and Gemini 3 cannot turn off reasoning. Gemini 3 Pro starts at low.
+        // https://ai.google.dev/gemini-api/docs/thinking#thinking-levels
+        // Remove this mapping when Google accepts `none` for these models.
         const modelId = model.toLowerCase()
-        const disabledEffort = modelId.includes('gemini-2.5-pro') || modelId.includes('gemini-3') ? 'minimal' : 'none'
-        return { ...request, reasoningEffort: options.reasoning === 'enabled' ? 'medium' : disabledEffort }
+        if (/gemini-3(?:\.\d+)?-pro\b/.test(modelId))
+          return { ...request, reasoningEffort: 'low' }
+
+        const usesMinimalEffort = modelId.includes('gemini-2.5-pro') || modelId.includes('gemini-3')
+        return { ...request, reasoningEffort: usesMinimalEffort ? 'minimal' : 'none' }
       },
     }
   },
