@@ -1338,6 +1338,7 @@ pages:
       title: iMessage
       enable: Enable iMessage Integration
       enable-description: Allow AIRI to answer iMessage texts
+      enable-missing-values: Enter the Photon project ID and the Photon API key first
       powered-by: 'The iMessage integration uses the Photon API. Create a project and an API key in the Photon beta: {link}'
       project-id: Photon Project ID
       project-id-description: The ID of your project in the Photon dashboard

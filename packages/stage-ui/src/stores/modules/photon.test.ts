@@ -17,18 +17,18 @@ describe('usePhotonStore', () => {
     vi.restoreAllMocks()
   })
 
-  it('is configured only with a project ID and an API key', () => {
+  it('has credentials only with a project ID and an API key', () => {
     const store = usePhotonStore()
-    expect(store.configured).toBe(false)
+    expect(store.hasCredentials).toBe(false)
 
     store.projectId = 'pho_prj_example'
-    expect(store.configured).toBe(false)
+    expect(store.hasCredentials).toBe(false)
 
     store.apiKey = '  \n'
-    expect(store.configured).toBe(false)
+    expect(store.hasCredentials).toBe(false)
 
     store.apiKey = 'pho_sk_example'
-    expect(store.configured).toBe(true)
+    expect(store.hasCredentials).toBe(true)
   })
 
   it('sends the settings to the photon module without the spaces around a pasted value', () => {
@@ -40,6 +40,32 @@ describe('usePhotonStore', () => {
     store.saveSettings()
 
     expect(updateFor).toHaveBeenCalledExactlyOnceWith('photon', { enabled: true, projectId: 'pho_prj_example', apiKey: 'pho_sk_example' })
+  })
+
+  it('applies the switch at once, with the values in the fields', () => {
+    const store = usePhotonStore()
+    store.projectId = 'pho_prj_example'
+    store.apiKey = 'pho_sk_example'
+
+    store.setEnabled(true)
+    expect(updateFor).toHaveBeenLastCalledWith('photon', { enabled: true, projectId: 'pho_prj_example', apiKey: 'pho_sk_example' })
+
+    store.setEnabled(false)
+    expect(updateFor).toHaveBeenLastCalledWith('photon', { enabled: false, projectId: 'pho_prj_example', apiKey: 'pho_sk_example' })
+    expect(updateFor).toHaveBeenCalledTimes(2)
+  })
+
+  it('is configured only while the integration is on and both values are present', () => {
+    const store = usePhotonStore()
+    store.projectId = 'pho_prj_example'
+    store.apiKey = 'pho_sk_example'
+    expect(store.configured).toBe(false)
+
+    store.setEnabled(true)
+    expect(store.configured).toBe(true)
+
+    store.apiKey = ''
+    expect(store.configured).toBe(false)
   })
 
   it('clears the API key on reset and tells the module to stop', () => {

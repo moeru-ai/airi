@@ -7,15 +7,19 @@ import { usePhotonStore } from '../../stores/modules/photon'
 
 const { t } = useI18n()
 const photonStore = usePhotonStore()
-const { enabled, projectId, apiKey, configured } = storeToRefs(photonStore)
+const { enabled, projectId, apiKey, hasCredentials, configured } = storeToRefs(photonStore)
 </script>
 
 <template>
   <SettingsCard>
     <FieldCheckbox
-      v-model="enabled"
+      :model-value="enabled"
+      :disabled="!enabled && !hasCredentials"
       :label="t('settings.pages.modules.messaging-photon.enable')"
-      :description="t('settings.pages.modules.messaging-photon.enable-description')"
+      :description="enabled || hasCredentials
+        ? t('settings.pages.modules.messaging-photon.enable-description')
+        : t('settings.pages.modules.messaging-photon.enable-missing-values')"
+      @update:model-value="photonStore.setEnabled($event)"
     />
 
     <p :class="['text-xs', 'text-neutral-500 dark:text-neutral-400']">
@@ -49,6 +53,7 @@ const { enabled, projectId, apiKey, configured } = storeToRefs(photonStore)
     <div>
       <Button
         :label="t('settings.common.save')"
+        :disabled="!configured"
         @click="photonStore.saveSettings()"
       />
     </div>
