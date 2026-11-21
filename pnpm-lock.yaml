@@ -4204,6 +4204,9 @@ importers:
       '@xsai/tool':
         specifier: 'catalog:'
         version: 0.5.1(@valibot/to-json-schema@1.8.0(valibot@1.5.0(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+      date-fns:
+        specifier: 'catalog:'
+        version: 4.4.0
       nanoid:
         specifier: 'catalog:'
         version: 6.0.2
