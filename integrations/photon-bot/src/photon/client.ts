@@ -189,11 +189,17 @@ export class PhotonStream {
   private subscribe(): void {
     this.stale = false
     const startSeq = this.options.cursor()
-    this.socket.timeout(10_000).emit('subscribe', { startSeq, apiVersion: API_VERSION }, (error: Error | null, ack?: { ok: boolean, error?: { code: string } }) => {
-      if (error || !ack?.ok)
-        log.error(`Photon refused the subscription: ${ack?.error?.code ?? errorMessageFrom(error) ?? 'unknown'}`)
-      else
+    this.socket.timeout(10_000).emit('subscribe', { startSeq, apiVersion: API_VERSION }, (error: Error | null, ack?: { ok: boolean, error?: { code: string, fatal?: boolean, retryable?: boolean } }) => {
+      if (!error && ack?.ok) {
         log.log(`Subscribed to Photon events after cursor ${startSeq}`)
+        return
+      }
+
+      log.error(`Photon refused the subscription: ${ack?.error?.code ?? errorMessageFrom(error) ?? 'unknown'}`)
+      // A connection without a subscription gets no events. After a timeout or a retryable refusal, the stream closes
+      // the transport, and Socket.IO connects and subscribes again with its backoff. Photon disconnects after a fatal error.
+      if (!this.closed && this.socket.connected && (error || (ack?.error?.retryable && !ack.error.fatal)))
+        this.socket.io.engine.close()
     })
   }
 }

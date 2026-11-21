@@ -371,6 +371,27 @@ describe('photonAdapter', () => {
     await vi.waitFor(() => expect(subscribes).toEqual([0, 12]))
   })
 
+  it('connects and subscribes again when Photon refuses the subscription with a retryable error', async () => {
+    photon.removeAllListeners('connection')
+    photon.on('connection', (socket) => {
+      apiKeys.push(socket.handshake.headers.authorization)
+      socket.on('disconnect', () => disconnects += 1)
+      socket.on('subscribe', (payload: { startSeq: number }, ack: (result: unknown) => void) => {
+        subscribes.push(payload.startSeq)
+        ack(subscribes.length === 1
+          ? { ok: false, error: { code: 'capacity', message: 'The server is at capacity', fatal: false, retryable: true } }
+          : { ok: true })
+      })
+    })
+    createFakeAiri()
+    adapter = new PhotonAdapter(config)
+    adapter.start()
+
+    await vi.waitFor(() => expect(subscribes).toEqual([0, 0]), { timeout: 5_000 })
+    expect(apiKeys).toHaveLength(2)
+    expect(disconnects).toBe(1)
+  })
+
   it('waits for the settings from AIRI when the environment has no Photon credentials', async () => {
     const airi = createFakeAiri()
     const send = vi.fn(() => ({ status: 202, body: { id: 'sent-1' } }))
