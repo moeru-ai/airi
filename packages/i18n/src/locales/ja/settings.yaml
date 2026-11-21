@@ -251,8 +251,6 @@ pages:
     login: ログイン
     logout: ログアウト
     fluxBalance: Flux 残高
-    viewFluxDetails: 詳細を見る
-    viewCapacitor: 表示
     signedInAs: 'ログイン中:'
     profile:
       tab: プロフィール
@@ -351,8 +349,6 @@ pages:
       action: 応答するキャラクターを選択
     sync:
       notice: キャラクターカードはアカウントと同期します。削除したカードは 30 日間復元できます。
-      off_notice: ログインしていますが、キャラクターカードの同期は無効です。
-      off_notice_link: 実験的機能で有効にしてください。
       state:
         synced: アカウントと同期済み
         pending: アップロード待機中
@@ -1358,7 +1354,6 @@ pages:
   flux:
     buy: 購入
     currency: 通貨
-    description: 現在の Flux 残高
     terms: 規約
     privacy: プライバシーポリシー
     packagesError: パッケージを読み込めませんでした。後ほど再試行してください。
@@ -1389,7 +1384,6 @@ pages:
     statusError: Capacitor を読み込めませんでした。後でもう一度お試しください。
     packagesError: Capacitor の一覧を読み込めませんでした。後でもう一度お試しください。
     preferenceError: 設定を保存できませんでした。後でもう一度お試しください。
-    remaining: '残り {percent}'
     rechargesAt: '{date} に充電'
     renewsAt: '{date} に更新'
     expiresAt: '{date} に期限切れ'
@@ -1940,10 +1934,6 @@ pages:
         local: このデバイスでの設定
         global: ログイン済みアカウントで利用可能
         account: このアカウントで利用可能
-      features:
-        character_card_sync:
-          title: キャラクターカードのクラウド同期
-          description: ログイン中にキャラクターカードをアカウントと同期し、他のデバイスでも使えるようにします。初期設定では無効です。削除したカードはアカウントの履歴に 30 日間残ります。
     color-scheme:
       description: ステージの配色を変更します。
       title: 配色

@@ -261,9 +261,6 @@ websocket-status:
   connected: 接続済み
   disconnected: 未接続
   open-settings: 接続設定を開く
-computer-use:
-  label: コンピューターを操作
-  description: このチャットウィンドウによる、このコンピューター上のネイティブアプリの確認と操作を許可します。
 status:
   preparing: マイクを準備中
   listening: 聞き取り中

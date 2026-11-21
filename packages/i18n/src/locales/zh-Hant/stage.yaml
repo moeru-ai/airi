@@ -261,9 +261,6 @@ websocket-status:
   connected: 已連線
   disconnected: 未連線
   open-settings: 開啟連線設定
-computer-use:
-  label: 使用電腦
-  description: 允許此聊天視窗檢視及控制這台電腦上的原生應用程式。
 status:
   preparing: 正在準備麥克風
   listening: 聆聽中

@@ -263,9 +263,6 @@ websocket-status:
   connected: Conectado
   disconnected: No hay conexión
   open-settings: Abrir ajustes de conexión
-computer-use:
-  label: Usar el ordenador
-  description: Permite que esta ventana de chat examine y controle las aplicaciones nativas de este ordenador.
 status:
   preparing: Preparando el micrófono
   listening: Escuchando
