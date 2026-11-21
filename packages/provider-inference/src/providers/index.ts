@@ -39,6 +39,7 @@ import { providerOpenAICompatible } from './cloud/openai-compatible'
 import { providerOpenPaths } from './cloud/openpaths'
 import { providerOpenRouterAI } from './cloud/openrouter-ai'
 import { providerOpenRouterAudioSpeech } from './cloud/openrouter-audio-speech'
+import { providerOpenRouterAudioTranscription } from './cloud/openrouter-audio-transcription'
 import { providerPerplexityAI } from './cloud/perplexity-ai'
 import { providerRuncrate } from './cloud/runcrate'
 import { providerTogetherAI } from './cloud/together-ai'
@@ -127,6 +128,7 @@ export const portableProviderDefinitions = eraseProviderDefinitions(
   providerOpenPaths,
   providerOpenRouterAI,
   providerOpenRouterAudioSpeech,
+  providerOpenRouterAudioTranscription,
   providerPerplexityAI,
   providerRuncrate,
   providerTogetherAI,

@@ -54,6 +54,7 @@ const { audioInputOptions, permission, selectedAudioInput } = storeToRefs(settin
 const supportsStreamInput = computed(() => providersStore.getTranscriptionFeatures(activeTranscriptionProvider.value).supportsStreamInput)
 const error = shallowRef('')
 const isMonitoring = shallowRef(false)
+let shouldRestartMonitoringAfterProviderChange = false
 const activeProviderConfig = computed(() => {
   if (!activeTranscriptionProvider.value)
     return undefined
@@ -79,15 +80,7 @@ const useVADThreshold = shallowRef(0.6) // 0.1 - 0.9
 const useVolumeThreshold = shallowRef(10) // 1 - 80
 const useVADMinSilenceDurationMs = shallowRef(800)
 const useVADModel = shallowRef(true) // Toggle between VAD and volume-based detection
-const sortedProviderModels = computed(() => {
-  return providerModels.value.toSorted((left, right) => {
-    if (left.id === activeTranscriptionModel.value)
-      return -1
-    if (right.id === activeTranscriptionModel.value)
-      return 1
-    return 0
-  })
-})
+const usesOpenRouterTranscription = computed(() => activeTranscriptionProvider.value === 'openrouter-audio-transcription')
 
 function formatVADThreshold(value: number) {
   return value.toFixed(2)
@@ -103,6 +96,7 @@ const vadModelError = shallowRef('')
 const recordings = new Map<string, Promise<ReturnType<typeof startRecording> | undefined>>()
 let listening: VoicePluginHandle | undefined
 let monitoringStartup: AbortController | undefined
+let monitoringStop: Promise<void> | undefined
 const { controller, state: inputState, snapshot, error: transcriptionPipelineError } = useVoiceController({
   transcriber: ({ inputId: id }) => {
     const transcriber = hearingStore.createTranscriber()
@@ -197,11 +191,29 @@ async function stopAudioMonitoring() {
   const previous = listening
   listening = undefined
   controller.activeInput?.cancel('Hearing preview stopped')
-  await previous?.dispose()
+  const previousStop = monitoringStop
+  const pendingStop = (async () => {
+    try {
+      await previousStop
+    }
+    finally {
+      await previous?.dispose()
+    }
+  })()
+  monitoringStop = pendingStop
+  try {
+    await pendingStop
+  }
+  finally {
+    if (monitoringStop === pendingStop)
+      monitoringStop = undefined
+  }
 }
 
 // Monitoring toggle
 async function toggleMonitoring() {
+  shouldRestartMonitoringAfterProviderChange = false
+
   if (!isMonitoring.value) {
     await setupAudioMonitoring()
   }
@@ -319,34 +331,60 @@ watch([selectedAudioInput, useVADModel], async () => {
   await setupAudioMonitoring()
 })
 
-watch(selectedProvider, async (provider, _previous, onCleanup) => {
-  let cancelled = false
-  onCleanup(() => cancelled = true)
-  const shouldRestartMonitoring = isMonitoring.value
+watch([selectedProvider, activeTranscriptionProvider], async ([monitoringProvider, provider], _previous, onCleanup) => {
+  let isCurrentProviderChange = true
+  onCleanup(() => {
+    isCurrentProviderChange = false
+  })
+  const isCurrent = () => isCurrentProviderChange
+    && activeTranscriptionProvider.value === provider
+    && selectedProvider.value === monitoringProvider
 
-  if (shouldRestartMonitoring) {
-    isMonitoring.value = false
+  if (isMonitoring.value)
+    shouldRestartMonitoringAfterProviderChange = true
+
+  try {
     await stopAudioMonitoring()
   }
+  catch (cause) {
+    if (isCurrent()) {
+      shouldRestartMonitoringAfterProviderChange = false
+      error.value = errorMessageFrom(cause) ?? t('settings.pages.modules.hearing.sections.section.playground.transcription-failed')
+    }
+    return
+  }
+  if (!isCurrent())
+    return
 
   clearPlaygroundSegments()
   error.value = ''
   vadModelError.value = ''
 
-  if (!provider)
+  const restored = await hearingStore.restoreProviderModel(provider)
+  if (!isCurrent() || !restored)
     return
+
+  // Disabling stops monitoring while preserving the configured provider and its model.
+  if (!monitoringProvider) {
+    shouldRestartMonitoringAfterProviderChange = false
+    return
+  }
 
   await hearingStore.loadModelsForProvider(provider)
-  if (cancelled)
+  if (!isCurrent())
     return
+
   syncOpenAICompatibleSettings()
-
   const models = providerModels.value
-  if (models.length > 0 && !models.some(model => model.id === activeTranscriptionModel.value))
+  if (models.length > 0 && !activeTranscriptionModel.value) {
     activeTranscriptionModel.value = models[0].id
+    activeCustomModelName.value = models[0].id
+  }
 
-  if (shouldRestartMonitoring)
+  if (isCurrent() && hearingStore.enabled && shouldRestartMonitoringAfterProviderChange) {
+    shouldRestartMonitoringAfterProviderChange = false
     await setupAudioMonitoring()
+  }
 }, { immediate: true })
 
 // Opening this page does not request microphone permission. Monitoring requests it when the user starts it.
@@ -489,7 +527,7 @@ onUnmounted(() => {
 
             <!-- Manual input for providers without model listing or when no models are available -->
             <div
-              v-else-if="!supportsModelListing || (activeTranscriptionProvider === 'openai-compatible-audio-transcription' && providerModels.length === 0 && !isLoadingActiveProviderModels)"
+              v-else-if="!usesOpenRouterTranscription && (!supportsModelListing || (activeTranscriptionProvider === 'openai-compatible-audio-transcription' && providerModels.length === 0 && !isLoadingActiveProviderModels))"
               :class="['mt-2']"
             >
               <FieldInput
@@ -499,9 +537,9 @@ onUnmounted(() => {
               />
             </div>
 
-            <!-- No models available (for other providers with model listing but no models) -->
+            <!-- No models are available after catalog loading completes. -->
             <Alert
-              v-else-if="providerModels.length === 0 && !isLoadingActiveProviderModels && supportsModelListing"
+              v-else-if="providerModels.length === 0 && !isLoadingActiveProviderModels && supportsModelListing && !activeProviderModelError"
               tone="warning"
               :title="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_models')"
             >
@@ -509,11 +547,11 @@ onUnmounted(() => {
             </Alert>
 
             <!-- Using the new RadioCardManySelect component for providers with models -->
-            <template v-else-if="providerModels.length > 0 && supportsModelListing">
+            <template v-if="providerModels.length > 0 && supportsModelListing && !activeProviderModelError">
               <RadioCardManySelect
                 v-model="activeTranscriptionModel"
                 v-model:search-query="transcriptionModelSearchQuery"
-                :items="sortedProviderModels"
+                :items="providerModels"
                 :search-key-of="model => moduleModelSearchKey('transcription', activeTranscriptionProvider, model.id)"
                 :searchable="true"
                 :search-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_placeholder')"
@@ -521,6 +559,7 @@ onUnmounted(() => {
                 :search-no-results-description="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.no_search_results_description', { query: transcriptionModelSearchQuery })"
                 :search-results-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.search_results', { count: '{count}', total: '{total}' })"
                 :custom-input-placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.custom_model_placeholder')"
+                :allow-custom="usesOpenRouterTranscription"
                 :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
                 :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
                 expanded-class="mb-12"
