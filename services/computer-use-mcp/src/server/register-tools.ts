@@ -69,6 +69,13 @@ export async function resolvePendingAction(params: {
 
   if (decision.type === 'approve' && pending.action.kind === 'terminal_exec')
     throw new Error('Terminal actions use the Terminal approval protocol.')
+  if (decision.type === 'approve' && pending.action.kind === 'desktop_click_target') {
+    const candidateId = pending.action.input.candidateId
+    const bound = pending.preparedGrounding
+    if (!bound || bound.candidateId !== candidateId) {
+      return recordComputerUseRejection(runtime, pending, id, decision.source, 'Desktop click approval is missing prepared grounding.')
+    }
+  }
   if (decision.type === 'approve' && decision.signal?.aborted)
     return recordComputerUseRejection(runtime, pending, id, decision.source, 'Host approval was cancelled before dispatch')
 
@@ -151,7 +158,7 @@ async function recordComputerUseRejection(runtime: ComputerUseServerRuntime, pen
   return {
     isError: true,
     content: [textContent('Computer Use action was cancelled before dispatch.')],
-    structuredContent: { status: 'cancelled', pendingActionId: id },
+    structuredContent: { status: 'cancelled', pendingActionId: id, reason },
   }
 }
 

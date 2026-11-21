@@ -12,6 +12,7 @@ import {
   createTestConfig,
 } from '../test-fixtures'
 import { createExecuteAction } from './action-executor'
+import { resolvePendingAction } from './register-tools'
 
 function createRuntimeForActionTest(configOverrides: Partial<ComputerUseConfig> = {}) {
   const stateManager = new RunStateManager()
@@ -334,6 +335,110 @@ describe('createExecuteAction', () => {
     expect(result.isError).toBe(true)
     expect(result.content.find(item => item.type === 'text')?.text).toContain('Grounding snapshot changed during approval')
     expect(executor.click).not.toHaveBeenCalled()
+  })
+
+  it('clicks a bound target after the unbound snapshot freshness window', async () => {
+    const { runtime, executor, stateManager } = createRuntimeForActionTest()
+    stateManager.updateGroundingSnapshot({
+      snapshotId: 'dg_aged',
+      capturedAt: new Date(Date.now() - 30_000).toISOString(),
+      foregroundApp: 'Google Chrome',
+      windows: [],
+      screenshot: {
+        dataBase64: '',
+        mimeType: 'image/png',
+        path: '',
+        capturedAt: new Date().toISOString(),
+      },
+      targetCandidates: [
+        {
+          id: 't_0',
+          source: 'ax',
+          appName: 'Google Chrome',
+          role: 'AXButton',
+          label: 'Save',
+          bounds: { x: 100, y: 200, width: 80, height: 30 },
+          confidence: 0.95,
+          interactable: true,
+        },
+      ],
+      staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
+    } as any)
+    const executeAction = createExecuteAction(runtime)
+    const result = await executeAction({ kind: 'desktop_click_target', input: { candidateId: 't_0' } }, 'desktop_click_target', {
+      skipApprovalQueue: true,
+      boundGrounding: {
+        snapshotId: 'dg_aged',
+        candidateId: 't_0',
+        candidateLabel: 'Save',
+      },
+    })
+
+    expect(result.isError).not.toBe(true)
+    expect(executor.click).toHaveBeenCalledOnce()
+  })
+
+  it('rejects an approved desktop click that has no prepared grounding', async () => {
+    const { runtime, executor, session, stateManager } = createRuntimeForActionTest()
+    const pending = {
+      id: 'pa_missing',
+      createdAt: new Date().toISOString(),
+      toolName: 'desktop_click_target',
+      action: { kind: 'desktop_click_target' as const, input: { candidateId: 't_0' } },
+      context: { available: true, appName: 'Notes', platform: 'darwin' as const },
+      policy: {
+        allowed: true,
+        requiresApproval: true,
+        reasons: [],
+        riskLevel: 'medium' as const,
+        estimatedOperationUnits: 1,
+      },
+    }
+    const pendingActions = new Map<string, typeof pending>([[pending.id, pending]])
+    Object.assign(session, {
+      getPendingAction: (id: string) => pendingActions.get(id),
+      removePendingAction: (id: string) => pendingActions.delete(id),
+      listPendingActions: () => [...pendingActions.values()],
+    })
+    stateManager.updateGroundingSnapshot({
+      snapshotId: 'dg_live',
+      capturedAt: new Date().toISOString(),
+      foregroundApp: 'Notes',
+      windows: [],
+      screenshot: {
+        dataBase64: '',
+        mimeType: 'image/png',
+        path: '',
+        capturedAt: new Date().toISOString(),
+      },
+      targetCandidates: [
+        {
+          id: 't_0',
+          source: 'ax',
+          appName: 'Notes',
+          role: 'AXButton',
+          label: 'Save',
+          bounds: { x: 10, y: 10, width: 20, height: 20 },
+          confidence: 0.9,
+          interactable: true,
+        },
+      ],
+      staleFlags: { screenshot: false, ax: false, chromeSemantic: false },
+    } as any)
+
+    const result = await resolvePendingAction({
+      runtime,
+      executeAction: createExecuteAction(runtime),
+      id: pending.id,
+      decision: { type: 'approve', source: 'host-approval' },
+    })
+
+    expect(result.structuredContent).toMatchObject({
+      status: 'cancelled',
+      reason: 'Desktop click approval is missing prepared grounding.',
+    })
+    expect(executor.click).not.toHaveBeenCalled()
+    expect(pendingActions.has(pending.id)).toBe(false)
   })
 
   it('uses controlled-app context for desktop_click_target policy and refocuses only during execution', async () => {

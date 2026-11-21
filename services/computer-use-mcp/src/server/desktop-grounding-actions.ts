@@ -54,9 +54,12 @@ export async function executeDesktopClickTarget(
     throw new Error(`You already clicked candidate "${candidateId}" without calling computer_observe again. Call computer_observe to refresh the state before clicking the same target.`)
   }
 
-  const snapshotAge = Date.now() - new Date(snapshot.capturedAt).getTime()
-  if (snapshotAge > DESKTOP_CLICK_SNAPSHOT_MAX_AGE_MS) {
-    throw new Error(`Grounding snapshot "${snapshot.snapshotId}" is ${Math.round(snapshotAge / 1000)}s old. Call computer_observe to get a fresh snapshot before clicking.`)
+  // A bound click already proved snapshot identity. Auto review can outlast the unbound freshness window.
+  if (!boundGrounding) {
+    const snapshotAge = Date.now() - new Date(snapshot.capturedAt).getTime()
+    if (snapshotAge > DESKTOP_CLICK_SNAPSHOT_MAX_AGE_MS) {
+      throw new Error(`Grounding snapshot "${snapshot.snapshotId}" is ${Math.round(snapshotAge / 1000)}s old. Call computer_observe to get a fresh snapshot before clicking.`)
+    }
   }
 
   const snap = resolveSnapByCandidate(candidateId, snapshot)

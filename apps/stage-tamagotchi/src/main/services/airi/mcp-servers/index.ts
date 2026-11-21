@@ -609,15 +609,21 @@ export function createMcpManager(terminalApproval?: TerminalApprovalOptions): Mc
           let targetLabel: string | undefined
           let groundingSnapshotId: string | undefined
           if (actionKind === 'desktop_click_target') {
-            if (preparedGrounding) {
-              targetLabel = preparedGrounding.candidateLabel
-              groundingSnapshotId = preparedGrounding.snapshotId
+            const requestedCandidateId = typeof actionInput?.candidateId === 'string' ? actionInput.candidateId : ''
+            if (!preparedGrounding || preparedGrounding.candidateId !== requestedCandidateId) {
+              const rejected = await reject()
+              if (!rejected)
+                throw new Error('The Computer Use approval was already dispatched.')
+              const normalizedRejection = normalizeCallToolResult(rejected)
+              return {
+                ...normalizedRejection,
+                isError: true,
+                content: [{ type: 'text', text: 'Computer Use Auto refused the desktop click because prepared grounding is missing.' }, ...(normalizedRejection.content ?? [])],
+                structuredContent: { ...normalizedRejection.structuredContent, status: 'rejected', approval: 'auto', reason: 'Desktop click approval is missing prepared grounding.' },
+              }
             }
-            else if (typeof actionInput?.candidateId === 'string') {
-              const groundingCandidate = await readGroundingCandidate(actionInput.candidateId)
-              targetLabel = groundingCandidate?.label
-              groundingSnapshotId = groundingCandidate?.snapshotId
-            }
+            targetLabel = preparedGrounding.candidateLabel
+            groundingSnapshotId = preparedGrounding.snapshotId
           }
           const decision = decideComputerUseAuto({
             frozenAppName: autoGrant?.frozenAppName ?? '',
