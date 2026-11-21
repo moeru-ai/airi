@@ -2,7 +2,7 @@
 import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
 import { RadioCardSimple } from '@proj-airi/stage-ui/components'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
-import { SettingsCard } from '@proj-airi/ui'
+import { GhostButton, SettingsCard } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -32,6 +32,13 @@ const availableProviders = computed(() => [
     ? []
     : [
         {
+          id: 'openai-image',
+          name: t('settings.pages.providers.provider.openai-image.title'),
+          description: t('settings.pages.providers.provider.openai-image.description'),
+          icon: 'i-solar:gallery-bold-duotone',
+          configRoute: '/settings/providers/artistry/openai-image',
+        },
+        {
           id: 'replicate',
           name: t('settings.pages.modules.artistry.providers.replicate.name'),
           description: t('settings.pages.modules.artistry.providers.replicate.description'),
@@ -50,21 +57,21 @@ const availableProviders = computed(() => [
 </script>
 
 <template>
-  <div class="flex flex-col gap-6">
+  <div :class="['flex flex-col gap-6']">
     <SettingsCard>
       <div>
-        <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-400">
+        <h2 :class="['text-lg md:text-2xl', 'text-neutral-500 dark:text-neutral-400']">
           {{ t('settings.pages.modules.artistry.page.title') }}
         </h2>
-        <div class="text-neutral-400 dark:text-neutral-500">
+        <div :class="['text-neutral-400 dark:text-neutral-500']">
           {{ t('settings.pages.modules.artistry.page.description') }}
         </div>
       </div>
 
       <div class="max-w-full">
         <fieldset
-          flex="~ row gap-4"
-          min-w-0 of-x-auto scroll-smooth role="radiogroup"
+          :class="['flex flex-row gap-4', 'min-w-0 of-x-auto scroll-smooth']"
+          role="radiogroup"
         >
           <RadioCardSimple
             v-for="provider in availableProviders"
@@ -75,8 +82,17 @@ const availableProviders = computed(() => [
             :value="provider.id"
             :title="provider.name"
             :description="provider.description"
-            @click="router.push(provider.configRoute)"
-          />
+          >
+            <template v-if="provider.id !== 'none'" #topRight>
+              <GhostButton
+                size="sm"
+                icon="i-solar:settings-bold-duotone"
+                :aria-label="t('settings.dialogs.onboarding.configureProvider', { provider: provider.name })"
+                :title="t('settings.dialogs.onboarding.configureProvider', { provider: provider.name })"
+                @click.stop.prevent="router.push(provider.configRoute)"
+              />
+            </template>
+          </RadioCardSimple>
         </fieldset>
       </div>
     </SettingsCard>
@@ -84,7 +100,11 @@ const availableProviders = computed(() => [
 
   <div
     v-motion
-    class="pointer-events-none fixed bottom-0 right-[-1.25rem] top-[calc(100dvh-15rem)] z-[-1] size-60 flex items-center justify-center text-neutral-200/50 dark:text-neutral-600/20"
+    :class="[
+      'pointer-events-none fixed bottom-0 right-[-1.25rem] top-[calc(100dvh-15rem)] z-[-1]',
+      'size-60 flex items-center justify-center',
+      'text-neutral-200/50 dark:text-neutral-600/20',
+    ]"
     :initial="{ scale: 0.9, opacity: 0, x: 20 }"
     :enter="{ scale: 1, opacity: 1, x: 0 }"
     :duration="500"

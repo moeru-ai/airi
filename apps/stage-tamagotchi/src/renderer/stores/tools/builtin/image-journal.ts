@@ -10,6 +10,8 @@ import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { resolveArtistryConfigFromStore, useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { rawTool } from '@xsai/tool'
 
+import * as v from 'valibot'
+
 import { widgetsAdd } from '../../../../shared/eventa'
 
 export function getArtistryConfig(): ResolvedArtistryConfig {
@@ -58,6 +60,14 @@ const imageJournalParams = {
       enum: ['inline', 'widget', 'bg', 'bg_widget', null],
       description: 'Display mode: "inline" (in chat), "widget" (overlay), "bg" (environment), or "bg_widget" (both). Defaults to character preference.',
     },
+    width: {
+      type: ['integer', 'null'],
+      description: 'Output width in pixels. Set with height to override saved dimensions, including retries. OpenAI requires positive multiples of 16. Null uses defaults.',
+    },
+    height: {
+      type: ['integer', 'null'],
+      description: 'Output height in pixels. Set with width to override saved dimensions, including retries. OpenAI requires positive multiples of 16. Null uses defaults.',
+    },
   },
   required: [
     'action',
@@ -65,13 +75,27 @@ const imageJournalParams = {
     'title',
     'query',
     'mode',
+    'width',
+    'height',
   ],
   additionalProperties: false,
 } satisfies JsonSchema
 
-async function executeCreateImageJournalEntry(params: { prompt?: string, title?: string, mode?: 'inline' | 'widget' | 'bg' | 'bg_widget' }) {
+const actionSchema = v.object({
+  action: v.string(),
+  prompt: v.nullish(v.string()),
+  title: v.nullish(v.string()),
+  query: v.nullish(v.string()),
+  mode: v.nullish(v.picklist(['inline', 'widget', 'bg', 'bg_widget'])),
+  width: v.nullish(v.pipe(v.number(), v.safeInteger(), v.minValue(1))),
+  height: v.nullish(v.pipe(v.number(), v.safeInteger(), v.minValue(1))),
+})
+
+async function executeCreateImageJournalEntry(params: v.InferOutput<typeof actionSchema>) {
   if (!params.prompt?.trim())
     throw new Error('prompt is required for image_journal.create')
+  if ((params.width != null) !== (params.height != null))
+    throw new Error('Set both width and height to override the image size, or set both to null to use defaults.')
 
   const backgroundStore = useBackgroundStore()
   const cardStore = useAiriCardStore()
@@ -98,11 +122,15 @@ async function executeCreateImageJournalEntry(params: { prompt?: string, title?:
 
   try {
     const artistryResult = await generateHeadless({
-      prompt: artistryConfig.promptPrefix ? `${artistryConfig.promptPrefix} ${params.prompt}` : params.prompt as string,
-      model: artistryConfig.model as string,
-      provider: artistryConfig.provider as string,
-      options: JSON.parse(JSON.stringify(artistryConfig.options || {})),
-      globals: JSON.parse(JSON.stringify(artistryConfig.globals || {})),
+      prompt: artistryConfig.promptPrefix ? `${artistryConfig.promptPrefix} ${params.prompt}` : params.prompt,
+      model: artistryConfig.model,
+      provider: artistryConfig.provider,
+      // Explicit tool dimensions replace saved options as a pair. Prompt text alone does not set the API size.
+      options: JSON.parse(JSON.stringify({
+        ...artistryConfig.options,
+        ...(params.width != null && params.height != null ? { width: params.width, height: params.height } : {}),
+      })),
+      globals: JSON.parse(JSON.stringify(artistryConfig.globals)),
     })
 
     if (artistryResult.error || (!artistryResult.base64 && !artistryResult.imageUrl)) {
@@ -146,7 +174,7 @@ async function executeCreateImageJournalEntry(params: { prompt?: string, title?:
             status: 'done',
             entryId,
             imageUrl: artistryResult.imageUrl || artistryResult.base64,
-            prompt: params.prompt as string,
+            prompt: params.prompt,
             title,
             _skipIngestion: true,
           },
@@ -174,7 +202,7 @@ async function executeCreateImageJournalEntry(params: { prompt?: string, title?:
   }
 }
 
-async function executeSetAsBackground(params: { query?: string }) {
+async function executeSetAsBackground(params: { query?: string | null }) {
   if (!params.query?.trim())
     return 'Error: query is required for image_journal.apply. Provide a title or ID to search for.'
 
@@ -217,7 +245,8 @@ async function executeSetAsBackground(params: { query?: string }) {
   return `No match for "${params.query}".${available.length > 0 ? ` Try: ${available.join(', ')}` : ''}`
 }
 
-async function executeImageJournalAction(params: any) {
+async function executeImageJournalAction(input: unknown) {
+  const params = v.parse(actionSchema, input)
   if (params.action === 'create')
     return await executeCreateImageJournalEntry(params)
   if (params.action === 'apply' || params.action === 'set_as_background')
