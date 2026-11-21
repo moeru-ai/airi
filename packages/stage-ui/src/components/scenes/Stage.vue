@@ -36,6 +36,7 @@ import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_val
 import { useLive2DStageMotionMagic } from '../../features/motions/live2d/use-live2d-stage-motion-magic'
 import { createAvatarTouchAggregator } from '../../libs/avatar-touch/notify'
 import { syncedRoles, usePiniaSynced } from '../../libs/pinia/synced-context'
+import { createSerializedPlayback } from '../../libs/speech/serialized-playback'
 import { getSpeechBusContext, speechOutputGetPlaybackState, speechOutputPlaybackStateChangedEvent } from '../../services/speech/bus'
 import { useLlmStreamingControlStore } from '../../stores/ai/chat-llm/streaming-control'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
@@ -395,6 +396,7 @@ watch(speechVolume, (volume) => {
   speechDestination.gain.setTargetAtTime(volume, audioContext.currentTime, 0.05)
 }, { immediate: true })
 const playback = new Playback(new BrowserPlayback(audioContext, { destination: speechDestination }))
+const serializedPlayback = createSerializedPlayback(playback)
 
 function resetSpeakingState() {
   nowSpeaking.value = false
@@ -426,7 +428,7 @@ watch([() => shownChatSpeech.value?.provider, () => shownChatSpeech.value?.model
 
 const disconnectVoiceOutput = voice.connectOutput((turn) => {
   const output = {
-    playback,
+    playback: serializedPlayback,
     onSpecial: (special: string) => void playSpecialToken(special, { turnId: turn.turnId }),
     onPlaybackStart: ({ text }: { text: string }) => {
       playingCount += 1
@@ -460,7 +462,7 @@ const disconnectVoiceOutput = voice.connectOutput((turn) => {
     console.error('Speech output is unavailable', error)
     return { ...output, synthesize: async () => null }
   }
-}, playback)
+}, serializedPlayback)
 
 function startLipSyncLoop() {
   if (lipSyncLoopId.value)
